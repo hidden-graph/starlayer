@@ -1,0 +1,10 @@
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix ex: <http://example.org/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+ex:LogicalOrShape a sh:NodeShape ;
+  sh:targetNode ex:alice ;
+  sh:or (
+    [ sh:property [ sh:path ex:age ; sh:datatype xsd:integer ] ]
+    [ sh:property [ sh:path ex:name ; sh:minCount 1 ] ]
+  ) .

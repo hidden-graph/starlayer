@@ -1,0 +1,20 @@
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix ex: <http://example.org/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+ex:identity a sh:SPARQLFunction ;
+  sh:parameter [ sh:path ex:arg1 ; sh:class rdfs:Resource ] ;
+  sh:returnType rdfs:Resource ;
+  sh:select """
+    PREFIX ex: <http://example.org/>
+    SELECT ($arg1 AS ?result) WHERE {}
+  """ .
+
+ex:FunctionExprShape a sh:NodeShape ;
+  sh:targetNode ex:alice ;
+  sh:rule [
+    a sh:TripleRule ;
+    sh:subject sh:this ;
+    sh:predicate ex:derivedFn ;
+    sh:object [ ex:identity ( [ sh:path ex:says ] ) ] ;
+  ] .

@@ -1,0 +1,11 @@
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix ex: <http://example.org/> .
+
+# Mirrors the SHACL 1.2 Core spec's own example for sh:shape (explicit
+# shape target, declared in the data graph).
+
+ex:PersonShape a sh:NodeShape ;
+  sh:property [
+    sh:path ex:age ;
+    sh:minCount 1 ;
+  ] .

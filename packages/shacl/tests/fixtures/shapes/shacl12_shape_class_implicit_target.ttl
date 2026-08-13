@@ -1,0 +1,13 @@
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix ex: <http://example.org/> .
+
+# SHACL 1.2's sh:ShapeClass is a shortcut for the same "implicit class
+# target" mechanism as rdfs:Class (Core spec), but is a brand-new predicate
+# pySHACL itself has no knowledge of - unlike plain rdfs:Class, which
+# pySHACL already resolves natively (Shape.implicit_class_targets()).
+
+ex:Person a sh:ShapeClass, sh:NodeShape ;
+  sh:property [
+    sh:path ex:age ;
+    sh:minCount 1 ;
+  ] .

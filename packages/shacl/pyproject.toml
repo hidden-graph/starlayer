@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "starshacl"
+version = "0.1.0"
+description = "pySHACL wrapper with RDF 1.2 triple-term support"
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [
+    { name = "John Clements", email = "clements.john.j@gmail.com" }
+]
+requires-python = ">=3.10"
+dependencies = [
+    "rdflib>=7.0",
+    "starlayergraph>=0.1.0",
+    "pyshacl>=0.40.1"
+]
+keywords = ["rdf", "rdf12", "shacl", "pyshacl", "triple-terms", "rdf-star"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Python Modules"
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8.0"]
+
+[project.urls]
+Homepage = "https://github.com/hidden-graph/starlayer/tree/main/packages/shacl"
+Repository = "https://github.com/hidden-graph/starlayer"
+Issues = "https://github.com/hidden-graph/starlayer/issues"
+
+[tool.setuptools.packages.find]
+include = ["starshacl*"]
+
+[tool.setuptools.package-data]
+starshacl = ["assets/*.ttl"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

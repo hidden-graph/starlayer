@@ -1,0 +1,18 @@
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix ex: <http://example.org/> .
+
+ex:ReifyShape a sh:NodeShape ;
+  sh:targetNode ex:bob ;
+  sh:rule [
+    a sh:SPARQLRule ;
+    sh:construct """
+      PREFIX ex: <http://example.org/>
+      PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+      CONSTRUCT {
+        ex:stmt1 rdf:reifies <<( ex:bob ex:knows ex:carol )>> .
+      }
+      WHERE {
+        $this ex:knows ex:carol .
+      }
+    """ ;
+  ] .

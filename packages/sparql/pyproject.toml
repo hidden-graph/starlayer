@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "starsparql"
+version = "0.1.0"
+description = "Translate SPARQL 1.2 queries into and out of an RDF representation of their algebra"
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [{ name = "John Clements", email = "clements.john.j@gmail.com" }]
+requires-python = ">=3.10"
+dependencies = [
+    "rdflib>=7.0",
+    # Not published to PyPI. Install the sibling package first:
+    #   pip install -e ../graph
+    "starlayergraph",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=7", "hypothesis>=6", "pyshacl>=0.25", "requests>=2"]
+
+[project.urls]
+Homepage = "https://github.com/hidden-graph/starlayer/tree/main/packages/sparql"
+Repository = "https://github.com/hidden-graph/starlayer"
+Issues = "https://github.com/hidden-graph/starlayer/issues"
+
+[tool.setuptools.packages.find]
+include = ["starsparql*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "w3c_sparql12: W3C SPARQL 1.2 test suite (tests/test_w3c_sparql12.py) - run download_w3c_sparql12_tests.py first",
+]

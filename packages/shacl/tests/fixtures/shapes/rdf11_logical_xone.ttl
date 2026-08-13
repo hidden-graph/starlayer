@@ -1,0 +1,9 @@
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix ex: <http://example.org/> .
+
+ex:LogicalXoneShape a sh:NodeShape ;
+  sh:targetNode ex:alice ;
+  sh:xone (
+    [ sh:property [ sh:path ex:p ; sh:hasValue ex:v1 ] ]
+    [ sh:property [ sh:path ex:p ; sh:hasValue ex:v2 ] ]
+  ) .

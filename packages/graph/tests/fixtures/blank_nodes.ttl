@@ -1,0 +1,4 @@
+@prefix ex: <http://example.org/> .
+
+ex:alice ex:address [ ex:city "Springfield" ; ex:zip "12345" ] .
+ex:doc ex:items ( ex:a ex:b ex:c ) .

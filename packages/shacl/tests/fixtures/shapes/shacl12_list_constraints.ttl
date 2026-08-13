@@ -1,0 +1,25 @@
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix ex: <http://example.org/> .
+
+# Mirrors the SHACL 1.2 Core spec's own examples for the four List
+# constraint components.
+
+ex:AgendaShape a sh:NodeShape ;
+  sh:targetClass ex:Agenda ;
+  sh:property ex:AgendaShape-speakerOrder .
+ex:AgendaShape-speakerOrder a sh:PropertyShape ;
+  sh:path ex:speakerOrder ;
+  sh:memberShape [ sh:nodeKind sh:IRI ] .
+
+ex:PersonShape a sh:NodeShape ;
+  sh:targetClass ex:Person ;
+  sh:property ex:PersonShape-skills, ex:PersonShape-hobbies, ex:PersonShape-preferences .
+ex:PersonShape-skills a sh:PropertyShape ;
+  sh:path ex:skills ;
+  sh:minListLength 1 .
+ex:PersonShape-hobbies a sh:PropertyShape ;
+  sh:path ex:hobbies ;
+  sh:maxListLength 2 .
+ex:PersonShape-preferences a sh:PropertyShape ;
+  sh:path ex:preferences ;
+  sh:uniqueMembers true .

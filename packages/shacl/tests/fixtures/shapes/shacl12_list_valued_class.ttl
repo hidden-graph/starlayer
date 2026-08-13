@@ -1,0 +1,12 @@
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix ex: <http://example.org/> .
+
+# Mirrors the SHACL 1.2 Core spec's own list-based sh:class example (union
+# semantics: pet must be Cat OR Dog).
+
+ex:ClassListExampleShape a sh:NodeShape ;
+  sh:targetClass ex:Person ;
+  sh:property ex:ClassListExampleShape-pet .
+ex:ClassListExampleShape-pet a sh:PropertyShape ;
+  sh:path ex:pet ;
+  sh:class ( ex:Cat ex:Dog ) .

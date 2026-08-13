@@ -1,0 +1,9 @@
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix ex: <http://example.org/> .
+
+ex:SaysShape a sh:NodeShape ;
+  sh:targetNode ex:alice ;
+  sh:property [
+    sh:path ex:says ;
+    sh:nodeKind sh:Literal ;
+  ] .

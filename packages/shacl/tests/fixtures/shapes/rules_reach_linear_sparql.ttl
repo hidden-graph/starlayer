@@ -1,0 +1,25 @@
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix ex: <http://example.org/> .
+
+# Unlike rules_reach_sparql.ttl (whose self-referential join against the
+# growing ex:reach relation itself roughly doubles the covered distance each
+# iteration), this rule joins against a separate, immutable ex:base relation,
+# so ex:reach grows by exactly one hop per iteration - giving predictable,
+# linear iteration-count scaling for testing behavior near pySHACL's rule
+# iteration limit (100).
+
+ex:ReachShape a sh:NodeShape ;
+  sh:targetSubjectsOf ex:reach ;
+  sh:rule [
+    a sh:SPARQLRule ;
+    sh:construct """
+      PREFIX ex: <http://example.org/>
+      CONSTRUCT {
+        $this ex:reach ?z .
+      }
+      WHERE {
+        $this ex:reach ?y .
+        ?y ex:base ?z .
+      }
+    """ ;
+  ] .

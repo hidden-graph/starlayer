@@ -1,0 +1,11 @@
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix ex: <http://example.org/> .
+
+# Mirrors the SHACL 1.2 Core spec's own list-based sh:nodeKind example.
+
+ex:NodeKindExampleShape a sh:NodeShape ;
+  sh:targetSubjectsOf ex:knows ;
+  sh:property ex:NodeKindExampleShape-knows .
+ex:NodeKindExampleShape-knows a sh:PropertyShape ;
+  sh:path ex:knows ;
+  sh:nodeKind ( sh:BlankNode sh:IRI ) .

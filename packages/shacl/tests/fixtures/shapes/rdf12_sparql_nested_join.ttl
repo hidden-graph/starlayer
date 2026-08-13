@@ -1,0 +1,26 @@
+@prefix ex: <http://example.org/> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+
+# Broader binding-shape coverage: unlike the other rdf12_sparql_*.ttl
+# fixtures (a single WHERE pattern extracting a triple-term accessor), this
+# constraint chains a triple-term OBJECT() extraction into a SECOND,
+# unrelated join against the rest of the graph (ex:age), confirming
+# StarlightGraph.query() handles a multi-pattern nested join correctly, not
+# just a single flat pattern.
+
+ex:NestedJoinShape a sh:NodeShape ;
+  sh:targetNode ex:alice ;
+  sh:sparql [
+    a sh:SPARQLConstraint ;
+    sh:message "the object of what $this says must not be a minor" ;
+    sh:select """
+        PREFIX ex: <http://example.org/>
+        SELECT $this WHERE {
+            $this ex:says ?tt .
+            FILTER(isTripleTerm(?tt))
+            BIND(OBJECT(?tt) AS ?obj)
+            ?obj ex:age ?age .
+            FILTER(?age < 18)
+        }
+    """ ;
+  ] .

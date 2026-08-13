@@ -1,0 +1,11 @@
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix ex: <http://example.org/> .
+
+ex:UnionExprShape a sh:NodeShape ;
+  sh:targetNode ex:alice ;
+  sh:rule [
+    a sh:TripleRule ;
+    sh:subject sh:this ;
+    sh:predicate ex:derivedUnion ;
+    sh:object [ sh:union ( [ sh:path ex:says ] [ sh:path ex:notes ] ) ] ;
+  ] .

@@ -1,0 +1,2224 @@
+RDF 1.2 Turtle
+Snapshot source: https://www.w3.org/TR/rdf12-turtle/
+Status at fetch time: W3C Working Draft 12 June 2026
+Published: 2026-06-12
+Copyright © 2004-2026 World Wide Web Consortium. Distributed under the
+W3C Software and Document License: https://www.w3.org/copyright/software-license-2023/
+See docs/spec_snapshots/README.md for how this snapshot is used and regenerated.
+======================================================================
+
+[![W3C](https://www.w3.org/StyleSheets/TR/2021/logos/W3C) ](https://www.w3.org/)
+
+# RDF 1.2 Turtle
+
+## Terse RDF Triple Language
+
+[W3C Working Draft](https://www.w3.org/standards/types#WD) 12 June 2026
+
+More details about this document
+
+This version:
+     <https://www.w3.org/TR/2026/WD-rdf12-turtle-20260612/>
+Latest published version:
+     <https://www.w3.org/TR/rdf12-turtle/>
+Latest editor's draft:
+    <https://w3c.github.io/rdf-turtle/spec/>
+History:
+     <https://www.w3.org/standards/history/rdf12-turtle/>
+     [Commit history](https://github.com/w3c/rdf-turtle/commits/)
+Test suite:
+    <https://w3c.github.io/rdf-tests/rdf/rdf12/rdf-turtle/>
+Latest Recommendation:
+    <https://www.w3.org/TR/turtle>
+Editors: 
+     Gregg Kellogg (until 2025-09-06), in memoriam
+     Andy Seaborne
+     Dominik Tomaszuk[ ](https://orcid.org/0000-0003-1806-067X)
+Former editors: 
+     Eric Prud'hommeaux[ ](https://orcid.org/0000-0003-1775-9921) (RDF 1.1) 
+     Gavin Carothers (RDF 1.1) 
+Authors: 
+     [David Beckett](https://www.dajobe.org/)
+     [Tim Berners-Lee](https://www.w3.org/People/Berners-Lee/)[ ](https://orcid.org/0000-0003-1279-3709) ([W3C](https://www.w3.org/)) 
+     [Eric Prud'hommeaux](https://www.w3.org/People/Eric/)[ ](https://orcid.org/0000-0003-1775-9921) ([W3C](https://www.w3.org/)) 
+     [Gavin Carothers](https://gavin.carothers.name/) ([Lex Machina, Inc](https://lexmachina.com/)) 
+Feedback:
+     [GitHub w3c/rdf-turtle](https://github.com/w3c/rdf-turtle/) ([pull requests](https://github.com/w3c/rdf-turtle/pulls/), [new issue](https://github.com/w3c/rdf-turtle/issues/new/choose), [open issues](https://github.com/w3c/rdf-turtle/issues/)) 
+    [public-rdf-star-wg@w3.org](mailto:public-rdf-star-wg@w3.org?subject=%5Brdf12-turtle%5D%20YOUR%20TOPIC%20HERE) with subject line `[rdf12-turtle] _… message topic …_` ([archives](https://lists.w3.org/Archives/Public/public-rdf-star-wg))
+
+[Copyright](https://www.w3.org/policies/#copyright) © 2008-2026 [World Wide Web Consortium](https://www.w3.org/). W3C® [liability](https://www.w3.org/policies/#Legal_Disclaimer), [trademark](https://www.w3.org/policies/#W3C_Trademarks) and [permissive document license](https://www.w3.org/copyright/software-license-2023/ "W3C Software and Document Notice and License") rules apply. 
+
+* * *
+
+## Abstract
+
+The Resource Description Framework (RDF) is a general-purpose language for representing information in the Web.
+
+This document defines a textual syntax for RDF called Turtle that allows an [RDF graph](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-graph) to be completely written in a compact and natural text form, with abbreviations for common usage patterns and datatypes. Turtle provides levels of compatibility with the N-Triples [RDF12-N-TRIPLES] format as well as the triple pattern syntax of [SPARQL 1.2 Query Language](https://www.w3.org/TR/sparql12-query/) W3C Recommendation.
+
+RDF 1.2 Turtle introduces [triple terms](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term) as a fourth kind of [RDF term](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-term) which can be used as the [object](https://www.w3.org/TR/rdf12-concepts/#dfn-object) of another [triple](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-triple), making it possible to make statements about other statements. [Triple terms](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term) are typically not used explicitly as the `reifiedTriple` construction is generally preferred. RDF 1.2 Turtle also adds support for [directional language-tagged strings](https://www.w3.org/TR/rdf12-concepts/#dfn-dir-lang-string).
+
+In addition, RDF 1.2 Turtle introduces an annotation syntax which allows [triple terms](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term) to also be asserted.
+
+## Status of This Document
+
+ _This section describes the status of this document at the time of its publication. A list of current W3C publications and the latest revision of this technical report can be found in the [W3C standards and drafts index](https://www.w3.org/TR/)._
+
+This document is a part of the RDF 1.2 document suite. The document defines Turtle, the Terse RDF Triple Language, a concrete syntax for RDF [RDF12-CONCEPTS].
+
+This document was published by the [RDF & SPARQL Working Group](https://www.w3.org/groups/wg/rdf-star) as a Working Draft using the [Recommendation track](https://www.w3.org/policies/process/20250818/#recs-and-notes). 
+
+Publication as a Working Draft does not imply endorsement by W3C and its Members. 
+
+This is a draft document and may be updated, replaced, or obsoleted by other documents at any time. It is inappropriate to cite this document as other than a work in progress. Future updates to this upcoming Recommendation may incorporate [new features](https://www.w3.org/policies/process/20250818/#allow-new-features). 
+
+This document was produced by a group operating under the [W3C Patent Policy](https://www.w3.org/policies/patent-policy/). W3C maintains a [public list of any patent disclosures](https://www.w3.org/groups/wg/rdf-star/ipr) made in connection with the deliverables of the group; that page also includes instructions for disclosing a patent. An individual who has actual knowledge of a patent that the individual believes contains [Essential Claim(s)](https://www.w3.org/policies/patent-policy/#def-essential) must disclose the information in accordance with [section 6 of the W3C Patent Policy](https://www.w3.org/policies/patent-policy/#sec-Disclosure). 
+
+This document is governed by the [18 August 2025 W3C Process Document](https://www.w3.org/policies/process/20250818/). 
+
+### Set of Documents
+
+This document is one of eleven RDF 1.2 and twelve SPARQL 1.2 documents produced by the [RDF & SPARQL Working Group](https://www.w3.org/groups/wg/rdf-star).
+
+List of documents
+
+RDF 1.2 Documents:
+
+  1. [What’s New in RDF 1.2](https://w3c.github.io/rdf-new/spec/)
+  2. [RDF 1.2 Concepts and Abstract Data Model](https://www.w3.org/TR/rdf12-concepts/)
+  3. [RDF 1.2 N-Quads](https://www.w3.org/TR/rdf12-n-quads/)
+  4. [RDF 1.2 N-Triples](https://www.w3.org/TR/rdf12-n-triples/)
+  5. [RDF 1.2 Primer](https://www.w3.org/TR/rdf12-primer/)
+  6. [RDF 1.2 Schema](https://www.w3.org/TR/rdf12-schema/)
+  7. [RDF 1.2 Semantics](https://www.w3.org/TR/rdf12-semantics/)
+  8. [RDF 1.2 TriG](https://www.w3.org/TR/rdf12-trig/)
+  9. RDF 1.2 Turtle (this document)
+  10. [RDF 1.2 XML Syntax](https://www.w3.org/TR/rdf12-xml/)
+  11. [RDF 1.2 Interoperability](https://w3c.github.io/rdf-interop/spec/)
+
+
+
+SPARQL 1.2 Documents:
+
+  1. [What’s New in SPARQL 1.2](https://w3c.github.io/sparql-new/spec/)
+  2. [SPARQL 1.2 Concepts](https://w3c.github.io/sparql-concepts/spec/)
+  3. [SPARQL 1.2 Query Language](https://www.w3.org/TR/sparql12-query/)
+  4. [SPARQL 1.2 Update](https://www.w3.org/TR/sparql12-update/)
+  5. [SPARQL 1.2 Service Description](https://www.w3.org/TR/sparql12-service-description/)
+  6. [SPARQL 1.2 Federated Query](https://www.w3.org/TR/sparql12-federated-query/)
+  7. [SPARQL 1.2 Query Results JSON Format](https://www.w3.org/TR/sparql12-results-json/)
+  8. [SPARQL 1.2 Query Results CSV and TSV Formats](https://www.w3.org/TR/sparql12-results-csv-tsv/)
+  9. [SPARQL 1.2 Query Results XML Format](https://www.w3.org/TR/sparql12-results-xml/)
+  10. [SPARQL 1.2 Entailment Regimes](https://www.w3.org/TR/sparql12-entailment/)
+  11. [SPARQL 1.2 Protocol](https://www.w3.org/TR/sparql12-protocol/)
+  12. [SPARQL 1.2 Graph Store Protocol](https://www.w3.org/TR/sparql12-graph-store-protocol/)
+
+
+
+## Table of Contents
+
+  1. Abstract
+  2. Status of This Document
+     1. Set of Documents
+  3. 1\. Introduction
+  4. 2\. Turtle Language
+     1. 2.1 Simple Triples
+     2. 2.2 Predicate Lists
+     3. 2.3 Object Lists
+     4. 2.4 Version Announcement
+     5. 2.5 IRIs
+     6. 2.6 RDF Literals
+        1. 2.6.1 Quoted Literals
+        2. 2.6.2 Numbers
+        3. 2.6.3 Booleans
+     7. 2.7 RDF Blank Nodes
+     8. 2.8 Nesting of Blank Nodes without Blank Node Identifiers
+     9. 2.9 Collections
+     10. 2.10 Triple Terms
+     11. 2.11 Reifying Triples
+        1. 2.11.1 Annotation Syntax
+  5. 3\. Examples
+  6. 4\. Turtle compared to SPARQL
+  7. 5\. Conformance
+     1. 5.1 Media Type and Content Encoding
+  8. 6\. Turtle Grammar
+     1. 6.1 White Space
+     2. 6.2 Comments
+     3. 6.3 IRI References
+     4. 6.4 Escape Sequences
+     5. 6.5 Grammar
+     6. 6.6 Selected Terminal Literal Strings
+  9. 7\. Parsing
+     1. 7.1 Parser State
+     2. 7.2 RDF Term Constructors
+     3. 7.3 RDF Triples Constructors
+        1. 7.3.1 Reifiers
+        2. 7.3.2 Reified Triples
+        3. 7.3.3 Annotations
+        4. 7.3.4 Annotation Blocks
+        5. 7.3.5 Property Lists
+        6. 7.3.6 Collections
+     4. 7.4 Parsing Example
+  10. A. Embedding Turtle in HTML documents
+     1. A.1 XHTML
+     2. A.2 Parsing Turtle in HTML
+  11. B. Privacy Considerations
+  12. C. Security Considerations
+  13. D. Internet Media Type and File Extension
+  14. E. Acknowledgments
+     1. E.1 Acknowledgments for RDF 1.1
+     2. E.2 Acknowledgments for RDF 1.2
+  15. F. Changes between RDF 1.1 and RDF 1.2
+  16. G. Index
+     1. G.1 Terms defined by this specification
+     2. G.2 Terms defined by reference
+  17. H. References
+     1. H.1 Normative references
+     2. H.2 Informative references
+
+
+
+## 1\. Introduction
+
+ _This section is non-normative._
+
+This document defines Turtle, the Terse RDF Triple Language, a concrete syntax for RDF [RDF12-CONCEPTS]. 
+
+A Turtle document is a textual representations of an [RDF graph](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-graph). The following Turtle document describes the relationship between Green Goblin and Spiderman. 
+
+Example 1: Example Turtle
+    
+    
+    BASE <http://example.org/>
+    PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+    PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+    PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+    PREFIX rel: <http://www.perceive.net/schemas/relationship/>
+    
+    <#green-goblin>
+      rel:enemyOf <#spiderman> ;
+      a foaf:Person ;    # in the context of the Marvel universe
+      foaf:name "Green Goblin" .
+    
+    <#spiderman>
+      rel:enemyOf <#green-goblin> ;
+      a foaf:Person ;
+      foaf:name "Spiderman", "Человек-паук"@ru .
+    
+
+This example introduces many of features of the Turtle language: BASE and Relative IRI references, PREFIX and prefixed names, predicate lists separated by `;`, object lists separated by `,`, the token `a`, and literals. 
+
+The Turtle grammar for `triples` is a subset of [SPARQL 1.2 Query Language](https://www.w3.org/TR/sparql12-query/) [SPARQL12-QUERY] grammar for [`TriplesBlock`](https://www.w3.org/TR/sparql12-query/#rTriplesBlock). The two grammars share production and terminal names where possible. 
+
+The construction of an [RDF graph](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-graph) from a Turtle document is defined in Turtle Grammar and Parsing. 
+
+## 2\. Turtle Language
+
+ _This section is non-normative._
+
+A Turtle document allows writing down an [RDF graph](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-graph) in a compact textual form. An [RDF graph](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-graph) is made up of [triples](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-triple) consisting of a subject, predicate and object.
+
+Comments may follow a `#` that is not part of another lexical token, and continue to the end of the line.
+
+### 2.1 Simple Triples
+
+The simplest triple statement is a sequence of ([subject](https://www.w3.org/TR/rdf12-concepts/#dfn-subject), [predicate](https://www.w3.org/TR/rdf12-concepts/#dfn-predicate), and [object](https://www.w3.org/TR/rdf12-concepts/#dfn-object)) terms, forming an [RDF triple](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-triple), terminated by a period (`.`). White space (`spaces`, `tabs`, `LFs`, and/or `CRs`) may surround terms, except where significant as noted in the grammar.
+
+Example 2: Simple Triple
+    
+    
+    <http://example.org/#spiderman>
+      <http://www.perceive.net/schemas/relationship/enemyOf>
+        <http://example.org/#green-goblin> .
+    
+
+### 2.2 Predicate Lists
+
+Often the same subject will be referenced by a number of predicates. The `predicateObjectList` production matches a series of predicates and objects, separated by `;`, following a subject. This expresses a series of RDF Triples with that subject and each predicate and object allocated to one triple. Thus, the `;` is used to repeat the subject of triples that vary only in predicate and object [RDF terms](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-term).
+
+These two examples are equivalent ways of writing the triples about Spiderman.
+
+Example 3: Predicate List
+    
+    
+    <http://example.org/#spiderman> <http://www.perceive.net/schemas/relationship/enemyOf> <http://example.org/#green-goblin> ;
+      <http://xmlns.com/foaf/0.1/name> "Spiderman" .
+    
+
+Example 4: Predicate List expanded to Simple Triples
+    
+    
+    <http://example.org/#spiderman> <http://www.perceive.net/schemas/relationship/enemyOf> <http://example.org/#green-goblin> .
+    <http://example.org/#spiderman> <http://xmlns.com/foaf/0.1/name> "Spiderman" .
+    
+
+### 2.3 Object Lists
+
+As with predicates, the same subject and predicate often repeat with different objects. The `objectList` production matches a series of objects separated by `,` following a predicate. This expresses a series of RDF Triples with the same subject and predicate and each object allocated to one triple. Thus, the `,` is used to repeat the subject and predicate of triples that only differ in the object [RDF term](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-term).
+
+These two examples are equivalent ways of writing Spiderman's name in two languages.
+
+Example 5: Object List
+    
+    
+    <http://example.org/#spiderman> <http://xmlns.com/foaf/0.1/name> "Spiderman", "Человек-паук"@ru .
+    
+
+Example 6: Object List expanded to Simple Triples
+    
+    
+    <http://example.org/#spiderman> <http://xmlns.com/foaf/0.1/name> "Spiderman" .
+    <http://example.org/#spiderman> <http://xmlns.com/foaf/0.1/name> "Человек-паук"@ru .
+    
+
+There are four [RDF terms](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-term) defined in RDF Concepts: [IRIs](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) (Internationalized Resource Identifiers), [literals](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-literal), [blank nodes](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node), and [triple terms](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term); Turtle provides a number of ways of writing each. 
+
+### 2.4 Version Announcement
+
+The Turtle language has evolved since its origin, and RDF 1.2 adds new syntax. RDF 1.2 Turtle introduces the `VERSION` and `@version` directives along with an optional `version` Media Type parameter. When serializing Turtle with new features such as [initial text direction](https://www.w3.org/TR/rdf12-concepts/#dfn-base-direction) or [triple terms](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term), authors can announce the use of the new syntax forms using these directives. 
+
+Example 7: Version announcement
+    
+    
+    VERSION "1.2"
+    PREFIX : <http://example.com/>
+    PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+    :a :name "Alice" ~ :t {| :statedBy :bob ; :recorded "2021-07-07"^^xsd:date |} .
+    
+
+Alternatively, the old-style directive can be used (note that there is a trailing "`.`"):
+
+Example 8: Old-style version announcement
+    
+    
+    @version "1.2" .
+    @prefix : <http://example.com/> .
+    @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+    :a :name "Alice" ~ :t {| :statedBy :bob ; :recorded "2021-07-07"^^xsd:date |} .
+    
+
+When providing content over HTTP, servers can announce the version using the optional `version` Media Type parameter:
+
+Example 9: HTTP response announcing Turtle version 1.2 response
+    
+    
+    HTTP/1.1 200 OK
+    Content-Type: text/turtle; version=1.2
+    
+
+When using RDF 1.2-specific features, such as [initial text direction](https://www.w3.org/TR/rdf12-concepts/#dfn-base-direction), the specific RDF version should be announced using either `VERSION` or `@version` directives early in the document. This allows parsers that do not support these features to detect the presense of such features early, and potentially inform the user, giving them an opportunity to stop the job or otherwise act on the fact that some amount of the input data will not be processed as desired. 
+
+Multiple version directives may appear in a Turtle document. The directive applies to the part of the document following the directive, until another directive is encountered or the end of the document is reached. 
+
+In the absence of a current version directive, any version specified as part of the Media Type is considered. In the absence of any version information, a sensible default is `"1.1"`, to maximize compatibility with the previous version of Turtle [TURTLE]. In any case, the version announcement is merely a hint; parsers are not required to reject features that are outside the announced version (but could signal them with a warning). 
+
+Note
+
+Version labels are defined in [RDF 1.2 Concepts and Abstract Data Model](https://www.w3.org/TR/rdf12-concepts/) section [2.1 Version Labels](https://www.w3.org/TR/rdf12-concepts/#defined-version-labels). Processors may treat unrecognized labels as an error or as a warning. 
+
+While `"1.1"` is an acceptable version label, its use in a `VERSION` or `@version` directive is discouraged, as it would needlessly cause Turtle 1.1 parsers to fail. 
+
+### 2.5 IRIs
+
+[IRIs](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) may be written as [resolved](https://www.rfc-editor.org/rfc/rfc3986#section-5) IRIs, [Relative IRI references](https://www.w3.org/TR/rdf12-concepts/#dfn-relative-iri), or prefixed names. Relative and resolved IRIs are preceded by `<`, followed by `>`, and may contain numeric escape sequences (described below). For example, `<http://example.org/#green-goblin>`. 
+
+[Relative IRI references](https://www.w3.org/TR/rdf12-concepts/#dfn-relative-iri) like `<#green-goblin>` are resolved relative to the current base IRI. A new base IRI can be defined using the `@base` or `BASE` directive. Specifics of this operation are defined in 6.3 IRI References.
+
+The token `a` in the predicate position of a Turtle triple represents the IRI `http://www.w3.org/1999/02/22-rdf-syntax-ns#type` . 
+
+A prefixed name is a prefix label and a local part, separated by a `:`. A prefixed name is turned into an IRI by concatenating the IRI associated with the prefix and the local part. The `@prefix` or `PREFIX` directive associates a prefix label with an IRI. Subsequent `@prefix` or `PREFIX` directives may re-map the same prefix label.
+
+Note
+
+The Turtle language originally permitted only the syntax including the `@` character for writing prefix and base directives. The case-insensitive `PREFIX`, `BASE`, and `VERSION` forms were added to align Turtle's syntax with that of SPARQL. The original directives `@prefix`, `@base`, or `@version` may also be used. Using `PREFIX`, `BASE`, and `VERSION` may make it easier to copy declarations to SPARQL queries. 
+
+To write `http://www.perceive.net/schemas/relationship/enemyOf` using a prefixed name: 
+
+  1. Define a prefix label for the vocabulary IRI `http://www.perceive.net/schemas/relationship/` as `somePrefix`
+  2. Then write `somePrefix:enemyOf` which is equivalent to writing `<http://www.perceive.net/schemas/relationship/enemyOf>`
+
+
+
+This can be written using either the SPARQL-style syntax for prefix declarations:
+
+Example 10: SPARQL syntax for prefix declarations
+    
+    
+    PREFIX somePrefix: <http://www.perceive.net/schemas/relationship/>
+    
+    <http://example.org/#green-goblin> somePrefix:enemyOf <http://example.org/#spiderman> .
+    
+
+or original Turtle syntax for prefix declarations:
+
+Example 11: Original syntax for prefix declarations
+    
+    
+    @prefix somePrefix: <http://www.perceive.net/schemas/relationship/> .
+    
+    <http://example.org/#green-goblin> somePrefix:enemyOf <http://example.org/#spiderman> .
+    
+
+Note
+
+Prefixed names are a superset of XML [QNames](https://www.w3.org/TR/xml-names/#ns-qualnames). They differ in that the local part of prefixed names may include: 
+
+  * leading digits, e.g., `leg:3032571` or `isbn13:9780136019701`
+  * non leading colons, e.g., `og:video:height`
+  * reserved character escape sequences, e.g., `wgs:lat\-long`
+
+
+
+The following Turtle document contains examples of all the different ways of writing IRIs in Turtle.
+
+Example 12: Different ways of writing IRIs
+    
+    
+    # A triple with all resolved IRIs
+    <http://one.example/subject1> <http://one.example/predicate1> <http://one.example/object1> .
+    
+    @base <http://one.example/> .
+    <subject2> <predicate2> <object2> .     # relative IRI references, e.g., http://one.example/subject2
+    
+    BASE <http://one.example/>
+    <subject2> <predicate2> <object2> .     # relative IRI references, e.g., http://one.example/subject2
+    
+    @prefix p: <http://two.example/> .
+    p:subject3 p:predicate3 p:object3 .     # prefixed name, e.g., http://two.example/subject3
+    
+    PREFIX p: <http://two.example/>
+    p:subject3 p:predicate3 p:object3 .     # prefixed name, e.g., http://two.example/subject3
+    
+    @prefix p: <path/> .                    # prefix p: now stands for http://one.example/path/
+    p:subject4 p:predicate4 p:object4 .     # prefixed name, e.g., http://one.example/path/subject4
+    
+    PrEfIx : <http://another.example/>       # empty prefix
+    :subject5 :predicate5 :object5 .        # prefixed name, e.g., http://another.example/subject5
+    
+    :subject6 a :subject7 .                 # same as :subject6 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> :subject7 .
+    
+    <http://伝言.example/?user=أ&channel=R%26D> a :subject8 . # a multi-script subject IRI .
+    
+
+Note
+
+While the `@prefix` and `@base` directives require a trailing `.` after the IRI, the equivalent `PREFIX` and `BASE` do not have a trailing `.` after the IRI part of the directive. The `PREFIX` and `BASE` are case-insensitive and can be written as `prefix` and `base` or as any blend of mixed case. 
+
+### 2.6 RDF Literals
+
+[Literals](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-literal) are used to identify values such as strings, numbers, dates.
+
+Example 13: Literals in Turtle
+    
+    
+    PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+    
+    <http://example.org/#green-goblin> foaf:name "Green Goblin" .
+    
+    <http://example.org/#spiderman> foaf:name "Spiderman" .
+    
+
+#### 2.6.1 Quoted Literals
+
+Quoted Literals (Grammar production `RDFLiteral`) have a lexical form followed by a [language tag](https://www.w3.org/TR/rdf12-concepts/#dfn-language-tag) (possibly including an [initial text direction](https://www.w3.org/TR/rdf12-concepts/#dfn-base-direction)), a [datatype IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-datatype-iri), or neither.
+
+The representation of the lexical form consists of an initial delimiter (e.g., `"`, `'`, `"""`, or `'''`); a sequence of permitted characters, numeric escape sequences, and/or string escape sequences; and a final delimiter matching the initial delimiter. The corresponding [RDF lexical form](https://www.w3.org/TR/rdf12-concepts/#dfn-lexical-form) is the characters between the delimiters, after processing any escape sequences.
+
+If present, the [language tag](https://www.w3.org/TR/rdf12-concepts/#dfn-language-tag) is preceded by an `@` and may be followed by an [initial text direction](https://www.w3.org/TR/rdf12-concepts/#dfn-base-direction) separated from the language tag by `--`.
+
+If there is no language tag, there may be a [datatype IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-datatype-iri), preceded by `^^`. A datatype IRI in Turtle may be written using either a resolved IRI, a relative IRI reference, or a prefixed name.
+
+If there is no datatype IRI and no language tag, the datatype is `xsd:string`. 
+
+A `\` may not appear in any quoted literal except as part of an escape sequence. Other restrictions depend on the delimiter:
+
+  * Literals delimited by `'` may not contain unescaped `'`, `LF`, nor `CR` characters.
+  * Literals delimited by `"` may not contain unescaped `"`, `LF`, nor `CR` characters.
+  * Literals delimited by `'''` may not contain such a sequence.
+  * Literals delimited by `"""` may not contain such a sequence.
+
+
+
+Example 14: Quoted Literals
+    
+    
+    VERSION "1.2"
+    PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+    PREFIX show: <http://example.org/vocab/show/>
+    PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+    
+    show:218 rdfs:label "That Seventies Show"^^xsd:string .                # literal with XML Schema string datatype
+    show:218 rdfs:label "That Seventies Show"^^<http://www.w3.org/2001/XMLSchema#string> . # same as above
+    show:218 rdfs:label "That Seventies Show" .                                            # same again
+    show:218 show:localName "That Seventies Show"@en .                     # literal with a language tag
+    show:218 show:localName "HTML היא שפת סימון."@he--rtl .                # literal with a language tag and initial text direction
+    show:218 show:localName "That Seventies Show"@en-us--ltr .             # literal with a language tag, region subtag, and initial text direction
+    show:218 show:localName 'Cette Série des Années Soixante-dix'@fr .     # literal delimited by single quote
+    show:218 show:localName "Cette Série des Années Septante"@fr-be .      # literal with a region subtag
+    show:218 show:blurb '''This is a multi-line
+                           literal with many quotes (""""")
+                           and up to two sequential apostrophes ('').''' . # literal with embedded new lines and quotes
+    
+
+#### 2.6.2 Numbers
+
+Numbers can be written like other literals with lexical form and datatype (e.g., `"-5.0"^^xsd:decimal`). Turtle has a shorthand syntax for writing integer values, arbitrary precision decimal values, and double precision floating point values.
+
+Data Type | Abbreviated | Lexical | Description  
+---|---|---|---  
+**xsd:integer** | `-5` | `"-5"^^xsd:integer` | Integer values may be written as an optional sign and a series of digits. Integers match the regular expression "`[+-]?[0-9]+`".  
+**xsd:decimal** | `-5.0` | `"-5.0"^^xsd:decimal` | Arbitrary-precision decimals may be written as an optional sign, zero or more digits, a decimal point, and one or more digits. Decimals match the regular expression "`[+-]?[0-9]*\.[0-9]+`".  
+**xsd:double** | `4.2E9` | `"4.2E9"^^xsd:double` | Double-precision floating point values may be written as an optionally signed mantissa with an optional decimal point, the letter `e` or the letter `E`, and an optionally signed integer exponent. The exponent matches the regular expression "`[+-]?[0-9]+`" and the mantissa matches one of these regular expressions: "`[+-]?[0-9]+\.[0-9]+`", "`[+-]?\.[0-9]+`", or "`[+-]?[0-9]`".  
+  
+Example 15: Number Literals
+    
+    
+    PREFIX : <http://example.org/elements/>
+    <http://en.wikipedia.org/wiki/Helium>
+        :atomicNumber 2 ;               # xsd:integer
+        :atomicMass 4.002602 ;          # xsd:decimal
+        :specificGravity 1.663E-4 .     # xsd:double
+    
+
+#### 2.6.3 Booleans
+
+Boolean values may be written as either `true` or `false` (case-sensitive) and represent RDF literals with the datatype [xsd:boolean](https://www.w3.org/TR/xmlschema11-2/#boolean) [XMLSCHEMA11-2].
+
+Example 16: Boolean Literals
+    
+    
+    PREFIX : <http://example.org/stats/>
+    <http://somecountry.example/census2007>
+        :isLandlocked false .           # xsd:boolean
+    
+
+### 2.7 RDF Blank Nodes
+
+[RDF blank nodes](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node) in Turtle are expressed as `_:` followed by a [blank node identifier](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node-identifier) which is a series of characters. The characters in the identifier are built upon `PN_CHARS_BASE`, liberalized as follows: 
+
+  * The character `_` and the digit characters `0`–`9` may appear anywhere in a [blank node identifier](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node-identifier).
+  * The character `.` may appear anywhere except the first or last character.
+  * The characters `-`, `·`, `‿`, `⁀`, and the combining diacritical marks (`U+0300` to `U+036F`) are permitted anywhere except the first character.
+
+
+
+A fresh RDF [blank node](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node) is allocated for each unique [blank node identifier](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node-identifier) in a document. Repeated use of the same [blank node identifier](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node-identifier) identifies the same blank node. 
+
+Example 17: Blank Node in Turtle
+    
+    
+    PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+    
+    _:alice foaf:knows _:bob .
+    _:bob foaf:knows _:alice .
+    
+
+### 2.8 Nesting of Blank Nodes without Blank Node Identifiers
+
+In Turtle, fresh RDF [blank nodes](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node) are also allocated when matching the production `blankNodePropertyList` and the terminal `ANON`. Both of these may appear in the `subject` or `object` position of a triple (see the Turtle Grammar). That subject or object is a fresh RDF [blank node](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node). This blank node also serves as the subject of the triples produced by matching the `predicateObjectList` production embedded in a `blankNodePropertyList`. The generation of these triples is described in Predicate Lists. Blank nodes are also allocated for collections described below. 
+
+Example 18: Blank Node Property List
+    
+    
+      
+      PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+    
+      # Someone knows someone else, who has the name "Bob".
+      [] foaf:knows [ foaf:name "Bob" ] .
+    
+
+The Turtle grammar allows `blankNodePropertyList`s to be nested. In this case, each inner `[` establishes a new subject [blank node](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node) which reverts to the outer node at the `]`, and serves as the current subject for predicate object lists. 
+
+The use of `predicateObjectList` within a `blankNodePropertyList` is a common idiom for representing a series of properties of a node. 
+
+Abbreviated: | Corresponding simple triples:  
+---|---  
+Example 19
+    
+    
+    PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+    
+    [ foaf:name "Alice" ] foaf:knows [
+        foaf:name "Bob" ;
+        foaf:knows [
+            foaf:name "Eve" ] ;
+        foaf:mbox <mailto:bob@example.com> ] .
+    
+
+|  Example 20
+    
+    
+    _:a <http://xmlns.com/foaf/0.1/name> "Alice" .
+    _:a <http://xmlns.com/foaf/0.1/knows> _:b .
+    _:b <http://xmlns.com/foaf/0.1/name> "Bob" .
+    _:b <http://xmlns.com/foaf/0.1/knows> _:c .
+    _:c <http://xmlns.com/foaf/0.1/name> "Eve" .
+    _:b <http://xmlns.com/foaf/0.1/mbox> <mailto:bob@example.com> .
+      
+  
+### 2.9 Collections
+
+RDF provides a [Collection](https://www.w3.org/TR/rdf12-semantics/#rdf-collections) [RDF12-SEMANTICS] structure for lists of RDF nodes. The Turtle syntax for Collections is a possibly empty list of [RDF terms](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-term) enclosed by `(``)`. This collection represents an `rdf:first`/`rdf:rest` list structure with the sequence of objects of the `rdf:first` statements being the order of the terms enclosed by `(``)`. 
+
+The `(…)` syntax _MUST_ appear in the `subject` or `object` position of a triple (see the Turtle Grammar). The [blank node](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node) at the head of the list is the subject or object of the containing triple. 
+
+Example 21: Collections in Turtle
+    
+    
+    PREFIX : <http://example.org/foo/>
+    # the object of this triple is the RDF collection blank node
+    :subject :predicate ( :a :b :c ) .
+    
+    # an empty collection value - rdf:nil
+    :subject :predicate2 () .
+    
+
+### 2.10 Triple Terms
+
+A [triple term](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term) may be the [object](https://www.w3.org/TR/rdf12-concepts/#dfn-object) of an [RDF triple](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-triple).
+
+A [triple term](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term) is represented as a `tripleTerm` with `ttSubject`, `predicate`, and `ttObject`, all preceded by `<<(`, and all followed by `)>>`. Note that [triple terms](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term) may be nested. 
+
+Example 22: Triple Term
+    
+    
+    VERSION     "1.2"
+    PREFIX :    <http://www.example.org/>
+    PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+    
+    _:e38  :familyName                     "Smith" .
+    _:anno rdf:reifies <<( _:e38 :jobTitle "Designer" )>> .
+    _:anno :accordingTo                     _:e22 .
+    
+
+### 2.11 Reifying Triples
+
+In RDF, [triple terms](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term) are rarely used directly, as they are generally restricted to be used only as the [object](https://www.w3.org/TR/rdf12-concepts/#dfn-object) of a [triple](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-triple) using the `rdf:reifies` [predicate](https://www.w3.org/TR/rdf12-concepts/#dfn-predicate). Such a triple is called a [reifying triple](https://www.w3.org/TR/rdf12-concepts/#dfn-reifying-triple). Turtle provides a shorthand notation for writing [reifying triples](https://www.w3.org/TR/rdf12-concepts/#dfn-reifying-triple) using the `reifiedTriple` production.
+
+A `reifiedTriple` is syntactic sugar representing a [reifying triple](https://www.w3.org/TR/rdf12-concepts/#dfn-reifying-triple), which defines a specific relationship between an identifier ([reifier](https://www.w3.org/TR/rdf12-concepts/#dfn-reifier)) and a [triple term](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term). The identifier becomes a way to indirectly refer to a [triple term](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term), which may or may not be asserted within the graph corresponding to this input document.
+
+Note
+
+Reification in RDF 1.2 is a concept distinct from the [Reification vocabulary](https://www.w3.org/TR/rdf12-semantics/#Reif) originally defined in [RDF Semantics](https://www.w3.org/TR/rdf-mt/#Reif). While both terms describe a representation of an RDF triple using components, RDF 1.2 uses the term to identify a [triple term](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term) using the `rdf:reifies` predicate.
+
+A [reifying triple](https://www.w3.org/TR/rdf12-concepts/#dfn-reifying-triple) is represented using the `reifiedTriple` production starting with `<<`, followed by a `rtSubject`, a `predicate`, and a `rtObject`, followed by an optional `reifier`, composed of a `~` followed by an optional `iri` production or `BlankNode` production, and ending with `>>`. For example, `<< :subject :predicate :object ~ :IRIREF >>`. If no reifiers are present, or a `reifier` is not immediately followed by an `iri` or `BlankNode`, a fresh [RDF blank node](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node) is allocated, as with `<< :subject :predicate :object >>`, or `<< :subject :predicate :object ~ >>`.
+
+Note
+
+`reifiedTriples` may be nested, like   
+`<< :subject1 :predicate1 << :subject2 :predicate2 :object2 >> ~:IRIREF1 >>` or   
+`<< :subject4 :predicate4 << :subject3 :predicate3 :object3 ~:IRIREF3 >> >>`.
+
+If a `reifiedTriple` is not identified by an [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) or [blank node](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node), a fresh RDF [blank node](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node) is allocated and used to identify this relationship.
+
+Example 23: Reified Triple
+    
+    
+    VERSION     "1.2"
+    PREFIX :    <http://www.example.org/>
+    
+    :employee38 :familyName "Smith" .
+    << :employee38 :jobTitle "Assistant Designer" >> :accordingTo :employee22 .
+    
+
+Example 24: Reified Triple with explicit reifier
+    
+    
+    PREFIX :    <http://www.example.org/>
+    
+    :employee38 :familyName "Smith" .
+    << :employee38 :jobTitle "Assistant Designer" ~ _:id >> :accordingTo :employee22 .
+    
+
+For instance, the syntactic sugar of the above example is equivalent to: 
+
+Example 25: Reified Triple expanded to Triple Term
+    
+    
+    PREFIX :    <http://www.example.org/>
+    
+    :employee38 :familyName "Smith" .
+    _:id rdf:reifies <<( :employee38 :jobTitle "Assistant Designer" )>> .
+    _:id :accordingTo :employee22 .
+    
+
+Note
+
+Note the difference in syntax between the syntactic sugar of `reifiedTriple` (i.e., `<< [...] >>`) and the regular `tripleTerm` (i.e., `<<( [...] )>>`).
+
+After declaring a prefix so that IRIs can be abbreviated, the first triple in this example asserts that `employee38` has a `familyName` of "Smith". Note that this graph does not assert that `employee38` has a `jobTitle` of "Assistant Designer"; it says that `employee22` has made that claim using a `reifiedTriple`. In other words, the triple "`employee38` has a `jobTitle` of 'Assistant Designer'" is not a member of the graph, itself, as "employee38 has a `familyName` of 'Smith'" is above; rather, it is known as a [reifying triple](https://www.w3.org/TR/rdf12-concepts/#dfn-reifying-triple).
+
+A `reifiedTriple` is syntactic sugar relating a [reifier](https://www.w3.org/TR/rdf12-concepts/#dfn-reifier) to a `tripleTerm` using the `rdf:reifies` predicate.
+
+#### 2.11.1 Annotation Syntax
+
+Turtle also defines an annotation syntax to both reify and assert a [triple](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-triple), which provides a convenient shortcut. An annotation can be used to simultaneously assert a triple, via an explicit or implicit identifier, and have that triple be the [subject](https://www.w3.org/TR/rdf12-concepts/#dfn-subject) or [object](https://www.w3.org/TR/rdf12-concepts/#dfn-object) of further triples. If explicitly identified, the same [reifier](https://www.w3.org/TR/rdf12-concepts/#dfn-reifier) can then be used as the [subject](https://www.w3.org/TR/rdf12-concepts/#dfn-subject) or [object](https://www.w3.org/TR/rdf12-concepts/#dfn-object) of additional triples and/or [triple terms](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term). 
+
+Like a `reifiedTriple`, the annotation syntax uses a [reifier](https://www.w3.org/TR/rdf12-concepts/#dfn-reifier), written as either an [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) or a [blank node](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node), preceded by a tilde (`~`), to identify the [triple term](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term) being reified. However, while a `reifiedTriple` may contain at most one [reifier](https://www.w3.org/TR/rdf12-concepts/#dfn-reifier), the annotation syntax may contain any number of [reifiers](https://www.w3.org/TR/rdf12-concepts/#dfn-reifier). Each [reifier](https://www.w3.org/TR/rdf12-concepts/#dfn-reifier) causes a corresponding reifying triple to be produced. 
+
+A [reifier](https://www.w3.org/TR/rdf12-concepts/#dfn-reifier) may be followed by an annotation block. If a [reifier](https://www.w3.org/TR/rdf12-concepts/#dfn-reifier) is not followed by an annotation block, it is treated analogously to a `reifiedTriple` without additional annotations. If an annotation block is not immediately preceded by a [reifier](https://www.w3.org/TR/rdf12-concepts/#dfn-reifier), a fresh RDF blank node is allocated to serve as the [reifier](https://www.w3.org/TR/rdf12-concepts/#dfn-reifier) of the [triple term](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term). 
+
+Note
+
+The annotation syntax is a syntactic shortcut in Turtle. The RDF Abstract Syntax [RDF11-CONCEPTS] does not distinguish how the triples were written.
+
+Example 26: Annotated Triple
+    
+    
+    VERSION     "1.2"
+    PREFIX :    <http://example.com/>
+    PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+    
+    :alice :name "Alice" ~ :t {| :statedBy :bob ; :recorded "2021-07-07"^^xsd:date |} .
+    
+
+is the same set of triples as:
+
+Example 27: Annotated Triple expanded to Reifiers
+    
+    
+    VERSION     "1.2"
+    PREFIX :    <http://example.com/>
+    PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+    
+    :alice :name "Alice" .
+    << :alice :name "Alice" ~ :t >> :statedBy :bob ;
+                                    :recorded "2021-07-07"^^xsd:date .
+    
+
+Fully expanding to use [triple terms](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term), instead of reifiers, results in the following:
+
+Example 28: Annotated Triple expanded to Triple Terms
+    
+    
+    VERSION     "1.2"
+    PREFIX :    <http://example.com/>
+    PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+    PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+    
+    :alice :name "Alice" .
+    :t rdf:reifies <<( :alice :name "Alice" )>> .
+    :t :statedBy :bob .
+    :t :recorded "2021-07-07"^^xsd:date .
+    
+
+In the previous example, the graph contains four [triples](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-triple). The [reifier](https://www.w3.org/TR/rdf12-concepts/#dfn-reifier) is identified by `:t`.
+
+The annotation block may also be used without an explicit [reifier](https://www.w3.org/TR/rdf12-concepts/#dfn-reifier). In that case, a fresh RDF blank node is allocated to serve as the [reifier](https://www.w3.org/TR/rdf12-concepts/#dfn-reifier) of the [triple term](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term).
+
+Example 29: Annotated Triple with an implicit Reifier
+    
+    
+    VERSION     "1.2"
+    PREFIX :    <http://example.com/>
+    PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+    
+    :alice :name "Alice" {| :statedBy :bob ; :recorded "2021-07-07"^^xsd:date |} .
+    
+
+Fully expanding this example results in the following triples, where `_:b0` stands for a fresh RDF blank node:
+
+Example 30: Annotated Triple with an implicit Reifier expanded
+    
+    
+    VERSION     "1.2"
+    PREFIX :    <http://example.com/>
+    PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+    PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+    
+    :alice :name "Alice" .
+    _:b0 rdf:reifies <<( :alice :name "Alice" )>> .
+    _:b0 :statedBy :bob .
+    _:b0 :recorded "2021-07-07"^^xsd:date .
+    
+
+An `annotation` may include any number of annotation blocks. If such blocks are not immediately preceded by explicit [reifiers](https://www.w3.org/TR/rdf12-concepts/#dfn-reifier), each block is associated with a fresh RDF blank node allocated as its [reifier](https://www.w3.org/TR/rdf12-concepts/#dfn-reifier).
+
+Example 31: Annotated Triple with multiple implicit Reifiers
+    
+    
+    VERSION     "1.2"
+    PREFIX :    <http://example.com/>
+    PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+    
+    :alice :name "Alice"
+      {| :statedBy :alice ; :recorded "2017-02-01"^^xsd:date |}
+      {| :statedBy :bob ; :recorded "2021-07-07"^^xsd:date |} .
+    
+
+Fully expanding this example results in the following triples, where `_:b0` and `_:b1` stand for fresh RDF blank nodes:
+
+Example 32: Annotated Triple with multiple implicit Reifiers expanded
+    
+    
+    VERSION     "1.2"
+    PREFIX :    <http://example.com/>
+    PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+    PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+    
+    :alice :name "Alice" .
+    _:b0 rdf:reifies <<( :alice :name "Alice" )>> .
+    _:b0 :statedBy :alice .
+    _:b0 :recorded "2017-02-01"^^xsd:date .
+    _:b1 rdf:reifies <<( :alice :name "Alice" )>> .
+    _:b1 :statedBy :bob .
+    _:b1 :recorded "2021-07-07"^^xsd:date .
+    
+
+The annotation syntax may also contain multiple explicit [reifiers](https://www.w3.org/TR/rdf12-concepts/#dfn-reifier) without annotation blocks. Each such [reifier](https://www.w3.org/TR/rdf12-concepts/#dfn-reifier) causes a corresponding reifying triple to be produced.
+
+Example 33: Annotated Triple with multiple explicit Reifiers
+    
+    
+    VERSION     "1.2"
+    PREFIX :    <http://example.com/>
+    PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+    
+    :alice :name "Alice" ~ :stmt1 ~ :stmt2 .
+    
+
+Fully expanding this example results in the following triples:
+
+Example 34: Annotated Triple with multiple explicit Reifiers expanded
+    
+    
+    VERSION     "1.2"
+    PREFIX :    <http://example.com/>
+    PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+    
+    :alice :name "Alice" .
+    :stmt1 rdf:reifies <<( :alice :name "Alice" )>> .
+    :stmt2 rdf:reifies <<( :alice :name "Alice" )>> .
+    
+
+## 3\. Examples
+
+ _This section is non-normative._
+
+This example is a Turtle translation of [example 7](https://www.w3.org/TR/rdf12-xml/#example7) in [RDF 1.2 XML Syntax](https://www.w3.org/TR/rdf12-xml/) ([example1.ttl](examples/example1.ttl)): 
+
+Example 35
+    
+    
+    PREFIX dc: <http://purl.org/dc/elements/1.1/>
+    PREFIX ex: <http://example.org/stuff/1.0/>
+    
+    <https://www.w3.org/TR/rdf12-xml/>
+      dc:title "RDF 1.2 XML Syntax" ;
+      ex:editor [
+        ex:fullName "Gregg Kellogg" ;
+        ex:homePage <https://greggkellogg.net/>
+      ] .
+
+An example of an RDF collection of two literals.
+
+Example 36: RDF collection of two literals
+    
+    
+    PREFIX : <http://example.org/stuff/1.0/>
+    :a :b ( "apple" "banana" ) .
+    
+
+which is short for ([example2.ttl](examples/example2.ttl)):
+
+Example 37
+    
+    
+    PREFIX : <http://example.org/stuff/1.0/>
+    PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+    :a :b
+      [ rdf:first "apple";
+        rdf:rest [ rdf:first "banana";
+                   rdf:rest rdf:nil ]
+      ] .
+
+An example of two identical triples containing literal objects containing newlines, written in plain and long literal forms. The line breaks in this example are `LF`. ([example3.ttl](examples/example3.ttl)):
+
+Example 38
+    
+    
+    PREFIX : <http://example.org/stuff/1.0/>
+    
+    :a :b "The first line\nThe second line\n  more" .
+    
+    :a :b """The first line
+    The second line
+      more""" .
+
+As indicated by the grammar, a `collection` can be either a `subject` or an `object`. This subject or object will be the novel [blank node](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node) for the first object, if the collection has one or more objects, or `rdf:nil` if the collection is empty.
+
+For example,
+
+Example 39: Collection used as Subject
+    
+    
+    PREFIX : <http://example.org/stuff/1.0/>
+    (1 2.0 3E1) :p "w" .
+    
+
+is syntactic sugar for (noting that the [blank nodes](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node) `b0`, `b1`, and `b2` do not occur anywhere else in the RDF graph):
+
+Example 40: Collection represented with Blank Nodes
+    
+    
+    PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+    PREFIX : <http://example.org/stuff/1.0/>
+    _:b0  rdf:first  1 ;
+          rdf:rest   _:b1 .
+    _:b1  rdf:first  2.0 ;
+          rdf:rest   _:b2 .
+    _:b2  rdf:first  3E1 ;
+          rdf:rest   rdf:nil .
+    _:b0  :p         "w" .
+    
+
+RDF collections can be nested and can involve other syntactic forms:
+
+Example 41: Nested Collections
+    
+    
+    PREFIX : <http://example.org/stuff/1.0/>
+    (1 [:p :q] ( 2 ) ) :p2 :q2 .
+    
+
+is syntactic sugar for:
+
+Example 42: Nested Collections represented with Blank Nodes
+    
+    
+    PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+    PREFIX : <http://example.org/stuff/1.0/>
+    _:b0  :p2  :q2 .
+    _:b0  rdf:first  1 ;
+          rdf:rest   _:b1 .
+    _:b1  rdf:first  _:b2 .
+    _:b2  :p         :q .
+    _:b1  rdf:rest   _:b3 .
+    _:b3  rdf:first  _:b4 .
+    _:b4  rdf:first  2 ;
+          rdf:rest   rdf:nil .
+    _:b3  rdf:rest   rdf:nil .
+    
+
+## 4\. Turtle compared to SPARQL
+
+ _This section is non-normative._
+
+The [SPARQL 1.2 Query Language](https://www.w3.org/TR/sparql12-query/) (SPARQL) [SPARQL12-QUERY] uses a Turtle style syntax for its [TriplesBlock](https://www.w3.org/TR/sparql12-query/#rTriplesBlock) production. This production differs from the Turtle language in that: 
+
+  1. SPARQL permits [RDF Literals](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-literal) as the subject of [Triple Patterns](https://www.w3.org/TR/sparql12-query/#sparqlTriplePatterns).
+  2. SPARQL permits variables (`?`_name_ or `$`_name_) in any part of the triple of the form.
+  3. Turtle allows prefix, base, and version declarations anywhere outside of a triple. In SPARQL, they are only allowed in the [Prologue](https://www.w3.org/TR/sparql12-query/#rPrologue) (at the start of the SPARQL query).
+  4. SPARQL uses case insensitive keywords, except for `a`. Turtle's `@prefix` and `@base` declarations are case sensitive, the SPARQL derived `PREFIX` and `BASE` are case insensitive.
+  5. `true` and `false` are case insensitive in SPARQL and case sensitive in Turtle. `TrUe` is not a valid boolean value in Turtle.
+
+
+
+For further information see the [Syntax for IRIs](https://www.w3.org/TR/sparql12-query/#QSynIRI) and [SPARQL Grammar](https://www.w3.org/TR/sparql12-query/#grammar) sections of the SPARQL query document [SPARQL12-QUERY]. 
+
+## 5\. Conformance
+
+As well as sections marked as non-normative, all authoring guidelines, diagrams, examples, and notes in this specification are non-normative. Everything else in this specification is normative.
+
+The key words _MAY_ , _MUST_ , _MUST NOT_ , and _SHOULD_ in this document are to be interpreted as described in [BCP 14](https://www.rfc-editor.org/info/bcp14) [RFC2119] [RFC8174] when, and only when, they appear in all capitals, as shown here. 
+
+This specification defines conformance criteria for:
+
+  * Turtle documents
+  * Turtle parsers
+
+
+
+A conforming Turtle document is an [RDF string](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-string) that conforms to the grammar and additional constraints defined in 6\. Turtle Grammar, starting with the `turtleDoc` production. A Turtle document serializes an [RDF graph](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-graph).
+
+A conforming Turtle parser is a system capable of reading Turtle documents on behalf of an application. It makes the serialized RDF graph, as defined in 7\. Parsing, available to the application, usually through some form of API.
+
+The IRI that identifies the Turtle language is: `http://www.w3.org/ns/formats/Turtle`
+
+Note
+
+This specification does not define how Turtle parsers handle non-conforming input documents.
+
+### 5.1 Media Type and Content Encoding
+
+The media type of Turtle is `text/turtle`. The content encoding of Turtle content is always UTF-8 [RFC3629]. 
+
+## 6\. Turtle Grammar
+
+A Turtle document is an [RDF string](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-string) encoded in UTF-8 [RFC3629]. Only [Unicode scalar values](https://www.w3.org/TR/i18n-glossary/#dfn-scalar-value), in the ranges `U+0000` to `U+D7FF` and `U+E000` to `U+10FFFF`, are allowed. This excludes [surrogate code points](https://www.w3.org/TR/i18n-glossary/#dfn-surrogate), range `U+D800` to `U+DFFF`. 
+
+### 6.1 White Space
+
+White space (production `WS`) is used to separate two terminals which would otherwise be (mis-)recognized as one terminal. Rule names below in capitals indicate where white space is significant; these form a possible choice of terminals for constructing a Turtle parser.
+
+White space is significant in the production `String`.
+
+### 6.2 Comments
+
+Comments in Turtle start with a `#` outside an `IRIREF`, `STRING_LITERAL_SINGLE_QUOTE`, `STRING_LITERAL_QUOTE`, `STRING_LITERAL_LONG_SINGLE_QUOTE`, or `STRING_LITERAL_LONG_QUOTE`, and continue to the end of line (marked by `LF`, or `CR`), or end of file if there is no end of line after the comment marker. Comments are treated as white space.
+
+### 6.3 IRI References
+
+[Relative IRI references](https://www.w3.org/TR/rdf12-concepts/#dfn-relative-iri) are resolved with base IRIs as per [Uniform Resource Identifier (URI): Generic Syntax](https://www.rfc-editor.org/rfc/rfc3986) [RFC3986] using only the basic algorithm in section 5.2. Neither Syntax-Based Normalization nor Scheme-Based Normalization (described in sections 6.2.2 and 6.2.3 of RFC3986) are performed. Characters additionally allowed in IRI references are treated in the same way that unreserved characters are treated in URI references, per section 6.5 of [Internationalized Resource Identifiers (IRIs)](https://www.rfc-editor.org/rfc/rfc3987) [RFC3987]. 
+
+The `@base` or `BASE` directive defines the Base IRI used to resolve [relative IRI references](https://www.w3.org/TR/rdf12-concepts/#dfn-relative-iri) per [RFC3986] [section 5.1.1, "Base URI Embedded in Content"](https://www.rfc-editor.org/rfc/rfc3986#section-5.1.1). [Section 5.1.2, "Base URI from the Encapsulating Entity"](https://www.rfc-editor.org/rfc/rfc3986#section-5.1.2) defines how the In-Scope Base IRI may come from an encapsulating document, such as a SOAP envelope with an `xml:base` directive or a MIME multipart document with a `Content-Location` header. The "Retrieval URI" identified in [5.1.3, Base "URI from the Retrieval URI"](https://www.rfc-editor.org/rfc/rfc3986#section-5.1.3), is the URL from which a particular Turtle document was retrieved. If none of the above specifies the Base URI, the default Base URI ([section 5.1.4, "Default Base URI"](https://www.rfc-editor.org/rfc/rfc3986#section-5.1.4)) is used. Each `@base` or `BASE` directive sets a new In-Scope Base URI, relative to the previous one. 
+
+### 6.4 Escape Sequences
+
+There are three forms of escapes used in Turtle documents:
+
+  * A numeric escape sequence represents the value of a [Unicode code point](https://www.w3.org/TR/i18n-glossary/#dfn-code-point). 
+
+A numeric escape sequence _MUST NOT_ produce a code point value in the range `U+D800` to `U+DFFF`, which is the range for Unicode [surrogates](https://www.w3.org/TR/i18n-glossary/#dfn-surrogate). 
+
+Escape sequence | Unicode code point  
+---|---  
+`\u` `hex` `hex` `hex` `hex` | A [Unicode code point](https://www.w3.org/TR/i18n-glossary/#dfn-code-point) in the ranges `U+0000` to `U+D7FF` and `U+E000` to `U+FFFF`, corresponding to the value encoded by the four hexadecimal digits interpreted from most significant to least significant digit.  
+`\U` `hex` `hex` `hex` `hex` `hex` `hex` `hex` `hex` | A [Unicode code point](https://www.w3.org/TR/i18n-glossary/#dfn-code-point) in the ranges `U+0000` to `U+D7FF` and `U+E000` to `U+10FFFF`, corresponding to the value encoded by the eight hexadecimal digits interpreted from most significant to least significant digit.  
+  
+where `hex` is a hexadecimal character
+
+``HEX` ::= [0-9] | [A-F] | [a-f]`
+
+  * A string escape sequence represents a character traditionally escaped in string literals: 
+
+Escape sequence | Unicode code point  
+---|---  
+`\t` | `U+0009`  
+`\b` | `U+0008`  
+`\n` | `U+000A`  
+`\r` | `U+000D`  
+`\f` | `U+000C`  
+`\"` | `U+0022`  
+`\'` | `U+0027`  
+`\\` | `U+005C`  
+  * A reserved character escape sequence consists of a `\` followed by one of these characters `~.-!$&'()*+,;=/?#@%_`, and represents the character to the right of the `\`. 
+
+
+Context where each kind of escape sequence can be used | numeric  
+escapes | string  
+escapes | reserved character  
+escapes  
+---|---|---|---  
+IRIs, used as [RDF terms](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-term) or as in `@prefix`, `PREFIX`, `@base`, or `BASE` declarations | yes | no | no  
+local names | no | no | yes  
+Strings | yes | yes | no  
+  
+Escape sequences are processed by taking the sequence of Unicode code points matching the relevant grammar production, then applying the following steps. 
+
+  1. The sequence of Unicode code points is scanned left-to-right for the first matching escape sequence. 
+  2. When an escape sequence is found, the code point(s) corresponding to that escape sequence are substituted for the escape sequence. 
+  3. Scanning of the sequence of Unicode code points continues from the code point immediately following the substituted escape sequence. 
+
+Examples of processed escape sequences Input Codepoints| Output Codepoints| Number of codepoints  
+---|---|---  
+`abc\u005Cdef`| `abc\def`| 7  
+`abc\u005Ctuv`| `abc\tuv`| 7  
+`\u005CA`| `\A`| 2  
+`\\u005C`| `\u005C`| 6  
+`\u005C\u005C`| `\\`| 2  
+`\\\u005C`| `\\`| 2  
+`\\\\`| `\\`| 2  
+`\u005Cn`| `\n`| 2  
+  
+Note
+
+%-encoded sequences are in the character range for IRIs and are explicitly allowed in local names. These appear as a `%` followed by two hex characters and represent that same sequence of three characters. These sequences are _not_ decoded during processing. A term written as `<http://a.example/%66oo-bar>` in Turtle designates the IRI `http://a.example/%66oo-bar` and not IRI `http://a.example/foo-bar`. A term written as `ex:%66oo-bar` with a prefix `PREFIX ex: <http://a.example/>` also designates the IRI `http://a.example/%66oo-bar`.
+
+### 6.5 Grammar
+
+The EBNF used here is defined in XML 1.0 [EBNF-NOTATION]. 
+
+Notes:
+
+  1. Keywords in single quotes ('`@base`', '`@prefix`', '`@version`', '`a`', '`true`', and '`false`') are case-sensitive. Keywords in quotation marks ("`BASE`", "`PREFIX`", and "`VERSION`") are case-insensitive. 
+  2. Escape sequences `UCHAR` and `ECHAR` are case sensitive. 
+  3. When tokenizing the input and choosing grammar rules, the longest match is chosen. 
+  4. The Turtle grammar is LL(1) and LALR(1) when the rules with uppercased names are used as terminals. 
+  5. The entry point into the grammar is `turtleDoc`. 
+  6. In signed numbers, no white space is allowed between the sign and the number. 
+  7. The strings '`@prefix`', '`@base`', and '`@version`' match the pattern for `LANG_DIR`, though neither `prefix`, `base`, nor `version` are [registered language subtags](http://www.iana.org/assignments/language-subtag-registry/language-subtag-registry#). This specification does not define whether a quoted literal followed by either of these tokens (e.g., `"A"@base`) is in the Turtle language. 
+
+
+
+[1] | `turtleDoc` | ::= | statement`*`  
+---|---|---|---  
+[2] | `statement` | ::= | directive `|` `(`triples '`.`'`)`  
+[3] | `directive` | ::= | prefixID `|` base `|` version `|` sparqlPrefix `|` sparqlBase `|` sparqlVersion  
+[4] | `prefixID` | ::= | '`@prefix`' PNAME_NS IRIREF '`.`'  
+[5] | `base` | ::= | '`@base`' IRIREF '`.`'  
+[6] | `version` | ::= | '`@version`' VersionSpecifier '`.`'  
+[7] | `sparqlPrefix` | ::= | "`PREFIX`" PNAME_NS IRIREF  
+[8] | `sparqlBase` | ::= | "`BASE`" IRIREF  
+[9] | `sparqlVersion` | ::= | "`VERSION`" VersionSpecifier  
+[10] | `VersionSpecifier` | ::= | STRING_LITERAL_QUOTE `|` STRING_LITERAL_SINGLE_QUOTE  
+[11] | `triples` | ::= | `(`subject predicateObjectList`)` `|` `(`blankNodePropertyList predicateObjectList`?``)` `|` `(`reifiedTriple predicateObjectList`?``)`  
+[12] | `predicateObjectList` | ::= | verb objectList `(`'`;`' `(`verb objectList`)``?``)``*`  
+[13] | `objectList` | ::= | object annotation `(`'`,`' object annotation`)``*`  
+[14] | `verb` | ::= | predicate `|` '`a`'  
+[15] | `subject` | ::= | iri `|` BlankNode `|` collection  
+[16] | `predicate` | ::= | iri  
+[17] | `object` | ::= | iri `|` BlankNode `|` collection `|` blankNodePropertyList `|` literal `|` tripleTerm `|` reifiedTriple  
+[18] | `literal` | ::= | RDFLiteral `|` NumericLiteral `|` BooleanLiteral  
+[19] | `blankNodePropertyList` | ::= | '`[`' predicateObjectList '`]`'  
+[20] | `collection` | ::= | '`(`' object`*` '`)`'  
+[21] | `NumericLiteral` | ::= | INTEGER `|` DECIMAL `|` DOUBLE  
+[22] | `RDFLiteral` | ::= | String `(`LANG_DIR `|` `(`'`^^`' iri`)``)``?`  
+[23] | `BooleanLiteral` | ::= | '`true`' `|` '`false`'  
+[24] | `String` | ::= | STRING_LITERAL_QUOTE `|` STRING_LITERAL_SINGLE_QUOTE `|` STRING_LITERAL_LONG_SINGLE_QUOTE `|` STRING_LITERAL_LONG_QUOTE  
+[25] | `iri` | ::= | IRIREF `|` PrefixedName  
+[26] | `PrefixedName` | ::= | PNAME_LN `|` PNAME_NS  
+[27] | `BlankNode` | ::= | BLANK_NODE_LABEL `|` ANON  
+[28] | `reifier` | ::= | '`~`' `(`iri `|` BlankNode`)``?`  
+[29] | `reifiedTriple` | ::= | '`<<`' rtSubject verb rtObject reifier`?` '`>>`'  
+[30] | `rtSubject` | ::= | iri `|` BlankNode `|` reifiedTriple  
+[31] | `rtObject` | ::= | iri `|` BlankNode `|` literal `|` tripleTerm `|` reifiedTriple  
+[32] | `tripleTerm` | ::= | '`<<(`' ttSubject verb ttObject '`)>>`'  
+[33] | `ttSubject` | ::= | iri `|` BlankNode  
+[34] | `ttObject` | ::= | iri `|` BlankNode `|` literal `|` tripleTerm  
+[35] | `annotation` | ::= | `(`reifier `|` annotationBlock`)``*`  
+[36] | `annotationBlock` | ::= | '`{|`' predicateObjectList '`|}`'  
+  
+### Productions for terminals  
+  
+[38] | `IRIREF` | ::= | '`<`' `(``[``^``#x00``-``#x20``<>"{}|^`\``]` `|` UCHAR`)``*` '`>`'   
+/* #x00=NULL #x01-#x1F=control codes #x20=space */  
+[39] | `PNAME_NS` | ::= | PN_PREFIX`?` '`:`'  
+[40] | `PNAME_LN` | ::= | PNAME_NS PN_LOCAL  
+[41] | `BLANK_NODE_LABEL` | ::= | '`_:`' `(`PN_CHARS_U `|` `[``0-9``]``)` `(``(`PN_CHARS `|` '`.`'`)``*` PN_CHARS`)``?`  
+[42] | `LANG_DIR` | ::= | '`@`' `[``a-zA-Z``]``+` `(`'`-`' `[``a-zA-Z0-9``]``+``)``*` `(`'`--`' `[``a-zA-Z``]``+``)``?`  
+[43] | `INTEGER` | ::= | `[``+-``]``?` `[``0-9``]``+`  
+[44] | `DECIMAL` | ::= | `[``+-``]``?` `(``[``0-9``]``*` '`.`' `[``0-9``]``+``)`  
+[45] | `DOUBLE` | ::= | `[``+-``]``?` `(``(``[``0-9``]``+` `(`'`.`' `[``0-9``]``*``)``?``)` `|` `(`'`.`' `[``0-9``]``+``)``)` EXPONENT  
+[46] | `EXPONENT` | ::= | `[``eE``]` `[``+-``]``?` `[``0-9``]``+`  
+[47] | `STRING_LITERAL_QUOTE` | ::= | '`"`' `(``[``^``#x22``#x5C``#x0A``#x0D``]` `|` ECHAR `|` UCHAR`)``*` '`"`'  
+[48] | `STRING_LITERAL_SINGLE_QUOTE` | ::= | "`'`" `(``[``^``#x27``#x5C``#x0A``#x0D``]` `|` ECHAR `|` UCHAR`)``*` "`'`"  
+[49] | `STRING_LITERAL_LONG_SINGLE_QUOTE` | ::= | "`'''`" `(``(`"`'`" `|` "`''`"`)``?` `(``[``^'\``]` `|` ECHAR `|` UCHAR`)``)``*` "`'''`"  
+[50] | `STRING_LITERAL_LONG_QUOTE` | ::= | '`"""`' `(``(`'`"`' `|` '`""`'`)``?` `(``[``^"\``]` `|` ECHAR `|` UCHAR`)``)``*` '`"""`'  
+[51] | `UCHAR` | ::= | `(`'`\u`' HEX HEX HEX HEX`)` `|` `(`'`\U`' HEX HEX HEX HEX HEX HEX HEX HEX`)`  
+[52] | `ECHAR` | ::= | '`\`' `[``tbnrf\"'``]`  
+[53] | `WS` | ::= | `#x20` `|` `#x09` `|` `#x0D` `|` `#x0A`  
+[54] | `ANON` | ::= | '`[`' WS`*` '`]`'  
+[55] | `PN_CHARS_BASE` | ::= | `[``A-Z``]`  
+| `|` | `[``a-z``]`  
+| `|` | `[``#xC0``-``#xD6``]`  
+| `|` | `[``#xD8``-``#xF6``]`  
+| `|` | `[``#xF8``-``#x02FF``]`  
+| `|` | `[``#x0370``-``#x037D``]`  
+| `|` | `[``#x037F``-``#x1FFF``]`  
+| `|` | `[``#x200C``-``#x200D``]`  
+| `|` | `[``#x2070``-``#x218F``]`  
+| `|` | `[``#x2C00``-``#x2FEF``]`  
+| `|` | `[``#x3001``-``#xD7FF``]`  
+| `|` | `[``#xF900``-``#xFDCF``]`  
+| `|` | `[``#xFDF0``-``#xFFFD``]`  
+| `|` | `[``#x00010000``-``#x000EFFFF``]`  
+[56] | `PN_CHARS_U` | ::= | PN_CHARS_BASE `|` '`_`'  
+[57] | `PN_CHARS` | ::= | PN_CHARS_U `|` '`-`' `|` `[``0-9``]` `|` `#xB7` `|` `[``#x0300``-``#x036F``]` `|` `[``#x203F``-``#x2040``]`  
+[58] | `PN_PREFIX` | ::= | PN_CHARS_BASE `(``(`PN_CHARS `|` '`.`'`)``*` PN_CHARS`)``?`  
+[59] | `PN_LOCAL` | ::= | `(`PN_CHARS_U `|` '`:`' `|` `[``0-9``]` `|` PLX`)` `(``(`PN_CHARS `|` '`.`' `|` '`:`' `|` PLX`)``*` `(`PN_CHARS `|` '`:`' `|` PLX`)``)``?`  
+[60] | `PLX` | ::= | PERCENT `|` PN_LOCAL_ESC  
+[61] | `PERCENT` | ::= | '`%`' HEX HEX  
+[62] | `HEX` | ::= | `[``0-9``]` `|` `[``A-F``]` `|` `[``a-f``]`  
+[63] | `PN_LOCAL_ESC` | ::= | '`\`' `(`'`_`' `|` '`~`' `|` '`.`' `|` '`-`' `|` "`!`" `|` '`$`' `|` '`&`' `|` "`'`" `|` '`(`' `|` '`)`' `|` '`*`' `|` '`+`' `|` '`,`' `|` '`;`' `|` '`=`' `|` '`/`' `|` '`?`' `|` '`#`' `|` '`@`' `|` '`%`'`)`  
+  
+A text version of this grammar is available [here](turtle.bnf).
+
+### 6.6 Selected Terminal Literal Strings
+
+This document uses some specific terminal literal strings [EBNF-NOTATION]. To clarify the Unicode code points used for these terminal literal strings, the following table describes specific characters and sequences used throughout this document.
+
+Code| Glyph| Description  
+---|---|---  
+`U+0009` | `HT` | Horizontal tab  
+`U+000A` | `LF` | Line feed  
+`U+000D` | `CR` | Carriage return  
+`U+0022` | `"` | Quotation mark  
+`U+0023` | `#` | Number sign  
+`U+0025` | `%` | Percent sign  
+`U+0027` | `'` | Apostrophe  
+`U+0028` | `(` | Left parenthesis  
+`U+0029` | `)` | Right parenthesis  
+`U+002C` | `,` | Comma  
+`U+002D` | `-` | Hyphen  
+`U+002E` | `.` | Full stop  
+`U+0030` | `0` | Digit zero  
+`U+0039` | `9` | Digit nine  
+`U+003B` | `:` | Colon  
+`U+003B` | `;` | Semicolon  
+`U+003C` | `<` | Less-than sign  
+`U+003E` | `>` | Greater-than sign  
+`U+0040` | `@` | At sign  
+`U+0045` | `E` | Latin capital letter E  
+`U+005B` | `[` | Left square bracket  
+`U+005C` | `\` | Backslash  
+`U+005D` | `[` | Right square bracket  
+`U+005F` | `_` | Underscore  
+`U+0061` | `a` | Latin small letter A  
+`U+0065` | `e` | Latin small letter E  
+`U+007C` | `|` | vertical line  
+`U+007E` | `~` | Tilde  
+`U+00B7` | `·` | Middle dot  
+`U+203F` | `‿` | Undertie  
+`U+2040` | `⁀` | Character tie  
+  
+Other short terminal literal strings are composed of specific sequences of Unicode characters:
+
+`space`
+    `U+0020`
+`"""`
+    three concatenated quotation mark characters, each having the code point `U+0022`
+`'''`
+    three concatenated apostrophes characters, each having the code point `U+0027`
+`<<`
+    two concatenated less-than sign characters, each having the code point `U+003C`
+`>>`
+    two concatenated greater-than sign characters, each having the code point `U+003E`
+`<<(`
+    two concatenated less-than sign characters, each having the code point `U+003C`, followed by a left parenthesis character, having the code point `U+0028`
+`)>>`
+    a left parenthesis character, having the code point `U+0029` followed by two concatenated greater-than sign characters, each having the code point `U+003E`
+`^^`
+    two concatenated circumflex accent characters, each having the code point `U+005E`
+`{|`
+    `{` (left curly bracket, code point `U+007B`) followed by `|` (vertical line, code point `U+007C`)
+`|}`
+    `|` (vertical line, code point `U+007C`) followed by `}` (right curly bracket, code point `U+007D`)
+`_:`
+    `_` followed by `:`
+`--`
+    two concatenated `-` characters
+
+## 7\. Parsing
+
+The RDF 1.2 Concepts and Abstract Syntax specification [RDF12-CONCEPTS] defines four types of [RDF terms](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-term): [IRIs](https://www.w3.org/TR/rdf12-concepts/#dfn-iri), [literals](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-literal), [blank nodes](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node), and [triple terms](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term). Literals are composed of a [lexical form](https://www.w3.org/TR/rdf12-concepts/#dfn-lexical-form) and an optional [language tag](https://www.w3.org/TR/rdf12-concepts/#dfn-language-tag) [BCP47] – possibly including an [initial text direction](https://www.w3.org/TR/rdf12-concepts/#dfn-base-direction) – or [datatype IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-datatype-iri). An extra type, `prefix`, is used during parsing to map string identifiers to namespace IRIs. This section maps a string conforming to the grammar in 6.5 Grammar to a set of triples by mapping strings matching productions and lexical tokens to [RDF terms](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-term) or their components (e.g., language tags, lexical forms of literals). Grammar productions change the parser state and emit triples. 
+
+### 7.1 Parser State
+
+Parsing Turtle requires a state of nine items:
+
+  * IRI baseURI — When the `base` production is reached, the second rule argument, `IRIREF`, is the base URI used for relative IRI resolution. 
+  * Map[prefix -> IRI] namespaces — The second and third rule arguments (`PNAME_NS` and `IRIREF`) in the `prefixID` production assign a namespace name (`IRIREF`) for the prefix (`PNAME_NS`). Outside of a `prefixID` or `sparqlPrefix` production, any `PNAME_NS` is substituted with the namespace from the current state of the namespaces map. Note that the prefix may be an empty string, per the `PNAME_NS` production: `PN_PREFIX? ':'`. 
+  * Map[string -> [blank node](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node)] bnodeLabels — A mapping from a string to a blank node.
+  * [RDF Term](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-term) curSubject — The curSubject is bound to the `subject`, `rtSubject`, `ttSubject`, `blankNodePropertyList`, `collection`,and `annotationBlock` productions.
+  * [RDF Term](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-term) curPredicate — The curPredicate is bound to the `verb` production. If token matched was `a`, curPredicate is bound to the IRI `http://www.w3.org/1999/02/22-rdf-syntax-ns#type`. 
+  * [RDF Term](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-term) curObject — The curObject is bound to the `object`, `rtObject`, and `ttObject` productions.
+  * [RDF Term](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-term) curReifier — The curReifier is bound to the `reifier` and `annotationBlock` productions.
+  * [Triple term](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term) curTripleTerm — The curTripleTerm is set in the Annotations constructor. 
+  * `xsd:string` curVersion – The RDF version used for parsing the document into [Triples](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-triple). If specified as part of a Media Type, the default value for curVersion is taken from the `version` parameter. Acceptable values for curVersion are defined in [2.1 Version Labels](https://www.w3.org/TR/rdf12-concepts/#defined-version-labels) in [RDF12-CONCEPTS]. The version announcement is only a hint; this specification does not mandate any parser behavior based on curVersion, but a parser _MAY_ signal an error or a warning when it encounters a feature that does not match the value of curVersion, or an unaccaptable value for curVersion. 
+
+
+
+Term Constructors can create a stack of these values indicated by using language such as "records the curSubject and curPredicate."
+
+### 7.2 RDF Term Constructors
+
+This table maps productions and lexical tokens to [RDF terms](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-term) or components of [RDF terms](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-term) listed in 7\. Parsing:
+
+production |  type | procedure  
+---|---|---  
+IRIREF | [IRI ](https://www.w3.org/TR/rdf12-concepts/#dfn-iri)| The characters between `<` and `>` are taken, with the numeric escape sequences unescaped, to form the IRI. [Relative IRI reference](https://www.w3.org/TR/rdf12-concepts/#dfn-relative-iri) resolution is performed per Section 6.3. The resulting IRI _MUST_ comply with the [syntactic restrictions](https://www.rfc-editor.org/rfc/rfc3987#section-2.2) of generic IRI syntax, and _SHOULD_ conform to [section 3.3](https://www.rfc-editor.org/rfc/rfc3986#section-3.3) of [RFC3986] and comply with any narrower restrictions imposed by the corresponding IRI scheme specification.  
+PNAME_NS | prefix | When used in a `prefixID` or `sparqlPrefix` production, the `prefix` is the potentially empty [RDF string](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-string) matching the first argument of the rule is a key into the namespaces map into which the expanded second argument is stored for future lookup.  
+[IRI ](https://www.w3.org/TR/rdf12-concepts/#dfn-iri)| When used in a `PrefixedName` production; the namespaces map _MUST_ have a corresponding `namespace`, which forms the [RDF string](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-string) of the IRI. The resulting IRI _MUST_ comply with the [syntactic restrictions](https://www.rfc-editor.org/rfc/rfc3987#section-2.2) of generic IRI syntax, and _SHOULD_ comply with any narrower restrictions imposed by the corresponding IRI scheme specification.  
+PNAME_LN | [IRI ](https://www.w3.org/TR/rdf12-concepts/#dfn-iri)| A potentially empty prefix is identified by the first sequence, `PNAME_NS`. The namespaces map __MUST__ have a corresponding `namespace`. The [RDF string](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-string) of the IRI is formed by unescaping the reserved characters in the second argument, `PN_LOCAL`, and concatenating this onto the `namespace`. The resulting IRI _MUST_ comply with the [syntactic restrictions](https://www.rfc-editor.org/rfc/rfc3987#section-2.2) of generic IRI syntax, and _SHOULD_ comply with any narrower restrictions imposed by the corresponding IRI scheme specification.  
+VersionSpecifier | [literal. ](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-literal)| The curVersion is taken from a literal using the matched [RDF string](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-string) lexical form and `xsd:string` datatype.  
+STRING_LITERAL_SINGLE_QUOTE | [lexical form ](https://www.w3.org/TR/rdf12-concepts/#dfn-lexical-form)| The characters between the outermost `'`s are taken, after numeric and string escape sequences are replaced with the characters that they represent, to form the [RDF string](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-string) of a lexical form.  
+STRING_LITERAL_QUOTE | [lexical form ](https://www.w3.org/TR/rdf12-concepts/#dfn-lexical-form)| The characters between the outermost `"`s are taken, with numeric and string escape sequences unescaped, to form the [RDF string](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-string) of a lexical form.  
+STRING_LITERAL_LONG_SINGLE_QUOTE| [lexical form ](https://www.w3.org/TR/rdf12-concepts/#dfn-lexical-form)| The characters between the outermost `'''`s are taken, with numeric and string escape sequences unescaped, to form the [RDF string](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-string) of a lexical form.  
+STRING_LITERAL_LONG_QUOTE | [lexical form ](https://www.w3.org/TR/rdf12-concepts/#dfn-lexical-form)| The characters between the outermost `"""`s are taken, after numeric and string escape sequences are are replaced with the characters that they represent, to form the [RDF string](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-string) of a lexical form.  
+LANG_DIR | [language tag ](https://www.w3.org/TR/rdf12-concepts/#dfn-language-tag)| The characters following the `@` form the [language tag](https://www.w3.org/TR/rdf12-concepts/#dfn-language-tag) and optionally the [initial text direction](https://www.w3.org/TR/rdf12-concepts/#dfn-base-direction), if the matched characters include `--`. The [language tag](https://www.w3.org/TR/rdf12-concepts/#dfn-language-tag) _MUST_ be well-formed according to [section 2.2.9](https://www.rfc-editor.org/rfc/rfc5646#section-2.2.9) of [BCP47]. If present, the [initial text direction](https://www.w3.org/TR/rdf12-concepts/#dfn-base-direction) _MUST_ be either `ltr` or `rtl`.  
+RDFLiteral | [literal ](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-literal)| The literal has a lexical form of the first rule argument, `String`. If the `'^^' iri` rule is matched, the [datatype IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-datatype-iri) is derived from the `iri`, and the literal has no language tag. If the `LANG_DIR` rule is matched, the [language tag](https://www.w3.org/TR/rdf12-concepts/#dfn-language-tag) and [initial text direction](https://www.w3.org/TR/rdf12-concepts/#dfn-base-direction) are taken from `LANG_DIR`. If there is no [initial text direction](https://www.w3.org/TR/rdf12-concepts/#dfn-base-direction), the datatype is `rdf:langString`. If there is a [initial text direction](https://www.w3.org/TR/rdf12-concepts/#dfn-base-direction), the datatype is `rdf:dirLangString`. If neither matched, the datatype is `xsd:string`, and the literal has no language tag.  
+INTEGER | [literal ](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-literal)| The literal has a lexical form of the input string, and a datatype of `xsd:integer`.  
+DECIMAL | [literal ](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-literal)| The literal has a lexical form of the input string, and a datatype of `xsd:decimal`.  
+DOUBLE | [literal ](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-literal)| The literal has a lexical form of the input string, and a datatype of `xsd:double`.  
+BooleanLiteral | [literal ](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-literal)| The literal has a lexical form of the `true` or `false`, depending on which matched the input, and a datatype of `xsd:boolean`.  
+BLANK_NODE_LABEL | [blank node ](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node)| The string matching the second argument, `PN_LOCAL`, is a key in bnodeLabels. If there is no corresponding [blank node](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node) in the map, one is allocated.  
+ANON | [blank node ](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node)| A blank node is generated.  
+blankNodePropertyList | [blank node ](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node)| A blank node is generated. Note the rules for `blankNodePropertyList` in the next section.  
+collection | [blank node ](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node)| For non-empty lists, a blank node is generated. Note the rules for `collection` in the next section.  
+[IRI ](https://www.w3.org/TR/rdf12-concepts/#dfn-iri)| For empty lists, the resulting IRI is `rdf:nil`. Note the rules for `collection` in the next section.  
+reifier | [IRI ](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) | [blank node ](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node) |  The curReifier is taken from [term](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-term), which is taken from the matched `iri` production or `BlankNode` production, if any. If no such production is matched, [term](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-term) is taken from a fresh RDF [blank node](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node).   
+tripleTerm | [ triple term ](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term) |  The [triple term](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term) is composed of the terms constructed from the `ttSubject`, `predicate`, and `ttObject` productions.   
+reifiedTriple | [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) | [blank node](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node) |  The [term](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-term) is taken from the matched `reifier`, if any, or from a fresh RDF [blank node](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node).   
+annotationBlock | [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) | [blank node](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node) |  The [term](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-term) is taken from a previously matched [reifier](https://www.w3.org/TR/rdf12-concepts/#dfn-reifier), if any, or from a fresh RDF [blank node](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node).   
+  
+Note
+
+As processors which detect errors on input can result in graphs which contain fewer triples than are described in the input (including no triples whatsoever), consumers should consider information of any errors signaled when using the output triples, which may be incomplete and/or include [ill-typed](https://www.w3.org/TR/rdf12-concepts/#dfn-ill-typed) or ill-formed terms.
+
+### 7.3 RDF Triples Constructors
+
+A Turtle document defines an [RDF graph](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-graph) composed of set of [RDF triple](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-triple)s. The `subject` production sets the curSubject. The `verb` production sets the curPredicate. The `object` and `ttObject` productions set the curObject. Each `object` N in the document produces an RDF triple: curSubject curPredicate N .
+
+#### 7.3.1 Reifiers
+
+Beginning the `reifier` production, the curReifier is taken from the `reifier` term constructor. Then yield the RDF triple curReifier `rdf:reifies` curTripleTerm.
+
+#### 7.3.2 Reified Triples
+
+Beginning the `reifiedTriple` production records the curTripleTerm. A new `tripleTerm` instance curTripleTerm is created using the `rtSubject`, `verb`, and `rtObject` productions. Finishing the `reifiedTriple` production, if the curReifier is not set, it is assigned a fresh RDF [blank node](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node); it next yields the RDF triple curReifier `rdf:reifies` curTripleTerm, and then restores the recorded value of the curTripleTerm. The node produced by matching `reifiedTriple` is the the curReifier.
+
+#### 7.3.3 Annotations
+
+Beginning the `annotation` production records the curSubject and curPredicate. A new `tripleTerm` instance curTripleTerm is created using the curSubject curPredicate curObject, and the value of the curReifier is cleared. Finishing the `annotation` production restores the recorded values of the curSubject and curPredicate.
+
+#### 7.3.4 Annotation Blocks
+
+Beginning the `annotationBlock` production records the curTripleTerm. If the curReifier is not set, then it is assigned a fresh RDF [blank node](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node) and the production yields the RDF triple curReifier `rdf:reifies` curTripleTerm. The curSubject is taken from the curReifier Finishing the `annotationBlock` production clears the value of the curReifier and restores the curTripleTerm.
+
+Note
+
+If the curReifier was already set, the reifying triple curReifier `rdf:reifies` curTripleTerm was emitted in 7.3.1 Reifiers.
+
+#### 7.3.5 Property Lists
+
+Beginning the `blankNodePropertyList` production records the curSubject and curPredicate, and sets the curSubject to a novel [blank node](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node) B. Finishing the `blankNodePropertyList` production restores the curSubject and curPredicate. The node produced by matching `blankNodePropertyList` is the blank node B. 
+
+#### 7.3.6 Collections
+
+Beginning the `collection` production records the curSubject and curPredicate. Each `object` in the `collection` production has curSubject set to a novel [blank node](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node) B and curPredicate set to `rdf:first`. For each object objectn after the first produces a triple:objectn-1 `rdf:rest` objectn . Finishing the `collection` production creates an additional triple `curSubject rdf:rest rdf:nil` . and restores the curSubject and curPredicate The node produced by matching `collection` is the first blank node B for non-empty lists and `rdf:nil` for empty lists. 
+
+### 7.4 Parsing Example
+
+ _This section is non-normative._
+
+The following informative example shows the semantic actions performed when parsing this Turtle document with an LALR(1) parser:
+
+Example 43: Example of parsing Turtle
+    
+    
+      PREFIX ericFoaf: <http://www.w3.org/People/Eric/ericP-foaf.rdf#>
+      PREFIX : <http://xmlns.com/foaf/0.1/>
+      ericFoaf:ericP :givenName "Eric" ;
+        :knows <http://norman.walsh.name/knows/who/dan-brickley> ,
+                [ :mbox <mailto:timbl@w3.org> ] ,
+                <http://getopenid.com/amyvdh> .
+    
+
+  * Map the prefix `ericFoaf` to the IRI `http://www.w3.org/People/Eric/ericP-foaf.rdf#`.
+  * Map the empty prefix to the IRI `http://xmlns.com/foaf/0.1/`.
+  * Assign curSubject the IRI `http://www.w3.org/People/Eric/ericP-foaf.rdf#ericP`.
+  * Assign curPredicate the IRI `http://xmlns.com/foaf/0.1/givenName`.
+  * Emit an RDF triple: `<...rdf#ericP>` `<.../givenName>` `"Eric"` .
+  * Assign curPredicate the IRI `http://xmlns.com/foaf/0.1/knows`.
+  * Emit an RDF triple: `<...rdf#ericP>` `<.../knows>` `<...who/dan-brickley>` .
+  * Emit an RDF triple: `<...rdf#ericP>` `<.../knows>` `_:1` .
+  * Save curSubject and reassign to the blank node `_:1`.
+  * Save curPredicate.
+  * Assign curPredicate the IRI `http://xmlns.com/foaf/0.1/mbox`.
+  * Emit an RDF triple: `_:1` `<.../mbox>` `<mailto:timbl@w3.org>` .
+  * Restore curSubject and curPredicate to their saved values (`<...rdf#ericP>`, `<.../knows>`).
+  * Emit an RDF triple: `<...rdf#ericP>` `<.../knows>` `<http://getopenid.com/amyvdh>` .
+
+
+
+## A. Embedding Turtle in HTML documents
+
+ _This section is non-normative._
+
+HTML [HTML5] `script` tags can be used to embed data blocks in documents. Turtle can be easily embedded in HTML this way.
+
+Example 44: Embedding Turtle in HTML
+    
+    
+    <script type="text/turtle">
+      PREFIX dc: <http://purl.org/dc/terms/>
+      PREFIX frbr: <http://purl.org/vocab/frbr/core#>
+    
+      <http://books.example.com/works/45U8QJGZSQKDH8N> a frbr:Work ;
+        dc:creator "Wil Wheaton"@en ;
+        dc:title "Just a Geek"@en ;
+        frbr:realization <http://books.example.com/products/9780596007683.BOOK>,
+          <http://books.example.com/products/9780596802189.EBOOK> .
+    
+      <http://books.example.com/products/9780596007683.BOOK> a frbr:Expression ;
+        dc:type <http://books.example.com/product-types/BOOK> .
+    
+      <http://books.example.com/products/9780596802189.EBOOK> a frbr:Expression ;
+        dc:type <http://books.example.com/product-types/EBOOK> .
+    </script>
+    
+
+Turtle content should be placed in a `script` tag with the `type` attribute set to `text/turtle`. `<` and `>` symbols do not need to be escaped inside of script tags. The character encoding of the embedded Turtle will match the HTML documents encoding.
+
+### A.1 XHTML
+
+ _This section is non-normative._
+
+Like JavaScript, Turtle authored for HTML (`text/html`) can break when used in XHTML (`application/xhtml+xml`). The solution is the same one used for JavaScript. 
+
+Example 45: Embedding Turtle in XHTML
+    
+    
+    <script type="text/turtle">
+      <span class="hl-bold"># <![CDATA[</span>
+      PREFIX frbr: <http://purl.org/vocab/frbr/core#>
+    
+      <http://books.example.com/works/45U8QJGZSQKDH8N> a frbr:Work .
+      <span class="hl-bold"># ]]></span>
+    </script>
+    
+
+When embedded in XHTML Turtle data blocks must be enclosed in CDATA sections. Those CDATA markers must be in Turtle comments. If the character sequence `]]>` occurs in the document it must be escaped using strings escapes (`\u005D\u005D\u003E`). This will also make Turtle safe in polyglot documents served as both `text/html` and `application/xhtml+xml`. Failing to use CDATA sections or escape `]]>` may result in a non well-formed XML document.
+
+### A.2 Parsing Turtle in HTML
+
+ _This section is non-normative._
+
+There are no syntactic or grammar differences between parsing Turtle that has been embedded and normal Turtle documents. A Turtle document parsed from an HTML DOM will be a stream of character data rather than a stream of UTF-8 [RFC3629] code points. No decoding is necessary if the HTML document has already been parsed into DOM. Each `script` data block is considered to be its own Turtle document. `PREFIX` and `BASE` declarations in a Turtle data block are scoped to that data block and do not effect other data blocks. The HTML `lang` attribute or XHTML `xml:lang` attribute have no effect on the parsing of the data blocks. The base URI of the encapsulating HTML document provides a "Base URI Embedded in Content" per RFC3986 section 5.1.1.
+
+## B. Privacy Considerations
+
+ _This section is non-normative._
+
+The Turtle format is used to express arbitrary application data, which may include the expression of personally identifiable information (PII) or other information which could be considered sensitive. Authors publishing such information are advised to carefully consider the needs and use of publishing such information, as well as the applicable regulations for the regions where the data is expected to be consumed and potentially revealed (e.g., [GDPR](https://gdpr.eu/), [CCPA](https://oag.ca.gov/privacy/ccpa), [others](https://termly.io/resources/infographics/privacy-laws-around-the-world/)), particularly whether authorization measures are needed for access to the data.
+
+## C. Security Considerations
+
+ _This section is non-normative._
+
+The `STRING_LITERAL_SINGLE_QUOTE`, `STRING_LITERAL_QUOTE`, `STRING_LITERAL_LONG_SINGLE_QUOTE`, and `STRING_LITERAL_LONG_QUOTE`, productions allow the use of unescaped control characters. Although this specification does not directly expose this content to an end user, it might be presented through a user agent, which may cause the presented text to be obfuscated due to presentation of such characters.
+
+Turtle is a general-purpose assertion language; applications may evaluate given data to infer more assertions or to dereference [IRIs](https://www.w3.org/TR/rdf12-concepts/#dfn-iri), invoking the security considerations of the scheme for that IRI. Note in particular, the privacy issues in [RFC3023] section 10 for HTTP IRIs. Data obtained from an inaccurate or malicious data source may lead to inaccurate or misleading conclusions, as well as the dereferencing of unintended IRIs. Care must be taken to align the trust in consulted resources with the sensitivity of the intended use of the data; inferences of potential medical treatments would likely require different trust than inferences for trip planning.
+
+The Turtle language is used to express arbitrary application data; security considerations will vary by domain of use. Security tools and protocols applicable to text (for example, PGP encryption, checksum validation, password-protected compression) may also be used on Turtle documents. Security/privacy protocols must be imposed which reflect the sensitivity of the embedded information.
+
+Turtle can express data which is presented to the user, such as RDF Schema labels. Applications rendering strings retrieved from untrusted Turtle documents, or using unescaped characters, _SHOULD_ use warnings and other appropriate means to limit the possibility that malignant strings might be used to mislead the reader. The security considerations in the media type registration for XML ([RFC3023] section 10) provide additional guidance around the expression of arbitrary data and markup.
+
+Turtle uses [IRIs](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) as term identifiers. Applications interpreting data expressed in Turtle _SHOULD_ address the security issues of [Internationalized Resource Identifiers (IRIs)](https://www.rfc-editor.org/rfc/rfc3987) [RFC3987] Section 8, as well as [Uniform Resource Identifier (URI): Generic Syntax](https://www.rfc-editor.org/rfc/rfc3986) [RFC3986] Section 7.
+
+Multiple [IRIs](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) may have the same appearance. Characters in different scripts may look similar (for instance, a Cyrillic "о" (code point `U+043E`) may appear similar to a Latin "o" (code point `U+006F`)). A character followed by combining characters may have the same visual representation as another character (for example, LATIN SMALL LETTER "E" (code point `U+0065`) followed by COMBINING ACUTE ACCENT (code point `U+0301`) has the same visual representation as LATIN SMALL LETTER "E" WITH ACUTE (`U+00E9`)). Any person or application that is writing or interpreting data in Turtle must take care to use the IRI that matches the intended semantics, and avoid IRIs that may look similar. Further information about matching visually similar characters can be found in [Unicode Security Considerations](https://www.unicode.org/reports/tr36/tr36-15.html) [UNICODE-SECURITY] and [Internationalized Resource Identifiers (IRIs)](https://www.rfc-editor.org/rfc/rfc3987) [RFC3987] Section 8.
+
+## D. Internet Media Type and File Extension
+
+The Internet Media Type (formerly known as MIME Type) for Turtle is "text/turtle".
+
+The information that follows has been submitted to the Internet Engineering Steering Group (IESG) for review, approval, and registration with IANA.
+
+Type name:
+    text
+Subtype name:
+    turtle
+Required parameters:
+    None
+Optional parameters:
+    
+
+`version`
+     This parameter is optional. If present, acceptable values of `version` are defined in [Version Labels](https://www.w3.org/TR/rdf12-concepts/#defined-version-labels) in [RDF12-CONCEPTS]. 
+`profile`
+     This parameter is optional and is used to include additional information. It does not change the semantics of the resource representation when processed without knowledge of the profile. The value of a `profile` parameter is a non-empty list of space-separated URIs. For more information and background, please refer to [RFC6906]. 
+Encoding considerations:
+    The syntax of Turtle is expressed over code points in Unicode [UNICODE]. The encoding is always UTF-8 [UTF-8].
+    [Unicode code points](https://www.w3.org/TR/i18n-glossary/#dfn-code-point) may also be expressed using `\uXXXX` (`U+0000` to `U+FFFF`) or `\UXXXXXXXX` syntax (for code points up to `U+10FFFF`) where `X` is a hexadecimal digit `[0-9A-Fa-f]`
+Security considerations:
+    See C. Security Considerations.
+Interoperability considerations:
+    There are no known interoperability issues.
+Published specification:
+    This specification.
+Applications which use this media type:
+    Turtle is used widely for representing RDF data. There are implementations available in most common programming languages.
+Additional information:
+    
+
+Magic number(s):
+    Turtle documents may have the strings '@prefix' or '@base' (case sensitive) or the strings 'PREFIX' or 'BASE' (case insensitive) near the beginning of the document.
+File extension(s):
+    .ttl
+Base URI:
+    The Turtle '@base <IRIref>' or 'BASE <IRIref>' term can change the current base URI for [relative IRI references](https://www.w3.org/TR/rdf12-concepts/#dfn-relative-iri) in the query language that are used sequentially later in the document.
+Person & email address to contact for further information:
+    RDF & SPARQL Working Group <public-rdf-star-wg@w3.org>
+Intended usage:
+    Common
+Restrictions on usage:
+    None
+Author(s):
+    The Turtle specification is the product of the RDF & SPARQL WG. The W3C reserves change control over this specification.
+
+Note
+
+The `profile` parameter may be used by clients to express their preferences in the content negotiation process and by a server to indicate additional information about the response. 
+
+If the `profile` parameter is given by a client, a server should return a document that honors all the profiles in the list that are recognized by the server. A server should not respond with an error solely based upon the profile value. 
+
+If the `profile` parameter is given by a server, a client may choose to ignore it. 
+
+Note
+
+It is recommended that profile URIs be dereferenceable and provide useful documentation at that URI. 
+
+Note
+
+When used as a [media type parameter](https://tools.ietf.org/html/rfc4288#section-4.3) [RFC4288] in an [HTTP Content-Type header](https://httpwg.org/specs/rfc7231.html#header.content-type) or an [HTTP Accept header](https://httpwg.org/specs/rfc7231.html#header.accept) [RFC7231] the value of the `profile` parameter will need to be enclosed in quotes (ASCII `"`) if it contains special characters such as white space, including any space used to separate multiple profile URIs. 
+
+It is important to note that the value of the `profile` parameter contains one or more URIs and not IRIs. It might therefore be necessary to convert between IRIs and URIs, as specified in [section 3 Relationship between IRIs and URIs](https://tools.ietf.org/html/rfc3986#section-5.1) of [RFC3987]. 
+
+## E. Acknowledgments
+
+### E.1 Acknowledgments for RDF 1.1
+
+ _This section is non-normative._
+
+This work was described in the paper [New Syntaxes for RDF](https://www.dajobe.org/2003/11/new-syntaxes-rdf/) which discusses other RDF syntaxes and the background to the Turtle (Submitted to WWW2004, referred to as _N-Triples Plus_ there).
+
+This work was started during the [Semantic Web Advanced Development Europe (SWAD-Europe)](https://www.w3.org/2001/sw/Europe/) project funded by the EU IST-7 programme IST-2001-34732 (2002-2004) and further development supported by the [Institute for Learning and Research Technology](https://www.bristol.ac.uk/ilrt/) at the [University of Bristol](https://www.bristol.ac.uk/), UK (2002-Sep 2005). 
+
+Valuable contributions to this version were made by Gregg Kellogg, Andy Seaborne, Sandro Hawke and the members of the RDF Working Group.
+
+The document was improved through the review process by the wider community.
+
+### E.2 Acknowledgments for RDF 1.2
+
+ _This section is non-normative._
+
+In addition to the editors, the following people have contributed to this specification: Andrew Louis, Denis Ah-Kang, John Walker, Mirek Kratochvil, Niklas Lindström, Peter F. Patel-Schneider, Pierre-Antoine Champin, Ted Thibodeau Jr, Thomas Tanon, and William Van Woensel
+
+Members of the RDF & SPARQL Working Group Group included   
+James Anderson, Dörthe Arndt, Jerven Bolleman, Erich Bremer, Pierre-Antoine Champin, Souripriya Das, Enrico Franconi, Adrian Gschwend, Olaf Hartig, Gregg Kellogg†, Ora Lassila, Niklas Lindström, Thomas Lörtsch, Peter Patel-Schneider, Dave Raggett, Felix Sasaki, Andy Seaborne, Ruben Taelman, Thomas Pellissier Tanon, Ted Thibodeau Jr, Dominik Tomaszuk, Gregory Williams, William Van Woensel, and Antoine Zimmermann   
+† Gregg Kellogg passed away in September 2025. His vast contributions to RDF and the broader ecosystem of related standards are gratefully acknowledged. 
+
+Editor's note
+
+Recognize members of the Task Force? Not an easy to find list of contributors.
+
+## F. Changes between RDF 1.1 and RDF 1.2
+
+ _This section is non-normative._
+
+  * Update informative restrictions on included characters for `STRING_LITERAL_QUOTE` and `STRING_LITERAL_SINGLE_QUOTE`.
+  * Separated C. Security Considerations from D. Internet Media Type and File Extension and updated language.
+  * Added 2.10 Triple Terms, 2.11 Reifying Triples, and 2.11.1 Annotation Syntax for representing [triple terms](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term) in Turtle.
+  * Changes the `LANGTAG` terminal production to `LANG_DIR` to include an optional [initial text direction](https://www.w3.org/TR/rdf12-concepts/#dfn-base-direction).
+  * Clarify that [Unicode surrogates](https://www.w3.org/TR/i18n-glossary/#dfn-surrogate) are not legal in Turtle documents, nor as the value of a Unicode escape sequence.
+  * Added 2.4 Version Announcement and parser state and productions to announce the RDF version associated with the input document. Note that this also includes a provision that `@version` does not match `LANG_DIR`; the previous version of the grammar would allow such a match, but would result in a literal with an ill-formed language tag according to [BCP47], and form an invalid literal.
+  * Added the optional `profile` media type parameter to allow clients and servers to convey additional profile information for Turtle representations without changing their semantics.
+  * Update media registration now that UTF-8 can be required for text/.
+
+
+
+## G. Index
+
+### G.1 Terms defined by this specification
+
+  * annotation syntax §2.11.1
+  * numeric escape sequence §6.4
+  * prefixed name §2.5
+  * reserved character escape sequence §6.4
+  * string escape sequence §6.4
+  * Turtle document §5.
+  * Turtle parser §5.
+
+
+
+### G.2 Terms defined by reference
+
+  * [BCP47] defines the following: 
+    * section 2.2.9
+  * [I18N-GLOSSARY] defines the following: 
+    * surrogate code points
+    * Unicode code point
+    * Unicode scalar values
+  * [LANG-SUBTAG-REGISTRY] defines the following: 
+    * registered language subtags
+  * [RDF-MT] defines the following: 
+    * RDF Semantics
+  * [RDF12-CONCEPTS] defines the following: 
+    * 2.1 Version Labels
+    * blank node identifier
+    * blank nodes
+    * datatype IRI
+    * directional language-tagged strings
+    * ill-typed
+    * initial text direction
+    * IRIs
+    * language tag
+    * literals
+    * object type
+    * predicate
+    * RDF graph
+    * RDF lexical form
+    * RDF string
+    * RDF term
+    * reifier
+    * reifying triple
+    * Relative IRI references
+    * subject
+    * triple
+    * triple terms
+  * [RDF12-SEMANTICS] defines the following: 
+    * Collection
+    * Reification vocabulary
+  * [RDF12-XML] defines the following: 
+    * example 7
+  * [RFC3986] defines the following: 
+    * 5.1.3, Base "URI from the Retrieval URI"
+    * resolved
+    * section 3.3
+    * section 5.1.1, "Base URI Embedded in Content"
+    * Section 5.1.2, "Base URI from the Encapsulating Entity"
+    * section 5.1.4, "Default Base URI"
+  * [RFC3987] defines the following: 
+    * syntactic restrictions
+  * [SPARQL12-QUERY] defines the following: 
+    * Prologue
+    * SPARQL Grammar
+    * Syntax for IRIs
+    * Triple Patterns
+    * TriplesBlock
+  * [XML-NAMES] defines the following: 
+    * QNames
+  * [XMLSCHEMA11-2] defines the following: 
+    * xsd:boolean
+
+
+
+## H. References
+
+### H.1 Normative references
+
+[BCP47]
+     [Tags for Identifying Languages](https://www.rfc-editor.org/rfc/rfc5646). A. Phillips, Ed.; M. Davis, Ed. IETF. September 2009. Best Current Practice. URL: <https://www.rfc-editor.org/rfc/rfc5646>
+[EBNF-NOTATION]
+     [EBNF Notation](https://www.w3.org/TR/xml/#sec-notation). Tim Bray; Jean Paoli; Michael Sperberg-McQueen; Eve Maler; François Yergeau et al. W3C. W3C Recommendation. URL: <https://www.w3.org/TR/xml/#sec-notation>
+[I18N-GLOSSARY]
+     [Internationalization Glossary](https://www.w3.org/TR/i18n-glossary/). Richard Ishida; Addison Phillips. W3C. 17 October 2024. W3C Working Group Note. URL: <https://www.w3.org/TR/i18n-glossary/>
+[RDF12-CONCEPTS]
+     [RDF 1.2 Concepts and Abstract Data Model](https://www.w3.org/TR/rdf12-concepts/). Andy Seaborne; Gregg Kellogg; Olaf Hartig; Pierre-Antoine Champin. W3C. 7 April 2026. W3C Candidate Recommendation. URL: <https://www.w3.org/TR/rdf12-concepts/>
+[RFC2119]
+     [Key words for use in RFCs to Indicate Requirement Levels](https://www.rfc-editor.org/rfc/rfc2119). S. Bradner. IETF. March 1997. Best Current Practice. URL: <https://www.rfc-editor.org/rfc/rfc2119>
+[RFC3629]
+     [UTF-8, a transformation format of ISO 10646](https://www.rfc-editor.org/rfc/rfc3629). F. Yergeau. IETF. November 2003. Internet Standard. URL: <https://www.rfc-editor.org/rfc/rfc3629>
+[RFC3986]
+     [Uniform Resource Identifier (URI): Generic Syntax](https://www.rfc-editor.org/rfc/rfc3986). T. Berners-Lee; R. Fielding; L. Masinter. IETF. January 2005. Internet Standard. URL: <https://www.rfc-editor.org/rfc/rfc3986>
+[RFC3987]
+     [Internationalized Resource Identifiers (IRIs)](https://www.rfc-editor.org/rfc/rfc3987). M. Duerst; M. Suignard. IETF. January 2005. Proposed Standard. URL: <https://www.rfc-editor.org/rfc/rfc3987>
+[RFC6906]
+     [The 'profile' Link Relation Type](https://www.rfc-editor.org/rfc/rfc6906). E. Wilde. IETF. March 2013. Informational. URL: <https://www.rfc-editor.org/rfc/rfc6906>
+[RFC8174]
+     [Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words](https://www.rfc-editor.org/rfc/rfc8174). B. Leiba. IETF. May 2017. Best Current Practice. URL: <https://www.rfc-editor.org/rfc/rfc8174>
+[UNICODE]
+     [The Unicode Standard](https://www.unicode.org/versions/latest/). Unicode Consortium. URL: <https://www.unicode.org/versions/latest/>
+
+### H.2 Informative references
+
+[HTML5]
+     [HTML5](https://www.w3.org/TR/html5/). Ian Hickson; Robin Berjon; Steve Faulkner; Travis Leithead; Erika Doyle Navara; Theresa O'Connor; Silvia Pfeiffer. W3C. 27 March 2018. W3C Recommendation. URL: <https://www.w3.org/TR/html5/>
+[LANG-SUBTAG-REGISTRY]
+     [Language Subtag Registry](http://www.iana.org/assignments/language-subtag-registry/language-subtag-registry). IANA. URL: <http://www.iana.org/assignments/language-subtag-registry/language-subtag-registry>
+[RDF-MT]
+     [RDF Semantics](https://www.w3.org/TR/rdf-mt/). Patrick Hayes. W3C. 10 February 2004. W3C Recommendation. URL: <https://www.w3.org/TR/rdf-mt/>
+[RDF11-CONCEPTS]
+     [RDF 1.1 Concepts and Abstract Syntax](https://www.w3.org/TR/rdf11-concepts/). Richard Cyganiak; David Wood; Markus Lanthaler. W3C. 25 February 2014. W3C Recommendation. URL: <https://www.w3.org/TR/rdf11-concepts/>
+[RDF12-INTEROP]
+     [RDF 1.2 Interoperability](https://w3c.github.io/rdf-interop/spec/). Pierre-Antoine Champin. W3C. W3C Editor's Draft. URL: <https://w3c.github.io/rdf-interop/spec/>
+[RDF12-N-QUADS]
+     [RDF 1.2 N-Quads](https://www.w3.org/TR/rdf12-n-quads/). Gregg Kellogg; Dominik Tomaszuk. W3C. 28 May 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-n-quads/>
+[RDF12-N-TRIPLES]
+     [RDF 1.2 N-Triples](https://www.w3.org/TR/rdf12-n-triples/). Gregg Kellogg; Dominik Tomaszuk. W3C. 15 May 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-n-triples/>
+[RDF12-NEW]
+     [What’s New in RDF 1.2](https://w3c.github.io/rdf-new/spec/). The W3C RDF & SPARQL Working Group. W3C. W3C Editor's Draft. URL: <https://w3c.github.io/rdf-new/spec/>
+[RDF12-PRIMER]
+     [RDF 1.2 Primer](https://www.w3.org/TR/rdf12-primer/). Pierre-Antoine Champin; Niklas Lindström. W3C. 16 April 2026. DNOTE. URL: <https://www.w3.org/TR/rdf12-primer/>
+[RDF12-SCHEMA]
+     [RDF 1.2 Schema](https://www.w3.org/TR/rdf12-schema/). Dominik Tomaszuk. W3C. 28 March 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-schema/>
+[RDF12-SEMANTICS]
+     [RDF 1.2 Semantics](https://www.w3.org/TR/rdf12-semantics/). Peter Patel-Schneider; Enrico Franconi; Dörthe Arndt. W3C. 7 April 2026. W3C Candidate Recommendation. URL: <https://www.w3.org/TR/rdf12-semantics/>
+[RDF12-TRIG]
+     [RDF 1.2 TriG](https://www.w3.org/TR/rdf12-trig/). Gregg Kellogg; Dominik Tomaszuk. W3C. 28 May 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-trig/>
+[RDF12-XML]
+     [RDF 1.2 XML Syntax](https://www.w3.org/TR/rdf12-xml/). Gregg Kellogg; Jerven Bolleman. W3C. 9 April 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-xml/>
+[RFC3023]
+     [XML Media Types](https://www.rfc-editor.org/rfc/rfc3023). M. Murata; S. St. Laurent; D. Kohn. IETF. January 2001. Proposed Standard. URL: <https://www.rfc-editor.org/rfc/rfc3023>
+[RFC4288]
+     [Media Type Specifications and Registration Procedures](https://www.rfc-editor.org/rfc/rfc4288). N. Freed; J. Klensin. IETF. December 2005. Best Current Practice. URL: <https://www.rfc-editor.org/rfc/rfc4288>
+[RFC7231]
+     [Hypertext Transfer Protocol (HTTP/1.1): Semantics and Content](https://httpwg.org/specs/rfc7231.html). R. Fielding, Ed.; J. Reschke, Ed. IETF. June 2014. Proposed Standard. URL: <https://httpwg.org/specs/rfc7231.html>
+[SPARQL12-CONCEPTS]
+     [SPARQL 1.2 Concepts](https://w3c.github.io/sparql-concepts/spec/). The W3C RDF & SPARQL Working Group. W3C. W3C Editor's Draft. URL: <https://w3c.github.io/sparql-concepts/spec/>
+[SPARQL12-ENTAILMENT]
+     [SPARQL 1.2 Entailment Regimes](https://www.w3.org/TR/sparql12-entailment/). Peter Patel-Schneider. W3C. 9 April 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-entailment/>
+[SPARQL12-FEDERATED-QUERY]
+     [SPARQL 1.2 Federated Query](https://www.w3.org/TR/sparql12-federated-query/). Ruben Taelman; Gregory Williams. W3C. 23 April 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-federated-query/>
+[SPARQL12-GRAPH-STORE-PROTOCOL]
+     [SPARQL 1.2 Graph Store Protocol](https://www.w3.org/TR/sparql12-graph-store-protocol/). Andy Seaborne; Thomas Pellissier Tanon. W3C. 19 December 2024. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-graph-store-protocol/>
+[SPARQL12-NEW]
+     [What’s New in SPARQL 1.2](https://w3c.github.io/sparql-new/spec/). The W3C RDF & SPARQL Working Group. W3C. W3C Editor's Draft. URL: <https://w3c.github.io/sparql-new/spec/>
+[SPARQL12-PROTOCOL]
+     [SPARQL 1.2 Protocol](https://www.w3.org/TR/sparql12-protocol/). Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 26 April 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-protocol/>
+[SPARQL12-QUERY]
+     [SPARQL 1.2 Query Language](https://www.w3.org/TR/sparql12-query/). Olaf Hartig; Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 28 May 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-query/>
+[SPARQL12-RESULTS-CSV-TSV]
+     [SPARQL 1.2 Query Results CSV and TSV Formats](https://www.w3.org/TR/sparql12-results-csv-tsv/). Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 28 March 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-csv-tsv/>
+[SPARQL12-RESULTS-JSON]
+     [SPARQL 1.2 Query Results JSON Format](https://www.w3.org/TR/sparql12-results-json/). Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 28 March 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-json/>
+[SPARQL12-RESULTS-XML]
+     [SPARQL 1.2 Query Results XML Format](https://www.w3.org/TR/sparql12-results-xml/). Ruben Taelman; Dominik Tomaszuk; Thomas Pellissier Tanon. W3C. 27 December 2024. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-xml/>
+[SPARQL12-SERVICE-DESCRIPTION]
+     [SPARQL 1.2 Service Description](https://www.w3.org/TR/sparql12-service-description/). Ruben Taelman; Gregory Williams. W3C. 23 April 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-service-description/>
+[SPARQL12-UPDATE]
+     [SPARQL 1.2 Update](https://www.w3.org/TR/sparql12-update/). Ruben Taelman; Andy Seaborne; Thomas Pellissier Tanon. W3C. 23 April 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-update/>
+[TURTLE]
+     [RDF 1.1 Turtle](https://www.w3.org/TR/turtle/). Eric Prud'hommeaux; Gavin Carothers. W3C. 25 February 2014. W3C Recommendation. URL: <https://www.w3.org/TR/turtle/>
+[UNICODE-SECURITY]
+     [Unicode Security Considerations](https://www.unicode.org/reports/tr36/tr36-15.html). Mark Davis; Michel Suignard. Unicode Consortium. 19 September 2014. Unicode Technical Report #36. URL: <https://www.unicode.org/reports/tr36/tr36-15.html>
+[XML-NAMES]
+     [Namespaces in XML 1.0 (Third Edition)](https://www.w3.org/TR/xml-names/). Tim Bray; Dave Hollander; Andrew Layman; Richard Tobin; Henry Thompson et al. W3C. 8 December 2009. W3C Recommendation. URL: <https://www.w3.org/TR/xml-names/>
+[XMLSCHEMA11-2]
+     [W3C XML Schema Definition Language (XSD) 1.1 Part 2: Datatypes](https://www.w3.org/TR/xmlschema11-2/). David Peterson; Sandy Gao; Ashok Malhotra; Michael Sperberg-McQueen; Henry Thompson; Paul V. Biron et al. W3C. 5 April 2012. W3C Recommendation. URL: <https://www.w3.org/TR/xmlschema11-2/>
+
+↑
+
+Permalink
+
+**Referenced in:**
+
+  * § 2.5 IRIs (2)
+
+
+
+Permalink
+
+**Referenced in:**
+
+  * § Abstract
+
+
+
+Permalink
+
+**Referenced in:**
+
+  * § 1. Introduction (2)
+  * § 2. Turtle Language
+  * § 5. Conformance (2) (3)
+  * § 6. Turtle Grammar
+  * § 6.3 IRI References
+  * § 7.3 RDF Triples Constructors
+  * § A.2 Parsing Turtle in HTML
+  * § C. Security Considerations (2)
+
+
+
+Permalink
+
+**Referenced in:**
+
+  * § 5. Conformance
+
+
+
+Permalink
+
+**Referenced in:**
+
+  * § 2.5 IRIs
+  * § 2.6.1 Quoted Literals
+  * § 6.4 Escape Sequences (2)
+  * § 7.2 RDF Term Constructors (2) (3) (4) (5)
+
+
+
+Permalink
+
+**Referenced in:**
+
+  * § 2.6.1 Quoted Literals
+  * § 6.4 Escape Sequences
+  * § 7.2 RDF Term Constructors (2) (3) (4)
+
+
+
+Permalink
+
+**Referenced in:**
+
+  * § 2.5 IRIs
+  * § 6.4 Escape Sequences
+  * § 7.2 RDF Term Constructors
+
+
+
+[Permalink](https://www.rfc-editor.org/rfc/rfc5646#section-2.2.9)
+
+**Referenced in:**
+
+  * § 7.2 RDF Term Constructors
+
+
+
+[Permalink](https://www.w3.org/TR/i18n-glossary/#dfn-surrogate)
+
+**Referenced in:**
+
+  * § 6. Turtle Grammar
+  * § 6.4 Escape Sequences
+  * § F. Changes between RDF 1.1 and RDF 1.2
+
+
+
+[Permalink](https://www.w3.org/TR/i18n-glossary/#dfn-code-point)
+
+**Referenced in:**
+
+  * § 6.4 Escape Sequences (2) (3)
+  * § D. Internet Media Type and File Extension
+
+
+
+[Permalink](https://www.w3.org/TR/i18n-glossary/#dfn-scalar-value)
+
+**Referenced in:**
+
+  * § 6. Turtle Grammar
+
+
+
+[Permalink](http://www.iana.org/assignments/language-subtag-registry/language-subtag-registry#)
+
+**Referenced in:**
+
+  * § 6.5 Grammar
+
+
+
+[Permalink](https://www.w3.org/TR/rdf-mt/#Reif)
+
+**Referenced in:**
+
+  * § 2.11 Reifying Triples
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#defined-version-labels)
+
+**Referenced in:**
+
+  * § 2.4 Version Announcement
+  * § 7.1 Parser State
+  * § D. Internet Media Type and File Extension
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node-identifier)
+
+**Referenced in:**
+
+  * § 2.7 RDF Blank Nodes (2) (3) (4)
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node)
+
+**Referenced in:**
+
+  * § 2. Turtle Language
+  * § 2.7 RDF Blank Nodes (2)
+  * § 2.8 Nesting of Blank Nodes without Blank Node Identifiers (2) (3)
+  * § 2.9 Collections
+  * § 2.11 Reifying Triples (2) (3)
+  * § 2.11.1 Annotation Syntax
+  * § 3. Examples (2)
+  * § 7. Parsing
+  * § 7.1 Parser State
+  * § 7.2 RDF Term Constructors (2) (3) (4) (5) (6) (7) (8) (9) (10) (11)
+  * § 7.3.2 Reified Triples
+  * § 7.3.4 Annotation Blocks
+  * § 7.3.5 Property Lists
+  * § 7.3.6 Collections
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-datatype-iri)
+
+**Referenced in:**
+
+  * § 2.6.1 Quoted Literals (2)
+  * § 7. Parsing
+  * § 7.2 RDF Term Constructors
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-dir-lang-string)
+
+**Referenced in:**
+
+  * § Abstract
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-ill-typed)
+
+**Referenced in:**
+
+  * § 7.2 RDF Term Constructors
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-base-direction)
+
+**Referenced in:**
+
+  * § 2.4 Version Announcement (2)
+  * § 2.6.1 Quoted Literals (2)
+  * § 7. Parsing
+  * § 7.2 RDF Term Constructors (2) (3) (4) (5)
+  * § F. Changes between RDF 1.1 and RDF 1.2
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-iri)
+
+**Referenced in:**
+
+  * § 2. Turtle Language
+  * § 2.5 IRIs
+  * § 2.11 Reifying Triples
+  * § 2.11.1 Annotation Syntax
+  * § 7. Parsing
+  * § 7.2 RDF Term Constructors (2) (3) (4) (5) (6) (7)
+  * § C. Security Considerations (2) (3)
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-language-tag)
+
+**Referenced in:**
+
+  * § 2.6.1 Quoted Literals (2)
+  * § 7. Parsing
+  * § 7.2 RDF Term Constructors (2) (3) (4)
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-literal)
+
+**Referenced in:**
+
+  * § 2. Turtle Language
+  * § 2.6 RDF Literals
+  * § 4. Turtle compared to SPARQL
+  * § 7. Parsing
+  * § 7.2 RDF Term Constructors (2) (3) (4) (5) (6)
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-object)
+
+**Referenced in:**
+
+  * § Abstract
+  * § 2.1 Simple Triples
+  * § 2.10 Triple Terms
+  * § 2.11 Reifying Triples
+  * § 2.11.1 Annotation Syntax (2)
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-predicate)
+
+**Referenced in:**
+
+  * § 2.1 Simple Triples
+  * § 2.11 Reifying Triples
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-graph)
+
+**Referenced in:**
+
+  * § Abstract
+  * § 1. Introduction (2)
+  * § 2. Turtle Language (2)
+  * § 5. Conformance
+  * § 7.3 RDF Triples Constructors
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-lexical-form)
+
+**Referenced in:**
+
+  * § 2.6.1 Quoted Literals
+  * § 7. Parsing
+  * § 7.2 RDF Term Constructors (2) (3) (4)
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-string)
+
+**Referenced in:**
+
+  * § 5. Conformance
+  * § 6. Turtle Grammar
+  * § 7.2 RDF Term Constructors (2) (3) (4) (5) (6) (7) (8)
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-term)
+
+**Referenced in:**
+
+  * § Abstract
+  * § 2.2 Predicate Lists
+  * § 2.3 Object Lists
+  * § 2. Turtle Language
+  * § 2.9 Collections
+  * § 6.4 Escape Sequences
+  * § 7. Parsing (2)
+  * § 7.1 Parser State (2) (3) (4)
+  * § 7.2 RDF Term Constructors (2) (3) (4) (5) (6)
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-reifier)
+
+**Referenced in:**
+
+  * § 2.11 Reifying Triples (2)
+  * § 2.11.1 Annotation Syntax (2) (3) (4) (5) (6) (7) (8) (9) (10) (11) (12) (13) (14) (15) (16)
+  * § 7.2 RDF Term Constructors
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-reifying-triple)
+
+**Referenced in:**
+
+  * § 2.11 Reifying Triples (2) (3) (4) (5)
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-relative-iri)
+
+**Referenced in:**
+
+  * § 2.5 IRIs (2)
+  * § 6.3 IRI References (2)
+  * § 7.2 RDF Term Constructors
+  * § D. Internet Media Type and File Extension
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-subject)
+
+**Referenced in:**
+
+  * § 2.1 Simple Triples
+  * § 2.11.1 Annotation Syntax (2)
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-triple)
+
+**Referenced in:**
+
+  * § Abstract
+  * § 2. Turtle Language
+  * § 2.1 Simple Triples
+  * § 2.10 Triple Terms
+  * § 2.11 Reifying Triples
+  * § 2.11.1 Annotation Syntax (2)
+  * § 7.1 Parser State
+  * § 7.3 RDF Triples Constructors
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term)
+
+**Referenced in:**
+
+  * § Abstract (2) (3)
+  * § 2. Turtle Language
+  * § 2.4 Version Announcement
+  * § 2.10 Triple Terms (2) (3)
+  * § 2.11 Reifying Triples (2) (3) (4)
+  * § 2.11.1 Annotation Syntax (2) (3) (4) (5)
+  * § 7. Parsing
+  * § 7.1 Parser State
+  * § 7.2 RDF Term Constructors (2)
+  * § F. Changes between RDF 1.1 and RDF 1.2
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-semantics/#rdf-collections)
+
+**Referenced in:**
+
+  * § 2.9 Collections
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-semantics/#Reif)
+
+**Referenced in:**
+
+  * § 2.11 Reifying Triples
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-xml/#example7)
+
+**Referenced in:**
+
+  * § 3. Examples
+
+
+
+[Permalink](https://www.rfc-editor.org/rfc/rfc3986#section-5.1.3)
+
+**Referenced in:**
+
+  * § 6.3 IRI References
+
+
+
+[Permalink](https://www.rfc-editor.org/rfc/rfc3986#section-5)
+
+**Referenced in:**
+
+  * § 2.5 IRIs
+
+
+
+[Permalink](https://www.rfc-editor.org/rfc/rfc3986#section-3.3)
+
+**Referenced in:**
+
+  * § 7.2 RDF Term Constructors
+
+
+
+[Permalink](https://www.rfc-editor.org/rfc/rfc3986#section-5.1.1)
+
+**Referenced in:**
+
+  * § 6.3 IRI References
+
+
+
+[Permalink](https://www.rfc-editor.org/rfc/rfc3986#section-5.1.2)
+
+**Referenced in:**
+
+  * § 6.3 IRI References
+
+
+
+[Permalink](https://www.rfc-editor.org/rfc/rfc3986#section-5.1.4)
+
+**Referenced in:**
+
+  * § 6.3 IRI References
+
+
+
+[Permalink](https://www.rfc-editor.org/rfc/rfc3987#section-2.2)
+
+**Referenced in:**
+
+  * § 7.2 RDF Term Constructors (2) (3)
+
+
+
+[Permalink](https://www.w3.org/TR/sparql12-query/#rPrologue)
+
+**Referenced in:**
+
+  * § 4. Turtle compared to SPARQL
+
+
+
+[Permalink](https://www.w3.org/TR/sparql12-query/#grammar)
+
+**Referenced in:**
+
+  * § 4. Turtle compared to SPARQL
+
+
+
+[Permalink](https://www.w3.org/TR/sparql12-query/#QSynIRI)
+
+**Referenced in:**
+
+  * § 4. Turtle compared to SPARQL
+
+
+
+[Permalink](https://www.w3.org/TR/sparql12-query/#sparqlTriplePatterns)
+
+**Referenced in:**
+
+  * § 4. Turtle compared to SPARQL
+
+
+
+[Permalink](https://www.w3.org/TR/sparql12-query/#rTriplesBlock)
+
+**Referenced in:**
+
+  * § 1. Introduction
+  * § 4. Turtle compared to SPARQL
+
+
+
+[Permalink](https://www.w3.org/TR/xml-names/#ns-qualnames)
+
+**Referenced in:**
+
+  * § 2.5 IRIs
+
+
+
+[Permalink](https://www.w3.org/TR/xmlschema11-2/#boolean)
+
+**Referenced in:**
+
+  * § 2.6.3 Booleans
+
+
+  *[W3C]: World Wide Web Consortium
+  *[RDF]: Resource Description Framework
+  *[ W3C]: World Wide Web Consortium
+  *[SPARQL]: SPARQL 1.2 Query Language
+  *[EBNF]: Extended Backus–Naur Form
+  *[#x00]: null
+  *[#x20]: space
+  *[#x22]: dquote
+  *[#x5C]: backslash
+  *[#x0A]: new line
+  *[#x0D]: carriage return
+  *[#x27]: apos
+  *[#x09]: horizontal tab
+  *[#xC0]: unicode U+00C0
+  *[#xD6]: unicode U+00D6
+  *[#xD8]: unicode U+00D8
+  *[#xF6]: unicode U+00F6
+  *[#xF8]: unicode U+00F8
+  *[#x02FF]: unicode U+02FF
+  *[#x0370]: unicode U+0370
+  *[#x037D]: unicode U+037D
+  *[#x037F]: unicode U+037F
+  *[#x1FFF]: unicode U+1FFF
+  *[#x200C]: unicode U+200C
+  *[#x200D]: unicode U+200D
+  *[#x2070]: unicode U+2070
+  *[#x218F]: unicode U+218F
+  *[#x2C00]: unicode U+2C00
+  *[#x2FEF]: unicode U+2FEF
+  *[#x3001]: unicode U+3001
+  *[#xD7FF]: unicode U+D7FF
+  *[#xF900]: unicode U+F900
+  *[#xFDCF]: unicode U+FDCF
+  *[#xFDF0]: unicode U+FDF0
+  *[#xFFFD]: unicode U+FFFD
+  *[#x00010000]: unicode U+10000
+  *[#x000EFFFF]: unicode U+EFFFF
+  *[#xB7]: unicode U+00B7
+  *[#x0300]: unicode U+0300
+  *[#x036F]: unicode U+036F
+  *[#x203F]: unicode U+203F
+  *[#x2040]: unicode U+2040
+  *[↑]: Back to Top

@@ -1,0 +1,20 @@
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix ex: <http://example.org/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+# Mirrors the SHACL 1.2 Core spec's own use case for sh:closed sh:ByTypes:
+# a value node's allowed properties are collected from its own type's
+# superclass chain, not just the shape doing the validating.
+
+ex:Animal a rdfs:Class, sh:NodeShape ;
+  sh:property [
+    sh:path ex:name ;
+  ] .
+
+ex:Dog a rdfs:Class, sh:NodeShape ;
+  rdfs:subClassOf ex:Animal ;
+  sh:targetClass ex:Dog ;
+  sh:closed sh:ByTypes ;
+  sh:property [
+    sh:path ex:barks ;
+  ] .

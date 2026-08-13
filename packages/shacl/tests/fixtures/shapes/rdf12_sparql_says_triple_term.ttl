@@ -1,0 +1,17 @@
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix ex: <http://example.org/> .
+
+ex:SaysTripleTermShape a sh:NodeShape ;
+  sh:targetNode ex:alice ;
+  sh:sparql [
+    a sh:SPARQLConstraint ;
+    sh:message "alice must say a triple term about bob knowing carol" ;
+    sh:select """
+      PREFIX ex: <http://example.org/>
+      SELECT $this WHERE {
+        FILTER NOT EXISTS {
+          $this ex:says <<( ex:bob ex:knows ex:carol )>> .
+        }
+      }
+    """ ;
+  ] .

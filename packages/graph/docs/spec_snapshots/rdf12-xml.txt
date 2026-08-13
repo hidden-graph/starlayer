@@ -1,0 +1,3141 @@
+RDF 1.2 XML Syntax
+Snapshot source: https://www.w3.org/TR/rdf12-xml/
+Status at fetch time: W3C Working Draft 18 June 2026
+Published: 2026-06-18
+Copyright © 2004-2026 World Wide Web Consortium. Distributed under the
+W3C Software and Document License: https://www.w3.org/copyright/software-license-2023/
+See docs/spec_snapshots/README.md for how this snapshot is used and regenerated.
+======================================================================
+
+[![W3C](https://www.w3.org/StyleSheets/TR/2021/logos/W3C) ](https://www.w3.org/)
+
+# RDF 1.2 XML Syntax
+
+[W3C Working Draft](https://www.w3.org/standards/types#WD) 18 June 2026
+
+More details about this document
+
+This version:
+     <https://www.w3.org/TR/2026/WD-rdf12-xml-20260618/>
+Latest published version:
+     <https://www.w3.org/TR/rdf12-xml/>
+Latest editor's draft:
+    <https://w3c.github.io/rdf-xml/spec/>
+History:
+     <https://www.w3.org/standards/history/rdf12-xml/>
+     [Commit history](https://github.com/w3c/rdf-xml/commits/)
+Test suite:
+    <https://w3c.github.io/rdf-tests/rdf/rdf12/rdf-xml/>
+Latest Recommendation:
+    <https://www.w3.org/TR/rdf-syntax-grammar>
+Editors: 
+     Gregg Kellogg (until 2025-09-06), in memoriam
+     Jerven Bolleman[ ](https://orcid.org/0000-0002-7449-1266)
+Former editors: 
+     Fabien Gandon[ ](https://orcid.org/0000-0003-0543-1232)
+     Guus Schreiber[ ](https://orcid.org/0000-0002-2400-1185)
+     Dave Beckett
+     Ora Lassilla[ ](https://orcid.org/0000-0002-0001-9137)
+     Ralph Swick[ ](https://orcid.org/0000-0002-5617-3248)
+Author: 
+     Dave Beckett
+Feedback:
+     [GitHub w3c/rdf-xml](https://github.com/w3c/rdf-xml/) ([pull requests](https://github.com/w3c/rdf-xml/pulls/), [new issue](https://github.com/w3c/rdf-xml/issues/new/choose), [open issues](https://github.com/w3c/rdf-xml/issues/)) 
+    [public-rdf-star-wg@w3.org](mailto:public-rdf-star-wg@w3.org?subject=%5Brdf12-xml%5D%20YOUR%20TOPIC%20HERE) with subject line `[rdf12-xml] _… message topic …_` ([archives](https://lists.w3.org/Archives/Public/public-rdf-star-wg))
+
+[Copyright](https://www.w3.org/policies/#copyright) © 2004-2026 [World Wide Web Consortium](https://www.w3.org/). W3C® [liability](https://www.w3.org/policies/#Legal_Disclaimer), [trademark](https://www.w3.org/policies/#W3C_Trademarks) and [permissive document license](https://www.w3.org/copyright/software-license-2023/ "W3C Software and Document Notice and License") rules apply. 
+
+* * *
+
+## Abstract
+
+The Resource Description Framework (RDF) is a general-purpose language for representing information in the Web.
+
+This document defines an XML syntax for RDF called RDF/XML in terms of Namespaces in XML, the XML Information Set [XML-INFOSET] and XML Base [XMLBASE].
+
+RDF 1.2 XML Syntax introduces [triple terms](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term) as a fourth kind of [RDF term](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-term) which can be used as the [object](https://www.w3.org/TR/rdf12-concepts/#dfn-object) of another [triple](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-triple), making it possible to make statements about other statements. [Triple terms](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term) are typically not used explicitly as the annotation construction is generally preferred. RDF 1.2 XML Syntax also adds support for [directional language-tagged strings](https://www.w3.org/TR/rdf12-concepts/#dfn-dir-lang-string).
+
+## Status of This Document
+
+ _This section describes the status of this document at the time of its publication. A list of current W3C publications and the latest revision of this technical report can be found in the [W3C standards and drafts index](https://www.w3.org/TR/)._
+
+This document is a part of the RDF 1.2 document suite. The document defines the RDF/XML syntax, a concrete syntax for RDF [RDF12-CONCEPTS].
+
+There have been no substantive changes to this document since [rdf-syntax-grammar]. Minor editorial changes, if any, are detailed in B. Changes between RDF 1.1 and RDF 1.2.
+
+This document was published by the [RDF & SPARQL Working Group](https://www.w3.org/groups/wg/rdf-star) as a Working Draft using the [Recommendation track](https://www.w3.org/policies/process/20250818/#recs-and-notes). 
+
+Publication as a Working Draft does not imply endorsement by W3C and its Members. 
+
+This is a draft document and may be updated, replaced, or obsoleted by other documents at any time. It is inappropriate to cite this document as other than a work in progress. Future updates to this upcoming Recommendation may incorporate [new features](https://www.w3.org/policies/process/20250818/#allow-new-features). 
+
+This document was produced by a group operating under the [W3C Patent Policy](https://www.w3.org/policies/patent-policy/). W3C maintains a [public list of any patent disclosures](https://www.w3.org/groups/wg/rdf-star/ipr) made in connection with the deliverables of the group; that page also includes instructions for disclosing a patent. An individual who has actual knowledge of a patent that the individual believes contains [Essential Claim(s)](https://www.w3.org/policies/patent-policy/#def-essential) must disclose the information in accordance with [section 6 of the W3C Patent Policy](https://www.w3.org/policies/patent-policy/#sec-Disclosure). 
+
+This document is governed by the [18 August 2025 W3C Process Document](https://www.w3.org/policies/process/20250818/). 
+
+### Set of Documents
+
+This document is one of eleven RDF 1.2 and twelve SPARQL 1.2 documents produced by the [RDF & SPARQL Working Group](https://www.w3.org/groups/wg/rdf-star).
+
+List of documents
+
+RDF 1.2 Documents:
+
+  1. [What’s New in RDF 1.2](https://w3c.github.io/rdf-new/spec/)
+  2. [RDF 1.2 Concepts and Abstract Data Model](https://www.w3.org/TR/rdf12-concepts/)
+  3. [RDF 1.2 N-Quads](https://www.w3.org/TR/rdf12-n-quads/)
+  4. [RDF 1.2 N-Triples](https://www.w3.org/TR/rdf12-n-triples/)
+  5. [RDF 1.2 Primer](https://www.w3.org/TR/rdf12-primer/)
+  6. [RDF 1.2 Schema](https://www.w3.org/TR/rdf12-schema/)
+  7. [RDF 1.2 Semantics](https://www.w3.org/TR/rdf12-semantics/)
+  8. [RDF 1.2 TriG](https://www.w3.org/TR/rdf12-trig/)
+  9. [RDF 1.2 Turtle](https://www.w3.org/TR/rdf12-turtle/)
+  10. RDF 1.2 XML Syntax (this document)
+  11. [RDF 1.2 Interoperability](https://w3c.github.io/rdf-interop/spec/)
+
+
+
+SPARQL 1.2 Documents:
+
+  1. [What’s New in SPARQL 1.2](https://w3c.github.io/sparql-new/spec/)
+  2. [SPARQL 1.2 Concepts](https://w3c.github.io/sparql-concepts/spec/)
+  3. [SPARQL 1.2 Query Language](https://www.w3.org/TR/sparql12-query/)
+  4. [SPARQL 1.2 Update](https://www.w3.org/TR/sparql12-update/)
+  5. [SPARQL 1.2 Service Description](https://www.w3.org/TR/sparql12-service-description/)
+  6. [SPARQL 1.2 Federated Query](https://www.w3.org/TR/sparql12-federated-query/)
+  7. [SPARQL 1.2 Query Results JSON Format](https://www.w3.org/TR/sparql12-results-json/)
+  8. [SPARQL 1.2 Query Results CSV and TSV Formats](https://www.w3.org/TR/sparql12-results-csv-tsv/)
+  9. [SPARQL 1.2 Query Results XML Format](https://www.w3.org/TR/sparql12-results-xml/)
+  10. [SPARQL 1.2 Entailment Regimes](https://www.w3.org/TR/sparql12-entailment/)
+  11. [SPARQL 1.2 Protocol](https://www.w3.org/TR/sparql12-protocol/)
+  12. [SPARQL 1.2 Graph Store Protocol](https://www.w3.org/TR/sparql12-graph-store-protocol/)
+
+
+
+## Table of Contents
+
+  1. Abstract
+  2. Status of This Document
+     1. Set of Documents
+  3. 1\. Introduction
+  4. 2\. An XML Syntax for RDF
+     1. 2.1 Introduction
+     2. 2.2 Node Elements and Property Elements
+     3. 2.3 Multiple Property Elements
+     4. 2.4 Empty Property Elements
+     5. 2.5 Property Attributes
+     6. 2.6 Completing the Document: Document Element and XML Declaration
+     7. 2.7 Languages: `xml:lang`
+     8. 2.8 Base Direction: `its:dir`
+     9. 2.9 XML Literals: `rdf:parseType="Literal"`
+     10. 2.10 Typed Literals: `rdf:datatype`
+     11. 2.11 Identifying Blank Nodes: `rdf:nodeID`
+     12. 2.12 Omitting Blank Nodes: `rdf:parseType="Resource"`
+     13. 2.13 Omitting Nodes: Property Attributes on an empty Property Element
+     14. 2.14 Typed Node Elements
+     15. 2.15 Abbreviating IRIs: `rdf:ID` and `xml:base`
+     16. 2.16 Container Membership Property Elements: `rdf:li` and `rdf:_`_n_
+     17. 2.17 Collections: `rdf:parseType="Collection"`
+     18. 2.18 Reifying Statements: `rdf:ID`
+     19. 2.19 Triple Terms: `rdf:parseType="Triple"`
+     20. 2.20 Annotating Triples: `rdf:annotation` or `rdf:annotationNodeID`
+  5. 3\. Conformance
+     1. 3.1 RDF/XML Internet Media Type and File Extension
+     2. 3.2 Privacy Considerations
+     3. 3.3 Security Considerations
+  6. 4\. Global Issues
+     1. 4.1 The RDF Namespace and Vocabulary
+     2. 4.2 Identifiers
+     3. 4.3 Resolving IRIs
+     4. 4.4 Constraints
+  7. 5\. Syntax Data Model
+     1. 5.1 Events
+        1. 5.1.1 Root Event
+        2. 5.1.2 Element Event
+        3. 5.1.3 End Element Event
+        4. 5.1.4 Attribute Event
+        5. 5.1.5 Text Event
+        6. 5.1.6 IRI Event
+        7. 5.1.7 Triple Term Event
+        8. 5.1.8 Blank Node Identifier Event
+        9. 5.1.9 Literal Without Datatype Event
+        10. 5.1.10 Typed Literal Event
+     2. 5.2 Information Set Mapping
+     3. 5.3 Grammar Notation
+        1. 5.3.1 Grammar General Notation
+        2. 5.3.2 Grammar Event Matching Notation
+        3. 5.3.3 Grammar Action Notation
+  8. 6\. RDF/XML Grammar
+     1. 6.1 Grammar summary
+     2. 6.2 Grammar Productions
+        1. 6.2.1 Grammar start
+        2. 6.2.2 Production coreSyntaxTerms
+        3. 6.2.3 Production syntaxTerms
+        4. 6.2.4 Production oldTerms
+        5. 6.2.5 Production nodeElementIRIs
+        6. 6.2.6 Production propertyElementURIs
+        7. 6.2.7 Production propertyAttributeIRIs
+        8. 6.2.8 Production doc
+        9. 6.2.9 Production RDF
+        10. 6.2.10 Production nodeElementList
+        11. 6.2.11 Production nodeElement
+        12. 6.2.12 Production ws
+        13. 6.2.13 Production propertyEltList
+        14. 6.2.14 Production propertyElt
+        15. 6.2.15 Production resourcePropertyElt
+        16. 6.2.16 Production literalPropertyElt
+        17. 6.2.17 Production parseTypeLiteralPropertyElt
+        18. 6.2.18 Production parseTypeResourcePropertyElt
+        19. 6.2.19 Production parseTypeTriplePropertyElt
+        20. 6.2.20 Production parseTypeCollectionPropertyElt
+        21. 6.2.21 Production parseTypeOtherPropertyElt
+        22. 6.2.22 Production emptyPropertyElt
+        23. 6.2.23 Production idAttr
+        24. 6.2.24 Production nodeIdAttr
+        25. 6.2.25 Production aboutAttr
+        26. 6.2.26 Production annotationAttr
+        27. 6.2.27 Production annotationNodeIDAttr
+        28. 6.2.28 Production propertyAttr
+        29. 6.2.29 Production resourceAttr
+        30. 6.2.30 Production datatypeAttr
+        31. 6.2.31 Production parseLiteral
+        32. 6.2.32 Production parseResource
+        33. 6.2.33 Production parseTriple
+        34. 6.2.34 Production parseCollection
+        35. 6.2.35 Production parseOther
+        36. 6.2.36 Production IRI
+        37. 6.2.37 Production literal
+        38. 6.2.38 Production rdf-id
+     3. 6.3 Reification Rules
+     4. 6.4 List Expansion Rules
+  9. 7\. Serializing an RDF Graph to RDF/XML
+  10. 8\. Using RDF/XML with SVG
+  11. A. Acknowledgments
+     1. A.1 Acknowledgments the original specification
+     2. A.2 Acknowledgments for RDF 1.1
+     3. A.3 Acknowledgments for RDF 1.2
+  12. B. Changes between RDF 1.1 and RDF 1.2
+  13. C. Syntax Schemas
+     1. C.1 RELAX NG Compact Schema
+  14. D. Index
+     1. D.1 Terms defined by this specification
+     2. D.2 Terms defined by reference
+  15. E. References
+     1. E.1 Normative references
+     2. E.2 Informative references
+
+
+
+## 1\. Introduction
+
+ _This section is non-normative._
+
+This document defines the XML [XML11] syntax for [RDF graphs](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-graph). 
+
+This document revises the original RDF/XML grammar [RDF-SYNTAX-GRAMMAR-19990222] in terms of XML Information Set [XML-INFOSET] information items which moves away from the rather low-level details of XML, such as particular forms of empty elements. This allows the grammar to be more precisely recorded and the mapping from the XML syntax to the [RDF Graph](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-graph) more clearly shown. The mapping to the [RDF graph](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-graph) is done by emitting statements in the N-Triples [RDF12-N-TRIPLES] format. 
+
+  * A document describing the basic concepts underlying RDF, as well as abstract syntax ("RDF Concepts and Abstract Syntax") [RDF12-CONCEPTS]
+  * A document describing the formal model-theoretic semantics of RDF ("RDF Semantics") [RDF12-SEMANTICS]
+  * Specifications of concrete syntaxes for RDF: 
+    * Turtle [RDF12-TURTLE] and TriG [RDF12-TRIG]
+    * JSON-LD [JSON-LD11] (JSON based)
+    * RDFa [RDFA-PRIMER] (for HTML embedding)
+    * N-Triples [N-TRIPLES] and N-Quads [N-QUADS] (line-based exchange formats)
+  * A document describing RDF Schema [RDF-SCHEMA], which provides a data-modeling vocabulary for RDF data. 
+
+
+
+For a longer introduction to the RDF/XML syntax with a historical perspective, see "RDF: Understanding the Striped RDF/XML Syntax" [STRIPEDRDF].
+
+## 2\. An XML Syntax for RDF
+
+ _This section is non-normative._
+
+This section introduces the RDF/XML syntax, describes how it encodes [RDF graphs](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-graph) and explains this with examples. If there is any conflict between this informal description and the formal description of the syntax and grammar in sections 5\. Syntax Data Model and 6\. RDF/XML Grammar, the latter two sections take precedence. 
+
+### 2.1 Introduction
+
+The RDF Concepts and Abstract Syntax document [RDF12-CONCEPTS] defines the RDF data model and the RDF abstract syntax. Along with the RDF Semantics [RDF12-SEMANTICS] this provides an abstract syntax with a formal semantics for it. The RDF data model has [nodes](https://www.w3.org/TR/rdf12-concepts/#dfn-nodes) and labeled directed _arcs_ that link pairs of nodes and this is represented as a set of [RDF triples](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-triple) where each triple contains a _subject node_ , _predicate_ and _object node_. Nodes are [IRIs](https://www.w3.org/TR/rdf12-concepts/#dfn-iri), [literals](https://www.w3.org/TR/rdf12-concepts/#dfn-literal), or [blank nodes](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node). Blank nodes may be given a document-local identifier called a [blank node identifier](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node-identifier). Predicates are [IRIs](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) and can be interpreted as either a relationship between the two nodes or as defining an attribute value (object node) for some subject node.
+
+In order to encode the graph in XML, the nodes and predicates have to be represented in XML terms — element names, attribute names, element contents and attribute values. RDF/XML uses XML [QNames](https://www.w3.org/TR/xml-names/#NT-QName) as defined in Namespaces in XML [XML-NAMES] to represent [IRIs](https://www.w3.org/TR/rdf12-concepts/#dfn-iri). All QNames have a [namespace name](https://www.w3.org/TR/xml-names/#dt-NSName) which is an [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) and a short [local name](https://www.w3.org/TR/xml-names/#NT-LocalPart). In addition, QNames can either have a short [prefix](https://www.w3.org/TR/xml-names/#NT-Prefix) or be declared with the default namespace declaration and have no prefix (but still have a [namespace name](https://www.w3.org/TR/xml-names/#dt-NSName))
+
+The [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) represented by a [QName](https://www.w3.org/TR/xml-names/#NT-QName) is determined by appending the [local name](https://www.w3.org/TR/xml-names/#NT-LocalPart) part of the QName after the [namespace name](https://www.w3.org/TR/xml-names/#dt-NSName) ([IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri)) part of the QName. This is used to shorten the [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) of all predicates and some nodes. [IRIs](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) identifying subject and object nodes can also be stored as XML attribute values. [RDF literals](https://www.w3.org/TR/rdf12-concepts/#dfn-literal) which can only be object nodes, become either XML element text content or XML attribute values.
+
+A graph can be considered a collection of paths of the form node, predicate arc, node, predicate arc, node, predicate arc, ... node which cover the entire graph. In RDF/XML these turn into sequences of elements inside elements which alternate between elements for nodes and predicate arcs. This has been called a series of node/arc stripes. The node at the start of the sequence turns into the outermost element, the next predicate arc turns into a child element, and so on. The stripes generally start at the top of an RDF/XML document and always begin with nodes. 
+
+Several RDF/XML examples are given in the following sections building up to complete RDF/XML documents. Example 7 is the first complete RDF/XML document.
+
+### 2.2 Node Elements and Property Elements
+
+![Graph for RDF/XML Example 4.](figure1.svg) Figure 1 Graph for RDF/XML Example described in Example 4. 
+
+An [RDF graph](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-graph) is given in Figure 1 where the nodes are represented as ovals which contain their [IRIs](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) where they have them, all the predicate arcs are labeled with [IRIs](https://www.w3.org/TR/rdf12-concepts/#dfn-iri), and string literal nodes have been written in rectangles.
+
+If we follow one node, predicate arc ... , node path through the graph shown in Figure 2:
+
+![One path through the graph for RDF/XML Example 4.](figure2.svg) Figure 2 One Path Through the Graph described in Example 4 highlighting the path from `<https://www.w3.org/TR/rdf12-xml/>` to `<https://greggkellogg.net/>`. Elements along the path are marked in **bold text**. 
+
+The left-hand side of the Figure 2 graph corresponds to the node/predicate arc stripes:
+
+  1. Node with [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) `https://www.w3.org/TR/rdf12-xml/`
+  2. Predicate Arc labeled with [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) `http://example.org/terms/editor`
+  3. Node with no [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri)
+  4. Predicate Arc labeled with [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) `http://example.org/terms/homePage`
+  5. Node with [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) `https://greggkellogg.net/`
+
+
+
+In RDF/XML, the sequence of 5 nodes and predicate arcs on the left-hand side of Figure 2 corresponds to the usage of five XML elements of two types, for the graph nodes and predicate arcs. These are conventionally called node elements and property elements respectively. In the striping shown in Example 1, `rdf:Description` is the node element (used three times for the three nodes) and `ex:editor` and `ex:homePage` are the two property elements.
+
+Example 1: Striped RDF/XML (nodes and predicate arcs)
+    
+    
+    <span class="hl-bold"><rdf:Description></span>
+    <ex:editor>
+      <span class="hl-bold"><rdf:Description></span>
+        <ex:homePage>
+          <rdf:Description>
+          </rdf:Description>
+        </ex:homePage>
+      <span class="hl-bold"></rdf:Description></span>
+    </ex:editor>
+    <span class="hl-bold"></rdf:Description></span>
+    
+
+The Figure 2 graph consists of some nodes that are [IRIs](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) (and others that are not, called blank node elements) and this can be added to the RDF/XML using the `rdf:about` attribute on node elements to give the result in Example 2:
+
+Example 2: Node Elements with IRIs added
+    
+    
+    <rdf:Description rdf:about="https://www.w3.org/TR/rdf12-xml/">
+      <ex:editor>
+        <rdf:Description>
+          <ex:homePage>
+            <rdf:Description rdf:about="https://greggkellogg.net/">
+            </rdf:Description>
+          </ex:homePage>
+        </rdf:Description>
+      </ex:editor>
+    </rdf:Description>
+    
+
+Adding the other two paths through the Figure 1 graph to the RDF/XML in Example 2 gives the result in Example 3 (this example fails to show that the blank node is shared between the two paths, see 2.11 Identifying Blank Nodes: `rdf:nodeID`):
+
+Example 3: Complete description of all graph paths
+    
+    
+    <rdf:Description rdf:about="https://www.w3.org/TR/rdf12-xml/">
+      <ex:editor>
+        <rdf:Description>
+          <ex:homePage>
+            <rdf:Description rdf:about="https://greggkellogg.net/">
+            </rdf:Description>
+          </ex:homePage>
+        </rdf:Description>
+      </ex:editor>
+    </rdf:Description>
+    
+    <rdf:Description rdf:about="https://www.w3.org/TR/rdf12-xml/">
+      <ex:editor>
+        <rdf:Description>
+          <ex:fullName>Gregg Kellogg</ex:fullName>
+        </rdf:Description>
+      </ex:editor>
+    </rdf:Description>
+    
+    <rdf:Description rdf:about="https://www.w3.org/TR/rdf12-xml/">
+      <dc:title>RDF 1.2 XML Syntax</dc:title>
+    </rdf:Description>
+    
+
+### 2.3 Multiple Property Elements
+
+There are several abbreviations that can be used to make common uses easier to write down. In particular, it is common that a subject node in the [RDF graph](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-graph) has multiple outgoing predicate arcs. RDF/XML provides an abbreviation for the corresponding syntax when a node element about a resource has multiple property elements. This can be abbreviated by using multiple child property elements inside the node element describing the subject node.
+
+Taking Example 3, there are two node elements that can take multiple property elements. The subject node with [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) `https://www.w3.org/TR/rdf12-xml/` has property elements `ex:editor` and `dc:title` and the node element for the [blank node](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node) can take `ex:homePage` and `ex:fullName`. This abbreviation gives the result shown in Example 4 (this example does show that there is a single blank node):
+
+Example 4: Using multiple property elements on a node element
+    
+    
+    <rdf:Description rdf:about="https://www.w3.org/TR/rdf12-xml/">
+      <ex:editor>
+        <rdf:Description>
+          <ex:homePage>
+            <rdf:Description rdf:about="https://greggkellogg.net/">
+            </rdf:Description>
+          </ex:homePage>
+          <ex:fullName>Gregg Kellogg</ex:fullName>
+        </rdf:Description>
+      </ex:editor>
+      <dc:title>RDF 1.2 XML Syntax</dc:title>
+    </rdf:Description>
+    
+
+### 2.4 Empty Property Elements
+
+When a predicate arc in an [RDF graph](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-graph) points to an object node which has no further predicate arcs, which appears in RDF/XML as an empty node element `<rdf:Description rdf:about="...">` `</rdf:Description>` (or `<rdf:Description rdf:about="..." />`) this form can be shortened. This is done by using the [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) of the object node as the value of an XML attribute `rdf:resource` on the containing property element and making the property element empty. 
+
+In this example, the property element `ex:homePage` contains an empty node element with the [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) `https://greggkellogg.net/`. This can be replaced with the empty property element form giving the result shown in Example 5:
+
+Example 5: Empty property elements
+    
+    
+     
+    <rdf:Description rdf:about="https://www.w3.org/TR/rdf12-xml/">
+      <ex:editor>
+        <rdf:Description>
+          <ex:homePage rdf:resource="https://greggkellogg.net/"/>
+          <ex:fullName>Gregg Kellogg</ex:fullName>
+        </rdf:Description>
+      </ex:editor>
+      <dc:title>RDF 1.2 XML Syntax</dc:title>
+    </rdf:Description>
+     
+
+### 2.5 Property Attributes
+
+When a property element's content is string literal, it may be possible to use it as an XML attribute on the containing node element. This can be done for multiple properties on the same node element only if the property element name is not repeated (required by XML — attribute names are unique on an XML element) and any in-scope `xml:lang` on the property element's string literal (if any) are the same (see 2.7 Languages: `xml:lang`) This abbreviation is known as a Property Attribute and can be applied to any node element.
+
+This abbreviation can also be used when the property element is `rdf:type` and it has an `rdf:resource` attribute the value of which is interpreted as a [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) object node.
+
+In Example 5:, there are two property elements with string literal content, the `dc:title` and `ex:fullName` property elements. These can be replaced with property attributes giving the result shown in Example 6:
+
+Example 6: Replacing property elements with string literal content into property attributes
+    
+    
+    <rdf:Description rdf:about="https://www.w3.org/TR/rdf12-xml/"
+               dc:title="RDF 1.2 XML Syntax">
+      <ex:editor>
+        <rdf:Description ex:fullName="Gregg Kellogg">
+          <ex:homePage rdf:resource="https://greggkellogg.net/"/>
+        </rdf:Description>
+      </ex:editor>
+    </rdf:Description>
+    
+
+### 2.6 Completing the Document: Document Element and XML Declaration
+
+To create a complete RDF/XML document, the serialization of the graph into XML is usually contained inside an `rdf:RDF` XML element which becomes the top-level XML document element. Conventionally the `rdf:RDF` element is also used to declare the XML namespaces that are used, although that is not required. When there is only one top-level node element inside `rdf:RDF`, the `rdf:RDF` can be omitted although any XML namespaces _MUST_ still be declared.
+
+The XML specification also permits an XML declaration at the top of the document with the XML version and possibly the XML content encoding. This is optional but recommended.
+
+Completing the RDF/XML could be done for any of the correct complete graph examples from Example 4 onwards but taking the smallest Example 6 and adding the final components, gives a complete RDF/XML representation of the original Figure 1 graph in Example 7:
+
+Example 7: Complete RDF/XML description of Figure 1
+
+Description of Figure 1 graph ([example07.rdf](example07.rdf), output [example07.nt](example07.nt)).
+    
+    
+    <?xml version="1.0"?>
+    <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+                xmlns:dc="http://purl.org/dc/elements/1.1/"
+                xmlns:ex="http://example.org/stuff/1.0/">
+    
+      <rdf:Description rdf:about="https://www.w3.org/TR/rdf12-xml/"
+                 dc:title="RDF 1.2 XML Syntax">
+        <ex:editor>
+          <rdf:Description ex:fullName="Gregg Kellogg">
+            <ex:homePage rdf:resource="https://greggkellogg.net/" />
+          </rdf:Description>
+        </ex:editor>
+      </rdf:Description>
+    
+    </rdf:RDF>
+    
+
+It is possible to omit `rdf:RDF` in Example 7 above since there is only one `rdf:Description` inside `rdf:RDF` but this is not shown here.
+
+### 2.7 Languages: `xml:lang`
+
+RDF/XML permits the use of the `xml:lang` attribute as defined by [2.12 Language Identification](https://www.w3.org/TR/xml11/#sec-lang-tag) of XML 1.1 [XML11] to allow the identification of content language. The `xml:lang` attribute can be used on any node element or property element to indicate that the included content is in the given language. Typed literals, including XML literals, are not affected by this attribute. The most specific in-scope language present (if any) is applied to property element string literal content or property attribute values. The `xml:lang=""` form indicates the absence of a language identifier.
+
+Some examples of marking content languages for RDF properties are shown in Example 8:
+
+Example 8: Complete example of xml:lang
+
+**Complete example of`xml:lang` ([example08.rdf](example08.rdf), output [example08.nt](example08.nt))**
+    
+    
+    <?xml version="1.0" encoding="utf-8"?>
+    <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+             xmlns:dc="http://purl.org/dc/elements/1.1/">
+    
+      <rdf:Description rdf:about="https://www.w3.org/TR/rdf12-xml/">
+        <dc:title>RDF 1.2 XML Syntax</dc:title>
+        <dc:title xml:lang="en">RDF 1.2 XML Syntax</dc:title>
+        <dc:title xml:lang="en-US">RDF 1.2 XML Syntax</dc:title>
+      </rdf:Description>
+    
+      <rdf:Description rdf:about="http://example.org/buecher/baum" xml:lang="de">
+        <dc:title>Der Baum</dc:title>
+        <dc:description>Das Buch ist außergewöhnlich</dc:description>
+        <dc:title xml:lang="en">The Tree</dc:title>
+      </rdf:Description>
+    
+    </rdf:RDF>
+    
+
+### 2.8 Base Direction: `its:dir`
+
+RDF 1.2 introduces the concept of a [base direction](https://www.w3.org/TR/rdf12-concepts/#dfn-base-direction) which can be used to specify the initial text direction of [language-tagged strings](https://www.w3.org/TR/rdf12-concepts/#dfn-language-tagged-string) to create a [directional language-tagged strings](https://www.w3.org/TR/rdf12-concepts/#dfn-dir-lang-string). This is specified by adding the `its:dir` attribute on any node element or property element, where `its` is the typical prefix used for the ITS namespace `http://www.w3.org/2005/11/its`. The supported values for `its:dir` are `"ltr"`, and `"rtl"` as required for [directional language-tagged strings](https://www.w3.org/TR/rdf12-concepts/#dfn-dir-lang-string).
+
+Some examples of marking base direction for RDF properties are shown in Example 9:
+
+Example 9: Complete example of xml:lang with its:dir
+
+**Complete example of`its:dir` ([example09.rdf](example09.rdf), output [example09.nt](example09.nt))**
+    
+    
+    <?xml version="1.0" encoding="utf-8"?>
+    <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+             xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
+             xmlns:show="http://example.org/vocab/show/"
+             xmlns:its="http://www.w3.org/2005/11/its"
+             rdf:version="1.2"
+             its:version="2.0">
+      <rdf:Description rdf:about="http://example.org/vocab/show/218">
+        <rdfs:label>That Seventies Show</rdfs:label>
+        <show:localName xml:lang="en">That Seventies Show</show:localName>
+        <show:unrelatedName xml:lang="he" its:dir="rtl">HTML היא שפת סימון.</show:unrelatedName>
+        <show:localName xml:lang="en-US" its:dir="ltr">That Seventies Show</show:localName>
+      </rdf:Description>
+    </rdf:RDF>
+    
+
+Note
+
+The `its:dir` attribute is specifically tied to version 2.0 of [ITS20], as indicated by the `its:version="2.0"` on the top-level XML document element.
+
+### 2.9 XML Literals: `rdf:parseType="Literal"`
+
+RDF allows XML literals [RDF12-CONCEPTS] to be given as the object node of a predicate. These are written in RDF/XML as content of a property element (not a property attribute) and indicated using the `rdf:parseType="Literal"` attribute on the containing property element. 
+
+An example of writing an XML literal is given in Example 10 where there is a single RDF triple with the subject node [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) `http://example.org/item01`, the predicate [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) `http://example.org/stuff/1.0/prop` (from `ex:prop`) and the object node with XML literal content beginning `a:Box`. 
+
+Example 10: Complete example of rdf:parseType=Literal
+
+**Complete example of`rdf:parseType="Literal"` ([example10.rdf](example10.rdf), output [example10.nt](example10.nt))**
+    
+    
+    <?xml version="1.0"?>
+    <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+             xmlns:ex="http://example.org/stuff/1.0/">
+    
+      <rdf:Description rdf:about="http://example.org/item01">
+        <ex:prop rdf:parseType="Literal" xmlns:a="http://example.org/a#">
+          <a:Box required="true">
+            <a:widget size="10" />
+            <a:grommit id="23" />
+          </a:Box>
+        </ex:prop>
+      </rdf:Description>
+    
+    </rdf:RDF>
+    
+
+### 2.10 Typed Literals: `rdf:datatype`
+
+RDF allows typed literals to be given as the object node of a predicate. Typed literals consist of a literal string and a [datatype IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-datatype-iri). These are written in RDF/XML using the same syntax for literal string nodes in the property element form (not property attribute) but with an additional `rdf:datatype="`_datatypeURI_`"` attribute on the property element. Any [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) can be used in the attribute. 
+
+An example of an RDF typed literal is given in Example 11 where there is a single RDF triple with the subject node [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) `http://example.org/item01`, the predicate [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) `http://example.org/stuff/1.0/size` (from `ex:size`) and the object node with the typed literal ("123", `http://www.w3.org/2001/XMLSchema#int`) to be interpreted as an XML Schema [XMLSCHEMA11-2] datatype [`int`](https://www.w3.org/TR/xmlschema11-2/#int). 
+
+Example 11: Complete example of rdf:datatype
+
+**Complete example of`rdf:datatype` ([example11.rdf](example11.rdf), output [example11.nt](example11.nt))**
+    
+    
+    <?xml version="1.0"?>
+    <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+                xmlns:ex="http://example.org/stuff/1.0/">
+    
+      <rdf:Description rdf:about="http://example.org/item01">
+        <ex:size rdf:datatype="http://www.w3.org/2001/XMLSchema#int">123</ex:size>
+      </rdf:Description>
+    
+    </rdf:RDF>
+    
+
+### 2.11 Identifying Blank Nodes: `rdf:nodeID`
+
+[Blank nodes](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node) in the RDF are distinct but have no [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri). It is sometimes required that the same [blank node](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node) is referred to in the RDF/XML in multiple places, such as at the subject and object of several RDF triples. In this case, a [blank node identifier](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node-identifier) can be given to the [blank node](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node) for identifying it in the document. [Blank node identifiers](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node-identifier) in RDF/XML are scoped to the containing XML Information Set [XML-INFOSET] [document information item](https://www.w3.org/TR/xml-infoset/#infoitem.document). A [blank node identifier](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node-identifier) is used on a node element to replace `rdf:about="`_IRI_`"` or on a property element to replace `rdf:resource="`_IRI_`"` with `rdf:nodeID="`_blank node identifier_`"` in both cases.
+
+Taking Example 7 and explicitly giving a [blank node identifier](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node-identifier) of `abc` to the blank node in it gives the result shown in Example 12. The second `rdf:Description` property element is about the [blank node](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node).
+
+Example 12: Complete RDF/XML description of graph using rdf:nodeID
+
+**Complete RDF/XML description of graph using `rdf:nodeID` identifying the [blank node](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node) ([example12.rdf](example12.rdf), output [example12.nt](example12.nt))**
+    
+    
+    <?xml version="1.0"?>
+    <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+                xmlns:dc="http://purl.org/dc/elements/1.1/"
+                xmlns:ex="http://example.org/stuff/1.0/">
+    
+      <rdf:Description rdf:about="https://www.w3.org/TR/rdf12-xml/"
+                 dc:title="RDF 1.2 XML Syntax">
+        <ex:editor rdf:nodeID="abc"/>
+      </rdf:Description>
+    
+      <rdf:Description rdf:nodeID="abc" ex:fullName="Gregg Kellogg">
+        <ex:homePage rdf:resource="https://greggkellogg.net/"/>
+      </rdf:Description>
+    
+    </rdf:RDF>
+    
+
+### 2.12 Omitting Blank Nodes: `rdf:parseType="Resource"`
+
+[Blank nodes](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node) (not [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) nodes) in [RDF graphs](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-graph) can be written in a form that allows the `<rdf:Description>` `</rdf:Description>` pair to be omitted. The omission is done by putting an `rdf:parseType="Resource"` attribute on the containing property element that turns the property element into a property-and-node element, which can itself have both property elements and property attributes. Property attributes and the `rdf:nodeID` attribute are not permitted on property-and-node elements.
+
+Taking the earlier Example 7, the contents of the `ex:editor` property element could be alternatively done in this fashion to give the form shown in Example 13:
+
+Example 13: Complete example using rdf:parseType=Resource
+
+**Complete example using`rdf:parseType="Resource"` ([example13.rdf](example13.rdf), output: [example13.nt](example13.nt))**
+    
+    
+    <?xml version="1.0"?>
+    <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+                xmlns:dc="http://purl.org/dc/elements/1.1/"
+                xmlns:ex="http://example.org/stuff/1.0/">
+      <rdf:Description rdf:about="https://www.w3.org/TR/rdf12-xml/"
+                       dc:title="RDF 1.2 XML Syntax">
+        <ex:editor rdf:parseType="Resource">
+          <ex:fullName>Gregg Kellogg</ex:fullName>
+          <ex:homePage rdf:resource="https://greggkellogg.net/"/>
+        </ex:editor>
+      </rdf:Description>
+    </rdf:RDF>
+    
+
+### 2.13 Omitting Nodes: Property Attributes on an empty Property Element
+
+If all of the property elements on a blank node element have string literal values with the same in-scope `xml:lang` value (if present) and each of these property elements appears at most once and there is at most one `rdf:type` property element with a [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) object node, these can be abbreviated by moving them to be property attributes on the containing property element which is made an empty element.
+
+Taking the earlier Example 5, the `ex:editor` property element contains a blank node element with two property elements `ex:fullname` and `ex:homePage`. `ex:homePage` is not suitable here since it does not have a string literal value, so it is being _ignored_ for the purposes of this example. The abbreviated form removes the `ex:fullName` property element and adds a new property attribute `ex:fullName` with the string literal value of the deleted property element to the `ex:editor` property element. The blank node element becomes implicit in the now empty `ex:editor` property element. The result is shown in Example 14.
+
+Example 14: Complete example of property attributes on an empty property element
+
+**Complete example ofproperty attributes on an empty property element ([example14.rdf](example14.rdf), output [example14.nt](example14.nt))**
+    
+    
+    <?xml version="1.0"?>
+    <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+                xmlns:dc="http://purl.org/dc/elements/1.1/"
+                xmlns:ex="http://example.org/stuff/1.0/">
+    
+      <rdf:Description rdf:about="https://www.w3.org/TR/rdf12-xml/"
+                dc:title="RDF 1.2 XML Syntax">
+        <ex:editor ex:fullName="Gregg Kellogg" />
+                <!-- Note the ex:homePage property has been ignored for this example -->
+      </rdf:Description>
+    
+    </rdf:RDF>
+
+### 2.14 Typed Node Elements
+
+It is common for [RDF graphs](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-graph) to have `rdf:type` predicates from subject nodes. These are conventionally called _typed nodes_ in the graph, or _typed node elements_ in the RDF/XML. RDF/XML allows such triples to be expressed more concisely by replacing the `rdf:Description` node element name with the namespaced-element corresponding to the [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) of the value of the type relationship. There may, of course, be multiple `rdf:type` predicates but only one can be used in this way, the others _MUST_ remain as property elements or property attributes. 
+
+The typed node elements are commonly used in RDF/XML with the built-in classes in the [RDF Vocabulary](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-vocabulary): `rdf:Seq`, `rdf:Bag`, `rdf:Alt`, `rdf:Statement`, `rdf:Property` and `rdf:List`.
+
+For example, the RDF/XML in 15 could be written as shown in Example 16.
+
+Example 15
+
+**Complete example with`rdf:type` ([example15.rdf](example15.rdf), output [example15.nt](example15.nt))**
+    
+    
+    <?xml version="1.0"?>
+    <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+                xmlns:dc="http://purl.org/dc/elements/1.1/"
+                xmlns:ex="http://example.org/stuff/1.0/">
+    
+      <rdf:Description rdf:about="http://example.org/thing">
+        <rdf:type rdf:resource="http://example.org/stuff/1.0/Document"/>
+        <dc:title>A marvelous thing</dc:title>
+      </rdf:Description>
+    </rdf:RDF>
+    
+
+Example 16
+
+**Complete example using a typed node element to replace an`rdf:type` ([example16.rdf](example16.rdf), output [example16.nt](example16.nt))**
+    
+    
+    <?xml version="1.0"?>
+    <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+                xmlns:dc="http://purl.org/dc/elements/1.1/"
+                xmlns:ex="http://example.org/stuff/1.0/">
+    
+      <ex:Document rdf:about="http://example.org/thing">
+        <dc:title>A marvelous thing</dc:title>
+      </ex:Document>
+    
+    </rdf:RDF>
+    
+
+### 2.15 Abbreviating IRIs: `rdf:ID` and `xml:base`
+
+RDF/XML allows further abbreviating [IRIs](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) in XML attributes in two ways. The XML Infoset provides a base URI attribute `xml:base` that sets the base IRI for resolving [relative IRI references](https://www.w3.org/TR/rdf12-concepts/#dfn-relative-iri), otherwise the base IRI is that of the document. The base IRI applies to all RDF/XML attributes that deal with [IRIs](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) which are `rdf:about`, `rdf:resource`, `rdf:ID` and `rdf:datatype`.
+
+The `rdf:ID` attribute on a node element (not on a property element; there it has another meaning) can be used instead of `rdf:about` and gives a [relative IRI reference](https://www.w3.org/TR/rdf12-concepts/#dfn-relative-iri) equivalent to `#` concatenated with the `rdf:ID` attribute value. So for example if `rdf:ID="name"`, that would be equivalent to `rdf:about="#name"`. `rdf:ID` provides an additional check since the same _name_ can only appear once in the scope of an `xml:base` value (or document, if none is given), so is useful for defining a set of distinct, related terms relative to the same [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri).
+
+Both forms require a base IRI to be determined, either from an in-scope `xml:base` or from the URL of the RDF/XML document.
+
+Example 17 shows abbreviating the node [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) of `http://example.org/here/#snack` using an `xml:base` of `http://example.org/here/` and an `rdf:ID` on the `rdf:Description` node element. The object node of the `ex:prop` predicate is an [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) resolved from the `rdf:resource` XML attribute value using the in-scope base IRI to give the [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) `http://example.org/here/fruit/apple`.
+
+Example 17: Complete example using rdf:ID> and xml:base
+
+**Complete example using`rdf:ID` and `xml:base` for shortening IRIs ([example17.rdf](example17.rdf), output [example17.nt](example17.nt))**
+    
+    
+    <?xml version="1.0"?>
+    <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+                xmlns:ex="http://example.org/stuff/1.0/"
+                xml:base="http://example.org/here/">
+    
+      <rdf:Description rdf:ID="snack">
+        <ex:prop rdf:resource="fruit/apple"/>
+      </rdf:Description>
+    
+    </rdf:RDF>
+    
+
+### 2.16 Container Membership Property Elements: `rdf:li` and `rdf:_`_n_
+
+RDF has a set of container membership properties and corresponding property elements that are mostly used with instances of the `rdf:Seq`, `rdf:Bag`, and `rdf:Alt` classes which may be written as typed node elements. The list properties are `rdf:_1`, `rdf:_2` etc. and can be written as property elements or property attributes as shown in Example 18. There is an `rdf:li` special property element that is equivalent to `rdf:_1`, `rdf:_2` in order, explained in detail in 6.4 List Expansion Rules. The mapping to the container membership properties is always done in the order that the `rdf:li` special property elements appear in XML — the document order is significant. The equivalent RDF/XML to Example 18 written in this form is shown in Example 19. 
+
+Example 18: Complex example using RDF list properties
+
+**Complex example using RDF list properties ([example18.rdf](example18.rdf), output [example18.nt](example18.nt))**
+    
+    
+      
+    <?xml version="1.0"?>
+    <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+    
+      <rdf:Seq rdf:about="http://example.org/favourite-fruit">
+        <rdf:_1 rdf:resource="http://example.org/banana"/>
+        <rdf:_2 rdf:resource="http://example.org/apple"/>
+        <rdf:_3 rdf:resource="http://example.org/pear"/>
+      </rdf:Seq>
+    
+    </rdf:RDF>
+      
+
+Example 19: Complete example using rdf:li
+
+**Complete example using`rdf:li` property element for list properties ([example19.rdf](example19.rdf), output [example19.nt](example19.nt))**
+    
+    
+    <?xml version="1.0"?>
+    <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+    
+      <rdf:Seq rdf:about="http://example.org/favourite-fruit">
+        <rdf:li rdf:resource="http://example.org/banana"/>
+        <rdf:li rdf:resource="http://example.org/apple"/>
+        <rdf:li rdf:resource="http://example.org/pear"/>
+      </rdf:Seq>
+    
+    </rdf:RDF>
+    
+
+### 2.17 Collections: `rdf:parseType="Collection"`
+
+RDF/XML allows an `rdf:parseType="Collection"` attribute on a property element to let it contain multiple node elements. These contained node elements give the set of subject nodes of the collection. This syntax form corresponds to a set of triples connecting the collection of subject nodes, the exact triples generated are described in detail in 6.2.20 Production parseTypeCollectionPropertyElt. The collection construction is always done in the order that the node elements appear in the XML document. Whether the order of the collection of nodes is significant is an application issue and not defined here. 
+
+Example 20 shows a collection of three nodes elements at the end of the `ex:hasFruit` property element using this form.
+
+Example 20: Complete example of a RDF collection
+
+**Complete example of a RDF collection of nodes using `rdf:parseType="Collection"` ([example20.rdf](example20.rdf), output [example20.nt](example20.nt))**
+    
+    
+    <?xml version="1.0"?>
+    <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+                xmlns:ex="http://example.org/stuff/1.0/">
+    
+      <rdf:Description rdf:about="http://example.org/basket">
+        <ex:hasFruit rdf:parseType="Collection">
+          <rdf:Description rdf:about="http://example.org/banana"/>
+          <rdf:Description rdf:about="http://example.org/apple"/>
+          <rdf:Description rdf:about="http://example.org/pear"/>
+        </ex:hasFruit>
+      </rdf:Description>
+    
+    </rdf:RDF>
+    
+
+### 2.18 Reifying Statements: `rdf:ID`
+
+The `rdf:ID` attribute can be used on a property element to reify the triple that it generates (See 6.3 Reification Rules for the full details). The identifier for the triple should be constructed as an [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) made from the [relative IRI reference](https://www.w3.org/TR/rdf12-concepts/#dfn-relative-iri) `#` concatenated with the `rdf:ID` attribute value, resolved against the in-scope base IRI. So for example if `rdf:ID="triple"`, that would be equivalent to the [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) formed from [relative IRI reference](https://www.w3.org/TR/rdf12-concepts/#dfn-relative-iri) `#triple` against the base IRI. Each (`rdf:ID` attribute value, base IRI) pair has to be unique in an RDF/XML document, see constraint-id. 
+
+Example 21 shows a `rdf:ID` being used to reify a triple made from the `ex:prop` property element giving the reified triple the [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) `http://example.org/triples/#triple1`.
+
+Example 21
+
+**Complete example of`rdf:ID` reifying a property element ([example21.rdf](example21.rdf), output [example21.nt](example21.nt))**
+    
+    
+    <?xml version="1.0"?>
+    <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+                xmlns:ex="http://example.org/stuff/1.0/"
+                xml:base="http://example.org/triples/">
+      <rdf:Description rdf:about="http://example.org/">
+        <ex:prop rdf:ID="triple1">blah</ex:prop>
+      </rdf:Description>
+    
+    </rdf:RDF>
+    
+
+### 2.19 Triple Terms: `rdf:parseType="Triple"`
+
+A [triple term](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term) may be the [object](https://www.w3.org/TR/rdf12-concepts/#dfn-object) of an [RDF triple](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-triple). [triple terms](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term) in [RDF graphs](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-graph) can be written in a form that allows a [triple term](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term) to be written as a [resource](https://www.w3.org/TR/rdf12-concepts/#dfn-resource) encoding a single [RDF triple](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-triple). This is done by adding the `rdf:parseType="Triple"` attribute on a property element to describe a single [triple term](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term), which may not appear as a triple within the graph, itself; see 6.2.19 Production parseTypeTriplePropertyElt. 
+
+Example 22: Complete example using rdf:parseType=Triple
+
+**Complete example using`rdf:parseType="Triple"` ([example22.rdf](example22.rdf), output: [example22.nt](example22.nt))**
+    
+    
+    <?xml version="1.0"?>
+    <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+             xmlns:ex="http://example.org/stuff/1.0/"
+             xml:base="http://example.org/triples/"
+             rdf:version="1.2">
+      <rdf:Description rdf:about="http://example.org/">
+        <ex:prop rdf:parseType="Triple">
+          <rdf:Description rdf:about="http://example.org/stuff/1.0/s">
+            <ex:p rdf:resource="http://example.org/stuff/1.0/o" />
+          </rdf:Description>
+        </ex:prop>
+      </rdf:Description>
+    </rdf:RDF>
+    
+
+Note
+
+[Triple terms](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term) play a similar role to Reifying Statements, the difference being that triple terms are are a core part of the [RDF 1.2 Abstract Syntax](https://www.w3.org/TR/rdf12-concepts/#section-triple-terms) [RDF12-CONCEPTS], while Reifying Statements emit triples to describe another triple in the asserted graph. Triple terms describe triples that are not necessarily asserted. See 2.20 Annotating Triples: `rdf:annotation` or `rdf:annotationNodeID` for a way to combine asserting and describing a triple at the same time.
+
+### 2.20 Annotating Triples: `rdf:annotation` or `rdf:annotationNodeID`
+
+RDF 1.2 XML Syntax also includes syntax for annotating triples by both asserting the triple, via an explicit identifier, and having the [reifier](https://www.w3.org/TR/rdf12-concepts/#dfn-reifier) associated with that [triple terms](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term) be the [subject](https://www.w3.org/TR/rdf12-concepts/#dfn-subject) or [object](https://www.w3.org/TR/rdf12-concepts/#dfn-object) of further triples. If explicitly identified, the same [reifier](https://www.w3.org/TR/rdf12-concepts/#dfn-reifier) can then be used as the [subject](https://www.w3.org/TR/rdf12-concepts/#dfn-subject) or [object](https://www.w3.org/TR/rdf12-concepts/#dfn-object) of additional triples and/or [triple terms](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term). 
+
+A [reifier](https://www.w3.org/TR/rdf12-concepts/#dfn-reifier) can be added as a property attribute using either the `rdf:annotation` (for [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) [reifier](https://www.w3.org/TR/rdf12-concepts/#dfn-reifier)) or `rdf:annotationNodeID` (for [blank node](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node) [reifier](https://www.w3.org/TR/rdf12-concepts/#dfn-reifier)). This [reifier](https://www.w3.org/TR/rdf12-concepts/#dfn-reifier) can also be used as the subject of other triples as a way to associate those triples with the triple term composed of the subject, predicate, and object associated with a property element.
+
+Example 23: Complete example using rdf:annotation
+
+**Complete example using`rdf:annotation` ([example23.rdf](example23.rdf), output: [example23.nt](example23.nt))**
+    
+    
+    <?xml version="1.0"?>
+    <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+             xmlns:ex="http://example.org/stuff/1.0/"
+             xml:base="http://example.org/triples/">
+      <rdf:Description rdf:about="http://example.org/">
+        <ex:prop rdf:annotation="http://example.org/triple1">blah</ex:prop>
+      </rdf:Description>
+      <rdf:Description rdf:about="http://example.org/triple1">
+        <ex:prop>foo</ex:prop>
+      </rdf:Description>
+    </rdf:RDF>
+    
+
+Example 24: Complete example using rdf:annotationNodeID
+
+**Complete example using`rdf:annotationNodeID` ([example24.rdf](example24.rdf), output: [example24.nt](example24.nt))**
+    
+    
+    <?xml version="1.0"?>
+    <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+             xmlns:ex="http://example.org/stuff/1.0/"
+             xml:base="http://example.org/triples/">
+      <rdf:Description rdf:about="http://example.org/">
+        <ex:prop rdf:annotationNodeID="triple1">blah</ex:prop>
+      </rdf:Description>
+      <rdf:Description rdf:nodeID="triple1">
+        <ex:prop>foo</ex:prop>
+      </rdf:Description>
+    </rdf:RDF>
+    
+
+## 3\. Conformance
+
+As well as sections marked as non-normative, all authoring guidelines, diagrams, examples, and notes in this specification are non-normative. Everything else in this specification is normative.
+
+The key words _MAY_ , _MUST_ , _REQUIRED_ , _SHOULD_ , and _SHOULD NOT_ in this document are to be interpreted as described in [BCP 14](https://www.rfc-editor.org/info/bcp14) [RFC2119] [RFC8174] when, and only when, they appear in all capitals, as shown here. 
+
+All use of string without further qualification refers to a Unicode [UNICODE] character string; a sequence of characters represented by a code point in Unicode.
+
+Definition:  
+
+    An RDF/XML Document is an [RDF Document](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-document) written in the XML syntax for RDF as defined in this document.
+Conformance:  
+
+    An RDF/XML Document is a conforming RDF/XML document if it adheres to the specification defined in this document.
+
+### 3.1 RDF/XML Internet Media Type and File Extension
+
+Contact:
+    Dan Brickley
+See also:
+    [How to Register a Media Type for a W3C Specification](https://www.w3.org/2002/06/registering-mediatype)
+    [Internet Media Type registration, consistency of use](https://www.w3.org/2001/tag/2002/0129-mime)  
+TAG Finding 3 June 2002 (Revised 4 September 2002)
+
+The Internet Media Type (formerly known as MIME Type) for RDF/XML is `application/rdf+xml` — [RFC3870].
+
+It is recommended that RDF/XML files have the extension ".rdf" (all lowercase) on all platforms.
+
+Features introduced in RDF 1.2 require a version announcement on an in-scope node element with an `rdf:version` attribute with a defined value other than `"1.1"`. Acceptable values for `rdf:version` are defined in [2.1 Version Labels](https://www.w3.org/TR/rdf12-concepts/#defined-version-labels) in [RDF12-CONCEPTS]. Parser behavior for version values is otherwise undefined and _MAY_ be used to signal errors or warnings. 
+
+The `application/rdf+xml` media type has been registered at IANA as [RFC3870].
+
+### 3.2 Privacy Considerations
+
+ _This section is non-normative._
+
+The RDF/XML format is used to express arbitrary application data, which may include the expression of personally identifiable information (PII) or other information which could be considered sensitive. Authors publishing such information are advised to carefully consider the needs and use of publishing such information, as well as the applicable regulations for the regions where the data is expected to be consumed and potentially revealed (e.g., [GDPR](https://gdpr.eu/), [CCPA](https://oag.ca.gov/privacy/ccpa), [others](https://termly.io/resources/infographics/privacy-laws-around-the-world/)), particularly whether authorization measures are needed for access to the data.
+
+### 3.3 Security Considerations
+
+ _This section is non-normative._
+
+See the [Security Considerations Section](https://www.rfc-editor.org/rfc/rfc3870#section-6) of [RFC3870].
+
+## 4\. Global Issues
+
+### 4.1 The RDF Namespace and Vocabulary
+
+The [RDF namespace IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-namespace-iri) (or namespace name) is `http://www.w3.org/1999/02/22-rdf-syntax-ns#` and is typically used in XML with the prefix `rdf` although other prefix strings may be used. The [RDF Vocabulary](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-vocabulary) is identified by this [namespace name](https://www.w3.org/TR/xml-names/#dt-NSName) and consists of the following names only:
+
+Syntax names — not concepts
+    
+
+`RDF Description ID about annotation annotationNodeID datatype li nodeID parseType resource version`
+
+Class names
+    
+
+`Seq Bag Alt Statement Property XMLLiteral List`
+
+Property names
+    
+
+`subject predicate object type value first rest _`_n_  
+where _n_ is a decimal integer greater than zero with no leading zeros. 
+
+Resource names
+    
+
+`nil`
+
+Any other names are not defined and _SHOULD_ generate a warning when encountered, but should otherwise behave normally.
+
+Within RDF/XML documents it is not permitted to use XML namespaces whose [namespace name](https://www.w3.org/TR/xml-names/#dt-NSName) is the [RDF namespace IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-namespace-iri) concatenated with additional characters.
+
+Throughout this document the terminology `rdf:`_name_ will be used to indicate _name_ is from the [RDF Vocabulary](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-vocabulary) and it has a [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) of the concatenation of the [RDF namespace IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-namespace-iri) and _name_. For example, `rdf:type` has the [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) `http://www.w3.org/1999/02/22-rdf-syntax-ns#type`
+
+### 4.2 Identifiers
+
+The RDF Concepts document [RDF12-CONCEPTS] defines the four types of RDF data that can act as node and/or predicate:
+
+IRI
+    
+
+[IRIs](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) can act as node (both subject and object) and as predicate. 
+
+[IRIs](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) can be either:
+
+  * given as XML attribute values interpreted as [relative IRI references](https://www.w3.org/TR/rdf12-concepts/#dfn-relative-iri) that are resolved against the in-scope base IRI as described in 4.3 Resolving IRIs to give [resolved](https://www.rfc-editor.org/rfc/rfc3986#section-5) IRIs
+  * transformed from XML namespace-qualified element and attribute names ([QNames](https://www.w3.org/TR/xml-names/#NT-QName))
+  * transformed from `rdf:ID` attribute values.
+
+
+
+Within RDF/XML, XML QNames are transformed into [IRIs](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) by appending the XML local name to the [namespace name](https://www.w3.org/TR/xml-names/#dt-NSName) (IRI). For example, if the XML namespace prefix `foo` has namespace name (IRI) `http://example.org/somewhere/` then the [QName](https://www.w3.org/TR/xml-names/#NT-QName) `foo:bar` would correspond to the [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) `http://example.org/somewhere/bar`. Note that this restricts which [IRIs](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) can be made and the same IRI can be given in multiple ways.
+
+The `rdf:ID` values are transformed into [IRIs](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) by appending the attribute value to the result of appending "#" to the in-scope base IRI which is defined in 4.3 Resolving IRIs
+
+Literal
+    
+
+Literals can only act as object nodes.
+
+[Literals](https://www.w3.org/TR/rdf12-concepts/#dfn-literal) always have a datatype. [Language-tagged strings](https://www.w3.org/TR/rdf12-concepts/#dfn-language-tagged-string) get the datatype `rdf:langString`. When there is no language tag or datatype specified, the literal is treated as if the datatype `xsd:string` was specified.
+
+Blank Node
+    
+
+[Blank nodes](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node) can act as subject node and as object node.
+
+[Blank nodes](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node) have distinct identity in the [RDF graph](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-graph). When the graph is written in a syntax such as RDF/XML, these [blank nodes](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node) may need document-local identifiers and a syntax in order to preserve this distinction. These local identifiers are called [blank node identifiers](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node-identifier) and are used in RDF/XML as values of the `rdf:nodeID` attribute with the syntax given in Production nodeIdAttr. [Blank node identifiers](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node-identifier) in RDF/XML are scoped to the XML Information Set [XML-INFOSET] [document information item](https://www.w3.org/TR/xml-infoset/#infoitem.document).
+
+If no [blank node identifier](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node-identifier) is given explicitly as an `rdf:nodeID` attribute value then one will need to be generated (using generated-blank-node-id, see 5.3.3 Grammar Action Notation). Such generated [blank node identifiers](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node-identifier) _MUST_ not clash with any [blank node identifiers](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node-identifier) derived from `rdf:nodeID` attribute values. This can be implemented by any method that preserves the distinct identity of all the blank nodes in the graph, that is, the same [blank node identifier](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node-identifier) is not given for different blank nodes. One possible method would be to add a constant prefix to all the `rdf:nodeID` attribute values and ensure no generated [blank node identifiers](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node-identifier) ever used that prefix. Another would be to map all `rdf:nodeID` attribute values to new generated [blank node identifiers](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node-identifier) and perform that mapping on all such values in the RDF/XML document.
+
+Triple Term
+    
+
+[Triple terms](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term) can only act as object nodes.
+
+A triple term describes a [triple](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-triple), which may, or may not, be asserted in the graph.
+
+### 4.3 Resolving IRIs
+
+RDF/XML supports XML Base [XMLBASE] which defines a ·base-iri· accessor for each ·root event· and ·element event·. [Relative IRI references](https://www.w3.org/TR/rdf12-concepts/#dfn-relative-iri) are resolved into [IRIs](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) according to the algorithm specified in [XMLBASE] and as per [Uniform Resource Identifier (URI): Generic Syntax](https://www.rfc-editor.org/rfc/rfc3986) [RFC3986] using only the basic algorithm in section 5.2. These specifications do not specify an algorithm for resolving a fragment identifier alone, such as `#foo`, or the empty string `""` into an [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri). In RDF/XML, a fragment identifier is transformed into an [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) by appending the fragment identifier to the in-scope base IRI. The empty string is transformed into an [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) by substituting the in-scope base IRI. 
+
+An empty same document reference "" resolves against the URI part of the base IRI; any fragment part is ignored. See Uniform Resource Identifiers (URI) [RFC3986]. 
+
+Note
+
+**Implementation Note (Informative):** When using a hierarchical base URI that has no path component (/), it must be added before using as a base IRI for resolving. 
+
+### 4.4 Constraints
+
+constraint-id
+    
+
+Each application of production idAttr matches an attribute. The ·rdf-term· accessor of the matched attribute is unique within a single RDF/XML document.
+
+The syntax of the names _MUST_ match the rdf-id production.
+
+## 5\. Syntax Data Model
+
+This document specifies the syntax of RDF/XML as a grammar on an alphabet of symbols. The symbols are called _events_ in the style of the XPATH   [Information Set Mapping](https://www.w3.org/TR/xpath-10/#infoset). A sequence of events is normally derived from an XML document, in which case they are in document order as defined below in 5.2 Information Set Mapping. The sequence these events form are intended to be similar to the sequence of events produced by the [SAX] XML API from the same XML document. Sequences of events may be checked against the grammar to determine whether they are or are not syntactically well-formed RDF/XML.
+
+The RDF 1.2 Concepts and Abstract Syntax specification [RDF12-CONCEPTS] defines four types of [RDF terms](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-term): [IRIs](https://www.w3.org/TR/rdf12-concepts/#dfn-iri), [literals](https://www.w3.org/TR/rdf12-concepts/#dfn-literal), [blank nodes](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node), and [triple terms](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term). Literals are composed of a [lexical form](https://www.w3.org/TR/rdf12-concepts/#dfn-lexical-form) and an optional [language tag](https://www.w3.org/TR/rdf12-concepts/#dfn-language-tag) [BCP47] – possibly including a [base direction](https://www.w3.org/TR/rdf12-concepts/#dfn-base-direction) – or [datatype IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-datatype-iri). An extra type, `prefix`, is used during parsing to map string identifiers to namespace IRIs. 
+
+The grammar productions may include actions which fire when the production is recognized. Taken together these actions define a transformation from any syntactically well-formed RDF/XML sequence of events into a set of triples by mapping matching productions to [RDF terms](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-term) or their components (e.g., language tags, lexical forms of literals). Grammar productions change the parser state and emit triples.
+
+The model given here illustrates one way to create a representation of an [RDF Graph](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-graph) from an RDF/XML document. It does not mandate any implementation method — any other method that results in a representation of the same [RDF Graph](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-graph) may be used.
+
+In particular:
+
+  * This specification permits any representation of an [RDF graph](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-graph); in particular, it does not require the use of N-Triples [RDF12-N-TRIPLES].
+  * This specification does not require the use of [XPATH] or [SAX]
+  * This specification places no constraints on the order in which software transforming RDF/XML into a representation of a graph, constructs the representation of the graph.
+  * Software transforming RDF/XML into a representation of a graph _MAY_ eliminate duplicate predicate arcs.
+
+
+
+The syntax does not support non-well-formed XML documents, nor documents that otherwise do not have an XML Information Set [XML-INFOSET]; for example, that do not conform to Namespaces in XML [XML-NAMES].
+
+The Infoset requires support for XML Base [XMLBASE]. RDF/XML uses the information item property [base IRI], discussed in 4.3 Resolving IRIs
+
+This specification requires an XML Information Set [XML-INFOSET] which supports at least the following information items and properties for RDF/XML:
+
+[document information item](https://www.w3.org/TR/xml-infoset/#infoitem.document)
+    [document element], [children], [base IRI]
+[element information item](https://www.w3.org/TR/xml-infoset/#infoitem.element)
+    [local name], [namespace name], [children], [attributes], [parent], [base IRI]
+[attribute information item](https://www.w3.org/TR/xml-infoset/#infoitem.attribute)
+    [local name], [namespace name], [normalized value]
+[character information item](https://www.w3.org/TR/xml-infoset/#infoitem.character)
+    [character code]
+
+There is no mapping of the following items to data model events:
+
+  * [processing instruction information item](https://www.w3.org/TR/xml-infoset/#infoitem.pi)
+  * [unexpanded entity reference information item](https://www.w3.org/TR/xml-infoset/#infoitem.rse)
+  * [comment information item](https://www.w3.org/TR/xml-infoset/#infoitem.comment)
+  * [document type declaration information item](https://www.w3.org/TR/xml-infoset/#infoitem.doctype)
+  * [unparsed entity information item](https://www.w3.org/TR/xml-infoset/#infoitem.entity.unparsed)
+  * [notation information item](https://www.w3.org/TR/xml-infoset/#infoitem.notation)
+  * [namespace information item](https://www.w3.org/TR/xml-infoset/#infoitem.namespace)
+
+
+
+Other information items and properties have no mapping to syntax data model events.
+
+Element information items with reserved XML Names (see [Name](https://www.w3.org/TR/xml11/#dt-name) in [Extensible Markup Language (XML) 1.1 (Second Edition)](https://www.w3.org/TR/xml11/)) are not mapped to data model element events. These are all those with property [prefix] beginning with `xml` (case independent comparison) and all those with [prefix] property having no value and which have [local name] beginning with `xml` (case independent comparison).
+
+All information items contained inside XML elements matching the parseTypeLiteralPropertyElt production form XML literals and do not follow this mapping. See parseTypeLiteralPropertyElt for further information.
+
+This section is intended to satisfy the requirements for [Conformance](https://www.w3.org/TR/xml-infoset/#conformance) in the [XML-INFOSET] specification. It specifies the information items and properties that are needed to implement this specification.
+
+### 5.1 Events
+
+There are nine types of event defined in the following subsections. Most events are constructed from an Infoset information item (except for IRI, blank node, literal with no explicit datatype and typed literal). The effect of an event constructor is to create a new event with a unique identity, distinct from all other events. Events have accessor operations on them and most have the _string-value_ , _IRI_ , _rdf-term_ , _literal_ , or _bnode_ accessors that may be a static value or computed.
+
+#### 5.1.1 Root Event
+
+Constructed from a [document information item](https://www.w3.org/TR/xml-infoset/#infoitem.document) and takes the following accessors and values.
+
+document-element
+    Set to the value of document information item property [document-element].
+children
+    Set to the value of document information item property [children].
+base-iri
+    Set to the value of document information item property [base IRI].
+language
+    Set to the empty string.
+direction
+    Set to the empty string.
+graph
+    The graph used for collecting emitted triples, initialized to a new [RDF graph](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-graph).
+
+#### 5.1.2 Element Event
+
+Constructed from an [element information item](https://www.w3.org/TR/xml-infoset/#infoitem.element) and takes the following accessors and values:
+
+local-name
+    Set to the value of element information item property [local name].
+namespace-name
+    Set to the value of element information item property [namespace name].
+children
+    Set to the value of element information item property [children].
+parent
+    Set to the value of element information item property [parent].
+base-iri
+    Set to the value of element information item property [base IRI].
+attributes
+    
+
+Made from the value of element information item property [attributes] which is a set of attribute information items.
+
+If this set contains an attribute information item `xml:lang` ([namespace name] property with the value `"http://www.w3.org/XML/1998/namespace"` and [local name] property value "lang") it is removed from the set of attribute information items and the  ·language· accessor is set to the [normalized-value] property of the attribute information item.
+
+If the element has a version accessor with the value `"1.2-basic"`, `"1.2"` or greater, this set contains an attribute information item `its:dir` ([namespace name] property with the value `"http://www.w3.org/2005/11/its"` and [local name] property value "dir") it is removed from the set of attribute information items and the  ·direction· accessor is set to the [normalized-value] property of the attribute information item, which _MUST_ be one of `"ltr"`, `"rtl"`, or the empty string.
+
+If the element has a version accessor with the value `"1.2-basic"`, `"1.2"` or greater, this set contains an attribute information item `its:version` ([namespace name] property with the value `"http://www.w3.org/2005/11/its"` and [local name] property value "version") it is removed from the set of attribute information items and the  ·its-version· accessor is set to the [normalized-value] property of the attribute information item.
+
+All remaining reserved XML Names (see [Name](https://www.w3.org/TR/xml11/#dt-name) in [Extensible Markup Language (XML) 1.1 (Second Edition)](https://www.w3.org/TR/xml11/)) are now removed from the set. These are, all attribute information items in the set with property [prefix] beginning with `xml` (case independent comparison) and all attribute information items with [prefix] property having no value and which have [local name] beginning with `xml` (case independent comparison) are removed. Note that the [base IRI] accessor is computed by XML Base before any `xml:base` attribute information item is deleted.
+
+The remaining set of attribute information items are then used to construct a new set of Attribute Events which is assigned as the value of this accessor.
+
+IRI
+    Set to an [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) constructed from the concatenation of the value of the namespace-name accessor and the value of the local-name accessor.
+    
+li-counter
+    Set to the integer value 1.
+language
+    Set from the ·attributes· as described above. If no value is given from the attributes, the value is set to the value of the language accessor on the parent event (either a Root Event or an Element Event), which may be the empty string. 
+direction
+    Set from the ·attributes· as described above. If no value is given from the attributes, the value is set to the value of the direction accessor on the parent event (either a Root Event or an Element Event), which may be the empty string. 
+version
+    Set from the ·attributes· as described above. If no value is given from the attributes, the value is set to the value of the version accessor on the parent event (either a Root Event or an Element Event). 
+its-version
+    Set from the ·attributes· as described above. If no value is given from the attributes, the value is set to the value of the version accessor on the parent event (either a Root Event or an Element Event), which _SHOULD_ be set to `"2.0"`. 
+subject
+    Has no initial value. Takes a value that is an Identifier event, or a [triple term](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term). This accessor is used on elements that deal with one node in the [RDF graph](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-graph), this generally being the [subject](https://www.w3.org/TR/rdf12-concepts/#dfn-subject) of an [RDF triple](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-triple). 
+graph
+    The graph used for collecting emitted triples. The initial value is taken from the parent event (either a Root Event or an Element Event), or a new [RDF graph](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-graph), if not set. May be modified by a `parseType="Triple"` attribute.
+
+#### 5.1.3 End Element Event
+
+Has no accessors. Marks the end of the containing element in the sequence.
+
+#### 5.1.4 Attribute Event
+
+Constructed from an [attribute information item](https://www.w3.org/TR/xml-infoset/#infoitem.attribute) and takes the following accessors and values:
+
+local-name
+    Set to the value of attribute information item property [local name].
+namespace-name
+    Set to the value of attribute information item property [namespace name].
+string-value
+    Set to the value of the attribute information item property [normalized value] as specified by [XML11] (if an attribute whose normalized value is a zero-length string, then the string-value is also a zero-length string). 
+IRI
+    
+
+If ·namespace-name· is present, set to an IRI constructed from the concatenation of the value of the ·namespace-name· accessor and the value of the ·local-name· accessor. Otherwise if ·local-name· is `ID`, `about`, `parseType`, `resource`, `type`, or `version`, set to an IRI constructed from the value of the concatenation of the [RDF namespace IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-namespace-iri) and the value of the local-name accessor. Other non-namespaced ·local-name· accessor values are forbidden.
+
+The support for a limited set of non-namespaced names is _REQUIRED_ and intended to allow RDF/XML documents specified in [RDF-SYNTAX-GRAMMAR-19990222] to remain valid; new documents _SHOULD NOT_ use these unqualified attributes and applications _MAY_ choose to warn when the unqualified form is seen in a document.
+
+The construction of [IRIs](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) from XML attributes can generate the same IRIs from different XML attributes. This can cause ambiguity in the grammar when matching attribute events (such as when `rdf:about` and `about` XML attributes are both present). Documents that have this are illegal. 
+
+rdf-term
+     The value is an [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) constructed from string-value resolved against the ·base-iri· accessor of the containing element. 
+    
+
+#### 5.1.5 Text Event
+
+Constructed from a sequence of one or more consecutive [character information items](https://www.w3.org/TR/xml-infoset/#infoitem.character). Has the single accessor:
+
+string-value
+    Set to the value of the string made from concatenating the [[character code](https://www.w3.org/TR/xml-infoset/#infoitem.character)] property of each of the character information items. 
+
+#### 5.1.6 IRI Event
+
+An event for an [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) which has the following accessors:
+
+identifier
+    Takes a string value used as an [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri).
+rdf-term
+    
+    The value is an IRI constructed from the value of the ·identifier· accessor. 
+
+These events are constructed by giving a value for the ·identifier· accessor. 
+
+For further information on identifiers in RDF, see 4.2 Identifiers.
+
+#### 5.1.7 Triple Term Event
+
+An event for an [triple term](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term) which has the following accessors:
+
+rdf-term
+    The value is a [triple term](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term).
+
+These events are constructed by giving a value to the rdf-term accessor. 
+
+#### 5.1.8 Blank Node Identifier Event
+
+An event for a [blank node identifier](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node-identifier) which has the following accessors:
+
+identifier
+    Takes a string value.
+blank-node
+    
+    The value is a [blank node](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node) with local identifier taken from the ·identifier· accessor. Within an RDF/XML document, all [blank nodes](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node) identified by the same identifier represent the same [blank node](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node). 
+
+These events are constructed by giving a value for the ·identifier· accessor. 
+
+For further information on identifiers in RDF, see 4.2 Identifiers.
+
+#### 5.1.9 Literal Without Datatype Event
+
+Note
+
+RDF/XML literals without an explicit datatype in RDF 1.2 are treated as syntactic sugar for a literal with datatype `xsd:string` (when no language tag is present), as a literal with datatype `rdf:langString` (when a language tag is present and a direction is not present), or as a literal with datatype `rdf:dirLangString` (when both a language tag and a direction are present). The mapping to N-Triples as defined in this subsection is not affected by this change. 
+
+An event for a literal without an explicit datatype which can have the following accessors:
+
+literal-value
+    Takes a string value.
+literal-language
+    Takes a string value used as a language tag in [language-tagged string](https://www.w3.org/TR/rdf12-concepts/#dfn-language-tagged-string).
+literal-direction
+    Takes a string value used as a direction tag in a [directional language-tagged strings](https://www.w3.org/TR/rdf12-concepts/#dfn-dir-lang-string).
+literal
+    
+    
+
+The value is an [RDF literal](https://www.w3.org/TR/rdf12-concepts/#dfn-literal) constructed from the other accessors as follows.
+
+If ·literal-language· is the empty string then the value is an [RDF literal](https://www.w3.org/TR/rdf12-concepts/#dfn-literal) with the [lexical form](https://www.w3.org/TR/rdf12-concepts/#dfn-lexical-form) taken from the value of the ·literal-value· accessor and [datatype IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-datatype-iri) `xsd:string`.
+
+Otherwise, if the ·literal-direction· is the empty string, then the value is a [language-tagged string](https://www.w3.org/TR/rdf12-concepts/#dfn-language-tagged-string) with the [lexical form](https://www.w3.org/TR/rdf12-concepts/#dfn-lexical-form) taken from the value of the ·literal-value· accessor and the [language tag](https://www.w3.org/TR/rdf12-concepts/#dfn-language-tag) taken from the value of the ·literal-language· accessor.
+
+Otherwise the value is a [directional language-tagged string](https://www.w3.org/TR/rdf12-concepts/#dfn-dir-lang-string) with the [lexical form](https://www.w3.org/TR/rdf12-concepts/#dfn-lexical-form) taken from the value of the ·literal-value· accessor, the [language tag](https://www.w3.org/TR/rdf12-concepts/#dfn-language-tag) taken from the value of the ·literal-language· accessor, and the [base direction](https://www.w3.org/TR/rdf12-concepts/#dfn-base-direction) taken from the value of the ·literal-direction· accessor.
+
+These events are constructed by giving values for the ·literal-value·, ·literal-language·, and ·literal-direction· accessors.
+
+Note
+
+**Interoperability Note (Informative):** Literals beginning with a Unicode combining character are allowed however they may cause interoperability problems. See [CHARMOD] for further information. 
+
+#### 5.1.10 Typed Literal Event
+
+An event for a typed literal which can have the following accessors:
+
+literal-value
+    Takes a string value.
+literal-datatype
+    Takes a string value used as an [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri).
+literal
+    
+    
+
+The value is an [RDF literal](https://www.w3.org/TR/rdf12-concepts/#dfn-literal) with the [lexical form](https://www.w3.org/TR/rdf12-concepts/#dfn-lexical-form) taken from the value of the ·literal-value· accessor and [datatype IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-datatype-iri) taken from the value of the ·literal-datatype· accessor.
+
+These events are constructed by giving values for the ·literal-value· and ·literal-datatype· accessors.
+
+Note
+
+**Interoperability Note (Informative):** Literals beginning with a Unicode combining character are allowed however they may cause interoperability problems. See [CHARMOD] for further information. 
+
+Note
+
+**Implementation Note (Informative):** In XML Schema (part 1) [XMLSCHEMA11-2], [ white space normalization ](https://www.w3.org/TR/xmlschema11-2/#sec-wsnormalization) occurs during validation according to the value of the whiteSpace facet. The syntax mapping used in this document occurs after this, so the whiteSpace facet formally has no further effect. 
+
+### 5.2 Information Set Mapping
+
+To transform the Infoset into the sequence of events in _document order_ , each information item is transformed as described above to generate a tree of events with accessors and values. Each element event is then replaced as described below to turn the tree of events into a sequence in document order.
+
+  1. The original element event
+  2. The value of the [children](https://www.w3.org/TR/xml-infoset/#infoitem.element) accessor recursively transformed, a possibly empty ordered list of events.
+  3. An end element event
+
+
+
+### 5.3 Grammar Notation
+
+The following notation is used to describe matching the sequence of data model events as given in 5\. Syntax Data Model and the actions to perform for the matches. The RDF/XML grammar is defined in terms of mapping from these matched data model events to triples, using notation of the form:
+
+> number _event-type_ _event-content_
+> 
+> _action_... 
+> 
+> `Triple(s)`
+
+where the _event-content_ is an expression matching _event-types_ (as defined in 5.1 Events), using notation given in the following sections. The number is used for reference purposes. The grammar _action_ may include generating new triples to the graph. 
+
+The following sections describe the general notation used and that for event matching and actions.
+
+#### 5.3.1 Grammar General Notation
+
+Notation | Meaning  
+---|---  
+_event_._accessor_ | The value of an event accessor.  
+`rdf:`_X_ | A URI as defined in 4.1 The RDF Namespace and Vocabulary.  
+"ABC" | A string of characters A, B, C in order.  
+  
+#### 5.3.2 Grammar Event Matching Notation
+
+Notation | Meaning  
+---|---  
+A == B | Event accessor A matches expression B.  
+A != B | A is not equal to B.  
+A | B | ... | The A, B, ... terms are alternatives.  
+A - B | The terms in A excluding all the terms in B.  
+[anyURI](https://www.w3.org/TR/xmlschema11-2/#anyURI). | Any URI.  
+[anyString](https://www.w3.org/TR/xmlschema11-2/#anyString). | Any string.  
+list(item1, item2, ...); list() | An ordered list of events. An empty list.  
+set(item1, item2, ...); set() | An unordered set of events. An empty set.  
+* | Zero or more of preceding term.  
+? | Zero or one of preceding term.  
++ | One or more of preceding term.  
+root(acc1 == value1,  
+    acc2 == value2, ...) | Match a Root Event with accessors.   
+start-element(acc1 == value1,  
+    acc2 == value2, ...)  
+_children_  
+end-element() | Match a sequence of Element Event with accessors, a possibly empty list of events as element content and an End Element Event.   
+attribute(acc1 == value1,  
+    acc2 == value2, ...) | Match an Attribute Event with accessors.  
+text() | Match a Text Event.  
+  
+#### 5.3.3 Grammar Action Notation
+
+Notation | Meaning  
+---|---  
+A := B | Assigns A the value B.  
+concat(A, B, ..) | A string created by concatenating the terms in order.  
+resolve(_e_ , _s_) | An [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) created by interpreting _s_ as a [relative IRI reference](https://www.w3.org/TR/rdf12-concepts/#dfn-relative-iri) to the ·base-iri· accessor of _e_ as defined in 4.3 Resolving IRIs.  
+generated-blank-node-id() | A string value for a new distinct generated [blank node identifier](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node-identifier) as defined in 4.2 Identifiers.   
+_event_._accessor_ := _value_ | Sets an event accessor to the given value.  
+iri(identifier := value) | Create a new IRI Event.  
+bnodeid(identifier := value) | Create a new Blank Node Identifier Event. See also section 4.2 Identifiers.  
+literal(literal-value := string,  
+    literal-language := language,  
+    literal-direction := direction, ...) | Create a new Literal Without Datatype Event.  
+string(iri) | The [string](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-string) value of an [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri).  
+typed-literal(literal-value := string, ...) | Create a new Typed Literal Event.  
+triple(s, p, o) | Create a new Triple Term Event composed of _s_ , _p_ , and _o_.  
+  
+## 6\. RDF/XML Grammar
+
+### 6.1 Grammar summary
+
+6.2.2 Production coreSyntaxTerms | `rdf:RDF` | `rdf:ID` | `rdf:about` | `rdf:annotation` | `rdf:annotationNodeID` | `rdf:parseType` | `rdf:resource` | `rdf:nodeID` | `rdf:datatype` | `rdf:version`  
+---|---  
+6.2.3 Production syntaxTerms | coreSyntaxTerms | `rdf:Description` | `rdf:li`  
+6.2.4 Production oldTerms | `rdf:aboutEach` | `rdf:aboutEachPrefix` | `rdf:bagID`  
+6.2.5 Production nodeElementIRIs | [anyURI](https://www.w3.org/TR/xmlschema11-2/#anyURI) \- ( coreSyntaxTerms | `rdf:li` | oldTerms )  
+6.2.6 Production propertyElementURIs | [anyURI](https://www.w3.org/TR/xmlschema11-2/#anyURI) \- ( coreSyntaxTerms | `rdf:Description` | oldTerms )  
+6.2.7 Production propertyAttributeIRIs | [anyURI](https://www.w3.org/TR/xmlschema11-2/#anyURI) \- ( coreSyntaxTerms | `rdf:Description` | `rdf:li` | oldTerms )  
+6.2.8 Production doc | root(document-element == RDF, children == list(RDF))  
+6.2.9 Production RDF | start-element(IRI == `rdf:RDF`, attributes == set())  
+nodeElementList  
+end-element()  
+6.2.10 Production nodeElementList | ws* (nodeElement ws* )*  
+6.2.11 Production nodeElement | start-element(IRI == nodeElementIRIs  
+    attributes == set(idAttr | nodeIdAttr | aboutAttr )?, propertyAttr*)  
+propertyEltList  
+end-element()  
+6.2.12 Production ws | A text event matching white space defined by XML [XML11] definition _White Space_ Rule [3] [S](https://www.w3.org/TR/xml11/#NT-S) in section [Common Syntactic Constructs](https://www.w3.org/TR/xml11/#sec-common-syn)  
+6.2.13 Production propertyEltList | ws* (propertyElt ws* ) *  
+6.2.14 Production propertyElt | resourcePropertyElt | literalPropertyElt | parseTypeLiteralPropertyElt | parseTypeResourcePropertyElt | parseTypeTriplePropertyElt | parseTypeCollectionPropertyElt | parseTypeOtherPropertyElt | emptyPropertyElt  
+6.2.15 Production resourcePropertyElt | start-element(IRI == propertyElementURIs ), attributes == set(idAttr?))  
+ws* nodeElement ws*  
+end-element()  
+6.2.16 Production literalPropertyElt | start-element(IRI == propertyElementURIs ), attributes == set(idAttr?, (annotationAttr | annotationNodeIDAttr)?, datatypeAttr?))  
+text()  
+end-element()  
+6.2.17 Production parseTypeLiteralPropertyElt | start-element(IRI == propertyElementURIs ), attributes == set(idAttr?, (annotationAttr | annotationNodeIDAttr)?, parseLiteral))  
+literal  
+end-element()  
+6.2.18 Production parseTypeResourcePropertyElt | start-element(IRI == propertyElementURIs ), attributes == set(idAttr?, (annotationAttr | annotationNodeIDAttr)?, parseResource))  
+propertyEltList  
+end-element()  
+6.2.19 Production parseTypeTriplePropertyElt | start-element(IRI == propertyElementURIs ), attributes == set(idAttr?, (annotationAttr | annotationNodeIDAttr)?, parseTriple))  
+propertyEltList  
+end-element()  
+6.2.20 Production parseTypeCollectionPropertyElt | start-element(IRI == propertyElementURIs ), attributes == set(idAttr?, parseCollection))  
+nodeElementList  
+end-element()  
+6.2.21 Production parseTypeOtherPropertyElt | start-element(IRI == propertyElementURIs ), attributes == set(idAttr?, (annotationAttr | annotationNodeIDAttr)?, parseOther))  
+propertyEltList  
+end-element()  
+6.2.22 Production emptyPropertyElt | start-element(IRI == propertyElementURIs ), attributes == set(idAttr?, (annotationAttr | annotationNodeIDAttr)?, ( resourceAttr | nodeIdAttr | datatypeAttr )?, propertyAttr*))  
+end-element()  
+6.2.23 Production idAttr | attribute(IRI == `rdf:ID`, string-value == rdf-id)  
+6.2.24 Production nodeIdAttr | attribute(IRI == `rdf:nodeID`, string-value == rdf-id)  
+6.2.25 Production aboutAttr | attribute(IRI == `rdf:about`, string-value == string(IRI))  
+6.2.28 Production propertyAttr | attribute(IRI == propertyAttributeIRIs, string-value == [anyString](https://www.w3.org/TR/xmlschema11-2/#anyString))  
+6.2.29 Production resourceAttr | attribute(IRI == `rdf:resource`, string-value == string(IRI))  
+6.2.30 Production datatypeAttr | attribute(IRI == `rdf:datatype`, string-value == string(IRI))  
+6.2.31 Production parseLiteral | attribute(IRI == `rdf:parseType`, string-value == "Literal")  
+6.2.32 Production parseResource | attribute(IRI == `rdf:parseType`, string-value == "Resource")  
+6.2.33 Production parseTriple | attribute(IRI == `rdf:parseType`, string-value == "Triple")  
+6.2.34 Production parseCollection | attribute(IRI == `rdf:parseType`, string-value == "Collection")  
+6.2.35 Production parseOther | attribute(IRI == `rdf:parseType`, string-value == [anyString](https://www.w3.org/TR/xmlschema11-2/#anyString) \- ("Resource" | "Literal" | "Collection") )  
+6.2.36 Production IRI | An [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri).  
+6.2.37 Production literal | Any XML element content that is allowed according to [XML11] definition _Content of Elements_ Rule [43] [content](https://www.w3.org/TR/xml11/#NT-content). in section [3.1 Start-Tags, End-Tags, and Empty-Element Tags](https://www.w3.org/TR/xml11/#sec-starttags)  
+6.2.38 Production rdf-id | An attribute ·string-value· matching any legal [XML-NAMES] token [NCName](https://www.w3.org/TR/xml-names/#NT-NCName)  
+  
+### 6.2 Grammar Productions
+
+#### 6.2.1 Grammar start
+
+If the RDF/XML is a standalone XML document (identified by presentation as an `application/rdf+xml` RDF media type object, or by some other means) then the grammar may start with production doc or production nodeElement.
+
+If the content is known to be RDF/XML by context, such as when RDF/XML is embedded inside other XML content, then the grammar can either start at Element Event  RDF (only when an element is legal at that point in the XML) or at production nodeElementList (only when element content is legal, since this is a list of elements). For such embedded RDF/XML, the ·base-iri· value on the outermost element _MUST_ be initialized from the containing XML since no Root Event  will be available. Note that if such embedding occurs, the grammar may be entered several times but no state is expected to be preserved.
+
+Editor's note
+
+Add tests for embedded RDF/XML.
+
+The start node is referred to as the top-level XML document element.
+
+#### 6.2.2 Production coreSyntaxTerms
+
+`rdf:RDF` | `rdf:ID` | `rdf:about` | `rdf:parseType` | `rdf:resource` | `rdf:nodeID` | `rdf:datatype` | `rdf:version`
+
+A subset of the syntax terms from the [RDF Vocabulary](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-vocabulary) in 4.1 The RDF Namespace and Vocabulary which are used in RDF/XML. 
+
+#### 6.2.3 Production syntaxTerms
+
+coreSyntaxTerms | `rdf:Description` | `rdf:li`
+
+All the syntax terms from the [RDF Vocabulary](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-vocabulary) in 4.1 The RDF Namespace and Vocabulary which are used in RDF/XML. 
+
+#### 6.2.4 Production oldTerms
+
+`rdf:aboutEach` | `rdf:aboutEachPrefix` | `rdf:bagID`
+
+These are the names from the [RDF Vocabulary](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-vocabulary) that have been withdrawn from the language. See the resolutions of Issue [rdfms-aboutEach-on-object](https://www.w3.org/2000/03/rdf-tracking/#rdfms-aboutEach-on-object), Issue [rdfms-abouteachprefix](https://www.w3.org/2000/03/rdf-tracking/#rdfms-abouteachprefix) and Last Call Issue [timbl-01](https://www.w3.org/2001/sw/RDFCore/20030123-issues/#timbl-01) for further information. 
+
+#### 6.2.5 Production nodeElementIRIs
+
+[anyURI](https://www.w3.org/TR/xmlschema11-2/#anyURI) \- ( coreSyntaxTerms | `rdf:li` | oldTerms ) 
+
+The [IRIs](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) that are allowed on node elements.
+
+#### 6.2.6 Production propertyElementURIs
+
+[anyURI](https://www.w3.org/TR/xmlschema11-2/#anyURI) \- ( coreSyntaxTerms | `rdf:Description` | oldTerms ) 
+
+The URIs that are allowed on property elements.
+
+#### 6.2.7 Production propertyAttributeIRIs
+
+[anyURI](https://www.w3.org/TR/xmlschema11-2/#anyURI) \- ( coreSyntaxTerms | `rdf:Description` | `rdf:li` | oldTerms ) 
+
+The [IRIs](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) that are allowed on property attributes.
+
+#### 6.2.8 Production doc
+
+root(document-element == RDF,  
+    children == list(RDF)) 
+
+#### 6.2.9 Production RDF
+
+start-element(IRI == `rdf:RDF`,  
+    attributes == set())  
+nodeElementList  
+end-element() 
+
+#### 6.2.10 Production nodeElementList
+
+ws* (nodeElement ws* )* 
+
+#### 6.2.11 Production nodeElement
+
+start-element(IRI == nodeElementIRIs  
+    attributes == set(idAttr | nodeIdAttr | aboutAttr )?, propertyAttr*)  
+propertyEltList  
+end-element() 
+
+For node element _e_ , the processing of some of the attributes has to be done before other work such as dealing with children events or other attributes. These can be processed in any order:
+
+  * If there is an attribute _a_ with _a_.IRI == `rdf:ID`, then _e_.subject := iri(identifier := resolve(_e_ , concat("#", _a_.string-value))).
+  * If there is an attribute _a_ with _a_.IRI == `rdf:nodeID`, then _e_.subject := bnodeid(identifier:=_a_.string-value).
+  * If there is an attribute _a_ with _a_.IRI == `rdf:about` then _e_.subject := iri(identifier := _e_.rdf-term).
+
+
+
+If _e_.subject is empty, then _e_.subject := bnodeid(identifier := generated-blank-node-id()).
+
+The following can then be performed in any order:
+
+  * If _e_.IRI != `rdf:Description` then the following statement is added to _e_.parent.graph: 
+
+`_e_.subject.rdf-term <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> _e_.IRI .`
+
+  * If there is an attribute _a_ in propertyAttr with _a_.IRI == `rdf:type` then _u_ :=iri(identifier:=_e_.rdf-term) and the following triple is _e_.parent.graph: 
+
+`_e_.subject.rdf-term <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> _u_.rdf-term .`
+
+  * For each attribute _a_ matching propertyAttr (and not `rdf:type`), the Unicode string _a_.string-value _SHOULD_ be in Normal Form C [NFC], _o_ := literal(literal-value := _a_.string-value, literal-language := _e_.language, literal-direction := _e_.direction) and the following statement is added to _e_.parent.graph: 
+
+`_e_.subject.rdf-term _a_.IRI _o_.literal .`
+
+  * Handle the propertyEltList children events in document order.
+
+
+
+#### 6.2.12 Production ws
+
+A text event matching white space defined by [XML11] definition _White Space_ Rule [3] [S](https://www.w3.org/TR/xml11/#NT-S) in section [Common Syntactic Constructs](https://www.w3.org/TR/xml11/#sec-common-syn)
+
+#### 6.2.13 Production propertyEltList
+
+ws* (propertyElt ws* ) * 
+
+#### 6.2.14 Production propertyElt
+
+resourcePropertyElt | literalPropertyElt | parseTypeLiteralPropertyElt | parseTypeResourcePropertyElt | parseTypeTriplePropertyElt | parseTypeCollectionPropertyElt | parseTypeOtherPropertyElt | emptyPropertyElt
+
+If element _e_ has _e_.IRI = `rdf:li` then apply the list expansion rules on element _e_.parent in 6.4 List Expansion Rules to give a new IRI _u_ and _e_.IRI := _u_. 
+
+The action of this production _MUST_ be done before the actions of any sub-matches (resourcePropertyElt ... emptyPropertyElt). Alternatively the result _MUST_ be equivalent to as if it this action was performed first, such as performing as the first action of all of the sub-matches. 
+
+#### 6.2.15 Production resourcePropertyElt
+
+start-element(IRI == propertyElementURIs ),  
+    attributes == set(idAttr?, (annotationAttr | annotationNodeIDAttr)?)  
+ws* nodeElement ws*  
+end-element() 
+
+For element _e_ , and the single contained nodeElement _n_ , first _n_ _MUST_ be processed using production nodeElement. Then the following statement is added to _e_.parent.graph:
+
+  ` _e_.parent.subject.rdf-term _e_.IRI _n_.subject.rdf-term .`
+
+If the `rdf:ID` attribute _a_ is given, the above statement is reified with _i_ := iri(identifier := resolve(_e_ , concat("#", _a_.string-value))) using the reification rules in 6.3 Reification Rules and _e_.subject := _i_
+
+If either the `rdf:annotation` or `rdf:annotationNodeID` attributes _a_ are given, the statement above is used to create a [triple term](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term) _t_ , and the following statement is added to _e_.parent.graph:
+
+  ` _a_.rdf-term <http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies> _t_.rdf-term .`
+
+#### 6.2.16 Production literalPropertyElt
+
+start-element(IRI == propertyElementURIs ),  
+    attributes == set(idAttr?, (annotationAttr | annotationNodeIDAttr)?, datatypeAttr?))  
+text()  
+end-element() 
+
+Note that the empty literal case is defined in production emptyPropertyElt.
+
+For element _e_ , and the text event _t_. The Unicode string _t_.string-value _SHOULD_ be in Normal Form C [NFC]. If the `rdf:datatype` attribute _d_ is given then _o_ := typed-literal(literal-value := _t_.string-value, literal-datatype := _d_.rdf-term) otherwise _o_ := literal(literal-value := _t_.string-value, literal-language := _e_.language, literal-direction := _e_.direction) and the following statement is added to _e_.parent.graph:
+
+`_e_.parent.subject.rdf-term _e_.IRI _o_.literal .`
+
+If the `rdf:ID` attribute _a_ is given, the above statement is reified with _i_ := iri(identifier := resolve(_e_ , concat("#", _a_.string-value))) using the reification rules in 6.3 Reification Rules and _e_.subject := _i_.
+
+If either the `rdf:annotation` or `rdf:annotationNodeID` attributes _a_ are given, the statement above is used to create a [triple term](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term) _t_ , and the following statement is added to _e_.parent.graph:
+
+  ` _a_.rdf-term <http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies> _t_.rdf-term .`
+
+#### 6.2.17 Production parseTypeLiteralPropertyElt
+
+ _This section is non-normative._
+
+start-element(IRI == propertyElementURIs ),  
+    attributes == set(idAttr?, (annotationAttr | annotationNodeIDAttr)?, parseLiteral))  
+literal  
+end-element() 
+
+For element _e_ and the literal _lit_ that is the `rdf:parseType="Literal"` content. _lit_ is not transformed by the syntax data model mapping into events (as noted in section 5\. Syntax Data Model) but remains an XML Infoset of XML Information items.
+
+_lit_ is transformed into the lexical form of an [XML literal](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-xmlliteral) in the [RDF graph](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-graph) _x_ (a Unicode string) by the following algorithm. This does not mandate any implementation method — any other method that gives the same result may be used.
+
+  1. Use _lit_ to construct an [XPath sequence](https://www.w3.org/TR/xpath-datamodel-30/#sequences) [XPATH-DATAMODEL-30].
+  2. Apply <https://www.w3.org/TR/xpath-functions-30/#func-serialize> [XPATH-FUNCTIONS-30] to this sequence to give an xsd:string _x_.
+  3. The Unicode string _x_ is used as the lexical form of _lit_
+  4. This Unicode string _x_ _SHOULD_ be in NFC Normal Form C [NFC]
+
+
+
+Then _o_ := typed-literal(literal-value := _x_ , literal-datatype := `http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral` ) and the following statement is added to _e_.parent.graph:
+
+`_e_.parent.subject.rdf-term _e_.IRI _o_.literal .`
+
+If the `rdf:ID` attribute _a_ is given, the above statement is reified with _i_ := iri(identifier := resolve(_e_ , concat("#", _a_.string-value))) using the reification rules in 6.3 Reification Rules and _e_.subject := _i_.
+
+If either the `rdf:annotation` or `rdf:annotationNodeID` attributes _a_ are given, the statement above is used to create a [triple term](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term) _t_ , and the following statement is added to _e_.parent.graph:
+
+  ` _a_.rdf-term <http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies> _t_.rdf-term .`
+
+#### 6.2.18 Production parseTypeResourcePropertyElt
+
+start-element(IRI == propertyElementURIs ),  
+    attributes == set(idAttr?, (annotationAttr | annotationNodeIDAttr)?, parseResource))  
+propertyEltList  
+end-element() 
+
+For element _e_ with possibly empty element content _c_.
+
+_n_ := bnodeid(identifier := generated-blank-node-id()).
+
+Add the following statement to _e_.parent.graph: 
+
+`_e_.parent.subject.rdf-term _e_.IRI _n_.rdf-term .`
+
+If the `rdf:ID` attribute _a_ is given, the statement above is reified with _i_ := iri(identifier := resolve(_e_ , concat("#", _a_.string-value))) using the reification rules in 6.3 Reification Rules and _e_.subject := _i_.
+
+If either the `rdf:annotation` or `rdf:annotationNodeID` attributes _a_ are given, the statement above is used to create a [triple term](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term) _t_ , and the following statement is added to _e_.parent.graph:
+
+  ` _a_.rdf-term <http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies> _t_.rdf-term .`
+
+If the element content _c_ is not empty, then use event _n_ to create a new sequence of events as follows:
+
+start-element(IRI := `rdf:Description`,  
+    subject := _n_ ,  
+    attributes := set())  
+_c_  
+end-element() 
+
+Then process the resulting sequence using production nodeElement.
+
+#### 6.2.19 Production parseTypeTriplePropertyElt
+
+start-element(IRI == propertyElementURIs ),  
+    attributes == set(parseTriple))  
+propertyEltList  
+end-element() 
+
+For element _e_ with element content _c_.
+
+Create a new sequence of events as follows:
+
+start-element(IRI := nodeElementIRIs,  
+    attributes := set())  
+    graph := a new [RDF graph](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-graph))  
+_c_  
+end-element() 
+
+Then process the resulting sequence using production nodeElement.
+
+After processing the node sequence, _e_.parent.graph _MUST_ be an [RDF graph](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-graph) containing a single triple.
+
+_e_.subject := triple(_s_ , _p_ , _o_), where _s_ , _p_ , and _o_ are the [subject](https://www.w3.org/TR/rdf12-concepts/#dfn-subject), [predicate](https://www.w3.org/TR/rdf12-concepts/#dfn-predicate), and [object](https://www.w3.org/TR/rdf12-concepts/#dfn-object) of the sole triple in _e_.parent.graph.
+
+Add the following statement added to _e_.parent.graph: 
+
+`_e_.parent.subject.rdf-term _e_.IRI _e_.subject.rdf-term .`
+
+#### 6.2.20 Production parseTypeCollectionPropertyElt
+
+start-element(IRI == propertyElementURIs ),  
+    attributes == set(idAttr?, parseCollection))  
+nodeElementList  
+end-element() 
+
+For element event _e_ with possibly empty nodeElementList _nel_. Set _s_ :=list().
+
+For each element event _f_ in _nel_ , _n_ := bnodeid(identifier := generated-blank-node-id()) and append _n_ to _s_ to give a sequence of events.
+
+If _s_ is not empty, _n_ is the first event identifier in _s_ and the following statement is added to _e_.parent.graph:
+
+`_e_.parent.subject.rdf-term _e_.IRI _n_.rdf-term .`
+
+otherwise the following statement is added to _e_.parent.graph:
+
+`_e_.parent.subject.rdf-term _e_.IRI <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil> .`
+
+If the `rdf:ID` attribute _a_ is given, either of the the above statements is reified with _i_ := iri(identifier := resolve(_e_ , concat("#", _a_.string-value))) using the reification rules in 6.3 Reification Rules.
+
+If either the `rdf:annotation` or `rdf:annotationNodeID` attributes _a_ are given, the statement above is used to create a [triple term](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term) _t_ , and the following statement is added to _e_.parent.graph:
+
+  ` _a_.rdf-term <http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies> _t_.rdf-term .`
+
+If _s_ is empty, no further work is performed.
+
+For each event _n_ in _s_ and the corresponding element event _f_ in _nel_ , the following statement is added to _e_.parent.graph:
+
+` _n_.rdf-term <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> _f_.rdf-term .`
+
+For each consecutive and overlapping pair of events (_n_ , _o_) in _s_ , the following statement is added to _e_.parent.graph:
+
+`_n_.rdf-term <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> _o_.rdf-term .`
+
+If _s_ is not empty, _n_ is the last event identifier in _s_ , the following statement is added to _e_.parent.graph:
+
+`_n_.rdf-term <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil> .`
+
+#### 6.2.21 Production parseTypeOtherPropertyElt
+
+start-element(IRI == propertyElementURIs ),  
+    attributes == set(idAttr?, (annotationAttr | annotationNodeIDAttr)?, parseOther))  
+propertyEltList  
+end-element() 
+
+All `rdf:parseType` attribute values other than the strings "Resource", "Literal", "Collection", or "Triple" are treated as if the value was "Literal". This production matches and acts as if production parseTypeLiteralPropertyElt was matched. No extra triples are generated for other `rdf:parseType` values. 
+
+#### 6.2.22 Production emptyPropertyElt
+
+start-element(IRI == propertyElementURIs ),  
+    attributes == set(idAttr?, (annotationAttr | annotationNodeIDAttr)?, ( resourceAttr | nodeIdAttr | datatypeAttr )?, propertyAttr*))  
+end-element() 
+
+  * If there are no attributes **or** only the optional `rdf:ID` attribute _i_ , or the optional attributes `rdf:annotation` or `rdf:annotationNodeID` _a_ , then _o_ := literal(literal-value:="", literal-language := _e_.language, literal-direction := _e_.direction) and the following statement is added to _e_.parent.graph:
+
+`_e_.parent.subject.rdf-term _e_.IRI _o_.literal .`
+
+and then if _i_ is given, the above statement is reified with iri(identifier := resolve(_e_ , concat("#", _i_.string-value))) using the reification rules in 6.3 Reification Rules.
+
+and then if _a_ is given, the statement above is used to create a [triple term](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term) _t_ , and the following statement is added to _e_.parent.graph:
+
+  ` _a_.rdf-term <http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies> _t_.rdf-term .`
+
+  * Otherwise
+
+    * If `rdf:resource` attribute _i_ is present, then _r_ := iri(identifier := _i_.rdf-term) 
+    * If `rdf:nodeID` attribute _i_ is present, then _r_ := bnodeid(identifier := _i_.string-value) 
+    * If neither, _r_ := bnodeid(identifier := generated-blank-node-id()) 
+
+The following are done in any order:
+
+    * For all propertyAttr attributes _a_ (in any order)
+
+      * If _a_.IRI == `rdf:type` then _u_ :=iri(identifier:=_i_.rdf-term) and the following triple is added to _e_.parent.graph:
+
+`_r_.rdf-term <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> _u_.rdf-term .`
+
+      * Otherwise Unicode string _a_.string-value _SHOULD_ be in Normal Form C [NFC], _o_ := literal(literal-value := _a_.string-value, literal-language := _e_.language, literal-direction := _e_.direction) and the following statement is added to _e_.parent.graph:
+
+`_r_.rdf-term _a_.IRI _o_.literal .`
+
+    * Add the following statement to the graph:
+
+`_e_.parent.subject.rdf-term _e_.IRI _r_.rdf-term .`
+
+and then if `rdf:ID` attribute _i_ is given, the above statement is reified with iri(identifier := resolve(_e_ , concat("#", _i_.rdf-term))) using the reification rules in 6.3 Reification Rules.
+
+and then if either the `rdf:annotation` or `rdf:annotationNodeID` attributes _a_ are given, the statement above is used to create a [triple term](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term) _t_ , and the following statement is added to _e_.parent.graph:
+
+  ` _a_.rdf-term <http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies> _t_.rdf-term .`
+
+
+
+
+#### 6.2.23 Production idAttr
+
+attribute(IRI == `rdf:ID`,  
+    string-value == rdf-id) 
+
+**Constraint:** : constraint-id applies to the values of `rdf:ID` attributes
+
+#### 6.2.24 Production nodeIdAttr
+
+attribute(IRI == `rdf:nodeID`,  
+    string-value == rdf-id) 
+
+#### 6.2.25 Production aboutAttr
+
+attribute(IRI == `rdf:about`,  
+    string-value == string(IRI)) 
+
+#### 6.2.26 Production annotationAttr
+
+attribute(IRI == `rdf:annotation`,  
+    string-value == string(IRI)) 
+
+This production _MAY_ be ignored unless `rdf:version` is `"1.2"` or greater.
+
+#### 6.2.27 Production annotationNodeIDAttr
+
+attribute(IRI == `rdf:annotationNodeID`,  
+    rdf-term == bnodeid(rdf-id)) 
+
+This production _MAY_ be ignored unless `rdf:version` is `"1.2"` or greater.
+
+#### 6.2.28 Production propertyAttr
+
+attribute(IRI == propertyAttributeIRIs,  
+    string-value == [anyString](https://www.w3.org/TR/xmlschema11-2/#anyString)) 
+
+#### 6.2.29 Production resourceAttr
+
+attribute(IRI == `rdf:resource`,  
+    string-value == string(IRI)) 
+
+#### 6.2.30 Production datatypeAttr
+
+attribute(IRI == `rdf:datatype`,  
+    string-value == string(IRI)) 
+
+#### 6.2.31 Production parseLiteral
+
+attribute(IRI == `rdf:parseType`,  
+    string-value == "Literal") 
+
+#### 6.2.32 Production parseResource
+
+attribute(IRI == `rdf:parseType`,  
+    string-value == "Resource") 
+
+#### 6.2.33 Production parseTriple
+
+attribute(IRI == `rdf:parseType`,  
+    string-value == "Triple") 
+
+#### 6.2.34 Production parseCollection
+
+attribute(IRI == `rdf:parseType`,  
+    string-value == "Collection") 
+
+#### 6.2.35 Production parseOther
+
+attribute(IRI == `rdf:parseType`,  
+    string-value == [anyString](https://www.w3.org/TR/xmlschema11-2/#anyString) \- ("Resource" | "Literal" | "Collection") ) 
+
+#### 6.2.36 Production IRI
+
+An [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri). 
+
+#### 6.2.37 Production literal
+
+Any XML element content that is allowed according to XML definition _Content of Elements_ Rule [43] [content](https://www.w3.org/TR/xml11/#NT-content). in section [3.1 Start-Tags, End-Tags, and Empty-Element Tags](https://www.w3.org/TR/xml11/#sec-starttags)
+
+The string-value for the resulting event is discussed in 6.2.17 Production parseTypeLiteralPropertyElt.
+
+#### 6.2.38 Production rdf-id
+
+An attribute ·string-value· matching any legal [XML-NAMES] token [NCName](https://www.w3.org/TR/xml-names/#NT-NCName)
+
+### 6.3 Reification Rules
+
+For the given IRI event _r_ and the statement with terms _s_ , _p_ and _o_ corresponding to the N-Triples:
+
+`_s_ _p_ _o_ .`
+
+add the following statements to the graph:
+
+`_r_.rdf-term <http://www.w3.org/1999/02/22-rdf-syntax-ns#subject> _s_ .`  
+`_r_.rdf-term <http://www.w3.org/1999/02/22-rdf-syntax-ns#predicate> _p_ .`  
+`_r_.rdf-term <http://www.w3.org/1999/02/22-rdf-syntax-ns#object> _o_ .`  
+`_r_.rdf-term <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/1999/02/22-rdf-syntax-ns#Statement> .`  
+
+
+### 6.4 List Expansion Rules
+
+For the given element _e_ , create a new IRI _u_ := concat("http://www.w3.org/1999/02/22-rdf-syntax-ns#_", _e_.li-counter), increment the _e_.li-counter property by 1 and return _u_.
+
+## 7\. Serializing an RDF Graph to RDF/XML
+
+There are some [RDF graphs](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-graph) as defined in [RDF12-CONCEPTS] that cannot be serialized in RDF/XML. These are the graphs that:
+
+Use property names that cannot be turned into XML namespace-qualified names.  
+
+    An XML namespace-qualified name ([QName](https://www.w3.org/TR/xml-names/#ns-qualnames)) has restrictions on the legal characters such that not all property URIs can be expressed as these names. It is recommended that implementors of RDF serializers, in order to break a URI into a [namespace name](https://www.w3.org/TR/xml-names/#dt-NSName) and a [local name](https://www.w3.org/TR/xml-names/#NT-LocalPart), split it after the last XML non-[NCName](https://www.w3.org/TR/xml-names/#NT-NCName) character, ensuring that the first character of the name is a [Letter](https://www.w3.org/TR/xml11/#NT-Letter) or '_'. If the URI ends in a non-[NCName](https://www.w3.org/TR/xml-names/#NT-NCName) character then throw a "this graph cannot be serialized in RDF/XML" exception or error. 
+Use inappropriate reserved names as properties  
+
+    For example, a property with the same URI as any of the syntaxTerms production. 
+
+Note
+
+**Implementation Note (Informative):** When an [RDF graph](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-graph) is serialized to RDF/XML and has an XML Schema Datatype (XSD), it _SHOULD_ be written in a form that does not require whitespace processing. XSD support is NOT required by RDF or RDF/XML so this is optional. 
+
+## 8\. Using RDF/XML with SVG
+
+ _This section is non-normative._
+
+There is a standardized approach for associating RDF compatible metadata with SVG — the metadata element which was explicitly designed for this purpose as defined in [Section 21 Metadata](https://www.w3.org/TR/SVG/metadata.html#) of the [Scalable Vector Graphics (SVG) 1.0 Specification](https://www.w3.org/TR/SVG/) [SVG10] and [Scalable Vector Graphics (SVG) 1.1 (Second Edition)](https://www.w3.org/TR/SVG11/) [SVG11]. 
+
+This document contains two example graphs in SVG with such embedded RDF/XML inside the metadata element: [figure 1](figure1.svg) and [figure 2](figure2.svg).
+
+## A. Acknowledgments
+
+ _This section is non-normative._
+
+### A.1 Acknowledgments the original specification
+
+ _This section is non-normative._
+
+This document is a product of extended deliberations by the RDF Core working group, whose members have included: Art Barstow (W3C) Dave Beckett (ILRT), Dan Brickley (W3C/ILRT), Dan Connolly (W3C), Jeremy Carroll (Hewlett Packard), Ron Daniel (Interwoven Inc), Bill dehOra (InterX), Jos De Roo (AGFA), Jan Grant (ILRT), Graham Klyne (Clearswift and Nine by Nine), Frank Manola (MITRE Corporation), Brian McBride (Hewlett Packard), Eric Miller (W3C), Stephen Petschulat (IBM), Patrick Stickler (Nokia), Aaron Swartz (HWG), Mike Dean (BBN Technologies / Verizon), R. V. Guha (Alpiri Inc), Pat Hayes (IHMC), Sergey Melnik (Stanford University), Martyn Horner (Profium Ltd).
+
+This specification also draws upon an earlier RDF Model and Syntax document edited by Ora Lassilla and Ralph Swick, and RDF Schema edited by Dan Brickley and R. V. Guha. RDF and RDF Schema Working group members who contributed to this earlier work are: Nick Arnett (Verity), Tim Berners-Lee (W3C), Tim Bray (Textuality), Dan Brickley (ILRT / University of Bristol), Walter Chang (Adobe), Sailesh Chutani (Oracle), Dan Connolly (W3C), Ron Daniel (DATAFUSION), Charles Frankston (Microsoft), Patrick Gannon (CommerceNet), RV Guha (Epinions, previously of Netscape Communications), Tom Hill (Apple Computer), Arthur van Hoff (Marimba), Renato Iannella (DSTC), Sandeep Jain (Oracle), Kevin Jones, (InterMind), Emiko Kezuka (Digital Vision Laboratories), Joe Lapp (webMethods Inc.), Ora Lassila (Nokia Research Center), Andrew Layman (Microsoft), Ralph LeVan (OCLC), John McCarthy (Lawrence Berkeley National Laboratory), Chris McConnell (Microsoft), Murray Maloney (Grif), Michael Mealling (Network Solutions), Norbert Mikula (DataChannel), Eric Miller (OCLC), Jim Miller (W3C, emeritus), Frank Olken (Lawrence Berkeley National Laboratory), Jean Paoli (Microsoft), Sri Raghavan (Digital/Compaq), Lisa Rein (webMethods Inc.), Paul Resnick (University of Michigan), Bill Roberts (KnowledgeCite), Tsuyoshi Sakata (Digital Vision Laboratories), Bob Schloss (IBM), Leon Shklar (Pencom Web Works), David Singer (IBM), Wei (William) Song (SISU), Neel Sundaresan (IBM), Ralph Swick (W3C), Naohiko Uramoto (IBM), Charles Wicksteed (Reuters Ltd.), Misha Wolf (Reuters Ltd.), Lauren Wood (SoftQuad). 
+
+### A.2 Acknowledgments for RDF 1.1
+
+ _This section is non-normative._
+
+Gavin Carothers provided the RDF 1.1 update for the Production parseTypeLiteralPropertyElt. Ivan Herman provided valuable comments and reworked Figs 1 and 2. 
+
+This specification is a product of extended deliberations by the members of the RDFcore Working Group and the RDF and RDF Schema Working Group.
+
+The following people provided valuable contributions to the document:
+
+  * Dan Brickley, W3C/ILRT
+  * Jeremy Carroll, HP Labs, Bristol
+  * Graham Klyne, Nine by Nine
+  * Bijan Parsia, MIND Lab at University of Maryland at College Park
+
+
+
+### A.3 Acknowledgments for RDF 1.2
+
+ _This section is non-normative._
+
+In addition to the editors, the following people have contributed to this specification: Andy Seaborne, Denis Ah-Kang, Dominik Tomaszuk, Gregory Todd Williams, John Walker, Niklas Lindström, Peter F. Patel-Schneider, Pierre-Antoine Champin, Ted Thibodeau Jr, and Thomas Tanon
+
+Members of the RDF & SPARQL Working Group Group included   
+James Anderson, Dörthe Arndt, Jerven Bolleman, Erich Bremer, Pierre-Antoine Champin, Souripriya Das, Enrico Franconi, Adrian Gschwend, Olaf Hartig, Gregg Kellogg†, Ora Lassila, Niklas Lindström, Thomas Lörtsch, Peter Patel-Schneider, Dave Raggett, Felix Sasaki, Andy Seaborne, Ruben Taelman, Thomas Pellissier Tanon, Ted Thibodeau Jr, Dominik Tomaszuk, Gregory Williams, William Van Woensel, and Antoine Zimmermann   
+† Gregg Kellogg passed away in September 2025. His vast contributions to RDF and the broader ecosystem of related standards are gratefully acknowledged. 
+
+Editor's note
+
+Recognize members of the Task Force? Not an easy to find list of contributors.
+
+## B. Changes between RDF 1.1 and RDF 1.2
+
+ _This section is non-normative._
+
+  * Adds 3.2 Privacy Considerations and 3.3 Security Considerations.
+  * Updates reference for [SAX].
+  * Removes the statement that the `rdf:HTML` datatype cannot be serialized in RDF/XML.
+  * Adds 2.8 Base Direction: `its:dir` and `rdf:version`.
+  * The processing model now emits [RDF terms](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-term) and [triples](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-triple) directly, rather than N-Triples [RDF12-N-TRIPLES]; this is more consistent with other [concrete RDF syntaxes](https://www.w3.org/TR/rdf12-concepts/#dfn-concrete-rdf-syntax). The names of some event accessors have been updated accordingly.
+  * Adds 2.19 Triple Terms: `rdf:parseType="Triple"`, 6.2.19 Production parseTypeTriplePropertyElt, and 6.2.33 Production parseTriple to support [Triple Terms](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term). 
+  * Adds 2.20 Annotating Triples: `rdf:annotation` or `rdf:annotationNodeID` and rules for creating [reifiers](https://www.w3.org/TR/rdf12-concepts/#dfn-reifier) for [Triple Terms](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term), allowing them to be used as the subject or object of other triples.
+  * Unify the examples.
+
+
+
+## C. Syntax Schemas
+
+ _This section is non-normative._
+
+This appendix contains XML schemas for validating RDF/XML forms. These are example schemas for information only and are not part of this specification.
+
+### C.1 RELAX NG Compact Schema
+
+ _This section is non-normative._
+
+This is an [example schema in RELAX NG Compact](https://www.w3.org/TR/2004/REC-rdf-syntax-grammar-20040210/rdfxml.rnc) (for ease of reading) for RDF/XML. Applications can also use the [RELAX NG XML version](https://www.w3.org/TR/2004/REC-rdf-syntax-grammar-20040210/rdfxml.rng). These formats are described in [Information technology -- Document Schema Definition Language (DSDL) -- Part 2: Regular-grammar-based validation -- RELAX NG](http://standards.iso.org/ittf/PubliclyAvailableStandards/c052348_ISO_IEC_19757-2_2008\(E\).zip) [RELAXNG-SCHEMA].
+
+Note
+
+The RNGC schema has been updated to attempt to match the grammar but this has not been checked or used to validate RDF/XML. 
+    
+    
+    #
+    # RELAX NG Compact Schema for RDF/XML Syntax
+    #
+    # This schema is for information only and NON-NORMATIVE
+    #
+    # It is based on one originally written by James Clark in
+    # https://lists.w3.org/Archives/Public/www-rdf-comments/2001JulSep/0248.html
+    # and updated with later changes.
+    #
+    
+    namespace local = ""
+    namespace rdf = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+    datatypes xsd = "http://www.w3.org/2001/XMLSchema-datatypes"
+    namespace its = "http://www.w3.org/2005/11/its"
+    
+    start = doc
+    
+    # I cannot seem to do this in RNGC so they are expanded in-line
+    
+    # coreSyntaxTerms = rdf:RDF | rdf:ID | rdf:annotation | rdf:annotationNodeID | rdf:about | rdf:parseType | rdf:resource | rdf:nodeID | rdf:datatype | rdf:version
+    # syntaxTerms = coreSyntaxTerms | rdf:Description | rdf:li
+    # oldTerms    = rdf:aboutEach | rdf:aboutEachPrefix | rdf:bagID
+    # nodeElementIRIs       = * - ( coreSyntaxTerms | rdf:li | oldTerms )
+    # propertyElementURIs   = * - ( coreSyntaxTerms | rdf:Description | oldTerms )
+    # propertyAttributeIRIs = * - ( coreSyntaxTerms | rdf:Description | rdf:li | oldTerms )
+    
+    # Also needed to allow rdf:li on all property element productions
+    # since we can't capture the rdf:li rewriting to rdf_<n> in relaxng
+    
+    # Need to add these explicitly
+    xmllang = attribute xml:lang { text }
+    xmlbase = attribute xml:base { text }
+    # and to forbid every other xml:* attribute, element
+    
+    doc =
+      RDF | nodeElement
+    
+    RDF =
+      element rdf:RDF {
+         xmllang?, xmlbase?, nodeElementList
+    }
+    
+    nodeElementList =
+      nodeElement*
+    
+      # Should be something like:
+      #  ws* , (  nodeElement , ws* )*
+      # but RELAXNG does this by default, ignoring whitespace separating tags.
+    
+    nodeElement =
+      element * - ( local:* | rdf:RDF | rdf:ID | rdf:about | rdf:parseType |
+                    rdf:resource | rdf:nodeID | rdf:datatype | rdf:li |
+                    rdf:aboutEach | rdf:aboutEachPrefix | rdf:bagID ) {
+          (idAttr | nodeIdAttr | aboutAttr )?, xmllang?, xmlbase?, propertyAttr*, propertyEltList
+      }
+    
+      # It is not possible to say "and not things
+      # beginning with _ in the rdf: namespace" in RELAX NG.
+    
+    ws =
+      " "
+    
+      # Not used in this RELAX NG schema; but should be any legal XML
+      # whitespace defined by https://www.w3.org/TR/2000/REC-xml-20001006#NT-S
+    
+    
+    propertyEltList =
+      propertyElt*
+    
+      # Should be something like:
+      #  ws* , ( propertyElt , ws* )*
+      # but RELAXNG does this by default, ignoring whitespace separating tags.
+    
+    propertyElt =
+      resourcePropertyElt |
+      literalPropertyElt |
+      parseTypeLiteralPropertyElt |
+      parseTypeResourcePropertyElt |
+      parseTypeTriplePropertyElt |
+      parseTypeCollectionPropertyElt |
+      parseTypeOtherPropertyElt |
+      emptyPropertyElt
+    
+    resourcePropertyElt =
+      element * - ( local:* | rdf:RDF | rdf:ID |
+                    rdf:annotation | rdf:annotationNodeID |
+                    rdf:about | rdf:parseType |
+                    rdf:resource | rdf:nodeID | rdf:datatype | rdf:version |
+                    its:dir | its:version |
+                    rdf:Description | rdf:aboutEach | rdf:aboutEachPrefix | rdf:bagID |
+                    xml:* ) {
+          idAttr?, (annotationAttr | annotationNodeIDAttr)?, xmllang?, xmlbase?, versionAttr?, dirAttr?, itsVersionAttr?, nodeElement
+      }
+    
+    literalPropertyElt =
+      element * - ( local:* | rdf:RDF | rdf:ID |
+                    rdf:annotation | rdf:annotationNodeID |
+                    rdf:about | rdf:parseType |
+                    rdf:resource | rdf:nodeID | rdf:datatype | rdf:version |
+                    its:dir | its:version |
+                    rdf:Description | rdf:aboutEach | rdf:aboutEachPrefix | rdf:bagID |
+                    xml:* ) {
+          idAttr? , (annotationAttr | annotationNodeIDAttr)?, datatypeAttr?, xmllang?, xmlbase?, versionAttr?, dirAttr?, itsVersionAttr?, text
+      }
+    
+    parseTypeLiteralPropertyElt =
+      element * - ( local:* | rdf:RDF | rdf:ID |
+                    rdf:annotation | rdf:annotationNodeID |
+                    rdf:about | rdf:parseType |
+                    rdf:resource | rdf:nodeID | rdf:datatype | rdf:version |
+                    its:dir | its:version |
+                    rdf:Description | rdf:aboutEach | rdf:aboutEachPrefix | rdf:bagID |
+                    xml:* ) {
+          idAttr?, (annotationAttr | annotationNodeIDAttr)?, parseLiteral, xmllang?, xmlbase?, versionAttr?, dirAttr?, itsVersionAttr?, literal
+      }
+    
+    parseTypeResourcePropertyElt =
+      element * - ( local:* | rdf:RDF | rdf:ID |
+                    rdf:annotation | rdf:annotationNodeID |
+                    rdf:about | rdf:parseType |
+                    rdf:resource | rdf:nodeID | rdf:datatype | rdf:version |
+                    its:dir | its:version |
+                    rdf:Description | rdf:aboutEach | rdf:aboutEachPrefix | rdf:bagID |
+                    xml:* ) {
+          idAttr?, (annotationAttr | annotationNodeIDAttr)?, parseResource, xmllang?, xmlbase?, versionAttr?, dirAttr?, itsVersionAttr?, propertyEltList
+      }
+    
+    parseTypeTriplePropertyElt =
+      element * - ( local:* | rdf:RDF | rdf:about | rdf:parseType |
+                    rdf:resource | rdf:nodeID | rdf:datatype | rdf:version |
+                    its:dir | its:version |
+                    rdf:Description | rdf:aboutEach | rdf:aboutEachPrefix | rdf:bagID |
+                    xml:* ) {
+          idAttr?, (annotationAttr | annotationNodeIDAttr)?, parseResource, xmllang?, xmlbase?, versionAttr?, dirAttr?, itsVersionAttr?, propertyEltList
+      }
+    
+    parseTypeCollectionPropertyElt =
+      element * - ( local:* | rdf:RDF | rdf:ID |
+                    rdf:annotation | rdf:annotationNodeID |
+                    rdf:about | rdf:parseType |
+                    rdf:resource | rdf:nodeID | rdf:datatype | rdf:version |
+                    its:dir | its:version |
+                    rdf:Description | rdf:aboutEach | rdf:aboutEachPrefix | rdf:bagID |
+                    xml:* ) {
+          idAttr?, (annotationAttr | annotationNodeIDAttr)?, xmllang?, xmlbase?, versionAttr?, dirAttr?, itsVersionAttr?, parseCollection, nodeElementList
+      }
+    
+    parseTypeOtherPropertyElt =
+      element * - ( local:* | rdf:RDF | rdf:ID |
+                    rdf:annotation | rdf:annotationNodeID |
+                    rdf:about | rdf:parseType |
+                    rdf:resource | rdf:nodeID | rdf:datatype | rdf:version |
+                    its:dir | its:version |
+                    rdf:Description | rdf:aboutEach | rdf:aboutEachPrefix | rdf:bagID |
+                    xml:* ) {
+          idAttr?, (annotationAttr | annotationNodeIDAttr)?, xmllang?, xmlbase?, versionAttr?, dirAttr?, itsVersionAttr?, parseOther, any
+      }
+    
+    emptyPropertyElt =
+       element * - ( local:* | rdf:RDF | rdf:ID |
+                     rdf:annotation | rdf:annotationNodeID |
+                     rdf:about | rdf:parseType |
+                     rdf:resource | rdf:nodeID | rdf:datatype | rdf:version |
+                     its:dir | its:version |
+                     rdf:Description | rdf:aboutEach | rdf:aboutEachPrefix | rdf:bagID |
+                     xml:* ) {
+           idAttr?, (resourceAttr | nodeIdAttr | datatypeAttr )?, xmllang?,
+           xmlbase?, versionAttr?, dirAttr?, itsVersionAttr?, propertyAttr*
+       }
+    
+    idAttr =
+      attribute rdf:ID {
+          IDsymbol
+      }
+    
+    nodeIdAttr =
+      attribute rdf:nodeID {
+          IDsymbol
+      }
+    
+    aboutAttr =
+      attribute rdf:about {
+          IRI
+      }
+    
+    propertyAttr =
+      attribute * - ( local:* | rdf:RDF | rdf:ID |
+                      rdf:annotation | rdf:annotationNodeID |
+                      rdf:about | rdf:parseType |
+                      rdf:resource | rdf:nodeID | rdf:datatype | rdf:version |
+                      rdf:li | its:dir | | its:version
+                      rdf:Description | rdf:aboutEach |
+                      rdf:aboutEachPrefix | rdf:bagID |
+                      xml:* ) {
+          string
+      }
+    
+    resourceAttr =
+      attribute rdf:resource {
+          IRI
+      }
+    
+    datatypeAttr =
+      attribute rdf:datatype {
+          IRI
+      }
+    
+    parseLiteral =
+      attribute rdf:parseType {
+          "Literal"
+      }
+    
+    parseResource =
+      attribute rdf:parseType {
+          "Resource"
+      }
+    
+    parseTriple =
+      attribute rdf:parseType {
+          "Triple"
+      }
+    
+    parseCollection =
+      attribute rdf:parseType {
+          "Collection"
+      }
+    
+    parseOther =
+      attribute rdf:parseType {
+          text
+      }
+    
+    versionAttr =
+      attribute rdf:version {
+          text
+      }
+    
+    dirAttr =
+      attribute its:dir {
+          text
+      }
+    
+    itsVersionAttr =
+      attribute its:version {
+          text
+      }
+    
+    IRI =
+      string
+    
+    literal =
+      any
+    
+    IDsymbol =
+      xsd:NMTOKEN
+    
+    any =
+      mixed { element * { attribute * { text }*, any }* }
+
+## D. Index
+
+### D.1 Terms defined by this specification
+
+  * annotating §2.20
+  * blank node elements §2.2
+  * conforming RDF/XML document §3.
+  * constraint-id §4.4
+  * node elements §2.2
+  * Property Attribute §2.5
+  * property elements §2.2
+  * RDF/XML Document §3.
+  * top-level XML document element §6.2.1
+
+
+
+### D.2 Terms defined by reference
+
+  * [RDF12-CONCEPTS] defines the following: 
+    * 2.1 Version Labels
+    * base direction
+    * blank node identifier
+    * blank nodes
+    * concrete RDF syntaxes
+    * datatype IRI
+    * directional language-tagged strings
+    * IRIs
+    * language tag
+    * language-tagged strings
+    * lexical form
+    * literals
+    * nodes
+    * object type
+    * predicate
+    * RDF 1.2 Abstract Syntax
+    * RDF Document
+    * RDF graphs
+    * RDF namespace IRI
+    * RDF term
+    * RDF Vocabulary
+    * reifier
+    * relative IRI references
+    * resource
+    * string
+    * subject
+    * triple
+    * triple terms
+    * XML literal
+  * [RFC3870] defines the following: 
+    * Security Considerations Section
+  * [RFC3986] defines the following: 
+    * resolved
+  * [SVG10] defines the following: 
+    * Section 21 Metadata
+  * [XML-INFOSET] defines the following: 
+    * attribute information item
+    * character information item
+    * comment information item
+    * Conformance
+    * document information item
+    * document type declaration information item
+    * element information item
+    * namespace information item
+    * notation information item
+    * processing instruction information item
+    * unexpanded entity reference information item
+    * unparsed entity information item
+  * [XML-NAMES] defines the following: 
+    * local name
+    * namespace name
+    * NCName
+    * prefix
+    * QName
+    * QNames
+  * [XML11] defines the following: 
+    * 2.12 Language Identification
+    * 3.1 Start-Tags, End-Tags, and Empty-Element Tags
+    * Common Syntactic Constructs
+    * content
+    * Letter
+    * Name
+    * S
+  * [XMLSCHEMA11-2] defines the following: 
+    * anyString
+    * anyURI
+    * int
+    * white space normalization
+  * [XPATH] defines the following: 
+    * Information Set Mapping
+  * [XPATH-DATAMODEL-30] defines the following: 
+    * XPath sequence
+  * [XPATH-FUNCTIONS-30] defines the following: 
+    * https://www.w3.org/TR/xpath-functions-30/#func-serialize
+
+
+
+## E. References
+
+### E.1 Normative references
+
+[BCP47]
+     [Tags for Identifying Languages](https://www.rfc-editor.org/rfc/rfc5646). A. Phillips, Ed.; M. Davis, Ed. IETF. September 2009. Best Current Practice. URL: <https://www.rfc-editor.org/rfc/rfc5646>
+[NFC]
+     [Web NFC API](https://www.w3.org/TR/nfc/). Luc Yriarte; Samuel Ortiz; Don Coleman. W3C. 16 June 2015. W3C Working Group Note. URL: <https://www.w3.org/TR/nfc/>
+[RDF-SYNTAX-GRAMMAR-19990222]
+     [Resource Description Framework (RDF) Model and Syntax Specification](https://www.w3.org/TR/1999/REC-rdf-syntax-19990222/). Ora Lassila. W3C. 22 February 1999. W3C Recommendation. URL: <https://www.w3.org/TR/1999/REC-rdf-syntax-19990222/>
+[RDF12-CONCEPTS]
+     [RDF 1.2 Concepts and Abstract Data Model](https://www.w3.org/TR/rdf12-concepts/). Andy Seaborne; Gregg Kellogg; Olaf Hartig; Pierre-Antoine Champin. W3C. 7 April 2026. W3C Candidate Recommendation. URL: <https://www.w3.org/TR/rdf12-concepts/>
+[RDF12-N-TRIPLES]
+     [RDF 1.2 N-Triples](https://www.w3.org/TR/rdf12-n-triples/). Gregg Kellogg; Dominik Tomaszuk. W3C. 15 May 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-n-triples/>
+[RFC2119]
+     [Key words for use in RFCs to Indicate Requirement Levels](https://www.rfc-editor.org/rfc/rfc2119). S. Bradner. IETF. March 1997. Best Current Practice. URL: <https://www.rfc-editor.org/rfc/rfc2119>
+[RFC3870]
+     [application/rdf+xml Media Type Registration](https://www.rfc-editor.org/rfc/rfc3870). A. Swartz. IETF. September 2004. Informational. URL: <https://www.rfc-editor.org/rfc/rfc3870>
+[RFC3986]
+     [Uniform Resource Identifier (URI): Generic Syntax](https://www.rfc-editor.org/rfc/rfc3986). T. Berners-Lee; R. Fielding; L. Masinter. IETF. January 2005. Internet Standard. URL: <https://www.rfc-editor.org/rfc/rfc3986>
+[RFC8174]
+     [Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words](https://www.rfc-editor.org/rfc/rfc8174). B. Leiba. IETF. May 2017. Best Current Practice. URL: <https://www.rfc-editor.org/rfc/rfc8174>
+[SAX]
+     [SAX – The Simple API for XML](https://accu.org/journals/overload/7/34/cornish_515/). Steve Cornish. October 1999. URL: <https://accu.org/journals/overload/7/34/cornish_515/>
+[UNICODE]
+     [The Unicode Standard](https://www.unicode.org/versions/latest/). Unicode Consortium. URL: <https://www.unicode.org/versions/latest/>
+[XML-INFOSET]
+     [XML Information Set (Second Edition)](https://www.w3.org/TR/xml-infoset/). John Cowan; Richard Tobin. W3C. 4 February 2004. W3C Recommendation. URL: <https://www.w3.org/TR/xml-infoset/>
+[XML-NAMES]
+     [Namespaces in XML 1.0 (Third Edition)](https://www.w3.org/TR/xml-names/). Tim Bray; Dave Hollander; Andrew Layman; Richard Tobin; Henry Thompson et al. W3C. 8 December 2009. W3C Recommendation. URL: <https://www.w3.org/TR/xml-names/>
+[XML11]
+     [Extensible Markup Language (XML) 1.1 (Second Edition)](https://www.w3.org/TR/xml11/). Tim Bray; Jean Paoli; Michael Sperberg-McQueen; Eve Maler; François Yergeau; John Cowan et al. W3C. 16 August 2006. W3C Recommendation. URL: <https://www.w3.org/TR/xml11/>
+[XMLBASE]
+     [XML Base (Second Edition)](https://www.w3.org/TR/xmlbase/). Jonathan Marsh; Richard Tobin. W3C. 28 January 2009. W3C Recommendation. URL: <https://www.w3.org/TR/xmlbase/>
+[XMLSCHEMA11-2]
+     [W3C XML Schema Definition Language (XSD) 1.1 Part 2: Datatypes](https://www.w3.org/TR/xmlschema11-2/). David Peterson; Sandy Gao; Ashok Malhotra; Michael Sperberg-McQueen; Henry Thompson; Paul V. Biron et al. W3C. 5 April 2012. W3C Recommendation. URL: <https://www.w3.org/TR/xmlschema11-2/>
+[XPATH]
+     [XML Path Language (XPath) Version 1.0](https://www.w3.org/TR/xpath-10/). James Clark; Steven DeRose. W3C. 16 November 1999. W3C Recommendation. URL: <https://www.w3.org/TR/xpath-10/>
+
+### E.2 Informative references
+
+[CHARMOD]
+     [Character Model for the World Wide Web 1.0: Fundamentals](https://www.w3.org/TR/charmod/). Martin Dürst; François Yergeau; Richard Ishida; Misha Wolf; Tex Texin et al. W3C. 15 February 2005. W3C Recommendation. URL: <https://www.w3.org/TR/charmod/>
+[ITS20]
+     [Internationalization Tag Set (ITS) Version 2.0](https://www.w3.org/TR/its20/). David Filip; Shaun McCance; David Lewis; Christian Lieske; Arle Lommel; Jirka Kosek; Felix Sasaki; Yves Savourel. W3C. 29 October 2013. W3C Recommendation. URL: <https://www.w3.org/TR/its20/>
+[JSON-LD11]
+     [JSON-LD 1.1](https://www.w3.org/TR/json-ld11/). Gregg Kellogg; Pierre-Antoine Champin; Dave Longley. W3C. 16 July 2020. W3C Recommendation. URL: <https://www.w3.org/TR/json-ld11/>
+[RDF-SCHEMA]
+     [RDF Schema 1.1](https://www.w3.org/TR/rdf-schema/). Dan Brickley; Ramanathan Guha. W3C. 25 February 2014. W3C Recommendation. URL: <https://www.w3.org/TR/rdf-schema/>
+[rdf-syntax-grammar]
+     [RDF 1.1 XML Syntax](https://www.w3.org/TR/rdf-syntax-grammar/). Fabien Gandon; Guus Schreiber. W3C. 25 February 2014. W3C Recommendation. URL: <https://www.w3.org/TR/rdf-syntax-grammar/>
+[RDF12-INTEROP]
+     [RDF 1.2 Interoperability](https://w3c.github.io/rdf-interop/spec/). Pierre-Antoine Champin. W3C. W3C Editor's Draft. URL: <https://w3c.github.io/rdf-interop/spec/>
+[RDF12-N-QUADS]
+     [RDF 1.2 N-Quads](https://www.w3.org/TR/rdf12-n-quads/). Gregg Kellogg; Dominik Tomaszuk. W3C. 28 May 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-n-quads/>
+[RDF12-NEW]
+     [What’s New in RDF 1.2](https://w3c.github.io/rdf-new/spec/). The W3C RDF & SPARQL Working Group. W3C. W3C Editor's Draft. URL: <https://w3c.github.io/rdf-new/spec/>
+[RDF12-PRIMER]
+     [RDF 1.2 Primer](https://www.w3.org/TR/rdf12-primer/). Pierre-Antoine Champin; Niklas Lindström. W3C. 16 April 2026. DNOTE. URL: <https://www.w3.org/TR/rdf12-primer/>
+[RDF12-SCHEMA]
+     [RDF 1.2 Schema](https://www.w3.org/TR/rdf12-schema/). Dominik Tomaszuk. W3C. 28 March 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-schema/>
+[RDF12-SEMANTICS]
+     [RDF 1.2 Semantics](https://www.w3.org/TR/rdf12-semantics/). Peter Patel-Schneider; Enrico Franconi; Dörthe Arndt. W3C. 7 April 2026. W3C Candidate Recommendation. URL: <https://www.w3.org/TR/rdf12-semantics/>
+[RDF12-TRIG]
+     [RDF 1.2 TriG](https://www.w3.org/TR/rdf12-trig/). Gregg Kellogg; Dominik Tomaszuk. W3C. 28 May 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-trig/>
+[RDF12-TURTLE]
+     [RDF 1.2 Turtle](https://www.w3.org/TR/rdf12-turtle/). Gregg Kellogg; Andy Seaborne; Dominik Tomaszuk. W3C. 28 May 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-turtle/>
+[RDFA-PRIMER]
+     [RDFa 1.1 Primer - Third Edition](https://www.w3.org/TR/rdfa-primer/). Ivan Herman; Ben Adida; Manu Sporny; Mark Birbeck. W3C. 17 March 2015. W3C Working Group Note. URL: <https://www.w3.org/TR/rdfa-primer/>
+[RELAXNG-SCHEMA]
+     [Information technology -- Document Schema Definition Language (DSDL) -- Part 2: Regular-grammar-based validation -- RELAX NG](http://standards.iso.org/ittf/PubliclyAvailableStandards/c052348_ISO_IEC_19757-2_2008\(E\).zip). ISO/IEC. 2008. URL: <http://standards.iso.org/ittf/PubliclyAvailableStandards/c052348_ISO_IEC_19757-2_2008(E).zip>
+[SPARQL12-CONCEPTS]
+     [SPARQL 1.2 Concepts](https://w3c.github.io/sparql-concepts/spec/). The W3C RDF & SPARQL Working Group. W3C. W3C Editor's Draft. URL: <https://w3c.github.io/sparql-concepts/spec/>
+[SPARQL12-ENTAILMENT]
+     [SPARQL 1.2 Entailment Regimes](https://www.w3.org/TR/sparql12-entailment/). Peter Patel-Schneider. W3C. 9 April 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-entailment/>
+[SPARQL12-FEDERATED-QUERY]
+     [SPARQL 1.2 Federated Query](https://www.w3.org/TR/sparql12-federated-query/). Ruben Taelman; Gregory Williams. W3C. 23 April 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-federated-query/>
+[SPARQL12-GRAPH-STORE-PROTOCOL]
+     [SPARQL 1.2 Graph Store Protocol](https://www.w3.org/TR/sparql12-graph-store-protocol/). Andy Seaborne; Thomas Pellissier Tanon. W3C. 19 December 2024. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-graph-store-protocol/>
+[SPARQL12-NEW]
+     [What’s New in SPARQL 1.2](https://w3c.github.io/sparql-new/spec/). The W3C RDF & SPARQL Working Group. W3C. W3C Editor's Draft. URL: <https://w3c.github.io/sparql-new/spec/>
+[SPARQL12-PROTOCOL]
+     [SPARQL 1.2 Protocol](https://www.w3.org/TR/sparql12-protocol/). Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 26 April 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-protocol/>
+[SPARQL12-QUERY]
+     [SPARQL 1.2 Query Language](https://www.w3.org/TR/sparql12-query/). Olaf Hartig; Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 28 May 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-query/>
+[SPARQL12-RESULTS-CSV-TSV]
+     [SPARQL 1.2 Query Results CSV and TSV Formats](https://www.w3.org/TR/sparql12-results-csv-tsv/). Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 28 March 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-csv-tsv/>
+[SPARQL12-RESULTS-JSON]
+     [SPARQL 1.2 Query Results JSON Format](https://www.w3.org/TR/sparql12-results-json/). Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 28 March 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-json/>
+[SPARQL12-RESULTS-XML]
+     [SPARQL 1.2 Query Results XML Format](https://www.w3.org/TR/sparql12-results-xml/). Ruben Taelman; Dominik Tomaszuk; Thomas Pellissier Tanon. W3C. 27 December 2024. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-xml/>
+[SPARQL12-SERVICE-DESCRIPTION]
+     [SPARQL 1.2 Service Description](https://www.w3.org/TR/sparql12-service-description/). Ruben Taelman; Gregory Williams. W3C. 23 April 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-service-description/>
+[SPARQL12-UPDATE]
+     [SPARQL 1.2 Update](https://www.w3.org/TR/sparql12-update/). Ruben Taelman; Andy Seaborne; Thomas Pellissier Tanon. W3C. 23 April 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-update/>
+[STRIPEDRDF]
+     [RDF: Understanding the Striped RDF/XML Syntax](https://www.w3.org/2001/10/stripes/). W3C. 2001. Team Submission. URL: [http://www.w3.org/2001/10/stripes/](https://www.w3.org/2001/10/stripes/)
+[SVG10]
+     [Scalable Vector Graphics (SVG) 1.0 Specification](https://www.w3.org/TR/SVG/). Jon Ferraiolo. W3C. 4 September 2001. W3C Recommendation. URL: <https://www.w3.org/TR/SVG/>
+[SVG11]
+     [Scalable Vector Graphics (SVG) 1.1 (Second Edition)](https://www.w3.org/TR/SVG11/). Erik Dahlström; Patrick Dengler; Anthony Grasso; Chris Lilley; Cameron McCormack; Doug Schepers; Jonathan Watt; Jon Ferraiolo; Jun Fujisawa; Dean Jackson et al. W3C. 16 August 2011. W3C Recommendation. URL: <https://www.w3.org/TR/SVG11/>
+[XPATH-DATAMODEL-30]
+     [XQuery and XPath Data Model 3.0](https://www.w3.org/TR/xpath-datamodel-30/). Norman Walsh; Anders Berglund; John Snelson. W3C. 8 April 2014. W3C Recommendation. URL: <https://www.w3.org/TR/xpath-datamodel-30/>
+[XPATH-FUNCTIONS-30]
+     [XPath and XQuery Functions and Operators 3.0](https://www.w3.org/TR/xpath-functions-30/). Michael Kay. W3C. 8 April 2014. W3C Recommendation. URL: <https://www.w3.org/TR/xpath-functions-30/>
+
+↑
+
+Permalink
+
+**Referenced in:**
+
+  * § 2.2 Node Elements and Property Elements
+  * § 2.3 Multiple Property Elements (2)
+  * § 2.4 Empty Property Elements (2)
+  * § 2.5 Property Attributes (2) (3)
+  * § 2.6 Completing the Document: Document Element and XML Declaration
+  * § 2.7 Languages: xml:lang
+  * § 2.8 Base Direction: its:dir
+  * § 2.11 Identifying Blank Nodes: rdf:nodeID
+  * § 2.15 Abbreviating IRIs: rdf:ID and xml:base
+  * § 2.17 Collections: rdf:parseType="Collection"
+  * § 3.1 RDF/XML Internet Media Type and File Extension
+  * § 6.2.11 Production nodeElement
+
+
+
+Permalink
+
+**Referenced in:**
+
+  * § 2.2 Node Elements and Property Elements
+  * § 2.3 Multiple Property Elements (2) (3) (4)
+  * § 2.4 Empty Property Elements (2) (3) (4)
+  * § 2.5 Property Attributes (2) (3) (4) (5) (6)
+  * § 2.7 Languages: xml:lang (2)
+  * § 2.8 Base Direction: its:dir
+  * § 2.9 XML Literals: rdf:parseType="Literal" (2)
+  * § 2.10 Typed Literals: rdf:datatype (2)
+  * § 2.11 Identifying Blank Nodes: rdf:nodeID (2)
+  * § 2.12 Omitting Blank Nodes: rdf:parseType="Resource" (2) (3) (4)
+  * § 2.13 Omitting Nodes: Property Attributes on an empty Property Element (2) (3) (4) (5) (6) (7) (8) (9)
+  * § 2.14 Typed Node Elements
+  * § 2.15 Abbreviating IRIs: rdf:ID and xml:base
+  * § 2.16 Container Membership Property Elements: rdf:li and rdf:_n (2) (3) (4)
+  * § 2.17 Collections: rdf:parseType="Collection" (2)
+  * § 2.18 Reifying Statements: rdf:ID (2)
+  * § 2.19 Triple Terms: rdf:parseType="Triple"
+  * § 2.20 Annotating Triples: rdf:annotation or rdf:annotationNodeID
+  * § 6.2.6 Production propertyElementURIs
+
+
+
+Permalink
+
+**Referenced in:**
+
+  * § 2.13 Omitting Nodes: Property Attributes on an empty Property Element (2) (3)
+
+
+
+Permalink
+
+**Referenced in:**
+
+  * § 2.5 Property Attributes
+  * § 2.7 Languages: xml:lang
+  * § 2.9 XML Literals: rdf:parseType="Literal"
+  * § 2.10 Typed Literals: rdf:datatype
+  * § 2.12 Omitting Blank Nodes: rdf:parseType="Resource" (2)
+  * § 2.13 Omitting Nodes: Property Attributes on an empty Property Element (2) (3)
+  * § 2.14 Typed Node Elements
+  * § 2.16 Container Membership Property Elements: rdf:li and rdf:_n
+  * § 2.20 Annotating Triples: rdf:annotation or rdf:annotationNodeID
+  * § 6.2.7 Production propertyAttributeIRIs
+
+
+
+Permalink
+
+**Referenced in:**
+
+  * § Abstract
+
+
+
+Permalink
+
+**Referenced in:**
+
+  * § 3. Conformance
+
+
+
+Permalink exported
+
+**Referenced in:**
+
+  * Not referenced in this document.
+
+
+
+Permalink
+
+**Referenced in:**
+
+  * § 2.18 Reifying Statements: rdf:ID
+  * § 6.2.23 Production idAttr
+
+
+
+Permalink
+
+**Referenced in:**
+
+  * § 2.6 Completing the Document: Document Element and XML Declaration
+  * § 2.8 Base Direction: its:dir
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#defined-version-labels)
+
+**Referenced in:**
+
+  * § 3.1 RDF/XML Internet Media Type and File Extension
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-base-direction)
+
+**Referenced in:**
+
+  * § 2.8 Base Direction: its:dir
+  * § 5. Syntax Data Model
+  * § 5.1.9 Literal Without Datatype Event
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node-identifier)
+
+**Referenced in:**
+
+  * § 2.1 Introduction
+  * § 2.11 Identifying Blank Nodes: rdf:nodeID (2) (3) (4)
+  * § 4.2 Identifiers (2) (3) (4) (5) (6) (7) (8)
+  * § 5.1.8 Blank Node Identifier Event
+  * § 5.3.3 Grammar Action Notation
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node)
+
+**Referenced in:**
+
+  * § 2.1 Introduction
+  * § 2.3 Multiple Property Elements
+  * § 2.11 Identifying Blank Nodes: rdf:nodeID (2) (3) (4) (5)
+  * § 2.12 Omitting Blank Nodes: rdf:parseType="Resource"
+  * § 2.20 Annotating Triples: rdf:annotation or rdf:annotationNodeID
+  * § 4.2 Identifiers (2) (3)
+  * § 5. Syntax Data Model
+  * § 5.1.8 Blank Node Identifier Event (2) (3)
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-concrete-rdf-syntax)
+
+**Referenced in:**
+
+  * § B. Changes between RDF 1.1 and RDF 1.2
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-datatype-iri)
+
+**Referenced in:**
+
+  * § 2.10 Typed Literals: rdf:datatype
+  * § 5. Syntax Data Model
+  * § 5.1.9 Literal Without Datatype Event
+  * § 5.1.10 Typed Literal Event
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-dir-lang-string)
+
+**Referenced in:**
+
+  * § Abstract
+  * § 2.8 Base Direction: its:dir (2)
+  * § 5.1.9 Literal Without Datatype Event (2)
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-iri)
+
+**Referenced in:**
+
+  * § 2.1 Introduction (2) (3) (4) (5) (6) (7) (8)
+  * § 2.2 Node Elements and Property Elements (2) (3) (4) (5) (6) (7) (8)
+  * § 2.3 Multiple Property Elements
+  * § 2.4 Empty Property Elements (2)
+  * § 2.5 Property Attributes
+  * § 2.9 XML Literals: rdf:parseType="Literal" (2)
+  * § 2.10 Typed Literals: rdf:datatype (2) (3)
+  * § 2.11 Identifying Blank Nodes: rdf:nodeID
+  * § 2.12 Omitting Blank Nodes: rdf:parseType="Resource"
+  * § 2.13 Omitting Nodes: Property Attributes on an empty Property Element
+  * § 2.14 Typed Node Elements
+  * § 2.15 Abbreviating IRIs: rdf:ID and xml:base (2) (3) (4) (5) (6)
+  * § 2.18 Reifying Statements: rdf:ID (2) (3)
+  * § 2.20 Annotating Triples: rdf:annotation or rdf:annotationNodeID
+  * § 4.1 The RDF Namespace and Vocabulary (2)
+  * § 4.2 Identifiers (2) (3) (4) (5) (6)
+  * § 4.3 Resolving IRIs (2) (3) (4)
+  * § 5. Syntax Data Model
+  * § 5.1.2 Element Event
+  * § 5.1.4 Attribute Event (2)
+  * § 5.1.6 IRI Event (2)
+  * § 5.1.10 Typed Literal Event
+  * § 5.3.3 Grammar Action Notation (2)
+  * § 6.1 Grammar summary
+  * § 6.2.5 Production nodeElementIRIs
+  * § 6.2.7 Production propertyAttributeIRIs
+  * § 6.2.36 Production IRI
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-language-tag)
+
+**Referenced in:**
+
+  * § 5. Syntax Data Model
+  * § 5.1.9 Literal Without Datatype Event (2)
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-language-tagged-string)
+
+**Referenced in:**
+
+  * § 2.8 Base Direction: its:dir
+  * § 4.2 Identifiers
+  * § 5.1.9 Literal Without Datatype Event (2)
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-lexical-form)
+
+**Referenced in:**
+
+  * § 5. Syntax Data Model
+  * § 5.1.9 Literal Without Datatype Event (2) (3)
+  * § 5.1.10 Typed Literal Event
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-literal)
+
+**Referenced in:**
+
+  * § 2.1 Introduction (2)
+  * § 4.2 Identifiers
+  * § 5. Syntax Data Model
+  * § 5.1.9 Literal Without Datatype Event (2)
+  * § 5.1.10 Typed Literal Event
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-nodes)
+
+**Referenced in:**
+
+  * § 2.1 Introduction
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-object)
+
+**Referenced in:**
+
+  * § Abstract
+  * § 2.19 Triple Terms: rdf:parseType="Triple"
+  * § 2.20 Annotating Triples: rdf:annotation or rdf:annotationNodeID (2)
+  * § 6.2.19 Production parseTypeTriplePropertyElt
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-predicate)
+
+**Referenced in:**
+
+  * § 6.2.19 Production parseTypeTriplePropertyElt
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#section-triple-terms)
+
+**Referenced in:**
+
+  * § 2.19 Triple Terms: rdf:parseType="Triple"
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-document)
+
+**Referenced in:**
+
+  * § 3. Conformance
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-graph)
+
+**Referenced in:**
+
+  * § 1. Introduction (2) (3)
+  * § 2. An XML Syntax for RDF
+  * § 2.2 Node Elements and Property Elements
+  * § 2.3 Multiple Property Elements
+  * § 2.4 Empty Property Elements
+  * § 2.12 Omitting Blank Nodes: rdf:parseType="Resource"
+  * § 2.14 Typed Node Elements
+  * § 2.19 Triple Terms: rdf:parseType="Triple"
+  * § 4.2 Identifiers
+  * § 5. Syntax Data Model (2) (3)
+  * § 5.1.1 Root Event
+  * § 5.1.2 Element Event (2)
+  * § 6.2.17 Production parseTypeLiteralPropertyElt
+  * § 6.2.19 Production parseTypeTriplePropertyElt (2)
+  * § 7. Serializing an RDF Graph to RDF/XML (2)
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-namespace-iri)
+
+**Referenced in:**
+
+  * § 4.1 The RDF Namespace and Vocabulary (2) (3)
+  * § 5.1.4 Attribute Event
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-term)
+
+**Referenced in:**
+
+  * § Abstract
+  * § 5. Syntax Data Model (2)
+  * § B. Changes between RDF 1.1 and RDF 1.2
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-vocabulary)
+
+**Referenced in:**
+
+  * § 2.14 Typed Node Elements
+  * § 4.1 The RDF Namespace and Vocabulary (2)
+  * § 6.2.2 Production coreSyntaxTerms
+  * § 6.2.3 Production syntaxTerms
+  * § 6.2.4 Production oldTerms
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-reifier)
+
+**Referenced in:**
+
+  * § 2.20 Annotating Triples: rdf:annotation or rdf:annotationNodeID (2) (3) (4) (5) (6)
+  * § B. Changes between RDF 1.1 and RDF 1.2
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-relative-iri)
+
+**Referenced in:**
+
+  * § 2.15 Abbreviating IRIs: rdf:ID and xml:base (2)
+  * § 2.18 Reifying Statements: rdf:ID (2)
+  * § 4.2 Identifiers
+  * § 4.3 Resolving IRIs
+  * § 5.3.3 Grammar Action Notation
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-resource)
+
+**Referenced in:**
+
+  * § 2.19 Triple Terms: rdf:parseType="Triple"
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-string)
+
+**Referenced in:**
+
+  * § 5.3.3 Grammar Action Notation
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-subject)
+
+**Referenced in:**
+
+  * § 2.20 Annotating Triples: rdf:annotation or rdf:annotationNodeID (2)
+  * § 5.1.2 Element Event
+  * § 6.2.19 Production parseTypeTriplePropertyElt
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-triple)
+
+**Referenced in:**
+
+  * § Abstract
+  * § 2.1 Introduction
+  * § 2.19 Triple Terms: rdf:parseType="Triple" (2)
+  * § 4.2 Identifiers
+  * § 5.1.2 Element Event
+  * § B. Changes between RDF 1.1 and RDF 1.2
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term)
+
+**Referenced in:**
+
+  * § Abstract (2)
+  * § 2.19 Triple Terms: rdf:parseType="Triple" (2) (3) (4) (5)
+  * § 2.20 Annotating Triples: rdf:annotation or rdf:annotationNodeID (2)
+  * § 4.2 Identifiers
+  * § 5. Syntax Data Model
+  * § 5.1.2 Element Event
+  * § 5.1.7 Triple Term Event (2)
+  * § 6.2.15 Production resourcePropertyElt
+  * § 6.2.16 Production literalPropertyElt
+  * § 6.2.17 Production parseTypeLiteralPropertyElt
+  * § 6.2.18 Production parseTypeResourcePropertyElt
+  * § 6.2.20 Production parseTypeCollectionPropertyElt
+  * § 6.2.22 Production emptyPropertyElt (2)
+  * § B. Changes between RDF 1.1 and RDF 1.2 (2)
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-xmlliteral)
+
+**Referenced in:**
+
+  * § 6.2.17 Production parseTypeLiteralPropertyElt
+
+
+
+[Permalink](https://www.rfc-editor.org/rfc/rfc3870#section-6)
+
+**Referenced in:**
+
+  * § 3.3 Security Considerations
+
+
+
+[Permalink](https://www.rfc-editor.org/rfc/rfc3986#section-5)
+
+**Referenced in:**
+
+  * § 4.2 Identifiers
+
+
+
+[Permalink](https://www.w3.org/TR/SVG/metadata.html#)
+
+**Referenced in:**
+
+  * § 8. Using RDF/XML with SVG
+
+
+
+[Permalink](https://www.w3.org/TR/xml-infoset/#infoitem.attribute)
+
+**Referenced in:**
+
+  * § 5. Syntax Data Model
+  * § 5.1.4 Attribute Event
+
+
+
+[Permalink](https://www.w3.org/TR/xml-infoset/#infoitem.character)
+
+**Referenced in:**
+
+  * § 5. Syntax Data Model
+  * § 5.1.5 Text Event (2)
+
+
+
+[Permalink](https://www.w3.org/TR/xml-infoset/#infoitem.comment)
+
+**Referenced in:**
+
+  * § 5. Syntax Data Model
+
+
+
+[Permalink](https://www.w3.org/TR/xml-infoset/#conformance)
+
+**Referenced in:**
+
+  * § 5. Syntax Data Model
+
+
+
+[Permalink](https://www.w3.org/TR/xml-infoset/#infoitem.document)
+
+**Referenced in:**
+
+  * § 2.11 Identifying Blank Nodes: rdf:nodeID
+  * § 4.2 Identifiers
+  * § 5. Syntax Data Model
+  * § 5.1.1 Root Event
+
+
+
+[Permalink](https://www.w3.org/TR/xml-infoset/#infoitem.doctype)
+
+**Referenced in:**
+
+  * § 5. Syntax Data Model
+
+
+
+[Permalink](https://www.w3.org/TR/xml-infoset/#infoitem.element)
+
+**Referenced in:**
+
+  * § 5. Syntax Data Model
+  * § 5.1.2 Element Event
+  * § 5.2 Information Set Mapping
+
+
+
+[Permalink](https://www.w3.org/TR/xml-infoset/#infoitem.namespace)
+
+**Referenced in:**
+
+  * § 5. Syntax Data Model
+
+
+
+[Permalink](https://www.w3.org/TR/xml-infoset/#infoitem.notation)
+
+**Referenced in:**
+
+  * § 5. Syntax Data Model
+
+
+
+[Permalink](https://www.w3.org/TR/xml-infoset/#infoitem.pi)
+
+**Referenced in:**
+
+  * § 5. Syntax Data Model
+
+
+
+[Permalink](https://www.w3.org/TR/xml-infoset/#infoitem.rse)
+
+**Referenced in:**
+
+  * § 5. Syntax Data Model
+
+
+
+[Permalink](https://www.w3.org/TR/xml-infoset/#infoitem.entity.unparsed)
+
+**Referenced in:**
+
+  * § 5. Syntax Data Model
+
+
+
+[Permalink](https://www.w3.org/TR/xml-names/#NT-LocalPart)
+
+**Referenced in:**
+
+  * § 2.1 Introduction (2)
+  * § 7. Serializing an RDF Graph to RDF/XML
+
+
+
+[Permalink](https://www.w3.org/TR/xml-names/#dt-NSName)
+
+**Referenced in:**
+
+  * § 2.1 Introduction (2) (3)
+  * § 4.1 The RDF Namespace and Vocabulary (2)
+  * § 4.2 Identifiers
+  * § 7. Serializing an RDF Graph to RDF/XML
+
+
+
+[Permalink](https://www.w3.org/TR/xml-names/#NT-NCName)
+
+**Referenced in:**
+
+  * § 6.1 Grammar summary
+  * § 6.2.38 Production rdf-id
+  * § 7. Serializing an RDF Graph to RDF/XML (2)
+
+
+
+[Permalink](https://www.w3.org/TR/xml-names/#NT-Prefix)
+
+**Referenced in:**
+
+  * § 2.1 Introduction
+
+
+
+[Permalink](https://www.w3.org/TR/xml-names/#ns-qualnames)
+
+**Referenced in:**
+
+  * § 7. Serializing an RDF Graph to RDF/XML
+
+
+
+[Permalink](https://www.w3.org/TR/xml-names/#NT-QName)
+
+**Referenced in:**
+
+  * § 2.1 Introduction (2)
+  * § 4.2 Identifiers (2)
+
+
+
+[Permalink](https://www.w3.org/TR/xml11/#sec-lang-tag)
+
+**Referenced in:**
+
+  * § 2.7 Languages: xml:lang
+
+
+
+[Permalink](https://www.w3.org/TR/xml11/#sec-starttags)
+
+**Referenced in:**
+
+  * § 6.1 Grammar summary
+  * § 6.2.37 Production literal
+
+
+
+[Permalink](https://www.w3.org/TR/xml11/#sec-common-syn)
+
+**Referenced in:**
+
+  * § 6.1 Grammar summary
+  * § 6.2.12 Production ws
+
+
+
+[Permalink](https://www.w3.org/TR/xml11/#NT-content)
+
+**Referenced in:**
+
+  * § 6.1 Grammar summary
+  * § 6.2.37 Production literal
+
+
+
+[Permalink](https://www.w3.org/TR/xml11/#NT-Letter)
+
+**Referenced in:**
+
+  * § 7. Serializing an RDF Graph to RDF/XML
+
+
+
+[Permalink](https://www.w3.org/TR/xml11/#dt-name)
+
+**Referenced in:**
+
+  * § 5. Syntax Data Model
+  * § 5.1.2 Element Event
+
+
+
+[Permalink](https://www.w3.org/TR/xml11/#NT-S)
+
+**Referenced in:**
+
+  * § 6.1 Grammar summary
+  * § 6.2.12 Production ws
+
+
+
+[Permalink](https://www.w3.org/TR/xmlschema11-2/#anyString)
+
+**Referenced in:**
+
+  * § 5.3.2 Grammar Event Matching Notation
+  * § 6.1 Grammar summary (2)
+  * § 6.2.28 Production propertyAttr
+  * § 6.2.35 Production parseOther
+
+
+
+[Permalink](https://www.w3.org/TR/xmlschema11-2/#anyURI)
+
+**Referenced in:**
+
+  * § 5.3.2 Grammar Event Matching Notation
+  * § 6.1 Grammar summary (2) (3)
+  * § 6.2.5 Production nodeElementIRIs
+  * § 6.2.6 Production propertyElementURIs
+  * § 6.2.7 Production propertyAttributeIRIs
+
+
+
+[Permalink](https://www.w3.org/TR/xmlschema11-2/#int)
+
+**Referenced in:**
+
+  * § 2.10 Typed Literals: rdf:datatype
+
+
+
+[Permalink](https://www.w3.org/TR/xmlschema11-2/#sec-wsnormalization)
+
+**Referenced in:**
+
+  * § 5.1.10 Typed Literal Event
+
+
+
+[Permalink](https://www.w3.org/TR/xpath-10/#infoset)
+
+**Referenced in:**
+
+  * § 5. Syntax Data Model
+
+
+
+[Permalink](https://www.w3.org/TR/xpath-datamodel-30/#sequences)
+
+**Referenced in:**
+
+  * § 6.2.17 Production parseTypeLiteralPropertyElt
+
+
+
+[Permalink](https://www.w3.org/TR/xpath-functions-30/#func-serialize)
+
+**Referenced in:**
+
+  * § 6.2.17 Production parseTypeLiteralPropertyElt
+
+
+  *[W3C]: World Wide Web Consortium
+  *[RDF]: Resource Description Framework
+  *[ W3C]: World Wide Web Consortium
+  *[ RDF]: Resource Description Framework
+  *[↑]: Back to Top

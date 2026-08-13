@@ -1,0 +1,13 @@
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix ex: <http://example.org/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+
+# Mirrors the SHACL 1.2 Core spec's own list-based sh:datatype example.
+
+ex:TextExampleShape a sh:NodeShape ;
+  sh:targetNode ex:Estonia ;
+  sh:property ex:TextExampleShape-label .
+ex:TextExampleShape-label a sh:PropertyShape ;
+  sh:path ex:label ;
+  sh:datatype ( xsd:string rdf:langString ) .

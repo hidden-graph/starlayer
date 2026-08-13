@@ -1,0 +1,533 @@
+# baseURI: https://github.com/hidden-graph/pyshacl-starlight/ns#
+#
+# UI/rendering-specific metadata for the full SHACL Core + SHACL 1.2
+# predicate vocabulary: SHACL's own non-validating annotation properties
+# (sh:order, sh:group) plus - in future - language-variant sh:name/
+# sh:description values and widget/editor assignment, attached directly to
+# each predicate IRI, independent of any particular shape using it, so a
+# form-generating or property-picker UI can look up "in what order should
+# sh:uniqueValuesFor appear, and which group does it belong to" without
+# needing a specific example shape.
+#
+# Division of responsibility with shacl12-validation-shapes.ttl: the
+# canonical (single, @en) sh:name/sh:description/skos:example/rdfs:comment/
+# rdfs:seeAlso for every predicate lives in the validation file, attached
+# once, alongside the rules that define it - not duplicated here. This file
+# is strictly rendering hints (sh:order/sh:group below) plus the
+# sh:PropertyGroup definitions themselves, which - unlike predicates - have
+# no validation-layer counterpart at all (a PropertyGroup exists purely to
+# organize form rendering), so their own sh:name/sh:description/sh:order
+# live here in full, not split. Never re-describe a predicate's own
+# identity here (e.g. no root-level rdfs:label/rdfs:comment - see the
+# validation file's own root description instead).
+#
+# sh:name/sh:description/sh:order/sh:group are SHACL Core's own
+# "non-validating constraint parameters" - carrying zero validation
+# semantics per spec, safe to attach anywhere. This file has no
+# sh:property, sh:node, or sh:target* triples of its own, so merging it
+# with anything (starshacl/meta_shapes.py::build_meta_shapes_graph, or a
+# downstream editor's own base) can never change what validates - purely
+# additive metadata.
+#
+# Keyed on the same predicate identifiers as shacl12-validation-shapes.ttl,
+# so a consumer can load either file independently or both together.
+# Generated from docs/shacl-presentation-content.md - see that file for the
+# human-editable source.
+
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix sh:   <http://www.w3.org/ns/shacl#> .
+@prefix shui: <http://www.w3.org/ns/shacl-ui#> .
+@prefix stsh: <https://github.com/hidden-graph/pyshacl-starlight/ns#> .
+
+# No root-level rdfs:label/rdfs:comment here by design - see
+# shacl12-validation-shapes.ttl's own stsh: root description, which is the
+# single canonical one.
+
+#############################################################################
+# Property groups (suggested UI section order)
+#############################################################################
+
+stsh:TargetGroup a sh:PropertyGroup ;
+	sh:name "Targeting"@en ;
+	sh:order 1 ;
+	sh:description "How a shape selects its focus nodes — sh:targetClass, sh:targetNode, and the rest of the targeting predicates."@en .
+
+stsh:PathGroup a sh:PropertyGroup ;
+	sh:name "Property Paths"@en ;
+	sh:order 2 ;
+	sh:description "sh:path and its operators (inverse, alternative, repeated) that connect a focus node to its value nodes."@en .
+
+stsh:CardinalityGroup a sh:PropertyGroup ;
+	sh:name "Cardinality"@en ;
+	sh:order 3 ;
+	sh:description "How many values a path may or must have — sh:minCount/sh:maxCount."@en .
+
+stsh:ValueTypeGroup a sh:PropertyGroup ;
+	sh:name "Value Type"@en ;
+	sh:order 4 ;
+	sh:description "What kind of RDF term or class a value node must be — sh:class/sh:datatype/sh:nodeKind."@en .
+
+stsh:ValueRangeGroup a sh:PropertyGroup ;
+	sh:name "Value Range"@en ;
+	sh:order 5 ;
+	sh:description "Numeric/ordinal bounds on a value — sh:minInclusive and its siblings."@en .
+
+stsh:StringGroup a sh:PropertyGroup ;
+	sh:name "String Constraints"@en ;
+	sh:order 6 ;
+	sh:description "Constraints on a value's string form — length, pattern, language."@en .
+
+stsh:ValueEnumerationGroup a sh:PropertyGroup ;
+	sh:name "Value Enumeration"@en ;
+	sh:order 7 ;
+	sh:description "Allow-listing or requiring specific values — sh:in/sh:hasValue."@en .
+
+stsh:ComparisonGroup a sh:PropertyGroup ;
+	sh:name "Value Comparison"@en ;
+	sh:order 8 ;
+	sh:description "Comparing one property's values against another's — sh:equals/sh:disjoint/sh:lessThan and siblings."@en .
+
+stsh:CompositionGroup a sh:PropertyGroup ;
+	sh:name "Shape Composition"@en ;
+	sh:order 9 ;
+	sh:description "Combining shapes logically or by nesting — sh:not/sh:and/sh:or/sh:xone/sh:node/sh:property."@en .
+
+stsh:QualifiedGroup a sh:PropertyGroup ;
+	sh:name "Qualified Value Shapes"@en ;
+	sh:order 10 ;
+	sh:description "Counting how many values conform to a shape, rather than requiring all-or-none."@en .
+
+stsh:ClosedGroup a sh:PropertyGroup ;
+	sh:name "Closed Shapes"@en ;
+	sh:order 11 ;
+	sh:description "Restricting a focus node to only the explicitly listed properties."@en .
+
+stsh:ListGroup a sh:PropertyGroup ;
+	sh:name "List Constraints"@en ;
+	sh:order 12 ;
+	sh:description "Well-formedness and length/uniqueness rules for SHACL-list-valued properties."@en .
+
+stsh:CrossNodeGroup a sh:PropertyGroup ;
+	sh:name "Cross-Node & Reification"@en ;
+	sh:order 13 ;
+	sh:description "Constraints spanning multiple focus nodes or RDF 1.2 triple-term reification."@en .
+
+stsh:MetadataGroup a sh:PropertyGroup ;
+	sh:name "Non-Validating Metadata"@en ;
+	sh:order 14 ;
+	sh:description "Annotation-only predicates with no effect on conformance — sh:message/sh:severity/sh:name/etc."@en .
+
+#############################################################################
+# Predicate rendering hints (sh:group / sh:order) - full SHACL Core +
+# SHACL 1.2 coverage
+#############################################################################
+
+sh:alternativePath sh:group stsh:PathGroup ; sh:order 3 .
+sh:and sh:group stsh:CompositionGroup ; sh:order 2 .
+sh:class sh:group stsh:ValueTypeGroup ; sh:order 1 .
+sh:closed sh:group stsh:ClosedGroup ; sh:order 1 .
+sh:datatype sh:group stsh:ValueTypeGroup ; sh:order 2 .
+sh:deactivated sh:group stsh:MetadataGroup ; sh:order 3 .
+sh:defaultValue sh:group stsh:MetadataGroup ; sh:order 8 .
+sh:description sh:group stsh:MetadataGroup ; sh:order 5 .
+sh:disjoint sh:group stsh:ComparisonGroup ; sh:order 2 .
+sh:equals sh:group stsh:ComparisonGroup ; sh:order 1 .
+sh:flags sh:group stsh:StringGroup ; sh:order 4 .
+sh:group sh:group stsh:MetadataGroup ; sh:order 7 .
+sh:hasValue sh:group stsh:ValueEnumerationGroup ; sh:order 2 .
+sh:ignoredProperties sh:group stsh:ClosedGroup ; sh:order 2 .
+sh:in sh:group stsh:ValueEnumerationGroup ; sh:order 1 .
+sh:inversePath sh:group stsh:PathGroup ; sh:order 2 .
+sh:languageIn sh:group stsh:StringGroup ; sh:order 5 .
+sh:lessThan sh:group stsh:ComparisonGroup ; sh:order 3 .
+sh:lessThanOrEquals sh:group stsh:ComparisonGroup ; sh:order 4 .
+sh:maxCount sh:group stsh:CardinalityGroup ; sh:order 2 .
+sh:maxExclusive sh:group stsh:ValueRangeGroup ; sh:order 4 .
+sh:maxInclusive sh:group stsh:ValueRangeGroup ; sh:order 3 .
+sh:maxLength sh:group stsh:StringGroup ; sh:order 2 .
+sh:maxListLength sh:group stsh:ListGroup ; sh:order 2 .
+sh:memberShape sh:group stsh:CompositionGroup ; sh:order 8 .
+sh:message sh:group stsh:MetadataGroup ; sh:order 1 .
+sh:minCount sh:group stsh:CardinalityGroup ; sh:order 1 .
+sh:minExclusive sh:group stsh:ValueRangeGroup ; sh:order 2 .
+sh:minInclusive sh:group stsh:ValueRangeGroup ; sh:order 1 .
+sh:minLength sh:group stsh:StringGroup ; sh:order 1 .
+sh:minListLength sh:group stsh:ListGroup ; sh:order 1 .
+sh:name sh:group stsh:MetadataGroup ; sh:order 4 .
+sh:node sh:group stsh:CompositionGroup ; sh:order 5 .
+sh:nodeKind sh:group stsh:ValueTypeGroup ; sh:order 3 .
+sh:not sh:group stsh:CompositionGroup ; sh:order 1 .
+sh:oneOrMorePath sh:group stsh:PathGroup ; sh:order 5 .
+sh:or sh:group stsh:CompositionGroup ; sh:order 3 .
+sh:order sh:group stsh:MetadataGroup ; sh:order 6 .
+sh:path sh:group stsh:PathGroup ; sh:order 1 .
+sh:pattern sh:group stsh:StringGroup ; sh:order 3 .
+sh:property sh:group stsh:CompositionGroup ; sh:order 6 .
+sh:qualifiedMaxCount sh:group stsh:QualifiedGroup ; sh:order 3 .
+sh:qualifiedMinCount sh:group stsh:QualifiedGroup ; sh:order 2 .
+sh:qualifiedValueShape sh:group stsh:QualifiedGroup ; sh:order 1 .
+sh:qualifiedValueShapesDisjoint sh:group stsh:QualifiedGroup ; sh:order 4 .
+sh:reificationRequired sh:group stsh:CrossNodeGroup ; sh:order 3 .
+sh:reifierShape sh:group stsh:CrossNodeGroup ; sh:order 2 .
+sh:rootClass sh:group stsh:ValueTypeGroup ; sh:order 4 .
+sh:severity sh:group stsh:MetadataGroup ; sh:order 2 .
+sh:singleLine sh:group stsh:StringGroup ; sh:order 7 .
+sh:someValue sh:group stsh:CompositionGroup ; sh:order 7 .
+sh:subsetOf sh:group stsh:ComparisonGroup ; sh:order 5 .
+sh:targetClass sh:group stsh:TargetGroup ; sh:order 1 .
+sh:targetNode sh:group stsh:TargetGroup ; sh:order 2 .
+sh:targetObjectsOf sh:group stsh:TargetGroup ; sh:order 4 .
+sh:targetSubjectsOf sh:group stsh:TargetGroup ; sh:order 3 .
+sh:uniqueLang sh:group stsh:StringGroup ; sh:order 6 .
+sh:uniqueMembers sh:group stsh:ListGroup ; sh:order 3 .
+sh:uniqueValuesFor sh:group stsh:CrossNodeGroup ; sh:order 1 .
+sh:xone sh:group stsh:CompositionGroup ; sh:order 4 .
+sh:zeroOrMorePath sh:group stsh:PathGroup ; sh:order 4 .
+sh:zeroOrOnePath sh:group stsh:PathGroup ; sh:order 6 .
+
+
+#############################################################################
+# Property groups: Node Expressions, Rules & SPARQL Extensions, SHACL 1.2 UI widgets
+#############################################################################
+
+stsh:NodeExpressionGroup a sh:PropertyGroup ;
+	sh:name "Node Expression"@en ;
+	sh:order 1 ;
+	sh:description "The expression type and its defining value — sh:union, sh:intersection, sh:nodes, sh:constant, sh:function, sh:arguments, sh:filterShape."@en .
+
+stsh:RulesGroup a sh:PropertyGroup ;
+	sh:name "Rules & SPARQL Extensions"@en ;
+	sh:order 15 ;
+	sh:description "SPARQL-based constraints, user-defined constraint components, and SHACL-AF inference rules — sh:sparql/sh:rule/sh:condition/sh:TripleRule/sh:SPARQLRule and their supporting predicates."@en .
+
+stsh:WidgetGroup a sh:PropertyGroup ;
+	sh:name "SHACL 1.2 UI Widgets"@en ;
+	sh:order 16 ;
+	sh:description "shui: vocabulary for form generation — widget/editor/viewer assignment and the built-in widget instances. Documented for training purposes; not an implemented starShacl feature."@en .
+
+#############################################################################
+# Predicate rendering hints (sh:group / sh:order): Rules & SPARQL
+# Extensions predicates, and shui: widget/editor/viewer vocabulary
+#############################################################################
+
+sh:sparql sh:group stsh:RulesGroup ; sh:order 1 .
+sh:select sh:group stsh:RulesGroup ; sh:order 2 .
+sh:ask sh:group stsh:RulesGroup ; sh:order 3 .
+sh:ConstraintComponent sh:group stsh:RulesGroup ; sh:order 4 .
+sh:parameter sh:group stsh:RulesGroup ; sh:order 5 .
+sh:validator sh:group stsh:RulesGroup ; sh:order 6 .
+sh:nodeValidator sh:group stsh:RulesGroup ; sh:order 7 .
+sh:propertyValidator sh:group stsh:RulesGroup ; sh:order 8 .
+sh:rule sh:group stsh:RulesGroup ; sh:order 9 .
+sh:condition sh:group stsh:RulesGroup ; sh:order 10 .
+sh:TripleRule sh:group stsh:RulesGroup ; sh:order 11 .
+sh:SPARQLRule sh:group stsh:RulesGroup ; sh:order 12 .
+sh:construct sh:group stsh:RulesGroup ; sh:order 13 .
+sh:subject sh:group stsh:RulesGroup ; sh:order 14 .
+sh:predicate sh:group stsh:RulesGroup ; sh:order 15 .
+sh:object sh:group stsh:RulesGroup ; sh:order 16 .
+shui:editor sh:group stsh:WidgetGroup ; sh:order 1 .
+shui:viewer sh:group stsh:WidgetGroup ; sh:order 2 .
+shui:propertyRole sh:group stsh:WidgetGroup ; sh:order 3 .
+shui:TextFieldEditor sh:group stsh:WidgetGroup ; sh:order 4 .
+shui:TextFieldWithLangEditor sh:group stsh:WidgetGroup ; sh:order 5 .
+shui:TextAreaEditor sh:group stsh:WidgetGroup ; sh:order 6 .
+shui:TextAreaWithLangEditor sh:group stsh:WidgetGroup ; sh:order 7 .
+shui:RichTextEditor sh:group stsh:WidgetGroup ; sh:order 8 .
+shui:NumberFieldEditor sh:group stsh:WidgetGroup ; sh:order 9 .
+shui:BooleanEditor sh:group stsh:WidgetGroup ; sh:order 10 .
+shui:DatePickerEditor sh:group stsh:WidgetGroup ; sh:order 11 .
+shui:DateTimePickerEditor sh:group stsh:WidgetGroup ; sh:order 12 .
+shui:IRIEditor sh:group stsh:WidgetGroup ; sh:order 13 .
+shui:AutoCompleteEditor sh:group stsh:WidgetGroup ; sh:order 14 .
+shui:EnumSelectEditor sh:group stsh:WidgetGroup ; sh:order 15 .
+shui:InstancesSelectEditor sh:group stsh:WidgetGroup ; sh:order 16 .
+shui:SubClassEditor sh:group stsh:WidgetGroup ; sh:order 17 .
+shui:BlankNodeEditor sh:group stsh:WidgetGroup ; sh:order 18 .
+shui:DetailsEditor sh:group stsh:WidgetGroup ; sh:order 19 .
+shui:LiteralViewer sh:group stsh:WidgetGroup ; sh:order 20 .
+shui:LangStringViewer sh:group stsh:WidgetGroup ; sh:order 21 .
+shui:HTMLViewer sh:group stsh:WidgetGroup ; sh:order 22 .
+shui:IRIViewer sh:group stsh:WidgetGroup ; sh:order 23 .
+shui:HyperlinkViewer sh:group stsh:WidgetGroup ; sh:order 24 .
+shui:ImageViewer sh:group stsh:WidgetGroup ; sh:order 25 .
+shui:LabelViewer sh:group stsh:WidgetGroup ; sh:order 26 .
+shui:BlankNodeViewer sh:group stsh:WidgetGroup ; sh:order 27 .
+shui:DetailsViewer sh:group stsh:WidgetGroup ; sh:order 28 .
+shui:ValueTableViewer sh:group stsh:WidgetGroup ; sh:order 29 .
+shui:LabelRole sh:group stsh:WidgetGroup ; sh:order 30 .
+
+
+#############################################################################
+# Editor hint vocabulary
+#
+# stsh:widgetType — signals the nature of the data to a consuming editor
+#   (int, bool, text, inline_shape, …); not a binding UI contract.
+# stsh:nodePrimary — false signals that a predicate is allowed but not
+#   commonly expected; editors may choose to show it in a secondary section.
+#
+# These carry no validation semantics and are safe to add to any graph.
+#############################################################################
+
+stsh:widgetType a rdf:Property ;
+    rdfs:label "widget type"@en ;
+    rdfs:comment "Signals the nature of this predicate's data to a consuming editor. Suggested values: text, multiline, int, number, bool, severity, datatype, node_kind, class_multi, property_multi, prop_path_expr, has_value_pick, in_list, uri_list, message_list, inline_shape, group."@en .
+
+stsh:nodePrimary a rdf:Property ;
+    rdfs:label "node primary"@en ;
+    rdfs:comment "When false, the predicate is allowed but not commonly expected — editors may show it in a secondary or collapsed section. Absent is treated as true."@en ;
+    rdfs:range xsd:boolean .
+
+
+#############################################################################
+# Targeting predicates
+#############################################################################
+
+sh:targetClass       stsh:widgetType "text" .
+sh:targetNode        stsh:widgetType "text" .
+sh:targetSubjectsOf  stsh:widgetType "text" .
+sh:targetObjectsOf   stsh:widgetType "text" .
+
+
+#############################################################################
+# Non-validating metadata
+#############################################################################
+
+sh:name          stsh:widgetType "langstring" .
+sh:description   stsh:widgetType "langstring" ; stsh:multiline true .
+sh:severity      stsh:widgetType "severity" .
+sh:message       stsh:widgetType "message_list" ; stsh:multiline true .
+sh:group         stsh:widgetType "group" .
+sh:order         stsh:widgetType "int" .
+sh:deactivated   stsh:widgetType "bool" .
+sh:defaultValue  stsh:widgetType "text" .
+
+
+#############################################################################
+# Closed shapes
+#############################################################################
+
+sh:closed             stsh:widgetType "bool" .
+sh:ignoredProperties  stsh:widgetType "property_multi" .
+
+
+#############################################################################
+# Value type
+#############################################################################
+
+sh:class     stsh:widgetType "class_multi" .
+sh:datatype  stsh:widgetType "datatype"  ; stsh:nodePrimary false .
+sh:nodeKind  stsh:widgetType "node_kind" .
+sh:rootClass stsh:widgetType "class_multi" .
+
+
+#############################################################################
+# Cardinality
+#############################################################################
+
+sh:minCount  stsh:widgetType "int" .
+sh:maxCount  stsh:widgetType "int" .
+
+
+#############################################################################
+# List constraints
+#############################################################################
+
+sh:minListLength  stsh:widgetType "int" .
+sh:maxListLength  stsh:widgetType "int" .
+sh:uniqueMembers  stsh:widgetType "bool" .
+
+
+#############################################################################
+# Value range
+#############################################################################
+
+sh:minInclusive  stsh:widgetType "number" ; stsh:nodePrimary false .
+sh:maxInclusive  stsh:widgetType "number" ; stsh:nodePrimary false .
+sh:minExclusive  stsh:widgetType "number" ; stsh:nodePrimary false .
+sh:maxExclusive  stsh:widgetType "number" ; stsh:nodePrimary false .
+
+
+#############################################################################
+# String constraints
+#############################################################################
+
+sh:minLength  stsh:widgetType "int"  ; stsh:nodePrimary false .
+sh:maxLength  stsh:widgetType "int"  ; stsh:nodePrimary false .
+sh:pattern    stsh:widgetType "text" ; stsh:nodePrimary false .
+sh:flags      stsh:widgetType "text" ; stsh:nodePrimary false .
+sh:uniqueLang stsh:widgetType "bool" .
+sh:singleLine stsh:widgetType "bool" ; stsh:nodePrimary false .
+
+
+#############################################################################
+# Value enumeration
+#############################################################################
+
+sh:in          stsh:widgetType "in_list" .
+sh:hasValue    stsh:widgetType "has_value_pick" .
+sh:languageIn  stsh:widgetType "uri_list" ; stsh:nodePrimary false .
+
+
+#############################################################################
+# Value comparison
+#############################################################################
+
+sh:equals           stsh:widgetType "prop_path_expr" .
+sh:disjoint         stsh:widgetType "prop_path_expr" .
+sh:lessThan         stsh:widgetType "prop_path_expr" .
+sh:lessThanOrEquals stsh:widgetType "prop_path_expr" .
+sh:subsetOf         stsh:widgetType "prop_path_expr" .
+
+
+#############################################################################
+# Shape composition (logical / nested shapes)
+#############################################################################
+
+sh:not       stsh:widgetType "text" .
+sh:and       stsh:widgetType "text" .
+sh:or        stsh:widgetType "text" .
+sh:xone      stsh:widgetType "text" .
+sh:node      stsh:widgetType "text" .
+sh:property  stsh:widgetType "text" .
+sh:someValue  stsh:widgetType "inline_shape" .
+sh:memberShape stsh:widgetType "inline_shape" .
+
+
+#############################################################################
+# Qualified value shapes
+#############################################################################
+
+sh:qualifiedValueShape          stsh:widgetType "inline_shape" .
+sh:qualifiedMinCount            stsh:widgetType "int" .
+sh:qualifiedMaxCount            stsh:widgetType "int" .
+sh:qualifiedValueShapesDisjoint stsh:widgetType "bool" .
+
+
+#############################################################################
+# Cross-node constraints and RDF 1.2 reification
+#############################################################################
+
+sh:uniqueValuesFor     stsh:widgetType "uri_list" .
+sh:reifierShape        stsh:widgetType "inline_shape" .
+sh:reificationRequired stsh:widgetType "bool" .
+
+
+#############################################################################
+# Form-field membership vocabulary
+#############################################################################
+
+stsh:nodeFormField a rdf:Property ;
+    rdfs:label "node form field"@en ;
+    rdfs:comment "True when this predicate appears as an inline form field in NodeShape editors."@en ;
+    rdfs:range xsd:boolean .
+
+stsh:propertyFormField a rdf:Property ;
+    rdfs:label "property form field"@en ;
+    rdfs:comment "True when this predicate appears as an inline form field in PropertyShape editors."@en ;
+    rdfs:range xsd:boolean .
+
+stsh:formMaxCount a rdf:Property ;
+    rdfs:label "form max count"@en ;
+    rdfs:comment "Maximum cardinality in the editing form. Absent = multi-valued."@en ;
+    rdfs:range xsd:integer .
+
+
+#############################################################################
+# rdfs:comment — not a SHACL predicate but commonly appears on shapes
+#############################################################################
+
+rdfs:comment
+    sh:group stsh:MetadataGroup ; sh:order 9 ;
+    stsh:widgetType "multiline" .
+    # stsh:nodeFormField / stsh:propertyFormField intentionally absent: sh:name and
+    # sh:description are the SHACL-native annotation predicates. rdfs:comment on a
+    # shape is treated as a Custom Property — visible only if the shape has it.
+
+
+#############################################################################
+# Form-field membership — which predicates appear in NodeShape / PropertyShape forms
+#############################################################################
+
+# Non-validating metadata — both shape types
+sh:name          stsh:nodeFormField true ; stsh:propertyFormField true .
+sh:description   stsh:nodeFormField true ; stsh:propertyFormField true .
+sh:message       stsh:nodeFormField true ; stsh:propertyFormField true .
+sh:severity      stsh:nodeFormField true ; stsh:formMaxCount 1 ; stsh:propertyFormField true .
+sh:deactivated   stsh:nodeFormField true ; stsh:formMaxCount 1 ; stsh:propertyFormField true .
+sh:order         stsh:nodeFormField true ; stsh:formMaxCount 1 ; stsh:propertyFormField true .
+
+# Closed-shape predicates — NodeShape only
+sh:closed            stsh:nodeFormField true ; stsh:formMaxCount 1 .
+sh:ignoredProperties stsh:nodeFormField true .
+
+# Property path / node expression — PropertyShape only
+sh:path       stsh:propertyFormField true ; stsh:formMaxCount 1 .
+sh:expression stsh:propertyFormField true ; stsh:formMaxCount 1 .
+
+# Cardinality — PropertyShape only
+sh:minCount stsh:propertyFormField true ; stsh:formMaxCount 1 .
+sh:maxCount stsh:propertyFormField true ; stsh:formMaxCount 1 .
+
+# Property group assignment — PropertyShape only
+sh:group stsh:propertyFormField true ; stsh:formMaxCount 1 .
+
+# Value type — both
+sh:nodeKind stsh:nodeFormField true ; stsh:formMaxCount 1 ; stsh:propertyFormField true .
+sh:class    stsh:nodeFormField true ;                       stsh:propertyFormField true .
+sh:datatype stsh:nodeFormField true ; stsh:formMaxCount 1 ; stsh:propertyFormField true .
+
+# Value range — both
+sh:minInclusive stsh:nodeFormField true ; stsh:formMaxCount 1 ; stsh:propertyFormField true .
+sh:maxInclusive stsh:nodeFormField true ; stsh:formMaxCount 1 ; stsh:propertyFormField true .
+sh:minExclusive stsh:nodeFormField true ; stsh:formMaxCount 1 ; stsh:propertyFormField true .
+sh:maxExclusive stsh:nodeFormField true ; stsh:formMaxCount 1 ; stsh:propertyFormField true .
+
+# String constraints — both
+sh:pattern    stsh:nodeFormField true ; stsh:formMaxCount 1 ; stsh:propertyFormField true .
+sh:flags      stsh:nodeFormField true ; stsh:formMaxCount 1 ; stsh:propertyFormField true .
+sh:minLength  stsh:nodeFormField true ; stsh:formMaxCount 1 ; stsh:propertyFormField true .
+sh:maxLength  stsh:nodeFormField true ; stsh:formMaxCount 1 ; stsh:propertyFormField true .
+sh:uniqueLang stsh:formMaxCount 1 ; stsh:propertyFormField true .
+sh:languageIn stsh:nodeFormField true ; stsh:formMaxCount 1 ; stsh:propertyFormField true .
+
+# Value enumeration — both
+sh:in       stsh:nodeFormField true ; stsh:formMaxCount 1 ; stsh:propertyFormField true .
+sh:hasValue stsh:nodeFormField true ;                       stsh:propertyFormField true .
+
+# Default value — both
+sh:defaultValue stsh:propertyFormField true .
+
+# Value comparison — PropertyShape only
+sh:equals           stsh:propertyFormField true .
+sh:disjoint         stsh:propertyFormField true .
+sh:lessThan         stsh:propertyFormField true .
+sh:lessThanOrEquals stsh:propertyFormField true .
+
+# Qualified value shapes — PropertyShape only
+sh:qualifiedMinCount            stsh:propertyFormField true ; stsh:formMaxCount 1 .
+sh:qualifiedMaxCount            stsh:propertyFormField true ; stsh:formMaxCount 1 .
+sh:qualifiedValueShapesDisjoint stsh:propertyFormField true ; stsh:formMaxCount 1 .
+
+
+#############################################################################
+# Node expression predicate rendering hints
+# These apply to node expression BNodes and named node expression IRIs.
+# The editor uses stsh:NodeExpressionGroup for ordering within a node
+# expression form; sh:filterShape appears in both sh:PathGroup (on
+# PropertyShape) and stsh:NodeExpressionGroup (on expressions).
+#############################################################################
+
+# sh:name and sh:description apply to node expressions as identity annotations,
+# ordered before the expression-type predicates.  Widget type is declared globally above.
+sh:name           sh:group stsh:NodeExpressionGroup ; sh:order 1 .
+sh:description    sh:group stsh:NodeExpressionGroup ; sh:order 2 .
+sh:union          sh:group stsh:NodeExpressionGroup ; sh:order 10 ; stsh:widgetType "node_expression_list" .
+sh:intersection   sh:group stsh:NodeExpressionGroup ; sh:order 11 ; stsh:widgetType "node_expression_list" .
+sh:nodes          sh:group stsh:NodeExpressionGroup ; sh:order 12 ; stsh:widgetType "node_expression_ref" .
+sh:constant       sh:group stsh:NodeExpressionGroup ; sh:order 13 ; stsh:widgetType "rdf_term" .
+sh:function       sh:group stsh:NodeExpressionGroup ; sh:order 14 ; stsh:widgetType "text" .
+sh:arguments      sh:group stsh:NodeExpressionGroup ; sh:order 15 ; stsh:widgetType "node_expression_list" .
+sh:filterShape    sh:group stsh:NodeExpressionGroup ; sh:order 16 ; stsh:widgetType "shape_ref" .

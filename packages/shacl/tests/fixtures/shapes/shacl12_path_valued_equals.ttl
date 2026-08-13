@@ -1,0 +1,14 @@
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix ex: <http://example.org/> .
+
+# SHACL 1.2 generalizes sh:equals to accept a full property path, not just a
+# simple predicate IRI - pySHACL 0.40 doesn't correctly evaluate a complex
+# path here (treats it as resolving to an empty node set), so this is a
+# native-pass test rather than a spec-worked-example mirror.
+
+ex:S a sh:NodeShape ;
+  sh:targetNode ex:alice ;
+  sh:property [
+    sh:path ex:knowsIndirectly ;
+    sh:equals ( ex:hasFriend ex:hasFriend ) ;
+  ] .

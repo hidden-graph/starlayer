@@ -1,0 +1,19 @@
+@prefix ex: <http://example.org/> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+
+ex:ValuePredicateShape a sh:NodeShape ;
+  sh:targetNode ex:alice ;
+  sh:property [
+    sh:path ex:says ;
+    sh:sparql [
+      a sh:SPARQLConstraint ;
+      sh:message "value's predicate component must be ex:knows" ;
+      sh:select """
+        PREFIX ex: <http://example.org/>
+        SELECT $this $value WHERE {
+            FILTER(isTripleTerm($value))
+            FILTER(PREDICATE($value) != ex:knows)
+        }
+      """ ;
+    ] ;
+  ] .

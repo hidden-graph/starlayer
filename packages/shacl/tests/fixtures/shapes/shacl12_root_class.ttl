@@ -1,0 +1,11 @@
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix ex: <http://example.org/> .
+
+# Mirrors the SHACL 1.2 Core spec's own example for sh:rootClass.
+
+ex:RootClassExampleShape a sh:NodeShape ;
+  sh:targetNode ex:Zoo ;
+  sh:property ex:RootClassExampleShape-holds .
+ex:RootClassExampleShape-holds a sh:PropertyShape ;
+  sh:path ex:holds ;
+  sh:rootClass ex:Animal .

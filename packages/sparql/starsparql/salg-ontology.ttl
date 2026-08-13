@@ -1,0 +1,455 @@
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix salg: <https://github.com/hidden-graph/starsparql/ns/algebra#> .
+
+# ---------------------------------------------------------------------
+# Classes
+#
+# No standalone "a rdfs:Class" declaration on any class that already
+# participates in an rdfs:subClassOf triple (as either subject or object) -
+# that relationship already identifies both ends as classes, so a separate
+# typing triple would be redundant. It's kept only on the handful of leaf
+# classes below with no subclass relationship at all (salg:Binding,
+# salg:OrderCondition, salg:values).
+#
+# Ordered top-level class first, its subclasses (and, where applicable,
+# their own subclasses) immediately after.
+# ---------------------------------------------------------------------
+
+# The set of all encoded queries, regardless of form - the root of any
+# encoded query's algebra tree is typed salg:Query in addition to its own
+# form-specific CompValue name below, so a store holding many encoded
+# queries can always find them all with a single `?q a salg:Query` pattern.
+# See to_rdf.query_to_rdf and vocab.py's own QUERY comment.
+salg:Query
+    rdfs:comment "The root of any encoded query, of any form - also typed salg:Query regardless of query form, see to_rdf.query_to_rdf." .
+
+salg:SelectQuery rdfs:subClassOf salg:Query ;
+    rdfs:comment "A SELECT query's root." .
+salg:ConstructQuery rdfs:subClassOf salg:Query ;
+    rdfs:comment "A CONSTRUCT query's root - salg:template holds the construct template (an rdf:List of TriplePattern), salg:p the WHERE-clause pattern." .
+salg:AskQuery rdfs:subClassOf salg:Query ;
+    rdfs:comment "An ASK query's root - salg:p the WHERE-clause pattern; no projected variables." .
+salg:DescribeQuery rdfs:subClassOf salg:Query ;
+    rdfs:comment "A DESCRIBE query's root - salg:PV the described variables/IRIs, salg:p the (possibly trivial) WHERE-clause pattern." .
+
+# A container node grouping multiple independent salg:Query roots together
+# (a stored corpus/test suite, a batch, ...) - distinct from salg:Update,
+# whose salg:operations is one *request*'s own internally-ordered sequence
+# of operations, not a grouping of separately-standing queries. No subclass
+# relationship (it isn't itself a kind of query), so - like Binding/
+# OrderCondition/values below - it needs its own explicit typing triple.
+salg:QueryCollection a rdfs:Class ;
+    rdfs:comment "A collection of independent salg:Query roots, linked via salg:queries." .
+
+# The root of a whole encoded SPARQL Update *request* (see
+# to_rdf.update_to_rdf) - a container node (not itself a CompValue) holding
+# salg:operations, an rdf:List of the request's own operations in execution
+# order. No subclass relationship of its own (parallel to salg:Query, not a
+# kind of it), so - like QueryCollection above - needs an explicit typing
+# triple.
+salg:Update a rdfs:Class ;
+    rdfs:comment "The root of one encoded SPARQL Update request - salg:operations holds its ordered operations." .
+
+# Dispatch superclass for the ten concrete Update operation forms, added
+# alongside each operation's own CompValue name so a store can find every
+# encoded operation via `?op a salg:UpdateOperation` regardless of which one
+# it is (see to_rdf.update_to_rdf / vocab.py's own UPDATE_OPERATION
+# comment) - the Update-side analogue of salg:GraphPattern/salg:Expression
+# above. Confirmed via translateUpdate against real update text for every
+# subclass below (not guessed): InsertData/DeleteData/DeleteWhere share one
+# {triples, quads} shape; Modify is {delete, insert, where}; Load is {iri};
+# Clear/Drop/Create share {graphiri}; Add/Move/Copy share {graph}.
+salg:UpdateOperation
+    rdfs:comment "One SPARQL Update operation (INSERT/DELETE DATA, DELETE WHERE, Modify, or a graph-management form)." .
+
+salg:InsertData rdfs:subClassOf salg:UpdateOperation ;
+    rdfs:comment "INSERT DATA { ... } - always ground (SPARQL's QuadData grammar forbids variables here)." .
+salg:DeleteData rdfs:subClassOf salg:UpdateOperation ;
+    rdfs:comment "DELETE DATA { ... } - always ground, same reason as InsertData." .
+salg:DeleteWhere rdfs:subClassOf salg:UpdateOperation ;
+    rdfs:comment "DELETE WHERE { ... } - its own triples/quads serve as both the match pattern and the delete template." .
+salg:Modify rdfs:subClassOf salg:UpdateOperation ;
+    rdfs:comment "DELETE {...} INSERT {...} WHERE {...} (either clause optional, never both absent) - salg:delete/salg:insert point at DeleteClause/InsertClause, salg:where at a graph pattern." .
+salg:DeleteClause rdfs:subClassOf salg:UpdateOperation ;
+    rdfs:comment "Modify's own DELETE template - {triples, quads}, same shape as InsertData/DeleteData, but template position (values may be Variables bound by .where), not pattern position." .
+salg:InsertClause rdfs:subClassOf salg:UpdateOperation ;
+    rdfs:comment "Modify's own INSERT template - same shape and template-position semantics as DeleteClause." .
+salg:Load rdfs:subClassOf salg:UpdateOperation ;
+    rdfs:comment "LOAD <iri> [INTO GRAPH <g>] - salg:iri the IRI to load from." .
+salg:Clear rdfs:subClassOf salg:UpdateOperation ;
+    rdfs:comment "CLEAR [SILENT] (GRAPH <g> | DEFAULT | NAMED | ALL) - salg:graphiri a real graph term or a bare DEFAULT/NAMED/ALL keyword (salg:PyStr-tagged, see vocab.py)." .
+salg:Drop rdfs:subClassOf salg:UpdateOperation ;
+    rdfs:comment "DROP - same salg:graphiri shape as Clear." .
+salg:Create rdfs:subClassOf salg:UpdateOperation ;
+    rdfs:comment "CREATE - same salg:graphiri shape as Clear/Drop." .
+salg:Add rdfs:subClassOf salg:UpdateOperation ;
+    rdfs:comment "ADD [SILENT] <source> TO <dest> - salg:graph a plain 2-element rdf:List [source, dest], each a real graph term or a bare DEFAULT keyword." .
+salg:Move rdfs:subClassOf salg:UpdateOperation ;
+    rdfs:comment "MOVE - same salg:graph shape as Add." .
+salg:Copy rdfs:subClassOf salg:UpdateOperation ;
+    rdfs:comment "COPY - same salg:graph shape as Add/Move." .
+
+# One graph-qualified group of triples within an Update operation's own
+# salg:quads list (e.g. one GRAPH <g> {...} block inside INSERT DATA) - not
+# itself a kind of salg:UpdateOperation, so - like Binding/OrderCondition/
+# values/QueryCollection above - needs its own explicit typing triple. See
+# vocab.py's "Update quads-by-graph maps" section and to_rdf._encode_quads_map
+# (which already writes this triple; this class declaration was the one
+# genuinely missing piece, found while drafting shapes.py for salg:quads).
+salg:QuadsForGraph a rdfs:Class ;
+    rdfs:comment "One graph-qualified {graph, triples} entry inside an Update operation's salg:quads list." .
+
+# Anything valid in a nested graph-pattern position (Filter.p, LeftJoin.p1/
+# p2, Project.p, ...) - mirrors shapes.py's GraphPatternShape sh:or list
+# exactly.
+salg:GraphPattern rdfs:label "Graph pattern operator" ;
+    rdfs:comment "A translated SPARQL algebra graph-pattern operator." .
+
+salg:BGP rdfs:subClassOf salg:GraphPattern ;
+    rdfs:comment "A basic graph pattern - an ordered list of triple patterns." .
+salg:Filter rdfs:subClassOf salg:GraphPattern ;
+    rdfs:comment "FILTER(expr) applied to a nested pattern." .
+salg:LeftJoin rdfs:subClassOf salg:GraphPattern ;
+    rdfs:comment "OPTIONAL { }." .
+salg:Union rdfs:subClassOf salg:GraphPattern ;
+    rdfs:comment "{ } UNION { }." .
+salg:Join rdfs:subClassOf salg:GraphPattern ;
+    rdfs:comment "Ordinary conjunction of two patterns." .
+salg:ToMultiSet rdfs:subClassOf salg:GraphPattern ;
+    rdfs:comment "Wraps an inline VALUES clause or a subquery." .
+salg:OrderBy rdfs:subClassOf salg:GraphPattern ;
+    rdfs:comment "ORDER BY, wrapping the WHERE-clause pattern being ordered." .
+salg:Extend rdfs:subClassOf salg:GraphPattern ;
+    rdfs:comment "BIND(expr AS ?var)." .
+salg:Minus rdfs:subClassOf salg:GraphPattern ;
+    rdfs:comment "{ } MINUS { } - salg:p1/salg:p2, same shape as LeftJoin minus its salg:expr (confirmed via translateQuery: Minus{p1, p2})." .
+salg:Group rdfs:subClassOf salg:GraphPattern ;
+    rdfs:comment "GROUP BY's own wrapper around the WHERE-clause pattern - salg:p the wrapped pattern, salg:expr the (possibly empty) list of grouping-key expressions. Confirmed via translateQuery: Group{p, expr} where expr is a plain list of Variables/expressions, not an rdf:List-shaped CompValue key." .
+salg:AggregateJoin rdfs:subClassOf salg:GraphPattern ;
+    rdfs:comment "Wraps a Group and the aggregate computations applied to it - salg:p the wrapped Group, salg:A the list of salg:Aggregate nodes (SELECT's own aggregate expressions reference each one's result Variable, not this node, once evaluated). Confirmed via translateQuery: AggregateJoin{A, p}." .
+salg:ServiceGraphPattern rdfs:subClassOf salg:GraphPattern ;
+    rdfs:comment "SERVICE [SILENT] <endpoint-or-var> { ... } - salg:term the endpoint (IRI or Variable), salg:graph a raw untranslated parse-tree fragment (GroupGraphPatternSub/TriplesBlock - rdflib evaluates SERVICE by re-parsing this on demand, not at translate time), same out-of-scope-fragment treatment as Builtin_EXISTS/NOTEXISTS's own salg:graph below. Confirmed via translateQuery: ServiceGraphPattern{service_string, term, graph, silent?}." .
+
+# Any legal expression-position value - mirrors shapes.py's ExpressionShape
+# sh:or list. Every one of rdflib's 63 expression builtins is a subclass of
+# one of the family classes below (generated, see
+# _generate_expression_class_turtle).
+salg:Expression rdfs:label "Expression" ;
+    rdfs:comment "A SPARQL expression-tree node (a FILTER/BIND/ORDER BY expression, or any of rdflib's ~63 expression builtins)." .
+
+salg:ZeroArgExpression rdfs:subClassOf salg:Expression ;
+    rdfs:comment "No arguments (NOW/UUID/STRUUID/RAND)." .
+salg:OneArgExpression rdfs:subClassOf salg:Expression ;
+    rdfs:comment "Exactly one required argument (salg:arg)." .
+salg:OptionalOneArgExpression rdfs:subClassOf salg:Expression ;
+    rdfs:comment "Zero or one argument (salg:arg) - BNODE()/BNODE(?x) only." .
+salg:UnaryExpression rdfs:subClassOf salg:Expression ;
+    rdfs:comment "Exactly one required operand (salg:expr) - !/-/+ prefix operators." .
+salg:TwoArgExpression rdfs:subClassOf salg:Expression ;
+    rdfs:comment "Exactly two required arguments (salg:arg1/arg2)." .
+salg:ThreeArgExpression rdfs:subClassOf salg:Expression ;
+    rdfs:comment "Exactly three required arguments (salg:arg1/arg2/arg3) - IF() only." .
+salg:VariadicArgExpression rdfs:subClassOf salg:Expression ;
+    rdfs:comment "salg:arg is itself a list of arguments - CONCAT/COALESCE only." .
+salg:RegexExpression rdfs:subClassOf salg:Expression ;
+    rdfs:comment "REGEX(text, pattern[, flags]) - unique key names." .
+salg:ReplaceExpression rdfs:subClassOf salg:Expression ;
+    rdfs:comment "REPLACE(arg, pattern, replacement[, flags]) - unique key names." .
+salg:SubstrExpression rdfs:subClassOf salg:Expression ;
+    rdfs:comment "SUBSTR(arg, start[, length]) - unique key names." .
+salg:ExistsExpression rdfs:subClassOf salg:Expression ;
+    rdfs:comment "EXISTS{}/NOT EXISTS{} - salg:graph, not salg:expr (a raw, untranslated parse-tree fragment, deliberately unshaped further - see shapes.py)." .
+salg:FunctionExpression rdfs:subClassOf salg:Expression ;
+    rdfs:comment "A call to any registered/custom SPARQL function - salg:iri/distinct/expr." .
+salg:ConditionalExpression rdfs:subClassOf salg:Expression ;
+    rdfs:comment "&&/|| chains - salg:expr plus an optional salg:other list." .
+salg:ArithmeticExpression rdfs:subClassOf salg:Expression ;
+    rdfs:comment "+/-/*// chains - salg:expr, salg:op, salg:other (always a list)." .
+
+# RelationalExpression is both a family (=/!=/</IN/...) and, uniquely among
+# the families above, the family's own sole member - no separate "...Class"
+# wrapper needed, it's just directly a salg:Expression subclass.
+salg:RelationalExpression rdfs:subClassOf salg:Expression ;
+    rdfs:comment "=, !=, <, >, <=, >=, IN, NOT IN." .
+
+# ---------------------------------------------------------------------
+# Generated: rdfs:subClassOf declarations for all 63 expression builtins,
+# from expr_families._EXPR_NODE_FAMILY - see that module for the source of
+# truth and how each name's family was confirmed. Regenerate this section
+# (only) if that table changes:
+#   python3 -c "from starsparql.ontology import _generate_expression_class_turtle; print(_generate_expression_class_turtle())"
+# ---------------------------------------------------------------------
+
+salg:Builtin_NOW rdfs:subClassOf salg:ZeroArgExpression .
+salg:Builtin_UUID rdfs:subClassOf salg:ZeroArgExpression .
+salg:Builtin_STRUUID rdfs:subClassOf salg:ZeroArgExpression .
+salg:Builtin_RAND rdfs:subClassOf salg:ZeroArgExpression .
+salg:Builtin_STR rdfs:subClassOf salg:OneArgExpression .
+salg:Builtin_LCASE rdfs:subClassOf salg:OneArgExpression .
+salg:Builtin_UCASE rdfs:subClassOf salg:OneArgExpression .
+salg:Builtin_ABS rdfs:subClassOf salg:OneArgExpression .
+salg:Builtin_CEIL rdfs:subClassOf salg:OneArgExpression .
+salg:Builtin_FLOOR rdfs:subClassOf salg:OneArgExpression .
+salg:Builtin_ROUND rdfs:subClassOf salg:OneArgExpression .
+salg:Builtin_isIRI rdfs:subClassOf salg:OneArgExpression .
+salg:Builtin_isURI rdfs:subClassOf salg:OneArgExpression .
+salg:Builtin_isBLANK rdfs:subClassOf salg:OneArgExpression .
+salg:Builtin_isLITERAL rdfs:subClassOf salg:OneArgExpression .
+salg:Builtin_isNUMERIC rdfs:subClassOf salg:OneArgExpression .
+salg:Builtin_BOUND rdfs:subClassOf salg:OneArgExpression .
+salg:Builtin_DATATYPE rdfs:subClassOf salg:OneArgExpression .
+salg:Builtin_LANG rdfs:subClassOf salg:OneArgExpression .
+salg:Builtin_ENCODE_FOR_URI rdfs:subClassOf salg:OneArgExpression .
+salg:Builtin_MD5 rdfs:subClassOf salg:OneArgExpression .
+salg:Builtin_SHA1 rdfs:subClassOf salg:OneArgExpression .
+salg:Builtin_SHA256 rdfs:subClassOf salg:OneArgExpression .
+salg:Builtin_SHA384 rdfs:subClassOf salg:OneArgExpression .
+salg:Builtin_SHA512 rdfs:subClassOf salg:OneArgExpression .
+salg:Builtin_STRLEN rdfs:subClassOf salg:OneArgExpression .
+salg:Builtin_YEAR rdfs:subClassOf salg:OneArgExpression .
+salg:Builtin_MONTH rdfs:subClassOf salg:OneArgExpression .
+salg:Builtin_DAY rdfs:subClassOf salg:OneArgExpression .
+salg:Builtin_HOURS rdfs:subClassOf salg:OneArgExpression .
+salg:Builtin_MINUTES rdfs:subClassOf salg:OneArgExpression .
+salg:Builtin_SECONDS rdfs:subClassOf salg:OneArgExpression .
+salg:Builtin_TIMEZONE rdfs:subClassOf salg:OneArgExpression .
+salg:Builtin_TZ rdfs:subClassOf salg:OneArgExpression .
+salg:Builtin_IRI rdfs:subClassOf salg:OneArgExpression .
+salg:Builtin_URI rdfs:subClassOf salg:OneArgExpression .
+salg:Builtin_BNODE rdfs:subClassOf salg:OptionalOneArgExpression .
+salg:UnaryNot rdfs:subClassOf salg:UnaryExpression .
+salg:UnaryMinus rdfs:subClassOf salg:UnaryExpression .
+salg:UnaryPlus rdfs:subClassOf salg:UnaryExpression .
+salg:Builtin_STRSTARTS rdfs:subClassOf salg:TwoArgExpression .
+salg:Builtin_STRENDS rdfs:subClassOf salg:TwoArgExpression .
+salg:Builtin_CONTAINS rdfs:subClassOf salg:TwoArgExpression .
+salg:Builtin_STRBEFORE rdfs:subClassOf salg:TwoArgExpression .
+salg:Builtin_STRAFTER rdfs:subClassOf salg:TwoArgExpression .
+salg:Builtin_STRLANG rdfs:subClassOf salg:TwoArgExpression .
+salg:Builtin_STRDT rdfs:subClassOf salg:TwoArgExpression .
+salg:Builtin_sameTerm rdfs:subClassOf salg:TwoArgExpression .
+salg:Builtin_LANGMATCHES rdfs:subClassOf salg:TwoArgExpression .
+salg:Builtin_IF rdfs:subClassOf salg:ThreeArgExpression .
+salg:Builtin_CONCAT rdfs:subClassOf salg:VariadicArgExpression .
+salg:Builtin_COALESCE rdfs:subClassOf salg:VariadicArgExpression .
+salg:Builtin_REGEX rdfs:subClassOf salg:RegexExpression .
+salg:Builtin_REPLACE rdfs:subClassOf salg:ReplaceExpression .
+salg:Builtin_SUBSTR rdfs:subClassOf salg:SubstrExpression .
+salg:Builtin_EXISTS rdfs:subClassOf salg:ExistsExpression .
+salg:Builtin_NOTEXISTS rdfs:subClassOf salg:ExistsExpression .
+salg:Function rdfs:subClassOf salg:FunctionExpression .
+salg:ConditionalAndExpression rdfs:subClassOf salg:ConditionalExpression .
+salg:ConditionalOrExpression rdfs:subClassOf salg:ConditionalExpression .
+salg:AdditiveExpression rdfs:subClassOf salg:ArithmeticExpression .
+salg:MultiplicativeExpression rdfs:subClassOf salg:ArithmeticExpression .
+
+# A GROUP BY aggregate computation (COUNT/SUM/MIN/MAX/AVG/SAMPLE/
+# GROUP_CONCAT) - deliberately its OWN standalone dispatch class, not a
+# salg:Expression or salg:GraphPattern subclass. Confirmed empirically
+# (not assumed by analogy to Expression): an Aggregate_* node only ever
+# appears inside AggregateJoin.A's own list - never nested inside another
+# node's .expr/.arg the way a real expression can be, and never itself a
+# graph-pattern-position value. A FILTER/SELECT expression referencing an
+# aggregate's result (e.g. HAVING(COUNT(?o) > 1)) does so via the
+# aggregate's own plain Variable (salg:res), not by embedding the
+# Aggregate_* node itself.
+salg:Aggregate
+    rdfs:comment "One GROUP BY aggregate computation, a member of an AggregateJoin's salg:A list." .
+
+salg:Aggregate_Count rdfs:subClassOf salg:Aggregate ;
+    rdfs:comment "COUNT(...) - salg:distinct/salg:vars/salg:res." .
+salg:Aggregate_Sum rdfs:subClassOf salg:Aggregate ;
+    rdfs:comment "SUM(...) - same shape as Aggregate_Count." .
+salg:Aggregate_Min rdfs:subClassOf salg:Aggregate ;
+    rdfs:comment "MIN(...) - same shape as Aggregate_Count." .
+salg:Aggregate_Max rdfs:subClassOf salg:Aggregate ;
+    rdfs:comment "MAX(...) - same shape as Aggregate_Count." .
+salg:Aggregate_Avg rdfs:subClassOf salg:Aggregate ;
+    rdfs:comment "AVG(...) - same shape as Aggregate_Count." .
+salg:Aggregate_Sample rdfs:subClassOf salg:Aggregate ;
+    rdfs:comment "SAMPLE(...) - salg:vars/salg:res only, no salg:distinct (confirmed empirically: SAMPLE's own CompValue has no distinct key at all, unlike every other aggregate here)." .
+salg:Aggregate_GroupConcat rdfs:subClassOf salg:Aggregate ;
+    rdfs:comment "GROUP_CONCAT(...; SEPARATOR=...) - salg:distinct/salg:vars/salg:res plus salg:separator (optional, defaults to a single space per the SPARQL spec when omitted)." .
+
+# A SPARQL property-path expression (?s :knows+ ?o, ?s (:a|:b)/^:c ?o, ...) -
+# sits in a triple pattern's predicate slot as an rdflib.paths.Path
+# instance, not a CompValue, once the query reaches the algebra layer (see
+# vocab.py's own "Property paths" section) - a standalone dispatch class
+# for the same reason salg:Expression/salg:GraphPattern are, mirroring a
+# Python class hierarchy instead of a CompValue name. Already encoded by
+# to_rdf._encode_path/from_rdf (confirmed by reading that code) - this
+# ontology pass only adds the classes/properties, no translation-code gap.
+salg:Path
+    rdfs:comment "A SPARQL property-path expression - the salg: mirror of rdflib.paths.Path's own class hierarchy." .
+
+salg:InvPath rdfs:subClassOf salg:Path ;
+    rdfs:comment "^path (inverse) - salg:arg the wrapped path/IRI." .
+salg:SequencePath rdfs:subClassOf salg:Path ;
+    rdfs:comment "path1/path2 (sequence) - salg:args a well-formed rdf:List of the sequenced paths/IRIs." .
+salg:AlternativePath rdfs:subClassOf salg:Path ;
+    rdfs:comment "path1|path2 (alternative) - salg:args, same list shape as SequencePath." .
+salg:MulPath rdfs:subClassOf salg:Path ;
+    rdfs:comment "path* / path+ / path? (repetition) - salg:path the repeated path/IRI, salg:mod the bare \"*\"/\"+\"/\"?\" modifier string (salg:PyStr-tagged, see vocab.py - not real RDF data). The live rdflib object's own zero/more boolean flags are deliberately not encoded, since both are always fully derivable from salg:mod alone (confirmed by reading rdflib.paths.MulPath's own constructor)." .
+salg:NegatedPath rdfs:subClassOf salg:Path ;
+    rdfs:comment "!path / !(path1|path2) (negated property set) - salg:args, same list shape as SequencePath/AlternativePath." .
+
+# Structurally identical shape (subject/predicate/object) shared by an
+# ordinary triple *pattern* and a SPARQL 1.2 triple *term* - see vocab.py's
+# own documented rationale for why they reuse the same three predicates.
+salg:TripleSlot
+    rdfs:comment "Anything with a subject/predicate/object triple - shared by TriplePattern and TripleTerm." .
+salg:TriplePattern rdfs:subClassOf salg:TripleSlot ;
+    rdfs:comment "One (s, p, o) slot inside a BGP." .
+salg:TripleTerm rdfs:subClassOf salg:TripleSlot ;
+    rdfs:comment "A SPARQL 1.2 <<( s p o )>>/TRIPLE(s, p, o) triple term." .
+
+# Anything valid wherever "a subquery pattern" is expected (ToMultiSet.p's
+# subquery alternative, SelectQuery.p) - always bottoms out at Project,
+# optionally wrapped in Slice/Distinct/Reduced.
+salg:SubSelect
+    rdfs:comment "A subquery pattern: Project, optionally wrapped in Slice/Distinct/Reduced." .
+salg:Project rdfs:subClassOf salg:SubSelect ;
+    rdfs:comment "The projected-variable-list wrapper around a WHERE-clause pattern." .
+salg:Slice rdfs:subClassOf salg:SubSelect ;
+    rdfs:comment "LIMIT/OFFSET." .
+salg:Distinct rdfs:subClassOf salg:SubSelect ;
+    rdfs:comment "SELECT DISTINCT." .
+salg:Reduced rdfs:subClassOf salg:SubSelect ;
+    rdfs:comment "SELECT REDUCED." .
+
+# No subclass relationship at all (neither subject nor object of
+# rdfs:subClassOf), so - unlike every class above - these still need an
+# explicit typing triple.
+salg:Binding a rdfs:Class ;
+    rdfs:comment "One (variable, value) pair inside a VALUES row." .
+salg:OrderCondition a rdfs:Class ;
+    rdfs:comment "One ORDER BY expr, ASC or DESC." .
+salg:values a rdfs:Class ;
+    rdfs:comment "An inline VALUES clause - a list of Binding rows." .
+
+# ---------------------------------------------------------------------
+# Properties
+# ---------------------------------------------------------------------
+
+# Abstract superproperties - no domain/range of their own (see module
+# docstring for why: the concrete subproperties below have genuinely
+# different domain/range from each other, so declaring one here would be
+# wrong, not just imprecise).
+salg:pattern a rdf:Property ;
+    rdfs:comment "Abstract: links an operator to an adjacent structural component (a pattern, subquery, or VALUES clause - which, depends on the concrete subproperty/domain)." .
+salg:operand a rdf:Property ; rdfs:comment "Abstract: an expression's operand." .
+
+salg:p a rdf:Property ; rdfs:subPropertyOf salg:pattern ;
+    rdfs:comment "The single adjacent pattern (Filter/Extend/OrderBy/Project: a GraphPattern; SelectQuery/Slice/Distinct/Reduced: a SubSelect; ToMultiSet: values or a SubSelect) - no domain/range, see module docstring's note on dispatch classes." .
+salg:p1 a rdf:Property ; rdfs:subPropertyOf salg:pattern ;
+    rdfs:comment "LeftJoin/Union/Join's left operand - always a GraphPattern, but no rdfs:domain/range declared here: see module docstring's note on dispatch classes (declaring either would let RDFS range/domain entailment silently pre-satisfy GraphPatternShape's own sh:class check for any value, defeating exactly the validation it exists to do - confirmed as a real, live bug via a negative test that stopped correctly failing once this was declared)." .
+salg:p2 a rdf:Property ; rdfs:subPropertyOf salg:pattern ;
+    rdfs:comment "LeftJoin/Union/Join's right operand - same reasoning as salg:p1." .
+
+salg:arg a rdf:Property ; rdfs:subPropertyOf salg:operand ;
+    rdfs:comment "OneArg/OptionalOneArg's sole argument, or VariadicArg's argument list - always an Expression. Also reused, same key name, for InvPath's own wrapped path/IRI (rdflib's InvPath constructor argument is itself literally named 'arg') - a Path, not an Expression, but this project's generic key-name-based encoding doesn't distinguish the two uses. No rdfs:domain declared, same reasoning as salg:p1 above (would let entailment pre-satisfy ExpressionShape's own sh:class check, and now also risks the same for a future PathShape)." .
+salg:arg1 a rdf:Property ; rdfs:subPropertyOf salg:operand ;
+    rdfs:comment "TwoArg/ThreeArg's first argument - no rdfs:domain declared, same reasoning as salg:arg." .
+salg:arg2 a rdf:Property ; rdfs:subPropertyOf salg:operand ;
+    rdfs:comment "TwoArg/ThreeArg's second argument - no rdfs:domain declared, same reasoning as salg:arg." .
+salg:arg3 a rdf:Property ; rdfs:subPropertyOf salg:operand ;
+    rdfs:comment "ThreeArg's third argument (IF() only) - no rdfs:domain declared: ThreeArgExpression is itself rdfs:subClassOf salg:Expression, so declaring it here would transitively entail salg:Expression too, the same defeats-validation risk as salg:arg above, just one subclass hop away." .
+salg:expr a rdf:Property ; rdfs:subPropertyOf salg:operand ;
+    rdfs:comment "Filter/LeftJoin/Extend/OrderCondition's governing expression, or Unary/Relational/Conditional's own operand - no domain (also genuinely heterogeneous - see module docstring's original note - as well as risking the same entailment problem for its Expression-typed uses)." .
+
+salg:subject a rdf:Property ; rdfs:domain salg:TripleSlot ;
+    rdfs:comment "No range declared - can be an IRI, blank node, Variable, or (object position only elsewhere) TripleTerm." .
+salg:predicate a rdf:Property ; rdfs:domain salg:TripleSlot ;
+    rdfs:comment "No range declared - always an IRI or Variable, never a salg: class instance." .
+salg:object a rdf:Property ; rdfs:domain salg:TripleSlot ;
+    rdfs:comment "No range declared - any RDF term, Variable, or TripleTerm." .
+
+salg:triples a rdf:Property ; rdfs:range rdf:List ;
+    rdfs:comment "A well-formed rdf:List of salg:TriplePattern - salg:BGP's own use of this property, specifically. No rdfs:domain declared even though every *in-scope* class using it is salg:BGP: this project's generic, key-name-based encoding (see to_rdf.py) means the untranslated GroupGraphPatternSub/TriplesBlock fragment inside EXISTS/NOT EXISTS (deliberately out of scope - see ExistsExpression) also happens to use a same-named 'triples' key on an unrelated node, and would be falsely entailed rdf:type salg:BGP by rdfs:domain here - confirmed as a real, live bug via validate()'s own RDFS reasoning once actually enabled (BGPShape's own shape then wrongly fired on that fragment). rdfs:range rdf:List is safe to keep - true regardless of which node uses this property." .
+
+salg:PV a rdf:Property ;
+    rdfs:comment "The projected-variables list (a well-formed rdf:List of Variable-typed Literals) - used by Project, SelectQuery, AskQuery, and DescribeQuery, which share no other superclass but salg:Query itself; no rdfs:domain declared (see module docstring on why multiple rdfs:domain triples on one property are not used - RDFS domain entailment is per-triple, not a union, so declaring several here would falsely cross-type every node using this property - confirmed as a real, live bug via validate()'s own RDFS reasoning once actually enabled, not just a theoretical concern)." .
+salg:datasetClause a rdf:Property ;
+    rdfs:comment "FROM/FROM NAMED - shared by all four query forms (SelectQuery/ConstructQuery/AskQuery/DescribeQuery), which share no other superclass but salg:Query itself; no rdfs:domain declared, same reasoning as salg:PV above (multiple rdfs:domain triples would falsely cross-type them once RDFS reasoning runs)." .
+salg:template a rdf:Property ; rdfs:domain salg:ConstructQuery ;
+    rdfs:comment "A CONSTRUCT query's own template - a well-formed rdf:List of salg:TriplePattern, same shape as salg:BGP's salg:triples but a distinct property (a template is not itself a BGP)." .
+salg:queries a rdf:Property ; rdfs:domain salg:QueryCollection ; rdfs:range rdf:List ;
+    rdfs:comment "A well-formed rdf:List of the collection's member salg:Query roots. rdfs:range rdf:List only (not salg:Query - see salg:triples' own comment above for why a list-valued property's range types the list node itself, never its individual members)." .
+salg:var a rdf:Property ;
+    rdfs:comment "The bound Variable - Extend's BIND target, or a VALUES row's own variable. No rdfs:domain declared - same reason as salg:PV above (Extend and Binding share no other superclass; multiple rdfs:domain triples would falsely cross-type them once RDFS reasoning runs)." .
+salg:val a rdf:Property ; rdfs:domain salg:Binding ;
+    rdfs:comment "A VALUES row's bound value for salg:var - absent means UNDEF." .
+salg:res a rdf:Property ;
+    rdfs:comment "On salg:values: a well-formed rdf:List of VALUES rows, each itself a well-formed rdf:List of salg:Binding. On a salg:Aggregate: the aggregate's own output Variable - an unrelated meaning, same key name, per this project's generic key-name-based encoding. Previously rdfs:domain salg:values; removed once salg:Aggregate started reusing this key too - two rdfs:domain triples on one property entail *both* simultaneously, which would falsely cross-type every Aggregate_* node as salg:values as well (the exact class of bug salg:PV/salg:var's own comments already document; res just wasn't sharing a class yet when originally declared)." .
+salg:order a rdf:Property ; rdfs:domain salg:OrderCondition ;
+    rdfs:comment "ASC/DESC - absent means ASC." .
+
+salg:graph a rdf:Property ;
+    rdfs:comment "Three unrelated uses of the same key name (this project's generic key-name-based encoding): on Builtin_EXISTS/NOTEXISTS and ServiceGraphPattern, EXISTS/NOT EXISTS/SERVICE's own raw, untranslated group-graph-pattern fragment - see shapes.py's own scoping note; on Add/Move/Copy, a plain 2-element rdf:List [source, dest] of graph references; on QuadsForGraph, the single graph term one quads-group is qualified by. No rdfs:domain declared: ExistsExpression/ServiceGraphPattern is rdfs:subClassOf salg:Expression/salg:GraphPattern respectively, so declaring it here would risk the same defeats-dispatch-shape-validation problem noted on salg:arg above - and the property is shared across unrelated classes regardless." .
+salg:iri a rdf:Property ;
+    rdfs:comment "The called function's own IRI (FunctionExpression), or Load's own source IRI (salg:Load) - always a plain IRI term either way. No rdfs:domain declared: FunctionExpression is a salg:Expression subclass (same reasoning as salg:graph above), and the property is shared with the unrelated salg:Load regardless." .
+salg:distinct a rdf:Property ;
+    rdfs:comment "Whether DISTINCT was specified - FunctionExpression's own call, or (all Aggregate subclasses except Aggregate_Sample, confirmed empirically) an aggregate's own DISTINCT modifier. No rdfs:domain declared, same reasoning as salg:iri - shared across salg:Expression and salg:Aggregate, both dispatch-adjacent classes." .
+salg:op a rdf:Property ;
+    rdfs:comment "RelationalExpression's comparison operator, or Additive/MultiplicativeExpression's operator list - always a bare string/list of strings, never a salg: class instance. No rdfs:domain declared, same reasoning as salg:arg above." .
+salg:other a rdf:Property ;
+    rdfs:comment "RelationalExpression's right operand (or IN/NOT IN's list); Conditional/ArithmeticExpression's further operands. No rdfs:domain declared, same reasoning as salg:arg above." .
+salg:text a rdf:Property ;
+    rdfs:comment "No rdfs:domain declared, same reasoning as salg:graph above (RegexExpression is a salg:Expression subclass)." .
+salg:flags a rdf:Property ;
+    rdfs:comment "Optional flags string on REGEX/REPLACE. No rdfs:domain declared - both the salg:PV/salg:var reason above (RegexExpression and ReplaceExpression share no other superclass) and the salg:arg reason (both are salg:Expression subclasses)." .
+salg:replacement a rdf:Property ;
+    rdfs:comment "No rdfs:domain declared, same reasoning as salg:text." .
+salg:start a rdf:Property ;
+    rdfs:comment "No rdfs:domain declared, same reasoning as salg:text (SubstrExpression is a salg:Expression subclass)." .
+salg:length a rdf:Property ;
+    rdfs:comment "No rdfs:domain declared, same reasoning as salg:start." .
+
+# ---------------------------------------------------------------------
+# Update properties
+# ---------------------------------------------------------------------
+
+salg:operations a rdf:Property ; rdfs:domain salg:Update ; rdfs:range rdf:List ;
+    rdfs:comment "A well-formed rdf:List of the request's own salg:UpdateOperation nodes, in execution order - domain safe here (salg:Update is a leaf container class, not a dispatch superclass anything else would need to avoid pre-satisfying), same pattern as salg:queries/salg:QueryCollection." .
+salg:delete a rdf:Property ; rdfs:domain salg:Modify ;
+    rdfs:comment "Modify's own DELETE clause (a salg:DeleteClause), absent for an INSERT-only Modify. Domain safe: salg:Modify is a leaf UpdateOperation subclass, not itself a dispatch superclass." .
+salg:insert a rdf:Property ; rdfs:domain salg:Modify ;
+    rdfs:comment "Modify's own INSERT clause (a salg:InsertClause), absent for a DELETE-only Modify. Domain safe, same reasoning as salg:delete." .
+salg:where a rdf:Property ; rdfs:domain salg:Modify ;
+    rdfs:comment "Modify's own WHERE-clause graph pattern. Domain safe, same reasoning as salg:delete - not itself dispatch-relevant (the *value* is checked against GraphPatternShape by a future shapes.py addition, which is unaffected by domain on this property)." .
+salg:quads a rdf:Property ; rdfs:range rdf:List ;
+    rdfs:comment "A well-formed rdf:List of salg:QuadsForGraph nodes (graph-qualified triples, e.g. INSERT DATA { GRAPH <g> {...} }) - shared by InsertData/DeleteData/DeleteWhere/DeleteClause/InsertClause, five otherwise-unrelated-by-any-other-superclass classes, so no rdfs:domain declared (same multi-class-sharing reasoning as salg:triples above, which this property directly parallels - see vocab.py's own 'Update quads-by-graph maps' section)." .
+salg:graphiri a rdf:Property ;
+    rdfs:comment "Clear/Drop/Create's own graph reference - a real graph term, or a bare DEFAULT/NAMED/ALL keyword (salg:PyStr-tagged, see vocab.py's 'Bare Python strings' section). No rdfs:domain declared - shared by three otherwise-unrelated classes." .
+salg:silent a rdf:Property ;
+    rdfs:comment "The optional SILENT modifier (Clear/Drop/Create/Add/Move/Copy/Load, and separately ServiceGraphPattern's own SERVICE SILENT) - a bare Python string when present (\"SILENT\", salg:PyStr-tagged), absent otherwise. No rdfs:domain declared - shared across many otherwise-unrelated classes." .
+
+# ---------------------------------------------------------------------
+# Aggregate / GROUP BY properties
+# ---------------------------------------------------------------------
+
+salg:A a rdf:Property ; rdfs:domain salg:AggregateJoin ; rdfs:range rdf:List ;
+    rdfs:comment "AggregateJoin's own list of salg:Aggregate computations. Domain safe: salg:AggregateJoin is a leaf GraphPattern subclass, not a dispatch superclass." .
+salg:vars a rdf:Property ;
+    rdfs:comment "An aggregate's own input Variable (COUNT(?o) etc's ?o). No rdfs:domain declared: salg:Aggregate is a dispatch-style superclass (parallel to salg:GraphPattern/salg:Expression) - declaring domain here would risk the same defeats-a-future-dispatch-shape problem noted on salg:arg above, should a later shapes.py pass add an AggregateListShape checking sh:class salg:Aggregate." .
+
+# ---------------------------------------------------------------------
+# SERVICE properties
+# ---------------------------------------------------------------------
+
+salg:term a rdf:Property ; rdfs:domain salg:ServiceGraphPattern ;
+    rdfs:comment "SERVICE's own endpoint - an IRI, or a Variable for SERVICE ?g {...}. Domain safe: salg:ServiceGraphPattern is a leaf GraphPattern subclass, not a dispatch superclass. No rdfs:range declared - the value is a term/Variable, not a salg: class instance, so range would add nothing." .
+salg:service_string a rdf:Property ; rdfs:domain salg:ServiceGraphPattern ;
+    rdfs:comment "The original SERVICE clause's own source text, as rdflib's algebra keeps it verbatim (used internally for re-parsing at evaluation time) - informational only, not itself further structured. Domain safe, same reasoning as salg:term." .
+
+# ---------------------------------------------------------------------
+# Property-path properties
+# ---------------------------------------------------------------------
+
+salg:args a rdf:Property ; rdfs:range rdf:List ;
+    rdfs:comment "SequencePath/AlternativePath/NegatedPath's own well-formed rdf:List of member paths/IRIs. No rdfs:domain declared: salg:Path is a dispatch-style superclass (parallel to salg:GraphPattern/salg:Expression/salg:Aggregate) - same defeats-a-future-dispatch-shape reasoning as salg:vars above." .
+salg:path a rdf:Property ;
+    rdfs:comment "MulPath's own repeated path/IRI. No rdfs:domain declared, same reasoning as salg:args (salg:Path is dispatch-style)." .
+salg:mod a rdf:Property ;
+    rdfs:comment "MulPath's own bare \"*\"/\"+\"/\"?\" repetition-modifier string (salg:PyStr-tagged, see vocab.py - not real RDF data). No rdfs:domain declared, same reasoning as salg:args." .

@@ -1,0 +1,12 @@
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix ex: <http://example.org/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+# Mirrors the SHACL 1.2 Core spec's own example for implicit class targets:
+# a shape that is itself declared rdfs:Class targets its own instances.
+
+ex:Person a rdfs:Class, sh:NodeShape ;
+  sh:property [
+    sh:path ex:age ;
+    sh:minCount 1 ;
+  ] .

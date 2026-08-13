@@ -1,0 +1,16 @@
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix ex: <http://example.org/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+# Mirrors the SHACL 1.2 Core spec's own example for sh:singleLine.
+
+ex:SingleLineExampleShape a sh:NodeShape ;
+  sh:targetClass ex:Thing ;
+  sh:property ex:SingleLineExampleShape-label ;
+  sh:property ex:SingleLineExampleShape-comment .
+ex:SingleLineExampleShape-label a sh:PropertyShape ;
+  sh:path rdfs:label ;
+  sh:singleLine true .
+ex:SingleLineExampleShape-comment a sh:PropertyShape ;
+  sh:path rdfs:comment ;
+  sh:singleLine false .

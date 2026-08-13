@@ -1,0 +1,11 @@
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix ex: <http://example.org/> .
+
+# Mirrors the SHACL 1.2 Core spec's own example for sh:subsetOf.
+
+ex:ParentShape a sh:NodeShape ;
+  sh:targetNode ex:Bob ;
+  sh:property ex:ParentShape-favoriteChild .
+ex:ParentShape-favoriteChild a sh:PropertyShape ;
+  sh:path ex:favoriteChild ;
+  sh:subsetOf ex:child .

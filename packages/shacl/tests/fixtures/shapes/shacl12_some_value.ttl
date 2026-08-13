@@ -1,0 +1,13 @@
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix ex: <http://example.org/> .
+
+# Mirrors the SHACL 1.2 Core spec's own example for sh:someValue.
+
+ex:DuckFarmerShape a sh:NodeShape ;
+  sh:targetClass ex:Farmer ;
+  sh:property ex:DuckFarmerShape-tendsAnimal .
+ex:DuckFarmerShape-tendsAnimal a sh:PropertyShape ;
+  sh:path ex:tendsAnimal ;
+  sh:someValue [
+    sh:class ex:Duck ;
+  ] .

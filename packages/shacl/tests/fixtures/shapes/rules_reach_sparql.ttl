@@ -1,0 +1,19 @@
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix ex: <http://example.org/> .
+
+ex:ReachShape a sh:NodeShape ;
+  sh:targetSubjectsOf ex:reach ;
+  sh:rule [
+    a sh:SPARQLRule ;
+    sh:construct """
+      PREFIX ex: <http://example.org/>
+      CONSTRUCT {
+        $this ex:reach ?z .
+      }
+      WHERE {
+        $this ex:reach ?y .
+        ?y ex:reach ?z .
+        FILTER($this != ?z)
+      }
+    """ ;
+  ] .

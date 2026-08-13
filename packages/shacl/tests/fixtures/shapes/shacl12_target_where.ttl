@@ -1,0 +1,20 @@
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix ex: <http://example.org/> .
+
+# Mirrors the SHACL 1.2 Core spec's own example for sh:targetWhere.
+
+ex:AdultPerson a sh:NodeShape ;
+  sh:targetWhere [
+    sh:class ex:Person ;
+    sh:property [
+      sh:path ex:age ;
+      sh:minCount 1 ;
+      sh:minInclusive 18 ;
+    ] ;
+  ] ;
+  sh:property [
+    sh:path ex:votedFor ;
+    sh:class ex:Person ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+  ] .

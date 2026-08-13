@@ -1,0 +1,10 @@
+@prefix ex: <http://example.org/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+ex:s ex:int 42 .
+ex:s ex:negint -7 .
+ex:s ex:float 3.14 .
+ex:s ex:bool true .
+ex:s ex:string "hello" .
+ex:s ex:typed "2024-01-01"^^xsd:date .
+ex:s ex:lang "bonjour"@fr .

@@ -1,0 +1,13 @@
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix ex: <http://example.org/> .
+
+# Mirrors the SHACL 1.2 Core spec's own example for sh:uniqueValuesFor.
+
+ex:SingleIdExampleShape a sh:NodeShape ;
+  sh:targetClass ex:Record ;
+  sh:property ex:SingleIdExampleShape-id ;
+  sh:uniqueValuesFor ex:id .
+ex:SingleIdExampleShape-id a sh:PropertyShape ;
+  sh:path ex:id ;
+  sh:minCount 1 ;
+  sh:maxCount 1 .
