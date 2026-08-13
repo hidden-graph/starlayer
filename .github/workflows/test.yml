@@ -1,0 +1,71 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+
+    # Oxigraph's default image CMD is already `serve --location /data --bind
+    # 0.0.0.0:7878` (confirmed via `docker inspect`), so no command override
+    # is needed here - GitHub Actions service containers can't pass one
+    # anyway (services support image/ports/env/volumes/options, not CMD
+    # args). Fuseki is *not* wired in here: its image needs dataset-creation
+    # args at startup with no equivalent env-var config, which service
+    # containers can't supply - full-Fuseki coverage stays manual-only for
+    # now (packages/graph/tests/integration/test_fuseki_backend.py's own
+    # docstring has the docker run command). Every Fuseki-only test class
+    # already self-skips when Fuseki isn't reachable, so running the whole
+    # integration marker here with only Oxigraph up is safe - it exercises
+    # the Oxigraph and SQLite coverage and skips the rest.
+    services:
+      oxigraph:
+        image: ghcr.io/oxigraph/oxigraph
+        ports:
+          - 7878:7878
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # One repo now, no sibling checkout needed - all three packages
+      # install from the same working copy, in dependency order.
+      - name: Install all three packages
+        run: |
+          pip install -e "packages/graph[sqlalchemy,test]"
+          pip install -e "packages/sparql[test]"
+          pip install -e "packages/shacl[test]"
+
+      - name: Wait for Oxigraph
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:7878/ >/dev/null && exit 0
+            sleep 1
+          done
+          echo "Oxigraph did not become ready in time" >&2
+          exit 1
+
+      - name: starlayergraph - unit and W3C tests
+        working-directory: packages/graph
+        run: pytest tests/ -m "not integration" -v
+
+      - name: starlayergraph - integration tests (Oxigraph + SQLite; Fuseki-only tests self-skip)
+        working-directory: packages/graph
+        run: pytest tests/ -m "integration" -v
+
+      - name: starsparql - full test suite
+        working-directory: packages/sparql
+        run: pytest tests/ -v
+
+      - name: starshacl - full test suite
+        working-directory: packages/shacl
+        run: pytest tests/ -v

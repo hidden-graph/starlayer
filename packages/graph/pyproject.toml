@@ -59,4 +59,5 @@ starlayergraph = ["py.typed"]
 testpaths = ["tests"]
 markers = [
     "integration: tests requiring a running Fuseki/Oxigraph server or a real backend store (e.g. SQLite via rdflib-sqlalchemy) - the 'full testing' tier",
+    "w3c_sparql12: W3C SPARQL 1.2 test suite cross-checks (tests/w3c_sparql12/test_algebra_regenerated_queries.py) - shared marker name with the starsparql package's own W3C suite",
 ]
