@@ -35,7 +35,7 @@ pyshacl = pytest.importorskip("pyshacl")
 
 try:
     from rdflib.plugins.stores.sparqlstore import SPARQLUpdateStore
-    from starlayergraph.graph.starlayergraph_graph import StarLayerGraph
+    from starlayergraph.graph.starlayer_graph import StarLayerGraph
 except Exception as exc:  # pragma: no cover - environment dependent
     pytest.skip(f"starlayergraph import unavailable: {exc}", allow_module_level=True)
 

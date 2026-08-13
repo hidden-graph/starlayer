@@ -407,7 +407,7 @@ def native_query(store, backend: str, query_object, processor='sparql', result='
 
     if query_type in ('CONSTRUCT', 'DESCRIBE'):
         from rdflib.query import Result as RDFResult
-        from starlayergraph.graph.starlayergraph_graph import StarLayerGraph
+        from starlayergraph.graph.starlayer_graph import StarLayerGraph
         body, _ = http_construct(q_url, sparql, hdrs)
         g = StarLayerGraph()
         g.parse(data=body.decode('utf-8'), format='turtle12')

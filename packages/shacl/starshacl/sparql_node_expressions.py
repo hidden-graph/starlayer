@@ -276,7 +276,7 @@ def _run_sparql_call(template: str, arg_values: list) -> list:
     genuinely unbound argument in the first place.
     """
     from rdflib.namespace import RDF
-    from starlayergraph.graph.starlayergraph_graph import StarLayerGraph
+    from starlayergraph.graph.starlayer_graph import StarLayerGraph
 
     scratch = StarLayerGraph()
     for value in arg_values:

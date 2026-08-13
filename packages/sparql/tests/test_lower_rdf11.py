@@ -38,8 +38,8 @@ from __future__ import annotations
 import pytest
 from rdflib import Literal, URIRef, Variable
 from rdflib.compare import to_isomorphic
-from starlayergraph.graph.starlayergraph_dataset import StarLayerDataset
-from starlayergraph.graph.starlayergraph_graph import StarLayerGraph
+from starlayergraph.graph.starlayer_dataset import StarLayerDataset
+from starlayergraph.graph.starlayer_graph import StarLayerGraph
 from starlayergraph.model.dirlangstring import DirLangString
 from starlayergraph.model.triple import TripleTerm
 

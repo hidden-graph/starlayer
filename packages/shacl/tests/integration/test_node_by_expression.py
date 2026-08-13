@@ -9,7 +9,7 @@ import pytest
 from rdflib import Namespace
 
 from starshacl import StarShaclValidator
-from starlayergraph.graph.starlayergraph_graph import StarLayerGraph
+from starlayergraph.graph.starlayer_graph import StarLayerGraph
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")

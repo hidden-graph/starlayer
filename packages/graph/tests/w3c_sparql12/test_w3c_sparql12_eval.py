@@ -45,8 +45,8 @@ from rdflib.graph import DATASET_DEFAULT_GRAPH_ID
 from rdflib.namespace import RDF
 from rdflib.plugins.stores.sparqlstore import SPARQLUpdateStore
 
-from starlayergraph.graph.starlayergraph_dataset import StarLayerDataset
-from starlayergraph.graph.starlayergraph_graph import StarLayerGraph
+from starlayergraph.graph.starlayer_dataset import StarLayerDataset
+from starlayergraph.graph.starlayer_graph import StarLayerGraph
 from starlayergraph.model.encoding import RR_NS
 from starlayergraph.model.triple import TripleTerm
 
@@ -75,7 +75,7 @@ def _new_graph(entry) -> StarLayerGraph | StarLayerDataset:
     GRAPH against data that was never loaded into any graph at all, since a
     lone StarLayerGraph has no notion of a graph name other than its own).
     StarLayerDataset.query()/.parse() have the same shape as StarLayerGraph's
-    own (confirmed by reading starlayergraph_dataset.py), so callers don't need to
+    own (confirmed by reading starlayer_dataset.py), so callers don't need to
     branch on which one they got back.
     """
     if entry.data_file and data_format(entry) in _DATASET_FORMATS:

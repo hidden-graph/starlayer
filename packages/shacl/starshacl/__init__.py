@@ -6,7 +6,7 @@ from starshacl.engine import (
     build_report,
     evaluate_component,
     normalize_graph_inputs,
-    normalize_to_starlayergraph_graph,
+    normalize_to_starlayer_graph,
     target_nodes,
 )
 from starshacl.profiles import ValidationProfile, available_profiles, get_profile, resolve_profile_options
@@ -25,7 +25,7 @@ __all__ = [
     "target_nodes",
     "evaluate_component",
     "build_report",
-    "normalize_to_starlayergraph_graph",
+    "normalize_to_starlayer_graph",
     "normalize_graph_inputs",
     "ExecutionDiagnostics",
     "ValidationResult",

@@ -1,6 +1,6 @@
 from rdflib import Literal, Namespace, URIRef
 
-from starlayergraph.graph.starlayergraph_graph import StarLayerGraph
+from starlayergraph.graph.starlayer_graph import StarLayerGraph
 
 from starshacl.adapters import TripleTermAdapter, TripleTermGraph, TripleTermValue, _SparqlAwareEncodedGraph
 

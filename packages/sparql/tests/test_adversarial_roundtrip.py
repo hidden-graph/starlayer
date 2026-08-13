@@ -54,7 +54,7 @@ from rdflib.compare import to_isomorphic
 from rdflib.graph import DATASET_DEFAULT_GRAPH_ID
 from rdflib.plugins.stores.sparqlstore import SPARQLUpdateStore
 
-from starlayergraph.graph.starlayergraph_graph import StarLayerGraph
+from starlayergraph.graph.starlayer_graph import StarLayerGraph
 
 from starsparql import query_to_rdf, rdf_to_query
 from starsparql.parse12 import prepare_query_12

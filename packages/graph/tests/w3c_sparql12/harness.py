@@ -5,7 +5,7 @@ see ``test_w3c_sparql12_eval.py`` for the actual pytest test functions and
 Adapted from (not imported from) the downstream ``starsparql``
 project's own ``tests/w3c_sparql12/harness.py`` - duplicated rather than
 imported across repos, since starlayergraph's own test suite shouldn't depend on
-a specific sibling checkout existing. Kept deliberately small so the
+a specific sibling package existing. Kept deliberately small so the
 duplication stays cheap to keep in sync.
 
 Includes a small, hand-written SPARQL JSON Results parser
@@ -102,7 +102,7 @@ def data_format(entry: TestEntry) -> str:
 # `GRAPH <self.identifier>`, including for a dataset's own default graph;
 # and blank-node identity breaking across the separate HTTP requests one
 # `.add()` per triple makes) with its own raw-HTTP loader. Both are now
-# fixed at the source (starlayergraph_graph.py's _native_scoped(),
+# fixed at the source (starlayer_graph.py's _native_scoped(),
 # backends/native.py's skolemize_bnode()/deskolemize_bnode()), so this file
 # only needs the endpoint's base URL and a couple of small test-isolation
 # helpers.

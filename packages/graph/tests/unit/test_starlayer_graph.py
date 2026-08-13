@@ -10,7 +10,7 @@ from unittest.mock import patch, MagicMock
 from rdflib import Graph, URIRef, Literal, BNode
 from rdflib.namespace import RDF
 
-from starlayergraph.graph.starlayergraph_graph import StarLayerGraph, RDF_REIFIES
+from starlayergraph.graph.starlayer_graph import StarLayerGraph, RDF_REIFIES
 from starlayergraph.model.triple import TripleTerm
 
 EX = 'http://example.org/'
@@ -132,13 +132,13 @@ class TestEncodingHidden:
         assert RDF.object    not in preds
 
     def test_sl_triple_term_type_hidden(self, sg):
-        from starlayergraph.graph.starlayergraph_graph import SL_TRIPLE_TERM
+        from starlayergraph.graph.starlayer_graph import SL_TRIPLE_TERM
         sg.add((URIRef(EX+'r'), RDF_REIFIES, (URIRef(EX+'s'), URIRef(EX+'p'), URIRef(EX+'o'))))
         objs = list(sg.objects(predicate=RDF.type))
         assert SL_TRIPLE_TERM not in objs
 
     def test_sl_reification_type_hidden(self, sg):
-        from starlayergraph.graph.starlayergraph_graph import SL_REIFICATION
+        from starlayergraph.graph.starlayer_graph import SL_REIFICATION
         sg.add_reification(URIRef(EX+'stmt'), (URIRef(EX+'s'), URIRef(EX+'p'), URIRef(EX+'o')))
         objs = list(sg.objects(predicate=RDF.type))
         assert SL_REIFICATION not in objs
@@ -504,7 +504,7 @@ class TestNativeConstruct:
         )
         return StarLayerGraph(store=store, backend='rdf-1.2')
 
-    def test_construct_returns_starlayergraph_graph(self):
+    def test_construct_returns_starlayer_graph(self):
         sg = self._make_native_sg()
         with patch('requests.post', return_value=_mock_post(_TURTLE_RESPONSE)):
             r = sg.query("""

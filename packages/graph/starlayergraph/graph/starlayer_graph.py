@@ -1,5 +1,5 @@
 """
-starlayergraph.graph.starlayergraph_graph
+starlayergraph.graph.starlayer_graph
 
 StarLayerGraph — rdflib.Graph subclass with RDF 1.2 triple-term support.
 

@@ -13,8 +13,8 @@ import rdflib.plugins.sparql as _sparql_mod
 import pytest
 from rdflib import Namespace
 
-from starlayergraph.graph.starlayergraph_dataset import StarLayerDataset
-from starlayergraph.graph.starlayergraph_graph import StarLayerGraph
+from starlayergraph.graph.starlayer_dataset import StarLayerDataset
+from starlayergraph.graph.starlayer_graph import StarLayerGraph
 
 EX = Namespace("http://example.org/")
 EX2 = Namespace("http://example2.org/")
@@ -218,7 +218,7 @@ def test_store_accepts_prepared_query_true_for_default_memory_store():
     assert store_accepts_prepared_query(Memory()) is True
 
 
-def test_starlayergraph_graph_over_sparql_update_store_falls_back_to_string(monkeypatch, counting_prepare_query):
+def test_starlayer_graph_over_sparql_update_store_falls_back_to_string(monkeypatch, counting_prepare_query):
     """A StarLayerGraph backed directly by a SPARQLUpdateStore (the rdf-1.1
     encoding path, not the native rdf-1.2 backend, which bypasses this code
     entirely) must never hand this store's own query() method a prepared
@@ -234,7 +234,7 @@ def test_starlayergraph_graph_over_sparql_update_store_falls_back_to_string(monk
     """
     from rdflib.plugins.stores.sparqlstore import SPARQLUpdateStore
 
-    from starlayergraph.graph.starlayergraph_graph import StarLayerGraph
+    from starlayergraph.graph.starlayer_graph import StarLayerGraph
 
     store = SPARQLUpdateStore(query_endpoint="http://fake.local/query", update_endpoint="http://fake.local/update")
     sg = StarLayerGraph(store=store)

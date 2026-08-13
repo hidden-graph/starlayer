@@ -5,7 +5,7 @@ from typing import Any
 from rdflib import Dataset, Graph
 
 
-def normalize_to_starlayergraph_graph(value: Any, *, name: str, force_default_union: bool = False) -> Any:
+def normalize_to_starlayer_graph(value: Any, *, name: str, force_default_union: bool = False) -> Any:
     """Normalize input graph to StarLayerGraph.
 
     A plain rdflib.Graph is always converted. Existing StarLayerGraph instances
@@ -22,7 +22,7 @@ def normalize_to_starlayergraph_graph(value: Any, *, name: str, force_default_un
     either, only ``ont_graph``.
     """
     try:
-        from starlayergraph.graph.starlayergraph_graph import StarLayerGraph
+        from starlayergraph.graph.starlayer_graph import StarLayerGraph
     except ImportError as exc:
         raise TypeError(
             f"{name} must be a StarLayerGraph, but starlayergraph is unavailable."
@@ -46,10 +46,10 @@ def normalize_graph_inputs(
     shacl_graph: Any | None = None,
     ont_graph: Any | None = None,
 ) -> tuple[Any, Any | None, Any | None]:
-    data = normalize_to_starlayergraph_graph(data_graph, name="data_graph")
-    shapes = normalize_to_starlayergraph_graph(shacl_graph, name="shacl_graph") if shacl_graph is not None else None
+    data = normalize_to_starlayer_graph(data_graph, name="data_graph")
+    shapes = normalize_to_starlayer_graph(shacl_graph, name="shacl_graph") if shacl_graph is not None else None
     ont = (
-        normalize_to_starlayergraph_graph(ont_graph, name="ont_graph", force_default_union=True)
+        normalize_to_starlayer_graph(ont_graph, name="ont_graph", force_default_union=True)
         if ont_graph is not None
         else None
     )

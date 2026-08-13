@@ -10,7 +10,7 @@ of raising; see docs/future_enhancements.md for the write-up.
 
 import pytest
 
-from starlayergraph.graph.starlayergraph_graph import StarLayerGraph
+from starlayergraph.graph.starlayer_graph import StarLayerGraph
 from starlayergraph.parsers.errors import TurtleSyntaxError
 
 

@@ -10,7 +10,7 @@ from rdflib import URIRef, Literal, BNode
 from rdflib.namespace import RDF
 
 from starlayergraph.graph import StarLayerDataset, StarLayerGraph
-from starlayergraph.graph.starlayergraph_graph import RDF_REIFIES
+from starlayergraph.graph.starlayer_graph import RDF_REIFIES
 from starlayergraph.model.triple import TripleTerm
 
 EX = 'http://example.org/'
@@ -78,7 +78,7 @@ class TestConstruction:
 # ---------------------------------------------------------------------------
 
 class TestParseTriG12:
-    def test_named_graph_context_is_starlayergraph_graph(self):
+    def test_named_graph_context_is_starlayer_graph(self):
         ds = StarLayerDataset()
         ds.parse(data=TRIG_BASIC, format='trig12')
         g1 = ds.get_context(G1)
@@ -204,7 +204,7 @@ class TestQuads:
         assert len(matching) == 1
         assert matching[0][3].identifier == G1
 
-    def test_quads_context_is_starlayergraph_graph(self):
+    def test_quads_context_is_starlayer_graph(self):
         ds = StarLayerDataset()
         ds.parse(data=TRIG_BASIC, format='trig12')
         for _, _, _, g in ds.quads():

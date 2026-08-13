@@ -3,7 +3,7 @@ from rdflib import Namespace
 from rdflib.collection import Collection
 
 from starshacl import StarShaclValidator
-from starlayergraph.graph.starlayergraph_graph import StarLayerGraph
+from starlayergraph.graph.starlayer_graph import StarLayerGraph
 
 from ._shape_loader import load_shape
 

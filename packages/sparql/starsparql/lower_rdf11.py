@@ -156,7 +156,7 @@ from .vocab import decode_dirlang_datatype
 # only inherits those fixes if the patches happen to already be applied by
 # the time it runs - previously true only by accident, via some unrelated
 # starlayergraph import happening to run first elsewhere in this project. This
-# project already hard-requires starlayergraph (see to_rdf._new_starlayergraph_graph
+# project already hard-requires starlayergraph (see to_rdf._new_starlayer_graph
 # and this module's own starlayergraph.model.encoding imports below), so make
 # that dependency explicit here too, rather than relying on side effects:
 # call the same patch function starlayergraph/__init__.py itself calls eagerly,

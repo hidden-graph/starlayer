@@ -189,7 +189,7 @@ def serialize_turtle12(graph) -> str:
     into inline {| ann_pred ann_val |} syntax on the base triple.
     Only namespace prefixes actually used in the graph are emitted.
     """
-    from starlayergraph.graph.starlayergraph_graph import StarLayerGraph
+    from starlayergraph.graph.starlayer_graph import StarLayerGraph
 
     sg = graph if isinstance(graph, StarLayerGraph) else StarLayerGraph.from_rdflib(graph)
     ns_mgr = sg.namespace_manager
@@ -308,7 +308,7 @@ def serialize_longturtle12(graph) -> str:
     is emitted as ``s p o .`` on its own line.  Prefix declarations and the
     ``@version`` directive are emitted the same way as turtle12.
     """
-    from starlayergraph.graph.starlayergraph_graph import StarLayerGraph
+    from starlayergraph.graph.starlayer_graph import StarLayerGraph
 
     sg = graph if isinstance(graph, StarLayerGraph) else StarLayerGraph.from_rdflib(graph)
     ns_mgr = sg.namespace_manager

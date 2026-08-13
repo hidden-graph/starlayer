@@ -10,7 +10,7 @@ import pytest
 from rdflib import URIRef, Literal, BNode
 from rdflib.namespace import RDF, XSD
 
-from starlayergraph.graph.starlayergraph_graph import StarLayerGraph, RDF_REIFIES
+from starlayergraph.graph.starlayer_graph import StarLayerGraph, RDF_REIFIES
 from starlayergraph.model.triple import TripleTerm
 
 EX   = 'http://example.org/'

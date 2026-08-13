@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from rdflib import Graph
 from starlayergraph.parsers.turtle_parser import StarLayerTurtleParser
-from starlayergraph.graph.starlayergraph_graph import StarLayerGraph
+from starlayergraph.graph.starlayer_graph import StarLayerGraph
 
 INPUT = """\
 @prefix : <http://example.org/> .

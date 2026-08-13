@@ -17,7 +17,7 @@ from rdflib import URIRef, Literal
 from rdflib.namespace import RDF
 
 from starlayergraph.graph import StarLayerDataset, StarLayerGraph
-from starlayergraph.graph.starlayergraph_graph import RDF_REIFIES
+from starlayergraph.graph.starlayer_graph import RDF_REIFIES
 from starlayergraph.model.triple import TripleTerm
 
 EX = 'http://example.org/'
@@ -293,7 +293,7 @@ class TestAsk:
 # ---------------------------------------------------------------------------
 
 class TestConstruct:
-    def test_construct_returns_starlayergraph_graph(self, ds):
+    def test_construct_returns_starlayer_graph(self, ds):
         q = f"""
         PREFIX ex: <{EX}>
         PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>

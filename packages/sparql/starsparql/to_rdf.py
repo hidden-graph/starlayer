@@ -36,9 +36,9 @@ _INTERNAL_BOOKKEEPING_KEYS = {"_vars", "lazy"}
 _QUADS_KEY = "quads"
 
 
-def _new_starlayergraph_graph() -> Graph:
+def _new_starlayer_graph() -> Graph:
     """The default graph for any encoding function below that wasn't given
-    one — always a real ``starlayergraph.graph.starlayergraph_graph.StarLayerGraph``,
+    one — always a real ``starlayergraph.graph.starlayer_graph.StarLayerGraph``,
     never a plain ``rdflib.Graph``. Raises ``ImportError`` — not a silent
     fallback — if ``starlayergraph`` isn't installed: a plain ``Graph``
     can't correctly round-trip a dirLangString literal's real
@@ -50,7 +50,7 @@ def _new_starlayergraph_graph() -> Graph:
     can still pass its own plain ``rdflib.Graph()`` explicitly via the
     ``graph`` parameter; this default is deliberately not that permissive.
     """
-    from starlayergraph.graph.starlayergraph_graph import StarLayerGraph
+    from starlayergraph.graph.starlayer_graph import StarLayerGraph
 
     return StarLayerGraph()
 
@@ -60,13 +60,13 @@ def query_to_rdf(query: Query, graph: Optional[Graph] = None) -> tuple[Graph, BN
     starlayergraph's SPARQL-1.2-aware variants included) as RDF triples.
 
     Returns ``(graph, root)`` — ``graph`` is ``graph`` if given, else a fresh
-    ``StarLayerGraph`` (see ``_new_starlayergraph_graph``); ``root`` is the node
+    ``StarLayerGraph`` (see ``_new_starlayer_graph``); ``root`` is the node
     for ``query.algebra``, additionally typed ``salg:Query`` (see
     ``vocab.QUERY``) so encoded queries in a larger store can always be
     found via ``?q a salg:Query`` regardless of query form.
     """
     if graph is None:
-        graph = _new_starlayergraph_graph()
+        graph = _new_starlayer_graph()
     root = _encode(query.algebra, graph)
     graph.add((root, RDF.type, QUERY))
     _encode_prologue(query.prologue, root, graph)
@@ -89,7 +89,7 @@ def update_to_rdf(update: Update, graph: Optional[Graph] = None) -> tuple[Graph,
     ``vocab.UPDATE_OPERATION``).
     """
     if graph is None:
-        graph = _new_starlayergraph_graph()
+        graph = _new_starlayer_graph()
     op_nodes = []
     for op in update.algebra:
         node = _encode(op, graph)
@@ -112,14 +112,14 @@ def queries_to_collection(queries: list[Query], graph: Optional[Graph] = None) -
     needed here for that.
 
     Returns ``(graph, root)`` — ``graph`` is ``graph`` if given, else a
-    fresh ``StarLayerGraph`` (see ``_new_starlayergraph_graph``); ``root`` is a
+    fresh ``StarLayerGraph`` (see ``_new_starlayer_graph``); ``root`` is a
     dedicated container node holding ``salg:queries`` (an ``rdf:List`` of
     the member queries' own ``salg:Query``-typed roots, in the order given —
     order isn't semantically meaningful for a collection, but is preserved
     anyway since ``rdf:List`` is ordered regardless).
     """
     if graph is None:
-        graph = _new_starlayergraph_graph()
+        graph = _new_starlayer_graph()
     query_nodes = [query_to_rdf(query, graph)[1] for query in queries]
     root = BNode()
     graph.add((root, RDF.type, QUERY_COLLECTION))

@@ -24,8 +24,8 @@ Existing project docs ([starlayergraph_vs_rdflib.md](starlayergraph_vs_rdflib.md
 
 | Concept | Spec | StarLayer | Verdict |
 |---|---|---|---|
-| Triple term, object-position-only | §3.1, §3.6 | `TripleTerm` in `starlayergraph/model/triple.py`; `starlayergraph_graph.py` rejects subject position | ✅ Match |
-| No cycles; nesting allowed in object only | §3.1 | `tests/unit/test_starlayergraph_graph.py::test_nested_tt_object_fully_resolves`; subject-nesting blocked | ✅ Match |
+| Triple term, object-position-only | §3.1, §3.6 | `TripleTerm` in `starlayergraph/model/triple.py`; `starlayer_graph.py` rejects subject position | ✅ Match |
+| No cycles; nesting allowed in object only | §3.1 | `tests/unit/test_starlayer_graph.py::test_nested_tt_object_fully_resolves`; subject-nesting blocked | ✅ Match |
 | `rdf:reifies`, reification does **not** entail the base triple | §1.5 | `sparql12_design.md` QF1/QF2 demonstrate exactly this distinction (formal `<<()>>` pattern vs. asserting `{| |}`/`~`) | ✅ Match |
 | Content-addressing / term equality by structural equality | §3.6 | `tt_hash()` in `starlayergraph/model/encoding.py`, SHA-256 over `(s,p,o)` string forms | ✅ Match |
 | `rdf:dirLangString`, base direction (`ltr`/`rtl`), 4-component literal identity | §3.4 | `DirLangString` in `starlayergraph/model/dirlangstring.py`; encoded as a `Literal` with an internal `dirlang:` datatype URI, decoded transparently at the `StarLayerGraph` boundary | ✅ Match |
@@ -82,9 +82,9 @@ Scope limits (documented in the parser's own docstring): only node elements dire
 
 | Spec rule | StarLayer | Verdict |
 |---|---|---|
-| `INSERT DATA`/`DELETE DATA` require ground triple terms (no variables; `DELETE DATA` additionally forbids blank nodes) | `starlayergraph_graph.py` explicitly rejects triple terms in subject position and non-ground forms in `INSERT DATA` blocks | ✅ Match |
+| `INSERT DATA`/`DELETE DATA` require ground triple terms (no variables; `DELETE DATA` additionally forbids blank nodes) | `starlayer_graph.py` explicitly rejects triple terms in subject position and non-ground forms in `INSERT DATA` blocks | ✅ Match |
 | Reifying a triple in `INSERT DATA` does not auto-assert the base triple | Consistent with the Query-side non-entailment behavior verified in §1 | ✅ Match |
-| `INSERT`/`DELETE ... WHERE` pattern forms allow variables, mirroring Query | `starlayergraph_graph.py`'s `update()`, including `BIND`-splicing for minting new triple terms | ✅ Match |
+| `INSERT`/`DELETE ... WHERE` pattern forms allow variables, mirroring Query | `starlayer_graph.py`'s `update()`, including `BIND`-splicing for minting new triple terms | ✅ Match |
 
 No gaps here beyond what's already covered by the Query-side function gaps in §4.
 

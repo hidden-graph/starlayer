@@ -19,8 +19,8 @@ query to rdflib's SPARQL 1.1 parser.
 import pytest
 from rdflib import URIRef
 
-from starlayergraph.graph.starlayergraph_graph import StarLayerGraph
-from starlayergraph.graph.starlayergraph_dataset import StarLayerDataset
+from starlayergraph.graph.starlayer_graph import StarLayerGraph
+from starlayergraph.graph.starlayer_dataset import StarLayerDataset
 from starlayergraph.backends.native import check_native_version_conformance
 from starlayergraph.model.conformance import RDF12ConformanceWarning
 
@@ -240,7 +240,7 @@ class TestTrigVersionDirective:
     entirely - the per-GRAPH-block Turtle parser calls never surfaced it to
     either StarLayerGraph.parse() or StarLayerDataset.parse()."""
 
-    def test_starlayergraph_graph_trig12_warns(self):
+    def test_starlayer_graph_trig12_warns(self):
         data = f"""VERSION "1.2-basic"
             PREFIX : <{EX}>
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
@@ -252,7 +252,7 @@ class TestTrigVersionDirective:
         with pytest.warns(RDF12ConformanceWarning, match='1.2-basic'):
             g.parse(data=data, format='trig12')
 
-    def test_starlayergraph_dataset_trig12_warns(self):
+    def test_starlayer_dataset_trig12_warns(self):
         data = f"""VERSION "1.2-basic"
             PREFIX : <{EX}>
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>

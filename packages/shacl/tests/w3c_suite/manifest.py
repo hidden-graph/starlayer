@@ -16,7 +16,7 @@ from urllib.parse import unquote, urlparse
 
 from rdflib import URIRef
 from rdflib.namespace import RDF
-from starlayergraph.graph.starlayergraph_graph import StarLayerGraph
+from starlayergraph.graph.starlayer_graph import StarLayerGraph
 
 from .namespaces import MF
 

@@ -19,8 +19,8 @@ from rdflib.collection import Collection
 # StarLayer-specific additions
 from starlayergraph.model.triple import TripleTerm
 from starlayergraph.model.dirlangstring import DirLangString
-from starlayergraph.graph.starlayergraph_graph import StarLayerGraph
-from starlayergraph.graph.starlayergraph_dataset import StarLayerDataset
+from starlayergraph.graph.starlayer_graph import StarLayerGraph
+from starlayergraph.graph.starlayer_dataset import StarLayerDataset
 from starlayergraph.parsers.errors import TurtleSyntaxError
 
 # Registers starlayergraph's own custom SPARQL extension functions (TRIPLE()'s

@@ -2,7 +2,7 @@ import pytest
 from rdflib import Namespace, Literal, URIRef
 
 from starshacl import StarShaclValidator
-from starlayergraph.graph.starlayergraph_graph import StarLayerGraph
+from starlayergraph.graph.starlayer_graph import StarLayerGraph
 from starlayergraph.model.triple import TripleTerm
 
 from ._shape_loader import load_shape

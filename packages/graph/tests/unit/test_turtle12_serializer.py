@@ -10,7 +10,7 @@ from rdflib import URIRef, Literal
 from rdflib.namespace import RDF
 from rdflib.compare import isomorphic
 
-from starlayergraph.graph.starlayergraph_graph import StarLayerGraph, RDF_REIFIES
+from starlayergraph.graph.starlayer_graph import StarLayerGraph, RDF_REIFIES
 from starlayergraph.model.triple import TripleTerm
 from starlayergraph.serializers.turtle12 import serialize_turtle12
 

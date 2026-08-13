@@ -52,7 +52,7 @@ Given an input file `example.ttl`:
 The last triple uses an **unasserted triple term** — `:bob :knows :mike` is referenced as a value without being a standalone fact in the graph.
 
 ```python
-from starlayergraph.graph.starlayergraph_graph import StarLayerGraph
+from starlayergraph.graph.starlayer_graph import StarLayerGraph
 
 g = StarLayerGraph()
 g.parse('example.ttl', format='turtle12')

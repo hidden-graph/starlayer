@@ -850,7 +850,7 @@ class StarLayerTurtleParser:
         # Stapled on as an attribute rather than changing this method's
         # return type, to avoid touching any of the several existing call
         # sites that unpack the return value directly as a plain Graph (see
-        # starlayergraph_graph.py, trig12.py, tests/unit/test_turtle12_serializer.py).
+        # starlayer_graph.py, trig12.py, tests/unit/test_turtle12_serializer.py).
         # Consumed by StarLayerGraph.parse() for the RDF12ConformanceWarning
         # check (starlayergraph.model.conformance) - a Turtle document may
         # declare VERSION "1.2-basic" but still use a triple term/

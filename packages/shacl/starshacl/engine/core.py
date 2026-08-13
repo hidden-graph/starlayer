@@ -7,7 +7,7 @@ from rdflib import BNode, Literal, Namespace
 from rdflib.namespace import RDF
 
 from starshacl.engine.contracts import ComponentRequest
-from starshacl.engine.normalization import normalize_to_starlayergraph_graph
+from starshacl.engine.normalization import normalize_to_starlayer_graph
 from starshacl.types import is_triple_term_like
 
 SH = Namespace("http://www.w3.org/ns/shacl#")
@@ -21,8 +21,8 @@ class ComponentEvaluationResult:
 
 
 def target_nodes(*, data_graph: Any, shacl_graph: Any, shape_node: Any) -> tuple[Any, ...]:
-    data = normalize_to_starlayergraph_graph(data_graph, name="data_graph")
-    graph = normalize_to_starlayergraph_graph(shacl_graph, name="shacl_graph")
+    data = normalize_to_starlayer_graph(data_graph, name="data_graph")
+    graph = normalize_to_starlayer_graph(shacl_graph, name="shacl_graph")
     targets: list[Any] = []
 
     # Explicit target nodes from shape definitions.
@@ -91,7 +91,7 @@ def build_report(*, events: tuple[dict[str, Any], ...], graph_context: Any, opti
     options = options or {}
     value_decoder = options.get("value_decoder", lambda x: x)
 
-    report = normalize_to_starlayergraph_graph(graph_context, name="graph_context")
+    report = normalize_to_starlayer_graph(graph_context, name="graph_context")
     report.remove((None, None, None))
 
     report_node = BNode()

@@ -33,8 +33,8 @@ from __future__ import annotations
 
 import pytest
 
-from starlayergraph.graph.starlayergraph_dataset import StarLayerDataset
-from starlayergraph.graph.starlayergraph_graph import StarLayerGraph
+from starlayergraph.graph.starlayer_dataset import StarLayerDataset
+from starlayergraph.graph.starlayer_graph import StarLayerGraph
 
 from .harness import bindings_match
 

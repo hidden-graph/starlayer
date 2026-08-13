@@ -27,7 +27,7 @@ rdflib's algebra translator to accept TripleTerm nodes is out of scope here.
 
 import pytest
 from rdflib import Graph
-from starlayergraph.graph.starlayergraph_graph import StarLayerGraph
+from starlayergraph.graph.starlayer_graph import StarLayerGraph
 from starlayergraph.query.sparql_api import prepareQuery as starlayergraph_prepare_query
 from starlayergraph.query.sparql_api import prepareUpdate as starlayergraph_prepare_update
 
@@ -79,16 +79,16 @@ UPDATES = [
 
 
 @pytest.fixture
-def starlayergraph_graph():
+def starlayer_graph():
     g = StarLayerGraph()
     g.parse(data=FIXTURE_TTL12, format="turtle12")
     return g
 
 
 @pytest.mark.parametrize("query_text", QUERIES)
-def test_rdf12_query_roundtrip(starlayergraph_graph, query_text):
+def test_rdf12_query_roundtrip(starlayer_graph, query_text):
     prepared = starlayergraph_prepare_query(query_text)
-    original_rows = sorted(str(row) for row in starlayergraph_graph.query(prepared))
+    original_rows = sorted(str(row) for row in starlayer_graph.query(prepared))
 
     # A plain Graph(), not to_rdf's own StarLayerGraph default: prepared's
     # algebra can contain a ground triple term already substituted as a
@@ -104,20 +104,20 @@ def test_rdf12_query_roundtrip(starlayergraph_graph, query_text):
     # docstring already documents and avoids the same way.
     graph, root = query_to_rdf(prepared, graph=Graph())
     reconstructed = rdf_to_query(graph, root)
-    roundtripped_rows = sorted(str(row) for row in starlayergraph_graph.query(reconstructed))
+    roundtripped_rows = sorted(str(row) for row in starlayer_graph.query(reconstructed))
 
     assert original_rows == roundtripped_rows
     assert len(original_rows) > 0
 
 
 @pytest.mark.parametrize("query_text", CONSTRUCT_QUERIES)
-def test_rdf12_construct_roundtrip(starlayergraph_graph, query_text):
+def test_rdf12_construct_roundtrip(starlayer_graph, query_text):
     prepared = starlayergraph_prepare_query(query_text)
-    original = sorted(starlayergraph_graph.query(prepared).graph)
+    original = sorted(starlayer_graph.query(prepared).graph)
 
     graph, root = query_to_rdf(prepared, graph=Graph())
     reconstructed = rdf_to_query(graph, root)
-    roundtripped = sorted(starlayergraph_graph.query(reconstructed).graph)
+    roundtripped = sorted(starlayer_graph.query(reconstructed).graph)
 
     assert original == roundtripped
     assert len(original) > 0

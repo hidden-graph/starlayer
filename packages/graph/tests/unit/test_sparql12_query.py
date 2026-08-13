@@ -9,7 +9,7 @@ import pytest
 from rdflib import URIRef, Literal
 from rdflib.namespace import RDF
 
-from starlayergraph.graph.starlayergraph_graph import StarLayerGraph
+from starlayergraph.graph.starlayer_graph import StarLayerGraph
 from starlayergraph.model.triple import TripleTerm
 
 EX = 'http://example.org/'
@@ -374,7 +374,7 @@ class TestQ11:
 # ---------------------------------------------------------------------------
 
 class TestQ12:
-    def test_construct_returns_starlayergraph_graph(self, g):
+    def test_construct_returns_starlayer_graph(self, g):
         r = g.query("""
             PREFIX :   <http://example.org/>
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
@@ -386,7 +386,7 @@ class TestQ12:
         """)
         assert isinstance(r.graph, StarLayerGraph)
 
-    def test_construct_always_starlayergraph_graph_no_tt(self, g):
+    def test_construct_always_starlayer_graph_no_tt(self, g):
         r = g.query("""
             PREFIX :   <http://example.org/>
             CONSTRUCT { :a :b :c . }

@@ -1,6 +1,6 @@
 from rdflib import Literal, Namespace
 
-from starlayergraph.graph.starlayergraph_graph import StarLayerGraph
+from starlayergraph.graph.starlayer_graph import StarLayerGraph
 
 from starshacl.engine import STSH, ComponentRequest, build_report, evaluate_component, target_nodes
 

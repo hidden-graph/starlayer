@@ -319,7 +319,7 @@ class StarShaclValidator:
 
         out_data: TripleTermGraph | Any | None = None
         if options.get("inplace"):
-            if _is_starlayergraph_graph(data_graph):
+            if _is_starlayer_graph(data_graph):
                 out_data = self.adapter.decode_graph(encoded_data)
                 self.adapter.replace_graph(data_graph, out_data)
                 out_data = data_graph
@@ -1079,9 +1079,9 @@ def _default_validate(**kwargs: Any) -> tuple[bool, Graph, str]:
     return validate(**kwargs)
 
 
-def _is_starlayergraph_graph(value: Any) -> bool:
+def _is_starlayer_graph(value: Any) -> bool:
     try:
-        from starlayergraph.graph.starlayergraph_graph import StarLayerGraph
+        from starlayergraph.graph.starlayer_graph import StarLayerGraph
     except ImportError:
         return False
 

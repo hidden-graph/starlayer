@@ -13,7 +13,7 @@ import pytest
 from rdflib import URIRef, Literal
 from rdflib.namespace import RDF
 
-from starlayergraph.graph.starlayergraph_graph import StarLayerGraph
+from starlayergraph.graph.starlayer_graph import StarLayerGraph
 from starlayergraph.model.triple import TripleTerm
 
 EX = 'http://example.org/'

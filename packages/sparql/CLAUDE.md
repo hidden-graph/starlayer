@@ -508,7 +508,7 @@ regenerated query text (see the `translateAlgebra` finding below).
   that checks reifier-shorthand forms *before* the ground-triple-term
   nesting restriction, so a reifier resolves to its node in any position
   while the nesting restriction still applies only to genuine ground
-  triple terms. Verified against the sibling repo's own test suite (772
+  triple terms. Verified against the sibling package's own test suite (772
   passed, 0 regressions) before committing there.
 
 - **Phase 8** (started, uncommitted): `salg:QueryCollection` — serializing
@@ -893,7 +893,7 @@ but if rdflib's version changes, re-verify before relying on them further.
       between instances of ...`) the first time two ground triples tie.
     - Substituting a fully-ground `TripleTerm` with some *other* hashable
       object (a proxy, or `starlayergraph.model.triple.TripleTerm` — a value
-      type used elsewhere in the sibling project for a different purpose,
+      type used elsewhere in the sibling package for a different purpose,
       representing an actual RDF *value*, not an algebra node) is **not**
       sufficient even with ordering added, and this was confirmed as a real,
       reproducible defect during development, not just a theoretical risk:
@@ -1472,7 +1472,7 @@ but if rdflib's version changes, re-verify before relying on them further.
     1.2 data, since no such data could ever exist — the same reasoning the
     earlier declined Oxigraph finding already used. This collapsed into
     being the same case, not a new one — the write-up was retracted (see
-    the sibling repo's `docs/oxigraph-upstream-issues.md`, Issue 1, kept
+    the sibling package's `docs/oxigraph-upstream-issues.md`, Issue 1, kept
     in full with the retraction rather than deleted, specifically so this
     trap doesn't get rediscovered and re-written in a future session).
 
@@ -1592,7 +1592,7 @@ but if rdflib's version changes, re-verify before relying on them further.
     `TT_NS`-prefixed, so `isTRIPLE(?x)` on an ordinarily-pattern-matched
     triple term always incorrectly returned false. `_is_triple_term_expr`
     fixes this project's own side by OR-ing in a second `STRSTARTS(STR(x),
-    "<<")` check; the sibling repo's own `isTripleTerm()`/`isTRIPLE()`
+    "<<")` check; the sibling package's own `isTripleTerm()`/`isTRIPLE()`
     still has this specific gap (not fixed there this session — out of
     scope, since nothing currently routes through it with this input
     shape, but worth knowing about before relying on it for a
@@ -1611,7 +1611,7 @@ but if rdflib's version changes, re-verify before relying on them further.
     `isinstance(uri, URIRef) and str(uri).startswith(TT_NS)` check rejects
     that outright. This is real and load-bearing for *this project's own*
     fix above (which depends on exactly this call shape) — not just a
-    latent gap. Fixed (in the sibling repo, not here) by adding a
+    latent gap. Fixed (in the sibling package, not here) by adding a
     `isinstance(uri, TripleTerm)` branch *before* the `URIRef`/`TT_NS`
     check, returning `(uri.subject, uri.predicate, uri.object)[index]`
     directly — no `lookup_tt_hash`/graph dereference needed at all, since a
@@ -1643,7 +1643,7 @@ but if rdflib's version changes, re-verify before relying on them further.
     on) has the identical gap baked in — it just reads `expr`'s own
     `_vars` as a shortcut, so it silently inherits `_addVars`'s own
     incompleteness for a `RelationalExpression` too. Fixed in two parts,
-    both in the sibling repo: (a) rewrote `_expr_free_vars` itself from a
+    both in the sibling package: (a) rewrote `_expr_free_vars` itself from a
     `_vars`-trusting lookup into a genuine recursive structural walk
     (finds every bare `Variable` anywhere in the expression tree,
     regardless of key name) — strictly more complete for every existing
@@ -1821,7 +1821,7 @@ but if rdflib's version changes, re-verify before relying on them further.
     identical to what `Graph.__isub__` already does internally for a plain
     `Graph`, and correct rather than crashing for a `Dataset`.
 
-    **Fix 3 (sibling `starlayergraph` repo, `starlayergraph_dataset.py`) — a
+    **Fix 3 (sibling `starlayergraph` repo, `starlayer_dataset.py`) — a
     real, previously-undiscovered gap in `StarLayerDataset`'s own API
     surface, not a monkeypatchable rdflib bug.** Even with Fix 2's
     `ctx.graph`-selection corrected, deletion *still* silently no-op'd.
@@ -1854,7 +1854,7 @@ but if rdflib's version changes, re-verify before relying on them further.
     for this reason, documented inline there).
 
     Verified: `starsparql`'s own full suite (155 + 214/221 W3C, same
-    4 pre-existing deliberate divergences) and the sibling repo's own full
+    4 pre-existing deliberate divergences) and the sibling package's own full
     suite (997 tests) both pass with all three fixes applied — including a
     real regression caught mid-fix (`patch_evalmodify_default_graph_selection`'s
     first version broke `default_union=True` Update tests via the

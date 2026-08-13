@@ -49,7 +49,7 @@ reaches the argument on its own.
 
 from __future__ import annotations
 
-from starlayergraph.graph.starlayergraph_graph import StarLayerGraph
+from starlayergraph.graph.starlayer_graph import StarLayerGraph
 
 from starsparql import query_to_rdf, rdf_to_query
 from starsparql.parse12 import prepare_query_12
@@ -164,18 +164,18 @@ def test_serializer_output_reparses():
 
 
 def test_execution_roundtrip_via_starlayergraph():
-    starlayergraph_graph = StarLayerGraph()
-    starlayergraph_graph.parse(data=FIXTURE_TTL12, format="turtle12")
+    starlayer_graph = StarLayerGraph()
+    starlayer_graph.parse(data=FIXTURE_TTL12, format="turtle12")
 
     for query_text, expect_nonempty in QUERIES:
-        original_rows = _run(starlayergraph_graph, query_text)
+        original_rows = _run(starlayer_graph, query_text)
 
         prepared = prepare_query_12(query_text)
         graph, root = query_to_rdf(prepared)
         reconstructed = rdf_to_query(graph, root)
         regenerated_text = translate_algebra_12(reconstructed)
 
-        roundtripped_rows = _run(starlayergraph_graph, regenerated_text)
+        roundtripped_rows = _run(starlayer_graph, regenerated_text)
 
         assert original_rows == roundtripped_rows, query_text
         if expect_nonempty:
@@ -194,18 +194,18 @@ def test_construct_serializer_output_reparses():
 
 
 def test_construct_execution_roundtrip_via_starlayergraph():
-    starlayergraph_graph = StarLayerGraph()
-    starlayergraph_graph.parse(data=FIXTURE_TTL12, format="turtle12")
+    starlayer_graph = StarLayerGraph()
+    starlayer_graph.parse(data=FIXTURE_TTL12, format="turtle12")
 
     for query_text in CONSTRUCT_QUERIES:
-        original_graph = sorted(starlayergraph_graph.query(query_text).graph)
+        original_graph = sorted(starlayer_graph.query(query_text).graph)
 
         prepared = prepare_query_12(query_text)
         graph, root = query_to_rdf(prepared)
         reconstructed = rdf_to_query(graph, root)
         regenerated_text = translate_algebra_12(reconstructed)
 
-        roundtripped_graph = sorted(starlayergraph_graph.query(regenerated_text).graph)
+        roundtripped_graph = sorted(starlayer_graph.query(regenerated_text).graph)
 
         assert original_graph == roundtripped_graph, query_text
         assert len(original_graph) > 0, query_text

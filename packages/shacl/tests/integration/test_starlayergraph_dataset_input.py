@@ -5,7 +5,7 @@ from starshacl import StarShaclValidator
 
 pytest.importorskip("pyshacl")
 StarLayerDataset = pytest.importorskip(
-    "starlayergraph.graph.starlayergraph_dataset"
+    "starlayergraph.graph.starlayer_dataset"
 ).StarLayerDataset
 
 
@@ -149,7 +149,7 @@ class TestOntGraphDatasetAutoUnion:
 class TestPlainRdflibDatasetInput:
     def test_plain_dataset_default_graph_normalizes_and_validates(self) -> None:
         # A plain rdflib.Dataset (not StarLayerDataset) is also a Graph
-        # subclass and goes through the same normalize_to_starlayergraph_graph()
+        # subclass and goes through the same normalize_to_starlayer_graph()
         # path - confirms starShacl doesn't require StarLayerDataset
         # specifically, just something Dataset-shaped with the right
         # default_union semantics.

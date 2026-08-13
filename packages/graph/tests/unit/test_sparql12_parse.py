@@ -311,7 +311,7 @@ class TestProcessUpdate:
         processUpdate(g, "INSERT DATA { <http://a> <http://b> <http://c> }")
         assert len(g) == 1
 
-    def test_does_not_raise_on_sparql12_starlayergraph_graph(self):
+    def test_does_not_raise_on_sparql12_starlayer_graph(self):
         from starlayergraph.query import processUpdate
         from starlayergraph.graph import StarLayerGraph
         g = StarLayerGraph()
@@ -323,7 +323,7 @@ class TestProcessUpdate:
         """)
         assert len(g) == 0
 
-    def test_routes_to_graph_update_for_starlayergraph_graph(self):
+    def test_routes_to_graph_update_for_starlayer_graph(self):
         """processUpdate on a StarLayerGraph must go through graph.update()
         so the TripleTerm registry is rebuilt after the update."""
         from starlayergraph.query import processUpdate

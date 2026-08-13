@@ -41,8 +41,8 @@ from __future__ import annotations
 
 import pytest
 from rdflib.compare import to_isomorphic
-from starlayergraph.graph.starlayergraph_dataset import StarLayerDataset
-from starlayergraph.graph.starlayergraph_graph import StarLayerGraph
+from starlayergraph.graph.starlayer_dataset import StarLayerDataset
+from starlayergraph.graph.starlayer_graph import StarLayerGraph
 
 from starsparql import query_to_rdf, rdf_to_query
 from starsparql.parse12 import prepare_query_12, prepare_update_12
@@ -157,9 +157,9 @@ def test_eval_select(entry):
     query_text = entry.read(entry.query_file)
     expected = parse_srj(entry.read(entry.result_file))
 
-    starlayergraph_graph = _new_graph(entry)
+    starlayer_graph = _new_graph(entry)
     if entry.data_file:
-        starlayergraph_graph.parse(data=entry.read(entry.data_file), format=_data_format(entry))
+        starlayer_graph.parse(data=entry.read(entry.data_file), format=_data_format(entry))
 
     prepared = prepare_query_12(query_text)
     graph, root = query_to_rdf(prepared)
@@ -181,7 +181,7 @@ def test_eval_select(entry):
     # Same filtering starlayergraph's own
     # tests/w3c_sparql12/test_w3c_sparql12_eval.py::test_eval_select_original_query
     # already applies, for the identical reason.
-    actual = [{k: v for k, v in dict(row).items() if v is not None} for row in starlayergraph_graph.query(regenerated_text).bindings]
+    actual = [{k: v for k, v in dict(row).items() if v is not None} for row in starlayer_graph.query(regenerated_text).bindings]
     # bindings_match, not exact canon_bindings equality: a BNode's (or
     # starlayergraph's rr:N-skolemized anonymous reifier's) *label* is never
     # semantically meaningful, only a consistent relabeling is - see
@@ -208,9 +208,9 @@ def test_eval_construct(entry):
     expected_graph = StarLayerGraph()
     expected_graph.parse(data=entry.read(entry.result_file), format="turtle12")
 
-    starlayergraph_graph = _new_graph(entry)
+    starlayer_graph = _new_graph(entry)
     if entry.data_file:
-        starlayergraph_graph.parse(data=entry.read(entry.data_file), format=_data_format(entry))
+        starlayer_graph.parse(data=entry.read(entry.data_file), format=_data_format(entry))
 
     prepared = prepare_query_12(query_text)
     graph, root = query_to_rdf(prepared)
@@ -219,7 +219,7 @@ def test_eval_construct(entry):
 
     regenerated_text = translate_algebra_12(reconstructed)
 
-    actual_graph = starlayergraph_graph.query(regenerated_text).graph
+    actual_graph = starlayer_graph.query(regenerated_text).graph
     assert to_isomorphic(skolemize_graph(actual_graph)) == to_isomorphic(skolemize_graph(expected_graph))
 
 

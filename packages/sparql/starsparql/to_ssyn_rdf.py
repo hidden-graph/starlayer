@@ -64,7 +64,7 @@ from .ssyn_vocab import (
     WHERE,
 )
 from .to_rdf import _encode as _encode_algebra
-from .to_rdf import _encode_path, _new_starlayergraph_graph
+from .to_rdf import _encode_path, _new_starlayer_graph
 
 
 def query_to_ssyn_rdf(parse_result: ParseResults, graph: Optional[Graph] = None) -> tuple[Graph, BNode]:
@@ -77,7 +77,7 @@ def query_to_ssyn_rdf(parse_result: ParseResults, graph: Optional[Graph] = None)
     ``MINUS``/``SERVICE`` inside ``WHERE``) rather than silently
     mis-encoding — same discipline as every other scope boundary in this
     project. ``graph`` defaults to a fresh ``StarLayerGraph`` (see
-    ``to_rdf._new_starlayergraph_graph``), never a plain ``rdflib.Graph``.
+    ``to_rdf._new_starlayer_graph``), never a plain ``rdflib.Graph``.
     """
     prologue_list, query = parse_result[0], parse_result[1]
     if query.name != "SelectQuery":
@@ -101,7 +101,7 @@ def query_to_ssyn_rdf(parse_result: ParseResults, graph: Optional[Graph] = None)
     query.where = traverse(query.where, visitPost=translatePath)
 
     if graph is None:
-        graph = _new_starlayergraph_graph()
+        graph = _new_starlayer_graph()
     root = BNode()
     graph.add((root, RDF.type, SELECT_QUERY))
     graph.add((root, SELECT, _encode_var_list(query.projection, graph)))

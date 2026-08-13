@@ -20,7 +20,7 @@ of anything the downstream starsparql project's own translation adds
 or might get wrong. (The same fixture data, and the same fetch logic, is
 also vendored into the starsparql project's own tests/w3c_sparql12/ -
 copied rather than shared via a cross-repo path, since starlayergraph's own test
-suite shouldn't depend on a specific sibling checkout existing.)
+suite shouldn't depend on a specific sibling package existing.)
 
 Categories fetched (see this suite's own index at
 https://w3c.github.io/rdf-tests/sparql/sparql12/ for the full list of 10 -

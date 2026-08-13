@@ -19,7 +19,7 @@ from pathlib import Path
 
 import pytest
 from pyshacl.shapes_graph import ShapesGraph
-from starlayergraph.graph.starlayergraph_graph import StarLayerGraph
+from starlayergraph.graph.starlayer_graph import StarLayerGraph
 
 pyshacl = pytest.importorskip("pyshacl")
 

@@ -643,8 +643,7 @@ class TestBaseURI:
 
 # ---------------------------------------------------------------------------
 # Lexical edge cases found via the W3C SHACL 1.2 test suite (a downstream
-# consumer's real-world fixtures, not part of this repo) - see this repo's
-# CHANGELOG.md's "Unreleased" section for the full write-up of each.
+# consumer's real-world fixtures, not part of this package).
 # ---------------------------------------------------------------------------
 
 class TestNoSpaceBeforeDelimiter:

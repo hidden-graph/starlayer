@@ -41,7 +41,7 @@ def is_dirlangstring_like(value: Any) -> bool:
 
 
 def ensure_graph_iterable(value: Any, *, name: str) -> None:
-    if not is_starlayergraph_graph_like(value):
+    if not is_starlayer_graph_like(value):
         raise TypeError(
             f"{name} must be a StarLayerGraph. "
             f"Got {type(value).__name__}."
@@ -58,9 +58,9 @@ def ensure_graph_mutable(value: Any, *, name: str) -> None:
         )
 
 
-def is_starlayergraph_graph_like(value: Any) -> bool:
+def is_starlayer_graph_like(value: Any) -> bool:
     return hasattr(value, "namespace_manager") and hasattr(value, "__iter__")
 
 
-def is_mutable_starlayergraph_graph_like(value: Any) -> bool:
-    return is_starlayergraph_graph_like(value) and hasattr(value, "add") and hasattr(value, "remove")
+def is_mutable_starlayer_graph_like(value: Any) -> bool:
+    return is_starlayer_graph_like(value) and hasattr(value, "add") and hasattr(value, "remove")

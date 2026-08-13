@@ -10,7 +10,7 @@ This is the compatibility contract for starshacl: what inputs are supported, wha
 - `rdflib.Dataset` / `StarLayerDataset` are also accepted at the type check (rdflib's `Dataset` is a Python subclass of `Graph`), but starshacl validates it as a single graph, not as a collection of named graphs.
   - For `data_graph` and `shacl_graph`: the dataset's default graph is used, unless it was built with `default_union=True` or a specific graph is passed directly (e.g. `ds.get_context(uri)`). Named-graph-only data is otherwise silently invisible - no error, just a partial or empty result.
   - For `ont_graph`: starshacl always treats it as the union of all named graphs, regardless of the dataset's own `default_union` setting - matching pySHACL's own native behavior when given a raw `Dataset` as `ont_graph`. This is intentionally asymmetric with `data_graph`/`shacl_graph` above.
-  - See `tests/integration/test_starlayergraph_dataset_input.py`.
+  - See `tests/integration/test_starlayer_dataset_input.py`.
 
 ## RDF / SHACL Version Support
 

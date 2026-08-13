@@ -28,7 +28,7 @@ Requires Python 3.10+.
 ## Quick Start
 
 ```python
-from starlayergraph.graph.starlayergraph_graph import StarLayerGraph
+from starlayergraph.graph.starlayer_graph import StarLayerGraph
 from starshacl import StarShaclValidator
 
 data = StarLayerGraph()

@@ -148,7 +148,7 @@ def serialize_rdfxml12(graph) -> str:
     shorthand (which the parser accepts for reading, but this serializer
     never emits).
     """
-    from starlayergraph.graph.starlayergraph_graph import StarLayerGraph
+    from starlayergraph.graph.starlayer_graph import StarLayerGraph
 
     sg = graph if isinstance(graph, StarLayerGraph) else StarLayerGraph.from_rdflib(graph)
     _register_ns(sg)

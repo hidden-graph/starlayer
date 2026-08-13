@@ -113,7 +113,7 @@ All graph algorithms operate on the visible RDF 1.2 graph; encoding triples are 
 
 🔗 `g.connected()` — Uses `subjects()`.
 
-✅ `g.isomorphic(other)` — Overridden (previously just inherited `rdflib.Graph.isomorphic()`'s crude approximation, not `graph_diff` — that was a documentation error). Unfolds each graph's TripleTerms back to native BNode-based `rdf:subject`/`rdf:predicate`/`rdf:object` reification (mirroring the parser's own pre-skolemization intermediate form) before delegating to `rdflib.compare.isomorphic()`, the real canonical-labeling algorithm. A BNode embedded inside a TripleTerm is now treated as relabelable, the same as any other BNode, so two separately-parsed graphs that are the same shape but use different arbitrary BNode labels inside a triple term correctly isomorphize (previously didn't — see `CHANGELOG.md`).
+✅ `g.isomorphic(other)` — Overridden (previously just inherited `rdflib.Graph.isomorphic()`'s crude approximation, not `graph_diff` — that was a documentation error). Unfolds each graph's TripleTerms back to native BNode-based `rdf:subject`/`rdf:predicate`/`rdf:object` reification (mirroring the parser's own pre-skolemization intermediate form) before delegating to `rdflib.compare.isomorphic()`, the real canonical-labeling algorithm. A BNode embedded inside a TripleTerm is now treated as relabelable, the same as any other BNode, so two separately-parsed graphs that are the same shape but use different arbitrary BNode labels inside a triple term correctly isomorphize.
 
 ✅ `g.cbd(resource, ...)` — Returns a `StarLayerGraph` containing all triples for the given resource. Raises `TypeError` if a plain `rdflib.Graph` is passed as `target_graph`.
 
@@ -199,12 +199,12 @@ New classes introduced by StarLayer with no direct rdflib equivalent.
 
 ✅ `DirLangString(value, language, direction)` — Represents an RDF 1.2 base-direction-tagged literal `"text"@lang--dir`. Value-typed like `TripleTerm` (equal/hashable by `(value, language, direction)`; language tag case-folded per RDF 1.2). `direction` must be `'ltr'` or `'rtl'`. Implements `.n3()` (`"text"@lang--dir`). Unlike `TripleTerm`, has no tuple shorthand and needs no registry — `encode_dirlangstring()`/`decode_dirlangstring()` convert to/from the internal `Literal(text, datatype=<dirlang: URI>)` encoding as a pure function of the value itself.
 
-### starlayergraph/graph/starlayergraph_graph.py
+### starlayergraph/graph/starlayer_graph.py
 
 ✅ `StarLayerGraph` — Subclass of `rdflib.Graph`; the main public API for single-graph RDF 1.2. Stores TripleTerms as content-addressed `tt:HASH` URIRefs internally and hides the encoding from all callers. See method tracker above.
 
 ```python
-from starlayergraph.graph.starlayergraph_graph import StarLayerGraph
+from starlayergraph.graph.starlayer_graph import StarLayerGraph
 from starlayergraph.model.triple import TripleTerm
 from rdflib import URIRef, Literal
 
@@ -212,7 +212,7 @@ g = StarLayerGraph()                    # in-memory, default rdf-1.1 backend
 g = StarLayerGraph(backend='rdf-1.2')  # native RDF 1.2 endpoint
 ```
 
-### starlayergraph/graph/starlayergraph_dataset.py
+### starlayergraph/graph/starlayer_dataset.py
 
 ✅ `StarLayerDataset` — Subclass of `rdflib.Dataset`; a multi-graph container where every named graph is a `StarLayerGraph`. Each named graph has its own independent TripleTerm registry — triple terms in graph A are not visible from graph B.
 
@@ -277,4 +277,4 @@ Module-level functions that are part of the internal encoding but not public API
 🔗 Inherited (works) — 13
 ➖ Not relevant — 20
 
-No known caveats — the `isomorphic()` BNode-in-TripleTerm gap noted here previously is resolved (see the `isomorphic()` row above and `CHANGELOG.md`).
+No known caveats — the `isomorphic()` BNode-in-TripleTerm gap noted here previously is resolved (see the `isomorphic()` row above).

@@ -855,7 +855,7 @@ class TestNodeExpressionWellFormedness:
         # tests/integration/test_shnex_node_expressions.py, run through the
         # full apply_rules() pipeline with meta_shacl=True, confirming the
         # new well-formedness rule doesn't reject real, working shapes.
-        from starlayergraph.graph.starlayergraph_graph import StarLayerGraph
+        from starlayergraph.graph.starlayer_graph import StarLayerGraph
 
         from ._shape_loader import load_shape
 

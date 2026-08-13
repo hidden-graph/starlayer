@@ -48,7 +48,7 @@ starshacl impact:
 - blocked triple-term-valued `$this`/`$value` bindings in `sh:sparql` constraints and `sh:construct` rules from working at all.
 
 Temporary workaround in starshacl:
-- none needed; fixed directly in `starlayergraph_graph.py`.
+- none needed; fixed directly in `starlayer_graph.py`.
 
 Proposed StarLayerGraph API/behavior change:
 - `query()` now calls a new `_encode_init_bindings()` helper (mirroring `_coerce_tt_read()`) on `initBindings` before delegating to the underlying store; unregistered triple terms resolve to a fresh `BNode` (correct "zero rows" semantics, not an error).
@@ -57,7 +57,7 @@ Validation/tests needed:
 - `tests/unit/test_sparql12_query.py::TestQ16` (registered and unregistered triple-term bindings)
 
 Upstream status:
-- implemented (this repo, `starlayergraph/graph/starlayergraph_graph.py`)
+- implemented (this repo, `starlayergraph/graph/starlayer_graph.py`)
 
 ## 2026-07-15 - Fixed: CONSTRUCT templates couldn't mint a not-yet-registered triple-term value
 
@@ -109,10 +109,10 @@ Proposed StarLayerGraph API/behavior change:
 - `_restore`: recurse into `tt.subject`/`tt.object` so a nested `tt:HASH` URIRef resolves into a real nested `TripleTerm`, not just the outer level.
 
 Validation/tests needed:
-- `tests/unit/test_starlayergraph_graph.py::TestTripleTermAdd::test_nested_tt_object_fully_resolves`
+- `tests/unit/test_starlayer_graph.py::TestTripleTermAdd::test_nested_tt_object_fully_resolves`
 
 Upstream status:
-- implemented (this repo, `starlayergraph/graph/starlayergraph_graph.py`)
+- implemented (this repo, `starlayergraph/graph/starlayer_graph.py`)
 
 ## 2026-07-15 - Fixed: CONSTRUCT BIND for a minted triple term was placed before the WHERE patterns that bind its inputs
 
@@ -149,7 +149,7 @@ Validation/tests needed:
 - `tests/unit/test_query_prepare_cache.py` (parse-count verification via monkeypatched `prepareQuery`, correctness across repeated calls with differing bindings/namespaces, cache-doesn't-serve-stale-data-after-mutation, `StarLayerDataset` analogues)
 
 Upstream status:
-- implemented (this repo, `starlayergraph/query/query_cache.py`, wired into `starlayergraph_graph.py`/`starlayergraph_dataset.py`)
+- implemented (this repo, `starlayergraph/query/query_cache.py`, wired into `starlayer_graph.py`/`starlayer_dataset.py`)
 
 ## 2026-07-18 - Fixed: prepared-query caching broke `StarLayerGraph.query()` against remote-endpoint stores (Fuseki, and any `SPARQLStore`/`SPARQLUpdateStore`-backed store)
 
@@ -166,10 +166,10 @@ Proposed StarLayerGraph API/behavior change:
 - New `starlayergraph/query/query_cache.py::store_accepts_prepared_query(store)` - `isinstance` check against the two known string-only store classes. `StarLayerGraph.query()` checks this before deciding whether to use the cached prepared object or fall back to a plain rewritten string; no lost benefit for the affected stores either, since they forward the query text to a remote server, so local rdflib-side re-parsing was never the bottleneck there. `StarLayerDataset.query()` was confirmed unaffected - it always executes against its own always-in-memory `_build_raw_execution_graph()`, regardless of the dataset's own backing store.
 
 Validation/tests needed:
-- `tests/unit/test_query_prepare_cache.py::test_store_accepts_prepared_query_false_for_sparql_update_store`, `test_store_accepts_prepared_query_true_for_default_memory_store`, `test_starlayergraph_graph_over_sparql_update_store_falls_back_to_string` (no server needed - mocked store); real-Fuseki `tests/integration/test_fuseki_backend.py`/`test_cross_backend_parity.py` (previously 4 failures, now fully passing)
+- `tests/unit/test_query_prepare_cache.py::test_store_accepts_prepared_query_false_for_sparql_update_store`, `test_store_accepts_prepared_query_true_for_default_memory_store`, `test_starlayer_graph_over_sparql_update_store_falls_back_to_string` (no server needed - mocked store); real-Fuseki `tests/integration/test_fuseki_backend.py`/`test_cross_backend_parity.py` (previously 4 failures, now fully passing)
 
 Upstream status:
-- implemented (this repo, `starlayergraph/query/query_cache.py`, `starlayergraph_graph.py`)
+- implemented (this repo, `starlayergraph/query/query_cache.py`, `starlayer_graph.py`)
 
 ## 2026-07-18 - Fixed: `StarLayerGraph.parse(format='turtle12'/'longturtle12'/'trig12')` wrote the rdf-1.1 encoding directly into the store for *any* backend, including native `rdf-1.2`
 
@@ -189,7 +189,7 @@ Validation/tests needed:
 - `tests/integration/test_oxigraph_backend.py::TestOxigraphTurtle12Parse` (5 tests: simple/nested triple-term decoding, no leaked encoding triples, `rdf:reifies` lookup matches parsed data, `trig12` parsing) - all confirmed to fail against the pre-fix code, pass against the fix
 
 Upstream status:
-- implemented (this repo, `starlayergraph/parsers/turtle_parser.py`, `starlayergraph_graph.py`)
+- implemented (this repo, `starlayergraph/parsers/turtle_parser.py`, `starlayer_graph.py`)
 
 ## 2026-07-18 - Fixed: same bug, separate code path - `StarLayerDataset.parse(format='trig12')` on a native-backend dataset had the identical problem
 
@@ -206,12 +206,12 @@ Proposed StarLayerGraph API/behavior change:
 - Same technique as the graph-level fix: decode the tt:HASH encoding back into real `TripleTerm` objects before writing, per named-graph context, only on the native-backend path. The rdf-1.1 backend path (`_raw_graph_add` + `_build_registry_from_store()`) is untouched.
 
 Validation/tests needed:
-- real Oxigraph and Fuseki integration coverage (see `starlayergraph`'s own `CHANGELOG.md` for the exact test references, kept in that repo rather than duplicated here)
+- real Oxigraph and Fuseki integration coverage (see `packages/graph/tests/integration/` in this repo)
 
 Upstream status:
 - implemented (this repo)
 
-## 2026-07-18 - Known gap, not yet fixed: `StarLayerDataset.query()` crashes on a native-backend dataset whenever a query result contains a triple-term-valued binding
+## 2026-07-18 - Fixed: `StarLayerDataset.query()` crashed on a native-backend dataset whenever a query result contained a triple-term-valued binding
 
 Motivation:
 - Found while verifying the fix above. Unlike `StarLayerGraph.query()`, which dispatches to `_native_query()` (using the endpoint's own triple-term SPARQL syntax and result parsing) when `self._is_native`, `StarLayerDataset.query()` has no such dispatch - it always queries a plain in-memory copy built by `_build_raw_execution_graph()`, which for a native-backend context reads through rdflib's base `Graph.triples()` (a plain SPARQL 1.1 `SELECT ?s ?p ?o` against the remote store) rather than the native-aware triple-term read path. A query like `SELECT ?tt WHERE { GRAPH ?g { ?s rdf:reifies ?tt } }` crashes with `TypeError: unknown binding type`.
@@ -226,10 +226,10 @@ Proposed StarLayerGraph API/behavior change:
 - `StarLayerDataset.query()` needs the same kind of native-aware dispatch `StarLayerGraph.query()` already has, extended to the cross-graph/dataset case.
 
 Validation/tests needed:
-- not yet written; needs a reproduction fixture with a triple-term-valued binding queried across named graphs on a native-backend dataset.
+- confirmed via real Oxigraph and Fuseki testing for SELECT, ASK, and CONSTRUCT (`packages/graph/tests/integration/`).
 
 Upstream status:
-- draft (known, logged, not yet implemented - see `starlayergraph`'s own `CHANGELOG.md` "Unreleased" section for the authoritative status)
+- implemented (this repo) - `StarLayerDataset` now has the same native-backend query dispatch `StarLayerGraph` already had (a native-backed dataset's per-context graphs all share one store, so cross-graph queries are the same underlying HTTP operation).
 
 ## 2026-07-30 - Fixed: `StarLayerGraph.parse(format='turtle12', ..., publicID=...)` never resolved relative IRIs against `publicID` when parsing from `location=`
 
@@ -249,7 +249,7 @@ Validation/tests needed:
 - `starlayergraph`'s `tests/unit/test_turtle_parser.py::TestBaseURI` gained `test_base_seeded_via_parse_argument`, `test_in_document_base_overrides_seeded_base`, `test_no_base_seeded_behaves_as_before` - all three confirmed to fail against the pre-fix code. This repo's own W3C-suite harness (`tests/w3c_suite/`) re-verified live against the real vendored fixtures after the fix landed - `<>`/`mf:include` resolution confirmed correct.
 
 Upstream status:
-- implemented (`starlayergraph`, `starlayergraph/parsers/turtle_parser.py`, `starlayergraph/graph/starlayergraph_graph.py`)
+- implemented (`starlayergraph`, `starlayergraph/parsers/turtle_parser.py`, `starlayergraph/graph/starlayer_graph.py`)
 
 ## 2026-07-30 - Fixed: `StarLayerTurtleParser` rejected three ordinary (non-RDF-1.2) Turtle constructs
 

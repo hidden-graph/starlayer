@@ -44,8 +44,8 @@ from rdflib.compare import to_isomorphic
 from rdflib.graph import DATASET_DEFAULT_GRAPH_ID
 from rdflib.plugins.stores.sparqlstore import SPARQLUpdateStore
 
-from starlayergraph.graph.starlayergraph_dataset import StarLayerDataset
-from starlayergraph.graph.starlayergraph_graph import StarLayerGraph
+from starlayergraph.graph.starlayer_dataset import StarLayerDataset
+from starlayergraph.graph.starlayer_graph import StarLayerGraph
 
 from starsparql import query_to_rdf, rdf_to_query
 from starsparql.parse12 import prepare_query_12
@@ -134,7 +134,7 @@ def _new_oxigraph_graph(entry, backend: str = "oxigraph") -> StarLayerGraph | St
     StarLayerGraph is given DATASET_DEFAULT_GRAPH_ID as its identifier so
     its triples land in the endpoint's real (unnamed) default graph - what
     an unmodified query with no GRAPH clause looks at by default (see
-    StarLayerGraph._native_scoped()'s own docstring in the sibling repo).
+    StarLayerGraph._native_scoped()'s own docstring in the sibling package).
     Name kept as `_new_oxigraph_graph` (not renamed to something backend-
     generic) since Oxigraph remains the default/primary target - `backend`
     lets the parametrized `backend` fixture route the identical fixture data

@@ -3,7 +3,7 @@ from typing import Any
 import pytest
 from rdflib import Graph, Literal, Namespace
 
-from starlayergraph.graph.starlayergraph_graph import StarLayerGraph
+from starlayergraph.graph.starlayer_graph import StarLayerGraph
 
 from starshacl.adapters import TripleTermAdapter, TripleTermGraph, TripleTermValue
 from starshacl.validator import StarShaclValidator
@@ -59,7 +59,7 @@ def test_validate_inplace_decodes_back_into_input_graph() -> None:
         report = Graph()
         return True, report, "ok"
 
-    from starlayergraph.graph.starlayergraph_graph import StarLayerGraph
+    from starlayergraph.graph.starlayer_graph import StarLayerGraph
 
     data = StarLayerGraph()
     data.add((EX.s, EX.p, (EX.a, EX.p, EX.b)))
@@ -121,7 +121,7 @@ def test_validate_normalizes_rdflib_data_graph_for_inplace_updates() -> None:
     assert (EX.s2, EX.p2, EX.o2) in result.data_graph
 
 
-def test_validate_inplace_keeps_encoded_triples_on_starlayergraph_graph() -> None:
+def test_validate_inplace_keeps_encoded_triples_on_starlayer_graph() -> None:
     adapter = TripleTermAdapter()
 
     def fake_validate(**kwargs):

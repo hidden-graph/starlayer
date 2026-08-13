@@ -13,14 +13,14 @@ from starshacl.types import is_dirlangstring_like, is_triple_term_like
 TT_NS = Namespace("urn:starshacl:tt:")
 
 
-def _starlayergraph_graph_class() -> type | None:
+def _starlayer_graph_class() -> type | None:
     """The ``StarLayerGraph`` class if ``starlayergraph`` is installed,
     else ``None`` - shared by every call site that needs to check "is
     starlayergraph available" and/or "is this a StarLayerGraph" without a hard
     dependency on the optional package.
     """
     try:
-        from starlayergraph.graph.starlayergraph_graph import StarLayerGraph
+        from starlayergraph.graph.starlayer_graph import StarLayerGraph
     except ImportError:
         return None
     return StarLayerGraph
@@ -103,7 +103,7 @@ class _SparqlAwareEncodedGraph(Graph):
                 **kwargs,
             )
 
-        StarLayerGraph = _starlayergraph_graph_class()
+        StarLayerGraph = _starlayer_graph_class()
 
         decoded = self._decode_cached(adapter) if StarLayerGraph is not None else None
         if StarLayerGraph is None or not isinstance(decoded, StarLayerGraph):
@@ -361,7 +361,7 @@ class TripleTermAdapter:
         return self._decode_node(value)
 
     def _new_output_graph(self):
-        StarLayerGraph = _starlayergraph_graph_class()
+        StarLayerGraph = _starlayer_graph_class()
         if StarLayerGraph is None:
             return TripleTermGraph()
         return StarLayerGraph()
@@ -428,7 +428,7 @@ class TripleTermAdapter:
             dp = self._decode_node_for_graph(p, graph)
             do = self._decode_node_for_graph(o, graph)
 
-            StarLayerGraph = _starlayergraph_graph_class()
+            StarLayerGraph = _starlayer_graph_class()
             if StarLayerGraph is not None and isinstance(graph, StarLayerGraph):
                 return (ds, dp, do)
             return self.term_factory(ds, dp, do)
@@ -439,7 +439,7 @@ class TripleTermAdapter:
             # term); only StarLayerGraph.add() knows how to re-encode one.
             # Otherwise leave the internal dirlang-encoded Literal as-is,
             # same fallback shape as the TripleTerm branch above.
-            StarLayerGraph = _starlayergraph_graph_class()
+            StarLayerGraph = _starlayer_graph_class()
             if StarLayerGraph is not None and isinstance(graph, StarLayerGraph):
                 return dirlangstring
             return value

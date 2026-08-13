@@ -585,7 +585,7 @@ def patch_construct_skips_encoding_solutions() -> bool:
     ``StarLayerGraph.query()``/``StarLayerDataset.query()`` execute the
     rewritten SPARQL 1.1 text against a *raw*, unfiltered view of the
     underlying store (``raw = Graph(store=self.store, ...)`` in
-    ``starlayergraph_graph.py``) - deliberately, since triple-term pattern
+    ``starlayer_graph.py``) - deliberately, since triple-term pattern
     rewriting (``sparql12_to_11.py``) needs to match the internal
     ``rdf:subject``/``rdf:predicate``/``rdf:object`` encoding triples
     directly. An *unconstrained* pattern like a bare ``?s ?p ?o .`` matches

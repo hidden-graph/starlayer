@@ -1,5 +1,5 @@
 """
-starlayergraph.graph.starlayergraph_dataset
+starlayergraph.graph.starlayer_dataset
 
 StarLayerDataset — an RDF 1.2 dataset where every named-graph context is a
 StarLayerGraph with full triple-term support.
@@ -32,7 +32,7 @@ import weakref
 from rdflib import Dataset, Graph, URIRef, BNode
 from rdflib.graph import DATASET_DEFAULT_GRAPH_ID
 
-from starlayergraph.graph.starlayergraph_graph import (
+from starlayergraph.graph.starlayer_graph import (
     StarLayerGraph, VALID_BACKENDS, _raw_triples, _read_source_text,
 )
 from starlayergraph.model.encoding import TT_NS, ENCODING_PREDS as _ENCODING_PREDS, lookup_tt_hash, restore_select_bindings

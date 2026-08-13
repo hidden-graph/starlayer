@@ -1,4 +1,4 @@
-from starlayergraph.graph.starlayergraph_graph import StarLayerGraph
-from starlayergraph.graph.starlayergraph_dataset import StarLayerDataset
+from starlayergraph.graph.starlayer_graph import StarLayerGraph
+from starlayergraph.graph.starlayer_dataset import StarLayerDataset
 
 __all__ = ['StarLayerGraph', 'StarLayerDataset']

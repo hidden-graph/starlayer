@@ -40,7 +40,7 @@ from rdflib.namespace import RDF
 from rdflib.plugins.sparql.parserutils import CompValue
 
 from .ast_vocab import PROLOGUE, PY_STR_DATATYPE, QUERY, SAST, VARIABLE_DATATYPE
-from .to_rdf import _new_starlayergraph_graph
+from .to_rdf import _new_starlayer_graph
 
 _LEAF_TERM_TYPES = (URIRef, BNode, Literal)
 _PRIMITIVE_TYPES = (str, int, float, bool)
@@ -53,10 +53,10 @@ def query_ast_to_rdf(parse_result: ParseResults, graph: Optional[Graph] = None) 
     so parsed queries in a larger store can be found via ``?q a sast:Query``
     regardless of query form — same convention as ``to_rdf.query_to_rdf``.
     ``graph`` defaults to a fresh ``StarLayerGraph`` (see
-    ``to_rdf._new_starlayergraph_graph``), never a plain ``rdflib.Graph``.
+    ``to_rdf._new_starlayer_graph``), never a plain ``rdflib.Graph``.
     """
     if graph is None:
-        graph = _new_starlayergraph_graph()
+        graph = _new_starlayer_graph()
     prologue, query = parse_result[0], parse_result[1]
     root = _encode(query, graph)
     graph.add((root, RDF.type, QUERY))
