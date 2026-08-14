@@ -48,8 +48,10 @@ Not implemented: `ASK`/`DESCRIBE` text serialization (no `_AlgebraTranslator` br
 - `starsparql/parse12.py` — `parse_query_12`/`parse_update_12`/`prepare_query_12`/`prepare_update_12`, this project's own SPARQL 1.2 ingestion entry points.
 - `starsparql/serialize12.py` — SPARQL 1.2 text serialization for `SELECT`/`CONSTRUCT`, extending rdflib's own `algebra.translateAlgebra`/`_AlgebraTranslator`.
 - `starsparql/lower_rdf11.py` — tree-level SPARQL 1.2 algebra → 1.1 algebra lowering, both Query and Update sides; the preferred execution path (`rdf11_to_query`/`rdf11_to_update`, no text involved).
-- `tests/w3c_sparql12/` + `tests/test_w3c_sparql12.py` — the W3C SPARQL 1.2 conformance suite harness (`download_w3c_sparql12_tests.py` fetches it from `w3c/rdf-tests`; a hand-written SPARQL JSON Results parser, `harness.py::parse_srj`, exists because rdflib's own built-in one doesn't understand the RDF 1.2 `"type": "triple"` result-term shape).
-- `tests/test_shacl_shapes.py` — valid queries/updates conform; deliberately malformed graphs fail with the expected violation.
+- `tests/w3c_sparql12/` (harness, downloader, and both W3C-suite test files) — the W3C SPARQL 1.2 conformance suite harness (`download_w3c_sparql12_tests.py` fetches it from `w3c/rdf-tests`; a hand-written SPARQL JSON Results parser, `harness.py::parse_srj`, exists because rdflib's own built-in one doesn't understand the RDF 1.2 `"type": "triple"` result-term shape). `test_w3c_sparql12_oxigraph_roundtrip.py` additionally requires a live Oxigraph/Fuseki instance and self-skips otherwise.
+- `tests/unit/test_shacl_shapes.py` — valid queries/updates conform; deliberately malformed graphs fail with the expected violation.
+- `tests/integration/test_adversarial_roundtrip.py` — hand-authored adversarial cases (not W3C fixtures) proving translation round-trip against a live Oxigraph/Fuseki instance; self-skips if neither is reachable.
+- `tests/unit/` — everything else: one file per feature area, no live infra needed.
 
 ## Known gaps (deliberately not chased, not oversights)
 

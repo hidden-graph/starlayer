@@ -21,7 +21,7 @@ from rdflib.plugins.sparql.processor import prepareQuery
 from starsparql import queries_to_collection, rdf_to_collection
 from starsparql.vocab import QUERY_COLLECTION
 
-from test_roundtrip import QUERIES, _canon
+from unit.test_roundtrip import QUERIES, _canon
 
 
 def test_collection_roundtrips_through_turtle_text(fixture_graph):

@@ -5,7 +5,7 @@
 # fixtures (a single WHERE pattern extracting a triple-term accessor), this
 # constraint chains a triple-term OBJECT() extraction into a SECOND,
 # unrelated join against the rest of the graph (ex:age), confirming
-# StarlightGraph.query() handles a multi-pattern nested join correctly, not
+# StarLayerGraph.query() handles a multi-pattern nested join correctly, not
 # just a single flat pattern.
 
 ex:NestedJoinShape a sh:NodeShape ;
@@ -17,7 +17,7 @@ ex:NestedJoinShape a sh:NodeShape ;
         PREFIX ex: <http://example.org/>
         SELECT $this WHERE {
             $this ex:says ?tt .
-            FILTER(isTripleTerm(?tt))
+            FILTER(isTRIPLE(?tt))
             BIND(OBJECT(?tt) AS ?obj)
             ?obj ex:age ?age .
             FILTER(?age < 18)

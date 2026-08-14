@@ -210,6 +210,16 @@ def _encode_comp_value(node: CompValue, graph: Graph) -> BNode:
     for key, value in node.items():
         if key in _INTERNAL_BOOKKEEPING_KEYS:
             continue
+        if key in node.__dict__:
+            # See lower_rdf11.py's _lower_expr for the full explanation:
+            # rdflib's own translateQuery post-processing (e.g.
+            # algebra.translateExists, for Builtin_EXISTS/NOTEXISTS's
+            # `graph`) fixes up certain keys via a shadowing instance
+            # attribute assignment (`n.graph = ...`) rather than updating
+            # the underlying dict-stored value `.items()` just yielded -
+            # so `value` here can be a stale, untranslated parse-tree
+            # fragment. Prefer the attribute whenever both exist.
+            value = getattr(node, key)
         if key == _QUADS_KEY:
             graph.add((subj, SALG[key], _encode_quads_map(value, graph)))
             continue

@@ -1,7 +1,7 @@
 """
 W3C Turtle 1.2 conformance tests.
 
-Parametrized over tests/w3c/data/manifest.csv, which covers three test
+Parametrized over tests/w3c_turtle12/data/manifest.csv, which covers three test
 types from the two W3C-published manifests for RDF 1.2 Turtle:
 
   rdft:TestTurtleEval           - parse the .ttl, compare against the

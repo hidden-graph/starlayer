@@ -3,7 +3,7 @@
 Downloads manifest.ttl and every file it references (queries, data, expected
 results) for a fixed set of manifest categories from the official test suite
 at https://github.com/w3c/rdf-tests/tree/main/sparql/sparql12 — a real,
-separate test suite from starlayergraph's own tests/w3c/ (Turtle-1.2-only, a
+separate test suite from starlayergraph's own tests/w3c_turtle12/ (Turtle-1.2-only, a
 different manifest). Mirrors that script's overall shape (fetch-then-cache,
 skip files already on disk, write a local manifest for the test harness to
 read) but parses manifest.ttl as real Turtle via rdflib, not regex — the

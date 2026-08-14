@@ -130,6 +130,50 @@ def test_expression_position_inlines_hash_call():
     assert len(actual) == 1
 
 
+def test_filter_exists_with_multi_triple_block_executes():
+    """Regression test for a real bug: decoding a `FILTER EXISTS { ... }`
+    whose block has more than one triple pattern used to crash at execution
+    time with "What do I do with this CompValue?" - `rdflib.plugins.sparql.
+    operators.Builtin_EXISTS` reads its own `.graph` via *attribute* syntax
+    specifically so a real instance attribute (set by rdflib's own
+    `algebra.translateExists`) bypasses `CompValue`'s ctx-based value
+    resolution, which cannot handle a raw graph-pattern fragment. A plain
+    `CompValue.update()`/dict-style reconstruction (what `from_rdf.py`'s
+    generic decoder did before the fix) only stores the value as a dict
+    key, not a real attribute, so the rebuilt node lost the one property
+    its own evaluator depends on. Nothing in this project's test suite
+    executed (as opposed to just structurally SHACL-validating) a
+    multi-triple EXISTS/NOT EXISTS block before this - a single-triple
+    block doesn't reach the crashing code path via this project's own
+    pipeline, only a compound one does.
+    """
+    g = StarLayerGraph()
+    g.parse(
+        data="@prefix : <http://example/> .\n:alice :knows :bob .\n:bob :knows :carol .\n",
+        format="turtle",
+    )
+    actual = _run_lowered(
+        "PREFIX : <http://example/> SELECT ?s WHERE { "
+        "?s :knows ?o . FILTER EXISTS { ?s :knows ?o . ?o :knows ?f } }",
+        g,
+    )
+    assert actual == [{Variable("s"): URIRef("http://example/alice")}]
+
+
+def test_filter_not_exists_with_multi_triple_block_executes():
+    g = StarLayerGraph()
+    g.parse(
+        data="@prefix : <http://example/> .\n:alice :knows :bob .\n:bob :knows :carol .\n",
+        format="turtle",
+    )
+    actual = _run_lowered(
+        "PREFIX : <http://example/> SELECT ?s WHERE { "
+        "?s :knows ?o . FILTER NOT EXISTS { ?s :knows ?o . ?o :knows ?nonexistent } }",
+        g,
+    )
+    assert actual == [{Variable("s"): URIRef("http://example/bob")}]
+
+
 def test_is_triple_and_accessors():
     g = StarLayerGraph()
     g.parse(data="@prefix : <http://example/> .\n:who :verified <<( :s :p :o )>> .\n", format="turtle12")

@@ -1,4 +1,4 @@
-# baseURI: https://github.com/hidden-graph/pyshacl-starlight/ns#
+# baseURI: https://github.com/hidden-graph/starshacl/ns#
 #
 # Supplementary SHACL-of-SHACL well-formedness rules for SHACL 1.2 Core
 # predicates: additive rules for predicates pySHACL's own bundled
@@ -54,7 +54,7 @@
 @prefix shsh: <http://www.w3.org/ns/shacl-shacl#> .
 @prefix shnex: <http://www.w3.org/ns/shacl-node-expr#> .
 @prefix owl:  <http://www.w3.org/2002/07/owl#> .
-@prefix stsh: <https://github.com/hidden-graph/pyshacl-starlight/ns#> .
+@prefix stsh: <https://github.com/hidden-graph/starshacl/ns#> .
 
 stsh:
 	rdfs:label "starShacl SHACL 1.2 Meta-Shapes"@en ;
@@ -1224,7 +1224,7 @@ shui:editor
 	skos:example "sh:property [ sh:path ex:birthDate ; shui:editor shui:DatePickerEditor ]"@en ;
 	rdfs:seeAlso shui:viewer ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "annotation passes through inertly — not an implemented pyshacl-starlight feature; see Scope note above"@en ;
+	rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
 	stsh:requiredEngine stsh:StarShacl .
 
 shui:viewer
@@ -1233,7 +1233,7 @@ shui:viewer
 	skos:example "sh:property [ sh:path ex:homepage ; shui:viewer shui:HyperlinkViewer ]"@en ;
 	rdfs:seeAlso shui:editor ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "annotation passes through inertly — not an implemented pyshacl-starlight feature; see Scope note above"@en ;
+	rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
 	stsh:requiredEngine stsh:StarShacl .
 
 shui:propertyRole
@@ -1241,98 +1241,98 @@ shui:propertyRole
 	sh:description "Marks a property shape as playing a special semantic role for UI purposes — currently just shui:LabelRole, marking \"this is the property whose value should be used as the resource's own display label.\""@en ;
 	skos:example "sh:property [ sh:path ex:name ; shui:propertyRole shui:LabelRole ]"@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "annotation passes through inertly — not an implemented pyshacl-starlight feature; see Scope note above"@en ;
+	rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
 	stsh:requiredEngine stsh:StarShacl .
 
 shui:TextFieldEditor
 	sh:name "text field"@en ;
 	sh:description "A single-line plain-text input."@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "annotation passes through inertly — not an implemented pyshacl-starlight feature; see Scope note above"@en ;
+	rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
 	stsh:requiredEngine stsh:StarShacl .
 
 shui:TextFieldWithLangEditor
 	sh:name "text field with language"@en ;
 	sh:description "A single-line text input paired with a language-tag selector, for editing one language-tagged literal."@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "annotation passes through inertly — not an implemented pyshacl-starlight feature; see Scope note above"@en ;
+	rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
 	stsh:requiredEngine stsh:StarShacl .
 
 shui:TextAreaEditor
 	sh:name "text area"@en ;
 	sh:description "A multi-line plain-text input."@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "annotation passes through inertly — not an implemented pyshacl-starlight feature; see Scope note above"@en ;
+	rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
 	stsh:requiredEngine stsh:StarShacl .
 
 shui:TextAreaWithLangEditor
 	sh:name "text area with language"@en ;
 	sh:description "A multi-line text input paired with a language-tag selector."@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "annotation passes through inertly — not an implemented pyshacl-starlight feature; see Scope note above"@en ;
+	rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
 	stsh:requiredEngine stsh:StarShacl .
 
 shui:RichTextEditor
 	sh:name "rich text editor"@en ;
 	sh:description "A formatted (e.g. HTML/Markdown) text editor, for values meant to render with styling."@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "annotation passes through inertly — not an implemented pyshacl-starlight feature; see Scope note above"@en ;
+	rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
 	stsh:requiredEngine stsh:StarShacl .
 
 shui:NumberFieldEditor
 	sh:name "number field"@en ;
 	sh:description "A numeric input, for xsd:integer/xsd:decimal/xsd:double-typed values."@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "annotation passes through inertly — not an implemented pyshacl-starlight feature; see Scope note above"@en ;
+	rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
 	stsh:requiredEngine stsh:StarShacl .
 
 shui:BooleanEditor
 	sh:name "boolean editor"@en ;
 	sh:description "A checkbox or toggle, for xsd:boolean-typed values."@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "annotation passes through inertly — not an implemented pyshacl-starlight feature; see Scope note above"@en ;
+	rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
 	stsh:requiredEngine stsh:StarShacl .
 
 shui:DatePickerEditor
 	sh:name "date picker"@en ;
 	sh:description "A calendar-style date picker, for xsd:date-typed values."@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "annotation passes through inertly — not an implemented pyshacl-starlight feature; see Scope note above"@en ;
+	rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
 	stsh:requiredEngine stsh:StarShacl .
 
 shui:DateTimePickerEditor
 	sh:name "date-time picker"@en ;
 	sh:description "A calendar-and-time picker, for xsd:dateTime-typed values."@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "annotation passes through inertly — not an implemented pyshacl-starlight feature; see Scope note above"@en ;
+	rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
 	stsh:requiredEngine stsh:StarShacl .
 
 shui:IRIEditor
 	sh:name "IRI editor"@en ;
 	sh:description "A plain-text input constrained to well-formed IRIs."@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "annotation passes through inertly — not an implemented pyshacl-starlight feature; see Scope note above"@en ;
+	rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
 	stsh:requiredEngine stsh:StarShacl .
 
 shui:AutoCompleteEditor
 	sh:name "autocomplete editor"@en ;
 	sh:description "A text input with suggestions, typically backed by shui:resourceFilter-style search against existing resources."@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "annotation passes through inertly — not an implemented pyshacl-starlight feature; see Scope note above"@en ;
+	rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
 	stsh:requiredEngine stsh:StarShacl .
 
 shui:EnumSelectEditor
 	sh:name "enum select"@en ;
 	sh:description "A dropdown/select list, for a value constrained by sh:in to a fixed set of options."@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "annotation passes through inertly — not an implemented pyshacl-starlight feature; see Scope note above"@en ;
+	rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
 	stsh:requiredEngine stsh:StarShacl .
 
 shui:InstancesSelectEditor
 	sh:name "instances select"@en ;
 	sh:description "A dropdown/select list populated dynamically from existing instances of a class, rather than a fixed sh:in list."@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "annotation passes through inertly — not an implemented pyshacl-starlight feature; see Scope note above"@en ;
+	rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
 	stsh:requiredEngine stsh:StarShacl .
 
 shui:SubClassEditor
@@ -1340,63 +1340,63 @@ shui:SubClassEditor
 	sh:description "A class picker constrained to subclasses of a given root class — the editor-side counterpart to sh:rootClass."@en ;
 	rdfs:seeAlso sh:rootClass ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "annotation passes through inertly — not an implemented pyshacl-starlight feature; see Scope note above"@en ;
+	rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
 	stsh:requiredEngine stsh:StarShacl .
 
 shui:BlankNodeEditor
 	sh:name "blank node editor"@en ;
 	sh:description "A nested sub-form for editing a blank-node-valued property in place, rather than as a reference."@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "annotation passes through inertly — not an implemented pyshacl-starlight feature; see Scope note above"@en ;
+	rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
 	stsh:requiredEngine stsh:StarShacl .
 
 shui:DetailsEditor
 	sh:name "details editor"@en ;
 	sh:description "An expandable/collapsible nested editor for a complex (typically shape-constrained) value."@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "annotation passes through inertly — not an implemented pyshacl-starlight feature; see Scope note above"@en ;
+	rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
 	stsh:requiredEngine stsh:StarShacl .
 
 shui:LiteralViewer
 	sh:name "literal viewer"@en ;
 	sh:description "Plain read-only display of a literal value's lexical form."@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "annotation passes through inertly — not an implemented pyshacl-starlight feature; see Scope note above"@en ;
+	rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
 	stsh:requiredEngine stsh:StarShacl .
 
 shui:LangStringViewer
 	sh:name "language string viewer"@en ;
 	sh:description "Read-only display of a language-tagged literal, typically showing the language tag alongside the text."@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "annotation passes through inertly — not an implemented pyshacl-starlight feature; see Scope note above"@en ;
+	rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
 	stsh:requiredEngine stsh:StarShacl .
 
 shui:HTMLViewer
 	sh:name "HTML viewer"@en ;
 	sh:description "Renders a value's content as formatted HTML rather than as plain escaped text."@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "annotation passes through inertly — not an implemented pyshacl-starlight feature; see Scope note above"@en ;
+	rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
 	stsh:requiredEngine stsh:StarShacl .
 
 shui:IRIViewer
 	sh:name "IRI viewer"@en ;
 	sh:description "Read-only display of an IRI value, typically abbreviated with a known prefix."@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "annotation passes through inertly — not an implemented pyshacl-starlight feature; see Scope note above"@en ;
+	rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
 	stsh:requiredEngine stsh:StarShacl .
 
 shui:HyperlinkViewer
 	sh:name "hyperlink viewer"@en ;
 	sh:description "Displays an IRI value as a clickable link."@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "annotation passes through inertly — not an implemented pyshacl-starlight feature; see Scope note above"@en ;
+	rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
 	stsh:requiredEngine stsh:StarShacl .
 
 shui:ImageViewer
 	sh:name "image viewer"@en ;
 	sh:description "Renders an IRI value inline as an image, for properties known to point at image resources."@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "annotation passes through inertly — not an implemented pyshacl-starlight feature; see Scope note above"@en ;
+	rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
 	stsh:requiredEngine stsh:StarShacl .
 
 shui:LabelViewer
@@ -1404,14 +1404,14 @@ shui:LabelViewer
 	sh:description "Displays a resource by its resolved human-readable label (e.g. via shui:LabelRole/shui:displayProvider) rather than its raw IRI."@en ;
 	rdfs:seeAlso shui:propertyRole ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "annotation passes through inertly — not an implemented pyshacl-starlight feature; see Scope note above"@en ;
+	rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
 	stsh:requiredEngine stsh:StarShacl .
 
 shui:BlankNodeViewer
 	sh:name "blank node viewer"@en ;
 	sh:description "Read-only nested display of a blank-node-valued property's own properties."@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "annotation passes through inertly — not an implemented pyshacl-starlight feature; see Scope note above"@en ;
+	rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
 	stsh:requiredEngine stsh:StarShacl .
 
 shui:DetailsViewer
@@ -1419,14 +1419,14 @@ shui:DetailsViewer
 	sh:description "An expandable/collapsible read-only view for a complex value, the viewer counterpart to shui:DetailsEditor."@en ;
 	rdfs:seeAlso shui:DetailsEditor ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "annotation passes through inertly — not an implemented pyshacl-starlight feature; see Scope note above"@en ;
+	rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
 	stsh:requiredEngine stsh:StarShacl .
 
 shui:ValueTableViewer
 	sh:name "value table viewer"@en ;
 	sh:description "Displays multiple values for a property as rows of a table, rather than a simple list."@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "annotation passes through inertly — not an implemented pyshacl-starlight feature; see Scope note above"@en ;
+	rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
 	stsh:requiredEngine stsh:StarShacl .
 
 shui:LabelRole
@@ -1434,5 +1434,5 @@ shui:LabelRole
 	sh:description "The one built-in shui:propertyRole value — marks a property shape's values as the resource's own display label."@en ;
 	rdfs:seeAlso shui:propertyRole ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "annotation passes through inertly — not an implemented pyshacl-starlight feature; see Scope note above"@en ;
+	rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
 	stsh:requiredEngine stsh:StarShacl .

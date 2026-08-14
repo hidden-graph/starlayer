@@ -238,7 +238,7 @@ class TestBnodeListInTripleTerm:
     *empty* `[]`) - never a blankNodePropertyList carrying its own
     properties. Confirmed directly against the W3C RDF 1.2 Turtle syntax
     test suite (turtle12-bad-7, "compound blank node expression", a
-    TestTurtleNegativeSyntax case - see tests/w3c/).
+    TestTurtleNegativeSyntax case - see tests/w3c_turtle12/).
 
     An earlier version of this parser instead silently *expanded* a
     non-empty `[ ... ]` here (a bug fix for a different problem: it used to
@@ -292,7 +292,7 @@ class TestTripleTermPositionValidation:
     <<( s p o )>>/<< s p o >>: the verb is always an IRI, ttSubject/
     rtSubject is iri|BlankNode (no literal), and a tripleTerm/reifiedTriple
     itself can never appear as an outer triple's predicate. Confirmed
-    against the W3C RDF 1.2 Turtle syntax test suite (tests/w3c/)."""
+    against the W3C RDF 1.2 Turtle syntax test suite (tests/w3c_turtle12/)."""
 
     def test_reified_triple_as_predicate_rejected(self, parser):
         with pytest.raises(TurtleSyntaxError):
@@ -407,7 +407,7 @@ class TestAnnotations:
         annotation block (reifier ::= '~' (iri|BlankNode)? - the name is
         optional) must parse, with the block's properties attached to a
         fresh anonymous reifier (W3C turtle12-ann-8, "empty reifier with
-        annotation block" - see tests/w3c/)."""
+        annotation block" - see tests/w3c_turtle12/)."""
         g = parser.parse(
             'PREFIX ex: <http://example.org/>\n'
             'ex:s ex:p ex:o ~ {| ex:q ex:r |} .\n'
@@ -420,7 +420,7 @@ class TestAnnotations:
         """{| :s :p :o |} (3 terms - a full triple, not a predicateObjectList)
         must be rejected, not silently truncated to just the first pred/obj
         pair with the rest dropped (W3C turtle12-bad-ann-2, "triple as
-        annotation" - see tests/w3c/)."""
+        annotation" - see tests/w3c_turtle12/)."""
         with pytest.raises(TurtleSyntaxError):
             parser.parse(
                 'PREFIX ex: <http://example.com/ns#>\n'
@@ -432,7 +432,7 @@ class TestDirLangStringCaseSensitivity:
     """RDF 1.2 Concepts sec 3.4: base direction MUST be exactly "ltr" or
     "rtl" (lowercase only - not case-folded the way the language tag
     itself is, per sec 3.4.1). Confirmed against the W3C RDF 1.2 Turtle
-    syntax test suite (nt-ttl12-langdir-bad-2 - see tests/w3c/)."""
+    syntax test suite (nt-ttl12-langdir-bad-2 - see tests/w3c_turtle12/)."""
 
     def test_lowercase_direction_accepted(self, parser):
         g = parser.parse('PREFIX ex: <http://example.org/>\nex:a ex:b "hi"@en--rtl .\n')
@@ -451,7 +451,7 @@ class TestSurrogateEscapes:
     a single \\U escape of its real codepoint, not a \\u\\u surrogate pair
     the way JSON/JavaScript encode it). Confirmed against the W3C RDF 1.2
     Turtle syntax test suite (turtle12-surrogate*/turtle12-surrogates-bad-*
-    - see tests/w3c/)."""
+    - see tests/w3c_turtle12/)."""
 
     def test_non_surrogate_uchar_accepted(self, parser):
         g = parser.parse('PREFIX ex: <http://example.org/>\nex:a ex:b "\\u0041" .\n')

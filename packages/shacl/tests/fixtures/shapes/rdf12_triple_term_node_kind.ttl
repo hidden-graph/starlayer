@@ -1,6 +1,6 @@
 @prefix sh: <http://www.w3.org/ns/shacl#> .
 @prefix ex: <http://example.org/> .
-@prefix stsh: <https://github.com/hidden-graph/pyshacl-starlight/ns#> .
+@prefix stsh: <https://github.com/hidden-graph/starshacl/ns#> .
 
 ex:TripleTermNodeKindShape a sh:NodeShape ;
   sh:targetNode ex:focus ;

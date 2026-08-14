@@ -1,7 +1,7 @@
 
 # W3C Turtle Test Suite Download Script (manifest.ttl version)
 # Downloads all .ttl and .nt files referenced in manifest.ttl from the official W3C RDF 1.2 Turtle test suite.
-# Can be run from anywhere - writes into tests/w3c/data/ next to this script.
+# Can be run from anywhere - writes into tests/w3c_turtle12/data/ next to this script.
 #
 # Pulls both manifests W3C publishes for RDF 1.2 Turtle: eval/ (TestTurtleEval,
 # parser output must match expected .nt) and syntax/ (TestTurtlePositiveSyntax/

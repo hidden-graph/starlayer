@@ -27,7 +27,7 @@ pip install -e /path/to/starlayergraph
 - **All annotation forms** — parses and serializes `{| |}`, `~ :r`, `<<( )>>`, and `<< >>` syntax
 - **SPARQL 1.2** — queries with triple term patterns are rewritten to SPARQL 1.1 for compatibility
 - **8 serialization formats** — Turtle, N-Triples, N-Quads, TriG, JSON-LD, TriX, RDF/XML, longturtle (JSON-LD and TriX are starlayergraph-defined conventions, not W3C RDF 1.2 formats — see the note in [starlayergraph_vs_rdflib.md](docs/starlayergraph_vs_rdflib.md#serialization--parsing))
-- **W3C conformance** — passes the full W3C RDF 1.2 Turtle syntax and eval test suite (103 tests: 29 `TestTurtleEval`, 41 `TestTurtlePositiveSyntax`, 33 `TestTurtleNegativeSyntax`; see [tests/w3c/README.md](tests/w3c/README.md) for scope and licensing)
+- **W3C conformance** — passes the full W3C RDF 1.2 Turtle syntax and eval test suite (103 tests: 29 `TestTurtleEval`, 41 `TestTurtlePositiveSyntax`, 33 `TestTurtleNegativeSyntax`; see [tests/w3c_turtle12/README.md](tests/w3c_turtle12/README.md) for scope and licensing)
 - **Multiple backends** — in-memory, SQL (via rdflib-sqlalchemy), Apache Fuseki, Oxigraph
 
 ## Requirements

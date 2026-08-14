@@ -18,13 +18,13 @@ from rdflib.plugins.sparql.processor import prepareQuery, prepareUpdate
 from starsparql import query_to_rdf, queries_to_collection, shapes_graph, update_to_rdf, validate
 from starsparql.vocab import SALG
 
-from test_roundtrip import QUERIES
-from test_phase2_values_subquery import QUERIES as VALUES_SUBQUERY_QUERIES
-from test_phase6_rdf12_native import QUERIES as RDF12_QUERIES
-from test_phase2_update import SINGLE_GRAPH_UPDATES, MULTI_GRAPH_UPDATES
-from test_phase2_forms import QUERIES as FORMS_QUERIES
-from test_phase2_paths import QUERIES as PATH_QUERIES
-from test_phase2_aggregates import QUERIES as AGGREGATE_QUERIES
+from unit.test_roundtrip import QUERIES
+from unit.test_phase2_values_subquery import QUERIES as VALUES_SUBQUERY_QUERIES
+from unit.test_phase6_rdf12_native import QUERIES as RDF12_QUERIES
+from unit.test_phase2_update import SINGLE_GRAPH_UPDATES, MULTI_GRAPH_UPDATES
+from unit.test_phase2_forms import QUERIES as FORMS_QUERIES
+from unit.test_phase2_paths import QUERIES as PATH_QUERIES
+from unit.test_phase2_aggregates import QUERIES as AGGREGATE_QUERIES
 from starsparql.parse12 import prepare_query_12
 
 # Top-level LIMIT/DISTINCT/REDUCED/ORDER BY all wrap SelectQuery.p in

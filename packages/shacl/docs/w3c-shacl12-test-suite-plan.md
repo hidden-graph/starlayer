@@ -2,11 +2,11 @@
 
 *Last reviewed: 2026-07-31*
 
-**Status (2026-08-01): Phases 1, 2, and 3 all done, triaged, and every fixable finding fixed.** `sht:Validate` (`tests/core/`+`tests/sparql/`), `sht:EvalNodeExpr` (`tests/node-expr/`), and `sht:Infer` (`tests/sparql/rules/`) entries are all wired up - 313 passed, 1 xfailed (reasoned, `strict=True`), 0 unexplained failures combined. The 1 remaining xfail is a plain-`rdflib` fixture-formatting quirk deliberately left unpatched (`seconds-example` - patching it would make rdflib's output *less* spec-compliant elsewhere) - it does not represent open work. Two earlier "out of scope"/"deliberate limitation" framings were since revisited and fixed: 9 fixtures depending on 2 rdflib SPARQL-evaluator bugs (now monkeypatched directly in `starlayergraph`, the same technique already used elsewhere in this project for pySHACL internals), and 2 fixtures (`subsetOf-002`, `instancesOf-base-class`) that turned out to be narrow implementation choices rather than structural gaps - see `docs/starlayergraph-upstream-change-log.md`'s 2026-08-01 entry and `docs/shacl12-gap-matrix.md`'s Phase 1/2 writeups. See `docs/shacl12-gap-matrix.md`'s "W3C SHACL 1.2 Test Suite Integration" section for the full results summary and `tests/w3c_suite/known_failures.py` for exact per-entry reasons. Only "Not scheduled": SRL (`tests/rules/`) - see "Scope decision" below.
+**Status (2026-08-01): Phases 1, 2, and 3 all done, triaged, and every fixable finding fixed.** `sht:Validate` (`tests/core/`+`tests/sparql/`), `sht:EvalNodeExpr` (`tests/node-expr/`), and `sht:Infer` (`tests/sparql/rules/`) entries are all wired up - 313 passed, 1 xfailed (reasoned, `strict=True`), 0 unexplained failures combined. The 1 remaining xfail is a plain-`rdflib` fixture-formatting quirk deliberately left unpatched (`seconds-example` - patching it would make rdflib's output *less* spec-compliant elsewhere) - it does not represent open work. Two earlier "out of scope"/"deliberate limitation" framings were since revisited and fixed: 9 fixtures depending on 2 rdflib SPARQL-evaluator bugs (now monkeypatched directly in `starlayergraph`, the same technique already used elsewhere in this project for pySHACL internals), and 2 fixtures (`subsetOf-002`, `instancesOf-base-class`) that turned out to be narrow implementation choices rather than structural gaps - see `docs/starlayergraph-upstream-change-log.md`'s 2026-08-01 entry and `docs/shacl12-gap-matrix.md`'s Phase 1/2 writeups. See `docs/shacl12-gap-matrix.md`'s "W3C SHACL 1.2 Test Suite Integration" section for the full results summary and `tests/w3c_shacl12/known_failures.py` for exact per-entry reasons. Only "Not scheduled": SRL (`tests/rules/`) - see "Scope decision" below.
 
 Both phases found and fixed real bugs rather than just cataloguing them, at the user's explicit direction each time:
 
-- **Phase 1** (2026-07-30): 4 `starlayergraph` `StarLayerTurtleParser`/`StarLayerGraph.parse()` bugs, fixed directly in that repo - see `docs/starlayergraph-upstream-change-log.md`'s 2026-07-30 entries. `tests/w3c_suite/manifest.py`'s local `_resolve_relative_uris` workaround was removed accordingly. One Phase 1 finding (`sh:expression` "not implemented") was also found to be a false positive on re-check - the harness needed `advanced=True`, not a missing feature - see the gap matrix's "Self-correction" note.
+- **Phase 1** (2026-07-30): 4 `starlayergraph` `StarLayerTurtleParser`/`StarLayerGraph.parse()` bugs, fixed directly in that repo - see `docs/starlayergraph-upstream-change-log.md`'s 2026-07-30 entries. `tests/w3c_shacl12/manifest.py`'s local `_resolve_relative_uris` workaround was removed accordingly. One Phase 1 finding (`sh:expression` "not implemented") was also found to be a false positive on re-check - the harness needed `advanced=True`, not a missing feature - see the gap matrix's "Self-correction" note.
 - **Phase 2** (2026-07-31): a core correctness bug affecting most `shnex:` list-argument operators, several smaller `shnex:` bugs, the entire previously-unimplemented `sparql:` node-expression namespace (~74 SPARQL functions/operators), one more `starlayergraph` lexical-form bug, and a real `validate()`/`apply_rules()` wiring gap for shapes graphs using only `sparql:` (not `shnex:`) node expressions - all fixed in `starshacl` (and one in `starlayergraph`); see the gap matrix's Phase 2 section for the full list.
 
 The W3C Data Shapes Working Group publishes an official SHACL 1.2 test suite at
@@ -99,16 +99,15 @@ matrix's "Tracking Upstream Spec Changes" section) rather than introducing new g
 
 ## Harness architecture
 
-New package: `tests/w3c_suite/` (parallel to `tests/integration/`, `tests/unit/`,
-`tests/contracts/`).
+New package: `tests/w3c_shacl12/` (parallel to `tests/integration/`, `tests/unit/`).
 
-- **`tests/w3c_suite/manifest.py`** - a generic DAWG-manifest walker, independent of test
+- **`tests/w3c_shacl12/manifest.py`** - a generic DAWG-manifest walker, independent of test
   type: given a manifest IRI/path, resolve `mf:include` recursively and `mf:entries`
   (`rdf:List`) at each level, yielding `(entry_iri, entry_type, source_file)` tuples. Each
   leaf `.ttl` file is parsed exactly once into an `rdflib.Graph` (cached per absolute path,
   since a single file commonly defines both its own manifest *and* the data/shapes triples
   the entry's `mf:action` references via `<>`).
-- **`tests/w3c_suite/closure.py`** - a small "RDF closure from a node" helper: given a graph
+- **`tests/w3c_shacl12/closure.py`** - a small "RDF closure from a node" helper: given a graph
   and a node (e.g. an `mf:result` blank node holding an inline `sh:ValidationReport`), walk
   outgoing triples recursively (following blank-node objects) to extract just that
   substructure as an independent graph, needed because the expected report lives inline in
@@ -129,7 +128,7 @@ New package: `tests/w3c_suite/` (parallel to `tests/integration/`, `tests/unit/`
   - `test_w3c_node_expr.py` (`sht:EvalNodeExpr`): calls
     `starshacl.node_expressions.eval_expr(expr, focus_node, data_graph, shapes_graph, scope)`
     directly (the library's actual internal entry point - already used this way in
-    `tests/test_validator.py` and `tests/integration/test_shnex_node_expressions.py`, so no
+    `tests/unit/test_validator.py` and `tests/integration/test_shnex_node_expressions.py`, so no
     new public API is needed), building `scope` from any `sht:scope-XY` triples on the
     action. Compares the returned node list against `mf:result`'s `rdf:List`, order-sensitive
     unless `sht:ignoreOrder` is present (in which case compare as multisets).
@@ -167,7 +166,7 @@ to a failing conformance test is never a silent skip - it's one of:
    the discrepancy explicitly; this is the rare case and should be treated with suspicion
    first (assume starshacl is wrong until checked, not the test).
 
-The registry (`tests/w3c_suite/known_failures.py`, a plain dict keyed by entry IRI ->
+The registry (`tests/w3c_shacl12/known_failures.py`, a plain dict keyed by entry IRI ->
 reason string) is reviewed the same way `docs/shacl12-gap-matrix.md`'s tables are: every entry
 is a claim that should still be true, not a historical record to leave stale.
 

@@ -392,6 +392,24 @@ def _lower_expr(node, state: _LowerState):
         for key, value in node.items():
             if key in ("_vars", "lazy"):
                 continue
+            if key in node.__dict__:
+                # rdflib's own translateQuery post-processing (e.g.
+                # algebra.translateExists, for Builtin_EXISTS/NOTEXISTS's
+                # `graph`) fixes up certain keys by assigning a real
+                # instance attribute (`n.graph = ...`) - which *shadows*
+                # but does not update the underlying dict-stored value
+                # `.items()` just yielded here, so `value` can be a stale,
+                # untranslated parse-tree fragment even though `node.graph`
+                # (attribute access) already returns the correct, translated
+                # algebra. Confirmed via `dict.__getitem__(node, "graph")`
+                # still returning the raw `GroupGraphPatternSub` on a node
+                # whose `.graph` attribute already reads back as `Join` -
+                # without this, a `FILTER (NOT) EXISTS { ... }` with more
+                # than one triple in its block gets re-encoded with a
+                # dead, un-evaluable fragment and crashes at execution time
+                # ("What do I do with this CompValue?"). Prefer the
+                # attribute whenever both exist.
+                value = getattr(node, key)
             new_node[key] = _lower_expr(value, state)
         return new_node
 

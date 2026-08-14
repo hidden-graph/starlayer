@@ -144,10 +144,17 @@ def test_sparql_constraint_resolves_prefix_via_ambient_shapes_graph_declare() ->
 
 
 def test_sparql_constraint_binds_value_per_property_value_node() -> None:
-    # $value is bound once per value node of the constrained property, distinct
-    # from $this (the focus node) - covers a property-shape-scoped sh:sparql
-    # constraint that inspects a triple-term value's predicate component via
-    # the PREDICATE() accessor, rather than only matching against $this.
+    # pySHACL's own sh:sparql (SPARQLConstraintComponent) only ever pre-binds
+    # $this - it never auto-binds $value per value node the way this test's
+    # name might suggest (confirmed via pyshacl.constraints.sparql.
+    # sparql_based_constraints.SPARQLBasedConstraint._evaluate_sparql_constraint's
+    # own comment: "we don't use value_nodes in the sparql constraint. All
+    # queries are done on the corresponding focus node"). The fixture
+    # (rdf12_sparql_value_predicate.ttl) instead derives ?value itself via
+    # $PATH (pySHACL's own path-substitution mechanism) and a real WHERE-clause
+    # join - covers a property-shape-scoped sh:sparql constraint that inspects
+    # a triple-term value's predicate component via the PREDICATE() accessor,
+    # rather than only matching against $this.
     data = StarLayerGraph()
     data.add((EX.alice, EX.says, (EX.bob, EX.knows, EX.carol)))
     data.add((EX.alice, EX.says, (EX.bob, EX.likes, EX.dave)))

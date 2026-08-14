@@ -1,4 +1,4 @@
-# baseURI: https://github.com/hidden-graph/pyshacl-starlight/ns#
+# baseURI: https://github.com/hidden-graph/starshacl/ns#
 #
 # UI/rendering-specific metadata for the full SHACL Core + SHACL 1.2
 # predicate vocabulary: SHACL's own non-validating annotation properties
@@ -39,7 +39,7 @@
 @prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
 @prefix sh:   <http://www.w3.org/ns/shacl#> .
 @prefix shui: <http://www.w3.org/ns/shacl-ui#> .
-@prefix stsh: <https://github.com/hidden-graph/pyshacl-starlight/ns#> .
+@prefix stsh: <https://github.com/hidden-graph/starshacl/ns#> .
 
 # No root-level rdfs:label/rdfs:comment here by design - see
 # shacl12-validation-shapes.ttl's own stsh: root description, which is the

@@ -17,7 +17,7 @@ pyshacl = pytest.importorskip("pyshacl")
 # 1. Any data graph containing a DirLangString value crashed validate()
 #    outright (AssertionError from TripleTermAdapter.encode_graph, which
 #    didn't know about the new value type) - fixed in starshacl/adapters.py,
-#    covered by tests/test_adapters.py::test_round_trip_dirlangstring_value.
+#    covered by tests/unit/test_adapters.py::test_round_trip_dirlangstring_value.
 # 2. sh:datatype rdf:dirLangString (single-IRI form) always spuriously
 #    failed via pySHACL, since a DirLangString is encoded internally as a
 #    Literal with starlayergraph's own packing datatype URI, never the real

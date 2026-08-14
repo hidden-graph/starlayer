@@ -352,6 +352,23 @@ def _decode_comp_value(node, type_uri: URIRef, graph: Graph):
     if evalfn is not None:
         result = Expr(name, evalfn)
         result.update(kwargs)
+        if name in ("Builtin_EXISTS", "Builtin_NOTEXISTS") and "graph" in kwargs:
+            # rdflib's own operators.Builtin_EXISTS/_NOTEXISTS read `.graph`
+            # via plain attribute syntax (`e.graph`), not `e["graph"]` -
+            # deliberately, since a real instance attribute bypasses
+            # CompValue's ctx-based value-resolution (`__getattr__` is only
+            # ever consulted when normal attribute lookup fails). That
+            # resolution path cannot handle a raw, non-Expr graph-pattern
+            # node - it only knows how to evaluate an Expr or look up an RDF
+            # term - and `.graph` is exactly that: a raw parse-tree/algebra
+            # fragment, not an expression. rdflib's own algebra.translateExists
+            # sets `.graph` as a real instance attribute for exactly this
+            # reason; a plain `result.update(kwargs)` here only stores it as
+            # a dict key, so evaluating a decoded EXISTS/NOT EXISTS node
+            # crashes ("What do I do with this CompValue?") the moment its
+            # `.graph` is more than a single triple - confirmed via a real
+            # StarLayerGraph reproduction. Mirror translateExists exactly.
+            result.graph = kwargs["graph"]
         return result
 
     return CompValue(name, **kwargs)

@@ -1,7 +1,7 @@
 """W3C SPARQL 1.2 test suite, run against this project's own translation
 pipeline — see CLAUDE.md's Phase 6 status entry and
 ``tests/w3c_sparql12/download_w3c_sparql12_tests.py`` for how ``data/`` is
-populated (a real, separate test suite from starlayergraph's own ``tests/w3c/``,
+populated (a real, separate test suite from starlayergraph's own ``tests/w3c_turtle12/``,
 which is Turtle-1.2-only).
 
 Four manifest categories are in scope, matching what this project's

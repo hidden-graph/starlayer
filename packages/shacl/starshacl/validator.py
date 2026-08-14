@@ -160,7 +160,7 @@ class StarShaclValidator:
         # real wiring gap, not just a hypothetical, while checking that this
         # session's new sparql: support was reachable through the real
         # validate() entrypoint, not only through eval_expr() called
-        # directly (which every test in tests/w3c_suite/ does, so it never
+        # directly (which every test in tests/w3c_shacl12/ does, so it never
         # exercised this trigger condition at all).
         if shacl_graph is not None and any(
             True
@@ -931,7 +931,7 @@ def _patch_rdflib_data_graph_clone_preserves_tt_adapter() -> bool:
     ``ReifierShapeConstraintComponent`` silently stopped finding any
     reifiers - and reported vacuous conformance - specifically when
     ``advanced=True`` (needed for `sh:expression`/`sh:rule` elsewhere, and
-    therefore always passed by ``tests/w3c_suite/test_w3c_validate.py`` since
+    therefore always passed by ``tests/w3c_shacl12/test_w3c_validate.py`` since
     it can't tell in advance which fixtures need it): without ``_tt_adapter``,
     ``native_components.py``'s ``_get_tt_adapter()``/``_encode_key()`` fall
     back to treating a ``(focus, path, value)`` tuple as an un-encodable raw

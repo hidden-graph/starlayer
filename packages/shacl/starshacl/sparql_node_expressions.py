@@ -212,7 +212,7 @@ def _decode_triple_term(sg: Any, value: Any) -> Any:
     adapter) already has the registry entry needed, since it's the same
     adapter that minted the hash in the first place. Falls back to a no-op
     if `sg.graph` has no such attribute (e.g. this session's
-    `tests/w3c_suite/` harness, which never encodes anything at all - values
+    `tests/w3c_shacl12/` harness, which never encodes anything at all - values
     are already real triple terms there).
 
     Returns a plain ``(subject, predicate, object)`` 3-tuple, not

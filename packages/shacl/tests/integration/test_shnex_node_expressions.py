@@ -133,7 +133,7 @@ def test_var_focusnode() -> None:
 # is either - confirmed live as a real, separate wiring gap from
 # sparql_node_expressions.py's own (correct) implementation, found by
 # checking this exact scenario rather than assuming eval_expr()-level
-# testing (tests/w3c_suite/test_w3c_node_expr.py, which calls eval_expr()
+# testing (tests/w3c_shacl12/test_w3c_node_expr.py, which calls eval_expr()
 # directly) was sufficient to prove real end-to-end reachability too.
 
 
@@ -369,7 +369,7 @@ def test_shnex_and_old_sh_forms_coexist_in_same_validate_call() -> None:
 
 # sparql:isTriple/subject over a triple-term value obtained from *real data*
 # (not a Turtle constant embedded in the shapes graph) through the actual
-# validate() entrypoint - not tests/w3c_suite/'s eval_expr()-direct calls,
+# validate() entrypoint - not tests/w3c_shacl12/'s eval_expr()-direct calls,
 # which use a hand-built StarLayerGraph as data_graph and so never exercise
 # what validate() really hands node-expression evaluation. Found live (via a
 # direct user question about whether "rdflib's own SPARQL engine" really

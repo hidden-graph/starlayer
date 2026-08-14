@@ -190,7 +190,7 @@ def split_obj_and_annotations(s):
                 # A bare '~' directly followed by an annotation block is an
                 # anonymous/empty reifier that the block attaches to (W3C
                 # turtle12-ann-8, "empty reifier with annotation block" -
-                # see tests/w3c/). Must not call next_token() here: it has
+                # see tests/w3c_turtle12/). Must not call next_token() here: it has
                 # no '{' case, so it would mis-tokenize the block's own
                 # opening "{|" as if it were a reifier name.
                 reifier = None

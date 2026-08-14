@@ -482,7 +482,7 @@ def test_validate_reification_required_violation_when_no_reifier_exists() -> Non
     )
     # sh:value is the plain failing value, not the reified (focus, path,
     # value) triple term - confirmed against the W3C SHACL 1.2 test suite's
-    # own reifierShape-001/002 fixtures (tests/w3c_suite/), which fixed a
+    # own reifierShape-001/002 fixtures (tests/w3c_shacl12/), which fixed a
     # real bug here: this assertion previously (wrongly) expected the
     # encoded triple term itself.
     assert any(o == Literal("A") for _, _, o in result.report_graph.triples((None, SH.value, None)))

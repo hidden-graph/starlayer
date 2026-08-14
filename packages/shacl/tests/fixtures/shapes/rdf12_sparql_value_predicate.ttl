@@ -10,9 +10,10 @@ ex:ValuePredicateShape a sh:NodeShape ;
       sh:message "value's predicate component must be ex:knows" ;
       sh:select """
         PREFIX ex: <http://example.org/>
-        SELECT $this $value WHERE {
-            FILTER(isTripleTerm($value))
-            FILTER(PREDICATE($value) != ex:knows)
+        SELECT $this ?value WHERE {
+            $this $PATH ?value .
+            FILTER(isTRIPLE(?value))
+            FILTER(PREDICATE(?value) != ex:knows)
         }
       """ ;
     ] ;

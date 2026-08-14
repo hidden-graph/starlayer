@@ -151,7 +151,7 @@ def _unescape(s):
                     # surrogate *pair* combines into one, unlike JSON/JS
                     # \u escapes. Confirmed via the W3C RDF 1.2 Turtle
                     # syntax test suite (turtle12-surrogate*,
-                    # turtle12-surrogates-bad-* - see tests/w3c/).
+                    # turtle12-surrogates-bad-* - see tests/w3c_turtle12/).
                     raise TurtleSyntaxError(
                         f'\\u{hex4} is a UTF-16 surrogate codepoint (U+D800-U+DFFF), '
                         f'not valid as a standalone Unicode codepoint in a \\u escape (RDF 1.2)',
@@ -264,7 +264,7 @@ def _to_node(val, prefix_map, base_uri):
                 # matching (unlike the language tag itself, which RDF 1.2
                 # Concepts sec 3.4.1 does case-fold). Confirmed via the W3C
                 # RDF 1.2 Turtle syntax test suite (nt-ttl12-langdir-bad-2,
-                # "Hello"@en--LTR - see tests/w3c/): must be rejected, not
+                # "Hello"@en--LTR - see tests/w3c_turtle12/): must be rejected, not
                 # silently lowercased and accepted.
                 if direction not in ('ltr', 'rtl'):
                     raise ValueError(
