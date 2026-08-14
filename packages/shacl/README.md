@@ -1,8 +1,8 @@
-# starshacl ##
+# starshacl
 
-`starshacl` validates RDF data against SHACL shapes, with full support for **RDF 1.2** (e.g. triple terms, direction-tagged literals) and **SHACL 1.2 Core**.  Works as a wrappe on  [`pySHACL`](https://github.com/RDFLib/pySHACL), which works with  SHACL 1.1 and RDF 1.1.
+`starshacl` validates RDF data against SHACL shapes, with full support for **RDF 1.2** (e.g. triple terms, direction-tagged literals) and **SHACL 1.2 Core**. Works as a wrapper around [`pySHACL`](https://github.com/RDFLib/pySHACL), which itself works with SHACL 1.1 and RDF 1.1.
 
-Usin starlayergraph (add url ) RDF 1.2 values are transparently encoded into an RDF-1.1-compatible form before validation and decoded on retrieval.  , Every SHACL 1.2 predicate is registered as a pySHACL constraint component, so it composes correctly similar to built-in predicates.
+Using [`starlayergraph`](../graph)'s RDF 1.2 data model, RDF 1.2 values are transparently encoded into an RDF-1.1-compatible form before validation and decoded on retrieval. Every SHACL 1.2 predicate is registered as a pySHACL constraint component, so it composes correctly alongside built-in predicates.
 
 ## Features
 
@@ -15,12 +15,11 @@ Usin starlayergraph (add url ) RDF 1.2 values are transparently encoded into an 
 
 ## Install
 
-Neither `starlayergraph` nor `rdflib-starshacl` is published to PyPI yet - install `starlayergraph` from source, then install this repository.  (note - give instructions on how to install.  )
+Not published to PyPI yet. `starshacl` is one of three packages in this monorepo ([`starlayergraph`](../graph), [`starsparql`](../sparql), `starshacl`) and depends on the other two, so install all three from a checkout, in dependency order, from the repo root:
 
 ```bash
-pip install git+https://github.com/hidden-graph/starlayergraph.git
-pip install -e .
-pip install -e .[test]  # with test dependencies
+pip install -e packages/graph -e packages/sparql -e packages/shacl
+pip install -e packages/shacl[test]  # with test dependencies
 ```
 
 Requires Python 3.10+.
@@ -60,9 +59,6 @@ You can also pass a plain `rdflib.Graph` for `data_graph`/`shacl_graph`/`ont_gra
 
 Triple terms (`<<( subject predicate object )>>`) work as ordinary object values in both data and shapes:
 
-
-(note: show a standard reifiers statement)
-
 ```python
 data = StarLayerGraph()
 data.parse(data="""
@@ -83,9 +79,31 @@ result = StarShaclValidator().validate(data_graph=data, shacl_graph=shapes)
 print(result.conforms)  # True
 ```
 
+Reified statements (`subject predicate object {| annotations |}`) can be required and validated with `sh:reifierShape`/`sh:reificationRequired`:
 
+```python
+data = StarLayerGraph()
+data.parse(data="""
+    @prefix ex: <http://example.org/> .
+    ex:alice ex:value "A" {| ex:source ex:Somewhere |} .
+""", format="turtle12")
 
-(note: I do not know what this is.)
+shapes = StarLayerGraph()
+shapes.parse(data="""
+    @prefix ex: <http://example.org/> .
+    @prefix sh: <http://www.w3.org/ns/shacl#> .
+    ex:ReificationShape a sh:NodeShape ;
+      sh:targetNode ex:alice ;
+      sh:property [
+        sh:path ex:value ;
+        sh:reificationRequired true ;
+      ] .
+""", format="turtle")
+
+result = StarShaclValidator().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+print(result.conforms)  # True - ex:alice's ex:value statement has a reifier ({| ex:source ... |})
+```
+
 By default, decoded triple-term values in results come back as starshacl's own lightweight `TripleTermValue`. If you want real `starlayergraph.model.triple.TripleTerm` objects instead (matching what `StarLayerGraph` itself produces elsewhere in your code), use the starlayergraph-aware adapter:
 
 ```python
@@ -94,10 +112,9 @@ from starshacl import StarShaclValidator, TripleTermAdapter
 validator = StarShaclValidator(adapter=TripleTermAdapter.for_starlayergraph())
 ```
 
-(note: refer to the SHACL 1.2 component as well.)
 ## Rules (SHACL-AF)
 
-`apply_rules()` runs pySHACL's advanced mode, including `sh:construct` rules, and returns the expanded data graph alongside a validation report:
+`apply_rules()` runs pySHACL's advanced mode, including `sh:construct` rules, and returns the expanded data graph alongside a validation report. `sh:construct`'s SPARQL body can use SPARQL 1.2 triple-term syntax (`<<( )>>`) the same way `sh:sparql` constraints can:
 
 ```python
 data = StarLayerGraph()
@@ -128,8 +145,6 @@ for triple in result.data_graph:
     print(triple)  # includes the rule-derived ex:alice ex:ancestor ex:carol
 ```
 
-
-(note: this seems very advanced.  maybe we have an extras component below where we are explian in more depth.)
 ## Meta-Shapes and Well-Formedness
 
 Shapes graphs are checked for their own well-formedness before being used to validate data (`meta_shacl=True`, the default) - including SHACL 1.2 predicates. Pass your own additional shape rules with `meta_shapes_extra`:

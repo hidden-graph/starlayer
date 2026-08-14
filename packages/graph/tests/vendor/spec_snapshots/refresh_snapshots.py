@@ -1,15 +1,15 @@
 """
-docs/spec_snapshots/refresh_snapshots.py
+tests/vendor/spec_snapshots/refresh_snapshots.py
 
 Re-fetches the current W3C RDF 1.2 / SPARQL 1.2 spec documents and overwrites
 the local .txt snapshots in this directory. Run this, then `git diff
-docs/spec_snapshots/` to see exactly what changed in the spec text since the
+tests/vendor/spec_snapshots/` to see exactly what changed in the spec text since the
 last snapshot - the whole point of keeping these files (see README.md).
 
 Requires: pip install html2text (dev-only, not a project dependency)
 
 Run from anywhere:
-    python3 docs/spec_snapshots/refresh_snapshots.py
+    python3 tests/vendor/spec_snapshots/refresh_snapshots.py
 """
 
 import os
@@ -52,7 +52,7 @@ def fetch(slug, title):
         f"Published: {pub_date}\n"
         f"Copyright © 2004-2026 World Wide Web Consortium. Distributed under the\n"
         f"W3C Software and Document License: https://www.w3.org/copyright/software-license-2023/\n"
-        f"See docs/spec_snapshots/README.md for how this snapshot is used and regenerated.\n"
+        f"See tests/vendor/spec_snapshots/README.md for how this snapshot is used and regenerated.\n"
         f"{'=' * 70}\n\n"
     )
 
@@ -65,7 +65,7 @@ def fetch(slug, title):
 def main():
     for slug, title in SPECS:
         fetch(slug, title)
-    print("\nDone. Run: git diff docs/spec_snapshots/*.txt")
+    print("\nDone. Run: git diff tests/vendor/spec_snapshots/*.txt")
 
 
 if __name__ == "__main__":

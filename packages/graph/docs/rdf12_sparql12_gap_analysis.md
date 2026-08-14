@@ -12,7 +12,7 @@
 | SPARQL 1.2 Query | Working Draft | 2026-06-25 |
 | SPARQL 1.2 Update | Working Draft | 2026-06-12 |
 
-Plain-text snapshots of all seven documents as of the dates above are saved in `docs/spec_snapshots/` — re-run `docs/spec_snapshots/refresh_snapshots.py` and `git diff` it to see exactly what changed in the spec text since this review, rather than re-reading each document from scratch.
+Plain-text snapshots of all seven documents as of the dates above are saved in `tests/vendor/spec_snapshots/` — re-run `tests/vendor/spec_snapshots/refresh_snapshots.py` and `git diff` it to see exactly what changed in the spec text since this review, rather than re-reading each document from scratch.
 
 No RDF 1.2 companion spec exists yet for JSON-LD or TriX — see §6, the one open item in this review.
 

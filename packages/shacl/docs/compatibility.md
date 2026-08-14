@@ -101,4 +101,4 @@ When upgrading between minor versions:
 
 ## Release Process
 
-- Follow `docs/release-checklist.md` before cutting a release.
+- Follow `docs/releasing.md` before cutting a release.

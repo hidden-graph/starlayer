@@ -4,7 +4,7 @@ Status at fetch time: W3C Working Draft 25 June 2026
 Published: 2026-06-25
 Copyright © 2004-2026 World Wide Web Consortium. Distributed under the
 W3C Software and Document License: https://www.w3.org/copyright/software-license-2023/
-See docs/spec_snapshots/README.md for how this snapshot is used and regenerated.
+See tests/vendor/spec_snapshots/README.md for how this snapshot is used and regenerated.
 ======================================================================
 
 [![W3C](https://www.w3.org/StyleSheets/TR/2021/logos/W3C) ](https://www.w3.org/)

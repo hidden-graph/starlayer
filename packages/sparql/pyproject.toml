@@ -16,6 +16,20 @@ dependencies = [
     #   pip install -e ../graph
     "starlayergraph",
 ]
+keywords = ["rdf", "rdf12", "sparql", "sparql12", "knowledge-graph", "semantic-web", "algebra"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
 
 [project.optional-dependencies]
 test = ["pytest>=7", "hypothesis>=6", "pyshacl>=0.25", "requests>=2"]

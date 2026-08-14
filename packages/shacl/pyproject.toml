@@ -46,3 +46,6 @@ starshacl = ["assets/*.ttl"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "integration: tests requiring a running Oxigraph server or other live backend store - unlike the sibling starlayergraph/starsparql packages, most of this package's tests/integration/ directory does NOT need this (it predates the marker convention and really means 'broad, multi-component test' rather than 'needs live infra'); only tests actually requiring a live server carry this marker.",
+]

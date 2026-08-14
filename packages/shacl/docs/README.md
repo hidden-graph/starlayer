@@ -1,6 +1,6 @@
 # docs
 
-*Last reviewed: 2026-07-20*
+*Last reviewed: 2026-08-13*
 
 - `../CLAUDE.md`: project-specific instructions for Claude Code sessions (currently: the testing-coverage verification discipline)
 - `../CHANGELOG.md`: what changed, grouped by theme
@@ -13,4 +13,4 @@
 - compatibility.md: graph contract, semantic versioning policy, compatibility statements
 - benchmark-baselines.md: adapter encode/decode benchmark results over time
 - starlayergraph-upstream-change-log.md: proposed/landed StarLayerGraph changes discovered during starshacl work
-- release-checklist.md, release-notes-draft.md, release-notes-template.md, version-bump-workflow.md: release process docs
+- releasing.md, release-notes-template.md: release process and release-notes template

@@ -1,6 +1,5 @@
 """``salg:QueryCollection`` — serializing a *set* of independent queries as
-one RDF graph (goal 4 from todos.md: "creates an rdf/sparql version to
-serialize sets of queries"). The vocabulary (``salg:QueryCollection``/
+one RDF graph. The vocabulary (``salg:QueryCollection``/
 ``salg:queries``) already existed in ``salg-ontology.ttl``; this is the
 first code that actually produces/consumes it.
 

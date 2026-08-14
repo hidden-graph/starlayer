@@ -51,11 +51,14 @@ def _oxigraph_available() -> bool:
         return False
 
 
-pytestmark = pytest.mark.skipif(
-    not _oxigraph_available(),
-    reason="Oxigraph not running - start with: docker run -d --name oxigraph-test -p 7878:7878 "
-    "ghcr.io/oxigraph/oxigraph serve --location /data --bind 0.0.0.0:7878",
-)
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.skipif(
+        not _oxigraph_available(),
+        reason="Oxigraph not running - start with: docker run -d --name oxigraph-test -p 7878:7878 "
+        "ghcr.io/oxigraph/oxigraph serve --location /data --bind 0.0.0.0:7878",
+    ),
+]
 
 
 def _native_graph(ttl12: str) -> StarLayerGraph:
