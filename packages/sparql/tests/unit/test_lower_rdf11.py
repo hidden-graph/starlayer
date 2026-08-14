@@ -174,6 +174,30 @@ def test_filter_not_exists_with_multi_triple_block_executes():
     assert actual == [{Variable("s"): URIRef("http://example/bob")}]
 
 
+def test_substr_binds_correctly():
+    """Regression test for a real bug: `BIND(SUBSTR(...) AS ?z)` silently
+    never bound `?z` after decoding - no exception, `?z` just always came
+    back unbound. `from_rdf.py`'s `_PLAIN_VALUE_KEYS` converts `start`/
+    `length` to plain Python ints for `Slice.start`/`.length` (needed by
+    `itertools.islice`), but matched by bare key name - `Builtin_SUBSTR`'s
+    own `start`/`length` parameters share those key names by coincidence
+    (SPARQL's `SUBSTR(str, start[, length])`) and need to stay real
+    `Literal`s, since `operators.numeric()` raises `SPARQLTypeError` for
+    anything else - which `evalExtend` then silently swallows into "leave
+    the BIND target unbound" rather than raising. Found via a differential
+    audit comparing every `EXPRESSION_FAMILY_QUERIES` entry (see
+    test_shacl_shapes.py) against plain rdflib execution - the only one, of
+    ~20, that actually diverged.
+    """
+    g = StarLayerGraph()
+    g.parse(data="@prefix : <http://example/> .\n:who :name \"apple\" .\n", format="turtle")
+    actual = _run_lowered(
+        'PREFIX : <http://example/> SELECT ?z WHERE { :who :name ?y . BIND(SUBSTR(?y, 1, 3) AS ?z) }',
+        g,
+    )
+    assert actual == [{Variable("z"): Literal("app")}]
+
+
 def test_is_triple_and_accessors():
     g = StarLayerGraph()
     g.parse(data="@prefix : <http://example/> .\n:who :verified <<( :s :p :o )>> .\n", format="turtle12")

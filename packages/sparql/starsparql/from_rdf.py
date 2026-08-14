@@ -34,14 +34,28 @@ from .vocab import PY_STR_DATATYPE, QUERY, QUERY_COLLECTION, SALG, UPDATE, UPDAT
 
 _SALG_NS = str(SALG)
 
-# Keys whose value must decode to a genuine Python int/bool, not merely an
-# rdflib Literal that happens to compare equal to one — Slice.start/.length
-# are passed straight to itertools.islice, which requires a real int; a
-# boolean Literal is always truthy in a plain Python `if` regardless of its
-# actual value, since it's a non-empty string either way. See vocab.py's
-# "Bare Python strings" section for the str case, which — unlike int/bool —
-# is handled generically rather than by listing keys here.
-_PLAIN_VALUE_KEYS = {"start", "length", "lazy"}
+# (node name, key) pairs whose value must decode to a genuine Python
+# int/bool, not merely an rdflib Literal that happens to compare equal to
+# one — Slice.start/.length are passed straight to itertools.islice, which
+# requires a real int; a boolean Literal is always truthy in a plain Python
+# `if` regardless of its actual value, since it's a non-empty string either
+# way. See vocab.py's "Bare Python strings" section for the str case, which
+# — unlike int/bool — is handled generically rather than by listing keys
+# here.
+#
+# Scoped by node name, not key name alone: `start`/`length` are also
+# `Builtin_SUBSTR`'s own parameter names (SPARQL's `SUBSTR(str, start[,
+# length])`), a completely unrelated node where they must stay real
+# `Literal`s — `operators.Builtin_SUBSTR` calls `numeric(expr.start)`,
+# which raises `SPARQLTypeError` for anything that isn't a `Literal`
+# instance. A bare key-name match previously converted `Builtin_SUBSTR`'s
+# `start`/`length` to plain ints too, and `evalExtend` silently swallows
+# that error into "leave the BIND target unbound" (same swallowing
+# mechanism documented throughout this project's own findings) rather than
+# raising - so a decoded `BIND(SUBSTR(...) AS ?z)` looked like it worked
+# (no exception) while silently never binding `?z`. Confirmed via a real
+# StarLayerGraph reproduction comparing results against plain rdflib.
+_PLAIN_VALUE_KEYS = {("Slice", "start"), ("Slice", "length"), ("Join", "lazy")}
 
 
 def _discover_expr_evalfns() -> dict:
@@ -316,7 +330,7 @@ def _decode_comp_value(node, type_uri: URIRef, graph: Graph):
             kwargs[key] = _decode_quads_map(obj, graph)
             continue
         value = _decode(obj, graph)
-        if key in _PLAIN_VALUE_KEYS:
+        if (name, key) in _PLAIN_VALUE_KEYS:
             value = _to_python_deep(value)
         kwargs[key] = value
 
