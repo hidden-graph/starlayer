@@ -32,7 +32,7 @@ REPO = "w3c/data-shapes"
 # Bump deliberately - see docs/w3c-shacl12-test-suite-plan.md's "Ongoing
 # maintenance" section for the review/bump procedure. Do not auto-follow
 # gh-pages's tip.
-PINNED_SHA = "e5311eef94ac9a6bd15fd22ecfe256c658ef1bc1"
+PINNED_SHA = "59b38cd7061ff3e6e3dc9e216836ef848f7d8baf"
 SUBTREE_PREFIX = "shacl12-test-suite/"
 
 REPO_ROOT = Path(__file__).resolve().parents[1]

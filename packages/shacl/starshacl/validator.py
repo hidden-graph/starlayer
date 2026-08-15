@@ -19,6 +19,7 @@ from starshacl.native_components import (
     SHAPE_EXPECTING_PREDICATES,
     _RDF_REIFIES,
     _ambient_shapes_graph_prefixes,
+    _get_tt_adapter,
     ensure_shape_typed,
     register_native_components,
     shape_reference_nodes,
@@ -114,6 +115,7 @@ class StarShaclValidator:
         register_native_components()
         _patch_rdflib_data_graph_clone_preserves_tt_adapter()
         _patch_shape_value_nodes_for_sh_values()
+        _patch_rules_apply_for_layer_and_run_once()
 
         options = resolve_profile_options(profile, overrides=kwargs)
 
@@ -419,6 +421,24 @@ class StarShaclValidator:
                 for cls in classes:
                     for instance, _, _ in data_graph.triples((None, RDF.type, cls)):
                         additions.append((shape_node, SH.targetNode, instance))
+
+                # pySHACL's own rule loader (pyshacl.rules.gather_rules) calls
+                # shacl_graph.lookup_shape_from_node(sub) for every sh:rule
+                # subject and hard-errors (RuleLoadError) if that node isn't
+                # recognized as a shape - and it only recognizes sh:NodeShape/
+                # sh:PropertyShape typing, not sh:ShapeClass/rdfs:Class on
+                # their own, even though this codebase's own implicit-class-
+                # target handling above treats them as valid standalone shape
+                # typing. Confirmed via the W3C SHACL 1.2 test suite's
+                # run-once-example fixture (`ex:Person a sh:ShapeClass ;
+                # sh:rule ex:IteratingRule ...`) - RuleLoadError without this.
+                # Adding sh:NodeShape is safe: _is_implicit_class_shape above
+                # already treats sh:NodeShape+sh:ShapeClass together as a
+                # normal combination (one of implicit_class_candidates' own
+                # three type-sources), not something the rest of this file's
+                # logic assumes is mutually exclusive with sh:ShapeClass.
+                if any(True for _ in shacl_graph.triples((shape_node, SH.rule, None))):
+                    additions.append((shape_node, RDF.type, SH.NodeShape))
 
         # sh:targetWhere: the target set is every data-graph node that
         # conforms to the given (usually inline) shape.
@@ -929,8 +949,12 @@ class StarShaclValidator:
         global_rule_records: list[tuple[tuple[Any, Any, Any], Any]] = []
         if shacl_graph is not None:
             normalized_shapes = normalize_graph_inputs(shacl_graph, None, None)[0]
+            # _global_sparql_rule_triples already adds each produced triple to
+            # out_data itself now (needed for its own fixpoint iteration - a
+            # later round/layer must see an earlier one's output) - no
+            # redundant out_data.add() here, just collect records for
+            # sh:sourceRule provenance bookkeeping.
             for triple, rule_node in _global_sparql_rule_triples(out_data, normalized_shapes):
-                out_data.add(triple)
                 if include_source_rule_provenance:
                     global_rule_records.append((triple, rule_node))
 
@@ -1097,6 +1121,473 @@ def _materialize_source_rule_provenance(
         out_data.add((reifier, SH.sourceRule, rule_node))
 
 
+_layer_patch_status: bool | None = None
+
+
+def _patch_rules_apply_for_layer_and_run_once() -> bool:
+    """Apply a targeted patch enabling ``sh:layer``/``sh:runOnce`` (SHACL 1.2
+    SPARQL Extensions section 8.2.4/8.2.6) for shape-attached ``sh:rule``s -
+    and, as of the ``sh:expectedPredicate`` addition below, also the one
+    hook point every rule-execution call (layered or not) passes through
+    exactly once, used for that predicate's ``sh:defaultValue`` materialization.
+    Despite the function name, this patch is now the single entry point for
+    two related-but-distinct SHACL 1.2 SPARQL Extensions rule features - see
+    ``_materialize_expected_predicates`` below for why it lives here rather
+    than as a separate wrap of ``TripleRule.apply``/``SPARQLRule.apply``.
+
+    pySHACL's own ``pyshacl.rules.apply_rules`` (called from
+    ``pyshacl/validator.py`` under ``advanced=True``) processes shapes
+    *sequentially* - shape A's own rules run to their own independent
+    fixpoint, then shape B's, in ``shape.order`` order - with no notion of
+    a shared cross-shape execution stage at all. The spec's layer model
+    ("a SHACL rules engine will iterate over all rules in the same layer
+    before moving to the next layer") is a *global* fixpoint across every
+    rule in a layer regardless of which shape it's attached to - which
+    pySHACL's per-shape loop cannot express: a shape processed later can
+    never see a same-layer rule's triples from a shape processed earlier
+    within one shared iteration, and there is no way for two rules on two
+    different shapes to be in the same fixpoint at all.
+
+    Rather than reimplement rule matching/CONSTRUCT execution, this reuses
+    pySHACL's own ``SHACLRule.apply()``/``.order``/``.deactivated`` (via
+    ``gather_rules``'s already-built ``Shape -> [SHACLRule]`` dict) and only
+    replaces the *orchestration loop* around it - see
+    ``_run_layered_rules`` below.
+
+    **Gated on actual use, not applied unconditionally**: switching every
+    rule execution to a global per-layer fixpoint would be a real behavior
+    change even for shapes graphs that never use ``sh:layer``/``sh:runOnce``
+    at all (default layer 0 for everything still changes "per-shape
+    sequential fixpoint" into "one shared cross-shape fixpoint" - same
+    predicates fire, but the exact interleaving/timing of *when* a
+    same-layer-0 rule on one shape sees another same-layer-0 rule's output
+    could differ). To keep zero behavior change for the existing test
+    baseline, the patched function checks whether the shapes graph actually
+    declares ``sh:layer``/``sh:runOnce`` anywhere and, if not, delegates
+    straight to pySHACL's original, completely unmodified loop - the new
+    native loop only ever runs for shapes graphs that opt into this SHACL
+    1.2 vocabulary.
+
+    **Known, deliberate limitation - not extended to global (unattached)
+    ``sh:SPARQLRule``s.** ``starshacl``'s own ``_global_sparql_rule_triples``/
+    ``_global_sparql_rules`` pass (rules with no ``sh:rule`` edge from any
+    shape) runs as a separate pass *after* ``validate()`` returns entirely,
+    unrelated to this patch or to pySHACL's own rule loop. A global rule
+    that declares ``sh:layer``/``sh:runOnce`` is not read by either engine
+    and always executes exactly once, in its existing position after every
+    shape-attached rule has finished - fully unifying the two execution
+    paths into one shared cross-shape-and-global layered fixpoint was
+    judged out of scope for this change; flagged here explicitly rather
+    than silently under-supporting it.
+
+    Patches ``pyshacl.validator``'s own module-level ``apply_rules`` name
+    (bound there via ``from .rules import apply_rules`` at that module's
+    top) rather than ``pyshacl.rules.apply_rules`` itself - confirmed by
+    reading ``pyshacl/validator.py``'s only call site (inside its
+    ``Validator`` class, under ``advanced['rules']``) that Python resolves
+    a bare name at call time via the *calling* module's own globals, so
+    reassigning the name in ``pyshacl.rules`` would not affect an
+    already-imported reference in ``pyshacl.validator``. This is the only
+    call site starshacl's own ``validate()``/``apply_rules()`` reaches
+    (via ``from pyshacl import validate``, i.e. ``pyshacl.entrypoints.validate``
+    -> ``Validator`` - not ``pyshacl.shacl_rules()``/``RuleExpandRunner``,
+    a separate, unrelated pySHACL entrypoint this codebase doesn't use).
+
+    Idempotent and defensive like this file's other three runtime patches -
+    returns ``False`` without raising if pySHACL's internals don't match
+    what this expects.
+    """
+    global _layer_patch_status
+    if _layer_patch_status is not None:
+        return _layer_patch_status
+
+    try:
+        import pyshacl.validator as _pyshacl_validator_module
+
+        original_apply_rules = _pyshacl_validator_module.apply_rules
+        if getattr(original_apply_rules, "_starshacl_layer_patch", False):
+            _layer_patch_status = True
+            return True
+
+        def _patched_apply_rules(executor, shapes_rules, data_graph, focus_nodes=None):
+            temp_triples = _materialize_expected_predicates(shapes_rules, data_graph)
+            needs_native = any(
+                list(rule.shape.sg.objects(rule.node, SH.layer))
+                or list(rule.shape.sg.objects(rule.node, SH.runOnce))
+                for rules in shapes_rules.values()
+                for rule in rules
+            )
+            try:
+                if not needs_native:
+                    return original_apply_rules(executor, shapes_rules, data_graph, focus_nodes=focus_nodes)
+                return _run_layered_rules(executor, shapes_rules, data_graph, focus_nodes)
+            finally:
+                # sh:expectedPredicate's own derived triples are only ever
+                # meant to be visible *during* rule execution, not part of
+                # its permanent output - see _materialize_expected_predicates'
+                # docstring for the concrete W3C fixture evidence this is
+                # based on, not just a spec-text inference.
+                for triple in temp_triples:
+                    data_graph.remove(triple)
+                # sh:tempTriple (section 8.5) - rules may CONSTRUCT triples
+                # that should be visible to *later* rules in the same
+                # execution but never appear in the final output. Must run
+                # after all rule execution in this call has fully finished
+                # (same requirement, same timing as the sh:expectedPredicate
+                # strip just above) - see _strip_temp_triples' own docstring.
+                _strip_temp_triples(data_graph)
+
+        _patched_apply_rules._starshacl_layer_patch = True  # type: ignore[attr-defined]
+        _pyshacl_validator_module.apply_rules = _patched_apply_rules
+        _layer_patch_status = True
+    except Exception:
+        _layer_patch_status = False
+
+    return _layer_patch_status
+
+
+def _run_layered_rules(executor: Any, shapes_rules: dict, data_graph: Any, focus_nodes: Any) -> int:
+    """Native replacement for ``pyshacl.rules.apply_rules``, used only once
+    ``_patch_rules_apply_for_layer_and_run_once`` has confirmed the shapes
+    graph actually uses ``sh:layer``/``sh:runOnce`` - see that function's
+    docstring for the full design rationale.
+
+    Groups every rule (across every shape, flattened - not per-shape like
+    pySHACL's original loop) by its own ``sh:layer`` value (default 0,
+    ``xsd:integer``), executes layers in ascending numeric order, and
+    within each layer runs every ``sh:runOnce`` rule exactly once (sorted by
+    ``sh:order``, deactivated ones skipped, "before the other rules in the
+    same layer" per spec) followed by every "iterating" rule together in one
+    shared fixpoint (not a per-shape one) - mirrors pySHACL's own
+    ``iterate_rules``/``RULES_ITERATE_LIMIT``/overflow-error semantics
+    exactly, just applied across the whole layer instead of one shape.
+
+    Rule/shape insertion order is used as a stable secondary sort key
+    alongside ``sh:order`` (the spec doesn't define tie-breaking for equal
+    order values) - deterministic given a fixed ``shapes_rules`` dict, but
+    not itself spec-mandated.
+    """
+    from pyshacl.errors import ReportableRuntimeError
+    from pyshacl.rules import RULES_ITERATE_LIMIT
+
+    all_rules = [rule for rules in shapes_rules.values() for rule in rules]
+
+    def _layer_of(rule: Any) -> int:
+        values = list(rule.shape.sg.objects(rule.node, SH.layer))
+        if not values:
+            return 0
+        return int(values[0])
+
+    def _run_once_of(rule: Any) -> bool:
+        values = list(rule.shape.sg.objects(rule.node, SH.runOnce))
+        return bool(values) and bool(values[0])
+
+    layers: dict[int, list[tuple[int, Any]]] = {}
+    for idx, rule in enumerate(all_rules):
+        layers.setdefault(_layer_of(rule), []).append((idx, rule))
+
+    total_modified = 0
+    for layer_key in sorted(layers.keys()):
+        entries = layers[layer_key]
+        run_once_entries = sorted((e for e in entries if _run_once_of(e[1])), key=lambda e: (e[1].order, e[0]))
+        iterating_entries = sorted((e for e in entries if not _run_once_of(e[1])), key=lambda e: (e[1].order, e[0]))
+
+        for _, rule in run_once_entries:
+            if rule.deactivated:
+                continue
+            total_modified += rule.apply(data_graph, focus_nodes=focus_nodes)
+
+        iterate_limit = int(RULES_ITERATE_LIMIT)
+        while True:
+            if iterate_limit < 1:
+                raise ReportableRuntimeError(
+                    f"SHACL Shape Rule iteration exceeded iteration limit of {RULES_ITERATE_LIMIT}."
+                )
+            iterate_limit -= 1
+            this_modified = 0
+            for _, rule in iterating_entries:
+                if rule.deactivated:
+                    continue
+                this_modified += rule.apply(data_graph, focus_nodes=focus_nodes)
+            if this_modified > 0:
+                total_modified += this_modified
+                if executor.iterate_rules:
+                    continue
+                break
+            break
+
+    return total_modified
+
+
+def _materialize_expected_predicates(shapes_rules: dict, data_graph: Any) -> list[tuple[Any, Any, Any]]:
+    """``sh:expectedPredicate`` (SHACL 1.2 SPARQL Extensions section 8.2.7,
+    "Expected Derived Triples"): both the ``sh:defaultValue`` and
+    ``sh:values`` halves.
+
+    Per spec: a rule declaring ``sh:expectedPredicate ex:p`` expects that,
+    before it executes, the *derived* triples for ``ex:p`` - computed via
+    ``sh:defaultValue``/``sh:values`` on every non-deactivated property
+    shape using ``ex:p`` as ``sh:path`` - are already materialized in the
+    data graph. ``sh:values`` here is SHACL 1.2 Core's *validation-time*
+    computed-value mechanism (``sh:select``/``sh:sparqlExpr`` on an ordinary
+    property shape - already implemented, see ``_compute_sh_values``/
+    ``_patch_shape_value_nodes_for_sh_values`` above) - **not** the same
+    predicate name's unrelated, separately-tracked, genuinely unimplemented
+    ``sh:PropertyRule``/``sh:values`` shorthand (a `sh:rule`-construction
+    mechanism, see that row in ``docs/shacl12-gap-matrix.md``'s Core
+    changelog table) - the two happen to share a name but are otherwise
+    distinct, and this function only touches the former. ``sh:defaultValue``
+    itself had *zero* runtime behavior anywhere in this codebase or in
+    pySHACL before this function was first added - it was previously only
+    ever documented, never materialized as a real triple.
+
+    **Returns the materialized triples so the caller can remove them again
+    once rule execution finishes** - confirmed via the W3C SHACL 1.2 test
+    suite's own ``expectedPredicate-example`` fixture (added 2026-08-08) that
+    these derived triples must be transient, visible only *during* rule
+    execution, not part of ``apply_rules()``'s permanent output: its own
+    expected-result list includes only the rule's own CONSTRUCTed
+    conclusions (``ex:isSmall``), never the ``ex:area`` values this function
+    computes to let the rule's WHERE clause evaluate correctly - consistent
+    with ``sh:defaultValue``'s well-established SHACL Core meaning as a
+    validation-time *virtual* value, not something a conformant processor
+    permanently asserts. (An earlier version of this function added them
+    permanently, based on a plausible but incorrect reading of the spec
+    prose alone - this was corrected once the concrete fixture evidence
+    became available, not merely a stylistic change.)
+
+    Called unconditionally, once, from ``_patched_apply_rules`` above -
+    before either the original or the native layered rule loop begins -
+    rather than as a third wrap of ``TripleRule.apply``/``SPARQLRule.apply``
+    (alongside the one ``_patch_rule_apply_for_source_rule_provenance``
+    already installs for ``sh:sourceRule``). A second independent wrap of
+    those same two methods would create a real, hard-to-predict ordering
+    dependency: which patch ends up outermost depends on whether
+    ``apply_rules(include_source_rule_provenance=True)`` or a plain
+    ``validate()``/``apply_rules()`` call patches ``TripleRule.apply``/
+    ``SPARQLRule.apply`` *first* in a given process (each patch, once
+    applied, is permanent and order-preserving for the rest of the
+    process) - if the source-rule-provenance wrap ends up outermost, its
+    before/after diff would incorrectly attribute these materialized
+    triples to whichever rule happened to trigger materialization, as if
+    that rule had inferred them itself. This function's call site is a
+    *single*, always-applied wrap (this file's own layer/run-once patch),
+    so there is no second wrap to race against and no ordering question to
+    resolve - deliberately chosen over the per-rule hook point for this
+    reason, not merely for convenience.
+    """
+    all_rules = [rule for rules in shapes_rules.values() for rule in rules]
+    if not all_rules:
+        return []
+
+    shapes_graph = all_rules[0].shape.sg.graph
+    shapes_graph_wrapper = all_rules[0].shape.sg
+    predicates: set = set()
+    for rule in all_rules:
+        predicates.update(shapes_graph.objects(rule.node, SH.expectedPredicate))
+    if not predicates:
+        return []
+
+    return _materialize_default_value_triples(data_graph, shapes_graph, shapes_graph_wrapper, predicates)
+
+
+def _materialize_default_value_triples(
+    data_graph: Any, shapes_graph: Any, shapes_graph_wrapper: Any, predicates: set
+) -> list[tuple[Any, Any, Any]]:
+    """For each ``predicate`` in ``predicates``, and for every non-deactivated
+    property shape in ``shapes_graph`` whose ``sh:path`` is that predicate,
+    add derived ``(focus, predicate, value)`` triples to ``data_graph`` for
+    every target/focus node of that property shape that has no existing
+    value for the predicate - preferring an ``sh:values``-computed value
+    when the property shape declares one and it produces at least one
+    result, falling back to a plain ``sh:defaultValue`` otherwise (matching
+    the ``expectedPredicate-example`` fixture's own worked case: a rectangle
+    with real width/height gets its area computed via ``sh:values``, one
+    with neither falls back to ``sh:defaultValue``'s constant). Never
+    overwrites or duplicates an already-asserted value, per
+    ``sh:defaultValue``'s own spec-defined semantics ("used when no other
+    values are present for a property").
+
+    Returns every ``(focus, predicate, value)`` triple actually added, so
+    the caller can strip them again once rule execution finishes - see
+    ``_materialize_expected_predicates``'s docstring for why.
+
+    A property shape's own "target/focus nodes" are, per ordinary SHACL
+    Core semantics, the target nodes of whatever node shape(s) reference it
+    via ``sh:property`` (the common case - see the SHACL 1.2 SPARQL
+    Extensions spec's own worked ``ex:RectangleShape``/
+    ``ex:RectangleShape-area`` example) - plus, for completeness, the
+    property shape's own targets if it happens to declare ``sh:target*``
+    directly (a rarer, but spec-legitimate, top-level-property-shape case).
+    """
+    added: list[tuple[Any, Any, Any]] = []
+    for path in predicates:
+        for prop_shape in {s for s, _, _ in shapes_graph.triples((None, SH.path, path))}:
+            deactivated = next(iter(shapes_graph.objects(prop_shape, SH.deactivated)), None)
+            if deactivated is not None and bool(deactivated):
+                continue
+
+            values_node = next(iter(shapes_graph.objects(prop_shape, SH.values)), None)
+            default_values = list(shapes_graph.objects(prop_shape, SH.defaultValue))
+            if values_node is None and not default_values:
+                continue
+
+            focus_nodes: set = set(_shape_target_nodes(data_graph, shapes_graph, prop_shape))
+            for host_shape, _, _ in shapes_graph.triples((None, SH.property, prop_shape)):
+                focus_nodes.update(_shape_target_nodes(data_graph, shapes_graph, host_shape))
+
+            real_prop_shape = None
+            if values_node is not None:
+                try:
+                    real_prop_shape = shapes_graph_wrapper.lookup_shape_from_node(prop_shape)
+                except (AttributeError, KeyError):
+                    # lookup_shape_from_node is a plain dict lookup with no
+                    # lazy-build fallback of its own - at this early point in
+                    # pyshacl.validate()'s pipeline (advanced['rules'] runs
+                    # before shape validation), a property shape reachable
+                    # only via sh:property may not be cached yet even though
+                    # the outer node shape (reached via gather_rules, which
+                    # is how this function got a Shape at all) already is.
+                    # _build_node_shape_cache() is itself incremental/
+                    # idempotent (skips any node already present, see its own
+                    # source) - safe to call again rather than only on an
+                    # empty cache, unlike the narrower `if len(...) < 1` guard
+                    # ShapesGraph.shapes itself uses for its own, different
+                    # (whole-cache-empty) case.
+                    try:
+                        shapes_graph_wrapper._build_node_shape_cache()
+                        real_prop_shape = shapes_graph_wrapper.lookup_shape_from_node(prop_shape)
+                    except (AttributeError, KeyError):
+                        real_prop_shape = None
+
+            for focus in focus_nodes:
+                if any(True for _ in data_graph.triples((focus, path, None))):
+                    continue
+
+                computed: list = []
+                if real_prop_shape is not None:
+                    computed = _compute_sh_values(real_prop_shape, values_node, data_graph, focus)
+
+                if computed:
+                    for value in computed:
+                        triple = (focus, path, value)
+                        data_graph.add(triple)
+                        added.append(triple)
+                elif default_values:
+                    triple = (focus, path, default_values[0])
+                    data_graph.add(triple)
+                    added.append(triple)
+
+    return added
+
+
+def _strip_temp_triples(data_graph: Any) -> None:
+    """``sh:tempTriple`` (SHACL 1.2 SPARQL Extensions section 8.5,
+    "Temporary Triples") - a genuinely new predicate, found 2026-08-15 via
+    the W3C SHACL 1.2 test suite's ``temp-triples-example`` fixture.
+
+    Per spec: "It is sometimes useful for inference rules to produce
+    triples that are only visible during the execution of other rules but
+    do not end up in the final inferences. A temporary triple is an
+    inferred triple for which the inference graph contains a reifier with
+    the value ``sh:tempTriple true``. Temporary triples and their reifiers
+    are visible to executing rules" - but must not survive into the final
+    output. Unlike the spec's own worked example (which uses RDF-1.2's
+    inline reifier-annotation shorthand, ``$this ex:offspring ?offspring
+    {| sh:tempTriple true |}``), the W3C test suite's own fixture uses the
+    fully-expanded longhand form directly in its CONSTRUCT template
+    (``?reifier rdf:reifies ?tt . ?reifier sh:tempTriple true .``, with
+    ``?tt`` built via ``BIND (TRIPLE(...) AS ?tt)``) - both forms produce
+    the identical reifier triples once a rule's CONSTRUCT has executed, so
+    this function only needs to look for that fully-expanded shape,
+    regardless of which syntax a given rule used to produce it.
+
+    Called once, after all rule execution for a given ``apply_rules()``
+    call has completely finished (both the shape-attached path this
+    function's own call site sits in, and - not yet extended, see below -
+    the separate global-rules path), same timing requirement as
+    ``sh:expectedPredicate``'s own transient materialization: temp triples
+    must stay visible to *executing* rules (so no interleaved stripping
+    mid-execution), but never appear in ``apply_rules()``'s permanent
+    output.
+
+    The reified value (the ``rdf:reifies`` object) is, confirmed via a live
+    trace (not assumed), the pySHACL-internal *encoded* form -
+    ``TripleTermAdapter``'s content-addressed ``urn:starshacl:tt:HASH`` URI,
+    not a real ``TripleTerm`` - since ``TRIPLE()`` runs against ``data_graph``
+    at this point in ``pyshacl.validate()``'s pipeline, which is already
+    adapter-encoded (the outer ``StarShaclValidator.validate()`` call
+    encodes before ever handing off to pySHACL). ``_get_tt_adapter``/
+    ``adapter.decode_term`` (the same helpers ``native_components.py`` uses
+    for every other reifier lookup in this codebase) resolve it back to the
+    real ``(s, p, o)`` - a plain ``(s, p, o)`` 3-tuple is also accepted as a
+    fallback for robustness, matching the convention this codebase's own
+    reifier creation elsewhere (``_materialize_source_rule_provenance``)
+    uses when no adapter is present at all.
+
+    Removes the reified triple itself, plus every triple with the reifier
+    node as its own subject (not just the two this codebase's own
+    ``sh:sourceRule`` materialization would produce) - "temporary triples
+    *and their reifiers*" (plural, spec's own wording) reads as "the whole
+    reifier node," not just its two defining triples, in case a rule
+    asserted anything else about that same reifier.
+
+    **Known, deliberate limitation**: not wired into the separate global
+    (unattached ``sh:SPARQLRule``) rules path (``_global_sparql_rule_triples``)
+    - no currently-known fixture combines a global rule with
+    ``sh:tempTriple``; same category of gap as that function's own
+    documented ``sh:expectedPredicate`` limitation, for the same reason
+    (no concrete case to build/test against yet).
+    """
+    reifiers = {
+        s
+        for s, _, o in data_graph.triples((None, SH.tempTriple, None))
+        if bool(o.value if hasattr(o, "value") else o)
+    }
+    if not reifiers:
+        return
+
+    adapter = _get_tt_adapter(data_graph)
+
+    for reifier in reifiers:
+        for _, _, reified in list(data_graph.triples((reifier, _RDF_REIFIES, None))):
+            if adapter is not None:
+                reified = adapter.decode_term(reified)
+            if hasattr(reified, "subject") and hasattr(reified, "predicate") and hasattr(reified, "object"):
+                data_graph.remove((reified.subject, reified.predicate, reified.object))
+            elif isinstance(reified, tuple) and len(reified) == 3:
+                data_graph.remove(reified)
+        for triple in list(data_graph.triples((reifier, None, None))):
+            data_graph.remove(triple)
+
+
+def _shape_target_nodes(data_graph: Any, shapes_graph: Any, shape_node: Any) -> set:
+    """Minimal SHACL Core target resolution (``sh:targetNode``/
+    ``sh:targetClass``/``sh:targetSubjectsOf``/``sh:targetObjectsOf``),
+    operating directly via ``.triples()``/``.objects()`` on whatever raw
+    graph objects ``sh:expectedPredicate`` materialization runs against -
+    deliberately not ``starshacl.engine.target_nodes`` (which normalizes
+    both graphs into a fresh ``StarLayerGraph`` copy on every call - real
+    overhead, and unproven against the quad/``RdfLibDataGraph``-wrapped
+    graph shapes this specific, pySHACL-internal execution point actually
+    hands over). SHACL 1.2's newer target types (``sh:targetWhere``,
+    implicit class targets, ``sh:shape``) are already flattened to plain
+    ``sh:targetNode`` triples by ``StarShaclValidator.
+    _augment_shapes_with_new_target_types`` earlier in ``validate()``'s own
+    pipeline, well before any rule ever executes - so this narrower,
+    Core-only set is already complete by the time this runs.
+    """
+    targets: set = set()
+    targets.update(shapes_graph.objects(shape_node, SH.targetNode))
+    for cls in shapes_graph.objects(shape_node, SH.targetClass):
+        targets.update(s for s, _, _ in data_graph.triples((None, RDF.type, cls)))
+    for pred in shapes_graph.objects(shape_node, SH.targetSubjectsOf):
+        targets.update(s for s, _, _ in data_graph.triples((None, pred, None)))
+    for pred in shapes_graph.objects(shape_node, SH.targetObjectsOf):
+        targets.update(o for _, _, o in data_graph.triples((None, pred, None)))
+    return targets
+
+
 _filter_shape_patch_status: bool | None = None
 
 
@@ -1224,16 +1715,23 @@ def _patch_rdflib_data_graph_clone_preserves_tt_adapter() -> bool:
 def _compute_sh_values(shape: Any, values_node: Any, target_graph: Any, focus_node: Any) -> list:
     """The computed value set for one focus node, per a property shape's
     ``sh:values`` (SHACL 1.2 Core's "new ``sh:values``" mechanism, a
-    `sh:PropertyRule`-adjacent but distinct feature): either a full
-    ``sh:select`` query (using its own single projected variable, whatever
-    it's named) or a single ``sh:sparqlExpr`` scalar expression (wrapped
-    into a one-row ``SELECT (<expr> AS ?_computed) WHERE {}``), both
-    evaluated with ``$this``/``?this`` bound to ``focus_node`` exactly the
-    way ``sh:sparql`` constraints already do. Reuses pySHACL's own
-    ``SPARQLQueryHelper`` wholesale (prefix collection via ``sh:prefixes``,
-    ``$this`` pre-binding) rather than reimplementing either - the *only*
-    new piece is calling it against a value-computation site pySHACL itself
-    has no notion of.
+    `sh:PropertyRule`-adjacent but distinct feature). Three forms, tried in
+    order: a full ``sh:select`` query (using its own single projected
+    variable, whatever it's named); a single ``sh:sparqlExpr`` scalar
+    expression (wrapped into a one-row ``SELECT (<expr> AS ?_computed) WHERE
+    {}``), both evaluated with ``$this``/``?this`` bound to ``focus_node``
+    exactly the way ``sh:sparql`` constraints already do, reusing pySHACL's
+    own ``SPARQLQueryHelper`` wholesale (prefix collection via
+    ``sh:prefixes``, ``$this`` pre-binding) rather than reimplementing
+    either; or, if ``values_node`` is neither of those but is itself a node
+    expression (e.g. ``sparql:multiply ( [ shnex:pathValues ex:width ]
+    [ shnex:pathValues ex:height ] )`` - the SHACL 1.2 SPARQL Extensions
+    spec's own worked ``sh:expectedPredicate`` example, found 2026-08-15 via
+    the W3C test suite's ``expectedPredicate-example`` fixture, which this
+    third form was added specifically to make pass), evaluated via
+    ``starshacl.node_expressions.eval_expr`` - the same node-expression
+    evaluator ``shnex:``/``sparql:`` forms use everywhere else in this
+    codebase, not a separate implementation.
     """
     from pyshacl.helper import get_query_helper_cls
 
@@ -1244,7 +1742,12 @@ def _compute_sh_values(shape: Any, values_node: Any, target_graph: Any, focus_no
     elif expr_vals:
         query_text = f"SELECT ({expr_vals[0]} AS ?_computed) WHERE {{}}"
     else:
-        return []
+        from starshacl.node_expressions import eval_expr
+
+        try:
+            return [v for v in eval_expr(values_node, focus_node, target_graph, shape.sg) if v is not None]
+        except Exception:
+            return []
 
     SPARQLQueryHelper = get_query_helper_cls()
     query_helper = SPARQLQueryHelper(shape, values_node, query_text)
@@ -1515,40 +2018,131 @@ def _global_sparql_rules(shacl_graph: Any) -> list:
 
 
 def _global_sparql_rule_triples(data_graph: Any, shacl_graph: Any) -> list[tuple[tuple, Any]]:
-    """Every ``(triple, rule_node)`` pair produced by running each global
-    ``sh:SPARQLRule``'s own ``sh:construct`` query once against
-    ``data_graph`` (no per-focus-node iteration, no ``$this`` binding - the
-    query's own graph pattern is matched directly against the whole graph,
-    exactly like an ordinary standalone SPARQL CONSTRUCT). Honors
-    ``sh:deactivated`` on the rule node itself. Prefix resolution reuses
-    ``_ambient_shapes_graph_prefixes`` (see that function's own docstring)
-    since a global rule, having no shape of its own, can't carry an explicit
-    ``sh:prefixes`` reference at all - confirmed via the fixture this was
-    found through, whose ``ex:`` prefix is declared only via an ambient
-    ``sh:ShapesGraph`` node.
+    """Every ``(triple, rule_node)`` pair produced by running every global
+    ``sh:SPARQLRule`` (see ``_global_sparql_rules``) to completion against
+    ``data_graph``, honoring ``sh:layer``/``sh:runOnce``/``sh:order``
+    (SHACL 1.2 SPARQL Extensions section 8.2.4-8.2.6) and iterating each
+    layer's non-run-once rules to a real fixpoint - **mutates ``data_graph``
+    directly as it goes** (not just at the end), both because later rules
+    in the same/a later layer need to see earlier rules' output, and
+    because a fixpoint can't be detected without materializing each round's
+    triples before running the next one. The caller no longer needs to
+    (and, since this already added everything, should not redundantly)
+    add the returned triples itself - see ``apply_rules``'s own comment at
+    its call site.
 
-    Each triple is paired with the rule node that produced it - originally
-    just for the caller's own ``out_data.add()`` loop, now also consumed for
-    ``sh:sourceRule`` provenance (SHACL 1.2 SPARQL Extensions section 8.7)
-    when a caller opts in.
+    **Fixes a real, pre-existing bug this function used to have**: the
+    original version ran every global rule's CONSTRUCT exactly once, in a
+    single pass, with no fixpoint iteration at all - so a rule depending on
+    another global rule's own output (e.g. two RDFS-entailment-style rules
+    chained together, `?a rdf:type ?x . ?x rdfs:subClassOf ?y` depending on
+    a *different* rule's `rdf:type` inference) only ever produced its first
+    hop. Confirmed via the W3C SHACL 1.2 test suite's newly-synced
+    ``sparql/rules/rdfs/rdfs-{domain,range,subclass,subproperty}-*``
+    fixtures (none of which use ``sh:layer``/``sh:runOnce`` at all - this
+    symptom existed independently of either predicate).
+
+    **No longer gated/deferred like shape-attached rules' `sh:layer`/
+    `sh:runOnce`support** - unlike ``_run_layered_rules`` (whose native loop
+    only activates when a shapes graph opts in, to avoid changing existing
+    shape-rule behavior), every call here now goes through one shared
+    layered/fixpoint loop unconditionally: the *pre-existing* single-pass
+    behavior was already a bug (see above), so there's no "existing correct
+    behavior" a `sh:layer`-naive shapes graph needs preserved - every
+    global rule implicitly sits at layer 0 already (the spec's own stated
+    default), and running to a fixpoint there is what should always have
+    happened.
+
+    Honors ``sh:deactivated`` on the rule node itself. Prefix resolution
+    reuses ``_ambient_shapes_graph_prefixes`` (see that function's own
+    docstring) since a global rule, having no shape of its own, can't carry
+    an explicit ``sh:prefixes`` reference at all.
+
+    Each triple is paired with the rule node that produced it - consumed
+    both for the caller's own bookkeeping and for ``sh:sourceRule``
+    provenance (section 8.7) when a caller opts in.
+
+    **Known, deliberate limitation**: ``sh:expectedPredicate`` materialization
+    (``_materialize_expected_predicates``) is not wired into this path - it
+    only runs once, up front, for shape-attached rules. No currently-known
+    fixture combines a global rule with ``sh:expectedPredicate``; if one
+    ever needs it, the fix is straightforward (call
+    ``_materialize_default_value_triples`` here too, predicates gathered
+    from these rule nodes) but wasn't added speculatively.
     """
-    added: list[tuple[tuple, Any]] = []
+    from pyshacl.errors import ReportableRuntimeError
+    from pyshacl.rules import RULES_ITERATE_LIMIT
+
+    rule_nodes = _global_sparql_rules(shacl_graph)
+    if not rule_nodes:
+        return []
+
     ambient_prefixes = _ambient_shapes_graph_prefixes(shacl_graph)
     prefix_text = "".join(f"PREFIX {p}: <{ns}>\n" for p, ns in ambient_prefixes.items())
-    for rule_node in _global_sparql_rules(shacl_graph):
+
+    def _is_deactivated(rule_node: Any) -> bool:
         deactivated = next(iter(shacl_graph.objects(rule_node, SH.deactivated)), None)
-        if deactivated is not None and bool(deactivated.value if hasattr(deactivated, "value") else deactivated):
-            continue
+        return deactivated is not None and bool(deactivated.value if hasattr(deactivated, "value") else deactivated)
+
+    def _layer_of(rule_node: Any) -> int:
+        values = list(shacl_graph.objects(rule_node, SH.layer))
+        return int(values[0]) if values else 0
+
+    def _run_once_of(rule_node: Any) -> bool:
+        values = list(shacl_graph.objects(rule_node, SH.runOnce))
+        return bool(values) and bool(values[0])
+
+    def _order_key(rule_node: Any) -> tuple[float, int]:
+        values = list(shacl_graph.objects(rule_node, SH.order))
+        order = float(values[0]) if values else 0.0
+        return (order, rule_nodes.index(rule_node))
+
+    def _apply_one(rule_node: Any) -> list[tuple[tuple, Any]]:
+        if _is_deactivated(rule_node):
+            return []
         construct_vals = list(shacl_graph.objects(rule_node, SH.construct))
         if not construct_vals:
-            continue
+            return []
         query_text = prefix_text + str(construct_vals[0])
+        produced: list[tuple[tuple, Any]] = []
         try:
             for triple in data_graph.query(query_text):
-                added.append((triple, rule_node))
+                if triple not in data_graph:
+                    produced.append((triple, rule_node))
         except Exception:
-            continue
-    return added
+            return []
+        for triple, _ in produced:
+            data_graph.add(triple)
+        return produced
+
+    layers: dict[int, list[Any]] = {}
+    for rule_node in rule_nodes:
+        layers.setdefault(_layer_of(rule_node), []).append(rule_node)
+
+    all_added: list[tuple[tuple, Any]] = []
+    for layer_key in sorted(layers.keys()):
+        entries = layers[layer_key]
+        run_once_nodes = sorted((r for r in entries if _run_once_of(r)), key=_order_key)
+        iterating_nodes = sorted((r for r in entries if not _run_once_of(r)), key=_order_key)
+
+        for rule_node in run_once_nodes:
+            all_added.extend(_apply_one(rule_node))
+
+        iterate_limit = int(RULES_ITERATE_LIMIT)
+        while True:
+            if iterate_limit < 1:
+                raise ReportableRuntimeError(
+                    f"SHACL Shape Rule iteration exceeded iteration limit of {RULES_ITERATE_LIMIT}."
+                )
+            iterate_limit -= 1
+            this_round: list[tuple[tuple, Any]] = []
+            for rule_node in iterating_nodes:
+                this_round.extend(_apply_one(rule_node))
+            all_added.extend(this_round)
+            if not this_round:
+                break
+
+    return all_added
 
 
 def _transitive_subclasses(data_graph: Any, shacl_graph: Any, superclass: Any) -> set:
