@@ -67,6 +67,47 @@ def test_metadata_only_predicates_do_not_break_meta_shacl_preflight() -> None:
     assert result.conforms is True
 
 
+def test_conforms_to_shapes_graph_does_not_interfere_with_validation() -> None:
+    """sh:conformsToShapesGraph (SHACL 1.2 Core section 6.6.1, added to the
+    published spec 2026-08-03 - see docs/shacl12-gap-matrix.md) is a
+    data-graph-level self-descriptive assertion (domain sh:DataGraph, range
+    sh:ShapesGraph) - unlike the shape-level annotations above, this one
+    lives in the *data* graph, not the shapes graph, so it's a distinct
+    inert-metadata case worth its own regression test rather than assuming
+    the shape-annotation coverage above extends to it.
+    """
+    data = StarLayerGraph()
+    data.parse(
+        data="""
+            @prefix ex: <http://example.org/> .
+            @prefix sh: <http://www.w3.org/ns/shacl#> .
+            ex:MyDataGraph a sh:DataGraph ;
+              sh:conformsToShapesGraph ex:MyShapesGraph .
+            ex:alice a ex:Person ; ex:heightCm 170 .
+            ex:bob a ex:Person .
+        """,
+        format="turtle",
+    )
+
+    shapes = StarLayerGraph()
+    shapes.parse(
+        data="""
+            @prefix ex: <http://example.org/> .
+            @prefix sh: <http://www.w3.org/ns/shacl#> .
+            @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+            ex:PersonShape a sh:NodeShape ;
+              sh:targetClass ex:Person ;
+              sh:property [ sh:path ex:heightCm ; sh:minCount 1 ; sh:datatype xsd:integer ] .
+        """,
+        format="turtle",
+    )
+
+    result = StarShaclValidator().validate(data_graph=data, shacl_graph=shapes, meta_shacl=True)
+    assert result.conforms is False
+    assert "ex:bob" in result.report_text
+    assert "ex:alice" not in result.report_text.split("Focus Node:")[-1]
+
+
 def test_metadata_only_predicates_do_not_interfere_with_rule_application() -> None:
     data = StarLayerGraph()
     data.parse(data="""

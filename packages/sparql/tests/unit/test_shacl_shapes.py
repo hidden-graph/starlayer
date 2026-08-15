@@ -536,6 +536,95 @@ def test_function_missing_iri_fails():
     assert "salg:iri" in results_text or "Function" in results_text
 
 
+def test_relational_expression_op_wrong_datatype_fails():
+    """salg:op must be a salg:PyStr-tagged Literal (RelationalExpression.op
+    is a bare Python str in the live algebra, e.g. "=" - see vocab.py's
+    "Bare Python strings" section), not merely present. Was previously
+    cardinality-only, so any value at all (even an IRI) silently conformed -
+    found via a 2026-08 audit auditing every salg:PyStr encoding site against
+    its shape."""
+    query_text = "PREFIX : <http://example.org/> SELECT * WHERE { ?s ?p ?y . FILTER(?y = 1) }"
+    prepared = prepareQuery(query_text)
+    graph, root = query_to_rdf(prepared)
+    node = next(graph.subjects(RDF.type, SALG.RelationalExpression))
+    for op in list(graph.objects(node, SALG.op)):
+        graph.remove((node, SALG.op, op))
+    graph.add((node, SALG.op, URIRef("http://example.org/not-a-pystr")))
+
+    conforms, _, results_text = validate(graph)
+    assert not conforms
+    assert "salg:op" in results_text or "RelationalExpression" in results_text
+
+
+def test_order_condition_order_wrong_datatype_fails():
+    """Same gap as salg:op above, for OrderCondition.order ("ASC"/"DESC")."""
+    query_text = "PREFIX : <http://example.org/> SELECT * WHERE { ?s ?p ?y } ORDER BY DESC(?y)"
+    prepared = prepareQuery(query_text)
+    graph, root = query_to_rdf(prepared)
+    node = next(graph.subjects(RDF.type, SALG.OrderCondition))
+    for order in list(graph.objects(node, SALG.order)):
+        graph.remove((node, SALG.order, order))
+    graph.add((node, SALG.order, Literal("DESC")))  # plain literal, not salg:PyStr-tagged
+
+    conforms, _, results_text = validate(graph)
+    assert not conforms
+    assert "salg:order" in results_text or "OrderCondition" in results_text
+
+
+def test_service_silent_wrong_datatype_fails():
+    """Same gap as salg:op above, for ServiceGraphPattern.silent - confirmed
+    via prepareQuery that .silent is the bare string "SILENT", not a
+    Python bool, when present."""
+    query_text = "SELECT * WHERE { SERVICE SILENT <http://ex/endpoint> { ?s ?p ?o } }"
+    prepared = prepareQuery(query_text)
+    graph, root = query_to_rdf(prepared)
+    node = next(graph.subjects(RDF.type, SALG.ServiceGraphPattern))
+    for silent in list(graph.objects(node, SALG.silent)):
+        graph.remove((node, SALG.silent, silent))
+    graph.add((node, SALG.silent, Literal(True)))
+
+    conforms, _, results_text = validate(graph)
+    assert not conforms
+    assert "salg:silent" in results_text or "ServiceGraphPattern" in results_text
+
+
+def test_clear_silent_wrong_datatype_fails():
+    """Same salg:PyStr gap as above, on the Update side: Clear/Drop/Create/
+    Add/Move/Copy/Load's own .silent had no shape declaration at all before
+    this - not even cardinality - confirmed via prepareUpdate that .silent is
+    the bare string "SILENT" here too, same as ServiceGraphPattern's."""
+    update_text = "CLEAR SILENT DEFAULT"
+    prepared = prepareUpdate(update_text)
+    graph, root = update_to_rdf(prepared)
+    node = next(graph.subjects(RDF.type, SALG.Clear))
+    for silent in list(graph.objects(node, SALG.silent)):
+        graph.remove((node, SALG.silent, silent))
+    graph.add((node, SALG.silent, Literal(True)))
+
+    conforms, _, results_text = validate(graph)
+    assert not conforms
+    assert "salg:silent" in results_text or "Clear" in results_text
+
+
+def test_load_graphiri_pystr_keyword_fails():
+    """LOAD's own INTO GRAPH destination is always a plain IRI - unlike
+    Clear/Drop/Create's salg:graphiri, LOAD's grammar never allows a
+    DEFAULT/NAMED/ALL keyword there (confirmed against real translateUpdate
+    output) - so salg:GraphRefShape's PyStr alternative must NOT apply here.
+    Previously salg:graphiri had no shape declaration at all for Load."""
+    update_text = "LOAD SILENT <http://ex/src> INTO GRAPH <http://ex/dest>"
+    prepared = prepareUpdate(update_text)
+    graph, root = update_to_rdf(prepared)
+    node = next(graph.subjects(RDF.type, SALG.Load))
+    for graphiri in list(graph.objects(node, SALG.graphiri)):
+        graph.remove((node, SALG.graphiri, graphiri))
+    graph.add((node, SALG.graphiri, Literal("DEFAULT", datatype=SALG.PyStr)))
+
+    conforms, _, results_text = validate(graph)
+    assert not conforms
+    assert "salg:graphiri" in results_text or "Load" in results_text
+
+
 def test_nested_triple_term_in_subject_position_fails():
     """RDF 1.2 restricts a triple term's own subject to an IRI/blank
     node/Variable, never another (nested) triple term. Construct this

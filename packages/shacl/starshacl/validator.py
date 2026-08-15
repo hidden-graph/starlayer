@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextvars
 from typing import Any, Callable, Iterable
 
 from rdflib import BNode, Graph, Literal, Namespace, URIRef
@@ -16,6 +17,7 @@ from starshacl.engine import (
 )
 from starshacl.native_components import (
     SHAPE_EXPECTING_PREDICATES,
+    _RDF_REIFIES,
     _ambient_shapes_graph_prefixes,
     ensure_shape_typed,
     register_native_components,
@@ -102,6 +104,9 @@ class StarShaclValidator:
         rdfs_subclass_reasoning_includes_shapes_graph: bool = False,
         shapes_graph_loader: Callable[[Any], Any | None] | None = None,
         meta_shapes_extra: Iterable[Any] = (),
+        data_graph_iri: Any | None = None,
+        shapes_graph_iri: Any | None = None,
+        include_used_configuration: bool = False,
         **kwargs: Any,
     ) -> ValidationResult:
         self.adapter.reset_diagnostics()
@@ -316,6 +321,12 @@ class StarShaclValidator:
             report_text = self._humanize_report_text(report_text)
 
         conforms = self._annotate_conformance_disallows(out_report, options, conforms)
+        self._annotate_used_graphs_and_configuration(
+            out_report,
+            data_graph_iri=data_graph_iri,
+            shapes_graph_iri=shapes_graph_iri,
+            include_used_configuration=include_used_configuration,
+        )
 
         out_data: TripleTermGraph | Any | None = None
         if options.get("inplace"):
@@ -640,6 +651,60 @@ class StarShaclValidator:
         report_graph.add((report_node, SH.conforms, Literal(new_conforms)))
         return new_conforms
 
+    def _annotate_used_graphs_and_configuration(
+        self,
+        report_graph: Any,
+        *,
+        data_graph_iri: Any | None,
+        shapes_graph_iri: Any | None,
+        include_used_configuration: bool,
+    ) -> None:
+        """Add ``sh:usedDataGraph``/``sh:usedShapesGraph``/``sh:usedConfiguration``
+        to the report per SHACL 1.2 Core section 6.7.1.5-6.7.1.8 (added to
+        the published spec 2026-08-03 - see docs/shacl12-gap-matrix.md's
+        Core changelog table). All three are optional (``MAY``) provenance
+        metadata; the spec is explicit that "SHACL processors MUST NOT
+        alter their validation behavior based on the contents of a
+        ``sh:ProcessorConfiguration`` instance" - added here purely
+        additively, never read back by anything in this codebase.
+
+        ``data_graph_iri``/``shapes_graph_iri`` are caller-supplied because
+        an anonymous in-memory ``rdflib.Graph`` has no IRI identity of its
+        own to report - the same "needs the caller to have already minted
+        identity" situation already documented for SHACL 1.2 Profiling's
+        ``sh:conformsTo`` inference rule (see this file's "Not Covered /
+        Deferred" table). No default/invented IRI is generated when the
+        caller omits one - a bare string is coerced to ``URIRef``, an
+        already-a-term value (``URIRef``, or a ``Literal`` for a versioned
+        graph IRI, which the spec explicitly allows) is used as-is.
+
+        ``sh:usedConfiguration``/``sh:ProcessorConfiguration`` is opt-in
+        (``include_used_configuration``, default ``False``): the spec
+        leaves every property of ``sh:ProcessorConfiguration`` undefined
+        ("Implementations are free to define whatever properties they
+        need"), so with nothing concrete to say about a given run, adding
+        an empty blank node to *every* report by default would be pure
+        noise - only add the marker when a caller actually asks for it.
+        """
+        report_node = next((s for s, _, _ in report_graph.triples((None, RDF.type, SH.ValidationReport))), None)
+        if report_node is None:
+            return
+
+        if data_graph_iri is not None:
+            value = data_graph_iri if isinstance(data_graph_iri, (URIRef, Literal)) else URIRef(str(data_graph_iri))
+            report_graph.add((report_node, SH.usedDataGraph, value))
+        if shapes_graph_iri is not None:
+            value = (
+                shapes_graph_iri
+                if isinstance(shapes_graph_iri, (URIRef, Literal))
+                else URIRef(str(shapes_graph_iri))
+            )
+            report_graph.add((report_node, SH.usedShapesGraph, value))
+        if include_used_configuration:
+            config_node = BNode()
+            report_graph.add((config_node, RDF.type, SH.ProcessorConfiguration))
+            report_graph.add((report_node, SH.usedConfiguration, config_node))
+
     def _humanize_report_text(self, report_text: str) -> str:
         """Replace encoded triple-term URIs embedded in pySHACL's report text
         with a readable ``<<( s p o )>>`` rendering.
@@ -829,23 +894,53 @@ class StarShaclValidator:
         data_graph: Any,
         shacl_graph: Any,
         ont_graph: Any | None = None,
+        include_source_rule_provenance: bool = False,
         **kwargs: Any,
     ) -> RulesResult:
         options = resolve_profile_options("rules", overrides=kwargs)
 
-        result = self.validate(
-            data_graph=data_graph,
-            shacl_graph=shacl_graph,
-            ont_graph=ont_graph,
-            profile="rules",
-            **options,
-        )
+        token = None
+        if include_source_rule_provenance:
+            _patch_rule_apply_for_source_rule_provenance()
+            token = _source_rule_buffer.set([])
+
+        try:
+            result = self.validate(
+                data_graph=data_graph,
+                shacl_graph=shacl_graph,
+                ont_graph=ont_graph,
+                profile="rules",
+                **options,
+            )
+
+            # Encoded (s, p, o) triples captured from every patched
+            # TripleRule/SPARQLRule.apply() call made during self.validate()
+            # above - decoded below, once execution has fully finished, per
+            # SHACL 1.2 SPARQL Extensions section 8.7's "MUST NOT be visible
+            # to executing rules" requirement.
+            shape_rule_records: list[tuple[tuple[Any, Any, Any], Any]] = (
+                list(_source_rule_buffer.get()) if token is not None else []
+            )
+        finally:
+            if token is not None:
+                _source_rule_buffer.reset(token)
 
         out_data = result.data_graph or data_graph
+        global_rule_records: list[tuple[tuple[Any, Any, Any], Any]] = []
         if shacl_graph is not None:
             normalized_shapes = normalize_graph_inputs(shacl_graph, None, None)[0]
-            for triple in _global_sparql_rule_triples(out_data, normalized_shapes):
+            for triple, rule_node in _global_sparql_rule_triples(out_data, normalized_shapes):
                 out_data.add(triple)
+                if include_source_rule_provenance:
+                    global_rule_records.append((triple, rule_node))
+
+        if include_source_rule_provenance:
+            _materialize_source_rule_provenance(
+                out_data, self.adapter, shape_rule_records, decode=True
+            )
+            _materialize_source_rule_provenance(
+                out_data, self.adapter, global_rule_records, decode=False
+            )
 
         return RulesResult(
             data_graph=out_data,
@@ -854,6 +949,152 @@ class StarShaclValidator:
             conforms=result.conforms,
             diagnostics=result.diagnostics,
         )
+
+
+_source_rule_buffer: "contextvars.ContextVar[list[tuple[tuple, Any]] | None]" = contextvars.ContextVar(
+    "_source_rule_buffer", default=None
+)
+
+_source_rule_patch_status: bool | None = None
+
+
+def _patch_rule_apply_for_source_rule_provenance() -> bool:
+    """Apply a targeted patch enabling ``sh:sourceRule`` provenance tracking
+    (SHACL 1.2 SPARQL Extensions section 8.7) for shape-attached ``sh:rule``s
+    - the ones pySHACL's own ``pyshacl.rules.apply_rules()`` executes
+    internally via ``advanced=True``. Unlike this file's other two runtime
+    patches (``_patch_shape_validate_for_filter_shape``,
+    ``_patch_rdflib_data_graph_clone_preserves_tt_adapter``), this isn't
+    fixing a pySHACL bug - it's the only way to get per-rule triple
+    attribution at all, since ``pyshacl.rules.apply_rules()`` calls each
+    ``SHACLRule.apply()`` in a loop it owns, returning only an int
+    (``n_modified``), with no hook or callback for "which triples did *this*
+    rule just add."
+
+    Wraps ``TripleRule.apply``/``SPARQLRule.apply`` (both subclass
+    ``pyshacl.rules.shacl_rule.SHACLRule``, whose own ``apply`` is abstract -
+    each subclass has its own real implementation, so both need wrapping
+    individually) to diff ``data_graph`` immediately before/after the
+    *original* call, recording ``(triple, self.node)`` for every triple that
+    call added - into ``_source_rule_buffer``, a ``contextvars.ContextVar``
+    rather than a plain module global, so a caller who didn't opt in (the
+    default - the var holds ``None``) gets a pure no-op passthrough with zero
+    behavior change, and concurrent/nested ``apply_rules()`` calls don't leak
+    records into each other's buffers.
+
+    The diff-and-record step only *records* - it never adds anything to
+    ``data_graph`` itself. The actual ``sh:sourceRule``/``rdf:reifies``
+    triples are materialized later, in one batch, only once all rule
+    execution has completely finished (see ``_materialize_source_rule_provenance``
+    and ``apply_rules``'s own use of this buffer) - satisfying the spec's
+    "MUST NOT be visible to executing rules" requirement for the provenance
+    triples themselves, while leaving the underlying rule-inferred data
+    triples visible to later rules exactly as before (that part of pySHACL's
+    behavior is untouched - only observed).
+
+    Idempotent (each class's ``apply`` is tagged after wrapping and skipped
+    on a repeat call) and defensive like this file's other two patches -
+    returns ``False`` without raising if pySHACL's internals don't match
+    what this expects, so the caller can decide how to react instead of a
+    silent no-op or a confusing crash.
+    """
+    global _source_rule_patch_status
+    if _source_rule_patch_status is not None:
+        return _source_rule_patch_status
+
+    try:
+        from pyshacl.rules.sparql import SPARQLRule
+        from pyshacl.rules.triple import TripleRule
+
+        for rule_cls in (TripleRule, SPARQLRule):
+            original_apply = rule_cls.apply
+            if getattr(original_apply, "_starshacl_source_rule_patch", False):
+                continue
+
+            def _wrap(original: Any) -> Any:
+                def _patched_apply(self, data_graph, focus_nodes=None, target_graph_identifier=None):
+                    buffer = _source_rule_buffer.get()
+                    if buffer is None:
+                        return original(
+                            self,
+                            data_graph,
+                            focus_nodes=focus_nodes,
+                            target_graph_identifier=target_graph_identifier,
+                        )
+                    before = set(data_graph)
+                    result = original(
+                        self,
+                        data_graph,
+                        focus_nodes=focus_nodes,
+                        target_graph_identifier=target_graph_identifier,
+                    )
+                    after = set(data_graph)
+                    for item in after - before:
+                        # `data_graph` may be a quad-based `rdflib.Dataset`
+                        # under `advanced=True` (confirmed live - iterating
+                        # one yields 4-tuples, not 3-tuples); keep only the
+                        # triple portion regardless of which it is.
+                        buffer.append((tuple(item[:3]), self.node))
+                    return result
+
+                _patched_apply._starshacl_source_rule_patch = True  # type: ignore[attr-defined]
+                return _patched_apply
+
+            rule_cls.apply = _wrap(original_apply)
+        _source_rule_patch_status = True
+    except Exception:
+        _source_rule_patch_status = False
+
+    return _source_rule_patch_status
+
+
+def _materialize_source_rule_provenance(
+    out_data: Any,
+    adapter: TripleTermAdapter,
+    records: list[tuple[tuple[Any, Any, Any], Any]],
+    *,
+    decode: bool,
+) -> None:
+    """Add one reifier per ``(triple, rule_node)`` record to ``out_data``,
+    encoding SHACL 1.2 SPARQL Extensions section 8.7's ``sh:sourceRule``
+    provenance shorthand in its fully-expanded form: ``_:id rdf:reifies
+    <<( s p o )>> . _:id sh:sourceRule <rule> .`` Call only after all rule
+    execution has completely finished - see ``_patch_rule_apply_for_source_rule_provenance``'s
+    docstring for why.
+
+    ``decode=True`` for records captured from pySHACL's own internal,
+    URI-encoded execution (shape-attached ``sh:rule``s, captured via the
+    ``TripleRule``/``SPARQLRule.apply()`` patch) - every term, including the
+    rule node itself, is decoded back through ``adapter`` first, so the
+    reifier's terms match ``out_data``'s own representation (the same
+    ``adapter.decode_graph(encoded_data)`` call that produced ``out_data`` in
+    the first place). ``decode=False`` for records already in ``out_data``'s
+    own terms (the global ``sh:SPARQLRule`` pass, which queries the
+    already-decoded ``out_data`` directly - nothing to decode).
+
+    Builds the reifier's ``rdf:reifies`` object as a plain ``(s, p, o)``
+    3-tuple rather than via ``adapter.term_factory`` directly: the adapter's
+    own ``term_factory`` defaults to the fallback ``TripleTermValue`` (not a
+    real ``rdflib.Node``) regardless of whether ``out_data`` actually is a
+    ``StarLayerGraph`` - `TripleTermAdapter.for_starlayergraph()` is what
+    would set it to the real ``starlayergraph`` ``TripleTerm``, but nothing
+    here can assume that classmethod was used to build ``adapter``. A plain
+    3-tuple sidesteps that mismatch: ``StarLayerGraph.add()``'s own
+    ``_coerce_tt`` explicitly recognizes "a tuple/TripleTerm" as inline
+    triple-term shorthand in any node position (see its docstring), so this
+    matches ``out_data``'s actual representation unconditionally, the same
+    convention ``TripleTermAdapter._encode_node`` documents and relies on
+    elsewhere in this codebase.
+    """
+    for (s, p, o), rule_node in records:
+        if decode:
+            s = adapter.decode_term(s)
+            p = adapter.decode_term(p)
+            o = adapter.decode_term(o)
+            rule_node = adapter.decode_term(rule_node)
+        reifier = BNode()
+        out_data.add((reifier, _RDF_REIFIES, (s, p, o)))
+        out_data.add((reifier, SH.sourceRule, rule_node))
 
 
 _filter_shape_patch_status: bool | None = None
@@ -1273,19 +1514,25 @@ def _global_sparql_rules(shacl_graph: Any) -> list:
     return [r for r in shacl_graph.subjects(RDF.type, SH.SPARQLRule) if r not in referenced]
 
 
-def _global_sparql_rule_triples(data_graph: Any, shacl_graph: Any) -> list[tuple]:
-    """Every triple produced by running each global ``sh:SPARQLRule``'s own
-    ``sh:construct`` query once against ``data_graph`` (no per-focus-node
-    iteration, no ``$this`` binding - the query's own graph pattern is
-    matched directly against the whole graph, exactly like an ordinary
-    standalone SPARQL CONSTRUCT). Honors ``sh:deactivated`` on the rule node
-    itself. Prefix resolution reuses ``_ambient_shapes_graph_prefixes`` (see
-    that function's own docstring) since a global rule, having no shape of
-    its own, can't carry an explicit ``sh:prefixes`` reference at all -
-    confirmed via the fixture this was found through, whose ``ex:`` prefix
-    is declared only via an ambient ``sh:ShapesGraph`` node.
+def _global_sparql_rule_triples(data_graph: Any, shacl_graph: Any) -> list[tuple[tuple, Any]]:
+    """Every ``(triple, rule_node)`` pair produced by running each global
+    ``sh:SPARQLRule``'s own ``sh:construct`` query once against
+    ``data_graph`` (no per-focus-node iteration, no ``$this`` binding - the
+    query's own graph pattern is matched directly against the whole graph,
+    exactly like an ordinary standalone SPARQL CONSTRUCT). Honors
+    ``sh:deactivated`` on the rule node itself. Prefix resolution reuses
+    ``_ambient_shapes_graph_prefixes`` (see that function's own docstring)
+    since a global rule, having no shape of its own, can't carry an explicit
+    ``sh:prefixes`` reference at all - confirmed via the fixture this was
+    found through, whose ``ex:`` prefix is declared only via an ambient
+    ``sh:ShapesGraph`` node.
+
+    Each triple is paired with the rule node that produced it - originally
+    just for the caller's own ``out_data.add()`` loop, now also consumed for
+    ``sh:sourceRule`` provenance (SHACL 1.2 SPARQL Extensions section 8.7)
+    when a caller opts in.
     """
-    added: list[tuple] = []
+    added: list[tuple[tuple, Any]] = []
     ambient_prefixes = _ambient_shapes_graph_prefixes(shacl_graph)
     prefix_text = "".join(f"PREFIX {p}: <{ns}>\n" for p, ns in ambient_prefixes.items())
     for rule_node in _global_sparql_rules(shacl_graph):
@@ -1298,7 +1545,7 @@ def _global_sparql_rule_triples(data_graph: Any, shacl_graph: Any) -> list[tuple
         query_text = prefix_text + str(construct_vals[0])
         try:
             for triple in data_graph.query(query_text):
-                added.append(triple)
+                added.append((triple, rule_node))
         except Exception:
             continue
     return added

@@ -108,9 +108,20 @@ Two shapes need a convention beyond that generic rule:
   as an ``rdflib.Literal`` (``Slice.start``/``.length`` are passed straight
   to ``itertools.islice``, which requires real ``int``; a boolean
   ``Literal`` is always truthy in a plain Python ``if``, since it's a
-  non-empty string either way) — those few are still enumerated by name
+  non-empty string either way) — those few are still enumerated
   (``from_rdf._PLAIN_VALUE_KEYS``), since unlike ``str`` there is no
   equality/hash surprise for ``int``/``bool`` to detect generically.
+  Enumerated by **(node name, key) pair, not key name alone**: ``start``/
+  ``length`` are also ``Builtin_SUBSTR``'s own parameter names (SPARQL's
+  ``SUBSTR(str, start[, length])``, a completely unrelated node where they
+  must stay real ``Literal``/``Expression`` values, never coerced to a
+  bare Python type) — a bare-key-name match previously converted those
+  too, and `operators.numeric()` raising `SPARQLTypeError` for anything
+  that isn't a `Literal` got silently swallowed by `evalExtend` into
+  "leave the BIND target unbound" rather than raised, so a decoded
+  `BIND(SUBSTR(...) AS ?z)` looked like it worked while `?z` silently
+  never bound. Confirmed via a real `StarLayerGraph` reproduction
+  comparing against plain rdflib before fixing.
 
 - **Prologue (BASE/PREFIX).** A query or update's ``Prologue`` (the
   ``BASE``/``PREFIX`` declarations from the source text) is not part of the

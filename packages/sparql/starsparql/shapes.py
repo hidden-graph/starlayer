@@ -2,18 +2,23 @@
 algebra graph (LLM-authored or hand-authored) *before* attempting
 ``from_rdf.rdf_to_query``/``rdf_to_update``.
 
-Scope: Phase 1's core graph-pattern operators (``BGP``, ``Filter``,
-``LeftJoin``, ``Union``, ``Extend``) plus the ``TriplePattern``/``Variable``
-conventions and the ``SELECT`` query wrapper (``Project``/``SelectQuery``),
-and — from Phase 2 — ``VALUES`` and subqueries: ``Join``, ``ToMultiSet``,
-the ``values``/``Binding`` VALUES-row shapes, and the ``Slice``/``OrderBy``/
-``OrderCondition`` subquery-wrapper shapes. Still not covered: property
-paths, aggregates/``GROUP BY``, Update, ``MINUS``/``SERVICE``,
-``CONSTRUCT``/``ASK``/``DESCRIBE``-specific shapes. Each needs its own
-shapes added the same way — see ``salg:GraphPatternShape``'s ``sh:or`` list
-in ``SHAPES_TURTLE`` below, which is the one place a new operator's shape
-must be registered for it to be accepted inside a nested
-``p``/``p1``/``p2`` position.
+Scope: full coverage as of the last update to this docstring (2026-08) —
+core graph-pattern operators (``BGP``/``Filter``/``LeftJoin``/``Union``/
+``Extend``/``Minus``/``ServiceGraphPattern``/``Join``/``ToMultiSet``), the
+``TriplePattern``/``TripleTerm``/``Variable`` conventions, all five property
+path types, ``VALUES``, aggregates/``GROUP BY`` (all 7 real
+``Aggregate_*`` forms), ``Slice``/``Distinct``/``Reduced``/``OrderBy``,
+every query form (``SELECT``/``CONSTRUCT``/``ASK``/``DESCRIBE``), full
+SPARQL Update (all ten operations), and ``salg:QueryCollection``. Any new
+operator needs its own shape added the same way — see
+``salg:GraphPatternShape``'s ``sh:or`` list in ``SHAPES_TURTLE`` below,
+which is the one place a new operator's shape must be registered for it to
+be accepted inside a nested ``p``/``p1``/``p2`` position. (This scope note
+previously described only Phase 1 + VALUES/subqueries and had drifted well
+out of date with the file's actual content by the time this was corrected
+— if this note and the shape inventory below ever disagree again, trust
+the code: grep for ``^salg:[A-Za-z_]*Shape$`` to get the real, current
+list.)
 
 Full expression-tree validation (``Filter``/``LeftJoin``/``Extend``/
 ``OrderCondition``'s ``expr``) is now done — all 63 of rdflib's expression
@@ -607,7 +612,8 @@ salg:ServiceGraphPatternShape
     sh:property [
         sh:path salg:silent ;
         sh:maxCount 1 ;
-        sh:message "salg:silent is optional but at most one" ;
+        sh:nodeKind sh:Literal ; sh:datatype salg:PyStr ;
+        sh:message "salg:silent is optional but at most one, a salg:PyStr-tagged SILENT keyword" ;
     ] .
 
 # ---------------------------------------------------------------------
@@ -894,7 +900,8 @@ salg:OrderConditionShape
     sh:property [
         sh:path salg:order ;
         sh:maxCount 1 ;
-        sh:message "salg:OrderCondition may have at most one salg:order (omitted means ASC)" ;
+        sh:nodeKind sh:Literal ; sh:datatype salg:PyStr ;
+        sh:message "salg:OrderCondition may have at most one salg:order, a salg:PyStr-tagged ASC/DESC keyword (omitted means ASC)" ;
     ] .
 
 # ---------------------------------------------------------------------
@@ -1186,6 +1193,24 @@ salg:LoadShape
         sh:minCount 1 ; sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:message "salg:Load must have exactly one salg:iri, an IRI" ;
+    ] ;
+    sh:property [
+        sh:path salg:silent ;
+        sh:maxCount 1 ;
+        sh:nodeKind sh:Literal ; sh:datatype salg:PyStr ;
+        sh:message "salg:silent is optional but at most one, a salg:PyStr-tagged SILENT keyword" ;
+    ] ;
+    sh:property [
+        # LOAD's own INTO GRAPH destination is always a real IRI - unlike
+        # Clear/Drop/Create's salg:graphiri, LOAD's grammar (`Load ::= 'LOAD'
+        # 'SILENT'? iri ('INTO' GraphRef)?`, `GraphRef ::= 'GRAPH' IRIref`)
+        # never allows a DEFAULT/NAMED/ALL keyword here - confirmed directly
+        # against real translateUpdate output. Deliberately sh:nodeKind
+        # sh:IRI, not salg:GraphRefShape, for that reason.
+        sh:path salg:graphiri ;
+        sh:maxCount 1 ;
+        sh:nodeKind sh:IRI ;
+        sh:message "salg:Load's own salg:graphiri (INTO GRAPH) is optional but, when present, must be a plain IRI, not a DEFAULT/NAMED/ALL keyword" ;
     ] .
 
 # Shared {graphiri} body - Clear/Drop/Create.
@@ -1196,6 +1221,12 @@ salg:_GraphRefUpdateBodyShape
         sh:minCount 1 ; sh:maxCount 1 ;
         sh:node salg:GraphRefShape ;
         sh:message "expected exactly one salg:graphiri, a graph term or DEFAULT/NAMED/ALL keyword" ;
+    ] ;
+    sh:property [
+        sh:path salg:silent ;
+        sh:maxCount 1 ;
+        sh:nodeKind sh:Literal ; sh:datatype salg:PyStr ;
+        sh:message "salg:silent is optional but at most one, a salg:PyStr-tagged SILENT keyword" ;
     ] .
 
 salg:ClearShape a sh:NodeShape ; sh:targetClass salg:Clear ; sh:node salg:_GraphRefUpdateBodyShape .
@@ -1210,6 +1241,12 @@ salg:_GraphRefListUpdateBodyShape
         sh:minCount 1 ; sh:maxCount 1 ;
         sh:node salg:GraphRefListShape ;
         sh:message "expected exactly one salg:graph, a 2-element rdf:List [source, dest] of graph references" ;
+    ] ;
+    sh:property [
+        sh:path salg:silent ;
+        sh:maxCount 1 ;
+        sh:nodeKind sh:Literal ; sh:datatype salg:PyStr ;
+        sh:message "salg:silent is optional but at most one, a salg:PyStr-tagged SILENT keyword" ;
     ] .
 
 salg:AddShape a sh:NodeShape ; sh:targetClass salg:Add ; sh:node salg:_GraphRefListUpdateBodyShape .
@@ -1520,7 +1557,8 @@ salg:_RelationalExprBodyShape
     ] ;
     sh:property [
         sh:path salg:op ; sh:minCount 1 ; sh:maxCount 1 ;
-        sh:message "expected exactly one salg:op" ;
+        sh:nodeKind sh:Literal ; sh:datatype salg:PyStr ;
+        sh:message "expected exactly one salg:op, a salg:PyStr-tagged operator symbol" ;
     ] ;
     sh:property [
         sh:path salg:other ; sh:minCount 1 ; sh:maxCount 1 ;

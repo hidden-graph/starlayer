@@ -292,6 +292,25 @@ sh:targetObjectsOf   stsh:widgetType "text" .
 
 
 #############################################################################
+# Property paths — sh:path itself, and the operators that build a compound
+# path (RDF 1.2 Concepts allows full recursive path grammar here, reusing
+# pySHACL's own shsh:PathNodeShape - see shacl12-validation-shapes.ttl's own
+# comment on stsh:IRIOrPathShape). Default is the general/compound case
+# (prop_path_expr, a dedicated path-expression editor), since a plain-IRI
+# path is the simple special case of that, not the reverse - downstream
+# apps commonly override to a simpler picker when the value happens to be
+# a bare IRI.
+#############################################################################
+
+sh:path             stsh:widgetType "prop_path_expr" .
+sh:alternativePath  stsh:widgetType "prop_path_expr" .
+sh:inversePath      stsh:widgetType "prop_path_expr" .
+sh:oneOrMorePath    stsh:widgetType "prop_path_expr" .
+sh:zeroOrMorePath   stsh:widgetType "prop_path_expr" .
+sh:zeroOrOnePath    stsh:widgetType "prop_path_expr" .
+
+
+#############################################################################
 # Non-validating metadata
 #############################################################################
 
@@ -416,6 +435,41 @@ sh:reificationRequired stsh:widgetType "bool" .
 
 
 #############################################################################
+# Rules & SPARQL Extensions — sh:sparql/sh:rule/sh:condition/custom
+# sh:ConstraintComponent and their supporting predicates (see
+# shacl12-validation-shapes.ttl's stsh:RulesAndSparqlShapes/
+# stsh:ConstraintComponentShape for the real well-formedness rules these
+# render values of). Query-text predicates (confirmed sh:datatype
+# xsd:string in the validation shapes) get "multiline", matching
+# rdfs:comment's own plain-multiline-text treatment above - not "langstring"
+# (these are never language-tagged) and not a dedicated code-editor value,
+# since none exists in this vocabulary yet. Everything else here resolves
+# (per the validation shapes' own sh:node) to a nested shape or a SHACL 1.2
+# node expression - both open-ended/potentially-recursive structures, so
+# "inline_shape" is the safe general default, same reasoning as sh:someValue/
+# sh:qualifiedValueShape above.
+#############################################################################
+
+sh:select             stsh:widgetType "multiline" .
+sh:ask                stsh:widgetType "multiline" .
+sh:construct           stsh:widgetType "multiline" .
+
+sh:sparql              stsh:widgetType "inline_shape" .
+sh:rule                stsh:widgetType "inline_shape" .
+sh:condition            stsh:widgetType "inline_shape" .
+sh:ConstraintComponent  stsh:widgetType "inline_shape" .
+sh:parameter            stsh:widgetType "inline_shape" .
+sh:validator            stsh:widgetType "inline_shape" .
+sh:nodeValidator        stsh:widgetType "inline_shape" .
+sh:propertyValidator    stsh:widgetType "inline_shape" .
+sh:TripleRule           stsh:widgetType "inline_shape" .
+sh:SPARQLRule           stsh:widgetType "inline_shape" .
+sh:subject              stsh:widgetType "inline_shape" .
+sh:predicate            stsh:widgetType "inline_shape" .
+sh:object               stsh:widgetType "inline_shape" .
+
+
+#############################################################################
 # Form-field membership vocabulary
 #############################################################################
 
@@ -510,6 +564,68 @@ sh:lessThanOrEquals stsh:propertyFormField true .
 sh:qualifiedMinCount            stsh:propertyFormField true ; stsh:formMaxCount 1 .
 sh:qualifiedMaxCount            stsh:propertyFormField true ; stsh:formMaxCount 1 .
 sh:qualifiedValueShapesDisjoint stsh:propertyFormField true ; stsh:formMaxCount 1 .
+
+# Generic shape-level predicates — both. Confirmed (not guessed) via the official SHACL 1.2
+# WG draft's own meta-shapes, tests/vendor/shacl12-vocabularies/shacl-shacl.ttl's shsh:ShapeShape
+# (sh:targetClass sh:NodeShape, sh:PropertyShape; these appear in its sh:targetSubjectsOf list
+# and are NOT among shsh:NodeShapeShape's sh:maxCount-0 exclusions).
+sh:and              stsh:nodeFormField true ; stsh:propertyFormField true .
+sh:node             stsh:nodeFormField true ; stsh:propertyFormField true .
+sh:not              stsh:nodeFormField true ; stsh:propertyFormField true .
+sh:or               stsh:nodeFormField true ; stsh:propertyFormField true .
+sh:property         stsh:nodeFormField true ; stsh:propertyFormField true .
+sh:xone             stsh:nodeFormField true ; stsh:propertyFormField true .
+sh:memberShape      stsh:nodeFormField true ; stsh:propertyFormField true .
+sh:maxListLength    stsh:nodeFormField true ; stsh:formMaxCount 1 ; stsh:propertyFormField true .
+sh:minListLength    stsh:nodeFormField true ; stsh:formMaxCount 1 ; stsh:propertyFormField true .
+sh:uniqueMembers    stsh:nodeFormField true ; stsh:formMaxCount 1 ; stsh:propertyFormField true .
+sh:singleLine       stsh:nodeFormField true ; stsh:formMaxCount 1 ; stsh:propertyFormField true .
+sh:targetClass      stsh:nodeFormField true ; stsh:propertyFormField true .
+sh:targetNode       stsh:nodeFormField true ; stsh:propertyFormField true .
+sh:targetObjectsOf  stsh:nodeFormField true ; stsh:propertyFormField true .
+sh:targetSubjectsOf stsh:nodeFormField true ; stsh:propertyFormField true .
+
+# Same official draft's shsh:NodeShapeShape explicitly forbids this on NodeShape (sh:maxCount 0)
+# even though shsh:ShapeShape's own sh:targetSubjectsOf list would otherwise suggest "generic".
+# The explicit restriction wins.
+sh:qualifiedValueShape stsh:propertyFormField true .
+
+# SHACL-AF constraint/rule attachment — both. Not covered by the vendored official draft above
+# (that file only models SHACL Core, not Advanced Features), but sh:sparql/sh:rule attach
+# directly to either shape type per the SHACL-AF spec's own semantics, same as sh:and/sh:or/sh:not.
+sh:sparql stsh:nodeFormField true ; stsh:propertyFormField true .
+sh:rule   stsh:nodeFormField true ; stsh:propertyFormField true .
+
+# New RDF 1.2 / SHACL 1.2 value constraints — both. Not covered by the vendored official draft or
+# pySHACL's own shacl-shacl.ttl (both predate these predicates); judged by analogy to their nearest
+# SHACL Core siblings, which the official draft *does* confirm as generic: sh:someValue is hasValue's
+# list-based generalization, sh:subsetOf/sh:rootClass are set/class-membership comparisons like
+# sh:equals's non-Property-restricted cousins, sh:uniqueValuesFor is a cross-property check with no
+# node-vs-property asymmetry. See starshacl/assets/shacl12-validation-shapes.ttl's stsh:NewPredicateShapes
+# for their value-shape constraints (a separate question from which host shape type they appear on).
+sh:someValue      stsh:nodeFormField true ; stsh:propertyFormField true .
+sh:subsetOf       stsh:nodeFormField true ; stsh:formMaxCount 1 ; stsh:propertyFormField true .
+sh:rootClass      stsh:nodeFormField true ; stsh:propertyFormField true .
+sh:uniqueValuesFor stsh:nodeFormField true ; stsh:formMaxCount 1 ; stsh:propertyFormField true .
+
+# RDF 1.2 reification constraints — PropertyShape only. Unlike the value constraints just above,
+# reifying "the triple `focusNode <path> value`" is only meaningful in the context of a specific
+# path, matching sh:minCount/sh:path's own PropertyShape-only treatment rather than sh:hasValue's.
+sh:reifierShape        stsh:propertyFormField true ; stsh:formMaxCount 1 .
+sh:reificationRequired stsh:propertyFormField true ; stsh:formMaxCount 1 .
+
+# Deliberately NOT given nodeFormField/propertyFormField: predicates that are fields of a NESTED
+# sub-form (a Rule, ConstraintComponent, Validator, or node-expression/path definition), not direct
+# fields of a NodeShape/PropertyShape editing form. The binary above only answers "does this appear
+# on the outer shape's own form" — these need a separate, not-yet-built "which fields belong on a
+# <X> sub-form" mechanism, tracked in packages/shacl/CLAUDE.md rather than force-fit here:
+#   - Property path operators (nested inside a sh:path value): sh:alternativePath, sh:inversePath,
+#     sh:oneOrMorePath, sh:zeroOrMorePath, sh:zeroOrOnePath
+#   - Rule/validator/component internals (nested inside sh:rule/sh:validator/sh:ConstraintComponent):
+#     sh:condition, sh:select, sh:ask, sh:construct, sh:subject, sh:predicate, sh:object,
+#     sh:parameter, sh:validator, sh:nodeValidator, sh:propertyValidator
+#   - Class markers used via rdf:type, never as a shape's own predicate: sh:ConstraintComponent,
+#     sh:TripleRule, sh:SPARQLRule
 
 
 #############################################################################
