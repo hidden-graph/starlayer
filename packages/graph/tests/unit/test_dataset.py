@@ -314,8 +314,8 @@ class TestSerialize:
         ds.parse(data=TRIG_BASIC, format='trig12')
         out = ds.serialize(format='trig12')
         lines = out.splitlines()
-        prefix_idx = next((i for i, l in enumerate(lines) if '@prefix' in l), None)
-        graph_idx  = next((i for i, l in enumerate(lines) if 'GRAPH' in l), None)
+        prefix_idx = next((i for i, line in enumerate(lines) if '@prefix' in line), None)
+        graph_idx  = next((i for i, line in enumerate(lines) if 'GRAPH' in line), None)
         assert prefix_idx is not None
         assert graph_idx is not None
         assert prefix_idx < graph_idx

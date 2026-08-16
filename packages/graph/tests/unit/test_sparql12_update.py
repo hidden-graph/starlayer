@@ -43,9 +43,6 @@ def g():
 
 class TestU1:
     def test_delete_confidence_of_known_triple(self, g):
-        bob_knows_carol = TripleTerm(
-            URIRef(EX + 'bob'), URIRef(EX + 'knows'), URIRef(EX + 'carol')
-        )
         # Confirm it exists before
         assert any(True for _ in g.triples((URIRef(EX + 'stmt1'), URIRef(EX + 'confidence'), None)))
 

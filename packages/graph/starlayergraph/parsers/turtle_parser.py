@@ -741,9 +741,9 @@ class StarLayerTurtleParser:
         # below) can be translated back to where the user would actually look.
         line_map = []
         lines = []
-        for orig_lineno, l in enumerate(data.splitlines(), 1):
-            if l.strip() and not l.strip().startswith('#'):
-                lines.append(l)
+        for orig_lineno, line in enumerate(data.splitlines(), 1):
+            if line.strip() and not line.strip().startswith('#'):
+                lines.append(line)
                 line_map.append(orig_lineno)
         data_clean = '\n'.join(lines)
 

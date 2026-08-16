@@ -41,7 +41,7 @@ def test_collection_roundtrips_through_turtle_text(fixture_graph):
     decoded_queries = rdf_to_collection(reparsed, roots[0])
 
     assert len(decoded_queries) == len(QUERIES)
-    for original, decoded in zip(originals, decoded_queries):
+    for original, decoded in zip(originals, decoded_queries, strict=True):
         roundtripped = evalQuery(fixture_graph, decoded)
         canon_original = _canon(original)
         canon_roundtripped = _canon(roundtripped)

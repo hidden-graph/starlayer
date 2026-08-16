@@ -149,7 +149,9 @@ def test_syntax_positive(entry):
 @pytest.mark.parametrize("entry", SYNTAX_NEGATIVE, ids=lambda e: e.test_iri)
 def test_syntax_negative(entry):
     text = entry.read(entry.query_file or entry.update_file)
-    with pytest.raises(Exception):
+    # Deliberately broad: parametrized over every SYNTAX_NEGATIVE W3C fixture,
+    # which fail via different exception types depending on what's malformed.
+    with pytest.raises(Exception):  # noqa: B017
         if _is_update(entry):
             prepare_update_12(text)
         else:

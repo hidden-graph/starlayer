@@ -165,7 +165,7 @@ def test_malformed_min_list_length_now_caught_cleanly_not_a_raw_crash() -> None:
 
 
 def test_malformed_some_value_now_caught() -> None:
-    with pytest.raises(Exception):
+    with pytest.raises(Exception) as exc_info:
         _validate(
             _TRIVIAL_DATA,
             """
@@ -174,6 +174,7 @@ def test_malformed_some_value_now_caught() -> None:
               sh:property [ sh:path ex:p ; sh:someValue "not a shape" ] .
             """,
         )
+    assert "metashacl" in str(exc_info.value).lower()
 
 
 # ---------------------------------------------------------------------------

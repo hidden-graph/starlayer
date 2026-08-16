@@ -229,8 +229,8 @@ class TestVersionDeclaration:
                 TripleTerm(URIRef(EX+'s'), URIRef(EX+'p'), URIRef(EX+'o'))))
         out = sg.serialize(format='turtle12')
         lines = out.splitlines()
-        version_idx = next(i for i, l in enumerate(lines) if '@version' in l)
-        prefix_idx  = next(i for i, l in enumerate(lines) if '@prefix' in l)
+        version_idx = next(i for i, line in enumerate(lines) if '@version' in line)
+        prefix_idx  = next(i for i, line in enumerate(lines) if '@prefix' in line)
         assert version_idx < prefix_idx
 
     def test_version_not_emitted_for_plain_graph(self):
@@ -254,7 +254,7 @@ class TestLongTurtle12:
         sg.add((URIRef(EX+'s'), URIRef(EX+'p'), URIRef(EX+'o1')))
         sg.add((URIRef(EX+'s'), URIRef(EX+'p'), URIRef(EX+'o2')))
         out = sg.serialize(format='longturtle12')
-        triple_lines = [l for l in out.splitlines() if l.strip() and not l.startswith('@')]
+        triple_lines = [line for line in out.splitlines() if line.strip() and not line.startswith('@')]
         assert len(triple_lines) == 2
 
     def test_no_semicolon_grouping(self):

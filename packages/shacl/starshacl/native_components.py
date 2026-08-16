@@ -2443,7 +2443,7 @@ def _build_not_component() -> Any:
             _reports: list[Any] = []
             _non_conformant = False
             if potentially_recursive and found_not_shape in potentially_recursive:
-                warn(ShapeRecursionWarning(_evaluation_path))
+                warn(ShapeRecursionWarning(_evaluation_path), stacklevel=2)
                 return _non_conformant, _reports
 
             all_values = list({v for value_nodes in focus_value_nodes.values() for v in value_nodes})
@@ -2562,7 +2562,7 @@ def _build_node_component() -> Any:
             _reports: list[Any] = []
             _non_conformant = False
             if potentially_recursive and found_node_shape in potentially_recursive:
-                warn(ShapeRecursionWarning(_evaluation_path))
+                warn(ShapeRecursionWarning(_evaluation_path), stacklevel=2)
                 return _non_conformant, _reports
             if found_node_shape.is_property_shape:
                 raise ReportableRuntimeError("Shape pointed to by sh:node is not a well-formed SHACL NodeShape.")
@@ -2710,7 +2710,7 @@ def _build_qualified_value_shape_component() -> Any:
             _non_conformant = False
             other_shape = self.shape.get_other_shape(_v_shape)
             if potentially_recursive and other_shape in potentially_recursive:
-                warn(ShapeRecursionWarning(_evaluation_path))
+                warn(ShapeRecursionWarning(_evaluation_path), stacklevel=2)
                 return _non_conformant, _reports
             if not other_shape:
                 raise ReportableRuntimeError(

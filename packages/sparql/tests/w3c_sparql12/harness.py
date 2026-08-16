@@ -244,7 +244,7 @@ def bindings_match(actual: list[dict], expected: list[dict]) -> bool:
 
     target = _canon_bindings_bmap(expected, {k: k for k in expected_keys})
     for perm in itertools.permutations(expected_keys):
-        bmap = dict(zip(actual_keys, perm))
+        bmap = dict(zip(actual_keys, perm, strict=True))
         if _canon_bindings_bmap(actual, bmap) == target:
             return True
     return False

@@ -194,5 +194,5 @@ def test_w3c_turtle_negative_syntax(name, ttl_file, parser):
     input raises TurtleSyntaxError, but a few constructs currently raise a
     bare SyntaxError - see expand_qt_in_triple's subject-position check in
     turtle_parser.py)."""
-    with pytest.raises(Exception):
+    with pytest.raises(Exception):  # noqa: B017 - deliberately broad, see docstring above
         parser.parse(ttl_file.read_text())

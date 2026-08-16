@@ -438,7 +438,7 @@ class TestDirLangStringCaseSensitivity:
         assert len(g) == 1
 
     def test_uppercase_direction_rejected(self, parser):
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError):
             parser.parse('PREFIX ex: <http://example.org/>\nex:a ex:b "hi"@en--LTR .\n')
 
 
@@ -457,18 +457,18 @@ class TestSurrogateEscapes:
         assert len(g) == 1
 
     def test_lone_high_surrogate_rejected(self, parser):
-        with pytest.raises(Exception):
+        with pytest.raises(SyntaxError):
             parser.parse('PREFIX ex: <http://example.org/>\nex:a ex:b "\\uD83C" .\n')
 
     def test_lone_low_surrogate_rejected(self, parser):
-        with pytest.raises(Exception):
+        with pytest.raises(SyntaxError):
             parser.parse('PREFIX ex: <http://example.org/>\nex:a ex:b "\\uDCA1" .\n')
 
     def test_surrogate_pair_rejected(self, parser):
         """Even a well-formed high+low pair (which JSON/JS would combine
         into a supplementary-plane character) is invalid - Turtle has no
         such combining rule for \\u escapes."""
-        with pytest.raises(Exception):
+        with pytest.raises(SyntaxError):
             parser.parse('PREFIX ex: <http://example.org/>\nex:a ex:b "\\uD83C\\uDCA1" .\n')
 
 

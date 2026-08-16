@@ -2,6 +2,10 @@
 
 Project-specific instructions for Claude Code sessions working in this repo. See `docs/README.md` for the docs index (start with `docs/implementation-plan.md`).
 
+## Tracking upstream spec changes ("SHACL 1.2" is six separate W3C Working Drafts, all still moving)
+
+Before starting any new work that touches SHACL 1.2 behavior specifically (not every routine change), check whether any of the six W3C documents have moved since this project last verified against them - none has reached Candidate Recommendation yet, so wording/vocabulary/scope can still change silently. Procedure, per-document baseline dates, and the re-check trigger: `docs/shacl12-gap-matrix.md`'s "Tracking Upstream Spec Changes" section. Separately, `tests/vendor/shacl12-vocabularies/shacl-shacl.ttl` (the WG's own meta-shapes draft) has no sync script yet and needs a manual re-fetch/diff periodically - see that section for why. No CI job watches the W3C TR-track automatically - this is a manual check.
+
 ## Testing discipline: verify coverage adversarially, not just by existence
 
 Before marking a test - or a `docs/shacl12-gap-matrix.md` row - "done" for a native/patched behavior, don't stop at "a test exists and passes." Check whether it would still pass with the change reverted:

@@ -55,12 +55,17 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       # One repo now, no sibling checkout needed - all three packages
-      # install from the same working copy, in dependency order.
+      # install from the same working copy. Must be ONE pip invocation, not
+      # three separate ones: graph declares a plain (unpublished) dependency
+      # on starsparql, and sparql declares one back on starlayergraph - a
+      # deliberate two-way local dependency (see packages/sparql/CLAUDE.md).
+      # Installing them separately makes pip try to resolve that dependency
+      # from PyPI, where it doesn't exist. A single invocation with multiple
+      # -e flags gives pip's resolver all three local paths up front, so it
+      # never needs to leave the working copy.
       - name: Install all three packages
         run: |
-          pip install -e "packages/graph[sqlalchemy,test]"
-          pip install -e "packages/sparql[test]"
-          pip install -e "packages/shacl[test]"
+          pip install -e "packages/graph[sqlalchemy,test]" -e "packages/sparql[test]" -e "packages/shacl[test]"
 
       - name: Wait for Oxigraph
         run: |

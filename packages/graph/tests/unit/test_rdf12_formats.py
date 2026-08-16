@@ -305,8 +305,8 @@ class TestTriG12Serialize:
         text = g.serialize(format='trig12')
         lines = text.strip().splitlines()
         # Prefix declarations should come before GRAPH block
-        prefix_idx = next((i for i, l in enumerate(lines) if '@prefix' in l), None)
-        graph_idx  = next((i for i, l in enumerate(lines) if 'GRAPH' in l), None)
+        prefix_idx = next((i for i, line in enumerate(lines) if '@prefix' in line), None)
+        graph_idx  = next((i for i, line in enumerate(lines) if 'GRAPH' in line), None)
         if prefix_idx is not None and graph_idx is not None:
             assert prefix_idx < graph_idx
 
@@ -364,7 +364,7 @@ class TestVersionDeclarationNT12:
         tt = TripleTerm(ex('s'), ex('p'), ex('o'))
         g.add((ex('stmt'), RDF_REIFIES, tt))
         text = g.serialize(format='nt12')
-        lines = [l for l in text.splitlines() if l.strip()]
+        lines = [line for line in text.splitlines() if line.strip()]
         assert lines[0].startswith('VERSION')
 
     def test_parser_skips_version_line(self):
@@ -435,9 +435,9 @@ class TestVersionDeclarationTriG12:
         tt = TripleTerm(ex('s'), ex('p'), ex('o'))
         g.add((ex('stmt'), RDF_REIFIES, tt))
         text = g.serialize(format='trig12')
-        lines = [l for l in text.splitlines() if l.strip()]
-        version_idx = next((i for i, l in enumerate(lines) if '@version' in l), None)
-        prefix_idx  = next((i for i, l in enumerate(lines) if '@prefix' in l), None)
+        lines = [line for line in text.splitlines() if line.strip()]
+        version_idx = next((i for i, line in enumerate(lines) if '@version' in line), None)
+        prefix_idx  = next((i for i, line in enumerate(lines) if '@prefix' in line), None)
         assert version_idx is not None
         if prefix_idx is not None:
             assert version_idx < prefix_idx

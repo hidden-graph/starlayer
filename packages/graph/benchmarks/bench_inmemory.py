@@ -220,7 +220,7 @@ def run_phase(label, triple_fn):
         full_t       = bench_wildcard_full(g)
         subj_t       = bench_wildcard_bound_subject(g, triples)
         sparql_t     = bench_sparql_select_plain(g)
-        mem_mib      = measure_memory(lambda: bench_insert(triples)[1])
+        mem_mib      = measure_memory(lambda triples=triples: bench_insert(triples)[1])
 
         row = (
             f'{n:>8}  '
@@ -252,7 +252,7 @@ def run_tt_phase():
         insert_t, g  = bench_insert(triples, use_addN=False)
         sparql_tt_t  = bench_sparql_tt_pattern(g)
         rebuild_t    = bench_registry_rebuild(g)
-        mem_mib      = measure_memory(lambda: bench_insert(triples)[1])
+        mem_mib      = measure_memory(lambda triples=triples: bench_insert(triples)[1])
 
         row = (
             f'{n:>8}  '

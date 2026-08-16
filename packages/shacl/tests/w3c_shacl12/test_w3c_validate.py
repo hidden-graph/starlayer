@@ -106,7 +106,9 @@ def test_w3c_validate(entry: ManifestEntry) -> None:
     # works correctly once configured the way real usage
     # (tests/integration/test_shnex_node_expressions.py) already does.
     if expected == SHT.Failure:
-        with pytest.raises(Exception):
+        # Deliberately broad: parametrized over every sht:Failure fixture in
+        # the W3C suite, which fail via different pySHACL exception types.
+        with pytest.raises(Exception):  # noqa: B017
             validator.validate(data_graph=data_graph, shacl_graph=shapes_graph, meta_shacl=False, advanced=True)
         return
 
