@@ -39,7 +39,10 @@ from __future__ import annotations
 
 from rdflib import Namespace
 
-from .vocab import PY_STR_DATATYPE, VARIABLE_DATATYPE  # noqa: F401 - re-exported, see module docstring
+from .vocab import (  # noqa: F401 - re-exported, see module docstring
+    PY_STR_DATATYPE,
+    VARIABLE_DATATYPE,
+)
 
 SAST = Namespace("https://github.com/hidden-graph/starsparql/ns/ast#")
 

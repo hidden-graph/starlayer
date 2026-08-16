@@ -1,7 +1,5 @@
 from rdflib import RDF, Graph, URIRef
-
 from starshacl.validator import _is_shacl_list, _shacl_list_members
-
 
 EX = "http://example.org/"
 

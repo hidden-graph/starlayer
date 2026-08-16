@@ -1,10 +1,8 @@
 import pytest
 from rdflib import Literal, Namespace, URIRef
 from rdflib.namespace import RDF
-
-from starshacl import StarShaclValidator
 from starlayergraph.graph.starlayer_graph import StarLayerGraph
-
+from starshacl import StarShaclValidator
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")

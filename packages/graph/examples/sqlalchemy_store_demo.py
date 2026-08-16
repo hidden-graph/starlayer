@@ -21,6 +21,7 @@ import tempfile
 
 # --- register the SQLAlchemy store plugin (Python 3.14 compat workaround) ---
 import rdflib_sqlalchemy
+
 rdflib_sqlalchemy.registerplugins()
 
 from rdflib import URIRef
@@ -167,4 +168,4 @@ print('All assertions passed.')
 
 sg.close()
 os.unlink(db_file)
-print(f'\nDatabase removed. Done.')
+print('\nDatabase removed. Done.')

@@ -14,14 +14,13 @@ own default ``meta_shacl=True``.
 
 import pytest
 from rdflib import Graph, Namespace
-
 from starshacl import StarShaclValidator
 from starshacl.meta_shapes import (
     _SHSH_SHAPE_SHAPE,
     _TOO_STRICT_PATHS,
+    _load_pyshacl_base_meta_shapes,
     build_meta_shapes_graph,
     meta_validate,
-    _load_pyshacl_base_meta_shapes,
 )
 
 EX = Namespace("http://example.org/")

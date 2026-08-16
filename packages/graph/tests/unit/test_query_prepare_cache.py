@@ -9,10 +9,9 @@ eliminates the redundant work, stays correct across differing
 initNs/initBindings/data mutations, and doesn't change any query's result.
 """
 
-import rdflib.plugins.sparql as _sparql_mod
 import pytest
+import rdflib.plugins.sparql as _sparql_mod
 from rdflib import Namespace
-
 from starlayergraph.graph.starlayer_dataset import StarLayerDataset
 from starlayergraph.graph.starlayer_graph import StarLayerGraph
 
@@ -203,7 +202,6 @@ def test_dataset_query_correct_across_repeated_calls_with_bindings():
 
 def test_store_accepts_prepared_query_false_for_sparql_update_store():
     from rdflib.plugins.stores.sparqlstore import SPARQLUpdateStore
-
     from starlayergraph.query.query_cache import store_accepts_prepared_query
 
     store = SPARQLUpdateStore(query_endpoint="http://fake.local/query", update_endpoint="http://fake.local/update")
@@ -212,7 +210,6 @@ def test_store_accepts_prepared_query_false_for_sparql_update_store():
 
 def test_store_accepts_prepared_query_true_for_default_memory_store():
     from rdflib.plugins.stores.memory import Memory
-
     from starlayergraph.query.query_cache import store_accepts_prepared_query
 
     assert store_accepts_prepared_query(Memory()) is True
@@ -233,7 +230,6 @@ def test_starlayer_graph_over_sparql_update_store_falls_back_to_string(monkeypat
     before reaching the store.
     """
     from rdflib.plugins.stores.sparqlstore import SPARQLUpdateStore
-
     from starlayergraph.graph.starlayer_graph import StarLayerGraph
 
     store = SPARQLUpdateStore(query_endpoint="http://fake.local/query", update_endpoint="http://fake.local/update")

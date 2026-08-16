@@ -1,9 +1,12 @@
 from rdflib import Literal, Namespace
-
 from starlayergraph.graph.starlayer_graph import StarLayerGraph
-
-from starshacl.engine import STSH, ComponentRequest, build_report, evaluate_component, target_nodes
-
+from starshacl.engine import (
+    STSH,
+    ComponentRequest,
+    build_report,
+    evaluate_component,
+    target_nodes,
+)
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")

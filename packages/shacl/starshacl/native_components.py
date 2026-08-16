@@ -329,8 +329,8 @@ def _is_subclass_of_or_self(graph: Any, node: Any, target_class: Any) -> bool:
 
 
 def _build_root_class_component() -> Any:
-    from rdflib import URIRef
     from pyshacl.constraints.constraint_component import ConstraintComponent
+    from rdflib import URIRef
 
     class RootClassConstraintComponent(ConstraintComponent):  # type: ignore[misc]
         """``sh:rootClass``: each value node must be an IRI that is, or is a
@@ -390,8 +390,8 @@ def _build_root_class_component() -> Any:
 
 
 def _build_unique_values_for_component() -> Any:
-    from rdflib import URIRef
     from pyshacl.constraints.constraint_component import ConstraintComponent
+    from rdflib import URIRef
 
     class UniqueValuesForConstraintComponent(ConstraintComponent):  # type: ignore[misc]
         """``sh:uniqueValuesFor``: a node-shape-level constraint (not a
@@ -750,7 +750,7 @@ _COMPOSITION_PREDICATES: tuple[Any, ...] = (
     SH.xone,
 )
 
-_cross_node_reachability_cache: "_weakref.WeakKeyDictionary[Any, frozenset]" = _weakref.WeakKeyDictionary()
+_cross_node_reachability_cache: _weakref.WeakKeyDictionary[Any, frozenset] = _weakref.WeakKeyDictionary()
 
 
 def _shapes_directly_composed_by(shapes_graph: Any, shape_node: Any) -> set[Any]:
@@ -984,7 +984,9 @@ def _build_sparql_constraint_component() -> Any:
     everything else (query execution, message/deactivation handling,
     pre-binding) stays pySHACL's own, unmodified logic.
     """
-    from pyshacl.constraints.sparql.sparql_based_constraints import SPARQLBasedConstraint
+    from pyshacl.constraints.sparql.sparql_based_constraints import (
+        SPARQLBasedConstraint,
+    )
 
     class SparqlConstraintComponentWithSeverity(SPARQLBasedConstraint):  # type: ignore[misc]
         def __init__(self, shape: Any) -> None:
@@ -1111,7 +1113,9 @@ def _build_property_constraint_component() -> Any:
     per-reference ``sh:severity`` override too, so that isn't implemented
     here.
     """
-    from pyshacl.constraints.core.shape_based_constraints import PropertyConstraintComponent
+    from pyshacl.constraints.core.shape_based_constraints import (
+        PropertyConstraintComponent,
+    )
 
     class PropertyConstraintComponentWithAnnotations(PropertyConstraintComponent):  # type: ignore[misc]
         def __init__(self, shape: Any) -> None:
@@ -1127,8 +1131,8 @@ def _build_property_constraint_component() -> Any:
 
 
 def _build_reifier_shape_component() -> Any:
-    from rdflib import URIRef
     from pyshacl.constraints.constraint_component import ConstraintComponent
+    from rdflib import URIRef
 
     class ReifierShapeConstraintComponent(ConstraintComponent):  # type: ignore[misc]
         """``sh:reifierShape``/``sh:reificationRequired``: for each value
@@ -1244,8 +1248,8 @@ def _build_reifier_shape_component() -> Any:
 
 
 def _build_closed_component() -> Any:
-    from rdflib import RDFS
     from pyshacl.constraints.constraint_component import ConstraintComponent
+    from rdflib import RDFS
 
     _ALWAYS_IGNORE = {(RDF.type, RDFS.Resource)}
 
@@ -1363,9 +1367,11 @@ def _build_closed_component() -> Any:
 
 
 def _build_class_component() -> Any:
-    from rdflib import BNode
     from pyshacl.constraints.constraint_component import ConstraintComponent
-    from pyshacl.constraints.core.value_constraints import ClassConstraintComponent as _OriginalClassComponent
+    from pyshacl.constraints.core.value_constraints import (
+        ClassConstraintComponent as _OriginalClassComponent,
+    )
+    from rdflib import BNode
 
     class ClassConstraintComponent(ConstraintComponent):  # type: ignore[misc]
         """Shadows pySHACL's own ``ClassConstraintComponent`` to add SHACL
@@ -1449,7 +1455,9 @@ def _build_class_component() -> Any:
 
 def _build_node_kind_component() -> Any:
     from pyshacl.constraints.constraint_component import ConstraintComponent
-    from pyshacl.constraints.core.value_constraints import NodeKindConstraintComponent as _OriginalNodeKindComponent
+    from pyshacl.constraints.core.value_constraints import (
+        NodeKindConstraintComponent as _OriginalNodeKindComponent,
+    )
 
     class NodeKindConstraintComponent(ConstraintComponent):  # type: ignore[misc]
         """Shadows pySHACL's own ``NodeKindConstraintComponent`` to add
@@ -1559,7 +1567,9 @@ def _matches_any_datatype_encoded(value: Any, datatypes: list[Any]) -> bool:
 
 def _build_datatype_component() -> Any:
     from pyshacl.constraints.constraint_component import ConstraintComponent
-    from pyshacl.constraints.core.value_constraints import DatatypeConstraintComponent as _OriginalDatatypeComponent
+    from pyshacl.constraints.core.value_constraints import (
+        DatatypeConstraintComponent as _OriginalDatatypeComponent,
+    )
 
     class DatatypeConstraintComponent(ConstraintComponent):  # type: ignore[misc]
         """Shadows pySHACL's own ``DatatypeConstraintComponent`` to add two
@@ -1963,7 +1973,9 @@ def _build_property_pair_component(predicate: Any, delegate_cls: Any, mode: str)
 
 def _build_and_component() -> Any:
     from pyshacl.constraints.constraint_component import ConstraintComponent
-    from pyshacl.constraints.core.logical_constraints import AndConstraintComponent as _Original
+    from pyshacl.constraints.core.logical_constraints import (
+        AndConstraintComponent as _Original,
+    )
     from pyshacl.errors import ReportableRuntimeError, ValidationFailure
 
     class AndConstraintComponent(ConstraintComponent):  # type: ignore[misc]
@@ -2100,7 +2112,9 @@ def _build_and_component() -> Any:
 
 def _build_or_component() -> Any:
     from pyshacl.constraints.constraint_component import ConstraintComponent
-    from pyshacl.constraints.core.logical_constraints import OrConstraintComponent as _Original
+    from pyshacl.constraints.core.logical_constraints import (
+        OrConstraintComponent as _Original,
+    )
     from pyshacl.errors import ReportableRuntimeError, ValidationFailure
 
     class OrConstraintComponent(ConstraintComponent):  # type: ignore[misc]
@@ -2221,7 +2235,9 @@ def _build_or_component() -> Any:
 
 def _build_xone_component() -> Any:
     from pyshacl.constraints.constraint_component import ConstraintComponent
-    from pyshacl.constraints.core.logical_constraints import XoneConstraintComponent as _Original
+    from pyshacl.constraints.core.logical_constraints import (
+        XoneConstraintComponent as _Original,
+    )
     from pyshacl.errors import ReportableRuntimeError, ValidationFailure
 
     class XoneConstraintComponent(ConstraintComponent):  # type: ignore[misc]
@@ -2348,7 +2364,9 @@ def _build_not_component() -> Any:
     from warnings import warn
 
     from pyshacl.constraints.constraint_component import ConstraintComponent
-    from pyshacl.constraints.core.logical_constraints import NotConstraintComponent as _Original
+    from pyshacl.constraints.core.logical_constraints import (
+        NotConstraintComponent as _Original,
+    )
     from pyshacl.errors import ShapeRecursionWarning, ValidationFailure
 
     class NotConstraintComponent(ConstraintComponent):  # type: ignore[misc]
@@ -2454,7 +2472,9 @@ def _build_node_component() -> Any:
     from warnings import warn
 
     from pyshacl.constraints.constraint_component import ConstraintComponent
-    from pyshacl.constraints.core.shape_based_constraints import NodeConstraintComponent as _Original
+    from pyshacl.constraints.core.shape_based_constraints import (
+        NodeConstraintComponent as _Original,
+    )
     from pyshacl.errors import ReportableRuntimeError, ShapeRecursionWarning
 
     class NodeConstraintComponent(ConstraintComponent):  # type: ignore[misc]
@@ -2572,7 +2592,11 @@ def _build_qualified_value_shape_component() -> Any:
     from pyshacl.constraints.core.shape_based_constraints import (
         QualifiedValueShapeConstraintComponent as _Original,
     )
-    from pyshacl.errors import ReportableRuntimeError, ShapeRecursionWarning, ValidationFailure
+    from pyshacl.errors import (
+        ReportableRuntimeError,
+        ShapeRecursionWarning,
+        ValidationFailure,
+    )
 
     class QualifiedValueShapeConstraintComponent(ConstraintComponent):  # type: ignore[misc]
         """Shadows pySHACL's own ``QualifiedValueShapeConstraintComponent``

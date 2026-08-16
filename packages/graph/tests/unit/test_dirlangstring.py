@@ -7,11 +7,18 @@ round-trips, and the SPARQL 1.2 base-direction functions.
 """
 
 import pytest
-from rdflib import URIRef, Literal
-
+from rdflib import Literal, URIRef
 from starlayergraph.graph.starlayer_graph import StarLayerGraph
-from starlayergraph.model.dirlangstring import DirLangString, encode_dirlangstring, decode_dirlangstring
-from starlayergraph.model.encoding import DIRLANG_NS, encode_dirlang_datatype, decode_dirlang_datatype
+from starlayergraph.model.dirlangstring import (
+    DirLangString,
+    decode_dirlangstring,
+    encode_dirlangstring,
+)
+from starlayergraph.model.encoding import (
+    DIRLANG_NS,
+    decode_dirlang_datatype,
+    encode_dirlang_datatype,
+)
 
 EX = 'http://example.org/'
 

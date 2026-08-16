@@ -41,7 +41,9 @@ from __future__ import annotations
 
 from rdflib import Namespace
 
-from .vocab import VARIABLE_DATATYPE  # noqa: F401 - reused as-is, not re-minted, see below
+from .vocab import (
+    VARIABLE_DATATYPE,  # noqa: F401 - reused as-is, not re-minted, see below
+)
 
 SSYN = Namespace("https://github.com/hidden-graph/starsparql/ns/readable-syntax#")
 

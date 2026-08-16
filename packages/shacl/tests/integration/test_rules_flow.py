@@ -1,11 +1,9 @@
 import pytest
 from rdflib import Namespace
-
-from starshacl import StarShaclValidator
 from starlayergraph.graph.starlayer_graph import StarLayerGraph
+from starshacl import StarShaclValidator
 
 from ._shape_loader import load_shape
-
 
 EX = Namespace("http://example.org/")
 

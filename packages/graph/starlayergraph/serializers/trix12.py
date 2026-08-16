@@ -22,11 +22,12 @@ Entry point:  serialize_trix12(g) -> str
 from __future__ import annotations
 
 import xml.etree.ElementTree as ET
-from rdflib import URIRef, BNode, Literal
 
-from starlayergraph.model.triple import TripleTerm
+from rdflib import BNode, Literal, URIRef
+
 from starlayergraph.model.dirlangstring import DirLangString
 from starlayergraph.model.encoding import encode_dirlang_datatype
+from starlayergraph.model.triple import TripleTerm
 
 TRIX_NS = 'http://www.w3.org/2004/03/trix/trix-1/'
 _XML_NS = 'http://www.w3.org/XML/1998/namespace'

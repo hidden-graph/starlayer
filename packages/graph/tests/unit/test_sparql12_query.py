@@ -6,9 +6,7 @@ The shared dataset matches the one defined at the top of that document.
 """
 
 import pytest
-from rdflib import URIRef, Literal
-from rdflib.namespace import RDF
-
+from rdflib import Literal, URIRef
 from starlayergraph.graph.starlayer_graph import StarLayerGraph
 from starlayergraph.model.triple import TripleTerm
 
@@ -263,7 +261,7 @@ class TestQ8:
               FILTER(?pred != rdf:reifies)
             }
         """)
-        pred_var, val_var = r.vars[3], r.vars[4]
+        pred_var = r.vars[3]
         preds = {row[pred_var] for row in r.bindings}
         assert URIRef(EX + 'since')      in preds
         assert URIRef(EX + 'via')        in preds

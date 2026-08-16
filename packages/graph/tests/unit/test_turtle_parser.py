@@ -6,11 +6,10 @@ RDF 1.2 features (triple terms, reification, annotations).
 """
 
 import pytest
-from rdflib import Graph, URIRef, Literal, BNode
+from rdflib import BNode, Graph, Literal, URIRef
 from rdflib.namespace import RDF, XSD
-
-from starlayergraph.parsers.turtle_parser import StarLayerTurtleParser, SL_NS
 from starlayergraph.parsers.errors import TurtleSyntaxError
+from starlayergraph.parsers.turtle_parser import SL_NS
 
 EX = 'http://example.org/'
 SL_TRIPLE_TERM  = URIRef(SL_NS + 'TripleTerm')
@@ -492,7 +491,6 @@ class TestVersionDirective:
 
     def test_version_directive_with_triple_terms(self, parser):
         """@version directive does not interfere with triple-term parsing."""
-        RDF_REIFIES = URIRef('http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies')
         ttl = (
             '@version "1.2" .\n'
             f'@prefix ex: <{EX}> .\n'

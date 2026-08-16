@@ -44,24 +44,23 @@ from rdflib.compare import to_isomorphic
 from rdflib.graph import DATASET_DEFAULT_GRAPH_ID
 from rdflib.namespace import RDF
 from rdflib.plugins.stores.sparqlstore import SPARQLUpdateStore
-
 from starlayergraph.graph.starlayer_dataset import StarLayerDataset
 from starlayergraph.graph.starlayer_graph import StarLayerGraph
 from starlayergraph.model.encoding import RR_NS
 from starlayergraph.model.triple import TripleTerm
 
 from .harness import (
-    bindings_match,
-    clear_fuseki,
-    clear_oxigraph,
-    data_format,
-    load_index,
-    fuseki_available,
-    oxigraph_available,
     FUSEKI_QUERY_URL,
     FUSEKI_UPDATE_URL,
     OXIGRAPH_QUERY_URL,
     OXIGRAPH_UPDATE_URL,
+    bindings_match,
+    clear_fuseki,
+    clear_oxigraph,
+    data_format,
+    fuseki_available,
+    load_index,
+    oxigraph_available,
     parse_srj,
 )
 

@@ -29,7 +29,7 @@ from starshacl.node_expressions import eval_expr
 from .ids import portable_id
 from .known_failures import KNOWN_FAILURES
 from .manifest import ManifestEntry, clone_graph, iter_manifest_entries, load_document
-from .namespaces import MF, SH, SHNEX, SHT
+from .namespaces import MF, SHNEX, SHT
 
 VENDOR_ROOT = Path(__file__).resolve().parents[1] / "vendor" / "shacl12-test-suite"
 TOP_MANIFEST = VENDOR_ROOT / "tests" / "manifest.ttl"

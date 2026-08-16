@@ -33,13 +33,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from rdflib import Variable, URIRef
+from rdflib import URIRef, Variable
 from rdflib.plugins.sparql.parserutils import CompValue
 
 from starlayergraph.query.custom_functions import (
+    _TT_ACCESSOR_FN,
     DIRLANG_CONSTRUCT_FN,
     TT_HASH_FN,
-    _TT_ACCESSOR_FN,
 )
 
 _CUSTOM_FUNCTION_IRIS = frozenset(

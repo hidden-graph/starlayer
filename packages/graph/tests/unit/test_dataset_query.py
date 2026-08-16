@@ -13,11 +13,8 @@ Covers:
 """
 
 import pytest
-from rdflib import URIRef, Literal
-from rdflib.namespace import RDF
-
+from rdflib import Literal, URIRef
 from starlayergraph.graph import StarLayerDataset, StarLayerGraph
-from starlayergraph.graph.starlayer_graph import RDF_REIFIES
 from starlayergraph.model.triple import TripleTerm
 
 EX = 'http://example.org/'
@@ -155,13 +152,13 @@ class TestSelectRestore:
         assert tt == TripleTerm(ex('bob'), ex('likes'), ex('carol'))
 
     def test_triple_terms_from_both_graphs_restored(self, ds):
-        q = f"""
+        q = """
         PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-        SELECT ?tt WHERE {{
-            GRAPH ?g {{
+        SELECT ?tt WHERE {
+            GRAPH ?g {
                 ?stmt rdf:reifies ?tt .
-            }}
-        }}
+            }
+        }
         """
         rows = list(ds.query(q))
         tts = {row[0] for row in rows}

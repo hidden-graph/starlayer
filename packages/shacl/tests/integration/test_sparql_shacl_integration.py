@@ -1,12 +1,10 @@
 import pytest
-from rdflib import Namespace, Literal, URIRef
-
-from starshacl import StarShaclValidator
+from rdflib import Literal, Namespace, URIRef
 from starlayergraph.graph.starlayer_graph import StarLayerGraph
 from starlayergraph.model.triple import TripleTerm
+from starshacl import StarShaclValidator
 
 from ._shape_loader import load_shape
-
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")

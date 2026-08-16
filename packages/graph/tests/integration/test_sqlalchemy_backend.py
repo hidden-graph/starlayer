@@ -26,13 +26,11 @@ import os
 import tempfile
 
 import pytest
-
-from rdflib import URIRef, Literal
+from rdflib import Literal, URIRef
 from rdflib.namespace import XSD
-
 from starlayergraph.graph import StarLayerGraph
-from starlayergraph.model.triple import TripleTerm
 from starlayergraph.model.dirlangstring import DirLangString
+from starlayergraph.model.triple import TripleTerm
 
 # Applies the "integration" marker (declared in pyproject.toml) to every test
 # in this module, so `pytest -m "not integration"` (used by CI) excludes them.

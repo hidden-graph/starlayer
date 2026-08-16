@@ -110,7 +110,7 @@ class InvalidTripleTermError(ValueError):
     """
 
 
-def _reject_nested_triple_term(value, position: str, node: "TripleTermNode") -> None:
+def _reject_nested_triple_term(value, position: str, node: TripleTermNode) -> None:
     if isinstance(value, TripleTermNode):
         raise InvalidTripleTermError(
             f"RDF 1.2: a triple term's {position} may never itself be a triple term "
@@ -169,7 +169,7 @@ class TripleTermNode(CompValue):
             return self._sort_key() < other._sort_key()
         return NotImplemented
 
-    def validate(self) -> "TripleTermNode":
+    def validate(self) -> TripleTermNode:
         """Raise ``InvalidTripleTermError`` if this node's own subject or
         predicate is itself a triple term — see that exception's docstring
         for why. Not enforced automatically on every dict mutation (kept

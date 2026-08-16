@@ -29,10 +29,9 @@ SPARQLRule.apply.
 """
 
 import pytest
-from rdflib import Literal, Namespace, RDF
-
-from starshacl import StarShaclValidator
+from rdflib import RDF, Literal, Namespace
 from starlayergraph.graph.starlayer_graph import StarLayerGraph
+from starshacl import StarShaclValidator
 
 EX = Namespace("http://example.org/")
 

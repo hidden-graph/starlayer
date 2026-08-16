@@ -20,8 +20,6 @@ encoder in ``to_rdf.py`` and the design note in ``vocab.py``.
 
 from __future__ import annotations
 
-from typing import Any, Optional
-
 from pyparsing import ParserElement
 from rdflib import BNode, Graph, Literal, URIRef, Variable
 from rdflib.collection import Collection
@@ -30,7 +28,15 @@ from rdflib.paths import AlternativePath, InvPath, MulPath, NegatedPath, Sequenc
 from rdflib.plugins.sparql.parserutils import CompValue, Expr
 from rdflib.plugins.sparql.sparql import Prologue, Query, Update
 
-from .vocab import PY_STR_DATATYPE, QUERY, QUERY_COLLECTION, SALG, UPDATE, UPDATE_OPERATION, VARIABLE_DATATYPE
+from .vocab import (
+    PY_STR_DATATYPE,
+    QUERY,
+    QUERY_COLLECTION,
+    SALG,
+    UPDATE,
+    UPDATE_OPERATION,
+    VARIABLE_DATATYPE,
+)
 
 _SALG_NS = str(SALG)
 
@@ -108,9 +114,8 @@ def rdf_to_query(graph: Graph, root) -> Query:
     # translateQuery() itself runs on a freshly-built algebra tree, so the
     # decoded tree is evaluator-ready exactly like one built straight from
     # query text.
-    from rdflib.plugins.sparql.algebra import _addVars, _traverseAgg, analyse
+    from rdflib.plugins.sparql.algebra import _addVars, _traverseAgg, analyse, traverse
     from rdflib.plugins.sparql.algebra import simplify as _reorder_bgps
-    from rdflib.plugins.sparql.algebra import traverse
 
     algebra = traverse(algebra, visitPost=_reorder_bgps)
     _traverseAgg(algebra, visitor=analyse)
@@ -254,7 +259,7 @@ _PROLOGUE_KEYS = {"base", "prologuePrefix"}
 _AUXILIARY_ROOT_MARKERS = {QUERY, UPDATE, UPDATE_OPERATION, QUERY_COLLECTION}
 
 
-def _comp_value_type(node, graph: Graph) -> Optional[URIRef]:
+def _comp_value_type(node, graph: Graph) -> URIRef | None:
     types = [t for t in graph.objects(node, RDF.type) if str(t).startswith(_SALG_NS)]
     if not types:
         return None

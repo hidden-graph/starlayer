@@ -6,22 +6,11 @@ import everything from ``starlayergraph`` rather than mixing ``starlayergraph.*`
 """
 
 # Core rdflib term types
-from rdflib import BNode, Literal, URIRef, Variable
-
 # Namespace utilities
-from rdflib import Namespace
-from rdflib.namespace import RDF, RDFS, XSD
-
 # Graph / dataset base classes (aliased so consumers can stay on starlayergraph.*)
-from rdflib import Graph, Dataset
+from rdflib import BNode, Dataset, Graph, Literal, Namespace, URIRef, Variable
 from rdflib.collection import Collection
-
-# StarLayer-specific additions
-from starlayergraph.model.triple import TripleTerm
-from starlayergraph.model.dirlangstring import DirLangString
-from starlayergraph.graph.starlayer_graph import StarLayerGraph
-from starlayergraph.graph.starlayer_dataset import StarLayerDataset
-from starlayergraph.parsers.errors import TurtleSyntaxError
+from rdflib.namespace import RDF, RDFS, XSD
 
 # Registers starlayergraph's own custom SPARQL extension functions (TRIPLE()'s
 # hash constructor, SUBJECT()/PREDICATE()/OBJECT() accessors, STRLANGDIR())
@@ -32,11 +21,13 @@ from starlayergraph.parsers.errors import TurtleSyntaxError
 # effect of some other import) so registration always happens regardless of
 # what a caller imports first. See starlayergraph/query/custom_functions.py.
 import starlayergraph.query.custom_functions as _custom_functions  # noqa: F401
+from starlayergraph.graph.starlayer_dataset import StarLayerDataset
+from starlayergraph.graph.starlayer_graph import StarLayerGraph
+from starlayergraph.model.dirlangstring import DirLangString
 
-# Compatibility shims for confirmed bugs in plain rdflib's own SPARQL
-# arithmetic evaluation - applied eagerly so every consumer gets
-# spec-correct results. See starlayergraph/query/operator_patches.py.
-from starlayergraph.query.operator_patches import apply_all_operator_patches as _apply_all_operator_patches
+# StarLayer-specific additions
+from starlayergraph.model.triple import TripleTerm
+from starlayergraph.parsers.errors import TurtleSyntaxError
 
 # Compatibility shims for confirmed bugs in plain rdflib's own
 # _AlgebraTranslator/translateAlgebra (algebra-tree-to-SPARQL-text
@@ -47,6 +38,26 @@ from starlayergraph.query.operator_patches import apply_all_operator_patches as 
 # docs/rdflib-upstream-issues.md issues 3, 4, and 6.
 from starlayergraph.query.algebra_translator_patches import (
     patch_algebra_translator_bugs as _patch_algebra_translator_bugs,
+)
+
+# Fix for a starlayergraph-side (not rdflib) gap: an *unconstrained* BGP match
+# (e.g. a bare `?s ?p ?o` inside a nested SELECT subquery, not just
+# CONSTRUCT - see patch_construct_skips_encoding_solutions above, which only
+# covers that one case) can incidentally match the in-memory backend's own
+# internal tt:HASH encoding triples. See
+# starlayergraph/query/evaluate_patches.py::patch_bgp_skips_encoding_triples.
+from starlayergraph.query.evaluate_patches import (
+    patch_bgp_skips_encoding_triples as _patch_bgp_skips_encoding_triples,
+)
+
+# Fix for a starlayergraph-side (not rdflib) gap: CONSTRUCT has no equivalent of
+# SELECT's own encoding-triple row filtering, so an unconstrained WHERE
+# pattern (e.g. a bare `?s ?p ?o`) can leak internal rdf:subject/predicate/
+# object encoding triples into CONSTRUCT output. See
+# starlayergraph/query/evaluate_patches.py's own docstring for the full
+# root-cause trace.
+from starlayergraph.query.evaluate_patches import (
+    patch_construct_skips_encoding_solutions as _patch_construct_skips_encoding_solutions,
 )
 
 # Compatibility shim for a confirmed bug in plain rdflib's own SPARQL
@@ -70,18 +81,6 @@ from starlayergraph.query.evaluate_patches import (
     patch_evalfilter_forgotten_vars as _patch_evalfilter_forgotten_vars,
 )
 
-# Fix for a confirmed bug in plain rdflib's own evalModify (a different
-# module, rdflib.plugins.sparql.update, from the evalExtend/evalFilter
-# patches above): it writes DELETE/INSERT changes through
-# ctx.dataset.default_context instead of ctx.graph whenever ctx.graph isn't
-# exactly a bare Graph instance - silently failing to remove/insert a
-# triple-term-valued triple against this library's own in-memory backend,
-# even though the WHERE clause matches correctly. See
-# starlayergraph/query/evaluate_patches.py::patch_evalmodify_default_graph_selection.
-from starlayergraph.query.evaluate_patches import (
-    patch_evalmodify_default_graph_selection as _patch_evalmodify_default_graph_selection,
-)
-
 # Fix for a confirmed bug in plain rdflib's own evalInsertData (same
 # rdflib.plugins.sparql.update module as evalModify above, a distinct
 # function): `g = ctx.graph; g += u.triples` assumes `+=` accepts a plain
@@ -96,6 +95,29 @@ from starlayergraph.query.evaluate_patches import (
     patch_evalinsertdata_quad_unpacking as _patch_evalinsertdata_quad_unpacking,
 )
 
+# Fix for a confirmed bug in plain rdflib's own evalModify (a different
+# module, rdflib.plugins.sparql.update, from the evalExtend/evalFilter
+# patches above): it writes DELETE/INSERT changes through
+# ctx.dataset.default_context instead of ctx.graph whenever ctx.graph isn't
+# exactly a bare Graph instance - silently failing to remove/insert a
+# triple-term-valued triple against this library's own in-memory backend,
+# even though the WHERE clause matches correctly. See
+# starlayergraph/query/evaluate_patches.py::patch_evalmodify_default_graph_selection.
+from starlayergraph.query.evaluate_patches import (
+    patch_evalmodify_default_graph_selection as _patch_evalmodify_default_graph_selection,
+)
+
+# Fix for a confirmed rdflib bug (a different phase from every patch above -
+# parse-tree-to-algebra *translation*, not evaluation): a parenthesized,
+# un-aliased computed GROUP BY key (`GROUP BY (?o+1)`, no `AS ?var`) - legal
+# per SPARQL 1.1's own grammar - produces an algebra shape that crashes
+# evalAggregateJoin outright, with zero RDF 1.2/starlayergraph involvement. See
+# docs/rdflib-upstream-issues.md Issue 9 and
+# starlayergraph/query/evaluate_patches.py::patch_group_by_unaliased_expression_key.
+from starlayergraph.query.evaluate_patches import (
+    patch_group_by_unaliased_expression_key as _patch_group_by_unaliased_expression_key,
+)
+
 # Compatibility shim for a second, distinct confirmed bug in plain rdflib's
 # own SPARQL evaluator (evalJoin/evalLazyJoin) - same root cause as the
 # evalExtend patch above (a BIND's own expression-only variables aren't
@@ -104,26 +126,6 @@ from starlayergraph.query.evaluate_patches import (
 # starlayergraph/query/evaluate_patches.py::patch_lazy_join_expr_dependency_order.
 from starlayergraph.query.evaluate_patches import (
     patch_lazy_join_expr_dependency_order as _patch_lazy_join_expr_dependency_order,
-)
-
-# Fix for a starlayergraph-side (not rdflib) gap: CONSTRUCT has no equivalent of
-# SELECT's own encoding-triple row filtering, so an unconstrained WHERE
-# pattern (e.g. a bare `?s ?p ?o`) can leak internal rdf:subject/predicate/
-# object encoding triples into CONSTRUCT output. See
-# starlayergraph/query/evaluate_patches.py's own docstring for the full
-# root-cause trace.
-from starlayergraph.query.evaluate_patches import (
-    patch_construct_skips_encoding_solutions as _patch_construct_skips_encoding_solutions,
-)
-
-# Fix for a starlayergraph-side (not rdflib) gap: the in-memory backend's
-# tt:HASH encoding is opaque to stock rdflib's `=`/`!=`, which can only ever
-# agree with `sameTerm` for two different encoded URIRefs - never true for
-# two triple terms differing only in a component's lexical form, which
-# SPARQL's own value-equality rules require. See
-# starlayergraph/query/evaluate_patches.py::patch_relational_expression_tt_hash_equality.
-from starlayergraph.query.evaluate_patches import (
-    patch_relational_expression_tt_hash_equality as _patch_relational_expression_tt_hash_equality,
 )
 
 # Fix for a starlayergraph-side (not rdflib) gap: the in-memory backend's
@@ -136,25 +138,21 @@ from starlayergraph.query.evaluate_patches import (
     patch_order_by_tt_hash_term_kind as _patch_order_by_tt_hash_term_kind,
 )
 
-# Fix for a starlayergraph-side (not rdflib) gap: an *unconstrained* BGP match
-# (e.g. a bare `?s ?p ?o` inside a nested SELECT subquery, not just
-# CONSTRUCT - see patch_construct_skips_encoding_solutions above, which only
-# covers that one case) can incidentally match the in-memory backend's own
-# internal tt:HASH encoding triples. See
-# starlayergraph/query/evaluate_patches.py::patch_bgp_skips_encoding_triples.
+# Fix for a starlayergraph-side (not rdflib) gap: the in-memory backend's
+# tt:HASH encoding is opaque to stock rdflib's `=`/`!=`, which can only ever
+# agree with `sameTerm` for two different encoded URIRefs - never true for
+# two triple terms differing only in a component's lexical form, which
+# SPARQL's own value-equality rules require. See
+# starlayergraph/query/evaluate_patches.py::patch_relational_expression_tt_hash_equality.
 from starlayergraph.query.evaluate_patches import (
-    patch_bgp_skips_encoding_triples as _patch_bgp_skips_encoding_triples,
+    patch_relational_expression_tt_hash_equality as _patch_relational_expression_tt_hash_equality,
 )
 
-# Fix for a confirmed rdflib bug (a different phase from every patch above -
-# parse-tree-to-algebra *translation*, not evaluation): a parenthesized,
-# un-aliased computed GROUP BY key (`GROUP BY (?o+1)`, no `AS ?var`) - legal
-# per SPARQL 1.1's own grammar - produces an algebra shape that crashes
-# evalAggregateJoin outright, with zero RDF 1.2/starlayergraph involvement. See
-# docs/rdflib-upstream-issues.md Issue 9 and
-# starlayergraph/query/evaluate_patches.py::patch_group_by_unaliased_expression_key.
-from starlayergraph.query.evaluate_patches import (
-    patch_group_by_unaliased_expression_key as _patch_group_by_unaliased_expression_key,
+# Compatibility shims for confirmed bugs in plain rdflib's own SPARQL
+# arithmetic evaluation - applied eagerly so every consumer gets
+# spec-correct results. See starlayergraph/query/operator_patches.py.
+from starlayergraph.query.operator_patches import (
+    apply_all_operator_patches as _apply_all_operator_patches,
 )
 
 # Fix for a confirmed rdflib bug (a different module/phase again - result

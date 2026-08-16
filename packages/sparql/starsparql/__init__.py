@@ -8,11 +8,10 @@
 # per its own docstring, so forcing it first here is safe regardless of
 # whether a caller also imports parse12 directly later.
 from . import parse12 as _parse12  # noqa: F401
-
-from .vocab import SALG
-from .to_rdf import query_to_rdf, queries_to_collection, update_to_rdf
-from .from_rdf import rdf_to_query, rdf_to_collection, rdf_to_update
+from .from_rdf import rdf_to_collection, rdf_to_query, rdf_to_update
 from .ontology import ontology_graph
+from .to_rdf import queries_to_collection, query_to_rdf, update_to_rdf
+from .vocab import SALG
 
 __all__ = [
     "SALG",

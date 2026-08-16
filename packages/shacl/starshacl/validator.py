@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import contextvars
-from typing import Any, Callable, Iterable
+from collections.abc import Callable, Iterable
+from typing import Any
 
 from rdflib import BNode, Graph, Literal, Namespace, URIRef
 from rdflib.collection import Collection
@@ -10,14 +11,20 @@ from rdflib.namespace import OWL, RDF, RDFS
 from starshacl.adapters import TripleTermAdapter, TripleTermGraph
 from starshacl.engine import (
     ComponentRequest,
-    build_report as native_build_report,
-    evaluate_component as native_evaluate_component,
     normalize_graph_inputs,
+)
+from starshacl.engine import (
+    build_report as native_build_report,
+)
+from starshacl.engine import (
+    evaluate_component as native_evaluate_component,
+)
+from starshacl.engine import (
     target_nodes as native_target_nodes,
 )
 from starshacl.native_components import (
-    SHAPE_EXPECTING_PREDICATES,
     _RDF_REIFIES,
+    SHAPE_EXPECTING_PREDICATES,
     _ambient_shapes_graph_prefixes,
     _get_tt_adapter,
     ensure_shape_typed,
@@ -26,8 +33,7 @@ from starshacl.native_components import (
 )
 from starshacl.profiles import ValidationProfile, resolve_profile_options
 from starshacl.results import ExecutionDiagnostics, RulesResult, ValidationResult
-from starshacl.types import ensure_graph_mutable, is_dirlangstring_like
-
+from starshacl.types import ensure_graph_mutable
 
 SH = Namespace("http://www.w3.org/ns/shacl#")
 SHNEX = Namespace("http://www.w3.org/ns/shacl-node-expr#")
@@ -975,7 +981,7 @@ class StarShaclValidator:
         )
 
 
-_source_rule_buffer: "contextvars.ContextVar[list[tuple[tuple, Any]] | None]" = contextvars.ContextVar(
+_source_rule_buffer: contextvars.ContextVar[list[tuple[tuple, Any]] | None] = contextvars.ContextVar(
     "_source_rule_buffer", default=None
 )
 

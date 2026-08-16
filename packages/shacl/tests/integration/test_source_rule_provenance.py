@@ -15,10 +15,9 @@ for the base behavior these build on.
 
 import pytest
 from rdflib import Literal, Namespace, URIRef
-
-from starshacl import StarShaclValidator
 from starlayergraph.graph.starlayer_graph import StarLayerGraph
 from starlayergraph.model.triple import TripleTerm
+from starshacl import StarShaclValidator
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")

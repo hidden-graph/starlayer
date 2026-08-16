@@ -12,20 +12,25 @@ Two directions get tested:
 """
 
 import pytest
-from rdflib import BNode, Literal, RDF, URIRef
+from rdflib import RDF, BNode, Literal, URIRef
 from rdflib.plugins.sparql.processor import prepareQuery, prepareUpdate
-
-from starsparql import query_to_rdf, queries_to_collection, shapes_graph, update_to_rdf, validate
+from starsparql import (
+    queries_to_collection,
+    query_to_rdf,
+    shapes_graph,
+    update_to_rdf,
+    validate,
+)
+from starsparql.parse12 import prepare_query_12
 from starsparql.vocab import SALG
 
-from unit.test_roundtrip import QUERIES
-from unit.test_phase2_values_subquery import QUERIES as VALUES_SUBQUERY_QUERIES
-from unit.test_phase6_rdf12_native import QUERIES as RDF12_QUERIES
-from unit.test_phase2_update import SINGLE_GRAPH_UPDATES, MULTI_GRAPH_UPDATES
+from unit.test_phase2_aggregates import QUERIES as AGGREGATE_QUERIES
 from unit.test_phase2_forms import QUERIES as FORMS_QUERIES
 from unit.test_phase2_paths import QUERIES as PATH_QUERIES
-from unit.test_phase2_aggregates import QUERIES as AGGREGATE_QUERIES
-from starsparql.parse12 import prepare_query_12
+from unit.test_phase2_update import MULTI_GRAPH_UPDATES, SINGLE_GRAPH_UPDATES
+from unit.test_phase2_values_subquery import QUERIES as VALUES_SUBQUERY_QUERIES
+from unit.test_phase6_rdf12_native import QUERIES as RDF12_QUERIES
+from unit.test_roundtrip import QUERIES
 
 # Top-level LIMIT/DISTINCT/REDUCED/ORDER BY all wrap SelectQuery.p in
 # Slice/Distinct/Reduced instead of it being a bare Project - a real gap
@@ -91,8 +96,8 @@ def test_expression_shape_relies_on_rdfs_reasoning_not_enumeration():
     are what conformance actually rests on, so this can't silently
     regress to "conforms by coincidence" without a real subclass chain
     behind it."""
-    from rdflib import RDF, BNode, Graph as RGraph
-
+    from rdflib import RDF, BNode
+    from rdflib import Graph as RGraph
     from starsparql.ontology import ontology_graph
     from starsparql.vocab import SALG
 

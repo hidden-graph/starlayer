@@ -17,7 +17,6 @@ from rdflib import Graph
 from rdflib.namespace import RDF
 from rdflib.plugins.sparql.evaluate import evalQuery
 from rdflib.plugins.sparql.processor import prepareQuery
-
 from starsparql import queries_to_collection, rdf_to_collection
 from starsparql.vocab import QUERY_COLLECTION
 

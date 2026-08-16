@@ -134,14 +134,12 @@ from __future__ import annotations
 from rdflib import BNode, Literal, URIRef, Variable
 from rdflib.graph import Graph
 from rdflib.namespace import RDF
-from rdflib.plugins.sparql.algebra import _AlgebraTranslator, ExpressionNotCoveredException
+from rdflib.plugins.sparql.algebra import (
+    ExpressionNotCoveredException,
+    _AlgebraTranslator,
+)
 from rdflib.plugins.sparql.parserutils import CompValue
 from rdflib.plugins.sparql.sparql import Prologue, Query, Update
-
-from .from_rdf import rdf_to_query, rdf_to_update
-from .to_rdf import query_to_rdf, update_to_rdf
-from .triple_term import TripleTermNode
-from .vocab import decode_dirlang_datatype
 
 # _AlgebraTranslator11 (below) subclasses plain rdflib's own
 # _AlgebraTranslator, adding only two fixes of its own (a Function-node
@@ -165,6 +163,11 @@ from .vocab import decode_dirlang_datatype
 from starlayergraph.query.algebra_translator_patches import (
     patch_algebra_translator_bugs as _patch_algebra_translator_bugs,
 )
+
+from .from_rdf import rdf_to_query, rdf_to_update
+from .to_rdf import query_to_rdf, update_to_rdf
+from .triple_term import TripleTermNode
+from .vocab import decode_dirlang_datatype
 
 _patch_algebra_translator_bugs()
 
@@ -1144,7 +1147,9 @@ def _restarlayergraph_dirlang_literals(node):
     there is no aliasing risk in doing the final pass in place rather than
     building yet another fresh copy.
     """
-    from starlayergraph.model.encoding import encode_dirlang_datatype as _starlayergraph_encode_dirlang
+    from starlayergraph.model.encoding import (
+        encode_dirlang_datatype as _starlayergraph_encode_dirlang,
+    )
 
     if isinstance(node, Literal):
         if node.datatype is not None:

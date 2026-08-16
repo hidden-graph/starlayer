@@ -25,10 +25,12 @@ Entry point:  serialize_jsonld12(g) -> str
 from __future__ import annotations
 
 import json
-from rdflib import URIRef, BNode, Literal
-from starlayergraph.model.triple import TripleTerm
+
+from rdflib import BNode, Literal, URIRef
+
 from starlayergraph.model.dirlangstring import DirLangString
 from starlayergraph.model.encoding import TT_NS, encode_dirlang_datatype
+from starlayergraph.model.triple import TripleTerm
 
 _RDF_NS = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#'
 _RDF_TRIPLE_TERM = _RDF_NS + 'TripleTerm'
@@ -86,7 +88,7 @@ def _tt_local(tt: TripleTerm) -> str:
     Avoids importing StarLayerGraph; recomputes the hash on-the-fly.
     For efficiency, callers that already have the URI should pass it directly.
     """
-    from starlayergraph.model.encoding import tt_hash, term_key
+    from starlayergraph.model.encoding import term_key, tt_hash
     s = tt.subject
     p = tt.predicate
     o = tt.object

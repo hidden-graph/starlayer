@@ -1,12 +1,12 @@
 Task List
 
-1. review the shapes of SPARQL based on the 1.2 SPARQL ontology we built.I
-2.a Check SHACL against latest spec1
+1. what art the git errors we get when we publish. how to fix
+
 3. bring in OWL and OWL reasoning into the stack.
 4a. break the sparql/shacl editor into two parts.  build shacl as stand-alone.1
 4. rebuild a stand-alone SPARQL editor based on shapes.
 5. create an HTML based user guide
-6. deal with linting
+
 7. do we have claude instructions to check for updates to the 1.2 standards
 8. bring relevant UI apps into hiddenGrpah.  KG explorere, sparqModel
 9. why are we still finding bugs? need to expand testing? different approach?

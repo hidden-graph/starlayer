@@ -31,8 +31,6 @@ established as a pattern:
 
 from __future__ import annotations
 
-from typing import Optional, Union
-
 from pyparsing import ParseResults
 from rdflib import BNode, Graph, Literal, URIRef, Variable
 from rdflib.collection import Collection
@@ -46,7 +44,7 @@ _LEAF_TERM_TYPES = (URIRef, BNode, Literal)
 _PRIMITIVE_TYPES = (str, int, float, bool)
 
 
-def query_ast_to_rdf(parse_result: ParseResults, graph: Optional[Graph] = None) -> tuple[Graph, BNode]:
+def query_ast_to_rdf(parse_result: ParseResults, graph: Graph | None = None) -> tuple[Graph, BNode]:
     """Encode ``parseQuery(text)``'s raw output — ``[prologue, query]`` —
     as ``sast:`` RDF. Returns ``(graph, root)``, ``root`` the node for the
     query itself (``parse_result[1]``), additionally typed ``sast:Query``
@@ -113,11 +111,11 @@ def _encode_comp_value(node: CompValue, graph: Graph) -> BNode:
     return subj
 
 
-def _encode_list(items: list, graph: Graph) -> Union[BNode, URIRef]:
+def _encode_list(items: list, graph: Graph) -> BNode | URIRef:
     return _build_rdf_list([_encode(item, graph) for item in items], graph)
 
 
-def _build_rdf_list(nodes: list, graph: Graph) -> Union[BNode, URIRef]:
+def _build_rdf_list(nodes: list, graph: Graph) -> BNode | URIRef:
     if not nodes:
         return RDF.nil
     list_node = BNode()

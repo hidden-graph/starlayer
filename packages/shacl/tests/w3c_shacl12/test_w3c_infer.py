@@ -42,7 +42,13 @@ from starshacl import StarShaclValidator
 
 from .ids import portable_id
 from .known_failures import KNOWN_FAILURES
-from .manifest import ManifestEntry, clone_graph, iter_manifest_entries, load_document, uri_to_path
+from .manifest import (
+    ManifestEntry,
+    clone_graph,
+    iter_manifest_entries,
+    load_document,
+    uri_to_path,
+)
 from .namespaces import MF, SHT
 
 VENDOR_ROOT = Path(__file__).resolve().parents[1] / "vendor" / "shacl12-test-suite"

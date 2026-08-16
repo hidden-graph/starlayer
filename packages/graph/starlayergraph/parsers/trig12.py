@@ -19,10 +19,13 @@ Entry points:
 from __future__ import annotations
 
 import re as _re
+
 from rdflib import URIRef
 
-from starlayergraph.parsers.turtle_parser import StarLayerTurtleParser, _skolemize_encoding
-
+from starlayergraph.parsers.turtle_parser import (
+    StarLayerTurtleParser,
+    _skolemize_encoding,
+)
 
 # ---------------------------------------------------------------------------
 # TriG block extractor
@@ -179,7 +182,11 @@ def extract_version_directive(text: str) -> str | None:
     existing statement splitter/classifier rather than duplicating that
     grammar.
     """
-    from starlayergraph.parsers.syntax import split_statements, classify_statement, extract_fields
+    from starlayergraph.parsers.syntax import (
+        classify_statement,
+        extract_fields,
+        split_statements,
+    )
     stmts = split_statements(text)
     if not stmts or classify_statement(stmts[0]) != 'version':
         return None

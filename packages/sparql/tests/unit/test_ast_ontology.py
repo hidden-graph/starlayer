@@ -11,7 +11,6 @@ import pytest
 from rdflib.plugins.sparql.evaluate import evalQuery
 from rdflib.plugins.sparql.parser import parseQuery
 from rdflib.plugins.sparql.processor import prepareQuery
-
 from starsparql.from_ast_rdf import rdf_ast_to_query
 from starsparql.to_ast_rdf import query_ast_to_rdf
 

@@ -6,17 +6,16 @@ extract_fields, and expand_triple_set.
 """
 
 import pytest
-from rdflib import Literal
 from rdflib.namespace import XSD
+from starlayergraph.parsers.errors import TurtleSyntaxError
 from starlayergraph.parsers.syntax import (
-    coerce_object,
     classify_statement,
+    coerce_object,
+    expand_triple_set,
+    extract_fields,
     split_statements,
     split_statements_with_lines,
-    extract_fields,
-    expand_triple_set,
 )
-from starlayergraph.parsers.errors import TurtleSyntaxError
 
 
 class TestCoerceObject:

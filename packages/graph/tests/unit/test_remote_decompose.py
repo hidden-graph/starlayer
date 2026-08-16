@@ -20,7 +20,6 @@ nodes, and re-check its condition locally per row after the round trip.
 from __future__ import annotations
 
 from rdflib import URIRef, Variable
-
 from starlayergraph.query.query_cache import prepare_query_cached
 from starlayergraph.query.remote_decompose import (
     contains_custom_function_call,
@@ -84,7 +83,7 @@ def test_stripped_filter_recipe_correctly_excludes_non_matching_rows():
     # one-way hash) - register both here the same way real ground-value
     # computation would (_eager_lower_value/_hash_call), so the accessor
     # calls this test exercises have something real to decode.
-    from starlayergraph.model.encoding import tt_hash, term_key, remember_tt_hash, TT_NS
+    from starlayergraph.model.encoding import TT_NS, remember_tt_hash, term_key, tt_hash
 
     def _make_tt_uri(s, p, o):
         uri = URIRef(TT_NS + tt_hash(term_key(s), term_key(p), term_key(o)))

@@ -150,7 +150,7 @@ def patch_algebra_translator_bugs() -> bool:
                 )
                 self._replace(
                     "{RelationalExpression}",
-                    "{left} {operator} {right}".format(left=expr, operator=node.op, right=other),
+                    f"{expr} {node.op} {other}",
                 )
                 # Deliberately NOT `return node` here (unlike the "BGP"
                 # branch above, which has no CompValue children at all):

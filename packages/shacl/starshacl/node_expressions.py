@@ -50,7 +50,7 @@ constraint component, which always runs inside that context.
 
 from __future__ import annotations
 
-from typing import Any, Iterable
+from typing import Any
 
 from rdflib import BNode, Literal, URIRef
 from rdflib.namespace import RDF, XSD, Namespace
@@ -236,7 +236,9 @@ def eval_expr(
     of result nodes" from the calling operator's point of view, never a
     literal top-level constant.
     """
-    from pyshacl.helper.expression_helper import nodes_from_node_expression as _pyshacl_eval
+    from pyshacl.helper.expression_helper import (
+        nodes_from_node_expression as _pyshacl_eval,
+    )
 
     if recurse_depth > _MAX_RECURSION:
         raise ValueError("Node expression recursion depth too great - possible cycle.")

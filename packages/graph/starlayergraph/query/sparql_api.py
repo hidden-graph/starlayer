@@ -60,8 +60,8 @@ def prepareQuery(queryString: str, initNs=None, base=None):
     The returned ``Query`` object can be passed directly to
     ``StarLayerGraph.query()`` or ``rdflib.Graph.query()``.
     """
-    from starsparql.parse12 import prepare_query_12
     from starsparql.lower_rdf11 import query_to_rdf11, rdf11_to_query
+    from starsparql.parse12 import prepare_query_12
     prepared_12 = prepare_query_12(queryString, base=base, initNs=initNs)
     rdf_graph, root = query_to_rdf11(prepared_12)
     return rdf11_to_query(rdf_graph, root)
@@ -86,8 +86,8 @@ def prepareUpdate(updateString: str, initNs=None, base=None):
     The returned ``Update`` object can be passed directly to
     ``StarLayerGraph.update()`` or ``rdflib.Graph.update()``.
     """
+    from starsparql.lower_rdf11 import rdf11_to_update, update_to_rdf11
     from starsparql.parse12 import prepare_update_12
-    from starsparql.lower_rdf11 import update_to_rdf11, rdf11_to_update
     prepared_12 = prepare_update_12(updateString, base=base, initNs=initNs)
     rdf_graph, root = update_to_rdf11(prepared_12)
     return rdf11_to_update(rdf_graph, root)

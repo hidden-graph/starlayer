@@ -52,8 +52,8 @@ def contains_triple_term(node) -> bool:
     structure, so it can't be fooled by e.g. ``<<(`` appearing inside a
     string literal or comment.
     """
-    from starsparql.triple_term import TripleTermNode
     from rdflib.plugins.sparql.parserutils import CompValue
+    from starsparql.triple_term import TripleTermNode
 
     if isinstance(node, TripleTermNode):
         return True

@@ -8,12 +8,10 @@ These wrappers accept SPARQL 1.2 syntax; the round-trip strategy is:
 """
 
 import pytest
-from rdflib import URIRef, Variable
+from rdflib import URIRef
 from rdflib.plugins.sparql.parserutils import CompValue
 from rdflib.plugins.sparql.sparql import Query
-
-from starlayergraph.query import parseQuery, prepareQuery, parseUpdate, prepareUpdate
-
+from starlayergraph.query import parseQuery, parseUpdate, prepareQuery, prepareUpdate
 
 # ---------------------------------------------------------------------------
 # helpers
@@ -236,8 +234,7 @@ class TestPrepareQuery:
         assert isinstance(q, Query)
 
     def test_prepared_query_executes_on_graph(self):
-        from rdflib import Graph, URIRef, Literal
-        from rdflib.plugins.sparql.sparql import Query
+        from rdflib import Graph
         g = Graph()
         g.parse(data="""
             @prefix : <http://example.org/> .
@@ -302,7 +299,7 @@ class TestPrepareUpdate:
         """)
 
     def test_prepared_update_executes_on_graph(self):
-        from rdflib import Graph, URIRef
+        from rdflib import Graph
         g = Graph()
         g.parse(data="<http://a> <http://b> <http://c> .", format="nt")
         u = prepareUpdate("DELETE DATA { <http://a> <http://b> <http://c> }")
@@ -323,8 +320,8 @@ class TestProcessUpdate:
         assert len(g) == 1
 
     def test_does_not_raise_on_sparql12_starlayer_graph(self):
-        from starlayergraph.query import processUpdate
         from starlayergraph.graph import StarLayerGraph
+        from starlayergraph.query import processUpdate
         g = StarLayerGraph()
         g.parse(data="<http://example.org/s> <http://example.org/p> <http://example.org/o> .", format="nt")
         # SPARQL 1.2 with triple-term should not raise
@@ -337,9 +334,8 @@ class TestProcessUpdate:
     def test_routes_to_graph_update_for_starlayer_graph(self):
         """processUpdate on a StarLayerGraph must go through graph.update()
         so the TripleTerm registry is rebuilt after the update."""
-        from starlayergraph.query import processUpdate
         from starlayergraph.graph import StarLayerGraph
-        from rdflib import URIRef
+        from starlayergraph.query import processUpdate
         g = StarLayerGraph()
         g.parse(data="""
             @prefix : <http://example.org/> .

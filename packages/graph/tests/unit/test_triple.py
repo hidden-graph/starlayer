@@ -5,7 +5,6 @@ validation (independent of any parser/backend that might construct one).
 
 import pytest
 from rdflib import BNode, Literal, URIRef
-
 from starlayergraph.model.triple import TripleTerm
 
 EX = 'http://example.org/'

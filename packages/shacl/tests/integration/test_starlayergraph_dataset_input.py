@@ -1,6 +1,5 @@
 import pytest
 from rdflib import Dataset, Literal, Namespace
-
 from starshacl import StarShaclValidator
 
 pytest.importorskip("pyshacl")

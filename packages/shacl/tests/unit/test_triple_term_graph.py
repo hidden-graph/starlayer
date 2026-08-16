@@ -1,7 +1,5 @@
 from rdflib import Namespace
-
 from starshacl.adapters import TripleTermGraph
-
 
 EX = Namespace("http://example.org/")
 

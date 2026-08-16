@@ -14,6 +14,7 @@ Entry point:  serialize_trig12(g) -> str
 from __future__ import annotations
 
 from rdflib import BNode
+
 from starlayergraph.serializers.turtle12 import serialize_turtle12
 
 

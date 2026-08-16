@@ -10,9 +10,7 @@ Covers:
 """
 
 import pytest
-from rdflib import URIRef, Literal
-from rdflib.namespace import RDF
-
+from rdflib import URIRef
 from starlayergraph.graph.starlayer_graph import StarLayerGraph
 from starlayergraph.model.triple import TripleTerm
 
@@ -187,7 +185,6 @@ class TestU4:
 
     def test_delete_data_preserves_encoding_triples(self, g):
         """Encoding triples (rdf:subject/predicate/object) must not be removed."""
-        from starlayergraph.model.encoding import TT_NS
         g.update("""
             PREFIX :   <http://example.org/>
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>

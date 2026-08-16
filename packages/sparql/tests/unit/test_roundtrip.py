@@ -11,7 +11,6 @@ import pytest
 from rdflib.plugins.sparql.algebra import translateAlgebra
 from rdflib.plugins.sparql.evaluate import evalQuery
 from rdflib.plugins.sparql.processor import prepareQuery
-
 from starsparql import query_to_rdf, rdf_to_query
 
 PREFIXES = """

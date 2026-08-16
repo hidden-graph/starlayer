@@ -12,14 +12,25 @@ Encoding: triple terms are stored as content-addressed URIRefs under TT_NS
 triples that define the encoding are hidden from callers.
 """
 
-import re
 
-from rdflib import Graph, URIRef, BNode, Literal
+from rdflib import BNode, Graph, Literal, URIRef
 from rdflib.graph import DATASET_DEFAULT_GRAPH_ID
 from rdflib.namespace import RDF
+
+from starlayergraph.model.dirlangstring import (
+    DirLangString,
+    decode_dirlangstring,
+    encode_dirlangstring,
+)
+from starlayergraph.model.encoding import ENCODING_PREDS as _ENCODING_PREDS
+from starlayergraph.model.encoding import (
+    TT_NS,
+    lookup_tt_hash,
+    restore_select_bindings,
+    term_key,
+    tt_hash,
+)
 from starlayergraph.model.triple import TripleTerm
-from starlayergraph.model.encoding import TT_NS, tt_hash, term_key, lookup_tt_hash, ENCODING_PREDS as _ENCODING_PREDS, restore_select_bindings
-from starlayergraph.model.dirlangstring import DirLangString, encode_dirlangstring, decode_dirlangstring
 
 SL_NS           = 'https://github.com/hidden-graph/starlayergraph/ns#'
 SL_TRIPLE_TERM  = URIRef(SL_NS + 'TripleTerm')   # kept for export / backward compat
@@ -216,7 +227,7 @@ class StarLayerGraph(Graph):
         return f'GRAPH <{self.identifier}> {{ {body} }}'
 
     def _native_add(self, s, p, obj) -> None:
-        from starlayergraph.backends.native import sparql_term, http_update
+        from starlayergraph.backends.native import http_update, sparql_term
         from starlayergraph.model.triple import TripleTerm as _TT
         q_url, u_url, hdrs = self._store_http()
         s_str = sparql_term(s)
@@ -263,7 +274,7 @@ class StarLayerGraph(Graph):
         """
         if not triples:
             return
-        from starlayergraph.backends.native import sparql_term, http_update
+        from starlayergraph.backends.native import http_update, sparql_term
         from starlayergraph.model.triple import TripleTerm as _TT
 
         parts = []
@@ -288,7 +299,7 @@ class StarLayerGraph(Graph):
             self._invalidate_callback()
 
     def _native_triples(self, triple):
-        from starlayergraph.backends.native import sparql_term, http_select, http_ask
+        from starlayergraph.backends.native import http_ask, http_select, sparql_term
         q_url, _, hdrs = self._store_http()
         s, p, o = triple
 
@@ -666,7 +677,7 @@ class StarLayerGraph(Graph):
         {p}`` pattern-delete rather than ``DELETE DATA`` - the latter only
         accepts fully ground triples.
         """
-        from starlayergraph.backends.native import sparql_term, http_update
+        from starlayergraph.backends.native import http_update, sparql_term
         from starlayergraph.model.triple import TripleTerm as _TT
         _, u_url, hdrs = self._store_http()
 
@@ -780,8 +791,9 @@ class StarLayerGraph(Graph):
         same shape as _native_triples()'s own free-variable/ASK-vs-SELECT
         dispatch.
         """
-        from starlayergraph.backends.native import sparql_term, http_select
         from rdflib.term import Variable
+
+        from starlayergraph.backends.native import http_select, sparql_term
         s, p, o = triple
         q_url, _, hdrs = self._store_http()
 
@@ -846,8 +858,9 @@ class StarLayerGraph(Graph):
         non-native graph; StarLayerGraph's own __len__ override just never
         used it for native).
         """
-        from starlayergraph.backends.native import http_select
         from rdflib.term import Variable
+
+        from starlayergraph.backends.native import http_select
         q_url, _, hdrs = self._store_http()
         sparql = f'SELECT (COUNT(*) AS ?c) WHERE {{ {self._native_scoped("?s ?p ?o .")} }}'
         _vars, bindings = http_select(q_url, sparql, hdrs)
@@ -1094,7 +1107,10 @@ class StarLayerGraph(Graph):
             text = _read_source_text(source=source, file=file, location=location, data=data)
 
             if format in ('turtle12', 'longturtle12'):
-                from starlayergraph.parsers.turtle_parser import StarLayerTurtleParser, _skolemize_encoding
+                from starlayergraph.parsers.turtle_parser import (
+                    StarLayerTurtleParser,
+                    _skolemize_encoding,
+                )
                 # Seed relative-IRI resolution (including a bare "<>") from
                 # publicID, falling back to location's own resolved file://
                 # IRI when publicID isn't given - matching the convention
@@ -1119,14 +1135,18 @@ class StarLayerGraph(Graph):
                     # routed through self.add() (-> _native_add()) so they
                     # get written using the backend's real <<( )>> syntax,
                     # not the flat encoding-triple fragments.
-                    from starlayergraph.parsers.turtle_parser import decode_tt_encoded_triples
+                    from starlayergraph.parsers.turtle_parser import (
+                        decode_tt_encoded_triples,
+                    )
                     self._native_add_many(list(decode_tt_encoded_triples(processed)))
                 else:
                     for triple in processed:
                         super().add(triple)
                     self._build_registry_from_store()
 
-                from starlayergraph.model.conformance import check_version_conformance_for_graphs
+                from starlayergraph.model.conformance import (
+                    check_version_conformance_for_graphs,
+                )
                 check_version_conformance_for_graphs(
                     getattr(raw, '_declared_version', None), [self], context='Turtle document',
                 )
@@ -1146,20 +1166,27 @@ class StarLayerGraph(Graph):
                     for triple in triples:
                         self.add(triple)
 
-                from starlayergraph.model.conformance import check_version_conformance_for_graphs
+                from starlayergraph.model.conformance import (
+                    check_version_conformance_for_graphs,
+                )
                 check_version_conformance_for_graphs(
                     extract_version_directive(text), [self], context='N-Triples/N-Quads document',
                 )
 
             elif format == 'trig12':
-                from starlayergraph.parsers.trig12 import parse_trig12, extract_version_directive as _trig_version
+                from starlayergraph.parsers.trig12 import (
+                    extract_version_directive as _trig_version,
+                )
+                from starlayergraph.parsers.trig12 import parse_trig12
                 if self._is_native:
                     # Same rationale as the turtle12/longturtle12 branch
                     # above - parse_trig12() returns the rdf-1.1 backend's
                     # own tt:HASH encoding, which needs decoding back into
                     # real TripleTerm objects before self.add() can write
                     # them using the native backend's real <<( )>> syntax.
-                    from starlayergraph.parsers.turtle_parser import decode_tt_encoded_triples
+                    from starlayergraph.parsers.turtle_parser import (
+                        decode_tt_encoded_triples,
+                    )
                     skolemized = Graph()
                     for triple in parse_trig12(text):
                         skolemized.add(triple)
@@ -1169,7 +1196,9 @@ class StarLayerGraph(Graph):
                         super().add(triple)
                     self._build_registry_from_store()
 
-                from starlayergraph.model.conformance import check_version_conformance_for_graphs
+                from starlayergraph.model.conformance import (
+                    check_version_conformance_for_graphs,
+                )
                 check_version_conformance_for_graphs(_trig_version(text), [self], context='TriG document')
 
             elif format == 'trix12':
@@ -1182,7 +1211,10 @@ class StarLayerGraph(Graph):
                         self.add(triple)
 
             elif format == 'rdfxml12':
-                from starlayergraph.parsers.rdfxml12 import parse_rdfxml12, extract_version_directive as _rx_version
+                from starlayergraph.parsers.rdfxml12 import (
+                    extract_version_directive as _rx_version,
+                )
+                from starlayergraph.parsers.rdfxml12 import parse_rdfxml12
                 triples = parse_rdfxml12(text)
                 if self._is_native:
                     self._native_add_many(list(triples))
@@ -1190,7 +1222,9 @@ class StarLayerGraph(Graph):
                     for triple in triples:
                         self.add(triple)
 
-                from starlayergraph.model.conformance import check_version_conformance_for_graphs
+                from starlayergraph.model.conformance import (
+                    check_version_conformance_for_graphs,
+                )
                 check_version_conformance_for_graphs(_rx_version(text), [self], context='RDF/XML document')
 
             elif format == 'jsonld12':
@@ -1209,7 +1243,9 @@ class StarLayerGraph(Graph):
                     # reconstructed - they'd leak into every later read.
                     # Parsing into a throwaway plain Graph first and decoding
                     # it exactly like the trig12 branch above avoids that.
-                    from starlayergraph.parsers.turtle_parser import decode_tt_encoded_triples
+                    from starlayergraph.parsers.turtle_parser import (
+                        decode_tt_encoded_triples,
+                    )
                     temp = Graph()
                     temp.parse(data=text, format='json-ld')
                     # rdf:type rdf:TripleTerm marker triples (see
@@ -1350,7 +1386,9 @@ class StarLayerGraph(Graph):
                 # decomposition support yet. Fail loudly instead of
                 # silently sending an unusable query and getting back
                 # incomplete/wrong results.
-                from starlayergraph.query.remote_decompose import contains_custom_function_call
+                from starlayergraph.query.remote_decompose import (
+                    contains_custom_function_call,
+                )
                 if contains_custom_function_call(query_object.algebra):
                     raise NotImplementedError(
                         f"{query_object.algebra.name} depends on a starlayergraph custom SPARQL "
@@ -1369,7 +1407,10 @@ class StarLayerGraph(Graph):
                       initNs=initNs, initBindings=init_bindings,
                       use_store_provided=use_store_provided, **kwargs)
         if pending_recipes is not None:
-            from starlayergraph.query.remote_decompose import evaluate_recipes_locally, row_passes_filters
+            from starlayergraph.query.remote_decompose import (
+                evaluate_recipes_locally,
+                row_passes_filters,
+            )
             new_bindings = []
             for row in r.bindings:
                 merged = evaluate_recipes_locally(pending_recipes, row, raw)
@@ -1406,8 +1447,8 @@ class StarLayerGraph(Graph):
             native_update(self.store, self._backend, update_object)
             return None
         if isinstance(update_object, str):
+            from starsparql.lower_rdf11 import rdf11_to_update, update_to_rdf11
             from starsparql.parse12 import prepare_update_12
-            from starsparql.lower_rdf11 import update_to_rdf11, rdf11_to_update
             prepared_12 = prepare_update_12(update_object, base=kwargs.get('base'), initNs=initNs)
             rdf_graph, root = update_to_rdf11(prepared_12)
             update_object = rdf11_to_update(rdf_graph, root)
@@ -1486,7 +1527,7 @@ class StarLayerGraph(Graph):
         _unfold_native_triple_terms() instead, matching how
         StarLayerGraph.isomorphic() already handles this same asymmetry.
         """
-        from starlayergraph.model.encoding import TT_NS, RR_NS
+        from starlayergraph.model.encoding import RR_NS, TT_NS
 
         if self._is_native:
             rr_map: dict = {}

@@ -16,7 +16,6 @@ import pytest
 from rdflib.plugins.sparql.evaluate import evalQuery
 from rdflib.plugins.sparql.parser import parseQuery
 from rdflib.plugins.sparql.processor import prepareQuery
-
 from starsparql.ssyn_to_text import ssyn_rdf_to_query_text
 from starsparql.to_ssyn_rdf import query_to_ssyn_rdf
 
@@ -95,7 +94,6 @@ def test_ssyn_roundtrip_result_equivalence(fixture_graph, query_text):
 def test_ssyn_where_reads_no_more_verbose_than_source():
     """A concrete check on the actual design goal — no salg: anywhere for a
     plain BGP, and no verbosity beyond ordinary triple patterns."""
-    from rdflib.namespace import RDF
 
     query_text = PREFIXES + "SELECT ?name WHERE { ?p a foaf:Person ; foaf:name ?name }"
     graph, root = query_to_ssyn_rdf(parseQuery(query_text))

@@ -24,13 +24,11 @@ Run:
 
 import pytest
 import requests
-
-from rdflib import URIRef, Literal
+from rdflib import Literal, URIRef
 from rdflib.plugins.stores.sparqlstore import SPARQLUpdateStore
-
 from starlayergraph.graph import StarLayerGraph
-from starlayergraph.model.triple import TripleTerm
 from starlayergraph.model.dirlangstring import DirLangString
+from starlayergraph.model.triple import TripleTerm
 
 # See test_fuseki_backend.py's identical pytestmark for why this is here.
 pytestmark = pytest.mark.integration

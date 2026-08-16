@@ -5,7 +5,7 @@ root-cause writeups.
 """
 
 import starlayergraph  # noqa: F401  (import-time patch application under test)
-from rdflib import Graph, XSD
+from rdflib import XSD, Graph
 
 
 def _eval(query: str):

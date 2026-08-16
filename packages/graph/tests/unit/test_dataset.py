@@ -5,10 +5,7 @@ Covers: multi-graph TriG 1.2 parsing, named-graph context access,
 quad iteration, TriG 1.2 / N-Quads 1.2 serialization, and round-trip.
 """
 
-import pytest
-from rdflib import URIRef, Literal, BNode
-from rdflib.namespace import RDF
-
+from rdflib import URIRef
 from starlayergraph.graph import StarLayerDataset, StarLayerGraph
 from starlayergraph.graph.starlayer_graph import RDF_REIFIES
 from starlayergraph.model.triple import TripleTerm

@@ -32,7 +32,6 @@ fixed here directly.
 from __future__ import annotations
 
 import pytest
-
 from starlayergraph.graph.starlayer_dataset import StarLayerDataset
 from starlayergraph.graph.starlayer_graph import StarLayerGraph
 

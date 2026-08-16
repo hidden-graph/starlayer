@@ -22,7 +22,6 @@ import pytest
 from rdflib import Dataset, Graph
 from rdflib.plugins.sparql.processor import prepareUpdate
 from rdflib.plugins.sparql.update import evalUpdate
-
 from starsparql import rdf_to_update, update_to_rdf
 
 PREFIXES = "PREFIX : <http://example.org/>\n"

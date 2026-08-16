@@ -1,9 +1,11 @@
 from rdflib import Literal, Namespace, URIRef
-
 from starlayergraph.graph.starlayer_graph import StarLayerGraph
-
-from starshacl.adapters import TripleTermAdapter, TripleTermGraph, TripleTermValue, _SparqlAwareEncodedGraph
-
+from starshacl.adapters import (
+    TripleTermAdapter,
+    TripleTermGraph,
+    TripleTermValue,
+    _SparqlAwareEncodedGraph,
+)
 
 EX = Namespace("http://example.org/")
 

@@ -5,11 +5,9 @@ Covers N-Triples 1.2 (nt12), N-Quads 1.2 (nq12), and TriG 1.2 (trig12)
 via StarLayerGraph.parse() and StarLayerGraph.serialize().
 """
 
-import pytest
-from rdflib import URIRef, BNode, Literal
-from rdflib.namespace import RDF, XSD
-
-from starlayergraph.graph.starlayer_graph import StarLayerGraph, RDF_REIFIES
+from rdflib import BNode, Literal, URIRef
+from rdflib.namespace import XSD
+from starlayergraph.graph.starlayer_graph import RDF_REIFIES, StarLayerGraph
 from starlayergraph.model.triple import TripleTerm
 
 EX = 'http://example.org/'

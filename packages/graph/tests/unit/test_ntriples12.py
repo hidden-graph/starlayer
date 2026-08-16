@@ -5,7 +5,6 @@ previously had no dedicated test file at all.
 """
 
 from rdflib import URIRef
-
 from starlayergraph.graph.starlayer_graph import StarLayerGraph
 
 EX = 'http://example.org/'

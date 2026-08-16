@@ -55,8 +55,7 @@ def patch_result_iter_empty_binding_row() -> bool:
 
         def _patched_iter(self):
             if self.type in ("CONSTRUCT", "DESCRIBE"):
-                for t in self.graph:
-                    yield t
+                yield from self.graph
             elif self.type == "ASK":
                 yield self.askAnswer
             elif self.type == "SELECT":

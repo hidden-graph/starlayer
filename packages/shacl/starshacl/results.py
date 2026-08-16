@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -21,8 +21,8 @@ class ValidationResult:
     conforms: bool
     report_graph: Any
     report_text: str
-    data_graph: Optional[Any] = None
-    diagnostics: Optional[ExecutionDiagnostics] = None
+    data_graph: Any | None = None
+    diagnostics: ExecutionDiagnostics | None = None
 
 
 @dataclass(frozen=True)
@@ -31,4 +31,4 @@ class RulesResult:
     report_graph: Any
     report_text: str
     conforms: bool
-    diagnostics: Optional[ExecutionDiagnostics] = None
+    diagnostics: ExecutionDiagnostics | None = None

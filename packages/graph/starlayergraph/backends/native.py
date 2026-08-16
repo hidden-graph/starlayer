@@ -41,15 +41,14 @@ from __future__ import annotations
 import re
 
 import requests
-from rdflib import URIRef, Literal, BNode
+from rdflib import BNode, Literal, URIRef
 from rdflib.namespace import XSD
 from rdflib.query import Result
 from rdflib.term import Variable
 
+from starlayergraph.model.dirlangstring import DirLangString
 from starlayergraph.model.encoding import BN_NS
 from starlayergraph.model.triple import TripleTerm
-from starlayergraph.model.dirlangstring import DirLangString
-
 
 # ---------------------------------------------------------------------------
 # Term serialization
@@ -185,7 +184,9 @@ def _parse_json_term(term_dict: dict):
                 # A no-op for any lexical form that already has a "." (every
                 # other engine, and Oxigraph itself for non-whole-number
                 # results).
-                from starlayergraph.query.operator_patches import _canonicalize_decimal_lexical_form
+                from starlayergraph.query.operator_patches import (
+                    _canonicalize_decimal_lexical_form,
+                )
 
                 literal = _canonicalize_decimal_lexical_form(literal)
             return literal
@@ -360,8 +361,8 @@ def check_native_version_conformance(text: str) -> None:
     endpoint needs to see the directive itself, unlike rdflib's SPARQL 1.1
     parser.
     """
-    from starlayergraph.query.version_directive import strip_version_directive
     from starlayergraph.model.conformance import check_version_conformance
+    from starlayergraph.query.version_directive import strip_version_directive
 
     _, declared_version = strip_version_directive(text)
     if declared_version is None:
@@ -407,6 +408,7 @@ def native_query(store, backend: str, query_object, processor='sparql', result='
 
     if query_type in ('CONSTRUCT', 'DESCRIBE'):
         from rdflib.query import Result as RDFResult
+
         from starlayergraph.graph.starlayer_graph import StarLayerGraph
         body, _ = http_construct(q_url, sparql, hdrs)
         g = StarLayerGraph()
@@ -465,8 +467,11 @@ def native_update(store, backend: str, update_object) -> None:
         # round-trips correctly through this - it's just a plain SPARQL 1.1
         # update by the time it comes back out.
         if isinstance(text, str):
+            from starsparql.lower_rdf11 import (
+                rdf11_update_to_sparql11_text,
+                update_to_rdf11,
+            )
             from starsparql.parse12 import prepare_update_12
-            from starsparql.lower_rdf11 import update_to_rdf11, rdf11_update_to_sparql11_text
             prepared_12 = prepare_update_12(text)
             rdf_graph, root = update_to_rdf11(prepared_12)
             text = rdf11_update_to_sparql11_text(rdf_graph, root)

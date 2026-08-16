@@ -19,11 +19,10 @@ confirmed by inspection, so comparison is apples-to-apples.
 from __future__ import annotations
 
 import csv
+import itertools
 import json
 import os
 from dataclasses import dataclass
-
-import itertools
 
 from rdflib import BNode, Graph, Literal, URIRef, Variable
 from starlayergraph.model.dirlangstring import DirLangString

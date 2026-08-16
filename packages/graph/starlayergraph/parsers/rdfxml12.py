@@ -54,11 +54,11 @@ import xml.etree.ElementTree as ET
 from urllib.parse import urljoin
 
 import rdflib
-from rdflib import URIRef, BNode, Literal
+from rdflib import BNode, Literal, URIRef
 from rdflib.namespace import RDF
 
-from starlayergraph.model.triple import TripleTerm
 from starlayergraph.model.encoding import encode_dirlang_datatype
+from starlayergraph.model.triple import TripleTerm
 
 _RDF_NS          = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#'
 _XML_NS          = 'http://www.w3.org/XML/1998/namespace'

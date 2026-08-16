@@ -23,14 +23,22 @@ package on disk.
 from __future__ import annotations
 
 from pyparsing import CaselessKeyword as Keyword
-from pyparsing import Forward, Group, Literal, OneOrMore, Optional, Regex, Suppress, ZeroOrMore
+from pyparsing import (
+    Forward,
+    Group,
+    Literal,
+    OneOrMore,
+    Optional,
+    Regex,
+    Suppress,
+    ZeroOrMore,
+)
 from rdflib import BNode, URIRef
 from rdflib import Literal as RDFTermLiteral
 from rdflib.namespace import RDF
-
 from rdflib.plugins.sparql.parser import (
-    A,
     BLANK_NODE_LABEL,
+    A,
     BlankNode,
     BuiltInCall,
     DataBlockValue,

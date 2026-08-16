@@ -7,7 +7,6 @@ docs/rdflib-upstream-issues.md issue 6 for the root-cause writeup.
 import starlayergraph  # noqa: F401  (import-time patch application under test)
 from rdflib import Graph
 
-
 EX_A = "<http://example/a>"
 EX_B = "<http://example/b>"
 EX_C = "<http://example/c>"

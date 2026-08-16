@@ -21,7 +21,6 @@ import os
 
 import pytest
 from rdflib import Graph, Namespace
-
 from starlayergraph.graph.starlayer_graph import StarLayerGraph
 from starsparql.parse12 import prepare_query_12
 

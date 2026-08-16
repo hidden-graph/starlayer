@@ -59,7 +59,10 @@ if either comes up.
 
 from __future__ import annotations
 
-from rdflib.plugins.sparql.algebra import ExpressionNotCoveredException, _AlgebraTranslator
+from rdflib.plugins.sparql.algebra import (
+    ExpressionNotCoveredException,
+    _AlgebraTranslator,
+)
 from rdflib.plugins.sparql.parserutils import CompValue
 from rdflib.plugins.sparql.sparql import Query
 from rdflib.term import Identifier, Literal
@@ -344,7 +347,7 @@ class _AlgebraTranslator12(_AlgebraTranslator):
             )
             self._replace(
                 "{RelationalExpression}",
-                "{left} {operator} {right}".format(left=expr, operator=node.op, right=other),
+                f"{expr} {node.op} {other}",
             )
             return node
 
@@ -367,7 +370,7 @@ class _AlgebraTranslator12(_AlgebraTranslator):
                     columns.append(key.n3())
                 else:
                     raise ExpressionNotCoveredException(
-                        "The expression {0} might not be covered yet.".format(key)
+                        f"The expression {key} might not be covered yet."
                     )
             values = "VALUES (" + " ".join(columns) + ")"
 
@@ -391,7 +394,7 @@ class _AlgebraTranslator12(_AlgebraTranslator):
                         row.append(term)
                     else:
                         raise ExpressionNotCoveredException(
-                            "The expression {0} might not be covered yet.".format(term)
+                            f"The expression {term} might not be covered yet."
                         )
                 rows += "(" + " ".join(row) + ")"
 

@@ -15,7 +15,10 @@ boundary so callers only ever see DirLangString or plain rdflib terms.
 
 from rdflib import Literal
 
-from starlayergraph.model.encoding import encode_dirlang_datatype, decode_dirlang_datatype
+from starlayergraph.model.encoding import (
+    decode_dirlang_datatype,
+    encode_dirlang_datatype,
+)
 
 _VALID_DIRECTIONS = frozenset({'ltr', 'rtl'})
 

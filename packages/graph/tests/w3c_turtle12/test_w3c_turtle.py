@@ -20,15 +20,16 @@ graph isomorphism (handles blank-node renaming automatically).
 
 import csv
 import pathlib
+
 import pytest
-from rdflib import Graph, URIRef, BNode, Literal
-from rdflib.namespace import RDF
+from rdflib import BNode, Graph, Literal, URIRef
 from rdflib.compare import isomorphic
+from rdflib.namespace import RDF
 
 RDF_REIFIES = URIRef('http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies')
 
-from starlayergraph.parsers.turtle_parser import StarLayerTurtleParser, SL_NS
 from starlayergraph.parsers.lexer import next_token
+from starlayergraph.parsers.turtle_parser import SL_NS
 
 W3C_DIR  = pathlib.Path(__file__).parent / 'data'
 MANIFEST = W3C_DIR / 'manifest.csv'

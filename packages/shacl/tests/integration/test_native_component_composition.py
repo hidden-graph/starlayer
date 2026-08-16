@@ -18,9 +18,7 @@ merge-after behavior.
 
 import pytest
 from rdflib import Graph, Literal, Namespace
-
 from starshacl import StarShaclValidator
-
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")

@@ -2,12 +2,9 @@ from typing import Any
 
 import pytest
 from rdflib import Graph, Literal, Namespace
-
 from starlayergraph.graph.starlayer_graph import StarLayerGraph
-
 from starshacl.adapters import TripleTermAdapter, TripleTermGraph, TripleTermValue
 from starshacl.validator import StarShaclValidator
-
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")

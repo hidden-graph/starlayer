@@ -1,5 +1,5 @@
 """Graph comparison utilities — thin re-exports from rdflib.compare."""
 
-from rdflib.compare import isomorphic, graph_diff
+from rdflib.compare import graph_diff, isomorphic
 
 __all__ = ["isomorphic", "graph_diff"]

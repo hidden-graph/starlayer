@@ -11,10 +11,9 @@ replaces the loop, but only when a shapes graph actually declares
 """
 
 import pytest
-from rdflib import Literal, Namespace, RDF
-
-from starshacl import StarShaclValidator
+from rdflib import RDF, Literal, Namespace
 from starlayergraph.graph.starlayer_graph import StarLayerGraph
+from starshacl import StarShaclValidator
 
 from ._shape_loader import load_shape
 

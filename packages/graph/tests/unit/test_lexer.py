@@ -6,8 +6,12 @@ annotation-block and object-annotation helpers.
 """
 
 import pytest
-from starlayergraph.parsers.lexer import next_token, consume_annotation_block, split_obj_and_annotations
 from starlayergraph.parsers.errors import TurtleSyntaxError
+from starlayergraph.parsers.lexer import (
+    consume_annotation_block,
+    next_token,
+    split_obj_and_annotations,
+)
 
 
 class TestNextTokenEmpty:

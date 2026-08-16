@@ -3,6 +3,7 @@ Shared fixtures for the starlayergraph test suite.
 """
 
 import pathlib
+
 import pytest
 from starlayergraph.parsers.turtle_parser import StarLayerTurtleParser
 
@@ -23,6 +24,7 @@ from starlayergraph.parsers.turtle_parser import StarLayerTurtleParser
 # combination that reliably failed without this import passes cleanly with
 # it, every time.
 from starsparql import grammar12
+
 grammar12.install()
 
 FIXTURES_DIR = pathlib.Path(__file__).parent / 'fixtures'

@@ -10,8 +10,9 @@
 # filenames and test names don't collide (verified when this was added).
 
 import os
-import requests
 import re
+
+import requests
 
 SOURCES = [
     "https://w3c.github.io/rdf-tests/rdf/rdf12/rdf-turtle/eval/",

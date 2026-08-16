@@ -13,14 +13,15 @@ called on it immediately, completely unmodified.
 
 from __future__ import annotations
 
-from typing import Any, Mapping, Optional
+from collections.abc import Mapping
+from typing import Any
 
+from pyparsing.exceptions import ParseBaseException
 from rdflib import BNode
 from rdflib.plugins.sparql.algebra import translateQuery, translateUpdate
 from rdflib.plugins.sparql.parser import parseQuery, parseUpdate
 from rdflib.plugins.sparql.parserutils import ParseResults  # re-exported for callers
 from rdflib.plugins.sparql.sparql import Query, Update
-from pyparsing.exceptions import ParseBaseException
 
 from . import grammar12
 from .triple_term import _reject_triple_term_pattern_subjects
@@ -119,7 +120,7 @@ def _canonicalize_construct_where(query: Query) -> Query:
 
 
 def prepare_query_12(
-    text: str, base: Optional[str] = None, initNs: Optional[Mapping[str, Any]] = None
+    text: str, base: str | None = None, initNs: Mapping[str, Any] | None = None
 ) -> Query:
     """Parse and translate SPARQL 1.2 query text into a real, executable-
     shaped rdflib ``Query`` — ``query.algebra`` contains genuine
@@ -142,7 +143,7 @@ def prepare_query_12(
 
 
 def prepare_update_12(
-    text: str, base: Optional[str] = None, initNs: Optional[Mapping[str, Any]] = None
+    text: str, base: str | None = None, initNs: Mapping[str, Any] | None = None
 ) -> Update:
     """``prepare_query_12``'s counterpart for SPARQL 1.2 Update text — same
     ``base``/``initNs`` passthrough to ``translateUpdate``."""

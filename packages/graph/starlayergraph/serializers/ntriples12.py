@@ -13,10 +13,10 @@ Entry points:
 
 from __future__ import annotations
 
-from rdflib import URIRef, BNode, Literal
-from starlayergraph.model.triple import TripleTerm
-from starlayergraph.model.dirlangstring import DirLangString
+from rdflib import BNode, Literal, URIRef
 
+from starlayergraph.model.dirlangstring import DirLangString
+from starlayergraph.model.triple import TripleTerm
 
 # ---------------------------------------------------------------------------
 # Node formatter

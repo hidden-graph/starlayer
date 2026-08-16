@@ -15,9 +15,8 @@ coincidentally both named sh:values but serve entirely different purposes.
 
 import pytest
 from rdflib import Namespace
-
-from starshacl import StarShaclValidator
 from starlayergraph.graph.starlayer_graph import StarLayerGraph
+from starshacl import StarShaclValidator
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")

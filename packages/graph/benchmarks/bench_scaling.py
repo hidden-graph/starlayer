@@ -37,15 +37,15 @@ import sys
 import time
 
 import requests
-from rdflib import URIRef, Literal
+from rdflib import Literal, URIRef
 from rdflib.namespace import XSD
 from rdflib.plugins.stores.sparqlstore import SPARQLUpdateStore
 
 sys.path.insert(0, '.')
-from starlayergraph.graph import StarLayerGraph
-from starlayergraph.model.triple import TripleTerm
-from starlayergraph.model.encoding import TT_NS, tt_hash
 from starlayergraph.backends.native import sparql_term
+from starlayergraph.graph import StarLayerGraph
+from starlayergraph.model.encoding import TT_NS, tt_hash
+from starlayergraph.model.triple import TripleTerm
 
 EX          = 'http://example.org/'
 RDF_REIFIES = URIRef('http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies')
@@ -122,6 +122,16 @@ def _queries(pred_bound, named_graph):
             return f'GRAPH <{GRAPH_URI}> {{\n        {body}\n    }}'
         return body
 
+    # Pulled out of the f-strings below rather than inlined: a pre-3.12 f-string
+    # can't contain a backslash escape (e.g. '\n') inside its {...} expression
+    # part (PEP 701 lifted that restriction only in 3.12+), and this repo
+    # supports 3.10+.
+    confidence_pattern = (
+        '?stmt rdf:reifies <<( ?s ?p ?o )>> .\n'
+        '        ?stmt ex:confidence ?c .\n'
+        '        FILTER(xsd:decimal(?c) > 0.7)'
+    )
+
     return [
         ('All reified TTs  (single TT pattern)',  f"""
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
@@ -133,7 +143,7 @@ PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX ex:  <{EX}>
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
 SELECT ?stmt ?s ?p ?o WHERE {{
-    {wrap('?stmt rdf:reifies <<( ?s ?p ?o )>> .\n        ?stmt ex:confidence ?c .\n        FILTER(xsd:decimal(?c) > 0.7)')}
+    {wrap(confidence_pattern)}
 }}"""),
         ('Partial TT match  (bound predicate)',   f"""
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
@@ -275,7 +285,7 @@ def run_fuseki(backend, triples, pred_bound):
 def _oxigraph_clear():
     requests.post(
         OXIGRAPH_UPDATE_URL,
-        data='DELETE WHERE { ?s ?p ?o }'.encode(),
+        data=b'DELETE WHERE { ?s ?p ?o }',
         headers={'Content-Type': 'application/sparql-update'},
         timeout=30,
     ).raise_for_status()
@@ -305,7 +315,7 @@ def _oxigraph_batch_insert(triples):
 def _oxigraph_triple_count():
     resp = requests.post(
         OXIGRAPH_QUERY_URL,
-        data='SELECT (COUNT(*) AS ?n) WHERE { ?s ?p ?o }'.encode(),
+        data=b'SELECT (COUNT(*) AS ?n) WHERE { ?s ?p ?o }',
         headers={'Content-Type': 'application/sparql-query',
                  'Accept': 'application/sparql-results+json'},
         timeout=30,

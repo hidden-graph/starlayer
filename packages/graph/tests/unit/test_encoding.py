@@ -3,7 +3,6 @@ Tests for starlayergraph.model.encoding — tt_hash() and the _TT_HASH_MEMO cach
 """
 
 from rdflib import URIRef
-
 from starlayergraph.model import encoding
 
 

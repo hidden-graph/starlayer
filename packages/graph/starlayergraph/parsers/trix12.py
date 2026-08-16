@@ -26,7 +26,8 @@ Entry points:
 from __future__ import annotations
 
 import xml.etree.ElementTree as ET
-from rdflib import URIRef, BNode, Literal
+
+from rdflib import BNode, Literal, URIRef
 
 from starlayergraph.model.triple import TripleTerm
 

@@ -119,7 +119,7 @@ def patch_multiplicative_expression_type_promotion() -> bool:
             try:
                 res: Decimal | float = Decimal(numeric(expr))
                 dt = expr.datatype
-                for op_, f in zip(e.op, other):
+                for op_, f in zip(e.op, other, strict=True):
                     n = numeric(f)
                     if type(n) == float:  # noqa: E721
                         res = float(res)
@@ -130,8 +130,8 @@ def patch_multiplicative_expression_type_promotion() -> bool:
                         res = res / n
                         promoted = type_promotion(dt, f.datatype)
                         dt = XSD.decimal if promoted == XSD.integer else promoted
-            except (InvalidOperation, ZeroDivisionError):
-                raise SPARQLError("divide by 0")
+            except (InvalidOperation, ZeroDivisionError) as exc:
+                raise SPARQLError("divide by 0") from exc
             return _canonicalize_decimal_lexical_form(Literal(res, datatype=dt))
 
         _patched_multiplicative_expression._starlayergraph_multiplicative_type_promotion_patch = True  # type: ignore[attr-defined]

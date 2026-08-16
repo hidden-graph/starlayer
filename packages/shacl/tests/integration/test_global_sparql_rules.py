@@ -9,9 +9,8 @@ silently never executes.
 
 import pytest
 from rdflib import Namespace
-
-from starshacl import StarShaclValidator
 from starlayergraph.graph.starlayer_graph import StarLayerGraph
+from starshacl import StarShaclValidator
 
 EX = Namespace("http://example.org/")
 

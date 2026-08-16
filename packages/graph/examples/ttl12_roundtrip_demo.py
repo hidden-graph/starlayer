@@ -13,11 +13,12 @@ Run from anywhere:
 
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from rdflib import Graph
-from starlayergraph.parsers.turtle_parser import StarLayerTurtleParser
 from starlayergraph.graph.starlayer_graph import StarLayerGraph
+from starlayergraph.parsers.turtle_parser import StarLayerTurtleParser
 
 INPUT = """\
 @prefix : <http://example.org/> .
@@ -95,7 +96,8 @@ OUTPUT = Path(__file__).parent.parent / 'samples' / 'ttl_1.2_output.txt'
 
 
 if __name__ == '__main__':
-    import io, contextlib
+    import contextlib
+    import io
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):
         main()

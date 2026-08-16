@@ -28,7 +28,6 @@ import uuid
 import pytest
 import requests
 from rdflib import Graph, Namespace, URIRef
-
 from starshacl import StarShaclValidator
 
 pyshacl = pytest.importorskip("pyshacl")

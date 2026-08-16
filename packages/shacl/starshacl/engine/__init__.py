@@ -6,7 +6,10 @@ from starshacl.engine.core import (
     evaluate_component,
     target_nodes,
 )
-from starshacl.engine.normalization import normalize_graph_inputs, normalize_to_starlayer_graph
+from starshacl.engine.normalization import (
+    normalize_graph_inputs,
+    normalize_to_starlayer_graph,
+)
 
 __all__ = [
     "ComponentRequest",

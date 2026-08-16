@@ -15,7 +15,6 @@ from rdflib.plugins.sparql.algebra import translateAlgebra
 from rdflib.plugins.sparql.evaluate import evalQuery
 from rdflib.plugins.sparql.processor import prepareQuery
 from rdflib.plugins.sparql.update import evalUpdate
-
 from starsparql import query_to_rdf, rdf_to_query, rdf_to_update, update_to_rdf
 
 

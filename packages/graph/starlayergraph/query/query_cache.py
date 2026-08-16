@@ -31,12 +31,12 @@ the cached prepared object directly, or serialize it back to text first
 
 from __future__ import annotations
 
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 from rdflib.plugins.sparql.sparql import Query
-
-from starsparql.parse12 import prepare_query_12
 from starsparql.lower_rdf11 import query_to_rdf11, rdf11_to_query
+from starsparql.parse12 import prepare_query_12
 
 # Store classes confirmed (via real Fuseki testing, not just code reading)
 # to hard-require a plain query string - their own query() methods assert
@@ -91,7 +91,10 @@ def prepare_query_cached(
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
-    from starlayergraph.query.version_directive import strip_version_directive, contains_triple_term
+    from starlayergraph.query.version_directive import (
+        contains_triple_term,
+        strip_version_directive,
+    )
     stripped_text, declared_version = strip_version_directive(query_text)
     prepared_12 = prepare_query_12(
         stripped_text, base=base, initNs=dict(effective_ns) if effective_ns else None

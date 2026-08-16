@@ -73,9 +73,7 @@ from rdflib import URIRef
 from rdflib.compare import to_isomorphic
 from rdflib.graph import DATASET_DEFAULT_GRAPH_ID
 from rdflib.plugins.stores.sparqlstore import SPARQLUpdateStore
-
 from starlayergraph.graph.starlayer_graph import StarLayerGraph
-
 from starsparql import query_to_rdf, rdf_to_query
 from starsparql.parse12 import prepare_query_12
 from starsparql.serialize12 import translate_algebra_12
@@ -528,7 +526,6 @@ def test_pattern_subject_triple_term_rejected_via_rdf_decode():
     all. No live server needed - pure encode/decode."""
     from rdflib import URIRef, Variable
     from rdflib.plugins.sparql.parserutils import CompValue
-
     from starsparql.from_rdf import rdf_to_query
     from starsparql.triple_term import InvalidTripleTermError, TripleTermNode
 

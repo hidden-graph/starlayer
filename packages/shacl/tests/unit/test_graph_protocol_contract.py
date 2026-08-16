@@ -1,5 +1,4 @@
 from starlayergraph.graph.starlayer_graph import StarLayerGraph
-
 from starshacl.types import (
     MutableStarLayerGraphProtocol,
     StarLayerGraphProtocol,

@@ -45,7 +45,7 @@ def _register_tt_hash_function() -> None:
     from rdflib.plugins.sparql.operators import register_custom_function
     from rdflib.plugins.sparql.sparql import SPARQLError
 
-    from starlayergraph.model.encoding import TT_NS, tt_hash, term_key, remember_tt_hash
+    from starlayergraph.model.encoding import TT_NS, remember_tt_hash, term_key, tt_hash
 
     def _tt_hash_fn(s, p, o):
         # RDF 1.2 (17.4.6, TRIPLE()): a triple term's subject must be an
@@ -189,7 +189,7 @@ DIRLANG_CONSTRUCT_FN = f"<{DIRLANG_NS_PREFIX}fn/construct>"
 
 
 def _register_dirlang_construct_function() -> None:
-    from rdflib import URIRef, Literal
+    from rdflib import Literal, URIRef
     from rdflib.plugins.sparql.operators import register_custom_function
     from rdflib.plugins.sparql.sparql import SPARQLError
 

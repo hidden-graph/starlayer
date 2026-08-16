@@ -13,11 +13,12 @@ triples to `[ ]`, losing their ID).
 """
 
 from collections import defaultdict
-from rdflib import BNode, URIRef, Literal
 
-from starlayergraph.model.triple import TripleTerm
+from rdflib import BNode, Literal, URIRef
+
 from starlayergraph.model.dirlangstring import DirLangString
-from starlayergraph.model.encoding import TT_NS, RR_NS
+from starlayergraph.model.encoding import RR_NS, TT_NS
+from starlayergraph.model.triple import TripleTerm
 
 SL_NS = 'https://github.com/hidden-graph/starlayergraph/ns#'
 _RDF_NS = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#'

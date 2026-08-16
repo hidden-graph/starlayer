@@ -33,11 +33,12 @@ from __future__ import annotations
 
 import xml.etree.ElementTree as ET
 from collections import defaultdict
-from rdflib import URIRef, BNode, Literal
 
-from starlayergraph.model.triple import TripleTerm
+from rdflib import BNode, Literal, URIRef
+
 from starlayergraph.model.dirlangstring import DirLangString
 from starlayergraph.model.encoding import encode_dirlang_datatype
+from starlayergraph.model.triple import TripleTerm
 
 _RDF_NS  = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#'
 _XML_NS  = 'http://www.w3.org/XML/1998/namespace'

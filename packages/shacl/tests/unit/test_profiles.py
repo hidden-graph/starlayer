@@ -1,5 +1,4 @@
 import pytest
-
 from starshacl.profiles import available_profiles, get_profile, resolve_profile_options
 
 

@@ -11,10 +11,8 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from rdflib import Namespace
-
 from starshacl import TripleTermAdapter
 from starshacl.adapters import TripleTermGraph, TripleTermValue
-
 
 EX = Namespace("http://example.org/")
 

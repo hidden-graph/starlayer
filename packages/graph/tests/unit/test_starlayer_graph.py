@@ -5,12 +5,12 @@ Covers: rdflib compatibility, TripleTerm add/query, filtering of internal
 encoding triples, from_rdflib(), and Statement operations.
 """
 
-import pytest
-from unittest.mock import patch, MagicMock
-from rdflib import Graph, URIRef, Literal, BNode
-from rdflib.namespace import RDF
+from unittest.mock import MagicMock, patch
 
-from starlayergraph.graph.starlayer_graph import StarLayerGraph, RDF_REIFIES
+import pytest
+from rdflib import Graph, Literal, URIRef
+from rdflib.namespace import RDF
+from starlayergraph.graph.starlayer_graph import RDF_REIFIES, StarLayerGraph
 from starlayergraph.model.triple import TripleTerm
 
 EX = 'http://example.org/'

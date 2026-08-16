@@ -7,16 +7,29 @@ that is the design (and not one function per operator name).
 
 from __future__ import annotations
 
-from typing import Optional, Union
-
 from rdflib import BNode, Graph, Literal, URIRef, Variable
 from rdflib.collection import Collection
 from rdflib.namespace import RDF
-from rdflib.paths import AlternativePath, InvPath, MulPath, NegatedPath, Path, SequencePath
+from rdflib.paths import (
+    AlternativePath,
+    InvPath,
+    MulPath,
+    NegatedPath,
+    Path,
+    SequencePath,
+)
 from rdflib.plugins.sparql.parserutils import CompValue
 from rdflib.plugins.sparql.sparql import Prologue, Query, Update
 
-from .vocab import PY_STR_DATATYPE, QUERY, QUERY_COLLECTION, SALG, UPDATE, UPDATE_OPERATION, VARIABLE_DATATYPE
+from .vocab import (
+    PY_STR_DATATYPE,
+    QUERY,
+    QUERY_COLLECTION,
+    SALG,
+    UPDATE,
+    UPDATE_OPERATION,
+    VARIABLE_DATATYPE,
+)
 
 _LEAF_TERM_TYPES = (URIRef, BNode, Literal)
 _PRIMITIVE_TYPES = (str, int, float, bool)
@@ -55,7 +68,7 @@ def _new_starlayer_graph() -> Graph:
     return StarLayerGraph()
 
 
-def query_to_rdf(query: Query, graph: Optional[Graph] = None) -> tuple[Graph, BNode]:
+def query_to_rdf(query: Query, graph: Graph | None = None) -> tuple[Graph, BNode]:
     """Encode a prepared rdflib ``Query`` (from ``prepareQuery``/``translateQuery``,
     starlayergraph's SPARQL-1.2-aware variants included) as RDF triples.
 
@@ -73,7 +86,7 @@ def query_to_rdf(query: Query, graph: Optional[Graph] = None) -> tuple[Graph, BN
     return graph, root
 
 
-def update_to_rdf(update: Update, graph: Optional[Graph] = None) -> tuple[Graph, BNode]:
+def update_to_rdf(update: Update, graph: Graph | None = None) -> tuple[Graph, BNode]:
     """Encode a prepared rdflib ``Update`` (from ``prepareUpdate``/
     ``translateUpdate``) as RDF triples.
 
@@ -102,7 +115,7 @@ def update_to_rdf(update: Update, graph: Optional[Graph] = None) -> tuple[Graph,
     return graph, root
 
 
-def queries_to_collection(queries: list[Query], graph: Optional[Graph] = None) -> tuple[Graph, BNode]:
+def queries_to_collection(queries: list[Query], graph: Graph | None = None) -> tuple[Graph, BNode]:
     """Encode a list of independent, prepared rdflib ``Query`` objects as one
     RDF ``salg:QueryCollection`` — the collection-of-independent-queries
     counterpart of ``update_to_rdf``'s single-request ``salg:operations``
@@ -127,7 +140,7 @@ def queries_to_collection(queries: list[Query], graph: Optional[Graph] = None) -
     return graph, root
 
 
-def _encode_prologue(prologue: Optional[Prologue], root, graph: Graph) -> None:
+def _encode_prologue(prologue: Prologue | None, root, graph: Graph) -> None:
     """Encode a Query/Update's Prologue (BASE + PREFIX declarations) onto its
     root node — see vocab.py's "Prologue (BASE/PREFIX)" section for why this
     is round-tripped (BASE-relative IRI()/URI() builtin correctness) and what
@@ -230,7 +243,7 @@ def _encode_comp_value(node: CompValue, graph: Graph) -> BNode:
     return subj
 
 
-def _encode_quads_map(quads: dict, graph: Graph) -> Union[BNode, URIRef]:
+def _encode_quads_map(quads: dict, graph: Graph) -> BNode | URIRef:
     """Encode an Update operation's quads-by-graph map (see vocab.py's
     "Update quads-by-graph maps" section) as an rdf:List of
     salg:QuadsForGraph nodes."""
@@ -284,7 +297,7 @@ def _encode_triple_pattern(triple: tuple, graph: Graph) -> BNode:
     return subj
 
 
-def _encode_list(items: list, graph: Graph) -> Union[BNode, URIRef]:
+def _encode_list(items: list, graph: Graph) -> BNode | URIRef:
     """Encode a plain Python list as an ``rdf:List``.
 
     A bare Python ``None`` as a whole property's *value* means "omit this
@@ -334,7 +347,7 @@ def _encode_list(items: list, graph: Graph) -> Union[BNode, URIRef]:
     return _build_rdf_list(encoded_items, graph)
 
 
-def _encode_binding_row(row: dict, graph: Graph) -> Union[BNode, URIRef]:
+def _encode_binding_row(row: dict, graph: Graph) -> BNode | URIRef:
     """Encode one VALUES-clause row (one of Values.res's list elements) as
     an rdf:List of salg:Binding nodes. See vocab.py's "Binding rows" section.
 
@@ -356,7 +369,7 @@ def _encode_binding_row(row: dict, graph: Graph) -> Union[BNode, URIRef]:
     return _build_rdf_list(binding_nodes, graph)
 
 
-def _build_rdf_list(nodes: list, graph: Graph) -> Union[BNode, URIRef]:
+def _build_rdf_list(nodes: list, graph: Graph) -> BNode | URIRef:
     if not nodes:
         return RDF.nil
     list_node = BNode()

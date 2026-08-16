@@ -50,7 +50,6 @@ reaches the argument on its own.
 from __future__ import annotations
 
 from starlayergraph.graph.starlayer_graph import StarLayerGraph
-
 from starsparql import query_to_rdf, rdf_to_query
 from starsparql.parse12 import prepare_query_12
 from starsparql.serialize12 import translate_algebra_12

@@ -18,10 +18,9 @@ query to rdflib's SPARQL 1.1 parser.
 
 import pytest
 from rdflib import URIRef
-
-from starlayergraph.graph.starlayer_graph import StarLayerGraph
-from starlayergraph.graph.starlayer_dataset import StarLayerDataset
 from starlayergraph.backends.native import check_native_version_conformance
+from starlayergraph.graph.starlayer_dataset import StarLayerDataset
+from starlayergraph.graph.starlayer_graph import StarLayerGraph
 from starlayergraph.model.conformance import RDF12ConformanceWarning
 
 EX = 'http://example.org/'

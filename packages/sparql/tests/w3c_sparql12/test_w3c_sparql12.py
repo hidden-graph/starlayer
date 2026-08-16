@@ -43,10 +43,15 @@ import pytest
 from rdflib.compare import to_isomorphic
 from starlayergraph.graph.starlayer_dataset import StarLayerDataset
 from starlayergraph.graph.starlayer_graph import StarLayerGraph
-
 from starsparql import query_to_rdf, rdf_to_query
 from starsparql.parse12 import prepare_query_12, prepare_update_12
-from w3c_sparql12.harness import bindings_match, canon_bindings, load_index, parse_srj, skolemize_graph
+
+from w3c_sparql12.harness import (
+    bindings_match,
+    load_index,
+    parse_srj,
+    skolemize_graph,
+)
 
 pytestmark = pytest.mark.w3c_sparql12
 

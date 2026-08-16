@@ -29,8 +29,9 @@ import pytest
 from rdflib import Graph
 from starlayergraph.graph.starlayer_graph import StarLayerGraph
 from starlayergraph.query.sparql_api import prepareQuery as starlayergraph_prepare_query
-from starlayergraph.query.sparql_api import prepareUpdate as starlayergraph_prepare_update
-
+from starlayergraph.query.sparql_api import (
+    prepareUpdate as starlayergraph_prepare_update,
+)
 from starsparql import query_to_rdf, rdf_to_query, rdf_to_update, update_to_rdf
 
 FIXTURE_TTL12 = """

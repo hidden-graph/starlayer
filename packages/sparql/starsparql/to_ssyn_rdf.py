@@ -29,7 +29,6 @@ parse tree — not the algebra's nested ``LeftJoin``/``Filter`` wrapping. See
 from __future__ import annotations
 
 import functools
-from typing import Optional, Union
 
 from rdflib import BNode, Graph, Literal, URIRef, Variable
 from rdflib.collection import Collection
@@ -53,7 +52,6 @@ from .ssyn_vocab import (
     OPTIONAL,
     SELECT,
     SELECT_QUERY,
-    SSYN,
     TRIPLE_PATTERN,
     TRIPLE_PATTERN_OBJECT,
     TRIPLE_PATTERN_PREDICATE,
@@ -67,7 +65,7 @@ from .to_rdf import _encode as _encode_algebra
 from .to_rdf import _encode_path, _new_starlayer_graph
 
 
-def query_to_ssyn_rdf(parse_result: ParseResults, graph: Optional[Graph] = None) -> tuple[Graph, BNode]:
+def query_to_ssyn_rdf(parse_result: ParseResults, graph: Graph | None = None) -> tuple[Graph, BNode]:
     """Encode a bare ``SELECT`` query's raw parse tree
     (``parseQuery(text)``'s output — ``[prologue, query]``) as ``ssyn:``
     RDF. Returns ``(graph, root)``.
@@ -194,7 +192,7 @@ def _encode_variable(value: Variable) -> Literal:
     return Literal(str(value), datatype=VARIABLE_DATATYPE)
 
 
-def _build_rdf_list(nodes: list, graph: Graph) -> Union[BNode, URIRef]:
+def _build_rdf_list(nodes: list, graph: Graph) -> BNode | URIRef:
     if not nodes:
         return RDF.nil
     list_node = BNode()

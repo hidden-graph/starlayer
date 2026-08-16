@@ -13,12 +13,20 @@ Entry point: StarLayerTurtleParser().parse(data)
 
 import re
 from urllib.parse import urljoin
-from rdflib import Graph, URIRef, BNode, Literal
+
+from rdflib import BNode, Graph, Literal, URIRef
 from rdflib.namespace import RDF, XSD
+
+from starlayergraph.model.encoding import (
+    RR_NS,
+    TT_NS,
+    encode_dirlang_datatype,
+    term_key,
+    tt_hash,
+)
 from starlayergraph.parsers import lexer as _lexer
 from starlayergraph.parsers import syntax as _syntax
 from starlayergraph.parsers.errors import TurtleSyntaxError
-from starlayergraph.model.encoding import TT_NS, RR_NS, tt_hash, term_key, encode_dirlang_datatype
 
 # Legacy sl: constants — kept for the intermediate build phase only;
 # stripped from the final graph by _skolemize_encoding().

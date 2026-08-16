@@ -6,11 +6,9 @@ output and checks graph isomorphism — confirming a faithful round-trip.
 """
 
 import pytest
-from rdflib import URIRef, Literal
-from rdflib.namespace import RDF
+from rdflib import Literal, URIRef
 from rdflib.compare import isomorphic
-
-from starlayergraph.graph.starlayer_graph import StarLayerGraph, RDF_REIFIES
+from starlayergraph.graph.starlayer_graph import RDF_REIFIES, StarLayerGraph
 from starlayergraph.model.triple import TripleTerm
 from starlayergraph.serializers.turtle12 import serialize_turtle12
 
@@ -143,7 +141,6 @@ class TestRoundTrip:
         )
         assert '<< ' in out
         assert 'rdf:reifies' not in out
-        from rdflib import URIRef
         tt_triples = [(p, o) for s, p, o in raw2.triples((None, None, None))]
         preds = {str(p) for p, _ in tt_triples}
         assert 'http://example/p' in preds

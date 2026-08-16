@@ -24,7 +24,6 @@ from __future__ import annotations
 
 from rdflib import Variable
 from rdflib.plugins.sparql.parserutils import CompValue
-
 from starsparql import query_to_rdf, rdf_to_query, rdf_to_update, update_to_rdf
 from starsparql.parse12 import prepare_query_12, prepare_update_12
 from starsparql.triple_term import TripleTermNode

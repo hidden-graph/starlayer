@@ -15,10 +15,11 @@ Entry points:
 from __future__ import annotations
 
 import re as _re
-from rdflib import URIRef, BNode, Literal
-from starlayergraph.model.triple import TripleTerm
-from starlayergraph.model.encoding import encode_dirlang_datatype
 
+from rdflib import BNode, Literal, URIRef
+
+from starlayergraph.model.encoding import encode_dirlang_datatype
+from starlayergraph.model.triple import TripleTerm
 
 # ---------------------------------------------------------------------------
 # Low-level term consumer

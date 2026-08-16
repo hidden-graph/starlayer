@@ -1,11 +1,9 @@
 import pytest
 from rdflib import BNode, Graph, Literal, Namespace
 from rdflib.namespace import RDF
-
 from starshacl import StarShaclValidator
 
 from ._shape_loader import load_shape
-
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")

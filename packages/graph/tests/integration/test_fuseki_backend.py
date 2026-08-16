@@ -16,12 +16,10 @@ Run:
 
 import pytest
 import requests
-
-from rdflib import URIRef, Literal
+from rdflib import Literal, URIRef
 from rdflib.namespace import XSD
 from rdflib.plugins.stores.sparqlstore import SPARQLUpdateStore
-
-from starlayergraph.graph import StarLayerGraph, StarLayerDataset
+from starlayergraph.graph import StarLayerDataset, StarLayerGraph
 from starlayergraph.model.triple import TripleTerm
 
 # Applies the "integration" marker (declared in pyproject.toml) to every test

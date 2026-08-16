@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
-from typing import Any, Callable, Iterable
+from typing import Any
 
 from rdflib import Graph, Namespace, URIRef
 from rdflib.namespace import RDF
@@ -41,7 +42,7 @@ class _SparqlAwareEncodedGraph(Graph):
     untouched; only ``.query()`` is affected.
     """
 
-    def __init__(self, *args: Any, adapter: "TripleTermAdapter | None" = None, **kwargs: Any) -> None:
+    def __init__(self, *args: Any, adapter: TripleTermAdapter | None = None, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self._tt_adapter = adapter
         self._mutation_version = 0
@@ -59,7 +60,7 @@ class _SparqlAwareEncodedGraph(Graph):
         self._mutation_version += 1
         return super().addN(quads)
 
-    def _decode_cached(self, adapter: "TripleTermAdapter") -> Any:
+    def _decode_cached(self, adapter: TripleTermAdapter) -> Any:
         """Decode self back to a StarLayerGraph, reusing the previous
         decode if nothing has been added/removed since (tracked via
         ``_mutation_version``, bumped by ``add``/``remove``/``addN``).
@@ -159,7 +160,7 @@ def _try_decode_dirlangstring(value: Any) -> Any | None:
     return decode_dirlangstring(value)
 
 
-def _normalize_init_bindings(init_bindings: Any, adapter: "TripleTermAdapter") -> Any:
+def _normalize_init_bindings(init_bindings: Any, adapter: TripleTermAdapter) -> Any:
     if not init_bindings:
         return init_bindings
 
@@ -196,12 +197,12 @@ class TripleTermGraph:
     def __contains__(self, value: tuple[Any, Any, Any]) -> bool:
         return value in self._triples
 
-    def add(self, triple: tuple[Any, Any, Any]) -> "TripleTermGraph":
+    def add(self, triple: tuple[Any, Any, Any]) -> TripleTermGraph:
         if triple not in self._triples:
             self._triples.append(triple)
         return self
 
-    def remove(self, pattern: tuple[Any, Any, Any]) -> "TripleTermGraph":
+    def remove(self, pattern: tuple[Any, Any, Any]) -> TripleTermGraph:
         s, p, o = pattern
         if s is None and p is None and o is None:
             self._triples.clear()
@@ -308,7 +309,7 @@ class TripleTermAdapter:
             self._forward[key] = uri
 
     @classmethod
-    def for_starlayergraph(cls) -> "TripleTermAdapter":
+    def for_starlayergraph(cls) -> TripleTermAdapter:
         try:
             from starlayergraph.model.triple import TripleTerm
         except ImportError as exc:

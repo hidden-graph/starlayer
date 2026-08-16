@@ -29,13 +29,18 @@ Typical usage::
 from __future__ import annotations
 
 import weakref
-from rdflib import Dataset, Graph, URIRef, BNode
+
+from rdflib import BNode, Dataset, Graph, URIRef
 from rdflib.graph import DATASET_DEFAULT_GRAPH_ID
 
 from starlayergraph.graph.starlayer_graph import (
-    StarLayerGraph, VALID_BACKENDS, _raw_triples, _read_source_text,
+    VALID_BACKENDS,
+    StarLayerGraph,
+    _raw_triples,
+    _read_source_text,
 )
-from starlayergraph.model.encoding import TT_NS, ENCODING_PREDS as _ENCODING_PREDS, lookup_tt_hash, restore_select_bindings
+from starlayergraph.model.encoding import ENCODING_PREDS as _ENCODING_PREDS
+from starlayergraph.model.encoding import TT_NS, lookup_tt_hash, restore_select_bindings
 from starlayergraph.model.triple import TripleTerm
 
 _raw_graph_add = Graph.add
@@ -203,7 +208,7 @@ class StarLayerDataset(Dataset):
     # reads; these three do the same for writes.
     # ------------------------------------------------------------------
 
-    def add(self, triple) -> 'StarLayerDataset':
+    def add(self, triple) -> StarLayerDataset:
         """Add a triple to the default graph, with TripleTerm-aware
         encoding - see this section's own module-level comment for why
         this override exists at all."""
@@ -211,7 +216,7 @@ class StarLayerDataset(Dataset):
         default_graph.add(triple)
         return self
 
-    def remove(self, triple) -> 'StarLayerDataset':
+    def remove(self, triple) -> StarLayerDataset:
         """Remove a triple from the default graph, with TripleTerm-aware
         encoding - see this section's own module-level comment for why
         this override exists at all. Found via a real SPARQL Update
@@ -281,7 +286,7 @@ class StarLayerDataset(Dataset):
         file=None,
         data=None,
         **kwargs,
-    ) -> 'StarLayerDataset':
+    ) -> StarLayerDataset:
         """Parse RDF data into named-graph contexts.
 
         format='turtle12' — Turtle 1.2; triples go into the default graph as a StarLayerGraph.
@@ -305,7 +310,10 @@ class StarLayerDataset(Dataset):
         text = self._read_source(source, publicID, location, file, data)
 
         if format == 'trig12':
-            from starlayergraph.parsers.trig12 import parse_trig12_named, extract_version_directive as _trig_version
+            from starlayergraph.parsers.trig12 import (
+                extract_version_directive as _trig_version,
+            )
+            from starlayergraph.parsers.trig12 import parse_trig12_named
             for graph_id, triples, namespaces in parse_trig12_named(text):
                 identifier = DATASET_DEFAULT_GRAPH_ID if graph_id is None else graph_id
                 sg = self._load_context(identifier, namespaces)
@@ -316,7 +324,9 @@ class StarLayerDataset(Dataset):
                     # into real TripleTerm objects before sg.add() so a
                     # native-backend context gets its real <<( )>> encoding
                     # via _native_add(), not the flat encoding fragments.
-                    from starlayergraph.parsers.turtle_parser import decode_tt_encoded_triples
+                    from starlayergraph.parsers.turtle_parser import (
+                        decode_tt_encoded_triples,
+                    )
                     skolemized = Graph()
                     for triple in triples:
                         skolemized.add(triple)
@@ -330,8 +340,12 @@ class StarLayerDataset(Dataset):
             self._check_document_version_conformance(_trig_version(text), context='TriG document')
 
         elif format == 'nq12':
-            from starlayergraph.parsers.ntriples12 import parse_nquads12, extract_version_directive as _nq_version
             from collections import defaultdict
+
+            from starlayergraph.parsers.ntriples12 import (
+                extract_version_directive as _nq_version,
+            )
+            from starlayergraph.parsers.ntriples12 import parse_nquads12
             by_graph: dict = defaultdict(list)
             for s, p, o, graph_id in parse_nquads12(text):
                 key = graph_id if graph_id is not None else DATASET_DEFAULT_GRAPH_ID
@@ -366,7 +380,9 @@ class StarLayerDataset(Dataset):
         see check_version_conformance_for_graphs(), shared with
         StarLayerGraph.parse()'s equivalent per-format checks.
         """
-        from starlayergraph.model.conformance import check_version_conformance_for_graphs
+        from starlayergraph.model.conformance import (
+            check_version_conformance_for_graphs,
+        )
         check_version_conformance_for_graphs(declared_version, self.contexts(), context=context)
 
     # ------------------------------------------------------------------
@@ -447,8 +463,9 @@ class StarLayerDataset(Dataset):
         """
         if self._backend != 'rdf-1.2':
             return super().__len__()
-        from starlayergraph.backends.native import http_select, resolve_store_http
         from rdflib.term import Variable
+
+        from starlayergraph.backends.native import http_select, resolve_store_http
         q_url, _, hdrs = resolve_store_http(self.store, self._backend)
         sparql = 'SELECT (COUNT(*) AS ?c) WHERE { { ?s ?p ?o } UNION { GRAPH ?g { ?s ?p ?o } } }'
         _vars, bindings = http_select(q_url, sparql, hdrs)
@@ -544,8 +561,8 @@ class StarLayerDataset(Dataset):
         )
         if not is_remote_http_store:
             if isinstance(update_object, str):
+                from starsparql.lower_rdf11 import rdf11_to_update, update_to_rdf11
                 from starsparql.parse12 import prepare_update_12
-                from starsparql.lower_rdf11 import update_to_rdf11, rdf11_to_update
                 prepared_12 = prepare_update_12(update_object, base=kwargs.get('base'), initNs=initNs)
                 rdf_graph, root = update_to_rdf11(prepared_12)
                 update_object = rdf11_to_update(rdf_graph, root)

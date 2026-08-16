@@ -32,7 +32,6 @@ from dataclasses import dataclass
 
 import requests
 from rdflib import BNode, Literal, URIRef, Variable
-
 from starlayergraph.model.dirlangstring import DirLangString
 from starlayergraph.model.encoding import RR_NS
 from starlayergraph.model.triple import TripleTerm

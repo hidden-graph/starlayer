@@ -1,7 +1,10 @@
 import pytest
-
 from starshacl.adapters import TripleTermValue
-from starshacl.types import ensure_graph_mutable, is_dirlangstring_like, is_triple_term_like
+from starshacl.types import (
+    ensure_graph_mutable,
+    is_dirlangstring_like,
+    is_triple_term_like,
+)
 
 
 class FakeTriple:
