@@ -23,6 +23,7 @@ from rdflib.plugins.sparql.sparql import Query, Update
 from pyparsing.exceptions import ParseBaseException
 
 from . import grammar12
+from .triple_term import _reject_triple_term_pattern_subjects
 
 grammar12.install()
 
@@ -133,9 +134,11 @@ def prepare_query_12(
     it (confirmed via ``rdflib.plugins.sparql.algebra.translatePrologue``'s
     own source — ``initNs`` binds first, the parsed prologue's own
     declarations are applied in a loop afterward)."""
-    return _canonicalize_construct_where(
+    query = _canonicalize_construct_where(
         translateQuery(parse_query_12(text), base, initNs)
     )
+    _reject_triple_term_pattern_subjects(query.algebra)
+    return query
 
 
 def prepare_update_12(
@@ -143,9 +146,11 @@ def prepare_update_12(
 ) -> Update:
     """``prepare_query_12``'s counterpart for SPARQL 1.2 Update text — same
     ``base``/``initNs`` passthrough to ``translateUpdate``."""
-    return _reject_blank_nodes_in_delete(
+    update = _reject_blank_nodes_in_delete(
         translateUpdate(parse_update_12(text), base, initNs)
     )
+    _reject_triple_term_pattern_subjects(update.algebra)
+    return update
 
 
 def _reject_blank_nodes_in_delete(update: Update) -> Update:

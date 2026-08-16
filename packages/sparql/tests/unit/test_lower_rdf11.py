@@ -174,6 +174,30 @@ def test_filter_not_exists_with_multi_triple_block_executes():
     assert actual == [{Variable("s"): URIRef("http://example/bob")}]
 
 
+def test_graph_pattern_executes_against_named_graph():
+    """Regression test for a real gap found 2026-08-15 (shapes.py audit):
+    `GRAPH ?g { ... }`/`GRAPH <iri> { ... }` produces a real, distinct
+    `Graph` CompValue at the algebra layer, but no shape in shapes.py ever
+    targeted `salg:Graph` - a pure structural-validation gap, since nothing
+    special-cases `Graph` in the generic encoder/decoder/lowerer, so
+    execution itself was never actually broken. This test proves that: it
+    would have passed even before the shapes.py fix (the fix is a
+    validation-coverage improvement, not a bugfix to execution), but per
+    this project's own testing-discipline policy (CLAUDE.md), a
+    newly-validated *operator* still needs its own execution-comparison
+    test, not just the shape fix's own structural mutation tests.
+    """
+    ds = StarLayerDataset()
+    g1 = ds.graph(URIRef("http://example/g1"))
+    g1.parse(data="@prefix : <http://example/> .\n:s :p :o .\n", format="turtle")
+
+    actual = _run_lowered(
+        "PREFIX : <http://example/> SELECT ?s WHERE { GRAPH <http://example/g1> { ?s :p :o } }",
+        ds,
+    )
+    assert actual == [{Variable("s"): URIRef("http://example/s")}]
+
+
 def test_substr_binds_correctly():
     """Regression test for a real bug: `BIND(SUBSTR(...) AS ?z)` silently
     never bound `?z` after decoding - no exception, `?z` just always came

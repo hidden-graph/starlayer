@@ -44,8 +44,33 @@ QUERIES = [
     + "SELECT ?s WHERE { ?s :claims <<( :bob :knows <<( :carol :trusts :dave )>> )>> . }",
     # TRIPLE(...) function-call spelling, as a pattern-position term
     PREFIXES + "SELECT ?s WHERE { ?s :reifies TRIPLE(:bob, :knows, :carol) . }",
-    # triple term as the subject of an ordinary triple pattern
-    PREFIXES + "SELECT ?team WHERE { <<( :bob :knows :carol )>> :verifiedBy ?team . }",
+    # reifier shorthand (no parens) as the subject of an ordinary triple
+    # pattern - legal RDF 1.2 (desugars to an ordinary reifier substituted
+    # into the pattern). Was, until 2026-08-15, written with explicit
+    # parens (`<<( :bob :knows :carol )>>`) - a *raw triple term* directly
+    # as a pattern's subject, which is never legal RDF 1.2 (a triple term
+    # is only ever an object - see
+    # starsparql.triple_term.InvalidTripleTermError's rule 2) and was only
+    # accepted here because this project's own construction paths had the
+    # same gap that shape's own docstring now documents. Corrected to the
+    # semantically-equivalent legal form rather than removed, since the
+    # original intent (report on who verified the bob-knows-carol claim)
+    # is exactly what reification is for.
+    #
+    # Uses an *explicit IRI* reifier (`~ :myReifier`) rather than the
+    # shorthand's own auto-generated blank node - originally to sidestep a
+    # `starsparql/shapes.py` bug found and fixed in the same pass:
+    # `salg:SubjectOrVariableShape` used `sh:not [ a salg:TripleTerm ]` -
+    # bare rdf:type on a shape's own blank node is not a SHACL constraint
+    # parameter (sh:class is), so that shape had zero real constraints and
+    # conformed vacuously for everything, making the enclosing sh:not
+    # report a violation unconditionally for *any* focus node (confirmed:
+    # not blank-node-specific, and not a pyshacl bug - pyshacl behaved
+    # correctly given the malformed shape). Now fixed (`sh:class`, not `a`)
+    # - see `test_shacl_shapes.py::test_ordinary_blank_node_subject_conforms`.
+    # Left as an IRI reifier rather than reverted to a blank node, since
+    # both are equally valid RDF 1.2 and there's no reason to churn it back.
+    PREFIXES + "SELECT ?team WHERE { <<:bob :knows :carol ~ :myReifier>> :verifiedBy ?team . }",
 ]
 
 CONSTRUCT_QUERIES = [

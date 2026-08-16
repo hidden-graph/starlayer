@@ -89,7 +89,7 @@ from pathlib import Path
 
 from rdflib import Graph
 
-from .expr_families import _EXPR_NODE_FAMILY
+from ..expr_families import _EXPR_NODE_FAMILY
 
 ONTOLOGY_TTL_PATH = Path(__file__).parent / "salg-ontology.ttl"
 

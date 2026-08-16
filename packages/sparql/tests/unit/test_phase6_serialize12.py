@@ -91,8 +91,15 @@ QUERIES = [
         True,
     ),
     (
+        # Reifier shorthand (no parens), not a raw triple term, as the
+        # pattern's subject - a raw triple term is never legal RDF 1.2 in
+        # subject position (see starsparql.triple_term.InvalidTripleTermError's
+        # rule 2, and test_phase6_rdf12_native.py's own QUERIES list for
+        # the same 2026-08-15 correction and its full reasoning, including
+        # why this uses an explicit IRI reifier rather than the shorthand's
+        # own auto-generated blank node).
         PREFIXES
-        + "SELECT ?team WHERE { <<( :bob :knows :carol )>> :verifiedBy ?team . }",
+        + "SELECT ?team WHERE { <<:bob :knows :carol ~ :myReifier>> :verifiedBy ?team . }",
         False,
     ),
     # expression-position: SUBJECT()/PREDICATE()/OBJECT() applied to a bound

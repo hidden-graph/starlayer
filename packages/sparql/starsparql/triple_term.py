@@ -28,8 +28,14 @@ from rdflib.plugins.sparql.parserutils import CompValue
 
 
 class InvalidTripleTermError(ValueError):
-    """A triple term's own subject or predicate would themselves be a triple
-    term — illegal per RDF 1.2's grammar
+    """A triple term is being used somewhere RDF 1.2 never permits one.
+    Covers two distinct rules, both enforced here as hard backstops
+    regardless of construction path (parsed from SPARQL 1.2 text, decoded
+    from RDF via ``from_rdf.py``, or built programmatically) rather than
+    relying on the grammar alone to reject them:
+
+    **1. A triple term's own subject/predicate slot is itself a triple
+    term** — illegal per RDF 1.2's grammar
     (https://www.w3.org/TR/rdf12-turtle/#grammar-production-tripleTerm):
 
         tripleTerm ::= '<<(' ttSubject verb ttObject ')>>'
@@ -40,32 +46,67 @@ class InvalidTripleTermError(ValueError):
     ``tripleTerm`` alternative — unconditionally, not just when the triple
     term is used as an expression value. Nesting a triple term is legal
     only in *object* position, where ``ttObject`` explicitly allows it.
+    Enforced by ``TripleTermNode.validate()``/``_reject_nested_triple_term``
+    below, called at every construction site.
 
-    Confirmed empirically (2026-08-08) that a query pattern using the
-    illegal shape still *parses* as SPARQL syntax (the W3C SPARQL 1.2 test
-    suite even labels two such fixtures, `compound-tripleterm-subject`/
-    `nested-tripleterm-02`, as ``PositiveSyntaxTest``) — but "SPARQL's
-    grammar parses this text" and "this represents a valid RDF 1.2 term"
-    are different claims, and only the first is true here. A pattern using
-    this shape can never match any real, valid RDF 1.2 data, since no such
-    data could ever exist. This project previously (mis)read those
-    `PositiveSyntaxTest` fixtures as evidence the shape should be *accepted*
-    (see git history / CLAUDE.md's now-superseded finding #20) and widened
-    the pattern-position subject grammar accordingly — confirmed as a real
-    bug via a live Oxigraph instance rejecting exactly this shape
-    (`HTTP 500`) while this project's own construction path did not reject
-    it at all; see the sibling `starlayergraph` repo's
+    **2. A whole triple term is used as the *subject* of an ordinary
+    triple/quad pattern** (one level up from rule 1 — not nested *inside*
+    another triple term at all, just an everyday `<<( s p o )>> :q :r .`
+    pattern) — illegal per RDF 1.2 Concepts' own normative triple-formation
+    rules (https://www.w3.org/TR/rdf12-concepts/#section-triple-terms),
+    quoted directly, not paraphrased:
+
+        "If s is an IRI or a blank node, p is an IRI, and o is an RDF
+        triple, then (s, p, o) is an RDF triple."
+
+    That is the *only* rule admitting a triple term anywhere in a triple,
+    and it only ever permits one as ``o`` — every triple-formation rule
+    requires ``s`` to be an IRI or blank node, full stop. Confirmed a real,
+    previously-unfixed gap 2026-08-15 (found via a user directly
+    challenging this project's own claim that triple-term-as-subject was
+    legal): `<<(:x ?R :z )>> :p <<(:a :b ?C )>> .` parsed and constructed
+    without error before ``_reject_triple_term_pattern_subjects`` below
+    existed, even though no valid RDF 1.2 data could ever match it. See
+    ``docs/w3c-sparql12-test-suite-issues.md`` Issue 1 for the two W3C
+    `PositiveSyntaxTest` fixtures this affects (`compound-tripleterm-subject`,
+    `nested-tripleterm-02`) and why they're believed to be a suite defect
+    rather than evidence this shape should be accepted.
+
+    **Does not affect the RDF 1.2 reifier-shorthand form** (`<<s p o>>`/
+    `<<s p o ~ r>>`, no parens) in subject position — confirmed still
+    legal and unaffected by rule 2: that shorthand desugars
+    (`grammar12.py`'s own `_reify`) to an ordinary blank-node reifier
+    substituted into the pattern, with the actual triple term only ever
+    appearing as the *object* of a separate `rdf:reifies` triple — exactly
+    the shape rule 2 allows. Verified live: `<<:x ?R :z >> :p
+    <<:a :b ?C ~ _:bnode >> .` still produces three ordinary, fully legal
+    triples, none with a triple term as subject.
+
+    Rule 1 was confirmed empirically (2026-08-08) to still *parse* as
+    SPARQL syntax (the W3C SPARQL 1.2 test suite labels the two fixtures
+    above `PositiveSyntaxTest`) — but "SPARQL's grammar parses this text"
+    and "this represents a valid RDF 1.2 term" are different claims, and
+    only the first is true here. This project previously (mis)read those
+    fixtures as evidence rule 1's shape should be *accepted* (see git
+    history / CLAUDE.md's now-superseded finding #20) and widened the
+    pattern-position subject grammar accordingly — confirmed as a real bug
+    via a live Oxigraph instance rejecting exactly this shape (`HTTP 500`)
+    while this project's own construction path did not reject it at all;
+    see the sibling `starlayergraph` repo's
     `docs/oxigraph-upstream-issues.md` Issue 1 for the full investigation
-    (retracted as an Oxigraph bug, redirected here instead).
+    (retracted as an Oxigraph bug, redirected here instead). Rule 2's gap
+    was the same underlying grammar permissiveness, one level up, missed
+    by that earlier investigation because it only tested the nested case.
 
-    Deliberately raised here — at ``TripleTermNode`` construction — rather
-    than only in the SPARQL grammar (`grammar12.py`), so this is a hard
-    backstop regardless of construction path: parsed from SPARQL 1.2 text,
-    decoded from RDF (`from_rdf.py`), or built programmatically. The
-    grammar's own parse-time acceptance of the two `PositiveSyntaxTest`
-    fixtures above is left unchanged (matching what SPARQL's own grammar
-    apparently permits syntactically) — this is the semantic-level check
-    that catches what parsing alone can't.
+    Both rules are deliberately enforced as semantic checks — rule 1 at
+    ``TripleTermNode`` construction, rule 2 via a post-translation tree
+    walk (see ``_reject_triple_term_pattern_subjects`` below) — rather than
+    by further constraining the SPARQL grammar itself, since the grammar's
+    own splice points (`GraphTerm`/`VarOrTerm`/`GraphNode`/`GraphNodePath`
+    in `grammar12.py`) are shared, interconnected pyparsing objects where a
+    narrow, surgical grammar-level fix risks silently breaking a
+    legitimate case elsewhere in the tree - the semantic check catches
+    what parsing alone can't, without touching grammar internals at all.
     """
 
 
@@ -142,3 +183,73 @@ class TripleTermNode(CompValue):
         _reject_nested_triple_term(self.get("subject"), "subject", self)
         _reject_nested_triple_term(self.get("predicate"), "predicate", self)
         return self
+
+
+def _reject_triple_term_pattern_subjects(root) -> None:
+    """Post-translation hard backstop for ``InvalidTripleTermError``'s rule
+    2 — see that class's own docstring for the full RDF 1.2 Concepts
+    citation and reasoning. Call this once, on the *finished* algebra tree
+    (a ``Query``'s ``.algebra``, or an ``Update``'s ``.algebra`` list of
+    operations) — after ``translateQuery``/``translateUpdate`` (or this
+    project's own ``from_rdf.rdf_to_query``/``rdf_to_update`` decode
+    equivalents) have already assembled every ordinary triple/quad pattern
+    into its final ``(s, p, o)`` tuple form.
+
+    Deliberately generic over both shapes a triple list can appear in this
+    codebase's algebra representation, found by walking the *whole* tree
+    once rather than special-casing each operator by name:
+
+    - A ``BGP`` node's own ``.triples`` (an ordinary list of ``(s, p, o)``
+      tuples) — reached wherever it sits in the tree (top-level, or nested
+      under ``Filter``/``LeftJoin``/``Union``/``Minus``/``Graph``/a
+      subquery/etc.), since the walk recurses into every ``CompValue``'s
+      own values generically.
+    - An Update operation's flat ``.triples``/``.quads`` attributes
+      (``InsertData``/``DeleteData``/``DeleteWhere``, and ``Modify``'s own
+      ``.insert``/``.delete``, each a ``CompValue`` carrying triples/quads
+      directly rather than via a nested ``BGP`` — see ``vocab.py``'s
+      "Update's quads-by-graph maps" convention). A ``Modify``'s own
+      ``.where`` (an ordinary nested pattern tree) is covered for free by
+      the same generic recursion, no special-casing needed.
+
+    ``seen`` guards against re-walking the same node twice when a value
+    appears in more than one place in the tree (rare, but ``id()``-keyed
+    rather than value-keyed since these nodes aren't reliably hashable
+    before ``TripleTermNode``'s own hash/eq existed, and value-equality
+    isn't what "already visited" means here anyway).
+    """
+    seen: set = set()
+
+    def _check_triples(triples) -> None:
+        for t in triples:
+            s = t[0]
+            if isinstance(s, TripleTermNode):
+                raise InvalidTripleTermError(
+                    "RDF 1.2: a triple term may never be the subject of an "
+                    "ordinary triple pattern (a triple term is only ever "
+                    f"legal as an object) — got {s!r} as the subject of {t!r}"
+                )
+
+    def _walk(node) -> None:
+        if isinstance(node, TripleTermNode):
+            return  # already validated at its own construction; nothing further to check inside it
+        if isinstance(node, CompValue):
+            key = id(node)
+            if key in seen:
+                return
+            seen.add(key)
+            triples = node.get("triples")
+            if isinstance(triples, list):
+                _check_triples(triples)
+            quads = node.get("quads")
+            if isinstance(quads, dict):
+                for graph_triples in quads.values():
+                    _check_triples(graph_triples)
+            for value in node.values():
+                _walk(value)
+            return
+        if isinstance(node, (list, tuple)):
+            for item in node:
+                _walk(item)
+
+    _walk(root)

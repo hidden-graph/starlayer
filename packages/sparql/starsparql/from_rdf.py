@@ -116,6 +116,10 @@ def rdf_to_query(graph: Graph, root) -> Query:
     _traverseAgg(algebra, visitor=analyse)
     _traverseAgg(algebra, _addVars)
 
+    from .triple_term import _reject_triple_term_pattern_subjects
+
+    _reject_triple_term_pattern_subjects(algebra)
+
     return Query(_decode_prologue(root, graph), algebra)
 
 
@@ -138,6 +142,11 @@ def rdf_to_update(graph: Graph, root) -> Update:
     prologue = _decode_prologue(root, graph)
     for op in ops:
         op.prologue = prologue
+
+    from .triple_term import _reject_triple_term_pattern_subjects
+
+    _reject_triple_term_pattern_subjects(ops)
+
     return Update(prologue, ops)
 
 

@@ -300,10 +300,20 @@ class TestU7:
 
 class TestU6:
     def test_insert_template_tt_registered_after_insert(self, g):
-        """New TT created via INSERT template must be registered in the graph."""
+        """New TT created via INSERT template must be registered in the graph.
+
+        Uses reifier shorthand (no parens), not a raw triple term, as the
+        template's subject - a raw `<<( s p o )>>` triple term is never
+        legal RDF 1.2 in subject position (see
+        starsparql.triple_term.InvalidTripleTermError's rule 2,
+        2026-08-15). The shorthand still constructs and registers the same
+        underlying (alice, knows, bob) triple term - it just does so as the
+        object of an auto-generated `rdf:reifies` triple rather than
+        directly as `:note`'s subject - so this still correctly exercises
+        the thing this test is named for."""
         g.update("""
             PREFIX :   <http://example.org/>
-            INSERT { <<( :alice :knows :bob )>> :note :x }
+            INSERT { <<:alice :knows :bob ~ :myReifier>> :note :x }
             WHERE  { :alice :knows :bob }
         """)
         from rdflib import URIRef

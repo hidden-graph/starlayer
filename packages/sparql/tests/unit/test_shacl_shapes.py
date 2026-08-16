@@ -625,6 +625,111 @@ def test_load_graphiri_pystr_keyword_fails():
     assert "salg:graphiri" in results_text or "Load" in results_text
 
 
+def test_graph_pattern_missing_p_fails():
+    """salg:Graph (GRAPH ?g { ... }) had no shape at all before 2026-08-15 -
+    found via an empirical sweep of every CompValue name rdflib's algebra
+    can actually produce, diffed against every sh:targetClass in this file.
+    A malformed Graph node missing its own salg:p (the wrapped pattern)
+    previously conformed silently."""
+    query_text = "SELECT * WHERE { GRAPH ?g { ?s ?p ?o } }"
+    prepared = prepareQuery(query_text)
+    graph, root = query_to_rdf(prepared)
+    node = next(graph.subjects(RDF.type, SALG.Graph))
+    for p in list(graph.objects(node, SALG.p)):
+        graph.remove((node, SALG.p, p))
+
+    conforms, _, results_text = validate(graph)
+    assert not conforms
+    assert "salg:p" in results_text or "Graph" in results_text
+
+
+def test_graph_term_wrong_nodekind_fails():
+    """salg:Graph's own salg:term (the graph name) must be an IRI or
+    Variable - same class of previously-missing constraint this whole
+    audit found. Also exercises the salg:term/salg:ServiceGraphPattern
+    RDFS-domain collision fix in salg-ontology.ttl: before that fix, a
+    Graph node's rdf:type was falsely also entailed salg:ServiceGraphPattern
+    (both reuse the bare salg:term key, and salg:term's rdfs:domain used to
+    be narrowly salg:ServiceGraphPattern), so even a well-formed Graph node
+    failed validation against ServiceGraphPattern's own unrelated salg:graph
+    requirement - confirmed live before the ontology fix landed."""
+    query_text = "SELECT * WHERE { GRAPH ?g { ?s ?p ?o } }"
+    prepared = prepareQuery(query_text)
+    graph, root = query_to_rdf(prepared)
+    node = next(graph.subjects(RDF.type, SALG.Graph))
+    for term in list(graph.objects(node, SALG["term"])):
+        graph.remove((node, SALG["term"], term))
+    graph.add((node, SALG["term"], Literal("not-a-valid-graph-name")))
+
+    conforms, _, results_text = validate(graph)
+    assert not conforms
+    assert "salg:term" in results_text or "Graph" in results_text
+
+
+def test_service_term_wrong_nodekind_fails():
+    """salg:ServiceGraphPattern's own salg:term (the endpoint) had no
+    nodeKind/class constraint at all before 2026-08-15 - cardinality-only,
+    so any value (even a Literal) silently conformed. Found as a byproduct
+    of the salg:Graph audit above, while adding term's IRI-or-Variable
+    constraint consistently to both shapes sharing this key name."""
+    query_text = "SELECT * WHERE { SERVICE <http://example.org/sparql> { ?s ?p ?o } }"
+    prepared = prepareQuery(query_text)
+    graph, root = query_to_rdf(prepared)
+    node = next(graph.subjects(RDF.type, SALG.ServiceGraphPattern))
+    for term in list(graph.objects(node, SALG["term"])):
+        graph.remove((node, SALG["term"], term))
+    graph.add((node, SALG["term"], Literal("not-a-valid-endpoint")))
+
+    conforms, _, results_text = validate(graph)
+    assert not conforms
+    assert "salg:term" in results_text or "ServiceGraphPattern" in results_text
+
+
+def test_expression_shape_rejects_untyped_blank_node():
+    """Found 2026-08-15: salg:ExpressionShape's own sh:or previously reused
+    salg:ObjectOrVariableShape wholesale, whose `[ sh:nodeKind sh:BlankNode ]`
+    disjunct matches *any* blank node unconditionally (legitimate for a real
+    term/object position, where a blank node can be genuine SPARQL data) -
+    but reused inside ExpressionShape, that same unconditional match let
+    sh:or short-circuit before the *other* disjunct (`[ sh:class
+    salg:Expression ]`) ever needed to fire. Net effect: an arbitrary,
+    wrongly-typed, or entirely structureless blank node in *any*
+    salg:expr/salg:arg/salg:arg1/salg:arg2/salg:arg3/... position (~15 call
+    sites across this file - LeftJoin.expr, Filter.expr, Extend.expr, and
+    every expression builtin's own argument properties) silently conformed.
+    Confirmed live before the fix: a real OPTIONAL-without-inline-FILTER
+    query's own salg:expr node (a legitimate salg:TrueFilter), with every
+    one of its actual triples stripped and retyped to a totally unrelated,
+    bogus class, still validated as conforming."""
+    query_text = "SELECT * WHERE { ?s ?p ?o . OPTIONAL { ?s ?p2 ?o2 } }"
+    prepared = prepareQuery(query_text)
+    graph, root = query_to_rdf(prepared)
+    node = next(graph.subjects(RDF.type, SALG.LeftJoin))
+    expr_node = next(graph.objects(node, SALG.expr))
+    for t in list(graph.triples((expr_node, None, None))):
+        graph.remove(t)
+    graph.add((expr_node, RDF.type, URIRef("http://example.org/TotallyBogusNode")))
+
+    conforms, _, results_text = validate(graph)
+    assert not conforms
+
+
+def test_expression_shape_still_accepts_true_filter():
+    """Companion positive test to the one above - confirms the fix didn't
+    overcorrect: a genuine OPTIONAL-without-inline-FILTER (whose salg:expr
+    is a legitimate, unmodified salg:TrueFilter node - rdflib's own
+    constant-true sentinel) must still conform. Also exercises
+    salg:TrueFilter's own new rdfs:subClassOf salg:Expression declaration
+    in salg-ontology.ttl, added alongside the ExpressionShape fix (without
+    it, this positive case would have started failing instead)."""
+    query_text = "SELECT * WHERE { ?s ?p ?o . OPTIONAL { ?s ?p2 ?o2 } }"
+    prepared = prepareQuery(query_text)
+    graph, root = query_to_rdf(prepared)
+
+    conforms, _, results_text = validate(graph)
+    assert conforms, results_text
+
+
 def test_nested_triple_term_in_subject_position_fails():
     """RDF 1.2 restricts a triple term's own subject to an IRI/blank
     node/Variable, never another (nested) triple term. Construct this
@@ -650,6 +755,32 @@ def test_nested_triple_term_in_subject_position_fails():
 
     conforms, _, results_text = validate(graph)
     assert not conforms
+
+
+def test_ordinary_blank_node_subject_conforms():
+    """salg:SubjectOrVariableShape's blank-node disjunct - `sh:nodeKind
+    sh:BlankNode ; sh:not [ sh:class salg:TripleTerm ]` - must accept an
+    ordinary blank node (e.g. an RDF 1.2 reifier substituted into subject
+    position by the `<<s p o ~ r>>` shorthand) that just isn't typed
+    salg:TripleTerm. Regression test for a real authoring bug found
+    2026-08-15: this shape used to read `sh:not [ a salg:TripleTerm ]` -
+    bare rdf:type on the shape's own blank node is not a SHACL constraint
+    parameter at all (sh:class is), so `[ a salg:TripleTerm ]` was a shape
+    with zero real constraints, vacuously conforming for every value - the
+    enclosing sh:not then reported a violation unconditionally, for *any*
+    focus node (confirmed: a plain IRI target failed identically to a
+    blank-node one - not blank-node-specific, and not a pyshacl bug, pyshacl
+    behaved correctly given the malformed shape). Mutation-checked: this
+    test fails against the pre-fix `sh:not [ a salg:TripleTerm ]` form."""
+    query_text = (
+        "PREFIX : <http://example.org/> "
+        "SELECT ?team WHERE { <<:bob :knows :carol>> :verifiedBy ?team . }"
+    )
+    prepared = prepare_query_12(query_text)
+    graph, root = query_to_rdf(prepared)
+
+    conforms, _, results_text = validate(graph)
+    assert conforms, results_text
 
 
 # ---------------------------------------------------------------------
@@ -979,3 +1110,214 @@ def test_query_collection_with_bogus_member_fails():
 
     conforms, _, results_text = validate(graph)
     assert not conforms
+
+
+# ---------------------------------------------------------------------
+# 2026-08-15: exhaustive property-by-property audit (follow-up to the
+# structural CompValue-name sweep above, which found salg:Graph). Every
+# sh:property block in shapes.py was read and checked for a real
+# value-type constraint, not just cardinality - the same class of gap
+# salg:op/salg:order/salg:silent/ServiceGraphPattern.term turned out to be.
+# ---------------------------------------------------------------------
+
+
+def test_mulpath_mod_invalid_value_fails():
+    """salg:MulPath's own salg:mod had cardinality-only checking - any
+    Literal value silently conformed. rdflib's own evalPath switches on
+    mod with bare `==` comparisons against exactly "*"/"+"/"?" and falls
+    through silently (no else-raise) for anything else - a malformed mod
+    wouldn't crash, it would just silently produce zero bindings."""
+    query_text = "SELECT * WHERE { ?s <http://example.org/p>* ?o }"
+    prepared = prepareQuery(query_text)
+    graph, root = query_to_rdf(prepared)
+    node = next(graph.subjects(RDF.type, SALG.MulPath))
+    for mod in list(graph.objects(node, SALG.mod)):
+        graph.remove((node, SALG.mod, mod))
+    graph.add((node, SALG.mod, Literal("banana")))
+
+    conforms, _, results_text = validate(graph)
+    assert not conforms
+    assert "salg:mod" in results_text or "MulPath" in results_text
+
+
+def test_aggregate_distinct_wrong_type_fails():
+    """salg:distinct (Count/Sum/Min/Max/Avg/GroupConcat/Function) was
+    checked for cardinality only (\"at most one\"), and its own message
+    claimed the property was optional - both wrong: confirmed empirically
+    it is ALWAYS present (an empty Python list `[]` becomes a real
+    `salg:distinct rdf:nil` triple when DISTINCT is absent, never an
+    omitted property), so a wrongly-typed value, or the property missing
+    entirely, both silently conformed before this fix."""
+    query_text = "SELECT (COUNT(DISTINCT ?o) AS ?c) WHERE { ?s ?p ?o } GROUP BY ?s"
+    prepared = prepareQuery(query_text)
+    graph, root = query_to_rdf(prepared)
+    node = next(graph.subjects(RDF.type, SALG.Aggregate_Count))
+    for distinct in list(graph.objects(node, SALG.distinct)):
+        graph.remove((node, SALG.distinct, distinct))
+    graph.add((node, SALG.distinct, Literal("DISTINCT")))  # not PyStr-tagged
+
+    conforms, _, results_text = validate(graph)
+    assert not conforms
+    assert "salg:distinct" in results_text or "Aggregate_Count" in results_text
+
+
+def test_aggregate_distinct_missing_entirely_fails():
+    """Companion to the above: confirms the cardinality half of the fix too
+    - salg:distinct is genuinely always present (rdf:nil when DISTINCT is
+    absent), so removing it entirely must now fail (minCount 1), where
+    the previous "at most one" framing would have allowed it."""
+    query_text = "SELECT (COUNT(?o) AS ?c) WHERE { ?s ?p ?o } GROUP BY ?s"
+    prepared = prepareQuery(query_text)
+    graph, root = query_to_rdf(prepared)
+    node = next(graph.subjects(RDF.type, SALG.Aggregate_Count))
+    for distinct in list(graph.objects(node, SALG.distinct)):
+        graph.remove((node, SALG.distinct, distinct))
+
+    conforms, _, results_text = validate(graph)
+    assert not conforms
+
+
+def test_groupconcat_separator_wrong_nodekind_fails():
+    """salg:separator (GroupConcat only) had zero constraint beyond
+    cardinality - any RDF term, including a structural node like a
+    salg:BGP, silently conformed as a "separator" value."""
+    query_text = 'SELECT (GROUP_CONCAT(?o; separator=",") AS ?g) WHERE { ?s ?p ?o } GROUP BY ?s'
+    prepared = prepareQuery(query_text)
+    graph, root = query_to_rdf(prepared)
+    node = next(graph.subjects(RDF.type, SALG.Aggregate_GroupConcat))
+    for sep in list(graph.objects(node, SALG.separator)):
+        graph.remove((node, SALG.separator, sep))
+    graph.add((node, SALG.separator, URIRef("http://example.org/not-a-literal")))
+
+    conforms, _, results_text = validate(graph)
+    assert not conforms
+    assert "salg:separator" in results_text or "GroupConcat" in results_text
+
+
+def test_binding_val_missing_fails():
+    """salg:Binding's own salg:val was "at most one" (0 or 1) - but
+    to_rdf._encode_binding_row unconditionally adds this triple for every
+    row/variable pair, including UNDEF (represented as the salg:PyStr
+    literal "UNDEF", not by omitting the property) - so a genuinely
+    missing salg:val, which the old shape allowed, can never actually be
+    produced by this encoder and should be rejected as malformed."""
+    query_text = "SELECT * WHERE { ?s ?p ?o . VALUES ?o { <http://example.org/a> UNDEF } }"
+    prepared = prepareQuery(query_text)
+    graph, root = query_to_rdf(prepared)
+    node = next(graph.subjects(RDF.type, SALG.Binding))
+    for val in list(graph.objects(node, SALG.val)):
+        graph.remove((node, SALG.val, val))
+
+    conforms, _, results_text = validate(graph)
+    assert not conforms
+
+
+def test_project_pv_wrong_member_fails():
+    """salg:Project/SelectQuery/AskQuery's own salg:PV (the projected-
+    variables list) was checked for cardinality only - confirmed
+    empirically it's always a well-formed rdf:List of Variable-tagged
+    Literals, so a non-Variable member (e.g. a plain IRI) silently
+    conformed before this fix. (DescribeQuery's own PV is a deliberate,
+    documented exception - not touched by this fix or this test.)"""
+    query_text = "SELECT ?s ?p WHERE { ?s ?p ?o }"
+    prepared = prepareQuery(query_text)
+    graph, root = query_to_rdf(prepared)
+    node = next(graph.subjects(RDF.type, SALG.Project))
+    pv_list = next(graph.objects(node, SALG.PV))
+    from rdflib.collection import Collection
+
+    Collection(graph, pv_list)[0] = URIRef("http://example.org/not-a-variable")
+
+    conforms, _, results_text = validate(graph)
+    assert not conforms
+    assert "salg:PV" in results_text or "Project" in results_text
+
+
+def test_dataset_clause_missing_both_default_and_named_fails():
+    """salg:DatasetClause (a FROM/FROM NAMED clause) was found completely
+    undeclared - no shape, no ontology class - so any malformed member of
+    a salg:datasetClause list silently conformed. Confirmed via
+    translateQuery each member always has exactly one of salg:default/
+    salg:named; neither present is malformed."""
+    query_text = "SELECT * FROM <http://example.org/g1> WHERE { ?s ?p ?o }"
+    prepared = prepareQuery(query_text)
+    graph, root = query_to_rdf(prepared)
+    node = next(graph.subjects(RDF.type, SALG.DatasetClause))
+    for default in list(graph.objects(node, SALG["default"])):
+        graph.remove((node, SALG["default"], default))
+
+    conforms, _, results_text = validate(graph)
+    assert not conforms
+    assert "DatasetClause" in results_text
+
+
+def test_dataset_clause_both_default_and_named_fails():
+    """Companion to the above: a DatasetClause carrying both keys at once
+    (never produced by translateQuery, but not previously rejected either,
+    since the shape didn't exist) must also fail - the two are mutually
+    exclusive per FROM vs. FROM NAMED."""
+    query_text = "SELECT * FROM <http://example.org/g1> WHERE { ?s ?p ?o }"
+    prepared = prepareQuery(query_text)
+    graph, root = query_to_rdf(prepared)
+    node = next(graph.subjects(RDF.type, SALG.DatasetClause))
+    graph.add((node, SALG.named, URIRef("http://example.org/g2")))
+
+    conforms, _, results_text = validate(graph)
+    assert not conforms
+
+
+def test_dataset_clause_well_formed_conforms():
+    """Positive companion - confirms the new salg:DatasetClauseShape/
+    salg:DatasetClauseListShape don't overcorrect: real FROM/FROM NAMED
+    clauses (both forms, in one query) still conform."""
+    query_text = (
+        "SELECT * FROM <http://example.org/g1> FROM NAMED <http://example.org/g2> "
+        "WHERE { ?s ?p ?o }"
+    )
+    prepared = prepareQuery(query_text)
+    graph, root = query_to_rdf(prepared)
+
+    conforms, _, results_text = validate(graph)
+    assert conforms, results_text
+
+
+def test_arithmetic_op_wrong_member_fails():
+    """AdditiveExpression/MultiplicativeExpression's own salg:op was
+    cardinality-only despite this shape's own pre-existing message already
+    claiming "a well-formed rdf:List of operator strings" - nothing
+    actually enforced that. Confirmed op is a real Python list of bare
+    strings (e.g. ['+', '-']), each salg:PyStr-tagged by the generic
+    encoder."""
+    query_text = "SELECT * WHERE { ?s ?p ?o . FILTER(?o + 1 > 0) }"
+    prepared = prepareQuery(query_text)
+    graph, root = query_to_rdf(prepared)
+    node = next(graph.subjects(RDF.type, SALG.AdditiveExpression))
+    op_list = next(graph.objects(node, SALG.op))
+    from rdflib.collection import Collection
+
+    Collection(graph, op_list)[0] = Literal("+")  # not PyStr-tagged
+
+    conforms, _, results_text = validate(graph)
+    assert not conforms
+    assert "salg:op" in results_text or "AdditiveExpression" in results_text
+
+
+def test_quadsforgraph_graph_wrong_type_fails():
+    """salg:QuadsForGraph's own salg:graph (the graph term a group of
+    quads is qualified by) had zero constraint beyond cardinality -
+    confirmed via translateUpdate it's always an IRI (InsertData/DeleteData)
+    or a Variable (Modify's own GRAPH ?g {...}), never an arbitrary term."""
+    update_text = (
+        "INSERT DATA { GRAPH <http://example.org/g> "
+        "{ <http://example.org/s> <http://example.org/p> <http://example.org/o> } }"
+    )
+    prepared = prepareUpdate(update_text)
+    graph, root = update_to_rdf(prepared)
+    node = next(graph.subjects(RDF.type, SALG.QuadsForGraph))
+    for g in list(graph.objects(node, SALG.graph)):
+        graph.remove((node, SALG.graph, g))
+    graph.add((node, SALG.graph, Literal("not-a-graph-term")))
+
+    conforms, _, results_text = validate(graph)
+    assert not conforms
+    assert "salg:graph" in results_text or "QuadsForGraph" in results_text

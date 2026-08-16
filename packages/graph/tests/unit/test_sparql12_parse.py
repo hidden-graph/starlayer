@@ -213,10 +213,15 @@ class TestPrepareQuery:
         assert isinstance(q, Query)
 
     def test_does_not_raise_on_sparql12_input(self):
+        # Reifier shorthand (no parens), not a raw triple term, as the
+        # pattern's subject - a raw `<<( s p o )>>` triple term is never
+        # legal RDF 1.2 in subject position (only ever legal as an object -
+        # see starsparql.triple_term.InvalidTripleTermError's rule 2,
+        # 2026-08-15). Corrected from the previous, now-rejected form.
         prepareQuery("""
             PREFIX : <http://example.org/>
             SELECT ?pred ?val WHERE {
-              <<( :bob :knows :carol )>> ?pred ?val .
+              <<:bob :knows :carol ~ :myReifier>> ?pred ?val .
             }
         """)
 
@@ -283,10 +288,16 @@ class TestPrepareUpdate:
         assert isinstance(u, Update)
 
     def test_does_not_raise_on_sparql12(self):
+        # Reifier shorthand (no parens) with a *variable* reifier (`~ ?r`),
+        # not a raw triple term, as the pattern's subject - a raw
+        # `<<( s p o )>>` triple term is never legal RDF 1.2 in subject
+        # position (see starsparql.triple_term.InvalidTripleTermError's
+        # rule 2, 2026-08-15). Corrected from the previous, now-rejected
+        # form.
         prepareUpdate("""
             PREFIX : <http://example.org/>
             DELETE WHERE {
-              <<( ?s ?p ?o )>> :pred ?val .
+              <<?s ?p ?o ~ ?r>> :pred ?val .
             }
         """)
 

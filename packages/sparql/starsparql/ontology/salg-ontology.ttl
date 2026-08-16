@@ -33,6 +33,19 @@ salg:AskQuery rdfs:subClassOf salg:Query ;
 salg:DescribeQuery rdfs:subClassOf salg:Query ;
     rdfs:comment "A DESCRIBE query's root - salg:PV the described variables/IRIs, salg:p the (possibly trivial) WHERE-clause pattern." .
 
+# A single FROM/FROM NAMED clause, one member of a query's own
+# salg:datasetClause list. Found completely undeclared 2026-08-15 (an
+# exhaustive property-by-property audit, not the CompValue-name sweep that
+# found salg:Graph the same day - datasetClause's own shapes only ever
+# checked cardinality, never what the value actually was, so the missing
+# class went unnoticed by that sweep). Confirmed via translateQuery: each
+# list member is DatasetClause{default: <iri>} (FROM) or
+# DatasetClause{named: <iri>} (FROM NAMED), never both. No subclass
+# relationship of its own (parallel to QueryCollection/Update above), so
+# needs an explicit typing triple.
+salg:DatasetClause a rdfs:Class ;
+    rdfs:comment "One FROM/FROM NAMED clause - exactly one of salg:default (FROM) or salg:named (FROM NAMED), each an IRI." .
+
 # A container node grouping multiple independent salg:Query roots together
 # (a stored corpus/test suite, a batch, ...) - distinct from salg:Update,
 # whose salg:operations is one *request*'s own internally-ordered sequence
@@ -108,6 +121,8 @@ salg:GraphPattern rdfs:label "Graph pattern operator" ;
 
 salg:BGP rdfs:subClassOf salg:GraphPattern ;
     rdfs:comment "A basic graph pattern - an ordered list of triple patterns." .
+salg:Graph rdfs:subClassOf salg:GraphPattern ;
+    rdfs:comment "GRAPH ?g { ... } / GRAPH <iri> { ... } - salg:term the graph IRI/Variable, salg:p the wrapped pattern (a real translated pattern, unlike salg:ServiceGraphPattern's own raw salg:graph fragment). Confirmed via translateQuery: Graph{term, p}. Found missing entirely 2026-08-15 - see salg:term's own rdfs:domain comment below for the RDFS-inference collision this omission caused with salg:ServiceGraphPattern." .
 salg:Filter rdfs:subClassOf salg:GraphPattern ;
     rdfs:comment "FILTER(expr) applied to a nested pattern." .
 salg:LeftJoin rdfs:subClassOf salg:GraphPattern ;
@@ -172,6 +187,19 @@ salg:ArithmeticExpression rdfs:subClassOf salg:Expression ;
 # wrapper needed, it's just directly a salg:Expression subclass.
 salg:RelationalExpression rdfs:subClassOf salg:Expression ;
     rdfs:comment "=, !=, <, >, <=, >=, IN, NOT IN." .
+
+# Not a builtin, not in _EXPR_NODE_FAMILY - rdflib's own sentinel for
+# LeftJoin.expr when an OPTIONAL has no inline FILTER (translateQuery
+# fills it in as the literal constant-true predicate). Only ever appears
+# in salg:expr position on salg:LeftJoin. See shapes.py's ExpressionShape
+# for why this declaration has to exist (a blank node in expression
+# position must class-check against salg:Expression, not just be *any*
+# blank node) - found 2026-08-15, this was previously undeclared, which
+# combined with ExpressionShape's own former over-permissiveness meant an
+# arbitrary malformed blank node in any expression position silently
+# conformed.
+salg:TrueFilter rdfs:subClassOf salg:Expression ;
+    rdfs:comment "The constant-true expression rdflib substitutes for an OPTIONAL with no inline FILTER. No properties of its own." .
 
 # ---------------------------------------------------------------------
 # Generated: rdfs:subClassOf declarations for all 63 expression builtins,
@@ -290,7 +318,7 @@ salg:SequencePath rdfs:subClassOf salg:Path ;
 salg:AlternativePath rdfs:subClassOf salg:Path ;
     rdfs:comment "path1|path2 (alternative) - salg:args, same list shape as SequencePath." .
 salg:MulPath rdfs:subClassOf salg:Path ;
-    rdfs:comment "path* / path+ / path? (repetition) - salg:path the repeated path/IRI, salg:mod the bare \"*\"/\"+\"/\"?\" modifier string (salg:PyStr-tagged, see vocab.py - not real RDF data). The live rdflib object's own zero/more boolean flags are deliberately not encoded, since both are always fully derivable from salg:mod alone (confirmed by reading rdflib.paths.MulPath's own constructor)." .
+    rdfs:comment "path* / path+ / path? (repetition) - salg:path the repeated path/IRI, salg:mod the bare \"*\"/\"+\"/\"?\" modifier string. Not salg:PyStr-tagged, unlike salg:silent/salg:graphiri/salg:op - confirmed via to_rdf._encode_path's own MulPath branch (Literal(path.mod), no datatype argument), which is what makes shapes.py's own salg:MulPathShape sh:in (\"*\" \"+\" \"?\") check actually match (that check compares against plain literals; PyStr-tagging it would break the match, since sh:in's term-equality is exact and the two datatypes differ). This comment previously claimed PyStr-tagging incorrectly - found and corrected 2026-08-16, a dedicated ontology audit. The live rdflib object's own zero/more boolean flags are deliberately not encoded, since both are always fully derivable from salg:mod alone (confirmed by reading rdflib.paths.MulPath's own constructor)." .
 salg:NegatedPath rdfs:subClassOf salg:Path ;
     rdfs:comment "!path / !(path1|path2) (negated property set) - salg:args, same list shape as SequencePath/AlternativePath." .
 
@@ -438,10 +466,10 @@ salg:vars a rdf:Property ;
 # SERVICE properties
 # ---------------------------------------------------------------------
 
-salg:term a rdf:Property ; rdfs:domain salg:ServiceGraphPattern ;
-    rdfs:comment "SERVICE's own endpoint - an IRI, or a Variable for SERVICE ?g {...}. Domain safe: salg:ServiceGraphPattern is a leaf GraphPattern subclass, not a dispatch superclass. No rdfs:range declared - the value is a term/Variable, not a salg: class instance, so range would add nothing." .
+salg:term a rdf:Property ;
+    rdfs:comment "SERVICE's own endpoint (an IRI, or a Variable for SERVICE ?g {...}), or - an unrelated meaning, same key name, per this project's generic key-name-based encoding - salg:Graph's own GRAPH ?g {...} graph term. Previously rdfs:domain salg:ServiceGraphPattern (\"domain safe\" reasoning at the time: ServiceGraphPattern is a leaf GraphPattern subclass, not a dispatch superclass); removed 2026-08-15 once salg:Graph started reusing this key too - confirmed as a real, live bug the same way salg:val/salg:PV's own comments document (a Graph node's own rdf:type got falsely entailed salg:ServiceGraphPattern as well, then failed ServiceGraphPatternShape's own salg:graph minCount check it has no business being subject to). No rdfs:range declared - the value is a term/Variable, not a salg: class instance, so range would add nothing." .
 salg:service_string a rdf:Property ; rdfs:domain salg:ServiceGraphPattern ;
-    rdfs:comment "The original SERVICE clause's own source text, as rdflib's algebra keeps it verbatim (used internally for re-parsing at evaluation time) - informational only, not itself further structured. Domain safe, same reasoning as salg:term." .
+    rdfs:comment "The original SERVICE clause's own source text, as rdflib's algebra keeps it verbatim (used internally for re-parsing at evaluation time) - informational only, not itself further structured. Domain still safe as of 2026-08-15: confirmed via the same empirical CompValue-key sweep that found salg:term's collision that no other node type uses this key." .
 
 # ---------------------------------------------------------------------
 # Property-path properties
@@ -452,4 +480,4 @@ salg:args a rdf:Property ; rdfs:range rdf:List ;
 salg:path a rdf:Property ;
     rdfs:comment "MulPath's own repeated path/IRI. No rdfs:domain declared, same reasoning as salg:args (salg:Path is dispatch-style)." .
 salg:mod a rdf:Property ;
-    rdfs:comment "MulPath's own bare \"*\"/\"+\"/\"?\" repetition-modifier string (salg:PyStr-tagged, see vocab.py - not real RDF data). No rdfs:domain declared, same reasoning as salg:args." .
+    rdfs:comment "MulPath's own bare \"*\"/\"+\"/\"?\" repetition-modifier string - a plain literal, not salg:PyStr-tagged (see salg:MulPath's own comment above for why; corrected 2026-08-16, this comment previously claimed PyStr-tagging incorrectly). No rdfs:domain declared, same reasoning as salg:args." .

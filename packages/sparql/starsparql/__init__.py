@@ -26,10 +26,10 @@ __all__ = [
 ]
 
 try:
-    from .shapes import shapes_graph, validate
+    from .ontology.sparql_shapes import shapes_graph, validate
 
     __all__ += ["shapes_graph", "validate"]
 except ImportError:
-    # pyshacl is a test/optional dependency - shapes.py is unusable without
-    # it, but the rest of the package must still import fine.
+    # pyshacl is a test/optional dependency - sparql_shapes.py is unusable
+    # without it, but the rest of the package must still import fine.
     pass

@@ -68,8 +68,8 @@ algebra operator or expression builtin.
   callers that need real text, e.g. a remote store requiring a plain string.
 - **`salg:QueryCollection`** — serializing a *set* of independent queries as
   one RDF graph/Turtle file.
-- **SHACL shapes over the vocabulary** (`starsparql/shapes.py`, backed by a
-  real RDFS ontology in `salg-ontology.ttl`) — structural validation for an
+- **SHACL shapes over the vocabulary** (`starsparql/ontology/sparql_shapes.py`, backed by a
+  real RDFS ontology in `starsparql/ontology/salg-ontology.ttl`) — structural validation for an
   algebra RDF graph, LLM-authored or hand-authored, before attempting
   `rdf_to_query`/`rdf_to_update`. Covers every operator/expression
   builtin/Update operation above.
