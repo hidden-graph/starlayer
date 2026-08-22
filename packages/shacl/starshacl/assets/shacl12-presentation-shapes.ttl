@@ -110,13 +110,18 @@ stsh:ListGroup a sh:PropertyGroup ;
 	sh:description "Well-formedness and length/uniqueness rules for SHACL-list-valued properties."@en .
 
 stsh:CrossNodeGroup a sh:PropertyGroup ;
-	sh:name "Cross-Node & Reification"@en ;
+	sh:name "Cross-Node"@en ;
 	sh:order 13 ;
-	sh:description "Constraints spanning multiple focus nodes or RDF 1.2 triple-term reification."@en .
+	sh:description "Constraints spanning multiple focus nodes (e.g. sh:uniqueValuesFor)."@en .
+
+stsh:ReificationGroup a sh:PropertyGroup ;
+	sh:name "Reification"@en ;
+	sh:order 14 ;
+	sh:description "RDF 1.2 triple-term reification constraints (sh:reifierShape, sh:reificationRequired)."@en .
 
 stsh:MetadataGroup a sh:PropertyGroup ;
 	sh:name "Non-Validating Metadata"@en ;
-	sh:order 14 ;
+	sh:order 15 ;
 	sh:description "Annotation-only predicates with no effect on conformance — sh:message/sh:severity/sh:name/etc."@en .
 
 #############################################################################
@@ -169,8 +174,8 @@ sh:qualifiedMaxCount sh:group stsh:QualifiedGroup ; sh:order 3 .
 sh:qualifiedMinCount sh:group stsh:QualifiedGroup ; sh:order 2 .
 sh:qualifiedValueShape sh:group stsh:QualifiedGroup ; sh:order 1 .
 sh:qualifiedValueShapesDisjoint sh:group stsh:QualifiedGroup ; sh:order 4 .
-sh:reificationRequired sh:group stsh:CrossNodeGroup ; sh:order 3 .
-sh:reifierShape sh:group stsh:CrossNodeGroup ; sh:order 2 .
+sh:reificationRequired sh:group stsh:ReificationGroup ; sh:order 2 .
+sh:reifierShape sh:group stsh:ReificationGroup ; sh:order 1 .
 sh:rootClass sh:group stsh:ValueTypeGroup ; sh:order 4 .
 sh:severity sh:group stsh:MetadataGroup ; sh:order 2 .
 sh:singleLine sh:group stsh:StringGroup ; sh:order 7 .
@@ -354,9 +359,9 @@ sh:maxCount  stsh:widgetType "int" .
 # List constraints
 #############################################################################
 
-sh:minListLength  stsh:widgetType "int" .
-sh:maxListLength  stsh:widgetType "int" .
-sh:uniqueMembers  stsh:widgetType "bool" .
+sh:minListLength  stsh:widgetType "int"  ; stsh:nodePrimary false .
+sh:maxListLength  stsh:widgetType "int"  ; stsh:nodePrimary false .
+sh:uniqueMembers  stsh:widgetType "bool" ; stsh:nodePrimary false .
 
 
 #############################################################################
