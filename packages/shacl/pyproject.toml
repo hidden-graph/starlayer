@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "shacl"
 version = "0.1.0"
 description = "pySHACL wrapper with RDF 1.2 triple-term support"
-readme = "README.md"
+readme = { file = "../../README.md", content-type = "text/markdown" }
 license = { file = "LICENSE" }
 authors = [
     { name = "John Clements", email = "clements.john.j@gmail.com" }
