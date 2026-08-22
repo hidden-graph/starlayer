@@ -1,23 +1,30 @@
 # starlayergraph
 
-*Last reviewed: 2026-07-17*
+*Last reviewed: 2026-08-22*
 
-RDF 1.2 wrapper for rdflib.
+StarLayerGraph adds RDF 1.2 support to rdflib, including **triple terms** and **reification**. It lets you work with RDF-star-style data in Python while keeping the familiar `rdflib.Graph` workflow.
 
-**RDF 1.2** was published as a W3C Candidate Recommendation on April 7, 2026. It represents the formal standardization of RDF-star, a community-driven extension to RDF that had been under development since 2019. The primary change RDF 1.2 introduces is **reification** — the ability to make statements *about* statements. RDF 1.2 makes reification a first-class feature of the data model through **triple terms** — triples that can themselves appear as the object of other triples.
+**RDF 1.2** formalizes features that were previously in RDF-star, especially the ability to make statements about statements. In practice, this means a triple can itself appear as an object  value inside another triple. This is the core reification model for RDF 1.2.
 
-**rdflib** (current version 7.6.0) is based on RDF 1.1 and does not support the reification features of RDF 1.2.
+`rdflib` currently targets RDF 1.1 and does not support these features natively. StarLayerGraph fills that gap by translating RDF 1.2 data and queries into a form that rdflib can process internally, while preserving the RDF 1.2 surface syntax and semantics needed by applications.
 
-**starlayergraph** is a lightweight wrapper that extends rdflib to handle the reification features of RDF 1.2. It is intended to remain relevant until rdflib is updated to incorporate the final RDF 1.2 specification.
+It can run fully in memory or use the backend storage options provided by rdflib, including SQL, Apache Fuseki, and Oxigraph. When a backend supports RDF 1.2 natively, StarLayerGraph passes those operations through directly, relying on the native RDF 1.2 storage and query capabiliteis of the backend.
 
-starlayergraph works by translating RDF 1.2 data and queries into RDF 1.1 format internally, so that rdflib can process them natively. It can operate fully in-memory, or use the backend storage options supported by rdflib — including Fuseki, SQL, and Oxigraph. When the backend natively supports RDF 1.2, starlayergraph delegates storage and querying to it directly.
+> **Scope note:** this package focuses on reification and base-direction literals — the two main RDF 1.2 data-model additions. Base-direction support for language-tagged literals (`"text"@en--ltr`, `rdf:dirLangString`) is available via `DirLangString`; see [starlayergraph.md](docs/starlayergraph.md) for details.
 
-> **Scope note:** starlayergraph focuses on reification and base-direction literals — the two RDF 1.2 data-model additions. Base-direction support for language-tagged literals (`"text"@en--ltr`, `rdf:dirLangString`) is available as `DirLangString`; see [starlayergraph.md](docs/starlayergraph.md) for details.
+## Install
 
-Not yet published to PyPI — install the checkout directly:
+This package is not yet published to PyPI. Install it from the repository checkout at https://github.com/hidden-graph/starlayer or use the instructions in the main project README.
 
+```bash
+# from the repository root
+pip install -e packages/graph
 ```
-pip install -e /path/to/starlayergraph
+
+If you already have a local clone, you can also install directly from that checkout:
+
+```bash
+pip install -e /path/to/starlayer/packages/graph
 ```
 
 ## Key features

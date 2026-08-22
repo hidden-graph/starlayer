@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "starlayer"
+version = "0.1.0"
+description = "Full Starlayer RDF 1.2 stack: graph, SPARQL, and SHACL support"
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [{ name = "John Clements", email = "clements.john.j@gmail.com" }]
+requires-python = ">=3.10"
+dependencies = [
+    "graph>=0.1.0",
+    "sparql>=0.1.0",
+    "shacl>=0.1.0",
+]
+keywords = ["rdf", "rdf12", "sparql", "sparql12", "shacl", "knowledge-graph"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+[project.urls]
+Homepage = "https://github.com/hidden-graph/starlayer"
+Repository = "https://github.com/hidden-graph/starlayer"
+Issues = "https://github.com/hidden-graph/starlayer/issues"

@@ -3,7 +3,7 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "starsparql"
+name = "sparql"
 version = "0.1.0"
 description = "Translate SPARQL 1.2 queries into and out of an RDF representation of their algebra"
 readme = "README.md"
@@ -14,7 +14,7 @@ dependencies = [
     "rdflib>=7.0",
     # Not published to PyPI. Install the sibling package first:
     #   pip install -e ../graph
-    "starlayergraph",
+    "graph",
 ]
 keywords = ["rdf", "rdf12", "sparql", "sparql12", "knowledge-graph", "semantic-web", "algebra"]
 classifiers = [

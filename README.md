@@ -1,38 +1,81 @@
 # StarLayer
 
-An RDF 1.2 stack for Python, built on [rdflib](https://github.com/RDFLib/rdflib): a graph engine, a SPARQL 1.2 engine, and a SHACL 1.2 validator, each usable on its own or together.
+StarLayer is a Python RDF 1.2 wrapper built on rdflib and pyshacl. Starlayer can be used in two modes:
 
-This repo is a monorepo of three independently-installable packages:
+1. full: graph, SPARQL and SHACL
+2. graph and SPARQL, without SHACL
 
-| Package | Import as | What it does |
-|---|---|---|
-| [`packages/graph`](packages/graph) | `starlayergraph` | `StarLayerGraph`/`StarLayerDataset` — triple terms, reification, annotation folding, 8 serialization formats, multiple backends (in-memory, Fuseki, Oxigraph, SQLAlchemy). Usable standalone for CRUD/parse/serialize with no SPARQL engine installed. |
-| [`packages/sparql`](packages/sparql) | `starsparql` | Real grammar-based SPARQL 1.2 parser and an RDF encoding of SPARQL algebra, plus the lowering that makes SPARQL 1.2 queries executable against `starlayergraph`. |
-| [`packages/shacl`](packages/shacl) | `starshacl` | SHACL validation with RDF 1.2/triple-term support, built on `pyshacl`. |
+Note: the RDF, SPARQL and SHACL 1.2 specifications are currently under development.  Starlayer will be periodically updated to reflect changes in the draft specifications as they evolve.  Eventually, rdflib and pyshacl will be updated to the final 1.2 specifications and starlayer will be retired.  This version is current as of 22 August 2026.
 
-## Dependency shape
 
-```
-starlayergraph  <──►  starsparql      (intentional two-way dependency — see
-      ▲                                starsparql's own README/CLAUDE.md)
+## Packages
+
+| Package | Import | Description |
+| --- | --- | --- |
+| [packages/graph](packages/graph) | `starlayergraph` | RDF 1.2 graph and dataset support, including triple terms, reification, annotation folding, and multiple storage backends. |
+| [packages/sparql](packages/sparql) | `starsparql` | Real grammar-based SPARQL 1.2 parsing and algebra support, with execution against in-memory `starlayergraph`. |
+| [packages/shacl](packages/shacl) | `starshacl` | SHACL validation and rule execution with RDF 1.2 / triple-term support built on `pyshacl`. |
+
+## Dependency model
+
+```text
+starlayergraph ───► starsparql
+      ▲
       │
-      └──────────────  starshacl      (needs the graph, and transitively the
-                                        SPARQL engine, for SHACL-AF constraints)
+      └──────────────► starshacl
 ```
 
-`starlayergraph` and `starsparql` depend on each other by design — `starsparql` is this stack's own SPARQL engine layer, not an independent generic library. `starshacl` depends on `starlayergraph` (and transitively `starsparql`) plus `pyshacl`.
+The graph and SPARQL layers are designed to work together. SHACL depends on the graph layer and uses the SPARQL layer for SHACL rule execution.
 
 ## Install
 
-Each package is independently installable from a local checkout:
+This repository is not currently published to PyPI. The current install path is from a GitHub checkout / local clone of this repo.
+
+For the full Starlayer stack:
 
 ```bash
-pip install -e packages/graph
-pip install -e packages/graph -e packages/sparql
+git clone https://github.com/hidden-graph/starlayer.git
+cd starlayer
+python3 -m venv .venv
+source .venv/bin/activate
+
 pip install -e packages/graph -e packages/sparql -e packages/shacl
 ```
 
-None of these are published to PyPI yet.
+For the core RDF + SPARQL layer only:
+
+```bash
+git clone https://github.com/hidden-graph/starlayer.git
+cd starlayer
+python3 -m venv .venv
+source .venv/bin/activate
+
+pip install -e packages/graph -e packages/sparql
+```
+
+
+## Example usage
+
+```python
+from starlayergraph.graph.starlayer_graph import StarLayerGraph
+from starshacl import StarShaclValidator
+
+# Example RDF data
+# Use your own graph and shape definitions here.
+
+data = StarLayerGraph()
+shapes = StarLayerGraph()
+
+validator = StarShaclValidator()
+result = validator.validate(data_graph=data, shacl_graph=shapes)
+print(result.conforms)
+```
+
+See the package READMEs for more complete examples and API details:
+
+- [packages/graph/README.md](packages/graph/README.md)
+- [packages/sparql/README.md](packages/sparql/README.md)
+- [packages/shacl/README.md](packages/shacl/README.md)
 
 ## Development
 
@@ -42,17 +85,16 @@ source .venv/bin/activate
 pip install -e packages/graph -e packages/sparql -e packages/shacl
 pip install pytest hypothesis
 
-# run each package's own test suite from its own directory
-cd packages/graph   && pytest tests/ -m "not integration" -v
-cd packages/sparql  && pytest tests/ -q
-cd packages/shacl   && pytest tests/ -q
+cd packages/graph && pytest tests/ -m "not integration" -v
+cd ../sparql && pytest tests/ -q
+cd ../shacl && pytest tests/ -q
 ```
 
-See each package's own `README.md`/`CLAUDE.md` for details specific to it.
+The project uses continuous integration checks across a Python version matrix and smoke tests for the monorepo install flow. See the GitHub Actions workflow at https://github.com/hidden-graph/starlayer/blob/main/.github/workflows/test.yml for the current validation setup.
 
-## History
+## Project status
 
-This repo was created 2026-08 by merging three previously-separate repos (`rdflib-starlight`, `sparql1.2_to_rdf`, `starShacl`/`pyshacl-starlight`) into one, with fresh git history — the old repos' commit history was intentionally not carried over. Package/class names changed to a consistent `StarLayer`/`Star*` family (`StarlightGraph` → `StarLayerGraph`, `sparql1_2_to_rdf` → `starsparql`, `pyshacl_starlight` → `starshacl`); functionality is unchanged.
+This project is under active development. It is structured for research, semantic-web experimentation, and early production use, but it is not yet presented as a mature, broadly deployed public library.
 
 ## License
 

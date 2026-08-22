@@ -3,7 +3,7 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "starlayergraph"
+name = "graph"
 version = "0.1.0"
 description = "RDF 1.2 extension for rdflib — triple terms, reification, annotation folding, and SPARQL 1.2"
 readme = "README.md"
@@ -15,10 +15,9 @@ dependencies = [
     "requests>=2.28",
     # Not published to PyPI. Install the sibling package first:
     #   pip install -e ../sparql
-    # starsparql declares a matching dependency back on this package -
-    # intentional two-way dependency, starsparql is this project's
-    # own SPARQL 1.2 engine layer, not an independent generic library.
-    "starsparql",
+    # The repo-level core install is the `graph` package, while the Python
+    # import remains `starlayergraph` for compatibility with the codebase.
+    "sparql",
 ]
 keywords = ["rdf", "rdf12", "knowledge-graph", "semantic-web", "linked-data", "sparql", "turtle", "reification"]
 classifiers = [

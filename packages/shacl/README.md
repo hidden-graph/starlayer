@@ -1,28 +1,28 @@
 # starshacl
 
-`starshacl` validates RDF data against SHACL shapes, with full support for **RDF 1.2** (e.g. triple terms, direction-tagged literals) and **SHACL 1.2 Core**. Works as a wrapper around [`pySHACL`](https://github.com/RDFLib/pySHACL), which itself works with SHACL 1.1 and RDF 1.1.
+`starshacl` adds SHACL 1.2 validation to the StarLayer stack.
 
-Using [`starlayergraph`](../graph)'s RDF 1.2 data model, RDF 1.2 values are transparently encoded into an RDF-1.1-compatible form before validation and decoded on retrieval. Every SHACL 1.2 predicate is registered as a pySHACL constraint component, so it composes correctly alongside built-in predicates.
+It is designed for RDF data that needs the richer validation capabilities of SHACL 1.2, including support for RDF 1.2 data values such as triple terms and direction-tagged literals. The package builds on `pyshacl` while extending the data model so SHACL constraints and rules can work with RDF 1.2 concepts without losing compatibility with the normal SHACL validation workflow.
 
-## Features
-
-- **Full SHACL 1.2 Core support** - every SHACL 1.2 predicate (`sh:someValue`, `sh:uniqueValuesFor`, `sh:reifierShape`, list-valued `sh:class`/`sh:datatype`, path-valued `sh:equals`/`sh:disjoint`, and more) validates correctly, including under composition.
-- **RDF 1.2 as a first-class value type** - triple terms and `rdf:dirLangString` direction-tagged literals round-trip through validation and rule expansion.
-- **SHACL-AF rule expansion** (`apply_rules()`) using pySHACL's advanced mode, including `sh:construct` rules with SPARQL 1.2 triple-term syntax.
-- **SPARQL 1.2 support** in `sh:sparql` constraints and `sh:construct` rules (`<<( )>>` patterns, `isTripleTerm()`, `SUBJECT()`/`PREDICATE()`/`OBJECT()`) - works transparently.
-- **Meta-shapes validation** - the shapes graph itself is expanded for new SHACL 1.2 predicates and checked for well-formedness before it's used to validate data.
-- **Execution profiles** (`validation`, `rules`, `debug`) for common configuration presets, plus typed result objects with execution diagnostics.
+This makes it useful for validating graphs that include reified statements, triple terms, and other RDF 1.2 constructs, while also supporting the broader SHACL 1.2 feature set used for graph validation and rule-driven data processing.
 
 ## Install
 
-Not published to PyPI yet. `starshacl` is one of three packages in this monorepo ([`starlayergraph`](../graph), [`starsparql`](../sparql), `starshacl`) and depends on the other two, so install all three from a checkout, in dependency order, from the repo root:
+This package is not yet published to PyPI. For local development, install it from the repository checkout together with the graph and SPARQL packages:
 
 ```bash
 pip install -e packages/graph -e packages/sparql -e packages/shacl
-pip install -e packages/shacl[test]  # with test dependencies
 ```
 
-Requires Python 3.10+.
+
+
+## What it does
+
+- **Validates RDF data with SHACL 1.2** — checks whether a graph conforms to a shapes graph using the richer SHACL 1.2 feature set.
+- **Supports RDF 1.2 values** — works with triple terms, reified statements, and direction-tagged literals.
+- **Handles advanced SHACL constraints** — supports the richer predicate and validation patterns introduced in SHACL 1.2.
+- **Works with RDF 1.2-aware graph data** — integrates directly with the StarLayer graph layer supporting  RDF 1.2 graphs.
+- **Provides structured results** — exposes validation outcomes and diagnostics.
 
 ## Quick Start
 
@@ -53,7 +53,30 @@ print(result.conforms)      # False - ex:bob has no ex:age
 print(result.report_text)   # human-readable SHACL validation report
 ```
 
-You can also pass a plain `rdflib.Graph` for `data_graph`/`shacl_graph`/`ont_graph` - it's normalized to a `StarLayerGraph` automatically, so you don't need to construct one yourself. `starlayergraph` is a required dependency since that's the data model everything runs on internally.
+You can also pass a plain `rdflib.Graph` for `data_graph`, `shacl_graph`, or `ont_graph`; it is normalized to a `StarLayerGraph` automatically.
+
+## Advanced features
+
+These features are useful when working with RDF 1.2 data or advanced SHACL workflows.
+
+### RDF 1.2 Triple Terms
+
+Triple terms (`<<( subject predicate object )>>`) work as ordinary object values in both data and shapes.
+
+### Rule expansion
+
+`apply_rules()` expands SHACL rules and returns the updated graph alongside a validation report. This is useful when rule-based graph generation is part of the workflow.
+
+## More detail
+
+The deeper implementation notes and technical references live in the docs folder:
+
+- [docs/implementation-plan.md](docs/implementation-plan.md)
+- [docs/shacl12-gap-matrix.md](docs/shacl12-gap-matrix.md)
+- [docs/compatibility.md](docs/compatibility.md)
+- [CHANGELOG.md](CHANGELOG.md)
+
+These are intended for maintainers and contributors rather than the main package audience.
 
 ## RDF 1.2 Triple Terms
 
@@ -112,9 +135,9 @@ from starshacl import StarShaclValidator, TripleTermAdapter
 validator = StarShaclValidator(adapter=TripleTermAdapter.for_starlayergraph())
 ```
 
-## Rules (SHACL-AF)
+## Rules
 
-`apply_rules()` runs pySHACL's advanced mode, including `sh:construct` rules, and returns the expanded data graph alongside a validation report. `sh:construct`'s SPARQL body can use SPARQL 1.2 triple-term syntax (`<<( )>>`) the same way `sh:sparql` constraints can:
+`apply_rules()` executes SHACL 1.2 rule processing and returns the updated data graph alongside a validation report. Rule bodies can use SPARQL 1.2 triple-term syntax (`<<( )>>`).:
 
 ```python
 data = StarLayerGraph()
@@ -189,3 +212,4 @@ Measures the triple-term encode/decode adapter's own cost in isolation. See `ben
 ## License
 
 MIT - see `LICENSE`.
+Requires Python 3.10+.
