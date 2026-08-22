@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>StarLayer User Guide</title>
+    <style>
+      :root {
+        --bg: #0f172a;
+        --panel: #111827;
+        --panel-2: #1f2937;
+        --card: #f8fafc;
+        --text: #e5e7eb;
+        --muted: #a5b4cf;
+        --accent: #7dd3fc;
+        --accent-2: #22c55e;
+        --border: rgba(148, 163, 184, 0.25);
+        --code-bg: #0b1220;
+        --code-text: #dbeafe;
+        --shadow: 0 18px 40px rgba(15, 23, 42, 0.35);
+      }
+
+      * { box-sizing: border-box; }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: linear-gradient(180deg, #020817 0%, #0f172a 100%);
+        color: var(--text);
+        line-height: 1.6;
+      }
+
+      a {
+        color: var(--accent);
+      }
+
+      .container {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 32px 20px 80px;
+      }
+
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        backdrop-filter: blur(10px);
+        background: rgba(15, 23, 42, 0.7);
+        border-bottom: 1px solid var(--border);
+      }
+
+      .topbar-inner {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 14px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+      }
+
+      .brand {
+        font-weight: 700;
+        letter-spacing: 0.04em;
+      }
+
+      nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        font-size: 0.95rem;
+      }
+
+      h1, h2, h3 {
+        color: #f8fafc;
+        line-height: 1.2;
+        margin-top: 0;
+      }
+
+      h1 {
+        font-size: clamp(2.2rem, 4vw, 3.5rem);
+        margin-bottom: 12px;
+      }
+
+      h2 {
+        font-size: clamp(1.5rem, 2.5vw, 2.2rem);
+        margin-top: 2.5rem;
+        margin-bottom: 0.8rem;
+        padding-bottom: 0.35rem;
+        border-bottom: 1px solid var(--border);
+      }
+
+      h3 {
+        font-size: 1.2rem;
+        margin-top: 1.5rem;
+        margin-bottom: 0.7rem;
+      }
+
+      .lead {
+        max-width: 760px;
+        font-size: 1.08rem;
+        color: var(--muted);
+      }
+
+      .note {
+        margin: 1.5rem 0;
+        padding: 1rem 1.1rem;
+        background: rgba(125, 211, 252, 0.08);
+        border-left: 4px solid var(--accent);
+        border-radius: 8px;
+        color: #dfeafe;
+      }
+
+      .card {
+        background: rgba(17, 24, 39, 0.92);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        box-shadow: var(--shadow);
+        padding: 20px;
+        margin-top: 1.25rem;
+      }
+
+      pre {
+        margin: 0;
+        padding: 18px 18px;
+        background: var(--code-bg);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        border-radius: 12px;
+        overflow-x: auto;
+      }
+
+      code {
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        font-size: 0.92rem;
+      }
+
+      p, li {
+        color: var(--muted);
+      }
+
+      ul {
+        padding-left: 1.2rem;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 20px;
+        margin-top: 1.2rem;
+      }
+
+      .mini {
+        background: rgba(17, 24, 39, 0.78);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 18px;
+      }
+
+      .mini h3 {
+        margin-bottom: 0.4rem;
+      }
+
+      .tag {
+        display: inline-block;
+        padding: 0.28rem 0.62rem;
+        border-radius: 999px;
+        font-size: 0.76rem;
+        font-weight: 600;
+        background: rgba(34, 197, 94, 0.12);
+        color: #bbf7d0;
+        border: 1px solid rgba(34, 197, 94, 0.25);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="topbar">
+      <div class="topbar-inner">
+        <div class="brand">StarLayer</div>
+        <nav>
+          <a href="#overview">Overview</a>
+          <a href="#graph">Graph</a>
+          <a href="#queries">SPARQL</a>
+          <a href="#shacl">SHACL</a>
+          <a href="#rules">Rules</a>
+        </nav>
+      </div>
+    </div>
+
+    <main class="container">
+      <section id="overview">
+        <span class="tag">User Guide</span>
+        <h1>StarLayer</h1>
+        <p class="lead">
+          StarLayer extends rdflib with RDF 1.2 features and adds SHACL 1.2 validation and rule execution in a form that fits the familiar rdflib and pyshacl developer flow. This guide assumes you already know RDF, rdflib, and SHACL basics and focuses on the incremental capabilities that matter most in practice.
+        </p>
+
+        <div class="note">
+          This project is a research-grade RDF 1.2 stack and remains under active development. The public install is the full <code>starlayer</code> package, but the repo is still organized internally into graph, SPARQL, and SHACL layers.
+        </div>
+      </section>
+
+      <section id="graph">
+        <h2>1. Start with a normal rdflib-like graph</h2>
+        <p>
+          The core graph layer is a drop-in style RDF 1.2 graph. You still work with an rdflib-like API, but you can represent RDF 1.2 values such as triple terms and reified statements without leaving the Python object model.
+        </p>
+
+        <div class="card">
+          <pre><code>from rdflib import Literal, Namespace
+from starlayergraph.graph.starlayer_graph import StarLayerGraph
+
+EX = Namespace("http://example.org/")
+
+g = StarLayerGraph()
+
+g.add((EX.alice, EX.name, Literal("Alice")))
+g.add((EX.alice, EX.knows, EX.bob))
+
+g.add((EX.alice, EX.says, (EX.bob, EX.knows, EX.carol)))
+
+print(list(g.triples((None, EX.name, None))))
+print((EX.alice, EX.says, (EX.bob, EX.knows, EX.carol)) in g)
+</code></pre>
+        </div>
+
+        <p>
+          The important difference from plain rdflib is that a triple can be used as an object value. This is the RDF 1.2-style triple-term workflow and it is available without rewriting the rest of the application around a new graph type.
+        </p>
+
+        <h3>Reification and annotation folding</h3>
+        <div class="card">
+          <pre><code>g = StarLayerGraph()
+g.parse(
+    data="""
+        @prefix ex: &lt;http://example.org/&gt; .
+        ex:alice ex:claims ex:bob .
+        ex:alice ex:claims ex:carol {| ex:source ex:wiki |} .
+    """,
+    format="turtle12",
+)
+
+for s, p, o in g:
+    print(s, p, o)
+</code></pre>
+        </div>
+      </section>
+
+      <section id="queries">
+        <h2>2. Query using the SPARQL layer</h2>
+        <p>
+          The SPARQL layer integrates with the graph layer and handles RDF 1.2 constructs while still letting you work with familiar SPARQL evaluation patterns. This is the natural next step after the graph layer.
+        </p>
+
+        <div class="card">
+          <pre><code>from rdflib import Namespace
+from starlayergraph.graph.starlayer_graph import StarLayerGraph
+
+EX = Namespace("http://example.org/")
+
+g = StarLayerGraph()
+g.parse(
+    data="""
+        @prefix ex: &lt;http://example.org/&gt; .
+        ex:alice ex:knows ex:bob .
+        ex:alice ex:knows ex:carol .
+    """,
+    format="turtle",
+)
+
+rows = g.query("""
+    PREFIX ex: &lt;http://example.org/&gt;
+    SELECT ?person WHERE {
+        ex:alice ex:knows ?person .
+    }
+""")
+
+for row in rows:
+    print(row.person)
+</code></pre>
+        </div>
+
+        <h3>Triple-term-aware query pattern</h3>
+        <div class="card">
+          <pre><code>g = StarLayerGraph()
+g.parse(
+    data="""
+        @prefix ex: &lt;http://example.org/&gt; .
+        ex:alice ex:claims &lt;&lt;( ex:bob ex:knows ex:carol )&gt;&gt; .
+    """,
+    format="turtle12",
+)
+
+rows = g.query("""
+    PREFIX ex: &lt;http://example.org/&gt;
+    SELECT ?stmt WHERE {
+        ?s ex:claims ?stmt .
+        FILTER( isTripleTerm(?stmt) )
+    }
+""")
+
+for row in rows:
+    print(row.stmt)
+</code></pre>
+        </div>
+      </section>
+
+      <section id="shacl">
+        <h2>3. Validate with SHACL 1.2</h2>
+        <p>
+          Once your graph works, the next step is checking it against a shapes graph. The validator is designed to sit on top of a normal rdflib/pyshacl workflow, while extending it for RDF 1.2 values and richer SHACL behavior.
+        </p>
+
+        <div class="card">
+          <pre><code>from rdflib import Literal, Namespace
+from starlayergraph.graph.starlayer_graph import StarLayerGraph
+from starshacl import StarShaclValidator
+
+EX = Namespace("http://example.org/")
+SH = Namespace("http://www.w3.org/ns/shacl#")
+XSD = Namespace("http://www.w3.org/2001/XMLSchema#")
+
+data = StarLayerGraph()
+data.add((EX.alice, EX.age, Literal(30)))
+
+shapes = StarLayerGraph()
+shapes.parse(data=f"""
+    @prefix ex: &lt;http://example.org/&gt; .
+    @prefix sh: &lt;http://www.w3.org/ns/shacl#&gt; .
+    @prefix xsd: &lt;http://www.w3.org/2001/XMLSchema#&gt; .
+
+    ex:PersonShape a sh:NodeShape ;
+      sh:targetClass ex:Person ;
+      sh:property [
+        sh:path ex:age ;
+        sh:minCount 1 ;
+        sh:datatype xsd:integer ;
+      ] .
+
+    ex:alice a ex:Person .
+""", format="turtle")
+
+validator = StarShaclValidator()
+result = validator.validate(data_graph=data, shacl_graph=shapes)
+print(result.conforms)
+print(result.report_text)
+</code></pre>
+        </div>
+
+        <h3>Triple terms in validation</h3>
+        <div class="card">
+          <pre><code>data = StarLayerGraph()
+data.parse(
+    data="""
+        @prefix ex: &lt;http://example.org/&gt; .
+        ex:alice ex:claims &lt;&lt;( ex:bob ex:knows ex:carol )&gt;&gt; .
+    """,
+    format="turtle12",
+)
+
+shapes = StarLayerGraph()
+shapes.parse(
+    data="""
+        @prefix ex: &lt;http://example.org/&gt; .
+        @prefix sh: &lt;http://www.w3.org/ns/shacl#&gt; .
+
+        ex:ClaimShape a sh:NodeShape ;
+          sh:targetSubjectsOf ex:claims ;
+          sh:property [
+            sh:path ex:claims ;
+            sh:minCount 1 ;
+          ] .
+    """,
+    format="turtle",
+)
+
+result = StarShaclValidator().validate(data_graph=data, shacl_graph=shapes)
+print(result.conforms)
+</code></pre>
+        </div>
+      </section>
+
+      <section id="rules">
+        <h2>4. Apply SHACL rules</h2>
+        <p>
+          In addition to validation, the SHACL layer supports rule execution. This is a useful pattern when your graph should be inferred or expanded from shape-driven rules rather than only checked for conformance.
+        </p>
+
+        <div class="card">
+          <pre><code>from rdflib import Namespace
+from starlayergraph.graph.starlayer_graph import StarLayerGraph
+from starshacl import StarShaclValidator
+
+EX = Namespace("http://example.org/")
+
+data = StarLayerGraph()
+data.parse(
+    data="""
+        @prefix ex: &lt;http://example.org/&gt; .
+        ex:alice a ex:Person .
+    """,
+    format="turtle",
+)
+
+shapes = StarLayerGraph()
+shapes.parse(
+    data="""
+        @prefix ex: &lt;http://example.org/&gt; .
+        @prefix sh: &lt;http://www.w3.org/ns/shacl#&gt; .
+
+        ex:PersonRule a sh:NodeShape ;
+          sh:targetClass ex:Person ;
+          sh:rule [
+            a sh:TripleRule ;
+            sh:subject sh:this ;
+            sh:predicate ex:inferred ;
+            sh:object ex:yes ;
+          ] .
+    """,
+    format="turtle",
+)
+
+validator = StarShaclValidator()
+result = validator.apply_rules(data_graph=data, shacl_graph=shapes)
+
+print((EX.alice, EX.inferred, EX.yes) in result.data_graph)
+print(result.conforms)
+</code></pre>
+        </div>
+
+        <h3>When to use rule execution</h3>
+        <ul>
+          <li>Generate derived triples rather than only report violations.</li>
+          <li>Apply graph-transforming rules alongside validation.</li>
+          <li>Work with SHACL 1.2 patterns where a rule-based workflow is more natural than a pure validation-only pass.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>5. Use the adapter for triple-term-heavy workflows</h2>
+        <p>
+          Some SHACL workloads carry triple terms through multiple evaluation layers. The adapter layer normalizes this process so you can keep using real StarLayer graph objects while interoperability remains stable.
+        </p>
+
+        <div class="card">
+          <pre><code>from starlayergraph.graph.starlayer_graph import StarLayerGraph
+from starshacl import StarShaclValidator, TripleTermAdapter
+
+adapter = TripleTermAdapter.for_starlayergraph()
+validator = StarShaclValidator(adapter=adapter)
+
+data = StarLayerGraph()
+# dataset + shape setup goes here
+
+result = validator.validate(data_graph=data, shacl_graph=data)
+print(result.conforms)
+</code></pre>
+        </div>
+      </section>
+
+      <section>
+        <h2>6. Practical workflow</h2>
+        <div class="grid">
+          <div class="mini">
+            <h3>Graph layer</h3>
+            <p>Build and store RDF 1.2 data using rdflib-compatible APIs.</p>
+          </div>
+          <div class="mini">
+            <h3>SPARQL layer</h3>
+            <p>Query triple-term-aware graphs with familiar SPARQL patterns.</p>
+          </div>
+          <div class="mini">
+            <h3>SHACL layer</h3>
+            <p>Validate graph conformance and apply rule-driven inference.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
