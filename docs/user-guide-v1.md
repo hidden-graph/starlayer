@@ -10,7 +10,15 @@ StarLayer maintains the rdflib and pySHACL developer experience while extending 
 2. Select the repository virtual environment as the notebook kernel.
 3. Run cells from top to bottom so shared variables stay in scope.
 4. If imports fail locally, run `pip install -e .` from the repository root in an activated virtual environment.
-5. In Google Colab, install the package first with `!pip install git+https://github.com/hidden-graph/starlayer.git` and then run the remaining cells.
+5. In Google Colab, the direct GitHub install works only if the repository is public.
+6. If the repository is private, authenticate in Colab first and then install from a clone:
+
+  ```python
+  from google.colab import userdata
+  token = userdata.get("GITHUB_TOKEN")
+  !git clone https://{token}@github.com/hidden-graph/starlayer.git
+  !pip install -e /content/starlayer
+  ```
 
 All examples below assume:
 

@@ -12,7 +12,7 @@ Note: the RDF, SPARQL and SHACL 1.2 specifications are currently under developme
 Install Starlayer directly from GitHub:
 
 ```bash
-pip install "git+https://github.com/hidden-graph/starlayer.git#subdirectory=packages/starlayer"
+pip install "git+https://github.com/hidden-graph/starlayer.git"
 ```
 
 This is the supported public install path for the StarLayer stack. It brings in the graph, SPARQL, and SHACL layers together.
@@ -64,7 +64,7 @@ cd starlayer
 python3 -m venv .venv
 source .venv/bin/activate
 
-pip install -e packages/starlayer
+pip install -e .
 pip install pytest hypothesis
 ```
 
