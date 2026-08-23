@@ -264,6 +264,63 @@ class TestStatements:
 
 
 # ---------------------------------------------------------------------------
+# triple_terms() / has_triple_term() direct pattern matching
+# ---------------------------------------------------------------------------
+
+class TestTripleTermsQuery:
+    @pytest.fixture
+    def sg_two_tts(self):
+        g = StarLayerGraph()
+        g.bind('ex', EX)
+        g.add_reification(URIRef(EX+'claim'),
+                           (URIRef(EX+'bob'), URIRef(EX+'knows'), URIRef(EX+'carol')))
+        g.add_reification(URIRef(EX+'other'),
+                           (URIRef(EX+'bob'), URIRef(EX+'likes'), URIRef(EX+'dana')))
+        return g
+
+    def test_triple_terms_filters_by_subject(self, sg_two_tts):
+        tts = list(sg_two_tts.triple_terms(subject=URIRef(EX+'bob')))
+        assert len(tts) == 2
+        assert all(tt.subject == URIRef(EX+'bob') for tt in tts)
+
+    def test_triple_terms_filters_by_predicate(self, sg_two_tts):
+        tts = list(sg_two_tts.triple_terms(predicate=URIRef(EX+'likes')))
+        assert tts == [TripleTerm(URIRef(EX+'bob'), URIRef(EX+'likes'), URIRef(EX+'dana'))]
+
+    def test_has_triple_term_true(self, sg_two_tts):
+        assert sg_two_tts.has_triple_term(
+            URIRef(EX+'bob'), URIRef(EX+'knows'), URIRef(EX+'carol'))
+
+    def test_has_triple_term_false(self, sg_two_tts):
+        assert not sg_two_tts.has_triple_term(
+            URIRef(EX+'bob'), URIRef(EX+'knows'), URIRef(EX+'dana'))
+
+    # -- namespace_manager propagation --------------------------------------
+    # triple_terms()/reified_triples() read straight from the internal
+    # _tt_nodes registry rather than going through _restore(), so - unlike
+    # every triples()/query() read - they used to skip the
+    # `tt._namespace_manager = self.namespace_manager` assignment _restore()
+    # applies. That made a returned TripleTerm's str()/n3() fall back to
+    # unprefixed full-URI form (or raise AttributeError inside n3(None) and
+    # fall back further to __repr__) even when the graph had a prefix bound
+    # for its components, unlike a TripleTerm read via g.triples(). See
+    # docs/user-guide-v1.md's "Finding triple terms directly" section.
+
+    def test_triple_terms_result_renders_prefixed(self, sg_two_tts):
+        tt = next(sg_two_tts.triple_terms(subject=URIRef(EX+'bob'),
+                                           predicate=URIRef(EX+'knows')))
+        assert str(tt) == '<<( ex:bob ex:knows ex:carol )>>'
+
+    def test_reified_triples_result_renders_prefixed(self, sg_two_tts):
+        tt = next(sg_two_tts.reified_triples(URIRef(EX+'claim')))
+        assert str(tt) == '<<( ex:bob ex:knows ex:carol )>>'
+
+    def test_reifications_result_renders_prefixed(self, sg_two_tts):
+        tt = next(sg_two_tts.reifications(p=URIRef(EX+'knows')))
+        assert str(tt) == '<<( ex:bob ex:knows ex:carol )>>'
+
+
+# ---------------------------------------------------------------------------
 # Wildcard triple-term patterns in triples()
 # ---------------------------------------------------------------------------
 

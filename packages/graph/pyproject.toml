@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "graph"
 version = "0.1.0"
 description = "RDF 1.2 extension for rdflib — triple terms, reification, annotation folding, and SPARQL 1.2"
-readme = { file = "../../README.md", content-type = "text/markdown" }
+readme = { file = "README.md", content-type = "text/markdown" }
 license = { file = "LICENSE" }
 authors = [{ name = "John Clements", email = "clements.john.j@gmail.com" }]
 requires-python = ">=3.10"

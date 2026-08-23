@@ -1041,6 +1041,7 @@ class StarLayerGraph(Graph):
             if isinstance(o, URIRef) and str(o).startswith(TT_NS):
                 tt = self._tt_nodes.get(o)
                 if tt is not None:
+                    tt._namespace_manager = self.namespace_manager
                     yield tt
 
     def triple_terms(self, subject=None, predicate=None, object=None):
@@ -1071,6 +1072,7 @@ class StarLayerGraph(Graph):
             if subject   is not None and tt.subject   != subject:   continue
             if predicate is not None and tt.predicate != predicate: continue
             if object    is not None and tt.object    != object:    continue
+            tt._namespace_manager = self.namespace_manager
             yield tt
 
     def has_triple_term(self, subject, predicate, object):

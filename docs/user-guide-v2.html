@@ -195,8 +195,12 @@
         <span class="tag">User Guide</span>
         <h1>StarLayer</h1>
         <p class="lead">
-          StarLayer extends rdflib with RDF 1.2 features and adds SHACL 1.2 validation and rule execution in a form that fits the familiar rdflib and pyshacl developer flow. This guide assumes you already know RDF, rdflib, and SHACL basics and focuses on the incremental capabilities that matter most in practice.
+          StarLayer extends rdflib with RDF 1.2 features and adds SHACL 1.2 validation and rule execution in a form that fits the familiar rdflib and pyshacl developer flow. This guide assumes you are already comfortable with RDF, SPARQL, and SHACL fundamentals and that you are reading the current draft specifications as they evolve.
         </p>
+
+        <div class="note">
+          <strong>Prerequisites:</strong> this guide is intended for readers who already know the RDF 1.2, SPARQL 1.2, and SHACL 1.2 draft specifications and are comfortable using rdflib and pyshacl. See the relevant drafts here: <a href="https://www.w3.org/TR/rdf12-concepts/" target="_blank" rel="noopener">RDF 1.2 Concepts</a>, <a href="https://www.w3.org/TR/sparql12-query/" target="_blank" rel="noopener">SPARQL 1.2 Query</a>, and <a href="https://www.w3.org/TR/shacl/" target="_blank" rel="noopener">SHACL</a>.
+        </div>
 
         <div class="note">
           This project is a research-grade RDF 1.2 stack and remains under active development. The public install is the full <code>starlayer</code> package, but the repo is still organized internally into graph, SPARQL, and SHACL layers.
@@ -210,41 +214,42 @@
         </p>
 
         <div class="card">
-          <pre><code>from rdflib import Literal, Namespace
+          <pre><code>from rdflib import Namespace
 from starlayergraph.graph.starlayer_graph import StarLayerGraph
 
 EX = Namespace("http://example.org/")
+RDF = Namespace("http://www.w3.org/1999/02/22-rdf-syntax-ns#")
 
 g = StarLayerGraph()
 
-g.add((EX.alice, EX.name, Literal("Alice")))
-g.add((EX.alice, EX.knows, EX.bob))
+g.add((EX.claim_7, RDF.reifies, (EX.bob, EX.knows, EX.carol)))
+g.add((EX.claim_7, EX.source, EX.wikipedia))
 
-g.add((EX.alice, EX.says, (EX.bob, EX.knows, EX.carol)))
-
-print(list(g.triples((None, EX.name, None))))
-print((EX.alice, EX.says, (EX.bob, EX.knows, EX.carol)) in g)
+print((EX.claim_7, RDF.reifies, (EX.bob, EX.knows, EX.carol)) in g)
 </code></pre>
         </div>
 
         <p>
-          The important difference from plain rdflib is that a triple can be used as an object value. This is the RDF 1.2-style triple-term workflow and it is available without rewriting the rest of the application around a new graph type.
+          The important difference from plain rdflib is that the reified statement is represented by a statement resource, and the actual triple is attached to that resource using <code>rdf:reifies</code>. This is the canonical RDF 1.2 reification pattern and it keeps the statement itself available as a first-class node.
         </p>
 
-        <h3>Reification and annotation folding</h3>
+        <h3>Reification as metadata on a statement node</h3>
         <div class="card">
           <pre><code>g = StarLayerGraph()
-g.parse(
-    data="""
-        @prefix ex: &lt;http://example.org/&gt; .
-        ex:alice ex:claims ex:bob .
-        ex:alice ex:claims ex:carol {| ex:source ex:wiki |} .
-    """,
-    format="turtle12",
-)
+g.add((EX.claim_7, RDF.reifies, (EX.bob, EX.knows, EX.carol)))
+g.add((EX.claim_7, EX.source, EX.wikipedia))
+g.add((EX.claim_7, EX.confidence, "high"))
 
-for s, p, o in g:
-    print(s, p, o)
+for triple in g.triples((EX.claim_7, None, None)):
+    print(triple)
+</code></pre>
+        </div>
+
+        <div class="card">
+          <pre><code>True
+(http://example.org/claim_7, http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies, (http://example.org/bob, http://example.org/knows, http://example.org/carol))
+(http://example.org/claim_7, http://example.org/source, http://example.org/wikipedia)
+(http://example.org/claim_7, http://example.org/confidence, high)
 </code></pre>
         </div>
       </section>
@@ -260,50 +265,53 @@ for s, p, o in g:
 from starlayergraph.graph.starlayer_graph import StarLayerGraph
 
 EX = Namespace("http://example.org/")
+RDF = Namespace("http://www.w3.org/1999/02/22-rdf-syntax-ns#")
 
 g = StarLayerGraph()
-g.parse(
-    data="""
-        @prefix ex: &lt;http://example.org/&gt; .
-        ex:alice ex:knows ex:bob .
-        ex:alice ex:knows ex:carol .
-    """,
-    format="turtle",
-)
+
+g.add((EX.claim_7, RDF.reifies, (EX.bob, EX.knows, EX.carol)))
+g.add((EX.claim_7, EX.source, EX.wikipedia))
 
 rows = g.query("""
     PREFIX ex: &lt;http://example.org/&gt;
-    SELECT ?person WHERE {
-        ex:alice ex:knows ?person .
+    PREFIX rdf: &lt;http://www.w3.org/1999/02/22-rdf-syntax-ns#&gt;
+
+    SELECT ?claim ?source WHERE {
+      ?claim rdf:reifies &lt;&lt;( ex:bob ex:knows ex:carol )&gt;&gt; .
+      ?claim ex:source ?source .
     }
 """)
 
 for row in rows:
-    print(row.person)
+    print(row.claim, row.source)
 </code></pre>
+        </div>
+
+        <p>Expected output:</p>
+        <div class="card">
+          <pre><code>http://example.org/claim_7 http://example.org/wikipedia</code></pre>
         </div>
 
         <h3>Triple-term-aware query pattern</h3>
         <div class="card">
           <pre><code>g = StarLayerGraph()
-g.parse(
-    data="""
-        @prefix ex: &lt;http://example.org/&gt; .
-        ex:alice ex:claims &lt;&lt;( ex:bob ex:knows ex:carol )&gt;&gt; .
-    """,
-    format="turtle12",
-)
+
+g.add((EX.claim_7, RDF.reifies, (EX.bob, EX.knows, EX.carol)))
+
+g.add((EX.claim_7, EX.source, EX.wikipedia))
 
 rows = g.query("""
     PREFIX ex: &lt;http://example.org/&gt;
-    SELECT ?stmt WHERE {
-        ?s ex:claims ?stmt .
-        FILTER( isTripleTerm(?stmt) )
+    PREFIX rdf: &lt;http://www.w3.org/1999/02/22-rdf-syntax-ns#&gt;
+
+    SELECT ?claim WHERE {
+      ?claim rdf:reifies ?statement .
+      FILTER( isTripleTerm(?statement) )
     }
 """)
 
 for row in rows:
-    print(row.stmt)
+    print(row.claim)
 </code></pre>
         </div>
       </section>

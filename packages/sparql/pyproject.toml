@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "sparql"
 version = "0.1.0"
 description = "Translate SPARQL 1.2 queries into and out of an RDF representation of their algebra"
-readme = { file = "../../README.md", content-type = "text/markdown" }
+readme = { file = "README.md", content-type = "text/markdown" }
 license = { file = "LICENSE" }
 authors = [{ name = "John Clements", email = "clements.john.j@gmail.com" }]
 requires-python = ">=3.10"
