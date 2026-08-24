@@ -1,0 +1,22 @@
+{
+  "guide": "StarLayer User Guide",
+  "version": "1.1.0",
+  "lastUpdated": "2026-08-23",
+  "canonicalSource": "docs/user-guide-v1.md",
+  "artifacts": {
+    "markdown": [
+      "docs/user-guide-v1.md"
+    ],
+    "notebook": [
+      "docs/user-guide-v1.ipynb"
+    ],
+    "html": [
+      "docs/user-guide-v1.html",
+      "docs/user-guide-v2.html"
+    ]
+  },
+  "staleDetection": {
+    "rule": "An artifact is stale when its content does not reflect this version value or lastUpdated date.",
+    "note": "Update this manifest in the same change whenever guide content changes."
+  }
+}

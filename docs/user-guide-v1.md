@@ -1,5 +1,19 @@
 # StarLayer User Guide
 
+Guide version: 1.1.0  
+Last updated: 2026-08-23  
+Status: current canonical guide source
+
+Version source of truth: `docs/user-guide-version.json`.
+
+Version policy:
+
+- Major: structural rewrite of guide sections or compatibility scope
+- Minor: new examples/features or expanded coverage
+- Patch: wording fixes, typo fixes, and non-semantic cleanup
+
+When content changes, bump the guide version in this file and in `docs/user-guide-version.json` together.
+
 StarLayer maintains the rdflib and pySHACL developer experience while extending the model to handle RDF 1.2, SPARQL 1.2 and SHACL 1.2 features. This guide walks through the relevant changes.  
 
 > The RDF 1.2, SPARQL 1.2, and SHACL 1.2 specifications are still under active development at the W3C. StarLayer tracks the draft text and is updated as it evolves; this guide is current as of 22 August 2026.
