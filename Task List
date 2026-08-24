@@ -1,5 +1,9 @@
 Task List
 
+1. surpise, the jsonld12 serialization leaks the underlying rdf 1.1 terms
+
+
+
 1. what art the git errors we get when we publish. how to fix
 
 3. bring in OWL and OWL reasoning into the stack.
