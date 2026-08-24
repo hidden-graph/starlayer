@@ -8,7 +8,7 @@ encoding triples, from_rdflib(), and Statement operations.
 from unittest.mock import MagicMock, patch
 
 import pytest
-from rdflib import Graph, Literal, URIRef
+from rdflib import BNode, Graph, Literal, URIRef
 from rdflib.namespace import RDF
 from starlayergraph.graph.starlayer_graph import RDF_REIFIES, StarLayerGraph
 from starlayergraph.model.triple import TripleTerm
@@ -318,6 +318,55 @@ class TestTripleTermsQuery:
     def test_reifications_result_renders_prefixed(self, sg_two_tts):
         tt = next(sg_two_tts.reifications(p=URIRef(EX+'knows')))
         assert str(tt) == '<<( ex:bob ex:knows ex:carol )>>'
+
+
+# ---------------------------------------------------------------------------
+# qname_term() - unlike the inherited qname(), accepts any term type
+# ---------------------------------------------------------------------------
+
+class TestQnameTerm:
+    @pytest.fixture
+    def sg(self):
+        g = StarLayerGraph()
+        g.bind('ex', EX)
+        return g
+
+    def test_uriref(self, sg):
+        assert sg.qname_term(URIRef(EX+'bob')) == 'ex:bob'
+
+    def test_triple_term(self, sg):
+        tt = TripleTerm(URIRef(EX+'bob'), URIRef(EX+'knows'), URIRef(EX+'carol'))
+        assert sg.qname_term(tt) == '<<( ex:bob ex:knows ex:carol )>>'
+
+    def test_bnode(self, sg):
+        b = BNode('x1')
+        assert sg.qname_term(b) == '_:x1'
+
+    def test_literal_with_language(self, sg):
+        assert sg.qname_term(Literal('hi', lang='en')) == '"hi"@en'
+
+    def test_literal_with_datatype(self, sg):
+        # bonus over qname(), which raises outright on a Literal: n3()
+        # compacts the datatype URI too, using rdflib's default xsd: binding.
+        assert sg.qname_term(Literal(42)) == '"42"^^xsd:integer'
+
+    def test_qname_itself_still_raises_on_triple_term(self, sg):
+        # confirms the documented gap this method exists to work around -
+        # if a future rdflib version ever changes this, qname_term() is
+        # still correct on its own terms, but this test's premise is stale.
+        tt = TripleTerm(URIRef(EX+'bob'), URIRef(EX+'knows'), URIRef(EX+'carol'))
+        with pytest.raises(AttributeError):
+            sg.qname(tt)
+
+    def test_triple_terms_result_via_qname_term(self, sg):
+        # exactly the case that motivated this method: a TripleTerm read
+        # back from triple_terms() has no _namespace_manager of its own
+        # unless the caller already knows to call .n3(g.namespace_manager)
+        # by hand - qname_term() removes the need to know that.
+        sg.add_reification(URIRef(EX+'claim'),
+                            TripleTerm(URIRef(EX+'bob'), URIRef(EX+'knows'), URIRef(EX+'carol')))
+        tt = next(sg.triple_terms(subject=URIRef(EX+'bob')))
+        assert sg.qname_term(tt) == '<<( ex:bob ex:knows ex:carol )>>'
 
 
 # ---------------------------------------------------------------------------

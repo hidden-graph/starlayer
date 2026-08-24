@@ -35,26 +35,81 @@ from starlayergraph.model.triple import TripleTerm
 _RDF_NS = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#'
 _RDF_TRIPLE_TERM = _RDF_NS + 'TripleTerm'
 
-_FIXED_CONTEXT = {
-    'rdf': _RDF_NS,
-    'tt':  TT_NS,
-}
+_FIXED_PREFIXES = (
+    # (namespace, prefix) - always available for compaction, regardless of
+    # whether the graph itself has them bound, since the tt:HASH encoding
+    # and rdf:TripleTerm/subject/predicate/object vocabulary are intrinsic
+    # to this format, not something the caller opts into via g.bind().
+    (TT_NS, 'tt'),
+    (_RDF_NS, 'rdf'),
+)
+
+
+# ---------------------------------------------------------------------------
+# Prefix compaction
+# ---------------------------------------------------------------------------
+
+def _collect_used_prefixes(g) -> list:
+    """Return (namespace, prefix) pairs from g's own bindings that are
+    actually used by some URI in the graph - keeps @context from being
+    padded out with rdflib's ~30 default bindings (skos, foaf, dcterms, ...)
+    that this particular graph never references.
+
+    Longest-namespace-first, so a URI matches its most specific bound
+    namespace rather than an accidental shorter prefix of it.
+    """
+    candidates = sorted(
+        ((str(ns), str(prefix)) for prefix, ns in g.namespaces() if prefix),
+        key=lambda pair: -len(pair[0]),
+    )
+    if not candidates:
+        return []
+
+    used = []
+    seen_ns = set()
+
+    def note(uri: str) -> None:
+        for ns, prefix in candidates:
+            if uri.startswith(ns) and ns not in seen_ns:
+                seen_ns.add(ns)
+                used.append((ns, prefix))
+                return
+
+    for s, p, o in g.triples((None, None, None)):
+        for term in (s, p, o):
+            if isinstance(term, TripleTerm):
+                for component in (term.subject, term.predicate, term.object):
+                    if isinstance(component, URIRef):
+                        note(str(component))
+            elif isinstance(term, URIRef):
+                note(str(term))
+
+    return used
+
+
+def _make_compactor(extra_prefixes: list):
+    """Build a compact(uri) -> {'@id': ...} function using the fixed tt:/rdf:
+    prefixes plus whatever else this graph actually uses, longest match first.
+    """
+    table = sorted(
+        list(_FIXED_PREFIXES) + list(extra_prefixes),
+        key=lambda pair: -len(pair[0]),
+    )
+
+    def compact(uri: str) -> dict:
+        for ns, prefix in table:
+            if uri.startswith(ns):
+                return {'@id': f'{prefix}:{uri[len(ns):]}'}
+        return {'@id': uri}
+
+    return compact, {prefix: ns for ns, prefix in table}
 
 
 # ---------------------------------------------------------------------------
 # Node formatters
 # ---------------------------------------------------------------------------
 
-def _uri_value(uri: str) -> dict:
-    """Compact a full URI to a prefixed form if it matches a known prefix."""
-    if uri.startswith(TT_NS):
-        return {'@id': 'tt:' + uri[len(TT_NS):]}
-    if uri.startswith(_RDF_NS):
-        return {'@id': 'rdf:' + uri[len(_RDF_NS):]}
-    return {'@id': uri}
-
-
-def _node_to_jld(node) -> dict:
+def _node_to_jld(node, compact) -> dict:
     """Convert any rdflib node (or TripleTerm) to a JSON-LD value object."""
     if isinstance(node, TripleTerm):
         # TripleTerms in value position are referenced by their tt:HASH URI.
@@ -70,7 +125,7 @@ def _node_to_jld(node) -> dict:
         dt = str(encode_dirlang_datatype(node.language, node.direction))
         return {'@value': node.value, '@type': dt}
     if isinstance(node, URIRef):
-        return _uri_value(str(node))
+        return compact(str(node))
     if isinstance(node, BNode):
         return {'@id': f'_:{node}'}
     if isinstance(node, Literal):
@@ -97,14 +152,14 @@ def _tt_local(tt: TripleTerm) -> str:
     return tt_hash(s_str, term_key(p), o_str)
 
 
-def _tt_node(tt_local: str, tt: TripleTerm) -> dict:
+def _tt_node(tt_local: str, tt: TripleTerm, compact) -> dict:
     """Build the JSON-LD top-level node for one TripleTerm."""
     return {
-        '@id':               'tt:' + tt_local,
-        '@type':             ['rdf:TripleTerm'],
-        _RDF_NS + 'subject':   [_node_to_jld(tt.subject)],
-        _RDF_NS + 'predicate': [_node_to_jld(tt.predicate)],
-        _RDF_NS + 'object':    [_node_to_jld(tt.object)],
+        '@id':           'tt:' + tt_local,
+        '@type':         ['rdf:TripleTerm'],
+        'rdf:subject':   [_node_to_jld(tt.subject, compact)],
+        'rdf:predicate': [_node_to_jld(tt.predicate, compact)],
+        'rdf:object':    [_node_to_jld(tt.object, compact)],
     }
 
 
@@ -121,15 +176,12 @@ def _subject_id(s) -> str:
     return str(s)
 
 
-def _subject_id_obj(s) -> dict:
-    """Return the '@id' dict for a triple's subject (for the node's '@id' field)."""
+def _subject_id_compacted(s, compact) -> str:
+    """Return the compacted string used as the @id for a triple's subject."""
     sid = _subject_id(s)
-    # Compact tt: and rdf: prefixes in @id values too
-    if sid.startswith(TT_NS):
-        return 'tt:' + sid[len(TT_NS):]
-    if sid.startswith(_RDF_NS):
-        return 'rdf:' + sid[len(_RDF_NS):]
-    return sid
+    if sid.startswith('tt:') or sid.startswith('_:'):
+        return sid
+    return compact(sid)['@id']
 
 
 # ---------------------------------------------------------------------------
@@ -140,9 +192,17 @@ def serialize_jsonld12(g) -> str:
     """Serialize a StarLayerGraph to JSON-LD 1.2 text.
 
     Triple terms are emitted as top-level nodes with ``@type: rdf:TripleTerm``
-    and ``rdf:subject / rdf:predicate / rdf:object`` properties.  All other
-    nodes follow standard JSON-LD expanded-form conventions.
+    and ``rdf:subject / rdf:predicate / rdf:object`` properties, compacted
+    the same way every other key/value in the document is. ``@context``
+    always carries ``tt:``/``rdf:`` (intrinsic to the encoding) plus whatever
+    other namespaces this graph has bound *and* actually uses - so e.g. a
+    graph with ``g.bind("ex", ...)`` gets ``ex:alice`` in the output instead
+    of a raw ``http://example.org/alice``, the same compaction every other
+    StarLayer format (turtle12, trig12, ...) already gives you.
     """
+    extra_prefixes = _collect_used_prefixes(g)
+    compact, context = _make_compactor(extra_prefixes)
+
     nodes: dict[str, dict] = {}   # @id-string -> JSON-LD node object
 
     def ensure(sid: str) -> dict:
@@ -155,17 +215,14 @@ def serialize_jsonld12(g) -> str:
         local = str(tt_uri)[len(TT_NS):]
         sid   = 'tt:' + local
         node  = ensure(sid)
-        node.update(_tt_node(local, tt))
+        node.update(_tt_node(local, tt, compact))
 
     # 2. Emit regular (user-visible) triples.
     for s, p, o in g.triples((None, None, None)):
-        sid  = _subject_id_obj(s)
+        sid  = _subject_id_compacted(s, compact)
         node = ensure(sid)
-        pstr = str(p)
-        # Compact rdf: predicates in the key too
-        if pstr.startswith(_RDF_NS):
-            pstr = 'rdf:' + pstr[len(_RDF_NS):]
-        node.setdefault(pstr, []).append(_node_to_jld(o))
+        pstr = compact(str(p))['@id']
+        node.setdefault(pstr, []).append(_node_to_jld(o, compact))
 
     # 3. Assemble output — TripleTerm nodes first, then subject nodes.
     tt_ids   = {k for k in nodes if k.startswith('tt:')}
@@ -173,7 +230,7 @@ def serialize_jsonld12(g) -> str:
     tt_nodes = [nodes[k] for k in sorted(tt_ids)]
 
     doc = {
-        '@context': _FIXED_CONTEXT,
+        '@context': context,
         '@graph':   tt_nodes + other,
     }
     return json.dumps(doc, indent=2, ensure_ascii=False) + '\n'

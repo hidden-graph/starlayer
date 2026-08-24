@@ -1083,6 +1083,18 @@ class StarLayerGraph(Graph):
         key = TripleTerm(subject, predicate, object)._key()
         return key in self._tt_registry
 
+    def qname_term(self, node):
+        """Prefixed n3 form of any term - URIRef, BNode, Literal, TripleTerm,
+        or DirLangString.
+
+        Unlike the inherited qname(), which only accepts a URI and raises on
+        anything else, this dispatches on whatever it's given: a caller
+        iterating over triples() often doesn't know in advance whether a
+        given position holds a plain node or a TripleTerm, and qname_term()
+        does the right thing either way without an isinstance check.
+        """
+        return node.n3(self.namespace_manager)
+
     def remove_reification(self, reifier):
         """Remove the rdf:reifies triple(s) for the given reifier."""
         if self._is_native:

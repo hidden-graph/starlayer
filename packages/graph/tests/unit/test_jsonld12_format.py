@@ -48,6 +48,31 @@ class TestSerializeStructure:
         assert 'rdf' in ctx
         assert 'tt' in ctx
 
+    def test_bound_namespace_compacted_in_output(self):
+        """A namespace the caller bound via g.bind() - and actually uses -
+        gets added to @context and compacts subjects/predicates/objects,
+        not just the intrinsic tt:/rdf: prefixes."""
+        g = StarLayerGraph()
+        g.bind('ex', EX)
+        g.add((ex('alice'), ex('claims'), ex('bob')))
+        doc = json.loads(g.serialize(format='jsonld12'))
+        ctx = doc.get('@context', {})
+        assert ctx.get('ex') == EX
+        nodes = {n['@id']: n for n in doc['@graph'] if '@id' in n}
+        assert 'ex:alice' in nodes
+        assert 'ex:claims' in nodes['ex:alice']
+        assert nodes['ex:alice']['ex:claims'] == [{'@id': 'ex:bob'}]
+
+    def test_bound_but_unused_namespace_not_in_context(self):
+        """@context stays lean - a bound prefix this graph never actually
+        uses shouldn't be padded into every serialized document."""
+        g = StarLayerGraph()
+        g.bind('ex', EX)
+        g.bind('unused', 'http://unused.example.org/')
+        g.add((ex('alice'), ex('claims'), ex('bob')))
+        doc = json.loads(g.serialize(format='jsonld12'))
+        assert 'unused' not in doc.get('@context', {})
+
     def test_has_graph_array(self):
         g = StarLayerGraph()
         g.add((ex('s'), ex('p'), ex('o')))
@@ -71,10 +96,15 @@ class TestSerializeStructure:
         doc = json.loads(g.serialize(format='jsonld12'))
         tt_nodes = [n for n in doc['@graph'] if n.get('@id', '').startswith('tt:')]
         node = tt_nodes[0]
+        # Compacted the same way '@type': ['rdf:TripleTerm'] already is on the
+        # same node - not the raw http://.../22-rdf-syntax-ns#subject form.
+        assert 'rdf:subject' in node
+        assert 'rdf:predicate' in node
+        assert 'rdf:object' in node
         rdf_ns = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#'
-        assert rdf_ns + 'subject' in node
-        assert rdf_ns + 'predicate' in node
-        assert rdf_ns + 'object' in node
+        assert rdf_ns + 'subject' not in node
+        assert rdf_ns + 'predicate' not in node
+        assert rdf_ns + 'object' not in node
 
     def test_no_encoding_triples_in_non_tt_nodes(self):
         g = StarLayerGraph()
