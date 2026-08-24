@@ -1,0 +1,135 @@
+@prefix slkg: <https://github.com/hidden-graph/starlayer/kg/ontology#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix schema: <https://schema.org/> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+slkg: a owl:Ontology ;
+  rdfs:label "StarLayer Code Knowledge Graph Ontology" ;
+  rdfs:comment "Hybrid ontology for Python code structure and dependencies. Reuses PROV-O and schema.org where applicable, with StarLayer-specific terms for symbol-level modeling." ;
+  dcterms:license <https://opensource.org/license/mit/> .
+
+slkg:Repository a owl:Class ;
+  rdfs:label "Repository" ;
+  rdfs:subClassOf schema:SoftwareSourceCode, prov:Entity .
+
+slkg:Package a owl:Class ;
+  rdfs:label "Package" ;
+  rdfs:subClassOf prov:Entity .
+
+slkg:Module a owl:Class ;
+  rdfs:label "Module" ;
+  rdfs:subClassOf prov:Entity .
+
+slkg:Class a owl:Class ;
+  rdfs:label "Class" ;
+  rdfs:subClassOf prov:Entity .
+
+slkg:Function a owl:Class ;
+  rdfs:label "Function" ;
+  rdfs:subClassOf prov:Entity .
+
+slkg:Method a owl:Class ;
+  rdfs:label "Method" ;
+  rdfs:subClassOf slkg:Function .
+
+slkg:Parameter a owl:Class ;
+  rdfs:label "Parameter" ;
+  rdfs:subClassOf prov:Entity .
+
+slkg:ExternalModule a owl:Class ;
+  rdfs:label "External Module" ;
+  rdfs:subClassOf prov:Entity .
+
+slkg:contains a owl:ObjectProperty ;
+  rdfs:label "contains" ;
+  rdfs:domain prov:Entity ;
+  rdfs:range prov:Entity .
+
+slkg:belongsToPackage a owl:ObjectProperty ;
+  rdfs:label "belongs to package" ;
+  rdfs:domain slkg:Module ;
+  rdfs:range slkg:Package .
+
+slkg:defines a owl:ObjectProperty ;
+  rdfs:label "defines" ;
+  rdfs:domain slkg:Module ;
+  rdfs:range prov:Entity .
+
+slkg:hasMethod a owl:ObjectProperty ;
+  rdfs:label "has method" ;
+  rdfs:domain slkg:Class ;
+  rdfs:range slkg:Method .
+
+slkg:hasParameter a owl:ObjectProperty ;
+  rdfs:label "has parameter" ;
+  rdfs:domain slkg:Function ;
+  rdfs:range slkg:Parameter .
+
+slkg:importsModule a owl:ObjectProperty ;
+  rdfs:label "imports module" ;
+  rdfs:domain slkg:Module ;
+  rdfs:range prov:Entity .
+
+slkg:dependsOnPackage a owl:ObjectProperty ;
+  rdfs:label "depends on package" ;
+  rdfs:domain slkg:Package ;
+  rdfs:range slkg:Package .
+
+slkg:filePath a owl:DatatypeProperty ;
+  rdfs:label "file path" ;
+  rdfs:domain prov:Entity ;
+  rdfs:range xsd:string .
+
+slkg:moduleName a owl:DatatypeProperty ;
+  rdfs:label "module name" ;
+  rdfs:domain slkg:Module ;
+  rdfs:range xsd:string .
+
+slkg:qualifiedName a owl:DatatypeProperty ;
+  rdfs:label "qualified name" ;
+  rdfs:domain prov:Entity ;
+  rdfs:range xsd:string .
+
+slkg:signature a owl:DatatypeProperty ;
+  rdfs:label "signature" ;
+  rdfs:domain slkg:Function ;
+  rdfs:range xsd:string .
+
+slkg:annotation a owl:DatatypeProperty ;
+  rdfs:label "annotation" ;
+  rdfs:domain slkg:Parameter ;
+  rdfs:range xsd:string .
+
+slkg:defaultValue a owl:DatatypeProperty ;
+  rdfs:label "default value" ;
+  rdfs:domain slkg:Parameter ;
+  rdfs:range xsd:string .
+
+slkg:parameterKind a owl:DatatypeProperty ;
+  rdfs:label "parameter kind" ;
+  rdfs:domain slkg:Parameter ;
+  rdfs:range xsd:string .
+
+slkg:position a owl:DatatypeProperty ;
+  rdfs:label "position" ;
+  rdfs:domain slkg:Parameter ;
+  rdfs:range xsd:integer .
+
+slkg:lineStart a owl:DatatypeProperty ;
+  rdfs:label "line start" ;
+  rdfs:domain prov:Entity ;
+  rdfs:range xsd:integer .
+
+slkg:lineEnd a owl:DatatypeProperty ;
+  rdfs:label "line end" ;
+  rdfs:domain prov:Entity ;
+  rdfs:range xsd:integer .
+
+slkg:commentText a owl:DatatypeProperty ;
+  rdfs:label "comment text" ;
+  rdfs:domain prov:Entity ;
+  rdfs:range xsd:string .

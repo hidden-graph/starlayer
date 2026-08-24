@@ -1466,12 +1466,14 @@ def _build_node_kind_component() -> Any:
         valid list members per spec, not the combined forms like
         ``sh:BlankNodeOrIRI`` which stay single-value-only). Delegates to a
         real instance of pySHACL's own component for the plain single-value
-        case (byte-for-byte parity); native evaluation (``_matches_node_kind``,
-        reused from the pre-migration native pass) only for the list-valued
-        case, which needs ``_is_encoded_triple_term`` to recognize a
-        ``sh:TripleTerm``-kind value correctly, since a real triple term is
-        already flattened into a plain content-addressed URI by the time
-        this component's ``evaluate()`` sees it.
+        case (byte-for-byte parity), except scalar ``sh:TripleTerm`` which is
+        handled natively the same way as list-valued forms because pySHACL has
+        no built-in concept of triple terms. Native evaluation
+        (``_matches_node_kind``, reused from the pre-migration native pass)
+        uses ``_is_encoded_triple_term`` to recognize a ``sh:TripleTerm``-kind
+        value correctly, since a real triple term is already flattened into a
+        plain content-addressed URI by the time this component's ``evaluate()``
+        sees it.
         """
 
         shacl_constraint_component = SH.NodeKindConstraintComponent
@@ -1492,6 +1494,9 @@ def _build_node_kind_component() -> Any:
             self.is_list_valued = _is_shacl_list(shape.sg.graph, value)
             if self.is_list_valued:
                 self.node_kinds = _shacl_list_members(shape.sg.graph, value)
+                self.delegate = None
+            elif value == SH.TripleTerm:
+                self.node_kinds = [value]
                 self.delegate = None
             else:
                 self.delegate = _OriginalNodeKindComponent(shape)

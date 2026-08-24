@@ -1,0 +1,30 @@
+{
+  "repository": "hidden-graph/starlayer",
+  "generatedBy": "scripts/build_code_kg.py",
+  "stats": {
+    "modules": 70,
+    "comments": 2726,
+    "imports": 642,
+    "functions": 410,
+    "classes": 28,
+    "methods": 171,
+    "triples": 15201
+  },
+  "packageDependencies": [
+    {
+      "from": "starlayergraph",
+      "to": "starsparql",
+      "importEdges": 16
+    },
+    {
+      "from": "starshacl",
+      "to": "starlayergraph",
+      "importEdges": 8
+    },
+    {
+      "from": "starsparql",
+      "to": "starlayergraph",
+      "importEdges": 7
+    }
+  ]
+}

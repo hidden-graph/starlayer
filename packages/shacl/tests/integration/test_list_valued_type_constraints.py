@@ -194,6 +194,49 @@ def test_triple_term_node_kind_violates_for_non_triple_term() -> None:
     assert SH.NodeKindConstraintComponent in _violation_components(result)
 
 
+@pytest.mark.parametrize("meta_shacl", [False, True])
+def test_scalar_triple_term_node_kind_conforms_for_real_triple_term(meta_shacl: bool) -> None:
+    shapes = StarLayerGraph()
+    shapes.parse(data=load_shape("shacl12_triple_term_node_kind_scalar.ttl"), format="turtle")
+
+    data = StarLayerGraph()
+    data.parse(
+        data="""
+            @prefix ex: <http://example.org/> .
+            @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+            ex:claim rdf:reifies <<( ex:bob ex:knows ex:carol )>> .
+        """,
+        format="turtle12",
+    )
+
+    validator = StarShaclValidator()
+    result = validator.validate(data_graph=data, shacl_graph=shapes, meta_shacl=meta_shacl)
+
+    assert result.conforms is True
+
+
+@pytest.mark.parametrize("meta_shacl", [False, True])
+def test_scalar_triple_term_node_kind_violates_for_non_triple_term(meta_shacl: bool) -> None:
+    shapes = StarLayerGraph()
+    shapes.parse(data=load_shape("shacl12_triple_term_node_kind_scalar.ttl"), format="turtle")
+
+    data = StarLayerGraph()
+    data.parse(
+        data="""
+            @prefix ex: <http://example.org/> .
+            @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+            ex:claim rdf:reifies ex:not_a_triple_term .
+        """,
+        format="turtle",
+    )
+
+    validator = StarShaclValidator()
+    result = validator.validate(data_graph=data, shacl_graph=shapes, meta_shacl=meta_shacl)
+
+    assert result.conforms is False
+    assert SH.NodeKindConstraintComponent in _violation_components(result)
+
+
 def test_simple_iri_valued_class_still_handled_by_pyshacl_directly() -> None:
     # Simple-IRI values (the pre-existing SHACL 1.0/1.1 form) must keep
     # working unchanged - only SHACL-list values are diverted natively.

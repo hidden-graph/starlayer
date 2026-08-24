@@ -120,7 +120,7 @@ stsh:ShapeShapeOverrides
 	sh:property [
 		sh:path sh:nodeKind ;
 		sh:or (
-			[ sh:in ( sh:BlankNode sh:IRI sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) ]
+				[ sh:in ( sh:BlankNode sh:IRI sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral sh:TripleTerm ) ]
 			[ sh:node shsh:ListShape ;
 			  sh:property [
 				sh:path [ sh:zeroOrMorePath rdf:rest ] ;
