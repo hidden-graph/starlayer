@@ -1,5 +1,30 @@
 Task List
 
+Comments on user manaual.
+
+	- SPARQL section should include additional supported terms: TRIPLE, SUBJECT, PREDICATE, OBJECT, LANGDIR, hasLANGDIR, hasLANG, STRLANGDIR.
+- user of ttl annotation syntax inside sparql queries.
+	- Reification helper coverage should include reifiers/reifications/reifier_annotations/reified_triples/remove_reification.
+- obtain the rdf of a SPARQL query.  
+- obtain the SHACL shape for the SPARQL query
+
+SHACL expansion notes (new):
+
+- Add manual coverage for SHACL 1.2 Node Expressions (shnex) and SPARQL node-expression support.
+- Add manual coverage for SHACL 1.2 rule execution controls: sh:layer, sh:runOnce, sh:expectedPredicate, sh:tempTriple.
+
+- Provide example of SHACL shape with UI elements. Clarify UI claim: shui metadata/presentation shapes are supported as metadata and meta-shape checks, but widget-selection runtime is not implemented.
+
+- Add runnable SHACL examples for:
+	1) validate with dirLangString constraints,
+	2) apply_rules with inferred triples,
+	3) one shnex expression example,
+	4) one SPARQL node-expression example.
+
+
+
+
+
 1. surpise, the jsonld12 serialization leaks the underlying rdf 1.1 terms
 
 
