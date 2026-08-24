@@ -46,6 +46,7 @@ include = ["starlayergraph*", "starsparql*", "starshacl*"]
 
 [tool.setuptools.package-data]
 starlayergraph = ["py.typed"]
+starsparql = ["ontology/*.ttl"]
 starshacl = ["assets/*.ttl"]
 
 [tool.ruff]

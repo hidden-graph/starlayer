@@ -42,6 +42,9 @@ Issues = "https://github.com/hidden-graph/starlayer/issues"
 [tool.setuptools.packages.find]
 include = ["starsparql*"]
 
+[tool.setuptools.package-data]
+starsparql = ["ontology/*.ttl"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = [
