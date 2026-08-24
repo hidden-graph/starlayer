@@ -94,6 +94,33 @@ BNode
 True
 ```
 
+### Reification helper methods
+
+The graph API also exposes helper iterators for navigating and managing reification records directly:
+
+- `reifiers(TT=None, predicate=None, object=None)` returns reifier nodes, optionally filtered by triple term and annotation pair
+- `reifications(s=None, p=None, o=None)` iterates `(reifier, TripleTerm)` pairs
+- `reifier_annotations(TT)` returns non-`rdf:reifies` metadata attached to reifiers of that triple term
+- `reified_triples(reifier)` returns the triple terms a given reifier points to
+- `remove_reification(reifier)` removes the reifier's `rdf:reifies` link and annotations
+
+```python
+g = StarLayerGraph()
+g.bind("ex", EX)
+
+tt = (EX.bob, EX.knows, EX.carol)
+g.add_reification(EX.claim, tt)
+g.add((EX.claim, EX.source, EX.wikipedia))
+
+print(list(g.reifiers()))
+print(list(g.reifications()))
+print(list(g.reifier_annotations(tt)))
+print(list(g.reified_triples(EX.claim)))
+
+g.remove_reification(EX.claim)
+print(list(g.reifiers()))
+```
+
 ### Finding triple terms directly
 
 A triple term can appear as a pattern's object, just like any other node — `g.triples()` matches it exactly, the same as it would a `URIRef` or `Literal`:
@@ -251,6 +278,87 @@ Output:
 ex:claim
 ```
 
+### RDF 1.2 term/language functions
+
+StarLayer's SPARQL 1.2 surface includes these functions in addition to `isTRIPLE`: `TRIPLE`, `SUBJECT`, `PREDICATE`, `OBJECT`, `LANGDIR`, `hasLANGDIR`, `hasLANG`, and `STRLANGDIR`.
+
+```python
+g = StarLayerGraph()
+g.bind("ex", EX)
+g.add((EX.claim, RDF.reifies, (EX.bob, EX.knows, EX.carol)))
+
+rows = g.query("""
+    PREFIX ex: <http://example.org/>
+
+    SELECT ?s ?p ?o ?dir ?withDir ?withLang WHERE {
+      BIND(TRIPLE(ex:bob, ex:knows, ex:carol) AS ?t)
+      BIND(SUBJECT(?t) AS ?s)
+      BIND(PREDICATE(?t) AS ?p)
+      BIND(OBJECT(?t) AS ?o)
+      BIND(STRLANGDIR("مرحبا", "ar", "rtl") AS ?dl)
+      BIND(LANGDIR(?dl) AS ?dir)
+      BIND(hasLANGDIR(?dl, "ar", "rtl") AS ?withDir)
+      BIND(hasLANG(?dl, "ar") AS ?withLang)
+    }
+""")
+
+for row in rows:
+    print(row.s, row.p, row.o, row.dir, row.withDir, row.withLang)
+```
+
+### Turtle-style annotation syntax in SPARQL queries
+
+SPARQL examples can use the same quoted-triple style you use in `turtle12`, including variables inside the quoted term:
+
+```python
+rows = g.query("""
+    PREFIX ex: <http://example.org/>
+    PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+
+    SELECT ?claim ?s ?p ?o WHERE {
+      ?claim rdf:reifies <<( ?s ?p ?o )>> .
+    }
+""")
+
+for row in rows:
+    print(g.qname(row.claim), row.s, row.p, row.o)
+```
+
+### Obtain the RDF graph for a SPARQL query
+
+The `starsparql` package can encode a parsed query algebra as RDF terms (the `salg:` vocabulary):
+
+```python
+from starsparql import query_to_rdf
+from starsparql.parse12 import prepare_query_12
+
+query = prepare_query_12("""
+    PREFIX ex: <http://example.org/>
+    SELECT ?s WHERE {
+      ?claim <http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies> <<( ?s ex:knows ex:carol )>> .
+    }
+""")
+
+qg, qroot = query_to_rdf(query)
+print(qroot)
+print(qg.serialize(format="turtle")[:300])
+```
+
+### Validate a query RDF graph against SHACL shapes
+
+`starsparql` also ships SHACL shapes for that query-RDF vocabulary:
+
+```python
+from starsparql import shapes_graph, validate
+
+conforms, _, report = validate(qg)
+print(conforms)
+
+sg = shapes_graph()
+print(len(sg))
+print(report.splitlines()[0])
+```
+
 ## 3. SHACL validation and rules
 
 Once your graph works, the next step is checking it against a shapes graph. The validator sits on top of a normal rdflib/pySHACL workflow while extending it for RDF 1.2 values, node expressions, and SHACL 1.2 rule behavior. Key additions include:
@@ -258,7 +366,7 @@ Once your graph works, the next step is checking it against a shapes graph. The 
 - Validation over RDF 1.2 graphs containing triple terms, statement resources, and direction-tagged literals
 - SHACL 1.2 node-expression and rule-based evaluation support
 - Updated SHACL meta-shapes for SHACL 1.2 compatibility
-- Formal SHACL 1.2 UI support for shape-driven interface generation
+- SHACL UI (`shui:`) metadata and meta-shape compatibility checks (widget-selection runtime is not implemented)
 - Direction-aware uniqueness and datatype constraints for language-tagged values
 
 ### A conforming shape
@@ -369,7 +477,7 @@ shapes.parse(data="""
         sh:path ex:label ;
         sh:datatype rdf:dirLangString ;
       ] .
-""", format="turtle")
+      """, format="turtle")
 
 result = StarShaclValidator().validate(data_graph=data, shacl_graph=shapes)
 print(result.conforms)
@@ -420,6 +528,150 @@ Output:
 ```text
 True
 True
+```
+
+### SHACL 1.2 node expressions (`shnex:`)
+
+Node expressions can be used inside `sh:expression` for computed focus-node checks:
+
+```python
+data = StarLayerGraph()
+data.parse(data="""
+    @prefix ex: <http://example.org/> .
+    ex:alice ex:parent ex:carol .
+""", format="turtle")
+
+shapes = StarLayerGraph()
+shapes.parse(data="""
+    @prefix ex: <http://example.org/> .
+    @prefix sh: <http://www.w3.org/ns/shacl#> .
+    @prefix shnex: <http://www.w3.org/ns/shacl-node-expr#> .
+
+    ex:ExprShape a sh:NodeShape ;
+      sh:targetNode ex:alice ;
+      sh:expression [ shnex:pathValues ex:parent ] .
+""", format="turtle")
+
+result = StarShaclValidator().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False, advanced=True)
+print(result.conforms)
+```
+
+### SPARQL node-expression functions (`sparql:`)
+
+SPARQL function-style node expressions are supported too:
+
+```python
+data = StarLayerGraph()
+data.parse(data="""
+    @prefix ex: <http://example.org/> .
+    ex:n1 ex:v 1 .
+""", format="turtle")
+
+shapes = StarLayerGraph()
+shapes.parse(data="""
+    @prefix ex: <http://example.org/> .
+    @prefix sh: <http://www.w3.org/ns/shacl#> .
+    @prefix shnex: <http://www.w3.org/ns/shacl-node-expr#> .
+    @prefix sparql: <http://www.w3.org/ns/sparql#> .
+
+    ex:SparqlExprShape a sh:NodeShape ;
+      sh:targetNode ex:n1 ;
+      sh:expression [
+        shnex:if [ sparql:isNumeric ( 42 ) ] ;
+        shnex:then true ;
+        shnex:else false
+      ] .
+""", format="turtle")
+
+result = StarShaclValidator().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False, advanced=True)
+print(result.conforms)
+```
+
+### SHACL 1.2 rule execution controls
+
+`apply_rules()` supports SHACL 1.2 rule controls including `sh:layer`, `sh:runOnce`, `sh:expectedPredicate`, and `sh:tempTriple`:
+
+```python
+data = StarLayerGraph()
+data.parse(data="""
+    @prefix ex: <http://example.org/> .
+    ex:rect1 a ex:Rectangle .
+""", format="turtle")
+
+shapes = StarLayerGraph()
+shapes.parse(data='''
+    @prefix ex: <http://example.org/> .
+    @prefix sh: <http://www.w3.org/ns/shacl#> .
+    @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+
+    ex:RectangleShape a sh:NodeShape ;
+      sh:targetClass ex:Rectangle ;
+      sh:property [ sh:path ex:area ; sh:defaultValue 1 ] ;
+      sh:rule ex:ComputeSmall, ex:MarkTemp .
+
+    ex:ComputeSmall a sh:SPARQLRule ;
+      sh:layer 1 ;
+      sh:runOnce true ;
+      sh:expectedPredicate ex:area ;
+      sh:construct """
+        PREFIX ex: <http://example.org/>
+        CONSTRUCT { $this ex:isSmall true . }
+        WHERE { $this ex:area ?area . FILTER(?area < 100) }
+      """ .
+
+    ex:MarkTemp a sh:SPARQLRule ;
+      sh:layer 0 ;
+      sh:construct """
+        PREFIX ex: <http://example.org/>
+        PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+        PREFIX sh: <http://www.w3.org/ns/shacl#>
+        CONSTRUCT {
+          ?r rdf:reifies <<( $this ex:status ex:intermediate )>> .
+          ?r sh:tempTriple true .
+        }
+        WHERE { BIND(BNODE() AS ?r) }
+      """ .
+''', format="turtle")
+
+result = StarShaclValidator().apply_rules(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+SH = Namespace("http://www.w3.org/ns/shacl#")
+
+print((EX.rect1, EX.isSmall, None) in result.data_graph)
+print(len(list(result.data_graph.triples((None, SH.tempTriple, None)))))
+```
+
+The second printed value is `0` because `sh:tempTriple`-flagged triples are temporary and removed after rule execution.
+
+### SHACL UI metadata example (`shui:`)
+
+`shui:` annotations are accepted as shape metadata and participate in meta-shape validation, but StarLayer does not implement runtime widget selection (`shui:WidgetScore`/`shui:WidgetAcceptMatcher`) yet.
+
+```python
+data = StarLayerGraph()
+data.parse(data="""
+    @prefix ex: <http://example.org/> .
+    ex:alice a ex:Person ;
+      ex:birthDate "1990-01-01"^^<http://www.w3.org/2001/XMLSchema#date> .
+""", format="turtle")
+
+shapes = StarLayerGraph()
+shapes.parse(data="""
+    @prefix ex: <http://example.org/> .
+    @prefix sh: <http://www.w3.org/ns/shacl#> .
+    @prefix shui: <http://www.w3.org/ns/shacl-ui#> .
+
+    ex:PersonShape a sh:NodeShape ;
+      sh:targetClass ex:Person ;
+      sh:property [
+        sh:path ex:birthDate ;
+        sh:minCount 1 ;
+        shui:editor shui:DatePickerEditor ;
+        shui:viewer shui:LabelViewer ;
+      ] .
+""", format="turtle")
+
+result = StarShaclValidator().validate(data_graph=data, shacl_graph=shapes, meta_shacl=True)
+print(result.conforms)
 ```
 
 ## 4. Backend graph-store and format support
