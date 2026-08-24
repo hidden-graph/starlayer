@@ -1,6 +1,6 @@
 # RDF 1.2 and SHACL 1.2 in StarLayer
 
-StarLayer maintains the rdflib and pySHACL developer experience, while extending the model to handle RDF 1.2, SPAFRQL 1.2 and SHACL 1.2 features that are not available in rdflib and pyshacl.  
+StarLayer maintains the rdflib and pySHACL developer experience, while extending the model to handle RDF 1.2, SPARQL 1.2 and SHACL 1.2 features that are not available in rdflib and pyshacl.
 
 ## 1. Graph and literal semantics
 
@@ -14,15 +14,14 @@ The core graph layer understands RDF 1.2 constructs.
 This means the graph can carry these values as first-class data.
 
 ### Methods covered in this section
-NOTE:  should we have StarLayerGraph ad StarlayerDataset here?
-Classes: `TripleTerm(s, p, o)`, `DirLangString(value, language, direction)`.
 
-Core graph methods (rdflib-overridden, RDF-1.2-aware): `g.add(triple)` / `(s, p, o) in g`, `g.triples((s, p, o))`, `g.cbd(resource)`, `g.serialize(format=...)`, `g.parse(format='turtle12')`.
+Classes: `StarLayerGraph` (the single-graph entry point every example below uses), `StarLayerDataset` (its multi-graph counterpart, see below), `TripleTerm(s, p, o)`, `DirLangString(value, language, direction)`.
 
-StarLayer-only reification and triple-term methods (no rdflib equivalent): `g.add_reification()`, `g.add_reifier_annotation()`, `g.triple_terms()`, `g.has_triple_term()`, `g.reifiers()`, `g.reifications()`, `g.reifier_annotations()`, `g.reified_triples()`, `g.remove_reification()`, `g.from_rdflib()`, `g.isomorphic()`.
+Core `StarLayerGraph` methods (rdflib-overridden, RDF-1.2-aware): `g.add(triple)` / `(s, p, o) in g`, `g.triples((s, p, o))`, `g.cbd(resource)`, `g.serialize(format=...)`, `g.parse(format='turtle12')`.
 
-NOTE: how are get_context, quads, contexts different in stargraph?  Can they be core methods above>?
-Multi-graph: `StarLayerDataset`, `ds.get_context()`, `ds.quads()`, `ds.contexts()`, `ds.parse(format='trig12')`, `ds.serialize(format='trig12')`.
+StarLayer-only reification and triple-term methods on `StarLayerGraph` (no rdflib equivalent): `g.add_reification()`, `g.add_reifier_annotation()`, `g.triple_terms()`, `g.has_triple_term()`, `g.reifiers()`, `g.reifications()`, `g.reifier_annotations()`, `g.reified_triples()`, `g.remove_reification()`, `g.from_rdflib()`, `g.isomorphic()`.
+
+Multi-graph: `StarLayerDataset`, `ds.get_context()`, `ds.quads()`, `ds.contexts()`, `ds.parse(format='trig12')`, `ds.serialize(format='trig12')`. These aren't `StarLayerGraph` methods and can't be folded into the "core" list above — `get_context`/`quads`/`contexts` don't exist on `StarLayerGraph` at all, only on `StarLayerDataset` (a single graph has no concept of "which named graph"). They're the dataset-side equivalent of the same pattern as `g.triples()`: real overrides of standard `rdflib.Dataset` methods, upgraded to be RDF-1.2-aware. Concretely (`packages/graph/starlayergraph/graph/starlayer_dataset.py`): `get_context()` returns a `StarLayerGraph` (not a plain `rdflib.Graph`) with its triple-term registry already built; `contexts()` routes every yielded graph through `get_context()` so each one comes back the same way; `quads()` filters out internal `tt:HASH` encoding triples and restores `TripleTerm` objects in subject/object position, the dataset-wide analog of what `g.triples()` already does for one graph.
 
 All examples below assume:
 
@@ -67,9 +66,9 @@ tt2 = (EX.bob, EX.likes, EX.dana)
 
 g = StarLayerGraph()
 g.bind("ex", EX)
-g.add_reification(EX.claim, tt1) //EX.claim reifies tt1
-g.add((EX.claim, EX.source, EX.wikipedia)) 
-g.add_reification(EX.other, tt2) //
+g.add_reification(EX.claim, tt1)  # EX.claim reifies tt1
+g.add((EX.claim, EX.source, EX.wikipedia))
+g.add_reification(EX.other, tt2)
 
 # reifiers(): which reifier node(s) reify a given triple term?
 print([g.qname(r) for r in g.reifiers(TT=tt1)])
@@ -749,8 +748,9 @@ Output:
 ```text
 {
   "@context": {
+    "tt": "https://github.com/hidden-graph/starlayergraph/ns/tt#",
     "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
-    "tt": "https://github.com/hidden-graph/starlayergraph/ns/tt#"
+    "ex": "http://example.org/"
   },
   "@graph": [
     {
@@ -758,24 +758,24 @@ Output:
       "@type": [
         "rdf:TripleTerm"
       ],
-      "http://www.w3.org/1999/02/22-rdf-syntax-ns#subject": [
+      "rdf:subject": [
         {
-          "@id": "http://example.org/bob"
+          "@id": "ex:bob"
         }
       ],
-      "http://www.w3.org/1999/02/22-rdf-syntax-ns#predicate": [
+      "rdf:predicate": [
         {
-          "@id": "http://example.org/knows"
+          "@id": "ex:knows"
         }
       ],
-      "http://www.w3.org/1999/02/22-rdf-syntax-ns#object": [
+      "rdf:object": [
         {
-          "@id": "http://example.org/carol"
+          "@id": "ex:carol"
         }
       ]
     },
     {
-      "@id": "http://example.org/claim",
+      "@id": "ex:claim",
       "rdf:reifies": [
         {
           "@id": "tt:e65284ee54cb3e7c"
@@ -786,7 +786,7 @@ Output:
 }
 ```
 
-The `tt:e65284ee54cb3e7c` id is the same content-addressed hash discussed in `packages/graph/docs/starlayergraph.md` — a pure function of `(subject, predicate, object)`, stable across runs and processes. `jsonld12` and `trix12` are the two formats in this list without a real W3C RDF 1.2 spec target (see Section 4's intro bullets and `packages/graph/docs/starlayergraph_vs_rdflib.md` for the caveat); the other six do.
+The `tt:e65284ee54cb3e7c` id is the same content-addressed hash discussed in `packages/graph/docs/starlayergraph.md` — a pure function of `(subject, predicate, object)`, stable across runs and processes. `@context` includes `ex:` here because `g.bind("ex", EX)` was called and the graph actually uses it — an unused bound prefix stays out, and a used one always gets compacted (`rdf:subject` included, not just `@type`), a fix made after an earlier draft of this document was found to leak raw `http://.../rdf-syntax-ns#subject`-style URIs; see `packages/graph/starlayergraph/serializers/jsonld12.py`. `jsonld12` and `trix12` are the two formats in this list without a real W3C RDF 1.2 spec target (see Section 4's intro bullets and `packages/graph/docs/starlayergraph_vs_rdflib.md` for the caveat); the other six do.
 
 ```python
 print(g.serialize(format="longturtle12"))
