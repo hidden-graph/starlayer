@@ -142,6 +142,58 @@ def test_list_valued_node_kind_violates_for_literal() -> None:
     assert SH.NodeKindConstraintComponent in _violation_components(result)
 
 
+# sh:TripleTerm as a list-valued sh:nodeKind member (rdf:reifies's own value
+# type). Unlike the tests above, these run with meta_shacl left at its
+# default (True) rather than meta_shacl=False - the constraint component
+# itself already recognized sh:TripleTerm correctly, but starshacl's own
+# meta-shapes well-formedness preflight (shacl12-validation-shapes.ttl's
+# nodeKind-in replacement rule) rejected any shape using it before
+# validation ever ran, since sh:TripleTerm wasn't in its allowed sh:in list.
+# These tests would fail on that ReportableRuntimeError with the fix
+# reverted, even though test_list_valued_node_kind_* above would still pass
+# (they never exercise the meta-shacl path at all).
+
+def test_triple_term_node_kind_conforms_for_real_triple_term() -> None:
+    shapes = StarLayerGraph()
+    shapes.parse(data=load_shape("shacl12_triple_term_node_kind.ttl"), format="turtle")
+
+    data = StarLayerGraph()
+    data.parse(
+        data="""
+            @prefix ex: <http://example.org/> .
+            @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+            ex:claim rdf:reifies <<( ex:bob ex:knows ex:carol )>> .
+        """,
+        format="turtle12",
+    )
+
+    validator = StarShaclValidator()
+    result = validator.validate(data_graph=data, shacl_graph=shapes)
+
+    assert result.conforms is True
+
+
+def test_triple_term_node_kind_violates_for_non_triple_term() -> None:
+    shapes = StarLayerGraph()
+    shapes.parse(data=load_shape("shacl12_triple_term_node_kind.ttl"), format="turtle")
+
+    data = StarLayerGraph()
+    data.parse(
+        data="""
+            @prefix ex: <http://example.org/> .
+            @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+            ex:claim rdf:reifies ex:not_a_triple_term .
+        """,
+        format="turtle",
+    )
+
+    validator = StarShaclValidator()
+    result = validator.validate(data_graph=data, shacl_graph=shapes)
+
+    assert result.conforms is False
+    assert SH.NodeKindConstraintComponent in _violation_components(result)
+
+
 def test_simple_iri_valued_class_still_handled_by_pyshacl_directly() -> None:
     # Simple-IRI values (the pre-existing SHACL 1.0/1.1 form) must keep
     # working unchanged - only SHACL-list values are diverted natively.

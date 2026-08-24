@@ -126,7 +126,7 @@ stsh:ShapeShapeOverrides
 				sh:path [ sh:zeroOrMorePath rdf:rest ] ;
 				sh:property [
 					sh:path rdf:first ;
-					sh:in ( sh:BlankNode sh:IRI sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) ;
+					sh:in ( sh:BlankNode sh:IRI sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral sh:TripleTerm ) ;
 				] ;
 			  ]
 			]
