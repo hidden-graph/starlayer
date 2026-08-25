@@ -981,6 +981,22 @@ class StarShaclValidator:
         )
 
 
+def validate(
+    data_graph: Any,
+    shacl_graph: Any | None = None,
+    ont_graph: Any | None = None,
+    **kwargs: Any,
+) -> ValidationResult:
+    """Module-level convenience wrapper mirroring pyshacl's own function-
+    based ``validate(data_graph, shacl_graph=..., **kwargs)`` entry point.
+    Equivalent to ``StarShaclValidator().validate(data_graph, shacl_graph,
+    ont_graph, **kwargs)`` — a fresh validator is created per call, so its
+    ``.adapter`` diagnostics aren't reachable afterward. Use
+    ``StarShaclValidator()`` directly when you need to inspect those, or to
+    share adapter state across multiple validate() calls."""
+    return StarShaclValidator().validate(data_graph, shacl_graph, ont_graph, **kwargs)
+
+
 _source_rule_buffer: contextvars.ContextVar[list[tuple[tuple, Any]] | None] = contextvars.ContextVar(
     "_source_rule_buffer", default=None
 )

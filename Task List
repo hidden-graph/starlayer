@@ -1,7 +1,7 @@
 Task List
 
 Comments on user manaual.
-
+comment
 	- SPARQL section should include additional supported terms: TRIPLE, SUBJECT, PREDICATE, OBJECT, LANGDIR, hasLANGDIR, hasLANG, STRLANGDIR.
 - user of ttl annotation syntax inside sparql queries.
 	- Reification helper coverage should include reifiers/reifications/reifier_annotations/reified_triples/remove_reification.

@@ -17,10 +17,11 @@ from starshacl.profiles import (
 )
 from starshacl.results import ExecutionDiagnostics, RulesResult, ValidationResult
 from starshacl.types import MutableStarLayerGraphProtocol, StarLayerGraphProtocol
-from starshacl.validator import StarShaclValidator
+from starshacl.validator import StarShaclValidator, validate
 
 __all__ = [
     "StarShaclValidator",
+    "validate",
     "TripleTermAdapter",
     "TripleTermGraph",
     "TripleTermValue",

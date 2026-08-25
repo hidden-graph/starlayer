@@ -25,6 +25,18 @@ from starlayergraph.graph.starlayer_dataset import StarLayerDataset
 from starlayergraph.graph.starlayer_graph import StarLayerGraph
 from starlayergraph.model.dirlangstring import DirLangString
 
+# SPARQL 1.2-aware counterparts to rdflib.plugins.sparql's own
+# parseQuery/prepareQuery/parseUpdate/prepareUpdate/processUpdate - see
+# starlayergraph/query/sparql_api.py's module docstring for what each one
+# does differently from the plain-rdflib original.
+from starlayergraph.query import (
+    parseQuery,
+    parseUpdate,
+    prepareQuery,
+    prepareUpdate,
+    processUpdate,
+)
+
 # StarLayer-specific additions
 from starlayergraph.model.triple import TripleTerm
 from starlayergraph.parsers.errors import TurtleSyntaxError
@@ -204,4 +216,10 @@ __all__ = [
     "StarLayerGraph",
     "StarLayerDataset",
     "TurtleSyntaxError",
+    # SPARQL 1.2-aware rdflib.plugins.sparql counterparts
+    "parseQuery",
+    "prepareQuery",
+    "parseUpdate",
+    "prepareUpdate",
+    "processUpdate",
 ]

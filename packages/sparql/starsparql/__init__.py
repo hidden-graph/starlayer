@@ -10,11 +10,16 @@
 from . import parse12 as _parse12  # noqa: F401
 from .from_rdf import rdf_to_collection, rdf_to_query, rdf_to_update
 from .ontology import ontology_graph
+from .parse12 import prepare_query_12, prepare_update_12
+from .serialize12 import translate_algebra_12
 from .to_rdf import queries_to_collection, query_to_rdf, update_to_rdf
 from .vocab import SALG
 
 __all__ = [
     "SALG",
+    "prepare_query_12",
+    "prepare_update_12",
+    "translate_algebra_12",
     "query_to_rdf",
     "rdf_to_query",
     "queries_to_collection",
