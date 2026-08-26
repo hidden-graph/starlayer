@@ -262,6 +262,37 @@ class TestStatements:
         sg.add_reification(URIRef(EX+'stmt'), (URIRef(EX+'s'), URIRef(EX+'p'), URIRef(EX+'o')))
         assert len(sg) == 1  # only rdf:reifies triple visible; 3 encoding triples hidden
 
+    def test_remove_reification_wildcard_removes_all_links(self, sg):
+        tt1 = (URIRef(EX+'bob'), URIRef(EX+'knows'), URIRef(EX+'carol'))
+        tt2 = (URIRef(EX+'bob'), URIRef(EX+'likes'), URIRef(EX+'dana'))
+        sg.add((URIRef(EX+'claim'), RDF_REIFIES, tt1))
+        sg.add((URIRef(EX+'claim'), RDF_REIFIES, tt2))
+        sg.add((URIRef(EX+'claim'), URIRef(EX+'source'), URIRef(EX+'wikipedia')))
+        sg.remove_reification(URIRef(EX+'claim'))
+        assert list(sg.reified_triples(URIRef(EX+'claim'))) == []
+        assert (URIRef(EX+'claim'), URIRef(EX+'source'), URIRef(EX+'wikipedia')) in sg
+
+    def test_remove_reification_scoped_to_one_triple_term(self, sg):
+        tt1 = (URIRef(EX+'bob'), URIRef(EX+'knows'), URIRef(EX+'carol'))
+        tt2 = (URIRef(EX+'bob'), URIRef(EX+'likes'), URIRef(EX+'dana'))
+        sg.add((URIRef(EX+'claim'), RDF_REIFIES, tt1))
+        sg.add((URIRef(EX+'claim'), RDF_REIFIES, tt2))
+        sg.add((URIRef(EX+'claim'), URIRef(EX+'source'), URIRef(EX+'wikipedia')))
+
+        sg.remove_reification(URIRef(EX+'claim'), tt1)
+
+        remaining = list(sg.reified_triples(URIRef(EX+'claim')))
+        assert remaining == [TripleTerm(*tt2)]
+        assert (URIRef(EX+'claim'), URIRef(EX+'source'), URIRef(EX+'wikipedia')) in sg
+
+    def test_remove_reification_unregistered_triple_term_is_noop(self, sg):
+        tt1 = (URIRef(EX+'bob'), URIRef(EX+'knows'), URIRef(EX+'carol'))
+        sg.add((URIRef(EX+'claim'), RDF_REIFIES, tt1))
+
+        sg.remove_reification(URIRef(EX+'claim'), (URIRef(EX+'x'), URIRef(EX+'y'), URIRef(EX+'z')))
+
+        assert list(sg.reified_triples(URIRef(EX+'claim'))) == [TripleTerm(*tt1)]
+
 
 # ---------------------------------------------------------------------------
 # triple_terms() / has_triple_term() direct pattern matching

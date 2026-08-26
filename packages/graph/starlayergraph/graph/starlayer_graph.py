@@ -1095,12 +1095,19 @@ class StarLayerGraph(Graph):
         """
         return node.n3(self.namespace_manager)
 
-    def remove_reification(self, reifier):
-        """Remove the rdf:reifies triple(s) for the given reifier."""
-        if self._is_native:
-            self.remove((reifier, RDF_REIFIES, None))
-            return
-        super().remove((reifier, RDF_REIFIES, None))
+    def remove_reification(self, reifier, triple_term=None):
+        """Remove the rdf:reifies triple(s) for the given reifier.
+
+        With triple_term=None (default), removes every rdf:reifies triple
+        the reifier has. Pass a specific triple_term (a TripleTerm, or a
+        plain (s, p, o) tuple) to unlink only that one reifier<->triple
+        pair, leaving any other triple(s) the same reifier reifies - and
+        all of its annotation triples - untouched. Delegates to remove()
+        (rather than duplicating its native/non-native and TripleTerm
+        encoding handling here), so a triple_term that isn't registered in
+        this graph is a safe no-op, same as remove() everywhere else.
+        """
+        self.remove((reifier, RDF_REIFIES, triple_term))
 
     def parse(self, source=None, publicID=None, format=None,
               location=None, file=None, data=None, **kwargs):

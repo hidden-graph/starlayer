@@ -41,7 +41,8 @@ import os
 from collections.abc import Iterable
 from typing import Any
 
-from rdflib import BNode, Graph, Namespace, URIRef
+from rdflib import RDF, BNode, Graph, Literal, Namespace, URIRef
+from rdflib.namespace import OWL
 
 SH = Namespace("http://www.w3.org/ns/shacl#")
 
@@ -202,3 +203,97 @@ def meta_validate(shapes_graph: Any, *, extra_graphs: Iterable[Any] = (), **kwar
         msg = f"SHACL File does not validate against the SHACL Shapes SHACL (MetaSHACL) file.\n{report_text}"
         raise ReportableRuntimeError(msg)
     return conforms, report_graph, report_text
+
+
+def _collect_query_prefixes(shapes_graph: Any, query_node: Any) -> dict[str, Any]:
+    """Resolve the prefix map a ``sh:select``/``sh:ask``/``sh:construct``
+    query at ``query_node`` would actually see at real execution time -
+    same algorithm as pySHACL's own
+    ``SPARQLQueryHelper.collect_prefixes()``, reimplemented directly
+    against a plain shapes graph rather than through a full ``Shape``/
+    ``ShapesGraph`` wrapper (unnecessary overhead for a read-only prefix
+    lookup - ``shape.sg.graph`` is just the same graph passed in here).
+
+    Falls back to starShacl's own ambient ``sh:ShapesGraph`` discovery
+    (``_ambient_shapes_graph_prefixes``) when ``query_node`` has no
+    explicit ``sh:prefixes`` reference at all - pySHACL's own mechanism
+    never does this on its own (see that function's docstring for why).
+    """
+    from starshacl.native_components import _ambient_shapes_graph_prefixes
+
+    prefixes: dict[str, Any] = {
+        "rdf": URIRef("http://www.w3.org/1999/02/22-rdf-syntax-ns#"),
+        "rdfs": URIRef("http://www.w3.org/2000/01/rdf-schema#"),
+        "owl": URIRef("http://www.w3.org/2002/07/owl#"),
+    }
+
+    prefixes_vals = set(shapes_graph.objects(query_node, SH.prefixes))
+    if not prefixes_vals:
+        prefixes.update(_ambient_shapes_graph_prefixes(shapes_graph))
+        return prefixes
+
+    g_name = shapes_graph.identifier
+    ng_declares = set(shapes_graph.objects(g_name, SH.declare)) if g_name else set()
+    onts = set(shapes_graph.subjects(RDF.type, OWL.Ontology))
+    ont_declares: set = set()
+    for o in onts:
+        ont_declares.update(shapes_graph.objects(o, SH.declare))
+    global_declares = ng_declares | ont_declares
+
+    for pv in prefixes_vals:
+        pfx_declares = set(shapes_graph.objects(pv, SH.declare))
+        all_declares = (pfx_declares | ng_declares) if (pfx_declares and pv in onts) else (global_declares | pfx_declares)
+        for dec in all_declares:
+            prefix_vals = list(shapes_graph.objects(dec, SH.prefix))
+            ns_vals = list(shapes_graph.objects(dec, SH.namespace))
+            if len(prefix_vals) == 1 and len(ns_vals) == 1:
+                prefixes[str(prefix_vals[0])] = URIRef(str(ns_vals[0]))
+    return prefixes
+
+
+def check_sparql_query_text(shapes_graph: Any) -> None:
+    """Preflight: every ``sh:select``/``sh:ask``/``sh:construct`` literal
+    anywhere in ``shapes_graph`` must be syntactically valid SPARQL text.
+
+    The meta-shapes graph already checks these structurally (cardinality,
+    ``xsd:string`` datatype), but never actually parses the string -
+    confirmed live that ``sh:ask "this is not valid SPARQL at all !!!"``
+    conforms cleanly under the structural check alone. This is a
+    Python-level check, not another SHACL shape, because "is this string
+    valid SPARQL" isn't RDF-structural - no shape can express it.
+
+    Scans the whole graph for these three predicates directly rather than
+    walking ``sh:sparql``/``sh:validator``/``sh:selectValidator``-style
+    parent structures individually - ``sh:select``/``sh:ask``/
+    ``sh:construct`` are the same predicates regardless of which kind of
+    parent node carries them (an ordinary ``sh:sparql`` constraint, or a
+    custom ``sh:ConstraintComponent``'s validator node), so one direct
+    scan covers every case uniformly.
+
+    ``$this``/``$value``/``$PATH``-style pre-bound variables need no
+    special handling here - they parse as ordinary ``Var`` tokens
+    regardless of whether they're bound, which only matters at execution
+    time. Prefixes do matter at parse time (an unresolved ``PrefixedName``
+    is a real parse error), so each query's prefix map is resolved the
+    same way real execution would (see ``_collect_query_prefixes``).
+
+    Raises ``pyshacl.errors.ConstraintLoadError`` (the same exception type
+    pySHACL itself raises for other malformed ``sh:sparql`` declarations)
+    naming the offending predicate and the underlying parse error.
+    """
+    from pyshacl.errors import ConstraintLoadError
+
+    import starsparql
+
+    for predicate in (SH.select, SH.ask, SH.construct):
+        for query_node, text_literal in shapes_graph.subject_objects(predicate):
+            if not isinstance(text_literal, Literal) or not isinstance(text_literal.value, str):
+                continue  # not xsd:string - already caught by the meta-shapes structural check
+            prefixes = _collect_query_prefixes(shapes_graph, query_node)
+            try:
+                starsparql.prepare_query_12(str(text_literal), initNs=prefixes)
+            except Exception as exc:
+                raise ConstraintLoadError(
+                    f"{predicate.n3(shapes_graph.namespace_manager)} value is not valid SPARQL: {exc}",
+                    "https://www.w3.org/TR/shacl12-sparql/",
+                ) from exc

@@ -1027,7 +1027,79 @@ def _build_sparql_constraint_component() -> Any:
                 fixed_reports.append((desc, r_node, fixed_triples))
             return non_conformant, fixed_reports
 
+        def make_v_result(self, datagraph: Any, focus_node: Any, **kwargs: Any):
+            """``sh:resultAnnotation`` (SHACL-AF SPARQL Constraints): a
+            ``sh:sparql`` constraint node can declare one or more
+            ``sh:ResultAnnotation`` entries, each injecting an extra
+            ``(result, sh:annotationProperty-value, ...)`` triple onto every
+            ``sh:ValidationResult`` this constraint produces - value sourced
+            either from ``sh:annotationVarName`` (a name from the SELECT
+            query's own result row) or a fixed ``sh:annotationValue``.
+            Confirmed unimplemented anywhere in pySHACL itself (grepped its
+            whole codebase for "resultAnnotation"/"annotationProperty"/
+            "annotationVarName"/"annotationValue" - zero references, not
+            even in ``consts.py``'s own predicate registry).
+
+            Hooks here rather than ``_evaluate_sparql_constraint`` above
+            (which only sees the *already-built* ``(desc, r_node,
+            r_triples)`` reports, with no further access to the per-row
+            SPARQL variable bindings) because ``make_v_result`` itself
+            receives both ``source_constraint`` (the ``sh:sparql`` node
+            where ``sh:resultAnnotation`` would be declared - confirmed by
+            reading ``_evaluate_sparql_constraint``'s own
+            ``rept_kwargs = {'source_constraint': sparql_constraint.node,
+            ...}``) and ``bound_vars`` (the SELECT row's own bindings) as
+            real parameters, not just derivable from what's returned.
+            """
+            desc, r_node, r_triples = super().make_v_result(datagraph, focus_node, **kwargs)
+            source_constraint = kwargs.get("source_constraint")
+            if source_constraint is not None:
+                r_triples = r_triples + _result_annotation_triples(
+                    self.shape.sg.graph, source_constraint, r_node, kwargs.get("bound_vars")
+                )
+            return desc, r_node, r_triples
+
     return SparqlConstraintComponentWithSeverity
+
+
+def _result_annotation_triples(sg: Any, source_constraint: Any, r_node: Any, bound_vars: Any) -> list:
+    """Build the extra ``(r_node, sh:annotationProperty-value, value)``
+    triples ``sh:resultAnnotation`` on ``source_constraint`` declares - see
+    ``make_v_result`` above (``_build_sparql_constraint_component``) for
+    the calling context. ``bound_vars`` mirrors whatever shape
+    ``SPARQLBasedConstraint._evaluate_sparql_constraint`` passed straight
+    through from pySHACL: a plain ``{str_varname: term}`` dict (rdflib's
+    own SPARQL result row ``.asdict()`` - confirmed live, keys are plain
+    strings without a ``?``/``$`` sigil, not ``rdflib.Variable``) for the
+    common 2-tuple violation shape, or a ``(t, p, v, vars_dict)`` 4-tuple
+    for the path-valued violation shape - anything else (a plain
+    ``True``/``(t, p, v)`` violation with no SELECT row dict at all) has no
+    variable bindings to resolve ``sh:annotationVarName`` against, so only
+    a fixed ``sh:annotationValue`` can still apply.
+    """
+    if isinstance(bound_vars, dict):
+        vars_dict = bound_vars
+    elif isinstance(bound_vars, (tuple, list)) and len(bound_vars) == 4:
+        vars_dict = bound_vars[3]
+    else:
+        vars_dict = {}
+
+    triples = []
+    for ann in sg.objects(source_constraint, SH.resultAnnotation):
+        ap_vals = list(sg.objects(ann, SH.annotationProperty))
+        if len(ap_vals) != 1:
+            continue
+        annotation_property = ap_vals[0]
+        varname_vals = list(sg.objects(ann, SH.annotationVarName))
+        if varname_vals:
+            varname = str(varname_vals[0])
+            if varname in vars_dict:
+                triples.append((r_node, annotation_property, vars_dict[varname]))
+            continue
+        value_vals = list(sg.objects(ann, SH.annotationValue))
+        if value_vals:
+            triples.append((r_node, annotation_property, value_vals[0]))
+    return triples
 
 
 def _build_node_by_expression_component() -> Any:

@@ -76,6 +76,40 @@ class TestNextTokenQuotedTripleTerm:
         assert rest == ':q'
 
 
+class TestNextTokenBareStopCharAtStart:
+    """A stop char with no dedicated branch (bare '{'/'}'/')'/']'/','/';' at
+    the very start of the scan) previously fell through to the bare-token
+    loop, whose while-condition is false on the first character - returning
+    an *empty* token ('', s) silently instead of raising. That's
+    indistinguishable, to every caller, from "there was nothing here" -
+    concretely, an N3-style "{ :s :p :o } :q :r ." formula-as-subject
+    statement parsed with zero errors and produced zero triples. See
+    test_turtle_parser_errors.py for the end-to-end reproduction of that bug."""
+
+    @pytest.mark.parametrize('s', ['{ :s :p :o } rest', '}', ')', ']', ',', ';'])
+    def test_bare_stop_char_raises(self, s):
+        with pytest.raises(TurtleSyntaxError, match='unexpected'):
+            next_token(s)
+
+    def test_error_message_names_the_character(self):
+        with pytest.raises(TurtleSyntaxError) as excinfo:
+            next_token('{ :s :p :o }')
+        assert repr('{') in str(excinfo.value.why)
+
+    def test_annotation_block_opener_unaffected(self):
+        # '{|' is a real, valid token form, but it's consumed by
+        # consume_annotation_block - every real caller (e.g.
+        # split_obj_and_annotations) checks rest.startswith('{|') and routes
+        # there *before* ever calling next_token, so next_token itself is
+        # never supposed to receive '{|...' directly. Confirm the real,
+        # caller-level entry point still parses annotation blocks correctly
+        # after this fix (next_token raising on a bare '{' it's never
+        # actually asked to handle doesn't regress the real path).
+        obj, anns = split_obj_and_annotations(':o {| :a :b |}')
+        assert obj == ':o'
+        assert len(anns) == 1
+
+
 class TestNextTokenReificationShorthand:
     def test_basic_reification(self):
         tok, rest = next_token('<< :s :p :o >> :q')

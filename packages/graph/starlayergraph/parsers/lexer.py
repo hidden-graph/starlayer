@@ -137,6 +137,19 @@ def next_token(s):
     i = 0
     while i < len(s) and not s[i].isspace() and s[i] not in _BARE_TOKEN_STOP_CHARS:
         i += 1
+    if i == 0:
+        # s[0] is itself one of _BARE_TOKEN_STOP_CHARS that has no dedicated
+        # branch above (e.g. a bare '{' - N3-style "{ s p o } ..." formula
+        # syntax, never legal in RDF 1.2 Turtle - or a stray ')'/']'/','/';').
+        # Previously fell through to returning ('', s) here: an *empty*
+        # token, silently - callers treat that indistinguishably from "no
+        # subject/predicate/object found", producing zero triples with no
+        # error at all rather than surfacing the malformed input. Confirmed
+        # live: "{ ex:bob ex:knows ex:carol } ex:says ex:dana ." parsed with
+        # no exception and added nothing to the graph.
+        raise TurtleSyntaxError(
+            f'unexpected {s[0]!r} at start of token', s, pos=0,
+        )
     return s[:i], s[i:].lstrip()
 
 

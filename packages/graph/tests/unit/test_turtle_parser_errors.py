@@ -55,6 +55,56 @@ class TestMalformedTokens:
         assert excinfo.value.line == 3
 
 
+class TestBareStopCharAsSubject:
+    """N3-style '{ s p o } ...' (a triple as the subject of another
+    statement) is never legal RDF 1.2 - a triple term can only ever appear
+    in object position, via <<( )>>, not via N3 '{ }' formula syntax at
+    all. Previously this silently parsed with zero errors and produced
+    zero triples (confirmed live before the fix) - indistinguishable from
+    "the document had nothing in it," a genuinely dangerous failure mode
+    for a typo. Now raises TurtleSyntaxError instead, for the same reason
+    every other malformed-input case in this file does."""
+
+    def test_n3_formula_as_subject_raises_turtle12(self):
+        data = (
+            '@prefix ex: <http://example.org/> .\n'
+            '{ ex:bob ex:knows ex:carol } ex:says ex:dana .\n'
+        )
+        with pytest.raises(TurtleSyntaxError, match='unexpected'):
+            _parse(data)
+
+    def test_n3_formula_as_subject_raises_longturtle12(self):
+        # longturtle12 shares StarLayerTurtleParser/the same lexer with
+        # turtle12 - confirm the fix isn't turtle12-format-string-specific.
+        data = (
+            '@prefix ex: <http://example.org/> .\n'
+            '{ ex:bob ex:knows ex:carol } ex:says ex:dana .\n'
+        )
+        g = StarLayerGraph()
+        with pytest.raises(TurtleSyntaxError, match='unexpected'):
+            g.parse(data=data, format='longturtle12')
+
+    @pytest.mark.parametrize('opener', [')', ']'])
+    def test_stray_closing_bracket_as_subject_raises(self, opener):
+        # Same underlying bug class, not just '{' - any bare stop char
+        # with no dedicated token form (')' / ']' with nothing to close)
+        # at the very start of a statement hit the identical silent-empty-
+        # token fallthrough before this fix.
+        data = f'@prefix ex: <http://example.org/> .\n{opener} ex:says ex:dana .\n'
+        with pytest.raises(TurtleSyntaxError, match='unexpected'):
+            _parse(data)
+
+    def test_valid_annotation_block_document_still_parses(self):
+        # Regression guard: '{|' (a real, valid RDF 1.2 form, unrelated to
+        # the N3 '{ }' formula syntax rejected above) must still parse.
+        data = (
+            '@prefix ex: <http://example.org/> .\n'
+            'ex:bob ex:likes ex:dana {| ex:since "2020" |} .\n'
+        )
+        g = _parse(data)
+        assert len(g) >= 1
+
+
 class TestUnterminatedForms:
     def test_unterminated_string_raises(self):
         data = '@prefix : <http://example.org/> .\n:s :p "unterminated .\n'

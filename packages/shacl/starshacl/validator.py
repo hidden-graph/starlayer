@@ -257,6 +257,16 @@ class StarShaclValidator:
                 allow_warnings=options.get("allow_warnings"),
                 allow_infos=options.get("allow_infos"),
             )
+            # Structural meta-shacl above confirms every sh:select/sh:ask/
+            # sh:construct is a well-formed xsd:string literal in the right
+            # place - it never parses the string itself as SPARQL. This is
+            # a separate, Python-level preflight for exactly that (see
+            # meta_shapes.check_sparql_query_text's own docstring for why
+            # it can't be a SHACL shape), gated by the same meta_shacl
+            # opt-in/opt-out every other preflight check here already has.
+            from starshacl.meta_shapes import check_sparql_query_text
+
+            check_sparql_query_text(shacl_graph)
         options.pop("meta_shacl", None)
 
         # Every SHACL 1.2 predicate pySHACL doesn't natively implement is now
@@ -921,19 +931,45 @@ class StarShaclValidator:
         shacl_graph: Any,
         ont_graph: Any | None = None,
         include_source_rule_provenance: bool = False,
+        rule_set: Any | None = None,
         **kwargs: Any,
     ) -> RulesResult:
         options = resolve_profile_options("rules", overrides=kwargs)
+
+        # Normalized once, up front, and reused everywhere below (the
+        # self.validate() call, the rule-set closure computation, and the
+        # global-rules pass) rather than each computing its own - matters
+        # for rule_set specifically: normalize_to_starlayer_graph returns an
+        # already-StarLayerGraph input as-is (same object, same blank node
+        # identities), so reusing this one reference guarantees the rule/
+        # rule-set nodes _rule_set_members() reads are the exact same nodes
+        # pySHACL's own shape-attached-rule execution and
+        # _global_sparql_rule_triples both see - a second, independent
+        # normalize_graph_inputs call on a plain (non-StarLayerGraph) input
+        # would otherwise risk producing a *different* StarLayerGraph copy
+        # each time, with no guarantee blank nodes compare equal across them.
+        normalized_shapes = (
+            normalize_graph_inputs(shacl_graph, None, None)[0] if shacl_graph is not None else None
+        )
 
         token = None
         if include_source_rule_provenance:
             _patch_rule_apply_for_source_rule_provenance()
             token = _source_rule_buffer.set([])
 
+        rule_set_token = None
+        allowed_rule_nodes: frozenset | None = None
+        if rule_set is not None:
+            if normalized_shapes is None:
+                raise ValueError("rule_set was given but shacl_graph is None - nothing to select rules from.")
+            _patch_rule_apply_for_rule_set_filtering()
+            allowed_rule_nodes = _rule_set_members(normalized_shapes, rule_set)
+            rule_set_token = _rule_set_filter.set(allowed_rule_nodes)
+
         try:
             result = self.validate(
                 data_graph=data_graph,
-                shacl_graph=shacl_graph,
+                shacl_graph=normalized_shapes if normalized_shapes is not None else shacl_graph,
                 ont_graph=ont_graph,
                 profile="rules",
                 **options,
@@ -950,17 +986,20 @@ class StarShaclValidator:
         finally:
             if token is not None:
                 _source_rule_buffer.reset(token)
+            if rule_set_token is not None:
+                _rule_set_filter.reset(rule_set_token)
 
         out_data = result.data_graph or data_graph
         global_rule_records: list[tuple[tuple[Any, Any, Any], Any]] = []
-        if shacl_graph is not None:
-            normalized_shapes = normalize_graph_inputs(shacl_graph, None, None)[0]
+        if normalized_shapes is not None:
             # _global_sparql_rule_triples already adds each produced triple to
             # out_data itself now (needed for its own fixpoint iteration - a
             # later round/layer must see an earlier one's output) - no
             # redundant out_data.add() here, just collect records for
             # sh:sourceRule provenance bookkeeping.
-            for triple, rule_node in _global_sparql_rule_triples(out_data, normalized_shapes):
+            for triple, rule_node in _global_sparql_rule_triples(
+                out_data, normalized_shapes, allowed_rule_nodes=allowed_rule_nodes
+            ):
                 if include_source_rule_provenance:
                     global_rule_records.append((triple, rule_node))
 
@@ -2018,7 +2057,109 @@ def _find_genuine_report_node(report_graph: Any) -> Any | None:
     return candidates[0]
 
 
-def _global_sparql_rules(shacl_graph: Any) -> list:
+def _rule_set_members(shapes_graph: Any, rule_set: Any) -> frozenset:
+    """Every rule node that's a member of ``rule_set``, including
+    transitively via ``sh:includesRuleSet`` (SHACL 1.2 SPARQL Extensions
+    section 8.2.1, added upstream 2026-08-21 - re-verified live 2026-08-26
+    that ``sh:RuleSet``/``sh:hasRule``/``sh:includesRuleSet`` are the
+    current, stable predicate names after churning through two renames in
+    the same upstream PR the week before).
+
+    Plain worklist/visited-set graph reachability over ``sh:includesRuleSet``
+    edges, collecting each visited rule set's own ``sh:hasRule`` members
+    along the way - correct regardless of cycles or traversal order without
+    needing ``_cross_node_reachable_shapes``'s own fixed-point-vs-DFS
+    care (see that function's docstring): this is a single ordinary BFS/DFS
+    reachability walk from one root with a visited set, not that function's
+    multi-root bottom-up memoization pattern, which is the specific shape
+    that was unsound under cycles - a plain visited-set traversal has no
+    equivalent problem.
+    """
+    seen_rule_sets: set[Any] = set()
+    worklist = [rule_set]
+    members: set[Any] = set()
+    while worklist:
+        rs = worklist.pop()
+        if rs in seen_rule_sets:
+            continue
+        seen_rule_sets.add(rs)
+        members.update(shapes_graph.objects(rs, SH.hasRule))
+        for included in shapes_graph.objects(rs, SH.includesRuleSet):
+            if included not in seen_rule_sets:
+                worklist.append(included)
+    return frozenset(members)
+
+
+_rule_set_filter: contextvars.ContextVar[frozenset | None] = contextvars.ContextVar(
+    "_rule_set_filter", default=None
+)
+
+_rule_set_patch_status: bool | None = None
+
+
+def _patch_rule_apply_for_rule_set_filtering() -> bool:
+    """Apply a targeted patch enabling ``rule_set=`` selection
+    (``StarShaclValidator.apply_rules``) for shape-attached ``sh:rule``s -
+    the ones pySHACL's own ``pyshacl.rules.apply_rules()`` executes
+    internally via ``advanced=True``, with no parameter of its own to
+    restrict which rules run.
+
+    Independent of, and structurally identical to,
+    ``_patch_rule_apply_for_source_rule_provenance`` (wraps the same two
+    classes, same idempotent-tagging discipline, same
+    ``contextvars.ContextVar``-gated no-op-by-default passthrough when no
+    caller has opted in) - deliberately a *separate* patch/tag/contextvar
+    rather than folded into that one, so this file's one working, already-
+    tested provenance feature isn't put at risk to add a second, unrelated
+    one. The two compose correctly regardless of which patches first in a
+    given process: each wraps whatever ``rule_cls.apply`` already is at the
+    moment it patches and unconditionally delegates to it, so a rule
+    filtered out here never reaches the real underlying ``SHACLRule.apply``
+    (and therefore is invisible to a provenance-diff wrapper on either side
+    of it - it observes zero triples added, which is correct either way).
+
+    Unlike the provenance patch (which only *observes*), this one is a real
+    behavior change when a caller opts in (``rule_set is not None``): a
+    rule node not in the current ``_rule_set_filter`` value's membership set
+    returns immediately (0 modified, no triples added) instead of running.
+    """
+    global _rule_set_patch_status
+    if _rule_set_patch_status is not None:
+        return _rule_set_patch_status
+
+    try:
+        from pyshacl.rules.sparql import SPARQLRule
+        from pyshacl.rules.triple import TripleRule
+
+        for rule_cls in (TripleRule, SPARQLRule):
+            original_apply = rule_cls.apply
+            if getattr(original_apply, "_starshacl_rule_set_patch", False):
+                continue
+
+            def _wrap(original: Any) -> Any:
+                def _patched_apply(self, data_graph, focus_nodes=None, target_graph_identifier=None):
+                    allowed = _rule_set_filter.get()
+                    if allowed is not None and self.node not in allowed:
+                        return 0
+                    return original(
+                        self,
+                        data_graph,
+                        focus_nodes=focus_nodes,
+                        target_graph_identifier=target_graph_identifier,
+                    )
+
+                _patched_apply._starshacl_rule_set_patch = True  # type: ignore[attr-defined]
+                return _patched_apply
+
+            rule_cls.apply = _wrap(original_apply)
+        _rule_set_patch_status = True
+    except Exception:
+        _rule_set_patch_status = False
+
+    return _rule_set_patch_status
+
+
+def _global_sparql_rules(shacl_graph: Any, allowed_rule_nodes: frozenset | None = None) -> list:
     """SHACL 1.2's "global" (shape-independent) ``sh:SPARQLRule`` nodes - a
     rule node that exists standalone, never referenced by any shape's own
     ``sh:rule`` property, meant to execute once against the whole graph
@@ -2034,12 +2175,22 @@ def _global_sparql_rules(shacl_graph: Any) -> list:
     ordinarily evaluated relative to ``$this``/a focus node - a "global"
     application with no focus node at all has no obvious semantics to
     apply without a concrete test case to confirm against.
+
+    ``allowed_rule_nodes``: when given (a caller opted into ``rule_set=``
+    on ``apply_rules()``), restricts the result to rules also in this set -
+    see ``_rule_set_members``. ``None`` (the default) means no restriction,
+    identical to this function's pre-``rule_set`` behavior.
     """
     referenced = set(shacl_graph.objects(None, SH.rule))
-    return [r for r in shacl_graph.subjects(RDF.type, SH.SPARQLRule) if r not in referenced]
+    rule_nodes = [r for r in shacl_graph.subjects(RDF.type, SH.SPARQLRule) if r not in referenced]
+    if allowed_rule_nodes is not None:
+        rule_nodes = [r for r in rule_nodes if r in allowed_rule_nodes]
+    return rule_nodes
 
 
-def _global_sparql_rule_triples(data_graph: Any, shacl_graph: Any) -> list[tuple[tuple, Any]]:
+def _global_sparql_rule_triples(
+    data_graph: Any, shacl_graph: Any, allowed_rule_nodes: frozenset | None = None
+) -> list[tuple[tuple, Any]]:
     """Every ``(triple, rule_node)`` pair produced by running every global
     ``sh:SPARQLRule`` (see ``_global_sparql_rules``) to completion against
     ``data_graph``, honoring ``sh:layer``/``sh:runOnce``/``sh:order``
@@ -2095,7 +2246,7 @@ def _global_sparql_rule_triples(data_graph: Any, shacl_graph: Any) -> list[tuple
     from pyshacl.errors import ReportableRuntimeError
     from pyshacl.rules import RULES_ITERATE_LIMIT
 
-    rule_nodes = _global_sparql_rules(shacl_graph)
+    rule_nodes = _global_sparql_rules(shacl_graph, allowed_rule_nodes=allowed_rule_nodes)
     if not rule_nodes:
         return []
 

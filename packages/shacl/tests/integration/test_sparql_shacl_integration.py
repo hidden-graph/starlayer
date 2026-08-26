@@ -275,3 +275,83 @@ def test_sparql_constraint_resolves_prefix_via_sh_declare_not_turtle_prefix() ->
     assert result.conforms is False
     assert "ex:bob" in result.report_text
     assert "ex:alice" not in result.report_text.split("Focus Node:")[-1]
+
+
+def test_sh_result_annotation_from_select_bound_var() -> None:
+    """sh:resultAnnotation (SHACL-AF SPARQL Constraints): sh:annotationVarName
+    injects a triple onto the sh:ValidationResult, sourced from that name's
+    binding in the SELECT query's own result row - confirmed unimplemented
+    anywhere in pySHACL itself (grepped its whole codebase). See
+    native_components.py::_build_sparql_constraint_component's
+    make_v_result override and _result_annotation_triples."""
+    data = StarLayerGraph()
+    data.add((EX.alice, EX.score, Literal(20)))
+    data.add((EX.bob, EX.score, Literal(80)))
+
+    shapes = StarLayerGraph()
+    shapes.parse(data="""
+        @prefix ex: <http://example.org/> .
+        @prefix sh: <http://www.w3.org/ns/shacl#> .
+        ex:S a sh:NodeShape ; sh:targetSubjectsOf ex:score ;
+          sh:sparql [
+            sh:select "PREFIX ex: <http://example.org/> SELECT $this ?actualScore WHERE { $this ex:score ?actualScore . FILTER(?actualScore < 50) }" ;
+            sh:resultAnnotation [
+              sh:annotationProperty ex:reportedScore ;
+              sh:annotationVarName "actualScore" ;
+            ] ;
+          ] .
+    """, format="turtle")
+
+    result = StarShaclValidator().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    assert result.conforms is False
+    annotated = list(result.report_graph.triples((None, EX.reportedScore, None)))
+    assert len(annotated) == 1
+    _, _, value = annotated[0]
+    assert value == Literal(20)
+
+
+def test_sh_result_annotation_fixed_value() -> None:
+    """sh:annotationValue attaches the same fixed value to every result the
+    constraint produces, no SELECT-row lookup involved."""
+    data = StarLayerGraph()
+    data.add((EX.alice, EX.score, Literal(20)))
+
+    shapes = StarLayerGraph()
+    shapes.parse(data="""
+        @prefix ex: <http://example.org/> .
+        @prefix sh: <http://www.w3.org/ns/shacl#> .
+        ex:S a sh:NodeShape ; sh:targetSubjectsOf ex:score ;
+          sh:sparql [
+            sh:select "PREFIX ex: <http://example.org/> SELECT $this WHERE { $this ex:score ?s . FILTER(?s < 50) }" ;
+            sh:resultAnnotation [
+              sh:annotationProperty ex:origin ;
+              sh:annotationValue "score-check" ;
+            ] ;
+          ] .
+    """, format="turtle")
+
+    result = StarShaclValidator().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    assert result.conforms is False
+    annotated = list(result.report_graph.triples((None, EX.origin, None)))
+    assert annotated == [(annotated[0][0], EX.origin, Literal("score-check"))]
+
+
+def test_no_result_annotation_is_a_pure_noop() -> None:
+    """A sh:sparql constraint with no sh:resultAnnotation at all must behave
+    exactly as before - no stray triples, no change to conforms/report."""
+    data = StarLayerGraph()
+    data.add((EX.alice, EX.score, Literal(20)))
+
+    shapes = StarLayerGraph()
+    shapes.parse(data="""
+        @prefix ex: <http://example.org/> .
+        @prefix sh: <http://www.w3.org/ns/shacl#> .
+        ex:S a sh:NodeShape ; sh:targetSubjectsOf ex:score ;
+          sh:sparql [
+            sh:select "PREFIX ex: <http://example.org/> SELECT $this WHERE { $this ex:score ?s . FILTER(?s < 50) }" ;
+          ] .
+    """, format="turtle")
+
+    result = StarShaclValidator().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    assert result.conforms is False
+    assert len(list(result.report_graph.triples((None, SH.resultSeverity, None)))) == 1

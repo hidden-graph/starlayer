@@ -20,6 +20,7 @@ from starshacl.meta_shapes import (
     _TOO_STRICT_PATHS,
     _load_pyshacl_base_meta_shapes,
     build_meta_shapes_graph,
+    check_sparql_query_text,
     meta_validate,
 )
 
@@ -1166,3 +1167,104 @@ class TestSparqlPrefixesWellFormedness:
         )
         with pytest.raises(pyshacl.errors.ReportableRuntimeError):
             meta_validate(shapes)
+
+
+class TestSparqlQueryTextValidation:
+    """check_sparql_query_text (starshacl/meta_shapes.py): the structural
+    meta-shacl checks above confirm sh:select/sh:ask/sh:construct is a
+    well-formed xsd:string literal in the right place, but never actually
+    parse it as SPARQL - confirmed live that
+    sh:ask "this is not valid SPARQL at all !!!" conformed cleanly before
+    this check existed. This class exercises check_sparql_query_text
+    directly (decoupled from meta_validate's own structural requirements,
+    which check_sparql_query_text doesn't care about) plus one full
+    end-to-end pass through StarShaclValidator.validate(meta_shacl=True)."""
+
+    def test_malformed_select_text_raises(self) -> None:
+        shapes = Graph()
+        shapes.parse(
+            data=_RULES_PREFIX + 'ex:S sh:select "this is not valid SPARQL at all !!!" .',
+            format="turtle",
+        )
+        with pytest.raises(pyshacl.errors.ConstraintLoadError, match="sh:select"):
+            check_sparql_query_text(shapes)
+
+    def test_malformed_ask_text_raises(self) -> None:
+        shapes = Graph()
+        shapes.parse(
+            data=_RULES_PREFIX + 'ex:S sh:ask "this is not valid SPARQL at all !!!" .',
+            format="turtle",
+        )
+        with pytest.raises(pyshacl.errors.ConstraintLoadError, match="sh:ask"):
+            check_sparql_query_text(shapes)
+
+    def test_malformed_construct_text_raises(self) -> None:
+        shapes = Graph()
+        shapes.parse(
+            data=_RULES_PREFIX + 'ex:S sh:construct "this is not valid SPARQL at all !!!" .',
+            format="turtle",
+        )
+        with pytest.raises(pyshacl.errors.ConstraintLoadError, match="sh:construct"):
+            check_sparql_query_text(shapes)
+
+    def test_well_formed_query_passes(self) -> None:
+        # A bare "ex:" reference with no PREFIX in the query text and no
+        # sh:declare/sh:prefixes on the shapes graph fails at *real*
+        # execution too (confirmed directly: pySHACL's own
+        # resolvePName raises "Unknown namespace prefix : ex" for exactly
+        # this case even without this check existing) - Turtle's own
+        # @prefix, used only to parse the *shapes graph document*, is a
+        # different, unrelated prefix scope from what a SPARQL constraint
+        # string resolves against. A realistic query is self-contained.
+        shapes = Graph()
+        shapes.parse(
+            data=_RULES_PREFIX
+            + 'ex:S sh:select "PREFIX ex: <http://example.org/> SELECT $this WHERE { $this ex:email ?e }" .',
+            format="turtle",
+        )
+        check_sparql_query_text(shapes)  # must not raise
+
+    def test_well_formed_query_resolves_ambient_declare_prefix_only(self) -> None:
+        # No Turtle @prefix for "ex" at all - only an sh:ShapesGraph's own
+        # sh:declare provides it, exactly like the real sh:sparql/sh:declare
+        # ambient-prefix execution path this reuses the resolution logic of.
+        shapes = Graph()
+        shapes.parse(
+            data="""
+            @prefix sh: <http://www.w3.org/ns/shacl#> .
+            @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+            <urn:sg> a sh:ShapesGraph ;
+              sh:declare [ sh:prefix "ex" ; sh:namespace "http://example.org/"^^xsd:anyURI ] .
+            <urn:s> sh:select "SELECT $this WHERE { $this ex:email ?e }" .
+            """,
+            format="turtle",
+        )
+        check_sparql_query_text(shapes)  # must not raise
+
+    def test_end_to_end_validate_raises_on_malformed_custom_validator_query(self) -> None:
+        # Structurally valid ASK-based custom sh:ConstraintComponent (same
+        # shape as test_custom_constraint_components.py's
+        # test_ask_based_custom_component_flags_violations), so this
+        # exercises the real StarShaclValidator.validate(meta_shacl=True)
+        # pipeline end to end, not just check_sparql_query_text in
+        # isolation - confirming it's actually wired in.
+        data = Graph()
+        data.parse(data=_RULES_PREFIX + "ex:alice ex:score 80 .", format="turtle")
+        shapes = Graph()
+        shapes.parse(
+            data=_RULES_PREFIX
+            + """
+            ex:MinScoreConstraintComponent a sh:ConstraintComponent ;
+              sh:parameter [ sh:path ex:minScore ] ;
+              sh:validator [
+                a sh:SPARQLAskValidator ;
+                sh:ask "this is not valid SPARQL at all !!!" ;
+              ] .
+            ex:ScoreShape a sh:NodeShape ;
+              sh:targetSubjectsOf ex:score ;
+              sh:property [ sh:path ex:score ; ex:minScore 50 ] .
+            """,
+            format="turtle",
+        )
+        with pytest.raises(pyshacl.errors.ConstraintLoadError, match="sh:ask"):
+            StarShaclValidator().validate(data_graph=data, shacl_graph=shapes, meta_shacl=True)
