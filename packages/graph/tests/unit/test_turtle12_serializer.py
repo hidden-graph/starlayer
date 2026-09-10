@@ -318,3 +318,248 @@ class TestLongTurtle12:
         sg = StarLayerGraph()
         sg.parse(data=ttl, format='longturtle12')
         assert (URIRef(EX+'s'), URIRef(EX+'p'), URIRef(EX+'o')) in sg
+
+
+# ---------------------------------------------------------------------------
+# Bare boolean/integer/decimal literal shorthand, and 'a' for rdf:type
+# ---------------------------------------------------------------------------
+
+class TestBareLiteralShorthandAndRdfTypeKeyword:
+    """serialize_turtle12 emits Turtle's own bare BooleanLiteral/INTEGER/
+    DECIMAL tokens (true/false, 42, 1.5) instead of "value"^^xsd:type, and
+    the 'a' keyword for rdf:type - but only when the literal's own lexical
+    form actually matches Turtle's bare-token grammar, which is narrower
+    than XSD's own lexical space for each datatype. A value typed as one
+    of these but whose lexical form doesn't match must fall back to the
+    quoted+typed form - that's always syntactically valid Turtle
+    regardless of how malformed the lexical form is; the bare form isn't."""
+
+    def _roundtrip_and_serialized(self, sg):
+        out = sg.serialize(format='turtle12')
+        sg2 = StarLayerGraph()
+        sg2.parse(data=out, format='turtle12')
+        return out, sg2
+
+    def test_boolean_true_false_emitted_bare(self):
+        sg = StarLayerGraph()
+        sg.add((URIRef(EX + 's'), URIRef(EX + 'p1'), Literal(True)))
+        sg.add((URIRef(EX + 's'), URIRef(EX + 'p2'), Literal(False)))
+        out, sg2 = self._roundtrip_and_serialized(sg)
+        assert '^^' not in out
+        assert (URIRef(EX + 's'), URIRef(EX + 'p1'), Literal(True)) in sg2
+        assert (URIRef(EX + 's'), URIRef(EX + 'p2'), Literal(False)) in sg2
+
+    def test_integer_emitted_bare_including_negative(self):
+        sg = StarLayerGraph()
+        sg.add((URIRef(EX + 's'), URIRef(EX + 'p'), Literal(42)))
+        sg.add((URIRef(EX + 's'), URIRef(EX + 'q'), Literal(-5)))
+        out, sg2 = self._roundtrip_and_serialized(sg)
+        assert '^^' not in out
+        assert (URIRef(EX + 's'), URIRef(EX + 'p'), Literal(42)) in sg2
+        assert (URIRef(EX + 's'), URIRef(EX + 'q'), Literal(-5)) in sg2
+
+    def test_decimal_emitted_bare(self):
+        from rdflib import XSD
+        sg = StarLayerGraph()
+        sg.add((URIRef(EX + 's'), URIRef(EX + 'p'), Literal('1.5', datatype=XSD.decimal)))
+        out, sg2 = self._roundtrip_and_serialized(sg)
+        assert '^^' not in out
+        assert (URIRef(EX + 's'), URIRef(EX + 'p'), Literal('1.5', datatype=XSD.decimal)) in sg2
+
+    def test_rdf_type_emitted_as_a_keyword(self):
+        from rdflib import RDF
+        sg = StarLayerGraph()
+        sg.add((URIRef(EX + 's'), RDF.type, URIRef(EX + 'Thing')))
+        out, sg2 = self._roundtrip_and_serialized(sg)
+        assert ' a ' in out
+        assert 'rdf:type' not in out
+        assert (URIRef(EX + 's'), RDF.type, URIRef(EX + 'Thing')) in sg2
+
+    def test_malformed_integer_lexical_form_falls_back_to_typed_form(self):
+        # rdflib allows constructing this even though it warns - confirmed
+        # live this previously serialized as a bare, unquoted, unparseable
+        # token ("ex:s ex:p not-a-number .") and failed to re-parse at all.
+        from rdflib import XSD
+        sg = StarLayerGraph()
+        sg.add((URIRef(EX + 's'), URIRef(EX + 'p'), Literal('not-a-number', datatype=XSD.integer)))
+        out, sg2 = self._roundtrip_and_serialized(sg)
+        assert '"not-a-number"^^xsd:integer' in out
+        assert (URIRef(EX + 's'), URIRef(EX + 'p'), Literal('not-a-number', datatype=XSD.integer)) in sg2
+
+    def test_decimal_lexical_form_with_no_fractional_digits_falls_back(self):
+        # Turtle's DECIMAL grammar requires >=1 digit after the '.' -
+        # emitting a bare token with none (or none at all) would also be
+        # ambiguous with INTEGER on re-parse.
+        from rdflib import XSD
+        sg = StarLayerGraph()
+        sg.add((URIRef(EX + 's'), URIRef(EX + 'p'), Literal('5', datatype=XSD.decimal)))
+        out, sg2 = self._roundtrip_and_serialized(sg)
+        assert '"5"^^xsd:decimal' in out
+        assert (URIRef(EX + 's'), URIRef(EX + 'p'), Literal('5', datatype=XSD.decimal)) in sg2
+
+
+# ---------------------------------------------------------------------------
+# RDF list folding: turtle12 emits Turtle's '( a b c )' collection syntax
+# instead of expanded rdf:first/rdf:rest/rdf:nil chains.
+# ---------------------------------------------------------------------------
+
+class TestListFolding:
+    def _roundtrip_and_serialized(self, sg):
+        out = sg.serialize(format='turtle12')
+        sg2 = StarLayerGraph()
+        sg2.parse(data=out, format='turtle12')
+        return out, sg2
+
+    def test_simple_list_folded(self):
+        sg = StarLayerGraph()
+        sg.parse(
+            data=f'@prefix ex: <{EX}> .\nex:s ex:p ( ex:a ex:b ex:c ) .\n',
+            format='turtle12',
+        )
+        out, sg2 = self._roundtrip_and_serialized(sg)
+        assert 'rdf:first' not in out
+        assert 'rdf:rest' not in out
+        assert '( ex:a ex:b ex:c )' in out
+        assert isomorphic(sg, sg2)
+
+    def test_list_of_blank_node_shapes_folded(self):
+        # Each list item is itself a blank node with its own predicates -
+        # matching real SHACL sh:or/sh:and usage, not just plain IRIs.
+        sg = StarLayerGraph()
+        sg.parse(
+            data=(
+                f'@prefix ex: <{EX}> .\n'
+                'ex:S ex:or ( [ ex:path ex:email ] [ ex:path ex:orcid ] ) .\n'
+            ),
+            format='turtle12',
+        )
+        out, sg2 = self._roundtrip_and_serialized(sg)
+        assert 'rdf:first' not in out
+        assert isomorphic(sg, sg2)
+
+    def test_list_cell_with_extra_triple_not_folded(self):
+        # A cell carrying some *other* triple besides rdf:first/rdf:rest
+        # can't be folded away without losing that triple - must stay
+        # expanded (same well-formedness rule rdflib's own serializer uses).
+        sg = StarLayerGraph()
+        sg.parse(
+            data=(
+                f'@prefix ex: <{EX}> .\n'
+                'ex:s ex:p _:b0 .\n'
+                '_:b0 rdf:first ex:a ; rdf:rest rdf:nil ; ex:extra "not part of the list" .\n'
+            ),
+            format='turtle12',
+        )
+        out, sg2 = self._roundtrip_and_serialized(sg)
+        assert 'rdf:first' in out  # not foldable - the extra triple would be lost otherwise
+        assert isomorphic(sg, sg2)
+
+    def test_shared_list_cell_not_folded(self):
+        # A cell referenced from two different places can't be folded away -
+        # doing so would hide the fact that something else points at it too.
+        sg = StarLayerGraph()
+        sg.parse(
+            data=(
+                f'@prefix ex: <{EX}> .\n'
+                'ex:s1 ex:p _:b0 .\n'
+                'ex:s2 ex:q _:b0 .\n'
+                '_:b0 rdf:first ex:a ; rdf:rest rdf:nil .\n'
+            ),
+            format='turtle12',
+        )
+        out, sg2 = self._roundtrip_and_serialized(sg)
+        assert 'rdf:first' in out
+        assert isomorphic(sg, sg2)
+
+    def test_empty_graph_no_lists_unaffected(self):
+        sg = StarLayerGraph()
+        sg.add((URIRef(EX + 's'), URIRef(EX + 'p'), URIRef(EX + 'o')))
+        out, sg2 = self._roundtrip_and_serialized(sg)
+        assert '(' not in out
+        assert isomorphic(sg, sg2)
+
+
+# ---------------------------------------------------------------------------
+# Multi-line string literals: turtle12 (compact) preserves them via Turtle's
+# triple-quoted '"""..."""' form; longturtle12 (canonical) escapes newlines
+# instead, to keep its one-triple-per-line guarantee.
+# ---------------------------------------------------------------------------
+
+class TestMultilineStringLiterals:
+    def test_turtle12_uses_triple_quote_and_preserves_newlines(self):
+        sg = StarLayerGraph()
+        sg.add((URIRef(EX + 's'), URIRef(EX + 'p'), Literal('line one\nline two')))
+        out = sg.serialize(format='turtle12')
+        assert '"""' in out
+        assert 'line one\nline two' in out
+        sg2 = StarLayerGraph()
+        sg2.parse(data=out, format='turtle12')
+        assert (URIRef(EX + 's'), URIRef(EX + 'p'), Literal('line one\nline two')) in sg2
+
+    def test_turtle12_single_quote_for_single_line(self):
+        # Regression guard: the triple-quote branch must not fire for
+        # ordinary single-line literals.
+        sg = StarLayerGraph()
+        sg.add((URIRef(EX + 's'), URIRef(EX + 'p'), Literal('no newlines here')))
+        out = sg.serialize(format='turtle12')
+        assert '"""' not in out
+
+    def test_longturtle12_escapes_newline_keeps_one_line_per_triple(self):
+        sg = StarLayerGraph()
+        sg.add((URIRef(EX + 's'), URIRef(EX + 'p'), Literal('line one\nline two')))
+        out = sg.serialize(format='longturtle12')
+        assert '"""' not in out
+        assert '\\n' in out
+        triple_lines = [line for line in out.splitlines() if line.strip() and not line.startswith('@')]
+        assert len(triple_lines) == 1
+        sg2 = StarLayerGraph()
+        sg2.parse(data=out, format='longturtle12')
+        assert (URIRef(EX + 's'), URIRef(EX + 'p'), Literal('line one\nline two')) in sg2
+
+    def test_embedded_quotes_in_multiline_literal_round_trip(self):
+        # Realistic case: an embedded SPARQL query containing string
+        # literals of its own (e.g. FILTER(?x = "foo")) inside a
+        # multi-line sh:select/sh:construct value.
+        text = 'PREFIX ex: <http://example.org/>\nSELECT $this WHERE {\n  $this ex:p "foo" .\n}'
+        sg = StarLayerGraph()
+        sg.add((URIRef(EX + 's'), URIRef(EX + 'p'), Literal(text)))
+        out = sg.serialize(format='turtle12')
+        sg2 = StarLayerGraph()
+        sg2.parse(data=out, format='turtle12')
+        assert (URIRef(EX + 's'), URIRef(EX + 'p'), Literal(text)) in sg2
+
+
+# ---------------------------------------------------------------------------
+# longturtle12 is fully canonical - unlike turtle12, it must never use the
+# bare boolean/integer/decimal shorthand, even though the same underlying
+# _node_to_ttl function implements both.
+# ---------------------------------------------------------------------------
+
+class TestLongTurtle12Canonical:
+    def test_boolean_not_bare_in_longturtle12(self):
+        sg = StarLayerGraph()
+        sg.add((URIRef(EX + 's'), URIRef(EX + 'p'), Literal(True)))
+        out = sg.serialize(format='longturtle12')
+        assert '^^xsd:boolean' in out
+
+    def test_integer_not_bare_in_longturtle12(self):
+        sg = StarLayerGraph()
+        sg.add((URIRef(EX + 's'), URIRef(EX + 'p'), Literal(42)))
+        out = sg.serialize(format='longturtle12')
+        assert '^^xsd:integer' in out
+
+    def test_decimal_not_bare_in_longturtle12(self):
+        from rdflib import XSD
+        sg = StarLayerGraph()
+        sg.add((URIRef(EX + 's'), URIRef(EX + 'p'), Literal('1.5', datatype=XSD.decimal)))
+        out = sg.serialize(format='longturtle12')
+        assert '^^xsd:decimal' in out
+
+    def test_turtle12_still_uses_bare_forms(self):
+        # Confirms the two formats genuinely diverge, not just that
+        # longturtle12 avoids the shorthand.
+        sg = StarLayerGraph()
+        sg.add((URIRef(EX + 's'), URIRef(EX + 'p'), Literal(True)))
+        out = sg.serialize(format='turtle12')
+        assert '^^xsd:boolean' not in out
+        assert ' true' in out

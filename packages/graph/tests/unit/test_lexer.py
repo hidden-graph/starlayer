@@ -254,6 +254,19 @@ class TestSplitObjAndAnnotations:
         assert obj == '"2024"^^xsd:date'
         assert anns == []
 
+    def test_typed_literal_bracketed_iri_datatype(self):
+        # '^^<full-iri>' (as opposed to '^^prefixed:name') - ordinary,
+        # common Turtle syntax (e.g. canonical/no-prefixes documents), but
+        # previously broken: next_token()'s bare-token scanner treats '<'
+        # as a stop char, so calling it on the whole '^^<...>' string
+        # stopped right after '^^', leaving the IRI as unconsumed trailing
+        # content. Confirmed live via a real TurtleSyntaxError before this
+        # fix, for input as ordinary as
+        # '"hi"^^<http://www.w3.org/2001/XMLSchema#string>'.
+        obj, anns = split_obj_and_annotations('"2024"^^<http://www.w3.org/2001/XMLSchema#date>')
+        assert obj == '"2024"^^<http://www.w3.org/2001/XMLSchema#date>'
+        assert anns == []
+
     def test_lang_literal(self):
         obj, anns = split_obj_and_annotations('"hello"@en')
         assert obj == '"hello"@en'

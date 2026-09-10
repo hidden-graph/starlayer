@@ -6,7 +6,7 @@ built-in functions and operators as node expressions under
 ``sparql:greater-than ( 10 5 )``), entirely separate from the ``shnex:``
 namespace ``starshacl/node_expressions.py`` implements. Confirmed via
 the W3C SHACL 1.2 Node Expressions test suite's ``node-expr/shnex-sparql/``
-fixtures - ~74 distinct functions/operators, one fixture file each.
+fixtures - 77 distinct functions/operators, one fixture file each.
 
 Rather than hand-reimplementing every SPARQL built-in (string functions,
 numeric functions, hashing, date/time extraction, term-type predicates,
@@ -121,6 +121,8 @@ _FUNCTION_CALLS: dict[URIRef, str] = {
     SPARQL.subject: "SUBJECT",
     SPARQL.predicate: "PREDICATE",
     SPARQL.object: "OBJECT",
+    SPARQL.now: "NOW",
+    SPARQL.rand: "RAND",
 }
 
 # name -> infix SPARQL operator, rendered "(?a0 <op> ?a1)".
@@ -356,8 +358,22 @@ def eval_sparql_expr(expr: Any, sg: Any, eval_arg: EvalArg) -> list:
 def _eval_dirlang_form(pred: URIRef, arg_exprs: list, eval_arg: EvalArg) -> list:
     from starlayergraph.model.dirlangstring import DirLangString
 
+    from starshacl.adapters import _try_decode_dirlangstring
+
     def _decode(value: Any) -> DirLangString | None:
-        return value if isinstance(value, DirLangString) else None
+        # A DirLangString reaching this module from real validate()/
+        # apply_rules() usage has already been flat-encoded to a plain
+        # Literal (starlayergraph's internal dirlang-encoded datatype URI) by
+        # the time pySHACL's node-expression dispatch hands it here - the same
+        # flattening _decode_triple_term() above works around for triple
+        # terms. Confirmed live: an un-decoded flat-encoded Literal silently
+        # made hasLangdir/langdir/strlangdir wrong (hasLangdir false, langdir
+        # "") for every real DirLangString value, only ever passing when
+        # called directly with a raw DirLangString instance (e.g. the W3C
+        # suite's eval_expr()-direct harness, which never encodes anything).
+        if isinstance(value, DirLangString):
+            return value
+        return _try_decode_dirlangstring(value)
 
     if pred == SPARQL.hasLang:
         lit_expr, tag_expr = arg_exprs

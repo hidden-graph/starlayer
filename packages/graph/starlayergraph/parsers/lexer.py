@@ -191,7 +191,22 @@ def split_obj_and_annotations(s):
     obj_tok, rest = next_token(s)
     rest = rest.strip()
     while rest.startswith('^^') or (rest.startswith('@') and len(rest) > 1 and rest[1].isalpha()):
-        suffix, rest = next_token(rest)
+        if rest.startswith('^^'):
+            # '^^' + a datatype IRI, either <bracketed> or a prefixed name.
+            # Calling next_token() on the whole '^^...' string directly (as
+            # the '@langtag' branch below still does) only works for the
+            # prefixed-name form: next_token's bare-token scanner treats
+            # '<' as a stop char, so '^^<http://...>' stopped the scan
+            # right after '^^' itself, leaving the IRI dangling as
+            # unexpected trailing content - confirmed live,
+            # '"x"^^<http://www.w3.org/2001/XMLSchema#string>' raised
+            # TurtleSyntaxError even though it's ordinary Turtle syntax.
+            # Peeling off '^^' first and tokenizing the remainder lets
+            # next_token's own '<...>' IRIREF branch handle that case too.
+            dt_tok, rest = next_token(rest[2:])
+            suffix = '^^' + dt_tok
+        else:
+            suffix, rest = next_token(rest)
         obj_tok += suffix
         rest = rest.strip()
     annotations = []

@@ -32,7 +32,7 @@ from starshacl.native_components import (
     shape_reference_nodes,
 )
 from starshacl.profiles import ValidationProfile, resolve_profile_options
-from starshacl.results import ExecutionDiagnostics, RulesResult, ValidationResult
+from starshacl.results import EvaluationResult, ExecutionDiagnostics, RulesResult, ValidationResult
 from starshacl.types import ensure_graph_mutable
 
 SH = Namespace("http://www.w3.org/ns/shacl#")
@@ -53,6 +53,22 @@ _STRUCTURAL_COMPONENTS: dict[str, Any] = {
     "equals": SH.EqualsConstraintComponent,
     "disjoint": SH.DisjointConstraintComponent,
 }
+
+
+class _RawGraphView:
+    """Minimal ``sg``-shaped wrapper exposing just ``.graph``, so
+    ``starshacl.node_expressions._is_shnex_expr``/
+    ``starshacl.sparql_node_expressions.is_sparql_expr`` (which only ever
+    read ``sg.graph``) can be used to test whether a candidate node is
+    actually a well-formed ``shnex:``/``sparql:`` expression before paying
+    for a real, harvested ``pyshacl.shapes_graph.ShapesGraph`` - needed only
+    once a candidate is confirmed and must actually be evaluated (e.g. via
+    ``eval_expr``, for operators like ``shnex:filterShape`` that check
+    shape conformance).
+    """
+
+    def __init__(self, graph: Any) -> None:
+        self.graph = graph
 
 
 class StarShaclValidator:
@@ -189,6 +205,22 @@ class StarShaclValidator:
                     "this pySHACL version - see starshacl/node_expressions.py."
                 )
 
+        # sh:expression's own scope-seeding bug (see
+        # _patch_expression_constraint_for_value_scope's docstring) affects
+        # *any* sh:expression usage, not just shnex:/sparql:-tagged ones -
+        # pySHACL's own call passes the value node where the real focus node
+        # belongs, so even an old-form sh:this inside sh:expression is wrong
+        # whenever focus != value (e.g. a property shape). Gated separately
+        # from the shnex:/sparql: check above for exactly that reason.
+        if shacl_graph is not None and any(True for _ in shacl_graph.triples((None, SH.expression, None))):
+            if not _patch_expression_constraint_for_value_scope():
+                raise NotImplementedError(
+                    "sh:expression is not supported: pySHACL's own implementation passes the "
+                    "wrong node as focusNode and never binds \"value\" in scope (see the SHACL "
+                    "1.2 Node Expressions spec's sh:expression TEXTUAL DEFINITION), and "
+                    "starShacl's fix could not be applied against this pySHACL version."
+                )
+
         # SHACL 1.2 Core: a shapes graph can cross-reference reusable
         # modules via owl:imports (optionally redirected through
         # owl:versionIRI for versioned modules). This library doesn't
@@ -208,6 +240,35 @@ class StarShaclValidator:
         # pySHACL already fully supports those, so every other constraint on
         # an affected shape validates correctly through the normal path too.
         shacl_graph = self._augment_shapes_with_new_target_types(data_graph, shacl_graph)
+
+        # sh:deactivated [ shnex:.../sparql:... ]: a node expression computing
+        # whether a shape is deactivated, rather than a plain boolean literal.
+        # Corrected 2026-09-06 after a direct user question caught a wrong
+        # first attempt: the node-expr spec's own "Getting Started" section
+        # only mentions sh:deactivated in passing (no worked example, no
+        # evaluation algorithm - confirmed by grepping the live spec text for
+        # every occurrence), but SHACL 1.2 *Core*'s "Deactivating Shapes and
+        # Constraints" section (which node-expr defers basic SHACL
+        # terminology to) gives the actual normative definition: "Let expr be
+        # the value of sh:deactivated in a shape. If evalExpr(expr, data
+        # graph, focus node, {}) produces true..." - evaluated once **per
+        # focus node**, not once globally. My first attempt evaluated it
+        # globally (no focus node at all), which is a genuinely different,
+        # wrong semantic (a per-shape on/off switch instead of a per-target
+        # filter) - confirmed wrong live before this fix (a `shnex:var
+        # "focusNode"`-referencing expression silently deactivated the whole
+        # shape for every target instead of varying per target).
+        #
+        # pySHACL's own shape *loading* still hard-requires sh:deactivated's
+        # value to be a Literal (ShapeLoadError), so the node-expression
+        # triple is stripped from the shapes graph before pySHACL ever loads
+        # shapes (same timing as the target-node fix above) and remembered in
+        # a context-scoped registry; _patch_shape_focus_nodes_for_deactivated_expression
+        # then filters each shape's own resolved focus nodes, evaluating the
+        # expression once per candidate - the one pySHACL entrypoint that
+        # sees "this shape's targets, before per-node constraint evaluation
+        # begins" for the common (focus=None) validate() path.
+        shacl_graph, deactivated_expr_registry = self._strip_deactivated_node_expressions(shacl_graph)
 
         # Predicates registered as real pySHACL constraint components (see
         # starshacl/native_components.py) whose value is itself a referenced
@@ -310,12 +371,25 @@ class StarShaclValidator:
         encoded_shapes = self.adapter.encode_graph(shapes_for_pyshacl) if shapes_for_pyshacl is not None else None
         encoded_ont = self.adapter.encode_graph(ont_graph) if ont_graph is not None else None
 
-        conforms, report_graph, report_text = self.validate_fn(
-            data_graph=encoded_data,
-            shacl_graph=encoded_shapes,
-            ont_graph=encoded_ont,
-            **options,
-        )
+        deactivated_token = None
+        if deactivated_expr_registry:
+            if not _patch_shape_focus_nodes_for_deactivated_expression():
+                raise NotImplementedError(
+                    "sh:deactivated with a node-expression value is not supported: "
+                    "starShacl's fix could not be applied against this pySHACL version - "
+                    "see starshacl/validator.py::_patch_shape_focus_nodes_for_deactivated_expression."
+                )
+            deactivated_token = _deactivated_expr_registry.set(deactivated_expr_registry)
+        try:
+            conforms, report_graph, report_text = self.validate_fn(
+                data_graph=encoded_data,
+                shacl_graph=encoded_shapes,
+                ont_graph=encoded_ont,
+                **options,
+            )
+        finally:
+            if deactivated_token is not None:
+                _deactivated_expr_registry.reset(deactivated_token)
 
         # Confirmed pySHACL bug: a pyshacl.errors.ValidationFailure raised
         # deep inside constraint evaluation (e.g. a malformed custom
@@ -406,6 +480,85 @@ class StarShaclValidator:
             for row in data_graph.query(str(select_query)):
                 additions.append((shape_node, SH.targetNode, row[0]))
 
+        # sh:targetNode [ shnex:... ]/[ sparql:... ]: a node expression given
+        # directly as sh:targetNode's own value, computing the shape's
+        # target nodes dynamically - the SHACL 1.2 Node Expressions spec's
+        # own opening ("Getting Started") example
+        # (sh:targetNode [ shnex:nodes [ shnex:instancesOf ex:Company ] ;
+        # shnex:filterShape [...] ]). Confirmed live 2026-09-06 that this was
+        # entirely unhandled before this fix: pySHACL's own sh:targetNode
+        # support treats *any* blank-node value as an opaque (bogus) target
+        # in its own right, producing a nonsense "Focus Node" that's really
+        # just the node expression's own blank node identity - a real,
+        # previously-undiscovered gap distinct from the sh:select case above
+        # (which this project had already found and fixed). Evaluated with
+        # no starting focus node (matches the spec's own framing - "a node
+        # expression produces the list of target nodes of a shape", not
+        # "...relative to some other node"); every node expression the spec
+        # actually demonstrates for this position (shnex:instancesOf,
+        # shnex:nodesMatching, shnex:filterShape) is focus-node-independent
+        # by construction, so this only matters for a shapes graph that (in
+        # violation of the spec's own intent for this position) plugs in a
+        # focus-dependent expression like a bare shnex:pathValues - which
+        # then, correctly, produces no targets rather than a wrong guess.
+        # Needs a real (harvested) pyshacl ShapesGraph for the shnex:
+        # operators that check shape conformance (shnex:filterShape/
+        # nodesMatching/matchAll/findFirst/conformsToShape call
+        # sg.lookup_shape_from_node(), which raises KeyError against an
+        # unharvested one) - built once here and discarded; pySHACL's own
+        # validate() call afterward builds its own fresh one from the
+        # augmented shacl_graph produced by this method, so there's no
+        # shared-state risk.
+        #
+        # Gated strictly on an actual shnex:/sparql: defining predicate -
+        # NOT "any BNode without sh:select" (tried first, reverted after a
+        # confirmed regression, W3C suite's targetWhere-001): sh:targetWhere
+        # resolution (_nodes_conforming_to below) already stuffs arbitrary
+        # data-graph blank nodes into sh:targetNode as plain candidate
+        # values, completely unrelated to node expressions - one of them
+        # coincidentally carrying sh:path (an ordinary nested property
+        # shape's own path declaration, picked up because this fixture's
+        # data graph and shapes graph are literally the same file) got
+        # mis-evaluated by pySHACL's *old-form* node-expression fallback
+        # (which treats any sh:path-bearing blank node as a path
+        # expression), producing a wrong extra target. The spec's own
+        # target-node worked examples exclusively use shnex:-namespaced
+        # expressions, never the ambiguous old sh:union/sh:path forms, so
+        # restricting this to real shnex:/sparql: predicates is both
+        # spec-faithful and sidesteps the ambiguity entirely.
+        from starshacl.node_expressions import _is_shnex_expr
+        from starshacl.sparql_node_expressions import is_sparql_expr
+
+        _raw_sg = _RawGraphView(shacl_graph)
+        target_expr_candidates = [
+            (shape_node, target_value)
+            for shape_node, _, target_value in shacl_graph.triples((None, SH.targetNode, None))
+            if isinstance(target_value, BNode)
+            and next(shacl_graph.objects(target_value, SH.select), None) is None
+            and (_is_shnex_expr(_raw_sg, target_value) or is_sparql_expr(_raw_sg, target_value))
+        ]
+        if target_expr_candidates:
+            from pyshacl.shapes_graph import ShapesGraph
+
+            from starshacl.node_expressions import eval_expr
+
+            throwaway_sg = ShapesGraph(shacl_graph)
+            throwaway_sg.shapes  # noqa: B018 - property getter triggers shape-cache harvest
+
+            for shape_node, target_value in target_expr_candidates:
+                try:
+                    computed = eval_expr(target_value, None, data_graph, throwaway_sg)
+                except Exception:
+                    continue
+                # Remove the original blank-node triple even when computed is
+                # empty - a node expression legitimately producing zero
+                # target nodes means the shape targets nothing, which must
+                # not fall back to pySHACL treating the raw blank node
+                # itself as a (bogus) target.
+                removals.append((shape_node, SH.targetNode, target_value))
+                for node in computed:
+                    additions.append((shape_node, SH.targetNode, node))
+
         # sh:shape - declared in the DATA graph (unlike sh:targetNode, which
         # is a shapes-graph triple): n sh:shape s means n is a target for s.
         for node, _, shape_node in data_graph.triples((None, SH.shape, None)):
@@ -474,6 +627,49 @@ class StarShaclValidator:
         for triple in additions:
             augmented.add(triple)
         return augmented
+
+    def _strip_deactivated_node_expressions(self, shacl_graph: Any) -> tuple[Any, dict[Any, Any]]:
+        """Remove every ``sh:deactivated [ shnex:.../sparql:... ]`` triple
+        from a copy of ``shacl_graph`` (pySHACL's own shape *loading* hard-
+        requires a Literal here and crashes otherwise), returning
+        ``(graph, registry)`` where ``registry`` maps each affected shape
+        node to its original node-expression value. The caller threads
+        ``registry`` into ``_deactivated_expr_registry`` around the actual
+        pySHACL call, for ``_patch_shape_focus_nodes_for_deactivated_expression``
+        to evaluate per focus node - see that function and the call site's
+        own comment for the full reasoning and spec citation (SHACL 1.2
+        Core's "Deactivating Shapes and Constraints" section).
+
+        Returns ``(shacl_graph, {})`` unchanged if no such expression is
+        present.
+        """
+        if shacl_graph is None:
+            return shacl_graph, {}
+
+        from starshacl.node_expressions import _is_shnex_expr
+        from starshacl.sparql_node_expressions import is_sparql_expr
+
+        raw_sg = _RawGraphView(shacl_graph)
+        candidates = [
+            (shape_node, target_value)
+            for shape_node, _, target_value in shacl_graph.triples((None, SH.deactivated, None))
+            if isinstance(target_value, BNode)
+        ]
+        candidates = [
+            (shape_node, target_value)
+            for shape_node, target_value in candidates
+            if _is_shnex_expr(raw_sg, target_value) or is_sparql_expr(raw_sg, target_value)
+        ]
+        if not candidates:
+            return shacl_graph, {}
+
+        registry = {shape_node: target_value for shape_node, target_value in candidates}
+        candidate_triples = {(s, SH.deactivated, v) for s, v in candidates}
+        stripped = type(shacl_graph)()
+        for triple in shacl_graph:
+            if triple not in candidate_triples:
+                stripped.add(triple)
+        return stripped, registry
 
     def _ensure_native_component_shapes_typed(self, shacl_graph: Any) -> Any:
         """Type the values of shape-expecting native-component predicates
@@ -1018,6 +1214,101 @@ class StarShaclValidator:
             conforms=result.conforms,
             diagnostics=result.diagnostics,
         )
+
+    def evaluate(
+        self,
+        data_graph: Any,
+        shacl_graph: Any,
+        ont_graph: Any | None = None,
+    ) -> EvaluationResult:
+        """A third, independent processing mode alongside ``validate()``
+        (checks conformance, never mutates) and ``apply_rules()`` (executes
+        ``sh:rule``, materializes real triples): compute every ``sh:values``-
+        declared *virtual* property across ``shacl_graph``, for every focus
+        node it applies to, and return them merged into a throwaway copy of
+        ``data_graph`` - the caller's own ``data_graph`` is never mutated,
+        and the returned graph is not meant to be persisted (see
+        ``EvaluationResult``'s own docstring for the spec citation).
+
+        Confirmed live (2026-09-07) that this is a genuinely separate
+        concern from ``apply_rules()``, not an overlapping one: a
+        ``sh:values``-declared virtual property is invisible to ordinary
+        node-expression path resolution (``shnex:pathValues``/pySHACL's own
+        ``value_nodes_from_path``) the same way it's invisible to a plain
+        ``sh:path`` read - a ``sh:rule`` that tries to *read* a virtual
+        property this way finds nothing, and only ever produces a real
+        triple for that same computation if the rule *recomputes* it itself
+        via the identical node expression. ``sh:values`` is wired only into
+        ``Shape.value_nodes()`` (pySHACL's constraint-evaluation path,
+        patched by ``_patch_shape_value_nodes_for_sh_values``), never into
+        rule execution - so nothing here needs to coordinate with
+        ``apply_rules()`` at all, or worry about double-materializing
+        anything it already produces.
+
+        Only handles a property shape's simple, single-predicate ``sh:path``
+        (the form every worked example in the spec uses) - a property path
+        expression (sequence/inverse/etc.) is silently skipped, matching
+        this module's general "shallow but broad" tolerance elsewhere for
+        forms not worth a full path-grammar evaluation here.
+
+        **Unions with any real, already-stored value for the same
+        predicate - does not remove or replace it.** SHACL 1.2 Core's own
+        "Value Nodes of Property Shapes" algorithm is explicit and
+        unambiguous about this: real path-based values and ``sh:values``-
+        computed values are both unconditionally *added* to the same set
+        (only ``sh:defaultValue`` is conditional, on the set still being
+        empty) - see ``_patch_shape_value_nodes_for_sh_values``'s own
+        docstring for the exact quoted algorithm and the same correction
+        applied there. A first version of this method removed the stored
+        value before adding the computed one, based on an incorrect
+        assumption checked only against this project's own prior
+        (also-wrong) behavior, not the actual spec text - caught by a
+        direct user question ("is the draft standard clean on what should
+        happen?").
+        """
+        data_graph, shacl_graph, ont_graph = normalize_graph_inputs(data_graph, shacl_graph, ont_graph)
+        if shacl_graph is None:
+            raise ValueError("evaluate() needs a shapes graph to find sh:values declarations in.")
+
+        shacl_graph = self._augment_shapes_with_new_target_types(data_graph, shacl_graph)
+
+        from pyshacl.shapes_graph import ShapesGraph
+
+        harvested_sg = ShapesGraph(shacl_graph)
+        harvested_sg.shapes  # noqa: B018 - property getter triggers shape-cache harvest
+
+        merged = type(data_graph)()
+        for prefix, ns in data_graph.namespaces():
+            merged.bind(prefix, ns)
+        for triple in data_graph:
+            merged.add(triple)
+
+        for prop_shape, _, values_node in list(shacl_graph.triples((None, SH.values, None))):
+            path_vals = list(shacl_graph.objects(prop_shape, SH.path))
+            if len(path_vals) != 1 or not isinstance(path_vals[0], URIRef):
+                continue
+            predicate = path_vals[0]
+
+            focus_nodes = set(_shape_target_nodes(data_graph, shacl_graph, prop_shape))
+            for node_shape, _, _ in shacl_graph.triples((None, SH.property, prop_shape)):
+                focus_nodes |= _shape_target_nodes(data_graph, shacl_graph, node_shape)
+            if not focus_nodes:
+                continue
+
+            try:
+                real_shape = harvested_sg.lookup_shape_from_node(prop_shape)
+            except KeyError:
+                continue
+
+            for focus_node in focus_nodes:
+                # UNION, not replace - see this method's own docstring for
+                # the spec citation. Any real, already-stored value for
+                # (focus_node, predicate) is left exactly as-is; the
+                # computed value(s) are added alongside it.
+                for value in _compute_sh_values(real_shape, values_node, data_graph, focus_node):
+                    merged.add((focus_node, predicate, value))
+
+        return EvaluationResult(data_graph=merged)
 
 
 def validate(
@@ -1734,11 +2025,58 @@ def _patch_rdflib_data_graph_clone_preserves_tt_adapter() -> bool:
     ``sh:reifierShape`` - anything relying on triple-term encoding awareness,
     combined with ``advanced=True``.
 
-    Patches ``pyshacl.graph_abstraction.RdfLibDataGraph.clone`` to copy
-    ``_tt_adapter`` from the pre-clone ``.impl`` onto the post-clone
-    ``.impl`` when present - a strict superset of the original behavior,
-    a no-op for any graph without a ``_tt_adapter`` (i.e. every use of
-    pySHACL directly, or of starShacl without triple-term data).
+    Patches ``pyshacl.graph_abstraction.RdfLibDataGraph.clone`` two ways:
+
+    1. **(2026-09-06)** When ``self.impl`` carries a ``_tt_adapter`` and the
+       caller didn't already supply a ``destination``, pre-constructs a
+       fresh ``starshacl.adapters._SparqlAwareEncodedGraph`` (the *same
+       class* ``self.impl`` already is in real ``validate()``/``apply_rules()``
+       usage - see that class's own docstring) and passes it as
+       ``clone_graph()``'s own ``target_graph`` parameter - ``clone_graph``
+       already supports populating a caller-supplied graph instead of always
+       building a bare ``rdflib.Graph()`` (confirmed from its own source:
+       ``target_graph`` is optional, and every triple is copied via ordinary
+       ``g.add(t)`` either way), so this was a real, already-existing
+       extension point, not something requiring pySHACL's own code to
+       change.
+
+       An earlier version of this fix constructed a plain ``StarLayerGraph()``
+       instead - wrong, caught live: ``self.impl`` in real usage is
+       ``_SparqlAwareEncodedGraph``, not ``StarLayerGraph`` directly (the
+       adapter wraps the *encoded* graph, decoding to a real
+       ``StarLayerGraph`` only inside its own ``.query()`` override), and
+       that override - the thing that actually routes a query through
+       ``StarLayerGraph``'s triple-term-aware SPARQL 1.2 lowering (parsing
+       via ``starsparql.prepare_query_12``, lowering ``TRIPLE()``/
+       ``SUBJECT()``/``PREDICATE()``/``OBJECT()``/``isTRIPLE()`` to plain
+       SPARQL 1.1 encoding-triple patterns *before* rdflib's raw evaluator
+       ever runs) - lives on the ``_SparqlAwareEncodedGraph`` *class itself*,
+       not on the ``_tt_adapter`` attribute alone. Point 2 below (bolting
+       ``_tt_adapter`` onto whatever bare ``rdflib.Graph`` pySHACL's own
+       ``clone_graph()`` produces by default) is not equivalent to this: the
+       attribute is present, but ``.query()`` is still inherited unchanged
+       from plain ``rdflib.Graph``, so it never redirects at all.
+       ``starsparql/grammar12.py`` deliberately binds no raw ``evalfn`` for
+       ``TRIPLE``/``SUBJECT``/``PREDICATE``/``OBJECT``/``isTRIPLE`` - by
+       design, since ``StarLayerGraph.query()``'s lowering is supposed to
+       intercept them first - so querying a clone that lost this routing
+       crashes with ``Exception: Weird - _eval got a CompValue without
+       evalfn!``/``Exception: What do I do with this CompValue?`` the moment
+       one of them is used, confirmed live via
+       ``tests/integration/test_sparql_shacl_integration.py``'s triple-term-
+       accessor cases once ``advanced=True`` stopped being a rare opt-in.
+    2. Copies ``_tt_adapter`` from the pre-clone ``.impl`` onto the post-
+       clone ``.impl`` when present (original 2026-07-31 behavior, kept
+       unchanged, and still needed for a caller-supplied ``destination`` that
+       doesn't already carry one) - lets ``native_components.py``'s
+       ``_get_tt_adapter()``/``_encode_key()`` (``sh:reifierShape`` and
+       ``sh:TripleTerm`` node-kind recognition, which read the attribute
+       directly rather than going through ``.query()``) keep working against
+       the clone.
+
+    Both are a strict superset of the original behavior - a no-op for any
+    graph without a ``_tt_adapter`` (i.e. every use of pySHACL directly, or
+    of starShacl without triple-term data).
 
     Idempotent and defensive like ``_patch_shape_validate_for_filter_shape``
     - returns ``False`` without raising if pySHACL's internals don't match
@@ -1758,8 +2096,24 @@ def _patch_rdflib_data_graph_clone_preserves_tt_adapter() -> bool:
             return True
 
         def _patched_clone(self, destination=None, identifier=None):
-            cloned = original_clone(self, destination, identifier)
             adapter = getattr(self.impl, "_tt_adapter", None)
+            if destination is None and adapter is not None:
+                from starshacl.adapters import _SparqlAwareEncodedGraph
+
+                # Pre-construct the *same* class .impl already is
+                # (_SparqlAwareEncodedGraph, not a plain rdflib.Graph) as
+                # clone_graph()'s own target_graph, so it gets populated by
+                # copying triples in rather than pySHACL's own default of
+                # always building a bare rdflib.Graph(). Passing `adapter`
+                # through the constructor (not just bolting it on after, the
+                # original fix below) matters: .query()'s own routing to a
+                # decoded StarLayerGraph lives on this *class*, not on the
+                # adapter attribute alone - bolting _tt_adapter onto a plain
+                # rdflib.Graph instance (the previous fix) leaves .query()
+                # still inherited unchanged from rdflib.Graph, so it silently
+                # never redirects at all.
+                destination = _SparqlAwareEncodedGraph(adapter=adapter)
+            cloned = original_clone(self, destination, identifier)
             if adapter is not None:
                 cloned.impl._tt_adapter = adapter
             return cloned
@@ -1838,13 +2192,47 @@ def _patch_shape_value_nodes_for_sh_values() -> bool:
     Patches ``pyshacl.shape.Shape.value_nodes`` - the single method every
     constraint component (``sh:datatype``, ``sh:hasValue``, etc.) already
     calls generically to get its focus-to-values mapping - rather than
-    special-casing each constraint component individually: a property shape
-    carrying ``sh:values`` gets its value set replaced transparently, and
-    every *other* constraint on that shape (``sh:datatype``, ``sh:hasValue``
-    in both W3C SHACL 1.2 test suite fixtures this was found via,
-    ``property-select-001``/``property-sparqlExpr-001``) then runs
-    completely unmodified against the computed values. Falls straight
+    special-casing each constraint component individually, so every *other*
+    constraint on a ``sh:values``-carrying shape (``sh:datatype``,
+    ``sh:hasValue`` in both W3C SHACL 1.2 test suite fixtures this was found
+    via, ``property-select-001``/``property-sparqlExpr-001``) runs
+    completely unmodified against the resulting value set. Falls straight
     through to the original method for every shape without ``sh:values``.
+
+    **UNIONS with the real, path-based values - does not replace them.**
+    Corrected 2026-09-08 after a direct user question ("is the draft
+    standard clean on what should happen?") prompted checking SHACL 1.2
+    Core's actual normative text instead of trusting this patch's own
+    original (wrong) assumption: Core's "Value Nodes of Property Shapes"
+    section gives an exact, unambiguous three-step algorithm - "Add all
+    nodes in the data graph that can be reached from the focus node with
+    the path mapping of p. If e is the value of sh:values ..., then *add*
+    the output nodes of evalExpr(e, ...). If the set is still empty and d
+    is the value of sh:defaultValue ..., then add the output nodes of
+    evalExpr(d, ...)." Both sh:path's real values and sh:values's computed
+    values are unconditionally *added* to the same set - sh:defaultValue is
+    the only one of the three gated on "if the set is still empty". The
+    original version of this patch returned only the computed values,
+    discarding whatever was actually stored - confirmed live that this
+    was a real, user-facing bug (a focus node with both a stored value and
+    a sh:values computation silently lost the stored one from every
+    constraint checked against this property shape), not merely an
+    unhandled edge case.
+
+    **Step 3 (``sh:defaultValue``) added 2026-09-09** - found missing while
+    building a notebook demo, not by spec re-reading: this docstring already
+    quoted the algorithm's three steps accurately, but the code only ever
+    implemented the first two. A live check (a property shape with
+    ``sh:defaultValue "active"``/``sh:hasValue "active"`` and no stored
+    value at all) confirmed ``validate()`` reported a violation instead of
+    conforming. Also gates on ``sh:defaultValue`` *alone*, not just when
+    ``sh:values`` is present too - the original code's ``if values_node is
+    None: return original`` early-out meant a plain property shape with only
+    ``sh:defaultValue`` (no ``sh:values`` at all) was never even inspected
+    for it. See ``tests/integration/test_sh_values.py``'s
+    ``TestDefaultValueFallback`` for the regression coverage - including the
+    negative cases (a real stored value, or a non-empty ``sh:values``
+    computation, both correctly take priority and skip the default).
 
     Idempotent and defensive like the other patches in this module -
     returns ``False`` without raising if pySHACL's internals don't match
@@ -1863,11 +2251,27 @@ def _patch_shape_value_nodes_for_sh_values() -> bool:
             return True
 
         def _patched_value_nodes(self, target_graph, focus, sparql_mode=False, debug=False):
+            original = original_value_nodes(self, target_graph, focus, sparql_mode=sparql_mode, debug=debug)
+            if not self.is_property_shape:
+                return original
             values_node = next(iter(self.sg.graph.objects(self.node, SH.values)), None)
-            if values_node is not None and self.is_property_shape:
-                focus_list = focus if isinstance(focus, (tuple, list, set)) else [focus]
-                return {f: set(_compute_sh_values(self, values_node, target_graph, f)) for f in focus_list}
-            return original_value_nodes(self, target_graph, focus, sparql_mode=sparql_mode, debug=debug)
+            default_values = list(self.sg.graph.objects(self.node, SH.defaultValue))
+            if values_node is None and not default_values:
+                return original
+            focus_list = focus if isinstance(focus, (tuple, list, set)) else [focus]
+            result = {}
+            for f in focus_list:
+                # Steps 1+2 (path values, sh:values) are unconditionally
+                # unioned; step 3 (sh:defaultValue) only kicks in "if the set
+                # is still empty" - see this function's own docstring for the
+                # exact three-step algorithm quoted from SHACL 1.2 Core.
+                values = set(original.get(f, ()))
+                if values_node is not None:
+                    values |= set(_compute_sh_values(self, values_node, target_graph, f))
+                if not values and default_values:
+                    values |= set(default_values)
+                result[f] = values
+            return result
 
         _patched_value_nodes._starshacl_values_patch = True  # type: ignore[attr-defined]
         pyshacl.shape.Shape.value_nodes = _patched_value_nodes
@@ -1876,6 +2280,189 @@ def _patch_shape_value_nodes_for_sh_values() -> bool:
         _value_nodes_patch_status = False
 
     return _value_nodes_patch_status
+
+
+_deactivated_expr_registry: contextvars.ContextVar[dict[Any, Any] | None] = contextvars.ContextVar(
+    "_deactivated_expr_registry", default=None
+)
+
+_deactivated_focus_nodes_patch_status: bool | None = None
+
+
+def _patch_shape_focus_nodes_for_deactivated_expression() -> bool:
+    """Implement SHACL 1.2 Core's actual ``sh:deactivated``-as-node-expression
+    semantics: "Let expr be the value of sh:deactivated in a shape. If
+    evalExpr(expr, data graph, focus node, {}) produces true as its only
+    output node, the shape is called deactivated" - evaluated once **per
+    focus node**, from Core's own "Deactivating Shapes and Constraints"
+    section (not the node-expr document, which only mentions
+    ``sh:deactivated`` once in passing with no worked example or evaluation
+    algorithm of its own - confirmed by grepping the live spec text).
+
+    Corrects a first attempt (2026-09-05) that evaluated the expression once
+    *globally*, with no focus node at all, based on the node-expr document
+    alone - a real, different, and wrong semantic (a per-shape on/off switch
+    instead of a per-target filter), caught by a direct user question and
+    confirmed wrong live: a `shnex:var "focusNode"`-referencing expression
+    silently deactivated the whole shape for every target, never varying
+    per target the way Core's own definition requires.
+
+    Patches ``pyshacl.shape.Shape.focus_nodes`` - the method
+    ``Shape.validate()`` calls to resolve a shape's own targets into a
+    concrete focus-node set whenever ``validate()`` isn't given an explicit
+    ``focus=`` restriction (the overwhelming common case - confirmed via
+    ``pyshacl/validator.py``'s own single call site, ``s.validate(executor,
+    g, focus=on_focus_nodes)``, where ``on_focus_nodes`` is ``None`` unless
+    a caller explicitly passes ``focus_nodes=`` to ``validate()``). For each
+    node the original method would return, evaluates the shape's
+    registered expression (looked up via ``_deactivated_expr_registry``,
+    populated by ``StarShaclValidator._strip_deactivated_node_expressions``
+    for the duration of one ``validate()`` call) with that node as the
+    focus node, and excludes it if the expression evaluates to exactly
+    ``true`` - every other node proceeds to normal constraint evaluation
+    unaffected. A node the expression can't evaluate (raises) is kept
+    (fails open - treated as active), matching this module's general
+    "shallow but broad" tolerance for malformed input elsewhere.
+
+    Idempotent and defensive like the other patches in this module -
+    returns ``False`` without raising if pySHACL's internals don't match
+    what this shim expects. A no-op whenever ``_deactivated_expr_registry``
+    is unset/empty (the default), so this patch is harmless to apply
+    unconditionally once any caller needs it.
+    """
+    global _deactivated_focus_nodes_patch_status
+    if _deactivated_focus_nodes_patch_status is not None:
+        return _deactivated_focus_nodes_patch_status
+
+    try:
+        import pyshacl.shape
+        from rdflib import Literal as _Literal
+
+        from starshacl.node_expressions import eval_expr
+
+        original_focus_nodes = pyshacl.shape.Shape.focus_nodes
+        if getattr(original_focus_nodes, "_starshacl_deactivated_expr_patch", False):
+            _deactivated_focus_nodes_patch_status = True
+            return True
+
+        def _patched_focus_nodes(self, data_graph, debug=False):
+            result = original_focus_nodes(self, data_graph, debug=debug)
+            registry = _deactivated_expr_registry.get()
+            if not registry:
+                return result
+            expr = registry.get(self.node)
+            if expr is None:
+                return result
+            kept = set()
+            for node in result:
+                try:
+                    computed = eval_expr(expr, node, data_graph, self.sg)
+                except Exception:
+                    kept.add(node)
+                    continue
+                is_true = len(computed) == 1 and next(iter(computed)) in (_Literal(True), True)
+                if not is_true:
+                    kept.add(node)
+            return kept
+
+        _patched_focus_nodes._starshacl_deactivated_expr_patch = True  # type: ignore[attr-defined]
+        pyshacl.shape.Shape.focus_nodes = _patched_focus_nodes
+        _deactivated_focus_nodes_patch_status = True
+    except Exception:
+        _deactivated_focus_nodes_patch_status = False
+
+    return _deactivated_focus_nodes_patch_status
+
+
+_expression_constraint_scope_patch_status: bool | None = None
+
+
+def _patch_expression_constraint_for_value_scope() -> bool:
+    """Fix two confirmed bugs in pySHACL's own ``ExpressionConstraint.
+    _evaluate_expression`` (``pyshacl/constraints/advanced/__init__.py``),
+    found live 2026-09-05 by re-reading the SHACL 1.2 Node Expressions
+    spec's own "sh:expression" TEXTUAL DEFINITION - ``evalExpr(expr, data
+    graph, focusNode, {value: v})`` - and its worked example (which uses
+    ``shnex:var "value"`` directly) against real ``validate()`` output,
+    rather than trusting the earlier pass that covered the ``shnex:``/
+    ``sparql:`` operator library exhaustively but never checked *this*
+    constraint component's own scope-seeding contract:
+
+    1. pySHACL's own call, ``nodes_from_node_expression(expr, v, data_graph,
+       self.shape.sg)``, passes the *value* node ``v`` positionally where
+       ``focus_node`` belongs - the real shape focus node ``f`` (available
+       in the very same loop, via ``f_v_dict.items()``) is never passed to
+       node-expression evaluation at all. Confirmed live:
+       ``shnex:var "focusNode"`` inside ``sh:expression`` on a property
+       shape returns the *value* node, not the real focus node, whenever
+       they differ.
+    2. Scope is never seeded with ``"value"`` at all - confirmed live that
+       ``shnex:var "value"`` (used directly in the spec's own IBAN worked
+       example under this same section) always resolves to unbound, no
+       matter what.
+
+    Patches ``pyshacl.constraints.advanced.ExpressionConstraint.
+    _evaluate_expression`` to call ``starshacl.node_expressions.eval_expr``
+    directly (which already delegates to pySHACL's own old-form handling
+    for every expression that isn't ``shnex:``/``sparql:``-tagged, so this
+    is a strict superset, not a narrowing) with the correct
+    ``focus_node=f`` and ``scope={"focusNode": f, "value": v}`` - fixing
+    both bugs at once, since they share the same one-line root cause.
+    Everything else in the method (message collection, report building via
+    ``self.make_v_result``) is reproduced unchanged from the original.
+
+    Idempotent and defensive like the other patches in this module -
+    returns ``False`` without raising if pySHACL's internals don't match
+    what this shim expects.
+    """
+    global _expression_constraint_scope_patch_status
+    if _expression_constraint_scope_patch_status is not None:
+        return _expression_constraint_scope_patch_status
+
+    try:
+        import pyshacl.constraints.advanced as _advanced_mod
+        from rdflib import Literal as _Literal
+
+        from starshacl.node_expressions import eval_expr
+
+        ExpressionConstraint = _advanced_mod.ExpressionConstraint
+        original = ExpressionConstraint._evaluate_expression
+        if getattr(original, "_starshacl_value_scope_patch", False):
+            _expression_constraint_scope_patch_status = True
+            return True
+
+        def _patched_evaluate_expression(self, data_graph, f_v_dict, expr):
+            reports = []
+            non_conformant = False
+            messages = list(self.shape.sg.objects(expr, _advanced_mod.SH_message))
+            if len(messages):
+                messages = [next(iter(messages))]
+            else:
+                messages = None
+            for f, value_nodes in f_v_dict.items():
+                for v in value_nodes:
+                    n_set = eval_expr(expr, f, data_graph, self.shape.sg, scope={"focusNode": f, "value": v})
+                    if (
+                        isinstance(n_set, (list, set))
+                        and len(n_set) == 1
+                        and next(iter(n_set)) in (_Literal(True), True)
+                    ):
+                        continue
+                    non_conformant = True
+                    reports.append(
+                        self.make_v_result(
+                            data_graph, f, value_node=v, source_constraint=expr, extra_messages=messages
+                        )
+                    )
+            return non_conformant, reports
+
+        _patched_evaluate_expression._starshacl_value_scope_patch = True  # type: ignore[attr-defined]
+        ExpressionConstraint._evaluate_expression = _patched_evaluate_expression
+        _expression_constraint_scope_patch_status = True
+    except Exception:
+        _expression_constraint_scope_patch_status = False
+
+    return _expression_constraint_scope_patch_status
 
 
 def _default_validate(**kwargs: Any) -> tuple[bool, Graph, str]:

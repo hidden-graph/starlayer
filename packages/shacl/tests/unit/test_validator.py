@@ -240,7 +240,14 @@ def test_validate_uses_profile_defaults() -> None:
     validator = StarShaclValidator(adapter=TripleTermAdapter(), validate_fn=fake_validate)
     _ = validator.validate(data_graph=data, profile="validation")
 
-    assert captured["advanced"] is False
+    # advanced=True is the "validation" profile's own deliberate default
+    # (2026-09-06) - this project treats sh:expression/sh:rule/custom
+    # targets/custom functions as ordinary SHACL 1.2 functionality, not an
+    # opt-in "SHACL-AF" extra, so callers shouldn't need to pass this
+    # explicitly. See docs/shacl12-gap-matrix.md's Follow-up item 8 for the
+    # investigation (two real pySHACL/starlayergraph interaction bugs) that
+    # had to be fixed before this default could be flipped safely.
+    assert captured["advanced"] is True
     assert captured["inplace"] is False
     # meta_shacl is consumed by starShacl's own preflight (starshacl.meta_shapes)
     # rather than forwarded to pySHACL's own (unextended) meta_shacl mechanism -

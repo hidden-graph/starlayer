@@ -12,9 +12,38 @@ adds the ~20 new ``shnex:`` operators (``shnex:pathValues``,
 ``shnex:concat``, ``shnex:orderBy``/``desc``, ``shnex:limit``,
 ``shnex:offset``, ``shnex:flatMap``, ``shnex:findFirst``, ``shnex:matchAll``,
 ``shnex:count``/``min``/``max``/``sum``, ``shnex:instancesOf``,
-``shnex:nodesMatching``, ``shnex:conformsToShape``) without touching pySHACL's own implementation of the
+``shnex:nodesMatching``, ``shnex:conformsToShape``, ``shnex:arg``) without touching pySHACL's own implementation of the
 old forms - old and new coexist, evaluated by whichever engine actually
 understands the blank node in question.
+
+Also implements the spec's "Custom Node Expressions" mechanism
+(https://w3c.github.io/data-shapes/shacl12-node-expr/#custom-node-expressions):
+user-declared, shapes-graph-defined node-expression functions, dispatched via
+``_custom_function_registry``/``_eval_custom_function_call`` rather than a
+fixed predicate table, since the call predicate is itself shapes-graph data.
+Two forms, both node-expression call sites (not the separate, **still
+unimplemented**, mechanism for calling one as an ordinary SPARQL function by
+name from ``sh:select``/``sh:sparqlExpr`` query text - see
+``docs/shacl12-gap-matrix.md``):
+
+- **Custom List Parameter Functions** (``sh:ListParameterExpressionFunction``):
+  called via the function's own IRI, e.g. ``[ ex:spacedConcat ( "a" "b" ) ]``;
+  arguments read inside ``sh:bodyExpression`` via ``[ shnex:arg 0 ]``,
+  ``[ shnex:arg 1 ]`` (positional, ``xsd:integer``).
+- **Custom Named Parameter Functions** (``sh:NamedParameterExpressionFunction``,
+  aka "named node expressions"): called via one of the function's own *key
+  parameters'* ``sh:path`` IRI, e.g. ``[ ex:average [ shnex:pathValues
+  ex:employee ] ]``; read via ``[ shnex:arg ex:average ]`` (keyed by the
+  parameter's own ``sh:path`` IRI). A blank node's key-parameter predicate(s)
+  must resolve to exactly one function - matching more than one raises
+  ``ValueError``, per the spec's "key parameters ... must be disjoint"
+  requirement.
+
+Both evaluate ``sh:bodyExpression`` in a *fresh* scope (only the bound
+arguments, plus ``focusNode``) rather than the caller's own ``scope`` -
+real function-call isolation, not lexical closure over the caller's
+``shnex:var`` bindings, per the spec's own
+``evalExpr(expr, ..., scope) -> evalExpr(body, ..., argScope)`` notation.
 
 Unlike pySHACL's own ``Set``-returning evaluator, ``shnex:`` is explicitly
 order-sensitive (``shnex:orderBy``/``limit``/``offset``/``distinct``/
@@ -40,16 +69,37 @@ of its transitive* ``rdfs:subClassOf`` *descendants* (searching both the
 data graph and the shapes graph, via ``validator.py``'s
 ``_transitive_subclasses`` - the same helper ``sh:ShapeClass``'s implicit
 target discovery uses), independent of the caller's ``inference=`` setting.
-This is a deliberate departure from how the rest of this codebase treats
-class reasoning (elsewhere delegated to pySHACL's own RDFS/OWL-RL
-materialization option) - done because ``shnex:instancesOf`` is a pure,
-self-contained expression with no access to whatever ``inference=`` the
-caller happened to pass to ``validate()``/``apply_rules()``, unlike a
-constraint component, which always runs inside that context.
+
+**Not a departure from the rest of this codebase, despite an earlier
+version of this docstring claiming otherwise** - corrected 2026-09-10 after
+a direct user question ("does shnex:instancesOf perform inferencing on
+class membership - should it?") prompted checking rather than continuing to
+assume. The spec's own "InstancesOf Expressions" section defines this
+purely in terms of the "SHACL instance" term (shared with ``sh:targetClass``
+/``sh:class``) and says outright (non-normatively) that "the definition of
+SHACL instance includes instances of subclasses of the given class." A live
+check of plain, unpatched ``pyshacl.validate()`` (no ``inference=`` argument
+at all) confirms both ``sh:targetClass`` (``pyshacl/shape.py``'s
+``transitive_subjects(RDFS_subClassOf, tc)``, and its SPARQL-mode
+``rdf:type/rdfs:subClassOf*`` property path) and ``sh:class``
+(``ClassConstraintComponent``'s own ``ASK {$value rdf:type/rdfs:subClassOf*
+$class .}``) already do exactly this same unconditional subclass-closure
+check, with no dependency on ``inference=`` either. Subclass reasoning is
+baseline SHACL Core semantics for *any* class-membership test - not an
+opt-in inference tier - so ``shnex:instancesOf`` doing it unconditionally
+here isn't a special case at all, just the same requirement reimplemented
+at a different call site (node-expression evaluation has no access to
+pySHACL's own ``ClassConstraintComponent``/target-resolution internals, so
+it can't literally reuse their query, only match their semantics). What
+``inference=`` actually gates is unrelated and heavier: RDFS closure beyond
+the class hierarchy, and OWL-RL entailments (``owl:equivalentClass``,
+property-based classification, etc.) - none of which ``shnex:instancesOf``,
+``sh:targetClass``, or ``sh:class`` attempt on their own either.
 """
 
 from __future__ import annotations
 
+import weakref
 from typing import Any
 
 from rdflib import BNode, Literal, URIRef
@@ -59,6 +109,7 @@ from starshacl.sparql_node_expressions import eval_sparql_expr, is_sparql_expr
 from starshacl.types import is_dirlangstring_like, is_triple_term_like
 
 SHNEX = Namespace("http://www.w3.org/ns/shacl-node-expr#")
+SH = Namespace("http://www.w3.org/ns/shacl#")
 SH_this = URIRef("http://www.w3.org/ns/shacl#this")
 
 _MAX_RECURSION = 50
@@ -91,6 +142,7 @@ _DEFINING_PREDICATES = (
     SHNEX.instancesOf,
     SHNEX.nodesMatching,
     SHNEX.conformsToShape,
+    SHNEX["arg"],
 )
 
 
@@ -112,6 +164,94 @@ def _defining_predicate(sg: Any, expr: BNode) -> URIRef:
             "node expression."
         )
     return matches[0]
+
+
+_custom_function_registry_cache: "weakref.WeakKeyDictionary[Any, dict[Any, Any]]" = weakref.WeakKeyDictionary()
+
+
+def _custom_function_registry(sg: Any) -> dict[Any, Any]:
+    """Map each *call predicate* to the custom node-expression function IRI it
+    invokes (https://www.w3.org/TR/shacl12-node-expr/#custom-node-expressions):
+
+    - A ``sh:ListParameterExpressionFunction`` IRI maps to itself - a call
+      site uses the function's own IRI directly as the blank node's one and
+      only predicate, e.g. ``[ ex:spacedConcat ( "a" "b" ) ]``.
+    - Each *key* parameter (``sh:parameter [ sh:path ex:foo ; sh:keyParameter
+      true ]``) of a ``sh:NamedParameterExpressionFunction`` maps to that
+      function - a call site uses the key parameter's own ``sh:path`` IRI as
+      (one of) the blank node's predicates, e.g. ``[ ex:average [...] ]``.
+      Confirmed live against the spec's own worked examples.
+
+    Computed once per distinct shapes-graph object and cached in a
+    ``WeakKeyDictionary`` keyed on ``sg.graph`` - same pattern and same
+    same-*content*-not-same-*object* caveat as
+    ``native_components._cross_node_reachable_shapes``, and safe for the same
+    reason: every native component evaluating shapes from one ``validate()``/
+    ``apply_rules()`` call shares the identical shapes-graph object.
+    """
+    cached = _custom_function_registry_cache.get(sg.graph)
+    if cached is not None:
+        return cached
+
+    registry: dict[Any, Any] = {}
+    for fn in sg.graph.subjects(RDF.type, SH.ListParameterExpressionFunction):
+        registry[fn] = fn
+    for fn in sg.graph.subjects(RDF.type, SH.NamedParameterExpressionFunction):
+        for param in sg.graph.objects(fn, SH.parameter):
+            if (param, SH.keyParameter, Literal(True)) not in sg.graph:
+                continue
+            for path in sg.graph.objects(param, SH.path):
+                registry[path] = fn
+
+    _custom_function_registry_cache[sg.graph] = registry
+    return registry
+
+
+def _eval_custom_function_call(
+    expr: Any,
+    call_predicates: set,
+    registry: dict[Any, Any],
+    focus_node: Any,
+    data_graph: Any,
+    sg: Any,
+    recurse_depth: int,
+) -> list[Any]:
+    """Evaluate a call to a custom List/Named Parameter Expression Function.
+
+    Implements both "EVALUATION OF CUSTOM LIST/NAMED PARAMETER EXPRESSIONS"
+    algorithms from the spec, which are identical up to how ``argScope`` gets
+    built: ``evalExpr(expr, focusGraph, focusNode, scope) ->
+    evalExpr(body, focusGraph, focusNode, argScope)`` - the function body is
+    evaluated in a *fresh* scope containing only the bound arguments (plus
+    ``focusNode``, since ``shnex:var "focusNode"`` reads it out of scope like
+    any other entry), never merged with the caller's own ``shnex:var``
+    bindings - real function-call isolation, not lexical closure.
+    """
+    fns = {registry[p] for p in call_predicates}
+    if len(fns) > 1:
+        raise ValueError(
+            f"Node expression {expr} matches key parameters of more than one custom "
+            f"node expression function ({[str(f) for f in fns]}) - a blank node may "
+            "only call one custom function."
+        )
+    (fn,) = fns
+    body = next(iter(sg.graph.objects(fn, SH.bodyExpression)))
+
+    def _eval_arg(sub_expr: Any) -> list[Any]:
+        return eval_expr(sub_expr, focus_node, data_graph, sg, recurse_depth=recurse_depth + 1)
+
+    arg_scope: dict[Any, Any] = {"focusNode": focus_node}
+    if (fn, RDF.type, SH.ListParameterExpressionFunction) in sg.graph:
+        (list_pred,) = call_predicates  # "subject of exactly one triple" per spec
+        arg_list_node = next(iter(sg.graph.objects(expr, list_pred)))
+        for index, arg_expr in enumerate(sg.graph.items(arg_list_node)):
+            arg_scope[index] = _eval_arg(arg_expr)
+    else:
+        for key_pred in call_predicates:
+            value_expr = next(iter(sg.graph.objects(expr, key_pred)))
+            arg_scope[key_pred] = _eval_arg(value_expr)
+
+    return eval_expr(body, focus_node, data_graph, sg, scope=arg_scope, recurse_depth=recurse_depth + 1)
 
 
 def _shape_conforms(sg: Any, shape_node: Any, data_graph: Any, node: Any) -> bool:
@@ -291,6 +431,15 @@ def eval_expr(
 
         return eval_sparql_expr(expr, sg, _eval_arg)
 
+    if isinstance(expr, BNode):
+        registry = _custom_function_registry(sg)
+        if registry:
+            call_predicates = set(sg.graph.predicates(expr)) & set(registry)
+            if call_predicates:
+                return _eval_custom_function_call(
+                    expr, call_predicates, registry, focus_node, data_graph, sg, recurse_depth
+                )
+
     if not _is_shnex_expr(sg, expr):
         return list(_pyshacl_eval(expr, focus_node, data_graph, sg, recurse_depth=recurse_depth))
 
@@ -351,6 +500,21 @@ def eval_expr(
             # an error).
             return []
         value = scope[name]
+        return list(value) if isinstance(value, (list, tuple, set)) else [value]
+
+    if pred == SHNEX["arg"]:
+        # Reads an argument bound by _eval_custom_function_call()'s argScope -
+        # keyed by xsd:integer position (list parameter functions) or by the
+        # parameter's own sh:path IRI (named parameter functions), never a
+        # plain string, so this can share scope's namespace with shnex:var's
+        # string-keyed bindings (str(...)-derived) with no collision risk.
+        key_node = next(iter(sg.graph.objects(expr, SHNEX["arg"])))
+        key = int(key_node) if isinstance(key_node, Literal) else key_node
+        if key not in scope:
+            # Unbound argument - matches shnex:var's identical unbound-name
+            # convention above (evaluates to no nodes, not an error).
+            return []
+        value = scope[key]
         return list(value) if isinstance(value, (list, tuple, set)) else [value]
 
     if pred == SHNEX["if"]:

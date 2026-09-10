@@ -811,6 +811,33 @@ class TestNodeExpressionWellFormedness:
             ("shnex:concat", "[ shnex:concat ( ex:a ex:b ) ]"),
             ("shnex:count", "[ shnex:count ( ex:a ex:b ) ]"),
             ("shnex:instancesOf", "[ shnex:instancesOf ex:Class ]"),
+            # The remaining 17 of shnex:'s 22 operators - previously untested
+            # at the meta-shacl well-formedness level (only pathValues/if/
+            # concat/count/instancesOf were, above). Confirmed live each
+            # passes stsh:NodeExpressionShape before adding, per this
+            # project's "verify coverage adversarially" testing discipline
+            # (see this package's CLAUDE.md) - stsh:NodeExpressionShape is
+            # documented "shallow but broad" (recognizes the defining
+            # predicate only, doesn't recurse into an operator's own internal
+            # argument-count/type correctness), so these are deliberately
+            # unremarkable well-formed instances, not edge cases.
+            ("shnex:filterShape", "[ shnex:filterShape ex:SomeShape ; shnex:nodes ( ex:a ) ]"),
+            ("shnex:var", '[ shnex:var "focusNode" ]'),
+            ("shnex:exists", "[ shnex:exists ex:a ]"),
+            ("shnex:distinct", "[ shnex:distinct ( ex:a ex:b ) ]"),
+            ("shnex:remove", "[ shnex:remove ex:a ; shnex:nodes ( ex:a ex:b ) ]"),
+            ("shnex:intersection", "[ shnex:intersection ( ex:a ex:b ) ]"),
+            ("shnex:orderBy", "[ shnex:orderBy ex:a ; shnex:nodes ( ex:a ex:b ) ]"),
+            ("shnex:limit", "[ shnex:limit 2 ; shnex:nodes ( ex:a ex:b ) ]"),
+            ("shnex:offset", "[ shnex:offset 1 ; shnex:nodes ( ex:a ex:b ) ]"),
+            ("shnex:flatMap", "[ shnex:flatMap ex:a ; shnex:nodes ( ex:a ex:b ) ]"),
+            ("shnex:findFirst", "[ shnex:findFirst ex:SomeShape ; shnex:nodes ( ex:a ) ]"),
+            ("shnex:matchAll", "[ shnex:matchAll ex:SomeShape ; shnex:nodes ( ex:a ) ]"),
+            ("shnex:min", "[ shnex:min ( ex:a ex:b ) ]"),
+            ("shnex:max", "[ shnex:max ( ex:a ex:b ) ]"),
+            ("shnex:sum", "[ shnex:sum ( ex:a ex:b ) ]"),
+            ("shnex:nodesMatching", "[ shnex:nodesMatching ex:SomeShape ]"),
+            ("shnex:conformsToShape", "[ shnex:conformsToShape ( ex:a ex:SomeShape ) ]"),
             ("SHACL Function call", "[ ex:identity ( [ sh:path ex:says ] ) ]"),
         ],
     )

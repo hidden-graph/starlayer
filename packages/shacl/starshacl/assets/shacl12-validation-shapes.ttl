@@ -391,10 +391,48 @@ stsh:NodeExpressionFunctionCallShape
 		""" ;
 	] .
 
+# Custom Named Parameter Expression Functions (SHACL 1.2 Node Expressions'
+# "Custom Node Expressions" section) are called by using one of the
+# function's own *key parameters'* sh:path IRIs directly as the call blank
+# node's defining predicate (e.g. ex:AverageExpression declares key
+# parameter sh:path ex:average, called as "[ ex:average <value> ]") - unlike
+# a Custom List Parameter Function call (e.g. "[ ex:spacedConcat ( "a" "b" )
+# ]"), the call's object is an arbitrary node expression, not necessarily a
+# list, so it can't be recognized by stsh:NodeExpressionFunctionCallShape's
+# generic "object is rdf:first-bearing" structural test above - confirmed
+# live (`[ ex:average [ shnex:pathValues ex:employee ] ]` was rejected by
+# meta_validate() before this shape was added, 2026-09-05). Unlike that
+# generic structural test, this one really does need to consult the shapes
+# graph itself (a purely structural "single predicate, non-list object" test
+# would also match a genuinely malformed predicate like `[ ex:bogusThing
+# ex:x ]` - see stsh:NodeExpressionShape's own "malformed forms are
+# rejected" tests), so it queries for a real sh:NamedParameterExpressionFunction/
+# sh:parameter/sh:path/sh:keyParameter declaration matching the predicate.
+stsh:NamedParameterFunctionCallShape
+	a sh:NodeShape ;
+	rdfs:label "Structurally shaped like a call to a custom Named Parameter Expression Function"@en ;
+	rdfs:comment "Matches SHACL 1.2 Node Expressions' Custom Named Parameter Expression call convention: some predicate other than sh:message that is the sh:path of a sh:keyParameter true parameter of some declared sh:NamedParameterExpressionFunction. Structural only - does not confirm sh:bodyExpression is itself well-formed."@en ;
+	sh:sparql [
+		sh:message "Value does not look like a call to any declared sh:NamedParameterExpressionFunction (no predicate matches a declared key parameter's sh:path)."@en ;
+		sh:select """
+			SELECT $this
+			WHERE {
+				FILTER NOT EXISTS {
+					$this ?p ?o .
+					FILTER (?p != <http://www.w3.org/ns/shacl#message>)
+					?param <http://www.w3.org/ns/shacl#path> ?p .
+					?param <http://www.w3.org/ns/shacl#keyParameter> true .
+					?fn <http://www.w3.org/ns/shacl#parameter> ?param .
+					?fn a <http://www.w3.org/ns/shacl#NamedParameterExpressionFunction> .
+				}
+			}
+		""" ;
+	] .
+
 stsh:NodeExpressionShape
 	a sh:NodeShape ;
 	rdfs:label "Well-formed SHACL node expression"@en ;
-	rdfs:comment "Accepts a constant (IRI/literal), sh:this, a blank node carrying a known sh:/shnex: node-expression defining predicate, or a blank node structurally shaped like a SHACL Function call. Deliberately shallow beyond that - see rdfs:comment on stsh:NodeExpressionFunctionCallShape and the section header above for the exact scope boundary."@en ;
+	rdfs:comment "Accepts a constant (IRI/literal), sh:this, a blank node carrying a known sh:/shnex: node-expression defining predicate, a blank node structurally shaped like a SHACL Function call or a custom List Parameter Function call, or a call to a declared custom Named Parameter Expression Function. Deliberately shallow beyond that - see rdfs:comment on stsh:NodeExpressionFunctionCallShape and the section header above for the exact scope boundary."@en ;
 	sh:or (
 		[ sh:nodeKind sh:IRIOrLiteral ]
 		[ sh:nodeKind sh:BlankNode ;
@@ -425,7 +463,10 @@ stsh:NodeExpressionShape
 			[ sh:property [ sh:path shnex:sum ; sh:minCount 1 ] ]
 			[ sh:property [ sh:path shnex:instancesOf ; sh:minCount 1 ] ]
 			[ sh:property [ sh:path shnex:nodesMatching ; sh:minCount 1 ] ]
+			[ sh:property [ sh:path shnex:conformsToShape ; sh:minCount 1 ] ]
+			[ sh:property [ sh:path shnex:arg ; sh:minCount 1 ] ]
 			stsh:NodeExpressionFunctionCallShape
+			stsh:NamedParameterFunctionCallShape
 		  )
 		]
 	) .

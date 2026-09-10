@@ -13,7 +13,7 @@ class ValidationProfile:
 
 _PROFILE_OPTIONS: dict[str, dict[str, Any]] = {
     "validation": {
-        "advanced": False,
+        "advanced": True,
         "inplace": False,
         "meta_shacl": True,
     },

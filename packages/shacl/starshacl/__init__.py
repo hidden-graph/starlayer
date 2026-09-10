@@ -15,7 +15,7 @@ from starshacl.profiles import (
     get_profile,
     resolve_profile_options,
 )
-from starshacl.results import ExecutionDiagnostics, RulesResult, ValidationResult
+from starshacl.results import EvaluationResult, ExecutionDiagnostics, RulesResult, ValidationResult
 from starshacl.types import MutableStarLayerGraphProtocol, StarLayerGraphProtocol
 from starshacl.validator import StarShaclValidator, validate
 
@@ -36,6 +36,7 @@ __all__ = [
     "ExecutionDiagnostics",
     "ValidationResult",
     "RulesResult",
+    "EvaluationResult",
     "ValidationProfile",
     "available_profiles",
     "get_profile",

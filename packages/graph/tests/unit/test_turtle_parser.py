@@ -67,6 +67,22 @@ class TestPlainTurtle:
         assert str(value) == '04'
         assert value != Literal('4', datatype=XSD.integer)
 
+    def test_typed_literal_with_bracketed_iri_datatype(self, parser):
+        """'^^<full-iri>' (as opposed to '^^prefixed:name') is ordinary
+        Turtle syntax - e.g. any canonical/no-prefixes document - but was
+        previously broken end to end (TurtleSyntaxError: unexpected
+        trailing content), since split_obj_and_annotations's '^^'-suffix
+        handling only correctly consumed the prefixed-name form."""
+        g = parser.parse(
+            '<http://example.org/s> <http://example.org/p> '
+            '"hi"^^<http://www.w3.org/2001/XMLSchema#string> .\n'
+        )
+        assert (
+            URIRef(EX + 's'),
+            URIRef(EX + 'p'),
+            Literal('hi', datatype=XSD.string),
+        ) in g
+
     def test_form_feed_and_backspace_escapes_decode(self, parser):
         """\\f (form feed, U+000C) and \\b (backspace, U+0008) are both valid
         Turtle ECHAR escapes (grammar: '\\' [tbnrf"'\\]) - _unescape() only
