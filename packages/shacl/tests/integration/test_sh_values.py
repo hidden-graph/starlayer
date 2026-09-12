@@ -224,6 +224,77 @@ class TestDefaultValueFallback:
         assert result.conforms is True
 
 
+class TestDefaultValueAsNodeExpression:
+    """sh:defaultValue's value is itself a node expression, per SHACL 1.2
+    Core's own algorithm - "add the output nodes of evalExpr(d, data graph,
+    focus node, {})" - not just a plain constant. A plain Literal/URIRef
+    constant still works (it evaluates to itself), but a real node
+    expression (e.g. falling back to a sibling property) needs the value
+    genuinely *evaluated*, not just read off the RDF graph as-is.
+
+    Found missing entirely (2026-09-11), prompted directly by a user request
+    for a "nickname falls back to first name" example: the pre-existing code
+    read sh:defaultValue's object via a plain graph.objects() lookup and
+    added it to the value set unevaluated - for a node-expression-valued
+    default (a blank node), that added the *blank node itself* as a bogus
+    value (confirmed live: a raw BNode literally showed up as the "nickname"
+    instead of the person's first name).
+    """
+
+    def test_default_value_as_a_path_expression_falls_back_to_a_sibling_property(self) -> None:
+        shapes = StarLayerGraph()
+        shapes.parse(
+            data="""
+                @prefix ex: <http://example.org/> .
+                @prefix sh: <http://www.w3.org/ns/shacl#> .
+                @prefix shnex: <http://www.w3.org/ns/shacl-node-expr#> .
+                ex:S a sh:NodeShape ; sh:targetNode ex:alice ;
+                  sh:property [ sh:path ex:nickname ;
+                                sh:defaultValue [ shnex:pathValues ex:firstName ] ;
+                                sh:hasValue "Alexandra" ] .
+            """,
+            format="turtle",
+        )
+        data = StarLayerGraph()
+        data.parse(
+            data='@prefix ex: <http://example.org/> . ex:alice ex:firstName "Alexandra" .',
+            format="turtle",
+        )
+
+        result = StarShaclValidator().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+
+        assert result.conforms is True
+
+    def test_default_value_as_a_path_expression_is_skipped_once_a_real_value_exists(self) -> None:
+        shapes = StarLayerGraph()
+        shapes.parse(
+            data="""
+                @prefix ex: <http://example.org/> .
+                @prefix sh: <http://www.w3.org/ns/shacl#> .
+                @prefix shnex: <http://www.w3.org/ns/shacl-node-expr#> .
+                ex:S a sh:NodeShape ; sh:targetNode ex:bob ;
+                  sh:property [ sh:path ex:nickname ;
+                                sh:defaultValue [ shnex:pathValues ex:firstName ] ;
+                                sh:hasValue "Bobby" ] .
+            """,
+            format="turtle",
+        )
+        data = StarLayerGraph()
+        data.parse(
+            data="""
+                @prefix ex: <http://example.org/> .
+                ex:bob ex:firstName "Robert" ; ex:nickname "Bobby" .
+            """,
+            format="turtle",
+        )
+
+        result = StarShaclValidator().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+
+        # bob's real, stored nickname ("Bobby") is what's checked - the
+        # computed default ("Robert", from firstName) never gets a chance.
+        assert result.conforms is True
+
+
 def test_property_rule_sh_values_remains_a_separate_unimplemented_mechanism() -> None:
     """Sanity check that this fix didn't accidentally touch sh:PropertyRule's
     own, unrelated sh:values mechanism (still correctly unimplemented - see

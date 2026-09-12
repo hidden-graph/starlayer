@@ -226,6 +226,25 @@ def _eval_custom_function_call(
     ``focusNode``, since ``shnex:var "focusNode"`` reads it out of scope like
     any other entry), never merged with the caller's own ``shnex:var``
     bindings - real function-call isolation, not lexical closure.
+
+    For the named-parameter case, ``argScope`` is built from *every*
+    declared ``sh:parameter`` of ``fn``, not just the key parameter(s) -
+    found live (2026-09-11), prompted by a direct user question asking for
+    a two-parameter example with one non-key parameter: the spec's own
+    "EVALUATION OF CUSTOM NAMED PARAMETER EXPRESSIONS" algorithm says
+    "argScope is a map of (parameter) nodes as keys and (argument) nodes
+    as values, so that **each parameter** of f has the value of the
+    parameter's sh:path from expr" - not "each key parameter". An earlier
+    version of this function only read ``call_predicates`` (the key
+    parameter(s) alone, since only key parameters are registered by
+    ``_custom_function_registry`` for dispatch purposes), so a call site
+    supplying a value for a declared-but-non-key parameter silently lost
+    it - confirmed live with a two-parameter function (`ex:name` as the
+    key parameter, `ex:greeting` as a plain, non-key one): the whole
+    expression evaluated to an empty result instead of reading
+    ``ex:greeting``'s value at all. Key parameters are still what the
+    registry uses to *find and dispatch to* the right function in the
+    first place - that part is unrelated and correct as-is.
     """
     fns = {registry[p] for p in call_predicates}
     if len(fns) > 1:
@@ -247,9 +266,11 @@ def _eval_custom_function_call(
         for index, arg_expr in enumerate(sg.graph.items(arg_list_node)):
             arg_scope[index] = _eval_arg(arg_expr)
     else:
-        for key_pred in call_predicates:
-            value_expr = next(iter(sg.graph.objects(expr, key_pred)))
-            arg_scope[key_pred] = _eval_arg(value_expr)
+        for param in sg.graph.objects(fn, SH.parameter):
+            for path in sg.graph.objects(param, SH.path):
+                value_exprs = list(sg.graph.objects(expr, path))
+                if value_exprs:
+                    arg_scope[path] = _eval_arg(value_exprs[0])
 
     return eval_expr(body, focus_node, data_graph, sg, scope=arg_scope, recurse_depth=recurse_depth + 1)
 

@@ -1283,11 +1283,16 @@ class StarShaclValidator:
         for triple in data_graph:
             merged.add(triple)
 
-        for prop_shape, _, values_node in list(shacl_graph.triples((None, SH.values, None))):
+        prop_shapes = {s for s, _, _ in shacl_graph.triples((None, SH.values, None))}
+        prop_shapes |= {s for s, _, _ in shacl_graph.triples((None, SH.defaultValue, None))}
+
+        for prop_shape in prop_shapes:
             path_vals = list(shacl_graph.objects(prop_shape, SH.path))
             if len(path_vals) != 1 or not isinstance(path_vals[0], URIRef):
                 continue
             predicate = path_vals[0]
+            values_node = next(iter(shacl_graph.objects(prop_shape, SH.values)), None)
+            default_values = list(shacl_graph.objects(prop_shape, SH.defaultValue))
 
             focus_nodes = set(_shape_target_nodes(data_graph, shacl_graph, prop_shape))
             for node_shape, _, _ in shacl_graph.triples((None, SH.property, prop_shape)):
@@ -1295,18 +1300,39 @@ class StarShaclValidator:
             if not focus_nodes:
                 continue
 
-            try:
-                real_shape = harvested_sg.lookup_shape_from_node(prop_shape)
-            except KeyError:
-                continue
+            real_shape = None
+            if values_node is not None:
+                try:
+                    real_shape = harvested_sg.lookup_shape_from_node(prop_shape)
+                except KeyError:
+                    real_shape = None
 
             for focus_node in focus_nodes:
-                # UNION, not replace - see this method's own docstring for
-                # the spec citation. Any real, already-stored value for
-                # (focus_node, predicate) is left exactly as-is; the
-                # computed value(s) are added alongside it.
-                for value in _compute_sh_values(real_shape, values_node, data_graph, focus_node):
-                    merged.add((focus_node, predicate, value))
+                # Steps 1+2 (real path values, sh:values) are unconditionally
+                # unioned - see this method's own docstring for the spec
+                # citation. Any real, already-stored value for
+                # (focus_node, predicate) is left exactly as-is (it's already
+                # in `merged`, copied from data_graph up front); the computed
+                # value(s) are added alongside it. Step 3 (sh:defaultValue)
+                # only fires if that union is still empty afterward -
+                # matching _patch_shape_value_nodes_for_sh_values's identical
+                # three-step algorithm on the validate() side, corrected
+                # 2026-09-10 after a live check found evaluate() silently
+                # ignored sh:defaultValue entirely (both for shapes that also
+                # had sh:values and produced no output, and for the simpler
+                # case of a property shape with only sh:defaultValue - the
+                # original code only ever iterated sh:values triples, so a
+                # defaultValue-only shape was never even visited).
+                computed = []
+                if values_node is not None and real_shape is not None:
+                    computed = _compute_sh_values(real_shape, values_node, data_graph, focus_node)
+                    for value in computed:
+                        merged.add((focus_node, predicate, value))
+                stored = list(data_graph.objects(focus_node, predicate))
+                if not stored and not computed and default_values:
+                    for default_value_node in default_values:
+                        for value in _compute_sh_default_value(default_value_node, data_graph, harvested_sg, focus_node):
+                            merged.add((focus_node, predicate, value))
 
         return EvaluationResult(data_graph=merged)
 
@@ -1826,9 +1852,11 @@ def _materialize_default_value_triples(
                         data_graph.add(triple)
                         added.append(triple)
                 elif default_values:
-                    triple = (focus, path, default_values[0])
-                    data_graph.add(triple)
-                    added.append(triple)
+                    default_computed = _compute_sh_default_value(default_values[0], data_graph, shapes_graph_wrapper, focus)
+                    if default_computed:
+                        triple = (focus, path, default_computed[0])
+                        data_graph.add(triple)
+                        added.append(triple)
 
     return added
 
@@ -2177,6 +2205,36 @@ def _compute_sh_values(shape: Any, values_node: Any, target_graph: Any, focus_no
     return [row[0] for row in rows if row[0] is not None]
 
 
+def _compute_sh_default_value(default_value_node: Any, target_graph: Any, sg: Any, focus_node: Any) -> list:
+    """SHACL 1.2 Core's own "Value Nodes of Property Shapes" algorithm treats
+    ``sh:defaultValue`` exactly like ``sh:values`` for evaluation purposes -
+    "add the output nodes of evalExpr(d, data graph, focus node, {})" - so a
+    ``sh:defaultValue`` can be a full node expression (e.g. ``[
+    shnex:pathValues ex:firstName ]``, falling back to a sibling property
+    when the target one is missing), not just a plain constant. A plain
+    ``Literal``/``URIRef`` constant still evaluates to itself via
+    ``eval_expr``'s own constant-node handling, so this is a strict superset
+    of "just read the raw RDF object", not a special case for the
+    node-expression form alone.
+
+    Found live (2026-09-11), prompted by a direct user request for a
+    ``sh:defaultValue`` example that falls back to *another property* rather
+    than a literal constant: the pre-existing code on both the ``validate()``
+    side (``_patch_shape_value_nodes_for_sh_values``) and the ``evaluate()``
+    side literally read ``sh:defaultValue``'s object via a plain
+    ``graph.objects()`` lookup and added it to the value set as-is - for a
+    node-expression-valued default (a blank node), that added the *blank
+    node itself* as a bogus "value" (e.g. ``BNode('n6adb...')``), never
+    evaluating it at all.
+    """
+    from starshacl.node_expressions import eval_expr
+
+    try:
+        return [v for v in eval_expr(default_value_node, focus_node, target_graph, sg) if v is not None]
+    except Exception:
+        return []
+
+
 _value_nodes_patch_status: bool | None = None
 
 
@@ -2269,7 +2327,8 @@ def _patch_shape_value_nodes_for_sh_values() -> bool:
                 if values_node is not None:
                     values |= set(_compute_sh_values(self, values_node, target_graph, f))
                 if not values and default_values:
-                    values |= set(default_values)
+                    for default_value_node in default_values:
+                        values |= set(_compute_sh_default_value(default_value_node, target_graph, self.sg, f))
                 result[f] = values
             return result
 

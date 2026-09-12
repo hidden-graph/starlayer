@@ -310,3 +310,153 @@ class TestIsolationFromApplyRules:
 
         assert list(rule_result.data_graph.objects(EX.alice, EX.friendCount)) == []  # apply_rules() never sees sh:values
         assert [v.toPython() for v in rule_result.data_graph.objects(EX.alice, EX.greeting)] == ["hi"]
+
+
+class TestDefaultValueFallback:
+    """sh:defaultValue's step 3 of the "Value Nodes of Property Shapes"
+    algorithm, on the evaluate() side - mirrors test_sh_values.py's
+    TestDefaultValueFallback, which covers the same algorithm for
+    validate().
+
+    Found missing entirely (2026-09-10) while building a notebook example
+    that put sh:values and sh:defaultValue on the same property shape:
+    evaluate() silently produced no ex:nickname triple at all for a focus
+    node with neither a stored value nor a non-empty sh:values computation,
+    instead of falling back to sh:defaultValue - both because the original
+    loop only ever iterated shapes carrying sh:values (a defaultValue-only
+    shape was never visited at all), and because even a visited shape never
+    consulted sh:defaultValue once its sh:values computation came back
+    empty. This is a real, previously-undetected inconsistency between
+    evaluate() and validate() (which already got this right via
+    _patch_shape_value_nodes_for_sh_values) - evaluate()'s entire premise is
+    exposing the same computation validate() already uses, so the two
+    silently disagreeing was a genuine bug, not a documentation gap.
+    """
+
+    def test_default_value_fills_in_when_neither_stored_nor_computed_exists(self) -> None:
+        data = StarLayerGraph()
+        data.parse(data="@prefix ex: <http://example.org/> . ex:carol a ex:Person .", format="turtle")
+        shapes = StarLayerGraph()
+        shapes.parse(
+            data=PREFIXES
+            + """
+            ex:S a sh:NodeShape ; sh:targetClass ex:Person ;
+              sh:property [ sh:path ex:nickname ;
+                            sh:values [ shnex:pathValues ex:preferredName ] ;
+                            sh:defaultValue "Anonymous" ] .
+            """,
+            format="turtle",
+        )
+        result = StarShaclValidator().evaluate(data_graph=data, shacl_graph=shapes)
+        assert list(result.data_graph.objects(EX.carol, EX.nickname)) == [Literal("Anonymous")]
+        assert list(data.objects(EX.carol, EX.nickname)) == []  # original graph untouched
+
+    def test_default_value_is_skipped_once_sh_values_computes_something(self) -> None:
+        data = StarLayerGraph()
+        data.parse(
+            data='@prefix ex: <http://example.org/> . ex:bob a ex:Person ; ex:preferredName "Bobby" .',
+            format="turtle",
+        )
+        shapes = StarLayerGraph()
+        shapes.parse(
+            data=PREFIXES
+            + """
+            ex:S a sh:NodeShape ; sh:targetClass ex:Person ;
+              sh:property [ sh:path ex:nickname ;
+                            sh:values [ shnex:pathValues ex:preferredName ] ;
+                            sh:defaultValue "Anonymous" ] .
+            """,
+            format="turtle",
+        )
+        result = StarShaclValidator().evaluate(data_graph=data, shacl_graph=shapes)
+        assert list(result.data_graph.objects(EX.bob, EX.nickname)) == [Literal("Bobby")]
+
+    def test_default_value_is_skipped_once_a_real_stored_value_exists(self) -> None:
+        # Even with sh:values present but producing nothing for this focus
+        # node, a real stored value alone is enough to keep sh:defaultValue
+        # from firing.
+        data = StarLayerGraph()
+        data.parse(
+            data='@prefix ex: <http://example.org/> . ex:dave a ex:Person ; ex:nickname "Davey" .',
+            format="turtle",
+        )
+        shapes = StarLayerGraph()
+        shapes.parse(
+            data=PREFIXES
+            + """
+            ex:S a sh:NodeShape ; sh:targetClass ex:Person ;
+              sh:property [ sh:path ex:nickname ;
+                            sh:values [ shnex:pathValues ex:preferredName ] ;
+                            sh:defaultValue "Anonymous" ] .
+            """,
+            format="turtle",
+        )
+        result = StarShaclValidator().evaluate(data_graph=data, shacl_graph=shapes)
+        assert list(result.data_graph.objects(EX.dave, EX.nickname)) == [Literal("Davey")]
+
+    def test_default_value_alone_with_no_sh_values_at_all_still_works(self) -> None:
+        # A defaultValue-only property shape (no sh:values triple at all)
+        # must still be visited - the original bug's loop only ever
+        # iterated sh:values triples, so this shape was silently skipped
+        # entirely.
+        data = StarLayerGraph()
+        data.parse(data="@prefix ex: <http://example.org/> . ex:erin a ex:Person .", format="turtle")
+        shapes = StarLayerGraph()
+        shapes.parse(
+            data=PREFIXES
+            + """
+            ex:S a sh:NodeShape ; sh:targetClass ex:Person ;
+              sh:property [ sh:path ex:role ; sh:defaultValue "guest" ] .
+            """,
+            format="turtle",
+        )
+        result = StarShaclValidator().evaluate(data_graph=data, shacl_graph=shapes)
+        assert list(result.data_graph.objects(EX.erin, EX.role)) == [Literal("guest")]
+
+
+class TestDefaultValueAsNodeExpression:
+    """sh:defaultValue's value is itself a node expression per SHACL 1.2
+    Core's algorithm, not just a plain constant - mirrors
+    test_sh_values.py's identically-named class for validate(). Found
+    missing (2026-09-11) the same way: evaluate() added the raw,
+    unevaluated blank node as a bogus value instead of evaluating it.
+    """
+
+    def test_default_value_as_a_path_expression_falls_back_to_a_sibling_property(self) -> None:
+        data = StarLayerGraph()
+        data.parse(
+            data='@prefix ex: <http://example.org/> . ex:alice ex:firstName "Alexandra" .',
+            format="turtle",
+        )
+        shapes = StarLayerGraph()
+        shapes.parse(
+            data=PREFIXES
+            + """
+            ex:S a sh:NodeShape ; sh:targetNode ex:alice ;
+              sh:property [ sh:path ex:nickname ; sh:defaultValue [ shnex:pathValues ex:firstName ] ] .
+            """,
+            format="turtle",
+        )
+        result = StarShaclValidator().evaluate(data_graph=data, shacl_graph=shapes)
+        assert list(result.data_graph.objects(EX.alice, EX.nickname)) == [Literal("Alexandra")]
+
+    def test_default_value_as_a_path_expression_is_skipped_once_a_real_value_exists(self) -> None:
+        data = StarLayerGraph()
+        data.parse(
+            data="""
+                @prefix ex: <http://example.org/> .
+                ex:bob ex:firstName "Robert" ; ex:nickname "Bobby" .
+            """,
+            format="turtle",
+        )
+        shapes = StarLayerGraph()
+        shapes.parse(
+            data=PREFIXES
+            + """
+            ex:S a sh:NodeShape ; sh:targetNode ex:bob ;
+              sh:property [ sh:path ex:nickname ; sh:defaultValue [ shnex:pathValues ex:firstName ] ] .
+            """,
+            format="turtle",
+        )
+        result = StarShaclValidator().evaluate(data_graph=data, shacl_graph=shapes)
+        assert list(result.data_graph.objects(EX.bob, EX.nickname)) == [Literal("Bobby")]

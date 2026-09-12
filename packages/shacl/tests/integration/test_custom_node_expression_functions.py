@@ -218,6 +218,78 @@ class TestCustomNamedParameterFunction:
         assert derived == [(EX.alice, EX.same, EX.alice)]
 
 
+class TestCustomNamedParameterFunctionNonKeyParameter:
+    """A named parameter function can declare more than one sh:parameter,
+    with only *some* of them marked sh:keyParameter true - the spec's own
+    syntax rule says "At least one of the parameters has sh:keyParameter
+    true", not "all of them". The non-key parameter(s) still need their
+    values read from the call site.
+
+    Found missing entirely (2026-09-11), prompted by a direct user question
+    asking for a two-parameter example with one non-key parameter: the
+    spec's own "EVALUATION OF CUSTOM NAMED PARAMETER EXPRESSIONS" algorithm
+    is explicit - "argScope is a map of (parameter) nodes as keys and
+    (argument) nodes as values, so that each parameter of f has the value
+    of the parameter's sh:path from expr" - not "each key parameter". A live
+    check confirmed the previous implementation only ever read the key
+    parameter(s) (since only key parameters are registered by
+    _custom_function_registry for call-site dispatch), so a call site
+    supplying a value for a declared-but-non-key parameter silently lost it
+    - the whole expression evaluated to an empty result instead of using it.
+    """
+
+    FUNCTION = """
+        ex:GreetExpression a sh:NamedParameterExpressionFunction ;
+          sh:parameter ex:GreetExpression-name, ex:GreetExpression-greeting ;
+          sh:bodyExpression [ sparql:concat ( [ shnex:arg ex:greeting ] " " [ shnex:arg ex:name ] ) ] .
+        ex:GreetExpression-name a sh:Parameter ; sh:path ex:name ; sh:keyParameter true .
+        ex:GreetExpression-greeting a sh:Parameter ; sh:path ex:greeting .
+    """
+
+    def test_non_key_parameter_value_is_read_from_the_call_site(self) -> None:
+        data = StarLayerGraph()
+        data.parse(data="@prefix ex: <http://example.org/> . ex:alice a ex:Person .", format="turtle")
+        shapes = StarLayerGraph()
+        shapes.parse(
+            data=PREFIXES
+            + self.FUNCTION
+            + """
+            ex:S a sh:NodeShape ; sh:targetNode ex:alice ;
+              sh:expression [ sparql:equals (
+                  [ ex:name "Alice" ; ex:greeting "Hi" ]
+                  "Hi Alice"
+              ) ] .
+            """,
+            format="turtle",
+        )
+        result = StarShaclValidator().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False, advanced=True)
+        assert result.conforms is True
+
+    def test_omitting_the_non_key_parameter_produces_an_empty_result_not_a_crash(self) -> None:
+        # shnex:arg's own unbound-name convention applies here too: a
+        # non-key parameter the call site simply doesn't supply evaluates
+        # to no nodes - which sparql:concat then propagates as *its own*
+        # empty/unbound result (confirmed live via evaluate(), not assumed:
+        # the property doesn't appear in the output graph at all). The
+        # point of this test is that the call still dispatches correctly
+        # and evaluates cleanly to "no answer" - it does not raise.
+        data = StarLayerGraph()
+        data.parse(data="@prefix ex: <http://example.org/> . ex:alice a ex:Person .", format="turtle")
+        shapes = StarLayerGraph()
+        shapes.parse(
+            data=PREFIXES
+            + self.FUNCTION
+            + """
+            ex:S a sh:NodeShape ; sh:targetNode ex:alice ;
+              sh:expression [ shnex:if [ shnex:exists [ ex:name "Alice" ] ] ;
+                               shnex:then false ; shnex:else true ] .
+            """,
+            format="turtle",
+        )
+        result = StarShaclValidator().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False, advanced=True)
+        assert result.conforms is True
+
+
 class TestCustomFunctionMetaShaclWellFormedness:
     def test_list_parameter_function_call_recognized(self) -> None:
         shapes = Graph()
