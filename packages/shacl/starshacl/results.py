@@ -35,6 +35,25 @@ class RulesResult:
 
 
 @dataclass(frozen=True)
+class SubgraphExtractionResult:
+    """Result of ``StarShaclValidator.extract_subgraph()`` - a fourth
+    processing mode alongside ``validate()``/``apply_rules()``/``evaluate()``:
+    given a focus node and a shape, extracts exactly the subgraph of real,
+    stored triples that shape's constraints covered for that node (see
+    ``starshacl/subgraph_extraction.py`` for the full design).
+
+    ``conforms`` mirrors ``ValidationResult``'s own field, but there is no
+    ``report_graph``/``report_text`` here - if ``focus_node`` doesn't
+    conform to ``shape``, ``data_graph`` is simply ``None``. Deliberate: this
+    method assumes conformance as a precondition the caller has already
+    checked, rather than existing to diagnose non-conformance.
+    """
+
+    conforms: bool
+    data_graph: Any | None
+
+
+@dataclass(frozen=True)
 class EvaluationResult:
     """Result of ``StarShaclValidator.evaluate()`` - a third, independent
     processing mode alongside ``validate()`` (checks conformance, never

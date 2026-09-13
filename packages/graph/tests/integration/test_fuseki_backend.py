@@ -16,7 +16,7 @@ Run:
 
 import pytest
 import requests
-from rdflib import Literal, URIRef
+from rdflib import BNode, Literal, URIRef
 from rdflib.namespace import XSD
 from rdflib.plugins.stores.sparqlstore import SPARQLUpdateStore
 from starlayergraph.graph import StarLayerDataset, StarLayerGraph
@@ -236,6 +236,56 @@ class TestFusekiSPARQL:
 
 
 # ---------------------------------------------------------------------------
+# rdf-1.1 (default) mode - blank nodes against a remote store
+# ---------------------------------------------------------------------------
+
+@fuseki
+class TestFusekiRdf11BlankNodes:
+    """Same bug and fix as test_oxigraph_backend.py's identically-named
+    class - see that docstring for the full mechanism. The default
+    (rdf-1.1, tt:HASH-encoded) backend had no blank-node handling of its
+    own when backed by a remote store at all - ordinary RDF 1.1 content
+    with a blank node, no triple terms, no SHACL, failed outright on both
+    Oxigraph and Fuseki identically. Fixed via
+    StarLayerGraph._needs_bnode_skolemization - always skolemize on write,
+    always deskolemize on read, deterministically (no provenance tracking
+    needed here, unlike the native backend's fix, since skolemizing is a
+    pure function of the BNode's own label)."""
+
+    def test_add_single_triple_with_bnode(self, sg):
+        b = BNode()
+        sg.add((URIRef(EX+'alice'), URIRef(EX+'hasThing'), b))
+        sg.add((b, URIRef(EX+'label'), Literal('hi')))
+        found = next(sg.objects(URIRef(EX+'alice'), URIRef(EX+'hasThing')))
+        assert isinstance(found, BNode)
+        assert list(sg.objects(found, URIRef(EX+'label'))) == [Literal('hi')]
+
+    def test_parse_turtle_with_bnode(self, sg):
+        sg.parse(data='@prefix ex: <http://example.org/> . ex:alice ex:hasThing [ ex:label "hi" ] .', format='turtle')
+        found = next(sg.objects(URIRef(EX+'alice'), URIRef(EX+'hasThing')))
+        assert list(sg.objects(found, URIRef(EX+'label'))) == [Literal('hi')]
+
+    def test_parse_turtle12_with_bnode_disambiguates_correctly(self, sg):
+        sg.parse(data='''
+            @prefix ex: <http://example.org/> .
+            ex:a ex:hasThing [ ex:label "first" ] .
+            ex:b ex:hasThing [ ex:label "second" ] .
+        ''', format='turtle12')
+        b1 = next(sg.objects(URIRef(EX+'a'), URIRef(EX+'hasThing')))
+        b2 = next(sg.objects(URIRef(EX+'b'), URIRef(EX+'hasThing')))
+        assert list(sg.objects(b1, URIRef(EX+'label'))) == [Literal('first')]
+        assert list(sg.objects(b2, URIRef(EX+'label'))) == [Literal('second')]
+
+    def test_remove_bnode_triple(self, sg):
+        b = BNode()
+        t = (URIRef(EX+'alice'), URIRef(EX+'hasThing'), b)
+        sg.add(t)
+        assert t in sg
+        sg.remove(t)
+        assert list(sg.triples((URIRef(EX+'alice'), URIRef(EX+'hasThing'), None))) == []
+
+
+# ---------------------------------------------------------------------------
 # Bulk write via addN
 # ---------------------------------------------------------------------------
 
@@ -310,6 +360,50 @@ class TestFusekiNativeRdf12:
         sg_rdf12.add((URIRef(EX+'stmt1'), RDF_REIF, tt))
         r = sg_rdf12.query(f'CONSTRUCT {{ ?s ?p ?o }} WHERE {{ GRAPH <{GRAPH_URI}> {{ ?s ?p ?o }} }}')
         assert (URIRef(EX+'stmt1'), RDF_REIF, tt) in r.graph
+
+
+@fuseki
+class TestFusekiBoundBnodeQuery:
+    """Same bug and fix as test_oxigraph_backend.py's identically-named
+    class - see that docstring for the full mechanism. Confirmed live that
+    this affects Fuseki identically to Oxigraph: .parse()/.addN() write
+    real, unskolemized blank nodes (_native_add_many(), needed to preserve
+    real isBLANK()/ORDER BY semantics), but the bound-pattern read path
+    used to unconditionally skolemize a bound BNode before querying,
+    matching nothing for content loaded this way."""
+
+    def test_bound_bnode_object_query_after_parse(self, sg_rdf12):
+        from rdflib import RDF
+
+        SH_NS = 'http://www.w3.org/ns/shacl#'
+        sg_rdf12.parse(data='''
+            @prefix ex: <http://example.org/> .
+            @prefix sh: <http://www.w3.org/ns/shacl#> .
+            ex:PersonRule a sh:NodeShape ; sh:targetClass ex:Person ;
+              sh:rule [ a sh:TripleRule ; sh:subject sh:this ; sh:predicate ex:isPerson ; sh:object true ] .
+        ''', format='turtle12')
+        bnode = next(sg_rdf12.objects(None, URIRef(SH_NS + 'rule')))
+        types = list(sg_rdf12.objects(bnode, RDF.type))
+        assert types == [URIRef(SH_NS + 'TripleRule')]
+
+    def test_bound_bnode_subject_query_matches_only_the_correct_node(self, sg_rdf12):
+        """Deliberately does NOT assert ``first_bnode != second_bnode`` -
+        Fuseki's blank-node numbering resets per query, so two genuinely
+        different stored blank nodes can legitimately come back with the
+        *same* label/value here (confirmed live: both "b0"). That's exactly
+        the scenario the provenance-based join fix (rather than a
+        label-equality comparison) exists to get right regardless of
+        whether the raw values happen to collide - checked here purely
+        functionally, via which property values each one actually has."""
+        sg_rdf12.parse(data='''
+            @prefix ex: <http://example.org/> .
+            ex:a ex:hasThing [ ex:label "first" ] .
+            ex:b ex:hasThing [ ex:label "second" ] .
+        ''', format='turtle12')
+        first_bnode = next(sg_rdf12.objects(URIRef(EX+'a'), URIRef(EX+'hasThing')))
+        second_bnode = next(sg_rdf12.objects(URIRef(EX+'b'), URIRef(EX+'hasThing')))
+        assert list(sg_rdf12.objects(first_bnode, URIRef(EX+'label'))) == [Literal('first')]
+        assert list(sg_rdf12.objects(second_bnode, URIRef(EX+'label'))) == [Literal('second')]
 
 
 @fuseki

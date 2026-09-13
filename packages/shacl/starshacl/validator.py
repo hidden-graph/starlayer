@@ -32,7 +32,13 @@ from starshacl.native_components import (
     shape_reference_nodes,
 )
 from starshacl.profiles import ValidationProfile, resolve_profile_options
-from starshacl.results import EvaluationResult, ExecutionDiagnostics, RulesResult, ValidationResult
+from starshacl.results import (
+    EvaluationResult,
+    ExecutionDiagnostics,
+    RulesResult,
+    SubgraphExtractionResult,
+    ValidationResult,
+)
 from starshacl.types import ensure_graph_mutable
 
 SH = Namespace("http://www.w3.org/ns/shacl#")
@@ -138,6 +144,7 @@ class StarShaclValidator:
         _patch_rdflib_data_graph_clone_preserves_tt_adapter()
         _patch_shape_value_nodes_for_sh_values()
         _patch_rules_apply_for_layer_and_run_once()
+        _patch_stringify_for_native_backend_bnodes()
 
         options = resolve_profile_options(profile, overrides=kwargs)
 
@@ -1130,6 +1137,22 @@ class StarShaclValidator:
         rule_set: Any | None = None,
         **kwargs: Any,
     ) -> RulesResult:
+        # apply_rules() runs with inplace=True (see the "rules" profile
+        # default below) precisely so result.data_graph is the caller's own
+        # object, mutated with the inferred triples - not a disconnected
+        # copy. That guarantee only holds for a StarLayerGraph: a plain
+        # rdflib.Graph can't hold StarLayerGraph's own RDF-1.2 encoding, so
+        # normalize_to_starlayer_graph would silently build a *new* object
+        # instead, and the "inplace" mutation would land on that new object,
+        # never on the one the caller is still holding. Rather than let that
+        # happen silently (looks like it worked, but result.data_graph is
+        # not your original object), require a StarLayerGraph up front.
+        if not _is_starlayer_graph(data_graph):
+            raise TypeError(
+                "apply_rules() requires data_graph to be a StarLayerGraph, since rule "
+                f"execution mutates it in place - got {type(data_graph).__name__}. Convert "
+                "first, e.g. StarLayerGraph.from_rdflib(data_graph)."
+            )
         options = resolve_profile_options("rules", overrides=kwargs)
 
         # Normalized once, up front, and reused everywhere below (the
@@ -1336,6 +1359,37 @@ class StarShaclValidator:
 
         return EvaluationResult(data_graph=merged)
 
+    def extract_subgraph(
+        self,
+        data_graph: Any,
+        shacl_graph: Any,
+        shape: Any,
+        focus_node: Any,
+    ) -> SubgraphExtractionResult:
+        """A fourth, independent processing mode alongside ``validate()``,
+        ``apply_rules()``, and ``evaluate()``: given a focus node and a
+        shape, extract exactly the subgraph of real, stored triples that
+        shape's constraints covered for that node - e.g. so it can be hashed
+        (see ``starlayergraph.rdfc``) independently of unrelated data
+        elsewhere on the same node.
+
+        Assumes ``focus_node`` already conforms to ``shape`` as a
+        precondition the caller has checked - if it doesn't,
+        ``SubgraphExtractionResult.conforms`` is ``False`` and
+        ``data_graph`` is ``None``, with no report explaining why (this
+        method exists to extract, not to diagnose non-conformance - see
+        ``SubgraphExtractionResult``'s own docstring).
+
+        Full design (multi-hop paths, nested shapes, logical constraints,
+        determinism for ambiguous "at least one" requirements, real-triples-
+        only) documented in ``starshacl/subgraph_extraction.py``, agreed
+        with the user across several turns before implementation.
+        """
+        from starshacl.subgraph_extraction import extract_subgraph as _extract_subgraph
+
+        data_graph, shacl_graph, _ont_graph = normalize_graph_inputs(data_graph, shacl_graph, None)
+        return _extract_subgraph(data_graph, shacl_graph, shape, focus_node)
+
 
 def validate(
     data_graph: Any,
@@ -1351,6 +1405,110 @@ def validate(
     ``StarShaclValidator()`` directly when you need to inspect those, or to
     share adapter state across multiple validate() calls."""
     return StarShaclValidator().validate(data_graph, shacl_graph, ont_graph, **kwargs)
+
+
+_stringify_bnode_patch_status: bool | None = None
+
+
+def _patch_stringify_for_native_backend_bnodes() -> bool:
+    """Make pySHACL's own violation-report text generation work when a
+    reported focus/value node is a blank node and the graph being reported
+    on is backed by a remote SPARQLUpdateStore-style store (Oxigraph,
+    Fuseki via ``StarLayerGraph(store=..., backend='rdf-1.2')``).
+
+    Found via direct testing against a real Oxigraph/Fuseki instance:
+    ``pyshacl.constraints.constraint_component.make_v_result_description``
+    calls ``stringify_node(datagraph, focus_node)``, which for a BNode
+    focus node calls ``find_node_named_graph(dataset, node)`` when
+    ``datagraph`` is a ``rdflib.Dataset`` (pySHACL's own internal
+    representation of a shapes/data graph, built directly around the same
+    store - not a ``StarLayerGraph``, so none of that class's own
+    backend-aware overrides apply here). ``find_node_named_graph``'s
+    original implementation calls ``dataset.quads((node, None, None,
+    None))`` - a bound-BNode query sent straight to the raw store, which
+    for ``rdflib.plugins.stores.sparqlstore.SPARQLUpdateStore`` always
+    raises ("SPARQLStore does not support BNodes!"), regardless of whether
+    that specific node could actually be found. This is a separate,
+    narrower issue than the ``StarLayerGraph._native_triples()`` bug fixed
+    in ``starlayergraph`` itself (a real correctness bug in bound-BNode
+    *query results*) - this one only affects being able to *render a
+    report* that names a blank node, not validation correctness, and lives
+    in pySHACL's own code, not anything of this project's own classes.
+
+    Fixed by wrapping ``find_node_named_graph``: try the original first
+    (unmodified, zero behavior change for the overwhelmingly common
+    in-memory case), and only on failure fall back to reconstructing each
+    of the dataset's contexts as a real ``StarLayerGraph`` sharing the same
+    store and identifier - that class's own ``.triples()`` already handles
+    a bound BNode correctly (matching it back by label after querying the
+    position as an ordinary free variable, rather than trying to serialize
+    the BNode into the query text at all - see its own docstring), so
+    routing through it here finds the right context safely. Mirrors the
+    original's own subject-then-object search order and ``LookupError`` on
+    a genuine miss.
+
+    Idempotent and defensive like this file's other runtime patches -
+    returns ``False`` without raising if pySHACL's internals don't match
+    what this expects.
+    """
+    global _stringify_bnode_patch_status
+    if _stringify_bnode_patch_status is not None:
+        return _stringify_bnode_patch_status
+
+    try:
+        import pyshacl.rdfutil.stringify as _stringify_mod
+
+        if getattr(_stringify_mod.find_node_named_graph, "_starshacl_native_bnode_patched", False):
+            _stringify_bnode_patch_status = True
+            return True
+
+        _original_find_node_named_graph = _stringify_mod.find_node_named_graph
+
+        def _patched_find_node_named_graph(dataset, node):
+            try:
+                return _original_find_node_named_graph(dataset, node)
+            except Exception:
+                pass
+
+            from rdflib.term import Variable
+
+            from starlayergraph.backends.native import http_select, resolve_store_http
+            from starlayergraph.graph.starlayer_graph import StarLayerGraph
+
+            # Deliberately not dataset.contexts()/dataset.graph(id): rdflib's
+            # own Dataset.contexts() unconditionally yields (and, via
+            # .graph(), *creates*) the dataset's own default-graph context
+            # first - store.add_graph() -> "CREATE GRAPH <...>" - which
+            # Oxigraph answers with a 500 rather than tolerating (confirmed
+            # live), a problem this patch would otherwise newly introduce
+            # simply by reaching a code path the original implementation
+            # never touched. A plain SELECT DISTINCT for graph names has no
+            # such side effect.
+            q_url, _, hdrs = resolve_store_http(dataset.store, "rdf-1.2")
+            _vars, bindings = http_select(q_url, "SELECT DISTINCT ?g WHERE { GRAPH ?g { ?s ?p ?o } }", hdrs)
+            graph_names = [row[Variable("g")] for row in bindings if Variable("g") in row]
+
+            def _graph_contains(name, pattern) -> bool:
+                try:
+                    wrapped = StarLayerGraph(store=dataset.store, identifier=name, backend="rdf-1.2")
+                    return next(iter(wrapped.triples(pattern)), None) is not None
+                except Exception:
+                    return False
+
+            for name in graph_names:
+                if _graph_contains(name, (node, None, None)):
+                    return StarLayerGraph(store=dataset.store, identifier=name, backend="rdf-1.2")
+            for name in graph_names:
+                if _graph_contains(name, (None, None, node)):
+                    return StarLayerGraph(store=dataset.store, identifier=name, backend="rdf-1.2")
+            raise LookupError(f"Cannot find node {node} in any named graph.")
+
+        _patched_find_node_named_graph._starshacl_native_bnode_patched = True
+        _stringify_mod.find_node_named_graph = _patched_find_node_named_graph
+        _stringify_bnode_patch_status = True
+    except Exception:
+        _stringify_bnode_patch_status = False
+    return _stringify_bnode_patch_status
 
 
 _source_rule_buffer: contextvars.ContextVar[list[tuple[tuple, Any]] | None] = contextvars.ContextVar(
@@ -2925,7 +3083,34 @@ def _global_sparql_rule_triples(
         query_text = prefix_text + str(construct_vals[0])
         produced: list[tuple[tuple, Any]] = []
         try:
-            for triple in data_graph.query(query_text):
+            # starlayergraph.backends.native.native_query() sends a query's
+            # text to the remote endpoint with no graph-scoping of its own
+            # (see that function's own docstring) - an unscoped CONSTRUCT
+            # like this one would silently match against the store's
+            # separate, empty default graph rather than data_graph's own
+            # named context. Confirmed live against both Oxigraph and
+            # Fuseki: the identical query returns nothing run directly,
+            # but the correct triples once explicitly scoped. Rather than
+            # textually rewrite an arbitrary caller-authored CONSTRUCT
+            # query to inject a GRAPH clause (fragile for anything beyond
+            # a simple BGP - UNION/OPTIONAL/nested groups would need a
+            # real SPARQL-aware rewrite), snapshot the native graph's
+            # current triples into a local, in-memory StarLayerGraph (kept
+            # as StarLayerGraph rather than a plain rdflib.Graph so SPARQL
+            # 1.2 triple-term query syntax is still understood) and
+            # evaluate the CONSTRUCT there instead - correct regardless of
+            # query complexity, at the cost of one extra read per call.
+            # The non-native (default in-memory) case is entirely
+            # unaffected - same query, same target, as before.
+            query_target = data_graph
+            if getattr(data_graph, "_is_native", False):
+                from starlayergraph.graph.starlayer_graph import StarLayerGraph
+
+                snapshot = StarLayerGraph()
+                for t in data_graph:
+                    snapshot.add(t)
+                query_target = snapshot
+            for triple in query_target.query(query_text):
                 if triple not in data_graph:
                     produced.append((triple, rule_node))
         except Exception:

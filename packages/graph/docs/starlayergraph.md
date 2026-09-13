@@ -1,6 +1,6 @@
 # starlayergraph — Architecture & Design
 
-*Last reviewed: 2026-07-17*
+*Last reviewed: 2026-09-13*
 
 ## What is it
 
@@ -23,6 +23,13 @@ It is not a replacement for rdflib. It wraps rdflib's RDF 1.1 storage and execut
 **StarLayerDataset** — A subclass of `rdflib.Dataset` for multi-graph RDF 1.2. Each named graph is a `StarLayerGraph` with its own TripleTerm registry.
 
 **Backends** — The default backend stores triples in rdflib's in-memory store and rewrites SPARQL 1.2 queries to SPARQL 1.1 before execution. The native `rdf-1.2` backend bypasses rdflib's SPARQL stack and talks directly to a SPARQL endpoint via HTTP, passing queries through in the endpoint's native syntax (confirmed against Fuseki 5.5+ and Oxigraph). An earlier `rdf-star` backend targeting an older, pre-standardization Jena draft syntax was removed 2026-07-16 after live testing found it broken against current Fuseki — see `docs/future_enhancements.md`.
+
+**Blank nodes against a remote store** — both backend modes support ordinary read/write of blank-node content when `store=` is a real remote endpoint (`rdflib.plugins.stores.sparqlstore.SPARQLUpdateStore`, e.g. Oxigraph or Fuseki), confirmed live 2026-09-13 against both. This needed dedicated handling in each mode, since rdflib's own `SPARQLUpdateStore` refuses outright to serialize *any* blank node into query/update text (`_node_to_sparql()`: `"SPARQLStore does not support BNodes!"`) — a deliberate, spec-driven rdflib policy (SPARQL 1.1 query-pattern blank-node syntax is a fresh, existentially-scoped variable with no portable guarantee of naming a specific pre-existing node - see the note the exception itself links to), not a bug in either rdflib or the endpoint. Fuseki/Oxigraph both store and serve blank nodes for plain storage with zero issue; what's unstandardized is how each server labels that internal identity when it comes back in a *separate* later query's results (Oxigraph: stable, content-derived; Fuseki: a simple per-query counter that resets each request — confirmed live, two different stored nodes both labeled `"b0"` across two separate queries).
+
+- **Native (`rdf-1.2`) mode**: `StarLayerGraph._native_triples()` resolves a bound blank node via a *provenance-tracked join* — the first time a blank node is yielded from a free-variable slot, its single-hop discovery pattern (the triple's other, concrete parts) is recorded keyed by Python object `id()` (not the node's own value - two `BNode`s can be `==` equal by label while denoting different stored nodes, confirmed on Fuseki). A later bound-BNode query re-derives the same node via a real SPARQL join against that recorded anchor, never by comparing labels across separate requests - correct on both backends regardless of how either one labels results.
+- **Default (`rdf-1.1`, tt:HASH-encoded) mode**: simpler fix, via `StarLayerGraph._needs_bnode_skolemization` (true whenever `self.store` is a `SPARQLUpdateStore`) - always skolemize a blank node on write, always deskolemize on read, via the same deterministic `skolemize_bnode()`/`deskolemize_bnode()` mapping the native backend already uses for its own single-triple `add()` path. Simpler than the native fix because skolemizing is a pure function of the BNode's own label, so no provenance tracking is needed - but the trade-off (accepted only here, not for native mode) is that a real blank node's own term-kind (`isBLANK()`/`ORDER BY` fidelity) isn't preserved once round-tripped, consistent with this mode already being an encoded *simulation* of RDF 1.2 rather than a wire-faithful one.
+
+See `packages/shacl/docs/compatibility.md`'s "Backend Compatibility" section for what this means for `starshacl` specifically - both backend modes now fully support SHACL validation and rule execution against a remote store, `meta_shacl` on or off.
 
 ---
 

@@ -98,8 +98,22 @@ def test_apply_rules_rejects_non_starlayergraph_data_graph() -> None:
     validator = StarShaclValidator(adapter=TripleTermAdapter(), validate_fn=lambda **_: (True, Graph(), "ok"))
     shapes = Graph()
 
-    with pytest.raises(TypeError, match="data_graph must be a StarLayerGraph or rdflib.Graph"):
+    with pytest.raises(TypeError, match="apply_rules\\(\\) requires data_graph to be a StarLayerGraph"):
         validator.apply_rules(data_graph=((EX.s, EX.p, EX.o),), shacl_graph=shapes)
+
+
+def test_apply_rules_rejects_plain_rdflib_graph_data_graph() -> None:
+    """A plain rdflib.Graph used to be silently accepted, normalized into a
+    *new*, disconnected StarLayerGraph - so apply_rules()'s in-place
+    mutation guarantee (result.data_graph is the object you passed in)
+    silently didn't hold for this input type. Reject it instead of letting
+    that divergence pass quietly."""
+    validator = StarShaclValidator(adapter=TripleTermAdapter(), validate_fn=lambda **_: (True, Graph(), "ok"))
+    data = Graph()
+    shapes = Graph()
+
+    with pytest.raises(TypeError, match="apply_rules\\(\\) requires data_graph to be a StarLayerGraph"):
+        validator.apply_rules(data_graph=data, shacl_graph=shapes)
 
 
 def test_validate_normalizes_rdflib_data_graph_for_inplace_updates() -> None:

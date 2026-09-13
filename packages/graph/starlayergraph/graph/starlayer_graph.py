@@ -182,11 +182,56 @@ class StarLayerGraph(Graph):
         self._tt_nodes: dict = {}      # URIRef -> TripleTerm (rdf-1.1 only)
         self._invalidate_callback = None  # set by StarLayerDataset to clear raw query cache
         self._prepared_query_cache: dict = {}  # see starlayergraph.query.query_cache.prepare_query_cached
+        self._native_bnode_provenance: dict = {}  # native backend only - see _native_triples()
 
     @property
     def _is_native(self) -> bool:
         """True when using the native RDF 1.2 backend (no tt:HASH encoding)."""
         return self._backend == 'rdf-1.2'
+
+    @property
+    def _needs_bnode_skolemization(self) -> bool:
+        """True when this graph's own store is a plain rdflib
+        SPARQLUpdateStore - which categorically cannot write, or be
+        queried with, a real blank node at all (``_node_to_sparql()``
+        raises "SPARQLStore does not support BNodes!" unconditionally,
+        for reads or writes, native backend or not - confirmed live).
+
+        The native (rdf-1.2) backend already has its own answer to this
+        (``_native_add``/``_native_add_many`` skolemize or batch to
+        preserve real blank-node semantics; ``_native_triples`` resolves a
+        bound BNode via a provenance-tracked join). This property gates a
+        second, independent, *simpler* fix for the non-native (default
+        rdf-1.1, tt:HASH-encoded) backend, which had no blank-node handling
+        of its own at all - ordinary ``.add()``/``.parse()`` of a real
+        BNode against a SPARQLUpdateStore failed outright, for perfectly
+        ordinary RDF 1.1 content with no triple terms or SHACL involved.
+
+        Unlike the native path, this one always skolemizes (write) and
+        always deskolemizes (read) via the same deterministic
+        ``skolemize_bnode()``/``deskolemize_bnode()`` mapping already used
+        there - no provenance tracking needed, since skolemizing is a pure
+        function of the BNode's own label, so a bound BNode obtained from
+        an earlier read can always be re-skolemized to find the same
+        stored term again, with no dependence on how (or whether) the
+        server itself re-labels blank nodes across separate queries. The
+        trade-off (accepted here, unlike in native mode): a real blank
+        node's own term-kind is not preserved once round-tripped - this
+        backend is already an *encoded simulation* of RDF 1.2 (tt:HASH
+        URIs standing in for real triple terms), so extending that same
+        "encode for storage, decode for the caller" philosophy to blank
+        nodes here is consistent with what this mode already does, not a
+        new category of infidelity introduced just for this.
+
+        Checked once, cheaply, per call site - not cached, since ``self.store``
+        can change (``StarLayerGraph.__init__`` accepts ``store=`` once, but
+        nothing prevents a caller reassigning it later).
+        """
+        try:
+            from rdflib.plugins.stores.sparqlstore import SPARQLUpdateStore
+        except ImportError:
+            return False
+        return isinstance(self.store, SPARQLUpdateStore)
 
     # ------------------------------------------------------------------
     # Native backend (rdf-1.2)
@@ -299,38 +344,123 @@ class StarLayerGraph(Graph):
             self._invalidate_callback()
 
     def _native_triples(self, triple):
+        from rdflib import BNode
+        from rdflib.term import Variable
+
         from starlayergraph.backends.native import http_ask, http_select, sparql_term
         q_url, _, hdrs = self._store_http()
         s, p, o = triple
 
         free = []
+        bnode_filters = {}  # var -> BNode, only when no provenance is known (best-effort fallback)
+        join_triples = []   # extra join patterns resolving a provenance-tracked BNode via a real join
+
+        def _provenance_join(node) -> str | None:
+            # Keyed by id(node), not node's own value/hash: two BNode
+            # objects can be == equal (same label) while denoting genuinely
+            # different stored nodes - confirmed live against Fuseki, whose
+            # per-query blank-node numbering resets each request, so two
+            # separate discovery queries can each hand back a node labeled
+            # "b0" for two different underlying nodes. Value-based keying
+            # would let the second overwrite the first's entry, silently
+            # misdirecting a later join for the first. The dict holds a
+            # strong reference to `node` specifically to keep id(node) from
+            # being reused by a later, unrelated object once this one is
+            # garbage collected.
+            entry = self._native_bnode_provenance.get(id(node))
+            if entry is None:
+                return None
+            _kept_node, prov = entry
+            anchor = f"_pj{len(join_triples)}"
+            found_pos, other1, other2 = prov
+            if found_pos == 's':
+                join_triples.append(f"?{anchor} {sparql_term(other1)} {sparql_term(other2)} .")
+            else:
+                join_triples.append(f"{sparql_term(other1)} {sparql_term(other2)} ?{anchor} .")
+            return anchor
+
         def _slot(node, var: str) -> str:
             if node is None:
                 free.append(var)
+                return f'?{var}'
+            if isinstance(node, BNode):
+                # A bound BNode can't safely be pushed into the query text
+                # at all. sparql_term()'s skolemized form only matches
+                # content written via the single-triple add() path
+                # (_native_add()) - parse()/addN() for a single graph go
+                # through _native_add_many() instead, which deliberately
+                # writes a real, unskolemized blank node (batched into one
+                # request specifically to preserve real SPARQL
+                # isBLANK()/ORDER BY term-kind semantics - see that
+                # function's own docstring), so the skolemized form finds
+                # nothing there. The BNode's own raw n3() form fares even
+                # worse: confirmed live (against Oxigraph, inside a
+                # GRAPH <uri> {} block) that a blank-node label used in a
+                # query pattern is not restricted to matching the store's
+                # actual blank nodes at all - it matched an unrelated
+                # *URI* subject's own unrelated triple.
+                #
+                # The fix that actually holds up: whenever a BNode is
+                # first yielded from a free-variable slot elsewhere in this
+                # method, its single-hop discovery pattern (the other,
+                # concrete parts of that triple) is recorded in
+                # self._native_bnode_provenance. A later bound-BNode query
+                # re-derives it via a genuine SPARQL join against that
+                # recorded anchor - correct on any backend, since the join
+                # is resolved within one query's own variable scope, not by
+                # comparing labels across two separate requests. That
+                # comparison is NOT safe in general: confirmed live that
+                # Fuseki resets its blank-node numbering per query, so two
+                # DIFFERENT stored blank nodes can legitimately share the
+                # same label ("b0") across two separate queries - only
+                # Oxigraph's labels are stable/content-derived enough for
+                # that to work. The label-based fallback below only runs
+                # when no provenance was recorded (e.g. a caller built or
+                # obtained the BNode some other way) - correct on Oxigraph,
+                # not guaranteed on backends with per-query label resets.
+                anchor = _provenance_join(node)
+                if anchor is not None:
+                    return f'?{anchor}'
+                bnode_filters[var] = node
                 return f'?{var}'
             return sparql_term(node)
 
         s_str = _slot(s, 's')
         p_str = _slot(p, 'p')
         o_str = _slot(o, 'o')
-        pattern = f'{s_str} {p_str} {o_str} .'
+        pattern = ' '.join(join_triples) + (' ' if join_triples else '') + f'{s_str} {p_str} {o_str} .'
+        body = self._native_scoped(pattern)
 
-        if not free:
-            sparql = f'ASK {{ {self._native_scoped(pattern)} }}'
+        if not free and not bnode_filters:
+            sparql = f'ASK {{ {body} }}'
             if http_ask(q_url, sparql, hdrs):
                 yield (s, p, o)
             return
 
-        sel = ' '.join(f'?{v}' for v in free)
-        sparql = f'SELECT {sel} WHERE {{ {self._native_scoped(pattern)} }}'
+        projected = free + list(bnode_filters.keys())
+        sel = ' '.join(f'?{v}' for v in projected)
+        distinct = 'DISTINCT ' if bnode_filters else ''
+        sparql = f'SELECT {distinct}{sel} WHERE {{ {body} }}'
         vars_, bindings = http_select(q_url, sparql, hdrs)
-        from rdflib.term import Variable
         for row in bindings:
-            yield (
-                row.get(Variable('s'), s) if 's' in free else s,
-                row.get(Variable('p'), p) if 'p' in free else p,
-                row.get(Variable('o'), o) if 'o' in free else o,
-            )
+            if any(row.get(Variable(v)) != bn for v, bn in bnode_filters.items()):
+                continue
+            s_val = row.get(Variable('s'), s) if 's' in free else s
+            p_val = row.get(Variable('p'), p) if 'p' in free else p
+            o_val = row.get(Variable('o'), o) if 'o' in free else o
+            if (
+                isinstance(s_val, BNode)
+                and p_val is not None and not isinstance(p_val, BNode)
+                and o_val is not None and not isinstance(o_val, BNode)
+            ):
+                self._native_bnode_provenance.setdefault(id(s_val), (s_val, ('s', p_val, o_val)))
+            if (
+                isinstance(o_val, BNode)
+                and s_val is not None and not isinstance(s_val, BNode)
+                and p_val is not None and not isinstance(p_val, BNode)
+            ):
+                self._native_bnode_provenance.setdefault(id(o_val), (o_val, ('o', s_val, p_val)))
+            yield (s_val, p_val, o_val)
 
     # ------------------------------------------------------------------
     # Internal helpers (rdf-1.1 encoding layer)
@@ -588,7 +718,14 @@ class StarLayerGraph(Graph):
             if self._invalidate_callback:
                 self._invalidate_callback()
             return
-        super().add((self._coerce_tt(s), p, self._coerce_tt(obj)))
+        s_n, o_n = self._coerce_tt(s), self._coerce_tt(obj)
+        if self._needs_bnode_skolemization:
+            from starlayergraph.backends.native import skolemize_bnode
+            if isinstance(s_n, BNode):
+                s_n = skolemize_bnode(s_n)
+            if isinstance(o_n, BNode):
+                o_n = skolemize_bnode(o_n)
+        super().add((s_n, p, o_n))
         if self._invalidate_callback:
             self._invalidate_callback()
 
@@ -681,6 +818,12 @@ class StarLayerGraph(Graph):
         from starlayergraph.model.triple import TripleTerm as _TT
         _, u_url, hdrs = self._store_http()
 
+        # A removal can invalidate a previously-recorded bnode discovery
+        # handle (_native_triples()'s join-based fix for bound-BNode
+        # queries) - clear rather than try to reason about which entries
+        # are still valid.
+        self._native_bnode_provenance.clear()
+
         free = []
         def _slot(node, var: str) -> str:
             if node is None:
@@ -713,6 +856,12 @@ class StarLayerGraph(Graph):
         s_n, o_n = self._coerce_tt_read(s), self._coerce_tt_read(obj)
         if s_n is _TT_NOT_FOUND or o_n is _TT_NOT_FOUND:
             return
+        if self._needs_bnode_skolemization:
+            from starlayergraph.backends.native import skolemize_bnode
+            if isinstance(s_n, BNode):
+                s_n = skolemize_bnode(s_n)
+            if isinstance(o_n, BNode):
+                o_n = skolemize_bnode(o_n)
         super().remove((s_n, p, o_n))
         if self._invalidate_callback:
             self._invalidate_callback()
@@ -742,6 +891,23 @@ class StarLayerGraph(Graph):
 
         s_n, o_n = self._coerce_tt_read(s), self._coerce_tt_read(obj)
         if s_n is _TT_NOT_FOUND or o_n is _TT_NOT_FOUND:
+            return
+        if self._needs_bnode_skolemization:
+            # A bound BNode is re-skolemized deterministically (a pure
+            # function of its own label - see _needs_bnode_skolemization's
+            # docstring) to find the same stored term .add()/.parse()
+            # wrote it as; a BNode-shaped result coming back is
+            # deskolemized before being handed to the caller, so the
+            # round-trip is transparent - the caller only ever sees real
+            # BNode objects, never the internal skolemized URI.
+            from starlayergraph.backends.native import deskolemize_bnode, skolemize_bnode
+            if isinstance(s_n, BNode):
+                s_n = skolemize_bnode(s_n)
+            if isinstance(o_n, BNode):
+                o_n = skolemize_bnode(o_n)
+            for s_r, p_r, o_r in super().triples((s_n, p, o_n)):
+                if not self._is_encoding_triple(s_r, p_r, o_r):
+                    yield (deskolemize_bnode(self._restore(s_r)), p_r, deskolemize_bnode(self._restore(o_r)))
             return
         for s_r, p_r, o_r in super().triples((s_n, p, o_n)):
             if not self._is_encoding_triple(s_r, p_r, o_r):
@@ -1161,6 +1327,27 @@ class StarLayerGraph(Graph):
                     )
                     self._native_add_many(list(decode_tt_encoded_triples(processed)))
                 else:
+                    if self._needs_bnode_skolemization:
+                        # Each triple here goes to the store via its own
+                        # separate super().add() call (no batching, unlike
+                        # _native_add_many()) - so even without a
+                        # BNode-hostile store, a real blank node repeated
+                        # across several of these triples wouldn't reliably
+                        # keep its shared identity once each call becomes a
+                        # separate SPARQL Update request. Skolemizing (a
+                        # pure function of the BNode's own label) sidesteps
+                        # that entirely: the same Python BNode object always
+                        # maps to the same URI, correctly recurring across
+                        # calls, not just within one.
+                        from starlayergraph.backends.native import skolemize_bnode
+                        processed = [
+                            (
+                                skolemize_bnode(s) if isinstance(s, BNode) else s,
+                                p,
+                                skolemize_bnode(o) if isinstance(o, BNode) else o,
+                            )
+                            for s, p, o in processed
+                        ]
                     for triple in processed:
                         super().add(triple)
                     self._build_registry_from_store()

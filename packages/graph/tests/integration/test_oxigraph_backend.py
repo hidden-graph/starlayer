@@ -16,7 +16,7 @@ Run:
 
 import pytest
 import requests
-from rdflib import Literal, URIRef
+from rdflib import BNode, Literal, URIRef
 from rdflib.namespace import XSD
 from rdflib.plugins.stores.sparqlstore import SPARQLUpdateStore
 from starlayergraph.graph import StarLayerDataset, StarLayerGraph
@@ -90,6 +90,16 @@ def sg():
     """Fresh StarLayerGraph backed by Oxigraph in rdf-1.2 native mode."""
     _clear_graph()
     g = StarLayerGraph(store=_make_store(), identifier=GRAPH_URI, backend='rdf-1.2')
+    g.bind('ex', EX)
+    yield g
+
+
+@pytest.fixture
+def sg_rdf11():
+    """Fresh StarLayerGraph backed by Oxigraph in the *default* rdf-1.1
+    (tt:HASH-encoded) mode - as opposed to `sg` above, which is native."""
+    _clear_graph()
+    g = StarLayerGraph(store=_make_store(), identifier=GRAPH_URI)
     g.bind('ex', EX)
     yield g
 
@@ -402,6 +412,126 @@ class TestOxigraphRemove:
         sg.remove((None, URIRef(EX+'p'), None))
         remaining = list(sg.triples((None, None, None)))
         assert remaining == [(URIRef(EX+'x3'), URIRef(EX+'other'), URIRef(EX+'y'))]
+
+
+@oxigraph
+class TestOxigraphBoundBnodeQuery:
+    """A bound BNode used as part of a triple pattern (e.g.
+    ``.objects(bnode, pred)`` after learning ``bnode`` from an earlier
+    wildcard read) used to silently return nothing for content loaded via
+    ``.parse()``/``.addN()`` - found via direct testing while investigating
+    a SHACL-level bug (a well-formed blank-node property shape failing
+    meta-shacl only when its shapes graph was backed by a remote store).
+
+    Root cause: ``.parse()``/``.addN()`` for a single graph go through
+    ``_native_add_many()``, which deliberately writes *real*, unskolemized
+    blank nodes (batched into one HTTP request, so cross-request scoping
+    never applies - see that function's own docstring, which explains this
+    is needed to preserve real SPARQL ``isBLANK()``/``ORDER BY`` term-kind
+    semantics, confirmed against the W3C SPARQL 1.2 conformance suite).
+    ``_native_triples()``'s bound-pattern read path, however, unconditionally
+    *skolemized* a bound BNode before building its query (correct only for
+    content written via the single-triple ``.add()`` path, which *does*
+    skolemize) - a mismatch that made the skolemized query pattern match
+    nothing at all for ``.parse()``-loaded content, silently.
+
+    Also confirmed live (and worth recording as a dead end): using the
+    BNode's own real, unskolemized label in the query text instead doesn't
+    fix it either - a blank node used inside a SPARQL graph pattern (as
+    opposed to ``INSERT DATA``) does not reliably act as "the one specific
+    node with this label"; confirmed it can produce an extra, wrong match
+    against an unrelated *URI* subject's own unrelated triple, not just
+    ambiguity among candidate blank nodes.
+
+    Fixed by treating a bound BNode slot as an ordinary free variable
+    server-side, and matching the caller's actual BNode back client-side by
+    label equality afterward - confirmed live that the same stored blank
+    node yields the same label across separate queries within one session,
+    on both Oxigraph and Fuseki.
+    """
+
+    def test_bound_bnode_object_query_after_parse(self, sg):
+        from rdflib import RDF
+
+        SH_NS = 'http://www.w3.org/ns/shacl#'
+        sg.parse(data='''
+            @prefix ex: <http://example.org/> .
+            @prefix sh: <http://www.w3.org/ns/shacl#> .
+            ex:PersonRule a sh:NodeShape ; sh:targetClass ex:Person ;
+              sh:rule [ a sh:TripleRule ; sh:subject sh:this ; sh:predicate ex:isPerson ; sh:object true ] .
+        ''', format='turtle12')
+        bnode = next(sg.objects(None, URIRef(SH_NS + 'rule')))
+        types = list(sg.objects(bnode, RDF.type))
+        assert types == [URIRef(SH_NS + 'TripleRule')]
+
+    def test_bound_bnode_subject_query_matches_only_the_correct_node(self, sg):
+        """Two distinct blank nodes exist (the rule, and its own nested
+        object-position blank-node-free structure isn't relevant here) -
+        confirms the fix doesn't just accidentally match *any* blank node,
+        only the one actually passed in."""
+        sg.parse(data='''
+            @prefix ex: <http://example.org/> .
+            ex:a ex:hasThing [ ex:label "first" ] .
+            ex:b ex:hasThing [ ex:label "second" ] .
+        ''', format='turtle12')
+        first_bnode = next(sg.objects(URIRef(EX+'a'), URIRef(EX+'hasThing')))
+        second_bnode = next(sg.objects(URIRef(EX+'b'), URIRef(EX+'hasThing')))
+        assert first_bnode != second_bnode
+        assert list(sg.objects(first_bnode, URIRef(EX+'label'))) == [Literal('first')]
+        assert list(sg.objects(second_bnode, URIRef(EX+'label'))) == [Literal('second')]
+
+
+@oxigraph
+class TestOxigraphRdf11BlankNodes:
+    """The *default* (rdf-1.1, tt:HASH-encoded) backend had no blank-node
+    handling of its own at all when backed by a remote store - ordinary
+    ``.add()``/``.parse()`` of a real BNode against a SPARQLUpdateStore
+    failed outright (confirmed live, for perfectly ordinary RDF 1.1
+    content with no triple terms or SHACL involved at all - this is not a
+    SHACL- or RDF-1.2-specific gap). Fixed via
+    ``StarLayerGraph._needs_bnode_skolemization`` (checks
+    ``isinstance(self.store, SPARQLUpdateStore)``, independent of
+    ``backend``): always skolemize on write, always deskolemize on read,
+    via the same deterministic mapping the native backend uses for its own
+    single-triple ``.add()`` path - simpler than that backend's full fix
+    (no provenance tracking needed, since skolemizing is a pure function of
+    the BNode's own label, unlike matching an unstable server-returned
+    label). The trade-off (accepted only for this already-encoded-simulation
+    backend, not the native one): a real blank node's own term-kind isn't
+    preserved once round-tripped through here.
+    """
+
+    def test_add_single_triple_with_bnode(self, sg_rdf11):
+        b = BNode()
+        sg_rdf11.add((URIRef(EX+'alice'), URIRef(EX+'hasThing'), b))
+        sg_rdf11.add((b, URIRef(EX+'label'), Literal('hi')))
+        found = next(sg_rdf11.objects(URIRef(EX+'alice'), URIRef(EX+'hasThing')))
+        assert isinstance(found, BNode)
+        assert list(sg_rdf11.objects(found, URIRef(EX+'label'))) == [Literal('hi')]
+
+    def test_parse_turtle_with_bnode(self, sg_rdf11):
+        sg_rdf11.parse(data='@prefix ex: <http://example.org/> . ex:alice ex:hasThing [ ex:label "hi" ] .', format='turtle')
+        found = next(sg_rdf11.objects(URIRef(EX+'alice'), URIRef(EX+'hasThing')))
+        assert list(sg_rdf11.objects(found, URIRef(EX+'label'))) == [Literal('hi')]
+
+    def test_parse_turtle12_with_bnode_disambiguates_correctly(self, sg_rdf11):
+        sg_rdf11.parse(data='''
+            @prefix ex: <http://example.org/> .
+            ex:a ex:hasThing [ ex:label "first" ] .
+            ex:b ex:hasThing [ ex:label "second" ] .
+        ''', format='turtle12')
+        b1 = next(sg_rdf11.objects(URIRef(EX+'a'), URIRef(EX+'hasThing')))
+        b2 = next(sg_rdf11.objects(URIRef(EX+'b'), URIRef(EX+'hasThing')))
+        assert list(sg_rdf11.objects(b1, URIRef(EX+'label'))) == [Literal('first')]
+        assert list(sg_rdf11.objects(b2, URIRef(EX+'label'))) == [Literal('second')]
+
+    def test_remove_bnode_triple(self, sg_rdf11):
+        b = BNode()
+        t = (URIRef(EX+'alice'), URIRef(EX+'hasThing'), b)
+        sg_rdf11.add(t)
+        assert t in sg_rdf11
+        sg_rdf11.remove(t)
+        assert list(sg_rdf11.triples((URIRef(EX+'alice'), URIRef(EX+'hasThing'), None))) == []
 
 
 @oxigraph

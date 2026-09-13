@@ -197,8 +197,34 @@ def meta_validate(shapes_graph: Any, *, extra_graphs: Iterable[Any] = (), **kwar
     # pySHACL's own internal precedent of 999 (rule_expand_runner.py).
     kwargs.setdefault("max_validation_depth", 30)
 
+    # Meta-shacl checks shapes_graph's own structural well-formedness
+    # against the bundled meta-shapes - it never touches a data_graph, and
+    # has no legitimate reason to need live remote-store behavior at all.
+    # Snapshotting into a plain in-memory copy first sidesteps an entire
+    # category of pySHACL-internal incompatibilities with a
+    # SPARQLUpdateStore-backed graph (rdflib's SPARQLStore refuses to
+    # serialize a bound blank node into query text at all - confirmed to
+    # break at least three separate pySHACL-internal code paths this way:
+    # a class-membership check, report-stringification for a blank-node
+    # focus node, and a query(initBindings=...) call in its own
+    # sh:sparql-based constraint evaluator - rather than one fixable root
+    # cause). A snapshot is correct here specifically because meta-shacl is
+    # a one-time structural preflight on shapes_graph as it stood at this
+    # call, not a live, ongoing session against it.
+    from starlayergraph.graph.starlayer_graph import StarLayerGraph as _StarLayerGraph
+
+    if isinstance(shapes_graph, _StarLayerGraph) and getattr(shapes_graph, "_needs_bnode_skolemization", False):
+        snapshot = _StarLayerGraph()
+        for prefix, ns in shapes_graph.namespaces():
+            snapshot.bind(prefix, ns)
+        for triple in shapes_graph:
+            snapshot.add(triple)
+        shapes_graph_for_meta = snapshot
+    else:
+        shapes_graph_for_meta = shapes_graph
+
     meta_shapes = build_meta_shapes_graph(extra_graphs)
-    conforms, report_graph, report_text = pyshacl.validate(shapes_graph, shacl_graph=meta_shapes, **kwargs)
+    conforms, report_graph, report_text = pyshacl.validate(shapes_graph_for_meta, shacl_graph=meta_shapes, **kwargs)
     if not conforms:
         msg = f"SHACL File does not validate against the SHACL Shapes SHACL (MetaSHACL) file.\n{report_text}"
         raise ReportableRuntimeError(msg)
