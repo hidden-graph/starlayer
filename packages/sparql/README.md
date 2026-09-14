@@ -17,7 +17,7 @@ pip install "git+https://github.com/hidden-graph/starlayer.git#subdirectory=pack
 
 This is the supported public install path for the StarLayer stack. It brings in the graph, SPARQL, and SHACL layers together.
 
-For a browser-based walkthrough with example code, see the [user guide](docs/user-guide.html).
+For a browser-based walkthrough with example code, see the [user guides index](../../docs/README.md).
 
 If you are working from a local checkout for development, you can install the same package in editable mode from the repo:
 

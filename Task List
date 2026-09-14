@@ -2,30 +2,29 @@ Task List
 
 Comments on user manaual.
 comment
-	- SPARQL section should include additional supported terms: TRIPLE, SUBJECT, PREDICATE, OBJECT, LANGDIR, hasLANGDIR, hasLANG, STRLANGDIR.
-- user of ttl annotation syntax inside sparql queries.
-	- Reification helper coverage should include reifiers/reifications/reifier_annotations/reified_triples/remove_reification.
-- obtain the rdf of a SPARQL query.  
-- obtain the SHACL shape for the SPARQL query
+	- SPARQL section should include additional supported terms: TRIPLE, SUBJECT, PREDICATE, OBJECT, LANGDIR, hasLANGDIR, hasLANG, STRLANGDIR. [DONE - docs/guides/03-sparql.ipynb "Additional SPARQL 1.2 functions"]
+- user of ttl annotation syntax inside sparql queries. [DONE - docs/guides/03-sparql.ipynb "Turtle annotation shorthand inside SPARQL queries"]
+	- Reification helper coverage should include reifiers/reifications/reifier_annotations/reified_triples/remove_reification. [DONE - docs/guides/02-graphs.ipynb section 1]
+- obtain the rdf of a SPARQL query.  [DONE - docs/guides/03-sparql.ipynb section 2, step 3]
+- obtain the SHACL shape for the SPARQL query [DONE - docs/guides/03-sparql.ipynb section 2, step 7]
 
 SHACL expansion notes (new):
 
-- Add manual coverage for SHACL 1.2 Node Expressions (shnex) and SPARQL node-expression support.
-- Add manual coverage for SHACL 1.2 rule execution controls: sh:layer, sh:runOnce, sh:expectedPredicate, sh:tempTriple.
+- Add manual coverage for SHACL 1.2 Node Expressions (shnex) and SPARQL node-expression support. [DONE - docs/guides/04a-shacl-node-expressions.ipynb]
+- Add manual coverage for SHACL 1.2 rule execution controls: sh:layer, sh:runOnce, sh:expectedPredicate, sh:tempTriple. [PARTIAL - sh:layer/sh:runOnce fully covered (docs/guides/04b-shacl-inference-rules.ipynb section 6); sh:expectedPredicate/sh:tempTriple are implemented (starshacl/validator.py) but not demonstrated in the guide - sh:tempTriple isn't wired into the global-rules path, and sh:expectedPredicate's sh:values half depends on the still-unimplemented sh:PropertyRule gap. See 04b's Further Work.]
 
-- Provide example of SHACL shape with UI elements. Clarify UI claim: shui metadata/presentation shapes are supported as metadata and meta-shape checks, but widget-selection runtime is not implemented.
+- Provide example of SHACL shape with UI elements. Clarify UI claim: shui metadata/presentation shapes are supported as metadata and meta-shape checks, but widget-selection runtime is not implemented. [OPEN - this is guide 4.d "SHACL UI", not yet written; see docs/README.md]
 
 - Add runnable SHACL examples for:
-	1) validate with dirLangString constraints,
-	2) apply_rules with inferred triples,
-	3) one shnex expression example,
-	4) one SPARQL node-expression example.
+	1) validate with dirLangString constraints, [DONE - docs/guides/04-shacl-shapes.ipynb section 3.4]
+	2) apply_rules with inferred triples, [DONE - docs/guides/04-shacl-shapes.ipynb section 2.2, and 04b in depth]
+	3) one shnex expression example, [DONE - docs/guides/04a-shacl-node-expressions.ipynb]
+	4) one SPARQL node-expression example. [DONE - docs/guides/04a-shacl-node-expressions.ipynb, sparql:strlen example]
 
 
 
 
-
-1. surpise, the jsonld12 serialization leaks the underlying rdf 1.1 terms
+1. surpise, the jsonld12 serialization leaks the underlying rdf 1.1 terms [STILL OPEN - reconfirmed live 2026-09-13: g.serialize(format="jsonld12") still emits the internal tt:<hash> triple-term encoding directly, not a nested representation]
 
 
 
@@ -36,7 +35,6 @@ SHACL expansion notes (new):
 4. rebuild a stand-alone SPARQL editor based on shapes.
 5. create an HTML based user guide
 
-7. do we have claude instructions to check for updates to the 1.2 standards
+7. do we have claude instructions to check for updates to the 1.2 standards [DONE - each package's CLAUDE.md (graph, shacl, sparql) has a "Tracking upstream spec changes" section with the manual re-check procedure]
 8. bring relevant UI apps into hiddenGrpah.  KG explorere, sparqModel
 9. why are we still finding bugs? need to expand testing? different approach?
-

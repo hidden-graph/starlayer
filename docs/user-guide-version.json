@@ -1,22 +1,43 @@
 {
-  "guide": "StarLayer User Guide",
+  "guide": "StarLayer User Guides",
   "version": "1.2.0",
-  "lastUpdated": "2026-08-24",
-  "canonicalSource": "docs/user-guide-v1.md",
+  "lastUpdated": "2026-09-14",
+  "canonicalSource": "docs/README.md",
   "artifacts": {
-    "markdown": [
-      "docs/user-guide-v1.md"
+    "index": [
+      "docs/README.md",
+      "docs/README.ipynb"
     ],
     "notebook": [
-      "docs/user-guide-v1.ipynb"
+      "docs/guides/01-getting-started.ipynb",
+      "docs/guides/02-graphs.ipynb",
+      "docs/guides/03-sparql.ipynb",
+      "docs/guides/04-shacl-shapes.ipynb",
+      "docs/guides/04a-shacl-node-expressions.ipynb",
+      "docs/guides/04b-shacl-inference-rules.ipynb",
+      "docs/guides/04c-shacl-and-sparql.ipynb",
+      "docs/guides/04d-shacl-ui.ipynb",
+      "docs/guides/04e-shacl-profiling.ipynb",
+      "docs/guides/04f-shacl-subgraph-extraction.ipynb",
+      "docs/guides/05-inferencing.ipynb",
+      "docs/guides/06-backend-graph-databases.ipynb"
     ],
-    "html": [
-      "docs/user-guide-v1.html",
-      "docs/user-guide-v2.html"
+    "markdown": [
+      "docs/guides/03a-sparql-rules-pending.md"
+    ],
+    "superseded": [
+      "docs/user-guide-v1_01.ipynb",
+      "docs/shacl-node-expressions-guide.ipynb",
+      "docs/shacl-rules-guide.ipynb",
+      "docs/shacl-subgraph-extraction-guide.ipynb"
     ]
+  },
+  "reorganization": {
+    "status": "complete",
+    "note": "The guide set has been fully migrated into docs/guides/, one focused notebook per topic - see docs/README.md for the full table of contents. The four files listed under artifacts.superseded remain in docs/ untouched, kept only as a reference point for reviewing what changed; docs/README.md no longer links to them."
   },
   "staleDetection": {
     "rule": "An artifact is stale when its content does not reflect this version value or lastUpdated date.",
-    "note": "Update this manifest in the same change whenever guide content changes."
+    "note": "Update this manifest in the same change whenever guide content changes. Markdown/HTML single-file renders (docs/user-guide-v1.md/.html) are not yet generated - see the repo-root Task List item 'create an HTML based user guide'; GitHub's native notebook rendering is the current viewing path."
   }
 }
