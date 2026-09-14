@@ -15,6 +15,7 @@ from starshacl.profiles import (
     get_profile,
     resolve_profile_options,
 )
+from starshacl.profiling import declared_conformance_profile, derive_conforms_to
 from starshacl.results import (
     EvaluationResult,
     ExecutionDiagnostics,
@@ -50,6 +51,8 @@ __all__ = [
     "available_profiles",
     "get_profile",
     "resolve_profile_options",
+    "declared_conformance_profile",
+    "derive_conforms_to",
     "StarLayerGraphProtocol",
     "MutableStarLayerGraphProtocol",
 ]

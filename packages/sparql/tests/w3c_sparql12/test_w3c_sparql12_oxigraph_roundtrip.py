@@ -167,10 +167,35 @@ _no_data = pytest.mark.skipif(
     not ALL_ENTRIES, reason="W3C SPARQL 1.2 test data not fetched - run download_w3c_sparql12_tests.py"
 )
 
+# Apache Jena ARQ (reached here via a live Fuseki endpoint) accepts a Literal
+# in a triple term's *subject* position that it should reject - the same
+# rule it already correctly enforces for *predicate* position - so it hands
+# back a spec-invalid triple term as a query result for these three
+# fixtures. Confirmed and written up as an upstream ARQ bug, not a bug in
+# this project's translation: ../graph/docs/fuseki-upstream-issues.md
+# Issue 1. Oxigraph has no such bug, so the oxigraph-backend parametrization
+# of these same fixtures still runs (and must keep passing) normally - the
+# xfail below is deliberately scoped to backend == "fuseki" only.
+_FUSEKI_LITERAL_SUBJECT_TRIPLE_TERM_BUG_FIXTURES = {
+    "triple-on-literals",
+    "triple-on-str-literals",
+    "triple-on-triple-terms",
+}
+
+
+def _xfail_if_known_fuseki_bug(backend: str, entry) -> None:
+    fixture_name = entry.test_iri.rsplit("#", 1)[-1]
+    if backend == "fuseki" and fixture_name in _FUSEKI_LITERAL_SUBJECT_TRIPLE_TERM_BUG_FIXTURES:
+        pytest.xfail(
+            f"known upstream Apache Jena ARQ bug (via Fuseki), not a translation bug - "
+            f"see ../graph/docs/fuseki-upstream-issues.md Issue 1 ({fixture_name})"
+        )
+
 
 @_no_data
 @pytest.mark.parametrize("entry", EVAL_SELECT, ids=lambda e: e.test_iri)
 def test_select_semantic_equivalence_oxigraph(backend, entry):
+    _xfail_if_known_fuseki_bug(backend, entry)
     query_text = entry.read(entry.query_file)
     regenerated_text = _regenerate(query_text)
 

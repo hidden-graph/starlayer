@@ -28,7 +28,19 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 
+[project.optional-dependencies]
+test = ["pytest>=7"]
+
 [project.urls]
 Homepage = "https://github.com/hidden-graph/starlayer"
 Repository = "https://github.com/hidden-graph/starlayer"
 Issues = "https://github.com/hidden-graph/starlayer/issues"
+
+[tool.setuptools.packages.find]
+include = ["starlayer*"]
+
+[tool.setuptools.package-data]
+starlayer = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,55 @@
+# baseURI: https://github.com/hidden-graph/starlayer/
+#
+# starshacl's own self-declared SHACL 1.2 conformance statement, per SHACL
+# 1.2 Profiling S3 ("Profiles of SHACL", https://www.w3.org/TR/shacl12-profiling/)
+# - which of the spec family's named feature profiles this library implements,
+# expressed with the same dx-prof (`prof:`, https://www.w3.org/TR/dx-prof/)
+# vocabulary S3 itself uses, rather than only in the prose gap matrix
+# (docs/shacl12-gap-matrix.md).
+#
+# This is a self-declaration, not a third-party certification - and both
+# this library and every SHACL 1.2 document it profiles are still W3C
+# Working Drafts as of dcterms:modified below, so treat it as a dated
+# snapshot. docs/shacl12-gap-matrix.md is the authoritative, continuously
+# updated, per-predicate source of truth; re-derive this file from it
+# (don't hand-drift the two) whenever conformance status materially
+# changes.
+#
+# Deliberately does NOT declare the UI Profile
+# (http://www.w3.org/ns/shacl/profile/ui) or the Profiling Profile
+# (http://www.w3.org/ns/shacl/profile/profiling):
+#
+# - UI Profile: shui: annotations pass through inertly (confirmed), but
+#   the profile's own widget-selection algorithm
+#   (shui:WidgetScore/shui:WidgetAcceptMatcher) is unimplemented - see
+#   docs/shacl12-gap-matrix.md's "Not Covered / Deferred" table.
+# - Profiling Profile: this very document's S2 packaging conventions pass
+#   through as inert metadata by design (SHOULD-level, no processor
+#   behavior required of a conformant implementation), and S5.5's
+#   sh:conformsTo inference rule is implemented as an opt-in helper
+#   (starshacl.profiling.derive_conforms_to) rather than automatic
+#   behavior, since deriving it needs caller-supplied graph identity no
+#   validator can infer on its own. Whether that combination should count
+#   as "conforming" to a document whose normative content is almost
+#   entirely about shapes-graph authoring/packaging practice, not
+#   processor behavior, is a judgment call this file leaves undeclared
+#   rather than asserts either way.
+#
+# Not declared at all (no known IRI in the published draft, and not
+# tracked by the gap matrix): the community-managed CD1/Pretty
+# Print/OWL Consistent/SHACL 1.0 profiles mentioned in S3.
+
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<https://github.com/hidden-graph/starlayer/tree/main/packages/shacl>
+    rdfs:label "starshacl" ;
+    rdfs:comment "pySHACL-based SHACL validation and rule execution with RDF 1.2 / triple-term support, part of the StarLayer stack."@en ;
+    dcterms:modified "2026-09-14"^^xsd:date ;
+    rdfs:seeAlso <https://github.com/hidden-graph/starlayer/blob/main/packages/shacl/docs/shacl12-gap-matrix.md> ;
+    dcterms:conformsTo
+        <http://www.w3.org/ns/shacl/profile/core> ,
+        <http://www.w3.org/ns/shacl/profile/sparql> ,
+        <http://www.w3.org/ns/shacl/profile/node-expr> ,
+        <http://www.w3.org/ns/shacl/profile/rules> .

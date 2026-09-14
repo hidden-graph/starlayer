@@ -41,13 +41,14 @@ Repository = "https://github.com/hidden-graph/starlayer"
 Issues = "https://github.com/hidden-graph/starlayer/issues"
 
 [tool.setuptools.packages.find]
-where = ["packages/graph", "packages/sparql", "packages/shacl"]
-include = ["starlayergraph*", "starsparql*", "starshacl*"]
+where = ["packages/graph", "packages/sparql", "packages/shacl", "packages/starlayer"]
+include = ["starlayergraph*", "starsparql*", "starshacl*", "starlayer*"]
 
 [tool.setuptools.package-data]
 starlayergraph = ["py.typed"]
 starsparql = ["ontology/*.ttl"]
 starshacl = ["assets/*.ttl"]
+starlayer = ["py.typed"]
 
 [tool.ruff]
 target-version = "py310"

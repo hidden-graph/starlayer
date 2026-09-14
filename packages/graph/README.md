@@ -34,8 +34,7 @@ If you are working from a local checkout for development, you can install the sa
 ## Example usage
 
 ```python
-from starlayergraph.graph.starlayer_graph import StarLayerGraph
-from starshacl import StarShaclValidator
+from starlayer import StarLayerGraph, StarShaclValidator
 
 # Example RDF data
 # Use your own graph and shape definitions here.

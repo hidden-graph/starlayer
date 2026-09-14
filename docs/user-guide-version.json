@@ -11,7 +11,11 @@
     "notebook": [
       "docs/guides/01-getting-started.ipynb",
       "docs/guides/02-graphs.ipynb",
+      "docs/guides/02a-graphs-datasets.ipynb",
+      "docs/guides/02b-graphs-serialization-formats.ipynb",
+      "docs/guides/02c-graphs-canonical-hashing.ipynb",
       "docs/guides/03-sparql.ipynb",
+      "docs/guides/03b-sparql-query-as-rdf.ipynb",
       "docs/guides/04-shacl-shapes.ipynb",
       "docs/guides/04a-shacl-node-expressions.ipynb",
       "docs/guides/04b-shacl-inference-rules.ipynb",
