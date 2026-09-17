@@ -26,7 +26,6 @@ from dataclasses import dataclass
 
 from rdflib import BNode, Graph, Literal, URIRef, Variable
 from starlayergraph.model.dirlangstring import DirLangString
-from starlayergraph.model.encoding import RR_NS
 from starlayergraph.model.triple import TripleTerm
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
@@ -161,13 +160,12 @@ def canon_bindings(bindings: list[dict]) -> list[frozenset]:
 
 
 # ---------------------------------------------------------------------------
-# BNode/rr:N-tolerant comparison - ported from starlayergraph's own copy
-# of this harness (tests/w3c_sparql12/harness.py there), confirmed there via
-# real W3C fixtures (graphs-2, results-reifiedtriples-1j) that canon_bindings
+# BNode-tolerant comparison - ported from starlayergraph's own copy of this
+# harness (tests/w3c_sparql12/harness.py there), confirmed there via real
+# W3C fixtures (graphs-2, results-reifiedtriples-1j) that canon_bindings
 # alone false-mismatches on: the exact label a store mints for an anonymous
-# node (a real BNode, or a starlayergraph rr:N URIRef - anonymous ~/{| |}
-# reifiers are deliberately skolemized to a sequential rr:N URIRef rather
-# than left as a BNode, see starlayergraph.model.encoding's RR_NS) is never
+# node (including an anonymous ~/{| |} reifier - an ordinary BNode, see
+# starlayergraph.parsers.turtle_parser._skolemize_encoding) is never
 # semantically meaningful, only a *consistent* relabeling is - exactly the
 # case two independently-executed queries (original vs regenerated text)
 # hit here, since each execution mints its own arbitrary identifiers.
@@ -177,8 +175,6 @@ def _opaque_key(v) -> str | None:
     """This term's identity as far as bindings_match is concerned, or None
     if it's an ordinary (non-renameable) term."""
     if isinstance(v, BNode):
-        return str(v)
-    if isinstance(v, URIRef) and str(v).startswith(RR_NS):
         return str(v)
     return None
 
@@ -262,7 +258,7 @@ def bindings_match(actual: list[dict], expected: list[dict]) -> bool:
 # (same structure, different arbitrary BNode label for "the" anonymous
 # reifier) hashed to different URIs and compared as unequal - confirmed via
 # starlayergraph's own construct-3/expr-1 fixtures, both of which mix an
-# rr:N-mapped-to-BNode reifier with a TripleTerm nesting it.
+# anonymous-reifier BNode with a TripleTerm nesting it.
 #
 # Representing a TripleTerm as ordinary triples on a *fresh* BNode instead
 # (rather than a single opaque hashed value) sidesteps the problem
@@ -282,12 +278,13 @@ from rdflib.namespace import RDF as _RDF  # noqa: E402 (kept near point of use)
 
 def skolemize_graph(graph) -> Graph:
     """Convert every TripleTerm value in `graph` into ordinary triples on a
-    fresh BNode, and every RR_NS anonymous-reifier URIRef into a fresh
-    BNode too, so the whole thing can be handed to
+    fresh BNode, so the whole thing can be handed to
     rdflib.compare.to_isomorphic() (which requires every term to be a real
-    rdflib.term.Node - TripleTerm deliberately isn't one)."""
+    rdflib.term.Node - TripleTerm deliberately isn't one). An anonymous
+    reifier is already an ordinary BNode by the time it reaches here (see
+    starlayergraph.parsers.turtle_parser._skolemize_encoding) and needs no
+    further mapping."""
     out = Graph()
-    rr_to_bnode: dict = {}
 
     def skolemize(term):
         if isinstance(term, TripleTerm):
@@ -297,10 +294,6 @@ def skolemize_graph(graph) -> Graph:
             out.add((node, _SK_PREDICATE, skolemize(term.predicate)))
             out.add((node, _SK_OBJECT, skolemize(term.object)))
             return node
-        if isinstance(term, URIRef) and str(term).startswith(RR_NS):
-            if term not in rr_to_bnode:
-                rr_to_bnode[term] = BNode()
-            return rr_to_bnode[term]
         return term
 
     for s, p, o in graph:

@@ -179,6 +179,100 @@ class TestContextAPI:
 
 
 # ---------------------------------------------------------------------------
+# Dataset-wide reification lookups
+# ---------------------------------------------------------------------------
+
+TRIG_SAME_REIFIER_TWO_GRAPHS = f"""\
+@prefix ex: <{EX}> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+
+GRAPH <{EX}graph1> {{
+  ex:stmt rdf:reifies <<( ex:alice ex:knows ex:bob )>> .
+  ex:stmt ex:source ex:sourceA .
+}}
+
+GRAPH <{EX}graph2> {{
+  ex:stmt rdf:reifies <<( ex:carol ex:likes ex:dana )>> .
+  ex:stmt ex:source ex:sourceB .
+}}
+"""
+
+
+class TestDatasetWideReifiers:
+    def test_returns_a_dataset(self):
+        ds = StarLayerDataset()
+        ds.parse(data=TRIG_BASIC, format='trig12')
+        tt = TripleTerm(ex('alice'), ex('knows'), ex('bob'))
+        result = ds.reifiers(TT=tt)
+        assert isinstance(result, StarLayerDataset)
+
+    def test_result_scoped_to_originating_graph(self):
+        ds = StarLayerDataset()
+        ds.parse(data=TRIG_BASIC, format='trig12')
+        tt = TripleTerm(ex('alice'), ex('knows'), ex('bob'))
+        result = ds.reifiers(TT=tt)
+        assert (ex('stmt1'), RDF_REIFIES, tt) in result.get_context(G1)
+        assert len(result.get_context(G2)) == 0
+
+    def test_result_includes_annotations(self):
+        ds = StarLayerDataset()
+        ds.parse(data=TRIG_BASIC, format='trig12')
+        tt = TripleTerm(ex('alice'), ex('knows'), ex('bob'))
+        result = ds.reifiers(TT=tt)
+        assert (ex('stmt1'), ex('confidence'), None) in [
+            (s, p, None) for s, p, o in result.get_context(G1).triples((None, None, None))
+        ]
+
+    def test_same_reifier_node_in_two_graphs_not_collapsed(self):
+        ds = StarLayerDataset()
+        ds.parse(data=TRIG_SAME_REIFIER_TWO_GRAPHS, format='trig12')
+        result = ds.reifiers()
+        tt1 = TripleTerm(ex('alice'), ex('knows'), ex('bob'))
+        tt2 = TripleTerm(ex('carol'), ex('likes'), ex('dana'))
+        assert (ex('stmt'), RDF_REIFIES, tt1) in result.get_context(G1)
+        assert (ex('stmt'), RDF_REIFIES, tt2) in result.get_context(G2)
+        assert (ex('stmt'), RDF_REIFIES, tt2) not in result.get_context(G1)
+        assert (ex('stmt'), RDF_REIFIES, tt1) not in result.get_context(G2)
+
+    def test_reifications_returns_dataset_scoped_by_graph(self):
+        ds = StarLayerDataset()
+        ds.parse(data=TRIG_SAME_REIFIER_TWO_GRAPHS, format='trig12')
+        result = ds.reifications()
+        assert isinstance(result, StarLayerDataset)
+        tt1 = TripleTerm(ex('alice'), ex('knows'), ex('bob'))
+        tt2 = TripleTerm(ex('carol'), ex('likes'), ex('dana'))
+        assert (ex('stmt'), RDF_REIFIES, tt1) in result.get_context(G1)
+        assert (ex('stmt'), RDF_REIFIES, tt1) not in result.get_context(G2)
+        assert (ex('stmt'), RDF_REIFIES, tt2) in result.get_context(G2)
+
+    def test_reified_triples_finds_matches_in_every_graph(self):
+        ds = StarLayerDataset()
+        ds.parse(data=TRIG_SAME_REIFIER_TWO_GRAPHS, format='trig12')
+        result = ds.reified_triples(ex('stmt'))
+        tt1 = TripleTerm(ex('alice'), ex('knows'), ex('bob'))
+        tt2 = TripleTerm(ex('carol'), ex('likes'), ex('dana'))
+        assert (ex('stmt'), RDF_REIFIES, tt1) in result.get_context(G1)
+        assert (ex('stmt'), RDF_REIFIES, tt2) in result.get_context(G2)
+
+    def test_reifier_annotations_excludes_reifies_triple(self):
+        ds = StarLayerDataset()
+        ds.parse(data=TRIG_SAME_REIFIER_TWO_GRAPHS, format='trig12')
+        tt1 = TripleTerm(ex('alice'), ex('knows'), ex('bob'))
+        result = ds.reifier_annotations(tt1)
+        g1 = result.get_context(G1)
+        assert (ex('stmt'), ex('source'), ex('sourceA')) in g1
+        assert (ex('stmt'), RDF_REIFIES, tt1) not in g1
+
+    def test_no_matches_returns_empty_dataset(self):
+        ds = StarLayerDataset()
+        ds.parse(data=TRIG_BASIC, format='trig12')
+        tt = TripleTerm(ex('nobody'), ex('knows'), ex('nothing'))
+        result = ds.reifiers(TT=tt)
+        assert isinstance(result, StarLayerDataset)
+        assert len(result) == 0
+
+
+# ---------------------------------------------------------------------------
 # Quad iteration
 # ---------------------------------------------------------------------------
 
@@ -319,6 +413,84 @@ class TestSerialize:
         assert prefix_idx is not None
         assert graph_idx is not None
         assert prefix_idx < graph_idx
+
+
+# ---------------------------------------------------------------------------
+# Single-graph format serialization (flattened, no GRAPH blocks)
+# ---------------------------------------------------------------------------
+
+class TestSerializeSingleGraphFormats:
+    def test_turtle12_has_no_graph_blocks(self):
+        ds = StarLayerDataset()
+        ds.parse(data=TRIG_BASIC, format='trig12')
+        out = ds.serialize(format='turtle12')
+        assert 'GRAPH' not in out
+
+    def test_turtle12_includes_triples_from_every_graph(self):
+        ds = StarLayerDataset()
+        ds.parse(data=TRIG_BASIC, format='trig12')
+        out = ds.serialize(format='turtle12')
+        assert 'ex:s' in out and 'ex:p' in out and 'ex:o' in out
+        assert 'ex:stmt2' in out
+
+    def test_turtle12_preserves_triple_terms(self):
+        ds = StarLayerDataset()
+        ds.parse(data=TRIG_BASIC, format='trig12')
+        out = ds.serialize(format='turtle12')
+        assert '<<(' in out
+
+    def test_longturtle12_one_triple_per_line(self):
+        ds = StarLayerDataset()
+        ds.parse(data=TRIG_BASIC, format='trig12')
+        out = ds.serialize(format='longturtle12')
+        assert 'rdf:reifies <<( ex:alice ex:knows ex:bob )>> .' in out
+        assert 'rdf:reifies <<( ex:bob ex:likes ex:carol )>> .' in out
+
+    def test_nt12_flattens_dataset(self):
+        ds = StarLayerDataset()
+        ds.parse(data=TRIG_BASIC, format='trig12')
+        out = ds.serialize(format='nt12')
+        assert '<<(' in out
+        assert 'GRAPH' not in out
+
+    def test_trig12_unaffected_by_new_formats(self):
+        ds = StarLayerDataset()
+        ds.parse(data=TRIG_BASIC, format='trig12')
+        out = ds.serialize(format='trig12')
+        assert 'GRAPH' in out
+
+
+class TestToGraph:
+    def test_returns_a_starlayer_graph(self):
+        ds = StarLayerDataset()
+        ds.parse(data=TRIG_BASIC, format='trig12')
+        g = ds.to_graph()
+        assert isinstance(g, StarLayerGraph)
+
+    def test_includes_triples_from_every_graph(self):
+        ds = StarLayerDataset()
+        ds.parse(data=TRIG_BASIC, format='trig12')
+        g = ds.to_graph()
+        assert (ex('s'), ex('p'), ex('o')) in g
+        assert (ex('stmt2'), ex('source'), ex('newspaper')) in g
+
+    def test_preserves_triple_terms(self):
+        ds = StarLayerDataset()
+        ds.parse(data=TRIG_BASIC, format='trig12')
+        g = ds.to_graph()
+        tt = TripleTerm(ex('alice'), ex('knows'), ex('bob'))
+        assert (ex('stmt1'), RDF_REIFIES, tt) in g
+
+    def test_is_queryable_and_not_tied_to_the_dataset(self):
+        ds = StarLayerDataset()
+        ds.parse(data=TRIG_BASIC, format='trig12')
+        g = ds.to_graph()
+        assert len(list(g.query('SELECT ?s WHERE { ?s ?p ?o }'))) == len(g)
+
+    def test_matches_serialize_single_graph_format_output(self):
+        ds = StarLayerDataset()
+        ds.parse(data=TRIG_BASIC, format='trig12')
+        assert ds.to_graph().serialize(format='turtle12') == ds.serialize(format='turtle12')
 
 
 # ---------------------------------------------------------------------------

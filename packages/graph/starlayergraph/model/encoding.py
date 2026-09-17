@@ -4,7 +4,11 @@ starlayergraph.model.encoding
 Shared constants and hash function for the starlayergraph internal graph encoding.
 
 Triple terms    → content-addressed URIRefs under TT_NS (same content = same URI)
-Anon reifiers   → sequential URIRefs under RR_NS (each {| |} block is distinct)
+Anon reifiers   → ordinary BNodes (each {| |} block is distinct); no internal
+                  skolemization scheme of their own - see
+                  starlayergraph.parsers.turtle_parser._skolemize_encoding
+                  for why a previous rr:N sequential-URIRef scheme was
+                  replaced with this
 DirLangString   → a Literal whose datatype URI under DIRLANG_NS packs the real
                   language tag and base direction (see decode_dirlang_datatype)
 """
@@ -16,7 +20,6 @@ from rdflib import Literal, URIRef
 from rdflib.namespace import RDF, XSD
 
 TT_NS      = 'https://github.com/hidden-graph/starlayergraph/ns/tt#'       # triple-term content-addressed URIs
-RR_NS      = 'https://github.com/hidden-graph/starlayergraph/ns/rr#'       # anonymous reifier URIs
 DIRLANG_NS = 'https://github.com/hidden-graph/starlayergraph/ns/dirlang#'  # dirLangString datatype encoding
 BN_NS      = 'https://github.com/hidden-graph/starlayergraph/ns/bn#'       # native-backend blank-node skolemization
 

@@ -189,9 +189,10 @@ def test_eval_select(entry):
     # tests/w3c_sparql12/test_w3c_sparql12_eval.py::test_eval_select_original_query
     # already applies, for the identical reason.
     actual = [{k: v for k, v in dict(row).items() if v is not None} for row in starlayer_graph.query(regenerated_text).bindings]
-    # bindings_match, not exact canon_bindings equality: a BNode's (or
-    # starlayergraph's rr:N-skolemized anonymous reifier's) *label* is never
-    # semantically meaningful, only a consistent relabeling is - see
+    # bindings_match, not exact canon_bindings equality: a BNode's (including
+    # starlayergraph's own anonymous reifiers, which are ordinary BNodes)
+    # *label* is never semantically meaningful, only a consistent relabeling
+    # is - see
     # harness.bindings_match's own docstring. canon_bindings alone
     # false-mismatches on any W3C fixture using one (e.g.
     # results-reifiedtriples-1j).

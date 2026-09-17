@@ -63,10 +63,24 @@ class StarLayerDataset(Dataset):
         parse(format='nq12')        — load N-Quads 1.2 with triple-term support
         serialize(format='trig12')  — emit TriG 1.2 with triple-term support
         serialize(format='nq12')    — emit N-Quads 1.2 with triple-term support
+        serialize(format='turtle12'/'longturtle12'/'nt12'/'rdfxml12'/'jsonld12')
+                                    — no multi-graph syntax exists for these,
+                                      so every quad is flattened into one
+                                      StarLayerGraph first (graph boundaries
+                                      are lost)
+        to_graph()                  — flatten every quad into one new
+                                      StarLayerGraph (graph boundaries lost);
+                                      same flattening serialize() uses above,
+                                      exposed for querying/hashing/etc.
         get_context(identifier)     — returns StarLayerGraph (not plain Graph)
         contexts()                  — yields StarLayerGraph instances
         quads()                     — yields (s, p, o, StarLayerGraph) with
                                       TripleTerms restored; encoding triples filtered
+        reifiers()/reifications()/reifier_annotations()/reified_triples()
+                                    — dataset-wide reification lookups; each
+                                      returns a StarLayerDataset of the
+                                      matching triples, still scoped to the
+                                      named graph each one came from
     """
 
     def __init__(self, *args, backend: str = 'rdf-1.1', **kwargs):
@@ -473,6 +487,97 @@ class StarLayerDataset(Dataset):
             return 0
         return int(str(bindings[0][Variable('c')]))
 
+    # ------------------------------------------------------------------
+    # Reification lookups across every graph in the dataset
+    # ------------------------------------------------------------------
+    #
+    # Each StarLayerGraph's reifiers()/reifications()/reifier_annotations()/
+    # reified_triples() only searches that one graph's own triples - a
+    # reifier can be a different node in every graph, or (less commonly) the
+    # *same* node reused as a reifier in two unrelated graphs. Rather than
+    # flattening results into a bare list of nodes (which would either lose
+    # which graph a match came from, or collapse two distinct per-graph
+    # facts about the same node into one), each dataset-wide lookup below
+    # returns a new StarLayerDataset: a filtered view holding exactly the
+    # matching triples, each still scoped to its original named graph.
+    # result.graph(g.identifier) drills into one graph's matches,
+    # result.serialize(format='trig12') shows all of them with their graph
+    # boundaries intact, and two graphs matching via the same node simply
+    # appear as two separate GRAPH blocks rather than being merged.
+
+    def reifiers(self, TT=None, predicate=None, object=None) -> StarLayerDataset:
+        """Return a StarLayerDataset of every matching reifier's full triples
+        (its rdf:reifies link(s) plus annotations), across every graph in
+        this dataset - see StarLayerGraph.reifiers() for filter semantics.
+        Each reifier's triples stay in the named graph they came from.
+        """
+        result = StarLayerDataset()
+        for prefix, ns in self.namespaces():
+            result.bind(prefix, ns)
+        for sg in self.contexts():
+            matches = list(sg.reifiers(TT=TT, predicate=predicate, object=object))
+            if not matches:
+                continue
+            out_g = result.graph(sg.identifier)
+            for r in matches:
+                for s, p, o in sg.triples((r, None, None)):
+                    out_g.add((s, p, o))
+        return result
+
+    def reifications(self, s=None, p=None, o=None) -> StarLayerDataset:
+        """Return a StarLayerDataset of the rdf:reifies triples for every
+        reified triple term matching the given s/p/o pattern, across every
+        graph in this dataset - see StarLayerGraph.reifications().
+        """
+        result = StarLayerDataset()
+        for prefix, ns in self.namespaces():
+            result.bind(prefix, ns)
+        for sg in self.contexts():
+            matched_tts = list(sg.reifications(s=s, p=p, o=o))
+            if not matched_tts:
+                continue
+            out_g = result.graph(sg.identifier)
+            for tt in matched_tts:
+                for r in sg.reifiers(TT=tt):
+                    out_g.add_reification(r, tt)
+        return result
+
+    def reifier_annotations(self, TT) -> StarLayerDataset:
+        """Return a StarLayerDataset of (reifier, predicate, value)
+        annotation triples (excluding rdf:reifies itself) for every reifier
+        of TT, across every graph in this dataset - see
+        StarLayerGraph.reifier_annotations().
+        """
+        result = StarLayerDataset()
+        for prefix, ns in self.namespaces():
+            result.bind(prefix, ns)
+        for sg in self.contexts():
+            annotations = list(sg.reifier_annotations(TT))
+            if not annotations:
+                continue
+            out_g = result.graph(sg.identifier)
+            for reifier, pred, val in annotations:
+                out_g.add((reifier, pred, val))
+        return result
+
+    def reified_triples(self, reifier) -> StarLayerDataset:
+        """Return a StarLayerDataset of the rdf:reifies triples for the given
+        reifier node, across every graph in this dataset - a reifier node
+        reused in more than one graph shows up as a separate match per
+        graph. See StarLayerGraph.reified_triples().
+        """
+        result = StarLayerDataset()
+        for prefix, ns in self.namespaces():
+            result.bind(prefix, ns)
+        for sg in self.contexts():
+            tts = list(sg.reified_triples(reifier))
+            if not tts:
+                continue
+            out_g = result.graph(sg.identifier)
+            for tt in tts:
+                out_g.add_reification(reifier, tt)
+        return result
+
     def query(self, query_object, processor='sparql', result='sparql',
               initNs=None, initBindings=None, use_store_provided=True, **kwargs):
         """Execute a SPARQL query across all named graphs with SPARQL-star support.
@@ -584,18 +689,48 @@ class StarLayerDataset(Dataset):
         self._raw_execution_graph = None
         return None
 
+    #: Single-graph RDF 1.2 formats - none of these have syntax for multiple
+    #: named graphs, so serializing a dataset to one of them means flattening
+    #: every quad into one StarLayerGraph first (graph boundaries are lost).
+    _SINGLE_GRAPH_RDF12_FORMATS = frozenset({
+        'turtle12', 'longturtle12', 'nt12', 'rdfxml12', 'jsonld12',
+    })
+
+    def to_graph(self) -> StarLayerGraph:
+        """Flatten every quad in this dataset into one new StarLayerGraph.
+
+        Which named graph each triple came from is not preserved - two
+        different graphs asserting the same triple collapse into one. This
+        is the same flattening serialize() uses for single-graph formats
+        (turtle12, longturtle12, nt12, rdfxml12, jsonld12); call this
+        directly when a real in-memory Graph is wanted - to query it, check
+        isomorphism, hash it, etc. - rather than a serialized string.
+        """
+        merged = StarLayerGraph(namespace_manager=self.namespace_manager)
+        for s, p, o, _g in self.quads():
+            merged.add((s, p, o))
+        return merged
+
     def serialize(self, destination=None, format='trig', **kwargs) -> str | None:
         """Serialize this dataset.
 
         format='trig12'  — TriG 1.2 with GRAPH blocks and <<( )>> triple terms.
         format='nq12'   — N-Quads 1.2 with <<( )>> triple terms; one quad per line.
         format='trix12' — TriX 1.2 XML with <graph> blocks and <tripleTerm> elements.
+        format='turtle12'/'longturtle12'/'nt12'/'rdfxml12'/'jsonld12' — no
+            multi-graph syntax exists for these, so every quad is flattened
+            into one StarLayerGraph (see to_graph()) and serialized with
+            that format; which named graph each triple came from is not
+            preserved.
         All other formats delegate to rdflib.
         """
-        if format not in ('trig12', 'nq12', 'trix12'):
+        if format in self._SINGLE_GRAPH_RDF12_FORMATS:
+            text = self.to_graph().serialize(format=format)
+
+        elif format not in ('trig12', 'nq12', 'trix12'):
             return super().serialize(destination=destination, format=format, **kwargs)
 
-        if format == 'nq12':
+        elif format == 'nq12':
             from starlayergraph.serializers.ntriples12 import serialize_nquads12
             has_tt = any(getattr(sg, '_tt_nodes', None) for sg in self.contexts())
             header = 'VERSION "1.2"\n' if has_tt else ''

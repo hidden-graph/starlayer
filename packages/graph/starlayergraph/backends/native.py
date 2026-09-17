@@ -109,9 +109,12 @@ def skolemize_bnode(node: BNode) -> URIRef:
     g.add((b, :r, :o2))`` for one Python BNode produced two different
     store-side blank nodes, and a query joining on the shared subject
     returned nothing. Skolemizing to a URI sidesteps request-scoping
-    entirely - a URI means the same thing in every request, exactly like
-    this project's existing RR_NS scheme skolemizes anonymous reifiers for
-    the same underlying reason (see encoding.py's module docstring).
+    entirely - a URI means the same thing in every request. This is also
+    what makes an anonymous reifier's own BNode identity (see
+    starlayergraph.parsers.turtle_parser._skolemize_encoding - anonymous
+    reifiers are ordinary BNodes, not a separate skolemization scheme of
+    their own) survive a native-backend round trip for free: it's just
+    another BNode as far as this function is concerned.
     Reversed by deskolemize_bnode() on every read path.
     """
     return URIRef(BN_NS + str(node))

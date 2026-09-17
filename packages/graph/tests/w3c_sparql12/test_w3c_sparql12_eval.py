@@ -17,20 +17,15 @@ Two test shapes:
    bindings, order/set-independent. `.srx`-only tests (no `.srj`) are
    skipped - this harness's JSON results parser has no XML counterpart.
 2. QueryEvaluationTest (CONSTRUCT-shaped, .ttl expected results) - compare
-   by graph isomorphism, after skolemizing any TripleTerm value to a
-   stable URIRef first (see _skolemize_graph - rdflib.compare.to_isomorphic
-   requires every term to be a real rdflib.term.Node, which
-   starlayergraph.model.triple.TripleTerm deliberately isn't), AND mapping any
-   anonymous-reifier rr:N URIRef (starlayergraph's own internal skolemization of
-   an anonymous reifier - see starlayergraph/model/encoding.py's RR_NS) back to
-   a fresh BNode first. The latter is necessary, not cosmetic: rr:N
-   numbering is assignment-order-dependent (confirmed via construct-3 -
-   actual and expected mint the same reifiers in different orders, so e.g.
-   "rr#0" on one side is "rr#3" on the other for the structurally same
-   reifier), and to_isomorphic's blank-node canonicalization - which is
-   exactly the "up to consistent relabeling" comparison this needs - only
-   applies to genuine BNodes, not arbitrary URIRefs regardless of
-   namespace.
+   by graph isomorphism, after skolemizing any TripleTerm value to a fresh
+   BNode first (see _skolemize_graph - rdflib.compare.to_isomorphic requires
+   every term to be a real rdflib.term.Node, which
+   starlayergraph.model.triple.TripleTerm deliberately isn't). An anonymous
+   reifier is already an ordinary BNode by the time it gets here (see
+   starlayergraph.parsers.turtle_parser._skolemize_encoding), so
+   to_isomorphic's own blank-node canonicalization - exactly the "up to
+   consistent relabeling" comparison this needs - already applies to it
+   directly, with nothing further to map.
 
 UpdateEvaluationTest is collected (via the shared index) but not exercised
 here - this file is scoped to query evaluation.
@@ -46,7 +41,6 @@ from rdflib.namespace import RDF
 from rdflib.plugins.stores.sparqlstore import SPARQLUpdateStore
 from starlayergraph.graph.starlayer_dataset import StarLayerDataset
 from starlayergraph.graph.starlayer_graph import StarLayerGraph
-from starlayergraph.model.encoding import RR_NS
 from starlayergraph.model.triple import TripleTerm
 
 from .harness import (
@@ -203,6 +197,27 @@ _FUSEKI_KNOWN_DIVERGENCES: dict = {
     "reported upstream as apache/jena#4141 - see docs/fuseki-upstream-issues.md Issue 1",
     "triple-on-triple-terms": "Jena ARQ: TRIPLE() doesn't validate its subject argument - "
     "reported upstream as apache/jena#4141 - see docs/fuseki-upstream-issues.md Issue 1",
+    # Found 2026-09-17 switching anonymous reifiers to real BNodes (see
+    # turtle_parser.py::_skolemize_encoding): a blank node nested inside a
+    # "type":"triple" JSON result value gets a different label than the
+    # same node's own ordinary top-level binding elsewhere in the *same*
+    # result set - but only for a POST-with-body query (http_select()'s own
+    # submission method); a GET query against the identical stored data
+    # doesn't show it. The store itself is correct (confirmed via a join
+    # ASK query) - this is purely ARQ's JSON results writer. See
+    # docs/fuseki-upstream-issues.md Issue 2.
+    "results-reifiedtriples-1j": "Jena ARQ: inconsistent blank-node labels across rows of one "
+    "POST-submitted SELECT result set, for a bnode both nested in a triple-term value and bound "
+    "as an ordinary top-level term - see docs/fuseki-upstream-issues.md Issue 2",
+    "pattern-6": "Jena ARQ: inconsistent blank-node labels across rows of one "
+    "POST-submitted SELECT result set, for a bnode both nested in a triple-term value and bound "
+    "as an ordinary top-level term - see docs/fuseki-upstream-issues.md Issue 2",
+    "pattern-7": "Jena ARQ: inconsistent blank-node labels across rows of one "
+    "POST-submitted SELECT result set, for a bnode both nested in a triple-term value and bound "
+    "as an ordinary top-level term - see docs/fuseki-upstream-issues.md Issue 2",
+    "pattern-10": "Jena ARQ: inconsistent blank-node labels across rows of one "
+    "POST-submitted SELECT result set, for a bnode both nested in a triple-term value and bound "
+    "as an ordinary top-level term - see docs/fuseki-upstream-issues.md Issue 2",
 }
 
 EVAL_SELECT_FUSEKI = _mark_known_divergences(EVAL_SELECT, _FUSEKI_KNOWN_DIVERGENCES)
@@ -321,12 +336,13 @@ _SK_TT_MARKER = URIRef(_SKOLEM_NS + "TripleTerm")
 
 def _skolemize_graph(graph) -> Graph:
     """Convert every TripleTerm value in `graph` into ordinary triples on a
-    fresh BNode, and every RR_NS anonymous-reifier URIRef into a fresh
-    BNode too, so the whole thing can be handed to
+    fresh BNode, so the whole thing can be handed to
     rdflib.compare.to_isomorphic() (which requires every term to be a real
-    rdflib.term.Node - TripleTerm deliberately isn't one, and rr:N is a
-    starlayergraph-internal skolemization of what's really an anonymous
-    reifier - see starlayergraph/model/encoding.py's RR_NS).
+    rdflib.term.Node - TripleTerm deliberately isn't one). An anonymous
+    reifier is already an ordinary BNode by the time it reaches here (see
+    starlayergraph.parsers.turtle_parser._skolemize_encoding) and needs no
+    further mapping - to_isomorphic()'s own blank-node canonicalization
+    already applies to it directly.
 
     An earlier version of this function instead collapsed each TripleTerm
     into a *single* content-hashed URIRef (hashing its own already-
@@ -337,8 +353,8 @@ def _skolemize_graph(graph) -> Graph:
     could relabel, so two graphs that actually *were* isomorphic (same
     structure, different arbitrary BNode label for "the" anonymous
     reifier) hashed to different URIs and compared as unequal - confirmed
-    via construct-3/expr-1, both of which mix an RR_NS-mapped-to-BNode
-    reifier with a TripleTerm nesting it.
+    via construct-3/expr-1, both of which mix an anonymous-reifier BNode
+    with a TripleTerm nesting it.
 
     Encoding a TripleTerm as ordinary triples on a *fresh* BNode instead
     sidesteps the problem entirely, rather than working around it: BNode
@@ -353,7 +369,6 @@ def _skolemize_graph(graph) -> Graph:
     trying to pre-empt it.
     """
     out = Graph()
-    rr_to_bnode: dict = {}
 
     def skolemize(term):
         if isinstance(term, TripleTerm):
@@ -363,10 +378,6 @@ def _skolemize_graph(graph) -> Graph:
             out.add((node, _SK_PREDICATE, skolemize(term.predicate)))
             out.add((node, _SK_OBJECT, skolemize(term.object)))
             return node
-        if isinstance(term, URIRef) and str(term).startswith(RR_NS):
-            if term not in rr_to_bnode:
-                rr_to_bnode[term] = BNode()
-            return rr_to_bnode[term]
         return term
 
     for s, p, o in graph:

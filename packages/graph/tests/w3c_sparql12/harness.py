@@ -33,7 +33,6 @@ from dataclasses import dataclass
 import requests
 from rdflib import BNode, Literal, URIRef, Variable
 from starlayergraph.model.dirlangstring import DirLangString
-from starlayergraph.model.encoding import RR_NS
 from starlayergraph.model.triple import TripleTerm
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
@@ -255,25 +254,15 @@ def _opaque_key(v) -> str | None:
     """This term's identity as far as bindings_match is concerned, or None
     if it's an ordinary (non-renameable) term.
 
-    Two distinct term *kinds* count as "opaque" here, deliberately treated
-    identically: a real BNode (what the W3C fixtures themselves use for an
-    anonymous reifier), and a URIRef under starlayergraph's own RR_NS (what
-    StarLayerGraph/StarLayerDataset actually produce for one - confirmed in
-    starlayergraph/model/encoding.py: anonymous ``~``/``{| |}`` reifiers are
-    deliberately skolemized to a sequential ``rr:N`` URIRef rather than left
-    as a BNode, a real, load-bearing, deliberate design used across parsers/
-    serializers/multiple backends - not something to change just for this
-    test suite's benefit). Both name "some anonymous reifier, identity
-    otherwise irrelevant" - a URIRef is normally a stricter, globally
-    identified term than a BNode, but for *this* comparison (do two SPARQL
-    executions of the same query agree, up to a consistent renaming of
-    whatever anonymous identifiers each one happened to mint) that
-    distinction isn't the thing being tested, so both are folded into the
-    same opaque-identifier treatment bindings_match already needs for plain
-    BNode-vs-BNode label differences (see its own docstring)."""
+    A real BNode (what the W3C fixtures themselves use for an anonymous
+    reifier, and also what StarLayerGraph/StarLayerDataset now produce for
+    one - see starlayergraph.parsers.turtle_parser._skolemize_encoding)
+    names "some anonymous reifier, identity otherwise irrelevant" - the
+    exact label is never semantically meaningful, only a *consistent*
+    relabeling matters, so this is folded into the same opaque-identifier
+    treatment bindings_match already needs for plain BNode-vs-BNode label
+    differences (see its own docstring)."""
     if isinstance(v, BNode):
-        return str(v)
-    if isinstance(v, URIRef) and str(v).startswith(RR_NS):
         return str(v)
     return None
 
@@ -348,20 +337,17 @@ def bindings_match(actual: list[dict], expected: list[dict]) -> bool:
     QueryEvaluationTest results). Comparing via canon_bindings alone
     therefore produces false mismatches whenever the two sides mint
     different (but structurally equivalent) identifiers for "the same"
-    anonymous node - confirmed two distinct ways: (1) the graphs-2 fixture,
-    where StarLayerDataset labels a blank node ``_:bc_0_b0_b`` while the
-    W3C .srj fixture's own expected value is ``_:b``; (2) op-1/op-2/
-    results-reifiedtriples-1j, where an anonymous reifier is a real BNode
-    in the W3C fixture but a stable ``rr:N`` URIRef once it round-trips
-    through StarLayerGraph/StarLayerDataset (see _opaque_key) - both cases
-    are "some anonymous identifier, exact spelling irrelevant" and get the
-    same treatment here.
+    anonymous node - confirmed via the graphs-2 fixture, where
+    StarLayerDataset labels a blank node ``_:bc_0_b0_b`` while the W3C .srj
+    fixture's own expected value is ``_:b`` - both are "some anonymous
+    identifier, exact spelling irrelevant" and get the same treatment here
+    (see _opaque_key; this also now covers an anonymous reifier's own BNode
+    label the same way, op-1/op-2/results-reifiedtriples-1j).
 
     Both sides are canonicalized through the *same* opaque-identifier
     substitution (see _canon_term_bmap) rather than expected being
-    stringified as-is, so a BNode on one side and an RR_NS URIRef on the
-    other for "the same" role never fail to match purely because they're
-    different rdflib term *types*.
+    stringified as-is, so a differently-labeled BNode on either side for
+    "the same" role never fails to match purely because of the label.
 
     Brute-force search over key bijections is fine here - real W3C
     SPARQL 1.2 test fixtures never have more than a handful of distinct

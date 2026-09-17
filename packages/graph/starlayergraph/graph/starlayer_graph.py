@@ -1717,9 +1717,10 @@ class StarLayerGraph(Graph):
         return self._deskolemize_to_graph().serialize(destination=destination, format=format, **kwargs)
 
     def _deskolemize_to_graph(self) -> Graph:
-        """Return a plain rdflib.Graph with internal tt:/rr: URIRefs (or, for
-        a native backend, real TripleTerm values and rr: URIRefs) replaced
-        by BNodes.
+        """Return a plain rdflib.Graph with internal tt: URIRefs replaced by
+        BNodes. Anonymous reifiers are already ordinary BNodes (see
+        starlayergraph.parsers.turtle_parser._skolemize_encoding) and need no
+        substitution here.
 
         Used by non-RDF12 serializers (format='turtle', 'xml', etc, via
         serialize()) so triple terms appear as blank-node reifications
@@ -1735,34 +1736,24 @@ class StarLayerGraph(Graph):
         _unfold_native_triple_terms() instead, matching how
         StarLayerGraph.isomorphic() already handles this same asymmetry.
         """
-        from starlayergraph.model.encoding import RR_NS, TT_NS
+        from starlayergraph.model.encoding import TT_NS
 
         if self._is_native:
-            rr_map: dict = {}
-
-            def _sub_rr(node):
-                if isinstance(node, URIRef) and str(node).startswith(RR_NS):
-                    if node not in rr_map:
-                        rr_map[node] = BNode()
-                    return rr_map[node]
-                return node
-
             out = Graph()
             for prefix, ns in self.namespaces():
-                if not str(ns).startswith(RR_NS):
-                    out.bind(prefix, ns)
+                out.bind(prefix, ns)
             for s, p, o in _unfold_native_triple_terms(self):
-                out.add((_sub_rr(s), p, _sub_rr(o)))
+                out.add((s, p, o))
             return out
 
-        _INTERNAL_NS = (TT_NS, RR_NS, SL_NS)
+        _INTERNAL_NS = (TT_NS, SL_NS)
 
         bnode_map: dict = {}
 
         def _sub(node):
             if isinstance(node, URIRef):
                 s = str(node)
-                if s.startswith(TT_NS) or s.startswith(RR_NS):
+                if s.startswith(TT_NS):
                     if node not in bnode_map:
                         bnode_map[node] = BNode()
                     return bnode_map[node]

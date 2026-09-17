@@ -1,6 +1,6 @@
 # StarLayer Future Enhancements
 
-*Last reviewed: 2026-08-01*
+*Last reviewed: 2026-09-17*
 
 ---
 
@@ -13,6 +13,10 @@
 - **RDF serialization of SPARQL queries.** A genuine new feature, not a gap - needs design (representation, integration point) before starting.
 
 - **More examples.** Only two exist today; no example covers `StarLayerDataset` (multi-graph). Decide what's worth adding.
+
+- **RDFS/OWL inferencing as a `StarLayerGraph` method.** Currently there is no reasoning API on the graph classes at all — `docs/guides/05-inferencing.ipynb` demonstrates RDFS/OWL 2 RL reasoning entirely via the third-party `owlrl` package (`owlrl.DeductiveClosure(...).expand(graph)`) called directly by the user, not anything starlayergraph itself provides. Two things worth designing in, not just wrapping `expand()` as-is:
+  - `owlrl`'s `DeductiveClosure.expand()` is one-shot forward-chaining materialization with no truth maintenance: it mutates the target graph in place and never retracts anything. Confirmed live (2026-09-17): after expanding a graph, removing the original fact that justified an inferred triple leaves that inferred triple sitting in the graph, now stale and unjustified — indistinguishable from an asserted fact, and re-running `expand()` does not clean it up (it only ever adds). Any `infer()`/`reason()` method added here needs to either document this limitation clearly or actively work around it (e.g. always recomputing from the untouched original facts rather than expanding an already-expanded graph).
+  - Users currently have to hand-roll "keep the original facts untouched, put only the newly-entailed triples somewhere else" themselves (reason over a copy, diff before/after, add the difference to a separate `StarLayerGraph` or a separate named graph in a `StarLayerDataset`) - see `05-inferencing.ipynb`'s discussion of this pattern. A first-class method should probably support writing results into a caller-supplied target graph (or dataset graph) instead of only supporting in-place mutation.
 
 ---
 

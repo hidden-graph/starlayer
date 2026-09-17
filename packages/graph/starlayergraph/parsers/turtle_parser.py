@@ -18,7 +18,6 @@ from rdflib import BNode, Graph, Literal, URIRef
 from rdflib.namespace import RDF, XSD
 
 from starlayergraph.model.encoding import (
-    RR_NS,
     TT_NS,
     encode_dirlang_datatype,
     term_key,
@@ -539,31 +538,52 @@ class _Expander:
 # Public parser class
 # ---------------------------------------------------------------------------
 
-def _skolemize_encoding(g: Graph, rr_counter: list[int] | None = None) -> Graph:
-    """Replace intermediate bnodes with stable URIRefs and strip sl: type triples.
+def _skolemize_encoding(g: Graph) -> Graph:
+    """Replace intermediate TT bnodes with stable URIRefs and strip sl: type triples.
 
     The parser builds a graph with anonymous bnodes and sl:TripleTerm /
     sl:Reification type markers as a convenient intermediate.  This function
     post-processes that graph into the final encoding:
 
       * Each TT bnode → URIRef(TT_NS + content_hash)   (deduplicated by content)
-      * Each anon reifier bnode → URIRef(RR_NS + N)     (sequential, distinct)
+      * Each anon reifier bnode → a fresh, globally-unique BNode
       * sl:TripleTerm and sl:Reification type triples → removed
-      * sl: namespace binding → removed; tt: and rr: added
+      * sl: namespace binding → removed; tt: added
 
-    rr_counter, if given, is a shared, mutable ``[next_index]`` box: reifier
-    numbering starts from ``rr_counter[0]`` instead of scanning `g` itself,
-    and is advanced in place so a second call sharing the same box continues
-    numbering where the first left off. Needed by trig12.py's per-GRAPH-block
-    parsing (parse_trig12()/parse_trig12_named()): each block is parsed via
-    its own, independent call to this function on a fresh Graph, so scanning
-    each block's *own* `g` for already-used indices (the rr_counter=None
-    default, used for a single whole-document parse) can't see reifiers
-    minted for an *earlier* block in the same document - confirmed via the
-    W3C SPARQL 1.2 eval-triple-terms/expr-1 fixture's data-4.trig, whose
-    ``:g`` and ``:g2`` blocks each independently mint their own unrelated
-    "rr:0", which then collide once a query result puts content from both
-    graphs in one place (e.g. this fixture's own CONSTRUCT template).
+    Anonymous reifier bnodes are deliberately NOT skolemized to a stable
+    URIRef (unlike TT bnodes): an anonymous ``~``/``{| |}`` reifier has no
+    content to derive stable identity from (two textually-identical
+    anonymous reifiers on different triples are still two distinct nodes,
+    unlike a ground triple term, which content-addresses on purpose), so
+    the only stable numbering scheme available was purely positional -
+    confirmed via a real round-trip bug this caused: a compact serializer
+    (turtle12/trig12's own writer) regroups triples by subject, so which
+    anonymous reifier a re-parse encounters first (and therefore numbers
+    "0" vs "1") isn't guaranteed to match the original document's order,
+    making isomorphic() correctly - but confusingly - report two
+    byte-different-only-in-irrelevant-labeling serializations of the same
+    graph as different. Representing these as real BNodes sidesteps that
+    problem entirely: rdflib's own isomorphism/canonicalization algorithm
+    already handles arbitrary BNode relabeling correctly, and (for the
+    native backend) request-scoped BNode identity is already handled
+    generically by backends.native's skolemize_bnode()/deskolemize_bnode()
+    - no separate rr: scheme needed there either.
+
+    Still a *fresh* BNode, though, not the intermediate one kept as-is: the
+    parser's own intermediate label (``_fresh_bnode()``, ``"_:si_N"``) is a
+    small per-``StarLayerTurtleParser()``-instance counter, not a globally
+    unique value - two independently-parsed chunks (e.g. trig12's
+    per-GRAPH-block parsing, each its own fresh parser instance) can and do
+    produce the identical "_:si_1" label for two unrelated anonymous
+    reifiers, which rdflib's label-based BNode equality then silently
+    merges into one node once both chunks' triples land in the same graph -
+    confirmed via a real collision on the W3C SPARQL 1.2
+    eval-triple-terms/expr-1 fixture's data-4.trig. Minting a fresh BNode()
+    (rdflib's own uuid4-backed generator) rather than keeping the
+    intermediate label avoids this the same way TT bnodes above get a fresh
+    identity rather than keeping theirs - global uniqueness with no
+    cross-call/cross-chunk counter coordination needed. See
+    docs/future_enhancements.md's former entry on this (now resolved).
     """
     # --- find TT bnodes (tagged sl:TripleTerm in intermediate graph) ---
     tt_bnodes = frozenset(
@@ -601,41 +621,12 @@ def _skolemize_encoding(g: Graph, rr_counter: list[int] | None = None) -> Graph:
         o_key = term_key(bn_to_uri.get(o_n, o_n))
         bn_to_uri[bn] = URIRef(TT_NS + tt_hash(s_key, p_key, o_key))
 
-    # --- map anonymous reifier bnodes to rr:N URIRefs ---
-    # Numbering must not collide with any rr:N URIRef *already* present in g
-    # - g isn't always a fresh parse (StarLayerGraph.from_rdflib() also
-    # routes a SPARQL CONSTRUCT result through this same function, and that
-    # result can legitimately contain both a pre-existing rr:N value passed
-    # through unchanged from a variable binding *and* a fresh anonymous
-    # reifier minted by <<s p o>> shorthand in the template). Numbering
-    # fresh reifiers from 0 regardless of what's already in the graph would
-    # silently collide the two into one URI, merging two unrelated nodes -
-    # confirmed via a real StarLayerGraph.query() CONSTRUCT result mixing a
-    # passed-through rr:0 with a freshly-minted one (see the W3C SPARQL 1.2
-    # eval-triple-terms/construct-3 and expr-1 fixtures, which both do
-    # exactly this). Scanning for the highest already-used index first and
-    # continuing after it keeps every rr:N in the final graph distinct.
-    if rr_counter is not None:
-        _next_rr = rr_counter[0]
-    else:
-        _existing_rr_indices = [
-            int(str(term)[len(RR_NS):])
-            for s, p, o in g.triples((None, None, None))
-            for term in (s, p, o)
-            if isinstance(term, URIRef) and str(term).startswith(RR_NS)
-            and str(term)[len(RR_NS):].isdigit()
-        ]
-        _next_rr = max(_existing_rr_indices, default=-1) + 1
-
-    reif_bnodes = sorted(
-        {s for s, p, o in g.triples((None, RDF_REIFIES, None)) if isinstance(s, BNode)},
-        key=str,
-    )
-    for offset, bn in enumerate(reif_bnodes):
-        bn_to_uri[bn] = URIRef(RR_NS + str(_next_rr + offset))
-
-    if rr_counter is not None:
-        rr_counter[0] = _next_rr + len(reif_bnodes)
+    # --- mint a fresh BNode for each anonymous reifier ---
+    # Not a no-op pass-through of the intermediate bnode - see this
+    # function's own docstring ("Still a *fresh* BNode...") for why.
+    reif_bnodes = {s for s, p, o in g.triples((None, RDF_REIFIES, None)) if isinstance(s, BNode)}
+    for bn in reif_bnodes:
+        bn_to_uri[bn] = BNode()
 
     # --- rebuild graph with substitutions, dropping sl: type triples ---
     new_g = Graph()
@@ -643,8 +634,6 @@ def _skolemize_encoding(g: Graph, rr_counter: list[int] | None = None) -> Graph:
         if str(ns) != SL_NS:
             new_g.bind(prefix, ns)
     new_g.bind('tt', TT_NS)
-    if reif_bnodes:
-        new_g.bind('rr', RR_NS)
 
     # g.triples((None, None, None)) rather than bare iteration: Graph.__iter__
     # is just this same call under the hood, but a Dataset/ConjunctiveGraph
@@ -682,9 +671,8 @@ def decode_tt_encoded_triples(g: Graph):
     bridge that makes that possible, used only on the native-backend path
     (see ``StarLayerGraph.parse()``).
 
-    Reifier skolemization (``rr:N`` URIs standing in for anonymous ``~``
-    reifiers) is left untouched - those are ordinary stable node
-    identifiers, not triple-term encodings, and need no decoding.
+    Anonymous reifiers are already ordinary ``BNode``s in ``g`` (see
+    ``_skolemize_encoding``) - no decoding needed for them either.
     """
     from starlayergraph.model.triple import TripleTerm
 

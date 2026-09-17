@@ -18,12 +18,12 @@ from collections import defaultdict
 from rdflib import BNode, Literal, URIRef
 
 from starlayergraph.model.dirlangstring import DirLangString
-from starlayergraph.model.encoding import RR_NS, TT_NS
+from starlayergraph.model.encoding import TT_NS
 from starlayergraph.model.triple import TripleTerm
 
 SL_NS = 'https://github.com/hidden-graph/starlayergraph/ns#'
 _RDF_NS = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#'
-_INTERNAL_NS = {SL_NS, TT_NS, RR_NS}
+_INTERNAL_NS = {SL_NS, TT_NS}
 
 _RDF_TYPE    = URIRef('http://www.w3.org/1999/02/22-rdf-syntax-ns#type')
 _XSD_BOOLEAN = 'http://www.w3.org/2001/XMLSchema#boolean'
@@ -58,11 +58,7 @@ def _node_to_ttl(node, ns_mgr, compact=True):
     if compact and node == _RDF_NIL:
         return '()'
     if isinstance(node, URIRef):
-        # Anonymous reifier URIs are internal — serialize as blank nodes so
-        # re-parsing re-assigns them via _skolemize_encoding for round-trip stability.
         s = str(node)
-        if s.startswith(RR_NS):
-            return '_:rr_' + s[len(RR_NS):]
         try:
             qn = ns_mgr.qname(s)
             # rdflib returns bare local names for the empty prefix ('' → 'a' not ':a')
@@ -313,7 +309,7 @@ def _build_fold_map(sg):
         if reifier in objects_elsewhere:
             continue
 
-        is_named = isinstance(reifier, URIRef) and not str(reifier).startswith(RR_NS)
+        is_named = isinstance(reifier, URIRef)
         base = (tt.subject, tt.predicate, tt.object)
         base_asserted = sg.__contains__((base[0], base[1], base[2]))
 
@@ -366,7 +362,7 @@ def serialize_turtle12(graph) -> str:
         if isinstance(node, TripleTerm):
             _collect_tt(node)
             return _tt_to_str(node, ns_mgr)
-        if isinstance(node, URIRef) and not str(node).startswith(RR_NS):
+        if isinstance(node, URIRef):
             used_uris.add(str(node))
         elif isinstance(node, Literal) and node.datatype:
             used_uris.add(str(node.datatype))
@@ -555,7 +551,7 @@ def serialize_longturtle12(graph) -> str:
         if isinstance(node, TripleTerm):
             _collect_tt(node)
             return _tt_to_str(node, ns_mgr, compact=False)
-        if isinstance(node, URIRef) and not str(node).startswith(RR_NS):
+        if isinstance(node, URIRef):
             used_uris.add(str(node))
         elif isinstance(node, Literal) and node.datatype:
             used_uris.add(str(node.datatype))

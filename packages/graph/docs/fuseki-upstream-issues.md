@@ -82,3 +82,66 @@ Confirmed still present in `jena-6.1.0`, the latest release at time of filing - 
   - `INSERT DATA { :s :q <<( "bad" :p :o )>> . }` (a ground triple term written directly - the reproduction above) - **still broken**, still persists it.
   - Re-ran `expression/triple-on-triple-terms.rq` (the actual W3C fixture behind 3 `xfail`'d tests in this repo's own suite) straight through `StarLayerGraph` against `jena-6.1.0`: identical failure to the older `jena-5.5.0`.
 - Filed as [#4141](https://github.com/apache/jena/issues/4141) rather than reopening #3659, since #3658's own fix was real and correctly scoped to what its title said - this is a distinct gap the fix didn't cover (`TripleTermOps.java`/`E_TripleFn.java`, the `TRIPLE()` function's own implementation, was touched by #3658 but apparently not for the subject-argument case), not a regression or an incomplete revert of it.
+
+## Issue 2 - SPARQL JSON Results blank-node labels are inconsistent across rows of one result set, specifically for a POST-with-body query, when a blank node appears both as an ordinary binding and nested inside a `"type":"triple"` value
+
+Found 2026-09-17 while switching `starlayergraph`'s own anonymous-reifier representation from a synthetic skolemized URIRef to a real RDF 1.2 blank node (see `starlayergraph/parsers/turtle_parser.py::_skolemize_encoding`) - a change that, for the first time, put a genuine blank node in a position that's both (a) an ordinary top-level binding in one result row and (b) nested inside a `<<( )>>` triple-term *value* in another row of the *same* SELECT `?s ?p ?o` result set.
+
+Per the SPARQL 1.1 Query Results JSON Format, a blank node's `"value"` label only has to be consistent *within one result set* - not across separate queries. ARQ's JSON writer does not honor this when the query is submitted as an HTTP POST with a raw body (`Content-Type: application/sparql-query`): the *same* blank node gets two different labels in two different rows of one result set. The identical query submitted as an HTTP GET with the query in the querystring (or via `application/x-www-form-urlencoded` POST) does not show the bug - same stored data, same query text, same endpoint, only the HTTP submission method differs.
+
+**Reproduction** (pure Python standard library + `requests`, against a running Fuseki endpoint at `localhost:3030` with an in-memory dataset named `repro` - create with: `docker run -d --name fuseki-repro -p 3030:3030 atomgraph/fuseki:latest --update --mem --ping /repro`):
+
+```python
+import json
+import requests
+
+BASE = "http://localhost:3030/repro"
+
+def sparql_update(update):
+    resp = requests.post(f"{BASE}/update", data=update.encode("utf-8"),
+                          headers={"Content-Type": "application/sparql-update"})
+    resp.raise_for_status()
+
+def sparql_query_post_body(query):
+    resp = requests.post(f"{BASE}/query", data=query.encode("utf-8"),
+                          headers={"Content-Type": "application/sparql-query",
+                                   "Accept": "application/sparql-results+json"})
+    resp.raise_for_status()
+    return resp.json()
+
+sparql_update("CLEAR ALL")
+
+# _:r1 reifies <<(:x1 :y1 123)>>; _:r2 reifies <<( _:r1 :p :o )>> - _:r1 is
+# both an ordinary top-level subject (its own reifies triple) AND nested
+# inside _:r2's reified triple-term value.
+sparql_update(
+    "PREFIX : <http://example/> PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> "
+    "INSERT DATA { _:r1 rdf:reifies <<( :x1 :y1 123 )>> . "
+    "_:r2 rdf:reifies <<( _:r1 :p :o )>> . }"
+)
+
+result = sparql_query_post_body("SELECT * { ?s ?p ?o }")
+print(json.dumps(result, indent=2))
+
+# The underlying stored data is fine - confirmed via a join, not just the
+# ASK boolean re-deriving the same (buggy) labels:
+ask = sparql_query_post_body(
+    "PREFIX : <http://example/> PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> "
+    "ASK { ?r2 rdf:reifies <<( ?x :p :o )>> . ?x rdf:reifies <<( :x1 :y1 123 )>> . }"
+)
+print("join still holds in the store:", ask["boolean"])
+```
+
+Output (abbreviated - two rows, `s`/`p`/`o` bindings):
+
+```
+row 1: s=_:b0, p=rdf:reifies, o=<<( _:b1 :p :o )>>
+row 2: s=_:b1, p=rdf:reifies, o=<<( :x1 :y1 123 )>>
+join still holds in the store: True
+```
+
+Row 1's `_:b1` (nested inside the triple-term value) and row 2's `s=_:b1` (an ordinary top-level binding) are printed with the *same* label - but they should be the *same node either way*, since the ASK query proves the store itself correctly links "the reifier of `<<(:x1 :y1 123)>>`" to "the subject nested inside the reifier of `<<( ... :p :o )>>`" (the `ASK` query only succeeds because that join holds). In a larger example (more than 2 bnodes/rows), the label collision is worse than "coincidentally the same" - two *different* underlying nodes can be assigned the identical label across rows, making the two indistinguishable in the JSON output even though they're genuinely different store-side nodes. Submitting the identical query via GET (`?query=...` querystring) instead of POST-with-body avoids the bug entirely, using the exact same stored data.
+
+### Status
+
+**Not yet reported upstream.** Found and isolated 2026-09-17, confirmed via `jena-6.1.0` (`atomgraph/fuseki:latest`). Worked around in this repo's own test suite by marking the affected W3C SPARQL 1.2 fixtures as known Fuseki-only divergences (see `_FUSEKI_KNOWN_DIVERGENCES` in `tests/w3c_sparql12/test_w3c_sparql12_eval.py`) rather than switching `http_select()` to GET (which has its own downsides - query length limits, and inconsistency with `http_update()`'s POST-with-body convention) - this repo's own query/store-level correctness isn't in question (see the `ASK` reproduction above), only ARQ's JSON *results writer* for this one submission method.

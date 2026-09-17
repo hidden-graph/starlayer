@@ -126,3 +126,54 @@ class TestDirLangStringIsomorphism:
             'ex:a ex:says <<( _:zzz ex:greeting "hi"@en--ltr )>> . _:zzz ex:name "Bob" .'
         )
         assert isomorphic(g1, g2) is True
+
+
+class TestSimpleLiteralVsExplicitXsdStringIsomorphism:
+    """rdflib's own Literal treats a simple literal (datatype=None) as
+    unequal to the same lexical value with an explicit xsd:string datatype,
+    even though RDF 1.1 Concepts defines a simple literal as sugar for the
+    xsd:string-typed form - confirmed live this made isomorphic() see two
+    genuinely identical graphs as different whenever one happened to have
+    passed through a serializer (nt12/nq12/trix12) that writes the datatype
+    explicitly and the other didn't. See compare.py's own module docstring."""
+
+    def test_plain_and_explicit_xsd_string_are_isomorphic(self) -> None:
+        g1 = _graph('@prefix ex: <http://example.org/> . ex:a ex:p "high" .')
+        g2 = _graph(
+            '@prefix ex: <http://example.org/> . '
+            '@prefix xsd: <http://www.w3.org/2001/XMLSchema#> . '
+            'ex:a ex:p "high"^^xsd:string .'
+        )
+        assert isomorphic(g1, g2) is True
+
+    def test_plain_vs_language_tagged_is_still_not_isomorphic(self) -> None:
+        g1 = _graph('@prefix ex: <http://example.org/> . ex:a ex:p "high" .')
+        g2 = _graph('@prefix ex: <http://example.org/> . ex:a ex:p "high"@en .')
+        assert isomorphic(g1, g2) is False
+
+    def test_plain_vs_genuinely_different_value_is_still_not_isomorphic(self) -> None:
+        g1 = _graph('@prefix ex: <http://example.org/> . ex:a ex:p "high" .')
+        g2 = _graph('@prefix ex: <http://example.org/> . ex:a ex:p "low" .')
+        assert isomorphic(g1, g2) is False
+
+    def test_explicit_xsd_string_vs_other_explicit_datatype_is_not_isomorphic(self) -> None:
+        g1 = _graph(
+            '@prefix ex: <http://example.org/> . '
+            '@prefix xsd: <http://www.w3.org/2001/XMLSchema#> . '
+            'ex:a ex:p "1"^^xsd:string .'
+        )
+        g2 = _graph(
+            '@prefix ex: <http://example.org/> . '
+            '@prefix xsd: <http://www.w3.org/2001/XMLSchema#> . '
+            'ex:a ex:p "1"^^xsd:integer .'
+        )
+        assert isomorphic(g1, g2) is False
+
+    def test_to_canonical_hash_agrees_for_plain_and_explicit_xsd_string(self) -> None:
+        g1 = _graph('@prefix ex: <http://example.org/> . ex:a ex:p "high" .')
+        g2 = _graph(
+            '@prefix ex: <http://example.org/> . '
+            '@prefix xsd: <http://www.w3.org/2001/XMLSchema#> . '
+            'ex:a ex:p "high"^^xsd:string .'
+        )
+        assert to_canonical_hash(g1) == to_canonical_hash(g2)

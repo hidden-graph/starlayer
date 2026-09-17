@@ -203,20 +203,17 @@ def parse_trig12(text: str) -> list[tuple]:
     All named graphs are merged.  Returns tt:-encoded triples ready for
     super().add() + _build_registry_from_store() (same pattern as turtle12).
 
-    One shared rr_counter box is passed to every block's own
-    _skolemize_encoding() call so anonymous-reifier numbering (rr:N) stays
-    unique across the *whole* document, not just within each block - see
-    _skolemize_encoding()'s own docstring for why a per-block-only scan
-    isn't enough (two different blocks' own "rr:0" would otherwise collide
-    once merged into this one graph, which is exactly what merging does).
+    Each block is parsed via its own, independent call to
+    _skolemize_encoding() - no cross-block coordination needed for anonymous
+    reifiers, since they're left as ordinary BNodes (globally unique per
+    instantiation, not numbered), unlike the old rr:N scheme this replaced.
     """
-    rr_counter = [0]
     triples = []
     for chunk in _split_trig_blocks(text):
         if not chunk.strip():
             continue
         raw = StarLayerTurtleParser().parse(chunk)
-        processed = _skolemize_encoding(raw, rr_counter)
+        processed = _skolemize_encoding(raw)
         for triple in processed:
             triples.append(triple)
     return triples
@@ -233,22 +230,16 @@ def parse_trig12_named(
       ``Graph.add()`` + ``_build_registry_from_store()``.
     - *namespaces* is a list of ``(prefix, namespace)`` pairs from that chunk.
 
-    One shared rr_counter box is passed to every block's own
-    _skolemize_encoding() call so anonymous-reifier numbering (rr:N) stays
-    unique across the *whole* document, not just within each block - see
-    _skolemize_encoding()'s own docstring for why a per-block-only scan
-    isn't enough. Each graph block here stays its own separate Graph
-    (unlike parse_trig12(), which merges them), but two different blocks'
-    "rr:0" would otherwise still collide the moment a query result (e.g. a
-    CONSTRUCT crossing GRAPH boundaries) puts content from both in one place.
+    Each graph block stays its own separate Graph (unlike parse_trig12(),
+    which merges them). No cross-block reifier-numbering coordination is
+    needed - see parse_trig12()'s docstring.
     """
-    rr_counter = [0]
     result = []
     for graph_id, chunk in _split_trig_blocks_with_ids(text):
         if not chunk.strip():
             continue
         raw = StarLayerTurtleParser().parse(chunk)
-        processed = _skolemize_encoding(raw, rr_counter)
+        processed = _skolemize_encoding(raw)
         triples = list(processed)
         namespaces = list(processed.namespaces())
         result.append((graph_id, triples, namespaces))

@@ -35,7 +35,7 @@ triple-term syntax. It is a design agreement, not an implementation spec.
 
 ## Formal RDF 1.2 Representation
 
-The above dataset expressed in formal RDF 1.2 (no annotation syntax) — using `rdf:reifies` and `<<( )>>` triple terms. This is the canonical form that all annotation syntaxes desugar to. Anonymous reifiers are written here as `_:rr0`/`_:rr1`/`_:rr2` for readability (an unnamed reifier is conceptually a blank node); internally, and in raw query results (e.g. `?stmt` in QF4/QF5 below), starlayergraph actually returns a stable skolemized `rr:N` URIRef rather than a true rdflib `BNode` — this has no bearing on any of the query results below, since none of them assume BNode identity.
+The above dataset expressed in formal RDF 1.2 (no annotation syntax) — using `rdf:reifies` and `<<( )>>` triple terms. This is the canonical form that all annotation syntaxes desugar to. Anonymous reifiers are written here as `_:rr0`/`_:rr1`/`_:rr2` for readability; internally, and in raw query results (e.g. `?stmt` in QF4/QF5 below), starlayergraph actually returns a real rdflib `BNode` (see `starlayergraph/parsers/turtle_parser.py::_skolemize_encoding`) — this has no bearing on any of the query results below, since none of them assume a specific label.
 
 ```turtle
 @prefix :    <http://example.org/> .

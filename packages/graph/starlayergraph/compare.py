@@ -29,6 +29,24 @@ same flat ``Literal`` form (via ``encode_dirlang_datatype``) the rest of
 this codebase already uses at the read/write boundary, one line, no
 recursion.
 
+A third, unrelated gap this module also closes: rdflib's own ``Literal``
+treats a "simple literal" (``datatype=None``, no language tag - e.g. plain
+``Literal("high")``) as unequal to the same lexical value with an explicit
+``xsd:string`` datatype (``Literal("high", datatype=XSD.string)``), even
+though RDF 1.1 Concepts defines a simple literal as *sugar for* the
+``xsd:string``-typed form, not a distinct value - the two are the same RDF
+term. Confirmed live: some of this project's own RDF 1.2 format writers
+round-trip a plain literal through an explicit ``^^xsd:string`` (matching
+N-Triples/TriX convention) while others don't, so `isomorphic()` calling
+straight through to rdflib's own comparison saw genuinely identical graphs
+as different depending only on which serializer a document happened to
+pass through - a false negative, not a real content difference. Fixed here
+by normalizing every explicit-``xsd:string`` literal to its simple-literal
+form before handing off to rdflib's algorithm, rather than by changing any
+serializer's output (the actual bytes each format writes are a legitimate,
+independent choice per format - this is a comparison-correctness fix, not
+a formatting one).
+
 This module fixes both problems by decomposing every triple term into a
 synthetic RDF-reification-shaped fragment - a *fresh* blank node standing in
 for the triple term's own identity, plus three edges (via a dedicated,
@@ -73,6 +91,7 @@ from rdflib import BNode, Graph, Literal, Namespace
 from rdflib.compare import graph_diff as _rdflib_graph_diff
 from rdflib.compare import isomorphic as _rdflib_isomorphic
 from rdflib.compare import to_isomorphic as _rdflib_to_isomorphic
+from rdflib.namespace import XSD
 
 from starlayergraph.model.dirlangstring import DirLangString
 from starlayergraph.model.encoding import encode_dirlang_datatype
@@ -101,8 +120,10 @@ def _decompose(graph: Any) -> Graph:
         """A triple term becomes a fresh blank node (recursing for a nested
         triple term in object position); a DirLangString is re-encoded as
         the same flat Literal form used at this codebase's own read/write
-        boundary; anything else (already a plain rdflib term) passes
-        through unchanged."""
+        boundary; an explicit-xsd:string Literal is normalized down to the
+        simple-literal form (datatype=None) it's semantically sugar for, per
+        RDF 1.1 Concepts (see module docstring); anything else (already a
+        plain rdflib term) passes through unchanged."""
         if isinstance(node, TripleTerm):
             tt_node = BNode()
             out.add((tt_node, _TT.subject, _term(node.subject)))
@@ -111,6 +132,8 @@ def _decompose(graph: Any) -> Graph:
             return tt_node
         if isinstance(node, DirLangString):
             return Literal(node.value, datatype=encode_dirlang_datatype(node.language, node.direction))
+        if isinstance(node, Literal) and node.datatype == XSD.string and node.language is None:
+            return Literal(str(node))
         return node
 
     for s, p, o in graph:
@@ -121,7 +144,10 @@ def _decompose(graph: Any) -> Graph:
 def isomorphic(graph1: Any, graph2: Any) -> bool:
     """RDF-1.2-aware replacement for ``rdflib.compare.isomorphic`` - correct
     for graphs containing triple terms (including ones with nested blank
-    nodes), identical to the original for graphs that don't."""
+    nodes), identical to the original for graphs that don't. Also RDF
+    1.1-correct for simple-literal-vs-explicit-``xsd:string`` (see module
+    docstring): a plain ``Literal("x")`` and ``Literal("x", datatype=XSD.string)``
+    compare equal here, unlike in plain ``rdflib.compare.isomorphic``."""
     return _rdflib_isomorphic(_decompose(graph1), _decompose(graph2))
 
 

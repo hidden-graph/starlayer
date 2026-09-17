@@ -1,7 +1,7 @@
 {
   "guide": "StarLayer User Guides",
   "version": "1.2.0",
-  "lastUpdated": "2026-09-14",
+  "lastUpdated": "2026-09-17",
   "canonicalSource": "docs/README.md",
   "artifacts": {
     "index": [
@@ -12,10 +12,8 @@
       "docs/guides/01-getting-started.ipynb",
       "docs/guides/02-graphs.ipynb",
       "docs/guides/02a-graphs-datasets.ipynb",
-      "docs/guides/02b-graphs-serialization-formats.ipynb",
-      "docs/guides/02c-graphs-canonical-hashing.ipynb",
+      "docs/guides/02b-graphs-inferencing.ipynb",
       "docs/guides/03-sparql.ipynb",
-      "docs/guides/03b-sparql-query-as-rdf.ipynb",
       "docs/guides/04-shacl-shapes.ipynb",
       "docs/guides/04a-shacl-node-expressions.ipynb",
       "docs/guides/04b-shacl-inference-rules.ipynb",
@@ -23,8 +21,10 @@
       "docs/guides/04d-shacl-ui.ipynb",
       "docs/guides/04e-shacl-profiling.ipynb",
       "docs/guides/04f-shacl-subgraph-extraction.ipynb",
-      "docs/guides/05-inferencing.ipynb",
-      "docs/guides/06-backend-graph-databases.ipynb"
+      "docs/guides/05a-serialization-formats.ipynb",
+      "docs/guides/05b-backend-graph-databases.ipynb",
+      "docs/guides/05c-sparql-query-as-rdf.ipynb",
+      "docs/guides/05d-canonical-hashing.ipynb"
     ],
     "markdown": [
       "docs/guides/03a-sparql-rules-pending.md"

@@ -27,6 +27,7 @@ rdflib's algebra translator to accept TripleTerm nodes is out of scope here.
 
 import pytest
 from rdflib import Graph
+from starlayergraph.compare import isomorphic
 from starlayergraph.graph.starlayer_graph import StarLayerGraph
 from starlayergraph.query.sparql_api import prepareQuery as starlayergraph_prepare_query
 from starlayergraph.query.sparql_api import (
@@ -136,4 +137,11 @@ def test_rdf12_update_roundtrip(update_text):
     reconstructed = rdf_to_update(graph, root)
     g_roundtripped.update(reconstructed)
 
-    assert set(g_original) == set(g_roundtripped)
+    # isomorphic(), not set() equality: FIXTURE_TTL12's {| |} annotation
+    # block creates an anonymous reifier, which is an ordinary BNode (see
+    # starlayergraph/parsers/turtle_parser.py::_skolemize_encoding) - two
+    # independent StarLayerGraph().parse() calls on the identical text
+    # correctly mint two different (but structurally equivalent) BNode
+    # labels for it, so a label-sensitive set() comparison here would fail
+    # even when the two graphs are the same in every way that matters.
+    assert isomorphic(g_original, g_roundtripped)
