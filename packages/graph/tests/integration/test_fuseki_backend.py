@@ -407,6 +407,55 @@ class TestFusekiBoundBnodeQuery:
 
 
 @fuseki
+class TestFusekiGraphUpdateRdf11Mode:
+    """StarLayerGraph.update() with a plain string, in the *default*
+    (rdf-1.1) backend mode, against a remote store, had zero live coverage
+    against either reference engine - see
+    tests/integration/test_oxigraph_backend.py::TestOxigraphGraphUpdateRdf11Mode
+    for the fuller rationale (update()'s string branch lowered SPARQL 1.2
+    text to a pre-parsed rdflib Update *object* unconditionally, which
+    rdflib.Graph.update() hands straight to self.store.update() - correct
+    for the default in-memory store, but SPARQLUpdateStore.update() can
+    only POST text over HTTP and asserts isinstance(query, str)). Confirmed
+    live against Fuseki too, not just Oxigraph: every one of these raised
+    AssertionError before the fix.
+
+    Update text here is deliberately "local" (no explicit GRAPH wrapper) -
+    SPARQLUpdateStore's own context-aware rewriting wraps a local update in
+    GRAPH <self.identifier> { ... } itself.
+    """
+
+    def test_insert_data(self, sg):
+        sg.update(f'INSERT DATA {{ <{EX}a> <{EX}b> <{EX}c> . }}')
+        assert (URIRef(EX+'a'), URIRef(EX+'b'), URIRef(EX+'c')) in sg
+
+    def test_delete_data(self, sg):
+        sg.add((URIRef(EX+'a'), URIRef(EX+'b'), URIRef(EX+'c')))
+        sg.update(f'DELETE DATA {{ <{EX}a> <{EX}b> <{EX}c> . }}')
+        assert (URIRef(EX+'a'), URIRef(EX+'b'), URIRef(EX+'c')) not in sg
+
+    def test_delete_where(self, sg):
+        sg.add((URIRef(EX+'a'), URIRef(EX+'b'), URIRef(EX+'c')))
+        sg.add((URIRef(EX+'x'), URIRef(EX+'y'), URIRef(EX+'z')))
+        sg.update(f'DELETE WHERE {{ ?s <{EX}b> ?o }}')
+        assert (URIRef(EX+'a'), URIRef(EX+'b'), URIRef(EX+'c')) not in sg
+        assert (URIRef(EX+'x'), URIRef(EX+'y'), URIRef(EX+'z')) in sg
+
+    def test_insert_data_with_a_ground_triple_term(self, sg):
+        """A shape that actually needs the RDF-1.2-to-1.1 lowering - see
+        the Oxigraph test class's own docstring for why this uses a
+        ground triple term rather than a triple-term *pattern*."""
+        sg.update(f"""
+            PREFIX ex: <{EX}>
+            PREFIX rdf: <{RDF_NS}>
+            INSERT DATA {{ ex:claim rdf:reifies <<( ex:bob ex:knows ex:carol )>> }}
+        """)
+        tt = TripleTerm(URIRef(EX+'bob'), URIRef(EX+'knows'), URIRef(EX+'carol'))
+        assert sg.has_triple_term(URIRef(EX+'bob'), URIRef(EX+'knows'), URIRef(EX+'carol'))
+        assert tt in list(sg.objects(URIRef(EX+'claim'), RDF_REIF))
+
+
+@fuseki
 class TestFusekiDatasetUpdate:
     """StarLayerDataset.update() against a remote store 400'd on any update
     text containing its own GRAPH <uri> {} clause, for *both* backends -
@@ -558,8 +607,11 @@ class TestFusekiRdf11SparqlFunctions:
 # isTRIPLE+SUBJECT() combination, plus the generalized remote-store
 # dispatch's own restrictions (starlayergraph.query.remote_decompose.
 # decompose_for_remote is SELECT-only, so a CONSTRUCT template minting a
-# fresh triple term must fail loudly against a remote store rather than
-# silently dropping the triple).
+# *non-ground* fresh triple term must fail loudly against a remote store
+# rather than silently dropping the triple - a *ground* one, however, is
+# computed eagerly in Python at lowering time (see lower_rdf11.py's
+# _eager_lower_template_term) and needs no custom SPARQL function support
+# from the remote engine at all, so it now works correctly).
 # ---------------------------------------------------------------------------
 
 @fuseki
@@ -584,18 +636,37 @@ class TestFusekiRemoteStoreSparqlCoverage:
         """)
         assert r.bindings[0][r.vars[0]] == URIRef(EX+'a')
 
-    def test_construct_minting_triple_term_not_yet_supported(self, sg):
+    def test_construct_minting_a_ground_triple_term(self, sg):
+        """A *ground* triple term in a CONSTRUCT template used to fail the
+        same way test_construct_minting_a_nonground_triple_term_not_yet_supported
+        below still does (silently dropped, before the NotImplementedError
+        guard existed) - fixed by computing its hash eagerly in Python at
+        lowering time instead of via a starlayergraph-only custom SPARQL
+        function, so there's nothing left for the remote engine to not
+        understand."""
+        sg.add((URIRef(EX+'a'), URIRef(EX+'b'), URIRef(EX+'c')))
+        r = sg.query(f"""
+            PREFIX : <{EX}>
+            CONSTRUCT {{ :dave :claims <<( :a :b :c )>> }} WHERE {{ :a :b :c }}
+        """)
+        tt = TripleTerm(URIRef(EX+'a'), URIRef(EX+'b'), URIRef(EX+'c'))
+        assert list(r.graph) == [(URIRef(EX+'dave'), URIRef(EX+'claims'), tt)]
+
+    def test_construct_minting_a_nonground_triple_term_not_yet_supported(self, sg):
         """decompose_for_remote is SELECT-only so far - a CONSTRUCT
-        template minting a fresh triple term must fail loudly against a
-        remote store, not silently drop the triple (confirmed as the
-        actual pre-fix behavior: the BIND computing the term's hash left
-        it unbound, and CONSTRUCT's own rule for an unbound template term
-        silently dropped the whole triple)."""
+        template minting a fresh *non-ground* triple term (unlike the
+        ground case above, this one's hash genuinely can't be known until
+        the WHERE clause actually matches, so it still needs a runtime
+        BIND + custom SPARQL function no remote engine understands) must
+        fail loudly against a remote store, not silently drop the triple
+        (confirmed as the actual pre-guard behavior: the BIND computing
+        the term's hash left it unbound, and CONSTRUCT's own rule for an
+        unbound template term silently dropped the whole triple)."""
         sg.add((URIRef(EX+'a'), URIRef(EX+'b'), URIRef(EX+'c')))
         with pytest.raises(NotImplementedError):
             sg.query(f"""
                 PREFIX : <{EX}>
-                CONSTRUCT {{ :dave :claims <<( :a :b :c )>> }} WHERE {{ :a :b :c }}
+                CONSTRUCT {{ :dave :claims <<( ?s :b :c )>> }} WHERE {{ ?s :b :c }}
             """)
 
     def test_plain_construct_still_works(self, sg):

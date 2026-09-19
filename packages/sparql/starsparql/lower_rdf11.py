@@ -691,15 +691,35 @@ def _lower_bgp(node: CompValue, state: _LowerState) -> CompValue:
 
 
 def _lower_template_term(term, pending_extends: list, extra_template_triples: list, state: _LowerState):
-    """Lower `term` for TERM-SLOT position within a CONSTRUCT template.
-    Unlike ordinary BGP pattern position, this is unconditional regardless
-    of groundedness (every WHERE-clause variable is already bound by the
-    time a template is instantiated) — mirrors sparql12_to_11.py's own
-    `in_construct_template` branch, checked first and unconditional there
-    for the same reason.
+    """Lower `term` for TERM-SLOT position within a CONSTRUCT/Update
+    template. A *non*-ground triple term is unconditional regardless of
+    where the fresh variable ends up used (every WHERE-clause variable is
+    already bound by the time a template is instantiated) — mirrors
+    sparql12_to_11.py's own `in_construct_template` branch, checked first
+    and unconditional there for the same reason.
+
+    A *ground* triple term, though, is computed eagerly in Python instead
+    (`_eager_lower_template_term`, mirroring `_lower_pattern_term`'s own
+    ground fast path) rather than minting an Extend/BIND around a
+    `tt:fn/hash` Function call for a value already fully known at lowering
+    time - not just an optimization: `tt:fn/hash` is a starlayergraph-only
+    SPARQL extension function, understood by starlayergraph's own
+    in-process engine but by no external one. Confirmed live: an UPDATE's
+    DELETE/INSERT template containing a ground triple term produced
+    (via `rdf11_update_to_sparql11_text`) text a real remote SPARQL engine
+    can't execute at all (HTTP 500 against Oxigraph, calling an unknown
+    function) - the eager substitution here needs nothing beyond ordinary
+    SPARQL 1.1 the way a ground triple term in INSERT/DELETE DATA already
+    does (see `_lower_flat_triples`/`_lower_pattern_term`). Harmless for
+    CONSTRUCT (this function's other caller): fewer/no freshly-minted
+    variables for the ground case is still a strict subset of what
+    `_lower_construct_query`'s own `where["PV"]` extension already handles
+    correctly for the general case.
     """
     if not isinstance(term, TripleTermNode):
         return term
+    if _is_ground(term):
+        return _eager_lower_template_term(term, extra_template_triples)
     s, p, o = term["subject"], term["predicate"], term["object"]
     var = state.new_var()
     pending_extends.append((var, _hash_call(s, p, o, state)))
@@ -714,6 +734,34 @@ def _lower_template_term(term, pending_extends: list, extra_template_triples: li
     extra_template_triples.append((var, RDF.predicate, p))
     extra_template_triples.append((var, RDF.object, o2))
     return var
+
+
+def _eager_lower_template_term(term, extra_template_triples: list):
+    """Eagerly (Python-level, not algebra-level) lower a *ground* triple
+    term reached in TEMPLATE position - see `_lower_template_term`'s own
+    docstring for why. Mirrors `_eager_lower_value`'s hash computation
+    (same tt_hash/term_key/remember_tt_hash calls, so a result-row lookup
+    of this exact URI still resolves back to a real TripleTerm the same
+    way), but also emits the term's own rdf:subject/predicate/object
+    encoding triples as *ground* triples into `extra_template_triples`
+    (recursing for a nested ground triple term in object position) -
+    needed here specifically because a template must literally
+    assert/retract those triples, unlike pattern position (matching
+    against a value the store already holds needs no decomposition of its
+    own encoding triples at all).
+    """
+    from starlayergraph.model.encoding import TT_NS as _STARLIGHT_TT_NS
+    from starlayergraph.model.encoding import remember_tt_hash, term_key, tt_hash
+
+    s, p, o = term["subject"], term["predicate"], term["object"]
+    if isinstance(o, TripleTermNode):
+        o = _eager_lower_template_term(o, extra_template_triples)
+    uri = URIRef(_STARLIGHT_TT_NS + tt_hash(term_key(s), term_key(p), term_key(o)))
+    remember_tt_hash(uri, s, p, o)
+    extra_template_triples.append((uri, RDF.subject, s))
+    extra_template_triples.append((uri, RDF.predicate, p))
+    extra_template_triples.append((uri, RDF.object, o))
+    return uri
 
 
 def _lower_construct_query(node: CompValue, state: _LowerState) -> CompValue:

@@ -251,16 +251,25 @@ class TestTrig12:
 
 
 # ---------------------------------------------------------------------------
-# RDF/XML 1.2, TriX 1.2, JSON-LD 1.2
+# RDF/XML 1.2, TriX 1.2
 # ---------------------------------------------------------------------------
 
 class TestOtherFormats:
-    @pytest.mark.parametrize('fmt', ['rdfxml12', 'trix12', 'jsonld12'])
+    @pytest.mark.parametrize('fmt', ['rdfxml12', 'trix12'])
     def test_round_trip(self, fmt):
         g = StarLayerGraph()
         g.add((ex('s'), ex('p'), DirLangString('hello', 'en', 'ltr')))
         text, g2 = round_trip(g, fmt)
         assert list(g2.triples((None, None, None))) == [(ex('s'), ex('p'), DirLangString('hello', 'en', 'ltr'))]
+
+    def test_jsonld12_raises_for_direction_tagged_literal(self):
+        """jsonld12 has no RDF 1.2 companion spec to fall back on - unlike
+        rdfxml12/trix12 above, it refuses this content outright rather than
+        encoding it - see starlayergraph/serializers/jsonld12.py."""
+        g = StarLayerGraph()
+        g.add((ex('s'), ex('p'), DirLangString('hello', 'en', 'ltr')))
+        with pytest.raises(ValueError, match='RDF 1.2'):
+            g.serialize(format='jsonld12')
 
 
 # ---------------------------------------------------------------------------

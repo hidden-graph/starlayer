@@ -1436,49 +1436,25 @@ class StarLayerGraph(Graph):
                 check_version_conformance_for_graphs(_rx_version(text), [self], context='RDF/XML document')
 
             elif format == 'jsonld12':
+                # jsonld12 is plain JSON-LD, full stop - serialize_jsonld12()
+                # refuses to write a triple term or direction-tagged literal
+                # to it at all (see starlayergraph/serializers/jsonld12.py's
+                # own docstring), so there's no starlayergraph-specific
+                # encoding here to decode on the way back in either.
                 if self._is_native:
                     # super().parse() below writes straight into self's own
                     # store via a bypassed rdflib-internal ConjunctiveGraph
                     # wrapper (rdflib's json-ld parser's own sink, not
                     # StarLayerGraph.add()) - fine for the rdf-1.1 backend,
-                    # whose on-disk format *is* this tt:HASH encoding, but
-                    # wrong here: it would write the raw rdf:subject/
-                    # predicate/object encoding fragments directly into the
-                    # live native store instead of the real <<( )>> syntax
-                    # _native_add_many() produces, and _build_registry_from_
-                    # store() is a no-op for a native backend (see its own
-                    # docstring), so those fragments would never be
-                    # reconstructed - they'd leak into every later read.
-                    # Parsing into a throwaway plain Graph first and decoding
-                    # it exactly like the trig12 branch above avoids that.
-                    from starlayergraph.parsers.turtle_parser import (
-                        decode_tt_encoded_triples,
-                    )
+                    # but wrong for native, which needs every triple routed
+                    # through _native_add()/_native_add_many() to actually
+                    # reach the live store. Parsing into a throwaway plain
+                    # Graph first and re-adding from there avoids that.
                     temp = Graph()
                     temp.parse(data=text, format='json-ld')
-                    # rdf:type rdf:TripleTerm marker triples (see
-                    # starlayergraph/serializers/jsonld12.py's own docstring for
-                    # this shape) aren't part of decode_tt_encoded_triples()'s
-                    # contract the way turtle12/trig12's own intermediate
-                    # sl:TripleTerm markers are (those are stripped by
-                    # _skolemize_encoding before decode_tt_encoded_triples
-                    # ever sees them) - left in place, decode_tt_encoded_
-                    # triples() would yield them as ordinary data with a
-                    # *reconstructed TripleTerm* as subject, which
-                    # _native_add_many() then correctly rejects (triple terms
-                    # aren't permitted in subject position).
-                    for tt_uri in list(temp.subjects(RDF.type, URIRef(_RDF_TRIPLE_TERM))):
-                        temp.remove((tt_uri, RDF.type, URIRef(_RDF_TRIPLE_TERM)))
-                    self._native_add_many(list(decode_tt_encoded_triples(temp)))
+                    self._native_add_many(list(temp.triples((None, None, None))))
                 else:
-                    # Delegate to rdflib's JSON-LD parser (handles @context
-                    # expansion); the tt: encoding triples and rdf:type
-                    # rdf:TripleTerm markers are loaded into the store, then
-                    # _build_registry_from_store rebuilds the TripleTerm
-                    # registry.  rdf:type rdf:TripleTerm is filtered by
-                    # _is_encoding_triple so it never surfaces to callers.
                     super().parse(data=text, format='json-ld')
-                    self._build_registry_from_store()
 
             return self
         return super().parse(source=source, publicID=publicID, format=format,
@@ -1644,22 +1620,36 @@ class StarLayerGraph(Graph):
 
         Otherwise, SPARQL 1.2 text is parsed via starsparql's real
         grammar (prepare_update_12), then lowered to a plain SPARQL 1.1
-        algebra (tt:HASH encoding) and handed to rdflib as an
-        already-executable Update object - every shape (triple-term WHERE
-        patterns, ground triple terms in INSERT/DELETE DATA, triple terms
-        in INSERT/DELETE templates) is handled natively by that lowering,
-        no post-processing needed here.
+        algebra (tt:HASH encoding) and serialized back to real SPARQL 1.1
+        Update text - every shape (triple-term WHERE patterns, ground
+        triple terms in INSERT/DELETE DATA, triple terms in INSERT/DELETE
+        templates) is handled natively by that lowering, no post-processing
+        needed here.
+
+        Text, not a pre-parsed ``Update`` object: ``rdflib.Graph.update()``
+        hands off to ``self.store.update()`` first when the store defines
+        one (``use_store_provided``, true by default) - fine for the
+        default in-memory store, whose generic SPARQL Update processor
+        accepts either, but ``SPARQLUpdateStore.update()`` (a remote
+        Oxigraph/Fuseki endpoint, say) hard-``assert``s on a plain string,
+        since all it can do is POST text over HTTP. Confirmed live: handing
+        it the lowered ``Update`` object instead raised ``AssertionError``
+        for *any* update text against a remote store in this (default)
+        backend mode - untested before, since the only existing live
+        coverage of ``StarLayerGraph.update()`` against a remote store used
+        the native backend, a different code path entirely (see
+        ``tests/integration/test_oxigraph_backend.py::TestOxigraphGraphUpdate``).
         """
         if self._is_native:
             from starlayergraph.backends.native import native_update
             native_update(self.store, self._backend, update_object)
             return None
         if isinstance(update_object, str):
-            from starsparql.lower_rdf11 import rdf11_to_update, update_to_rdf11
+            from starsparql.lower_rdf11 import rdf11_update_to_sparql11_text, update_to_rdf11
             from starsparql.parse12 import prepare_update_12
             prepared_12 = prepare_update_12(update_object, base=kwargs.get('base'), initNs=initNs)
             rdf_graph, root = update_to_rdf11(prepared_12)
-            update_object = rdf11_to_update(rdf_graph, root)
+            update_object = rdf11_update_to_sparql11_text(rdf_graph, root)
         raw = Graph(store=self.store, identifier=self.identifier)
         for prefix, ns in self.namespaces():
             raw.bind(prefix, ns)

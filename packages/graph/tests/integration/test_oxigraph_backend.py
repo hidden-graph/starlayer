@@ -582,12 +582,16 @@ class TestOxigraphJsonld12Parse:
     unconditionally called super().parse(data=text, format='json-ld'),
     which writes through a bypassed rdflib-internal ConjunctiveGraph wrapper
     (rdflib's json-ld parser's own sink), never through _native_add(). On a
-    native backend this would write the raw rdf:subject/predicate/object
-    tt:HASH encoding fragments directly into the live store instead of real
-    <<( )>> syntax, and _build_registry_from_store() (a no-op for native
-    backends) would never reconstruct them - a real, previously-untested
-    correctness gap. Fixed by parsing into a throwaway plain Graph and
-    decoding it exactly like the trig12/turtle12 branches already do.
+    native backend this would write triples directly into the live store
+    bypassing StarLayerGraph's own write path entirely - a real,
+    previously-untested correctness gap. Fixed by parsing into a throwaway
+    plain Graph and re-adding through _native_add_many(), exactly like the
+    trig12/turtle12 branches already do.
+
+    jsonld12 no longer has any triple-term-specific shape to round-trip at
+    all (serialize_jsonld12() refuses to write one - see
+    starlayergraph/serializers/jsonld12.py) - only the plain-content case
+    below is still meaningful for this class's own fix.
     """
 
     def test_plain_triple_round_trips(self, sg):
@@ -597,30 +601,12 @@ class TestOxigraphJsonld12Parse:
         sg.parse(data=jsonld_text, format='jsonld12')
         assert (URIRef(EX+'a'), URIRef(EX+'b'), URIRef(EX+'c')) in sg
 
-    def test_triple_term_round_trips(self, sg):
+    def test_triple_term_raises_rather_than_serializing(self, sg):
         src = StarLayerGraph()
         tt = TripleTerm(URIRef(EX+'s'), URIRef(EX+'p'), URIRef(EX+'o'))
         src.add((URIRef(EX+'stmt'), RDF_REIF, tt))
-        jsonld_text = src.serialize(format='jsonld12')
-        sg.parse(data=jsonld_text, format='jsonld12')
-        results = list(sg.triples((URIRef(EX+'stmt'), RDF_REIF, None)))
-        assert len(results) == 1
-        restored = results[0][2]
-        assert isinstance(restored, TripleTerm)
-        assert restored == tt
-
-    def test_no_encoding_triples_visible_after_parse(self, sg):
-        src = StarLayerGraph()
-        tt = TripleTerm(URIRef(EX+'s'), URIRef(EX+'p'), URIRef(EX+'o'))
-        src.add((URIRef(EX+'stmt'), RDF_REIF, tt))
-        jsonld_text = src.serialize(format='jsonld12')
-        sg.parse(data=jsonld_text, format='jsonld12')
-        predicates = {p for _, p, _ in sg.triples((None, None, None))}
-        assert URIRef(RDF_NS + 'subject')   not in predicates
-        assert URIRef(RDF_NS + 'predicate') not in predicates
-        assert URIRef(RDF_NS + 'object')    not in predicates
-        types = {o for _, p, o in sg.triples((None, None, None)) if p == URIRef(RDF_NS + 'type')}
-        assert URIRef(RDF_NS + 'TripleTerm') not in types
+        with pytest.raises(ValueError, match='RDF 1.2'):
+            src.serialize(format='jsonld12')
 
 
 @oxigraph
@@ -830,6 +816,69 @@ class TestOxigraphGraphUpdate:
             WHERE {{ GRAPH <{GRAPH_URI}> {{ ?s <{EX}b> ?o }} }}
         """)
         assert (URIRef(EX+'a'), URIRef(EX+'marked'), URIRef(EX+'c')) in sg
+
+
+@oxigraph
+class TestOxigraphGraphUpdateRdf11Mode:
+    """StarLayerGraph.update() with a plain string, in the *default*
+    (rdf-1.1) backend mode, against a remote store, had zero live coverage -
+    TestOxigraphGraphUpdate above only exercises the *native* backend, a
+    different code path entirely (native_update(), forwarding the text
+    unchanged). The gap was real: update()'s own string branch lowered
+    SPARQL 1.2 text to a pre-parsed rdflib Update *object* (rdf11_to_update)
+    unconditionally, which rdflib.Graph.update() hands straight to
+    self.store.update() when the store defines one - correct for the
+    default in-memory store's own generic SPARQL Update processor (accepts
+    either a string or an object), but wrong for SPARQLUpdateStore, which
+    can only POST text over HTTP and asserts isinstance(query, str).
+    Confirmed live: every one of these raised AssertionError before the fix
+    (rdf11_to_update -> rdf11_update_to_sparql11_text in update()'s string
+    branch) - including the plain SPARQL 1.1 updates below with no RDF 1.2
+    content at all, since the broken branch fired unconditionally for any
+    string update against this kind of store.
+
+    Update text here is deliberately "local" (no explicit GRAPH wrapper,
+    unlike TestOxigraphGraphUpdate above) - SPARQLUpdateStore's own
+    context-aware rewriting (_insert_named_graph) wraps a local update in
+    GRAPH <self.identifier> { ... } itself; wrapping it again here would
+    double-nest into invalid syntax (confirmed live: HTTP 400 doing exactly
+    that with the native-mode tests' own GRAPH-wrapped text).
+    """
+
+    def test_insert_data(self, sg_rdf11):
+        sg_rdf11.update(f'INSERT DATA {{ <{EX}a> <{EX}b> <{EX}c> . }}')
+        assert (URIRef(EX+'a'), URIRef(EX+'b'), URIRef(EX+'c')) in sg_rdf11
+
+    def test_delete_data(self, sg_rdf11):
+        sg_rdf11.add((URIRef(EX+'a'), URIRef(EX+'b'), URIRef(EX+'c')))
+        sg_rdf11.update(f'DELETE DATA {{ <{EX}a> <{EX}b> <{EX}c> . }}')
+        assert (URIRef(EX+'a'), URIRef(EX+'b'), URIRef(EX+'c')) not in sg_rdf11
+
+    def test_delete_where(self, sg_rdf11):
+        sg_rdf11.add((URIRef(EX+'a'), URIRef(EX+'b'), URIRef(EX+'c')))
+        sg_rdf11.add((URIRef(EX+'x'), URIRef(EX+'y'), URIRef(EX+'z')))
+        sg_rdf11.update(f'DELETE WHERE {{ ?s <{EX}b> ?o }}')
+        assert (URIRef(EX+'a'), URIRef(EX+'b'), URIRef(EX+'c')) not in sg_rdf11
+        assert (URIRef(EX+'x'), URIRef(EX+'y'), URIRef(EX+'z')) in sg_rdf11
+
+    def test_insert_data_with_a_ground_triple_term(self, sg_rdf11):
+        """A shape that actually needs the RDF-1.2-to-1.1 lowering (not
+        just plain SPARQL 1.1 text passed straight through): the triple
+        term becomes a content-addressed tt:HASH URI plus its own
+        rdf:subject/predicate/object encoding triples - all ordinary
+        ground text, so (unlike a triple-term *pattern* in a WHERE clause,
+        which needs a starlayergraph-only custom SPARQL function no
+        external engine recognizes - a separate, pre-existing limitation,
+        not this bug) this executes correctly against a real remote
+        engine that has never heard of starlayergraph."""
+        sg_rdf11.update(f"""
+            PREFIX ex: <{EX}>
+            PREFIX rdf: <{RDF_NS}>
+            INSERT DATA {{ ex:claim rdf:reifies <<( ex:bob ex:knows ex:carol )>> }}
+        """)
+        tt = TripleTerm(URIRef(EX+'bob'), URIRef(EX+'knows'), URIRef(EX+'carol'))
+        assert sg_rdf11.has_triple_term(URIRef(EX+'bob'), URIRef(EX+'knows'), URIRef(EX+'carol'))
+        assert tt in list(sg_rdf11.objects(URIRef(EX+'claim'), RDF_REIF))
 
 
 # ---------------------------------------------------------------------------

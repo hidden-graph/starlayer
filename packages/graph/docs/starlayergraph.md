@@ -39,8 +39,8 @@ See `packages/shacl/docs/compatibility.md`'s "Backend Compatibility" section for
 |---|---|
 | `starlayergraph/model/` | `TripleTerm`/`DirLangString` classes, `tt_hash()` content-address encoding, and RDF 1.2 VERSION-directive conformance checking (`conformance.py`) |
 | `starlayergraph/graph/` | `StarLayerGraph` and `StarLayerDataset` — the public API |
-| `starlayergraph/parsers/` | Format-specific RDF 1.2 parsers: Turtle 1.2/LongTurtle 1.2, N-Triples 1.2, N-Quads 1.2, TriG 1.2, RDF/XML 1.2, TriX 1.2 (JSON-LD 1.2 reuses rdflib's stock parser — the encoding is transparent to it) |
-| `starlayergraph/serializers/` | Format-specific RDF 1.2 serializers (same formats, plus JSON-LD 1.2) |
+| `starlayergraph/parsers/` | Format-specific RDF 1.2 parsers: Turtle 1.2/LongTurtle 1.2, N-Triples 1.2, N-Quads 1.2, TriG 1.2, RDF/XML 1.2, TriX 1.2 (`jsonld12` reuses rdflib's stock JSON-LD parser directly — no RDF 1.2 content is ever expected in it, see the serializer note below) |
+| `starlayergraph/serializers/` | Format-specific RDF 1.2 serializers for the same formats, plus `jsonld12` — which, unlike the others, has no real RDF 1.2 companion spec to target: it serializes plain RDF 1.1 content as ordinary JSON-LD and raises `ValueError` for a triple term or `dirLangString` rather than inventing an encoding for either (see `docs/rdf12_sparql12_gap_analysis.md` §6) |
 | `starlayergraph/query/` | SPARQL 1.2 → SPARQL 1.1 rewriter (`sparql12_to_11.py`) and parse-tree helpers (`sparql_api.py`) for the default backend |
 | `starlayergraph/backends/` | HTTP utilities for the native rdf-1.2 endpoint |
 
