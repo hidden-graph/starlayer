@@ -19,6 +19,13 @@ neither mandates specific behavior. StarLayer signals via a warning, never a
 hard error, to stay consistent with its permissive-by-default posture: a
 stale-but-harmless VERSION line should never turn otherwise-valid data or a
 otherwise-valid query into a hard failure.
+
+Two distinct warning classes are used, per SPARQL 1.2 Query sec 4.3's own
+observation that "the SPARQL version labels refer to SPARQL syntax and
+semantics, while the RDF version labels refer to RDF syntax and semantics":
+RDF12ConformanceWarning for RDF document formats (Turtle, TriG,
+N-Triples/N-Quads, RDF/XML), SPARQL12ConformanceWarning for a SPARQL
+query/update's own VERSION directive.
 """
 
 import warnings
@@ -27,11 +34,25 @@ VALID_VERSION_LABELS = frozenset({'1.2', '1.2-basic', '1.1'})
 
 
 class RDF12ConformanceWarning(UserWarning):
-    """A declared VERSION label doesn't match the RDF 1.2 features actually used."""
+    """A declared VERSION label doesn't match the RDF 1.2 features actually
+    used in an RDF document (Turtle, TriG, N-Triples/N-Quads, RDF/XML)."""
+
+
+class SPARQL12ConformanceWarning(UserWarning):
+    """A declared VERSION label doesn't match the RDF 1.2 features actually
+    used in a SPARQL query/update's own text.
+
+    Deliberately not a subclass of RDF12ConformanceWarning: per SPARQL 1.2
+    Query sec 4.3, "the SPARQL version labels refer to SPARQL syntax and
+    semantics, while the RDF version labels refer to RDF syntax and
+    semantics" - the two directives share label spelling but check a
+    different kind of conformance, so they get distinct warning classes.
+    """
 
 
 def check_version_conformance(declared_version, *, uses_triple_term: bool,
                                uses_dirlangstring: bool, context: str,
+                               warning_class: type = RDF12ConformanceWarning,
                                stacklevel: int = 3) -> None:
     """Warn if declared_version is unrecognized, or is "1.2-basic"/"1.1" while
     a triple term and/or dirLangString is actually present.
@@ -47,6 +68,9 @@ def check_version_conformance(declared_version, *, uses_triple_term: bool,
     context           -- short label identifying what was checked, for the
                           warning message, e.g. "Turtle document" or
                           "SPARQL query"
+    warning_class     -- RDF12ConformanceWarning (default) for RDF document
+                          formats, or SPARQL12ConformanceWarning for a
+                          SPARQL query/update's own VERSION directive
     stacklevel        -- passed straight to warnings.warn(); the default (3)
                           is correct for a direct caller (warn's own frame,
                           then this function's, then the caller's - pointing
@@ -63,7 +87,7 @@ def check_version_conformance(declared_version, *, uses_triple_term: bool,
         warnings.warn(
             f'{context} declares unrecognized VERSION {declared_version!r} '
             f'(expected one of {sorted(VALID_VERSION_LABELS)})',
-            RDF12ConformanceWarning, stacklevel=stacklevel,
+            warning_class, stacklevel=stacklevel,
         )
         return
 
@@ -73,10 +97,15 @@ def check_version_conformance(declared_version, *, uses_triple_term: bool,
             ('a directional language-tagged literal (dirLangString)', uses_dirlangstring),
         ) if present]
         if used:
+            citation = (
+                'SPARQL 1.2 Query sec 4.3'
+                if issubclass(warning_class, SPARQL12ConformanceWarning)
+                else 'RDF 1.2 Concepts sec 2.1'
+            )
             warnings.warn(
                 f'{context} declares VERSION {declared_version!r} but uses {" and ".join(used)}, '
-                f'which {declared_version!r} conformance excludes (RDF 1.2 Concepts sec 2.1)',
-                RDF12ConformanceWarning, stacklevel=stacklevel,
+                f'which {declared_version!r} conformance excludes ({citation})',
+                warning_class, stacklevel=stacklevel,
             )
 
 

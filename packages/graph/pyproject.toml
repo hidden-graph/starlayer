@@ -41,6 +41,7 @@ classifiers = [
 # this extra fails outright with "ModuleNotFoundError: No module named 'pkg_resources'".
 # Remove once rdflib-sqlalchemy drops the pkg_resources import upstream.
 sqlalchemy = ["rdflib-sqlalchemy>=0.5", "setuptools<81"]
+reasoning = ["owlrl>=6"]
 test = ["pytest>=7", "hypothesis>=6"]
 
 [project.urls]

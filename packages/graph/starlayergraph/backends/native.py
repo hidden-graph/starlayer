@@ -18,7 +18,7 @@ resolve_store_http()):
     http_ask(url, sparql, auth)           → bool
     build_result(vars_, bindings)         → rdflib.query.Result
     resolve_store_http(store, backend)    → (query_url, update_url, extra_headers)
-    check_native_version_conformance(text) → None (may emit RDF12ConformanceWarning)
+    check_native_version_conformance(text) → None (may emit SPARQL12ConformanceWarning)
     native_query(store, backend, query_object, ...) → rdflib.query.Result
     native_update(store, backend, update_object)    → None
 
@@ -345,7 +345,7 @@ def resolve_store_http(store, backend: str) -> tuple:
 
 
 def check_native_version_conformance(text: str) -> None:
-    """Run the same RDF12ConformanceWarning check the in-memory backend's
+    """Run the same SPARQL12ConformanceWarning check the in-memory backend's
     rewrite pipeline runs, for a native (rdf-1.2) backend's raw SPARQL text.
 
     The native backend sends text straight through to a real endpoint via
@@ -356,7 +356,7 @@ def check_native_version_conformance(text: str) -> None:
     to the caller for a mismatch - confirmed the same day, sending VERSION
     "1.2-basic" plus a <<( )>> pattern to both got a normal 200 response
     with no signal anywhere in it. Without this check, a native-backend
-    graph or dataset would silently never emit RDF12ConformanceWarning at
+    graph or dataset would silently never emit SPARQL12ConformanceWarning at
     all, while the default in-memory backend does for the identical query -
     an inconsistency between backends this project otherwise takes care to
     avoid (see tests/integration/test_cross_backend_parity.py). Only the
@@ -364,7 +364,10 @@ def check_native_version_conformance(text: str) -> None:
     endpoint needs to see the directive itself, unlike rdflib's SPARQL 1.1
     parser.
     """
-    from starlayergraph.model.conformance import check_version_conformance
+    from starlayergraph.model.conformance import (
+        SPARQL12ConformanceWarning,
+        check_version_conformance,
+    )
     from starlayergraph.query.version_directive import strip_version_directive
 
     _, declared_version = strip_version_directive(text)
@@ -377,6 +380,7 @@ def check_native_version_conformance(text: str) -> None:
         ),
         uses_dirlangstring='--' in text,
         context='SPARQL query',
+        warning_class=SPARQL12ConformanceWarning,
     )
 
 

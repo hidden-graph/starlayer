@@ -1,7 +1,7 @@
 RDF 1.2 XML Syntax
 Snapshot source: https://www.w3.org/TR/rdf12-xml/
-Status at fetch time: W3C Working Draft 18 June 2026
-Published: 2026-06-18
+Status at fetch time: W3C Working Draft 14 September 2026
+Published: 2026-09-14
 Copyright © 2004-2026 World Wide Web Consortium. Distributed under the
 W3C Software and Document License: https://www.w3.org/copyright/software-license-2023/
 See tests/vendor/spec_snapshots/README.md for how this snapshot is used and regenerated.
@@ -11,12 +11,12 @@ See tests/vendor/spec_snapshots/README.md for how this snapshot is used and rege
 
 # RDF 1.2 XML Syntax
 
-[W3C Working Draft](https://www.w3.org/standards/types#WD) 18 June 2026
+[W3C Working Draft](https://www.w3.org/standards/types#WD) 14 September 2026
 
 More details about this document
 
 This version:
-     <https://www.w3.org/TR/2026/WD-rdf12-xml-20260618/>
+     <https://www.w3.org/TR/2026/WD-rdf12-xml-20260914/>
 Latest published version:
      <https://www.w3.org/TR/rdf12-xml/>
 Latest editor's draft:
@@ -290,17 +290,16 @@ In RDF/XML, the sequence of 5 nodes and predicate arcs on the left-hand side of 
 Example 1: Striped RDF/XML (nodes and predicate arcs)
     
     
-    <span class="hl-bold"><rdf:Description></span>
+    <rdf:Description>
     <ex:editor>
-      <span class="hl-bold"><rdf:Description></span>
+      <rdf:Description>
         <ex:homePage>
           <rdf:Description>
           </rdf:Description>
         </ex:homePage>
-      <span class="hl-bold"></rdf:Description></span>
+      </rdf:Description>
     </ex:editor>
-    <span class="hl-bold"></rdf:Description></span>
-    
+    </rdf:Description>
 
 The Figure 2 graph consists of some nodes that are [IRIs](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) (and others that are not, called blank node elements) and this can be added to the RDF/XML using the `rdf:about` attribute on node elements to give the result in Example 2:
 
@@ -317,7 +316,6 @@ Example 2: Node Elements with IRIs added
         </rdf:Description>
       </ex:editor>
     </rdf:Description>
-    
 
 Adding the other two paths through the Figure 1 graph to the RDF/XML in Example 2 gives the result in Example 3 (this example fails to show that the blank node is shared between the two paths, see 2.11 Identifying Blank Nodes: `rdf:nodeID`):
 
@@ -346,7 +344,6 @@ Example 3: Complete description of all graph paths
     <rdf:Description rdf:about="https://www.w3.org/TR/rdf12-xml/">
       <dc:title>RDF 1.2 XML Syntax</dc:title>
     </rdf:Description>
-    
 
 ### 2.3 Multiple Property Elements
 
@@ -369,7 +366,6 @@ Example 4: Using multiple property elements on a node element
       </ex:editor>
       <dc:title>RDF 1.2 XML Syntax</dc:title>
     </rdf:Description>
-    
 
 ### 2.4 Empty Property Elements
 
@@ -380,8 +376,7 @@ In this example, the property element `ex:homePage` contains an empty node eleme
 Example 5: Empty property elements
     
     
-     
-    <rdf:Description rdf:about="https://www.w3.org/TR/rdf12-xml/">
+     <rdf:Description rdf:about="https://www.w3.org/TR/rdf12-xml/">
       <ex:editor>
         <rdf:Description>
           <ex:homePage rdf:resource="https://greggkellogg.net/"/>
@@ -390,7 +385,6 @@ Example 5: Empty property elements
       </ex:editor>
       <dc:title>RDF 1.2 XML Syntax</dc:title>
     </rdf:Description>
-     
 
 ### 2.5 Property Attributes
 
@@ -411,7 +405,6 @@ Example 6: Replacing property elements with string literal content into property
         </rdf:Description>
       </ex:editor>
     </rdf:Description>
-    
 
 ### 2.6 Completing the Document: Document Element and XML Declaration
 
@@ -441,7 +434,6 @@ Description of Figure 1 graph ([example07.rdf](example07.rdf), output [example07
       </rdf:Description>
     
     </rdf:RDF>
-    
 
 It is possible to omit `rdf:RDF` in Example 7 above since there is only one `rdf:Description` inside `rdf:RDF` but this is not shown here.
 
@@ -473,7 +465,6 @@ Example 8: Complete example of xml:lang
       </rdf:Description>
     
     </rdf:RDF>
-    
 
 ### 2.8 Base Direction: `its:dir`
 
@@ -500,7 +491,6 @@ Example 9: Complete example of xml:lang with its:dir
         <show:localName xml:lang="en-US" its:dir="ltr">That Seventies Show</show:localName>
       </rdf:Description>
     </rdf:RDF>
-    
 
 Note
 
@@ -531,7 +521,6 @@ Example 10: Complete example of rdf:parseType=Literal
       </rdf:Description>
     
     </rdf:RDF>
-    
 
 ### 2.10 Typed Literals: `rdf:datatype`
 
@@ -553,7 +542,6 @@ Example 11: Complete example of rdf:datatype
       </rdf:Description>
     
     </rdf:RDF>
-    
 
 ### 2.11 Identifying Blank Nodes: `rdf:nodeID`
 
@@ -581,7 +569,6 @@ Example 12: Complete RDF/XML description of graph using rdf:nodeID
       </rdf:Description>
     
     </rdf:RDF>
-    
 
 ### 2.12 Omitting Blank Nodes: `rdf:parseType="Resource"`
 
@@ -606,7 +593,6 @@ Example 13: Complete example using rdf:parseType=Resource
         </ex:editor>
       </rdf:Description>
     </rdf:RDF>
-    
 
 ### 2.13 Omitting Nodes: Property Attributes on an empty Property Element
 
@@ -655,7 +641,6 @@ Example 15
         <dc:title>A marvelous thing</dc:title>
       </rdf:Description>
     </rdf:RDF>
-    
 
 Example 16
 
@@ -672,7 +657,6 @@ Example 16
       </ex:Document>
     
     </rdf:RDF>
-    
 
 ### 2.15 Abbreviating IRIs: `rdf:ID` and `xml:base`
 
@@ -699,7 +683,6 @@ Example 17: Complete example using rdf:ID> and xml:base
       </rdf:Description>
     
     </rdf:RDF>
-    
 
 ### 2.16 Container Membership Property Elements: `rdf:li` and `rdf:_`_n_
 
@@ -710,7 +693,6 @@ Example 18: Complex example using RDF list properties
 **Complex example using RDF list properties ([example18.rdf](example18.rdf), output [example18.nt](example18.nt))**
     
     
-      
     <?xml version="1.0"?>
     <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
     
@@ -721,7 +703,6 @@ Example 18: Complex example using RDF list properties
       </rdf:Seq>
     
     </rdf:RDF>
-      
 
 Example 19: Complete example using rdf:li
 
@@ -738,7 +719,6 @@ Example 19: Complete example using rdf:li
       </rdf:Seq>
     
     </rdf:RDF>
-    
 
 ### 2.17 Collections: `rdf:parseType="Collection"`
 
@@ -764,7 +744,6 @@ Example 20: Complete example of a RDF collection
       </rdf:Description>
     
     </rdf:RDF>
-    
 
 ### 2.18 Reifying Statements: `rdf:ID`
 
@@ -786,7 +765,6 @@ Example 21
       </rdf:Description>
     
     </rdf:RDF>
-    
 
 ### 2.19 Triple Terms: `rdf:parseType="Triple"`
 
@@ -810,7 +788,6 @@ Example 22: Complete example using rdf:parseType=Triple
         </ex:prop>
       </rdf:Description>
     </rdf:RDF>
-    
 
 Note
 
@@ -838,7 +815,6 @@ Example 23: Complete example using rdf:annotation
         <ex:prop>foo</ex:prop>
       </rdf:Description>
     </rdf:RDF>
-    
 
 Example 24: Complete example using rdf:annotationNodeID
 
@@ -856,7 +832,6 @@ Example 24: Complete example using rdf:annotationNodeID
         <ex:prop>foo</ex:prop>
       </rdf:Description>
     </rdf:RDF>
-    
 
 ## 3\. Conformance
 
@@ -900,7 +875,7 @@ The RDF/XML format is used to express arbitrary application data, which may incl
 
  _This section is non-normative._
 
-See the [Security Considerations Section](https://www.rfc-editor.org/rfc/rfc3870#section-6) of [RFC3870].
+See the [Security Considerations Section](https://www.rfc-editor.org/info/rfc3870/#section-6) of [RFC3870].
 
 ## 4\. Global Issues
 
@@ -946,7 +921,7 @@ IRI
 
 [IRIs](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) can be either:
 
-  * given as XML attribute values interpreted as [relative IRI references](https://www.w3.org/TR/rdf12-concepts/#dfn-relative-iri) that are resolved against the in-scope base IRI as described in 4.3 Resolving IRIs to give [resolved](https://www.rfc-editor.org/rfc/rfc3986#section-5) IRIs
+  * given as XML attribute values interpreted as [relative IRI references](https://www.w3.org/TR/rdf12-concepts/#dfn-relative-iri) that are resolved against the in-scope base IRI as described in 4.3 Resolving IRIs to give [resolved](https://www.rfc-editor.org/info/rfc3986/#section-5) IRIs
   * transformed from XML namespace-qualified element and attribute names ([QNames](https://www.w3.org/TR/xml-names/#NT-QName))
   * transformed from `rdf:ID` attribute values.
 
@@ -981,7 +956,7 @@ A triple term describes a [triple](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf
 
 ### 4.3 Resolving IRIs
 
-RDF/XML supports XML Base [XMLBASE] which defines a ·base-iri· accessor for each ·root event· and ·element event·. [Relative IRI references](https://www.w3.org/TR/rdf12-concepts/#dfn-relative-iri) are resolved into [IRIs](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) according to the algorithm specified in [XMLBASE] and as per [Uniform Resource Identifier (URI): Generic Syntax](https://www.rfc-editor.org/rfc/rfc3986) [RFC3986] using only the basic algorithm in section 5.2. These specifications do not specify an algorithm for resolving a fragment identifier alone, such as `#foo`, or the empty string `""` into an [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri). In RDF/XML, a fragment identifier is transformed into an [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) by appending the fragment identifier to the in-scope base IRI. The empty string is transformed into an [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) by substituting the in-scope base IRI. 
+RDF/XML supports XML Base [XMLBASE] which defines a ·base-iri· accessor for each ·root event· and ·element event·. [Relative IRI references](https://www.w3.org/TR/rdf12-concepts/#dfn-relative-iri) are resolved into [IRIs](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) according to the algorithm specified in [XMLBASE] and as per [Uniform Resource Identifier (URI): Generic Syntax](https://www.rfc-editor.org/info/rfc3986/) [RFC3986] using only the basic algorithm in section 5.2. These specifications do not specify an algorithm for resolving a fragment identifier alone, such as `#foo`, or the empty string `""` into an [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri). In RDF/XML, a fragment identifier is transformed into an [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) by appending the fragment identifier to the in-scope base IRI. The empty string is transformed into an [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) by substituting the in-scope base IRI. 
 
 An empty same document reference "" resolves against the URI part of the base IRI; any fragment part is ignored. See Uniform Resource Identifiers (URI) [RFC3986]. 
 
@@ -1880,7 +1855,7 @@ The following people provided valuable contributions to the document:
 
 In addition to the editors, the following people have contributed to this specification: Andy Seaborne, Denis Ah-Kang, Dominik Tomaszuk, Gregory Todd Williams, John Walker, Niklas Lindström, Peter F. Patel-Schneider, Pierre-Antoine Champin, Ted Thibodeau Jr, and Thomas Tanon
 
-Members of the RDF & SPARQL Working Group Group included   
+Members of the RDF & SPARQL Working Group included the following:   
 James Anderson, Dörthe Arndt, Jerven Bolleman, Erich Bremer, Pierre-Antoine Champin, Souripriya Das, Enrico Franconi, Adrian Gschwend, Olaf Hartig, Gregg Kellogg†, Ora Lassila, Niklas Lindström, Thomas Lörtsch, Peter Patel-Schneider, Dave Raggett, Felix Sasaki, Andy Seaborne, Ruben Taelman, Thomas Pellissier Tanon, Ted Thibodeau Jr, Dominik Tomaszuk, Gregory Williams, William Van Woensel, and Antoine Zimmermann   
 † Gregg Kellogg passed away in September 2025. His vast contributions to RDF and the broader ecosystem of related standards are gratefully acknowledged. 
 
@@ -2280,7 +2255,7 @@ The RNGC schema has been updated to attempt to match the grammar but this has no
 ### E.1 Normative references
 
 [BCP47]
-     [Tags for Identifying Languages](https://www.rfc-editor.org/rfc/rfc5646). A. Phillips, Ed.; M. Davis, Ed. IETF. September 2009. Best Current Practice. URL: <https://www.rfc-editor.org/rfc/rfc5646>
+     [Tags for Identifying Languages](https://www.rfc-editor.org/info/bcp47). Addison Phillips; Mark Davis. IETF. September 2009. Best Current Practice. URL: <https://www.rfc-editor.org/info/bcp47>
 [NFC]
      [Web NFC API](https://www.w3.org/TR/nfc/). Luc Yriarte; Samuel Ortiz; Don Coleman. W3C. 16 June 2015. W3C Working Group Note. URL: <https://www.w3.org/TR/nfc/>
 [RDF-SYNTAX-GRAMMAR-19990222]
@@ -2288,15 +2263,15 @@ The RNGC schema has been updated to attempt to match the grammar but this has no
 [RDF12-CONCEPTS]
      [RDF 1.2 Concepts and Abstract Data Model](https://www.w3.org/TR/rdf12-concepts/). Andy Seaborne; Gregg Kellogg; Olaf Hartig; Pierre-Antoine Champin. W3C. 7 April 2026. W3C Candidate Recommendation. URL: <https://www.w3.org/TR/rdf12-concepts/>
 [RDF12-N-TRIPLES]
-     [RDF 1.2 N-Triples](https://www.w3.org/TR/rdf12-n-triples/). Gregg Kellogg; Dominik Tomaszuk. W3C. 15 May 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-n-triples/>
+     [RDF 1.2 N-Triples](https://www.w3.org/TR/rdf12-n-triples/). Gregg Kellogg; Dominik Tomaszuk. W3C. 23 July 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-n-triples/>
 [RFC2119]
-     [Key words for use in RFCs to Indicate Requirement Levels](https://www.rfc-editor.org/rfc/rfc2119). S. Bradner. IETF. March 1997. Best Current Practice. URL: <https://www.rfc-editor.org/rfc/rfc2119>
+     [Key words for use in RFCs to Indicate Requirement Levels](https://www.rfc-editor.org/info/rfc2119/). S. Bradner. IETF. March 1997. Best Current Practice. URL: <https://www.rfc-editor.org/info/rfc2119/>
 [RFC3870]
-     [application/rdf+xml Media Type Registration](https://www.rfc-editor.org/rfc/rfc3870). A. Swartz. IETF. September 2004. Informational. URL: <https://www.rfc-editor.org/rfc/rfc3870>
+     [application/rdf+xml Media Type Registration](https://www.rfc-editor.org/info/rfc3870/). A. Swartz. IETF. September 2004. Informational. URL: <https://www.rfc-editor.org/info/rfc3870/>
 [RFC3986]
-     [Uniform Resource Identifier (URI): Generic Syntax](https://www.rfc-editor.org/rfc/rfc3986). T. Berners-Lee; R. Fielding; L. Masinter. IETF. January 2005. Internet Standard. URL: <https://www.rfc-editor.org/rfc/rfc3986>
+     [Uniform Resource Identifier (URI): Generic Syntax](https://www.rfc-editor.org/info/rfc3986/). T. Berners-Lee; R. Fielding; L. Masinter. IETF. January 2005. Internet Standard. URL: <https://www.rfc-editor.org/info/rfc3986/>
 [RFC8174]
-     [Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words](https://www.rfc-editor.org/rfc/rfc8174). B. Leiba. IETF. May 2017. Best Current Practice. URL: <https://www.rfc-editor.org/rfc/rfc8174>
+     [Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words](https://www.rfc-editor.org/info/rfc8174/). B. Leiba. IETF. May 2017. Best Current Practice. URL: <https://www.rfc-editor.org/info/rfc8174/>
 [SAX]
      [SAX – The Simple API for XML](https://accu.org/journals/overload/7/34/cornish_515/). Steve Cornish. October 1999. URL: <https://accu.org/journals/overload/7/34/cornish_515/>
 [UNICODE]
@@ -2329,7 +2304,7 @@ The RNGC schema has been updated to attempt to match the grammar but this has no
 [RDF12-INTEROP]
      [RDF 1.2 Interoperability](https://w3c.github.io/rdf-interop/spec/). Pierre-Antoine Champin. W3C. W3C Editor's Draft. URL: <https://w3c.github.io/rdf-interop/spec/>
 [RDF12-N-QUADS]
-     [RDF 1.2 N-Quads](https://www.w3.org/TR/rdf12-n-quads/). Gregg Kellogg; Dominik Tomaszuk. W3C. 28 May 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-n-quads/>
+     [RDF 1.2 N-Quads](https://www.w3.org/TR/rdf12-n-quads/). Gregg Kellogg; Dominik Tomaszuk. W3C. 23 July 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-n-quads/>
 [RDF12-NEW]
      [What’s New in RDF 1.2](https://w3c.github.io/rdf-new/spec/). The W3C RDF & SPARQL Working Group. W3C. W3C Editor's Draft. URL: <https://w3c.github.io/rdf-new/spec/>
 [RDF12-PRIMER]
@@ -2339,9 +2314,9 @@ The RNGC schema has been updated to attempt to match the grammar but this has no
 [RDF12-SEMANTICS]
      [RDF 1.2 Semantics](https://www.w3.org/TR/rdf12-semantics/). Peter Patel-Schneider; Enrico Franconi; Dörthe Arndt. W3C. 7 April 2026. W3C Candidate Recommendation. URL: <https://www.w3.org/TR/rdf12-semantics/>
 [RDF12-TRIG]
-     [RDF 1.2 TriG](https://www.w3.org/TR/rdf12-trig/). Gregg Kellogg; Dominik Tomaszuk. W3C. 28 May 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-trig/>
+     [RDF 1.2 TriG](https://www.w3.org/TR/rdf12-trig/). Gregg Kellogg; Dominik Tomaszuk. W3C. 12 June 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-trig/>
 [RDF12-TURTLE]
-     [RDF 1.2 Turtle](https://www.w3.org/TR/rdf12-turtle/). Gregg Kellogg; Andy Seaborne; Dominik Tomaszuk. W3C. 28 May 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-turtle/>
+     [RDF 1.2 Turtle](https://www.w3.org/TR/rdf12-turtle/). Gregg Kellogg; Andy Seaborne; Dominik Tomaszuk. W3C. 12 August 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-turtle/>
 [RDFA-PRIMER]
      [RDFa 1.1 Primer - Third Edition](https://www.w3.org/TR/rdfa-primer/). Ivan Herman; Ben Adida; Manu Sporny; Mark Birbeck. W3C. 17 March 2015. W3C Working Group Note. URL: <https://www.w3.org/TR/rdfa-primer/>
 [RELAXNG-SCHEMA]
@@ -2357,19 +2332,19 @@ The RNGC schema has been updated to attempt to match the grammar but this has no
 [SPARQL12-NEW]
      [What’s New in SPARQL 1.2](https://w3c.github.io/sparql-new/spec/). The W3C RDF & SPARQL Working Group. W3C. W3C Editor's Draft. URL: <https://w3c.github.io/sparql-new/spec/>
 [SPARQL12-PROTOCOL]
-     [SPARQL 1.2 Protocol](https://www.w3.org/TR/sparql12-protocol/). Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 26 April 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-protocol/>
+     [SPARQL 1.2 Protocol](https://www.w3.org/TR/sparql12-protocol/). Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 23 July 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-protocol/>
 [SPARQL12-QUERY]
-     [SPARQL 1.2 Query Language](https://www.w3.org/TR/sparql12-query/). Olaf Hartig; Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 28 May 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-query/>
+     [SPARQL 1.2 Query Language](https://www.w3.org/TR/sparql12-query/). Olaf Hartig; Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 20 August 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-query/>
 [SPARQL12-RESULTS-CSV-TSV]
-     [SPARQL 1.2 Query Results CSV and TSV Formats](https://www.w3.org/TR/sparql12-results-csv-tsv/). Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 28 March 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-csv-tsv/>
+     [SPARQL 1.2 Query Results CSV and TSV Formats](https://www.w3.org/TR/sparql12-results-csv-tsv/). Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 23 July 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-csv-tsv/>
 [SPARQL12-RESULTS-JSON]
-     [SPARQL 1.2 Query Results JSON Format](https://www.w3.org/TR/sparql12-results-json/). Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 28 March 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-json/>
+     [SPARQL 1.2 Query Results JSON Format](https://www.w3.org/TR/sparql12-results-json/). Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 13 August 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-json/>
 [SPARQL12-RESULTS-XML]
      [SPARQL 1.2 Query Results XML Format](https://www.w3.org/TR/sparql12-results-xml/). Ruben Taelman; Dominik Tomaszuk; Thomas Pellissier Tanon. W3C. 27 December 2024. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-xml/>
 [SPARQL12-SERVICE-DESCRIPTION]
      [SPARQL 1.2 Service Description](https://www.w3.org/TR/sparql12-service-description/). Ruben Taelman; Gregory Williams. W3C. 23 April 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-service-description/>
 [SPARQL12-UPDATE]
-     [SPARQL 1.2 Update](https://www.w3.org/TR/sparql12-update/). Ruben Taelman; Andy Seaborne; Thomas Pellissier Tanon. W3C. 23 April 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-update/>
+     [SPARQL 1.2 Update](https://www.w3.org/TR/sparql12-update/). Ruben Taelman; Andy Seaborne; Thomas Pellissier Tanon. W3C. 12 June 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-update/>
 [STRIPEDRDF]
      [RDF: Understanding the Striped RDF/XML Syntax](https://www.w3.org/2001/10/stripes/). W3C. 2001. Team Submission. URL: [http://www.w3.org/2001/10/stripes/](https://www.w3.org/2001/10/stripes/)
 [SVG10]
@@ -2829,7 +2804,7 @@ Permalink
 
 
 
-[Permalink](https://www.rfc-editor.org/rfc/rfc3870#section-6)
+[Permalink](https://www.rfc-editor.org/info/rfc3870/#section-6)
 
 **Referenced in:**
 
@@ -2837,7 +2812,7 @@ Permalink
 
 
 
-[Permalink](https://www.rfc-editor.org/rfc/rfc3986#section-5)
+[Permalink](https://www.rfc-editor.org/info/rfc3986/#section-5)
 
 **Referenced in:**
 

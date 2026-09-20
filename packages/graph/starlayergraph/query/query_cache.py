@@ -70,14 +70,15 @@ def store_accepts_prepared_query(store: Any) -> bool:
 
 
 def prepare_query_cached(
-    cache: dict[tuple[str, tuple, str | None], Query],
+    cache: dict[tuple[str, tuple, str | None, str | None], Query],
     query_text: str,
     effective_ns: Mapping[str, Any] | None,
     base: str | None,
+    entailment: str | None = None,
 ) -> Query:
     """Return a prepared SPARQL ``Query`` for ``query_text``, reusing a
     previous preparation from ``cache`` if the same
-    (query text, effective namespaces, base) was seen before.
+    (query text, effective namespaces, base, entailment) was seen before.
 
     ``effective_ns`` must already be the namespace mapping that will
     actually be used - the caller's explicit ``initNs``, or its own bound
@@ -85,9 +86,18 @@ def prepare_query_cached(
     it later"; a cache keyed before that resolution would miss real
     differences (or worse, reuse a stale mapping) if a graph's bound
     namespaces change between calls with the same query text.
+
+    ``entailment`` -- ``None`` (default, today's plain behavior) or
+    ``"rdfs"``, which rewrites every BGP for RDFS entailment (see
+    ``starsparql.entailment_rdfs`` for exactly which rules) once here,
+    baked into the cached prepared object - not re-applied on every
+    cache hit. Included in the cache key defensively, even though a given
+    ``StarLayerGraph`` instance's ``entailment`` is fixed for its whole
+    lifetime and this cache is per-instance (so in practice it never
+    varies within one cache's lifetime today).
     """
     ns_key = tuple(sorted((str(k), str(v)) for k, v in effective_ns.items())) if effective_ns else ()
-    cache_key = (query_text, ns_key, base)
+    cache_key = (query_text, ns_key, base, entailment)
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
@@ -105,14 +115,21 @@ def prepare_query_cached(
         # the cache the first time and hits it on every repeat evaluation
         # (this cache's whole reason to exist) only needs to be flagged
         # once, not once per evaluation.
-        from starlayergraph.model.conformance import check_version_conformance
+        from starlayergraph.model.conformance import (
+            SPARQL12ConformanceWarning,
+            check_version_conformance,
+        )
         check_version_conformance(
             declared_version,
             uses_triple_term=contains_triple_term(prepared_12.algebra),
             uses_dirlangstring='--' in stripped_text,
             context='SPARQL query',
+            warning_class=SPARQL12ConformanceWarning,
         )
     rdf_graph, root = query_to_rdf11(prepared_12)
     prepared = rdf11_to_query(rdf_graph, root)
+    if entailment == 'rdfs':
+        from starsparql.entailment_rdfs import rewrite_algebra_for_rdfs
+        rewrite_algebra_for_rdfs(prepared.algebra)
     cache[cache_key] = prepared
     return prepared

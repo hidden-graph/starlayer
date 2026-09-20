@@ -48,7 +48,7 @@ See `packages/shacl/docs/compatibility.md`'s "Backend Compatibility" section for
 
 ## Conformance Warnings
 
-A document or query can declare an RDF 1.2 VERSION label (`"1.2"`, `"1.2-basic"`, or `"1.1"` — see RDF 1.2 Concepts sec 2.1). StarLayer checks the declared label against what's actually used (triple terms, `DirLangString`) and emits an `RDF12ConformanceWarning` (never a hard error, matching the spec's own permissive framing) on a mismatch. See `starlayergraph/model/conformance.py`.
+A document or query can declare a VERSION label (`"1.2"`, `"1.2-basic"`, or `"1.1"` — see RDF 1.2 Concepts sec 2.1 / SPARQL 1.2 Query sec 4.3). StarLayer checks the declared label against what's actually used (triple terms, `DirLangString`) and warns on a mismatch (never a hard error, matching the spec's own permissive framing) — `RDF12ConformanceWarning` for an RDF document (Turtle, TriG, N-Triples/N-Quads, RDF/XML), `SPARQL12ConformanceWarning` for a SPARQL query/update's own VERSION directive, per the spec's own distinction that the two label sets check different kinds of conformance. See `starlayergraph/model/conformance.py`.
 
 ---
 

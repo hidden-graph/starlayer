@@ -1,15 +1,17 @@
 # RDF 1.2 / SPARQL 1.2 Spec vs. Implementation — Conformance Status
 
-**Last reviewed:** 2026-07-17, against the W3C documents below. This is a snapshot conformance checklist, not a changelog — for fix-by-fix history see `CHANGELOG.md`; for the ongoing re-verification process as the spec moves toward a final Recommendation, see `docs/future_enhancements.md`'s "Keeping in step" section. RDF 1.2 is still Candidate Recommendation stage, so section numbers below can drift — re-verify before citing them externally.
+**Last reviewed:** 2026-09-20, against the W3C documents below. This is a snapshot conformance checklist, not a changelog — for fix-by-fix history see `CHANGELOG.md`; for the ongoing re-verification process as the spec moves toward a final Recommendation, see `docs/future_enhancements.md`'s "Keeping in step" section. RDF 1.2 is still Candidate Recommendation stage, so section numbers below can drift — re-verify before citing them externally.
+
+2026-09-20 re-verification: refreshed all seven snapshots and diffed against the 2026-07-17 versions. RDF 1.2 Concepts and RDF 1.2 Schema were unchanged; SPARQL 1.2 Update was unchanged. RDF 1.2 Turtle/N-Triples/XML and SPARQL 1.2 Query all moved, but every change found was editorial or formal-semantics precision (URL formatting, blank-node handling formalized as an explicit algebra translation step, `DISTINCT` made an explicit `Aggregation` parameter, string-function Unicode/NULL-character edge cases, anonymous-reifier wording tightened to match this project's own fresh-BNode behavior) — no new user-facing syntax or functions. The one substantive update below is the WHERE-clause reification-shorthand row, upgraded from "likely match" to a confirmed match now that the grammar section (previously truncated in the fetch) is complete.
 
 | Document | Status fetched | Date |
 |---|---|---|
 | RDF 1.2 Concepts and Abstract Syntax | Candidate Recommendation Snapshot | 2026-04-07 |
 | RDF 1.2 Schema | Working Draft | 2026-03-28 |
-| RDF 1.2 Turtle | Working Draft | 2026-06-12 |
-| RDF 1.2 N-Triples | Working Draft | 2026-06-24 |
-| RDF 1.2 XML Syntax | Working Draft | 2026-06-18 |
-| SPARQL 1.2 Query | Working Draft | 2026-06-25 |
+| RDF 1.2 Turtle | Working Draft | 2026-09-14 |
+| RDF 1.2 N-Triples | Working Draft | 2026-07-23 |
+| RDF 1.2 XML Syntax | Working Draft | 2026-09-14 |
+| SPARQL 1.2 Query | Working Draft | 2026-09-13 |
 | SPARQL 1.2 Update | Working Draft | 2026-06-12 |
 
 Plain-text snapshots of all seven documents as of the dates above are saved in `tests/vendor/spec_snapshots/` — re-run `tests/vendor/spec_snapshots/refresh_snapshots.py` and `git diff` it to see exactly what changed in the spec text since this review, rather than re-reading each document from scratch.
@@ -72,9 +74,9 @@ Scope limits (documented in the parser's own docstring): only node elements dire
 | `TRIPLE(s, p, o)` — constructor **function**, independent of `<<( )>>` literal syntax | `_rewrite_triple_calls()` desugars `TRIPLE(s, p, o)` to `<<( s p o )>>` (recursively) before any other pass runs | ✅ Match |
 | `isTRIPLE(term)` — spec's exact function name | `_IS_TT_RE` matches `is(?:TripleTerm\|Triple)(...)`, both spellings accepted | ✅ Match |
 | `<<( s p o )>>` valid directly in `BIND(...)`, same as Turtle | Spec's own example: `BIND( <<( ?s ?p ?o )>> AS ?tt )` | ✅ Match |
-| Reification/annotation shorthand (`~`, `{| |}`, `<< >>`) valid in WHERE-clause graph patterns | Not fully confirmed from the fetched WD text (grammar section was truncated in the fetch) | ✅ Likely match — recommend re-verifying against the published grammar once it stabilizes |
+| Reification/annotation shorthand (`~`, `{| |}`, `<< >>`) valid in WHERE-clause graph patterns | 2026-09-13 WD's full grammar (previously truncated in the fetch) confirms this directly: `TriplesSameSubjectPath ::= ... \| ReifiedTripleBlockPath` [87], `Object ::= GraphNode Annotation` [86], `Annotation ::= ( Reifier \| AnnotationBlock )*` [111], `GraphNode ::= VarOrTerm \| TriplesNode \| ReifiedTriple` [113] | ✅ Match |
 | `LANGDIR`, `hasLANGDIR`, `STRLANGDIR`; `LANG`/`hasLANG` upgraded for dirLangString | Rewrite to plain SPARQL 1.1 built-ins / a registered constructor function; `_rewrite_dirlang_and_strlangdir()` is recursive-descent, so nested calls resolve correctly | ✅ Match |
-| `VERSION "1.2"` query prologue directive | Stripped by `_strip_version_directive()` before any further rewriting, with the same warning-only conformance check as the Turtle side | ✅ Match |
+| `VERSION "1.2"` query prologue directive | Stripped by `_strip_version_directive()` before any further rewriting, with the same warning-only conformance check as the Turtle side — its own `SPARQL12ConformanceWarning` class, not `RDF12ConformanceWarning`, per sec 4.3's own note that the SPARQL and RDF version labels check different kinds of conformance | ✅ Match |
 
 ---
 

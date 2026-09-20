@@ -30,7 +30,7 @@ SHACL expansion notes (new):
 
 1. what art the git errors we get when we publish. how to fix
 
-3. bring in OWL and OWL reasoning into the stack.
+3. bring in OWL and OWL reasoning into the stack. [PARTIAL - StarLayerGraph.infer(profile="rdfs"|"owl-rl") materializes an RDFS/OWL-RL entailment closure into a new graph via owlrl (docs/guides/02b-graphs-inferencing.ipynb section 3). entailment is a per-query choice on .query(), not a graph setting: entailment="rdfs" rewrites the query at query time for the full RDFS ruleset (subClassOf/subPropertyOf/domain/range, no data copy); entailment="owl-rl" queries a materialized closure (infer(profile="owl-rl")), cached on the graph and auto-refreshed on mutation by default, tunable via infer=(changed|always|cached) (docs/guides/03b-sparql-inferencing.ipynb). Still open: delegating to a reasoning-enabled Fuseki backend - see the SPARQL entailment-regime plan.]
 4a. break the sparql/shacl editor into two parts.  build shacl as stand-alone.1
 4. rebuild a stand-alone SPARQL editor based on shapes.
 5. create an HTML based user guide

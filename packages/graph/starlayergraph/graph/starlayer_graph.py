@@ -39,6 +39,33 @@ RDF_REIFIES     = URIRef('http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies')
 
 # Valid backend mode identifiers
 VALID_BACKENDS = frozenset({'rdf-1.1', 'rdf-1.2'})
+# A per-query choice (query()'s own entailment= kwarg, not a graph-level
+# setting - see that method's docstring). None = today's plain
+# simple-entailment behavior. "rdfs" rewrites the query at query time for
+# RDFS entailment (starsparql.entailment_rdfs - the full ruleset's "data"
+# rules: subClassOf/subPropertyOf transitivity, subclass/domain/range-
+# driven type entailment, subproperty entailment) - no data is
+# copied. "owl-rl" materializes a full RDFS/OWL-RL closure via infer() -
+# see query()'s own docstring and VALID_INFER_MODES for how much of that
+# work gets reused across calls (controlled by the separate infer= kwarg).
+# Not yet built: "native" (delegate to a reasoning-enabled Fuseki/Jena
+# backend) - see the SPARQL entailment-regime plan.
+VALID_ENTAILMENTS = frozenset({None, 'rdfs', 'owl-rl'})
+# query()'s infer= kwarg - only consulted when entailment="owl-rl"; ignored
+# otherwise. Controls reuse of the one materialized-closure cache this
+# graph keeps (self._owl_rl_cache), stamped with the mutation generation
+# (self._mutation_generation, bumped by _on_mutated()) it was computed at:
+#   "changed" (default) - reuse the cache iff no mutation happened since it
+#       was computed; recompute otherwise. Cheap (an int compare), and
+#       always correct as long as every real mutation goes through
+#       _on_mutated() (see that method's own docstring for the mutation
+#       surface it covers).
+#   "always"  - ignore the cache entirely, always recompute and refresh it.
+#   "cached"  - reuse the cache if one exists at all, even if stale;
+#       compute only when there is no cache yet. For a caller who wants to
+#       pin one materialization and keep querying it explicitly, without
+#       StarLayerGraph deciding when to refresh it.
+VALID_INFER_MODES = frozenset({'always', 'cached', 'changed'})
 
 # rdf:TripleTerm type URI — emitted by the JSON-LD 1.2 serializer; treated as
 # internal encoding so it is never surfaced through triples() / __len__ etc.
@@ -183,6 +210,30 @@ class StarLayerGraph(Graph):
         self._invalidate_callback = None  # set by StarLayerDataset to clear raw query cache
         self._prepared_query_cache: dict = {}  # see starlayergraph.query.query_cache.prepare_query_cached
         self._native_bnode_provenance: dict = {}  # native backend only - see _native_triples()
+        # Bumped by _on_mutated() on every real mutation - the staleness
+        # signal query()'s entailment="owl-rl", infer="changed" path checks
+        # _owl_rl_cache against (see VALID_INFER_MODES).
+        self._mutation_generation: int = 0
+        # (closure_graph, generation_it_was_computed_at) | None - the one
+        # materialized-closure cache this graph keeps, populated and read
+        # by query()'s entailment="owl-rl" handling.
+        self._owl_rl_cache: "tuple[StarLayerGraph, int] | None" = None
+
+    def _on_mutated(self) -> None:
+        """Called from every place this graph's own triple content changes
+        (add/addN/remove, parse(), update(), add_reification()) - notifies
+        StarLayerDataset's raw-query-cache hook (_invalidate_callback, if
+        set), and bumps _mutation_generation (see VALID_INFER_MODES).
+        Consolidates what used to be six separate "if
+        self._invalidate_callback: self._invalidate_callback()" call sites
+        into one, and closes three gaps found while doing so (update() on
+        both backends, the non-native turtle12/trig12 parse() branches,
+        add_reification()'s non-native branch all used to bypass the hook
+        entirely).
+        """
+        if self._invalidate_callback:
+            self._invalidate_callback()
+        self._mutation_generation += 1
 
     @property
     def _is_native(self) -> bool:
@@ -340,8 +391,7 @@ class StarLayerGraph(Graph):
         _, u_url, hdrs = self._store_http()
         sparql = f'INSERT {{ {self._native_scoped(" ".join(parts))} }} WHERE {{}}'
         http_update(u_url, sparql, hdrs)
-        if self._invalidate_callback:
-            self._invalidate_callback()
+        self._on_mutated()
 
     def _native_triples(self, triple):
         from rdflib import BNode
@@ -715,8 +765,7 @@ class StarLayerGraph(Graph):
             )
         if self._is_native:
             self._native_add(s, p, obj)
-            if self._invalidate_callback:
-                self._invalidate_callback()
+            self._on_mutated()
             return
         s_n, o_n = self._coerce_tt(s), self._coerce_tt(obj)
         if self._needs_bnode_skolemization:
@@ -726,8 +775,7 @@ class StarLayerGraph(Graph):
             if isinstance(o_n, BNode):
                 o_n = skolemize_bnode(o_n)
         super().add((s_n, p, o_n))
-        if self._invalidate_callback:
-            self._invalidate_callback()
+        self._on_mutated()
 
     def addN(self, quads):
         """Add multiple quads, encoding all TripleTerms in one store.addN() call.
@@ -795,8 +843,7 @@ class StarLayerGraph(Graph):
             all_quads.append((_enc(s), p, _enc(o), self))
 
         self.store.addN(all_quads)
-        if self._invalidate_callback:
-            self._invalidate_callback()
+        self._on_mutated()
         return self
 
     def _native_remove(self, s, p, obj) -> None:
@@ -850,8 +897,7 @@ class StarLayerGraph(Graph):
         s, p, obj = triple
         if self._is_native:
             self._native_remove(s, p, obj)
-            if self._invalidate_callback:
-                self._invalidate_callback()
+            self._on_mutated()
             return
         s_n, o_n = self._coerce_tt_read(s), self._coerce_tt_read(obj)
         if s_n is _TT_NOT_FOUND or o_n is _TT_NOT_FOUND:
@@ -863,8 +909,7 @@ class StarLayerGraph(Graph):
             if isinstance(o_n, BNode):
                 o_n = skolemize_bnode(o_n)
         super().remove((s_n, p, o_n))
-        if self._invalidate_callback:
-            self._invalidate_callback()
+        self._on_mutated()
 
     def triples(self, triple):
         """Iterate triples matching the pattern. Filters internal encoding triples.
@@ -1108,6 +1153,7 @@ class StarLayerGraph(Graph):
             return
         tt_uri = self._intern_tt(tt)
         super().add((reifier, RDF_REIFIES, tt_uri))
+        self._on_mutated()
 
     def reifiers(self, TT=None, predicate=None, object=None):
         """Yield reifier nodes matching the given filters.
@@ -1351,6 +1397,7 @@ class StarLayerGraph(Graph):
                     for triple in processed:
                         super().add(triple)
                     self._build_registry_from_store()
+                    self._on_mutated()
 
                 from starlayergraph.model.conformance import (
                     check_version_conformance_for_graphs,
@@ -1403,6 +1450,7 @@ class StarLayerGraph(Graph):
                     for triple in parse_trig12(text):
                         super().add(triple)
                     self._build_registry_from_store()
+                    self._on_mutated()
 
                 from starlayergraph.model.conformance import (
                     check_version_conformance_for_graphs,
@@ -1461,7 +1509,8 @@ class StarLayerGraph(Graph):
                              location=location, file=file, data=data, **kwargs)
 
     def query(self, query_object, processor='sparql', result='sparql',
-              initNs=None, initBindings=None, use_store_provided=True, **kwargs):
+              initNs=None, initBindings=None, use_store_provided=True,
+              entailment: str | None = None, infer: str = 'changed', **kwargs):
         """Execute a SPARQL query. Triple-term patterns are rewritten to SPARQL 1.1.
 
         The rewritten query runs against a plain Graph view of the same store so
@@ -1475,8 +1524,55 @@ class StarLayerGraph(Graph):
         For the native rdf-1.2 backend the query is routed through
         starlayergraph.backends.native.native_query, which uses the endpoint's
         own triple-term syntax.
+
+        entailment -- ``None`` (default, plain simple entailment), ``"rdfs"``
+            (query-time ``rdfs:subClassOf`` rewrite, no data copy - see
+            ``starsparql.entailment_rdfs``; not available against the native
+            backend), or ``"owl-rl"`` (queries a materialized RDFS/OWL-RL
+            closure - see ``infer``, below). A per-call choice, not a
+            graph-level setting - the same graph can be queried with
+            different (or no) entailment on different calls.
+        infer -- only consulted when ``entailment="owl-rl"``; ignored
+            otherwise. Controls reuse of ``self``'s one materialized-closure
+            cache (``self._owl_rl_cache``) against ``self._mutation_generation``
+            (bumped by ``_on_mutated()`` on every real edit to ``self`` -
+            see ``VALID_INFER_MODES``): ``"changed"`` (default) recomputes
+            only if ``self`` was edited since the cache was last computed;
+            ``"always"`` ignores the cache and always recomputes;
+            ``"cached"`` reuses whatever is cached if anything is, computing
+            only when there's no cache yet. The cache itself never mutates
+            ``self`` - it's a separate graph, exactly what ``infer()``
+            already returns.
         """
+        if entailment not in VALID_ENTAILMENTS:
+            raise NotImplementedError(
+                f"entailment must be one of {sorted(e for e in VALID_ENTAILMENTS if e)}, "
+                f"got {entailment!r}."
+            )
+        if entailment == 'owl-rl':
+            if infer not in VALID_INFER_MODES:
+                raise ValueError(f"infer must be one of {sorted(VALID_INFER_MODES)}, got {infer!r}")
+            cached = self._owl_rl_cache
+            stale = cached is None or (infer == 'changed' and cached[1] != self._mutation_generation)
+            if infer == 'always' or stale:
+                closed = self.infer(profile='owl-rl')
+                self._owl_rl_cache = (closed, self._mutation_generation)
+            else:
+                closed = cached[0]
+            return closed.query(
+                query_object, processor=processor, result=result,
+                initNs=initNs, initBindings=initBindings,
+                use_store_provided=use_store_provided, **kwargs,
+            )
+
         if self._is_native:
+            if entailment == 'rdfs':
+                raise NotImplementedError(
+                    "entailment='rdfs' query-time rewriting is not wired into the native "
+                    "(backend='rdf-1.2') query path yet - it only rewrites the default "
+                    "(backend='rdf-1.1') in-memory/encoded path today. Use entailment='owl-rl' "
+                    "for a materialized closure instead, which works regardless of backend."
+                )
             from starlayergraph.backends.native import native_query
             return native_query(
                 self.store, self._backend, query_object, processor=processor, result=result,
@@ -1517,7 +1613,8 @@ class StarLayerGraph(Graph):
             from starlayergraph.query.query_cache import prepare_query_cached
             effective_ns = initNs if initNs else dict(self.namespaces())
             query_object = prepare_query_cached(
-                self._prepared_query_cache, query_object, effective_ns, kwargs.get('base')
+                self._prepared_query_cache, query_object, effective_ns, kwargs.get('base'),
+                entailment=entailment,
             )
 
         # Generalized remote-store handling for a pre-built Query object -
@@ -1643,6 +1740,7 @@ class StarLayerGraph(Graph):
         if self._is_native:
             from starlayergraph.backends.native import native_update
             native_update(self.store, self._backend, update_object)
+            self._on_mutated()
             return None
         if isinstance(update_object, str):
             from starsparql.lower_rdf11 import rdf11_update_to_sparql11_text, update_to_rdf11
@@ -1657,6 +1755,7 @@ class StarLayerGraph(Graph):
                    initNs=initNs, initBindings=initBindings,
                    use_store_provided=use_store_provided)
         self._build_registry_from_store()
+        self._on_mutated()
         return None
 
     def serialize(self, destination=None, format='turtle12', **kwargs):
@@ -1802,6 +1901,66 @@ class StarLayerGraph(Graph):
         """
         from rdflib.compare import isomorphic as _rdflib_isomorphic
         return _rdflib_isomorphic(_unfold_tt_encoding(self), _unfold_tt_encoding(other))
+
+    def infer(self, profile: str = 'rdfs', *, target_graph=None):
+        """Materialize an RDFS/OWL-RL entailment closure into a NEW graph —
+        never mutates self. Requires the optional ``owlrl`` dependency
+        (``pip install starlayergraph[reasoning]``).
+
+        profile -- "rdfs" (RDFS closure) or "owl-rl" (OWL 2 RL closure,
+            which includes RDFS)
+        target_graph -- defaults to a new StarLayerGraph; if given, entailed
+            triples are added to it (never cleared first) — must be a
+            StarLayerGraph, not a plain rdflib.Graph, same restriction as
+            cbd() and for the same reason: consistency with the rest of
+            this class's API.
+
+        Any triple term in self is decomposed into its synthetic
+        blank-node reification form (the same one rdfc10_hash()/
+        isomorphic() use — see starlayergraph.compare._decompose()) before
+        reasoning runs. owlrl's RDFS closure asserts "x rdf:type
+        rdfs:Resource" for every term seen anywhere in a triple, including
+        subject position, and a triple term is never legal there under RDF
+        1.2 — confirmed live, owlrl crashes with this class's own "triple
+        terms are not permitted in subject position" guard otherwise (see
+        add()). The returned graph reflects this: a triple term present in
+        self comes back as its decomposed reification fragment, not as a
+        TripleTerm — not a byte-identical RDF 1.2 copy for that part.
+
+        owlrl has no truth maintenance: retracting a fact from self later
+        does not retract anything this call already entailed from it.
+        Re-run infer() from the original facts after any edit, rather than
+        trying to patch a previous call's output.
+        """
+        try:
+            import owlrl
+        except ImportError as exc:
+            raise ImportError(
+                "StarLayerGraph.infer() requires the optional 'owlrl' dependency - "
+                "install via `pip install starlayergraph[reasoning]` (or `pip install owlrl` directly)."
+            ) from exc
+
+        profiles = {'rdfs': owlrl.RDFS_Semantics, 'owl-rl': owlrl.OWLRL_Semantics}
+        semantics = profiles.get(profile)
+        if semantics is None:
+            raise ValueError(f"Unsupported profile {profile!r}; expected one of {sorted(profiles)}")
+
+        if target_graph is None:
+            target_graph = StarLayerGraph()
+            for prefix, ns in self.namespaces():
+                target_graph.bind(prefix, ns)
+        elif not isinstance(target_graph, StarLayerGraph):
+            raise TypeError(
+                f"infer() target_graph must be a StarLayerGraph, not {type(target_graph).__name__}. "
+                "A plain rdflib.Graph cannot store TripleTerms."
+            )
+
+        from starlayergraph.compare import _decompose
+        decomposed = _decompose(self)
+        owlrl.DeductiveClosure(semantics).expand(decomposed)
+        for t in decomposed:
+            target_graph.add(t)
+        return target_graph
 
     @classmethod
     def from_rdflib(cls, source_graph):

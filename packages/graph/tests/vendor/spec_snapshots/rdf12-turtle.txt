@@ -1,7 +1,7 @@
 RDF 1.2 Turtle
 Snapshot source: https://www.w3.org/TR/rdf12-turtle/
-Status at fetch time: W3C Working Draft 12 June 2026
-Published: 2026-06-12
+Status at fetch time: W3C Working Draft 14 September 2026
+Published: 2026-09-14
 Copyright © 2004-2026 World Wide Web Consortium. Distributed under the
 W3C Software and Document License: https://www.w3.org/copyright/software-license-2023/
 See tests/vendor/spec_snapshots/README.md for how this snapshot is used and regenerated.
@@ -13,12 +13,12 @@ See tests/vendor/spec_snapshots/README.md for how this snapshot is used and rege
 
 ## Terse RDF Triple Language
 
-[W3C Working Draft](https://www.w3.org/standards/types#WD) 12 June 2026
+[W3C Working Draft](https://www.w3.org/standards/types#WD) 14 September 2026
 
 More details about this document
 
 This version:
-     <https://www.w3.org/TR/2026/WD-rdf12-turtle-20260612/>
+     <https://www.w3.org/TR/2026/WD-rdf12-turtle-20260914/>
 Latest published version:
      <https://www.w3.org/TR/rdf12-turtle/>
 Latest editor's draft:
@@ -194,6 +194,7 @@ Example 1: Example Turtle
     PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
     PREFIX foaf: <http://xmlns.com/foaf/0.1/>
     PREFIX rel: <http://www.perceive.net/schemas/relationship/>
+    PREFIX dct: <http://purl.org/dc/terms/>
     
     <#green-goblin>
       rel:enemyOf <#spiderman> ;
@@ -203,14 +204,17 @@ Example 1: Example Turtle
     <#spiderman>
       rel:enemyOf <#green-goblin> ;
       a foaf:Person ;
-      foaf:name "Spiderman", "Человек-паук"@ru .
+      foaf:name "Spiderman",
+       "الرجل العنكبوت"@ar--rtl {| dct:source <https://www.wikidata.org/> |}.
     
 
-This example introduces many of features of the Turtle language: BASE and Relative IRI references, PREFIX and prefixed names, predicate lists separated by `;`, object lists separated by `,`, the token `a`, and literals. 
+This example introduces many features of the Turtle language: BASE and Relative IRI references, PREFIX and prefixed names, predicate lists separated by `;`, object lists separated by `,`, the token `a`, literals, and annotations. 
 
 The Turtle grammar for `triples` is a subset of [SPARQL 1.2 Query Language](https://www.w3.org/TR/sparql12-query/) [SPARQL12-QUERY] grammar for [`TriplesBlock`](https://www.w3.org/TR/sparql12-query/#rTriplesBlock). The two grammars share production and terminal names where possible. 
 
 The construction of an [RDF graph](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-graph) from a Turtle document is defined in Turtle Grammar and Parsing. 
+
+This version of Turtle is fully syntactically and semantically backward compatible with the previous version [RDF 1.1 Turtle](https://www.w3.org/TR/turtle/). 
 
 ## 2\. Turtle Language
 
@@ -306,11 +310,11 @@ Example 9: HTTP response announcing Turtle version 1.2 response
     Content-Type: text/turtle; version=1.2
     
 
-When using RDF 1.2-specific features, such as [initial text direction](https://www.w3.org/TR/rdf12-concepts/#dfn-base-direction), the specific RDF version should be announced using either `VERSION` or `@version` directives early in the document. This allows parsers that do not support these features to detect the presense of such features early, and potentially inform the user, giving them an opportunity to stop the job or otherwise act on the fact that some amount of the input data will not be processed as desired. 
+When using RDF 1.2-specific features, such as [initial text direction](https://www.w3.org/TR/rdf12-concepts/#dfn-base-direction), the specific RDF version should be announced using either `VERSION` or `@version` directives early in the document. This allows parsers that do not support these features to detect their possible presence early on, and potentially inform the user, giving them an opportunity to stop the job or otherwise act on the fact that the output data may be a subset of the anticipated output. 
 
 Multiple version directives may appear in a Turtle document. The directive applies to the part of the document following the directive, until another directive is encountered or the end of the document is reached. 
 
-In the absence of a current version directive, any version specified as part of the Media Type is considered. In the absence of any version information, a sensible default is `"1.1"`, to maximize compatibility with the previous version of Turtle [TURTLE]. In any case, the version announcement is merely a hint; parsers are not required to reject features that are outside the announced version (but could signal them with a warning). 
+In the absence of a current version directive, any version specified as part of the Media Type is considered. In any case, the version announcement is a hint; parsers are not required to reject features that are outside the announced version (but could signal them with a warning). 
 
 Note
 
@@ -320,7 +324,7 @@ While `"1.1"` is an acceptable version label, its use in a `VERSION` or `@versio
 
 ### 2.5 IRIs
 
-[IRIs](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) may be written as [resolved](https://www.rfc-editor.org/rfc/rfc3986#section-5) IRIs, [Relative IRI references](https://www.w3.org/TR/rdf12-concepts/#dfn-relative-iri), or prefixed names. Relative and resolved IRIs are preceded by `<`, followed by `>`, and may contain numeric escape sequences (described below). For example, `<http://example.org/#green-goblin>`. 
+[IRIs](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) may be written as [resolved](https://www.rfc-editor.org/info/rfc3986/#section-5) IRIs, [Relative IRI references](https://www.w3.org/TR/rdf12-concepts/#dfn-relative-iri), or prefixed names. Relative and resolved IRIs are preceded by `<`, followed by `>`, and may contain numeric escape sequences (described below). For example, `<http://example.org/#green-goblin>`. 
 
 [Relative IRI references](https://www.w3.org/TR/rdf12-concepts/#dfn-relative-iri) like `<#green-goblin>` are resolved relative to the current base IRI. A new base IRI can be defined using the `@base` or `BASE` directive. Specifics of this operation are defined in 6.3 IRI References.
 
@@ -430,12 +434,12 @@ If there is no language tag, there may be a [datatype IRI](https://www.w3.org/TR
 
 If there is no datatype IRI and no language tag, the datatype is `xsd:string`. 
 
-A `\` may not appear in any quoted literal except as part of an escape sequence. Other restrictions depend on the delimiter:
+A `\` cannot appear in any quoted literal except as part of an escape sequence. Other restrictions depend on the delimiter:
 
-  * Literals delimited by `'` may not contain unescaped `'`, `LF`, nor `CR` characters.
-  * Literals delimited by `"` may not contain unescaped `"`, `LF`, nor `CR` characters.
-  * Literals delimited by `'''` may not contain such a sequence.
-  * Literals delimited by `"""` may not contain such a sequence.
+  * Literals delimited by `'` cannot contain unescaped `'`, `LF`, nor `CR` characters.
+  * Literals delimited by `"` cannot contain unescaped `"`, `LF`, nor `CR` characters.
+  * Literals delimited by `'''` cannot contain such a sequence.
+  * Literals delimited by `"""` cannot contain such a sequence.
 
 
 
@@ -531,9 +535,7 @@ The Turtle grammar allows `blankNodePropertyList`s to be nested. In this case, e
 
 The use of `predicateObjectList` within a `blankNodePropertyList` is a common idiom for representing a series of properties of a node. 
 
-Abbreviated: | Corresponding simple triples:  
----|---  
-Example 19
+Example 19: Abbreviated predicateObjectList
     
     
     PREFIX foaf: <http://xmlns.com/foaf/0.1/>
@@ -545,7 +547,7 @@ Example 19
         foaf:mbox <mailto:bob@example.com> ] .
     
 
-|  Example 20
+Example 20: Its corresponding simple triples
     
     
     _:a <http://xmlns.com/foaf/0.1/name> "Alice" .
@@ -554,11 +556,11 @@ Example 19
     _:b <http://xmlns.com/foaf/0.1/knows> _:c .
     _:c <http://xmlns.com/foaf/0.1/name> "Eve" .
     _:b <http://xmlns.com/foaf/0.1/mbox> <mailto:bob@example.com> .
-      
-  
+    
+
 ### 2.9 Collections
 
-RDF provides a [Collection](https://www.w3.org/TR/rdf12-semantics/#rdf-collections) [RDF12-SEMANTICS] structure for lists of RDF nodes. The Turtle syntax for Collections is a possibly empty list of [RDF terms](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-term) enclosed by `(``)`. This collection represents an `rdf:first`/`rdf:rest` list structure with the sequence of objects of the `rdf:first` statements being the order of the terms enclosed by `(``)`. 
+RDF provides a [Collection](https://www.w3.org/TR/rdf12-schema/#ch_collectionvocab) [RDF12-SCHEMA] structure for lists of RDF nodes. The Turtle syntax for Collections is a possibly empty list of [RDF terms](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-term) enclosed by `(``)`. This collection represents an `rdf:first`/`rdf:rest` list structure with the sequence of objects of the `rdf:first` statements being the order of the terms enclosed by `(``)`. 
 
 The `(…)` syntax _MUST_ appear in the `subject` or `object` position of a triple (see the Turtle Grammar). The [blank node](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node) at the head of the list is the subject or object of the containing triple. 
 
@@ -599,17 +601,9 @@ A `reifiedTriple` is syntactic sugar representing a [reifying triple](https://ww
 
 Note
 
-Reification in RDF 1.2 is a concept distinct from the [Reification vocabulary](https://www.w3.org/TR/rdf12-semantics/#Reif) originally defined in [RDF Semantics](https://www.w3.org/TR/rdf-mt/#Reif). While both terms describe a representation of an RDF triple using components, RDF 1.2 uses the term to identify a [triple term](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term) using the `rdf:reifies` predicate.
+Reification in RDF 1.2 is a concept distinct from the [Reification vocabulary](https://www.w3.org/TR/rdf12-schema/#ch_reificationvocab) originally defined in [RDF Semantics](https://www.w3.org/TR/rdf-mt/#Reif). While both terms describe a representation of an RDF triple using components, RDF 1.2 uses the term to identify a [triple term](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term) using the `rdf:reifies` predicate.
 
-A [reifying triple](https://www.w3.org/TR/rdf12-concepts/#dfn-reifying-triple) is represented using the `reifiedTriple` production starting with `<<`, followed by a `rtSubject`, a `predicate`, and a `rtObject`, followed by an optional `reifier`, composed of a `~` followed by an optional `iri` production or `BlankNode` production, and ending with `>>`. For example, `<< :subject :predicate :object ~ :IRIREF >>`. If no reifiers are present, or a `reifier` is not immediately followed by an `iri` or `BlankNode`, a fresh [RDF blank node](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node) is allocated, as with `<< :subject :predicate :object >>`, or `<< :subject :predicate :object ~ >>`.
-
-Note
-
-`reifiedTriples` may be nested, like   
-`<< :subject1 :predicate1 << :subject2 :predicate2 :object2 >> ~:IRIREF1 >>` or   
-`<< :subject4 :predicate4 << :subject3 :predicate3 :object3 ~:IRIREF3 >> >>`.
-
-If a `reifiedTriple` is not identified by an [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) or [blank node](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node), a fresh RDF [blank node](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node) is allocated and used to identify this relationship.
+A [reifying triple](https://www.w3.org/TR/rdf12-concepts/#dfn-reifying-triple) is represented using the `reifiedTriple` production starting with `<<`, followed by a `rtSubject`, a `predicate`, and a `rtObject`, followed by an optional `reifier`, composed of a `~` followed by an optional `iri` production or `BlankNode` production, and ending with `>>`. For example, `<< :subject :predicate :object ~ :IRIREF >>`. If no reifiers are present, or a `~` is not immediately followed by an `iri` or `BlankNode`, a fresh [RDF blank node](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node) is allocated, as with `<< :subject :predicate :object >>`, or `<< :subject :predicate :object ~ >>`.
 
 Example 23: Reified Triple
     
@@ -636,19 +630,24 @@ Example 25: Reified Triple expanded to Triple Term
     
     
     PREFIX :    <http://www.example.org/>
+    PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
     
     :employee38 :familyName "Smith" .
     _:id rdf:reifies <<( :employee38 :jobTitle "Assistant Designer" )>> .
     _:id :accordingTo :employee22 .
     
 
+Each of the examples above asserts that `:employee38` has a `:familyName` of "Smith". None of the examples asserts that `:employee38` has a `:jobTitle` of "Assistant Designer". Rather, the latter triple is used as a [triple term](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term), which is the object of a [reifying triple](https://www.w3.org/TR/rdf12-concepts/#dfn-reifying-triple). The [reifier](https://www.w3.org/TR/rdf12-concepts/#dfn-reifier) is related to `:employee22` using `:accordingTo`.
+
 Note
 
-Note the difference in syntax between the syntactic sugar of `reifiedTriple` (i.e., `<< [...] >>`) and the regular `tripleTerm` (i.e., `<<( [...] )>>`).
+Note the difference in syntax between the syntactic sugar of a `reifiedTriple`   
+(i.e., `<< [...] >>`) and the regular `tripleTerm`   
+(i.e., `<<( [...] )>>`).
 
-After declaring a prefix so that IRIs can be abbreviated, the first triple in this example asserts that `employee38` has a `familyName` of "Smith". Note that this graph does not assert that `employee38` has a `jobTitle` of "Assistant Designer"; it says that `employee22` has made that claim using a `reifiedTriple`. In other words, the triple "`employee38` has a `jobTitle` of 'Assistant Designer'" is not a member of the graph, itself, as "employee38 has a `familyName` of 'Smith'" is above; rather, it is known as a [reifying triple](https://www.w3.org/TR/rdf12-concepts/#dfn-reifying-triple).
-
-A `reifiedTriple` is syntactic sugar relating a [reifier](https://www.w3.org/TR/rdf12-concepts/#dfn-reifier) to a `tripleTerm` using the `rdf:reifies` predicate.
+Also note that a `reifiedTriple` can be nested inside another, as in   
+`<< :subject1 :predicate1 << :subject2 :predicate2 :object2 >> ~:IRIREF1 >>` or   
+`<< :subject4 :predicate4 << :subject3 :predicate3 :object3 ~:IRIREF3 >> >>`.
 
 #### 2.11.1 Annotation Syntax
 
@@ -959,9 +958,9 @@ Comments in Turtle start with a `#` outside an `IRIREF`, `STRING_LITERAL_SINGLE_
 
 ### 6.3 IRI References
 
-[Relative IRI references](https://www.w3.org/TR/rdf12-concepts/#dfn-relative-iri) are resolved with base IRIs as per [Uniform Resource Identifier (URI): Generic Syntax](https://www.rfc-editor.org/rfc/rfc3986) [RFC3986] using only the basic algorithm in section 5.2. Neither Syntax-Based Normalization nor Scheme-Based Normalization (described in sections 6.2.2 and 6.2.3 of RFC3986) are performed. Characters additionally allowed in IRI references are treated in the same way that unreserved characters are treated in URI references, per section 6.5 of [Internationalized Resource Identifiers (IRIs)](https://www.rfc-editor.org/rfc/rfc3987) [RFC3987]. 
+[Relative IRI references](https://www.w3.org/TR/rdf12-concepts/#dfn-relative-iri) are resolved with base IRIs as per [Uniform Resource Identifier (URI): Generic Syntax](https://www.rfc-editor.org/info/rfc3986/) [RFC3986] using only the basic algorithm in section 5.2. Neither Syntax-Based Normalization nor Scheme-Based Normalization (described in sections 6.2.2 and 6.2.3 of RFC3986) are performed. Characters additionally allowed in IRI references are treated in the same way that unreserved characters are treated in URI references, per section 6.5 of [Internationalized Resource Identifiers (IRIs)](https://www.rfc-editor.org/info/rfc3987/) [RFC3987]. 
 
-The `@base` or `BASE` directive defines the Base IRI used to resolve [relative IRI references](https://www.w3.org/TR/rdf12-concepts/#dfn-relative-iri) per [RFC3986] [section 5.1.1, "Base URI Embedded in Content"](https://www.rfc-editor.org/rfc/rfc3986#section-5.1.1). [Section 5.1.2, "Base URI from the Encapsulating Entity"](https://www.rfc-editor.org/rfc/rfc3986#section-5.1.2) defines how the In-Scope Base IRI may come from an encapsulating document, such as a SOAP envelope with an `xml:base` directive or a MIME multipart document with a `Content-Location` header. The "Retrieval URI" identified in [5.1.3, Base "URI from the Retrieval URI"](https://www.rfc-editor.org/rfc/rfc3986#section-5.1.3), is the URL from which a particular Turtle document was retrieved. If none of the above specifies the Base URI, the default Base URI ([section 5.1.4, "Default Base URI"](https://www.rfc-editor.org/rfc/rfc3986#section-5.1.4)) is used. Each `@base` or `BASE` directive sets a new In-Scope Base URI, relative to the previous one. 
+The `@base` or `BASE` directive defines the Base IRI used to resolve [relative IRI references](https://www.w3.org/TR/rdf12-concepts/#dfn-relative-iri) per [RFC3986] [section 5.1.1, "Base URI Embedded in Content"](https://www.rfc-editor.org/info/rfc3986/#section-5.1.1). [Section 5.1.2, "Base URI from the Encapsulating Entity"](https://www.rfc-editor.org/info/rfc3986/#section-5.1.2) defines how the In-Scope Base IRI may come from an encapsulating document, such as a SOAP envelope with an `xml:base` directive or a MIME multipart document with a `Content-Location` header. The "Retrieval URI" identified in [5.1.3, Base "URI from the Retrieval URI"](https://www.rfc-editor.org/info/rfc3986/#section-5.1.3), is the URL from which a particular Turtle document was retrieved. If none of the above specifies the Base URI, the default Base URI ([section 5.1.4, "Default Base URI"](https://www.rfc-editor.org/info/rfc3986/#section-5.1.4)) is used. Each `@base` or `BASE` directive sets a new In-Scope Base URI, relative to the previous one. 
 
 ### 6.4 Escape Sequences
 
@@ -1217,16 +1216,16 @@ This table maps productions and lexical tokens to [RDF terms](https://www.w3.org
 
 production |  type | procedure  
 ---|---|---  
-IRIREF | [IRI ](https://www.w3.org/TR/rdf12-concepts/#dfn-iri)| The characters between `<` and `>` are taken, with the numeric escape sequences unescaped, to form the IRI. [Relative IRI reference](https://www.w3.org/TR/rdf12-concepts/#dfn-relative-iri) resolution is performed per Section 6.3. The resulting IRI _MUST_ comply with the [syntactic restrictions](https://www.rfc-editor.org/rfc/rfc3987#section-2.2) of generic IRI syntax, and _SHOULD_ conform to [section 3.3](https://www.rfc-editor.org/rfc/rfc3986#section-3.3) of [RFC3986] and comply with any narrower restrictions imposed by the corresponding IRI scheme specification.  
+IRIREF | [IRI ](https://www.w3.org/TR/rdf12-concepts/#dfn-iri)| The characters between `<` and `>` are taken, with the numeric escape sequences unescaped, to form the IRI. [Relative IRI reference](https://www.w3.org/TR/rdf12-concepts/#dfn-relative-iri) resolution is performed per Section 6.3. The resulting IRI _MUST_ comply with the [syntactic restrictions](https://www.rfc-editor.org/info/rfc3987/#section-2.2) of generic IRI syntax, and _SHOULD_ conform to [section 3.3](https://www.rfc-editor.org/info/rfc3986/#section-3.3) of [RFC3986] and comply with any narrower restrictions imposed by the corresponding IRI scheme specification.  
 PNAME_NS | prefix | When used in a `prefixID` or `sparqlPrefix` production, the `prefix` is the potentially empty [RDF string](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-string) matching the first argument of the rule is a key into the namespaces map into which the expanded second argument is stored for future lookup.  
-[IRI ](https://www.w3.org/TR/rdf12-concepts/#dfn-iri)| When used in a `PrefixedName` production; the namespaces map _MUST_ have a corresponding `namespace`, which forms the [RDF string](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-string) of the IRI. The resulting IRI _MUST_ comply with the [syntactic restrictions](https://www.rfc-editor.org/rfc/rfc3987#section-2.2) of generic IRI syntax, and _SHOULD_ comply with any narrower restrictions imposed by the corresponding IRI scheme specification.  
-PNAME_LN | [IRI ](https://www.w3.org/TR/rdf12-concepts/#dfn-iri)| A potentially empty prefix is identified by the first sequence, `PNAME_NS`. The namespaces map __MUST__ have a corresponding `namespace`. The [RDF string](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-string) of the IRI is formed by unescaping the reserved characters in the second argument, `PN_LOCAL`, and concatenating this onto the `namespace`. The resulting IRI _MUST_ comply with the [syntactic restrictions](https://www.rfc-editor.org/rfc/rfc3987#section-2.2) of generic IRI syntax, and _SHOULD_ comply with any narrower restrictions imposed by the corresponding IRI scheme specification.  
-VersionSpecifier | [literal. ](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-literal)| The curVersion is taken from a literal using the matched [RDF string](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-string) lexical form and `xsd:string` datatype.  
+[IRI ](https://www.w3.org/TR/rdf12-concepts/#dfn-iri)| When used in a `PrefixedName` production; the namespaces map _MUST_ have a corresponding `namespace`, which forms the [RDF string](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-string) of the IRI. The resulting IRI _MUST_ comply with the [syntactic restrictions](https://www.rfc-editor.org/info/rfc3987/#section-2.2) of generic IRI syntax, and _SHOULD_ comply with any narrower restrictions imposed by the corresponding IRI scheme specification.  
+PNAME_LN | [IRI ](https://www.w3.org/TR/rdf12-concepts/#dfn-iri)| A potentially empty prefix is identified by the first sequence, `PNAME_NS`. The namespaces map __MUST__ have a corresponding `namespace`. The [RDF string](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-string) of the IRI is formed by unescaping the reserved characters in the second argument, `PN_LOCAL`, and concatenating this onto the `namespace`. The resulting IRI _MUST_ comply with the [syntactic restrictions](https://www.rfc-editor.org/info/rfc3987/#section-2.2) of generic IRI syntax, and _SHOULD_ comply with any narrower restrictions imposed by the corresponding IRI scheme specification.  
+VersionSpecifier | [literal ](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-literal)| The curVersion is taken from a literal using the matched [RDF string](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-string) lexical form and `xsd:string` datatype.  
 STRING_LITERAL_SINGLE_QUOTE | [lexical form ](https://www.w3.org/TR/rdf12-concepts/#dfn-lexical-form)| The characters between the outermost `'`s are taken, after numeric and string escape sequences are replaced with the characters that they represent, to form the [RDF string](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-string) of a lexical form.  
 STRING_LITERAL_QUOTE | [lexical form ](https://www.w3.org/TR/rdf12-concepts/#dfn-lexical-form)| The characters between the outermost `"`s are taken, with numeric and string escape sequences unescaped, to form the [RDF string](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-string) of a lexical form.  
 STRING_LITERAL_LONG_SINGLE_QUOTE| [lexical form ](https://www.w3.org/TR/rdf12-concepts/#dfn-lexical-form)| The characters between the outermost `'''`s are taken, with numeric and string escape sequences unescaped, to form the [RDF string](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-string) of a lexical form.  
 STRING_LITERAL_LONG_QUOTE | [lexical form ](https://www.w3.org/TR/rdf12-concepts/#dfn-lexical-form)| The characters between the outermost `"""`s are taken, after numeric and string escape sequences are are replaced with the characters that they represent, to form the [RDF string](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-string) of a lexical form.  
-LANG_DIR | [language tag ](https://www.w3.org/TR/rdf12-concepts/#dfn-language-tag)| The characters following the `@` form the [language tag](https://www.w3.org/TR/rdf12-concepts/#dfn-language-tag) and optionally the [initial text direction](https://www.w3.org/TR/rdf12-concepts/#dfn-base-direction), if the matched characters include `--`. The [language tag](https://www.w3.org/TR/rdf12-concepts/#dfn-language-tag) _MUST_ be well-formed according to [section 2.2.9](https://www.rfc-editor.org/rfc/rfc5646#section-2.2.9) of [BCP47]. If present, the [initial text direction](https://www.w3.org/TR/rdf12-concepts/#dfn-base-direction) _MUST_ be either `ltr` or `rtl`.  
+LANG_DIR | [language tag ](https://www.w3.org/TR/rdf12-concepts/#dfn-language-tag)| The characters following the `@` form the [language tag](https://www.w3.org/TR/rdf12-concepts/#dfn-language-tag) and optionally the [initial text direction](https://www.w3.org/TR/rdf12-concepts/#dfn-base-direction), if the matched characters include `--`. The [language tag](https://www.w3.org/TR/rdf12-concepts/#dfn-language-tag) _MUST_ be well-formed according to [section 2.2.9](https://www.rfc-editor.org/info/bcp47#section-2.2.9) of [BCP47]. If present, the [initial text direction](https://www.w3.org/TR/rdf12-concepts/#dfn-base-direction) _MUST_ be either `ltr` or `rtl`.  
 RDFLiteral | [literal ](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-literal)| The literal has a lexical form of the first rule argument, `String`. If the `'^^' iri` rule is matched, the [datatype IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-datatype-iri) is derived from the `iri`, and the literal has no language tag. If the `LANG_DIR` rule is matched, the [language tag](https://www.w3.org/TR/rdf12-concepts/#dfn-language-tag) and [initial text direction](https://www.w3.org/TR/rdf12-concepts/#dfn-base-direction) are taken from `LANG_DIR`. If there is no [initial text direction](https://www.w3.org/TR/rdf12-concepts/#dfn-base-direction), the datatype is `rdf:langString`. If there is a [initial text direction](https://www.w3.org/TR/rdf12-concepts/#dfn-base-direction), the datatype is `rdf:dirLangString`. If neither matched, the datatype is `xsd:string`, and the literal has no language tag.  
 INTEGER | [literal ](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-literal)| The literal has a lexical form of the input string, and a datatype of `xsd:integer`.  
 DECIMAL | [literal ](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-literal)| The literal has a lexical form of the input string, and a datatype of `xsd:decimal`.  
@@ -1385,9 +1384,9 @@ The Turtle language is used to express arbitrary application data; security cons
 
 Turtle can express data which is presented to the user, such as RDF Schema labels. Applications rendering strings retrieved from untrusted Turtle documents, or using unescaped characters, _SHOULD_ use warnings and other appropriate means to limit the possibility that malignant strings might be used to mislead the reader. The security considerations in the media type registration for XML ([RFC3023] section 10) provide additional guidance around the expression of arbitrary data and markup.
 
-Turtle uses [IRIs](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) as term identifiers. Applications interpreting data expressed in Turtle _SHOULD_ address the security issues of [Internationalized Resource Identifiers (IRIs)](https://www.rfc-editor.org/rfc/rfc3987) [RFC3987] Section 8, as well as [Uniform Resource Identifier (URI): Generic Syntax](https://www.rfc-editor.org/rfc/rfc3986) [RFC3986] Section 7.
+Turtle uses [IRIs](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) as term identifiers. Applications interpreting data expressed in Turtle _SHOULD_ address the security issues of [Internationalized Resource Identifiers (IRIs)](https://www.rfc-editor.org/info/rfc3987/) [RFC3987] Section 8, as well as [Uniform Resource Identifier (URI): Generic Syntax](https://www.rfc-editor.org/info/rfc3986/) [RFC3986] Section 7.
 
-Multiple [IRIs](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) may have the same appearance. Characters in different scripts may look similar (for instance, a Cyrillic "о" (code point `U+043E`) may appear similar to a Latin "o" (code point `U+006F`)). A character followed by combining characters may have the same visual representation as another character (for example, LATIN SMALL LETTER "E" (code point `U+0065`) followed by COMBINING ACUTE ACCENT (code point `U+0301`) has the same visual representation as LATIN SMALL LETTER "E" WITH ACUTE (`U+00E9`)). Any person or application that is writing or interpreting data in Turtle must take care to use the IRI that matches the intended semantics, and avoid IRIs that may look similar. Further information about matching visually similar characters can be found in [Unicode Security Considerations](https://www.unicode.org/reports/tr36/tr36-15.html) [UNICODE-SECURITY] and [Internationalized Resource Identifiers (IRIs)](https://www.rfc-editor.org/rfc/rfc3987) [RFC3987] Section 8.
+Multiple [IRIs](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) may have the same appearance. Characters in different scripts may look similar (for instance, a Cyrillic "о" (code point `U+043E`) may appear similar to a Latin "o" (code point `U+006F`)). A character followed by combining characters may have the same visual representation as another character (for example, LATIN SMALL LETTER "E" (code point `U+0065`) followed by COMBINING ACUTE ACCENT (code point `U+0301`) has the same visual representation as LATIN SMALL LETTER "E" WITH ACUTE (`U+00E9`)). Any person or application that is writing or interpreting data in Turtle must take care to use the IRI that matches the intended semantics, and avoid IRIs that may look similar. Further information about matching visually similar characters can be found in [Unicode Security Considerations](https://www.unicode.org/reports/tr36/tr36-15.html) [UNICODE-SECURITY] and [Internationalized Resource Identifiers (IRIs)](https://www.rfc-editor.org/info/rfc3987/) [RFC3987] Section 8.
 
 ## D. Internet Media Type and File Extension
 
@@ -1473,9 +1472,9 @@ The document was improved through the review process by the wider community.
 
  _This section is non-normative._
 
-In addition to the editors, the following people have contributed to this specification: Andrew Louis, Denis Ah-Kang, John Walker, Mirek Kratochvil, Niklas Lindström, Peter F. Patel-Schneider, Pierre-Antoine Champin, Ted Thibodeau Jr, Thomas Tanon, and William Van Woensel
+In addition to the editors, the following people have contributed to this specification: Andrew Louis, Denis Ah-Kang, Gregory Todd Williams, John Walker, Mirek Kratochvil, Niklas Lindström, Peter F. Patel-Schneider, Pierre-Antoine Champin, Ted Thibodeau Jr, Thomas Tanon, and William Van Woensel
 
-Members of the RDF & SPARQL Working Group Group included   
+Members of the RDF & SPARQL Working Group included the following:   
 James Anderson, Dörthe Arndt, Jerven Bolleman, Erich Bremer, Pierre-Antoine Champin, Souripriya Das, Enrico Franconi, Adrian Gschwend, Olaf Hartig, Gregg Kellogg†, Ora Lassila, Niklas Lindström, Thomas Lörtsch, Peter Patel-Schneider, Dave Raggett, Felix Sasaki, Andy Seaborne, Ruben Taelman, Thomas Pellissier Tanon, Ted Thibodeau Jr, Dominik Tomaszuk, Gregory Williams, William Van Woensel, and Antoine Zimmermann   
 † Gregg Kellogg passed away in September 2025. His vast contributions to RDF and the broader ecosystem of related standards are gratefully acknowledged. 
 
@@ -1486,6 +1485,10 @@ Recognize members of the Task Force? Not an easy to find list of contributors.
 ## F. Changes between RDF 1.1 and RDF 1.2
 
  _This section is non-normative._
+
+This specification extends the original Turtle syntax, as defined in [RDF 1.1 Turtle](https://www.w3.org/TR/turtle/), to support the new features introduced by [RDF 1.2 Concepts and Abstract Data Model](https://www.w3.org/TR/rdf12-concepts/). This extension is fully backward compatible: any document complying with the old version complies with the new version, and parses to the same graph. Furthermore, any document complying with the new version and containing only RDF 1.1 features is also compliant with the older version (with the exception of the `VERSION` directive; see 2.4 Version Announcement). Finally, none of the new syntactic constructs are valid in the old syntax. This means that any Turtle document using RDF 1.2 features does not comply with the previous version of this specification and cannot be interpreted as a different graph under it. 
+
+More specifically, the following changes have been made:
 
   * Update informative restrictions on included characters for `STRING_LITERAL_QUOTE` and `STRING_LITERAL_SINGLE_QUOTE`.
   * Separated C. Security Considerations from D. Internet Media Type and File Extension and updated language.
@@ -1547,7 +1550,7 @@ Recognize members of the Task Force? Not an easy to find list of contributors.
     * subject
     * triple
     * triple terms
-  * [RDF12-SEMANTICS] defines the following: 
+  * [RDF12-SCHEMA] defines the following: 
     * Collection
     * Reification vocabulary
   * [RDF12-XML] defines the following: 
@@ -1579,7 +1582,7 @@ Recognize members of the Task Force? Not an easy to find list of contributors.
 ### H.1 Normative references
 
 [BCP47]
-     [Tags for Identifying Languages](https://www.rfc-editor.org/rfc/rfc5646). A. Phillips, Ed.; M. Davis, Ed. IETF. September 2009. Best Current Practice. URL: <https://www.rfc-editor.org/rfc/rfc5646>
+     [Tags for Identifying Languages](https://www.rfc-editor.org/info/bcp47). Addison Phillips; Mark Davis. IETF. September 2009. Best Current Practice. URL: <https://www.rfc-editor.org/info/bcp47>
 [EBNF-NOTATION]
      [EBNF Notation](https://www.w3.org/TR/xml/#sec-notation). Tim Bray; Jean Paoli; Michael Sperberg-McQueen; Eve Maler; François Yergeau et al. W3C. W3C Recommendation. URL: <https://www.w3.org/TR/xml/#sec-notation>
 [I18N-GLOSSARY]
@@ -1587,17 +1590,17 @@ Recognize members of the Task Force? Not an easy to find list of contributors.
 [RDF12-CONCEPTS]
      [RDF 1.2 Concepts and Abstract Data Model](https://www.w3.org/TR/rdf12-concepts/). Andy Seaborne; Gregg Kellogg; Olaf Hartig; Pierre-Antoine Champin. W3C. 7 April 2026. W3C Candidate Recommendation. URL: <https://www.w3.org/TR/rdf12-concepts/>
 [RFC2119]
-     [Key words for use in RFCs to Indicate Requirement Levels](https://www.rfc-editor.org/rfc/rfc2119). S. Bradner. IETF. March 1997. Best Current Practice. URL: <https://www.rfc-editor.org/rfc/rfc2119>
+     [Key words for use in RFCs to Indicate Requirement Levels](https://www.rfc-editor.org/info/rfc2119/). S. Bradner. IETF. March 1997. Best Current Practice. URL: <https://www.rfc-editor.org/info/rfc2119/>
 [RFC3629]
-     [UTF-8, a transformation format of ISO 10646](https://www.rfc-editor.org/rfc/rfc3629). F. Yergeau. IETF. November 2003. Internet Standard. URL: <https://www.rfc-editor.org/rfc/rfc3629>
+     [UTF-8, a transformation format of ISO 10646](https://www.rfc-editor.org/info/rfc3629/). F. Yergeau. IETF. November 2003. Internet Standard. URL: <https://www.rfc-editor.org/info/rfc3629/>
 [RFC3986]
-     [Uniform Resource Identifier (URI): Generic Syntax](https://www.rfc-editor.org/rfc/rfc3986). T. Berners-Lee; R. Fielding; L. Masinter. IETF. January 2005. Internet Standard. URL: <https://www.rfc-editor.org/rfc/rfc3986>
+     [Uniform Resource Identifier (URI): Generic Syntax](https://www.rfc-editor.org/info/rfc3986/). T. Berners-Lee; R. Fielding; L. Masinter. IETF. January 2005. Internet Standard. URL: <https://www.rfc-editor.org/info/rfc3986/>
 [RFC3987]
-     [Internationalized Resource Identifiers (IRIs)](https://www.rfc-editor.org/rfc/rfc3987). M. Duerst; M. Suignard. IETF. January 2005. Proposed Standard. URL: <https://www.rfc-editor.org/rfc/rfc3987>
+     [Internationalized Resource Identifiers (IRIs)](https://www.rfc-editor.org/info/rfc3987/). M. Duerst; M. Suignard. IETF. January 2005. Proposed Standard. URL: <https://www.rfc-editor.org/info/rfc3987/>
 [RFC6906]
-     [The 'profile' Link Relation Type](https://www.rfc-editor.org/rfc/rfc6906). E. Wilde. IETF. March 2013. Informational. URL: <https://www.rfc-editor.org/rfc/rfc6906>
+     [The 'profile' Link Relation Type](https://www.rfc-editor.org/info/rfc6906/). E. Wilde. IETF. March 2013. Informational. URL: <https://www.rfc-editor.org/info/rfc6906/>
 [RFC8174]
-     [Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words](https://www.rfc-editor.org/rfc/rfc8174). B. Leiba. IETF. May 2017. Best Current Practice. URL: <https://www.rfc-editor.org/rfc/rfc8174>
+     [Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words](https://www.rfc-editor.org/info/rfc8174/). B. Leiba. IETF. May 2017. Best Current Practice. URL: <https://www.rfc-editor.org/info/rfc8174/>
 [UNICODE]
      [The Unicode Standard](https://www.unicode.org/versions/latest/). Unicode Consortium. URL: <https://www.unicode.org/versions/latest/>
 
@@ -1614,9 +1617,9 @@ Recognize members of the Task Force? Not an easy to find list of contributors.
 [RDF12-INTEROP]
      [RDF 1.2 Interoperability](https://w3c.github.io/rdf-interop/spec/). Pierre-Antoine Champin. W3C. W3C Editor's Draft. URL: <https://w3c.github.io/rdf-interop/spec/>
 [RDF12-N-QUADS]
-     [RDF 1.2 N-Quads](https://www.w3.org/TR/rdf12-n-quads/). Gregg Kellogg; Dominik Tomaszuk. W3C. 28 May 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-n-quads/>
+     [RDF 1.2 N-Quads](https://www.w3.org/TR/rdf12-n-quads/). Gregg Kellogg; Dominik Tomaszuk. W3C. 23 July 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-n-quads/>
 [RDF12-N-TRIPLES]
-     [RDF 1.2 N-Triples](https://www.w3.org/TR/rdf12-n-triples/). Gregg Kellogg; Dominik Tomaszuk. W3C. 15 May 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-n-triples/>
+     [RDF 1.2 N-Triples](https://www.w3.org/TR/rdf12-n-triples/). Gregg Kellogg; Dominik Tomaszuk. W3C. 23 July 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-n-triples/>
 [RDF12-NEW]
      [What’s New in RDF 1.2](https://w3c.github.io/rdf-new/spec/). The W3C RDF & SPARQL Working Group. W3C. W3C Editor's Draft. URL: <https://w3c.github.io/rdf-new/spec/>
 [RDF12-PRIMER]
@@ -1626,13 +1629,13 @@ Recognize members of the Task Force? Not an easy to find list of contributors.
 [RDF12-SEMANTICS]
      [RDF 1.2 Semantics](https://www.w3.org/TR/rdf12-semantics/). Peter Patel-Schneider; Enrico Franconi; Dörthe Arndt. W3C. 7 April 2026. W3C Candidate Recommendation. URL: <https://www.w3.org/TR/rdf12-semantics/>
 [RDF12-TRIG]
-     [RDF 1.2 TriG](https://www.w3.org/TR/rdf12-trig/). Gregg Kellogg; Dominik Tomaszuk. W3C. 28 May 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-trig/>
+     [RDF 1.2 TriG](https://www.w3.org/TR/rdf12-trig/). Gregg Kellogg; Dominik Tomaszuk. W3C. 12 June 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-trig/>
 [RDF12-XML]
-     [RDF 1.2 XML Syntax](https://www.w3.org/TR/rdf12-xml/). Gregg Kellogg; Jerven Bolleman. W3C. 9 April 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-xml/>
+     [RDF 1.2 XML Syntax](https://www.w3.org/TR/rdf12-xml/). Gregg Kellogg; Jerven Bolleman. W3C. 18 June 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-xml/>
 [RFC3023]
-     [XML Media Types](https://www.rfc-editor.org/rfc/rfc3023). M. Murata; S. St. Laurent; D. Kohn. IETF. January 2001. Proposed Standard. URL: <https://www.rfc-editor.org/rfc/rfc3023>
+     [XML Media Types](https://www.rfc-editor.org/info/rfc3023/). M. Murata; S. St. Laurent; D. Kohn. IETF. January 2001. Proposed Standard. URL: <https://www.rfc-editor.org/info/rfc3023/>
 [RFC4288]
-     [Media Type Specifications and Registration Procedures](https://www.rfc-editor.org/rfc/rfc4288). N. Freed; J. Klensin. IETF. December 2005. Best Current Practice. URL: <https://www.rfc-editor.org/rfc/rfc4288>
+     [Media Type Specifications and Registration Procedures](https://www.rfc-editor.org/info/rfc4288/). N. Freed; J. Klensin. IETF. December 2005. Best Current Practice. URL: <https://www.rfc-editor.org/info/rfc4288/>
 [RFC7231]
      [Hypertext Transfer Protocol (HTTP/1.1): Semantics and Content](https://httpwg.org/specs/rfc7231.html). R. Fielding, Ed.; J. Reschke, Ed. IETF. June 2014. Proposed Standard. URL: <https://httpwg.org/specs/rfc7231.html>
 [SPARQL12-CONCEPTS]
@@ -1646,19 +1649,19 @@ Recognize members of the Task Force? Not an easy to find list of contributors.
 [SPARQL12-NEW]
      [What’s New in SPARQL 1.2](https://w3c.github.io/sparql-new/spec/). The W3C RDF & SPARQL Working Group. W3C. W3C Editor's Draft. URL: <https://w3c.github.io/sparql-new/spec/>
 [SPARQL12-PROTOCOL]
-     [SPARQL 1.2 Protocol](https://www.w3.org/TR/sparql12-protocol/). Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 26 April 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-protocol/>
+     [SPARQL 1.2 Protocol](https://www.w3.org/TR/sparql12-protocol/). Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 23 July 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-protocol/>
 [SPARQL12-QUERY]
-     [SPARQL 1.2 Query Language](https://www.w3.org/TR/sparql12-query/). Olaf Hartig; Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 28 May 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-query/>
+     [SPARQL 1.2 Query Language](https://www.w3.org/TR/sparql12-query/). Olaf Hartig; Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 20 August 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-query/>
 [SPARQL12-RESULTS-CSV-TSV]
-     [SPARQL 1.2 Query Results CSV and TSV Formats](https://www.w3.org/TR/sparql12-results-csv-tsv/). Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 28 March 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-csv-tsv/>
+     [SPARQL 1.2 Query Results CSV and TSV Formats](https://www.w3.org/TR/sparql12-results-csv-tsv/). Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 23 July 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-csv-tsv/>
 [SPARQL12-RESULTS-JSON]
-     [SPARQL 1.2 Query Results JSON Format](https://www.w3.org/TR/sparql12-results-json/). Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 28 March 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-json/>
+     [SPARQL 1.2 Query Results JSON Format](https://www.w3.org/TR/sparql12-results-json/). Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 13 August 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-json/>
 [SPARQL12-RESULTS-XML]
      [SPARQL 1.2 Query Results XML Format](https://www.w3.org/TR/sparql12-results-xml/). Ruben Taelman; Dominik Tomaszuk; Thomas Pellissier Tanon. W3C. 27 December 2024. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-xml/>
 [SPARQL12-SERVICE-DESCRIPTION]
      [SPARQL 1.2 Service Description](https://www.w3.org/TR/sparql12-service-description/). Ruben Taelman; Gregory Williams. W3C. 23 April 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-service-description/>
 [SPARQL12-UPDATE]
-     [SPARQL 1.2 Update](https://www.w3.org/TR/sparql12-update/). Ruben Taelman; Andy Seaborne; Thomas Pellissier Tanon. W3C. 23 April 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-update/>
+     [SPARQL 1.2 Update](https://www.w3.org/TR/sparql12-update/). Ruben Taelman; Andy Seaborne; Thomas Pellissier Tanon. W3C. 12 June 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-update/>
 [TURTLE]
      [RDF 1.1 Turtle](https://www.w3.org/TR/turtle/). Eric Prud'hommeaux; Gavin Carothers. W3C. 25 February 2014. W3C Recommendation. URL: <https://www.w3.org/TR/turtle/>
 [UNICODE-SECURITY]
@@ -1740,7 +1743,7 @@ Permalink
 
 
 
-[Permalink](https://www.rfc-editor.org/rfc/rfc5646#section-2.2.9)
+[Permalink](https://www.rfc-editor.org/info/bcp47#section-2.2.9)
 
 **Referenced in:**
 
@@ -1817,7 +1820,7 @@ Permalink
   * § 2.7 RDF Blank Nodes (2)
   * § 2.8 Nesting of Blank Nodes without Blank Node Identifiers (2) (3)
   * § 2.9 Collections
-  * § 2.11 Reifying Triples (2) (3)
+  * § 2.11 Reifying Triples
   * § 2.11.1 Annotation Syntax
   * § 3. Examples (2)
   * § 7. Parsing
@@ -1874,7 +1877,6 @@ Permalink
 
   * § 2. Turtle Language
   * § 2.5 IRIs
-  * § 2.11 Reifying Triples
   * § 2.11.1 Annotation Syntax
   * § 7. Parsing
   * § 7.2 RDF Term Constructors (2) (3) (4) (5) (6) (7)
@@ -2034,7 +2036,7 @@ Permalink
   * § 2. Turtle Language
   * § 2.4 Version Announcement
   * § 2.10 Triple Terms (2) (3)
-  * § 2.11 Reifying Triples (2) (3) (4)
+  * § 2.11 Reifying Triples (2) (3) (4) (5)
   * § 2.11.1 Annotation Syntax (2) (3) (4) (5)
   * § 7. Parsing
   * § 7.1 Parser State
@@ -2043,7 +2045,7 @@ Permalink
 
 
 
-[Permalink](https://www.w3.org/TR/rdf12-semantics/#rdf-collections)
+[Permalink](https://www.w3.org/TR/rdf12-schema/#ch_collectionvocab)
 
 **Referenced in:**
 
@@ -2051,7 +2053,7 @@ Permalink
 
 
 
-[Permalink](https://www.w3.org/TR/rdf12-semantics/#Reif)
+[Permalink](https://www.w3.org/TR/rdf12-schema/#ch_reificationvocab)
 
 **Referenced in:**
 
@@ -2067,7 +2069,7 @@ Permalink
 
 
 
-[Permalink](https://www.rfc-editor.org/rfc/rfc3986#section-5.1.3)
+[Permalink](https://www.rfc-editor.org/info/rfc3986/#section-5.1.3)
 
 **Referenced in:**
 
@@ -2075,7 +2077,7 @@ Permalink
 
 
 
-[Permalink](https://www.rfc-editor.org/rfc/rfc3986#section-5)
+[Permalink](https://www.rfc-editor.org/info/rfc3986/#section-5)
 
 **Referenced in:**
 
@@ -2083,7 +2085,7 @@ Permalink
 
 
 
-[Permalink](https://www.rfc-editor.org/rfc/rfc3986#section-3.3)
+[Permalink](https://www.rfc-editor.org/info/rfc3986/#section-3.3)
 
 **Referenced in:**
 
@@ -2091,7 +2093,7 @@ Permalink
 
 
 
-[Permalink](https://www.rfc-editor.org/rfc/rfc3986#section-5.1.1)
+[Permalink](https://www.rfc-editor.org/info/rfc3986/#section-5.1.1)
 
 **Referenced in:**
 
@@ -2099,7 +2101,7 @@ Permalink
 
 
 
-[Permalink](https://www.rfc-editor.org/rfc/rfc3986#section-5.1.2)
+[Permalink](https://www.rfc-editor.org/info/rfc3986/#section-5.1.2)
 
 **Referenced in:**
 
@@ -2107,7 +2109,7 @@ Permalink
 
 
 
-[Permalink](https://www.rfc-editor.org/rfc/rfc3986#section-5.1.4)
+[Permalink](https://www.rfc-editor.org/info/rfc3986/#section-5.1.4)
 
 **Referenced in:**
 
@@ -2115,7 +2117,7 @@ Permalink
 
 
 
-[Permalink](https://www.rfc-editor.org/rfc/rfc3987#section-2.2)
+[Permalink](https://www.rfc-editor.org/info/rfc3987/#section-2.2)
 
 **Referenced in:**
 
