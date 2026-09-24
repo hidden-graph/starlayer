@@ -13,6 +13,11 @@ requires-python = ">=3.10"
 dependencies = [
     "rdflib>=7.0",
     "requests>=2.28",
+    # OWL 2 DL reasoning (StarLayerGraph.infer(profile="owl-dl")) - a normal
+    # pip package, so it installs automatically with everything else. Java
+    # on PATH is the one prerequisite this can't satisfy: owlready2 bundles
+    # Java HermiT and needs a real JVM at runtime - see owl_dl.py.
+    "owlready2>=0.51",
     # Not published to PyPI. Install the sibling package first:
     #   pip install -e ../sparql
     # The repo-level core install is the `graph` package, while the Python

@@ -14,8 +14,9 @@ triples that define the encoding are hidden from callers.
 
 
 from rdflib import BNode, Graph, Literal, URIRef
-from rdflib.graph import DATASET_DEFAULT_GRAPH_ID
+from rdflib.graph import DATASET_DEFAULT_GRAPH_ID, ReadOnlyGraphAggregate
 from rdflib.namespace import RDF
+from rdflib.paths import Path
 
 from starlayergraph.model.dirlangstring import (
     DirLangString,
@@ -41,16 +42,26 @@ RDF_REIFIES     = URIRef('http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies')
 VALID_BACKENDS = frozenset({'rdf-1.1', 'rdf-1.2'})
 # A per-query choice (query()'s own entailment= kwarg, not a graph-level
 # setting - see that method's docstring). None = today's plain
-# simple-entailment behavior. "rdfs" rewrites the query at query time for
-# RDFS entailment (starsparql.entailment_rdfs - the full ruleset's "data"
-# rules: subClassOf/subPropertyOf transitivity, subclass/domain/range-
-# driven type entailment, subproperty entailment) - no data is
-# copied. "owl-rl" materializes a full RDFS/OWL-RL closure via infer() -
-# see query()'s own docstring and VALID_INFER_MODES for how much of that
-# work gets reused across calls (controlled by the separate infer= kwarg).
-# Not yet built: "native" (delegate to a reasoning-enabled Fuseki/Jena
-# backend) - see the SPARQL entailment-regime plan.
-VALID_ENTAILMENTS = frozenset({None, 'rdfs', 'owl-rl'})
+# simple-entailment behavior. "rdf" rewrites the query at query time for
+# RDF entailment (starsparql.entailment_rdf - the SPARQL Entailment Regimes
+# spec's regime one step weaker than RDFS: only rdfD2, "every term used as
+# a predicate is entailed rdf:type rdf:Property") - no data is copied.
+# "rdfs" rewrites the query at query time for RDFS entailment
+# (starsparql.entailment_rdfs - the full ruleset's "data" rules:
+# subClassOf/subPropertyOf transitivity, subclass/domain/range-driven type
+# entailment, subproperty entailment) - no data is copied. "owl-rl"
+# materializes a full RDFS/OWL-RL closure via infer() - see query()'s own
+# docstring and VALID_INFER_MODES for how much of that work gets reused
+# across calls (controlled by the separate infer= kwarg). "native"
+# delegates entailment to the endpoint itself - only legal with
+# backend='rdf-1.2', where native_query() already sends text straight
+# through with zero rewriting (see backends/native.py's own module
+# docstring); this value adds no new behavior on that path, it's a
+# self-documenting label plus the guard that using it against the default
+# backend (nothing to delegate to) is a mistake, not a silent no-op. See
+# packages/graph/docs/fuseki-reasoning-setup.md for how to actually
+# configure an endpoint that makes this meaningful.
+VALID_ENTAILMENTS = frozenset({None, 'rdf', 'rdfs', 'owl-rl', 'native'})
 # query()'s infer= kwarg - only consulted when entailment="owl-rl"; ignored
 # otherwise. Controls reuse of the one materialized-closure cache this
 # graph keeps (self._owl_rl_cache), stamped with the mutation generation
@@ -66,6 +77,26 @@ VALID_ENTAILMENTS = frozenset({None, 'rdfs', 'owl-rl'})
 #       pin one materialization and keep querying it explicitly, without
 #       StarLayerGraph deciding when to refresh it.
 VALID_INFER_MODES = frozenset({'always', 'cached', 'changed'})
+# infer()'s own mode= kwarg (distinct from VALID_INFER_MODES above, which is
+# query()'s infer= reuse-cadence kwarg for entailment="owl-rl") - selects
+# what infer() actually returns. All three ultimately reach the same
+# closure (the deductive-closure concept - self's own data plus everything
+# entailed from it); what differs is where that ends up and how much of it
+# comes back as a distinct value:
+#   "full"    (default) - a NEW graph with original triples plus everything
+#       newly entailed, today's original/only behavior, unchanged.
+#   "delta"   - a NEW graph with only the newly-entailed triples, none of
+#       the originals. The foundation query()'s entailment="owl-rl" path is
+#       built on (see that branch's own comment) - querying self live,
+#       unioned with a small cached delta, rather than caching a full
+#       closure copy of self.
+#   "in-place" - adds just the newly-entailed triples into self directly
+#       (self already has the originals) and returns self - works for any
+#       self, including native and triple-term-bearing ones, since only the
+#       delta is ever added, never a re-decomposed copy of self's own data -
+#       see infer()'s own docstring for the one narrow leftover caveat this
+#       still doesn't avoid.
+VALID_INFER_RETURN_MODES = frozenset({'full', 'delta', 'in-place'})
 
 # rdf:TripleTerm type URI — emitted by the JSON-LD 1.2 serializer; treated as
 # internal encoding so it is never surfaced through triples() / __len__ etc.
@@ -73,6 +104,32 @@ _RDF_TRIPLE_TERM = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#TripleTerm'
 
 # Unbound reference to Graph.triples — used to bypass our override safely
 _raw_triples = Graph.triples
+
+
+class _UnionForQuery(ReadOnlyGraphAggregate):
+    """A 2-member ReadOnlyGraphAggregate, fixed to evaluate a property-path
+    predicate exactly once against the union as a whole, instead of once per
+    member graph.
+
+    Confirmed live: plain rdflib's ReadOnlyGraphAggregate.triples() evaluates
+    a Path-typed predicate by calling p.eval(self, s, o) *inside* its own
+    per-member loop (rdflib/graph.py's own triples() implementation) - for a
+    fixed 2-member aggregate this means the whole path is evaluated against
+    the entire aggregate twice, a deterministic doubling of every
+    path-matched solution row. Ordinary (non-Path) triple patterns are
+    unaffected by this bug and don't need the override - used here to union
+    a graph with its own owl-rl entailment delta (query()'s
+    entailment="owl-rl" - see that branch), which are provably disjoint by
+    construction (a delta triple is defined as "not already present"), so a
+    plain triple can never double-yield either way.
+    """
+    def triples(self, triple):
+        s, p, o = triple
+        if isinstance(p, Path):
+            for _s, _o in p.eval(self, s, o):
+                yield _s, p, _o
+            return
+        yield from super().triples(triple)
 
 
 def _unfold_tt_encoding(g) -> Graph:
@@ -214,10 +271,20 @@ class StarLayerGraph(Graph):
         # signal query()'s entailment="owl-rl", infer="changed" path checks
         # _owl_rl_cache against (see VALID_INFER_MODES).
         self._mutation_generation: int = 0
-        # (closure_graph, generation_it_was_computed_at) | None - the one
-        # materialized-closure cache this graph keeps, populated and read
-        # by query()'s entailment="owl-rl" handling.
-        self._owl_rl_cache: "tuple[StarLayerGraph, int] | None" = None
+        # (delta_graph, generation_it_was_computed_at) | None - the cached
+        # owl-rl entailment delta (see infer(mode="delta")), populated and
+        # read by query()'s entailment="owl-rl" handling. Holds only the
+        # newly-entailed triples, not a full closure copy of self - queried
+        # as a live union with self (or, when self is native-backed or has
+        # triple terms, with a decomposed snapshot of self refreshed on the
+        # same cadence - see that branch's own comment for why).
+        self._owl_rl_cache: "tuple[Graph, int] | None" = None
+        # Only used on the "fallback" path above (native backend, or self
+        # has triple terms) - a decomposed snapshot of self's own data,
+        # refreshed together with _owl_rl_cache since unioning it with a
+        # live view of self isn't representation-safe in that case (see
+        # query()'s entailment="owl-rl" branch).
+        self._owl_rl_snapshot_cache: "Graph | None" = None
 
     def _on_mutated(self) -> None:
         """Called from every place this graph's own triple content changes
@@ -1525,51 +1592,112 @@ class StarLayerGraph(Graph):
         starlayergraph.backends.native.native_query, which uses the endpoint's
         own triple-term syntax.
 
-        entailment -- ``None`` (default, plain simple entailment), ``"rdfs"``
-            (query-time ``rdfs:subClassOf`` rewrite, no data copy - see
-            ``starsparql.entailment_rdfs``; not available against the native
-            backend), or ``"owl-rl"`` (queries a materialized RDFS/OWL-RL
-            closure - see ``infer``, below). A per-call choice, not a
+        entailment -- ``None`` (default, plain simple entailment), ``"rdf"``
+            (query-time RDF entailment rewrite, no data copy - see
+            ``starsparql.entailment_rdf``; not available against the native
+            backend), ``"rdfs"`` (query-time RDFS rewrite, no data copy -
+            see ``starsparql.entailment_rdfs``; not available against the
+            native backend), ``"owl-rl"`` (queries the live union of
+            ``self`` and a
+            small cached delta of just its newly-entailed triples - see
+            ``infer(mode="delta")`` and the ``infer`` parameter below), or
+            ``"native"`` (only legal with ``backend='rdf-1.2'`` - a
+            self-documenting label for "this endpoint is expected to handle
+            entailment itself"; changes no behavior on that path, since
+            ``native_query()`` already sends text straight through
+            unmodified regardless of this value - see
+            ``docs/fuseki-reasoning-setup.md`` for actually configuring
+            an endpoint that makes it meaningful). A per-call choice, not a
             graph-level setting - the same graph can be queried with
             different (or no) entailment on different calls.
         infer -- only consulted when ``entailment="owl-rl"``; ignored
-            otherwise. Controls reuse of ``self``'s one materialized-closure
-            cache (``self._owl_rl_cache``) against ``self._mutation_generation``
+            otherwise. Controls reuse of ``self``'s cached owl-rl delta
+            (``self._owl_rl_cache``) against ``self._mutation_generation``
             (bumped by ``_on_mutated()`` on every real edit to ``self`` -
             see ``VALID_INFER_MODES``): ``"changed"`` (default) recomputes
             only if ``self`` was edited since the cache was last computed;
             ``"always"`` ignores the cache and always recomputes;
             ``"cached"`` reuses whatever is cached if anything is, computing
-            only when there's no cache yet. The cache itself never mutates
-            ``self`` - it's a separate graph, exactly what ``infer()``
-            already returns.
+            only when there's no cache yet. When ``self`` is non-native and
+            has no triple terms, ``self``'s own data is always queried live
+            regardless of this setting - only the entailed delta is subject
+            to it. When ``self`` is native-backed or has triple terms, a
+            snapshot of ``self``'s own data is refreshed on this same
+            cadence too (see the ``owl-rl`` branch's own comment for why).
         """
         if entailment not in VALID_ENTAILMENTS:
             raise NotImplementedError(
                 f"entailment must be one of {sorted(e for e in VALID_ENTAILMENTS if e)}, "
                 f"got {entailment!r}."
             )
+        if entailment == 'native' and not self._is_native:
+            raise NotImplementedError(
+                "entailment='native' requires backend='rdf-1.2' - it delegates entailment "
+                "to the endpoint itself, and the default backend has no endpoint to delegate "
+                "to. Use entailment='rdfs' or 'owl-rl' instead."
+            )
         if entailment == 'owl-rl':
             if infer not in VALID_INFER_MODES:
                 raise ValueError(f"infer must be one of {sorted(VALID_INFER_MODES)}, got {infer!r}")
+            # Fast path (self is non-native and has no triple terms): self's
+            # own data can be queried live (a zero-copy store view) unioned
+            # with a small cached delta, since there's nothing a triple term
+            # could encode differently between the two. Fallback path
+            # (native backend, or self has triple terms): a live store view
+            # of self isn't representation-safe to union with delta - self's
+            # own tt:HASH-encoded triple-term data and delta's decomposed
+            # (owlrl-compatible) reification-fragment encoding are two
+            # different things - so both sides of the union come from the
+            # same _decompose() call instead, refreshed together on the same
+            # infer=-governed cadence as delta (matching today's shipped
+            # cost profile: one full read of self per cache recompute, not
+            # per query call). See Phase D of the entailment-regime plan for
+            # the full reasoning.
+            fast_path = not self._is_native and not self._tt_registry
             cached = self._owl_rl_cache
             stale = cached is None or (infer == 'changed' and cached[1] != self._mutation_generation)
             if infer == 'always' or stale:
-                closed = self.infer(profile='owl-rl')
-                self._owl_rl_cache = (closed, self._mutation_generation)
+                if fast_path:
+                    delta = self.infer(profile='owl-rl', mode='delta')
+                else:
+                    self_view, delta = self._infer_before_and_delta('owl-rl')
+                    self._owl_rl_snapshot_cache = self_view
+                self._owl_rl_cache = (delta, self._mutation_generation)
             else:
-                closed = cached[0]
-            return closed.query(
-                query_object, processor=processor, result=result,
-                initNs=initNs, initBindings=initBindings,
+                delta = cached[0]
+                if not fast_path:
+                    self_view = self._owl_rl_snapshot_cache
+            if fast_path:
+                self_view = Graph(store=self.store, identifier=self.identifier)
+
+            union = _UnionForQuery([self_view, delta])
+            effective_ns = initNs if initNs else dict(self.namespaces())
+            prepared = query_object
+            if isinstance(query_object, str):
+                from starlayergraph.query.query_cache import prepare_query_cached
+                prepared = prepare_query_cached(
+                    self._prepared_query_cache, query_object, effective_ns, kwargs.get('base'),
+                    entailment=None,
+                )
+            init_bindings = self._encode_init_bindings(initBindings) if fast_path else initBindings
+            r = union.query(
+                prepared, processor=processor, result=result,
+                initNs=initNs, initBindings=init_bindings,
                 use_store_provided=use_store_provided, **kwargs,
             )
+            if r.type == 'SELECT':
+                restore_select_bindings(r, self._restore)
+            elif r.type == 'CONSTRUCT':
+                from starlayergraph.model.encoding import inject_missing_tt_encoding
+                inject_missing_tt_encoding(r.graph, self._restore)
+                r.graph = StarLayerGraph.from_rdflib(r.graph)
+            return r
 
         if self._is_native:
-            if entailment == 'rdfs':
+            if entailment in ('rdf', 'rdfs'):
                 raise NotImplementedError(
-                    "entailment='rdfs' query-time rewriting is not wired into the native "
-                    "(backend='rdf-1.2') query path yet - it only rewrites the default "
+                    f"entailment={entailment!r} query-time rewriting is not wired into the "
+                    "native (backend='rdf-1.2') query path yet - it only rewrites the default "
                     "(backend='rdf-1.1') in-memory/encoded path today. Use entailment='owl-rl' "
                     "for a materialized closure instead, which works regardless of backend."
                 )
@@ -1902,35 +2030,12 @@ class StarLayerGraph(Graph):
         from rdflib.compare import isomorphic as _rdflib_isomorphic
         return _rdflib_isomorphic(_unfold_tt_encoding(self), _unfold_tt_encoding(other))
 
-    def infer(self, profile: str = 'rdfs', *, target_graph=None):
-        """Materialize an RDFS/OWL-RL entailment closure into a NEW graph —
-        never mutates self. Requires the optional ``owlrl`` dependency
-        (``pip install starlayergraph[reasoning]``).
-
-        profile -- "rdfs" (RDFS closure) or "owl-rl" (OWL 2 RL closure,
-            which includes RDFS)
-        target_graph -- defaults to a new StarLayerGraph; if given, entailed
-            triples are added to it (never cleared first) — must be a
-            StarLayerGraph, not a plain rdflib.Graph, same restriction as
-            cbd() and for the same reason: consistency with the rest of
-            this class's API.
-
-        Any triple term in self is decomposed into its synthetic
-        blank-node reification form (the same one rdfc10_hash()/
-        isomorphic() use — see starlayergraph.compare._decompose()) before
-        reasoning runs. owlrl's RDFS closure asserts "x rdf:type
-        rdfs:Resource" for every term seen anywhere in a triple, including
-        subject position, and a triple term is never legal there under RDF
-        1.2 — confirmed live, owlrl crashes with this class's own "triple
-        terms are not permitted in subject position" guard otherwise (see
-        add()). The returned graph reflects this: a triple term present in
-        self comes back as its decomposed reification fragment, not as a
-        TripleTerm — not a byte-identical RDF 1.2 copy for that part.
-
-        owlrl has no truth maintenance: retracting a fact from self later
-        does not retract anything this call already entailed from it.
-        Re-run infer() from the original facts after any edit, rather than
-        trying to patch a previous call's output.
+    @staticmethod
+    def _resolve_owlrl_semantics(profile: str):
+        """Import owlrl and resolve profile (infer()'s own "which ruleset"
+        choice) to the owlrl semantics class it names. Shared by
+        _infer_before_and_delta() and infer()'s own mode="in-place" branch,
+        so both draw from one place for what counts as a valid profile.
         """
         try:
             import owlrl
@@ -1940,10 +2045,192 @@ class StarLayerGraph(Graph):
                 "install via `pip install starlayergraph[reasoning]` (or `pip install owlrl` directly)."
             ) from exc
 
-        profiles = {'rdfs': owlrl.RDFS_Semantics, 'owl-rl': owlrl.OWLRL_Semantics}
+        profiles = {
+            'rdfs': owlrl.RDFS_Semantics,
+            'owl-rl': owlrl.OWLRL_Semantics,
+            # Genuinely distinct from "owl-rl" alone, not an alias - confirmed
+            # live: OWLRL_Semantics.rules() never calls into
+            # RDFS_Semantics.rules(), so plain "owl-rl" omits e.g. universal
+            # rdfs:Resource typing and several rdfs:Datatype-related
+            # entailments that RDFS_OWLRL_Semantics's combined rule set adds.
+            'rdfs+owl-rl': owlrl.RDFS_OWLRL_Semantics,
+        }
         semantics = profiles.get(profile)
         if semantics is None:
             raise ValueError(f"Unsupported profile {profile!r}; expected one of {sorted(profiles)}")
+        return semantics
+
+    def _infer_before_and_delta(self, profile: str):
+        """Run entailment against self exactly once, returning both the
+        original data (decomposed - see starlayergraph.compare._decompose())
+        and just the newly-entailed triples, as two separate plain
+        rdflib.Graph objects. Shared by infer() (mode="full" is their
+        union, mode="delta" is just the second one) and by query()'s
+        entailment="owl-rl" fallback path (see that branch's own comment for
+        why it needs both views, not just the delta, for graphs where a live
+        store view of self isn't representation-safe to union with a
+        separately-computed delta).
+
+        Safe to diff by plain triple membership (no BNode-identity surprises
+        - see infer()'s own docstring on why this differs from comparing two
+        *separate* _decompose() calls): ``before`` and ``expanded`` share the
+        exact same triple/BNode objects up to the point ``expanded`` is
+        mutated, since ``expanded`` is built by re-adding ``before``'s own
+        triples verbatim, not by decomposing self a second time.
+        """
+        semantics = self._resolve_owlrl_semantics(profile)
+        import owlrl
+
+        from starlayergraph.compare import _decompose
+        before = _decompose(self)
+        expanded = Graph()
+        for t in before:
+            expanded.add(t)
+        owlrl.DeductiveClosure(semantics).expand(expanded)
+        before_set = set(before)
+        delta = Graph()
+        for t in expanded:
+            if t not in before_set:
+                delta.add(t)
+        return before, delta
+
+    def _before_and_delta_for(self, profile: str):
+        """Dispatch to the right reasoning engine for `profile`. The
+        owlrl-backed profiles ("rdfs"/"owl-rl"/"rdfs+owl-rl") go through
+        _infer_before_and_delta() above; "owl-dl" goes through the
+        separate owlready2+HermiT bridge in owl_dl.py - a genuinely
+        different computational model (tableau DL reasoning, not
+        forward-chaining rules), so it isn't just another owlrl semantics
+        class and can't share that method's body.
+        """
+        if profile == 'owl-dl':
+            from starlayergraph.graph.owl_dl import classify_owl_dl
+            return classify_owl_dl(self)
+        return self._infer_before_and_delta(profile)
+
+    def infer(self, profile: str = 'rdfs', *, mode: str = 'full', target_graph=None):
+        """Materialize an RDFS/OWL-RL entailment closure - by default into a
+        NEW graph, never mutating self (mode="in-place" is the deliberate
+        exception - see below). Requires the optional ``owlrl`` dependency
+        (``pip install starlayergraph[reasoning]``).
+
+        profile -- "rdfs" (RDFS closure), "owl-rl" (OWL 2 RL closure),
+            "rdfs+owl-rl" (both rule sets run together - genuinely more than
+            "owl-rl" alone: e.g. universal rdfs:Resource typing and several
+            rdfs:Datatype-related entailments are only present when RDFS's
+            own rules run alongside OWL-RL's, confirmed live against owlrl
+            directly - see _resolve_owlrl_semantics()), or "owl-dl" (full
+            OWL 2 DL reasoning via owlready2 + Java HermiT - a genuinely
+            different computational model, tableau-based rather than
+            forward-chaining rules, so it can derive disjunctive
+            entailments owlrl structurally cannot, e.g. C subClassOf
+            (A or B), not-A(x) |= B(x). owlready2 is a core dependency,
+            installed automatically; a real Java runtime on PATH is the
+            one prerequisite that isn't - see owl_dl.py's own module
+            docstring. Raises owl_dl.InconsistentOntologyError,
+            not a silent triple, if self's data is logically inconsistent -
+            unlike "owl-rl", whose consistency checking is partial and
+            never raises).
+        mode -- all three ultimately reach the same closure (self's own data
+            plus everything entailed from it) - this chooses where that ends
+            up and how much of it comes back as a distinct value. "full"
+            (default) returns a NEW graph with the original triples plus
+            everything newly entailed. "delta" returns a NEW graph with only
+            the newly-entailed triples, none of the originals - the smaller
+            artifact query()'s entailment="owl-rl" caches and queries as a
+            live union with self, rather than caching a full closure copy.
+            "in-place" adds just the newly-entailed triples into self
+            directly (self already has the originals) and returns self -
+            works for any self, including native and triple-term-bearing
+            ones (see the triple-term-fidelity paragraph below for the one
+            narrow caveat it still doesn't avoid). target_graph must not be
+            given together with it (raises ValueError - mutating self has no
+            separate destination). See VALID_INFER_RETURN_MODES.
+        target_graph -- only meaningful for mode="full"/"delta"; defaults
+            to a new StarLayerGraph, or if given, entailed triples are added
+            to it (never cleared first) — must be a StarLayerGraph, not a
+            plain rdflib.Graph, same restriction as cbd() and for the same
+            reason: consistency with the rest of this class's API.
+
+        Any triple term in self is decomposed into its synthetic
+        blank-node reification form (the same one rdfc10_hash()/
+        isomorphic() use — see starlayergraph.compare._decompose()) purely
+        so owlrl can run without crashing: its RDFS closure asserts "x
+        rdf:type rdfs:Resource" for every term seen anywhere in a triple,
+        including subject position, and a triple term is never legal there
+        under RDF 1.2 — confirmed live, owlrl crashes with this class's own
+        "triple terms are not permitted in subject position" guard
+        otherwise (see add()). That decomposition never reaches the
+        returned graph for mode="full"/"delta", though: self's own
+        triples are copied in as-is (real TripleTerm objects intact, for a
+        non-native self), and only the *newly-entailed* portion (mode=
+        "delta"'s content, also included in mode="full") can still
+        contain a decomposed reification fragment instead of a real
+        TripleTerm - and only for a derived fact that isn't itself
+        expressible with one. That's not a gap this implementation chooses
+        to leave open; it's structural: a rule like rdfs4a/4b that types
+        *every* term as rdfs:Resource inherently wants to put a triple term
+        in subject position, which RDF 1.2 never permits for any triple,
+        entailed or asserted - there is no legal real-TripleTerm form of
+        that fact to recover. Nothing rewires the delta's synthetic
+        blank node back to the real triple term self's own copied-in
+        triples use, either - they're unrelated objects in the output
+        graph, not the same node re-described two ways.
+
+        owlrl has no truth maintenance: retracting a fact from self later
+        does not retract anything this call already entailed from it.
+        Re-run infer() from the original facts after any edit, rather than
+        trying to patch a previous call's output.
+
+        For a native (backend='rdf-1.2') self, reading "self's own data"
+        (via plain iteration, same as _decompose()/for t in self) is scoped
+        to self.identifier — GRAPH <self.identifier> { ... } — unless
+        self.identifier is exactly rdflib.graph.DATASET_DEFAULT_GRAPH_ID
+        (see _native_scoped()). This is unrelated to query()/update(), which
+        send text straight through unscoped. So infer() on a native graph
+        constructed without identifier=DATASET_DEFAULT_GRAPH_ID (the
+        default is a fresh, random BNode) silently sees no data at all,
+        even when query()/update() work fine against the same store —
+        confirmed live. Pass identifier=DATASET_DEFAULT_GRAPH_ID explicitly
+        when calling infer() (directly, or via entailment="owl-rl") against
+        a native-backed graph whose data lives in the endpoint's unnamed
+        default graph.
+
+        mode="in-place" only ever adds the delta into self directly - never
+        a re-decomposed copy of self's own data - so it can't crash the way
+        calling owlrl.DeductiveClosure(...).expand(self) directly would (the
+        crash this whole decomposition step exists to avoid in the first
+        place). It inherits the same narrow leftover caveat as mode=
+        "full"/"delta" above, with one difference worth being explicit
+        about: for those two, a stray decomposed reification fragment lands
+        in a disposable copy; for mode="in-place", it lands directly in the
+        graph you're still working with, since there's no separate copy to
+        contain it.
+        """
+        if mode not in VALID_INFER_RETURN_MODES:
+            raise ValueError(f"mode must be one of {sorted(VALID_INFER_RETURN_MODES)}, got {mode!r}")
+
+        if mode == 'in-place':
+            if target_graph is not None:
+                raise ValueError(
+                    "target_graph is meaningless with mode='in-place' - it mutates self directly."
+                )
+            # Adds only the delta - self's own triples are already there,
+            # untouched (_infer_before_and_delta reasons over a decomposed
+            # *copy*, never self itself), so this can't crash on a triple
+            # term the way calling owlrl.DeductiveClosure(...).expand(self)
+            # directly would. delta's own content is always plain terms (no
+            # real TripleTerm ever appears in it - see
+            # _infer_before_and_delta's own docstring), so both add() and
+            # _native_add_many() below accept it unconditionally.
+            _before, delta = self._before_and_delta_for(profile)
+            if self._is_native:
+                self._native_add_many(list(delta))
+            else:
+                for t in delta:
+                    self.add(t)
+            self._on_mutated()
+            return self
 
         if target_graph is None:
             target_graph = StarLayerGraph()
@@ -1955,10 +2242,19 @@ class StarLayerGraph(Graph):
                 "A plain rdflib.Graph cannot store TripleTerms."
             )
 
-        from starlayergraph.compare import _decompose
-        decomposed = _decompose(self)
-        owlrl.DeductiveClosure(semantics).expand(decomposed)
-        for t in decomposed:
+        _before, delta = self._before_and_delta_for(profile)
+        if mode == 'full':
+            # self's own triples, not _before - _before is decomposed (a
+            # synthetic reification fragment stands in for any triple term)
+            # purely so owlrl could run without crashing; nothing requires
+            # keeping the *output* in that form too. Reading self directly
+            # restores real TripleTerm objects for a non-native self (see
+            # triples()) - the decomposed form only still leaks through in
+            # `delta`, for a newly-entailed fact that isn't itself
+            # expressible with a real triple term (see below).
+            for t in self:
+                target_graph.add(t)
+        for t in delta:
             target_graph.add(t)
         return target_graph
 

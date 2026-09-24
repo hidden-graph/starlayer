@@ -4,10 +4,16 @@ tests/unit/test_entailment.py
 End-to-end coverage for StarLayerGraph.query(..., entailment=...) - a
 per-query choice, not a graph-level setting (one graph can be queried with
 different, or no, entailment on different calls). See
-packages/sparql/tests/unit/test_entailment_rdfs.py for the pure "rdfs"
-rewrite function's own unit coverage; this file exercises both supported
-values through the real StarLayerGraph.query() path.
+packages/sparql/tests/unit/test_entailment_rdf.py and test_entailment_rdfs.py
+for the pure rewrite functions' own unit coverage; this file exercises all
+three supported values through the real StarLayerGraph.query() path.
 
+entailment="rdf" rewrites the query at query time (starsparql.entailment_rdf,
+wired in via query_cache.py::prepare_query_cached) - no data copy. Covers
+just rdfD2 (every predicate used anywhere is entailed rdf:type rdf:Property) -
+see entailment_rdf.py's own module docstring for exactly what's covered and
+why, and its scoping boundary (only triggers for the specific class
+rdf:Property, not a variable class).
 entailment="rdfs" rewrites the query at query time (starsparql.entailment_rdfs,
 wired in via query_cache.py::prepare_query_cached) - no data copy. Covers the
 full RDFS ruleset's "data" rules (subClassOf/subPropertyOf transitivity,
@@ -65,6 +71,25 @@ class TestEntailmentIsPerQueryNotPerGraph:
         g = StarLayerGraph(backend="rdf-1.2")
         with pytest.raises(NotImplementedError, match="native"):
             g.query(_QUERY, entailment="rdfs")
+
+    def test_rdf_entailment_rejected_on_native_backend(self):
+        g = StarLayerGraph(backend="rdf-1.2")
+        with pytest.raises(NotImplementedError, match="native"):
+            g.query(_QUERY, entailment="rdf")
+
+    def test_native_entailment_rejected_on_default_backend(self):
+        with pytest.raises(NotImplementedError, match="rdf-1.2"):
+            _graph().query(_QUERY, entailment="native")
+
+    def test_native_entailment_accepted_on_native_backend(self):
+        # no live store configured, so this can't reach an actual endpoint -
+        # confirms entailment="native" itself isn't rejected (a RuntimeError
+        # about the missing store, not a NotImplementedError about
+        # entailment, proves validation passed and native dispatch was
+        # reached) - see test_entailment_native.py for real endpoint coverage.
+        g = StarLayerGraph(backend="rdf-1.2")
+        with pytest.raises(RuntimeError, match="store"):
+            g.query(_QUERY, entailment="native")
 
     def test_one_graph_answers_different_entailment_per_call(self):
         g = _graph()
@@ -163,6 +188,45 @@ class TestQueryTimeRdfsRewrite:
         assert rewritten == materialized == {str(EX.bob)}
 
 
+class TestQueryTimeRdfEntailment:
+    """entailment="rdf" - the SPARQL spec's RDF Entailment regime (one step
+    weaker than RDFS): rdfD2 only, "every predicate used anywhere is
+    entailed rdf:type rdf:Property" - see starsparql.entailment_rdf's own
+    module docstring for the full scope and why. Pure unit coverage of the
+    rewrite itself lives in packages/sparql/tests/unit/test_entailment_rdf.py;
+    this class exercises it through the real StarLayerGraph.query() path.
+    """
+
+    def test_plain_query_misses_the_fact(self):
+        g = _graph()
+        q = "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> SELECT ?p WHERE { ?p a rdf:Property }"
+        assert list(g.query(q)) == []
+
+    def test_entailment_rdf_finds_predicates_used_in_the_graph(self):
+        g = _graph()
+        q = "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> SELECT ?p WHERE { ?p a rdf:Property }"
+        rows = {str(r.p) for r in g.query(q, entailment="rdf")}
+        # _DATA uses rdfs:subClassOf and rdf:type (via "a") as predicates
+        assert rows == {str(RDFS.subClassOf), str(RDF.type)}
+
+    def test_no_data_is_copied_or_added(self):
+        g = _graph()
+        before = len(g)
+        q = "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> SELECT ?p WHERE { ?p a rdf:Property }"
+        list(g.query(q, entailment="rdf"))
+        assert len(g) == before
+
+    def test_variable_class_query_is_not_rewritten(self):
+        # rdfD2 only fires for the specific, bound class rdf:Property - a
+        # generic ?p a ?c query is untouched (see entailment_rdf.py's own
+        # module docstring for why this boundary exists).
+        g = _graph()
+        q = "SELECT ?x ?c WHERE { ?x a ?c }"
+        plain = {(str(r.x), str(r.c)) for r in g.query(q)}
+        rewritten = {(str(r.x), str(r.c)) for r in g.query(q, entailment="rdf")}
+        assert plain == rewritten == {(str(EX.alice), str(EX.Manager))}
+
+
 class TestEntailmentOwlRl:
     def test_no_data_is_copied_or_added_to_self(self):
         g = _graph()
@@ -256,6 +320,84 @@ class TestEntailmentOwlRlCaching:
         g = _graph()
         rows = list(g.query(_QUERY, infer="bogus"))
         assert rows == []
+
+
+class TestEntailmentOwlRlUnionDesign:
+    """Phase D: entailment="owl-rl" queries the live union of self and a
+    small cached delta, instead of caching a full closure copy - see
+    _UnionForQuery and query()'s owl-rl branch."""
+
+    def test_property_path_query_has_no_duplicate_rows(self):
+        # Regression test for a real, deterministic bug in plain rdflib's
+        # ReadOnlyGraphAggregate: it evaluates a property-path predicate by
+        # calling p.eval() once per *member* graph rather than once against
+        # the union as a whole, doubling every path-matched result for a
+        # 2-member aggregate (see _UnionForQuery's own docstring). Compare
+        # against a flattened oracle (self ∪ delta merged into one plain
+        # Graph, same query run normally) so this pins row-for-row parity,
+        # not just the result set.
+        from rdflib import Graph
+
+        g = StarLayerGraph()
+        g.bind("ex", EX)
+        g.parse(data="""
+            @prefix ex: <http://example.org/> .
+            @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+            ex:A rdfs:subClassOf ex:B .
+            ex:B rdfs:subClassOf ex:C .
+        """, format="turtle12")
+        q = "PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#> SELECT ?x ?y WHERE { ?x rdfs:subClassOf+ ?y }"
+
+        via_union = sorted((str(r.x), str(r.y)) for r in g.query(q, entailment="owl-rl"))
+
+        closure = g.infer(profile="owl-rl")
+        oracle = Graph()
+        for t in closure:
+            oracle.add(t)
+        via_flattened = sorted(
+            (str(x), str(y)) for x, y in oracle.query(q)
+        )
+
+        assert via_union == via_flattened
+        assert len(via_union) == len(set(via_union))
+
+    def test_triple_term_bearing_graph_uses_fallback_path_and_stays_correct(self):
+        # self._tt_registry non-empty routes this through the "fallback"
+        # branch (a decomposed snapshot of self unioned with delta, both in
+        # the same encoding) rather than the "fast" live-store-view branch -
+        # results should still be correct either way.
+        from rdflib import RDFS
+
+        from starlayergraph import TripleTerm
+
+        g = StarLayerGraph()
+        g.bind("ex", EX)
+        g.parse(data=_DATA, format="turtle12")
+        g.add_reification(EX.claim, TripleTerm(EX.bob, EX.knows, EX.carol))
+        assert g._tt_registry  # sanity: this graph really does exercise the fallback path
+
+        rows = [str(r.x) for r in g.query(_QUERY, entailment="owl-rl")]
+        assert rows == [str(EX.alice)]
+
+    def test_cache_holds_only_new_triples_not_a_copy_of_self(self):
+        # owlrl's full closure includes a lot of vocabulary-level axiomatic
+        # noise (rdfs4a/4b-style universal typing) that scales with the
+        # number of distinct terms, not the amount of actual data - so the
+        # cached delta isn't necessarily *smaller* than self for every
+        # graph. What's always true by construction (delta = closure -
+        # self's own decomposed data) is that it never duplicates any of
+        # self's own asserted triples - confirm that directly instead.
+        g = StarLayerGraph()
+        g.bind("ex", EX)
+        g.parse(data=_DATA, format="turtle12")
+        for i in range(50):
+            g.add((EX[f"thing{i}"], EX.marker, EX[f"value{i}"]))
+
+        list(g.query(_QUERY, entailment="owl-rl"))
+
+        delta = g._owl_rl_cache[0]
+        for t in g:
+            assert t not in delta
 
 
 class TestEntailmentOwlRlCorrectness:

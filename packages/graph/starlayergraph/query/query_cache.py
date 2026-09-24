@@ -131,5 +131,8 @@ def prepare_query_cached(
     if entailment == 'rdfs':
         from starsparql.entailment_rdfs import rewrite_algebra_for_rdfs
         rewrite_algebra_for_rdfs(prepared.algebra)
+    elif entailment == 'rdf':
+        from starsparql.entailment_rdf import rewrite_algebra_for_rdf
+        rewrite_algebra_for_rdf(prepared.algebra)
     cache[cache_key] = prepared
     return prepared
