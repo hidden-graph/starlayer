@@ -1911,10 +1911,14 @@ class StarLayerGraph(Graph):
         format='nq12'         — N-Quads 1.2 (graph name from self.identifier)
         format='trig12'       — TriG 1.2 (GRAPH block wrapper around Turtle 1.2)
         format='trix12'       — TriX 1.2 XML (<graph> block with <triple> elements)
+        format='manchester' (alias 'omn') — OWL 2 Manchester Syntax; see
+                             starlayergraph.serializers.manchester's module
+                             docstring for the supported subset and known
+                             round-tripping limitations
         All other formats (e.g. 'turtle', 'xml') delegate to rdflib using the
         internal tt:HASH encoding — triple terms appear as opaque URIRefs.
         """
-        _RDF12_FORMATS = {'turtle12', 'longturtle12', 'nt12', 'nq12', 'trig12', 'trix12', 'rdfxml12', 'jsonld12'}
+        _RDF12_FORMATS = {'turtle12', 'longturtle12', 'nt12', 'nq12', 'trig12', 'trix12', 'rdfxml12', 'jsonld12', 'manchester', 'omn'}
         if format in _RDF12_FORMATS:
             if format == 'turtle12':
                 from starlayergraph.serializers.turtle12 import serialize_turtle12
@@ -1940,6 +1944,9 @@ class StarLayerGraph(Graph):
             elif format == 'jsonld12':
                 from starlayergraph.serializers.jsonld12 import serialize_jsonld12
                 text = serialize_jsonld12(self)
+            elif format in ('manchester', 'omn'):
+                from starlayergraph.serializers.manchester import serialize_manchester
+                text = serialize_manchester(self)
             if destination is not None:
                 with open(destination, 'w', encoding='utf-8') as f:
                     f.write(text)

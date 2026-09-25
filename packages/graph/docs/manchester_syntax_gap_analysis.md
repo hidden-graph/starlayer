@@ -1,7 +1,8 @@
 # Manchester OWL Syntax — Conformance vs. the OWL API Parser
 
-**Last reviewed:** 2026-09-25 (updated same day to close inline per-axiom
-annotations), against OWL API 5.1.20's
+**Last reviewed:** 2026-09-25 (updated same day: first to close inline
+per-axiom annotations, then to add the reverse - RDF → Manchester Syntax -
+direction), against OWL API 5.1.20's
 `org.semanticweb.owlapi.manchestersyntax.parser.ManchesterOWLSyntaxOntologyParser`
 (the real, standard-conformant OWL API parser - not a reimplementation),
 run via `manchester-owl/manchester-syntax-parser`'s `OWLAPIInterface parse`
@@ -80,10 +81,54 @@ re-verify this table if it's ever upgraded.
 | Declaration-order / entity-type-checking strictness | The oracle requires every name to be declared via its own frame before use elsewhere (`Encountered Pet at line 9... Expected one of: Class name, Object property name...` for an undeclared name) - because it builds a strongly-typed `OWLOntology` object model where an entity's punning type must be resolvable from context. `manchester_parser.py` only produces RDF triples, where `(x, rdf:type, owl:Class)` doesn't require `x` to have been "declared" first. Replicating this would make the parser *reject* well-formed axiom fragments that map to perfectly valid RDF, for no benefit here - a deliberate design difference, not a bug. |
 | `owl:unionOf`/`intersectionOf`/`oneOf`/`members`/`withRestrictions` **list member order** | Confirmed via a direct probe (`xsd:string or xsd:integer`) that the oracle's `rdf:List` member order for these mathematically-unordered constructs doesn't reliably match written order - almost certainly Java `HashSet`/collection iteration order inside OWL API, not a spec requirement. `graph_diff()`/`isomorphic()` will report a difference here purely from list-cell ordering even when both sides represent the identical OWL axiom; this is expected and not something to chase - don't read a list-order mismatch alone as a real bug. |
 
-## Where the parser lives
+## The reverse direction: RDF → Manchester Syntax
 
-`packages/graph/starlayergraph/parsers/manchester_parser.py`
+`packages/graph/starlayergraph/serializers/manchester.py` (entry point
+`serialize_manchester(graph) -> str`), wired into
+`StarLayerGraph.serialize(format="manchester")` (alias `"omn"`), targets
+the same construct coverage as the table above, in reverse - see that
+module's own docstring for the full account, including why serializing is
+a genuinely different (pattern-recognition, not deterministic) problem
+than parsing, and which reconstructions are scoped out because the RDF
+shape involved is inherently ambiguous rather than because of missing
+effort:
+
+- `SuperClassOf:`/`SuperPropertyOf:` always come back as `SubClassOf:`/
+  `SubPropertyOf:` (identical triple either way - no information to
+  recover which spelling was used).
+- `onlysome` always comes back as the expanded `(p some C) and (p only C)`
+  form (same reasoning - it's pure surface sugar at the RDF level).
+- `EquivalentClasses:`/`SameIndividual:`/binary (2-member)
+  `DisjointClasses:`/`DisjointProperties:`/`DifferentIndividuals:` Misc
+  axioms always come back as per-subject frame clauses, since those
+  triples are RDF-indistinguishable from the same axiom split across
+  frames. The **>2-member** `AllDisjointClasses`/`AllDisjointProperties`/
+  `AllDifferent` shape *is* unambiguous and *is* reconstructed as a real
+  Misc axiom - the one case that's actually recoverable.
+
+Verified the same way as the parser - round-tripping this project's own
+`parse_manchester()` output through the serializer and back is isomorphic
+across every construct tested, and the oracle's real parser accepts the
+serializer's output without a syntax error in every case tried. One
+oracle-side wrinkle found and documented (not chased further, since it
+traces to the oracle's own harness, not this module): comparing the
+*oracle's resulting RDF* back against the original isn't always a clean
+isomorphism - a negative `Facts:` item in a large enough document made
+the oracle emit two structurally-identical `owl:NegativePropertyAssertion`
+blocks for one axiom, not reproducible in a smaller document, consistent
+with OWL API's lenient two-pass "auto-declare missing entities" parsing
+double-counting an anonymous axiom rather than deduplicating it.
+
+## Where the code lives
+
+Parser: `packages/graph/starlayergraph/parsers/manchester_parser.py`
 (entry point `parse_manchester(text, base=None) -> list[tuple]`), wired
 into `StarLayerGraph.parse(format="manchester")` (alias `"omn"`). Tests:
 `packages/graph/tests/unit/test_manchester_parser.py` - oracle-free,
 asserting the RDF shapes this document describes directly.
+
+Serializer: `packages/graph/starlayergraph/serializers/manchester.py`,
+wired into `StarLayerGraph.serialize(format="manchester")`. Tests:
+`packages/graph/tests/unit/test_manchester_serializer.py` - also
+oracle-free, checking round-trip isomorphism plus a few direct RDF-shape
+assertions for the reconstructions above.
