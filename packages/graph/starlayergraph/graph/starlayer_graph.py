@@ -1399,11 +1399,14 @@ class StarLayerGraph(Graph):
         format='trix12'    — TriX 1.2 XML (all named graphs merged into this graph)
         format='rdfxml12'  — RDF/XML 1.2 with rdf:parseType="Triple" and
                              rdf:annotation/rdf:annotationNodeID (RDF 1.2 XML Syntax)
+        format='manchester' (alias 'omn') — OWL 2 Manchester Syntax; see
+                             starlayergraph.parsers.manchester_parser's module
+                             docstring for the supported subset
         All other formats delegate to rdflib (no triple-term support).
         """
         if format in ('n3', 'n3-12', 'text/n3'):
             format = 'turtle12'
-        if format in ('turtle12', 'longturtle12', 'nt12', 'nq12', 'trig12', 'trix12', 'rdfxml12', 'jsonld12'):
+        if format in ('turtle12', 'longturtle12', 'nt12', 'nq12', 'trig12', 'trix12', 'rdfxml12', 'jsonld12', 'manchester', 'omn'):
             text = _read_source_text(source=source, file=file, location=location, data=data)
 
             if format in ('turtle12', 'longturtle12'):
@@ -1549,6 +1552,19 @@ class StarLayerGraph(Graph):
                     check_version_conformance_for_graphs,
                 )
                 check_version_conformance_for_graphs(_rx_version(text), [self], context='RDF/XML document')
+
+            elif format in ('manchester', 'omn'):
+                from starlayergraph.parsers.manchester_parser import parse_manchester
+                effective_base = publicID
+                if effective_base is None and location is not None:
+                    from pathlib import Path
+                    effective_base = Path(location).resolve().as_uri()
+                triples = parse_manchester(text, base=effective_base)
+                if self._is_native:
+                    self._native_add_many(list(triples))
+                else:
+                    for triple in triples:
+                        self.add(triple)
 
             elif format == 'jsonld12':
                 # jsonld12 is plain JSON-LD, full stop - serialize_jsonld12()
