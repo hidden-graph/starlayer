@@ -10,30 +10,54 @@ equivalent concept).
 
 Entry point: parse_manchester(text, base=None) -> list[tuple]
 
-Supported subset (v1):
+Grammar and RDF-mapping coverage is tracked against the real OWL API
+parser (not just the W3C REC) in
+packages/graph/docs/manchester_syntax_gap_analysis.md - re-derived by
+decompiling org.semanticweb.owlapi.manchestersyntax.parser.
+ManchesterOWLSyntax (OWL API 5.1.20's own keyword table) plus empirical
+probes, rather than from memory of the spec text. That doc is the
+authoritative "what's supported and why" reference; the summary:
 
-  Frames: Prefix:, Ontology:, Class:, ObjectProperty:, DataProperty:,
-  AnnotationProperty:, Individual:
+  Frames: Prefix:, Ontology: (+ Import:), Class:, ObjectProperty:,
+  DataProperty:, AnnotationProperty:, Individual:, Datatype:
 
-  Class: clauses:            SubClassOf:, EquivalentTo:, DisjointWith:
-  Object/DataProperty clauses: Domain:, Range:, SubPropertyOf:, EquivalentTo:,
-                              DisjointWith:, InverseOf: (object only),
-                              Characteristics:
-  AnnotationProperty clauses: Domain:, Range:, SubPropertyOf:
-  Individual: clauses:       Types:, Facts:, SameAs:, DifferentFrom:
-  Top-level Misc axioms:     EquivalentClasses:, DisjointClasses:,
-                              SameIndividual:, DifferentIndividuals:
+  Class: clauses: SubClassOf:, SuperClassOf:, EquivalentTo:, DisjointWith:,
+  DisjointUnionOf:, HasKey:, Annotations:
+  Object/DataProperty clauses: Domain:, Range:, SubPropertyOf:,
+  SuperPropertyOf:, EquivalentTo:, DisjointWith:, InverseOf: (object only),
+  Characteristics:, SubPropertyChain: (object only), Annotations:
+  AnnotationProperty clauses: Domain:, Range:, SubPropertyOf:, Annotations:
+  Individual: clauses: Types:, Facts: (positive and negative), SameAs:,
+  DifferentFrom:, Annotations:
+  Datatype: clauses: EquivalentTo:, Annotations:
+  Top-level Misc axioms: EquivalentClasses:, DisjointClasses:,
+  EquivalentProperties:, DisjointProperties:, SameIndividual:,
+  DifferentIndividuals:
 
-  Class expressions: atomic name, `and`/`or`/`not`, parenthesised grouping,
-  `some`/`only`/`value`/`Self`, `min n`/`max n`/`exactly n` (qualified and
-  unqualified), `{ind1, ind2, ...}` enumeration, `inverse p`.
+  Class expressions: atomic name, `and`/`or`/`not`/`that` (a confirmed
+  synonym for `and`), parenthesised grouping, `some`/`only`/`onlysome`/
+  `value`/`Self`, `min n`/`max n`/`exactly n` (qualified and unqualified),
+  `{ind1, ind2, ...}` enumeration, `inverse p`.
+  Data ranges (DataProperty Range:, Datatype EquivalentTo:): atomic
+  datatype, `and`/`or`/`not`, `{lit, lit, ...}` (DataOneOf), facet
+  restrictions (`datatype[facet literal, ...]` - `>=`/`<=`/`>`/`<`/
+  `length`/`minLength`/`maxLength`/`pattern`).
 
-Deliberately unsupported, raising ManchesterSyntaxError rather than
-silently dropping or mis-parsing: Datatype: frames (and datatype facet
-restrictions generally), DisjointUnionOf:, HasKey:, SubPropertyChain:,
-axiom/frame Annotations: (owl:Axiom reification), negative Facts:
-(`not prop value`), and any use of a name under the default `:` prefix
-without an explicit `Prefix: :` declaration for it (no implicit
+The "frame-level Annotations:" clause above means the standalone section
+(`Class: A Annotations: rdfs:label "Foo"` -> a direct triple on A) -
+confirmed empirically to need no reification. It is deliberately *not*
+the same as annotating one item inline inside e.g. a SubClassOf: list
+(`SubClassOf: Annotations: ... B`), which needs full owl:Axiom
+reification and isn't supported - seeing that keyword there fails with a
+plain "unknown prefix" error from read_name() rather than being silently
+misparsed. See the gap-analysis doc for the full list of what's
+deliberately not implemented and why (SWRL Rule:, inline axiom
+annotations, a couple of reserved-but-dead oracle keywords, and the
+declaration-order strictness the OWL API's own parser enforces that this
+one deliberately doesn't).
+
+Also deliberately unsupported: any use of a name under the default `:`
+prefix without an explicit `Prefix: :` declaration for it (no implicit
 ontology-IRI-based default is guessed).
 """
 
@@ -57,30 +81,44 @@ _DEFAULT_PREFIXES = {
 _FRAME_KEYWORDS = {
     'Prefix:', 'Ontology:', 'Import:', 'Class:', 'ObjectProperty:',
     'DataProperty:', 'AnnotationProperty:', 'Individual:', 'Datatype:',
-    'EquivalentClasses:', 'DisjointClasses:', 'SameIndividual:',
-    'DifferentIndividuals:',
+    'EquivalentClasses:', 'DisjointClasses:', 'EquivalentProperties:',
+    'DisjointProperties:', 'SameIndividual:', 'DifferentIndividuals:',
 }
 
-_CLASS_CLAUSES = {'SubClassOf:', 'EquivalentTo:', 'DisjointWith:'}
-_CLASS_DEFERRED = {'DisjointUnionOf:', 'HasKey:', 'Annotations:'}
+_CLASS_CLAUSES = {
+    'SubClassOf:', 'SuperClassOf:', 'EquivalentTo:', 'DisjointWith:',
+    'DisjointUnionOf:', 'HasKey:', 'Annotations:',
+}
+_CLASS_DEFERRED = set()
 
 _OBJPROP_CLAUSES = {
-    'Domain:', 'Range:', 'SubPropertyOf:', 'EquivalentTo:', 'DisjointWith:',
-    'InverseOf:', 'Characteristics:',
+    'Domain:', 'Range:', 'SubPropertyOf:', 'SuperPropertyOf:', 'EquivalentTo:',
+    'DisjointWith:', 'InverseOf:', 'Characteristics:', 'SubPropertyChain:',
+    'Annotations:',
 }
-_OBJPROP_DEFERRED = {'SubPropertyChain:', 'Annotations:'}
+_OBJPROP_DEFERRED = set()
 
 _DATAPROP_CLAUSES = {
-    'Domain:', 'Range:', 'SubPropertyOf:', 'EquivalentTo:', 'DisjointWith:',
-    'Characteristics:',
+    'Domain:', 'Range:', 'SubPropertyOf:', 'SuperPropertyOf:', 'EquivalentTo:',
+    'DisjointWith:', 'Characteristics:', 'Annotations:',
 }
-_DATAPROP_DEFERRED = {'Annotations:'}
+_DATAPROP_DEFERRED = set()
 
-_ANNPROP_CLAUSES = {'Domain:', 'Range:', 'SubPropertyOf:'}
-_ANNPROP_DEFERRED = {'Annotations:'}
+_ANNPROP_CLAUSES = {'Domain:', 'Range:', 'SubPropertyOf:', 'Annotations:'}
+_ANNPROP_DEFERRED = set()
 
-_INDIVIDUAL_CLAUSES = {'Types:', 'Facts:', 'SameAs:', 'DifferentFrom:'}
-_INDIVIDUAL_DEFERRED = {'Annotations:'}
+_INDIVIDUAL_CLAUSES = {'Types:', 'Facts:', 'SameAs:', 'DifferentFrom:', 'Annotations:'}
+_INDIVIDUAL_DEFERRED = set()
+
+_DATATYPE_CLAUSES = {'EquivalentTo:', 'Annotations:'}
+_DATATYPE_DEFERRED = set()
+
+_DATA_FACETS = {
+    '>=': XSD.minInclusive, '<=': XSD.maxInclusive,
+    '>': XSD.minExclusive, '<': XSD.maxExclusive,
+    'length': XSD.length, 'minLength': XSD.minLength, 'maxLength': XSD.maxLength,
+    'pattern': XSD.pattern,
+}
 
 _CHARACTERISTICS = {
     'Functional': OWL.FunctionalProperty,
@@ -92,7 +130,7 @@ _CHARACTERISTICS = {
     'Irreflexive': OWL.IrreflexiveProperty,
 }
 
-_RESTRICTION_KEYWORDS = {'some', 'only', 'value', 'Self', 'min', 'max', 'exactly'}
+_RESTRICTION_KEYWORDS = {'some', 'only', 'onlysome', 'value', 'Self', 'min', 'max', 'exactly'}
 
 
 # ---------------------------------------------------------------------------
@@ -101,7 +139,7 @@ _RESTRICTION_KEYWORDS = {'some', 'only', 'value', 'Self', 'min', 'max', 'exactly
 
 # A bare word (keyword, prefixed name, integer, ...) never legally contains
 # any of these - each unambiguously starts a different token form.
-_WORD_STOP_CHARS = ('<', '"', '(', ')', ',', '{', '}')
+_WORD_STOP_CHARS = ('<', '"', '(', ')', ',', '{', '}', '[', ']')
 
 
 def _tokenize(text):
@@ -132,11 +170,25 @@ def _tokenize(text):
             i = n if nl == -1 else nl
             continue
         if c == '<':
+            # '<=' and bare '<' are also the minInclusive/minExclusive data
+            # facet operators (used as `xsd:int[< "10"^^xsd:int]`), not just
+            # IRIREF's opening bracket - disambiguated by content rather
+            # than position: a real IRI never contains whitespace, so
+            # only commit to the IRI reading when the text up to the next
+            # '>' has none. '<=' is unambiguous on its own (no IRI starts
+            # with '=') and is checked first.
+            if text[i:i + 2] == '<=':
+                tokens.append({'kind': 'WORD', 'text': '<=', 'line': line})
+                i += 2
+                continue
             end = text.find('>', i + 1)
-            if end == -1:
-                err("unterminated IRI (missing '>')", i)
-            tokens.append({'kind': 'IRI', 'text': text[i + 1:end], 'line': line})
-            i = end + 1
+            candidate = text[i + 1:end] if end != -1 else ''
+            if end != -1 and not any(ch.isspace() for ch in candidate):
+                tokens.append({'kind': 'IRI', 'text': candidate, 'line': line})
+                i = end + 1
+                continue
+            tokens.append({'kind': 'WORD', 'text': '<', 'line': line})
+            i += 1
             continue
         if c == '"':
             j = i + 1
@@ -174,7 +226,7 @@ def _tokenize(text):
             tokens.append(tok)
             i = j
             continue
-        if c in '(),{}':
+        if c in '(),{}[]':
             tokens.append({'kind': 'PUNCT', 'text': c, 'line': line})
             i += 1
             continue
@@ -306,9 +358,14 @@ def _parse_description(cur):
 
 
 def _parse_conjunction(cur):
+    # 'that' is a confirmed straight synonym for 'and' at this position
+    # (checked empirically against the OWL API oracle: `Leg that (hasNumber
+    # value 4)` produces the identical owl:intersectionOf shape as
+    # `Leg and (hasNumber value 4)`) - used for English-readable restriction
+    # refinement, e.g. "hasPart some (Leg that hasNumber value 4)".
     left = _parse_primary(cur)
     items = [left]
-    while cur.peek_word() == 'and':
+    while cur.peek_word() in ('and', 'that'):
         cur.advance()
         items.append(_parse_primary(cur))
     return items[0] if len(items) == 1 else ('And', items)
@@ -373,7 +430,7 @@ def _starts_a_primary(tok):
     if tok['kind'] == 'PUNCT':
         return tok['text'] in ('(', '{')
     if tok['kind'] == 'WORD':
-        return tok['text'] not in ('and', 'or') and not tok['text'].endswith(':')
+        return tok['text'] not in ('and', 'or', 'that') and not tok['text'].endswith(':')
     return False
 
 
@@ -383,6 +440,14 @@ def _parse_restriction_tail(cur, prop_expr):
         return ('Some', prop_expr, _parse_primary(cur))
     if kw == 'only':
         return ('Only', prop_expr, _parse_primary(cur))
+    if kw == 'onlysome':
+        # `p onlysome C` - OWL-API GCI-writing convenience, confirmed
+        # empirically to expand to `(p some C) and (p only C)` exactly
+        # (same owl:intersectionOf-of-two-restrictions shape the oracle
+        # emits) - reuses the existing And/Some/Only RDF mapping rather
+        # than needing a dedicated tag.
+        filler = _parse_primary(cur)
+        return ('And', [('Some', prop_expr, filler), ('Only', prop_expr, filler)])
     if kw == 'value':
         return ('Value', prop_expr, cur.read_literal_or_name())
     if kw == 'Self':
@@ -495,6 +560,119 @@ def _build_list(cur, items):
 
 
 # ---------------------------------------------------------------------------
+# Data ranges - a separate grammar from class expressions (used by
+# DataProperty: Range: and Datatype: EquivalentTo:), since a data range's
+# atoms are datatypes/literals rather than classes/individuals. Tagged
+# tuples: ('DAnd'|'DOr', [dr,...]) | ('DNot', dr) | ('DOneOf', [literal,...])
+# | ('DRestriction', datatype_uri, [(facet_uri, literal), ...])
+# | a plain URIRef for an atomic datatype.
+# ---------------------------------------------------------------------------
+
+def _parse_data_range(cur):
+    left = _parse_data_conjunction(cur)
+    items = [left]
+    while cur.peek_word() == 'or':
+        cur.advance()
+        items.append(_parse_data_conjunction(cur))
+    return items[0] if len(items) == 1 else ('DOr', items)
+
+
+def _parse_data_conjunction(cur):
+    left = _parse_data_primary(cur)
+    items = [left]
+    while cur.peek_word() == 'and':
+        cur.advance()
+        items.append(_parse_data_primary(cur))
+    return items[0] if len(items) == 1 else ('DAnd', items)
+
+
+def _parse_data_primary(cur):
+    if cur.peek_word() == 'not':
+        cur.advance()
+        return ('DNot', _parse_data_atomic(cur))
+    return _parse_data_atomic(cur)
+
+
+def _read_data_literal(cur):
+    val = cur.read_literal_or_name()
+    if not isinstance(val, Literal):
+        cur.error('expected a literal here')
+    return val
+
+
+def _parse_facet_restriction(cur):
+    tok = cur.advance()
+    if tok['text'] not in _DATA_FACETS:
+        cur.error(f'unknown facet {tok["text"]!r}')
+    return _DATA_FACETS[tok['text']], _read_data_literal(cur)
+
+
+def _parse_data_atomic(cur):
+    tok = cur.peek()
+    if tok is not None and tok['kind'] == 'PUNCT' and tok['text'] == '(':
+        cur.advance()
+        dr = _parse_data_range(cur)
+        cur.expect_punct(')')
+        return dr
+    if tok is not None and tok['kind'] == 'PUNCT' and tok['text'] == '{':
+        cur.advance()
+        literals = [_read_data_literal(cur)]
+        while cur.peek() is not None and cur.peek()['kind'] == 'PUNCT' and cur.peek()['text'] == ',':
+            cur.advance()
+            literals.append(_read_data_literal(cur))
+        cur.expect_punct('}')
+        return ('DOneOf', literals)
+
+    datatype = cur.read_name()
+    if cur.peek() is not None and cur.peek()['kind'] == 'PUNCT' and cur.peek()['text'] == '[':
+        cur.advance()
+        facets = [_parse_facet_restriction(cur)]
+        while cur.peek() is not None and cur.peek()['kind'] == 'PUNCT' and cur.peek()['text'] == ',':
+            cur.advance()
+            facets.append(_parse_facet_restriction(cur))
+        cur.expect_punct(']')
+        return ('DRestriction', datatype, facets)
+    return datatype
+
+
+def _data_range_node(cur, dr):
+    if isinstance(dr, URIRef):
+        return dr
+    tag = dr[0]
+    t = cur.triples
+    if tag in ('DAnd', 'DOr'):
+        node = cur.mint_bnode()
+        t.append((node, RDF.type, RDFS.Datatype))
+        items = [_data_range_node(cur, e) for e in dr[1]]
+        pred = OWL.intersectionOf if tag == 'DAnd' else OWL.unionOf
+        t.append((node, pred, _build_list(cur, items)))
+        return node
+    if tag == 'DNot':
+        node = cur.mint_bnode()
+        t.append((node, RDF.type, RDFS.Datatype))
+        t.append((node, OWL.datatypeComplementOf, _data_range_node(cur, dr[1])))
+        return node
+    if tag == 'DOneOf':
+        node = cur.mint_bnode()
+        t.append((node, RDF.type, RDFS.Datatype))
+        t.append((node, OWL.oneOf, _build_list(cur, dr[1])))
+        return node
+    if tag == 'DRestriction':
+        _, datatype, facets = dr
+        node = cur.mint_bnode()
+        t.append((node, RDF.type, RDFS.Datatype))
+        t.append((node, OWL.onDatatype, datatype))
+        facet_nodes = []
+        for facet_uri, lit in facets:
+            fn = cur.mint_bnode()
+            t.append((fn, facet_uri, lit))
+            facet_nodes.append(fn)
+        t.append((node, OWL.withRestrictions, _build_list(cur, facet_nodes)))
+        return node
+    raise AssertionError(f'unhandled data-range tag {tag!r}')
+
+
+# ---------------------------------------------------------------------------
 # Comma-separated clause lists
 # ---------------------------------------------------------------------------
 
@@ -523,6 +701,24 @@ def _nary_disjoint_or_different(cur, nodes, binary_pred, collection_class):
     cur.triples.append((node, OWL.members, _build_list(cur, nodes)))
 
 
+def _parse_annotation_assertion(cur):
+    return cur.read_name(), cur.read_literal_or_name()
+
+
+def _handle_frame_annotations(cur, subject):
+    """The standalone `Annotations:` frame section (its own clause, listing
+    annotationProperty/value pairs about the frame's own subject) -
+    confirmed empirically to map straight to direct triples on that
+    subject, no owl:Axiom reification involved. Distinct from - and much
+    simpler than - annotating one specific item inside e.g. a SubClassOf:
+    list, which *does* need reification and isn't supported (an attempt at
+    that syntax fails with a plain "unknown prefix" error from read_name(),
+    since the inline 'Annotations:' token there isn't a valid class/
+    property name - see the module docstring)."""
+    for prop, value in _parse_comma_list(cur, _parse_annotation_assertion):
+        cur.triples.append((subject, prop, value))
+
+
 # ---------------------------------------------------------------------------
 # Frame bodies
 # ---------------------------------------------------------------------------
@@ -548,6 +744,21 @@ def _parse_class_frame(cur):
     cur.triples.append((subject, RDF.type, OWL.Class))
 
     def handle(clause):
+        if clause == 'Annotations:':
+            _handle_frame_annotations(cur, subject)
+            return
+        if clause == 'SuperClassOf:':
+            for expr in _parse_comma_list(cur, _parse_description):
+                cur.triples.append((_expr_node(cur, expr), RDFS.subClassOf, subject))
+            return
+        if clause == 'DisjointUnionOf:':
+            nodes = [_expr_node(cur, e) for e in _parse_comma_list(cur, _parse_description)]
+            cur.triples.append((subject, OWL.disjointUnionOf, _build_list(cur, nodes)))
+            return
+        if clause == 'HasKey:':
+            nodes = [_prop_node(cur, e) for e in _parse_comma_list(cur, _parse_property_expr)]
+            cur.triples.append((subject, OWL.hasKey, _build_list(cur, nodes)))
+            return
         items = _parse_comma_list(cur, _parse_description)
         pred = {
             'SubClassOf:': RDFS.subClassOf,
@@ -565,6 +776,9 @@ def _parse_property_frame(cur, rdf_type, clauses, deferred, range_is_class_expr)
     cur.triples.append((subject, RDF.type, rdf_type))
 
     def handle(clause):
+        if clause == 'Annotations:':
+            _handle_frame_annotations(cur, subject)
+            return
         if clause == 'Characteristics:':
             names = _parse_comma_list(cur, lambda c: c.advance()['text'])
             for name in names:
@@ -572,10 +786,21 @@ def _parse_property_frame(cur, rdf_type, clauses, deferred, range_is_class_expr)
                     cur.error(f'unknown property characteristic {name!r}')
                 cur.triples.append((subject, RDF.type, _CHARACTERISTICS[name]))
             return
+        if clause == 'SubPropertyChain:':
+            chain = [_parse_property_expr(cur)]
+            while cur.peek_word() == 'o':
+                cur.advance()
+                chain.append(_parse_property_expr(cur))
+            nodes = [_prop_node(cur, e) for e in chain]
+            cur.triples.append((subject, OWL.propertyChainAxiom, _build_list(cur, nodes)))
+            return
+        if clause == 'SuperPropertyOf:':
+            for expr in _parse_comma_list(cur, _parse_property_expr):
+                cur.triples.append((_prop_node(cur, expr), RDFS.subPropertyOf, subject))
+            return
         if clause == 'Range:' and not range_is_class_expr:
-            items = _parse_comma_list(cur, lambda c: c.read_name())
-            for datatype in items:
-                cur.triples.append((subject, RDFS.range, datatype))
+            for dr in _parse_comma_list(cur, _parse_data_range):
+                cur.triples.append((subject, RDFS.range, _data_range_node(cur, dr)))
             return
         if clause in ('SubPropertyOf:', 'EquivalentTo:', 'DisjointWith:', 'InverseOf:'):
             items = _parse_comma_list(cur, _parse_property_expr)
@@ -603,6 +828,9 @@ def _parse_annotation_property_frame(cur):
     cur.triples.append((subject, RDF.type, OWL.AnnotationProperty))
 
     def handle(clause):
+        if clause == 'Annotations:':
+            _handle_frame_annotations(cur, subject)
+            return
         items = _parse_comma_list(cur, lambda c: c.read_name())
         pred = {'Domain:': RDFS.domain, 'Range:': RDFS.range, 'SubPropertyOf:': RDFS.subPropertyOf}[clause]
         for name in items:
@@ -612,11 +840,13 @@ def _parse_annotation_property_frame(cur):
 
 
 def _parse_fact(cur):
+    negative = False
     if cur.peek_word() == 'not':
-        cur.error("negative Facts: assertions ('not prop value') are not supported yet")
+        cur.advance()
+        negative = True
     prop = cur.read_name()
     value = cur.read_literal_or_name()
-    return prop, value
+    return negative, prop, value
 
 
 def _parse_individual_frame(cur):
@@ -624,18 +854,45 @@ def _parse_individual_frame(cur):
     cur.triples.append((subject, RDF.type, OWL.NamedIndividual))
 
     def handle(clause):
-        if clause == 'Types:':
+        if clause == 'Annotations:':
+            _handle_frame_annotations(cur, subject)
+        elif clause == 'Types:':
             for expr in _parse_comma_list(cur, _parse_description):
                 cur.triples.append((subject, RDF.type, _expr_node(cur, expr)))
         elif clause == 'Facts:':
-            for prop, value in _parse_comma_list(cur, _parse_fact):
-                cur.triples.append((subject, prop, value))
+            for negative, prop, value in _parse_comma_list(cur, _parse_fact):
+                if not negative:
+                    cur.triples.append((subject, prop, value))
+                    continue
+                node = cur.mint_bnode()
+                cur.triples.append((node, RDF.type, OWL.NegativePropertyAssertion))
+                cur.triples.append((node, OWL.sourceIndividual, subject))
+                cur.triples.append((node, OWL.assertionProperty, prop))
+                target_pred = OWL.targetValue if isinstance(value, Literal) else OWL.targetIndividual
+                cur.triples.append((node, target_pred, value))
         else:
             pred = OWL.sameAs if clause == 'SameAs:' else OWL.differentFrom
             for name in _parse_comma_list(cur, lambda c: c.read_name()):
                 cur.triples.append((subject, pred, name))
 
     _frame_body(cur, _INDIVIDUAL_CLAUSES, _INDIVIDUAL_DEFERRED, handle)
+
+
+def _parse_datatype_frame(cur):
+    subject = cur.read_name()
+    cur.triples.append((subject, RDF.type, RDFS.Datatype))
+
+    def handle(clause):
+        if clause == 'Annotations:':
+            _handle_frame_annotations(cur, subject)
+            return
+        # EquivalentTo: - a DatatypeDefinition axiom maps to owl:equivalentClass
+        # per the OWL 2 RDF mapping, confirmed against the oracle the same
+        # way as every other construct here.
+        for dr in _parse_comma_list(cur, _parse_data_range):
+            cur.triples.append((subject, OWL.equivalentClass, _data_range_node(cur, dr)))
+
+    _frame_body(cur, _DATATYPE_CLAUSES, _DATATYPE_DEFERRED, handle)
 
 
 def _parse_misc(cur, keyword):
@@ -645,6 +902,12 @@ def _parse_misc(cur, keyword):
             _pairwise_chain(cur, nodes, OWL.equivalentClass)
         else:
             _nary_disjoint_or_different(cur, nodes, OWL.disjointWith, OWL.AllDisjointClasses)
+    elif keyword in ('EquivalentProperties:', 'DisjointProperties:'):
+        nodes = [_prop_node(cur, e) for e in _parse_comma_list(cur, _parse_property_expr)]
+        if keyword == 'EquivalentProperties:':
+            _pairwise_chain(cur, nodes, OWL.equivalentProperty)
+        else:
+            _nary_disjoint_or_different(cur, nodes, OWL.propertyDisjointWith, OWL.AllDisjointProperties)
     else:
         names = _parse_comma_list(cur, lambda c: c.read_name())
         if keyword == 'SameIndividual:':
@@ -684,15 +947,22 @@ def parse_manchester(text: str, base: str = None) -> list:
         elif word == 'Ontology:':
             cur.advance()
             tok = cur.peek()
+            ontology_iri = None
             if tok is not None and tok['kind'] == 'IRI':
                 cur.advance()
                 ontology_iri = cur.resolve_iri(tok['text'])
                 cur.base = str(ontology_iri)
                 cur.triples.append((ontology_iri, RDF.type, OWL.Ontology))
-            if cur.peek_word() in ('Import:', 'Annotations:'):
-                cur.error(f'{cur.peek_word()} in the Ontology: header is not supported yet')
+            while cur.peek_word() == 'Import:':
+                cur.advance()
+                imported = cur.read_name()
+                if ontology_iri is not None:
+                    cur.triples.append((ontology_iri, OWL.imports, imported))
+            if cur.peek_word() == 'Annotations:':
+                cur.error('Annotations: in the Ontology: header is not supported yet')
         elif word == 'Datatype:':
-            cur.error('Datatype: frames are not supported yet')
+            cur.advance()
+            _parse_datatype_frame(cur)
         elif word == 'Class:':
             cur.advance()
             _parse_class_frame(cur)
@@ -708,7 +978,8 @@ def parse_manchester(text: str, base: str = None) -> list:
         elif word == 'Individual:':
             cur.advance()
             _parse_individual_frame(cur)
-        elif word in ('EquivalentClasses:', 'DisjointClasses:', 'SameIndividual:', 'DifferentIndividuals:'):
+        elif word in ('EquivalentClasses:', 'DisjointClasses:', 'EquivalentProperties:',
+                      'DisjointProperties:', 'SameIndividual:', 'DifferentIndividuals:'):
             cur.advance()
             _parse_misc(cur, word)
         else:
