@@ -4,9 +4,13 @@ starlayergraph.parsers.manchester_parser
 Hand-rolled parser for OWL 2 Manchester Syntax (the frame-based
 "Class: X SubClassOf: Y" notation), following the OWL 2 Mapping to RDF
 Graphs spec to turn each frame/axiom into plain triples - ordinary
-rdflib.BNode()s for owl:Restriction and rdf:List cells, no triple-term or
-reification machinery, unlike turtle_parser.py (Manchester syntax has no
-equivalent concept).
+rdflib.BNode()s for owl:Restriction/rdf:List cells, and (for an
+Annotations:-prefixed clause-list item) owl:Axiom reification - the one
+piece of reification machinery this parser does need, unlike
+turtle_parser.py's <<( )>>/{| |} triple-term/RDF-1.2-reification syntax,
+which Manchester syntax has no equivalent of. Same underlying principle
+either way though: an annotation asserts something *about* a triple
+without ever replacing the plain triple itself - see _maybe_reify().
 
 Entry point: parse_manchester(text, base=None) -> list[tuple]
 
@@ -43,18 +47,29 @@ authoritative "what's supported and why" reference; the summary:
   restrictions (`datatype[facet literal, ...]` - `>=`/`<=`/`>`/`<`/
   `length`/`minLength`/`maxLength`/`pattern`).
 
-The "frame-level Annotations:" clause above means the standalone section
-(`Class: A Annotations: rdfs:label "Foo"` -> a direct triple on A) -
-confirmed empirically to need no reification. It is deliberately *not*
-the same as annotating one item inline inside e.g. a SubClassOf: list
-(`SubClassOf: Annotations: ... B`), which needs full owl:Axiom
-reification and isn't supported - seeing that keyword there fails with a
-plain "unknown prefix" error from read_name() rather than being silently
-misparsed. See the gap-analysis doc for the full list of what's
-deliberately not implemented and why (SWRL Rule:, inline axiom
-annotations, a couple of reserved-but-dead oracle keywords, and the
-declaration-order strictness the OWL API's own parser enforces that this
-one deliberately doesn't).
+Two distinct kinds of Annotations: are both supported, mapped differently:
+
+  - The "frame-level" clause - its own standalone section
+    (`Class: A Annotations: rdfs:label "Foo"` -> a direct triple on A) -
+    confirmed empirically to need no reification at all.
+  - An inline per-item prefix inside another clause's comma-separated list
+    (`SubClassOf: Annotations: rdfs:comment "why" B, C` - annotates just
+    the B axiom, not C, confirmed empirically) - needs full owl:Axiom
+    reification (owl:annotatedSource/Property/Target + the annotation
+    triples themselves), alongside the plain axiom triple, never instead
+    of it. See _parse_item_annotations()/_maybe_reify(). Supported on
+    every clause where "one list item -> one axiom triple" holds; *not*
+    supported on the six top-level Misc axioms (EquivalentClasses: and
+    friends), whose pairwise-chain/AllDisjoint* encoding means a single
+    list item doesn't correspond to a single axiom the way it does
+    everywhere else - flagged in the gap-analysis doc rather than guessed
+    at without an empirical grammar reference to check it against.
+
+See the gap-analysis doc for the full list of what's deliberately not
+implemented and why (SWRL Rule:, Misc-axiom inline annotations, a couple
+of reserved-but-dead oracle keywords, and the declaration-order
+strictness the OWL API's own parser enforces that this one deliberately
+doesn't).
 
 Also deliberately unsupported: any use of a name under the default `:`
 prefix without an explicit `Prefix: :` declaration for it (no implicit
@@ -711,12 +726,52 @@ def _handle_frame_annotations(cur, subject):
     confirmed empirically to map straight to direct triples on that
     subject, no owl:Axiom reification involved. Distinct from - and much
     simpler than - annotating one specific item inside e.g. a SubClassOf:
-    list, which *does* need reification and isn't supported (an attempt at
-    that syntax fails with a plain "unknown prefix" error from read_name(),
-    since the inline 'Annotations:' token there isn't a valid class/
-    property name - see the module docstring)."""
+    list (see _parse_item_annotations/_maybe_reify below), which *does*
+    need reification."""
     for prop, value in _parse_comma_list(cur, _parse_annotation_assertion):
         cur.triples.append((subject, prop, value))
+
+
+def _parse_item_annotations(cur):
+    """Optional `Annotations: prop val, prop val, ...` immediately before
+    one axiom-list item (or before a whole single-axiom clause's body,
+    e.g. HasKey:/DisjointUnionOf:/SubPropertyChain:) - confirmed
+    empirically against the OWL API oracle to apply to exactly that one
+    item/clause, never carrying over to a later comma-separated item
+    (`SubClassOf: Annotations: rdfs:comment "why" A, B` only reifies the
+    A axiom, not B). Returns None when absent - the grammar has no
+    "annotated with nothing" form, so None unambiguously means "no
+    Annotations: prefix was written here"."""
+    if cur.peek_word() != 'Annotations:':
+        return None
+    cur.advance()
+    return _parse_comma_list(cur, _parse_annotation_assertion)
+
+
+def _annotated(parse_item):
+    """Wrap an item-parser so _parse_comma_list collects (annotations,
+    item) pairs instead of bare items - used at every clause-list call
+    site whose items each become their own axiom."""
+    return lambda c: (_parse_item_annotations(c), parse_item(c))
+
+
+def _maybe_reify(cur, subject, pred, obj, annotations):
+    """If `annotations` came from a real Annotations: prefix (not None),
+    add the owl:Axiom reification block the OWL 2 RDF mapping's
+    "Annotations of Axioms" section uses - alongside the plain
+    (subject, pred, obj) triple the caller already asserted, never
+    instead of it, the same principle RDF 1.2's own `{| |}` annotation
+    block follows (see turtle_parser.py) even though the concrete
+    mechanism differs (real reification here, not a triple-term)."""
+    if annotations is None:
+        return
+    node = cur.mint_bnode()
+    cur.triples.append((node, RDF.type, OWL.Axiom))
+    cur.triples.append((node, OWL.annotatedSource, subject))
+    cur.triples.append((node, OWL.annotatedProperty, pred))
+    cur.triples.append((node, OWL.annotatedTarget, obj))
+    for prop, value in annotations:
+        cur.triples.append((node, prop, value))
 
 
 # ---------------------------------------------------------------------------
@@ -748,25 +803,34 @@ def _parse_class_frame(cur):
             _handle_frame_annotations(cur, subject)
             return
         if clause == 'SuperClassOf:':
-            for expr in _parse_comma_list(cur, _parse_description):
-                cur.triples.append((_expr_node(cur, expr), RDFS.subClassOf, subject))
+            for anns, expr in _parse_comma_list(cur, _annotated(_parse_description)):
+                node = _expr_node(cur, expr)
+                cur.triples.append((node, RDFS.subClassOf, subject))
+                _maybe_reify(cur, node, RDFS.subClassOf, subject, anns)
             return
         if clause == 'DisjointUnionOf:':
+            anns = _parse_item_annotations(cur)
             nodes = [_expr_node(cur, e) for e in _parse_comma_list(cur, _parse_description)]
-            cur.triples.append((subject, OWL.disjointUnionOf, _build_list(cur, nodes)))
+            obj = _build_list(cur, nodes)
+            cur.triples.append((subject, OWL.disjointUnionOf, obj))
+            _maybe_reify(cur, subject, OWL.disjointUnionOf, obj, anns)
             return
         if clause == 'HasKey:':
+            anns = _parse_item_annotations(cur)
             nodes = [_prop_node(cur, e) for e in _parse_comma_list(cur, _parse_property_expr)]
-            cur.triples.append((subject, OWL.hasKey, _build_list(cur, nodes)))
+            obj = _build_list(cur, nodes)
+            cur.triples.append((subject, OWL.hasKey, obj))
+            _maybe_reify(cur, subject, OWL.hasKey, obj, anns)
             return
-        items = _parse_comma_list(cur, _parse_description)
         pred = {
             'SubClassOf:': RDFS.subClassOf,
             'EquivalentTo:': OWL.equivalentClass,
             'DisjointWith:': OWL.disjointWith,
         }[clause]
-        for expr in items:
-            cur.triples.append((subject, pred, _expr_node(cur, expr)))
+        for anns, expr in _parse_comma_list(cur, _annotated(_parse_description)):
+            node = _expr_node(cur, expr)
+            cur.triples.append((subject, pred, node))
+            _maybe_reify(cur, subject, pred, node, anns)
 
     _frame_body(cur, _CLASS_CLAUSES, _CLASS_DEFERRED, handle)
 
@@ -780,45 +844,55 @@ def _parse_property_frame(cur, rdf_type, clauses, deferred, range_is_class_expr)
             _handle_frame_annotations(cur, subject)
             return
         if clause == 'Characteristics:':
-            names = _parse_comma_list(cur, lambda c: c.advance()['text'])
-            for name in names:
+            for anns, name in _parse_comma_list(cur, _annotated(lambda c: c.advance()['text'])):
                 if name not in _CHARACTERISTICS:
                     cur.error(f'unknown property characteristic {name!r}')
-                cur.triples.append((subject, RDF.type, _CHARACTERISTICS[name]))
+                obj = _CHARACTERISTICS[name]
+                cur.triples.append((subject, RDF.type, obj))
+                _maybe_reify(cur, subject, RDF.type, obj, anns)
             return
         if clause == 'SubPropertyChain:':
+            anns = _parse_item_annotations(cur)
             chain = [_parse_property_expr(cur)]
             while cur.peek_word() == 'o':
                 cur.advance()
                 chain.append(_parse_property_expr(cur))
             nodes = [_prop_node(cur, e) for e in chain]
-            cur.triples.append((subject, OWL.propertyChainAxiom, _build_list(cur, nodes)))
+            obj = _build_list(cur, nodes)
+            cur.triples.append((subject, OWL.propertyChainAxiom, obj))
+            _maybe_reify(cur, subject, OWL.propertyChainAxiom, obj, anns)
             return
         if clause == 'SuperPropertyOf:':
-            for expr in _parse_comma_list(cur, _parse_property_expr):
-                cur.triples.append((_prop_node(cur, expr), RDFS.subPropertyOf, subject))
+            for anns, expr in _parse_comma_list(cur, _annotated(_parse_property_expr)):
+                node = _prop_node(cur, expr)
+                cur.triples.append((node, RDFS.subPropertyOf, subject))
+                _maybe_reify(cur, node, RDFS.subPropertyOf, subject, anns)
             return
         if clause == 'Range:' and not range_is_class_expr:
-            for dr in _parse_comma_list(cur, _parse_data_range):
-                cur.triples.append((subject, RDFS.range, _data_range_node(cur, dr)))
+            for anns, dr in _parse_comma_list(cur, _annotated(_parse_data_range)):
+                obj = _data_range_node(cur, dr)
+                cur.triples.append((subject, RDFS.range, obj))
+                _maybe_reify(cur, subject, RDFS.range, obj, anns)
             return
         if clause in ('SubPropertyOf:', 'EquivalentTo:', 'DisjointWith:', 'InverseOf:'):
-            items = _parse_comma_list(cur, _parse_property_expr)
             pred = {
                 'SubPropertyOf:': RDFS.subPropertyOf,
                 'EquivalentTo:': OWL.equivalentProperty,
                 'DisjointWith:': OWL.propertyDisjointWith,
                 'InverseOf:': OWL.inverseOf,
             }[clause]
-            for expr in items:
-                cur.triples.append((subject, pred, _prop_node(cur, expr)))
+            for anns, expr in _parse_comma_list(cur, _annotated(_parse_property_expr)):
+                node = _prop_node(cur, expr)
+                cur.triples.append((subject, pred, node))
+                _maybe_reify(cur, subject, pred, node, anns)
             return
         # Domain: (both frame kinds), Range: (object-property case) - full
         # class-expression grammar.
-        items = _parse_comma_list(cur, _parse_description)
         pred = {'Domain:': RDFS.domain, 'Range:': RDFS.range}[clause]
-        for expr in items:
-            cur.triples.append((subject, pred, _expr_node(cur, expr)))
+        for anns, expr in _parse_comma_list(cur, _annotated(_parse_description)):
+            node = _expr_node(cur, expr)
+            cur.triples.append((subject, pred, node))
+            _maybe_reify(cur, subject, pred, node, anns)
 
     _frame_body(cur, clauses, deferred, handle)
 
@@ -831,10 +905,10 @@ def _parse_annotation_property_frame(cur):
         if clause == 'Annotations:':
             _handle_frame_annotations(cur, subject)
             return
-        items = _parse_comma_list(cur, lambda c: c.read_name())
         pred = {'Domain:': RDFS.domain, 'Range:': RDFS.range, 'SubPropertyOf:': RDFS.subPropertyOf}[clause]
-        for name in items:
+        for anns, name in _parse_comma_list(cur, _annotated(lambda c: c.read_name())):
             cur.triples.append((subject, pred, name))
+            _maybe_reify(cur, subject, pred, name, anns)
 
     _frame_body(cur, _ANNPROP_CLAUSES, _ANNPROP_DEFERRED, handle)
 
@@ -857,23 +931,35 @@ def _parse_individual_frame(cur):
         if clause == 'Annotations:':
             _handle_frame_annotations(cur, subject)
         elif clause == 'Types:':
-            for expr in _parse_comma_list(cur, _parse_description):
-                cur.triples.append((subject, RDF.type, _expr_node(cur, expr)))
+            for anns, expr in _parse_comma_list(cur, _annotated(_parse_description)):
+                node = _expr_node(cur, expr)
+                cur.triples.append((subject, RDF.type, node))
+                _maybe_reify(cur, subject, RDF.type, node, anns)
         elif clause == 'Facts:':
-            for negative, prop, value in _parse_comma_list(cur, _parse_fact):
+            for anns, (negative, prop, value) in _parse_comma_list(cur, _annotated(_parse_fact)):
                 if not negative:
                     cur.triples.append((subject, prop, value))
+                    _maybe_reify(cur, subject, prop, value, anns)
                     continue
+                # A negative fact has no base (s, p, o) triple to point an
+                # owl:Axiom wrapper at - the NegativePropertyAssertion bnode
+                # is itself already the reification-like structure the OWL 2
+                # RDF mapping uses, so any annotations attach directly to it
+                # rather than through a second _maybe_reify() wrapper node.
                 node = cur.mint_bnode()
                 cur.triples.append((node, RDF.type, OWL.NegativePropertyAssertion))
                 cur.triples.append((node, OWL.sourceIndividual, subject))
                 cur.triples.append((node, OWL.assertionProperty, prop))
                 target_pred = OWL.targetValue if isinstance(value, Literal) else OWL.targetIndividual
                 cur.triples.append((node, target_pred, value))
+                if anns is not None:
+                    for ann_prop, ann_value in anns:
+                        cur.triples.append((node, ann_prop, ann_value))
         else:
             pred = OWL.sameAs if clause == 'SameAs:' else OWL.differentFrom
-            for name in _parse_comma_list(cur, lambda c: c.read_name()):
+            for anns, name in _parse_comma_list(cur, _annotated(lambda c: c.read_name())):
                 cur.triples.append((subject, pred, name))
+                _maybe_reify(cur, subject, pred, name, anns)
 
     _frame_body(cur, _INDIVIDUAL_CLAUSES, _INDIVIDUAL_DEFERRED, handle)
 
@@ -889,8 +975,10 @@ def _parse_datatype_frame(cur):
         # EquivalentTo: - a DatatypeDefinition axiom maps to owl:equivalentClass
         # per the OWL 2 RDF mapping, confirmed against the oracle the same
         # way as every other construct here.
-        for dr in _parse_comma_list(cur, _parse_data_range):
-            cur.triples.append((subject, OWL.equivalentClass, _data_range_node(cur, dr)))
+        for anns, dr in _parse_comma_list(cur, _annotated(_parse_data_range)):
+            node = _data_range_node(cur, dr)
+            cur.triples.append((subject, OWL.equivalentClass, node))
+            _maybe_reify(cur, subject, OWL.equivalentClass, node, anns)
 
     _frame_body(cur, _DATATYPE_CLAUSES, _DATATYPE_DEFERRED, handle)
 

@@ -419,6 +419,67 @@ class TestDatatypesAndDataRanges:
 
 
 # ---------------------------------------------------------------------------
+# Inline per-axiom Annotations: - distinct from the frame-level clause
+# (TestFrames/TestClassClauses etc. above) - annotates one specific item
+# inside another clause's list, via owl:Axiom reification.
+# ---------------------------------------------------------------------------
+
+class TestInlineAxiomAnnotations:
+    def _axiom_node(self, t, subject, pred, obj):
+        return next(
+            s for s, p, o in t
+            if p == RDF.type and o == OWL.Axiom
+            and (s, OWL.annotatedSource, subject) in t
+            and (s, OWL.annotatedProperty, pred) in t
+            and (s, OWL.annotatedTarget, obj) in t
+        )
+
+    def test_subclassof_item_annotated(self):
+        t = parse('Class: Animal\nClass: Cat\n'
+                   '    SubClassOf: Annotations: rdfs:comment "why" Animal\n')
+        assert (ex('Cat'), RDFS.subClassOf, ex('Animal')) in t
+        node = self._axiom_node(t, ex('Cat'), RDFS.subClassOf, ex('Animal'))
+        assert (node, RDFS.comment, Literal('why')) in t
+
+    def test_annotation_does_not_carry_over_to_next_item(self):
+        # Confirmed empirically against the OWL API oracle: the
+        # Annotations: prefix applies to exactly the one item it precedes.
+        t = parse('Class: Animal\nClass: Pet\nClass: Cat\n'
+                   '    SubClassOf: Annotations: rdfs:comment "why" Animal, Pet\n')
+        assert (ex('Cat'), RDFS.subClassOf, ex('Pet')) in t
+        assert not any(
+            p == OWL.annotatedTarget and o == ex('Pet') for s, p, o in t
+        )
+
+    def test_haskey_whole_clause_annotated(self):
+        t = parse('DataProperty: ssn\nClass: Person\n'
+                   '    HasKey: Annotations: rdfs:comment "why" ssn\n')
+        list_node = next(o for s, p, o in t if s == ex('Person') and p == OWL.hasKey)
+        node = self._axiom_node(t, ex('Person'), OWL.hasKey, list_node)
+        assert (node, RDFS.comment, Literal('why')) in t
+
+    def test_positive_fact_item_annotated(self):
+        t = parse('ObjectProperty: p\nIndividual: b\nIndividual: a\n'
+                   '    Facts: Annotations: rdfs:comment "why" p b\n')
+        node = self._axiom_node(t, ex('a'), ex('p'), ex('b'))
+        assert (node, RDFS.comment, Literal('why')) in t
+
+    def test_negative_fact_annotated_directly_on_its_own_bnode(self):
+        # No separate owl:Axiom wrapper - the NegativePropertyAssertion
+        # bnode is already the reification-like structure, so the
+        # annotation attaches straight to it.
+        t = parse('ObjectProperty: p\nIndividual: b\nIndividual: a\n'
+                   '    Facts: Annotations: rdfs:comment "why" not p b\n')
+        node = next(s for s, p, o in t if p == RDF.type and o == OWL.NegativePropertyAssertion)
+        assert (node, RDFS.comment, Literal('why')) in t
+        assert not any(p == RDF.type and o == OWL.Axiom for s, p, o in t)
+
+    def test_unannotated_item_gets_no_reification(self):
+        t = parse('Class: Animal\nClass: Cat\n    SubClassOf: Animal\n')
+        assert not any(p == RDF.type and o == OWL.Axiom for s, p, o in t)
+
+
+# ---------------------------------------------------------------------------
 # Deliberately unsupported constructs - must raise, not mis-parse
 # ---------------------------------------------------------------------------
 
@@ -434,13 +495,14 @@ class TestUnsupported:
         with pytest.raises(ManchesterSyntaxError):
             parse('ValuePartition: Speed\n')
 
-    def test_inline_per_axiom_annotation_not_supported(self):
-        # Distinct from the frame-level Annotations: clause (see
-        # test_frame_level_annotations) - annotating one specific item
-        # inside a SubClassOf: list needs owl:Axiom reification, which
-        # isn't implemented. Fails as an unrecognized name, not silently.
+    def test_misc_axiom_inline_annotation_not_supported(self):
+        # Unlike every other clause (see TestInlineAxiomAnnotations), the
+        # six top-level Misc axioms don't support this - their pairwise-
+        # chain/AllDisjoint* encoding means one list item doesn't
+        # correspond to one axiom triple the way it does everywhere else.
         with pytest.raises(ManchesterSyntaxError):
-            parse('Class: A\nClass: B\n    SubClassOf: Annotations: rdfs:comment "why" B\n')
+            parse('Class: A\nClass: B\nClass: C\n'
+                  'EquivalentClasses: Annotations: rdfs:comment "why" A, B, C\n')
 
     def test_undeclared_default_prefix(self):
         with pytest.raises(ManchesterSyntaxError):
