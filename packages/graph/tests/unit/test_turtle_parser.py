@@ -9,7 +9,7 @@ import pytest
 from rdflib import BNode, Graph, Literal, URIRef
 from rdflib.namespace import RDF, XSD
 from starlayergraph.parsers.errors import TurtleSyntaxError
-from starlayergraph.parsers.turtle_parser import SL_NS
+from starlayergraph.parsers.turtle_parser import SL_NS, StarLayerTurtleParser
 
 EX = 'http://example.org/'
 SL_TRIPLE_TERM  = URIRef(SL_NS + 'TripleTerm')
@@ -148,6 +148,46 @@ class TestBlankNodes:
         items_head = list(g.objects(URIRef(EX+'doc'), URIRef(EX+'items')))[0]
         firsts = list(g.objects(items_head, RDF.first))
         assert firsts == [URIRef(EX+'a')]
+
+
+class TestBlankNodeUniquenessAcrossCalls:
+    """Found live while building a guide example: StarLayerGraph.parse()
+    called twice on the same graph, where both calls' Turtle bodies each
+    contain an anonymous `[...]` node, silently merged the *first*
+    anonymous node of each call into a single rdflib.BNode - the internal
+    sl_N/si_N labels this parser mints always restarted at sl_0 on every
+    call, so two separate calls' first blank nodes collided into one node
+    once both were added to the same target graph, corrupting whichever
+    unrelated facts happened to land on the same number. Fixed by seeding
+    the counter with a random per-call offset instead of always 0 - pins
+    that fix here at the parser level (independent of StarLayerGraph's own
+    merge logic, which is exercised end-to-end in test_infer_owl_dl.py's
+    access-control example).
+    """
+
+    def test_two_calls_never_share_a_blank_node_label(self):
+        parser = StarLayerTurtleParser()
+        g1 = parser.parse("""
+            @prefix ex: <http://example.org/> .
+            ex:a ex:p [ ex:q ex:first ] .
+        """)
+        g2 = parser.parse("""
+            @prefix ex: <http://example.org/> .
+            ex:b ex:p [ ex:q ex:second ] .
+        """)
+        bn_a = list(g1.objects(URIRef(EX + 'a'), URIRef(EX + 'p')))[0]
+        bn_b = list(g2.objects(URIRef(EX + 'b'), URIRef(EX + 'p')))[0]
+        assert bn_a != bn_b
+
+        merged = Graph()
+        for t in g1:
+            merged.add(t)
+        for t in g2:
+            merged.add(t)
+        # each anonymous node must still point only to its own original
+        # fact - a collision would make both resolve to the same q-value
+        assert list(merged.objects(bn_a, URIRef(EX + 'q'))) == [URIRef(EX + 'first')]
+        assert list(merged.objects(bn_b, URIRef(EX + 'q'))) == [URIRef(EX + 'second')]
 
 
 class TestBracketedSubject:

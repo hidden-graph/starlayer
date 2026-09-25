@@ -12,6 +12,7 @@ Entry point: StarLayerTurtleParser().parse(data)
 """
 
 import re
+import secrets
 from urllib.parse import urljoin
 
 from rdflib import BNode, Graph, Literal, URIRef
@@ -741,7 +742,19 @@ class StarLayerTurtleParser:
             idx = min(max(cleaned_line, 1), len(line_map)) - 1
             return line_map[idx]
 
-        blank_counter = [0]
+        # Seeded with a fresh random offset (not 0) so the sl_N/si_N labels
+        # minted by this call can never collide with the ones a *previous*
+        # StarLayerGraph.parse() call already wrote into the same target
+        # graph - blank-node labels are only meant to be scoped to a single
+        # document/call, but a plain per-call counter starting at 0 would
+        # silently produce colliding rdflib.BNode identities (same label ==
+        # same node) across separate calls, corrupting whichever unrelated
+        # blank nodes happened to land on the same number. Confirmed live:
+        # `g.parse(axioms); g.parse(more_data)` where both bodies contain
+        # anonymous `[...]` nodes merged the *first* anonymous node of each
+        # call into one bnode, even though they meant completely different
+        # things.
+        blank_counter = [secrets.randbits(63)]
         canonical = {'prefixes': [], 'bases': [], 'triples': []}
         current_base = base
         declared_version = None
