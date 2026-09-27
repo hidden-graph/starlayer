@@ -24,7 +24,8 @@ query to rdflib's SPARQL 1.1 parser.
 """
 
 import pytest
-from rdflib import URIRef
+from rdflib import BNode, URIRef
+from rdflib.graph import DATASET_DEFAULT_GRAPH_ID
 from starlayergraph.backends.native import check_native_version_conformance
 from starlayergraph.graph.starlayer_dataset import StarLayerDataset
 from starlayergraph.graph.starlayer_graph import StarLayerGraph
@@ -146,6 +147,50 @@ class TestNativeBackendVersionConformance:
     def test_unrecognized_version_label_warns(self):
         with pytest.warns(SPARQL12ConformanceWarning, match='unrecognized'):
             check_native_version_conformance('VERSION "9.9"\nSELECT * WHERE { ?s ?p ?o }')
+
+
+class TestNativeIdentifierDefault:
+    """A native (backend='rdf-1.2') StarLayerGraph constructed with no
+    explicit identifier= used to get rdflib's own default (a fresh random
+    BNode) - but query()/update() send SPARQL text straight through
+    unscoped (the endpoint's own default graph), while infer()/triples()/
+    plain iteration wrap every pattern in GRAPH <self.identifier> { ... }
+    via _native_scoped() unless self.identifier is exactly
+    DATASET_DEFAULT_GRAPH_ID. A random BNode identifier satisfied neither
+    exemption, so those two halves of the API silently disagreed about
+    which graph is "self's data" - confirmed live, and previously worked
+    around explicitly in tests/integration/test_entailment_native.py by
+    always passing identifier=DATASET_DEFAULT_GRAPH_ID. Fixed by
+    defaulting to it automatically whenever the caller supplies no
+    identifier of their own, so the common case agrees by construction.
+    """
+
+    def test_native_backend_defaults_identifier_to_dataset_default_graph_id(self):
+        g = StarLayerGraph(backend='rdf-1.2')
+        assert g.identifier == DATASET_DEFAULT_GRAPH_ID
+
+    def test_native_backend_explicit_none_identifier_also_defaults(self):
+        # rdflib's own Graph.__init__ treats an omitted identifier= and an
+        # explicit identifier=None identically (identifier or BNode()) -
+        # this confirms the same equivalence holds for the new default.
+        g = StarLayerGraph(backend='rdf-1.2', identifier=None)
+        assert g.identifier == DATASET_DEFAULT_GRAPH_ID
+
+    def test_native_backend_respects_explicit_identifier(self):
+        g = StarLayerGraph(backend='rdf-1.2', identifier=URIRef(EX + "someGraph"))
+        assert g.identifier == URIRef(EX + "someGraph")
+
+    def test_native_backend_respects_positional_identifier(self):
+        # Proves the len(args) < 2 guard doesn't clobber an identifier
+        # passed positionally (Graph.__init__(store, identifier, ...)).
+        g = StarLayerGraph('default', URIRef(EX + "someGraph"), backend='rdf-1.2')
+        assert g.identifier == URIRef(EX + "someGraph")
+
+    def test_default_backend_still_gets_random_bnode(self):
+        # Regression guard: the new conditional is gated on backend=='rdf-1.2'
+        # and must not touch the default backend's own per-instance BNode.
+        g = StarLayerGraph()
+        assert isinstance(g.identifier, BNode)
 
 
 class TestTurtleVersionDirective:

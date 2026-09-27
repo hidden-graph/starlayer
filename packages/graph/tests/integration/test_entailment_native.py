@@ -137,3 +137,32 @@ class TestEntailmentNative:
         assert [str(r[0]) for r in rows] == [str(EX.alice)]
         delta = g._owl_rl_cache[0]
         assert (EX.alice, RDF.type, EX.Employee) not in delta
+
+    def test_no_explicit_identifier_needed_anymore(self):
+        # Regression proof for the native-graph identifier default fix
+        # (StarLayerGraph.__init__): _graph()'s own identifier=
+        # DATASET_DEFAULT_GRAPH_ID above used to be a required workaround,
+        # not just documentation - omitting it used to reproduce exactly
+        # the query()-sees-data/infer()-sees-nothing split _graph()'s own
+        # comment describes. Confirms the constructor default alone now
+        # closes that gap, with no explicit identifier= at the call site.
+        store = SPARQLUpdateStore(
+            query_endpoint=f"{DATASET}/query", update_endpoint=f"{DATASET}/update"
+        )
+        g = StarLayerGraph(store=store, backend="rdf-1.2")
+        g.update("CLEAR ALL")
+        g.bind("ex", EX)
+        g.update("PREFIX ex: <http://example.org/> INSERT DATA { ex:alice a ex:Manager }")
+
+        rows = list(g.query(
+            "PREFIX ex: <http://example.org/> SELECT ?x WHERE { ?x a ex:Employee }",
+            entailment="native",
+        ))
+        assert [str(r[0]) for r in rows] == [str(EX.alice)], (
+            "query() should see the data regardless"
+        )
+
+        # The real regression this guards against: infer()/triples() used
+        # to see an empty GRAPH <random-bnode-iri> here even though query()
+        # above just proved the data is really there.
+        assert (EX.alice, RDF.type, EX.Manager) in g

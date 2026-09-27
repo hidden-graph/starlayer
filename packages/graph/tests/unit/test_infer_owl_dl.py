@@ -1,17 +1,17 @@
 """
 tests/unit/test_infer_owl_dl.py
 
-Coverage for StarLayerGraph.infer(profile="owl-dl") - OWL 2 Direct
-Semantics reasoning via owlready2 + Java HermiT, a genuinely different
-computational model (tableau DL reasoning) from every owlrl-backed
-profile covered by test_infer.py. `owlready2` is a normal (core)
-dependency of this package, so it should always be importable - the
-`owl_dl_extra` skip below guards against a broken/incomplete install
-rather than an optional extra a user needs to opt into (the same pattern
-`pyshacl`'s own tests use, even though it's core to that package too).
-A real Java runtime on PATH is the one prerequisite that genuinely can't
-be satisfied by `pip` alone - HermiT is a Java program, not a
-pure-Python one - so it gets its own, separate skip condition.
+Coverage for StarLayerGraph.infer(profile="owl-dl", engine="hermit") -
+OWL 2 Direct Semantics reasoning via owlready2 + Java HermiT, a genuinely
+different computational model (tableau DL reasoning) from every owlrl-backed
+profile covered by test_infer.py. `owlready2` is an optional extra of this
+package (`pip install starlayergraph[hermit]`), not a core dependency -
+the `owl_dl_extra` skip below is a real "not opted into this engine" skip,
+the same spirit as test_infer_owl_dl_rustdl.py's own skip for `[rustdl]`.
+A real Java runtime on PATH is a *further* prerequisite that genuinely
+can't be satisfied by `pip` alone even once the extra is installed -
+HermiT is a Java program, not a pure-Python one - so it gets its own,
+separate skip condition.
 
 Per this project's own testing discipline (starsparql/CLAUDE.md: "any new
 query/update shape needs an execution-comparison test, not just a
@@ -37,8 +37,8 @@ except ImportError:
 
 owl_dl_extra = pytest.mark.skipif(
     not _OWLREADY2_AVAILABLE,
-    reason='owlready2 not importable - it is a core dependency of this package; '
-           'reinstall with: pip install -e .',
+    reason='owlready2 not importable - it is an optional extra of this package; '
+           'install with: pip install starlayergraph[hermit]',
 )
 
 java_required = pytest.mark.skipif(
@@ -170,6 +170,38 @@ class TestOwlDlModes:
         result = g.infer(profile="owl-dl", mode="in-place")
         assert result is g
         assert (EX.alice, RDF.type, EX.Employee) in g
+
+
+def test_missing_owlready2_raises_actionable_error(monkeypatch):
+    """Simulates owlready2 not being installed (independent of whether it
+    actually is, in this test environment) - confirms the "opt-in package
+    missing" case raises a clear, actionable RuntimeError naming the
+    exact extra to install, not a bare ImportError. Mirrors
+    test_infer_owl_dl_rustdl.py's identical test for the other engine.
+    """
+    import sys
+
+    from starlayergraph.graph import owl_dl
+
+    monkeypatch.setitem(sys.modules, "owlready2", None)
+    with pytest.raises(RuntimeError, match=r"starlayergraph\[hermit\]"):
+        owl_dl._require_owlready2()
+
+
+def test_invalid_engine_raises_value_error():
+    g = StarLayerGraph()
+    g.bind("ex", EX)
+    g.add((EX.alice, RDF.type, EX.Person))
+    with pytest.raises(ValueError, match="Unsupported engine"):
+        g.infer(profile="owl-dl", engine="not-a-real-engine")
+
+
+def test_engine_rejected_for_non_owl_dl_profile():
+    g = StarLayerGraph()
+    g.bind("ex", EX)
+    g.add((EX.alice, RDF.type, EX.Person))
+    with pytest.raises(ValueError, match="only meaningful for profile='owl-dl'"):
+        g.infer(profile="rdfs", engine="rustdl")
 
 
 @owl_dl_extra

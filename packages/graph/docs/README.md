@@ -1,6 +1,6 @@
 # docs
 
-*Last reviewed: 2026-08-13*
+*Last reviewed: 2026-09-27*
 
 - `../CLAUDE.md`: project-specific instructions for Claude Code sessions - start here
 - starlayergraph.md: architecture and design overview - core concepts, package structure
@@ -8,6 +8,8 @@
 - sparql12_design.md: SPARQL 1.2 query support, rewrite strategy, and query examples
 - rdf12_sparql12_gap_analysis.md: RDF 1.2/SPARQL 1.2 feature-by-feature conformance tracking against the W3C spec text directly
 - manchester_syntax_gap_analysis.md: Manchester OWL Syntax parser conformance tracking against the real OWL API parser (not just the W3C REC)
+- sparql12_protocol_gap_analysis.md: SPARQL 1.2 Protocol conformance tracking for the native backend's HTTP client (`backends/native.py`)
+- rdf_interop_gap_analysis.md: RDF 1.2 Interoperability spec (basic-encode/decode of triple terms) conformance tracking - still an Editor's Draft, not implementation-ready
 - testing-strategy.md: the four test tiers, what each one actually checks, and known degradation points
 - performance.md: full benchmark write-up and backend recommendations
 - future_enhancements.md: deferred follow-ups and rationale behind non-obvious decisions

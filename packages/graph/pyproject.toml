@@ -13,11 +13,6 @@ requires-python = ">=3.10"
 dependencies = [
     "rdflib>=7.0",
     "requests>=2.28",
-    # OWL 2 DL reasoning (StarLayerGraph.infer(profile="owl-dl")) - a normal
-    # pip package, so it installs automatically with everything else. Java
-    # on PATH is the one prerequisite this can't satisfy: owlready2 bundles
-    # Java HermiT and needs a real JVM at runtime - see owl_dl.py.
-    "owlready2>=0.51",
     # Not published to PyPI. Install the sibling package first:
     #   pip install -e ../sparql
     # The repo-level core install is the `graph` package, while the Python
@@ -47,6 +42,14 @@ classifiers = [
 # Remove once rdflib-sqlalchemy drops the pkg_resources import upstream.
 sqlalchemy = ["rdflib-sqlalchemy>=0.5", "setuptools<81"]
 reasoning = ["owlrl>=6"]
+# The two engines StarLayerGraph.infer(profile="owl-dl", engine=...) can
+# dispatch to - see starlayergraph/graph/owl_dl.py and owl_dl_rustdl.py.
+# Neither is core: "hermit" also needs a real JVM on PATH that pip alone
+# can't provide, and "rustdl" is a different, non-strictly-better tradeoff
+# (no JVM, but not provably complete on full SROIQ) - so both are opt-in,
+# symmetrically, rather than one being special.
+hermit = ["owlready2>=0.51"]
+rustdl = ["rustdl>=0.4"]
 test = ["pytest>=7", "hypothesis>=6"]
 
 [project.urls]

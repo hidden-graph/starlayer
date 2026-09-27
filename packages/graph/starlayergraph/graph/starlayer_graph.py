@@ -52,16 +52,22 @@ VALID_BACKENDS = frozenset({'rdf-1.1', 'rdf-1.2'})
 # entailment, subproperty entailment) - no data is copied. "owl-rl"
 # materializes a full RDFS/OWL-RL closure via infer() - see query()'s own
 # docstring and VALID_INFER_MODES for how much of that work gets reused
-# across calls (controlled by the separate infer= kwarg). "native"
-# delegates entailment to the endpoint itself - only legal with
-# backend='rdf-1.2', where native_query() already sends text straight
-# through with zero rewriting (see backends/native.py's own module
-# docstring); this value adds no new behavior on that path, it's a
+# across calls (controlled by the separate infer= kwarg). "direct" is
+# "owl-rl"'s OWL 2 DL counterpart - the SPARQL Entailment Regimes spec's
+# own name for OWL-Direct-Semantics-backed querying: a live union of self
+# and a small cached delta from infer(profile="owl-dl", engine=...)
+# (mode="delta"), refreshed on the same infer=-governed cadence, but via
+# genuine tableau DL reasoning (see query()'s own docstring for the real
+# cost difference this implies, and the separate engine= kwarg it also
+# reads). "native" delegates entailment to the endpoint itself - only
+# legal with backend='rdf-1.2', where native_query() already sends text
+# straight through with zero rewriting (see backends/native.py's own
+# module docstring); this value adds no new behavior on that path, it's a
 # self-documenting label plus the guard that using it against the default
 # backend (nothing to delegate to) is a mistake, not a silent no-op. See
 # packages/graph/docs/fuseki-reasoning-setup.md for how to actually
 # configure an endpoint that makes this meaningful.
-VALID_ENTAILMENTS = frozenset({None, 'rdf', 'rdfs', 'owl-rl', 'native'})
+VALID_ENTAILMENTS = frozenset({None, 'rdf', 'rdfs', 'owl-rl', 'direct', 'native'})
 # query()'s infer= kwarg - only consulted when entailment="owl-rl"; ignored
 # otherwise. Controls reuse of the one materialized-closure cache this
 # graph keeps (self._owl_rl_cache), stamped with the mutation generation
@@ -260,6 +266,29 @@ class StarLayerGraph(Graph):
     def __init__(self, *args, backend: str = 'rdf-1.1', **kwargs):
         if backend not in VALID_BACKENDS:
             raise ValueError(f"backend must be one of {sorted(VALID_BACKENDS)}, got {backend!r}")
+        if backend == 'rdf-1.2' and len(args) < 2 and kwargs.get('identifier') is None:
+            # Without this, a native graph constructed with no explicit
+            # identifier=  gets rdflib's own default (a fresh random BNode) -
+            # but query()/update() send SPARQL text straight through
+            # unscoped (the endpoint's own default graph), while
+            # infer()/triples()/plain iteration wrap every pattern in
+            # GRAPH <self.identifier> { ... } via _native_scoped() unless
+            # self.identifier is exactly DATASET_DEFAULT_GRAPH_ID. A random
+            # BNode identifier satisfies neither exemption, so those two
+            # halves of the API would silently disagree about which graph
+            # is "self's data" - query()/update() see the endpoint's real
+            # default graph, infer()/triples() see an empty, unreachable
+            # GRAPH <random-bnode-iri> instead. Confirmed live. Defaulting
+            # here - only when the caller supplied no identifier of their
+            # own (len(args) < 2 leaves a *positional* identifier alone;
+            # kwargs.get('identifier') is None covers both "omitted" and
+            # explicit identifier=None, which rdflib's own Graph.__init__
+            # already treats the same way) - makes the common case agree
+            # by construction, rather than requiring every _native_scoped()
+            # call site to somehow detect and raise on the mismatch after
+            # the fact (which couldn't distinguish "wrong scope" from "a
+            # real named graph that's legitimately still empty" anyway).
+            kwargs['identifier'] = DATASET_DEFAULT_GRAPH_ID
         super().__init__(*args, **kwargs)
         self._backend = backend
         self._tt_registry: dict = {}   # canonical (s_key, p, o_key) -> URIRef (rdf-1.1 only)
@@ -285,6 +314,19 @@ class StarLayerGraph(Graph):
         # live view of self isn't representation-safe in that case (see
         # query()'s entailment="owl-rl" branch).
         self._owl_rl_snapshot_cache: "Graph | None" = None
+        # query()'s entailment="direct" counterpart to _owl_rl_cache/
+        # _owl_rl_snapshot_cache above - same (delta, generation) shape and
+        # same fast-path/fallback-path split, but keyed by engine ("hermit"/
+        # "rustdl") rather than a single shared slot: HermiT's and RustDL's
+        # delta genuinely differ for the same graph (RustDL's documented
+        # under-approximation of property assertions vs HermiT's complete
+        # one - see owl_dl_rustdl.py's own module docstring), so a caller
+        # switching engine= between calls on an unmutated graph must not
+        # silently thrash a single cache slot every time - that's the exact
+        # staleness bug this cache exists to prevent, just triggered by
+        # engine choice instead of mutation.
+        self._owl_dl_cache: "dict[str, tuple[Graph, int]]" = {}
+        self._owl_dl_snapshot_cache: "dict[str, Graph]" = {}
 
     def _on_mutated(self) -> None:
         """Called from every place this graph's own triple content changes
@@ -1593,7 +1635,8 @@ class StarLayerGraph(Graph):
 
     def query(self, query_object, processor='sparql', result='sparql',
               initNs=None, initBindings=None, use_store_provided=True,
-              entailment: str | None = None, infer: str = 'changed', **kwargs):
+              entailment: str | None = None, infer: str = 'changed',
+              engine: str = 'hermit', **kwargs):
         """Execute a SPARQL query. Triple-term patterns are rewritten to SPARQL 1.1.
 
         The rewritten query runs against a plain Graph view of the same store so
@@ -1616,7 +1659,33 @@ class StarLayerGraph(Graph):
             native backend), ``"owl-rl"`` (queries the live union of
             ``self`` and a
             small cached delta of just its newly-entailed triples - see
-            ``infer(mode="delta")`` and the ``infer`` parameter below), or
+            ``infer(mode="delta")`` and the ``infer`` parameter below),
+            ``"direct"`` (OWL 2 DL's counterpart to ``"owl-rl"`` - the
+            SPARQL Entailment Regimes spec's own name for OWL-Direct-
+            Semantics-backed querying: same live-union-with-a-cached-delta
+            design, but the delta comes from
+            ``infer(profile="owl-dl", engine=..., mode="delta")`` - see
+            the ``engine`` parameter below and ``infer()``'s own
+            docstring for what each engine actually guarantees.
+            **Read this before reaching for it**: genuine tableau DL
+            reasoning is routinely orders of magnitude slower than
+            ``owlrl``'s forward-chaining - an empirical ~20-individual
+            constraint-satisfaction example (``docs/guides/
+            05e-owl-dl-reasoning.ipynb`` section 4) took several seconds
+            per ``infer()`` call, and a ~30-individual version of the same
+            problem didn't finish within 60 seconds. ``infer="changed"``
+            bounds how *often* this cost is paid (once per mutation, same
+            protection ``"owl-rl"`` gets), not how *expensive* any single
+            recomputation is - unlike ``"owl-rl"``, which is always fast
+            regardless. For a latency-sensitive caller, materialize once
+            ahead of time via ``infer(profile="owl-dl",
+            mode="in-place"/"full")`` instead and query the result
+            plainly; reserve ``entailment="direct"`` for when live
+            freshness is genuinely worth this cost. Raises
+            ``starlayergraph.graph.owl_dl.InconsistentOntologyError``
+            uncaught if ``self``'s data is logically inconsistent, unlike
+            ``"owl-rl"``'s partial/silent consistency checking - same
+            contract ``infer(profile="owl-dl")`` already has directly), or
             ``"native"`` (only legal with ``backend='rdf-1.2'`` - a
             self-documenting label for "this endpoint is expected to handle
             entailment itself"; changes no behavior on that path, since
@@ -1626,9 +1695,13 @@ class StarLayerGraph(Graph):
             an endpoint that makes it meaningful). A per-call choice, not a
             graph-level setting - the same graph can be queried with
             different (or no) entailment on different calls.
-        infer -- only consulted when ``entailment="owl-rl"``; ignored
-            otherwise. Controls reuse of ``self``'s cached owl-rl delta
-            (``self._owl_rl_cache``) against ``self._mutation_generation``
+        infer -- only consulted when ``entailment="owl-rl"`` or
+            ``entailment="direct"``; ignored otherwise. Controls reuse of
+            ``self``'s cached entailment delta (``self._owl_rl_cache`` for
+            ``"owl-rl"``; ``self._owl_dl_cache[engine]`` for ``"direct"``,
+            keyed per engine so switching ``engine=`` between calls
+            doesn't invalidate the other engine's cached slot) against
+            ``self._mutation_generation``
             (bumped by ``_on_mutated()`` on every real edit to ``self`` -
             see ``VALID_INFER_MODES``): ``"changed"`` (default) recomputes
             only if ``self`` was edited since the cache was last computed;
@@ -1640,11 +1713,23 @@ class StarLayerGraph(Graph):
             to it. When ``self`` is native-backed or has triple terms, a
             snapshot of ``self``'s own data is refreshed on this same
             cadence too (see the ``owl-rl`` branch's own comment for why).
+        engine -- only meaningful when ``entailment="direct"``; passing a
+            non-default value with any other ``entailment=`` raises
+            ``ValueError`` (fail loudly rather than let a caller believe it
+            silently did something for a different regime). ``"hermit"``
+            (default) or ``"rustdl"`` - identical choice and tradeoffs as
+            ``infer(profile="owl-dl", engine=...)``'s own parameter; see
+            that method's docstring rather than repeating it here.
         """
         if entailment not in VALID_ENTAILMENTS:
             raise NotImplementedError(
                 f"entailment must be one of {sorted(e for e in VALID_ENTAILMENTS if e)}, "
                 f"got {entailment!r}."
+            )
+        if entailment != 'direct' and engine != 'hermit':
+            raise ValueError(
+                f"engine={engine!r} is only meaningful for entailment='direct' "
+                f"(got entailment={entailment!r}) - omit engine= otherwise."
             )
         if entailment == 'native' and not self._is_native:
             raise NotImplementedError(
@@ -1683,6 +1768,57 @@ class StarLayerGraph(Graph):
                 delta = cached[0]
                 if not fast_path:
                     self_view = self._owl_rl_snapshot_cache
+            if fast_path:
+                self_view = Graph(store=self.store, identifier=self.identifier)
+
+            union = _UnionForQuery([self_view, delta])
+            effective_ns = initNs if initNs else dict(self.namespaces())
+            prepared = query_object
+            if isinstance(query_object, str):
+                from starlayergraph.query.query_cache import prepare_query_cached
+                prepared = prepare_query_cached(
+                    self._prepared_query_cache, query_object, effective_ns, kwargs.get('base'),
+                    entailment=None,
+                )
+            init_bindings = self._encode_init_bindings(initBindings) if fast_path else initBindings
+            r = union.query(
+                prepared, processor=processor, result=result,
+                initNs=initNs, initBindings=init_bindings,
+                use_store_provided=use_store_provided, **kwargs,
+            )
+            if r.type == 'SELECT':
+                restore_select_bindings(r, self._restore)
+            elif r.type == 'CONSTRUCT':
+                from starlayergraph.model.encoding import inject_missing_tt_encoding
+                inject_missing_tt_encoding(r.graph, self._restore)
+                r.graph = StarLayerGraph.from_rdflib(r.graph)
+            return r
+
+        if entailment == 'direct':
+            if infer not in VALID_INFER_MODES:
+                raise ValueError(f"infer must be one of {sorted(VALID_INFER_MODES)}, got {infer!r}")
+            # Same fast-path/fallback-path split as entailment="owl-rl"
+            # above (see that branch's own comment for the full reasoning)
+            # - the only real difference is which cache dict is read/
+            # written (keyed by engine here, since HermiT's and RustDL's
+            # delta genuinely differ for the same graph - see
+            # self._owl_dl_cache's own comment in __init__) and which
+            # underlying call computes delta (profile='owl-dl' instead of
+            # 'owl-rl', carrying engine= through either way).
+            fast_path = not self._is_native and not self._tt_registry
+            cached = self._owl_dl_cache.get(engine)
+            stale = cached is None or (infer == 'changed' and cached[1] != self._mutation_generation)
+            if infer == 'always' or stale:
+                if fast_path:
+                    delta = self.infer(profile='owl-dl', mode='delta', engine=engine)
+                else:
+                    self_view, delta = self._before_and_delta_for('owl-dl', engine)
+                    self._owl_dl_snapshot_cache[engine] = self_view
+                self._owl_dl_cache[engine] = (delta, self._mutation_generation)
+            else:
+                delta = cached[0]
+                if not fast_path:
+                    self_view = self._owl_dl_snapshot_cache[engine]
             if fast_path:
                 self_view = Graph(store=self.store, identifier=self.identifier)
 
@@ -2117,21 +2253,26 @@ class StarLayerGraph(Graph):
                 delta.add(t)
         return before, delta
 
-    def _before_and_delta_for(self, profile: str):
+    def _before_and_delta_for(self, profile: str, engine: str = 'hermit'):
         """Dispatch to the right reasoning engine for `profile`. The
         owlrl-backed profiles ("rdfs"/"owl-rl"/"rdfs+owl-rl") go through
-        _infer_before_and_delta() above; "owl-dl" goes through the
-        separate owlready2+HermiT bridge in owl_dl.py - a genuinely
-        different computational model (tableau DL reasoning, not
-        forward-chaining rules), so it isn't just another owlrl semantics
-        class and can't share that method's body.
+        _infer_before_and_delta() above; "owl-dl" goes through one of two
+        genuinely different tableau-DL bridges - owl_dl.py (HermiT, via
+        owlready2, engine="hermit", the default) or owl_dl_rustdl.py
+        (RustDL, engine="rustdl") - chosen by `engine`, which is otherwise
+        meaningless (profile != "owl-dl" never even looks at it).
         """
         if profile == 'owl-dl':
-            from starlayergraph.graph.owl_dl import classify_owl_dl
-            return classify_owl_dl(self)
+            if engine == 'hermit':
+                from starlayergraph.graph.owl_dl import classify_owl_dl
+                return classify_owl_dl(self)
+            if engine == 'rustdl':
+                from starlayergraph.graph.owl_dl_rustdl import classify_owl_dl_rustdl
+                return classify_owl_dl_rustdl(self)
+            raise ValueError(f"Unsupported engine {engine!r}; expected one of ['hermit', 'rustdl']")
         return self._infer_before_and_delta(profile)
 
-    def infer(self, profile: str = 'rdfs', *, mode: str = 'full', target_graph=None):
+    def infer(self, profile: str = 'rdfs', *, mode: str = 'full', target_graph=None, engine: str = 'hermit'):
         """Materialize an RDFS/OWL-RL entailment closure - by default into a
         NEW graph, never mutating self (mode="in-place" is the deliberate
         exception - see below). Requires the optional ``owlrl`` dependency
@@ -2143,17 +2284,49 @@ class StarLayerGraph(Graph):
             rdfs:Datatype-related entailments are only present when RDFS's
             own rules run alongside OWL-RL's, confirmed live against owlrl
             directly - see _resolve_owlrl_semantics()), or "owl-dl" (full
-            OWL 2 DL reasoning via owlready2 + Java HermiT - a genuinely
-            different computational model, tableau-based rather than
-            forward-chaining rules, so it can derive disjunctive
-            entailments owlrl structurally cannot, e.g. C subClassOf
-            (A or B), not-A(x) |= B(x). owlready2 is a core dependency,
-            installed automatically; a real Java runtime on PATH is the
-            one prerequisite that isn't - see owl_dl.py's own module
-            docstring. Raises owl_dl.InconsistentOntologyError,
-            not a silent triple, if self's data is logically inconsistent -
-            unlike "owl-rl", whose consistency checking is partial and
-            never raises).
+            OWL 2 DL reasoning - a genuinely different computational model,
+            tableau-based rather than forward-chaining rules, so it can
+            derive disjunctive entailments owlrl structurally cannot, e.g.
+            C subClassOf (A or B), not-A(x) |= B(x). Raises
+            owl_dl.InconsistentOntologyError, not a silent triple, if
+            self's data is logically inconsistent - unlike "owl-rl", whose
+            consistency checking is partial and never raises. See
+            `engine` below for which actual reasoner runs this).
+        engine -- only meaningful for profile="owl-dl" (any other profile
+            combined with a non-default engine raises ValueError - fail
+            loudly rather than let a caller believe it silently did
+            something for an owlrl-backed profile). Picks which of two
+            genuinely different reasoners runs the tableau reasoning
+            above - neither is a strict replacement for the other, so this
+            is a real tradeoff to make per call, not an implementation
+            detail:
+            - "hermit" (default) - owlready2 + Java HermiT. Sound *and*
+              complete for all of OWL 2 DL (SROIQ) - the strongest
+              guarantee either engine offers. Needs the optional
+              `starlayergraph[hermit]` extra (`owlready2`) AND a real Java
+              runtime reachable on PATH (owlready2 bundles HermiT as a
+              Java program) - see owl_dl.py's own module docstring for
+              both actionable RuntimeErrors this raises if either is
+              missing.
+            - "rustdl" - a pure-Rust reasoner (no JVM at all). Needs only
+              the optional `starlayergraph[rustdl]` extra (`rustdl`) - see
+              owl_dl_rustdl.py's own module docstring for the actionable
+              RuntimeError this raises if it's missing. Sound, but only
+              empirically near-complete on full SROIQ, not provably
+              complete (RustDL's own docs: complete by construction only
+              on the EL/Horn fragment) - a real, permanent gap against
+              "hermit"'s guarantee, not a temporary bug. Concretely: it
+              correctly derives disjunctive *class* entailments (confirmed
+              live), but its property-assertion materialization is
+              documented as a "sound under-approximation (no
+              anonymous-witness or disjunctive-derived edges)" - confirmed
+              live too, against this project's own logic-puzzle guide
+              example, where it returns only the already-asserted fact,
+              none of the forced-by-elimination pairings "hermit" derives
+              for the same data. Also raises `rustdl.UnsupportedAxiomError`
+              outright (not silently) for `HasKey:` axioms and role chains
+              longer than 2 - both constructs this project's own Manchester
+              parser can itself emit.
         mode -- all three ultimately reach the same closure (self's own data
             plus everything entailed from it) - this chooses where that ends
             up and how much of it comes back as a distinct value. "full"
@@ -2210,14 +2383,16 @@ class StarLayerGraph(Graph):
         to self.identifier — GRAPH <self.identifier> { ... } — unless
         self.identifier is exactly rdflib.graph.DATASET_DEFAULT_GRAPH_ID
         (see _native_scoped()). This is unrelated to query()/update(), which
-        send text straight through unscoped. So infer() on a native graph
-        constructed without identifier=DATASET_DEFAULT_GRAPH_ID (the
-        default is a fresh, random BNode) silently sees no data at all,
-        even when query()/update() work fine against the same store —
-        confirmed live. Pass identifier=DATASET_DEFAULT_GRAPH_ID explicitly
-        when calling infer() (directly, or via entailment="owl-rl") against
-        a native-backed graph whose data lives in the endpoint's unnamed
-        default graph.
+        send text straight through unscoped. A native StarLayerGraph
+        constructed with no explicit identifier= now defaults to
+        DATASET_DEFAULT_GRAPH_ID automatically (see __init__), so the
+        common case already agrees with query()/update() by construction.
+        The one remaining case this doesn't cover: a caller who explicitly
+        passes a *different*, non-default identifier= that has no matching
+        named graph on the endpoint - infer() then correctly sees an empty
+        graph, same as any SPARQL query would against a real but
+        currently-empty named graph. That's expected behavior for a named
+        graph with no data yet, not a footgun - nothing to work around.
 
         mode="in-place" only ever adds the delta into self directly - never
         a re-decomposed copy of self's own data - so it can't crash the way
@@ -2232,6 +2407,11 @@ class StarLayerGraph(Graph):
         """
         if mode not in VALID_INFER_RETURN_MODES:
             raise ValueError(f"mode must be one of {sorted(VALID_INFER_RETURN_MODES)}, got {mode!r}")
+        if profile != 'owl-dl' and engine != 'hermit':
+            raise ValueError(
+                f"engine={engine!r} is only meaningful for profile='owl-dl' "
+                f"(got profile={profile!r}) - omit engine= for owlrl-backed profiles."
+            )
 
         if mode == 'in-place':
             if target_graph is not None:
@@ -2246,7 +2426,7 @@ class StarLayerGraph(Graph):
             # real TripleTerm ever appears in it - see
             # _infer_before_and_delta's own docstring), so both add() and
             # _native_add_many() below accept it unconditionally.
-            _before, delta = self._before_and_delta_for(profile)
+            _before, delta = self._before_and_delta_for(profile, engine)
             if self._is_native:
                 self._native_add_many(list(delta))
             else:
@@ -2265,7 +2445,7 @@ class StarLayerGraph(Graph):
                 "A plain rdflib.Graph cannot store TripleTerms."
             )
 
-        _before, delta = self._before_and_delta_for(profile)
+        _before, delta = self._before_and_delta_for(profile, engine)
         if mode == 'full':
             # self's own triples, not _before - _before is decomposed (a
             # synthetic reification fragment stands in for any triple term)

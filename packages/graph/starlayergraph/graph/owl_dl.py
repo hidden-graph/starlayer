@@ -14,10 +14,16 @@ materially stronger copyleft obligation - and one conformant OWL 2 DL
 reasoner is sufficient to cover this regime. sync_reasoner_pellet() is
 never called anywhere in this module.
 
-``owlready2`` is a normal (core) dependency of this package, so `pip install
-starlayergraph` brings it in automatically - unlike the pure-Python `owlrl`
-path every other profile uses, there is one prerequisite this can't
-satisfy: a real Java runtime on PATH. owlready2 bundles Java HermiT and
+engine="hermit" (this module) is one of two engines infer(profile="owl-dl")
+can dispatch to - see starlayergraph.graph.owl_dl_rustdl for the other
+(engine="rustdl": no JVM, but sound-not-provably-complete rather than
+sound-and-complete - a real, permanent gap against this module's own
+guarantee, not a bug in either). Both engines' Python packages are optional
+extras (`pip install starlayergraph[hermit]` / `[rustdl]`), not core
+dependencies - `owlready2` used to be core, moved to opt-in alongside
+`rustdl` for a consistent story across both rather than one being special.
+A real Java runtime on PATH is the one prerequisite `pip` alone still can't
+satisfy for this engine specifically: owlready2 bundles Java HermiT and
 needs a real JVM at runtime to run it - see `_require_java()` below.
 """
 
@@ -27,7 +33,6 @@ import shutil
 import tempfile
 from pathlib import Path
 
-import owlready2
 from rdflib import RDF, RDFS, Graph
 
 
@@ -43,11 +48,30 @@ class InconsistentOntologyError(RuntimeError):
     """
 
 
+def _require_owlready2():
+    """Import and return the owlready2 module, or raise a clear, actionable
+    RuntimeError naming exactly what to install - the "opt-in package
+    missing" counterpart to _require_java()'s "JVM missing" check below,
+    checked first since it's the cheaper, more fundamental question (no
+    point checking for a JVM to run a reasoner whose Python package isn't
+    even installed yet)."""
+    try:
+        import owlready2
+    except ImportError as exc:
+        raise RuntimeError(
+            "StarLayerGraph.infer(profile='owl-dl', engine='hermit') "
+            "requires the optional owlready2 package - install it with "
+            "`pip install starlayergraph[hermit]` (or `pip install "
+            "owlready2` directly), then retry."
+        ) from exc
+    return owlready2
+
+
 def _require_java() -> None:
-    """Confirm a real Java runtime is reachable. `owlready2` itself is a
-    normal dependency, always installed - this is the one prerequisite
-    that can't be: owlready2's HermiT reasoner is a Java program, not a
-    pure-Python one.
+    """Confirm a real Java runtime is reachable - the one prerequisite
+    `pip install`ing owlready2 (checked by _require_owlready2() above)
+    still can't satisfy: owlready2's HermiT reasoner is a Java program,
+    not a pure-Python one.
     """
     if shutil.which("java") is None:
         raise RuntimeError(
@@ -69,6 +93,7 @@ def classify_owl_dl(graph):
     Raises InconsistentOntologyError if the data is logically inconsistent
     under OWL 2 DL semantics.
     """
+    owlready2 = _require_owlready2()
     _require_java()
 
     from starlayergraph.compare import _decompose
