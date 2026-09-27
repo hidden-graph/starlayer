@@ -271,6 +271,47 @@ class _Cursor:
     def mint_bnode(self):
         return BNode()
 
+    # -- AST-capture hooks ---------------------------------------------------
+    # No-ops by default, so ordinary OWL-semantic parsing (parse_manchester())
+    # is completely unaffected. starlayergraph.ontology.to_ast_rdf overrides
+    # these on a _Cursor subclass to record the surface grammar (frames,
+    # clauses, their already-parsed-but-not-yet-compiled item lists) as RDF,
+    # alongside - not instead of - the OWL semantic triples every clause
+    # handler already appends to cur.triples. Called with the exact items
+    # each clause already computes for its own compile loop, so recording
+    # never changes what gets compiled or in what order.
+
+    def record_frame(self, kind, subject):
+        """A frame's own header line was just parsed (`Class: Foo`, etc.) -
+        kind is a plain string ('Class'/'ObjectProperty'/'DataProperty'/
+        'AnnotationProperty'/'Individual'/'Datatype'), subject its name."""
+
+    def record_frame_end(self):
+        """The current frame's last clause has just been parsed (its whole
+        body is now complete) - called once per frame, right after
+        _frame_body() returns."""
+
+    def record_clause(self, frame_kind, clause_kind, items):
+        """One clause body was just parsed for the current frame - items is
+        whatever that clause's own comma-list already produced (a list of
+        (annotations, expr-or-name) pairs for a per-item-annotatable clause,
+        or a list of bare names/tags for one that isn't), always *before*
+        compilation to OWL triples, never a compiled node."""
+
+    def record_misc(self, keyword, items):
+        """A top-level Misc axiom (EquivalentClasses:, etc., no subject
+        frame) was just parsed - items is its own comma-list, before
+        compilation."""
+
+    def record_ontology_header(self, iri, imports):
+        """The Ontology: header line was just parsed - iri may be None
+        (bare `Ontology:` with no IRI); imports is the list of Import:
+        names, in order."""
+
+    def record_prefix(self, prefix, iri):
+        """A Prefix: declaration was just parsed - prefix is the bare label
+        (no trailing ':', '' for the default prefix), iri the raw IRI text."""
+
     def peek(self):
         return self.tokens[self.pos] if self.pos < len(self.tokens) else None
 
@@ -720,7 +761,7 @@ def _parse_annotation_assertion(cur):
     return cur.read_name(), cur.read_literal_or_name()
 
 
-def _handle_frame_annotations(cur, subject):
+def _handle_frame_annotations(cur, frame_kind, subject):
     """The standalone `Annotations:` frame section (its own clause, listing
     annotationProperty/value pairs about the frame's own subject) -
     confirmed empirically to map straight to direct triples on that
@@ -728,8 +769,10 @@ def _handle_frame_annotations(cur, subject):
     simpler than - annotating one specific item inside e.g. a SubClassOf:
     list (see _parse_item_annotations/_maybe_reify below), which *does*
     need reification."""
-    for prop, value in _parse_comma_list(cur, _parse_annotation_assertion):
+    items = _parse_comma_list(cur, _parse_annotation_assertion)
+    for prop, value in items:
         cur.triples.append((subject, prop, value))
+    cur.record_clause(frame_kind, 'Annotations:', items)
 
 
 def _parse_item_annotations(cur):
@@ -797,59 +840,74 @@ def _frame_body(cur, clauses, deferred, handle_clause):
 def _parse_class_frame(cur):
     subject = cur.read_name()
     cur.triples.append((subject, RDF.type, OWL.Class))
+    cur.record_frame('Class', subject)
 
     def handle(clause):
         if clause == 'Annotations:':
-            _handle_frame_annotations(cur, subject)
+            _handle_frame_annotations(cur, 'Class', subject)
             return
         if clause == 'SuperClassOf:':
-            for anns, expr in _parse_comma_list(cur, _annotated(_parse_description)):
+            items = _parse_comma_list(cur, _annotated(_parse_description))
+            for anns, expr in items:
                 node = _expr_node(cur, expr)
                 cur.triples.append((node, RDFS.subClassOf, subject))
                 _maybe_reify(cur, node, RDFS.subClassOf, subject, anns)
+            cur.record_clause('Class', clause, items)
             return
         if clause == 'DisjointUnionOf:':
             anns = _parse_item_annotations(cur)
-            nodes = [_expr_node(cur, e) for e in _parse_comma_list(cur, _parse_description)]
+            exprs = _parse_comma_list(cur, _parse_description)
+            nodes = [_expr_node(cur, e) for e in exprs]
             obj = _build_list(cur, nodes)
             cur.triples.append((subject, OWL.disjointUnionOf, obj))
             _maybe_reify(cur, subject, OWL.disjointUnionOf, obj, anns)
+            cur.record_clause('Class', clause, [(anns, exprs)])
             return
         if clause == 'HasKey:':
             anns = _parse_item_annotations(cur)
-            nodes = [_prop_node(cur, e) for e in _parse_comma_list(cur, _parse_property_expr)]
+            prop_exprs = _parse_comma_list(cur, _parse_property_expr)
+            nodes = [_prop_node(cur, e) for e in prop_exprs]
             obj = _build_list(cur, nodes)
             cur.triples.append((subject, OWL.hasKey, obj))
             _maybe_reify(cur, subject, OWL.hasKey, obj, anns)
+            cur.record_clause('Class', clause, [(anns, prop_exprs)])
             return
         pred = {
             'SubClassOf:': RDFS.subClassOf,
             'EquivalentTo:': OWL.equivalentClass,
             'DisjointWith:': OWL.disjointWith,
         }[clause]
-        for anns, expr in _parse_comma_list(cur, _annotated(_parse_description)):
+        items = _parse_comma_list(cur, _annotated(_parse_description))
+        for anns, expr in items:
             node = _expr_node(cur, expr)
             cur.triples.append((subject, pred, node))
             _maybe_reify(cur, subject, pred, node, anns)
+        cur.record_clause('Class', clause, items)
 
     _frame_body(cur, _CLASS_CLAUSES, _CLASS_DEFERRED, handle)
+    cur.record_frame_end()
 
 
-def _parse_property_frame(cur, rdf_type, clauses, deferred, range_is_class_expr):
+def _parse_property_frame(cur, frame_kind, rdf_type, clauses, deferred, range_is_class_expr):
     subject = cur.read_name()
     cur.triples.append((subject, RDF.type, rdf_type))
+    cur.record_frame(frame_kind, subject)
 
     def handle(clause):
         if clause == 'Annotations:':
-            _handle_frame_annotations(cur, subject)
+            _handle_frame_annotations(cur, frame_kind, subject)
             return
         if clause == 'Characteristics:':
-            for anns, name in _parse_comma_list(cur, _annotated(lambda c: c.advance()['text'])):
+            items = _parse_comma_list(cur, _annotated(lambda c: c.advance()['text']))
+            resolved = []
+            for anns, name in items:
                 if name not in _CHARACTERISTICS:
                     cur.error(f'unknown property characteristic {name!r}')
                 obj = _CHARACTERISTICS[name]
                 cur.triples.append((subject, RDF.type, obj))
                 _maybe_reify(cur, subject, RDF.type, obj, anns)
+                resolved.append((anns, obj))
+            cur.record_clause(frame_kind, clause, resolved)
             return
         if clause == 'SubPropertyChain:':
             anns = _parse_item_annotations(cur)
@@ -861,18 +919,23 @@ def _parse_property_frame(cur, rdf_type, clauses, deferred, range_is_class_expr)
             obj = _build_list(cur, nodes)
             cur.triples.append((subject, OWL.propertyChainAxiom, obj))
             _maybe_reify(cur, subject, OWL.propertyChainAxiom, obj, anns)
+            cur.record_clause(frame_kind, clause, [(anns, chain)])
             return
         if clause == 'SuperPropertyOf:':
-            for anns, expr in _parse_comma_list(cur, _annotated(_parse_property_expr)):
+            items = _parse_comma_list(cur, _annotated(_parse_property_expr))
+            for anns, expr in items:
                 node = _prop_node(cur, expr)
                 cur.triples.append((node, RDFS.subPropertyOf, subject))
                 _maybe_reify(cur, node, RDFS.subPropertyOf, subject, anns)
+            cur.record_clause(frame_kind, clause, items)
             return
         if clause == 'Range:' and not range_is_class_expr:
-            for anns, dr in _parse_comma_list(cur, _annotated(_parse_data_range)):
+            items = _parse_comma_list(cur, _annotated(_parse_data_range))
+            for anns, dr in items:
                 obj = _data_range_node(cur, dr)
                 cur.triples.append((subject, RDFS.range, obj))
                 _maybe_reify(cur, subject, RDFS.range, obj, anns)
+            cur.record_clause(frame_kind, clause, items)
             return
         if clause in ('SubPropertyOf:', 'EquivalentTo:', 'DisjointWith:', 'InverseOf:'):
             pred = {
@@ -881,36 +944,45 @@ def _parse_property_frame(cur, rdf_type, clauses, deferred, range_is_class_expr)
                 'DisjointWith:': OWL.propertyDisjointWith,
                 'InverseOf:': OWL.inverseOf,
             }[clause]
-            for anns, expr in _parse_comma_list(cur, _annotated(_parse_property_expr)):
+            items = _parse_comma_list(cur, _annotated(_parse_property_expr))
+            for anns, expr in items:
                 node = _prop_node(cur, expr)
                 cur.triples.append((subject, pred, node))
                 _maybe_reify(cur, subject, pred, node, anns)
+            cur.record_clause(frame_kind, clause, items)
             return
         # Domain: (both frame kinds), Range: (object-property case) - full
         # class-expression grammar.
         pred = {'Domain:': RDFS.domain, 'Range:': RDFS.range}[clause]
-        for anns, expr in _parse_comma_list(cur, _annotated(_parse_description)):
+        items = _parse_comma_list(cur, _annotated(_parse_description))
+        for anns, expr in items:
             node = _expr_node(cur, expr)
             cur.triples.append((subject, pred, node))
             _maybe_reify(cur, subject, pred, node, anns)
+        cur.record_clause(frame_kind, clause, items)
 
     _frame_body(cur, clauses, deferred, handle)
+    cur.record_frame_end()
 
 
 def _parse_annotation_property_frame(cur):
     subject = cur.read_name()
     cur.triples.append((subject, RDF.type, OWL.AnnotationProperty))
+    cur.record_frame('AnnotationProperty', subject)
 
     def handle(clause):
         if clause == 'Annotations:':
-            _handle_frame_annotations(cur, subject)
+            _handle_frame_annotations(cur, 'AnnotationProperty', subject)
             return
         pred = {'Domain:': RDFS.domain, 'Range:': RDFS.range, 'SubPropertyOf:': RDFS.subPropertyOf}[clause]
-        for anns, name in _parse_comma_list(cur, _annotated(lambda c: c.read_name())):
+        items = _parse_comma_list(cur, _annotated(lambda c: c.read_name()))
+        for anns, name in items:
             cur.triples.append((subject, pred, name))
             _maybe_reify(cur, subject, pred, name, anns)
+        cur.record_clause('AnnotationProperty', clause, items)
 
     _frame_body(cur, _ANNPROP_CLAUSES, _ANNPROP_DEFERRED, handle)
+    cur.record_frame_end()
 
 
 def _parse_fact(cur):
@@ -926,17 +998,21 @@ def _parse_fact(cur):
 def _parse_individual_frame(cur):
     subject = cur.read_name()
     cur.triples.append((subject, RDF.type, OWL.NamedIndividual))
+    cur.record_frame('Individual', subject)
 
     def handle(clause):
         if clause == 'Annotations:':
-            _handle_frame_annotations(cur, subject)
+            _handle_frame_annotations(cur, 'Individual', subject)
         elif clause == 'Types:':
-            for anns, expr in _parse_comma_list(cur, _annotated(_parse_description)):
+            items = _parse_comma_list(cur, _annotated(_parse_description))
+            for anns, expr in items:
                 node = _expr_node(cur, expr)
                 cur.triples.append((subject, RDF.type, node))
                 _maybe_reify(cur, subject, RDF.type, node, anns)
+            cur.record_clause('Individual', clause, items)
         elif clause == 'Facts:':
-            for anns, (negative, prop, value) in _parse_comma_list(cur, _annotated(_parse_fact)):
+            items = _parse_comma_list(cur, _annotated(_parse_fact))
+            for anns, (negative, prop, value) in items:
                 if not negative:
                     cur.triples.append((subject, prop, value))
                     _maybe_reify(cur, subject, prop, value, anns)
@@ -955,53 +1031,66 @@ def _parse_individual_frame(cur):
                 if anns is not None:
                     for ann_prop, ann_value in anns:
                         cur.triples.append((node, ann_prop, ann_value))
+            cur.record_clause('Individual', clause, items)
         else:
             pred = OWL.sameAs if clause == 'SameAs:' else OWL.differentFrom
-            for anns, name in _parse_comma_list(cur, _annotated(lambda c: c.read_name())):
+            items = _parse_comma_list(cur, _annotated(lambda c: c.read_name()))
+            for anns, name in items:
                 cur.triples.append((subject, pred, name))
                 _maybe_reify(cur, subject, pred, name, anns)
+            cur.record_clause('Individual', clause, items)
 
     _frame_body(cur, _INDIVIDUAL_CLAUSES, _INDIVIDUAL_DEFERRED, handle)
+    cur.record_frame_end()
 
 
 def _parse_datatype_frame(cur):
     subject = cur.read_name()
     cur.triples.append((subject, RDF.type, RDFS.Datatype))
+    cur.record_frame('Datatype', subject)
 
     def handle(clause):
         if clause == 'Annotations:':
-            _handle_frame_annotations(cur, subject)
+            _handle_frame_annotations(cur, 'Datatype', subject)
             return
         # EquivalentTo: - a DatatypeDefinition axiom maps to owl:equivalentClass
         # per the OWL 2 RDF mapping, confirmed against the oracle the same
         # way as every other construct here.
-        for anns, dr in _parse_comma_list(cur, _annotated(_parse_data_range)):
+        items = _parse_comma_list(cur, _annotated(_parse_data_range))
+        for anns, dr in items:
             node = _data_range_node(cur, dr)
             cur.triples.append((subject, OWL.equivalentClass, node))
             _maybe_reify(cur, subject, OWL.equivalentClass, node, anns)
+        cur.record_clause('Datatype', clause, items)
 
     _frame_body(cur, _DATATYPE_CLAUSES, _DATATYPE_DEFERRED, handle)
+    cur.record_frame_end()
 
 
 def _parse_misc(cur, keyword):
     if keyword in ('EquivalentClasses:', 'DisjointClasses:'):
-        nodes = [_expr_node(cur, e) for e in _parse_comma_list(cur, _parse_description)]
+        exprs = _parse_comma_list(cur, _parse_description)
+        nodes = [_expr_node(cur, e) for e in exprs]
         if keyword == 'EquivalentClasses:':
             _pairwise_chain(cur, nodes, OWL.equivalentClass)
         else:
             _nary_disjoint_or_different(cur, nodes, OWL.disjointWith, OWL.AllDisjointClasses)
+        cur.record_misc(keyword, exprs)
     elif keyword in ('EquivalentProperties:', 'DisjointProperties:'):
-        nodes = [_prop_node(cur, e) for e in _parse_comma_list(cur, _parse_property_expr)]
+        prop_exprs = _parse_comma_list(cur, _parse_property_expr)
+        nodes = [_prop_node(cur, e) for e in prop_exprs]
         if keyword == 'EquivalentProperties:':
             _pairwise_chain(cur, nodes, OWL.equivalentProperty)
         else:
             _nary_disjoint_or_different(cur, nodes, OWL.propertyDisjointWith, OWL.AllDisjointProperties)
+        cur.record_misc(keyword, prop_exprs)
     else:
         names = _parse_comma_list(cur, lambda c: c.read_name())
         if keyword == 'SameIndividual:':
             _pairwise_chain(cur, names, OWL.sameAs)
         else:
             _nary_disjoint_or_different(cur, names, OWL.differentFrom, OWL.AllDifferent)
+        cur.record_misc(keyword, names)
 
 
 # ---------------------------------------------------------------------------
@@ -1032,6 +1121,7 @@ def parse_manchester(text: str, base: str = None) -> list:
             if iri_tok['kind'] != 'IRI':
                 cur.error('expected an <IRI> for the Prefix: declaration')
             cur.prefixes[prefix] = iri_tok['text']
+            cur.record_prefix(prefix, iri_tok['text'])
         elif word == 'Ontology:':
             cur.advance()
             tok = cur.peek()
@@ -1041,13 +1131,16 @@ def parse_manchester(text: str, base: str = None) -> list:
                 ontology_iri = cur.resolve_iri(tok['text'])
                 cur.base = str(ontology_iri)
                 cur.triples.append((ontology_iri, RDF.type, OWL.Ontology))
+            imports = []
             while cur.peek_word() == 'Import:':
                 cur.advance()
                 imported = cur.read_name()
+                imports.append(imported)
                 if ontology_iri is not None:
                     cur.triples.append((ontology_iri, OWL.imports, imported))
             if cur.peek_word() == 'Annotations:':
                 cur.error('Annotations: in the Ontology: header is not supported yet')
+            cur.record_ontology_header(ontology_iri, imports)
         elif word == 'Datatype:':
             cur.advance()
             _parse_datatype_frame(cur)
@@ -1056,10 +1149,10 @@ def parse_manchester(text: str, base: str = None) -> list:
             _parse_class_frame(cur)
         elif word == 'ObjectProperty:':
             cur.advance()
-            _parse_property_frame(cur, OWL.ObjectProperty, _OBJPROP_CLAUSES, _OBJPROP_DEFERRED, range_is_class_expr=True)
+            _parse_property_frame(cur, 'ObjectProperty', OWL.ObjectProperty, _OBJPROP_CLAUSES, _OBJPROP_DEFERRED, range_is_class_expr=True)
         elif word == 'DataProperty:':
             cur.advance()
-            _parse_property_frame(cur, OWL.DatatypeProperty, _DATAPROP_CLAUSES, _DATAPROP_DEFERRED, range_is_class_expr=False)
+            _parse_property_frame(cur, 'DataProperty', OWL.DatatypeProperty, _DATAPROP_CLAUSES, _DATAPROP_DEFERRED, range_is_class_expr=False)
         elif word == 'AnnotationProperty:':
             cur.advance()
             _parse_annotation_property_frame(cur)

@@ -2461,6 +2461,60 @@ class StarLayerGraph(Graph):
             target_graph.add(t)
         return target_graph
 
+    def derive(self, template_shape=None, *, ignored_properties=None,
+               use_default_ignored_properties: bool = True):
+        """Infer a SHACL shape from self's own data - one ``sh:NodeShape``
+        per distinct ``rdf:type`` found (the simplest option: derive shapes
+        from classes, never per-node or heuristic clustering), optionally
+        reconciled against an existing template shape. Returns a plain
+        ``rdflib.Graph`` (a real, standalone shapes graph).
+
+        template_shape -- if omitted, every returned NodeShape is built
+            fresh from self's own data. If given (any Graph, including a
+            StarLayerGraph with genuine RDF 1.2 content), its own
+            constraints are validated against self and, wherever a
+            principled data-driven fix exists (cardinality, datatype,
+            class, node kind including ``sh:TripleTerm``, numeric-range
+            bounds, string length, ``sh:languageIn``, additive ``sh:in``
+            widening), recomputed from the *true* current data rather than
+            patched around a single violating value; constraint types with
+            no generic fix (``sh:pattern``, cross-property comparisons like
+            ``sh:equals``/``sh:lessThan``) are dropped with an ``rdfs:comment``
+            note; opaque ``sh:sparql``-based/custom constraint components are
+            left untouched, also with a note, since there's no way to know
+            whether a failure there is a real data problem or a genuinely
+            important check. Any predicate observed in self with no
+            matching ``sh:property`` on the relevant shape, and any class
+            present in self with no shape at all, get freshly-derived
+            additions - "extend any new properties" generalized to the
+            whole graph.
+        ignored_properties -- extra predicates to exclude from every
+            derived ``sh:NodeShape``'s candidate-property scan (union'd
+            into ``sh:ignoredProperties``, alongside the resolved default
+            list below and, unconditionally, ``rdf:type`` itself - required
+            for any closed shape to conform, since ``sh:closed`` doesn't
+            exempt ``rdf:type`` automatically). A template's own existing
+            ``sh:ignoredProperties`` is always carried forward too.
+        use_default_ignored_properties -- when true (default), also
+            excludes ``shape_derivation.DEFAULT_IGNORED_PROPERTIES``
+            (``rdfs:label``/``comment``, ``dcterms:created``/``modified``) -
+            pass False to opt out of that built-in list entirely and rely
+            only on ``ignored_properties=``.
+
+        Every returned shape is closed (``sh:closed true``) and is
+        self-checked to conform against self before being returned (a real
+        assertion, not just documentation - see ``shape_derivation.py``).
+        Goes through ``starshacl`` for all SHACL semantics, never bare
+        ``pyshacl`` directly - self or template_shape may contain genuine
+        RDF 1.2 content (triple terms) that only starshacl understands.
+        """
+        from starlayergraph.graph.shape_derivation import derive_shape
+        return derive_shape(
+            self, template_shape,
+            ignored_properties=ignored_properties,
+            use_default_ignored_properties=use_default_ignored_properties,
+        )
+
     @classmethod
     def from_rdflib(cls, source_graph):
         """Wrap a plain rdflib.Graph (e.g., from StarLayerTurtleParser).

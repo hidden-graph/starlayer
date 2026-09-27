@@ -1,0 +1,483 @@
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix manch: <https://github.com/hidden-graph/starlayergraph/ns/manchester-ast#> .
+
+# ---------------------------------------------------------------------
+# Dispatch shapes - sh:class, never sh:or/sh:node of every concrete member.
+# Same reasoning as salg:GraphPatternShape/salg:ExpressionShape in the
+# sibling starsparql package's sparql_shapes.ttl: pyshacl's shape-recursion
+# guard tracks shape *identity* in its own evaluation stack, not
+# (shape, focus-node) pairs, so an sh:or/sh:node dispatch shape whose own
+# alternatives loop back to it misfires on ordinary, shallow nesting, not
+# just pathological depth. sh:class never touches that stack.
+# ---------------------------------------------------------------------
+
+manch:ClassExpressionShape
+    a sh:NodeShape ;
+    sh:class manch:ClassExpression ;
+    sh:message "expected a recognized class-expression tag (see manch:ClassExpression in manchester-ast-ontology.ttl)" .
+
+manch:PropertyExpressionShape
+    a sh:NodeShape ;
+    sh:class manch:PropertyExpression ;
+    sh:message "expected a recognized property-expression tag" .
+
+manch:DataRangeShape
+    a sh:NodeShape ;
+    sh:class manch:DataRange ;
+    sh:message "expected a recognized data-range tag" .
+
+manch:FrameShape
+    a sh:NodeShape ;
+    sh:class manch:Frame ;
+    sh:message "expected a recognized frame type" .
+
+manch:ClauseShape
+    a sh:NodeShape ;
+    sh:class manch:Clause ;
+    sh:message "expected a recognized clause type" .
+
+manch:MiscAxiomShape
+    a sh:NodeShape ;
+    sh:class manch:MiscAxiom ;
+    sh:message "expected a recognized Misc-axiom type" .
+
+# ---------------------------------------------------------------------
+# Atomic-or-compound value shapes - a class expression/data range/property
+# expression's atomic form is a bare, untyped URIRef; only the compound
+# forms carry an rdf:type. Both the dispatch shapes above and these
+# atomic-or-compound variants are needed: the dispatch shapes alone would
+# reject every atomic (bare-URIRef) class/property/datatype name, since
+# nothing types those as manch:ClassExpression/etc.
+# ---------------------------------------------------------------------
+
+manch:ClassExpressionOrNameShape
+    a sh:NodeShape ;
+    sh:or ( [ sh:nodeKind sh:IRI ] manch:ClassExpressionShape ) .
+
+manch:PropertyExpressionOrNameShape
+    a sh:NodeShape ;
+    sh:or ( [ sh:nodeKind sh:IRI ] manch:PropertyExpressionShape ) .
+
+manch:DataRangeOrNameShape
+    a sh:NodeShape ;
+    sh:or ( [ sh:nodeKind sh:IRI ] manch:DataRangeShape ) .
+
+manch:ValueShape
+    a sh:NodeShape ;
+    sh:or (
+        [ sh:nodeKind sh:IRI ]
+        [ sh:nodeKind sh:Literal ]
+    ) ;
+    sh:message "a bare individual/data value must be an IRI or Literal" .
+
+# ---------------------------------------------------------------------
+# rdf:List structural checks - one sh:sparql constraint per list-of-X type,
+# never a recursive NodeShape (same TriplePatternListShape-style pattern
+# and reasoning as salg:'s own shapes.ttl).
+# ---------------------------------------------------------------------
+
+manch:ClassExpressionListShape
+    a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "expected a well-formed rdf:List of class expressions" ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX manch: <https://github.com/hidden-graph/starlayergraph/ns/manchester-ast#>
+            SELECT $this
+            WHERE {
+                { FILTER ( $this != rdf:nil ) FILTER NOT EXISTS { $this rdf:first ?head } }
+                UNION
+                {
+                    $this rdf:rest*/rdf:first ?item .
+                    FILTER NOT EXISTS { ?item a manch:ClassExpression }
+                    FILTER ( !isIRI(?item) )
+                }
+            }
+        """ ;
+    ] .
+
+manch:PropertyExpressionListShape
+    a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "expected a well-formed rdf:List of property expressions" ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX manch: <https://github.com/hidden-graph/starlayergraph/ns/manchester-ast#>
+            SELECT $this
+            WHERE {
+                { FILTER ( $this != rdf:nil ) FILTER NOT EXISTS { $this rdf:first ?head } }
+                UNION
+                {
+                    $this rdf:rest*/rdf:first ?item .
+                    FILTER NOT EXISTS { ?item a manch:PropertyExpression }
+                    FILTER ( !isIRI(?item) )
+                }
+            }
+        """ ;
+    ] .
+
+manch:DataRangeListShape
+    a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "expected a well-formed rdf:List of data ranges" ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX manch: <https://github.com/hidden-graph/starlayergraph/ns/manchester-ast#>
+            SELECT $this
+            WHERE {
+                { FILTER ( $this != rdf:nil ) FILTER NOT EXISTS { $this rdf:first ?head } }
+                UNION
+                {
+                    $this rdf:rest*/rdf:first ?item .
+                    FILTER NOT EXISTS { ?item a manch:DataRange }
+                    FILTER ( !isIRI(?item) )
+                }
+            }
+        """ ;
+    ] .
+
+# A generic "this is a well-formed rdf:List, structure only, no per-member
+# type check" - used for manch:items (heterogeneous member shape depending
+# on which concrete Clause/MiscAxiom subclass owns it - a ClauseItem,
+# FactItem, bare AnnotationAssertion, or a plain URIRef/Literal, per each
+# subclass's own comment in manchester-ast-ontology.ttl) and a few other
+# properties where per-member typing isn't practical to check generically.
+manch:WellFormedListShape
+    a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "expected a well-formed rdf:List" ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            SELECT $this
+            WHERE {
+                $this rdf:rest* ?cell .
+                FILTER ( ?cell != rdf:nil )
+                FILTER NOT EXISTS { ?cell rdf:first ?x }
+            }
+        """ ;
+    ] .
+
+manch:FrameListShape
+    a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "expected a well-formed rdf:List of Frame" ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX manch: <https://github.com/hidden-graph/starlayergraph/ns/manchester-ast#>
+            SELECT $this
+            WHERE {
+                { FILTER ( $this != rdf:nil ) FILTER NOT EXISTS { $this rdf:first ?head } }
+                UNION
+                {
+                    $this rdf:rest*/rdf:first ?item .
+                    FILTER NOT EXISTS { ?item a manch:Frame }
+                }
+            }
+        """ ;
+    ] .
+
+manch:ClauseListShape
+    a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "expected a well-formed rdf:List of Clause" ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX manch: <https://github.com/hidden-graph/starlayergraph/ns/manchester-ast#>
+            SELECT $this
+            WHERE {
+                { FILTER ( $this != rdf:nil ) FILTER NOT EXISTS { $this rdf:first ?head } }
+                UNION
+                {
+                    $this rdf:rest*/rdf:first ?item .
+                    FILTER NOT EXISTS { ?item a manch:Clause }
+                }
+            }
+        """ ;
+    ] .
+
+manch:MiscAxiomListShape
+    a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "expected a well-formed rdf:List of MiscAxiom" ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX manch: <https://github.com/hidden-graph/starlayergraph/ns/manchester-ast#>
+            SELECT $this
+            WHERE {
+                { FILTER ( $this != rdf:nil ) FILTER NOT EXISTS { $this rdf:first ?head } }
+                UNION
+                {
+                    $this rdf:rest*/rdf:first ?item .
+                    FILTER NOT EXISTS { ?item a manch:MiscAxiom }
+                }
+            }
+        """ ;
+    ] .
+
+manch:AnnotationAssertionListShape
+    a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "expected a well-formed rdf:List of AnnotationAssertion" ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX manch: <https://github.com/hidden-graph/starlayergraph/ns/manchester-ast#>
+            SELECT $this
+            WHERE {
+                { FILTER ( $this != rdf:nil ) FILTER NOT EXISTS { $this rdf:first ?head } }
+                UNION
+                {
+                    $this rdf:rest*/rdf:first ?item .
+                    FILTER NOT EXISTS { ?item a manch:AnnotationAssertion }
+                }
+            }
+        """ ;
+    ] .
+
+# ---------------------------------------------------------------------
+# Class expressions
+# ---------------------------------------------------------------------
+
+manch:AndShape a sh:NodeShape ; sh:targetClass manch:And ;
+    sh:property [ sh:path manch:operands ; sh:minCount 1 ; sh:maxCount 1 ; sh:node manch:ClassExpressionListShape ] .
+manch:OrShape a sh:NodeShape ; sh:targetClass manch:Or ;
+    sh:property [ sh:path manch:operands ; sh:minCount 1 ; sh:maxCount 1 ; sh:node manch:ClassExpressionListShape ] .
+manch:NotShape a sh:NodeShape ; sh:targetClass manch:Not ;
+    sh:property [ sh:path manch:operand ; sh:minCount 1 ; sh:maxCount 1 ; sh:node manch:ClassExpressionOrNameShape ] .
+manch:OneOfShape a sh:NodeShape ; sh:targetClass manch:OneOf ;
+    sh:property [ sh:path manch:individuals ; sh:minCount 1 ; sh:maxCount 1 ; sh:node manch:WellFormedListShape ] .
+manch:SomeShape a sh:NodeShape ; sh:targetClass manch:Some ;
+    sh:property [ sh:path manch:onProperty ; sh:minCount 1 ; sh:maxCount 1 ; sh:node manch:PropertyExpressionOrNameShape ] ;
+    sh:property [ sh:path manch:filler ; sh:minCount 1 ; sh:maxCount 1 ; sh:node manch:ClassExpressionOrNameShape ] .
+manch:OnlyShape a sh:NodeShape ; sh:targetClass manch:Only ;
+    sh:property [ sh:path manch:onProperty ; sh:minCount 1 ; sh:maxCount 1 ; sh:node manch:PropertyExpressionOrNameShape ] ;
+    sh:property [ sh:path manch:filler ; sh:minCount 1 ; sh:maxCount 1 ; sh:node manch:ClassExpressionOrNameShape ] .
+manch:ValueClauseShape a sh:NodeShape ; sh:targetClass manch:Value ;
+    sh:property [ sh:path manch:onProperty ; sh:minCount 1 ; sh:maxCount 1 ; sh:node manch:PropertyExpressionOrNameShape ] ;
+    sh:property [ sh:path manch:filler ; sh:minCount 1 ; sh:maxCount 1 ; sh:node manch:ValueShape ] .
+manch:SelfRShape a sh:NodeShape ; sh:targetClass manch:SelfR ;
+    sh:property [ sh:path manch:onProperty ; sh:minCount 1 ; sh:maxCount 1 ; sh:node manch:PropertyExpressionOrNameShape ] .
+manch:MinShape a sh:NodeShape ; sh:targetClass manch:Min ;
+    sh:property [ sh:path manch:onProperty ; sh:minCount 1 ; sh:maxCount 1 ; sh:node manch:PropertyExpressionOrNameShape ] ;
+    sh:property [ sh:path manch:cardinality ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype <http://www.w3.org/2001/XMLSchema#nonNegativeInteger> ] ;
+    sh:property [ sh:path manch:filler ; sh:maxCount 1 ; sh:node manch:ClassExpressionOrNameShape ] .
+manch:MaxShape a sh:NodeShape ; sh:targetClass manch:Max ;
+    sh:property [ sh:path manch:onProperty ; sh:minCount 1 ; sh:maxCount 1 ; sh:node manch:PropertyExpressionOrNameShape ] ;
+    sh:property [ sh:path manch:cardinality ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype <http://www.w3.org/2001/XMLSchema#nonNegativeInteger> ] ;
+    sh:property [ sh:path manch:filler ; sh:maxCount 1 ; sh:node manch:ClassExpressionOrNameShape ] .
+manch:ExactShape a sh:NodeShape ; sh:targetClass manch:Exact ;
+    sh:property [ sh:path manch:onProperty ; sh:minCount 1 ; sh:maxCount 1 ; sh:node manch:PropertyExpressionOrNameShape ] ;
+    sh:property [ sh:path manch:cardinality ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype <http://www.w3.org/2001/XMLSchema#nonNegativeInteger> ] ;
+    sh:property [ sh:path manch:filler ; sh:maxCount 1 ; sh:node manch:ClassExpressionOrNameShape ] .
+
+manch:InverseShape a sh:NodeShape ; sh:targetClass manch:Inverse ;
+    sh:property [ sh:path manch:operand ; sh:minCount 1 ; sh:maxCount 1 ; sh:nodeKind sh:IRI ] .
+
+# ---------------------------------------------------------------------
+# Data ranges
+# ---------------------------------------------------------------------
+
+manch:DAndShape a sh:NodeShape ; sh:targetClass manch:DAnd ;
+    sh:property [ sh:path manch:operands ; sh:minCount 1 ; sh:maxCount 1 ; sh:node manch:DataRangeListShape ] .
+manch:DOrShape a sh:NodeShape ; sh:targetClass manch:DOr ;
+    sh:property [ sh:path manch:operands ; sh:minCount 1 ; sh:maxCount 1 ; sh:node manch:DataRangeListShape ] .
+manch:DNotShape a sh:NodeShape ; sh:targetClass manch:DNot ;
+    sh:property [ sh:path manch:operand ; sh:minCount 1 ; sh:maxCount 1 ; sh:node manch:DataRangeOrNameShape ] .
+manch:DOneOfShape a sh:NodeShape ; sh:targetClass manch:DOneOf ;
+    sh:property [ sh:path manch:literals ; sh:minCount 1 ; sh:maxCount 1 ; sh:node manch:WellFormedListShape ] .
+manch:DRestrictionShape a sh:NodeShape ; sh:targetClass manch:DRestriction ;
+    sh:property [ sh:path manch:onDatatype ; sh:minCount 1 ; sh:maxCount 1 ; sh:nodeKind sh:IRI ] ;
+    sh:property [ sh:path manch:facets ; sh:minCount 1 ; sh:maxCount 1 ; sh:node manch:WellFormedListShape ] .
+manch:FacetRestrictionShape a sh:NodeShape ; sh:targetClass manch:FacetRestriction ;
+    sh:property [ sh:path manch:facetPredicate ; sh:minCount 1 ; sh:maxCount 1 ; sh:nodeKind sh:IRI ] ;
+    sh:property [ sh:path manch:facetValue ; sh:minCount 1 ; sh:maxCount 1 ; sh:nodeKind sh:Literal ] .
+
+# ---------------------------------------------------------------------
+# Frames, clauses, items, annotations
+# ---------------------------------------------------------------------
+
+manch:ClauseItemShape a sh:NodeShape ; sh:targetClass manch:ClauseItem ;
+    sh:property [ sh:path manch:value ; sh:minCount 1 ; sh:maxCount 1 ] ;
+    sh:property [ sh:path manch:annotations ; sh:maxCount 1 ; sh:node manch:AnnotationAssertionListShape ] .
+
+manch:FactItemShape a sh:NodeShape ; sh:targetClass manch:FactItem ;
+    sh:property [ sh:path manch:negative ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype <http://www.w3.org/2001/XMLSchema#boolean> ] ;
+    sh:property [ sh:path manch:property ; sh:minCount 1 ; sh:maxCount 1 ; sh:nodeKind sh:IRI ] ;
+    sh:property [ sh:path manch:value ; sh:minCount 1 ; sh:maxCount 1 ; sh:node manch:ValueShape ] ;
+    sh:property [ sh:path manch:annotations ; sh:maxCount 1 ; sh:node manch:AnnotationAssertionListShape ] .
+
+manch:AnnotationAssertionShape a sh:NodeShape ; sh:targetClass manch:AnnotationAssertion ;
+    sh:property [ sh:path manch:annotationProperty ; sh:minCount 1 ; sh:maxCount 1 ; sh:nodeKind sh:IRI ] ;
+    sh:property [ sh:path manch:annotationValue ; sh:minCount 1 ; sh:maxCount 1 ; sh:node manch:ValueShape ] .
+
+# Generic well-formedness for every Clause (any concrete subclass) - the
+# more specific per-value-kind item-list shapes below layer on top of this,
+# targeting only the subclasses whose own items share one grammar, so both
+# the generic list-structure check and the specific value-type check apply
+# together wherever a more specific shape exists (pyshacl runs every
+# matching shape, not just the most specific one - same layering salg:'s
+# own TriplePatternShape/context-specific-list-shape pairing relies on).
+manch:ClauseItemsShape a sh:NodeShape ; sh:targetClass manch:Clause ;
+    sh:property [ sh:path manch:items ; sh:minCount 1 ; sh:maxCount 1 ; sh:node manch:WellFormedListShape ] ;
+    sh:property [ sh:path manch:reversed ; sh:maxCount 1 ; sh:datatype <http://www.w3.org/2001/XMLSchema#boolean> ] .
+
+# Per-value-kind item-list shapes - each checks that every manch:ClauseItem
+# in the list has a manch:value of the grammar that clause type actually
+# uses (see manchester-ast-ontology.ttl's own per-clause comments and
+# to_ast_rdf.py's _CLAUSE_VALUE_KIND table, which this mirrors). Grouped by
+# shared value kind rather than one shape per clause class, since many
+# clause classes share the identical item shape.
+
+manch:ClassExpressionItemListShape a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "expected a well-formed rdf:List of ClauseItem whose value is a class expression" ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX manch: <https://github.com/hidden-graph/starlayergraph/ns/manchester-ast#>
+            SELECT $this
+            WHERE {
+                $this rdf:rest*/rdf:first ?item .
+                ?item manch:value ?v .
+                FILTER NOT EXISTS { ?v a manch:ClassExpression }
+                FILTER ( !isIRI(?v) )
+            }
+        """ ;
+    ] .
+manch:ClassEquivalentToClause a sh:NodeShape ; sh:targetClass manch:ClassEquivalentToClause ; sh:property [ sh:path manch:items ; sh:node manch:ClassExpressionItemListShape ] .
+manch:ClassDisjointWithClause a sh:NodeShape ; sh:targetClass manch:ClassDisjointWithClause ; sh:property [ sh:path manch:items ; sh:node manch:ClassExpressionItemListShape ] .
+manch:ObjPropDomainClause a sh:NodeShape ; sh:targetClass manch:ObjPropDomainClause ; sh:property [ sh:path manch:items ; sh:node manch:ClassExpressionItemListShape ] .
+manch:ObjPropRangeClause a sh:NodeShape ; sh:targetClass manch:ObjPropRangeClause ; sh:property [ sh:path manch:items ; sh:node manch:ClassExpressionItemListShape ] .
+manch:DataPropDomainClause a sh:NodeShape ; sh:targetClass manch:DataPropDomainClause ; sh:property [ sh:path manch:items ; sh:node manch:ClassExpressionItemListShape ] .
+manch:IndividualTypesClause a sh:NodeShape ; sh:targetClass manch:IndividualTypesClause ; sh:property [ sh:path manch:items ; sh:node manch:ClassExpressionItemListShape ] .
+manch:ClassSubClassOfClause a sh:NodeShape ; sh:targetClass manch:ClassSubClassOfClause ; sh:property [ sh:path manch:items ; sh:node manch:ClassExpressionItemListShape ] .
+
+manch:PropertyExpressionItemListShape a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "expected a well-formed rdf:List of ClauseItem whose value is a property expression" ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX manch: <https://github.com/hidden-graph/starlayergraph/ns/manchester-ast#>
+            SELECT $this
+            WHERE {
+                $this rdf:rest*/rdf:first ?item .
+                ?item manch:value ?v .
+                FILTER NOT EXISTS { ?v a manch:PropertyExpression }
+                FILTER ( !isIRI(?v) )
+            }
+        """ ;
+    ] .
+manch:ObjPropSubPropertyOfClause a sh:NodeShape ; sh:targetClass manch:ObjPropSubPropertyOfClause ; sh:property [ sh:path manch:items ; sh:node manch:PropertyExpressionItemListShape ] .
+manch:ObjPropEquivalentToClause a sh:NodeShape ; sh:targetClass manch:ObjPropEquivalentToClause ; sh:property [ sh:path manch:items ; sh:node manch:PropertyExpressionItemListShape ] .
+manch:ObjPropDisjointWithClause a sh:NodeShape ; sh:targetClass manch:ObjPropDisjointWithClause ; sh:property [ sh:path manch:items ; sh:node manch:PropertyExpressionItemListShape ] .
+manch:ObjPropInverseOfClause a sh:NodeShape ; sh:targetClass manch:ObjPropInverseOfClause ; sh:property [ sh:path manch:items ; sh:node manch:PropertyExpressionItemListShape ] .
+manch:DataPropSubPropertyOfClause a sh:NodeShape ; sh:targetClass manch:DataPropSubPropertyOfClause ; sh:property [ sh:path manch:items ; sh:node manch:PropertyExpressionItemListShape ] .
+manch:DataPropEquivalentToClause a sh:NodeShape ; sh:targetClass manch:DataPropEquivalentToClause ; sh:property [ sh:path manch:items ; sh:node manch:PropertyExpressionItemListShape ] .
+manch:DataPropDisjointWithClause a sh:NodeShape ; sh:targetClass manch:DataPropDisjointWithClause ; sh:property [ sh:path manch:items ; sh:node manch:PropertyExpressionItemListShape ] .
+
+manch:DataRangeItemListShape a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "expected a well-formed rdf:List of ClauseItem whose value is a data range" ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX manch: <https://github.com/hidden-graph/starlayergraph/ns/manchester-ast#>
+            SELECT $this
+            WHERE {
+                $this rdf:rest*/rdf:first ?item .
+                ?item manch:value ?v .
+                FILTER NOT EXISTS { ?v a manch:DataRange }
+                FILTER ( !isIRI(?v) )
+            }
+        """ ;
+    ] .
+manch:DataPropRangeClause a sh:NodeShape ; sh:targetClass manch:DataPropRangeClause ; sh:property [ sh:path manch:items ; sh:node manch:DataRangeItemListShape ] .
+manch:DatatypeEquivalentToClause a sh:NodeShape ; sh:targetClass manch:DatatypeEquivalentToClause ; sh:property [ sh:path manch:items ; sh:node manch:DataRangeItemListShape ] .
+
+# 'name'/'characteristic' kind - both are already bare IRIs at the AST layer
+# (annotation-property domain/range/super-property values are plain IRIs, not
+# full class/property expressions; Characteristics: values are the resolved
+# owl:FunctionalProperty-style URIRef, not a keyword string - see
+# to_ast_rdf.py's _CLAUSE_VALUE_KIND) - one shared item-list shape suffices.
+manch:NameItemListShape a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "expected a well-formed rdf:List of ClauseItem whose value is a bare IRI" ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX manch: <https://github.com/hidden-graph/starlayergraph/ns/manchester-ast#>
+            SELECT $this
+            WHERE {
+                $this rdf:rest*/rdf:first ?item .
+                ?item manch:value ?v .
+                FILTER ( !isIRI(?v) )
+            }
+        """ ;
+    ] .
+manch:AnnPropDomainClause a sh:NodeShape ; sh:targetClass manch:AnnPropDomainClause ; sh:property [ sh:path manch:items ; sh:node manch:NameItemListShape ] .
+manch:AnnPropRangeClause a sh:NodeShape ; sh:targetClass manch:AnnPropRangeClause ; sh:property [ sh:path manch:items ; sh:node manch:NameItemListShape ] .
+manch:AnnPropSubPropertyOfClause a sh:NodeShape ; sh:targetClass manch:AnnPropSubPropertyOfClause ; sh:property [ sh:path manch:items ; sh:node manch:NameItemListShape ] .
+manch:IndividualSameAsClause a sh:NodeShape ; sh:targetClass manch:IndividualSameAsClause ; sh:property [ sh:path manch:items ; sh:node manch:NameItemListShape ] .
+manch:IndividualDifferentFromClause a sh:NodeShape ; sh:targetClass manch:IndividualDifferentFromClause ; sh:property [ sh:path manch:items ; sh:node manch:NameItemListShape ] .
+manch:ObjPropCharacteristicsClause a sh:NodeShape ; sh:targetClass manch:ObjPropCharacteristicsClause ; sh:property [ sh:path manch:items ; sh:node manch:NameItemListShape ] .
+manch:DataPropCharacteristicsClause a sh:NodeShape ; sh:targetClass manch:DataPropCharacteristicsClause ; sh:property [ sh:path manch:items ; sh:node manch:NameItemListShape ] .
+
+manch:MiscAxiomItemsShape a sh:NodeShape ; sh:targetClass manch:MiscAxiom ;
+    sh:property [ sh:path manch:items ; sh:minCount 1 ; sh:maxCount 1 ; sh:node manch:WellFormedListShape ] .
+
+# Per-value-kind item checks for Misc axioms - unlike a Clause's items, a
+# MiscAxiom's items are bare values directly in the list (no ClauseItem
+# wrapper - see _encode_misc in to_ast_rdf.py), so the existing
+# ClassExpressionListShape/PropertyExpressionListShape (already list-of-bare-
+# value checks, not list-of-ClauseItem) apply directly; only the 'name' kind
+# needs a new bare-IRI-list shape, since no such generic check existed yet.
+manch:NameListShape a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "expected a well-formed rdf:List of bare IRIs" ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            SELECT $this
+            WHERE {
+                $this rdf:rest*/rdf:first ?item .
+                FILTER ( !isIRI(?item) )
+            }
+        """ ;
+    ] .
+manch:MiscEquivalentClassesAxiom a sh:NodeShape ; sh:targetClass manch:MiscEquivalentClassesAxiom ; sh:property [ sh:path manch:items ; sh:node manch:ClassExpressionListShape ] .
+manch:MiscDisjointClassesAxiom a sh:NodeShape ; sh:targetClass manch:MiscDisjointClassesAxiom ; sh:property [ sh:path manch:items ; sh:node manch:ClassExpressionListShape ] .
+manch:MiscEquivalentPropertiesAxiom a sh:NodeShape ; sh:targetClass manch:MiscEquivalentPropertiesAxiom ; sh:property [ sh:path manch:items ; sh:node manch:PropertyExpressionListShape ] .
+manch:MiscDisjointPropertiesAxiom a sh:NodeShape ; sh:targetClass manch:MiscDisjointPropertiesAxiom ; sh:property [ sh:path manch:items ; sh:node manch:PropertyExpressionListShape ] .
+manch:MiscSameIndividualAxiom a sh:NodeShape ; sh:targetClass manch:MiscSameIndividualAxiom ; sh:property [ sh:path manch:items ; sh:node manch:NameListShape ] .
+manch:MiscDifferentIndividualsAxiom a sh:NodeShape ; sh:targetClass manch:MiscDifferentIndividualsAxiom ; sh:property [ sh:path manch:items ; sh:node manch:NameListShape ] .
+
+manch:FrameShapeDetail a sh:NodeShape ; sh:targetClass manch:Frame ;
+    sh:property [ sh:path manch:subject ; sh:minCount 1 ; sh:maxCount 1 ; sh:nodeKind sh:IRI ] ;
+    sh:property [ sh:path manch:clauses ; sh:minCount 1 ; sh:maxCount 1 ; sh:node manch:ClauseListShape ] .
+
+# ---------------------------------------------------------------------
+# Document root
+# ---------------------------------------------------------------------
+
+manch:PrefixDeclShape a sh:NodeShape ; sh:targetClass manch:PrefixDecl ;
+    sh:property [ sh:path manch:prefixLabel ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype manch:PyStr ] ;
+    sh:property [ sh:path manch:prefixIri ; sh:minCount 1 ; sh:maxCount 1 ; sh:nodeKind sh:Literal ] .
+
+manch:OntologyHeaderShape a sh:NodeShape ; sh:targetClass manch:OntologyHeader ;
+    sh:property [ sh:path manch:ontologyIri ; sh:maxCount 1 ; sh:nodeKind sh:IRI ] ;
+    sh:property [ sh:path manch:imports ; sh:maxCount 1 ; sh:node manch:WellFormedListShape ] .
+
+manch:DocumentShape a sh:NodeShape ; sh:targetClass manch:Document ;
+    sh:property [ sh:path manch:prefixes ; sh:minCount 1 ; sh:maxCount 1 ; sh:node manch:WellFormedListShape ] ;
+    sh:property [ sh:path manch:header ; sh:maxCount 1 ; sh:class manch:OntologyHeader ] ;
+    sh:property [ sh:path manch:frames ; sh:minCount 1 ; sh:maxCount 1 ; sh:node manch:FrameListShape ] ;
+    sh:property [ sh:path manch:misc ; sh:minCount 1 ; sh:maxCount 1 ; sh:node manch:MiscAxiomListShape ] .

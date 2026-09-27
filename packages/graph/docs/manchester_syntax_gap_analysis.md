@@ -119,6 +119,41 @@ blocks for one axiom, not reproducible in a smaller document, consistent
 with OWL API's lenient two-pass "auto-declare missing entities" parsing
 double-counting an anonymous axiom rather than deduplicating it.
 
+## A third path: the document's own AST as RDF
+
+The two directions above both go through *compiled OWL RDF* - parsing
+produces it, serializing consumes it - which is why `SuperClassOf:`/
+`SuperPropertyOf:` and `onlysome` can't be recovered on the way back: that
+information genuinely doesn't survive into the OWL 2 RDF Mapping.
+
+`packages/graph/starlayergraph/ontology/to_ast_rdf.py` is a separate,
+third path that sidesteps this: it encodes the parser's own *internal*
+AST (frames, clauses, class/property expressions, data ranges - the
+tagged tuples `_expr_node`/`_data_range_node` normally compile and discard
+immediately) as RDF directly, one level upstream of the OWL mapping,
+using the `manch:` vocabulary (`ontology/manchester-ast-ontology.ttl` +
+`ontology/manchester_shapes.ttl`) - mirroring the sibling `starsparql`
+package's `salg:` treatment of SPARQL query algebra. Because it captures
+the AST before OWL compilation, it *can* tell `SuperClassOf:` apart from
+`SubClassOf:` (via an explicit `manch:reversed` flag - the one place this
+pair isn't just spelling, since it flips which side of the compiled
+`rdfs:subClassOf`/`subPropertyOf` triple the frame's own subject lands
+on); it still doesn't recover `onlysome`/`that`, since those desugar
+before the parser's own AST is ever built, matching `salg:`'s own
+accepted fidelity bar for SPARQL (see that module's docstring for the
+full scope decision).
+
+This is a genuinely different capability from the parser/serializer pair
+above, not a replacement for either: `to_ast_rdf.py` gives you `manch:`
+RDF you can inspect, edit via plain graph surgery, and validate against
+SHACL shapes before decoding it back into runnable Manchester text - see
+the [Manchester Syntax as RDF guide](../../../docs/guides/05g-manchester-syntax-as-rdf.ipynb)
+for a full worked example. Tests:
+`packages/graph/tests/unit/test_manchester_ast.py` (round-trip
+correctness, verified via `starlayergraph.compare.isomorphic()` on both
+ends' compiled OWL triples) and `test_manchester_ast_shapes.py` (SHACL
+shape conformance, positive and negative).
+
 ## Where the code lives
 
 Parser: `packages/graph/starlayergraph/parsers/manchester_parser.py`
@@ -132,3 +167,7 @@ wired into `StarLayerGraph.serialize(format="manchester")`. Tests:
 `packages/graph/tests/unit/test_manchester_serializer.py` - also
 oracle-free, checking round-trip isomorphism plus a few direct RDF-shape
 assertions for the reconstructions above.
+
+AST-as-RDF: `packages/graph/starlayergraph/ontology/to_ast_rdf.py` (see
+"A third path" above for what it's for and how it differs from the
+parser/serializer pair).

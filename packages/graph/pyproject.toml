@@ -13,11 +13,18 @@ requires-python = ">=3.10"
 dependencies = [
     "rdflib>=7.0",
     "requests>=2.28",
-    # Not published to PyPI. Install the sibling package first:
-    #   pip install -e ../sparql
+    # Not published to PyPI. Install the sibling packages first:
+    #   pip install -e ../sparql -e ../shacl
     # The repo-level core install is the `graph` package, while the Python
     # import remains `starlayergraph` for compatibility with the codebase.
     "sparql",
+    # StarLayerGraph.derive() goes through starshacl (never bare pyshacl)
+    # for anything shape-related, since a template shape or the data itself
+    # may be genuine RDF 1.2 content (triple terms) that only starshacl
+    # understands - an intentional circular dependency with packages/shacl,
+    # the same shape as the sparql one above (shacl already depends on
+    # graph; see starshacl/subgraph_extraction.py).
+    "shacl",
 ]
 keywords = ["rdf", "rdf12", "knowledge-graph", "semantic-web", "linked-data", "sparql", "turtle", "reification"]
 classifiers = [
@@ -50,7 +57,7 @@ reasoning = ["owlrl>=6"]
 # symmetrically, rather than one being special.
 hermit = ["owlready2>=0.51"]
 rustdl = ["rustdl>=0.4"]
-test = ["pytest>=7", "hypothesis>=6"]
+test = ["pytest>=7", "hypothesis>=6", "pyshacl>=0.25"]
 
 [project.urls]
 Homepage = "https://github.com/hidden-graph/starlayer/tree/main/packages/graph"
@@ -61,7 +68,7 @@ Issues = "https://github.com/hidden-graph/starlayer/issues"
 include = ["starlayergraph*"]
 
 [tool.setuptools.package-data]
-starlayergraph = ["py.typed"]
+starlayergraph = ["py.typed", "ontology/*.ttl"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

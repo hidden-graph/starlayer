@@ -1,0 +1,140 @@
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+
+# A direct restatement of the W3C SKOS Reference's own formal axioms
+# (https://www.w3.org/TR/skos-reference/ - Appendix A.1/A.2), over the real
+# `skos:` namespace - unlike manch:/salg:, this ontology is *about* an
+# existing, external vocabulary, not a new one this project invented, so it
+# reuses the real http://www.w3.org/2004/02/skos/core# IRIs throughout rather
+# than minting a project-local namespace. `# S<n>` comments cite the
+# Reference's own numbered "Documented Consistency and Integrity Conditions"
+# each axiom corresponds to, for direct traceability back to the spec text.
+#
+# Domain/range ARE declared here where the spec itself declares them - unlike
+# manch:/salg:, whose properties are deliberately domain/range-free because
+# they're heterogeneously reused across unrelated node shapes (see
+# manchester-ast-ontology.ttl's own comment), SKOS's properties are not: each
+# one is used consistently for exactly the relation the spec defines, so
+# there's no "entailment defeating a dispatch shape" risk to guard against
+# here (see skos_shapes.ttl's own comment on why disjointness/domain checks
+# are safe to combine with this ontology's rdfs:subClassOf/domain/range).
+
+# ---------------------------------------------------------------------
+# Classes (S1, S2, S28, S29)
+# ---------------------------------------------------------------------
+
+skos:Concept a owl:Class . # S1
+skos:ConceptScheme a owl:Class . # S2
+skos:Collection a owl:Class . # S28
+skos:OrderedCollection a owl:Class ; rdfs:subClassOf skos:Collection . # S28, S29
+
+# S9: ConceptScheme disjoint with Concept. S37: Collection disjoint with both
+# Concept and ConceptScheme. OrderedCollection inherits both via S29's
+# subClassOf, so it's deliberately not repeated here.
+skos:Concept owl:disjointWith skos:ConceptScheme, skos:Collection . # S9, S37
+skos:ConceptScheme owl:disjointWith skos:Collection . # S37
+
+# ---------------------------------------------------------------------
+# ConceptScheme membership (S3-S8)
+# ---------------------------------------------------------------------
+
+skos:inScheme a owl:ObjectProperty ; rdfs:range skos:ConceptScheme . # S3, S4
+skos:hasTopConcept a owl:ObjectProperty ;
+    rdfs:domain skos:ConceptScheme ; rdfs:range skos:Concept . # S3, S5, S6
+skos:topConceptOf a owl:ObjectProperty ;
+    rdfs:subPropertyOf skos:inScheme ; # S7
+    owl:inverseOf skos:hasTopConcept . # S8
+
+# ---------------------------------------------------------------------
+# Lexical labels (S10-S12) and notation/notes (S15-S17)
+# ---------------------------------------------------------------------
+
+skos:prefLabel a owl:AnnotationProperty ; rdfs:subPropertyOf rdfs:label ; rdfs:range rdfs:Literal . # S10-S12
+skos:altLabel a owl:AnnotationProperty ; rdfs:subPropertyOf rdfs:label ; rdfs:range rdfs:Literal . # S10-S12
+skos:hiddenLabel a owl:AnnotationProperty ; rdfs:subPropertyOf rdfs:label ; rdfs:range rdfs:Literal . # S10-S12
+
+skos:notation a owl:DatatypeProperty . # S15
+
+skos:note a owl:AnnotationProperty . # S16
+skos:changeNote rdfs:subPropertyOf skos:note . # S17
+skos:definition rdfs:subPropertyOf skos:note . # S17
+skos:editorialNote rdfs:subPropertyOf skos:note . # S17
+skos:example rdfs:subPropertyOf skos:note . # S17
+skos:historyNote rdfs:subPropertyOf skos:note . # S17
+skos:scopeNote rdfs:subPropertyOf skos:note . # S17
+skos:changeNote a owl:AnnotationProperty . # S16
+skos:definition a owl:AnnotationProperty . # S16
+skos:editorialNote a owl:AnnotationProperty . # S16
+skos:example a owl:AnnotationProperty . # S16
+skos:historyNote a owl:AnnotationProperty . # S16
+skos:scopeNote a owl:AnnotationProperty . # S16
+
+# ---------------------------------------------------------------------
+# Semantic relations (S18-S27)
+# ---------------------------------------------------------------------
+
+skos:semanticRelation a owl:ObjectProperty ;
+    rdfs:domain skos:Concept ; rdfs:range skos:Concept . # S18-S20
+
+skos:broaderTransitive a owl:ObjectProperty ;
+    rdfs:subPropertyOf skos:semanticRelation ; # S21
+    a owl:TransitiveProperty . # S24
+skos:narrowerTransitive a owl:ObjectProperty ;
+    rdfs:subPropertyOf skos:semanticRelation ; # S21
+    a owl:TransitiveProperty ; # S24
+    owl:inverseOf skos:broaderTransitive . # S26
+
+skos:broader a owl:ObjectProperty ;
+    rdfs:subPropertyOf skos:broaderTransitive . # S22
+skos:narrower a owl:ObjectProperty ;
+    rdfs:subPropertyOf skos:narrowerTransitive ; # S22
+    owl:inverseOf skos:broader . # S25
+
+skos:related a owl:ObjectProperty ;
+    rdfs:subPropertyOf skos:semanticRelation ; # S21
+    a owl:SymmetricProperty . # S23
+
+# S27: skos:related is disjoint with skos:broaderTransitive (and, by the
+# inverse/subproperty chains above, with skos:broader/skos:narrower/
+# skos:narrowerTransitive too) - see skos_shapes.ttl for the enforced check,
+# since owl:disjointWith is a class-level axiom and this is a
+# property-level disjointness the OWL 2 RDF mapping has no direct triple
+# form for; recorded here as a comment for traceability only.
+
+# ---------------------------------------------------------------------
+# Concept collections (S28-S35)
+# ---------------------------------------------------------------------
+
+skos:member a owl:ObjectProperty ;
+    rdfs:domain skos:Collection ; # S31
+    rdfs:range [ a owl:Class ; owl:unionOf ( skos:Concept skos:Collection ) ] . # S32
+skos:memberList a owl:ObjectProperty ;
+    rdfs:domain skos:OrderedCollection ; rdfs:range rdf:List ; # S33, S34
+    a owl:FunctionalProperty . # S35
+
+# ---------------------------------------------------------------------
+# Mapping properties (S36-S46)
+# ---------------------------------------------------------------------
+
+skos:mappingRelation a owl:ObjectProperty ; rdfs:subPropertyOf skos:semanticRelation . # S38, S39
+skos:closeMatch a owl:ObjectProperty ;
+    rdfs:subPropertyOf skos:mappingRelation ; # S40
+    a owl:SymmetricProperty . # S44
+skos:exactMatch a owl:ObjectProperty ;
+    rdfs:subPropertyOf skos:closeMatch ; # S42
+    a owl:SymmetricProperty ; # S44
+    a owl:TransitiveProperty . # S45
+skos:broadMatch a owl:ObjectProperty ;
+    rdfs:subPropertyOf skos:mappingRelation, skos:broader . # S40, S41
+skos:narrowMatch a owl:ObjectProperty ;
+    rdfs:subPropertyOf skos:mappingRelation, skos:narrower ; # S40, S41
+    owl:inverseOf skos:broadMatch . # S43
+skos:relatedMatch a owl:ObjectProperty ;
+    rdfs:subPropertyOf skos:mappingRelation, skos:related ; # S40, S41
+    a owl:SymmetricProperty . # S44
+
+# S46: skos:exactMatch is disjoint with skos:broadMatch/skos:narrowMatch/
+# skos:relatedMatch - same property-level-disjointness caveat as S27 above;
+# enforced in skos_shapes.ttl, recorded here only for traceability.

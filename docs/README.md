@@ -27,11 +27,13 @@ The full guide set has been reorganized into `docs/guides/`, one focused noteboo
    - **5.c [SPARQL queries as RDF](guides/05c-sparql-query-as-rdf.ipynb)** - encoding, editing, and validating a query itself as an RDF graph.
    - **5.d [Canonical hashing and graph comparison](guides/05d-canonical-hashing.ipynb)** - RDFC-1.0 canonicalization/hashing and graph isomorphism.
    - **5.e [OWL 2 DL reasoning with HermiT](guides/05e-owl-dl-reasoning.ipynb)** - `infer(profile="owl-dl")`, genuine DL reasoning via `owlready2` + Java HermiT; needs a real JVM, not just a pip install.
+   - **5.g [Manchester Syntax as RDF](guides/05g-manchester-syntax-as-rdf.ipynb)** - encoding, editing, and validating a Manchester Syntax document's own AST as an RDF graph (mirrors 5.c's treatment of SPARQL query algebra).
 
 ## Related project documentation
 
 The guides above are user-facing walkthroughs. For implementation detail, compatibility contracts, and spec-tracking:
 
+- [`functionality-overview.md`](functionality-overview.md) - a concise, bullet-point inventory of what's currently covered across all three packages, and what's planned/deferred - start here for "does StarLayer support X".
 - `packages/graph/docs/starlayergraph.md` - starlayergraph architecture and design, including backend compatibility.
 - `packages/shacl/docs/compatibility.md` - starshacl's graph contract, version support, and backend compatibility matrix.
 - `packages/shacl/docs/shacl12-gap-matrix.md` - SHACL 1.2 feature-by-feature status across all six W3C documents.
