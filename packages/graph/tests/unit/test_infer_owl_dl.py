@@ -172,6 +172,49 @@ class TestOwlDlModes:
         assert (EX.alice, RDF.type, EX.Employee) in g
 
 
+@owl_dl_extra
+@java_required
+class TestOwlDlTimeout:
+    """Wiring coverage only - does infer(profile="owl-dl", engine="hermit",
+    timeout=...) actually thread through to the real reasoning call. The
+    timeout *mechanism* itself (process spawn/deadline/process-group kill)
+    has its own thorough, engine-independent coverage in test_timeout.py
+    using synthetic workers, not real HermiT calls."""
+
+    def _simple_graph(self):
+        g = StarLayerGraph()
+        g.bind("ex", EX)
+        g.parse(data="""
+            @prefix ex: <http://example.org/> .
+            @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+            ex:Cat rdfs:subClassOf ex:Animal .
+            ex:alice a ex:Cat .
+        """, format="turtle12")
+        return g
+
+    def test_default_timeout_does_not_interfere_with_a_normal_call(self):
+        closed = self._simple_graph().infer(profile="owl-dl", engine="hermit")
+        assert (EX.alice, RDF.type, EX.Animal) in closed
+
+    def test_tiny_timeout_raises_reasoning_timeout_error(self):
+        from starlayergraph.graph._timeout import ReasoningTimeoutError
+
+        with pytest.raises(ReasoningTimeoutError):
+            self._simple_graph().infer(profile="owl-dl", engine="hermit", timeout=0.001)
+
+    def test_timeout_none_disables_it(self):
+        closed = self._simple_graph().infer(profile="owl-dl", engine="hermit", timeout=None)
+        assert (EX.alice, RDF.type, EX.Animal) in closed
+
+
+def test_timeout_rejected_for_non_owl_dl_profile():
+    g = StarLayerGraph()
+    g.bind("ex", EX)
+    g.add((EX.alice, RDF.type, EX.Person))
+    with pytest.raises(ValueError, match="only meaningful for profile='owl-dl'"):
+        g.infer(profile="rdfs", timeout=5)
+
+
 def test_missing_owlready2_raises_actionable_error(monkeypatch):
     """Simulates owlready2 not being installed (independent of whether it
     actually is, in this test environment) - confirms the "opt-in package

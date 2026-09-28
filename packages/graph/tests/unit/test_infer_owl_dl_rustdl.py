@@ -132,6 +132,63 @@ class TestOwlDlRustdlInconsistency:
 
 
 @rustdl_extra
+class TestOwlDlRustdlHangRisk:
+    """A property declared both owl:FunctionalProperty and
+    owl:InverseFunctionalProperty, used in a someValuesFrom restriction
+    whose filler is an owl:oneOf nominal enumeration, is confirmed to hang
+    RustDL's materialize_inferred_class_assertions() indefinitely - see
+    owl_dl_rustdl.py's own module docstring, point 4, for the full account.
+    The pre-flight SHACL check must reject this fast (well under a test
+    timeout) rather than let the caller hang."""
+
+    def _hang_pattern_graph(self):
+        g = StarLayerGraph()
+        g.bind("ex", EX)
+        g.parse(data="""
+            @prefix ex: <http://example.org/> .
+            @prefix owl: <http://www.w3.org/2002/07/owl#> .
+            @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+            ex:hasSpouse a owl:ObjectProperty, owl:FunctionalProperty, owl:InverseFunctionalProperty .
+
+            ex:MarriedToNominal a owl:Class ;
+                owl:oneOf ( ex:alice ex:bob ex:carol ) .
+
+            ex:Married rdfs:subClassOf [
+                a owl:Restriction ;
+                owl:onProperty ex:hasSpouse ;
+                owl:someValuesFrom ex:MarriedToNominal
+            ] .
+
+            ex:dave a ex:Married .
+        """, format="turtle12")
+        return g
+
+    def test_hang_pattern_raises_unsupported_axiom_error_instead_of_hanging(self):
+        g = self._hang_pattern_graph()
+        with pytest.raises(rustdl.UnsupportedAxiomError):
+            g.infer(profile="owl-dl", engine="rustdl")
+
+    def test_hermit_does_not_raise_on_the_identical_ontology(self):
+        """Confirms this is a RustDL-specific hang, not a general problem
+        with the ontology itself - engine="hermit" handles it fine."""
+        g = self._hang_pattern_graph()
+        g.infer(profile="owl-dl", engine="hermit")  # should not raise
+
+    def test_ordinary_ontology_is_unaffected_by_the_preflight_check(self):
+        g = StarLayerGraph()
+        g.bind("ex", EX)
+        g.parse(data="""
+            @prefix ex: <http://example.org/> .
+            @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+            ex:Cat rdfs:subClassOf ex:Animal .
+            ex:alice a ex:Cat .
+        """, format="turtle12")
+        closed = g.infer(profile="owl-dl", engine="rustdl")  # should not raise
+        assert (EX.alice, RDF.type, EX.Animal) in closed
+
+
+@rustdl_extra
 class TestOwlDlRustdlModes:
     def test_mode_in_place_mutates_and_returns_self(self):
         g = StarLayerGraph()
@@ -145,6 +202,72 @@ class TestOwlDlRustdlModes:
         result = g.infer(profile="owl-dl", engine="rustdl", mode="in-place")
         assert result is g
         assert (EX.alice, RDF.type, EX.Employee) in g
+
+
+@rustdl_extra
+class TestOwlDlRustdlTimeout:
+    """Wiring coverage only - does infer(profile="owl-dl", engine="rustdl",
+    timeout=...) actually thread through to the real reasoning call. The
+    timeout *mechanism* itself (process spawn/deadline/process-group kill)
+    has its own thorough, engine-independent coverage in test_timeout.py
+    using synthetic workers, not real RustDL calls."""
+
+    def _simple_graph(self):
+        g = StarLayerGraph()
+        g.bind("ex", EX)
+        g.parse(data="""
+            @prefix ex: <http://example.org/> .
+            @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+            ex:Cat rdfs:subClassOf ex:Animal .
+            ex:alice a ex:Cat .
+        """, format="turtle12")
+        return g
+
+    def test_default_timeout_does_not_interfere_with_a_normal_call(self):
+        closed = self._simple_graph().infer(profile="owl-dl", engine="rustdl")
+        assert (EX.alice, RDF.type, EX.Animal) in closed
+
+    def test_tiny_timeout_raises_reasoning_timeout_error(self):
+        from starlayergraph.graph._timeout import ReasoningTimeoutError
+
+        with pytest.raises(ReasoningTimeoutError):
+            self._simple_graph().infer(profile="owl-dl", engine="rustdl", timeout=0.001)
+
+    def test_timeout_none_disables_it(self):
+        closed = self._simple_graph().infer(profile="owl-dl", engine="rustdl", timeout=None)
+        assert (EX.alice, RDF.type, EX.Animal) in closed
+
+    def test_hang_risk_preflight_check_still_fires_before_the_timeout(self):
+        """The fast, specific pre-flight check (owl_dl_rustdl.py point 4)
+        must still fire immediately, well under even a generous timeout -
+        not get silently superseded now that a general timeout also
+        exists."""
+        g = self._hang_pattern_graph()
+        with pytest.raises(rustdl.UnsupportedAxiomError):
+            g.infer(profile="owl-dl", engine="rustdl", timeout=60)
+
+    def _hang_pattern_graph(self):
+        g = StarLayerGraph()
+        g.bind("ex", EX)
+        g.parse(data="""
+            @prefix ex: <http://example.org/> .
+            @prefix owl: <http://www.w3.org/2002/07/owl#> .
+            @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+            ex:hasSpouse a owl:ObjectProperty, owl:FunctionalProperty, owl:InverseFunctionalProperty .
+
+            ex:MarriedToNominal a owl:Class ;
+                owl:oneOf ( ex:alice ex:bob ex:carol ) .
+
+            ex:Married rdfs:subClassOf [
+                a owl:Restriction ;
+                owl:onProperty ex:hasSpouse ;
+                owl:someValuesFrom ex:MarriedToNominal
+            ] .
+
+            ex:dave a ex:Married .
+        """, format="turtle12")
+        return g
 
 
 def test_missing_rustdl_raises_actionable_error(monkeypatch):

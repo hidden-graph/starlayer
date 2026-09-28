@@ -71,3 +71,15 @@ def skos_ontology_graph() -> Graph:
     g = Graph()
     g.parse(source=str(SKOS_ONTOLOGY_TTL_PATH), format="turtle")
     return g
+
+
+# Re-exported so `starlayergraph.ontology.list_shacl_libraries()`/
+# `get_shacl_library()` work without a caller needing to know the registry
+# lives in its own submodule - see registry.py's own docstring for the full
+# design (why this lives here rather than in starshacl/starsparql, why
+# every loader is lazy, and what's deliberately not yet registered).
+from starlayergraph.ontology.registry import (  # noqa: E402
+    ShaclLibrary,
+    get_shacl_library,
+    list_shacl_libraries,
+)

@@ -5,5 +5,5 @@ ex:HasValueShape a sh:NodeShape ;
   sh:targetNode ex:focus ;
   sh:property [
     sh:path ex:says ;
-    sh:hasValue << ex:a ex:p ex:b >> ;
+    sh:hasValue <<( ex:a ex:p ex:b )>> ;
   ] .

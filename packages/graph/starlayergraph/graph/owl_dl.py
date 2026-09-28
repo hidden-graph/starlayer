@@ -35,6 +35,8 @@ from pathlib import Path
 
 from rdflib import RDF, RDFS, Graph
 
+from starlayergraph.graph import _timeout
+
 
 class InconsistentOntologyError(RuntimeError):
     """Raised when profile="owl-dl" finds self's data logically
@@ -83,7 +85,47 @@ def _require_java() -> None:
         )
 
 
-def classify_owl_dl(graph):
+def _run_hermit_subprocess(owl_path: str, result_path: str, queue) -> None:
+    """The actual blocking `owlready2.sync_reasoner()` call, isolated as a
+    module-level (picklable-by-reference) function so `_timeout.run_with_timeout()`
+    can run it in its own child process/process group and forcibly kill it
+    (JVM grandchild included) if it doesn't finish in time - see
+    `_timeout.py`'s own module docstring for why that's necessary at all.
+
+    Puts exactly one `(status, ...)` tuple onto `queue`:
+    - `('ok', None)` - success; results are already on disk at
+      `result_path` (this function's own `world.save()`), not sent
+      through the queue itself.
+    - `('inconsistent', message)` - HermiT found the ontology logically
+      inconsistent.
+    - `('java_error', message)` - a present-but-broken JVM failed inside
+      the HermiT subprocess call itself (not merely missing - `_require_java()`
+      only confirms a `java` binary exists on PATH, not that it works).
+
+    Arbitrary exception *objects* aren't reliably picklable across the
+    process boundary (owlready2's own exception classes are not
+    guaranteed to be) - only plain strings go through `queue`, and the
+    parent (`classify_owl_dl()`) reconstructs the right exception type
+    from the status tag.
+    """
+    import owlready2
+
+    world = owlready2.World()
+    onto = world.get_ontology(f"file://{owl_path}").load()
+    try:
+        with onto:
+            owlready2.sync_reasoner(world, infer_property_values=True, debug=0)
+    except owlready2.OwlReadyInconsistentOntologyError as exc:
+        queue.put(('inconsistent', str(exc)))
+        return
+    except owlready2.OwlReadyJavaError as exc:
+        queue.put(('java_error', str(exc)))
+        return
+    world.save(result_path, format='rdfxml')
+    queue.put(('ok', None))
+
+
+def classify_owl_dl(graph, timeout: float | None = _timeout.DEFAULT_TIMEOUT_SECONDS):
     """Run OWL 2 DL classification (HermiT, via owlready2) over `graph`,
     returning (before, delta) in the same shape
     StarLayerGraph._infer_before_and_delta() returns for the owlrl-backed
@@ -92,6 +134,16 @@ def classify_owl_dl(graph):
 
     Raises InconsistentOntologyError if the data is logically inconsistent
     under OWL 2 DL semantics.
+
+    timeout -- wall-clock budget in seconds for the actual HermiT call
+        (default `_timeout.DEFAULT_TIMEOUT_SECONDS`, 120s) - the call runs
+        in its own subprocess/process group so it can be forcibly killed,
+        JVM child included, if it's exceeded; raises
+        `_timeout.ReasoningTimeoutError`. Pass `None` to disable the
+        timeout entirely (wait indefinitely - the pre-this-feature
+        behavior). See `_timeout.py`'s own module docstring for why a
+        subprocess kill, not a cooperative cancellation, is the only
+        mechanism that reliably works here.
     """
     owlready2 = _require_owlready2()
     _require_java()
@@ -102,25 +154,17 @@ def classify_owl_dl(graph):
     with tempfile.TemporaryDirectory() as tmp_dir:
         owl_path = Path(tmp_dir) / "graph.owl"
         before.serialize(destination=str(owl_path), format='xml')
+        result_path = Path(tmp_dir) / "result.owl"
 
-        # A fresh, disposable World per call - never owlready2's
-        # process-global default_world - so concurrent/repeated infer()
-        # calls never see each other's data. sync_reasoner() must be
-        # called with this world passed explicitly: bare sync_reasoner()
-        # silently reasons over the (likely empty, or wrong) default_world
-        # instead - confirmed live, a real footgun in owlready2's own API.
-        world = owlready2.World()
-        onto = world.get_ontology(f"file://{owl_path}").load()
-
-        try:
-            with onto:
-                owlready2.sync_reasoner(world, infer_property_values=True, debug=0)
-        except owlready2.OwlReadyInconsistentOntologyError as exc:
+        status, message = _timeout.run_with_timeout(
+            _run_hermit_subprocess, (str(owl_path), str(result_path)), timeout,
+        )
+        if status == 'inconsistent':
             raise InconsistentOntologyError(
                 "infer(profile='owl-dl') found self's data logically "
                 "inconsistent under OWL 2 DL semantics."
-            ) from exc
-        except owlready2.OwlReadyJavaError as exc:
+            )
+        if status == 'java_error':
             # `_require_java()` above only confirms a `java` binary exists on
             # PATH - it doesn't confirm that binary actually runs. A present
             # but broken/misconfigured JVM (corrupted install, bad
@@ -133,11 +177,9 @@ def classify_owl_dl(graph):
             raise RuntimeError(
                 "StarLayerGraph.infer(profile='owl-dl') found `java` on PATH, "
                 "but it failed to run HermiT - the JVM itself is broken or "
-                f"misconfigured, not just missing. {exc}"
-            ) from exc
+                f"misconfigured, not just missing. {message}"
+            )
 
-        result_path = Path(tmp_dir) / "result.owl"
-        world.save(str(result_path), format='rdfxml')
         expanded = Graph()
         expanded.parse(str(result_path), format='xml')
 

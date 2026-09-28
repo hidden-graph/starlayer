@@ -5,12 +5,19 @@ layer - a SKOS thesaurus is already plain RDF the moment it's authored - so
 this is the *only* test file for SKOS support: does the ontology load with
 the right entailments, does a well-formed thesaurus conform, and does each
 of the W3C SKOS Reference's own numbered integrity conditions (S9, S13, S14,
-S19/S20, S27, S37, S46) get caught when violated.
+S19/S20, S27, S37, S46) get caught when violated - plus two shapes that
+aren't numbered integrity conditions:
+OrderedCollectionMemberListConsistencyShape (the spec's own §9.4 prose
+expectation that skos:memberList and skos:member describe the same set) and
+ConceptPrefLabelRecommendedShape (a non-normative sh:Info-severity best
+practice - must never flip conforms, unlike every Violation-severity shape
+above).
 """
 
 import owlrl
 import pytest
-from rdflib import RDF, Graph, Literal, Namespace
+from rdflib import RDF, BNode, Graph, Literal, Namespace
+from rdflib.collection import Collection
 from rdflib.namespace import SKOS
 
 from starlayergraph.ontology import skos_ontology_graph
@@ -154,6 +161,84 @@ def test_exactmatch_and_broadmatch_between_same_pair_fails():
     conforms, _, results_text = ss.validate(g)
     assert not conforms
     assert "S46" in results_text
+
+
+def test_ordered_collection_memberlist_and_member_agree_conforms():
+    """memberList and member describe the same set - the happy path."""
+    g = Graph()
+    g.add((EX.cat, RDF.type, SKOS.Concept))
+    g.add((EX.dog, RDF.type, SKOS.Concept))
+    g.add((EX.oc, RDF.type, SKOS.OrderedCollection))
+    list_node = BNode()
+    Collection(g, list_node, [EX.cat, EX.dog])
+    g.add((EX.oc, SKOS.memberList, list_node))
+    g.add((EX.oc, SKOS.member, EX.cat))
+    g.add((EX.oc, SKOS.member, EX.dog))
+    conforms, _, results_text = ss.validate(g)
+    assert conforms, results_text
+
+
+def test_ordered_collection_member_missing_from_memberlist_fails():
+    """An item in skos:memberList that skos:member doesn't also assert."""
+    g = Graph()
+    g.add((EX.cat, RDF.type, SKOS.Concept))
+    g.add((EX.dog, RDF.type, SKOS.Concept))
+    g.add((EX.oc, RDF.type, SKOS.OrderedCollection))
+    list_node = BNode()
+    Collection(g, list_node, [EX.cat, EX.dog])
+    g.add((EX.oc, SKOS.memberList, list_node))
+    g.add((EX.oc, SKOS.member, EX.cat))  # dog missing as a plain member
+    conforms, _, results_text = ss.validate(g)
+    assert not conforms
+    assert 'memberList' in results_text
+
+
+def test_ordered_collection_memberlist_missing_a_real_member_fails():
+    """An item skos:member asserts that skos:memberList doesn't include."""
+    g = Graph()
+    g.add((EX.cat, RDF.type, SKOS.Concept))
+    g.add((EX.dog, RDF.type, SKOS.Concept))
+    g.add((EX.oc, RDF.type, SKOS.OrderedCollection))
+    list_node = BNode()
+    Collection(g, list_node, [EX.cat])
+    g.add((EX.oc, SKOS.memberList, list_node))
+    g.add((EX.oc, SKOS.member, EX.cat))
+    g.add((EX.oc, SKOS.member, EX.dog))  # not in memberList
+    conforms, _, results_text = ss.validate(g)
+    assert not conforms
+    assert 'memberList' in results_text
+
+
+def test_ordered_collection_with_no_memberlist_at_all_is_unaffected():
+    """No memberList to compare against - this shape shouldn't fire."""
+    g = Graph()
+    g.add((EX.cat, RDF.type, SKOS.Concept))
+    g.add((EX.oc, RDF.type, SKOS.OrderedCollection))
+    g.add((EX.oc, SKOS.member, EX.cat))
+    conforms, _, results_text = ss.validate(g)
+    assert conforms, results_text
+
+
+def test_concept_missing_preflabel_still_conforms_but_is_reported():
+    """sh:severity sh:Info - a real, non-normative recommendation, not an
+    integrity condition: missing it must not flip conforms, but should
+    still show up in the report text (allow_infos=True, not just a bare
+    'ignore Info entirely')."""
+    g = Graph()
+    g.add((EX.cat, RDF.type, SKOS.Concept))
+    conforms, _, results_text = ss.validate(g)
+    assert conforms, results_text
+    assert 'Recommended' in results_text
+    assert 'prefLabel' in results_text
+
+
+def test_concept_with_preflabel_has_no_recommendation_in_report():
+    g = Graph()
+    g.add((EX.cat, RDF.type, SKOS.Concept))
+    g.add((EX.cat, SKOS.prefLabel, Literal('Cat', lang='en')))
+    conforms, _, results_text = ss.validate(g)
+    assert conforms, results_text
+    assert 'Recommended' not in results_text
 
 
 def test_shapes_graph_is_valid_shacl_and_reusable():

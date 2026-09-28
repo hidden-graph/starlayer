@@ -6,22 +6,22 @@
 
 # SHACL shapes checking the W3C SKOS Reference's own numbered "Documented
 # Consistency and Integrity Conditions" (https://www.w3.org/TR/skos-reference/
-# - `# S<n>` comments cite the exact condition each shape enforces). Scoped
-# to those normative conditions only - not SkoHub/vocabulary-specific best
-# practices (e.g. "a Concept should have a prefLabel", "no orphan concepts") -
-# those are recommendations, not integrity conditions the spec itself states
-# a conforming SKOS graph must satisfy.
+# - `# S<n>` comments cite the exact condition each shape enforces), plus a
+# small set of soft, non-normative best-practice recommendations (e.g. "a
+# Concept should have a prefLabel") - those aren't integrity conditions the
+# spec requires, so they're `sh:severity sh:Info`, never `sh:Violation`: a
+# graph that merely doesn't follow one still `conforms == True` (see
+# skos_shapes.py's own `allow_infos=True` - without it, pyshacl's `conforms`
+# doesn't actually distinguish severity levels at all, confirmed empirically;
+# see that module's own docstring). Info-severity results still show up in
+# the returned report, just don't flip `conforms`.
 #
 # SHACL Core wherever Core can express the condition - sh:sparql is reserved
 # for what Core genuinely can't do (same discipline as manch:/salg:'s own
-# shapes). Every shape below turns out to be expressible in Core alone: class
-# disjointness via sh:not+sh:class, property disjointness via sh:disjoint,
-# domain/range via sh:targetSubjectsOf/sh:targetObjectsOf+sh:class.
-#
-# Deliberately out of scope (a real, documented gap, not an oversight): S32-
-# S35's skos:memberList/skos:member consistency (an rdf:List-walk, the same
-# class of check as manch:WellFormedListShape - a genuinely separate, more
-# involved check than the "is this graph even coherent" conditions below).
+# shapes). Every shape below is Core-only except one: OrderedCollectionMemberListConsistencyShape
+# needs sh:sparql to walk skos:memberList's own rdf:List, the same class of
+# check as manch:WellFormedListShape - domain/range/disjointness alone can't
+# express "these two properties describe the same set."
 #
 # Validated with NO inference and NO ont_graph (see skos_shapes.py) -
 # deliberately, unlike manch:/salg:. skos-ontology.ttl faithfully restates
@@ -116,4 +116,51 @@ skshp:MappingRelationDisjointnessShape a sh:NodeShape ;
         sh:path skos:exactMatch ;
         sh:disjoint skos:broadMatch, skos:narrowMatch, skos:relatedMatch ; # S46
         sh:message "S46: skos:exactMatch is disjoint with skos:broadMatch, skos:narrowMatch, and skos:relatedMatch." ;
+    ] .
+
+# ---------------------------------------------------------------------
+# OrderedCollection memberList/member consistency (SKOS Reference §9.4's
+# own prose expectation, not one of the numbered S<n> integrity conditions
+# - skos:memberList is meant to give an *ordered* view of the same
+# membership skos:member already asserts unordered, so the two should
+# describe the same set for a given skos:OrderedCollection)
+# ---------------------------------------------------------------------
+
+skshp:OrderedCollectionMemberListConsistencyShape a sh:NodeShape ;
+    sh:targetClass skos:OrderedCollection ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "skos:memberList and skos:member must describe the same set of members." ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+            SELECT DISTINCT $this
+            WHERE {
+                $this skos:memberList ?list .
+                {
+                    ?list rdf:rest*/rdf:first ?item .
+                    FILTER NOT EXISTS { $this skos:member ?item }
+                }
+                UNION
+                {
+                    $this skos:member ?item .
+                    FILTER NOT EXISTS { ?list rdf:rest*/rdf:first ?item }
+                }
+            }
+        """ ;
+    ] .
+
+# ---------------------------------------------------------------------
+# Best-practice recommendations (non-normative - sh:severity sh:Info, never
+# sh:Violation; see the module comment above for why this doesn't flip
+# conforms on its own without also passing allow_infos=True)
+# ---------------------------------------------------------------------
+
+skshp:ConceptPrefLabelRecommendedShape a sh:NodeShape ;
+    sh:targetClass skos:Concept ;
+    sh:property [
+        sh:path skos:prefLabel ;
+        sh:minCount 1 ;
+        sh:severity sh:Info ;
+        sh:message "Recommended: a skos:Concept should have at least one skos:prefLabel." ;
     ] .

@@ -28,6 +28,7 @@ The full guide set has been reorganized into `docs/guides/`, one focused noteboo
    - **5.d [Canonical hashing and graph comparison](guides/05d-canonical-hashing.ipynb)** - RDFC-1.0 canonicalization/hashing and graph isomorphism.
    - **5.e [OWL 2 DL reasoning with HermiT](guides/05e-owl-dl-reasoning.ipynb)** - `infer(profile="owl-dl")`, genuine DL reasoning via `owlready2` + Java HermiT; needs a real JVM, not just a pip install.
    - **5.g [Manchester Syntax as RDF](guides/05g-manchester-syntax-as-rdf.ipynb)** - encoding, editing, and validating a Manchester Syntax document's own AST as an RDF graph (mirrors 5.c's treatment of SPARQL query algebra).
+   - **5.h [The SHACL library registry](guides/05h-shacl-library-registry.ipynb)** - discovering and loading any of `manch:`/`skos:`/`salg:`/the SHACL 1.2 meta-shapes by name via `list_shacl_libraries()`/`get_shacl_library()`.
 
 ## Related project documentation
 

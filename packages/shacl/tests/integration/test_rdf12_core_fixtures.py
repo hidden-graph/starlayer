@@ -107,7 +107,7 @@ def test_rdf12_fixture_structural_component_behaviors(
         data="""
             @prefix ex: <http://example.org/> .
 
-            ex:focus ex:says << ex:a ex:p ex:b >>, ex:not_tt .
+            ex:focus ex:says <<( ex:a ex:p ex:b )>>, ex:not_tt .
             ex:focus ex:other ex:not_tt .
         """,
         format="turtle12",

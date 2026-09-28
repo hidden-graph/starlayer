@@ -33,6 +33,13 @@ from starlayergraph.model.encoding import (
 )
 from starlayergraph.model.triple import TripleTerm
 
+# Pure-stdlib (multiprocessing/os/signal/time only) - safe to import
+# unconditionally, unlike owl_dl.py/owl_dl_rustdl.py themselves, which stay
+# lazily imported so owlready2/rustdl remain genuinely optional.
+from starlayergraph.graph import _timeout as _owl_dl_timeout
+
+_OWL_DL_TIMEOUT_DEFAULT = _owl_dl_timeout.DEFAULT_TIMEOUT_SECONDS
+
 SL_NS           = 'https://github.com/hidden-graph/starlayergraph/ns#'
 SL_TRIPLE_TERM  = URIRef(SL_NS + 'TripleTerm')   # kept for export / backward compat
 SL_REIFICATION  = URIRef(SL_NS + 'Reification')  # kept for export / backward compat
@@ -1636,7 +1643,7 @@ class StarLayerGraph(Graph):
     def query(self, query_object, processor='sparql', result='sparql',
               initNs=None, initBindings=None, use_store_provided=True,
               entailment: str | None = None, infer: str = 'changed',
-              engine: str = 'hermit', **kwargs):
+              engine: str = 'hermit', timeout=_OWL_DL_TIMEOUT_DEFAULT, **kwargs):
         """Execute a SPARQL query. Triple-term patterns are rewritten to SPARQL 1.1.
 
         The rewritten query runs against a plain Graph view of the same store so
@@ -1720,6 +1727,13 @@ class StarLayerGraph(Graph):
             (default) or ``"rustdl"`` - identical choice and tradeoffs as
             ``infer(profile="owl-dl", engine=...)``'s own parameter; see
             that method's docstring rather than repeating it here.
+        timeout -- only meaningful when ``entailment="direct"``; same
+            validation and identical meaning as ``infer(profile="owl-dl",
+            timeout=...)``'s own parameter (wall-clock budget in seconds
+            for the underlying reasoning call, default
+            ``_timeout.DEFAULT_TIMEOUT_SECONDS`` (120s), ``None`` disables
+            it) - see that method's docstring rather than repeating it
+            here.
         """
         if entailment not in VALID_ENTAILMENTS:
             raise NotImplementedError(
@@ -1730,6 +1744,11 @@ class StarLayerGraph(Graph):
             raise ValueError(
                 f"engine={engine!r} is only meaningful for entailment='direct' "
                 f"(got entailment={entailment!r}) - omit engine= otherwise."
+            )
+        if entailment != 'direct' and timeout != _OWL_DL_TIMEOUT_DEFAULT:
+            raise ValueError(
+                f"timeout={timeout!r} is only meaningful for entailment='direct' "
+                f"(got entailment={entailment!r}) - omit timeout= otherwise."
             )
         if entailment == 'native' and not self._is_native:
             raise NotImplementedError(
@@ -1810,9 +1829,9 @@ class StarLayerGraph(Graph):
             stale = cached is None or (infer == 'changed' and cached[1] != self._mutation_generation)
             if infer == 'always' or stale:
                 if fast_path:
-                    delta = self.infer(profile='owl-dl', mode='delta', engine=engine)
+                    delta = self.infer(profile='owl-dl', mode='delta', engine=engine, timeout=timeout)
                 else:
-                    self_view, delta = self._before_and_delta_for('owl-dl', engine)
+                    self_view, delta = self._before_and_delta_for('owl-dl', engine, timeout)
                     self._owl_dl_snapshot_cache[engine] = self_view
                 self._owl_dl_cache[engine] = (delta, self._mutation_generation)
             else:
@@ -2253,26 +2272,32 @@ class StarLayerGraph(Graph):
                 delta.add(t)
         return before, delta
 
-    def _before_and_delta_for(self, profile: str, engine: str = 'hermit'):
+    def _before_and_delta_for(self, profile: str, engine: str = 'hermit', timeout=_OWL_DL_TIMEOUT_DEFAULT):
         """Dispatch to the right reasoning engine for `profile`. The
         owlrl-backed profiles ("rdfs"/"owl-rl"/"rdfs+owl-rl") go through
         _infer_before_and_delta() above; "owl-dl" goes through one of two
         genuinely different tableau-DL bridges - owl_dl.py (HermiT, via
         owlready2, engine="hermit", the default) or owl_dl_rustdl.py
         (RustDL, engine="rustdl") - chosen by `engine`, which is otherwise
-        meaningless (profile != "owl-dl" never even looks at it).
+        meaningless (profile != "owl-dl" never even looks at it). `timeout`
+        is likewise only meaningful for profile="owl-dl" - see infer()'s
+        own docstring; `None` unambiguously means "disable the timeout"
+        here (not "use the engine's own default" - the default *is*
+        `_OWL_DL_TIMEOUT_DEFAULT`, a real value, not a sentinel needing
+        translation).
         """
         if profile == 'owl-dl':
             if engine == 'hermit':
                 from starlayergraph.graph.owl_dl import classify_owl_dl
-                return classify_owl_dl(self)
+                return classify_owl_dl(self, timeout=timeout)
             if engine == 'rustdl':
                 from starlayergraph.graph.owl_dl_rustdl import classify_owl_dl_rustdl
-                return classify_owl_dl_rustdl(self)
+                return classify_owl_dl_rustdl(self, timeout=timeout)
             raise ValueError(f"Unsupported engine {engine!r}; expected one of ['hermit', 'rustdl']")
         return self._infer_before_and_delta(profile)
 
-    def infer(self, profile: str = 'rdfs', *, mode: str = 'full', target_graph=None, engine: str = 'hermit'):
+    def infer(self, profile: str = 'rdfs', *, mode: str = 'full', target_graph=None,
+              engine: str = 'hermit', timeout=_OWL_DL_TIMEOUT_DEFAULT):
         """Materialize an RDFS/OWL-RL entailment closure - by default into a
         NEW graph, never mutating self (mode="in-place" is the deliberate
         exception - see below). Requires the optional ``owlrl`` dependency
@@ -2319,14 +2344,34 @@ class StarLayerGraph(Graph):
               correctly derives disjunctive *class* entailments (confirmed
               live), but its property-assertion materialization is
               documented as a "sound under-approximation (no
-              anonymous-witness or disjunctive-derived edges)" - confirmed
-              live too, against this project's own logic-puzzle guide
-              example, where it returns only the already-asserted fact,
-              none of the forced-by-elimination pairings "hermit" derives
-              for the same data. Also raises `rustdl.UnsupportedAxiomError`
-              outright (not silently) for `HasKey:` axioms and role chains
-              longer than 2 - both constructs this project's own Manchester
-              parser can itself emit.
+              anonymous-witness or disjunctive-derived edges)" - this
+              project no longer has a live, re-verifiable example of that
+              specific behavior (the one previously used for it is now a
+              confirmed hang instead, caught pre-flight - see
+              owl_dl_rustdl.py's own module docstring, points 2 and 4, and
+              `CLAUDE.md`'s "Tracking rustdl's own evolving capabilities"
+              section). Also raises `rustdl.UnsupportedAxiomError` outright
+              (not silently) for `HasKey:` axioms, role chains longer than
+              2, and one specific confirmed-hang idiom detected pre-flight
+              - all three real constructs, not hypothetical.
+        timeout -- only meaningful for profile="owl-dl" (same ValueError
+            contract as engine= above for any other profile). Wall-clock
+            budget in seconds for the actual reasoner call, shared by both
+            engines - defense-in-depth against a hang *neither* engine has
+            a known, structurally-detectable pattern for yet (RustDL's one
+            *known* hang pattern is already caught separately, fast and
+            pre-flight - see `engine=` above; this timeout is the backstop
+            for everything else). Default `_timeout.DEFAULT_TIMEOUT_SECONDS`
+            (120s); pass `None` to disable entirely (wait indefinitely -
+            the pre-this-feature behavior). Implemented as a real
+            subprocess/process-group kill, not a cooperative
+            cancellation - see `starlayergraph/graph/_timeout.py`'s own
+            module docstring for why that's the only mechanism that
+            reliably works against an opaque, uninterruptible reasoner
+            call (a JVM subprocess for "hermit", an in-process native
+            PyO3 call for "rustdl") - a raised
+            `_timeout.ReasoningTimeoutError` is guaranteed to leave no
+            orphaned JVM/native process still running behind it.
         mode -- all three ultimately reach the same closure (self's own data
             plus everything entailed from it) - this chooses where that ends
             up and how much of it comes back as a distinct value. "full"
@@ -2412,6 +2457,11 @@ class StarLayerGraph(Graph):
                 f"engine={engine!r} is only meaningful for profile='owl-dl' "
                 f"(got profile={profile!r}) - omit engine= for owlrl-backed profiles."
             )
+        if profile != 'owl-dl' and timeout != _OWL_DL_TIMEOUT_DEFAULT:
+            raise ValueError(
+                f"timeout={timeout!r} is only meaningful for profile='owl-dl' "
+                f"(got profile={profile!r}) - omit timeout= for owlrl-backed profiles."
+            )
 
         if mode == 'in-place':
             if target_graph is not None:
@@ -2426,7 +2476,7 @@ class StarLayerGraph(Graph):
             # real TripleTerm ever appears in it - see
             # _infer_before_and_delta's own docstring), so both add() and
             # _native_add_many() below accept it unconditionally.
-            _before, delta = self._before_and_delta_for(profile, engine)
+            _before, delta = self._before_and_delta_for(profile, engine, timeout)
             if self._is_native:
                 self._native_add_many(list(delta))
             else:
@@ -2445,7 +2495,7 @@ class StarLayerGraph(Graph):
                 "A plain rdflib.Graph cannot store TripleTerms."
             )
 
-        _before, delta = self._before_and_delta_for(profile, engine)
+        _before, delta = self._before_and_delta_for(profile, engine, timeout)
         if mode == 'full':
             # self's own triples, not _before - _before is decomposed (a
             # synthetic reification fragment stands in for any triple term)

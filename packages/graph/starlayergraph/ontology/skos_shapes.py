@@ -8,12 +8,13 @@ Unlike ``manch:``/``salg:``, SKOS needs no encode/decode layer at all - a
 SKOS thesaurus is already plain RDF the moment it's authored. This module is
 purely a validator: does a given graph satisfy SKOS's own formal semantics.
 
-Scope: the spec's own numbered integrity conditions only (S9, S13, S14,
-S19/S20, S27, S46 - see ``skos_shapes.ttl``'s own per-shape comments), not
-vocabulary-specific best practices (e.g. "a Concept should have a
-prefLabel") and not S32-S35's ``skos:memberList``/``skos:member``
-consistency (a real, documented gap - see ``skos_shapes.ttl``'s module
-comment).
+Scope: the spec's own numbered integrity conditions (S9, S13, S14, S19/S20,
+S27, S46), ``skos:memberList``/``skos:member`` consistency (the spec's own
+§9.4 prose expectation, not a numbered condition), plus a small set of
+non-normative best-practice recommendations (e.g. "a Concept should have a
+prefLabel") - the latter are ``sh:severity sh:Info``, so they never flip
+``conforms`` (see ``allow_infos=True`` below) - see ``skos_shapes.ttl``'s
+own per-shape comments for the full list.
 
 **Deliberately no ``ont_graph``/``inference="rdfs"``, unlike ``manch:``/
 ``salg:``'s own ``validate()``** - ``skos-ontology.ttl`` faithfully restates
@@ -65,6 +66,18 @@ def validate(data_graph: Graph) -> tuple[bool, Graph, str]:
 
     Returns ``(conforms, results_graph, results_text)`` - the same shape
     ``pyshacl.validate`` itself returns.
+
+    ``allow_infos=True`` is passed through unconditionally - without it,
+    pyshacl's own ``conforms`` computation doesn't distinguish severity
+    levels at all (confirmed empirically: an ``sh:Info``-severity result
+    still flips ``conforms`` to ``False`` by default; ``pyshacl.shape.Shape.validate()``
+    only treats a result as non-blocking when the executor's own
+    ``allow_infos``/``allow_warnings`` flag is set and the shape's severity
+    is in that allowed set). Without this, the best-practice shapes in
+    ``skos_shapes.ttl`` (``sh:severity sh:Info``) would make an otherwise
+    entirely valid thesaurus that merely skips a recommendation report
+    ``conforms == False`` - defeating the entire point of using ``sh:Info``
+    instead of the default ``sh:Violation``.
     """
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", category=ShapeRecursionWarning)
@@ -73,5 +86,6 @@ def validate(data_graph: Graph) -> tuple[bool, Graph, str]:
             shacl_graph=shapes_graph(),
             advanced=True,
             max_validation_depth=100,
+            allow_infos=True,
         )
     return conforms, results_graph, results_text

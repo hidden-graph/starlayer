@@ -89,6 +89,18 @@ class TestEntailmentDirect:
         with pytest.raises(ValueError, match="only meaningful for entailment='direct'"):
             g.query(_Q_WOMAN, entailment="owl-rl", engine="rustdl")
 
+    def test_timeout_kwarg_rejected_for_other_entailment(self):
+        g = _disjunctive_graph()
+        with pytest.raises(ValueError, match="only meaningful for entailment='direct'"):
+            g.query(_Q_WOMAN, entailment="owl-rl", timeout=5)
+
+    def test_tiny_timeout_raises_reasoning_timeout_error(self):
+        from starlayergraph.graph._timeout import ReasoningTimeoutError
+
+        g = _disjunctive_graph()
+        with pytest.raises(ReasoningTimeoutError):
+            list(g.query(_Q_WOMAN, entailment="direct", timeout=0.001))
+
     def test_inconsistent_ontology_propagates(self):
         g = StarLayerGraph()
         g.bind("ex", EX)

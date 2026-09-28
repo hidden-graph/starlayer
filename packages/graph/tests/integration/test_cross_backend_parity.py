@@ -219,6 +219,26 @@ def _scenario_construct_round_trip(g):
     return sorted((str(s), str(p), str(o)) for s, p, o in r.graph.triples((None, None, None)))
 
 
+def _scenario_nested_reifier_shorthand(g):
+    # `<< <<s p o ~ r1>> p2 o2 ~ r2 >>` — a reifier-shorthand term whose own
+    # subject is *another* reifier-shorthand term. Legal (unlike a *ground*
+    # <<( )>> triple term nested the same way, which is never legal as a
+    # subject - see test_*_triple_term_as_subject_of_nested_reifier_shorthand
+    # below for that separate, deliberately-divergent case). Resolves to a
+    # chain of two rdf:reifies links: confirmed identical across the
+    # in-memory backend, starsparql's own grammar, Fuseki 5.5.0, and
+    # Oxigraph. Explicit `~ r1`/`~ r2` reifier names (rather than the bare,
+    # fresh-bnode-minting form) so the result is directly comparable across
+    # backends - a freshly minted bnode's own label is never meaningfully
+    # equal across three independent stores.
+    where = (f'GRAPH <{GRAPH_URI}> {{ ex:x ex:y << << ex:alice ex:knows ex:bob ~ ex:inner >> ex:certainty ex:high ~ ex:outer >> . }}'
+              if g._is_native else 'ex:x ex:y << << ex:alice ex:knows ex:bob ~ ex:inner >> ex:certainty ex:high ~ ex:outer >> .')
+    g.update(f"PREFIX ex: <{EX}> INSERT DATA {{ {where} }}")
+    where_q = (f'GRAPH <{GRAPH_URI}> {{ ?s ?p ?o }}' if g._is_native else '?s ?p ?o')
+    q = f"PREFIX ex: <{EX}> SELECT ?s ?p ?o WHERE {{ {where_q} }}"
+    return sorted((str(r[0]), str(r[1]), str(r[2])) for r in g.query(q))
+
+
 def _scenario_reifier_annotation_formal_pattern(g):
     tt = TripleTerm(ex('bob'), ex('knows'), ex('carol'))
     g.add((ex('stmt1'), RDF_REIF, tt))
@@ -248,6 +268,7 @@ SCENARIOS = [
     ('nested triple term', _scenario_nested_triple_term),
     ('triple term as subject rejected', _scenario_triple_term_subject_rejected),
     ('<<( )>> pattern match', _scenario_sparql_tt_pattern_match),
+    ('nested reifier-shorthand', _scenario_nested_reifier_shorthand),
     ('TRIPLE() constructor', _scenario_triple_constructor_fn),
     ('isTRIPLE()', _scenario_is_triple_fn),
     ('DirLangString write/read', _scenario_dirlangstring_write_read),
@@ -356,3 +377,80 @@ def test_oxigraph_matches_internal_for_numeric_lexical_form(name, fn):
     assert oxigraph_result == internal_result, (
         f'{name}: oxigraph={oxigraph_result!r} != internal={internal_result!r}'
     )
+
+
+# ---------------------------------------------------------------------------
+# Ground triple term as the *subject* of an outer reifier-shorthand term
+# (`<< <<( a b c )>> p o >>`) — never legal RDF 1.2 (`ttSubject ::= iri |
+# BlankNode`), regardless of whether the illegal triple term sits directly
+# in subject position or is nested inside a reifier-shorthand's own subject
+# slot. Deliberately NOT folded into SCENARIOS: parity does not hold here.
+# This is docs/fuseki-upstream-issues.md Issue 1's already-tracked ARQ bug
+# (missing subject-position validation) confirmed under one more shape -
+# see that doc for the full account, apache/jena#4141, and why Oxigraph
+# correctly rejects it while Fuseki/ARQ doesn't. Not a starlayergraph bug:
+# the internal grammar and the native backend's own defensive read-back
+# check (`starlayergraph/backends/native.py::_parse_json_term`) both
+# correctly reject/flag this.
+
+_ILLEGAL_NESTED_SUBJECT_UPDATE = (
+    f'PREFIX ex: <{EX}> INSERT DATA {{ ex:x ex:y << <<( ex:a ex:b ex:c )>> ex:p ex:o >> }}'
+)
+
+
+def test_internal_rejects_triple_term_as_subject_of_nested_reifier_shorthand():
+    with pytest.raises(ValueError):
+        _internal_graph().update(_ILLEGAL_NESTED_SUBJECT_UPDATE)
+
+
+@fuseki
+def test_fuseki_wrongly_accepts_triple_term_as_subject_of_nested_reifier_shorthand():
+    _clear_http(FUSEKI_U, auth=('admin', 'admin'))
+    # Raw HTTP text in and raw JSON results out, bypassing starlayergraph's
+    # own client-side starsparql grammar AND its native-backend read-back
+    # defense (_parse_json_term, which correctly raises ValueError on this
+    # exact shape - see test_internal_rejects_... above) entirely. The point
+    # here is only what Fuseki itself accepts and stores, matching
+    # docs/fuseki-upstream-issues.md Issue 1's own raw-HTTP reproduction
+    # style.
+    insert = requests.post(
+        FUSEKI_U,
+        data=(
+            f'PREFIX ex: <{EX}> INSERT DATA {{ GRAPH <{GRAPH_URI}> {{ '
+            f'ex:x ex:y << <<( ex:a ex:b ex:c )>> ex:p ex:o >> . }} }}'
+        ),
+        headers={'Content-Type': 'application/sparql-update'},
+        auth=('admin', 'admin'),
+        timeout=10,
+    )
+    assert insert.status_code == 204, (
+        f'Fuseki previously accepted this insert (HTTP 204) - now got HTTP '
+        f'{insert.status_code}. Jena ARQ appears to have tightened its subject-'
+        f'position validation (apache/jena#4141 may be fixed) - this divergence '
+        f'note in docs/fuseki-upstream-issues.md Issue 1 is stale and should be updated.'
+    )
+    # ex:x ex:y ?r binds ?r to the fresh reifier bnode the shorthand minted;
+    # ?r rdf:reifies ?tt gets the actual triple term (whose own subject is
+    # itself the illegal nested triple term) out of that reifier.
+    result = requests.get(
+        FUSEKI_BASE + '/query',
+        params={'query': (
+            f'PREFIX ex: <{EX}> PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> '
+            f'SELECT ?tt WHERE {{ GRAPH <{GRAPH_URI}> {{ ex:x ex:y ?r . ?r rdf:reifies ?tt }} }}'
+        )},
+        headers={'Accept': 'application/sparql-results+json'},
+        auth=('admin', 'admin'),
+        timeout=10,
+    )
+    result.raise_for_status()
+    tt = result.json()['results']['bindings'][0]['tt']
+    assert tt['type'] == 'triple' and tt['value']['subject']['type'] == 'triple', (
+        'Fuseki no longer stores a triple term with a nested triple-term subject for '
+        'this insert - see the note above about apache/jena#4141 possibly being fixed.'
+    )
+
+
+@oxigraph
+def test_oxigraph_rejects_triple_term_as_subject_of_nested_reifier_shorthand():
+    with pytest.raises(Exception):
+        _oxigraph_graph().update(_ILLEGAL_NESTED_SUBJECT_UPDATE)
