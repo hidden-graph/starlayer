@@ -6,12 +6,13 @@ own internal AST (frames, clauses, class expressions), mirroring the sibling
 that package's ``ontology/__init__.py`` for the full design rationale this
 one deliberately follows - same reasoning, same discipline, not re-derived).
 
-The ontology itself lives in ``manchester-ast-ontology.ttl``, next to this
-file - a plain, standalone Turtle file, not a Python string, so it's directly
-usable by any RDF tool without going through this module at all. This module
-is just a thin loader (``ontology_graph()``); unlike ``salg:``'s 63
-expression builtins, Manchester's own vocabulary (~30 concrete classes) is
-small enough to hand-author entirely, with no generated section.
+The ontology itself lives in ``manchester-ast-ontology.ttl``, in the sibling
+``starontology`` package - a plain, standalone Turtle file, not a Python
+string, so it's directly usable by any RDF tool without going through this
+module at all. This module is just a thin loader (``ontology_graph()``)
+delegating to ``starontology``; unlike ``salg:``'s 63 expression builtins,
+Manchester's own vocabulary (~30 concrete classes) is small enough to
+hand-author entirely, with no generated section.
 
 **Fidelity scope, confirmed with the user before building this**: this
 encodes the parser's *existing* internal AST as-is (``And``/``Or``/``Not``/
@@ -44,42 +45,37 @@ assumed to carry over automatically:**
 
 from __future__ import annotations
 
-from pathlib import Path
-
+import starontology
 from rdflib import Graph
 
-ONTOLOGY_TTL_PATH = Path(__file__).parent / "manchester-ast-ontology.ttl"
-SKOS_ONTOLOGY_TTL_PATH = Path(__file__).parent / "skos-ontology.ttl"
+ONTOLOGY_TTL_PATH = starontology.MANCHESTER_ONTOLOGY_TTL_PATH
+SKOS_ONTOLOGY_TTL_PATH = starontology.SKOS_ONTOLOGY_TTL_PATH
 
 
 def ontology_graph() -> Graph:
     """A fresh ``rdflib.Graph`` of the RDFS ontology in
-    ``manchester-ast-ontology.ttl``."""
-    g = Graph()
-    g.parse(source=str(ONTOLOGY_TTL_PATH), format="turtle")
-    return g
+    ``manchester-ast-ontology.ttl`` (lives in the ``starontology`` package)."""
+    return starontology.manchester_ontology_graph()
 
 
 def skos_ontology_graph() -> Graph:
     """A fresh ``rdflib.Graph`` of the OWL/RDFS ontology in
-    ``skos-ontology.ttl`` - a direct restatement of the W3C SKOS Reference's
-    own formal axioms over the real ``skos:`` namespace (unlike the
-    Manchester-specific ``ontology_graph()`` above, this ontology is *about*
-    an existing external vocabulary, not one this project invented - see
-    that file's own module docstring/comments for the full rationale and
-    per-axiom spec citations)."""
-    g = Graph()
-    g.parse(source=str(SKOS_ONTOLOGY_TTL_PATH), format="turtle")
-    return g
+    ``skos-ontology.ttl`` (lives in the ``starontology`` package) - a direct
+    restatement of the W3C SKOS Reference's own formal axioms over the real
+    ``skos:`` namespace (unlike the Manchester-specific ``ontology_graph()``
+    above, this ontology is *about* an existing external vocabulary, not one
+    this project invented - see that file's own module docstring/comments
+    for the full rationale and per-axiom spec citations)."""
+    return starontology.skos_ontology_graph()
 
 
-# Re-exported so `starlayergraph.ontology.list_shacl_libraries()`/
-# `get_shacl_library()` work without a caller needing to know the registry
+# Re-exported so `starlayergraph.ontology.list_ontologies()`/
+# `get_ontology()` work without a caller needing to know the registry
 # lives in its own submodule - see registry.py's own docstring for the full
 # design (why this lives here rather than in starshacl/starsparql, why
 # every loader is lazy, and what's deliberately not yet registered).
 from starlayergraph.ontology.registry import (  # noqa: E402
-    ShaclLibrary,
-    get_shacl_library,
-    list_shacl_libraries,
+    Ontology,
+    get_ontology,
+    list_ontologies,
 )

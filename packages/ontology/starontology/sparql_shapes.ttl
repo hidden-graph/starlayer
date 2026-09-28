@@ -918,7 +918,16 @@ salg:ProjectShape
         sh:minCount 1 ; sh:maxCount 1 ;
         sh:node salg:VariableListShape ;
         sh:message "salg:Project must have exactly one salg:PV, a well-formed rdf:List of Variables (the projected-variables list)" ;
-    ] .
+    ] ;
+    # A cross-referential check no per-node/per-property shape above can
+    # express on its own: every variable in salg:PV must actually be bound
+    # somewhere in salg:p's own pattern subtree. Native ConstraintComponent
+    # (starsparql/ontology/native_components.py) - reuses rdflib's own real
+    # _addVars bookkeeping rather than reimplementing SPARQL's
+    # variable-scoping rules as a SPARQL-over-SPARQL sh:sparql query. See
+    # that module's own docstring and semantic_checks.py for the full
+    # design rationale.
+    salg:noUnboundProjectedVariables true .
 
 salg:SelectQueryShape
     a sh:NodeShape ;

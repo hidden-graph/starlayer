@@ -12,9 +12,23 @@ authors = [{ name = "John Clements", email = "clements.john.j@gmail.com" }]
 requires-python = ">=3.10"
 dependencies = [
     "rdflib>=7.0",
-    # Not published to PyPI. Install the sibling package first:
-    #   pip install -e ../graph
+    # Not published to PyPI. Install the sibling packages first:
+    #   pip install -e ../graph -e ../shacl -e ../ontology
     "graph",
+    # sparql_shapes.py::validate() goes through starshacl (never bare
+    # pyshacl) for the same reason StarLayerGraph.derive() does: a `salg:`
+    # data graph being validated may carry genuine RDF 1.2 content (real
+    # TRIPLE()/<<( )>> query syntax), which only starshacl understands
+    # correctly. This closes a 3-way dependency cycle with `graph` (which
+    # already depends on both `sparql` and `shacl`) - safe the same way the
+    # existing 2-way cycles already are: every actual `import starshacl`/
+    # `import starsparql`/`import starlayergraph` across all three packages
+    # stays lazy (inside functions, never at module top level).
+    "shacl",
+    # Raw ontology/shapes .ttl data (salg-ontology.ttl/sparql_shapes.ttl) -
+    # no dependency back on graph/sparql/shacl, so this one is a plain,
+    # one-directional edge, not part of any cycle.
+    "ontology",
 ]
 keywords = ["rdf", "rdf12", "sparql", "sparql12", "knowledge-graph", "semantic-web", "algebra"]
 classifiers = [
@@ -41,9 +55,6 @@ Issues = "https://github.com/hidden-graph/starlayer/issues"
 
 [tool.setuptools.packages.find]
 include = ["starsparql*"]
-
-[tool.setuptools.package-data]
-starsparql = ["ontology/*.ttl"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

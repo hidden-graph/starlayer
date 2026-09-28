@@ -1,13 +1,12 @@
 # StarLayer Future Enhancements
 
 SUGGESTION:  
-- lets looks at how we are using the OWL files for skos and sparql.  do we need them?  what are they providing?  could we get the same with using SHACL shape classes, and annotating those?
 - add SHACL Compact syntax to the roadmap.  if we support compact syntax we need an ontology/shacl shape over the syntax to drive an editor.
 - For the functionality overview, incorproate a referece from the functionality to where that functionality is shown in a user guide.  If there is no user guide, then create one.  (or a stub of one.)
 - enhance backend stores with a discussion of backend stores with inference settings.  this may only be fuseki for now.  
 
 
-*Last reviewed: 2026-09-27*
+*Last reviewed: 2026-09-28*
 
 ---
 

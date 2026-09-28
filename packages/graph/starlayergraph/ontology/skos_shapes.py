@@ -29,12 +29,11 @@ here is written to be self-sufficient against the bare data graph instead.
 from __future__ import annotations
 
 import warnings
-from pathlib import Path
 
+import starontology
 from rdflib import Graph
 
 try:
-    from pyshacl import validate as _pyshacl_validate
     from pyshacl.errors import ShapeRecursionWarning
 except ImportError as exc:  # pragma: no cover - exercised only when pyshacl isn't installed
     raise ImportError(
@@ -42,17 +41,14 @@ except ImportError as exc:  # pragma: no cover - exercised only when pyshacl isn
         "`pip install -e '.[test]'` or `pip install pyshacl`"
     ) from exc
 
-SKOS_SHAPES_TTL_PATH = Path(__file__).parent / "skos_shapes.ttl"
-SHAPES_TURTLE = SKOS_SHAPES_TTL_PATH.read_text()
+SKOS_SHAPES_TTL_PATH = starontology.SKOS_SHAPES_TTL_PATH
 
 
 def shapes_graph() -> Graph:
     """A fresh ``rdflib.Graph`` of the shapes above (SHACL graphs are
     mutated by pyshacl during validation, so callers get their own copy
     rather than a shared module-level instance)."""
-    g = Graph()
-    g.parse(data=SHAPES_TURTLE, format="turtle")
-    return g
+    return starontology.skos_shapes_graph()
 
 
 def validate(data_graph: Graph) -> tuple[bool, Graph, str]:
@@ -64,8 +60,14 @@ def validate(data_graph: Graph) -> tuple[bool, Graph, str]:
     ``skos-ontology.ttl``'s own faithfully-restated S19/S20 axioms would
     make the S19/S20 SHACL shape tautologically vacuous).
 
-    Returns ``(conforms, results_graph, results_text)`` - the same shape
-    ``pyshacl.validate`` itself returns.
+    Goes through ``starshacl.validate()``, never bare ``pyshacl`` - this
+    validates a caller-supplied ``data_graph`` that may be genuine RDF 1.2
+    content, which only ``starshacl`` understands correctly (the same rule
+    ``StarLayerGraph.derive()`` follows).
+
+    Returns ``(conforms, results_graph, results_text)`` for backward
+    compatibility with every existing caller of this function, unpacked
+    from ``starshacl``'s own ``ValidationResult``.
 
     ``allow_infos=True`` is passed through unconditionally - without it,
     pyshacl's own ``conforms`` computation doesn't distinguish severity
@@ -79,13 +81,15 @@ def validate(data_graph: Graph) -> tuple[bool, Graph, str]:
     ``conforms == False`` - defeating the entire point of using ``sh:Info``
     instead of the default ``sh:Violation``.
     """
+    import starshacl  # lazy: avoids a circular-import deadlock at module load time
+
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", category=ShapeRecursionWarning)
-        conforms, results_graph, results_text = _pyshacl_validate(
+        result = starshacl.validate(
             data_graph,
             shacl_graph=shapes_graph(),
             advanced=True,
             max_validation_depth=100,
             allow_infos=True,
         )
-    return conforms, results_graph, results_text
+    return result.conforms, result.report_graph, result.report_text

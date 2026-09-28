@@ -27,14 +27,13 @@ documents for SPARQL.
 from __future__ import annotations
 
 import warnings
-from pathlib import Path
 
+import starontology
 from rdflib import Graph
 
 from . import ontology_graph
 
 try:
-    from pyshacl import validate as _pyshacl_validate
     from pyshacl.errors import ShapeRecursionWarning
 except ImportError as exc:  # pragma: no cover - exercised only when pyshacl isn't installed
     raise ImportError(
@@ -42,17 +41,14 @@ except ImportError as exc:  # pragma: no cover - exercised only when pyshacl isn
         "`pip install -e '.[test]'` or `pip install pyshacl`"
     ) from exc
 
-MANCHESTER_SHAPES_TTL_PATH = Path(__file__).parent / "manchester_shapes.ttl"
-SHAPES_TURTLE = MANCHESTER_SHAPES_TTL_PATH.read_text()
+MANCHESTER_SHAPES_TTL_PATH = starontology.MANCHESTER_SHAPES_TTL_PATH
 
 
 def shapes_graph() -> Graph:
     """A fresh ``rdflib.Graph`` of the shapes above (SHACL graphs are
     mutated by pyshacl during validation, so callers get their own copy
     rather than a shared module-level instance)."""
-    g = Graph()
-    g.parse(data=SHAPES_TURTLE, format="turtle")
-    return g
+    return starontology.manchester_shapes_graph()
 
 
 def validate(data_graph: Graph) -> tuple[bool, Graph, str]:
@@ -68,12 +64,20 @@ def validate(data_graph: Graph) -> tuple[bool, Graph, str]:
     tag by name, the same reasoning ``sparql_shapes.py::validate()``
     documents for ``salg:``.
 
-    Returns ``(conforms, results_graph, results_text)`` - the same shape
-    ``pyshacl.validate`` itself returns.
+    Goes through ``starshacl.validate()``, never bare ``pyshacl`` - this
+    validates a caller-supplied ``data_graph`` that may be genuine RDF 1.2
+    content, which only ``starshacl`` understands correctly (the same rule
+    ``StarLayerGraph.derive()`` follows).
+
+    Returns ``(conforms, results_graph, results_text)`` for backward
+    compatibility with every existing caller of this function, unpacked
+    from ``starshacl``'s own ``ValidationResult``.
     """
+    import starshacl  # lazy: avoids a circular-import deadlock at module load time
+
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", category=ShapeRecursionWarning)
-        conforms, results_graph, results_text = _pyshacl_validate(
+        result = starshacl.validate(
             data_graph,
             shacl_graph=shapes_graph(),
             ont_graph=ontology_graph(),
@@ -81,4 +85,4 @@ def validate(data_graph: Graph) -> tuple[bool, Graph, str]:
             advanced=True,
             max_validation_depth=100,
         )
-    return conforms, results_graph, results_text
+    return result.conforms, result.report_graph, result.report_text

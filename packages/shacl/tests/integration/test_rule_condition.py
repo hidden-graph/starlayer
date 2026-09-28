@@ -170,26 +170,27 @@ def test_condition_excludes_all_focus_nodes_when_none_conform() -> None:
 
 
 def test_property_rule_sh_values_is_not_implemented() -> None:
-    """``sh:PropertyRule``/``sh:values`` (SHACL 1.2 Core changelog: "new
-    sh:values") has no implementation anywhere - not in pySHACL 0.40.0
-    (``pyshacl.rules.shacl_rule`` only dispatches ``sh:TripleRule``/
-    ``sh:SPARQLRule``; there is no ``PropertyRule`` module, and
-    ``pyshacl.consts`` has no ``SH_values`` at all) and not in starShacl's own
-    code (grepped ``starshacl/`` - ``sh:values``/``SH.values`` appear only in
-    a docstring and a meta-shapes comment, never as an actual predicate
-    handled anywhere).
+    """``sh:PropertyRule`` has no implementation anywhere - not in pySHACL
+    0.40.0 (``pyshacl.rules.shacl_rule`` only dispatches ``sh:TripleRule``/
+    ``sh:SPARQLRule``; there is no ``PropertyRule`` module) and not in
+    starShacl's own code.
 
-    ``docs/shacl12-gap-matrix.md`` marks the row containing this feature
-    "done" (for the node-expression extension point and the generalized
-    sh:targetNode/sh:deactivated/sh:defaultValue parts, which genuinely are
-    done), but its own notes already flag sh:values itself as "not separately
-    verified" - this test confirms that hedge is actually hiding a real gap,
-    not just a missing test: using it raises ``RuleLoadError`` rather than
-    silently no-opping or producing wrong output, so at least a caller gets a
-    clear failure instead of a silent miss. This is a locked-in regression
-    marker for the current (unsupported) state, not coverage of a working
-    feature - update or remove this test if ``sh:PropertyRule``/``sh:values``
-    support is ever added.
+    **Note (2026-09-28): the spec construct this test was originally written
+    against no longer exists.** `sh:PropertyRule` was previously described in
+    `docs/shacl12-gap-matrix.md` as a `sh:rule` shorthand (SHACL 1.2 Core
+    changelog's "new sh:values") - re-fetching both `shacl12-inference-rules`
+    and `shacl12-core` directly and searching for "PropertyRule" found zero
+    occurrences in either current document; `shacl12-inference-rules`'s
+    "Built-in Rule Types" section defines exactly `sh:SPARQLRule` and
+    `sh:TripleRule`, and Core's own `sh:values` is now defined purely as a
+    validation-time/computed-property feature with no connection to
+    `sh:rule` at all (see `docs/shacl12-gap-matrix.md`'s "Not Covered /
+    Deferred" table for the full account). This test still exercises real,
+    useful coverage regardless - an unrecognized rule type correctly raises
+    `RuleLoadError` rather than silently no-opping - so it's kept, just no
+    longer citing a real spec gap as its reason. Update or remove it if the
+    WG reintroduces a similar construct and this project decides to support
+    it.
     """
     from pyshacl.errors import RuleLoadError
 

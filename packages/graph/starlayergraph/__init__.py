@@ -21,6 +21,14 @@ from rdflib.namespace import RDF, RDFS, XSD
 # effect of some other import) so registration always happens regardless of
 # what a caller imports first. See starlayergraph/query/custom_functions.py.
 import starlayergraph.query.custom_functions as _custom_functions  # noqa: F401
+# Exposes the ontology/shapes registry as starlayergraph.ontology.* without a
+# caller needing a separate `import starlayergraph.ontology` - e.g.
+# `starlayergraph.ontology.list_ontologies()` works right after `import
+# starlayergraph` alone. Safe to import eagerly here: starlayergraph.ontology
+# itself only eagerly imports starontology (a leaf dependency, no cycle) and
+# its own registry module, whose starsparql/starshacl imports are lazy
+# (inside functions) precisely to avoid a circular-import deadlock.
+import starlayergraph.ontology as ontology
 from starlayergraph.graph.starlayer_dataset import StarLayerDataset
 from starlayergraph.graph.starlayer_graph import StarLayerGraph
 from starlayergraph.model.dirlangstring import DirLangString
@@ -211,6 +219,7 @@ __all__ = [
     "Dataset",
     "Collection",
     # starlayergraph additions
+    "ontology",
     "TripleTerm",
     "DirLangString",
     "StarLayerGraph",

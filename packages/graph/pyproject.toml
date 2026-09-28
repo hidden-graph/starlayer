@@ -25,6 +25,10 @@ dependencies = [
     # the same shape as the sparql one above (shacl already depends on
     # graph; see starshacl/subgraph_extraction.py).
     "shacl",
+    # Raw ontology/shapes .ttl data (manchester-ast-ontology.ttl/skos-*.ttl)
+    # - no dependency back on graph/sparql/shacl, so this one is a plain,
+    # one-directional edge, not part of any cycle.
+    "ontology",
 ]
 keywords = ["rdf", "rdf12", "knowledge-graph", "semantic-web", "linked-data", "sparql", "turtle", "reification"]
 classifiers = [
@@ -68,7 +72,7 @@ Issues = "https://github.com/hidden-graph/starlayer/issues"
 include = ["starlayergraph*"]
 
 [tool.setuptools.package-data]
-starlayergraph = ["py.typed", "ontology/*.ttl"]
+starlayergraph = ["py.typed"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

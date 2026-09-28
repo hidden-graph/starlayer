@@ -143,7 +143,7 @@ def rdf_to_update(graph: Graph, root) -> Update:
     each operation individually, even though it's the same object for all
     of them in a real ``prepareUpdate`` result too.
     """
-    ops = _decode(graph.value(root, SALG.operations), graph)
+    ops = _decode_list_field(graph.value(root, SALG.operations), graph)
     prologue = _decode_prologue(root, graph)
     for op in ops:
         op.prologue = prologue
@@ -189,8 +189,6 @@ def _decode_prologue(root, graph: Graph) -> Prologue:
 def _decode(node, graph: Graph):
     if node is None:
         return None
-    if node == RDF.nil:
-        return []
 
     if isinstance(node, Literal):
         if node.datatype == VARIABLE_DATATYPE:
@@ -223,6 +221,97 @@ def _decode(node, graph: Graph):
     )
 
 
+# (CompValue name, key) pairs whose value is genuinely a Python *list* in
+# rdflib's own algebra — the only fields where a bare `rdf:nil` (an empty
+# RDF List's own terminator, indistinguishable at the RDF level from an
+# ordinary term whose *value* happens to be rdf:nil) should decode to `[]`
+# rather than the literal `rdf:nil` URIRef. Empirically derived (not
+# guessed) by instrumenting to_rdf._encode_comp_value and running it over
+# (a) every real .rq fixture in this repo's own test suites (W3C SPARQL
+# 1.1/1.2 conformance + this project's own) — 198 successfully-parsed
+# fixtures, covering every query-side operator this project's own
+# conformance tests exercise — and (b) a hand-built battery covering every
+# SPARQL Update operation form (InsertData/DeleteData/DeleteWhere/Modify's
+# delete+insert clauses/Load/Clear/Drop/Create/Add/Move/Copy), since the
+# .rq corpus in (a) under-represents Update text. The Add/Move/Copy "graph"
+# entries are the (source, destination) 2-tuple `to_rdf.py` itself notes is
+# "no special shape of its own, just an ordered sequence" - genuinely a
+# list at the RDF level even though never realistically empty.
+#
+# Fixes a real, general bug (not just one adversarial shape): before this,
+# `_decode()` treated *any* bare `rdf:nil` node as `[]` unconditionally,
+# silently corrupting any query with a literal `rdf:nil` term anywhere —
+# e.g. a triple pattern `?s ?p rdf:nil` (a common RDF-List-processing
+# idiom) round-tripped through StarLayerGraph.query() would lose that
+# triple pattern's object entirely, either producing wrong (empty) results
+# or crashing algebra.reorderTriples/_knownTerms outright (a raw Python
+# list is unhashable, and BGP.triples elements must be hashable). It also
+# broke every SPARQL Update whose InsertData/DeleteData/DeleteWhere/Modify
+# clause has an empty top-level `triples` list (e.g. an INSERT DATA whose
+# content is entirely inside `GRAPH <...> { }` blocks, with nothing in the
+# default graph) - confirmed via a real regression in this project's own
+# test_dataset_query.py suite while building this fix.
+_LIST_VALUED_KEYS = {
+    ("Add", "graph"),
+    ("Aggregate_Avg", "distinct"),
+    ("Aggregate_Count", "distinct"),
+    ("Aggregate_GroupConcat", "distinct"),
+    ("Aggregate_Max", "distinct"),
+    ("Aggregate_Min", "distinct"),
+    ("Aggregate_Sample", "distinct"),
+    ("Aggregate_Sum", "distinct"),
+    ("BGP", "triples"),
+    ("ConditionalAndExpression", "other"),
+    ("ConstructQuery", "template"),
+    ("Copy", "graph"),
+    ("DeleteClause", "triples"),
+    ("DeleteData", "triples"),
+    ("DeleteWhere", "triples"),
+    ("Function", "distinct"),
+    ("InsertClause", "triples"),
+    ("InsertData", "triples"),
+    ("Move", "graph"),
+    ("OrderBy", "expr"),
+    ("Project", "PV"),
+    ("SelectQuery", "PV"),
+    ("values", "res"),
+}
+# The eight `("...", "distinct")` entries above are exhaustive, not a
+# sample: confirmed by grepping rdflib's own parser.py for every
+# `Param("distinct", ...)` (all 8 Aggregate_*/Function ArgList productions
+# use the *same* `_Distinct = Optional(Keyword("DISTINCT"))` grammar rule,
+# which pyparsing represents as an empty ParseResults - encoded as an empty
+# Python list - whenever DISTINCT is absent, the overwhelmingly common
+# case) - no other CompValue field in rdflib's whole SPARQL 1.1 grammar
+# uses this exact "Optional keyword with no explicit non-list default"
+# pattern (grepped for `Param("<name>", Optional(...))` generally, not just
+# "distinct" - zero other matches), and starsparql's own SPARQL 1.2 grammar
+# extensions (grammar12.py) don't introduce a new instance of it either.
+
+# RelationalExpression.other is deliberately NOT in _LIST_VALUED_KEYS above -
+# it's genuinely polymorphic, not a fixed list-or-term choice per key. Per
+# the SPARQL grammar itself (rdflib parser.py's own comment: "[114]
+# RelationalExpression ::= NumericExpression ( '=' NumericExpression | ... |
+# 'IN' ExpressionList | 'NOT' 'IN' ExpressionList )?"), `other` is a list
+# only for the IN/NOT IN forms (an ExpressionList) - an ordinary single
+# NumericExpression for every other operator (=, !=, <, >, <=, >=). A static
+# per-key classification can't express "depends on this same node's other
+# own field" - handled instead in _decode_comp_value by checking the node's
+# own salg:op value directly. A non-empty list already round-trips correctly
+# either way via the ordinary rdf:first-based structural list detection in
+# _decode() - this only matters for a bare rdf:nil, i.e. IN ()'s empty list
+# vs. an ordinary comparison's operand genuinely being the term rdf:nil.
+
+
+def _decode_list_field(node, graph: Graph):
+    """Decode a value known (via context, not guessed) to be list-valued —
+    unlike plain `_decode()`, a bare `rdf:nil` here correctly means the
+    empty list, not the literal term."""
+    if node == RDF.nil:
+        return []
+    return _decode(node, graph)
+
+
 _PATH_TYPE_NAMES = {"InvPath", "SequencePath", "AlternativePath", "MulPath", "NegatedPath"}
 
 
@@ -233,9 +322,9 @@ def _decode_path(node, local_name: str, graph: Graph):
     if local_name == "InvPath":
         return InvPath(_decode(graph.value(node, SALG.arg), graph))
     if local_name == "SequencePath":
-        return SequencePath(*_decode(graph.value(node, SALG.args), graph))
+        return SequencePath(*_decode_list_field(graph.value(node, SALG.args), graph))
     if local_name == "AlternativePath":
-        return AlternativePath(*_decode(graph.value(node, SALG.args), graph))
+        return AlternativePath(*_decode_list_field(graph.value(node, SALG.args), graph))
     if local_name == "MulPath":
         path = _decode(graph.value(node, SALG.path), graph)
         mod = str(graph.value(node, SALG.mod))
@@ -247,7 +336,7 @@ def _decode_path(node, local_name: str, graph: Graph):
         # .args, matching exactly what __init__ would have produced. Safe:
         # Path.eval/.n3/__repr__ only ever read .args, never re-derive it.
         obj = object.__new__(NegatedPath)
-        obj.args = _decode(graph.value(node, SALG.args), graph)
+        obj.args = _decode_list_field(graph.value(node, SALG.args), graph)
         return obj
     raise NotImplementedError(f"starsparql: no decoder for path type {local_name!r}")
 
@@ -306,7 +395,7 @@ def _decode_quads_map(node, graph: Graph) -> dict:
         return result
     for qnode in Collection(graph, node):
         graph_term = _decode(graph.value(qnode, SALG.graph), graph)
-        result[graph_term] = _decode(graph.value(qnode, SALG.triples), graph)
+        result[graph_term] = _decode_list_field(graph.value(qnode, SALG.triples), graph)
     return result
 
 
@@ -343,7 +432,14 @@ def _decode_comp_value(node, type_uri: URIRef, graph: Graph):
         if key == "quads":
             kwargs[key] = _decode_quads_map(obj, graph)
             continue
-        value = _decode(obj, graph)
+        if (name, key) in _LIST_VALUED_KEYS or (
+            name == "RelationalExpression"
+            and key == "other"
+            and str(graph.value(node, SALG.op)) in ("IN", "NOT IN")
+        ):
+            value = _decode_list_field(obj, graph)
+        else:
+            value = _decode(obj, graph)
         if (name, key) in _PLAIN_VALUE_KEYS:
             value = _to_python_deep(value)
         kwargs[key] = value

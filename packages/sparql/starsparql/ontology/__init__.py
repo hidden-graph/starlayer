@@ -10,10 +10,11 @@ operator/builtin by name. See ``GraphPatternShape``'s own comment in
 fixing in the first place (a real, previously-undetected gap it caused),
 and ``validate()``'s own docstring for how reasoning plugs into it.
 
-The ontology itself lives in ``salg-ontology.ttl``, next to this file — a
-plain, standalone Turtle file, not a Python string, so it's directly usable
-by any RDF tool without going through this module at all. This module is
-just a thin loader (``ontology_graph()``) plus the generator
+The ontology itself lives in ``salg-ontology.ttl``, in the sibling
+``starontology`` package — a plain, standalone Turtle file, not a Python
+string, so it's directly usable by any RDF tool without going through this
+module at all. This module is just a thin loader (``ontology_graph()``)
+delegating to ``starontology``, plus the generator
 (``_generate_expression_class_turtle()``) used to produce that file's
 generated section — see the comment inside ``salg-ontology.ttl`` itself for
 how to regenerate it if ``expr_families._EXPR_NODE_FAMILY`` changes.
@@ -85,13 +86,12 @@ running reasoning against `validate()`, not by inspection.**
 
 from __future__ import annotations
 
-from pathlib import Path
-
+import starontology
 from rdflib import Graph
 
 from ..expr_families import _EXPR_NODE_FAMILY
 
-ONTOLOGY_TTL_PATH = Path(__file__).parent / "salg-ontology.ttl"
+ONTOLOGY_TTL_PATH = starontology.SPARQL_ONTOLOGY_TTL_PATH
 
 
 def _generate_expression_class_turtle() -> str:
@@ -116,7 +116,6 @@ def _generate_expression_class_turtle() -> str:
 
 
 def ontology_graph() -> Graph:
-    """A fresh ``rdflib.Graph`` of the RDFS ontology in ``salg-ontology.ttl``."""
-    g = Graph()
-    g.parse(source=str(ONTOLOGY_TTL_PATH), format="turtle")
-    return g
+    """A fresh ``rdflib.Graph`` of the RDFS ontology in ``salg-ontology.ttl``
+    (lives in the ``starontology`` package)."""
+    return starontology.sparql_ontology_graph()

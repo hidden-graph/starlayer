@@ -21,6 +21,7 @@
 1. SPARQL 1.2 query of starlayergraph.
 2. Starlayer specific RDF ontology for representing SPARQL queries. (`salg:` namespace)
 3. SHACL shapes for `salg:` graphs.
+4. Cross-referential semantic checks beyond SHACL's own per-node reach (`find_unbound_projected_variables()`) - e.g. a query projecting a variable never actually bound anywhere in its own pattern.
 
 ### Manchester Syntax
 
@@ -54,26 +55,25 @@
 2. SKOS: an OWL/RDFS ontology based on the W3C SKOS Reference's own formal axioms.
 3. SHACL shape validation of SKOS graphs.
 4. A registry to list/look up any of the supported ontology/SHACL-shapes files:
-   - `manchester`
-   - `skos`
-   - `sparql`
-   - `shacl`
+   - `manchester_owl` / `manchester_shacl`
+   - `skos_owl` / `skos_shacl`
+   - `sparql_owl` / `sparql_shacl`
+   - `shacl_meta`
 
 ## Planned / deferred
 
 **Cross-cutting (`packages/graph/docs/future_enhancements.md`)**
 
-1. SHACL Compact syntax support, plus an ontology/shape over *that* syntax (mirroring the Manchester/SPARQL AST-as-RDF pattern) to drive an editor.
-2. rdflib 8 compatibility (currently pinned to rdflib 7.x; revisit once a stable rdflib 8 ships).
-3. The RDF 1.2 Interoperability spec's `rdf:PropositionForm` vocabulary retrofit onto internal triple-term storage - fully designed, explicitly paused (worse performance and complexity, standards-alignment optics only, no confirmed adopters of the vocabulary yet).
 
-**`starsparql` (known gaps, not oversights - see `CLAUDE.md`)**
+1. rdflib 8 compatibility (currently pinned to rdflib 7.x; revisit once a stable rdflib 8 ships).
+2. The RDF 1.2 Interoperability spec's `rdf:PropositionForm` vocabulary retrofit onto internal triple-term storage - fully designed, explicitly paused (worse performance and complexity, standards-alignment optics only, no confirmed adopters of the vocabulary yet).
 
-1. Cross-referential semantic checks SHACL's per-node shapes structurally can't see (e.g. a query projecting an unbound variable).
-2. Whether `TripleTermNode` fully aligns with SPARQL 1.2's formal algebra, or only with rdflib's pragmatic representation, is still an open question.
+**`starsparql` (planned, not a known gap - see `packages/shacl/docs/shacl12-gap-matrix.md`'s "Not Covered / Deferred" for the spec-status writeup)**
+
+1. SRL/SPARQL-RL - "a Datalog-style rules language for RDF," general-purpose and SHACL-independent (the spec's own framing, despite living in the `shacl12-*`-adjacent W3C Data Shapes WG family). Not blocked on spec maturity: `WD-sparql12-rl-20260919` already has a complete, real EBNF grammar and formal evaluation semantics (stratification, rule-dependency graphs) - enough to build a real parser against today, same bar this project already applies to RDF 1.2/SPARQL 1.2/the rest of SHACL 1.2 (all pre-Recommendation too). No RDF representation for SRL rules exists in the spec yet, though - the same shape of gap `manch:`/`salg:` already fill elsewhere in this project: parse the text, invent the RDF-as-AST representation (a new `srl:` namespace), add SHACL shapes over it, mirroring the Manchester/SPARQL AST-as-RDF pattern - belongs in `starsparql`, not `starshacl`, since SRL is its own general-purpose rules language, not part of the `sh:` vocabulary. Not yet designed/scoped.
 
 **`starshacl` (see `docs/shacl12-gap-matrix.md`'s "Not Covered / Deferred")**
 
 1. SHACL 1.2 UI's `shui:WidgetScore`/`shui:WidgetAcceptMatcher` widget-selection algorithm - blocked on upstream: `WidgetAcceptMatcher` still has no formal vocabulary shape in the spec itself.
-2. `sh:PropertyRule`/`sh:values` as a `sh:rule` shorthand.
-3. SRL/SPARQL-RL's own rule text syntax - deferred alongside the rest of the Rules family (rule-set *selection*, `sh:RuleSet`/`sh:hasRule`, already shipped, was promoted out of this bucket on request).
+2. SHACL Compact syntax support, plus an ontology/shape over *that* syntax (mirroring the Manchester/SPARQL AST-as-RDF pattern) to drive validation and an editor.
+

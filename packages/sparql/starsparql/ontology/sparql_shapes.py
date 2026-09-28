@@ -85,15 +85,14 @@ check to a SPARQL-based constraint the same way the list shape was.
 from __future__ import annotations
 
 import warnings
-from pathlib import Path
 
+import starontology
 from rdflib import Graph
 
 from ..expr_families import _EXPR_NODE_FAMILY
 from . import ontology_graph
 
 try:
-    from pyshacl import validate as _pyshacl_validate
     from pyshacl.errors import ShapeRecursionWarning
 except ImportError as exc:  # pragma: no cover - exercised only when pyshacl isn't installed
     raise ImportError(
@@ -101,15 +100,16 @@ except ImportError as exc:  # pragma: no cover - exercised only when pyshacl isn
         "`pip install -e '.[test]'` or `pip install pyshacl`"
     ) from exc
 
-SPARQL_SHAPES_TTL_PATH = Path(__file__).parent / "sparql_shapes.ttl"
+SPARQL_SHAPES_TTL_PATH = starontology.SPARQL_SHAPES_TTL_PATH
 
 # The hand-authored shapes below used to be a giant inline Python string
 # (SHAPES_TURTLE = """...""", ~1700 lines) - moved to a standalone
-# sparql_shapes.ttl file 2026-08-16, mirroring salg-ontology.ttl's own
-# already-established pattern (a real, directly-usable Turtle file, not a
-# Python string), so it's directly usable by any RDF tool without going
-# through this module. Every embedded sh:select query body's own
-# """...""" delimiters no longer need Python-level backslash-escaping
+# sparql_shapes.ttl file 2026-08-16 (now living in the sibling starontology
+# package, alongside manch:/skos:'s own ontology/shapes files), mirroring
+# salg-ontology.ttl's own already-established pattern (a real, directly-usable
+# Turtle file, not a Python string), so it's directly usable by any RDF tool
+# without going through this module. Every embedded sh:select query body's
+# own """...""" delimiters no longer need Python-level backslash-escaping
 # now that they are not nested inside a Python triple-quoted string.
 SHAPES_TURTLE = SPARQL_SHAPES_TTL_PATH.read_text()
 
@@ -158,10 +158,27 @@ def validate(data_graph: Graph) -> tuple[bool, Graph, str]:
     invents narrower ones, so ``sh:targetClass salg:Builtin_STR`` still
     fires only for nodes actually asserted as that type.
 
-    Returns ``(conforms, results_graph, results_text)`` — the same shape
-    ``pyshacl.validate`` itself returns, so a caller that wants the raw
-    SHACL validation report can use it directly.
+    Goes through ``starshacl.validate()``, never bare ``pyshacl`` - this
+    validates a caller-supplied ``data_graph`` that may be genuine RDF 1.2
+    content (a ``salg:`` graph can represent real ``TRIPLE()``/``<<( )>>``
+    query syntax), which only ``starshacl`` understands correctly - the same
+    rule ``StarLayerGraph.derive()`` follows.
+
+    Returns ``(conforms, results_graph, results_text)`` for backward
+    compatibility with every existing caller of this function, unpacked
+    from ``starshacl``'s own ``ValidationResult``.
     """
+    import starshacl  # lazy: avoids a circular-import deadlock at module load time
+
+    from starsparql.ontology.native_components import register_salg_native_components
+
+    # salg:noUnboundProjectedVariables (the cross-referential check
+    # salg:ProjectShape activates) - registered separately from
+    # starshacl.validate()'s own register_native_components() call below,
+    # since it's salg:-specific and starshacl has no knowledge of that
+    # vocabulary. See native_components.py's own module docstring.
+    register_salg_native_components()
+
     # No shape in this file's dispatch shapes (GraphPatternShape/
     # ExpressionShape/SubSelectShape) references another shape by name
     # anymore (sh:class, not sh:node/sh:or-of-shapes - see each one's own
@@ -170,7 +187,7 @@ def validate(data_graph: Graph) -> tuple[bool, Graph, str]:
     # suppression, not because it's expected to fire.
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", category=ShapeRecursionWarning)
-        conforms, results_graph, results_text = _pyshacl_validate(
+        result = starshacl.validate(
             data_graph,
             shacl_graph=shapes_graph(),
             ont_graph=ontology_graph(),
@@ -178,4 +195,4 @@ def validate(data_graph: Graph) -> tuple[bool, Graph, str]:
             advanced=True,
             max_validation_depth=100,
         )
-    return conforms, results_graph, results_text
+    return result.conforms, result.report_graph, result.report_text
