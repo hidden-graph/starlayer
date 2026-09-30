@@ -18,10 +18,11 @@ ALL_NAMES = {
     'manchester_owl', 'manchester_shacl',
     'skos_owl', 'skos_shacl',
     'sparql_owl', 'sparql_shacl',
+    'srl_owl', 'srl_shacl',
     'shacl_meta',
 }
-OWL_NAMES = ['manchester_owl', 'skos_owl', 'sparql_owl']
-SHACL_NAMES = ['manchester_shacl', 'skos_shacl', 'sparql_shacl', 'shacl_meta']
+OWL_NAMES = ['manchester_owl', 'skos_owl', 'sparql_owl', 'srl_owl']
+SHACL_NAMES = ['manchester_shacl', 'skos_shacl', 'sparql_shacl', 'srl_shacl', 'shacl_meta']
 
 
 def test_list_ontologies_includes_every_concretely_shipped_entry():

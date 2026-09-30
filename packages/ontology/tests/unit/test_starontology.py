@@ -1,11 +1,12 @@
 """tests/unit/test_starontology.py
 
-starontology is pure data (six .ttl files) plus thin loaders - this suite
+starontology is pure data (eight .ttl files) plus thin loaders - this suite
 just confirms every file parses as valid Turtle and every path constant
 points at a real file, not that any vocabulary's own content is correct
 (that's each consuming package's own test suite's job:
 packages/graph/tests/unit/test_manchester_ast_shapes.py,
-test_skos_shapes.py; packages/sparql/tests/unit/test_shacl_shapes.py).
+test_skos_shapes.py; packages/sparql/tests/unit/test_shacl_shapes.py,
+test_srl_shapes.py).
 """
 
 import starontology
@@ -29,6 +30,12 @@ class TestPathsExist:
 
     def test_sparql_shapes_path_exists(self):
         assert starontology.SPARQL_SHAPES_TTL_PATH.is_file()
+
+    def test_srl_ontology_path_exists(self):
+        assert starontology.SRL_ONTOLOGY_TTL_PATH.is_file()
+
+    def test_srl_shapes_path_exists(self):
+        assert starontology.SRL_SHAPES_TTL_PATH.is_file()
 
 
 class TestLoadersParse:
@@ -54,6 +61,14 @@ class TestLoadersParse:
 
     def test_sparql_shapes_graph_parses(self):
         g = starontology.sparql_shapes_graph()
+        assert len(g) > 0
+
+    def test_srl_ontology_graph_parses(self):
+        g = starontology.srl_ontology_graph()
+        assert len(g) > 0
+
+    def test_srl_shapes_graph_parses(self):
+        g = starontology.srl_shapes_graph()
         assert len(g) > 0
 
     def test_loaders_return_fresh_graphs_each_call(self):

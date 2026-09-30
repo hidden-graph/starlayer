@@ -26,8 +26,8 @@ package's own job (`starlayergraph.ontology.manchester_shapes.validate()`,
 (which reasoning settings, which severity flags) is genuinely different per
 vocabulary - see each of those modules' own docstrings for why.
 
-**What's here**: six files, two per vocabulary (an OWL/RDFS ontology and a
-SHACL shapes graph) for three vocabularies:
+**What's here**: eight files, two per vocabulary (an OWL/RDFS ontology and
+a SHACL shapes graph) for four vocabularies:
 
 - ``manch:`` (``manchester-ast-ontology.ttl`` / ``manchester_shapes.ttl``) -
   OWL 2 Manchester Syntax's own internal AST as RDF.
@@ -36,6 +36,8 @@ SHACL shapes graph) for three vocabularies:
   ``skos:`` namespace.
 - ``salg:`` (``salg-ontology.ttl`` / ``sparql_shapes.ttl``) - a SPARQL 1.2
   query/update's own algebra as RDF.
+- ``srl:`` (``srl-ontology.ttl`` / ``srl_shapes.ttl``) - SRL/SPARQL-RL's
+  own rule-set abstract syntax as RDF (see `starsparql/srl_vocab.py`).
 
 The SHACL 1.2 meta-shapes themselves (``starshacl``'s shapes-about-shapes)
 are deliberately **not** here - they're generated Python
@@ -65,6 +67,8 @@ SKOS_ONTOLOGY_TTL_PATH = _HERE / "skos-ontology.ttl"
 SKOS_SHAPES_TTL_PATH = _HERE / "skos_shapes.ttl"
 SPARQL_ONTOLOGY_TTL_PATH = _HERE / "salg-ontology.ttl"
 SPARQL_SHAPES_TTL_PATH = _HERE / "sparql_shapes.ttl"
+SRL_ONTOLOGY_TTL_PATH = _HERE / "srl-ontology.ttl"
+SRL_SHAPES_TTL_PATH = _HERE / "srl_shapes.ttl"
 
 
 def _load(path: Path) -> Graph:
@@ -101,3 +105,13 @@ def sparql_ontology_graph() -> Graph:
 def sparql_shapes_graph() -> Graph:
     """A fresh ``rdflib.Graph`` of the ``salg:`` SHACL shapes."""
     return _load(SPARQL_SHAPES_TTL_PATH)
+
+
+def srl_ontology_graph() -> Graph:
+    """A fresh ``rdflib.Graph`` of the ``srl:`` RDFS ontology."""
+    return _load(SRL_ONTOLOGY_TTL_PATH)
+
+
+def srl_shapes_graph() -> Graph:
+    """A fresh ``rdflib.Graph`` of the ``srl:`` SHACL shapes."""
+    return _load(SRL_SHAPES_TTL_PATH)

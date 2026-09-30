@@ -1,0 +1,245 @@
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix srl: <https://github.com/hidden-graph/starsparql/ns/srl#> .
+@prefix salg: <https://github.com/hidden-graph/starsparql/ns/algebra#> .
+
+# SHACL shapes over the srl: vocabulary (packages/sparql/starsparql/srl_vocab.py)
+# - structural validation for an srl:RuleSet graph, before
+# srl_from_rdf.rdf_to_ruleset decodes it. Purely structural (types,
+# cardinalities, well-formed lists) - the cross-referential §4.2
+# well-formedness conditions (unbound variables, reused assignment
+# variables) are deliberately NOT here; see srl_semantic_checks.py's own
+# module docstring for why that stays a standalone function instead.
+#
+# List-valued fields use a single sh:sparql SELECT constraint per list,
+# not a recursive rdf:first/rdf:rest NodeShape walk - the exact same
+# salg:TriplePatternListShape pattern already established in
+# sparql_shapes.ttl (see that file for the full rationale: pyshacl's
+# shape-recursion guard silently stops validating - and reports
+# conformant - past ~3 rdf:List cons cells otherwise).
+#
+# A filter.expr/assign.expr expression tree is validated by the existing
+# salg: shapes directly (sh:class salg:Expression) - no separate srl:
+# expression vocabulary exists to shape here, see srl_vocab.py's docstring.
+
+# ---------------------------------------------------------------------
+# List shapes
+# ---------------------------------------------------------------------
+
+srl:RuleListShape a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "expected a well-formed rdf:List of srl:Rule" ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX srl: <https://github.com/hidden-graph/starsparql/ns/srl#>
+            SELECT $this
+            WHERE {
+                {
+                    FILTER ( $this != rdf:nil )
+                    FILTER NOT EXISTS { $this rdf:first ?head }
+                } UNION {
+                    $this rdf:rest*/rdf:first ?item .
+                    FILTER NOT EXISTS { ?item a srl:Rule }
+                }
+            }
+        """ ;
+    ] .
+
+srl:DataListShape a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "expected a well-formed rdf:List of srl:Data" ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX srl: <https://github.com/hidden-graph/starsparql/ns/srl#>
+            SELECT $this
+            WHERE {
+                {
+                    FILTER ( $this != rdf:nil )
+                    FILTER NOT EXISTS { $this rdf:first ?head }
+                } UNION {
+                    $this rdf:rest*/rdf:first ?item .
+                    FILTER NOT EXISTS { ?item a srl:Data }
+                }
+            }
+        """ ;
+    ] .
+
+srl:ImportsListShape a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "expected a well-formed rdf:List of IRIs" ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            SELECT $this
+            WHERE {
+                {
+                    FILTER ( $this != rdf:nil )
+                    FILTER NOT EXISTS { $this rdf:first ?head }
+                } UNION {
+                    $this rdf:rest*/rdf:first ?item .
+                    FILTER ( !isIRI(?item) )
+                }
+            }
+        """ ;
+    ] .
+
+srl:TripleListShape a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "expected a well-formed rdf:List of srl:TriplePattern" ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX srl: <https://github.com/hidden-graph/starsparql/ns/srl#>
+            SELECT $this
+            WHERE {
+                {
+                    FILTER ( $this != rdf:nil )
+                    FILTER NOT EXISTS { $this rdf:first ?head }
+                } UNION {
+                    $this rdf:rest*/rdf:first ?item .
+                    FILTER NOT EXISTS { ?item a srl:TriplePattern }
+                }
+            }
+        """ ;
+    ] .
+
+srl:BodyListShape a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "expected a well-formed rdf:List of srl:BodyElement" ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX srl: <https://github.com/hidden-graph/starsparql/ns/srl#>
+            SELECT $this
+            WHERE {
+                {
+                    FILTER ( $this != rdf:nil )
+                    FILTER NOT EXISTS { $this rdf:first ?head }
+                } UNION {
+                    $this rdf:rest*/rdf:first ?item .
+                    FILTER NOT EXISTS { ?item a srl:BodyElement }
+                }
+            }
+        """ ;
+    ] .
+
+srl:NegationInnerListShape a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "expected a well-formed rdf:List of srl:NegationBodyElement (triple patterns/filters only)" ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX srl: <https://github.com/hidden-graph/starsparql/ns/srl#>
+            SELECT $this
+            WHERE {
+                {
+                    FILTER ( $this != rdf:nil )
+                    FILTER NOT EXISTS { $this rdf:first ?head }
+                } UNION {
+                    $this rdf:rest*/rdf:first ?item .
+                    FILTER NOT EXISTS { ?item a srl:NegationBodyElement }
+                }
+            }
+        """ ;
+    ] .
+
+# ---------------------------------------------------------------------
+# Node shapes
+# ---------------------------------------------------------------------
+
+srl:RuleSetShape a sh:NodeShape ;
+    sh:targetClass srl:RuleSet ;
+    sh:property [
+        sh:path srl:rules ; sh:minCount 1 ; sh:maxCount 1 ; sh:node srl:RuleListShape ;
+        sh:message "srl:RuleSet must have exactly one srl:rules list" ;
+    ] ;
+    sh:property [
+        sh:path srl:data ; sh:minCount 1 ; sh:maxCount 1 ; sh:node srl:DataListShape ;
+        sh:message "srl:RuleSet must have exactly one srl:data list" ;
+    ] ;
+    sh:property [
+        sh:path srl:imports ; sh:minCount 1 ; sh:maxCount 1 ; sh:node srl:ImportsListShape ;
+        sh:message "srl:RuleSet must have exactly one srl:imports list" ;
+    ] .
+
+srl:RuleShape a sh:NodeShape ;
+    sh:targetClass srl:Rule ;
+    sh:property [
+        sh:path srl:head ; sh:minCount 1 ; sh:maxCount 1 ; sh:node srl:TripleListShape ;
+        sh:message "srl:Rule must have exactly one srl:head list" ;
+    ] ;
+    sh:property [
+        sh:path srl:body ; sh:minCount 1 ; sh:maxCount 1 ; sh:node srl:BodyListShape ;
+        sh:message "srl:Rule must have exactly one srl:body list" ;
+    ] ;
+    sh:property [
+        sh:path srl:ruleData ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype <http://www.w3.org/2001/XMLSchema#boolean> ;
+        sh:message "srl:Rule must have exactly one boolean srl:ruleData" ;
+    ] ;
+    sh:property [
+        sh:path srl:id ; sh:maxCount 1 ; sh:nodeKind sh:IRI ;
+        sh:message "srl:id, if present, must be exactly one IRI" ;
+    ] .
+
+srl:DataShape a sh:NodeShape ;
+    sh:targetClass srl:Data ;
+    sh:property [
+        sh:path srl:triples ; sh:minCount 1 ; sh:maxCount 1 ; sh:node srl:TripleListShape ;
+        sh:message "srl:Data must have exactly one srl:triples list" ;
+    ] .
+
+# A subject/object term: a real RDF term or a Variable (encoded per
+# salg:Variable, vocab.py's own convention - reused directly, not
+# re-minted, per srl_vocab.py's docstring).
+srl:TermOrVariableShape a sh:NodeShape ;
+    sh:or ( [ sh:nodeKind sh:IRI ] [ sh:nodeKind sh:BlankNode ] [ sh:datatype salg:Variable ] [ sh:nodeKind sh:Literal ] ) .
+
+# A predicate term: never a blank node or literal - Variable or IRI only.
+srl:PredicateOrVariableShape a sh:NodeShape ;
+    sh:or ( [ sh:nodeKind sh:IRI ] [ sh:datatype salg:Variable ] ) .
+
+srl:TriplePatternShape a sh:NodeShape ;
+    sh:targetClass srl:TriplePattern ;
+    sh:property [
+        sh:path srl:subject ; sh:minCount 1 ; sh:maxCount 1 ; sh:node srl:TermOrVariableShape ;
+        sh:message "srl:TriplePattern must have exactly one srl:subject" ;
+    ] ;
+    sh:property [
+        sh:path srl:predicate ; sh:minCount 1 ; sh:maxCount 1 ; sh:node srl:PredicateOrVariableShape ;
+        sh:message "srl:TriplePattern must have exactly one srl:predicate, an IRI/Variable" ;
+    ] ;
+    sh:property [
+        sh:path srl:object ; sh:minCount 1 ; sh:maxCount 1 ; sh:node srl:TermOrVariableShape ;
+        sh:message "srl:TriplePattern must have exactly one srl:object" ;
+    ] .
+
+srl:FilterElementShape a sh:NodeShape ;
+    sh:targetClass srl:FilterElement ;
+    sh:property [
+        sh:path srl:expr ; sh:minCount 1 ; sh:maxCount 1 ; sh:class salg:Expression ;
+        sh:message "srl:FilterElement must have exactly one srl:expr, a salg: expression" ;
+    ] .
+
+srl:AssignmentElementShape a sh:NodeShape ;
+    sh:targetClass srl:AssignmentElement ;
+    sh:property [
+        sh:path srl:var ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype salg:Variable ;
+        sh:message "srl:AssignmentElement must have exactly one srl:var" ;
+    ] ;
+    sh:property [
+        sh:path srl:expr ; sh:minCount 1 ; sh:maxCount 1 ; sh:class salg:Expression ;
+        sh:message "srl:AssignmentElement must have exactly one srl:expr, a salg: expression" ;
+    ] .
+
+srl:NegationElementShape a sh:NodeShape ;
+    sh:targetClass srl:NegationElement ;
+    sh:property [
+        sh:path srl:inner ; sh:minCount 1 ; sh:maxCount 1 ; sh:node srl:NegationInnerListShape ;
+        sh:message "srl:NegationElement must have exactly one srl:inner list" ;
+    ] ;
+    sh:property [
+        sh:path srl:negationData ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype <http://www.w3.org/2001/XMLSchema#boolean> ;
+        sh:message "srl:NegationElement must have exactly one boolean srl:negationData" ;
+    ] .

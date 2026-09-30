@@ -1,6 +1,6 @@
 # StarLayer Functionality Overview
 
-*Last reviewed: 2026-09-28*
+*Last reviewed: 2026-09-29*
 
 ---
 
@@ -21,7 +21,8 @@
 1. SPARQL 1.2 query of starlayergraph.
 2. Starlayer specific RDF ontology for representing SPARQL queries. (`salg:` namespace)
 3. SHACL shapes for `salg:` graphs.
-4. Cross-referential semantic checks beyond SHACL's own per-node reach (`find_unbound_projected_variables()`) - e.g. a query projecting a variable never actually bound anywhere in its own pattern.
+4. SRL/SPARQL-RL (`WD-sparql12-rl-20260919`) - a Datalog-style rules language, general-purpose and SHACL-independent: parsing (`srl_grammar.py`, reusing rdflib's own SPARQL expression/terminal grammar directly), a `srl:` RDF-as-AST representation with a full round trip (`srl_vocab.py`/`srl_to_rdf.py`/`srl_from_rdf.py`), SHACL shapes over `srl:` graphs, the §4.2 well-formedness cross-referential check (`srl_semantic_checks.py`), and a full stratified Datalog evaluation engine (`srl_eval.py` - dependency graph, stratification, `evalRule`, top-level `Infer`/`Query`) verified end to end against the spec's own §6.6 worked example.
+
 
 ### Manchester Syntax
 
@@ -34,7 +35,7 @@
 1. Support for reasoning/inference using various entailment regimes: RDF, RDFS, OWL-RL, and OWL-DL.
 2. OWL-DL support via two engines: `engine="hermit"` (`owlready2`, Java) or `engine="rustdl"` (Rust).
 3. Support for both graph reasoning and query-time reasoning.
-4. A wall-clock timeout (`timeout=`, default 120s, both engines) for OWL-DL reasoning calls, with a real subprocess/process-group kill on expiry - no orphaned JVM/native process left behind.
+
 
 ### SHACL (`starshacl`)
 
@@ -47,17 +48,18 @@
    - Profiling
 3. SHACL 1.2 meta-shapes for use with SHACL shape files.
 4. SHACL-driven subgraph extraction.
-5. Ability to infer a SHACL shape from a graph's own data.
+5. Ability to create a SHACL shape from a graph's own data.
 
 ### Other
 
 1. VERSION-directive conformance warnings.
-2. SKOS: an OWL/RDFS ontology based on the W3C SKOS Reference's own formal axioms.
+2. SKOS: an OWL/RDFS ontology based on the W3C SKOS Reference's formal axioms.
 3. SHACL shape validation of SKOS graphs.
-4. A registry to list/look up any of the supported ontology/SHACL-shapes files:
+4. A registry of the supported ontology and SHACL-shapes files:
    - `manchester_owl` / `manchester_shacl`
    - `skos_owl` / `skos_shacl`
    - `sparql_owl` / `sparql_shacl`
+   - `srl_owl` / `srl_shacl`
    - `shacl_meta`
 
 ## Planned / deferred
@@ -67,10 +69,6 @@
 
 1. rdflib 8 compatibility (currently pinned to rdflib 7.x; revisit once a stable rdflib 8 ships).
 2. The RDF 1.2 Interoperability spec's `rdf:PropositionForm` vocabulary retrofit onto internal triple-term storage - fully designed, explicitly paused (worse performance and complexity, standards-alignment optics only, no confirmed adopters of the vocabulary yet).
-
-**`starsparql` (planned, not a known gap - see `packages/shacl/docs/shacl12-gap-matrix.md`'s "Not Covered / Deferred" for the spec-status writeup)**
-
-1. SRL/SPARQL-RL - "a Datalog-style rules language for RDF," general-purpose and SHACL-independent (the spec's own framing, despite living in the `shacl12-*`-adjacent W3C Data Shapes WG family). Not blocked on spec maturity: `WD-sparql12-rl-20260919` already has a complete, real EBNF grammar and formal evaluation semantics (stratification, rule-dependency graphs) - enough to build a real parser against today, same bar this project already applies to RDF 1.2/SPARQL 1.2/the rest of SHACL 1.2 (all pre-Recommendation too). No RDF representation for SRL rules exists in the spec yet, though - the same shape of gap `manch:`/`salg:` already fill elsewhere in this project: parse the text, invent the RDF-as-AST representation (a new `srl:` namespace), add SHACL shapes over it, mirroring the Manchester/SPARQL AST-as-RDF pattern - belongs in `starsparql`, not `starshacl`, since SRL is its own general-purpose rules language, not part of the `sh:` vocabulary. Not yet designed/scoped.
 
 **`starshacl` (see `docs/shacl12-gap-matrix.md`'s "Not Covered / Deferred")**
 

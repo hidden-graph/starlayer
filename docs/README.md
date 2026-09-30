@@ -1,6 +1,6 @@
 # StarLayer User Guides
 
-*Last reviewed: 2026-09-23*
+*Last reviewed: 2026-09-29*
 
 The full guide set has been reorganized into `docs/guides/`, one focused notebook per topic, replacing the single broad `user-guide-v1_01.ipynb` plus three separately-named SHACL deep-dives (those four original files are still present in `docs/` for reference, but everything below now lives in `docs/guides/`).
 
@@ -13,7 +13,7 @@ The full guide set has been reorganized into `docs/guides/`, one focused noteboo
    - **2.a [Working with datasets](guides/02a-graphs-datasets.ipynb)** - `StarLayerDataset`, multiple named graphs in one store.
    - **2.b [Inferencing](guides/02b-graphs-inferencing.ipynb)** - RDFS and OWL 2 RL reasoning via `owlrl`; full OWL 2 DL reasoning (HermiT-class) is a separate guide, 5.e below.
 3. **[SPARQL](guides/03-sparql.ipynb)** - query semantics and built-in functions.
-   - **3.a [SPARQL rules (pending)](guides/03a-sparql-rules-pending.md)** - SPARQL-RL (SRL), a separate Datalog-style rules language, is deliberately out of scope for this project.
+   - **3.a [SPARQL-RL rules](guides/03a-sparql-rules.ipynb)** - SRL, a separate Datalog-style rules language independent of SHACL: parsing, inference, dependency-graph/stratification, encoding a rule set as RDF (`srl:`), SHACL-validating that encoding, and well-formedness checking.
 4. **[SHACL shapes](guides/04-shacl-shapes.ipynb)** - what starshacl adds over pySHACL, and an overview of its four processing modes (`validate()`, `apply_rules()`, `evaluate()`, `extract_subgraph()`).
    - **4.a [SHACL node expressions](guides/04a-shacl-node-expressions.ipynb)** - the `shnex:`/`sparql:` node-expression vocabulary, `sh:values`/`sh:expression`, custom functions.
    - **4.b [SHACL inference rules](guides/04b-shacl-inference-rules.ipynb)** - `sh:rule`/`sh:TripleRule`/`sh:SPARQLRule`, execution ordering, rule sets, provenance.
@@ -28,7 +28,7 @@ The full guide set has been reorganized into `docs/guides/`, one focused noteboo
    - **5.d [Canonical hashing and graph comparison](guides/05d-canonical-hashing.ipynb)** - RDFC-1.0 canonicalization/hashing and graph isomorphism.
    - **5.e [OWL 2 DL reasoning with HermiT](guides/05e-owl-dl-reasoning.ipynb)** - `infer(profile="owl-dl")`, genuine DL reasoning via `owlready2` + Java HermiT; needs a real JVM, not just a pip install.
    - **5.g [Manchester Syntax as RDF](guides/05g-manchester-syntax-as-rdf.ipynb)** - encoding, editing, and validating a Manchester Syntax document's own AST as an RDF graph (mirrors 5.c's treatment of SPARQL query algebra).
-   - **5.h [The SHACL library registry](guides/05h-shacl-library-registry.ipynb)** - discovering and loading any of `manch:`/`skos:`/`salg:`/the SHACL 1.2 meta-shapes by name via `list_shacl_libraries()`/`get_shacl_library()`.
+   - **5.h [The SHACL library registry](guides/05h-shacl-library-registry.ipynb)** - discovering and loading any of `manch:`/`skos:`/`salg:`/`srl:`/the SHACL 1.2 meta-shapes by name via `list_shacl_libraries()`/`get_shacl_library()`.
 
 ## Related project documentation
 

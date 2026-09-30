@@ -4,7 +4,8 @@ SUGGESTION:
 - add SHACL Compact syntax to the roadmap.  if we support compact syntax we need an ontology/shacl shape over the syntax to drive an editor.
 - For the functionality overview, incorproate a referece from the functionality to where that functionality is shown in a user guide.  If there is no user guide, then create one.  (or a stub of one.)
 - enhance backend stores with a discussion of backend stores with inference settings.  this may only be fuseki for now.  
-
+- create a user guide for creating a SHACL shape from a graph
+- can we produce a documenttion document that outlines all of the methods and imports availbale under starlayer.
 
 *Last reviewed: 2026-09-28*
 

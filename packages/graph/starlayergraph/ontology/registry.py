@@ -1,9 +1,10 @@
 """
 starlayergraph.ontology.registry
 
-A registry of every ontology/SHACL-shapes file this stack ships, so a
-caller can discover and load any of them by name without needing to know
-which package or file each one actually lives in. Origin:
+A registry of every ontology/SHACL-shapes file this stack ships (manch:/
+skos:/salg:/srl:, plus the SHACL 1.2 meta-shapes themselves), so a caller
+can discover and load any of them by name without needing to know which
+package or file each one actually lives in. Origin:
 `packages/graph/docs/future_enhancements.md`'s own SUGGESTION item - "a
 method to return a list of SHACL libraries and return a specific SHACL
 library ... SPARQL AST, SKOS, Manchester AST, SHACL, generic RDF, OWL RDF."
@@ -123,6 +124,21 @@ def _sparql_shacl_validate(data_graph: Any, **kwargs: Any) -> tuple[bool, Any, s
     return starsparql.validate(data_graph, **kwargs)
 
 
+def _srl_owl_graph() -> Graph:
+    import starontology
+    return starontology.srl_ontology_graph()
+
+
+def _srl_shacl_graph() -> Graph:
+    from starsparql.ontology.srl_shapes import shapes_graph
+    return shapes_graph()
+
+
+def _srl_shacl_validate(data_graph: Any, **kwargs: Any) -> tuple[bool, Any, str]:
+    from starsparql.ontology.srl_shapes import validate
+    return validate(data_graph, **kwargs)
+
+
 def _shacl_meta_graph() -> Graph:
     from starshacl.meta_shapes import build_meta_shapes_graph
     return build_meta_shapes_graph()
@@ -196,6 +212,25 @@ _ONTOLOGIES: dict[str, Ontology] = {
             kind='shacl',
             graph=_sparql_shacl_graph,
             validate=_sparql_shacl_validate,
+        ),
+        Ontology(
+            name='srl_owl',
+            description=(
+                "SRL/SPARQL-RL's own rule-set abstract syntax as RDF (srl:), "
+                "from the sibling starsparql package - a Datalog-style rules "
+                "language, general-purpose and SHACL-independent."
+            ),
+            namespace='https://github.com/hidden-graph/starsparql/ns/srl#',
+            kind='owl',
+            graph=_srl_owl_graph,
+        ),
+        Ontology(
+            name='srl_shacl',
+            description="SHACL shapes validating an srl: rule-set graph's own structural well-formedness.",
+            namespace='https://github.com/hidden-graph/starsparql/ns/srl#',
+            kind='shacl',
+            graph=_srl_shacl_graph,
+            validate=_srl_shacl_validate,
         ),
         Ontology(
             name='shacl_meta',

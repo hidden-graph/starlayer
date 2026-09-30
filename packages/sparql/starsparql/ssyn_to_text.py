@@ -30,7 +30,7 @@ from rdflib import BNode, Graph, Literal
 from rdflib.collection import Collection
 from rdflib.namespace import RDF
 from rdflib.plugins.sparql.algebra import translateAlgebra
-from rdflib.plugins.sparql.parserutils import CompValue
+from rdflib.plugins.sparql.parserutils import CompValue, Expr
 from rdflib.plugins.sparql.sparql import Prologue, Query
 
 from .from_rdf import _decode as _decode_algebra
@@ -119,13 +119,67 @@ def _predicate_text(graph: Graph, term) -> str:
 
 def _expr_text(graph: Graph, expr_node) -> str:
     decoded_expr = _decode_algebra(expr_node, graph)
-    return _render_expr_text(decoded_expr)
+    return render_expr_text(decoded_expr)
 
 
-def _render_expr_text(expr) -> str:
-    """Render a real algebra expression node as text by wrapping it in a
-    throwaway query and reusing rdflib's own translateAlgebra, then slicing
-    out the FILTER(...) contents — see this module's docstring for why."""
+def _simplify_expr_immutable(expr):
+    """A non-mutating equivalent of ``rdflib.plugins.sparql.operators
+    .simplify`` — same collapsing rule (any ``*Expression``-named node
+    whose ``.other`` is absent/``None`` collapses to its own ``.expr``,
+    recursively), but rdflib's own version is genuinely unsafe to reuse
+    here: it mutates its input **in place** for every node it doesn't
+    collapse outright (``expr[k] = simplify(expr[k])`` on each remaining
+    key) — confirmed live that calling it on a still-referenced
+    ``starsparql.srl_ast.FilterElement.expr`` silently corrupted that same
+    object's nested structure as a side effect (a later equality check
+    broke, even though the mutating call's own return value was never
+    stored anywhere). ``copy.deepcopy`` isn't a fix either — ``Expr``'s
+    constructor takes ``evalfn`` positionally in a shape deepcopy's default
+    reconstruction can't satisfy (confirmed live: ``TypeError: Expr
+    .__init__() missing 1 required positional argument``). Building fresh
+    nodes bottom-up, as this does, sidesteps both problems - the original
+    tree is never touched, and each ``Expr`` node is reconstructed via its
+    own real constructor with its original ``_evalfn`` reattached.
+
+    Needed at all because a full ``parseQuery``/``translateQuery`` pipeline
+    always runs (the mutating) ``simplify`` as part of translating the raw
+    grammar tree, collapsing every trivial single-operand precedence-chain
+    wrapper (``ConditionalOrExpression``/``ConditionalAndExpression``/
+    ``AdditiveExpression``/... with no real ``other``) down to its own
+    inner value - confirmed live that skipping this crashes
+    ``_AlgebraTranslator.sparql_query_text`` outright (``TypeError:
+    'NoneType' object is not iterable``) on an otherwise completely
+    ordinary shape like plain ``FILTER(?age > 26)`` (no ``&&``). A caller
+    that already goes through a full query parse (every existing
+    ``ssyn_to_text.py`` caller) gets this for free from ``translateQuery``
+    itself; a caller that only ever ran a bare, standalone ``Constraint``/
+    ``Expression`` parse - as SRL's own grammar does, since SRL text is
+    never a full SPARQL query - does not, and needs it applied explicitly.
+    """
+    if isinstance(expr, list):
+        return [_simplify_expr_immutable(item) for item in expr]
+    if not isinstance(expr, CompValue):
+        return expr
+    if expr.name.endswith("Expression") and expr.other is None:
+        return _simplify_expr_immutable(expr.expr)
+    new_values = {k: _simplify_expr_immutable(v) for k, v in expr.items()}
+    if isinstance(expr, Expr):
+        evalfn = expr._evalfn.__func__ if expr._evalfn is not None else None
+        return Expr(expr.name, evalfn, **new_values)
+    return CompValue(expr.name, **new_values)
+
+
+def render_expr_text(expr) -> str:
+    """Render a real algebra expression node (an ``Expr``/``CompValue``
+    tree) as text by wrapping it in a throwaway query and reusing rdflib's
+    own translateAlgebra, then slicing out the FILTER(...) contents — see
+    this module's docstring for why. Public (not module-private) since
+    ``srl_to_text.py`` reuses it directly too — SRL's own ``filter.expr``/
+    ``assign.expr`` are the same real rdflib ``Expr`` trees, no RDF
+    round-trip needed to call this. See :func:`_simplify_expr_immutable`
+    for why the expression is simplified via a fresh, non-mutating rebuild
+    rather than rdflib's own (in-place-mutating) ``operators.simplify``."""
+    expr = _simplify_expr_immutable(expr)
     wrapper = CompValue(
         "SelectQuery",
         p=CompValue(

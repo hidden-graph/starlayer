@@ -1,0 +1,52 @@
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix srl: <https://github.com/hidden-graph/starsparql/ns/srl#> .
+
+# ---------------------------------------------------------------------
+# Classes - the SRL/SPARQL-RL (WD-sparql12-rl-20260919) abstract syntax,
+# §4.1 "Elements of the Abstract Syntax", as RDF. See
+# packages/sparql/starsparql/srl_vocab.py's module docstring for the full
+# field/predicate-naming convention this mirrors.
+#
+# Two abstract superclasses exist purely so srl_shapes.ttl can dispatch a
+# list's members via a single sh:class check (RDFS subclass reasoning),
+# the same technique salg:GraphPattern/salg:Expression already establish
+# in salg-ontology.ttl/sparql_shapes.py - deliberately not sh:node/sh:or,
+# which trips pyshacl's shape-recursion guard on deep nesting (see that
+# file's own module docstring for the full account).
+# ---------------------------------------------------------------------
+
+srl:RuleSet a rdfs:Class ;
+    rdfs:comment "A whole SRL rule set - srl:rules/srl:data/srl:imports, §4.1." .
+
+srl:Rule a rdfs:Class ;
+    rdfs:comment "One RULE - srl:head/srl:body (lists), srl:ruleData (bool: match WHERE DATA), srl:id (optional IRI), §4.1." .
+
+srl:Data a rdfs:Class ;
+    rdfs:comment "One top-level DATA {} block - srl:triples, ground only, §4.1." .
+
+srl:TriplePattern a rdfs:Class ;
+    rdfs:comment "A triple template (rule head) or triple pattern (rule body/DATA) - srl:subject/srl:predicate/srl:object, same shape either way per §4.1." .
+
+# srl:BodyElement - the union every rule-body member belongs to (§4.1
+# "Rule element"). srl:NegationBodyElement is the grammatically narrower
+# union a negation element's own body is restricted to (production 23:
+# triple patterns and filters only, no nested negation/assignment).
+srl:BodyElement a rdfs:Class ;
+    rdfs:comment "The union of every rule-body element kind: TriplePattern, FilterElement, AssignmentElement, NegationElement." .
+srl:NegationBodyElement a rdfs:Class ;
+    rdfs:comment "The narrower union a negation element's own inner body is restricted to: TriplePattern or FilterElement only." .
+
+srl:TriplePattern rdfs:subClassOf srl:BodyElement, srl:NegationBodyElement .
+
+srl:FilterElement a rdfs:Class ;
+    rdfs:subClassOf srl:BodyElement, srl:NegationBodyElement ;
+    rdfs:comment "FILTER Constraint - srl:expr, a real salg: expression tree, §4.1." .
+
+srl:AssignmentElement a rdfs:Class ;
+    rdfs:subClassOf srl:BodyElement ;
+    rdfs:comment "SET (?var := expr) - srl:var/srl:expr, §4.1. Never legal inside a negation element's own body." .
+
+srl:NegationElement a rdfs:Class ;
+    rdfs:subClassOf srl:BodyElement ;
+    rdfs:comment "NOT DATA? {...} - srl:inner (a list of srl:NegationBodyElement), srl:negationData (bool), §4.1. Never legal inside another negation element's own body." .

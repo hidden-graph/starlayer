@@ -1,7 +1,7 @@
 {
   "guide": "StarLayer User Guides",
-  "version": "1.2.0",
-  "lastUpdated": "2026-09-17",
+  "version": "1.3.0",
+  "lastUpdated": "2026-09-29",
   "canonicalSource": "docs/README.md",
   "artifacts": {
     "index": [
@@ -14,6 +14,7 @@
       "docs/guides/02a-graphs-datasets.ipynb",
       "docs/guides/02b-graphs-inferencing.ipynb",
       "docs/guides/03-sparql.ipynb",
+      "docs/guides/03a-sparql-rules.ipynb",
       "docs/guides/04-shacl-shapes.ipynb",
       "docs/guides/04a-shacl-node-expressions.ipynb",
       "docs/guides/04b-shacl-inference-rules.ipynb",
@@ -26,9 +27,7 @@
       "docs/guides/05c-sparql-query-as-rdf.ipynb",
       "docs/guides/05d-canonical-hashing.ipynb"
     ],
-    "markdown": [
-      "docs/guides/03a-sparql-rules-pending.md"
-    ],
+    "markdown": [],
     "superseded": [
       "docs/user-guide-v1_01.ipynb",
       "docs/shacl-node-expressions-guide.ipynb",
