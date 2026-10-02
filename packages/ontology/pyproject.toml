@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "ontology"
 version = "0.1.0"
-description = "Raw ontology/SHACL-shapes .ttl files shared by the StarLayer stack (manch:, skos:, salg:)"
+description = "Raw ontology/SHACL-shapes .ttl files (manch:, skos:, salg:, srl:), loaded as StarLayerGraph instances"
 readme = { file = "README.md", content-type = "text/markdown" }
 license = { file = "LICENSE" }
 authors = [
@@ -14,6 +14,15 @@ authors = [
 requires-python = ">=3.10"
 dependencies = [
     "rdflib>=7.0",
+    # Every loader returns a StarLayerGraph, not a plain rdflib.Graph - a
+    # deliberate 2026-10-02 decision accepting this dependency (this package
+    # previously had none on any consuming package, graph included) for API
+    # consistency with the rest of the stack. Also needed for the
+    # "shacl_meta" registry entry, which wraps starlayer.shacl's own
+    # build_meta_shapes_graph(). Neither starlayer.graph nor starlayer.shacl
+    # has any dependency back on this package, so this stays a clean DAG,
+    # not a cycle - see starontology/__init__.py's own "Dependency note".
+    "starlayer",
 ]
 keywords = ["rdf", "rdf12", "shacl", "ontology", "owl", "skos", "manchester-syntax", "sparql"]
 classifiers = [

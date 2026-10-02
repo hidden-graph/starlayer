@@ -35,6 +35,6 @@ The full guide set has been reorganized into `docs/guides/`, one focused noteboo
 The guides above are user-facing walkthroughs. For implementation detail, compatibility contracts, and spec-tracking:
 
 - [`functionality-overview.md`](functionality-overview.md) - a concise, bullet-point inventory of what's currently covered across all three packages, and what's planned/deferred - start here for "does StarLayer support X".
-- `packages/graph/docs/starlayergraph.md` - starlayergraph architecture and design, including backend compatibility.
-- `packages/shacl/docs/compatibility.md` - starshacl's graph contract, version support, and backend compatibility matrix.
-- `packages/shacl/docs/shacl12-gap-matrix.md` - SHACL 1.2 feature-by-feature status across all six W3C documents.
+- `packages/starlayer/docs/graph/starlayergraph.md` - the graph subpackage's architecture and design, including backend compatibility.
+- `packages/starlayer/docs/shacl/compatibility.md` - the shacl subpackage's graph contract, version support, and backend compatibility matrix.
+- `packages/starlayer/docs/shacl/shacl12-gap-matrix.md` - SHACL 1.2 feature-by-feature status across all six W3C documents.

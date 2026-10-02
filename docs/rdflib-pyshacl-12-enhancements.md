@@ -465,18 +465,18 @@ Key additions include:
 
 starshacl doesn't replace pySHACL or run a competing validation engine alongside it — it wraps `pyshacl.validate()` and expands pySHACL's *own* machinery in place. New SHACL 1.2 predicates (`sh:someValue`, `sh:subsetOf`, `sh:rootClass`, and the rest) are implemented as real subclasses of pySHACL's own `ConstraintComponent` base class and registered directly into pySHACL's internal constraint dispatch table, so pySHACL's generic shape-composition engine evaluates them exactly like any built-in predicate (`sh:minCount`, `sh:pattern`, etc.) — not through a separate code path. A handful of confirmed pySHACL bugs are fixed the same way, by patching pySHACL's own methods in place. See `packages/shacl/docs/compatibility.md` for the full contract, `packages/shacl/docs/shacl12-gap-matrix.md` for per-predicate/per-spec-document coverage, and the SHACL 1.2 Working Drafts themselves for the features this section only samples: `https://www.w3.org/TR/shacl12-core/` and its five companion documents (SPARQL Extensions, Node Expressions, Rules, User Interfaces, Profiling).
 
-Practically, this means the public API surface to learn is small — `StarShaclValidator.validate()` and `.apply_rules()`, already shown above and below — and everything past that is standard SHACL/SHACL 1.2 shape syntax you write as Turtle, not a StarLayer-specific method to look up.
+Practically, this means the public API surface to learn is small — `StarLayerShacl.validate()` and `.apply_rules()`, already shown above and below — and everything past that is standard SHACL/SHACL 1.2 shape syntax you write as Turtle, not a StarLayer-specific method to look up.
 
 All examples below assume:
 
 ```python
 from starlayergraph import StarLayerGraph
-from starshacl import StarShaclValidator
+from starshacl import StarLayerShacl
 ```
 
 ### RDF 1.2-aware validation
 
-The corrected form of this document's very first SHACL example (the original imported a top-level `validate()` function from `starshacl`, which doesn't exist — the real entry point is `StarShaclValidator().validate(...)`, used throughout this document):
+The corrected form of this document's very first SHACL example (the original imported a top-level `validate()` function from `starshacl`, which doesn't exist — the real entry point is `StarLayerShacl().validate(...)`, used throughout this document):
 
 ```python
 data = StarLayerGraph()
@@ -496,7 +496,7 @@ shapes.parse(data="""
       sh:property [ sh:path ex:label ; sh:datatype rdf:dirLangString ] .
 """, format="turtle")
 
-result = StarShaclValidator().validate(data_graph=data, shacl_graph=shapes)
+result = StarLayerShacl().validate(data_graph=data, shacl_graph=shapes)
 print(result.conforms)
 ```
 
@@ -527,7 +527,7 @@ shapes.parse(data="""
       sh:property [ sh:path ex:age ; sh:minCount 1 ; sh:datatype xsd:integer ] .
 """, format="turtle")
 
-result = StarShaclValidator().validate(data_graph=data, shacl_graph=shapes)
+result = StarLayerShacl().validate(data_graph=data, shacl_graph=shapes)
 print(result.conforms)
 print(result.report_text)
 ```
@@ -572,7 +572,7 @@ shapes.parse(data="""
       ] .
 """, format="turtle")
 
-result = StarShaclValidator().apply_rules(data_graph=data, shacl_graph=shapes)
+result = StarLayerShacl().apply_rules(data_graph=data, shacl_graph=shapes)
 
 from starlayergraph import Namespace
 EX = Namespace("http://example.org/")
@@ -604,7 +604,7 @@ In practice, the same conceptual workflow works whether the data comes from a lo
 
 ### Methods covered in this section
 
-`StarLayerGraph()` (default backend), `StarLayerGraph(backend='rdf-1.2')` (native backend), `StarLayerGraph(store=...)` (generic rdflib Store interop, e.g. SQL-backed via `rdflib-sqlalchemy`), all eight RDF 1.2 formats, `StarLayerDataset.parse()`/`.serialize(format='trig12')`.
+`StarLayerGraph()` (default backend), `StarLayerGraph(backend='rdf-1.2')` (native backend), `StarLayerGraph(store=...)` (generic rdflib Store interop, e.g. SQL-backed via `rdflib-sqlalchemy`), all seven RDF 1.2 formats, `StarLayerDataset.parse()`/`.serialize(format='trig12')`.
 
 All examples below assume the same preamble as Section 1 (`StarLayerGraph`, `EX`, `RDF`).
 
@@ -662,9 +662,9 @@ ex:claim
 
 The rest of the API (`add`, `parse`, `query`, `serialize`, every StarLayer-only method from Section 1) works identically regardless of which `Store` backs the graph — nothing in this example is SQL-specific beyond the `store="SQLAlchemy"` constructor argument and the `open()`/`commit()`/`close()` lifecycle calls (all plain rdflib, not StarLayer additions).
 
-### All eight RDF 1.2 formats
+### All seven RDF 1.2 formats
 
-`turtle12`/`nt12` are already used throughout this document; here are the other six, serializing the same graph:
+`turtle12`/`nt12` are already used throughout this document; here are the other five, serializing the same graph:
 
 ```python
 from starlayergraph import TripleTerm
@@ -739,54 +739,7 @@ Output:
 </rdf:RDF>
 ```
 
-```python
-print(g.serialize(format="jsonld12"))
-```
-
-Output:
-
-```text
-{
-  "@context": {
-    "tt": "https://github.com/hidden-graph/starlayergraph/ns/tt#",
-    "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
-    "ex": "http://example.org/"
-  },
-  "@graph": [
-    {
-      "@id": "tt:e65284ee54cb3e7c",
-      "@type": [
-        "rdf:TripleTerm"
-      ],
-      "rdf:subject": [
-        {
-          "@id": "ex:bob"
-        }
-      ],
-      "rdf:predicate": [
-        {
-          "@id": "ex:knows"
-        }
-      ],
-      "rdf:object": [
-        {
-          "@id": "ex:carol"
-        }
-      ]
-    },
-    {
-      "@id": "ex:claim",
-      "rdf:reifies": [
-        {
-          "@id": "tt:e65284ee54cb3e7c"
-        }
-      ]
-    }
-  ]
-}
-```
-
-The `tt:e65284ee54cb3e7c` id is the same content-addressed hash discussed in `packages/graph/docs/starlayergraph.md` — a pure function of `(subject, predicate, object)`, stable across runs and processes. `@context` includes `ex:` here because `g.bind("ex", EX)` was called and the graph actually uses it — an unused bound prefix stays out, and a used one always gets compacted (`rdf:subject` included, not just `@type`), a fix made after an earlier draft of this document was found to leak raw `http://.../rdf-syntax-ns#subject`-style URIs; see `packages/graph/starlayergraph/serializers/jsonld12.py`. `jsonld12` and `trix12` are the two formats in this list without a real W3C RDF 1.2 spec target (see Section 4's intro bullets and `packages/graph/docs/starlayergraph_vs_rdflib.md` for the caveat); the other six do.
+`trix12` is the one format in this list without a real W3C RDF 1.2 spec target (see Section 4's intro bullets and `packages/graph/docs/starlayergraph_vs_rdflib.md` for the caveat); the other six do. `jsonld12` was removed as a recognized format entirely (2026-10-02) — JSON-LD has no published RDF 1.2 companion spec at all, so `format='jsonld12'` is now rejected the same way any unrecognized format string is; see `packages/starlayer/docs/graph/rdf12_sparql12_gap_analysis.md` §6.
 
 ```python
 print(g.serialize(format="longturtle12"))
@@ -806,7 +759,7 @@ ex:claim rdf:reifies <<( ex:bob ex:knows ex:carol )>> .
 
 ### Multi-graph round-trip: `ds.serialize(format='trig12')` → `ds.parse(format='trig12')`
 
-`trig12` is the only one of the eight that's inherently multi-graph — it needs `StarLayerDataset`, not `StarLayerGraph` (see Section 1's dataset example for `ds.get_context()`/`ds.quads()`):
+`trig12` is the only one of the seven that's inherently multi-graph — it needs `StarLayerDataset`, not `StarLayerGraph` (see Section 1's dataset example for `ds.get_context()`/`ds.quads()`):
 
 ```python
 from starlayergraph import StarLayerDataset, TripleTerm

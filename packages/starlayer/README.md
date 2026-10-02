@@ -34,7 +34,7 @@ If you are working from a local checkout for development, you can install the sa
 ## Example usage
 
 ```python
-from starlayer import StarLayerGraph, StarShaclValidator
+from starlayer import StarLayerGraph, StarLayerShacl
 
 # Example RDF data
 # Use your own graph and shape definitions here.
@@ -42,7 +42,7 @@ from starlayer import StarLayerGraph, StarShaclValidator
 data = StarLayerGraph()
 shapes = StarLayerGraph()
 
-validator = StarShaclValidator()
+validator = StarLayerShacl()
 result = validator.validate(data_graph=data, shacl_graph=shapes)
 print(result.conforms)
 ```

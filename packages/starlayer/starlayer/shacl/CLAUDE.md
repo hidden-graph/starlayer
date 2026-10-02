@@ -1,0 +1,35 @@
+# CLAUDE.md
+
+Project-specific instructions for Claude Code sessions working in this repo. See `docs/README.md` for the docs index (start with `docs/implementation-plan.md`).
+
+## Tracking upstream spec changes ("SHACL 1.2" is six separate W3C Working Drafts, all still moving)
+
+Before starting any new work that touches SHACL 1.2 behavior specifically (not every routine change), check whether any of the six W3C documents have moved since this project last verified against them - none has reached Candidate Recommendation yet, so wording/vocabulary/scope can still change silently. Procedure, per-document baseline dates, and the re-check trigger: `docs/shacl12-gap-matrix.md`'s "Tracking Upstream Spec Changes" section. Separately, `tests/vendor/shacl12-vocabularies/shacl-shacl.ttl` (the WG's own meta-shapes draft) has no sync script yet and needs a manual re-fetch/diff periodically - see that section for why. No CI job watches the W3C TR-track automatically - this is a manual check.
+
+## Testing discipline: verify coverage adversarially, not just by existence
+
+Before marking a test - or a `docs/shacl12-gap-matrix.md` row - "done" for a native/patched behavior, don't stop at "a test exists and passes." Check whether it would still pass with the change reverted:
+
+- **Fixture-based tests**: could the *old* form (whatever pySHACL, or whatever baseline, did before starshacl's change) already satisfy this exact test? Run the fixture through plain, unpatched `pyshacl.validate()` - no `StarLayerShacl`, no meta-shapes, no native component registration - and confirm it produces the *opposite* result from what starshacl produces. If it doesn't, the test isn't exercising starshacl's own code at all; it's redundant with pySHACL's existing behavior.
+- **Meta-shacl well-formedness rules**: confirm a genuinely malformed value is actually rejected, not just that a well-formed value passes. "Passes when valid" and "rejects when invalid" are two different claims - a test covering one does not imply the other.
+
+This is cheap (one throwaway script per feature, not a new test-writing methodology) and catches a real, repeated failure mode: a 2026-07-20 coverage audit found that `sh:ShapeClass` implicit-class-target coverage, `sh:values`'s "done" status, and 8 of the 11 new SHACL 1.2 predicates' malformed-usage tests had all passed review while quietly not testing what they claimed to (see `docs/shacl12-gap-matrix.md` for the specific fixes and reasoning). Every instance had the same root cause: the same pass that wrote the feature also wrote the test confirming it, without ever asking "would this fail if I deleted what I just added?"
+
+**Don't treat a coverage audit's own findings as ground truth either** - verify audit claims against the actual test file before acting on them. The audit above also produced a false claim (that `owl:imports` cycle/loader-failure edge cases were untested, when they already were) - only the empirical check caught it.
+
+## Stale references after a rename: a real, cheap-to-catch failure mode
+
+A 2026-08 sweep found `sh:sparql` fixtures calling `isTripleTerm(...)` - a function name only the old, since-removed `sparql12_to_11.py` text-rewriter ever supported (the current grammar only recognizes `isTRIPLE`) - and the shipped meta-shapes (`starshacl/assets/*.ttl`) still declaring `stsh:` under the pre-rename `pyshacl-starlight` namespace instead of `starshacl`. Both shipped silently for a long time: nothing checks that a fixture's embedded query text, or a namespace prefix, still refers to something that actually exists in the current codebase after a rename.
+
+`tests/unit/test_fixture_sparql_syntax.py` now guards the first half of this (parses every `sh:select`/`sh:ask`/`sh:construct` string in `starshacl/assets/*.ttl` and `tests/fixtures/shapes/*.ttl` against the real grammar - would have caught `isTripleTerm` immediately). No automated guard exists yet for the namespace half; if another rename happens, grep the whole repo (not just `.py` - `.ttl` fixtures and shipped assets too) for the old name/namespace and confirm zero hits before considering the rename done.
+
+## Which predicates belong on a NodeShape vs a PropertyShape form: don't invent it, pySHACL and the W3C draft already encode it
+
+A 2026-08 downstream-editor readiness pass found `stsh:nodeFormField`/`stsh:propertyFormField` (which predicates should render as fields in a NodeShape-editing vs PropertyShape-editing form) only set for 35 of 108 documented predicates. Before designing a new restriction list from scratch, check for a native/vendored one first - this project already had two:
+
+- **pySHACL's own bundled `shacl-shacl.ttl`** (`<venv>/lib/python3.14/site-packages/pyshacl/assets/shacl-shacl.ttl`) encodes exactly this distinction via `shsh:ShapeShape` (targets both `sh:NodeShape`/`sh:PropertyShape`, lists predicates valid on either via `sh:targetSubjectsOf`), `shsh:NodeShapeShape` (explicitly forbids `sh:path`/`sh:lessThan`/`sh:lessThanOrEquals`/`sh:maxCount`/`sh:minCount`/`sh:qualifiedValueShape`/`sh:uniqueLang` on a NodeShape - i.e. PropertyShape-only), and `shsh:PropertyShapeShape` (requires `sh:path`).
+- **This repo's own vendored, more complete draft**, `tests/vendor/shacl12-vocabularies/shacl-shacl.ttl` (the official SHACL 1.2 WG draft's meta-shapes, used elsewhere for `docs/shacl12-gap-matrix.md`'s gap comparisons), has the same `shsh:ShapeShape`/`NodeShapeShape`/`PropertyShapeShape` shapes but models more predicates than pySHACL's older bundled copy (`sh:memberShape`, `sh:maxListLength`, `sh:minListLength`, `sh:uniqueMembers`, `sh:singleLine`, among others) - **prefer this one** when the two disagree or when pySHACL's copy is silent on a predicate.
+
+Neither file covers SHACL-AF rule/SPARQL-extension attachment (`sh:sparql`, `sh:rule`) or the newest RDF 1.2 predicates (`sh:someValue`, `sh:subsetOf`, `sh:rootClass`, `sh:uniqueValuesFor`, `sh:reifierShape`, `sh:reificationRequired`) - for those, judge by analogy to the nearest predicate the vendored draft *does* confirm generic or restricted (documented with reasoning in `docs/shacl-presentation-content.md`'s "17. Form-Field Membership" section).
+
+**A predicate that's a field of a nested sub-form (a Rule, ConstraintComponent, Validator, or path/node-expression definition) isn't a NodeShape/PropertyShape form field at all**, and shouldn't be forced into this binary just because it's a `sh:` predicate. `sh:condition`/`sh:select`/`sh:ask`/`sh:construct`/`sh:subject`/`sh:predicate`/`sh:object`/`sh:parameter`/`sh:validator`/`sh:nodeValidator`/`sh:propertyValidator` (nested inside `sh:rule`/`sh:ConstraintComponent`) and the property path operators (`sh:alternativePath`, `sh:inversePath`, `sh:oneOrMorePath`, `sh:zeroOrMorePath`, `sh:zeroOrOnePath`, nested inside `sh:path`) were deliberately left without `nodeFormField`/`propertyFormField` for this reason - a downstream editor needing "which fields belong on a Rule sub-form" needs a separate, not-yet-built mechanism, not a misuse of this one. This is genuine future work, not an oversight.

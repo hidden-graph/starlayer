@@ -64,13 +64,13 @@
 
 ## Planned / deferred
 
-**Cross-cutting (`packages/graph/docs/future_enhancements.md`)**
+**Cross-cutting (`packages/starlayer/docs/future_enhancements.md`)**
 
 
 1. rdflib 8 compatibility (currently pinned to rdflib 7.x; revisit once a stable rdflib 8 ships).
 2. The RDF 1.2 Interoperability spec's `rdf:PropositionForm` vocabulary retrofit onto internal triple-term storage - fully designed, explicitly paused (worse performance and complexity, standards-alignment optics only, no confirmed adopters of the vocabulary yet).
 
-**`starshacl` (see `docs/shacl12-gap-matrix.md`'s "Not Covered / Deferred")**
+**`starshacl` (see `packages/starlayer/docs/shacl/shacl12-gap-matrix.md`'s "Not Covered / Deferred")**
 
 1. SHACL 1.2 UI's `shui:WidgetScore`/`shui:WidgetAcceptMatcher` widget-selection algorithm - blocked on upstream: `WidgetAcceptMatcher` still has no formal vocabulary shape in the spec itself.
 2. SHACL Compact syntax support, plus an ontology/shape over *that* syntax (mirroring the Manchester/SPARQL AST-as-RDF pattern) to drive validation and an editor.
