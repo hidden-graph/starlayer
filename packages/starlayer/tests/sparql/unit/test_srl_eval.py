@@ -20,7 +20,7 @@ from starlayer.sparql.srl_eval import (
     srl_query,
     stratify,
 )
-from starlayer.sparql.srl_grammar import parse_ruleset
+from starlayer.sparql.srl import parse_ruleset
 
 EX = "http://example.org/"
 

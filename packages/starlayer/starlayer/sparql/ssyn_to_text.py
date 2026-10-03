@@ -174,7 +174,7 @@ def render_expr_text(expr) -> str:
     tree) as text by wrapping it in a throwaway query and reusing rdflib's
     own translateAlgebra, then slicing out the FILTER(...) contents — see
     this module's docstring for why. Public (not module-private) since
-    ``srl_to_text.py`` reuses it directly too — SRL's own ``filter.expr``/
+    ``srl.py`` reuses it directly too — SRL's own ``filter.expr``/
     ``assign.expr`` are the same real rdflib ``Expr`` trees, no RDF
     round-trip needed to call this. See :func:`_simplify_expr_immutable`
     for why the expression is simplified via a fresh, non-mutating rebuild

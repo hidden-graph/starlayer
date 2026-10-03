@@ -110,14 +110,16 @@ except ImportError as exc:  # pragma: no cover - exercised only when pyshacl isn
 # own """...""" delimiters no longer need Python-level backslash-escaping
 # now that they are not nested inside a Python triple-quoted string.
 #
-# Read via get_ontology_turtle12() (a canonical Turtle 1.2 re-serialization
-# of the parsed graph), not a direct file path - starontology's own
-# *_TTL_PATH constants are private as of 2026-10-02, this is the public way
-# to reach the content now. Safe here specifically because this text is
-# immediately concatenated with more Turtle and re-parsed below (line ~135)
-# - cosmetic reformatting from the round trip through StarLayerGraph cannot
-# change the triples, only how they're written.
-SHAPES_TURTLE = starontology.get_ontology_turtle12("sparql_shacl")
+# Read via get_ontology_graph().serialize(format='turtle12') (a canonical
+# Turtle 1.2 re-serialization of the parsed graph), not a direct file path
+# - starontology's own *_TTL_PATH constants are private as of 2026-10-02,
+# this is the public way to reach the content now (get_ontology_turtle12()
+# was a thin wrapper doing exactly this one-line composition; removed
+# 2026-10-03 for being nothing more than that). Safe here specifically
+# because this text is immediately concatenated with more Turtle and
+# re-parsed below (line ~135) - cosmetic reformatting from the round trip
+# through StarLayerGraph cannot change the triples, only how they're written.
+SHAPES_TURTLE = starontology.get_ontology_graph("sparql_shacl").serialize(format="turtle12")
 
 
 def _generate_expression_shapes_turtle() -> str:

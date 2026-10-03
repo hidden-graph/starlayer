@@ -6,7 +6,7 @@ per-node SHACL shape - see that module's own docstring.
 
 from rdflib import Variable
 
-from starlayer.sparql.srl_grammar import parse_ruleset
+from starlayer.sparql.srl import parse_ruleset
 from starlayer.sparql.srl_semantic_checks import check_ruleset
 
 PREFIX = "PREFIX : <http://example.org/>\n"

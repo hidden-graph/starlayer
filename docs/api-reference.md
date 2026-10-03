@@ -4,7 +4,7 @@
 
 **Columns**: **Kind** — method / property / attribute / function / class / value. **Status** (classes that extend an underlying library only) — **New** (StarLayer-only, no such name on the base class), **Modified** (StarLayer overrides/extends the base class's own method of the same name), **Unchanged** (inherited as-is).
 
-**Package hierarchy**: `starlayer` is the primary installable package (`pip install starlayer`). `starontology` is installable as a separate package, for users interested in the ontology files (OWL ontologies + SHACL shapes) on their own.
+**Package hierarchy**: `starlayer` is the primary installable package (`pip install starlayer`). `starontology` is installable as a separate package, for users interested in the ontology files (OWL ontologies + SHACL shapes) on their own — and, for a vocabulary that's fundamentally about editing ontologies (`manch:` today, `srl:` eventually), the parse/serialize/validate logic for managing it as a syntax tree too (see `starontology.manchester`).
 
 ---
 
@@ -237,25 +237,22 @@ When using the above formats with StarLayerGraph.parse() all named graphs are me
 |---|---|
 | `starlayer.graph.parsers.manchester_parser.parse_manchester(text, base=None)` | Text → plain triples (`owl:Restriction`/`rdf:List` bnodes, `owl:Axiom` reification for annotations) |
 | `starlayer.graph.serializers.manchester.serialize_manchester(...)` | Triples → Manchester syntax text |
-| `starlayer.ontology.to_ast_rdf.parse_manchester_ast(text, base=None)` | Text → `manch:` RDF directly, `(graph, root)` |
-| `starlayer.ontology.to_ast_rdf.rdf_ast_to_manchester_ast(graph, root)` | `manch:` RDF → `Document` AST |
-| `starlayer.ontology.to_ast_rdf.manchester_ast_to_text(document)` | `Document` AST → Manchester syntax text |
+
+Manchester text as its own syntax tree (`manch:` RDF, independent of the OWL semantics above) is `starontology.manchester` now, not here — see its own section below.
 
 ---
 
-## `starlayer.ontology`
+## `starlayer.registry`
 
-The ontology/SHACL-shapes registry — one catalog spanning everything the whole stack ships (manch:/skos:/salg:/srl:, plus the SHACL 1.2 meta-shapes). Lives at the `starlayer` top level, not nested under `.graph`/`.sparql`/`.shacl`, because it genuinely cuts across all three — not reachable through any one of them alone. Reachable right after a plain `import starlayer` (`starlayer.ontology.list_ontologies()`), same as `starlayer.graph`/`.sparql`/`.shacl` themselves — not in the curated top-level `__all__`, but not hidden either.
+The ontology/SHACL-shapes registry — one catalog spanning everything the whole stack ships (manch:/skos:/salg:/srl:, plus the SHACL 1.2 meta-shapes). Lives at the `starlayer` top level, not nested under `.graph`/`.sparql`/`.shacl`, because it genuinely cuts across all three — not reachable through any one of them alone. Reachable right after a plain `import starlayer` (`starlayer.registry.list_ontologies()`), same as `starlayer.graph`/`.sparql`/`.shacl` themselves — not in the curated top-level `__all__`, but not hidden either. Renamed from `starlayer.ontology` (2026-10-03) — it holds no ontology content of its own (that's `starontology`), just a name-based lookup over where each vocabulary's own `.graph()`/`.validate()` actually live.
 
 | Name | Kind | Description |
 |---|---|---|
 | `list_ontologies()` | function | Names of every registered ontology/shapes file, sorted |
 | `get_ontology(name)` | function | Look up one registered entry (`Ontology`) by name — raises `KeyError` naming the valid choices |
-| `Ontology` | class | The registry entry dataclass: `name`, `description`, `namespace`, `kind` (`"owl"`/`"shacl"`), `graph()`, `validate()` |
-| `ontology_graph()` | function | The `manch:` RDFS ontology |
-| `skos_ontology_graph()` | function | The `skos:` OWL/RDFS ontology |
-| `manchester_shapes.shapes_graph()` / `.validate(data_graph)` | function | `manch:` SHACL shapes + validator |
-| `skos_shapes.shapes_graph()` / `.validate(data_graph)` | function | `skos:` SHACL shapes + validator |
+| `Ontology` | class | The registry entry dataclass: `name`, `description`, `namespace`, `kind` (`"owl"`/`"shacl"`), `graph()`, `validate()` — `validate` is `None` on `kind="owl"` entries (nothing meaningful to validate a data graph against on its own), set on every `kind="shacl"` entry |
+
+(`manch:`'s and `skos:`'s own ontology/shapes/validator live in `starontology.manchester`/`starontology.skos` now, not here — see their own sections below; `get_ontology("manchester_owl")`/`get_ontology("manchester_shacl")`/`get_ontology("skos_owl")`/`get_ontology("skos_shacl")` above still work for both, since the registry entries themselves didn't move, only the underlying logic they delegate to.)
 
 Registered entry names (via `list_ontologies()`) — the same nine `starontology` registers (see its own table below):
 
@@ -271,7 +268,7 @@ Registered entry names (via `list_ontologies()`) — the same nine `starontology
 | `srl_shacl` | shacl | SHACL shapes validating an `srl:` rule-set graph's own structural well-formedness |
 | `shacl_meta` | shacl | The SHACL 1.2 meta-shapes themselves (`starlayer.shacl`'s own shapes-about-shapes, validating a shapes graph's own well-formedness) — generated Python, not a static `.ttl` file, and has no `shacl_owl` sibling entry (no separate OWL ontology exists for SHACL's own vocabulary) — but *is* also registered in `starontology` (see its own table below), which wraps the same generator |
 
-`Ontology.kind` only distinguishes `"owl"` vs `"shacl"` (two values) — coarser than `starontology.OntologyInfo.type`'s three (`"shacl"`/`"ast-graph"`/`"owl"`), which separates genuine semantic ontologies (`skos_owl`) from syntax-trees-as-RDF (`manchester_owl`/`sparql_owl`/`srl_owl`) that this registry's own `kind` field doesn't. The `sparql_*`/`srl_*` entries' own `.validate()` delegate to `starlayer.sparql.validate_query()`/`starlayer.sparql.srl_shapes.validate_ruleset()` respectively — see the `starlayer.sparql` section below.
+`Ontology.kind` only distinguishes `"owl"` vs `"shacl"` (two values) — coarser than `starontology.OntologyInfo.type`'s three (`"shacl"`/`"ast-graph"`/`"owl"`), which separates genuine semantic ontologies (`skos_owl`) from syntax-trees-as-RDF (`manchester_owl`/`sparql_owl`/`srl_owl`) that this registry's own `kind` field doesn't. The `sparql_*`/`srl_*` entries' own `.validate()` delegate to `starlayer.sparql.validate_query()`/`starlayer.sparql.srl.validate()` respectively — see the `starlayer.sparql` section below.
 
 ---
 
@@ -299,14 +296,19 @@ Registered entry names (via `list_ontologies()`) — the same nine `starontology
 
 ### SRL/SPARQL-RL — *not yet re-exported at the `starlayer.sparql` top level*
 
+`srl.py` (2026-10-03, consolidating the former `srl_grammar.py`/`srl_vocab.py`/`srl_to_rdf.py`/`srl_from_rdf.py`/`srl_to_text.py`/`srl_shapes.py` into one module, mirroring `starontology.manchester`'s consolidation of the equivalent Manchester pieces) now holds the text↔tree-RDF↔`RuleSet` pipeline and validation; `srl_ast.py`/`srl_eval.py`/`srl_semantic_checks.py` are unaffected, unchanged siblings.
+
 | Name | Kind | Description |
 |---|---|---|
-| `srl_grammar.parse_ruleset(text, base=None)` | function | SRL text → `srl_ast.RuleSet` |
-| `srl_grammar.SRLParseError` | class | Raised for malformed SRL text |
-| `srl_to_text.ruleset_to_text(ruleset, namespace_manager=None)` | function | `RuleSet` → SRL text, no RDF involved |
-| `srl_to_rdf.ruleset_to_rdf(ruleset, graph=None)` | function | `RuleSet` → `srl:` RDF, `(graph, root)` |
-| `srl_from_rdf.rdf_to_ruleset(graph, root)` | function | `srl:` RDF → `RuleSet` |
-| `srl_from_rdf.SRLDecodeError` | class | Raised for an `srl:` graph shape that doesn't decode |
+| `srl.parse_to_tree(text, base=None)` | function | SRL text → `srl:` tree-RDF, `(graph, root)` — composes `parse_ruleset` + `ruleset_to_tree` |
+| `srl.tree_to_text(graph, root)` | function | `srl:` tree-RDF → SRL text — composes `tree_to_ruleset` + `ruleset_to_text` |
+| `srl.parse_ruleset(text, base=None)` | function | SRL text → `srl_ast.RuleSet`, no RDF involved |
+| `srl.SRLParseError` | class | Raised for malformed SRL text |
+| `srl.ruleset_to_text(ruleset, namespace_manager=None)` | function | `RuleSet` → SRL text, no RDF involved |
+| `srl.ruleset_to_tree(ruleset, graph=None)` | function | `RuleSet` → `srl:` RDF, `(graph, root)` |
+| `srl.tree_to_ruleset(graph, root)` | function | `srl:` RDF → `RuleSet` |
+| `srl.SRLDecodeError` | class | Raised for an `srl:` graph shape that doesn't decode |
+| `srl.validate(data_graph)` | function | Validate an `srl:` tree-RDF graph against the shapes for it (combined with `salg:`'s, for `srl:expr`'s dispatch) *(needs `pyshacl`)* — no public `ontology_graph()`/`shapes_graph()` here; get those from the `starontology`/`starlayer.registry` registry instead (`srl_owl`/`srl_shacl`) |
 | `srl_semantic_checks.check_ruleset(ruleset)` | function | §4.2 well-formedness over every rule in a rule set |
 | `srl_semantic_checks.check_rule(rule)` | function | §4.2 well-formedness for one rule |
 | `srl_semantic_checks.SRLWellFormednessIssue` | class | One violation — `rule`, `kind`, `variable`, `context` |
@@ -322,9 +324,7 @@ Registered entry names (via `list_ontologies()`) — the same nine `starontology
 | `srl_eval.SRLImportsNotSupportedError` | class | A rule set has `IMPORTS`, which this implementation rejects (§4.5) |
 | `srl_eval.SRLEvalError` | class | Base class for the two errors above |
 | `srl_eval.DependencyEdge` | class | One dependency-graph edge — `source`, `target`, `label` (`"open"`/`"closed"`) |
-| `srl_vocab.SRL` | value | The `srl:` namespace |
-| `srl_shapes.shapes_graph()` | function | The `srl:` SHACL shapes *(needs `pyshacl`)* |
-| `srl_shapes.validate_ruleset(data_graph)` | function | Validate an `srl:` graph against the shapes above *(needs `pyshacl`)* |
+| `srl.SRL` | value | The `srl:` namespace |
 
 ### `srl_ast` — the AST dataclasses (no methods; fields only)
 
@@ -413,13 +413,12 @@ Registered entry names (via `list_ontologies()`) — the same nine `starontology
 
 ## `starontology`
 
-Allows access to ontology and shacl files, both as `StarLayerGraph` objects and as Turtle 1.2 text. Depends on `starlayer.graph` (returns `StarLayerGraph` graphs) and `starlayer.shacl`.
+Allows access to ontology and shacl files as `StarLayerGraph` objects — call `.serialize(format='turtle12')` on the result for Turtle text.
 
 | Name | Kind | Returns | Description |
 |---|---|---|---|
 | `get_ontology_list()` | function | tuple[OntologyInfo, ...] | Every registered entry's metadata (`name`, `description`, `type`), sorted by name — see below |
 | `get_ontology_graph(name)` | function | StarLayerGraph | A fresh `StarLayerGraph` of the named entry — raises `KeyError` naming the valid choices for an unknown name |
-| `get_ontology_turtle12(name)` | function | str | The named entry, serialized as Turtle 1.2 text — `get_ontology_graph(name).serialize(format='turtle12')` |
 | `OntologyInfo` | class | — | One registry entry: `name`, `description`, `type` (`"shacl"` / `"ast-graph"` / `"owl"`) |
 
 Registered names (via `get_ontology_list()`):
@@ -435,3 +434,26 @@ Registered names (via `get_ontology_list()`):
 | `srl_owl` | ast-graph | Ontology for SPARQL-RL internal AST (`srl:`) |
 | `srl_shacl` | shacl | SHACL shapes validating an `srl:` graph |
 | `shacl_meta` | shacl | The SHACL 1.2 meta-shapes as SHACL shapes |
+
+### `starontology.manchester`
+
+Managing an OWL 2 Manchester Syntax document as its own rdf syntax tree using the starlayer specific `manch:` namespace.  Used to edit a Manchester document independent of the OWL semantics it compiles to.   
+
+| Name | Kind | Returns | Description |
+|---|---|---|---|
+| `parse_to_tree(text, base=None)` | function | Graph | Manchester text to a `manch:`encoded syntax tree |
+| `tree_to_text(graph)` | function | str | `manch:` syntax tree to Manchester text. 
+| `tree_to_owl(graph)` | function | StarLayerGraph | `manch:` syntax tree to an OWL graph |
+| `validate(data_graph)` | function | tuple[bool, Graph, str] | Structural SHACL validation of a `manch:` graph against `manchester_shapes.ttl` |
+
+Obtain the `manch:` ontology and shapes graphs from the registry using `starontology.get_ontology_graph("manchester_owl")` and  `get_ontology_graph("manchester_shacl")`.
+
+### `starontology.skos`
+
+Validating a SKOS thesaurus against the W3C SKOS Reference's own formal axioms and numbered integrity conditions. 
+
+| Name | Kind | Returns | Description |
+|---|---|---|---|
+| `validate(data_graph)` | function | tuple[bool, Graph, str] | Validate a `skos:` graph against `skos_shapes.ttl` |
+
+Obtain the `skos:` ontology and shapes graphs from the registry using `starontology.get_ontology_graph("skos_owl")` and `get_ontology_graph("skos_shacl")`.

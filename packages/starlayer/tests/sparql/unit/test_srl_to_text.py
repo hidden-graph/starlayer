@@ -1,11 +1,10 @@
-"""Tests for starlayer.sparql.srl_to_text.ruleset_to_text - the inverse of
-srl_grammar.parse_ruleset, working directly on the parsed dataclass tree
+"""Tests for starlayer.sparql.srl.ruleset_to_text - the inverse of
+parse_ruleset, working directly on the parsed dataclass tree
 (no RDF involved). Round-trip-focused: parse text -> render text -> parse
 again -> compare the two RuleSets by value.
 """
 
-from starlayer.sparql.srl_grammar import parse_ruleset
-from starlayer.sparql.srl_to_text import ruleset_to_text
+from starlayer.sparql.srl import parse_ruleset, ruleset_to_text
 
 WORKED_EXAMPLE_RULES = """
 PREFIX ex: <http://example.org/>
@@ -90,14 +89,14 @@ def test_imports_renders_and_reparses():
 
 
 def test_no_rdf_involved_at_all(monkeypatch):
-    """ruleset_to_text must not go through srl_to_rdf/srl_from_rdf at
-    all - confirm by breaking ruleset_to_rdf and checking rendering still
-    works."""
-    import starlayer.sparql.srl_to_rdf as srl_to_rdf_module
+    """ruleset_to_text must not go through ruleset_to_tree/tree_to_ruleset
+    (the RDF encode/decode pair) at all - confirm by breaking
+    ruleset_to_tree and checking rendering still works."""
+    import starlayer.sparql.srl as srl_module
 
     def _boom(*args, **kwargs):
-        raise AssertionError("ruleset_to_text must not call ruleset_to_rdf")
+        raise AssertionError("ruleset_to_text must not call ruleset_to_tree")
 
-    monkeypatch.setattr(srl_to_rdf_module, "ruleset_to_rdf", _boom)
+    monkeypatch.setattr(srl_module, "ruleset_to_tree", _boom)
     rs = parse_ruleset("PREFIX ex: <http://example.org/>\nRULE { ?x ex:p ?y } WHERE { ?x ex:q ?y . }")
     ruleset_to_text(rs)  # must not raise

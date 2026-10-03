@@ -1,4 +1,4 @@
-"""Tests for starlayer.ontology.registry - the "list/get an ontology"
+"""Tests for starlayer.registry.registry - the "list/get an ontology"
 catalog spanning manch:/skos:/salg: (from starlayer.graph and the sibling
 starlayer.sparql) and the SHACL 1.2 meta-shapes themselves (starlayer.shacl). Each
 OWL ontology and SHACL shapes file is its own independent registry entry
@@ -10,7 +10,7 @@ from rdflib import RDF, Graph, Literal
 from rdflib.namespace import SKOS
 
 from starlayer.graph import Namespace, StarLayerGraph
-from starlayer.ontology import Ontology, get_ontology, list_ontologies
+from starlayer.registry import Ontology, get_ontology, list_ontologies
 
 EX = Namespace('http://example.org/')
 

@@ -21,7 +21,7 @@
 1. SPARQL 1.2 query of starlayergraph.
 2. Starlayer specific RDF ontology for representing SPARQL queries. (`salg:` namespace)
 3. SHACL shapes for `salg:` graphs.
-4. SRL/SPARQL-RL (`WD-sparql12-rl-20260919`) - a Datalog-style rules language, general-purpose and SHACL-independent: parsing (`srl_grammar.py`, reusing rdflib's own SPARQL expression/terminal grammar directly), a `srl:` RDF-as-AST representation with a full round trip (`srl_vocab.py`/`srl_to_rdf.py`/`srl_from_rdf.py`), SHACL shapes over `srl:` graphs, the §4.2 well-formedness cross-referential check (`srl_semantic_checks.py`), and a full stratified Datalog evaluation engine (`srl_eval.py` - dependency graph, stratification, `evalRule`, top-level `Infer`/`Query`) verified end to end against the spec's own §6.6 worked example.
+4. SRL/SPARQL-RL (`WD-sparql12-rl-20260919`) - a Datalog-style rules language, general-purpose and SHACL-independent: parsing (`srl.py`, reusing rdflib's own SPARQL expression/terminal grammar directly), a `srl:` RDF-as-AST representation with a full round trip (also `srl.py`), SHACL shapes over `srl:` graphs, the §4.2 well-formedness cross-referential check (`srl_semantic_checks.py`), and a full stratified Datalog evaluation engine (`srl_eval.py` - dependency graph, stratification, `evalRule`, top-level `Infer`/`Query`) verified end to end against the spec's own §6.6 worked example.
 
 
 ### Manchester Syntax

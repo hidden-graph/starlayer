@@ -1,6 +1,7 @@
-"""Round-trip tests for starlayer.sparql.srl_to_rdf/srl_from_rdf - Phase 2 of the
-SRL implementation plan (see docs/functionality-overview.md): SRL text ->
-srl_ast (via srl_grammar) -> srl: RDF -> srl_ast again, compared by value.
+"""Round-trip tests for starlayer.sparql.srl's ruleset_to_tree/tree_to_ruleset -
+Phase 2 of the SRL implementation plan (see docs/functionality-overview.md):
+SRL text -> srl_ast (via parse_ruleset) -> srl: RDF -> srl_ast again,
+compared by value.
 
 Each case parses real SRL text (reusing test_srl_grammar.py's own worked-
 example fixtures where useful) rather than hand-building srl_ast trees
@@ -8,9 +9,7 @@ directly, so this also exercises the grammar and the encoder/decoder
 together as a real pipeline, not just the encoder in isolation.
 """
 
-from starlayer.sparql.srl_from_rdf import rdf_to_ruleset
-from starlayer.sparql.srl_grammar import parse_ruleset
-from starlayer.sparql.srl_to_rdf import ruleset_to_rdf
+from starlayer.sparql.srl import parse_ruleset, ruleset_to_tree, tree_to_ruleset
 
 # The spec's own §6.6 worked example (R1-R5) - duplicated from
 # test_srl_grammar.py rather than cross-imported, matching this project's
@@ -31,8 +30,8 @@ WHERE { ?x :status :criticallyExposed . }
 
 def _roundtrip(text):
     rs = parse_ruleset(text)
-    graph, root = ruleset_to_rdf(rs)
-    rs2 = rdf_to_ruleset(graph, root)
+    graph, root = ruleset_to_tree(rs)
+    rs2 = tree_to_ruleset(graph, root)
     return rs, rs2, graph
 
 
@@ -91,11 +90,12 @@ def test_blank_node_identity_preserved_across_roundtrip():
 
 
 def test_root_typed_as_ruleset():
-    from starlayer.sparql.srl_vocab import RULE_SET
     from rdflib import RDF
 
+    from starlayer.sparql.srl import RULE_SET
+
     rs = parse_ruleset("PREFIX : <http://example.org/>\nRULE { ?x :p ?y } WHERE { ?x :q ?y . }")
-    graph, root = ruleset_to_rdf(rs)
+    graph, root = ruleset_to_tree(rs)
     assert (root, RDF.type, RULE_SET) in graph
 
 

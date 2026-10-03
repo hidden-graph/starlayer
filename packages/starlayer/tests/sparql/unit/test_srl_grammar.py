@@ -1,4 +1,4 @@
-"""Tests for starlayer.sparql.srl_grammar.parse_ruleset - SRL/SPARQL-RL text
+"""Tests for starlayer.sparql.srl.parse_ruleset - SRL/SPARQL-RL text
 syntax parsing (WD-sparql12-rl-20260919 §7.6 grammar), Phase 1 of the SRL
 implementation plan (see docs/functionality-overview.md).
 
@@ -14,7 +14,7 @@ import pytest
 from rdflib import RDF, BNode, Literal, URIRef, Variable
 
 from starlayer.sparql import srl_ast
-from starlayer.sparql.srl_grammar import SRLParseError, parse_ruleset
+from starlayer.sparql.srl import SRLParseError, parse_ruleset
 
 EX = "http://example.org/"
 
@@ -68,7 +68,7 @@ def test_r3_filter_element():
     filter_elt = rule.body[2]
     assert isinstance(filter_elt, srl_ast.FilterElement)
     # The expression is a real rdflib Expr tree - reused as-is (see
-    # srl_vocab.py's docstring for why no bespoke SRL expression AST
+    # srl.py's docstring for why no bespoke SRL expression AST
     # exists); spot-check it evaluates as expected rather than trying to
     # match its internal CompValue shape exactly.
     from rdflib.plugins.sparql.evaluate import _ebv

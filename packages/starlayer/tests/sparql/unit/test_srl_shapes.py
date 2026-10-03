@@ -1,6 +1,6 @@
-"""Tests for starlayer.sparql.srl_shapes - structural SHACL shapes over
+"""Tests for starlayer.sparql.srl.validate - structural SHACL shapes over
 the srl: vocabulary. Valid srl: graphs (built via the real
-srl_grammar/srl_to_rdf pipeline, not hand-typed) conform; deliberately
+parse_ruleset/ruleset_to_tree pipeline, not hand-typed) conform; deliberately
 malformed graphs fail with a specific, expected violation - see
 packages/shacl/CLAUDE.md's testing-discipline note on verifying coverage
 adversarially, not just by existence.
@@ -12,9 +12,9 @@ from rdflib.collection import Collection
 
 pyshacl = pytest.importorskip("pyshacl")
 
-from starlayer.sparql.srl_shapes import validate_ruleset  # noqa: E402
-from starlayer.sparql.srl_grammar import parse_ruleset  # noqa: E402
-from starlayer.sparql.srl_to_rdf import ruleset_to_rdf  # noqa: E402
+from starlayer.sparql.srl import validate  # noqa: E402
+from starlayer.sparql.srl import parse_ruleset  # noqa: E402
+from starlayer.sparql.srl import ruleset_to_tree  # noqa: E402
 
 SRL = Namespace("https://github.com/hidden-graph/starsparql/ns/srl#")
 
@@ -35,8 +35,8 @@ DATA { :db :hasVulnerability :vuln1 . }
 
 def test_worked_example_conforms():
     rs = parse_ruleset(WORKED_EXAMPLE_RULES)
-    g, _root = ruleset_to_rdf(rs)
-    conforms, _report_graph, report_text = validate_ruleset(g)
+    g, _root = ruleset_to_tree(rs)
+    conforms, _report_graph, report_text = validate(g)
     assert conforms, report_text
 
 
@@ -46,8 +46,8 @@ def test_assignment_and_filter_roundtrip_conforms():
     RULE { ?x :flag true } WHERE DATA { ?x :severity ?s . SET (?y := ?s + 1) . FILTER(?y >= 9.0) }
     """
     rs = parse_ruleset(text)
-    g, _root = ruleset_to_rdf(rs)
-    conforms, _report_graph, report_text = validate_ruleset(g)
+    g, _root = ruleset_to_tree(rs)
+    conforms, _report_graph, report_text = validate(g)
     assert conforms, report_text
 
 
@@ -76,7 +76,7 @@ def test_rule_missing_body_is_rejected():
     Collection(g, rules_list, [rule])
     g.set((root, SRL.rules, rules_list))
 
-    conforms, _report_graph, _report_text = validate_ruleset(g)
+    conforms, _report_graph, _report_text = validate(g)
     assert conforms is False
 
 
@@ -102,7 +102,7 @@ def test_triple_pattern_with_literal_predicate_is_rejected():
     Collection(g, rules_list, [rule])
     g.set((root, SRL.rules, rules_list))
 
-    conforms, _report_graph, _report_text = validate_ruleset(g)
+    conforms, _report_graph, _report_text = validate(g)
     assert conforms is False
 
 
@@ -124,5 +124,5 @@ def test_body_list_rejects_a_non_body_element_member():
     Collection(g, rules_list, [rule])
     g.set((root, SRL.rules, rules_list))
 
-    conforms, _report_graph, _report_text = validate_ruleset(g)
+    conforms, _report_graph, _report_text = validate(g)
     assert conforms is False

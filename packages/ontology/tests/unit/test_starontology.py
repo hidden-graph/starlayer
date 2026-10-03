@@ -1,10 +1,10 @@
 """tests/unit/test_starontology.py
 
 starontology is pure data (eight .ttl files, plus the generated shacl_meta
-entry) behind a thin registry (get_ontology_list()/get_ontology_graph()/
-get_ontology_turtle12()) - this suite confirms every registered entry
-loads and parses, and the registry's own list/lookup/serialize behavior is
-correct. The underlying *_TTL_PATH constants are private as of 2026-10-02
+entry) behind a thin registry (get_ontology_list()/get_ontology_graph()) -
+this suite confirms every registered entry loads and parses, and the
+registry's own list/lookup behavior is correct. The underlying
+*_TTL_PATH constants are private as of 2026-10-02
 (internal to this module's own registry, not public API) - there's no
 dedicated "does the file exist" test anymore, since
 TestGetOntologyGraph::test_every_registered_name_loads_and_parses already
@@ -92,14 +92,3 @@ class TestGetOntologyGraph:
         assert type(g) is StarLayerGraph
 
 
-class TestGetOntologyTurtle12:
-    def test_returns_turtle_text_round_trippable(self):
-        text = starontology.get_ontology_turtle12("skos_shacl")
-        assert isinstance(text, str)
-        g = StarLayerGraph()
-        g.parse(data=text, format="turtle12")
-        assert len(g) == len(starontology.get_ontology_graph("skos_shacl"))
-
-    def test_unknown_name_raises_keyerror(self):
-        with pytest.raises(KeyError):
-            starontology.get_ontology_turtle12("not_a_real_name")

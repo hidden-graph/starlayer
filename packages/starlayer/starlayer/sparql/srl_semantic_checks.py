@@ -44,7 +44,7 @@ def _triple_vars(triple: srl_ast.TriplePattern) -> set[Variable]:
 def _expr_vars(expr) -> set[Variable]:
     """Every ``Variable`` leaf anywhere in a real rdflib ``Expr``/``CompValue``
     expression tree - the same generic ``algebra.traverse`` walk
-    ``srl_grammar.py`` already uses for prefixed-name resolution, here just
+    ``srl.py`` already uses for prefixed-name resolution, here just
     observing rather than rewriting (``visitPost`` always returns ``None``,
     so the tree itself is left unchanged)."""
     found: set[Variable] = set()

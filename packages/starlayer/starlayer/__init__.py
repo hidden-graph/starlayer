@@ -39,16 +39,19 @@ from .graph import (
 )
 from .shacl import StarLayerShacl
 
-# Exposes the ontology/shapes registry as starlayer.ontology.* without a
-# caller needing a separate `import starlayer.ontology` - e.g.
-# `starlayer.ontology.list_ontologies()` works right after a plain `import
+# Exposes the ontology/shapes registry as starlayer.registry.* without a
+# caller needing a separate `import starlayer.registry` - e.g.
+# `starlayer.registry.list_ontologies()` works right after a plain `import
 # starlayer`. Lives here (not nested under .graph/.sparql/.shacl) because it
 # genuinely cuts across all three - see its own registry module's docstring.
-# Safe to import eagerly: starlayer.ontology itself only eagerly imports
+# Renamed from starlayer.ontology (2026-10-03) - it holds no ontology
+# content of its own, just a name-based lookup over where each vocabulary's
+# own graph()/validate() actually live.
+# Safe to import eagerly: starlayer.registry itself only eagerly imports
 # starontology (a leaf dependency, no cycle); its own graph/sparql/shacl
 # imports are lazy (inside functions) precisely to avoid a circular-import
 # deadlock.
-import starlayer.ontology as ontology
+import starlayer.registry as registry
 
 __all__ = [
     "BNode",

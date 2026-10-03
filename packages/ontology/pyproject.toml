@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "ontology"
 version = "0.1.0"
-description = "Raw ontology/SHACL-shapes .ttl files (manch:, skos:, salg:, srl:), loaded as StarLayerGraph instances"
+description = "Ontology/SHACL-shapes .ttl files (manch:, skos:, salg:, srl:), loaded as StarLayerGraph instances - plus, for vocabularies that are fundamentally about editing ontologies (manch: today), the parse/serialize/validate logic for managing them as syntax trees"
 readme = { file = "README.md", content-type = "text/markdown" }
 license = { file = "LICENSE" }
 authors = [

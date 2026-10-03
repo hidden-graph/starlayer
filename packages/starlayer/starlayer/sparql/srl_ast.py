@@ -17,9 +17,9 @@ minted. A triple pattern/template's subject/object may additionally be a
 ``starlayer.sparql.triple_term.TripleTermNode`` (RDF 1.2 triple term) per the
 spec's own grammar (productions 25-46 "Data", 47-60 "Template", 61-82
 "Pattern" all admit reified-triple/triple-term syntax structurally
-identical to Turtle 1.2's own) - **not yet parsed by ``srl_grammar.py``**
+identical to Turtle 1.2's own) - **not yet parsed by ``srl.py``**
 (see that module's own docstring for the explicit scope note); the field
-type already allows it so decoding (``srl_from_rdf.py``) and the AST-as-RDF
+type already allows it so decoding (``srl.py``) and the AST-as-RDF
 round trip need no follow-up widening once grammar support for it lands.
 """
 
@@ -33,7 +33,7 @@ from rdflib.plugins.sparql.parserutils import Expr
 from .triple_term import TripleTermNode
 
 # VarOrRDFTerm (template/pattern position) - a Variable, an ordinary ground
-# RDF term, or (per the spec's grammar, not yet emitted by srl_grammar.py -
+# RDF term, or (per the spec's grammar, not yet emitted by srl.py -
 # see module docstring) a triple term.
 Term = Variable | URIRef | BNode | Literal | TripleTermNode
 
@@ -67,7 +67,7 @@ TripleTemplate = TriplePattern
 class FilterElement:
     """§4.1 "Filter element" - ``filter.expr``, a boolean-valued SPARQL 1.2
     expression. ``expr`` is a real rdflib ``Expr``/``CompValue`` tree,
-    produced by ``srl_grammar.py`` reusing rdflib's own ``Constraint``/
+    produced by ``srl.py`` reusing rdflib's own ``Constraint``/
     ``Expression`` productions unmodified (see that module's docstring) -
     not a bespoke SRL expression AST.
     """

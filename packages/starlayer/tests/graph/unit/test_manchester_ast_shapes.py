@@ -15,24 +15,25 @@ import pytest
 from rdflib import RDF, BNode
 from rdflib.collection import Collection
 
-from starlayer.ontology import manchester_shapes as ms
-from starlayer.ontology.to_ast_rdf import MANCH, parse_manchester_ast
+import starontology
+from starontology import manchester as ms
+from starontology.manchester import MANCH, parse_to_tree
 
 from tests.graph.unit.test_manchester_ast import DOCUMENTS
 
 
 @pytest.mark.parametrize('text', DOCUMENTS)
 def test_valid_documents_conform(text):
-    graph, root = parse_manchester_ast(text)
+    graph = parse_to_tree(text)
     conforms, _, results_text = ms.validate(graph)
     assert conforms, results_text
 
 
 def test_shapes_graph_is_valid_shacl_and_reusable():
-    # shapes_graph() must hand back an independent copy each call - pyshacl
-    # mutates the shapes graph it's given during validation.
-    g1 = ms.shapes_graph()
-    g2 = ms.shapes_graph()
+    # get_ontology_graph() must hand back an independent copy each call -
+    # pyshacl mutates the shapes graph it's given during validation.
+    g1 = starontology.get_ontology_graph("manchester_shacl")
+    g2 = starontology.get_ontology_graph("manchester_shacl")
     assert g1 is not g2
     assert len(g1) == len(g2) > 0
 
@@ -45,14 +46,14 @@ def _encode_data_prop_range():
         '    Domain: Person\n'
         '    Range: xsd:integer\n'
     )
-    return parse_manchester_ast(text)
+    return parse_to_tree(text)
 
 
 def test_wrong_item_type_under_data_prop_range_clause_fails():
     """A DataPropRangeClause's item must hold a manch:DataRange, not a
     manch:ClassExpression - the exact bug the missing sh:targetClass
     declarations let through undetected before being fixed."""
-    graph, root = _encode_data_prop_range()
+    graph = _encode_data_prop_range()
     clause = next(graph.subjects(RDF.type, MANCH.DataPropRangeClause))
     items_list = next(graph.objects(clause, MANCH.items))
     item = next(Collection(graph, items_list).__iter__())
@@ -81,7 +82,7 @@ def test_misc_axiom_item_of_wrong_family_fails():
         'Prefix: : <http://example.org/>\n'
         'EquivalentClasses: Cat, Feline\n'
     )
-    graph, root = parse_manchester_ast(text)
+    graph = parse_to_tree(text)
     misc = next(graph.subjects(RDF.type, MANCH.MiscEquivalentClassesAxiom))
     items_list = next(graph.objects(misc, MANCH.items))
     coll = Collection(graph, items_list)
@@ -98,7 +99,7 @@ def test_misc_axiom_item_of_wrong_family_fails():
 def test_broken_mid_chain_rdf_list_fails():
     """A rdf:List missing rdf:first partway through must fail the generic
     WellFormedListShape check - not just at the head."""
-    graph, root = _encode_data_prop_range()
+    graph = _encode_data_prop_range()
     clause = next(graph.subjects(RDF.type, MANCH.DataPropDomainClause))
     items_list = next(graph.objects(clause, MANCH.items))
     rest = next(graph.objects(items_list, RDF.rest), None)

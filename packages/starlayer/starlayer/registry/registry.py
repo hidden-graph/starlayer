@@ -1,5 +1,5 @@
 """
-starlayer.ontology.registry
+starlayer.registry.registry
 
 A registry of every ontology/SHACL-shapes file this stack ships (manch:/
 skos:/salg:/srl:, plus the SHACL 1.2 meta-shapes themselves), so a caller
@@ -27,9 +27,11 @@ more than the others. (Before the 2026-09-30 package consolidation, when
 packages, this registry lived in `starlayergraph` specifically, as the one
 package with a dependency on the other two - that rationale no longer
 applies now that `.graph`/`.sparql`/`.shacl` are siblings under one real
-package.) Exposed as `starlayer.ontology.list_ontologies()`/
+package.) Exposed as `starlayer.registry.list_ontologies()`/
 `get_ontology()` directly, without a caller needing a separate `import
-starlayer.ontology` - see `starlayer/__init__.py`.
+starlayer.registry` - see `starlayer/__init__.py`. Renamed from
+`starlayer.ontology` (2026-10-03) - "ontology" overclaimed what this module
+holds (nothing - it's a pure lookup table, not ontology content itself).
 
 **The raw `.ttl` files themselves live in the sibling `starontology`
 package** (`packages/ontology`), not here - one place to edit them,
@@ -85,32 +87,32 @@ class Ontology:
 
 
 def _manchester_owl_graph() -> Graph:
-    from starlayer.ontology import ontology_graph
-    return ontology_graph()
+    import starontology
+    return starontology.get_ontology_graph("manchester_owl")
 
 
 def _manchester_shacl_graph() -> Graph:
-    from starlayer.ontology.manchester_shapes import shapes_graph
-    return shapes_graph()
+    import starontology
+    return starontology.get_ontology_graph("manchester_shacl")
 
 
 def _manchester_shacl_validate(data_graph: Any, **kwargs: Any) -> tuple[bool, Any, str]:
-    from starlayer.ontology.manchester_shapes import validate
-    return validate(data_graph, **kwargs)
+    import starontology.manchester
+    return starontology.manchester.validate(data_graph, **kwargs)
 
 
 def _skos_owl_graph() -> Graph:
-    from starlayer.ontology import skos_ontology_graph
-    return skos_ontology_graph()
+    import starontology
+    return starontology.get_ontology_graph("skos_owl")
 
 
 def _skos_shacl_graph() -> Graph:
-    from starlayer.ontology.skos_shapes import shapes_graph
-    return shapes_graph()
+    import starontology
+    return starontology.get_ontology_graph("skos_shacl")
 
 
 def _skos_shacl_validate(data_graph: Any, **kwargs: Any) -> tuple[bool, Any, str]:
-    from starlayer.ontology.skos_shapes import validate
+    from starontology.skos import validate
     return validate(data_graph, **kwargs)
 
 
@@ -135,13 +137,13 @@ def _srl_owl_graph() -> Graph:
 
 
 def _srl_shacl_graph() -> Graph:
-    from starlayer.sparql.srl_shapes import shapes_graph
-    return shapes_graph()
+    import starontology
+    return starontology.get_ontology_graph("srl_shacl")
 
 
 def _srl_shacl_validate(data_graph: Any, **kwargs: Any) -> tuple[bool, Any, str]:
-    from starlayer.sparql.srl_shapes import validate_ruleset
-    return validate_ruleset(data_graph, **kwargs)
+    from starlayer.sparql.srl import validate
+    return validate(data_graph, **kwargs)
 
 
 def _shacl_meta_graph() -> Graph:

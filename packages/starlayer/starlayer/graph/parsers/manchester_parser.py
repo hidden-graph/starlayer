@@ -273,7 +273,7 @@ class _Cursor:
 
     # -- AST-capture hooks ---------------------------------------------------
     # No-ops by default, so ordinary OWL-semantic parsing (parse_manchester())
-    # is completely unaffected. starlayer.ontology.to_ast_rdf overrides
+    # is completely unaffected. starontology.manchester overrides
     # these on a _Cursor subclass to record the surface grammar (frames,
     # clauses, their already-parsed-but-not-yet-compiled item lists) as RDF,
     # alongside - not instead of - the OWL semantic triples every clause

@@ -1,4 +1,4 @@
-"""Tests for starlayer.ontology.skos_shapes / skos-ontology.ttl.
+"""Tests for starontology.skos / skos-ontology.ttl.
 
 Unlike the manch:/salg: vocabularies, SKOS needs no encode/decode/round-trip
 layer - a SKOS thesaurus is already plain RDF the moment it's authored - so
@@ -20,8 +20,12 @@ from rdflib import RDF, BNode, Graph, Literal, Namespace
 from rdflib.collection import Collection
 from rdflib.namespace import SKOS
 
-from starlayer.ontology import skos_ontology_graph
-from starlayer.ontology import skos_shapes as ss
+import starontology
+from starontology import skos as ss
+
+
+def skos_ontology_graph():
+    return starontology.get_ontology_graph("skos_owl")
 
 EX = Namespace("http://example.org/")
 
@@ -242,7 +246,7 @@ def test_concept_with_preflabel_has_no_recommendation_in_report():
 
 
 def test_shapes_graph_is_valid_shacl_and_reusable():
-    g1 = ss.shapes_graph()
-    g2 = ss.shapes_graph()
+    g1 = starontology.get_ontology_graph("skos_shacl")
+    g2 = starontology.get_ontology_graph("skos_shacl")
     assert g1 is not g2
     assert len(g1) == len(g2) > 0

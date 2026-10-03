@@ -21,7 +21,7 @@ project's implementation plan for the full reasoning):
   incoming solution per run instead of one per triple pattern.
 - §6.3's ``evalFunction``/``EBV`` are exactly rdflib's own expression-tree
   evaluation (``Expr.eval(ctx)``) and ``rdflib.plugins.sparql.evaluate
-  ._ebv`` - reused directly, since ``srl_grammar.py`` already builds
+  ._ebv`` - reused directly, since ``srl.py`` already builds
   ``filter.expr``/``assign.expr`` as real rdflib ``Expr`` trees (see that
   module's docstring).
 

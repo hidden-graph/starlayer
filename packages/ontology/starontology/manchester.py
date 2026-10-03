@@ -1,40 +1,101 @@
-"""
-starlayer.ontology.to_ast_rdf
+"""starontology.manchester
 
-Encode/decode an OWL Manchester Syntax document's own internal AST (frames,
-clauses, class/property expressions, data ranges) as RDF, using the
-``manch:`` vocabulary in ``manchester-ast-ontology.ttl`` - mirroring the
-sibling ``starlayer.sparql`` package's ``salg:``/``to_rdf.py``/``from_rdf.py``
-design for SPARQL query algebra (see that package's own module docstrings
-for the design principles this deliberately follows: one dispatch
-superclass per family, no ``rdfs:domain``/``range`` on properties reused
-across heterogeneous node types, ``rdf:List`` structural checks via a
-single ``sh:sparql`` constraint rather than a recursive ``NodeShape`` - see
-``manchester_shapes.py``/``.ttl`` for where those apply here).
+Everything about managing an OWL 2 Manchester Syntax document as its own
+syntax tree, independent of the compiled OWL semantics it maps to - and the
+ontology/SHACL-shapes files that tree representation is validated against.
+Moved here (2026-10-03) from starlayer.ontology.to_ast_rdf/manchester_shapes,
+on the reasoning that Manchester-tree editing is an *ontology-management*
+concern (same bucket as starontology itself), not a starlayer.graph concern -
+the OWL-compiling parser/serializer pair (StarLayerGraph.parse()/.serialize()
+format='manchester') stays in starlayer.graph, unaffected by this move; only
+the tree layer and its own validation moved.
 
-Three entry points:
+Four entry points:
 
-- ``parse_manchester_ast(text, base=None) -> (Graph, root)`` - parse
-  Manchester text straight to its ``manch:``-encoded AST, reusing
-  ``manchester_parser.py``'s own tokenizer/frame/clause/expression-parsing
-  functions completely unchanged (via a ``_Cursor`` subclass overriding its
-  no-op AST-capture hooks - see that module's own comments on
-  ``_Cursor.record_frame``/``record_clause``/etc, and its module docstring's
-  own note that this is a genuinely additive refactor, verified by the
-  existing ``test_manchester_parser.py`` suite passing unmodified).
-- ``rdf_ast_to_manchester_ast(graph, root) -> Document`` - decode a
-  ``manch:``-shaped RDF graph back into a real ``Document`` object (the
-  same tagged-tuple AST ``manchester_parser.py``'s own ``And``/``Or``/
-  ``Some``/... functions already build for expressions/data ranges, plus
-  lightweight ``Frame``/``Clause``/``ClauseItem`` namedtuples for the
-  frame/clause half, which has no such tuple form today).
-- ``manchester_ast_to_text(document) -> str`` - render a ``Document`` back
-  to real Manchester Syntax text. Genuinely new code, not adapted from
-  ``serializers/manchester.py`` - that module decodes the *final OWL
-  semantic RDF* (confirmed lossy and the wrong input for this purpose: it
-  can't recover ``onlysome``/``SuperClassOf:`` spelling/list order, none of
-  which survives into OWL RDF-mapping triples) - only its *style*
-  (priority-ordered predicate dispatch, recurse) carries over as a pattern.
+- ``parse_to_tree(text, base=None) -> Graph`` - parse Manchester text
+  straight to its ``manch:``-encoded syntax tree, reusing
+  ``starlayer.graph.parsers.manchester_parser``'s own tokenizer/frame/
+  clause/expression-parsing functions completely unchanged (via a
+  ``_Cursor`` subclass overriding its no-op AST-capture hooks - see that
+  module's own comments on ``_Cursor.record_frame``/``record_clause``/etc).
+  Returns just the graph, not a ``(graph, root)`` tuple (changed
+  2026-10-03) - every graph this produces holds exactly one
+  ``manch:Document`` node (there's no ``graph=`` parameter to merge
+  several into one shared graph, unlike ``srl.ruleset_to_tree()``'s real
+  ``salg:QueryCollection``-style use case), so ``_find_root()`` locates it
+  internally wherever it's needed instead of making every caller carry it
+  around separately.
+- ``tree_to_text(graph) -> str`` - the inverse: render ``manch:`` tree-RDF
+  back to real Manchester Syntax text.
+- ``tree_to_owl(graph) -> StarLayerGraph`` - the tree's compiled OWL
+  content, as a real graph (not a bare ``list[tuple]``, changed
+  2026-10-03) - by composing ``tree_to_text()`` with
+  ``manchester_parser.parse_manchester()`` (the real, trusted OWL compiler)
+  and adding the result into a fresh ``StarLayerGraph``, the same way
+  ``StarLayerGraph.parse(format='manchester')`` already populates one.
+  Going through text here is safe, not a shortcut-that-loses-fidelity:
+  ``tree_to_text()`` is a fully faithful renderer of everything this module
+  captures, so nothing is lost before the OWL compiler sees it.
+- ``validate(data_graph) -> (conforms, report_graph, report_text)`` -
+  structural SHACL validation of a ``manch:`` graph (e.g. straight out of
+  ``parse_to_tree()``, or LLM-authored, not yet decoded) against the shapes
+  in ``manchester_shapes.ttl``. Only needs the tree being checked - which
+  shapes to check it against is this module's own, fixed concern.
+
+**Editing is meant to happen on the tree-RDF itself (plain graph surgery -
+``graph.add()``/``.remove()``), not on a Python object.** ``_tree_to_document()``/
+``_document_to_text()`` (private - were public until 2026-10-03) decode/render
+through an intermediate ``Document`` namedtuple-of-namedtuples; ``tree_to_text()``
+still composes them internally; since there's exactly one way into this
+module (``parse_to_tree``) and one way out (``tree_to_text``/``tree_to_owl``),
+there's no legitimate public use for a bare ``Document`` object in between -
+unlike SRL's ``RuleSet`` (see ``starlayer.sparql.srl``'s own docstring),
+which is a real, independently-useful object other code consumes directly,
+``Document`` only ever existed as a decode artifact of this module's own
+text renderer.
+
+**No public ``ontology_graph()``/``shapes_graph()`` here** (removed
+2026-10-03, matching the same decision for ``srl:``) - a caller who wants
+the raw ``manch:`` ontology/shapes graphs themselves can already get them
+from the registry: ``get_ontology_graph("manchester_owl")`` /
+``get_ontology_graph("manchester_shacl")`` return the graph directly, or
+``starlayer.registry.get_ontology("manchester_owl")`` /
+``get_ontology("manchester_shacl")`` then ``.graph()`` for the same graph
+plus the registry's own metadata (``.description``/``.namespace``/
+``.kind``) and, for the shacl entry, a bundled ``.validate()``. Exposing a
+third path to the exact same two graphs here would just be another way to
+do what these two already do.
+``validate()`` calls ``get_ontology_graph()`` directly inline - unlike
+``srl.validate()``, there's no combining-with-another-vocabulary's-shapes
+logic for ``manch:`` to even privately wrap.
+
+**Why this module imports ``starlayer`` at all, despite starontology's own
+general "pure data, no logic" design (see this package's own
+``__init__.py`` docstring)**: that principle covers the *package's shared
+loader* (``get_ontology_graph()`` etc, which stays data-only), not every
+submodule under it - Manchester genuinely needs real logic (a parser/
+renderer/validator) and a home outside ``starlayer``'s own top level (see
+the design discussion this followed), and ``starontology`` was the agreed
+home for it. ``srl:`` is expected to join it here eventually, once the
+sibling ``starlayer.sparql`` package (where it currently lives, interleaved
+with ``salg:``/``sast:``'s shared internals) gets its own pass.
+
+**Why the ``starlayer.graph`` imports below are all deferred inside function
+bodies, never at this module's own top level**: a top-level
+``from starlayer.graph... import ...`` here would trigger ``starlayer``'s
+own ``__init__.py`` import chain, which (depending on exactly what's being
+imported and in what order) can read back into ``starontology`` before this
+module has finished its own initial load - the same circular-import
+deadlock class ``starontology/__init__.py``'s own ``_load()``/
+``_load_shacl_meta()`` were already fixed to avoid. Rather than relying on
+today's particular ``starlayer/__init__.py`` import order happening to make
+a top-level import safe (fragile - a reordering there would silently
+reintroduce the deadlock), every cross-package import here stays deferred
+inside the function that needs it, exactly like those two loaders. This is
+also why ``_AstCursor`` (which needs ``_Cursor`` as a base class at
+class-definition time) is defined *inside* ``parse_to_tree()`` rather than
+at module scope, and why the characteristic/data-facet reverse-lookup maps
+are built lazily on first use rather than at import time.
 
 **Fidelity scope, confirmed with the user before building this**: matches
 ``manchester_parser.py``'s own internal AST exactly - ``onlysome``/``that``/
@@ -45,19 +106,18 @@ this module ever sees them), the same bar ``salg:`` itself holds for SPARQL
 
 from __future__ import annotations
 
+import warnings
 from collections import namedtuple
+from typing import TYPE_CHECKING
 
 from rdflib import BNode, Graph, Literal, Namespace, URIRef
 from rdflib.collection import Collection
 from rdflib.namespace import RDF, XSD
 
-from starlayer.graph.parsers.manchester_parser import (
-    _Cursor,
-    _parse_misc,
-    _tokenize,
-    _CHARACTERISTICS,
-    _DATA_FACETS,
-)
+from . import get_ontology_graph
+
+if TYPE_CHECKING:
+    from starlayer.graph import StarLayerGraph
 
 MANCH = Namespace("https://github.com/hidden-graph/starlayergraph/ns/manchester-ast#")
 
@@ -167,8 +227,21 @@ def _build_reverse_maps():
 
 _FRAME_CLASS_TO_KIND, _CLAUSE_CLASS_TO_KIND, _MISC_CLASS_TO_KEYWORD = _build_reverse_maps()
 
-_CHARACTERISTICS_INV = {v: k for k, v in _CHARACTERISTICS.items()}
-_DATA_FACETS_INV = {v: k for k, v in _DATA_FACETS.items()}
+# Built lazily on first use (_inverse_characteristic_maps()), not here at
+# import time - these come from starlayer.graph.parsers.manchester_parser,
+# and this module's cross-package imports all stay deferred; see the module
+# docstring's own explanation.
+_characteristics_inv: dict | None = None
+_data_facets_inv: dict | None = None
+
+
+def _inverse_characteristic_maps():
+    global _characteristics_inv, _data_facets_inv
+    if _characteristics_inv is None:
+        from starlayer.graph.parsers.manchester_parser import _CHARACTERISTICS, _DATA_FACETS
+        _characteristics_inv = {v: k for k, v in _CHARACTERISTICS.items()}
+        _data_facets_inv = {v: k for k, v in _DATA_FACETS.items()}
+    return _characteristics_inv, _data_facets_inv
 
 
 # ---------------------------------------------------------------------------
@@ -419,90 +492,102 @@ def _encode_clause_items(g, clause_class, frame_kind, clause_kind, items):
 
 
 # ---------------------------------------------------------------------------
-# Encode - _Cursor subclass overriding the AST-capture hooks
+# Encode - parse_to_tree() + a _Cursor subclass overriding the
+# AST-capture hooks. The subclass is defined inside parse_to_tree() itself,
+# not at module scope, since its base class (_Cursor) is only available
+# once starlayer.graph.parsers.manchester_parser is imported - deferred
+# here for the circular-import reason this module's own docstring explains.
 # ---------------------------------------------------------------------------
 
-class _AstCursor(_Cursor):
-    def __init__(self, tokens, base):
-        super().__init__(tokens, base)
-        self.ast_graph = Graph()
-        self.ast_graph.bind('manch', MANCH)
-        self._prefix_nodes = []
-        self._header_node = None
-        self._frame_nodes = []
-        self._misc_nodes = []
-        self._current_frame_node = None
-        self._current_frame_class = None
-        self._current_frame_clause_nodes = None
-
-    def record_prefix(self, prefix, iri):
-        g = self.ast_graph
-        node = BNode()
-        g.add((node, RDF.type, MANCH.PrefixDecl))
-        g.add((node, MANCH.prefixLabel, Literal(prefix, datatype=MANCH.PyStr)))
-        g.add((node, MANCH.prefixIri, Literal(iri)))
-        self._prefix_nodes.append(node)
-
-    def record_ontology_header(self, iri, imports):
-        g = self.ast_graph
-        node = BNode()
-        g.add((node, RDF.type, MANCH.OntologyHeader))
-        if iri is not None:
-            g.add((node, MANCH.ontologyIri, iri))
-        g.add((node, MANCH.imports, _build_rdf_list(g, list(imports))))
-        self._header_node = node
-
-    def record_frame(self, kind, subject):
-        g = self.ast_graph
-        node = BNode()
-        frame_class = _FRAME_CLASS[kind]
-        g.add((node, RDF.type, frame_class))
-        g.add((node, MANCH.subject, subject))
-        self._current_frame_node = node
-        self._current_frame_class = frame_class
-        self._current_frame_clause_nodes = []
-        self._frame_nodes.append(node)
-
-    def record_clause(self, frame_kind, clause_kind, items):
-        g = self.ast_graph
-        clause_class = _CLAUSE_CLASS[(frame_kind, clause_kind)]
-        node = BNode()
-        g.add((node, RDF.type, clause_class))
-        item_nodes = _encode_clause_items(g, clause_class, frame_kind, clause_kind, items)
-        g.add((node, MANCH.items, _build_rdf_list(g, item_nodes)))
-        if clause_kind in _REVERSED_CLAUSE_KEYWORDS:
-            g.add((node, MANCH.reversed, Literal(True)))
-        self._current_frame_clause_nodes.append(node)
-
-    def record_frame_end(self):
-        g = self.ast_graph
-        g.add((self._current_frame_node, MANCH.clauses,
-                _build_rdf_list(g, self._current_frame_clause_nodes)))
-        self._current_frame_node = None
-        self._current_frame_clause_nodes = None
-
-    def record_misc(self, keyword, items):
-        g = self.ast_graph
-        misc_class = _MISC_CLASS[keyword]
-        node = BNode()
-        g.add((node, RDF.type, misc_class))
-        value_kind = _MISC_VALUE_KIND[misc_class]
-        item_nodes = [_encode_value(g, value_kind, v) for v in items]
-        g.add((node, MANCH.items, _build_rdf_list(g, item_nodes)))
-        self._misc_nodes.append(node)
+def _find_root(graph: Graph) -> BNode:
+    """The ``manch:Document`` node in ``graph`` - every graph this module
+    produces (``parse_to_tree()`` always builds a fresh ``Graph()``, never
+    merges into a caller-supplied one) holds exactly one, so callers never
+    need to track it separately themselves."""
+    return next(graph.subjects(RDF.type, MANCH.Document))
 
 
-def parse_manchester_ast(text: str, base: str | None = None) -> tuple[Graph, BNode]:
-    """Parse Manchester Syntax text straight to its ``manch:``-encoded AST.
+def parse_to_tree(text: str, base: str | None = None) -> Graph:
+    """Parse Manchester Syntax text straight to its ``manch:``-encoded
+    syntax tree.
 
     Reuses ``manchester_parser.py``'s own tokenizer, frame/clause dispatch,
     and expression/data-range grammar completely unchanged - only the
-    (already no-op-by-default) AST-capture hooks are overridden, via
-    ``_AstCursor``. See this module's own docstring for the exact fidelity
-    scope (matches the parser's existing internal AST, not raw text).
-
-    Returns ``(graph, root)`` where ``root`` is the ``manch:Document`` node.
+    (already no-op-by-default) AST-capture hooks are overridden. See this
+    module's own docstring for the exact fidelity scope (matches the
+    parser's existing internal AST, not raw text).
     """
+    from starlayer.graph.parsers.manchester_parser import _Cursor, _tokenize
+
+    class _AstCursor(_Cursor):
+        def __init__(self, tokens, base):
+            super().__init__(tokens, base)
+            self.ast_graph = Graph()
+            self.ast_graph.bind('manch', MANCH)
+            self._prefix_nodes = []
+            self._header_node = None
+            self._frame_nodes = []
+            self._misc_nodes = []
+            self._current_frame_node = None
+            self._current_frame_class = None
+            self._current_frame_clause_nodes = None
+
+        def record_prefix(self, prefix, iri):
+            g = self.ast_graph
+            node = BNode()
+            g.add((node, RDF.type, MANCH.PrefixDecl))
+            g.add((node, MANCH.prefixLabel, Literal(prefix, datatype=MANCH.PyStr)))
+            g.add((node, MANCH.prefixIri, Literal(iri)))
+            self._prefix_nodes.append(node)
+
+        def record_ontology_header(self, iri, imports):
+            g = self.ast_graph
+            node = BNode()
+            g.add((node, RDF.type, MANCH.OntologyHeader))
+            if iri is not None:
+                g.add((node, MANCH.ontologyIri, iri))
+            g.add((node, MANCH.imports, _build_rdf_list(g, list(imports))))
+            self._header_node = node
+
+        def record_frame(self, kind, subject):
+            g = self.ast_graph
+            node = BNode()
+            frame_class = _FRAME_CLASS[kind]
+            g.add((node, RDF.type, frame_class))
+            g.add((node, MANCH.subject, subject))
+            self._current_frame_node = node
+            self._current_frame_class = frame_class
+            self._current_frame_clause_nodes = []
+            self._frame_nodes.append(node)
+
+        def record_clause(self, frame_kind, clause_kind, items):
+            g = self.ast_graph
+            clause_class = _CLAUSE_CLASS[(frame_kind, clause_kind)]
+            node = BNode()
+            g.add((node, RDF.type, clause_class))
+            item_nodes = _encode_clause_items(g, clause_class, frame_kind, clause_kind, items)
+            g.add((node, MANCH.items, _build_rdf_list(g, item_nodes)))
+            if clause_kind in _REVERSED_CLAUSE_KEYWORDS:
+                g.add((node, MANCH.reversed, Literal(True)))
+            self._current_frame_clause_nodes.append(node)
+
+        def record_frame_end(self):
+            g = self.ast_graph
+            g.add((self._current_frame_node, MANCH.clauses,
+                    _build_rdf_list(g, self._current_frame_clause_nodes)))
+            self._current_frame_node = None
+            self._current_frame_clause_nodes = None
+
+        def record_misc(self, keyword, items):
+            g = self.ast_graph
+            misc_class = _MISC_CLASS[keyword]
+            node = BNode()
+            g.add((node, RDF.type, misc_class))
+            value_kind = _MISC_VALUE_KIND[misc_class]
+            item_nodes = [_encode_value(g, value_kind, v) for v in items]
+            g.add((node, MANCH.items, _build_rdf_list(g, item_nodes)))
+            self._misc_nodes.append(node)
+
     cur = _AstCursor(_tokenize(text), base)
     _run_top_level(cur)
 
@@ -514,7 +599,7 @@ def parse_manchester_ast(text: str, base: str | None = None) -> tuple[Graph, BNo
         g.add((root, MANCH.header, cur._header_node))
     g.add((root, MANCH.frames, _build_rdf_list(g, cur._frame_nodes)))
     g.add((root, MANCH.misc, _build_rdf_list(g, cur._misc_nodes)))
-    return g, root
+    return g
 
 
 def _run_top_level(cur):
@@ -587,15 +672,15 @@ def _run_top_level(cur):
         elif word in ('EquivalentClasses:', 'DisjointClasses:', 'EquivalentProperties:',
                       'DisjointProperties:', 'SameIndividual:', 'DifferentIndividuals:'):
             cur.advance()
-            _parse_misc(cur, word)
+            _mp._parse_misc(cur, word)
         else:
             cur.error(f'expected a Prefix:/Ontology:/frame/Misc-axiom keyword, got {word!r}')
 
 
 # ---------------------------------------------------------------------------
 # Decode - real AST objects, mirroring manchester_parser.py's own tagged
-# tuples for expressions/data ranges, plus new lightweight namedtuples for
-# the frame/clause half (which has no such tuple form in the parser today).
+# tuples for expressions/data ranges, plus lightweight namedtuples for the
+# frame/clause half (which has no such tuple form in the parser itself).
 # ---------------------------------------------------------------------------
 
 Document = namedtuple('Document', ['prefixes', 'header', 'frames', 'misc'])
@@ -753,10 +838,10 @@ def _decode_misc(g, node):
     return Clause(keyword, items)
 
 
-def rdf_ast_to_manchester_ast(graph: Graph, root) -> Document:
+def _tree_to_document(graph: Graph, root) -> Document:
     """Decode a ``manch:``-shaped RDF graph back into a real ``Document``
     object. ``root`` must be the ``manch:Document`` node, as returned by
-    ``parse_manchester_ast``."""
+    ``parse_to_tree``."""
     prefixes = [PrefixDecl(str(graph.value(n, MANCH.prefixLabel)), str(graph.value(n, MANCH.prefixIri)))
                 for n in _read_rdf_list(graph, graph.value(root, MANCH.prefixes))]
     header_node = graph.value(root, MANCH.header)
@@ -771,9 +856,9 @@ def rdf_ast_to_manchester_ast(graph: Graph, root) -> Document:
 
 
 # ---------------------------------------------------------------------------
-# Document -> Manchester Syntax text (new, from-scratch serializer - the
-# literal inverse of manchester_parser.py's own tuple vocabulary, not
-# adapted from serializers/manchester.py - see this module's own docstring)
+# Document -> Manchester Syntax text (from-scratch serializer - the literal
+# inverse of manchester_parser.py's own tuple vocabulary, not adapted from
+# starlayer.graph.serializers.manchester - see this module's own docstring)
 # ---------------------------------------------------------------------------
 
 def _render_name(node) -> str:
@@ -857,7 +942,8 @@ def _render_data_range(dr, top: bool = True) -> str:
         return '{' + ', '.join(_render_value(lit) for lit in dr[1]) + '}'
     if tag == 'DRestriction':
         _, datatype, facets = dr
-        facet_strs = [f'{_DATA_FACETS_INV[facet_uri]} {_render_value(lit)}' for facet_uri, lit in facets]
+        _, data_facets_inv = _inverse_characteristic_maps()
+        facet_strs = [f'{data_facets_inv[facet_uri]} {_render_value(lit)}' for facet_uri, lit in facets]
         return f'{_render_name(datatype)}[' + ', '.join(facet_strs) + ']'
     raise AssertionError(f'unhandled data-range tag {tag!r}')
 
@@ -889,7 +975,8 @@ def _render_one(clause_class, value) -> str:
     if value_kind == 'data':
         return _render_data_range(value)
     if value_kind == 'characteristic':
-        return _CHARACTERISTICS_INV[value]
+        characteristics_inv, _ = _inverse_characteristic_maps()
+        return characteristics_inv[value]
     return _render_value(value) if isinstance(value, Literal) else _render_name(value)
 
 
@@ -946,9 +1033,9 @@ def _render_frame(frame: Frame) -> str:
     return '\n'.join(lines)
 
 
-def manchester_ast_to_text(document: Document) -> str:
-    """Render a ``Document`` (as returned by ``rdf_ast_to_manchester_ast``)
-    back to real Manchester Syntax text."""
+def _document_to_text(document: Document) -> str:
+    """Render a ``Document`` (as returned by ``_tree_to_document``) back to
+    real Manchester Syntax text."""
     lines = []
     for p in document.prefixes:
         label = p.label if p.label else ''
@@ -970,7 +1057,79 @@ def manchester_ast_to_text(document: Document) -> str:
     return '\n'.join(lines).rstrip() + '\n'
 
 
-def rdf_ast_to_text(graph: Graph, root) -> str:
-    """Thin wrapper composing ``rdf_ast_to_manchester_ast`` +
-    ``manchester_ast_to_text`` for a caller who just wants text back."""
-    return manchester_ast_to_text(rdf_ast_to_manchester_ast(graph, root))
+def tree_to_text(graph: Graph) -> str:
+    """Thin wrapper composing ``_tree_to_document`` + ``_document_to_text``
+    for a caller who just wants text back."""
+    root = _find_root(graph)
+    return _document_to_text(_tree_to_document(graph, root))
+
+
+def tree_to_owl(graph: Graph) -> StarLayerGraph:
+    """The tree's compiled OWL triples, as a real ``StarLayerGraph`` -
+    composes ``tree_to_text()`` with ``manchester_parser.parse_manchester()``
+    (the real, trusted OWL compiler) for a caller who just wants an OWL
+    graph back, directly usable the same way ``StarLayerGraph.parse(format=
+    'manchester')`` already populates one.
+
+    Going through text here is not a fidelity-losing shortcut:
+    ``tree_to_text()`` is a fully faithful renderer of everything this
+    module's ``manch:`` encoding captures, so nothing this tree holds is
+    lost before the OWL compiler sees it - see this module's own docstring.
+    """
+    from starlayer.graph import StarLayerGraph
+    from starlayer.graph.parsers.manchester_parser import parse_manchester
+
+    owl_graph = StarLayerGraph()
+    for triple in parse_manchester(tree_to_text(graph)):
+        owl_graph.add(triple)
+    return owl_graph
+
+
+def validate(data_graph: Graph) -> tuple[bool, Graph, str]:
+    """Validate ``data_graph`` (e.g. straight out of ``parse_to_tree()``, or
+    an LLM-authored ``manch:`` graph not yet decoded) against the shapes in
+    ``manchester_shapes.ttl``. Only the tree being checked is a caller's
+    concern - which shapes to check it against is this module's own, fixed
+    concern, not a parameter.
+
+    Runs with RDFS reasoning enabled (``ont_graph=get_ontology_graph(
+    "manchester_owl")``, ``inference="rdfs"``) - this is what lets the
+    dispatch shapes (``ClassExpressionShape``/``PropertyExpressionShape``/
+    ``DataRangeShape``/``FrameShape``/``ClauseShape``/``MiscAxiomShape``) be
+    a single ``sh:class`` check against an abstract superclass instead of
+    enumerating every concrete tag by name, the same reasoning ``salg:``'s
+    own shapes use for SPARQL.
+
+    No public ``ontology_graph()``/``shapes_graph()`` here (unlike the
+    initial version of this module) - get those two graphs directly from
+    the registry instead: ``get_ontology_graph("manchester_owl")`` /
+    ``get_ontology_graph("manchester_shacl")`` for the graph directly, or
+    ``starlayer.registry.get_ontology("manchester_owl")`` /
+    ``get_ontology("manchester_shacl")`` then ``.graph()`` for the same
+    graph plus registry metadata. This function needs no combining logic
+    the way ``starlayer.sparql.srl.validate()`` does for
+    ``srl:``+``salg:``, so there was nothing worth wrapping here even
+    privately.
+
+    Goes through ``starlayer.shacl.validate()``, never bare ``pyshacl`` -
+    this validates a caller-supplied ``data_graph`` that may be genuine
+    RDF 1.2 content, which only ``starlayer.shacl`` understands correctly.
+
+    Returns ``(conforms, results_graph, results_text)``, unpacked from
+    ``starlayer.shacl``'s own ``ValidationResult``.
+    """
+    from pyshacl.errors import ShapeRecursionWarning
+
+    import starlayer.shacl  # lazy: avoids a circular-import deadlock at module load time
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=ShapeRecursionWarning)
+        result = starlayer.shacl.validate(
+            data_graph,
+            shacl_graph=get_ontology_graph("manchester_shacl"),
+            ont_graph=get_ontology_graph("manchester_owl"),
+            inference="rdfs",
+            advanced=True,
+            max_validation_depth=100,
+        )
+    return result.conforms, result.report_graph, result.report_text

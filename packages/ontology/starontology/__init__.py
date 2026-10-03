@@ -14,14 +14,29 @@ package(s) end up consuming a given file.
 **Why this is its own package, not just a shared directory.** Each `.ttl`
 file here is pure data with no logic of its own - one place to look, one
 place to edit, regardless of which package(s) end up consuming a given
-file. It deliberately does **not** do any SHACL validation itself, or wrap
-`pyshacl`/`starlayer.shacl` - loading a shapes graph here and actually
-validating with it is each consuming package's own job
-(`starlayer.ontology.manchester_shapes.validate()`,
-`starlayer.ontology.skos_shapes.validate()`,
-`starlayer.sparql.sparql_shapes.validate_query()`), since *how* to validate
-(which reasoning settings, which severity flags) is genuinely different per
-vocabulary - see each of those modules' own docstrings for why.
+file. This top-level module (`starontology/__init__.py` itself) stays that
+way: it loads a graph and nothing more, never wraps `pyshacl`/
+`starlayer.shacl`. *How* to validate (which reasoning settings, which
+severity flags) stays each vocabulary's own concern, genuinely different
+per vocabulary - `starlayer.sparql.sparql_shapes.validate_query()` for
+`salg:` still lives outside this package entirely, for now.
+
+**Revised 2026-10-03: not every vocabulary stops there.**
+`starontology.manchester`/`starontology.skos` are the exceptions - real
+logic for the `manch:`/`skos:` vocabularies (parse/serialize/validate for
+`manch:`, just validate for `skos:`, which needs no encode/decode layer at
+all), moved here deliberately because validating (or, for `manch:`,
+editing) a vocabulary against/as its own structure is an ontology-
+management concern in its own right, not a `starlayer.graph`/`.sparql`/
+`.ontology` one. `srl:` is expected to join them here eventually for the
+same reason, once it's separable from the sibling `starlayer.sparql`
+package's shared internals it currently depends on. So: this top-level
+module stays data-only, but a named submodule (`starontology.manchester`/
+`.skos`, and later `.srl`) can hold real logic when the vocabulary itself
+needs more than a loader - see each submodule's own docstring for its full
+reasoning (and, for `starontology.manchester`, the circular-import
+discipline its logic follows - `starontology.skos` doesn't need that, since
+it never touches `starlayer.graph` at all).
 
 **Dependency note (changed 2026-10-02).** Every loader below returns a
 `StarLayerGraph`, not a plain `rdflib.Graph` - a deliberate choice, made
@@ -31,7 +46,7 @@ depends on `starlayer.shacl` now, for exactly one entry (`shacl_meta` - see
 "What's here" below) - both imports are lazy (deferred inside each loader
 function, not at module top level), since a top-level `import starlayer.X`
 here pulls in the whole `starlayer` package (Python initializes a parent
-package before any submodule), which eagerly imports `starlayer.ontology`,
+package before any submodule), which eagerly imports `starlayer.registry`,
 which reads straight back into this module's own registry - a real
 circular-import deadlock if `starontology` is the thing being imported
 first (confirmed live for the `starlayer.graph` case; the same fix applies
@@ -40,23 +55,26 @@ directly or on `starlayer.sparql`, and neither `starlayer.graph` nor
 `starlayer.shacl` has any dependency back on `starontology` (confirmed -
 no cycle), so the overall shape stays a clean DAG: `starlayer.graph`/
 `.shacl` sit at the bottom, `starontology` depends on both, and
-`starlayer.ontology`/`.sparql` depend on all three.
+`starlayer.registry`/`.sparql` depend on all three.
 
 **Registry API (replaced the eight separately-named functions 2026-10-02).**
 Was ``manchester_ontology_graph()``/``manchester_shapes_graph()``/...,
 eight separate top-level functions plus eight public ``*_TTL_PATH``
 constants - replaced by one small registry (``get_ontology_list()``/
-``get_ontology_graph(name)``/``get_ontology_turtle12(name)``), the same
-shape as the registry ``starlayer.ontology.registry`` already has one level
-up (that module now delegates its own manch:/skos:/salg:/srl: entries
-straight into this one instead of duplicating the list - see its own
-docstring). The path constants are now private (``_MANCHESTER_ONTOLOGY_TTL_PATH``,
-etc.) - internal plumbing for this module's own registry, not a public way
-to reach the data. Anyone who wants the file's content uses
-``get_ontology_graph(name)``/``get_ontology_turtle12(name)`` instead; anyone
-who genuinely needs the raw on-disk bytes (none of this stack's own code
-does - checked) can still find the file next to this module, it's just not
-exposed as a named constant anymore.
+``get_ontology_graph(name)``), the same shape as the registry
+``starlayer.registry.registry`` already has one level up (that module now
+delegates its own manch:/skos:/salg:/srl: entries straight into this one
+instead of duplicating the list - see its own docstring). The path
+constants are now private (``_MANCHESTER_ONTOLOGY_TTL_PATH``, etc.) -
+internal plumbing for this module's own registry, not a public way to
+reach the data. Anyone who wants the file's content uses
+``get_ontology_graph(name)`` instead (``.serialize(format='turtle12')`` on
+the result for Turtle text - a dedicated ``get_ontology_turtle12()``
+wrapper existed briefly but was removed 2026-10-03, since it was exactly
+that one-line composition and nothing more); anyone who genuinely needs
+the raw on-disk bytes (none of this stack's own code does - checked) can
+still find the file next to this module, it's just not exposed as a named
+constant anymore.
 
 **What's here**: eight *files* on disk, two per vocabulary (an OWL/RDFS
 ontology and a SHACL shapes graph) for four vocabularies - plus a ninth
@@ -74,7 +92,7 @@ rather than a file:
 - ``salg:`` (``salg-ontology.ttl`` / ``sparql_shapes.ttl``) - a SPARQL 1.2
   query/update's own algebra as RDF. Type ``"ast-graph"``.
 - ``srl:`` (``srl-ontology.ttl`` / ``srl_shapes.ttl``) - SRL/SPARQL-RL's
-  own rule-set abstract syntax as RDF (see `starsparql/srl_vocab.py`).
+  own rule-set abstract syntax as RDF (see `starlayer.sparql.srl`).
   Type ``"ast-graph"``.
 
 Every shapes file (all four) is type ``"shacl"``, regardless of which of
@@ -122,10 +140,10 @@ _SRL_SHAPES_TTL_PATH = _HERE / "srl_shapes.ttl"
 @dataclass(frozen=True)
 class OntologyInfo:
     """One registered ontology/shapes file's metadata - no loader callables
-    here (unlike ``starlayer.ontology.registry.Ontology`` one level up,
+    here (unlike ``starlayer.registry.registry.Ontology`` one level up,
     which also needs a ``validate`` hook per entry) since this package
-    itself does no validation; ``get_ontology_graph()``/
-    ``get_ontology_turtle12()`` are the two ways to actually load one."""
+    itself does no validation; ``get_ontology_graph()`` is the way to
+    actually load one."""
 
     name: str
     description: str
@@ -231,7 +249,7 @@ def _load(path: Path) -> StarLayerGraph:
     # Lazy, not top-level: a top-level `from starlayer.graph import
     # StarLayerGraph` pulls in the whole starlayer package (Python always
     # initializes a parent package before any of its submodules), which
-    # eagerly imports starlayer.ontology, which reads this module's own
+    # eagerly imports starlayer.registry, which reads this module's own
     # registry - a real circular-import deadlock when starontology is the
     # thing being imported first (confirmed live: AttributeError on a
     # "partially initialized module"). Deferring this import until a loader
@@ -276,13 +294,3 @@ def get_ontology_graph(name: str) -> StarLayerGraph:
     except KeyError:
         raise KeyError(f"{name!r} is not a registered ontology - choices are {sorted(_REGISTRY)}") from None
     return loader()
-
-
-def get_ontology_turtle12(name: str) -> str:
-    """The named ontology/shapes file, serialized as Turtle 1.2 text -
-    ``get_ontology_graph(name).serialize(format='turtle12')``. A
-    canonical re-serialization of the parsed graph, not the raw on-disk
-    file bytes (these files are themselves plain RDF 1.1 Turtle - see this
-    module's own docstring - so the output differs cosmetically from the
-    source file, never semantically)."""
-    return get_ontology_graph(name).serialize(format="turtle12")
