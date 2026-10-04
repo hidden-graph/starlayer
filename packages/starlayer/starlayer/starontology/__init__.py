@@ -1,25 +1,42 @@
-"""starontology - the raw ontology/SHACL-shapes ``.ttl`` files this stack
-ships, kept in one place, independent of any package that consumes them.
+"""starlayer.starontology - the raw ontology/SHACL-shapes ``.ttl`` files
+this stack ships, kept in one place, independent of which *other*
+subpackage ends up consuming them.
 
-**Why this package exists.** Before it did, these six files lived scattered
-across the packages that happened to consume them first: ``manch:``/``skos:``
+**Why this exists as one place.** These files used to live scattered
+across whichever package happened to consume them first: ``manch:``/``skos:``
 inside ``packages/graph/starlayergraph/ontology/``, ``salg:`` inside
 ``packages/sparql/starsparql/ontology/``. That made "where do I edit the
 ``manch:`` vocabulary" and "where do I edit the ``salg:`` vocabulary"
 different answers depending on which package happened to need it first - a
 real editing/discoverability cost, not just an aesthetic one. Consolidating
 them here means one place to look, one place to edit, regardless of which
-package(s) end up consuming a given file.
+sibling subpackage(s) end up consuming a given file.
 
-**Why this is its own package, not just a shared directory.** Each `.ttl`
-file here is pure data with no logic of its own - one place to look, one
-place to edit, regardless of which package(s) end up consuming a given
-file. This top-level module (`starontology/__init__.py` itself) stays that
-way: it loads a graph and nothing more, never wraps `pyshacl`/
-`starlayer.shacl`. *How* to validate (which reasoning settings, which
-severity flags) stays each vocabulary's own concern, genuinely different
-per vocabulary - `starlayer.sparql.sparql_shapes.validate_query()` for
-`salg:` still lives outside this package entirely, for now.
+**Formerly a separate, independently-installed package (`pip install
+ontology`), folded into `starlayer` as `starlayer.starontology` 2026-10-03.**
+It never actually achieved independence in practice: `starlayer.sparql`
+had a hard, eager runtime dependency on it (`sparql_shapes.py`/`srl.py` both
+call `get_ontology_graph()` to build their shapes), and this package in turn
+depended back on `starlayer.graph` (and, for the `shacl_meta` entry, on
+`starlayer.shacl` too - see the old "Dependency note" this replaces). Two
+pip-installed packages that can't function without each other was packaging
+overhead with no real isolation benefit - the same reasoning that already
+justified merging `starlayergraph`/`starsparql`/`starshacl` into one
+`starlayer` package. `from starlayer import starontology` (or
+`starlayer.starontology.X`) is the only way to reach anything here now; if a
+genuine need for a standalone install resurfaces later, nothing stops
+publishing it separately again then.
+
+**Why this stays its own named subpackage, not flattened into another
+one.** Each `.ttl` file here is pure data with no logic of its own - one
+place to look, one place to edit, regardless of which sibling subpackage
+ends up consuming a given file. This top-level module
+(`starontology/__init__.py` itself) stays that way: it loads a graph and
+nothing more, never wraps `pyshacl`/`starlayer.shacl`. *How* to validate
+(which reasoning settings, which severity flags) stays each vocabulary's
+own concern, genuinely different per vocabulary -
+`starlayer.sparql.sparql_shapes.validate_query()` for `salg:` still lives
+outside this subpackage entirely, for now.
 
 **Revised 2026-10-03: not every vocabulary stops there.**
 `starontology.manchester`/`starontology.skos` are the exceptions - real
@@ -38,34 +55,37 @@ reasoning (and, for `starontology.manchester`, the circular-import
 discipline its logic follows - `starontology.skos` doesn't need that, since
 it never touches `starlayer.graph` at all).
 
-**Dependency note (changed 2026-10-02).** Every loader below returns a
-`StarLayerGraph`, not a plain `rdflib.Graph` - a deliberate choice, made
-knowing it means this package now depends on `starlayer.graph` (previously
-it had zero dependencies on any consuming package, graph included). It also
-depends on `starlayer.shacl` now, for exactly one entry (`shacl_meta` - see
-"What's here" below) - both imports are lazy (deferred inside each loader
-function, not at module top level), since a top-level `import starlayer.X`
-here pulls in the whole `starlayer` package (Python initializes a parent
-package before any submodule), which eagerly imports `starlayer.registry`,
-which reads straight back into this module's own registry - a real
-circular-import deadlock if `starontology` is the thing being imported
-first (confirmed live for the `starlayer.graph` case; the same fix applies
-to `starlayer.shacl`). This package still doesn't depend on `pyshacl`
-directly or on `starlayer.sparql`, and neither `starlayer.graph` nor
-`starlayer.shacl` has any dependency back on `starontology` (confirmed -
-no cycle), so the overall shape stays a clean DAG: `starlayer.graph`/
-`.shacl` sit at the bottom, `starontology` depends on both, and
-`starlayer.registry`/`.sparql` depend on all three.
+**Dependency note, revised 2026-10-03 for the move into `starlayer`.**
+Every loader below returns a `StarLayerGraph`, not a plain `rdflib.Graph` -
+a deliberate choice depending on `starlayer.graph`, plus `starlayer.shacl`
+for exactly one entry (`shacl_meta` - see "What's here" below). Both
+imports stay lazy (deferred inside each loader function, not at module top
+level) as defensive practice, matching every other cross-subpackage import
+in this stack - but the circular-import deadlock this originally guarded
+against (when `starontology` was a separately-installed package with no
+guaranteed load order relative to `starlayer` at all) is now structurally
+impossible, not just avoided by convention: `starlayer.starontology` is a
+subpackage of `starlayer`, and Python always fully executes a parent
+package's own `__init__.py` before importing any of its submodules - so by
+the time any code in this file runs, `starlayer.graph`/`.shacl` are
+already loaded, every time, as a language guarantee rather than today's
+particular import order holding up. Staying lazy costs nothing and keeps
+this file consistent with its own submodules (`manchester.py`/`skos.py`
+below), so it's kept - just no longer load-bearing the way it was.
 
 **Registry API (replaced the eight separately-named functions 2026-10-02).**
 Was ``manchester_ontology_graph()``/``manchester_shapes_graph()``/...,
 eight separate top-level functions plus eight public ``*_TTL_PATH``
 constants - replaced by one small registry (``get_ontology_list()``/
-``get_ontology_graph(name)``), the same shape as the registry
-``starlayer.registry.registry`` already has one level up (that module now
-delegates its own manch:/skos:/salg:/srl: entries straight into this one
-instead of duplicating the list - see its own docstring). The path
-constants are now private (``_MANCHESTER_ONTOLOGY_TTL_PATH``, etc.) -
+``get_ontology_graph(name)``). A near-identical cross-vocabulary registry
+briefly existed one level up as ``starlayer.registry``, delegating its own
+manch:/skos:/salg:/srl: entries straight into this one - removed
+2026-10-03: nothing in this codebase ever called it by a bare name string
+rather than the vocabulary-specific function it would have delegated to
+anyway (``starontology.manchester.manchester_validate()``, ``starlayer
+.sparql.srl.srl_validate()``, etc.), so it added a lookup layer with no
+real caller.
+The path constants are now private (``_MANCHESTER_ONTOLOGY_TTL_PATH``, etc.) -
 internal plumbing for this module's own registry, not a public way to
 reach the data. Anyone who wants the file's content uses
 ``get_ontology_graph(name)`` instead (``.serialize(format='turtle12')`` on
@@ -139,10 +159,9 @@ _SRL_SHAPES_TTL_PATH = _HERE / "srl_shapes.ttl"
 
 @dataclass(frozen=True)
 class OntologyInfo:
-    """One registered ontology/shapes file's metadata - no loader callables
-    here (unlike ``starlayer.registry.registry.Ontology`` one level up,
-    which also needs a ``validate`` hook per entry) since this package
-    itself does no validation; ``get_ontology_graph()`` is the way to
+    """One registered ontology/shapes file's metadata - no ``validate``
+    hook alongside it, since this package itself does no validation (see
+    this module's own docstring); ``get_ontology_graph()`` is the way to
     actually load one."""
 
     name: str
@@ -248,13 +267,16 @@ _REGISTRY: dict[str, tuple[OntologyInfo, Callable[[], StarLayerGraph]]] = {
 def _load(path: Path) -> StarLayerGraph:
     # Lazy, not top-level: a top-level `from starlayer.graph import
     # StarLayerGraph` pulls in the whole starlayer package (Python always
-    # initializes a parent package before any of its submodules), which
-    # eagerly imports starlayer.registry, which reads this module's own
-    # registry - a real circular-import deadlock when starontology is the
-    # thing being imported first (confirmed live: AttributeError on a
-    # "partially initialized module"). Deferring this import until a loader
-    # is actually *called* means starontology always finishes its own
-    # import first, breaking the cycle.
+    # initializes a parent package before any of its submodules) - a real
+    # circular-import deadlock when starontology is the thing being
+    # imported first and something in that chain reads back into this
+    # module's own registry before it's finished (confirmed live:
+    # AttributeError on a "partially initialized module", back when
+    # starlayer eagerly imported the now-removed starlayer.registry).
+    # Deferring this import until a loader is actually *called* means
+    # starontology always finishes its own import first, breaking the
+    # cycle - kept this way even though today's starlayer/__init__.py
+    # doesn't trigger it, per this module's own "Dependency note" above.
     from starlayer.graph import StarLayerGraph
 
     g = StarLayerGraph()

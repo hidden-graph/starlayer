@@ -20,11 +20,6 @@ dependencies = [
     # pySHACL bugs are defensive but correctness against other versions
     # hasn't been separately confirmed.
     "pyshacl>=0.40.1",
-    # Raw ontology/shapes .ttl data (manch:/skos:/salg:/srl: vocabularies) -
-    # the one remaining separate package; no circular relationship with
-    # anything, confirmed when starlayergraph/starsparql/starshacl were
-    # merged into this package (2026-09-30).
-    "ontology",
 ]
 keywords = ["rdf", "rdf12", "sparql", "sparql12", "shacl", "pyshacl", "knowledge-graph", "semantic-web", "linked-data", "turtle", "reification", "triple-terms", "rdf-star", "algebra"]
 classifiers = [
@@ -66,7 +61,7 @@ Issues = "https://github.com/hidden-graph/starlayer/issues"
 include = ["starlayer*"]
 
 [tool.setuptools.package-data]
-starlayer = ["py.typed", "shacl/assets/*.ttl"]
+starlayer = ["py.typed", "shacl/assets/*.ttl", "starontology/*.ttl"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

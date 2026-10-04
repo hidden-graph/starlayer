@@ -20,8 +20,8 @@ from rdflib import RDF, BNode, Graph, Literal, Namespace
 from rdflib.collection import Collection
 from rdflib.namespace import SKOS
 
-import starontology
-from starontology import skos as ss
+from starlayer import starontology
+from starlayer.starontology import skos as ss
 
 
 def skos_ontology_graph():
@@ -73,7 +73,7 @@ def _valid_thesaurus():
 
 
 def test_valid_thesaurus_conforms():
-    conforms, _, results_text = ss.validate(_valid_thesaurus())
+    conforms, _, results_text = ss.skos_validate(_valid_thesaurus())
     assert conforms, results_text
 
 
@@ -88,7 +88,7 @@ def test_concept_and_conceptscheme_same_node_fails():
     """S9: skos:Concept is disjoint with skos:ConceptScheme."""
     g = _base_two_concepts()
     g.add((EX.animal, RDF.type, SKOS.ConceptScheme))
-    conforms, _, results_text = ss.validate(g)
+    conforms, _, results_text = ss.skos_validate(g)
     assert not conforms
     assert "S9" in results_text
 
@@ -99,7 +99,7 @@ def test_preflabel_and_altlabel_sharing_a_literal_fails():
     lit = Literal("Cat", lang="en")
     g.add((EX.cat, SKOS.prefLabel, lit))
     g.add((EX.cat, SKOS.altLabel, lit))
-    conforms, _, results_text = ss.validate(g)
+    conforms, _, results_text = ss.skos_validate(g)
     assert not conforms
     assert "S13" in results_text
 
@@ -109,7 +109,7 @@ def test_two_preflabels_same_language_fails():
     g = _base_two_concepts()
     g.add((EX.cat, SKOS.prefLabel, Literal("Cat", lang="en")))
     g.add((EX.cat, SKOS.prefLabel, Literal("Kitty", lang="en")))
-    conforms, _, results_text = ss.validate(g)
+    conforms, _, results_text = ss.skos_validate(g)
     assert not conforms
 
 
@@ -119,7 +119,7 @@ def test_broader_on_non_concept_subject_fails():
     g = Graph()
     g.add((EX.animal, RDF.type, SKOS.Concept))
     g.add((EX.notaconcept, SKOS.broader, EX.animal))
-    conforms, _, results_text = ss.validate(g)
+    conforms, _, results_text = ss.skos_validate(g)
     assert not conforms
     assert "S19" in results_text or "S20" in results_text
 
@@ -130,7 +130,7 @@ def test_related_and_broader_between_same_pair_fails():
     g = _base_two_concepts()
     g.add((EX.cat, SKOS.broader, EX.animal))
     g.add((EX.cat, SKOS.related, EX.animal))
-    conforms, _, results_text = ss.validate(g)
+    conforms, _, results_text = ss.skos_validate(g)
     assert not conforms
     assert "S27" in results_text
 
@@ -140,7 +140,7 @@ def test_collection_also_typed_concept_fails():
     g = Graph()
     g.add((EX.coll, RDF.type, SKOS.Collection))
     g.add((EX.coll, RDF.type, SKOS.Concept))
-    conforms, _, results_text = ss.validate(g)
+    conforms, _, results_text = ss.skos_validate(g)
     assert not conforms
     assert "S37" in results_text
 
@@ -152,7 +152,7 @@ def test_ordered_collection_also_typed_concept_fails():
     g = Graph()
     g.add((EX.oc, RDF.type, SKOS.OrderedCollection))
     g.add((EX.oc, RDF.type, SKOS.Concept))
-    conforms, _, results_text = ss.validate(g)
+    conforms, _, results_text = ss.skos_validate(g)
     assert not conforms
 
 
@@ -162,7 +162,7 @@ def test_exactmatch_and_broadmatch_between_same_pair_fails():
     g = _base_two_concepts()
     g.add((EX.cat, SKOS.exactMatch, EX.animal))
     g.add((EX.cat, SKOS.broadMatch, EX.animal))
-    conforms, _, results_text = ss.validate(g)
+    conforms, _, results_text = ss.skos_validate(g)
     assert not conforms
     assert "S46" in results_text
 
@@ -178,7 +178,7 @@ def test_ordered_collection_memberlist_and_member_agree_conforms():
     g.add((EX.oc, SKOS.memberList, list_node))
     g.add((EX.oc, SKOS.member, EX.cat))
     g.add((EX.oc, SKOS.member, EX.dog))
-    conforms, _, results_text = ss.validate(g)
+    conforms, _, results_text = ss.skos_validate(g)
     assert conforms, results_text
 
 
@@ -192,7 +192,7 @@ def test_ordered_collection_member_missing_from_memberlist_fails():
     Collection(g, list_node, [EX.cat, EX.dog])
     g.add((EX.oc, SKOS.memberList, list_node))
     g.add((EX.oc, SKOS.member, EX.cat))  # dog missing as a plain member
-    conforms, _, results_text = ss.validate(g)
+    conforms, _, results_text = ss.skos_validate(g)
     assert not conforms
     assert 'memberList' in results_text
 
@@ -208,7 +208,7 @@ def test_ordered_collection_memberlist_missing_a_real_member_fails():
     g.add((EX.oc, SKOS.memberList, list_node))
     g.add((EX.oc, SKOS.member, EX.cat))
     g.add((EX.oc, SKOS.member, EX.dog))  # not in memberList
-    conforms, _, results_text = ss.validate(g)
+    conforms, _, results_text = ss.skos_validate(g)
     assert not conforms
     assert 'memberList' in results_text
 
@@ -219,7 +219,7 @@ def test_ordered_collection_with_no_memberlist_at_all_is_unaffected():
     g.add((EX.cat, RDF.type, SKOS.Concept))
     g.add((EX.oc, RDF.type, SKOS.OrderedCollection))
     g.add((EX.oc, SKOS.member, EX.cat))
-    conforms, _, results_text = ss.validate(g)
+    conforms, _, results_text = ss.skos_validate(g)
     assert conforms, results_text
 
 
@@ -230,7 +230,7 @@ def test_concept_missing_preflabel_still_conforms_but_is_reported():
     'ignore Info entirely')."""
     g = Graph()
     g.add((EX.cat, RDF.type, SKOS.Concept))
-    conforms, _, results_text = ss.validate(g)
+    conforms, _, results_text = ss.skos_validate(g)
     assert conforms, results_text
     assert 'Recommended' in results_text
     assert 'prefLabel' in results_text
@@ -240,7 +240,7 @@ def test_concept_with_preflabel_has_no_recommendation_in_report():
     g = Graph()
     g.add((EX.cat, RDF.type, SKOS.Concept))
     g.add((EX.cat, SKOS.prefLabel, Literal('Cat', lang='en')))
-    conforms, _, results_text = ss.validate(g)
+    conforms, _, results_text = ss.skos_validate(g)
     assert conforms, results_text
     assert 'Recommended' not in results_text
 

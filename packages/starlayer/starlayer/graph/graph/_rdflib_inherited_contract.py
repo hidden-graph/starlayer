@@ -54,12 +54,12 @@ class InheritedMethodContract:
     present on both with the exact same underlying function object (true
     for most of these; confirmed live), it doesn't matter which one is
     checked. For the few where StarLayerGraph *does* override the method
-    (``triples_choices``/``isomorphic`` - Modified on Graph, but still
-    plain-inherited on Dataset), ``owner`` deliberately points at
-    ``StarLayerDataset``, the genuinely-unchanged occurrence. (``cbd`` used
-    to be a third example here too, until StarLayerDataset got its own
-    ``cbd()`` override - see that method's own docstring for the real bug
-    that motivated it. No longer anything to record in this file.)
+    (``isomorphic`` - Modified on Graph, but still plain-inherited on
+    Dataset), ``owner`` deliberately points at ``StarLayerDataset``, the
+    genuinely-unchanged occurrence. (``cbd`` and ``triples_choices`` used
+    to be examples here too, until StarLayerDataset got its own
+    overrides for each - see those methods' own docstrings for the real
+    bugs that motivated them. No longer anything to record in this file.)
     """
 
     owner: str
@@ -308,11 +308,6 @@ INHERITED_METHOD_CONTRACTS: dict[str, InheritedMethodContract] = {
         owner="StarLayerGraph",
         signature="(self, predicate: 'Optional[_PredicateType]', object: 'Optional[_ObjectType]', remember: 'Optional[Dict[Optional[_ObjectType], int]]' = None) -> 'Generator[Optional[_ObjectType], None, None]'",
         returns="Generator[Optional[Node], None, None]",
-    ),
-    "triples_choices": InheritedMethodContract(
-        owner="StarLayerDataset",
-        signature="(self, triple: '_TripleChoiceType', context: 'Optional[_ContextType]' = None) -> 'Generator[_TripleType, None, None]'",
-        returns="Generator[Triple, None, None]",
     ),
     "value": InheritedMethodContract(
         owner="StarLayerGraph",

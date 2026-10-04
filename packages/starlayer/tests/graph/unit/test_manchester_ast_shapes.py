@@ -15,17 +15,17 @@ import pytest
 from rdflib import RDF, BNode
 from rdflib.collection import Collection
 
-import starontology
-from starontology import manchester as ms
-from starontology.manchester import MANCH, parse_to_tree
+from starlayer import starontology
+from starlayer.starontology import manchester as ms
+from starlayer.starontology.manchester import MANCH, manchester_parse_to_tree
 
 from tests.graph.unit.test_manchester_ast import DOCUMENTS
 
 
 @pytest.mark.parametrize('text', DOCUMENTS)
 def test_valid_documents_conform(text):
-    graph = parse_to_tree(text)
-    conforms, _, results_text = ms.validate(graph)
+    graph = manchester_parse_to_tree(text)
+    conforms, _, results_text = ms.manchester_validate(graph)
     assert conforms, results_text
 
 
@@ -46,7 +46,7 @@ def _encode_data_prop_range():
         '    Domain: Person\n'
         '    Range: xsd:integer\n'
     )
-    return parse_to_tree(text)
+    return manchester_parse_to_tree(text)
 
 
 def test_wrong_item_type_under_data_prop_range_clause_fails():
@@ -67,7 +67,7 @@ def test_wrong_item_type_under_data_prop_range_clause_fails():
     graph.add((bad_and, MANCH.operands, ops))
     graph.set((item, MANCH.value, bad_and))
 
-    conforms, _, results_text = ms.validate(graph)
+    conforms, _, results_text = ms.manchester_validate(graph)
     assert not conforms
     assert 'manch:DataRangeItemListShape' in results_text or 'data range' in results_text
 
@@ -82,7 +82,7 @@ def test_misc_axiom_item_of_wrong_family_fails():
         'Prefix: : <http://example.org/>\n'
         'EquivalentClasses: Cat, Feline\n'
     )
-    graph = parse_to_tree(text)
+    graph = manchester_parse_to_tree(text)
     misc = next(graph.subjects(RDF.type, MANCH.MiscEquivalentClassesAxiom))
     items_list = next(graph.objects(misc, MANCH.items))
     coll = Collection(graph, items_list)
@@ -92,7 +92,7 @@ def test_misc_axiom_item_of_wrong_family_fails():
     graph.add((bad, MANCH.operand, MANCH.someProp))
     coll[0] = bad
 
-    conforms, _, results_text = ms.validate(graph)
+    conforms, _, results_text = ms.manchester_validate(graph)
     assert not conforms
 
 
@@ -110,5 +110,5 @@ def test_broken_mid_chain_rdf_list_fails():
         graph.add((extra, RDF.rest, rest))
     # extra deliberately has no rdf:first - a broken mid-chain cell.
 
-    conforms, _, results_text = ms.validate(graph)
+    conforms, _, results_text = ms.manchester_validate(graph)
     assert not conforms

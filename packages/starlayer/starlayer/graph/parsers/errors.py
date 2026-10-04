@@ -48,6 +48,33 @@ class Turtle12SyntaxError(SyntaxError):
         return f'{loc}:\nBad syntax ({self.why}) at ^ in:\n"{pre}{before}^{after}{post}"'
 
 
+class MultipleGraphsError(ValueError):
+    """A quad-shaped document (nquads/trig/trix, bare or the RDF 1.2
+    nq12/trig12/trix12 variants) names more than one distinct graph, but
+    was parsed via StarLayerGraph.parse() - not StarLayerDataset.parse() -
+    which can only ever resolve to a single graph. Flattening the input
+    would silently mix unrelated graphs' triples together with no way for
+    the caller to know, so this is raised instead. A document that
+    resolves to at most one distinct graph (including the trivial case of
+    everything being in the default graph) parses normally - nothing is
+    actually being conflated then.
+
+    format     -- the format= string that was being parsed
+    graph_ids  -- every distinct graph identifier found in the document,
+                  as strings ("None" stands in for the default graph)
+    """
+
+    def __init__(self, format: str, graph_ids: list):
+        self.format = format
+        self.graph_ids = graph_ids
+        super().__init__(
+            f"{format!r} input spans {len(graph_ids)} distinct graphs "
+            f"({', '.join(graph_ids)}); StarLayerGraph.parse() can only "
+            "resolve to a single graph. Use StarLayerDataset.parse() to "
+            "keep each graph separate."
+        )
+
+
 class ManchesterSyntaxError(SyntaxError):
     """Malformed Manchester OWL Syntax input, or a syntactically valid
     construct this parser doesn't support yet (see

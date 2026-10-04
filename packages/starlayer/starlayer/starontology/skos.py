@@ -3,9 +3,9 @@
 SHACL validation of a SKOS graph against the W3C SKOS Reference's own
 numbered "Documented Consistency and Integrity Conditions"
 (https://www.w3.org/TR/skos-reference/). Moved here (2026-10-03) from
-starlayer.ontology.skos_shapes, for the same reason manch:'s validate()
+starlayer.ontology.skos_shapes, for the same reason manch:'s manchester_validate()
 lives in starontology.manchester - validating a vocabulary against its own
-shapes is an ontology-management concern, not a starlayer-top-level one.
+shapes is an ontology-management concern, not a starlayer.graph/.sparql one.
 
 Unlike ``manch:``/``srl:``, SKOS needs no encode/decode/tree layer at all -
 a SKOS thesaurus is already plain RDF the moment it's authored. So this
@@ -13,7 +13,7 @@ module is thinner than either of those: one entry point, not four or seven.
 
 One entry point:
 
-- ``validate(data_graph) -> (conforms, report_graph, report_text)`` -
+- ``skos_validate(data_graph) -> (conforms, report_graph, report_text)`` -
   structural + the spec's own numbered integrity conditions (S9, S13, S14,
   S19/S20, S27, S37, S46), ``skos:memberList``/``skos:member`` consistency
   (the spec's own §9.4 prose expectation, not a numbered condition), plus a
@@ -24,13 +24,10 @@ One entry point:
 
 No public ``ontology_graph()``/``shapes_graph()`` here (same decision as
 ``starontology.manchester``/``starlayer.sparql.srl``) - get those two
-graphs from the registry instead: ``get_ontology_graph("skos_owl")`` /
-``get_ontology_graph("skos_shacl")`` for the graph directly, or
-``starlayer.registry.get_ontology("skos_owl")`` /
-``get_ontology("skos_shacl")`` then ``.graph()`` for the same graph plus
-registry metadata.
+graphs from ``starontology`` directly instead: ``get_ontology_graph(
+"skos_owl")`` / ``get_ontology_graph("skos_shacl")``.
 
-**Deliberately no ``ont_graph``/``inference="rdfs"`` in ``validate()``,
+**Deliberately no ``ont_graph``/``inference="rdfs"`` in ``skos_validate()``,
 unlike ``manch:``/``salg:``/``srl:``'s own** - ``skos-ontology.ttl``
 faithfully restates the real spec's S19/S20 ``rdfs:domain``/``range``
 axioms, but feeding that ontology into an RDFS-inference validation pass
@@ -39,8 +36,8 @@ exists to check for, making it tautologically vacuous - confirmed
 empirically while building this (see ``skos_shapes.ttl``'s own module
 comment for the full account). Every shape there is written to be
 self-sufficient against the bare data graph instead - this is also why
-``validate()`` here needs no combining-with-another-vocabulary's-shapes
-logic the way ``srl.validate()`` does for ``srl:``+``salg:``.
+``skos_validate()`` here needs no combining-with-another-vocabulary's-shapes
+logic the way ``srl.srl_validate()`` does for ``srl:``+``salg:``.
 """
 
 from __future__ import annotations
@@ -52,7 +49,7 @@ from rdflib import Graph
 from . import get_ontology_graph
 
 
-def validate(data_graph: Graph) -> tuple[bool, Graph, str]:
+def skos_validate(data_graph: Graph) -> tuple[bool, Graph, str]:
     """Validate ``data_graph`` (any SKOS thesaurus - hand-authored, parsed
     from RDF/XML or Turtle, whatever) against the shapes in
     ``skos_shapes.ttl``.

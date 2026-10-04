@@ -991,3 +991,67 @@ class TestRawCacheInvalidation:
         sg = StarLayerGraph()
         assert sg._invalidate_callback is None
         sg.add((URIRef(EX+'s'), URIRef(EX+'p'), URIRef(EX+'o')))  # must not raise
+
+
+class TestChainingContractMatchesRdflib:
+    """rdflib's own ConjunctiveGraph.addN()/Graph.open() both return self;
+    these two StarLayerDataset overrides had silently dropped that (fixed
+    2026-10-04) - same bug class as StarLayerGraph's own add()/remove()/
+    open()/serialize(), see test_starlayer_graph.py's own class of the same
+    name."""
+
+    def test_addN_returns_self(self):
+        ds = StarLayerDataset()
+        t = (URIRef(EX+'s'), URIRef(EX+'p'), URIRef(EX+'o'))
+        assert ds.addN([(*t, ds.default_graph)]) is ds
+
+    def test_open_returns_self_not_rdflibs_own_status_code(self):
+        ds = StarLayerDataset()
+        assert ds.open('', create=True) is ds
+
+    def test_serialize_with_destination_returns_self_for_rdf12_native_format(self, tmp_path):
+        """The nq12/trig12/trix12/single-graph-turtle12 branch builds its own
+        text and writes it directly - that used to `return destination`
+        (the path) instead of self, same bug as StarLayerGraph.serialize()'s
+        own RDF12 branch."""
+        ds = StarLayerDataset()
+        ds.add((URIRef(EX+'s'), URIRef(EX+'p'), URIRef(EX+'o')))
+        dest = tmp_path / 'out.trig'
+        assert ds.serialize(destination=str(dest), format='trig12') is ds
+        assert dest.exists()
+
+
+class TestTriplesChoicesRestoresTripleTerms:
+    """Regression, fixed 2026-10-04: triples_choices() wasn't defined on
+    this class at all, so it fell through to rdflib's own
+    ConjunctiveGraph.triples_choices(), which queries self.store directly
+    and bypasses every context's own TripleTerm registry - the raw
+    tt:HASH encoding URIRef leaked through unrestored, confirmed live
+    side-by-side against this class's own triples() (which has always
+    restored correctly)."""
+
+    def _ds_with_reified_tt(self):
+        ds = StarLayerDataset()
+        ds.default_graph.add(
+            (URIRef(EX+'claim'), RDF_REIFIES, TripleTerm(URIRef(EX+'a'), URIRef(EX+'b'), URIRef(EX+'c')))
+        )
+        return ds
+
+    def test_default_scope_restores_triple_term(self):
+        ds = self._ds_with_reified_tt()
+        (result,) = list(ds.triples_choices((None, RDF_REIFIES, [None])))
+        assert isinstance(result[2], TripleTerm)
+
+    def test_default_union_restores_triple_term(self):
+        ds = StarLayerDataset(default_union=True)
+        g1 = ds.get_context(URIRef(EX+'g1'))
+        g1.add((URIRef(EX+'claim'), RDF_REIFIES, TripleTerm(URIRef(EX+'a'), URIRef(EX+'b'), URIRef(EX+'c'))))
+        (result,) = list(ds.triples_choices((None, RDF_REIFIES, [None])))
+        assert isinstance(result[2], TripleTerm)
+
+    def test_explicit_context_restores_triple_term(self):
+        ds = StarLayerDataset()
+        g1 = ds.get_context(URIRef(EX+'g1'))
+        g1.add((URIRef(EX+'claim'), RDF_REIFIES, TripleTerm(URIRef(EX+'a'), URIRef(EX+'b'), URIRef(EX+'c'))))
+        (result,) = list(ds.triples_choices((None, RDF_REIFIES, [None]), context=g1))
+        assert isinstance(result[2], TripleTerm)

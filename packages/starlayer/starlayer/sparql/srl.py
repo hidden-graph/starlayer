@@ -28,14 +28,14 @@ Six entry points, forming two independent round trips (text<->tree-RDF,
 text<->RuleSet) plus a third already covered by the first two composed
 (tree-RDF<->RuleSet):
 
-- ``parse_to_tree(text, base=None) -> (Graph, root)`` - SRL text straight
+- ``srl_parse_to_tree(text, base=None) -> (Graph, root)`` - SRL text straight
   to its ``srl:``-encoded tree-RDF. Composes ``parse_ruleset`` +
   ``ruleset_to_tree``.
-- ``tree_to_text(graph, root) -> str`` - the inverse. Composes
+- ``srl_tree_to_text(graph, root) -> str`` - the inverse. Composes
   ``tree_to_ruleset`` + ``ruleset_to_text``.
 - ``parse_ruleset(text, base=None) -> RuleSet`` - SRL text straight to a
   real ``srl_ast.RuleSet`` object, skipping RDF entirely. Kept as its own
-  entry point (not just an implementation detail of ``parse_to_tree``)
+  entry point (not just an implementation detail of ``srl_parse_to_tree``)
   because ``RuleSet`` is independently useful - ``srl_eval.srl_infer``/
   ``srl_query`` consume it directly, with no RDF involved at all. This is
   the one real asymmetry with Manchester: ``manch:``'s ``Document`` object
@@ -50,20 +50,15 @@ text<->RuleSet) plus a third already covered by the first two composed
   encode a ``RuleSet`` (e.g. one built or edited programmatically - rules
   combined, a filter rewritten) back to ``srl:`` tree-RDF.
 
-Plus ``validate(data_graph) -> (conforms, report_graph, report_text)`` -
+Plus ``srl_validate(data_graph) -> (conforms, report_graph, report_text)`` -
 structural SHACL validation of an ``srl:`` tree-RDF graph. Deliberately
 **no** public ``ontology_graph()``/``shapes_graph()`` here (same decision
 ``starontology.manchester`` makes for ``manch:``) - callers who want the
 raw ``srl:`` ontology/shapes graphs themselves can already get them from
-the registry: ``starontology.get_ontology_graph("srl_owl")`` /
-``get_ontology_graph("srl_shacl")`` for the graph directly, or
-``starlayer.registry.get_ontology("srl_owl")`` /
-``get_ontology("srl_shacl")`` then ``.graph()`` for the same graph plus
-registry metadata (``.description``/``.namespace``/``.kind``) and a
-bundled ``.validate()``.
-Exposing a third path to the exact same two graphs here would just be
-another way to do what these two already do. ``validate()`` still needs
-its own private, combined copy
+``starontology`` directly instead: ``get_ontology_graph("srl_owl")`` /
+``get_ontology_graph("srl_shacl")``. Exposing a second path to the exact
+same two graphs here would just be another way to do what that one already
+does. ``srl_validate()`` still needs its own private, combined copy
 internally (an ``srl:expr``/``srl:assign`` expression tree is validated by
 the *existing* ``salg:ExpressionShape``, not a separate ``srl:`` expression
 vocabulary - so both the ``srl:`` and ``salg:`` ontology/shapes graphs are
@@ -81,15 +76,15 @@ sibling files:
 - ``srl_eval.py`` (``srl_infer``/``srl_query``) - *running* a ``RuleSet``
   against a base graph is a separate concern from the tree pipeline above,
   not a missing or oddly-shaped seventh step: unlike Manchester's
-  `tree_to_owl()` (a pure function of the tree alone, translating between
+  `manchester_tree_to_owl()` (a pure function of the tree alone, translating between
   two independently-meaningful RDF forms), SRL has only one RDF form
   (`srl:`) - decoding already produces the runnable `RuleSet`, and running
   it inherently needs a second input (the base graph) that has nothing to
-  do with this module's own encode/decode/validate concerns.
+  do with this module's own encode/decode/validation concerns.
 - ``srl_semantic_checks.py`` - cross-referential well-formedness checks
   (an unbound head/filter/assignment variable, a ``SET(...)`` reusing an
   already-bound variable) - deliberately kept out of SHACL (see
-  ``validate()``'s own docstring for why structural-only is the line), so
+  ``srl_validate()``'s own docstring for why structural-only is the line), so
   this is a separate, plain-Python check, not part of this module.
 """
 
@@ -134,34 +129,34 @@ SRL = Namespace("https://github.com/hidden-graph/starsparql/ns/srl#")
 # spec's own §4.1 "Component Notation" table, not invented.
 # ---------------------------------------------------------------------------
 
-RULE_SET = SRL.RuleSet
-RULE = SRL.Rule
-DATA_BLOCK = SRL.Data
-TRIPLE_PATTERN = SRL.TriplePattern
-FILTER_ELEMENT = SRL.FilterElement
-NEGATION_ELEMENT = SRL.NegationElement
-ASSIGNMENT_ELEMENT = SRL.AssignmentElement
+_RULE_SET = SRL.RuleSet
+_RULE = SRL.Rule
+_DATA_BLOCK = SRL.Data
+_TRIPLE_PATTERN = SRL.TriplePattern
+_FILTER_ELEMENT = SRL.FilterElement
+_NEGATION_ELEMENT = SRL.NegationElement
+_ASSIGNMENT_ELEMENT = SRL.AssignmentElement
 
-TRIPLE_SUBJECT = SRL.subject
-TRIPLE_PREDICATE = SRL.predicate
-TRIPLE_OBJECT = SRL.object
+_TRIPLE_SUBJECT = SRL.subject
+_TRIPLE_PREDICATE = SRL.predicate
+_TRIPLE_OBJECT = SRL.object
 
-RULES = SRL.rules
-DATA = SRL.data
-IMPORTS = SRL.imports
-HEAD = SRL.head
-BODY = SRL.body
-INNER = SRL.inner
-TRIPLES = SRL.triples
+_RULES = SRL.rules
+_DATA = SRL.data
+_IMPORTS = SRL.imports
+_HEAD = SRL.head
+_BODY = SRL.body
+_INNER = SRL.inner
+_TRIPLES = SRL.triples
 
 # The spec reuses the bare name "data" for three different components
 # (rule.data/ruleset.data/negation.data) - each gets its own predicate URI
 # to avoid a same-URI-different-shape collision within one shared graph.
-RULE_DATA_FLAG = SRL.ruleData
-RULE_ID = SRL.id
-EXPR = SRL.expr
-VAR = SRL.var
-NEGATION_DATA_FLAG = SRL.negationData
+_RULE_DATA_FLAG = SRL.ruleData
+_RULE_ID = SRL.id
+_EXPR = SRL.expr
+_VAR = SRL.var
+_NEGATION_DATA_FLAG = SRL.negationData
 
 
 # ---------------------------------------------------------------------------
@@ -180,9 +175,9 @@ NEGATION_DATA_FLAG = SRL.negationData
 # (srl_ast.Term already types this in for a follow-up grammar widening).
 # ---------------------------------------------------------------------------
 
-VersionDecl = Comp("VersionDecl", Keyword("VERSION") + Param("version", String))
-ImportsDecl = Comp("ImportsDecl", Keyword("IMPORTS") + Param("iri", iri))
-_Prologue1Decl = BaseDecl | PrefixDecl | VersionDecl | ImportsDecl
+_VersionDecl = Comp("VersionDecl", Keyword("VERSION") + Param("version", String))
+_ImportsDecl = Comp("ImportsDecl", Keyword("IMPORTS") + Param("iri", iri))
+_Prologue1Decl = BaseDecl | PrefixDecl | _VersionDecl | _ImportsDecl
 
 _Period = Suppress(_PPLiteral("."))
 _BoolFlag = lambda keyword: Optional(Keyword(keyword)).set_parse_action(lambda t: bool(t))  # noqa: E731
@@ -216,11 +211,11 @@ _DataTriplesBlock = ZeroOrMore(Param("subjects", _SameSubjectData, isList=True) 
 _SRLData = Comp("Data", Keyword("DATA") + Suppress("{") + _DataTriplesBlock + Suppress("}"))
 
 _HeadTemplateBlock = ZeroOrMore(Param("subjects", _SameSubjectPattern, isList=True) + Optional(_Period))
-HeadTemplate = Comp("HeadTemplate", Suppress("{") + _HeadTemplateBlock + Suppress("}"))
+_HeadTemplate = Comp("HeadTemplate", Suppress("{") + _HeadTemplateBlock + Suppress("}"))
 
-Filter = Comp("Filter", Keyword("FILTER") + Param("expr", Constraint))
+_Filter = Comp("Filter", Keyword("FILTER") + Param("expr", Constraint))
 
-Assignment = Comp(
+_Assignment = Comp(
     "Assignment",
     Keyword("SET") + Suppress("(") + Param("var", Var) + Suppress(":=") + Param("expr", Expression) + Suppress(")"),
 )
@@ -229,26 +224,26 @@ Assignment = Comp(
 # only (no nested negation/assignment) - enforced structurally: this
 # alternation has no Negation/Assignment branch.
 _NegationBodyItem = (Param("inner", _SameSubjectPattern, isList=True) + Optional(_Period)) | (
-    Param("inner", Filter, isList=True) + Optional(_Period)
+    Param("inner", _Filter, isList=True) + Optional(_Period)
 )
-Negation = Comp(
+_Negation = Comp(
     "Negation",
     Keyword("NOT") + Param("data", _BoolFlag("DATA")) + Suppress("{") + ZeroOrMore(_NegationBodyItem) + Suppress("}"),
 )
 
 _BodyItem = (Param("body", _SameSubjectPattern, isList=True) + Optional(_Period)) | (
-    Param("body", Filter | Negation | Assignment, isList=True) + Optional(_Period)
+    Param("body", _Filter | _Negation | _Assignment, isList=True) + Optional(_Period)
 )
-BodyPattern = Comp("BodyPattern", Suppress("{") + ZeroOrMore(_BodyItem) + Suppress("}"))
+_BodyPattern = Comp("BodyPattern", Suppress("{") + ZeroOrMore(_BodyItem) + Suppress("}"))
 
 _SRLRule = Comp(
     "Rule",
     Keyword("RULE")
     + Optional(Param("id", iri))
-    + Param("head", HeadTemplate)
+    + Param("head", _HeadTemplate)
     + Keyword("WHERE")
     + Param("data", _BoolFlag("DATA"))
-    + Param("body", BodyPattern),
+    + Param("body", _BodyPattern),
 )
 
 # RuleSet ::= RuleOrDataBlock - simplified (documented, behaviourally
@@ -257,11 +252,11 @@ _SRLRule = Comp(
 # bucketed by kind, since Prologue accumulation is order-independent the
 # same way rdflib's own translatePrologue already is.
 _RuleOrData = _SRLRule | _SRLData
-RuleSetGrammar = Comp(
+_RuleSetGrammar = Comp(
     "RuleSet",
     ZeroOrMore(Param("prologue", _Prologue1Decl, isList=True) | Param("body", _RuleOrData, isList=True)),
 )
-RuleSetGrammar.ignore("#" + rest_of_line)
+_RuleSetGrammar.ignore("#" + rest_of_line)
 
 
 class SRLParseError(ValueError):
@@ -372,7 +367,7 @@ def parse_ruleset(text: str, base: str | None = None) -> srl_ast.RuleSet:
     tree into real ``srl_ast`` dataclasses.
     """
     try:
-        parsed = RuleSetGrammar.parse_string(text, parse_all=True)
+        parsed = _RuleSetGrammar.parse_string(text, parse_all=True)
     except Exception as exc:  # pyparsing.ParseException et al.
         raise SRLParseError(str(exc)) from exc
 
@@ -394,7 +389,7 @@ def ruleset_to_tree(ruleset: srl_ast.RuleSet, graph: Graph | None = None) -> tup
     """Encode a ``RuleSet`` as ``srl:`` tree-RDF. Returns ``(graph, root)``,
     ``root`` the ``srl:RuleSet``-typed node.
 
-    Useful on its own (not just inside ``parse_to_tree``) for a ``RuleSet``
+    Useful on its own (not just inside ``srl_parse_to_tree``) for a ``RuleSet``
     built or edited programmatically - rules combined, a filter rewritten -
     that now needs to go back into RDF, e.g. for storage or SHACL
     validation, without round-tripping through text.
@@ -402,10 +397,10 @@ def ruleset_to_tree(ruleset: srl_ast.RuleSet, graph: Graph | None = None) -> tup
     if graph is None:
         graph = _new_starlayer_graph()
     root = BNode()
-    graph.add((root, RDF.type, RULE_SET))
-    graph.add((root, RULES, _rdf_list(graph, [_rule_to_rdf(r, graph) for r in ruleset.rules])))
-    graph.add((root, DATA, _rdf_list(graph, [_data_to_rdf(d, graph) for d in ruleset.data])))
-    graph.add((root, IMPORTS, _rdf_list(graph, list(ruleset.imports))))
+    graph.add((root, RDF.type, _RULE_SET))
+    graph.add((root, _RULES, _rdf_list(graph, [_rule_to_rdf(r, graph) for r in ruleset.rules])))
+    graph.add((root, _DATA, _rdf_list(graph, [_data_to_rdf(d, graph) for d in ruleset.data])))
+    graph.add((root, _IMPORTS, _rdf_list(graph, list(ruleset.imports))))
     return graph, root
 
 
@@ -419,10 +414,10 @@ def _rdf_list(graph: Graph, items: list) -> BNode | URIRef:
 
 def _triple_to_rdf(triple: srl_ast.TriplePattern, graph: Graph) -> BNode:
     node = BNode()
-    graph.add((node, RDF.type, TRIPLE_PATTERN))
-    graph.add((node, TRIPLE_SUBJECT, _encode(triple.subject, graph)))
-    graph.add((node, TRIPLE_PREDICATE, _encode(triple.predicate, graph)))
-    graph.add((node, TRIPLE_OBJECT, _encode(triple.object, graph)))
+    graph.add((node, RDF.type, _TRIPLE_PATTERN))
+    graph.add((node, _TRIPLE_SUBJECT, _encode(triple.subject, graph)))
+    graph.add((node, _TRIPLE_PREDICATE, _encode(triple.predicate, graph)))
+    graph.add((node, _TRIPLE_OBJECT, _encode(triple.object, graph)))
     return node
 
 
@@ -431,43 +426,43 @@ def _body_element_to_rdf(element: srl_ast.BodyElement, graph: Graph) -> BNode:
         return _triple_to_rdf(element, graph)
     if isinstance(element, srl_ast.FilterElement):
         node = BNode()
-        graph.add((node, RDF.type, FILTER_ELEMENT))
-        graph.add((node, EXPR, _encode(element.expr, graph)))
+        graph.add((node, RDF.type, _FILTER_ELEMENT))
+        graph.add((node, _EXPR, _encode(element.expr, graph)))
         return node
     if isinstance(element, srl_ast.AssignmentElement):
         node = BNode()
-        graph.add((node, RDF.type, ASSIGNMENT_ELEMENT))
-        graph.add((node, VAR, _encode(element.var, graph)))
-        graph.add((node, EXPR, _encode(element.expr, graph)))
+        graph.add((node, RDF.type, _ASSIGNMENT_ELEMENT))
+        graph.add((node, _VAR, _encode(element.var, graph)))
+        graph.add((node, _EXPR, _encode(element.expr, graph)))
         return node
     if isinstance(element, srl_ast.NegationElement):
         node = BNode()
-        graph.add((node, RDF.type, NEGATION_ELEMENT))
+        graph.add((node, RDF.type, _NEGATION_ELEMENT))
         inner_nodes = [_body_element_to_rdf(e, graph) for e in element.inner]
-        graph.add((node, INNER, _rdf_list(graph, inner_nodes)))
-        graph.add((node, NEGATION_DATA_FLAG, _encode(element.data, graph)))
+        graph.add((node, _INNER, _rdf_list(graph, inner_nodes)))
+        graph.add((node, _NEGATION_DATA_FLAG, _encode(element.data, graph)))
         return node
     raise NotImplementedError(f"starlayer.sparql.srl: no encoding for body element {element!r}")  # pragma: no cover
 
 
 def _rule_to_rdf(rule: srl_ast.Rule, graph: Graph) -> BNode:
     node = BNode()
-    graph.add((node, RDF.type, RULE))
+    graph.add((node, RDF.type, _RULE))
     head_nodes = [_triple_to_rdf(t, graph) for t in rule.head]
-    graph.add((node, HEAD, _rdf_list(graph, head_nodes)))
+    graph.add((node, _HEAD, _rdf_list(graph, head_nodes)))
     body_nodes = [_body_element_to_rdf(e, graph) for e in rule.body]
-    graph.add((node, BODY, _rdf_list(graph, body_nodes)))
-    graph.add((node, RULE_DATA_FLAG, _encode(rule.data, graph)))
+    graph.add((node, _BODY, _rdf_list(graph, body_nodes)))
+    graph.add((node, _RULE_DATA_FLAG, _encode(rule.data, graph)))
     if rule.id is not None:
-        graph.add((node, RULE_ID, rule.id))
+        graph.add((node, _RULE_ID, rule.id))
     return node
 
 
 def _data_to_rdf(data: srl_ast.Data, graph: Graph) -> BNode:
     node = BNode()
-    graph.add((node, RDF.type, DATA_BLOCK))
+    graph.add((node, RDF.type, _DATA_BLOCK))
     triple_nodes = [_triple_to_rdf(t, graph) for t in data.triples]
-    graph.add((node, TRIPLES, _rdf_list(graph, triple_nodes)))
+    graph.add((node, _TRIPLES, _rdf_list(graph, triple_nodes)))
     return node
 
 
@@ -488,9 +483,9 @@ def _read_rdf_list(node, graph: Graph) -> list:
 
 def _decode_triple(node, graph: Graph) -> srl_ast.TriplePattern:
     return srl_ast.TriplePattern(
-        subject=_decode(graph.value(node, TRIPLE_SUBJECT), graph),
-        predicate=_decode(graph.value(node, TRIPLE_PREDICATE), graph),
-        object=_decode(graph.value(node, TRIPLE_OBJECT), graph),
+        subject=_decode(graph.value(node, _TRIPLE_SUBJECT), graph),
+        predicate=_decode(graph.value(node, _TRIPLE_PREDICATE), graph),
+        object=_decode(graph.value(node, _TRIPLE_OBJECT), graph),
     )
 
 
@@ -500,42 +495,42 @@ def _node_type(node, graph: Graph):
 
 def _decode_body_element(node, graph: Graph) -> srl_ast.BodyElement:
     t = _node_type(node, graph)
-    if t == TRIPLE_PATTERN:
+    if t == _TRIPLE_PATTERN:
         return _decode_triple(node, graph)
-    if t == FILTER_ELEMENT:
-        return srl_ast.FilterElement(expr=_decode(graph.value(node, EXPR), graph))
-    if t == ASSIGNMENT_ELEMENT:
+    if t == _FILTER_ELEMENT:
+        return srl_ast.FilterElement(expr=_decode(graph.value(node, _EXPR), graph))
+    if t == _ASSIGNMENT_ELEMENT:
         return srl_ast.AssignmentElement(
-            var=_decode(graph.value(node, VAR), graph),
-            expr=_decode(graph.value(node, EXPR), graph),
+            var=_decode(graph.value(node, _VAR), graph),
+            expr=_decode(graph.value(node, _EXPR), graph),
         )
-    if t == NEGATION_ELEMENT:
-        inner = [_decode_body_element(n, graph) for n in _read_rdf_list(graph.value(node, INNER), graph)]
-        data_flag = bool(_decode(graph.value(node, NEGATION_DATA_FLAG), graph))
+    if t == _NEGATION_ELEMENT:
+        inner = [_decode_body_element(n, graph) for n in _read_rdf_list(graph.value(node, _INNER), graph)]
+        data_flag = bool(_decode(graph.value(node, _NEGATION_DATA_FLAG), graph))
         return srl_ast.NegationElement(inner=inner, data=data_flag)
     raise SRLDecodeError(f"unrecognized rule body element node {node!r} (rdf:type {t!r})")
 
 
 def _decode_rule(node, graph: Graph) -> srl_ast.Rule:
-    head = [_decode_triple(n, graph) for n in _read_rdf_list(graph.value(node, HEAD), graph)]
-    body = [_decode_body_element(n, graph) for n in _read_rdf_list(graph.value(node, BODY), graph)]
-    data_flag = bool(_decode(graph.value(node, RULE_DATA_FLAG), graph))
-    rule_id = graph.value(node, RULE_ID)
+    head = [_decode_triple(n, graph) for n in _read_rdf_list(graph.value(node, _HEAD), graph)]
+    body = [_decode_body_element(n, graph) for n in _read_rdf_list(graph.value(node, _BODY), graph)]
+    data_flag = bool(_decode(graph.value(node, _RULE_DATA_FLAG), graph))
+    rule_id = graph.value(node, _RULE_ID)
     return srl_ast.Rule(head=head, body=body, data=data_flag, id=rule_id)
 
 
 def _decode_data(node, graph: Graph) -> srl_ast.Data:
-    triples = [_decode_triple(n, graph) for n in _read_rdf_list(graph.value(node, TRIPLES), graph)]
+    triples = [_decode_triple(n, graph) for n in _read_rdf_list(graph.value(node, _TRIPLES), graph)]
     return srl_ast.Data(triples=triples)
 
 
 def tree_to_ruleset(graph: Graph, root) -> srl_ast.RuleSet:
     """Decode the ``srl:RuleSet`` node ``root`` in ``graph`` (as returned by
-    ``parse_to_tree``/``ruleset_to_tree``, or an LLM-authored ``srl:`` graph
+    ``srl_parse_to_tree``/``ruleset_to_tree``, or an LLM-authored ``srl:`` graph
     not yet decoded) back into a real ``srl_ast.RuleSet``."""
-    rules = [_decode_rule(n, graph) for n in _read_rdf_list(graph.value(root, RULES), graph)]
-    data = [_decode_data(n, graph) for n in _read_rdf_list(graph.value(root, DATA), graph)]
-    imports = list(_read_rdf_list(graph.value(root, IMPORTS), graph))
+    rules = [_decode_rule(n, graph) for n in _read_rdf_list(graph.value(root, _RULES), graph)]
+    data = [_decode_data(n, graph) for n in _read_rdf_list(graph.value(root, _DATA), graph)]
+    imports = list(_read_rdf_list(graph.value(root, _IMPORTS), graph))
     return srl_ast.RuleSet(rules=rules, data=data, imports=imports)
 
 
@@ -620,23 +615,23 @@ def _rule_text(rule: srl_ast.Rule, namespace_manager: NamespaceManager | None) -
 
 # ---------------------------------------------------------------------------
 # Composed text <-> tree-RDF convenience, matching starontology.manchester's
-# parse_to_tree()/tree_to_text() naming.
+# srl_parse_to_tree()/srl_tree_to_text() naming.
 # ---------------------------------------------------------------------------
 
-def parse_to_tree(text: str, base: str | None = None) -> tuple[Graph, BNode]:
+def srl_parse_to_tree(text: str, base: str | None = None) -> tuple[Graph, BNode]:
     """SRL text straight to its ``srl:``-encoded tree-RDF. Composes
     ``parse_ruleset`` + ``ruleset_to_tree``. Returns ``(graph, root)``."""
     return ruleset_to_tree(parse_ruleset(text, base))
 
 
-def tree_to_text(graph: Graph, root) -> str:
-    """The inverse of ``parse_to_tree``. Composes ``tree_to_ruleset`` +
+def srl_tree_to_text(graph: Graph, root) -> str:
+    """The inverse of ``srl_parse_to_tree``. Composes ``tree_to_ruleset`` +
     ``ruleset_to_text``."""
     return ruleset_to_text(tree_to_ruleset(graph, root))
 
 
 # ---------------------------------------------------------------------------
-# SHACL validation of an srl: tree-RDF graph (was the validate half of
+# SHACL validation of an srl: tree-RDF graph (was the srl_validate half of
 # srl_shapes.py - ontology_graph()/shapes_graph() deliberately not exposed
 # publicly here, see module docstring for why).
 # ---------------------------------------------------------------------------
@@ -645,7 +640,7 @@ def _ontology_graph() -> Graph:
     """The ``srl:`` RDFS ontology, combined with ``salg:``'s (needed for
     the ``sh:class salg:Expression``/``salg:Variable`` checks below) -
     private: see module docstring for why this isn't exposed publicly."""
-    import starontology
+    from starlayer import starontology
 
     g = starontology.get_ontology_graph("srl_owl")
     g += starontology.get_ontology_graph("sparql_owl")
@@ -655,15 +650,15 @@ def _ontology_graph() -> Graph:
 def _shapes_graph() -> Graph:
     """A fresh graph of the ``srl:`` shapes, combined with ``salg:``'s -
     private, same reasoning as ``_ontology_graph()`` above."""
-    import starontology
+    from starlayer import starontology
 
     g = starontology.get_ontology_graph("srl_shacl")
     g += starontology.get_ontology_graph("sparql_shacl")
     return g
 
 
-def validate(data_graph: Graph) -> tuple[bool, Graph, str]:
-    """Validate ``data_graph`` (e.g. straight out of ``parse_to_tree()``,
+def srl_validate(data_graph: Graph) -> tuple[bool, Graph, str]:
+    """Validate ``data_graph`` (e.g. straight out of ``srl_parse_to_tree()``,
     or an LLM-authored ``srl:`` graph not yet decoded) against the ``srl:``
     shapes.
 

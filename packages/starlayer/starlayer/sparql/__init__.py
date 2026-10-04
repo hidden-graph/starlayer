@@ -16,6 +16,23 @@ from .serialize12 import translate_algebra_12
 from .to_rdf import queries_to_collection, query_to_rdf, update_to_rdf
 from .vocab import SALG
 
+# SRL/SPARQL-RL - deliberately NOT flattened into individual names here
+# (tried 2026-10-03, reverted same day) - that would mean every one of
+# `srl.py`/`srl_ast.py`/`srl_eval.py`'s own names is reachable by two
+# different paths (`starlayer.sparql.X` and `starlayer.sparql.srl.X`),
+# the exact anti-pattern already removed elsewhere in this codebase
+# (`starlayer.registry`, `ontology_graph()`/`shapes_graph()` wrappers,
+# `get_ontology_turtle12()`). The one real path is the submodule itself -
+# `from starlayer.sparql import srl` (ordinary Python package traversal,
+# nothing to maintain here) - then `srl.parse_ruleset(...)`/
+# `srl.srl_validate(...)`/etc, or `from starlayer.sparql import srl_ast`/
+# `srl_eval` for the sibling pieces. This is also why `srl.py`'s own
+# `srl_`-prefixed names (`srl_parse_to_tree`/`srl_tree_to_text`/
+# `srl_validate`) stay prefixed even without a flat re-export to collide
+# through - a caller who also does `from starlayer.starontology.manchester
+# import manchester_parse_to_tree` and separately imports this module's
+# bare `parse_to_tree` would still hit the same collision at that call site.
+
 __all__ = [
     "SALG",
     "prepare_query_12",

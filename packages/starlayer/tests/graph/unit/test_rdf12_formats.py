@@ -10,6 +10,7 @@ from rdflib import BNode, Literal, URIRef
 from rdflib.namespace import XSD
 from starlayer.graph.graph.starlayer_graph import RDF_REIFIES, StarLayerGraph
 from starlayer.graph.model.triple import TripleTerm
+from starlayer.graph.parsers.errors import MultipleGraphsError
 
 EX = 'http://example.org/'
 
@@ -161,16 +162,33 @@ class TestNT12RoundTrip:
 # ---------------------------------------------------------------------------
 
 class TestNQ12:
-    def test_parse_ignores_graph_name(self):
+    def test_parse_single_named_graph_drops_graph_name(self):
+        """A single distinct graph (even an explicitly named one, not the
+        default graph) is lossless to merge into one StarLayerGraph, so
+        this still succeeds, dropping the graph name."""
+        nq = (
+            f'<{EX}s> <{EX}p> <{EX}o> <{EX}graph1> .\n'
+            f'<{EX}a> <{EX}b> <{EX}c> <{EX}graph1> .\n'
+        )
+        g = StarLayerGraph()
+        g.parse(data=nq, format='nq12')
+        assert (ex('s'), ex('p'), ex('o')) in g
+        assert (ex('a'), ex('b'), ex('c')) in g
+
+    def test_parse_raises_for_multiple_distinct_graphs(self):
+        """StarLayerGraph.parse() can only resolve to one graph - two
+        distinct graph names in the input would be silently flattened
+        together with no way to tell, so this raises instead - added
+        2026-10-04, this used to silently merge them (see
+        test_parse_single_named_graph_drops_graph_name above for the still-
+        supported single-graph case)."""
         nq = (
             f'<{EX}s> <{EX}p> <{EX}o> <{EX}graph1> .\n'
             f'<{EX}a> <{EX}b> <{EX}c> <{EX}graph2> .\n'
         )
         g = StarLayerGraph()
-        g.parse(data=nq, format='nq12')
-        # Both triples should be merged into this graph
-        assert (ex('s'), ex('p'), ex('o')) in g
-        assert (ex('a'), ex('b'), ex('c')) in g
+        with pytest.raises(MultipleGraphsError):
+            g.parse(data=nq, format='nq12')
 
     def test_parse_triple_term_in_nquads(self):
         nq = (
@@ -243,7 +261,9 @@ class TestTriG12Parse:
         g.parse(data=trig, format='trig12')
         assert g.has_triple_term(ex('alice'), ex('knows'), ex('bob'))
 
-    def test_multiple_named_graphs_merged(self):
+    def test_multiple_named_graphs_raises(self):
+        """StarLayerGraph.parse() can only resolve to one graph - added
+        2026-10-04, this used to silently merge the two graphs together."""
         trig = (
             f'@prefix ex: <{EX}> .\n'
             f'GRAPH <{EX}g1> {{\n'
@@ -254,11 +274,13 @@ class TestTriG12Parse:
             f'}}\n'
         )
         g = StarLayerGraph()
-        g.parse(data=trig, format='trig12')
-        assert (ex('a'), ex('b'), ex('c')) in g
-        assert (ex('x'), ex('y'), ex('z')) in g
+        with pytest.raises(MultipleGraphsError):
+            g.parse(data=trig, format='trig12')
 
-    def test_default_and_named_graph_merged(self):
+    def test_default_and_named_graph_raises(self):
+        """Default graph content plus a named graph block is two distinct
+        graphs, same as two named graphs - added 2026-10-04, this used to
+        silently merge them together."""
         trig = (
             f'@prefix ex: <{EX}> .\n'
             f'ex:default ex:graph ex:triple .\n'
@@ -267,9 +289,8 @@ class TestTriG12Parse:
             f'}}\n'
         )
         g = StarLayerGraph()
-        g.parse(data=trig, format='trig12')
-        assert (ex('default'), ex('graph'), ex('triple')) in g
-        assert (ex('named'), ex('graph'), ex('triple')) in g
+        with pytest.raises(MultipleGraphsError):
+            g.parse(data=trig, format='trig12')
 
 
 # ---------------------------------------------------------------------------
@@ -526,7 +547,9 @@ class TestTriX12Parse:
         g.parse(data=xml, format='trix12')
         assert g.has_triple_term(ex('alice'), ex('knows'), ex('bob'))
 
-    def test_named_graph_triples_merged(self):
+    def test_named_graph_triples_raises_for_multiple_graphs(self):
+        """StarLayerGraph.parse() can only resolve to one graph - added
+        2026-10-04, this used to silently merge the two graphs together."""
         xml = (
             '<?xml version="1.0"?>'
             '<TriX xmlns="http://www.w3.org/2004/03/trix/trix-1/">'
@@ -538,9 +561,22 @@ class TestTriX12Parse:
             '</graph></TriX>'
         )
         g = StarLayerGraph()
+        with pytest.raises(MultipleGraphsError):
+            g.parse(data=xml, format='trix12')
+
+    def test_single_named_graph_drops_graph_name(self):
+        """A single distinct graph is lossless to merge into one
+        StarLayerGraph, so this still succeeds, dropping the graph name."""
+        xml = (
+            '<?xml version="1.0"?>'
+            '<TriX xmlns="http://www.w3.org/2004/03/trix/trix-1/">'
+            f'<graph><uri>{EX}g1</uri>'
+            f'<triple><uri>{EX}a</uri><uri>{EX}b</uri><uri>{EX}c</uri></triple>'
+            '</graph></TriX>'
+        )
+        g = StarLayerGraph()
         g.parse(data=xml, format='trix12')
         assert (ex('a'), ex('b'), ex('c')) in g
-        assert (ex('x'), ex('y'), ex('z')) in g
 
 
 class TestTriX12ParseJenaConvention:

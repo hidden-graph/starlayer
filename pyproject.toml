@@ -41,8 +41,8 @@ Repository = "https://github.com/hidden-graph/starlayer"
 Issues = "https://github.com/hidden-graph/starlayer/issues"
 
 [tool.setuptools.packages.find]
-where = ["packages/starlayer", "packages/ontology"]
-include = ["starlayer*", "starontology*"]
+where = ["packages/starlayer"]
+include = ["starlayer*"]
 
 [tool.setuptools.package-data]
 starlayer = ["py.typed", "shacl/assets/*.ttl"]

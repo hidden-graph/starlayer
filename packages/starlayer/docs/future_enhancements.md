@@ -23,6 +23,69 @@ package's own top level, not nested under one subpackage's docs.
 - Create a user guide for `StarLayerGraph.derive_shape()` (creating a SHACL
   shape from a graph's own data) - the method exists, no guide covers it
   yet.
+- Consider adding a `processQuery(graph, queryString, ...)` to
+  `starlayer.graph.query.sparql_api` for symmetry with the existing
+  `processUpdate`, found while reviewing the api-reference.md doc
+  (2026-10-04). rdflib itself only defines `processUpdate`, not
+  `processQuery` - confirmed by reading both `Graph.update()`'s and
+  `Graph.query()`'s own source: they're architecturally identical
+  (`use_store_provided` dispatch preferring the store's own native
+  query()/update() if available, else falling back to the pluggable
+  processor), and `processUpdate` exists specifically to bypass that
+  entire layer and call `evalUpdate()` directly - a real, different code
+  path from `graph.update()`, not just an alternate spelling. The same
+  bypass would be equally meaningful on the query side via `evalQuery`
+  (which already exists in rdflib, operating on an already-prepared
+  `Query` object), so there's no principled reason only updates get this
+  escape hatch - just an asymmetry in rdflib's own public API that
+  `sparql_api.py` currently mirrors as-is rather than closing. Low
+  priority: no confirmed caller has asked for this, and it would be new
+  surface area StarLayer invents rather than a gap rdflib itself expects
+  wrapped.
+- Consider making `StarLayerGraph.addN(quads)` accept plain triples
+  (3-tuples), not just quads (4-tuples), found while reviewing the
+  api-reference.md doc (2026-10-04). Inherited directly from plain
+  `rdflib.Graph.addN()` (confirmed identical failure on both):
+  `g.addN([(s, p, o)])` raises `ValueError: not enough values to unpack
+  (expected 4, got 3)`, because `addN()`'s own source unconditionally
+  unpacks `for s, p, o, c in quads` even on an ordinary `Graph` that only
+  ever has one context - so adding bare triples in bulk requires the
+  caller to manually tag every one with the graph itself first
+  (`g.addN((s, p, o, g) for s, p, o in triples)`). Worse than just
+  verbose: this isn't "the context is ignored" - it's a silent *filter*.
+  Confirmed directly: `c.identifier is self.identifier` for each quad's
+  4th element determines inclusion, and anything else (an unrelated
+  graph, a plain string, a typo'd identifier) causes that triple to be
+  dropped with no error, not added with the mismatched context
+  discarded. A fix would detect 3-tuples vs 4-tuples by length and
+  default the context to `self` for the 3-tuple case - unambiguous and
+  backward-compatible (existing quad-based callers see no change), but
+  it's new behavior beyond what rdflib's own `addN()` provides, not a
+  bug fix, so it needs a deliberate decision to diverge from the
+  "drop-in replacement for rdflib" contract `StarLayerGraph`'s other
+  overrides otherwise hold to exactly (see the `processQuery` entry
+  above for the same tension).
+- **Survey every plain-inherited (`Unchanged`) method on `StarLayerGraph`/
+  `StarLayerDataset` that returns `None`, and consider adding a
+  StarLayer-specific override that returns `self` instead - for
+  chaining consistency with the rest of the mutating-method surface
+  (`add()`/`remove()`/`addN()`/`add_reification()`, all fixed or added
+  2026-10-04 to return `self`). Found while reviewing the
+  api-reference.md doc (2026-10-04): `bind()` (both classes),
+  `StarLayerDataset.print()`, and `StarLayerDataset.remove_context()`
+  all confirmed via `inspect.signature()` against plain rdflib to
+  genuinely return `None` there too - these are real, unmodified rdflib
+  behavior, not a StarLayer gap, so **deliberately not touched now**.
+  Unlike the `add_reification()` fix, this would mean diverging from
+  rdflib's own return contract for an *inherited* method (not adding a
+  return value to a StarLayer-original one) - the same
+  "drop-in-replacement" tension the `processQuery`/`addN` entries above
+  already describe, just for a different method category. Revisit as a
+  deliberate, scoped decision (likely: override each one explicitly to
+  add `return self`, matching the chaining convention, rather than
+  leaving some mutating methods chainable and others not for no
+  principled reason) - not something to fix opportunistically one
+  method at a time.
 
 **Done**: "produce a documentation doc outlining every method/import
 available under `starlayer`" → `packages/starlayer/docs/api-reference.md`,

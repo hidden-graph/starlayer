@@ -86,7 +86,7 @@ from __future__ import annotations
 
 import warnings
 
-import starontology
+from starlayer import starontology
 from rdflib import Graph
 
 from .expr_families import _EXPR_NODE_FAMILY

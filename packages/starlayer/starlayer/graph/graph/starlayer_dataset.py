@@ -144,6 +144,8 @@ class StarLayerDataset(Dataset):
 
     def open(self, configuration, create: bool = False) -> StarLayerDataset:
         """Open a persistent store and rebuild all per-context TripleTerm registries.
+        Returns self, not whatever status value rdflib's own Graph.open()
+        returns (fixed 2026-10-04 - same bug as StarLayerGraph.open()).
 
         The store backend is not a StarLayer dependency — install and configure
         it separately, then pass store='StoreName' to the constructor.
@@ -153,12 +155,12 @@ class StarLayerDataset(Dataset):
             ds = StarLayerDataset(store='Sleepycat')
             ds.open('/path/to/db', create=True)
         """
-        result = super().open(configuration, create)
+        super().open(configuration, create)
         self._sg_cache.clear()
         self._raw_execution_graph = None
         for ctx in super(Dataset, self).contexts():
             self.get_context(ctx.identifier)
-        return result
+        return self
 
     def close(self, commit_pending_transaction: bool = False) -> None:
         """Close the underlying store, optionally committing pending writes."""
@@ -248,6 +250,36 @@ class StarLayerDataset(Dataset):
         else:
             default_graph = self.get_context(self.default_graph.identifier)
             yield from default_graph.triples(triple)
+
+    def triples_choices(self, triple, context=None) -> Generator[tuple, None, None]:
+        """Iterate triples matching a choices pattern, scoped the same way
+        ``triples()`` above is. Filters encoding triples; restores
+        TripleTerms - fixed 2026-10-04. This method didn't exist on this
+        class at all before the fix, so it fell through to rdflib's own
+        ``ConjunctiveGraph.triples_choices()``, which queries ``self.store``
+        directly and bypasses every context's own TripleTerm registry -
+        confirmed live that the raw ``tt:HASH`` encoding ``URIRef`` leaked
+        through unrestored, while this class's own ``triples()`` correctly
+        restores a real ``TripleTerm`` for the identical data.
+
+        ``context=None``, ``default_union=False`` (the default): only the
+        default graph's own triples, matching ``triples()``'s own semantics
+        above. ``context=None``, ``default_union=True``: every graph,
+        matching rdflib's own ``ConjunctiveGraph.triples_choices()`` - the
+        same triple may appear more than once if it exists in multiple
+        graphs. ``context`` given: scoped to that one named graph only,
+        via the inherited ``_graph()`` helper (accepts an identifier, a
+        ``Graph``, or another dataset, same normalization rdflib's own
+        version used).
+        """
+        if context is not None:
+            yield from self._graph(context).triples_choices(triple)
+            return
+        if self.default_union:
+            for ctx in self.contexts():
+                yield from ctx.triples_choices(triple)
+            return
+        yield from self.get_context(self.default_graph.identifier).triples_choices(triple)
 
     def cbd(self, resource, *, target_graph=None, include_reifications=True) -> StarLayerGraph:
         """Concise Bounded Description, scoped by ``self.default_union`` the
@@ -339,7 +371,7 @@ class StarLayerDataset(Dataset):
         default_graph.remove(triple)
         return self
 
-    def addN(self, quads) -> None:
+    def addN(self, quads) -> StarLayerDataset:
         """Add multiple quads, each routed to its own target graph's real
         StarLayerGraph context for TripleTerm-aware encoding - see this
         section's own module-level comment. rdflib's own ``Graph.__iadd__``
@@ -349,6 +381,11 @@ class StarLayerDataset(Dataset):
         ``StarLayerGraph.addN``'s own general handling of a heterogeneous
         quads iterable, so this is correct for a direct multi-graph
         ``addN`` call too, not just the ``+=`` case.
+
+        Returns self, matching rdflib's own ConjunctiveGraph.addN() (and
+        StarLayerGraph.addN() above) - fixed 2026-10-04, this override used
+        to fall off the end and return None instead, the same missing-return
+        bug as StarLayerGraph.add()/.remove() had.
         """
         by_graph: dict = {}
         for s, p, o, c in quads:
@@ -357,6 +394,7 @@ class StarLayerDataset(Dataset):
         for identifier, triples in by_graph.items():
             sg = self.get_context(identifier)
             sg.addN((s, p, o, sg) for s, p, o in triples)
+        return self
 
     # ------------------------------------------------------------------
     # Internal parse helpers
@@ -845,7 +883,7 @@ class StarLayerDataset(Dataset):
             merged.add((s, p, o))
         return merged
 
-    def serialize(self, destination=None, format='trig', **kwargs) -> str | None:
+    def serialize(self, destination=None, format='trig', **kwargs) -> str | StarLayerDataset:
         """Serialize this dataset.
 
         format='trig12'  — TriG 1.2 with GRAPH blocks and <<( )>> triple terms.
@@ -930,5 +968,9 @@ class StarLayerDataset(Dataset):
         if destination is not None:
             with open(destination, 'w', encoding='utf-8') as f:
                 f.write(text)
-            return destination
+            # self, not the destination path - matches rdflib's own
+            # Graph.serialize() contract and StarLayerGraph.serialize()'s own
+            # RDF12-format branch; fixed 2026-10-04, this used to return the
+            # path instead (same bug as that one).
+            return self
         return text

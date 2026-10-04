@@ -48,6 +48,13 @@ class TestFreshDerivation:
         shape = g.derive_shape()
         assert _conforms(g, shape)
 
+    def test_derive_shape_returns_a_starlayer_graph(self):
+        """Matches every other graph-returning method on this class -
+        added 2026-10-04, this used to return a plain rdflib.Graph."""
+        g = _make_people_graph()
+        shape = g.derive_shape()
+        assert isinstance(shape, StarLayerGraph)
+
     def test_one_node_shape_per_class(self):
         g = _make_people_graph()
         g.add((EX.acme, RDF.type, EX.Organization))

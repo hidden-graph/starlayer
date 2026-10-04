@@ -264,6 +264,24 @@ def _read_source_text(source=None, file=None, location=None, data=None) -> str:
     raise ValueError('No source data to parse')
 
 
+def _check_single_graph(graph_ids, *, format: str) -> None:
+    """Raise MultipleGraphsError if graph_ids - the distinct graph
+    identifiers found while parsing a quad-shaped (nquads/trig/trix,
+    bare or 12-variant) document - names more than one graph.
+
+    Shared by every quad-format branch of StarLayerGraph.parse() (nq12,
+    trig12, trix12, and the bare nquads/trig/trix fallback below) so all
+    six formats enforce the identical rule: at most one distinct graph
+    (including the trivial all-default-graph case, graph_ids == {None})
+    parses normally into this graph; two or more raises, since flattening
+    them together would silently mix unrelated graphs with no way for the
+    caller to know.
+    """
+    if len(graph_ids) > 1:
+        from starlayer.graph.parsers.errors import MultipleGraphsError
+        raise MultipleGraphsError(format, sorted(str(g) for g in graph_ids))
+
+
 class StarLayerGraph(Graph):
     """rdflib.Graph extended with RDF 1.2 triple-term support.
 
@@ -843,7 +861,10 @@ class StarLayerGraph(Graph):
 
         Delegates to rdflib's Graph.open() then scans the store for any
         existing tt:HASH encoding triples so TripleTerms are immediately
-        usable without a separate rebuild call.
+        usable without a separate rebuild call. Returns self, not whatever
+        status value rdflib's own Graph.open() returns (fixed 2026-10-04 -
+        this override used to blindly forward that raw result, even though
+        its own annotation already claimed StarLayerGraph).
 
         The store backend (e.g. Sleepycat, rdflib-sqlalchemy) is not a
         StarLayer dependency — install and configure it separately, then
@@ -854,10 +875,10 @@ class StarLayerGraph(Graph):
             sg = StarLayerGraph(store='Sleepycat')
             sg.open('/path/to/db', create=True)
         """
-        result = super().open(configuration, create)
+        super().open(configuration, create)
         if not self._is_native:
             self._build_registry_from_store()
-        return result
+        return self
 
     def close(self, commit_pending_transaction: bool = False) -> None:
         """Close the underlying store, optionally committing pending writes."""
@@ -867,9 +888,12 @@ class StarLayerGraph(Graph):
     # Overridden rdflib.Graph methods
     # ------------------------------------------------------------------
 
-    def add(self, triple) -> None:
+    def add(self, triple) -> StarLayerGraph:
         """Add a triple. A TripleTerm (or plain 3-tuple) in the object position is
-        converted to its internal encoding automatically.
+        converted to its internal encoding automatically. Returns self, matching
+        rdflib's own Graph.add() - fixed 2026-10-04, this override used to fall
+        off the end and return None instead, silently breaking chaining
+        (g.add(...).add(...)) that works fine on plain rdflib.Graph.
 
             g.add((s, p, o))              # plain triple
             g.add((s, p, TripleTerm(...))) # TripleTerm as object
@@ -887,7 +911,7 @@ class StarLayerGraph(Graph):
         if self._is_native:
             self._native_add(s, p, obj)
             self._on_mutated()
-            return
+            return self
         s_n, o_n = self._coerce_tt(s), self._coerce_tt(obj)
         if self._needs_bnode_skolemization:
             from starlayer.graph.backends.native import skolemize_bnode
@@ -897,6 +921,7 @@ class StarLayerGraph(Graph):
                 o_n = skolemize_bnode(o_n)
         super().add((s_n, p, o_n))
         self._on_mutated()
+        return self
 
     def addN(self, quads) -> StarLayerGraph:
         """Add multiple quads, encoding all TripleTerms in one store.addN() call.
@@ -1013,16 +1038,18 @@ class StarLayerGraph(Graph):
             sparql = f'DELETE DATA {{ {scoped} }}'
         http_update(u_url, sparql, hdrs)
 
-    def remove(self, triple) -> None:
-        """Remove a triple. Returns immediately if a TripleTerm in the pattern is not registered."""
+    def remove(self, triple) -> StarLayerGraph:
+        """Remove a triple. Returns self (matching rdflib's own Graph.remove(),
+        fixed 2026-10-04 - same missing-return bug as add() above) immediately
+        if a TripleTerm in the pattern is not registered."""
         s, p, obj = triple
         if self._is_native:
             self._native_remove(s, p, obj)
             self._on_mutated()
-            return
+            return self
         s_n, o_n = self._coerce_tt_read(s), self._coerce_tt_read(obj)
         if s_n is _TT_NOT_FOUND or o_n is _TT_NOT_FOUND:
-            return
+            return self
         if self._needs_bnode_skolemization:
             from starlayer.graph.backends.native import skolemize_bnode
             if isinstance(s_n, BNode):
@@ -1031,6 +1058,7 @@ class StarLayerGraph(Graph):
                 o_n = skolemize_bnode(o_n)
         super().remove((s_n, p, o_n))
         self._on_mutated()
+        return self
 
     def triples(self, triple) -> Generator[tuple, None, None]:
         """Iterate triples matching the pattern. Filters internal encoding triples.
@@ -1261,8 +1289,12 @@ class StarLayerGraph(Graph):
         self.add((reifier, predicate, obj))
         return reifier
 
-    def add_reification(self, reifier, triple_term) -> None:
-        """Add reifier rdf:reifies triple_term, making the node an official reifier."""
+    def add_reification(self, reifier, triple_term) -> StarLayerGraph:
+        """Add reifier rdf:reifies triple_term, making the node an official
+        reifier. Returns this graph, matching every other mutating method
+        on this class (add()/remove()/addN()/etc) - added 2026-10-04, this
+        used to return None, the one mutating method that didn't support
+        chaining."""
         tt = triple_term if isinstance(triple_term, TripleTerm) else TripleTerm(*triple_term)
         if self._is_native:
             # self.add() (-> _native_add()) writes tt using the backend's
@@ -1275,10 +1307,11 @@ class StarLayerGraph(Graph):
             # object (same store, no shared in-process state) read back
             # nothing but the fragments via this path before this fix.
             self.add((reifier, RDF_REIFIES, tt))
-            return
+            return self
         tt_uri = self._intern_tt(tt)
         super().add((reifier, RDF_REIFIES, tt_uri))
         self._on_mutated()
+        return self
 
     def reifiers(self, TT=None, predicate=None, object=None) -> Generator[IdentifiedNode, None, None]:
         """Yield reifier nodes matching the given filters.
@@ -1432,8 +1465,11 @@ class StarLayerGraph(Graph):
         """
         return node.n3(self.namespace_manager)
 
-    def remove_reification(self, reifier, triple_term=None) -> None:
-        """Remove the rdf:reifies triple(s) for the given reifier.
+    def remove_reification(self, reifier, triple_term=None) -> StarLayerGraph:
+        """Remove the rdf:reifies triple(s) for the given reifier, and
+        return this graph - matching add_reification() and every other
+        mutating method on this class (added 2026-10-04, this used to
+        return None, the same asymmetry add_reification() had before it).
 
         With triple_term=None (default), removes every rdf:reifies triple
         the reifier has. Pass a specific triple_term (a TripleTerm, or a
@@ -1444,7 +1480,7 @@ class StarLayerGraph(Graph):
         encoding handling here), so a triple_term that isn't registered in
         this graph is a safe no-op, same as remove() everywhere else.
         """
-        self.remove((reifier, RDF_REIFIES, triple_term))
+        return self.remove((reifier, RDF_REIFIES, triple_term))
 
     def parse(self, source=None, publicID=None, format=None,
               location=None, file=None, data=None, **kwargs) -> StarLayerGraph:
@@ -1452,9 +1488,9 @@ class StarLayerGraph(Graph):
 
         format='turtle12'  — Turtle 1.2 with <<( )>>, {| |}, ~ reifier syntax
         format='nt12'      — N-Triples 1.2 with <<( )>> triple terms
-        format='nq12'      — N-Quads 1.2 (all named graphs merged into this graph)
-        format='trig12'    — TriG 1.2 (all named graphs merged into this graph)
-        format='trix12'    — TriX 1.2 XML (all named graphs merged into this graph)
+        format='nq12'      — N-Quads 1.2
+        format='trig12'    — TriG 1.2
+        format='trix12'    — TriX 1.2 XML
         format='rdfxml12'  — RDF/XML 1.2 with rdf:parseType="Triple" and
                              rdf:annotation/rdf:annotationNodeID (RDF 1.2 XML Syntax)
         format='manchester' (alias 'omn') — OWL 2 Manchester Syntax; see
@@ -1467,7 +1503,22 @@ class StarLayerGraph(Graph):
                              Turtle12SyntaxError, since those aren't Turtle
                              syntax at all. The input must be valid
                              Turtle/Turtle 1.2.
-        All other formats delegate to rdflib (no triple-term support).
+
+        'nq12'/'trig12'/'trix12' above, and the bare (RDF 1.1) 'nquads'/
+        'trig'/'trix' handled by the fallback below, all name quad-shaped
+        (multi-graph-capable) formats being parsed into a single graph.
+        A document resolving to at most one distinct graph - including the
+        trivial case of everything being in the default graph - parses
+        normally (any explicit graph name is simply dropped). A document
+        genuinely spanning two or more distinct graphs raises
+        MultipleGraphsError instead of silently flattening them together -
+        use StarLayerDataset.parse() to keep each graph separate.
+
+        All other formats delegate to rdflib (no triple-term support) -
+        except bare 'nquads'/'trig'/'trix', which this project still routes
+        through the single-vs-multiple-graph check above (plain rdflib
+        delegation would otherwise silently yield zero triples the moment
+        any named graph appears at all, even just one).
         """
         if format in ('n3', 'n3-12', 'text/n3'):
             format = 'turtle12'
@@ -1548,8 +1599,11 @@ class StarLayerGraph(Graph):
                     triples = parse_ntriples12(text)
                 else:
                     from starlayer.graph.parsers.ntriples12 import parse_nquads12
-                    # merge all named graphs: drop the graph component
-                    triples = [(s, p, o) for s, p, o, _g in parse_nquads12(text)]
+                    quads = parse_nquads12(text)
+                    _check_single_graph({g for _s, _p, _o, g in quads}, format='nq12')
+                    # at most one distinct graph, per the check above - drop
+                    # the (uniform) graph component
+                    triples = [(s, p, o) for s, p, o, _g in quads]
                 if self._is_native:
                     self._native_add_many(list(triples))
                 else:
@@ -1567,22 +1621,34 @@ class StarLayerGraph(Graph):
                 from starlayer.graph.parsers.trig12 import (
                     extract_version_directive as _trig_version,
                 )
-                from starlayer.graph.parsers.trig12 import parse_trig12
+                from starlayer.graph.parsers.trig12 import parse_trig12_named
+                named = parse_trig12_named(text)
+                # exclude prefix/VERSION-only chunks (no actual triples) -
+                # e.g. a leading chunk before the first GRAPH block that
+                # has only PREFIX/VERSION directives still shows up as a
+                # (None, [], namespaces) entry here, but names no graph
+                _check_single_graph(
+                    {gid for gid, chunk_triples, _ns in named if chunk_triples}, format='trig12',
+                )
+                # at most one distinct graph, per the check above - flatten
+                # the (single) graph's chunks together
+                triples = [t for _gid, chunk_triples, _ns in named for t in chunk_triples]
                 if self._is_native:
                     # Same rationale as the turtle12/longturtle12 branch
-                    # above - parse_trig12() returns the rdf-1.1 backend's
-                    # own tt:HASH encoding, which needs decoding back into
-                    # real TripleTerm objects before self.add() can write
-                    # them using the native backend's real <<( )>> syntax.
+                    # above - parse_trig12_named() returns the rdf-1.1
+                    # backend's own tt:HASH encoding, which needs decoding
+                    # back into real TripleTerm objects before self.add()
+                    # can write them using the native backend's real
+                    # <<( )>> syntax.
                     from starlayer.graph.parsers.turtle_parser import (
                         decode_tt_encoded_triples,
                     )
                     skolemized = Graph()
-                    for triple in parse_trig12(text):
+                    for triple in triples:
                         skolemized.add(triple)
                     self._native_add_many(list(decode_tt_encoded_triples(skolemized)))
                 else:
-                    for triple in parse_trig12(text):
+                    for triple in triples:
                         super().add(triple)
                     self._build_registry_from_store()
                     self._on_mutated()
@@ -1593,8 +1659,12 @@ class StarLayerGraph(Graph):
                 check_version_conformance_for_graphs(_trig_version(text), [self], context='TriG document')
 
             elif format == 'trix12':
-                from starlayer.graph.parsers.trix12 import parse_trix12
-                triples = parse_trix12(text)
+                from starlayer.graph.parsers.trix12 import parse_trix12_named
+                named = parse_trix12_named(text)
+                _check_single_graph({gid for gid, _triples in named}, format='trix12')
+                # at most one distinct graph, per the check above - flatten
+                # the (single) graph's chunks together
+                triples = [t for _gid, chunk_triples in named for t in chunk_triples]
                 if self._is_native:
                     self._native_add_many(list(triples))
                 else:
@@ -1631,6 +1701,25 @@ class StarLayerGraph(Graph):
                     for triple in triples:
                         self.add(triple)
 
+            return self
+        if format in ('nquads', 'trig', 'trix'):
+            # Plain rdflib delegation (what every other format below still
+            # gets) would silently yield zero triples the moment any named
+            # graph appears at all in one of these - a non-context-aware
+            # Graph's own parser plugins can't place quads anywhere - so
+            # this project routes through a real Dataset first instead,
+            # purely to see the per-graph structure before deciding whether
+            # to flatten (at most one distinct graph) or raise (two or
+            # more) - the same rule nq12/trig12/trix12 enforce above.
+            text = _read_source_text(source=source, file=file, location=location, data=data)
+            from rdflib import Dataset
+            ds = Dataset()
+            ds.parse(data=text, format=format)
+            non_empty = [ctx for ctx in ds.graphs() if len(ctx) > 0]
+            _check_single_graph({ctx.identifier for ctx in non_empty}, format=format)
+            for ctx in non_empty:
+                for triple in ctx:
+                    self.add(triple)
             return self
         return super().parse(source=source, publicID=publicID, format=format,
                              location=location, file=file, data=data, **kwargs)
@@ -2103,11 +2192,40 @@ class StarLayerGraph(Graph):
             if destination is not None:
                 with open(destination, 'w', encoding='utf-8') as f:
                     f.write(text)
-                return destination
+                # self, not the destination path - matches rdflib's own
+                # Graph.serialize() contract (returns self when writing to a
+                # destination, the text only when destination is None) -
+                # fixed 2026-10-04, this used to return the path instead.
+                return self
             return text
         # For 1.1 formats: de-skolemize internal URIRefs to blank nodes so
         # rdflib's serializer produces clean output without exposing tt:/rr: URIs.
-        return self._deskolemize_to_graph().serialize(destination=destination, format=format, **kwargs)
+        deskolemized = self._deskolemize_to_graph()
+        if format in ('nquads', 'trix'):
+            # Unlike TrigSerializer (which falls back to treating a
+            # non-context-aware store as its own single context - see
+            # rdflib.plugins.serializers.trig.TrigSerializer.__init__), the
+            # NQuads/TriX serializer plugins just raise "...only makes
+            # sense for context-aware stores" for one. Added 2026-10-04 so
+            # all six dataset formats behave consistently on serialize()
+            # (matching the consistent parse() rule added the same day):
+            # wrap the de-skolemized graph as the one context of a real
+            # Dataset, giving these two formats the same single-graph
+            # fallback trig already gets for free.
+            from rdflib import Dataset
+            ds = Dataset()
+            ctx = ds.graph(deskolemized.identifier)
+            for triple in deskolemized:
+                ctx.add(triple)
+            for prefix, ns in deskolemized.namespaces():
+                ds.bind(prefix, ns)
+            result = ds.serialize(destination=destination, format=format, **kwargs)
+        else:
+            result = deskolemized.serialize(destination=destination, format=format, **kwargs)
+        # self, not the throwaway de-skolemized Graph - same rdflib-matching
+        # contract as above; fixed 2026-10-04, this used to return that
+        # unrelated internal Graph instead of self when destination was given.
+        return self if destination is not None else result
 
     def _deskolemize_to_graph(self) -> Graph:
         """Return a plain rdflib.Graph with internal tt: URIRefs replaced by
@@ -2118,6 +2236,16 @@ class StarLayerGraph(Graph):
         Used by non-RDF12 serializers (format='turtle', 'xml', etc, via
         serialize()) so triple terms appear as blank-node reifications
         rather than opaque content-addressed URIRefs.
+
+        The output graph is constructed with `identifier=self.identifier`
+        (both branches below) - a real bug until fixed 2026-10-04: a bare
+        `Graph()` defaults to a fresh random BNode identifier, so
+        `serialize(format='trig')` on a StarLayerGraph with a real URIRef
+        identifier was silently emitting a *different*, randomly-generated
+        graph name instead of the caller's own - confirmed against plain
+        rdflib.Graph(identifier=...).serialize(format='trig'), which gets
+        this right, so StarLayer's own wrapping was the regression, not an
+        rdflib limitation.
 
         Native branch: `raw = Graph(store=self.store, identifier=self.identifier)`
         below (a *plain* rdflib.Graph wrapping the same store, deliberately
@@ -2132,7 +2260,7 @@ class StarLayerGraph(Graph):
         from starlayer.graph.model.encoding import TT_NS
 
         if self._is_native:
-            out = Graph()
+            out = Graph(identifier=self.identifier)
             for prefix, ns in self.namespaces():
                 out.bind(prefix, ns)
             for s, p, o in _unfold_native_triple_terms(self):
@@ -2153,7 +2281,7 @@ class StarLayerGraph(Graph):
             return node
 
         raw = Graph(store=self.store, identifier=self.identifier)
-        out = Graph()
+        out = Graph(identifier=self.identifier)
         for prefix, ns in self.namespaces():
             if not str(ns).startswith(_INTERNAL_NS):
                 out.bind(prefix, ns)
@@ -2545,12 +2673,15 @@ class StarLayerGraph(Graph):
         return target_graph
 
     def derive_shape(self, template_shape=None, *, ignored_properties=None,
-                      use_default_ignored_properties: bool = True) -> Graph:
+                      use_default_ignored_properties: bool = True) -> StarLayerGraph:
         """Infer a SHACL shape from self's own data - one ``sh:NodeShape``
         per distinct ``rdf:type`` found (the simplest option: derive shapes
         from classes, never per-node or heuristic clustering), optionally
-        reconciled against an existing template shape. Returns a plain
-        ``rdflib.Graph`` (a real, standalone shapes graph).
+        reconciled against an existing template shape. Returns a
+        ``StarLayerGraph`` (a real, standalone shapes graph) - wrapped via
+        ``from_rdflib()`` for consistency with every other graph-returning
+        method on this class, even though a derived shapes graph has no
+        triple-term content of its own today.
 
         template_shape -- if omitted, every returned NodeShape is built
             fresh from self's own data. If given (any Graph, including a
@@ -2592,11 +2723,12 @@ class StarLayerGraph(Graph):
         RDF 1.2 content (triple terms) that only starlayer.shacl understands.
         """
         from starlayer.graph.graph.shape_derivation import derive_shape
-        return derive_shape(
+        result = derive_shape(
             self, template_shape,
             ignored_properties=ignored_properties,
             use_default_ignored_properties=use_default_ignored_properties,
         )
+        return StarLayerGraph.from_rdflib(result)
 
     @classmethod
     def from_rdflib(cls, source_graph) -> StarLayerGraph:

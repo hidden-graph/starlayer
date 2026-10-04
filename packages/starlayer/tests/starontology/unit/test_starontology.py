@@ -16,7 +16,7 @@ test_srl_shapes.py).
 """
 
 import pytest
-import starontology
+from starlayer import starontology
 from starlayer.graph import StarLayerGraph
 
 

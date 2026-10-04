@@ -126,7 +126,7 @@ produces it, serializing consumes it - which is why `SuperClassOf:`/
 `SuperPropertyOf:` and `onlysome` can't be recovered on the way back: that
 information genuinely doesn't survive into the OWL 2 RDF Mapping.
 
-`packages/ontology/starontology/manchester.py` (moved here 2026-10-03 from
+`packages/starlayer/starlayer/starontology/manchester.py` (moved here 2026-10-03 from
 `starlayer.ontology.to_ast_rdf`/`manchester_shapes` - Manchester-tree
 editing was judged an ontology-management concern, not a `starlayer.graph`
 one, and its own `.ttl` vocabulary/shapes files already lived in
@@ -148,11 +148,11 @@ accepted fidelity bar for SPARQL (see that module's docstring for the
 full scope decision).
 
 This is a genuinely different capability from the parser/serializer pair
-above, not a replacement for either: `parse_to_tree()` gives you `manch:`
-RDF you can inspect, edit via plain graph surgery, and validate
-(`validate()`) against SHACL shapes before decoding it back into runnable
-Manchester text (`tree_to_text()`) or straight to a compiled OWL graph
-(`tree_to_owl()`) - see the
+above, not a replacement for either: `manchester_parse_to_tree()` gives you
+`manch:` RDF you can inspect, edit via plain graph surgery, and validate
+(`manchester_validate()`) against SHACL shapes before decoding it back into
+runnable Manchester text (`manchester_tree_to_text()`) or straight to a
+compiled OWL graph (`manchester_tree_to_owl()`) - see the
 [Manchester Syntax as RDF guide](../../../docs/guides/05g-manchester-syntax-as-rdf.ipynb)
 for a full worked example. Tests:
 `packages/starlayer/tests/graph/unit/test_manchester_ast.py` (round-trip
@@ -174,6 +174,6 @@ wired into `StarLayerGraph.serialize(format="manchester")`. Tests:
 oracle-free, checking round-trip isomorphism plus a few direct RDF-shape
 assertions for the reconstructions above.
 
-AST-as-RDF: `packages/ontology/starontology/manchester.py` (see
+AST-as-RDF: `packages/starlayer/starlayer/starontology/manchester.py` (see
 "A third path" above for what it's for and how it differs from the
 parser/serializer pair).

@@ -1,4 +1,4 @@
-"""Tests for starlayer.sparql.srl.validate - structural SHACL shapes over
+"""Tests for starlayer.sparql.srl.srl_validate - structural SHACL shapes over
 the srl: vocabulary. Valid srl: graphs (built via the real
 parse_ruleset/ruleset_to_tree pipeline, not hand-typed) conform; deliberately
 malformed graphs fail with a specific, expected violation - see
@@ -12,7 +12,7 @@ from rdflib.collection import Collection
 
 pyshacl = pytest.importorskip("pyshacl")
 
-from starlayer.sparql.srl import validate  # noqa: E402
+from starlayer.sparql.srl import srl_validate  # noqa: E402
 from starlayer.sparql.srl import parse_ruleset  # noqa: E402
 from starlayer.sparql.srl import ruleset_to_tree  # noqa: E402
 
@@ -36,7 +36,7 @@ DATA { :db :hasVulnerability :vuln1 . }
 def test_worked_example_conforms():
     rs = parse_ruleset(WORKED_EXAMPLE_RULES)
     g, _root = ruleset_to_tree(rs)
-    conforms, _report_graph, report_text = validate(g)
+    conforms, _report_graph, report_text = srl_validate(g)
     assert conforms, report_text
 
 
@@ -47,7 +47,7 @@ def test_assignment_and_filter_roundtrip_conforms():
     """
     rs = parse_ruleset(text)
     g, _root = ruleset_to_tree(rs)
-    conforms, _report_graph, report_text = validate(g)
+    conforms, _report_graph, report_text = srl_validate(g)
     assert conforms, report_text
 
 
@@ -76,7 +76,7 @@ def test_rule_missing_body_is_rejected():
     Collection(g, rules_list, [rule])
     g.set((root, SRL.rules, rules_list))
 
-    conforms, _report_graph, _report_text = validate(g)
+    conforms, _report_graph, _report_text = srl_validate(g)
     assert conforms is False
 
 
@@ -102,7 +102,7 @@ def test_triple_pattern_with_literal_predicate_is_rejected():
     Collection(g, rules_list, [rule])
     g.set((root, SRL.rules, rules_list))
 
-    conforms, _report_graph, _report_text = validate(g)
+    conforms, _report_graph, _report_text = srl_validate(g)
     assert conforms is False
 
 
@@ -124,5 +124,5 @@ def test_body_list_rejects_a_non_body_element_member():
     Collection(g, rules_list, [rule])
     g.set((root, SRL.rules, rules_list))
 
-    conforms, _report_graph, _report_text = validate(g)
+    conforms, _report_graph, _report_text = srl_validate(g)
     assert conforms is False

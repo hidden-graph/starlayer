@@ -64,6 +64,180 @@ class TestRdflibCompat:
         objs = list(sg.objects(URIRef(EX+'s'), URIRef(EX+'p')))
         assert URIRef(EX+'o') in objs
 
+    def test_serialize_trig_uses_own_identifier_like_plain_rdflib(self):
+        """Regression, fixed 2026-10-04: serialize(format='trig') routes
+        through _deskolemize_to_graph(), whose output graph used to be a
+        bare Graph() - defaulting to a fresh random BNode identifier instead
+        of carrying forward self.identifier, so the emitted GRAPH block name
+        silently differed from the graph's own identifier every time. Plain
+        rdflib.Graph(identifier=...).serialize(format='trig') has always
+        gotten this right, so StarLayerGraph needs to match it exactly, not
+        just produce *some* named graph."""
+        identifier = URIRef(EX + 'mygraph')
+        sg = StarLayerGraph(identifier=identifier)
+        sg.add((URIRef(EX+'s'), URIRef(EX+'p'), URIRef(EX+'o')))
+
+        plain = Graph(identifier=identifier)
+        plain.add((URIRef(EX+'s'), URIRef(EX+'p'), URIRef(EX+'o')))
+
+        assert sg.serialize(format='trig') == plain.serialize(format='trig')
+
+
+# ---------------------------------------------------------------------------
+# Bare (RDF 1.1) nquads/trig/trix parsing - multi-graph-capable formats
+# parsed into a single graph. Added 2026-10-04: plain rdflib delegation
+# would silently yield zero triples the moment any named graph appears at
+# all (a non-context-aware Graph's parser plugins can't place quads
+# anywhere) - this project instead resolves at most one distinct graph
+# (dropping its name) or raises MultipleGraphsError for two or more,
+# matching the same rule nq12/trig12/trix12 enforce (see test_rdf12_formats.py).
+# ---------------------------------------------------------------------------
+
+class TestBareQuadFormatsParsing:
+    def test_nquads_single_named_graph_drops_graph_name(self, sg):
+        nq = f'<{EX}s> <{EX}p> <{EX}o> <{EX}g1> .\n'
+        sg.parse(data=nq, format='nquads')
+        assert (URIRef(EX+'s'), URIRef(EX+'p'), URIRef(EX+'o')) in sg
+
+    def test_nquads_multiple_graphs_raises(self, sg):
+        from starlayer.graph.parsers.errors import MultipleGraphsError
+        nq = (
+            f'<{EX}s> <{EX}p> <{EX}o> <{EX}g1> .\n'
+            f'<{EX}a> <{EX}b> <{EX}c> <{EX}g2> .\n'
+        )
+        with pytest.raises(MultipleGraphsError):
+            sg.parse(data=nq, format='nquads')
+
+    def test_trig_single_named_graph_drops_graph_name(self, sg):
+        trig = f'<{EX}g1> {{ <{EX}s> <{EX}p> <{EX}o> . }}\n'
+        sg.parse(data=trig, format='trig')
+        assert (URIRef(EX+'s'), URIRef(EX+'p'), URIRef(EX+'o')) in sg
+
+    def test_trig_default_and_named_graph_raises(self, sg):
+        from starlayer.graph.parsers.errors import MultipleGraphsError
+        trig = (
+            f'<{EX}default> <{EX}p> <{EX}o> .\n'
+            f'<{EX}g1> {{ <{EX}named> <{EX}p> <{EX}o> . }}\n'
+        )
+        with pytest.raises(MultipleGraphsError):
+            sg.parse(data=trig, format='trig')
+
+    def test_trix_multiple_graphs_raises(self, sg):
+        from starlayer.graph.parsers.errors import MultipleGraphsError
+        xml = (
+            '<?xml version="1.0"?>'
+            '<TriX xmlns="http://www.w3.org/2004/03/trix/trix-1/">'
+            f'<graph><uri>{EX}g1</uri>'
+            f'<triple><uri>{EX}a</uri><uri>{EX}b</uri><uri>{EX}c</uri></triple>'
+            '</graph>'
+            f'<graph><uri>{EX}g2</uri>'
+            f'<triple><uri>{EX}x</uri><uri>{EX}y</uri><uri>{EX}z</uri></triple>'
+            '</graph></TriX>'
+        )
+        with pytest.raises(MultipleGraphsError):
+            sg.parse(data=xml, format='trix')
+
+
+# ---------------------------------------------------------------------------
+# Bare (RDF 1.1) nquads/trig/trix serializing - a single graph always has
+# somewhere to go (its own identifier), so unlike parse() there's no
+# raise-for-2+-graphs case here; the fix is purely about not raising for the
+# single-graph case either. Added 2026-10-04: rdflib's own NQuads/TriX
+# serializer plugins raise "...only makes sense for context-aware stores"
+# for any non-context-aware store (no single-graph fallback, unlike
+# TrigSerializer's own - see rdflib.plugins.serializers.trig), which
+# StarLayerGraph used to just inherit via blind delegation. Now wraps the
+# graph as the one context of a real Dataset first, so all six dataset
+# formats (nquads/trig/trix, nq12/trig12/trix12) behave consistently.
+# ---------------------------------------------------------------------------
+
+class TestBareQuadFormatsSerializing:
+    def test_nquads_assigns_graph_name_from_identifier(self):
+        identifier = URIRef(EX + 'mygraph')
+        sg = StarLayerGraph(identifier=identifier)
+        sg.add((URIRef(EX+'s'), URIRef(EX+'p'), URIRef(EX+'o')))
+        text = sg.serialize(format='nquads')
+        assert str(identifier) in text
+        assert f'<{EX}s>' in text and f'<{EX}p>' in text and f'<{EX}o>' in text
+
+    def test_trix_assigns_graph_name_from_identifier(self):
+        identifier = URIRef(EX + 'mygraph')
+        sg = StarLayerGraph(identifier=identifier)
+        sg.add((URIRef(EX+'s'), URIRef(EX+'p'), URIRef(EX+'o')))
+        text = sg.serialize(format='trix')
+        assert str(identifier) in text
+
+    def test_nquads_serialize_returns_self_when_destination_given(self, tmp_path):
+        sg = StarLayerGraph(identifier=URIRef(EX+'mygraph'))
+        sg.add((URIRef(EX+'s'), URIRef(EX+'p'), URIRef(EX+'o')))
+        dest = tmp_path / 'out.nq'
+        result = sg.serialize(destination=str(dest), format='nquads')
+        assert result is sg
+        assert dest.exists()
+
+
+# ---------------------------------------------------------------------------
+# Chaining contract (return self, matching rdflib) - regressions fixed
+# 2026-10-04. rdflib's own Graph.add()/.addN()/.remove()/.serialize()/.open()
+# all return self (or the serialized text when destination is None) so
+# calls can chain; several StarLayerGraph overrides had silently dropped
+# this by falling off the end of the function (add/remove), forwarding
+# rdflib's own unrelated raw return value (open), or returning a throwaway
+# internal object instead of self (serialize's destination-given branches).
+# ---------------------------------------------------------------------------
+
+class TestChainingContractMatchesRdflib:
+    def test_add_returns_self(self, sg):
+        assert sg.add((URIRef(EX+'s'), URIRef(EX+'p'), URIRef(EX+'o'))) is sg
+
+    def test_remove_returns_self(self, sg):
+        t = (URIRef(EX+'s'), URIRef(EX+'p'), URIRef(EX+'o'))
+        sg.add(t)
+        assert sg.remove(t) is sg
+
+    def test_remove_returns_self_even_for_an_unregistered_triple_term(self, sg):
+        """The early-return branch (pattern references a TripleTerm this
+        graph never registered) used to fall off the end as bare `return`
+        (-> None) same as the normal path - both needed fixing, not just
+        the common case."""
+        from starlayer.graph.model.triple import TripleTerm as TT
+        unregistered = TT(URIRef(EX+'x'), URIRef(EX+'y'), URIRef(EX+'z'))
+        assert sg.remove((URIRef(EX+'claim'), RDF_REIFIES, unregistered)) is sg
+
+    def test_addN_returns_self(self, sg):
+        t = (URIRef(EX+'s'), URIRef(EX+'p'), URIRef(EX+'o'))
+        assert sg.addN([(*t, sg)]) is sg
+
+    def test_open_returns_self_not_rdflibs_own_status_code(self, tmp_path):
+        """rdflib's Store.open() returns a status int (e.g. 1 for
+        VALID_STORE), not the graph - StarLayerGraph.open() must not
+        forward that raw value even though its own annotation always
+        claimed `-> StarLayerGraph`."""
+        g = StarLayerGraph()
+        assert g.open(str(tmp_path / 'store'), create=True) is g
+
+    def test_serialize_with_destination_returns_self_for_rdf12_format(self, sg, tmp_path):
+        sg.add((URIRef(EX+'s'), URIRef(EX+'p'), URIRef(EX+'o')))
+        dest = tmp_path / 'out.ttl'
+        assert sg.serialize(destination=str(dest), format='turtle12') is sg
+        assert dest.exists()
+
+    def test_serialize_with_destination_returns_self_for_legacy_format(self, sg, tmp_path):
+        """The non-RDF12 branch delegates to a throwaway de-skolemized
+        Graph's own .serialize() - that returned *that* unrelated Graph,
+        not self, when destination was given."""
+        sg.add((URIRef(EX+'s'), URIRef(EX+'p'), URIRef(EX+'o')))
+        dest = tmp_path / 'out.ttl'
+        assert sg.serialize(destination=str(dest), format='turtle') is sg
+        assert dest.exists()
+
+    def test_serialize_without_destination_still_returns_text(self, sg):
+        """The fix must not break the destination=None case, which should
+        keep returning the serialized text/bytes, not self."""
+        sg.add((URIRef(EX+'s'), URIRef(EX+'p'), URIRef(EX+'o')))
+        assert isinstance(sg.serialize(format='turtle12'), str)
+        assert isinstance(sg.serialize(format='turtle'), str)
+
 
 # ---------------------------------------------------------------------------
 # TripleTerm in add / triples / __contains__
@@ -237,6 +411,20 @@ class TestStatements:
         assert len(results) == 1
         _, _, o = results[0]
         assert isinstance(o, TripleTerm)
+
+    def test_add_reification_returns_self(self, sg):
+        """Matches every other mutating method on StarLayerGraph (add(),
+        remove(), addN(), etc) - added 2026-10-04, this used to return
+        None, the one mutating method that didn't support chaining."""
+        result = sg.add_reification(URIRef(EX+'stmt'), (URIRef(EX+'s'), URIRef(EX+'p'), URIRef(EX+'o')))
+        assert result is sg
+
+    def test_remove_reification_returns_self(self, sg):
+        """Matches add_reification() and every other mutating method on
+        StarLayerGraph - added 2026-10-04, this used to return None."""
+        sg.add_reification(URIRef(EX+'stmt'), (URIRef(EX+'s'), URIRef(EX+'p'), URIRef(EX+'o')))
+        result = sg.remove_reification(URIRef(EX+'stmt'))
+        assert result is sg
 
     def test_reifiers_by_triple_term(self, sg):
         sg.add_reification(URIRef(EX+'stmt'), (URIRef(EX+'s'), URIRef(EX+'p'), URIRef(EX+'o')))

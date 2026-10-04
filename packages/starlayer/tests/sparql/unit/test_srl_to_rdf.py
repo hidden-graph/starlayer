@@ -92,11 +92,11 @@ def test_blank_node_identity_preserved_across_roundtrip():
 def test_root_typed_as_ruleset():
     from rdflib import RDF
 
-    from starlayer.sparql.srl import RULE_SET
+    from starlayer.sparql.srl import SRL
 
     rs = parse_ruleset("PREFIX : <http://example.org/>\nRULE { ?x :p ?y } WHERE { ?x :q ?y . }")
     graph, root = ruleset_to_tree(rs)
-    assert (root, RDF.type, RULE_SET) in graph
+    assert (root, RDF.type, SRL.RuleSet) in graph
 
 
 def test_rule_id_roundtrips():

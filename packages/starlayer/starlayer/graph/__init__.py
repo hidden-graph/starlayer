@@ -39,7 +39,6 @@ from starlayer.graph.query import (
 
 # StarLayer-specific additions
 from starlayer.graph.model.triple import TripleTerm
-from starlayer.graph.parsers.errors import Turtle12SyntaxError
 
 # Compatibility shims for confirmed bugs in plain rdflib's own
 # _AlgebraTranslator/translateAlgebra (algebra-tree-to-SPARQL-text
@@ -215,7 +214,6 @@ __all__ = [
     "DirLangString",
     "StarLayerGraph",
     "StarLayerDataset",
-    "Turtle12SyntaxError",
     # SPARQL 1.2-aware rdflib.plugins.sparql counterparts
     "parseQuery",
     "prepareQuery",

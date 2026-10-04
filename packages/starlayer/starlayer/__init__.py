@@ -1,72 +1,28 @@
 """starlayer - the full StarLayer RDF 1.2 stack in one import.
 
-Re-exports the handful of names most guides reach for first - the core
-graph/dataset classes and value types from ``starlayer.graph``, plus
-``StarLayerShacl`` from ``starlayer.shacl`` - so a first import doesn't
-need to know which of the three subpackages (``starlayer.graph``,
-``starlayer.sparql``, ``starlayer.shacl`` - formerly three separately
-installed packages, `starlayergraph`/`starsparql`/`starshacl`, merged into
-one real package here since they were already inseparable in practice -
-see `packages/starlayer/docs/`) a given name lives in. Every name here is
-the exact same object as its source subpackage's own export; nothing is
-redefined, wrapped, or copied.
+**Deliberately minimal top-level surface (slimmed 2026-10-04).** `starlayer.graph`
+is the rdflib replacement; `starlayer.shacl` is the pyshacl replacement. This
+top level exists only to pick which one you want - `StarLayerGraph`/
+`StarLayerDataset` from `starlayer.graph`, `StarLayerShacl` from
+`starlayer.shacl` - not to carry up everything each of those subpackages
+re-exports for its own rdflib-mirroring convenience (`BNode`/`Literal`/
+`URIRef`/`Variable`/`Namespace`/`RDF`/`RDFS`/`XSD`/plain `Graph`/`Dataset`
+all still live at `starlayer.graph`, same as before - just not duplicated
+up here too) or RDF-1.2-specific value types scoped to the graph layer
+(`TripleTerm`/`DirLangString` - also still at `starlayer.graph`). Every
+name here is the exact same object as its source subpackage's own export;
+nothing is redefined, wrapped, or copied.
 
-This is a deliberately small, curated surface, not a flattened namespace
-over all three subpackages - ``starlayer.shacl`` and ``starlayer.sparql``
-each expose a ``validate()`` function with different signatures and
-meanings (SHACL validation vs. SPARQL-algebra-graph validation), so
-blindly re-exporting everything from both would silently shadow one with
-the other. For anything not re-exported here, import from the owning
-subpackage directly (e.g. ``starlayer.sparql.prepare_query_12``,
+For anything not re-exported here, import from the owning subpackage
+directly (e.g. ``starlayer.graph.Namespace``, ``starlayer.sparql.prepare_query_12``,
 ``starlayer.sparql.srl_eval.srl_infer``, ``starlayer.shacl.close_shape``).
 """
 
-from .graph import (
-    BNode,
-    Dataset,
-    DirLangString,
-    Graph,
-    Literal,
-    Namespace,
-    RDF,
-    RDFS,
-    StarLayerDataset,
-    StarLayerGraph,
-    TripleTerm,
-    URIRef,
-    Variable,
-    XSD,
-)
+from .graph import StarLayerDataset, StarLayerGraph
 from .shacl import StarLayerShacl
 
-# Exposes the ontology/shapes registry as starlayer.registry.* without a
-# caller needing a separate `import starlayer.registry` - e.g.
-# `starlayer.registry.list_ontologies()` works right after a plain `import
-# starlayer`. Lives here (not nested under .graph/.sparql/.shacl) because it
-# genuinely cuts across all three - see its own registry module's docstring.
-# Renamed from starlayer.ontology (2026-10-03) - it holds no ontology
-# content of its own, just a name-based lookup over where each vocabulary's
-# own graph()/validate() actually live.
-# Safe to import eagerly: starlayer.registry itself only eagerly imports
-# starontology (a leaf dependency, no cycle); its own graph/sparql/shacl
-# imports are lazy (inside functions) precisely to avoid a circular-import
-# deadlock.
-import starlayer.registry as registry
-
 __all__ = [
-    "BNode",
-    "Dataset",
-    "DirLangString",
-    "Graph",
-    "Literal",
-    "Namespace",
-    "RDF",
-    "RDFS",
     "StarLayerDataset",
     "StarLayerGraph",
     "StarLayerShacl",
-    "TripleTerm",
-    "URIRef",
-    "Variable",
-    "XSD",
 ]

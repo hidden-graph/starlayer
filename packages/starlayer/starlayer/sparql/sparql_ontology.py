@@ -11,10 +11,10 @@ fixing in the first place (a real, previously-undetected gap it caused),
 and ``validate()``'s own docstring for how reasoning plugs into it.
 
 The ontology itself lives in ``salg-ontology.ttl``, in the sibling
-``starontology`` package — a plain, standalone Turtle file, not a Python
-string, so it's directly usable by any RDF tool without going through this
-module at all. This module is just a thin loader (``ontology_graph()``)
-delegating to ``starontology``, plus the generator
+``starlayer.starontology`` subpackage — a plain, standalone Turtle file,
+not a Python string, so it's directly usable by any RDF tool without going
+through this module at all. This module is just a thin loader
+(``ontology_graph()``) delegating to ``starontology``, plus the generator
 (``_generate_expression_class_turtle()``) used to produce that file's
 generated section — see the comment inside ``salg-ontology.ttl`` itself for
 how to regenerate it if ``expr_families._EXPR_NODE_FAMILY`` changes.
@@ -86,7 +86,7 @@ running reasoning against `validate()`, not by inspection.**
 
 from __future__ import annotations
 
-import starontology
+from starlayer import starontology
 from rdflib import Graph
 
 from .expr_families import _EXPR_NODE_FAMILY
