@@ -87,6 +87,34 @@ package's own top level, not nested under one subpackage's docs.
   principled reason) - not something to fix opportunistically one
   method at a time.
 
+- **Build a generic check that compares every StarLayer function/method
+  against rdflib's own `Unchanged` behavior**, found while reviewing the
+  api-reference.md doc (2026-10-05). This review session found several
+  real behavioral-consistency gaps by manually comparing live
+  `inspect.signature()`/actual calls against plain rdflib's own equivalent
+  (the chaining-contract fixes, `triples_choices()`, the
+  `MultipleGraphsError` consistency work) - each found ad hoc, one method
+  at a time, not via any systematic sweep. A reusable version (e.g. a test
+  or script walking every `Modified`/`Unchanged` entry in
+  api-reference.md, or every method on `StarLayerGraph`/`StarLayerDataset`,
+  and checking for divergence from the plain rdflib equivalent's real
+  behavior, not just its signature) would catch this class of issue
+  proactively instead of one review pass at a time.
+  - **Example already found**: `n3()` is inconsistent in practice across
+    term types read from the same graph. `TripleTerm.n3()` (a StarLayer-
+    original method) remembers a `_namespace_manager` stamped on it by
+    `StarLayerGraph._restore()`, so a bare `tt.n3()` call shows prefixed
+    names; `URIRef`/`BNode`/`Literal`'s `n3()` are genuinely `Unchanged`
+    rdflib methods with no such memory, so a bare `.n3()` call on them
+    always shows the raw, unprefixed URI - confirmed live: the same
+    `g.triples()` iteration returns a `URIRef` rendering
+    `<http://example.org/bob>` right next to a `TripleTerm` rendering
+    `<<( ex:alice ex:knows ex:bob )>>`. Not a bug (`URIRef` etc. can't be
+    given instance state without modifying rdflib's own classes), but a
+    real surprise for anyone mixing term types in output - worth a
+    deliberate decision either way (document as expected, or make `n3()`
+    consistent some other way) rather than leaving it an accidental gap.
+
 **Done**: "produce a documentation doc outlining every method/import
 available under `starlayer`" → `packages/starlayer/docs/api-reference.md`,
 built 2026-09-30.

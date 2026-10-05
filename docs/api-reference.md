@@ -68,8 +68,7 @@ Classes, functions and values available from `starlayer.graph`
 
 ### `StarLayerGraph`
 
-Construct with `StarLayerGraph(store='default', identifier=None, namespace_manager=None, base=None, bind_namespaces='rdflib', backend='rdf-1.1')` — the same arguments as `rdflib.Graph`, plus: 
-- `backend` must be `'rdf-1.1'` or `'rdf-1.2'`. 
+Construct with `StarLayerGraph()`. 
 
 | Name | Kind | Status | Description |
 |---|---|---|---|
@@ -133,8 +132,7 @@ Construct with `StarLayerGraph(store='default', identifier=None, namespace_manag
 
 ### `StarLayerDataset` — full member surface
 
-Construct with `StarLayerDataset(store='default', default_union=False, default_graph_base=None, backend='rdf-1.1')` — the same arguments as `rdflib.Dataset`, plus: 
-- `backend` must be `'rdf-1.1'` or `'rdf-1.2'`. 
+Construct with `StarLayerDataset()` 
 
 | Name | Kind | Status | Description |
 |---|---|---|---|
@@ -234,7 +232,8 @@ These are best used with `StarLayerDataset`. `StarLayerGraph.parse()` raises `Mu
 Construct with `TripleTerm(subject, predicate, object)`. 
 - `subject` must be a `URIRef` or `BNode`; 
 - `predicate` must be a `URIRef`; 
-- `object` can be any RDF term, including another `TripleTerm` (for nesting). 
+- `object` can be any RDF term, including another `TripleTerm`. 
+
 
 | Name | Kind | Status | Description |
 |---|---|---|---|
@@ -260,11 +259,13 @@ Construct with `DirLangString(value, language, direction)`.
 
 ## `starlayer.sparql`
 
-### Top-level (`from starlayer.sparql import ...`)
+`from starlayer.sparql import ...`
+
+Classes, functions and values available from `starlayer.sparql`
 
 | Name | Kind | Status | Description |
 |---|---|---|---|
-| `prepare_query_12()` | function | New | Takes SPARQL 1.2 query text and returns an executable `Query` (real triple terms, annotation syntax) |
+| `prepare_query_12()` | function | New | Takes SPARQL 1.2 query text and returns an executable `Query` |
 | `prepare_update_12()` | function | New | Takes SPARQL 1.2 Update text and returns an executable `Update` |
 | `translate_algebra_12()` | function | New | Takes SPARQL 1.2 algebra and returns SELECT/CONSTRUCT text |
 | `query_to_rdf()` | function | New | Takes a prepared `Query` and encodes it as `salg:` RDF, returning `(graph, root)` |
