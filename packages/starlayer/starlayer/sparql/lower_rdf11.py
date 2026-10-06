@@ -30,7 +30,7 @@ Four composable entry points:
   exist anywhere in this path.
 - ``rdf11_to_sparql11_text(graph, root)`` — same decode, then plain
   rdflib ``algebra.translateAlgebra`` (not ``serialize12.
-  translate_algebra_12``, since nothing lowered still needs
+  _translate_algebra_12``, since nothing lowered still needs
   ``TripleTermNode``/dirLangString special-casing) to produce real SPARQL
   1.1 *text*. Kept for cases that genuinely need text — debugging, human
   inspection, external tools, a backend that only accepts query strings

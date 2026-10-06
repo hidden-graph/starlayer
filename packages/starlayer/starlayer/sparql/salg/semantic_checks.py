@@ -1,4 +1,4 @@
-"""starlayer.sparql.semantic_checks — cross-referential semantic checks over a
+"""starlayer.sparql.salg.semantic_checks — cross-referential semantic checks over a
 decoded algebra tree that SHACL's own per-node shapes structurally cannot
 see on their own. A plain SHACL shape only ever inspects its own focus node
 and its immediate property-path neighbors; "is every variable a `Project`
@@ -80,8 +80,8 @@ from rdflib.plugins.sparql.algebra import _addVars, _traverseAgg, analyse
 
 from rdflib.plugins.sparql.parserutils import CompValue
 
-from . import from_rdf
-from .vocab import SALG
+from .. import from_rdf
+from ..vocab import SALG
 
 
 @dataclass(frozen=True)

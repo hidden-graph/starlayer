@@ -17,7 +17,7 @@ SPARQL triple patterns/filter expressions, run *against* a graph. That's a
 SPARQL-adjacent artifact, and it can't cleanly separate from
 ``starlayer.sparql``'s shared internals the way Manchester's AST module
 could: ``_encode``/``_decode``/``_new_starlayer_graph`` (``to_rdf.py``/
-``from_rdf.py``) and ``render_expr_text`` (``ssyn_to_text.py``) are reused
+``from_rdf.py``) and ``_render_expr_text`` (``ssyn_to_text.py``) are reused
 directly below, not reimplemented - moving this module out of
 ``starlayer.sparql`` would mean forking that machinery. Staying here means
 every cross-reference below is an ordinary same-package import, not a
@@ -34,10 +34,10 @@ text<->RuleSet) plus a third already covered by the first two composed
 - ``srl_tree_to_text(graph, root) -> str`` - the inverse. Composes
   ``tree_to_ruleset`` + ``ruleset_to_text``.
 - ``parse_ruleset(text, base=None) -> RuleSet`` - SRL text straight to a
-  real ``srl_ast.RuleSet`` object, skipping RDF entirely. Kept as its own
+  real ``RuleSet`` object, skipping RDF entirely. Kept as its own
   entry point (not just an implementation detail of ``srl_parse_to_tree``)
-  because ``RuleSet`` is independently useful - ``srl_eval.srl_infer``/
-  ``srl_query`` consume it directly, with no RDF involved at all. This is
+  because ``RuleSet`` is independently useful - ``RuleSet.infer()``/
+  ``.query()`` run it directly, with no RDF involved at all. This is
   the one real asymmetry with Manchester: ``manch:``'s ``Document`` object
   never existed before its own AST-as-RDF module invented it purely as a
   decode artifact; SRL's ``RuleSet`` already existed independently.
@@ -68,24 +68,43 @@ needed together for RDFS reasoning to resolve that dispatch) - see
 Deliberately outside this module's scope, unchanged, living in their own
 sibling files:
 
-- ``srl_ast.py`` - the ``RuleSet``/``Rule``/``Data``/... dataclasses
-  themselves. Stays separate (not folded in here) because it's already a
-  clean, independently-useful module consumed by ``srl_eval.py``/
+- ``_srl_ast.py`` (private, renamed from ``srl_ast.py`` 2026-10-05) - the
+  ``RuleSet``/``_Rule``/``_Data``/``TriplePattern``/``_FilterElement``/
+  ``_AssignmentElement``/``_NegationElement`` dataclasses themselves. Stays
+  a separate *file* (not folded in here) because it's already a clean,
+  independently-useful module consumed by ``srl_eval.py``/
   ``srl_semantic_checks.py`` too, neither of which needs anything else
-  this module provides.
-- ``srl_eval.py`` (``srl_infer``/``srl_query``) - *running* a ``RuleSet``
-  against a base graph is a separate concern from the tree pipeline above,
-  not a missing or oddly-shaped seventh step: unlike Manchester's
-  `manchester_tree_to_owl()` (a pure function of the tree alone, translating between
-  two independently-meaningful RDF forms), SRL has only one RDF form
-  (`srl:`) - decoding already produces the runnable `RuleSet`, and running
-  it inherently needs a second input (the base graph) that has nothing to
-  do with this module's own encode/decode/validation concerns.
+  this module provides - but it's no longer directly importable from
+  outside the package. Only ``RuleSet``/``TriplePattern`` are re-exported
+  from here (``srl.RuleSet``, etc.) - one real path to those two, not two -
+  same "no two paths to the same graphs" reasoning ``srl_validate()``'s
+  own docstring note above already applies to ``ontology_graph()``/
+  ``shapes_graph()``. The rest (``_Rule``/``_Data``/``_FilterElement``/
+  ``_AssignmentElement``/``_NegationElement``) are private, made so
+  2026-10-06: no public function or method requires any of them directly
+  (unlike ``TriplePattern``, needed as ``RuleSet.query()``'s own
+  ``goal_pattern`` parameter type) - the only way a caller would touch one
+  is by walking ``RuleSet.rules``/``Rule.head``/``Rule.body``, an
+  inspection/editing concern this API doesn't cover yet.
+- ``srl_eval.py`` (``RuleSet.infer()``/``.query()``, implemented as thin
+  delegates to this module's private ``_srl_infer``/``_srl_query``) -
+  *running* a ``RuleSet`` against a base graph is a separate concern from
+  the tree pipeline above, not a missing or oddly-shaped seventh step:
+  unlike Manchester's `manchester_tree_to_owl()` (a pure function of the
+  tree alone, translating between two independently-meaningful RDF forms),
+  SRL has only one RDF form (`srl:`) - decoding already produces the
+  runnable `RuleSet`, and running it inherently needs a second input (the
+  base graph) that has nothing to do with this module's own encode/decode/
+  validation concerns.
 - ``srl_semantic_checks.py`` - cross-referential well-formedness checks
   (an unbound head/filter/assignment variable, a ``SET(...)`` reusing an
   already-bound variable) - deliberately kept out of SHACL (see
   ``srl_validate()``'s own docstring for why structural-only is the line), so
-  this is a separate, plain-Python check, not part of this module.
+  this is a separate, plain-Python check, not part of this module as a
+  *file* - but ``parse_ruleset()`` above calls into it directly (its own
+  ``_check_ruleset``, private since 2026-10-05) as the well-formedness half
+  of this module's one real parse-time gate, the grammar being the other
+  half.
 """
 
 from __future__ import annotations
@@ -117,9 +136,14 @@ from rdflib.plugins.sparql.parserutils import Comp, CompValue, Param
 from rdflib.plugins.sparql.pyparsing_compat import rest_of_line
 from rdflib.plugins.sparql.sparql import Prologue
 
-from . import srl_ast
+from . import _srl_ast as srl_ast
+from ._srl_ast import (  # noqa: F401 - re-exported, see module docstring
+    RuleSet,
+    TriplePattern,
+)
 from .from_rdf import _decode
-from .ssyn_to_text import render_expr_text
+from .srl_semantic_checks import _check_ruleset
+from .ssyn_to_text import _render_expr_text
 from .to_rdf import _encode, _new_starlayer_graph
 
 SRL = Namespace("https://github.com/hidden-graph/starsparql/ns/srl#")
@@ -259,8 +283,28 @@ _RuleSetGrammar = Comp(
 _RuleSetGrammar.ignore("#" + rest_of_line)
 
 
-class SRLParseError(ValueError):
-    """Raised by :func:`parse_ruleset` for malformed SRL text."""
+class SRLError(ValueError):
+    """Base class for every SRL-specific exception
+    (``SRLParseError``/``SRLDecodeError`` here, ``SRLEvalError`` and its
+    own subclasses in ``srl_eval.py``) - added 2026-10-06 so a caller has
+    a single type to catch for "any SRL failure," the same two-tier
+    catch granularity rdflib (``rdflib.exceptions.Error``) and pyshacl
+    (``pyshacl.errors.ReportableRuntimeError``) each give their own
+    callers. Before this, ``SRLParseError``/``SRLDecodeError``/
+    ``SRLEvalError`` each subclassed ``ValueError`` independently, with no
+    shared ancestor - an oversight from incremental development, not a
+    deliberate choice (contrast ``starlayer.graph.parsers.errors``'s
+    ``Turtle12SyntaxError``/``ManchesterSyntaxError``, which *deliberately*
+    don't share a base, per that module's own docstring)."""
+
+
+class SRLParseError(SRLError):
+    """Raised by :func:`parse_ruleset` for malformed SRL text, or for text
+    that parses fine but fails a §4.2 well-formedness check (see
+    `srl_semantic_checks.py`) - one error type for "this SRL text doesn't
+    produce a usable `RuleSet`", matching how a caller already has to
+    handle this exception from this function regardless of which case
+    occurred."""
 
 
 def _list_field(cv: CompValue, key: str) -> list:
@@ -296,7 +340,7 @@ def _build_negation_inner(items: list) -> list[srl_ast.NegationBodyElement]:
         if item.name == "SameSubject":
             out.extend(_expand_same_subject(item))
         elif item.name == "Filter":
-            out.append(srl_ast.FilterElement(expr=item["expr"]))
+            out.append(srl_ast._FilterElement(expr=item["expr"]))
         else:  # pragma: no cover - grammar structurally forbids anything else
             raise SRLParseError(f"illegal negation body element: {item!r}")
     return out
@@ -308,21 +352,21 @@ def _build_body_elements(items: list) -> list[srl_ast.BodyElement]:
         if cv.name == "SameSubject":
             out.extend(_expand_same_subject(cv))
         elif cv.name == "Filter":
-            out.append(srl_ast.FilterElement(expr=cv["expr"]))
+            out.append(srl_ast._FilterElement(expr=cv["expr"]))
         elif cv.name == "Assignment":
-            out.append(srl_ast.AssignmentElement(var=cv["var"], expr=cv["expr"]))
+            out.append(srl_ast._AssignmentElement(var=cv["var"], expr=cv["expr"]))
         elif cv.name == "Negation":
-            out.append(srl_ast.NegationElement(inner=_build_negation_inner(_list_field(cv, "inner")), data=bool(cv["data"])))
+            out.append(srl_ast._NegationElement(inner=_build_negation_inner(_list_field(cv, "inner")), data=bool(cv["data"])))
         else:
             raise SRLParseError(f"unknown rule body element: {cv!r}")  # pragma: no cover
     return out
 
 
-def _build_rule(cv: CompValue) -> srl_ast.Rule:
+def _build_rule(cv: CompValue) -> srl_ast._Rule:
     head = [t for grp in _list_field(cv["head"], "subjects") for t in _expand_same_subject(grp)]
     body = _build_body_elements(_list_field(cv["body"], "body"))
     rule_id = _opt_field(cv, "id")
-    return srl_ast.Rule(
+    return srl_ast._Rule(
         head=head,
         body=body,
         data=bool(cv["data"]),
@@ -330,8 +374,8 @@ def _build_rule(cv: CompValue) -> srl_ast.Rule:
     )
 
 
-def _build_data(cv: CompValue) -> srl_ast.Data:
-    return srl_ast.Data(triples=[t for grp in _list_field(cv, "subjects") for t in _expand_same_subject(grp)])
+def _build_data(cv: CompValue) -> srl_ast._Data:
+    return srl_ast._Data(triples=[t for grp in _list_field(cv, "subjects") for t in _expand_same_subject(grp)])
 
 
 def _build_ruleset(cv: CompValue) -> srl_ast.RuleSet:
@@ -343,8 +387,8 @@ def _build_ruleset(cv: CompValue) -> srl_ast.RuleSet:
         # used for name resolution before this function ran; VersionDecl
         # is informative only.
 
-    rules: list[srl_ast.Rule] = []
-    data_blocks: list[srl_ast.Data] = []
+    rules: list[srl_ast._Rule] = []
+    data_blocks: list[srl_ast._Data] = []
     for item in _list_field(cv, "body"):
         if item.name == "Rule":
             rules.append(_build_rule(item))
@@ -357,7 +401,7 @@ def _build_ruleset(cv: CompValue) -> srl_ast.RuleSet:
 
 
 def parse_ruleset(text: str, base: str | None = None) -> srl_ast.RuleSet:
-    """Parse SRL rule-set text into a real ``srl_ast.RuleSet``, with no RDF
+    """Parse SRL rule-set text into a real ``RuleSet``, with no RDF
     involved at all.
 
     Two-pass, matching rdflib's own ``parseQuery``/``translateQuery`` split:
@@ -365,6 +409,15 @@ def parse_ruleset(text: str, base: str | None = None) -> srl_ast.RuleSet:
     from the parsed ``BASE``/``PREFIX`` decls and resolve every prefixed/
     relative name against it in one tree pass, then convert the resolved
     tree into real ``srl_ast`` dataclasses.
+
+    A successfully-returned ``RuleSet`` is also guaranteed §4.2 well-formed
+    (every filter/assignment/head variable properly bound, no ``SET(...)``
+    reusing an already-bound variable) - this function is the one real gate,
+    the same contract plain SPARQL's own ``prepareQuery()`` has. Raises
+    ``SRLParseError`` for a well-formedness violation too, not just a
+    grammar/syntax error - added 2026-10-05 after confirming live that a
+    violating ruleset previously parsed *and evaluated* with no error at
+    all, silently producing a wrong answer.
     """
     try:
         parsed = _RuleSetGrammar.parse_string(text, parse_all=True)
@@ -376,7 +429,14 @@ def parse_ruleset(text: str, base: str | None = None) -> srl_ast.RuleSet:
     if base:
         prologue.base = base
     resolved = _resolve_pnames(root, prologue)
-    return _build_ruleset(resolved)
+    ruleset = _build_ruleset(resolved)
+
+    issues = _check_ruleset(ruleset)
+    if issues:
+        summary = "; ".join(f"{i.kind} ({i.variable} in {i.context})" for i in issues)
+        raise SRLParseError(f"SRL: rule set is not well-formed per §4.2: {summary}")
+
+    return ruleset
 
 
 # ---------------------------------------------------------------------------
@@ -424,18 +484,18 @@ def _triple_to_rdf(triple: srl_ast.TriplePattern, graph: Graph) -> BNode:
 def _body_element_to_rdf(element: srl_ast.BodyElement, graph: Graph) -> BNode:
     if isinstance(element, srl_ast.TriplePattern):
         return _triple_to_rdf(element, graph)
-    if isinstance(element, srl_ast.FilterElement):
+    if isinstance(element, srl_ast._FilterElement):
         node = BNode()
         graph.add((node, RDF.type, _FILTER_ELEMENT))
         graph.add((node, _EXPR, _encode(element.expr, graph)))
         return node
-    if isinstance(element, srl_ast.AssignmentElement):
+    if isinstance(element, srl_ast._AssignmentElement):
         node = BNode()
         graph.add((node, RDF.type, _ASSIGNMENT_ELEMENT))
         graph.add((node, _VAR, _encode(element.var, graph)))
         graph.add((node, _EXPR, _encode(element.expr, graph)))
         return node
-    if isinstance(element, srl_ast.NegationElement):
+    if isinstance(element, srl_ast._NegationElement):
         node = BNode()
         graph.add((node, RDF.type, _NEGATION_ELEMENT))
         inner_nodes = [_body_element_to_rdf(e, graph) for e in element.inner]
@@ -445,7 +505,7 @@ def _body_element_to_rdf(element: srl_ast.BodyElement, graph: Graph) -> BNode:
     raise NotImplementedError(f"starlayer.sparql.srl: no encoding for body element {element!r}")  # pragma: no cover
 
 
-def _rule_to_rdf(rule: srl_ast.Rule, graph: Graph) -> BNode:
+def _rule_to_rdf(rule: srl_ast._Rule, graph: Graph) -> BNode:
     node = BNode()
     graph.add((node, RDF.type, _RULE))
     head_nodes = [_triple_to_rdf(t, graph) for t in rule.head]
@@ -458,7 +518,7 @@ def _rule_to_rdf(rule: srl_ast.Rule, graph: Graph) -> BNode:
     return node
 
 
-def _data_to_rdf(data: srl_ast.Data, graph: Graph) -> BNode:
+def _data_to_rdf(data: srl_ast._Data, graph: Graph) -> BNode:
     node = BNode()
     graph.add((node, RDF.type, _DATA_BLOCK))
     triple_nodes = [_triple_to_rdf(t, graph) for t in data.triples]
@@ -471,7 +531,7 @@ def _data_to_rdf(data: srl_ast.Data, graph: Graph) -> BNode:
 # "bespoke containers, delegate leaves" split.
 # ---------------------------------------------------------------------------
 
-class SRLDecodeError(ValueError):
+class SRLDecodeError(SRLError):
     """Raised for an ``srl:`` graph shape ``tree_to_ruleset`` doesn't recognize."""
 
 
@@ -498,30 +558,30 @@ def _decode_body_element(node, graph: Graph) -> srl_ast.BodyElement:
     if t == _TRIPLE_PATTERN:
         return _decode_triple(node, graph)
     if t == _FILTER_ELEMENT:
-        return srl_ast.FilterElement(expr=_decode(graph.value(node, _EXPR), graph))
+        return srl_ast._FilterElement(expr=_decode(graph.value(node, _EXPR), graph))
     if t == _ASSIGNMENT_ELEMENT:
-        return srl_ast.AssignmentElement(
+        return srl_ast._AssignmentElement(
             var=_decode(graph.value(node, _VAR), graph),
             expr=_decode(graph.value(node, _EXPR), graph),
         )
     if t == _NEGATION_ELEMENT:
         inner = [_decode_body_element(n, graph) for n in _read_rdf_list(graph.value(node, _INNER), graph)]
         data_flag = bool(_decode(graph.value(node, _NEGATION_DATA_FLAG), graph))
-        return srl_ast.NegationElement(inner=inner, data=data_flag)
+        return srl_ast._NegationElement(inner=inner, data=data_flag)
     raise SRLDecodeError(f"unrecognized rule body element node {node!r} (rdf:type {t!r})")
 
 
-def _decode_rule(node, graph: Graph) -> srl_ast.Rule:
+def _decode_rule(node, graph: Graph) -> srl_ast._Rule:
     head = [_decode_triple(n, graph) for n in _read_rdf_list(graph.value(node, _HEAD), graph)]
     body = [_decode_body_element(n, graph) for n in _read_rdf_list(graph.value(node, _BODY), graph)]
     data_flag = bool(_decode(graph.value(node, _RULE_DATA_FLAG), graph))
     rule_id = graph.value(node, _RULE_ID)
-    return srl_ast.Rule(head=head, body=body, data=data_flag, id=rule_id)
+    return srl_ast._Rule(head=head, body=body, data=data_flag, id=rule_id)
 
 
-def _decode_data(node, graph: Graph) -> srl_ast.Data:
+def _decode_data(node, graph: Graph) -> srl_ast._Data:
     triples = [_decode_triple(n, graph) for n in _read_rdf_list(graph.value(node, _TRIPLES), graph)]
-    return srl_ast.Data(triples=triples)
+    return srl_ast._Data(triples=triples)
 
 
 def tree_to_ruleset(graph: Graph, root) -> srl_ast.RuleSet:
@@ -589,23 +649,23 @@ def _block_text(triples: list[srl_ast.TriplePattern], namespace_manager: Namespa
 def _body_element_text(element: srl_ast.BodyElement, namespace_manager: NamespaceManager | None) -> str:
     if isinstance(element, srl_ast.TriplePattern):
         return _triple_text(element, namespace_manager)
-    if isinstance(element, srl_ast.FilterElement):
-        return f"FILTER({render_expr_text(element.expr)})"
-    if isinstance(element, srl_ast.AssignmentElement):
+    if isinstance(element, srl_ast._FilterElement):
+        return f"FILTER({_render_expr_text(element.expr)})"
+    if isinstance(element, srl_ast._AssignmentElement):
         var = _term_text(element.var, namespace_manager)
-        return f"SET ({var} := {render_expr_text(element.expr)})"
-    if isinstance(element, srl_ast.NegationElement):
+        return f"SET ({var} := {_render_expr_text(element.expr)})"
+    if isinstance(element, srl_ast._NegationElement):
         inner = " ".join(_body_element_text(e, namespace_manager) for e in element.inner)
         data = "DATA " if element.data else ""
         return f"NOT {data}{{ {inner} }}"
     raise NotImplementedError(f"starlayer.sparql.srl: no text rendering yet for body element {element!r}")
 
 
-def _data_text(data: srl_ast.Data, namespace_manager: NamespaceManager | None) -> str:
+def _data_text(data: srl_ast._Data, namespace_manager: NamespaceManager | None) -> str:
     return f"DATA {{ {_block_text(data.triples, namespace_manager)} }}"
 
 
-def _rule_text(rule: srl_ast.Rule, namespace_manager: NamespaceManager | None) -> str:
+def _rule_text(rule: srl_ast._Rule, namespace_manager: NamespaceManager | None) -> str:
     rule_id = f"{_term_text(rule.id, namespace_manager)} " if rule.id is not None else ""
     head = _block_text(rule.head, namespace_manager)
     body = " ".join(_body_element_text(e, namespace_manager) for e in rule.body)

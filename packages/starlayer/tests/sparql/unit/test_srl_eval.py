@@ -14,11 +14,9 @@ from rdflib import RDF, BNode, Graph, Literal, URIRef, Variable
 
 from starlayer.sparql.srl_eval import (
     StratificationError,
-    build_dependency_graph,
-    srl_infer,
-    is_run_once,
-    srl_query,
-    stratify,
+    SRLImportsNotSupportedError,
+    _build_dependency_graph,
+    _stratify,
 )
 from starlayer.sparql.srl import parse_ruleset
 
@@ -69,7 +67,7 @@ def test_worked_example_dependency_graph_matches_spec():
     R3 → R2 (open), R4 → R3 (closed), R5 → R3 (closed)" - the spec's own
     stated dependency edges, by rule index (R1=0 .. R5=4)."""
     _, ruleset = _worked_example()
-    edges = build_dependency_graph(ruleset)
+    edges = _build_dependency_graph(ruleset)
     labels = _edge_labels_by_index(ruleset, edges)
     assert labels == {
         (1, 0): "open",  # R2 -> R1
@@ -86,15 +84,15 @@ def test_worked_example_is_run_once_matches_spec():
     no other rule has an assignment element or a blank node in its head."""
     _, ruleset = _worked_example()
     r1, r2, r3, r4, r5 = ruleset.rules
-    assert [is_run_once(r) for r in (r1, r2, r3, r4)] == [False, False, False, False]
-    assert is_run_once(r5) is True
+    assert [r._is_run_once for r in (r1, r2, r3, r4)] == [False, False, False, False]
+    assert r5._is_run_once is True
 
 
 def test_worked_example_stratification_matches_spec():
     """§6.6.2: "Stratum 0: general R1, R2, R3; no run-once rules.
     Stratum 1: run-once R5; general R4"."""
     _, ruleset = _worked_example()
-    layers = stratify(ruleset)
+    layers = _stratify(ruleset)
     idx = {id(r): i for i, r in enumerate(ruleset.rules)}
     layers_by_index = [
         (sorted(idx[id(r)] for r in once), sorted(idx[id(r)] for r in general)) for once, general in layers
@@ -110,7 +108,7 @@ def test_worked_example_end_to_end():
     itself calls out: :frontend must NOT get an incorrect early
     :safeToDeploy)."""
     base, ruleset = _worked_example()
-    gi = srl_infer(base, ruleset)
+    gi = ruleset.infer(base)
 
     exposed_to = set(gi.triples((None, _p("exposedTo"), None)))
     assert exposed_to == {
@@ -145,7 +143,7 @@ def test_worked_example_end_to_end():
 
 def test_infer_output_never_includes_base_graph_triples():
     base, ruleset = _worked_example()
-    gi = srl_infer(base, ruleset)
+    gi = ruleset.infer(base)
     assert not any(t in base for t in gi)
 
 
@@ -170,7 +168,7 @@ def test_where_data_matches_only_the_original_base_graph():
     RULE {{ ?x :derived ?y }} WHERE DATA {{ ?x :seed ?y . }}
     """
     ruleset = parse_ruleset(text)
-    gi = srl_infer(base, ruleset)
+    gi = ruleset.infer(base)
     # The DATA block's own fact is present (seeded directly into GI)...
     assert (_p("b"), _p("seed"), _p("c")) in gi
     # ...but the rule only ever derived from the *original* base graph,
@@ -188,16 +186,14 @@ def test_stratification_error_on_closed_self_cycle():
     """
     ruleset = parse_ruleset(text)
     with pytest.raises(StratificationError):
-        stratify(ruleset)
+        _stratify(ruleset)
 
 
 def test_imports_rejected():
-    from starlayer.sparql.srl_eval import SRLImportsNotSupportedError
-
     text = f"IMPORTS <{EX}other>\nPREFIX : <{EX}>\nRULE {{ ?x :p ?y }} WHERE {{ ?x :q ?y . }}"
     ruleset = parse_ruleset(text)
     with pytest.raises(SRLImportsNotSupportedError):
-        srl_infer(Graph(), ruleset)
+        ruleset.infer(Graph())
 
 
 def test_filter_and_assignment_evaluate_correctly():
@@ -208,7 +204,7 @@ def test_filter_and_assignment_evaluate_correctly():
     RULE {{ ?x :bumped ?y }} WHERE {{ ?x :severity ?s . SET (?y := ?s + 1) . FILTER(?y > 9.0) }}
     """
     ruleset = parse_ruleset(text)
-    gi = srl_infer(base, ruleset)
+    gi = ruleset.infer(base)
     (triple,) = gi
     assert triple[0] == _p("a")
     assert float(triple[2].toPython()) == pytest.approx(10.1)
@@ -217,6 +213,6 @@ def test_filter_and_assignment_evaluate_correctly():
 def test_query_matches_goal_pattern_against_base_and_inferred():
     base, ruleset = _worked_example()
     goal = ruleset.rules[2].head[0]  # ?x :status :criticallyExposed
-    results = srl_query(base, ruleset, goal)
+    results = ruleset.query(base, goal)
     solutions = {r[Variable("x")] for r in results}
     assert solutions == {_p("db"), _p("app"), _p("frontend")}

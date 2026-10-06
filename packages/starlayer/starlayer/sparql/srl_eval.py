@@ -41,11 +41,15 @@ from rdflib.plugins.sparql import algebra
 from rdflib.plugins.sparql.evaluate import _ebv, evalBGP
 from rdflib.plugins.sparql.sparql import QueryContext, SPARQLError
 
-from . import srl_ast
+from . import _srl_ast as srl_ast
+from .srl import SRLError
 
 
-class SRLEvalError(ValueError):
-    """Base class for SRL evaluation errors."""
+class SRLEvalError(SRLError):
+    """Base class for SRL evaluation errors. Subclasses ``SRLError``
+    (``srl.py``) - added 2026-10-06 - so a caller can catch either "any
+    evaluation failure" (this) or "any SRL failure at all" (``SRLError``,
+    which also covers ``SRLParseError``/``SRLDecodeError``)."""
 
 
 class StratificationError(SRLEvalError):
@@ -68,26 +72,10 @@ class SRLImportsNotSupportedError(SRLEvalError):
 
 
 @dataclass(frozen=True)
-class DependencyEdge:
-    source: srl_ast.Rule
-    target: srl_ast.Rule
+class _DependencyEdge:
+    source: srl_ast._Rule
+    target: srl_ast._Rule
     label: str  # "open" | "closed"
-
-
-def is_run_once(rule: srl_ast.Rule) -> bool:
-    """§4.1/§4.4: a rule is run-once if it has an assignment element
-    anywhere in its body, or a blank node anywhere in its head - otherwise
-    it is a general rule. (Assignment elements can never occur nested
-    inside a negation element - the grammar forbids it, see
-    ``srl_ast.NegationElement`` - so a top-level scan of ``rule.body``
-    already covers every assignment element that could exist.)"""
-    if any(isinstance(e, srl_ast.AssignmentElement) for e in rule.body):
-        return True
-    return any(_has_blank_node(t) for t in rule.head)
-
-
-def _has_blank_node(triple: srl_ast.TriplePattern) -> bool:
-    return isinstance(triple.subject, BNode) or isinstance(triple.object, BNode)
 
 
 def _terms_compatible(pattern_term, template_term) -> bool:
@@ -128,15 +116,15 @@ def _merge_label(old: str, new: str) -> str:
     return "closed"
 
 
-def build_dependency_graph(ruleset: srl_ast.RuleSet) -> list[DependencyEdge]:
+def _build_dependency_graph(ruleset: srl_ast.RuleSet) -> list[_DependencyEdge]:
     """§4.3.2's ``buildDependencyGraph`` algorithm, translated directly."""
     edge_labels: dict[tuple[int, int], str] = {}
-    id_to_rule: dict[int, srl_ast.Rule] = {id(r): r for r in ruleset.rules}
+    id_to_rule: dict[int, srl_ast._Rule] = {id(r): r for r in ruleset.rules}
 
     for r1 in ruleset.rules:
         body_dependencies: list[tuple[srl_ast.TriplePattern, str]] = []
         for elt in r1.body:
-            if isinstance(elt, srl_ast.NegationElement):
+            if isinstance(elt, srl_ast._NegationElement):
                 for inner in elt.inner:
                     if isinstance(inner, srl_ast.TriplePattern):
                         body_dependencies.append((inner, "closed"))
@@ -144,7 +132,7 @@ def build_dependency_graph(ruleset: srl_ast.RuleSet) -> list[DependencyEdge]:
                 body_dependencies.append((elt, "open"))
             # FilterElement / AssignmentElement: no dependency contribution.
 
-        r1_run_once = is_run_once(r1)
+        r1_run_once = r1._is_run_once
 
         for tp, dep_label in body_dependencies:
             if r1_run_once:
@@ -159,7 +147,7 @@ def build_dependency_graph(ruleset: srl_ast.RuleSet) -> list[DependencyEdge]:
                             edge_labels[key] = dep_label
 
     return [
-        DependencyEdge(id_to_rule[r1_id], id_to_rule[r2_id], label)
+        _DependencyEdge(id_to_rule[r1_id], id_to_rule[r2_id], label)
         for (r1_id, r2_id), label in edge_labels.items()
     ]
 
@@ -169,13 +157,13 @@ def build_dependency_graph(ruleset: srl_ast.RuleSet) -> list[DependencyEdge]:
 # ---------------------------------------------------------------------------
 
 
-def stratify(ruleset: srl_ast.RuleSet) -> list[tuple[list[srl_ast.Rule], list[srl_ast.Rule]]]:
+def _stratify(ruleset: srl_ast.RuleSet) -> list[tuple[list[srl_ast._Rule], list[srl_ast._Rule]]]:
     """§4.4.2's ``stratification`` algorithm, translated directly. Returns
     a sequence of ``(once_rules, general_rules)`` pairs, one per stratum,
     in evaluation order. Raises :class:`StratificationError` if the
     §4.4.1 Stratification Condition is violated (a recursive dependency
     involving a closed edge)."""
-    edges = build_dependency_graph(ruleset)
+    edges = _build_dependency_graph(ruleset)
     stratum: dict[int, int] = {id(r): 0 for r in ruleset.rules}
     limit = len(ruleset.rules) + 1
     max_stratum = 0
@@ -202,14 +190,14 @@ def stratify(ruleset: srl_ast.RuleSet) -> list[tuple[list[srl_ast.Rule], list[sr
                     max_stratum = max(max_stratum, x)
                     changed = True
 
-    stratum_rules: dict[int, list[srl_ast.Rule]] = {i: [] for i in range(max_stratum + 1)}
+    stratum_rules: dict[int, list[srl_ast._Rule]] = {i: [] for i in range(max_stratum + 1)}
     for r in ruleset.rules:
         stratum_rules[stratum[id(r)]].append(r)
 
-    layers: list[tuple[list[srl_ast.Rule], list[srl_ast.Rule]]] = []
+    layers: list[tuple[list[srl_ast._Rule], list[srl_ast._Rule]]] = []
     for i in range(max_stratum + 1):
         rules_i = stratum_rules[i]
-        once_ids = {id(r) for r in rules_i if is_run_once(r)}
+        once_ids = {id(r) for r in rules_i if r._is_run_once}
         once = [r for r in rules_i if id(r) in once_ids]
         general = [r for r in rules_i if id(r) not in once_ids]
         layers.append((once, general))
@@ -230,7 +218,7 @@ def _collect_vars_in_expr(expr, found: set[Variable]) -> None:
     algebra.traverse(expr, visitPost=_visit)
 
 
-def _collect_variables(rule: srl_ast.Rule) -> set[Variable]:
+def _collect_variables(rule: srl_ast._Rule) -> set[Variable]:
     """Every ``Variable`` used anywhere in ``rule`` (head or body) - needed
     so fresh variables minted for body blank nodes (§6.4) can't collide
     with a variable the rule already uses."""
@@ -244,12 +232,12 @@ def _collect_variables(rule: srl_ast.Rule) -> set[Variable]:
     def _element(e: srl_ast.BodyElement) -> None:
         if isinstance(e, srl_ast.TriplePattern):
             _triple(e)
-        elif isinstance(e, srl_ast.FilterElement):
+        elif isinstance(e, srl_ast._FilterElement):
             _collect_vars_in_expr(e.expr, found)
-        elif isinstance(e, srl_ast.AssignmentElement):
+        elif isinstance(e, srl_ast._AssignmentElement):
             found.add(e.var)
             _collect_vars_in_expr(e.expr, found)
-        elif isinstance(e, srl_ast.NegationElement):
+        elif isinstance(e, srl_ast._NegationElement):
             for inner in e.inner:
                 _element(inner)
 
@@ -295,8 +283,8 @@ def _blank_nodes_to_vars(
     def _sub_element(e: srl_ast.BodyElement) -> srl_ast.BodyElement:
         if isinstance(e, srl_ast.TriplePattern):
             return _sub_triple(e)
-        if isinstance(e, srl_ast.NegationElement):
-            return srl_ast.NegationElement(inner=[_sub_element(x) for x in e.inner], data=e.data)
+        if isinstance(e, srl_ast._NegationElement):
+            return srl_ast._NegationElement(inner=[_sub_element(x) for x in e.inner], data=e.data)
         return e  # FilterElement/AssignmentElement: no raw BNode terms to substitute
 
     return [_sub_element(e) for e in body]
@@ -336,7 +324,7 @@ def _eval_expr(expr, mu: dict, g: Graph):
     return val
 
 
-def eval_rule_elements(elements: list[srl_ast.BodyElement], seq: list[dict], g: Graph, gd: Graph) -> list[dict]:
+def _eval_rule_elements(elements: list[srl_ast.BodyElement], seq: list[dict], g: Graph, gd: Graph) -> list[dict]:
     """§6.4's ``evalRuleElements`` - processes ``elements`` against the
     incoming solution sequence ``seq``, matching ordinary triple-pattern
     runs against ``g`` and any ``DATA``-flagged negation against ``gd``."""
@@ -351,10 +339,10 @@ def eval_rule_elements(elements: list[srl_ast.BodyElement], seq: list[dict], g: 
                 run.append(elements[i])
                 i += 1
             seq = _eval_triple_run(run, seq, g)
-        elif isinstance(elt, srl_ast.FilterElement):
+        elif isinstance(elt, srl_ast._FilterElement):
             seq = [mu for mu in seq if _eval_ebv(elt.expr, mu, g)]
             i += 1
-        elif isinstance(elt, srl_ast.AssignmentElement):
+        elif isinstance(elt, srl_ast._AssignmentElement):
             new_seq: list[dict] = []
             for mu in seq:
                 val = _eval_expr(elt.expr, mu, g)
@@ -364,11 +352,11 @@ def eval_rule_elements(elements: list[srl_ast.BodyElement], seq: list[dict], g: 
                     new_seq.append(mu2)
             seq = new_seq
             i += 1
-        elif isinstance(elt, srl_ast.NegationElement):
+        elif isinstance(elt, srl_ast._NegationElement):
             inner_g = gd if elt.data else g
             new_seq = []
             for mu in seq:
-                neg = eval_rule_elements(elt.inner, [mu], inner_g, gd)
+                neg = _eval_rule_elements(elt.inner, [mu], inner_g, gd)
                 if not neg:
                     new_seq.append(mu)
             seq = new_seq
@@ -411,14 +399,14 @@ def _subst_head_triple(triple: srl_ast.TriplePattern, mu: dict, bnode_map: dict[
     return (_sub(triple.subject), _sub(triple.predicate), _sub(triple.object))
 
 
-def eval_rule(rule: srl_ast.Rule, g: Graph, gd: Graph) -> set[tuple]:
+def _eval_rule(rule: srl_ast._Rule, g: Graph, gd: Graph) -> set[tuple]:
     """§6.4's ``evalRule``."""
     used_vars = _collect_variables(rule)
     body = _blank_nodes_to_vars(rule.body, used_vars)
     if rule.data:
-        seq = eval_rule_elements(body, [{}], gd, gd)
+        seq = _eval_rule_elements(body, [{}], gd, gd)
     else:
-        seq = eval_rule_elements(body, [{}], g, gd)
+        seq = _eval_rule_elements(body, [{}], g, gd)
 
     out: set[tuple] = set()
     for mu in seq:
@@ -433,7 +421,7 @@ def eval_rule(rule: srl_ast.Rule, g: Graph, gd: Graph) -> set[tuple]:
 # ---------------------------------------------------------------------------
 
 
-def evaluate_ruleset(base_graph: Graph, ruleset: srl_ast.RuleSet) -> Graph:
+def _evaluate_ruleset(base_graph: Graph, ruleset: srl_ast.RuleSet) -> Graph:
     """§6.5's rule-set evaluation algorithm, translated directly -
     including its one easy-to-miss subtlety, confirmed against the raw
     spec text (not just the informal prose): every ``evalRule`` call's own
@@ -470,9 +458,9 @@ def evaluate_ruleset(base_graph: Graph, ruleset: srl_ast.RuleSet) -> Graph:
     ge += base_graph
     ge += d
 
-    for once_rules, general_rules in stratify(ruleset):
+    for once_rules, general_rules in _stratify(ruleset):
         for rule in once_rules:
-            for t in eval_rule(rule, ge, base_graph):
+            for t in _eval_rule(rule, ge, base_graph):
                 if t not in ge:
                     gi.add(t)
                     ge.add(t)
@@ -481,7 +469,7 @@ def evaluate_ruleset(base_graph: Graph, ruleset: srl_ast.RuleSet) -> Graph:
         while not finished:
             finished = True
             for rule in general_rules:
-                for t in eval_rule(rule, ge, base_graph):
+                for t in _eval_rule(rule, ge, base_graph):
                     if t not in ge:
                         finished = False
                         gi.add(t)
@@ -490,33 +478,31 @@ def evaluate_ruleset(base_graph: Graph, ruleset: srl_ast.RuleSet) -> Graph:
     return gi
 
 
-def srl_infer(base_graph: Graph, ruleset: srl_ast.RuleSet) -> Graph:
+def _srl_infer(base_graph: Graph, ruleset: srl_ast.RuleSet) -> Graph:
     """§4.1's top-level ``Infer`` operation - apply full rule-set
     evaluation, producing the inference graph. Alias for
-    :func:`evaluate_ruleset` under the spec's own operation name.
+    :func:`_evaluate_ruleset` under the spec's own operation name.
 
-    Named ``srl_infer``, not the bare ``infer`` the spec itself uses -
-    deliberately, to avoid colliding with ``StarLayerGraph.infer(profile=
-    ...)`` (RDF/RDFS/OWL-RL/OWL-DL entailment) when both are imported into
-    the same namespace, e.g. ``from starlayer.sparql.srl_eval import *`` alongside
-    ``from starlayer.graph import StarLayerGraph`` - a real, easy mix-up
-    given how similar the two names and signatures are otherwise."""
-    return evaluate_ruleset(base_graph, ruleset)
+    Private (was ``srl_infer``, public, until 2026-10-05): the real public
+    entry point is ``RuleSet.infer()`` (``_srl_ast.py``), which delegates
+    here. Kept as a separate function from ``_evaluate_ruleset`` only to
+    carry the spec's own ``Infer`` name for anyone reading this file
+    against the spec text side by side."""
+    return _evaluate_ruleset(base_graph, ruleset)
 
 
-def srl_query(base_graph: Graph, ruleset: srl_ast.RuleSet, goal_pattern: srl_ast.TriplePattern) -> list[dict]:
+def _srl_query(base_graph: Graph, ruleset: srl_ast.RuleSet, goal_pattern: srl_ast.TriplePattern) -> list[dict]:
     """§4.1's top-level ``Query`` operation, v1: "equivalent to infer +
     matching the goal pattern against base ∪ GI" - the spec's own stated
-    equivalence, implemented directly on top of :func:`srl_infer` rather
+    equivalence, implemented directly on top of :func:`_srl_infer` rather
     than the selective-rule-evaluation optimization it also permits (a
     documented future enhancement, not required for a correct result).
     Returns one ``dict[Variable, term]`` solution per match.
 
-    Named ``srl_query``, not the bare ``query`` the spec itself uses - same
-    collision-avoidance reasoning as :func:`srl_infer` above, this time
-    against ``StarLayerGraph.query()``/plain rdflib's own ``Graph.query()``.
-    """
-    gi = evaluate_ruleset(base_graph, ruleset)
+    Private (was ``srl_query``, public, until 2026-10-05): the real public
+    entry point is ``RuleSet.query()`` (``_srl_ast.py``), which delegates
+    here."""
+    gi = _evaluate_ruleset(base_graph, ruleset)
     combined = Graph()
     combined += base_graph
     combined += gi

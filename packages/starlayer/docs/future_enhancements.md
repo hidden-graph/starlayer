@@ -115,6 +115,67 @@ package's own top level, not nested under one subpackage's docs.
     deliberate decision either way (document as expected, or make `n3()`
     consistent some other way) rather than leaving it an accidental gap.
 
+- **SRL's own documented scope-reduction precedent** (recorded here
+  explicitly 2026-10-05, after the user didn't recall it existed when
+  discussing `sqe:`'s own v1 scope - worth not losing again):
+  `starlayer/sparql/srl_grammar.py`'s module docstring lists SRL's own
+  deliberate scope reductions explicitly (e.g. only `;`-chained property
+  lists, not `,`-chained object lists; no property paths beyond a bare
+  IRI/`a` predicate; `IMPORTS` a hard rejection rather than resolved) -
+  "not oversights." Any new vocabulary/grammar built in this project
+  going forward should follow the same discipline: state what v1
+  deliberately excludes, in the module's own docstring, rather than
+  leaving a gap for someone to later mistake for a bug.
+
+- **`starlayer.sparql.sqe` - built 2026-10-05**, a new, hand-designed
+  RDF vocabulary for editing a SPARQL `SELECT`/`ASK`/`CONSTRUCT` query as
+  a flat, human-readable tree (paired with its own SHACL shapes designed
+  for UI-editor field-level validation), sourced from the raw parse tree
+  rather than `salg:`'s resolved algebra - see
+  `starlayer/sparql/sqe/vocab.py`'s own module docstring for the full
+  design rationale and `/clever-napping-mountain.md`-style plan this
+  followed (comparison against `manch:`/`srl:`, why `salg:`/`ssyn:`/
+  `sast:` don't already serve this purpose). **v1 scope, deliberately
+  reduced, mirroring the SRL precedent above**: `SELECT`/`ASK`/
+  `CONSTRUCT` only (no `DESCRIBE`); `WHERE`-clause limited to triple
+  patterns (property paths included - confirmed working, inherited for
+  free from the same technique reused), `OPTIONAL`, `UNION`, `FILTER`,
+  `BIND`. Not yet covered: aggregates/`GROUP BY`/`HAVING`, subqueries,
+  `VALUES`, and SPARQL Update entirely - widen deliberately, later, one
+  construct at a time, each with its own round-trip + SHACL coverage
+  added alongside it (same testing discipline `test_sqe_ontology.py`
+  already establishes).
+
+  **Open follow-up, deliberately not resolved as part of building
+  `sqe:`**: once `sqe:` is in real use, revisit whether `salg:` (the
+  algebra encoding) still has a genuine consumer. Unlike `sast:`/`ssyn:`
+  (explicit, unfinished prototypes for the exact purpose `sqe:` now
+  serves properly - real candidates for retirement, see below), `salg:`
+  represents something genuinely different in principle - the *resolved
+  execution plan*, not the authored syntax - but nobody has named a
+  concrete consumer for that distinction either (same open question as
+  `sqe:`'s own validation use case, discussed the same session). Don't
+  let `salg:` keep its place by default just because it's already built
+  and tested.
+
+  **Cleanup, scheduled for after `sqe:` is proven in real use, not done
+  as part of this initial build**: `sast:` (`to_ast_rdf.py`/
+  `from_ast_rdf.py`/`ast_vocab.py`) and `ssyn:` (`to_ssyn_rdf.py`/
+  `ssyn_vocab.py`) become dead prototypes once `sqe:` covers their shared
+  purpose - confirmed via `grep` that nothing outside their own test
+  files depends on either, except `srl.py`'s real dependency on
+  `ssyn_to_text.render_expr_text` (vocabulary-independent - renders an
+  already-decoded `Expr` tree to text - so a third consumer alongside
+  `sqe:`'s own `to_text.py`, which currently imports it from its present
+  location too). Before deleting `ssyn:`: move `render_expr_text` out of
+  `ssyn_to_text.py` into its own small, neutral module (e.g.
+  `starlayer/sparql/expr_text.py`) first, and update both `srl.py`'s and
+  `sqe/to_text.py`'s imports to the new location - so neither depends on
+  a module slated for deletion. Then delete the rest of `ssyn:`/all of
+  `sast:` plus their test files (`test_ast_ontology.py`,
+  `test_ssyn_ontology.py`), and update `starlayer/sparql/CLAUDE.md`'s
+  file map and `docs/api-reference.md`'s "Lower-level" table accordingly.
+
 **Done**: "produce a documentation doc outlining every method/import
 available under `starlayer`" → `packages/starlayer/docs/api-reference.md`,
 built 2026-09-30.

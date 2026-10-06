@@ -1,19 +1,20 @@
-"""Tests that starlayer.sparql.validate_query() itself catches an unbound
-projected variable via the real SHACL constraint component
+"""Tests that starlayer.sparql.salg.validate_query() itself catches an
+unbound projected variable via the real SHACL constraint component
 (native_components.py, activated by salg:noUnboundProjectedVariables
 on salg:ProjectShape in sparql_shapes.ttl) - not just via the standalone
-starlayer.sparql.find_unbound_projected_variables() function
+starlayer.sparql.salg.find_unbound_projected_variables() function
 (test_semantic_checks.py already covers that path directly).
 """
 
 import starlayer.sparql
+import starlayer.sparql.salg
 from rdflib.namespace import SH
 
 
 def _validate(query_text):
     parsed = starlayer.sparql.prepare_query_12(query_text)
     graph, root = starlayer.sparql.query_to_rdf(parsed)
-    return starlayer.sparql.validate_query(graph)
+    return starlayer.sparql.salg.validate_query(graph)
 
 
 class TestNativeComponentCatchesUnboundProjectedVariable:

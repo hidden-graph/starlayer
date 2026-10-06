@@ -119,7 +119,7 @@ def _predicate_text(graph: Graph, term) -> str:
 
 def _expr_text(graph: Graph, expr_node) -> str:
     decoded_expr = _decode_algebra(expr_node, graph)
-    return render_expr_text(decoded_expr)
+    return _render_expr_text(decoded_expr)
 
 
 def _simplify_expr_immutable(expr):
@@ -130,7 +130,7 @@ def _simplify_expr_immutable(expr):
     here: it mutates its input **in place** for every node it doesn't
     collapse outright (``expr[k] = simplify(expr[k])`` on each remaining
     key) — confirmed live that calling it on a still-referenced
-    ``starlayer.sparql.srl_ast.FilterElement.expr`` silently corrupted that same
+    ``starlayer.sparql._srl_ast._FilterElement.expr`` silently corrupted that same
     object's nested structure as a side effect (a later equality check
     broke, even though the mutating call's own return value was never
     stored anywhere). ``copy.deepcopy`` isn't a fix either — ``Expr``'s
@@ -169,7 +169,7 @@ def _simplify_expr_immutable(expr):
     return CompValue(expr.name, **new_values)
 
 
-def render_expr_text(expr) -> str:
+def _render_expr_text(expr) -> str:
     """Render a real algebra expression node (an ``Expr``/``CompValue``
     tree) as text by wrapping it in a throwaway query and reusing rdflib's
     own translateAlgebra, then slicing out the FILTER(...) contents — see

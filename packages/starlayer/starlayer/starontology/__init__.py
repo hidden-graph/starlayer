@@ -35,7 +35,7 @@ ends up consuming a given file. This top-level module
 nothing more, never wraps `pyshacl`/`starlayer.shacl`. *How* to validate
 (which reasoning settings, which severity flags) stays each vocabulary's
 own concern, genuinely different per vocabulary -
-`starlayer.sparql.sparql_shapes.validate_query()` for `salg:` still lives
+`starlayer.sparql.salg.sparql_shapes.validate_query()` for `salg:` still lives
 outside this subpackage entirely, for now.
 
 **Revised 2026-10-03: not every vocabulary stops there.**
@@ -96,10 +96,10 @@ the raw on-disk bytes (none of this stack's own code does - checked) can
 still find the file next to this module, it's just not exposed as a named
 constant anymore.
 
-**What's here**: eight *files* on disk, two per vocabulary (an OWL/RDFS
-ontology and a SHACL shapes graph) for four vocabularies - plus a ninth
-*registered entry* (``shacl_meta``, see below) backed by generated Python
-rather than a file:
+**What's here**: ten *files* on disk, two per vocabulary (an OWL/RDFS
+ontology and a SHACL shapes graph) for five vocabularies - plus an
+eleventh *registered entry* (``shacl_meta``, see below) backed by
+generated Python rather than a file:
 
 - ``manch:`` (``manchester-ast-ontology.ttl`` / ``manchester_shapes.ttl``) -
   OWL 2 Manchester Syntax's own internal AST as RDF. Type ``"ast-graph"``.
@@ -111,14 +111,20 @@ rather than a file:
   label the other three legitimately earn.
 - ``salg:`` (``salg-ontology.ttl`` / ``sparql_shapes.ttl``) - a SPARQL 1.2
   query/update's own algebra as RDF. Type ``"ast-graph"``.
+- ``sqe:`` (``sqe-ontology.ttl`` / ``sqe_shapes.ttl``) - a SPARQL
+  `SELECT`/`ASK`/`CONSTRUCT` query's own raw parse tree (pre-
+  `translateQuery`), as a flat, human-readable RDF tree meant for hand/UI
+  editing - deliberately not `salg:`'s resolved algebra, which isn't
+  readable or editable the same way (see
+  `starlayer.sparql.sqe`'s own module docstrings). Type ``"ast-graph"``.
 - ``srl:`` (``srl-ontology.ttl`` / ``srl_shapes.ttl``) - SRL/SPARQL-RL's
   own rule-set abstract syntax as RDF (see `starlayer.sparql.srl`).
   Type ``"ast-graph"``.
 
-Every shapes file (all four) is type ``"shacl"``, regardless of which of
+Every shapes file (all five) is type ``"shacl"``, regardless of which of
 the above its own target ontology is.
 
-A ninth entry, ``shacl_meta``, is also registered here (``type="shacl"``) -
+An eleventh entry, ``shacl_meta``, is also registered here (``type="shacl"``) -
 the SHACL 1.2 meta-shapes themselves (``starlayer.shacl``'s own
 shapes-about-shapes). The *generation code* deliberately stays in
 ``starlayer.shacl.meta_shapes.build_meta_shapes_graph()``, not duplicated
@@ -153,6 +159,8 @@ _SKOS_ONTOLOGY_TTL_PATH = _HERE / "skos-ontology.ttl"
 _SKOS_SHAPES_TTL_PATH = _HERE / "skos_shapes.ttl"
 _SPARQL_ONTOLOGY_TTL_PATH = _HERE / "salg-ontology.ttl"
 _SPARQL_SHAPES_TTL_PATH = _HERE / "sparql_shapes.ttl"
+_SQE_ONTOLOGY_TTL_PATH = _HERE / "sqe-ontology.ttl"
+_SQE_SHAPES_TTL_PATH = _HERE / "sqe_shapes.ttl"
 _SRL_ONTOLOGY_TTL_PATH = _HERE / "srl-ontology.ttl"
 _SRL_SHAPES_TTL_PATH = _HERE / "srl_shapes.ttl"
 
@@ -228,6 +236,33 @@ _REGISTRY: dict[str, tuple[OntologyInfo, Callable[[], StarLayerGraph]]] = {
             type="shacl",
         ),
         lambda _p=_SPARQL_SHAPES_TTL_PATH: _load(_p),
+    ),
+    "sqe_owl": (
+        OntologyInfo(
+            name="sqe_owl",
+            description=(
+                "A SPARQL SELECT/ASK/CONSTRUCT query's own raw parse tree, "
+                "pre-translateQuery, as a flat, human-readable RDF tree "
+                "(sqe:) meant for hand/UI editing - deliberately not the "
+                "resolved salg: algebra, which isn't readable or editable "
+                "the same way. v1 scope reduction: no aggregates/"
+                "subqueries/VALUES/Update yet (property paths ARE covered)."
+            ),
+            type="ast-graph",
+        ),
+        lambda _p=_SQE_ONTOLOGY_TTL_PATH: _load(_p),
+    ),
+    "sqe_shacl": (
+        OntologyInfo(
+            name="sqe_shacl",
+            description=(
+                "SHACL shapes validating an sqe: query-edit graph's own "
+                "structural well-formedness, designed for UI-editor field-"
+                "level validation, not just decode-ability."
+            ),
+            type="shacl",
+        ),
+        lambda _p=_SQE_SHAPES_TTL_PATH: _load(_p),
     ),
     "srl_owl": (
         OntologyInfo(

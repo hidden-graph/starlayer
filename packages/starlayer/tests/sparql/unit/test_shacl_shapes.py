@@ -14,13 +14,8 @@ Two directions get tested:
 import pytest
 from rdflib import RDF, BNode, Literal, URIRef
 from rdflib.plugins.sparql.processor import prepareQuery, prepareUpdate
-from starlayer.sparql import (
-    queries_to_collection,
-    query_to_rdf,
-    shapes_graph,
-    update_to_rdf,
-    validate_query,
-)
+from starlayer.sparql import queries_to_collection, query_to_rdf, update_to_rdf
+from starlayer.sparql.salg import shapes_graph, validate_query
 from starlayer.sparql.parse12 import prepare_query_12
 from starlayer.sparql.vocab import SALG
 
@@ -98,7 +93,7 @@ def test_expression_shape_relies_on_rdfs_reasoning_not_enumeration():
     behind it."""
     from rdflib import RDF, BNode
     from rdflib import Graph as RGraph
-    from starlayer.sparql.sparql_ontology import ontology_graph
+    from starlayer.sparql.salg.sparql_ontology import ontology_graph
     from starlayer.sparql.vocab import SALG
 
     data = RGraph()

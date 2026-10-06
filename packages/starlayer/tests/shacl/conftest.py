@@ -67,6 +67,6 @@ except ImportError as exc:  # pragma: no cover - exercised only when pyshacl is 
 # here makes the real requirement self-documenting rather than relying on
 # the same accident.
 import starlayer.graph  # noqa: F401
-from starlayer.sparql import grammar12
+from starlayer.sparql import _grammar12 as grammar12
 
 grammar12.install()

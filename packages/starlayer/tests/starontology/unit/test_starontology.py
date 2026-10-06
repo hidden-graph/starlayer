@@ -21,12 +21,13 @@ from starlayer.graph import StarLayerGraph
 
 
 class TestGetOntologyList:
-    def test_returns_all_nine_entries(self):
+    def test_returns_all_eleven_entries(self):
         names = {info.name for info in starontology.get_ontology_list()}
         assert names == {
             "manchester_owl", "manchester_shacl",
             "skos_owl", "skos_shacl",
             "sparql_owl", "sparql_shacl",
+            "sqe_owl", "sqe_shacl",
             "srl_owl", "srl_shacl",
             "shacl_meta",
         }
@@ -45,7 +46,9 @@ class TestGetOntologyList:
         """shacl_meta is generated, not file-backed, but it's still a SHACL
         shapes graph - same type as the four file-backed shapes entries."""
         shacl_names = {info.name for info in starontology.get_ontology_list() if info.type == "shacl"}
-        assert shacl_names == {"manchester_shacl", "skos_shacl", "sparql_shacl", "srl_shacl", "shacl_meta"}
+        assert shacl_names == {
+            "manchester_shacl", "skos_shacl", "sparql_shacl", "sqe_shacl", "srl_shacl", "shacl_meta",
+        }
 
     def test_skos_owl_is_type_owl_not_ast_graph(self):
         """skos: is a real semantic ontology (formal axioms about an existing
@@ -54,9 +57,9 @@ class TestGetOntologyList:
         [skos_entry] = [info for info in starontology.get_ontology_list() if info.name == "skos_owl"]
         assert skos_entry.type == "owl"
 
-    def test_manchester_sparql_srl_owl_entries_are_type_ast_graph(self):
+    def test_manchester_sparql_sqe_srl_owl_entries_are_type_ast_graph(self):
         ast_graph_names = {info.name for info in starontology.get_ontology_list() if info.type == "ast-graph"}
-        assert ast_graph_names == {"manchester_owl", "sparql_owl", "srl_owl"}
+        assert ast_graph_names == {"manchester_owl", "sparql_owl", "sqe_owl", "srl_owl"}
 
 
 class TestGetOntologyGraph:

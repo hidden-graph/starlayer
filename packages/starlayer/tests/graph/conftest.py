@@ -23,7 +23,7 @@ from starlayer.graph.parsers.turtle_parser import StarLayerTurtleParser
 # entirely. Confirmed via direct A/B testing: the exact same test
 # combination that reliably failed without this import passes cleanly with
 # it, every time.
-from starlayer.sparql import grammar12
+from starlayer.sparql import _grammar12 as grammar12
 
 grammar12.install()
 

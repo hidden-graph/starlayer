@@ -1,0 +1,178 @@
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix sqe: <https://github.com/hidden-graph/starsparql/ns/query-edit#> .
+@prefix salg: <https://github.com/hidden-graph/starsparql/ns/algebra#> .
+
+# ---------------------------------------------------------------------
+# SHACL shapes for sqe: (see sqe-ontology.ttl / starlayer.sparql.sqe.vocab
+# for the vocabulary itself). Designed from the start for UI-editor field-
+# level validation, not just "does this decode" structural conformance -
+# each sh:property below carries its own sh:message naming the specific
+# field, so a UI can surface a violation directly against the form control
+# it came from rather than a generic "graph doesn't conform".
+# ---------------------------------------------------------------------
+
+# A triple-pattern subject: a bound IRI/blank node, or a Variable (reuses
+# salg:VariableShape as-is, see vocab.py's own module docstring for why).
+sqe:SubjectOrVariableShape
+    a sh:NodeShape ;
+    sh:or (
+        [ sh:nodeKind sh:IRI ]
+        [ sh:nodeKind sh:BlankNode ]
+        salg:VariableShape
+    ) .
+
+# A triple-pattern predicate: a bound IRI, a Variable, or (unlike a plain
+# term position) a genuine property path - reuses the existing salg:
+# path encoding at this boundary, same choice to_rdf.py's own encoder
+# makes (to_text.py's _encode_predicate).
+sqe:PredicateOrVariableOrPathShape
+    a sh:NodeShape ;
+    sh:or ( [ sh:nodeKind sh:IRI ] salg:VariableShape salg:PathShape ) .
+
+# A triple-pattern object: any RDF term, or a Variable.
+sqe:ObjectOrVariableShape
+    a sh:NodeShape ;
+    sh:or (
+        [ sh:nodeKind sh:IRI ]
+        [ sh:nodeKind sh:BlankNode ]
+        [ sh:nodeKind sh:Literal ]
+        salg:VariableShape
+    ) .
+
+sqe:TriplePatternShape
+    a sh:NodeShape ;
+    sh:targetClass sqe:TriplePattern ;
+    sh:property [
+        sh:path sqe:subject ;
+        sh:minCount 1 ; sh:maxCount 1 ;
+        sh:node sqe:SubjectOrVariableShape ;
+        sh:message "sqe:TriplePattern must have exactly one sqe:subject, an IRI/blank node/Variable" ;
+    ] ;
+    sh:property [
+        sh:path sqe:predicate ;
+        sh:minCount 1 ; sh:maxCount 1 ;
+        sh:node sqe:PredicateOrVariableOrPathShape ;
+        sh:message "sqe:TriplePattern must have exactly one sqe:predicate, an IRI/Variable/property path" ;
+    ] ;
+    sh:property [
+        sh:path sqe:object ;
+        sh:minCount 1 ; sh:maxCount 1 ;
+        sh:node sqe:ObjectOrVariableShape ;
+        sh:message "sqe:TriplePattern must have exactly one sqe:object" ;
+    ] .
+
+# A well-formed rdf:List whose members are each one of the five pattern-
+# element classes - a single sh:sparql constraint, not a recursive
+# NodeShape walking rdf:first/rdf:rest one sh:property hop at a time
+# (pyshacl treats that as shape recursion and silently under-validates
+# past a few list items - same reasoning salg:TriplePatternListShape's own
+# comment already recorded for the identical problem there).
+sqe:WhereListShape
+    a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "expected a well-formed rdf:List of sqe:TriplePattern/Optional/Union/Filter/Bind" ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX sqe: <https://github.com/hidden-graph/starsparql/ns/query-edit#>
+            SELECT $this
+            WHERE {
+                {
+                    FILTER ( $this != rdf:nil )
+                    FILTER NOT EXISTS { $this rdf:first ?head }
+                } UNION {
+                    $this rdf:rest*/rdf:first ?item .
+                    FILTER NOT EXISTS {
+                        ?item a ?t .
+                        FILTER ( ?t IN ( sqe:TriplePattern, sqe:Optional, sqe:Union, sqe:Filter, sqe:Bind ) )
+                    }
+                }
+            }
+        """ ;
+    ] .
+
+sqe:OptionalShape
+    a sh:NodeShape ;
+    sh:targetClass sqe:Optional ;
+    sh:property [
+        sh:path sqe:where ;
+        sh:minCount 1 ; sh:maxCount 1 ;
+        sh:node sqe:WhereListShape ;
+        sh:message "sqe:Optional must have exactly one sqe:where, a well-formed pattern list" ;
+    ] .
+
+sqe:UnionShape
+    a sh:NodeShape ;
+    sh:targetClass sqe:Union ;
+    sh:property [
+        sh:path sqe:alternatives ;
+        sh:minCount 1 ; sh:maxCount 1 ;
+        sh:message "sqe:Union must have exactly one sqe:alternatives, an rdf:List of pattern lists" ;
+    ] .
+
+sqe:FilterShape
+    a sh:NodeShape ;
+    sh:targetClass sqe:Filter ;
+    sh:property [
+        sh:path sqe:expr ;
+        sh:minCount 1 ; sh:maxCount 1 ;
+        sh:node salg:ExpressionShape ;
+        sh:message "sqe:Filter must have exactly one sqe:expr, a well-formed salg: expression" ;
+    ] .
+
+sqe:BindShape
+    a sh:NodeShape ;
+    sh:targetClass sqe:Bind ;
+    sh:property [
+        sh:path sqe:expr ;
+        sh:minCount 1 ; sh:maxCount 1 ;
+        sh:node salg:ExpressionShape ;
+        sh:message "sqe:Bind must have exactly one sqe:expr, a well-formed salg: expression" ;
+    ] ;
+    sh:property [
+        sh:path sqe:var ;
+        sh:minCount 1 ; sh:maxCount 1 ;
+        sh:node salg:VariableShape ;
+        sh:message "sqe:Bind must have exactly one sqe:var, a Variable" ;
+    ] .
+
+sqe:SelectQueryShape
+    a sh:NodeShape ;
+    sh:targetClass sqe:SelectQuery ;
+    sh:property [
+        sh:path sqe:projection ;
+        sh:minCount 1 ; sh:maxCount 1 ;
+        sh:message "sqe:SelectQuery must have exactly one sqe:projection, an rdf:List of Variables" ;
+    ] ;
+    sh:property [
+        sh:path sqe:where ;
+        sh:minCount 1 ; sh:maxCount 1 ;
+        sh:node sqe:WhereListShape ;
+        sh:message "sqe:SelectQuery must have exactly one sqe:where, a well-formed pattern list" ;
+    ] .
+
+sqe:AskQueryShape
+    a sh:NodeShape ;
+    sh:targetClass sqe:AskQuery ;
+    sh:property [
+        sh:path sqe:where ;
+        sh:minCount 1 ; sh:maxCount 1 ;
+        sh:node sqe:WhereListShape ;
+        sh:message "sqe:AskQuery must have exactly one sqe:where, a well-formed pattern list" ;
+    ] .
+
+sqe:ConstructQueryShape
+    a sh:NodeShape ;
+    sh:targetClass sqe:ConstructQuery ;
+    sh:property [
+        sh:path sqe:template ;
+        sh:minCount 1 ; sh:maxCount 1 ;
+        sh:message "sqe:ConstructQuery must have exactly one sqe:template, an rdf:List of TriplePattern" ;
+    ] ;
+    sh:property [
+        sh:path sqe:where ;
+        sh:minCount 1 ; sh:maxCount 1 ;
+        sh:node sqe:WhereListShape ;
+        sh:message "sqe:ConstructQuery must have exactly one sqe:where, a well-formed pattern list" ;
+    ] .

@@ -13,8 +13,20 @@ spec's stated output" assertion.
 import pytest
 from rdflib import RDF, BNode, Literal, URIRef, Variable
 
-from starlayer.sparql import srl_ast
-from starlayer.sparql.srl import SRLParseError, parse_ruleset
+from starlayer.sparql._srl_ast import (
+    _AssignmentElement as AssignmentElement,
+)
+from starlayer.sparql._srl_ast import (
+    _FilterElement as FilterElement,
+)
+from starlayer.sparql._srl_ast import (
+    _NegationElement as NegationElement,
+)
+from starlayer.sparql.srl import (
+    SRLParseError,
+    TriplePattern,
+    parse_ruleset,
+)
 
 EX = "http://example.org/"
 
@@ -46,16 +58,16 @@ def test_r1_simple_rule():
     (rule,) = rs.rules
     assert rule.id is None
     assert rule.data is False
-    assert rule.head == [srl_ast.TriplePattern(Variable("x"), _p("exposedTo"), Variable("v"))]
-    assert rule.body == [srl_ast.TriplePattern(Variable("x"), _p("hasVulnerability"), Variable("v"))]
+    assert rule.head == [TriplePattern(Variable("x"), _p("exposedTo"), Variable("v"))]
+    assert rule.body == [TriplePattern(Variable("x"), _p("hasVulnerability"), Variable("v"))]
 
 
 def test_r2_recursive_rule_two_body_triples():
     rs = parse_ruleset(WORKED_EXAMPLE_PREFIXES + R2)
     (rule,) = rs.rules
     assert rule.body == [
-        srl_ast.TriplePattern(Variable("x"), _p("dependsOn"), Variable("y")),
-        srl_ast.TriplePattern(Variable("y"), _p("exposedTo"), Variable("v")),
+        TriplePattern(Variable("x"), _p("dependsOn"), Variable("y")),
+        TriplePattern(Variable("y"), _p("exposedTo"), Variable("v")),
     ]
 
 
@@ -63,10 +75,10 @@ def test_r3_filter_element():
     rs = parse_ruleset(WORKED_EXAMPLE_PREFIXES + R3)
     (rule,) = rs.rules
     assert len(rule.body) == 3
-    assert isinstance(rule.body[0], srl_ast.TriplePattern)
-    assert isinstance(rule.body[1], srl_ast.TriplePattern)
+    assert isinstance(rule.body[0], TriplePattern)
+    assert isinstance(rule.body[1], TriplePattern)
     filter_elt = rule.body[2]
-    assert isinstance(filter_elt, srl_ast.FilterElement)
+    assert isinstance(filter_elt, FilterElement)
     # The expression is a real rdflib Expr tree - reused as-is (see
     # srl.py's docstring for why no bespoke SRL expression AST
     # exists); spot-check it evaluates as expected rather than trying to
@@ -84,12 +96,12 @@ def test_r3_filter_element():
 def test_r4_negation_element_body_restricted_shape():
     rs = parse_ruleset(WORKED_EXAMPLE_PREFIXES + R4)
     (rule,) = rs.rules
-    assert rule.head == [srl_ast.TriplePattern(Variable("x"), _p("status"), _p("safeToDeploy"))]
-    assert isinstance(rule.body[0], srl_ast.TriplePattern)
+    assert rule.head == [TriplePattern(Variable("x"), _p("status"), _p("safeToDeploy"))]
+    assert isinstance(rule.body[0], TriplePattern)
     neg = rule.body[1]
-    assert isinstance(neg, srl_ast.NegationElement)
+    assert isinstance(neg, NegationElement)
     assert neg.data is False
-    assert neg.inner == [srl_ast.TriplePattern(Variable("x"), _p("status"), _p("criticallyExposed"))]
+    assert neg.inner == [TriplePattern(Variable("x"), _p("status"), _p("criticallyExposed"))]
 
 
 def test_r5_blank_node_head_and_semicolon_property_list():
@@ -123,8 +135,8 @@ def test_data_block_ground_triples_only():
     assert len(rs.data) == 1
     (block,) = rs.data
     assert block.triples == [
-        srl_ast.TriplePattern(_p("db"), _p("hasVulnerability"), _p("vuln1")),
-        srl_ast.TriplePattern(_p("vuln1"), _p("severity"), Literal("9.1", datatype=URIRef("http://www.w3.org/2001/XMLSchema#decimal"))),
+        TriplePattern(_p("db"), _p("hasVulnerability"), _p("vuln1")),
+        TriplePattern(_p("vuln1"), _p("severity"), Literal("9.1", datatype=URIRef("http://www.w3.org/2001/XMLSchema#decimal"))),
     ]
 
 
@@ -139,9 +151,9 @@ def test_where_data_and_assignment_element():
     rs = parse_ruleset(text)
     (rule,) = rs.rules
     assert rule.data is True
-    assert isinstance(rule.body[0], srl_ast.TriplePattern)
+    assert isinstance(rule.body[0], TriplePattern)
     assign = rule.body[1]
-    assert isinstance(assign, srl_ast.AssignmentElement)
+    assert isinstance(assign, AssignmentElement)
     assert assign.var == Variable("y")
 
 

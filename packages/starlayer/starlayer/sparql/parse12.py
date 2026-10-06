@@ -23,7 +23,7 @@ from rdflib.plugins.sparql.parser import parseQuery, parseUpdate
 from rdflib.plugins.sparql.parserutils import ParseResults  # re-exported for callers
 from rdflib.plugins.sparql.sparql import Query, Update
 
-from . import grammar12
+from . import _grammar12 as grammar12
 from .triple_term import _reject_triple_term_pattern_subjects
 
 grammar12.install()

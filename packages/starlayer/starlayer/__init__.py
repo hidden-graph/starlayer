@@ -15,7 +15,8 @@ nothing is redefined, wrapped, or copied.
 
 For anything not re-exported here, import from the owning subpackage
 directly (e.g. ``starlayer.graph.Namespace``, ``starlayer.sparql.prepare_query_12``,
-``starlayer.sparql.srl_eval.srl_infer``, ``starlayer.shacl.close_shape``).
+``starlayer.sparql.srl.parse_ruleset`` (then ``RuleSet.infer()``/``.query()``),
+``starlayer.shacl.close_shape``).
 """
 
 from .graph import StarLayerDataset, StarLayerGraph

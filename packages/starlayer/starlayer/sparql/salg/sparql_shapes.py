@@ -96,7 +96,7 @@ try:
     from pyshacl.errors import ShapeRecursionWarning
 except ImportError as exc:  # pragma: no cover - exercised only when pyshacl isn't installed
     raise ImportError(
-        "starlayer.sparql.sparql_shapes requires pyshacl - install with "
+        "starlayer.sparql.salg.sparql_shapes requires pyshacl - install with "
         "`pip install -e '.[test]'` or `pip install pyshacl`"
     ) from exc
 
@@ -178,7 +178,7 @@ def validate_query(data_graph: Graph) -> tuple[bool, Graph, str]:
     """
     import starlayer.shacl  # lazy: avoids a circular-import deadlock at module load time
 
-    from starlayer.sparql.native_components import register_salg_native_components
+    from starlayer.sparql.salg.native_components import register_salg_native_components
 
     # salg:noUnboundProjectedVariables (the cross-referential check
     # salg:ProjectShape activates) - registered separately from

@@ -17,7 +17,7 @@ while building this). StarLayerGraph's own internal 1.2-to-1.1 lowering is
 treated as a black box throughout, per design: this project's job stops at
 producing correct SPARQL 1.2 text.
 
-serialize12.translate_algebra_12 supports SELECT and CONSTRUCT. ASK/DESCRIBE
+serialize12._translate_algebra_12 supports SELECT and CONSTRUCT. ASK/DESCRIBE
 are not supported - confirmed empirically that this is a pre-existing
 rdflib gap unrelated to this project's own work (plain, unmodified rdflib's
 algebra.translateAlgebra already returns an empty string for a CONSTRUCT
@@ -52,7 +52,7 @@ from __future__ import annotations
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.sparql import query_to_rdf, rdf_to_query
 from starlayer.sparql.parse12 import prepare_query_12
-from starlayer.sparql.serialize12 import translate_algebra_12
+from starlayer.sparql.serialize12 import _translate_algebra_12
 
 PREFIXES = "PREFIX : <http://example.org/>\n"
 
@@ -163,7 +163,7 @@ def test_serializer_output_reparses():
         prepared = prepare_query_12(query_text)
         graph, root = query_to_rdf(prepared)
         reconstructed = rdf_to_query(graph, root)
-        regenerated_text = translate_algebra_12(reconstructed)
+        regenerated_text = _translate_algebra_12(reconstructed)
 
         reparsed = prepare_query_12(regenerated_text)
         assert reparsed.algebra["_vars"] == prepared.algebra["_vars"], query_text
@@ -179,7 +179,7 @@ def test_execution_roundtrip_via_starlayergraph():
         prepared = prepare_query_12(query_text)
         graph, root = query_to_rdf(prepared)
         reconstructed = rdf_to_query(graph, root)
-        regenerated_text = translate_algebra_12(reconstructed)
+        regenerated_text = _translate_algebra_12(reconstructed)
 
         roundtripped_rows = _run(starlayer_graph, regenerated_text)
 
@@ -193,7 +193,7 @@ def test_construct_serializer_output_reparses():
         prepared = prepare_query_12(query_text)
         graph, root = query_to_rdf(prepared)
         reconstructed = rdf_to_query(graph, root)
-        regenerated_text = translate_algebra_12(reconstructed)
+        regenerated_text = _translate_algebra_12(reconstructed)
 
         reparsed = prepare_query_12(regenerated_text)
         assert reparsed.algebra["template"] == prepared.algebra["template"], query_text
@@ -209,7 +209,7 @@ def test_construct_execution_roundtrip_via_starlayergraph():
         prepared = prepare_query_12(query_text)
         graph, root = query_to_rdf(prepared)
         reconstructed = rdf_to_query(graph, root)
-        regenerated_text = translate_algebra_12(reconstructed)
+        regenerated_text = _translate_algebra_12(reconstructed)
 
         roundtripped_graph = sorted(starlayer_graph.query(regenerated_text).graph)
 

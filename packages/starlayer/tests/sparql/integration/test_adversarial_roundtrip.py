@@ -76,7 +76,7 @@ from rdflib.plugins.stores.sparqlstore import SPARQLUpdateStore
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.sparql import query_to_rdf, rdf_to_query
 from starlayer.sparql.parse12 import prepare_query_12
-from starlayer.sparql.serialize12 import translate_algebra_12
+from starlayer.sparql.serialize12 import _translate_algebra_12
 from tests.sparql.w3c_sparql12.harness import bindings_match, skolemize_graph
 
 pytestmark = pytest.mark.w3c_sparql12
@@ -138,7 +138,7 @@ def _regenerate(query_text: str) -> str:
     prepared = prepare_query_12(query_text)
     graph, root = query_to_rdf(prepared)
     reconstructed = rdf_to_query(graph, root)
-    return translate_algebra_12(reconstructed)
+    return _translate_algebra_12(reconstructed)
 
 
 def _select_equivalent(g, query_text: str, regenerated_text: str) -> tuple[bool, list, list]:

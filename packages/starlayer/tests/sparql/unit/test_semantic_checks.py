@@ -1,4 +1,4 @@
-"""Tests for starlayer.sparql.semantic_checks.find_unbound_projected_variables -
+"""Tests for starlayer.sparql.salg.semantic_checks.find_unbound_projected_variables -
 the "Project.PV names a variable never bound anywhere in its own pattern
 subtree" cross-referential check SHACL's own per-node shapes structurally
 can't see (previously an open, deliberately-not-pursued gap in
@@ -8,7 +8,7 @@ reimplementing SPARQL's variable-scoping rules as SHACL shapes).
 """
 
 import starlayer.sparql
-from starlayer.sparql import UnboundProjectedVariable, find_unbound_projected_variables
+from starlayer.sparql.salg import UnboundProjectedVariable, find_unbound_projected_variables
 
 
 def _query_issues(query_text):

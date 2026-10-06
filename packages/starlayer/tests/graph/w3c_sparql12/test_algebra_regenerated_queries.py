@@ -22,7 +22,7 @@ same query correctly.
 The (original, regenerated) pairs below were captured once, directly from
 the downstream project's own pipeline
 (starlayer.sparql.parse12.prepare_query_12 -> query_to_rdf -> rdf_to_query
--> starlayer.sparql.serialize12.translate_algebra_12), and hardcoded here
+-> starlayer.sparql.serialize12._translate_algebra_12), and hardcoded here
 rather than re-run live: this file's whole point is to isolate the bug
 inside *this* repo's own test suite, with zero dependency on the sibling
 project or a live Oxigraph/Fuseki instance, so it can be debugged and

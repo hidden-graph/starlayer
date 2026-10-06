@@ -8,6 +8,7 @@
 - **Modified** StarLayer overrides/extends the base class's own method of the same name.
 - **Unchanged** inherited as-is from base class.
 
+**Scope** — this document is curated for *external* use: a name appears here only if a developer using StarLayer as a dependency would plausibly call it directly. "Public" in the Python sense (no leading underscore) is necessary but not sufficient — several of StarLayer's own subpackages (`starlayer.graph`, `starlayer.shacl`) call into lower-level pieces of `starlayer.sparql` as part of their own internals; that cross-subpackage use doesn't by itself earn a name a place in this document. Each "Lower-level" section exists for the opposite case: a name that *is* genuinely useful to an external caller doing advanced/manual work, just not the common path — not a dumping ground for internal plumbing. A name used only by sibling modules within the same subpackage, or only by its own test file, isn't documented here at all, regardless of its underscore.
 
 ---
 
@@ -38,6 +39,7 @@ A limited number of top-level classes are available from `starlayer`.
 ## `starlayer.graph`
 
 Imports rdflib.
+CLAUDE: could we consistently show where we import top-level libraries.  e.g. rdflib, pyshacl.  It looks like we dont incldue the RPC hashing.  I assume that is because it is imported and unmodified.  we should include it as part of the wrapper.  
 
 Classes, functions and values available from `starlayer.graph`
 
@@ -261,111 +263,62 @@ Construct with `DirLangString(value, language, direction)`.
 
 `from starlayer.sparql import ...`
 
-Classes, functions and values available from `starlayer.sparql`
+Functions available from `starlayer.sparql`
 
 | Name | Kind | Status | Description |
 |---|---|---|---|
 | `prepare_query_12()` | function | New | Takes SPARQL 1.2 query text and returns an executable `Query` |
 | `prepare_update_12()` | function | New | Takes SPARQL 1.2 Update text and returns an executable `Update` |
-| `translate_algebra_12()` | function | New | Takes SPARQL 1.2 algebra and returns SELECT/CONSTRUCT text |
-| `query_to_rdf()` | function | New | Takes a prepared `Query` and encodes it as `salg:` RDF, returning `(graph, root)` |
-| `rdf_to_query()` | function | New | Takes `salg:` RDF (a graph and root node) and decodes it back into a real `Query` |
-| `update_to_rdf()` | function | New | Takes a prepared `Update` and encodes it as `salg:` RDF, returning `(graph, root)` |
-| `rdf_to_update()` | function | New | Takes `salg:` RDF (a graph and root node) and decodes it back into a real `Update` |
-| `queries_to_collection()` | function | New | Takes a list of independent queries and encodes them as one `salg:QueryCollection` graph |
-| `rdf_to_collection()` | function | New | Takes `salg:` RDF (a graph and root node) and decodes it back into a list of `Query` objects |
-| `ontology_graph()` | function | New | Returns the `salg:` RDFS ontology |
-| `shapes_graph()` | function | New | Returns the `salg:` SHACL shapes *(needs `pyshacl`)* |
-| `validate_query()` | function | New | Takes a `salg:` data graph and validates it against the shapes above, returning `(conforms, report_graph, report_text)` *(needs `pyshacl`)* |
-| `find_unbound_projected_variables()` | function | New | Takes a `salg:` data graph and returns every unbound-projected-variable issue found — a `Project`'s `PV` naming a variable never bound in its own pattern |
-| `UnboundProjectedVariable` | class | New | One issue found by the check above — has `project_node`, `variable`, `projected_vars` fields |
-| `SALG` | value | New | The `salg:` namespace |
+
+### `SPARQL Query Engine`
+
+SPARQL Query Engine (`sqe`) produces a human-readable, editable SPARQL query tree as an RDF graph.
+
+`from starlayer.sparql import sqe`.
+
+| Name | Kind | Status | Description |
+|---|---|---|---|
+| `sqe_parse_to_tree()` | function | New | Takes SPARQL query text and returns a `sqe:` encoded syntax tree (a `Graph`) |
+| `sqe_tree_to_query()` | function | New | Takes a `sqe:` syntax tree and root element and returns an executable `Query` |
+| `sqe_tree_to_text()` | function | New | Takes a `sqe:` syntax tree and root element and returns SPARQL text |
+| `sqe_validate()` | function | New | Takes a `sqe:` syntax tree and validates it against the `sqe_shacl` shapes, returning a SHACL validation report |
+| `SQE` | value | New | The `sqe:` namespace |
+
+
 
 ### SPARQL-Rules Language ("SRL")
 
 SRL is a Datalog-style rules language over RDF graphs using SPARQL triple patterns and filter expressions.
 
-SRL is importable as `from starlayer.sparql import srl`.
+`from starlayer.sparql import srl`.
 
-#### Parsing rule sets
+#### Managing rule sets
 
-Parsing/serializing a rule set as its own `RuleSet` object. Returns a `srl_ast.RuleSet` — see its own table below for fields.
+Everything importable from `srl` for parsing, serializing, and running a rule set. `RuleSet.infer()`/`.query()` are the only way to run one — there's no separate `infer(ruleset, graph)`-style free function; everything SRL's own evaluation engine (`srl_eval.py`) does is private plumbing underneath these two methods.
 
 | Name | Kind | Status | Description |
 |---|---|---|---|
-| `parse_ruleset()` | function | New | Takes SRL text and returns an executable `RuleSet` |
-| `ruleset_to_text()` | function | New | Takes a `RuleSet` and returns SRL text |
-| `SRLParseError` | class | New | Raised for malformed SRL text |
+| `parse_ruleset()` | function | New | Takes SRL text and returns an executable `RuleSet` — also enforces §4.2 well-formedness (no unbound head/filter/assignment variable, no `SET(...)` reusing an already-bound variable), raising `SRLParseError` if violated, the same one-gate contract plain SPARQL's own `prepareQuery()` has. A `RuleSet` you get your hands on is always both syntactically valid and well-formed — there's no separate "validate an already-parsed ruleset" step |
+| `ruleset_to_text()` | function | New | Takes a `RuleSet` and returns SRL text — the inverse of `parse_ruleset()` |
+| `RuleSet` | class | New | A parsed rule set, returned by `parse_ruleset()` |
+| `RuleSet.infer(base_graph)` | method | New | Runs the rule set against `base_graph` to a fixpoint (§4.1's `Infer`), returning the inferred-triples-only graph — never includes anything already in `base_graph` |
+| `RuleSet.query(base_graph, goal_pattern)` | method | New | Runs `infer()` then returns every match of `goal_pattern` against `base_graph` ∪ inferred (§4.1's `Query`), one `dict[Variable, term]` solution per match |
+| `TriplePattern` | class | New | A triple pattern/template — `subject`/`predicate`/`object`. Needed directly because it's `RuleSet.query()`'s own `goal_pattern` parameter type. Distinct from an RDF 1.2 *triple term* (`triple_term.TripleTermNode`, an atomic value that can fill a subject/object slot) — a `TriplePattern` is the 3-slot structure itself, never a term, though one of its slots can hold a triple term |
+
+Everything else a rule set is built from (`Rule`, `Data`, `FilterElement`, `AssignmentElement`, `NegationElement`) is private — no public function or method takes or returns one; they only ever appear by walking `RuleSet.rules`/`Rule.head`/`Rule.body`, which is an inspection/editing concern this API doesn't cover yet.
 
 #### Rule set as syntax tree graph
 
-An SRL document can be encoded as its own RDF syntax tree graph using the `srl:` namespace.
+An SRL document can be encoded as its own RDF syntax tree graph using the starlayer-specific `srl:` namespace.
 
 | Name | Kind | Status | Description |
 |---|---|---|---|
-| `srl_parse_to_tree()` | function | New | Takes SRL text and returns an `srl:`-encoded syntax tree graph, `(graph, root)` |
-| `srl_tree_to_text()` | function | New | Takes an `srl:` syntax tree graph and returns SRL text |
-| `ruleset_to_tree()` | function | New | Takes a `RuleSet` and returns an `srl:`-encoded syntax tree graph, `(graph, root)` |
+| `srl_parse_to_tree()` | function | New | Takes SRL text and returns an `srl:`-encoded syntax tree graph. Composes `parse_ruleset()` + `ruleset_to_tree()` |
+| `srl_tree_to_text()` | function | New | Takes an `srl:` syntax tree graph and returns SRL text. Composes `tree_to_ruleset()` + `ruleset_to_text()` |
+| `ruleset_to_tree()` | function | New | Takes an executable `RuleSet` and returns an `srl:`-encoded syntax tree graph |
 | `tree_to_ruleset()` | function | New | Takes an `srl:` syntax tree and returns an executable `RuleSet` |
-| `srl_validate()` | function | New | Takes a `srl:` graph and validates it against `srl_shapes.ttl`, returning `(conforms, report_graph, report_text)` |
-| `SRLDecodeError` | class | New | Raised for an `srl:` graph shape that doesn't decode |
+| `srl_validate()` | function | New | Takes a `srl:` graph and validates it against `srl_shapes.ttl`, returning a SHACL validation report |
 | `SRL` | value | New | The `srl:` namespace |
-
-#### Well-formedness checks
-
-Available via `from starlayer.sparql import srl_semantic_checks`. Cross-referential checks a SHACL shape can't express (an unbound head/filter/assignment variable, `SET(...)` reusing an already-bound variable) — same reasoning as `semantic_checks.find_unbound_projected_variables` for `salg:`. Works on a `RuleSet` directly, not RDF.
-
-| Name | Kind | Status | Description |
-|---|---|---|---|
-| `srl_semantic_checks.check_ruleset()` | function | New | Takes a `RuleSet` and returns every §4.2 well-formedness issue found across every rule in it |
-| `srl_semantic_checks.check_rule()` | function | New | Takes one rule and returns every §4.2 well-formedness issue found for it |
-| `srl_semantic_checks.SRLWellFormednessIssue` | class | New | One §4.2 violation — has `rule`, `kind`, `variable`, `context` fields |
-
-#### Rule execution
-
-Available via `from starlayer.sparql import srl_eval`. Running an already-valid `RuleSet` against a base graph — a separate concern from the tree pipeline above (no RDF involved at all; takes the `RuleSet` object directly), and the one place an extra input (the base graph being reasoned over) is unavoidable.
-
-| Name | Kind | Status | Description |
-|---|---|---|---|
-| `srl_eval.srl_infer()` | function | New | Takes a base graph and a ruleset, runs the rule set to a fixpoint, and returns the inferred-triples-only graph |
-| `srl_eval.srl_query()` | function | New | Takes a base graph, a ruleset, and a goal pattern — runs `srl_infer` then returns every match of the goal pattern against base ∪ inferred |
-| `srl_eval.evaluate_ruleset()` | function | New | §6.5's full rule-set evaluation algorithm (`srl_infer`'s own implementation) |
-| `srl_eval.build_dependency_graph()` | function | New | Takes a ruleset and returns its §4.3.2 rule dependency graph (open/closed edges) |
-| `srl_eval.stratify()` | function | New | Takes a ruleset and returns its §4.4.2 stratification into `(once, general)` layers |
-| `srl_eval.is_run_once()` | function | New | Takes a rule and returns whether it has an assignment element or a blank node in its head |
-| `srl_eval.eval_rule()` | function | New | §6.4 — evaluates one rule |
-| `srl_eval.eval_rule_elements()` | function | New | §6.4 — evaluates a body-element sequence against a solution sequence |
-| `srl_eval.StratificationError` | class | New | Raised when §4.4.1's condition is violated — no well-defined evaluation outcome |
-| `srl_eval.SRLImportsNotSupportedError` | class | New | Raised when a rule set has `IMPORTS`, which this implementation rejects (§4.5) |
-| `srl_eval.SRLEvalError` | class | New | Base class for the two errors above |
-| `srl_eval.DependencyEdge` | class | New | One dependency-graph edge — has `source`, `target`, `label` (`"open"`/`"closed"`) fields |
-
-### `srl_ast` — the AST dataclasses (no methods; fields only)
-
-`from starlayer.sparql import srl_ast`, then `srl_ast.RuleSet`/etc — the `RuleSet` named as a return type throughout the tables above is this one.
-
-| Name | Fields | Description |
-|---|---|---|
-| `srl_ast.RuleSet` | `rules`, `data`, `imports` | §4.1 "Rule set" |
-| `srl_ast.Rule` | `head`, `body`, `data`, `id` | §4.1 "Rule" |
-| `srl_ast.Data` | `triples` | §4.1 "Data block" — ground triples only |
-| `srl_ast.TriplePattern` (aka `TripleTemplate`) | `subject`, `predicate`, `object` | Same shape used for both rule heads and bodies |
-| `srl_ast.FilterElement` | `expr` | `FILTER(...)` — `expr` is a real rdflib `Expr` tree |
-| `srl_ast.AssignmentElement` | `var`, `expr` | `SET (?var := expr)` |
-| `srl_ast.NegationElement` | `inner`, `data` | `NOT DATA? { ... }` |
-
-### Lower-level (used internally, or when finer control is needed)
-
-| Name | Kind | Description |
-|---|---|---|
-| `starlayer.sparql.grammar12` | module | RDF 1.2/`TRIPLE()` pyparsing extension spliced into rdflib's grammar (`install()`) |
-| `starlayer.sparql.parse12.parse_query_12()` / `parse_update_12()` | function | Same as `prepare_query_12()`/`prepare_update_12()` above, but skips the `prepare_*` translate step |
-| `starlayer.sparql.lower_rdf11.rdf11_to_query()` / `rdf11_to_update()` | function | Takes 1.2 algebra and returns runnable 1.1 algebra, no text involved |
-| `starlayer.sparql.serialize12` | module | SELECT/CONSTRUCT text serialization internals |
-| `starlayer.sparql.triple_term.TripleTermNode` / `InvalidTripleTermError` | class | The algebra-tree triple-term node and its validation error |
-| `starlayer.sparql.ssyn_to_text.render_expr_text()` | function | Takes one expression tree and returns its text form — shared by SRL and `ssyn:` rendering |
-| `starlayer.sparql.to_ssyn_rdf` / `starlayer.sparql.ssyn_to_text` | module | The syntax-level (`ssyn:`) query projection (encode/decode/render) |
-| `starlayer.sparql.to_ast_rdf` / `starlayer.sparql.from_ast_rdf` | module | The raw-parse-tree (`sast:`) query projection |
 
 ---
 
@@ -433,7 +386,9 @@ Verified live: `StarLayerShacl.validate()`'s own source does call through to `py
 
 ## `starlayer.starontology`
 
-Allows access to ontology and shacl files as `StarLayerGraph` objects. Importable as `from starlayer import starontology`.
+Allows access to owl ontology and shacl files as `StarLayerGraph` objects. 
+
+`from starlayer import starontology`
 
 | Name | Kind | Status | Description |
 |---|---|---|---|
@@ -441,7 +396,7 @@ Allows access to ontology and shacl files as `StarLayerGraph` objects. Importabl
 | `get_ontology_graph()` | function | New | Takes a registered name and returns a fresh `StarLayerGraph` of that entry |
 | `OntologyInfo` | class | New | One registry entry: `name`, `description`, `type` (`"shacl"` / `"ast-graph"` / `"owl"`) |
 
-Registered names (via `get_ontology_list()`):
+List of registered names (via `get_ontology_list()`):
 
 CLAUDE: rather than ast-graph can we call these tree-graph
 

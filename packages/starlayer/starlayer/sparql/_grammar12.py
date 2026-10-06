@@ -1,4 +1,9 @@
-"""New pyparsing productions for SPARQL 1.2 triple-term syntax
+"""Private module (renamed from ``grammar12.py`` 2026-10-06 - no external
+caller needs this directly; only ``parse12.py`` calls ``install()``, at
+import time, plus two test ``conftest.py`` files that force it early for
+test-ordering reasons).
+
+New pyparsing productions for SPARQL 1.2 triple-term syntax
 (``<<( s p o )>>`` / ``TRIPLE(s, p, o)``), spliced into rdflib's own real
 SPARQL grammar (``rdflib.plugins.sparql.parser``) in place.
 

@@ -22,7 +22,7 @@ Two layers:
    every ``QueryEvaluationTest`` (SELECT-shaped) entry, compares this new
    lowering path's result against the same official ``.srj`` ground truth
    ``test_w3c_sparql12.py::test_eval_select`` already checks the *existing*
-   (``serialize12.translate_algebra_12`` + starlayer.graph's text-based
+   (``serialize12._translate_algebra_12`` + starlayer.graph's text-based
    ``sparql12_to_11``) path against - directly testing this task's own
    acceptance criterion: same result as the already-proven-correct process,
    via a structurally different (tree-level, not text-level) route.

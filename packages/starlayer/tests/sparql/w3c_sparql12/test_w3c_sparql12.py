@@ -171,9 +171,9 @@ def test_eval_select(entry):
     prepared = prepare_query_12(query_text)
     graph, root = query_to_rdf(prepared)
     reconstructed = rdf_to_query(graph, root)
-    from starlayer.sparql.serialize12 import translate_algebra_12
+    from starlayer.sparql.serialize12 import _translate_algebra_12
 
-    regenerated_text = translate_algebra_12(reconstructed)
+    regenerated_text = _translate_algebra_12(reconstructed)
 
     # {k: v for ... if v is not None}, not a bare dict(row): an unbound
     # variable (including one explicitly bound to UNDEF via a VALUES row -
@@ -223,9 +223,9 @@ def test_eval_construct(entry):
     prepared = prepare_query_12(query_text)
     graph, root = query_to_rdf(prepared)
     reconstructed = rdf_to_query(graph, root)
-    from starlayer.sparql.serialize12 import translate_algebra_12
+    from starlayer.sparql.serialize12 import _translate_algebra_12
 
-    regenerated_text = translate_algebra_12(reconstructed)
+    regenerated_text = _translate_algebra_12(reconstructed)
 
     actual_graph = starlayer_graph.query(regenerated_text).graph
     assert to_isomorphic(skolemize_graph(actual_graph)) == to_isomorphic(skolemize_graph(expected_graph))

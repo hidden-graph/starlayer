@@ -1,0 +1,56 @@
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sqe: <https://github.com/hidden-graph/starsparql/ns/query-edit#> .
+@prefix salg: <https://github.com/hidden-graph/starsparql/ns/algebra#> .
+
+# ---------------------------------------------------------------------
+# A SPARQL SELECT/ASK/CONSTRUCT query's own raw parse tree (pre-
+# translateQuery), as a flat, human-readable RDF tree meant for hand/UI
+# editing - see starlayer.sparql.sqe.vocab's own module docstring for the
+# full design and why this is deliberately not the resolved salg: algebra.
+#
+# v1 scope reduction, not an oversight: no aggregates/GROUP BY/HAVING,
+# subqueries, VALUES, DESCRIBE, or Update yet (property paths ARE covered).
+# ---------------------------------------------------------------------
+
+sqe:Query
+    rdfs:comment "The root of any encoded sqe: query, of any form - also typed sqe:Query regardless of query form, see to_rdf.query_to_sqe_rdf." .
+
+sqe:SelectQuery rdfs:subClassOf sqe:Query ;
+    rdfs:comment "A SELECT query's root. sqe:projection -> rdf:List of sqe:Variable-tagged Literals; sqe:where -> the flat pattern list." .
+sqe:AskQuery rdfs:subClassOf sqe:Query ;
+    rdfs:comment "An ASK query's root. sqe:where -> the flat pattern list; no projection." .
+sqe:ConstructQuery rdfs:subClassOf sqe:Query ;
+    rdfs:comment "A CONSTRUCT query's root. sqe:template -> rdf:List of sqe:TriplePattern; sqe:where -> the flat pattern list." .
+
+sqe:TriplePattern a rdfs:Class ;
+    rdfs:comment "One (subject, predicate, object) triple pattern - exactly one of each, via sqe:subject/sqe:predicate/sqe:object. A predicate that's a real property path falls back to the existing salg: path encoding." .
+sqe:subject a rdf:Property ; rdfs:domain sqe:TriplePattern .
+sqe:predicate a rdf:Property ; rdfs:domain sqe:TriplePattern .
+sqe:object a rdf:Property ; rdfs:domain sqe:TriplePattern .
+
+sqe:Optional a rdfs:Class ;
+    rdfs:comment "An OPTIONAL { ... } block - sqe:where -> its own nested flat pattern list." .
+
+sqe:Union a rdfs:Class ;
+    rdfs:comment "A { ... } UNION { ... } [UNION { ... }]* block - sqe:alternatives -> rdf:List of nested flat pattern lists, one per alternative." .
+sqe:alternatives a rdf:Property ; rdfs:domain sqe:Union .
+
+sqe:Filter a rdfs:Class ;
+    rdfs:comment "A FILTER(...) element - sqe:expr -> a salg: expression tree (reused as-is, not re-modeled here)." .
+sqe:Bind a rdfs:Class ;
+    rdfs:comment "A BIND(... AS ?var) element - sqe:expr -> a salg: expression tree; sqe:var -> the bound variable." .
+sqe:expr a rdf:Property ; rdfs:domain sqe:Filter .
+sqe:var a rdf:Property ; rdfs:domain sqe:Bind .
+
+sqe:where a rdf:Property ;
+    rdfs:comment "A flat, ordered rdf:List of sibling pattern elements (sqe:TriplePattern/sqe:Optional/sqe:Union/sqe:Filter/sqe:Bind) - mirrors the raw parse tree's own already-flat GroupGraphPatternSub.part shape, not the salg: algebra's nested LeftJoin/Filter wrapping." .
+sqe:projection a rdf:Property ; rdfs:domain sqe:SelectQuery .
+sqe:template a rdf:Property ; rdfs:domain sqe:ConstructQuery .
+
+# Variables, prologue (PREFIX/BASE) predicates, and expression trees are
+# deliberately *not* re-minted here - reused verbatim from salg: (see
+# vocab.py's own module docstring): salg:Variable, salg:base,
+# salg:prologuePrefix/salg:PrefixBinding/salg:prefixLabel/salg:namespace,
+# and the full salg: expression vocabulary. See salg-ontology.ttl for
+# those classes/properties' own declarations.

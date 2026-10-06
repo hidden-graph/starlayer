@@ -404,11 +404,23 @@ class _AlgebraTranslator12(_AlgebraTranslator):
         return super().sparql_query_text(node)
 
 
-def translate_algebra_12(query: Query) -> str:
+def _translate_algebra_12(query: Query) -> str:
     """SPARQL 1.2 counterpart to rdflib's ``algebra.translateAlgebra`` —
     turns a ``Query`` whose algebra may contain ``TripleTermNode`` nodes
     back into SPARQL 1.2 query text, emitting ``<<( s p o )>>`` syntax for
     each one. Full IRIs only, never prefixed names, for the same reason as
     ``translateAlgebra`` itself: ``query.prologue`` is never read by this
-    machinery — see CLAUDE.md finding #3."""
+    machinery — see CLAUDE.md finding #3.
+
+    Private (was ``translate_algebra_12``, public, until 2026-10-06):
+    confirmed via `grep` across the whole repo that this has zero real
+    production callers, internal or external - every use is a test file
+    exercising it as a text-roundtrip correctness oracle (W3C conformance
+    suite, adversarial roundtrip). Even this project's own "give me real
+    text" path (``lower_rdf11.rdf11_to_sparql11_text``) deliberately
+    bypasses it in favor of plain rdflib ``translateAlgebra``, since
+    production code never needs the 1.2-specific triple-term/dirLangString
+    handling this function exists for - parse-edit-reserialize a SPARQL
+    1.2 query's *algebra* back to *text* isn't a real workflow this
+    project has, or needs."""
     return _AlgebraTranslator12(query).translateAlgebra()

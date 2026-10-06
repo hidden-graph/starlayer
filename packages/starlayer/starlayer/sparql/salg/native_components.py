@@ -33,7 +33,7 @@ from rdflib import XSD, Literal
 from rdflib.namespace import RDF
 
 from .semantic_checks import _unbound_projected_variables_for_node
-from .vocab import SALG
+from ..vocab import SALG
 
 _registered = False
 

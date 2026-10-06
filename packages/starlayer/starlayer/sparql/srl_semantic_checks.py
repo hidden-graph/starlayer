@@ -1,8 +1,18 @@
 """SRL/SPARQL-RL §4.2 "Well-formedness Conditions" - a cross-referential,
 sequence-position-dependent check SHACL's own per-node shapes structurally
-can't see, so (mirroring ``semantic_checks.find_unbound_projected_variables``'s
-own precedent for exactly this reason) it lives here as a standalone
-function over the decoded ``srl_ast`` tree, not a SHACL shape.
+can't see, so it lives here as a function over the decoded ``srl_ast``
+tree, not a SHACL shape.
+
+Private (renamed 2026-10-05, was callable directly as
+``check_ruleset``/``check_rule``): ``srl.parse_ruleset()`` now runs
+``_check_ruleset`` on every successfully-parsed ``RuleSet`` and raises
+``SRLParseError`` if any issue is found, the same "one real gate" contract
+plain SPARQL's own ``prepareQuery()`` has (succeed with a usable object, or
+raise - never hand back something that looks fine but silently misbehaves
+later). Confirmed live before this change that the gap was real, not
+theoretical: a ruleset violating the "SET(...) must not reuse an already-
+bound variable" condition parsed *and evaluated* with zero error, just
+silently rebinding the variable to the wrong value.
 
 Implements the spec's own formalism directly and verbatim (not an
 approximation): for a sequence of rule elements given an initial variable
@@ -21,12 +31,12 @@ from dataclasses import dataclass
 from rdflib import Variable
 from rdflib.plugins.sparql import algebra
 
-from . import srl_ast
+from . import _srl_ast as srl_ast
 
 
 @dataclass(frozen=True)
-class SRLWellFormednessIssue:
-    rule: srl_ast.Rule
+class _SRLWellFormednessIssue:
+    rule: srl_ast._Rule
     kind: str  # "unbound_filter_variable" | "unbound_assignment_expr_variable"
     # | "reused_assignment_variable" | "unbound_head_variable"
     variable: Variable
@@ -61,8 +71,8 @@ def _expr_vars(expr) -> set[Variable]:
 def _check_sequence(
     elements: list[srl_ast.BodyElement],
     v0: set[Variable],
-    rule: srl_ast.Rule,
-    issues: list[SRLWellFormednessIssue],
+    rule: srl_ast._Rule,
+    issues: list[_SRLWellFormednessIssue],
 ) -> set[Variable]:
     """Checks ``elements`` as a well-formed sequence given initial variables
     ``v0`` (appending any violations found to ``issues``), returning
@@ -73,24 +83,24 @@ def _check_sequence(
         if isinstance(elt, srl_ast.TriplePattern):
             # varsi = variables occurring in the triple pattern element.
             v_current |= _triple_vars(elt)
-        elif isinstance(elt, srl_ast.FilterElement):
+        elif isinstance(elt, srl_ast._FilterElement):
             # "every variable mentioned in a filter element is an element
             # of Vi-1" - checked against v_current *before* this element's
             # own (empty) varsi contribution.
             for v in _expr_vars(elt.expr) - v_current:
-                issues.append(SRLWellFormednessIssue(rule, "unbound_filter_variable", v, "FILTER"))
+                issues.append(_SRLWellFormednessIssue(rule, "unbound_filter_variable", v, "FILTER"))
             # varsi = {} for a filter element - v_current unchanged.
-        elif isinstance(elt, srl_ast.AssignmentElement):
+        elif isinstance(elt, srl_ast._AssignmentElement):
             for v in _expr_vars(elt.expr) - v_current:
-                issues.append(SRLWellFormednessIssue(rule, "unbound_assignment_expr_variable", v, "SET(...)"))
+                issues.append(_SRLWellFormednessIssue(rule, "unbound_assignment_expr_variable", v, "SET(...)"))
             if elt.var in v_current:
-                issues.append(SRLWellFormednessIssue(rule, "reused_assignment_variable", elt.var, "SET(...)"))
+                issues.append(_SRLWellFormednessIssue(rule, "reused_assignment_variable", elt.var, "SET(...)"))
             # varsi = {the assignment variable}, regardless of whether the
             # reuse condition above was violated - the spec still counts it
             # as bound going forward (matches evalRuleElements' own
             # behaviour: a successful assignment always extends mu).
             v_current = v_current | {elt.var}
-        elif isinstance(elt, srl_ast.NegationElement):
+        elif isinstance(elt, srl_ast._NegationElement):
             # "the sequence of rule elements in the negation element body
             # is a well-formed sequence given the set of variables Vi-1."
             _check_sequence(elt.inner, v_current, rule, issues)
@@ -102,24 +112,24 @@ def _check_sequence(
     return v_current
 
 
-def check_rule(rule: srl_ast.Rule) -> list[SRLWellFormednessIssue]:
+def _check_rule(rule: srl_ast._Rule) -> list[_SRLWellFormednessIssue]:
     """§4.2: is ``rule`` a well-formed rule? Its body must be a well-formed
     sequence given V0 = the empty set, and every variable in a head triple
     template must be in the body's own ``Vall``."""
-    issues: list[SRLWellFormednessIssue] = []
+    issues: list[_SRLWellFormednessIssue] = []
     v_all = _check_sequence(rule.body, set(), rule, issues)
     for template in rule.head:
         for v in _triple_vars(template):
             if v not in v_all:
-                issues.append(SRLWellFormednessIssue(rule, "unbound_head_variable", v, "rule head"))
+                issues.append(_SRLWellFormednessIssue(rule, "unbound_head_variable", v, "rule head"))
     return issues
 
 
-def check_ruleset(ruleset: srl_ast.RuleSet) -> list[SRLWellFormednessIssue]:
+def _check_ruleset(ruleset: srl_ast.RuleSet) -> list[_SRLWellFormednessIssue]:
     """§4.2: ``ruleset`` is well-formed iff every rule in it is - the
     per-rule issues found, flattened across all rules (empty list means
     the whole rule set is well-formed)."""
-    issues: list[SRLWellFormednessIssue] = []
+    issues: list[_SRLWellFormednessIssue] = []
     for rule in ruleset.rules:
-        issues.extend(check_rule(rule))
+        issues.extend(_check_rule(rule))
     return issues
