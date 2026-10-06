@@ -1,7 +1,7 @@
 import pytest
 from rdflib import Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.shacl import StarLayerShacl
+from starlayer.shacl import StarLayerShaclProcessor
 
 from ._shape_loader import load_shape
 
@@ -33,7 +33,7 @@ def test_conforms_with_only_own_and_superclass_properties() -> None:
         format="turtle",
     )
 
-    validator = StarLayerShacl()
+    validator = StarLayerShaclProcessor()
     result = validator.validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
 
     assert result.conforms is True
@@ -52,7 +52,7 @@ def test_violates_with_a_property_from_neither_shape() -> None:
         format="turtle",
     )
 
-    validator = StarLayerShacl()
+    validator = StarLayerShaclProcessor()
     result = validator.validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
 
     assert result.conforms is False
@@ -87,7 +87,7 @@ def test_sibling_shape_reached_via_target_class_extends_allowed_properties() -> 
         format="turtle",
     )
 
-    validator = StarLayerShacl()
+    validator = StarLayerShaclProcessor()
     result = validator.validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
 
     assert result.conforms is True
@@ -129,7 +129,7 @@ class TestClosedMalformedValueRejectedCleanly:
         data.parse(data=self._data(), format="turtle")
 
         with pytest.raises(ValueError, match="xsd:boolean literal or sh:ByTypes"):
-            StarLayerShacl().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+            StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
 
     def test_iri_value_is_still_rejected_cleanly(self) -> None:
         shapes = StarLayerGraph()
@@ -138,7 +138,7 @@ class TestClosedMalformedValueRejectedCleanly:
         data.parse(data=self._data(), format="turtle")
 
         with pytest.raises(ValueError, match="xsd:boolean literal or sh:ByTypes"):
-            StarLayerShacl().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+            StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
 
     def test_real_boolean_true_still_works(self) -> None:
         shapes = StarLayerGraph()
@@ -152,7 +152,7 @@ class TestClosedMalformedValueRejectedCleanly:
             format="turtle",
         )
 
-        result = StarLayerShacl().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+        result = StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
         assert result.conforms is False
         assert SH.ClosedConstraintComponent in _violation_components(result)
 
@@ -168,7 +168,7 @@ class TestClosedMalformedValueRejectedCleanly:
             format="turtle",
         )
 
-        result = StarLayerShacl().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+        result = StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
         assert result.conforms is True
 
 
@@ -200,7 +200,7 @@ def test_linked_shape_via_sh_node_extends_allowed_properties() -> None:
         format="turtle",
     )
 
-    validator = StarLayerShacl()
+    validator = StarLayerShaclProcessor()
     result = validator.validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
 
     assert result.conforms is True

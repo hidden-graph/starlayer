@@ -31,15 +31,14 @@ A limited number of top-level classes are available from `starlayer`.
 |---|---|---|---|
 | `StarLayerGraph` | class | New | Also available from `starlayer.graph` below |
 | `StarLayerDataset` | class | New | Also available from `starlayer.graph` below |
-| `StarLayerShacl` | class | New | Also available from `starlayer.shacl` below |
+| `StarLayerShaclProcessor` | class | New | Also available from `starlayer.shacl` below |
 
 
 ---
 
 ## `starlayer.graph`
 
-Imports rdflib.
-CLAUDE: could we consistently show where we import top-level libraries.  e.g. rdflib, pyshacl.  It looks like we dont incldue the RPC hashing.  I assume that is because it is imported and unmodified.  we should include it as part of the wrapper.  
+Wraps `rdflib` 7.6 (pinned `>=7.0`), by inheritance — `StarLayerGraph`/`StarLayerDataset` subclass `rdflib.Graph`/`Dataset` directly, so most of their own surface is either an override (**Modified**) or an untouched inherited method documented here for discoverability (**Unchanged**). RDFC-1.0 canonicalization (`starlayer.graph.rdfc`) is a from-scratch implementation of the W3C algorithm, not a wrapped/unmodified import of anything rdflib provides — not yet in this document; a separate content gap from the wrapping declaration above.
 
 Classes, functions and values available from `starlayer.graph`
 
@@ -324,63 +323,102 @@ An SRL document can be encoded as its own RDF syntax tree graph using the starla
 
 ## `starlayer.shacl`
 
-### Top-level (`from starlayer.shacl import ...`)
+Wraps `pyshacl` 0.40.1 (pinned `>=0.40.1`), by composition rather than inheritance — `StarLayerShaclProcessor` calls into pyshacl's own functions rather than subclassing anything, so **Modified** below means "pyshacl exposes this same name," not "an overridden inherited method," and there's no **Unchanged** category at all. Covers SHACL 1.2's six specification documents: Core Validation, SPARQL Extensions, Node Expressions, Inference Rules, User Interfaces, and Profiling.
+
+Classes, functions and values available from `starlayer.shacl`
+
+`from starlayer.shacl import ...`
 
 | Name | Kind | Status | Description |
 |---|---|---|---|
-| `StarLayerShacl` | class | New | Main entry point — see its own table below |
-| `validate()` | function | New | Module-level convenience wrapping `StarLayerShacl().validate(...)` |
+| `StarLayerShaclProcessor` | class | New | Main entry point — see its own table below |
+| `validate()` | function | **Modified** | Module-level convenience wrapping `StarLayerShaclProcessor().validate(...)` |
+| `validate_each()` | function | **Modified** | Module-level convenience wrapping `StarLayerShaclProcessor().validate_each(...)` |
 | `close_shape()` | function | New | Takes a shapes graph and a shape, and returns a closed copy of the shapes graph (`sh:closed true` + `sh:ignoredProperties`, recursively) |
+| `ValidationResult` | class | New | `conforms`, `report_graph`, `report_text`, `data_graph`, `diagnostics` |
+| `ExecutionDiagnostics` | class | New | Counters for one validation run (encode/decode calls, triple-term counts, ...) — reflects only the most recent call, not cumulative across several |
+
+### `StarLayerShaclProcessor`
+
+Construct with `StarLayerShaclProcessor(adapter=None, validate_fn=None)` — both optional; `adapter` defaults to a new `TripleTermAdapter()`. Its methods don't return `self`, so calls can't be chained.
+
+| Name | Kind | Status | Description |
+|---|---|---|---|
+| `adapter` | attribute | New | The `TripleTermAdapter` this instance encodes/decodes triple terms with — set at construction, read afterward for `.diagnostics_snapshot()`/`.export_registry()` |
+| `validate()` | method | **Modified** | Takes a data graph (and optional shapes/ontology graphs) and returns a `ValidationResult`, in place of pyshacl's own bare `(conforms, report_graph, report_text)` tuple |
+| `validate_each()` | method | **Modified** | Validates each of several data graphs against one shared shapes/ontology graph, returning `dict[int, ValidationResult]` |
+| `apply_rules()` | method | **Modified** | Takes a data graph and shapes graph and returns a `RulesResult` — rule execution (`sh:rule`/`sh:TripleRule`/`sh:SPARQLRule`, plus SHACL 1.2's own `sh:RuleSet`/`sh:sourceRule` provenance) |
+| `evaluate()` | method | New | Takes a data graph and shapes graph and returns an `EvaluationResult` — SHACL 1.2 Node Expressions |
+| `extract_subgraph()` | method | New | Takes a data graph, shapes graph, shape, and focus node, and returns a `SubgraphExtractionResult` — the subgraph of real, stored triples that shape's constraints covered for that node |
+| `target_nodes()` | method | New | Takes a data graph, shapes graph, and shape node, and returns the shape's own target nodes in the data graph |
+| `evaluate_component()` | method | New | Takes a component/focus node/value nodes and evaluates one native `ConstraintComponent` directly |
+| `build_report()` | method | New | Takes component results and builds a `sh:ValidationReport` graph from them |
+
+### SHACL 1.2 Inference Rules
+
+`from starlayer.shacl import shacl_inference`
+
+Run via `StarLayerShaclProcessor.apply_rules()` — see its own table above.
+
+| Name | Kind | Status | Description |
+|---|---|---|---|
+| `shacl_inference.RulesResult` | class | New | `data_graph`, `report_graph`, `report_text`, `conforms`, `diagnostics` |
+
+### SHACL 1.2 Node Expressions
+
+`from starlayer.shacl import shacl_node_expr`. Run via `StarLayerShaclProcessor.evaluate()` — see its own table above.
+
+| Name | Kind | Status | Description |
+|---|---|---|---|
+| `shacl_node_expr.eval_expr()` | function | New | Evaluates one node expression directly against a single focus node, independent of `evaluate()`'s own per-shape orchestration |
+| `shacl_node_expr.EvaluationResult` | class | New | Result of `evaluate()` |
+
+### Subgraph extraction (not part of any SHACL 1.2 document — this project's own addition)
+
+`from starlayer.shacl import subgraph_extraction`. Run via `StarLayerShaclProcessor.extract_subgraph()` — see its own table above.
+
+| Name | Kind | Status | Description |
+|---|---|---|---|
+| `subgraph_extraction.extract_subgraph()` | function | New | Same operation as a free function |
+| `subgraph_extraction.SubgraphExtractionResult` | class | New | Result of `extract_subgraph()` |
+
+### SHACL 1.2 Profiling
+
+`from starlayer.shacl import shacl_profiling`
+
+| Name | Kind | Status | Description |
+|---|---|---|---|
+| `shacl_profiling.ValidationProfile` | class | New | `(name, options)` — a SHACL 1.2 Profiling profile |
+| `shacl_profiling.available_profiles()` | function | New | Returns the list of built-in validation profiles |
+| `shacl_profiling.get_profile()` | function | New | Takes a profile name and returns the matching `ValidationProfile` |
+| `shacl_profiling.resolve_profile_options()` | function | New | Takes a profile and caller overrides, and returns the resolved options |
+| `shacl_profiling.declared_conformance_profile()` | function | New | Returns a fresh copy of starlayer.shacl's bundled self-declared SHACL 1.2 conformance graph |
+| `shacl_profiling.derive_conforms_to()` | function | New | Takes a validation report and returns the `sh:conformsTo` triples derived from it |
+
+### RDF 1.2 / triple-term adaptation (cross-cutting — every section above runs through this)
+
+| Name | Kind | Status | Description |
+|---|---|---|---|
 | `TripleTermAdapter` | class | New | Encodes/decodes triple terms so pySHACL can process RDF-1.1-compatible graphs |
 | `TripleTermGraph` | class | New | A simple graph-like container that can hold triple-term objects directly |
 | `TripleTermValue` | class | New | `(subject, predicate, object)` value type for the adapter layer |
-| `ComponentRequest` | class | New | `(component, focus_node, value_nodes, options)` — one native-component evaluation request |
-| `ComponentEvaluationResult` | class | New | `(conforms, violations)` — one native-component evaluation result |
-| `STSH` | value | New | The starlayer.shacl-native-extensions namespace |
-| `target_nodes()` | function | New | Takes a data graph, shapes graph, and shape node, and returns the shape's own target nodes in the data graph |
-| `evaluate_component()` | function | New | Takes a `ComponentRequest` and returns the result of evaluating that one native `ConstraintComponent` against it |
-| `build_report()` | function | New | Takes component results and returns a `sh:ValidationReport` graph built from them |
 | `normalize_to_starlayer_graph()` | function | New | Takes any graph-like input and returns it normalized to a `StarLayerGraph` |
 | `normalize_graph_inputs()` | function | New | Takes a data/shapes/ontology graph in any of the shapes callers may pass, and returns them normalized |
-| `ExecutionDiagnostics` | class | New | Counters for one validation run (encode/decode calls, triple-term counts, ...) |
-| `ValidationResult` | class | New | `conforms`, `report_graph`, `report_text`, `data_graph`, `diagnostics` |
-| `RulesResult` | class | New | Result of `apply_rules()` — `data_graph`, `report_graph`, `report_text`, `conforms`, `diagnostics` |
-| `EvaluationResult` | class | New | Result of `evaluate()` — SHACL 1.2 Node Expressions |
-| `SubgraphExtractionResult` | class | New | Result of `extract_subgraph()` |
-| `ValidationProfile` | class | New | `(name, options)` — a SHACL 1.2 Profiling profile |
-| `available_profiles()` | function | New | Returns the list of built-in validation profiles |
-| `get_profile()` | function | New | Takes a profile name and returns the matching `ValidationProfile` |
-| `resolve_profile_options()` | function | New | Takes a profile and caller overrides, and returns the resolved options |
-| `declared_conformance_profile()` | function | New | Returns a fresh copy of starlayer.shacl's bundled self-declared SHACL 1.2 conformance graph |
-| `derive_conforms_to()` | function | New | Takes a validation report and returns the `sh:conformsTo` triples derived from it |
 | `StarLayerGraphProtocol` | class | New | Structural protocol every graph-like input must satisfy |
 | `MutableStarLayerGraphProtocol` | class | New | `StarLayerGraphProtocol` plus mutation methods |
 
-### `StarLayerShacl` — own methods (no base class — wraps pyshacl by composition, not inheritance)
+### Native component evaluation engine (lower-level — most callers want `validate()`, not this)
 
-Construct with `StarLayerShacl(adapter=None, validate_fn=None)` — both optional; `adapter` defaults to a new `TripleTermAdapter()`.
+`from starlayer.shacl import engine`. The machinery `validate()` uses internally to run new SHACL 1.2 predicates as real pySHACL `ConstraintComponent`s. `target_nodes()`/`evaluate_component()`/`build_report()` are the same operations as `StarLayerShaclProcessor`'s own methods of the same names (see its table above), callable here as free functions without constructing an instance.
 
-Verified live: `StarLayerShacl.validate()`'s own source does call through to `pyshacl.validate(...)`, confirming the delegation the next table describes. None of these methods are documented as returning `self` (there's no base class to chain through), so the "silently returns the wrong thing" bug class found repeatedly on `StarLayerGraph`/`StarLayerDataset` doesn't apply here.
-
-| Name | Kind | Description |
-|---|---|---|
-| `validate()` | method | Takes a data graph (and optional shapes/ontology graphs) and returns a `ValidationResult` — SHACL validation |
-| `apply_rules()` | method | Takes a data graph and shapes graph and returns a `RulesResult` — SHACL-AF rule execution (`sh:rule`/`sh:TripleRule`/`sh:SPARQLRule`) |
-| `evaluate()` | method | Takes a data graph and shapes graph and returns an `EvaluationResult` — SHACL 1.2 Node Expressions, a third, independent processing mode |
-| `extract_subgraph()` | method | Takes a data graph, shapes graph, and shape, and returns a `SubgraphExtractionResult` — SHACL-driven subgraph extraction, a fourth, independent processing mode |
-| `evaluate_component()` | method | Lower-level: takes a component/focus node/value nodes and evaluates one native `ConstraintComponent` directly |
-| `build_report()` | method | Lower-level: takes component events and builds a `sh:ValidationReport` graph directly |
-| `target_nodes()` | method | Lower-level: takes a data graph, shapes graph, and shape node, and resolves the shape's target nodes directly |
-
-### Underlying `pyshacl` surface `StarLayerShacl` wraps
-
-*No inheritance relationship exists (`StarLayerShacl` is `object`-derived), so there's no "modified pyshacl method" table the way there is for rdflib — this project calls these as a library, by composition.*
-
-| Name | Kind | Description |
-|---|---|---|
-| `pyshacl.validate()` | function | The plain-pySHACL function `StarLayerShacl.validate()` wraps, adding RDF 1.2/triple-term adaptation around it |
-| `pyshacl.rules.shacl_rule.SHACLRule` | class | The rule-execution machinery `apply_rules()` drives |
-| `pyshacl.constraints.constraint_component.ConstraintComponent` | class | The base class starlayer.shacl's own native constraint components (e.g. `srl`/`salg`-specific ones) subclass |
+| Name | Kind | Status | Description |
+|---|---|---|---|
+| `engine.ComponentRequest` | class | New | `(component, focus_node, value_nodes, options)` — one native-component evaluation request |
+| `engine.ComponentEvaluationResult` | class | New | `(conforms, violations)` — one native-component evaluation result |
+| `engine.STSH` | value | New | The starlayer.shacl-native-extensions namespace |
+| `engine.target_nodes()` | function | New | Free-function form of `target_nodes()` above |
+| `engine.evaluate_component()` | function | New | Free-function form of `evaluate_component()` above |
+| `engine.build_report()` | function | New | Free-function form of `build_report()` above |
 
 ---
 

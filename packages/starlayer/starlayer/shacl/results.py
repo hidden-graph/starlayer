@@ -36,7 +36,7 @@ class RulesResult:
 
 @dataclass(frozen=True)
 class SubgraphExtractionResult:
-    """Result of ``StarLayerShacl.extract_subgraph()`` - a fourth
+    """Result of ``StarLayerShaclProcessor.extract_subgraph()`` - a fourth
     processing mode alongside ``validate()``/``apply_rules()``/``evaluate()``:
     given a focus node and a shape, extracts exactly the subgraph of real,
     stored triples that shape's constraints covered for that node (see
@@ -55,7 +55,7 @@ class SubgraphExtractionResult:
 
 @dataclass(frozen=True)
 class EvaluationResult:
-    """Result of ``StarLayerShacl.evaluate()`` - a third, independent
+    """Result of ``StarLayerShaclProcessor.evaluate()`` - a third, independent
     processing mode alongside ``validate()`` (checks conformance, never
     mutates) and ``apply_rules()`` (executes ``sh:rule``, materializes real
     triples). ``evaluate()`` computes every ``sh:values``-declared virtual

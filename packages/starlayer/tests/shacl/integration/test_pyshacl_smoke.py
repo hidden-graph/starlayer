@@ -1,7 +1,7 @@
 import pytest
 from rdflib import Literal, Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.shacl import StarLayerShacl
+from starlayer.shacl import StarLayerShaclProcessor
 
 from ._shape_loader import load_shape
 
@@ -20,7 +20,7 @@ def test_pyshacl_smoke_validation_passes_simple_shape() -> None:
     shapes = StarLayerGraph()
     shapes.parse(data=load_shape("smoke_person_age.ttl"), format="turtle")
 
-    validator = StarLayerShacl()
+    validator = StarLayerShaclProcessor()
     result = validator.validate(data_graph=data, shacl_graph=shapes)
 
     assert result.conforms is True

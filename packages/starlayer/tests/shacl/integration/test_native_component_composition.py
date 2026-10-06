@@ -18,7 +18,7 @@ merge-after behavior.
 
 import pytest
 from rdflib import Graph, Literal, Namespace
-from starlayer.shacl import StarLayerShacl
+from starlayer.shacl import StarLayerShaclProcessor
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
@@ -35,7 +35,7 @@ def _validate(data_ttl: str, shapes_ttl: str, **kwargs):
     data.parse(data=data_ttl, format="turtle")
     shapes = Graph()
     shapes.parse(data=shapes_ttl, format="turtle")
-    return StarLayerShacl().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False, **kwargs)
+    return StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False, **kwargs)
 
 
 def _validate_rdf12(data_ttl12: str, shapes_ttl: str, **kwargs):
@@ -48,7 +48,7 @@ def _validate_rdf12(data_ttl12: str, shapes_ttl: str, **kwargs):
     data.parse(data=data_ttl12, format="turtle12")
     shapes = StarLayerGraph()
     shapes.parse(data=shapes_ttl, format="turtle")
-    return StarLayerShacl().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False, **kwargs)
+    return StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False, **kwargs)
 
 
 # alice has a cat, not a duck: sh:someValue(ex:Duck) directly VIOLATES.

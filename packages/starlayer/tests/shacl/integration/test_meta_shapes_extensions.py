@@ -14,7 +14,7 @@ own default ``meta_shacl=True``.
 
 import pytest
 from rdflib import Graph, Namespace
-from starlayer.shacl import StarLayerShacl
+from starlayer.shacl import StarLayerShaclProcessor
 from starlayer.shacl.meta_shapes import (
     _SHSH_SHAPE_SHAPE,
     _TOO_STRICT_PATHS,
@@ -35,7 +35,7 @@ def _validate(data_ttl: str, shapes_ttl: str, **kwargs):
     data.parse(data=data_ttl, format="turtle")
     shapes = Graph()
     shapes.parse(data=shapes_ttl, format="turtle")
-    return StarLayerShacl().validate(data_graph=data, shacl_graph=shapes, **kwargs)
+    return StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes, **kwargs)
 
 
 _TRIVIAL_DATA = "@prefix ex: <http://example.org/> . ex:r1 a ex:Record ."
@@ -608,7 +608,7 @@ def test_allow_warnings_on_validate_relaxes_warning_severity_meta_shacl_check() 
 # ---------------------------------------------------------------------------
 # meta_shapes_extra extensibility hook - the "let other users/editors add
 # their own rules" requirement, exercised end-to-end through the public
-# StarLayerShacl.validate() API, not just at the graph-assembly level.
+# StarLayerShaclProcessor.validate() API, not just at the graph-assembly level.
 # ---------------------------------------------------------------------------
 
 
@@ -893,7 +893,7 @@ class TestNodeExpressionWellFormedness:
         shapes = StarLayerGraph()
         shapes.parse(data=load_shape("rdf12_node_expression_function.ttl"), format="turtle12")
 
-        result = StarLayerShacl().apply_rules(data_graph=data, shacl_graph=shapes, meta_shacl=True)
+        result = StarLayerShaclProcessor().apply_rules(data_graph=data, shacl_graph=shapes, meta_shacl=True)
         assert result.conforms is True
         derived = list(result.data_graph.triples((EX.alice, EX.derivedFn, None)))
         assert len(derived) == 1
@@ -929,7 +929,7 @@ class TestConditionWellFormedness:
     def test_untyped_condition_passes_meta_validate_standalone(self) -> None:
         """meta_validate() called standalone (not through the full
         validate() pipeline) doesn't see the auto-typing injection that
-        starlayer.shacl.validator.StarLayerShacl._ensure_native_component_shapes_typed()
+        starlayer.shacl.validator.StarLayerShaclProcessor._ensure_native_component_shapes_typed()
         applies before meta-validation runs as part of a real validate()/
         apply_rules() call - so, exactly like sh:someValue/sh:memberShape/
         sh:reifierShape already do, an untyped reference here still
@@ -1205,7 +1205,7 @@ class TestSparqlQueryTextValidation:
     this check existed. This class exercises check_sparql_query_text
     directly (decoupled from meta_validate's own structural requirements,
     which check_sparql_query_text doesn't care about) plus one full
-    end-to-end pass through StarLayerShacl.validate(meta_shacl=True)."""
+    end-to-end pass through StarLayerShaclProcessor.validate(meta_shacl=True)."""
 
     def test_malformed_select_text_raises(self) -> None:
         shapes = Graph()
@@ -1272,7 +1272,7 @@ class TestSparqlQueryTextValidation:
         # Structurally valid ASK-based custom sh:ConstraintComponent (same
         # shape as test_custom_constraint_components.py's
         # test_ask_based_custom_component_flags_violations), so this
-        # exercises the real StarLayerShacl.validate(meta_shacl=True)
+        # exercises the real StarLayerShaclProcessor.validate(meta_shacl=True)
         # pipeline end to end, not just check_sparql_query_text in
         # isolation - confirming it's actually wired in.
         data = Graph()
@@ -1294,4 +1294,4 @@ class TestSparqlQueryTextValidation:
             format="turtle",
         )
         with pytest.raises(pyshacl.errors.ConstraintLoadError, match="sh:ask"):
-            StarLayerShacl().validate(data_graph=data, shacl_graph=shapes, meta_shacl=True)
+            StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes, meta_shacl=True)

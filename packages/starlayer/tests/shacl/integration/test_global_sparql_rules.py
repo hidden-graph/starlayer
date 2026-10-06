@@ -10,7 +10,7 @@ silently never executes.
 import pytest
 from rdflib import Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.shacl import StarLayerShacl
+from starlayer.shacl import StarLayerShaclProcessor
 
 EX = Namespace("http://example.org/")
 
@@ -43,7 +43,7 @@ def test_global_rule_runs_once_against_whole_graph() -> None:
         format="turtle",
     )
 
-    result = StarLayerShacl().apply_rules(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    result = StarLayerShaclProcessor().apply_rules(data_graph=data, shacl_graph=shapes, meta_shacl=False)
 
     assert (EX.Caren, EX.friend, EX.Bob) in result.data_graph
     assert (EX.Debbie, EX.friend, EX.Caren) in result.data_graph
@@ -75,7 +75,7 @@ def test_global_rule_deactivated_produces_nothing() -> None:
         format="turtle",
     )
 
-    result = StarLayerShacl().apply_rules(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    result = StarLayerShaclProcessor().apply_rules(data_graph=data, shacl_graph=shapes, meta_shacl=False)
 
     assert (EX.Caren, EX.friend, EX.Bob) not in result.data_graph
 
@@ -116,7 +116,7 @@ def test_shape_attached_rule_still_works_alongside_a_global_one() -> None:
         format="turtle",
     )
 
-    result = StarLayerShacl().apply_rules(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    result = StarLayerShaclProcessor().apply_rules(data_graph=data, shacl_graph=shapes, meta_shacl=False)
 
     assert (EX.Bob, EX.reverseFriend, EX.Alice) in result.data_graph
     from rdflib import Literal

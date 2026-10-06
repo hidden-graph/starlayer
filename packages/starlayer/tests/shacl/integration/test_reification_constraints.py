@@ -1,7 +1,7 @@
 import pytest
 from rdflib import Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.shacl import StarLayerShacl
+from starlayer.shacl import StarLayerShaclProcessor
 
 from ._shape_loader import load_shape
 
@@ -37,7 +37,7 @@ def test_conforms_when_reifier_has_full_provenance() -> None:
         format="turtle12",
     )
 
-    validator = StarLayerShacl()
+    validator = StarLayerShaclProcessor()
     result = validator.validate(data_graph=data, shacl_graph=_shapes(), meta_shacl=False)
 
     assert result.conforms is True
@@ -54,7 +54,7 @@ def test_violates_when_no_reifier_present() -> None:
         format="turtle12",
     )
 
-    validator = StarLayerShacl()
+    validator = StarLayerShaclProcessor()
     result = validator.validate(data_graph=data, shacl_graph=_shapes(), meta_shacl=False)
 
     assert result.conforms is False
@@ -78,7 +78,7 @@ def test_violates_when_reifier_missing_required_provenance_property() -> None:
         format="turtle12",
     )
 
-    validator = StarLayerShacl()
+    validator = StarLayerShaclProcessor()
     result = validator.validate(data_graph=data, shacl_graph=_shapes(), meta_shacl=False)
 
     assert result.conforms is False
@@ -113,7 +113,7 @@ def test_reification_required_string_literal_false_is_rejected_not_silently_enab
     )
 
     with pytest.raises(ValueError, match="xsd:boolean literal"):
-        StarLayerShacl().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+        StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
 
 
 def test_reification_required_alternate_boolean_lexical_form_leaves_constraint_inactive() -> None:
@@ -150,6 +150,6 @@ def test_reification_required_alternate_boolean_lexical_form_leaves_constraint_i
         format="turtle",
     )
 
-    result = StarLayerShacl().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    result = StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
 
     assert result.conforms is True

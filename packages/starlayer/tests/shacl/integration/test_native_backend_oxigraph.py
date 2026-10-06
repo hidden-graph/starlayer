@@ -1,4 +1,4 @@
-"""Integration tests for StarLayerShacl against a StarLayerGraph running
+"""Integration tests for StarLayerShaclProcessor against a StarLayerGraph running
 the native RDF 1.2 backend (``backend='rdf-1.2'``, e.g. Oxigraph) - as
 opposed to every other test in this suite, which uses either a plain
 ``rdflib.Graph`` or the default ``backend='rdf-1.1'`` tt:HASH-encoded mode.
@@ -28,7 +28,7 @@ import uuid
 import pytest
 import requests
 from rdflib import Graph, Literal, Namespace, URIRef
-from starlayer.shacl import StarLayerShacl
+from starlayer.shacl import StarLayerShaclProcessor
 
 SH = Namespace("http://www.w3.org/ns/shacl#")
 
@@ -77,7 +77,7 @@ def _validate(data_ttl12: str, shapes_ttl: str, **kwargs):
     data = _native_graph(data_ttl12)
     shapes = Graph()
     shapes.parse(data=shapes_ttl, format="turtle")
-    return StarLayerShacl().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False, **kwargs)
+    return StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False, **kwargs)
 
 
 def test_basic_triple_term_data_validates() -> None:
@@ -224,7 +224,7 @@ def test_global_sparql_rule_produces_triples_on_native_backend() -> None:
         format="turtle12",
     )
 
-    result = StarLayerShacl().apply_rules(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    result = StarLayerShaclProcessor().apply_rules(data_graph=data, shacl_graph=shapes, meta_shacl=False)
 
     assert (EX.bob, EX.siblingOf, EX.alice) in result.data_graph
 
@@ -278,7 +278,7 @@ def test_apply_rules_with_meta_shacl_on_native_backend_conforming_shape() -> Non
         """
     )
 
-    result = StarLayerShacl().apply_rules(data_graph=data, shacl_graph=shapes)
+    result = StarLayerShaclProcessor().apply_rules(data_graph=data, shacl_graph=shapes)
 
     assert (EX.alice, EX.isPerson, Literal(True)) in result.data_graph
 
@@ -301,7 +301,7 @@ def test_meta_shacl_reports_a_genuine_blank_node_violation_without_crashing() ->
     data = _native_graph("@prefix ex: <http://example.org/> . ex:alice a ex:Person .")
 
     with pytest.raises(Exception) as exc_info:
-        StarLayerShacl().validate(data_graph=data, shacl_graph=shapes)
+        StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes)
 
     assert "sh:TripleRule" in str(exc_info.value)
     assert "sh:subject sh:this" in str(exc_info.value) or "sh:this" in str(exc_info.value)
@@ -342,7 +342,7 @@ def test_apply_rules_works_in_default_rdf11_mode_against_remote_store() -> None:
         format="turtle12",
     )
 
-    result = StarLayerShacl().apply_rules(data_graph=data, shacl_graph=shapes)
+    result = StarLayerShaclProcessor().apply_rules(data_graph=data, shacl_graph=shapes)
 
     assert (EX.alice, EX.isPerson, Literal(True)) in result.data_graph
 
@@ -392,6 +392,6 @@ def test_meta_shacl_snapshots_a_remote_shapes_graph_to_in_memory() -> None:
         )
         data.parse(data="@prefix ex: <http://example.org/> . ex:alice a ex:Person .", format="turtle12")
 
-        result = StarLayerShacl().validate(data_graph=data, shacl_graph=shapes)
+        result = StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes)
 
         assert result.conforms is True, backend_kwargs

@@ -1,7 +1,7 @@
 import pytest
 from rdflib import Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.shacl import StarLayerShacl
+from starlayer.shacl import StarLayerShaclProcessor
 
 from ._shape_loader import load_shape
 
@@ -32,7 +32,7 @@ def test_single_line_conforms_and_allows_explicit_multiline_opt_out() -> None:
         format="turtle",
     )
 
-    validator = StarLayerShacl()
+    validator = StarLayerShaclProcessor()
     result = validator.validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
 
     assert result.conforms is True
@@ -52,7 +52,7 @@ def test_single_line_violates_when_value_contains_line_break() -> None:
         format="turtle",
     )
 
-    validator = StarLayerShacl()
+    validator = StarLayerShaclProcessor()
     result = validator.validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
 
     assert result.conforms is False
@@ -88,7 +88,7 @@ def test_single_line_string_literal_false_is_rejected_not_silently_enabled() -> 
     )
 
     with pytest.raises(ValueError, match="xsd:boolean literal"):
-        StarLayerShacl().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+        StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
 
 
 def test_single_line_alternate_boolean_lexical_form_leaves_constraint_inactive() -> None:
@@ -128,7 +128,7 @@ def test_single_line_alternate_boolean_lexical_form_leaves_constraint_inactive()
         format="turtle",
     )
 
-    result = StarLayerShacl().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    result = StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
 
     assert result.conforms is True
 
@@ -147,7 +147,7 @@ def test_some_value_conforms_when_one_value_matches() -> None:
         format="turtle",
     )
 
-    validator = StarLayerShacl()
+    validator = StarLayerShaclProcessor()
     result = validator.validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
 
     assert result.conforms is True
@@ -166,7 +166,7 @@ def test_some_value_violates_when_no_value_matches() -> None:
         format="turtle",
     )
 
-    validator = StarLayerShacl()
+    validator = StarLayerShaclProcessor()
     result = validator.validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
 
     assert result.conforms is False

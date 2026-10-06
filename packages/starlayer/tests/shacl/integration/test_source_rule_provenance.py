@@ -17,7 +17,7 @@ import pytest
 from rdflib import Literal, Namespace, URIRef
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.graph.model.triple import TripleTerm
-from starlayer.shacl import StarLayerShacl
+from starlayer.shacl import StarLayerShaclProcessor
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
@@ -82,7 +82,7 @@ def test_source_rule_provenance_off_by_default_adds_nothing() -> None:
     shapes = _two_rule_shapes()
     data = _two_rule_data()
 
-    result = StarLayerShacl().apply_rules(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    result = StarLayerShaclProcessor().apply_rules(data_graph=data, shacl_graph=shapes, meta_shacl=False)
 
     assert (EX.Alice, EX.isAdult, Literal(True)) in result.data_graph
     assert (EX.Alice, EX.hasName, Literal(True)) in result.data_graph
@@ -94,7 +94,7 @@ def test_source_rule_provenance_attributes_each_triple_to_its_own_rule() -> None
     shapes = _two_rule_shapes()
     data = _two_rule_data()
 
-    result = StarLayerShacl().apply_rules(
+    result = StarLayerShaclProcessor().apply_rules(
         data_graph=data,
         shacl_graph=shapes,
         meta_shacl=False,
@@ -136,7 +136,7 @@ def test_source_rule_provenance_covers_global_sparql_rules_too() -> None:
         format="turtle",
     )
 
-    result = StarLayerShacl().apply_rules(
+    result = StarLayerShaclProcessor().apply_rules(
         data_graph=data,
         shacl_graph=shapes,
         meta_shacl=False,
@@ -190,7 +190,7 @@ def test_source_rule_provenance_not_visible_to_executing_rules() -> None:
         format="turtle",
     )
 
-    result = StarLayerShacl().apply_rules(
+    result = StarLayerShaclProcessor().apply_rules(
         data_graph=data,
         shacl_graph=shapes,
         meta_shacl=False,

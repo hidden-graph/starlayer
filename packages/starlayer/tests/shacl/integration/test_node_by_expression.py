@@ -8,7 +8,7 @@ notion of this predicate at all.
 import pytest
 from rdflib import Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.shacl import StarLayerShacl
+from starlayer.shacl import StarLayerShaclProcessor
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
@@ -40,7 +40,7 @@ def test_node_by_expression_at_node_shape_violates_when_value_does_not_conform()
         format="turtle12",
     )
 
-    result = StarLayerShacl().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    result = StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
 
     assert result.conforms is False
     assert {o for _, _, o in result.report_graph.triples((None, SH.focusNode, None))} == {EX.Invalid}
@@ -77,7 +77,7 @@ def test_node_by_expression_at_property_shape_violates_when_value_does_not_confo
         format="turtle12",
     )
 
-    result = StarLayerShacl().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    result = StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
 
     assert result.conforms is False
     assert {o for _, _, o in result.report_graph.triples((None, SH.focusNode, None))} == {EX.Issue1}
@@ -108,6 +108,6 @@ def test_node_by_expression_conforms_when_value_conforms() -> None:
         format="turtle12",
     )
 
-    result = StarLayerShacl().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    result = StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
 
     assert result.conforms is True

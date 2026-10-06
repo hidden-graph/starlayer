@@ -1,6 +1,6 @@
 import pytest
 from rdflib import Dataset, Literal, Namespace
-from starlayer.shacl import StarLayerShacl
+from starlayer.shacl import StarLayerShaclProcessor
 
 pytest.importorskip("pyshacl")
 StarLayerDataset = pytest.importorskip(
@@ -42,7 +42,7 @@ class TestStarLayerDatasetDefaultUnion:
         data = _dataset_with_named_graph(_PERSON_DATA)
         shapes = _dataset_with_named_graph(_PERSON_SHAPE)
 
-        result = StarLayerShacl().validate(
+        result = StarLayerShaclProcessor().validate(
             data_graph=data, shacl_graph=shapes, meta_shacl=False
         )
 
@@ -55,7 +55,7 @@ class TestStarLayerDatasetDefaultUnion:
         shapes = StarLayerDataset(default_union=True)
         shapes.get_context(EX.g1).parse(data=_PERSON_SHAPE, format="turtle")
 
-        result = StarLayerShacl().validate(
+        result = StarLayerShaclProcessor().validate(
             data_graph=data, shacl_graph=shapes, meta_shacl=False
         )
 
@@ -79,7 +79,7 @@ class TestStarLayerDatasetDefaultUnion:
             format="turtle",
         )
 
-        result = StarLayerShacl().validate(
+        result = StarLayerShaclProcessor().validate(
             data_graph=data, shacl_graph=shapes, meta_shacl=False
         )
 
@@ -127,7 +127,7 @@ class TestOntGraphDatasetAutoUnion:
             format="turtle",
         )
 
-        result = StarLayerShacl().validate(
+        result = StarLayerShaclProcessor().validate(
             data_graph=data,
             shacl_graph=shapes,
             ont_graph=ont,
@@ -167,7 +167,7 @@ class TestPlainRdflibDatasetInput:
             format="turtle",
         )
 
-        result = StarLayerShacl().validate(
+        result = StarLayerShaclProcessor().validate(
             data_graph=data, shacl_graph=shapes, meta_shacl=False
         )
 

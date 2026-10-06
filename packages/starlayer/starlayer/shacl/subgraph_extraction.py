@@ -1,4 +1,4 @@
-"""``StarLayerShacl.extract_subgraph()`` - given a focus node that
+"""``StarLayerShaclProcessor.extract_subgraph()`` - given a focus node that
 conforms to a shape, extract exactly the subgraph of *real, stored* triples
 that shape's constraints covered for that node.
 
@@ -48,6 +48,8 @@ from typing import Any, FrozenSet, Set, Tuple
 
 from rdflib import BNode, Literal
 from rdflib.namespace import RDF, SH
+
+from starlayer.shacl.results import SubgraphExtractionResult  # noqa: F401 - re-exported, see module docstring
 
 _Triple = Tuple[Any, Any, Any]
 
@@ -286,7 +288,7 @@ def _extract(
 
 
 def extract_subgraph(data_graph: Any, shacl_graph: Any, shape: Any, focus_node: Any):
-    """Implements ``StarLayerShacl.extract_subgraph()`` - see module
+    """Implements ``StarLayerShaclProcessor.extract_subgraph()`` - see module
     docstring for the design this follows. Returns a
     ``starlayer.shacl.results.SubgraphExtractionResult``.
 

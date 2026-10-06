@@ -1,7 +1,7 @@
 import pytest
 from rdflib import Literal, Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.shacl import StarLayerShacl
+from starlayer.shacl import StarLayerShaclProcessor
 
 EX = Namespace("http://example.org/")
 
@@ -40,7 +40,7 @@ def _ill_formed_case() -> tuple[StarLayerGraph, StarLayerGraph]:
 def test_meta_shacl_rejects_ill_formed_shapes_graph() -> None:
     data, shapes = _ill_formed_case()
 
-    validator = StarLayerShacl()
+    validator = StarLayerShaclProcessor()
 
     with pytest.raises(Exception) as exc_info:
         validator.validate(data_graph=data, shacl_graph=shapes)
@@ -52,7 +52,7 @@ def test_meta_shacl_rejects_ill_formed_shapes_graph() -> None:
 def test_meta_shacl_override_false_skips_preflight_but_still_errors_on_bad_shape_load() -> None:
     data, shapes = _ill_formed_case()
 
-    validator = StarLayerShacl()
+    validator = StarLayerShaclProcessor()
 
     with pytest.raises(Exception) as exc_info:
         validator.validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)

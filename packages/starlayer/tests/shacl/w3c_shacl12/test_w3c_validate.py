@@ -1,6 +1,6 @@
 """Phase 1 of docs/w3c-shacl12-test-suite-plan.md: run every sht:Validate
 entry from the vendored W3C SHACL 1.2 suite (tests/core/ and tests/sparql/)
-against StarLayerShacl.validate().
+against StarLayerShaclProcessor.validate().
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 
 pyshacl = pytest.importorskip("pyshacl")
 
-from starlayer.shacl import StarLayerShacl
+from starlayer.shacl import StarLayerShaclProcessor
 
 from .closure import node_closure
 from .comparison import conforms_of, find_report_node, result_multiset
@@ -95,7 +95,7 @@ def test_w3c_validate(entry: ManifestEntry) -> None:
     shapes_graph = _resolve_action_graph(entry, SHT.shapesGraph)
     expected = next(entry.graph.objects(entry.iri, MF.result))
 
-    validator = StarLayerShacl()
+    validator = StarLayerShaclProcessor()
 
     # advanced=True enables pySHACL's SHACL-AF ("advanced features") mode -
     # sh:expression/sh:rule and friends are otherwise silently never invoked

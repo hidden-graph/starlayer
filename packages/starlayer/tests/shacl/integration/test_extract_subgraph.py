@@ -1,4 +1,4 @@
-"""Regression coverage for StarLayerShacl.extract_subgraph() - see
+"""Regression coverage for StarLayerShaclProcessor.extract_subgraph() - see
 starlayer.shacl/subgraph_extraction.py's module docstring for the full design
 (agreed with the user across several turns before implementation: multi-hop
 paths keep every intervening triple with cycle detection, nested/referenced
@@ -9,7 +9,7 @@ and only real stored triples are ever included).
 """
 
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import StarLayerShacl, close_shape
+from starlayer.shacl import StarLayerShaclProcessor, close_shape
 
 
 def _graph(data: str) -> StarLayerGraph:
@@ -23,7 +23,7 @@ def _closes(data_graph, shapes_ttl: str) -> bool:
     re-validated against the same shape but with sh:closed true and no
     ignored properties, must itself conform."""
     closed_shapes = _graph(shapes_ttl)
-    return StarLayerShacl().validate(data_graph=data_graph, shacl_graph=closed_shapes, meta_shacl=False).conforms
+    return StarLayerShaclProcessor().validate(data_graph=data_graph, shacl_graph=closed_shapes, meta_shacl=False).conforms
 
 
 class TestBasicExtractionAndAcceptanceTest:
@@ -54,7 +54,7 @@ class TestBasicExtractionAndAcceptanceTest:
         from rdflib import Namespace
 
         EX = Namespace("http://example.org/")
-        result = StarLayerShacl().extract_subgraph(
+        result = StarLayerShaclProcessor().extract_subgraph(
             data_graph=_graph(self.DATA),
             shacl_graph=_graph(self.SHAPE),
             shape=EX.JEShape,
@@ -79,7 +79,7 @@ class TestBasicExtractionAndAcceptanceTest:
 
         EX = Namespace("http://example.org/")
         data = _graph("@prefix ex: <http://example.org/> . ex:je2 a ex:JournalEntry .")  # missing amount/account
-        result = StarLayerShacl().extract_subgraph(
+        result = StarLayerShaclProcessor().extract_subgraph(
             data_graph=data, shacl_graph=_graph(self.SHAPE), shape=EX.JEShape, focus_node=EX.je2
         )
         assert result.conforms is False
@@ -104,7 +104,7 @@ class TestMultiHopPaths:
             "ex:S a sh:NodeShape ; sh:targetNode ex:alice ; "
             "sh:property [ sh:path (ex:employee ex:name) ; sh:minCount 1 ] ."
         )
-        result = StarLayerShacl().extract_subgraph(
+        result = StarLayerShaclProcessor().extract_subgraph(
             data_graph=data, shacl_graph=shapes, shape=EX.S, focus_node=EX.alice
         )
         serialized = result.data_graph.serialize(format="turtle12")
@@ -129,7 +129,7 @@ class TestMultiHopPaths:
             "ex:S a sh:NodeShape ; sh:targetNode ex:alice ; "
             "sh:property [ sh:path [ sh:zeroOrMorePath ex:friend ] ; sh:minCount 1 ] ."
         )
-        result = StarLayerShacl().extract_subgraph(
+        result = StarLayerShaclProcessor().extract_subgraph(
             data_graph=data, shacl_graph=shapes, shape=EX.S, focus_node=EX.alice
         )
         assert result.conforms is True
@@ -158,7 +158,7 @@ class TestNestedShapes:
             "ex:S a sh:NodeShape ; sh:targetNode ex:alice ; "
             "sh:property [ sh:path ex:employee ; sh:node ex:PersonShape ] ."
         )
-        result = StarLayerShacl().extract_subgraph(
+        result = StarLayerShaclProcessor().extract_subgraph(
             data_graph=data, shacl_graph=shapes, shape=EX.S, focus_node=EX.alice
         )
         serialized = result.data_graph.serialize(format="turtle12")
@@ -188,7 +188,7 @@ class TestLogicalConstraints:
             "ex:HasPhone a sh:NodeShape ; sh:property [ sh:path ex:phone ; sh:minCount 1 ] . "
             "ex:S a sh:NodeShape ; sh:targetNode ex:alice ; sh:or ( ex:HasEmail ex:HasPhone ) ."
         )
-        result = StarLayerShacl().extract_subgraph(
+        result = StarLayerShaclProcessor().extract_subgraph(
             data_graph=data, shacl_graph=shapes, shape=EX.S, focus_node=EX.alice
         )
         serialized = result.data_graph.serialize(format="turtle12")
@@ -208,7 +208,7 @@ class TestLogicalConstraints:
             "ex:HasPhone a sh:NodeShape ; sh:property [ sh:path ex:phone ; sh:minCount 1 ] . "
             "ex:S a sh:NodeShape ; sh:targetNode ex:alice ; sh:or ( ex:HasEmail ex:HasPhone ) ."
         )
-        result = StarLayerShacl().extract_subgraph(
+        result = StarLayerShaclProcessor().extract_subgraph(
             data_graph=data, shacl_graph=shapes, shape=EX.S, focus_node=EX.alice
         )
         serialized = result.data_graph.serialize(format="turtle12")
@@ -226,7 +226,7 @@ class TestLogicalConstraints:
             "ex:HasPhone a sh:NodeShape ; sh:property [ sh:path ex:phone ; sh:minCount 1 ] . "
             "ex:S a sh:NodeShape ; sh:targetNode ex:alice ; sh:xone ( ex:HasEmail ex:HasPhone ) ."
         )
-        result = StarLayerShacl().extract_subgraph(
+        result = StarLayerShaclProcessor().extract_subgraph(
             data_graph=data, shacl_graph=shapes, shape=EX.S, focus_node=EX.alice
         )
         assert result.conforms is True
@@ -249,7 +249,7 @@ class TestLogicalConstraints:
             "ex:HasPhone a sh:NodeShape ; sh:property [ sh:path ex:phone ; sh:minCount 1 ] . "
             "ex:S a sh:NodeShape ; sh:targetNode ex:alice ; sh:xone ( ex:HasEmail ex:HasPhone ) ."
         )
-        result = StarLayerShacl().extract_subgraph(
+        result = StarLayerShaclProcessor().extract_subgraph(
             data_graph=data, shacl_graph=shapes, shape=EX.S, focus_node=EX.alice
         )
         assert result.conforms is False
@@ -279,7 +279,7 @@ class TestQualifiedValueShapeDeterminism:
             "sh:qualifiedValueShape [ sh:property [ sh:path ex:dept ; sh:hasValue ex:Sales ] ] ; "
             "sh:qualifiedMinCount 1 ] ."
         )
-        result = StarLayerShacl().extract_subgraph(
+        result = StarLayerShaclProcessor().extract_subgraph(
             data_graph=_graph(self.DATA), shacl_graph=shapes, shape=EX.S, focus_node=EX.alice
         )
         serialized = result.data_graph.serialize(format="turtle12")
@@ -301,7 +301,7 @@ class TestQualifiedValueShapeDeterminism:
             "sh:qualifiedValueShape [ sh:property [ sh:path ex:dept ; sh:hasValue ex:Sales ] ] ; "
             "sh:qualifiedMinCount 1 ] ."
         )
-        result = StarLayerShacl().extract_subgraph(
+        result = StarLayerShaclProcessor().extract_subgraph(
             data_graph=_graph(self.DATA), shacl_graph=shapes, shape=EX.S, focus_node=EX.alice
         )
         serialized = result.data_graph.serialize(format="turtle12")
@@ -362,7 +362,7 @@ class TestCloseShape:
         EX = Namespace("http://example.org/")
         prod_shapes = _graph(self.PROD_SHAPE)
         before = len(prod_shapes)
-        StarLayerShacl().extract_subgraph(
+        StarLayerShaclProcessor().extract_subgraph(
             data_graph=_graph(self.DATA), shacl_graph=prod_shapes, shape=EX.JEShape, focus_node=EX.je1
         )
         assert len(prod_shapes) == before
@@ -377,11 +377,11 @@ class TestCloseShape:
 
         EX = Namespace("http://example.org/")
         prod_shapes = _graph(self.PROD_SHAPE)
-        result = StarLayerShacl().extract_subgraph(
+        result = StarLayerShaclProcessor().extract_subgraph(
             data_graph=_graph(self.DATA), shacl_graph=prod_shapes, shape=EX.JEShape, focus_node=EX.je1
         )
         assert result.conforms is True
 
         strict_shapes = close_shape(prod_shapes, EX.JEShape)
-        check = StarLayerShacl().validate(data_graph=result.data_graph, shacl_graph=strict_shapes, meta_shacl=False)
+        check = StarLayerShaclProcessor().validate(data_graph=result.data_graph, shacl_graph=strict_shapes, meta_shacl=False)
         assert check.conforms is True

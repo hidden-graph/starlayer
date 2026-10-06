@@ -1,7 +1,7 @@
 import pytest
 from rdflib import BNode, Graph, Literal, Namespace
 from rdflib.namespace import RDF
-from starlayer.shacl import StarLayerShacl
+from starlayer.shacl import StarLayerShaclProcessor
 
 from ._shape_loader import load_shape
 
@@ -57,7 +57,7 @@ def test_rdf11_conforms_parity_for_passing_case() -> None:
 
     py_conforms, _, _ = pyshacl.validate(data_graph=data, shacl_graph=shapes)
 
-    result = StarLayerShacl().validate(data_graph=data, shacl_graph=shapes)
+    result = StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes)
 
     assert result.conforms is py_conforms
 
@@ -71,7 +71,7 @@ def test_rdf11_report_field_parity_for_failing_case() -> None:
 
     py_conforms, py_report, _ = pyshacl.validate(data_graph=data, shacl_graph=shapes)
 
-    result = StarLayerShacl().validate(data_graph=data, shacl_graph=shapes)
+    result = StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes)
 
     assert result.conforms is py_conforms
     assert _normalized_validation_results(result.report_graph) == _normalized_validation_results(py_report)
@@ -121,7 +121,7 @@ def test_rdf11_parity_matrix_for_core_components(shape_file: str, data_ttl: str)
 
     py_conforms, py_report, _ = pyshacl.validate(data_graph=data, shacl_graph=shapes)
 
-    result = StarLayerShacl().validate(data_graph=data, shacl_graph=shapes)
+    result = StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes)
 
     assert result.conforms is py_conforms
     assert _normalized_validation_results(result.report_graph) == _normalized_validation_results(py_report)
@@ -141,7 +141,7 @@ def test_rdf11_target_class_parity() -> None:
     shapes.parse(data=load_shape("rdf11_target_class_age.ttl"), format="turtle")
 
     py_conforms, py_report, _ = pyshacl.validate(data_graph=data, shacl_graph=shapes)
-    result = StarLayerShacl().validate(data_graph=data, shacl_graph=shapes)
+    result = StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes)
 
     assert result.conforms is py_conforms
     assert _normalized_validation_results(result.report_graph) == _normalized_validation_results(py_report)
@@ -161,7 +161,7 @@ def test_rdf11_target_subjects_of_parity() -> None:
     shapes.parse(data=load_shape("rdf11_target_subjects_flag_age.ttl"), format="turtle")
 
     py_conforms, py_report, _ = pyshacl.validate(data_graph=data, shacl_graph=shapes)
-    result = StarLayerShacl().validate(data_graph=data, shacl_graph=shapes)
+    result = StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes)
 
     assert result.conforms is py_conforms
     assert _normalized_validation_results(result.report_graph) == _normalized_validation_results(py_report)
@@ -182,7 +182,7 @@ def test_rdf11_target_objects_of_parity() -> None:
     shapes.parse(data=load_shape("rdf11_target_objects_about_age.ttl"), format="turtle")
 
     py_conforms, py_report, _ = pyshacl.validate(data_graph=data, shacl_graph=shapes)
-    result = StarLayerShacl().validate(data_graph=data, shacl_graph=shapes)
+    result = StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes)
 
     assert result.conforms is py_conforms
     assert _normalized_validation_results(result.report_graph) == _normalized_validation_results(py_report)
@@ -202,7 +202,7 @@ def test_rdf11_max_count_parity() -> None:
     shapes.parse(data=load_shape("rdf11_maxcount_tag.ttl"), format="turtle")
 
     py_conforms, py_report, _ = pyshacl.validate(data_graph=data, shacl_graph=shapes)
-    result = StarLayerShacl().validate(data_graph=data, shacl_graph=shapes)
+    result = StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes)
 
     assert result.conforms is py_conforms
     assert _normalized_validation_results(result.report_graph) == _normalized_validation_results(py_report)
@@ -242,7 +242,7 @@ def test_rdf11_logical_constraints_parity(shape_file: str, data_ttl: str) -> Non
     shapes.parse(data=load_shape(shape_file), format="turtle")
 
     py_conforms, py_report, _ = pyshacl.validate(data_graph=data, shacl_graph=shapes)
-    result = StarLayerShacl().validate(data_graph=data, shacl_graph=shapes)
+    result = StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes)
 
     assert result.conforms is py_conforms
     assert _normalized_validation_results(result.report_graph) == _normalized_validation_results(py_report)
@@ -272,7 +272,7 @@ def test_rdf11_literal_only_component_parity_on_non_literal_values(shape_file: s
     shapes.parse(data=load_shape(shape_file), format="turtle")
 
     py_conforms, py_report, _ = pyshacl.validate(data_graph=data, shacl_graph=shapes)
-    result = StarLayerShacl().validate(data_graph=data, shacl_graph=shapes)
+    result = StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes)
 
     assert result.conforms is py_conforms
     assert _normalized_validation_results(result.report_graph) == _normalized_validation_results(py_report)
@@ -303,7 +303,7 @@ def test_rdf11_report_parity_with_blank_node_focus_node() -> None:
     )
 
     py_conforms, py_report, _ = pyshacl.validate(data_graph=data, shacl_graph=shapes)
-    result = StarLayerShacl().validate(data_graph=data, shacl_graph=shapes)
+    result = StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes)
 
     assert result.conforms is py_conforms is False
     assert _normalized_validation_results(result.report_graph) == _normalized_validation_results(py_report)
@@ -329,7 +329,7 @@ def test_rdf11_report_parity_with_complex_blank_node_path() -> None:
     )
 
     py_conforms, py_report, _ = pyshacl.validate(data_graph=data, shacl_graph=shapes)
-    result = StarLayerShacl().validate(data_graph=data, shacl_graph=shapes)
+    result = StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes)
 
     assert result.conforms is py_conforms is False
     assert _normalized_validation_results(result.report_graph) == _normalized_validation_results(py_report)

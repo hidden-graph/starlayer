@@ -2,7 +2,7 @@ import pytest
 from rdflib import Literal, Namespace, URIRef
 from rdflib.namespace import RDF
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.shacl import StarLayerShacl
+from starlayer.shacl import StarLayerShaclProcessor
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
@@ -45,7 +45,7 @@ def _shapes() -> StarLayerGraph:
 
 
 def test_used_data_graph_and_shapes_graph_absent_by_default() -> None:
-    validator = StarLayerShacl()
+    validator = StarLayerShaclProcessor()
     result = validator.validate(data_graph=_valid_data(), shacl_graph=_shapes(), meta_shacl=False)
 
     assert list(result.report_graph.triples((None, SH.usedDataGraph, None))) == []
@@ -53,7 +53,7 @@ def test_used_data_graph_and_shapes_graph_absent_by_default() -> None:
 
 
 def test_used_data_graph_and_shapes_graph_added_when_iris_supplied() -> None:
-    validator = StarLayerShacl()
+    validator = StarLayerShaclProcessor()
     result = validator.validate(
         data_graph=_valid_data(),
         shacl_graph=_shapes(),
@@ -70,7 +70,7 @@ def test_used_data_graph_and_shapes_graph_added_when_iris_supplied() -> None:
 def test_used_data_graph_accepts_a_real_uriref_and_versioned_literal() -> None:
     # The spec explicitly allows "the version IRI of a data/shapes graph"
     # as a value too - a Literal in the general case, not always a URIRef.
-    validator = StarLayerShacl()
+    validator = StarLayerShaclProcessor()
     result = validator.validate(
         data_graph=_valid_data(),
         shacl_graph=_shapes(),
@@ -89,7 +89,7 @@ def test_used_data_graph_accepts_a_real_uriref_and_versioned_literal() -> None:
 
 
 def test_used_configuration_absent_by_default() -> None:
-    validator = StarLayerShacl()
+    validator = StarLayerShaclProcessor()
     result = validator.validate(data_graph=_valid_data(), shacl_graph=_shapes(), meta_shacl=False)
 
     assert list(result.report_graph.triples((None, SH.usedConfiguration, None))) == []
@@ -97,7 +97,7 @@ def test_used_configuration_absent_by_default() -> None:
 
 
 def test_used_configuration_added_when_opted_in() -> None:
-    validator = StarLayerShacl()
+    validator = StarLayerShaclProcessor()
     result = validator.validate(
         data_graph=_valid_data(),
         shacl_graph=_shapes(),
@@ -132,7 +132,7 @@ def test_used_data_graph_and_shapes_graph_work_through_apply_rules() -> None:
     data = StarLayerGraph()
     data.add((EX.alice, EX.parent, EX.carol))
 
-    validator = StarLayerShacl()
+    validator = StarLayerShaclProcessor()
     result = validator.apply_rules(
         data_graph=data,
         shacl_graph=shapes,

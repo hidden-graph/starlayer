@@ -77,7 +77,7 @@ class _RawGraphView:
         self.graph = graph
 
 
-class StarLayerShacl:
+class StarLayerShaclProcessor:
     """Wrapper service for SHACL validation/rules with triple-term adaptation."""
 
     def __init__(
@@ -340,7 +340,7 @@ class StarLayerShacl:
         # Every SHACL 1.2 predicate pySHACL doesn't natively implement is now
         # registered as a real pySHACL constraint component (see
         # starlayer.shacl/native_components.py, register_native_components() -
-        # called above via StarLayerShacl.validate()'s own module import)
+        # called above via StarLayerShaclProcessor.validate()'s own module import)
         # or handled by one of the other patterns in
         # docs/shacl12-gap-matrix.md's "Note on Architecture Direction" -
         # there's no longer a "known gap predicate" class to detect and
@@ -456,6 +456,34 @@ class StarLayerShacl:
             data_graph=out_data,
             diagnostics=diagnostics,
         )
+
+    def validate_each(
+        self,
+        data_graphs: Iterable[Any],
+        shacl_graph: Any | None = None,
+        ont_graph: Any | None = None,
+        **kwargs: Any,
+    ) -> dict[int, ValidationResult]:
+        """Validates each of ``data_graphs`` independently against the same
+        ``shacl_graph``/``ont_graph`` and options, mirroring pyshacl's own
+        ``validate_each(data_graphs, ...)`` entry point - added 2026-10-06
+        after confirming starShacl had no equivalent at all.
+
+        Implemented as a loop calling :meth:`validate` once per data graph,
+        rather than driving pyshacl's own ``validate_each``/multi-data-graph
+        path directly: that path knows nothing about RDF 1.2 triple terms,
+        SHACL 1.2's new predicates, or any of this project's other runtime
+        patches, so using it would silently run a different, unpatched
+        pipeline per graph instead of the one real ``validate()`` path this
+        class otherwise always goes through. Returns ``dict[int,
+        ValidationResult]`` - this project's own richer result type, not
+        pyshacl's bare ``dict[int, (conforms, report_graph, report_text)]``
+        tuple - the same "wrap the tuple" convention ``validate()`` itself
+        already follows."""
+        return {
+            i: self.validate(data_graph, shacl_graph, ont_graph, **kwargs)
+            for i, data_graph in enumerate(data_graphs)
+        }
 
     def _augment_shapes_with_new_target_types(self, data_graph: Any, shacl_graph: Any) -> Any:
         """Inject ``sh:targetNode`` triples for SHACL 1.2's new target types
@@ -739,7 +767,7 @@ class StarLayerShacl:
         for candidate in candidates:
             augmented.add((where_shape, SH.targetNode, candidate))
 
-        fresh_validator = StarLayerShacl()
+        fresh_validator = StarLayerShaclProcessor()
         result = fresh_validator.validate(data_graph=data_graph, shacl_graph=augmented, meta_shacl=False)
 
         # Only genuine top-level results (reachable from the report node's
@@ -1399,12 +1427,27 @@ def validate(
 ) -> ValidationResult:
     """Module-level convenience wrapper mirroring pyshacl's own function-
     based ``validate(data_graph, shacl_graph=..., **kwargs)`` entry point.
-    Equivalent to ``StarLayerShacl().validate(data_graph, shacl_graph,
+    Equivalent to ``StarLayerShaclProcessor().validate(data_graph, shacl_graph,
     ont_graph, **kwargs)`` — a fresh validator is created per call, so its
     ``.adapter`` diagnostics aren't reachable afterward. Use
-    ``StarLayerShacl()`` directly when you need to inspect those, or to
+    ``StarLayerShaclProcessor()`` directly when you need to inspect those, or to
     share adapter state across multiple validate() calls."""
-    return StarLayerShacl().validate(data_graph, shacl_graph, ont_graph, **kwargs)
+    return StarLayerShaclProcessor().validate(data_graph, shacl_graph, ont_graph, **kwargs)
+
+
+def validate_each(
+    data_graphs: Iterable[Any],
+    shacl_graph: Any | None = None,
+    ont_graph: Any | None = None,
+    **kwargs: Any,
+) -> dict[int, ValidationResult]:
+    """Module-level convenience wrapper mirroring pyshacl's own function-
+    based ``validate_each(data_graphs, shacl_graph=..., **kwargs)`` entry
+    point. Equivalent to ``StarLayerShaclProcessor().validate_each(data_graphs,
+    shacl_graph, ont_graph, **kwargs)`` - see that method's own docstring
+    for why this loops over :meth:`StarLayerShaclProcessor.validate` rather than
+    pyshacl's own multi-data-graph path directly."""
+    return StarLayerShaclProcessor().validate_each(data_graphs, shacl_graph, ont_graph, **kwargs)
 
 
 _stringify_bnode_patch_status: bool | None = None
@@ -2054,7 +2097,7 @@ def _strip_temp_triples(data_graph: Any) -> None:
     ``TripleTermAdapter``'s content-addressed ``urn:starshacl:tt:HASH`` URI,
     not a real ``TripleTerm`` - since ``TRIPLE()`` runs against ``data_graph``
     at this point in ``pyshacl.validate()``'s pipeline, which is already
-    adapter-encoded (the outer ``StarLayerShacl.validate()`` call
+    adapter-encoded (the outer ``StarLayerShaclProcessor.validate()`` call
     encodes before ever handing off to pySHACL). ``_get_tt_adapter``/
     ``adapter.decode_term`` (the same helpers ``native_components.py`` uses
     for every other reifier lookup in this codebase) resolve it back to the
@@ -2110,7 +2153,7 @@ def _shape_target_nodes(data_graph: Any, shapes_graph: Any, shape_node: Any) -> 
     graph shapes this specific, pySHACL-internal execution point actually
     hands over). SHACL 1.2's newer target types (``sh:targetWhere``,
     implicit class targets, ``sh:shape``) are already flattened to plain
-    ``sh:targetNode`` triples by ``StarLayerShacl.
+    ``sh:targetNode`` triples by ``StarLayerShaclProcessor.
     _augment_shapes_with_new_target_types`` earlier in ``validate()``'s own
     pipeline, well before any rule ever executes - so this narrower,
     Core-only set is already complete by the time this runs.
@@ -2533,7 +2576,7 @@ def _patch_shape_focus_nodes_for_deactivated_expression() -> bool:
     a caller explicitly passes ``focus_nodes=`` to ``validate()``). For each
     node the original method would return, evaluates the shape's
     registered expression (looked up via ``_deactivated_expr_registry``,
-    populated by ``StarLayerShacl._strip_deactivated_node_expressions``
+    populated by ``StarLayerShaclProcessor._strip_deactivated_node_expressions``
     for the duration of one ``validate()`` call) with that node as the
     focus node, and excludes it if the expression evaluates to exactly
     ``true`` - every other node proceeds to normal constraint evaluation
@@ -2903,7 +2946,7 @@ _rule_set_patch_status: bool | None = None
 
 def _patch_rule_apply_for_rule_set_filtering() -> bool:
     """Apply a targeted patch enabling ``rule_set=`` selection
-    (``StarLayerShacl.apply_rules``) for shape-attached ``sh:rule``s -
+    (``StarLayerShaclProcessor.apply_rules``) for shape-attached ``sh:rule``s -
     the ones pySHACL's own ``pyshacl.rules.apply_rules()`` executes
     internally via ``advanced=True``, with no parameter of its own to
     restrict which rules run.

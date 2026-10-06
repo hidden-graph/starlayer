@@ -2,7 +2,7 @@ import pytest
 from rdflib import Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.graph.model.triple import TripleTerm
-from starlayer.shacl import StarLayerShacl
+from starlayer.shacl import StarLayerShaclProcessor
 
 from ._shape_loader import load_shape
 
@@ -29,7 +29,7 @@ def _build_reach_shapes() -> StarLayerGraph:
 def test_rule_iteration_reaches_fixed_point() -> None:
     shapes = _build_reach_shapes()
 
-    validator = StarLayerShacl()
+    validator = StarLayerShaclProcessor()
 
     data_single_pass = _build_reach_graph()
     _ = validator.validate(
@@ -69,7 +69,7 @@ def test_rule_iteration_converges_with_cyclic_triple_term_identity() -> None:
     shapes = StarLayerGraph()
     shapes.parse(data=load_shape("rules_reach_witness_triple_term.ttl"), format="turtle")
 
-    validator = StarLayerShacl()
+    validator = StarLayerShaclProcessor()
     result = validator.apply_rules(data_graph=data, shacl_graph=shapes, meta_shacl=False, iterate_rules=True)
 
     assert result.conforms is True
@@ -97,7 +97,7 @@ def test_rule_iteration_converges_on_non_cyclic_multi_branch_diamond() -> None:
 
     shapes = _build_reach_shapes()
 
-    validator = StarLayerShacl()
+    validator = StarLayerShaclProcessor()
     _ = validator.validate(
         data_graph=data, shacl_graph=shapes, advanced=True, inplace=True, iterate_rules=True, meta_shacl=False
     )
@@ -145,7 +145,7 @@ def test_rule_iteration_converges_within_iteration_limit(monkeypatch: pytest.Mon
     shapes = StarLayerGraph()
     shapes.parse(data=load_shape("rules_reach_linear_sparql.ttl"), format="turtle")
 
-    validator = StarLayerShacl()
+    validator = StarLayerShaclProcessor()
     _ = validator.validate(
         data_graph=data, shacl_graph=shapes, advanced=True, inplace=True, iterate_rules=True, meta_shacl=False
     )
@@ -167,7 +167,7 @@ def test_rule_iteration_raises_when_exceeding_iteration_limit(monkeypatch: pytes
     shapes = StarLayerGraph()
     shapes.parse(data=load_shape("rules_reach_linear_sparql.ttl"), format="turtle")
 
-    validator = StarLayerShacl()
+    validator = StarLayerShaclProcessor()
     with pytest.raises(ReportableRuntimeError, match="iteration limit"):
         validator.validate(
             data_graph=data, shacl_graph=shapes, advanced=True, inplace=True, iterate_rules=True, meta_shacl=False

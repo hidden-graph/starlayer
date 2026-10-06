@@ -1,7 +1,7 @@
 import pytest
 from rdflib import Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.shacl import StarLayerShacl
+from starlayer.shacl import StarLayerShaclProcessor
 
 from ._shape_loader import load_shape
 
@@ -24,7 +24,7 @@ def test_apply_rules_adds_inferred_triple() -> None:
     shapes = StarLayerGraph()
     shapes.parse(data=load_shape("rules_infer_target_class.ttl"), format="turtle")
 
-    validator = StarLayerShacl()
+    validator = StarLayerShaclProcessor()
     result = validator.apply_rules(data_graph=data, shacl_graph=shapes)
 
     assert result.data_graph is data
@@ -39,7 +39,7 @@ def test_apply_rules_preserves_existing_triple_terms() -> None:
     shapes = StarLayerGraph()
     shapes.parse(data=load_shape("rules_infer_target_node.ttl"), format="turtle")
 
-    validator = StarLayerShacl()
+    validator = StarLayerShaclProcessor()
     _ = validator.apply_rules(data_graph=data, shacl_graph=shapes)
 
     assert (EX.alice, EX.flag, EX.processed) in data

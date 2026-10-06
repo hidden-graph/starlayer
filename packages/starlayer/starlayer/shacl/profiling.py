@@ -24,7 +24,7 @@ implementation *can* do that this module provides:
    validation report graph as produced, since that report has no
    sh:usedDataGraph/sh:usedShapesGraph/sh:validationReport identity
    linking it back to caller-meaningful graph IRIs unless the caller opts
-   in. ``StarLayerShacl.validate()``'s own ``data_graph_iri=``/
+   in. ``StarLayerShaclProcessor.validate()``'s own ``data_graph_iri=``/
    ``shapes_graph_iri=`` keyword arguments (SHACL 1.2 Core S6.7.1.5-6.7.1.6,
    see ``validator.py::_annotate_used_graphs_and_configuration``) already
    add the ``sh:usedDataGraph``/``sh:usedShapesGraph`` half of that identity

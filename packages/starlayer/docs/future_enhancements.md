@@ -176,6 +176,29 @@ package's own top level, not nested under one subpackage's docs.
   `test_ssyn_ontology.py`), and update `starlayer/sparql/CLAUDE.md`'s
   file map and `docs/api-reference.md`'s "Lower-level" table accordingly.
 
+- **Consider a lightweight "expand SHACL rules only, skip constraint
+  validation" path**, found 2026-10-06 while auditing `starlayer.shacl`
+  against pyshacl's own public surface (`__init__.__all__`). pyshacl's
+  `shacl_rules()`/`RuleExpandRunner` is a dedicated entry point that does
+  rule expansion *only* - `StarLayerShaclProcessor.apply_rules()` always routes
+  through `self.validate(profile="rules")` instead, which always also
+  runs full SHACL constraint checking (the `"rules"` profile in
+  `profiles.py` has no flag to skip it). No data is lost -
+  `RulesResult.data_graph` already carries the expanded graph, plus a
+  bonus validation report `shacl_rules()` wouldn't give you - but there's
+  no way to get rules-without-validation specifically, which costs
+  unnecessary constraint-checking work for a caller who only wants the
+  expansion. **Before implementing**: check whether the SHACL 1.2
+  Inference Rules draft (`docs/shacl12-gap-matrix.md` tracks it) says
+  anything that bears on whether rule expansion and validation are meant
+  to be separable operations in SHACL 1.2 specifically, not just in
+  pyshacl's own (SHACL-AF-era) API shape - `apply_rules()`'s own
+  `rule_set`/`include_source_rule_provenance` parameters are already
+  SHACL-1.2-specific extensions pyshacl's `shacl_rules()` has no concept
+  of, so a bare pass-through to it would be wrong regardless; this entry
+  is about whether a *new*, SHACL-1.2-aware "rules only" mode is worth
+  building, not about using pyshacl's existing one as-is.
+
 **Done**: "produce a documentation doc outlining every method/import
 available under `starlayer`" → `packages/starlayer/docs/api-reference.md`,
 built 2026-09-30.

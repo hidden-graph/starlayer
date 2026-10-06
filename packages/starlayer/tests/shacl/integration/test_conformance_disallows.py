@@ -1,7 +1,7 @@
 import pytest
 from rdflib import Literal, Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.shacl import StarLayerShacl
+from starlayer.shacl import StarLayerShaclProcessor
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
@@ -44,7 +44,7 @@ def _data_with_bad_age() -> StarLayerGraph:
 
 
 def test_default_conformance_disallows_includes_all_three_severities() -> None:
-    validator = StarLayerShacl()
+    validator = StarLayerShaclProcessor()
     result = validator.validate(
         data_graph=_data_with_bad_age(), shacl_graph=_shapes_with_warning_severity(), meta_shacl=False
     )
@@ -56,7 +56,7 @@ def test_default_conformance_disallows_includes_all_three_severities() -> None:
 def test_default_conforms_is_false_for_warning_only_result() -> None:
     # A Warning-severity-only result flips sh:conforms to false by default,
     # matching the spec's default disallow set including sh:Warning.
-    validator = StarLayerShacl()
+    validator = StarLayerShaclProcessor()
     result = validator.validate(
         data_graph=_data_with_bad_age(), shacl_graph=_shapes_with_warning_severity(), meta_shacl=False
     )
@@ -65,7 +65,7 @@ def test_default_conforms_is_false_for_warning_only_result() -> None:
 
 
 def test_allow_warnings_removes_warning_from_disallowed_set_and_conforms() -> None:
-    validator = StarLayerShacl()
+    validator = StarLayerShaclProcessor()
     result = validator.validate(
         data_graph=_data_with_bad_age(),
         shacl_graph=_shapes_with_warning_severity(),
@@ -111,7 +111,7 @@ def test_debug_and_trace_severities_never_block_conforms(severity: str) -> None:
     itself must still be reported (present in sh:result, with the correct
     sh:resultSeverity) - only the aggregate sh:conforms is affected.
     """
-    validator = StarLayerShacl()
+    validator = StarLayerShaclProcessor()
     result = validator.validate(
         data_graph=_data_with_bad_age(), shacl_graph=_shapes_with_severity(severity), meta_shacl=False
     )

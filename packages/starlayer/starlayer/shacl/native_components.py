@@ -23,7 +23,7 @@ predicate like ``sh:someValue`` is invisible to that loader unless it's
 independently typed ``sh:NodeShape``/``sh:PropertyShape``. ``ensure_shape_typed``
 below patches a copy of the shapes graph with that typing, the same
 augment-a-copy pattern already used for SHACL 1.2's new target types
-(``StarLayerShacl._augment_shapes_with_new_target_types``).
+(``StarLayerShaclProcessor._augment_shapes_with_new_target_types``).
 """
 
 from __future__ import annotations
@@ -338,7 +338,7 @@ def _build_root_class_component() -> Any:
         given root classes. ``rdfs:subClassOf`` triples are read from
         ``target_graph`` alone - when the caller opted into also consulting
         the shapes graph (``rdfs_subclass_reasoning_includes_shapes_graph``),
-        ``StarLayerShacl.validate()`` injects the shapes graph's
+        ``StarLayerShaclProcessor.validate()`` injects the shapes graph's
         ``rdfs:subClassOf`` triples into a copy of the data graph before
         pySHACL runs (``_inject_shapes_graph_subclass_triples``), so this
         component doesn't need a separate channel to the shapes graph.

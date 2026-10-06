@@ -2,7 +2,7 @@ import pytest
 from rdflib import Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.graph.model.triple import TripleTerm
-from starlayer.shacl import StarLayerShacl
+from starlayer.shacl import StarLayerShaclProcessor
 
 EX = Namespace("http://example.org/")
 
@@ -49,7 +49,7 @@ def test_condition_admits_conforming_focus_node_only() -> None:
         ex:AdultShape a sh:NodeShape ; sh:class ex:Adult .
     """, format="turtle")
 
-    result = StarLayerShacl().apply_rules(data_graph=data, shacl_graph=shapes)
+    result = StarLayerShaclProcessor().apply_rules(data_graph=data, shacl_graph=shapes)
     derived = {s for s, _, _ in result.data_graph.triples((None, EX.eligibleForVoting, None))}
     assert derived == {EX.alice}
 
@@ -75,7 +75,7 @@ def test_condition_over_rdf12_triple_term_valued_property() -> None:
         ex:HasClaimShape a sh:NodeShape ; sh:property [ sh:path ex:claims ; sh:minCount 1 ] .
     """, format="turtle")
 
-    result = StarLayerShacl().apply_rules(data_graph=data, shacl_graph=shapes)
+    result = StarLayerShaclProcessor().apply_rules(data_graph=data, shacl_graph=shapes)
     derived = {s for s, _, _ in result.data_graph.triples((None, EX.flagged, None))}
     assert derived == {EX.alice}
 
@@ -94,7 +94,7 @@ def test_condition_shape_does_not_need_explicit_typing() -> None:
     unlike sh:someValue/sh:memberShape/sh:reifierShape, which starShacl
     already auto-types via native_components.SHAPE_EXPECTING_PREDICATES/
     ensure_shape_typed before pySHACL ever runs. sh:condition is now in
-    that same list (StarLayerShacl._ensure_native_component_shapes_typed),
+    that same list (StarLayerShaclProcessor._ensure_native_component_shapes_typed),
     so an untyped condition shape works transparently too - one consistent
     fix strategy, not a special case. Covers both the single-reference and
     SHACL-list forms sh:condition accepts.
@@ -120,7 +120,7 @@ def test_condition_shape_does_not_need_explicit_typing() -> None:
         ex:AdultShape sh:class ex:Adult .
     """, format="turtle")
 
-    result = StarLayerShacl().apply_rules(data_graph=data, shacl_graph=shapes)
+    result = StarLayerShaclProcessor().apply_rules(data_graph=data, shacl_graph=shapes)
     derived = {s for s, _, _ in result.data_graph.triples((None, EX.eligibleForVoting, None))}
     assert derived == {EX.alice}
 
@@ -139,7 +139,7 @@ def test_condition_shape_does_not_need_explicit_typing() -> None:
         ex:ActiveShape sh:class ex:Active .
     """, format="turtle")
 
-    result2 = StarLayerShacl().apply_rules(data_graph=data, shacl_graph=list_shapes)
+    result2 = StarLayerShaclProcessor().apply_rules(data_graph=data, shacl_graph=list_shapes)
     derived2 = {s for s, _, _ in result2.data_graph.triples((None, EX.eligibleForVoting, None))}
     assert derived2 == {EX.alice}
 
@@ -164,7 +164,7 @@ def test_condition_excludes_all_focus_nodes_when_none_conform() -> None:
         ex:AdultShape a sh:NodeShape ; sh:class ex:Adult .
     """, format="turtle")
 
-    result = StarLayerShacl().apply_rules(data_graph=data, shacl_graph=shapes)
+    result = StarLayerShaclProcessor().apply_rules(data_graph=data, shacl_graph=shapes)
     derived = list(result.data_graph.triples((None, EX.eligibleForVoting, None)))
     assert derived == []
 
@@ -213,4 +213,4 @@ def test_property_rule_sh_values_is_not_implemented() -> None:
     """, format="turtle")
 
     with pytest.raises(RuleLoadError):
-        StarLayerShacl().apply_rules(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+        StarLayerShaclProcessor().apply_rules(data_graph=data, shacl_graph=shapes, meta_shacl=False)

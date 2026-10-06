@@ -2,7 +2,7 @@ import pytest
 from rdflib import Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.graph.model.triple import TripleTerm
-from starlayer.shacl import StarLayerShacl
+from starlayer.shacl import StarLayerShaclProcessor
 
 from ._shape_loader import load_shape
 
@@ -36,7 +36,7 @@ def test_node_expression_path_carries_triple_term_value() -> None:
     shapes = StarLayerGraph()
     shapes.parse(data=load_shape("rdf12_node_expression_path.ttl"), format="turtle12")
 
-    validator = StarLayerShacl()
+    validator = StarLayerShaclProcessor()
     result = validator.apply_rules(data_graph=data, shacl_graph=shapes, meta_shacl=False)
 
     assert result.conforms is True
@@ -53,7 +53,7 @@ def test_node_expression_union_carries_mixed_values() -> None:
     shapes = StarLayerGraph()
     shapes.parse(data=load_shape("rdf12_node_expression_union.ttl"), format="turtle12")
 
-    validator = StarLayerShacl()
+    validator = StarLayerShaclProcessor()
     result = validator.apply_rules(data_graph=data, shacl_graph=shapes, meta_shacl=False)
 
     assert result.conforms is True
@@ -70,7 +70,7 @@ def test_node_expression_intersection_carries_triple_term_value() -> None:
     shapes = StarLayerGraph()
     shapes.parse(data=load_shape("rdf12_node_expression_intersection.ttl"), format="turtle12")
 
-    validator = StarLayerShacl()
+    validator = StarLayerShaclProcessor()
     result = validator.apply_rules(data_graph=data, shacl_graph=shapes, meta_shacl=False)
 
     assert result.conforms is True
@@ -94,7 +94,7 @@ def test_node_expression_intersection_carries_plain_rdf11_value() -> None:
     shapes = StarLayerGraph()
     shapes.parse(data=load_shape("rdf12_node_expression_intersection.ttl"), format="turtle12")
 
-    validator = StarLayerShacl()
+    validator = StarLayerShaclProcessor()
     result = validator.apply_rules(data_graph=data, shacl_graph=shapes, meta_shacl=False)
 
     assert result.conforms is True
@@ -109,7 +109,7 @@ def test_node_expression_shacl_function_carries_triple_term_value() -> None:
     shapes = StarLayerGraph()
     shapes.parse(data=load_shape("rdf12_node_expression_function.ttl"), format="turtle12")
 
-    validator = StarLayerShacl()
+    validator = StarLayerShaclProcessor()
     result = validator.apply_rules(data_graph=data, shacl_graph=shapes, meta_shacl=False)
 
     assert result.conforms is True

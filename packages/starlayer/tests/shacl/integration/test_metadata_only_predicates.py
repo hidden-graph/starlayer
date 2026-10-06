@@ -1,7 +1,7 @@
 import pytest
 from rdflib import Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.shacl import StarLayerShacl
+from starlayer.shacl import StarLayerShaclProcessor
 
 EX = Namespace("http://example.org/")
 
@@ -46,7 +46,7 @@ def test_metadata_only_predicates_do_not_interfere_with_validation() -> None:
     shapes = StarLayerGraph()
     shapes.parse(data=_shapes_with_metadata_only_annotations(), format="turtle")
 
-    result = StarLayerShacl().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    result = StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
     assert result.conforms is False
     assert "ex:bob" in result.report_text
     assert "ex:alice" not in result.report_text.split("Focus Node:")[-1]
@@ -62,7 +62,7 @@ def test_metadata_only_predicates_do_not_break_meta_shacl_preflight() -> None:
     shapes = StarLayerGraph()
     shapes.parse(data=_shapes_with_metadata_only_annotations(), format="turtle")
 
-    result = StarLayerShacl().validate(data_graph=data, shacl_graph=shapes, meta_shacl=True)
+    result = StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes, meta_shacl=True)
     assert result.conforms is True
 
 
@@ -101,7 +101,7 @@ def test_conforms_to_shapes_graph_does_not_interfere_with_validation() -> None:
         format="turtle",
     )
 
-    result = StarLayerShacl().validate(data_graph=data, shacl_graph=shapes, meta_shacl=True)
+    result = StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes, meta_shacl=True)
     assert result.conforms is False
     assert "ex:bob" in result.report_text
     assert "ex:alice" not in result.report_text.split("Focus Node:")[-1]
@@ -132,7 +132,7 @@ def test_metadata_only_predicates_do_not_interfere_with_rule_application() -> No
           ] .
     """, format="turtle")
 
-    result = StarLayerShacl().apply_rules(data_graph=data, shacl_graph=shapes)
+    result = StarLayerShaclProcessor().apply_rules(data_graph=data, shacl_graph=shapes)
     assert result.conforms is True
     derived = list(result.data_graph.triples((EX.alice, EX.hasParent, None)))
     assert derived == [(EX.alice, EX.hasParent, EX.carol)]
