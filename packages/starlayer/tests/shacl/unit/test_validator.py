@@ -4,10 +4,102 @@ import pytest
 from rdflib import Graph, Literal, Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl.adapters import TripleTermAdapter, TripleTermGraph, TripleTermValue
-from starlayer.shacl.validator import StarLayerShaclProcessor
+from starlayer.shacl.validator import StarShaclSchema, evaluate, validate, validate_each
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
+
+
+class TestBareFunctionsWorkWithoutStarShaclSchema:
+    """validate()/validate_each()/evaluate() are now the real
+    implementations, not thin wrappers around StarShaclSchema (2026-10-07
+    - see starlayer/shacl/CLAUDE.md's dated entry; StarShaclSchema's own
+    methods are untouched for now, step 2 of a two-step flip). These
+    tests call the bare functions directly, with no StarShaclSchema
+    instance involved anywhere, confirming step 1 stands on its own."""
+
+    def _shapes(self) -> StarLayerGraph:
+        g = StarLayerGraph()
+        g.parse(
+            data="""
+                @prefix ex: <http://example.org/> .
+                @prefix sh: <http://www.w3.org/ns/shacl#> .
+                ex:PersonShape a sh:NodeShape ;
+                    sh:targetClass ex:Person ;
+                    sh:property [ sh:path ex:name ; sh:minCount 1 ] .
+            """,
+            format="turtle",
+        )
+        return g
+
+    def test_bare_validate_conforms_true(self) -> None:
+        data = StarLayerGraph()
+        data.parse(data="@prefix ex: <http://example.org/> . ex:bob a ex:Person ; ex:name \"Bob\" .", format="turtle")
+
+        result = validate(data, self._shapes(), meta_shacl=False)
+
+        assert result.conforms is True
+
+    def test_bare_validate_conforms_false(self) -> None:
+        data = StarLayerGraph()
+        data.parse(data="@prefix ex: <http://example.org/> . ex:alice a ex:Person .", format="turtle")
+
+        result = validate(data, self._shapes(), meta_shacl=False)
+
+        assert result.conforms is False
+
+    def test_bare_validate_matches_schema_method_result(self) -> None:
+        shapes = self._shapes()
+        data = StarLayerGraph()
+        data.parse(data="@prefix ex: <http://example.org/> . ex:alice a ex:Person .", format="turtle")
+
+        bare_result = validate(data, shapes, meta_shacl=False)
+        method_result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
+
+        assert bare_result.conforms == method_result.conforms is False
+
+    def test_bare_validate_each(self) -> None:
+        shapes = self._shapes()
+        conforming = StarLayerGraph()
+        conforming.parse(
+            data="@prefix ex: <http://example.org/> . ex:bob a ex:Person ; ex:name \"Bob\" .", format="turtle"
+        )
+        violating = StarLayerGraph()
+        violating.parse(data="@prefix ex: <http://example.org/> . ex:alice a ex:Person .", format="turtle")
+
+        results = validate_each([violating, conforming], shapes, meta_shacl=False)
+
+        assert results[0].conforms is False
+        assert results[1].conforms is True
+
+    def test_bare_evaluate_computes_sh_values(self) -> None:
+        shapes = StarLayerGraph()
+        shapes.parse(
+            data="""
+                @prefix ex: <http://example.org/> .
+                @prefix sh: <http://www.w3.org/ns/shacl#> .
+                @prefix shnex: <http://www.w3.org/ns/shacl-node-expr#> .
+                ex:FriendCountShape a sh:NodeShape ;
+                    sh:targetClass ex:Person ;
+                    sh:property [
+                        sh:path ex:friendCount ;
+                        sh:values [ shnex:count [ shnex:pathValues ex:friend ] ]
+                    ] .
+            """,
+            format="turtle",
+        )
+        data = StarLayerGraph()
+        data.parse(
+            data="@prefix ex: <http://example.org/> . ex:carol a ex:Person ; ex:friend ex:dave, ex:erin .",
+            format="turtle",
+        )
+
+        result = evaluate(data, shapes)
+
+        assert list(result.objects(EX.carol, EX.friendCount)) == [Literal(2)]
+        # The caller's own data_graph is never mutated - evaluate() always
+        # returns a throwaway copy, per its own documented contract.
+        assert (EX.carol, EX.friendCount, Literal(2)) not in data
 
 
 def test_validate_uses_encoded_graphs() -> None:
@@ -22,7 +114,7 @@ def test_validate_uses_encoded_graphs() -> None:
     data = StarLayerGraph()
     data.add((EX.s, EX.p, (EX.a, EX.p, EX.b)))
 
-    validator = StarLayerShaclProcessor(adapter=TripleTermAdapter(), validate_fn=fake_validate)
+    validator = StarShaclSchema(adapter=TripleTermAdapter(), validate_fn=fake_validate)
     result = validator.validate(data_graph=data)
 
     assert result.conforms is True
@@ -43,7 +135,7 @@ def test_validate_each_runs_once_per_data_graph_against_shared_shapes() -> None:
     data_b = StarLayerGraph()
     data_b.add((EX.other, EX.p, EX.v))
 
-    validator = StarLayerShaclProcessor(adapter=TripleTermAdapter(), validate_fn=fake_validate)
+    validator = StarShaclSchema(adapter=TripleTermAdapter(), validate_fn=fake_validate)
     results = validator.validate_each([data_a, data_b])
 
     assert len(calls) == 2
@@ -79,23 +171,40 @@ def test_module_level_validate_each_matches_starlayershacl_method() -> None:
     assert results[1].conforms is False
 
 
-def test_apply_rules_requests_inplace_advanced_mode() -> None:
-    captured = {}
+def test_apply_rules_requests_inplace_advanced_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    # apply_rules() (both the module-level function and the method that
+    # delegates to it) always goes through the module-level validate() ->
+    # a fresh StarShaclSchema's own default validate_fn - a constructor-level
+    # validate_fn= override on a *different* instance can no longer reach it
+    # (2026-10-07: apply_rules()'s real implementation moved to module level,
+    # mirroring pyshacl's own shacl_rules() entry point, and no longer routes
+    # through self.validate()/self.adapter). Patch the shared default instead.
+    #
+    # apply_rules() now calls validate() twice (2026-10-07: once for rule
+    # execution, once more at the end to re-validate the complete result
+    # including global-rule/entailment output - see validator.py's own
+    # comment at that second call site) - captured as a list, one dict per
+    # call, so this test can assert on the FIRST call's own options
+    # specifically (the rules-execution phase this test is actually about),
+    # not whichever call happened to run last.
+    captured: list[dict] = []
 
     def fake_validate(**kwargs):
-        captured.update(kwargs)
+        captured.append(dict(kwargs))
         report = Graph()
         return True, report, "rules"
+
+    monkeypatch.setattr("starlayer.shacl.validator._default_validate", fake_validate)
 
     data = StarLayerGraph()
     shapes = StarLayerGraph()
 
-    validator = StarLayerShaclProcessor(adapter=TripleTermAdapter(), validate_fn=fake_validate)
-    _ = validator.apply_rules(data_graph=data, shacl_graph=shapes)
+    validator = StarShaclSchema(shacl_graph=shapes)
+    _ = validator.apply_rules(data_graph=data)
 
-    assert captured["advanced"] is True
-    assert captured["iterate_rules"] is True
-    assert captured["inplace"] is True
+    assert captured[0]["advanced"] is True
+    assert captured[0]["iterate_rules"] is True
+    assert captured[0]["inplace"] is True
 
 
 def test_validate_inplace_decodes_back_into_input_graph() -> None:
@@ -110,7 +219,7 @@ def test_validate_inplace_decodes_back_into_input_graph() -> None:
     data = StarLayerGraph()
     data.add((EX.s, EX.p, (EX.a, EX.p, EX.b)))
 
-    validator = StarLayerShaclProcessor(adapter=TripleTermAdapter(), validate_fn=fake_validate)
+    validator = StarShaclSchema(adapter=TripleTermAdapter(), validate_fn=fake_validate)
     result = validator.validate(data_graph=data, inplace=True)
 
     assert result.data_graph is data
@@ -118,7 +227,7 @@ def test_validate_inplace_decodes_back_into_input_graph() -> None:
 
 
 def test_validate_rejects_non_iterable_data_graph() -> None:
-    validator = StarLayerShaclProcessor(adapter=TripleTermAdapter(), validate_fn=lambda **_: (True, Graph(), "ok"))
+    validator = StarShaclSchema(adapter=TripleTermAdapter(), validate_fn=lambda **_: (True, Graph(), "ok"))
 
     class NotAGraph:
         pass
@@ -128,7 +237,7 @@ def test_validate_rejects_non_iterable_data_graph() -> None:
 
 
 def test_validate_rejects_non_starlayergraph_data_graph() -> None:
-    validator = StarLayerShaclProcessor(adapter=TripleTermAdapter(), validate_fn=lambda **_: (True, Graph(), "ok"))
+    validator = StarShaclSchema(adapter=TripleTermAdapter(), validate_fn=lambda **_: (True, Graph(), "ok"))
     data = TripleTermGraph()
 
     with pytest.raises(TypeError, match="data_graph must be a StarLayerGraph or rdflib.Graph"):
@@ -136,19 +245,15 @@ def test_validate_rejects_non_starlayergraph_data_graph() -> None:
 
 
 def test_validate_rejects_non_iterable_shapes_graph() -> None:
-    validator = StarLayerShaclProcessor(adapter=TripleTermAdapter(), validate_fn=lambda **_: (True, Graph(), "ok"))
-    data = StarLayerGraph()
-
     with pytest.raises(TypeError, match="shacl_graph must be a StarLayerGraph or rdflib.Graph"):
-        validator.validate(data_graph=data, shacl_graph=42)
+        StarShaclSchema(shacl_graph=42, adapter=TripleTermAdapter(), validate_fn=lambda **_: (True, Graph(), "ok"))
 
 
 def test_apply_rules_rejects_non_starlayergraph_data_graph() -> None:
-    validator = StarLayerShaclProcessor(adapter=TripleTermAdapter(), validate_fn=lambda **_: (True, Graph(), "ok"))
-    shapes = Graph()
+    validator = StarShaclSchema(adapter=TripleTermAdapter(), validate_fn=lambda **_: (True, Graph(), "ok"))
 
     with pytest.raises(TypeError, match="apply_rules\\(\\) requires data_graph to be a StarLayerGraph"):
-        validator.apply_rules(data_graph=((EX.s, EX.p, EX.o),), shacl_graph=shapes)
+        validator.apply_rules(data_graph=((EX.s, EX.p, EX.o),))
 
 
 def test_apply_rules_rejects_plain_rdflib_graph_data_graph() -> None:
@@ -157,12 +262,11 @@ def test_apply_rules_rejects_plain_rdflib_graph_data_graph() -> None:
     mutation guarantee (result.data_graph is the object you passed in)
     silently didn't hold for this input type. Reject it instead of letting
     that divergence pass quietly."""
-    validator = StarLayerShaclProcessor(adapter=TripleTermAdapter(), validate_fn=lambda **_: (True, Graph(), "ok"))
+    validator = StarShaclSchema(adapter=TripleTermAdapter(), validate_fn=lambda **_: (True, Graph(), "ok"))
     data = Graph()
-    shapes = Graph()
 
     with pytest.raises(TypeError, match="apply_rules\\(\\) requires data_graph to be a StarLayerGraph"):
-        validator.apply_rules(data_graph=data, shacl_graph=shapes)
+        validator.apply_rules(data_graph=data)
 
 
 def test_validate_normalizes_rdflib_data_graph_for_inplace_updates() -> None:
@@ -174,7 +278,7 @@ def test_validate_normalizes_rdflib_data_graph_for_inplace_updates() -> None:
     data = Graph()
     data.add((EX.s, EX.p, EX.o))
 
-    validator = StarLayerShaclProcessor(adapter=TripleTermAdapter(), validate_fn=fake_validate)
+    validator = StarShaclSchema(adapter=TripleTermAdapter(), validate_fn=fake_validate)
     result = validator.validate(data_graph=data, inplace=True)
 
     assert isinstance(result.data_graph, StarLayerGraph)
@@ -194,7 +298,7 @@ def test_validate_inplace_keeps_encoded_triples_on_starlayer_graph() -> None:
     data = StarLayerGraph()
     data.add((EX.s, EX.p, (EX.x, EX.p, EX.y)))
 
-    validator = StarLayerShaclProcessor(adapter=adapter, validate_fn=fake_validate)
+    validator = StarShaclSchema(adapter=adapter, validate_fn=fake_validate)
     result = validator.validate(data_graph=data, inplace=True)
 
     assert result.data_graph is data
@@ -213,7 +317,7 @@ def test_validate_decodes_report_value_nodes() -> None:
     data = StarLayerGraph()
     data.add((EX.s, EX.p, (EX.a, EX.p, EX.b)))
 
-    validator = StarLayerShaclProcessor(adapter=adapter, validate_fn=fake_validate)
+    validator = StarShaclSchema(adapter=adapter, validate_fn=fake_validate)
     result = validator.validate(data_graph=data)
 
     assert (EX.result, EX.value, (EX.a, EX.p, EX.b)) in result.report_graph
@@ -231,7 +335,7 @@ def test_validate_can_skip_report_decoding() -> None:
     data = StarLayerGraph()
     data.add((EX.s, EX.p, (EX.a, EX.p, EX.b)))
 
-    validator = StarLayerShaclProcessor(adapter=adapter, validate_fn=fake_validate)
+    validator = StarShaclSchema(adapter=adapter, validate_fn=fake_validate)
     result = validator.validate(data_graph=data, decode_report=False)
 
     assert any(str(o).startswith("urn:starshacl:tt:") for _, _, o in result.report_graph)
@@ -246,7 +350,7 @@ def test_validate_populates_diagnostics() -> None:
     data = StarLayerGraph()
     data.add((EX.s, EX.p, (EX.a, EX.p, EX.b)))
 
-    validator = StarLayerShaclProcessor(adapter=TripleTermAdapter(), validate_fn=fake_validate)
+    validator = StarShaclSchema(adapter=TripleTermAdapter(), validate_fn=fake_validate)
     result = validator.validate(data_graph=data)
 
     assert result.diagnostics is not None
@@ -264,11 +368,11 @@ def test_apply_rules_carries_diagnostics() -> None:
     data.add((EX.s, EX.p, (EX.a, EX.p, EX.b)))
     shapes = StarLayerGraph()
 
-    validator = StarLayerShaclProcessor(adapter=TripleTermAdapter(), validate_fn=fake_validate)
-    result = validator.apply_rules(data_graph=data, shacl_graph=shapes)
+    validator = StarShaclSchema(shacl_graph=shapes, adapter=TripleTermAdapter(), validate_fn=fake_validate)
+    result = validator.apply_rules(data_graph=data)
 
-    assert result.diagnostics is not None
-    assert result.diagnostics.encode_graph_calls >= 2
+    assert result.validation.diagnostics is not None
+    assert result.validation.diagnostics.encode_graph_calls >= 2
 
 
 def test_validate_diagnostics_reset_between_runs() -> None:
@@ -279,7 +383,7 @@ def test_validate_diagnostics_reset_between_runs() -> None:
     data = StarLayerGraph()
     data.add((EX.s, EX.p, (EX.a, EX.p, EX.b)))
 
-    validator = StarLayerShaclProcessor(adapter=TripleTermAdapter(), validate_fn=fake_validate)
+    validator = StarShaclSchema(adapter=TripleTermAdapter(), validate_fn=fake_validate)
     first = validator.validate(data_graph=data)
     second = validator.validate(data_graph=data)
 
@@ -300,7 +404,7 @@ def test_validate_uses_profile_defaults() -> None:
     data = StarLayerGraph()
     data.add((EX.s, EX.p, (EX.a, EX.p, EX.b)))
 
-    validator = StarLayerShaclProcessor(adapter=TripleTermAdapter(), validate_fn=fake_validate)
+    validator = StarShaclSchema(adapter=TripleTermAdapter(), validate_fn=fake_validate)
     _ = validator.validate(data_graph=data, profile="validation")
 
     # advanced=True is the "validation" profile's own deliberate default
@@ -329,34 +433,41 @@ def test_validate_profile_allows_overrides() -> None:
     data = StarLayerGraph()
     data.add((EX.s, EX.p, (EX.a, EX.p, EX.b)))
 
-    validator = StarLayerShaclProcessor(adapter=TripleTermAdapter(), validate_fn=fake_validate)
+    validator = StarShaclSchema(adapter=TripleTermAdapter(), validate_fn=fake_validate)
     _ = validator.validate(data_graph=data, profile="validation", advanced=True)
 
     assert captured["advanced"] is True
 
 
-def test_apply_rules_uses_rules_profile_defaults() -> None:
-    captured = {}
+def test_apply_rules_uses_rules_profile_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
+    # See test_apply_rules_requests_inplace_advanced_mode's comment: apply_rules()
+    # no longer routes through this instance's own validate_fn, so patch the
+    # shared default instead. Also see that test's comment on why captured
+    # is a list (apply_rules() now calls validate() twice) - this test
+    # asserts on the first call's (rules-execution) own options.
+    captured: list[dict] = []
 
     def fake_validate(**kwargs):
-        captured.update(kwargs)
+        captured.append(dict(kwargs))
         report = Graph()
         return True, report, "ok"
+
+    monkeypatch.setattr("starlayer.shacl.validator._default_validate", fake_validate)
 
     data = StarLayerGraph()
     data.add((EX.s, EX.p, (EX.a, EX.p, EX.b)))
     shapes = StarLayerGraph()
 
-    validator = StarLayerShaclProcessor(adapter=TripleTermAdapter(), validate_fn=fake_validate)
-    _ = validator.apply_rules(data_graph=data, shacl_graph=shapes)
+    validator = StarShaclSchema(shacl_graph=shapes)
+    _ = validator.apply_rules(data_graph=data)
 
-    assert captured["advanced"] is True
-    assert captured["iterate_rules"] is True
-    assert captured["inplace"] is True
+    assert captured[0]["advanced"] is True
+    assert captured[0]["iterate_rules"] is True
+    assert captured[0]["inplace"] is True
     # meta_shacl is consumed by starShacl's own preflight (starlayer.shacl.meta_shapes)
     # rather than forwarded to pySHACL's own (unextended) meta_shacl mechanism -
     # see validator.py::validate() - so it's intentionally absent here, not True.
-    assert "meta_shacl" not in captured
+    assert "meta_shacl" not in captured[0]
 
 
 def test_validator_target_nodes_delegates_to_native_core() -> None:
@@ -367,14 +478,33 @@ def test_validator_target_nodes_delegates_to_native_core() -> None:
     data.add((EX.alice, EX.kind, EX.Person))
     shapes.add((shape, SH.targetNode, EX.alice))
 
-    validator = StarLayerShaclProcessor(adapter=TripleTermAdapter(), validate_fn=lambda **_: (True, Graph(), "ok"))
-    nodes = validator.target_nodes(data_graph=data, shacl_graph=shapes, shape_node=shape)
+    validator = StarShaclSchema(shacl_graph=shapes, adapter=TripleTermAdapter(), validate_fn=lambda **_: (True, Graph(), "ok"))
+    nodes = validator.target_nodes(data_graph=data, shape_node=shape)
 
     assert nodes == (EX.alice,)
 
 
+def test_target_nodes_falls_back_to_data_graph_when_shacl_graph_is_none() -> None:
+    """2026-10-08: shacl_graph=None (whether via a StarShaclSchema()
+    constructed with no shapes graph, or the bare engine.target_nodes()
+    function directly) falls back to data_graph itself as the shapes
+    source - matching validate()'s own "data graph doubles as shapes
+    graph" allowance."""
+    from starlayer.shacl.engine import target_nodes as native_target_nodes
+
+    data_and_shapes = StarLayerGraph()
+    shape = EX.Shape
+    data_and_shapes.add((EX.alice, EX.kind, EX.Person))
+    data_and_shapes.add((shape, SH.targetNode, EX.alice))
+
+    validator = StarShaclSchema(adapter=TripleTermAdapter(), validate_fn=lambda **_: (True, Graph(), "ok"))
+    assert validator.target_nodes(data_graph=data_and_shapes, shape_node=shape) == (EX.alice,)
+
+    assert native_target_nodes(data_graph=data_and_shapes, shacl_graph=None, shape_node=shape) == (EX.alice,)
+
+
 def test_validator_evaluate_component_delegates_to_native_core() -> None:
-    validator = StarLayerShaclProcessor(adapter=TripleTermAdapter(), validate_fn=lambda **_: (True, Graph(), "ok"))
+    validator = StarShaclSchema(adapter=TripleTermAdapter(), validate_fn=lambda **_: (True, Graph(), "ok"))
     result = validator.evaluate_component(
         component={"name": "https://github.com/hidden-graph/starshacl/ns#TripleTermNodeKind"},
         focus_node=EX.focus,
@@ -386,7 +516,7 @@ def test_validator_evaluate_component_delegates_to_native_core() -> None:
 
 
 def test_validator_build_report_delegates_to_native_core() -> None:
-    validator = StarLayerShaclProcessor(adapter=TripleTermAdapter(), validate_fn=lambda **_: (True, Graph(), "ok"))
+    validator = StarShaclSchema(adapter=TripleTermAdapter(), validate_fn=lambda **_: (True, Graph(), "ok"))
     report_context = StarLayerGraph()
     events = (
         {
@@ -424,8 +554,8 @@ def test_validate_uses_integrated_literal_only_path_for_non_literal_values() -> 
     def fail_if_called(**_: Any):
         raise AssertionError("validate_fn should not be called for integrated native literal-only path")
 
-    validator = StarLayerShaclProcessor(adapter=TripleTermAdapter(), validate_fn=fail_if_called)
-    result = validator.validate(data_graph=data, shacl_graph=shapes)
+    validator = StarShaclSchema(shacl_graph=shapes, adapter=TripleTermAdapter(), validate_fn=fail_if_called)
+    result = validator.validate(data_graph=data)
 
     assert result.conforms is False
     assert any(
@@ -457,8 +587,8 @@ def test_validate_falls_back_when_integrated_literal_only_path_is_unsupported() 
     def fake_validate(**_: Any):
         return True, Graph(), "ok"
 
-    validator = StarLayerShaclProcessor(adapter=TripleTermAdapter(), validate_fn=fake_validate)
-    result = validator.validate(data_graph=data, shacl_graph=shapes)
+    validator = StarShaclSchema(shacl_graph=shapes, adapter=TripleTermAdapter(), validate_fn=fake_validate)
+    result = validator.validate(data_graph=data)
 
     assert result.conforms is True
 
@@ -486,8 +616,8 @@ def test_validate_uses_integrated_structural_property_path_for_has_value() -> No
     def fail_if_called(**_: Any):
         raise AssertionError("validate_fn should not be called for integrated native structural path")
 
-    validator = StarLayerShaclProcessor(adapter=TripleTermAdapter(), validate_fn=fail_if_called)
-    result = validator.validate(data_graph=data, shacl_graph=shapes)
+    validator = StarShaclSchema(shacl_graph=shapes, adapter=TripleTermAdapter(), validate_fn=fail_if_called)
+    result = validator.validate(data_graph=data)
 
     assert result.conforms is True
     assert not any(True for _ in result.report_graph.triples((None, SH.sourceConstraintComponent, None)))
@@ -513,8 +643,8 @@ def test_validate_falls_back_when_integrated_structural_property_is_unsupported(
         format="turtle",
     )
 
-    validator = StarLayerShaclProcessor(adapter=TripleTermAdapter(), validate_fn=lambda **_: (True, Graph(), "ok"))
-    result = validator.validate(data_graph=data, shacl_graph=shapes)
+    validator = StarShaclSchema(shacl_graph=shapes, adapter=TripleTermAdapter(), validate_fn=lambda **_: (True, Graph(), "ok"))
+    result = validator.validate(data_graph=data)
 
     assert result.conforms is True
 
@@ -539,8 +669,8 @@ def test_validate_reification_required_violation_when_no_reifier_exists() -> Non
         format="turtle",
     )
 
-    validator = StarLayerShaclProcessor()
-    result = validator.validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    validator = StarShaclSchema(shacl_graph=shapes)
+    result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
     assert any(
@@ -608,8 +738,8 @@ def test_validate_reifier_shape_violation_survives_advanced_mode() -> None:
         format="turtle",
     )
 
-    validator = StarLayerShaclProcessor()
-    result = validator.validate(data_graph=data, shacl_graph=shapes, meta_shacl=False, advanced=True)
+    validator = StarShaclSchema(shacl_graph=shapes)
+    result = validator.validate(data_graph=data, meta_shacl=False, advanced=True)
 
     assert result.conforms is False
     assert any(
@@ -645,8 +775,8 @@ def test_validate_reification_required_conforms_when_reifier_exists() -> None:
         format="turtle",
     )
 
-    validator = StarLayerShaclProcessor()
-    result = validator.validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    validator = StarShaclSchema(shacl_graph=shapes)
+    result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is True
 
@@ -684,8 +814,8 @@ def test_validate_reifier_shape_violation_when_reifier_does_not_conform() -> Non
         format="turtle",
     )
 
-    validator = StarLayerShaclProcessor()
-    result = validator.validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    validator = StarShaclSchema(shacl_graph=shapes)
+    result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
     assert any(
@@ -727,8 +857,8 @@ def test_validate_reifier_shape_conforms_when_reifier_conforms() -> None:
         format="turtle",
     )
 
-    validator = StarLayerShaclProcessor()
-    result = validator.validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    validator = StarShaclSchema(shacl_graph=shapes)
+    result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is True
 
@@ -753,9 +883,9 @@ def test_validate_hard_fails_when_reification_path_is_not_simple_iri() -> None:
         format="turtle",
     )
 
-    validator = StarLayerShaclProcessor()
+    validator = StarShaclSchema(shacl_graph=shapes)
     with pytest.raises(NotImplementedError, match="simple IRI"):
-        _ = validator.validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+        _ = validator.validate(data_graph=data, meta_shacl=False)
 
 
 def test_validate_applies_filter_shape_compatibility_patch_correctly() -> None:
@@ -795,10 +925,10 @@ def test_validate_applies_filter_shape_compatibility_patch_correctly() -> None:
         format="turtle",
     )
 
-    validator = StarLayerShaclProcessor()
-    result = validator.apply_rules(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    validator = StarShaclSchema(shacl_graph=shapes)
+    result = validator.apply_rules(data_graph=data, meta_shacl=False)
 
-    derived = {o for _, _, o in result.data_graph.triples((EX.alice, EX.derivedAdultFriends, None))}
+    derived = {o for _, _, o in result.inferred_graph.triples((EX.alice, EX.derivedAdultFriends, None))}
     assert derived == {EX.bob}
 
 
@@ -841,9 +971,9 @@ def test_validate_hard_fails_on_sh_filter_shape_when_patch_unavailable(monkeypat
         format="turtle",
     )
 
-    validator = StarLayerShaclProcessor()
+    validator = StarShaclSchema(shacl_graph=shapes)
     with pytest.raises(NotImplementedError, match="sh:filterShape"):
-        _ = validator.apply_rules(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+        _ = validator.apply_rules(data_graph=data, meta_shacl=False)
 
 
 def test_validate_does_not_hard_fail_without_reification_constraints() -> None:
@@ -866,9 +996,104 @@ def test_validate_does_not_hard_fail_without_reification_constraints() -> None:
         format="turtle",
     )
 
-    validator = StarLayerShaclProcessor(adapter=TripleTermAdapter(), validate_fn=lambda **_: (True, Graph(), "ok"))
-    result = validator.validate(data_graph=data, shacl_graph=shapes)
+    validator = StarShaclSchema(shacl_graph=shapes, adapter=TripleTermAdapter(), validate_fn=lambda **_: (True, Graph(), "ok"))
+    result = validator.validate(data_graph=data)
 
     assert result.conforms is True
+
+
+class TestBoundDataGraphAndInference:
+    """2026-10-08: StarShaclSchema gained two new constructor-only
+    parameters - data_graph (an optional default every processing
+    method's own data_graph parameter now falls back to) and inference
+    (moved here from a per-method inference= keyword every processing
+    method used to take individually). Together these let a caller
+    construct one schema and call several different methods against the
+    same data without repeating it, and without repeating an entailment
+    regime either."""
+
+    def _shapes(self) -> StarLayerGraph:
+        g = StarLayerGraph()
+        g.parse(
+            data="""
+                @prefix ex: <http://example.org/> .
+                @prefix sh: <http://www.w3.org/ns/shacl#> .
+                ex:PersonShape a sh:NodeShape ;
+                    sh:targetClass ex:Person ;
+                    sh:property [ sh:path ex:name ; sh:minCount 1 ] .
+            """,
+            format="turtle",
+        )
+        return g
+
+    def _data(self, name_present: bool) -> StarLayerGraph:
+        g = StarLayerGraph()
+        triples = "ex:alice a ex:Person ." + (' ex:alice ex:name "Alice" .' if name_present else "")
+        g.parse(data=f"@prefix ex: <http://example.org/> . {triples}", format="turtle")
+        return g
+
+    def test_validate_uses_bound_data_graph_when_omitted(self) -> None:
+        schema = StarShaclSchema(shacl_graph=self._shapes(), data_graph=self._data(name_present=True))
+        assert schema.validate().conforms is True
+
+    def test_target_nodes_uses_bound_data_graph_when_omitted(self) -> None:
+        schema = StarShaclSchema(shacl_graph=self._shapes(), data_graph=self._data(name_present=True))
+        assert schema.target_nodes(shape_node=EX.PersonShape) == (EX.alice,)
+
+    def test_per_call_data_graph_overrides_the_bound_default(self) -> None:
+        schema = StarShaclSchema(shacl_graph=self._shapes(), data_graph=self._data(name_present=True))
+        assert schema.validate(self._data(name_present=False)).conforms is False
+        # the bound default is untouched - a later call with no argument
+        # still uses it, not whatever was last passed explicitly.
+        assert schema.validate().conforms is True
+
+    def test_multiple_methods_share_one_bound_data_graph(self) -> None:
+        """The motivating use case: construct once, call several
+        different processing methods, none of them repeating data_graph."""
+        schema = StarShaclSchema(shacl_graph=self._shapes(), data_graph=self._data(name_present=True))
+        assert schema.validate().conforms is True
+        assert schema.target_nodes(shape_node=EX.PersonShape) == (EX.alice,)
+        assert schema.evaluate() is not None
+        assert schema.apply_rules().validation.conforms is True
+
+    def test_no_data_graph_anywhere_raises_a_clear_error(self) -> None:
+        schema = StarShaclSchema(shacl_graph=self._shapes())
+        with pytest.raises(ValueError, match="No data_graph given"):
+            schema.validate()
+
+    def test_inference_bound_at_construction_feeds_validate(self) -> None:
+        from starlayer.graph.graph.entailment_regimes import ENTAILMENT
+
+        data = StarLayerGraph()
+        data.parse(
+            data="""
+                @prefix ex: <http://example.org/> .
+                @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+                ex:worksAt rdfs:domain ex:Person .
+                ex:alice ex:worksAt ex:Acme .
+            """,
+            format="turtle",
+        )
+        schema = StarShaclSchema(shacl_graph=self._shapes(), data_graph=data, inference=ENTAILMENT.RDFS)
+        # ex:alice only becomes a target of PersonShape via RDFS domain
+        # inference, and then fails it (no ex:name) - without inference
+        # bound at construction, this would trivially conform instead.
+        assert schema.validate().conforms is False
+
+    def test_inference_passed_per_call_raises_type_error(self) -> None:
+        schema = StarShaclSchema(shacl_graph=self._shapes(), data_graph=self._data(name_present=True))
+        with pytest.raises(TypeError, match="inference"):
+            schema.validate(inference=None)
+        with pytest.raises(TypeError):
+            schema.evaluate(inference=None)
+        with pytest.raises(TypeError):
+            schema.target_nodes(shape_node=EX.PersonShape, inference=None)
+        with pytest.raises(TypeError):
+            schema.extract_subgraph(shape=EX.PersonShape, focus_node=EX.alice, inference=None)
+
+    def test_validate_each_falls_back_to_bound_data_graph(self) -> None:
+        schema = StarShaclSchema(shacl_graph=self._shapes(), data_graph=self._data(name_present=True))
+        results = schema.validate_each()
+        assert results[0].conforms is True
 
 

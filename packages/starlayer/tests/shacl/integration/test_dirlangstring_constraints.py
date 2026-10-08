@@ -1,7 +1,7 @@
 import pytest
 from rdflib import Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.shacl import StarLayerShaclProcessor
+from starlayer.shacl import StarShaclSchema
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
@@ -33,8 +33,8 @@ pyshacl = pytest.importorskip("pyshacl")
 # _matches_any_datatype/_matches_node_kind) as part of the same fix.
 
 
-def _validator() -> StarLayerShaclProcessor:
-    return StarLayerShaclProcessor()
+def _validator(shacl_graph) -> StarShaclSchema:
+    return StarShaclSchema(shacl_graph=shacl_graph)
 
 
 def _violation_components(result) -> list:
@@ -69,7 +69,7 @@ def test_datatype_dirlangstring_conforms_for_genuine_dirlangstring_value() -> No
           sh:property [ sh:path ex:greeting ; sh:datatype rdf:dirLangString ] .
         """
     )
-    result = _validator().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    result = _validator(shapes).validate(data_graph=data, meta_shacl=False)
     assert result.conforms is True
 
 
@@ -84,7 +84,7 @@ def test_datatype_dirlangstring_violates_for_plain_string() -> None:
           sh:property [ sh:path ex:greeting ; sh:datatype rdf:dirLangString ] .
         """
     )
-    result = _validator().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    result = _validator(shapes).validate(data_graph=data, meta_shacl=False)
     assert result.conforms is False
     assert SH.DatatypeConstraintComponent in _violation_components(result)
 
@@ -100,7 +100,7 @@ def test_datatype_dirlangstring_decode_report_false_does_not_crash() -> None:
           sh:property [ sh:path ex:greeting ; sh:datatype rdf:dirLangString ] .
         """
     )
-    result = _validator().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False, decode_report=False)
+    result = _validator(shapes).validate(data_graph=data, meta_shacl=False, decode_report=False)
     assert result.conforms is False
 
 
@@ -119,7 +119,7 @@ def test_language_in_matches_dirlangstring_by_real_language_tag() -> None:
           sh:property [ sh:path ex:greeting ; sh:languageIn ( "ar" "en" ) ] .
         """
     )
-    result = _validator().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    result = _validator(shapes).validate(data_graph=data, meta_shacl=False)
     assert result.conforms is True
 
 
@@ -135,7 +135,7 @@ def test_language_in_violates_for_dirlangstring_with_unlisted_language() -> None
           sh:property [ sh:path ex:greeting ; sh:languageIn ( "fr" "en" ) ] .
         """
     )
-    result = _validator().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    result = _validator(shapes).validate(data_graph=data, meta_shacl=False)
     assert result.conforms is False
     assert SH.LanguageInConstraintComponent in _violation_components(result)
 
@@ -153,7 +153,7 @@ def test_language_in_still_matches_subtag_ranges_for_plain_lang_strings() -> Non
           sh:property [ sh:path ex:greeting ; sh:languageIn ( "en" ) ] .
         """
     )
-    result = _validator().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    result = _validator(shapes).validate(data_graph=data, meta_shacl=False)
     assert result.conforms is True
 
 
@@ -167,7 +167,7 @@ def test_language_in_violates_for_plain_string_with_no_language() -> None:
           sh:property [ sh:path ex:greeting ; sh:languageIn ( "en" ) ] .
         """
     )
-    result = _validator().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    result = _validator(shapes).validate(data_graph=data, meta_shacl=False)
     assert result.conforms is False
 
 
@@ -189,7 +189,7 @@ def test_unique_lang_flags_genuine_duplicate_same_language_and_direction() -> No
           sh:property [ sh:path ex:greeting ; sh:uniqueLang true ] .
         """
     )
-    result = _validator().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    result = _validator(shapes).validate(data_graph=data, meta_shacl=False)
     assert result.conforms is False
     assert SH.UniqueLangConstraintComponent in _violation_components(result)
 
@@ -210,7 +210,7 @@ def test_unique_lang_allows_same_language_different_direction() -> None:
           sh:property [ sh:path ex:greeting ; sh:uniqueLang true ] .
         """
     )
-    result = _validator().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    result = _validator(shapes).validate(data_graph=data, meta_shacl=False)
     assert result.conforms is True
 
 
@@ -230,7 +230,7 @@ def test_unique_lang_allows_same_language_with_and_without_direction() -> None:
           sh:property [ sh:path ex:greeting ; sh:uniqueLang true ] .
         """
     )
-    result = _validator().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    result = _validator(shapes).validate(data_graph=data, meta_shacl=False)
     assert result.conforms is True
 
 
@@ -253,7 +253,7 @@ def test_unique_lang_still_flags_plain_language_duplicates() -> None:
           sh:property [ sh:path ex:greeting ; sh:uniqueLang true ] .
         """
     )
-    result = _validator().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    result = _validator(shapes).validate(data_graph=data, meta_shacl=False)
     assert result.conforms is False
     assert SH.UniqueLangConstraintComponent in _violation_components(result)
 
@@ -282,7 +282,7 @@ def test_unique_lang_string_literal_false_is_rejected_not_silently_enabled() -> 
         """
     )
     with pytest.raises(ValueError, match="xsd:boolean literal"):
-        _validator().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+        _validator(shapes).validate(data_graph=data, meta_shacl=False)
 
 
 # --- list-valued sh:class/sh:datatype/sh:nodeKind gained DirLangString awareness too ----
@@ -302,7 +302,7 @@ def test_list_valued_datatype_recognizes_dirlangstring_member() -> None:
           sh:property [ sh:path ex:greeting ; sh:datatype ( xsd:string rdf:dirLangString rdf:langString ) ] .
         """
     )
-    result = _validator().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    result = _validator(shapes).validate(data_graph=data, meta_shacl=False)
     assert result.conforms is True
 
 
@@ -318,5 +318,5 @@ def test_list_valued_node_kind_recognizes_dirlangstring_as_literal() -> None:
           sh:property [ sh:path ex:greeting ; sh:nodeKind ( sh:Literal sh:IRI ) ] .
         """
     )
-    result = _validator().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    result = _validator(shapes).validate(data_graph=data, meta_shacl=False)
     assert result.conforms is True

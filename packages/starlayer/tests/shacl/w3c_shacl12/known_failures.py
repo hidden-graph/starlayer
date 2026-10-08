@@ -97,7 +97,7 @@ KNOWN_FAILURES: dict[str, str] = {
         "itself only sh:ShapeClass-typed - see the sh:NodeShape-typing fix "
         "added alongside this entry for why that part now loads at all) "
         "need as their own *implicit-class* targets. "
-        "StarLayerShaclProcessor._augment_shapes_with_new_target_types computes "
+        "StarShaclSchema._augment_shapes_with_new_target_types computes "
         "implicit-class-target sh:targetNode triples exactly once, early in "
         "validate()'s pipeline, well before pySHACL's own advanced['rules'] "
         "stage runs any rule at all - so it only sees whatever ex:Person "

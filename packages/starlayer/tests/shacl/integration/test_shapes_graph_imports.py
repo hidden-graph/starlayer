@@ -1,7 +1,7 @@
 import pytest
 from rdflib import Graph, Namespace, URIRef
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.shacl import StarLayerShaclProcessor
+from starlayer.shacl import StarShaclSchema
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
@@ -110,10 +110,9 @@ def test_transitive_import_closure_with_version_iri_redirect_enforces_imported_c
         format="turtle",
     )
 
-    validator = StarLayerShaclProcessor()
+    validator = StarShaclSchema(shacl_graph=_myapp_shapes())
     result = validator.validate(
         data_graph=data,
-        shacl_graph=_myapp_shapes(),
         meta_shacl=False,
         shapes_graph_loader=_loader,
     )
@@ -137,8 +136,8 @@ def test_without_loader_imports_are_left_unresolved() -> None:
         format="turtle",
     )
 
-    validator = StarLayerShaclProcessor()
-    result = validator.validate(data_graph=data, shacl_graph=_myapp_shapes(), meta_shacl=False)
+    validator = StarShaclSchema(shacl_graph=_myapp_shapes())
+    result = validator.validate(data_graph=data, meta_shacl=False)
 
     # No shapes_graph_loader given: the imported CompanyShape's sh:minCount
     # on ex:name never gets merged in, so Acme's missing ex:name is invisible.
@@ -165,9 +164,9 @@ def test_unresolvable_import_is_skipped_not_raised() -> None:
     data = StarLayerGraph()
     data.parse(data="@prefix ex: <http://example.org/> .\nex:Bob a ex:Person .", format="turtle")
 
-    validator = StarLayerShaclProcessor()
+    validator = StarShaclSchema(shacl_graph=shapes)
     result = validator.validate(
-        data_graph=data, shacl_graph=shapes, meta_shacl=False, shapes_graph_loader=lambda iri: None
+        data_graph=data, meta_shacl=False, shapes_graph_loader=lambda iri: None
     )
 
     assert result.conforms is False  # Bob is still missing ex:name per the local shape
@@ -204,8 +203,8 @@ def test_self_importing_graph_does_not_infinite_loop() -> None:
     data = StarLayerGraph()
     data.parse(data="@prefix ex: <http://example.org/> .\nex:Bob a ex:Person ; ex:name \"Bob\" .", format="turtle")
 
-    validator = StarLayerShaclProcessor()
-    result = validator.validate(data_graph=data, shacl_graph=shapes, meta_shacl=False, shapes_graph_loader=loader)
+    validator = StarShaclSchema(shacl_graph=shapes)
+    result = validator.validate(data_graph=data, meta_shacl=False, shapes_graph_loader=loader)
 
     assert result.conforms is True
 
@@ -270,9 +269,9 @@ def test_multi_hop_import_chain_without_any_version_iri_redirect() -> None:
         format="turtle",
     )
 
-    validator = StarLayerShaclProcessor()
+    validator = StarShaclSchema(shacl_graph=shapes)
     result = validator.validate(
-        data_graph=data, shacl_graph=shapes, meta_shacl=False, shapes_graph_loader=loader
+        data_graph=data, meta_shacl=False, shapes_graph_loader=loader
     )
 
     # ex:Acme already satisfies mid's own CompanyShape (has ex:name) - the

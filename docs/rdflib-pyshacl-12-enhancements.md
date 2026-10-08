@@ -465,18 +465,18 @@ Key additions include:
 
 starshacl doesn't replace pySHACL or run a competing validation engine alongside it — it wraps `pyshacl.validate()` and expands pySHACL's *own* machinery in place. New SHACL 1.2 predicates (`sh:someValue`, `sh:subsetOf`, `sh:rootClass`, and the rest) are implemented as real subclasses of pySHACL's own `ConstraintComponent` base class and registered directly into pySHACL's internal constraint dispatch table, so pySHACL's generic shape-composition engine evaluates them exactly like any built-in predicate (`sh:minCount`, `sh:pattern`, etc.) — not through a separate code path. A handful of confirmed pySHACL bugs are fixed the same way, by patching pySHACL's own methods in place. See `packages/shacl/docs/compatibility.md` for the full contract, `packages/shacl/docs/shacl12-gap-matrix.md` for per-predicate/per-spec-document coverage, and the SHACL 1.2 Working Drafts themselves for the features this section only samples: `https://www.w3.org/TR/shacl12-core/` and its five companion documents (SPARQL Extensions, Node Expressions, Rules, User Interfaces, Profiling).
 
-Practically, this means the public API surface to learn is small — `StarLayerShaclProcessor.validate()` and `.apply_rules()`, already shown above and below — and everything past that is standard SHACL/SHACL 1.2 shape syntax you write as Turtle, not a StarLayer-specific method to look up.
+Practically, this means the public API surface to learn is small — `StarShaclSchema.validate()` and `.apply_rules()`, already shown above and below — and everything past that is standard SHACL/SHACL 1.2 shape syntax you write as Turtle, not a StarLayer-specific method to look up.
 
 All examples below assume:
 
 ```python
 from starlayergraph import StarLayerGraph
-from starshacl import StarLayerShaclProcessor
+from starshacl import StarShaclSchema
 ```
 
 ### RDF 1.2-aware validation
 
-The corrected form of this document's very first SHACL example (the original imported a top-level `validate()` function from `starshacl`, which doesn't exist — the real entry point is `StarLayerShaclProcessor().validate(...)`, used throughout this document):
+The corrected form of this document's very first SHACL example (the original imported a top-level `validate()` function from `starshacl`, which doesn't exist — the real entry point is `StarShaclSchema().validate(...)`, used throughout this document):
 
 ```python
 data = StarLayerGraph()
@@ -496,7 +496,7 @@ shapes.parse(data="""
       sh:property [ sh:path ex:label ; sh:datatype rdf:dirLangString ] .
 """, format="turtle")
 
-result = StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes)
+result = StarShaclSchema().validate(data_graph=data, shacl_graph=shapes)
 print(result.conforms)
 ```
 
@@ -527,7 +527,7 @@ shapes.parse(data="""
       sh:property [ sh:path ex:age ; sh:minCount 1 ; sh:datatype xsd:integer ] .
 """, format="turtle")
 
-result = StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes)
+result = StarShaclSchema().validate(data_graph=data, shacl_graph=shapes)
 print(result.conforms)
 print(result.report_text)
 ```
@@ -572,7 +572,7 @@ shapes.parse(data="""
       ] .
 """, format="turtle")
 
-result = StarLayerShaclProcessor().apply_rules(data_graph=data, shacl_graph=shapes)
+result = StarShaclSchema().apply_rules(data_graph=data, shacl_graph=shapes)
 
 from starlayergraph import Namespace
 EX = Namespace("http://example.org/")

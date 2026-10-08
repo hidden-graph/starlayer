@@ -1,7 +1,7 @@
 import pytest
 from rdflib import Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.shacl import StarLayerShaclProcessor
+from starlayer.shacl import StarShaclSchema
 
 from ._shape_loader import load_shape
 
@@ -38,8 +38,8 @@ def test_path_valued_equals_conforms_via_sequence_path() -> None:
         format="turtle",
     )
 
-    validator = StarLayerShaclProcessor()
-    result = validator.validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    validator = StarShaclSchema(shacl_graph=shapes)
+    result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is True
 
@@ -58,8 +58,8 @@ def test_path_valued_equals_violates_on_mismatch() -> None:
         format="turtle",
     )
 
-    validator = StarLayerShaclProcessor()
-    result = validator.validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    validator = StarShaclSchema(shacl_graph=shapes)
+    result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
     assert SH.EqualsConstraintComponent in _violation_components(result)
@@ -79,8 +79,8 @@ def test_path_valued_disjoint_violates_when_paths_overlap() -> None:
         format="turtle",
     )
 
-    validator = StarLayerShaclProcessor()
-    result = validator.validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    validator = StarShaclSchema(shacl_graph=shapes)
+    result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
     assert SH.DisjointConstraintComponent in _violation_components(result)
@@ -100,8 +100,8 @@ def test_path_valued_disjoint_conforms_when_no_overlap() -> None:
         format="turtle",
     )
 
-    validator = StarLayerShaclProcessor()
-    result = validator.validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    validator = StarShaclSchema(shacl_graph=shapes)
+    result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is True
 
@@ -120,8 +120,8 @@ def test_path_valued_less_than_or_equals_conforms() -> None:
         format="turtle",
     )
 
-    validator = StarLayerShaclProcessor()
-    result = validator.validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    validator = StarShaclSchema(shacl_graph=shapes)
+    result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is True
 
@@ -140,8 +140,8 @@ def test_path_valued_less_than_or_equals_allows_equal_values() -> None:
         format="turtle",
     )
 
-    validator = StarLayerShaclProcessor()
-    result = validator.validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    validator = StarShaclSchema(shacl_graph=shapes)
+    result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is True
 
@@ -160,8 +160,8 @@ def test_path_valued_less_than_or_equals_violates() -> None:
         format="turtle",
     )
 
-    validator = StarLayerShaclProcessor()
-    result = validator.validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    validator = StarShaclSchema(shacl_graph=shapes)
+    result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
     assert SH.LessThanOrEqualsConstraintComponent in _violation_components(result)
@@ -194,7 +194,7 @@ def test_simple_iri_valued_equals_still_handled_by_pyshacl_directly() -> None:
         format="turtle",
     )
 
-    validator = StarLayerShaclProcessor()
-    result = validator.validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    validator = StarShaclSchema(shacl_graph=shapes)
+    result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is True

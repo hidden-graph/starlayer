@@ -10,7 +10,7 @@ silently never executes.
 import pytest
 from rdflib import Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.shacl import StarLayerShaclProcessor
+from starlayer.shacl import StarShaclSchema
 
 EX = Namespace("http://example.org/")
 
@@ -43,10 +43,44 @@ def test_global_rule_runs_once_against_whole_graph() -> None:
         format="turtle",
     )
 
-    result = StarLayerShaclProcessor().apply_rules(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
 
-    assert (EX.Caren, EX.friend, EX.Bob) in result.data_graph
-    assert (EX.Debbie, EX.friend, EX.Caren) in result.data_graph
+    assert (EX.Caren, EX.friend, EX.Bob) in result.inferred_graph
+    assert (EX.Debbie, EX.friend, EX.Caren) in result.inferred_graph
+
+
+def test_global_rule_discovered_from_data_graph_itself_when_shacl_graph_is_none() -> None:
+    """2026-10-08: shacl_graph=None falls back to data_graph itself as the
+    rules source - this is the one case the earlier fallback fix actually
+    mattered for (not just convenience): a shape-attached sh:rule already
+    ran correctly with shacl_graph=None even before the fix, since pySHACL
+    discovers it internally via the data graph's own embedded shapes, but
+    a *global*, shape-independent SPARQLRule like this one is found only
+    by this module's own normalized_shapes-driven discovery - which used
+    to stay None (and thus skip global-rule discovery entirely) whenever
+    shacl_graph was omitted."""
+    data_with_embedded_rule = StarLayerGraph()
+    data_with_embedded_rule.parse(
+        data="""
+            @prefix ex: <http://example.org/> .
+            @prefix sh: <http://www.w3.org/ns/shacl#> .
+            ex:SymmetricPropertyRule a sh:SPARQLRule ;
+              sh:construct \"\"\"
+                PREFIX ex: <http://example.org/>
+                CONSTRUCT { ?o ?p ?s . }
+                WHERE { ?p a ex:SymmetricProperty . ?s ?p ?o . }
+              \"\"\" .
+            ex:friend a ex:SymmetricProperty .
+            ex:Bob ex:friend ex:Caren .
+            ex:Caren ex:friend ex:Debbie .
+        """,
+        format="turtle",
+    )
+
+    result = StarShaclSchema().apply_rules(data_graph=data_with_embedded_rule, meta_shacl=False)
+
+    assert (EX.Caren, EX.friend, EX.Bob) in result.inferred_graph
+    assert (EX.Debbie, EX.friend, EX.Caren) in result.inferred_graph
 
 
 def test_global_rule_deactivated_produces_nothing() -> None:
@@ -75,9 +109,9 @@ def test_global_rule_deactivated_produces_nothing() -> None:
         format="turtle",
     )
 
-    result = StarLayerShaclProcessor().apply_rules(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
 
-    assert (EX.Caren, EX.friend, EX.Bob) not in result.data_graph
+    assert (EX.Caren, EX.friend, EX.Bob) not in result.inferred_graph
 
 
 def test_shape_attached_rule_still_works_alongside_a_global_one() -> None:
@@ -116,9 +150,9 @@ def test_shape_attached_rule_still_works_alongside_a_global_one() -> None:
         format="turtle",
     )
 
-    result = StarLayerShaclProcessor().apply_rules(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
 
-    assert (EX.Bob, EX.reverseFriend, EX.Alice) in result.data_graph
+    assert (EX.Bob, EX.reverseFriend, EX.Alice) in result.inferred_graph
     from rdflib import Literal
 
-    assert (EX.Alice, EX.greeted, Literal("hi")) in result.data_graph
+    assert (EX.Alice, EX.greeted, Literal("hi")) in result.inferred_graph

@@ -1,7 +1,7 @@
 import pytest
 from rdflib import Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.shacl import StarLayerShaclProcessor
+from starlayer.shacl import StarShaclSchema
 
 EX = Namespace("http://example.org/")
 
@@ -56,7 +56,7 @@ def test_shui_annotations_do_not_interfere_with_validation() -> None:
     shapes = StarLayerGraph()
     shapes.parse(data=_shapes_with_shui_annotations(), format="turtle")
 
-    result = StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
     assert result.conforms is False
     assert "ex:bob" in result.report_text
     assert "ex:alice" not in result.report_text.split("Focus Node:")[-1]
@@ -72,7 +72,7 @@ def test_shui_annotations_do_not_break_meta_shacl_preflight() -> None:
     shapes = StarLayerGraph()
     shapes.parse(data=_shapes_with_shui_annotations(), format="turtle")
 
-    result = StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes, meta_shacl=True)
+    result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=True)
     assert result.conforms is True
 
 
@@ -97,9 +97,9 @@ def test_shui_annotations_do_not_interfere_with_rule_application() -> None:
           ] .
     """, format="turtle")
 
-    result = StarLayerShaclProcessor().apply_rules(data_graph=data, shacl_graph=shapes)
-    assert result.conforms is True
-    derived = list(result.data_graph.triples((EX.alice, EX.hasParent, None)))
+    result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data)
+    assert result.validation.conforms is True
+    derived = list(result.inferred_graph.triples((EX.alice, EX.hasParent, None)))
     assert derived == [(EX.alice, EX.hasParent, EX.carol)]
 
 
@@ -119,5 +119,5 @@ def test_shui_annotations_do_not_interfere_with_rdf12_triple_term_data() -> None
           sh:property [ sh:path ex:claims ; sh:minCount 1 ; shui:viewer shui:DetailsViewer ] .
     """, format="turtle")
 
-    result = StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes, meta_shacl=True)
+    result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=True)
     assert result.conforms is True

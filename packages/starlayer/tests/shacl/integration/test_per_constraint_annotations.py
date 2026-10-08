@@ -8,7 +8,7 @@ severity-003/deactivated-003 fixtures.
 import pytest
 from rdflib import Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.shacl import StarLayerShaclProcessor
+from starlayer.shacl import StarShaclSchema
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
@@ -31,7 +31,7 @@ def test_datatype_annotation_severity_overrides_shape_default() -> None:
     data = StarLayerGraph()
     data.add((EX.alice, EX.dummy, EX.alice))  # focus node itself is the target; no extra data needed
 
-    result = StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
     severities = {o for _, _, o in result.report_graph.triples((None, SH.resultSeverity, None))}
@@ -53,7 +53,7 @@ def test_datatype_annotation_deactivated_skips_that_constraint() -> None:
     data = StarLayerGraph()
     data.add((EX.alice, EX.dummy, EX.alice))
 
-    result = StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is True
 
@@ -79,7 +79,7 @@ def test_property_reference_annotation_deactivated_skips_only_that_reference() -
     data = StarLayerGraph()
     data.add((EX.alice, EX.dummy, EX.alice))  # no ex:requiredProp at all
 
-    result = StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is True
 
@@ -103,7 +103,7 @@ def test_property_reference_without_annotation_still_conforms_normally() -> None
     data = StarLayerGraph()
     data.add((EX.alice, EX.dummy, EX.alice))
 
-    result = StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
     assert SH.MinCountConstraintComponent in {

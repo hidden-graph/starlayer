@@ -1,7 +1,7 @@
 """
 tests/unit/test_infer_owl_dl_rustdl.py
 
-Coverage for StarLayerGraph.infer(profile="owl-dl", engine="rustdl") -
+Coverage for StarLayerGraph.infer(profile=ENTAILMENT["OWL-Direct"], engine="rustdl") -
 OWL 2 DL reasoning via RustDL, the second engine alongside engine="hermit"
 (test_infer_owl_dl.py). `rustdl` is an optional extra of this package
 (`pip install starlayer.graph[rustdl]`), not a core dependency - the
@@ -29,6 +29,7 @@ engine="hermit", not a bug to chase down here.
 import pytest
 
 from starlayer.graph import RDF, Namespace, StarLayerGraph
+from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 
 try:
     import rustdl
@@ -69,19 +70,19 @@ class TestOwlDlRustdlDisjunctiveClassEntailment:
 
     def test_owl_dl_derives_the_disjunctive_entailment(self):
         g = self._disjunctive_graph()
-        closed = g.infer(profile="owl-dl", engine="rustdl")
+        closed = g.infer(profile=ENTAILMENT["OWL-Direct"], engine="rustdl")
         assert (EX.alice, RDF.type, EX.Woman) in closed
 
     def test_delta_contains_just_the_new_fact(self):
         g = self._disjunctive_graph()
-        delta = g.infer(profile="owl-dl", engine="rustdl", mode="delta")
+        delta = g.infer(profile=ENTAILMENT["OWL-Direct"], engine="rustdl", mode="delta")
         assert (EX.alice, RDF.type, EX.Woman) in delta
         assert (EX.alice, RDF.type, EX.Person) not in delta
 
     def test_original_graph_untouched_by_mode_full(self):
         g = self._disjunctive_graph()
         before_count = len(g)
-        g.infer(profile="owl-dl", engine="rustdl", mode="full")
+        g.infer(profile=ENTAILMENT["OWL-Direct"], engine="rustdl", mode="full")
         assert len(g) == before_count
 
 
@@ -97,7 +98,7 @@ class TestOwlDlRustdlSubClassClosure:
             ex:Employee rdfs:subClassOf ex:Person .
             ex:alice a ex:Manager .
         """, format="turtle12")
-        closed = g.infer(profile="owl-dl", engine="rustdl")
+        closed = g.infer(profile=ENTAILMENT["OWL-Direct"], engine="rustdl")
         assert (EX.alice, RDF.type, EX.Employee) in closed
         assert (EX.alice, RDF.type, EX.Person) in closed
 
@@ -116,7 +117,7 @@ class TestOwlDlRustdlInconsistency:
             ex:bob a ex:Man, ex:Woman .
         """, format="turtle12")
         with pytest.raises(InconsistentOntologyError):
-            g.infer(profile="owl-dl", engine="rustdl")
+            g.infer(profile=ENTAILMENT["OWL-Direct"], engine="rustdl")
 
     def test_consistent_ontology_does_not_raise(self):
         g = StarLayerGraph()
@@ -127,7 +128,7 @@ class TestOwlDlRustdlInconsistency:
             ex:Man owl:disjointWith ex:Woman .
             ex:bob a ex:Man .
         """, format="turtle12")
-        closed = g.infer(profile="owl-dl", engine="rustdl")  # should not raise
+        closed = g.infer(profile=ENTAILMENT["OWL-Direct"], engine="rustdl")  # should not raise
         assert (EX.bob, RDF.type, EX.Man) in closed
 
 
@@ -167,13 +168,13 @@ class TestOwlDlRustdlHangRisk:
     def test_hang_pattern_raises_unsupported_axiom_error_instead_of_hanging(self):
         g = self._hang_pattern_graph()
         with pytest.raises(rustdl.UnsupportedAxiomError):
-            g.infer(profile="owl-dl", engine="rustdl")
+            g.infer(profile=ENTAILMENT["OWL-Direct"], engine="rustdl")
 
     def test_hermit_does_not_raise_on_the_identical_ontology(self):
         """Confirms this is a RustDL-specific hang, not a general problem
         with the ontology itself - engine="hermit" handles it fine."""
         g = self._hang_pattern_graph()
-        g.infer(profile="owl-dl", engine="hermit")  # should not raise
+        g.infer(profile=ENTAILMENT["OWL-Direct"], engine="hermit")  # should not raise
 
     def test_ordinary_ontology_is_unaffected_by_the_preflight_check(self):
         g = StarLayerGraph()
@@ -184,7 +185,7 @@ class TestOwlDlRustdlHangRisk:
             ex:Cat rdfs:subClassOf ex:Animal .
             ex:alice a ex:Cat .
         """, format="turtle12")
-        closed = g.infer(profile="owl-dl", engine="rustdl")  # should not raise
+        closed = g.infer(profile=ENTAILMENT["OWL-Direct"], engine="rustdl")  # should not raise
         assert (EX.alice, RDF.type, EX.Animal) in closed
 
 
@@ -199,14 +200,14 @@ class TestOwlDlRustdlModes:
             ex:Manager rdfs:subClassOf ex:Employee .
             ex:alice a ex:Manager .
         """, format="turtle12")
-        result = g.infer(profile="owl-dl", engine="rustdl", mode="in-place")
+        result = g.infer(profile=ENTAILMENT["OWL-Direct"], engine="rustdl", mode="in-place")
         assert result is g
         assert (EX.alice, RDF.type, EX.Employee) in g
 
 
 @rustdl_extra
 class TestOwlDlRustdlTimeout:
-    """Wiring coverage only - does infer(profile="owl-dl", engine="rustdl",
+    """Wiring coverage only - does infer(profile=ENTAILMENT["OWL-Direct"], engine="rustdl",
     timeout=...) actually thread through to the real reasoning call. The
     timeout *mechanism* itself (process spawn/deadline/process-group kill)
     has its own thorough, engine-independent coverage in test_timeout.py
@@ -224,17 +225,17 @@ class TestOwlDlRustdlTimeout:
         return g
 
     def test_default_timeout_does_not_interfere_with_a_normal_call(self):
-        closed = self._simple_graph().infer(profile="owl-dl", engine="rustdl")
+        closed = self._simple_graph().infer(profile=ENTAILMENT["OWL-Direct"], engine="rustdl")
         assert (EX.alice, RDF.type, EX.Animal) in closed
 
     def test_tiny_timeout_raises_reasoning_timeout_error(self):
         from starlayer.graph.graph._timeout import ReasoningTimeoutError
 
         with pytest.raises(ReasoningTimeoutError):
-            self._simple_graph().infer(profile="owl-dl", engine="rustdl", timeout=0.001)
+            self._simple_graph().infer(profile=ENTAILMENT["OWL-Direct"], engine="rustdl", timeout=0.001)
 
     def test_timeout_none_disables_it(self):
-        closed = self._simple_graph().infer(profile="owl-dl", engine="rustdl", timeout=None)
+        closed = self._simple_graph().infer(profile=ENTAILMENT["OWL-Direct"], engine="rustdl", timeout=None)
         assert (EX.alice, RDF.type, EX.Animal) in closed
 
     def test_hang_risk_preflight_check_still_fires_before_the_timeout(self):
@@ -244,7 +245,7 @@ class TestOwlDlRustdlTimeout:
         exists."""
         g = self._hang_pattern_graph()
         with pytest.raises(rustdl.UnsupportedAxiomError):
-            g.infer(profile="owl-dl", engine="rustdl", timeout=60)
+            g.infer(profile=ENTAILMENT["OWL-Direct"], engine="rustdl", timeout=60)
 
     def _hang_pattern_graph(self):
         g = StarLayerGraph()

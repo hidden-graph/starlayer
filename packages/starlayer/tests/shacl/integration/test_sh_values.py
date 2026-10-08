@@ -16,7 +16,7 @@ coincidentally both named sh:values but serve entirely different purposes.
 import pytest
 from rdflib import Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.shacl import StarLayerShaclProcessor
+from starlayer.shacl import StarShaclSchema
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
@@ -51,7 +51,7 @@ def test_values_select_computes_the_checked_value_set() -> None:
         format="turtle",
     )
 
-    result = StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is True
 
@@ -81,7 +81,7 @@ def test_values_select_violates_when_computed_value_does_not_match() -> None:
         format="turtle",
     )
 
-    result = StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
     assert SH.HasValueConstraintComponent in {
@@ -113,7 +113,7 @@ def test_values_sparql_expr_computes_a_single_scalar_value() -> None:
     data.add((EX.Fiver, EX.dummy, EX.dummy))
     data.add((EX.Big, EX.dummy, EX.dummy))
 
-    result = StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
     assert {o for _, _, o in result.report_graph.triples((None, SH.focusNode, None))} == {EX.Big}
@@ -151,7 +151,7 @@ class TestDefaultValueFallback:
         data = StarLayerGraph()
         data.add((EX.alice, EX.dummy, EX.dummy))
 
-        result = StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+        result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
 
         assert result.conforms is True
         # The fallback is a validation-time virtual value only - never
@@ -172,7 +172,7 @@ class TestDefaultValueFallback:
         data = StarLayerGraph()
         data.parse(data='@prefix ex: <http://example.org/> . ex:bob ex:status "suspended" .', format="turtle")
 
-        result = StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+        result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
 
         # bob's real, stored "suspended" is what's checked - the default
         # "active" never gets a chance to paper over it.
@@ -195,7 +195,7 @@ class TestDefaultValueFallback:
         data = StarLayerGraph()
         data.add((EX.alice, EX.dummy, EX.dummy))
 
-        result = StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+        result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
 
         # sh:values already produced 2 (a non-empty set), so step 3 never
         # runs - the shape conforms via the computed value, not the default.
@@ -219,7 +219,7 @@ class TestDefaultValueFallback:
         data = StarLayerGraph()
         data.add((EX.alice, EX.dummy, EX.dummy))
 
-        result = StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+        result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
 
         assert result.conforms is True
 
@@ -261,7 +261,7 @@ class TestDefaultValueAsNodeExpression:
             format="turtle",
         )
 
-        result = StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+        result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
 
         assert result.conforms is True
 
@@ -288,7 +288,7 @@ class TestDefaultValueAsNodeExpression:
             format="turtle",
         )
 
-        result = StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+        result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
 
         # bob's real, stored nickname ("Bobby") is what's checked - the
         # computed default ("Robert", from firstName) never gets a chance.
@@ -316,4 +316,4 @@ def test_property_rule_sh_values_remains_a_separate_unimplemented_mechanism() ->
     data.add((EX.alice, EX.dummy, EX.dummy))
 
     with pytest.raises(RuleLoadError):
-        StarLayerShaclProcessor().apply_rules(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+        StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)

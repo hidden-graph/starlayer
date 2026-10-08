@@ -19,15 +19,17 @@ def test_validation_result_shape() -> None:
 
 def test_rules_result_shape() -> None:
     result = RulesResult(
-        conforms=False,
-        report_graph={"r": 1},
-        report_text="failed",
-        data_graph={"d": 1},
-        diagnostics=ExecutionDiagnostics(decode_graph_calls=1),
+        inferred_graph={"d": 1},
+        validation=ValidationResult(
+            conforms=False,
+            report_graph={"r": 1},
+            report_text="failed",
+            diagnostics=ExecutionDiagnostics(decode_graph_calls=1),
+        ),
     )
 
-    assert result.conforms is False
-    assert result.report_text == "failed"
-    assert result.data_graph == {"d": 1}
-    assert result.diagnostics is not None
-    assert result.diagnostics.decode_graph_calls == 1
+    assert result.validation.conforms is False
+    assert result.validation.report_text == "failed"
+    assert result.inferred_graph == {"d": 1}
+    assert result.validation.diagnostics is not None
+    assert result.validation.diagnostics.decode_graph_calls == 1

@@ -33,6 +33,7 @@ from rdflib.graph import DATASET_DEFAULT_GRAPH_ID
 from rdflib.plugins.stores.sparqlstore import SPARQLUpdateStore
 
 from starlayer.graph import RDF, Namespace, StarLayerGraph
+from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 
 pytestmark = pytest.mark.integration
 
@@ -67,7 +68,7 @@ def _graph() -> StarLayerGraph:
     # use, unlike query()/update()'s pure pass-through) only leaves reads
     # unscoped for this exact identifier value, wrapping any other value in
     # GRAPH <self.identifier> { ... } instead. Without this, iterating this
-    # graph directly (list(g), or anything infer()/entailment="owl-rl" does
+    # graph directly (list(g), or anything infer()/entailment=ENTAILMENT["OWL-RDF-Based"] does
     # internally) would silently see nothing, even though g.query() finds
     # the data fine (confirmed live: a default, randomly-assigned identifier
     # reproduces exactly this mismatch).
@@ -110,7 +111,7 @@ class TestEntailmentNative:
         assert [str(r[0]) for r in rows] == [str(EX.alice)]
 
     def test_owl_rl_delta_does_not_duplicate_what_the_backend_already_entails(self):
-        # Phase D: entailment="owl-rl" against a native (backend="rdf-1.2")
+        # Phase D: entailment=ENTAILMENT["OWL-RDF-Based"] against a native (backend="rdf-1.2")
         # graph reads self live via _decompose()/_native_triples() before
         # running owlrl - so anything this reasoning-enabled Fuseki dataset
         # already entails (confirmed below via a plain query, no
@@ -132,7 +133,7 @@ class TestEntailmentNative:
 
         rows = list(g.query(
             "PREFIX ex: <http://example.org/> SELECT ?x WHERE { ?x a ex:Employee }",
-            entailment="owl-rl",
+            entailment=ENTAILMENT["OWL-RDF-Based"],
         ))
         assert [str(r[0]) for r in rows] == [str(EX.alice)]
         delta = g._owl_rl_cache[0]

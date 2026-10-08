@@ -31,7 +31,7 @@ A limited number of top-level classes are available from `starlayer`.
 |---|---|---|---|
 | `StarLayerGraph` | class | New | Also available from `starlayer.graph` below |
 | `StarLayerDataset` | class | New | Also available from `starlayer.graph` below |
-| `StarLayerShaclProcessor` | class | New | Also available from `starlayer.shacl` below |
+| `StarShaclSchema` | class | New | Holds a SHACL shapes graph (plus optional ontology graph), to use with relevant SHACL methods, including validation, rule inferencing, or evaluation. |
 
 
 ---
@@ -323,64 +323,74 @@ An SRL document can be encoded as its own RDF syntax tree graph using the starla
 
 ## `starlayer.shacl`
 
-Wraps `pyshacl` 0.40.1 (pinned `>=0.40.1`), by composition rather than inheritance — `StarLayerShaclProcessor` calls into pyshacl's own functions rather than subclassing anything, so **Modified** below means "pyshacl exposes this same name," not "an overridden inherited method," and there's no **Unchanged** category at all. Covers SHACL 1.2's six specification documents: Core Validation, SPARQL Extensions, Node Expressions, Inference Rules, User Interfaces, and Profiling.
+Wraps `pyshacl` 0.40.1 (pinned `>=0.40.1`), by composition rather than inheritance — `StarShaclSchema` calls into pyshacl's own functions rather than subclassing anything, so **Modified** below means "pyshacl exposes this same name," not "an overridden inherited method," and there's no **Unchanged** category at all. Covers SHACL 1.2's six specification documents: Core Validation, SPARQL Extensions, Node Expressions, Inference Rules, User Interfaces, and Profiling.
 
-Classes, functions and values available from `starlayer.shacl`
+**Every public top-level function, in one table** - the full SHACL processing surface, regardless of which SHACL 1.2 document each belongs to (see the per-document sections below for that organization, plus lower-level/cross-cutting names). Every name here is flat-importable directly from `starlayer.shacl` (2026-10-07 - `apply_rules`/`evaluate`/`extract_subgraph` and their result classes joined `validate`/`validate_each`, which already were; the older qualified submodules `shacl_inference`/`shacl_node_expr`/`subgraph_extraction` still exist and still work, they're just no longer the only path). SHACL 1.2 Profiling is the one deliberate exception, still qualified-only (`from starlayer.shacl import shacl_profiling`) - its two helpers are self-declaration/report-annotation utilities, not a processing mode alongside these.
 
 `from starlayer.shacl import ...`
 
 | Name | Kind | Status | Description |
 |---|---|---|---|
-| `StarLayerShaclProcessor` | class | New | Main entry point — see its own table below |
-| `validate()` | function | **Modified** | Module-level convenience wrapping `StarLayerShaclProcessor().validate(...)` |
-| `validate_each()` | function | **Modified** | Module-level convenience wrapping `StarLayerShaclProcessor().validate_each(...)` |
-| `close_shape()` | function | New | Takes a shapes graph and a shape, and returns a closed copy of the shapes graph (`sh:closed true` + `sh:ignoredProperties`, recursively) |
-| `ValidationResult` | class | New | `conforms`, `report_graph`, `report_text`, `data_graph`, `diagnostics` |
-| `ExecutionDiagnostics` | class | New | Counters for one validation run (encode/decode calls, triple-term counts, ...) — reflects only the most recent call, not cumulative across several |
+| `StarShaclSchema` | class | New | Holds a SHACL shapes graph (plus optional ontology graph), to use with relevant SHACL methods, including validation, rule inferencing, or evaluation. See its own table below |
+| `validate()` | function | **Modified** | Takes a data graph, an optional shapes graph, an optional ontology graph, and an optional `inference=` keyword, and returns a `ValidationResult` |
+| `validate_each()` | function | **Modified** | Takes an iterable of data graphs, an optional shapes graph, an optional ontology graph, and an optional `inference=` keyword, and returns a dictionary of `ValidationResult`s |
+| `evaluate()` | function | New | Takes a data graph, an optional shapes graph, an optional ontology graph, and an optional `inference=` keyword, and returns a plain graph object — SHACL 1.2 Node Expressions |
+| `apply_rules()` | function | New | Takes a data graph, an optional shapes graph, an optional rule set IRI, and an optional `inference=` keyword, and returns a `RulesResult` |
+| `extract_subgraph()` | function | New | Takes a data graph, a shape, a focus node, an optional shapes graph, an optional ontology graph, and an optional `inference=` keyword, and returns the extracted subgraph itself, or `None` if `focus_node` doesn't conform to `shape` |
+| `target_nodes()` | function | New | Takes a data graph, a shape node, an optional shapes graph, an optional ontology graph, and an optional `inference=` keyword, and returns the shape's own target nodes in the data graph |
 
-### `StarLayerShaclProcessor`
+`data_graph` is the only required parameter anywhere in this table (2026-10-08) — every `shacl_graph` above defaults to `None`, meaning "find `sh:` shapes embedded in `data_graph` itself," the exact same allowance `StarShaclSchema`'s own constructor already had (see its own row below). Before this, `evaluate()` raised `ValueError` on a missing shapes graph instead of falling back, and `extract_subgraph()`/`target_nodes()` required one outright with no default at all — `apply_rules()` already accepted `shacl_graph=None` but silently skipped discovering any *global*, shape-independent `sh:SPARQLRule` in that case (a shape-attached `sh:rule` still ran fine, since pySHACL discovers those internally either way). `extract_subgraph()`'s own parameter order changed alongside this fix (`shape`/`focus_node` moved ahead of `shacl_graph`/`ont_graph`), so the two truly-required parameters stay positional-required while `shacl_graph` gets a default.
 
-Construct with `StarLayerShaclProcessor(adapter=None, validate_fn=None)` — both optional; `adapter` defaults to a new `TripleTermAdapter()`. Its methods don't return `self`, so calls can't be chained.
+**Entailment, two ways, accepted by every one of the six processing functions above — same vocabulary either way** (`target_nodes()` joined the other five 2026-10-08, closing a consistency gap rather than reflecting any real architectural boundary — it just hadn't been done yet): a real regime IRI from `starlayer.graph`'s `ENTAILMENT` namespace (`http://www.w3.org/ns/entailment/`) — `ENTAILMENT.RDF`, `ENTAILMENT.RDFS`, `ENTAILMENT["OWL-RDF-Based"]`, or `ENTAILMENT["OWL-Direct"]` (OWL 2 Direct Semantics).
+- **`inference=` keyword**: a single IRI, or an iterable of them to combine regimes (e.g. `{ENTAILMENT.RDFS, ENTAILMENT["OWL-RDF-Based"]}`). `None` is a no-op. Any other value — including pySHACL's own old strings (`"rdfs"`/`"owlrl"`/`"both"`/etc.) — raises `ValueError`: `inference=` deliberately does **not** accept pySHACL's string vocabulary, by design (disconnected from it on purpose, not an incremental extension of it).
+- **`sh:entailment` declared in the shapes graph** (SHACL Core §1.4 — no keyword needed at all): one or more of the same IRIs as triple objects; multiple declared values combine into one pass.
+
+**Result classes, in their own table, right after:**
+
+| Result Class | Fields | What's included |
+|---|---|---|
+| `ValidationResult` | `conforms`, `report_graph`, `report_text`, `data_graph`, `diagnostics` | `conforms` (bool) plus a full `sh:ValidationReport` graph and its text rendering, in place of pyshacl's own bare `(conforms, report_graph, report_text)` tuple. `data_graph` is only populated when the call used `inplace=True` (the `"rules"` profile's own default) — the caller's own data graph, mutated with any in-place changes decoded back; `None` otherwise, not an error. `diagnostics` is internal adapter bookkeeping (triple-term encode/decode counts for debugging the RDF 1.2 adaptation layer itself) — not general-purpose validation statistics. |
+| `RulesResult` | `inferred_graph`, `validation` | Two fields, deliberately composed rather than flattened (2026-10-08). `apply_rules()` never mutates the caller's own `data_graph` — it runs against a private working copy instead, which is why `inferred_graph` is named that way, not `data_graph` (it was never the input graph). It's strictly the SHACL 1.2 Inference Rules spec's own **inference graph**: only the triples rule execution itself produced (shape-attached `sh:rule` output, the global `sh:RuleSet`/`sh:SPARQLRule` pass, and `sh:sourceRule` provenance reifiers) — neither the original base triples nor anything an entailment regime (`sh:entailment` or `inference=`) added are included; entailment is purely a computational device for correct rule matching and conformance checking, never persisted. `validation` is a full `ValidationResult` — the result of one real `validate()` call `apply_rules()` makes internally, over the *complete* evaluation graph (base ∪ rules ∪ entailment), so `validation.conforms`/`.report_graph`/`.report_text` correctly cover everything that was true during execution even though entailment's own triples don't appear in `inferred_graph`. `validation.data_graph` is always `None` here (that internal call always uses `inplace=False`) — not meaningful in this context. |
+
+`evaluate()` and `extract_subgraph()` don't have their own rows here (2026-10-08) - both used to return a one-field result class (`EvaluationResult`/`SubgraphExtractionResult`), and once each had shrunk to exactly one graph-or-`None` field with nothing else attached, the wrapper added nothing - they now return that one value directly instead. `evaluate()` always returns a plain graph object (a shape-driven subgraph, as described in its own row above); `extract_subgraph()` returns the extracted subgraph itself, or `None` if `focus_node` doesn't conform to `shape`.
+
+### `StarShaclSchema`
+
+Construct with `StarShaclSchema(shacl_graph=None, ont_graph=None, *, data_graph=None, inference=None, adapter=None, validate_fn=None)`. `shacl_graph`/`ont_graph`/`data_graph` are each a reference to their own separate graph — this class doesn't hold triples itself the way `StarLayerGraph` does. `shacl_graph=None` means "find `sh:` shapes embedded in the data graph itself," matching pySHACL's own allowance. Every method below applies the bound shapes/ontology/entailment configuration to a data graph — unlike pySHACL's own `validate()`, which takes a fresh `shacl_graph` every call, here it's fixed once at construction, so construct one `StarShaclSchema` per distinct shapes graph (e.g. a `PersonSchema` and a separate `ProductSchema`), not one per call. Its methods don't return `self`, so calls can't be chained.
+
+**`data_graph`/`inference`, both bound at construction (2026-10-08)**: `data_graph` is an optional default — every method's own `data_graph` parameter becomes optional too, falling back to this one when omitted, so a caller running several different operations against the same data (`validate()`, then `apply_rules()`, then `evaluate()`, ...) only has to pass it once, at construction, not on every call. Still fully overridable per call: pass a different `data_graph` to any one method and that call uses it instead, the bound default untouched. `inference` moved here from a per-method `inference=` keyword every processing method used to take individually — bound once, like `shacl_graph`/`ont_graph`, since an entailment regime is realistically a property of how this schema interprets its data, not something that varies call-to-call. No method below accepts its own `inference=` any more (removed, not just defaulted) — passing it to one raises `TypeError`. Construct a second `StarShaclSchema` with a different `inference=` (or a different `data_graph=`) if you need to vary either against the same shapes graph.
 
 | Name | Kind | Status | Description |
 |---|---|---|---|
-| `adapter` | attribute | New | The `TripleTermAdapter` this instance encodes/decodes triple terms with — set at construction, read afterward for `.diagnostics_snapshot()`/`.export_registry()` |
-| `validate()` | method | **Modified** | Takes a data graph (and optional shapes/ontology graphs) and returns a `ValidationResult`, in place of pyshacl's own bare `(conforms, report_graph, report_text)` tuple |
-| `validate_each()` | method | **Modified** | Validates each of several data graphs against one shared shapes/ontology graph, returning `dict[int, ValidationResult]` |
-| `apply_rules()` | method | **Modified** | Takes a data graph and shapes graph and returns a `RulesResult` — rule execution (`sh:rule`/`sh:TripleRule`/`sh:SPARQLRule`, plus SHACL 1.2's own `sh:RuleSet`/`sh:sourceRule` provenance) |
-| `evaluate()` | method | New | Takes a data graph and shapes graph and returns an `EvaluationResult` — SHACL 1.2 Node Expressions |
-| `extract_subgraph()` | method | New | Takes a data graph, shapes graph, shape, and focus node, and returns a `SubgraphExtractionResult` — the subgraph of real, stored triples that shape's constraints covered for that node |
-| `target_nodes()` | method | New | Takes a data graph, shapes graph, and shape node, and returns the shape's own target nodes in the data graph |
+| `validate()` | method | **Modified** | Takes an optional data graph (falls back to the bound `data_graph`) and returns a `ValidationResult`, in place of pyshacl's own bare `(conforms, report_graph, report_text)` tuple |
+| `validate_each()` | method | **Modified** | Takes an optional iterable of data graphs (falls back to `(data_graph,)`) and returns `dict[int, ValidationResult]`, keyed by position, against this instance's own bound shapes graph |
+| `apply_rules()` | method | **Modified** | Takes an optional data graph and returns a `RulesResult` — rule execution (`sh:rule`/`sh:TripleRule`/`sh:SPARQLRule`, plus SHACL 1.2's own `sh:RuleSet`/`sh:sourceRule` provenance) |
+| `evaluate()` | method | New | Takes an optional data graph and returns a plain graph object — SHACL 1.2 Node Expressions |
+| `extract_subgraph()` | method | New | Takes an optional data graph, plus a required shape and focus node (both keyword-only), and returns the extracted subgraph itself, or `None` if `focus_node` doesn't conform to `shape` |
+| `target_nodes()` | method | New | Takes an optional data graph and a required shape node, and returns the shape's own target nodes in the data graph |
+
+Every method above that needs a shapes graph falls back to this instance's own bound `self.shacl_graph` when it's `None` (2026-10-08) — so `StarShaclSchema()` with no shapes graph at all, called against a data graph carrying its own embedded `sh:` shapes, works the same way across `validate()`, `apply_rules()`, `evaluate()`, `extract_subgraph()`, and `target_nodes()` uniformly.
 | `evaluate_component()` | method | New | Takes a component/focus node/value nodes and evaluates one native `ConstraintComponent` directly |
+| `close_shape()` | method | New | Takes a shape and returns a closed copy of this instance's own bound shapes graph — closes that shape and every shape it recursively references via `sh:node`/`sh:qualifiedValueShape`/`sh:and`/`sh:or`/`sh:xone` (not plain `sh:property`), stripping `sh:ignoredProperties` on each |
 | `build_report()` | method | New | Takes component results and builds a `sh:ValidationReport` graph from them |
 
 ### SHACL 1.2 Inference Rules
 
-`from starlayer.shacl import shacl_inference`
-
-Run via `StarLayerShaclProcessor.apply_rules()` — see its own table above.
-
-| Name | Kind | Status | Description |
-|---|---|---|---|
-| `shacl_inference.RulesResult` | class | New | `data_graph`, `report_graph`, `report_text`, `conforms`, `diagnostics` |
+`apply_rules()`/`RulesResult`, listed in the full-surface table above — flat from `starlayer.shacl` directly, or still via the older `from starlayer.shacl import shacl_inference` qualified path. Mirrors pyshacl's own `shacl_rules()` entry point. Also reachable via `StarShaclSchema.apply_rules()` (binds its own shapes/ontology graph - see that class's own table below).
 
 ### SHACL 1.2 Node Expressions
 
-`from starlayer.shacl import shacl_node_expr`. Run via `StarLayerShaclProcessor.evaluate()` — see its own table above.
+`evaluate()`, listed in the full-surface table above — flat from `starlayer.shacl` directly, or still via the older `from starlayer.shacl import shacl_node_expr` qualified path. Also reachable via `StarShaclSchema.evaluate()` (binds its own shapes/ontology graph - see that class's own table below).
+
+One lower-level name not in the full-surface table, since it isn't itself one of the four main processing operations — stays qualified-only, deliberately (a one-expression-at-a-time primitive, not a processing mode):
 
 | Name | Kind | Status | Description |
 |---|---|---|---|
 | `shacl_node_expr.eval_expr()` | function | New | Evaluates one node expression directly against a single focus node, independent of `evaluate()`'s own per-shape orchestration |
-| `shacl_node_expr.EvaluationResult` | class | New | Result of `evaluate()` |
 
 ### Subgraph extraction (not part of any SHACL 1.2 document — this project's own addition)
 
-`from starlayer.shacl import subgraph_extraction`. Run via `StarLayerShaclProcessor.extract_subgraph()` — see its own table above.
-
-| Name | Kind | Status | Description |
-|---|---|---|---|
-| `subgraph_extraction.extract_subgraph()` | function | New | Same operation as a free function |
-| `subgraph_extraction.SubgraphExtractionResult` | class | New | Result of `extract_subgraph()` |
+`extract_subgraph()`, listed in the full-surface table above — flat from `starlayer.shacl` directly, or still via the older `from starlayer.shacl import subgraph_extraction` qualified path. Also reachable via `StarShaclSchema.extract_subgraph()` (binds its own shapes graph - see that class's own table below).
 
 ### SHACL 1.2 Profiling
 
@@ -409,16 +419,14 @@ Run via `StarLayerShaclProcessor.apply_rules()` — see its own table above.
 
 ### Native component evaluation engine (lower-level — most callers want `validate()`, not this)
 
-`from starlayer.shacl import engine`. The machinery `validate()` uses internally to run new SHACL 1.2 predicates as real pySHACL `ConstraintComponent`s. `target_nodes()`/`evaluate_component()`/`build_report()` are the same operations as `StarLayerShaclProcessor`'s own methods of the same names (see its table above), callable here as free functions without constructing an instance.
+`from starlayer.shacl import engine`. The machinery `validate()` uses internally to run new SHACL 1.2 predicates as real pySHACL `ConstraintComponent`s. `target_nodes()` itself is already flat from `starlayer.shacl` directly (listed in the full-surface table near the top of this document) — the free-function form of `StarShaclSchema.target_nodes()` above, a real standalone introspection operation ("which nodes would this shape target?"). `evaluate_component()`/`build_report()` stay qualified-only here, deliberately (2026-10-08, after being briefly flattened and reverted the same day on direct challenge): unlike `target_nodes()`, `evaluate_component()` is a hardcoded dispatcher over a fixed set of component names (`hasValue`/`in`/`equals`/`disjoint`/etc.) with no extension mechanism - calling it standalone only ever reproduces behavior `validate()` already gives for free, so there's no real external use case. `build_report()` only makes sense paired with `evaluate_component()`'s own "events" output shape, so it inherits the same lack of a standalone use. Its own return type, `_ComponentEvaluationResult`, is private - not exported even from `engine` - for the identical reason: no standalone use case means no reason for its own type to be part of any public surface either.
 
 | Name | Kind | Status | Description |
 |---|---|---|---|
-| `engine.ComponentRequest` | class | New | `(component, focus_node, value_nodes, options)` — one native-component evaluation request |
-| `engine.ComponentEvaluationResult` | class | New | `(conforms, violations)` — one native-component evaluation result |
+| `engine.ComponentRequest` | class | New | `(component, focus_node, value_nodes, options)` — one native-component evaluation request, `evaluate_component()`'s own sole argument |
+| `engine.evaluate_component()` | function | New | Takes a `ComponentRequest` and evaluates one native `ConstraintComponent` directly |
+| `engine.build_report()` | function | New | Takes component results and builds a `sh:ValidationReport` graph from them |
 | `engine.STSH` | value | New | The starlayer.shacl-native-extensions namespace |
-| `engine.target_nodes()` | function | New | Free-function form of `target_nodes()` above |
-| `engine.evaluate_component()` | function | New | Free-function form of `evaluate_component()` above |
-| `engine.build_report()` | function | New | Free-function form of `build_report()` above |
 
 ---
 

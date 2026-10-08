@@ -27,45 +27,46 @@ class ValidationResult:
 
 @dataclass(frozen=True)
 class RulesResult:
-    data_graph: Any
-    report_graph: Any
-    report_text: str
-    conforms: bool
-    diagnostics: ExecutionDiagnostics | None = None
+    """Result of ``apply_rules()`` - executes ``sh:rule``/``sh:SPARQLRule``
+    against a private working copy of the caller's ``data_graph`` (never
+    mutated in place) and returns what the rules produced.
 
+    ``inferred_graph`` (named this way, not ``data_graph``, since
+    2026-10-08 - it is never the caller's own input graph) is strictly
+    the SHACL 1.2 Inference Rules spec's own "inference graph" - only the
+    triples rule execution itself produced (shape-attached ``sh:rule``,
+    global ``sh:SPARQLRule``/``sh:RuleSet``, and ``sh:sourceRule``
+    provenance reifiers). It contains neither the original base triples
+    nor anything an entailment regime (``sh:entailment`` or
+    ``inference=``) added - entailment is purely a computational device
+    for correct rule matching and conformance checking here, never
+    persisted into the result.
 
-@dataclass(frozen=True)
-class SubgraphExtractionResult:
-    """Result of ``StarLayerShaclProcessor.extract_subgraph()`` - a fourth
-    processing mode alongside ``validate()``/``apply_rules()``/``evaluate()``:
-    given a focus node and a shape, extracts exactly the subgraph of real,
-    stored triples that shape's constraints covered for that node (see
-    ``starlayer.shacl/subgraph_extraction.py`` for the full design).
-
-    ``conforms`` mirrors ``ValidationResult``'s own field, but there is no
-    ``report_graph``/``report_text`` here - if ``focus_node`` doesn't
-    conform to ``shape``, ``data_graph`` is simply ``None``. Deliberate: this
-    method assumes conformance as a precondition the caller has already
-    checked, rather than existing to diagnose non-conformance.
+    ``validation`` (2026-10-08 - composed rather than flattened, since it
+    really is nothing but the result of one real ``validate()`` call
+    ``apply_rules()`` makes internally, over the *complete* evaluation
+    graph: base ∪ every rule-produced triple ∪ every entailed triple).
+    ``validation.conforms``/``.report_graph``/``.report_text`` correctly
+    reflect everything that was true during execution, even though
+    entailment's own triples don't appear in ``inferred_graph`` itself.
+    ``validation.data_graph`` is always ``None`` in this context (that
+    internal call always uses the ``"validation"`` profile's own
+    ``inplace=False`` default) - harmless, just not meaningful here.
     """
 
-    conforms: bool
-    data_graph: Any | None
+    inferred_graph: Any
+    validation: ValidationResult
 
 
-@dataclass(frozen=True)
-class EvaluationResult:
-    """Result of ``StarLayerShaclProcessor.evaluate()`` - a third, independent
-    processing mode alongside ``validate()`` (checks conformance, never
-    mutates) and ``apply_rules()`` (executes ``sh:rule``, materializes real
-    triples). ``evaluate()`` computes every ``sh:values``-declared virtual
-    property across the shapes graph, for every focus node it applies to,
-    and returns them merged into a *throwaway* copy of the data graph -
-    never the caller's own ``data_graph`` object, and not meant to be
-    persisted (the SHACL 1.2 Node Expressions spec's own framing: computed
-    "only on demand", never creating real triples in the data graph or
-    shapes graph). No ``conforms``/``report_graph`` here - ``evaluate()``
-    never validates anything, so those concepts don't apply.
-    """
-
-    data_graph: Any
+# SubgraphExtractionResult/EvaluationResult removed 2026-10-08 - both had
+# shrunk, across earlier same-day renames, to a single graph-or-None field
+# with no other information attached (conforms/report_graph/report_text
+# were already absent or, for SubgraphExtractionResult, dropped as
+# redundant with "is the graph None"). Wrapping one value in a
+# one-field frozen dataclass added a layer of indirection with nothing
+# behind it - extract_subgraph()/evaluate() now just return that one
+# value directly (the extracted/computed graph, or None) instead of a
+# result object. See each function's own docstring (subgraph_extraction.py,
+# validator.py) for what the returned graph actually contains - the
+# design rationale previously recorded on these two classes lives there
+# now.

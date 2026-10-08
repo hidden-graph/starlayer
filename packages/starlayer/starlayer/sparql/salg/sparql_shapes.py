@@ -151,7 +151,7 @@ def validate_query(data_graph: Graph) -> tuple[bool, Graph, str]:
     LLM-authored ``salg:`` graph not yet decoded) against the shapes above.
 
     Runs with RDFS reasoning enabled (``ont_graph=ontology_graph()``,
-    ``inference="rdfs"``) - this is what lets ``GraphPatternShape``/
+    ``inference=ENTAILMENT.RDFS``) - this is what lets ``GraphPatternShape``/
     ``ExpressionShape``/``SubSelectShape`` be a single ``sh:class`` check
     against an abstract superclass (``salg:GraphPattern``/``salg:Expression``/
     ``salg:SubSelect``) instead of enumerating every concrete
@@ -177,6 +177,7 @@ def validate_query(data_graph: Graph) -> tuple[bool, Graph, str]:
     from ``starlayer.shacl``'s own ``ValidationResult``.
     """
     import starlayer.shacl  # lazy: avoids a circular-import deadlock at module load time
+    from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 
     from starlayer.sparql.salg.native_components import register_salg_native_components
 
@@ -199,7 +200,7 @@ def validate_query(data_graph: Graph) -> tuple[bool, Graph, str]:
             data_graph,
             shacl_graph=shapes_graph(),
             ont_graph=ontology_graph(),
-            inference="rdfs",
+            inference=ENTAILMENT.RDFS,
             advanced=True,
             max_validation_depth=100,
         )

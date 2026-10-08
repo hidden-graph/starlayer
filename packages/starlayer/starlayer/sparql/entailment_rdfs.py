@@ -35,7 +35,7 @@ rdfs:Resource), rdfs8 (every rdfs:Class is rdfs:subClassOf rdfs:Resource),
 rdfs12/rdfs13 (container-membership-property/datatype axioms), and the
 ~30 fixed RDFS axiomatic triples (e.g. rdf:type rdfs:domain rdfs:Resource).
 Confirmed live against owlrl.RDFS_Semantics that these account for most of
-the triple growth on a real closure - StarLayerGraph.infer(profile="rdfs")
+the triple growth on a real closure - StarLayerGraph.infer(profile=ENTAILMENT.RDFS)
 still produces all of it for a caller who wants byte-for-byte RDFS
 completeness; this rewrite targets the rules that actually answer a
 question about the data.
@@ -60,6 +60,7 @@ from rdflib import RDF, RDFS, URIRef, Variable
 from rdflib.paths import MulPath, Path, SequencePath
 from rdflib.plugins.sparql.algebra import traverse
 from rdflib.plugins.sparql.parserutils import CompValue
+from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 
 __all__ = ["rewrite_algebra_for_rdfs"]
 

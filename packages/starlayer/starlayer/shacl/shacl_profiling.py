@@ -5,7 +5,7 @@ Not flattened into `starlayer.shacl`'s own top-level namespace (2026-10-06
 decision, mirroring `starlayer.sparql.srl`/`sqe`'s own precedent).
 Aggregates two sibling implementation files that between them cover this
 one spec document - `profiles.py` (the `ValidationProfile` data model,
-used internally by `StarLayerShaclProcessor.validate()`'s own
+used internally by `StarShaclSchema.validate()`'s own
 `profile=` parameter) and `profiling.py` (the §3/§5.5-specific
 conformance-declaration/`sh:conformsTo`-derivation helpers) - under one
 spec-concept-named import, rather than a caller needing to know this

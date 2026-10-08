@@ -2,7 +2,7 @@
 starlayer.graph.graph._timeout
 
 A general wall-clock timeout for OWL-DL reasoning calls
-(`infer(profile="owl-dl", engine=...)`, either engine) - defense-in-depth
+(`infer(profile=ENTAILMENT["OWL-Direct"], engine=...)`, either engine) - defense-in-depth
 against a hang no pre-flight structural check has been written for yet.
 `owl_dl_rustdl.py`'s own `_check_rustdl_hang_risk()` covers one known,
 specific hang pattern (fast, a few milliseconds, a clear "here's exactly
@@ -61,6 +61,7 @@ import os
 import signal
 import time
 from typing import Any, Callable
+from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 
 DEFAULT_TIMEOUT_SECONDS = 120.0
 

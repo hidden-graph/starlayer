@@ -8,20 +8,20 @@ packages/sparql/tests/unit/test_entailment_rdf.py and test_entailment_rdfs.py
 for the pure rewrite functions' own unit coverage; this file exercises all
 three supported values through the real StarLayerGraph.query() path.
 
-entailment="rdf" rewrites the query at query time (starlayer.sparql.entailment_rdf,
+entailment=ENTAILMENT.RDF rewrites the query at query time (starlayer.sparql.entailment_rdf,
 wired in via query_cache.py::prepare_query_cached) - no data copy. Covers
 just rdfD2 (every predicate used anywhere is entailed rdf:type rdf:Property) -
 see entailment_rdf.py's own module docstring for exactly what's covered and
 why, and its scoping boundary (only triggers for the specific class
 rdf:Property, not a variable class).
-entailment="rdfs" rewrites the query at query time (starlayer.sparql.entailment_rdfs,
+entailment=ENTAILMENT.RDFS rewrites the query at query time (starlayer.sparql.entailment_rdfs,
 wired in via query_cache.py::prepare_query_cached) - no data copy. Covers the
 full RDFS ruleset's "data" rules (subClassOf/subPropertyOf transitivity,
 subclass/domain/range-driven type entailment, subproperty entailment) -
 deliberately not the "vocabulary-level" rules (universal rdfs:Resource
 typing, the fixed axiomatic triples) - see entailment_rdfs.py's own
 module docstring for exactly what's covered and why.
-entailment="owl-rl" queries a materialized RDFS/OWL-RL closure (via infer()),
+entailment=ENTAILMENT["OWL-RDF-Based"] queries a materialized RDFS/OWL-RL closure (via infer()),
 cached on the graph (self._owl_rl_cache) and reused across calls according to
 the separate infer= kwarg ("changed" (default) recomputes only after a real
 mutation, tracked via self._mutation_generation/_on_mutated(); "always"
@@ -30,8 +30,8 @@ computing only when nothing is cached yet - see TestEntailmentOwlRlCaching).
 
 Per this project's own testing discipline (starlayer.sparql/CLAUDE.md: "any new
 query/update shape needs an execution-comparison test, not just a
-structural one"), several tests compare entailment="rdfs" results directly
-against entailment="owl-rl" (or StarLayerGraph.infer()'s materialized
+structural one"), several tests compare entailment=ENTAILMENT.RDFS results directly
+against entailment=ENTAILMENT["OWL-RDF-Based"] (or StarLayerGraph.infer()'s materialized
 closure) - a convenient, already-tested oracle for "what should RDFS
 entailment produce over this data", without needing a live owlrl call in
 every test.
@@ -42,6 +42,7 @@ from rdflib import RDFS
 import pytest
 
 from starlayer.graph import RDF, Namespace, StarLayerGraph
+from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 
 EX = Namespace("http://example.org/")
 
@@ -64,18 +65,18 @@ def _graph() -> StarLayerGraph:
 
 class TestEntailmentIsPerQueryNotPerGraph:
     def test_unsupported_entailment_raises(self):
-        with pytest.raises(NotImplementedError, match="rdfs"):
+        with pytest.raises(NotImplementedError, match="entailment must be one of"):
             _graph().query(_QUERY, entailment="owl")
 
     def test_rdfs_entailment_rejected_on_native_backend(self):
         g = StarLayerGraph(backend="rdf-1.2")
         with pytest.raises(NotImplementedError, match="native"):
-            g.query(_QUERY, entailment="rdfs")
+            g.query(_QUERY, entailment=ENTAILMENT.RDFS)
 
     def test_rdf_entailment_rejected_on_native_backend(self):
         g = StarLayerGraph(backend="rdf-1.2")
         with pytest.raises(NotImplementedError, match="native"):
-            g.query(_QUERY, entailment="rdf")
+            g.query(_QUERY, entailment=ENTAILMENT.RDF)
 
     def test_native_entailment_rejected_on_default_backend(self):
         with pytest.raises(NotImplementedError, match="rdf-1.2"):
@@ -94,8 +95,8 @@ class TestEntailmentIsPerQueryNotPerGraph:
     def test_one_graph_answers_different_entailment_per_call(self):
         g = _graph()
         assert list(g.query(_QUERY)) == []
-        assert [str(r.x) for r in g.query(_QUERY, entailment="rdfs")] == [str(EX.alice)]
-        assert [str(r.x) for r in g.query(_QUERY, entailment="owl-rl")] == [str(EX.alice)]
+        assert [str(r.x) for r in g.query(_QUERY, entailment=ENTAILMENT.RDFS)] == [str(EX.alice)]
+        assert [str(r.x) for r in g.query(_QUERY, entailment=ENTAILMENT["OWL-RDF-Based"])] == [str(EX.alice)]
         # plain again - not left in a rewritten/materialized state by the
         # earlier calls, since entailment is per-call, not sticky
         assert list(g.query(_QUERY)) == []
@@ -106,19 +107,19 @@ class TestQueryTimeRdfsRewrite:
         assert list(_graph().query(_QUERY)) == []
 
     def test_entailment_rdfs_finds_the_subclass_fact(self):
-        rows = _graph().query(_QUERY, entailment="rdfs")
+        rows = _graph().query(_QUERY, entailment=ENTAILMENT.RDFS)
         assert [str(r.x) for r in rows] == [str(EX.alice)]
 
     def test_no_data_is_copied_or_added(self):
         g = _graph()
         before = len(g)
-        list(g.query(_QUERY, entailment="rdfs"))
+        list(g.query(_QUERY, entailment=ENTAILMENT.RDFS))
         assert len(g) == before == 2
 
     def test_repeated_call_hits_the_prepared_query_cache_and_stays_correct(self):
         g = _graph()
-        first = [str(r.x) for r in g.query(_QUERY, entailment="rdfs")]
-        second = [str(r.x) for r in g.query(_QUERY, entailment="rdfs")]
+        first = [str(r.x) for r in g.query(_QUERY, entailment=ENTAILMENT.RDFS)]
+        second = [str(r.x) for r in g.query(_QUERY, entailment=ENTAILMENT.RDFS)]
         assert first == second == [str(EX.alice)]
 
     def test_matches_infer_oracle_for_a_richer_hierarchy(self):
@@ -126,9 +127,9 @@ class TestQueryTimeRdfsRewrite:
         g.add((EX.Employee, RDFS.subClassOf, EX.Person))
         q = "PREFIX ex: <http://example.org/> SELECT ?x WHERE { ?x a ex:Person }"
 
-        rewritten = {str(r.x) for r in g.query(q, entailment="rdfs")}
+        rewritten = {str(r.x) for r in g.query(q, entailment=ENTAILMENT.RDFS)}
 
-        oracle = g.infer(profile="rdfs")
+        oracle = g.infer(profile=ENTAILMENT.RDFS)
         materialized = {str(s) for s in oracle.subjects(RDF.type, EX.Person)}
 
         assert rewritten == materialized == {str(EX.alice)}
@@ -144,9 +145,9 @@ class TestQueryTimeRdfsRewrite:
         """, format="turtle12")
         q = "PREFIX ex: <http://example.org/> SELECT ?x WHERE { ?x a ex:Person }"
 
-        rewritten = {str(r.x) for r in g.query(q, entailment="rdfs")}
+        rewritten = {str(r.x) for r in g.query(q, entailment=ENTAILMENT.RDFS)}
 
-        oracle = g.infer(profile="rdfs")
+        oracle = g.infer(profile=ENTAILMENT.RDFS)
         materialized = {str(s) for s in oracle.subjects(RDF.type, EX.Person)}
 
         assert rewritten == materialized == {str(EX.alice)}
@@ -162,9 +163,9 @@ class TestQueryTimeRdfsRewrite:
         """, format="turtle12")
         q = "PREFIX ex: <http://example.org/> SELECT ?x WHERE { ?x a ex:Organization }"
 
-        rewritten = {str(r.x) for r in g.query(q, entailment="rdfs")}
+        rewritten = {str(r.x) for r in g.query(q, entailment=ENTAILMENT.RDFS)}
 
-        oracle = g.infer(profile="rdfs")
+        oracle = g.infer(profile=ENTAILMENT.RDFS)
         materialized = {str(s) for s in oracle.subjects(RDF.type, EX.Organization)}
 
         assert rewritten == materialized == {str(EX.Acme)}
@@ -180,16 +181,16 @@ class TestQueryTimeRdfsRewrite:
         """, format="turtle12")
         q = "PREFIX ex: <http://example.org/> SELECT ?x WHERE { ex:alice ex:hasRelative ?x }"
 
-        rewritten = {str(r.x) for r in g.query(q, entailment="rdfs")}
+        rewritten = {str(r.x) for r in g.query(q, entailment=ENTAILMENT.RDFS)}
 
-        oracle = g.infer(profile="rdfs")
+        oracle = g.infer(profile=ENTAILMENT.RDFS)
         materialized = {str(o) for o in oracle.objects(EX.alice, EX.hasRelative)}
 
         assert rewritten == materialized == {str(EX.bob)}
 
 
 class TestQueryTimeRdfEntailment:
-    """entailment="rdf" - the SPARQL spec's RDF Entailment regime (one step
+    """entailment=ENTAILMENT.RDF - the SPARQL spec's RDF Entailment regime (one step
     weaker than RDFS): rdfD2 only, "every predicate used anywhere is
     entailed rdf:type rdf:Property" - see starlayer.sparql.entailment_rdf's own
     module docstring for the full scope and why. Pure unit coverage of the
@@ -205,7 +206,7 @@ class TestQueryTimeRdfEntailment:
     def test_entailment_rdf_finds_predicates_used_in_the_graph(self):
         g = _graph()
         q = "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> SELECT ?p WHERE { ?p a rdf:Property }"
-        rows = {str(r.p) for r in g.query(q, entailment="rdf")}
+        rows = {str(r.p) for r in g.query(q, entailment=ENTAILMENT.RDF)}
         # _DATA uses rdfs:subClassOf and rdf:type (via "a") as predicates
         assert rows == {str(RDFS.subClassOf), str(RDF.type)}
 
@@ -213,7 +214,7 @@ class TestQueryTimeRdfEntailment:
         g = _graph()
         before = len(g)
         q = "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> SELECT ?p WHERE { ?p a rdf:Property }"
-        list(g.query(q, entailment="rdf"))
+        list(g.query(q, entailment=ENTAILMENT.RDF))
         assert len(g) == before
 
     def test_variable_class_query_is_not_rewritten(self):
@@ -223,7 +224,7 @@ class TestQueryTimeRdfEntailment:
         g = _graph()
         q = "SELECT ?x ?c WHERE { ?x a ?c }"
         plain = {(str(r.x), str(r.c)) for r in g.query(q)}
-        rewritten = {(str(r.x), str(r.c)) for r in g.query(q, entailment="rdf")}
+        rewritten = {(str(r.x), str(r.c)) for r in g.query(q, entailment=ENTAILMENT.RDF)}
         assert plain == rewritten == {(str(EX.alice), str(EX.Manager))}
 
 
@@ -231,13 +232,13 @@ class TestEntailmentOwlRl:
     def test_no_data_is_copied_or_added_to_self(self):
         g = _graph()
         before = len(g)
-        list(g.query(_QUERY, entailment="owl-rl"))
+        list(g.query(_QUERY, entailment=ENTAILMENT["OWL-RDF-Based"]))
         assert len(g) == before == 2
 
     def test_matches_rdfs_rewrite_for_the_subclass_case(self):
         g = _graph()
-        via_rewrite = [str(r.x) for r in g.query(_QUERY, entailment="rdfs")]
-        via_materialization = [str(r.x) for r in g.query(_QUERY, entailment="owl-rl")]
+        via_rewrite = [str(r.x) for r in g.query(_QUERY, entailment=ENTAILMENT.RDFS)]
+        via_materialization = [str(r.x) for r in g.query(_QUERY, entailment=ENTAILMENT["OWL-RDF-Based"])]
         assert via_rewrite == via_materialization == [str(EX.alice)]
 
     def test_covers_owl_constructs_rdfs_rewrite_cannot(self):
@@ -251,71 +252,71 @@ class TestEntailmentOwlRl:
         """, format="turtle12")
         q = "PREFIX ex: <http://example.org/> SELECT ?x WHERE { ?x a ex:TeamLead }"
 
-        assert list(g.query(q, entailment="rdfs")) == []
-        assert [str(r.x) for r in g.query(q, entailment="owl-rl")] == [str(EX.alice)]
+        assert list(g.query(q, entailment=ENTAILMENT.RDFS)) == []
+        assert [str(r.x) for r in g.query(q, entailment=ENTAILMENT["OWL-RDF-Based"])] == [str(EX.alice)]
 
     def test_default_infer_changed_mode_reflects_a_mutation_in_between(self):
         # the default infer="changed" mode recomputes after a real mutation
         # - no explicit "re-run reasoning" step needed after a graph edit.
         g = _graph()
-        assert [str(r.x) for r in g.query(_QUERY, entailment="owl-rl")] == [str(EX.alice)]
+        assert [str(r.x) for r in g.query(_QUERY, entailment=ENTAILMENT["OWL-RDF-Based"])] == [str(EX.alice)]
 
         g.add((EX.bob, RDF.type, EX.Manager))
-        rows = sorted(str(r.x) for r in g.query(_QUERY, entailment="owl-rl"))
+        rows = sorted(str(r.x) for r in g.query(_QUERY, entailment=ENTAILMENT["OWL-RDF-Based"]))
         assert rows == [str(EX.alice), str(EX.bob)]
 
 
 class TestEntailmentOwlRlCaching:
     def test_unchanged_graph_reuses_the_identical_cached_closure(self):
         g = _graph()
-        list(g.query(_QUERY, entailment="owl-rl"))
+        list(g.query(_QUERY, entailment=ENTAILMENT["OWL-RDF-Based"]))
         first = g._owl_rl_cache[0]
-        list(g.query(_QUERY, entailment="owl-rl"))
+        list(g.query(_QUERY, entailment=ENTAILMENT["OWL-RDF-Based"]))
         second = g._owl_rl_cache[0]
         assert first is second
 
     def test_changed_mode_recomputes_after_a_mutation(self):
         g = _graph()
-        list(g.query(_QUERY, entailment="owl-rl", infer="changed"))
+        list(g.query(_QUERY, entailment=ENTAILMENT["OWL-RDF-Based"], infer="changed"))
         first = g._owl_rl_cache[0]
 
         g.add((EX.bob, RDF.type, EX.Manager))
-        list(g.query(_QUERY, entailment="owl-rl", infer="changed"))
+        list(g.query(_QUERY, entailment=ENTAILMENT["OWL-RDF-Based"], infer="changed"))
         second = g._owl_rl_cache[0]
 
         assert first is not second
 
     def test_always_mode_recomputes_even_with_no_mutation(self):
         g = _graph()
-        list(g.query(_QUERY, entailment="owl-rl", infer="always"))
+        list(g.query(_QUERY, entailment=ENTAILMENT["OWL-RDF-Based"], infer="always"))
         first = g._owl_rl_cache[0]
-        list(g.query(_QUERY, entailment="owl-rl", infer="always"))
+        list(g.query(_QUERY, entailment=ENTAILMENT["OWL-RDF-Based"], infer="always"))
         second = g._owl_rl_cache[0]
         assert first is not second
 
     def test_cached_mode_serves_stale_results_after_a_mutation(self):
         g = _graph()
-        assert [str(r.x) for r in g.query(_QUERY, entailment="owl-rl", infer="cached")] == [str(EX.alice)]
+        assert [str(r.x) for r in g.query(_QUERY, entailment=ENTAILMENT["OWL-RDF-Based"], infer="cached")] == [str(EX.alice)]
 
         g.add((EX.bob, RDF.type, EX.Manager))
         # infer="cached" deliberately does not notice bob was added - it
         # reuses whatever is cached as long as something is cached at all
-        rows = [str(r.x) for r in g.query(_QUERY, entailment="owl-rl", infer="cached")]
+        rows = [str(r.x) for r in g.query(_QUERY, entailment=ENTAILMENT["OWL-RDF-Based"], infer="cached")]
         assert rows == [str(EX.alice)]
 
     def test_cached_mode_computes_once_when_nothing_cached_yet(self):
         g = _graph()
-        rows = [str(r.x) for r in g.query(_QUERY, entailment="owl-rl", infer="cached")]
+        rows = [str(r.x) for r in g.query(_QUERY, entailment=ENTAILMENT["OWL-RDF-Based"], infer="cached")]
         assert rows == [str(EX.alice)]
         assert g._owl_rl_cache is not None
 
     def test_unsupported_infer_mode_raises(self):
         g = _graph()
         with pytest.raises(ValueError, match="bogus"):
-            g.query(_QUERY, entailment="owl-rl", infer="bogus")
+            g.query(_QUERY, entailment=ENTAILMENT["OWL-RDF-Based"], infer="bogus")
 
     def test_infer_kwarg_is_ignored_without_entailment_owl_rl(self):
-        # infer= is only meaningful for entailment="owl-rl" - an invalid
+        # infer= is only meaningful for entailment=ENTAILMENT["OWL-RDF-Based"] - an invalid
         # value should be silently irrelevant otherwise, not raise.
         g = _graph()
         rows = list(g.query(_QUERY, infer="bogus"))
@@ -323,7 +324,7 @@ class TestEntailmentOwlRlCaching:
 
 
 class TestEntailmentOwlRlUnionDesign:
-    """Phase D: entailment="owl-rl" queries the live union of self and a
+    """Phase D: entailment=ENTAILMENT["OWL-RDF-Based"] queries the live union of self and a
     small cached delta, instead of caching a full closure copy - see
     _UnionForQuery and query()'s owl-rl branch."""
 
@@ -348,9 +349,9 @@ class TestEntailmentOwlRlUnionDesign:
         """, format="turtle12")
         q = "PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#> SELECT ?x ?y WHERE { ?x rdfs:subClassOf+ ?y }"
 
-        via_union = sorted((str(r.x), str(r.y)) for r in g.query(q, entailment="owl-rl"))
+        via_union = sorted((str(r.x), str(r.y)) for r in g.query(q, entailment=ENTAILMENT["OWL-RDF-Based"]))
 
-        closure = g.infer(profile="owl-rl")
+        closure = g.infer(profile=ENTAILMENT["OWL-RDF-Based"])
         oracle = Graph()
         for t in closure:
             oracle.add(t)
@@ -376,7 +377,7 @@ class TestEntailmentOwlRlUnionDesign:
         g.add_reification(EX.claim, TripleTerm(EX.bob, EX.knows, EX.carol))
         assert g._tt_registry  # sanity: this graph really does exercise the fallback path
 
-        rows = [str(r.x) for r in g.query(_QUERY, entailment="owl-rl")]
+        rows = [str(r.x) for r in g.query(_QUERY, entailment=ENTAILMENT["OWL-RDF-Based"])]
         assert rows == [str(EX.alice)]
 
     def test_cache_holds_only_new_triples_not_a_copy_of_self(self):
@@ -393,7 +394,7 @@ class TestEntailmentOwlRlUnionDesign:
         for i in range(50):
             g.add((EX[f"thing{i}"], EX.marker, EX[f"value{i}"]))
 
-        list(g.query(_QUERY, entailment="owl-rl"))
+        list(g.query(_QUERY, entailment=ENTAILMENT["OWL-RDF-Based"]))
 
         delta = g._owl_rl_cache[0]
         for t in g:
@@ -419,7 +420,7 @@ class TestEntailmentOwlRlCorrectness:
         """, format="turtle12")
         q = "PREFIX ex: <http://example.org/> SELECT ?x WHERE { ex:SalesTeam ex:partOf ?x }"
 
-        via_query = {str(r.x) for r in g.query(q, entailment="owl-rl")}
+        via_query = {str(r.x) for r in g.query(q, entailment=ENTAILMENT["OWL-RDF-Based"])}
 
         oracle = Graph()
         for t in g:

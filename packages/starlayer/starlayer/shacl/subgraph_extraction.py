@@ -1,4 +1,4 @@
-"""``StarLayerShaclProcessor.extract_subgraph()`` - given a focus node that
+"""``StarShaclSchema.extract_subgraph()`` - given a focus node that
 conforms to a shape, extract exactly the subgraph of *real, stored* triples
 that shape's constraints covered for that node.
 
@@ -28,6 +28,30 @@ summarized here so the code and its rationale stay together):
    satisfied via a node expression is resolved back to whichever real
    triples it actually read.
 
+**Entailment (2026-10-07, ``inference=`` vocabulary updated 2026-10-08)**:
+``shacl_graph``'s own declared ``sh:entailment`` regime(s), plus an optional
+``inference=`` keyword (a real ``ENTAILMENT.*`` IRI, or an iterable of them -
+the same vocabulary ``sh:entailment`` itself uses, not pySHACL's own strings -
+see ``starlayer.shacl.entailment``'s own module docstring) and an optional
+``ont_graph``, are applied once, up front, onto a private, non-mutating copy of
+``data_graph`` - both the conformance re-check (``_shape_conforms``) and the
+extraction walk (``_extract``/``_walk_path``) run against that entailed copy,
+so they agree with whatever entailment the caller's own original ``validate()``
+call used (found via a direct user question: re-checking conformance without
+it could silently disagree with the validation that supposedly already
+confirmed the node conforms). **Decision 5 above still holds strictly for the
+*output* though** - confirmed via direct user decision, not assumed: an
+entailed triple may be *read* to satisfy a constraint (same as any real one),
+but the final triple set is intersected back against the real, pre-entailment
+``data_graph`` before returning, so an entailed-only triple never actually
+appears in ``extracted_graph`` - entailment only ever corrects *which*
+triples/constraints are considered to hold, never contributes new ones to
+what's extracted. This is the opposite choice from ``evaluate()``'s own
+entailment handling (which does let entailed values appear in its own
+returned subgraph) - the two functions have a genuinely different
+relationship to "what counts as real" for their own stated purposes, not an
+inconsistency to resolve uniformly.
+
 Known, deliberate simplification for this first implementation: ``sh:not``
 contributes no additional triples (there is no well-defined "witness" of a
 shape *not* matching, unlike the other logical constraints). Flagged as a
@@ -48,8 +72,6 @@ from typing import Any, FrozenSet, Set, Tuple
 
 from rdflib import BNode, Literal
 from rdflib.namespace import RDF, SH
-
-from starlayer.shacl.results import SubgraphExtractionResult  # noqa: F401 - re-exported, see module docstring
 
 _Triple = Tuple[Any, Any, Any]
 
@@ -287,10 +309,25 @@ def _extract(
     return triples
 
 
-def extract_subgraph(data_graph: Any, shacl_graph: Any, shape: Any, focus_node: Any):
-    """Implements ``StarLayerShaclProcessor.extract_subgraph()`` - see module
-    docstring for the design this follows. Returns a
-    ``starlayer.shacl.results.SubgraphExtractionResult``.
+def extract_subgraph(
+    data_graph: Any,
+    shape: Any,
+    focus_node: Any,
+    shacl_graph: Any | None = None,
+    ont_graph: Any | None = None,
+    *,
+    inference: Any | None = None,
+) -> Any | None:
+    """Implements ``StarShaclSchema.extract_subgraph()`` - see module
+    docstring for the design this follows. Returns the extracted subgraph
+    itself (a plain graph object) - or ``None`` if ``focus_node`` doesn't
+    actually conform to ``shape`` (2026-10-08: previously wrapped in a
+    now-removed ``SubgraphExtractionResult``, which had shrunk to this
+    exact graph-or-``None`` shape with nothing else attached - see
+    ``results.py``'s own comment for the full reasoning). This method
+    assumes conformance as a precondition the caller has already checked,
+    rather than existing to diagnose non-conformance - there is no
+    separate report explaining a ``None`` result.
 
     ``shacl_graph`` is a raw shapes graph (already normalized by the caller,
     matching ``evaluate()``'s own calling convention) - wrapped here into a
@@ -302,12 +339,29 @@ def extract_subgraph(data_graph: Any, shacl_graph: Any, shape: Any, focus_node: 
     class-hierarchy axiom triples for its own implicit-class-target
     support), which would otherwise silently pollute the caller's
     ``shacl_graph`` as an unrelated side effect of calling this function.
+
+    ``shacl_graph=None`` (2026-10-08) falls back to ``data_graph`` itself -
+    matching ``validate()``'s own "data graph doubles as shapes graph"
+    allowance, for a data file carrying its own embedded shapes. Parameter
+    order changed the same day (``shape``/``focus_node`` moved ahead of
+    ``shacl_graph``/``ont_graph``) so the two truly-required parameters
+    stay positional-required while ``shacl_graph`` gets a default - no
+    direct callers of this bare function existed outside
+    ``StarShaclSchema.extract_subgraph()`` (which calls by position and was
+    updated alongside this).
+
+    ``ont_graph``/``inference=`` (2026-10-07): see the module docstring's
+    own dated entry for the full design - entailment feeds the conformance
+    re-check and the extraction walk, but the returned triples are
+    intersected back against the real, pre-entailment ``data_graph`` before
+    returning, so an entailed-only triple never appears in the output.
     """
+    if shacl_graph is None:
+        shacl_graph = data_graph
+
     from pyshacl.shapes_graph import ShapesGraph
 
     from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-
-    from starlayer.shacl.results import SubgraphExtractionResult
 
     shacl_graph_copy = StarLayerGraph()
     for prefix, ns in shacl_graph.namespaces():
@@ -318,16 +372,23 @@ def extract_subgraph(data_graph: Any, shacl_graph: Any, shape: Any, focus_node: 
     sg = ShapesGraph(shacl_graph_copy)
     sg.shapes  # noqa: B018 - property getter triggers shape-cache harvest
 
-    if not _shape_conforms(sg, shape, data_graph, focus_node):
-        return SubgraphExtractionResult(conforms=False, data_graph=None)
+    base_triples = frozenset(data_graph)
+
+    from starlayer.shacl.entailment import apply_entailment
+
+    entailed_data_graph = apply_entailment(data_graph, shacl_graph, ont_graph, inplace=False, inference=inference)
+
+    if not _shape_conforms(sg, shape, entailed_data_graph, focus_node):
+        return None
 
     shape_obj = sg.lookup_shape_from_node(shape)
-    triples = _extract(data_graph, sg, shape_obj, focus_node, frozenset())
+    triples = _extract(entailed_data_graph, sg, shape_obj, focus_node, frozenset())
+    triples &= base_triples
 
     result_graph = StarLayerGraph()
     for t in triples:
         result_graph.add(t)
-    return SubgraphExtractionResult(conforms=True, data_graph=result_graph)
+    return result_graph
 
 
 def _remove_rdf_list(graph: Any, list_node: Any) -> None:
@@ -338,7 +399,7 @@ def _remove_rdf_list(graph: Any, list_node: Any) -> None:
         list_node = next_node
 
 
-def close_shape(shacl_graph: Any, shape: Any) -> Any:
+def _close_shape(shacl_graph: Any, shape: Any) -> Any:
     """Return a *copy* of ``shacl_graph`` (the original is never mutated) in
     which ``shape`` - and every shape it recursively references in a way
     that describes a value node's *complete* property set (``sh:node``,
@@ -360,6 +421,11 @@ def close_shape(shacl_graph: Any, shape: Any) -> Any:
     entry doesn't claim to describe its value nodes' *complete* property
     set, so closing it would incorrectly require those values to have zero
     other properties.
+
+    Private (2026-10-07: previously the public ``starlayer.shacl.close_shape()``
+    function) - reach this through :meth:`StarShaclSchema.close_shape` instead,
+    which binds ``self.shacl_graph`` rather than taking it as a parameter,
+    matching every other processing mode on that class.
     """
     result = type(shacl_graph)()
     for prefix, ns in shacl_graph.namespaces():

@@ -62,7 +62,7 @@ Four distinct test-entry shapes exist, each needing its own runner:
 ## Scope decision: what this plan covers now vs. defers
 
 **In scope**: `sht:Validate`, `sht:EvalNodeExpr`, `sht:Infer` - all three map directly onto
-`StarLayerShaclProcessor.validate()` / `apply_rules()` / `starshacl.node_expressions.eval_expr()`,
+`StarShaclSchema.validate()` / `apply_rules()` / `starshacl.node_expressions.eval_expr()`,
 the library's actual public surface. This is 291 of the 391 leaf-level RDF test files (158 + 31 + 102).
 
 **Deferred, not built**: the `rules/` SRL text-syntax tests. `docs/shacl12-gap-matrix.md`'s
@@ -115,7 +115,7 @@ New package: `tests/w3c_shacl12/` (parallel to `tests/integration/`, `tests/unit
 - **Per-test-type runner + comparator, one module each:**
   - `test_w3c_validate.py` (`sht:Validate`): loads `sht:dataGraph`/`sht:shapesGraph` (usually
     the same parsed file, occasionally distinct sibling files - resolved generically by IRI,
-    not hardcoded to `<>`), calls `StarLayerShaclProcessor().validate(...)`. For an inline
+    not hardcoded to `<>`), calls `StarShaclSchema().validate(...)`. For an inline
     `sh:ValidationReport` expectation: compare `conforms` first (cheap, catches the common
     case fast), then compare the **multiset** of `sh:result` entries structurally - by
     `(focusNode, resultPath, sourceConstraintComponent, value, severity)` tuples, not graph
@@ -133,7 +133,7 @@ New package: `tests/w3c_shacl12/` (parallel to `tests/integration/`, `tests/unit
     action. Compares the returned node list against `mf:result`'s `rdf:List`, order-sensitive
     unless `sht:ignoreOrder` is present (in which case compare as multisets).
   - `test_w3c_infer.py` (`sht:Infer`): snapshot the data graph, call
-    `StarLayerShaclProcessor().apply_rules(...)`, diff added triples against the snapshot, compare
+    `StarShaclSchema().apply_rules(...)`, diff added triples against the snapshot, compare
     against `mf:result`'s `rdf:List` of `(s p o)` triples as a set.
 - **Pytest wiring**: each runner module uses `pytest_generate_tests` (or an equivalent
   fixture-parametrization) to walk the relevant vendored manifest at collection time and

@@ -17,7 +17,7 @@ import pytest
 from rdflib import Literal, Namespace, URIRef
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.graph.model.triple import TripleTerm
-from starlayer.shacl import StarLayerShaclProcessor
+from starlayer.shacl import StarShaclSchema
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
@@ -82,21 +82,20 @@ def test_source_rule_provenance_off_by_default_adds_nothing() -> None:
     shapes = _two_rule_shapes()
     data = _two_rule_data()
 
-    result = StarLayerShaclProcessor().apply_rules(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
 
-    assert (EX.Alice, EX.isAdult, Literal(True)) in result.data_graph
-    assert (EX.Alice, EX.hasName, Literal(True)) in result.data_graph
-    assert next(result.data_graph.triples((None, REIFIES, None)), None) is None
-    assert next(result.data_graph.triples((None, SH.sourceRule, None)), None) is None
+    assert (EX.Alice, EX.isAdult, Literal(True)) in result.inferred_graph
+    assert (EX.Alice, EX.hasName, Literal(True)) in result.inferred_graph
+    assert next(result.inferred_graph.triples((None, REIFIES, None)), None) is None
+    assert next(result.inferred_graph.triples((None, SH.sourceRule, None)), None) is None
 
 
 def test_source_rule_provenance_attributes_each_triple_to_its_own_rule() -> None:
     shapes = _two_rule_shapes()
     data = _two_rule_data()
 
-    result = StarLayerShaclProcessor().apply_rules(
+    result = StarShaclSchema(shacl_graph=shapes).apply_rules(
         data_graph=data,
-        shacl_graph=shapes,
         meta_shacl=False,
         include_source_rule_provenance=True,
     )
@@ -104,11 +103,11 @@ def test_source_rule_provenance_attributes_each_triple_to_its_own_rule() -> None
     age_triple = TripleTerm(EX.Alice, EX.isAdult, Literal(True))
     name_triple = TripleTerm(EX.Alice, EX.hasName, Literal(True))
 
-    assert _source_rule_for(result.data_graph, age_triple) == {EX.AgeRule}
-    assert _source_rule_for(result.data_graph, name_triple) == {EX.NameRule}
+    assert _source_rule_for(result.inferred_graph, age_triple) == {EX.AgeRule}
+    assert _source_rule_for(result.inferred_graph, name_triple) == {EX.NameRule}
     # Not swapped/merged - each triple's provenance is exclusively its own rule.
-    assert EX.NameRule not in _source_rule_for(result.data_graph, age_triple)
-    assert EX.AgeRule not in _source_rule_for(result.data_graph, name_triple)
+    assert EX.NameRule not in _source_rule_for(result.inferred_graph, age_triple)
+    assert EX.AgeRule not in _source_rule_for(result.inferred_graph, name_triple)
 
 
 def test_source_rule_provenance_covers_global_sparql_rules_too() -> None:
@@ -136,16 +135,15 @@ def test_source_rule_provenance_covers_global_sparql_rules_too() -> None:
         format="turtle",
     )
 
-    result = StarLayerShaclProcessor().apply_rules(
+    result = StarShaclSchema(shacl_graph=shapes).apply_rules(
         data_graph=data,
-        shacl_graph=shapes,
         meta_shacl=False,
         include_source_rule_provenance=True,
     )
 
     inferred = TripleTerm(EX.Caren, EX.friend, EX.Bob)
-    assert (EX.Caren, EX.friend, EX.Bob) in result.data_graph
-    assert _source_rule_for(result.data_graph, inferred) == {EX.SymmetricPropertyRule}
+    assert (EX.Caren, EX.friend, EX.Bob) in result.inferred_graph
+    assert _source_rule_for(result.inferred_graph, inferred) == {EX.SymmetricPropertyRule}
 
 
 def test_source_rule_provenance_not_visible_to_executing_rules() -> None:
@@ -190,15 +188,14 @@ def test_source_rule_provenance_not_visible_to_executing_rules() -> None:
         format="turtle",
     )
 
-    result = StarLayerShaclProcessor().apply_rules(
+    result = StarShaclSchema(shacl_graph=shapes).apply_rules(
         data_graph=data,
-        shacl_graph=shapes,
         meta_shacl=False,
         include_source_rule_provenance=True,
     )
 
-    assert (EX.Alice, EX.hasName, Literal(True)) in result.data_graph
-    assert (EX.Leak, EX.detected, Literal(True)) not in result.data_graph
+    assert (EX.Alice, EX.hasName, Literal(True)) in result.inferred_graph
+    assert (EX.Leak, EX.detected, Literal(True)) not in result.inferred_graph
     # And provenance was still correctly added after execution finished.
     name_triple = TripleTerm(EX.Alice, EX.hasName, Literal(True))
-    assert _source_rule_for(result.data_graph, name_triple) == {EX.NameRule}
+    assert _source_rule_for(result.inferred_graph, name_triple) == {EX.NameRule}

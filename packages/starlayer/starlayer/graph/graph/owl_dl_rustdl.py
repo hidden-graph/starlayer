@@ -2,7 +2,7 @@
 starlayer.graph.graph.owl_dl_rustdl
 
 OWL 2 Direct Semantics reasoning via RustDL - the second engine
-infer(profile="owl-dl") can dispatch to, alongside engine="hermit"
+infer(profile=ENTAILMENT['OWL-Direct']) can dispatch to, alongside engine="hermit"
 (starlayer.graph.graph.owl_dl, the default). Same profile, same
 InconsistentOntologyError contract, same (before, delta) return shape -
 a genuinely different tradeoff, not a strictly-better replacement, which
@@ -110,6 +110,7 @@ from rdflib.namespace import OWL
 
 from starlayer.graph.graph import _timeout
 from starlayer.graph.graph.owl_dl import InconsistentOntologyError, _complete_type_closure
+from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 
 
 # See this module's own docstring, point 4, for the full account of what
@@ -175,7 +176,7 @@ def _require_rustdl():
         import rustdl
     except ImportError as exc:
         raise RuntimeError(
-            "StarLayerGraph.infer(profile='owl-dl', engine='rustdl') "
+            "StarLayerGraph.infer(profile=ENTAILMENT['OWL-Direct'], engine='rustdl') "
             "requires the optional rustdl package - install it with "
             "`pip install starlayer.graph[rustdl]` (or `pip install rustdl` "
             "directly), then retry."
@@ -302,7 +303,7 @@ def classify_owl_dl_rustdl(graph, timeout: float | None = _timeout.DEFAULT_TIMEO
         )
         if status == 'inconsistent':
             raise InconsistentOntologyError(
-                "infer(profile='owl-dl', engine='rustdl') found self's data "
+                "infer(profile=ENTAILMENT['OWL-Direct'], engine='rustdl') found self's data "
                 "logically inconsistent."
             )
 

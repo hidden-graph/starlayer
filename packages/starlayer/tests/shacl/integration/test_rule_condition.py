@@ -2,7 +2,7 @@ import pytest
 from rdflib import Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.graph.model.triple import TripleTerm
-from starlayer.shacl import StarLayerShaclProcessor
+from starlayer.shacl import StarShaclSchema
 
 EX = Namespace("http://example.org/")
 
@@ -49,8 +49,8 @@ def test_condition_admits_conforming_focus_node_only() -> None:
         ex:AdultShape a sh:NodeShape ; sh:class ex:Adult .
     """, format="turtle")
 
-    result = StarLayerShaclProcessor().apply_rules(data_graph=data, shacl_graph=shapes)
-    derived = {s for s, _, _ in result.data_graph.triples((None, EX.eligibleForVoting, None))}
+    result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data)
+    derived = {s for s, _, _ in result.inferred_graph.triples((None, EX.eligibleForVoting, None))}
     assert derived == {EX.alice}
 
 
@@ -75,15 +75,17 @@ def test_condition_over_rdf12_triple_term_valued_property() -> None:
         ex:HasClaimShape a sh:NodeShape ; sh:property [ sh:path ex:claims ; sh:minCount 1 ] .
     """, format="turtle")
 
-    result = StarLayerShaclProcessor().apply_rules(data_graph=data, shacl_graph=shapes)
-    derived = {s for s, _, _ in result.data_graph.triples((None, EX.flagged, None))}
+    result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data)
+    derived = {s for s, _, _ in result.inferred_graph.triples((None, EX.flagged, None))}
     assert derived == {EX.alice}
 
     # The rule's derived triple itself is plain (unrelated to the condition
-    # check), but confirm the source triple term is still intact/unflattened.
+    # check); the source triple term is base data (not rule output), so it
+    # stays in the caller's own, never-mutated data_graph - confirm it's
+    # still intact/unflattened there.
     from rdflib import Literal
 
-    claims = list(result.data_graph.triples((EX.alice, EX.claims, None)))
+    claims = list(data.triples((EX.alice, EX.claims, None)))
     assert claims[0][2] == TripleTerm(EX.bob, EX.age, Literal(42))
 
 
@@ -94,7 +96,7 @@ def test_condition_shape_does_not_need_explicit_typing() -> None:
     unlike sh:someValue/sh:memberShape/sh:reifierShape, which starShacl
     already auto-types via native_components.SHAPE_EXPECTING_PREDICATES/
     ensure_shape_typed before pySHACL ever runs. sh:condition is now in
-    that same list (StarLayerShaclProcessor._ensure_native_component_shapes_typed),
+    that same list (StarShaclSchema._ensure_native_component_shapes_typed),
     so an untyped condition shape works transparently too - one consistent
     fix strategy, not a special case. Covers both the single-reference and
     SHACL-list forms sh:condition accepts.
@@ -120,8 +122,8 @@ def test_condition_shape_does_not_need_explicit_typing() -> None:
         ex:AdultShape sh:class ex:Adult .
     """, format="turtle")
 
-    result = StarLayerShaclProcessor().apply_rules(data_graph=data, shacl_graph=shapes)
-    derived = {s for s, _, _ in result.data_graph.triples((None, EX.eligibleForVoting, None))}
+    result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data)
+    derived = {s for s, _, _ in result.inferred_graph.triples((None, EX.eligibleForVoting, None))}
     assert derived == {EX.alice}
 
     # SHACL-list form, both members deliberately untyped.
@@ -139,8 +141,8 @@ def test_condition_shape_does_not_need_explicit_typing() -> None:
         ex:ActiveShape sh:class ex:Active .
     """, format="turtle")
 
-    result2 = StarLayerShaclProcessor().apply_rules(data_graph=data, shacl_graph=list_shapes)
-    derived2 = {s for s, _, _ in result2.data_graph.triples((None, EX.eligibleForVoting, None))}
+    result2 = StarShaclSchema(shacl_graph=list_shapes).apply_rules(data_graph=data)
+    derived2 = {s for s, _, _ in result2.inferred_graph.triples((None, EX.eligibleForVoting, None))}
     assert derived2 == {EX.alice}
 
 
@@ -164,8 +166,8 @@ def test_condition_excludes_all_focus_nodes_when_none_conform() -> None:
         ex:AdultShape a sh:NodeShape ; sh:class ex:Adult .
     """, format="turtle")
 
-    result = StarLayerShaclProcessor().apply_rules(data_graph=data, shacl_graph=shapes)
-    derived = list(result.data_graph.triples((None, EX.eligibleForVoting, None)))
+    result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data)
+    derived = list(result.inferred_graph.triples((None, EX.eligibleForVoting, None)))
     assert derived == []
 
 
@@ -213,4 +215,4 @@ def test_property_rule_sh_values_is_not_implemented() -> None:
     """, format="turtle")
 
     with pytest.raises(RuleLoadError):
-        StarLayerShaclProcessor().apply_rules(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+        StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)

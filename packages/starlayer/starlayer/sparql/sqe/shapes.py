@@ -60,6 +60,7 @@ def sqe_validate(data_graph: Graph) -> tuple[bool, Graph, str]:
     """
     import starlayer.shacl  # lazy: avoids a circular-import deadlock at module load time
     from pyshacl.errors import ShapeRecursionWarning
+    from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", category=ShapeRecursionWarning)
@@ -67,7 +68,7 @@ def sqe_validate(data_graph: Graph) -> tuple[bool, Graph, str]:
             data_graph,
             shacl_graph=_shapes_graph(),
             ont_graph=_ontology_graph(),
-            inference="rdfs",
+            inference=ENTAILMENT.RDFS,
             advanced=True,
             max_validation_depth=100,
         )

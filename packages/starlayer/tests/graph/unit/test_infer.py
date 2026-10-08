@@ -18,6 +18,7 @@ from rdflib.namespace import OWL
 import pytest
 
 from starlayer.graph import RDF, Namespace, StarLayerGraph, TripleTerm
+from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 
 try:
     import owlrl
@@ -91,6 +92,86 @@ class TestInferRdfs:
             _rdfs_graph().infer(profile="bogus")
 
 
+class TestInferRdf:
+    """ENTAILMENT.RDF is implemented natively (no owlrl dependency) - see
+    _infer_rdf_before_and_delta()'s own docstring for the exact rules
+    (rdfD2 + the finite RDF axiomatic triples actually relevant to the
+    data) and the deliberately-deferred rdfD1/rdfD1a scope reduction.
+    No owlrl oracle to compare against here (unlike every other class in
+    this file) since this regime needs no reasoner at all - the oracle is
+    the spec's own small, fixed rule set, applied by hand below.
+    """
+
+    def test_every_used_predicate_gets_property_typed(self) -> None:
+        g = StarLayerGraph()
+        g.bind("ex", EX)
+        g.add((EX.alice, EX.knows, EX.bob))
+
+        closed = g.infer(profile=ENTAILMENT.RDF)
+
+        assert (EX.knows, RDF.type, RDF.Property) in closed
+
+    def test_does_not_duplicate_an_already_asserted_property_type(self) -> None:
+        g = StarLayerGraph()
+        g.bind("ex", EX)
+        g.add((EX.alice, EX.knows, EX.bob))
+        g.add((EX.knows, RDF.type, RDF.Property))
+
+        delta = set(g.infer(profile=ENTAILMENT.RDF, mode="delta"))
+
+        # The already-asserted fact itself isn't re-derived as "new" -
+        # but using rdf:type as a predicate here (to assert it) is itself
+        # a distinct, genuinely new rdfD2 trigger: rdf:type is now also a
+        # "predicate used in the graph", so rdf:type rdf:type rdf:Property
+        # is correctly entailed too (also one of the fixed RDF axiomatic
+        # triples, independently of rdfD2) - not a bug, a second real
+        # entailment from the same added triple.
+        assert (EX.knows, RDF.type, RDF.Property) not in delta
+        assert delta == {(RDF.type, RDF.type, RDF.Property)}
+
+    def test_axiomatic_triples_only_for_terms_actually_present(self) -> None:
+        g = StarLayerGraph()
+        g.bind("ex", EX)
+        g.add((EX.list1, RDF.first, EX.a))
+        g.add((EX.list1, RDF.rest, RDF.nil))
+        g.add((EX.x, RDF._1, EX.y))
+
+        delta = set(g.infer(profile=ENTAILMENT.RDF, mode="delta"))
+
+        assert delta == {
+            (RDF.first, RDF.type, RDF.Property),
+            (RDF.rest, RDF.type, RDF.Property),
+            (RDF.nil, RDF.type, RDF.List),
+            (RDF._1, RDF.type, RDF.Property),
+        }
+        # None of the OTHER fixed axiomatic terms (subject/predicate/
+        # object/reifies/value) appear, since none of them were actually
+        # used in this graph's own data.
+        assert (RDF.subject, RDF.type, RDF.Property) not in delta
+        assert (REIFIES, RDF.type, RDF.Property) not in delta
+
+    def test_returns_a_new_graph_original_untouched(self) -> None:
+        g = StarLayerGraph()
+        g.bind("ex", EX)
+        g.add((EX.alice, EX.knows, EX.bob))
+        before = set(g)
+
+        closed = g.infer(profile=ENTAILMENT.RDF)
+
+        assert set(g) == before
+        assert closed is not g
+
+    def test_in_place_mutates_self(self) -> None:
+        g = StarLayerGraph()
+        g.bind("ex", EX)
+        g.add((EX.alice, EX.knows, EX.bob))
+
+        result = g.infer(profile=ENTAILMENT.RDF, mode="in-place")
+
+        assert result is g
+        assert (EX.knows, RDF.type, RDF.Property) in g
+
+
 @owlrl_extra
 class TestInferOwlRl:
     def test_owl_rl_profile_entails_beyond_plain_rdfs(self) -> None:
@@ -102,8 +183,8 @@ class TestInferOwlRl:
         g.add((EX.Dog, OWL.equivalentClass, EX.Canine))
         g.add((EX.fido, RDF.type, EX.Canine))
 
-        rdfs_only = g.infer(profile="rdfs")
-        owl_rl = g.infer(profile="owl-rl")
+        rdfs_only = g.infer(profile=ENTAILMENT.RDFS)
+        owl_rl = g.infer(profile=ENTAILMENT["OWL-RDF-Based"])
 
         assert (EX.fido, RDF.type, EX.Dog) not in rdfs_only
         assert (EX.fido, RDF.type, EX.Dog) in owl_rl
@@ -114,7 +195,7 @@ class TestInferOwlRl:
         g.add((EX.Dog, OWL.equivalentClass, EX.Canine))
         g.add((EX.fido, RDF.type, EX.Canine))
 
-        closed = g.infer(profile="owl-rl")
+        closed = g.infer(profile=ENTAILMENT["OWL-RDF-Based"])
 
         oracle = Graph()
         for t in g:
@@ -287,8 +368,8 @@ class TestInferCombinedProfile:
         # OWLRL_Semantics.rules() never calls RDFS_Semantics.rules() -
         # confirmed live - so universal rdfs:Resource typing only shows up
         # once RDFS's own rules run alongside OWL-RL's.
-        owl_rl_only = self._domain_graph().infer(profile="owl-rl")
-        combined = self._domain_graph().infer(profile="rdfs+owl-rl")
+        owl_rl_only = self._domain_graph().infer(profile=ENTAILMENT["OWL-RDF-Based"])
+        combined = self._domain_graph().infer(profile={ENTAILMENT.RDFS, ENTAILMENT["OWL-RDF-Based"]})
 
         assert (EX.a, RDF.type, RDFS.Resource) not in owl_rl_only
         assert (EX.a, RDF.type, RDFS.Resource) in combined
@@ -296,7 +377,7 @@ class TestInferCombinedProfile:
     def test_matches_owlrl_run_directly(self) -> None:
         g = self._domain_graph()
 
-        closed = g.infer(profile="rdfs+owl-rl")
+        closed = g.infer(profile={ENTAILMENT.RDFS, ENTAILMENT["OWL-RDF-Based"]})
 
         oracle = Graph()
         for t in g:

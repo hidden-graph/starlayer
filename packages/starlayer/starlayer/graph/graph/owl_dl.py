@@ -6,7 +6,7 @@ different computational model (tableau-based DL reasoning, with real
 disjunctive case-splitting and sound-and-complete consistency checking)
 from every other profile StarLayerGraph.infer() supports, all of which run
 owlrl's forward-chaining rule engine. See infer()'s own docstring for the
-profile="owl-dl" contract; this module is the bridge that makes it work.
+profile=ENTAILMENT['OWL-Direct'] contract; this module is the bridge that makes it work.
 
 Deliberately HermiT only, never Pellet (owlready2 bundles both behind
 sync_reasoner()/sync_reasoner_pellet()): HermiT is LGPL, Pellet is AGPL - a
@@ -14,7 +14,7 @@ materially stronger copyleft obligation - and one conformant OWL 2 DL
 reasoner is sufficient to cover this regime. sync_reasoner_pellet() is
 never called anywhere in this module.
 
-engine="hermit" (this module) is one of two engines infer(profile="owl-dl")
+engine="hermit" (this module) is one of two engines infer(profile=ENTAILMENT['OWL-Direct'])
 can dispatch to - see starlayer.graph.graph.owl_dl_rustdl for the other
 (engine="rustdl": no JVM, but sound-not-provably-complete rather than
 sound-and-complete - a real, permanent gap against this module's own
@@ -36,12 +36,13 @@ from pathlib import Path
 from rdflib import RDF, RDFS, Graph
 
 from starlayer.graph.graph import _timeout
+from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 
 
 class InconsistentOntologyError(RuntimeError):
-    """Raised when profile="owl-dl" finds self's data logically
+    """Raised when profile=ENTAILMENT['OWL-Direct'] finds self's data logically
     inconsistent under OWL 2 DL semantics - e.g. an individual typed as two
-    classes declared owl:disjointWith each other. Unlike profile="owl-rl"
+    classes declared owl:disjointWith each other. Unlike profile=ENTAILMENT['OWL-RDF-Based']
     (whose consistency checking, via owlrl, is partial and silently embeds
     a synthetic err:error triple into the result instead of raising - see
     infer()'s own docstring), HermiT's check is sound and complete, so an
@@ -61,7 +62,7 @@ def _require_owlready2():
         import owlready2
     except ImportError as exc:
         raise RuntimeError(
-            "StarLayerGraph.infer(profile='owl-dl', engine='hermit') "
+            "StarLayerGraph.infer(profile=ENTAILMENT['OWL-Direct'], engine='hermit') "
             "requires the optional owlready2 package - install it with "
             "`pip install starlayer.graph[hermit]` (or `pip install "
             "owlready2` directly), then retry."
@@ -77,7 +78,7 @@ def _require_java() -> None:
     """
     if shutil.which("java") is None:
         raise RuntimeError(
-            "StarLayerGraph.infer(profile='owl-dl') requires a Java runtime "
+            "StarLayerGraph.infer(profile=ENTAILMENT['OWL-Direct']) requires a Java runtime "
             "on PATH - owlready2's HermiT reasoner is a Java program, not a "
             "pure-Python one. Install a JRE/JDK (e.g. `brew install openjdk` "
             "on macOS, or your platform's package manager) and confirm "
@@ -161,7 +162,7 @@ def classify_owl_dl(graph, timeout: float | None = _timeout.DEFAULT_TIMEOUT_SECO
         )
         if status == 'inconsistent':
             raise InconsistentOntologyError(
-                "infer(profile='owl-dl') found self's data logically "
+                "infer(profile=ENTAILMENT['OWL-Direct']) found self's data logically "
                 "inconsistent under OWL 2 DL semantics."
             )
         if status == 'java_error':
@@ -175,7 +176,7 @@ def classify_owl_dl(graph, timeout: float | None = _timeout.DEFAULT_TIMEOUT_SECO
             # `_require_java()` uses, so both "Java missing" and "Java
             # present but broken" are one exception type to catch, not two.
             raise RuntimeError(
-                "StarLayerGraph.infer(profile='owl-dl') found `java` on PATH, "
+                "StarLayerGraph.infer(profile=ENTAILMENT['OWL-Direct']) found `java` on PATH, "
                 "but it failed to run HermiT - the JVM itself is broken or "
                 f"misconfigured, not just missing. {message}"
             )

@@ -212,7 +212,7 @@ Immediately after calling `pyshacl.validate()`, check `isinstance(report_graph, 
 
 ### Status
 
-Found, confirmed against the latest pySHACL code (2026-07-20, see note at top of this document). **Not planned to be reported upstream** - low severity (a caller-side `isinstance(report_graph, BaseException)` guard fully neutralizes it), and already fully worked around in `starshacl` (`validator.py::validate()` re-raises `report_graph` directly when it's an exception, instead of returning it) - verified end-to-end via `StarLayerShaclProcessor`, which raises `ValidationFailure` cleanly rather than returning the broken tuple.
+Found, confirmed against the latest pySHACL code (2026-07-20, see note at top of this document). **Not planned to be reported upstream** - low severity (a caller-side `isinstance(report_graph, BaseException)` guard fully neutralizes it), and already fully worked around in `starshacl` (`validator.py::validate()` re-raises `report_graph` directly when it's an exception, instead of returning it) - verified end-to-end via `StarShaclSchema`, which raises `ValidationFailure` cleanly rather than returning the broken tuple.
 
 ## Issue 3 - a malformed `sh:closed` value either crashes the run or is silently misinterpreted, depending on its RDF term type (found 2026-07-16)
 

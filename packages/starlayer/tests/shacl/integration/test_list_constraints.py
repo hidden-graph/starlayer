@@ -1,7 +1,7 @@
 import pytest
 from rdflib import Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.shacl import StarLayerShaclProcessor
+from starlayer.shacl import StarShaclSchema
 
 from ._shape_loader import load_shape
 
@@ -34,8 +34,8 @@ def test_member_shape_conforms_when_all_members_match() -> None:
         format="turtle",
     )
 
-    validator = StarLayerShaclProcessor()
-    result = validator.validate(data_graph=data, shacl_graph=_shapes(), meta_shacl=False)
+    validator = StarShaclSchema(shacl_graph=_shapes())
+    result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is True
 
@@ -50,8 +50,8 @@ def test_member_shape_violates_when_a_member_does_not_conform() -> None:
         format="turtle",
     )
 
-    validator = StarLayerShaclProcessor()
-    result = validator.validate(data_graph=data, shacl_graph=_shapes(), meta_shacl=False)
+    validator = StarShaclSchema(shacl_graph=_shapes())
+    result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
     assert SH.MemberShapeConstraintComponent in _violation_components(result)
@@ -70,8 +70,8 @@ def test_list_length_and_uniqueness_conform() -> None:
         format="turtle",
     )
 
-    validator = StarLayerShaclProcessor()
-    result = validator.validate(data_graph=data, shacl_graph=_shapes(), meta_shacl=False)
+    validator = StarShaclSchema(shacl_graph=_shapes())
+    result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is True
 
@@ -89,8 +89,8 @@ def test_list_length_and_uniqueness_all_violate_independently() -> None:
         format="turtle",
     )
 
-    validator = StarLayerShaclProcessor()
-    result = validator.validate(data_graph=data, shacl_graph=_shapes(), meta_shacl=False)
+    validator = StarShaclSchema(shacl_graph=_shapes())
+    result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
     components = _violation_components(result)
@@ -116,8 +116,8 @@ def test_non_list_value_violates_each_active_sub_constraint() -> None:
         format="turtle",
     )
 
-    validator = StarLayerShaclProcessor()
-    result = validator.validate(data_graph=data, shacl_graph=_shapes(), meta_shacl=False)
+    validator = StarShaclSchema(shacl_graph=_shapes())
+    result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
     assert _violation_components(result) == {SH.MinListLengthConstraintComponent}
@@ -152,7 +152,7 @@ def test_unique_members_string_literal_false_is_rejected_not_silently_enabled() 
     )
 
     with pytest.raises(ValueError, match="xsd:boolean literal"):
-        StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+        StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
 
 
 def test_unique_members_alternate_boolean_lexical_form_leaves_constraint_inactive() -> None:
@@ -188,6 +188,6 @@ def test_unique_members_alternate_boolean_lexical_form_leaves_constraint_inactiv
         format="turtle",
     )
 
-    result = StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is True

@@ -13,7 +13,7 @@ replaces the loop, but only when a shapes graph actually declares
 import pytest
 from rdflib import RDF, Literal, Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.shacl import StarLayerShaclProcessor
+from starlayer.shacl import StarShaclSchema
 
 from ._shape_loader import load_shape
 
@@ -69,10 +69,10 @@ def test_cross_shape_layering_orders_by_layer_not_by_shape_order() -> None:
     data = StarLayerGraph()
     data.add((EX.start, EX.marker, Literal(True)))
 
-    result = StarLayerShaclProcessor().apply_rules(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
 
-    assert (EX.start, EX.stage1, Literal(True)) in result.data_graph
-    assert (EX.start, EX.stage2, Literal(True)) in result.data_graph
+    assert (EX.start, EX.stage1, Literal(True)) in result.inferred_graph
+    assert (EX.start, EX.stage2, Literal(True)) in result.inferred_graph
 
 
 def test_run_once_rule_fires_exactly_once_despite_minting_fresh_blank_nodes() -> None:
@@ -106,9 +106,9 @@ def test_run_once_rule_fires_exactly_once_despite_minting_fresh_blank_nodes() ->
     data = StarLayerGraph()
     data.add((EX.start, EX.marker, Literal(True)))
 
-    result = StarLayerShaclProcessor().apply_rules(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
 
-    markers = list(result.data_graph.subjects(RDF.type, EX.Marker))
+    markers = list(result.inferred_graph.subjects(RDF.type, EX.Marker))
     assert len(markers) == 1
 
 
@@ -163,9 +163,9 @@ def test_sh_order_within_a_layer_is_compared_globally_not_per_shape() -> None:
     data = StarLayerGraph()
     data.add((EX.start, EX.marker, Literal(True)))
 
-    result = StarLayerShaclProcessor().apply_rules(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
 
-    assert (EX.start, EX.dependent, Literal(True)) in result.data_graph
+    assert (EX.start, EX.dependent, Literal(True)) in result.inferred_graph
 
 
 def test_shapes_graph_without_layer_or_run_once_uses_original_pyshacl_loop() -> None:
@@ -185,8 +185,8 @@ def test_shapes_graph_without_layer_or_run_once_uses_original_pyshacl_loop() -> 
     data.add((EX.b, EX.reach, EX.c))
     data.add((EX.c, EX.reach, EX.d))
 
-    result = StarLayerShaclProcessor().apply_rules(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
 
-    assert (EX.a, EX.reach, EX.c) in result.data_graph
-    assert (EX.a, EX.reach, EX.d) in result.data_graph
-    assert (EX.b, EX.reach, EX.d) in result.data_graph
+    assert (EX.a, EX.reach, EX.c) in result.inferred_graph
+    assert (EX.a, EX.reach, EX.d) in result.inferred_graph
+    assert (EX.b, EX.reach, EX.d) in result.inferred_graph

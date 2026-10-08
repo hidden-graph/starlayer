@@ -70,11 +70,11 @@ def store_accepts_prepared_query(store: Any) -> bool:
 
 
 def prepare_query_cached(
-    cache: dict[tuple[str, tuple, str | None, str | None], Query],
+    cache: dict[tuple[str, tuple, str | None, Any], Query],
     query_text: str,
     effective_ns: Mapping[str, Any] | None,
     base: str | None,
-    entailment: str | None = None,
+    entailment: Any = None,
 ) -> Query:
     """Return a prepared SPARQL ``Query`` for ``query_text``, reusing a
     previous preparation from ``cache`` if the same
@@ -88,13 +88,17 @@ def prepare_query_cached(
     namespaces change between calls with the same query text.
 
     ``entailment`` -- ``None`` (default, today's plain behavior) or
-    ``"rdfs"``, which rewrites every BGP for RDFS entailment (see
+    ``ENTAILMENT.RDFS`` (``starlayer.graph.graph.entailment_regimes``),
+    which rewrites every BGP for RDFS entailment (see
     ``starlayer.sparql.entailment_rdfs`` for exactly which rules) once here,
     baked into the cached prepared object - not re-applied on every
     cache hit. Included in the cache key defensively, even though a given
     ``StarLayerGraph`` instance's ``entailment`` is fixed for its whole
     lifetime and this cache is per-instance (so in practice it never
-    varies within one cache's lifetime today).
+    varies within one cache's lifetime today). Only ``None``/``ENTAILMENT.RDF``/
+    ``ENTAILMENT.RDFS`` ever reach this function - ``query()``'s
+    ``ENTAILMENT["OWL-RDF-Based"]``/``ENTAILMENT["OWL-Direct"]``/``"native"``
+    branches all return before calling it.
     """
     ns_key = tuple(sorted((str(k), str(v)) for k, v in effective_ns.items())) if effective_ns else ()
     cache_key = (query_text, ns_key, base, entailment)
@@ -128,10 +132,11 @@ def prepare_query_cached(
         )
     rdf_graph, root = query_to_rdf11(prepared_12)
     prepared = rdf11_to_query(rdf_graph, root)
-    if entailment == 'rdfs':
+    from starlayer.graph.graph.entailment_regimes import ENTAILMENT
+    if entailment == ENTAILMENT.RDFS:
         from starlayer.sparql.entailment_rdfs import rewrite_algebra_for_rdfs
         rewrite_algebra_for_rdfs(prepared.algebra)
-    elif entailment == 'rdf':
+    elif entailment == ENTAILMENT.RDF:
         from starlayer.sparql.entailment_rdf import rewrite_algebra_for_rdf
         rewrite_algebra_for_rdf(prepared.algebra)
     cache[cache_key] = prepared

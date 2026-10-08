@@ -2,7 +2,7 @@ import pytest
 from rdflib import Namespace
 from rdflib.collection import Collection
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.shacl import StarLayerShaclProcessor
+from starlayer.shacl import StarShaclSchema
 
 from ._shape_loader import load_shape
 
@@ -20,8 +20,8 @@ def test_rdf12_fixture_target_resolution_for_triple_term_target_node() -> None:
     shapes.parse(data=load_shape("rdf12_target_node_shape.ttl"), format="turtle12")
     shapes.add((EX.TripleTargetShape, SH.targetNode, (EX.s, EX.p, EX.o)))
 
-    validator = StarLayerShaclProcessor()
-    nodes = validator.target_nodes(data_graph=data, shacl_graph=shapes, shape_node=EX.TripleTargetShape)
+    validator = StarShaclSchema(shacl_graph=shapes)
+    nodes = validator.target_nodes(data_graph=data, shape_node=EX.TripleTargetShape)
 
     assert nodes == ((EX.s, EX.p, EX.o),)
 
@@ -43,8 +43,8 @@ def test_rdf12_target_objects_of_resolves_triple_term_value_as_target() -> None:
         format="turtle",
     )
 
-    validator = StarLayerShaclProcessor()
-    nodes = validator.target_nodes(data_graph=data, shacl_graph=shapes, shape_node=EX.S)
+    validator = StarShaclSchema(shacl_graph=shapes)
+    nodes = validator.target_nodes(data_graph=data, shape_node=EX.S)
 
     assert nodes == ((EX.bob, EX.knows, EX.carol),)
 
@@ -61,7 +61,7 @@ def test_rdf12_fixture_triple_term_node_kind_component_evaluation() -> None:
     component_name = str(next(shapes.objects(property_shape, SH.nodeKind)))
     values = tuple(o for _, _, o in data.triples((EX.focus, EX.says, None)))
 
-    validator = StarLayerShaclProcessor()
+    validator = StarShaclSchema()
     result = validator.evaluate_component(
         component={"name": component_name},
         focus_node=EX.focus,
@@ -143,7 +143,7 @@ def test_rdf12_fixture_structural_component_behaviors(
     else:
         raise AssertionError("fixture must declare one structural component constraint")
 
-    validator = StarLayerShaclProcessor()
+    validator = StarShaclSchema()
     result = validator.evaluate_component(
         component=component,
         focus_node=EX.focus,
@@ -183,8 +183,8 @@ def test_rdf12_min_max_count_with_triple_term_values() -> None:
         format="turtle",
     )
 
-    validator = StarLayerShaclProcessor()
-    result = validator.validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    validator = StarShaclSchema(shacl_graph=shapes)
+    result = validator.validate(data_graph=data, meta_shacl=False)
     assert result.conforms is True
 
 
@@ -204,8 +204,8 @@ def test_rdf12_max_count_violates_with_too_many_triple_term_values() -> None:
         format="turtle",
     )
 
-    validator = StarLayerShaclProcessor()
-    result = validator.validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    validator = StarShaclSchema(shacl_graph=shapes)
+    result = validator.validate(data_graph=data, meta_shacl=False)
     assert result.conforms is False
     assert any(
         o == SH.MaxCountConstraintComponent
@@ -231,8 +231,8 @@ def test_rdf12_not_wrapping_has_value_with_triple_term_value() -> None:
         format="turtle12",
     )
 
-    validator = StarLayerShaclProcessor()
-    result = validator.validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    validator = StarShaclSchema(shacl_graph=shapes)
+    result = validator.validate(data_graph=data, meta_shacl=False)
     # The one value present DOES match the forbidden triple-term value, so
     # sh:not must flag it.
     assert result.conforms is False

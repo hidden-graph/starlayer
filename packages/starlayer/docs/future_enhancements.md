@@ -180,15 +180,17 @@ package's own top level, not nested under one subpackage's docs.
   validation" path**, found 2026-10-06 while auditing `starlayer.shacl`
   against pyshacl's own public surface (`__init__.__all__`). pyshacl's
   `shacl_rules()`/`RuleExpandRunner` is a dedicated entry point that does
-  rule expansion *only* - `StarLayerShaclProcessor.apply_rules()` always routes
+  rule expansion *only* - `StarShaclSchema.apply_rules()` always routes
   through `self.validate(profile="rules")` instead, which always also
   runs full SHACL constraint checking (the `"rules"` profile in
   `profiles.py` has no flag to skip it). No data is lost -
-  `RulesResult.data_graph` already carries the expanded graph, plus a
-  bonus validation report `shacl_rules()` wouldn't give you - but there's
-  no way to get rules-without-validation specifically, which costs
-  unnecessary constraint-checking work for a caller who only wants the
-  expansion. **Before implementing**: check whether the SHACL 1.2
+  `RulesResult.inferred_graph` already carries the rule-produced triples
+  (the "inference graph" - see `starlayer/shacl/CLAUDE.md`'s 2026-10-07
+  entry on this), plus a bonus validation report `shacl_rules()` wouldn't
+  give you - but there's no way to get rules-without-validation
+  specifically, which costs unnecessary constraint-checking work for a
+  caller who only wants the expansion. **Before implementing**: check
+  whether the SHACL 1.2
   Inference Rules draft (`docs/shacl12-gap-matrix.md` tracks it) says
   anything that bears on whether rule expansion and validation are meant
   to be separable operations in SHACL 1.2 specifically, not just in
@@ -198,6 +200,15 @@ package's own top level, not nested under one subpackage's docs.
   of, so a bare pass-through to it would be wrong regardless; this entry
   is about whether a *new*, SHACL-1.2-aware "rules only" mode is worth
   building, not about using pyshacl's existing one as-is.
+
+- **`sh:entailment` + rule execution - built 2026-10-07, re-verify against the final spec once it stabilizes.** Worked out and implemented by reading the live SHACL 1.2 Core and SHACL 1.2 Inference Rules editor's drafts directly (both still Working Draft/Editor's Draft, not stable text - the trigger to re-check this). **Status: fully built and tested** - `infer()`/`query()` speak the real W3C regime IRIs directly (`ENTAILMENT.*`, replacing the old starlayer-internal strings - see `starlayer/graph/CLAUDE.md`'s dated entry), `infer()` gained a native `ENTAILMENT.RDF` materialization path, and `starlayer.shacl.entailment` now reads `sh:entailment` from a shapes graph and wires it into `StarShaclSchema.validate()`/`apply_rules()` (see `starlayer/shacl/CLAUDE.md`'s own dated entry for the full account, including a real inplace-mutation regression found and fixed via testing). `tests/shacl`: 1065 passed, zero regressions.
+  - Core §1.4: `sh:entailment` is a **shapes-graph-level** declaration ("a shapes graph contains any triple with the predicate `sh:entailment`"), not scoped to an individual shape. Multiple declared regimes combine into **one** entailment pass, not one pass per regime: "the processor MUST provide the entailments for all of the values of `sh:entailment`... during the validation process" (plural values, singular process).
+  - Inference Rules spec: "validation engines that... execute the rules... prior to performing the actual validation" - rules run before validation, producing an evaluation graph (base graph ∪ inference graph) that validation then checks.
+  - **Neither document says anything about the other's mechanism.** Core's entailment guarantee is scoped to queries made "during the validation process"; the Inference Rules spec never mentions `sh:entailment` at all. Whether entailed triples are supposed to be visible *to rules while they execute* (not just to the validation step that follows) is genuinely unspecified by either text - this is a real gap between two still-moving documents, not something we resolved by finding the answer.
+  - **Design implemented as our own reasonable extrapolation, not a cited requirement**: `sh:entailment` runs over the data graph *before* executing any rules (so rules see entailed facts, the same way they already see the unconditional `rdf:type`/`rdfs:subClassOf` "SHACL type" closure that needs no entailment declaration at all), then runs again over the resulting evaluation graph (base ∪ every inferred triple, shape-attached and global alike) before the final conformance check - so newly-inferred triples get the same entailment treatment the original data graph did, rather than silently missing out on it. **Before relying on this further**: re-check against whatever the SHACL 1.2 Core and Inference Rules documents say once they're closer to final (see `docs/shacl/shacl12-gap-matrix.md`) - the rules/entailment interaction specifically might get clarified (or resolved differently) in a later draft.
+  - **`ont_graph` limitation closed, 2026-10-07**: `apply_entailment()` (and pySHACL's own `inference=`, also replaced the same day with an equivalent routed through `StarLayerGraph.infer()`) now compute entailment over `data_graph` union `ont_graph`, materializing only the newly-entailed delta back - `ont_graph` itself is never mutated or copied in wholesale. See `starlayer/shacl/CLAUDE.md`'s dated entry for the full design and the real `CustomRDFSSemantics` parity wrinkle found and accounted for along the way. **`StarShaclSchema.validate()`'s own class method gained both fixes too, same day** - not via step 2 of the bare-function flip (still not done, see that section's own entry), but by mirroring the same two code changes directly into the class method's still-duplicated body, after a direct user question ("I thought we would be running this through the graph inference engine, so we ensure comparable results") surfaced that its `inference=` was still silently running pySHACL's own separate internal reasoning. `apply_rules()`'s class method already had both, since it already delegates to the bare function (unlike `validate`/`validate_each`/`evaluate`).
+
+- **Repo-wide stale `starlayergraph` import, found 2026-10-07 while `nbconvert`-verifying the entailment-regime work above** - a leftover from before this project's own `starlayergraph`→`starlayer` package merge. `from starlayergraph import ...`/`from starlayergraph.graph.owl_dl import ...` still appears in **20+ guide notebooks** under `docs/` (confirmed via `grep -rl "from starlayergraph\|import starlayergraph" docs/`), making every one of them fail to execute via `nbconvert` - not a cosmetic issue, a real broken-guide bug. Fixed only in the 3 notebooks the entailment-regime work actually touched (`03b-sparql-inferencing.ipynb`, `05b-backend-graph-databases.ipynb`, `05e-owl-dl-reasoning.ipynb`), scoped deliberately on explicit user instruction - the other ~17 are still broken. Worth a dedicated sweep later: find every stale `starlayergraph` import across `docs/`, replace with the real `starlayer`/`starlayer.graph` path, and re-execute each touched notebook via `nbconvert` to confirm, the same verification discipline used for the 3 already fixed.
 
 **Done**: "produce a documentation doc outlining every method/import
 available under `starlayer`" → `packages/starlayer/docs/api-reference.md`,

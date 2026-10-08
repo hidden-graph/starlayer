@@ -2,7 +2,7 @@ import pytest
 from rdflib import Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.graph.model.triple import TripleTerm
-from starlayer.shacl import StarLayerShaclProcessor
+from starlayer.shacl import StarShaclSchema
 
 from ._shape_loader import load_shape
 
@@ -36,11 +36,11 @@ def test_node_expression_path_carries_triple_term_value() -> None:
     shapes = StarLayerGraph()
     shapes.parse(data=load_shape("rdf12_node_expression_path.ttl"), format="turtle12")
 
-    validator = StarLayerShaclProcessor()
-    result = validator.apply_rules(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    validator = StarShaclSchema(shacl_graph=shapes)
+    result = validator.apply_rules(data_graph=data, meta_shacl=False)
 
-    assert result.conforms is True
-    derived = list(result.data_graph.triples((EX.alice, EX.derivedSays, None)))
+    assert result.validation.conforms is True
+    derived = list(result.inferred_graph.triples((EX.alice, EX.derivedSays, None)))
     assert len(derived) == 1
     assert derived[0][2] == TripleTerm(EX.bob, EX.knows, EX.carol)
 
@@ -53,11 +53,11 @@ def test_node_expression_union_carries_mixed_values() -> None:
     shapes = StarLayerGraph()
     shapes.parse(data=load_shape("rdf12_node_expression_union.ttl"), format="turtle12")
 
-    validator = StarLayerShaclProcessor()
-    result = validator.apply_rules(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    validator = StarShaclSchema(shacl_graph=shapes)
+    result = validator.apply_rules(data_graph=data, meta_shacl=False)
 
-    assert result.conforms is True
-    derived = {o for _, _, o in result.data_graph.triples((EX.alice, EX.derivedUnion, None))}
+    assert result.validation.conforms is True
+    derived = {o for _, _, o in result.inferred_graph.triples((EX.alice, EX.derivedUnion, None))}
     assert derived == {TripleTerm(EX.bob, EX.knows, EX.carol), EX.plain_value}
 
 
@@ -70,11 +70,11 @@ def test_node_expression_intersection_carries_triple_term_value() -> None:
     shapes = StarLayerGraph()
     shapes.parse(data=load_shape("rdf12_node_expression_intersection.ttl"), format="turtle12")
 
-    validator = StarLayerShaclProcessor()
-    result = validator.apply_rules(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    validator = StarShaclSchema(shacl_graph=shapes)
+    result = validator.apply_rules(data_graph=data, meta_shacl=False)
 
-    assert result.conforms is True
-    derived = list(result.data_graph.triples((EX.alice, EX.derivedIntersection, None)))
+    assert result.validation.conforms is True
+    derived = list(result.inferred_graph.triples((EX.alice, EX.derivedIntersection, None)))
     assert len(derived) == 1
     assert derived[0][2] == TripleTerm(EX.bob, EX.knows, EX.carol)
 
@@ -82,7 +82,7 @@ def test_node_expression_intersection_carries_triple_term_value() -> None:
     # (see module docstring) should leak into the returned data graph.
     from rdflib.namespace import RDF
 
-    assert not any(p in (RDF.first, RDF.rest) for _, p, _ in result.data_graph)
+    assert not any(p in (RDF.first, RDF.rest) for _, p, _ in result.inferred_graph)
 
 
 def test_node_expression_intersection_carries_plain_rdf11_value() -> None:
@@ -94,11 +94,11 @@ def test_node_expression_intersection_carries_plain_rdf11_value() -> None:
     shapes = StarLayerGraph()
     shapes.parse(data=load_shape("rdf12_node_expression_intersection.ttl"), format="turtle12")
 
-    validator = StarLayerShaclProcessor()
-    result = validator.apply_rules(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    validator = StarShaclSchema(shacl_graph=shapes)
+    result = validator.apply_rules(data_graph=data, meta_shacl=False)
 
-    assert result.conforms is True
-    derived = {o for _, _, o in result.data_graph.triples((EX.alice, EX.derivedIntersection, None))}
+    assert result.validation.conforms is True
+    derived = {o for _, _, o in result.inferred_graph.triples((EX.alice, EX.derivedIntersection, None))}
     assert derived == {EX.commonval}
 
 
@@ -109,10 +109,10 @@ def test_node_expression_shacl_function_carries_triple_term_value() -> None:
     shapes = StarLayerGraph()
     shapes.parse(data=load_shape("rdf12_node_expression_function.ttl"), format="turtle12")
 
-    validator = StarLayerShaclProcessor()
-    result = validator.apply_rules(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    validator = StarShaclSchema(shacl_graph=shapes)
+    result = validator.apply_rules(data_graph=data, meta_shacl=False)
 
-    assert result.conforms is True
-    derived = list(result.data_graph.triples((EX.alice, EX.derivedFn, None)))
+    assert result.validation.conforms is True
+    derived = list(result.inferred_graph.triples((EX.alice, EX.derivedFn, None)))
     assert len(derived) == 1
     assert derived[0][2] == TripleTerm(EX.bob, EX.knows, EX.carol)

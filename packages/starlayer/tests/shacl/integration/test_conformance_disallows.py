@@ -1,7 +1,7 @@
 import pytest
 from rdflib import Literal, Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.shacl import StarLayerShaclProcessor
+from starlayer.shacl import StarShaclSchema
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
@@ -44,9 +44,9 @@ def _data_with_bad_age() -> StarLayerGraph:
 
 
 def test_default_conformance_disallows_includes_all_three_severities() -> None:
-    validator = StarLayerShaclProcessor()
+    validator = StarShaclSchema(shacl_graph=_shapes_with_warning_severity())
     result = validator.validate(
-        data_graph=_data_with_bad_age(), shacl_graph=_shapes_with_warning_severity(), meta_shacl=False
+        data_graph=_data_with_bad_age(), meta_shacl=False
     )
 
     disallowed = {o for _, _, o in result.report_graph.triples((None, SH.conformanceDisallows, None))}
@@ -56,19 +56,18 @@ def test_default_conformance_disallows_includes_all_three_severities() -> None:
 def test_default_conforms_is_false_for_warning_only_result() -> None:
     # A Warning-severity-only result flips sh:conforms to false by default,
     # matching the spec's default disallow set including sh:Warning.
-    validator = StarLayerShaclProcessor()
+    validator = StarShaclSchema(shacl_graph=_shapes_with_warning_severity())
     result = validator.validate(
-        data_graph=_data_with_bad_age(), shacl_graph=_shapes_with_warning_severity(), meta_shacl=False
+        data_graph=_data_with_bad_age(), meta_shacl=False
     )
 
     assert result.conforms is False
 
 
 def test_allow_warnings_removes_warning_from_disallowed_set_and_conforms() -> None:
-    validator = StarLayerShaclProcessor()
+    validator = StarShaclSchema(shacl_graph=_shapes_with_warning_severity())
     result = validator.validate(
         data_graph=_data_with_bad_age(),
-        shacl_graph=_shapes_with_warning_severity(),
         meta_shacl=False,
         allow_warnings=True,
     )
@@ -111,9 +110,9 @@ def test_debug_and_trace_severities_never_block_conforms(severity: str) -> None:
     itself must still be reported (present in sh:result, with the correct
     sh:resultSeverity) - only the aggregate sh:conforms is affected.
     """
-    validator = StarLayerShaclProcessor()
+    validator = StarShaclSchema(shacl_graph=_shapes_with_severity(severity))
     result = validator.validate(
-        data_graph=_data_with_bad_age(), shacl_graph=_shapes_with_severity(severity), meta_shacl=False
+        data_graph=_data_with_bad_age(), meta_shacl=False
     )
 
     assert result.conforms is True

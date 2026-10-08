@@ -3,7 +3,7 @@
 **Deliberately minimal top-level surface (slimmed 2026-10-04).** `starlayer.graph`
 is the rdflib replacement; `starlayer.shacl` is the pyshacl replacement. This
 top level exists only to pick which one you want - `StarLayerGraph`/
-`StarLayerDataset` from `starlayer.graph`, `StarLayerShaclProcessor` from
+`StarLayerDataset` from `starlayer.graph`, `StarShaclSchema` from
 `starlayer.shacl` - not to carry up everything each of those subpackages
 re-exports for its own rdflib-mirroring convenience (`BNode`/`Literal`/
 `URIRef`/`Variable`/`Namespace`/`RDF`/`RDFS`/`XSD`/plain `Graph`/`Dataset`
@@ -16,14 +16,14 @@ nothing is redefined, wrapped, or copied.
 For anything not re-exported here, import from the owning subpackage
 directly (e.g. ``starlayer.graph.Namespace``, ``starlayer.sparql.prepare_query_12``,
 ``starlayer.sparql.srl.parse_ruleset`` (then ``RuleSet.infer()``/``.query()``),
-``starlayer.shacl.close_shape``).
+``starlayer.shacl.shacl_inference.apply_rules``).
 """
 
 from .graph import StarLayerDataset, StarLayerGraph
-from .shacl import StarLayerShaclProcessor
+from .shacl import StarShaclSchema
 
 __all__ = [
     "StarLayerDataset",
     "StarLayerGraph",
-    "StarLayerShaclProcessor",
+    "StarShaclSchema",
 ]

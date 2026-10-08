@@ -2,7 +2,7 @@ import pytest
 from rdflib import Literal, Namespace, URIRef
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.graph.model.triple import TripleTerm
-from starlayer.shacl import StarLayerShaclProcessor
+from starlayer.shacl import StarShaclSchema
 
 from ._shape_loader import load_shape
 
@@ -20,8 +20,8 @@ def test_sparql_constraint_conforms_when_triple_term_present() -> None:
     shapes = StarLayerGraph()
     shapes.parse(data=load_shape("rdf12_sparql_says_triple_term.ttl"), format="turtle12")
 
-    validator = StarLayerShaclProcessor()
-    result = validator.validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    validator = StarShaclSchema(shacl_graph=shapes)
+    result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is True
 
@@ -33,8 +33,8 @@ def test_sparql_constraint_violates_when_triple_term_absent() -> None:
     shapes = StarLayerGraph()
     shapes.parse(data=load_shape("rdf12_sparql_says_triple_term.ttl"), format="turtle12")
 
-    validator = StarLayerShaclProcessor()
-    result = validator.validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    validator = StarShaclSchema(shacl_graph=shapes)
+    result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
     assert any(
@@ -81,7 +81,7 @@ def test_sparql_constraint_own_severity_overrides_shape_severity() -> None:
         format="turtle",
     )
 
-    result = StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
     severities = {o for _, _, o in result.report_graph.triples((None, SH.resultSeverity, None))}
@@ -133,7 +133,7 @@ def test_sparql_constraint_resolves_prefix_via_ambient_shapes_graph_declare() ->
         format="turtle",
     )
 
-    result = StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
     assert SH.SPARQLConstraintComponent in {
@@ -160,8 +160,8 @@ def test_sparql_constraint_binds_value_per_property_value_node() -> None:
     shapes = StarLayerGraph()
     shapes.parse(data=load_shape("rdf12_sparql_value_predicate.ttl"), format="turtle12")
 
-    validator = StarLayerShaclProcessor()
-    result = validator.validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    validator = StarShaclSchema(shacl_graph=shapes)
+    result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
     violations = [
@@ -180,8 +180,8 @@ def test_sparql_constraint_binds_value_conforms_when_all_predicates_match() -> N
     shapes = StarLayerGraph()
     shapes.parse(data=load_shape("rdf12_sparql_value_predicate.ttl"), format="turtle12")
 
-    validator = StarLayerShaclProcessor()
-    result = validator.validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    validator = StarShaclSchema(shacl_graph=shapes)
+    result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is True
 
@@ -198,8 +198,8 @@ def test_sparql_constraint_conforms_with_nested_multi_pattern_join() -> None:
     shapes = StarLayerGraph()
     shapes.parse(data=load_shape("rdf12_sparql_nested_join.ttl"), format="turtle12")
 
-    validator = StarLayerShaclProcessor()
-    result = validator.validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    validator = StarShaclSchema(shacl_graph=shapes)
+    result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is True
 
@@ -212,8 +212,8 @@ def test_sparql_constraint_violates_with_nested_multi_pattern_join() -> None:
     shapes = StarLayerGraph()
     shapes.parse(data=load_shape("rdf12_sparql_nested_join.ttl"), format="turtle12")
 
-    validator = StarLayerShaclProcessor()
-    result = validator.validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    validator = StarShaclSchema(shacl_graph=shapes)
+    result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
     assert any(
@@ -229,11 +229,11 @@ def test_construct_rule_mints_new_triple_term_reification() -> None:
     shapes = StarLayerGraph()
     shapes.parse(data=load_shape("rules_reify_new_triple_term.ttl"), format="turtle12")
 
-    validator = StarLayerShaclProcessor()
-    result = validator.apply_rules(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    validator = StarShaclSchema(shacl_graph=shapes)
+    result = validator.apply_rules(data_graph=data, meta_shacl=False)
 
-    assert result.conforms is True
-    reifies_triples = list(result.data_graph.triples((EX.stmt1, RDF_REIFIES, None)))
+    assert result.validation.conforms is True
+    reifies_triples = list(result.inferred_graph.triples((EX.stmt1, RDF_REIFIES, None)))
     assert len(reifies_triples) == 1
     _, _, obj = reifies_triples[0]
     assert isinstance(obj, TripleTerm)
@@ -271,7 +271,7 @@ def test_sparql_constraint_resolves_prefix_via_sh_declare_not_turtle_prefix() ->
           ] .
     """, format="turtle")
 
-    result = StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
     assert result.conforms is False
     assert "ex:bob" in result.report_text
     assert "ex:alice" not in result.report_text.split("Focus Node:")[-1]
@@ -302,7 +302,7 @@ def test_sh_result_annotation_from_select_bound_var() -> None:
           ] .
     """, format="turtle")
 
-    result = StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
     assert result.conforms is False
     annotated = list(result.report_graph.triples((None, EX.reportedScore, None)))
     assert len(annotated) == 1
@@ -330,7 +330,7 @@ def test_sh_result_annotation_fixed_value() -> None:
           ] .
     """, format="turtle")
 
-    result = StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
     assert result.conforms is False
     annotated = list(result.report_graph.triples((None, EX.origin, None)))
     assert annotated == [(annotated[0][0], EX.origin, Literal("score-check"))]
@@ -352,6 +352,6 @@ def test_no_result_annotation_is_a_pure_noop() -> None:
           ] .
     """, format="turtle")
 
-    result = StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
     assert result.conforms is False
     assert len(list(result.report_graph.triples((None, SH.resultSeverity, None)))) == 1

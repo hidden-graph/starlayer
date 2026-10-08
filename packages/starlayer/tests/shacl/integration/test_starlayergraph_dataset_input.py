@@ -1,6 +1,7 @@
 import pytest
 from rdflib import Dataset, Literal, Namespace
-from starlayer.shacl import StarLayerShaclProcessor
+from starlayer.graph.graph.entailment_regimes import ENTAILMENT
+from starlayer.shacl import StarShaclSchema
 
 pytest.importorskip("pyshacl")
 StarLayerDataset = pytest.importorskip(
@@ -42,8 +43,8 @@ class TestStarLayerDatasetDefaultUnion:
         data = _dataset_with_named_graph(_PERSON_DATA)
         shapes = _dataset_with_named_graph(_PERSON_SHAPE)
 
-        result = StarLayerShaclProcessor().validate(
-            data_graph=data, shacl_graph=shapes, meta_shacl=False
+        result = StarShaclSchema(shacl_graph=shapes).validate(
+            data_graph=data, meta_shacl=False
         )
 
         assert result.conforms is True
@@ -55,8 +56,8 @@ class TestStarLayerDatasetDefaultUnion:
         shapes = StarLayerDataset(default_union=True)
         shapes.get_context(EX.g1).parse(data=_PERSON_SHAPE, format="turtle")
 
-        result = StarLayerShaclProcessor().validate(
-            data_graph=data, shacl_graph=shapes, meta_shacl=False
+        result = StarShaclSchema(shacl_graph=shapes).validate(
+            data_graph=data, meta_shacl=False
         )
 
         assert result.conforms is False
@@ -79,8 +80,8 @@ class TestStarLayerDatasetDefaultUnion:
             format="turtle",
         )
 
-        result = StarLayerShaclProcessor().validate(
-            data_graph=data, shacl_graph=shapes, meta_shacl=False
+        result = StarShaclSchema(shacl_graph=shapes).validate(
+            data_graph=data, meta_shacl=False
         )
 
         assert result.conforms is True
@@ -127,11 +128,8 @@ class TestOntGraphDatasetAutoUnion:
             format="turtle",
         )
 
-        result = StarLayerShaclProcessor().validate(
+        result = StarShaclSchema(shacl_graph=shapes, ont_graph=ont, inference=ENTAILMENT.RDFS).validate(
             data_graph=data,
-            shacl_graph=shapes,
-            ont_graph=ont,
-            inference="rdfs",
             meta_shacl=False,
         )
 
@@ -167,8 +165,8 @@ class TestPlainRdflibDatasetInput:
             format="turtle",
         )
 
-        result = StarLayerShaclProcessor().validate(
-            data_graph=data, shacl_graph=shapes, meta_shacl=False
+        result = StarShaclSchema(shacl_graph=shapes).validate(
+            data_graph=data, meta_shacl=False
         )
 
         assert result.conforms is True

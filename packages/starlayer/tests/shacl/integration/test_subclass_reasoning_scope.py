@@ -1,7 +1,7 @@
 import pytest
 from rdflib import Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.shacl import StarLayerShaclProcessor
+from starlayer.shacl import StarShaclSchema
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
@@ -54,10 +54,9 @@ def _data_zoo_holds_lion() -> StarLayerGraph:
 
 
 def test_root_class_ignores_shapes_graph_subclass_assertion_by_default() -> None:
-    validator = StarLayerShaclProcessor()
+    validator = StarShaclSchema(shacl_graph=_shapes_with_root_class_and_shapes_graph_subclass_assertion())
     result = validator.validate(
         data_graph=_data_zoo_holds_lion(),
-        shacl_graph=_shapes_with_root_class_and_shapes_graph_subclass_assertion(),
         meta_shacl=False,
     )
 
@@ -65,10 +64,9 @@ def test_root_class_ignores_shapes_graph_subclass_assertion_by_default() -> None
 
 
 def test_root_class_honors_shapes_graph_subclass_assertion_when_opted_in() -> None:
-    validator = StarLayerShaclProcessor()
+    validator = StarShaclSchema(shacl_graph=_shapes_with_root_class_and_shapes_graph_subclass_assertion())
     result = validator.validate(
         data_graph=_data_zoo_holds_lion(),
-        shacl_graph=_shapes_with_root_class_and_shapes_graph_subclass_assertion(),
         meta_shacl=False,
         rdfs_subclass_reasoning_includes_shapes_graph=True,
     )
@@ -113,10 +111,9 @@ def _data_alice_has_tiger() -> StarLayerGraph:
 
 
 def test_list_valued_class_ignores_shapes_graph_subclass_assertion_by_default() -> None:
-    validator = StarLayerShaclProcessor()
+    validator = StarShaclSchema(shacl_graph=_shapes_with_list_valued_class_and_shapes_graph_subclass_assertion())
     result = validator.validate(
         data_graph=_data_alice_has_tiger(),
-        shacl_graph=_shapes_with_list_valued_class_and_shapes_graph_subclass_assertion(),
         meta_shacl=False,
     )
 
@@ -124,10 +121,9 @@ def test_list_valued_class_ignores_shapes_graph_subclass_assertion_by_default() 
 
 
 def test_list_valued_class_honors_shapes_graph_subclass_assertion_when_opted_in() -> None:
-    validator = StarLayerShaclProcessor()
+    validator = StarShaclSchema(shacl_graph=_shapes_with_list_valued_class_and_shapes_graph_subclass_assertion())
     result = validator.validate(
         data_graph=_data_alice_has_tiger(),
-        shacl_graph=_shapes_with_list_valued_class_and_shapes_graph_subclass_assertion(),
         meta_shacl=False,
         rdfs_subclass_reasoning_includes_shapes_graph=True,
     )

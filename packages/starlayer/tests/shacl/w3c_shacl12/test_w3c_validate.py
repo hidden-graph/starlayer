@@ -1,6 +1,6 @@
 """Phase 1 of docs/w3c-shacl12-test-suite-plan.md: run every sht:Validate
 entry from the vendored W3C SHACL 1.2 suite (tests/core/ and tests/sparql/)
-against StarLayerShaclProcessor.validate().
+against StarShaclSchema.validate().
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 
 pyshacl = pytest.importorskip("pyshacl")
 
-from starlayer.shacl import StarLayerShaclProcessor
+from starlayer.shacl import StarShaclSchema
 
 from .closure import node_closure
 from .comparison import conforms_of, find_report_node, result_multiset
@@ -95,7 +95,7 @@ def test_w3c_validate(entry: ManifestEntry) -> None:
     shapes_graph = _resolve_action_graph(entry, SHT.shapesGraph)
     expected = next(entry.graph.objects(entry.iri, MF.result))
 
-    validator = StarLayerShaclProcessor()
+    validator = StarShaclSchema(shacl_graph=shapes_graph)
 
     # advanced=True enables pySHACL's SHACL-AF ("advanced features") mode -
     # sh:expression/sh:rule and friends are otherwise silently never invoked
@@ -109,16 +109,14 @@ def test_w3c_validate(entry: ManifestEntry) -> None:
         # Deliberately broad: parametrized over every sht:Failure fixture in
         # the W3C suite, which fail via different pySHACL exception types.
         with pytest.raises(Exception):  # noqa: B017
-            validator.validate(data_graph=data_graph, shacl_graph=shapes_graph, meta_shacl=False, advanced=True)
+            validator.validate(data_graph=data_graph, meta_shacl=False, advanced=True)
         return
 
     expected_graph = node_closure(entry.graph, expected)
     expected_report_node = find_report_node(expected_graph)
     extra_kwargs = _conformance_disallows_kwargs(expected_graph, expected_report_node)
 
-    result = validator.validate(
-        data_graph=data_graph, shacl_graph=shapes_graph, meta_shacl=False, advanced=True, **extra_kwargs
-    )
+    result = validator.validate(data_graph=data_graph, meta_shacl=False, advanced=True, **extra_kwargs)
 
     actual_report_node = find_report_node(result.report_graph)
 

@@ -1,6 +1,6 @@
 """Tests for starlayer.graph.graph._timeout - the general wall-clock
-timeout mechanism `infer(profile="owl-dl", timeout=...)`/
-`query(entailment="direct", timeout=...)` share across both reasoning
+timeout mechanism `infer(profile=ENTAILMENT["OWL-Direct"], timeout=...)`/
+`query(entailment=ENTAILMENT["OWL-Direct"], timeout=...)` share across both reasoning
 engines. Uses synthetic worker functions, not real HermiT/RustDL calls -
 the mechanism (subprocess spawn, deadline, process-group kill) is what's
 under test here, independent of any specific reasoner; engine-specific
@@ -21,6 +21,7 @@ import time
 import pytest
 
 from starlayer.graph.graph._timeout import ReasoningTimeoutError, run_with_timeout
+from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 
 
 def _fast_worker(x, queue):

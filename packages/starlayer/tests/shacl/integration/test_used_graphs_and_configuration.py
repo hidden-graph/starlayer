@@ -2,7 +2,7 @@ import pytest
 from rdflib import Literal, Namespace, URIRef
 from rdflib.namespace import RDF
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.shacl import StarLayerShaclProcessor
+from starlayer.shacl import StarShaclSchema
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
@@ -45,18 +45,17 @@ def _shapes() -> StarLayerGraph:
 
 
 def test_used_data_graph_and_shapes_graph_absent_by_default() -> None:
-    validator = StarLayerShaclProcessor()
-    result = validator.validate(data_graph=_valid_data(), shacl_graph=_shapes(), meta_shacl=False)
+    validator = StarShaclSchema(shacl_graph=_shapes())
+    result = validator.validate(data_graph=_valid_data(), meta_shacl=False)
 
     assert list(result.report_graph.triples((None, SH.usedDataGraph, None))) == []
     assert list(result.report_graph.triples((None, SH.usedShapesGraph, None))) == []
 
 
 def test_used_data_graph_and_shapes_graph_added_when_iris_supplied() -> None:
-    validator = StarLayerShaclProcessor()
+    validator = StarShaclSchema(shacl_graph=_shapes())
     result = validator.validate(
         data_graph=_valid_data(),
-        shacl_graph=_shapes(),
         meta_shacl=False,
         data_graph_iri="http://example.org/graphs/data1",
         shapes_graph_iri="http://example.org/graphs/shapes1",
@@ -70,10 +69,9 @@ def test_used_data_graph_and_shapes_graph_added_when_iris_supplied() -> None:
 def test_used_data_graph_accepts_a_real_uriref_and_versioned_literal() -> None:
     # The spec explicitly allows "the version IRI of a data/shapes graph"
     # as a value too - a Literal in the general case, not always a URIRef.
-    validator = StarLayerShaclProcessor()
+    validator = StarShaclSchema(shacl_graph=_shapes())
     result = validator.validate(
         data_graph=_valid_data(),
-        shacl_graph=_shapes(),
         meta_shacl=False,
         data_graph_iri=URIRef("http://example.org/graphs/data1"),
         shapes_graph_iri=Literal("http://example.org/graphs/shapes1#v2"),
@@ -89,18 +87,17 @@ def test_used_data_graph_accepts_a_real_uriref_and_versioned_literal() -> None:
 
 
 def test_used_configuration_absent_by_default() -> None:
-    validator = StarLayerShaclProcessor()
-    result = validator.validate(data_graph=_valid_data(), shacl_graph=_shapes(), meta_shacl=False)
+    validator = StarShaclSchema(shacl_graph=_shapes())
+    result = validator.validate(data_graph=_valid_data(), meta_shacl=False)
 
     assert list(result.report_graph.triples((None, SH.usedConfiguration, None))) == []
     assert list(result.report_graph.triples((None, RDF.type, SH.ProcessorConfiguration))) == []
 
 
 def test_used_configuration_added_when_opted_in() -> None:
-    validator = StarLayerShaclProcessor()
+    validator = StarShaclSchema(shacl_graph=_shapes())
     result = validator.validate(
         data_graph=_valid_data(),
-        shacl_graph=_shapes(),
         meta_shacl=False,
         include_used_configuration=True,
     )
@@ -132,12 +129,11 @@ def test_used_data_graph_and_shapes_graph_work_through_apply_rules() -> None:
     data = StarLayerGraph()
     data.add((EX.alice, EX.parent, EX.carol))
 
-    validator = StarLayerShaclProcessor()
+    validator = StarShaclSchema(shacl_graph=shapes)
     result = validator.apply_rules(
         data_graph=data,
-        shacl_graph=shapes,
         data_graph_iri="http://example.org/graphs/data1",
     )
 
-    report_node = next(result.report_graph.subjects(RDF.type, SH.ValidationReport))
-    assert (report_node, SH.usedDataGraph, URIRef("http://example.org/graphs/data1")) in result.report_graph
+    report_node = next(result.validation.report_graph.subjects(RDF.type, SH.ValidationReport))
+    assert (report_node, SH.usedDataGraph, URIRef("http://example.org/graphs/data1")) in result.validation.report_graph

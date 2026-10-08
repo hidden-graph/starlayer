@@ -1,7 +1,7 @@
 """An RDFS ontology (classes/subclasses, properties/subproperties,
 domain/range) for the ``salg:`` vocabulary. Not just documentation:
 ``shapes.py``'s ``validate()`` actually loads this as an ``ont_graph`` and
-runs pyshacl with ``inference="rdfs"`` on — real RDFS reasoning over the
+runs with ``inference=ENTAILMENT.RDFS`` on — real RDFS reasoning over the
 data graph before validating it, which is what lets ``GraphPatternShape``/
 ``ExpressionShape``/``SubSelectShape`` be a single ``sh:class`` check
 against an abstract superclass instead of enumerating every concrete

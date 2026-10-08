@@ -2,7 +2,7 @@ import pytest
 from rdflib import Graph, Literal, Namespace, URIRef
 from rdflib.namespace import RDF
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.shacl import StarLayerShaclProcessor
+from starlayer.shacl import StarShaclSchema
 from starlayer.shacl.shacl_profiling import declared_conformance_profile, derive_conforms_to
 
 SH = Namespace("http://www.w3.org/ns/shacl#")
@@ -121,10 +121,9 @@ def test_derive_conforms_to_reads_graph_iris_from_report_when_omitted() -> None:
     # The realistic path: validate() was called with data_graph_iri=/
     # shapes_graph_iri=, so sh:usedDataGraph/sh:usedShapesGraph are already
     # on the report - derive_conforms_to() shouldn't need them repeated.
-    validator = StarLayerShaclProcessor()
+    validator = StarShaclSchema(shacl_graph=_shapes())
     result = validator.validate(
         data_graph=_valid_data(),
-        shacl_graph=_shapes(),
         meta_shacl=False,
         data_graph_iri="http://example.org/graphs/data1",
         shapes_graph_iri="http://example.org/graphs/shapes1",

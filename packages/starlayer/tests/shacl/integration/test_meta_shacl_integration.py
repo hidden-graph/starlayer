@@ -1,7 +1,7 @@
 import pytest
 from rdflib import Literal, Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.shacl import StarLayerShaclProcessor
+from starlayer.shacl import StarShaclSchema
 
 EX = Namespace("http://example.org/")
 
@@ -40,10 +40,10 @@ def _ill_formed_case() -> tuple[StarLayerGraph, StarLayerGraph]:
 def test_meta_shacl_rejects_ill_formed_shapes_graph() -> None:
     data, shapes = _ill_formed_case()
 
-    validator = StarLayerShaclProcessor()
+    validator = StarShaclSchema(shacl_graph=shapes)
 
     with pytest.raises(Exception) as exc_info:
-        validator.validate(data_graph=data, shacl_graph=shapes)
+        validator.validate(data_graph=data)
 
     message = str(exc_info.value)
     assert "metashacl" in message.lower() or "meta-shacl" in message.lower()
@@ -52,10 +52,10 @@ def test_meta_shacl_rejects_ill_formed_shapes_graph() -> None:
 def test_meta_shacl_override_false_skips_preflight_but_still_errors_on_bad_shape_load() -> None:
     data, shapes = _ill_formed_case()
 
-    validator = StarLayerShaclProcessor()
+    validator = StarShaclSchema(shacl_graph=shapes)
 
     with pytest.raises(Exception) as exc_info:
-        validator.validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+        validator.validate(data_graph=data, meta_shacl=False)
 
     message = str(exc_info.value)
     assert "well-formed shacl propertyshape" in message.lower()

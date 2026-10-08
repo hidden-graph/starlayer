@@ -2,7 +2,7 @@ import pytest
 from rdflib import Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.graph.model.triple import TripleTerm
-from starlayer.shacl import StarLayerShaclProcessor
+from starlayer.shacl import StarShaclSchema
 
 from ._shape_loader import load_shape
 
@@ -29,12 +29,11 @@ def _build_reach_shapes() -> StarLayerGraph:
 def test_rule_iteration_reaches_fixed_point() -> None:
     shapes = _build_reach_shapes()
 
-    validator = StarLayerShaclProcessor()
+    validator = StarShaclSchema(shacl_graph=shapes)
 
     data_single_pass = _build_reach_graph()
     _ = validator.validate(
         data_graph=data_single_pass,
-        shacl_graph=shapes,
         advanced=True,
         inplace=True,
         iterate_rules=False,
@@ -43,7 +42,6 @@ def test_rule_iteration_reaches_fixed_point() -> None:
     data_iterative = _build_reach_graph()
     _ = validator.validate(
         data_graph=data_iterative,
-        shacl_graph=shapes,
         advanced=True,
         inplace=True,
         iterate_rules=True,
@@ -69,14 +67,14 @@ def test_rule_iteration_converges_with_cyclic_triple_term_identity() -> None:
     shapes = StarLayerGraph()
     shapes.parse(data=load_shape("rules_reach_witness_triple_term.ttl"), format="turtle")
 
-    validator = StarLayerShaclProcessor()
-    result = validator.apply_rules(data_graph=data, shacl_graph=shapes, meta_shacl=False, iterate_rules=True)
+    validator = StarShaclSchema(shacl_graph=shapes)
+    result = validator.apply_rules(data_graph=data, meta_shacl=False, iterate_rules=True)
 
-    assert result.conforms is True
+    assert result.validation.conforms is True
 
     # Full transitive closure of a 4-node cycle is all 16 ordered pairs
     # (including self-loops), each reified exactly once - no duplicates.
-    witnesses = list(result.data_graph.triples((None, EX.reachWitness, None)))
+    witnesses = list(result.inferred_graph.triples((None, EX.reachWitness, None)))
     assert len(witnesses) == 16
     distinct = {o for _, _, o in witnesses}
     assert len(distinct) == 16
@@ -97,9 +95,9 @@ def test_rule_iteration_converges_on_non_cyclic_multi_branch_diamond() -> None:
 
     shapes = _build_reach_shapes()
 
-    validator = StarLayerShaclProcessor()
+    validator = StarShaclSchema(shacl_graph=shapes)
     _ = validator.validate(
-        data_graph=data, shacl_graph=shapes, advanced=True, inplace=True, iterate_rules=True, meta_shacl=False
+        data_graph=data, advanced=True, inplace=True, iterate_rules=True, meta_shacl=False
     )
 
     a_reaches = {o for _, _, o in data.triples((EX.a, EX.reach, None))}
@@ -145,9 +143,9 @@ def test_rule_iteration_converges_within_iteration_limit(monkeypatch: pytest.Mon
     shapes = StarLayerGraph()
     shapes.parse(data=load_shape("rules_reach_linear_sparql.ttl"), format="turtle")
 
-    validator = StarLayerShaclProcessor()
+    validator = StarShaclSchema(shacl_graph=shapes)
     _ = validator.validate(
-        data_graph=data, shacl_graph=shapes, advanced=True, inplace=True, iterate_rules=True, meta_shacl=False
+        data_graph=data, advanced=True, inplace=True, iterate_rules=True, meta_shacl=False
     )
 
     assert (EX.n0, EX.reach, EX[f"n{length}"]) in data
@@ -167,8 +165,8 @@ def test_rule_iteration_raises_when_exceeding_iteration_limit(monkeypatch: pytes
     shapes = StarLayerGraph()
     shapes.parse(data=load_shape("rules_reach_linear_sparql.ttl"), format="turtle")
 
-    validator = StarLayerShaclProcessor()
+    validator = StarShaclSchema(shacl_graph=shapes)
     with pytest.raises(ReportableRuntimeError, match="iteration limit"):
         validator.validate(
-            data_graph=data, shacl_graph=shapes, advanced=True, inplace=True, iterate_rules=True, meta_shacl=False
+            data_graph=data, advanced=True, inplace=True, iterate_rules=True, meta_shacl=False
         )

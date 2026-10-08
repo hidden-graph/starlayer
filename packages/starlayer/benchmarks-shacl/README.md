@@ -33,7 +33,7 @@ Output:
 
 ## What this doesn't cover
 
-This measures the adapter's own encode/decode cost in isolation, not full `StarLayerShaclProcessor.validate()`/`apply_rules()` performance - `sh:construct` rule-iteration performance (dominated by `_SparqlAwareEncodedGraph.query()`'s decode cost, not the adapter's `encode_graph`/`decode_graph`) is a related but separate cost, currently only measured ad hoc via manual profiling (see `docs/implementation-plan.md`'s "Next Steps" for the known remaining bottlenecks there). Worth a dedicated script here if that becomes a recurring need.
+This measures the adapter's own encode/decode cost in isolation, not full `StarShaclSchema.validate()`/`apply_rules()` performance - `sh:construct` rule-iteration performance (dominated by `_SparqlAwareEncodedGraph.query()`'s decode cost, not the adapter's `encode_graph`/`decode_graph`) is a related but separate cost, currently only measured ad hoc via manual profiling (see `docs/implementation-plan.md`'s "Next Steps" for the known remaining bottlenecks there). Worth a dedicated script here if that becomes a recurring need.
 
 ## Results
 

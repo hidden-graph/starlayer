@@ -1,7 +1,7 @@
 import pytest
 from rdflib import Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.shacl import StarLayerShaclProcessor
+from starlayer.shacl import StarShaclSchema
 
 from ._shape_loader import load_shape
 
@@ -19,8 +19,8 @@ def test_report_decodes_triple_term_value_node() -> None:
     shapes = StarLayerGraph()
     shapes.parse(data=load_shape("report_says_nodekind_literal.ttl"), format="turtle")
 
-    validator = StarLayerShaclProcessor()
-    result = validator.validate(data_graph=data, shacl_graph=shapes)
+    validator = StarShaclSchema(shacl_graph=shapes)
+    result = validator.validate(data_graph=data)
 
     assert result.conforms is False
     assert (EX.alice, EX.says, (EX.bob, EX.knows, EX.carol)) in data
@@ -35,8 +35,8 @@ def test_report_can_return_encoded_values_when_decode_disabled() -> None:
     shapes = StarLayerGraph()
     shapes.parse(data=load_shape("report_says_nodekind_literal.ttl"), format="turtle")
 
-    validator = StarLayerShaclProcessor()
-    result = validator.validate(data_graph=data, shacl_graph=shapes, decode_report=False)
+    validator = StarShaclSchema(shacl_graph=shapes)
+    result = validator.validate(data_graph=data, decode_report=False)
 
     assert result.conforms is False
     assert any(o == EX.alice for _, _, o in result.report_graph.triples((None, SH.focusNode, None)))
@@ -53,8 +53,8 @@ def test_report_preserves_path_and_constraint_component() -> None:
     shapes = StarLayerGraph()
     shapes.parse(data=load_shape("report_says_in.ttl"), format="turtle")
 
-    validator = StarLayerShaclProcessor()
-    result = validator.validate(data_graph=data, shacl_graph=shapes)
+    validator = StarShaclSchema(shacl_graph=shapes)
+    result = validator.validate(data_graph=data)
 
     assert result.conforms is False
     assert any(o == (EX.bob, EX.knows, EX.carol) for _, _, o in result.report_graph.triples((None, SH.value, None)))
@@ -94,8 +94,8 @@ def test_report_text_humanizes_triple_term_value_node() -> None:
         format="turtle12",
     )
 
-    validator = StarLayerShaclProcessor()
-    result = validator.validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    validator = StarShaclSchema(shacl_graph=shapes)
+    result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
     assert "urn:starshacl:tt:" not in result.report_text
@@ -126,8 +126,8 @@ def test_report_text_stays_encoded_when_decode_disabled() -> None:
         format="turtle12",
     )
 
-    validator = StarLayerShaclProcessor()
-    result = validator.validate(data_graph=data, shacl_graph=shapes, meta_shacl=False, decode_report=False)
+    validator = StarShaclSchema(shacl_graph=shapes)
+    result = validator.validate(data_graph=data, meta_shacl=False, decode_report=False)
 
     assert result.conforms is False
     assert "urn:starshacl:tt:" in result.report_text
@@ -140,8 +140,8 @@ def test_report_decodes_result_node_for_nodekind_constraint() -> None:
     shapes = StarLayerGraph()
     shapes.parse(data=load_shape("report_says_nodekind_blanknode.ttl"), format="turtle")
 
-    validator = StarLayerShaclProcessor()
-    result = validator.validate(data_graph=data, shacl_graph=shapes)
+    validator = StarShaclSchema(shacl_graph=shapes)
+    result = validator.validate(data_graph=data)
 
     assert result.conforms is False
     assert any(o == EX.alice for _, _, o in result.report_graph.triples((None, SH.focusNode, None)))

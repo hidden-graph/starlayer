@@ -21,6 +21,7 @@ from rdflib.namespace import RDF, RDFS, XSD
 # effect of some other import) so registration always happens regardless of
 # what a caller imports first. See starlayer.graph/query/custom_functions.py.
 import starlayer.graph.query.custom_functions as _custom_functions  # noqa: F401
+from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 from starlayer.graph.graph.starlayer_dataset import StarLayerDataset
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.graph.model.dirlangstring import DirLangString
@@ -205,6 +206,7 @@ __all__ = [
     "RDF",
     "RDFS",
     "XSD",
+    "ENTAILMENT",
     # graph types
     "Graph",
     "Dataset",

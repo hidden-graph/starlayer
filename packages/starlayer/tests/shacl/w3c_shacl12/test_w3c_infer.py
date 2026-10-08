@@ -1,6 +1,6 @@
 """Phase 3 of docs/w3c-shacl12-test-suite-plan.md: run every sht:Infer entry
 from the vendored W3C SHACL 1.2 suite (tests/sparql/rules/) against
-StarLayerShaclProcessor.apply_rules().
+StarShaclSchema.apply_rules().
 
 Format (per docs/w3c-shacl12-test-suite-plan.md's "Test-format notes", derived
 from the vendored tests/sparql/rules/*.ttl fixtures themselves): mf:action
@@ -38,7 +38,7 @@ from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 
 pyshacl = pytest.importorskip("pyshacl")
 
-from starlayer.shacl import StarLayerShaclProcessor
+from starlayer.shacl import StarShaclSchema
 
 from .ids import portable_id
 from .known_failures import KNOWN_FAILURES
@@ -117,10 +117,10 @@ def test_w3c_infer(entry: ManifestEntry) -> None:
 
     before = set(data_graph.triples((None, None, None)))
 
-    validator = StarLayerShaclProcessor()
-    result = validator.apply_rules(data_graph=data_graph, shacl_graph=shapes_graph, meta_shacl=False)
+    validator = StarShaclSchema(shacl_graph=shapes_graph)
+    result = validator.apply_rules(data_graph=data_graph, meta_shacl=False)
 
-    after = set(result.data_graph.triples((None, None, None)))
+    after = set(result.inferred_graph.triples((None, None, None)))
     added = after - before
 
     assert added == expected, (

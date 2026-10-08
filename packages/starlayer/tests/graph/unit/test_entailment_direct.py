@@ -1,10 +1,10 @@
 """
 tests/unit/test_entailment_direct.py
 
-Coverage for StarLayerGraph.query(..., entailment="direct") - the
-query-time counterpart to StarLayerGraph.infer(profile="owl-dl", engine=...):
+Coverage for StarLayerGraph.query(..., entailment=ENTAILMENT['OWL-Direct']) - the
+query-time counterpart to StarLayerGraph.infer(profile=ENTAILMENT['OWL-Direct'], engine=...):
 query() a live union of self and a small cached OWL-DL entailment delta,
-mirroring exactly how entailment="owl-rl" already works for the owlrl-backed
+mirroring exactly how entailment=ENTAILMENT['OWL-RDF-Based'] already works for the owlrl-backed
 profile (see test_entailment.py's TestEntailmentOwlRl*/TestEntailmentOwlRlCaching,
 whose shapes this file's classes deliberately mirror).
 
@@ -21,6 +21,7 @@ import pytest
 
 from starlayer.graph import RDF, Namespace, StarLayerGraph
 from starlayer.graph.graph.owl_dl import InconsistentOntologyError
+from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 
 try:
     import owlready2
@@ -60,8 +61,8 @@ _Q_WOMAN = "PREFIX ex: <http://example.org/> SELECT ?x WHERE { ?x a ex:Woman }"
 def _disjunctive_graph():
     # Same oracle fixture as test_infer_owl_dl.py's own disjunctive-entailment
     # test - owlrl's forward-chaining rule engine structurally cannot derive
-    # this, so a correct result here proves entailment="direct" is doing
-    # genuine DL reasoning at query time, not something entailment="owl-rl"
+    # this, so a correct result here proves entailment=ENTAILMENT['OWL-Direct'] is doing
+    # genuine DL reasoning at query time, not something entailment=ENTAILMENT['OWL-RDF-Based']
     # could already answer.
     g = StarLayerGraph()
     g.bind("ex", EX)
@@ -81,25 +82,25 @@ def _disjunctive_graph():
 class TestEntailmentDirect:
     def test_direct_entailment_answers_disjunctive_query(self):
         g = _disjunctive_graph()
-        rows = list(g.query(_Q_WOMAN, entailment="direct"))
+        rows = list(g.query(_Q_WOMAN, entailment=ENTAILMENT['OWL-Direct']))
         assert [str(r.x) for r in rows] == [str(EX.alice)]
 
     def test_engine_kwarg_rejected_for_other_entailment(self):
         g = _disjunctive_graph()
-        with pytest.raises(ValueError, match="only meaningful for entailment='direct'"):
-            g.query(_Q_WOMAN, entailment="owl-rl", engine="rustdl")
+        with pytest.raises(ValueError, match="only meaningful for entailment="):
+            g.query(_Q_WOMAN, entailment=ENTAILMENT['OWL-RDF-Based'], engine="rustdl")
 
     def test_timeout_kwarg_rejected_for_other_entailment(self):
         g = _disjunctive_graph()
-        with pytest.raises(ValueError, match="only meaningful for entailment='direct'"):
-            g.query(_Q_WOMAN, entailment="owl-rl", timeout=5)
+        with pytest.raises(ValueError, match="only meaningful for entailment="):
+            g.query(_Q_WOMAN, entailment=ENTAILMENT['OWL-RDF-Based'], timeout=5)
 
     def test_tiny_timeout_raises_reasoning_timeout_error(self):
         from starlayer.graph.graph._timeout import ReasoningTimeoutError
 
         g = _disjunctive_graph()
         with pytest.raises(ReasoningTimeoutError):
-            list(g.query(_Q_WOMAN, entailment="direct", timeout=0.001))
+            list(g.query(_Q_WOMAN, entailment=ENTAILMENT['OWL-Direct'], timeout=0.001))
 
     def test_inconsistent_ontology_propagates(self):
         g = StarLayerGraph()
@@ -112,7 +113,7 @@ class TestEntailmentDirect:
         """, format="turtle12")
         q = "PREFIX ex: <http://example.org/> SELECT ?x WHERE { ?x a ex:Man }"
         with pytest.raises(InconsistentOntologyError):
-            list(g.query(q, entailment="direct"))
+            list(g.query(q, entailment=ENTAILMENT['OWL-Direct']))
 
     def test_direct_entailment_accepted_on_native_backend_no_store(self):
         # No live store configured, so this can't reach an actual endpoint -
@@ -122,14 +123,14 @@ class TestEntailmentDirect:
         # entailment="native".
         g = StarLayerGraph(backend="rdf-1.2")
         with pytest.raises(RuntimeError, match="store"):
-            g.query(_Q_WOMAN, entailment="direct")
+            g.query(_Q_WOMAN, entailment=ENTAILMENT['OWL-Direct'])
 
 
 @rustdl_extra
 class TestEntailmentDirectRustdl:
     def test_engine_rustdl_selectable_via_query(self):
         g = _disjunctive_graph()
-        rows = list(g.query(_Q_WOMAN, entailment="direct", engine="rustdl"))
+        rows = list(g.query(_Q_WOMAN, entailment=ENTAILMENT['OWL-Direct'], engine="rustdl"))
         assert [str(r.x) for r in rows] == [str(EX.alice)]
 
 
@@ -138,19 +139,19 @@ class TestEntailmentDirectRustdl:
 class TestEntailmentDirectCaching:
     def test_unchanged_graph_reuses_the_identical_cached_delta(self):
         g = _disjunctive_graph()
-        list(g.query(_Q_WOMAN, entailment="direct"))
+        list(g.query(_Q_WOMAN, entailment=ENTAILMENT['OWL-Direct']))
         first = g._owl_dl_cache["hermit"][0]
-        list(g.query(_Q_WOMAN, entailment="direct"))
+        list(g.query(_Q_WOMAN, entailment=ENTAILMENT['OWL-Direct']))
         second = g._owl_dl_cache["hermit"][0]
         assert first is second
 
     def test_changed_mode_recomputes_after_a_mutation(self):
         g = _disjunctive_graph()
-        list(g.query(_Q_WOMAN, entailment="direct", infer="changed"))
+        list(g.query(_Q_WOMAN, entailment=ENTAILMENT['OWL-Direct'], infer="changed"))
         first = g._owl_dl_cache["hermit"][0]
 
         g.add((EX.carol, RDF.type, EX.Person))
-        list(g.query(_Q_WOMAN, entailment="direct", infer="changed"))
+        list(g.query(_Q_WOMAN, entailment=ENTAILMENT['OWL-Direct'], infer="changed"))
         second = g._owl_dl_cache["hermit"][0]
 
         assert first is not second
@@ -162,11 +163,11 @@ class TestEntailmentDirectCaching:
 class TestEntailmentDirectMultiEngineCaching:
     def test_switching_engine_does_not_invalidate_other_engines_cache(self):
         g = _disjunctive_graph()
-        list(g.query(_Q_WOMAN, entailment="direct", engine="hermit"))
+        list(g.query(_Q_WOMAN, entailment=ENTAILMENT['OWL-Direct'], engine="hermit"))
         hermit_first = g._owl_dl_cache["hermit"][0]
 
-        list(g.query(_Q_WOMAN, entailment="direct", engine="rustdl"))
-        list(g.query(_Q_WOMAN, entailment="direct", engine="hermit"))
+        list(g.query(_Q_WOMAN, entailment=ENTAILMENT['OWL-Direct'], engine="rustdl"))
+        list(g.query(_Q_WOMAN, entailment=ENTAILMENT['OWL-Direct'], engine="hermit"))
         hermit_second = g._owl_dl_cache["hermit"][0]
 
         assert hermit_first is hermit_second

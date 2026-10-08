@@ -27,8 +27,9 @@ No public ``ontology_graph()``/``shapes_graph()`` here (same decision as
 graphs from ``starontology`` directly instead: ``get_ontology_graph(
 "skos_owl")`` / ``get_ontology_graph("skos_shacl")``.
 
-**Deliberately no ``ont_graph``/``inference="rdfs"`` in ``skos_validate()``,
-unlike ``manch:``/``salg:``/``srl:``'s own** - ``skos-ontology.ttl``
+**Deliberately no ``ont_graph``/``inference=ENTAILMENT.RDFS`` in
+``skos_validate()``, unlike ``manch:``/``salg:``/``srl:``'s own** -
+``skos-ontology.ttl``
 faithfully restates the real spec's S19/S20 ``rdfs:domain``/``range``
 axioms, but feeding that ontology into an RDFS-inference validation pass
 would auto-entail exactly the ``skos:Concept`` type the S19/S20 shape

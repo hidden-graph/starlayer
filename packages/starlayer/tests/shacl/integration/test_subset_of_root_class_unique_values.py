@@ -1,7 +1,7 @@
 import pytest
 from rdflib import Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.shacl import StarLayerShaclProcessor
+from starlayer.shacl import StarShaclSchema
 
 from ._shape_loader import load_shape
 
@@ -31,8 +31,8 @@ def test_subset_of_conforms_when_value_is_among_comparison_path_values() -> None
         format="turtle",
     )
 
-    validator = StarLayerShaclProcessor()
-    result = validator.validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    validator = StarShaclSchema(shacl_graph=shapes)
+    result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is True
 
@@ -50,8 +50,8 @@ def test_subset_of_violates_when_value_is_not_among_comparison_path_values() -> 
         format="turtle",
     )
 
-    validator = StarLayerShaclProcessor()
-    result = validator.validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    validator = StarShaclSchema(shacl_graph=shapes)
+    result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
     assert SH.SubsetOfConstraintComponent in _violation_components(result)
@@ -86,8 +86,8 @@ def test_subset_of_conforms_with_compound_sequence_path_comparison() -> None:
         format="turtle",
     )
 
-    validator = StarLayerShaclProcessor()
-    result = validator.validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    validator = StarShaclSchema(shacl_graph=shapes)
+    result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is True
 
@@ -118,8 +118,8 @@ def test_subset_of_violates_with_compound_sequence_path_comparison() -> None:
         format="turtle",
     )
 
-    validator = StarLayerShaclProcessor()
-    result = validator.validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    validator = StarShaclSchema(shacl_graph=shapes)
+    result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
     assert SH.SubsetOfConstraintComponent in _violation_components(result)
@@ -142,8 +142,8 @@ def test_root_class_conforms_for_self_and_transitive_subclass() -> None:
         format="turtle",
     )
 
-    validator = StarLayerShaclProcessor()
-    result = validator.validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    validator = StarShaclSchema(shacl_graph=shapes)
+    result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is True
 
@@ -166,8 +166,8 @@ def test_root_class_violates_for_unrelated_class() -> None:
         format="turtle",
     )
 
-    validator = StarLayerShaclProcessor()
-    result = validator.validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    validator = StarShaclSchema(shacl_graph=shapes)
+    result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
     assert SH.RootClassConstraintComponent in _violation_components(result)
@@ -192,8 +192,8 @@ def test_unique_values_for_flags_only_duplicates_among_target_nodes() -> None:
         format="turtle",
     )
 
-    validator = StarLayerShaclProcessor()
-    result = validator.validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    validator = StarShaclSchema(shacl_graph=shapes)
+    result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
     violations = _violation_components(result)

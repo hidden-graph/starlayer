@@ -11,7 +11,7 @@ import starlayer
 
 def test_reexports_are_the_same_objects_not_copies() -> None:
     for name in starlayer.__all__:
-        source = starlayer.shacl if name == "StarLayerShaclProcessor" else starlayer.graph
+        source = starlayer.shacl if name == "StarShaclSchema" else starlayer.graph
         assert getattr(starlayer, name) is getattr(source, name), name
 
 
@@ -22,7 +22,7 @@ def test_all_matches_actual_module_exports() -> None:
     something any of this project's own code opts into). ``graph``/``shacl``
     are always present - ``starlayer/__init__.py`` imports both directly and
     unconditionally (slimmed 2026-10-04 to just these two subpackages' own
-    `StarLayerGraph`/`StarLayerDataset`/`StarLayerShaclProcessor`). ``sparql``/
+    `StarLayerGraph`/`StarLayerDataset`/`StarShaclSchema`). ``sparql``/
     ``starontology`` are both order-dependent instead - nothing in
     ``starlayer/__init__.py`` imports either directly, but they can still end
     up bound here purely from process-wide import order - e.g.
@@ -43,7 +43,7 @@ def test_all_matches_actual_module_exports() -> None:
 
 
 def test_graph_and_validator_work_together_through_the_single_import() -> None:
-    from starlayer import StarLayerGraph, StarLayerShaclProcessor
+    from starlayer import StarLayerGraph, StarShaclSchema
     from starlayer.graph import Namespace
 
     ex = Namespace("http://example.org/")
@@ -60,5 +60,5 @@ def test_graph_and_validator_work_together_through_the_single_import() -> None:
         format="turtle",
     )
 
-    result = StarLayerShaclProcessor().validate(data_graph=data, shacl_graph=shapes, meta_shacl=False)
+    result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
     assert result.conforms is True
