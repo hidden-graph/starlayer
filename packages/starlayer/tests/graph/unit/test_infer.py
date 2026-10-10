@@ -87,9 +87,9 @@ class TestInferRdfs:
         with pytest.raises(TypeError, match="StarLayerGraph"):
             _rdfs_graph().infer(target_graph=Graph())
 
-    def test_unsupported_profile_raises(self) -> None:
+    def test_unsupported_entailment_raises(self) -> None:
         with pytest.raises(ValueError, match="bogus"):
-            _rdfs_graph().infer(profile="bogus")
+            _rdfs_graph().infer(entailment="bogus")
 
 
 class TestInferRdf:
@@ -107,7 +107,7 @@ class TestInferRdf:
         g.bind("ex", EX)
         g.add((EX.alice, EX.knows, EX.bob))
 
-        closed = g.infer(profile=ENTAILMENT.RDF)
+        closed = g.infer(entailment=ENTAILMENT.RDF)
 
         assert (EX.knows, RDF.type, RDF.Property) in closed
 
@@ -117,7 +117,7 @@ class TestInferRdf:
         g.add((EX.alice, EX.knows, EX.bob))
         g.add((EX.knows, RDF.type, RDF.Property))
 
-        delta = set(g.infer(profile=ENTAILMENT.RDF, mode="delta"))
+        delta = set(g.infer(entailment=ENTAILMENT.RDF, mode="delta"))
 
         # The already-asserted fact itself isn't re-derived as "new" -
         # but using rdf:type as a predicate here (to assert it) is itself
@@ -136,7 +136,7 @@ class TestInferRdf:
         g.add((EX.list1, RDF.rest, RDF.nil))
         g.add((EX.x, RDF._1, EX.y))
 
-        delta = set(g.infer(profile=ENTAILMENT.RDF, mode="delta"))
+        delta = set(g.infer(entailment=ENTAILMENT.RDF, mode="delta"))
 
         assert delta == {
             (RDF.first, RDF.type, RDF.Property),
@@ -156,7 +156,7 @@ class TestInferRdf:
         g.add((EX.alice, EX.knows, EX.bob))
         before = set(g)
 
-        closed = g.infer(profile=ENTAILMENT.RDF)
+        closed = g.infer(entailment=ENTAILMENT.RDF)
 
         assert set(g) == before
         assert closed is not g
@@ -166,7 +166,7 @@ class TestInferRdf:
         g.bind("ex", EX)
         g.add((EX.alice, EX.knows, EX.bob))
 
-        result = g.infer(profile=ENTAILMENT.RDF, mode="in-place")
+        result = g.infer(entailment=ENTAILMENT.RDF, mode="in-place")
 
         assert result is g
         assert (EX.knows, RDF.type, RDF.Property) in g
@@ -174,17 +174,17 @@ class TestInferRdf:
 
 @owlrl_extra
 class TestInferOwlRl:
-    def test_owl_rl_profile_entails_beyond_plain_rdfs(self) -> None:
+    def test_owl_rl_entailment_entails_beyond_plain_rdfs(self) -> None:
         # owl:equivalentClass is an OWL construct with no RDFS-only analogue -
-        # a plain "rdfs" profile run should not entail fido's Animal
+        # a plain "rdfs" entailment run should not entail fido's Animal
         # membership through it, but "owl-rl" should.
         g = StarLayerGraph()
         g.bind("ex", EX)
         g.add((EX.Dog, OWL.equivalentClass, EX.Canine))
         g.add((EX.fido, RDF.type, EX.Canine))
 
-        rdfs_only = g.infer(profile=ENTAILMENT.RDFS)
-        owl_rl = g.infer(profile=ENTAILMENT["OWL-RDF-Based"])
+        rdfs_only = g.infer(entailment=ENTAILMENT.RDFS)
+        owl_rl = g.infer(entailment=ENTAILMENT["OWL-RDF-Based"])
 
         assert (EX.fido, RDF.type, EX.Dog) not in rdfs_only
         assert (EX.fido, RDF.type, EX.Dog) in owl_rl
@@ -195,7 +195,7 @@ class TestInferOwlRl:
         g.add((EX.Dog, OWL.equivalentClass, EX.Canine))
         g.add((EX.fido, RDF.type, EX.Canine))
 
-        closed = g.infer(profile=ENTAILMENT["OWL-RDF-Based"])
+        closed = g.infer(entailment=ENTAILMENT["OWL-RDF-Based"])
 
         oracle = Graph()
         for t in g:
@@ -356,7 +356,7 @@ class TestInferWithTripleTerms:
 
 
 @owlrl_extra
-class TestInferCombinedProfile:
+class TestInferCombinedRegime:
     def _domain_graph(self) -> StarLayerGraph:
         g = StarLayerGraph()
         g.bind("ex", EX)
@@ -368,8 +368,8 @@ class TestInferCombinedProfile:
         # OWLRL_Semantics.rules() never calls RDFS_Semantics.rules() -
         # confirmed live - so universal rdfs:Resource typing only shows up
         # once RDFS's own rules run alongside OWL-RL's.
-        owl_rl_only = self._domain_graph().infer(profile=ENTAILMENT["OWL-RDF-Based"])
-        combined = self._domain_graph().infer(profile={ENTAILMENT.RDFS, ENTAILMENT["OWL-RDF-Based"]})
+        owl_rl_only = self._domain_graph().infer(entailment=ENTAILMENT["OWL-RDF-Based"])
+        combined = self._domain_graph().infer(entailment={ENTAILMENT.RDFS, ENTAILMENT["OWL-RDF-Based"]})
 
         assert (EX.a, RDF.type, RDFS.Resource) not in owl_rl_only
         assert (EX.a, RDF.type, RDFS.Resource) in combined
@@ -377,7 +377,7 @@ class TestInferCombinedProfile:
     def test_matches_owlrl_run_directly(self) -> None:
         g = self._domain_graph()
 
-        closed = g.infer(profile={ENTAILMENT.RDFS, ENTAILMENT["OWL-RDF-Based"]})
+        closed = g.infer(entailment={ENTAILMENT.RDFS, ENTAILMENT["OWL-RDF-Based"]})
 
         oracle = Graph()
         for t in g:
@@ -438,6 +438,6 @@ class TestInferInPlace:
 
         assert set(g_in_place) == original | set(delta)
 
-    def test_unsupported_profile_still_raises(self) -> None:
+    def test_unsupported_entailment_still_raises(self) -> None:
         with pytest.raises(ValueError, match="bogus"):
-            _rdfs_graph().infer(profile="bogus", mode="in-place")
+            _rdfs_graph().infer(entailment="bogus", mode="in-place")

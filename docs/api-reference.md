@@ -14,7 +14,7 @@
 
 ## `starlayer`
 
-`starlayer` consists of one installable package with four subpackages:
+`starlayer` consists of one installable package with four subpackages, plus one standalone top-level module:
 
 | Subpackage | Holds |
 |---|---|
@@ -22,6 +22,7 @@
 | `starlayer.sparql` | Query of RDF 1.2 graphs |
 | `starlayer.shacl` | SHACL 1.2 over graphs — the pyshacl wrapper |
 | `starlayer.starontology` | Access ontology files |
+| `starlayer.conformance` | Whole-library self-declared spec conformance (2026-10-09) — see its own section below |
 
 A limited number of top-level classes are available from `starlayer`.
 
@@ -33,6 +34,27 @@ A limited number of top-level classes are available from `starlayer`.
 | `StarLayerDataset` | class | New | Also available from `starlayer.graph` below |
 | `StarShaclSchema` | class | New | Holds a SHACL shapes graph (plus optional ontology graph), to use with relevant SHACL methods, including validation, rule inferencing, or evaluation. |
 
+
+---
+
+## `starlayer.conformance`
+
+Generalizes `starlayer.shacl.shacl_profiling.declared_conformance_profile()`'s own SHACL 1.2 Profiling §3 self-declaration pattern (`dcterms:conformsTo` plus the dx-prof vocabulary) beyond just SHACL. **Three real resources in one graph, not one flattened "whole library" node** (2026-10-09) — a claim like "conforms to SPARQL 1.2 Query" is really about `starlayer.sparql` specifically, not the library as an undifferentiated whole, so each subpackage keeps its own resource and its own claims:
+
+- `starlayer.shacl` — its own existing declaration, merged in verbatim, unchanged.
+- `starlayer.graph` — RDF 1.2 Concepts/Schema/Turtle/N-Triples/XML, RDF Dataset Canonicalization (RDFC-1.0), SPARQL 1.2 Protocol, and each *individually* supported SPARQL 1.2 Entailment Regime IRI (`RDF`/`RDFS`/`OWL-RDF-Based`/`OWL-Direct`, reused directly from `entailment_regimes.SUPPORTED_REGIMES` — not the whole Entailment Regimes *document*, since three of its six regimes are genuinely unimplemented, too partial for an honest document-level claim even with a scope caveat; entailment regimes, like SHACL profiles, each have their own real dereferenceable IRI, so the same named-sub-thing pattern applies).
+- `starlayer.sparql` — SPARQL 1.2 Query/Update and SPARQL 1.2 RL (SRL, a full grammar/AST/shapes/stratified-Datalog engine verified against the spec's own worked example).
+
+Confirmed directly against the SPARQL 1.2 Query spec that no SPARQL analog to SHACL's named-profile mechanism exists for *documents* (`http://www.w3.org/ns/sparql/profile/` is not real — SPARQL only has hierarchical *version* labels, a different concept) — entailment regime IRIs are the one place SPARQL does have named, individually-dereferenceable sub-things, confirmed live via `curl`. Lives at this top level deliberately — not inside `starlayer.shacl` (a declaration spanning multiple subpackages doesn't belong in just one) or `starlayer.starontology` (that's the bundled vocabulary/shapes *registry*, not a home for the processing engine's own spec conformance) — and `starlayer/__init__.py`'s own documented "minimal surface, pick a subpackage" policy doesn't fit this either, so it's its own small module instead.
+
+`from starlayer import conformance`
+
+| Name | Kind | Status | Description |
+|---|---|---|---|
+| `declared_conformance()` | function | New | Returns a fresh graph (not shared/cached across calls) containing all three resources above, each asserting `dcterms:conformsTo` only the documents/regimes specific to that subpackage. `conformance.GRAPH_SUBJECT`/`conformance.SPARQL_SUBJECT` (and `RDF12_CORE_TR_URLS`/`SPARQL12_TR_URLS`/`GRAPH_EXTRA_TR_URLS`/`SPARQL_EXTRA_TR_URLS`) are also exposed directly, for a caller that wants to query one resource's own claims without re-deriving its IRI |
+| `DOES_NOT_CONFORM_TO` | constant (`URIRef`) | New | `conformance:doesNotConformTo` — a project-minted predicate (no standard "does not conform" term exists in dx-prof/Dublin Core to reuse) for the narrow set of exclusions that have a real, dereferenceable IRI and are total, not scope-limited: `hg:shacl` doesNotConformTo the UI Profile, `starlayer.graph` doesNotConformTo SPARQL 1.2's D-Entailment regime. `conformance.CONFORMANCE` is the backing `Namespace` (`https://github.com/hidden-graph/starlayer/ns/conformance#`) |
+
+**Most non-conformance is still prose, not RDF** — a few cases genuinely have no IRI to assert anything about, positive or negative: JSON-LD "1.2"/TriX "1.2" (no real RDF 1.2 companion spec exists to name), RIF Core Entailment (no IRI defined for it anywhere), the community-managed SHACL profiles mentioned in §3 (none has a published IRI), and OWL 2 RDF-Based Semantics' *full* regime (shares the exact same IRI this project already partially claims `dcterms:conformsTo` for via the RL fragment — asserting `doesNotConformTo` on that same IRI would contradict the positive claim). Those stay prose-only, in this module's own docstring and each asset's header comment. Each of the three resources also carries a second `rdfs:comment` stating what it excludes and why, as queryable data rather than only source-file prose.
 
 ---
 
@@ -50,6 +72,7 @@ Classes, functions and values available from `starlayer.graph`
 | `StarLayerDataset` | class | New | `rdflib.Dataset` extended with RDF 1.2 triple-term support — an RDF dataset where every named-graph context is a `StarLayerGraph` |
 | `TripleTerm` | class | New | An RDF 1.2 triple term used as a resource |
 | `DirLangString` | class | New | An RDF 1.2 directional language-tagged string literal |
+| `can_resolve_import()` | function | New | Takes an `owl:imports` target IRI and a `loader=`, and returns whether that loader can resolve it — calls `loader(iri)` once and checks for a non-`None` result, since there's no cheaper way to know short of trying |
 | `parseQuery()` | function | Modified | Takes SPARQL 1.2 SELECT/ASK/CONSTRUCT/DESCRIBE query text and returns its raw parse tree, a pyparsing `ParseResults` — not yet a compiled `Query` object |
 | `prepareQuery()` | function | Modified | Takes SPARQL 1.2 query text and returns a prepared `Query` object, ready to pass to `.query()` |
 | `parseUpdate()` | function | Modified | Takes SPARQL 1.2 Update text and returns its raw parse tree, a pyparsing `ParseResults` — not yet a compiled `Update` object |
@@ -88,10 +111,10 @@ Construct with `StarLayerGraph()`.
 | `de_skolemize()` | method | Modified | Converts skolem IRIs in the graph back to blank nodes and returns the result as a `StarLayerGraph`. Takes an optional `new_graph` (the target to write into, defaulting to a fresh `StarLayerGraph`) and `uriref` (limit the conversion to one specific skolem IRI). Overridden because rdflib's own inherited version hardcodes a plain `rdflib.Graph()` as that default target, which crashes with `AssertionError` the moment the graph being de-skolemized contains a real `TripleTerm` (plain `Graph.add()` rejects it outright) |
 | `derive_shape()` | method | New | Infers a SHACL shape from the graph's own data (one `sh:NodeShape` per class) and returns it as a `StarLayerGraph` |
 | `destroy()` | method | Unchanged | Destroys the identified store, if the backend supports it; returns this graph|
-| `from_rdflib()` | class method | New | Takes a plain `rdflib.Graph` and returns it  as a `StarLayerGraph` |
+| `from_rdflib()` | class method | **Modified** | Takes a plain `rdflib.Graph` and returns it  as a `StarLayerGraph`. Preserves the source graph's own `.identifier` (2026-10-09, previously silently replaced with a fresh random `BNode`) — except when `source_graph` is itself a whole `Dataset`/`ConjunctiveGraph` (not one of its named graphs), which has no single meaningful identity of its own and is left with a default `BNode` identifier as before |
 | `has_triple_term()` | method | New | Takes a subject/predicate/object and returns `True` if a `TripleTerm` with these exact components exists in the graph |
 | `identifier` | property | Unchanged | The graph's own identifier (a `URIRef` or `BNode`) |
-| `infer()` | method | New | Takes a `profile` string naming the entailment regime to run (`"rdfs"`, `"owl-rl"`, `"rdfs+owl-rl"`, or `"owl-dl"`), materializes that closure, and returns it as a `StarLayerGraph` |
+| `infer()` | method | New | Takes `entailment=` — a real entailment regime IRI from `ENTAILMENT` (`ENTAILMENT.RDF`, `ENTAILMENT.RDFS`, `ENTAILMENT["OWL-RDF-Based"]`, `ENTAILMENT["OWL-Direct"]`) or an iterable of more than one to combine into a single pass — plus `mode=` (`"full"`/`"delta"`/`"in-place"`), materializes that closure, and returns it as a `StarLayerGraph`. (2026-10-08: renamed from `profile=`, matching `query()`'s own already-established `entailment=` parameter for the identical vocabulary — see `starlayer/graph/CLAUDE.md`'s dated entry.) |
 | `isomorphic()` | method | Modified | Takes another graph and returns a boolean whether the two are isomorphic |
 | `items()` | method | Unchanged | Takes an `rdf:List` resource and yields its items one at a time, as a generator, rather than returning them all as a single list |
 | `n3()` | method | Unchanged | Returns an n3 identifier for the graph |
@@ -99,6 +122,7 @@ Construct with `StarLayerGraph()`.
 | `namespaces()` | method | Unchanged | Yields every `(prefix, namespace)` binding on this graph, one `(str, URIRef)` pair at a time |
 | `objects()` | method | Unchanged | Yields objects matching the given subject/predicate (optionally unique only), one term at a time as a generator |
 | `open()` | method | Modified | Opens a persistent store and returns this graph |
+| `owl_imports()` | method | New | Returns every object of this graph's own direct `owl:imports` triples, deduplicated, in first-seen order — a pure read, resolves/fetches nothing. See `resolve_imports()` below |
 | `parse()` | method | Modified | Takes RDF data — from `source` (a file path, URL, or file-like object), or explicitly via `location`/`file`/`data` — plus a `format=` string (any RDF 1.1/1.2 format this project supports), parses it into the graph, and returns this graph. For a multi-graph-capable format (`nquads`/`trig`/`trix`/`nq12`/`trig12`/`trix12`), raises `MultipleGraphsError` if the data spans more than one distinct graph — see `format=` below |
 | `predicate_objects()` | method | Unchanged | Yields `(predicate, object)` tuples for the given subject, one pair at a time as a generator (optionally unique only) |
 | `predicates()` | method | Unchanged | Yields predicates matching the given subject/object |
@@ -112,6 +136,8 @@ Construct with `StarLayerGraph()`.
 | `reifiers()` | method | New | Yields reifier nodes matching the given filters — `TT` (only reifiers of this triple term), `predicate`/`object` (only reifiers with that `(reifier, predicate, object)` triple present); filters combine with AND |
 | `remove()` | method | Modified | Removes a triple and returns this graph; no-ops immediately — nothing removed, this graph returned unchanged — if a pattern's `TripleTerm` isn't registered |
 | `remove_reification()` | method | New | Removes the `rdf:reifies` triple(s) for a given reifier and returns this graph |
+| `resolve_imports()` | method | New | Takes an optional `loader=` (an IRI → graph function, `None` if unresolvable; omit entirely if every declared import turns out to be locally satisfied — see `has_import_locally()` below) plus `mode=` (`"full"`/`"delta"`/`"in-place"`, same contract as `infer()`), and follows this graph's own `owl:imports` transitively (cycle-safe, with the same `^owl:versionIRI?/owl:imports` canonical-ID handling SHACL's own shapes-graph import resolution uses) — generalizes `validator.py`'s own `_resolve_shapes_graph_imports()` into a plain graph capability. Never calls `loader` for an import `has_import_locally()` already finds satisfied. See `starlayer.starontology.local_loader()` for a loader that only ever reads this project's own bundled files |
+| `has_import_locally()` | method | New | Takes an `owl:imports` target IRI and returns whether this graph already has its own content for it (at least one triple with that IRI as subject) — the common case when two shapes-graph "modules" that import each other have simply been loaded together into one graph, with nothing external to fetch at all. `resolve_imports()` checks this before ever calling `loader` |
 | `resource()` | method | Unchanged | Takes an identifier and returns a new `Resource` instance |
 | `rollback()` | method | Unchanged | Rolls back active transactions and returns this graph |
 | `serialize()` | method | Modified | Serializes the graph (any RDF 1.1/1.2 format this project supports). Returns the serialized text/bytes when no `destination` is given; when `destination` is given, writes to that path instead and returns this graph — matching rdflib's own `serialize()` contract |
@@ -332,7 +358,7 @@ Wraps `pyshacl` 0.40.1 (pinned `>=0.40.1`), by composition rather than inheritan
 | Name | Kind | Status | Description |
 |---|---|---|---|
 | `StarShaclSchema` | class | New | Holds a SHACL shapes graph (plus optional ontology graph), to use with relevant SHACL methods, including validation, rule inferencing, or evaluation. See its own table below |
-| `validate()` | function | **Modified** | Takes a data graph, an optional shapes graph, an optional ontology graph, and an optional `inference=` keyword, and returns a `ValidationResult` |
+| `validate()` | function | **Modified** | Takes a data graph, an optional shapes graph, an optional ontology graph, and an optional `inference=` keyword, and returns a `ValidationResult`. Raises `ValueError` if `shacl_graph` declares `owl:imports` and neither `shapes_graph_loader=` (resolves them) nor `ignore_imports=True` (proceeds anyway) is given — see the `owl:imports`/packaging note under `StarShaclSchema`'s own table below |
 | `validate_each()` | function | **Modified** | Takes an iterable of data graphs, an optional shapes graph, an optional ontology graph, and an optional `inference=` keyword, and returns a dictionary of `ValidationResult`s |
 | `evaluate()` | function | New | Takes a data graph, an optional shapes graph, an optional ontology graph, and an optional `inference=` keyword, and returns a plain graph object — SHACL 1.2 Node Expressions |
 | `apply_rules()` | function | New | Takes a data graph, an optional shapes graph, an optional rule set IRI, and an optional `inference=` keyword, and returns a `RulesResult` |
@@ -362,17 +388,30 @@ Construct with `StarShaclSchema(shacl_graph=None, ont_graph=None, *, data_graph=
 
 | Name | Kind | Status | Description |
 |---|---|---|---|
-| `validate()` | method | **Modified** | Takes an optional data graph (falls back to the bound `data_graph`) and returns a `ValidationResult`, in place of pyshacl's own bare `(conforms, report_graph, report_text)` tuple |
+| `validate()` | method | **Modified** | Takes an optional data graph (falls back to the bound `data_graph`) and returns a `ValidationResult`, in place of pyshacl's own bare `(conforms, report_graph, report_text)` tuple. Same `shapes_graph_loader=`/`ignore_imports=` requirement as the top-level function when the bound `shacl_graph` declares `owl:imports` |
 | `validate_each()` | method | **Modified** | Takes an optional iterable of data graphs (falls back to `(data_graph,)`) and returns `dict[int, ValidationResult]`, keyed by position, against this instance's own bound shapes graph |
 | `apply_rules()` | method | **Modified** | Takes an optional data graph and returns a `RulesResult` — rule execution (`sh:rule`/`sh:TripleRule`/`sh:SPARQLRule`, plus SHACL 1.2's own `sh:RuleSet`/`sh:sourceRule` provenance) |
 | `evaluate()` | method | New | Takes an optional data graph and returns a plain graph object — SHACL 1.2 Node Expressions |
 | `extract_subgraph()` | method | New | Takes an optional data graph, plus a required shape and focus node (both keyword-only), and returns the extracted subgraph itself, or `None` if `focus_node` doesn't conform to `shape` |
 | `target_nodes()` | method | New | Takes an optional data graph and a required shape node, and returns the shape's own target nodes in the data graph |
-
-Every method above that needs a shapes graph falls back to this instance's own bound `self.shacl_graph` when it's `None` (2026-10-08) — so `StarShaclSchema()` with no shapes graph at all, called against a data graph carrying its own embedded `sh:` shapes, works the same way across `validate()`, `apply_rules()`, `evaluate()`, `extract_subgraph()`, and `target_nodes()` uniformly.
 | `evaluate_component()` | method | New | Takes a component/focus node/value nodes and evaluates one native `ConstraintComponent` directly |
 | `close_shape()` | method | New | Takes a shape and returns a closed copy of this instance's own bound shapes graph — closes that shape and every shape it recursively references via `sh:node`/`sh:qualifiedValueShape`/`sh:and`/`sh:or`/`sh:xone` (not plain `sh:property`), stripping `sh:ignoredProperties` on each |
 | `build_report()` | method | New | Takes component results and builds a `sh:ValidationReport` graph from them |
+| `extract_shapes_graph()` | method | New | Takes the IRI of one `sh:ShapesGraph`-typed resource declared in this instance's own bound shapes graph, and returns just that resource's own "module" as a standalone graph (or `None` if the IRI isn't typed `a sh:ShapesGraph`) — the inverse of SHACL 1.2 Profiling §2's packaging convention. Honors all three documented membership mechanisms: `rdfs:member` (forward), `rdfs:isDefinedBy` (inverse), and `owl:imports` among already-co-located `sh:ShapesGraph` nodes (transitive) — raises `ValueError` if an `owl:imports` target isn't itself a `sh:ShapesGraph` already present in `shacl_graph` (missing entirely, or present but untyped), rather than silently skipping it; call `resolve_imports(loader=...)` on `shacl_graph` first if it needs fetching from elsewhere. Does **not** recurse into a member's own `sh:property`/`sh:node`/etc. to pull in a *named* shape it references — Profiling gives no completeness rule for this (§2.7 is an unwritten `TODO`), so a dangling reference is left as-is, letting a caller inject their own replacement for it without a stale copy riding along |
+
+Every method above that needs a shapes graph falls back to this instance's own bound `self.shacl_graph` when it's `None` (2026-10-08) — so `StarShaclSchema()` with no shapes graph at all, called against a data graph carrying its own embedded `sh:` shapes, works the same way across `validate()`, `apply_rules()`, `evaluate()`, `extract_subgraph()`, and `target_nodes()` uniformly.
+
+**`shapes_graph_module=` (2026-10-09), on every method above that takes a shapes graph** (`validate()`, `validate_each()` — via its own `**kwargs` forwarding to `validate()` — `apply_rules()`, `evaluate()`, `extract_subgraph()`, `target_nodes()`, `close_shape()`): validate/process against just one named `sh:ShapesGraph` module pulled out of the bound `shacl_graph` via `extract_shapes_graph()`, instead of the whole thing — a convenience over calling `extract_shapes_graph()` and constructing a second `StarShaclSchema` by hand. Distinct from the pre-existing `shapes_graph_iri=` on `validate()` (report-provenance tagging, an unrelated arbitrary identity — the two can be passed together in the same call). Raises `ValueError` if there's no bound `shacl_graph` to extract from, or if the given IRI isn't typed `a sh:ShapesGraph`. Inherits `extract_shapes_graph()`'s own dangling-reference-by-design behavior: a module whose member shape references a *named* nested shape not itself a declared member can still raise pySHACL's own "not a well-formed SHACL PropertyShape" error unless the caller has already injected a replacement.
+
+On `validate()` specifically, `shapes_graph_module=` also seeds `shapes_graph_iri=`'s own report-provenance identity by default when the caller didn't supply one explicitly (2026-10-09) — the one unambiguous case for auto-filling it, since the caller already named exactly which module they validated against. An explicit `shapes_graph_iri=` is never overridden.
+
+**`data_graph_iri=`/`shapes_graph_iri=` also fall back to `data_graph.identifier`/`shacl_graph.identifier` (2026-10-09, both `validate()` implementations)** — every `rdflib.Graph`/`StarLayerGraph` already carries a real `.identifier` when constructed with `identifier=URIRef(...)` (a random `BNode` otherwise); when a given one is a real `URIRef`, it's used automatically if the caller didn't supply `data_graph_iri=`/`shapes_graph_iri=` explicitly. A default `BNode` identifier is never used, and an explicit value is never overridden. Doesn't apply to a whole `Dataset`/`StarLayerDataset` passed as `data_graph=` (no single meaningful identity exists there — `Dataset.identifier` is itself deprecated in modern rdflib), but a named graph *retrieved from* one (`dataset.graph(iri)`) carries its own real identifier and participates normally — see `from_rdflib()`'s own row below for the fix that makes this actually reach `validate()` intact.
+
+**`validate()` automatically derives `sh:conformsTo` into `report_graph` whenever both graph identities are resolvable (2026-10-09)** — whenever `data_graph_iri`/`shapes_graph_iri` both end up non-`None` (explicitly given, or via the `.identifier`/`shapes_graph_module=` fallbacks above), `validate()` internally calls `shacl_profiling.derive_conforms_to()` and merges the result straight into `report_graph` — no separate call needed. Only one IRI present never attempts this (would otherwise raise `ValueError`); a non-conforming report derives nothing, matching the rule's own `sh:conforms true` requirement. **`report_text` is *not* kept in sync** — it's a plain string pySHACL renders before this triple ever exists, not a live view of `report_graph`; re-rendering it would mean duplicating pySHACL's own formatting logic for one extra triple. A deliberate, documented gap: check `report_graph` for `sh:conformsTo`, not `report_text`.
+
+**`specification_graph=` (2026-10-10, both `validate()` implementations)** — any graph asserting `prof:isProfileOf` on the shapes graph itself (e.g. `starontology.get_profile_graph(name)`). When given alongside both `data_graph_iri=`/`shapes_graph_iri=` (directly, or via any of the fallbacks above), Profiling S5.5's *second* rule also fires automatically, merging `dcterms:conformsTo` the specification the shapes graph profiles straight into `report_graph` — the same call that already auto-derives `sh:conformsTo`, no separate `derive_conforms_to()` call needed afterward. `specification_graph=` alone, without both IRIs resolvable, derives nothing — the second rule has no `sh:conformsTo` triple to chain from if the first rule's own WHERE clause never fired.
+
+**`owl:imports` on `shacl_graph` (2026-10-08):** `validate()` raises `ValueError` by default if the shapes graph declares `owl:imports` that aren't already locally satisfied (`has_import_locally()` — e.g. two shapes-graph "modules" that import each other but were simply loaded together into one graph, nothing external to fetch) and neither resolution option is given — pass `shapes_graph_loader=` (an IRI → graph function) to actually resolve them, or `ignore_imports=True` to proceed with them left unresolved anyway. The `ignore_imports=` escape hatch still can't be replaced by a smarter automatic check: `StarLayerGraph.resolve_imports()` never strips the `owl:imports` triple once it resolves one *via a loader* (it's still a true fact about the document), so a shapes graph whose imports were already resolved that way by the caller beforehand looks identical, by content alone, to one that was never resolved at all — only the caller knows which case it is. `has_import_locally()` only catches the already-co-located case; it can't tell "resolved via a loader earlier" from "never resolved."
 
 ### SHACL 1.2 Inference Rules
 
@@ -394,16 +433,29 @@ One lower-level name not in the full-surface table, since it isn't itself one of
 
 ### SHACL 1.2 Profiling
 
+The real spec (`https://www.w3.org/TR/shacl12-profiling/`). **Not** the same thing as `validate(mode=...)` below, despite a shared word history — see that section's own callout for the distinction.
+
+What this buys you, concretely: §3 lets starlayer.shacl advertise, as machine-readable RDF rather than prose, exactly which SHACL 1.2 feature-areas it implements (Core/SPARQL/Node-Expressions/Rules/...) — any tool that understands the standard `prof:`/`dcterms:` vocabulary can discover that without any starlayer-specific code. §5.5 turns a one-off validation result into a durable, linkable conformance claim (`"dataset X conforms to shapes graph Y"`, as ordinary triples attached to real resource IRIs) rather than something that evaporates the moment the validation call returns.
+
 `from starlayer.shacl import shacl_profiling`
 
 | Name | Kind | Status | Description |
 |---|---|---|---|
-| `shacl_profiling.ValidationProfile` | class | New | `(name, options)` — a SHACL 1.2 Profiling profile |
-| `shacl_profiling.available_profiles()` | function | New | Returns the list of built-in validation profiles |
-| `shacl_profiling.get_profile()` | function | New | Takes a profile name and returns the matching `ValidationProfile` |
-| `shacl_profiling.resolve_profile_options()` | function | New | Takes a profile and caller overrides, and returns the resolved options |
-| `shacl_profiling.declared_conformance_profile()` | function | New | Returns a fresh copy of starlayer.shacl's bundled self-declared SHACL 1.2 conformance graph |
-| `shacl_profiling.derive_conforms_to()` | function | New | Takes a validation report and returns the `sh:conformsTo` triples derived from it |
+| `shacl_profiling.declared_conformance_profile()` | function | New | Returns a fresh copy of starlayer.shacl's bundled self-declared SHACL 1.2 conformance graph (§3 — which named feature-profiles this library implements) |
+| `shacl_profiling.derive_conforms_to()` | function | New | Takes a validation report and returns the `sh:conformsTo` triples derived from it (§5.5) — optionally also `dcterms:conformsTo` triples if a `specification_graph=` declaring `prof:isProfileOf` is supplied (see `starlayer.starontology.get_profile_graph()` for a ready-made one) |
+
+### Validator option presets (`mode=` on `validate()`)
+
+**Not related to the SHACL 1.2 Profiling spec above, despite the old name (`ValidationProfile`, renamed 2026-10-08) having shared its word history** — this is an internal, project-only bundle of validator options (`"validation"`/`"rules"`/`"debug"` presets for `meta_shacl`/`advanced`/`inplace`/etc.), selected via `validate(mode=...)`/`validate_each(mode=...)`. No connection to any W3C document.
+
+`from starlayer.shacl import validation_modes`
+
+| Name | Kind | Status | Description |
+|---|---|---|---|
+| `validation_modes.ValidationMode` | class | New | `(name, options)` — one named option preset |
+| `validation_modes.available_modes()` | function | New | Returns the list of built-in preset names (`"validation"`, `"rules"`, `"debug"`) |
+| `validation_modes.get_mode()` | function | New | Takes a preset name and returns the matching `ValidationMode` |
+| `validation_modes.resolve_mode_options()` | function | New | Takes a mode and caller overrides, and returns the resolved options dict |
 
 ### RDF 1.2 / triple-term adaptation (cross-cutting — every section above runs through this)
 
@@ -432,7 +484,9 @@ One lower-level name not in the full-surface table, since it isn't itself one of
 
 ## `starlayer.starontology`
 
-Allows access to owl ontology and shacl files as `StarLayerGraph` objects. 
+Allows access to owl ontology and shacl files as `StarLayerGraph` objects.
+
+**One dataset, not eleven files (2026-10-10):** every registered ontology/shapes entry, plus the ontology-shapes `prof:isProfileOf` mapping, lives as its own named graph inside one bundled TriG file (`starontology.trig`) — not eleven separate standalone `.ttl` files. Each entry's named-graph context IRI is the exact same `get_resource_iri()` identity it already had as a standalone file, kept stable across the move rather than reminted. Every public function below has the identical contract/behavior as before — only where the bytes come from changed.
 
 `from starlayer import starontology`
 
@@ -441,10 +495,14 @@ Allows access to owl ontology and shacl files as `StarLayerGraph` objects.
 | `get_ontology_list()` | function | New | Returns every registered entry's metadata (`name`, `description`, `type`), sorted by name — see below |
 | `get_ontology_graph()` | function | New | Takes a registered name and returns a fresh `StarLayerGraph` of that entry |
 | `OntologyInfo` | class | New | One registry entry: `name`, `description`, `type` (`"shacl"` / `"ast-graph"` / `"owl"`) |
+| `get_conformance_profiles()` | function | New | Returns every registered shapes graph's `prof:isProfileOf` relationship to its paired ontology/AST graph, as one fresh graph — loads the bundled `ontology-shapes-profiles.ttl` by default; pass `url=` to load a different local path or `http(s)://` location instead (a newer canonical copy, a local override for testing). A real, persisted third document relating both endpoints, not synthesized from a Python dict on every call (2026-10-09) |
+| `get_profile_graph()` | function | New | Takes a registered shapes-entry name (e.g. `"skos_shacl"`) and an optional `url=` (forwarded to `get_conformance_profiles()`), and returns a small graph with just that entry's own `prof:isProfileOf` triple — `None` for `"shacl_meta"` or an unregistered name; an *empty* graph (not `None`) if the name is registered but the loaded document simply has nothing to say about it (e.g. a sparse `url=` override). Ready to pass as `shacl_profiling.derive_conforms_to()`'s own `specification_graph=` |
+| `get_resource_iri()` | function | New | Takes any registered name and returns the stable resource IRI `get_profile_graph()` uses for it — pass this as `validate(..., shapes_graph_iri=...)` when validating against one of this registry's own shapes graphs, so `derive_conforms_to()`'s second rule can actually match it. `None` for `"shacl_meta"` or an unregistered name |
+| `local_loader()` | function | New | A `StarLayerGraph.resolve_imports()`-compatible loader (IRI → graph, `None` if not registered) that only ever reads this package's own bundled files — never the network. Resolves against each shapes entry's own *real* `sh:ShapesGraph` node (what its `owl:imports` triples actually point at) — a different IRI than `get_resource_iri()`'s own GitHub-blob-URL scheme, see the note below |
+
+**Two unrelated resource identities exist for the same shapes entry, for two unrelated reasons — don't assume they match.** `get_resource_iri()` returns a GitHub-blob-URL identity, minted specifically so a caller's `validate(..., shapes_graph_iri=...)` can line up with `get_profile_graph()`'s own `prof:isProfileOf` subject (a Profiling/§3 concern). `local_loader()` instead resolves against the *real* `sh:ShapesGraph` resource each shapes file declares about itself (a Packaging/§2 concern — `sqe_shapes.ttl`'s own `sqe:ShapesGraph owl:imports salg:ShapesGraph`, a real in-file IRI in the vocabulary's own namespace, not a blob URL). They're both legitimate, just answering different questions — use `get_resource_iri()`/`get_profile_graph()` together, and `local_loader()` with `resolve_imports()`, never cross the two.
 
 List of registered names (via `get_ontology_list()`):
-
-CLAUDE: rather than ast-graph can we call these tree-graph
 
 | Name | Type | Description |
 |---|---|---|
@@ -454,9 +512,13 @@ CLAUDE: rather than ast-graph can we call these tree-graph
 | `skos_shacl` | shacl | SHACL shapes validating a `skos:` graph |
 | `sparql_owl` | ast-graph | Ontology for SPARQL 1.2 query/update's internal AST (`salg:`) |
 | `sparql_shacl` | shacl | SHACL shapes validating a `salg:` graph |
+| `sqe_owl` | ast-graph | Ontology for a SPARQL query's raw, pre-`translateQuery` parse tree, meant for hand/UI editing (`sqe:`) |
+| `sqe_shacl` | shacl | SHACL shapes validating an `sqe:` graph — genuinely depends on `sparql_shacl` (see the packaging note below) |
 | `srl_owl` | ast-graph | Ontology for SPARQL-RL internal AST (`srl:`) |
-| `srl_shacl` | shacl | SHACL shapes validating an `srl:` graph |
+| `srl_shacl` | shacl | SHACL shapes validating an `srl:` graph — also genuinely depends on `sparql_shacl` |
 | `shacl_meta` | shacl | The SHACL 1.2 meta-shapes as SHACL shapes |
+
+**Packaging (SHACL 1.2 Profiling §2):** every `*_shacl` entry's own file declares a real `sh:ShapesGraph` resource (e.g. `salg:ShapesGraph`), listing every shape it contains via `rdfs:member` — not just organizational metadata left unused: it's exactly what `owl_imports()`/`resolve_imports()` read. `sqe_shacl`/`srl_shacl` each also declare a real `owl:imports` on that resource, pointing at `sparql_shacl`'s own `salg:ShapesGraph` — a genuine dependency, not a cosmetic one: both files' shapes directly reference `salg:ExpressionShape`/`salg:VariableShape`, which `sqe_shacl`/`srl_shacl` never define themselves. Loading `get_ontology_graph("sqe_shacl")` alone is missing those definitions; `get_ontology_graph("sqe_shacl").resolve_imports(loader=local_loader, mode="full")` resolves the dependency and returns the complete, self-sufficient result — note this is about the generic "graph in the shapes role" sense, not about anything newly typed `sh:ShapesGraph`; `resolve_imports()` never adds that typing itself.
 
 ### `starlayer.starontology.manchester`
 

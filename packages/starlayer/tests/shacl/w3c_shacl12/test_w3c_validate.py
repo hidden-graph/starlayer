@@ -105,18 +105,31 @@ def test_w3c_validate(entry: ManifestEntry) -> None:
     # finding as "sh:expression not implemented" when the feature actually
     # works correctly once configured the way real usage
     # (tests/integration/test_shnex_node_expressions.py) already does.
+    # ignore_imports=True (2026-10-08): a handful of vendored fixtures
+    # (e.g. tests/sparql/component/validator-001, .../node/prefixes-001)
+    # declare owl:imports against real external vocabularies
+    # (http://datashapes.org/dash) that this harness has never resolved -
+    # no shapes_graph_loader was ever wired up here, before or after
+    # validate() started raising by default on an unresolved import. This
+    # restores exactly the pre-existing, already-correct behavior (import
+    # left unresolved, same expected conforms/report outcome) rather than
+    # actually attempting real network resolution, which isn't this
+    # harness's job - it's conformance testing against the vendored
+    # fixtures as shipped, not an integration test of import retrieval.
     if expected == SHT.Failure:
         # Deliberately broad: parametrized over every sht:Failure fixture in
         # the W3C suite, which fail via different pySHACL exception types.
         with pytest.raises(Exception):  # noqa: B017
-            validator.validate(data_graph=data_graph, meta_shacl=False, advanced=True)
+            validator.validate(data_graph=data_graph, meta_shacl=False, advanced=True, ignore_imports=True)
         return
 
     expected_graph = node_closure(entry.graph, expected)
     expected_report_node = find_report_node(expected_graph)
     extra_kwargs = _conformance_disallows_kwargs(expected_graph, expected_report_node)
 
-    result = validator.validate(data_graph=data_graph, meta_shacl=False, advanced=True, **extra_kwargs)
+    result = validator.validate(
+        data_graph=data_graph, meta_shacl=False, advanced=True, ignore_imports=True, **extra_kwargs
+    )
 
     actual_report_node = find_report_node(result.report_graph)
 

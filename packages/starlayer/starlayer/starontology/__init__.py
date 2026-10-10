@@ -85,21 +85,25 @@ rather than the vocabulary-specific function it would have delegated to
 anyway (``starontology.manchester.manchester_validate()``, ``starlayer
 .sparql.srl.srl_validate()``, etc.), so it added a lookup layer with no
 real caller.
-The path constants are now private (``_MANCHESTER_ONTOLOGY_TTL_PATH``, etc.) -
+The path constants were private (``_MANCHESTER_ONTOLOGY_TTL_PATH``, etc.) -
 internal plumbing for this module's own registry, not a public way to
-reach the data. Anyone who wants the file's content uses
-``get_ontology_graph(name)`` instead (``.serialize(format='turtle12')`` on
-the result for Turtle text - a dedicated ``get_ontology_turtle12()``
-wrapper existed briefly but was removed 2026-10-03, since it was exactly
-that one-line composition and nothing more); anyone who genuinely needs
-the raw on-disk bytes (none of this stack's own code does - checked) can
-still find the file next to this module, it's just not exposed as a named
-constant anymore.
+reach the data - and are gone entirely as of 2026-10-10 (see "What's here"
+below: one dataset file replaced the ten separate ones they each pointed
+at). Anyone who wants an entry's content uses ``get_ontology_graph(name)``
+instead (``.serialize(format='turtle12')`` on the result for Turtle text -
+a dedicated ``get_ontology_turtle12()`` wrapper existed briefly but was
+removed 2026-10-03, since it was exactly that one-line composition and
+nothing more).
 
-**What's here**: ten *files* on disk, two per vocabulary (an OWL/RDFS
-ontology and a SHACL shapes graph) for five vocabularies - plus an
-eleventh *registered entry* (``shacl_meta``, see below) backed by
-generated Python rather than a file:
+**What's here**: ten entries, two per vocabulary (an OWL/RDFS ontology and
+a SHACL shapes graph) for five vocabularies - plus an eleventh
+*registered entry* (``shacl_meta``, see below) backed by generated Python
+rather than any stored data at all. **Not ten separate files as of
+2026-10-10** - see "One dataset, not eleven files" further below for
+where they actually live now; the filenames named here are still each
+entry's own identity (both as a dict key into that dataset and as the
+``.../<filename>`` suffix of its ``get_resource_iri()`` IRI), just no
+longer standalone files on disk:
 
 - ``manch:`` (``manchester-ast-ontology.ttl`` / ``manchester_shapes.ttl``) -
   OWL 2 Manchester Syntax's own internal AST as RDF. Type ``"ast-graph"``.
@@ -129,9 +133,28 @@ the SHACL 1.2 meta-shapes themselves (``starlayer.shacl``'s own
 shapes-about-shapes). The *generation code* deliberately stays in
 ``starlayer.shacl.meta_shapes.build_meta_shapes_graph()``, not duplicated
 here - this registry only calls it and wraps the result, the same way the
-other eight entries call ``_load()`` on their own ``.ttl`` file. No
-``*_TTL_PATH`` constant exists for it (nothing to point at - it's
-generated, not file-backed).
+other ten entries call ``_load(name)`` to pull their own named graph out
+of the shared dataset (see "One dataset, not eleven files" below). Not
+registered in that dataset at all (nothing to point at - it's generated,
+not file-backed).
+
+**One dataset, not eleven files (2026-10-10).** Previously: ten separate
+``.ttl`` files (two per vocabulary) plus an eleventh,
+``ontology-shapes-profiles.ttl`` - eleven independently-tracked files for
+content that's always shipped and read together anyway. Now: one file,
+``starontology.trig`` (TriG - Turtle's own named-graph extension, so
+every entry stays as readable/diffable as it was as a standalone ``.ttl``
+file), with each of the eleven entries as its own named graph inside it.
+Each named graph's context IRI is the *exact same* GitHub-blob-URL
+resource identity ``get_resource_iri()``/``_resource_iri()`` already
+minted for that entry before this move - deliberately kept stable rather
+than reminted, so every existing ``prof:isProfileOf`` triple and every
+caller's own ``validate(shapes_graph_iri=...)`` usage keeps working
+unchanged. ``_dataset()`` parses the whole file once and caches the
+result (never mutated, never handed to a caller directly);
+``_named_graph(context_iri)`` copies just one named graph's triples into
+a fresh ``Graph`` per call, which is what every public function below
+actually returns.
 
 Every loader returns a **fresh ``StarLayerGraph``** - see the "Dependency
 note" above for what that costs and why it was accepted. None of these
@@ -140,29 +163,79 @@ direction-tagged literals) themselves - they're ordinary RDF 1.1
 vocabulary/shape definitions - so a plain ``rdflib.Graph`` would have been
 functionally sufficient; ``StarLayerGraph`` is used for API consistency
 with the rest of the stack instead.
+
+**``get_profile_graph()`` (2026-10-08)**: every ontology/shapes pair here
+is also related by the dx-prof vocabulary's ``prof:isProfileOf`` -
+whenever a shapes graph exists to validate a bundled ontology/AST graph,
+that shapes graph is a profile *of* that ontology, uniformly across all
+five pairs (not just the ones that also formalize some further external
+W3C document, like ``skos:``). This plugs directly into
+``starlayer.shacl.profiling.derive_conforms_to()``'s own
+``specification_graph=`` parameter - see ``get_profile_graph()``'s own
+docstring for the full design and a worked example.
+
+**Revised 2026-10-09: that mapping now lives in a real, persisted third
+document (``ontology-shapes-profiles.ttl``), not a Python dict.** The
+original design assembled each ``prof:isProfileOf`` triple fresh, in
+memory, from a lookup dict - nothing existed on disk unless
+``get_profile_graph()`` happened to be called. A profile relationship is
+supposed to be genuine, persisted metadata (the same way
+``starlayer.shacl``'s own ``shacl12-conformance-profile.ttl`` is a real
+file), so this moved to one hand-maintained ``.ttl`` document, deliberately
+independent of both endpoints it relates - see that file's own header
+comment for the full reasoning (mixing profile metadata into either the
+ontology or the shapes graph would conflate two different concerns).
+``get_conformance_profiles(url=...)`` loads it (the bundled copy by
+default, or any local path/``http(s)://`` location instead);
+``get_profile_graph(shapes_name, url=...)`` is now a thin filter over that
+same document, same return contract as before.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Any, Callable
+
+from rdflib import Graph, Namespace, URIRef
 
 if TYPE_CHECKING:
     from starlayer.graph import StarLayerGraph
 
 _HERE = Path(__file__).parent
 
-_MANCHESTER_ONTOLOGY_TTL_PATH = _HERE / "manchester-ast-ontology.ttl"
-_MANCHESTER_SHAPES_TTL_PATH = _HERE / "manchester_shapes.ttl"
-_SKOS_ONTOLOGY_TTL_PATH = _HERE / "skos-ontology.ttl"
-_SKOS_SHAPES_TTL_PATH = _HERE / "skos_shapes.ttl"
-_SPARQL_ONTOLOGY_TTL_PATH = _HERE / "salg-ontology.ttl"
-_SPARQL_SHAPES_TTL_PATH = _HERE / "sparql_shapes.ttl"
-_SQE_ONTOLOGY_TTL_PATH = _HERE / "sqe-ontology.ttl"
-_SQE_SHAPES_TTL_PATH = _HERE / "sqe_shapes.ttl"
-_SRL_ONTOLOGY_TTL_PATH = _HERE / "srl-ontology.ttl"
-_SRL_SHAPES_TTL_PATH = _HERE / "srl_shapes.ttl"
+# Every registered ontology/shapes entry, plus the ontology-shapes profile
+# mapping, now lives in ONE multi-graph dataset file (starontology.trig,
+# 2026-10-10) - not 11 separate .ttl files. Each entry keeps its own real
+# identity as a *named graph* inside that one file, rather than as a
+# separate file on disk - see _dataset()/_named_graph() below for how
+# that's read back out, and this module's own docstring for the full
+# reasoning (one dataset is easier to hand to tooling as a whole, and
+# avoids 11 independently-tracked files for content that's always shipped
+# and read together anyway).
+_DATASET_TTL_PATH = _HERE / "starontology.trig"
+
+# Each registered name's own filename *within* the dataset - reused only
+# to compute _resource_iri() below (the same GitHub-blob-URL identity this
+# project already uses elsewhere), not to open a file directly anymore.
+_FILENAME_BY_NAME: dict[str, str] = {
+    "manchester_owl": "manchester-ast-ontology.ttl",
+    "manchester_shacl": "manchester_shapes.ttl",
+    "skos_owl": "skos-ontology.ttl",
+    "skos_shacl": "skos_shapes.ttl",
+    "sparql_owl": "salg-ontology.ttl",
+    "sparql_shacl": "sparql_shapes.ttl",
+    "sqe_owl": "sqe-ontology.ttl",
+    "sqe_shacl": "sqe_shapes.ttl",
+    "srl_owl": "srl-ontology.ttl",
+    "srl_shacl": "srl_shapes.ttl",
+}
+
+# The ontology-shapes profile mapping's own filename/named-graph identity -
+# see get_conformance_profiles()/get_profile_graph() below, and
+# _dataset()'s own comment for why it's a named graph inside the same
+# dataset rather than embedded in either endpoint it relates.
+_PROFILES_FILENAME = "ontology-shapes-profiles.ttl"
 
 
 @dataclass(frozen=True)
@@ -188,7 +261,7 @@ _REGISTRY: dict[str, tuple[OntologyInfo, Callable[[], StarLayerGraph]]] = {
             ),
             type="ast-graph",
         ),
-        lambda _p=_MANCHESTER_ONTOLOGY_TTL_PATH: _load(_p),
+        lambda: _load("manchester_owl"),
     ),
     "manchester_shacl": (
         OntologyInfo(
@@ -196,7 +269,7 @@ _REGISTRY: dict[str, tuple[OntologyInfo, Callable[[], StarLayerGraph]]] = {
             description="SHACL shapes validating a manch: AST graph's own structural well-formedness.",
             type="shacl",
         ),
-        lambda _p=_MANCHESTER_SHAPES_TTL_PATH: _load(_p),
+        lambda: _load("manchester_shacl"),
     ),
     "skos_owl": (
         OntologyInfo(
@@ -208,7 +281,7 @@ _REGISTRY: dict[str, tuple[OntologyInfo, Callable[[], StarLayerGraph]]] = {
             ),
             type="owl",
         ),
-        lambda _p=_SKOS_ONTOLOGY_TTL_PATH: _load(_p),
+        lambda: _load("skos_owl"),
     ),
     "skos_shacl": (
         OntologyInfo(
@@ -216,7 +289,7 @@ _REGISTRY: dict[str, tuple[OntologyInfo, Callable[[], StarLayerGraph]]] = {
             description="SHACL shapes checking SKOS's own numbered integrity conditions against a data graph.",
             type="shacl",
         ),
-        lambda _p=_SKOS_SHAPES_TTL_PATH: _load(_p),
+        lambda: _load("skos_shacl"),
     ),
     "sparql_owl": (
         OntologyInfo(
@@ -227,7 +300,7 @@ _REGISTRY: dict[str, tuple[OntologyInfo, Callable[[], StarLayerGraph]]] = {
             ),
             type="ast-graph",
         ),
-        lambda _p=_SPARQL_ONTOLOGY_TTL_PATH: _load(_p),
+        lambda: _load("sparql_owl"),
     ),
     "sparql_shacl": (
         OntologyInfo(
@@ -235,7 +308,7 @@ _REGISTRY: dict[str, tuple[OntologyInfo, Callable[[], StarLayerGraph]]] = {
             description="SHACL shapes validating a salg: algebra graph's own structural well-formedness.",
             type="shacl",
         ),
-        lambda _p=_SPARQL_SHAPES_TTL_PATH: _load(_p),
+        lambda: _load("sparql_shacl"),
     ),
     "sqe_owl": (
         OntologyInfo(
@@ -250,7 +323,7 @@ _REGISTRY: dict[str, tuple[OntologyInfo, Callable[[], StarLayerGraph]]] = {
             ),
             type="ast-graph",
         ),
-        lambda _p=_SQE_ONTOLOGY_TTL_PATH: _load(_p),
+        lambda: _load("sqe_owl"),
     ),
     "sqe_shacl": (
         OntologyInfo(
@@ -262,7 +335,7 @@ _REGISTRY: dict[str, tuple[OntologyInfo, Callable[[], StarLayerGraph]]] = {
             ),
             type="shacl",
         ),
-        lambda _p=_SQE_SHAPES_TTL_PATH: _load(_p),
+        lambda: _load("sqe_shacl"),
     ),
     "srl_owl": (
         OntologyInfo(
@@ -273,7 +346,7 @@ _REGISTRY: dict[str, tuple[OntologyInfo, Callable[[], StarLayerGraph]]] = {
             ),
             type="ast-graph",
         ),
-        lambda _p=_SRL_ONTOLOGY_TTL_PATH: _load(_p),
+        lambda: _load("srl_owl"),
     ),
     "srl_shacl": (
         OntologyInfo(
@@ -281,7 +354,7 @@ _REGISTRY: dict[str, tuple[OntologyInfo, Callable[[], StarLayerGraph]]] = {
             description="SHACL shapes validating an srl: rule-set graph's own structural well-formedness.",
             type="shacl",
         ),
-        lambda _p=_SRL_SHAPES_TTL_PATH: _load(_p),
+        lambda: _load("srl_shacl"),
     ),
     "shacl_meta": (
         OntologyInfo(
@@ -299,7 +372,74 @@ _REGISTRY: dict[str, tuple[OntologyInfo, Callable[[], StarLayerGraph]]] = {
 }
 
 
-def _load(path: Path) -> StarLayerGraph:
+_dataset_cache: Any | None = None
+
+
+def _dataset() -> Any:
+    """The shared ``rdflib.Dataset`` backing every file-based registry
+    entry plus the ontology-shapes profile mapping (2026-10-10) - parsed
+    from ``starontology.trig`` once and cached, not re-parsed on every
+    call. This file never changes at runtime (bundled, static), so
+    re-reading ~3000 triples from disk on every single
+    ``get_ontology_graph()`` call would be pure waste - same reasoning as
+    ``_real_shapes_graph_iri_to_name()``'s own caching below.
+
+    Never mutated, and never handed to a caller directly - every accessor
+    (``_named_graph()`` below) copies just the one named graph it needs
+    into a fresh, independent ``Graph`` first, so this cached object stays
+    safe to share across every call without any caller being able to see
+    (or corrupt) another caller's view of it.
+    """
+    global _dataset_cache
+    if _dataset_cache is None:
+        from rdflib import Dataset
+
+        ds = Dataset()
+        ds.parse(str(_DATASET_TTL_PATH), format="trig")
+        _dataset_cache = ds
+    return _dataset_cache
+
+
+def _bind_dataset_namespaces(graph: Graph) -> None:
+    """Bind every prefix the shared dataset itself has (``manch:``/
+    ``salg:``/``sqe:``/``srl:``/``skshp:``/etc., bound in
+    ``starontology.trig``'s own header) onto ``graph`` - a real regression
+    this fixes, caught live via the full test suite, not anticipated in
+    advance: copying triples one at a time via ``graph.add(triple)``
+    (``_named_graph()``'s own approach, needed since two callers must
+    never share - or corrupt - the same graph object) never carries over
+    namespace bindings the way ``graph.parse(path)`` used to when each
+    registry entry was still its own standalone file. Without this,
+    ``get_ontology_graph(name).serialize(...)`` falls back to rdflib's own
+    auto-generated ``ns1:``/``ns2:`` prefixes instead of the expected
+    ``salg:``/``sqe:`` - breaking real downstream callers
+    (``starlayer/sparql/salg/sparql_shapes.py``'s own
+    ``SHAPES_TURTLE = get_ontology_graph("sparql_shacl").serialize(...)``,
+    later string-concatenated with more hand-written ``salg:``-prefixed
+    Turtle text that assumes that exact prefix is already bound in the
+    combined document). Binding every dataset-wide prefix on every
+    extracted graph (not just the subset that entry's own triples
+    actually use) is harmless - rdflib's Turtle serializer only ever
+    emits an ``@prefix`` line for a namespace actually used by the
+    triples being serialized, so an unused binding here costs nothing."""
+    for prefix, namespace in _dataset().namespaces():
+        graph.bind(prefix, namespace, override=False)
+
+
+def _named_graph(context_iri: URIRef) -> Graph:
+    """A fresh, independent ``Graph`` containing just the triples from one
+    named graph in the shared, cached dataset - never the shared
+    ``Dataset`` object itself, and never a graph object owned by it
+    either, so two callers (or two calls) never see or mutate the same
+    object."""
+    graph = Graph()
+    _bind_dataset_namespaces(graph)
+    for triple in _dataset().graph(context_iri):
+        graph.add(triple)
+    return graph
+
+
+def _load(name: str) -> StarLayerGraph:
     # Lazy, not top-level: a top-level `from starlayer.graph import
     # StarLayerGraph` pulls in the whole starlayer package (Python always
     # initializes a parent package before any of its submodules) - a real
@@ -315,7 +455,9 @@ def _load(path: Path) -> StarLayerGraph:
     from starlayer.graph import StarLayerGraph
 
     g = StarLayerGraph()
-    g.parse(source=str(path), format="turtle")
+    _bind_dataset_namespaces(g)
+    for triple in _named_graph(_resource_iri(name)):
+        g.add(triple)
     return g
 
 
@@ -351,3 +493,202 @@ def get_ontology_graph(name: str) -> StarLayerGraph:
     except KeyError:
         raise KeyError(f"{name!r} is not a registered ontology - choices are {sorted(_REGISTRY)}") from None
     return loader()
+
+
+# Every registered shapes entry that has a paired ontology/AST entry it
+# validates - every "*_shacl" entry except "shacl_meta" (no ontology
+# counterpart in this registry: no "shacl_owl" entry exists, since it's
+# generated by starlayer.shacl.meta_shapes, not file-backed). Just the
+# name list - the actual prof:isProfileOf pairing itself now lives in
+# ontology-shapes-profiles.ttl (2026-10-09), not here, deliberately: this
+# tuple is reused below by _real_shapes_graph_iri_to_name() for an
+# unrelated reason (deciding which shapes files to scan), which has
+# nothing to do with declaring a profile relationship and shouldn't share
+# a name with the thing that does.
+_SHACL_ENTRIES_WITH_ONTOLOGY_COUNTERPART = (
+    "manchester_shacl",
+    "skos_shacl",
+    "sparql_shacl",
+    "sqe_shacl",
+    "srl_shacl",
+)
+
+# Same "GitHub blob URL as a resource identity" convention
+# starlayer.shacl's own shacl12-conformance-profile.ttl already established
+# for its one self-declaration resource - but computed from each entry's
+# own current, correct filename here (that file's own existing resource
+# IRI is actually stale, still naming the pre-consolidation "packages/shacl"
+# path - a pre-existing, unrelated drift bug, not fixed here, but not
+# propagated into these new IRIs either). Unchanged by the 2026-10-10 move
+# into one dataset file (below) - each entry's resource identity is still
+# "the GitHub blob URL its content used to live at as a standalone file,"
+# deliberately kept stable across that migration rather than reminted, so
+# nothing that already depends on this IRI (prof:isProfileOf triples,
+# validate(shapes_graph_iri=...) callers) silently breaks.
+_GITHUB_BLOB_BASE = "https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/starontology/"
+
+
+def _resource_iri(name: str) -> URIRef:
+    return URIRef(_GITHUB_BLOB_BASE + _FILENAME_BY_NAME[name])
+
+
+def get_resource_iri(name: str) -> URIRef | None:
+    """The stable resource IRI ``get_profile_graph()`` uses to identify
+    ``name``'s own registered file (a GitHub blob URL - see that
+    function's own neighboring comment for the convention). Returns
+    ``None`` for ``"shacl_meta"`` (generated, not file-backed - nothing to
+    point at) or an unregistered name, matching ``get_profile_graph()``'s
+    own no-raise convention.
+
+    Exists so a caller validating against one of this registry's own
+    shapes graphs can give it the *same* identity `derive_conforms_to()`'s
+    ``specification_graph=`` chain expects - `derive_conforms_to()`'s
+    second rule only fires when the shapes-graph IRI the caller supplied
+    to `validate(..., shapes_graph_iri=...)` is the *exact same* IRI
+    `get_profile_graph()` asserts `prof:isProfileOf` on, not merely some
+    other identity for "the same" file:
+
+    >>> shapes = starontology.get_ontology_graph("skos_shacl")
+    >>> result = StarShaclSchema(shacl_graph=shapes).validate(
+    ...     data_graph=my_data,
+    ...     data_graph_iri="http://example.org/graphs/mydata",
+    ...     shapes_graph_iri=starontology.get_resource_iri("skos_shacl"),
+    ... )
+    >>> derive_conforms_to(
+    ...     result.report_graph,
+    ...     specification_graph=starontology.get_profile_graph("skos_shacl"),
+    ... )  # doctest: +SKIP
+    """
+    if name not in _FILENAME_BY_NAME:
+        return None
+    return _resource_iri(name)
+
+
+def get_conformance_profiles(url: str | None = None) -> Graph:
+    """Every registered shapes graph's own ``prof:isProfileOf``
+    relationship to the ontology/AST graph it validates, as one real
+    persisted named graph (``<.../ontology-shapes-profiles.ttl>`` inside
+    ``starontology.trig``) - not synthesized from this module's own
+    registry on the fly. See that named graph's own context (and this
+    module's own docstring) for why the mapping is a third, independent
+    identity rather than embedded in either endpoint.
+
+    Loads the bundled copy by default. Pass ``url=`` to load a different
+    local path or ``http(s)://`` location instead - ``rdflib.Graph.parse()``
+    handles both natively - e.g. a community-hosted canonical copy, or a
+    local override for testing, without needing a new ``starontology``
+    release to pick up a change. An override is read as a plain Turtle
+    document (not a dataset) - it's expected to carry just the
+    ``prof:isProfileOf`` triples themselves, the same shape
+    ``get_profile_graph()`` itself returns.
+
+    A fresh graph on every call, matching this stack's "never share one
+    mutable graph object across callers" convention (see
+    ``starlayer.shacl.profiling.declared_conformance_profile()``).
+    """
+    if url is not None:
+        graph = Graph()
+        graph.parse(url, format="turtle")
+        return graph
+    return _named_graph(URIRef(_GITHUB_BLOB_BASE + _PROFILES_FILENAME))
+
+
+def get_profile_graph(shapes_name: str, url: str | None = None) -> Graph | None:
+    """A small, fresh ``rdflib.Graph`` (plain RDF, not a ``StarLayerGraph``
+    - matching ``starlayer.shacl.profiling.declared_conformance_profile()``'s
+    own precedent for a tiny side-asset, not one of this registry's 11
+    "real" ontology/shapes graphs) asserting ``<shapes resource>
+    prof:isProfileOf <ontology resource>`` for ``shapes_name``'s own
+    registered shapes graph, relative to the ontology/AST graph it
+    validates. A thin filter over ``get_conformance_profiles(url)`` -
+    pass ``url=`` through to load the mapping from somewhere other than
+    the bundled default.
+
+    The convention this project follows (direct user decision, 2026-10-08):
+    *whenever an ontology/AST graph has a paired SHACL shapes graph
+    validating it, that shapes graph is a profile of the ontology* - via
+    the dx-prof (``https://www.w3.org/TR/dx-prof/``) vocabulary's own
+    ``prof:isProfileOf`` relationship, the exact same predicate
+    ``starlayer.shacl.profiling.derive_conforms_to()``'s own
+    ``specification_graph=`` parameter already expects. This applies
+    uniformly across every registered pair here (``manch:``, ``skos:``,
+    ``salg:``, ``sqe:``, ``srl:``) regardless of whether the ontology
+    itself also happens to formalize some further external W3C document
+    (true for ``skos:``, not for ``srl:``) - the relationship being
+    declared is specifically "this shapes graph profiles this bundled
+    ontology graph," not a claim about any external specification.
+
+    Returns ``None`` for ``"shacl_meta"`` (no ontology counterpart exists
+    for it) or any name not registered at all, rather than raising - this
+    is optional enrichment, not something every caller needs.
+
+    Ready to pass straight through as ``derive_conforms_to()``'s own
+    ``specification_graph=`` argument: validate real data against
+    ``get_ontology_graph("skos_shacl")``, derive ``sh:conformsTo`` against
+    the shapes graph, then
+    ``derive_conforms_to(result.report_graph, specification_graph=
+    get_profile_graph("skos_shacl"))`` additionally derives
+    ``dcterms:conformsTo`` against ``skos_owl`` - one real inference chain
+    from validated data up through the shapes graph up through the
+    ontology it profiles.
+    """
+    if shapes_name not in _SHACL_ENTRIES_WITH_ONTOLOGY_COUNTERPART:
+        return None
+
+    subject = _resource_iri(shapes_name)
+    graph = Graph()
+    for triple in get_conformance_profiles(url).triples((subject, None, None)):
+        graph.add(triple)
+    return graph
+
+
+# Every registered shapes entry's own real sh:ShapesGraph node IRI (the one
+# each shapes file's own owl:imports triples actually point at, e.g.
+# sqe_shapes.ttl's sqe:ShapesGraph owl:imports salg:ShapesGraph) - a
+# genuinely different identity than get_resource_iri()'s own GitHub-blob-URL
+# scheme (built for prof:isProfileOf, a separate concern - see
+# starlayer/shacl/CLAUDE.md's dated entry for why these two identities exist
+# and don't currently match each other). Lazily built, cached: every
+# registered file is static and bundled, never changes at runtime, so
+# re-parsing all five on every local_loader() call would be pure waste.
+_REAL_SHAPES_GRAPH_IRI_TO_NAME: dict | None = None
+
+
+def _real_shapes_graph_iri_to_name() -> dict:
+    global _REAL_SHAPES_GRAPH_IRI_TO_NAME
+    if _REAL_SHAPES_GRAPH_IRI_TO_NAME is None:
+        from rdflib import RDF
+
+        SH = Namespace("http://www.w3.org/ns/shacl#")
+        mapping: dict = {}
+        for name in _SHACL_ENTRIES_WITH_ONTOLOGY_COUNTERPART:
+            for s in get_ontology_graph(name).subjects(RDF.type, SH.ShapesGraph):
+                mapping[s] = name
+        _REAL_SHAPES_GRAPH_IRI_TO_NAME = mapping
+    return _REAL_SHAPES_GRAPH_IRI_TO_NAME
+
+
+def local_loader(iri: URIRef) -> StarLayerGraph | None:
+    """A ``StarLayerGraph.resolve_imports()``-compatible loader that only
+    ever reads this package's own bundled files - never the network,
+    never anything outside this registry. Reverse-maps ``iri`` against
+    every registered shapes entry's own real ``sh:ShapesGraph`` node
+    (confirmed via ``_real_shapes_graph_iri_to_name()`` above - not
+    ``get_resource_iri()``'s own, separate GitHub-blob-URL identity).
+    Returns ``None`` for anything not registered here, rather than
+    raising - exactly what ``resolve_imports()`` already expects for "this
+    loader doesn't know that one," so an attempt to import something
+    genuinely external through this loader is safely skipped, not an
+    error.
+
+    This is what makes resolving ``starontology``'s own imports safe to
+    do without any of the caution a general, caller-supplied
+    ``shacl_graph``/``ont_graph`` needs: this loader provably never
+    leaves the package, so there's no network dependency, no
+    non-determinism, and nothing to secure against - unlike an arbitrary
+    graph's own ``owl:imports``, which could point anywhere.
+    """
+    name = _real_shapes_graph_iri_to_name().get(iri)
+    if name is None:
+        return None
+    return get_ontology_graph(name)

@@ -125,7 +125,23 @@ def test_transitive_import_closure_with_version_iri_redirect_enforces_imported_c
     assert SH.MinCountConstraintComponent in components
 
 
-def test_without_loader_imports_are_left_unresolved() -> None:
+def test_without_loader_or_ignore_imports_raises() -> None:
+    """2026-10-08: validate() used to silently proceed with owl:imports
+    left unresolved, so a shape referencing something only defined in the
+    unresolved import would simply never fire - no indication anything
+    was skipped. Now raises by default instead, since that silent
+    incompleteness is a real risk, not hypothetical (see the test below
+    for exactly the case this was protecting against)."""
+    data = StarLayerGraph()
+    data.parse(data="@prefix ex: <http://example.org/> .\nex:Bob a ex:Person .", format="turtle")
+
+    validator = StarShaclSchema(shacl_graph=_myapp_shapes())
+
+    with pytest.raises(ValueError, match="owl:imports"):
+        validator.validate(data_graph=data, meta_shacl=False)
+
+
+def test_ignore_imports_true_restores_the_old_silent_pass_through() -> None:
     data = StarLayerGraph()
     data.parse(
         data="""
@@ -137,11 +153,63 @@ def test_without_loader_imports_are_left_unresolved() -> None:
     )
 
     validator = StarShaclSchema(shacl_graph=_myapp_shapes())
-    result = validator.validate(data_graph=data, meta_shacl=False)
+    result = validator.validate(data_graph=data, meta_shacl=False, ignore_imports=True)
 
-    # No shapes_graph_loader given: the imported CompanyShape's sh:minCount
-    # on ex:name never gets merged in, so Acme's missing ex:name is invisible.
+    # Explicitly opted out of resolving: the imported CompanyShape's
+    # sh:minCount on ex:name never gets merged in, so Acme's missing
+    # ex:name is invisible - same behavior the old default used to give
+    # unconditionally, now only when asked for.
     assert result.conforms is True
+
+
+def test_bare_validate_function_raises_too() -> None:
+    """Same check, same message, in the module-level validate() - a
+    separate implementation from the method, not one delegating to the
+    other (see starlayer/shacl/CLAUDE.md's "two-step flip" note), so both
+    needed the identical fix."""
+    from starlayer.shacl import validate
+
+    data = StarLayerGraph()
+    data.parse(data="@prefix ex: <http://example.org/> .\nex:Bob a ex:Person .", format="turtle")
+
+    with pytest.raises(ValueError, match="owl:imports"):
+        validate(data, _myapp_shapes(), meta_shacl=False)
+
+
+def test_pre_resolved_imports_need_ignore_imports_too() -> None:
+    """The exact scenario this flag exists for: the caller resolves
+    imports into shacl_graph themselves first (the two-call pattern),
+    producing a single, already-complete graph. The owl:imports triple
+    is still physically present in it (resolve_imports() doesn't strip
+    it - it's still a true fact about the document), so validate() still
+    has no way to tell "already handled" from "genuinely missing" just by
+    looking at the graph, and still raises unless told explicitly."""
+    pre_resolved = _myapp_shapes().resolve_imports(loader=_loader, mode="full")
+    # Still present, as expected - resolve_imports() never strips the
+    # owl:imports triples it follows (nor the ones it merges in along the
+    # way, e.g. company's own owl:imports base).
+    assert COMPANY_V2 in pre_resolved.owl_imports()
+
+    data = StarLayerGraph()
+    data.parse(
+        data="""
+            @prefix ex: <http://example.org/> .
+            ex:Acme a ex:Company .
+            ex:Bob a ex:Person ; ex:worksFor ex:Acme .
+        """,
+        format="turtle",
+    )
+
+    validator = StarShaclSchema(shacl_graph=pre_resolved)
+
+    with pytest.raises(ValueError, match="owl:imports"):
+        validator.validate(data_graph=data, meta_shacl=False)
+
+    # With the explicit acknowledgment, the already-merged content (from
+    # the earlier resolve_imports() call) is what actually catches the
+    # violation - not a second resolution attempt.
+    result = validator.validate(data_graph=data, meta_shacl=False, ignore_imports=True)
+    assert result.conforms is False
 
 
 def test_unresolvable_import_is_skipped_not_raised() -> None:
@@ -283,3 +351,47 @@ def test_multi_hop_import_chain_without_any_version_iri_redirect() -> None:
     assert result.conforms is False
     violations = list(result.report_graph.triples((None, SH.resultPath, EX.id)))
     assert len(violations) == 1
+
+
+def test_imports_already_co_located_in_shacl_graph_need_no_loader_and_do_not_raise() -> None:
+    """2026-10-08: owl:imports isn't only used for genuinely external
+    references needing a loader - two shapes-graph "modules" that import
+    each other are often just loaded together into one single graph,
+    with nothing external to fetch. Found as a real false-positive risk
+    via direct testing, not hypothetical: without has_import_locally(),
+    this would incorrectly raise (nothing was ever actually missing)."""
+    from rdflib.namespace import OWL, RDF
+
+    shapes = StarLayerGraph()
+    shapes.add((EX.ModuleA, OWL.imports, EX.ModuleB))
+    shapes.add((EX.ModuleA, RDF.type, SH.ShapesGraph))
+    shapes.add((EX.PersonShape, RDF.type, SH.NodeShape))
+    shapes.add((EX.PersonShape, SH.targetClass, EX.Person))
+    shapes.add((EX.PersonShape, SH.property, EX.NameProp))
+    shapes.add((EX.NameProp, SH.path, EX.name))
+    shapes.add((EX.NameProp, SH.minCount, __import__("rdflib").Literal(1)))
+
+    # ModuleB is already co-located right here too - a different "module"
+    # declaring its own shape, not fetched from anywhere.
+    shapes.add((EX.ModuleB, RDF.type, SH.ShapesGraph))
+    shapes.add((EX.CompanyShape, RDF.type, SH.NodeShape))
+    shapes.add((EX.CompanyShape, SH.targetClass, EX.Company))
+    shapes.add((EX.CompanyShape, SH.property, EX.NameProp2))
+    shapes.add((EX.NameProp2, SH.path, EX.name))
+    shapes.add((EX.NameProp2, SH.minCount, __import__("rdflib").Literal(1)))
+
+    data = StarLayerGraph()
+    data.parse(
+        data="@prefix ex: <http://example.org/> .\nex:bob a ex:Person .\nex:acme a ex:Company .",
+        format="turtle",
+    )
+
+    validator = StarShaclSchema(shacl_graph=shapes)
+    # No shapes_graph_loader, no ignore_imports - must not raise, since
+    # ModuleB's own content is already right here in shapes.
+    result = validator.validate(data_graph=data, meta_shacl=False)
+
+    # ex:acme is missing ex:name, caught by ModuleB's own co-located
+    # CompanyShape - proof the shape actually applied, not just that
+    # validate() happened not to crash.
+    assert result.conforms is False

@@ -14,11 +14,11 @@ triples that define the encoding are hidden from callers.
 
 from __future__ import annotations
 
-from typing import Generator
+from typing import Any, Callable, Generator
 
 from rdflib import BNode, Graph, Literal, URIRef
 from rdflib.graph import DATASET_DEFAULT_GRAPH_ID, ReadOnlyGraphAggregate
-from rdflib.namespace import RDF
+from rdflib.namespace import OWL, RDF
 from rdflib.paths import Path
 from rdflib.query import Result
 from rdflib.term import IdentifiedNode, Node
@@ -70,7 +70,7 @@ VALID_BACKENDS = frozenset({'rdf-1.1', 'rdf-1.2'})
 # separate infer= kwarg). ENTAILMENT["OWL-Direct"] is the OWL 2 DL
 # counterpart - the SPARQL Entailment Regimes spec's own name for
 # OWL-Direct-Semantics-backed querying: a live union of self and a small
-# cached delta from infer(profile=ENTAILMENT["OWL-Direct"], engine=...)
+# cached delta from infer(entailment=ENTAILMENT["OWL-Direct"], engine=...)
 # (mode="delta"), refreshed on the same infer=-governed cadence, but via
 # genuine tableau DL reasoning (see query()'s own docstring for the real
 # cost difference this implies, and the separate engine= kwarg it also
@@ -121,6 +121,27 @@ VALID_INFER_MODES = frozenset({'always', 'cached', 'changed'})
 #       see infer()'s own docstring for the one narrow leftover caveat this
 #       still doesn't avoid.
 VALID_INFER_RETURN_MODES = frozenset({'full', 'delta', 'in-place'})
+
+
+def can_resolve_import(iri: Any, *, loader: Callable[[Any], Any | None]) -> bool:
+    """Whether ``loader`` can resolve ``iri`` - a question about the
+    *loader*'s own knowledge, not about any particular graph's data,
+    which is why this is a plain function rather than a
+    ``StarLayerGraph`` method the way ``owl_imports()``/``resolve_imports()``
+    are.
+
+    Implemented the only honest way this can be answered: by actually
+    calling ``loader(iri)`` and checking whether it returned a graph
+    instead of ``None``. For a loader that only ever consults an
+    already-known local registry (e.g. ``starontology``'s own), this is
+    free - a dict lookup. For a loader that makes a real network
+    request, this has the *exact same* cost and side effects as actually
+    resolving would - there is no cheaper way to ask "would this work"
+    short of trying it, since only the loader itself knows what it can
+    reach.
+    """
+    return loader(iri) is not None
+
 
 # rdf:TripleTerm type URI — emitted by the JSON-LD 1.2 serializer; treated as
 # internal encoding so it is never surfaced through triples() / __len__ etc.
@@ -1762,7 +1783,7 @@ class StarLayerGraph(Graph):
             SPARQL Entailment Regimes spec's own name for OWL-Direct-
             Semantics-backed querying: same live-union-with-a-cached-delta
             design, but the delta comes from
-            ``infer(profile=ENTAILMENT["OWL-Direct"], engine=...,
+            ``infer(entailment=ENTAILMENT["OWL-Direct"], engine=...,
             mode="delta")`` - see the ``engine`` parameter below and
             ``infer()``'s own docstring for what each engine actually
             guarantees. **Read this before reaching for it**: genuine
@@ -1777,7 +1798,7 @@ class StarLayerGraph(Graph):
             *expensive* any single recomputation is - unlike
             ``ENTAILMENT["OWL-RDF-Based"]``, which is always fast
             regardless. For a latency-sensitive caller, materialize once
-            ahead of time via ``infer(profile=ENTAILMENT["OWL-Direct"],
+            ahead of time via ``infer(entailment=ENTAILMENT["OWL-Direct"],
             mode="in-place"/"full")`` instead and query the result
             plainly; reserve ``entailment=ENTAILMENT["OWL-Direct"]`` for
             when live freshness is genuinely worth this cost. Raises
@@ -1785,7 +1806,7 @@ class StarLayerGraph(Graph):
             uncaught if ``self``'s data is logically inconsistent, unlike
             ``ENTAILMENT["OWL-RDF-Based"]``'s partial/silent consistency
             checking - same contract
-            ``infer(profile=ENTAILMENT["OWL-Direct"])`` already has
+            ``infer(entailment=ENTAILMENT["OWL-Direct"])`` already has
             directly), or ``"native"`` (only legal with
             ``backend='rdf-1.2'`` - a self-documenting label for "this
             endpoint is expected to handle entailment itself"; changes no
@@ -1820,12 +1841,12 @@ class StarLayerGraph(Graph):
             raises ``ValueError`` (fail loudly rather than let a caller
             believe it silently did something for a different regime).
             ``"hermit"`` (default) or ``"rustdl"`` - identical choice and
-            tradeoffs as ``infer(profile=ENTAILMENT["OWL-Direct"],
+            tradeoffs as ``infer(entailment=ENTAILMENT["OWL-Direct"],
             engine=...)``'s own parameter; see that method's docstring
             rather than repeating it here.
         timeout -- only meaningful when ``entailment=ENTAILMENT["OWL-Direct"]``;
             same validation and identical meaning as
-            ``infer(profile=ENTAILMENT["OWL-Direct"], timeout=...)``'s own
+            ``infer(entailment=ENTAILMENT["OWL-Direct"], timeout=...)``'s own
             parameter (wall-clock budget in seconds for the underlying
             reasoning call, default ``_timeout.DEFAULT_TIMEOUT_SECONDS``
             (120s), ``None`` disables it) - see that method's docstring
@@ -1874,7 +1895,7 @@ class StarLayerGraph(Graph):
             stale = cached is None or (infer == 'changed' and cached[1] != self._mutation_generation)
             if infer == 'always' or stale:
                 if fast_path:
-                    delta = self.infer(profile=ENTAILMENT["OWL-RDF-Based"], mode='delta')
+                    delta = self.infer(entailment=ENTAILMENT["OWL-RDF-Based"], mode='delta')
                 else:
                     self_view, delta = self._infer_before_and_delta(frozenset({ENTAILMENT["OWL-RDF-Based"]}))
                     self._owl_rl_snapshot_cache = self_view
@@ -1927,7 +1948,7 @@ class StarLayerGraph(Graph):
             stale = cached is None or (infer == 'changed' and cached[1] != self._mutation_generation)
             if infer == 'always' or stale:
                 if fast_path:
-                    delta = self.infer(profile=ENTAILMENT["OWL-Direct"], mode='delta', engine=engine, timeout=timeout)
+                    delta = self.infer(entailment=ENTAILMENT["OWL-Direct"], mode='delta', engine=engine, timeout=timeout)
                 else:
                     self_view, delta = self._before_and_delta_for(frozenset({ENTAILMENT["OWL-Direct"]}), engine, timeout)
                     self._owl_dl_snapshot_cache[engine] = self_view
@@ -2412,7 +2433,7 @@ class StarLayerGraph(Graph):
         dependency of a different, downstream package) - a small local
         equivalent instead, applied for *every* ENTAILMENT.RDFS-alone
         consumer (sh:entailment, inference=, and any direct
-        infer(profile=ENTAILMENT.RDFS) caller), not just a pySHACL-compat
+        infer(entailment=ENTAILMENT.RDFS) caller), not just a pySHACL-compat
         shim.
 
         **The combined RDFS+OWL-RL regime does NOT need this override -
@@ -2447,7 +2468,7 @@ class StarLayerGraph(Graph):
             def one_time_rules(self) -> None:
                 pass
 
-        profiles = {
+        semantics_by_regime = {
             frozenset({ENTAILMENT.RDFS}): _NoHiddenSameAsRDFSSemantics,
             frozenset({ENTAILMENT["OWL-RDF-Based"]}): owlrl.OWLRL_Semantics,
             # Genuinely distinct from ENTAILMENT["OWL-RDF-Based"] alone, not
@@ -2462,11 +2483,11 @@ class StarLayerGraph(Graph):
             # override doesn't apply here.
             frozenset({ENTAILMENT.RDFS, ENTAILMENT["OWL-RDF-Based"]}): owlrl.RDFS_OWLRL_Semantics,
         }
-        semantics = profiles.get(regimes)
+        semantics = semantics_by_regime.get(regimes)
         if semantics is None:
             raise ValueError(
                 f"Unsupported entailment regime combination {sorted(regimes)!r}; "
-                f"expected one of {[sorted(k) for k in profiles]}"
+                f"expected one of {[sorted(k) for k in semantics_by_regime]}"
             )
         return semantics
 
@@ -2600,14 +2621,14 @@ class StarLayerGraph(Graph):
 
         return self, delta
 
-    def infer(self, profile=ENTAILMENT.RDFS, *, mode: str = 'full', target_graph=None,
+    def infer(self, entailment=ENTAILMENT.RDFS, *, mode: str = 'full', target_graph=None,
               engine: str = 'hermit', timeout=_OWL_DL_TIMEOUT_DEFAULT) -> StarLayerGraph:
         """Materialize an RDFS/OWL-RL entailment closure - by default into a
         NEW graph, never mutating self (mode="in-place" is the deliberate
         exception - see below). Requires the optional ``owlrl`` dependency
         (``pip install starlayer.graph[reasoning]``).
 
-        profile -- one real entailment regime IRI (``ENTAILMENT.RDF``,
+        entailment -- one real entailment regime IRI (``ENTAILMENT.RDF``,
             ``ENTAILMENT.RDFS``, ``ENTAILMENT["OWL-RDF-Based"]``,
             ``ENTAILMENT["OWL-Direct"]``) or an iterable of more than one
             to combine them into a single
@@ -2635,10 +2656,10 @@ class StarLayerGraph(Graph):
             data. Datatype literal value-space well-typing (rdfD1/rdfD1a)
             is a deliberate v1 scope reduction, not built - see
             ``_infer_rdf_before_and_delta()``'s own docstring.
-        engine -- only meaningful for profile=ENTAILMENT["OWL-Direct"] (any
-            other profile combined with a non-default engine raises
+        engine -- only meaningful for entailment=ENTAILMENT["OWL-Direct"] (any
+            other entailment regime combined with a non-default engine raises
             ValueError - fail loudly rather than let a caller believe it
-            silently did something for an owlrl-backed profile). Picks
+            silently did something for an owlrl-backed regime). Picks
             which of two
             genuinely different reasoners runs the tableau reasoning
             above - neither is a strict replacement for the other, so this
@@ -2673,9 +2694,9 @@ class StarLayerGraph(Graph):
               (not silently) for `HasKey:` axioms, role chains longer than
               2, and one specific confirmed-hang idiom detected pre-flight
               - all three real constructs, not hypothetical.
-        timeout -- only meaningful for profile=ENTAILMENT["OWL-Direct"]
+        timeout -- only meaningful for entailment=ENTAILMENT["OWL-Direct"]
             (same ValueError contract as engine= above for any other
-            profile). Wall-clock
+            entailment regime). Wall-clock
             budget in seconds for the actual reasoner call, shared by both
             engines - defense-in-depth against a hang *neither* engine has
             a known, structurally-detectable pattern for yet (RustDL's one
@@ -2777,9 +2798,9 @@ class StarLayerGraph(Graph):
         # must also be treated as one scalar value, not iterated character
         # by character - iterating it silently produces a nonsensical
         # regime set ({'r', 'd', 'f', 's'}) instead of a clear rejection.
-        regimes = frozenset({profile}) if isinstance(profile, str) else frozenset(profile)
+        regimes = frozenset({entailment}) if isinstance(entailment, str) else frozenset(entailment)
         if not regimes:
-            raise ValueError("profile must name at least one entailment regime IRI.")
+            raise ValueError("entailment must name at least one entailment regime IRI.")
         unsupported = regimes - SUPPORTED_REGIMES
         if unsupported:
             message = (
@@ -2794,13 +2815,13 @@ class StarLayerGraph(Graph):
             raise ValueError(message)
         if regimes != frozenset({ENTAILMENT["OWL-Direct"]}) and engine != 'hermit':
             raise ValueError(
-                f"engine={engine!r} is only meaningful for profile=ENTAILMENT['OWL-Direct'] "
-                f"(got profile={sorted(regimes)!r}) - omit engine= for owlrl-backed profiles."
+                f"engine={engine!r} is only meaningful for entailment=ENTAILMENT['OWL-Direct'] "
+                f"(got entailment={sorted(regimes)!r}) - omit engine= for owlrl-backed regimes."
             )
         if regimes != frozenset({ENTAILMENT["OWL-Direct"]}) and timeout != _OWL_DL_TIMEOUT_DEFAULT:
             raise ValueError(
-                f"timeout={timeout!r} is only meaningful for profile=ENTAILMENT['OWL-Direct'] "
-                f"(got profile={sorted(regimes)!r}) - omit timeout= for owlrl-backed profiles."
+                f"timeout={timeout!r} is only meaningful for entailment=ENTAILMENT['OWL-Direct'] "
+                f"(got entailment={sorted(regimes)!r}) - omit timeout= for owlrl-backed regimes."
             )
 
         if mode == 'in-place':
@@ -2847,6 +2868,175 @@ class StarLayerGraph(Graph):
             # expressible with a real triple term (see below).
             for t in self:
                 target_graph.add(t)
+        for t in delta:
+            target_graph.add(t)
+        return target_graph
+
+    def owl_imports(self) -> tuple[Any, ...]:
+        """Every object of this graph's own ``owl:imports`` triples,
+        directly declared - deduplicated, in first-seen order. Purely a
+        read of what's already asserted; resolves nothing, fetches
+        nothing, and doesn't recurse into whatever those IRIs might
+        themselves import (that only happens once ``resolve_imports()``
+        actually loads their content - this graph's own triples are the
+        only thing there is to read from here).
+
+        This is step 1 of the three-step shape this capability has:
+        discover what's declared (this method), decide whether a
+        particular loader can do anything with a given IRI
+        (``can_resolve_import()``, a plain function, not a method - it's
+        a question about the *loader*, not about this graph's own data),
+        then actually resolve/merge (``resolve_imports()`` below).
+        """
+        return tuple(dict.fromkeys(o for _, _, o in self.triples((None, OWL.imports, None))))
+
+    def has_import_locally(self, iri: Any) -> bool:
+        """True if ``iri`` (typically an ``owl:imports`` target) already
+        has its own content present in this graph - at least one triple
+        with ``iri`` as subject - meaning there's nothing to fetch for
+        it: whatever it describes is already co-located right here.
+
+        Found as a real gap, not a hypothetical: ``owl_imports()`` scans
+        the *whole* graph for any ``owl:imports`` triple, regardless of
+        subject - so when two shapes-graph "modules" that import each
+        other have simply been loaded together into one single graph
+        (rather than kept as separate documents a loader fetches),
+        ``resolve_imports()`` would otherwise still try to call a loader
+        for an IRI that's already fully present right there, and
+        ``validate()``'s own unresolved-import check would raise on it
+        too - both false positives for exactly this case, confirmed
+        live before this existed. ``resolve_imports()`` checks this
+        before ever calling ``loader`` for a given import - a
+        locally-satisfied import never reaches the loader at all, and
+        a graph where every declared import is already locally
+        satisfied needs no loader whatsoever.
+        """
+        return any(True for _ in self.triples((iri, None, None)))
+
+    def resolve_imports(
+        self,
+        *,
+        loader: Callable[[Any], Any | None] | None = None,
+        mode: str = 'full',
+        target_graph=None,
+    ) -> StarLayerGraph:
+        """Follow this graph's own ``owl:imports`` (and, transitively,
+        whatever each imported graph itself further imports) and merge
+        the result - by default into a NEW graph, never mutating self
+        (``mode="in-place"`` is the deliberate exception, matching
+        ``infer()``'s own three-way ``mode=`` contract exactly: "full"
+        returns self's own triples plus every resolved import merged in;
+        "delta" returns only the newly-pulled-in triples (computed as a
+        true set difference against self - anything an import happens to
+        also assert that self already has is not "new"); "in-place" adds
+        just the delta into self directly and returns self).
+
+        ``loader`` -- optional: given an import IRI, returns a graph for
+        it, or ``None`` if it can't be resolved (skipped, not an error -
+        matching ``validator.py``'s own ``_resolve_shapes_graph_imports()``,
+        which this generalizes). ``None`` (the default) means "don't
+        attempt any external resolution at all" - every declared import
+        that isn't already satisfied by ``has_import_locally()`` is then
+        simply skipped, same as an unresolvable one. This is a genuine,
+        safe default, not a relaxation of the "never decide retrieval
+        policy for the caller" rule: it doesn't silently reach anywhere,
+        it just means "resolve whatever's already co-located in self,
+        nothing more" - exactly right for a graph whose imports all turn
+        out to be locally satisfied, which needs no loader whatsoever.
+        For a genuinely external import, this library still never
+        decides on your behalf how to fetch it - that policy is entirely
+        the caller's, via whatever ``loader`` they supply when one
+        actually is needed.
+
+        Recursive by construction, not an opt-in extra - that's what
+        "import" actually means (§3.4's imports closure): if an imported
+        graph's own content declares further imports, those are resolved
+        too, with cycle protection (an IRI already fetched, or a graph
+        whose own ``owl:versionIRI`` already matched something already
+        imported, is never fetched/merged twice). Mirrors
+        ``_resolve_shapes_graph_imports()``'s own ``^owl:versionIRI?/owl:imports``
+        handling precisely: when a fetched graph declares the IRI it was
+        fetched under as its own ``owl:versionIRI``, further imports are
+        followed from that graph's own *base* IRI (the subject of the
+        ``owl:versionIRI`` triple), not the version IRI itself - so
+        importing a versioned module and importing its unversioned base
+        both correctly converge on one shared identity for
+        deduplication.
+        """
+        if mode not in VALID_INFER_RETURN_MODES:
+            raise ValueError(f"mode must be one of {sorted(VALID_INFER_RETURN_MODES)}, got {mode!r}")
+        if mode == 'in-place' and target_graph is not None:
+            raise ValueError("target_graph is meaningless with mode='in-place' - it mutates self directly.")
+
+        fetched: set = set()
+        imported_canonical: set = set()
+        all_imported = type(self)()
+        pending = list(self.owl_imports())
+
+        while pending:
+            target_iri = pending.pop(0)
+            if target_iri in fetched:
+                continue
+            fetched.add(target_iri)
+
+            # Already co-located in self - nothing to fetch. Its own
+            # further owl:imports, if any, are already part of self's
+            # own content too (owl_imports() scans the whole graph, not
+            # scoped to any one subject), so there's nothing more to
+            # chase for this one either - skip without ever touching
+            # loader.
+            if self.has_import_locally(target_iri):
+                continue
+
+            if loader is None:
+                continue
+            imported_graph = loader(target_iri)
+            if imported_graph is None:
+                continue
+
+            canonical_id = next(
+                (s for s, _, o in imported_graph.triples((None, OWL.versionIRI, None)) if o == target_iri),
+                target_iri,
+            )
+            if canonical_id in imported_canonical:
+                continue
+            imported_canonical.add(canonical_id)
+            fetched.add(canonical_id)
+
+            for t in imported_graph:
+                all_imported.add(t)
+
+            for _, _, next_iri in imported_graph.triples((canonical_id, OWL.imports, None)):
+                if next_iri not in fetched:
+                    pending.append(next_iri)
+
+        delta = frozenset(all_imported) - frozenset(self)
+
+        if mode == 'in-place':
+            if self._is_native:
+                self._native_add_many(list(delta))
+            else:
+                for t in delta:
+                    self.add(t)
+            self._on_mutated()
+            return self
+
+        if mode == 'delta':
+            result = type(self)()
+            for t in delta:
+                result.add(t)
+            return result
+
+        if target_graph is None:
+            target_graph = StarLayerGraph()
+            for prefix, ns in self.namespaces():
+                target_graph.bind(prefix, ns)
+        elif not isinstance(target_graph, StarLayerGraph):
+            raise TypeError(
+                f"resolve_imports() target_graph must be a StarLayerGraph, not {type(target_graph).__name__}."
+            )
+        for t in self:
+            target_graph.add(t)
         for t in delta:
             target_graph.add(t)
         return target_graph
@@ -2925,10 +3115,31 @@ class StarLayerGraph(Graph):
         is copied unless the caller explicitly opted into a unioned view.
         Named graphs are never selected implicitly; use
         ``dataset.get_context(identifier)`` first for a specific one.
+
+        ``source_graph.identifier`` is preserved onto the new graph
+        (2026-10-09, previously silently dropped in favor of a fresh random
+        ``BNode`` identifier) - a genuine correctness fix to this method's
+        own "wrap" contract, not specific to any one caller: a graph with a
+        real, caller-given identity (e.g. a named graph retrieved from a
+        ``Dataset``, which always carries its own real IRI) keeps that
+        identity through this conversion, rather than it being silently
+        replaced by an unrelated, meaningless one.
+
+        Deliberately **not** done when ``source_graph`` is itself a whole
+        ``Dataset``/``ConjunctiveGraph`` (as opposed to one of its named
+        graphs) - a dataset has no single meaningful identity of its own
+        (``Dataset.identifier`` is itself deprecated in modern rdflib), so
+        there's nothing worth preserving there; this also avoids triggering
+        that deprecation warning on every dataset-to-graph conversion.
         """
+        from rdflib import ConjunctiveGraph, Dataset
+
         from starlayer.graph.parsers.turtle_parser import _skolemize_encoding
         processed = _skolemize_encoding(source_graph)
-        g = cls()
+        if isinstance(source_graph, (Dataset, ConjunctiveGraph)):
+            g = cls()
+        else:
+            g = cls(identifier=source_graph.identifier)
         for prefix, ns in processed.namespaces():
             g.bind(prefix, ns)
         for triple in processed:

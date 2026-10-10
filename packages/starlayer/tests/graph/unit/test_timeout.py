@@ -1,5 +1,5 @@
 """Tests for starlayer.graph.graph._timeout - the general wall-clock
-timeout mechanism `infer(profile=ENTAILMENT["OWL-Direct"], timeout=...)`/
+timeout mechanism `infer(entailment=ENTAILMENT["OWL-Direct"], timeout=...)`/
 `query(entailment=ENTAILMENT["OWL-Direct"], timeout=...)` share across both reasoning
 engines. Uses synthetic worker functions, not real HermiT/RustDL calls -
 the mechanism (subprocess spawn, deadline, process-group kill) is what's

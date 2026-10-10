@@ -2,10 +2,10 @@
 tests/unit/test_entailment_direct.py
 
 Coverage for StarLayerGraph.query(..., entailment=ENTAILMENT['OWL-Direct']) - the
-query-time counterpart to StarLayerGraph.infer(profile=ENTAILMENT['OWL-Direct'], engine=...):
+query-time counterpart to StarLayerGraph.infer(entailment=ENTAILMENT['OWL-Direct'], engine=...):
 query() a live union of self and a small cached OWL-DL entailment delta,
 mirroring exactly how entailment=ENTAILMENT['OWL-RDF-Based'] already works for the owlrl-backed
-profile (see test_entailment.py's TestEntailmentOwlRl*/TestEntailmentOwlRlCaching,
+entailment regime (see test_entailment.py's TestEntailmentOwlRl*/TestEntailmentOwlRlCaching,
 whose shapes this file's classes deliberately mirror).
 
 `owlready2`/`rustdl` are both optional extras of this package (`pip install

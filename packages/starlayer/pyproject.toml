@@ -61,7 +61,7 @@ Issues = "https://github.com/hidden-graph/starlayer/issues"
 include = ["starlayer*"]
 
 [tool.setuptools.package-data]
-starlayer = ["py.typed", "shacl/assets/*.ttl", "starontology/*.ttl"]
+starlayer = ["py.typed", "assets/*.ttl", "shacl/assets/*.ttl", "starontology/*.trig"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

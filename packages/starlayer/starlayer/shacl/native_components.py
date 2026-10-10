@@ -1925,8 +1925,8 @@ def _build_unique_lang_component() -> Any:
 
 
 class _PathEvalGraphAdapter:
-    """Minimal duck-typed stand-in for pySHACL's internal ``ShapesGraph``
-    wrapper, whose only use inside ``value_nodes_from_path`` is
+    """Minimal duck-typed stand-in for ``pyshacl.ShapesGraph``, whose only
+    use inside ``value_nodes_from_path`` is
     ``sg.graph.objects(...)`` for walking SHACL property path structures -
     a plain rdflib-compatible graph is all it actually needs.
     """

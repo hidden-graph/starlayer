@@ -2,8 +2,8 @@
 starlayer.graph.graph.owl_dl_rustdl
 
 OWL 2 Direct Semantics reasoning via RustDL - the second engine
-infer(profile=ENTAILMENT['OWL-Direct']) can dispatch to, alongside engine="hermit"
-(starlayer.graph.graph.owl_dl, the default). Same profile, same
+infer(entailment=ENTAILMENT['OWL-Direct']) can dispatch to, alongside engine="hermit"
+(starlayer.graph.graph.owl_dl, the default). Same entailment regime, same
 InconsistentOntologyError contract, same (before, delta) return shape -
 a genuinely different tradeoff, not a strictly-better replacement, which
 is why both exist rather than one being swapped for the other.
@@ -19,7 +19,7 @@ packages/starlayer/docs/future_enhancements.md for the fuller writeup:
    by construction only on the EL/Horn fragment; beyond it, "the
    classifier trusts the wedge's Sat verdicts - empirically near-complete
    on the measured corpus, not provably complete." HermiT's tableau
-   reasoning is sound *and* complete for the whole profile.
+   reasoning is sound *and* complete for all of OWL 2 DL (SROIQ).
 
 2. **No disjunctive-derived property assertions, per RustDL's own stated
    design - but this project's own empirical demonstration of it is now
@@ -176,7 +176,7 @@ def _require_rustdl():
         import rustdl
     except ImportError as exc:
         raise RuntimeError(
-            "StarLayerGraph.infer(profile=ENTAILMENT['OWL-Direct'], engine='rustdl') "
+            "StarLayerGraph.infer(entailment=ENTAILMENT['OWL-Direct'], engine='rustdl') "
             "requires the optional rustdl package - install it with "
             "`pip install starlayer.graph[rustdl]` (or `pip install rustdl` "
             "directly), then retry."
@@ -303,7 +303,7 @@ def classify_owl_dl_rustdl(graph, timeout: float | None = _timeout.DEFAULT_TIMEO
         )
         if status == 'inconsistent':
             raise InconsistentOntologyError(
-                "infer(profile=ENTAILMENT['OWL-Direct'], engine='rustdl') found self's data "
+                "infer(entailment=ENTAILMENT['OWL-Direct'], engine='rustdl') found self's data "
                 "logically inconsistent."
             )
 

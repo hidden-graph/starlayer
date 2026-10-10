@@ -18,10 +18,10 @@ _DECLARED_PROFILES = (
     URIRef("http://www.w3.org/ns/shacl/profile/sparql"),
     URIRef("http://www.w3.org/ns/shacl/profile/node-expr"),
     URIRef("http://www.w3.org/ns/shacl/profile/rules"),
+    URIRef("http://www.w3.org/ns/shacl/profile/profiling"),
 )
 _UNDECLARED_PROFILES = (
     URIRef("http://www.w3.org/ns/shacl/profile/ui"),
-    URIRef("http://www.w3.org/ns/shacl/profile/profiling"),
 )
 
 
@@ -55,18 +55,31 @@ def _conformant_report(*, conforms: bool = True) -> Graph:
     return graph
 
 
-def test_declared_conformance_profile_asserts_the_four_implemented_profiles() -> None:
+def test_declared_conformance_profile_asserts_the_five_implemented_profiles() -> None:
     graph = declared_conformance_profile()
     declared = set(graph.objects(_LIBRARY_IRI, DCTERMS.conformsTo))
     for profile_iri in _DECLARED_PROFILES:
         assert profile_iri in declared
 
 
-def test_declared_conformance_profile_deliberately_excludes_ui_and_profiling() -> None:
+def test_declared_conformance_profile_deliberately_excludes_ui() -> None:
     graph = declared_conformance_profile()
     declared = set(graph.objects(_LIBRARY_IRI, DCTERMS.conformsTo))
     for profile_iri in _UNDECLARED_PROFILES:
         assert profile_iri not in declared
+
+
+def test_declared_conformance_profile_asserts_does_not_conform_to_ui() -> None:
+    """The UI Profile exclusion is also a real conformance:doesNotConformTo
+    triple, not just something absent from the positive claim set above."""
+    from starlayer import conformance
+
+    graph = declared_conformance_profile()
+    assert (
+        _LIBRARY_IRI,
+        conformance.DOES_NOT_CONFORM_TO,
+        URIRef("http://www.w3.org/ns/shacl/profile/ui"),
+    ) in graph
 
 
 def test_declared_conformance_profile_returns_independent_copies() -> None:

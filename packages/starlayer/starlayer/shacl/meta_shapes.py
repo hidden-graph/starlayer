@@ -237,7 +237,7 @@ def _collect_query_prefixes(shapes_graph: Any, query_node: Any) -> dict[str, Any
     same algorithm as pySHACL's own
     ``SPARQLQueryHelper.collect_prefixes()``, reimplemented directly
     against a plain shapes graph rather than through a full ``Shape``/
-    ``ShapesGraph`` wrapper (unnecessary overhead for a read-only prefix
+    ``pyshacl.ShapesGraph`` wrapper (unnecessary overhead for a read-only prefix
     lookup - ``shape.sg.graph`` is just the same graph passed in here).
 
     Falls back to starShacl's own ambient ``sh:ShapesGraph`` discovery

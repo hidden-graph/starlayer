@@ -331,10 +331,10 @@ def extract_subgraph(
 
     ``shacl_graph`` is a raw shapes graph (already normalized by the caller,
     matching ``evaluate()``'s own calling convention) - wrapped here into a
-    pySHACL ``ShapesGraph`` so ``lookup_shape_from_node``/shape harvesting
+    ``pyshacl.ShapesGraph`` so ``lookup_shape_from_node``/shape harvesting
     work the same way they do for ``_shape_conforms`` elsewhere in this
     codebase. Wrapped over a *copy*, never the caller's own object -
-    confirmed live that ``ShapesGraph.__init__``/``.shapes`` mutates
+    confirmed live that ``pyshacl.ShapesGraph.__init__``/``.shapes`` mutates
     whatever graph it's given in place (injecting a couple of RDFS/OWL
     class-hierarchy axiom triples for its own implicit-class-target
     support), which would otherwise silently pollute the caller's

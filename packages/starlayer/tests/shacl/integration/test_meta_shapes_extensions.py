@@ -348,7 +348,13 @@ def test_data_graph_owl_imports_without_ontology_type_now_caught() -> None:
     tests above, but still enough to flip conforms=False under
     meta_validate's default disallow set, which - confirmed separately -
     already includes Info by default, matching SHACL 1.2's own stated
-    default sh:conformanceDisallows set)."""
+    default sh:conformanceDisallows set).
+
+    ignore_imports=True (2026-10-08): the owl:imports here is incidental
+    probe data for this meta-shacl Info-severity check, not a genuine
+    cross-module shapes-graph dependency - without it, validate()'s own
+    new unresolved-import check would raise first and this test would
+    never reach the meta-shacl exception it's actually testing for."""
     with pytest.raises(Exception) as exc_info:
         _validate(
             _TRIVIAL_DATA,
@@ -357,6 +363,7 @@ def test_data_graph_owl_imports_without_ontology_type_now_caught() -> None:
             @prefix owl: <http://www.w3.org/2002/07/owl#> .
             ex:MyDataGraph a sh:DataGraph ; owl:imports ex:Other .
             """,
+            ignore_imports=True,
         )
     assert "metashacl" in str(exc_info.value).lower()
 
@@ -369,6 +376,7 @@ def test_data_graph_with_owl_ontology_type_passes() -> None:
         @prefix owl: <http://www.w3.org/2002/07/owl#> .
         ex:MyDataGraph a sh:DataGraph, owl:Ontology ; owl:imports ex:Other .
         """,
+        ignore_imports=True,
     )
 
 
@@ -572,17 +580,20 @@ def test_allow_infos_on_validate_relaxes_info_severity_meta_shacl_check() -> Non
     own handling of these two kwargs applies unmodified) - the gap was
     validator.py's own call site never forwarding the caller's
     validate(..., allow_infos=...) through to meta_validate() at all. Uses
-    the sh:DataGraph/owl:imports check (Info severity) as the probe."""
+    the sh:DataGraph/owl:imports check (Info severity) as the probe.
+    ignore_imports=True on both calls for the same reason as the two
+    tests above - the owl:imports here is incidental probe data, not a
+    genuine shapes-graph dependency."""
     shapes_ttl = """
         @prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> .
         @prefix owl: <http://www.w3.org/2002/07/owl#> .
         ex:MyDataGraph a sh:DataGraph ; owl:imports ex:Other .
     """
     with pytest.raises(Exception) as exc_info:
-        _validate(_TRIVIAL_DATA, shapes_ttl)
+        _validate(_TRIVIAL_DATA, shapes_ttl, ignore_imports=True)
     assert "metashacl" in str(exc_info.value).lower()
 
-    result = _validate(_TRIVIAL_DATA, shapes_ttl, allow_infos=True)
+    result = _validate(_TRIVIAL_DATA, shapes_ttl, allow_infos=True, ignore_imports=True)
     assert result.conforms is True
 
 

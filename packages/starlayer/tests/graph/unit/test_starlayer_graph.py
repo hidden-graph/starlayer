@@ -363,6 +363,51 @@ class TestFromRdflib:
         sg = StarLayerGraph.from_rdflib(raw)
         assert len(sg) == 1
 
+    def test_from_rdflib_preserves_a_real_identifier(self):
+        """A source graph's own caller-given .identifier is preserved onto
+        the converted StarLayerGraph (2026-10-09) - previously silently
+        replaced with a fresh, unrelated random BNode."""
+        raw = Graph(identifier=URIRef(EX + 's'))
+        raw.add((URIRef(EX+'s'), URIRef(EX+'p'), URIRef(EX+'o')))
+        sg = StarLayerGraph.from_rdflib(raw)
+        assert sg.identifier == URIRef(EX + 's')
+
+    def test_from_rdflib_default_bnode_identifier_still_works(self):
+        """A source graph with no caller-given identifier (the ordinary
+        case - a random BNode) still converts fine; the new identifier
+        preservation doesn't require a real URIRef to be present."""
+        raw = Graph()
+        raw.add((URIRef(EX+'s'), URIRef(EX+'p'), URIRef(EX+'o')))
+        sg = StarLayerGraph.from_rdflib(raw)
+        assert isinstance(sg.identifier, BNode)
+
+    def test_from_rdflib_dataset_source_does_not_preserve_identifier(self):
+        """When source_graph is a whole Dataset/ConjunctiveGraph (not one
+        of its named graphs), its own .identifier is deliberately NOT
+        preserved - a dataset has no single meaningful identity of its own
+        (Dataset.identifier is itself deprecated in modern rdflib), and
+        accessing it would trigger that deprecation warning for no benefit."""
+        from rdflib import Dataset
+
+        ds = Dataset()
+        named = ds.graph(URIRef(EX + 'named1'))
+        named.add((URIRef(EX+'s'), URIRef(EX+'p'), URIRef(EX+'o')))
+        sg = StarLayerGraph.from_rdflib(ds)
+        assert isinstance(sg.identifier, BNode)
+
+    def test_from_rdflib_named_graph_pulled_from_dataset_preserves_identifier(self):
+        """A single named graph *retrieved* from a Dataset (as opposed to
+        the whole Dataset itself) already carries its own real identifier -
+        that one is preserved, same as any other plain Graph with a real
+        identifier."""
+        from rdflib import Dataset
+
+        ds = Dataset()
+        named = ds.graph(URIRef(EX + 'named1'))
+        named.add((URIRef(EX+'s'), URIRef(EX+'p'), URIRef(EX+'o')))
+        sg = StarLayerGraph.from_rdflib(named)
+        assert sg.identifier == URIRef(EX + 'named1')
+
 
 class TestFromRdflibDataset:
     """from_rdflib() used to crash on a Dataset/ConjunctiveGraph input:

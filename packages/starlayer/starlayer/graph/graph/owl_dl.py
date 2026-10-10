@@ -4,9 +4,9 @@ starlayer.graph.graph.owl_dl
 OWL 2 Direct Semantics reasoning via owlready2 + Java HermiT - a genuinely
 different computational model (tableau-based DL reasoning, with real
 disjunctive case-splitting and sound-and-complete consistency checking)
-from every other profile StarLayerGraph.infer() supports, all of which run
+from every other entailment regime StarLayerGraph.infer() supports, all of which run
 owlrl's forward-chaining rule engine. See infer()'s own docstring for the
-profile=ENTAILMENT['OWL-Direct'] contract; this module is the bridge that makes it work.
+entailment=ENTAILMENT['OWL-Direct'] contract; this module is the bridge that makes it work.
 
 Deliberately HermiT only, never Pellet (owlready2 bundles both behind
 sync_reasoner()/sync_reasoner_pellet()): HermiT is LGPL, Pellet is AGPL - a
@@ -14,7 +14,7 @@ materially stronger copyleft obligation - and one conformant OWL 2 DL
 reasoner is sufficient to cover this regime. sync_reasoner_pellet() is
 never called anywhere in this module.
 
-engine="hermit" (this module) is one of two engines infer(profile=ENTAILMENT['OWL-Direct'])
+engine="hermit" (this module) is one of two engines infer(entailment=ENTAILMENT['OWL-Direct'])
 can dispatch to - see starlayer.graph.graph.owl_dl_rustdl for the other
 (engine="rustdl": no JVM, but sound-not-provably-complete rather than
 sound-and-complete - a real, permanent gap against this module's own
@@ -40,9 +40,9 @@ from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 
 
 class InconsistentOntologyError(RuntimeError):
-    """Raised when profile=ENTAILMENT['OWL-Direct'] finds self's data logically
+    """Raised when entailment=ENTAILMENT['OWL-Direct'] finds self's data logically
     inconsistent under OWL 2 DL semantics - e.g. an individual typed as two
-    classes declared owl:disjointWith each other. Unlike profile=ENTAILMENT['OWL-RDF-Based']
+    classes declared owl:disjointWith each other. Unlike entailment=ENTAILMENT['OWL-RDF-Based']
     (whose consistency checking, via owlrl, is partial and silently embeds
     a synthetic err:error triple into the result instead of raising - see
     infer()'s own docstring), HermiT's check is sound and complete, so an
@@ -62,7 +62,7 @@ def _require_owlready2():
         import owlready2
     except ImportError as exc:
         raise RuntimeError(
-            "StarLayerGraph.infer(profile=ENTAILMENT['OWL-Direct'], engine='hermit') "
+            "StarLayerGraph.infer(entailment=ENTAILMENT['OWL-Direct'], engine='hermit') "
             "requires the optional owlready2 package - install it with "
             "`pip install starlayer.graph[hermit]` (or `pip install "
             "owlready2` directly), then retry."
@@ -78,7 +78,7 @@ def _require_java() -> None:
     """
     if shutil.which("java") is None:
         raise RuntimeError(
-            "StarLayerGraph.infer(profile=ENTAILMENT['OWL-Direct']) requires a Java runtime "
+            "StarLayerGraph.infer(entailment=ENTAILMENT['OWL-Direct']) requires a Java runtime "
             "on PATH - owlready2's HermiT reasoner is a Java program, not a "
             "pure-Python one. Install a JRE/JDK (e.g. `brew install openjdk` "
             "on macOS, or your platform's package manager) and confirm "
@@ -130,7 +130,7 @@ def classify_owl_dl(graph, timeout: float | None = _timeout.DEFAULT_TIMEOUT_SECO
     """Run OWL 2 DL classification (HermiT, via owlready2) over `graph`,
     returning (before, delta) in the same shape
     StarLayerGraph._infer_before_and_delta() returns for the owlrl-backed
-    profiles, so infer()'s mode="full"/"delta"/"in-place" branches can
+    regimes, so infer()'s mode="full"/"delta"/"in-place" branches can
     treat both engines uniformly without knowing which one ran.
 
     Raises InconsistentOntologyError if the data is logically inconsistent
@@ -162,7 +162,7 @@ def classify_owl_dl(graph, timeout: float | None = _timeout.DEFAULT_TIMEOUT_SECO
         )
         if status == 'inconsistent':
             raise InconsistentOntologyError(
-                "infer(profile=ENTAILMENT['OWL-Direct']) found self's data logically "
+                "infer(entailment=ENTAILMENT['OWL-Direct']) found self's data logically "
                 "inconsistent under OWL 2 DL semantics."
             )
         if status == 'java_error':
@@ -176,7 +176,7 @@ def classify_owl_dl(graph, timeout: float | None = _timeout.DEFAULT_TIMEOUT_SECO
             # `_require_java()` uses, so both "Java missing" and "Java
             # present but broken" are one exception type to catch, not two.
             raise RuntimeError(
-                "StarLayerGraph.infer(profile=ENTAILMENT['OWL-Direct']) found `java` on PATH, "
+                "StarLayerGraph.infer(entailment=ENTAILMENT['OWL-Direct']) found `java` on PATH, "
                 "but it failed to run HermiT - the JVM itself is broken or "
                 f"misconfigured, not just missing. {message}"
             )
@@ -201,7 +201,7 @@ def _complete_type_closure(expanded: Graph) -> None:
     Employee` + `alice a Manager`, HermiT reports `Type(alice, Manager)`
     but never `Type(alice, Employee)`, even though the subClassOf edge
     itself - `SubClassOf(Manager, Employee)` - is reported and present in
-    `expanded`). Every other profile infer() supports (all owlrl-backed)
+    `expanded`). Every other entailment regime infer() supports (all owlrl-backed)
     gives the full transitive rdf:type closure, so this step restores that
     same guarantee here - walks rdfs:subClassOf transitively from each
     individual's reported type(s) and adds every ancestor class as an

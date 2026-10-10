@@ -1,12 +1,16 @@
 """Canonical entailment regime IRIs, from the SPARQL 1.2 Entailment Regimes
 spec (https://www.w3.org/TR/sparql12-entailment/) - fetched directly, not
-invented. These are the values ``infer()``'s ``profile=`` and ``query()``'s
-``entailment=`` accept (2026-10-07: replacing this project's own prior
-starlayer-internal string keywords, ``'rdfs'``/``'owl-rl'``/``'owl-dl'``/
-``'direct'``/``'rdf'`` - a full breaking change, not an added alias), and
-the same IRIs a SHACL shapes graph's own ``sh:entailment`` triples carry
-(see ``starlayer.shacl.entailment``), so both layers speak one vocabulary
-with no separate translation table in between.
+invented. These are the values both ``infer()``'s ``entailment=`` and
+``query()``'s own ``entailment=`` accept (2026-10-07: replacing this
+project's own prior starlayer-internal string keywords, ``'rdfs'``/
+``'owl-rl'``/``'owl-dl'``/``'direct'``/``'rdf'`` - a full breaking change,
+not an added alias; 2026-10-08: ``infer()``'s own parameter renamed from
+``profile=`` to ``entailment=``, matching ``query()``'s already-established
+name for this exact vocabulary - the two methods now speak one name as
+well as one set of values), and the same IRIs a SHACL shapes graph's own
+``sh:entailment`` triples carry (see ``starlayer.shacl.entailment``), so
+every layer speaks one vocabulary with no separate translation table in
+between.
 
 ``ENTAILMENT`` is an ordinary ``rdflib.Namespace``, not individual module-
 level constants - ``http://www.w3.org/ns/entailment/`` {RDF, RDFS} both

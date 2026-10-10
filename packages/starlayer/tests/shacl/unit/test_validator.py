@@ -405,7 +405,7 @@ def test_validate_uses_profile_defaults() -> None:
     data.add((EX.s, EX.p, (EX.a, EX.p, EX.b)))
 
     validator = StarShaclSchema(adapter=TripleTermAdapter(), validate_fn=fake_validate)
-    _ = validator.validate(data_graph=data, profile="validation")
+    _ = validator.validate(data_graph=data, mode="validation")
 
     # advanced=True is the "validation" profile's own deliberate default
     # (2026-09-06) - this project treats sh:expression/sh:rule/custom
@@ -434,7 +434,7 @@ def test_validate_profile_allows_overrides() -> None:
     data.add((EX.s, EX.p, (EX.a, EX.p, EX.b)))
 
     validator = StarShaclSchema(adapter=TripleTermAdapter(), validate_fn=fake_validate)
-    _ = validator.validate(data_graph=data, profile="validation", advanced=True)
+    _ = validator.validate(data_graph=data, mode="validation", advanced=True)
 
     assert captured["advanced"] is True
 

@@ -129,7 +129,7 @@ class TestQueryTimeRdfsRewrite:
 
         rewritten = {str(r.x) for r in g.query(q, entailment=ENTAILMENT.RDFS)}
 
-        oracle = g.infer(profile=ENTAILMENT.RDFS)
+        oracle = g.infer(entailment=ENTAILMENT.RDFS)
         materialized = {str(s) for s in oracle.subjects(RDF.type, EX.Person)}
 
         assert rewritten == materialized == {str(EX.alice)}
@@ -147,7 +147,7 @@ class TestQueryTimeRdfsRewrite:
 
         rewritten = {str(r.x) for r in g.query(q, entailment=ENTAILMENT.RDFS)}
 
-        oracle = g.infer(profile=ENTAILMENT.RDFS)
+        oracle = g.infer(entailment=ENTAILMENT.RDFS)
         materialized = {str(s) for s in oracle.subjects(RDF.type, EX.Person)}
 
         assert rewritten == materialized == {str(EX.alice)}
@@ -165,7 +165,7 @@ class TestQueryTimeRdfsRewrite:
 
         rewritten = {str(r.x) for r in g.query(q, entailment=ENTAILMENT.RDFS)}
 
-        oracle = g.infer(profile=ENTAILMENT.RDFS)
+        oracle = g.infer(entailment=ENTAILMENT.RDFS)
         materialized = {str(s) for s in oracle.subjects(RDF.type, EX.Organization)}
 
         assert rewritten == materialized == {str(EX.Acme)}
@@ -183,7 +183,7 @@ class TestQueryTimeRdfsRewrite:
 
         rewritten = {str(r.x) for r in g.query(q, entailment=ENTAILMENT.RDFS)}
 
-        oracle = g.infer(profile=ENTAILMENT.RDFS)
+        oracle = g.infer(entailment=ENTAILMENT.RDFS)
         materialized = {str(o) for o in oracle.objects(EX.alice, EX.hasRelative)}
 
         assert rewritten == materialized == {str(EX.bob)}
@@ -351,7 +351,7 @@ class TestEntailmentOwlRlUnionDesign:
 
         via_union = sorted((str(r.x), str(r.y)) for r in g.query(q, entailment=ENTAILMENT["OWL-RDF-Based"]))
 
-        closure = g.infer(profile=ENTAILMENT["OWL-RDF-Based"])
+        closure = g.infer(entailment=ENTAILMENT["OWL-RDF-Based"])
         oracle = Graph()
         for t in closure:
             oracle.add(t)

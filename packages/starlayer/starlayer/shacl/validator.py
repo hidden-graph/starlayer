@@ -32,7 +32,7 @@ from starlayer.shacl.native_components import (
     register_native_components,
     shape_reference_nodes,
 )
-from starlayer.shacl.profiles import ValidationProfile, resolve_profile_options
+from starlayer.shacl.validation_modes import ValidationMode, resolve_mode_options
 from starlayer.shacl.results import (
     ExecutionDiagnostics,
     RulesResult,
@@ -172,11 +172,39 @@ class StarShaclSchema:
             )
         return resolved
 
+    def _resolve_shacl_graph(self, shapes_graph_module: Any | None) -> Any | None:
+        """Every processing method's own shapes-graph input is
+        ``self.shacl_graph`` by default; ``shapes_graph_module=``
+        (2026-10-09), when given, instead resolves to one named
+        ``sh:ShapesGraph`` module pulled out of it via
+        :meth:`extract_shapes_graph` - see :meth:`validate`'s own CLAUDE.md
+        entry for the full design and naming rationale (distinct from the
+        pre-existing ``shapes_graph_iri=`` report-provenance keyword).
+        Raises ``ValueError`` if there's no ``self.shacl_graph`` to extract
+        from, or if the given IRI isn't typed ``a sh:ShapesGraph``. Never
+        mutates or replaces ``self.shacl_graph`` itself - this is a
+        call-local resolution only."""
+        if shapes_graph_module is None:
+            return self.shacl_graph
+        if self.shacl_graph is None:
+            raise ValueError(
+                "shapes_graph_module= needs a bound shapes graph to extract from - "
+                "construct with StarShaclSchema(shacl_graph=...)."
+            )
+        extracted = self.extract_shapes_graph(shapes_graph_module)
+        if extracted is None:
+            raise ValueError(
+                f"{shapes_graph_module!r} is not typed `a sh:ShapesGraph` in this "
+                "schema's own bound shacl_graph - extract_shapes_graph() returned None."
+            )
+        return extracted
+
     def target_nodes(
         self,
         *,
         data_graph: Any | None = None,
         shape_node: Any,
+        shapes_graph_module: Any | None = None,
     ) -> tuple[Any, ...]:
         """2026-10-08: ``data_graph`` is now optional (falls back to
         ``self.data_graph``), and ``inference`` is no longer a per-call
@@ -184,11 +212,12 @@ class StarShaclSchema:
         used instead (see ``__init__``'s own docstring). Also threads this
         instance's own ``self.ont_graph`` through, matching every other
         method on this class - see ``engine.target_nodes()``'s own
-        docstring for the full entailment design."""
+        docstring for the full entailment design. ``shapes_graph_module=``
+        (2026-10-09) - see :meth:`_resolve_shacl_graph`."""
         data_graph = self._resolve_data_graph(data_graph)
         return native_target_nodes(
             data_graph=data_graph,
-            shacl_graph=self.shacl_graph,
+            shacl_graph=self._resolve_shacl_graph(shapes_graph_module),
             shape_node=shape_node,
             ont_graph=self.ont_graph,
             inference=self.inference,
@@ -223,13 +252,16 @@ class StarShaclSchema:
         self,
         data_graph: Any | None = None,
         *,
-        profile: str | ValidationProfile | None = None,
+        mode: str | ValidationMode | None = None,
         decode_report: bool = True,
         rdfs_subclass_reasoning_includes_shapes_graph: bool = False,
         shapes_graph_loader: Callable[[Any], Any | None] | None = None,
+        ignore_imports: bool = False,
         meta_shapes_extra: Iterable[Any] = (),
         data_graph_iri: Any | None = None,
         shapes_graph_iri: Any | None = None,
+        shapes_graph_module: Any | None = None,
+        specification_graph: Any | None = None,
         include_used_configuration: bool = False,
         **kwargs: Any,
     ) -> ValidationResult:
@@ -255,13 +287,63 @@ class StarShaclSchema:
         _patch_rules_apply_for_layer_and_run_once()
         _patch_stringify_for_native_backend_bnodes()
 
-        options = resolve_profile_options(profile, overrides=kwargs)
+        options = resolve_mode_options(mode, overrides=kwargs)
+
+        # shapes_graph_module (2026-10-09): validate against one named
+        # sh:ShapesGraph "module" pulled out of this instance's own bound
+        # shacl_graph (via extract_shapes_graph()), instead of the whole
+        # thing - a convenience wrapping two already-separate operations,
+        # not a new extraction algorithm. Named distinctly from the
+        # existing shapes_graph_iri= (report-provenance tagging, an
+        # arbitrary caller-supplied identity, unrelated to this) to avoid
+        # overloading one keyword with two different meanings. Inherits
+        # extract_shapes_graph()'s own documented scope/caveats as-is: a
+        # member shape's own named nested reference (e.g. a named
+        # sh:property target) is left dangling by design, so validating
+        # against an extracted module can raise the same pySHACL error a
+        # manual extract-then-validate call would, unless the caller has
+        # already injected whatever it references. See
+        # _resolve_shacl_graph() - the same helper every other processing
+        # method on this class now shares.
+        #
+        # shapes_graph_module also seeds shapes_graph_iri's own report-
+        # provenance identity by default (2026-10-09), when the caller
+        # didn't supply one explicitly - the one case where auto-filling
+        # it is unambiguous: the caller already named exactly which module
+        # they validated against, so that same IRI is the only sensible
+        # default for "which shapes graph does this report describe." An
+        # explicit shapes_graph_iri= is never overridden.
+        if shapes_graph_module is not None and shapes_graph_iri is None:
+            shapes_graph_iri = shapes_graph_module
+
+        # specification_graph (2026-10-10): any graph asserting
+        # prof:isProfileOf on the shapes graph itself (e.g.
+        # starontology.get_profile_graph(name)) - when given alongside
+        # data_graph_iri=/shapes_graph_iri= (directly or via
+        # shapes_graph_module= above), SHACL 1.2 Profiling S5.5's second
+        # rule also fires automatically, merging dcterms:conformsTo the
+        # profiled specification straight into report_graph, same as
+        # sh:conformsTo already does on its own. Just forwarded through to
+        # _merge_derived_conforms_to() below - no resolution needed here,
+        # since derive_conforms_to() already reads this as plain input.
 
         data_graph, shacl_graph, ont_graph = normalize_graph_inputs(
             data_graph,
-            self.shacl_graph,
+            self._resolve_shacl_graph(shapes_graph_module),
             self.ont_graph,
         )
+
+        # data_graph_iri=/shapes_graph_iri= also fall back to the graph's
+        # own .identifier (2026-10-09), when it's a real URIRef the caller
+        # explicitly gave it at construction - never the default random
+        # BNode every rdflib Graph otherwise gets, which carries no
+        # meaningful identity to report. Same "auto-fill only when
+        # unambiguous" precedent as shapes_graph_module= above; an explicit
+        # data_graph_iri=/shapes_graph_iri= is never overridden.
+        if data_graph_iri is None and isinstance(data_graph.identifier, URIRef):
+            data_graph_iri = data_graph.identifier
+        if shapes_graph_iri is None and shacl_graph is not None and isinstance(shacl_graph.identifier, URIRef):
+            shapes_graph_iri = shacl_graph.identifier
 
         ensure_graph_mutable(data_graph, name="data_graph")
 
@@ -269,14 +351,14 @@ class StarShaclSchema:
         # declaration(s) MUST be provided before/during validation -
         # applied here, once, up front, so every downstream step (target
         # resolution, constraint checking, shape-attached sh:rule
-        # execution via the "rules" profile below) sees the same entailed
+        # execution via the "rules" mode below) sees the same entailed
         # data graph uniformly. A no-op when shacl_graph declares no
         # sh:entailment and inference= isn't given either (the common
-        # case). inplace= is threaded through from the resolved profile
+        # case). inplace= is threaded through from the resolved mode
         # options, not hardcoded - see apply_entailment()'s own docstring
         # for the real regression this fixed (an earlier version always
         # mutated data_graph in place, silently breaking the plain
-        # "validation" profile's own documented never-mutate-the-caller's-
+        # "validation" mode's own documented never-mutate-the-caller's-
         # data guarantee). Reassign data_graph itself: when inplace=False
         # this returns a *new* graph, not the original. ont_graph is
         # threaded through too (2026-10-07, matching the bare validate()
@@ -375,10 +457,40 @@ class StarShaclSchema:
         # modules via owl:imports (optionally redirected through
         # owl:versionIRI for versioned modules). This library doesn't
         # dictate a network-fetching policy, so retrieval is delegated to a
-        # caller-supplied shapes_graph_loader; when none is given (the
-        # default), shacl_graph is used exactly as provided, unchanged.
+        # caller-supplied shapes_graph_loader.
+        #
+        # ignore_imports (2026-10-08): if shacl_graph declares owl:imports
+        # that aren't already locally satisfied (has_import_locally() -
+        # e.g. two shapes-graph "modules" that import each other but have
+        # simply been loaded together into one graph already, nothing
+        # external to fetch at all - confirmed live as a real false-
+        # positive risk otherwise, not hypothetical) and no
+        # shapes_graph_loader was given, this now raises by default
+        # instead of silently proceeding with a possibly-incomplete shapes
+        # graph - a shape referencing something only defined in a
+        # genuinely unresolved import would otherwise simply never fire,
+        # with no indication anything was skipped. Pass
+        # ignore_imports=True to opt out explicitly - e.g. because the
+        # imports were already resolved into shacl_graph yourself
+        # beforehand. That case is exactly why this can't *only* rely on
+        # has_import_locally() instead of an explicit flag too:
+        # resolve_imports() doesn't strip the owl:imports triple once
+        # resolved via a loader (it's still a true fact about the
+        # document), so its mere presence can't reliably distinguish
+        # "already handled via a loader" from "genuinely missing" -
+        # has_import_locally() only catches the *already-co-located*
+        # case, not that one.
         if shacl_graph is not None and shapes_graph_loader is not None:
             shacl_graph = _resolve_shapes_graph_imports(shacl_graph, graph_loader=shapes_graph_loader)
+        elif shacl_graph is not None and not ignore_imports:
+            declared_imports = [o for o in shacl_graph.owl_imports() if not shacl_graph.has_import_locally(o)]
+            if declared_imports:
+                raise ValueError(
+                    f"shacl_graph declares owl:imports {declared_imports!r} that aren't already "
+                    "locally satisfied, but no shapes_graph_loader was given to resolve them. "
+                    "Pass shapes_graph_loader=... to resolve them, or ignore_imports=True if "
+                    "you've already resolved them yourself (or don't need them)."
+                )
 
         # SHACL 1.2's new target types (sh:shape, implicit class targets via
         # rdfs:Class/sh:ShapeClass, sh:targetWhere) are unknown to pySHACL, so
@@ -569,6 +681,7 @@ class StarShaclSchema:
             shapes_graph_iri=shapes_graph_iri,
             include_used_configuration=include_used_configuration,
         )
+        _merge_derived_conforms_to(out_report, data_graph_iri, shapes_graph_iri, specification_graph)
 
         out_data: TripleTermGraph | Any | None = None
         if options.get("inplace"):
@@ -681,7 +794,7 @@ class StarShaclSchema:
         # violation of the spec's own intent for this position) plugs in a
         # focus-dependent expression like a bare shnex:pathValues - which
         # then, correctly, produces no targets rather than a wrong guess.
-        # Needs a real (harvested) pyshacl ShapesGraph for the shnex:
+        # Needs a real (harvested) pyshacl.ShapesGraph for the shnex:
         # operators that check shape conformance (shnex:filterShape/
         # nodesMatching/matchAll/findFirst/conformsToShape call
         # sg.lookup_shape_from_node(), which raises KeyError against an
@@ -1306,6 +1419,7 @@ class StarShaclSchema:
         data_graph: Any | None = None,
         include_source_rule_provenance: bool = False,
         rule_set: Any | None = None,
+        shapes_graph_module: Any | None = None,
         **kwargs: Any,
     ) -> RulesResult:
         """Delegates to the module-level :func:`apply_rules`, binding this
@@ -1319,11 +1433,12 @@ class StarShaclSchema:
         ``inference`` is always ``self.inference`` now, bound only at
         construction - passing ``inference=`` here raises ``TypeError``
         (Python's own "multiple values for keyword argument" - it's
-        already supplied explicitly below)."""
+        already supplied explicitly below). ``shapes_graph_module=``
+        (2026-10-09) - see :meth:`_resolve_shacl_graph`."""
         data_graph = self._resolve_data_graph(data_graph)
         return apply_rules(
             data_graph,
-            self.shacl_graph,
+            self._resolve_shacl_graph(shapes_graph_module),
             self.ont_graph,
             include_source_rule_provenance=include_source_rule_provenance,
             rule_set=rule_set,
@@ -1334,6 +1449,8 @@ class StarShaclSchema:
     def evaluate(
         self,
         data_graph: Any | None = None,
+        *,
+        shapes_graph_module: Any | None = None,
     ) -> Any:
         """A third, independent processing mode alongside ``validate()``
         (checks conformance, never mutates) and ``apply_rules()`` (executes
@@ -1402,10 +1519,13 @@ class StarShaclSchema:
 
         ``data_graph`` is optional (2026-10-08), falling back to
         ``self.data_graph``; ``inference`` is no longer a parameter here
-        at all - always ``self.inference``, bound only at construction."""
+        at all - always ``self.inference``, bound only at construction.
+        ``shapes_graph_module=`` (2026-10-09) - see
+        :meth:`_resolve_shacl_graph`."""
         data_graph = self._resolve_data_graph(data_graph)
+        shacl_graph_input = self._resolve_shacl_graph(shapes_graph_module)
         data_graph, shacl_graph, ont_graph = normalize_graph_inputs(
-            data_graph, self.shacl_graph if self.shacl_graph is not None else data_graph, self.ont_graph
+            data_graph, shacl_graph_input if shacl_graph_input is not None else data_graph, self.ont_graph
         )
 
         from starlayer.shacl.entailment import apply_entailment
@@ -1491,6 +1611,7 @@ class StarShaclSchema:
         *,
         shape: Any,
         focus_node: Any,
+        shapes_graph_module: Any | None = None,
     ) -> Any | None:
         """A fourth, independent processing mode alongside ``validate()``,
         ``apply_rules()``, and ``evaluate()``: given a focus node and a
@@ -1532,16 +1653,19 @@ class StarShaclSchema:
         a default - every existing caller already passed them by keyword
         anyway. ``inference`` is no longer a parameter here at all -
         always ``self.inference``, bound only at construction.
+        ``shapes_graph_module=`` (2026-10-09) - see
+        :meth:`_resolve_shacl_graph`.
         """
         from starlayer.shacl.subgraph_extraction import extract_subgraph as _extract_subgraph
 
         data_graph = self._resolve_data_graph(data_graph)
+        shacl_graph_input = self._resolve_shacl_graph(shapes_graph_module)
         data_graph, shacl_graph, ont_graph = normalize_graph_inputs(
-            data_graph, self.shacl_graph if self.shacl_graph is not None else data_graph, self.ont_graph
+            data_graph, shacl_graph_input if shacl_graph_input is not None else data_graph, self.ont_graph
         )
         return _extract_subgraph(data_graph, shape, focus_node, shacl_graph, ont_graph, inference=self.inference)
 
-    def close_shape(self, shape: Any) -> Any:
+    def close_shape(self, shape: Any, *, shapes_graph_module: Any | None = None) -> Any:
         """Takes a shape (a node identifier already in this instance's own
         ``shacl_graph``) and returns a closed copy of ``shacl_graph`` -
         ``shape``, and every shape it recursively references in a way that
@@ -1558,12 +1682,136 @@ class StarShaclSchema:
 
         Unlike ``validate()``/``apply_rules()``/``evaluate()``/
         ``extract_subgraph()``, this doesn't take a ``data_graph`` at all -
-        it operates purely on the bound ``shacl_graph`` itself."""
+        it operates purely on the bound ``shacl_graph`` itself.
+        ``shapes_graph_module=`` (2026-10-09) scopes this to just one named
+        module instead - see :meth:`_resolve_shacl_graph`."""
         from starlayer.shacl.subgraph_extraction import _close_shape
 
-        if self.shacl_graph is None:
+        shacl_graph_input = self._resolve_shacl_graph(shapes_graph_module)
+        if shacl_graph_input is None:
             raise ValueError("close_shape() needs a bound shapes graph - construct with StarShaclSchema(shacl_graph=...).")
-        return _close_shape(self.shacl_graph, shape)
+        return _close_shape(shacl_graph_input, shape)
+
+    def extract_shapes_graph(self, shapes_graph_iri: Any) -> Any | None:
+        """Given the IRI of one ``sh:ShapesGraph``-typed resource declared
+        within this instance's own bound ``shacl_graph``, extracts just
+        that resource's own "module" as a standalone graph - the inverse
+        of SHACL 1.2 Profiling §2's packaging convention: rather than
+        reading a single shapes graph's own self-declared metadata, this
+        pulls one *named* module back out of a larger graph that bundles
+        several ``sh:ShapesGraph`` modules together side by side (the
+        scenario this guide's own Section 1 demonstrates).
+
+        A shape counts as a member of ``shapes_graph_iri``'s module via
+        any of the three mechanisms SHACL 1.2 Profiling §2 documents,
+        and all three are honored here:
+
+        - ``<shapes_graph_iri> rdfs:member <Shape>`` - the ShapesGraph
+          declares its own members (forward direction).
+        - ``<Shape> rdfs:isDefinedBy <shapes_graph_iri>`` - a shape
+          declares *itself* part of the ShapesGraph (inverse direction).
+        - ``owl:imports`` - if ``shapes_graph_iri`` imports another
+          ``sh:ShapesGraph`` node that's *already present in this same
+          ``shacl_graph``*, that other module's own members (via either
+          direction above) count as part of this module's result too,
+          transitively. Only locally co-located modules are chased, the
+          same "no implicit network/loader access" scope
+          ``has_import_locally()``/``resolve_imports()`` already
+          establish elsewhere - this method takes no ``loader=``
+          parameter at all.
+
+          **Unlike the dangling-member case below, an unresolvable
+          ``owl:imports`` target raises ``ValueError`` (2026-10-09) rather
+          than being silently skipped** - whether the imported IRI has no
+          triples describing it in ``shacl_graph`` at all, or is present
+          but simply isn't itself typed ``a sh:ShapesGraph``. A shapes
+          graph that declares ``owl:imports`` on a ``sh:ShapesGraph`` node
+          is asserting a real dependency on another packaging module, not
+          offering optional metadata - call ``resolve_imports(loader=...)``
+          on ``shacl_graph`` first if the target genuinely needs fetching
+          from elsewhere before extracting.
+
+        The result contains every involved ``sh:ShapesGraph`` node's own
+        Concise Bounded Description (``StarLayerGraph.cbd()`` - its
+        ``rdf:type sh:ShapesGraph``/``rdfs:member``/``owl:imports``
+        triples, plus anything hanging off it via a blank node) **and**
+        every member shape's own CBD too - CBD alone on a ShapesGraph
+        node would include the bare ``rdfs:member`` triples themselves
+        (each member is an ordinary named IRI, not a blank node, so CBD
+        doesn't follow it further on its own) but not the member shapes'
+        own content, which is why each one gets its own explicit CBD call
+        here, the same way ``sh:property``'s own near-universally-blank-
+        node shapes already come along for free via CBD's own blank-
+        node-following behavior.
+
+        Deliberately does **not** recurse into a member's own structural
+        references (``sh:property``/``sh:node``/``sh:qualifiedValueShape``/
+        etc.) to pull in whatever *named* shape they point at - only each
+        direct member's own CBD. SHACL 1.2 Profiling itself gives no
+        completeness rule here at all (§2.7, "Calculating Dependencies,"
+        is a literal ``TODO`` in the published Working Draft; §2.3-2.5's
+        ``rdfs:member``/``rdfs:isDefinedBy`` language is flat and
+        non-transitive, confirmed directly against the spec text, not
+        assumed), so there's no spec basis for choosing a closure over
+        this narrower scope. A member shape's own named structural
+        reference is deliberately left dangling if its target isn't
+        *itself* a direct member too - this lets a caller extract one
+        shape, then inject their own (possibly different) definition for
+        whatever it references, without the extraction silently dragging
+        along a stale copy that would conflict with the injected one.
+        If the caller wants a fully self-contained, ready-to-validate
+        module instead, they're responsible for making sure every
+        referenced named shape is also a declared member (or for
+        injecting one themselves after extraction) - this method won't
+        infer it on their behalf.
+
+        Returns ``None`` if ``shapes_graph_iri`` isn't actually typed
+        ``a sh:ShapesGraph`` in ``shacl_graph`` at all - not every graph
+        bothers with this optional packaging metadata, and a typo'd IRI
+        shouldn't silently return an empty-but-valid-looking graph."""
+        if self.shacl_graph is None:
+            raise ValueError(
+                "extract_shapes_graph() needs a bound shapes graph - construct with "
+                "StarShaclSchema(shacl_graph=...)."
+            )
+        sg = self.shacl_graph
+        if (shapes_graph_iri, RDF.type, SH.ShapesGraph) not in sg:
+            return None
+
+        shapes_graph_nodes = {shapes_graph_iri}
+        pending = [shapes_graph_iri]
+        while pending:
+            current = pending.pop()
+            for imported in sg.objects(current, OWL.imports):
+                if imported in shapes_graph_nodes:
+                    continue
+                if (imported, RDF.type, SH.ShapesGraph) not in sg:
+                    raise ValueError(
+                        f"{current!r} declares owl:imports {imported!r}, but {imported!r} "
+                        "is not typed `a sh:ShapesGraph` in this schema's own bound "
+                        "shacl_graph - either it has no triples describing it at all "
+                        "(call resolve_imports(loader=...) on shacl_graph first if it "
+                        "needs fetching from elsewhere), or it's present but isn't "
+                        "itself a packaging module."
+                    )
+                shapes_graph_nodes.add(imported)
+                pending.append(imported)
+
+        result = type(sg)()
+        for prefix, ns in sg.namespaces():
+            result.bind(prefix, ns)
+
+        members = set()
+        for node in shapes_graph_nodes:
+            for t in sg.cbd(node):
+                result.add(t)
+            members.update(sg.objects(node, RDFS.member))
+            members.update(sg.subjects(RDFS.isDefinedBy, node))
+
+        for member in members:
+            for t in sg.cbd(member):
+                result.add(t)
+        return result
 
 
 def _augment_shapes_with_new_target_types(data_graph: Any, shacl_graph: Any) -> Any:
@@ -1609,8 +1857,8 @@ def _augment_shapes_with_new_target_types(data_graph: Any, shacl_graph: Any) -> 
     # target nodes dynamically - the SHACL 1.2 Node Expressions spec's
     # own opening ("Getting Started") example
     # (sh:targetNode [ shnex:nodes [ shnex:instancesOf ex:Company ] ;
-    # shnex:filterShape [...] ]). Needs a real (harvested) pyshacl
-    # ShapesGraph for the shnex: operators that check shape conformance
+    # shnex:filterShape [...] ]). Needs a real (harvested) pyshacl.ShapesGraph
+    # for the shnex: operators that check shape conformance
     # (shnex:filterShape/nodesMatching/matchAll/findFirst/conformsToShape
     # call sg.lookup_shape_from_node(), which raises KeyError against an
     # unharvested one) - built once here and discarded; pySHACL's own
@@ -1971,6 +2219,62 @@ def _annotate_conformance_disallows(report_graph: Any, options: dict[str, Any], 
     return new_conforms
 
 
+def _merge_derived_conforms_to(
+    report_graph: Any,
+    data_graph_iri: Any | None,
+    shapes_graph_iri: Any | None,
+    specification_graph: Any | None = None,
+) -> None:
+    """Automatically derive and merge SHACL 1.2 Profiling S5.5's
+    ``sh:conformsTo`` triple into ``report_graph`` (2026-10-09), whenever
+    both ``data_graph_iri=`` and ``shapes_graph_iri=`` were given to
+    ``validate()`` - the one case where both of ``derive_conforms_to()``'s
+    own required graph identities are already unambiguously known, so
+    there's nothing left for a caller to supply via a separate call.
+    Called unconditionally (not gated on ``conforms``) - a non-conforming
+    report simply derives nothing, matching the rule's own ``sh:conforms
+    true`` requirement; ``derive_conforms_to()`` already self-limits
+    correctly on its own, no extra check needed here.
+
+    ``specification_graph`` (2026-10-10): when also given, forwarded
+    straight through to ``derive_conforms_to()`` so S5.5's *second* rule
+    fires too in the same pass - ``dcterms:conformsTo`` the specification
+    the shapes graph itself is a ``prof:isProfileOf``, not just
+    ``sh:conformsTo`` the shapes graph. Same "nothing left for the caller
+    to supply separately" reasoning as the first rule: once a caller has
+    a ready-made profile declaration (e.g.
+    ``starontology.get_profile_graph(name)``), there's no reason to make
+    them call ``derive_conforms_to()`` by hand just to get the second
+    triple too.
+
+    Relies on ``_annotate_used_graphs_and_configuration`` having already
+    run first (same caller, immediately before this) - that call already
+    wrote the coerced ``sh:usedDataGraph``/``sh:usedShapesGraph`` triples
+    onto ``report_graph``, which ``derive_conforms_to()`` reads directly
+    rather than needing ``data_graph_iri``/``shapes_graph_iri`` passed to
+    it a second time.
+
+    Deliberately does **not** attempt to keep ``report_text`` in sync - it's
+    a plain string pySHACL rendered before this triple ever existed, not a
+    live view of ``report_graph``; re-rendering it would mean duplicating
+    pySHACL's own formatting logic for one extra triple. A known,
+    documented gap, not an oversight - see ``starlayer/shacl/CLAUDE.md``'s
+    dated entry.
+
+    Only fires when **both** IRIs are present - never just one, matching
+    ``derive_conforms_to()``'s own requirement that both graph identities
+    be resolvable before its underlying rule can fire at all (it would
+    otherwise raise ``ValueError`` for the missing one). ``specification_graph``
+    alone, with no IRIs, still does nothing - the second rule has no
+    triple to chain from without the first one having fired."""
+    if data_graph_iri is None or shapes_graph_iri is None:
+        return
+    from starlayer.shacl.profiling import derive_conforms_to
+
+    for t in derive_conforms_to(report_graph, specification_graph=specification_graph):
+        report_graph.add(t)
+
+
 def _annotate_used_graphs_and_configuration(
     report_graph: Any,
     *,
@@ -2209,13 +2513,15 @@ def validate(
     *,
     adapter: TripleTermAdapter | None = None,
     validate_fn: Callable[..., tuple[bool, Graph, str]] | None = None,
-    profile: str | ValidationProfile | None = None,
+    mode: str | ValidationMode | None = None,
     decode_report: bool = True,
     rdfs_subclass_reasoning_includes_shapes_graph: bool = False,
     shapes_graph_loader: Callable[[Any], Any | None] | None = None,
+    ignore_imports: bool = False,
     meta_shapes_extra: Iterable[Any] = (),
     data_graph_iri: Any | None = None,
     shapes_graph_iri: Any | None = None,
+    specification_graph: Any | None = None,
     include_used_configuration: bool = False,
     **kwargs: Any,
 ) -> ValidationResult:
@@ -2249,13 +2555,26 @@ def validate(
     _patch_rules_apply_for_layer_and_run_once()
     _patch_stringify_for_native_backend_bnodes()
 
-    options = resolve_profile_options(profile, overrides=kwargs)
+    options = resolve_mode_options(mode, overrides=kwargs)
 
     data_graph, shacl_graph, ont_graph = normalize_graph_inputs(
         data_graph,
         shacl_graph,
         ont_graph,
     )
+
+    # data_graph_iri=/shapes_graph_iri= also fall back to the graph's own
+    # .identifier (2026-10-09), when it's a real URIRef the caller
+    # explicitly gave it at construction - never the default random BNode
+    # every rdflib Graph otherwise gets, which carries no meaningful
+    # identity to report. An explicit data_graph_iri=/shapes_graph_iri= is
+    # never overridden. Mirrors the identical fallback on
+    # StarShaclSchema.validate()'s own body - see that method's docstring/
+    # CLAUDE.md for the full design.
+    if data_graph_iri is None and isinstance(data_graph.identifier, URIRef):
+        data_graph_iri = data_graph.identifier
+    if shapes_graph_iri is None and shacl_graph is not None and isinstance(shacl_graph.identifier, URIRef):
+        shapes_graph_iri = shacl_graph.identifier
 
     ensure_graph_mutable(data_graph, name="data_graph")
 
@@ -2264,7 +2583,7 @@ def validate(
     # here, once, up front, so every downstream step sees the same
     # entailed data graph uniformly. A no-op when shacl_graph declares no
     # sh:entailment and inference= isn't given either (the common case).
-    # inplace= is threaded through from the resolved profile options, not
+    # inplace= is threaded through from the resolved mode options, not
     # hardcoded - see apply_entailment()'s own docstring for the real
     # regression this fixed. Reassign data_graph itself: when
     # inplace=False this returns a *new* graph, not the original.
@@ -2335,10 +2654,31 @@ def validate(
 
     # SHACL 1.2 Core: a shapes graph can cross-reference reusable modules
     # via owl:imports. Retrieval is delegated to a caller-supplied
-    # shapes_graph_loader; when none is given, shacl_graph is used
-    # exactly as provided, unchanged.
+    # shapes_graph_loader.
+    #
+    # ignore_imports (2026-10-08): see StarShaclSchema.validate()'s own
+    # identical block for the full reasoning - raises by default when
+    # shacl_graph declares owl:imports that aren't already locally
+    # satisfied (has_import_locally()) and no loader was given, since a
+    # shape referencing something only defined in a genuinely unresolved
+    # import would otherwise simply never fire with no indication
+    # anything was skipped. Pass ignore_imports=True if the imports were
+    # already resolved into shacl_graph yourself beforehand (the
+    # owl:imports triple itself isn't removed by resolve_imports() once
+    # resolved via a loader, so its presence can't by itself distinguish
+    # "already handled via a loader" from "genuinely missing" -
+    # has_import_locally() only catches the already-co-located case).
     if shacl_graph is not None and shapes_graph_loader is not None:
         shacl_graph = _resolve_shapes_graph_imports(shacl_graph, graph_loader=shapes_graph_loader)
+    elif shacl_graph is not None and not ignore_imports:
+        declared_imports = [o for o in shacl_graph.owl_imports() if not shacl_graph.has_import_locally(o)]
+        if declared_imports:
+            raise ValueError(
+                f"shacl_graph declares owl:imports {declared_imports!r} that aren't already "
+                "locally satisfied, but no shapes_graph_loader was given to resolve them. "
+                "Pass shapes_graph_loader=... to resolve them, or ignore_imports=True if "
+                "you've already resolved them yourself (or don't need them)."
+            )
 
     # SHACL 1.2's new target types are unknown to pySHACL - pre-compute
     # the extra target nodes and inject them as ordinary sh:targetNode
@@ -2443,6 +2783,7 @@ def validate(
         shapes_graph_iri=shapes_graph_iri,
         include_used_configuration=include_used_configuration,
     )
+    _merge_derived_conforms_to(out_report, data_graph_iri, shapes_graph_iri, specification_graph)
 
     out_data: TripleTermGraph | Any | None = None
     if options.get("inplace"):
@@ -2656,7 +2997,7 @@ def apply_rules(
             f"execution needs RDF-1.2 triple-term support - got {type(data_graph).__name__}. "
             "Convert first, e.g. StarLayerGraph.from_rdflib(data_graph)."
         )
-    options = resolve_profile_options("rules", overrides=kwargs)
+    options = resolve_mode_options("rules", overrides=kwargs)
 
     # Normalized once, up front, and reused both for the validate() call
     # below and for the rule-set closure/global-rules passes - matters for
@@ -2721,7 +3062,7 @@ def apply_rules(
     # not left to validate()'s own internal handling below - specifically
     # so its delta can be captured and excluded from the returned
     # inference graph. validate()'s own internal entailment/inference
-    # handling (profile="rules" just below) then becomes a redundant,
+    # handling (mode="rules" just below) then becomes a redundant,
     # idempotent no-op pass over an already-closed graph - the same
     # accepted pattern already used for the "after rules" re-applications
     # further down. apply_entailment() tolerates normalized_shapes=None
@@ -2753,7 +3094,7 @@ def apply_rules(
             out_data,
             normalized_shapes,
             ont_graph,
-            profile="rules",
+            mode="rules",
             **options,
         )
 
@@ -2816,7 +3157,7 @@ def apply_rules(
     #    the state BEFORE the global rules pass (and before this second
     #    entailment pass too) - global-rule-produced triples were never
     #    actually validated at all. Re-validate the now-complete out_data
-    #    once more, with the plain "validation" profile (not "rules" -
+    #    once more, with the plain "validation" mode (not "rules" -
     #    rules have already run; re-running iterate_rules here would be
     #    wasteful and risks double-applying a non-idempotent rule), and
     #    use *this* call's conformance result instead - so conforms/
@@ -2827,12 +3168,12 @@ def apply_rules(
         lambda: apply_entailment(out_data, normalized_shapes, ont_graph, inplace=True, inference=inference_option)
     )
 
-    final_options = resolve_profile_options("validation", overrides=kwargs)
+    final_options = resolve_mode_options("validation", overrides=kwargs)
     result = validate(
         out_data,
         normalized_shapes,
         ont_graph,
-        profile="validation",
+        mode="validation",
         **final_options,
     )
 
@@ -3441,8 +3782,8 @@ def _materialize_default_value_triples(
                     # idempotent (skips any node already present, see its own
                     # source) - safe to call again rather than only on an
                     # empty cache, unlike the narrower `if len(...) < 1` guard
-                    # ShapesGraph.shapes itself uses for its own, different
-                    # (whole-cache-empty) case.
+                    # pyshacl.ShapesGraph.shapes itself uses for its own,
+                    # different (whole-cache-empty) case.
                     try:
                         shapes_graph_wrapper._build_node_shape_cache()
                         real_prop_shape = shapes_graph_wrapper.lookup_shape_from_node(prop_shape)
@@ -4202,53 +4543,27 @@ def _resolve_shapes_graph_imports(
     graph_loader: Callable[[Any], Any | None],
 ) -> Any:
     """Extend ``shacl_graph`` with its transitive ``owl:imports`` closure per
-    the SHACL 1.2 Core spec: iteratively follow the property path
-    ``^owl:versionIRI?/owl:imports`` - i.e. when the graph retrieved for an
-    imported IRI declares that same IRI as *its own* ``owl:versionIRI``, the
-    IRI of the ``owl:versionIRI`` triple's subject is used as the canonical
-    shapes-graph IRI both for deduplication and for following *that* graph's
-    own ``owl:imports`` statements, so versioned modules resolve correctly.
+    the SHACL 1.2 Core spec.
+
+    2026-10-08: now a thin wrapper around ``StarLayerGraph.resolve_imports()``,
+    which generalizes the identical algorithm (``^owl:versionIRI?/owl:imports``,
+    cycle-safe, fully transitive) this function used to implement itself -
+    see that method's own docstring for the full account, and
+    ``starlayer/graph/CLAUDE.md``'s dated entry for why the general version
+    exists. Pure delegation, confirmed via the existing
+    ``test_shapes_graph_imports.py`` suite (versionIRI redirect, no-loader,
+    unresolvable-import, self-import cycle, multi-hop-without-versionIRI) -
+    every behavior there is unchanged; ``shacl_graph`` is already a
+    ``StarLayerGraph`` by the time this runs (normalized earlier in
+    ``validate()``), so calling the method directly needs no extra
+    conversion.
 
     Retrieval itself is delegated to ``graph_loader`` (given an import IRI,
     returns a parsed graph, or ``None`` if it can't be resolved) - this
     library doesn't dictate a network-fetching policy; an unresolvable
     import is simply skipped rather than raising.
     """
-    merged = type(shacl_graph)()
-    for triple in shacl_graph:
-        merged.add(triple)
-
-    fetched: set[Any] = set()
-    imported_canonical: set[Any] = set()
-    pending = list(dict.fromkeys(o for _, _, o in shacl_graph.triples((None, OWL.imports, None))))
-
-    while pending:
-        target_iri = pending.pop(0)
-        if target_iri in fetched:
-            continue
-        fetched.add(target_iri)
-
-        imported_graph = graph_loader(target_iri)
-        if imported_graph is None:
-            continue
-
-        canonical_id = next(
-            (s for s, _, o in imported_graph.triples((None, OWL.versionIRI, None)) if o == target_iri),
-            target_iri,
-        )
-        if canonical_id in imported_canonical:
-            continue
-        imported_canonical.add(canonical_id)
-        fetched.add(canonical_id)
-
-        for triple in imported_graph:
-            merged.add(triple)
-
-        for _, _, next_iri in imported_graph.triples((canonical_id, OWL.imports, None)):
-            if next_iri not in fetched:
-                pending.append(next_iri)
-
-    return merged
+    return shacl_graph.resolve_imports(loader=graph_loader, mode="full")
 
 
 def _is_subclass_of_or_self(graph: Any, node: Any, target_class: Any, extra_graph: Any | None = None) -> bool:

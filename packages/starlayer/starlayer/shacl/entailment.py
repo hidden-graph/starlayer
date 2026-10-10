@@ -111,14 +111,14 @@ def _apply_entailment_regimes(data_graph: Any, regimes: frozenset, ont_graph: An
         )
     if ont_graph is None:
         mode = "in-place" if inplace else "full"
-        return data_graph.infer(profile=regimes, mode=mode)
+        return data_graph.infer(entailment=regimes, mode=mode)
 
     combined = type(data_graph)()
     for t in data_graph:
         combined.add(t)
     for t in ont_graph:
         combined.add(t)
-    delta = combined.infer(profile=regimes, mode="delta")
+    delta = combined.infer(entailment=regimes, mode="delta")
 
     if inplace:
         for t in delta:
@@ -162,11 +162,11 @@ def apply_entailment(
     string vocabulary.
 
     ``inplace`` must be threaded through from the caller's own resolved
-    profile options (``resolve_profile_options(...)['inplace']``) - it is
+    mode options (``resolve_mode_options(...)['inplace']``) - it is
     **not** optional/defaulted, on purpose: an earlier version of this
     function always mutated ``data_graph`` in place regardless, which
     silently broke ``validate()``'s own documented guarantee that the
-    plain ``"validation"`` profile (``inplace=False``) never mutates the
+    plain ``"validation"`` mode (``inplace=False``) never mutates the
     caller's data - confirmed live via a real regression (``len(data)``
     grew after a plain ``validate()`` call that happened to use
     ``sh:entailment``) before this parameter was added.
