@@ -17,7 +17,7 @@ from rdflib.plugins.sparql.processor import prepareQuery, prepareUpdate
 from starlayer.sparql import queries_to_collection, query_to_rdf, update_to_rdf
 from starlayer.sparql.salg import shapes_graph, validate_query
 from starlayer.sparql.parse12 import prepare_query_12
-from starlayer.sparql.vocab import SALG
+from starlayer.sparql.vocab import SALG, SPEXPR
 
 from tests.sparql.unit.test_phase2_aggregates import QUERIES as AGGREGATE_QUERIES
 from tests.sparql.unit.test_phase2_forms import QUERIES as FORMS_QUERIES
@@ -82,9 +82,9 @@ def test_shapes_graph_is_valid_shacl_and_reusable():
 
 
 def test_expression_shape_relies_on_rdfs_reasoning_not_enumeration():
-    """ExpressionShape is a 2-alternative sh:or (a bare term, or salg:
+    """ExpressionShape is a 2-alternative sh:or (a bare term, or spexpr:
     Expression) - conformance for a real Builtin_STR node depends entirely
-    on RDFS reasoning entailing salg:Expression from salg:Builtin_STR via
+    on RDFS reasoning entailing spexpr:Expression from spexpr:Builtin_STR via
     the ontology's rdfs:subClassOf chain (Builtin_STR -> OneArgExpression
     -> Expression). Build a minimal graph with *only* the base fact
     asserted (no reasoning involved yet) and confirm the entailed types
@@ -94,11 +94,11 @@ def test_expression_shape_relies_on_rdfs_reasoning_not_enumeration():
     from rdflib import RDF, BNode
     from rdflib import Graph as RGraph
     from starlayer.sparql.salg.sparql_ontology import ontology_graph
-    from starlayer.sparql.vocab import SALG
+    from starlayer.sparql.vocab import SPEXPR
 
     data = RGraph()
     node = BNode()
-    data.add((node, RDF.type, SALG.Builtin_STR))
+    data.add((node, RDF.type, SPEXPR.Builtin_STR))
 
     merged = RGraph()
     merged += data
@@ -108,8 +108,8 @@ def test_expression_shape_relies_on_rdfs_reasoning_not_enumeration():
 
     owlrl.DeductiveClosure(owlrl.RDFS_Semantics).expand(merged)
     entailed_types = set(merged.objects(node, RDF.type))
-    assert SALG.Expression in entailed_types, "salg:Expression was not entailed - ExpressionShape's sh:class check would not match this node"
-    assert SALG.OneArgExpression in entailed_types
+    assert SPEXPR.Expression in entailed_types, "spexpr:Expression was not entailed - ExpressionShape's sh:class check would not match this node"
+    assert SPEXPR.OneArgExpression in entailed_types
 
 
 def _encode_simple_select():
@@ -270,7 +270,7 @@ def test_binding_with_two_vars_fails():
     prepared = prepareQuery(_VALUES_QUERY)
     graph, root = query_to_rdf(prepared)
     binding = next(graph.subjects(RDF.type, SALG.Binding))
-    graph.add((binding, SALG.var, Literal("other", datatype=SALG.Variable)))
+    graph.add((binding, SALG.var, Literal("other", datatype=SPEXPR.Variable)))
 
     conforms, _, results_text = validate_query(graph)
     assert not conforms
@@ -501,43 +501,43 @@ def test_one_arg_builtin_missing_arg_fails():
     query_text = "PREFIX : <http://example.org/> SELECT * WHERE { ?s ?p ?y . FILTER(STR(?y) = \"x\") }"
     prepared = prepareQuery(query_text)
     graph, root = query_to_rdf(prepared)
-    node = next(graph.subjects(RDF.type, SALG.Builtin_STR))
-    for arg in list(graph.objects(node, SALG.arg)):
-        graph.remove((node, SALG.arg, arg))
+    node = next(graph.subjects(RDF.type, SPEXPR.Builtin_STR))
+    for arg in list(graph.objects(node, SPEXPR.arg)):
+        graph.remove((node, SPEXPR.arg, arg))
 
     conforms, _, results_text = validate_query(graph)
     assert not conforms
-    assert "salg:arg" in results_text or "Builtin_STR" in results_text
+    assert "spexpr:arg" in results_text or "Builtin_STR" in results_text
 
 
 def test_regex_missing_text_fails():
     query_text = 'PREFIX : <http://example.org/> SELECT * WHERE { ?s ?p ?y . FILTER(REGEX(?y, "a")) }'
     prepared = prepareQuery(query_text)
     graph, root = query_to_rdf(prepared)
-    node = next(graph.subjects(RDF.type, SALG.Builtin_REGEX))
-    for text_val in list(graph.objects(node, SALG.text)):
-        graph.remove((node, SALG.text, text_val))
+    node = next(graph.subjects(RDF.type, SPEXPR.Builtin_REGEX))
+    for text_val in list(graph.objects(node, SPEXPR.text)):
+        graph.remove((node, SPEXPR.text, text_val))
 
     conforms, _, results_text = validate_query(graph)
     assert not conforms
-    assert "salg:text" in results_text or "Builtin_REGEX" in results_text
+    assert "spexpr:text" in results_text or "Builtin_REGEX" in results_text
 
 
 def test_function_missing_iri_fails():
     query_text = "PREFIX : <http://example.org/> SELECT * WHERE { ?s ?p ?y . FILTER(<http://ex/fn>(?y) = 1) }"
     prepared = prepareQuery(query_text)
     graph, root = query_to_rdf(prepared)
-    node = next(graph.subjects(RDF.type, SALG.Function))
-    for iri in list(graph.objects(node, SALG.iri)):
-        graph.remove((node, SALG.iri, iri))
+    node = next(graph.subjects(RDF.type, SPEXPR.Function))
+    for iri in list(graph.objects(node, SPEXPR.iri)):
+        graph.remove((node, SPEXPR.iri, iri))
 
     conforms, _, results_text = validate_query(graph)
     assert not conforms
-    assert "salg:iri" in results_text or "Function" in results_text
+    assert "spexpr:iri" in results_text or "Function" in results_text
 
 
 def test_relational_expression_op_wrong_datatype_fails():
-    """salg:op must be a salg:PyStr-tagged Literal (RelationalExpression.op
+    """spexpr:op must be a salg:PyStr-tagged Literal (RelationalExpression.op
     is a bare Python str in the live algebra, e.g. "=" - see vocab.py's
     "Bare Python strings" section), not merely present. Was previously
     cardinality-only, so any value at all (even an IRI) silently conformed -
@@ -546,14 +546,14 @@ def test_relational_expression_op_wrong_datatype_fails():
     query_text = "PREFIX : <http://example.org/> SELECT * WHERE { ?s ?p ?y . FILTER(?y = 1) }"
     prepared = prepareQuery(query_text)
     graph, root = query_to_rdf(prepared)
-    node = next(graph.subjects(RDF.type, SALG.RelationalExpression))
-    for op in list(graph.objects(node, SALG.op)):
-        graph.remove((node, SALG.op, op))
-    graph.add((node, SALG.op, URIRef("http://example.org/not-a-pystr")))
+    node = next(graph.subjects(RDF.type, SPEXPR.RelationalExpression))
+    for op in list(graph.objects(node, SPEXPR.op)):
+        graph.remove((node, SPEXPR.op, op))
+    graph.add((node, SPEXPR.op, URIRef("http://example.org/not-a-pystr")))
 
     conforms, _, results_text = validate_query(graph)
     assert not conforms
-    assert "salg:op" in results_text or "RelationalExpression" in results_text
+    assert "spexpr:op" in results_text or "RelationalExpression" in results_text
 
 
 def test_order_condition_order_wrong_datatype_fails():
@@ -949,13 +949,13 @@ def test_valid_path_queries_conform(query_text):
 def test_mulpath_missing_mod_fails():
     prepared = prepareQuery("PREFIX : <http://example.org/> SELECT ?x WHERE { :alice :knows+ ?x }")
     graph, root = query_to_rdf(prepared)
-    mulpath_node = next(graph.subjects(RDF.type, SALG.MulPath))
-    for mod in list(graph.objects(mulpath_node, SALG.mod)):
-        graph.remove((mulpath_node, SALG.mod, mod))
+    mulpath_node = next(graph.subjects(RDF.type, SPEXPR.MulPath))
+    for mod in list(graph.objects(mulpath_node, SPEXPR.mod)):
+        graph.remove((mulpath_node, SPEXPR.mod, mod))
 
     conforms, _, results_text = validate_query(graph)
     assert not conforms
-    assert "salg:mod" in results_text or "mod" in results_text
+    assert "spexpr:mod" in results_text or "mod" in results_text
 
 
 def test_triple_pattern_predicate_neither_iri_variable_nor_path_fails():
@@ -992,8 +992,8 @@ def test_triple_term_predicate_as_path_fails():
     graph.remove((tt_node, SALG.predicate, old_predicate))
 
     path_node = BNode()
-    graph.add((path_node, RDF.type, SALG.InvPath))
-    graph.add((path_node, SALG.arg, URIRef("http://example.org/knows")))
+    graph.add((path_node, RDF.type, SPEXPR.InvPath))
+    graph.add((path_node, SPEXPR.arg, URIRef("http://example.org/knows")))
     graph.add((tt_node, SALG.predicate, path_node))
 
     conforms, _, results_text = validate_query(graph)
@@ -1122,7 +1122,7 @@ def test_query_collection_with_bogus_member_fails():
 
 
 def test_mulpath_mod_invalid_value_fails():
-    """salg:MulPath's own salg:mod had cardinality-only checking - any
+    """spexpr:MulPath's own spexpr:mod had cardinality-only checking - any
     Literal value silently conformed. rdflib's own evalPath switches on
     mod with bare `==` comparisons against exactly "*"/"+"/"?" and falls
     through silently (no else-raise) for anything else - a malformed mod
@@ -1130,14 +1130,14 @@ def test_mulpath_mod_invalid_value_fails():
     query_text = "SELECT * WHERE { ?s <http://example.org/p>* ?o }"
     prepared = prepareQuery(query_text)
     graph, root = query_to_rdf(prepared)
-    node = next(graph.subjects(RDF.type, SALG.MulPath))
-    for mod in list(graph.objects(node, SALG.mod)):
-        graph.remove((node, SALG.mod, mod))
-    graph.add((node, SALG.mod, Literal("banana")))
+    node = next(graph.subjects(RDF.type, SPEXPR.MulPath))
+    for mod in list(graph.objects(node, SPEXPR.mod)):
+        graph.remove((node, SPEXPR.mod, mod))
+    graph.add((node, SPEXPR.mod, Literal("banana")))
 
     conforms, _, results_text = validate_query(graph)
     assert not conforms
-    assert "salg:mod" in results_text or "MulPath" in results_text
+    assert "spexpr:mod" in results_text or "MulPath" in results_text
 
 
 def test_aggregate_distinct_wrong_type_fails():
@@ -1282,7 +1282,7 @@ def test_dataset_clause_well_formed_conforms():
 
 
 def test_arithmetic_op_wrong_member_fails():
-    """AdditiveExpression/MultiplicativeExpression's own salg:op was
+    """AdditiveExpression/MultiplicativeExpression's own spexpr:op was
     cardinality-only despite this shape's own pre-existing message already
     claiming "a well-formed rdf:List of operator strings" - nothing
     actually enforced that. Confirmed op is a real Python list of bare
@@ -1291,15 +1291,15 @@ def test_arithmetic_op_wrong_member_fails():
     query_text = "SELECT * WHERE { ?s ?p ?o . FILTER(?o + 1 > 0) }"
     prepared = prepareQuery(query_text)
     graph, root = query_to_rdf(prepared)
-    node = next(graph.subjects(RDF.type, SALG.AdditiveExpression))
-    op_list = next(graph.objects(node, SALG.op))
+    node = next(graph.subjects(RDF.type, SPEXPR.AdditiveExpression))
+    op_list = next(graph.objects(node, SPEXPR.op))
     from rdflib.collection import Collection
 
     Collection(graph, op_list)[0] = Literal("+")  # not PyStr-tagged
 
     conforms, _, results_text = validate_query(graph)
     assert not conforms
-    assert "salg:op" in results_text or "AdditiveExpression" in results_text
+    assert "spexpr:op" in results_text or "AdditiveExpression" in results_text
 
 
 def test_quadsforgraph_graph_wrong_type_fails():

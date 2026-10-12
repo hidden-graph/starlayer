@@ -114,6 +114,20 @@ def _generate_expression_class_turtle() -> str:
 
 
 def ontology_graph() -> Graph:
-    """A fresh ``StarLayerGraph`` of the RDFS ontology in ``salg-ontology.ttl``
-    (lives in the ``starontology`` package)."""
-    return starontology.get_ontology_graph("sparql_owl")
+    """A fresh graph: the RDFS ontology in ``salg-ontology.ttl`` merged with
+    ``spexpr-ontology.ttl`` (lives in the ``starontology`` package).
+
+    The ``spexpr:`` merge is new (2026-10-10) - ``salg:Expression``/
+    ``salg:Variable``/``salg:Path`` and their subclasses moved out of
+    ``salg-ontology.ttl`` into their own shared vocabulary (see
+    ``starlayer/sparql/vocab.py``'s own ``SPEXPR`` definition for why), so
+    the RDFS subclass axioms ``ExpressionShape``'s ``sh:class
+    spexpr:Expression`` check depends on for entailment now live there
+    instead - without this merge, that entailment silently stops firing
+    and every expression/variable/path check this module's own shapes rely
+    on would start failing. ``salg-ontology.ttl`` on its own now has no
+    opinion about expressions/variables/paths at all - entirely spexpr:'s
+    concern."""
+    g = starontology.get_ontology_graph("sparql_owl")
+    g += starontology.get_ontology_graph("spexpr_owl")
+    return g

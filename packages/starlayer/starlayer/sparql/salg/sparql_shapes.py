@@ -127,22 +127,46 @@ def _generate_expression_shapes_turtle() -> str:
     at its family's reusable body shape via ``sh:node`` - generated from
     ``_EXPR_NODE_FAMILY`` rather than hand-written. See that table's own
     docstring for why.
+
+    ``spexpr:``, not ``salg:`` (2026-10-10) - both the target class and the
+    body shape it points at moved out of ``salg:`` into the shared
+    expression vocabulary (see ``vocab.py``'s own ``SPEXPR`` definition);
+    a node actually typed ``spexpr:{name}`` at runtime would never match a
+    ``sh:targetClass salg:{name}`` shape, so this has to track the move,
+    not just the static ontology/shapes files. Carries its own
+    ``@prefix spexpr:`` line - self-contained regardless of whether
+    whatever this gets concatenated with (``shapes_graph()`` below)
+    happens to declare that prefix itself.
     """
     declarations = [
-        f"salg:{name}Shape a sh:NodeShape ; sh:targetClass salg:{name} ; "
-        f"sh:node salg:_{family}ExprBodyShape ."
+        f"spexpr:{name}Shape a sh:NodeShape ; sh:targetClass spexpr:{name} ; "
+        f"sh:node spexpr:_{family}ExprBodyShape ."
         for name, family in _EXPR_NODE_FAMILY.items()
     ]
-    return "\n".join(declarations) + "\n"
+    return (
+        "@prefix spexpr: <https://github.com/hidden-graph/starsparql/ns/expr#> .\n"
+        + "\n".join(declarations)
+        + "\n"
+    )
 
 
 def shapes_graph() -> Graph:
-    """A fresh ``rdflib.Graph`` of the shapes above (SHACL graphs are
-    mutated by pyshacl during validation, so callers get their own copy
-    rather than a shared module-level instance)."""
+    """A fresh ``rdflib.Graph`` of the shapes above, merged with
+    ``spexpr_shacl`` (SHACL graphs are mutated by pyshacl during
+    validation, so callers get their own copy rather than a shared
+    module-level instance).
+
+    The ``spexpr_shacl`` merge is new (2026-10-10) - ``ExpressionShape``/
+    ``VariableShape``/``PathShape`` and their own supporting shapes
+    (per-builtin body shapes, list helpers) moved out of
+    ``sparql_shapes.ttl`` into their own shared shapes graph (see
+    ``vocab.py``'s ``SPEXPR`` definition); without this, every ``sh:node
+    salg:ExpressionShape``-style reference this file's own shapes still
+    make would point at nothing at all."""
     turtle = SHAPES_TURTLE + "\n" + _generate_expression_shapes_turtle()
     g = Graph()
     g.parse(data=turtle, format="turtle")
+    g += starontology.get_ontology_graph("spexpr_shacl")
     return g
 
 

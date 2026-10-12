@@ -51,7 +51,7 @@ Two shapes need a convention beyond that generic rule:
   invisible to ``_addVars``).
 
 - **Variables.** A SPARQL ``Variable`` is not a native RDF term. It is
-  encoded as ``Literal(name, datatype=SALG.Variable)`` — a plain literal
+  encoded as ``Literal(name, datatype=SPEXPR.Variable)`` — a plain literal
   tagged with a reserved datatype, the same trick starlayer.graph itself
   uses for ``DirLangString`` base-direction literals and content-addressed
   triple-term URIs (``starlayer.graph.model.encoding``, ``starlayer.graph.model.dirlangstring``).
@@ -170,6 +170,40 @@ from rdflib import Namespace, URIRef
 
 SALG = Namespace("https://github.com/hidden-graph/starsparql/ns/algebra#")
 
+# SPEXPR (2026-10-10) - the SPARQL expression/variable/property-path
+# vocabulary, carved OUT of SALG into its own namespace. Originally
+# minted under salg: because salg: was built first (before sqe: existed)
+# and nobody yet needed to share it - but sqe:/srl: both need exactly this
+# slice (their own expression/variable/path encoding, reused unchanged,
+# not reimplemented - see salg/expr_families.py's own docstring), while
+# needing none of salg:'s *other* vocabulary (its own outer algebra
+# operators: Join/LeftJoin/Filter/Project/Union/etc., which only salg:
+# itself ever produces). Splitting this out means salg:/sqe:/srl: all
+# import the shared piece as equal consumers, instead of sqe:/srl:
+# depending on an unrelated sibling's namespace for something that was
+# never really salg:-specific in the first place.
+#
+# Exactly what moved (see starontology's own ontology-shapes-profiles.ttl
+# header and starlayer/sparql/CLAUDE.md's dated entry for the full
+# account): salg:Expression and its 63 real encodable builtins (plus the
+# 16 purely-organizational rdfs:subClassOf "family" classes above them,
+# used only for SHACL class reasoning, never directly instantiated),
+# salg:Variable, and salg:Path's five concrete subclasses
+# (InvPath/SequencePath/AlternativePath/MulPath/NegatedPath). Everything
+# else in salg: - TriplePattern, Binding, QuadsForGraph, the whole outer
+# query/update/prologue vocabulary - stays exactly where it was.
+#
+# _encode_comp_value()/_decode_comp_value() (to_rdf.py/from_rdf.py) are
+# the one place this matters at runtime: they're one fully generic
+# dispatcher shared by every CompValue, expression and non-expression
+# alike, so they now branch on whether a given node's name is one of
+# the moved expression names (reusing salg.expr_families._EXPR_NODE_FAMILY
+# directly, not a second hand-copied list) to decide SALG vs SPEXPR -
+# confirmed live, before this split, that sqe:'s own encoded output
+# already had nested expressions typed under salg: regardless of sqe:'s
+# own namespace, which is exactly the bug this split fixes.
+SPEXPR = Namespace("https://github.com/hidden-graph/starsparql/ns/expr#")
+
 # Reserved datatype URI *namespace* used to encode a SPARQL 1.2 dirLangString
 # literal ("text"@lang--dir) as a plain rdflib.Literal - rdflib.Literal(text,
 # lang="en--rtl") raises outright (rdflib's own langtag validator has no
@@ -217,8 +251,9 @@ def decode_dirlang_datatype(datatype) -> tuple[str, str] | None:
     return language, direction
 
 # Reserved datatype URI used to encode a SPARQL Variable as an RDF Literal.
-# See the module docstring's "Variables" section above.
-VARIABLE_DATATYPE = SALG.Variable
+# See the module docstring's "Variables" section above. spexpr:, not
+# salg:, since 2026-10-10 - see SPEXPR's own definition above for why.
+VARIABLE_DATATYPE = SPEXPR.Variable
 
 # Reserved datatype URI used to encode a bare Python str (not an RDF term)
 # found inside an algebra tree. See the module docstring's "Bare Python

@@ -7,7 +7,7 @@ that is the design (and not one function per operator name).
 
 from __future__ import annotations
 
-from rdflib import BNode, Graph, Literal, URIRef, Variable
+from rdflib import BNode, Graph, Literal, Namespace, URIRef, Variable
 from rdflib.collection import Collection
 from rdflib.namespace import RDF
 from rdflib.paths import (
@@ -26,10 +26,46 @@ from .vocab import (
     QUERY,
     QUERY_COLLECTION,
     SALG,
+    SPEXPR,
     UPDATE,
     UPDATE_OPERATION,
     VARIABLE_DATATYPE,
 )
+
+# The real, grammar-verified set of CompValue names that now live under
+# spexpr: rather than salg: (see vocab.py's own SPEXPR definition for the
+# full rationale) - lazily imported and cached, not at module top level,
+# to avoid a real circular-import risk: this file is itself imported by
+# starlayer.sparql's own top-level __init__.py, and salg/expr_families.py
+# sits inside the salg subpackage, whose own __init__.py pulls in
+# sparql_shapes.py -> starontology - a path this project's own
+# established "lazy, not top-level" convention exists specifically to
+# avoid (see starontology/__init__.py's identical reasoning). Safe to
+# defer: nothing can call _encode_comp_value() before starlayer.sparql
+# itself has finished importing.
+_EXPR_COMP_VALUE_NAMES: frozenset | None = None
+
+
+def _expr_comp_value_names() -> frozenset:
+    global _EXPR_COMP_VALUE_NAMES
+    if _EXPR_COMP_VALUE_NAMES is None:
+        from .salg.expr_families import _EXPR_NODE_FAMILY
+
+        # TrueFilter is the one spexpr:-bound CompValue name with no entry
+        # in _EXPR_NODE_FAMILY (it has no fields of its own to generate a
+        # per-builtin shape for - see from_rdf._decode_comp_value's own
+        # TrueFilter special case) - added explicitly, not silently
+        # missing from the reused table.
+        _EXPR_COMP_VALUE_NAMES = frozenset(_EXPR_NODE_FAMILY) | {"TrueFilter"}
+    return _EXPR_COMP_VALUE_NAMES
+
+
+def _comp_value_ns(name: str) -> Namespace:
+    """Which namespace a given CompValue.name encodes under - spexpr: for
+    the expression-family names that moved out of salg: (2026-10-10), salg:
+    for every other algebra operator (Join/Filter/Project/etc. - salg:'s
+    own, unmoved vocabulary)."""
+    return SPEXPR if name in _expr_comp_value_names() else SALG
 
 _LEAF_TERM_TYPES = (URIRef, BNode, Literal)
 _PRIMITIVE_TYPES = (str, int, float, bool)
@@ -219,7 +255,8 @@ def _encode(value, graph: Graph):
 
 def _encode_comp_value(node: CompValue, graph: Graph) -> BNode:
     subj = BNode()
-    graph.add((subj, RDF.type, SALG[node.name]))
+    ns = _comp_value_ns(node.name)
+    graph.add((subj, RDF.type, ns[node.name]))
     for key, value in node.items():
         if key in _INTERNAL_BOOKKEEPING_KEYS:
             continue
@@ -234,12 +271,14 @@ def _encode_comp_value(node: CompValue, graph: Graph) -> BNode:
             # fragment. Prefer the attribute whenever both exist.
             value = getattr(node, key)
         if key == _QUADS_KEY:
+            # Update-only (quads-by-graph maps never appear on an
+            # expression-family node) - always salg:, never spexpr:.
             graph.add((subj, SALG[key], _encode_quads_map(value, graph)))
             continue
         encoded = _encode(value, graph)
         if encoded is None:
             continue
-        graph.add((subj, SALG[key], encoded))
+        graph.add((subj, ns[key], encoded))
     return subj
 
 
@@ -260,26 +299,29 @@ def _encode_quads_map(quads: dict, graph: Graph) -> BNode | URIRef:
 def _encode_path(path: Path, graph: Graph) -> BNode:
     """Encode an rdflib.paths.Path (InvPath/SequencePath/AlternativePath/
     MulPath/NegatedPath) — see vocab.py's "Property paths" section. Each
-    class's own constructor arguments map 1:1 to salg: predicates, the same
-    "mirror the real shape" rule as the generic CompValue encoder, just
-    applied to a Python class hierarchy that isn't a CompValue."""
+    class's own constructor arguments map 1:1 to spexpr: predicates, the
+    same "mirror the real shape" rule as the generic CompValue encoder,
+    just applied to a Python class hierarchy that isn't a CompValue.
+    spexpr:, not salg: (2026-10-10) - Path is one of the vocabularies that
+    moved, unconditionally (never ambiguous the way a generic CompValue
+    name can be - a Path value is always a Path)."""
     subj = BNode()
     if isinstance(path, InvPath):
-        graph.add((subj, RDF.type, SALG.InvPath))
-        graph.add((subj, SALG.arg, _encode(path.arg, graph)))
+        graph.add((subj, RDF.type, SPEXPR.InvPath))
+        graph.add((subj, SPEXPR.arg, _encode(path.arg, graph)))
     elif isinstance(path, SequencePath):
-        graph.add((subj, RDF.type, SALG.SequencePath))
-        graph.add((subj, SALG.args, _encode_list(path.args, graph)))
+        graph.add((subj, RDF.type, SPEXPR.SequencePath))
+        graph.add((subj, SPEXPR.args, _encode_list(path.args, graph)))
     elif isinstance(path, AlternativePath):
-        graph.add((subj, RDF.type, SALG.AlternativePath))
-        graph.add((subj, SALG.args, _encode_list(path.args, graph)))
+        graph.add((subj, RDF.type, SPEXPR.AlternativePath))
+        graph.add((subj, SPEXPR.args, _encode_list(path.args, graph)))
     elif isinstance(path, MulPath):
-        graph.add((subj, RDF.type, SALG.MulPath))
-        graph.add((subj, SALG.path, _encode(path.path, graph)))
-        graph.add((subj, SALG.mod, Literal(path.mod)))
+        graph.add((subj, RDF.type, SPEXPR.MulPath))
+        graph.add((subj, SPEXPR.path, _encode(path.path, graph)))
+        graph.add((subj, SPEXPR.mod, Literal(path.mod)))
     elif isinstance(path, NegatedPath):
-        graph.add((subj, RDF.type, SALG.NegatedPath))
-        graph.add((subj, SALG.args, _encode_list(path.args, graph)))
+        graph.add((subj, RDF.type, SPEXPR.NegatedPath))
+        graph.add((subj, SPEXPR.args, _encode_list(path.args, graph)))
     else:
         raise NotImplementedError(
             f"starlayer.sparql: no RDF encoding yet for path type {type(path).__name__!r}"

@@ -697,23 +697,37 @@ def srl_tree_to_text(graph: Graph, root) -> str:
 # ---------------------------------------------------------------------------
 
 def _ontology_graph() -> Graph:
-    """The ``srl:`` RDFS ontology, combined with ``salg:``'s (needed for
-    the ``sh:class salg:Expression``/``salg:Variable`` checks below) -
-    private: see module docstring for why this isn't exposed publicly."""
+    """The ``srl:`` RDFS ontology, combined with ``salg:``'s and
+    ``spexpr:``'s (needed for the ``sh:class spexpr:Expression``/
+    ``spexpr:Variable`` checks below) - private: see module docstring for
+    why this isn't exposed publicly.
+
+    ``spexpr:`` merge added 2026-10-10 - ``salg:Expression``/
+    ``salg:Variable`` moved out of ``salg-ontology.ttl`` into their own
+    shared vocabulary (see ``starlayer/sparql/vocab.py``'s ``SPEXPR``
+    definition), so the RDFS subclass axioms the checks below depend on
+    for entailment now live there instead. ``sparql_owl`` kept alongside
+    it rather than replaced outright, even though this file's own shapes
+    never referenced any of salg:'s *other* (non-expression) vocabulary -
+    harmless to keep, and not worth a second, independent risk judgment
+    on top of the one this move already required."""
     from starlayer import starontology
 
     g = starontology.get_ontology_graph("srl_owl")
     g += starontology.get_ontology_graph("sparql_owl")
+    g += starontology.get_ontology_graph("spexpr_owl")
     return g
 
 
 def _shapes_graph() -> Graph:
-    """A fresh graph of the ``srl:`` shapes, combined with ``salg:``'s -
-    private, same reasoning as ``_ontology_graph()`` above."""
+    """A fresh graph of the ``srl:`` shapes, combined with ``salg:``'s and
+    ``spexpr:``'s - private, same reasoning as ``_ontology_graph()``
+    above."""
     from starlayer import starontology
 
     g = starontology.get_ontology_graph("srl_shacl")
     g += starontology.get_ontology_graph("sparql_shacl")
+    g += starontology.get_ontology_graph("spexpr_shacl")
     return g
 
 

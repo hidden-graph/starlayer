@@ -288,14 +288,29 @@ def test_owl_imports_cycle_does_not_hang() -> None:
     assert (EX.CompanyShape, SH.targetClass, EX.Company) in extracted
 
 
-class TestValidateShapesGraphModule:
-    """StarShaclSchema.validate(shapes_graph_module=...) - a convenience
-    wrapping extract_shapes_graph() + validate() together: validate
-    data_graph against just one named sh:ShapesGraph module pulled out of
-    this instance's own bound shacl_graph, instead of the whole thing.
-    Named distinctly from the pre-existing shapes_graph_iri= (report-
-    provenance tagging, unrelated) to avoid overloading one keyword with
-    two different meanings."""
+class TestValidateShapesGraph:
+    """StarShaclSchema.validate(shapes_graph_resource=...) - one parameter, two
+    possible meanings depending on what's actually true of this
+    instance's own bound shacl_graph (2026-10-10, replacing the former
+    separate shapes_graph_module=/shapes_graph_iri= pair - see CLAUDE.md's
+    dated entry for why keeping them independently settable was a real
+    correctness gap, not just a naming one):
+
+    - If shapes_graph names a real `a sh:ShapesGraph` module within the
+      bound shacl_graph: that module is what gets validated against
+      (a convenience wrapping extract_shapes_graph() + validate()
+      together), and its own IRI becomes the report's sh:usedShapesGraph
+      identity - there's only one fact here, so there's no second,
+      separately-overridable value for it.
+    - Otherwise, once a real shacl_graph is bound: shapes_graph is read
+      purely as a report-provenance identity (the old shapes_graph_iri=
+      behavior) and validation proceeds against the whole bound
+      shacl_graph unchanged.
+    - With no bound shacl_graph at all: raises - there's no evidence
+      either way about what shapes_graph should mean, and silently
+      falling back to "just a tag" would let the report claim
+      sh:usedShapesGraph for a run that validated against nothing at all
+      (pyshacl trivially "conforms" against a None shapes graph)."""
 
     def test_validates_against_only_the_named_module(self) -> None:
         schema = StarShaclSchema(shacl_graph=_two_module_graph())
@@ -305,7 +320,7 @@ class TestValidateShapesGraphModule:
 
         # ex:acme has no ex:name - fails CompanyShape's own sh:minCount 1,
         # but ModuleA's PersonShape (a different module) never applies
-        result = schema.validate(data_graph=acme, meta_shacl=False, shapes_graph_module=EX.ModuleB)
+        result = schema.validate(data_graph=acme, meta_shacl=False, shapes_graph_resource=EX.ModuleB)
         assert result.conforms is False
 
     def test_conforms_when_the_module_alone_is_satisfied(self) -> None:
@@ -316,20 +331,33 @@ class TestValidateShapesGraphModule:
             data='@prefix ex: <http://example.org/> . ex:acme a ex:Company ; ex:name "Acme" .', format="turtle"
         )
 
-        result = schema.validate(data_graph=acme, meta_shacl=False, shapes_graph_module=EX.ModuleB)
+        result = schema.validate(data_graph=acme, meta_shacl=False, shapes_graph_resource=EX.ModuleB)
         assert result.conforms is True
 
-    def test_raises_for_an_iri_not_typed_sh_shapesgraph(self) -> None:
+    def test_falls_back_to_tag_only_for_an_iri_not_typed_sh_shapesgraph(self) -> None:
+        """Not a module within the bound shacl_graph - validated against
+        the whole thing instead (empty data, so trivially conforms), with
+        the given IRI used purely as the report's own identity. This used
+        to raise ("not typed a sh:ShapesGraph") before the
+        shapes_graph_iri= unification - a real shacl_graph being bound
+        makes "this must be an external identity" a safe inference now,
+        not a guess."""
         schema = StarShaclSchema(shacl_graph=_two_module_graph())
         data = StarLayerGraph()
-        with pytest.raises(ValueError, match="not typed"):
-            schema.validate(data_graph=data, meta_shacl=False, shapes_graph_module=EX.NotRegistered)
+        result = schema.validate(data_graph=data, meta_shacl=False, shapes_graph_resource=EX.NotRegistered)
+        assert result.conforms is True
+        assert (None, SH.usedShapesGraph, EX.NotRegistered) in result.report_graph
 
     def test_raises_without_a_bound_shacl_graph(self) -> None:
+        """Unlike the "not a real module" case above, no bound shacl_graph
+        at all leaves no evidence either way about what shapes_graph_resource=
+        should mean - still raises, since pyshacl trivially "conforms"
+        against a None shapes graph and a silent tag-only fallback here
+        would let the report falsely claim a module was used."""
         schema = StarShaclSchema()
         data = StarLayerGraph()
-        with pytest.raises(ValueError, match="shapes_graph_module"):
-            schema.validate(data_graph=data, meta_shacl=False, shapes_graph_module=EX.ModuleB)
+        with pytest.raises(ValueError, match="shapes_graph_resource="):
+            schema.validate(data_graph=data, meta_shacl=False, shapes_graph_resource=EX.ModuleB)
 
     def test_does_not_mutate_or_replace_the_bound_shacl_graph(self) -> None:
         original = _two_module_graph()
@@ -338,74 +366,44 @@ class TestValidateShapesGraphModule:
 
         data = StarLayerGraph()
         data.parse(data="@prefix ex: <http://example.org/> . ex:acme a ex:Company .", format="turtle")
-        schema.validate(data_graph=data, meta_shacl=False, shapes_graph_module=EX.ModuleB)
+        schema.validate(data_graph=data, meta_shacl=False, shapes_graph_resource=EX.ModuleB)
 
         assert schema.shacl_graph is original
         assert set(original) == before
 
-    def test_distinct_from_the_preexisting_shapes_graph_iri_provenance_keyword(self) -> None:
-        """shapes_graph_iri= (report provenance) and shapes_graph_module=
-        (which module to validate against) are two different keywords and
-        can be used together without conflict."""
+    def test_module_selection_is_the_reports_own_identity(self) -> None:
+        """shapes_graph_resource= naming a real module directly becomes the
+        report's sh:usedShapesGraph identity - not a separate value that
+        happens to default to it, since there's only one fact here to
+        report in the first place."""
         schema = StarShaclSchema(shacl_graph=_two_module_graph())
         acme = StarLayerGraph()
         acme.parse(
             data='@prefix ex: <http://example.org/> . ex:acme a ex:Company ; ex:name "Acme" .', format="turtle"
         )
 
-        result = schema.validate(
-            data_graph=acme,
-            meta_shacl=False,
-            shapes_graph_module=EX.ModuleB,
-            shapes_graph_iri="http://example.org/graphs/my-shapes",
-        )
-        assert result.conforms is True
-        assert any(True for _ in result.report_graph.triples((None, SH.usedShapesGraph, None)))
-
-    def test_shapes_graph_module_seeds_shapes_graph_iri_by_default(self) -> None:
-        """shapes_graph_module= also seeds shapes_graph_iri's own report-
-        provenance identity when the caller doesn't supply one explicitly -
-        the one unambiguous case for auto-filling it, since the caller
-        already named exactly which module they validated against."""
-        schema = StarShaclSchema(shacl_graph=_two_module_graph())
-        acme = StarLayerGraph()
-        acme.parse(
-            data='@prefix ex: <http://example.org/> . ex:acme a ex:Company ; ex:name "Acme" .', format="turtle"
-        )
-
-        result = schema.validate(data_graph=acme, meta_shacl=False, shapes_graph_module=EX.ModuleB)
-        assert (None, SH.usedShapesGraph, EX.ModuleB) in result.report_graph or any(
-            True for _ in result.report_graph.triples((None, SH.usedShapesGraph, EX.ModuleB))
-        )
-
-    def test_explicit_shapes_graph_iri_is_never_overridden_by_shapes_graph_module(self) -> None:
-        schema = StarShaclSchema(shacl_graph=_two_module_graph())
-        acme = StarLayerGraph()
-        acme.parse(
-            data='@prefix ex: <http://example.org/> . ex:acme a ex:Company ; ex:name "Acme" .', format="turtle"
-        )
-
-        custom = "http://example.org/graphs/my-shapes"
-        result = schema.validate(
-            data_graph=acme, meta_shacl=False, shapes_graph_module=EX.ModuleB, shapes_graph_iri=custom
-        )
+        result = schema.validate(data_graph=acme, meta_shacl=False, shapes_graph_resource=EX.ModuleB)
         used = list(result.report_graph.triples((None, SH.usedShapesGraph, None)))
         assert len(used) == 1
-        assert str(used[0][2]) == custom
+        assert used[0][2] == EX.ModuleB
 
 
-class TestShapesGraphModuleOnOtherMethods:
-    """shapes_graph_module= extended consistently (2026-10-09) to every
-    other StarShaclSchema method that takes a shapes graph - a thin
-    convenience over _resolve_shacl_graph(), the same helper
-    TestValidateShapesGraphModule above exercises through validate()."""
+class TestShapesGraphOnOtherMethods:
+    """shapes_graph_resource= (renamed from shapes_graph_module= 2026-10-10)
+    extended consistently (2026-10-09) to every other StarShaclSchema
+    method that takes a shapes graph - a thin convenience over
+    _resolve_shacl_graph(), the same helper TestValidateShapesGraph above
+    exercises through validate(). Unlike validate()'s own dual-purpose
+    shapes_graph_resource=, these methods have no report to fall back to tagging -
+    a value that isn't really a module still raises here, via
+    _resolve_shacl_graph()."""
 
     def test_target_nodes_scoped_to_one_module(self) -> None:
         schema = StarShaclSchema(shacl_graph=_two_module_graph())
         data = StarLayerGraph()
         data.parse(data="@prefix ex: <http://example.org/> . ex:acme a ex:Company .", format="turtle")
 
-        nodes = schema.target_nodes(data_graph=data, shape_node=EX.CompanyShape, shapes_graph_module=EX.ModuleB)
+        nodes = schema.target_nodes(data_graph=data, shape_node=EX.CompanyShape, shapes_graph_resource=EX.ModuleB)
         assert nodes == (EX.acme,)
 
     def test_evaluate_scoped_to_one_module(self) -> None:
@@ -415,7 +413,7 @@ class TestShapesGraphModuleOnOtherMethods:
             data='@prefix ex: <http://example.org/> . ex:acme a ex:Company ; ex:name "Acme" .', format="turtle"
         )
 
-        result = schema.evaluate(data_graph=data, shapes_graph_module=EX.ModuleB)
+        result = schema.evaluate(data_graph=data, shapes_graph_resource=EX.ModuleB)
         assert (EX.acme, EX.name, None) in result or any(True for _ in result.triples((EX.acme, EX.name, None)))
 
     def test_extract_subgraph_scoped_to_one_module(self) -> None:
@@ -426,7 +424,7 @@ class TestShapesGraphModuleOnOtherMethods:
         )
 
         extracted = schema.extract_subgraph(
-            data_graph=data, shape=EX.CompanyShape, focus_node=EX.acme, shapes_graph_module=EX.ModuleB
+            data_graph=data, shape=EX.CompanyShape, focus_node=EX.acme, shapes_graph_resource=EX.ModuleB
         )
         assert extracted is not None
         assert (EX.acme, EX.name, None) in extracted or any(True for _ in extracted.triples((EX.acme, EX.name, None)))
@@ -438,17 +436,17 @@ class TestShapesGraphModuleOnOtherMethods:
             data='@prefix ex: <http://example.org/> . ex:acme a ex:Company ; ex:name "Acme" .', format="turtle"
         )
 
-        result = schema.apply_rules(data_graph=data, shapes_graph_module=EX.ModuleB)
+        result = schema.apply_rules(data_graph=data, shapes_graph_resource=EX.ModuleB)
         assert result.validation.conforms is True
 
     def test_close_shape_scoped_to_one_module(self) -> None:
         schema = StarShaclSchema(shacl_graph=_two_module_graph())
-        closed = schema.close_shape(EX.CompanyShape, shapes_graph_module=EX.ModuleB)
+        closed = schema.close_shape(EX.CompanyShape, shapes_graph_resource=EX.ModuleB)
         assert (EX.CompanyShape, SH.closed, None) in closed or any(
             True for _ in closed.triples((EX.CompanyShape, SH.closed, None))
         )
 
-    def test_validate_each_forwards_shapes_graph_module_via_kwargs(self) -> None:
+    def test_validate_each_forwards_shapes_graph_via_kwargs(self) -> None:
         schema = StarShaclSchema(shacl_graph=_two_module_graph())
         conforming = StarLayerGraph()
         conforming.parse(
@@ -458,7 +456,7 @@ class TestShapesGraphModuleOnOtherMethods:
         missing_name.parse(data="@prefix ex: <http://example.org/> . ex:other a ex:Company .", format="turtle")
 
         results = schema.validate_each(
-            data_graphs=(conforming, missing_name), meta_shacl=False, shapes_graph_module=EX.ModuleB
+            data_graphs=(conforming, missing_name), meta_shacl=False, shapes_graph_resource=EX.ModuleB
         )
         assert results[0].conforms is True
         assert results[1].conforms is False

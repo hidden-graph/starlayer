@@ -33,12 +33,29 @@ from .vocab import (
     QUERY,
     QUERY_COLLECTION,
     SALG,
+    SPEXPR,
     UPDATE,
     UPDATE_OPERATION,
     VARIABLE_DATATYPE,
 )
 
 _SALG_NS = str(SALG)
+_SPEXPR_NS = str(SPEXPR)
+
+
+def _strip_vocab_ns(uri: str) -> str | None:
+    """The bare local name of ``uri``, stripping whichever of salg:/spexpr:'s
+    namespace prefix it actually starts with - ``None`` if neither matches.
+    Both namespaces need recognizing here (2026-10-10): real encoded data
+    from before the spexpr: split still has salg:-typed expression/path/
+    variable nodes, and this decoder has to keep reading those exactly as
+    it always did, while new data types the same values under spexpr:
+    instead - see vocab.py's SPEXPR definition for the full rationale."""
+    if uri.startswith(_SPEXPR_NS):
+        return uri[len(_SPEXPR_NS):]
+    if uri.startswith(_SALG_NS):
+        return uri[len(_SALG_NS):]
+    return None
 
 # (node name, key) pairs whose value must decode to a genuine Python
 # int/bool, not merely an rdflib Literal that happens to compare equal to
@@ -210,7 +227,7 @@ def _decode(node, graph: Graph):
             return _decode_list(node, graph)
         comp_type = _comp_value_type(node, graph)
         if comp_type is not None:
-            local_name = str(comp_type)[len(_SALG_NS):]
+            local_name = _strip_vocab_ns(str(comp_type))
             if local_name in _PATH_TYPE_NAMES:
                 return _decode_path(node, local_name, graph)
             return _decode_comp_value(node, comp_type, graph)
@@ -318,16 +335,17 @@ _PATH_TYPE_NAMES = {"InvPath", "SequencePath", "AlternativePath", "MulPath", "Ne
 def _decode_path(node, local_name: str, graph: Graph):
     """Inverse of to_rdf._encode_path — see vocab.py's "Property paths"
     section for why these need dedicated handling (rdflib.paths.Path
-    objects, not CompValue)."""
+    objects, not CompValue). spexpr:, not salg: (2026-10-10) - see
+    _encode_path's own matching note."""
     if local_name == "InvPath":
-        return InvPath(_decode(graph.value(node, SALG.arg), graph))
+        return InvPath(_decode(graph.value(node, SPEXPR.arg), graph))
     if local_name == "SequencePath":
-        return SequencePath(*_decode_list_field(graph.value(node, SALG.args), graph))
+        return SequencePath(*_decode_list_field(graph.value(node, SPEXPR.args), graph))
     if local_name == "AlternativePath":
-        return AlternativePath(*_decode_list_field(graph.value(node, SALG.args), graph))
+        return AlternativePath(*_decode_list_field(graph.value(node, SPEXPR.args), graph))
     if local_name == "MulPath":
-        path = _decode(graph.value(node, SALG.path), graph)
-        mod = str(graph.value(node, SALG.mod))
+        path = _decode(graph.value(node, SPEXPR.path), graph)
+        mod = str(graph.value(node, SPEXPR.mod))
         return MulPath(path, mod)
     if local_name == "NegatedPath":
         # NegatedPath.__init__ takes one arg (a URIRef/InvPath/AlternativePath)
@@ -336,7 +354,7 @@ def _decode_path(node, local_name: str, graph: Graph):
         # .args, matching exactly what __init__ would have produced. Safe:
         # Path.eval/.n3/__repr__ only ever read .args, never re-derive it.
         obj = object.__new__(NegatedPath)
-        obj.args = _decode_list_field(graph.value(node, SALG.args), graph)
+        obj.args = _decode_list_field(graph.value(node, SPEXPR.args), graph)
         return obj
     raise NotImplementedError(f"starlayer.sparql: no decoder for path type {local_name!r}")
 
@@ -349,7 +367,7 @@ _AUXILIARY_ROOT_MARKERS = {QUERY, UPDATE, UPDATE_OPERATION, QUERY_COLLECTION}
 
 
 def _comp_value_type(node, graph: Graph) -> URIRef | None:
-    types = [t for t in graph.objects(node, RDF.type) if str(t).startswith(_SALG_NS)]
+    types = [t for t in graph.objects(node, RDF.type) if _strip_vocab_ns(str(t)) is not None]
     if not types:
         return None
     # SALG.Query/UPDATE/UPDATE_OPERATION are auxiliary index markers (see
@@ -412,12 +430,14 @@ def _to_python_deep(value):
 
 
 def _decode_comp_value(node, type_uri: URIRef, graph: Graph):
-    name = str(type_uri)[len(_SALG_NS):]
+    name = _strip_vocab_ns(str(type_uri))
     kwargs: dict = {}
     for pred, obj in graph.predicate_objects(node):
-        if pred == RDF.type or not str(pred).startswith(_SALG_NS):
+        if pred == RDF.type:
             continue
-        key = str(pred)[len(_SALG_NS):]
+        key = _strip_vocab_ns(str(pred))
+        if key is None:
+            continue
         if key in _PROLOGUE_KEYS:
             # _encode_prologue attaches these directly to the algebra/update
             # root node (see to_rdf.py) so they're queryable without an
@@ -435,7 +455,7 @@ def _decode_comp_value(node, type_uri: URIRef, graph: Graph):
         if (name, key) in _LIST_VALUED_KEYS or (
             name == "RelationalExpression"
             and key == "other"
-            and str(graph.value(node, SALG.op)) in ("IN", "NOT IN")
+            and str(graph.value(node, SPEXPR.op)) in ("IN", "NOT IN")
         ):
             value = _decode_list_field(obj, graph)
         else:

@@ -58,7 +58,7 @@ def test_used_data_graph_and_shapes_graph_added_when_iris_supplied() -> None:
         data_graph=_valid_data(),
         meta_shacl=False,
         data_graph_iri="http://example.org/graphs/data1",
-        shapes_graph_iri="http://example.org/graphs/shapes1",
+        shapes_graph_resource="http://example.org/graphs/shapes1",
     )
 
     report_node = next(result.report_graph.subjects(RDF.type, SH.ValidationReport))
@@ -74,7 +74,7 @@ def test_used_data_graph_accepts_a_real_uriref_and_versioned_literal() -> None:
         data_graph=_valid_data(),
         meta_shacl=False,
         data_graph_iri=URIRef("http://example.org/graphs/data1"),
-        shapes_graph_iri=Literal("http://example.org/graphs/shapes1#v2"),
+        shapes_graph_resource=Literal("http://example.org/graphs/shapes1#v2"),
     )
 
     report_node = next(result.report_graph.subjects(RDF.type, SH.ValidationReport))
@@ -144,7 +144,7 @@ class TestUsedGraphsFallBackToGraphIdentifier:
     /shacl_graph.identifier (2026-10-09), when it's a real URIRef the caller
     explicitly gave the graph at construction - never the default random
     BNode every rdflib Graph otherwise gets. An explicit data_graph_iri=/
-    shapes_graph_iri= is never overridden by this fallback."""
+    shapes_graph_resource= is never overridden by this fallback."""
 
     def test_falls_back_to_identifier_when_a_real_uriref(self) -> None:
         data = StarLayerGraph(identifier=EX.MyDataGraph)
@@ -202,18 +202,19 @@ class TestUsedGraphsFallBackToGraphIdentifier:
 class TestAutomaticConformsToDerivation:
     """validate() automatically derives and merges SHACL 1.2 Profiling
     S5.5's sh:conformsTo triple into report_graph (2026-10-09), whenever
-    both data_graph_iri=/shapes_graph_iri= resolve to real values - no
+    both data_graph_iri=/shapes_graph_resource= resolve to real values - no
     separate derive_conforms_to() call needed. Fires on either the IRIs
-    being given explicitly, or via the .identifier/shapes_graph_module=
-    fallbacks from earlier the same day - the merge itself doesn't care
-    which path produced them."""
+    being given explicitly, or via the .identifier fallback/shapes_graph_resource=
+    naming a real module (2026-10-10, see TestValidateShapesGraph in
+    test_extract_shapes_graph.py for the full module-vs-tag design) - the
+    merge itself doesn't care which path produced them."""
 
     def test_both_iris_given_conforming_report_gets_conforms_to(self) -> None:
         result = StarShaclSchema(shacl_graph=_shapes()).validate(
             data_graph=_valid_data(),
             meta_shacl=False,
             data_graph_iri="http://example.org/graphs/data1",
-            shapes_graph_iri="http://example.org/graphs/shapes1",
+            shapes_graph_resource="http://example.org/graphs/shapes1",
         )
         assert result.conforms is True
         assert (
@@ -254,7 +255,7 @@ class TestAutomaticConformsToDerivation:
             data_graph=_valid_data(),
             meta_shacl=False,
             data_graph_iri="http://example.org/graphs/data1",
-            shapes_graph_iri="http://example.org/graphs/shapes1",
+            shapes_graph_resource="http://example.org/graphs/shapes1",
         )
         assert result.conforms is False
         assert not any(True for _ in result.report_graph.triples((None, SH.conformsTo, None)))
@@ -299,12 +300,20 @@ class TestAutomaticConformsToDerivation:
 
 
 class TestValidateSpecificationGraphParameter:
-    """validate()'s own specification_graph= (2026-10-10): forwards
-    straight through to _merge_derived_conforms_to(), so SHACL 1.2
-    Profiling S5.5's *second* rule (dcterms:conformsTo the specification
-    a shapes graph is itself a prof:isProfileOf) fires automatically too
-    - in the same validate() call that already auto-derives sh:conformsTo,
-    not a separate derive_conforms_to() call afterward."""
+    """specification_graph= is deliberately *not* a StarShaclSchema
+    construction-time property or a validate() parameter - it was
+    briefly both (2026-10-10), reverted the same day: "what specification
+    does this data conform to" is a publishing decision about the result,
+    not an intrinsic fact about how to validate (unlike shacl_graph/
+    ont_graph/inference), so binding it at construction would make every
+    validate() call on one schema instance always assert the same
+    external-spec claim whether or not that caller wanted it. The real,
+    supported path is calling shacl_profiling.derive_conforms_to()
+    explicitly, after validate() returns - see its own module docstring.
+    sh:conformsTo (S5.5's first rule) is unaffected either way; it never
+    depended on specification_graph. The bare module-level validate()
+    function still keeps its own per-call specification_graph= - it has
+    no "schema" object for this reasoning to apply to."""
 
     from rdflib import Namespace as _Namespace
 
@@ -318,42 +327,43 @@ class TestValidateSpecificationGraphParameter:
         graph.add((shapes_graph_iri, self.PROF.isProfileOf, specification_iri))
         return graph
 
-    def test_both_iris_plus_specification_graph_derives_dcterms_conforms_to(self) -> None:
+    def test_schema_rejects_specification_graph_as_a_construction_kwarg(self) -> None:
+        with pytest.raises(TypeError):
+            StarShaclSchema(shacl_graph=_shapes(), specification_graph=StarLayerGraph())
+
+    def test_explicit_derive_conforms_to_after_validate_derives_dcterms_conforms_to(self) -> None:
+        from starlayer.shacl.shacl_profiling import derive_conforms_to
+
         shapes_iri = URIRef("http://example.org/graphs/shapes1")
         spec_iri = URIRef("http://example.org/specs/my-spec")
         result = StarShaclSchema(shacl_graph=_shapes()).validate(
             data_graph=_valid_data(),
             meta_shacl=False,
             data_graph_iri="http://example.org/graphs/data1",
-            shapes_graph_iri=shapes_iri,
-            specification_graph=self._specification_graph(shapes_iri, spec_iri),
+            shapes_graph_resource=shapes_iri,
         )
         assert result.conforms is True
         assert (URIRef("http://example.org/graphs/data1"), SH.conformsTo, shapes_iri) in result.report_graph
-        assert (URIRef("http://example.org/graphs/data1"), self.DCTERMS.conformsTo, spec_iri) in result.report_graph
-
-    def test_specification_graph_without_both_iris_derives_nothing(self) -> None:
-        """The second rule has no sh:conformsTo triple to chain from if the
-        first rule never fired - specification_graph= alone, with only one
-        (or no) IRI resolvable, must not raise or silently derive anything."""
-        shapes_iri = URIRef("http://example.org/graphs/shapes1")
-        spec_iri = URIRef("http://example.org/specs/my-spec")
-        result = StarShaclSchema(shacl_graph=_shapes()).validate(
-            data_graph=_valid_data(),
-            meta_shacl=False,
-            data_graph_iri="http://example.org/graphs/data1",
-            specification_graph=self._specification_graph(shapes_iri, spec_iri),
-        )
+        # dcterms:conformsTo is absent until the application asks for it -
+        # validate() itself never derives it.
         assert not any(True for _ in result.report_graph.triples((None, self.DCTERMS.conformsTo, None)))
 
+        derived = derive_conforms_to(
+            result.report_graph,
+            specification_graph=self._specification_graph(shapes_iri, spec_iri),
+        )
+        for t in derived:
+            result.report_graph.add(t)
+        assert (URIRef("http://example.org/graphs/data1"), self.DCTERMS.conformsTo, spec_iri) in result.report_graph
+
     def test_no_specification_graph_only_sh_conforms_to_as_before(self) -> None:
-        """Omitting specification_graph= entirely must not change the
-        existing, already-tested sh:conformsTo-only behavior."""
+        """validate() alone, with no application-level derive_conforms_to()
+        call afterward, never produces dcterms:conformsTo."""
         result = StarShaclSchema(shacl_graph=_shapes()).validate(
             data_graph=_valid_data(),
             meta_shacl=False,
             data_graph_iri="http://example.org/graphs/data1",
-            shapes_graph_iri="http://example.org/graphs/shapes1",
+            shapes_graph_resource="http://example.org/graphs/shapes1",
         )
         assert not any(True for _ in result.report_graph.triples((None, self.DCTERMS.conformsTo, None)))
 
@@ -370,36 +380,4 @@ class TestValidateSpecificationGraphParameter:
             shapes_graph_iri=shapes_iri,
             specification_graph=self._specification_graph(shapes_iri, spec_iri),
         )
-        assert (URIRef("http://example.org/graphs/data1"), self.DCTERMS.conformsTo, spec_iri) in result.report_graph
-
-    def test_works_with_shapes_graph_module_seeding_shapes_graph_iri(self) -> None:
-        """specification_graph= composes with shapes_graph_module='s own
-        auto-fill of shapes_graph_iri= (2026-10-09) - the two features were
-        built independently but should chain together with no extra glue."""
-        data = StarLayerGraph()
-        data.add((EX.alice, EX.age, Literal(30)))
-        shapes = StarLayerGraph()
-        shapes.parse(
-            data="""
-                @prefix ex: <http://example.org/> .
-                @prefix sh: <http://www.w3.org/ns/shacl#> .
-                @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
-                @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
-                ex:MyShapesGraph a sh:ShapesGraph ;
-                  rdfs:member ex:S .
-                ex:S a sh:NodeShape ;
-                  sh:targetNode ex:alice ;
-                  sh:property [ sh:path ex:age ; sh:datatype xsd:integer ] .
-            """,
-            format="turtle",
-        )
-        spec_iri = URIRef("http://example.org/specs/my-spec")
-        result = StarShaclSchema(shacl_graph=shapes).validate(
-            data_graph=data,
-            meta_shacl=False,
-            data_graph_iri="http://example.org/graphs/data1",
-            shapes_graph_module=EX.MyShapesGraph,
-            specification_graph=self._specification_graph(EX.MyShapesGraph, spec_iri),
-        )
-        assert (URIRef("http://example.org/graphs/data1"), SH.conformsTo, EX.MyShapesGraph) in result.report_graph
         assert (URIRef("http://example.org/graphs/data1"), self.DCTERMS.conformsTo, spec_iri) in result.report_graph

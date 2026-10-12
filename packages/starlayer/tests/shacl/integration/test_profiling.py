@@ -108,12 +108,16 @@ def test_derive_conforms_to_from_conformant_report_produces_the_triple() -> None
     assert (data_graph, SH.conformsTo, shapes_graph) not in report
 
 
-def test_derive_conforms_to_from_non_conformant_report_derives_nothing() -> None:
+def test_derive_conforms_to_from_non_conformant_report_derives_no_conforms_to() -> None:
+    # sh:validationReport (the data-graph-resource -> report link) is
+    # unconditionally true regardless of outcome, so it's still derived -
+    # only the conformance triples themselves are gated on sh:conforms true.
     report = _conformant_report(conforms=False)
 
     derived = derive_conforms_to(report, data_graph="urn:test:data", shapes_graph="urn:test:shapes")
 
-    assert len(derived) == 0
+    assert list(derived.objects(URIRef("urn:test:data"), SH.conformsTo)) == []
+    assert list(derived.objects(URIRef("urn:test:data"), SH.validationReport))
 
 
 def test_derive_conforms_to_raises_without_validation_report_node() -> None:
@@ -132,14 +136,15 @@ def test_derive_conforms_to_raises_when_no_graph_iri_available() -> None:
 
 def test_derive_conforms_to_reads_graph_iris_from_report_when_omitted() -> None:
     # The realistic path: validate() was called with data_graph_iri=/
-    # shapes_graph_iri=, so sh:usedDataGraph/sh:usedShapesGraph are already
-    # on the report - derive_conforms_to() shouldn't need them repeated.
+    # shapes_graph_resource=, so sh:usedDataGraph/sh:usedShapesGraph are
+    # already on the report - derive_conforms_to() shouldn't need them
+    # repeated.
     validator = StarShaclSchema(shacl_graph=_shapes())
     result = validator.validate(
         data_graph=_valid_data(),
         meta_shacl=False,
         data_graph_iri="http://example.org/graphs/data1",
-        shapes_graph_iri="http://example.org/graphs/shapes1",
+        shapes_graph_resource="http://example.org/graphs/shapes1",
     )
     assert result.conforms is True
 
@@ -173,3 +178,52 @@ def test_derive_conforms_to_with_specification_graph_derives_dcterms_conforms_to
 
     assert (data_graph, SH.conformsTo, shapes_graph) in with_spec
     assert (data_graph, DCTERMS.conformsTo, specification) in with_spec
+
+
+def test_default_result_is_report_graph_merged_with_new_triples() -> None:
+    report = _conformant_report(conforms=True)
+    report_node = URIRef("urn:test:report")
+    data_graph = URIRef("urn:test:data")
+    shapes_graph = URIRef("urn:test:shapes")
+
+    merged = derive_conforms_to(report, data_graph=data_graph, shapes_graph=shapes_graph)
+
+    # Everything report_graph already had is still there...
+    assert (report_node, RDF.type, SH.ValidationReport) in merged
+    assert (report_node, SH.conforms, Literal(True)) in merged
+    # ...plus the newly derived triples, including the sh:validationReport
+    # link - which now resolves to a real, fully-described node, not a
+    # dangling blank-node reference, since report_node's own triples are
+    # right there in the same graph.
+    assert (data_graph, SH.conformsTo, shapes_graph) in merged
+    assert (data_graph, SH.validationReport, report_node) in merged
+
+    # report_graph itself is still never mutated, merged or not.
+    assert (data_graph, SH.conformsTo, shapes_graph) not in report
+
+
+def test_conforms_only_true_returns_only_the_conformsto_triples() -> None:
+    report = _conformant_report(conforms=True)
+    data_graph = URIRef("urn:test:data")
+    shapes_graph = URIRef("urn:test:shapes")
+    specification = URIRef("urn:test:some-specification")
+
+    spec_graph = Graph()
+    spec_graph.add((shapes_graph, PROF.isProfileOf, specification))
+
+    conforms_only = derive_conforms_to(
+        report,
+        data_graph=data_graph,
+        shapes_graph=shapes_graph,
+        specification_graph=spec_graph,
+        conforms_only=True,
+    )
+
+    # Exactly the two conformsTo triples - nothing else. Neither
+    # report_graph's own pre-existing triples, nor even the
+    # sh:validationReport link derive_conforms_to() otherwise adds -
+    # conforms_only=True means only the conformance claims themselves.
+    assert set(conforms_only) == {
+        (data_graph, SH.conformsTo, shapes_graph),
+        (data_graph, DCTERMS.conformsTo, specification),
+    }
