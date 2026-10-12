@@ -106,7 +106,7 @@ __all__ = ["isomorphic", "graph_diff", "to_isomorphic", "to_canonical_hash"]
 # never emitted by any parser/serializer in this codebase, so it can never
 # collide with a source graph's own use of classic RDF reification
 # (rdf:subject/predicate/object) on unrelated blank nodes.
-_TT = Namespace("urn:starlayergraph:canon-tt#")
+_TT = Namespace("urn:starlayer:canon-tt#")
 
 
 def _decompose(graph: Any) -> Graph:

@@ -1,24 +1,24 @@
-@prefix manch: <https://github.com/hidden-graph/starlayergraph/ns/manchester-ast#> .
+@prefix manch: <https://github.com/hidden-graph/starlayer/ns/graph/manchester-ast#> .
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
 @prefix prof: <http://www.w3.org/ns/dx/prof/> .
 @prefix profile: <http://www.w3.org/ns/shacl/profile/> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix role: <http://www.w3.org/ns/dx/prof/role/> .
-@prefix salg: <https://github.com/hidden-graph/starsparql/ns/algebra#> .
+@prefix salg: <https://github.com/hidden-graph/starlayer/ns/sparql/algebra#> .
 @prefix sh: <http://www.w3.org/ns/shacl#> .
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
-@prefix skshp: <https://github.com/hidden-graph/starlayergraph/ns/skos-shapes#> .
-@prefix spexpr: <https://github.com/hidden-graph/starsparql/ns/expr#> .
-@prefix sqe: <https://github.com/hidden-graph/starsparql/ns/query-edit#> .
-@prefix srl: <https://github.com/hidden-graph/starsparql/ns/srl#> .
+@prefix skshp: <https://github.com/hidden-graph/starlayer/ns/graph/skos-shapes#> .
+@prefix spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#> .
+@prefix sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#> .
+@prefix srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#> .
 @prefix starontology: <https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/starontology/> .
 @prefix tr: <https://www.w3.org/TR/> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 @prefix shnex: <http://www.w3.org/ns/shacl-node-expr#> .
 @prefix shsh: <http://www.w3.org/ns/shacl-shacl#> .
 @prefix shui: <http://www.w3.org/ns/shacl-ui#> .
-@prefix stsh: <https://github.com/hidden-graph/starshacl/ns#> .
+@prefix stsh: <https://github.com/hidden-graph/starlayer/ns/shacl#> .
 
 starontology:skos-ontology.ttl {
     skos:altLabel a owl:AnnotationProperty ;
@@ -720,7 +720,7 @@ starontology:manchester_shapes.ttl {
         sh:message "expected a well-formed rdf:List of Clause" ;
         sh:select """
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            PREFIX manch: <https://github.com/hidden-graph/starlayergraph/ns/manchester-ast#>
+            PREFIX manch: <https://github.com/hidden-graph/starlayer/ns/graph/manchester-ast#>
             SELECT $this
             WHERE {
                 { FILTER ( $this != rdf:nil ) FILTER NOT EXISTS { $this rdf:first ?head } }
@@ -760,7 +760,7 @@ starontology:manchester_shapes.ttl {
         sh:message "expected a well-formed rdf:List of Frame" ;
         sh:select """
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            PREFIX manch: <https://github.com/hidden-graph/starlayergraph/ns/manchester-ast#>
+            PREFIX manch: <https://github.com/hidden-graph/starlayer/ns/graph/manchester-ast#>
             SELECT $this
             WHERE {
                 { FILTER ( $this != rdf:nil ) FILTER NOT EXISTS { $this rdf:first ?head } }
@@ -785,7 +785,7 @@ starontology:manchester_shapes.ttl {
         sh:message "expected a well-formed rdf:List of MiscAxiom" ;
         sh:select """
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            PREFIX manch: <https://github.com/hidden-graph/starlayergraph/ns/manchester-ast#>
+            PREFIX manch: <https://github.com/hidden-graph/starlayer/ns/graph/manchester-ast#>
             SELECT $this
             WHERE {
                 { FILTER ( $this != rdf:nil ) FILTER NOT EXISTS { $this rdf:first ?head } }
@@ -840,7 +840,7 @@ starontology:manchester_shapes.ttl {
         sh:message "expected a well-formed rdf:List of AnnotationAssertion" ;
         sh:select """
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            PREFIX manch: <https://github.com/hidden-graph/starlayergraph/ns/manchester-ast#>
+            PREFIX manch: <https://github.com/hidden-graph/starlayer/ns/graph/manchester-ast#>
             SELECT $this
             WHERE {
                 { FILTER ( $this != rdf:nil ) FILTER NOT EXISTS { $this rdf:first ?head } }
@@ -856,7 +856,7 @@ starontology:manchester_shapes.ttl {
         sh:message "expected a well-formed rdf:List of ClauseItem whose value is a data range" ;
         sh:select """
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            PREFIX manch: <https://github.com/hidden-graph/starlayergraph/ns/manchester-ast#>
+            PREFIX manch: <https://github.com/hidden-graph/starlayer/ns/graph/manchester-ast#>
             SELECT $this
             WHERE {
                 $this rdf:rest*/rdf:first ?item .
@@ -870,7 +870,7 @@ starontology:manchester_shapes.ttl {
         sh:message "expected a well-formed rdf:List of data ranges" ;
         sh:select """
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            PREFIX manch: <https://github.com/hidden-graph/starlayergraph/ns/manchester-ast#>
+            PREFIX manch: <https://github.com/hidden-graph/starlayer/ns/graph/manchester-ast#>
             SELECT $this
             WHERE {
                 { FILTER ( $this != rdf:nil ) FILTER NOT EXISTS { $this rdf:first ?head } }
@@ -898,7 +898,7 @@ starontology:manchester_shapes.ttl {
         sh:message "expected a well-formed rdf:List of property expressions" ;
         sh:select """
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            PREFIX manch: <https://github.com/hidden-graph/starlayergraph/ns/manchester-ast#>
+            PREFIX manch: <https://github.com/hidden-graph/starlayer/ns/graph/manchester-ast#>
             SELECT $this
             WHERE {
                 { FILTER ( $this != rdf:nil ) FILTER NOT EXISTS { $this rdf:first ?head } }
@@ -918,7 +918,7 @@ starontology:manchester_shapes.ttl {
         sh:message "expected a well-formed rdf:List of class expressions" ;
         sh:select """
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            PREFIX manch: <https://github.com/hidden-graph/starlayergraph/ns/manchester-ast#>
+            PREFIX manch: <https://github.com/hidden-graph/starlayer/ns/graph/manchester-ast#>
             SELECT $this
             WHERE {
                 { FILTER ( $this != rdf:nil ) FILTER NOT EXISTS { $this rdf:first ?head } }
@@ -938,7 +938,7 @@ starontology:manchester_shapes.ttl {
         sh:message "expected a well-formed rdf:List of ClauseItem whose value is a class expression" ;
         sh:select """
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            PREFIX manch: <https://github.com/hidden-graph/starlayergraph/ns/manchester-ast#>
+            PREFIX manch: <https://github.com/hidden-graph/starlayer/ns/graph/manchester-ast#>
             SELECT $this
             WHERE {
                 $this rdf:rest*/rdf:first ?item .
@@ -952,7 +952,7 @@ starontology:manchester_shapes.ttl {
         sh:message "expected a well-formed rdf:List of ClauseItem whose value is a bare IRI" ;
         sh:select """
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            PREFIX manch: <https://github.com/hidden-graph/starlayergraph/ns/manchester-ast#>
+            PREFIX manch: <https://github.com/hidden-graph/starlayer/ns/graph/manchester-ast#>
             SELECT $this
             WHERE {
                 $this rdf:rest*/rdf:first ?item .
@@ -965,7 +965,7 @@ starontology:manchester_shapes.ttl {
         sh:message "expected a well-formed rdf:List of ClauseItem whose value is a property expression" ;
         sh:select """
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            PREFIX manch: <https://github.com/hidden-graph/starlayergraph/ns/manchester-ast#>
+            PREFIX manch: <https://github.com/hidden-graph/starlayer/ns/graph/manchester-ast#>
             SELECT $this
             WHERE {
                 $this rdf:rest*/rdf:first ?item .
@@ -2092,7 +2092,7 @@ starontology:spexpr_shapes.ttl {
         sh:message "expected a well-formed rdf:List of salg:PyStr-tagged operator strings" ;
         sh:select """
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            PREFIX salg: <https://github.com/hidden-graph/starsparql/ns/algebra#>
+            PREFIX salg: <https://github.com/hidden-graph/starlayer/ns/sparql/algebra#>
             SELECT $this
             WHERE {
                 {
@@ -2345,7 +2345,7 @@ starontology:sqe_shapes.ttl {
         sh:message "expected a well-formed rdf:List of sqe:TriplePattern/Optional/Union/Filter/Bind" ;
         sh:select """
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            PREFIX sqe: <https://github.com/hidden-graph/starsparql/ns/query-edit#>
+            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
             SELECT $this
             WHERE {
                 {
@@ -3018,7 +3018,7 @@ starontology:sparql_shapes.ttl {
     _:ndebcb4353754441bbdd729f23f4bd35fb298 a sh:SPARQLConstraint ;
         sh:message "salg:Modify must have at least one of salg:delete/salg:insert (SPARQL forbids a Modify with neither)" ;
         sh:select """
-            PREFIX salg: <https://github.com/hidden-graph/starsparql/ns/algebra#>
+            PREFIX salg: <https://github.com/hidden-graph/starlayer/ns/sparql/algebra#>
             SELECT $this
             WHERE {
                 FILTER NOT EXISTS { $this salg:delete ?d }
@@ -3184,7 +3184,7 @@ starontology:sparql_shapes.ttl {
         sh:message "expected a well-formed rdf:List of salg:Aggregate" ;
         sh:select """
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            PREFIX salg: <https://github.com/hidden-graph/starsparql/ns/algebra#>
+            PREFIX salg: <https://github.com/hidden-graph/starlayer/ns/sparql/algebra#>
             SELECT $this
             WHERE {
                 {
@@ -3201,7 +3201,7 @@ starontology:sparql_shapes.ttl {
         sh:message "expected a well-formed rdf:List of binding rows (each itself a well-formed rdf:List of salg:Binding)" ;
         sh:select """
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            PREFIX salg: <https://github.com/hidden-graph/starsparql/ns/algebra#>
+            PREFIX salg: <https://github.com/hidden-graph/starlayer/ns/sparql/algebra#>
             SELECT $this
             WHERE {
                 {
@@ -3223,7 +3223,7 @@ starontology:sparql_shapes.ttl {
         sh:message "expected a well-formed 2-element rdf:List [source, dest] of graph references (IRI/BlankNode/PyStr DEFAULT keyword)" ;
         sh:select """
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            PREFIX salg: <https://github.com/hidden-graph/starsparql/ns/algebra#>
+            PREFIX salg: <https://github.com/hidden-graph/starlayer/ns/sparql/algebra#>
             SELECT $this
             WHERE {
                 {
@@ -3250,7 +3250,7 @@ starontology:sparql_shapes.ttl {
         sh:message "expected a well-formed rdf:List of salg:OrderCondition" ;
         sh:select """
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            PREFIX salg: <https://github.com/hidden-graph/starsparql/ns/algebra#>
+            PREFIX salg: <https://github.com/hidden-graph/starlayer/ns/sparql/algebra#>
             SELECT $this
             WHERE {
                 {
@@ -3273,7 +3273,7 @@ starontology:sparql_shapes.ttl {
         sh:message "expected a well-formed rdf:List of salg:QuadsForGraph" ;
         sh:select """
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            PREFIX salg: <https://github.com/hidden-graph/starsparql/ns/algebra#>
+            PREFIX salg: <https://github.com/hidden-graph/starlayer/ns/sparql/algebra#>
             SELECT $this
             WHERE {
                 {
@@ -3290,7 +3290,7 @@ starontology:sparql_shapes.ttl {
         sh:message "expected a well-formed rdf:List of salg:Query" ;
         sh:select """
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            PREFIX salg: <https://github.com/hidden-graph/starsparql/ns/algebra#>
+            PREFIX salg: <https://github.com/hidden-graph/starlayer/ns/sparql/algebra#>
             SELECT $this
             WHERE {
                 {
@@ -3310,7 +3310,7 @@ starontology:sparql_shapes.ttl {
         sh:message "expected a well-formed rdf:List of salg:UpdateOperation" ;
         sh:select """
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            PREFIX salg: <https://github.com/hidden-graph/starsparql/ns/algebra#>
+            PREFIX salg: <https://github.com/hidden-graph/starlayer/ns/sparql/algebra#>
             SELECT $this
             WHERE {
                 {
@@ -3392,7 +3392,7 @@ starontology:sparql_shapes.ttl {
         sh:message "expected a well-formed rdf:List of salg:Variable-tagged literals" ;
         sh:select """
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            PREFIX spexpr: <https://github.com/hidden-graph/starsparql/ns/expr#>
+            PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
             SELECT $this
             WHERE {
                 {
@@ -3433,7 +3433,7 @@ starontology:sparql_shapes.ttl {
         sh:message "expected a well-formed rdf:List of salg:DatasetClause" ;
         sh:select """
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            PREFIX salg: <https://github.com/hidden-graph/starsparql/ns/algebra#>
+            PREFIX salg: <https://github.com/hidden-graph/starlayer/ns/sparql/algebra#>
             SELECT $this
             WHERE {
                 {
@@ -3450,7 +3450,7 @@ starontology:sparql_shapes.ttl {
         sh:message "expected a well-formed rdf:List of salg:TriplePattern" ;
         sh:select """
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            PREFIX salg: <https://github.com/hidden-graph/starsparql/ns/algebra#>
+            PREFIX salg: <https://github.com/hidden-graph/starlayer/ns/sparql/algebra#>
             SELECT $this
             WHERE {
                 {
@@ -3790,7 +3790,7 @@ starontology:srl_shapes.ttl {
         sh:message "expected a well-formed rdf:List of srl:BodyElement" ;
         sh:select """
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            PREFIX srl: <https://github.com/hidden-graph/starsparql/ns/srl#>
+            PREFIX srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#>
             SELECT $this
             WHERE {
                 {
@@ -3807,7 +3807,7 @@ starontology:srl_shapes.ttl {
         sh:message "expected a well-formed rdf:List of srl:Data" ;
         sh:select """
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            PREFIX srl: <https://github.com/hidden-graph/starsparql/ns/srl#>
+            PREFIX srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#>
             SELECT $this
             WHERE {
                 {
@@ -3840,7 +3840,7 @@ starontology:srl_shapes.ttl {
         sh:message "expected a well-formed rdf:List of srl:NegationBodyElement (triple patterns/filters only)" ;
         sh:select """
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            PREFIX srl: <https://github.com/hidden-graph/starsparql/ns/srl#>
+            PREFIX srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#>
             SELECT $this
             WHERE {
                 {
@@ -3860,7 +3860,7 @@ starontology:srl_shapes.ttl {
         sh:message "expected a well-formed rdf:List of srl:Rule" ;
         sh:select """
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            PREFIX srl: <https://github.com/hidden-graph/starsparql/ns/srl#>
+            PREFIX srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#>
             SELECT $this
             WHERE {
                 {
@@ -3880,7 +3880,7 @@ starontology:srl_shapes.ttl {
         sh:message "expected a well-formed rdf:List of srl:TriplePattern" ;
         sh:select """
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            PREFIX srl: <https://github.com/hidden-graph/starsparql/ns/srl#>
+            PREFIX srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#>
             SELECT $this
             WHERE {
                 {

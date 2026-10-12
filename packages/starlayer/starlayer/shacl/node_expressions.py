@@ -737,11 +737,11 @@ def patch_node_expressions_for_shnex() -> bool:
         def _wrapper(expr, focus_node, data_graph, sg, recurse_depth=0):
             return eval_expr(expr, focus_node, data_graph, sg, recurse_depth=recurse_depth)
 
-        _wrapper._starshacl_shnex_patch = True  # type: ignore[attr-defined]
+        _wrapper._starlayer_shacl_shnex_patch = True  # type: ignore[attr-defined]
 
         for mod in (_advanced_mod, _triple_rule_mod):
             existing = getattr(mod, "nodes_from_node_expression", None)
-            if not getattr(existing, "_starshacl_shnex_patch", False):
+            if not getattr(existing, "_starlayer_shacl_shnex_patch", False):
                 mod.nodes_from_node_expression = _wrapper
 
         _node_expressions_patch_status = True

@@ -1,12 +1,31 @@
 # W3C SPARQL 1.2 Test Suite - Issues to Report
 
-*Last reviewed: 2026-08-15*
+*Last reviewed: 2026-10-12*
 
 Issues found in the official SPARQL 1.2 test suite (https://github.com/w3c/rdf-tests, `main` branch, `sparql/sparql12/` directory) while validating `starsparql`'s own RDF 1.2 triple-term handling against it. Unlike `packages/graph/docs/rdflib-upstream-issues.md`/`oxigraph-upstream-issues.md`/`fuseki-upstream-issues.md` (bugs in a SPARQL *engine*), this file tracks issues in the *test suite itself* - a fixture whose own expected result (or, here, its own maturity-classification label) doesn't follow from the specification it's meant to test. Same convention as `packages/shacl/docs/w3c-shacl12-test-suite-issues.md` (a sibling package's identically-purposed file) - each entry's `##`/`###` structure can be pasted directly into a GitHub issue against `w3c/rdf-tests` with minimal editing.
 
 ## How To Use
 
 Title = the `##` heading; body = `### Description` through `### Suggested fix`; `### Status` is doc-only tracking, not part of the issue body.
+
+## Maintenance: re-checking against upstream (2026-10-12)
+
+The 7 fixtures in Issue 1 are now `xfail(strict=True)` in `tests/sparql/w3c_sparql12/test_w3c_sparql12.py::test_syntax_positive` (same shape in `tests/graph/w3c_sparql12/` where it applies), not a plain `FAILED` - `strict=True` specifically so that if upstream ever reclassifies/edits/removes these fixtures, the test flips to an *unexpected pass* (a real failure) rather than silently staying green. That's the trigger to actually re-check this file by hand - no CI watches `w3c/rdf-tests` automatically (same manual-check posture this package already takes for the SPARQL 1.2 spec text itself, see `CLAUDE.md`'s "Tracking upstream spec changes").
+
+**Re-running `download_w3c_sparql12_tests.py` alone will not detect an upstream edit** - it skips any file already present on disk (`os.path.exists(dest)` short-circuits the fetch), so it only picks up genuinely *new* files, never a changed `manifest.ttl` classification or edited `.rq` text for a fixture already cached locally. To actually check for a real change:
+
+```bash
+# both vendored copies - graph's own test suite, and this package's
+rm -rf tests/sparql/w3c_sparql12/data
+rm -rf tests/graph/w3c_sparql12/data
+python tests/sparql/w3c_sparql12/download_w3c_sparql12_tests.py
+python tests/graph/w3c_sparql12/download_w3c_sparql12_tests.py
+git diff --stat tests/sparql/w3c_sparql12/data tests/graph/w3c_sparql12/data
+```
+
+Then re-run the full `test_syntax_positive`/`test_syntax_negative` suites. If all 7 fixtures in Issue 1 are unchanged (still `PositiveSyntaxTest`, still constructing the triple term as a pattern subject), the next step is filing Issue 1 upstream against `w3c/rdf-tests` (the Status Summary below already marks this "Yes, not yet filed"; this doc's own `##`/`###` structure pastes directly into a GitHub issue per "How To Use" above). If a fixture *did* change, update this file's own entry to match before deciding whether the issue is still live.
+
+(`list-anonreifier-01`, previously tracked here as a second open item, is resolved as of 2026-10-12 - a real implementation gap, not suite ambiguity; see `starlayer/sparql/CLAUDE.md`'s same-day entry. Not part of this maintenance process going forward.)
 
 ## Status Summary
 

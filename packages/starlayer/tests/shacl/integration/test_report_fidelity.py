@@ -41,7 +41,7 @@ def test_report_can_return_encoded_values_when_decode_disabled() -> None:
     assert result.conforms is False
     assert any(o == EX.alice for _, _, o in result.report_graph.triples((None, SH.focusNode, None)))
     assert any(
-        str(o).startswith("urn:starshacl:tt:")
+        str(o).startswith("urn:starlayer:tt:")
         for _, _, o in result.report_graph.triples((None, SH.value, None))
     )
 
@@ -98,7 +98,7 @@ def test_report_text_humanizes_triple_term_value_node() -> None:
     result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
-    assert "urn:starshacl:tt:" not in result.report_text
+    assert "urn:starlayer:tt:" not in result.report_text
     assert "<<( <http://example.org/bob> <http://example.org/likes> <http://example.org/dave> )>>" in result.report_text
 
 
@@ -130,7 +130,7 @@ def test_report_text_stays_encoded_when_decode_disabled() -> None:
     result = validator.validate(data_graph=data, meta_shacl=False, decode_report=False)
 
     assert result.conforms is False
-    assert "urn:starshacl:tt:" in result.report_text
+    assert "urn:starlayer:tt:" in result.report_text
 
 
 def test_report_decodes_result_node_for_nodekind_constraint() -> None:

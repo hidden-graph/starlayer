@@ -168,7 +168,7 @@ from __future__ import annotations
 
 from rdflib import Namespace, URIRef
 
-SALG = Namespace("https://github.com/hidden-graph/starsparql/ns/algebra#")
+SALG = Namespace("https://github.com/hidden-graph/starlayer/ns/sparql/algebra#")
 
 # SPEXPR (2026-10-10) - the SPARQL expression/variable/property-path
 # vocabulary, carved OUT of SALG into its own namespace. Originally
@@ -202,7 +202,7 @@ SALG = Namespace("https://github.com/hidden-graph/starsparql/ns/algebra#")
 # confirmed live, before this split, that sqe:'s own encoded output
 # already had nested expressions typed under salg: regardless of sqe:'s
 # own namespace, which is exactly the bug this split fixes.
-SPEXPR = Namespace("https://github.com/hidden-graph/starsparql/ns/expr#")
+SPEXPR = Namespace("https://github.com/hidden-graph/starlayer/ns/sparql/expr#")
 
 # Reserved datatype URI *namespace* used to encode a SPARQL 1.2 dirLangString
 # literal ("text"@lang--dir) as a plain rdflib.Literal - rdflib.Literal(text,

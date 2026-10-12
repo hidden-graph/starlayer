@@ -3382,7 +3382,7 @@ def apply_rules(
         # A fresh, stateless adapter is fine here - diagnostics reset every
         # call regardless, and _materialize_source_rule_provenance's own
         # docstring is explicit that it can't assume any particular adapter
-        # construction (e.g. for_starlayergraph()) was used anyway.
+        # construction (e.g. for_starlayer_graph()) was used anyway.
         adapter = TripleTermAdapter()
         _materialize_source_rule_provenance(out_data, adapter, shape_rule_records, decode=True)
         _materialize_source_rule_provenance(out_data, adapter, global_rule_records, decode=False)
@@ -3504,7 +3504,7 @@ def _patch_stringify_for_native_backend_bnodes() -> bool:
     try:
         import pyshacl.rdfutil.stringify as _stringify_mod
 
-        if getattr(_stringify_mod.find_node_named_graph, "_starshacl_native_bnode_patched", False):
+        if getattr(_stringify_mod.find_node_named_graph, "_starlayer_shacl_native_bnode_patched", False):
             _stringify_bnode_patch_status = True
             return True
 
@@ -3549,7 +3549,7 @@ def _patch_stringify_for_native_backend_bnodes() -> bool:
                     return StarLayerGraph(store=dataset.store, identifier=name, backend="rdf-1.2")
             raise LookupError(f"Cannot find node {node} in any named graph.")
 
-        _patched_find_node_named_graph._starshacl_native_bnode_patched = True
+        _patched_find_node_named_graph._starlayer_shacl_native_bnode_patched = True
         _stringify_mod.find_node_named_graph = _patched_find_node_named_graph
         _stringify_bnode_patch_status = True
     except Exception:
@@ -3614,7 +3614,7 @@ def _patch_rule_apply_for_source_rule_provenance() -> bool:
 
         for rule_cls in (TripleRule, SPARQLRule):
             original_apply = rule_cls.apply
-            if getattr(original_apply, "_starshacl_source_rule_patch", False):
+            if getattr(original_apply, "_starlayer_shacl_source_rule_patch", False):
                 continue
 
             def _wrap(original: Any) -> Any:
@@ -3643,7 +3643,7 @@ def _patch_rule_apply_for_source_rule_provenance() -> bool:
                         buffer.append((tuple(item[:3]), self.node))
                     return result
 
-                _patched_apply._starshacl_source_rule_patch = True  # type: ignore[attr-defined]
+                _patched_apply._starlayer_shacl_source_rule_patch = True  # type: ignore[attr-defined]
                 return _patched_apply
 
             rule_cls.apply = _wrap(original_apply)
@@ -3682,7 +3682,7 @@ def _materialize_source_rule_provenance(
     3-tuple rather than via ``adapter.term_factory`` directly: the adapter's
     own ``term_factory`` defaults to the fallback ``TripleTermValue`` (not a
     real ``rdflib.Node``) regardless of whether ``out_data`` actually is a
-    ``StarLayerGraph`` - `TripleTermAdapter.for_starlayergraph()` is what
+    ``StarLayerGraph`` - `TripleTermAdapter.for_starlayer_graph()` is what
     would set it to the real ``starlayer.graph`` ``TripleTerm``, but nothing
     here can assume that classmethod was used to build ``adapter``. A plain
     3-tuple sidesteps that mismatch: ``StarLayerGraph.add()``'s own
@@ -3787,7 +3787,7 @@ def _patch_rules_apply_for_layer_and_run_once() -> bool:
         import pyshacl.validator as _pyshacl_validator_module
 
         original_apply_rules = _pyshacl_validator_module.apply_rules
-        if getattr(original_apply_rules, "_starshacl_layer_patch", False):
+        if getattr(original_apply_rules, "_starlayer_shacl_layer_patch", False):
             _layer_patch_status = True
             return True
 
@@ -3819,7 +3819,7 @@ def _patch_rules_apply_for_layer_and_run_once() -> bool:
                 # strip just above) - see _strip_temp_triples' own docstring.
                 _strip_temp_triples(data_graph)
 
-        _patched_apply_rules._starshacl_layer_patch = True  # type: ignore[attr-defined]
+        _patched_apply_rules._starlayer_shacl_layer_patch = True  # type: ignore[attr-defined]
         _pyshacl_validator_module.apply_rules = _patched_apply_rules
         _layer_patch_status = True
     except Exception:
@@ -4097,7 +4097,7 @@ def _strip_temp_triples(data_graph: Any) -> None:
 
     The reified value (the ``rdf:reifies`` object) is, confirmed via a live
     trace (not assumed), the pySHACL-internal *encoded* form -
-    ``TripleTermAdapter``'s content-addressed ``urn:starshacl:tt:HASH`` URI,
+    ``TripleTermAdapter``'s content-addressed ``urn:starlayer:tt:HASH`` URI,
     not a real ``TripleTerm`` - since ``TRIPLE()`` runs against ``data_graph``
     at this point in ``pyshacl.validate()``'s pipeline, which is already
     adapter-encoded (the outer ``StarShaclSchema.validate()`` call
@@ -4208,7 +4208,7 @@ def _patch_shape_validate_for_filter_shape() -> bool:
         from pyshacl.pytypes import SHACLExecutor
 
         original_validate = pyshacl.shape.Shape.validate
-        if getattr(original_validate, "_starshacl_filter_shape_patch", False):
+        if getattr(original_validate, "_starlayer_shacl_filter_shape_patch", False):
             _filter_shape_patch_status = True
             return True
 
@@ -4218,7 +4218,7 @@ def _patch_shape_validate_for_filter_shape() -> bool:
             # The broken calling convention: filter_shape.validate(data_graph, node).
             return original_validate(self, SHACLExecutor(), executor_or_graph, focus=target_graph_or_focus)
 
-        _patched_validate._starshacl_filter_shape_patch = True  # type: ignore[attr-defined]
+        _patched_validate._starlayer_shacl_filter_shape_patch = True  # type: ignore[attr-defined]
         pyshacl.shape.Shape.validate = _patched_validate
         _filter_shape_patch_status = True
     except Exception:
@@ -4240,7 +4240,7 @@ def _patch_rdflib_data_graph_clone_preserves_tt_adapter() -> bool:
     ``rdflib.Graph``/``Dataset`` - it has no notion of, and so drops,
     starShacl's own ``_SparqlAwareEncodedGraph`` wrapper and its
     ``_tt_adapter`` back-reference (see ``adapters.py``), even though the
-    clone's actual triples (the flattened ``urn:starshacl:tt:HASH``
+    clone's actual triples (the flattened ``urn:starlayer:tt:HASH``
     encoding) are faithfully copied.
 
     Confirmed live (2026-07-31), found while investigating why
@@ -4323,7 +4323,7 @@ def _patch_rdflib_data_graph_clone_preserves_tt_adapter() -> bool:
         import pyshacl.graph_abstraction as ga
 
         original_clone = ga.RdfLibDataGraph.clone
-        if getattr(original_clone, "_starshacl_tt_adapter_patch", False):
+        if getattr(original_clone, "_starlayer_shacl_tt_adapter_patch", False):
             _rdflib_data_graph_clone_patch_status = True
             return True
 
@@ -4350,7 +4350,7 @@ def _patch_rdflib_data_graph_clone_preserves_tt_adapter() -> bool:
                 cloned.impl._tt_adapter = adapter
             return cloned
 
-        _patched_clone._starshacl_tt_adapter_patch = True  # type: ignore[attr-defined]
+        _patched_clone._starlayer_shacl_tt_adapter_patch = True  # type: ignore[attr-defined]
         ga.RdfLibDataGraph.clone = _patched_clone
         _rdflib_data_graph_clone_patch_status = True
     except Exception:
@@ -4508,7 +4508,7 @@ def _patch_shape_value_nodes_for_sh_values() -> bool:
         import pyshacl.shape
 
         original_value_nodes = pyshacl.shape.Shape.value_nodes
-        if getattr(original_value_nodes, "_starshacl_values_patch", False):
+        if getattr(original_value_nodes, "_starlayer_shacl_values_patch", False):
             _value_nodes_patch_status = True
             return True
 
@@ -4536,7 +4536,7 @@ def _patch_shape_value_nodes_for_sh_values() -> bool:
                 result[f] = values
             return result
 
-        _patched_value_nodes._starshacl_values_patch = True  # type: ignore[attr-defined]
+        _patched_value_nodes._starlayer_shacl_values_patch = True  # type: ignore[attr-defined]
         pyshacl.shape.Shape.value_nodes = _patched_value_nodes
         _value_nodes_patch_status = True
     except Exception:
@@ -4604,7 +4604,7 @@ def _patch_shape_focus_nodes_for_deactivated_expression() -> bool:
         from starlayer.shacl.node_expressions import eval_expr
 
         original_focus_nodes = pyshacl.shape.Shape.focus_nodes
-        if getattr(original_focus_nodes, "_starshacl_deactivated_expr_patch", False):
+        if getattr(original_focus_nodes, "_starlayer_shacl_deactivated_expr_patch", False):
             _deactivated_focus_nodes_patch_status = True
             return True
 
@@ -4628,7 +4628,7 @@ def _patch_shape_focus_nodes_for_deactivated_expression() -> bool:
                     kept.add(node)
             return kept
 
-        _patched_focus_nodes._starshacl_deactivated_expr_patch = True  # type: ignore[attr-defined]
+        _patched_focus_nodes._starlayer_shacl_deactivated_expr_patch = True  # type: ignore[attr-defined]
         pyshacl.shape.Shape.focus_nodes = _patched_focus_nodes
         _deactivated_focus_nodes_patch_status = True
     except Exception:
@@ -4690,7 +4690,7 @@ def _patch_expression_constraint_for_value_scope() -> bool:
 
         ExpressionConstraint = _advanced_mod.ExpressionConstraint
         original = ExpressionConstraint._evaluate_expression
-        if getattr(original, "_starshacl_value_scope_patch", False):
+        if getattr(original, "_starlayer_shacl_value_scope_patch", False):
             _expression_constraint_scope_patch_status = True
             return True
 
@@ -4719,7 +4719,7 @@ def _patch_expression_constraint_for_value_scope() -> bool:
                     )
             return non_conformant, reports
 
-        _patched_evaluate_expression._starshacl_value_scope_patch = True  # type: ignore[attr-defined]
+        _patched_evaluate_expression._starlayer_shacl_value_scope_patch = True  # type: ignore[attr-defined]
         ExpressionConstraint._evaluate_expression = _patched_evaluate_expression
         _expression_constraint_scope_patch_status = True
     except Exception:
@@ -4957,7 +4957,7 @@ def _patch_rule_apply_for_rule_set_filtering() -> bool:
 
         for rule_cls in (TripleRule, SPARQLRule):
             original_apply = rule_cls.apply
-            if getattr(original_apply, "_starshacl_rule_set_patch", False):
+            if getattr(original_apply, "_starlayer_shacl_rule_set_patch", False):
                 continue
 
             def _wrap(original: Any) -> Any:
@@ -4972,7 +4972,7 @@ def _patch_rule_apply_for_rule_set_filtering() -> bool:
                         target_graph_identifier=target_graph_identifier,
                     )
 
-                _patched_apply._starshacl_rule_set_patch = True  # type: ignore[attr-defined]
+                _patched_apply._starlayer_shacl_rule_set_patch = True  # type: ignore[attr-defined]
                 return _patched_apply
 
             rule_cls.apply = _wrap(original_apply)

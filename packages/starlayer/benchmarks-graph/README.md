@@ -41,3 +41,22 @@ docker run -d --name oxigraph-bench -p 7878:7878 \
 ## Results summary
 
 See [performance.md](../docs/graph/performance.md) for benchmark results and backend recommendations.
+
+## Regression guard: `test_bench_graph.py`
+
+A separate, CI-fast pytest-benchmark suite (fixed N=2000, not the full scaling sweep above) that catches real regressions in a handful of hot paths - not a replacement for the scripts above, which remain the tool for characterizing scaling and updating `performance.md`.
+
+Lives outside `testpaths` (`packages/starlayer/tests`), so a bare `pytest` run never collects it:
+
+```bash
+pip install -e ".[benchmark]"
+pytest benchmarks-graph/test_bench_graph.py --benchmark-only
+```
+
+Run on a schedule (not every push/PR - timings are too noisy on shared CI runners to gate every commit on) by [`.github/workflows/benchmark.yml`](../../../.github/workflows/benchmark.yml), which compares a fresh run against the committed `baseline.json` via [`scripts/check_benchmark_regression.py`](../../../scripts/check_benchmark_regression.py) and fails the workflow (GitHub's own failed-scheduled-run notification is the alert) if any benchmark's mean time regresses more than 20%.
+
+To update `baseline.json` after an intentional, accepted performance change:
+
+```bash
+pytest benchmarks-graph/test_bench_graph.py --benchmark-only --benchmark-json=benchmarks-graph/baseline.json
+```

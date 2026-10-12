@@ -44,7 +44,7 @@ from .vocab import (  # noqa: F401 - re-exported, see module docstring
     VARIABLE_DATATYPE,
 )
 
-SAST = Namespace("https://github.com/hidden-graph/starsparql/ns/ast#")
+SAST = Namespace("https://github.com/hidden-graph/starlayer/ns/sparql/ast#")
 
 # Root marker: the resource holding the parsed query tree is typed sast:Query
 # in addition to its own grammar-production name (SelectQuery/AskQuery/

@@ -46,7 +46,7 @@ def test_round_trip_nested_triple_term_from_starlayergraph_tuple_shorthand() -> 
     data = StarLayerGraph()
     data.add((EX.alice, EX.says, (EX.stmt1, EX.about, (EX.bob, EX.knows, EX.carol))))
 
-    adapter = TripleTermAdapter.for_starlayergraph()
+    adapter = TripleTermAdapter.for_starlayer_graph()
     encoded = adapter.encode_graph(data)
     decoded = adapter.decode_graph(encoded)
 
@@ -69,7 +69,7 @@ def test_round_trip_dirlangstring_value() -> None:
         format="turtle12",
     )
 
-    adapter = TripleTermAdapter.for_starlayergraph()
+    adapter = TripleTermAdapter.for_starlayer_graph()
     encoded = adapter.encode_graph(data)
     assert len(encoded) == 1
     encoded_value = next(o for _, _, o in encoded.triples((EX.Alice, EX.greeting, None)))
@@ -137,7 +137,7 @@ def test_sparql_aware_graph_reuses_decode_across_queries_without_mutation() -> N
     # decoding fresh on every single call (rather than once per iteration)
     # made rule-heavy workloads scale far worse than necessary. Confirms the
     # cache is actually reused (not just correct) when nothing has changed.
-    adapter = TripleTermAdapter.for_starlayergraph()
+    adapter = TripleTermAdapter.for_starlayer_graph()
     graph = adapter.encode_graph(StarLayerGraph())
     assert isinstance(graph, _SparqlAwareEncodedGraph)
     graph.add((EX.alice, EX.knows, EX.bob))
@@ -160,7 +160,7 @@ def test_sparql_aware_graph_reuses_decode_across_queries_without_mutation() -> N
 
 
 def test_sparql_aware_graph_invalidates_decode_cache_on_mutation() -> None:
-    adapter = TripleTermAdapter.for_starlayergraph()
+    adapter = TripleTermAdapter.for_starlayer_graph()
     graph = adapter.encode_graph(StarLayerGraph())
     graph.add((EX.alice, EX.knows, EX.bob))
 
@@ -174,7 +174,7 @@ def test_sparql_aware_graph_invalidates_decode_cache_on_mutation() -> None:
 
 
 def test_sparql_aware_graph_invalidates_decode_cache_on_remove() -> None:
-    adapter = TripleTermAdapter.for_starlayergraph()
+    adapter = TripleTermAdapter.for_starlayer_graph()
     graph = adapter.encode_graph(StarLayerGraph())
     graph.add((EX.alice, EX.knows, EX.bob))
     graph.add((EX.carol, EX.knows, EX.dave))

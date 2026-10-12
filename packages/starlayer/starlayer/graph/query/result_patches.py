@@ -49,7 +49,7 @@ def patch_result_iter_empty_binding_row() -> bool:
 
     try:
         original_iter = Result.__iter__
-        if getattr(original_iter, "_starlayergraph_result_iter_patch", False):
+        if getattr(original_iter, "_starlayer_graph_result_iter_patch", False):
             _result_patch_status = True
             return True
 
@@ -69,7 +69,7 @@ def patch_result_iter_empty_binding_row() -> bool:
                     for b in self._bindings:
                         yield ResultRow(b, self.vars)
 
-        _patched_iter._starlayergraph_result_iter_patch = True  # type: ignore[attr-defined]
+        _patched_iter._starlayer_graph_result_iter_patch = True  # type: ignore[attr-defined]
         Result.__iter__ = _patched_iter
         _result_patch_status = True
     except Exception:

@@ -3,6 +3,10 @@ __pycache__/
 *.egg-info/
 .pytest_cache/
 .hypothesis/
+# pytest-benchmark's local autosave history - the committed baseline.json
+# files in benchmarks-graph/benchmarks-shacl are the tracked snapshot, not
+# this directory.
+.benchmarks/
 .venv/
 venv/
 .DS_Store

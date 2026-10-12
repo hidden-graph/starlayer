@@ -135,7 +135,7 @@ def patch_evalextend_forgotten_bind_vars() -> bool:
 
     try:
         original_eval_extend = evaluate.evalExtend
-        if getattr(original_eval_extend, "_starlayergraph_evalextend_patch", False):
+        if getattr(original_eval_extend, "_starlayer_graph_evalextend_patch", False):
             _evaluate_patch_status = True
             return True
 
@@ -166,7 +166,7 @@ def patch_evalextend_forgotten_bind_vars() -> bool:
                 except SPARQLError:
                     yield c
 
-        _patched_eval_extend._starlayergraph_evalextend_patch = True  # type: ignore[attr-defined]
+        _patched_eval_extend._starlayer_graph_evalextend_patch = True  # type: ignore[attr-defined]
         evaluate.evalExtend = _patched_eval_extend
         _evaluate_patch_status = True
     except Exception:
@@ -221,7 +221,7 @@ def patch_evalfilter_forgotten_vars() -> bool:
 
     try:
         original_eval_filter = evaluate.evalFilter
-        if getattr(original_eval_filter, "_starlayergraph_evalfilter_patch", False):
+        if getattr(original_eval_filter, "_starlayer_graph_evalfilter_patch", False):
             _evalfilter_patch_status = True
             return True
 
@@ -237,7 +237,7 @@ def patch_evalfilter_forgotten_vars() -> bool:
                 ):
                     yield c
 
-        _patched_eval_filter._starlayergraph_evalfilter_patch = True  # type: ignore[attr-defined]
+        _patched_eval_filter._starlayer_graph_evalfilter_patch = True  # type: ignore[attr-defined]
         evaluate.evalFilter = _patched_eval_filter
         _evalfilter_patch_status = True
     except Exception:
@@ -301,7 +301,7 @@ def patch_evalmodify_default_graph_selection() -> bool:
         from rdflib.plugins.sparql import update as update_module
 
         original_eval_modify = update_module.evalModify
-        if getattr(original_eval_modify, "_starlayergraph_evalmodify_patch", False):
+        if getattr(original_eval_modify, "_starlayer_graph_evalmodify_patch", False):
             _evalmodify_patch_status = True
             return True
 
@@ -369,7 +369,7 @@ def patch_evalmodify_default_graph_selection() -> bool:
                         cg = ctx.dataset.get_context(c.get(g))
                         cg += _fillTemplate(q, c)
 
-        _patched_eval_modify._starlayergraph_evalmodify_patch = True  # type: ignore[attr-defined]
+        _patched_eval_modify._starlayer_graph_evalmodify_patch = True  # type: ignore[attr-defined]
         update_module.evalModify = _patched_eval_modify
         _evalmodify_patch_status = True
     except Exception:
@@ -426,7 +426,7 @@ def patch_evalinsertdata_quad_unpacking() -> bool:
         from rdflib.plugins.sparql import update as update_module
 
         original_eval_insert_data = update_module.evalInsertData
-        if getattr(original_eval_insert_data, "_starlayergraph_evalinsertdata_patch", False):
+        if getattr(original_eval_insert_data, "_starlayer_graph_evalinsertdata_patch", False):
             _evalinsertdata_patch_status = True
             return True
 
@@ -438,7 +438,7 @@ def patch_evalinsertdata_quad_unpacking() -> bool:
                 cg = ctx.dataset.get_context(graph_id)
                 cg += u.quads[graph_id]
 
-        _patched_eval_insert_data._starlayergraph_evalinsertdata_patch = True  # type: ignore[attr-defined]
+        _patched_eval_insert_data._starlayer_graph_evalinsertdata_patch = True  # type: ignore[attr-defined]
         update_module.evalInsertData = _patched_eval_insert_data
         _evalinsertdata_patch_status = True
     except Exception:
@@ -538,7 +538,7 @@ def patch_lazy_join_expr_dependency_order() -> bool:
 
     try:
         original_eval_join = evaluate.evalJoin
-        if getattr(original_eval_join, "_starlayergraph_lazy_join_patch", False):
+        if getattr(original_eval_join, "_starlayer_graph_lazy_join_patch", False):
             _lazy_join_patch_status = True
             return True
 
@@ -568,7 +568,7 @@ def patch_lazy_join_expr_dependency_order() -> bool:
 
             return _lazy_join(ctx, join.p1, join.p2)
 
-        _patched_eval_join._starlayergraph_lazy_join_patch = True  # type: ignore[attr-defined]
+        _patched_eval_join._starlayer_graph_lazy_join_patch = True  # type: ignore[attr-defined]
         evaluate.evalJoin = _patched_eval_join
         _lazy_join_patch_status = True
     except Exception:
@@ -618,7 +618,7 @@ def patch_construct_skips_encoding_solutions() -> bool:
 
     try:
         original_eval_construct = evaluate.evalConstructQuery
-        if getattr(original_eval_construct, "_starlayergraph_construct_patch", False):
+        if getattr(original_eval_construct, "_starlayer_graph_construct_patch", False):
             _construct_patch_status = True
             return True
 
@@ -650,7 +650,7 @@ def patch_construct_skips_encoding_solutions() -> bool:
 
             return {"type_": "CONSTRUCT", "graph": graph}
 
-        _patched_eval_construct_query._starlayergraph_construct_patch = True  # type: ignore[attr-defined]
+        _patched_eval_construct_query._starlayer_graph_construct_patch = True  # type: ignore[attr-defined]
         evaluate.evalConstructQuery = _patched_eval_construct_query
         _construct_patch_status = True
     except Exception:
@@ -786,7 +786,7 @@ def patch_relational_expression_tt_hash_equality() -> bool:
 
         comp = rdflib_sparql_parser.RelationalExpression
         original_evalfn = comp.evalfn
-        if getattr(original_evalfn, "_starlayergraph_tt_hash_equality_patch", False):
+        if getattr(original_evalfn, "_starlayer_graph_tt_hash_equality_patch", False):
             _relational_expression_patch_status = True
             return True
 
@@ -805,7 +805,7 @@ def patch_relational_expression_tt_hash_equality() -> bool:
                         return Literal(result if e.op == "=" else not result)
             return original_evalfn(e, ctx)
 
-        _patched_relational_expression._starlayergraph_tt_hash_equality_patch = True  # type: ignore[attr-defined]
+        _patched_relational_expression._starlayer_graph_tt_hash_equality_patch = True  # type: ignore[attr-defined]
         comp.setEvalFn(_patched_relational_expression)
         _relational_expression_patch_status = True
     except Exception:
@@ -906,7 +906,7 @@ def patch_order_by_tt_hash_term_kind() -> bool:
 
     try:
         original_eval_order_by = evaluate.evalOrderBy
-        if getattr(original_eval_order_by, "_starlayergraph_order_by_patch", False):
+        if getattr(original_eval_order_by, "_starlayer_graph_order_by_patch", False):
             _order_by_patch_status = True
             return True
 
@@ -927,7 +927,7 @@ def patch_order_by_tt_hash_term_kind() -> bool:
                 )
             return res
 
-        _patched_eval_order_by._starlayergraph_order_by_patch = True  # type: ignore[attr-defined]
+        _patched_eval_order_by._starlayer_graph_order_by_patch = True  # type: ignore[attr-defined]
         evaluate.evalOrderBy = _patched_eval_order_by
         _order_by_patch_status = True
     except Exception:
@@ -1008,7 +1008,7 @@ def patch_bgp_skips_encoding_triples() -> bool:
         from starlayer.graph.model.encoding import ENCODING_PREDS, TT_NS
 
         original_eval_bgp = evaluate.evalBGP
-        if getattr(original_eval_bgp, "_starlayergraph_bgp_patch", False):
+        if getattr(original_eval_bgp, "_starlayer_graph_bgp_patch", False):
             _bgp_patch_status = True
             return True
 
@@ -1058,7 +1058,7 @@ def patch_bgp_skips_encoding_triples() -> bool:
 
                 yield from _patched_eval_bgp(c, bgp[1:])
 
-        _patched_eval_bgp._starlayergraph_bgp_patch = True  # type: ignore[attr-defined]
+        _patched_eval_bgp._starlayer_graph_bgp_patch = True  # type: ignore[attr-defined]
         evaluate.evalBGP = _patched_eval_bgp
         _bgp_patch_status = True
     except Exception:
@@ -1145,7 +1145,7 @@ def patch_group_by_unaliased_expression_key() -> bool:
         from rdflib.plugins.sparql import algebra as algebra_module
 
         original_translate = algebra_module.translate
-        if getattr(original_translate, "_starlayergraph_groupby_patch", False):
+        if getattr(original_translate, "_starlayer_graph_groupby_patch", False):
             _group_by_unaliased_key_patch_status = True
             return True
 
@@ -1161,14 +1161,14 @@ def patch_group_by_unaliased_expression_key() -> bool:
                 global _group_by_synthetic_var_counter
                 _group_by_synthetic_var_counter += 1
                 cond["var"] = Variable(
-                    f"__starlayergraph_groupkey_{_group_by_synthetic_var_counter}__"
+                    f"__starlayer_graph_groupkey_{_group_by_synthetic_var_counter}__"
                 )
 
         def _patched_translate(q):
             _fill_in_missing_group_condition_vars(q)
             return original_translate(q)
 
-        _patched_translate._starlayergraph_groupby_patch = True  # type: ignore[attr-defined]
+        _patched_translate._starlayer_graph_groupby_patch = True  # type: ignore[attr-defined]
         algebra_module.translate = _patched_translate
         _group_by_unaliased_key_patch_status = True
     except Exception:

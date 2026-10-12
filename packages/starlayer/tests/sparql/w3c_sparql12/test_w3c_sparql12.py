@@ -135,8 +135,47 @@ def _new_graph(entry) -> StarLayerGraph | StarLayerDataset:
     return StarLayerGraph()
 
 
+# Confirmed, documented W3C test-suite defect, not an implementation bug -
+# see docs/sparql/w3c-sparql12-test-suite-issues.md Issue 1. Each of these
+# seven PositiveSyntaxTest fixtures constructs an explicit triple term
+# directly as a pattern's *subject*, which RDF 1.2 Concepts' own
+# triple-formation rule never permits (a triple term is only ever legal as
+# the object) - confirmed against the spec text itself and independently
+# against a live SPARQL engine rejecting the same shape. xfail(strict=True)
+# rather than a plain skip: if a future suite fix (filed upstream but not
+# yet accepted as of this writing) changes these fixtures, an unexpected
+# pass here is itself the signal to revisit this list, not something to
+# stay silently green.
+_KNOWN_SUITE_DEFECT_FRAGMENTS = {
+    "basic-tripleterm-01",
+    "basic-tripleterm-03",
+    "bnode-tripleterm-01",
+    "bnode-tripleterm-02",
+    "bnode-tripleterm-03",
+    "compound-tripleterm-subject",
+    "nested-tripleterm-02",
+}
+
+
+def _syntax_positive_param(entry):
+    fragment = entry.test_iri.rsplit("#", 1)[-1]
+    if fragment in _KNOWN_SUITE_DEFECT_FRAGMENTS:
+        return pytest.param(
+            entry,
+            marks=pytest.mark.xfail(
+                reason=(
+                    "W3C test-suite defect, not an implementation bug - "
+                    "docs/sparql/w3c-sparql12-test-suite-issues.md Issue 1"
+                ),
+                strict=True,
+            ),
+            id=entry.test_iri,
+        )
+    return pytest.param(entry, id=entry.test_iri)
+
+
 @_no_data
-@pytest.mark.parametrize("entry", SYNTAX_POSITIVE, ids=lambda e: e.test_iri)
+@pytest.mark.parametrize("entry", [_syntax_positive_param(e) for e in SYNTAX_POSITIVE])
 def test_syntax_positive(entry):
     text = entry.read(entry.query_file or entry.update_file)
     if _is_update(entry):

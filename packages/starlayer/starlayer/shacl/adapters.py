@@ -11,7 +11,7 @@ from rdflib.util import from_n3
 
 from starlayer.shacl.types import is_dirlangstring_like, is_triple_term_like
 
-TT_NS = Namespace("urn:starshacl:tt:")
+TT_NS = Namespace("urn:starlayer:tt:")
 
 
 def _starlayer_graph_class() -> type | None:
@@ -309,7 +309,7 @@ class TripleTermAdapter:
             self._forward[key] = uri
 
     @classmethod
-    def for_starlayergraph(cls) -> TripleTermAdapter:
+    def for_starlayer_graph(cls) -> TripleTermAdapter:
         try:
             from starlayer.graph.model.triple import TripleTerm
         except ImportError as exc:

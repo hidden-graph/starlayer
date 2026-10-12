@@ -338,7 +338,7 @@ def test_validate_can_skip_report_decoding() -> None:
     validator = StarShaclSchema(adapter=adapter, validate_fn=fake_validate)
     result = validator.validate(data_graph=data, decode_report=False)
 
-    assert any(str(o).startswith("urn:starshacl:tt:") for _, _, o in result.report_graph)
+    assert any(str(o).startswith("urn:starlayer:tt:") for _, _, o in result.report_graph)
 
 
 def test_validate_populates_diagnostics() -> None:
@@ -506,7 +506,7 @@ def test_target_nodes_falls_back_to_data_graph_when_shacl_graph_is_none() -> Non
 def test_validator_evaluate_component_delegates_to_native_core() -> None:
     validator = StarShaclSchema(adapter=TripleTermAdapter(), validate_fn=lambda **_: (True, Graph(), "ok"))
     result = validator.evaluate_component(
-        component={"name": "https://github.com/hidden-graph/starshacl/ns#TripleTermNodeKind"},
+        component={"name": "https://github.com/hidden-graph/starlayer/ns/shacl#TripleTermNodeKind"},
         focus_node=EX.focus,
         value_nodes=((EX.s, EX.p, EX.o), EX.not_tt),
     )

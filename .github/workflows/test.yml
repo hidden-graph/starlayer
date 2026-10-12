@@ -54,12 +54,12 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      # One package now (starlayer, at packages/starlayer) - a single -e
-      # install with the test/sqlalchemy extras is enough; there's no
-      # sibling-package dependency to resolve anymore.
+      # One package now (starlayer, source at packages/starlayer, but the
+      # canonical pyproject.toml lives at the repo root since the 2026-10-12
+      # consolidation - install from "." here, not "packages/starlayer").
       - name: Install starlayer
         run: |
-          pip install -e "packages/starlayer[sqlalchemy,test]"
+          pip install -e ".[sqlalchemy,test]"
 
       - name: Wait for Oxigraph
         run: |

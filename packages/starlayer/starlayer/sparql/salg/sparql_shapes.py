@@ -144,7 +144,7 @@ def _generate_expression_shapes_turtle() -> str:
         for name, family in _EXPR_NODE_FAMILY.items()
     ]
     return (
-        "@prefix spexpr: <https://github.com/hidden-graph/starsparql/ns/expr#> .\n"
+        "@prefix spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#> .\n"
         + "\n".join(declarations)
         + "\n"
     )

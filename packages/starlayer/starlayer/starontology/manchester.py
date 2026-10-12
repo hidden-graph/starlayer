@@ -116,7 +116,7 @@ from . import get_ontology_graph
 if TYPE_CHECKING:
     from starlayer.graph import StarLayerGraph
 
-MANCH = Namespace("https://github.com/hidden-graph/starlayergraph/ns/manchester-ast#")
+MANCH = Namespace("https://github.com/hidden-graph/starlayer/ns/graph/manchester-ast#")
 
 # ---------------------------------------------------------------------------
 # Frame/clause/misc dispatch tables - the one place a new frame/clause type

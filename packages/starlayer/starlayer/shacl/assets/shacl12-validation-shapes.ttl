@@ -1,4 +1,4 @@
-# baseURI: https://github.com/hidden-graph/starshacl/ns#
+# baseURI: https://github.com/hidden-graph/starlayer/ns/shacl#
 #
 # Supplementary SHACL-of-SHACL well-formedness rules for SHACL 1.2 Core
 # predicates: additive rules for predicates pySHACL's own bundled
@@ -54,7 +54,7 @@
 @prefix shsh: <http://www.w3.org/ns/shacl-shacl#> .
 @prefix shnex: <http://www.w3.org/ns/shacl-node-expr#> .
 @prefix owl:  <http://www.w3.org/2002/07/owl#> .
-@prefix stsh: <https://github.com/hidden-graph/starshacl/ns#> .
+@prefix stsh: <https://github.com/hidden-graph/starlayer/ns/shacl#> .
 
 stsh:
 	rdfs:label "starShacl SHACL 1.2 Meta-Shapes"@en ;

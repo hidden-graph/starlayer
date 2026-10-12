@@ -423,7 +423,7 @@ def test_shnex_and_old_sh_forms_coexist_in_same_validate_call() -> None:
 # starlayer.shacl.node_expressions.eval_expr() in real validate() usage is
 # pySHACL's plain, unwrapped RdfLibDataGraph - a triple-term value read from
 # it (e.g. via shnex:pathValues) is still in starlayer.shacl's own
-# flat-encoded urn:starshacl:tt:HASH form, and even after decoding
+# flat-encoded urn:starlayer:tt:HASH form, and even after decoding
 # that, starlayer.graph's own SPARQL engine requires the exact value to
 # already be registered in whatever specific graph instance is queried -
 # see docs/starlayergraph-upstream-change-log.md's 2026-07-31 entries for the

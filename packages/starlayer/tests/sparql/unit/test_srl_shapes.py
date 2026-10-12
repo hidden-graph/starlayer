@@ -16,7 +16,7 @@ from starlayer.sparql.srl import srl_validate  # noqa: E402
 from starlayer.sparql.srl import parse_ruleset  # noqa: E402
 from starlayer.sparql.srl import ruleset_to_tree  # noqa: E402
 
-SRL = Namespace("https://github.com/hidden-graph/starsparql/ns/srl#")
+SRL = Namespace("https://github.com/hidden-graph/starlayer/ns/sparql/srl#")
 
 WORKED_EXAMPLE_RULES = """
 PREFIX : <http://example.org/>

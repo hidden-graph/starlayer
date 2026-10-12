@@ -146,7 +146,7 @@ from .srl_semantic_checks import _check_ruleset
 from .ssyn_to_text import _render_expr_text
 from .to_rdf import _encode, _new_starlayer_graph
 
-SRL = Namespace("https://github.com/hidden-graph/starsparql/ns/srl#")
+SRL = Namespace("https://github.com/hidden-graph/starlayer/ns/sparql/srl#")
 
 # ---------------------------------------------------------------------------
 # srl: vocabulary (was srl_vocab.py) - field names taken verbatim from the

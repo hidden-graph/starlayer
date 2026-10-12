@@ -51,6 +51,7 @@ from rdflib.plugins.sparql.parser import (
     GraphNode,
     GraphNodePath,
     GraphTerm,
+    NIL,
     Path,
     PrimaryExpression,
     String,
@@ -710,7 +711,24 @@ def _annotation_reifier_term_explicit_action(tokens):
 
 _AnnotationReifierTermExplicit.add_parse_action(_annotation_reifier_term_explicit_action)
 
-_ReifierTermValue <<= VarOrTerm | _AnnotationReifierTermExplicit | _AnnotationReifierTermAnon
+# ~NIL guard: VarOrTerm's own grammar (rdflib's parser.py) is
+# `Var | iri | RDFLiteral | NumericLiteral | BooleanLiteral | BlankNode |
+# NIL | TripleTerm` - it includes NIL (the bare `()` empty-collection
+# token, rdf:nil), unlike the real spec's ReifiedTripleSubject/
+# ReifiedTripleObject productions (SPARQL 1.2 Query grammar rules
+# [117]/[118]), which enumerate exactly the same list *minus* NIL (and
+# minus Collection, already excluded below by using VarOrTerm instead of
+# GraphNode - see the long comment above this production). Confirmed
+# directly against the vendored grammar snapshot
+# (tests/graph/vendor/spec_snapshots/sparql12-query.txt) - neither
+# production lists NIL as an alternative. Without this guard,
+# `<< _:b ex:x () >>` parsed successfully via VarOrTerm's NIL branch -
+# the W3C NegativeSyntaxTest fixture `list-anonreifier-01` (whose own text
+# carries a "TODO: See if this should be throwing an error" comment) is
+# answered by this grammar citation: yes, it should.
+_ReifierTermValue <<= (
+    (~NIL + VarOrTerm) | _AnnotationReifierTermExplicit | _AnnotationReifierTermAnon
+)
 
 
 def _annotation_reifier_term(s_raw, p, o_raw, r) -> list:

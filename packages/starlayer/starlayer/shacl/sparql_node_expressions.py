@@ -189,7 +189,7 @@ def _defining_predicate(sg: Any, expr: Any) -> URIRef:
 
 
 def _decode_triple_term(sg: Any, value: Any) -> Any:
-    """Decode a flat-encoded ``urn:starshacl:tt:HASH`` URIRef back into
+    """Decode a flat-encoded ``urn:starlayer:tt:HASH`` URIRef back into
     a real triple-term value, if ``value`` is one - a no-op for everything
     else (an ordinary URIRef/Literal/BNode, or a value that's already a real
     triple term).

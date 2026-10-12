@@ -38,3 +38,22 @@ This measures the adapter's own encode/decode cost in isolation, not full `StarS
 ## Results
 
 See [`docs/shacl/benchmark-baselines.md`](../docs/shacl/benchmark-baselines.md) for recorded baselines over time.
+
+## Regression guard: `test_bench_shacl.py`
+
+A separate, CI-fast pytest-benchmark suite (fixed 2000 triples, depth 1) that catches real regressions in `encode_graph`/`decode_graph` - not a replacement for `bench_adapter.py` above, which remains the tool for exploring different triple counts/nesting depths and updating `benchmark-baselines.md`.
+
+Lives outside `testpaths` (`packages/starlayer/tests`), so a bare `pytest` run never collects it:
+
+```bash
+pip install -e ".[benchmark]"
+pytest benchmarks-shacl/test_bench_shacl.py --benchmark-only
+```
+
+Run on a schedule (not every push/PR - timings are too noisy on shared CI runners to gate every commit on) by [`.github/workflows/benchmark.yml`](../../../.github/workflows/benchmark.yml), which compares a fresh run against the committed `baseline.json` via [`scripts/check_benchmark_regression.py`](../../../scripts/check_benchmark_regression.py) and fails the workflow (GitHub's own failed-scheduled-run notification is the alert) if `encode_graph`/`decode_graph`'s mean time regresses more than 20%.
+
+To update `baseline.json` after an intentional, accepted performance change:
+
+```bash
+pytest benchmarks-shacl/test_bench_shacl.py --benchmark-only --benchmark-json=benchmarks-shacl/baseline.json
+```

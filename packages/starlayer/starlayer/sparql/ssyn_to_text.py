@@ -50,7 +50,7 @@ from .ssyn_vocab import (
     VARIABLE_DATATYPE,
     WHERE,
 )
-from .vocab import SALG
+from .vocab import SPEXPR
 
 
 def ssyn_rdf_to_query_text(graph: Graph, root) -> str:
@@ -103,15 +103,26 @@ def _term_text(term) -> str:
 def _predicate_text(graph: Graph, term) -> str:
     """A predicate position may be a genuine property path — see
     to_ssyn_rdf.py's _encode_predicate, which falls back to the existing
-    salg: path encoding (to_rdf._encode_path) for that case, the same
-    salg:-boundary principle used for expressions. Decode it back into a
+    spexpr: path encoding (to_rdf._encode_path) for that case, the same
+    spexpr:-boundary principle used for expressions. Decode it back into a
     real rdflib.paths.Path object (from_rdf._decode already knows how,
-    dispatching on the node's salg: type) and reuse *its* own .n3() —
+    dispatching on the node's spexpr: type) and reuse *its* own .n3() —
     Path objects already render themselves as valid SPARQL path syntax,
-    no new rendering logic needed."""
+    no new rendering logic needed.
+
+    Checks spexpr:, not salg: - to_rdf._encode_path types every path node
+    (InvPath/SequencePath/AlternativePath/MulPath/NegatedPath) under
+    spexpr: unconditionally (see that function's own docstring, "Path is
+    one of the vocabularies that moved"). Checking salg: here instead was
+    a real bug: it silently missed every genuine path predicate, falling
+    through to _term_text(term) - which rendered the path's own BNode
+    identifier as if it were an ordinary term, producing a blank-node ID
+    in the regenerated query text instead of e.g. `foaf:knows+` (caught
+    via test_ssyn_ontology.py's own round-trip-by-execution test failing
+    to re-parse the regenerated text)."""
     if isinstance(term, BNode) and (term, RDF.type, None) in graph:
         types = {str(t) for t in graph.objects(term, RDF.type)}
-        if any(t.startswith(str(SALG)) for t in types):
+        if any(t.startswith(str(SPEXPR)) for t in types):
             path = _decode_algebra(term, graph)
             return path.n3()
     return _term_text(term)

@@ -13,9 +13,15 @@ requires-python = ">=3.10"
 dependencies = [
     "rdflib>=7.0",
     "requests>=2.28",
+    # pySHACL is a core dependency, not test-only: starlayer.shacl needs it
+    # unconditionally to function (it wraps pyshacl.validate() as its
+    # validation engine) - see packages/starlayer/docs/shacl/compatibility.md.
+    # Verified against pySHACL 0.40.0 specifically; workarounds for known
+    # pySHACL bugs are defensive but correctness against other versions
+    # hasn't been separately confirmed.
     "pyshacl>=0.40.1",
 ]
-keywords = ["rdf", "rdf12", "sparql", "sparql12", "shacl", "knowledge-graph"]
+keywords = ["rdf", "rdf12", "sparql", "sparql12", "shacl", "pyshacl", "knowledge-graph", "semantic-web", "linked-data", "turtle", "reification", "triple-terms", "rdf-star", "algebra"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -32,8 +38,23 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
+# setuptools<81 pin: rdflib-sqlalchemy still imports pkg_resources at module
+# load (setuptools>=81 removed it) - remove once rdflib-sqlalchemy drops the
+# pkg_resources import upstream.
 sqlalchemy = ["rdflib-sqlalchemy>=0.5", "setuptools<81"]
-test = ["pytest>=8.0", "hypothesis>=6", "requests>=2"]
+reasoning = ["owlrl>=6"]
+# The two engines StarLayerGraph.infer(entailment=ENTAILMENT["OWL-Direct"], engine=...) can
+# dispatch to - see starlayer/graph/graph/owl_dl.py and owl_dl_rustdl.py.
+# Neither is core: "hermit" also needs a real JVM on PATH that pip alone
+# can't provide, and "rustdl" is a different, non-strictly-better tradeoff
+# (no JVM, but not provably complete on full SROIQ) - both opt-in, symmetrically.
+hermit = ["owlready2>=0.51"]
+rustdl = ["rustdl>=0.4"]
+test = ["pytest>=8.0", "hypothesis>=6"]
+# pytest-benchmark for benchmarks-graph/benchmarks-shacl's own test_bench_*.py
+# regression guards (outside `testpaths`, so a bare `pytest` never collects
+# them - see .github/workflows/benchmark.yml and each dir's own README).
+benchmark = ["pytest-benchmark>=5.0"]
 
 [project.urls]
 Homepage = "https://github.com/hidden-graph/starlayer"
@@ -45,7 +66,14 @@ where = ["packages/starlayer"]
 include = ["starlayer*"]
 
 [tool.setuptools.package-data]
-starlayer = ["py.typed", "shacl/assets/*.ttl"]
+starlayer = ["py.typed", "assets/*.ttl", "shacl/assets/*.ttl", "starontology/*.trig"]
+
+[tool.pytest.ini_options]
+testpaths = ["packages/starlayer/tests"]
+markers = [
+    "integration: tests requiring a running Fuseki/Oxigraph server or a real backend store (e.g. SQLite via rdflib-sqlalchemy) - the 'full testing' tier.",
+    "w3c_sparql12: W3C SPARQL 1.2 test suite cross-checks.",
+]
 
 [tool.ruff]
 target-version = "py310"
@@ -75,6 +103,6 @@ select = [
 "packages/starlayer/starlayer/graph/parsers/turtle_parser.py" = ["E701", "E702"]
 # E402 (import not at top of file): standalone scripts/harnesses that need
 # `sys.path.insert(...)` before importing - not installed as packages.
-"*/benchmarks/*.py" = ["E402"]
+"*/benchmarks-*/*.py" = ["E402"]
 "*/examples/*.py" = ["E402"]
 "*/tests/w3c_*/*.py" = ["E402"]

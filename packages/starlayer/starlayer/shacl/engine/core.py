@@ -11,7 +11,7 @@ from starlayer.shacl.engine.normalization import normalize_graph_inputs, normali
 from starlayer.shacl.types import is_triple_term_like
 
 SH = Namespace("http://www.w3.org/ns/shacl#")
-STSH = Namespace("https://github.com/hidden-graph/starshacl/ns#")
+STSH = Namespace("https://github.com/hidden-graph/starlayer/ns/shacl#")
 
 
 @dataclass(frozen=True)

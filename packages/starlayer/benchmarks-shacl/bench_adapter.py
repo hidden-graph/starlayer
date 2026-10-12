@@ -62,14 +62,14 @@ def run_benchmark(triples: int, nested_depth: int) -> BenchResult:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Benchmark starShacl triple-term adapter encode/decode paths.")
+    parser = argparse.ArgumentParser(description="Benchmark starlayer.shacl's triple-term adapter encode/decode paths.")
     parser.add_argument("--triples", type=int, default=1000)
     parser.add_argument("--nested-depth", type=int, default=1)
     args = parser.parse_args()
 
     result = run_benchmark(triples=args.triples, nested_depth=args.nested_depth)
 
-    print("starShacl adapter benchmark")
+    print("starlayer.shacl adapter benchmark")
     print(f"triples: {result.triples}")
     print(f"nested_depth: {result.nested_depth}")
     print(f"encode_ms: {result.encode_ms:.3f}")

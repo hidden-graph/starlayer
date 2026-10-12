@@ -75,7 +75,7 @@ from rdflib import Namespace
 
 from ..vocab import SALG, VARIABLE_DATATYPE  # noqa: F401 - reused as-is, not re-minted
 
-SQE = Namespace("https://github.com/hidden-graph/starsparql/ns/query-edit#")
+SQE = Namespace("https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#")
 
 # Root query-form types, each also typed sqe:Query (see salg:Query's own
 # identical convention) so a store holding many encoded queries can find

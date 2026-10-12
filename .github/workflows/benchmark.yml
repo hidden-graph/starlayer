@@ -1,0 +1,46 @@
+name: Benchmarks
+
+# Scheduled + manual only, never on push/PR - benchmark timings are too
+# noisy on shared GitHub-hosted runners to gate every commit on; a failed
+# scheduled run is itself the regression alert (GitHub surfaces/emails
+# failed scheduled-workflow runs on the default branch automatically).
+on:
+  schedule:
+    - cron: "0 6 * * *" # daily, 06:00 UTC
+  workflow_dispatch: {}
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install starlayer
+        run: pip install -e ".[sqlalchemy,test,benchmark]"
+
+      - name: Run graph benchmarks
+        working-directory: packages/starlayer
+        run: pytest benchmarks-graph/test_bench_graph.py --benchmark-only --benchmark-json=bench-graph-result.json
+
+      - name: Run shacl benchmarks
+        working-directory: packages/starlayer
+        run: pytest benchmarks-shacl/test_bench_shacl.py --benchmark-only --benchmark-json=bench-shacl-result.json
+
+      - name: Check for regressions - graph
+        working-directory: packages/starlayer
+        run: python ../../scripts/check_benchmark_regression.py benchmarks-graph/baseline.json bench-graph-result.json
+
+      - name: Check for regressions - shacl
+        working-directory: packages/starlayer
+        run: python ../../scripts/check_benchmark_regression.py benchmarks-shacl/baseline.json bench-shacl-result.json
+
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: packages/starlayer/bench-*-result.json

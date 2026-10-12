@@ -45,7 +45,7 @@ from .vocab import (
     VARIABLE_DATATYPE,  # noqa: F401 - reused as-is, not re-minted, see below
 )
 
-SSYN = Namespace("https://github.com/hidden-graph/starsparql/ns/readable-syntax#")
+SSYN = Namespace("https://github.com/hidden-graph/starlayer/ns/sparql/readable-syntax#")
 
 # RDF/Turtle has no native "SPARQL variable" term, so one is tagged via
 # reserved datatype — but unlike every other name in this file, reused

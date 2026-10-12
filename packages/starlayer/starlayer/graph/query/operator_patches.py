@@ -107,7 +107,7 @@ def patch_multiplicative_expression_type_promotion() -> bool:
 
         comp = rdflib_sparql_parser.MultiplicativeExpression
         original_evalfn = comp.evalfn
-        if getattr(original_evalfn, "_starlayergraph_multiplicative_type_promotion_patch", False):
+        if getattr(original_evalfn, "_starlayer_graph_multiplicative_type_promotion_patch", False):
             _multiplicative_expression_patch_status = True
             return True
 
@@ -134,7 +134,7 @@ def patch_multiplicative_expression_type_promotion() -> bool:
                 raise SPARQLError("divide by 0") from exc
             return _canonicalize_decimal_lexical_form(Literal(res, datatype=dt))
 
-        _patched_multiplicative_expression._starlayergraph_multiplicative_type_promotion_patch = True  # type: ignore[attr-defined]
+        _patched_multiplicative_expression._starlayer_graph_multiplicative_type_promotion_patch = True  # type: ignore[attr-defined]
         comp.setEvalFn(_patched_multiplicative_expression)
         _multiplicative_expression_patch_status = True
     except Exception:
@@ -184,7 +184,7 @@ def patch_decimal_result_lexical_form() -> bool:
                 return False
             comps[name] = comp
 
-        if getattr(comps["Builtin_CEIL"].evalfn, "_starlayergraph_decimal_lexical_form_patch", False):
+        if getattr(comps["Builtin_CEIL"].evalfn, "_starlayer_graph_decimal_lexical_form_patch", False):
             _decimal_result_lexical_form_patch_status = True
             return True
 
@@ -194,7 +194,7 @@ def patch_decimal_result_lexical_form() -> bool:
                 result = Literal(transform(numeric(l_)), datatype=l_.datatype)
                 return _canonicalize_decimal_lexical_form(result)
 
-            _patched._starlayergraph_decimal_lexical_form_patch = True  # type: ignore[attr-defined]
+            _patched._starlayer_graph_decimal_lexical_form_patch = True  # type: ignore[attr-defined]
             return _patched
 
         for name, transform in targets.items():

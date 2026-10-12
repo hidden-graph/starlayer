@@ -104,7 +104,7 @@ def patch_algebra_translator_bugs() -> bool:
 
     try:
         original_sparql_query_text = _AlgebraTranslator.sparql_query_text
-        if getattr(original_sparql_query_text, "_starlayergraph_algebra_translator_patch", False):
+        if getattr(original_sparql_query_text, "_starlayer_graph_algebra_translator_patch", False):
             _algebra_translator_patch_status = True
             return True
 
@@ -296,7 +296,7 @@ def patch_algebra_translator_bugs() -> bool:
 
             return original_sparql_query_text(self, node)
 
-        _patched_sparql_query_text._starlayergraph_algebra_translator_patch = True  # type: ignore[attr-defined]
+        _patched_sparql_query_text._starlayer_graph_algebra_translator_patch = True  # type: ignore[attr-defined]
         _AlgebraTranslator.sparql_query_text = _patched_sparql_query_text
         _algebra_translator_patch_status = True
     except Exception:

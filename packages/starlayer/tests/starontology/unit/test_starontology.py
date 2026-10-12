@@ -435,7 +435,7 @@ class TestLocalLoader:
     def test_resolves_a_real_sh_shapesgraph_iri(self):
         from rdflib import Namespace as RdfNamespace
 
-        SALG = RdfNamespace("https://github.com/hidden-graph/starsparql/ns/algebra#")
+        SALG = RdfNamespace("https://github.com/hidden-graph/starlayer/ns/sparql/algebra#")
         resolved = starontology.local_loader(SALG.ShapesGraph)
         assert resolved is not None
         assert len(resolved) > 0
@@ -450,7 +450,7 @@ class TestLocalLoader:
         not just that the pieces exist independently."""
         from rdflib import Namespace as RdfNamespace, RDF
         SH = RdfNamespace("http://www.w3.org/ns/shacl#")
-        SPEXPR = RdfNamespace("https://github.com/hidden-graph/starsparql/ns/expr#")
+        SPEXPR = RdfNamespace("https://github.com/hidden-graph/starlayer/ns/sparql/expr#")
 
         sqe_alone = starontology.get_ontology_graph("sqe_shacl")
         assert (SPEXPR.ExpressionShape, RDF.type, SH.NodeShape) not in sqe_alone
@@ -458,7 +458,7 @@ class TestLocalLoader:
     def test_resolve_imports_with_local_loader_closes_the_gap(self):
         from rdflib import Namespace as RdfNamespace, RDF
         SH = RdfNamespace("http://www.w3.org/ns/shacl#")
-        SPEXPR = RdfNamespace("https://github.com/hidden-graph/starsparql/ns/expr#")
+        SPEXPR = RdfNamespace("https://github.com/hidden-graph/starlayer/ns/sparql/expr#")
 
         sqe_alone = starontology.get_ontology_graph("sqe_shacl")
         merged = sqe_alone.resolve_imports(loader=starontology.local_loader, mode="full")
@@ -469,7 +469,7 @@ class TestLocalLoader:
     def test_srl_shacl_also_resolves_its_spexpr_import(self):
         from rdflib import Namespace as RdfNamespace, RDF
         SH = RdfNamespace("http://www.w3.org/ns/shacl#")
-        SPEXPR = RdfNamespace("https://github.com/hidden-graph/starsparql/ns/expr#")
+        SPEXPR = RdfNamespace("https://github.com/hidden-graph/starlayer/ns/sparql/expr#")
 
         srl_alone = starontology.get_ontology_graph("srl_shacl")
         merged = srl_alone.resolve_imports(loader=starontology.local_loader, mode="full")
