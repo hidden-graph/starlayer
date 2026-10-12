@@ -2,11 +2,20 @@
 see ``test_w3c_sparql12_eval.py`` for the actual pytest test functions and
 ``download_w3c_sparql12_tests.py`` for how ``data/`` gets populated.
 
-Adapted from (not imported from) the downstream ``starlayer.sparql``
-project's own ``tests/w3c_sparql12/harness.py`` - duplicated rather than
-imported across repos, since starlayer.graph's own test suite shouldn't depend on
-a specific sibling package existing. Kept deliberately small so the
-duplication stays cheap to keep in sync.
+Forked from (not imported from) the sibling ``tests/sparql/w3c_sparql12/
+harness.py`` - both ``starlayer.graph`` and ``starlayer.sparql`` are the
+same installed package since the 2026-09-30 merge, so the original
+"shouldn't depend on a specific sibling package existing" reasoning for
+keeping these separate no longer applies (confirmed stale 2026-10-12).
+Kept as two files anyway, deliberately: each test file in this pair pulls
+in exactly what *it* needs (this one adds Oxigraph/Fuseki live-store
+helpers for ``test_w3c_sparql12_eval.py``'s own round-trip tests; the
+sparql-side copy adds ``skolemize_graph()`` for its own CONSTRUCT-test
+isomorphism comparisons neither file's sibling tests exercise) rather
+than one shared module carrying both suites' full union of helpers. Keep
+each file's own prose/logic in sync when fixing a bug common to both
+(like ``bindings_match()``'s factorial-search fix, 2026-10-12) - but
+don't assume the two files should converge to identical content.
 
 Includes a small, hand-written SPARQL JSON Results parser
 (``parse_srj``/``_parse_json_term``) rather than using rdflib's own built-in

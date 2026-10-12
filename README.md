@@ -1,3 +1,7 @@
+<!-- This file and packages/starlayer/README.md are near-duplicates (the
+     latter is also packaged into the sdist/wheel as the PyPI long
+     description). Keep shared prose in sync between the two - only the
+     install command and one relative link are meant to differ. -->
 # StarLayer
 
 StarLayer is a Python RDF 1.2 wrapper built on rdflib and pyshacl. 

@@ -2,6 +2,11 @@
 ``tests/test_w3c_sparql12.py`` for the actual pytest test functions and
 ``download_w3c_sparql12_tests.py`` for how ``data/`` gets populated.
 
+A deliberate, still-live fork of the sibling
+``tests/graph/w3c_sparql12/harness.py`` - see that file's own docstring
+for why the two stay separate rather than converging into one shared
+module.
+
 Includes a small, hand-written SPARQL JSON Results parser
 (``parse_srj``/``_parse_json_term``) rather than using rdflib's own built-in
 one (``rdflib.query.Result.parse``) — confirmed empirically that rdflib's

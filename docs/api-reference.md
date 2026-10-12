@@ -351,7 +351,7 @@ An SRL document can be encoded as its own RDF syntax tree graph using the starla
 
 Wraps `pyshacl` 0.40.1 (pinned `>=0.40.1`), by composition rather than inheritance — `StarShaclSchema` calls into pyshacl's own functions rather than subclassing anything, so **Modified** below means "pyshacl exposes this same name," not "an overridden inherited method," and there's no **Unchanged** category at all. Covers SHACL 1.2's six specification documents: Core Validation, SPARQL Extensions, Node Expressions, Inference Rules, User Interfaces, and Profiling.
 
-**Every public top-level function, in one table** - the full SHACL processing surface, regardless of which SHACL 1.2 document each belongs to (see the per-document sections below for that organization, plus lower-level/cross-cutting names). Every name here is flat-importable directly from `starlayer.shacl` (2026-10-07 - `apply_rules`/`evaluate`/`extract_subgraph` and their result classes joined `validate`/`validate_each`, which already were; the older qualified submodules `shacl_inference`/`shacl_node_expr`/`subgraph_extraction` still exist and still work, they're just no longer the only path). SHACL 1.2 Profiling is the one deliberate exception, still qualified-only (`from starlayer.shacl import shacl_profiling`) - its two helpers are self-declaration/report-annotation utilities, not a processing mode alongside these.
+**Every public top-level function, in one table** - the full SHACL processing surface, regardless of which SHACL 1.2 document each belongs to (see the per-document sections below for that organization, plus lower-level/cross-cutting names). Every name here is flat-importable directly from `starlayer.shacl` (2026-10-07 - `apply_rules`/`evaluate`/`extract_subgraph` and their result classes joined `validate`/`validate_each`, which already were; `subgraph_extraction` is still a real, used qualified submodule, but the older `shacl_inference`/`shacl_node_expr` re-export shims were deleted outright 2026-10-12 once a retrospective audit confirmed zero callers anywhere). SHACL 1.2 Profiling is the one deliberate exception, still qualified-only (`from starlayer.shacl import shacl_profiling`) - its two helpers are self-declaration/report-annotation utilities, not a processing mode alongside these.
 
 `from starlayer.shacl import ...`
 
@@ -419,17 +419,17 @@ Every method above that needs a shapes graph falls back to this instance's own b
 
 ### SHACL 1.2 Inference Rules
 
-`apply_rules()`/`RulesResult`, listed in the full-surface table above — flat from `starlayer.shacl` directly, or still via the older `from starlayer.shacl import shacl_inference` qualified path. Mirrors pyshacl's own `shacl_rules()` entry point. Also reachable via `StarShaclSchema.apply_rules()` (binds its own shapes/ontology graph - see that class's own table below).
+`apply_rules()`/`RulesResult`, listed in the full-surface table above — flat from `starlayer.shacl` directly (the former qualified `shacl_inference` re-export shim was deleted 2026-10-12, zero callers). Mirrors pyshacl's own `shacl_rules()` entry point. Also reachable via `StarShaclSchema.apply_rules()` (binds its own shapes/ontology graph - see that class's own table below).
 
 ### SHACL 1.2 Node Expressions
 
-`evaluate()`, listed in the full-surface table above — flat from `starlayer.shacl` directly, or still via the older `from starlayer.shacl import shacl_node_expr` qualified path. Also reachable via `StarShaclSchema.evaluate()` (binds its own shapes/ontology graph - see that class's own table below).
+`evaluate()`, listed in the full-surface table above — flat from `starlayer.shacl` directly (the former qualified `shacl_node_expr` re-export shim was deleted 2026-10-12, zero callers). Also reachable via `StarShaclSchema.evaluate()` (binds its own shapes/ontology graph - see that class's own table below).
 
 One lower-level name not in the full-surface table, since it isn't itself one of the four main processing operations — stays qualified-only, deliberately (a one-expression-at-a-time primitive, not a processing mode):
 
 | Name | Kind | Status | Description |
 |---|---|---|---|
-| `shacl_node_expr.eval_expr()` | function | New | Evaluates one node expression directly against a single focus node, independent of `evaluate()`'s own per-shape orchestration |
+| `node_expressions.eval_expr()` | function | New | Evaluates one node expression directly against a single focus node, independent of `evaluate()`'s own per-shape orchestration |
 
 ### Subgraph extraction (not part of any SHACL 1.2 document — this project's own addition)
 

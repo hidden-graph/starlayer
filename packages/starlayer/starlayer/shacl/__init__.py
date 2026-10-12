@@ -25,9 +25,10 @@ from starlayer.shacl.validator import StarShaclSchema, apply_rules, evaluate, va
 # `validator.py`, `RulesResult` still in `results.py`, `extract_subgraph`
 # still in `subgraph_extraction.py` - only this file's own import/export
 # list changed. `shacl_inference`/`shacl_node_expr` (the former
-# qualified-only namespaces for the first two) still exist and still work
-# unchanged - nothing was removed - but the flat names above are the
-# primary path now.
+# qualified-only namespaces for the first two) were deleted outright
+# 2026-10-12, once a retrospective audit confirmed zero callers anywhere
+# (production, tests, or notebooks) since this flattening - the flat
+# names above are the only path now, not just the primary one.
 #
 # `evaluate()`/`extract_subgraph()` return a plain graph object directly
 # (or `None`, for `extract_subgraph()`) rather than a result class -
@@ -43,8 +44,9 @@ from starlayer.shacl.validator import StarShaclSchema, apply_rules, evaluate, va
 # mode alongside the four above, so there's no case for promoting them to
 # flat names just because these four were.
 #
-# `eval_expr()` (`node_expressions.py`, re-exported via `shacl_node_expr`)
-# also stays qualified-only, deliberately: it's a lower-level, one-
+# `eval_expr()` (`from starlayer.shacl.node_expressions import eval_expr`,
+# its own module directly now that `shacl_node_expr`'s re-export shim is
+# gone) also stays qualified-only, deliberately: it's a lower-level, one-
 # expression-at-a-time primitive, not a processing mode in its own right
 # (see `docs/api-reference.md`'s "Lower-level" section for the same
 # distinction) - the promotion here is scoped to the top-level processing
