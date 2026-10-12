@@ -12,9 +12,11 @@ from rdflib.collection import Collection
 
 pyshacl = pytest.importorskip("pyshacl")
 
-from starlayer.sparql.srl import srl_validate  # noqa: E402
-from starlayer.sparql.srl import parse_ruleset  # noqa: E402
-from starlayer.sparql.srl import ruleset_to_tree  # noqa: E402
+from starlayer.sparql.srl import (  # noqa: E402
+    parse_ruleset,
+    ruleset_to_tree,
+    srl_validate,
+)
 
 SRL = Namespace("https://github.com/hidden-graph/starlayer/ns/sparql/srl#")
 

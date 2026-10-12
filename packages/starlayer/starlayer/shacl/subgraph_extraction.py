@@ -68,12 +68,12 @@ returning both the value nodes and every triple traversed to reach them.
 
 from __future__ import annotations
 
-from typing import Any, FrozenSet, Set, Tuple
+from typing import Any
 
 from rdflib import BNode, Literal
 from rdflib.namespace import RDF, SH
 
-_Triple = Tuple[Any, Any, Any]
+_Triple = tuple[Any, Any, Any]
 
 # Constraint components whose semantics require reading a *second* property
 # path from the same focus node (not the constrained path's own value nodes)
@@ -124,7 +124,7 @@ def _rdf_list(sg: Any, list_node: Any) -> list:
     return list(sg.graph.items(list_node))
 
 
-def _walk_path(data_graph: Any, focus: Any, path_val: Any, sg: Any) -> Tuple[FrozenSet[Any], Set[_Triple]]:
+def _walk_path(data_graph: Any, focus: Any, path_val: Any, sg: Any) -> tuple[frozenset[Any], set[_Triple]]:
     """SHACL property-path algebra, returning both the value nodes reached
     and every triple traversed to reach them (decision 1) - the one thing
     pySHACL's own ``value_nodes_from_path`` doesn't expose."""
@@ -142,8 +142,8 @@ def _walk_path(data_graph: Any, focus: Any, path_val: Any, sg: Any) -> Tuple[Fro
 
     if SH.alternativePath in predicates:
         alt_list = next(iter(sg.graph.objects(path_val, SH.alternativePath)))
-        all_values: Set[Any] = set()
-        all_triples: Set[_Triple] = set()
+        all_values: set[Any] = set()
+        all_triples: set[_Triple] = set()
         for alt in _rdf_list(sg, alt_list):
             v, t = _walk_path(data_graph, focus, alt, sg)
             all_values |= v
@@ -154,11 +154,11 @@ def _walk_path(data_graph: Any, focus: Any, path_val: Any, sg: Any) -> Tuple[Fro
         zero_allowed = SH.zeroOrMorePath in predicates
         pred_key = SH.zeroOrMorePath if zero_allowed else SH.oneOrMorePath
         inner = next(iter(sg.graph.objects(path_val, pred_key)))
-        reachable: Set[Any] = {focus} if zero_allowed else set()
+        reachable: set[Any] = {focus} if zero_allowed else set()
         frontier = {focus}
         seen = {focus}
         while frontier:
-            next_frontier: Set[Any] = set()
+            next_frontier: set[Any] = set()
             for node in frontier:
                 for v in data_graph.objects(node, inner):
                     reachable.add(v)
@@ -184,9 +184,9 @@ def _walk_path(data_graph: Any, focus: Any, path_val: Any, sg: Any) -> Tuple[Fro
     if RDF.first in predicates:
         # A sequence path: an RDF list of paths, applied in order.
         current = {focus}
-        triples: Set[_Triple] = set()
+        triples: set[_Triple] = set()
         for element in _rdf_list(sg, path_val):
-            next_current: Set[Any] = set()
+            next_current: set[Any] = set()
             for node in current:
                 v, t = _walk_path(data_graph, node, element, sg)
                 next_current |= v
@@ -202,14 +202,14 @@ def _extract(
     sg: Any,
     shape: Any,
     focus_node: Any,
-    visiting: FrozenSet[Tuple[Any, Any]],
-) -> Set[_Triple]:
+    visiting: frozenset[tuple[Any, Any]],
+) -> set[_Triple]:
     key = (shape.node, focus_node)
     if key in visiting:
         return set()  # shape-level recursion guard (e.g. mutually-recursive shapes)
     visiting = visiting | {key}
 
-    triples: Set[_Triple] = set()
+    triples: set[_Triple] = set()
 
     if shape.is_property_shape:
         path_val = shape.path()
@@ -433,8 +433,8 @@ def _close_shape(shacl_graph: Any, shape: Any) -> Any:
     for t in shacl_graph:
         result.add(t)
 
-    to_close: Set[Any] = set()
-    visited: Set[Any] = set()
+    to_close: set[Any] = set()
+    visited: set[Any] = set()
 
     def _walk(shape_node: Any, should_close: bool) -> None:
         if shape_node in visited:

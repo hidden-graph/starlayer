@@ -83,7 +83,12 @@ def test_stripped_filter_recipe_correctly_excludes_non_matching_rows():
     # one-way hash) - register both here the same way real ground-value
     # computation would (_eager_lower_value/_hash_call), so the accessor
     # calls this test exercises have something real to decode.
-    from starlayer.graph.model.encoding import TT_NS, remember_tt_hash, term_key, tt_hash
+    from starlayer.graph.model.encoding import (
+        TT_NS,
+        remember_tt_hash,
+        term_key,
+        tt_hash,
+    )
 
     def _make_tt_uri(s, p, o):
         uri = URIRef(TT_NS + tt_hash(term_key(s), term_key(p), term_key(o)))

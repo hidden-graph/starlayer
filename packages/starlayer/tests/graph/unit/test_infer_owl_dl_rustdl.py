@@ -27,7 +27,6 @@ engine="hermit", not a bug to chase down here.
 """
 
 import pytest
-
 from starlayer.graph import RDF, Namespace, StarLayerGraph
 from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 

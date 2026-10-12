@@ -23,7 +23,6 @@ elsewhere in this package:
 import pytest
 from rdflib.plugins.sparql.evaluate import evalQuery
 from rdflib.plugins.sparql.processor import prepareQuery
-
 from starlayer.sparql.sqe import (
     sqe_parse_to_tree,
     sqe_tree_to_query,

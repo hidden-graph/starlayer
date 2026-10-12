@@ -31,7 +31,6 @@ import pytest
 import requests
 from rdflib.graph import DATASET_DEFAULT_GRAPH_ID
 from rdflib.plugins.stores.sparqlstore import SPARQLUpdateStore
-
 from starlayer.graph import RDF, Namespace, StarLayerGraph
 from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 

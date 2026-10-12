@@ -23,13 +23,18 @@ from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 
 pyshacl = pytest.importorskip("pyshacl")
 
-from starlayer.shacl.native_components import ensure_shape_typed
-from starlayer.shacl.node_expressions import eval_expr
+from starlayer.shacl.native_components import ensure_shape_typed  # noqa: E402
+from starlayer.shacl.node_expressions import eval_expr  # noqa: E402
 
-from .ids import portable_id
-from .known_failures import KNOWN_FAILURES
-from .manifest import ManifestEntry, clone_graph, iter_manifest_entries, load_document
-from .namespaces import MF, SHNEX, SHT
+from .ids import portable_id  # noqa: E402
+from .known_failures import KNOWN_FAILURES  # noqa: E402
+from .manifest import (  # noqa: E402
+    ManifestEntry,
+    clone_graph,
+    iter_manifest_entries,
+    load_document,
+)
+from .namespaces import MF, SHNEX, SHT  # noqa: E402
 
 VENDOR_ROOT = Path(__file__).resolve().parents[1] / "vendor" / "shacl12-test-suite"
 TOP_MANIFEST = VENDOR_ROOT / "tests" / "manifest.ttl"

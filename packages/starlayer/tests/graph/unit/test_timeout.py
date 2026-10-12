@@ -19,9 +19,7 @@ import sys
 import time
 
 import pytest
-
 from starlayer.graph.graph._timeout import ReasoningTimeoutError, run_with_timeout
-from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 
 
 def _fast_worker(x, queue):

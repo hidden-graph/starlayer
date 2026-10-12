@@ -38,18 +38,18 @@ from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 
 pyshacl = pytest.importorskip("pyshacl")
 
-from starlayer.shacl import StarShaclSchema
+from starlayer.shacl import StarShaclSchema  # noqa: E402
 
-from .ids import portable_id
-from .known_failures import KNOWN_FAILURES
-from .manifest import (
+from .ids import portable_id  # noqa: E402
+from .known_failures import KNOWN_FAILURES  # noqa: E402
+from .manifest import (  # noqa: E402
     ManifestEntry,
     clone_graph,
     iter_manifest_entries,
     load_document,
     uri_to_path,
 )
-from .namespaces import MF, SHT
+from .namespaces import MF, SHT  # noqa: E402
 
 VENDOR_ROOT = Path(__file__).resolve().parents[1] / "vendor" / "shacl12-test-suite"
 TOP_MANIFEST = VENDOR_ROOT / "tests" / "manifest.ttl"

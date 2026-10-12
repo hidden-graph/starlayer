@@ -43,6 +43,7 @@ from rdflib import Literal as RDFTermLiteral
 from rdflib.namespace import RDF
 from rdflib.plugins.sparql.parser import (
     BLANK_NODE_LABEL,
+    NIL,
     A,
     BlankNode,
     BuiltInCall,
@@ -51,7 +52,6 @@ from rdflib.plugins.sparql.parser import (
     GraphNode,
     GraphNodePath,
     GraphTerm,
-    NIL,
     Path,
     PrimaryExpression,
     String,

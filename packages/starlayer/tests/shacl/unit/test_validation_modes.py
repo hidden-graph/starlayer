@@ -1,5 +1,9 @@
 import pytest
-from starlayer.shacl.validation_modes import available_modes, get_mode, resolve_mode_options
+from starlayer.shacl.validation_modes import (
+    available_modes,
+    get_mode,
+    resolve_mode_options,
+)
 
 
 def test_available_modes_contains_expected_defaults() -> None:

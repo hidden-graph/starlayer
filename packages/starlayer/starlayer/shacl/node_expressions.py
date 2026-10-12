@@ -166,7 +166,7 @@ def _defining_predicate(sg: Any, expr: BNode) -> URIRef:
     return matches[0]
 
 
-_custom_function_registry_cache: "weakref.WeakKeyDictionary[Any, dict[Any, Any]]" = weakref.WeakKeyDictionary()
+_custom_function_registry_cache: weakref.WeakKeyDictionary[Any, dict[Any, Any]] = weakref.WeakKeyDictionary()
 
 
 def _custom_function_registry(sg: Any) -> dict[Any, Any]:

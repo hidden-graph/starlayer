@@ -19,7 +19,7 @@ uniformly, so there's nothing new to write at that boundary.
 
 from __future__ import annotations
 
-from rdflib import BNode, Graph, Literal, URIRef, Variable
+from rdflib import Graph, Variable
 from rdflib.collection import Collection
 from rdflib.namespace import RDF
 from rdflib.plugins.sparql.algebra import translateQuery
@@ -44,7 +44,6 @@ from .vocab import (
     TRIPLE_PATTERN_SUBJECT,
     UNION,
     UNION_ALTERNATIVES,
-    VARIABLE_DATATYPE,
     WHERE,
 )
 

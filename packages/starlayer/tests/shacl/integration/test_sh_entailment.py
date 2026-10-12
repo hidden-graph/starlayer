@@ -15,7 +15,6 @@ to take effect - a real, not vacuous, exercise of this feature.
 import pytest
 from rdflib import Namespace
 from rdflib.namespace import RDF
-
 from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema

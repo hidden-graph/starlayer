@@ -35,6 +35,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from rdflib.plugins.sparql.sparql import Query
+
 from starlayer.sparql.lower_rdf11 import query_to_rdf11, rdf11_to_query
 from starlayer.sparql.parse12 import prepare_query_12
 

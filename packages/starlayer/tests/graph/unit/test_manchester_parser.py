@@ -10,9 +10,8 @@ these tests assert the same shapes directly, with no external dependency.
 """
 
 import pytest
-from rdflib import BNode, Literal, URIRef
+from rdflib import Literal, URIRef
 from rdflib.namespace import OWL, RDF, RDFS, XSD
-
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.graph.parsers.errors import ManchesterSyntaxError
 from starlayer.graph.parsers.manchester_parser import parse_manchester

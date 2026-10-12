@@ -26,6 +26,9 @@ from starlayer.graph.graph.starlayer_dataset import StarLayerDataset
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph, can_resolve_import
 from starlayer.graph.model.dirlangstring import DirLangString
 
+# StarLayer-specific additions
+from starlayer.graph.model.triple import TripleTerm
+
 # SPARQL 1.2-aware counterparts to rdflib.plugins.sparql's own
 # parseQuery/prepareQuery/parseUpdate/prepareUpdate/processUpdate - see
 # starlayer.graph/query/sparql_api.py's module docstring for what each one
@@ -37,9 +40,6 @@ from starlayer.graph.query import (
     prepareUpdate,
     processUpdate,
 )
-
-# StarLayer-specific additions
-from starlayer.graph.model.triple import TripleTerm
 
 # Compatibility shims for confirmed bugs in plain rdflib's own
 # _AlgebraTranslator/translateAlgebra (algebra-tree-to-SPARQL-text

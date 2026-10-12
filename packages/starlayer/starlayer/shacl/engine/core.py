@@ -7,7 +7,10 @@ from rdflib import BNode, Literal, Namespace
 from rdflib.namespace import RDF
 
 from starlayer.shacl.engine.contracts import ComponentRequest
-from starlayer.shacl.engine.normalization import normalize_graph_inputs, normalize_to_starlayer_graph
+from starlayer.shacl.engine.normalization import (
+    normalize_graph_inputs,
+    normalize_to_starlayer_graph,
+)
 from starlayer.shacl.types import is_triple_term_like
 
 SH = Namespace("http://www.w3.org/ns/shacl#")

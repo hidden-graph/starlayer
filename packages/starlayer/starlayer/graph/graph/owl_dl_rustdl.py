@@ -105,13 +105,14 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 
-from rdflib import RDF, RDFS, Literal, URIRef, Graph
+from rdflib import RDF, RDFS, Graph, Literal, URIRef
 from rdflib.namespace import OWL
 
 from starlayer.graph.graph import _timeout
-from starlayer.graph.graph.owl_dl import InconsistentOntologyError, _complete_type_closure
-from starlayer.graph.graph.entailment_regimes import ENTAILMENT
-
+from starlayer.graph.graph.owl_dl import (
+    InconsistentOntologyError,
+    _complete_type_closure,
+)
 
 # See this module's own docstring, point 4, for the full account of what
 # this detects and why. A single sh:sparql SELECT over the compiled OWL 2
@@ -282,7 +283,7 @@ def classify_owl_dl_rustdl(graph, timeout: float | None = _timeout.DEFAULT_TIMEO
         own docstring / `_timeout.py`'s module docstring for the full
         rationale, shared between both engines.
     """
-    rustdl = _require_rustdl()
+    _require_rustdl()
 
     from starlayer.graph.compare import _decompose
     before = _decompose(graph)

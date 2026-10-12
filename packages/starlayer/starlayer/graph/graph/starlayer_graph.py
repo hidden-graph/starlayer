@@ -14,15 +14,21 @@ triples that define the encoding are hidden from callers.
 
 from __future__ import annotations
 
-from typing import Any, Callable, Generator
+from collections.abc import Callable, Generator
+from typing import Any
 
 from rdflib import BNode, Graph, Literal, URIRef
 from rdflib.graph import DATASET_DEFAULT_GRAPH_ID, ReadOnlyGraphAggregate
 from rdflib.namespace import OWL, RDF
 from rdflib.paths import Path
 from rdflib.query import Result
-from rdflib.term import IdentifiedNode, Node
+from rdflib.term import IdentifiedNode
 
+# Pure-stdlib (multiprocessing/os/signal/time only) - safe to import
+# unconditionally, unlike owl_dl.py/owl_dl_rustdl.py themselves, which stay
+# lazily imported so owlready2/rustdl remain genuinely optional.
+from starlayer.graph.graph import _timeout as _owl_dl_timeout
+from starlayer.graph.graph.entailment_regimes import ENTAILMENT, SUPPORTED_REGIMES
 from starlayer.graph.model.dirlangstring import (
     DirLangString,
     decode_dirlangstring,
@@ -37,13 +43,6 @@ from starlayer.graph.model.encoding import (
     tt_hash,
 )
 from starlayer.graph.model.triple import TripleTerm
-
-from starlayer.graph.graph.entailment_regimes import ENTAILMENT, SUPPORTED_REGIMES
-
-# Pure-stdlib (multiprocessing/os/signal/time only) - safe to import
-# unconditionally, unlike owl_dl.py/owl_dl_rustdl.py themselves, which stay
-# lazily imported so owlready2/rustdl remain genuinely optional.
-from starlayer.graph.graph import _timeout as _owl_dl_timeout
 
 _OWL_DL_TIMEOUT_DEFAULT = _owl_dl_timeout.DEFAULT_TIMEOUT_SECONDS
 
@@ -364,13 +363,13 @@ class StarLayerGraph(Graph):
         # as a live union with self (or, when self is native-backed or has
         # triple terms, with a decomposed snapshot of self refreshed on the
         # same cadence - see that branch's own comment for why).
-        self._owl_rl_cache: "tuple[Graph, int] | None" = None
+        self._owl_rl_cache: tuple[Graph, int] | None = None
         # Only used on the "fallback" path above (native backend, or self
         # has triple terms) - a decomposed snapshot of self's own data,
         # refreshed together with _owl_rl_cache since unioning it with a
         # live view of self isn't representation-safe in that case (see
         # query()'s entailment=ENTAILMENT["OWL-RDF-Based"] branch).
-        self._owl_rl_snapshot_cache: "Graph | None" = None
+        self._owl_rl_snapshot_cache: Graph | None = None
         # query()'s entailment=ENTAILMENT["OWL-Direct"] counterpart to _owl_rl_cache/
         # _owl_rl_snapshot_cache above - same (delta, generation) shape and
         # same fast-path/fallback-path split, but keyed by engine ("hermit"/
@@ -382,8 +381,8 @@ class StarLayerGraph(Graph):
         # silently thrash a single cache slot every time - that's the exact
         # staleness bug this cache exists to prevent, just triggered by
         # engine choice instead of mutation.
-        self._owl_dl_cache: "dict[str, tuple[Graph, int]]" = {}
-        self._owl_dl_snapshot_cache: "dict[str, Graph]" = {}
+        self._owl_dl_cache: dict[str, tuple[Graph, int]] = {}
+        self._owl_dl_snapshot_cache: dict[str, Graph] = {}
 
     def _on_mutated(self) -> None:
         """Called from every place this graph's own triple content changes
@@ -1121,7 +1120,10 @@ class StarLayerGraph(Graph):
             # deskolemized before being handed to the caller, so the
             # round-trip is transparent - the caller only ever sees real
             # BNode objects, never the internal skolemized URI.
-            from starlayer.graph.backends.native import deskolemize_bnode, skolemize_bnode
+            from starlayer.graph.backends.native import (
+                deskolemize_bnode,
+                skolemize_bnode,
+            )
             if isinstance(s_n, BNode):
                 s_n = skolemize_bnode(s_n)
             if isinstance(o_n, BNode):
@@ -2183,7 +2185,10 @@ class StarLayerGraph(Graph):
             self._on_mutated()
             return None
         if isinstance(update_object, str):
-            from starlayer.sparql.lower_rdf11 import rdf11_update_to_sparql11_text, update_to_rdf11
+            from starlayer.sparql.lower_rdf11 import (
+                rdf11_update_to_sparql11_text,
+                update_to_rdf11,
+            )
             from starlayer.sparql.parse12 import prepare_update_12
             prepared_12 = prepare_update_12(update_object, base=kwargs.get('base'), initNs=initNs)
             rdf_graph, root = update_to_rdf11(prepared_12)

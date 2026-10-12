@@ -221,9 +221,10 @@ same document, same return contract as before.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 from rdflib import Graph, Namespace, URIRef
 
@@ -687,7 +688,9 @@ def get_conformance_profiles(url: str | None = None) -> StarLayerGraph:
     registered rdflib plugin, so it only ever worked on this registry's
     other 11 "real" graphs, never on this one).
     """
-    from starlayer.graph import StarLayerGraph  # lazy: avoids a circular-import deadlock, see _load()'s own comment
+    from starlayer.graph import (
+        StarLayerGraph,  # lazy: avoids a circular-import deadlock, see _load()'s own comment
+    )
 
     if url is not None:
         graph = StarLayerGraph()
@@ -773,7 +776,9 @@ def get_profile_graph(shapes_name: str, url: str | None = None) -> StarLayerGrap
     if shapes_name not in _SHACL_ENTRIES_WITH_PROFILE_MAPPING:
         return None
 
-    from starlayer.graph import StarLayerGraph  # lazy: avoids a circular-import deadlock, see _load()'s own comment
+    from starlayer.graph import (
+        StarLayerGraph,  # lazy: avoids a circular-import deadlock, see _load()'s own comment
+    )
 
     mapping = get_conformance_profiles(url)
     subject = _resource_iri(shapes_name)

@@ -32,8 +32,8 @@ from typing import Any
 from rdflib import XSD, Literal
 from rdflib.namespace import RDF
 
-from .semantic_checks import _unbound_projected_variables_for_node
 from ..vocab import SALG
+from .semantic_checks import _unbound_projected_variables_for_node
 
 _registered = False
 
@@ -110,7 +110,7 @@ def _build_no_unbound_projected_variables_component() -> Any:
             non_conformant = False
             if not self.enabled:
                 return True, reports
-            for focus_node, value_nodes in focus_value_nodes.items():
+            for focus_node, _value_nodes in focus_value_nodes.items():
                 if (focus_node, RDF.type, SALG.Project) not in target_graph:
                     continue
                 for issue in _unbound_projected_variables_for_node(focus_node, target_graph):

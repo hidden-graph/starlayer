@@ -14,11 +14,9 @@ Two directions get tested:
 import pytest
 from rdflib import RDF, BNode
 from rdflib.collection import Collection
-
 from starlayer import starontology
 from starlayer.starontology import manchester as ms
 from starlayer.starontology.manchester import MANCH, manchester_parse_to_tree
-
 from tests.graph.unit.test_manchester_ast import DOCUMENTS
 
 

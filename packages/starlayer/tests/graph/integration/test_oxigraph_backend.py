@@ -21,6 +21,7 @@ from rdflib.namespace import XSD
 from rdflib.plugins.stores.sparqlstore import SPARQLUpdateStore
 from starlayer.graph.graph import StarLayerDataset, StarLayerGraph
 from starlayer.graph.model.triple import TripleTerm
+from starlayer.graph.parsers.errors import MultipleGraphsError
 
 # See test_fuseki_backend.py's identical pytestmark for why this is here.
 pytestmark = pytest.mark.integration
@@ -592,23 +593,26 @@ class TestOxigraphNt12Parse:
 
 @oxigraph
 class TestOxigraphNq12Parse:
-    """parse(format='nq12') merges every named graph into this one graph
-    (per its own docstring) - confirmed here with a 2-distinct-graph
-    fixture that a live native backend accepts and merges without error,
-    same as the in-memory backend already does."""
+    """parse(format='nq12') raises MultipleGraphsError for input spanning
+    more than one distinct named graph - confirmed here with a
+    2-distinct-graph fixture against a live native backend, same as the
+    in-memory backend already does (test_rdf12_formats.py's
+    test_parse_raises_for_multiple_distinct_graphs). Stale until
+    2026-10-12: this test used to assert the pre-2026-10-04 behavior
+    (silently merging every named graph into this one graph), which was
+    deliberately replaced that day to avoid silently mixing unrelated
+    graphs with no way to tell - the in-memory suite was updated the same
+    day, this integration test (gated behind a live Oxigraph, easy to
+    skip in routine local runs) was not, until caught here."""
 
-    def test_multi_graph_data_merges_correctly(self, sg):
+    def test_multi_graph_data_raises(self, sg):
         nq = (
             f'<{EX}s> <{EX}p> <{EX}o> <{EX}graph1> .\n'
             f'<{EX}stmt1> <{RDF_NS}reifies> <<( <{EX}alice> <{EX}knows> <{EX}bob> )>> <{EX}graph1> .\n'
             f'<{EX}stmt2> <{RDF_NS}reifies> <<( <{EX}bob> <{EX}likes> <{EX}carol> )>> <{EX}graph2> .\n'
         )
-        sg.parse(data=nq, format='nq12')
-        assert (URIRef(EX+'s'), URIRef(EX+'p'), URIRef(EX+'o')) in sg
-        r1 = list(sg.triples((URIRef(EX+'stmt1'), RDF_REIF, None)))
-        r2 = list(sg.triples((URIRef(EX+'stmt2'), RDF_REIF, None)))
-        assert r1 and r1[0][2] == TripleTerm(URIRef(EX+'alice'), URIRef(EX+'knows'), URIRef(EX+'bob'))
-        assert r2 and r2[0][2] == TripleTerm(URIRef(EX+'bob'), URIRef(EX+'likes'), URIRef(EX+'carol'))
+        with pytest.raises(MultipleGraphsError):
+            sg.parse(data=nq, format='nq12')
 
 
 @oxigraph

@@ -57,10 +57,9 @@ import itertools
 from typing import Any
 
 from rdflib import RDF, RDFS, URIRef, Variable
-from rdflib.paths import MulPath, Path, SequencePath
+from rdflib.paths import MulPath, SequencePath
 from rdflib.plugins.sparql.algebra import traverse
 from rdflib.plugins.sparql.parserutils import CompValue
-from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 
 __all__ = ["rewrite_algebra_for_rdfs"]
 

@@ -29,7 +29,7 @@ Typical usage::
 from __future__ import annotations
 
 import weakref
-from typing import Generator
+from collections.abc import Generator
 
 from rdflib import BNode, Dataset, Graph, URIRef
 from rdflib.graph import DATASET_DEFAULT_GRAPH_ID
@@ -42,7 +42,11 @@ from starlayer.graph.graph.starlayer_graph import (
     _read_source_text,
 )
 from starlayer.graph.model.encoding import ENCODING_PREDS as _ENCODING_PREDS
-from starlayer.graph.model.encoding import TT_NS, lookup_tt_hash, restore_select_bindings
+from starlayer.graph.model.encoding import (
+    TT_NS,
+    lookup_tt_hash,
+    restore_select_bindings,
+)
 from starlayer.graph.model.triple import TripleTerm
 
 _raw_graph_add = Graph.add
@@ -833,7 +837,10 @@ class StarLayerDataset(Dataset):
         )
         if not is_remote_http_store:
             if isinstance(update_object, str):
-                from starlayer.sparql.lower_rdf11 import rdf11_to_update, update_to_rdf11
+                from starlayer.sparql.lower_rdf11 import (
+                    rdf11_to_update,
+                    update_to_rdf11,
+                )
                 from starlayer.sparql.parse12 import prepare_update_12
                 prepared_12 = prepare_update_12(update_object, base=kwargs.get('base'), initNs=initNs)
                 rdf_graph, root = update_to_rdf11(prepared_12)

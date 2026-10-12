@@ -36,7 +36,6 @@ from pathlib import Path
 from rdflib import RDF, RDFS, Graph
 
 from starlayer.graph.graph import _timeout
-from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 
 
 class InconsistentOntologyError(RuntimeError):
@@ -146,7 +145,7 @@ def classify_owl_dl(graph, timeout: float | None = _timeout.DEFAULT_TIMEOUT_SECO
         subprocess kill, not a cooperative cancellation, is the only
         mechanism that reliably works here.
     """
-    owlready2 = _require_owlready2()
+    _require_owlready2()
     _require_java()
 
     from starlayer.graph.compare import _decompose

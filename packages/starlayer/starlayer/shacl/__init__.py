@@ -11,7 +11,13 @@ from starlayer.shacl.results import (
 )
 from starlayer.shacl.subgraph_extraction import extract_subgraph
 from starlayer.shacl.types import MutableStarLayerGraphProtocol, StarLayerGraphProtocol
-from starlayer.shacl.validator import StarShaclSchema, apply_rules, evaluate, validate, validate_each
+from starlayer.shacl.validator import (
+    StarShaclSchema,
+    apply_rules,
+    evaluate,
+    validate,
+    validate_each,
+)
 
 # Every public processing-mode function and remaining result class is flat
 # here (2026-10-07 - reverses the 2026-10-06 "qualified submodule" decision

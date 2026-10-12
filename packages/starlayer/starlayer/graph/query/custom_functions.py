@@ -45,7 +45,12 @@ def _register_tt_hash_function() -> None:
     from rdflib.plugins.sparql.operators import register_custom_function
     from rdflib.plugins.sparql.sparql import SPARQLError
 
-    from starlayer.graph.model.encoding import TT_NS, remember_tt_hash, term_key, tt_hash
+    from starlayer.graph.model.encoding import (
+        TT_NS,
+        remember_tt_hash,
+        term_key,
+        tt_hash,
+    )
 
     def _tt_hash_fn(s, p, o):
         # RDF 1.2 (17.4.6, TRIPLE()): a triple term's subject must be an

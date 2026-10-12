@@ -11,7 +11,6 @@ docstring for exactly which two cases qualify and why the rest don't."""
 
 from rdflib import URIRef
 from rdflib.namespace import RDFS
-
 from starlayer import conformance
 
 DCTERMS = conformance.DCTERMS

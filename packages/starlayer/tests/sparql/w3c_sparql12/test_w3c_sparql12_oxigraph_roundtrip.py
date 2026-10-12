@@ -48,8 +48,11 @@ from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.sparql import query_to_rdf, rdf_to_query
 from starlayer.sparql.parse12 import prepare_query_12
 from starlayer.sparql.serialize12 import _translate_algebra_12
-
-from tests.sparql.w3c_sparql12.harness import bindings_match, load_index, skolemize_graph
+from tests.sparql.w3c_sparql12.harness import (
+    bindings_match,
+    load_index,
+    skolemize_graph,
+)
 
 pytestmark = pytest.mark.w3c_sparql12
 

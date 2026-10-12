@@ -18,19 +18,18 @@ than sharing markers across files.
 import shutil
 
 import pytest
-
 from starlayer.graph import RDF, Namespace, StarLayerGraph
-from starlayer.graph.graph.owl_dl import InconsistentOntologyError
 from starlayer.graph.graph.entailment_regimes import ENTAILMENT
+from starlayer.graph.graph.owl_dl import InconsistentOntologyError
 
 try:
-    import owlready2
+    import owlready2  # noqa: F401
     _OWLREADY2_AVAILABLE = True
 except ImportError:
     _OWLREADY2_AVAILABLE = False
 
 try:
-    import rustdl
+    import rustdl  # noqa: F401
     _RUSTDL_AVAILABLE = True
 except ImportError:
     _RUSTDL_AVAILABLE = False

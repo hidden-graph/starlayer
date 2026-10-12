@@ -19,7 +19,6 @@ from rdflib.plugins.sparql.evaluate import evalQuery
 from rdflib.plugins.sparql.processor import prepareQuery
 from starlayer.sparql import queries_to_collection, rdf_to_collection
 from starlayer.sparql.vocab import QUERY_COLLECTION
-
 from tests.sparql.unit.test_roundtrip import QUERIES, _canon
 
 

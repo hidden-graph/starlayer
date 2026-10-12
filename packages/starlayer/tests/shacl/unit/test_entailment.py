@@ -8,11 +8,9 @@ combine into one pass) and its documented v1 scope limitation
 (ont_graph-only axioms aren't seen).
 """
 
+import pytest
 from rdflib import Namespace
 from rdflib.namespace import RDF, RDFS
-
-import pytest
-
 from starlayer.graph import ENTAILMENT, StarLayerGraph
 from starlayer.shacl.entailment import apply_entailment, declared_entailment_regimes
 

@@ -98,7 +98,7 @@ from starlayer.graph.model.encoding import encode_dirlang_datatype
 from starlayer.graph.model.triple import TripleTerm
 
 if TYPE_CHECKING:
-    from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+    pass
 
 __all__ = ["isomorphic", "graph_diff", "to_isomorphic", "to_canonical_hash"]
 

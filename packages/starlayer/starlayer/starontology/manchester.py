@@ -235,7 +235,10 @@ _data_facets_inv: dict | None = None
 def _inverse_characteristic_maps():
     global _characteristics_inv, _data_facets_inv
     if _characteristics_inv is None:
-        from starlayer.graph.parsers.manchester_parser import _CHARACTERISTICS, _DATA_FACETS
+        from starlayer.graph.parsers.manchester_parser import (
+            _CHARACTERISTICS,
+            _DATA_FACETS,
+        )
         _characteristics_inv = {v: k for k, v in _CHARACTERISTICS.items()}
         _data_facets_inv = {v: k for k, v in _DATA_FACETS.items()}
     return _characteristics_inv, _data_facets_inv

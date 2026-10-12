@@ -60,8 +60,8 @@ import multiprocessing
 import os
 import signal
 import time
-from typing import Any, Callable
-from starlayer.graph.graph.entailment_regimes import ENTAILMENT
+from collections.abc import Callable
+from typing import Any
 
 DEFAULT_TIMEOUT_SECONDS = 120.0
 

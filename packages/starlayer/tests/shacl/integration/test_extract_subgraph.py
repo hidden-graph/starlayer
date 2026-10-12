@@ -412,7 +412,6 @@ class TestNoShapesGraphFallsBackToDataGraph:
 
     def test_bare_extract_subgraph_function_same_fallback(self) -> None:
         from rdflib import Namespace
-
         from starlayer.shacl import extract_subgraph
 
         EX = Namespace("http://example.org/")

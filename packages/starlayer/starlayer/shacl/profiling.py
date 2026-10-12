@@ -96,7 +96,9 @@ def declared_conformance_profile() -> StarLayerGraph:
     deliberately the point" convention (see ``starontology``'s own
     identical fix the same day, and ``derive_conforms_to()``'s below).
     """
-    from starlayer.graph import StarLayerGraph  # lazy: avoids a circular-import deadlock
+    from starlayer.graph import (
+        StarLayerGraph,  # lazy: avoids a circular-import deadlock
+    )
 
     graph = StarLayerGraph()
     graph.parse(_CONFORMANCE_PROFILE_PATH, format="turtle")
@@ -240,7 +242,9 @@ def derive_conforms_to(
     if specification_graph is not None:
         scratch += specification_graph
 
-    from starlayer.graph import StarLayerGraph  # lazy: avoids a circular-import deadlock
+    from starlayer.graph import (
+        StarLayerGraph,  # lazy: avoids a circular-import deadlock
+    )
 
     new_triples = StarLayerGraph()
     # The data-graph-resource -> report link itself is "genuinely new

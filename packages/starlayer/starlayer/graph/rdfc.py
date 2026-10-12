@@ -50,8 +50,9 @@ from __future__ import annotations
 
 import hashlib
 import itertools
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any
 
 from rdflib import BNode, Literal, URIRef
 from rdflib.namespace import XSD
@@ -82,12 +83,12 @@ class CanonicalizationComplexityError(RuntimeError):
     hangs indefinitely rather than raising anything."""
 
 
-_Quad = Tuple[Any, Any, Any, Any]  # (subject, predicate, object, graph-name-or-None)
+_Quad = tuple[Any, Any, Any, Any]  # (subject, predicate, object, graph-name-or-None)
 
 # The spec requires supporting at least these two ("Implementations MUST
 # support SHA-256 and SHA-384"); anything else hashlib recognizes works too
 # via the same name, passed straight through.
-_HASH_CTORS: Dict[str, Callable[[], Any]] = {
+_HASH_CTORS: dict[str, Callable[[], Any]] = {
     "sha256": hashlib.sha256,
     "sha384": hashlib.sha384,
 }
@@ -104,7 +105,7 @@ def _hash_func_for(hash_algorithm: str) -> Callable[[str], str]:
     return _hash
 
 
-def _normalize_input(graph: Any) -> List[_Quad]:
+def _normalize_input(graph: Any) -> list[_Quad]:
     """Return every quad in ``graph`` as an ``(s, p, o, g)`` 4-tuple, ``g``
     being ``None`` for the default graph. A real quad-store
     (``rdflib.Dataset``/``ConjunctiveGraph``, detected via ``.quads()``) is
@@ -135,9 +136,9 @@ class IdentifierIssuer:
         self.counter = 0
         # dict preserves insertion order - relied on by 4.4.3 step 5.3's
         # "in the same order" requirement.
-        self.issued: Dict[str, str] = {}
+        self.issued: dict[str, str] = {}
 
-    def get(self, existing_identifier: str) -> Optional[str]:
+    def get(self, existing_identifier: str) -> str | None:
         """Read-only lookup - never mints. Distinct from ``issue()``; several
         algorithm steps explicitly require checking "has an identifier been
         issued" without issuing one as a side effect (4.7.3 step 3, 4.8.3
@@ -153,7 +154,7 @@ class IdentifierIssuer:
         self.counter += 1
         return issued_identifier
 
-    def copy(self) -> "IdentifierIssuer":
+    def copy(self) -> IdentifierIssuer:
         new = IdentifierIssuer(self.prefix)
         new.counter = self.counter
         new.issued = dict(self.issued)
@@ -162,7 +163,7 @@ class IdentifierIssuer:
 
 @dataclass
 class _CanonState:
-    bnode_to_quads: Dict[str, List[_Quad]] = field(default_factory=dict)
+    bnode_to_quads: dict[str, list[_Quad]] = field(default_factory=dict)
     canonical_issuer: IdentifierIssuer = field(default_factory=IdentifierIssuer)
     hash_func: Callable[[str], str] = field(default_factory=lambda: _hash_func_for("sha256"))
     permutation_budget: int = _DEFAULT_PERMUTATION_BUDGET
@@ -219,7 +220,7 @@ def _quad_line(s: Any, p: Any, o: Any, g: Any, component) -> str:
 
 def _hash_first_degree_quads(state: _CanonState, reference_id: str) -> str:
     """4.6.3 Algorithm."""
-    nquads: List[str] = []
+    nquads: list[str] = []
     for s, p, o, g in state.bnode_to_quads[reference_id]:
 
         def component(t: Any) -> str:
@@ -251,9 +252,9 @@ def _hash_related_blank_node(
 
 def _hash_n_degree_quads(
     state: _CanonState, identifier: str, path_identifier_issuer: IdentifierIssuer
-) -> Tuple[IdentifierIssuer, str]:
+) -> tuple[IdentifierIssuer, str]:
     """4.8.3 Algorithm. Returns (issuer, hash)."""
-    Hn: Dict[str, List[str]] = {}
+    Hn: dict[str, list[str]] = {}
     for quad in state.bnode_to_quads[identifier]:
         s, _p, o, g = quad
         for component, position in ((s, "s"), (o, "o"), (g, "g")):
@@ -262,12 +263,12 @@ def _hash_n_degree_quads(
                 h = _hash_related_blank_node(state, related_id, quad, path_identifier_issuer, position)
                 Hn.setdefault(h, []).append(related_id)
 
-    data_to_hash: List[str] = []
+    data_to_hash: list[str] = []
     issuer = path_identifier_issuer
     for related_hash in sorted(Hn):
         data_to_hash.append(related_hash)
-        chosen_path: Optional[str] = None
-        chosen_issuer: Optional[IdentifierIssuer] = None
+        chosen_path: str | None = None
+        chosen_issuer: IdentifierIssuer | None = None
 
         for perm in itertools.permutations(Hn[related_hash]):
             state.permutation_budget -= 1
@@ -280,7 +281,7 @@ def _hash_n_degree_quads(
                 )
             issuer_copy = issuer.copy()
             path = ""
-            recursion_list: List[str] = []
+            recursion_list: list[str] = []
             skip = False
 
             for related in perm:
@@ -333,7 +334,7 @@ def _canonicalize(
                 state.bnode_to_quads.setdefault(str(component), []).append((s, p, o, g))
 
     # Step 3: first-degree hashes.
-    hash_to_bnodes: Dict[str, List[str]] = {}
+    hash_to_bnodes: dict[str, list[str]] = {}
     for n in state.bnode_to_quads:
         h = _hash_first_degree_quads(state, n)
         hash_to_bnodes.setdefault(h, []).append(n)
@@ -352,7 +353,7 @@ def _canonicalize(
     # Step 5: shared hashes, resolved via Hash N-Degree Quads.
     for h in sorted(hash_to_bnodes):
         identifier_list = hash_to_bnodes[h]
-        hash_path_list: List[Tuple[str, IdentifierIssuer]] = []
+        hash_path_list: list[tuple[str, IdentifierIssuer]] = []
         for n in identifier_list:
             if state.canonical_issuer.get(n) is not None:
                 continue

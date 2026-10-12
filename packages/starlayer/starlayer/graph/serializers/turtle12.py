@@ -415,7 +415,7 @@ def serialize_turtle12(graph) -> str:
     # subject blocks.  Suppressed reifier nodes are never candidates.
     obj_bn_count: dict = defaultdict(int)
     for subj_preds in by_subj.values():
-        for p, objs in subj_preds.items():
+        for _p, objs in subj_preds.items():
             for o in objs:
                 if isinstance(o, BNode):
                     obj_bn_count[o] += 1

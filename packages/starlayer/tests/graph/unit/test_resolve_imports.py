@@ -14,11 +14,9 @@ itself doesn't dictate how an IRI becomes a graph, only how to use the
 result once a loader hands one back.
 """
 
-from rdflib import RDF, RDFS, Literal
-from rdflib.namespace import OWL
-
 import pytest
-
+from rdflib import RDF, RDFS
+from rdflib.namespace import OWL
 from starlayer.graph import Namespace, StarLayerGraph, can_resolve_import
 
 EX = Namespace("http://example.org/")

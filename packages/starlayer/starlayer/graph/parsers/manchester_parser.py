@@ -744,7 +744,10 @@ def _parse_comma_list(cur, parse_item):
 
 
 def _pairwise_chain(cur, nodes, pred):
-    for a, b in zip(nodes, nodes[1:]):
+    # nodes/nodes[1:] are deliberately always length-1 apart (the sliding-
+    # window pairwise idiom) - strict=True would always raise here, not
+    # catch a real mismatch.
+    for a, b in zip(nodes, nodes[1:]):  # noqa: B905
         cur.triples.append((a, pred, b))
 
 

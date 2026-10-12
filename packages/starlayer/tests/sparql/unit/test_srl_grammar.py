@@ -12,7 +12,6 @@ spec's stated output" assertion.
 
 import pytest
 from rdflib import RDF, BNode, Literal, URIRef, Variable
-
 from starlayer.sparql._srl_ast import (
     _AssignmentElement as AssignmentElement,
 )

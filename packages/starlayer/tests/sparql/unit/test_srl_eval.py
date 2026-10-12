@@ -10,15 +10,14 @@ independent reference implementation.
 """
 
 import pytest
-from rdflib import RDF, BNode, Graph, Literal, URIRef, Variable
-
+from rdflib import RDF, BNode, Graph, URIRef, Variable
+from starlayer.sparql.srl import parse_ruleset
 from starlayer.sparql.srl_eval import (
-    StratificationError,
     SRLImportsNotSupportedError,
+    StratificationError,
     _build_dependency_graph,
     _stratify,
 )
-from starlayer.sparql.srl import parse_ruleset
 
 EX = "http://example.org/"
 

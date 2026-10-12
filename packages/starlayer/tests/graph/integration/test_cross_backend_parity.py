@@ -452,5 +452,8 @@ def test_fuseki_wrongly_accepts_triple_term_as_subject_of_nested_reifier_shortha
 
 @oxigraph
 def test_oxigraph_rejects_triple_term_as_subject_of_nested_reifier_shorthand():
-    with pytest.raises(Exception):
+    # Deliberately broad: the exact exception type is whatever the HTTP
+    # client wraps a live Oxigraph rejection in, not something this test
+    # should pin to one specific class.
+    with pytest.raises(Exception):  # noqa: B017
         _oxigraph_graph().update(_ILLEGAL_NESTED_SUBJECT_UPDATE)

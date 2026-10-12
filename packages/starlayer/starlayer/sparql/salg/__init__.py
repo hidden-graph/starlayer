@@ -13,8 +13,8 @@
 # to_rdf._new_starlayer_graph, vocab.py's dirlang-encoding helpers), not
 # salg:-exclusive - moving those files here would mean three unrelated
 # vocabularies importing from a package named after a fourth one.
-from .sparql_ontology import ontology_graph
 from .semantic_checks import UnboundProjectedVariable, find_unbound_projected_variables
+from .sparql_ontology import ontology_graph
 
 __all__ = [
     "ontology_graph",

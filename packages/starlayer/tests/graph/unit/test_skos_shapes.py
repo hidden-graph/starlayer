@@ -15,11 +15,9 @@ above).
 """
 
 import owlrl
-import pytest
 from rdflib import RDF, BNode, Graph, Literal, Namespace
 from rdflib.collection import Collection
 from rdflib.namespace import SKOS
-
 from starlayer import starontology
 from starlayer.starontology import skos as ss
 

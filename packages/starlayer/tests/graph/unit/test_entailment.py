@@ -37,10 +37,8 @@ entailment produce over this data", without needing a live owlrl call in
 every test.
 """
 
-from rdflib import RDFS
-
 import pytest
-
+from rdflib import RDFS
 from starlayer.graph import RDF, Namespace, StarLayerGraph
 from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 
@@ -367,7 +365,6 @@ class TestEntailmentOwlRlUnionDesign:
         # branch (a decomposed snapshot of self unioned with delta, both in
         # the same encoding) rather than the "fast" live-store-view branch -
         # results should still be correct either way.
-        from rdflib import RDFS
 
         from starlayer.graph import TripleTerm
 

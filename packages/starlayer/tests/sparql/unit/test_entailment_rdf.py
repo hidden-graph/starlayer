@@ -17,7 +17,6 @@ closure isn't actually a clean oracle for this one isolated rule.
 
 from rdflib import RDF, Graph, Namespace
 from rdflib.plugins.sparql import prepareQuery
-
 from starlayer.sparql.entailment_rdf import rewrite_algebra_for_rdf
 
 EX = Namespace("http://example.org/")

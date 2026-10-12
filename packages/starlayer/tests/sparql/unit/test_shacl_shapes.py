@@ -15,15 +15,19 @@ import pytest
 from rdflib import RDF, BNode, Literal, URIRef
 from rdflib.plugins.sparql.processor import prepareQuery, prepareUpdate
 from starlayer.sparql import queries_to_collection, query_to_rdf, update_to_rdf
-from starlayer.sparql.salg import shapes_graph, validate_query
 from starlayer.sparql.parse12 import prepare_query_12
+from starlayer.sparql.salg import shapes_graph, validate_query
 from starlayer.sparql.vocab import SALG, SPEXPR
-
 from tests.sparql.unit.test_phase2_aggregates import QUERIES as AGGREGATE_QUERIES
 from tests.sparql.unit.test_phase2_forms import QUERIES as FORMS_QUERIES
 from tests.sparql.unit.test_phase2_paths import QUERIES as PATH_QUERIES
-from tests.sparql.unit.test_phase2_update import MULTI_GRAPH_UPDATES, SINGLE_GRAPH_UPDATES
-from tests.sparql.unit.test_phase2_values_subquery import QUERIES as VALUES_SUBQUERY_QUERIES
+from tests.sparql.unit.test_phase2_update import (
+    MULTI_GRAPH_UPDATES,
+    SINGLE_GRAPH_UPDATES,
+)
+from tests.sparql.unit.test_phase2_values_subquery import (
+    QUERIES as VALUES_SUBQUERY_QUERIES,
+)
 from tests.sparql.unit.test_phase6_rdf12_native import QUERIES as RDF12_QUERIES
 from tests.sparql.unit.test_roundtrip import QUERIES
 

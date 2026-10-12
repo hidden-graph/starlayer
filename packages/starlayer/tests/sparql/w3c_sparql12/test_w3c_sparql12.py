@@ -45,7 +45,6 @@ from starlayer.graph.graph.starlayer_dataset import StarLayerDataset
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.sparql import query_to_rdf, rdf_to_query
 from starlayer.sparql.parse12 import prepare_query_12, prepare_update_12
-
 from tests.sparql.w3c_sparql12.harness import (
     bindings_match,
     load_index,

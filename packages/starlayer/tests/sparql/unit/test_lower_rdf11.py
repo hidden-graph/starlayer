@@ -52,7 +52,12 @@ from starlayer.sparql.lower_rdf11 import (
     update_to_rdf11,
 )
 from starlayer.sparql.parse12 import prepare_query_12, prepare_update_12
-from tests.sparql.w3c_sparql12.harness import bindings_match, load_index, parse_srj, skolemize_graph
+from tests.sparql.w3c_sparql12.harness import (
+    bindings_match,
+    load_index,
+    parse_srj,
+    skolemize_graph,
+)
 
 pytestmark = pytest.mark.w3c_sparql12
 

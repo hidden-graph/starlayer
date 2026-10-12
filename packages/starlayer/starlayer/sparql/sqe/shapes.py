@@ -41,7 +41,9 @@ def _ontology_graph() -> Graph:
     with ``salg:``'s - needed for the same ``sh:node salg:ExpressionShape``
     etc. RDFS-subclass entailment ``salg:``'s own ``validate_query()``
     already depends on (see that function's docstring)."""
-    from starlayer.sparql.salg.sparql_ontology import ontology_graph as salg_ontology_graph
+    from starlayer.sparql.salg.sparql_ontology import (
+        ontology_graph as salg_ontology_graph,
+    )
 
     g = salg_ontology_graph()
     g += starontology.get_ontology_graph("sqe_owl")
@@ -58,8 +60,9 @@ def sqe_validate(data_graph: Graph) -> tuple[bool, Graph, str]:
     genuine RDF 1.2 content (a triple-term-valued term, via the ``salg:``
     fallback boundary) that only ``starlayer.shacl`` understands correctly.
     """
-    import starlayer.shacl  # lazy: avoids a circular-import deadlock at module load time
     from pyshacl.errors import ShapeRecursionWarning
+
+    import starlayer.shacl  # lazy: avoids a circular-import deadlock at module load time
     from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 
     with warnings.catch_warnings():

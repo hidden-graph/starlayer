@@ -984,25 +984,25 @@ class TestRDFXML12SpecInterop:
 class TestN3AliasGraph:
     def test_parse_plain_triples(self):
         g = StarLayerGraph()
-        g.parse(data='@prefix ex: <%s> . ex:s ex:p ex:o .' % EX, format='n3')
+        g.parse(data=f'@prefix ex: <{EX}> . ex:s ex:p ex:o .', format='n3')
         assert (ex('s'), ex('p'), ex('o')) in g
 
     def test_parse_n3_dash_12_alias(self):
         g = StarLayerGraph()
-        g.parse(data='@prefix ex: <%s> . ex:s ex:p ex:o .' % EX, format='n3-12')
+        g.parse(data=f'@prefix ex: <{EX}> . ex:s ex:p ex:o .', format='n3-12')
         assert (ex('s'), ex('p'), ex('o')) in g
 
     def test_parse_text_n3_mimetype_alias(self):
         g = StarLayerGraph()
-        g.parse(data='@prefix ex: <%s> . ex:s ex:p ex:o .' % EX, format='text/n3')
+        g.parse(data=f'@prefix ex: <{EX}> . ex:s ex:p ex:o .', format='text/n3')
         assert (ex('s'), ex('p'), ex('o')) in g
 
     def test_parse_triple_term_content(self):
         g = StarLayerGraph()
         g.parse(
             data=(
-                '@prefix ex: <%s> . @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> . '
-                'ex:claim rdf:reifies <<( ex:bob ex:knows ex:carol )>> .' % EX
+                f'@prefix ex: <{EX}> . @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> . '
+                'ex:claim rdf:reifies <<( ex:bob ex:knows ex:carol )>> .'
             ),
             format='n3',
         )
@@ -1011,8 +1011,8 @@ class TestN3AliasGraph:
     def test_parse_real_n3_rule_fails(self):
         from starlayer.graph.parsers.errors import Turtle12SyntaxError
         n3_rule = (
-            '@prefix ex: <%s> . '
-            '{ ?x ex:parent ?y . ?y ex:parent ?z } => { ?x ex:grandparent ?z } .' % EX
+            f'@prefix ex: <{EX}> . '
+            '{ ?x ex:parent ?y . ?y ex:parent ?z } => { ?x ex:grandparent ?z } .'
         )
         g = StarLayerGraph()
         with pytest.raises(Turtle12SyntaxError):
@@ -1046,7 +1046,7 @@ class TestN3AliasDataset:
     def test_parse_lands_in_default_graph(self):
         from starlayer.graph.graph import StarLayerDataset
         ds = StarLayerDataset()
-        ds.parse(data='@prefix ex: <%s> . ex:s ex:p ex:o .' % EX, format='n3')
+        ds.parse(data=f'@prefix ex: <{EX}> . ex:s ex:p ex:o .', format='n3')
         assert (ex('s'), ex('p'), ex('o')) in ds.default_graph
 
     def test_parse_triple_term_content(self):
@@ -1054,8 +1054,8 @@ class TestN3AliasDataset:
         ds = StarLayerDataset()
         ds.parse(
             data=(
-                '@prefix ex: <%s> . @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> . '
-                'ex:claim rdf:reifies <<( ex:bob ex:knows ex:carol )>> .' % EX
+                f'@prefix ex: <{EX}> . @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> . '
+                'ex:claim rdf:reifies <<( ex:bob ex:knows ex:carol )>> .'
             ),
             format='n3',
         )
@@ -1071,8 +1071,8 @@ class TestN3AliasDataset:
     def test_round_trip(self):
         from starlayer.graph.graph import StarLayerDataset
         n3_text = (
-            '@prefix ex: <%s> . @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> . '
-            'ex:claim rdf:reifies <<( ex:bob ex:knows ex:carol )>> .' % EX
+            f'@prefix ex: <{EX}> . @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> . '
+            'ex:claim rdf:reifies <<( ex:bob ex:knows ex:carol )>> .'
         )
         ds = StarLayerDataset()
         ds.parse(data=n3_text, format='n3')

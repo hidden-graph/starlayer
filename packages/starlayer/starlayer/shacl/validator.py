@@ -32,13 +32,13 @@ from starlayer.shacl.native_components import (
     register_native_components,
     shape_reference_nodes,
 )
-from starlayer.shacl.validation_modes import ValidationMode, resolve_mode_options
 from starlayer.shacl.results import (
     ExecutionDiagnostics,
     RulesResult,
     ValidationResult,
 )
 from starlayer.shacl.types import ensure_graph_mutable
+from starlayer.shacl.validation_modes import ValidationMode, resolve_mode_options
 
 SH = Namespace("http://www.w3.org/ns/shacl#")
 SHNEX = Namespace("http://www.w3.org/ns/shacl-node-expr#")
@@ -502,7 +502,9 @@ class StarShaclSchema:
             for p in shacl_graph.predicates()
             if str(p).startswith(str(SHNEX)) or str(p).startswith(str(SPARQL_EXPR_NS))
         ):
-            from starlayer.shacl.node_expressions import patch_node_expressions_for_shnex
+            from starlayer.shacl.node_expressions import (
+                patch_node_expressions_for_shnex,
+            )
 
             if not patch_node_expressions_for_shnex():
                 raise NotImplementedError(
@@ -1743,7 +1745,9 @@ class StarShaclSchema:
         ``shapes_graph_resource=`` (2026-10-09) - see
         :meth:`_resolve_shacl_graph`.
         """
-        from starlayer.shacl.subgraph_extraction import extract_subgraph as _extract_subgraph
+        from starlayer.shacl.subgraph_extraction import (
+            extract_subgraph as _extract_subgraph,
+        )
 
         data_graph = self._resolve_data_graph(data_graph)
         shacl_graph_input = self._resolve_shacl_graph(shapes_graph_resource)
@@ -3414,7 +3418,6 @@ def apply_rules(
     #    wasteful and risks double-applying a non-idempotent rule), and
     #    use *this* call's conformance result instead - so conforms/
     #    report_graph genuinely cover the complete evaluation graph.
-    from starlayer.shacl.entailment import apply_entailment
 
     _apply_and_track(
         lambda: apply_entailment(out_data, normalized_shapes, ont_graph, inplace=True, inference=inference_option)

@@ -19,8 +19,7 @@ docstring for why those specific reconstructions aren't attempted.
 
 import pytest
 from rdflib import Graph, Literal, URIRef
-from rdflib.namespace import OWL, RDF, RDFS, XSD
-
+from rdflib.namespace import OWL, RDF, RDFS
 from starlayer.graph.compare import isomorphic
 from starlayer.graph.parsers.manchester_parser import parse_manchester
 from starlayer.graph.serializers.manchester import serialize_manchester

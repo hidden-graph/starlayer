@@ -25,10 +25,14 @@ import pytest
 from rdflib import Dataset, Graph, URIRef
 from rdflib.plugins.sparql.evaluate import evalQuery
 from rdflib.plugins.sparql.processor import prepareQuery
-from rdflib.plugins.sparql.sparql import Query
 from rdflib.plugins.sparql.update import evalUpdate
-
-from starlayer.sparql import prepare_update_12, query_to_rdf, rdf_to_query, rdf_to_update, update_to_rdf
+from starlayer.sparql import (
+    prepare_update_12,
+    query_to_rdf,
+    rdf_to_query,
+    rdf_to_update,
+    update_to_rdf,
+)
 
 PREFIXES = "PREFIX : <http://example.org/>\nPREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n"
 

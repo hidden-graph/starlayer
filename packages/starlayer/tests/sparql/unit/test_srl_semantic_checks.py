@@ -11,7 +11,6 @@ the same way a real caller would hit it.
 
 import pytest
 from rdflib import Variable
-
 from starlayer.sparql.srl import SRLParseError, parse_ruleset
 
 PREFIX = "PREFIX : <http://example.org/>\n"

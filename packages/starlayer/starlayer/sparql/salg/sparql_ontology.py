@@ -86,8 +86,9 @@ running reasoning against `validate()`, not by inspection.**
 
 from __future__ import annotations
 
-from starlayer import starontology
 from rdflib import Graph
+
+from starlayer import starontology
 
 from .expr_families import _EXPR_NODE_FAMILY
 

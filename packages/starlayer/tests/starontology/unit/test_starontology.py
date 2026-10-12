@@ -368,11 +368,11 @@ class TestGetResourceIri:
         derive_conforms_to() with get_profile_graph() as
         specification_graph= - confirms the second rule actually fires,
         not just that the two pieces exist independently."""
+        from rdflib import URIRef
+        from rdflib.namespace import DCTERMS
         from starlayer.graph import StarLayerGraph
         from starlayer.shacl import StarShaclSchema
         from starlayer.shacl.shacl_profiling import derive_conforms_to
-        from rdflib.namespace import DCTERMS
-        from rdflib import URIRef
 
         data = StarLayerGraph()
         data.parse(
@@ -448,7 +448,8 @@ class TestLocalLoader:
     def test_sqe_shacl_alone_is_missing_spexpr_expression_shape(self):
         """Confirms the real gap this whole mechanism exists to close -
         not just that the pieces exist independently."""
-        from rdflib import Namespace as RdfNamespace, RDF
+        from rdflib import RDF
+        from rdflib import Namespace as RdfNamespace
         SH = RdfNamespace("http://www.w3.org/ns/shacl#")
         SPEXPR = RdfNamespace("https://github.com/hidden-graph/starlayer/ns/sparql/expr#")
 
@@ -456,7 +457,8 @@ class TestLocalLoader:
         assert (SPEXPR.ExpressionShape, RDF.type, SH.NodeShape) not in sqe_alone
 
     def test_resolve_imports_with_local_loader_closes_the_gap(self):
-        from rdflib import Namespace as RdfNamespace, RDF
+        from rdflib import RDF
+        from rdflib import Namespace as RdfNamespace
         SH = RdfNamespace("http://www.w3.org/ns/shacl#")
         SPEXPR = RdfNamespace("https://github.com/hidden-graph/starlayer/ns/sparql/expr#")
 
@@ -467,7 +469,8 @@ class TestLocalLoader:
         assert len(merged) > len(sqe_alone)
 
     def test_srl_shacl_also_resolves_its_spexpr_import(self):
-        from rdflib import Namespace as RdfNamespace, RDF
+        from rdflib import RDF
+        from rdflib import Namespace as RdfNamespace
         SH = RdfNamespace("http://www.w3.org/ns/shacl#")
         SPEXPR = RdfNamespace("https://github.com/hidden-graph/starlayer/ns/sparql/expr#")
 

@@ -29,7 +29,9 @@ import pytest
 from rdflib import Graph
 from starlayer.graph.compare import isomorphic
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.graph.query.sparql_api import prepareQuery as starlayergraph_prepare_query
+from starlayer.graph.query.sparql_api import (
+    prepareQuery as starlayergraph_prepare_query,
+)
 from starlayer.graph.query.sparql_api import (
     prepareUpdate as starlayergraph_prepare_update,
 )

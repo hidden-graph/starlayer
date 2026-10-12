@@ -73,7 +73,7 @@ def test_every_property_contract_entry_still_exists_and_is_a_property() -> None:
     the one thing worth confirming on every run is simpler: the attribute
     still exists and is still a real ``property`` (rdflib could in theory
     turn one into a plain method, or remove it, in a future version)."""
-    for (owner, name), contract in INHERITED_PROPERTY_CONTRACTS.items():
+    for (owner, name), _contract in INHERITED_PROPERTY_CONTRACTS.items():
         cls = _OWNERS[owner]
         attr = cls.__dict__.get(name) or getattr(cls, name)
         assert isinstance(attr, property), f"{owner}.{name} is no longer a property"

@@ -18,11 +18,15 @@ shape (``test_decoded_document_is_a_plain_namedtuple_tree``).
 """
 
 import pytest
-
 from starlayer.graph.compare import isomorphic
-from starlayer.starontology.manchester import manchester_parse_to_tree, manchester_tree_to_owl, manchester_tree_to_text
-from starlayer.starontology.manchester import _find_root, _tree_to_document
 from starlayer.graph.parsers.manchester_parser import parse_manchester
+from starlayer.starontology.manchester import (
+    _find_root,
+    _tree_to_document,
+    manchester_parse_to_tree,
+    manchester_tree_to_owl,
+    manchester_tree_to_text,
+)
 
 HEADER = (
     'Prefix: : <http://example.org/>\n'

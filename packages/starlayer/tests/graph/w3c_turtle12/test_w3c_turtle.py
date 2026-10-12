@@ -25,11 +25,10 @@ import pytest
 from rdflib import BNode, Graph, Literal, URIRef
 from rdflib.compare import isomorphic
 from rdflib.namespace import RDF
-
-RDF_REIFIES = URIRef('http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies')
-
 from starlayer.graph.parsers.lexer import next_token
 from starlayer.graph.parsers.turtle_parser import SL_NS
+
+RDF_REIFIES = URIRef('http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies')
 
 W3C_DIR  = pathlib.Path(__file__).parent / 'data'
 MANIFEST = W3C_DIR / 'manifest.csv'

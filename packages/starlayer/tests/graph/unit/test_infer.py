@@ -12,11 +12,9 @@ entailment of its own to compare against.
 Requires the `reasoning` extra: pip install -e ".[reasoning]"
 """
 
+import pytest
 from rdflib import RDFS, Graph, URIRef
 from rdflib.namespace import OWL
-
-import pytest
-
 from starlayer.graph import RDF, Namespace, StarLayerGraph, TripleTerm
 from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 

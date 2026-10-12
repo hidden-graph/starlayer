@@ -27,8 +27,11 @@ that running the full suite surfaced as needing dedicated coverage.
 
 import pytest
 from rdflib import Dataset, Graph
-
-from starlayer.graph.rdfc import CanonicalizationComplexityError, rdfc10_hash, to_canonical_nquads
+from starlayer.graph.rdfc import (
+    CanonicalizationComplexityError,
+    rdfc10_hash,
+    to_canonical_nquads,
+)
 
 _PREFIX = "@prefix : <http://example.com/#> .\n"
 

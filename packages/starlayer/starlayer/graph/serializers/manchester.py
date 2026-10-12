@@ -143,7 +143,7 @@ class _Ctx:
         self.object_props, self.data_props, self.ann_props = set(), set(), set()
         self.entities = defaultdict(set)  # frame keyword -> {subject, ...}
         self.ontology = None
-        for s, p, o in graph.triples((None, RDF.type, None)):
+        for s, _p, o in graph.triples((None, RDF.type, None)):
             if not isinstance(s, URIRef):
                 continue
             if o == OWL.Ontology:

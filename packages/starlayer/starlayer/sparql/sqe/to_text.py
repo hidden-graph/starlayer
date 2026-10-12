@@ -26,7 +26,7 @@ directly get prefix-aware treatment.
 
 from __future__ import annotations
 
-from rdflib import BNode, Graph, Literal, URIRef, Variable
+from rdflib import BNode, Graph, Literal, URIRef
 from rdflib.collection import Collection
 from rdflib.namespace import RDF
 

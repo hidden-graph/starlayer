@@ -53,6 +53,7 @@ def contains_triple_term(node) -> bool:
     string literal or comment.
     """
     from rdflib.plugins.sparql.parserutils import CompValue
+
     from starlayer.sparql.triple_term import TripleTermNode
 
     if isinstance(node, TripleTermNode):

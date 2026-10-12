@@ -279,6 +279,7 @@ def _run_sparql_call(template: str, arg_values: list) -> list:
     genuinely unbound argument in the first place.
     """
     from rdflib.namespace import RDF
+
     from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 
     scratch = StarLayerGraph()
@@ -357,7 +358,6 @@ def eval_sparql_expr(expr: Any, sg: Any, eval_arg: EvalArg) -> list:
 
 def _eval_dirlang_form(pred: URIRef, arg_exprs: list, eval_arg: EvalArg) -> list:
     from starlayer.graph.model.dirlangstring import DirLangString
-
     from starlayer.shacl.adapters import _try_decode_dirlangstring
 
     def _decode(value: Any) -> DirLangString | None:

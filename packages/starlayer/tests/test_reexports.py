@@ -3,10 +3,9 @@ reference, not by copy or redefinition - these tests lock in `is` identity
 (not just equal behavior) so a future refactor can't quietly turn a
 re-export into a separate, divergent copy."""
 
+import starlayer
 import starlayer.graph
 import starlayer.shacl
-
-import starlayer
 
 
 def test_reexports_are_the_same_objects_not_copies() -> None:

@@ -20,11 +20,9 @@ axiomatic triples) that account for most of a real RDFS closure's size
 without answering any actual question about the data.
 """
 
+import pytest
 from rdflib import RDF, RDFS, Graph, Namespace
 from rdflib.plugins.sparql import prepareQuery
-
-import pytest
-
 from starlayer.sparql.entailment_rdfs import rewrite_algebra_for_rdfs
 
 try:

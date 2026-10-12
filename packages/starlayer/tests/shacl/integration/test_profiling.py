@@ -3,7 +3,10 @@ from rdflib import Graph, Literal, Namespace, URIRef
 from rdflib.namespace import RDF
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
-from starlayer.shacl.shacl_profiling import declared_conformance_profile, derive_conforms_to
+from starlayer.shacl.shacl_profiling import (
+    declared_conformance_profile,
+    derive_conforms_to,
+)
 
 SH = Namespace("http://www.w3.org/ns/shacl#")
 PROF = Namespace("http://www.w3.org/ns/dx/prof/")

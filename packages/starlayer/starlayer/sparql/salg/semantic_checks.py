@@ -77,7 +77,6 @@ from dataclasses import dataclass
 from rdflib import Graph, Variable
 from rdflib.namespace import RDF
 from rdflib.plugins.sparql.algebra import _addVars, _traverseAgg, analyse
-
 from rdflib.plugins.sparql.parserutils import CompValue
 
 from .. import from_rdf

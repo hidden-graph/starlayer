@@ -9,11 +9,10 @@ against the exact data involved, not just "some Graph came back".
 
 import re
 
+import starlayer.shacl
 from rdflib import RDF, BNode, Graph, Literal
 from rdflib.collection import Collection
 from rdflib.namespace import RDFS
-
-import starlayer.shacl
 from starlayer.graph import Namespace, StarLayerGraph
 from starlayer.graph.graph.shape_derivation import DEFAULT_IGNORED_PROPERTIES
 from starlayer.graph.model import TripleTerm
@@ -307,7 +306,8 @@ class TestTemplateMerge:
 
 
 def test_derive_never_imports_pyshacl_directly():
-    import starlayer.graph.graph.shape_derivation as mod
     import inspect
+
+    import starlayer.graph.graph.shape_derivation as mod
     source = inspect.getsource(mod)
     assert not re.search(r'^\s*(import pyshacl|from pyshacl)', source, re.MULTILINE)

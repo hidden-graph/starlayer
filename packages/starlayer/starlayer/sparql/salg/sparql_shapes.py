@@ -86,8 +86,9 @@ from __future__ import annotations
 
 import warnings
 
-from starlayer import starontology
 from rdflib import Graph
+
+from starlayer import starontology
 
 from .expr_families import _EXPR_NODE_FAMILY
 from .sparql_ontology import ontology_graph
@@ -202,7 +203,6 @@ def validate_query(data_graph: Graph) -> tuple[bool, Graph, str]:
     """
     import starlayer.shacl  # lazy: avoids a circular-import deadlock at module load time
     from starlayer.graph.graph.entailment_regimes import ENTAILMENT
-
     from starlayer.sparql.salg.native_components import register_salg_native_components
 
     # salg:noUnboundProjectedVariables (the cross-referential check

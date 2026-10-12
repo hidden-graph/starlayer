@@ -8,7 +8,10 @@ reimplementing SPARQL's variable-scoping rules as SHACL shapes).
 """
 
 import starlayer.sparql
-from starlayer.sparql.salg import UnboundProjectedVariable, find_unbound_projected_variables
+from starlayer.sparql.salg import (
+    UnboundProjectedVariable,
+    find_unbound_projected_variables,
+)
 
 
 def _query_issues(query_text):
