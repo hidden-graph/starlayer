@@ -2,7 +2,7 @@
 
 *Last reviewed: 2026-07-17*
 
-Performance benchmarks for starshacl's triple-term encode/decode adapter (`starshacl/adapters.py::TripleTermAdapter`) - the boundary layer that translates between RDF 1.2 triple terms and the RDF-1.1-only term model pySHACL understands.
+Performance benchmarks for starlayer.shacl's triple-term encode/decode adapter (`starlayer/shacl/adapters.py::TripleTermAdapter`) - the boundary layer that translates between RDF 1.2 triple terms and the RDF-1.1-only term model pySHACL understands.
 
 ## Scripts
 
@@ -13,7 +13,7 @@ Performance benchmarks for starshacl's triple-term encode/decode adapter (`stars
 ## Running
 
 ```bash
-python benchmarks/bench_adapter.py --triples 1000 --nested-depth 1
+python benchmarks-shacl/bench_adapter.py --triples 1000 --nested-depth 1
 ```
 
 Flags:
@@ -23,7 +23,7 @@ Flags:
 Deeper nesting stresses the recursive parts of `_encode_node`/`_decode_node` specifically:
 
 ```bash
-python benchmarks/bench_adapter.py --triples 2000 --nested-depth 3
+python benchmarks-shacl/bench_adapter.py --triples 2000 --nested-depth 3
 ```
 
 Output:
@@ -33,8 +33,8 @@ Output:
 
 ## What this doesn't cover
 
-This measures the adapter's own encode/decode cost in isolation, not full `StarShaclSchema.validate()`/`apply_rules()` performance - `sh:construct` rule-iteration performance (dominated by `_SparqlAwareEncodedGraph.query()`'s decode cost, not the adapter's `encode_graph`/`decode_graph`) is a related but separate cost, currently only measured ad hoc via manual profiling (see `docs/implementation-plan.md`'s "Next Steps" for the known remaining bottlenecks there). Worth a dedicated script here if that becomes a recurring need.
+This measures the adapter's own encode/decode cost in isolation, not full `StarShaclSchema.validate()`/`apply_rules()` performance - `sh:construct` rule-iteration performance (dominated by `_SparqlAwareEncodedGraph.query()`'s decode cost, not the adapter's `encode_graph`/`decode_graph`) is a related but separate cost, currently only measured ad hoc via manual profiling (see `../docs/shacl/implementation-plan.md`'s "Next Steps" for the known remaining bottlenecks there). Worth a dedicated script here if that becomes a recurring need.
 
 ## Results
 
-See [`docs/benchmark-baselines.md`](../docs/benchmark-baselines.md) for recorded baselines over time.
+See [`docs/shacl/benchmark-baselines.md`](../docs/shacl/benchmark-baselines.md) for recorded baselines over time.

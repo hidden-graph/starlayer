@@ -1,7 +1,8 @@
 """tests/unit/test_starontology.py
 
-starontology is pure data (eight .ttl files, plus the generated shacl_meta
-entry) behind a thin registry (get_ontology_list()/get_ontology_graph()) -
+starontology is pure data (one TriG dataset, starontology.trig, holding
+every registered entry including shacl_meta as of 2026-10-12) behind a
+thin registry (get_ontology_list()/get_ontology_graph()) -
 this suite confirms every registered entry loads and parses, and the
 registry's own list/lookup behavior is correct. The underlying
 *_TTL_PATH constants are private as of 2026-10-02
@@ -44,8 +45,8 @@ class TestGetOntologyList:
             assert info.type in ("shacl", "ast-graph", "owl")
 
     def test_shapes_entries_are_type_shacl(self):
-        """shacl_meta is generated, not file-backed, but it's still a SHACL
-        shapes graph - same type as the four file-backed shapes entries."""
+        """shacl_meta has no ontology counterpart to pair with, but it's
+        still a SHACL shapes graph - same type as the five entries that do."""
         shacl_names = {info.name for info in starontology.get_ontology_list() if info.type == "shacl"}
         assert shacl_names == {
             "manchester_shacl", "skos_shacl", "sparql_shacl", "sqe_shacl", "srl_shacl",

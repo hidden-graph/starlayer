@@ -18,11 +18,11 @@ Performance benchmarks for starlayergraph across all supported backends.
 
 ```bash
 # In-memory — no server needed
-python benchmarks/bench_inmemory.py
+python benchmarks-graph/bench_inmemory.py
 
 # Start Fuseki and/or Oxigraph (see below), then:
-python benchmarks/bench_http.py
-python benchmarks/bench_scaling.py
+python benchmarks-graph/bench_http.py
+python benchmarks-graph/bench_scaling.py
 ```
 
 ## Starting Fuseki
@@ -40,4 +40,4 @@ docker run -d --name oxigraph-bench -p 7878:7878 \
 
 ## Results summary
 
-See [performance.md](../docs/performance.md) for benchmark results and backend recommendations.
+See [performance.md](../docs/graph/performance.md) for benchmark results and backend recommendations.

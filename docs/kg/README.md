@@ -30,7 +30,7 @@ This is intentionally manual-run in v1.
 ## Load and query with StarLayer
 
 ```python
-from starlayergraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 
 kg = StarLayerGraph()
 kg.parse("docs/kg/ontology.ttl", format="turtle")

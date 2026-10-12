@@ -130,13 +130,32 @@ the above its own target ontology is.
 
 An eleventh entry, ``shacl_meta``, is also registered here (``type="shacl"``) -
 the SHACL 1.2 meta-shapes themselves (``starlayer.shacl``'s own
-shapes-about-shapes). The *generation code* deliberately stays in
-``starlayer.shacl.meta_shapes.build_meta_shapes_graph()``, not duplicated
-here - this registry only calls it and wraps the result, the same way the
-other ten entries call ``_load(name)`` to pull their own named graph out
-of the shared dataset (see "One dataset, not eleven files" below). Not
-registered in that dataset at all (nothing to point at - it's generated,
-not file-backed).
+shapes-about-shapes). **A real, stored named graph in the dataset too, as
+of 2026-10-12** - not generated Python at runtime like every entry here
+used to be described. ``_load("shacl_meta")`` works exactly like every
+other entry's loader, picking up the real ``identifier=_resource_iri(name)``
+assignment the generated-Python path never could (a fresh random
+``BNode`` every call, confirmed as a real, already-felt cost - see
+``docs/future_enhancements.md``'s now-closed dated entry on this).
+
+The stored copy is a one-time snapshot of
+``starlayer.shacl.meta_shapes.build_meta_shapes_graph()``'s own output
+with no ``extra_graphs`` - the common case, and the only one a *registry
+entry* (a fixed, nameable resource) can represent at all.
+``build_meta_shapes_graph()`` itself is deliberately **not** replaced or
+removed: ``starlayer.shacl.validator.py``'s own internal meta-shacl
+preflight (``meta_validate()``, used by every ``validate(meta_shacl=True)``
+call) still calls it dynamically every time, since a *caller's own*
+``extra_graphs`` there is genuinely per-call data this static snapshot
+has no way to represent - confirmed by checking that call path directly
+before deciding, not assumed unrelated. (That preflight's own, separate
+performance problem - re-running a full, uncached meta-validation pass
+on every call regardless of ``extra_graphs`` - was fixed independently,
+by content-hash-keyed result caching inside ``meta_validate()`` itself;
+see that module's own comments.) The two code paths now simply agree,
+rather than one replacing the other: this registry's stored copy for "give
+me the meta-shapes graph as data," ``build_meta_shapes_graph()`` live for
+"check this shapes graph is well-formed, possibly with extra rules."
 
 **One dataset, not eleven files (2026-10-10).** Previously: ten separate
 ``.ttl`` files (two per vocabulary) plus an eleventh,
@@ -244,12 +263,11 @@ _FILENAME_BY_NAME: dict[str, str] = {
     "spexpr_shacl": "spexpr_shapes.ttl",
     # 2026-10-12: shacl_meta gets a real resource IRI too (used by
     # ontology-shapes-profiles.ttl's own prof:isProfileOf entry for it -
-    # see get_profile_graph()'s docstring), even though no file at this
-    # name exists yet - _load_shacl_meta() still generates the graph
-    # itself from Python, not from this filename. See
-    # docs/future_enhancements.md's dated entry: shacl_meta should
-    # eventually become a real static file like every other entry here,
-    # at which point this filename becomes the real one, not provisional.
+    # see get_profile_graph()'s docstring) - this entry is now a real
+    # named graph in starontology.trig at this filename, loaded via the
+    # shared _load() like every other entry (no longer provisional -
+    # see the module docstring's "What's here" section for the full
+    # account of why build_meta_shapes_graph() still exists separately).
     "shacl_meta": "shacl_meta_shapes.ttl",
 }
 
@@ -412,12 +430,15 @@ _REGISTRY: dict[str, tuple[OntologyInfo, Callable[[], StarLayerGraph]]] = {
             description=(
                 "The SHACL 1.2 meta-shapes themselves (starlayer.shacl's own "
                 "shapes-about-shapes, validating a shapes graph's own "
-                "well-formedness) - generated Python, not a static file, so "
-                "there's no shacl_owl counterpart to this entry."
+                "well-formedness) - a real stored snapshot (no "
+                "extra_graphs) of starlayer.shacl.meta_shapes."
+                "build_meta_shapes_graph()'s own output; there's still no "
+                "shacl_owl counterpart, since this entry has no ontology "
+                "of its own to pair with."
             ),
             type="shacl",
         ),
-        lambda: _load_shacl_meta(),
+        lambda: _load("shacl_meta"),
     ),
 }
 
@@ -517,20 +538,6 @@ def _load(name: str) -> StarLayerGraph:
     for triple in _named_graph(_resource_iri(name)):
         g.add(triple)
     return g
-
-
-def _load_shacl_meta() -> StarLayerGraph:
-    # Same lazy-import discipline as _load() above, same reason - see its
-    # own comment. starlayer.shacl has zero dependency back on
-    # starontology (confirmed), so this isn't a real cycle, but the import
-    # still has to happen in here, not at module top level, or it would be.
-    from starlayer.graph import StarLayerGraph
-    from starlayer.shacl.meta_shapes import build_meta_shapes_graph
-
-    # build_meta_shapes_graph() returns a plain rdflib.Graph, not a
-    # StarLayerGraph (confirmed in its own source) - wrap it so every
-    # registry entry keeps the same return type, with no exceptions.
-    return StarLayerGraph.from_rdflib(build_meta_shapes_graph())
 
 
 def get_ontology_list() -> tuple[OntologyInfo, ...]:

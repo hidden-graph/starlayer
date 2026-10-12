@@ -33,32 +33,29 @@ def qpath(kind: str, value: str) -> URIRef:
     return URIRef(f"{BASE}{kind}/{quote(value, safe='')}" )
 
 
+SUBPACKAGES = ("graph", "shacl", "sparql", "starontology")
+
+
 def module_name_from_path(path: Path, repo_root: Path) -> str:
-    candidates = [
-        (repo_root / "packages" / "graph" / "starlayergraph", "starlayergraph"),
-        (repo_root / "packages" / "sparql" / "starsparql", "starsparql"),
-        (repo_root / "packages" / "shacl" / "starshacl", "starshacl"),
-    ]
-    for base, root_mod in candidates:
-        if base in path.parents or path == base:
-            rel = path.relative_to(base)
-            parts = [root_mod] + list(rel.with_suffix("").parts)
-            if parts[-1] == "__init__":
-                parts = parts[:-1]
-            return ".".join(parts)
-    rel = path.relative_to(repo_root)
-    return ".".join(rel.with_suffix("").parts)
+    base = repo_root / "packages" / "starlayer" / "starlayer"
+    rel = path.relative_to(base)
+    parts = ["starlayer"] + list(rel.with_suffix("").parts)
+    if parts[-1] == "__init__":
+        parts = parts[:-1]
+    return ".".join(parts)
+
+
+def package_name_from_module(module_name: str) -> str:
+    parts = module_name.split(".")
+    if len(parts) >= 2 and parts[1] in SUBPACKAGES:
+        return f"starlayer.{parts[1]}"
+    return "starlayer"
 
 
 def iter_python_files(repo_root: Path) -> Iterable[Path]:
-    roots = [
-        repo_root / "packages" / "graph" / "starlayergraph",
-        repo_root / "packages" / "sparql" / "starsparql",
-        repo_root / "packages" / "shacl" / "starshacl",
-    ]
-    for root in roots:
-        for path in root.rglob("*.py"):
-            yield path
+    root = repo_root / "packages" / "starlayer" / "starlayer"
+    for path in root.rglob("*.py"):
+        yield path
 
 
 def parse_comments(source: str) -> list[tuple[int, str]]:
@@ -158,9 +155,11 @@ def build_graph(repo_root: Path) -> tuple[Graph, dict[str, int], dict[tuple[str,
     g.add((repo_uri, SCHEMA.codeRepository, URIRef("https://github.com/hidden-graph/starlayer")))
 
     package_uris = {
-        "starlayergraph": qpath("package", "starlayergraph"),
-        "starsparql": qpath("package", "starsparql"),
-        "starshacl": qpath("package", "starshacl"),
+        "starlayer": qpath("package", "starlayer"),
+        "starlayer.graph": qpath("package", "starlayer.graph"),
+        "starlayer.shacl": qpath("package", "starlayer.shacl"),
+        "starlayer.sparql": qpath("package", "starlayer.sparql"),
+        "starlayer.starontology": qpath("package", "starlayer.starontology"),
     }
     for pkg, uri in package_uris.items():
         g.add((uri, RDF.type, ONTO.Package))
@@ -182,7 +181,7 @@ def build_graph(repo_root: Path) -> tuple[Graph, dict[str, int], dict[tuple[str,
         module_uri = qpath("module", module_name)
         module_lookup[module_name] = module_uri
 
-        package_name = module_name.split(".")[0]
+        package_name = package_name_from_module(module_name)
         pkg_uri = package_uris.get(package_name)
 
         g.add((module_uri, RDF.type, ONTO.Module))
@@ -269,11 +268,11 @@ def build_graph(repo_root: Path) -> tuple[Graph, dict[str, int], dict[tuple[str,
                     imported = alias.name
                     tgt_mod = imported
                     tgt_uri: URIRef
-                    if imported.startswith(("starlayergraph", "starsparql", "starshacl")) and imported in known_modules:
+                    if imported.startswith("starlayer") and imported in known_modules:
                         tgt_uri = qpath("module", tgt_mod)
                         g.add((tgt_uri, RDF.type, ONTO.Module))
-                        src_pkg = module_name.split(".")[0]
-                        dst_pkg = imported.split(".")[0]
+                        src_pkg = package_name_from_module(module_name)
+                        dst_pkg = package_name_from_module(imported)
                         if src_pkg != dst_pkg:
                             pkg_deps[(src_pkg, dst_pkg)] += 1
                     else:
@@ -294,11 +293,11 @@ def build_graph(repo_root: Path) -> tuple[Graph, dict[str, int], dict[tuple[str,
                 if not mod:
                     continue
 
-                if mod.startswith(("starlayergraph", "starsparql", "starshacl")) and mod in known_modules:
+                if mod.startswith("starlayer") and mod in known_modules:
                     tgt_uri = qpath("module", mod)
                     g.add((tgt_uri, RDF.type, ONTO.Module))
-                    src_pkg = module_name.split(".")[0]
-                    dst_pkg = mod.split(".")[0]
+                    src_pkg = package_name_from_module(module_name)
+                    dst_pkg = package_name_from_module(mod)
                     if src_pkg != dst_pkg:
                         pkg_deps[(src_pkg, dst_pkg)] += 1
                 else:

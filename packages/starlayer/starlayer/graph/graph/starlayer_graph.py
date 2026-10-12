@@ -1259,6 +1259,27 @@ class StarLayerGraph(Graph):
         """Count of visible (non-encoding) triples."""
         if self._is_native:
             return self._native_len()
+        if not self._tt_registry:
+            # No triple terms ever registered in this graph - nothing
+            # for triples() to filter, so the underlying store's own
+            # O(1) count (rdflib.Graph.__len__ -> Store.__len__, a plain
+            # dict length for the default Memory store) already *is* the
+            # visible count. Same "empty registry => representation-safe
+            # plain graph" invariant already relied on elsewhere in this
+            # class (see infer()'s own fast_path).
+            #
+            # Confirmed as a real, measured bug, not a theoretical one:
+            # the unconditional full triples()-iteration below made
+            # every len(graph) call O(n) regardless of whether there was
+            # anything to filter - and pySHACL's own validator calls
+            # len(data_graph)/len(shapes_graph) thousands of times during
+            # a single validate() pass (shape cardinality/recursion
+            # bookkeeping). Profiled directly: one validate_query() call
+            # against a ~1700-triple, triple-term-free shapes+ontology
+            # graph made 21,049 len() calls, each re-scanning the whole
+            # graph - 28.9 million triples() iterations, ~104s of a
+            # 114s total call, for a graph with nothing to filter at all.
+            return super().__len__()
         return sum(1 for _ in self.triples((None, None, None)))
 
     # ------------------------------------------------------------------

@@ -28,7 +28,7 @@ ex:worksAt rdfs:domain ex:Person .
 then, via `StarLayerGraph`:
 
 ```python
-from starlayergraph import StarLayerGraph, Namespace
+from starlayer.graph import StarLayerGraph, Namespace
 from rdflib.plugins.stores.sparqlstore import SPARQLUpdateStore
 
 EX = Namespace("http://example.org/")

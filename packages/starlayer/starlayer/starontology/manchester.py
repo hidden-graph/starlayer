@@ -87,7 +87,7 @@ this once guarded against (from when ``starontology`` was a separately-
 installed package with no guaranteed load order relative to ``starlayer``
 at all) is now structurally impossible, not just avoided by convention.
 Staying deferred here costs nothing and keeps this module consistent with
-``starontology/__init__.py``'s own ``_load()``/``_load_shacl_meta()``, so
+``starontology/__init__.py``'s own ``_load()``, so
 it's kept anyway - just no longer load-bearing. This is also why
 ``_AstCursor`` (which needs ``_Cursor`` as a base class at
 class-definition time) is defined *inside* ``manchester_parse_to_tree()`` rather than

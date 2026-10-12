@@ -38,6 +38,7 @@ unmodified check).
 from __future__ import annotations
 
 import os
+from collections import OrderedDict
 from collections.abc import Iterable
 from typing import Any
 
@@ -45,6 +46,67 @@ from rdflib import RDF, BNode, Graph, Literal, Namespace, URIRef
 from rdflib.namespace import OWL
 
 SH = Namespace("http://www.w3.org/ns/shacl#")
+
+# meta_validate()'s own result cache, keyed by content (not object
+# identity - see _meta_validate_cache_key's own docstring for why that
+# distinction matters here specifically). Bounded LRU, same pattern as
+# starlayer.graph.model.encoding's _TT_HASH_MEMO.
+_META_VALIDATE_CACHE_MAXSIZE = 256
+_META_VALIDATE_CACHE: OrderedDict[tuple, tuple] = OrderedDict()
+
+
+def _meta_validate_cache_key(shapes_graph_for_meta: Any, kwargs: dict) -> tuple | None:
+    """Content-based cache key for one ``meta_validate()`` outcome.
+
+    ``meta_validate()`` is a pure function of (the shapes graph's own
+    *content*, the assembled meta-shapes graph's content, the kwargs
+    forwarded to ``pyshacl.validate()``) - never of any object's
+    identity. That distinction is load-bearing, not academic: a typical
+    caller (e.g. ``starontology``'s own ``shapes_graph()``) reparses
+    fresh Turtle text into a brand-new ``Graph`` object on every single
+    call, so an identity-keyed cache would never hit at all, even for
+    byte-for-byte identical content.
+
+    Uses ``starlayer.graph.rdfc.rdfc10_hash`` - the project's existing
+    canonical-hashing tool for exactly this "same content, different
+    object, possibly different blank node labels" problem - rather than
+    hashing a raw serialization, which would spuriously miss on every
+    call purely from rdflib minting fresh, arbitrary blank node labels
+    each time it parses the same source text (confirmed empirically:
+    two independent reparses of the identical shapes Turtle produce
+    different N-Triples text but the identical ``rdfc10_hash``).
+
+    The assembled meta-shapes graph itself is deliberately *not* hashed
+    here - when ``extra_graphs`` is empty (this cache's only scope, see
+    ``meta_validate()``'s own gating), ``build_meta_shapes_graph(())``'s
+    output is itself always identical within one process, so it
+    contributes nothing distinguishing to the key and hashing it too
+    would just be another ~20ms paid for free on every call.
+
+    Returns ``None`` (not cacheable - caller must compute fresh, exactly
+    as if this cache didn't exist) if ``rdfc10_hash`` itself raises.
+    Confirmed a real, live case, not a theoretical one:
+    ``test_validate_uses_integrated_structural_property_path_for_has_value``'s
+    own shapes graph hits a genuine pre-existing edge case in the
+    canonicalization algorithm (an ``AssertionError`` - "blank node ...
+    was never assigned a canonical identifier") unrelated to this cache.
+    A caching *optimization* must never be able to turn a graph that
+    validates correctly into one that raises - correctness always wins
+    over the cache hit.
+    """
+    from starlayer.graph.rdfc import rdfc10_hash
+
+    def _hashable(v: Any) -> Any:
+        if isinstance(v, (list, set, frozenset, tuple)):
+            return tuple(sorted(str(x) for x in v))
+        return v
+
+    kwarg_items = tuple(sorted((k, _hashable(v)) for k, v in kwargs.items()))
+    try:
+        content_hash = rdfc10_hash(shapes_graph_for_meta)
+    except Exception:
+        return None
+    return (content_hash, kwarg_items)
 
 _ASSETS_DIR = os.path.join(os.path.dirname(__file__), "assets")
 _VALIDATION_SHAPES_PATH = os.path.join(_ASSETS_DIR, "shacl12-validation-shapes.ttl")
@@ -223,8 +285,38 @@ def meta_validate(shapes_graph: Any, *, extra_graphs: Iterable[Any] = (), **kwar
     else:
         shapes_graph_for_meta = shapes_graph
 
-    meta_shapes = build_meta_shapes_graph(extra_graphs)
-    conforms, report_graph, report_text = pyshacl.validate(shapes_graph_for_meta, shacl_graph=meta_shapes, **kwargs)
+    # Cache keyed on content, scoped to the common extra_graphs=() case
+    # (see _meta_validate_cache_key's own docstring for why identity
+    # can't be the key, and why meta_shapes itself doesn't need hashing
+    # here). Measured as the dominant cost of a real validate_query()
+    # call - ~0.93s per call, flat, even for the byte-for-byte identical
+    # shapes graph every time, since nothing here was ever cached before
+    # this: an uncached ~30ms graph (re)build, immediately followed by a
+    # full, uncached pyshacl.validate() pass against a deliberately deep
+    # (max_validation_depth=30) meta-shapes structure. A real repeated
+    # caller (e.g. starontology's own validate_query(), called once per
+    # test case against the identical bundled shapes/ontology content
+    # every time) pays that full cost on every single call with no
+    # caching anywhere - confirmed directly via cProfile before this fix.
+    cache_key = _meta_validate_cache_key(shapes_graph_for_meta, kwargs) if not extra_graphs else None
+    cached = _META_VALIDATE_CACHE.get(cache_key) if cache_key is not None else None
+    if cached is not None:
+        _META_VALIDATE_CACHE.move_to_end(cache_key)
+        conforms, cached_report_graph, report_text = cached
+        # A fresh copy, not the cached object itself - a cache hit must
+        # never hand out a graph a caller could go on to mutate (e.g. by
+        # merging derived triples into it) and have that mutation leak
+        # into every future cache hit for the same key.
+        report_graph = Graph()
+        report_graph += cached_report_graph
+    else:
+        meta_shapes = build_meta_shapes_graph(extra_graphs)
+        conforms, report_graph, report_text = pyshacl.validate(shapes_graph_for_meta, shacl_graph=meta_shapes, **kwargs)
+        if cache_key is not None:
+            _META_VALIDATE_CACHE[cache_key] = (conforms, report_graph, report_text)
+            _META_VALIDATE_CACHE.move_to_end(cache_key)
+            if len(_META_VALIDATE_CACHE) > _META_VALIDATE_CACHE_MAXSIZE:
+                _META_VALIDATE_CACHE.popitem(last=False)
     if not conforms:
         msg = f"SHACL File does not validate against the SHACL Shapes SHACL (MetaSHACL) file.\n{report_text}"
         raise ReportableRuntimeError(msg)

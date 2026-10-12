@@ -767,6 +767,28 @@ def _already_installed() -> bool:
     return TripleTermCallValue in PrimaryExpression.exprs
 
 
+def _append_once(rule, production) -> None:
+    """Append ``production`` to ``rule``'s alternatives unless it's
+    already there (by identity, same mechanics as ``_already_installed``'s
+    own ``in`` check). Makes every mutation ``install()`` performs
+    idempotent individually, not just gated behind one top-level
+    ``_already_installed()`` check - see ``install()``'s own docstring for
+    why that distinction matters for ``force=True`` specifically.
+    """
+    if production not in rule.exprs:
+        rule.append(production)
+
+
+def _insert_once(rule, index, production) -> None:
+    """``_append_once``'s counterpart for the front-inserted productions
+    (``LangDirLiteral``, the annotation-shorthand forms) - same
+    already-there check, ``exprs.insert(index, ...)`` instead of
+    ``.append()``.
+    """
+    if production not in rule.exprs:
+        rule.exprs.insert(index, production)
+
+
 def install(force: bool = False) -> None:
     """Splice the new productions into rdflib's own grammar objects, in
     place, via pyparsing's public ``MatchFirst.append()``. Idempotent - safe
@@ -776,31 +798,45 @@ def install(force: bool = False) -> None:
     into, which a simple call-once boolean flag is not.
 
     ``force=True`` skips the ``_already_installed()`` short-circuit and
-    re-runs every mutation unconditionally - used by ``parse12.py``'s own
-    parse-failure retry path as a last-resort recovery, for the residual
-    corruption case ``_already_installed()`` itself doesn't reliably catch
-    (confirmed empirically still possible under some pytest runs even with
-    the per-call re-verification in place - the exact trigger inside
-    pytest's import machinery was not fully isolated, but a forced,
-    unconditional re-append immediately before retrying the same parse
-    was confirmed to recover it every time it was tried). Appending an
-    already-present production twice is harmless for parsing correctness
-    (MatchFirst just gets a redundant alternative - tries a bit more, never
-    matches differently) - this is a recovery hatch, not a hot path, so
-    that small inefficiency is an acceptable trade for actually working.
+    re-runs every mutation - used by ``parse12.py``'s own parse-failure
+    retry path as a last-resort recovery, for the residual corruption case
+    ``_already_installed()`` itself doesn't reliably catch (confirmed
+    empirically still possible under some pytest runs even with the
+    per-call re-verification in place - the exact trigger inside pytest's
+    import machinery was not fully isolated, but a forced, unconditional
+    re-append immediately before retrying the same parse was confirmed to
+    recover it every time it was tried).
+
+    Every individual mutation below goes through ``_append_once``/
+    ``_insert_once`` rather than a bare ``.append()``/``.exprs.insert()``,
+    so "re-runs every mutation" means "re-verifies every production is
+    present," not "duplicates whatever's already there." **This was a
+    real, confirmed bug, not a theoretical one**: ``parse12.py``'s retry
+    path calls ``install(force=True)`` on every ``ParseBaseException`` -
+    which every W3C *negative*-syntax test triggers *by design*, not just
+    in the rare real-corruption case this was written for. Across a test
+    file with dozens of negative-syntax cases, the old unconditional
+    ``.append()`` calls bloated these shared, global, process-wide
+    pyparsing grammar objects a little more on every single one of
+    them (confirmed: ``BuiltInCall.exprs`` grew from 10 to 170 entries
+    after just 20 forced reinstalls) - and since these objects are
+    referenced recursively throughout the whole SPARQL grammar, parse cost
+    for every later query compounded combinatorially, measured taking a
+    fixed query from 0.18s to over 11s purely as a function of how many
+    prior negative-syntax tests had already run in the same process.
     """
     if not force and _already_installed():
         return
     for rule in (GraphTerm, VarOrTerm, GraphNode, GraphNodePath):
-        rule.append(TripleTermExpr)
-        rule.append(TripleTermCall)
+        _append_once(rule, TripleTermExpr)
+        _append_once(rule, TripleTermCall)
         # Must be tried *before* plain RDFLiteral (already one of this
         # rule's own alternatives, transitively via GraphTerm) - see
         # LangDirLiteral's own comment for why appending wouldn't work
         # (RDFLiteral partially matches "nl" out of "nl--ltr" and
         # *succeeds*, so MatchFirst never backtracks to try a later
         # alternative at all).
-        rule.exprs.insert(0, LangDirLiteral)
+        _insert_once(rule, 0, LangDirLiteral)
     # Expression position: a triple term usable directly as a PrimaryExpression
     # value (BIND(<<(...)>> AS ?x)), and the four accessor builtins usable
     # anywhere BuiltInCall is (BIND/FILTER/SELECT (... AS ?x)/GROUP BY/etc.,
@@ -809,9 +845,9 @@ def install(force: bool = False) -> None:
     # (restricted subject grammar) — see _TripleTermSubjectExpr's own
     # comment for why this must be a different pair of objects from the
     # ones spliced into GraphTerm/VarOrTerm/GraphNode/GraphNodePath above.
-    PrimaryExpression.append(TripleTermExprValue)
-    PrimaryExpression.append(TripleTermCallValue)
-    PrimaryExpression.exprs.insert(0, LangDirLiteral)
+    _append_once(PrimaryExpression, TripleTermExprValue)
+    _append_once(PrimaryExpression, TripleTermCallValue)
+    _insert_once(PrimaryExpression, 0, LangDirLiteral)
     # VALUES { <<(:s :p :o)>> ... } — a ground triple term used as a data
     # block value. Self-contained (no side-effect triples, unlike the
     # annotation forms below), so a plain .append() is enough — same as
@@ -820,17 +856,17 @@ def install(force: bool = False) -> None:
     # pattern, treated the same as expression position (see
     # TripleTermExprValue's own comment on the lack of direct test
     # evidence for this specific position).
-    DataBlockValue.append(TripleTermExprValue)
-    DataBlockValue.append(TripleTermCallValue)
-    DataBlockValue.exprs.insert(0, LangDirLiteral)
-    BuiltInCall.append(Builtin_isTRIPLE)
-    BuiltInCall.append(Builtin_SUBJECT)
-    BuiltInCall.append(Builtin_PREDICATE)
-    BuiltInCall.append(Builtin_OBJECT)
-    BuiltInCall.append(Builtin_LANGDIR)
-    BuiltInCall.append(Builtin_hasLANGDIR)
-    BuiltInCall.append(Builtin_hasLANG)
-    BuiltInCall.append(Builtin_STRLANGDIR)
+    _append_once(DataBlockValue, TripleTermExprValue)
+    _append_once(DataBlockValue, TripleTermCallValue)
+    _insert_once(DataBlockValue, 0, LangDirLiteral)
+    _append_once(BuiltInCall, Builtin_isTRIPLE)
+    _append_once(BuiltInCall, Builtin_SUBJECT)
+    _append_once(BuiltInCall, Builtin_PREDICATE)
+    _append_once(BuiltInCall, Builtin_OBJECT)
+    _append_once(BuiltInCall, Builtin_LANGDIR)
+    _append_once(BuiltInCall, Builtin_hasLANGDIR)
+    _append_once(BuiltInCall, Builtin_hasLANG)
+    _append_once(BuiltInCall, Builtin_STRLANGDIR)
 
     # Annotation/reification-shorthand forms must be *inserted at the front*
     # (tried first), not appended: the ordinary `VarOrTerm +
@@ -846,9 +882,9 @@ def install(force: bool = False) -> None:
     # gets AnnotationSuffixedConstruct instead — see
     # _build_annotation_suffixed's own comment for why these must be two
     # different productions, not the same one installed into both.
-    TriplesSameSubjectPath.exprs.insert(0, AnnotationSuffixed)
+    _insert_once(TriplesSameSubjectPath, 0, AnnotationSuffixed)
     TriplesSameSubjectPath._defaultName = None
-    TriplesSameSubject.exprs.insert(0, AnnotationSuffixedConstruct)
+    _insert_once(TriplesSameSubject, 0, AnnotationSuffixedConstruct)
     TriplesSameSubject._defaultName = None
 
     # `<<s p o>>`/`<<s p o ~ r>>` reifier-reference terms: appended (order
@@ -866,4 +902,4 @@ def install(force: bool = False) -> None:
     # .` statement, PropertyList empty) — see the forms' own comment.
     for rule in (TriplesNode, TriplesNodePath):
         for form in _ANNOTATION_TERM_FORMS:
-            rule.expr.append(form)
+            _append_once(rule.expr, form)

@@ -191,28 +191,28 @@ These methods exist only in `StarLayerGraph` and have no rdflib equivalent.
 
 New classes introduced by StarLayer with no direct rdflib equivalent.
 
-### starlayergraph/model/triple.py
+### starlayer/graph/model/triple.py
 
 ✅ `TripleTerm` — Represents an RDF 1.2 triple term `<<( s p o )>>` as a Python value. Two TripleTerms with the same components are equal regardless of how they were created. Accepts nested TripleTerms. A plain 3-tuple in object position is automatically treated as a TripleTerm. Implements `.n3()` so rdflib can format it as `<<( :bob :knows :carol )>>` wherever a node is expected.
 
-### starlayergraph/model/dirlangstring.py
+### starlayer/graph/model/dirlangstring.py
 
 ✅ `DirLangString(value, language, direction)` — Represents an RDF 1.2 base-direction-tagged literal `"text"@lang--dir`. Value-typed like `TripleTerm` (equal/hashable by `(value, language, direction)`; language tag case-folded per RDF 1.2). `direction` must be `'ltr'` or `'rtl'`. Implements `.n3()` (`"text"@lang--dir`). Unlike `TripleTerm`, has no tuple shorthand and needs no registry — `encode_dirlangstring()`/`decode_dirlangstring()` convert to/from the internal `Literal(text, datatype=<dirlang: URI>)` encoding as a pure function of the value itself.
 
-### starlayergraph/graph/starlayer_graph.py
+### starlayer/graph/graph/starlayer_graph.py
 
 ✅ `StarLayerGraph` — Subclass of `rdflib.Graph`; the main public API for single-graph RDF 1.2. Stores TripleTerms as content-addressed `tt:HASH` URIRefs internally and hides the encoding from all callers. See method tracker above.
 
 ```python
-from starlayergraph.graph.starlayer_graph import StarLayerGraph
-from starlayergraph.model.triple import TripleTerm
+from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+from starlayer.graph.model.triple import TripleTerm
 from rdflib import URIRef, Literal
 
 g = StarLayerGraph()                    # in-memory, default rdf-1.1 backend
 g = StarLayerGraph(backend='rdf-1.2')  # native RDF 1.2 endpoint
 ```
 
-### starlayergraph/graph/starlayer_dataset.py
+### starlayer/graph/graph/starlayer_dataset.py
 
 ✅ `StarLayerDataset` — Subclass of `rdflib.Dataset`; a multi-graph container where every named graph is a `StarLayerGraph`. Each named graph has its own independent TripleTerm registry — triple terms in graph A are not visible from graph B.
 
@@ -227,37 +227,47 @@ g = StarLayerGraph(backend='rdf-1.2')  # native RDF 1.2 endpoint
 - `ds.serialize(format='trig12')` — emits a TriG 1.2 document with `GRAPH <uri> { ... }` blocks.
 
 
-### starlayergraph/parsers/turtle_parser.py
+### starlayer/graph/parsers/turtle_parser.py
 
 ✅ `StarLayerTurtleParser` — Parses Turtle 1.2 text (including `<<( )>>`, `{| |}`, and `~ reifier` syntax) into an rdflib Graph with BNode-based triple-term encoding. Called by `StarLayerGraph.parse(format='turtle12')`.
 
 ➖ `_Expander` — Internal helper class used by the parser to resolve prefixes and base URIs during parsing. Not part of the public API.
 
-### starlayergraph/parsers/ntriples12.py
+### starlayer/graph/parsers/ntriples12.py
 
 ✅ `parse_ntriples12(text)` — Parses N-Triples 1.2 text line-by-line; returns a list of `(s, p, o)` triples where subjects/objects may be `TripleTerm` instances. Handles full IRIs, blank nodes, plain/typed/language-tagged/direction-tagged (`"text"@lang--dir`) literals, and `<<( )>>` triple terms (including nested). Called by `StarLayerGraph.parse(format='nt12')`.
 
 ✅ `parse_nquads12(text)` — Parses N-Quads 1.2 text; returns a list of `(s, p, o, g)` quads. Called by `StarLayerGraph.parse(format='nq12')`; the graph component `g` is discarded when merging into a single-graph `StarLayerGraph`.
 
-### starlayergraph/parsers/trig12.py
+### starlayer/graph/parsers/trig12.py
 
 ✅ `parse_trig12(text)` — Parses TriG 1.2 text by splitting the document into prefix declarations and named-graph content blocks, parsing each block as Turtle 1.2 via `StarLayerTurtleParser`, and merging all resulting triples. Called by `StarLayerGraph.parse(format='trig12')`.
 
-### starlayergraph/serializers/ntriples12.py
+### starlayer/graph/serializers/ntriples12.py
 
 ✅ `serialize_ntriples12(g)` — Serializes a `StarLayerGraph` to N-Triples 1.2 text (one triple per line, full IRIs, `<<( )>>` for triple terms). Called by `StarLayerGraph.serialize(format='nt12')`.
 
 ✅ `serialize_nquads12(g, graph_uri=None)` — Serializes to N-Quads 1.2 text (N-Triples + graph name from `g.identifier`). Called by `StarLayerGraph.serialize(format='nq12')`.
 
-### starlayergraph/serializers/trig12.py
+### starlayer/graph/serializers/trig12.py
 
 ✅ `serialize_trig12(g)` — Serializes to TriG 1.2 text. Named-graph identifiers (URIRef) produce a `GRAPH <uri> { ... }` block around Turtle 1.2 content; BNode identifiers produce plain Turtle 1.2 (default-graph convention). Called by `StarLayerGraph.serialize(format='trig12')`.
 
-### starlayergraph/query/sparql12_to_11.py
+### starlayer/graph/query/sparql_api.py
 
-✅ `rewrite_sparql12_to_11(query)` — Public entry point. Rewrites SPARQL 1.2 syntax to SPARQL 1.1: triple-term patterns `<<( )>>`, the `TRIPLE(s,p,o)` constructor (desugared to `<<( )>>`), annotation subjects `<< >>`, inline annotation blocks `{| |}`, reifier binding `~?r`, `SUBJECT()`/`PREDICATE()`/`OBJECT()` function calls, `isTripleTerm()`/`isTRIPLE()` filter, and the base-direction functions `LANGDIR()`/`hasLANGDIR()`/`STRLANGDIR()` plus a dirLangString-aware `LANG()`/`hasLANG()`. Passes plain queries through unchanged.
+**No longer a text-level rewrite — superseded, not just relocated.** The old `starlayergraph/query/sparql12_to_11.py` module (`rewrite_sparql12_to_11(query)` / `_RewriteState`) is gone entirely; nothing of that name or shape exists anywhere in the current codebase. SPARQL 1.2→1.1 translation is no longer string-rewriting at all — it's a real grammar/algebra pipeline living in the sibling `starlayer.sparql` package (`parse12.py`, `lower_rdf11.py`), and this module is a thin wrapper around it:
 
-➖ `_RewriteState` — Internal counter for generating unique `?__ttN` variable names across a single rewrite pass. Not part of the public API.
+✅ `parseQuery(q)` — Parses a SPARQL 1.2 query string via `starlayer.sparql.parse12.parse_query_12`, returning a pyparsing `ParseResults` tree (same type rdflib's own `parseQuery` returns) with genuine `TripleTermNode` nodes constructed directly by the grammar wherever `<<( s p o )>>`/`TRIPLE(s, p, o)` appears — not detected and reassembled from a text-level encoding after the fact.
+
+✅ `prepareQuery(queryString, initNs=None, base=None)` — Parses and lowers a SPARQL 1.2 query to a compiled, directly-executable rdflib `Query` object via `starlayer.sparql.parse12.prepare_query_12` + `starlayer.sparql.lower_rdf11.query_to_rdf11`/`rdf11_to_query`. The compiled algebra is plain SPARQL 1.1 (triple terms lowered to `starlayer.graph`'s own `tt:` content-addressed encoding); can be passed directly to `StarLayerGraph.query()` or `rdflib.Graph.query()`.
+
+✅ `parseUpdate(q)` — Update-request analog of `parseQuery()`, via `starlayer.sparql.parse12.parse_update_12`.
+
+✅ `prepareUpdate(updateString, initNs=None, base=None)` — Update-request analog of `prepareQuery()`, via `starlayer.sparql.parse12.prepare_update_12` + `starlayer.sparql.lower_rdf11.update_to_rdf11`/`rdf11_to_update`.
+
+✅ `processUpdate(graph, updateString, initBindings=None, initNs=None, base=None)` — SPARQL 1.2-aware replacement for `rdflib.plugins.sparql.processUpdate`. For a `StarLayerGraph`/`StarLayerDataset`, delegates the original SPARQL 1.2 text straight to `graph.update()` so that class's own full update pipeline runs (registry rebuild, native-backend routing, etc.); for a plain `rdflib.Graph`, compiles via `prepareUpdate()` first.
+
+All five are public and re-exported from `starlayer.graph` directly (`from starlayer.graph import parseQuery, prepareQuery, parseUpdate, prepareUpdate, processUpdate`), not just from this submodule.
 
 ---
 
@@ -265,7 +275,7 @@ g = StarLayerGraph(backend='rdf-1.2')  # native RDF 1.2 endpoint
 
 Module-level functions that are part of the internal encoding but not public API.
 
-### starlayergraph/model/encoding.py
+### starlayer/graph/model/encoding.py
 
 ✅ `tt_hash(s, p, o)` — Produces a 16-hex-char (64-bit) SHA-256 content address for a triple term. Same inputs always produce the same hash, so identical triple terms map to the same internal `tt:HASH` URIRef. Widened from 8 to 16 hex chars 2026-07-17 to keep birthday-bound collision risk negligible for graphs with heavy reification (see `docs/future_enhancements.md`).
 

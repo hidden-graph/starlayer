@@ -224,12 +224,71 @@ def _canon_bindings_bmap(bindings: list[dict], bmap: dict) -> list[frozenset]:
     return sorted(rows, key=lambda r: sorted(r))
 
 
+class _AllKeysToWildcard(dict):
+    """A ``bmap`` stand-in for ``_canon_term_bmap`` that renders *every*
+    opaque key through the same fixed placeholder, regardless of its real
+    identity - used only to build a renaming-invariant per-key signature
+    (``_opaque_key_signature`` below), never for the real equality check
+    itself (``_canon_bindings_bmap`` below still gets a real, specific
+    per-key ``bmap`` for that - this class never touches it).
+    """
+
+    def get(self, key, default=None):
+        return "*"
+
+
+_WILDCARD_BMAP = _AllKeysToWildcard()
+
+
+def _row_contains_key(row: dict, key: str) -> bool:
+    def _walk(v) -> bool:
+        if isinstance(v, TripleTerm):
+            return _walk(v.subject) or _walk(v.predicate) or _walk(v.object)
+        return _opaque_key(v) == key
+
+    return any(_walk(v) for v in row.values())
+
+
+def _opaque_key_signature(key: str, bindings: list[dict]) -> tuple:
+    """A renaming-invariant fingerprint for one opaque key: the (sorted,
+    multiplicity-preserving) collection of canonical row-shapes it
+    actually occurs in, with every *other* opaque key in those rows
+    rendered through the same shared wildcard rather than its own
+    identity - this says "what context does this key appear in," not
+    "exactly which other identifiers accompany it," which is exactly the
+    part ``bindings_match`` below still needs the real search for.
+
+    Two keys that could possibly map to each other under *some* valid
+    bijection always share this signature - sound as a search-space
+    partition (never excludes a valid answer), even though it's not a
+    full substitute for the real bijection check (that's still
+    ``_canon_bindings_bmap`` below, unchanged).
+    """
+    canons = [
+        frozenset((str(k), _canon_term_bmap(v, _WILDCARD_BMAP)) for k, v in row.items())
+        for row in bindings
+        if _row_contains_key(row, key)
+    ]
+    return tuple(sorted(canons, key=lambda s: sorted(s)))
+
+
 def bindings_match(actual: list[dict], expected: list[dict]) -> bool:
     """SPARQL result-set equality up to renaming of anonymous identifiers.
 
-    Brute-force search over key bijections is fine here - real W3C SPARQL
-    1.2 test fixtures never have more than a handful of distinct anonymous
-    identifiers in a single result set, so this stays fast in practice.
+    A plain brute-force search over *all* key bijections at once is only
+    fast when a result set has a handful of distinct anonymous
+    identifiers, as most W3C SPARQL 1.2 fixtures do - but it's factorial
+    in that count, and at least one real fixture
+    (``eval-triple-terms/results-reifiedtriples-1j``) has 9, which alone
+    took several seconds (362,880 permutations) with no pruning at all.
+    Most of those 9 are already structurally distinguishable from each
+    other (different variable, different co-occurring non-opaque values)
+    without needing to search at all - ``_opaque_key_signature`` groups
+    keys that *could* be interchangeable first, so the brute-force search
+    below only ever has to permute within one such group, never across
+    all distinct keys at once. Worst case (every key shares one
+    indistinguishable group) falls back to exactly the original
+    all-at-once search - no correctness change, pure pruning.
     """
     actual_keys = sorted(_collect_opaque_keys(actual))
     expected_keys = sorted(_collect_opaque_keys(expected))
@@ -239,8 +298,34 @@ def bindings_match(actual: list[dict], expected: list[dict]) -> bool:
         return canon_bindings(actual) == canon_bindings(expected)
 
     target = _canon_bindings_bmap(expected, {k: k for k in expected_keys})
-    for perm in itertools.permutations(expected_keys):
-        bmap = dict(zip(actual_keys, perm, strict=True))
+
+    actual_groups: dict[tuple, list[str]] = {}
+    for k in actual_keys:
+        actual_groups.setdefault(_opaque_key_signature(k, actual), []).append(k)
+    expected_groups: dict[tuple, list[str]] = {}
+    for k in expected_keys:
+        expected_groups.setdefault(_opaque_key_signature(k, expected), []).append(k)
+
+    # A valid bijection can only ever match keys within the *same*
+    # signature group, never across two different ones - if some actual
+    # group's signature has no expected counterpart of the same size, no
+    # bijection exists at all, full stop.
+    pending_actual_groups: list[list[str]] = []
+    pending_expected_groups: list[list[str]] = []
+    remaining_expected = dict(expected_groups)
+    for sig, a_group in actual_groups.items():
+        e_group = remaining_expected.pop(sig, None)
+        if e_group is None or len(e_group) != len(a_group):
+            return False
+        pending_actual_groups.append(a_group)
+        pending_expected_groups.append(e_group)
+    if remaining_expected:
+        return False
+
+    for combo in itertools.product(*(itertools.permutations(g) for g in pending_expected_groups)):
+        bmap: dict[str, str] = {}
+        for a_group, e_perm in zip(pending_actual_groups, combo, strict=True):
+            bmap.update(zip(a_group, e_perm, strict=True))
         if _canon_bindings_bmap(actual, bmap) == target:
             return True
     return False

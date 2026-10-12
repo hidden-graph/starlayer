@@ -15,8 +15,8 @@ jobs:
         with:
           python-version: "3.10"
 
-      # Repo-root pyproject.toml's [tool.ruff] covers all three packages at
-      # once - one lint policy for the whole monorepo, not per-package config.
+      # Repo-root pyproject.toml's [tool.ruff] covers the whole package at
+      # once - one lint policy for the monorepo, not per-package config.
       - name: Install ruff
         run: pip install ruff
 
@@ -36,8 +36,8 @@ jobs:
     # args). Fuseki is *not* wired in here: its image needs dataset-creation
     # args at startup with no equivalent env-var config, which service
     # containers can't supply - full-Fuseki coverage stays manual-only for
-    # now (packages/graph/tests/integration/test_fuseki_backend.py's own
-    # docstring has the docker run command). Every Fuseki-only test class
+    # now (packages/starlayer/tests/graph/integration/test_fuseki_backend.py's
+    # own docstring has the docker run command). Every Fuseki-only test class
     # already self-skips when Fuseki isn't reachable, so running the whole
     # integration marker here with only Oxigraph up is safe - it exercises
     # the Oxigraph and SQLite coverage and skips the rest.
@@ -54,18 +54,12 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      # One repo now, no sibling checkout needed - all three packages
-      # install from the same working copy. Must be ONE pip invocation, not
-      # three separate ones: graph declares a plain (unpublished) dependency
-      # on starsparql, and sparql declares one back on starlayergraph - a
-      # deliberate two-way local dependency (see packages/sparql/CLAUDE.md).
-      # Installing them separately makes pip try to resolve that dependency
-      # from PyPI, where it doesn't exist. A single invocation with multiple
-      # -e flags gives pip's resolver all three local paths up front, so it
-      # never needs to leave the working copy.
-      - name: Install all three packages
+      # One package now (starlayer, at packages/starlayer) - a single -e
+      # install with the test/sqlalchemy extras is enough; there's no
+      # sibling-package dependency to resolve anymore.
+      - name: Install starlayer
         run: |
-          pip install -e "packages/graph[sqlalchemy,test]" -e "packages/sparql[test]" -e "packages/shacl[test]"
+          pip install -e "packages/starlayer[sqlalchemy,test]"
 
       - name: Wait for Oxigraph
         run: |
@@ -76,18 +70,10 @@ jobs:
           echo "Oxigraph did not become ready in time" >&2
           exit 1
 
-      - name: starlayergraph - unit and W3C tests
-        working-directory: packages/graph
+      - name: Unit and W3C tests
+        working-directory: packages/starlayer
         run: pytest tests/ -m "not integration" -v
 
-      - name: starlayergraph - integration tests (Oxigraph + SQLite; Fuseki-only tests self-skip)
-        working-directory: packages/graph
+      - name: Integration tests (Oxigraph + SQLite; Fuseki-only tests self-skip)
+        working-directory: packages/starlayer
         run: pytest tests/ -m "integration" -v
-
-      - name: starsparql - full test suite
-        working-directory: packages/sparql
-        run: pytest tests/ -v
-
-      - name: starshacl - full test suite
-        working-directory: packages/shacl
-        run: pytest tests/ -v
