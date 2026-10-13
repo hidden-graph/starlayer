@@ -37,14 +37,19 @@ def test_all_matches_actual_module_exports() -> None:
     own ``declared_conformance()`` lazily imports
     ``starlayer.shacl.shacl_profiling`` internally - whichever test file
     happens to import ``starlayer.conformance`` first in a given session
-    (e.g. ``test_conformance.py``) is what binds it. All five are
-    deliberately excluded here rather than asserted against, since none
-    of them are part of the curated ``__all__`` list (see this module's
-    own docstring) - this test only needs to confirm every *curated*
-    re-export is genuinely present, not that nothing else is ever
-    visible."""
+    (e.g. ``test_conformance.py``) is what binds it. ``codekg`` joins the
+    list for the identical reason (2026-10-13): nothing in
+    ``starlayer/__init__.py`` imports it, but the code-KG extractor's own
+    tests (``tests/codekg/``) import ``starlayer.codekg``/
+    ``starlayer.codekg.extractor.*`` directly, so whether it's bound here
+    depends purely on whether one of those test modules already ran in
+    the same session. All six are deliberately excluded here rather than
+    asserted against, since none of them are part of the curated
+    ``__all__`` list (see this module's own docstring) - this test only
+    needs to confirm every *curated* re-export is genuinely present, not
+    that nothing else is ever visible."""
     exported = {name for name in dir(starlayer) if not name.startswith("_")}
-    submodule_attrs = {"graph", "sparql", "shacl", "starontology", "conformance"}
+    submodule_attrs = {"graph", "sparql", "shacl", "starontology", "conformance", "codekg"}
     assert exported - submodule_attrs == set(starlayer.__all__)
 
 

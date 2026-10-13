@@ -64,21 +64,61 @@ def coerce_object(s):
 
 
 def _split_on_delimiter(text, delim):
-    """Split text on delim at bracket-depth 0, respecting strings."""
+    """Split text on delim at bracket-depth 0, respecting strings.
+
+    Triple-quoted (``\"\"\"``/``'''``) strings are tracked as one atomic
+    unit, not three independent single-char toggles. Previously this
+    function only ever tracked single-character quote state (toggling
+    ``in_str`` on literally every ``"``/``'`` it saw) - for a real
+    triple-quoted string the first two characters of the opening
+    ``\"\"\"`` canceled each other out as a complete, empty string, so
+    the *third* quote character was misread as starting a brand-new
+    single-quoted string - one that then terminated early at the real
+    string's own first embedded quote (e.g. a multi-line docstring
+    quoting a short phrase, as this project's own cleaned-up docstring
+    convention - see starlayer.codekg.extractor - routinely produces).
+    Any ``;``/``,`` between that false terminator and the literal's real
+    closing ``\"\"\"`` was then silently swallowed into the wrong group
+    instead of splitting there, corrupting every predicate/object pair
+    that followed. Confirmed via the code-KG extractor's own real pilot
+    run against ``starlayer.graph.model.conformance``'s
+    ``SPARQL12ConformanceWarning`` docstring, the first multi-line
+    comment in this project's fixtures to combine a triple-quoted
+    serialization with an embedded, quoted short phrase.
+    """
     parts = []
     buf = ''
     depth = 0
     in_str = False
     str_char = ''
-    for ch in text:
+    triple = False
+    i = 0
+    n = len(text)
+    while i < n:
+        ch = text[i]
         if in_str:
-            buf += ch
-            if ch == str_char:
+            if ch == '\\' and i + 1 < n:
+                buf += text[i:i + 2]
+                i += 2
+                continue
+            if ch == str_char and (not triple or text[i:i + 3] == str_char * 3):
+                width = 3 if triple else 1
+                buf += text[i:i + width]
+                i += width
                 in_str = False
+                continue
+            buf += ch
+            i += 1
             continue
         if ch in ('"', "'"):
-            in_str, str_char = True, ch
-            buf += ch
+            if text[i:i + 3] == ch * 3:
+                in_str, str_char, triple = True, ch, True
+                buf += ch * 3
+                i += 3
+            else:
+                in_str, str_char, triple = True, ch, False
+                buf += ch
+                i += 1
             continue
         if ch in '[({':
             depth += 1
@@ -90,6 +130,7 @@ def _split_on_delimiter(text, delim):
             buf = ''
         else:
             buf += ch
+        i += 1
     if buf.strip():
         parts.append(buf.strip())
     return parts
@@ -254,11 +295,27 @@ def _split_statements_impl(data):
             i += 1
             continue
         if c == '.' and all(v == 0 for v in depth.values()):
-            # A '.' at depth 0 terminates the statement unless it's the
-            # decimal point of a DECIMAL/DOUBLE literal (Turtle grammar:
-            # both always have a digit immediately after the '.', e.g.
-            # "3.14" or ".5e10" - a statement-terminating '.' never does,
-            # since it's followed by whitespace/the next statement/EOF).
+            # A '.' at depth 0 terminates the statement unless the very
+            # next character continues the bare token this '.' is
+            # actually part of, rather than ending it - two distinct
+            # cases, both legal Turtle: a DECIMAL/DOUBLE literal's own
+            # decimal point (always followed by a digit, e.g. "3.14" or
+            # ".5e10"), and a PN_LOCAL's internal '.' (Turtle's PN_LOCAL
+            # grammar allows '.' anywhere except as the first or last
+            # character, e.g. a prefixed name like "ns1:thing.py" or
+            # "ns4:builtins.str" - the GitHub-blob-URL-derived filenames
+            # and dotted identifiers this project's own code-KG extractor
+            # mints as subjects, see starlayer.codekg.extractor.visitor).
+            # A real statement-terminating '.' is never immediately
+            # followed by a character that could extend the token just
+            # scanned - only whitespace, EOF, '#' (comment), or another
+            # statement-level delimiter. Previously only the DECIMAL/
+            # DOUBLE case was recognized (`next_char.isdigit()`), so any
+            # dotted PN_LOCAL silently mis-split mid-token - confirmed via
+            # exactly that case the first time this project's own custom
+            # trig12 parser (not stock rdflib, which starontology.trig
+            # itself happens to be parsed with - see starontology's own
+            # _dataset(), format="trig") was asked to round-trip one.
             # Previously required the '.' to be immediately followed by a
             # newline instead, which - as a side effect - silently merged
             # any two statements written on the same physical line into
@@ -267,7 +324,8 @@ def _split_statements_impl(data):
             # unmatched trailing text (worst for a directive: found and
             # fixed together with this same bug).
             next_char = data[i+1] if i + 1 < len(data) else ''
-            if not next_char.isdigit():
+            continues_token = next_char != '' and (next_char.isalnum() or next_char in '_-:%.')
+            if not continues_token:
                 buf += c
                 stmts.append((buf.strip(), stmt_start))
                 buf = ''

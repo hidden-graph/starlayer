@@ -1,0 +1,1148 @@
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix ns1: <https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/model/> .
+@prefix ns2: <https://github.com/hidden-graph/starlayer/ns/codekg#> .
+@prefix ns3: <https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/model/conformance.py#> .
+@prefix ns4: <https://github.com/hidden-graph/starlayer/ns/codekg/externaltype#> .
+@prefix ns5: <https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/model/triple.py#> .
+@prefix ns6: <https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/model/dirlangstring.py#> .
+@prefix ns7: <https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/model/encoding.py#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+GRAPH <https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/model/conformance.py> {
+    ns1:conformance.py dcterms:identifier "starlayer.graph.model.conformance" ;
+        a ns2:Module ;
+        rdfs:label "conformance" ;
+        ns2:declares ns3:SPARQL12ConformanceWarning, ns3:RDF12ConformanceWarning, ns3:check_version_conformance_for_graphs, ns3:check_version_conformance ;
+        ns2:filePath "/Users/johnclements/Documents/GitHub/hidden-graph/starlayer/packages/starlayer/starlayer/graph/model/conformance.py" ;
+        ns2:importsModule ns4:warnings .
+
+    ns3:RDF12ConformanceWarning dcterms:identifier "starlayer.graph.model.conformance.RDF12ConformanceWarning" ;
+        a ns2:Class ;
+        rdfs:comment """A declared VERSION label doesn't match the RDF 1.2 features actually
+    used in an RDF document (Turtle, TriG, N-Triples/N-Quads, RDF/XML).""" ;
+        rdfs:label "RDF12ConformanceWarning" ;
+        rdfs:subClassOf ns4:builtins.UserWarning ;
+        ns2:filePath "/Users/johnclements/Documents/GitHub/hidden-graph/starlayer/packages/starlayer/starlayer/graph/model/conformance.py" ;
+        ns2:lineEnd 38 ;
+        ns2:lineStart 36 .
+
+    ns3:SPARQL12ConformanceWarning dcterms:identifier "starlayer.graph.model.conformance.SPARQL12ConformanceWarning" ;
+        a ns2:Class ;
+        rdfs:comment """A declared VERSION label doesn't match the RDF 1.2 features actually
+    used in a SPARQL query/update's own text.
+
+    Deliberately not a subclass of RDF12ConformanceWarning: per SPARQL 1.2
+    Query sec 4.3, "the SPARQL version labels refer to SPARQL syntax and
+    semantics, while the RDF version labels refer to RDF syntax and
+    semantics" - the two directives share label spelling but check a
+    different kind of conformance, so they get distinct warning classes.""" ;
+        rdfs:label "SPARQL12ConformanceWarning" ;
+        rdfs:subClassOf ns4:builtins.UserWarning ;
+        ns2:filePath "/Users/johnclements/Documents/GitHub/hidden-graph/starlayer/packages/starlayer/starlayer/graph/model/conformance.py" ;
+        ns2:lineEnd 50 ;
+        ns2:lineStart 41 .
+
+    ns3:check_version_conformance dcterms:identifier "starlayer.graph.model.conformance.check_version_conformance" ;
+        a ns2:Function ;
+        rdfs:comment """Warn if declared_version is unrecognized, or is "1.2-basic"/"1.1" while
+    a triple term and/or dirLangString is actually present.
+
+    "1.1" is included alongside "1.2-basic" here, not just "1.2-basic": "1.1"
+    means plain RDF 1.1 syntax/semantics, which by definition has neither of
+    the two RDF 1.2 additions this project tracks (see the README's own
+    scope note) - so it excludes triple terms/dirLangString at least as
+    strictly as "1.2-basic" does, not more permissively.
+
+    declared_version -- the VERSION directive's label, or None if no
+                         directive was present (in which case this is a no-op)
+    context           -- short label identifying what was checked, for the
+                          warning message, e.g. "Turtle document" or
+                          "SPARQL query"
+    warning_class     -- RDF12ConformanceWarning (default) for RDF document
+                          formats, or SPARQL12ConformanceWarning for a
+                          SPARQL query/update's own VERSION directive
+    stacklevel        -- passed straight to warnings.warn(); the default (3)
+                          is correct for a direct caller (warn's own frame,
+                          then this function's, then the caller's - pointing
+                          the warning at the caller's line). A wrapper that
+                          itself calls this function - e.g.
+                          check_version_conformance_for_graphs() below -
+                          should pass stacklevel=4 so the warning still
+                          points at *its* caller, not at the wrapper itself.""" ;
+        rdfs:label "check_version_conformance" ;
+        ns2:filePath "/Users/johnclements/Documents/GitHub/hidden-graph/starlayer/packages/starlayer/starlayer/graph/model/conformance.py" ;
+        ns2:hasParameter ns3:check_version_conformance.param.context, ns3:check_version_conformance.param.uses_dirlangstring, ns3:check_version_conformance.param.warning_class, ns3:check_version_conformance.param.stacklevel, ns3:check_version_conformance.param.uses_triple_term, ns3:check_version_conformance.param.declared_version ;
+        ns2:hasReturnValue ns3:check_version_conformance.returns ;
+        ns2:lineEnd 109 ;
+        ns2:lineStart 53 ;
+        ns2:signature "def check_version_conformance(declared_version, *, uses_triple_term: bool, uses_dirlangstring: bool, context: str, warning_class: type=RDF12ConformanceWarning, stacklevel: int=3) -> None" .
+
+    ns3:check_version_conformance.param.context a ns2:Parameter ;
+        rdfs:label "context" ;
+        ns2:annotationText "str" ;
+        ns2:hasType ns4:builtins.str ;
+        ns2:parameterKind "kwonly" ;
+        ns2:position 3 .
+
+    ns3:check_version_conformance.param.declared_version a ns2:Parameter ;
+        rdfs:label "declared_version" ;
+        ns2:parameterKind "positional" ;
+        ns2:position 0 .
+
+    ns3:check_version_conformance.param.stacklevel a ns2:Parameter ;
+        rdfs:label "stacklevel" ;
+        ns2:annotationText "int" ;
+        ns2:defaultValue "3" ;
+        ns2:hasType ns4:builtins.int ;
+        ns2:parameterKind "kwonly" ;
+        ns2:position 5 .
+
+    ns3:check_version_conformance.param.uses_dirlangstring a ns2:Parameter ;
+        rdfs:label "uses_dirlangstring" ;
+        ns2:annotationText "bool" ;
+        ns2:hasType ns4:builtins.bool ;
+        ns2:parameterKind "kwonly" ;
+        ns2:position 2 .
+
+    ns3:check_version_conformance.param.uses_triple_term a ns2:Parameter ;
+        rdfs:label "uses_triple_term" ;
+        ns2:annotationText "bool" ;
+        ns2:hasType ns4:builtins.bool ;
+        ns2:parameterKind "kwonly" ;
+        ns2:position 1 .
+
+    ns3:check_version_conformance.param.warning_class a ns2:Parameter ;
+        rdfs:label "warning_class" ;
+        ns2:annotationText "type" ;
+        ns2:defaultValue "RDF12ConformanceWarning" ;
+        ns2:hasType ns4:builtins.type ;
+        ns2:parameterKind "kwonly" ;
+        ns2:position 4 .
+
+    ns3:check_version_conformance.returns a ns2:ReturnValue ;
+        ns2:annotationText "None" ;
+        ns2:optional true .
+
+    ns3:check_version_conformance_for_graphs dcterms:identifier "starlayer.graph.model.conformance.check_version_conformance_for_graphs" ;
+        a ns2:Function ;
+        rdfs:comment """Convenience wrapper: computes uses_triple_term/uses_dirlangstring by
+    scanning the given StarLayerGraph(s) (their _tt_nodes registry and
+    triples() for a DirLangString object), then calls
+    check_version_conformance().
+
+    Shared by StarLayerGraph.parse()'s per-format branches (Turtle,
+    N-Triples/N-Quads, TriG, RDF/XML each pass graphs=[self]) and
+    StarLayerDataset (passes graphs=self.contexts(), since a document-level
+    VERSION directive covers every named graph, not just one) - previously
+    each of those call sites duplicated this exact scan inline.""" ;
+        rdfs:label "check_version_conformance_for_graphs" ;
+        ns2:filePath "/Users/johnclements/Documents/GitHub/hidden-graph/starlayer/packages/starlayer/starlayer/graph/model/conformance.py" ;
+        ns2:hasParameter ns3:check_version_conformance_for_graphs.param.context, ns3:check_version_conformance_for_graphs.param.graphs, ns3:check_version_conformance_for_graphs.param.declared_version ;
+        ns2:hasReturnValue ns3:check_version_conformance_for_graphs.returns ;
+        ns2:lineEnd 138 ;
+        ns2:lineStart 112 ;
+        ns2:signature "def check_version_conformance_for_graphs(declared_version, graphs, *, context: str) -> None" .
+
+    ns3:check_version_conformance_for_graphs.param.context a ns2:Parameter ;
+        rdfs:label "context" ;
+        ns2:annotationText "str" ;
+        ns2:hasType ns4:builtins.str ;
+        ns2:parameterKind "kwonly" ;
+        ns2:position 2 .
+
+    ns3:check_version_conformance_for_graphs.param.declared_version a ns2:Parameter ;
+        rdfs:label "declared_version" ;
+        ns2:parameterKind "positional" ;
+        ns2:position 0 .
+
+    ns3:check_version_conformance_for_graphs.param.graphs a ns2:Parameter ;
+        rdfs:label "graphs" ;
+        ns2:parameterKind "positional" ;
+        ns2:position 1 .
+
+    ns3:check_version_conformance_for_graphs.returns a ns2:ReturnValue ;
+        ns2:annotationText "None" ;
+        ns2:optional true .
+
+    ns4:builtins.UserWarning dcterms:identifier "builtins.UserWarning" ;
+        a ns2:ExternalType ;
+        rdfs:label "UserWarning" ;
+        rdfs:subClassOf ns2:Type .
+
+    ns4:builtins.bool dcterms:identifier "builtins.bool" ;
+        a ns2:ExternalType ;
+        rdfs:label "bool" ;
+        rdfs:subClassOf ns2:Type .
+
+    ns4:builtins.int dcterms:identifier "builtins.int" ;
+        a ns2:ExternalType ;
+        rdfs:label "int" ;
+        rdfs:subClassOf ns2:Type .
+
+    ns4:builtins.str dcterms:identifier "builtins.str" ;
+        a ns2:ExternalType ;
+        rdfs:label "str" ;
+        rdfs:subClassOf ns2:Type .
+
+    ns4:builtins.type dcterms:identifier "builtins.type" ;
+        a ns2:ExternalType ;
+        rdfs:label "type" ;
+        rdfs:subClassOf ns2:Type .
+
+    ns4:warnings a ns2:ExternalModule .
+}
+
+GRAPH <https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/model/triple.py> {
+    ns1:triple.py dcterms:identifier "starlayer.graph.model.triple" ;
+        a ns2:Module ;
+        rdfs:label "triple" ;
+        ns2:declares ns5:TripleTerm ;
+        ns2:filePath "/Users/johnclements/Documents/GitHub/hidden-graph/starlayer/packages/starlayer/starlayer/graph/model/triple.py" ;
+        ns2:importsModule ns4:rdflib .
+
+    ns5:TripleTerm dcterms:identifier "starlayer.graph.model.triple.TripleTerm" ;
+        a ns2:Class ;
+        rdfs:comment """An RDF 1.2 triple term — a triple used as a resource.
+
+    Value-typed: two instances with the same (s, p, o) are equal and have the
+    same hash. A plain Python 3-tuple is coerced to TripleTerm wherever the
+    StarLayerGraph API expects a node.
+
+    _namespace_manager is set by StarLayerGraph._restore() when returning a
+    TripleTerm from a query result so that __str__ can emit prefixed names.
+    It is excluded from equality and hashing.""" ;
+        rdfs:label "TripleTerm" ;
+        ns2:declares ns5:TripleTerm.__hash__, ns5:TripleTerm.__init__, ns5:TripleTerm.__eq__, ns5:TripleTerm.__str__, ns5:TripleTerm.__setattr__, ns5:TripleTerm.__iter__, ns5:TripleTerm.__repr__, ns5:TripleTerm._key, ns5:TripleTerm.n3 ;
+        ns2:filePath "/Users/johnclements/Documents/GitHub/hidden-graph/starlayer/packages/starlayer/starlayer/graph/model/triple.py" ;
+        ns2:lineEnd 108 ;
+        ns2:lineStart 10 .
+
+    ns5:TripleTerm.__eq__ dcterms:identifier "starlayer.graph.model.triple.TripleTerm.__eq__" ;
+        a ns2:Method ;
+        rdfs:label "__eq__" ;
+        ns2:filePath "/Users/johnclements/Documents/GitHub/hidden-graph/starlayer/packages/starlayer/starlayer/graph/model/triple.py" ;
+        ns2:hasParameter ns5:TripleTerm.__eq__.param.other, ns5:TripleTerm.__eq__.param.self ;
+        ns2:lineEnd 76 ;
+        ns2:lineStart 71 ;
+        ns2:signature "def __eq__(self, other)" .
+
+    ns5:TripleTerm.__eq__.param.other a ns2:Parameter ;
+        rdfs:label "other" ;
+        ns2:parameterKind "positional" ;
+        ns2:position 1 .
+
+    ns5:TripleTerm.__eq__.param.self a ns2:Parameter ;
+        rdfs:label "self" ;
+        ns2:parameterKind "positional" ;
+        ns2:position 0 .
+
+    ns5:TripleTerm.__hash__ dcterms:identifier "starlayer.graph.model.triple.TripleTerm.__hash__" ;
+        a ns2:Method ;
+        rdfs:label "__hash__" ;
+        ns2:filePath "/Users/johnclements/Documents/GitHub/hidden-graph/starlayer/packages/starlayer/starlayer/graph/model/triple.py" ;
+        ns2:hasParameter ns5:TripleTerm.__hash__.param.self ;
+        ns2:lineEnd 79 ;
+        ns2:lineStart 78 ;
+        ns2:signature "def __hash__(self)" .
+
+    ns5:TripleTerm.__hash__.param.self a ns2:Parameter ;
+        rdfs:label "self" ;
+        ns2:parameterKind "positional" ;
+        ns2:position 0 .
+
+    ns5:TripleTerm.__init__ dcterms:identifier "starlayer.graph.model.triple.TripleTerm.__init__" ;
+        a ns2:Method ;
+        rdfs:label "__init__" ;
+        ns2:filePath "/Users/johnclements/Documents/GitHub/hidden-graph/starlayer/packages/starlayer/starlayer/graph/model/triple.py" ;
+        ns2:hasParameter ns5:TripleTerm.__init__.param.self, ns5:TripleTerm.__init__.param.predicate, ns5:TripleTerm.__init__.param.obj, ns5:TripleTerm.__init__.param.subject ;
+        ns2:lineEnd 54 ;
+        ns2:lineStart 26 ;
+        ns2:signature "def __init__(self, subject, predicate, obj)" .
+
+    ns5:TripleTerm.__init__.param.obj a ns2:Parameter ;
+        rdfs:label "obj" ;
+        ns2:parameterKind "positional" ;
+        ns2:position 3 .
+
+    ns5:TripleTerm.__init__.param.predicate a ns2:Parameter ;
+        rdfs:label "predicate" ;
+        ns2:parameterKind "positional" ;
+        ns2:position 2 .
+
+    ns5:TripleTerm.__init__.param.self a ns2:Parameter ;
+        rdfs:label "self" ;
+        ns2:parameterKind "positional" ;
+        ns2:position 0 .
+
+    ns5:TripleTerm.__init__.param.subject a ns2:Parameter ;
+        rdfs:label "subject" ;
+        ns2:parameterKind "positional" ;
+        ns2:position 1 .
+
+    ns5:TripleTerm.__iter__ dcterms:identifier "starlayer.graph.model.triple.TripleTerm.__iter__" ;
+        a ns2:Method ;
+        rdfs:label "__iter__" ;
+        ns2:filePath "/Users/johnclements/Documents/GitHub/hidden-graph/starlayer/packages/starlayer/starlayer/graph/model/triple.py" ;
+        ns2:hasParameter ns5:TripleTerm.__iter__.param.self ;
+        ns2:lineEnd 84 ;
+        ns2:lineStart 81 ;
+        ns2:signature "def __iter__(self)" .
+
+    ns5:TripleTerm.__iter__.param.self a ns2:Parameter ;
+        rdfs:label "self" ;
+        ns2:parameterKind "positional" ;
+        ns2:position 0 .
+
+    ns5:TripleTerm.__repr__ dcterms:identifier "starlayer.graph.model.triple.TripleTerm.__repr__" ;
+        a ns2:Method ;
+        rdfs:label "__repr__" ;
+        ns2:filePath "/Users/johnclements/Documents/GitHub/hidden-graph/starlayer/packages/starlayer/starlayer/graph/model/triple.py" ;
+        ns2:hasParameter ns5:TripleTerm.__repr__.param.self ;
+        ns2:lineEnd 108 ;
+        ns2:lineStart 103 ;
+        ns2:signature "def __repr__(self)" .
+
+    ns5:TripleTerm.__repr__.param.self a ns2:Parameter ;
+        rdfs:label "self" ;
+        ns2:parameterKind "positional" ;
+        ns2:position 0 .
+
+    ns5:TripleTerm.__setattr__ dcterms:identifier "starlayer.graph.model.triple.TripleTerm.__setattr__" ;
+        a ns2:Method ;
+        rdfs:label "__setattr__" ;
+        ns2:filePath "/Users/johnclements/Documents/GitHub/hidden-graph/starlayer/packages/starlayer/starlayer/graph/model/triple.py" ;
+        ns2:hasParameter ns5:TripleTerm.__setattr__.param.self, ns5:TripleTerm.__setattr__.param.value, ns5:TripleTerm.__setattr__.param.name ;
+        ns2:lineEnd 64 ;
+        ns2:lineStart 56 ;
+        ns2:signature "def __setattr__(self, name, value)" .
+
+    ns5:TripleTerm.__setattr__.param.name a ns2:Parameter ;
+        rdfs:label "name" ;
+        ns2:parameterKind "positional" ;
+        ns2:position 1 .
+
+    ns5:TripleTerm.__setattr__.param.self a ns2:Parameter ;
+        rdfs:label "self" ;
+        ns2:parameterKind "positional" ;
+        ns2:position 0 .
+
+    ns5:TripleTerm.__setattr__.param.value a ns2:Parameter ;
+        rdfs:label "value" ;
+        ns2:parameterKind "positional" ;
+        ns2:position 2 .
+
+    ns5:TripleTerm.__str__ dcterms:identifier "starlayer.graph.model.triple.TripleTerm.__str__" ;
+        a ns2:Method ;
+        rdfs:label "__str__" ;
+        ns2:filePath "/Users/johnclements/Documents/GitHub/hidden-graph/starlayer/packages/starlayer/starlayer/graph/model/triple.py" ;
+        ns2:hasParameter ns5:TripleTerm.__str__.param.self ;
+        ns2:lineEnd 101 ;
+        ns2:lineStart 90 ;
+        ns2:signature "def __str__(self)" .
+
+    ns5:TripleTerm.__str__.param.self a ns2:Parameter ;
+        rdfs:label "self" ;
+        ns2:parameterKind "positional" ;
+        ns2:position 0 .
+
+    ns5:TripleTerm._key dcterms:identifier "starlayer.graph.model.triple.TripleTerm._key" ;
+        a ns2:Method ;
+        rdfs:label "_key" ;
+        ns2:filePath "/Users/johnclements/Documents/GitHub/hidden-graph/starlayer/packages/starlayer/starlayer/graph/model/triple.py" ;
+        ns2:hasParameter ns5:TripleTerm._key.param.self ;
+        ns2:lineEnd 69 ;
+        ns2:lineStart 66 ;
+        ns2:signature "def _key(self)" .
+
+    ns5:TripleTerm._key.param.self a ns2:Parameter ;
+        rdfs:label "self" ;
+        ns2:parameterKind "positional" ;
+        ns2:position 0 .
+
+    ns5:TripleTerm.n3 dcterms:identifier "starlayer.graph.model.triple.TripleTerm.n3" ;
+        a ns2:Method ;
+        rdfs:label "n3" ;
+        ns2:filePath "/Users/johnclements/Documents/GitHub/hidden-graph/starlayer/packages/starlayer/starlayer/graph/model/triple.py" ;
+        ns2:hasParameter ns5:TripleTerm.n3.param.self, ns5:TripleTerm.n3.param.namespace_manager ;
+        ns2:lineEnd 88 ;
+        ns2:lineStart 86 ;
+        ns2:signature "def n3(self, namespace_manager=None)" .
+
+    ns5:TripleTerm.n3.param.namespace_manager a ns2:Parameter ;
+        rdfs:label "namespace_manager" ;
+        ns2:defaultValue "None" ;
+        ns2:parameterKind "positional" ;
+        ns2:position 1 .
+
+    ns5:TripleTerm.n3.param.self a ns2:Parameter ;
+        rdfs:label "self" ;
+        ns2:parameterKind "positional" ;
+        ns2:position 0 .
+
+    ns4:rdflib a ns2:ExternalModule .
+}
+
+GRAPH <https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/model/dirlangstring.py> {
+    ns1:dirlangstring.py dcterms:identifier "starlayer.graph.model.dirlangstring" ;
+        a ns2:Module ;
+        rdfs:label "dirlangstring" ;
+        ns2:declares ns6:DirLangString, ns6:encode_dirlangstring, ns6:decode_dirlangstring ;
+        ns2:filePath "/Users/johnclements/Documents/GitHub/hidden-graph/starlayer/packages/starlayer/starlayer/graph/model/dirlangstring.py" ;
+        ns2:importsModule ns4:rdflib .
+
+    ns6:DirLangString dcterms:identifier "starlayer.graph.model.dirlangstring.DirLangString" ;
+        a ns2:Class ;
+        rdfs:comment """An RDF 1.2 directional language-tagged string literal.
+
+    Value-typed: two instances with the same (value, language, direction) are
+    equal and have the same hash. Per RDF 1.2 Concepts sec 3.4.1, a language
+    tag's case does not participate in the abstract syntax - it is folded to
+    lowercase here, mirroring rdflib.Literal's existing behaviour for lang=.""" ;
+        rdfs:label "DirLangString" ;
+        ns2:declares ns6:DirLangString._key, ns6:DirLangString.__str__, ns6:DirLangString.n3, ns6:DirLangString.__init__, ns6:DirLangString.__hash__, ns6:DirLangString.__eq__, ns6:DirLangString.__setattr__, ns6:DirLangString.__repr__ ;
+        ns2:filePath "/Users/johnclements/Documents/GitHub/hidden-graph/starlayer/packages/starlayer/starlayer/graph/model/dirlangstring.py" ;
+        ns2:lineEnd 66 ;
+        ns2:lineStart 26 .
+
+    ns6:DirLangString.__eq__ dcterms:identifier "starlayer.graph.model.dirlangstring.DirLangString.__eq__" ;
+        a ns2:Method ;
+        rdfs:label "__eq__" ;
+        ns2:filePath "/Users/johnclements/Documents/GitHub/hidden-graph/starlayer/packages/starlayer/starlayer/graph/model/dirlangstring.py" ;
+        ns2:hasParameter ns6:DirLangString.__eq__.param.other, ns6:DirLangString.__eq__.param.self ;
+        ns2:lineEnd 54 ;
+        ns2:lineStart 51 ;
+        ns2:signature "def __eq__(self, other)" .
+
+    ns6:DirLangString.__eq__.param.other a ns2:Parameter ;
+        rdfs:label "other" ;
+        ns2:parameterKind "positional" ;
+        ns2:position 1 .
+
+    ns6:DirLangString.__eq__.param.self a ns2:Parameter ;
+        rdfs:label "self" ;
+        ns2:parameterKind "positional" ;
+        ns2:position 0 .
+
+    ns6:DirLangString.__hash__ dcterms:identifier "starlayer.graph.model.dirlangstring.DirLangString.__hash__" ;
+        a ns2:Method ;
+        rdfs:label "__hash__" ;
+        ns2:filePath "/Users/johnclements/Documents/GitHub/hidden-graph/starlayer/packages/starlayer/starlayer/graph/model/dirlangstring.py" ;
+        ns2:hasParameter ns6:DirLangString.__hash__.param.self ;
+        ns2:lineEnd 57 ;
+        ns2:lineStart 56 ;
+        ns2:signature "def __hash__(self)" .
+
+    ns6:DirLangString.__hash__.param.self a ns2:Parameter ;
+        rdfs:label "self" ;
+        ns2:parameterKind "positional" ;
+        ns2:position 0 .
+
+    ns6:DirLangString.__init__ dcterms:identifier "starlayer.graph.model.dirlangstring.DirLangString.__init__" ;
+        a ns2:Method ;
+        rdfs:label "__init__" ;
+        ns2:filePath "/Users/johnclements/Documents/GitHub/hidden-graph/starlayer/packages/starlayer/starlayer/graph/model/dirlangstring.py" ;
+        ns2:hasParameter ns6:DirLangString.__init__.param.language, ns6:DirLangString.__init__.param.value, ns6:DirLangString.__init__.param.direction, ns6:DirLangString.__init__.param.self ;
+        ns2:lineEnd 43 ;
+        ns2:lineStart 36 ;
+        ns2:signature "def __init__(self, value: str, language: str, direction: str)" .
+
+    ns6:DirLangString.__init__.param.direction a ns2:Parameter ;
+        rdfs:label "direction" ;
+        ns2:annotationText "str" ;
+        ns2:hasType ns4:builtins.str ;
+        ns2:parameterKind "positional" ;
+        ns2:position 3 .
+
+    ns6:DirLangString.__init__.param.language a ns2:Parameter ;
+        rdfs:label "language" ;
+        ns2:annotationText "str" ;
+        ns2:hasType ns4:builtins.str ;
+        ns2:parameterKind "positional" ;
+        ns2:position 2 .
+
+    ns6:DirLangString.__init__.param.self a ns2:Parameter ;
+        rdfs:label "self" ;
+        ns2:parameterKind "positional" ;
+        ns2:position 0 .
+
+    ns6:DirLangString.__init__.param.value a ns2:Parameter ;
+        rdfs:label "value" ;
+        ns2:annotationText "str" ;
+        ns2:hasType ns4:builtins.str ;
+        ns2:parameterKind "positional" ;
+        ns2:position 1 .
+
+    ns6:DirLangString.__repr__ dcterms:identifier "starlayer.graph.model.dirlangstring.DirLangString.__repr__" ;
+        a ns2:Method ;
+        rdfs:label "__repr__" ;
+        ns2:filePath "/Users/johnclements/Documents/GitHub/hidden-graph/starlayer/packages/starlayer/starlayer/graph/model/dirlangstring.py" ;
+        ns2:hasParameter ns6:DirLangString.__repr__.param.self ;
+        ns2:lineEnd 66 ;
+        ns2:lineStart 65 ;
+        ns2:signature "def __repr__(self)" .
+
+    ns6:DirLangString.__repr__.param.self a ns2:Parameter ;
+        rdfs:label "self" ;
+        ns2:parameterKind "positional" ;
+        ns2:position 0 .
+
+    ns6:DirLangString.__setattr__ dcterms:identifier "starlayer.graph.model.dirlangstring.DirLangString.__setattr__" ;
+        a ns2:Method ;
+        rdfs:label "__setattr__" ;
+        ns2:filePath "/Users/johnclements/Documents/GitHub/hidden-graph/starlayer/packages/starlayer/starlayer/graph/model/dirlangstring.py" ;
+        ns2:hasParameter ns6:DirLangString.__setattr__.param.value, ns6:DirLangString.__setattr__.param.name, ns6:DirLangString.__setattr__.param.self ;
+        ns2:lineEnd 46 ;
+        ns2:lineStart 45 ;
+        ns2:signature "def __setattr__(self, name, value)" .
+
+    ns6:DirLangString.__setattr__.param.name a ns2:Parameter ;
+        rdfs:label "name" ;
+        ns2:parameterKind "positional" ;
+        ns2:position 1 .
+
+    ns6:DirLangString.__setattr__.param.self a ns2:Parameter ;
+        rdfs:label "self" ;
+        ns2:parameterKind "positional" ;
+        ns2:position 0 .
+
+    ns6:DirLangString.__setattr__.param.value a ns2:Parameter ;
+        rdfs:label "value" ;
+        ns2:parameterKind "positional" ;
+        ns2:position 2 .
+
+    ns6:DirLangString.__str__ dcterms:identifier "starlayer.graph.model.dirlangstring.DirLangString.__str__" ;
+        a ns2:Method ;
+        rdfs:label "__str__" ;
+        ns2:filePath "/Users/johnclements/Documents/GitHub/hidden-graph/starlayer/packages/starlayer/starlayer/graph/model/dirlangstring.py" ;
+        ns2:hasParameter ns6:DirLangString.__str__.param.self ;
+        ns2:lineEnd 63 ;
+        ns2:lineStart 62 ;
+        ns2:signature "def __str__(self)" .
+
+    ns6:DirLangString.__str__.param.self a ns2:Parameter ;
+        rdfs:label "self" ;
+        ns2:parameterKind "positional" ;
+        ns2:position 0 .
+
+    ns6:DirLangString._key dcterms:identifier "starlayer.graph.model.dirlangstring.DirLangString._key" ;
+        a ns2:Method ;
+        rdfs:label "_key" ;
+        ns2:filePath "/Users/johnclements/Documents/GitHub/hidden-graph/starlayer/packages/starlayer/starlayer/graph/model/dirlangstring.py" ;
+        ns2:hasParameter ns6:DirLangString._key.param.self ;
+        ns2:lineEnd 49 ;
+        ns2:lineStart 48 ;
+        ns2:signature "def _key(self)" .
+
+    ns6:DirLangString._key.param.self a ns2:Parameter ;
+        rdfs:label "self" ;
+        ns2:parameterKind "positional" ;
+        ns2:position 0 .
+
+    ns6:DirLangString.n3 dcterms:identifier "starlayer.graph.model.dirlangstring.DirLangString.n3" ;
+        a ns2:Method ;
+        rdfs:label "n3" ;
+        ns2:filePath "/Users/johnclements/Documents/GitHub/hidden-graph/starlayer/packages/starlayer/starlayer/graph/model/dirlangstring.py" ;
+        ns2:hasParameter ns6:DirLangString.n3.param.namespace_manager, ns6:DirLangString.n3.param.self ;
+        ns2:hasReturnValue ns6:DirLangString.n3.returns ;
+        ns2:lineEnd 60 ;
+        ns2:lineStart 59 ;
+        ns2:signature "def n3(self, namespace_manager=None) -> str" .
+
+    ns6:DirLangString.n3.param.namespace_manager a ns2:Parameter ;
+        rdfs:label "namespace_manager" ;
+        ns2:defaultValue "None" ;
+        ns2:parameterKind "positional" ;
+        ns2:position 1 .
+
+    ns6:DirLangString.n3.param.self a ns2:Parameter ;
+        rdfs:label "self" ;
+        ns2:parameterKind "positional" ;
+        ns2:position 0 .
+
+    ns6:DirLangString.n3.returns a ns2:ReturnValue ;
+        ns2:annotationText "str" ;
+        ns2:hasType ns4:builtins.str .
+
+    ns6:decode_dirlangstring dcterms:identifier "starlayer.graph.model.dirlangstring.decode_dirlangstring" ;
+        a ns2:Function ;
+        rdfs:comment "Return a DirLangString if literal is a starlayer.graph dirlang-encoded Literal, else None." ;
+        rdfs:label "decode_dirlangstring" ;
+        ns2:filePath "/Users/johnclements/Documents/GitHub/hidden-graph/starlayer/packages/starlayer/starlayer/graph/model/dirlangstring.py" ;
+        ns2:hasParameter ns6:decode_dirlangstring.param.literal ;
+        ns2:hasReturnValue ns6:decode_dirlangstring.returns ;
+        ns2:lineEnd 83 ;
+        ns2:lineStart 74 ;
+        ns2:signature "def decode_dirlangstring(literal) -> DirLangString | None" .
+
+    ns6:decode_dirlangstring.param.literal a ns2:Parameter ;
+        rdfs:label "literal" ;
+        ns2:parameterKind "positional" ;
+        ns2:position 0 .
+
+    ns6:decode_dirlangstring.returns a ns2:ReturnValue ;
+        ns2:annotationText "DirLangString | None" ;
+        ns2:hasType ns6:DirLangString ;
+        ns2:optional true .
+
+    ns6:encode_dirlangstring dcterms:identifier "starlayer.graph.model.dirlangstring.encode_dirlangstring" ;
+        a ns2:Function ;
+        rdfs:comment "Return the internal Literal encoding of a DirLangString." ;
+        rdfs:label "encode_dirlangstring" ;
+        ns2:filePath "/Users/johnclements/Documents/GitHub/hidden-graph/starlayer/packages/starlayer/starlayer/graph/model/dirlangstring.py" ;
+        ns2:hasParameter ns6:encode_dirlangstring.param.dls ;
+        ns2:hasReturnValue ns6:encode_dirlangstring.returns ;
+        ns2:lineEnd 71 ;
+        ns2:lineStart 69 ;
+        ns2:signature "def encode_dirlangstring(dls: DirLangString) -> Literal" .
+
+    ns6:encode_dirlangstring.param.dls a ns2:Parameter ;
+        rdfs:label "dls" ;
+        ns2:annotationText "DirLangString" ;
+        ns2:hasType ns6:DirLangString ;
+        ns2:parameterKind "positional" ;
+        ns2:position 0 .
+
+    ns6:encode_dirlangstring.returns a ns2:ReturnValue ;
+        ns2:annotationText "Literal" ;
+        ns2:hasType ns4:rdflib.term.Literal .
+
+    ns4:builtins.str dcterms:identifier "builtins.str" ;
+        a ns2:ExternalType ;
+        rdfs:label "str" ;
+        rdfs:subClassOf ns2:Type .
+
+    ns4:rdflib a ns2:ExternalModule .
+
+    ns4:rdflib.term.Literal dcterms:identifier "rdflib.term.Literal" ;
+        a ns2:ExternalType ;
+        rdfs:label "Literal" ;
+        rdfs:subClassOf ns2:Type .
+}
+
+GRAPH <https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/model/__init__.py> {
+    ns1:__init__.py dcterms:identifier "starlayer.graph.model.__init__" ;
+        a ns2:Module ;
+        rdfs:label "__init__" ;
+        ns2:filePath "/Users/johnclements/Documents/GitHub/hidden-graph/starlayer/packages/starlayer/starlayer/graph/model/__init__.py" .
+}
+
+GRAPH <https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/model/encoding.py> {
+    ns1:encoding.py dcterms:identifier "starlayer.graph.model.encoding" ;
+        a ns2:Module ;
+        rdfs:label "encoding" ;
+        ns2:declares ns7:lookup_tt_hash, ns7:remember_tt_hash, ns7:restore_select_bindings, ns7:decode_dirlang_datatype, ns7:_canonicalize_numeric_literal, ns7:inject_missing_tt_encoding, ns7:encode_dirlang_datatype, ns7:canonicalize_query_result_value, ns7:_reencode_tt, ns7:term_key, ns7:tt_hash ;
+        ns2:filePath "/Users/johnclements/Documents/GitHub/hidden-graph/starlayer/packages/starlayer/starlayer/graph/model/encoding.py" ;
+        ns2:importsModule ns4:rdflib.term, ns4:collections, ns4:rdflib.query, ns4:rdflib.namespace, ns4:typing, ns4:hashlib, ns4:__future__, ns4:rdflib, ns4:collections.abc .
+
+    ns7:_canonicalize_numeric_literal dcterms:identifier "starlayer.graph.model.encoding._canonicalize_numeric_literal" ;
+        a ns2:Function ;
+        rdfs:comment """Reformat a decimal/double/float-typed Literal's lexical form to its
+    XSD canonical form. A no-op for anything already canonical, or for any
+    other datatype.
+
+    decimal: canonical form requires a decimal point with at least one
+    digit on each side (e.g. "42.0", not "42").
+    double/float: reformats through Python's own float parsing/repr, which
+    - for the ordinary (non-extreme-magnitude) range this is actually used
+    for in practice - already produces XSD's own "at least one digit each
+    side of a required decimal point" convention (e.g. "123e0" -> "123.0",
+    "1.5E2" -> "150.0"); not a full implementation of XSD 1.1's exact
+    canonical-form algorithm for every possible magnitude (e.g. very
+    large/small values render with Python's "1e+30"-style exponent rather
+    than XSD's "1.0E30"), which is a level of fidelity nothing in this
+    codebase currently needs.""" ;
+        rdfs:label "_canonicalize_numeric_literal" ;
+        ns2:filePath "/Users/johnclements/Documents/GitHub/hidden-graph/starlayer/packages/starlayer/starlayer/graph/model/encoding.py" ;
+        ns2:hasParameter ns7:_canonicalize_numeric_literal.param.literal ;
+        ns2:hasReturnValue ns7:_canonicalize_numeric_literal.returns ;
+        ns2:lineEnd 249 ;
+        ns2:lineStart 205 ;
+        ns2:signature "def _canonicalize_numeric_literal(literal: Literal) -> Literal" .
+
+    ns7:_canonicalize_numeric_literal.param.literal a ns2:Parameter ;
+        rdfs:comment "The Literal to canonicalize." ;
+        rdfs:label "literal" ;
+        ns2:annotationText "Literal" ;
+        ns2:hasType ns4:rdflib.term.Literal ;
+        ns2:parameterKind "positional" ;
+        ns2:position 0 .
+
+    ns7:_canonicalize_numeric_literal.returns a ns2:ReturnValue ;
+        rdfs:comment "A Literal with the same datatype and a canonicalized lexical form, or the original object unchanged if it was already canonical or not one of the canonicalizable numeric datatypes." ;
+        ns2:annotationText "Literal" ;
+        ns2:hasType ns4:rdflib.term.Literal .
+
+    ns7:_reencode_tt dcterms:identifier "starlayer.graph.model.encoding._reencode_tt" ;
+        a ns2:Function ;
+        rdfs:comment """Emit tt's rdf:subject/predicate/object encoding triples into
+    out_graph (recursively for any nested TripleTerm component) and return
+    its content-addressed URI - the write-side mirror of
+    StarLayerGraph._intern_tt(), but writing to an arbitrary graph rather
+    than `self`, and given an already-fully-resolved TripleTerm (no nested
+    tt:HASH URIRefs left to look up) rather than one that might still
+    contain them. See inject_missing_tt_encoding()'s docstring for why this
+    exists.""" ;
+        rdfs:label "_reencode_tt" ;
+        ns2:filePath "/Users/johnclements/Documents/GitHub/hidden-graph/starlayer/packages/starlayer/starlayer/graph/model/encoding.py" ;
+        ns2:hasParameter ns7:_reencode_tt.param.tt, ns7:_reencode_tt.param.out_graph ;
+        ns2:hasReturnValue ns7:_reencode_tt.returns ;
+        ns2:lineEnd 353 ;
+        ns2:lineStart 329 ;
+        ns2:signature "def _reencode_tt(tt: TripleTerm, out_graph: Graph) -> URIRef" .
+
+    ns7:_reencode_tt.param.out_graph a ns2:Parameter ;
+        rdfs:comment "The graph to add the encoding triples to." ;
+        rdfs:label "out_graph" ;
+        ns2:annotationText "Graph" ;
+        ns2:hasType ns4:rdflib.graph.Graph ;
+        ns2:parameterKind "positional" ;
+        ns2:position 1 .
+
+    ns7:_reencode_tt.param.tt a ns2:Parameter ;
+        rdfs:comment "The triple term to encode, fully resolved - no unresolved nested tt:HASH URIRefs." ;
+        rdfs:label "tt" ;
+        ns2:annotationText "TripleTerm" ;
+        ns2:hasType ns4:starlayer.graph.model.triple.TripleTerm ;
+        ns2:parameterKind "positional" ;
+        ns2:position 0 .
+
+    ns7:_reencode_tt.returns a ns2:ReturnValue ;
+        rdfs:comment "The tt:HASH URIRef naming tt." ;
+        ns2:annotationText "URIRef" ;
+        ns2:hasType ns4:rdflib.term.URIRef .
+
+    ns7:canonicalize_query_result_value dcterms:identifier "starlayer.graph.model.encoding.canonicalize_query_result_value" ;
+        a ns2:Function ;
+        rdfs:comment """Canonicalize a numeric-XSD-typed Literal's lexical form for a SPARQL
+    query *result* value specifically, recursing into a TripleTerm's own
+    subject/object components.
+
+    Deliberately applied only here, at the SELECT-result boundary (see
+    restore_select_bindings below) - not anywhere data is read verbatim
+    (plain .triples()/_restore() on their own): Turtle/N-Triples parsing
+    deliberately preserves a literal's exact lexical form as written, since
+    RDF 1.2's own term-equality rules require it. A query *result*, though,
+    is expected to match what a conformant engine's own query results look
+    like (e.g. "123e0" canonicalizes to "123.0").""" ;
+        rdfs:label "canonicalize_query_result_value" ;
+        ns2:filePath "/Users/johnclements/Documents/GitHub/hidden-graph/starlayer/packages/starlayer/starlayer/graph/model/encoding.py" ;
+        ns2:hasParameter ns7:canonicalize_query_result_value.param.node ;
+        ns2:hasReturnValue ns7:canonicalize_query_result_value.returns ;
+        ns2:lineEnd 289 ;
+        ns2:lineStart 252 ;
+        ns2:signature "def canonicalize_query_result_value(node: Node | TripleTerm) -> Node | TripleTerm" .
+
+    ns7:canonicalize_query_result_value.param.node a ns2:Parameter ;
+        rdfs:comment "The query result value to canonicalize - an RDF term or a TripleTerm." ;
+        rdfs:label "node" ;
+        ns2:annotationText "Node | TripleTerm" ;
+        ns2:hasType ns4:rdflib.term.Node, ns4:starlayer.graph.model.triple.TripleTerm ;
+        ns2:parameterKind "positional" ;
+        ns2:position 0 .
+
+    ns7:canonicalize_query_result_value.returns a ns2:ReturnValue ;
+        rdfs:comment "node unchanged if nothing needed canonicalizing (preserving identity, not just equality, so a TripleTerm's own _namespace_manager survives), or an equivalent value with any numeric literal's lexical form canonicalized." ;
+        ns2:annotationText "Node | TripleTerm" ;
+        ns2:hasType ns4:starlayer.graph.model.triple.TripleTerm, ns4:rdflib.term.Node .
+
+    ns7:decode_dirlang_datatype dcterms:identifier "starlayer.graph.model.encoding.decode_dirlang_datatype" ;
+        a ns2:Function ;
+        rdfs:comment """Return (language, direction) if datatype is a starlayer.graph dirlang
+    encoding.
+
+    Returns None for any other datatype, including plain rdf:langString,
+    which never reaches here since it's represented via Literal's native
+    lang= rather than a synthetic datatype URI.""" ;
+        rdfs:label "decode_dirlang_datatype" ;
+        ns2:filePath "/Users/johnclements/Documents/GitHub/hidden-graph/starlayer/packages/starlayer/starlayer/graph/model/encoding.py" ;
+        ns2:hasParameter ns7:decode_dirlang_datatype.param.datatype ;
+        ns2:hasReturnValue ns7:decode_dirlang_datatype.returns ;
+        ns2:lineEnd 199 ;
+        ns2:lineStart 177 ;
+        ns2:signature "def decode_dirlang_datatype(datatype: URIRef) -> tuple[str, str] | None" .
+
+    ns7:decode_dirlang_datatype.param.datatype a ns2:Parameter ;
+        rdfs:comment "The literal's datatype URIRef to test." ;
+        rdfs:label "datatype" ;
+        ns2:annotationText "URIRef" ;
+        ns2:hasType ns4:rdflib.term.URIRef ;
+        ns2:parameterKind "positional" ;
+        ns2:position 0 .
+
+    ns7:decode_dirlang_datatype.returns a ns2:ReturnValue ;
+        rdfs:comment "A (language, direction) tuple decoded from the datatype's local name, or None if datatype is not a dirlang encoding." ;
+        ns2:annotationText "tuple[str, str] | None" ;
+        ns2:hasType ns4:builtins.tuple, ns4:builtins.str ;
+        ns2:optional true .
+
+    ns7:encode_dirlang_datatype dcterms:identifier "starlayer.graph.model.encoding.encode_dirlang_datatype" ;
+        a ns2:Function ;
+        rdfs:comment """Return the internal datatype URIRef encoding a DirLangString's
+    (language, direction) pair.
+
+    rdflib.Literal(text, lang="en--rtl") raises ValueError - rdflib's langtag
+    validator has no notion of the RDF 1.2 "--dir" suffix and rejects it
+    outright. Validation only fires for the lang= keyword, not datatype=, so
+    packing (language, direction) into a synthetic datatype URI sidesteps the
+    check entirely while staying self-describing: the URI's local name is
+    exactly the real "lang--dir" lexical suffix (RDF 1.2 Concepts sec 3.4),
+    so decoding is a plain string split, no lookup table.""" ;
+        rdfs:label "encode_dirlang_datatype" ;
+        ns2:filePath "/Users/johnclements/Documents/GitHub/hidden-graph/starlayer/packages/starlayer/starlayer/graph/model/encoding.py" ;
+        ns2:hasParameter ns7:encode_dirlang_datatype.param.direction, ns7:encode_dirlang_datatype.param.language ;
+        ns2:hasReturnValue ns7:encode_dirlang_datatype.returns ;
+        ns2:lineEnd 174 ;
+        ns2:lineStart 155 ;
+        ns2:signature "def encode_dirlang_datatype(language: str, direction: str) -> URIRef" .
+
+    ns7:encode_dirlang_datatype.param.direction a ns2:Parameter ;
+        rdfs:comment "The literal's real base direction (\"ltr\" or \"rtl\")." ;
+        rdfs:label "direction" ;
+        ns2:annotationText "str" ;
+        ns2:hasType ns4:builtins.str ;
+        ns2:parameterKind "positional" ;
+        ns2:position 1 .
+
+    ns7:encode_dirlang_datatype.param.language a ns2:Parameter ;
+        rdfs:comment "The literal's real language tag (e.g. \"en\")." ;
+        rdfs:label "language" ;
+        ns2:annotationText "str" ;
+        ns2:hasType ns4:builtins.str ;
+        ns2:parameterKind "positional" ;
+        ns2:position 0 .
+
+    ns7:encode_dirlang_datatype.returns a ns2:ReturnValue ;
+        rdfs:comment "A URIRef under DIRLANG_NS whose local name is \"<language>--<direction>\"." ;
+        ns2:annotationText "URIRef" ;
+        ns2:hasType ns4:rdflib.term.URIRef .
+
+    ns7:inject_missing_tt_encoding dcterms:identifier "starlayer.graph.model.encoding.inject_missing_tt_encoding" ;
+        a ns2:Function ;
+        rdfs:comment """Scan a freshly-built CONSTRUCT result graph for any tt:HASH URIRef
+    that appears with no rdf:subject/predicate/object encoding triples of
+    its own already in `graph`, and - wherever `restore_fn` (the querying
+    graph/dataset's own ``_restore``/``_restore_any``) can still resolve it
+    - inject those triples so the value survives being wrapped in
+    ``StarLayerGraph.from_rdflib()`` afterwards.
+
+    Why this is needed: a CONSTRUCT template can embed a tt:HASH URIRef that
+    was never freshly computed by this query at all - just read straight off
+    an existing WHERE-clause binding, e.g. ``BIND(<<(?s ?p ?o)>> AS ?t)``
+    where ``?o`` itself already held a *nested* triple-term value from the
+    graph being queried. Such a value is only "known" via the *querying*
+    graph's own ``_tt_nodes`` registry (built when that data was originally
+    parsed) - the plain rdflib Graph rdflib's SPARQL engine hands back for a
+    CONSTRUCT result has no rdf:subject/predicate/object triples for it at
+    all (those were never re-derived, since nothing re-interned it), so
+    ``StarLayerGraph.from_rdflib()``'s registry-building pass
+    (``_build_registry_from_store()``) has nothing to find, and the raw
+    tt:HASH URIRef would otherwise leak straight through to callers instead
+    of the TripleTerm it's supposed to mean. Called on `graph` *before*
+    ``StarLayerGraph.from_rdflib(graph)``, from both ``StarLayerGraph.query()``
+    and ``StarLayerDataset.query()``.""" ;
+        rdfs:label "inject_missing_tt_encoding" ;
+        ns2:filePath "/Users/johnclements/Documents/GitHub/hidden-graph/starlayer/packages/starlayer/starlayer/graph/model/encoding.py" ;
+        ns2:hasParameter ns7:inject_missing_tt_encoding.param.graph, ns7:inject_missing_tt_encoding.param.restore_fn ;
+        ns2:hasReturnValue ns7:inject_missing_tt_encoding.returns ;
+        ns2:lineEnd 395 ;
+        ns2:lineStart 356 ;
+        ns2:signature "def inject_missing_tt_encoding(graph: Graph, restore_fn: Callable[[Any], Any]) -> None" .
+
+    ns7:inject_missing_tt_encoding.param.graph a ns2:Parameter ;
+        rdfs:comment "The CONSTRUCT result graph to scan and patch in place." ;
+        rdfs:label "graph" ;
+        ns2:annotationText "Graph" ;
+        ns2:hasType ns4:rdflib.graph.Graph ;
+        ns2:parameterKind "positional" ;
+        ns2:position 0 .
+
+    ns7:inject_missing_tt_encoding.param.restore_fn a ns2:Parameter ;
+        rdfs:comment "Resolves a tt:HASH URIRef to its TripleTerm, if known to the caller's own registry/registries." ;
+        rdfs:label "restore_fn" ;
+        ns2:annotationText "Callable[[Any], Any]" ;
+        ns2:hasType ns4:collections.abc.Callable, ns4:typing.Any ;
+        ns2:parameterKind "positional" ;
+        ns2:position 1 .
+
+    ns7:inject_missing_tt_encoding.returns a ns2:ReturnValue ;
+        ns2:annotationText "None" ;
+        ns2:optional true .
+
+    ns7:lookup_tt_hash dcterms:identifier "starlayer.graph.model.encoding.lookup_tt_hash" ;
+        a ns2:Function ;
+        rdfs:comment """Return the (s, p, o) triple term components remembered for uri via
+    remember_tt_hash(), or None if uri was never remembered or has since
+    aged out of the bounded memo.""" ;
+        rdfs:label "lookup_tt_hash" ;
+        ns2:filePath "/Users/johnclements/Documents/GitHub/hidden-graph/starlayer/packages/starlayer/starlayer/graph/model/encoding.py" ;
+        ns2:hasParameter ns7:lookup_tt_hash.param.uri ;
+        ns2:hasReturnValue ns7:lookup_tt_hash.returns ;
+        ns2:lineEnd 152 ;
+        ns2:lineStart 137 ;
+        ns2:signature "def lookup_tt_hash(uri: URIRef) -> tuple[Node | TripleTerm, Node, Node | TripleTerm] | None" .
+
+    ns7:lookup_tt_hash.param.uri a ns2:Parameter ;
+        rdfs:comment "The content-addressed tt:HASH URIRef to look up." ;
+        rdfs:label "uri" ;
+        ns2:annotationText "URIRef" ;
+        ns2:hasType ns4:rdflib.term.URIRef ;
+        ns2:parameterKind "positional" ;
+        ns2:position 0 .
+
+    ns7:lookup_tt_hash.returns a ns2:ReturnValue ;
+        rdfs:comment "The remembered (subject, predicate, object) tuple, or None if uri is unknown." ;
+        ns2:annotationText "tuple[Node | TripleTerm, Node, Node | TripleTerm] | None" ;
+        ns2:hasType ns4:rdflib.term.Node, ns4:starlayer.graph.model.triple.TripleTerm, ns4:builtins.tuple ;
+        ns2:optional true .
+
+    ns7:remember_tt_hash dcterms:identifier "starlayer.graph.model.encoding.remember_tt_hash" ;
+        a ns2:Function ;
+        rdfs:comment """Record that uri is the content-addressed hash of triple term (s, p, o)
+    in the process-wide memo, so a later lookup_tt_hash(uri) call can
+    reconstruct the triple term even if it was never written to any graph.""" ;
+        rdfs:label "remember_tt_hash" ;
+        ns2:filePath "/Users/johnclements/Documents/GitHub/hidden-graph/starlayer/packages/starlayer/starlayer/graph/model/encoding.py" ;
+        ns2:hasParameter ns7:remember_tt_hash.param.p, ns7:remember_tt_hash.param.s, ns7:remember_tt_hash.param.o, ns7:remember_tt_hash.param.uri ;
+        ns2:hasReturnValue ns7:remember_tt_hash.returns ;
+        ns2:lineEnd 134 ;
+        ns2:lineStart 118 ;
+        ns2:signature "def remember_tt_hash(uri: URIRef, s: Node | TripleTerm, p: Node, o: Node | TripleTerm) -> None" .
+
+    ns7:remember_tt_hash.param.o a ns2:Parameter ;
+        rdfs:comment "The triple term's resolved object - an RDF term or a nested TripleTerm." ;
+        rdfs:label "o" ;
+        ns2:annotationText "Node | TripleTerm" ;
+        ns2:hasType ns4:starlayer.graph.model.triple.TripleTerm, ns4:rdflib.term.Node ;
+        ns2:parameterKind "positional" ;
+        ns2:position 3 .
+
+    ns7:remember_tt_hash.param.p a ns2:Parameter ;
+        rdfs:comment "The triple term's resolved predicate." ;
+        rdfs:label "p" ;
+        ns2:annotationText "Node" ;
+        ns2:hasType ns4:rdflib.term.Node ;
+        ns2:parameterKind "positional" ;
+        ns2:position 2 .
+
+    ns7:remember_tt_hash.param.s a ns2:Parameter ;
+        rdfs:comment "The triple term's resolved subject - an RDF term or a nested TripleTerm." ;
+        rdfs:label "s" ;
+        ns2:annotationText "Node | TripleTerm" ;
+        ns2:hasType ns4:rdflib.term.Node, ns4:starlayer.graph.model.triple.TripleTerm ;
+        ns2:parameterKind "positional" ;
+        ns2:position 1 .
+
+    ns7:remember_tt_hash.param.uri a ns2:Parameter ;
+        rdfs:comment "The content-addressed tt:HASH URIRef naming this triple term." ;
+        rdfs:label "uri" ;
+        ns2:annotationText "URIRef" ;
+        ns2:hasType ns4:rdflib.term.URIRef ;
+        ns2:parameterKind "positional" ;
+        ns2:position 0 .
+
+    ns7:remember_tt_hash.returns a ns2:ReturnValue ;
+        ns2:annotationText "None" ;
+        ns2:optional true .
+
+    ns7:restore_select_bindings dcterms:identifier "starlayer.graph.model.encoding.restore_select_bindings" ;
+        a ns2:Function ;
+        rdfs:comment """Post-process a SPARQL SELECT rdflib.query.Result in place: drop rows
+    that are purely internal encoding infrastructure, and restore any
+    tt:HASH URIRef/dirlang: Literal in the surviving rows to its public
+    TripleTerm/DirLangString form via restore_fn - then canonicalize any
+    numeric literal's lexical form (see canonicalize_query_result_value)
+    now that it's a real value rather than an opaque tt:HASH URI.
+
+    Shared by StarLayerGraph.query() (restore_fn=self._restore, which looks
+    up a single graph's own registry) and StarLayerDataset.query()
+    (restore_fn=self._restore_any, which searches every cached graph's
+    registry) - the row-filtering and restoration shape is identical between
+    the two; only how a tt:HASH URIRef gets resolved back to a TripleTerm
+    differs, which is exactly what restore_fn parameterizes.
+
+    A row is dropped when it contains both a TT_NS-prefixed URIRef and one of
+    the rdf:subject/predicate/object encoding predicates as *values* - such a
+    row exists only because a query pattern incidentally matched the raw
+    encoding triples (e.g. an unconstrained ``?s ?p ?o``), not because the
+    caller asked about them.""" ;
+        rdfs:label "restore_select_bindings" ;
+        ns2:filePath "/Users/johnclements/Documents/GitHub/hidden-graph/starlayer/packages/starlayer/starlayer/graph/model/encoding.py" ;
+        ns2:hasParameter ns7:restore_select_bindings.param.r, ns7:restore_select_bindings.param.restore_fn ;
+        ns2:hasReturnValue ns7:restore_select_bindings.returns ;
+        ns2:lineEnd 326 ;
+        ns2:lineStart 292 ;
+        ns2:signature "def restore_select_bindings(r: Result, restore_fn: Callable[[Any], Any]) -> None" .
+
+    ns7:restore_select_bindings.param.r a ns2:Parameter ;
+        rdfs:comment "The SPARQL SELECT result to post-process in place." ;
+        rdfs:label "r" ;
+        ns2:annotationText "Result" ;
+        ns2:hasType ns4:rdflib.query.Result ;
+        ns2:parameterKind "positional" ;
+        ns2:position 0 .
+
+    ns7:restore_select_bindings.param.restore_fn a ns2:Parameter ;
+        rdfs:comment "Resolves one binding value (e.g. a tt:HASH URIRef or a dirlang Literal) to its public form, looking it up in whichever registry/registries the caller's graph or dataset maintains." ;
+        rdfs:label "restore_fn" ;
+        ns2:annotationText "Callable[[Any], Any]" ;
+        ns2:hasType ns4:collections.abc.Callable, ns4:typing.Any ;
+        ns2:parameterKind "positional" ;
+        ns2:position 1 .
+
+    ns7:restore_select_bindings.returns a ns2:ReturnValue ;
+        ns2:annotationText "None" ;
+        ns2:optional true .
+
+    ns7:term_key dcterms:identifier "starlayer.graph.model.encoding.term_key" ;
+        a ns2:Function ;
+        rdfs:comment """Canonical string form of an RDF term for use as one of tt_hash's
+    three inputs.
+
+    Uses .n3(), not plain str() - str(Literal(...)) always returns just
+    the lexical form, dropping language tag/datatype, so two distinct
+    literals can collide. Checks isinstance(term, Node) rather than
+    isinstance(term, str) because every rdflib term type is itself a
+    str subclass.""" ;
+        rdfs:label "term_key" ;
+        ns2:filePath "/Users/johnclements/Documents/GitHub/hidden-graph/starlayer/packages/starlayer/starlayer/graph/model/encoding.py" ;
+        ns2:hasParameter ns7:term_key.param.term ;
+        ns2:hasReturnValue ns7:term_key.returns ;
+        ns2:lineEnd 58 ;
+        ns2:lineStart 40 ;
+        ns2:signature "def term_key(term: Node) -> str" .
+
+    ns7:term_key.param.term a ns2:Parameter ;
+        rdfs:comment "The RDF term (must be a Node, not a bare str)." ;
+        rdfs:label "term" ;
+        ns2:annotationText "Node" ;
+        ns2:hasType ns4:rdflib.term.Node ;
+        ns2:parameterKind "positional" ;
+        ns2:position 0 .
+
+    ns7:term_key.returns a ns2:ReturnValue ;
+        rdfs:comment "The term's N3-serialized canonical string form." ;
+        ns2:annotationText "str" ;
+        ns2:hasType ns4:builtins.str .
+
+    ns7:tt_hash dcterms:identifier "starlayer.graph.model.encoding.tt_hash" ;
+        a ns2:Function ;
+        rdfs:comment """Return a 16-hex-char content-addressed ID for a triple term.
+
+    Inputs are the canonical string representations of the resolved nodes
+    (full URIs, bnode IDs, or literal N3 strings). Nested triple terms
+    contribute their full TT_NS URI as the s/o string, so nesting is
+    reflected in the hash.
+
+    16 hex chars = 64 bits, keeping birthday-bound collision risk negligible
+    even for graphs with heavy reification (an 8-char/32-bit prefix becomes
+    non-negligible around ~65,000 distinct triple terms in one process - a
+    plausible count for this library's primary use case). The hash is safe
+    to change without a migration story: it is recomputed fresh from content
+    on every intern, never persisted as a stable external identifier - every
+    RDF 1.2 serializer emits <<( )>> syntax, never a raw tt:HASH URI.""" ;
+        rdfs:label "tt_hash" ;
+        ns2:filePath "/Users/johnclements/Documents/GitHub/hidden-graph/starlayer/packages/starlayer/starlayer/graph/model/encoding.py" ;
+        ns2:hasParameter ns7:tt_hash.param.o_str, ns7:tt_hash.param.p_str, ns7:tt_hash.param.s_str ;
+        ns2:hasReturnValue ns7:tt_hash.returns ;
+        ns2:lineEnd 87 ;
+        ns2:lineStart 61 ;
+        ns2:signature "def tt_hash(s_str: str, p_str: str, o_str: str) -> str" .
+
+    ns7:tt_hash.param.o_str a ns2:Parameter ;
+        rdfs:comment "Canonical string form of the triple term's resolved object." ;
+        rdfs:label "o_str" ;
+        ns2:annotationText "str" ;
+        ns2:hasType ns4:builtins.str ;
+        ns2:parameterKind "positional" ;
+        ns2:position 2 .
+
+    ns7:tt_hash.param.p_str a ns2:Parameter ;
+        rdfs:comment "Canonical string form of the triple term's resolved predicate." ;
+        rdfs:label "p_str" ;
+        ns2:annotationText "str" ;
+        ns2:hasType ns4:builtins.str ;
+        ns2:parameterKind "positional" ;
+        ns2:position 1 .
+
+    ns7:tt_hash.param.s_str a ns2:Parameter ;
+        rdfs:comment "Canonical string form of the triple term's resolved subject." ;
+        rdfs:label "s_str" ;
+        ns2:annotationText "str" ;
+        ns2:hasType ns4:builtins.str ;
+        ns2:parameterKind "positional" ;
+        ns2:position 0 .
+
+    ns7:tt_hash.returns a ns2:ReturnValue ;
+        rdfs:comment "A 16-character hexadecimal digest derived from (s_str, p_str, o_str)." ;
+        ns2:annotationText "str" ;
+        ns2:hasType ns4:builtins.str .
+
+    ns4:__future__ a ns2:ExternalModule .
+
+    ns4:builtins.str dcterms:identifier "builtins.str" ;
+        a ns2:ExternalType ;
+        rdfs:label "str" ;
+        rdfs:subClassOf ns2:Type .
+
+    ns4:builtins.tuple dcterms:identifier "builtins.tuple" ;
+        a ns2:ExternalType ;
+        rdfs:label "tuple" ;
+        rdfs:subClassOf ns2:Type .
+
+    ns4:collections a ns2:ExternalModule .
+
+    ns4:collections.abc a ns2:ExternalModule .
+
+    ns4:collections.abc.Callable dcterms:identifier "collections.abc.Callable" ;
+        a ns2:ExternalType ;
+        rdfs:label "Callable" ;
+        rdfs:subClassOf ns2:Type .
+
+    ns4:hashlib a ns2:ExternalModule .
+
+    ns4:rdflib a ns2:ExternalModule .
+
+    ns4:rdflib.graph.Graph dcterms:identifier "rdflib.graph.Graph" ;
+        a ns2:ExternalType ;
+        rdfs:label "Graph" ;
+        rdfs:subClassOf ns2:Type .
+
+    ns4:rdflib.namespace a ns2:ExternalModule .
+
+    ns4:rdflib.query a ns2:ExternalModule .
+
+    ns4:rdflib.query.Result dcterms:identifier "rdflib.query.Result" ;
+        a ns2:ExternalType ;
+        rdfs:label "Result" ;
+        rdfs:subClassOf ns2:Type .
+
+    ns4:rdflib.term a ns2:ExternalModule .
+
+    ns4:rdflib.term.Literal dcterms:identifier "rdflib.term.Literal" ;
+        a ns2:ExternalType ;
+        rdfs:label "Literal" ;
+        rdfs:subClassOf ns2:Type .
+
+    ns4:rdflib.term.Node dcterms:identifier "rdflib.term.Node" ;
+        a ns2:ExternalType ;
+        rdfs:label "Node" ;
+        rdfs:subClassOf ns2:Type .
+
+    ns4:rdflib.term.URIRef dcterms:identifier "rdflib.term.URIRef" ;
+        a ns2:ExternalType ;
+        rdfs:label "URIRef" ;
+        rdfs:subClassOf ns2:Type .
+
+    ns4:starlayer.graph.model.triple.TripleTerm dcterms:identifier "starlayer.graph.model.triple.TripleTerm" ;
+        a ns2:ExternalType ;
+        rdfs:label "TripleTerm" ;
+        rdfs:subClassOf ns2:Type .
+
+    ns4:typing a ns2:ExternalModule .
+
+    ns4:typing.Any dcterms:identifier "typing.Any" ;
+        a ns2:ExternalType ;
+        rdfs:label "Any" ;
+        rdfs:subClassOf ns2:Type .
+}

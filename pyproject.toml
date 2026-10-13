@@ -66,7 +66,7 @@ where = ["packages/starlayer"]
 include = ["starlayer*"]
 
 [tool.setuptools.package-data]
-starlayer = ["py.typed", "assets/*.ttl", "shacl/assets/*.ttl", "starontology/*.trig"]
+starlayer = ["py.typed", "assets/*.ttl", "shacl/assets/*.ttl", "starontology/*.trig", "codekg/*.ttl", "codekg/*.trig"]
 
 [tool.pytest.ini_options]
 testpaths = ["packages/starlayer/tests"]

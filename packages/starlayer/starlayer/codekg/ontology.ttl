@@ -1,0 +1,230 @@
+@prefix slkg: <https://github.com/hidden-graph/starlayer/ns/codekg#> .
+@prefix externaltype: <https://github.com/hidden-graph/starlayer/ns/codekg/externaltype#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix schema: <http://schema.org/> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# StarLayer Code Knowledge Graph Ontology (slkg:)
+#
+# Hand-maintained, permanent vocabulary definition for the auto-generated
+# code knowledge graph extracted from this project's own Python source
+# (see starlayer.codekg.extractor). This file is never touched by the
+# extractor - it only ever writes codekg.trig, a separate, wholesale-
+# replaced dataset of per-module named graphs that use these terms.
+#
+# externaltype: is a separate identity space (not a sibling vocabulary of
+# classes/properties, just a URI prefix) used to mint nodes for third-party
+# and stdlib types encountered in annotations, e.g.
+# externaltype:builtins.str, externaltype:rdflib.term.URIRef.
+
+slkg: a owl:Ontology ;
+    rdfs:label "StarLayer Code Knowledge Graph Ontology" .
+
+#################################################################
+# Classes
+#################################################################
+
+slkg:Repository a owl:Class ;
+    rdfs:subClassOf prov:Entity, schema:SoftwareSourceCode ;
+    rdfs:label "Repository" ;
+    rdfs:comment "A git repository whose Python source has been extracted into this graph." .
+
+slkg:Package a owl:Class ;
+    rdfs:subClassOf prov:Entity, schema:SoftwareSourceCode ;
+    rdfs:label "Package" ;
+    rdfs:comment "A Python package (a directory with an __init__.py) declared by a Repository." .
+
+slkg:Module a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Module" ;
+    rdfs:comment "A single Python source file (.py module) declared by a Package." .
+
+slkg:Type a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Type" ;
+    rdfs:comment "Abstract umbrella over every kind of type a parameter or return value can resolve to (this project's own slkg:Class instances and externally-defined slkg:ExternalType instances alike). Never instantiated directly - every real node is one of its subclasses." .
+
+slkg:Class a owl:Class ;
+    rdfs:subClassOf prov:Entity, slkg:Type ;
+    rdfs:label "Class" ;
+    rdfs:comment "A Python class defined in this project's own source. Also a slkg:Type, so it can be used directly as a parameter/return slkg:hasType target alongside external types." .
+
+slkg:Function a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Function" ;
+    rdfs:comment "A Python function or method definition (def/async def)." .
+
+slkg:Method a owl:Class ;
+    rdfs:subClassOf slkg:Function ;
+    rdfs:label "Method" ;
+    rdfs:comment "A Function whose immediately enclosing scope is a Class." .
+
+slkg:Parameter a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Parameter" ;
+    rdfs:comment "One formal parameter of a Function, including its position, kind, default, and resolved type(s)." .
+
+slkg:ReturnValue a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Return value" ;
+    rdfs:comment "A Function's return annotation and/or documented return description, as its own node so it can carry a resolved type and a description independent of any parameter." .
+
+slkg:Decorator a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Decorator" ;
+    rdfs:comment "A decorator applied to a Function or Class definition, recorded as written (slkg:decoratorText)." .
+
+slkg:ExternalType a owl:Class ;
+    rdfs:subClassOf slkg:Type, prov:Entity ;
+    rdfs:label "External type" ;
+    rdfs:comment "A type resolved outside this project's own source (stdlib or third-party), identified by its canonical dotted path under the externaltype: namespace, e.g. externaltype:builtins.str." .
+
+slkg:ExternalModule a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "External module" ;
+    rdfs:comment "A module imported from outside this project (stdlib or third-party), as the target of an slkg:importsModule edge when the imported module isn't itself one of this project's own slkg:Module instances." .
+
+slkg:NotebookExample a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Notebook example" ;
+    rdfs:comment "A notebook cell that demonstrates some entity's usage. Reserved for a future hand-curated graph - zero instances exist yet; nothing in the auto-generated extractor populates this class." .
+
+#################################################################
+# Object properties
+#################################################################
+
+slkg:declares a owl:ObjectProperty ;
+    rdfs:domain prov:Entity ;
+    rdfs:range prov:Entity ;
+    rdfs:label "declares" ;
+    rdfs:comment "Lexical-nesting containment, used uniformly for every level: Repository->Package, Package->Module, Module->Class|Function, Class->Method|nested Class|nested Function, Function->nested Class|nested Function. slkg:declares+ (the transitive closure) gives every entity lexically nested inside another, at any depth." .
+
+slkg:hasParameter a owl:ObjectProperty ;
+    rdfs:domain slkg:Function ;
+    rdfs:range slkg:Parameter ;
+    rdfs:label "has parameter" ;
+    rdfs:comment "Relates a Function to one of its formal parameters." .
+
+slkg:hasReturnValue a owl:ObjectProperty ;
+    rdfs:domain slkg:Function ;
+    rdfs:range slkg:ReturnValue ;
+    rdfs:label "has return value" ;
+    rdfs:comment "Relates a Function to its ReturnValue node." .
+
+slkg:hasType a owl:ObjectProperty ;
+    rdfs:range slkg:Type ;
+    rdfs:label "has type" ;
+    rdfs:comment "Relates a Parameter or ReturnValue to a resolved Type (a project-local slkg:Class or an slkg:ExternalType). Domain is the union of slkg:Parameter and slkg:ReturnValue, left informal here (no owl:unionOf) rather than formally declared." .
+
+slkg:hasDecorator a owl:ObjectProperty ;
+    rdfs:range slkg:Decorator ;
+    rdfs:label "has decorator" ;
+    rdfs:comment "Relates a Function or Class to a Decorator applied to its definition. Domain is the union of slkg:Function and slkg:Class, left informal here (no owl:unionOf) rather than formally declared." .
+
+slkg:importsModule a owl:ObjectProperty ;
+    rdfs:domain slkg:Module ;
+    rdfs:label "imports module" ;
+    rdfs:comment "Relates a Module to another Module it imports (if this project's own) or an ExternalModule (if not) - range is slkg:Module or slkg:ExternalModule, left informal here (no owl:unionOf) rather than formally declared." .
+
+slkg:dependsOnPackage a owl:ObjectProperty ;
+    rdfs:domain slkg:Package ;
+    rdfs:range slkg:Package ;
+    rdfs:label "depends on package" ;
+    rdfs:comment "Relates a Package to another Package it depends on, distinct from slkg:declares (containment) and slkg:importsModule (per-module import edges)." .
+
+slkg:demonstratedBy a owl:ObjectProperty ;
+    rdfs:domain prov:Entity ;
+    rdfs:range slkg:NotebookExample ;
+    rdfs:label "demonstrated by" ;
+    rdfs:comment "Relates any entity to a NotebookExample that demonstrates its usage. Reserved for future curated-graph use - not populated by the auto-generated extractor." .
+
+# Note on rdfs:subClassOf usage: rdfs:subClassOf is a standard RDFS
+# predicate, reused directly rather than redeclared anywhere in this file.
+# This ontology uses it for TWO distinct purposes, both valid RDFS usage
+# of the same predicate: (1) the schema-level class axioms above (e.g.
+# slkg:Method rdfs:subClassOf slkg:Function), and (2) real Python
+# inheritance edges asserted directly between extracted slkg:Class
+# instances later (e.g. a project class that subclasses another project
+# class), letting rdfs:subClassOf* give "all ancestors of X" for both
+# schema and instance data with the same property path.
+
+#################################################################
+# Datatype properties
+#################################################################
+
+# dcterms:identifier, rdfs:label, and rdfs:comment are reused directly
+# from their own vocabularies, not redeclared here. dcterms:identifier
+# (xsd:string) holds each entity's canonical dotted path (e.g.
+# "starlayer.graph.model.encoding.term_key"); rdfs:label holds its short
+# name; rdfs:comment holds its summary/description text (cleaned
+# docstring prose, or parsed Args:/Returns: text).
+
+slkg:filePath a owl:DatatypeProperty ;
+    rdfs:range xsd:string ;
+    rdfs:label "file path" ;
+    rdfs:comment "Repository-relative source file path of the entity this is attached to." .
+
+slkg:lineStart a owl:DatatypeProperty ;
+    rdfs:range xsd:integer ;
+    rdfs:label "line start" ;
+    rdfs:comment "1-based source line number where this entity's definition begins." .
+
+slkg:lineEnd a owl:DatatypeProperty ;
+    rdfs:range xsd:integer ;
+    rdfs:label "line end" ;
+    rdfs:comment "1-based source line number where this entity's definition ends." .
+
+slkg:signature a owl:DatatypeProperty ;
+    rdfs:range xsd:string ;
+    rdfs:label "signature" ;
+    rdfs:comment "The entity's signature as written in source (e.g. a function's full parameter list and return annotation)." .
+
+slkg:annotationText a owl:DatatypeProperty ;
+    rdfs:range xsd:string ;
+    rdfs:label "annotation text" ;
+    rdfs:comment "The raw, unresolved type annotation text as written in source, kept alongside any resolved slkg:hasType edge(s)." .
+
+slkg:decoratorText a owl:DatatypeProperty ;
+    rdfs:range xsd:string ;
+    rdfs:label "decorator text" ;
+    rdfs:comment "A Decorator's source text as written (e.g. \"@dataclass(frozen=True)\")." .
+
+slkg:position a owl:DatatypeProperty ;
+    rdfs:range xsd:integer ;
+    rdfs:label "position" ;
+    rdfs:comment "0-based positional index of a Parameter within its Function's parameter list." .
+
+slkg:parameterKind a owl:DatatypeProperty ;
+    rdfs:range xsd:string ;
+    rdfs:label "parameter kind" ;
+    rdfs:comment "The parameter's kind as Python's own parameter model distinguishes it, e.g. \"positional\", \"keyword-only\", \"*args\", \"**kwargs\"." .
+
+slkg:defaultValue a owl:DatatypeProperty ;
+    rdfs:range xsd:string ;
+    rdfs:label "default value" ;
+    rdfs:comment "A Parameter's default value, rendered as source text, if one is given." .
+
+slkg:optional a owl:DatatypeProperty ;
+    rdfs:range xsd:boolean ;
+    rdfs:label "optional" ;
+    rdfs:comment "True when a Parameter's or ReturnValue's annotation is a union that includes a bare None." .
+
+slkg:isAsync a owl:DatatypeProperty ;
+    rdfs:range xsd:boolean ;
+    rdfs:label "is async" ;
+    rdfs:comment "True when a Function is defined with async def." .
+
+slkg:notebookPath a owl:DatatypeProperty ;
+    rdfs:domain slkg:NotebookExample ;
+    rdfs:range xsd:string ;
+    rdfs:label "notebook path" ;
+    rdfs:comment "Repository-relative path of the notebook a NotebookExample's cell belongs to." .
+
+slkg:cellIndex a owl:DatatypeProperty ;
+    rdfs:domain slkg:NotebookExample ;
+    rdfs:range xsd:integer ;
+    rdfs:label "cell index" ;
+    rdfs:comment "0-based index of a NotebookExample's cell within its notebook." .

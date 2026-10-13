@@ -13,11 +13,19 @@ DirLangString   → a Literal whose datatype URI under DIRLANG_NS packs the real
                   language tag and base direction (see decode_dirlang_datatype)
 """
 
+from __future__ import annotations
+
 import hashlib
 from collections import OrderedDict
+from collections.abc import Callable
+from typing import Any
 
-from rdflib import Literal, URIRef
+from rdflib import Graph, Literal, URIRef
 from rdflib.namespace import RDF, XSD
+from rdflib.query import Result
+from rdflib.term import Node
+
+from starlayer.graph.model.triple import TripleTerm
 
 TT_NS      = 'https://github.com/hidden-graph/starlayergraph/ns/tt#'       # triple-term content-addressed URIs
 DIRLANG_NS = 'https://github.com/hidden-graph/starlayergraph/ns/dirlang#'  # dirLangString datatype encoding
@@ -29,32 +37,22 @@ BN_NS      = 'https://github.com/hidden-graph/starlayergraph/ns/bn#'       # nat
 ENCODING_PREDS = frozenset({RDF.subject, RDF.predicate, RDF.object})
 
 
-def term_key(term) -> str:
-    """Canonical string form of an RDF term/pre-resolved URI string, for use
-    as one of tt_hash's three inputs.
+def term_key(term: Node) -> str:
+    """Canonical string form of an RDF term for use as one of tt_hash's
+    three inputs.
 
-    NOT the same as plain str(term) - confirmed a real, reproducible bug via
-    a W3C SPARQL 1.2 test (triple-on-str-literals): str(Literal) always
-    returns just the lexical form, dropping BOTH the language tag and the
-    datatype entirely (str(Literal("c")) == str(Literal("c", lang="nl")) ==
-    str(Literal("c", datatype=<dirlang-uri>)) == "c"), so three genuinely
-    different triple-term object values all hashed to the *same* tt:HASH
-    URI - not just a comparison false-positive, a real content-addressing
-    collision that silently overwrote _TT_HASH_MEMO's remembered (s,p,o)
-    for that URI with whichever of the three was computed last, corrupting
-    the other two. `.n3()` includes the datatype/language, correctly
-    distinguishing them - safe to switch to uniformly (not just for
-    Literals) per tt_hash's own docstring ("safe to change without a
-    migration story"). Passing through an already-string value unchanged
-    supports the common "already resolved to a tt: URI string" case every
-    caller also needs (a nested triple term's own hash, computed via plain
-    string concatenation, e.g. TT_NS + local_hash - not an rdflib term at
-    all). Checked via `isinstance(term, Node)`, NOT `isinstance(term, str)`:
-    URIRef/BNode/Literal are ALL str subclasses in rdflib, so a bare
-    `isinstance(term, str)` check would catch them too and skip `.n3()`
-    entirely, reintroducing the exact bug this function exists to fix.
+    Uses .n3(), not plain str() - str(Literal(...)) always returns just
+    the lexical form, dropping language tag/datatype, so two distinct
+    literals can collide. Checks isinstance(term, Node) rather than
+    isinstance(term, str) because every rdflib term type is itself a
+    str subclass.
+
+    Args:
+        term: The RDF term (must be a Node, not a bare str).
+
+    Returns:
+        The term's N3-serialized canonical string form.
     """
-    from rdflib.term import Node
     if isinstance(term, Node):
         return term.n3()
     return str(term)
@@ -64,17 +62,25 @@ def tt_hash(s_str: str, p_str: str, o_str: str) -> str:
     """Return a 16-hex-char content-addressed ID for a triple term.
 
     Inputs are the canonical string representations of the resolved nodes
-    (full URIs, bnode IDs, or literal N3 strings).  Nested triple terms
+    (full URIs, bnode IDs, or literal N3 strings). Nested triple terms
     contribute their full TT_NS URI as the s/o string, so nesting is
     reflected in the hash.
 
     16 hex chars = 64 bits, keeping birthday-bound collision risk negligible
     even for graphs with heavy reification (an 8-char/32-bit prefix becomes
     non-negligible around ~65,000 distinct triple terms in one process - a
-    plausible count for this library's primary use case). Safe to change
-    without a migration story: the hash is recomputed fresh from content on
-    every intern, never persisted as a stable external identifier - every
+    plausible count for this library's primary use case). The hash is safe
+    to change without a migration story: it is recomputed fresh from content
+    on every intern, never persisted as a stable external identifier - every
     RDF 1.2 serializer emits <<( )>> syntax, never a raw tt:HASH URI.
+
+    Args:
+        s_str: Canonical string form of the triple term's resolved subject.
+        p_str: Canonical string form of the triple term's resolved predicate.
+        o_str: Canonical string form of the triple term's resolved object.
+
+    Returns:
+        A 16-character hexadecimal digest derived from (s_str, p_str, o_str).
     """
     return hashlib.sha256(
         f'{s_str}\x00{p_str}\x00{o_str}'.encode()
@@ -109,16 +115,37 @@ _TT_HASH_MEMO_MAXSIZE = 100_000
 _TT_HASH_MEMO: OrderedDict = OrderedDict()
 
 
-def remember_tt_hash(uri: URIRef, s, p, o) -> None:
-    """Record that *uri* is the content-addressed hash of triple term (s, p, o)."""
+def remember_tt_hash(uri: URIRef, s: Node | TripleTerm, p: Node, o: Node | TripleTerm) -> None:
+    """Record that uri is the content-addressed hash of triple term (s, p, o)
+    in the process-wide memo, so a later lookup_tt_hash(uri) call can
+    reconstruct the triple term even if it was never written to any graph.
+
+    Args:
+        uri: The content-addressed tt:HASH URIRef naming this triple term.
+        s: The triple term's resolved subject - an RDF term or a nested
+            TripleTerm.
+        p: The triple term's resolved predicate.
+        o: The triple term's resolved object - an RDF term or a nested
+            TripleTerm.
+    """
     _TT_HASH_MEMO[uri] = (s, p, o)
     _TT_HASH_MEMO.move_to_end(uri)
     if len(_TT_HASH_MEMO) > _TT_HASH_MEMO_MAXSIZE:
         _TT_HASH_MEMO.popitem(last=False)
 
 
-def lookup_tt_hash(uri: URIRef):
-    """Return the (s, p, o) remembered for *uri* via remember_tt_hash(), or None."""
+def lookup_tt_hash(uri: URIRef) -> tuple[Node | TripleTerm, Node, Node | TripleTerm] | None:
+    """Return the (s, p, o) triple term components remembered for uri via
+    remember_tt_hash(), or None if uri was never remembered or has since
+    aged out of the bounded memo.
+
+    Args:
+        uri: The content-addressed tt:HASH URIRef to look up.
+
+    Returns:
+        The remembered (subject, predicate, object) tuple, or None if uri
+        is unknown.
+    """
     value = _TT_HASH_MEMO.get(uri)
     if value is not None:
         _TT_HASH_MEMO.move_to_end(uri)
@@ -126,24 +153,41 @@ def lookup_tt_hash(uri: URIRef):
 
 
 def encode_dirlang_datatype(language: str, direction: str) -> URIRef:
-    """Return the internal datatype URIRef encoding (language, direction).
+    """Return the internal datatype URIRef encoding a DirLangString's
+    (language, direction) pair.
 
     rdflib.Literal(text, lang="en--rtl") raises ValueError - rdflib's langtag
-    validator (_is_valid_langtag) has no notion of the RDF 1.2 "--dir" suffix
-    and rejects it outright. Validation only fires for the lang= keyword, not
-    datatype=, so packing (language, direction) into a synthetic datatype URI
-    sidesteps the check entirely while staying self-describing: the URI's
-    local name is exactly the real "lang--dir" lexical suffix (RDF 1.2
-    Concepts sec 3.4), so decoding is a plain string split, no lookup table.
+    validator has no notion of the RDF 1.2 "--dir" suffix and rejects it
+    outright. Validation only fires for the lang= keyword, not datatype=, so
+    packing (language, direction) into a synthetic datatype URI sidesteps the
+    check entirely while staying self-describing: the URI's local name is
+    exactly the real "lang--dir" lexical suffix (RDF 1.2 Concepts sec 3.4),
+    so decoding is a plain string split, no lookup table.
+
+    Args:
+        language: The literal's real language tag (e.g. "en").
+        direction: The literal's real base direction ("ltr" or "rtl").
+
+    Returns:
+        A URIRef under DIRLANG_NS whose local name is "<language>--<direction>".
     """
     return URIRef(f'{DIRLANG_NS}{language}--{direction}')
 
 
-def decode_dirlang_datatype(datatype) -> tuple[str, str] | None:
-    """Return (language, direction) if datatype is a starlayer.graph dirlang encoding.
+def decode_dirlang_datatype(datatype: URIRef) -> tuple[str, str] | None:
+    """Return (language, direction) if datatype is a starlayer.graph dirlang
+    encoding.
 
-    Returns None for any other datatype (including plain rdf:langString, which
-    never reaches here since it's represented via Literal's native lang=).
+    Returns None for any other datatype, including plain rdf:langString,
+    which never reaches here since it's represented via Literal's native
+    lang= rather than a synthetic datatype URI.
+
+    Args:
+        datatype: The literal's datatype URIRef to test.
+
+    Returns:
+        A (language, direction) tuple decoded from the datatype's local
+        name, or None if datatype is not a dirlang encoding.
     """
     s = str(datatype)
     if not s.startswith(DIRLANG_NS):
@@ -174,6 +218,14 @@ def _canonicalize_numeric_literal(literal: Literal) -> Literal:
     large/small values render with Python's "1e+30"-style exponent rather
     than XSD's "1.0E30"), which is a level of fidelity nothing in this
     codebase currently needs.
+
+    Args:
+        literal: The Literal to canonicalize.
+
+    Returns:
+        A Literal with the same datatype and a canonicalized lexical form,
+        or the original object unchanged if it was already canonical or
+        not one of the canonicalizable numeric datatypes.
     """
     dt = literal.datatype
     lex = str(literal)
@@ -197,28 +249,29 @@ def _canonicalize_numeric_literal(literal: Literal) -> Literal:
     return literal
 
 
-def canonicalize_query_result_value(node):
+def canonicalize_query_result_value(node: Node | TripleTerm) -> Node | TripleTerm:
     """Canonicalize a numeric-XSD-typed Literal's lexical form for a SPARQL
-    query *result* value specifically - recurses into a TripleTerm's own
-    subject/object components. Deliberately applied only here, at the
-    SELECT-result boundary (see restore_select_bindings below) - not
-    anywhere data is read verbatim (plain .triples()/_restore() on their
-    own): Turtle/N-Triples parsing (parsers.syntax.coerce_object()/
-    turtle_parser._to_node()) deliberately preserves a literal's exact
-    lexical form as written, since RDF 1.2's own term-equality rules
-    require it - see coerce_object()'s own docstring and
-    tests/unit/test_syntax.py::TestCoerceObject, both explicit about this
-    for the same "123e0" value that motivates this function. A query
-    *result*, though, is expected to match what a real conformant engine's
-    own query results look like - confirmed via the W3C SPARQL 1.2
-    eval-triple-terms/op-2 fixture, whose own expected result canonicalizes
-    "123e0" to "123.0" - the same convention already applied to the native
-    (Oxigraph) backend's own results (see
-    starlayer.graph/backends/native.py::_parse_json_term), extended here to the
-    in-memory backend's query results specifically.
-    """
-    from starlayer.graph.model.triple import TripleTerm
+    query *result* value specifically, recursing into a TripleTerm's own
+    subject/object components.
 
+    Deliberately applied only here, at the SELECT-result boundary (see
+    restore_select_bindings below) - not anywhere data is read verbatim
+    (plain .triples()/_restore() on their own): Turtle/N-Triples parsing
+    deliberately preserves a literal's exact lexical form as written, since
+    RDF 1.2's own term-equality rules require it. A query *result*, though,
+    is expected to match what a conformant engine's own query results look
+    like (e.g. "123e0" canonicalizes to "123.0").
+
+    Args:
+        node: The query result value to canonicalize - an RDF term or a
+            TripleTerm.
+
+    Returns:
+        node unchanged if nothing needed canonicalizing (preserving
+        identity, not just equality, so a TripleTerm's own
+        _namespace_manager survives), or an equivalent value with any
+        numeric literal's lexical form canonicalized.
+    """
     if isinstance(node, TripleTerm):
         new_subject = canonicalize_query_result_value(node.subject)
         new_object = canonicalize_query_result_value(node.object)
@@ -227,9 +280,6 @@ def canonicalize_query_result_value(node):
             # object unchanged rather than an equal-but-fresh one, so its
             # _namespace_manager (set by StarLayerGraph._restore(), used
             # for prefixed-name rendering in .n3()/__str__()) survives.
-            # Confirmed a real regression when first tried: rebuilding
-            # unconditionally dropped it even when no literal inside needed
-            # reformatting, breaking TestQ6::test_tt_str_uses_prefixed_names.
             return node
         result = TripleTerm(new_subject, node.predicate, new_object)
         result._namespace_manager = node._namespace_manager
@@ -239,7 +289,7 @@ def canonicalize_query_result_value(node):
     return node
 
 
-def restore_select_bindings(r, restore_fn) -> None:
+def restore_select_bindings(r: Result, restore_fn: Callable[[Any], Any]) -> None:
     """Post-process a SPARQL SELECT rdflib.query.Result in place: drop rows
     that are purely internal encoding infrastructure, and restore any
     tt:HASH URIRef/dirlang: Literal in the surviving rows to its public
@@ -258,7 +308,13 @@ def restore_select_bindings(r, restore_fn) -> None:
     the rdf:subject/predicate/object encoding predicates as *values* - such a
     row exists only because a query pattern incidentally matched the raw
     encoding triples (e.g. an unconstrained ``?s ?p ?o``), not because the
-    user asked about them.
+    caller asked about them.
+
+    Args:
+        r: The SPARQL SELECT result to post-process in place.
+        restore_fn: Resolves one binding value (e.g. a tt:HASH URIRef or a
+            dirlang Literal) to its public form, looking it up in whichever
+            registry/registries the caller's graph or dataset maintains.
     """
     r.bindings = [
         {var: canonicalize_query_result_value(restore_fn(row.get(var))) if row.get(var) is not None else None
@@ -270,7 +326,7 @@ def restore_select_bindings(r, restore_fn) -> None:
     ]
 
 
-def _reencode_tt(tt, out_graph) -> URIRef:
+def _reencode_tt(tt: TripleTerm, out_graph: Graph) -> URIRef:
     """Emit tt's rdf:subject/predicate/object encoding triples into
     out_graph (recursively for any nested TripleTerm component) and return
     its content-addressed URI - the write-side mirror of
@@ -279,8 +335,15 @@ def _reencode_tt(tt, out_graph) -> URIRef:
     tt:HASH URIRefs left to look up) rather than one that might still
     contain them. See inject_missing_tt_encoding()'s docstring for why this
     exists.
+
+    Args:
+        tt: The triple term to encode, fully resolved - no unresolved
+            nested tt:HASH URIRefs.
+        out_graph: The graph to add the encoding triples to.
+
+    Returns:
+        The tt:HASH URIRef naming tt.
     """
-    from starlayer.graph.model.triple import TripleTerm
     s_n = _reencode_tt(tt.subject, out_graph) if isinstance(tt.subject, TripleTerm) else tt.subject
     o_n = _reencode_tt(tt.object, out_graph) if isinstance(tt.object, TripleTerm) else tt.object
     uri = URIRef(TT_NS + tt_hash(term_key(s_n), term_key(tt.predicate), term_key(o_n)))
@@ -290,7 +353,7 @@ def _reencode_tt(tt, out_graph) -> URIRef:
     return uri
 
 
-def inject_missing_tt_encoding(graph, restore_fn) -> None:
+def inject_missing_tt_encoding(graph: Graph, restore_fn: Callable[[Any], Any]) -> None:
     """Scan a freshly-built CONSTRUCT result graph for any tt:HASH URIRef
     that appears with no rdf:subject/predicate/object encoding triples of
     its own already in `graph`, and - wherever `restore_fn` (the querying
@@ -309,14 +372,16 @@ def inject_missing_tt_encoding(graph, restore_fn) -> None:
     all (those were never re-derived, since nothing re-interned it), so
     ``StarLayerGraph.from_rdflib()``'s registry-building pass
     (``_build_registry_from_store()``) has nothing to find, and the raw
-    tt:HASH URIRef leaks straight through to callers instead of the
-    TripleTerm it's supposed to mean. Confirmed via the W3C SPARQL 1.2
-    eval-triple-terms/expr-1 fixture, whose CONSTRUCT template does exactly
-    this. Called on `graph` *before* ``StarLayerGraph.from_rdflib(graph)``,
-    from both ``StarLayerGraph.query()`` and ``StarLayerDataset.query()``.
-    """
-    from starlayer.graph.model.triple import TripleTerm
+    tt:HASH URIRef would otherwise leak straight through to callers instead
+    of the TripleTerm it's supposed to mean. Called on `graph` *before*
+    ``StarLayerGraph.from_rdflib(graph)``, from both ``StarLayerGraph.query()``
+    and ``StarLayerDataset.query()``.
 
+    Args:
+        graph: The CONSTRUCT result graph to scan and patch in place.
+        restore_fn: Resolves a tt:HASH URIRef to its TripleTerm, if known to
+            the caller's own registry/registries.
+    """
     already_encoded = {s for s, _p, _o in graph.triples((None, RDF.subject, None))}
     candidates = {
         term for s, p, o in graph for term in (s, o)
