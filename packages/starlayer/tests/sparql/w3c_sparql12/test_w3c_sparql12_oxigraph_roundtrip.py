@@ -38,6 +38,8 @@ docker run command. Skips cleanly if unreachable.
 
 from __future__ import annotations
 
+import json
+
 import pytest
 import requests
 from rdflib.compare import to_isomorphic
@@ -201,11 +203,26 @@ def test_select_semantic_equivalence_oxigraph(backend, entry):
     _xfail_if_known_fuseki_bug(backend, entry)
     query_text = entry.read(entry.query_file)
     regenerated_text = _regenerate(query_text)
+    # ASK vs SELECT - "boolean" in the entry's own .srj tells us which,
+    # without needing to guess from query_text. Needed for the first time
+    # by lang-basedir's contains.rq/rdf11's plain-string-same.rq
+    # (2026-10-13) - both ASK, which have no "bindings" to compare at all
+    # (.bindings is None for an ASK-type SPARQLResult).
+    is_ask = "boolean" in json.loads(entry.read(entry.result_file))
 
     _clear_store(backend)
     g = _new_oxigraph_graph(entry, backend)
     if entry.data_file:
         g.parse(data=entry.read(entry.data_file), format=_data_format(entry))
+
+    if is_ask:
+        original_answer = g.query(query_text).askAnswer
+        regenerated_answer = g.query(regenerated_text).askAnswer
+        assert original_answer == regenerated_answer, (
+            f"original query and regenerated query disagree against the same "
+            f"{backend}-backed data.\noriginal Q:\n{query_text}\n\nregenerated Q':\n{regenerated_text}"
+        )
+        return
 
     original = [dict(row) for row in g.query(query_text).bindings]
     regenerated = [dict(row) for row in g.query(regenerated_text).bindings]

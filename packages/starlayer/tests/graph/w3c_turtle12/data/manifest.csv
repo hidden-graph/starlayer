@@ -7,12 +7,14 @@ turtle12-rt-05,rdft:TestTurtleEval,turtle12-eval-rt-05.ttl,turtle12-eval-rt-05.n
 turtle12-rt-06,rdft:TestTurtleEval,turtle12-eval-rt-06.ttl,turtle12-eval-rt-06.nt
 turtle12-rt-07,rdft:TestTurtleEval,turtle12-eval-rt-07.ttl,turtle12-eval-rt-07.nt
 turtle12-rt-08,rdft:TestTurtleEval,turtle12-eval-rt-08.ttl,turtle12-eval-rt-08.nt
+turtle12-rt-09,rdft:TestTurtleEval,turtle12-eval-rt-09.ttl,turtle12-eval-rt-09.nt
 turtle12-bnode-01,rdft:TestTurtleEval,turtle12-eval-bnode-01.ttl,turtle12-eval-bnode-01.nt
 turtle12-bnode-02,rdft:TestTurtleEval,turtle12-eval-bnode-02.ttl,turtle12-eval-bnode-02.nt
 turtle12-tt-01,rdft:TestTurtleEval,turtle12-eval-tt-01.ttl,turtle12-eval-tt-01.nt
 turtle12-tt-02,rdft:TestTurtleEval,turtle12-eval-tt-02.ttl,turtle12-eval-tt-02.nt
 turtle12-tt-03,rdft:TestTurtleEval,turtle12-eval-tt-03.ttl,turtle12-eval-tt-03.nt
 turtle12-tt-04,rdft:TestTurtleEval,turtle12-eval-tt-04.ttl,turtle12-eval-tt-04.nt
+turtle12-tt-05,rdft:TestTurtleEval,turtle12-eval-tt-05.ttl,turtle12-eval-tt-05.nt
 turtle12-annotation-01,rdft:TestTurtleEval,turtle12-eval-annotation-01.ttl,turtle12-eval-annotation-01.nt
 turtle12-annotation-02,rdft:TestTurtleEval,turtle12-eval-annotation-02.ttl,turtle12-eval-annotation-02.nt
 turtle12-annotation-03,rdft:TestTurtleEval,turtle12-eval-annotation-03.ttl,turtle12-eval-annotation-03.nt
@@ -25,6 +27,7 @@ turtle12-annotation-09,rdft:TestTurtleEval,turtle12-eval-annotation-09.ttl,turtl
 turtle12-annotation-10,rdft:TestTurtleEval,turtle12-eval-annotation-10.ttl,turtle12-eval-annotation-10.nt
 turtle12-annotation-11,rdft:TestTurtleEval,turtle12-eval-annotation-11.ttl,turtle12-eval-annotation-11.nt
 turtle12-annotation-12,rdft:TestTurtleEval,turtle12-eval-annotation-12.ttl,turtle12-eval-annotation-12.nt
+turtle12-annotation-13,rdft:TestTurtleEval,turtle12-eval-annotation-13.ttl,turtle12-eval-annotation-13.nt
 turtle12-reified-triples-annotation-01,rdft:TestTurtleEval,turtle12-eval-reified-triples-annotation-01.ttl,turtle12-eval-reified-triples-annotation-01.nt
 turtle12-reified-triples-annotation-02,rdft:TestTurtleEval,turtle12-eval-reified-triples-annotation-02.ttl,turtle12-eval-reified-triples-annotation-02.nt
 turtle12-reified-triples-annotation-03,rdft:TestTurtleEval,turtle12-eval-reified-triples-annotation-03.ttl,turtle12-eval-reified-triples-annotation-03.nt

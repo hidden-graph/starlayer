@@ -47,7 +47,7 @@ from rdflib.query import Result
 from rdflib.term import Variable
 
 from starlayer.graph.model.dirlangstring import DirLangString
-from starlayer.graph.model.encoding import BN_NS
+from starlayer.graph.model.encoding import BN_NS, decode_dirlang_datatype
 from starlayer.graph.model.triple import TripleTerm
 
 # ---------------------------------------------------------------------------
@@ -60,9 +60,28 @@ def sparql_term(node, skolemize_bnodes: bool = True) -> str:
     TripleTerms are rendered as <<( s p o )>>. A DirLangString is rendered as
     the real "text"@lang--dir lexical form - unlike TripleTerm's tt:HASH
     encoding, the native RDF 1.2 endpoint understands this syntax directly, so
-    no internal encoding is involved here at all. All other nodes use
-    rdflib's .n3() which produces correct SPARQL syntax - except BNode, which
-    by default is skolemized to a stable BN_NS URI first (see
+    no internal encoding is involved here at all. A plain Literal whose
+    datatype happens to be starlayer.graph's own internal dirlang: encoding
+    (not yet unwrapped to a real DirLangString object) gets the identical
+    treatment - found 2026-10-13 as a real, previously-undiscovered bug:
+    StarLayerGraph.parse()'s own native-write path (_native_add()/
+    _native_add_many()) calls this function directly on each parsed
+    triple's raw object term, which is never unwrapped to a DirLangString
+    first (that conversion normally happens lazily, on *read*, inside
+    StarLayerGraph._restore() - the native-write path bypasses it entirely,
+    since it's writing data out, not reading it back). Without this check,
+    a dirLangString value loaded via .parse() against a live native backend
+    was sent as a bare "text"^^<the internal dirlang: URI> typed literal -
+    syntactically valid SPARQL, but *semantically wrong*: the endpoint
+    stores a literal with some unrelated custom datatype instead of a real
+    rdf:dirLangString, so its own LANG()/LANGDIR()/hasLANG()/hasLANGDIR()
+    then correctly (from the endpoint's own perspective) report no
+    language/direction at all. Confirmed via a live Oxigraph round-trip
+    before this fix: querying back raw triples showed exactly this bare
+    "text"^^<dirlang:lang--dir> shape stored verbatim, not the direction-
+    tagged literal it logically represents. All other nodes use rdflib's
+    .n3() which produces correct SPARQL syntax - except BNode, which by
+    default is skolemized to a stable BN_NS URI first (see
     skolemize_bnode()'s docstring for why: a blank node's own SPARQL syntax
     label is *not* enough to keep its identity across separate HTTP
     requests).
@@ -84,6 +103,12 @@ def sparql_term(node, skolemize_bnodes: bool = True) -> str:
     if isinstance(node, DirLangString):
         escaped = node.value.replace('\\', '\\\\').replace('"', '\\"')
         return f'"{escaped}"@{node.language}--{node.direction}'
+    if isinstance(node, Literal) and node.datatype:
+        decoded = decode_dirlang_datatype(node.datatype)
+        if decoded is not None:
+            language, direction = decoded
+            escaped = str(node).replace('\\', '\\\\').replace('"', '\\"')
+            return f'"{escaped}"@{language}--{direction}'
     if isinstance(node, BNode) and skolemize_bnodes:
         return skolemize_bnode(node).n3()
     return node.n3()
@@ -474,12 +499,29 @@ def native_update(store, backend: str, update_object) -> None:
         # round-trips correctly through this - it's just a plain SPARQL 1.1
         # update by the time it comes back out.
         if isinstance(text, str):
+            from starlayer.graph.query.version_directive import (
+                contains_triple_term,
+                strip_version_directive,
+            )
             from starlayer.sparql.lower_rdf11 import (
                 rdf11_update_to_sparql11_text,
                 update_to_rdf11,
             )
             from starlayer.sparql.parse12 import prepare_update_12
-            prepared_12 = prepare_update_12(text)
+            stripped_text, declared_version = strip_version_directive(text)
+            prepared_12 = prepare_update_12(stripped_text)
+            if declared_version is not None:
+                from starlayer.graph.model.conformance import (
+                    SPARQL12ConformanceWarning,
+                    check_version_conformance,
+                )
+                check_version_conformance(
+                    declared_version,
+                    uses_triple_term=contains_triple_term(prepared_12.algebra),
+                    uses_dirlangstring='--' in stripped_text,
+                    context='SPARQL update',
+                    warning_class=SPARQL12ConformanceWarning,
+                )
             rdf_graph, root = update_to_rdf11(prepared_12)
             text = rdf11_update_to_sparql11_text(rdf_graph, root)
     http_update(u_url, text, hdrs)

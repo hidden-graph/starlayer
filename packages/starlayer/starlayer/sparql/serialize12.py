@@ -237,6 +237,42 @@ class _AlgebraTranslator12(_AlgebraTranslator):
             # ordinary base-class builtin branch's own convention, lets
             # _traverse's normal per-child recursion reach `.arg` on its own.
 
+        if isinstance(node, CompValue) and node.name in (
+            "Builtin_LANGDIR",
+            "Builtin_hasLANGDIR",
+            "Builtin_hasLANG",
+        ):
+            # Same "not in the base class's if/elif chain at all" gap as the
+            # isTRIPLE/SUBJECT/PREDICATE/OBJECT branch above, same fix shape
+            # (single `.arg`) - found 2026-10-13 while wiring the W3C
+            # lang-basedir category into the permanent test suite: with no
+            # branch here, these three regenerated as a literal, unresolved
+            # "{Builtin_LANGDIR}"-style placeholder (never valid SPARQL),
+            # which then failed to re-parse - not a lowering/execution bug
+            # at all (lower_rdf11.py already handles all four of these
+            # correctly), purely a missing text-regeneration case.
+            keyword = node.name[len("Builtin_") :]
+            self._replace(
+                "{" + node.name + "}",
+                keyword + "(" + self.convert_node_arg(node.arg) + ")",
+            )
+            # Deliberately not `return node` - same reasoning as the
+            # isTRIPLE/SUBJECT/etc. branch above (its own `.arg` could
+            # itself be a TripleTermNode needing its own later visit).
+
+        if isinstance(node, CompValue) and node.name == "Builtin_STRLANGDIR":
+            # Same gap, three-argument shape (lex, lang, direction) instead
+            # of one - rendered the same way rdflib itself renders any other
+            # multi-argument builtin (e.g. Builtin_STRLANG: "STRLANG(" + a +
+            # ", " + b + ")").
+            self._replace(
+                "{Builtin_STRLANGDIR}",
+                "STRLANGDIR("
+                + self.convert_node_arg(node.lex) + ", "
+                + self.convert_node_arg(node.lang) + ", "
+                + self.convert_node_arg(node.direction) + ")",
+            )
+
         if isinstance(node, CompValue) and node.name == "ConstructQuery":
             # rdflib's own _AlgebraTranslator has NO case for ConstructQuery
             # at all (confirmed empirically: plain rdflib's translateAlgebra
@@ -295,6 +331,32 @@ class _AlgebraTranslator12(_AlgebraTranslator):
             self._alg_translation = (
                 "CONSTRUCT {" + template_text + "} WHERE {{" + node.p.p.name + "}}"
             )
+            return None
+
+        if isinstance(node, CompValue) and node.name == "AskQuery":
+            # Same gap as ConstructQuery immediately above, same root cause
+            # - confirmed via a plain, unmodified rdflib translateAlgebra()
+            # call on a plain ASK query with zero RDF-1.2 syntax involved:
+            # it returns nothing either. self._alg_translation is only ever
+            # seeded by the SelectQuery/ConstructQuery branches, so ASK
+            # silently produced empty text - found 2026-10-13 while wiring
+            # the W3C lang-basedir/rdf11 categories into the permanent
+            # suite (both contributed the first ASK-shaped eval fixtures
+            # this harness's regenerate-then-reparse round trip had ever
+            # exercised).
+            #
+            # node.p is a Project wrapping the WHERE pattern, with its own
+            # PV populated to *every* variable the pattern mentions
+            # (rdflib's own internal "project everything" bookkeeping for
+            # ASK, confirmed empirically) - not a printed variable list;
+            # ASK syntax has no variable list at all ("ASK { ... }", no
+            # "?s ?p ?o" between the keyword and the brace). Referencing
+            # node.p.p directly skips Project's own variable-list-printing
+            # branch entirely, same fix and same double-brace placeholder
+            # convention as the ConstructQuery branch's own comment above
+            # explains in full (a single brace is indistinguishable from
+            # the placeholder itself and gets consumed along with it).
+            self._alg_translation = "ASK {{" + node.p.p.name + "}}"
             return None
 
         if isinstance(node, CompValue) and node.name in ("BGP", "TriplesBlock"):

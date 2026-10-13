@@ -464,7 +464,13 @@ class _Expander:
         extras.extend([
             {'subject': bnode, 'predicate': 'rdf:subject',   'object': subj_str or ''},
             {'subject': bnode, 'predicate': 'rdf:predicate', 'object': pred_str or ''},
-            {'subject': bnode, 'predicate': 'rdf:object',    'object': obj_str  or ''},
+            # Not "obj_str or ''" - coerce_object() can legitimately return
+            # the Python bool False (RDF 1.2 Turtle "false" literal), which
+            # is falsy, so "or ''" silently dropped it in favor of an empty
+            # string, discarding the object entirely for exactly that one
+            # value. coerce_object() never returns None, so obj_str itself
+            # is already the right fallback-free value here.
+            {'subject': bnode, 'predicate': 'rdf:object',    'object': obj_str},
             {'subject': bnode, 'predicate': 'rdf:type',      'object': 'sl:TripleTerm'},
         ])
         return bnode, extras

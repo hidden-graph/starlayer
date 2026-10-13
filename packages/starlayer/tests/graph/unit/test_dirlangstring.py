@@ -314,7 +314,16 @@ class TestSparqlFunctions:
         assert {row[r.vars[0]] for row in r.bindings} == {ex('dir')}
 
     def test_strlangdir_result_restored_to_dirlangstring(self, g):
-        r = g.query('SELECT (STRLANGDIR("hi", "EN", "LTR") AS ?x) WHERE {}')
+        # direction is "ltr" lowercase deliberately, not "LTR" - RDF 1.2
+        # Query sec 17.4.2.17's own example table confirms direction is
+        # case-sensitive (STRLANGDIR("abc", "en", "LTR") -> error), unlike
+        # language (still case-folded, see test_strlangdir_constructs_
+        # matching_value's own "en" and custom_functions.py's
+        # _dirlang_construct_fn). This test previously used "LTR" and
+        # asserted it was silently accepted - an unchecked assumption, not
+        # a verified spec requirement; fixed 2026-10-13 alongside
+        # _dirlang_construct_fn itself rejecting a non-lowercase direction.
+        r = g.query('SELECT (STRLANGDIR("hi", "EN", "ltr") AS ?x) WHERE {}')
         assert r.bindings[0][r.vars[0]] == DirLangString('hi', 'en', 'ltr')
 
     def test_strlangdir_wrong_arity_raises(self, g):

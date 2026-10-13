@@ -67,8 +67,23 @@ def parse_nt12(text):
         if tok.startswith(('"', "'")):
             if '^^' in tok:
                 lit, dtype = tok.rsplit('^^', 1)
+                # normalize=False: rdflib's Literal() otherwise rewrites a
+                # numeric-typed lexical form to its own canonical spelling
+                # on construction (e.g. "1e0"^^xsd:double -> "1.0") -
+                # silently violating RDF 1.2's lexical-form-sensitive
+                # literal term-equality (two literals are term-equal only
+                # if their lexical forms match, not just their value; see
+                # turtle_parser.py's _to_node() for the same guard, added
+                # there for the identical reason). Found via the W3C RDF
+                # 1.2 Turtle eval suite's turtle12-tt-05 fixture, the first
+                # one in this suite to put a bare "1e0" literal inside an
+                # explicit ^^xsd:double-typed triple-term object - every
+                # prior fixture's numeric-typed object either had no
+                # normalization-sensitive lexical form or wasn't reached
+                # through this code path at all.
                 return Literal(lit.strip('"').strip("'"),
-                               datatype=URIRef(dtype.strip().strip('<>')))
+                               datatype=URIRef(dtype.strip().strip('<>')),
+                               normalize=False)
             if tok.count('@') > 0 and not tok.endswith(('"', "'")):
                 at = tok.rfind('@')
                 return Literal(tok[1:at-1], lang=tok[at+1:])
@@ -80,7 +95,29 @@ def parse_nt12(text):
         inner = tok[3:-3].strip()
         s_tok, rest  = next_token(inner)
         p_tok, rest2 = next_token(rest)
-        o_tok, _     = next_token(rest2)
+        o_tok, rest3 = next_token(rest2)
+        # next_token() splits a bracketed-IRI datatype suffix (^^<dtype>)
+        # into its own trailing "^^" token, separate from the <dtype> IRI
+        # that follows it (unlike a prefixed-name datatype, e.g. ^^:dt,
+        # which next_token keeps as one token) - so a second next_token()
+        # call here would only recover the bare "^^" marker, not the IRI
+        # after it. N-Triples 1.2 (what this function's caller, the
+        # expected-.nt-file reader, always parses) only ever writes the
+        # bracketed-IRI form - there are no prefixes to abbreviate with in
+        # N-Triples - so once rest3 starts with "^^" or "@", everything
+        # left in it belongs to this one suffix; no further tokenization
+        # or looping is needed, unlike the equivalent merge in the real
+        # Turtle parser's own qt_to_json()/_norm_qt(), which has to handle
+        # a prefixed-name datatype too. Found via the W3C RDF 1.2 Turtle
+        # eval suite's turtle12-tt-05/-rt-09 fixtures, the first ones in
+        # this suite to nest a typed/lang-tagged literal as a triple
+        # term's object inside an rdf:reifies statement - every prior
+        # fixture's triple-term object was either an IRI, blank node, or a
+        # plain untyped literal, so the dropped suffix went unnoticed.
+        rest3 = rest3.strip()
+        if rest3.startswith('^^') or rest3.startswith('@'):
+            o_tok += rest3
+            rest3 = ''
         s = resolve_token(s_tok)
         p = resolve_token(p_tok)
         o = expand_triple_term(o_tok) if o_tok.startswith('<<(') else resolve_token(o_tok)

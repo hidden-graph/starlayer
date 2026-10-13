@@ -106,6 +106,157 @@ class TestSparqlVersionDirective:
             g.query(q)
 
 
+class TestSparqlUpdateVersionDirective:
+    """StarLayerGraph.update()/StarLayerDataset.update() - found 2026-10-13
+    to have the identical gap TestSparqlVersionDirective's own docstring
+    already documented for .query(): both called prepare_update_12()
+    directly with no VERSION-stripping at all, so a VERSION-prefixed
+    Update (legal per the same SPARQL 1.2 Query sec 4.3 prologue grammar
+    Update shares) raised a bare ParseException. Checked precisely which
+    entry points were actually affected before fixing (not assumed
+    symmetric with .query()) - StarLayerDataset.update()'s own *remote*
+    HTTP-store branch is unaffected (it POSTs text directly, no local
+    parse at all), only its local-store branch shares this bug with
+    StarLayerGraph.update().
+    """
+
+    def test_update_version_directive_no_longer_raises(self):
+        g = StarLayerGraph()
+        g.update('VERSION "1.2"\nPREFIX ex: <http://example.org/>\nINSERT DATA { ex:a ex:b ex:c }')
+        assert ex('a') in g.subjects()
+
+    def test_update_version_1_1_with_triple_term_warns(self):
+        g = StarLayerGraph()
+        u = f"""VERSION "1.1"
+            PREFIX : <{EX}>
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            INSERT DATA {{ :s rdf:reifies <<( :a :b :c )>> }}
+        """
+        with pytest.warns(SPARQL12ConformanceWarning, match='1.1'):
+            g.update(u)
+
+    def test_update_no_version_directive_does_not_warn(self, recwarn):
+        g = StarLayerGraph()
+        g.update('PREFIX ex: <http://example.org/>\nINSERT DATA { ex:a ex:b ex:c }')
+        assert not any(issubclass(w.category, SPARQL12ConformanceWarning) for w in recwarn.list)
+
+    def test_dataset_update_version_directive_no_longer_raises(self):
+        ds = StarLayerDataset()
+        ds.update('VERSION "1.2"\nPREFIX ex: <http://example.org/>\nINSERT DATA { ex:a ex:b ex:c }')
+        assert ex('a') in ds.default_graph.subjects()
+
+    def test_dataset_update_version_1_1_with_triple_term_warns(self):
+        ds = StarLayerDataset()
+        u = f"""VERSION "1.1"
+            PREFIX : <{EX}>
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            INSERT DATA {{ :s rdf:reifies <<( :a :b :c )>> }}
+        """
+        with pytest.warns(SPARQL12ConformanceWarning, match='1.1'):
+            ds.update(u)
+
+
+class TestSparqlApiVersionDirective:
+    """starlayer.graph.query.sparql_api's four public SPARQL-1.2-aware
+    wrappers (parseQuery/prepareQuery/parseUpdate/prepareUpdate) - this
+    module's own docstring advertises them as drop-in replacements for
+    rdflib's originals "when working with SPARQL 1.2 queries", yet none
+    stripped VERSION before this fix, unlike StarLayerGraph.query()/
+    .update() (same package, same advertised purpose). Found 2026-10-13.
+    """
+
+    def test_parse_query_version_directive_no_longer_raises(self):
+        from starlayer.graph.query.sparql_api import parseQuery
+        parseQuery('VERSION "1.2"\nSELECT * WHERE { ?s ?p ?o }')
+
+    def test_prepare_query_version_directive_no_longer_raises(self):
+        from starlayer.graph.query.sparql_api import prepareQuery
+        prepareQuery('VERSION "1.2"\nSELECT * WHERE { ?s ?p ?o }')
+
+    def test_prepare_query_version_1_1_with_triple_term_warns(self):
+        from starlayer.graph.query.sparql_api import prepareQuery
+        q = f"""VERSION "1.1"
+            PREFIX : <{EX}>
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            SELECT ?s WHERE {{ ?s rdf:reifies <<( :a :b :c )>> . }}
+        """
+        with pytest.warns(SPARQL12ConformanceWarning, match='1.1'):
+            prepareQuery(q)
+
+    def test_parse_update_version_directive_no_longer_raises(self):
+        from starlayer.graph.query.sparql_api import parseUpdate
+        parseUpdate('VERSION "1.2"\nPREFIX ex: <http://example.org/>\nINSERT DATA { ex:a ex:b ex:c }')
+
+    def test_prepare_update_version_directive_no_longer_raises(self):
+        from starlayer.graph.query.sparql_api import prepareUpdate
+        prepareUpdate('VERSION "1.2"\nPREFIX ex: <http://example.org/>\nINSERT DATA { ex:a ex:b ex:c }')
+
+    def test_prepare_update_version_1_1_with_triple_term_warns(self):
+        from starlayer.graph.query.sparql_api import prepareUpdate
+        u = f"""VERSION "1.1"
+            PREFIX : <{EX}>
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            INSERT DATA {{ :s rdf:reifies <<( :a :b :c )>> }}
+        """
+        with pytest.warns(SPARQL12ConformanceWarning, match='1.1'):
+            prepareUpdate(u)
+
+    def test_no_version_directive_does_not_warn(self, recwarn):
+        from starlayer.graph.query.sparql_api import prepareQuery
+        prepareQuery('SELECT * WHERE { ?s ?p ?o }')
+        assert not any(issubclass(w.category, SPARQL12ConformanceWarning) for w in recwarn.list)
+
+
+class TestNativeBackendRemoteRdf11UpdateVersionDirective:
+    """native_update()'s backend='rdf-1.1' (remote, non-native) branch -
+    unlike the backend='rdf-1.2' branch (which sends VERSION straight
+    through unmodified, see TestNativeBackendVersionConformance above),
+    this branch locally parses the text via prepare_update_12() first (to
+    re-render it as plain SPARQL 1.1 text for a remote endpoint with no
+    triple-term notion at all) - the exact same local-parse gap
+    TestSparqlUpdateVersionDirective found in StarLayerGraph.update(),
+    just reached through native_update() instead. Found 2026-10-13.
+
+    http_update() itself is monkeypatched to capture the final text
+    instead of making a real HTTP request - resolve_store_http() only
+    needs query_endpoint/update_endpoint attributes to exist, not a live
+    server.
+    """
+
+    def test_remote_rdf11_update_version_directive_no_longer_raises(self, monkeypatch):
+        from types import SimpleNamespace
+
+        from starlayer.graph.backends import native
+
+        captured = {}
+
+        def fake_http_update(update_url, sparql, extra_headers=None):
+            captured['sparql'] = sparql
+
+        monkeypatch.setattr(native, 'http_update', fake_http_update)
+        store = SimpleNamespace(query_endpoint='http://x/query', update_endpoint='http://x/update', kwargs={})
+        native.native_update(
+            store, 'rdf-1.1', 'VERSION "1.2"\nPREFIX ex: <http://example.org/>\nINSERT DATA { ex:a ex:b ex:c }'
+        )
+        assert 'VERSION' not in captured['sparql']
+        assert 'INSERT' in captured['sparql']
+
+    def test_remote_rdf11_update_version_1_1_with_triple_term_warns(self, monkeypatch):
+        from types import SimpleNamespace
+
+        from starlayer.graph.backends import native
+
+        monkeypatch.setattr(native, 'http_update', lambda *a, **kw: None)
+        store = SimpleNamespace(query_endpoint='http://x/query', update_endpoint='http://x/update', kwargs={})
+        u = f"""VERSION "1.1"
+            PREFIX : <{EX}>
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            INSERT DATA {{ :s rdf:reifies <<( :a :b :c )>> }}
+        """
+        with pytest.warns(SPARQL12ConformanceWarning, match='1.1'):
+            native.native_update(store, 'rdf-1.1', u)
+
+
 class TestNativeBackendVersionConformance:
     """StarLayerGraph(backend='rdf-1.2') sends SPARQL straight through to a
     real endpoint via HTTP with zero rewriting (correct - Fuseki/Oxigraph

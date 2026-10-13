@@ -837,12 +837,29 @@ class StarLayerDataset(Dataset):
         )
         if not is_remote_http_store:
             if isinstance(update_object, str):
+                from starlayer.graph.query.version_directive import (
+                    contains_triple_term,
+                    strip_version_directive,
+                )
                 from starlayer.sparql.lower_rdf11 import (
                     rdf11_to_update,
                     update_to_rdf11,
                 )
                 from starlayer.sparql.parse12 import prepare_update_12
-                prepared_12 = prepare_update_12(update_object, base=kwargs.get('base'), initNs=initNs)
+                stripped_text, declared_version = strip_version_directive(update_object)
+                prepared_12 = prepare_update_12(stripped_text, base=kwargs.get('base'), initNs=initNs)
+                if declared_version is not None:
+                    from starlayer.graph.model.conformance import (
+                        SPARQL12ConformanceWarning,
+                        check_version_conformance,
+                    )
+                    check_version_conformance(
+                        declared_version,
+                        uses_triple_term=contains_triple_term(prepared_12.algebra),
+                        uses_dirlangstring='--' in stripped_text,
+                        context='SPARQL update',
+                        warning_class=SPARQL12ConformanceWarning,
+                    )
                 rdf_graph, root = update_to_rdf11(prepared_12)
                 update_object = rdf11_to_update(rdf_graph, root)
             # default_union forwarded from self - same rationale as

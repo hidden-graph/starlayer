@@ -5,8 +5,8 @@ Integration tests for StarLayerGraph backed by a real on-disk SQLite
 database via rdflib-sqlalchemy (backend='rdf-1.1' - rdflib-sqlalchemy has
 no RDF 1.2 native mode, so only the encoding-based backend applies here).
 
-Ports examples/sqlalchemy_store_demo.py's scenario into permanent pytest
-coverage, plus regression coverage for the custom SPARQL functions
+Permanent pytest coverage for a StarLayerGraph backed by a real on-disk
+SQLite store, plus regression coverage for the custom SPARQL functions
 (TRIPLE()/isTRIPLE()/SUBJECT()/PREDICATE()/OBJECT()/STRLANGDIR()) confirmed
 this session to already work correctly against this store: unlike a genuinely
 remote SPARQLStore/SPARQLUpdateStore endpoint (Fuseki-as-1.1), the SQLAlchemy
@@ -138,8 +138,7 @@ class TestSQLAlchemyRoundTrip:
 
 
 # ---------------------------------------------------------------------------
-# SPARQL 1.2 queries against SQLite (examples/sqlalchemy_store_demo.py's
-# original scenario)
+# SPARQL 1.2 queries against SQLite
 # ---------------------------------------------------------------------------
 
 @sqlalchemy_extra

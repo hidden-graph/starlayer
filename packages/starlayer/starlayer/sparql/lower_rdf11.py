@@ -55,15 +55,24 @@ so no shorthand form ever reaches the algebra). ``Builtin_isTRIPLE``/
 project's own bespoke grammar productions (``grammar12.py``) for the
 SPARQL 1.2 accessor builtins.
 
-``LANGDIR``/``hasLANGDIR``/``STRLANGDIR``/``hasLANG`` have **no** grammar12
-production at all (confirmed: not in ``grammar12.py``'s ``BuiltInCall``
-extensions) — a query using them wouldn't parse as anything but an ordinary,
-unrecognized SPARQL 1.1 function call, which the generic fallback below
-already passes through unchanged. dirLangString *literals*
-(``"text"@lang--dir``) need zero lowering either: ``grammar12.py``'s
-``LangDirLiteral`` production already builds
-``Literal(text, datatype=encode_dirlang_datatype(lang, dir))`` at parse
-time — the exact encoded form starlayer.graph's in-memory backend expects as-is.
+``LANGDIR``/``hasLANGDIR``/``STRLANGDIR``/``hasLANG`` **do** have real
+``_grammar12.py`` ``BuiltInCall`` productions (``Builtin_LANGDIR``/
+``Builtin_hasLANGDIR``/``Builtin_STRLANGDIR``/``Builtin_hasLANG`` - this
+docstring previously said otherwise, stale since whenever those
+productions were added; corrected 2026-10-13 after a direct test proved
+the claim wrong). Each is lowered below via ``_lower_expr``'s own
+dispatch. dirLangString *literals* (``"text"@lang--dir``) need zero
+lowering either: ``grammar12.py``'s ``LangDirLiteral`` production already
+builds ``Literal(text, datatype=encode_dirlang_datatype(lang, dir))`` at
+parse time — the exact encoded form starlayer.graph's in-memory backend
+expects as-is. ``DATATYPE()`` and the whole SPARQL 1.1 "Functions on
+Strings" family (``STRLEN``/``SUBSTR``/``UCASE``/``LCASE``/``STRSTARTS``/
+``STRENDS``/``CONTAINS``/``STRBEFORE``/``STRAFTER``/``CONCAT``/``REGEX``/
+``REPLACE``/``ENCODE_FOR_URI``) also get dirLangString-aware lowering
+(2026-10-13) - stock rdflib's own evalfns for all of these reject a
+dirLangString value outright (see ``DIRLANG_STRING_FN``'s own comment
+above), and ``DATATYPE()`` would otherwise leak starlayer.graph's internal
+``dirlang:`` encoding IRI instead of the real ``rdf:dirLangString``.
 
 ## Term-slot vs. expression-position lowering
 
@@ -171,14 +180,17 @@ from .vocab import decode_dirlang_datatype
 
 _patch_algebra_translator_bugs()
 
-# Mirrors starlayer.graph/query/sparql12_to_11.py's own constants exactly (see
-# that module for the authoritative definitions/registration). Duplicated
-# here rather than imported: this project's dependency direction runs
-# starlayer.graph -> starlayer.sparql (see CLAUDE.md's "Sibling project"
-# note), so importing starlayer.graph's *query-rewriting* internals from here
-# would invert it. starlayer.graph.model.encoding (a stable, low-level module,
-# already the established import direction for exactly this project) is
-# still imported directly, below, for VALUES-row eager hashing.
+# Mirrors starlayer.graph/query/custom_functions.py's own constants exactly
+# (see that module for the authoritative definitions/registration - not
+# sparql12_to_11.py, which this comment used to cite; that text-rewriter
+# was fully removed 2026-10-02 and custom_functions.py is what carries its
+# function registrations forward). Duplicated here rather than imported:
+# this project's dependency direction runs starlayer.graph -> starlayer.sparql
+# (see CLAUDE.md's "Sibling project" note), so importing starlayer.graph's
+# *query-rewriting* internals from here would invert it.
+# starlayer.graph.model.encoding (a stable, low-level module, already the
+# established import direction for exactly this project) is still imported
+# directly, below, for VALUES-row eager hashing.
 TT_NS = "https://github.com/hidden-graph/starlayergraph/ns/tt#"
 TT_HASH_FN = URIRef(TT_NS + "fn/hash")
 _TT_ACCESSOR_FN = {
@@ -188,13 +200,35 @@ _TT_ACCESSOR_FN = {
 }
 
 # Same duplication rationale as TT_NS/TT_HASH_FN above - mirrors
-# starlayer.graph/query/sparql12_to_11.py's own DIRLANG_NS_PREFIX/
-# DIRLANG_CONSTRUCT_FN exactly, so the URI this module's Function(...) call
-# resolves to is the identical custom function starlayer.graph already registers
-# (register_custom_function is keyed by URI, not by which module happened
-# to build the call).
+# starlayer.graph/query/custom_functions.py's own DIRLANG_NS_PREFIX/
+# DIRLANG_CONSTRUCT_FN/DIRLANG_STRING_FN exactly, so the URIs this module's
+# Function(...) calls resolve to are the identical custom functions
+# starlayer.graph already registers (register_custom_function is keyed by
+# URI, not by which module happened to build the call).
 DIRLANG_NS = "https://github.com/hidden-graph/starlayergraph/ns/dirlang#"
 DIRLANG_CONSTRUCT_FN = URIRef(DIRLANG_NS + "fn/construct")
+# RDF 1.2 Query sec 17.4.3's own "Functions on Strings" family -
+# STRLEN/SUBSTR/UCASE/LCASE/STRSTARTS/STRENDS/CONTAINS/STRBEFORE/STRAFTER/
+# CONCAT/REGEX/REPLACE/ENCODE_FOR_URI - routed through dedicated custom
+# functions that are aware of the dirLangString encoding, since rdflib's
+# own stock evalfns all reject it (see custom_functions.py's own module
+# comment for the full account - every stock evalfn here calls
+# operators.string(), which raises on any non-xsd:string-datatyped
+# literal). langMATCHES is deliberately not in this family - its own
+# signature only ever takes plain xsd:string arguments, so it needs no
+# dirLangString awareness at all.
+DIRLANG_STRING_FN = {
+    name: URIRef(DIRLANG_NS + f"fn/{name}")
+    for name in (
+        "strlen", "substr", "ucase", "lcase", "strstarts", "strends",
+        "contains", "strbefore", "strafter", "concat", "regex", "replace",
+        "encode_for_uri",
+    )
+}
+# The real W3C rdf:dirLangString IRI - not pre-defined on rdflib's own RDF
+# namespace object in the installed version (confirmed: RDF.dirLangString
+# raises AttributeError, "term not in namespace"), so built directly.
+RDF_DIRLANGSTRING = URIRef(str(RDF) + "dirLangString")
 
 
 class _LowerState:
@@ -298,12 +332,22 @@ def _dirlang_langdir_expr(raw_arg, state: _LowerState) -> CompValue:
 
 
 def _dirlang_has_langdir_expr(raw_arg, state: _LowerState) -> CompValue:
-    """``hasLANGDIR(v)`` -> true iff v's datatype is a dirLangString IRI.
-    Mirrors ``sparql12_to_11.py::_dirlang_has_langdir``.
+    """``hasLANGDIR(v)`` -> true iff v's datatype is a dirLangString IRI,
+    false for anything else - including a non-literal RDF term (RDF 1.2
+    Query sec 17.4.2.11: ``hasLANGDIR(<http://example/>)`` -> ``false``,
+    confirmed directly against the spec's own table - unlike LANGDIR()
+    itself, which errors on a non-literal). Mirrors
+    ``sparql12_to_11.py::_dirlang_has_langdir``, plus a fix found
+    2026-10-13: the bare STRSTARTS/DATATYPE expression below raises
+    (DATATYPE() requires a literal) for a non-literal argument instead of
+    evaluating to false, so it's wrapped in COALESCE with a ``false``
+    fallback - the same "catch an expression-evaluation error, substitute
+    a default" mechanism SPARQL's own COALESCE exists for.
     """
-    return CompValue(
+    starts = CompValue(
         "Builtin_STRSTARTS", arg1=_dirlang_str_datatype(raw_arg, state), arg2=Literal(DIRLANG_NS)
     )
+    return CompValue("Builtin_COALESCE", arg=[starts, Literal(False)])
 
 
 def _dirlang_lang_expr(raw_arg, state: _LowerState) -> CompValue:
@@ -329,7 +373,17 @@ def _dirlang_lang_expr(raw_arg, state: _LowerState) -> CompValue:
 
 def _dirlang_has_lang_expr(raw_arg, state: _LowerState) -> CompValue:
     """``hasLANG(v)`` -> true iff v is a dirLangString OR an ordinary
-    language-tagged literal. Mirrors ``sparql12_to_11.py::_dirlang_has_lang``.
+    language-tagged literal, false for anything else - including a
+    non-literal RDF term (RDF 1.2 Query sec 17.4.2.10:
+    ``hasLANG(<http://example/>)`` -> ``false``, confirmed directly
+    against the spec's own table - unlike LANG()/LANGDIR() themselves,
+    which both error on a non-literal). Mirrors
+    ``sparql12_to_11.py::_dirlang_has_lang``, plus a fix found 2026-10-13:
+    for a non-literal argument, *both* operands of the OR below raise
+    (DATATYPE() and LANG() each require a literal), so the OR itself
+    raises rather than evaluating to false - wrapped in COALESCE with a
+    ``false`` fallback, same fix and reasoning as
+    ``_dirlang_has_langdir_expr`` above.
     """
     starts = CompValue(
         "Builtin_STRSTARTS", arg1=_dirlang_str_datatype(raw_arg, state), arg2=Literal(DIRLANG_NS)
@@ -340,7 +394,34 @@ def _dirlang_has_lang_expr(raw_arg, state: _LowerState) -> CompValue:
         op="!=",
         other=Literal(""),
     )
-    return CompValue("ConditionalOrExpression", expr=starts, other=[lang_ne_empty])
+    has_lang = CompValue("ConditionalOrExpression", expr=starts, other=[lang_ne_empty])
+    return CompValue("Builtin_COALESCE", arg=[has_lang, Literal(False)])
+
+
+def _dirlang_datatype_expr(raw_arg, state: _LowerState) -> CompValue:
+    """``DATATYPE(v)`` -> the real ``rdf:dirLangString`` IRI for a
+    dirLangString value, instead of leaking starlayer.graph's own internal
+    ``dirlang:`` encoding IRI that stock ``Builtin_DATATYPE`` would
+    otherwise report verbatim (it just returns ``l_.datatype`` as-is).
+    Falls back to plain ``Builtin_DATATYPE`` for anything else - same
+    "unwrap the internal encoding at the boundary, fall back otherwise"
+    shape as ``_dirlang_lang_expr``/``_dirlang_langdir_expr`` above.
+    """
+    starts = CompValue(
+        "Builtin_STRSTARTS", arg1=_dirlang_str_datatype(raw_arg, state), arg2=Literal(DIRLANG_NS)
+    )
+    fallback = CompValue("Builtin_DATATYPE", arg=_lower_expr(raw_arg, state))
+    return CompValue("Builtin_IF", arg1=starts, arg2=RDF_DIRLANGSTRING, arg3=fallback)
+
+
+def _lower_dirlang_string_fn(name: str, args: list, state: _LowerState) -> CompValue:
+    """Lower one of the 13 "Functions on Strings" builtins (see
+    ``DIRLANG_STRING_FN``'s own module-level comment) to a ``Function``
+    call against its dedicated dirLangString-aware custom function,
+    passing every argument through ``_lower_expr`` first (an argument can
+    itself be an arbitrary nested expression, e.g. another triple-term
+    accessor or string function call)."""
+    return _make_function_call(DIRLANG_STRING_FN[name], [_lower_expr(a, state) for a in args])
 
 
 def _lower_expr(node, state: _LowerState):
@@ -385,6 +466,76 @@ def _lower_expr(node, state: _LowerState):
                 _lower_expr(node["direction"], state),
             ]
             return _make_function_call(DIRLANG_CONSTRUCT_FN, args)
+        if name == "Builtin_DATATYPE":
+            return _dirlang_datatype_expr(node["arg"], state)
+        if name in ("Builtin_STRLEN", "Builtin_UCASE", "Builtin_LCASE", "Builtin_ENCODE_FOR_URI"):
+            fn = {
+                "Builtin_STRLEN": "strlen",
+                "Builtin_UCASE": "ucase",
+                "Builtin_LCASE": "lcase",
+                "Builtin_ENCODE_FOR_URI": "encode_for_uri",
+            }[name]
+            return _lower_dirlang_string_fn(fn, [node["arg"]], state)
+        if name == "Builtin_SUBSTR":
+            args = [node["arg"], node["start"]]
+            # Attribute access, not node.get("length") - confirmed live
+            # that CompValue.get() on a genuinely-absent Optional(...)
+            # grammar field (SUBSTR's own 2-or-3-arg form) returns the key
+            # name itself as a pyparsing-internal placeholder, not None,
+            # while attribute access correctly returns None (the same
+            # convention rdflib's own stock evalfns rely on, e.g.
+            # Builtin_SUBSTR's own "length = expr.length; if length is not
+            # None:"). node.get() returning a truthy non-None placeholder
+            # here made every 2-arg SUBSTR/REGEX/REPLACE call wrongly
+            # append a 3rd positional None-ish argument, breaking arity -
+            # found via a real regression (SHACL's own regex/replace node-
+            # expression tests) once this code path stopped being
+            # dirLangString-only special-cased and started intercepting
+            # every REGEX/REPLACE call unconditionally.
+            if getattr(node, "length", None) is not None:
+                args.append(node["length"])
+            return _lower_dirlang_string_fn("substr", args, state)
+        if name in ("Builtin_STRSTARTS", "Builtin_STRENDS", "Builtin_CONTAINS", "Builtin_STRBEFORE", "Builtin_STRAFTER"):
+            fn = {
+                "Builtin_STRSTARTS": "strstarts",
+                "Builtin_STRENDS": "strends",
+                "Builtin_CONTAINS": "contains",
+                "Builtin_STRBEFORE": "strbefore",
+                "Builtin_STRAFTER": "strafter",
+            }[name]
+            return _lower_dirlang_string_fn(fn, [node["arg1"], node["arg2"]], state)
+        if name == "Builtin_CONCAT":
+            # CONCAT()'s zero-argument form parses its ExpressionList as
+            # the bare RDF.nil URIRef (rdflib's own "NIL | Group(...)"
+            # grammar production for an empty parenthesized list), not an
+            # empty Python list - list(node["arg"]) on that would iterate
+            # the IRI string character-by-character instead of producing
+            # zero arguments. Inlined directly as the spec's own constant
+            # result (sec 17.4.3.10's errata-query-4 rule: "" with no
+            # arguments) rather than emitting a Function call with an empty
+            # expr=[] list - found live that an *empty* list-valued
+            # CompValue field doesn't survive the RDF round-trip this
+            # lowered tree still goes through (query_to_rdf11 encodes it,
+            # then decodes it right back a moment later): it comes back as
+            # the bare RDF.nil term again, not []. A real round-trip gap in
+            # to_rdf.py/from_rdf.py's own generic list-field handling, but
+            # CONCAT() is the first place in this project that ever builds
+            # a genuinely empty Function argument list, so it was never
+            # exposed before - out of scope to chase down here when the
+            # correct result is a compile-time constant anyway.
+            if node["arg"] == RDF.nil:
+                return Literal("")
+            return _lower_dirlang_string_fn("concat", list(node["arg"]), state)
+        if name == "Builtin_REGEX":
+            args = [node["text"], node["pattern"]]
+            if getattr(node, "flags", None) is not None:
+                args.append(node["flags"])
+            return _lower_dirlang_string_fn("regex", args, state)
+        if name == "Builtin_REPLACE":
+            args = [node["arg"], node["pattern"], node["replacement"]]
+            if getattr(node, "flags", None) is not None:
+                args.append(node["flags"])
+            return _lower_dirlang_string_fn("replace", args, state)
         if name == "BGP":
             return _lower_bgp(node, state)
         if name == "ConstructQuery":

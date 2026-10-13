@@ -8,22 +8,29 @@ Issues found in the official SPARQL 1.2 test suite (https://github.com/w3c/rdf-t
 
 Title = the `##` heading; body = `### Description` through `### Suggested fix`; `### Status` is doc-only tracking, not part of the issue body.
 
-## Maintenance: re-checking against upstream (2026-10-12)
+## Maintenance: re-checking against upstream (2026-10-12, procedure revised 2026-10-13)
 
 The 7 fixtures in Issue 1 are now `xfail(strict=True)` in `tests/sparql/w3c_sparql12/test_w3c_sparql12.py::test_syntax_positive` (same shape in `tests/graph/w3c_sparql12/` where it applies), not a plain `FAILED` - `strict=True` specifically so that if upstream ever reclassifies/edits/removes these fixtures, the test flips to an *unexpected pass* (a real failure) rather than silently staying green. That's the trigger to actually re-check this file by hand - no CI watches `w3c/rdf-tests` automatically (same manual-check posture this package already takes for the SPARQL 1.2 spec text itself, see `CLAUDE.md`'s "Tracking upstream spec changes").
 
-**Re-running `download_w3c_sparql12_tests.py` alone will not detect an upstream edit** - it skips any file already present on disk (`os.path.exists(dest)` short-circuits the fetch), so it only picks up genuinely *new* files, never a changed `manifest.ttl` classification or edited `.rq` text for a fixture already cached locally. To actually check for a real change:
+**As of 2026-10-13, `download_w3c_sparql12_tests.py` (both copies) fetches a single pinned-commit tarball snapshot of `w3c/rdf-tests`, not live per-file requests** - see each script's own module docstring and the Turtle 1.2 downloader's equivalent rewrite for the full rationale (one tarball request instead of N individual ones, avoiding GitHub's 60-req/hour unauthenticated rate limit; a `VENDORED_FROM.md` provenance stamp recording the pinned SHA and sync date, same convention as `scripts/sync_w3c_shacl12_suite.py`). This makes the old advice below obsolete: **re-running the script now can never pick up an upstream change on its own** - it always re-fetches the exact same pinned commit and produces byte-identical output, by design. To actually check for a real change, bump `PINNED_SHA` first:
 
 ```bash
-# both vendored copies - graph's own test suite, and this package's
-rm -rf tests/sparql/w3c_sparql12/data
-rm -rf tests/graph/w3c_sparql12/data
+# find the current upstream tip
+git ls-remote https://github.com/w3c/rdf-tests.git refs/heads/main
+
+# bump PINNED_SHA to that value in both scripts (they don't have to share
+# one SHA, but bump both together when investigating this suite specifically):
+#   tests/sparql/w3c_sparql12/download_w3c_sparql12_tests.py
+#   tests/graph/w3c_sparql12/download_w3c_sparql12_tests.py
+
 python tests/sparql/w3c_sparql12/download_w3c_sparql12_tests.py
 python tests/graph/w3c_sparql12/download_w3c_sparql12_tests.py
 git diff --stat tests/sparql/w3c_sparql12/data tests/graph/w3c_sparql12/data
 ```
 
 Then re-run the full `test_syntax_positive`/`test_syntax_negative` suites. If all 7 fixtures in Issue 1 are unchanged (still `PositiveSyntaxTest`, still constructing the triple term as a pattern subject), the next step is filing Issue 1 upstream against `w3c/rdf-tests` (the Status Summary below already marks this "Yes, not yet filed"; this doc's own `##`/`###` structure pastes directly into a GitHub issue per "How To Use" above). If a fixture *did* change, update this file's own entry to match before deciding whether the issue is still live.
+
+A bump performed 2026-10-13 (as part of an unrelated fetch-script consistency pass, not a dedicated re-check of this file) confirmed the 7 Issue 1 fixtures unchanged - the diff was limited to a cosmetic upstream manifest refactor (per-test `mf:specVersion "sparql-1.2"` string literals consolidated into one manifest-level `mf:specVersion sparql:version-1.2` IRI declaration) with no test entries added, removed, or reclassified. Not treated as a real re-check of Issue 1's own status, since that wasn't this pass's purpose - just recorded here since the bump happened.
 
 (`list-anonreifier-01`, previously tracked here as a second open item, is resolved as of 2026-10-12 - a real implementation gap, not suite ambiguity; see `starlayer/sparql/CLAUDE.md`'s same-day entry. Not part of this maintenance process going forward.)
 

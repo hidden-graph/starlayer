@@ -2185,12 +2185,29 @@ class StarLayerGraph(Graph):
             self._on_mutated()
             return None
         if isinstance(update_object, str):
+            from starlayer.graph.query.version_directive import (
+                contains_triple_term,
+                strip_version_directive,
+            )
             from starlayer.sparql.lower_rdf11 import (
                 rdf11_update_to_sparql11_text,
                 update_to_rdf11,
             )
             from starlayer.sparql.parse12 import prepare_update_12
-            prepared_12 = prepare_update_12(update_object, base=kwargs.get('base'), initNs=initNs)
+            stripped_text, declared_version = strip_version_directive(update_object)
+            prepared_12 = prepare_update_12(stripped_text, base=kwargs.get('base'), initNs=initNs)
+            if declared_version is not None:
+                from starlayer.graph.model.conformance import (
+                    SPARQL12ConformanceWarning,
+                    check_version_conformance,
+                )
+                check_version_conformance(
+                    declared_version,
+                    uses_triple_term=contains_triple_term(prepared_12.algebra),
+                    uses_dirlangstring='--' in stripped_text,
+                    context='SPARQL update',
+                    warning_class=SPARQL12ConformanceWarning,
+                )
             rdf_graph, root = update_to_rdf11(prepared_12)
             update_object = rdf11_update_to_sparql11_text(rdf_graph, root)
         raw = Graph(store=self.store, identifier=self.identifier)

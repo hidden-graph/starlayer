@@ -1,48 +1,92 @@
+"""W3C RDF 1.2 Turtle Test Suite download script.
 
-# W3C Turtle Test Suite Download Script (manifest.ttl version)
-# Downloads all .ttl and .nt files referenced in manifest.ttl from the official W3C RDF 1.2 Turtle test suite.
-# Can be run from anywhere - writes into tests/w3c_turtle12/data/ next to this script.
-#
-# Pulls both manifests W3C publishes for RDF 1.2 Turtle: eval/ (TestTurtleEval,
-# parser output must match expected .nt) and syntax/ (TestTurtlePositiveSyntax/
-# TestTurtleNegativeSyntax, parse success/failure only, no expected .nt). Both
-# land in the same flat data/ directory and one combined manifest.csv - their
-# filenames and test names don't collide (verified when this was added).
+Downloads every file referenced by both manifests W3C publishes for RDF 1.2
+Turtle (eval/ - TestTurtleEval, parser output must match expected .nt; and
+syntax/ - TestTurtlePositiveSyntax/TestTurtleNegativeSyntax, parse
+success/failure only) from a single pinned-commit tarball snapshot of
+w3c/rdf-tests (below), not from N individual live HTTP requests - mirrors
+scripts/sync_w3c_shacl12_suite.py's own fetch shape (one tarball request,
+pinned SHA, deliberate bump) rather than this script's own prior per-file
+``requests.get()`` design, which risked GitHub's 60-req/hour unauthenticated
+rate limit across this suite's 130+ files and left no record of exactly what
+was fetched or when.
 
+Both manifests land in the same flat data/ directory and one combined
+manifest.csv - their filenames and test names don't collide (verified when
+this was added).
+
+Writes data/VENDORED_FROM.md recording the source, pinned SHA, and sync
+date, so a reviewer can see exactly what changed by diffing one file -
+same convention scripts/sync_w3c_shacl12_suite.py established.
+
+Bumping PINNED_SHA is a deliberate, one-line, reviewable change - this
+script never auto-follows ``main``'s tip. The companion SPARQL 1.2
+downloaders (tests/graph/w3c_sparql12/, tests/sparql/w3c_sparql12/) pull
+from the same w3c/rdf-tests repo at their own independently-pinned SHA;
+bump all affected scripts together when investigating a specific upstream
+change, but there's no requirement they share one SHA otherwise.
+
+Can be run from anywhere - writes into tests/w3c_turtle12/data/ next to this
+script. Always re-fetches and overwrites (the source is a pinned, immutable
+commit, so there's nothing to gain from skipping files already on disk -
+unlike a live, unpinned fetch, re-running this can never produce different
+output until PINNED_SHA is bumped).
+
+Usage: python download_w3c_turtle_tests.py
+"""
+
+from __future__ import annotations
+
+import datetime
+import io
 import os
 import re
+import tarfile
+import urllib.request
 
-import requests
+REPO = "w3c/rdf-tests"
+# Bump deliberately - see this module's own docstring. Do not auto-follow
+# main's tip.
+PINNED_SHA = "d5d930b03ee6b63b388d0bb28fdb29ee78a59ec0"
+SUBTREE_PREFIXES = {
+    "eval": "rdf/rdf12/rdf-turtle/eval/",
+    "syntax": "rdf/rdf12/rdf-turtle/syntax/",
+}
 
-SOURCES = [
-    "https://w3c.github.io/rdf-tests/rdf/rdf12/rdf-turtle/eval/",
-    "https://w3c.github.io/rdf-tests/rdf/rdf12/rdf-turtle/syntax/",
-]
+TARBALL_URL = f"https://codeload.github.com/{REPO}/tar.gz/{PINNED_SHA}"
+
 DEST_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 MANIFEST_FILE = os.path.join(DEST_DIR, "manifest.csv")
+STAMP_FILE = os.path.join(DEST_DIR, "VENDORED_FROM.md")
 
-def download_file(url, dest):
-    if os.path.exists(dest):
-        return
-    r = requests.get(url)
-    if r.status_code == 200:
-        with open(dest, "wb") as f:
-            f.write(r.content)
-        print(f"Downloaded {url}")
-    else:
-        print(f"Failed to download {url}")
 
-def fetch_manifest_tests(base_url):
-    """Fetch and parse one source's manifest.ttl into a list of
-    (name, type, ttl, nt) tuples (nt is None for syntax-only tests)."""
-    manifest_url = base_url + "manifest.ttl"
-    print(f"Fetching manifest from {manifest_url} ...")
-    r = requests.get(manifest_url)
-    manifest = r.text
-    # Parse manifest line by line (state machine)
-    tests = []
-    current = {}
-    for line in manifest.splitlines():
+def _fetch_tarball_members() -> dict[str, bytes]:
+    """{category: {relative_filename: bytes}} for eval/ and syntax/."""
+    with urllib.request.urlopen(TARBALL_URL) as resp:
+        archive_bytes = resp.read()
+
+    by_category: dict[str, dict[str, bytes]] = {name: {} for name in SUBTREE_PREFIXES}
+    with tarfile.open(fileobj=io.BytesIO(archive_bytes), mode="r:gz") as tar:
+        for member in tar.getmembers():
+            if not member.isfile():
+                continue
+            # Archive root is "<repo>-<sha>/..." - strip that one path segment.
+            relative = member.name.split("/", 1)[1] if "/" in member.name else member.name
+            for category, prefix in SUBTREE_PREFIXES.items():
+                if relative.startswith(prefix):
+                    extracted = tar.extractfile(member)
+                    if extracted is not None:
+                        by_category[category][relative[len(prefix) :]] = extracted.read()
+                    break
+    return by_category
+
+
+def parse_manifest_tests(manifest_text: str) -> list[tuple[str, str, str, str]]:
+    """Parse one source's manifest.ttl into a list of (name, type, ttl, nt)
+    tuples (nt is None/'' for syntax-only tests)."""
+    tests: list[dict] = []
+    current: dict = {}
+    for line in manifest_text.splitlines():
         line = line.strip()
         if not line or line.startswith('#'):
             continue
@@ -50,7 +94,7 @@ def fetch_manifest_tests(base_url):
         m = re.match(r'trs:([\w\-]+)\s+rdf:type\s+([^ ;]+)\s*;', line)
         if m:
             if current:
-                tests.append((current.get('name'), current.get('type'), current.get('ttl'), current.get('nt')))
+                tests.append(current)
             current = {'name': m.group(1), 'type': m.group(2), 'ttl': None, 'nt': None}
             continue
         # mf:action (ttl file). No trailing-punctuation requirement: the
@@ -67,41 +111,78 @@ def fetch_manifest_tests(base_url):
         if m and current:
             current['nt'] = m.group(1)
             continue
-    # Add last test
     if current:
-        tests.append((current.get('name'), current.get('type'), current.get('ttl'), current.get('nt')))
-    tests = [t for t in tests if t[2] or t[3]]  # Only keep tests with files
-    print(f"Discovered {len(tests)} tests in {manifest_url}.")
-    return tests
+        tests.append(current)
+    return [
+        (t['name'], t['type'], t['ttl'], t['nt'])
+        for t in tests
+        if t.get('ttl') or t.get('nt')
+    ]
 
-def main():
+
+def main() -> None:
     os.makedirs(DEST_DIR, exist_ok=True)
 
-    # (base_url, (name, type, ttl, nt)) pairs across every source, so the
-    # download step below knows which remote base each file comes from
-    # even though they all land in the same local data/ directory.
-    all_tests = []
-    for base_url in SOURCES:
-        for t in fetch_manifest_tests(base_url):
-            all_tests.append((base_url, t))
+    by_category = _fetch_tarball_members()
+    for category, files in by_category.items():
+        if not files:
+            raise RuntimeError(
+                f"no files found under {SUBTREE_PREFIXES[category]!r} at {PINNED_SHA} - "
+                "did the subtree move or the SHA get mistyped?"
+            )
 
-    print(f"Total: {len(all_tests)} tests across {len(SOURCES)} manifests.")
+    # (category, (name, type, ttl, nt)) pairs across both manifests, so the
+    # write step below knows which category's files dict each entry's
+    # referenced filenames live in, even though they all land in the same
+    # local data/ directory.
+    all_tests: list[tuple[str, tuple[str, str, str, str]]] = []
+    for category, files in by_category.items():
+        manifest_bytes = files.get('manifest.ttl')
+        if manifest_bytes is None:
+            raise RuntimeError(f"{category}/manifest.ttl not found in tarball at {PINNED_SHA}")
+        for t in parse_manifest_tests(manifest_bytes.decode('utf-8')):
+            all_tests.append((category, t))
+
+    print(f"Total: {len(all_tests)} tests across {len(by_category)} manifests.")
 
     # Write combined manifest
     with open(MANIFEST_FILE, "w") as mf:
         mf.write("test_name,test_type,ttl_file,nt_file\n")
-        for _base_url, (test_name, test_type, ttl_file, nt_file) in all_tests:
+        for _category, (test_name, test_type, ttl_file, nt_file) in all_tests:
             mf.write(f"{test_name},{test_type},{ttl_file or ''},{nt_file or ''}\n")
 
-    # Download files
-    for base_url, (test_name, test_type, ttl_file, nt_file) in all_tests:
-        print(f"Test: {test_name} | Type: {test_type} | TTL: {ttl_file} | NT: {nt_file}")
-        if ttl_file:
-            print(f"  Downloading TTL: {ttl_file}")
-            download_file(base_url + ttl_file, os.path.join(DEST_DIR, ttl_file))
-        if nt_file:
-            print(f"  Downloading NT: {nt_file}")
-            download_file(base_url + nt_file, os.path.join(DEST_DIR, nt_file))
+    # Write referenced files - always overwrite, the source is pinned.
+    written = 0
+    for category, (test_name, test_type, ttl_file, nt_file) in all_tests:
+        files = by_category[category]
+        for fname in (ttl_file, nt_file):
+            if not fname:
+                continue
+            content = files.get(fname)
+            if content is None:
+                print(f"  MISSING in tarball: {category}/{fname} (test {test_name})")
+                continue
+            with open(os.path.join(DEST_DIR, fname), "wb") as f:
+                f.write(content)
+            written += 1
+
+    stamp = (
+        "# Vendored snapshot provenance\n\n"
+        "Do not hand-edit files in this directory - regenerate with "
+        "`python download_w3c_turtle_tests.py` after bumping `PINNED_SHA` "
+        "there.\n\n"
+        f"- Source: https://github.com/{REPO}/tree/{PINNED_SHA}/rdf/rdf12/rdf-turtle/\n"
+        f"- Pinned commit SHA: `{PINNED_SHA}`\n"
+        f"- Synced: {datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')}\n"
+        f"- Files written: {written}\n"
+        f"- Test entries: {len(all_tests)}\n"
+    )
+    with open(STAMP_FILE, "w", encoding="utf-8") as f:
+        f.write(stamp)
+
+    print(f"Wrote {written} files + manifest.csv to {DEST_DIR}")
+    print(f"Pinned SHA: {PINNED_SHA}")
+
 
 if __name__ == "__main__":
     main()

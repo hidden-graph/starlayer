@@ -35,6 +35,8 @@ coverage.
 
 from __future__ import annotations
 
+import json
+
 import pytest
 from rdflib import Literal, URIRef, Variable
 from rdflib.compare import to_isomorphic
@@ -710,16 +712,56 @@ class TestInsertDataGroundTripleTermPersistsEncoding:
 # --- End-to-end: existing W3C fixtures, official ground truth -------------
 
 
+# Confirmed inherited rdflib term-equality gaps, not starlayer bugs - same
+# two fixtures, same reasoning, as
+# tests/graph/w3c_sparql12/test_w3c_sparql12_eval.py's own
+# _IN_MEMORY_KNOWN_DIVERGENCES (checked directly against plain, unmodified
+# rdflib; confirmed in-memory-only, Oxigraph/Fuseki both pass). Duplicated
+# here rather than imported - same small-test-support-duplication
+# convention this project already uses for harness.py itself.
+_INHERITED_RDFLIB_GAP_EVAL_FRAGMENTS = {"strlang", "plain-string-same"}
+
+
+def _eval_select_param(entry):
+    fragment = entry.test_iri.rsplit("#", 1)[-1]
+    if fragment in _INHERITED_RDFLIB_GAP_EVAL_FRAGMENTS:
+        return pytest.param(
+            entry,
+            marks=pytest.mark.xfail(
+                reason=(
+                    "Confirmed inherited rdflib term-equality gap, not a starlayer bug - "
+                    "see starlayer/graph/CLAUDE.md's 2026-10-13 dated entry"
+                ),
+                strict=True,
+            ),
+            id=entry.test_iri,
+        )
+    return pytest.param(entry, id=entry.test_iri)
+
+
 @_no_data
-@pytest.mark.parametrize("entry", EVAL_SELECT, ids=lambda e: e.test_iri)
+@pytest.mark.parametrize("entry", [_eval_select_param(e) for e in EVAL_SELECT])
 def test_eval_select_via_lowering(entry):
     query_text = entry.read(entry.query_file)
-    expected = parse_srj(entry.read(entry.result_file))
+    result_text = entry.read(entry.result_file)
+    # ASK/SELECT distinction - same reasoning as
+    # tests/sparql/w3c_sparql12/test_w3c_sparql12.py::test_eval_select
+    # (both lang-basedir's contains.rq and rdf11's plain-string-same.rq are
+    # ASK-shaped, the first ASK fixtures this function had ever seen).
+    is_ask = "boolean" in json.loads(result_text)
 
     graph = _new_graph(entry)
     if entry.data_file:
         graph.parse(data=entry.read(entry.data_file), format=_data_format(entry))
 
+    if is_ask:
+        prepared = prepare_query_12(query_text)
+        rdf_graph, root = query_to_rdf11(prepared)
+        query_object = rdf11_to_query(rdf_graph, root)
+        assert graph.query(query_object).askAnswer == json.loads(result_text)["boolean"]
+        return
+
+    expected = parse_srj(result_text)
     actual = _run_lowered(query_text, graph)
     assert bindings_match(actual, expected)
 

@@ -37,6 +37,21 @@ Use these instead of the rdflib originals when working with SPARQL 1.2 queries::
 from __future__ import annotations
 
 
+def _check_version_conformance(declared_version, stripped_text, tree, context):
+    from starlayer.graph.model.conformance import (
+        SPARQL12ConformanceWarning,
+        check_version_conformance,
+    )
+    from starlayer.graph.query.version_directive import contains_triple_term
+    check_version_conformance(
+        declared_version,
+        uses_triple_term=contains_triple_term(tree),
+        uses_dirlangstring='--' in stripped_text,
+        context=context,
+        warning_class=SPARQL12ConformanceWarning,
+    )
+
+
 def parseQuery(q):
     """Parse a SPARQL 1.2 SELECT/ASK/CONSTRUCT/DESCRIBE query string.
 
@@ -45,9 +60,19 @@ def parseQuery(q):
     ``TripleTermNode`` nodes wherever ``<<( s p o )>>``/``TRIPLE(s, p, o)``
     appears, constructed directly by the grammar (see module docstring),
     not reassembled from a text-level encoding.
+
+    A leading ``VERSION "label"`` prologue directive (SPARQL 1.2 Query sec
+    4.3) is stripped first - not real SPARQL grammar at all, same handling
+    ``StarLayerGraph.query()`` already gives it (see
+    ``version_directive.py``'s own module docstring).
     """
+    from starlayer.graph.query.version_directive import strip_version_directive
     from starlayer.sparql.parse12 import parse_query_12
-    return parse_query_12(q)
+    stripped, declared_version = strip_version_directive(q)
+    tree = parse_query_12(stripped)
+    if declared_version is not None:
+        _check_version_conformance(declared_version, stripped, tree, 'SPARQL query')
+    return tree
 
 
 def prepareQuery(queryString: str, initNs=None, base=None):
@@ -59,10 +84,17 @@ def prepareQuery(queryString: str, initNs=None, base=None):
 
     The returned ``Query`` object can be passed directly to
     ``StarLayerGraph.query()`` or ``rdflib.Graph.query()``.
+
+    A leading ``VERSION "label"`` directive is stripped first - see
+    ``parseQuery``'s own docstring.
     """
+    from starlayer.graph.query.version_directive import strip_version_directive
     from starlayer.sparql.lower_rdf11 import query_to_rdf11, rdf11_to_query
     from starlayer.sparql.parse12 import prepare_query_12
-    prepared_12 = prepare_query_12(queryString, base=base, initNs=initNs)
+    stripped, declared_version = strip_version_directive(queryString)
+    prepared_12 = prepare_query_12(stripped, base=base, initNs=initNs)
+    if declared_version is not None:
+        _check_version_conformance(declared_version, stripped, prepared_12.algebra, 'SPARQL query')
     rdf_graph, root = query_to_rdf11(prepared_12)
     return rdf11_to_query(rdf_graph, root)
 
@@ -73,9 +105,17 @@ def parseUpdate(q):
     Returns an rdflib ``CompValue`` — same type as
     ``rdflib.plugins.sparql.parser.parseUpdate`` — with genuine
     ``TripleTermNode`` nodes preserved (same strategy as ``parseQuery``).
+
+    A leading ``VERSION "label"`` directive is stripped first - see
+    ``parseQuery``'s own docstring.
     """
+    from starlayer.graph.query.version_directive import strip_version_directive
     from starlayer.sparql.parse12 import parse_update_12
-    return parse_update_12(q)
+    stripped, declared_version = strip_version_directive(q)
+    tree = parse_update_12(stripped)
+    if declared_version is not None:
+        _check_version_conformance(declared_version, stripped, tree, 'SPARQL update')
+    return tree
 
 
 def prepareUpdate(updateString: str, initNs=None, base=None):
@@ -85,10 +125,17 @@ def prepareUpdate(updateString: str, initNs=None, base=None):
 
     The returned ``Update`` object can be passed directly to
     ``StarLayerGraph.update()`` or ``rdflib.Graph.update()``.
+
+    A leading ``VERSION "label"`` directive is stripped first - see
+    ``parseQuery``'s own docstring.
     """
+    from starlayer.graph.query.version_directive import strip_version_directive
     from starlayer.sparql.lower_rdf11 import rdf11_to_update, update_to_rdf11
     from starlayer.sparql.parse12 import prepare_update_12
-    prepared_12 = prepare_update_12(updateString, base=base, initNs=initNs)
+    stripped, declared_version = strip_version_directive(updateString)
+    prepared_12 = prepare_update_12(stripped, base=base, initNs=initNs)
+    if declared_version is not None:
+        _check_version_conformance(declared_version, stripped, prepared_12.algebra, 'SPARQL update')
     rdf_graph, root = update_to_rdf11(prepared_12)
     return rdf11_to_update(rdf_graph, root)
 

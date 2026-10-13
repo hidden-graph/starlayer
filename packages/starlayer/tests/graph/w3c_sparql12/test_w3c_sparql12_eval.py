@@ -33,6 +33,8 @@ here - this file is scoped to query evaluation.
 
 from __future__ import annotations
 
+import json
+
 import pytest
 from rdflib import BNode, Graph, URIRef
 from rdflib.compare import to_isomorphic
@@ -294,7 +296,24 @@ EVAL_SELECT_FUSEKI = _mark_known_divergences(EVAL_SELECT, _FUSEKI_KNOWN_DIVERGEN
 #      unconstrained wildcard happen to match it" - isn't visible from the
 #      matched triple's values alone (what the first attempt checked), but
 #      is directly available from the pattern's own pre-match term.
-_IN_MEMORY_KNOWN_DIVERGENCES: dict = {}
+_IN_MEMORY_KNOWN_DIVERGENCES: dict = {
+    # Found 2026-10-13 wiring the `lang-basedir`/`rdf11` categories in -
+    # both confirmed in-memory-only (Oxigraph and Fuseki, run against this
+    # same fixture via EVAL_SELECT_OXIGRAPH/EVAL_SELECT_FUSEKI below, both
+    # pass) and confirmed against *plain, unmodified* rdflib directly (no
+    # starlayer.graph involved at all), not just this backend - see
+    # starlayer/graph/CLAUDE.md's dated entry for the full account:
+    "strlang": "Plain rdflib's own Builtin_STRLANG never rejects an empty "
+    "language-tag argument (STRLANG(\"abc\", \"\")), though RDF 1.2 Query "
+    "sec 17.4.2.16 requires it to error - confirmed identical against "
+    "stock, unmodified rdflib.",
+    "plain-string-same": "Plain rdflib's own sameTerm()/Literal.__eq__ "
+    "treats a simple literal and its ^^xsd:string equivalent as different "
+    "terms (Literal(\"foo\") != Literal(\"foo\", datatype=XSD.string)), "
+    "contradicting RDF 1.1/1.2 Concepts' own \"simple literal is shorthand "
+    "for xsd:string\" definition - confirmed identical against stock, "
+    "unmodified rdflib.",
+}
 
 EVAL_SELECT_IN_MEMORY = _mark_known_divergences(EVAL_SELECT, _IN_MEMORY_KNOWN_DIVERGENCES)
 EVAL_CONSTRUCT_IN_MEMORY = _mark_known_divergences(EVAL_CONSTRUCT, _IN_MEMORY_KNOWN_DIVERGENCES)
@@ -389,12 +408,23 @@ def _skolemize_graph(graph) -> Graph:
 @pytest.mark.parametrize("entry", EVAL_SELECT_IN_MEMORY, ids=lambda e: e.test_iri)
 def test_eval_select_original_query(entry):
     query_text = entry.read(entry.query_file)
-    expected = parse_srj(entry.read(entry.result_file))
+    result_text = entry.read(entry.result_file)
+    # Same ASK/SELECT distinction and same reasoning as the sibling
+    # tests/sparql/w3c_sparql12/test_w3c_sparql12.py::test_eval_select -
+    # "QueryEvaluationTest" + ".srj" covers both, and this function
+    # predates ever having an ASK-shaped fixture (lang-basedir's
+    # contains.rq, rdf11's plain-string-same.rq, both added 2026-10-13).
+    is_ask = "boolean" in json.loads(result_text)
 
     g = _new_graph(entry)
     if entry.data_file:
         g.parse(data=entry.read(entry.data_file), format=data_format(entry))
 
+    if is_ask:
+        assert g.query(query_text).askAnswer == json.loads(result_text)["boolean"]
+        return
+
+    expected = parse_srj(result_text)
     actual = [{k: v for k, v in dict(row).items() if v is not None} for row in g.query(query_text).bindings]
     assert bindings_match(actual, expected)
 
@@ -426,13 +456,20 @@ def test_eval_construct_original_query(entry):
 @pytest.mark.parametrize("entry", EVAL_SELECT_OXIGRAPH, ids=lambda e: e.test_iri)
 def test_eval_select_original_query_oxigraph(entry):
     query_text = entry.read(entry.query_file)
-    expected = parse_srj(entry.read(entry.result_file))
+    result_text = entry.read(entry.result_file)
+    # Same ASK/SELECT distinction as test_eval_select_original_query above.
+    is_ask = "boolean" in json.loads(result_text)
 
     clear_oxigraph()
     g = _new_oxigraph_graph(entry)
     if entry.data_file:
         g.parse(data=entry.read(entry.data_file), format=data_format(entry))
 
+    if is_ask:
+        assert g.query(query_text).askAnswer == json.loads(result_text)["boolean"]
+        return
+
+    expected = parse_srj(result_text)
     actual = [{k: v for k, v in dict(row).items() if v is not None} for row in g.query(query_text).bindings]
     assert bindings_match(actual, expected)
 
@@ -467,13 +504,20 @@ def test_eval_construct_original_query_oxigraph(entry):
 @pytest.mark.parametrize("entry", EVAL_SELECT_FUSEKI, ids=lambda e: e.test_iri)
 def test_eval_select_original_query_fuseki(entry):
     query_text = entry.read(entry.query_file)
-    expected = parse_srj(entry.read(entry.result_file))
+    result_text = entry.read(entry.result_file)
+    # Same ASK/SELECT distinction as test_eval_select_original_query above.
+    is_ask = "boolean" in json.loads(result_text)
 
     clear_fuseki()
     g = _new_fuseki_graph(entry)
     if entry.data_file:
         g.parse(data=entry.read(entry.data_file), format=data_format(entry))
 
+    if is_ask:
+        assert g.query(query_text).askAnswer == json.loads(result_text)["boolean"]
+        return
+
+    expected = parse_srj(result_text)
     actual = [{k: v for k, v in dict(row).items() if v is not None} for row in g.query(query_text).bindings]
     assert bindings_match(actual, expected)
 

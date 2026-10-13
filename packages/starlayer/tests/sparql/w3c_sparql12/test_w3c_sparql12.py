@@ -4,11 +4,13 @@ pipeline — see CLAUDE.md's Phase 6 status entry and
 populated (a real, separate test suite from starlayer.graph's own ``tests/w3c_turtle12/``,
 which is Turtle-1.2-only).
 
-Four manifest categories are in scope, matching what this project's
-`parse12.py`/`serialize12.py` actually support today (see CLAUDE.md's "Not
-started" section for what's deliberately excluded and why):
-`syntax-triple-terms-positive`/`-negative`, `eval-triple-terms`,
-`expression`.
+Ten manifest categories are fetched as of 2026-10-13 (see
+`download_w3c_sparql12_tests.py`'s own `CATEGORIES` list and module
+docstring) - every one the W3C suite publishes. Several fixtures across
+`codepoint-escapes`/`syntax` are confirmed inherited rdflib grammar gaps,
+not starlayer bugs or W3C suite defects - see `_INHERITED_RDFLIB_GAP_FRAGMENTS`
+below and starlayer/graph/CLAUDE.md's 2026-10-13 dated entry for the full,
+individually-reasoned account of each.
 
 Three test shapes:
 1. Syntax tests (`PositiveSyntaxTest`/`NegativeSyntaxTest`, and their
@@ -39,10 +41,13 @@ clear reason, not silently ignored.
 
 from __future__ import annotations
 
+import json
+
 import pytest
 from rdflib.compare import to_isomorphic
 from starlayer.graph.graph.starlayer_dataset import StarLayerDataset
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+from starlayer.graph.query.version_directive import strip_version_directive
 from starlayer.sparql import query_to_rdf, rdf_to_query
 from starlayer.sparql.parse12 import prepare_query_12, prepare_update_12
 from tests.sparql.w3c_sparql12.harness import (
@@ -173,10 +178,105 @@ def _syntax_positive_param(entry):
     return pytest.param(entry, id=entry.test_iri)
 
 
+# Confirmed inherited rdflib gaps, not starlayer-specific bugs and not W3C
+# suite defects either - each one checked directly against *plain,
+# unmodified* rdflib (no starlayer.sparql involved at all) before being
+# added here, confirmed to produce the identical wrong result there too.
+# Found 2026-10-13 while wiring the `codepoint-escapes`/`syntax` categories
+# into this suite for the first time - see starlayer/graph/CLAUDE.md's
+# dated entry for the full account of each:
+#   - nested-aggregate-functions / duplicated-values-variable: rdflib's own
+#     grammar never rejects a nested aggregate (COUNT(COUNT(*))) or a
+#     repeated variable within one VALUES row (VALUES (?a ?a) {...}),
+#     despite both being syntax errors per the SPARQL 1.1/1.2 grammar.
+#   - group-by-scope-bad-1/2/3: rdflib never rejects reusing a GROUP BY
+#     key's own variable name as a fresh SELECT-expression target (the
+#     SPARQL grammar's own variable-scoping rule).
+#   - codepoint-esc-01-bad/03-bad: rdflib accepts a whole query spelled via
+#     \\uXXXX codepoint escapes outside any string/IRI token, and a
+#     codepoint escape inside a PN_LOCAL prefixed name - both of which the
+#     SPARQL 1.2 grammar's own codepoint-escape production restricts to
+#     specific token contexts.
+#   - surrogate-esc-01 through -05-bad: rdflib's \\uXXXX handling never
+#     validates that a lone or reversed-order UTF-16 surrogate pair is a
+#     valid Unicode scalar value - it accepts each one unconditionally.
+# xfail(strict=True), same reasoning as _KNOWN_SUITE_DEFECT_FRAGMENTS above:
+# an unexpected pass means rdflib's own grammar changed, which is the
+# signal to revisit this list, not something to stay silently green on.
+_INHERITED_RDFLIB_GAP_FRAGMENTS = {
+    "nested-aggregate-functions",
+    "duplicated-values-variable",
+    "group-by-scope-bad-1",
+    "group-by-scope-bad-2",
+    "group-by-scope-bad-3",
+    "codepoint-esc-01-bad",
+    "codepoint-esc-03-bad",
+    "surrogate-esc-01-bad",
+    "surrogate-esc-02-bad",
+    "surrogate-esc-03-bad",
+    "surrogate-esc-04-bad",
+    "surrogate-esc-05-bad",
+}
+
+
+def _syntax_negative_param(entry):
+    fragment = entry.test_iri.rsplit("#", 1)[-1]
+    if fragment in _INHERITED_RDFLIB_GAP_FRAGMENTS:
+        return pytest.param(
+            entry,
+            marks=pytest.mark.xfail(
+                reason=(
+                    "Confirmed inherited rdflib grammar gap, not a starlayer bug - "
+                    "see starlayer/graph/CLAUDE.md's 2026-10-13 dated entry"
+                ),
+                strict=True,
+            ),
+            id=entry.test_iri,
+        )
+    return pytest.param(entry, id=entry.test_iri)
+
+
+# Confirmed inherited rdflib *term-equality* gaps (not grammar this time) -
+# both checked directly against plain, unmodified rdflib before being added
+# here. Found 2026-10-13, same investigation as above:
+#   - strlang: stock Builtin_STRLANG never rejects an empty language-tag
+#     argument (STRLANG("abc", "")), though RDF 1.2 Query sec 17.4.2.16
+#     requires it to error.
+#   - plain-string-same (rdf11 category): stock sameTerm()/Literal.__eq__
+#     treats a simple literal and its ^^xsd:string equivalent as different
+#     terms (confirmed: Literal("foo") != Literal("foo", datatype=XSD.string)),
+#     contradicting RDF 1.1/1.2 Concepts' own "a simple literal is shorthand
+#     for the identical xsd:string literal" definition.
+_INHERITED_RDFLIB_GAP_EVAL_FRAGMENTS = {"strlang", "plain-string-same"}
+
+
+def _eval_select_param(entry):
+    fragment = entry.test_iri.rsplit("#", 1)[-1]
+    if fragment in _INHERITED_RDFLIB_GAP_EVAL_FRAGMENTS:
+        return pytest.param(
+            entry,
+            marks=pytest.mark.xfail(
+                reason=(
+                    "Confirmed inherited rdflib term-equality gap, not a starlayer bug - "
+                    "see starlayer/graph/CLAUDE.md's 2026-10-13 dated entry"
+                ),
+                strict=True,
+            ),
+            id=entry.test_iri,
+        )
+    return pytest.param(entry, id=entry.test_iri)
+
+
 @_no_data
 @pytest.mark.parametrize("entry", [_syntax_positive_param(e) for e in SYNTAX_POSITIVE])
 def test_syntax_positive(entry):
     text = entry.read(entry.query_file or entry.update_file)
+    # VERSION "label" (SPARQL 1.2 Query sec 4.3) isn't real grammar
+    # prepare_query_12/prepare_update_12 understand on their own - it must
+    # be stripped by the caller first (see version_directive.py's own
+    # module docstring). Needed for the first time here by the `version`
+    # category's own PositiveSyntaxTest fixtures, added 2026-10-13.
+    text, _ = strip_version_directive(text)
     if _is_update(entry):
         prepare_update_12(text)
     else:
@@ -184,9 +284,10 @@ def test_syntax_positive(entry):
 
 
 @_no_data
-@pytest.mark.parametrize("entry", SYNTAX_NEGATIVE, ids=lambda e: e.test_iri)
+@pytest.mark.parametrize("entry", [_syntax_negative_param(e) for e in SYNTAX_NEGATIVE])
 def test_syntax_negative(entry):
     text = entry.read(entry.query_file or entry.update_file)
+    text, _ = strip_version_directive(text)
     # Deliberately broad: parametrized over every SYNTAX_NEGATIVE W3C fixture,
     # which fail via different exception types depending on what's malformed.
     with pytest.raises(Exception):  # noqa: B017
@@ -197,10 +298,21 @@ def test_syntax_negative(entry):
 
 
 @_no_data
-@pytest.mark.parametrize("entry", EVAL_SELECT, ids=lambda e: e.test_iri)
+@pytest.mark.parametrize("entry", [_eval_select_param(e) for e in EVAL_SELECT])
 def test_eval_select(entry):
     query_text = entry.read(entry.query_file)
-    expected = parse_srj(entry.read(entry.result_file))
+    result_text = entry.read(entry.result_file)
+    # "QueryEvaluationTest" with a ".srj" result file covers both SELECT
+    # (a "bindings" array) and ASK (a bare "boolean") per the SPARQL Query
+    # Results JSON Format - EVAL_SELECT's own filter (test_type ==
+    # "QueryEvaluationTest" and result_file.endswith(".srj")) doesn't
+    # distinguish them, and this function's own name predates ever having
+    # an ASK-shaped fixture flow through it (confirmed: lang-basedir's
+    # contains.rq and rdf11's plain-string-same.rq, added 2026-10-13, are
+    # the first two in this whole suite). Checked directly off the raw
+    # JSON rather than the query text (e.g. "starts with ASK") - more
+    # robust, and symmetric with how the result file itself is produced.
+    is_ask = "boolean" in json.loads(result_text)
 
     starlayer_graph = _new_graph(entry)
     if entry.data_file:
@@ -212,6 +324,17 @@ def test_eval_select(entry):
     from starlayer.sparql.serialize12 import _translate_algebra_12
 
     regenerated_text = _translate_algebra_12(reconstructed)
+
+    if is_ask:
+        # No "bindings" to compare at all - parse_srj()/bindings_match()
+        # are both bindings-shaped and would silently treat a missing
+        # "results" key as zero bindings regardless of the real boolean
+        # answer, so this is a genuinely separate comparison, not a
+        # variant of the one below.
+        assert starlayer_graph.query(regenerated_text).askAnswer == json.loads(result_text)["boolean"]
+        return
+
+    expected = parse_srj(result_text)
 
     # {k: v for ... if v is not None}, not a bare dict(row): an unbound
     # variable (including one explicitly bound to UNDEF via a VALUES row -

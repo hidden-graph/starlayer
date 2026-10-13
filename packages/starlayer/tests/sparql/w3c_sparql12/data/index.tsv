@@ -1,4 +1,22 @@
 category	test_type	name	query_file	update_file	data_file	result_file	test_iri
+syntax-triple-terms-positive	PositiveUpdateSyntaxTest	update-anonreifier-01.ru	update-anonreifier-01.ru				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax-triple-terms-positive/manifest#update-anonreifier-01
+syntax-triple-terms-positive	PositiveUpdateSyntaxTest	update-anonreifier-02.ru	update-anonreifier-02.ru				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax-triple-terms-positive/manifest#update-anonreifier-02
+syntax-triple-terms-positive	PositiveUpdateSyntaxTest	update-anonreifier-03.ru	update-anonreifier-03.ru				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax-triple-terms-positive/manifest#update-anonreifier-03
+syntax-triple-terms-positive	PositiveUpdateSyntaxTest	update-anonreifier-04.ru	update-anonreifier-04.ru				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax-triple-terms-positive/manifest#update-anonreifier-04
+syntax-triple-terms-positive	PositiveUpdateSyntaxTest	update-anonreifier-05.ru	update-anonreifier-05.ru				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax-triple-terms-positive/manifest#update-anonreifier-05
+syntax-triple-terms-positive	PositiveUpdateSyntaxTest	update-anonreifier-06.ru	update-anonreifier-06.ru				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax-triple-terms-positive/manifest#update-anonreifier-06
+syntax-triple-terms-positive	PositiveUpdateSyntaxTest	update-reifier-01.ru	update-reifier-01.ru				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax-triple-terms-positive/manifest#update-reifier-01
+syntax-triple-terms-positive	PositiveUpdateSyntaxTest	update-reifier-02.ru	update-reifier-02.ru				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax-triple-terms-positive/manifest#update-reifier-02
+syntax-triple-terms-positive	PositiveUpdateSyntaxTest	update-reifier-03.ru	update-reifier-03.ru				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax-triple-terms-positive/manifest#update-reifier-03
+syntax-triple-terms-positive	PositiveUpdateSyntaxTest	update-reifier-04.ru	update-reifier-04.ru				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax-triple-terms-positive/manifest#update-reifier-04
+syntax-triple-terms-positive	PositiveUpdateSyntaxTest	update-reifier-05.ru	update-reifier-05.ru				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax-triple-terms-positive/manifest#update-reifier-05
+syntax-triple-terms-positive	PositiveUpdateSyntaxTest	update-reifier-06.ru	update-reifier-06.ru				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax-triple-terms-positive/manifest#update-reifier-06
+syntax-triple-terms-positive	PositiveUpdateSyntaxTest	update-reifier-07.ru	update-reifier-07.ru				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax-triple-terms-positive/manifest#update-reifier-07
+syntax-triple-terms-positive	PositiveUpdateSyntaxTest	update-reifier-08.ru	update-reifier-08.ru				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax-triple-terms-positive/manifest#update-reifier-08
+syntax-triple-terms-positive	PositiveUpdateSyntaxTest	update-tripleterm-01.ru	update-tripleterm-01.ru				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax-triple-terms-positive/manifest#update-tripleterm-01
+syntax-triple-terms-positive	PositiveUpdateSyntaxTest	update-tripleterm-03.ru	update-tripleterm-03.ru				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax-triple-terms-positive/manifest#update-tripleterm-03
+syntax-triple-terms-positive	PositiveUpdateSyntaxTest	update-tripleterm-04.ru	update-tripleterm-04.ru				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax-triple-terms-positive/manifest#update-tripleterm-04
+syntax-triple-terms-positive	PositiveUpdateSyntaxTest	update-tripleterm-05.ru	update-tripleterm-05.ru				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax-triple-terms-positive/manifest#update-tripleterm-05
 syntax-triple-terms-positive	PositiveSyntaxTest	annotation-anonreifier-01.rq	annotation-anonreifier-01.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax-triple-terms-positive/manifest#annotation-anonreifier-01
 syntax-triple-terms-positive	PositiveSyntaxTest	annotation-anonreifier-02.rq	annotation-anonreifier-02.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax-triple-terms-positive/manifest#annotation-anonreifier-02
 syntax-triple-terms-positive	PositiveSyntaxTest	annotation-anonreifier-03.rq	annotation-anonreifier-03.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax-triple-terms-positive/manifest#annotation-anonreifier-03
@@ -94,24 +112,6 @@ syntax-triple-terms-positive	PositiveSyntaxTest	nested-reifier-02.rq	nested-reif
 syntax-triple-terms-positive	PositiveSyntaxTest	nested-tripleterm-01.rq	nested-tripleterm-01.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax-triple-terms-positive/manifest#nested-tripleterm-01
 syntax-triple-terms-positive	PositiveSyntaxTest	nested-tripleterm-02.rq	nested-tripleterm-02.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax-triple-terms-positive/manifest#nested-tripleterm-02
 syntax-triple-terms-positive	PositiveSyntaxTest	subject-tripleterm.rq	subject-tripleterm.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax-triple-terms-positive/manifest#subject-tripleterm
-syntax-triple-terms-positive	PositiveUpdateSyntaxTest	update-anonreifier-01.ru	update-anonreifier-01.ru				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax-triple-terms-positive/manifest#update-anonreifier-01
-syntax-triple-terms-positive	PositiveUpdateSyntaxTest	update-anonreifier-02.ru	update-anonreifier-02.ru				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax-triple-terms-positive/manifest#update-anonreifier-02
-syntax-triple-terms-positive	PositiveUpdateSyntaxTest	update-anonreifier-03.ru	update-anonreifier-03.ru				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax-triple-terms-positive/manifest#update-anonreifier-03
-syntax-triple-terms-positive	PositiveUpdateSyntaxTest	update-anonreifier-04.ru	update-anonreifier-04.ru				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax-triple-terms-positive/manifest#update-anonreifier-04
-syntax-triple-terms-positive	PositiveUpdateSyntaxTest	update-anonreifier-05.ru	update-anonreifier-05.ru				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax-triple-terms-positive/manifest#update-anonreifier-05
-syntax-triple-terms-positive	PositiveUpdateSyntaxTest	update-anonreifier-06.ru	update-anonreifier-06.ru				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax-triple-terms-positive/manifest#update-anonreifier-06
-syntax-triple-terms-positive	PositiveUpdateSyntaxTest	update-reifier-01.ru	update-reifier-01.ru				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax-triple-terms-positive/manifest#update-reifier-01
-syntax-triple-terms-positive	PositiveUpdateSyntaxTest	update-reifier-02.ru	update-reifier-02.ru				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax-triple-terms-positive/manifest#update-reifier-02
-syntax-triple-terms-positive	PositiveUpdateSyntaxTest	update-reifier-03.ru	update-reifier-03.ru				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax-triple-terms-positive/manifest#update-reifier-03
-syntax-triple-terms-positive	PositiveUpdateSyntaxTest	update-reifier-04.ru	update-reifier-04.ru				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax-triple-terms-positive/manifest#update-reifier-04
-syntax-triple-terms-positive	PositiveUpdateSyntaxTest	update-reifier-05.ru	update-reifier-05.ru				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax-triple-terms-positive/manifest#update-reifier-05
-syntax-triple-terms-positive	PositiveUpdateSyntaxTest	update-reifier-06.ru	update-reifier-06.ru				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax-triple-terms-positive/manifest#update-reifier-06
-syntax-triple-terms-positive	PositiveUpdateSyntaxTest	update-reifier-07.ru	update-reifier-07.ru				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax-triple-terms-positive/manifest#update-reifier-07
-syntax-triple-terms-positive	PositiveUpdateSyntaxTest	update-reifier-08.ru	update-reifier-08.ru				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax-triple-terms-positive/manifest#update-reifier-08
-syntax-triple-terms-positive	PositiveUpdateSyntaxTest	update-tripleterm-01.ru	update-tripleterm-01.ru				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax-triple-terms-positive/manifest#update-tripleterm-01
-syntax-triple-terms-positive	PositiveUpdateSyntaxTest	update-tripleterm-03.ru	update-tripleterm-03.ru				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax-triple-terms-positive/manifest#update-tripleterm-03
-syntax-triple-terms-positive	PositiveUpdateSyntaxTest	update-tripleterm-04.ru	update-tripleterm-04.ru				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax-triple-terms-positive/manifest#update-tripleterm-04
-syntax-triple-terms-positive	PositiveUpdateSyntaxTest	update-tripleterm-05.ru	update-tripleterm-05.ru				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax-triple-terms-positive/manifest#update-tripleterm-05
 syntax-triple-terms-negative	NegativeSyntaxTest	alternate-path-anonreifier.rq	alternate-path-anonreifier.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax-triple-terms-negative/manifest#alternate-path-anonreifier
 syntax-triple-terms-negative	NegativeSyntaxTest	alternate-path-reifier.rq	alternate-path-reifier.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax-triple-terms-negative/manifest#alternate-path-reifier
 syntax-triple-terms-negative	NegativeSyntaxTest	alternate-path-tripleterm.rq	alternate-path-tripleterm.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax-triple-terms-negative/manifest#alternate-path-tripleterm
@@ -223,3 +223,50 @@ expression	QueryEvaluationTest	triple on literals	triple-on-literals.rq			triple
 expression	QueryEvaluationTest	triple on string literals	triple-on-str-literals.rq			triple-on-str-literals.srj	https://w3c.github.io/rdf-tests/sparql/sparql12/expression/manifest#triple-on-str-literals
 expression	QueryEvaluationTest	triple on triple terms	triple-on-triple-terms.rq			triple-on-triple-terms.srj	https://w3c.github.io/rdf-tests/sparql/sparql12/expression/manifest#triple-on-triple-terms
 expression	QueryEvaluationTest	triple on undefs	triple-on-undefs.rq			triple-on-undefs.srj	https://w3c.github.io/rdf-tests/sparql/sparql12/expression/manifest#triple-on-undefs
+lang-basedir	NegativeSyntaxTest	Literal with invalid base direction	langdir-literal-invalid.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/lang-basedir/manifest#langdir-literal-invalid
+lang-basedir	QueryEvaluationTest	hasLANG	haslang.rq		data-lang.ttl	haslang.srj	https://w3c.github.io/rdf-tests/sparql/sparql12/lang-basedir/manifest#haslang
+lang-basedir	QueryEvaluationTest	hasLANGDIR	haslangdir.rq		data-lang.ttl	haslangdir.srj	https://w3c.github.io/rdf-tests/sparql/sparql12/lang-basedir/manifest#haslangdir
+lang-basedir	QueryEvaluationTest	LANG	lang.rq		data-lang.ttl	lang.srj	https://w3c.github.io/rdf-tests/sparql/sparql12/lang-basedir/manifest#lang
+lang-basedir	QueryEvaluationTest	LANGDIR	langdir.rq		data-lang.ttl	langdir.srj	https://w3c.github.io/rdf-tests/sparql/sparql12/lang-basedir/manifest#langdir
+lang-basedir	QueryEvaluationTest	LANGDIR with inline literals	langdir-literal.rq			langdir-literal.srj	https://w3c.github.io/rdf-tests/sparql/sparql12/lang-basedir/manifest#langdir-literal
+lang-basedir	QueryEvaluationTest	STRLANG	strlang.rq			strlang.srj	https://w3c.github.io/rdf-tests/sparql/sparql12/lang-basedir/manifest#strlang
+lang-basedir	QueryEvaluationTest	STRLANGDIR	strlangdir.rq			strlangdir.srj	https://w3c.github.io/rdf-tests/sparql/sparql12/lang-basedir/manifest#strlangdir
+lang-basedir	QueryEvaluationTest	DATATYPE and rdf:dirLangString	datatype.rq			datatype.srj	https://w3c.github.io/rdf-tests/sparql/sparql12/lang-basedir/manifest#datatype
+lang-basedir	QueryEvaluationTest	CONCAT and rdf:dirLangString	concat.rq			concat.srj	https://w3c.github.io/rdf-tests/sparql/sparql12/lang-basedir/manifest#concat
+lang-basedir	QueryEvaluationTest	CONTAINS and rdf:dirLangString	contains.rq			contains.srj	https://w3c.github.io/rdf-tests/sparql/sparql12/lang-basedir/manifest#contains
+lang-basedir	QueryEvaluationTest	Language tags differing in case: graph pattern match	lang-case-match.rq		data-lang-case.ttl	lang-case-match.srj	https://w3c.github.io/rdf-tests/sparql/sparql12/lang-basedir/manifest#lang-case-match
+lang-basedir	QueryEvaluationTest	Language tags differing in case: STRLANG	lang-case-strlang.rq		data-lang-case.ttl	lang-case-strlang.srj	https://w3c.github.io/rdf-tests/sparql/sparql12/lang-basedir/manifest#lang-case-strlang
+codepoint-escapes	NegativeSyntaxTest	codepoint-esc-01-bad.rq	codepoint-esc-01-bad.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/codepoint-escapes/manifest#codepoint-esc-01-bad
+codepoint-escapes	NegativeSyntaxTest	codepoint-esc-02-bad.rq	codepoint-esc-02-bad.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/codepoint-escapes/manifest#codepoint-esc-02-bad
+codepoint-escapes	NegativeSyntaxTest	codepoint-esc-03-bad.rq	codepoint-esc-03-bad.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/codepoint-escapes/manifest#codepoint-esc-03-bad
+codepoint-escapes	NegativeSyntaxTest	codepoint-esc-04-bad.rq	codepoint-esc-04-bad.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/codepoint-escapes/manifest#codepoint-esc-04-bad
+codepoint-escapes	NegativeSyntaxTest	surrogate-esc-01-bad.rq	surrogate-esc-01-bad.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/codepoint-escapes/manifest#surrogate-esc-01-bad
+codepoint-escapes	NegativeSyntaxTest	surrogate-esc-02-bad.rq	surrogate-esc-02-bad.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/codepoint-escapes/manifest#surrogate-esc-02-bad
+codepoint-escapes	NegativeSyntaxTest	surrogate-esc-03-bad.rq	surrogate-esc-03-bad.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/codepoint-escapes/manifest#surrogate-esc-03-bad
+codepoint-escapes	NegativeSyntaxTest	surrogate-esc-04-bad.rq	surrogate-esc-04-bad.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/codepoint-escapes/manifest#surrogate-esc-04-bad
+codepoint-escapes	NegativeSyntaxTest	surrogate-esc-05-bad.rq	surrogate-esc-05-bad.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/codepoint-escapes/manifest#surrogate-esc-05-bad
+codepoint-escapes	QueryEvaluationTest	codepoint-esc-05.rq	codepoint-esc-05.rq			codepoint-esc-05.srx	https://w3c.github.io/rdf-tests/sparql/sparql12/codepoint-escapes/manifest#codepoint-esc-05
+codepoint-escapes	QueryEvaluationTest	codepoint-esc-06.rq	codepoint-esc-06.rq			codepoint-esc-06.srx	https://w3c.github.io/rdf-tests/sparql/sparql12/codepoint-escapes/manifest#codepoint-esc-06
+codepoint-escapes	QueryEvaluationTest	codepoint-esc-07.rq	codepoint-esc-07.rq			codepoint-esc-07.srx	https://w3c.github.io/rdf-tests/sparql/sparql12/codepoint-escapes/manifest#codepoint-esc-07
+codepoint-escapes	QueryEvaluationTest	codepoint-esc-08.rq	codepoint-esc-08.rq			codepoint-esc-08.nt	https://w3c.github.io/rdf-tests/sparql/sparql12/codepoint-escapes/manifest#codepoint-esc-08
+codepoint-escapes	QueryEvaluationTest	codepoint-esc-09.rq	codepoint-esc-09.rq			codepoint-esc-09.srx	https://w3c.github.io/rdf-tests/sparql/sparql12/codepoint-escapes/manifest#codepoint-esc-09
+grouping	QueryEvaluationTest	Group-1	group01.rq		group-data-1.ttl	group01.srx	https://w3c.github.io/rdf-tests/sparql/sparql12/grouping/manifest#group01
+grouping	QueryEvaluationTest	Reuse of SELECT variable in an aggregating query	select-variable-reuse.rq			select-variable-reuse.srx	https://w3c.github.io/rdf-tests/sparql/sparql12/grouping/manifest#select-variable-reuse
+rdf11	QueryEvaluationTest	DATATYPE on rdf:langString	langstring-datatype.rq			langstring-datatype.srj	https://w3c.github.io/rdf-tests/sparql/sparql12/rdf11/manifest#langstring-datatype
+rdf11	QueryEvaluationTest	DATATYPE on plain string literal	plain-string-datatype.rq			plain-string-datatype.srj	https://w3c.github.io/rdf-tests/sparql/sparql12/rdf11/manifest#plain-string-datatype
+rdf11	QueryEvaluationTest	xsd:string and plain literals are the same	plain-string-same.rq			plain-string-same.srj	https://w3c.github.io/rdf-tests/sparql/sparql12/rdf11/manifest#plain-string-same
+syntax	NegativeSyntaxTest	Nested aggregate functions	nested-aggregate-functions.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax/manifest#nested-aggregate-functions
+syntax	NegativeSyntaxTest	Duplicated variable in a VALUES clause	duplicated-values-variable.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax/manifest#duplicated-values-variable
+syntax	NegativeSyntaxTest	GROUP BY variable in-scope (1)	group-by-scope-bad-1.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax/manifest#group-by-scope-bad-1
+syntax	NegativeSyntaxTest	GROUP BY variable in-scope (2)	group-by-scope-bad-2.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax/manifest#group-by-scope-bad-2
+syntax	NegativeSyntaxTest	GROUP BY expression in-scope	group-by-scope-bad-3.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax/manifest#group-by-scope-bad-3
+syntax	PositiveSyntaxTest	GROUP BY in-scope	group-by-scope-1.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax/manifest#group-by-scope-1
+version	NegativeSyntaxTest	version-bad-01.rq	version-bad-01.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/version/manifest#version-bad-01
+version	NegativeSyntaxTest	version-bad-02.rq	version-bad-02.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/version/manifest#version-bad-02
+version	NegativeSyntaxTest	version-bad-03.rq	version-bad-03.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/version/manifest#version-bad-03
+version	PositiveSyntaxTest	version-01.rq	version-01.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/version/manifest#version-01
+version	PositiveSyntaxTest	version-02.rq	version-02.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/version/manifest#version-02
+version	PositiveSyntaxTest	version-03.rq	version-03.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/version/manifest#version-03
+version	PositiveSyntaxTest	version-04.rq	version-04.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/version/manifest#version-04
+version	PositiveSyntaxTest	version-05.rq	version-05.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/version/manifest#version-05
+version	PositiveSyntaxTest	version-06.rq	version-06.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/version/manifest#version-06

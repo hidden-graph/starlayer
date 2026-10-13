@@ -195,21 +195,50 @@ DIRLANG_CONSTRUCT_FN = f"<{DIRLANG_NS_PREFIX}fn/construct>"
 
 def _register_dirlang_construct_function() -> None:
     from rdflib import Literal, URIRef
-    from rdflib.plugins.sparql.operators import register_custom_function
+    from rdflib.plugins.sparql.operators import register_custom_function, string
     from rdflib.plugins.sparql.sparql import SPARQLError
 
     from starlayer.graph.model.encoding import encode_dirlang_datatype
 
     def _dirlang_construct_fn(lex, lang, direction):
+        # operators.string() - same validation stock rdflib's own
+        # Builtin_STRLANG applies to its analogous lexicalForm argument -
+        # raises for a non-literal (e.g. STRLANGDIR(<http://example/x>,
+        # ...), confirmed an error per RDF 1.2 Query sec 17.4.2.17's own
+        # example table) or a literal with some other, unrelated datatype.
+        # Found missing here 2026-10-13, alongside the two checks below -
+        # this function previously accepted any term at all via a bare
+        # str(lex) coercion.
+        lexical = str(string(lex))
+        # .lower() matches stock rdflib's own Builtin_STRLANG (the
+        # non-direction-aware sibling function) exactly - confirmed via
+        # its source: "lang=str(expr.arg2).lower())" - kept unchanged here.
         lang_str = str(lang).lower()
-        dir_str = str(direction).lower()
+        # langTag MUST NOT be an empty string (17.4.2.17's own normative
+        # text, confirmed by its example table: STRLANGDIR("abc", "", "ltr")
+        # -> error) - found missing here 2026-10-13; only the direction
+        # argument was ever validated before this fix, letting an empty
+        # language tag silently build a Literal that would later crash
+        # with an unrelated, un-SPARQL-error-shaped ValueError the first
+        # time anything (e.g. StarLayerGraph._restore()) tried to decode
+        # it back into a real DirLangString, instead of leaving the
+        # binding unbound the way a SPARQLError does.
+        if not lang_str:
+            raise SPARQLError("STRLANGDIR: language tag must not be empty")
+        # baseDirection MUST be exactly "ltr" or "rtl" - case-sensitively,
+        # confirmed by the same example table: STRLANGDIR("abc", "en",
+        # "LTR") -> error. Found wrong here 2026-10-13: the previous
+        # version lowercased direction *before* comparing it against
+        # ('ltr', 'rtl'), which let "LTR" (and "Ltr", "rTl", etc.) through
+        # incorrectly.
+        dir_str = str(direction)
         if dir_str not in ('ltr', 'rtl'):
             # SPARQLError specifically (not ValueError): this is what
             # rdflib's evaluator recognizes as a SPARQL expression type
             # error and converts to "unbound", matching native engines -
             # see the module-level comment above DIRLANG_CONSTRUCT_FN.
             raise SPARQLError(f'STRLANGDIR: direction must be "ltr" or "rtl", got {dir_str!r}')
-        return Literal(str(lex), datatype=encode_dirlang_datatype(lang_str, dir_str))
+        return Literal(lexical, datatype=encode_dirlang_datatype(lang_str, dir_str))
 
     register_custom_function(URIRef(DIRLANG_CONSTRUCT_FN[1:-1]), _dirlang_construct_fn, override=True)
 
@@ -217,3 +246,265 @@ def _register_dirlang_construct_function() -> None:
 # Same deliberate import-time global-registry mutation as
 # _register_tt_hash_function() above, and the same reasoning applies.
 _register_dirlang_construct_function()
+
+# RDF 1.2 Query sec 17.4.3 ("Functions on Strings") extends every function
+# in this family to accept a dirLangString as a "string literal" (alongside
+# plain xsd:string and langString), with its own argument-compatibility and
+# result-kind-propagation rules. rdflib's own stock evalfns reject this
+# outright: every one of them calls operators.string(), which raises
+# SPARQLError for any literal whose .datatype is set and isn't xsd:string -
+# and a dirLangString value is internally stored with exactly that kind of
+# non-standard datatype (see starlayer.graph.model.encoding.DIRLANG_NS),
+# so STRLEN/SUBSTR/UCASE/LCASE/STRSTARTS/STRENDS/CONTAINS/STRBEFORE/
+# STRAFTER/CONCAT/REGEX/REPLACE/ENCODE_FOR_URI all silently produced an
+# unbound result for any query touching a direction-tagged literal, found
+# via a retrospective check of the W3C SPARQL 1.2 suite's own lang-basedir/
+# category (none of those 14 functions were fetched/exercised by this
+# project's test suite before now - see download_w3c_sparql12_tests.py's
+# own CATEGORIES list).
+#
+# langMATCHES is deliberately excluded: its own signature (17.4.2.11) types
+# both arguments as plain xsd:string only, not "string literal" - nobody
+# legitimately passes a dirLangString as a language tag/range, so rdflib's
+# existing behavior already matches the spec as-is.
+#
+# Design: reuse rdflib's own stock evalfn for the actual string-processing
+# logic (regex matching, substring arithmetic, case-folding, URI-encoding)
+# rather than reimplementing it - each wrapper classifies its "string
+# literal" argument(s) into (lexical, language, direction) via
+# decode_dirlang_datatype(), strips tagging down to a bare Literal(lexical)
+# (which trivially passes operators.string()'s own xsd:string-or-nothing
+# gate), calls the real rdflib function with a small shim object standing
+# in for its usual Expr, then re-wraps the bare string result in the
+# correct kind per that function's own spec-mandated propagation rule.
+def _register_dirlang_string_functions() -> None:
+    import re
+    from types import SimpleNamespace
+
+    from rdflib import Literal, URIRef
+    from rdflib.namespace import XSD
+    from rdflib.plugins.sparql import operators as _op
+    from rdflib.plugins.sparql.operators import register_custom_function
+    from rdflib.plugins.sparql.sparql import SPARQLError
+
+    from starlayer.graph.model.encoding import (
+        decode_dirlang_datatype,
+        encode_dirlang_datatype,
+    )
+
+    def _classify(term, context):
+        """RDF 1.2 Query sec 17.4.3's own "string literal" definition - a
+        plain xsd:string literal, a langString with a language tag, or a
+        dirLangString with both a language tag and base direction. Returns
+        (lexical, language_or_None, direction_or_None); raises SPARQLError
+        for anything else (a non-literal, or a literal with some other,
+        unrelated datatype)."""
+        if not isinstance(term, Literal):
+            raise SPARQLError(f"{context}: not a string literal: {term!r}")
+        dirlang = decode_dirlang_datatype(term.datatype) if term.datatype else None
+        if dirlang is not None:
+            language, direction = dirlang
+            return str(term), language, direction
+        if term.datatype is not None and term.datatype != XSD.string:
+            raise SPARQLError(f"{context}: not a string literal: {term!r}")
+        if term.language:
+            return str(term), term.language, None
+        return str(term), None, None
+
+    def _same_kind(lexical, language, direction):
+        """Build a literal "of the same kind" as a (language, direction)
+        pair from _classify() - a plain literal if neither is set, langString
+        if only language, dirLangString if both (SUBSTR/UCASE/LCASE/
+        STRBEFORE/STRAFTER/REPLACE's own shared propagation rule).
+
+        Deliberately a *bare* ``Literal(lexical)`` for the plain case, not
+        ``Literal(lexical, datatype=XSD.string)`` - rdflib's own term
+        equality treats the two as genuinely different terms
+        (``Literal("x") != Literal("x", datatype=XSD.string)``), and every
+        W3C expected-result fixture for this family renders the plain case
+        with no "datatype" key at all - matching how stock rdflib's own
+        Builtin_CONCAT/Builtin_STRBEFORE/Builtin_STRAFTER already construct
+        their own plain-case result (``Literal(...)`` with no datatype
+        argument, confirmed by reading their source)."""
+        if direction is not None:
+            return Literal(lexical, datatype=encode_dirlang_datatype(language, direction))
+        if language is not None:
+            return Literal(lexical, lang=language)
+        return Literal(lexical)
+
+    def _compatible(parts1, parts2):
+        """RDF 1.2 Query sec 17.4.3's own argument-compatibility table for
+        STRSTARTS/STRENDS/CONTAINS/STRBEFORE/STRAFTER."""
+        _, lang1, dir1 = parts1
+        _, lang2, dir2 = parts2
+        if lang2 is None and dir2 is None:
+            return True  # arg2 is a plain xsd:string - always compatible
+        if dir1 is not None and dir2 is not None:
+            return lang1 == lang2 and dir1 == dir2
+        if dir1 is None and dir2 is None:
+            return lang1 == lang2
+        return False
+
+    def _call_stock(evalfn, **kwargs):
+        # ctx is unused by every one of the stock evalfns reused below
+        # (confirmed by reading each one's source) - None is safe.
+        return evalfn(SimpleNamespace(**kwargs), None)
+
+    def _strlen(arg):
+        lexical, _, _ = _classify(arg, "STRLEN")
+        return Literal(len(lexical))
+
+    def _substr(arg, start, length=None):
+        lexical, language, direction = _classify(arg, "SUBSTR")
+        result = _call_stock(_op.Builtin_SUBSTR, arg=Literal(lexical), start=start, length=length)
+        return _same_kind(str(result), language, direction)
+
+    def _ucase(arg):
+        lexical, language, direction = _classify(arg, "UCASE")
+        return _same_kind(lexical.upper(), language, direction)
+
+    def _lcase(arg):
+        lexical, language, direction = _classify(arg, "LCASE")
+        return _same_kind(lexical.lower(), language, direction)
+
+    def _strstarts(arg1, arg2):
+        parts1 = _classify(arg1, "STRSTARTS")
+        parts2 = _classify(arg2, "STRSTARTS")
+        if not _compatible(parts1, parts2):
+            raise SPARQLError("STRSTARTS: arguments are not argument-compatible")
+        return Literal(parts1[0].startswith(parts2[0]))
+
+    def _strends(arg1, arg2):
+        parts1 = _classify(arg1, "STRENDS")
+        parts2 = _classify(arg2, "STRENDS")
+        if not _compatible(parts1, parts2):
+            raise SPARQLError("STRENDS: arguments are not argument-compatible")
+        return Literal(parts1[0].endswith(parts2[0]))
+
+    def _contains(arg1, arg2):
+        parts1 = _classify(arg1, "CONTAINS")
+        parts2 = _classify(arg2, "CONTAINS")
+        if not _compatible(parts1, parts2):
+            raise SPARQLError("CONTAINS: arguments are not argument-compatible")
+        return Literal(parts2[0] in parts1[0])
+
+    def _strbefore(arg1, arg2):
+        parts1 = _classify(arg1, "STRBEFORE")
+        parts2 = _classify(arg2, "STRBEFORE")
+        if not _compatible(parts1, parts2):
+            raise SPARQLError("STRBEFORE: arguments are not argument-compatible")
+        lexical1, language1, direction1 = parts1
+        i = lexical1.find(parts2[0])
+        if i == -1:
+            # Spec's own explicit exception to "same kind as arg1" - a
+            # non-match always returns a plain empty literal, regardless of
+            # either argument's own kind (matches stock rdflib's own
+            # Builtin_STRBEFORE no-match case, bare "Literal('')").
+            return Literal("")
+        return _same_kind(lexical1[:i], language1, direction1)
+
+    def _strafter(arg1, arg2):
+        parts1 = _classify(arg1, "STRAFTER")
+        parts2 = _classify(arg2, "STRAFTER")
+        if not _compatible(parts1, parts2):
+            raise SPARQLError("STRAFTER: arguments are not argument-compatible")
+        lexical1, language1, direction1 = parts1
+        lexical2 = parts2[0]
+        i = lexical1.find(lexical2)
+        if i == -1:
+            return Literal("")
+        return _same_kind(lexical1[i + len(lexical2) :], language1, direction1)
+
+    def _concat(*args):
+        # errata-query-4 (quoted in the vendored spec snapshot): CONCAT()
+        # with zero arguments is "" (xsd:string, per the spec's own prose -
+        # but rendered bare, no "datatype" key, in every W3C expected-
+        # result fixture, same as the "otherwise" branch below); with
+        # exactly one argument the result is that argument's own value,
+        # unchanged - both handled by the general rule below without a
+        # special case, except that the loop needs at least one element to
+        # classify.
+        if not args:
+            return Literal("")
+        parts = [_classify(a, "CONCAT") for a in args]
+        lexical = "".join(p[0] for p in parts)
+        languages = {p[1] for p in parts}
+        directions = {p[2] for p in parts}
+        if len(languages) == 1 and len(directions) == 1 and None not in directions:
+            return Literal(lexical, datatype=encode_dirlang_datatype(languages.pop(), directions.pop()))
+        if len(languages) == 1 and directions == {None}:
+            language = next(iter(languages))
+            if language is None:
+                return Literal(lexical)
+            return Literal(lexical, lang=language)
+        return Literal(lexical)
+
+    def _regex(text, pattern, flags=None):
+        lexical, _, _ = _classify(text, "REGEX")
+        return _call_stock(_op.Builtin_REGEX, text=Literal(lexical), pattern=pattern, flags=flags)
+
+    def _replace(arg, pattern, replacement, flags=None):
+        # Not routed through _call_stock(operators.Builtin_REPLACE, ...)
+        # like the other functions here - found live 2026-10-13 that stock
+        # rdflib's own Builtin_REPLACE has a real, independent bug (not
+        # specific to dirLangString at all): it calls
+        # "re.sub(str(pattern), replacement, text, cFlag)", but re.sub()'s
+        # fourth positional parameter is "count", not "flags" - so a
+        # REPLACE(..., "i")-style flags argument is silently misinterpreted
+        # as a replacement-count limit instead of enabling case-insensitive
+        # matching (confirmed: a Python DeprecationWarning fires right at
+        # this call, "'count' is passed as positional argument", and the
+        # replacement genuinely doesn't happen). Reimplemented directly
+        # here instead, reusing stock Builtin_REGEX's own (correct) flag-
+        # mapping approach via re.sub(..., flags=cFlag) as a keyword.
+        lexical, language, direction = _classify(arg, "REPLACE")
+        pattern_str = str(_op.string(pattern))
+        replacement_str = str(_op.string(replacement))
+        replacement_str = re.sub(r"\$([0-9]*)", r"\\\1", replacement_str)
+        c_flags = 0
+        if flags:
+            flag_map = {"i": re.IGNORECASE, "s": re.DOTALL, "m": re.MULTILINE}
+            for f in str(flags):
+                c_flags |= flag_map.get(f, 0)
+        result = re.sub(pattern_str, replacement_str, lexical, flags=c_flags)
+        return _same_kind(result, language, direction)
+
+    def _encode_for_uri(arg):
+        lexical, _, _ = _classify(arg, "ENCODE_FOR_URI")
+        return _call_stock(_op.Builtin_ENCODE_FOR_URI, arg=Literal(lexical))
+
+    for name, fn in (
+        ("strlen", _strlen),
+        ("substr", _substr),
+        ("ucase", _ucase),
+        ("lcase", _lcase),
+        ("strstarts", _strstarts),
+        ("strends", _strends),
+        ("contains", _contains),
+        ("strbefore", _strbefore),
+        ("strafter", _strafter),
+        ("concat", _concat),
+        ("regex", _regex),
+        ("replace", _replace),
+        ("encode_for_uri", _encode_for_uri),
+    ):
+        register_custom_function(URIRef(f"{DIRLANG_NS_PREFIX}fn/{name}"), fn, override=True)
+
+
+# URIs for starlayer.sparql's lower_rdf11.py to route the corresponding
+# stock SPARQL 1.1 builtins through - see that module's own duplicated copy
+# of these constants (same cross-package duplication rationale as
+# TT_HASH_FN/DIRLANG_CONSTRUCT_FN above) for which Builtin_* each one
+# replaces.
+DIRLANG_STRING_FN = {
+    name: f"<{DIRLANG_NS_PREFIX}fn/{name}>"
+    for name in (
+        "strlen", "substr", "ucase", "lcase", "strstarts", "strends",
+        "contains", "strbefore", "strafter", "concat", "regex", "replace",
+        "encode_for_uri",
+    )
+}
+
+# Same deliberate import-time global-registry mutation as
+# _register_tt_hash_function() above, and the same reasoning applies.
+_register_dirlang_string_functions()
