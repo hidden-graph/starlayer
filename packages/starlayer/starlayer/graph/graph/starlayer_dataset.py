@@ -948,7 +948,10 @@ class StarLayerDataset(Dataset):
             text = serialize_trix12_dataset(self)
 
         else:  # trig12
-            from starlayer.graph.serializers.turtle12 import serialize_turtle12
+            from starlayer.graph.serializers.turtle12 import (
+                iter_lines_outside_strings,
+                serialize_turtle12,
+            )
 
             all_prefix_lines: set[str] = set()
             has_version = False
@@ -959,8 +962,21 @@ class StarLayerDataset(Dataset):
                     continue
                 turtle_text = serialize_turtle12(sg)
                 body_lines = []
-                for ln in turtle_text.splitlines():
-                    if ln.startswith('@prefix'):
+                # iter_lines_outside_strings(), not a blind
+                # ln.startswith('@prefix'/'@version') check - a line that
+                # merely *starts with* that text while still inside an
+                # open (triple-quoted) string literal - e.g. a docstring
+                # describing Turtle's own directive syntax, word-wrapped
+                # so one of its lines happens to start that way - is real
+                # body content, not a directive, and must not be torn out
+                # of the literal it's part of. See that function's
+                # docstring for the real, confirmed-live bug this guards
+                # against (this project's own code-KG extractor feeding
+                # this project's own source back through itself).
+                for ln, in_string in iter_lines_outside_strings(turtle_text):
+                    if in_string:
+                        body_lines.append(ln)
+                    elif ln.startswith('@prefix'):
                         all_prefix_lines.add(ln)
                     elif ln.startswith('@version'):
                         has_version = True

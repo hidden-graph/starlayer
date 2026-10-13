@@ -187,6 +187,68 @@ class TestSameLineStatements:
         assert stmts[0] == '@prefix ex: <http://example.com/path.with.dots#> .'
 
 
+class TestTripleQuotedStringWithEmbeddedQuote:
+    """A long (triple-quoted) string literal may legally contain a single
+    embedded quote character identical to its own delimiter (Turtle's
+    STRING_LITERAL_LONG_QUOTE/_SINGLE_QUOTE grammar allows up to 2
+    consecutive unescaped quote chars mid-string) - e.g. a docstring
+    quoting a short phrase like "@prefix : <http://example.org/> .".
+    _split_statements_impl() previously tracked only a single-char quote
+    state with no memory of whether the opening delimiter was the long
+    (triple) form or the short (single-char) form - so a lone embedded
+    quote was misread as closing the string early, corrupting everything
+    that followed it in the document. Confirmed via the code-KG
+    extractor's own docstrings (e.g. starlayer.graph.parsers.syntax
+    itself) round-tripping through serialize_turtle12() and back through
+    this parser - see tests/graph/unit/test_turtle_parser.py's matching
+    real-source repro."""
+
+    def test_embedded_single_quote_does_not_split_statement(self):
+        data = (
+            'ex:s ex:p """line one\n'
+            '"@prefix : <http://example.org/> ." stays inside the string\n'
+            'closing here""" .\n'
+        )
+        stmts = split_statements(data)
+        assert len(stmts) == 1
+        assert stmts[0] == data.strip()
+
+    def test_embedded_single_quote_in_single_quote_delim_string(self):
+        data = (
+            "ex:s ex:p '''line one\n"
+            "'tis an embedded single quote\n"
+            "closing here''' .\n"
+        )
+        stmts = split_statements(data)
+        assert len(stmts) == 1
+
+    def test_directive_keyword_inside_long_string_not_misdetected(self):
+        """A line that merely *starts with* 'version'/'prefix'/'base' (or a
+        word beginning with one, e.g. 'based') while still inside an open
+        triple-quoted string must not be misdetected as a real directive -
+        previously the at_line_start keyword scan ran unconditionally, even
+        mid-string."""
+        data = (
+            'ex:s ex:p """prose that\n'
+            'version talk continues here\n'
+            'based on nothing in particular\n'
+            'real end""" .\n'
+        )
+        stmts = split_statements(data)
+        assert len(stmts) == 1
+        assert classify_statement(stmts[0]) == 'triple'
+
+    def test_blank_line_inside_long_string_preserved_by_splitter(self):
+        # The blank-line-aware prefilter itself lives in
+        # StarLayerTurtleParser.parse() (see test_turtle_parser.py) - this
+        # just confirms _split_statements_impl() itself keeps a blank line
+        # that's already present inside its input string content intact.
+        data = 'ex:s ex:p """line one\n\nline two""" .\n'
+        stmts = split_statements(data)
+        assert len(stmts) == 1
+        assert '\n\n' in stmts[0]
+
+
 class TestSplitStatementsWithLines:
     """split_statements_with_lines() - same split as split_statements(), plus
     each statement's approximate 1-based starting line number. Added for the

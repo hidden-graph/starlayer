@@ -132,6 +132,11 @@ _ENTITY_TYPES = {
 # ---------------------------------------------------------------------------
 
 class _Ctx:
+    """Holds the lookup tables - entity sets by frame keyword, the
+    prefix index, and the axiom/negative-fact reification indexes - that
+    the recognizers and renderers below need, built in one pass over the
+    graph."""
+
     def __init__(self, graph):
         self.graph = graph
         self.used_prefixes = {}  # prefix -> namespace IRI, populated as names render
@@ -643,7 +648,14 @@ def _render_misc(ctx):
 
 def serialize_manchester(graph) -> str:
     """Serialize an rdflib-compatible Graph to OWL 2 Manchester Syntax.
-    See this module's docstring for scope and known limitations."""
+    See this module's docstring for scope and known limitations.
+
+    Args:
+        graph: The rdflib-compatible Graph to serialize.
+
+    Returns:
+        The Manchester Syntax serialization of graph.
+    """
     ctx = _Ctx(graph)
 
     body_lines = []

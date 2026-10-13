@@ -106,6 +106,12 @@ def serialize_trix12(g) -> str:
     BNode identifier        → anonymous <graph> (default/unnamed graph).
     Triple terms emitted as a nested <triple> (Jena convention), not a
     distinct <tripleTerm> tag.
+
+    Args:
+        g: The StarLayerGraph to serialize.
+
+    Returns:
+        The TriX 1.2 XML serialization of g.
     """
     ET.register_namespace('', TRIX_NS)
     ET.register_namespace('xml', _XML_NS)
@@ -122,6 +128,12 @@ def serialize_trix12_dataset(ds) -> str:
     """Serialize a StarLayerDataset to TriX 1.2 XML text.
 
     Each non-empty named graph becomes a separate <graph> block.
+
+    Args:
+        ds: The StarLayerDataset to serialize.
+
+    Returns:
+        The TriX 1.2 XML serialization of ds.
     """
     ET.register_namespace('', TRIX_NS)
     ET.register_namespace('xml', _XML_NS)

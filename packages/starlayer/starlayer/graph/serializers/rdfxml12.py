@@ -148,6 +148,13 @@ def serialize_rdfxml12(graph) -> str:
     this codebase, not the ``rdf:annotation``/``rdf:annotationNodeID``
     shorthand (which the parser accepts for reading, but this serializer
     never emits).
+
+    Args:
+        graph: The graph to serialize - a StarLayerGraph, or a plain
+            rdflib.Graph wrapped via StarLayerGraph.from_rdflib().
+
+    Returns:
+        The RDF/XML 1.2 serialization of graph.
     """
     from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 

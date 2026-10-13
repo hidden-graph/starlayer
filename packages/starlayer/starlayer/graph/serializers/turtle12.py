@@ -85,15 +85,35 @@ def _node_to_ttl(node, ns_mgr, compact=True):
             # silently diverged from the original graph (caught by
             # rdflib.compare.isomorphic() returning False on a document
             # with embedded multi-line SPARQL text, despite an identical
-            # triple *count*). Escaping backslashes only (not the
-            # newlines/CRs themselves, and not quotes - a lone `"""` run
-            # colliding with the content is astronomically unlikely for
-            # real-world text and not worth the extra complexity here) and
-            # keeping literal newlines preserves the original multi-line
-            # formatting exactly, which also reads far better for
-            # something like an embedded SPARQL query than a `\n`-escaped
-            # single line would.
+            # triple *count*). Escaping backslashes only (not quotes in
+            # general - legal per STRING_LITERAL_LONG_QUOTE's own grammar,
+            # which allows up to 2 consecutive unescaped quote chars
+            # mid-string, and keeping them bare reads better for e.g. an
+            # embedded SPARQL query) and keeping literal newlines preserves
+            # the original multi-line formatting exactly.
+            #
+            # A run of 3+ literal quote chars is a different story - that
+            # WAS dismissed here as "astronomically unlikely", but turned
+            # out not to be: this project's own code-KG extractor feeds
+            # this project's own source code back through this serializer,
+            # and a docstring *describing* Turtle's own triple-quote syntax
+            # (e.g. this very module's sibling syntax.py, whose
+            # _split_on_delimiter() docstring literally quotes "```\"\"\"```"
+            # inline) genuinely contains an unescaped '"""' run. Left bare,
+            # that run is indistinguishable from - and was being misread by
+            # this project's own parser as - the literal's real closing
+            # delimiter, truncating the string there and leaking the rest
+            # of the docstring as bogus top-level syntax. Escaping every
+            # quote char in any such run (`\"\"\"` instead of `"""`) breaks
+            # it into something no closing-delimiter scan can match, without
+            # the grammar requiring this function to understand escape
+            # sequences at all. A trailing run of 1-2 quote chars right at
+            # the end of the content needs the same treatment for the same
+            # reason: left bare, it would merge with the real closing
+            # delimiter appended right after it into an unintended 3+ run.
             escaped = raw.replace('\\', '\\\\')
+            escaped = re.sub(r'"{3,}', lambda m: '\\"' * len(m.group()), escaped)
+            escaped = re.sub(r'"{1,2}$', lambda m: '\\"' * len(m.group()), escaped)
             quote = '"""'
         else:
             # longturtle12 (compact=False) deliberately never takes the
@@ -337,6 +357,63 @@ def _build_fold_map(sg):
     return fold_map, folded_reifiers, tt_subj_map, tt_subj_reifiers
 
 
+def iter_lines_outside_strings(text):
+    """Yield (line, in_string) for every physical line of text (as produced
+    by this module's own serialize_turtle12()/serialize_longturtle12()),
+    in_string being whether an open (triple- or single-quoted) string
+    literal is already active at that line's very first character.
+
+    A caller post-processing already-serialized Turtle text line-by-line
+    (e.g. to pull real top-level '@prefix'/'@version' lines out from the
+    rest, the way serializers.trig12.serialize_trig12() and
+    StarLayerDataset.serialize(format='trig12') both do) must check this
+    before treating a line's own leading text as meaningful syntax -
+    otherwise a line that merely *starts with* '@prefix'/'@version' while
+    still inside an open multi-line string literal (e.g. a docstring
+    about Turtle's own directive syntax, word-wrapped so one of its lines
+    happens to start that way - confirmed live via this project's own
+    code-KG extractor feeding this project's own trig12.py, whose module
+    docstring does exactly this, back through itself) is misread as a
+    real directive and torn out of the literal it's part of.
+
+    Tracks string state exactly like syntax._split_statements_impl's own
+    scan (including its triple-quote-awareness: a lone embedded quote
+    char doesn't close a triple-quoted string, only a real matching run
+    of three does).
+    """
+    in_string = False
+    string_char = ''
+    triple = False
+    for line in text.splitlines():
+        yield line, in_string
+        i = 0
+        n = len(line)
+        while i < n:
+            c = line[i]
+            if in_string:
+                if c == string_char:
+                    if triple:
+                        if line[i:i+3] == string_char * 3:
+                            i += 3
+                            in_string = False
+                            continue
+                    elif i > 0 and line[i-1] != '\\':
+                        in_string = False
+                i += 1
+                continue
+            if c in ('"', "'"):
+                in_string = True
+                string_char = c
+                if line[i:i+3] == c * 3:
+                    triple = True
+                    i += 3
+                else:
+                    triple = False
+                    i += 1
+                continue
+            i += 1
+
+
 def serialize_turtle12(graph) -> str:
     """Serialize a StarLayerGraph or rdflib.Graph (with SL encoding) to Turtle 1.2.
 
@@ -345,6 +422,13 @@ def serialize_turtle12(graph) -> str:
     Reifier bnodes whose annotated triple is asserted in the graph are folded
     into inline {| ann_pred ann_val |} syntax on the base triple.
     Only namespace prefixes actually used in the graph are emitted.
+
+    Args:
+        graph: The graph to serialize - a StarLayerGraph, or a plain
+            rdflib.Graph wrapped via StarLayerGraph.from_rdflib().
+
+    Returns:
+        The Turtle 1.2 serialization of graph.
     """
     from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 
@@ -528,6 +612,13 @@ def serialize_longturtle12(graph) -> str:
     Identical to turtle12 but with no subject/predicate grouping: every triple
     is emitted as ``s p o .`` on its own line.  Prefix declarations and the
     ``@version`` directive are emitted the same way as turtle12.
+
+    Args:
+        graph: The graph to serialize - a StarLayerGraph, or a plain
+            rdflib.Graph wrapped via StarLayerGraph.from_rdflib().
+
+    Returns:
+        The longturtle 1.2 serialization of graph.
     """
     from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 

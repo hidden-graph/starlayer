@@ -143,13 +143,91 @@ class Greeter:
         assert (method_iri, RDF.type, SLKG.Function) not in triples
         assert (class_iri, SLKG.declares, method_iri) in triples
 
-    def test_self_param_has_no_annotation_type(self, tmp_path):
+    def test_unannotated_self_is_skipped_and_real_param_renumbered(self, tmp_path):
         triples = _extract(tmp_path, self.SOURCE)
         method_iri = URIRef(f"{MODULE_IRI}#Greeter.say")
         self_param = URIRef(f"{method_iri}.param.self")
+        name_param = URIRef(f"{method_iri}.param.name")
+
+        assert not any(s == self_param for s, p, o in triples)
+        assert (method_iri, SLKG.hasParameter, self_param) not in triples
+
+        assert (method_iri, SLKG.hasParameter, name_param) in triples
+        assert (name_param, SLKG.position, Literal(0)) in triples
+
+
+class TestClassMethodSkipsCls:
+    SOURCE = '''\
+class Greeter:
+    @classmethod
+    def make(cls, name: str) -> "Greeter":
+        """Build a Greeter."""
+        return cls()
+'''
+
+    def test_cls_skipped_and_real_param_at_position_zero(self, tmp_path):
+        triples = _extract(tmp_path, self.SOURCE)
+        method_iri = URIRef(f"{MODULE_IRI}#Greeter.make")
+        cls_param = URIRef(f"{method_iri}.param.cls")
+        name_param = URIRef(f"{method_iri}.param.name")
+
+        assert not any(s == cls_param for s, p, o in triples)
+        assert (method_iri, SLKG.hasParameter, name_param) in triples
+        assert (name_param, SLKG.position, Literal(0)) in triples
+
+
+class TestAnnotatedSelfIsKept:
+    SOURCE = '''\
+class Greeter:
+    def say(self: "Greeter", name: str) -> None:
+        """Say hello to someone."""
+        print(name)
+'''
+
+    def test_annotated_self_emitted(self, tmp_path):
+        triples = _extract(tmp_path, self.SOURCE)
+        method_iri = URIRef(f"{MODULE_IRI}#Greeter.say")
+        self_param = URIRef(f"{method_iri}.param.self")
+        name_param = URIRef(f"{method_iri}.param.name")
+
         assert (method_iri, SLKG.hasParameter, self_param) in triples
-        assert not _objects(triples, self_param, SLKG.hasType)
-        assert not _objects(triples, self_param, SLKG.annotationText)
+        assert (self_param, SLKG.position, Literal(0)) in triples
+        assert (self_param, SLKG.annotationText, Literal("'Greeter'")) in triples
+
+        assert (method_iri, SLKG.hasParameter, name_param) in triples
+        assert (name_param, SLKG.position, Literal(1)) in triples
+
+
+class TestModuleLevelFunctionNamedSelfParamNotSkipped:
+    SOURCE = '''\
+def f(self, x):
+    pass
+'''
+
+    def test_self_emitted_at_position_zero_outside_class(self, tmp_path):
+        triples = _extract(tmp_path, self.SOURCE)
+        fn_iri = URIRef(f"{MODULE_IRI}#f")
+        self_param = URIRef(f"{fn_iri}.param.self")
+        x_param = URIRef(f"{fn_iri}.param.x")
+
+        assert (fn_iri, SLKG.hasParameter, self_param) in triples
+        assert (self_param, SLKG.position, Literal(0)) in triples
+        assert (x_param, SLKG.position, Literal(1)) in triples
+
+
+class TestMethodWithOnlySelfHasNoParameters:
+    SOURCE = '''\
+class Greeter:
+    def noop(self):
+        pass
+'''
+
+    def test_zero_parameter_triples(self, tmp_path):
+        triples = _extract(tmp_path, self.SOURCE)
+        method_iri = URIRef(f"{MODULE_IRI}#Greeter.noop")
+
+        assert not _objects(triples, method_iri, SLKG.hasParameter)
+        assert not _subjects_of_type(triples, SLKG.Parameter)
 
 
 class TestNestedFunctionInsideFunction:
@@ -435,3 +513,35 @@ def f():
         triples = _extract(tmp_path, self.SOURCE)
         import_edges = [o for s, p, o in triples if s == MODULE_IRI and p == SLKG.importsModule]
         assert import_edges == [EXT["json"]]
+
+
+class TestTypeCheckingGuardedImportGetsEdge:
+    SOURCE = '''\
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import numpy
+
+
+def f():
+    pass
+'''
+
+    def test_import_nested_in_type_checking_block_gets_edge(self, tmp_path):
+        triples = _extract(tmp_path, self.SOURCE)
+        assert (MODULE_IRI, SLKG.importsModule, EXT["numpy"]) in triples
+
+
+class TestTryExceptFallbackImportBothGetEdges:
+    SOURCE = '''\
+try:
+    import ujson as json
+except ImportError:
+    import json
+'''
+
+    def test_both_try_and_except_imports_get_edges(self, tmp_path):
+        triples = _extract(tmp_path, self.SOURCE)
+        import_edges = {o for s, p, o in triples if s == MODULE_IRI and p == SLKG.importsModule}
+        assert EXT["ujson"] in import_edges
+        assert EXT["json"] in import_edges

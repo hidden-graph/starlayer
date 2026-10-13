@@ -114,6 +114,12 @@ def serialize_ntriples12(g) -> str:
 
     One triple per line: ``subject predicate object .``
     Triple terms are written as ``<<( s p o )>>``.
+
+    Args:
+        g: The StarLayerGraph to serialize.
+
+    Returns:
+        The N-Triples 1.2 serialization of g.
     """
     header = 'VERSION "1.2"\n' if _needs_version_header(g) else ''
     lines = []
@@ -127,6 +133,19 @@ def serialize_nquads12(g, graph_uri=None, _include_header: bool = True) -> str:
 
     One quad per line: ``subject predicate object graph .``
     If *graph_uri* is None the graph's own identifier is used.
+
+    Args:
+        g: The StarLayerGraph to serialize.
+        graph_uri: The term to use as each quad's graph name. Defaults to
+            g's own identifier. A BNode value (the default for an unnamed
+            graph) is treated as the default graph - no graph term is
+            emitted, and the output is N-Triples-shaped quads-without-a-
+            graph-term.
+        _include_header: Whether to emit the leading ``VERSION "1.2"``
+            header when the graph's content requires it.
+
+    Returns:
+        The N-Quads 1.2 serialization of g.
     """
     if graph_uri is None:
         graph_uri = g.identifier

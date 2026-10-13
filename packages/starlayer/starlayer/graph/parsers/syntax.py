@@ -45,9 +45,14 @@ def coerce_object(s):
     preserves the source document's exact lexical form (e.g. "04" stays
     "04", not silently "4"), matching turtle_parser._to_node()'s
     ^^-typed-literal branch, which takes the same care for the same reason.
-    Confirmed via the W3C SPARQL 1.2 eval-triple-terms/op-2 fixture, whose
-    "123e0" was coming out "123.0"^^xsd:decimal instead of xsd:double under
-    the old int/float-coercing version of this function.
+
+    Args:
+        s: The unquoted object-position token text to coerce.
+
+    Returns:
+        True/False for "true"/"false", a correctly-typed xsd:double/
+        xsd:decimal/xsd:integer Literal for a bare numeric literal, or s
+        unchanged if it doesn't match any of those shapes.
     """
     s = s.strip()
     if s == 'true':
@@ -157,15 +162,21 @@ def _scan_directive_end(data, i):
     depth = {'[': 0, '(': 0, '{': 0, '<': 0}
     in_string = False
     string_char = ''
+    triple = False
     j = i
     while j < len(data):
         c = data[j]
         if in_string:
             if c == string_char:
-                if data[j:j+3] == string_char * 3:
-                    j += 3
-                    in_string = False
-                    continue
+                if triple:
+                    # Only a real '"""'/"'''" closes a triple-quoted string -
+                    # see _split_statements_impl()'s matching fix/comment for
+                    # the full rationale (a lone embedded quote is legal,
+                    # ordinary string content, not a closing delimiter).
+                    if data[j:j+3] == string_char * 3:
+                        j += 3
+                        in_string = False
+                        continue
                 elif data[j-1] != '\\':
                     in_string = False
             j += 1
@@ -174,8 +185,10 @@ def _scan_directive_end(data, i):
             in_string = True
             string_char = c
             if data[j:j+3] == c * 3:
+                triple = True
                 j += 3
             else:
+                triple = False
                 j += 1
             continue
         if c == '#' and depth['<'] == 0:
@@ -218,10 +231,11 @@ def _split_statements_impl(data):
     depth = {'[': 0, '(': 0, '{': 0, '<': 0}
     in_string = False
     string_char = ''
+    triple = False
     i = 0
     while i < len(data):
         at_line_start = (i == 0 or data[i-1] in ('\n', '\r'))
-        if at_line_start:
+        if at_line_start and not in_string:
             # Directives (dotted @prefix/@base/@version, or bare SPARQL-style
             # prefix/base/version) end at their own '.' if they have one, or
             # at end-of-line if they don't (both spellings are accepted
@@ -232,6 +246,15 @@ def _split_statements_impl(data):
             # text and dropped it (extract_fields()'s prefix regex only
             # matches its own leading portion and ignores the rest) - see
             # _scan_directive_end().
+            #
+            # The `and not in_string` guard matters: without it, a line that
+            # merely *starts with* one of these keywords while still inside
+            # an open triple-quoted string literal (e.g. a multi-line
+            # docstring whose prose begins a line with "version ..." or
+            # "based on ...") was misdetected as a real directive and split
+            # the statement apart mid-string - confirmed via this project's
+            # own code-KG extractor feeding its own docstrings back through
+            # this parser.
             found_directive = False
             for kw in ('@version', '@prefix', 'prefix', '@base', 'base', 'version'):
                 if data[i:i+len(kw)].lower() == kw:
@@ -254,10 +277,23 @@ def _split_statements_impl(data):
         if in_string:
             buf += c
             if c == string_char:
-                if data[i:i+3] == string_char * 3:
-                    buf += data[i+1:i+3]
-                    i += 2
-                    in_string = False
+                if triple:
+                    # Only a genuine '"""'/"'''" (three in a row) closes a
+                    # triple-quoted string - a single embedded quote
+                    # character identical to the delimiter (legal, unescaped,
+                    # per Turtle's STRING_LITERAL_LONG_QUOTE/_SINGLE_QUOTE
+                    # grammar - e.g. a docstring quoting a short phrase) is
+                    # just ordinary string content. Previously this branch
+                    # ran regardless of how the string was opened, so a lone
+                    # embedded quote was misread as closing a single-quoted
+                    # string even inside an open triple-quoted one - the same
+                    # bug _split_on_delimiter() below already documents and
+                    # fixes for its own, separate scan; this is the matching
+                    # fix for this function's statement-level scan.
+                    if data[i:i+3] == string_char * 3:
+                        buf += data[i+1:i+3]
+                        i += 2
+                        in_string = False
                 elif data[i-1] != '\\':
                     in_string = False
             i += 1
@@ -278,12 +314,14 @@ def _split_statements_impl(data):
             if data[i:i+3] == c * 3:
                 in_string = True
                 string_char = c
+                triple = True
                 buf += c * 3
                 i += 3
                 continue
             else:
                 in_string = True
                 string_char = c
+                triple = False
         elif c in '[({<':
             depth[c] += 1
         elif c in '])}>':
@@ -363,6 +401,13 @@ def split_statements(data):
 
     See split_statements_with_lines() for the same split with each
     statement's approximate source line number attached.
+
+    Args:
+        data: The Turtle 1.2 document text to split.
+
+    Returns:
+        A list of statement strings (prefix/base/version directives and
+        triple statements), each stripped of surrounding whitespace.
     """
     return [stmt for stmt, _offset in _split_statements_impl(data)]
 
@@ -373,6 +418,13 @@ def split_statements_with_lines(data):
     begins (statement-start granularity - see _split_statements_impl).
     Raises Turtle12SyntaxError if the document ends with an unterminated
     string or an unclosed bracket.
+
+    Args:
+        data: The Turtle 1.2 document text to split.
+
+    Returns:
+        A list of (statement, line) pairs, line being the 1-based
+        approximate source line number where that statement begins.
     """
     return [
         (stmt, data[:offset].count('\n') + 1)
@@ -381,7 +433,15 @@ def split_statements_with_lines(data):
 
 
 def classify_statement(stmt):
-    """Return 'version', 'prefix', 'base', or 'triple'."""
+    """Classify a single statement string by its leading keyword.
+
+    Args:
+        stmt: A single statement string, as produced by split_statements().
+
+    Returns:
+        'version', 'prefix', or 'base' for a directive statement, 'triple'
+        for anything else.
+    """
     s = stmt.strip().lower()
     if s.startswith('@version') or s.startswith('version'):
         return 'version'
@@ -393,7 +453,26 @@ def classify_statement(stmt):
 
 
 def extract_fields(stmt, typ, blank_counter=None):
-    """Parse a single statement string into a fields dict."""
+    """Parse a single statement string into a fields dict.
+
+    Args:
+        stmt: A single statement string, as produced by split_statements().
+        typ: The statement's kind, as returned by classify_statement() -
+            'version', 'prefix', 'base', or 'triple'.
+        blank_counter: A single-element list holding the next fresh
+            blank-node suffix counter, shared across calls within one
+            parse so minted blank nodes (`_:sl_N`) don't collide; None
+            disables blank-node-property-list/collection expansion in
+            subject position (for a caller that doesn't need it, e.g. a
+            directive statement).
+
+    Returns:
+        A dict of the statement's fields - {'version': ...} for a VERSION
+        directive, {'prefix': ..., 'iri': ...} for @prefix, {'iri': ...}
+        for @base, or {'triple_set': [...]} for a triple statement (a list
+        of subject/predicate/object/annotation field dicts) - or {} if the
+        statement doesn't match its claimed type's grammar.
+    """
     from starlayer.graph.parsers.errors import Turtle12SyntaxError
 
     s = stmt.strip()
@@ -490,7 +569,20 @@ def extract_fields(stmt, typ, blank_counter=None):
 
 def expand_triple_set(triple_set, blank_counter):
     """Expand [ ] blank nodes and ( ) collections into flat triple dicts.
-    Returns a new list with all shorthand forms resolved."""
+
+    Args:
+        triple_set: A list of triple field dicts, as produced by
+            extract_fields() (each with 'subject'/'predicate'/'object' and
+            optionally 'annotations'/'object_str').
+        blank_counter: A single-element list holding the next fresh
+            blank-node suffix counter, shared across calls within one
+            parse.
+
+    Returns:
+        A new list of triple field dicts with every [ ]/( ) shorthand
+        object resolved to a plain blank-node subject/object, recursively
+        re-expanded until none remain.
+    """
     result = []
     needs_reexpand = False
 

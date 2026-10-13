@@ -244,6 +244,13 @@ def extract_version_directive(text: str) -> str | None:
     starlayer.graph.model.conformance). Per the grammar, VERSION - if present -
     must be the first statement, so only the first non-blank/comment line is
     examined.
+
+    Args:
+        text: The N-Triples/N-Quads 1.2 document text to scan.
+
+    Returns:
+        The declared VERSION label (e.g. "1.2-basic"), or None if the
+        document's first non-blank/comment line isn't a VERSION line.
     """
     for line in text.splitlines():
         stripped = line.strip()
@@ -262,6 +269,12 @@ def parse_ntriples12(text: str) -> list[tuple]:
     """Parse N-Triples 1.2 text; return list of (s, p, o) triples.
 
     Subjects and objects may be TripleTerm instances.
+
+    Args:
+        text: The N-Triples 1.2 document text to parse.
+
+    Returns:
+        A list of (s, p, o) triples, one per non-blank/comment line.
     """
     triples = []
     for lineno, line in enumerate(text.splitlines(), 1):
@@ -274,8 +287,14 @@ def parse_ntriples12(text: str) -> list[tuple]:
 def parse_nquads12(text: str) -> list[tuple]:
     """Parse N-Quads 1.2 text; return list of (s, p, o, g) quads.
 
-    g is a URIRef for named graphs, None for the default graph.
     Subjects and objects may be TripleTerm instances.
+
+    Args:
+        text: The N-Quads 1.2 document text to parse.
+
+    Returns:
+        A list of (s, p, o, g) quads, one per non-blank/comment line - g
+        is a URIRef for a named graph, None for the default graph.
     """
     quads = []
     for lineno, line in enumerate(text.splitlines(), 1):

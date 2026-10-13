@@ -24,7 +24,16 @@ _BARE_TOKEN_STOP_CHARS = ('<', '(', ')', '[', ']', '{', '}', '"', "'", ',', ';')
 
 
 def next_token(s):
-    """Return (token, remaining) for the next atomic token in s (pre-stripped)."""
+    """Return the next atomic token in s.
+
+    Args:
+        s: The pre-stripped remaining input text to tokenize from.
+
+    Returns:
+        A (token, remaining) tuple - the next atomic token and the
+        remaining text after it (left-stripped), or (None, '') if s is
+        empty.
+    """
     if not s:
         return None, ''
 
@@ -154,7 +163,16 @@ def next_token(s):
 
 
 def consume_annotation_block(s):
-    """s starts with '{|'. Return (body_str, remaining). Handles nested {| |} and strings."""
+    """Consume one {| ... |} annotation block from the start of s, handling
+    nested {| |} blocks and quoted strings.
+
+    Args:
+        s: Text starting with '{|'.
+
+    Returns:
+        A (body_str, remaining) tuple - the block's inner content
+        (stripped) and the remaining text after the closing '|}'.
+    """
     i, depth = 2, 1
     in_str, str_char = False, ''
     while i < len(s):
@@ -185,8 +203,16 @@ def consume_annotation_block(s):
 
 
 def split_obj_and_annotations(s):
-    """Split 'obj [~ reifier [{| body |}]]* [{| body |}]*' into
-    (obj_token, [(reifier_or_None, body_or_None), ...])."""
+    """Split an object term plus any trailing ~reifier/{| |} annotation
+    suffixes into the object token and its annotation specs.
+
+    Args:
+        s: Text of the form 'obj [~ reifier [{| body |}]]* [{| body |}]*'.
+
+    Returns:
+        A (obj_token, annotations) tuple, where annotations is a list of
+        (reifier_or_None, body_or_None) pairs in source order.
+    """
     s = s.strip()
     obj_tok, rest = next_token(s)
     rest = rest.strip()

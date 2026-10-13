@@ -528,6 +528,34 @@ class TestMultilineStringLiterals:
         sg2.parse(data=out, format='turtle12')
         assert (URIRef(EX + 's'), URIRef(EX + 'p'), Literal(text)) in sg2
 
+    def test_embedded_triple_quote_run_round_trips(self):
+        """A real bug found while running this project's own code-KG
+        extractor over this project's own docstrings: a multi-line
+        literal containing an unescaped '\"\"\"' run (e.g. a docstring
+        describing Turtle's own triple-quote syntax) is indistinguishable
+        from - and was being misread by this project's own parser as -
+        the literal's real closing delimiter, truncating it there and
+        corrupting every statement that followed in the document."""
+        text = 'Turtle long strings use ' + ('"' * 3) + ' as the delimiter.\nMore text after.'
+        sg = StarLayerGraph()
+        sg.add((URIRef(EX + 's'), URIRef(EX + 'p'), Literal(text)))
+        out = sg.serialize(format='turtle12')
+        sg2 = StarLayerGraph()
+        sg2.parse(data=out, format='turtle12')
+        assert (URIRef(EX + 's'), URIRef(EX + 'p'), Literal(text)) in sg2
+
+    def test_trailing_quote_chars_before_closing_delimiter_round_trip(self):
+        """A content-ending run of 1-2 quote chars, immediately followed by
+        this serializer's own appended closing '\"\"\"', could combine with
+        it into an unintended 3+ run if left unescaped."""
+        for text in ('ends with one quote"', 'ends with two quotes""'):
+            sg = StarLayerGraph()
+            sg.add((URIRef(EX + 's'), URIRef(EX + 'p'), Literal(text + '\nmore text')))
+            out = sg.serialize(format='turtle12')
+            sg2 = StarLayerGraph()
+            sg2.parse(data=out, format='turtle12')
+            assert (URIRef(EX + 's'), URIRef(EX + 'p'), Literal(text + '\nmore text')) in sg2
+
 
 # ---------------------------------------------------------------------------
 # longturtle12 is fully canonical - unlike turtle12, it must never use the

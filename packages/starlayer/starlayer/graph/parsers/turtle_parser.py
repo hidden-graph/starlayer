@@ -41,7 +41,15 @@ RDF_REIFIES    = URIRef('http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies')
 # ---------------------------------------------------------------------------
 
 def _is_qt_term(val):
-    """True if val is <<( s p o )>> triple-term syntax."""
+    """Check whether val is <<( s p o )>> triple-term syntax.
+
+    Args:
+        val: The candidate token to check.
+
+    Returns:
+        True if val is a ground <<( )>> triple-term token, False
+        otherwise.
+    """
     if not isinstance(val, str):
         return False
     s = val.strip()
@@ -54,7 +62,15 @@ def _is_qt_term(val):
 
 
 def _is_qt_reif(val):
-    """True if val is << s p o >> reification-shorthand syntax (no parens)."""
+    """Check whether val is << s p o >> reification-shorthand syntax (no parens).
+
+    Args:
+        val: The candidate token to check.
+
+    Returns:
+        True if val is a reifier-shorthand << >> token (not a ground
+        <<( )>> triple term), False otherwise.
+    """
     if not isinstance(val, str):
         return False
     s = val.strip()
@@ -71,7 +87,15 @@ def _is_qt(val):
 
 
 def _is_bnode_list(val):
-    """True if val is `[ ... ]` anonymous blank-node property-list syntax."""
+    """Check whether val is `[ ... ]` anonymous blank-node property-list syntax.
+
+    Args:
+        val: The candidate token to check.
+
+    Returns:
+        True if val is a bracketed blank-node property-list token, False
+        otherwise.
+    """
     if not isinstance(val, str):
         return False
     s = val.strip()
@@ -79,7 +103,15 @@ def _is_bnode_list(val):
 
 
 def _has_reifier(val):
-    """True if val is << s p o ~ r >> (inline reifier)."""
+    """Check whether val is << s p o ~ r >> (inline reifier) syntax.
+
+    Args:
+        val: The candidate token to check.
+
+    Returns:
+        True if val is a reifier-shorthand << >> token carrying an
+        explicit ~reifier, False otherwise.
+    """
     if not isinstance(val, str):
         return False
     s = val.strip()
@@ -99,7 +131,18 @@ def _has_reifier(val):
 
 
 def _get_reifier_parts(val):
-    """Extract (triple_term_str, reifier_str_or_None) from << s p o ~ r >>."""
+    """Extract the triple-term and reifier portions from << s p o ~ r >>.
+
+    Args:
+        val: A reifier-shorthand << >> token, with or without an explicit
+            ~reifier.
+
+    Returns:
+        A (triple_term_str, reifier_str_or_None) tuple - triple_term_str
+        is the equivalent <<( s p o )>> form; reifier_str_or_None is the
+        explicit reifier name, or None if the token had a bare ~ with no
+        name.
+    """
     inner = val.strip()[2:-2].strip()
     ts, r1 = _lexer.next_token(inner)
     tp, r2 = _lexer.next_token(r1)
@@ -109,7 +152,14 @@ def _get_reifier_parts(val):
 
 
 def _norm_qt(val):
-    """Normalise any quoted-triple form to <<( s p o )>> for use as a cache key."""
+    """Normalize any quoted-triple form to <<( s p o )>> for use as a cache key.
+
+    Args:
+        val: A <<( )>> triple term or << >> reifier-shorthand token.
+
+    Returns:
+        The equivalent <<( s p o )>> canonical form.
+    """
     s = val.strip()
     inner = s[2:-2].strip()
     if inner.startswith('(') and inner.endswith(')'):
@@ -134,7 +184,15 @@ def _norm_qt(val):
 
 
 def _unescape(s):
-    """Expand Turtle string escape sequences including \\uXXXX and \\UXXXXXXXX."""
+    """Expand Turtle string escape sequences including \\uXXXX and \\UXXXXXXXX.
+
+    Args:
+        s: The literal's raw content string (between the quotes, not yet
+            unescaped).
+
+    Returns:
+        The unescaped string.
+    """
     result = []
     i = 0
     while i < len(s):
@@ -184,16 +242,25 @@ def _unescape(s):
 
 
 def _split_literal(val):
-    """Split a Turtle literal token into (content_str, suffix_str, kind).
-
-    kind is '^^' for typed literals, '@' for language-tagged, '' for plain.
-    Correctly skips ^^ and @ sequences that appear inside the quoted string.
+    """Split a Turtle literal token into its content and suffix parts.
 
     val is normally already a lexer-validated, properly-closed literal token
     by the time this is called (next_token() raises on an unterminated quote
     before ever returning one) - the raise below is defense-in-depth for a
     malformed val reaching this function some other way, not the primary
     place this class of error is caught in the normal parsing pipeline.
+
+    Args:
+        val: A quoted literal token, e.g. '"text"^^xsd:string' or
+            "'text'@en".
+
+    Returns:
+        A (content_str, suffix_str, kind) tuple: content_str is the raw
+        text between the quotes; kind is '^^' for a typed literal, '@' for
+        a language-tagged one, or '' for a plain literal; suffix_str is
+        the datatype/language text after the quote (empty for plain).
+        Correctly skips ^^ and @ sequences that appear inside the quoted
+        string itself.
     """
     q = val[:3] if val[:3] in ('"""', "'''") else val[0]
     i = len(q)
@@ -214,7 +281,20 @@ def _split_literal(val):
 
 
 def _to_node(val, prefix_map, base_uri):
-    """Convert a string token or coerced Python value to an rdflib term."""
+    """Convert a string token or coerced Python value to an rdflib term.
+
+    Args:
+        val: The token to convert - a raw Turtle token string, or an
+            already-coerced Python value (bool or Literal) from
+            syntax.coerce_object().
+        prefix_map: Mapping of declared prefix -> namespace IRI, used to
+            resolve a prefixed-name token.
+        base_uri: The current base IRI for resolving a relative IRI
+            reference, or None if none is in effect.
+
+    Returns:
+        The equivalent rdflib term - a URIRef, BNode, or Literal.
+    """
     if isinstance(val, bool):
         return Literal(val, datatype=XSD.boolean)
     if isinstance(val, Literal):
@@ -331,13 +411,21 @@ class _Expander:
         return n
 
     def _require_plain_blank_node(self, val, role):
-        """A `[ ... ]` triple-term/reified-triple component must be an
-        *empty* anonymous blank node (RDF 1.2 grammar: ttSubject/rtSubject/
-        ttObject/rtObject all admit `BlankNode`, which is BLANK_NODE_LABEL
-        or ANON - i.e. a bare `_:label` or empty `[]` - never a
-        blankNodePropertyList carrying its own properties, e.g.
-        `[ :p :o ]`). Raises if non-empty; otherwise mints and returns a
-        fresh, plain blank node label for the empty-`[]` case.
+        """Validate and resolve a `[ ... ]` triple-term/reified-triple
+        component, which must be an *empty* anonymous blank node.
+
+        RDF 1.2 grammar: ttSubject/rtSubject/ttObject/rtObject all admit
+        `BlankNode`, which is BLANK_NODE_LABEL or ANON - i.e. a bare
+        `_:label` or empty `[]` - never a blankNodePropertyList carrying
+        its own properties, e.g. `[ :p :o ]`.
+
+        Args:
+            val: The bracketed blank-node token, e.g. "[]" or "[ :p :o ]".
+            role: "subject" or "object", used only to word the error
+                message if val is non-empty.
+
+        Returns:
+            A fresh, plain blank-node label for the empty-`[]` case.
         """
         inner = val.strip()[1:-1].strip()
         if inner:
@@ -386,7 +474,20 @@ class _Expander:
             (blank-node-property-list / literal rejection stay in the two
             callers, which have slightly different rules for those).
 
-        Returns ``(resolved_val, extra_triples)``.
+        Args:
+            val: The subject/object token to resolve - may be plain, a
+                reifier-shorthand << >> token, or a ground <<( )>> triple
+                term.
+            allow_ground_term: Whether a ground <<( )>> triple term is
+                legal in this slot (True only for object position).
+            role: "subject" or "object", used to word the error message
+                when a ground triple term appears where it isn't allowed.
+
+        Returns:
+            A (resolved_val, extra_triples) tuple - resolved_val is the
+            node val resolves to (a reifier node, a triple-term bnode
+            label, or val unchanged); extra_triples is the list of
+            encoding/rdf:reifies triples generated along the way.
         """
         if _has_reifier(val):
             tt_str, reif = _get_reifier_parts(val)
@@ -411,8 +512,21 @@ class _Expander:
         return val, []
 
     def qt_to_json(self, qt_str):
-        """Return (term_bnode_str, [extra_triples]) for a <<( s p o )>> term.
-        Identical triple terms reuse the same bnode via qt_cache."""
+        """Resolve a <<( s p o )>> term to its intermediate bnode encoding.
+
+        Identical triple terms reuse the same bnode via qt_cache.
+
+        Args:
+            qt_str: A <<( s p o )>> (or equivalent << >>) triple-term
+                token.
+
+        Returns:
+            A (term_bnode_str, extra_triples) tuple - term_bnode_str is
+            the intermediate blank-node label standing in for this triple
+            term; extra_triples is the list of rdf:subject/predicate/
+            object/type encoding triples (and any nested triple-term/
+            reifier triples) needed to represent it.
+        """
         val = _norm_qt(qt_str.strip())
         if val in self.qt_cache:
             return self.qt_cache[val], []
@@ -476,7 +590,20 @@ class _Expander:
         return bnode, extras
 
     def qt_reif_to_json(self, qt_str):
-        """<< s p o >> → a new Reification bnode that rdf:reifies the TripleTerm."""
+        """Resolve << s p o >> to a new Reification bnode that rdf:reifies
+        the underlying TripleTerm.
+
+        Args:
+            qt_str: A << s p o >> reifier-shorthand token (no explicit
+                ~reifier - see _get_reifier_parts()/_has_reifier() for
+                that case).
+
+        Returns:
+            A (reif_bnode, extra_triples) tuple - reif_bnode is the fresh
+            blank node standing in for this reification; extra_triples is
+            the underlying triple term's own encoding triples plus the
+            rdf:reifies link.
+        """
         term_bnode, term_extras = self.qt_to_json(_norm_qt(qt_str))
         reif_bnode = self._alloc()
         return reif_bnode, term_extras + [
@@ -484,8 +611,20 @@ class _Expander:
         ]
 
     def expand_qt_in_triple(self, s, p, o):
-        """Expand quoted-triple syntax in subject and object positions.
-        Returns (s, p, o, extra_triples)."""
+        """Expand quoted-triple syntax in subject and object positions of
+        one ordinary triple.
+
+        Args:
+            s: The triple's subject token.
+            p: The triple's predicate token.
+            o: The triple's object token.
+
+        Returns:
+            A (s, p, o, extra_triples) tuple - s/p/o with any
+            quoted-triple syntax resolved to its intermediate bnode
+            encoding; extra_triples is the list of encoding/rdf:reifies
+            triples generated along the way.
+        """
         extras = []
 
         if _is_qt(p):
@@ -517,7 +656,22 @@ class _Expander:
         return s, p, o, extras
 
     def expand_annotation(self, subj_str, pred_str, obj_str, annotations):
-        """Return extra triples for {| ... |} annotation specs on (subj, pred, obj)."""
+        """Build the extra triples for {| ... |} annotation specs on one
+        (subj, pred, obj) triple.
+
+        Args:
+            subj_str: The annotated triple's subject token.
+            pred_str: The annotated triple's predicate token.
+            obj_str: The annotated triple's object token.
+            annotations: A list of (reifier_or_None, body_or_None) pairs,
+                as produced by lexer.split_obj_and_annotations().
+
+        Returns:
+            The list of extra triples needed to represent the
+            annotations - the underlying triple term's own encoding
+            triples, each reifier's rdf:reifies link, and (recursively)
+            any triples the annotation body itself asserts.
+        """
         extras = []
         term_bnode, term_extras = self.qt_to_json(f'<<( {subj_str} {pred_str} {obj_str} )>>')
         extras.extend(term_extras)
@@ -562,19 +716,19 @@ def _skolemize_encoding(g: Graph) -> Graph:
     content to derive stable identity from (two textually-identical
     anonymous reifiers on different triples are still two distinct nodes,
     unlike a ground triple term, which content-addresses on purpose), so
-    the only stable numbering scheme available was purely positional -
-    confirmed via a real round-trip bug this caused: a compact serializer
-    (turtle12/trig12's own writer) regroups triples by subject, so which
-    anonymous reifier a re-parse encounters first (and therefore numbers
-    "0" vs "1") isn't guaranteed to match the original document's order,
-    making isomorphic() correctly - but confusingly - report two
-    byte-different-only-in-irrelevant-labeling serializations of the same
-    graph as different. Representing these as real BNodes sidesteps that
-    problem entirely: rdflib's own isomorphism/canonicalization algorithm
-    already handles arbitrary BNode relabeling correctly, and (for the
-    native backend) request-scoped BNode identity is already handled
-    generically by backends.native's skolemize_bnode()/deskolemize_bnode()
-    - no separate rr: scheme needed there either.
+    the only stable numbering scheme available would be purely positional -
+    and a compact serializer (turtle12/trig12's own writer) regroups
+    triples by subject, so which anonymous reifier a re-parse encounters
+    first (and therefore numbers "0" vs "1") isn't guaranteed to match the
+    original document's order, making isomorphic() correctly - but
+    confusingly - report two byte-different-only-in-irrelevant-labeling
+    serializations of the same graph as different. Representing these as
+    real BNodes sidesteps that problem entirely: rdflib's own isomorphism/
+    canonicalization algorithm already handles arbitrary BNode relabeling
+    correctly, and (for the native backend) request-scoped BNode identity
+    is already handled generically by backends.native's
+    skolemize_bnode()/deskolemize_bnode() - no separate rr: scheme needed
+    there either.
 
     Still a *fresh* BNode, though, not the intermediate one kept as-is: the
     parser's own intermediate label (``_fresh_bnode()``, ``"_:si_N"``) is a
@@ -583,14 +737,20 @@ def _skolemize_encoding(g: Graph) -> Graph:
     per-GRAPH-block parsing, each its own fresh parser instance) can and do
     produce the identical "_:si_1" label for two unrelated anonymous
     reifiers, which rdflib's label-based BNode equality then silently
-    merges into one node once both chunks' triples land in the same graph -
-    confirmed via a real collision on the W3C SPARQL 1.2
-    eval-triple-terms/expr-1 fixture's data-4.trig. Minting a fresh BNode()
-    (rdflib's own uuid4-backed generator) rather than keeping the
-    intermediate label avoids this the same way TT bnodes above get a fresh
-    identity rather than keeping theirs - global uniqueness with no
-    cross-call/cross-chunk counter coordination needed. See
-    docs/future_enhancements.md's former entry on this (now resolved).
+    merges into one node once both chunks' triples land in the same graph.
+    Minting a fresh BNode() (rdflib's own uuid4-backed generator) rather
+    than keeping the intermediate label avoids this the same way TT bnodes
+    above get a fresh identity rather than keeping theirs - global
+    uniqueness with no cross-call/cross-chunk counter coordination needed.
+
+    Args:
+        g: The intermediate graph built by StarLayerTurtleParser.parse(),
+            still carrying sl:TripleTerm/sl:Reification bnodes.
+
+    Returns:
+        A new Graph with TT bnodes replaced by content-addressed tt: URIs,
+        anonymous reifier bnodes replaced by fresh BNodes, and all sl:
+        intermediate type triples removed.
     """
     # --- find TT bnodes (tagged sl:TripleTerm in intermediate graph) ---
     tt_bnodes = frozenset(
@@ -680,6 +840,16 @@ def decode_tt_encoded_triples(g: Graph):
 
     Anonymous reifiers are already ordinary ``BNode``s in ``g`` (see
     ``_skolemize_encoding``) - no decoding needed for them either.
+
+    Args:
+        g: The skolemized graph to decode, as produced by
+            _skolemize_encoding().
+
+    Returns:
+        A generator of (s, p, o) triples, with every tt:HASH-encoded
+        triple term restored to a TripleTerm object (nested triple terms
+        restored recursively) and the tt:-encoding triples themselves
+        omitted.
     """
     from starlayer.graph.model.triple import TripleTerm
 
@@ -710,6 +880,91 @@ def decode_tt_encoded_triples(g: Graph):
         yield (s_out, p, o_out)
 
 
+def _strip_blank_and_comment_lines(data):
+    """Drop blank and whole-line-comment lines from data, tracking string
+    state so a line is only dropped when it's genuinely outside any open
+    quoted string literal.
+
+    Returns:
+        A (lines, line_map) pair: lines is the list of surviving physical
+        lines (terminators stripped, like str.splitlines()), and
+        line_map[k] is the 1-based line number in the original data of the
+        k-th surviving line.
+
+    Mirrors syntax._split_statements_impl()'s own string-tracking exactly
+    (including its triple-quote-awareness - a lone embedded quote character
+    doesn't close a triple-quoted string, only a real matching run of three
+    does), since that's the function this prefiltered text is handed to
+    next. Previously this used a single blind `data.splitlines()` pass,
+    checking only each line's own `.strip()` with no notion of string
+    state at all - so a blank paragraph-break line *inside* a real
+    multi-line triple-quoted string literal (e.g. a docstring-derived
+    rdfs:comment with more than one paragraph) was silently dropped as if
+    it were just incidental whitespace between statements, corrupting the
+    literal's content on every parse (confirmed via the code-KG
+    extractor's own docstrings round-tripping through serialize_turtle12()
+    then back through this parser: a blank line between two paragraphs in
+    the original source came back collapsed into a single newline).
+    """
+    lines = []
+    line_map = []
+    in_string = False
+    string_char = ''
+    triple = False
+    orig_lineno = 1
+    line_buf = []
+    line_start_in_string = False
+    i = 0
+    n = len(data)
+    while i < n:
+        c = data[i]
+        if c in ('\n', '\r'):
+            raw_line = ''.join(line_buf)
+            stripped = raw_line.strip()
+            keep = line_start_in_string or (stripped and not stripped.startswith('#'))
+            if keep:
+                lines.append(raw_line)
+                line_map.append(orig_lineno)
+            line_buf = []
+            orig_lineno += 1
+            line_start_in_string = in_string
+            i += 2 if data[i:i+2] == '\r\n' else 1
+            continue
+        line_buf.append(c)
+        if in_string:
+            if c == string_char:
+                if triple:
+                    if data[i:i+3] == string_char * 3:
+                        line_buf.append(data[i+1])
+                        line_buf.append(data[i+2])
+                        i += 3
+                        in_string = False
+                        continue
+                elif i > 0 and data[i-1] != '\\':
+                    in_string = False
+        elif c in ('"', "'"):
+            in_string = True
+            string_char = c
+            if data[i:i+3] == c * 3:
+                triple = True
+                line_buf.append(data[i+1])
+                line_buf.append(data[i+2])
+                i += 3
+                continue
+            else:
+                triple = False
+        i += 1
+
+    raw_line = ''.join(line_buf)
+    stripped = raw_line.strip()
+    keep = line_start_in_string or (stripped and not stripped.startswith('#'))
+    if keep:
+        lines.append(raw_line)
+        line_map.append(orig_lineno)
+
+    return lines, line_map
+
+
 class StarLayerTurtleParser:
 
     def parse(self, data: str, debug: bool = False, base: str = None) -> Graph:
@@ -729,17 +984,27 @@ class StarLayerTurtleParser:
         caller (e.g. StarLayerGraph.parse(location=..., publicID=...))
         passed in - confirmed via the W3C SHACL 1.2 test suite, whose
         manifest files rely pervasively on "<>" self-reference.
+
+        Args:
+            data: The Turtle 1.2 document text to parse.
+            debug: If True, print the intermediate canonical/expanded
+                representations to stdout.
+            base: The base IRI to seed relative-IRI resolution with before
+                parsing begins; an in-document @base/BASE directive still
+                overrides it from that point on.
+
+        Returns:
+            An rdflib.Graph using the starlayer.graph internal blank-node
+            encoding for RDF 1.2 triple terms and reification. The graph
+            also carries a `_declared_version` attribute (the document's
+            declared VERSION label, or None) for
+            StarLayerGraph.parse()'s RDF12ConformanceWarning check.
         """
         # line_map[k] is the 1-based line number *in the original data* of the
         # k-th surviving line in data_clean, so a line number computed against
         # the blank/comment-stripped data_clean (by split_statements_with_lines
         # below) can be translated back to where the user would actually look.
-        line_map = []
-        lines = []
-        for orig_lineno, line in enumerate(data.splitlines(), 1):
-            if line.strip() and not line.strip().startswith('#'):
-                lines.append(line)
-                line_map.append(orig_lineno)
+        lines, line_map = _strip_blank_and_comment_lines(data)
         data_clean = '\n'.join(lines)
 
         def _orig_line(cleaned_line: int) -> int:

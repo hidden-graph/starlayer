@@ -627,6 +627,31 @@ class TestSerialize:
         assert graph_idx is not None
         assert prefix_idx < graph_idx
 
+    def test_literal_line_resembling_a_prefix_directive_round_trips(self):
+        """Real bug: this dataset's own trig12 serialization used to split
+        turtle_text into prefix/body lines via a blind
+        `line.startswith('@prefix')` check with no string-literal
+        awareness - so a multi-line literal whose word-wrapping happens to
+        put the literal text '@prefix' at the very start of one of its own
+        lines (e.g. a docstring describing Turtle's own @prefix syntax)
+        was torn out of its own literal and emitted as bare, unquoted
+        top-level text, corrupting the serialized document so it could no
+        longer even be parsed back."""
+        text = (
+            'ex:s ex:p """An example of a directive:\n'
+            '@prefix ex: <http://example.org/> . shown as plain prose here,\n'
+            'not real top-level syntax.""" .\n'
+        )
+        ds = StarLayerDataset()
+        ds.parse(data=f'@prefix ex: <{EX}> .\n{text}', format='trig12')
+        out = ds.serialize(format='trig12')
+
+        ds2 = StarLayerDataset()
+        ds2.parse(data=out, format='trig12')  # must not raise
+        all_triples = [t for g in ds2.contexts() for t in g.triples((None, None, None))]
+        literal_values = [str(o) for _s, _p, o in all_triples]
+        assert any('@prefix ex: <http://example.org/> . shown as plain prose' in v for v in literal_values)
+
 
 # ---------------------------------------------------------------------------
 # Single-graph format serialization (flattened, no GRAPH blocks)

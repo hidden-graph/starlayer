@@ -811,3 +811,102 @@ class TestMidLineComments:
         ttl = '@prefix ex: <http://example.org/> .\nex:s ex:p "a # not a comment" .\n'
         g = parser.parse(ttl)
         assert (URIRef(EX + 's'), URIRef(EX + 'p'), Literal('a # not a comment')) in g
+
+
+class TestLongStringWithEmbeddedQuoteOrBlankLine:
+    """End-to-end regression coverage for three real bugs found while
+    getting the code-KG extractor's own output (a rich, content-heavy
+    docstring corpus) to round-trip through serialize_turtle12() and back
+    through this parser:
+
+    1. syntax._split_statements_impl()'s string-tracking didn't remember
+       whether an open string was opened with the long (triple) form or
+       the short (single-char) form - so a single embedded quote character
+       inside a real triple-quoted string (legal per Turtle's own
+       grammar - up to 2 consecutive unescaped quote chars mid-string are
+       allowed) was misread as closing it.
+    2. The same function's directive-keyword detection ran even while
+       inside an open string, so a line starting with 'version'/'prefix'/
+       'base' (or a prefix of one, e.g. 'based') deep inside a docstring
+       was misdetected as a real directive.
+    3. StarLayerTurtleParser.parse()'s own blank/comment-line prefilter
+       (which runs before split_statements_with_lines()) dropped a blank
+       paragraph-break line even when it fell *inside* an open
+       triple-quoted string literal, silently losing it from the parsed
+       literal's content.
+
+    See tests/graph/unit/test_syntax.py::TestTripleQuotedStringWithEmbeddedQuote
+    for the lower-level statement-splitter-only tests."""
+
+    def test_embedded_single_quote_inside_long_string(self, parser):
+        ttl = (
+            '@prefix ex: <http://example.org/> .\n'
+            'ex:s ex:p """A directive is terminated by a depth-0 \'.\'\n'
+            '"@prefix : <http://example.org/> ." is just more text here\n'
+            'and this is the real end""" .\n'
+        )
+        g = parser.parse(ttl)
+        triples = list(g.triples((URIRef(EX + 's'), URIRef(EX + 'p'), None)))
+        assert len(triples) == 1
+        text = str(triples[0][2])
+        assert '"@prefix : <http://example.org/> ."' in text
+        assert text.endswith('and this is the real end')
+
+    def test_directive_keyword_prefix_inside_long_string_not_misdetected(self, parser):
+        ttl = (
+            '@prefix ex: <http://example.org/> .\n'
+            'ex:s ex:p """prose that\n'
+            'version talk continues here\n'
+            'based on nothing in particular\n'
+            'real end""" .\n'
+        )
+        g = parser.parse(ttl)
+        assert len(g) == 1
+
+    def test_blank_line_inside_long_string_preserved(self, parser):
+        ttl = (
+            '@prefix ex: <http://example.org/> .\n'
+            'ex:s ex:p """paragraph one\n'
+            '\n'
+            'paragraph two""" .\n'
+        )
+        g = parser.parse(ttl)
+        triples = list(g.triples((URIRef(EX + 's'), URIRef(EX + 'p'), None)))
+        assert len(triples) == 1
+        assert str(triples[0][2]) == 'paragraph one\n\nparagraph two'
+
+    def test_real_source_file_round_trips(self):
+        """The real repro that originally surfaced all three bugs: feed this
+        project's own code-KG extractor its own syntax.py (whose docstrings
+        are exactly this rich/quote-heavy) and confirm the serialized output
+        parses back without error and is isomorphic to the original graph."""
+        from pathlib import Path
+
+        from rdflib import Graph
+        from rdflib.compare import isomorphic
+
+        from starlayer.codekg.extractor import visitor
+        from starlayer.graph.serializers.turtle12 import serialize_turtle12
+
+        src_root = Path(__file__).resolve()
+        while not (src_root / 'starlayer').is_dir() or not (src_root / 'starlayer' / 'graph').is_dir():
+            src_root = src_root.parent
+        src_root = src_root / 'starlayer'
+        path = src_root / 'graph' / 'parsers' / 'syntax.py'
+        rel = path.relative_to(src_root)
+        module_iri = URIRef('https://example.org/blob/' + str(rel))
+        module_dotted = 'starlayer.' + str(rel.with_suffix('')).replace('/', '.')
+
+        triples = visitor.extract_module(path, module_iri, module_dotted)
+        g = Graph()
+        for t in triples:
+            g.add(t)
+
+        out = serialize_turtle12(g)
+        parsed_triples = StarLayerTurtleParser().parse(out)
+        g2 = Graph()
+        for t in parsed_triples:
+            g2.add(t)
+
+        assert len(g) == len(g2)
+        assert isomorphic(g, g2)

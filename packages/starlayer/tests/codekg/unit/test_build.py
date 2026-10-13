@@ -122,6 +122,50 @@ def test_refresh_removes_graph_for_module_no_longer_in_target_paths(tmp_path):
     assert len(ds2.get_context(b_iri)) == 0
 
 
+def test_refresh_handles_docstring_resembling_a_prefix_directive(tmp_path):
+    """Regression test for a real bug found while running this extractor
+    over this project's own trig12.py: a docstring whose word-wrapping
+    happens to put the literal text '@prefix' at the very start of one of
+    its own physical lines (e.g. describing Turtle's own @prefix syntax)
+    was misread by several line-based post-processing steps (TriG block
+    splitting/prefix extraction in graph.parsers.trig12, and the
+    prefix/body line split in graph.graph.starlayer_dataset.serialize())
+    as a real directive, tearing it out of the docstring literal it's
+    part of and corrupting the whole document - it no longer parsed back
+    at all. Also covers a line starting with 'GRAPH <' and a line
+    starting with '@version', the same category of false positive for
+    the other two directive-like keywords this pipeline recognizes."""
+    repo_root = _make_repo_root(tmp_path)
+    mod_path = repo_root / "packages" / "starlayer" / "starlayer" / "widgets" / "thing.py"
+    mod_path.write_text(
+        'def f():\n'
+        '    """Uses a directive like\n'
+        '@prefix ex: <http://example.org/> . at the very start of this\n'
+        'line, same as a literal\n'
+        'GRAPH <http://example.org/g> { ... } block, and also an\n'
+        '@version "1.2" directive, all as plain prose, not real syntax."""\n'
+        '    pass\n',
+        encoding="utf-8",
+    )
+    trig_path = tmp_path / "codekg.trig"
+
+    refresh([mod_path], repo_root, trig_path=trig_path)
+
+    assert trig_path.exists()
+
+    ds = StarLayerDataset()
+    ds.parse(str(trig_path), format="trig12")  # must not raise
+
+    module_iri = URIRef(BLOB_BASE + "widgets/thing.py")
+    fn_iri = URIRef(f"{module_iri}#f")
+    triples = list(ds.get_context(module_iri).triples((None, None, None)))
+    assert (fn_iri, RDF.type, SLKG.Function) in triples
+    comment = next(o for s, p, o in triples if s == fn_iri and p == RDFS.comment)
+    assert '@prefix ex: <http://example.org/> .' in str(comment)
+    assert 'GRAPH <http://example.org/g> { ... }' in str(comment)
+    assert '@version "1.2" directive' in str(comment)
+
+
 def test_refresh_preserves_ontology_and_curated_graphs(tmp_path):
     from starlayer.codekg import CURATED_GRAPH_IRI, ONTOLOGY_GRAPH_IRI
 

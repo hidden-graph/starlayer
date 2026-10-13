@@ -30,19 +30,17 @@ in the parts this module resolves itself; per-element xml:base overrides are
 not.
 
 RDF 1.2's third addition, the rdf:version announcement attribute (RDF 1.2
-XML Syntax - confirmed via spec fetch: "a version announcement on an
-in-scope node element with an rdf:version attribute"), is stripped wherever
-found on a node or property element this module resolves, and recorded -
-not just unhandled but actively dangerous to leave alone: confirmed
-empirically that rdflib's real 'xml' parser treats any attribute it doesn't
-specifically recognize as RDF/XML's ordinary "property attribute" shorthand,
-so an untouched rdf:version asserts a bogus extra triple
-(subject rdf:version "value") into the graph. Live Oxigraph 0.5.9 output
-(2026-07-17) genuinely emits this attribute (on the property element
-wrapping rdf:parseType="Triple", not just a node element), which is how this
-was found - not a hypothetical. See extract_version_directive() for the
-standalone scan used to surface the value for StarLayerGraph.parse()'s
-RDF12ConformanceWarning check (starlayer.graph.model.conformance).
+XML Syntax: a version announcement on an in-scope node element with an
+rdf:version attribute), is stripped wherever found on a node or property
+element this module resolves, and recorded - not just unhandled but
+actively dangerous to leave alone: rdflib's real 'xml' parser treats any
+attribute it doesn't specifically recognize as RDF/XML's ordinary "property
+attribute" shorthand, so an untouched rdf:version asserts a bogus extra
+triple (subject rdf:version "value") into the graph - including on the
+property element wrapping rdf:parseType="Triple", not just a node element.
+See extract_version_directive() for the standalone scan used to surface the
+value for StarLayerGraph.parse()'s RDF12ConformanceWarning check
+(starlayer.graph.model.conformance).
 
 Entry point:
     parse_rdfxml12(text) -> list of (s, p, o)
@@ -87,6 +85,13 @@ def extract_version_directive(text: str) -> str | None:
     extract_version_directive() so StarLayerGraph.parse() can call it
     alongside parse_rdfxml12() without changing that function's existing
     list[tuple] return contract.
+
+    Args:
+        text: The RDF/XML 1.2 document text to scan.
+
+    Returns:
+        The first rdf:version attribute value found anywhere in the
+        document, or None if there isn't one.
     """
     root = ET.fromstring(text)
     for elem in root.iter():
@@ -335,6 +340,12 @@ def parse_rdfxml12(text: str) -> list[tuple]:
     intermediate encoding, then handed to rdflib's real (RDF 1.1) 'xml'
     parser, then converted to TripleTerm objects exactly as before.
     Subjects and objects may be TripleTerm instances.
+
+    Args:
+        text: The RDF/XML 1.2 document text to parse.
+
+    Returns:
+        A list of (s, p, o) triples.
     """
     root = ET.fromstring(text)
     base = root.get(_X + 'base')

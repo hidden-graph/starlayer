@@ -158,12 +158,20 @@ _WORD_STOP_CHARS = ('<', '"', '(', ')', ',', '{', '}', '[', ']')
 
 
 def _tokenize(text):
-    """Return a flat list of token dicts: {kind, text, line, [lang, datatype]}.
+    """Tokenize Manchester Syntax text into a flat list of token dicts.
 
-    kind is one of 'IRI', 'LITERAL', 'WORD', 'PUNCT'. A LITERAL token folds
-    in its optional @lang or ^^datatype suffix (only legal directly after
-    the closing quote, no intervening whitespace, so it has to be handled
-    at this level rather than as independent tokens).
+    A LITERAL token folds in its optional @lang or ^^datatype suffix (only
+    legal directly after the closing quote, no intervening whitespace, so
+    it has to be handled at this level rather than as independent tokens).
+
+    Args:
+        text: The Manchester Syntax document text to tokenize.
+
+    Returns:
+        A list of token dicts, each {kind, text, line, [lang, datatype]} -
+        kind is one of 'IRI', 'LITERAL', 'WORD', 'PUNCT'; a LITERAL token
+        also carries 'lang' and 'datatype' (datatype as a (kind, text)
+        pair, kind 'IRI' or 'WORD'), both None when absent.
     """
     tokens = []
     i, n, line = 0, len(text), 1
@@ -282,35 +290,66 @@ class _Cursor:
     # never changes what gets compiled or in what order.
 
     def record_frame(self, kind, subject):
-        """A frame's own header line was just parsed (`Class: Foo`, etc.) -
-        kind is a plain string ('Class'/'ObjectProperty'/'DataProperty'/
-        'AnnotationProperty'/'Individual'/'Datatype'), subject its name."""
+        """Called when a frame's own header line was just parsed
+        (`Class: Foo`, etc.) - a no-op hook by default (see the
+        AST-capture hooks comment above).
+
+        Args:
+            kind: A plain string naming the frame kind - 'Class',
+                'ObjectProperty', 'DataProperty', 'AnnotationProperty',
+                'Individual', or 'Datatype'.
+            subject: The frame's subject name.
+        """
 
     def record_frame_end(self):
-        """The current frame's last clause has just been parsed (its whole
-        body is now complete) - called once per frame, right after
-        _frame_body() returns."""
+        """Called once per frame, right after _frame_body() returns - the
+        current frame's last clause has just been parsed (its whole body
+        is now complete). A no-op hook by default."""
 
     def record_clause(self, frame_kind, clause_kind, items):
-        """One clause body was just parsed for the current frame - items is
-        whatever that clause's own comma-list already produced (a list of
-        (annotations, expr-or-name) pairs for a per-item-annotatable clause,
-        or a list of bare names/tags for one that isn't), always *before*
-        compilation to OWL triples, never a compiled node."""
+        """Called when one clause body was just parsed for the current
+        frame. A no-op hook by default.
+
+        Args:
+            frame_kind: The enclosing frame's kind, as passed to
+                record_frame().
+            clause_kind: The clause's own keyword, e.g. 'SubClassOf:'.
+            items: Whatever that clause's own comma-list already
+                produced - a list of (annotations, expr-or-name) pairs for
+                a per-item-annotatable clause, or a list of bare
+                names/tags for one that isn't - always *before*
+                compilation to OWL triples, never a compiled node.
+        """
 
     def record_misc(self, keyword, items):
-        """A top-level Misc axiom (EquivalentClasses:, etc., no subject
-        frame) was just parsed - items is its own comma-list, before
-        compilation."""
+        """Called when a top-level Misc axiom (EquivalentClasses:, etc.,
+        no subject frame) was just parsed. A no-op hook by default.
+
+        Args:
+            keyword: The Misc axiom's own keyword, e.g.
+                'EquivalentClasses:'.
+            items: The axiom's own comma-list, before compilation.
+        """
 
     def record_ontology_header(self, iri, imports):
-        """The Ontology: header line was just parsed - iri may be None
-        (bare `Ontology:` with no IRI); imports is the list of Import:
-        names, in order."""
+        """Called when the Ontology: header line was just parsed. A no-op
+        hook by default.
+
+        Args:
+            iri: The ontology's own IRI, or None for a bare `Ontology:`
+                with no IRI.
+            imports: The list of Import: names, in order.
+        """
 
     def record_prefix(self, prefix, iri):
-        """A Prefix: declaration was just parsed - prefix is the bare label
-        (no trailing ':', '' for the default prefix), iri the raw IRI text."""
+        """Called when a Prefix: declaration was just parsed. A no-op hook
+        by default.
+
+        Args:
+            prefix: The bare prefix label (no trailing ':'; '' for the
+                default prefix).
+            iri: The raw IRI text.
+        """
 
     def peek(self):
         return self.tokens[self.pos] if self.pos < len(self.tokens) else None
@@ -354,7 +393,11 @@ class _Cursor:
         return URIRef(urljoin(self.base, raw) if self.base else raw)
 
     def read_name(self):
-        """Consume one IRI/WORD token naming a class/property/individual/datatype."""
+        """Consume one IRI/WORD token naming a class/property/individual/datatype.
+
+        Returns:
+            The resolved URIRef.
+        """
         tok = self.advance()
         if tok['kind'] == 'IRI':
             return self.resolve_iri(tok['text'])
@@ -368,8 +411,13 @@ class _Cursor:
         return self.resolve_prefixed(prefix, local)
 
     def read_literal_or_name(self):
-        """Read a `value`-restriction/Facts: filler: a data Literal if the
-        next token is a quoted literal, otherwise an individual name."""
+        """Read a `value`-restriction/Facts: filler.
+
+        Returns:
+            A Literal if the next token is a quoted literal or a bare
+            numeric/boolean word, otherwise the resolved URIRef for an
+            individual name.
+        """
         tok = self.peek()
         if tok is not None and tok['kind'] == 'LITERAL':
             self.advance()
@@ -461,11 +509,21 @@ def _parse_primary(cur):
 
 
 def _parse_property_expr(cur):
-    """objectPropertyExpr ::= objectProperty | 'inverse' objectProperty -
-    deliberately not routed through _parse_description/_parse_primary:
+    """Parse an objectPropertyExpr ::= objectProperty | 'inverse'
+    objectProperty.
+
+    Deliberately not routed through _parse_description/_parse_primary:
     property positions (SubPropertyOf:, EquivalentTo:, DisjointWith:,
     InverseOf:) never accept the full and/or/not/restriction grammar,
-    only a bare name or a single 'inverse'."""
+    only a bare name or a single 'inverse'.
+
+    Args:
+        cur: The parser cursor to read tokens from.
+
+    Returns:
+        A plain URIRef for a bare name, or an ('Inverse', uri) tuple for
+        'inverse' objectProperty.
+    """
     if cur.peek_word() == 'inverse':
         cur.advance()
         return ('Inverse', cur.read_name())
@@ -473,12 +531,21 @@ def _parse_property_expr(cur):
 
 
 def _starts_a_primary(tok):
-    """True if tok could begin a class-expression primary - used to decide
-    whether an unqualified `min n`/`max n`/`exactly n` is followed by a
-    qualifying filler or not. Every Manchester keyword (frame or clause)
-    ends with ':', and 'and'/'or' are the only other bare words that can't
-    start a primary - so this is a simple, general check rather than one
-    tied to a fixed terminator set."""
+    """Check whether tok could begin a class-expression primary.
+
+    Used to decide whether an unqualified `min n`/`max n`/`exactly n` is
+    followed by a qualifying filler or not. Every Manchester keyword (frame
+    or clause) ends with ':', and 'and'/'or' are the only other bare words
+    that can't start a primary - so this is a simple, general check rather
+    than one tied to a fixed terminator set.
+
+    Args:
+        tok: The next token to check, or None at end of input.
+
+    Returns:
+        True if tok could begin a class-expression primary, False
+        otherwise.
+    """
     if tok is None:
         return False
     if tok['kind'] == 'IRI':
@@ -765,13 +832,21 @@ def _parse_annotation_assertion(cur):
 
 
 def _handle_frame_annotations(cur, frame_kind, subject):
-    """The standalone `Annotations:` frame section (its own clause, listing
-    annotationProperty/value pairs about the frame's own subject) -
+    """Parse the standalone `Annotations:` frame section (its own clause,
+    listing annotationProperty/value pairs about the frame's own subject) -
     confirmed empirically to map straight to direct triples on that
     subject, no owl:Axiom reification involved. Distinct from - and much
     simpler than - annotating one specific item inside e.g. a SubClassOf:
     list (see _parse_item_annotations/_maybe_reify below), which *does*
-    need reification."""
+    need reification.
+
+    Args:
+        cur: The parser cursor to read tokens from and append triples to.
+        frame_kind: The enclosing frame's kind, passed through to
+            cur.record_clause().
+        subject: The frame's own subject, which each annotation triple is
+            asserted directly on.
+    """
     items = _parse_comma_list(cur, _parse_annotation_assertion)
     for prop, value in items:
         cur.triples.append((subject, prop, value))
@@ -779,15 +854,22 @@ def _handle_frame_annotations(cur, frame_kind, subject):
 
 
 def _parse_item_annotations(cur):
-    """Optional `Annotations: prop val, prop val, ...` immediately before
-    one axiom-list item (or before a whole single-axiom clause's body,
-    e.g. HasKey:/DisjointUnionOf:/SubPropertyChain:) - confirmed
+    """Parse an optional `Annotations: prop val, prop val, ...` immediately
+    before one axiom-list item (or before a whole single-axiom clause's
+    body, e.g. HasKey:/DisjointUnionOf:/SubPropertyChain:) - confirmed
     empirically against the OWL API oracle to apply to exactly that one
     item/clause, never carrying over to a later comma-separated item
     (`SubClassOf: Annotations: rdfs:comment "why" A, B` only reifies the
-    A axiom, not B). Returns None when absent - the grammar has no
-    "annotated with nothing" form, so None unambiguously means "no
-    Annotations: prefix was written here"."""
+    A axiom, not B).
+
+    Args:
+        cur: The parser cursor to read tokens from.
+
+    Returns:
+        A list of (prop, value) pairs, or None if no Annotations: prefix
+        was written here - the grammar has no "annotated with nothing"
+        form, so None unambiguously means absence.
+    """
     if cur.peek_word() != 'Annotations:':
         return None
     cur.advance()
@@ -797,7 +879,16 @@ def _parse_item_annotations(cur):
 def _annotated(parse_item):
     """Wrap an item-parser so _parse_comma_list collects (annotations,
     item) pairs instead of bare items - used at every clause-list call
-    site whose items each become their own axiom."""
+    site whose items each become their own axiom.
+
+    Args:
+        parse_item: The item-parser function to wrap, e.g.
+            _parse_description or _parse_property_expr.
+
+    Returns:
+        A function of cur that returns (annotations, item) - annotations
+        from _parse_item_annotations(cur), item from parse_item(cur).
+    """
     return lambda c: (_parse_item_annotations(c), parse_item(c))
 
 
@@ -808,7 +899,16 @@ def _maybe_reify(cur, subject, pred, obj, annotations):
     (subject, pred, obj) triple the caller already asserted, never
     instead of it, the same principle RDF 1.2's own `{| |}` annotation
     block follows (see turtle_parser.py) even though the concrete
-    mechanism differs (real reification here, not a triple-term)."""
+    mechanism differs (real reification here, not a triple-term).
+
+    Args:
+        cur: The parser cursor to append triples to.
+        subject: The annotated axiom's subject.
+        pred: The annotated axiom's predicate.
+        obj: The annotated axiom's object.
+        annotations: A list of (prop, value) pairs from
+            _parse_item_annotations(), or None to do nothing.
+    """
     if annotations is None:
         return
     node = cur.mint_bnode()
@@ -1102,11 +1202,17 @@ def _parse_misc(cur, keyword):
 
 def parse_manchester(text: str, base: str = None) -> list:
     """Parse Manchester OWL Syntax text and return a list of (s, p, o)
-    triples (plain rdflib terms - URIRef/BNode/Literal).
+    triples.
 
-    base seeds resolution of the `Ontology: <iri>` header and any other
-    relative IRIs, the same role every other starlayer.graph parser's base
-    argument plays.
+    Args:
+        text: The Manchester OWL Syntax document text to parse.
+        base: Seeds resolution of the `Ontology: <iri>` header and any
+            other relative IRIs, the same role every other
+            starlayer.graph parser's base argument plays.
+
+    Returns:
+        A list of (s, p, o) triples (plain rdflib terms -
+        URIRef/BNode/Literal).
     """
     cur = _Cursor(_tokenize(text), base)
 

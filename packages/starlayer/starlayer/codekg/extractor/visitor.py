@@ -204,18 +204,45 @@ def _is_internal_dotted_path(dotted: str) -> bool:
     return dotted == "starlayer" or dotted.startswith("starlayer.")
 
 
-def _visit_module_imports(body: list[ast.stmt], module_iri: URIRef, ctx: _ExtractionContext) -> None:
-    """Direct children of ``tree.body`` only - a nested/lazy import inside
-    a function body deliberately gets no ``slkg:importsModule`` edge (see
-    this module's own docstring and the plan's own "least load-bearing
-    part of the ontology" guidance). Simplification, documented here: a
-    local/internal import (dotted path ``"starlayer"`` or
-    ``"starlayer.*"``) is skipped entirely rather than resolved to a real
-    ``slkg:Module`` identity (that would require a full project-wide
-    module map this extractor doesn't build); only genuinely external
-    imports mint an ``slkg:ExternalModule`` node and an edge to it.
-    """
+def _iter_module_level_import_nodes(body: list[ast.stmt]):
+    """Yield every ``Import``/``ImportFrom`` node reachable from ``body``
+    while staying at module level - descending into ``if``/``try`` blocks
+    (both branches, handlers, orelse, finally) since those are still
+    executed as part of module load (e.g. ``if TYPE_CHECKING:`` or a
+    ``try:`` / ``except ImportError:`` fallback), but never into a
+    ``FunctionDef``/``AsyncFunctionDef``/``ClassDef`` - an import nested
+    inside one of those is lazy/scoped, not module-level."""
     for node in body:
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            yield node
+        elif isinstance(node, ast.If):
+            yield from _iter_module_level_import_nodes(node.body)
+            yield from _iter_module_level_import_nodes(node.orelse)
+        elif isinstance(node, ast.Try):
+            yield from _iter_module_level_import_nodes(node.body)
+            for handler in node.handlers:
+                yield from _iter_module_level_import_nodes(handler.body)
+            yield from _iter_module_level_import_nodes(node.orelse)
+            yield from _iter_module_level_import_nodes(node.finalbody)
+
+
+def _visit_module_imports(body: list[ast.stmt], module_iri: URIRef, ctx: _ExtractionContext) -> None:
+    """Walks ``tree.body`` plus anything nested inside module-level
+    ``if``/``try`` blocks (e.g. ``if TYPE_CHECKING:`` or a
+    ``try:`` / ``except ImportError:`` fallback) via
+    ``_iter_module_level_import_nodes()``, but never descends into a
+    ``FunctionDef``/``AsyncFunctionDef``/``ClassDef`` - a nested/lazy
+    import inside a function or class body deliberately gets no
+    ``slkg:importsModule`` edge (see this module's own docstring and the
+    plan's own "least load-bearing part of the ontology" guidance).
+    Simplification, documented here: a local/internal import (dotted path
+    ``"starlayer"`` or ``"starlayer.*"``) is skipped entirely rather than
+    resolved to a real ``slkg:Module`` identity (that would require a
+    full project-wide module map this extractor doesn't build); only
+    genuinely external imports mint an ``slkg:ExternalModule`` node and
+    an edge to it.
+    """
+    for node in _iter_module_level_import_nodes(body):
         try:
             if isinstance(node, ast.Import):
                 for alias in node.names:
@@ -351,7 +378,7 @@ def _visit_function(
         ctx.triples.append((fn_iri, RDFS.comment, Literal(parsed["summary"])))
 
     documented_params = dict(parsed["params"])
-    _emit_parameters(node, fn_iri, ctx, documented_params)
+    _emit_parameters(node, fn_iri, ctx, documented_params, is_method=(enclosing_kind == "class"))
 
     for leftover in documented_params:
         logger.warning(
@@ -392,12 +419,16 @@ def _emit_parameters(
     fn_iri: URIRef,
     ctx: _ExtractionContext,
     documented_params: dict[str, str],
+    is_method: bool = False,
 ) -> None:
     """Emit one ``slkg:Parameter`` per real formal parameter, in logical
     order (posonly, regular, vararg, kwonly, varkw). ``slkg:position`` is
     a running 0-based index across posonly+regular+kwonly only - ``*args``/
     ``**kwargs`` get no numeric position (there's no single meaningful
-    index for either), simpler than inventing a sentinel value.
+    index for either), simpler than inventing a sentinel value. When
+    ``is_method`` is true, an unannotated ``self``/``cls`` in the very
+    first positional slot is skipped entirely (no ``slkg:Parameter``, no
+    position increment) - an annotated ``self``/``cls`` is kept as-is.
     """
     args = node.args
     position = 0
@@ -408,6 +439,8 @@ def _emit_parameters(
     default_by_index = {num_no_default + i: d for i, d in enumerate(defaults)}
 
     for i, (arg, kind) in enumerate(positional):
+        if is_method and i == 0 and arg.annotation is None and arg.arg in ("self", "cls"):
+            continue
         _emit_one_parameter(arg, kind, position, default_by_index.get(i), fn_iri, ctx, documented_params)
         position += 1
 

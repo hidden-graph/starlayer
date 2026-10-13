@@ -19,19 +19,27 @@ this module's own, coarser "which statement" line tracking).
 class Turtle12SyntaxError(SyntaxError):
     """Malformed Turtle 1.2 input that the parser cannot recognize as any
     valid token or statement form.
-
-    why  -- short description of what's wrong, e.g. "unterminated string literal"
-    text -- the local text the error was found in (a token, or a whole
-            statement) - used only to build the ^-pointer context in the
-            message, not necessarily the full source document
-    pos  -- character offset into text where the problem was detected
-    line -- 1-based line number in the original source document, or None if
-            not yet known (see StarLayerTurtleParser.parse(), which fills
-            this in once it has statement-level line information that the
-            lower-level lexer/tokenizer functions don't have)
     """
 
     def __init__(self, why: str, text: str, pos: int = 0, line: int | None = None):
+        """Store the error location and reason, used by __str__ to build
+        the formatted ^-pointer message.
+
+        Args:
+            why: Short description of what's wrong, e.g. "unterminated
+                string literal".
+            text: The local text the error was found in (a token, or a
+                whole statement) - used only to build the ^-pointer
+                context in the message, not necessarily the full source
+                document.
+            pos: Character offset into text where the problem was
+                detected.
+            line: 1-based line number in the original source document, or
+                None if not yet known (see StarLayerTurtleParser.parse(),
+                which fills this in once it has statement-level line
+                information that the lower-level lexer/tokenizer functions
+                don't have).
+        """
         self.why = why
         self.text = text
         self.pos = pos
@@ -58,13 +66,18 @@ class MultipleGraphsError(ValueError):
     resolves to at most one distinct graph (including the trivial case of
     everything being in the default graph) parses normally - nothing is
     actually being conflated then.
-
-    format     -- the format= string that was being parsed
-    graph_ids  -- every distinct graph identifier found in the document,
-                  as strings ("None" stands in for the default graph)
     """
 
     def __init__(self, format: str, graph_ids: list):
+        """Build the error message naming every distinct graph the
+        document spans.
+
+        Args:
+            format: The format= string that was being parsed.
+            graph_ids: Every distinct graph identifier found in the
+                document, as strings ("None" stands in for the default
+                graph).
+        """
         self.format = format
         self.graph_ids = graph_ids
         super().__init__(
@@ -84,15 +97,21 @@ class ManchesterSyntaxError(SyntaxError):
     A separate class from Turtle12SyntaxError, not a subclass of it, despite
     the identical shape - "Turtle" in the name would be misleading for
     errors raised while parsing an unrelated concrete syntax.
-
-    why  -- short description of what's wrong
-    text -- the local text the error was found in (used only to build the
-            ^-pointer context in the message)
-    pos  -- character offset into text where the problem was detected
-    line -- 1-based line number in the original source document, or None
     """
 
     def __init__(self, why: str, text: str, pos: int = 0, line: int | None = None):
+        """Store the error location and reason, used by __str__ to build
+        the formatted ^-pointer message.
+
+        Args:
+            why: Short description of what's wrong.
+            text: The local text the error was found in (used only to
+                build the ^-pointer context in the message).
+            pos: Character offset into text where the problem was
+                detected.
+            line: 1-based line number in the original source document, or
+                None.
+        """
         self.why = why
         self.text = text
         self.pos = pos

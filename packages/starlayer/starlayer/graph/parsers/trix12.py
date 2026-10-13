@@ -7,13 +7,12 @@ TriX is an XML-based named-graph format. Each <graph> block contains <triple>
 elements whose three children are term nodes. RDF 1.2 triple terms are
 represented by nesting another <triple> element in a term position (subject
 or object) - the same element used for an asserted statement, disambiguated
-only by structural position, not a distinct tag name. This matches Apache
-Jena's real TriX writer/reader (confirmed empirically 2026-07-17 against a
-live Fuseki 5.5.0: it emits a lowercase <trix> root element and nests
-<triple> for a triple term - the only production TriX implementation found
-to actually support RDF 1.2 triple terms, since Oxigraph doesn't implement
-TriX at all). StarLayer originally invented its own <TriX>/<tripleTerm>
-spelling before this was checked against a real implementation; both the
+only by structural position, not a distinct tag name. This matches Apache Jena's real TriX writer, including its lowercase
+<trix> root element - it also nests <triple> for a triple term, the only
+production TriX implementation found to actually support RDF 1.2 triple
+terms, since Oxigraph doesn't implement TriX at all. StarLayer originally
+invented its own <TriX>/<tripleTerm> spelling before this was checked
+against a real implementation; both the
 old root-tag capitalization and <tripleTerm> are still accepted here for
 backward compatibility with anything already serialized by this parser's
 own prior convention, but are no longer emitted (see trix12.py serializer).
@@ -114,9 +113,9 @@ def _parse_graph(graph_elem: ET.Element) -> tuple[URIRef | None, list[tuple]]:
 def _iter_graphs(text: str):
     """Yield (graph_id, triples) pairs from a TriX document."""
     root = ET.fromstring(text)
-    # Lowercase <trix> matches Apache Jena's real implementation (confirmed
-    # live 2026-07-17); <TriX> is starlayer.graph's own legacy spelling, accepted
-    # for backward compatibility only - see module docstring.
+    # Lowercase <trix> matches Apache Jena's real implementation; <TriX> is
+    # starlayer.graph's own legacy spelling, accepted for backward
+    # compatibility only - see module docstring.
     accepted = (f'{{{TRIX_NS}}}trix', 'trix', f'{{{TRIX_NS}}}TriX', 'TriX')
     if root.tag not in accepted:
         raise ValueError(f'Expected <trix> root element, got {root.tag!r}')
@@ -130,6 +129,12 @@ def parse_trix12(text: str) -> list[tuple]:
 
     All named graphs are merged. Subjects and objects may be TripleTerm
     instances for RDF 1.2 triple terms.
+
+    Args:
+        text: The TriX 1.2 document text to parse.
+
+    Returns:
+        A list of (s, p, o) triples from every graph in the document.
     """
     triples: list[tuple] = []
     for _gid, graph_triples in _iter_graphs(text):
@@ -140,7 +145,14 @@ def parse_trix12(text: str) -> list[tuple]:
 def parse_trix12_named(text: str) -> list[tuple[URIRef | None, list[tuple]]]:
     """Parse TriX 1.2 text; return list of (graph_id, triples).
 
-    graph_id is None for anonymous/default graphs, a URIRef for named graphs.
     Subjects and objects may be TripleTerm instances.
+
+    Args:
+        text: The TriX 1.2 document text to parse.
+
+    Returns:
+        A list of (graph_id, triples) pairs, one per graph with at least
+        one triple - graph_id is None for an anonymous/default graph, a
+        URIRef for a named graph.
     """
     return [(gid, triples) for gid, triples in _iter_graphs(text) if triples]
