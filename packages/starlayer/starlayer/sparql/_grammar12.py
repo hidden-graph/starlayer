@@ -13,10 +13,10 @@ reasons) — it extends rdflib's actual pyparsing grammar the same way rdflib
 extends itself: a ``Comp``/``Param``-built production with a parse action
 that constructs an algebra-tree node directly during parsing.
 
-The extension point (confirmed empirically before relying on it): the
-grammar rules that need to accept a triple term — ``GraphTerm``,
-``VarOrTerm``, ``GraphNode``, ``GraphNodePath`` — are plain
-``pyparsing.MatchFirst`` objects with a public ``.append(expr)`` method.
+The extension point: the grammar rules that need to accept a triple term
+— ``GraphTerm``, ``VarOrTerm``, ``GraphNode``, ``GraphNodePath`` — are
+plain ``pyparsing.MatchFirst`` objects with a public ``.append(expr)``
+method.
 Because pyparsing composes grammar rules by object reference (every rule
 that transitively depends on ``GraphTerm``, e.g. ``TriplesSameSubject``,
 holds a reference to the *same* object, not a copy), appending a new
@@ -72,8 +72,8 @@ from .vocab import encode_dirlang_datatype
 # nested triple term (nesting is only legal in object position)" rule turns
 # out to hold only when the ground triple term is used as an EXPRESSION
 # VALUE (BIND/FILTER/VALUES) — not when it's used in ordinary TERM/pattern
-# position. Confirmed via real, contrasting W3C tests, not assumed by
-# symmetry: `tripleterm-subject-03`
+# position. Real, contrasting W3C tests confirm this, not mere symmetry:
+# `tripleterm-subject-03`
 # (`BIND( <<( <<(:s :p :o )>> :q :z )>> AS ?X )`, nested ground triple term
 # as subject) and `bindbnode-tripleterm` (`BIND(<<( [] ?p ?o )>> AS ?t)`,
 # anonymous `[]` as subject) must both be REJECTED — but
@@ -82,29 +82,23 @@ from .vocab import encode_dirlang_datatype
 # `<<( <<(?S :p :o )>> :r :z )>> :q 1 .`) and `bnode-tripleterm-03`
 # (`<<([] :p [] )>> :q :z .`) are POSITIVE tests requiring exactly what the
 # BIND versions reject. One shared grammar object can't enforce two
-# different rules depending on where it's spliced in — tried that first
-# (a single `_TripleTermSubject` installed into both `GraphTerm`/`VarOrTerm`/
-# `GraphNode`/`GraphNodePath` *and* `PrimaryExpression`/`DataBlockValue`)
-# and it necessarily got one side wrong; fixed by building two genuinely
-# separate pairs of `Comp` objects below, each with its own subject
-# grammar, rather than reusing one.
+# different rules depending on where it's spliced in, so this is built as
+# two genuinely separate pairs of `Comp` objects below, each with its own
+# subject grammar, rather than reusing one.
 #
 # Deliberately built from rdflib's *primitive* term productions (Var/iri/
 # BlankNode) rather than referencing GraphTerm/VarOrTerm directly: those two
 # objects are exactly what install() (below) mutates in place to add the new
 # triple-term alternative, so referencing them here would make a triple term
-# legal in its own subject slot too, once install() runs — confirmed
-# empirically as a real bug during development (nesting silently became
-# legal in subject position, contradicting this comment, before this was
-# rewritten to use independent primitives instead).
+# legal in its own subject slot too, once install() runs — independent
+# primitives avoid that.
 # `a` (the standard SPARQL/Turtle shorthand for rdf:type) must be legal
-# here too, not just Var | iri: confirmed via the real W3C fixture
+# here too, not just Var | iri: per the W3C fixture
 # `triple-on-triple-terms` (`<<(:x a :z)>>`, `a` as a triple term's own
-# predicate) - `<<(:x :y :z)>>` (ordinary IRI predicate) parsed fine, but
-# `a` specifically failed, since it's a dedicated token (`A`, matched and
-# mapped to rdf:type by rdflib's own grammar) spliced into ordinary
-# Verb/VerbSimple productions elsewhere - never part of plain `iri` itself,
-# so a triple term's own restricted predicate grammar needs it explicitly.
+# predicate) - `a` is a dedicated token (`A`, matched and mapped to
+# rdf:type by rdflib's own grammar) spliced into ordinary Verb/VerbSimple
+# productions elsewhere, never part of plain `iri` itself, so a triple
+# term's own restricted predicate grammar needs it explicitly.
 _TripleTermPredicate = Var | iri | A
 
 # Forward-declared so the object position (and, for the permissive/pattern
@@ -115,12 +109,12 @@ _TripleTermPredicate = Var | iri | A
 TripleTermObject = Forward()
 
 # TERM/pattern-position subject: any BlankNode form (rdflib's own
-# BLANK_NODE_LABEL-or-ANON alias) or a nested triple term, both confirmed
-# legal by the positive tests cited above.
+# BLANK_NODE_LABEL-or-ANON alias) or a nested triple term, both legal per
+# the positive tests cited above.
 _TripleTermSubjectPattern = Var | iri | BlankNode | TripleTermObject
 
 # EXPRESSION/value-position subject: BLANK_NODE_LABEL only (the `_:x` form —
-# excludes anonymous `[]`) and never a nested triple term, confirmed by the
+# excludes anonymous `[]`) and never a nested triple term, per the
 # negative tests cited above.
 _TripleTermSubjectExpr = Var | iri | BLANK_NODE_LABEL
 
@@ -137,6 +131,13 @@ def _promote(tokens):
     syntactically *parses* a nested-subject triple term (matching the W3C
     suite's own `PositiveSyntaxTest` classification for that shape), so
     rejection has to happen here, at construction, not in the grammar.
+
+    Args:
+        tokens: The pyparsing ``ParseResults`` for one matched TripleTerm
+            production; ``tokens[0]`` is the just-built ``CompValue``.
+
+    Returns:
+        The promoted, validated ``TripleTermNode``.
     """
     node = tokens[0]
     promoted = TripleTermNode("TripleTerm")
@@ -193,8 +194,8 @@ TripleTermExprValue.add_parse_action(_promote)
 
 
 # TRIPLE(...)'s three arguments are full Expressions, not just terms, per
-# spec 17.4.6 — confirmed necessary (not merely permitted by the grammar
-# text) via the W3C positive test `expr-tripleterm-04`:
+# spec 17.4.6 — needed, not merely permitted by the grammar text, per the
+# W3C positive test `expr-tripleterm-04`:
 # `BIND(TRIPLE(?s, ?p, str(?o)) AS ?t2)`, whose third argument is a
 # function-call expression, not a plain term at all. This is a strict
 # superset of a plain term (a bare Var/iri IS a trivial Expression too), so
@@ -247,9 +248,9 @@ Builtin_OBJECT = Comp("Builtin_OBJECT", Keyword("OBJECT") + _TripleTermAccessorA
 # ---------------------------------------------------------------------
 # RDF 1.2 Query sec 17.4.2 base-direction functions: LANGDIR(?x)/
 # hasLANGDIR(?x)/hasLANG(?x)/STRLANGDIR(lex, lang, dir). None of these four
-# names exist in stock SPARQL 1.1 (confirmed empirically: plain rdflib
-# parses `LANG(?x)` fine via its own Builtin_LANG, but ParseExceptions on
-# all four of these) - genuinely new grammar, same shape as the triple-term
+# names exist in stock SPARQL 1.1 (plain rdflib parses `LANG(?x)` fine via
+# its own Builtin_LANG, but raises a ParseException on all four of these)
+# - genuinely new grammar, same shape as the triple-term
 # accessors immediately above (one-arg BuiltInCall extensions), except
 # STRLANGDIR, which takes three. LANG(?x) itself needs *no* new grammar -
 # it already parses as rdflib's own Builtin_LANG; only its *lowering*
@@ -277,24 +278,24 @@ Builtin_STRLANGDIR = Comp("Builtin_STRLANGDIR", Keyword("STRLANGDIR") + _StrLang
 # RDF 1.2 base-direction literals: "text"@lang--dir (rdf:dirLangString).
 #
 # rdflib's own LANGTAG ([145] '@' [a-zA-Z]+ ('-' [a-zA-Z0-9]+)*) has no
-# notion of the "--dir" suffix - and confirmed empirically, it doesn't just
-# fail to capture it: matched against "nl--ltr", LANGTAG's regex consumes
-# only "nl" (a lone "-" can't start a new `-[a-zA-Z0-9]+` group, since the
-# very next character is a second "-", not alphanumeric), so RDFLiteral
-# itself *succeeds* with "a"@nl as its value, leaving "--ltr" as unconsumed
-# trailing text. That failure surfaces far away from where it actually
-# happened - at the outermost SelectQuery rule, not locally at the literal
-# - because pyparsing's MatchFirst doesn't backtrack into an alternative
-# that already succeeded once parsing has moved past it; confirmed via
-# plain, unmodified rdflib with zero involvement from this project's own
-# grammar work (`BIND("a"@nl--ltr AS ?a)` alone fails the same way). Fixing
-# this means the new production must be tried *before* plain RDFLiteral,
-# not merely added as a further alternative - same lesson as the
-# annotation-shorthand forms below (see install()'s own comment).
+# notion of the "--dir" suffix, and it doesn't just fail to capture it:
+# matched against "nl--ltr", LANGTAG's regex consumes only "nl" (a lone "-"
+# can't start a new `-[a-zA-Z0-9]+` group, since the very next character is
+# a second "-", not alphanumeric), so RDFLiteral itself *succeeds* with
+# "a"@nl as its value, leaving "--ltr" as unconsumed trailing text. That
+# failure surfaces far away from where it actually happened - at the
+# outermost SelectQuery rule, not locally at the literal - because
+# pyparsing's MatchFirst doesn't backtrack into an alternative that already
+# succeeded once parsing has moved past it; true in plain, unmodified
+# rdflib, with zero involvement from this project's own grammar work
+# (`BIND("a"@nl--ltr AS ?a)` alone fails the same way). Fixing this means
+# the new production must be tried *before* plain RDFLiteral, not merely
+# added as a further alternative - same lesson as the annotation-shorthand
+# forms below (see install()'s own comment).
 #
 # Represented as an ordinary rdflib Literal using this project's own
 # dirlang: datatype encoding (vocab.encode_dirlang_datatype), not lang= -
-# confirmed `Literal(text, lang="nl--ltr")` raises outright even with
+# `Literal(text, lang="nl--ltr")` raises outright even with
 # normalize=False (that flag only skips *value* canonicalization, not the
 # separate lang-tag *validation* rdflib's Literal constructor always runs).
 # Deliberately this project's *own* encoding (own namespace under vocab.SALG),
@@ -304,18 +305,18 @@ Builtin_STRLANGDIR = Comp("Builtin_STRLANGDIR", Keyword("STRLANGDIR") + _StrLang
 # storable in a plain rdflib.Graph, never a real StarLayerGraph, since
 # StarLayerGraph.value()/.triples() unconditionally decodes any literal
 # tagged with *its own* dirlang: datatype back into a real DirLangString
-# object - which this project's from_rdf.py decoder has no branch for
-# (confirmed via a real crash doing exactly that). Being a plain Literal
-# (not a new CompValue/node type the way TripleTermNode is) still means
-# to_rdf.py's existing _LEAF_TERM_TYPES branch needs zero new code either
-# way - only serialize12.py needs a branch, to turn this project's own
-# dirlang: datatype back into real "text"@lang--dir syntax on the way out.
+# object - which this project's from_rdf.py decoder has no branch for and
+# crashes on. Being a plain Literal (not a new CompValue/node type the way
+# TripleTermNode is) still means to_rdf.py's existing _LEAF_TERM_TYPES
+# branch needs zero new code either way - only serialize12.py needs a
+# branch, to turn this project's own dirlang: datatype back into real
+# "text"@lang--dir syntax on the way out.
 #
 # Direction restricted to exactly "ltr"/"rtl" (not a general identifier) -
 # RDF 1.2 Concepts sec 3.4 requires exactly one of those two, lowercase
 # only, no case-insensitive matching - matching the same restriction
-# starlayer.graph's own Turtle parser already enforces (confirmed via its
-# own W3C test suite, nt-ttl12-langdir-bad-2).
+# starlayer.graph's own Turtle parser already enforces (its own W3C test
+# suite fixture nt-ttl12-langdir-bad-2).
 def _langdir_literal_action(tokens):
     node = tokens[0]
     text = str(node["string"])
@@ -349,10 +350,9 @@ LangDirLiteral.add_parse_action(_langdir_literal_action)
 # itself too), which must land as siblings in the *enclosing* BGP/
 # TriplesBlock, not wrapped in a single new node.
 #
-# The mechanism this relies on, confirmed empirically before committing to
-# it (see the Phase 7 plan/CLAUDE.md finding for the full spike): rdflib's
-# own expandTriples (the parse action already bound to
-# TriplesSameSubjectPath/TriplesSameSubject) flattens whatever token stream
+# The mechanism this relies on: rdflib's own expandTriples (the parse
+# action already bound to TriplesSameSubjectPath/TriplesSameSubject)
+# flattens whatever token stream
 # a single matched statement produces into a list, later regrouped into
 # triples 3-at-a-time by algebra.triples() — the exact same mechanism that
 # already expands `s p1 o1 ; p2 o2` shorthand into multiple triples. A new
@@ -368,12 +368,12 @@ LangDirLiteral.add_parse_action(_langdir_literal_action)
 # ordinary alternative greedily matches just "s p o" and succeeds before
 # ever trying a later alternative (pyparsing's MatchFirst is first-match,
 # not longest-match), leaving a dangling `~ r` or `{| ... |}` suffix that
-# then fails at the *statement* level instead. Confirmed empirically:
-# appending (tried last) let the ordinary alternative win and fail later;
-# inserting at position 0 (tried first) fixed it, and ordinary triples with
-# no annotation suffix at all still parse correctly either way, since these
-# new productions simply fail to match (no `~`/`{|`) and pyparsing falls
-# through to the ordinary alternative normally.
+# then fails at the *statement* level instead. Appending (tried last) lets
+# the ordinary alternative win and fail later; inserting at position 0
+# (tried first) fixes it, and ordinary triples with no annotation suffix at
+# all still parse correctly either way, since these new productions simply
+# fail to match (no `~`/`{|`) and pyparsing falls through to the ordinary
+# alternative normally.
 _RDF_REIFIES = URIRef(str(RDF) + "reifies")
 
 
@@ -393,20 +393,18 @@ def _make_triple_term(s, p, o) -> TripleTermNode:
     TRIPLE() and it works unmodified for any TripleTermNode, this one
     included, with zero new code needed here.
 
-    The three-flat-triple encoding this replaced was a real, confirmed bug,
-    not just an inconsistency: it's starlayer.graph's own *internal*
-    representation, meaningful only when re-interpreted by starlayer.graph's
-    in-memory backend - a real RDF 1.2 engine (Oxigraph) has no idea
-    `?tt rdf:subject ?s` etc is supposed to mean anything beyond three
-    perfectly ordinary asserted triples about an arbitrary node. Confirmed
-    via the W3C fixture `basic-2` (`<<:a :b :c>> ?p ?o`): regenerated text
-    using the old encoding matched real data on starlayer.graph's in-memory
-    backend (which understands its own encoding) but matched *nothing* on
-    real Oxigraph, loaded with the identical data via real <<( )>> syntax -
-    an actual semantic mistranslation, not a style choice. Explicitly not
-    preserving the shorthand *syntax* itself on regeneration (that's a
-    separate, deferred concern - see CLAUDE.md) - only the canonical
-    rdf:reifies + real-triple-term *meaning* needs to survive round-trip.
+    The three-flat-triple encoding this replaced was a real bug, not just
+    an inconsistency: it's starlayer.graph's own *internal*, private
+    on-disk convention, meaningful only when re-interpreted by
+    starlayer.graph's in-memory backend - a real, cross-engine-
+    interoperable RDF 1.2 engine (Oxigraph) has no idea `?tt rdf:subject
+    ?s` etc is supposed to mean anything beyond three perfectly ordinary
+    asserted triples about an arbitrary node, so the two representations
+    are not semantically interchangeable - an actual semantic
+    mistranslation, not a style choice. Explicitly not preserving the
+    shorthand *syntax* itself on regeneration (that's a separate, deferred
+    concern - see CLAUDE.md) - only the canonical rdf:reifies +
+    real-triple-term *meaning* needs to survive round-trip.
     """
     return TripleTermNode("TripleTerm", subject=s, predicate=p, object=o)
 
@@ -420,13 +418,20 @@ def _expand_value(t):
     flat, 3-at-a-time-regroupable list of *additional* triples describing
     that blank node's own properties, which must be spliced into the
     enclosing triple list alongside this term's own reification triples.
-    Confirmed by reading algebra.py's own expandTriples, which already
-    handles exactly this shape (`isinstance(t, list)`) the same way for
-    ordinary (non-annotation) triples — this mirrors that same contract so
-    an annotation value like `{| :source [ :graph <...> ] |}` works the
-    same way a plain triple's object position already does.
+    Mirrors algebra.py's own expandTriples, which already handles exactly
+    this shape (`isinstance(t, list)`) the same way for ordinary
+    (non-annotation) triples — so an annotation value like
+    `{| :source [ :graph <...> ] |}` works the same way a plain triple's
+    object position already does.
 
-    Returns (value, extra_triples) — extra_triples is [] for a plain term.
+    Args:
+        t: The raw parsed token for one term slot — either a plain RDF
+            term, or the nested-expansion list shape ``expandBNodeTriples``
+            produces.
+
+    Returns:
+        A ``(value, extra_triples)`` tuple — ``extra_triples`` is ``[]``
+        for a plain term.
     """
     if isinstance(t, list):
         return t[0], list(t)
@@ -440,23 +445,23 @@ def _expand_value(t):
 # regardless of how many suffix elements follow.
 #
 # Originally built as two entirely separate, mutually-exclusive
-# productions (`s p o ~ r` xor `s p o {| |}`) — too narrow, confirmed via
-# real W3C test data requiring both together on one statement
-# (`annotation-reifier-01`: `?s ?p ?o ~ :iri {| :r ?Z |} .`) and even
-# *repeated* (the `annotation-*-multiple-*` test family: `~ r1 {| |} ~ r2
-# {| |}`, each suffix minting/using its own independent reifier for the
-# SAME underlying triple term). Rebuilt as one combined grammar matching
-# the shape confirmed working in the sibling `starlayer.graph` project's
-# own Turtle-syntax annotation parser (`split_obj_and_annotations` in
+# productions (`s p o ~ r` xor `s p o {| |}`) — too narrow: real W3C test
+# data requires both together on one statement (`annotation-reifier-01`:
+# `?s ?p ?o ~ :iri {| :r ?Z |} .`) and even *repeated* (the
+# `annotation-*-multiple-*` test family: `~ r1 {| |} ~ r2 {| |}`, each
+# suffix minting/using its own independent reifier for the SAME underlying
+# triple term). Rebuilt as one combined grammar matching the shape the
+# sibling `starlayer.graph` project's own Turtle-syntax annotation parser
+# already uses (`split_obj_and_annotations` in
 # `starlayer.graph/parsers/lexer.py`, which already handles this exact
 # combination for Turtle *data* — not ported from it, since that's
 # string-splitting against already-tokenized text rather than a pyparsing
 # grammar, but cross-checked against it as a working reference for the
-# semantics, per direct instruction): each suffix is either `~
-# [reifier]` optionally followed immediately by `{| ... |}` (both bound to
-# the SAME reifier — the one named after `~`, or a fresh one if `~` has no
-# name), or a bare `{| ... |}` (implicitly a fresh reifier) — and this can
-# repeat one or more times.
+# semantics): each suffix is either `~ [reifier]` optionally followed
+# immediately by `{| ... |}` (both bound to the SAME reifier — the one
+# named after `~`, or a fresh one if `~` has no name), or a bare
+# `{| ... |}` (implicitly a fresh reifier) — and this can repeat one or
+# more times.
 #
 # Declared here (Forward, filled in far below once
 # _AnnotationReifierTermExplicit/Anon exist) rather than at its point of
@@ -493,12 +498,12 @@ def _build_annotation_suffixed(value_grammar, predicate_grammar):
     context, paths legal) *and* TriplesSameSubject (CONSTRUCT-template
     context, paths never legal per the SPARQL grammar — rdflib's own
     `PropertyListPathNotEmpty`/`PropertyListNotEmpty` split exists for
-    exactly this reason). Confirmed a real, necessary distinction (not
-    over-engineering) via the W3C positive test `annotation-anonreifier-07`
-    (`?s ?p ?o {| :r [ :p1|:p2 'ABC'] |} .` in an ordinary WHERE clause,
-    needing GraphNodePath's path-aware BlankNodePropertyListPath for the
-    annotation value's own internal `[ ... ]`) — using plain GraphNode
-    (BlankNodePropertyList, no paths) there was a real, observed failure.
+    exactly this reason). The distinction is real, not over-engineering:
+    the W3C positive test `annotation-anonreifier-07`
+    (`?s ?p ?o {| :r [ :p1|:p2 'ABC'] |} .` in an ordinary WHERE clause)
+    needs GraphNodePath's path-aware BlankNodePropertyListPath for the
+    annotation value's own internal `[ ... ]` — plain GraphNode
+    (BlankNodePropertyList, no paths) fails there.
 
     Only the grammar differs between the two variants; both share the
     exact same `_annotation_suffixed_action`, since the token shape it
@@ -506,7 +511,7 @@ def _build_annotation_suffixed(value_grammar, predicate_grammar):
     """
     # predicate_grammar is `Path | Var` for the WHERE-clause variant, matching
     # rdflib's own `VerbPath | VerbSimple` convention (`PropertyListPathNotEmpty`
-    # in rdflib's parser.py) — `Path` alone regressed the far more common
+    # in rdflib's parser.py) — `Path` alone regresses the far more common
     # plain-variable-predicate case (`{| ?Y ?Z |}`), since Path's own grammar
     # has no Var alternative. `Path` itself is needed there for
     # `annotation-anonreifier-06`/`annotation-reifier-06`
@@ -514,31 +519,30 @@ def _build_annotation_suffixed(value_grammar, predicate_grammar):
     #
     # For the CONSTRUCT-template variant, predicate_grammar is plain VarOrTerm
     # instead — NOT `Path | Var` — for a reason distinct from (and sharper
-    # than) "paths aren't legal in CONSTRUCT templates per the grammar"
-    # (true, confirmed: plain rdflib itself raises a ParseException on
+    # than) "paths aren't legal in CONSTRUCT templates per the grammar" (true:
+    # plain rdflib itself raises a ParseException on
     # `CONSTRUCT { ?s :r/:q ?o } WHERE {...}`, since ConstructTriples uses
     # TriplesSameSubject, never TriplesSameSubjectPath). The sharper reason:
     # even a *trivial*, single-IRI "path" like `:source` alone parses via
     # Path's grammar as a nested `PathAlternative`/`PathSequence`/`PathElt`
     # CompValue chain, not a bare URIRef — ordinary rdflib simplifies this
-    # away via `traverse(q.where, visitPost=translatePath)`, but confirmed
-    # (by reading translateQuery's own source) that this walk is *never*
-    # run over `template = triples(q[1].template)` for CONSTRUCT specifically
-    # — it's built directly from the raw parse tree, bypassing that pass
-    # entirely. So even `{| :source ?g |}` (no `/`/`|` at all) inside a
-    # CONSTRUCT template left an un-simplified CompValue sitting in the
-    # template's predicate slot, and rdflib's own `reorderTriples`/
-    # `_knownTerms` (which *does* still run on `template`, via `triples()`)
-    # then crashed trying to hash it: `TypeError: cannot use CompValue as a
-    # set element` — a real, reproducible failure on the W3C positive tests
-    # `annotation-anonreifier-08`/`annotation-reifier-08`, not a
-    # hypothetical. A `Path` object dropped directly into a plain WHERE-
-    # clause BGP triple's predicate slot is fine, by contrast — that *is*
-    # already how rdflib's own `PropertyListPathNotEmpty` works there, and
-    # the `translatePath` walk that WHERE clauses do get cleans up the
-    # trivial case correctly (confirmed empirically: `{| :source ?g |}` in
-    # an ordinary SELECT's WHERE clause comes out with a bare `URIRef`
-    # predicate after `prepare_query_12`, not a CompValue).
+    # away via `traverse(q.where, visitPost=translatePath)`, but
+    # `translateQuery`'s own source shows this walk is *never* run over
+    # `template = triples(q[1].template)` for CONSTRUCT specifically — it's
+    # built directly from the raw parse tree, bypassing that pass entirely.
+    # So even `{| :source ?g |}` (no `/`/`|` at all) inside a CONSTRUCT
+    # template left an un-simplified CompValue sitting in the template's
+    # predicate slot, and rdflib's own `reorderTriples`/`_knownTerms` (which
+    # *does* still run on `template`, via `triples()`) then crashed trying
+    # to hash it: `TypeError: cannot use CompValue as a set element` — on
+    # the W3C positive tests `annotation-anonreifier-08`/
+    # `annotation-reifier-08`. A `Path` object dropped directly into a
+    # plain WHERE-clause BGP triple's predicate slot is fine, by contrast —
+    # that *is* already how rdflib's own `PropertyListPathNotEmpty` works
+    # there, and the `translatePath` walk that WHERE clauses do get cleans
+    # up the trivial case correctly (`{| :source ?g |}` in an ordinary
+    # SELECT's WHERE clause comes out with a bare `URIRef` predicate after
+    # `prepare_query_12`, not a CompValue).
     pair = predicate_grammar + value_grammar
     block_body = Suppress("{|") + Group(pair + ZeroOrMore(Suppress(";") + pair)) + Suppress("|}")
 
@@ -558,7 +562,7 @@ def _build_annotation_suffixed(value_grammar, predicate_grammar):
 
     # Subject/object use _ReifierTermValue (declared above, filled in below
     # once _AnnotationReifierTermExplicit/Anon exist), not plain VarOrTerm —
-    # confirmed necessary via `annotation-anonreifier-03`
+    # needed for `annotation-anonreifier-03`
     # (`:s :p <<:a :b :c>> {| ?q ?z |}`, whose base triple's OBJECT is
     # itself a bare reifier-shorthand term). Predicate stays plain
     # VarOrTerm, unchanged — no test evidences a need to narrow it here.
@@ -567,35 +571,8 @@ def _build_annotation_suffixed(value_grammar, predicate_grammar):
     return prod
 
 
-# s p o ~ r  /  s p o {| ap av ; ... |}  /  s p o ~ r {| ap av ; ... |}  /
-# s p o ~ r1 {| ... |} ~ r2 {| ... |}  — reifier-binding and inline
-# annotation-block shorthand, and any repeated combination of the two on
-# the SAME base triple. Always asserts the base triple s/p/o once,
-# regardless of how many suffix elements follow.
-#
-# Originally built as two entirely separate, mutually-exclusive
-# productions (`s p o ~ r` xor `s p o {| |}`) — too narrow, confirmed via
-# real W3C test data requiring both together on one statement
-# (`annotation-reifier-01`: `?s ?p ?o ~ :iri {| :r ?Z |} .`) and even
-# *repeated* (the `annotation-*-multiple-*` test family: `~ r1 {| |} ~ r2
-# {| |}`, each suffix minting/using its own independent reifier for the
-# SAME underlying triple term). Rebuilt as one combined grammar matching
-# the shape confirmed working in the sibling `starlayer.graph` project's
-# own Turtle-syntax annotation parser (`split_obj_and_annotations` in
-# `starlayer.graph/parsers/lexer.py`, which already handles this exact
-# combination for Turtle *data* — not ported from it, since that's
-# string-splitting against already-tokenized text rather than a pyparsing
-# grammar, but cross-checked against it as a working reference for the
-# semantics, per direct instruction): each suffix is either `~
-# [reifier]` optionally followed immediately by `{| ... |}` (both bound to
-# the SAME reifier — the one named after `~`, or a fresh one if `~` has no
-# name), or a bare `{| ... |}` (implicitly a fresh reifier) — and this can
-# repeat one or more times.
-#
-# Declared here (Forward, filled in far below once
-# _AnnotationReifierTermExplicit/Anon exist) rather than at its point of
-# use only, since AnnotationSuffixed's own subject/object slots need it
-# too — see _build_annotation_suffixed's comment.
+# Same rationale as above - see the first `_ReifierTermValue = Forward()`
+# declaration (above `_build_annotation_suffixed`).
 _ReifierTermValue = Forward()
 
 AnnotationSuffixed = _build_annotation_suffixed(GraphNodePath, Path | Var)
@@ -618,8 +595,7 @@ AnnotationSuffixedConstruct = _build_annotation_suffixed(GraphNode, VarOrTerm)
 # of those triples (so the shape is self-consistent whether this ends up
 # completing an enclosing triple's object slot, spliced bare as a
 # TriplesNode statement, or nested inside a collection/blank-node-property-
-# list) — confirmed against rdflib's own expandTriples source before
-# relying on it, not assumed.
+# list) — per rdflib's own expandTriples source.
 #
 # Installed into TriplesNode/TriplesNodePath (not GraphTerm/VarOrTerm
 # directly, and not TriplesSameSubject/TriplesSameSubjectPath directly
@@ -634,42 +610,41 @@ AnnotationSuffixedConstruct = _build_annotation_suffixed(GraphNode, VarOrTerm)
 # collection/blank-node-property-list" all at once, with zero extra
 # productions.
 # Predicate uses the same restricted primitive as the ground triple term
-# (_TripleTermPredicate, Var | iri) — confirmed necessary via the W3C
-# negative test `bnode-predicate-anonreifier` (`<<?s [] ?o>> ?p2 ?o2 .`, an
-# anonymous blank node predicate, must be rejected; a predicate is never
-# legal as a blank node in RDF's data model).
+# (_TripleTermPredicate, Var | iri) — needed per the W3C negative test
+# `bnode-predicate-anonreifier` (`<<?s [] ?o>> ?p2 ?o2 .`, an anonymous
+# blank node predicate, must be rejected; a predicate is never legal as a
+# blank node in RDF's data model).
 #
 # Subject and object use _ReifierTermValue (below), not plain VarOrTerm —
 # deliberately MORE permissive than the ground triple term's own
-# _TripleTermSubjectExpr (which excludes ANON `[]`; confirmed via the W3C
-# *positive* test `subject-tripleterm` that `<<[] ?R :z ~ :iri>>`, an
-# anonymous blank-node subject, IS legal for this reifier-reference form
+# _TripleTermSubjectExpr (which excludes ANON `[]`; per the W3C *positive*
+# test `subject-tripleterm` that `<<[] ?R :z ~ :iri>>`, an anonymous
+# blank-node subject, IS legal for this reifier-reference form
 # specifically) — and, since _ReifierTermValue also carries a nested
 # reifier-shorthand-term alternative, lets a reifier-shorthand term's own
 # subject/object be *another* reifier-shorthand term or a nested ground
 # triple term (the latter already reachable via VarOrTerm, which
-# install() mutates to include TripleTermExpr/TripleTermCall). Confirmed
-# necessary via real W3C test data that was NOT reachable with plain
-# VarOrTerm: `nested-reifier-02`/`nested-anonreifier-*`
+# install() mutates to include TripleTermExpr/TripleTermCall). Needed for
+# real W3C test data not reachable with plain VarOrTerm:
+# `nested-reifier-02`/`nested-anonreifier-*`
 # (`<<:a :q <<:s :p ?O ~ :iri>> ~ _:bnode>> :r :z .` — the outer term's
 # object is another reifier-shorthand term) and `subject-tripleterm`'s
 # second half (`<< <<(:x ?R :z )>> :p <<:a :b [] >> ~ _:bnode >> :q ...` —
 # the outer term's subject is a nested *ground* triple term).
 #
-# NOT GraphNode: tried that first, and it let a bare Collection/
-# BlankNodePropertyList (`(...)`/`[ p o ]`) through too — GraphNode
-# includes TriplesNode, and TriplesNode.expr is the SAME shared object
-# install() splices these two reifier-shorthand productions into (see
-# their own installation comment) as `Collection | BlankNodePropertyList |
-# ...`, so referencing GraphNode here pulled in siblings that don't belong
-# in this specific slot. Confirmed a real regression via the W3C negative
+# NOT GraphNode: GraphNode includes TriplesNode, and TriplesNode.expr is
+# the SAME shared object install() splices these two reifier-shorthand
+# productions into (see their own installation comment) as `Collection |
+# BlankNodePropertyList | ...`, so referencing GraphNode here would pull
+# in a bare Collection/BlankNodePropertyList (`(...)`/`[ p o ]`) too —
+# siblings that don't belong in this specific slot, per the W3C negative
 # tests `quoted-list-subject-*`/`quoted-list-object-*`/
 # `quoted-list-predicate-*` (`<<?s :p ("abc") >> :q 123 .` — a Collection
-# as a reifier-shorthand term's own object — must be rejected). Fixed by
-# building a narrower, dedicated Forward here instead, admitting only
-# plain terms (via VarOrTerm, itself already carrying ground triple terms)
-# and nested reifier-shorthand terms specifically — nothing TriplesNode
-# itself would add.
+# as a reifier-shorthand term's own object — must be rejected). Built as a
+# narrower, dedicated Forward here instead, admitting only plain terms
+# (via VarOrTerm, itself already carrying ground triple terms) and nested
+# reifier-shorthand terms specifically — nothing TriplesNode itself would
+# add.
 #
 # A match here comes back as either a plain term (VarOrTerm/ground triple
 # term) or the special nested-list shape a reifier-shorthand match
@@ -718,8 +693,8 @@ _AnnotationReifierTermExplicit.add_parse_action(_annotation_reifier_term_explici
 # ReifiedTripleObject productions (SPARQL 1.2 Query grammar rules
 # [117]/[118]), which enumerate exactly the same list *minus* NIL (and
 # minus Collection, already excluded below by using VarOrTerm instead of
-# GraphNode - see the long comment above this production). Confirmed
-# directly against the vendored grammar snapshot
+# GraphNode - see the long comment above this production). Per the
+# vendored grammar snapshot
 # (tests/graph/vendor/spec_snapshots/sparql12-query.txt) - neither
 # production lists NIL as an alternative. Without this guard,
 # `<< _:b ex:x () >>` parsed successfully via VarOrTerm's NIL branch -
@@ -738,15 +713,28 @@ def _annotation_reifier_term(s_raw, p, o_raw, r) -> list:
 
 
 def _annotation_reifier_term_resolved(s, p, o, r) -> list:
-    # t[0] must equal r *by virtue of* being the first element of the
-    # single embedded triple (r, RDF.reifies, tt) below, not a separately
-    # prepended copy — rdflib's own expandTriples() (see its isinstance(t,
-    # list) branch) uses t[0] BOTH as the value slotted into an enclosing
-    # triple's object position (via a plain `res.append(t[0])`) AND,
-    # completely separately, folds the *whole* t (t[0] included) back in as
-    # one or more new self-contained triples of its own. Duplicating r as a
-    # standalone t[0] ahead of its real first triple breaks that (confirmed
-    # via `these aint triples` from rdflib's algebra.triples() when tried).
+    """Build the reification triple ``(r, rdf:reifies, tt)`` for one
+    resolved (s, p, o, r) reifier-shorthand term.
+
+    ``r`` must appear only once, as the first element of the single
+    embedded triple below, not as a separately prepended copy — rdflib's
+    own ``expandTriples()`` (its ``isinstance(t, list)`` branch) uses
+    ``t[0]`` both as the value slotted into an enclosing triple's object
+    position (via a plain ``res.append(t[0])``) and, separately, folds the
+    whole of ``t`` (``t[0]`` included) back in as one or more new
+    self-contained triples of its own — duplicating ``r`` as a standalone
+    ``t[0]`` ahead of its real first triple breaks that contract.
+
+    Args:
+        s: The base triple's resolved subject.
+        p: The base triple's resolved predicate.
+        o: The base triple's resolved object.
+        r: The reifier term naming this triple term.
+
+    Returns:
+        The flat ``[r, rdf:reifies, tt]`` triple, ready to splice into the
+        enclosing triple list.
+    """
     tt = _make_triple_term(s, p, o)
     return [r, _RDF_REIFIES, tt]
 
@@ -761,26 +749,25 @@ def _already_installed() -> bool:
     present in PrimaryExpression.exprs right now - rather than trusting a
     module-level boolean set once and never re-checked.
 
-    Confirmed necessary, not just extra caution: pyparsing's own
+    Necessary, not just extra caution: pyparsing's own
     ParseExpression.streamline() (rdflib.plugins.sparql.parser's grammar
     objects are streamlined the first time they're actually used to parse
     something) collapses a MatchFirst with exactly 2 children by splicing
     a nested MatchFirst's own .exprs directly into the parent, *replacing*
-    self.exprs outright (not appending) - confirmed via pyparsing's own
-    source (ParseExpression.streamline). PrimaryExpression starts with
-    exactly 2 children in stock rdflib. Reproduced directly (not
-    theoretical): under pytest with assertion rewriting enabled
-    specifically (--assert=plain avoids it - the trigger inside pytest's
-    own import hook wasn't fully isolated further, but the symptom is
-    unambiguous and repeatable), PrimaryExpression's *same* Python object
-    (confirmed via id() - not a duplicate import/module reload) ends up
-    with its .exprs reset to a flattened, pristine-rdflib 78-entry list
-    with every production this module installed missing, while a
-    module-level `_INSTALLED = True` flag installed once at import time
-    has no way to detect this and never re-runs install(). A boolean flag
-    can only ever be as trustworthy as the assumption that nothing else
-    ever resets the objects it's guarding - confirmed false here, so this
-    checks the live objects directly instead.
+    self.exprs outright, not appending to it - per pyparsing's own source
+    (ParseExpression.streamline). PrimaryExpression starts with exactly 2
+    children in stock rdflib, so it's exactly this kind of 2-child
+    MatchFirst: under certain import/collection orderings this streamline
+    pass can run *after* install() has already appended this module's own
+    productions into PrimaryExpression.exprs, resetting it back to a
+    flattened, pristine-rdflib list with every production this module
+    installed missing - on the *same* Python object (not a duplicate
+    import or module reload), which a module-level `_INSTALLED = True`
+    flag set once at import time has no way to detect and never re-runs
+    install() to recover from. A boolean flag can only ever be as
+    trustworthy as the assumption that nothing else ever resets the
+    objects it's guarding - false here, so this checks the live objects
+    directly instead.
     """
     return TripleTermCallValue in PrimaryExpression.exprs
 
@@ -818,30 +805,23 @@ def install(force: bool = False) -> None:
     ``force=True`` skips the ``_already_installed()`` short-circuit and
     re-runs every mutation - used by ``parse12.py``'s own parse-failure
     retry path as a last-resort recovery, for the residual corruption case
-    ``_already_installed()`` itself doesn't reliably catch (confirmed
-    empirically still possible under some pytest runs even with the
-    per-call re-verification in place - the exact trigger inside pytest's
-    import machinery was not fully isolated, but a forced, unconditional
-    re-append immediately before retrying the same parse was confirmed to
-    recover it every time it was tried).
+    ``_already_installed()`` itself doesn't reliably catch.
 
     Every individual mutation below goes through ``_append_once``/
     ``_insert_once`` rather than a bare ``.append()``/``.exprs.insert()``,
     so "re-runs every mutation" means "re-verifies every production is
-    present," not "duplicates whatever's already there." **This was a
-    real, confirmed bug, not a theoretical one**: ``parse12.py``'s retry
-    path calls ``install(force=True)`` on every ``ParseBaseException`` -
-    which every W3C *negative*-syntax test triggers *by design*, not just
-    in the rare real-corruption case this was written for. Across a test
-    file with dozens of negative-syntax cases, the old unconditional
-    ``.append()`` calls bloated these shared, global, process-wide
-    pyparsing grammar objects a little more on every single one of
-    them (confirmed: ``BuiltInCall.exprs`` grew from 10 to 170 entries
-    after just 20 forced reinstalls) - and since these objects are
-    referenced recursively throughout the whole SPARQL grammar, parse cost
-    for every later query compounded combinatorially, measured taking a
-    fixed query from 0.18s to over 11s purely as a function of how many
-    prior negative-syntax tests had already run in the same process.
+    present," not "duplicates whatever's already there." This matters
+    because these are shared, global, process-wide pyparsing grammar
+    objects, and ``parse12.py``'s retry path calls ``install(force=True)``
+    on every ``ParseBaseException`` - which every W3C *negative*-syntax
+    test triggers *by design*, not just in the rare real-corruption case
+    this was written for. An unconditional ``.append()`` on every forced
+    reinstall would bloat these objects on every single negative-syntax
+    test in a run, and since they're referenced recursively throughout the
+    whole SPARQL grammar, parse cost for every later query would compound
+    combinatorially as a function of how many prior negative-syntax tests
+    had already run in the same process (see ``graph/CLAUDE.md`` for the
+    measured before/after numbers).
     """
     if not force and _already_installed():
         return
@@ -890,9 +870,9 @@ def install(force: bool = False) -> None:
     # (tried first), not appended: the ordinary `VarOrTerm +
     # PropertyListPathNotEmpty` alternative already in these two objects
     # greedily matches just "s p o" and succeeds before ever trying a later
-    # alternative, confirmed empirically to otherwise leave a dangling
-    # `~ r`/`{| ... |}` suffix that fails at the statement level instead of
-    # being recognized here.
+    # alternative, which would otherwise leave a dangling `~ r`/`{| ... |}`
+    # suffix that fails at the statement level instead of being recognized
+    # here.
     #
     # TriplesSameSubjectPath (ordinary WHERE-clause context) gets
     # AnnotationSuffixed (path-aware annotation values); TriplesSameSubject
@@ -910,9 +890,9 @@ def install(force: bool = False) -> None:
     # tokens; order between the two new forms themselves doesn't matter
     # either, see their own comment) to TriplesNode/TriplesNodePath's
     # underlying MatchFirst (`.expr`, since both are pyparsing `Forward`
-    # wrappers, not MatchFirst objects themselves — confirmed
+    # wrappers, not MatchFirst objects themselves —
     # `TriplesNode.expr`/`TriplesNodePath.expr` are real MatchFirst objects
-    # with a public `.append()` before relying on this). This single splice
+    # with a public `.append()`). This single splice
     # point is what makes the new forms usable everywhere TriplesNode(Path)
     # already is: GraphNode/GraphNodePath (ordinary object position, inside
     # `[...]`, inside `(...)`), and TriplesSameSubject(Path)'s own

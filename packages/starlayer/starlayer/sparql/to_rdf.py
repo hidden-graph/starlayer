@@ -32,21 +32,28 @@ from .vocab import (
     VARIABLE_DATATYPE,
 )
 
-# The real, grammar-verified set of CompValue names that now live under
-# spexpr: rather than salg: (see vocab.py's own SPEXPR definition for the
-# full rationale) - lazily imported and cached, not at module top level,
-# to avoid a real circular-import risk: this file is itself imported by
-# starlayer.sparql's own top-level __init__.py, and salg/expr_families.py
-# sits inside the salg subpackage, whose own __init__.py pulls in
-# sparql_shapes.py -> starontology - a path this project's own
-# established "lazy, not top-level" convention exists specifically to
-# avoid (see starontology/__init__.py's identical reasoning). Safe to
-# defer: nothing can call _encode_comp_value() before starlayer.sparql
-# itself has finished importing.
+# Lazily initialized cache for _expr_comp_value_names() below.
 _EXPR_COMP_VALUE_NAMES: frozenset | None = None
 
 
 def _expr_comp_value_names() -> frozenset:
+    """The real, grammar-verified set of CompValue names that live under
+    spexpr: rather than salg: (see vocab.py's own SPEXPR definition for the
+    full rationale).
+
+    Lazily imported and cached, not resolved at module top level, to avoid
+    a real circular-import risk: this file is itself imported by
+    starlayer.sparql's own top-level __init__.py, and salg/expr_families.py
+    sits inside the salg subpackage, whose own __init__.py pulls in
+    sparql_shapes.py -> starontology - a path this project's own
+    established "lazy, not top-level" convention exists specifically to
+    avoid (see starontology/__init__.py's identical reasoning). Safe to
+    defer: nothing can call _encode_comp_value() before starlayer.sparql
+    itself has finished importing.
+
+    Returns:
+        The frozenset of spexpr:-bound CompValue names.
+    """
     global _EXPR_COMP_VALUE_NAMES
     if _EXPR_COMP_VALUE_NAMES is None:
         from .salg.expr_families import _EXPR_NODE_FAMILY
@@ -88,16 +95,21 @@ _QUADS_KEY = "quads"
 def _new_starlayer_graph() -> Graph:
     """The default graph for any encoding function below that wasn't given
     one — always a real ``starlayer.graph.graph.starlayer_graph.StarLayerGraph``,
-    never a plain ``rdflib.Graph``. Raises ``ImportError`` — not a silent
-    fallback — if ``starlayer.graph`` isn't installed: a plain ``Graph``
-    can't correctly round-trip a dirLangString literal's real
-    ``"text"@lang--dir`` syntax on serialization (it would only ever see
-    starlayer.graph's own internal ``dirlang:`` datatype encoding as an opaque
-    IRI), and isn't a real RDF 1.2 graph for storage/reference purposes.
-    This project hard-requires ``starlayer.graph`` rather than degrading to
-    a lesser default — a caller that genuinely doesn't need either property
-    can still pass its own plain ``rdflib.Graph()`` explicitly via the
-    ``graph`` parameter; this default is deliberately not that permissive.
+    never a plain ``rdflib.Graph``.
+
+    Raises ``ImportError`` — not a silent fallback — if ``starlayer.graph``
+    isn't installed: a plain ``Graph`` can't correctly round-trip a
+    dirLangString literal's real ``"text"@lang--dir`` syntax on
+    serialization (it would only ever see starlayer.graph's own internal
+    ``dirlang:`` datatype encoding as an opaque IRI), and isn't a real RDF
+    1.2 graph for storage/reference purposes. This project hard-requires
+    ``starlayer.graph`` rather than degrading to a lesser default — a
+    caller that genuinely doesn't need either property can still pass its
+    own plain ``rdflib.Graph()`` explicitly via the ``graph`` parameter;
+    this default is deliberately not that permissive.
+
+    Returns:
+        A fresh ``StarLayerGraph`` instance.
     """
     from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 
@@ -108,11 +120,18 @@ def query_to_rdf(query: Query, graph: Graph | None = None) -> tuple[Graph, BNode
     """Encode a prepared rdflib ``Query`` (from ``prepareQuery``/``translateQuery``,
     starlayer.graph's SPARQL-1.2-aware variants included) as RDF triples.
 
-    Returns ``(graph, root)`` — ``graph`` is ``graph`` if given, else a fresh
-    ``StarLayerGraph`` (see ``_new_starlayer_graph``); ``root`` is the node
-    for ``query.algebra``, additionally typed ``salg:Query`` (see
-    ``vocab.QUERY``) so encoded queries in a larger store can always be
-    found via ``?q a salg:Query`` regardless of query form.
+    ``root`` is the node for ``query.algebra``, additionally typed
+    ``salg:Query`` (see ``vocab.QUERY``) so encoded queries in a larger
+    store can always be found via ``?q a salg:Query`` regardless of query
+    form.
+
+    Args:
+        query: The prepared query to encode.
+        graph: The graph to add the encoding triples to; a fresh
+            ``StarLayerGraph`` (see ``_new_starlayer_graph``) if omitted.
+
+    Returns:
+        ``(graph, root)``.
     """
     if graph is None:
         graph = _new_starlayer_graph()
@@ -136,6 +155,14 @@ def update_to_rdf(update: Update, graph: Graph | None = None) -> tuple[Graph, BN
     per request, not one per operation, unlike a Query). Each operation node
     is additionally typed ``salg:UpdateOperation`` (see
     ``vocab.UPDATE_OPERATION``).
+
+    Args:
+        update: The prepared update to encode.
+        graph: The graph to add the encoding triples to; a fresh
+            ``StarLayerGraph`` (see ``_new_starlayer_graph``) if omitted.
+
+    Returns:
+        ``(graph, root)``.
     """
     if graph is None:
         graph = _new_starlayer_graph()
@@ -160,12 +187,17 @@ def queries_to_collection(queries: list[Query], graph: Graph | None = None) -> t
     own — ``query_to_rdf`` already encodes it per query, so nothing extra is
     needed here for that.
 
-    Returns ``(graph, root)`` — ``graph`` is ``graph`` if given, else a
-    fresh ``StarLayerGraph`` (see ``_new_starlayer_graph``); ``root`` is a
-    dedicated container node holding ``salg:queries`` (an ``rdf:List`` of
-    the member queries' own ``salg:Query``-typed roots, in the order given —
-    order isn't semantically meaningful for a collection, but is preserved
-    anyway since ``rdf:List`` is ordered regardless).
+    Args:
+        queries: The independent queries to encode.
+        graph: The graph to add the encoding triples to; a fresh
+            ``StarLayerGraph`` (see ``_new_starlayer_graph``) if omitted.
+
+    Returns:
+        ``(graph, root)`` — ``root`` is a dedicated container node holding
+        ``salg:queries`` (an ``rdf:List`` of the member queries' own
+        ``salg:Query``-typed roots, in the order given — order isn't
+        semantically meaningful for a collection, but is preserved anyway
+        since ``rdf:List`` is ordered regardless).
     """
     if graph is None:
         graph = _new_starlayer_graph()
@@ -176,12 +208,20 @@ def queries_to_collection(queries: list[Query], graph: Graph | None = None) -> t
     return graph, root
 
 
-def _encode_prologue(prologue: Prologue | None, root, graph: Graph) -> None:
+def _encode_prologue(prologue: Prologue | None, root: BNode, graph: Graph) -> None:
     """Encode a Query/Update's Prologue (BASE + PREFIX declarations) onto its
-    root node — see vocab.py's "Prologue (BASE/PREFIX)" section for why this
-    is round-tripped (BASE-relative IRI()/URI() builtin correctness) and what
+    root node.
+
+    See vocab.py's "Prologue (BASE/PREFIX)" section for why this is
+    round-tripped (BASE-relative IRI()/URI() builtin correctness) and what
     it doesn't fix (rdflib's own algebra.translateAlgebra never reads
-    prologue, so this can't make regenerated query text use prefixes)."""
+    prologue, so this can't make regenerated query text use prefixes).
+
+    Args:
+        prologue: The Query/Update's Prologue, or ``None`` to skip encoding.
+        root: The query/update root node to attach the prologue to.
+        graph: The graph to add the encoding triples to.
+    """
     if prologue is None:
         return
     if prologue.base:
@@ -298,13 +338,22 @@ def _encode_quads_map(quads: dict, graph: Graph) -> BNode | URIRef:
 
 def _encode_path(path: Path, graph: Graph) -> BNode:
     """Encode an rdflib.paths.Path (InvPath/SequencePath/AlternativePath/
-    MulPath/NegatedPath) — see vocab.py's "Property paths" section. Each
-    class's own constructor arguments map 1:1 to spexpr: predicates, the
-    same "mirror the real shape" rule as the generic CompValue encoder,
-    just applied to a Python class hierarchy that isn't a CompValue.
-    spexpr:, not salg: (2026-10-10) - Path is one of the vocabularies that
-    moved, unconditionally (never ambiguous the way a generic CompValue
-    name can be - a Path value is always a Path)."""
+    MulPath/NegatedPath) — see vocab.py's "Property paths" section.
+
+    Each class's own constructor arguments map 1:1 to spexpr: predicates,
+    the same "mirror the real shape" rule as the generic CompValue
+    encoder, just applied to a Python class hierarchy that isn't a
+    CompValue. spexpr:, not salg: (2026-10-10) - Path is one of the
+    vocabularies that moved, unconditionally (never ambiguous the way a
+    generic CompValue name can be - a Path value is always a Path).
+
+    Args:
+        path: The property path to encode.
+        graph: The graph to add the encoding triples to.
+
+    Returns:
+        The BNode representing the encoded path.
+    """
     subj = BNode()
     if isinstance(path, InvPath):
         graph.add((subj, RDF.type, SPEXPR.InvPath))
@@ -347,13 +396,13 @@ def _encode_list(items: list, graph: Graph) -> BNode | URIRef:
     surviving as one *item inside* this list is a different case, arising
     from exactly one real shape: ``Group.expr`` for an un-aliased,
     expression-valued ``GROUP BY`` key (``GROUP BY (?o+1)``, no ``AS
-    ?var``). Confirmed this is not a gap in this project's own encoding but
-    a genuine bug in **plain, unmodified rdflib itself**
-    (``algebra.translate`` produces ``Extend(var=None)``/
-    ``Group.expr=[None, ...]`` for this legal-per-grammar construct, which
-    then crashes rdflib's own ``evalAggregateJoin``) — see the sibling
-    ``starlayer.graph`` repo's ``docs/rdflib-upstream-issues.md`` Issue 9
-    for the full trace, and its own
+    ?var``). This is a genuine bug in **plain, unmodified rdflib itself**,
+    not a gap in this project's own encoding: ``algebra.translate``
+    produces ``Extend(var=None)``/``Group.expr=[None, ...]`` for this
+    legal-per-grammar construct, which then crashes rdflib's own
+    ``evalAggregateJoin`` — see the sibling ``starlayer.graph`` package's
+    ``docs/graph/rdflib-upstream-issues.md`` Issue 5 for the full repro,
+    and its own
     ``starlayer.graph/query/evaluate_patches.py::patch_group_by_unaliased_expression_key``
     for the actual fix (a parse-tree pre-processing patch, applied
     automatically the moment ``starlayer.graph`` is imported — which every real
@@ -400,6 +449,15 @@ def _encode_binding_row(row: dict, graph: Graph) -> BNode | URIRef:
     here for it: the generic bare-str handling in _encode (see vocab.py's
     "Bare Python strings" section) already round-trips that bare string
     faithfully, distinctly from a real Literal("UNDEF") term.
+
+    Args:
+        row: One VALUES-clause binding row (variable -> bound value, or
+            the "UNDEF" sentinel string).
+        graph: The graph to add the encoding triples to.
+
+    Returns:
+        The ``rdf:List`` node (or ``rdf:nil`` if ``row`` is empty) encoding
+        this row.
     """
     binding_nodes = []
     for var, val in row.items():

@@ -46,12 +46,21 @@ _PRIMITIVE_TYPES = (str, int, float, bool)
 
 def query_ast_to_rdf(parse_result: ParseResults, graph: Graph | None = None) -> tuple[Graph, BNode]:
     """Encode ``parseQuery(text)``'s raw output — ``[prologue, query]`` —
-    as ``sast:`` RDF. Returns ``(graph, root)``, ``root`` the node for the
-    query itself (``parse_result[1]``), additionally typed ``sast:Query``
-    so parsed queries in a larger store can be found via ``?q a sast:Query``
-    regardless of query form — same convention as ``to_rdf.query_to_rdf``.
-    ``graph`` defaults to a fresh ``StarLayerGraph`` (see
-    ``to_rdf._new_starlayer_graph``), never a plain ``rdflib.Graph``.
+    as ``sast:`` RDF.
+
+    ``root`` is additionally typed ``sast:Query`` so parsed queries in a
+    larger store can be found via ``?q a sast:Query`` regardless of query
+    form — same convention as ``to_rdf.query_to_rdf``.
+
+    Args:
+        parse_result: ``parseQuery(text)``'s raw output, ``[prologue, query]``.
+        graph: The graph to add triples to. Defaults to a fresh
+            ``StarLayerGraph`` (see ``to_rdf._new_starlayer_graph``), never
+            a plain ``rdflib.Graph``.
+
+    Returns:
+        A ``(graph, root)`` tuple — ``root`` is the node for the query
+        itself (``parse_result[1]``).
     """
     if graph is None:
         graph = _new_starlayer_graph()

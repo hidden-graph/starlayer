@@ -25,8 +25,7 @@ resolve_store_http()):
 The endpoint (e.g. Apache Jena Fuseki 5.5+, Oxigraph) speaks SPARQL 1.2
 natively - triple-term syntax (<<( s p o )>>), TRIPLE()/isTRIPLE(), and the
 base-direction functions (LANGDIR/hasLANGDIR/STRLANGDIR/LANG/hasLANG) are all
-sent straight through with no rewriting, confirmed 2026-07-16 against live
-Fuseki 5.5.0 and Oxigraph 0.5.9. This is a different code path from the
+sent straight through with no rewriting. This is a different code path from the
 default rdf-1.1 backend's SPARQL 1.2 handling (starlayer.sparql's
 parse_update_12/update_to_rdf11/rdf11_update_to_sparql11_text pipeline,
 see native_update() below), which never runs for a native-backend
@@ -39,12 +38,13 @@ so they aren't shared with StarLayerDataset the way query/update are).
 from __future__ import annotations
 
 import re
+from typing import Any
 
 import requests
 from rdflib import BNode, Literal, URIRef
 from rdflib.namespace import XSD
 from rdflib.query import Result
-from rdflib.term import Variable
+from rdflib.term import Node, Variable
 
 from starlayer.graph.model.dirlangstring import DirLangString
 from starlayer.graph.model.encoding import BN_NS, decode_dirlang_datatype
@@ -59,41 +59,45 @@ def sparql_term(node, skolemize_bnodes: bool = True) -> str:
 
     TripleTerms are rendered as <<( s p o )>>. A DirLangString is rendered as
     the real "text"@lang--dir lexical form - unlike TripleTerm's tt:HASH
-    encoding, the native RDF 1.2 endpoint understands this syntax directly, so
-    no internal encoding is involved here at all. A plain Literal whose
-    datatype happens to be starlayer.graph's own internal dirlang: encoding
-    (not yet unwrapped to a real DirLangString object) gets the identical
-    treatment - found 2026-10-13 as a real, previously-undiscovered bug:
-    StarLayerGraph.parse()'s own native-write path (_native_add()/
-    _native_add_many()) calls this function directly on each parsed
-    triple's raw object term, which is never unwrapped to a DirLangString
-    first (that conversion normally happens lazily, on *read*, inside
-    StarLayerGraph._restore() - the native-write path bypasses it entirely,
-    since it's writing data out, not reading it back). Without this check,
-    a dirLangString value loaded via .parse() against a live native backend
-    was sent as a bare "text"^^<the internal dirlang: URI> typed literal -
-    syntactically valid SPARQL, but *semantically wrong*: the endpoint
-    stores a literal with some unrelated custom datatype instead of a real
-    rdf:dirLangString, so its own LANG()/LANGDIR()/hasLANG()/hasLANGDIR()
-    then correctly (from the endpoint's own perspective) report no
-    language/direction at all. Confirmed via a live Oxigraph round-trip
-    before this fix: querying back raw triples showed exactly this bare
-    "text"^^<dirlang:lang--dir> shape stored verbatim, not the direction-
-    tagged literal it logically represents. All other nodes use rdflib's
-    .n3() which produces correct SPARQL syntax - except BNode, which by
-    default is skolemized to a stable BN_NS URI first (see
-    skolemize_bnode()'s docstring for why: a blank node's own SPARQL syntax
-    label is *not* enough to keep its identity across separate HTTP
-    requests).
+    encoding, the native RDF 1.2 endpoint understands this syntax directly,
+    so no internal encoding is involved here at all.
 
-    skolemize_bnodes=False renders a real, unskolemized blank node instead -
-    only safe when every triple that might share this exact BNode object is
-    going out together in the *same* HTTP request (see
-    StarLayerGraph._native_add_many(), the only caller that passes this),
-    since that's the one case SPARQL 1.1 Update's per-request blank-node
-    scoping doesn't bite - and it avoids skolemize_bnode()'s own cost (the
-    endpoint no longer recognizing it as a real blank node for ORDER BY /
-    isBLANK()) for exactly the triples that don't need to pay it.
+    A plain Literal whose datatype is starlayer.graph's own internal
+    dirlang: encoding (not yet unwrapped to a real DirLangString object)
+    gets the identical treatment, not just an already-converted
+    DirLangString instance: StarLayerGraph's dirLangString -> DirLangString
+    conversion happens lazily on *read* (inside StarLayerGraph._restore()),
+    so the native-backend write path (_native_add()/_native_add_many())
+    hands this function a raw Literal whose .datatype is still the internal
+    dirlang: encoding, never yet unwrapped. Without this check, such a value
+    would be sent as a bare "text"^^<the internal dirlang: URI> typed
+    literal - syntactically valid SPARQL, but *semantically wrong*: the
+    endpoint would store a literal with some unrelated custom datatype
+    instead of a real rdf:dirLangString, so its own
+    LANG()/LANGDIR()/hasLANG()/hasLANGDIR() would then correctly (from the
+    endpoint's own perspective) report no language/direction at all.
+
+    All other nodes use rdflib's .n3(), which produces correct SPARQL syntax
+    - except BNode, which by default is skolemized to a stable BN_NS URI
+    first (see skolemize_bnode()'s docstring for why: a blank node's own
+    SPARQL syntax label is *not* enough to keep its identity across
+    separate HTTP requests).
+
+    Args:
+        node: The RDF term to serialize - a TripleTerm, DirLangString, or
+            any rdflib term.
+        skolemize_bnodes: If False, render a real, unskolemized blank node
+            instead. Only safe when every triple that might share this
+            exact BNode object is going out together in the *same* HTTP
+            request (see StarLayerGraph._native_add_many(), the only
+            caller that passes this) - the one case SPARQL 1.1 Update's
+            per-request blank-node scoping doesn't bite - which also avoids
+            skolemize_bnode()'s own cost (the endpoint no longer
+            recognizing it as a real blank node for ORDER BY / isBLANK())
+            for exactly the triples that don't need to pay it.
+
+    Returns:
+        node's SPARQL inline string form.
     """
     if isinstance(node, TripleTerm):
         s = sparql_term(node.subject, skolemize_bnodes)
@@ -130,22 +134,27 @@ def skolemize_bnode(node: BNode) -> URIRef:
     scopes blank-node labels to the single request they appear in - reusing
     a label like ``_:b`` across two separate INSERT requests does *not*
     refer to the same node on the far side, it mints two unrelated ones.
-    Confirmed empirically against live Oxigraph: ``g.add((b, :r, :o1));
-    g.add((b, :r, :o2))`` for one Python BNode produced two different
-    store-side blank nodes, and a query joining on the shared subject
-    returned nothing. Skolemizing to a URI sidesteps request-scoping
-    entirely - a URI means the same thing in every request. This is also
-    what makes an anonymous reifier's own BNode identity (see
+    Skolemizing to a URI sidesteps this request-scoping entirely - a URI
+    means the same thing in every request.
+
+    This is also what makes an anonymous reifier's own BNode identity (see
     starlayer.graph.parsers.turtle_parser._skolemize_encoding - anonymous
     reifiers are ordinary BNodes, not a separate skolemization scheme of
     their own) survive a native-backend round trip for free: it's just
     another BNode as far as this function is concerned.
+
     Reversed by deskolemize_bnode() on every read path.
+
+    Args:
+        node: The blank node to skolemize.
+
+    Returns:
+        A stable URIRef under BN_NS encoding node's label.
     """
     return URIRef(BN_NS + str(node))
 
 
-def deskolemize_bnode(node):
+def deskolemize_bnode(node: Node | TripleTerm) -> Node | TripleTerm:
     """Reverse skolemize_bnode(): a BN_NS URIRef becomes the BNode with the
     same label back; any other value passes through unchanged. Recurses into
     a TripleTerm's own subject/object so a blank node nested inside one
@@ -177,14 +186,12 @@ def _parse_json_term(term_dict: dict):
     if t in ('literal', 'typed-literal'):
         lang  = term_dict.get('xml:lang')
         dtype = term_dict.get('datatype')
-        # Confirmed 2026-07-16 against live Fuseki 5.5.0 and Oxigraph 0.5.9
-        # (both agree independently): the SPARQL 1.2 JSON Results key is
-        # "its:dir", mirroring the its:dir attribute RDF/XML 1.2 also uses -
-        # not "direction", which was an earlier unverified guess. Returned
-        # directly as a DirLangString rather than the internal dirlang:
-        # Literal encoding, since native-backend results never round-trip
-        # through StarLayerGraph._restore() - same as how a "triple" binding
-        # below returns a TripleTerm directly.
+        # SPARQL 1.2 JSON Results' base-direction key is "its:dir", matching
+        # RDF/XML 1.2's own attribute name. Returned directly as a
+        # DirLangString rather than the internal dirlang: Literal encoding,
+        # since native-backend results never round-trip through
+        # StarLayerGraph._restore() - same as how a "triple" binding below
+        # returns a TripleTerm directly.
         direction = term_dict.get('its:dir')
         if lang and direction:
             from starlayer.graph.model.dirlangstring import DirLangString
@@ -194,24 +201,22 @@ def _parse_json_term(term_dict: dict):
         if dtype:
             literal = Literal(term_dict['value'], datatype=URIRef(dtype))
             if dtype == str(XSD.decimal):
-                # Confirmed against live Oxigraph 0.5.x specifically (not
-                # Fuseki/Jena-ARQ, which already returns the canonical form):
-                # a whole-number xsd:decimal computed by Oxigraph's own
-                # SPARQL engine (CEIL/FLOOR/ROUND/division, or simply stored
-                # and read back) comes back lexically as e.g. "4"/"123"
-                # rather than XSD 1.1's mandatory canonical "4.0"/"123.0"
-                # (a decimal point with at least one digit each side) - see
-                # docs/rdflib-upstream-issues.md Issue 2, the same defect
-                # this project's own operator_patches.py already works
-                # around for rdflib's *internal* evaluator. Reuses that same
-                # helper here for the native backend's *results* specifically
-                # - this corrects Oxigraph's own output formatting on the
-                # way into a Python Literal, not the query or stored data
-                # sent to it, so it doesn't conflict with this module's
-                # otherwise-zero-rewriting design (see module docstring).
-                # A no-op for any lexical form that already has a "." (every
-                # other engine, and Oxigraph itself for non-whole-number
-                # results).
+                # Corrects a canonicalization defect in Oxigraph's own
+                # decimal output: a whole-number xsd:decimal result (from
+                # CEIL/FLOOR/ROUND/division, or simply stored and read back)
+                # comes back lexically as e.g. "4"/"123" rather than XSD
+                # 1.1's canonical "4.0"/"123.0" (a decimal point with at
+                # least one digit each side) - the same whole-number
+                # trailing-".0" defect this project's own
+                # operator_patches.py already works around for rdflib's
+                # internal evaluator, reused here for the native backend's
+                # *results* specifically. This corrects Oxigraph's own
+                # output formatting on the way into a Python Literal, not
+                # the query or stored data sent to it, so it doesn't
+                # conflict with this module's otherwise-zero-rewriting
+                # design (see module docstring). A no-op for any lexical
+                # form that already has a "." (every other engine, and
+                # Oxigraph itself for non-whole-number results).
                 from starlayer.graph.query.operator_patches import (
                     _canonicalize_decimal_lexical_form,
                 )
@@ -227,31 +232,20 @@ def _parse_json_term(term_dict: dict):
         try:
             return TripleTerm(s, p, o)
         except ValueError as e:
-            # A conformant engine should never produce this (RDF 1.2: a
-            # triple term's own subject may never itself be a triple term -
-            # TripleTerm.__init__ enforces the same rule this library uses
-            # internally). Confirmed reproducible against live Fuseki 5.5.0
-            # specifically: TRIPLE(?subject, ...) fails to validate a
-            # triple-term-valued `subject` argument the way it already
-            # validates `predicate` (see docs/fuseki-upstream-issues.md
-            # Issue 1) - so a native backend can genuinely hand this back as
-            # a query *result*, not just reject it as malformed input.
-            # Re-raised (not swallowed - this is a real data problem, not
-            # something safe to silently paper over) as a clear, single
-            # error identifying the actual cause, instead of propagating
+            # RDF 1.2 forbids a triple term's own subject/predicate from
+            # itself being a triple term or a Literal (ttSubject ::= iri |
+            # BlankNode, verb ::= iri) - TripleTerm.__init__ enforces this,
+            # but a native engine can still hand back a triple-term-shaped
+            # result that violates it, so this is a real data problem
+            # arriving over the wire, not just malformed input to reject up
+            # front. Re-raised (not swallowed) as a clear, single error
+            # identifying the actual cause, instead of propagating
             # TripleTerm's own bare ValueError: that failure happens before
             # any of TripleTerm's __slots__ are assigned, so anything that
             # tries to repr() the half-constructed instance afterward
             # (pytest's own traceback formatting, notably) hits a *second*,
             # unrelated AttributeError on top of the first, obscuring what
             # actually went wrong.
-            #
-            # Not just the nested-triple-term case: TripleTerm.__init__ also
-            # rejects a Literal-valued subject/predicate (the fuller RDF 1.2
-            # rule, ttSubject ::= iri | BlankNode, verb ::= iri) - confirmed
-            # via the same live Fuseki bug that a Literal-valued `subject`
-            # argument to TRIPLE() is accepted just as wrongly as a
-            # triple-term-valued one.
             raise ValueError(
                 f'native backend returned a triple term with an invalid RDF 1.2 subject or '
                 f'predicate (subject={s!r}, predicate={p!r}, object={o!r}) - {e}. This '
@@ -350,12 +344,22 @@ def resolve_store_http(store, backend: str) -> tuple:
     """Return (query_url, update_url, extra_headers) from a native-backend store.
 
     SPARQLUpdateStore pre-encodes credentials as an Authorization header in
-    store.kwargs['headers'] rather than exposing a raw auth tuple. Raises
-    RuntimeError if the store does not expose HTTP endpoints (e.g. in-memory
-    stores). Shared by StarLayerGraph and StarLayerDataset - a dataset's
-    per-context StarLayerGraphs all share the same underlying store (see
-    StarLayerDataset.get_context()), so there is exactly one store to resolve
-    per dataset, same as for a single graph.
+    store.kwargs['headers'] rather than exposing a raw auth tuple. Shared by
+    StarLayerGraph and StarLayerDataset - a dataset's per-context
+    StarLayerGraphs all share the same underlying store (see
+    StarLayerDataset.get_context()), so there is exactly one store to
+    resolve per dataset, same as for a single graph.
+
+    Args:
+        store: The native-backend store to resolve HTTP endpoints from.
+        backend: The backend identifier, used only for the error message.
+
+    Returns:
+        A (query_url, update_url, extra_headers) tuple.
+
+    Raises:
+        RuntimeError: If store does not expose HTTP endpoints (e.g. an
+            in-memory store).
     """
     q = getattr(store, 'query_endpoint', None)
     u = getattr(store, 'update_endpoint', None)
@@ -375,19 +379,20 @@ def check_native_version_conformance(text: str) -> None:
 
     The native backend sends text straight through to a real endpoint via
     HTTP with zero rewriting (see this module's docstring) - correct, since
-    Fuseki/Oxigraph understand VERSION natively (confirmed live 2026-07-17:
-    both execute a VERSION-declared query normally regardless of a
-    conformance mismatch, HTTP 200). But neither surfaces any warning back
-    to the caller for a mismatch - confirmed the same day, sending VERSION
-    "1.2-basic" plus a <<( )>> pattern to both got a normal 200 response
-    with no signal anywhere in it. Without this check, a native-backend
-    graph or dataset would silently never emit SPARQL12ConformanceWarning at
-    all, while the default in-memory backend does for the identical query -
-    an inconsistency between backends this project otherwise takes care to
-    avoid (see tests/integration/test_cross_backend_parity.py). Only the
-    *warning* is replicated here, never the VERSION-stripping - the native
-    endpoint needs to see the directive itself, unlike rdflib's SPARQL 1.1
-    parser.
+    Fuseki/Oxigraph both understand VERSION natively and execute a
+    VERSION-declared query normally regardless of a conformance mismatch.
+    But neither surfaces any warning back to the caller for a mismatch -
+    both just return a normal 200 response with no signal anywhere in it.
+    Without this check, a native-backend graph or dataset would silently
+    never emit SPARQL12ConformanceWarning at all, while the default
+    in-memory backend does for the identical query - an inconsistency
+    between backends this project otherwise takes care to avoid (see
+    tests/integration/test_cross_backend_parity.py). Only the *warning* is
+    replicated here, never the VERSION-stripping - the native endpoint
+    needs to see the directive itself, unlike rdflib's SPARQL 1.1 parser.
+
+    Args:
+        text: The raw SPARQL query or update text to check.
     """
     from starlayer.graph.model.conformance import (
         SPARQL12ConformanceWarning,
@@ -409,8 +414,10 @@ def check_native_version_conformance(text: str) -> None:
     )
 
 
-def native_query(store, backend: str, query_object, processor='sparql', result='sparql',
-                 initNs=None, initBindings=None, use_store_provided=True, **kwargs):
+def native_query(store, backend: str, query_object: Any, processor: str = 'sparql',
+                 result: str = 'sparql', initNs: dict | None = None,
+                 initBindings: dict | None = None, use_store_provided: bool = True,
+                 **kwargs):
     """Execute a SPARQL query directly against a native-backend HTTP store.
 
     Shared by StarLayerGraph._native_query()-equivalent dispatch and
@@ -420,6 +427,30 @@ def native_query(store, backend: str, query_object, processor='sparql', result='
     clauses the query text itself contains), so the exact same HTTP call is
     correct whether it originated from a single StarLayerGraph or a
     StarLayerDataset spanning many named graphs.
+
+    Args:
+        store: The native-backend store to resolve HTTP endpoints from
+            (see resolve_store_http()).
+        backend: The backend identifier (e.g. 'rdf-1.2'), passed through
+            to resolve_store_http() for its error message only.
+        query_object: The SPARQL query text.
+        processor: Unused by this function; accepted for interface parity
+            with rdflib's own Graph.query().
+        result: Unused by this function; accepted for interface parity
+            with rdflib's own Graph.query().
+        initNs: Unused by this function; accepted for interface parity
+            with rdflib's own Graph.query().
+        initBindings: Unused by this function; accepted for interface
+            parity with rdflib's own Graph.query().
+        use_store_provided: Unused by this function; accepted for
+            interface parity with rdflib's own Graph.query().
+        **kwargs: Unused; accepted for interface parity with rdflib's own
+            Graph.query().
+
+    Returns:
+        An rdflib.query.Result - ASK (askAnswer set), CONSTRUCT/DESCRIBE
+        (graph set, blank nodes deskolemized), or SELECT (vars/bindings
+        set).
     """
     q_url, _, hdrs = resolve_store_http(store, backend)
     if isinstance(query_object, str):
@@ -461,7 +492,7 @@ def native_query(store, backend: str, query_object, processor='sparql', result='
     return build_result(vars_, bindings)
 
 
-def native_update(store, backend: str, update_object) -> None:
+def native_update(store, backend: str, update_object: Any) -> None:
     """Execute a SPARQL UPDATE directly against a native-backend HTTP store,
     bypassing rdflib's own store dispatch entirely.
 
@@ -474,10 +505,20 @@ def native_update(store, backend: str, update_object) -> None:
     and only the literal string ``"__UNION__"`` is special-cased), which
     nests illegally around any update that already has its own
     ``GRAPH <uri> { }`` clause - the normal way to target a named graph from
-    dataset-level SPARQL. Confirmed via real Oxigraph and Fuseki testing: a
-    plain ``INSERT DATA { GRAPH <uri> {...} }`` with no triple terms at all
-    got a 400 from both. Going straight over HTTP sidesteps rdflib's
-    dispatch (and this bug) entirely, for both backends.
+    dataset-level SPARQL. Both Oxigraph and Fuseki reject the resulting
+    double-nested GRAPH clause outright (HTTP 400), even for a plain
+    ``INSERT DATA { GRAPH <uri> {...} }`` with no triple terms involved at
+    all. Going straight over HTTP sidesteps rdflib's dispatch (and this
+    bug) entirely, for both backends.
+
+    Args:
+        store: The native-backend store to resolve HTTP endpoints from
+            (see resolve_store_http()).
+        backend: The backend identifier - 'rdf-1.2' sends update_object
+            straight through unmodified; any other value is treated as a
+            remote rdf-1.1 endpoint and update_object is first lowered to
+            plain SPARQL 1.1 text.
+        update_object: The SPARQL UPDATE text to execute.
     """
     _, u_url, hdrs = resolve_store_http(store, backend)
     text = update_object

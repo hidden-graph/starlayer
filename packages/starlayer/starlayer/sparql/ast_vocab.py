@@ -5,11 +5,11 @@ output (before ``translateQuery`` runs) instead of the compiled algebra.
 
 Same generic-mirror design as ``salg:`` (``node.name`` -> ``rdf:type``,
 ``key: value`` -> predicate, recursively), pointed at a different tree.
-Confirmed empirically (see ``to_ast_rdf.py``'s module docstring) that the
-raw parse tree is *already* almost entirely ``CompValue``-shaped, using real
-SPARQL grammar production names (``OptionalGraphPattern``, ``Filter``,
+The raw parse tree is *already* almost entirely ``CompValue``-shaped, using
+real SPARQL grammar production names (``OptionalGraphPattern``, ``Filter``,
 ``TriplesBlock``, ``ConditionalOrExpression``, ``PathAlternative``, ...) —
-closer to spec terminology than ``salg:``'s compiled algebra names. This is
+closer to spec terminology than ``salg:``'s compiled algebra names (see
+``to_ast_rdf.py``'s own module docstring for the full account). This is
 why this file exists as a *separate* namespace rather than trying to unify
 with ``salg:``: some names collide (``Filter`` exists at both layers, with a
 genuinely different shape — the algebra's ``Filter`` nests the pattern it

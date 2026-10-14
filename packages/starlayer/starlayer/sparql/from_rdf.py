@@ -24,7 +24,7 @@ from pyparsing import ParserElement
 from rdflib import BNode, Graph, Literal, URIRef, Variable
 from rdflib.collection import Collection
 from rdflib.namespace import RDF
-from rdflib.paths import AlternativePath, InvPath, MulPath, NegatedPath, SequencePath
+from rdflib.paths import AlternativePath, InvPath, MulPath, NegatedPath, Path, SequencePath
 from rdflib.plugins.sparql.parserutils import CompValue, Expr
 from rdflib.plugins.sparql.sparql import Prologue, Query, Update
 
@@ -45,12 +45,21 @@ _SPEXPR_NS = str(SPEXPR)
 
 def _strip_vocab_ns(uri: str) -> str | None:
     """The bare local name of ``uri``, stripping whichever of salg:/spexpr:'s
-    namespace prefix it actually starts with - ``None`` if neither matches.
+    namespace prefix it actually starts with.
+
     Both namespaces need recognizing here (2026-10-10): real encoded data
     from before the spexpr: split still has salg:-typed expression/path/
     variable nodes, and this decoder has to keep reading those exactly as
     it always did, while new data types the same values under spexpr:
-    instead - see vocab.py's SPEXPR definition for the full rationale."""
+    instead - see vocab.py's SPEXPR definition for the full rationale.
+
+    Args:
+        uri: The full URI string to strip.
+
+    Returns:
+        The bare local name, or ``None`` if ``uri`` starts with neither
+        namespace.
+    """
     if uri.startswith(_SPEXPR_NS):
         return uri[len(_SPEXPR_NS):]
     if uri.startswith(_SALG_NS):
@@ -66,18 +75,16 @@ def _strip_vocab_ns(uri: str) -> str | None:
 # — unlike int/bool — is handled generically rather than by listing keys
 # here.
 #
-# Scoped by node name, not key name alone: `start`/`length` are also
-# `Builtin_SUBSTR`'s own parameter names (SPARQL's `SUBSTR(str, start[,
+# Scoped by (node name, key) pair, not key name alone: `start`/`length` are
+# also `Builtin_SUBSTR`'s own parameter names (SPARQL's `SUBSTR(str, start[,
 # length])`), a completely unrelated node where they must stay real
 # `Literal`s — `operators.Builtin_SUBSTR` calls `numeric(expr.start)`,
 # which raises `SPARQLTypeError` for anything that isn't a `Literal`
-# instance. A bare key-name match previously converted `Builtin_SUBSTR`'s
+# instance. A bare key-name match would convert `Builtin_SUBSTR`'s own
 # `start`/`length` to plain ints too, and `evalExtend` silently swallows
-# that error into "leave the BIND target unbound" (same swallowing
-# mechanism documented throughout this project's own findings) rather than
-# raising - so a decoded `BIND(SUBSTR(...) AS ?z)` looked like it worked
-# (no exception) while silently never binding `?z`. Confirmed via a real
-# StarLayerGraph reproduction comparing results against plain rdflib.
+# that error into "leave the BIND target unbound" rather than raising — so
+# a decoded `BIND(SUBSTR(...) AS ?z)` would look like it worked (no
+# exception) while silently never binding `?z`.
 _PLAIN_VALUE_KEYS = {("Slice", "start"), ("Slice", "length"), ("Join", "lazy")}
 
 
@@ -112,7 +119,7 @@ def _discover_expr_evalfns() -> dict:
 _EXPR_EVALFNS = _discover_expr_evalfns()
 
 
-def rdf_to_query(graph: Graph, root) -> Query:
+def rdf_to_query(graph: Graph, root: BNode) -> Query:
     """Decode ``root`` (as produced by ``to_rdf.query_to_rdf``) back into an
     rdflib ``Query`` — same type ``prepareQuery``/``translateQuery`` return.
 
@@ -123,6 +130,13 @@ def rdf_to_query(graph: Graph, root) -> Query:
     does *not* make ``algebra.translateAlgebra`` emit prefixed names: that
     function never reads ``query.prologue`` at all, confirmed empirically,
     so its output stays full-IRI-only regardless.
+
+    Args:
+        graph: The graph holding the encoded query.
+        root: The query's root node, as returned by ``to_rdf.query_to_rdf``.
+
+    Returns:
+        A fully reconstructed, evaluator-ready ``Query``.
     """
     algebra = _decode(root, graph)
 
@@ -145,7 +159,7 @@ def rdf_to_query(graph: Graph, root) -> Query:
     return Query(_decode_prologue(root, graph), algebra)
 
 
-def rdf_to_update(graph: Graph, root) -> Update:
+def rdf_to_update(graph: Graph, root: BNode) -> Update:
     """Decode ``root`` (as produced by ``to_rdf.update_to_rdf``) back into an
     rdflib ``Update`` — same type ``prepareUpdate``/``translateUpdate``
     return, runnable via ``rdflib.plugins.sparql.update.evalUpdate``.
@@ -159,6 +173,14 @@ def rdf_to_update(graph: Graph, root) -> Update:
     assigned to every operation — ``evalUpdate`` reads ``u.prologue`` off
     each operation individually, even though it's the same object for all
     of them in a real ``prepareUpdate`` result too.
+
+    Args:
+        graph: The graph holding the encoded update.
+        root: The update's root node, as returned by
+            ``to_rdf.update_to_rdf``.
+
+    Returns:
+        A fully reconstructed ``Update``.
     """
     ops = _decode_list_field(graph.value(root, SALG.operations), graph)
     prologue = _decode_prologue(root, graph)
@@ -172,7 +194,7 @@ def rdf_to_update(graph: Graph, root) -> Update:
     return Update(prologue, ops)
 
 
-def rdf_to_collection(graph: Graph, root) -> list[Query]:
+def rdf_to_collection(graph: Graph, root: BNode) -> list[Query]:
     """Decode ``root`` (as produced by ``to_rdf.queries_to_collection``)
     back into a list of independent, directly executable rdflib ``Query``
     objects, in the same order they were encoded.
@@ -185,6 +207,14 @@ def rdf_to_collection(graph: Graph, root) -> list[Query]:
     reason ``rdf_to_update`` doesn't reuse plain ``_decode`` for its own
     operations list's *individual members* either (only the list structure
     itself goes through the generic walker there).
+
+    Args:
+        graph: The graph holding the encoded collection.
+        root: The collection's root node, as returned by
+            ``to_rdf.queries_to_collection``.
+
+    Returns:
+        The member queries, in the order they were encoded.
     """
     query_nodes = Collection(graph, graph.value(root, SALG.queries))
     return [rdf_to_query(graph, node) for node in query_nodes]
@@ -241,33 +271,28 @@ def _decode(node, graph: Graph):
 # (CompValue name, key) pairs whose value is genuinely a Python *list* in
 # rdflib's own algebra — the only fields where a bare `rdf:nil` (an empty
 # RDF List's own terminator, indistinguishable at the RDF level from an
-# ordinary term whose *value* happens to be rdf:nil) should decode to `[]`
-# rather than the literal `rdf:nil` URIRef. Empirically derived (not
-# guessed) by instrumenting to_rdf._encode_comp_value and running it over
-# (a) every real .rq fixture in this repo's own test suites (W3C SPARQL
-# 1.1/1.2 conformance + this project's own) — 198 successfully-parsed
-# fixtures, covering every query-side operator this project's own
-# conformance tests exercise — and (b) a hand-built battery covering every
-# SPARQL Update operation form (InsertData/DeleteData/DeleteWhere/Modify's
-# delete+insert clauses/Load/Clear/Drop/Create/Add/Move/Copy), since the
-# .rq corpus in (a) under-represents Update text. The Add/Move/Copy "graph"
-# entries are the (source, destination) 2-tuple `to_rdf.py` itself notes is
-# "no special shape of its own, just an ordered sequence" - genuinely a
-# list at the RDF level even though never realistically empty.
+# ordinary term whose *value* happens to be rdf:nil — e.g. an ordinary
+# triple pattern `?s ?p rdf:nil`, a common RDF-List-processing idiom)
+# should decode to `[]` rather than the literal `rdf:nil` URIRef. Getting
+# this wrong in either direction is real damage: treating a genuinely
+# list-valued field's empty `rdf:nil` as a literal term instead of `[]`
+# crashes `algebra.reorderTriples`/`_knownTerms` (a raw Python list is
+# unhashable, and `BGP.triples` elements must be hashable) or silently
+# produces wrong results; treating an *ordinary* term's `rdf:nil` as `[]`
+# instead loses that term outright (e.g. a triple pattern's object).
 #
-# Fixes a real, general bug (not just one adversarial shape): before this,
-# `_decode()` treated *any* bare `rdf:nil` node as `[]` unconditionally,
-# silently corrupting any query with a literal `rdf:nil` term anywhere —
-# e.g. a triple pattern `?s ?p rdf:nil` (a common RDF-List-processing
-# idiom) round-tripped through StarLayerGraph.query() would lose that
-# triple pattern's object entirely, either producing wrong (empty) results
-# or crashing algebra.reorderTriples/_knownTerms outright (a raw Python
-# list is unhashable, and BGP.triples elements must be hashable). It also
-# broke every SPARQL Update whose InsertData/DeleteData/DeleteWhere/Modify
-# clause has an empty top-level `triples` list (e.g. an INSERT DATA whose
-# content is entirely inside `GRAPH <...> { }` blocks, with nothing in the
-# default graph) - confirmed via a real regression in this project's own
-# test_dataset_query.py suite while building this fix.
+# Empirically derived (not guessed) by instrumenting
+# to_rdf._encode_comp_value and running it over (a) every real .rq
+# fixture in this repo's own test suites (W3C SPARQL 1.1/1.2 conformance +
+# this project's own) — 198 successfully-parsed fixtures, covering every
+# query-side operator this project's own conformance tests exercise — and
+# (b) a hand-built battery covering every SPARQL Update operation form
+# (InsertData/DeleteData/DeleteWhere/Modify's delete+insert clauses/Load/
+# Clear/Drop/Create/Add/Move/Copy), since the .rq corpus in (a)
+# under-represents Update text. The Add/Move/Copy "graph" entries are the
+# (source, destination) 2-tuple `to_rdf.py` itself notes is "no special
+# shape of its own, just an ordered sequence" - genuinely a list at the
+# RDF level even though never realistically empty.
 _LIST_VALUED_KEYS = {
     ("Add", "graph"),
     ("Aggregate_Avg", "distinct"),
@@ -332,11 +357,21 @@ def _decode_list_field(node, graph: Graph):
 _PATH_TYPE_NAMES = {"InvPath", "SequencePath", "AlternativePath", "MulPath", "NegatedPath"}
 
 
-def _decode_path(node, local_name: str, graph: Graph):
+def _decode_path(node: BNode, local_name: str, graph: Graph) -> Path:
     """Inverse of to_rdf._encode_path — see vocab.py's "Property paths"
     section for why these need dedicated handling (rdflib.paths.Path
     objects, not CompValue). spexpr:, not salg: (2026-10-10) - see
-    _encode_path's own matching note."""
+    _encode_path's own matching note.
+
+    Args:
+        node: The encoded path's root node.
+        local_name: The path's CompValue-style type name (e.g.
+            "SequencePath"), already stripped of its namespace.
+        graph: The graph holding the encoded path.
+
+    Returns:
+        The reconstructed ``rdflib.paths.Path`` instance.
+    """
     if local_name == "InvPath":
         return InvPath(_decode(graph.value(node, SPEXPR.arg), graph))
     if local_name == "SequencePath":
@@ -366,7 +401,19 @@ _PROLOGUE_KEYS = {"base", "prologuePrefix"}
 _AUXILIARY_ROOT_MARKERS = {QUERY, UPDATE, UPDATE_OPERATION, QUERY_COLLECTION}
 
 
-def _comp_value_type(node, graph: Graph) -> URIRef | None:
+def _comp_value_type(node: BNode, graph: Graph) -> URIRef | None:
+    """The real CompValue-style ``rdf:type`` for ``node`` — a salg:/spexpr:
+    type, distinguished from the auxiliary root-marker types ``to_rdf.py``
+    layers onto a query/update root alongside its real CompValue type.
+
+    Args:
+        node: The node to inspect.
+        graph: The graph holding ``node``.
+
+    Returns:
+        The node's real CompValue type URI, or ``None`` if it has no
+        salg:/spexpr: type at all.
+    """
     types = [t for t in graph.objects(node, RDF.type) if _strip_vocab_ns(str(t)) is not None]
     if not types:
         return None
@@ -505,13 +552,13 @@ def _decode_comp_value(node, type_uri: URIRef, graph: Graph):
             # resolution path cannot handle a raw, non-Expr graph-pattern
             # node - it only knows how to evaluate an Expr or look up an RDF
             # term - and `.graph` is exactly that: a raw parse-tree/algebra
-            # fragment, not an expression. rdflib's own algebra.translateExists
-            # sets `.graph` as a real instance attribute for exactly this
-            # reason; a plain `result.update(kwargs)` here only stores it as
-            # a dict key, so evaluating a decoded EXISTS/NOT EXISTS node
-            # crashes ("What do I do with this CompValue?") the moment its
-            # `.graph` is more than a single triple - confirmed via a real
-            # StarLayerGraph reproduction. Mirror translateExists exactly.
+            # fragment, not an expression. rdflib's own
+            # algebra.translateExists sets `.graph` as a real instance
+            # attribute for exactly this reason; a plain
+            # `result.update(kwargs)` here only stores it as a dict key, so
+            # evaluating a decoded EXISTS/NOT EXISTS node whose `.graph` is
+            # more than a single triple crashes ("What do I do with this
+            # CompValue?"). Mirror translateExists exactly.
             result.graph = kwargs["graph"]
         return result
 

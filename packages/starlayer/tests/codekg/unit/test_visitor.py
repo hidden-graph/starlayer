@@ -13,6 +13,7 @@ from rdflib import Literal, URIRef
 from rdflib.namespace import DCTERMS, RDF, RDFS
 
 from starlayer.codekg import CODEKG_NS, EXTERNALTYPE_NS
+from starlayer.codekg.extractor.symbol_index import build_symbol_index, module_identity
 from starlayer.codekg.extractor.visitor import extract_module
 
 SLKG = CODEKG_NS
@@ -26,6 +27,32 @@ def _extract(tmp_path: Path, source: str) -> list[tuple]:
     path = tmp_path / "fixture.py"
     path.write_text(source, encoding="utf-8")
     return extract_module(path, MODULE_IRI, MODULE_DOTTED)
+
+
+def _extract_multi(tmp_path: Path, sources: dict[str, str]) -> dict[str, list[tuple]]:
+    """Write several fixture files under tmp_path's own
+    packages/starlayer/starlayer/ tree (the real root-relative convention
+    - see symbol_index.module_identity()), build one real project-wide
+    symbol index across all of them, then extract each with that index
+    available - the only way to test cross-file call/override resolution
+    faithfully, since that's exactly what a real multi-file extraction
+    run does. Returns ``{relative_filename: triples}``.
+    """
+    src_root = tmp_path / "packages" / "starlayer" / "starlayer"
+    paths = {}
+    for rel_name, source in sources.items():
+        path = src_root / rel_name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(source, encoding="utf-8")
+        paths[rel_name] = path
+
+    index = build_symbol_index(list(paths.values()), tmp_path)
+
+    result = {}
+    for rel_name, path in paths.items():
+        module_iri, module_dotted = module_identity(path, src_root)
+        result[rel_name] = extract_module(path, module_iri, module_dotted, index)
+    return result
 
 
 def _subjects_of_type(triples: list[tuple], rdf_type) -> set:
@@ -545,3 +572,383 @@ except ImportError:
         import_edges = {o for s, p, o in triples if s == MODULE_IRI and p == SLKG.importsModule}
         assert EXT["ujson"] in import_edges
         assert EXT["json"] in import_edges
+
+
+class TestDataclassAttributes:
+    SOURCE = '''\
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class Point:
+    x: int
+    y: int = 0
+'''
+
+    def test_attributes_emitted_with_position_and_type(self, tmp_path):
+        triples = _extract(tmp_path, self.SOURCE)
+        class_iri = URIRef(f"{MODULE_IRI}#Point")
+        x_attr = URIRef(f"{class_iri}.attr.x")
+        y_attr = URIRef(f"{class_iri}.attr.y")
+
+        assert (class_iri, SLKG.hasAttribute, x_attr) in triples
+        assert (class_iri, SLKG.hasAttribute, y_attr) in triples
+
+        assert (x_attr, RDF.type, SLKG.Attribute) in triples
+        assert (x_attr, RDFS.label, Literal("x")) in triples
+        assert (x_attr, SLKG.position, Literal(0)) in triples
+        assert (x_attr, SLKG.hasType, EXT["builtins.int"]) in triples
+        assert not _objects(triples, x_attr, SLKG.defaultValue)
+
+        assert (y_attr, RDF.type, SLKG.Attribute) in triples
+        assert (y_attr, RDFS.label, Literal("y")) in triples
+        assert (y_attr, SLKG.position, Literal(1)) in triples
+        assert (y_attr, SLKG.hasType, EXT["builtins.int"]) in triples
+        assert (y_attr, SLKG.defaultValue, Literal("0")) in triples
+
+
+class TestPropertyMethod:
+    SOURCE = '''\
+class Thing:
+    @property
+    def value(self) -> int:
+        return 1
+'''
+
+    def test_is_property_true_others_absent(self, tmp_path):
+        triples = _extract(tmp_path, self.SOURCE)
+        method_iri = URIRef(f"{MODULE_IRI}#Thing.value")
+        assert (method_iri, SLKG.isProperty, Literal(True)) in triples
+        assert not _objects(triples, method_iri, SLKG.isClassmethod)
+        assert not _objects(triples, method_iri, SLKG.isStaticmethod)
+
+
+class TestClassmethodAndStaticmethod:
+    SOURCE = '''\
+class Thing:
+    @classmethod
+    def make(cls) -> "Thing":
+        return cls()
+
+    @staticmethod
+    def helper() -> int:
+        return 1
+'''
+
+    def test_classmethod_flag(self, tmp_path):
+        triples = _extract(tmp_path, self.SOURCE)
+        method_iri = URIRef(f"{MODULE_IRI}#Thing.make")
+        assert (method_iri, SLKG.isClassmethod, Literal(True)) in triples
+        assert not _objects(triples, method_iri, SLKG.isProperty)
+        assert not _objects(triples, method_iri, SLKG.isStaticmethod)
+
+    def test_staticmethod_flag(self, tmp_path):
+        triples = _extract(tmp_path, self.SOURCE)
+        method_iri = URIRef(f"{MODULE_IRI}#Thing.helper")
+        assert (method_iri, SLKG.isStaticmethod, Literal(True)) in triples
+        assert not _objects(triples, method_iri, SLKG.isProperty)
+        assert not _objects(triples, method_iri, SLKG.isClassmethod)
+
+
+class TestOrdinaryMethodHasNoDecoratorFlags:
+    SOURCE = '''\
+class Thing:
+    def ordinary(self) -> int:
+        return 1
+'''
+
+    def test_no_flags_asserted(self, tmp_path):
+        triples = _extract(tmp_path, self.SOURCE)
+        method_iri = URIRef(f"{MODULE_IRI}#Thing.ordinary")
+        assert not _objects(triples, method_iri, SLKG.isProperty)
+        assert not _objects(triples, method_iri, SLKG.isClassmethod)
+        assert not _objects(triples, method_iri, SLKG.isStaticmethod)
+
+
+class TestNestedClassInsideFunctionWithLocalBase:
+    SOURCE = '''\
+class Base:
+    pass
+
+
+def make_subclass():
+    class Sub(Base):
+        pass
+    return Sub
+'''
+
+    def test_declares_edge_and_local_subclass_of(self, tmp_path):
+        triples = _extract(tmp_path, self.SOURCE)
+        base_iri = URIRef(f"{MODULE_IRI}#Base")
+        fn_iri = URIRef(f"{MODULE_IRI}#make_subclass")
+        sub_iri = URIRef(f"{MODULE_IRI}#make_subclass.Sub")
+
+        assert (fn_iri, SLKG.declares, sub_iri) in triples
+        assert (sub_iri, RDF.type, SLKG.Class) in triples
+        assert (sub_iri, RDFS.subClassOf, base_iri) in triples
+
+
+class TestVisibilityFlags:
+    SOURCE = '''\
+class _PrivateClass:
+    pass
+
+
+class PublicClass:
+    def public_method(self):
+        pass
+
+    def _private_method(self):
+        pass
+
+    def __dunder_method__(self):
+        pass
+
+
+def public_fn():
+    pass
+
+
+def _private_fn():
+    pass
+'''
+
+    def test_private_class_flagged(self, tmp_path):
+        triples = _extract(tmp_path, self.SOURCE)
+        iri = URIRef(f"{MODULE_IRI}#_PrivateClass")
+        assert (iri, SLKG.isPrivate, Literal(True)) in triples
+        assert not _objects(triples, iri, SLKG.isDunder)
+
+    def test_public_class_not_flagged(self, tmp_path):
+        triples = _extract(tmp_path, self.SOURCE)
+        iri = URIRef(f"{MODULE_IRI}#PublicClass")
+        assert not _objects(triples, iri, SLKG.isPrivate)
+        assert not _objects(triples, iri, SLKG.isDunder)
+
+    def test_public_method_not_flagged(self, tmp_path):
+        triples = _extract(tmp_path, self.SOURCE)
+        iri = URIRef(f"{MODULE_IRI}#PublicClass.public_method")
+        assert not _objects(triples, iri, SLKG.isPrivate)
+        assert not _objects(triples, iri, SLKG.isDunder)
+
+    def test_private_method_flagged(self, tmp_path):
+        triples = _extract(tmp_path, self.SOURCE)
+        iri = URIRef(f"{MODULE_IRI}#PublicClass._private_method")
+        assert (iri, SLKG.isPrivate, Literal(True)) in triples
+        assert not _objects(triples, iri, SLKG.isDunder)
+
+    def test_dunder_method_flagged_dunder_not_private(self, tmp_path):
+        triples = _extract(tmp_path, self.SOURCE)
+        iri = URIRef(f"{MODULE_IRI}#PublicClass.__dunder_method__")
+        assert (iri, SLKG.isDunder, Literal(True)) in triples
+        assert not _objects(triples, iri, SLKG.isPrivate)
+
+    def test_module_level_functions(self, tmp_path):
+        triples = _extract(tmp_path, self.SOURCE)
+        public_iri = URIRef(f"{MODULE_IRI}#public_fn")
+        private_iri = URIRef(f"{MODULE_IRI}#_private_fn")
+        assert not _objects(triples, public_iri, SLKG.isPrivate)
+        assert (private_iri, SLKG.isPrivate, Literal(True)) in triples
+
+
+class TestMethodOverrideSameFile:
+    SOURCE = '''\
+class Base:
+    def greet(self):
+        return "base"
+
+    def only_on_base(self):
+        return "ok"
+
+
+class Child(Base):
+    def greet(self):
+        return "child"
+'''
+
+    def test_overriding_method_gets_overrides_edge(self, tmp_path):
+        triples = _extract_multi(tmp_path, {"fixture.py": self.SOURCE})["fixture.py"]
+        child_greet = [s for s, p, o in triples if p == DCTERMS.identifier and o == Literal("starlayer.fixture.Child.greet")][0]
+        base_greet = [s for s, p, o in triples if p == DCTERMS.identifier and o == Literal("starlayer.fixture.Base.greet")][0]
+        assert (child_greet, SLKG.overrides, base_greet) in triples
+
+    def test_non_overriding_method_gets_no_edge(self, tmp_path):
+        triples = _extract_multi(tmp_path, {"fixture.py": self.SOURCE})["fixture.py"]
+        base_only = [s for s, p, o in triples if p == DCTERMS.identifier and o == Literal("starlayer.fixture.Base.only_on_base")][0]
+        assert not _objects(triples, base_only, SLKG.overrides)
+
+
+class TestMethodOverrideCrossFileNotDetected:
+    """Override detection is deliberately scoped to same-file base classes
+    only (approved scope, narrower than call resolution) - a real
+    override of a cross-file base method must get no edge in this
+    version, not a best-effort guess."""
+
+    def test_cross_file_override_gets_no_edge(self, tmp_path):
+        results = _extract_multi(
+            tmp_path,
+            {
+                "mod_a.py": "class Base:\n    def greet(self):\n        return 'base'\n",
+                "mod_b.py": (
+                    "from .mod_a import Base\n\n\n"
+                    "class Child(Base):\n"
+                    "    def greet(self):\n"
+                    "        return 'child'\n"
+                ),
+            },
+        )
+        b_triples = results["mod_b.py"]
+        # Find Child.greet's own IRI directly rather than hardcoding it.
+        greet_iris = [s for s, p, o in b_triples if p == RDFS.label and o == Literal("greet")]
+        assert len(greet_iris) == 1
+        assert not _objects(b_triples, greet_iris[0], SLKG.overrides)
+
+
+class TestCallResolutionSameFile:
+    SOURCE = '''\
+def helper_fn():
+    return 42
+
+
+def module_fn():
+    return helper_fn()
+
+
+class Thing:
+    def a(self):
+        return self.b()
+
+    def b(self):
+        return 1
+
+    def unresolved_call(self):
+        x = Thing()
+        return x.a()
+'''
+
+    def _id(self, triples, dotted_suffix):
+        matches = [s for s, p, o in triples if p == DCTERMS.identifier and o == Literal(f"starlayer.fixture.{dotted_suffix}")]
+        assert len(matches) == 1, f"expected exactly one {dotted_suffix!r}, found {len(matches)}"
+        return matches[0]
+
+    def test_bare_name_call_to_function_declared_later(self, tmp_path):
+        triples = _extract_multi(tmp_path, {"fixture.py": self.SOURCE})["fixture.py"]
+        caller = self._id(triples, "module_fn")
+        callee = self._id(triples, "helper_fn")
+        assert (caller, SLKG.calls, callee) in triples
+
+    def test_self_call_to_sibling_method(self, tmp_path):
+        triples = _extract_multi(tmp_path, {"fixture.py": self.SOURCE})["fixture.py"]
+        caller = self._id(triples, "Thing.a")
+        callee = self._id(triples, "Thing.b")
+        assert (caller, SLKG.calls, callee) in triples
+
+    def test_call_through_local_variable_is_not_resolved(self, tmp_path):
+        """x.a() where x is a local variable, not self/cls/a known module
+        alias/local class name - no type inference here, so this must get
+        no edge at all rather than a guessed one."""
+        triples = _extract_multi(tmp_path, {"fixture.py": self.SOURCE})["fixture.py"]
+        caller = self._id(triples, "Thing.unresolved_call")
+        calls = _objects(triples, caller, SLKG.calls)
+        a_method = self._id(triples, "Thing.a")
+        assert a_method not in calls
+
+
+class TestCallResolutionCrossFile:
+    def test_bare_import_call_resolves_across_files(self, tmp_path):
+        results = _extract_multi(
+            tmp_path,
+            {
+                "mod_a.py": "def shared():\n    return 1\n",
+                "mod_b.py": "from .mod_a import shared\n\n\ndef caller():\n    return shared()\n",
+            },
+        )
+        b_triples = results["mod_b.py"]
+        caller_iris = [s for s, p, o in b_triples if p == RDFS.label and o == Literal("caller")]
+        assert len(caller_iris) == 1
+        calls = _objects(b_triples, caller_iris[0], SLKG.calls)
+        assert len(calls) == 1
+        assert str(calls[0]).endswith("mod_a.py#shared")
+
+    def test_module_alias_call_resolves_across_files(self, tmp_path):
+        results = _extract_multi(
+            tmp_path,
+            {
+                "mod_a.py": "def shared():\n    return 1\n",
+                "mod_b.py": "from . import mod_a\n\n\ndef caller():\n    return mod_a.shared()\n",
+            },
+        )
+        b_triples = results["mod_b.py"]
+        caller_iris = [s for s, p, o in b_triples if p == RDFS.label and o == Literal("caller")]
+        assert len(caller_iris) == 1
+        calls = _objects(b_triples, caller_iris[0], SLKG.calls)
+        assert any(str(c).endswith("mod_a.py#shared") for c in calls)
+
+    def test_inherited_self_call_resolves_across_files(self, tmp_path):
+        results = _extract_multi(
+            tmp_path,
+            {
+                "mod_a.py": "class Base:\n    def helper(self):\n        return 1\n",
+                "mod_b.py": (
+                    "from .mod_a import Base\n\n\n"
+                    "class Child(Base):\n"
+                    "    def uses_inherited(self):\n"
+                    "        return self.helper()\n"
+                ),
+            },
+        )
+        b_triples = results["mod_b.py"]
+        caller_iris = [s for s, p, o in b_triples if p == RDFS.label and o == Literal("uses_inherited")]
+        assert len(caller_iris) == 1
+        calls = _objects(b_triples, caller_iris[0], SLKG.calls)
+        assert any(str(c).endswith("mod_a.py#Base.helper") for c in calls)
+
+
+class TestCallResolutionLocalImportShadowing:
+    """Regression coverage for a real case found in this project's own
+    shacl/validator.py: a function-local lazy import of a same-named
+    symbol must shadow a same-file module-level function of that name,
+    not be bypassed in favor of it."""
+
+    SOURCE = '''\
+def validate(x):
+    return "local " + str(x)
+
+
+def wraps_external():
+    from fixture_other import validate
+
+    return validate(1)
+'''
+
+    def test_local_import_shadows_same_file_function(self, tmp_path):
+        results = _extract_multi(tmp_path, {"fixture.py": self.SOURCE})
+        triples = results["fixture.py"]
+        caller_iris = [s for s, p, o in triples if p == RDFS.label and o == Literal("wraps_external")]
+        assert len(caller_iris) == 1
+        calls = _objects(triples, caller_iris[0], SLKG.calls)
+        local_validate_iris = [
+            s for s, p, o in triples if p == DCTERMS.identifier and o == Literal("starlayer.fixture.validate")
+        ]
+        assert len(local_validate_iris) == 1
+        # The call must NOT resolve to this file's own module-level
+        # validate() - fixture_other.validate isn't a real project module,
+        # so it must resolve to nothing at all, not fall back to the
+        # wrong, merely-same-named local function.
+        assert local_validate_iris[0] not in calls
+
+
+class TestCallResolutionWithoutSymbolIndex:
+    def test_no_symbol_index_degrades_gracefully_no_calls_edges(self, tmp_path):
+        """extract_module() with no symbol_index argument (the default,
+        None) must still extract everything else correctly - it just
+        can't resolve any calls, since there's no project-wide data to
+        resolve against."""
+        triples = _extract(
+            tmp_path,
+            "def helper():\n    return 1\n\n\ndef caller():\n    return helper()\n",
+        )
+        caller = URIRef(f"{MODULE_IRI}#caller")
+        assert not _objects(triples, caller, SLKG.calls)
+        # Everything else about caller is still extracted normally.
+        assert (caller, RDF.type, SLKG.Function) in triples

@@ -25,7 +25,7 @@ implementation *can* do that this module provides:
    sh:usedDataGraph/sh:usedShapesGraph/sh:validationReport identity
    linking it back to caller-meaningful graph IRIs unless the caller opts
    in. ``StarShaclSchema.validate()``'s own ``data_graph_iri=``/
-   ``shapes_graph=`` keyword arguments (SHACL 1.2 Core S6.7.1.5-6.7.1.6,
+   ``shapes_graph_resource=`` keyword arguments (SHACL 1.2 Core S6.7.1.5-6.7.1.6,
    see ``validator.py::_annotate_used_graphs_and_configuration``) already
    add the ``sh:usedDataGraph``/``sh:usedShapesGraph`` half of that identity
    when supplied - ``derive_conforms_to()`` reads those straight off the
@@ -89,12 +89,13 @@ def declared_conformance_profile() -> StarLayerGraph:
     elsewhere (see meta_shapes.py::build_meta_shapes_graph) of never
     sharing one mutable graph object across callers.
 
-    Returns a ``StarLayerGraph`` (2026-10-11) - this is a public,
-    caller-facing result meant to be inspected/serialized/merged, not
-    internal plumbing fed straight to pySHACL, so it follows this
-    project's "never hand back a plain rdflib.Graph unless that's
-    deliberately the point" convention (see ``starontology``'s own
-    identical fix the same day, and ``derive_conforms_to()``'s below).
+    Returns a ``StarLayerGraph``, not a plain ``rdflib.Graph`` - this is a
+    public, caller-facing result meant to be inspected/serialized/merged,
+    not internal plumbing fed straight to pySHACL.
+
+    Returns:
+        A fresh StarLayerGraph containing the bundled conformance
+        statement.
     """
     from starlayer.graph import (
         StarLayerGraph,  # lazy: avoids a circular-import deadlock
@@ -119,10 +120,14 @@ def _bind_derived_namespaces(graph: Any, *sources: Any) -> None:
     available in this module (no ``data_graph``/``shacl_graph``/
     ``ont_graph`` graph objects here, only IRIs - ``report_graph``/
     ``specification_graph`` are the only real graphs this function ever
-    sees). ``sh``/``prof``/``dcterms`` are bound unconditionally first,
-    since every triple this module derives uses at least one of them;
-    then each source's own bound prefixes are layered on top, in the
-    order given, first-bound-wins.
+    sees).
+
+    Args:
+        graph: The graph to bind namespaces onto, in place.
+        *sources: Graphs whose own bound prefixes are layered on top of
+            ``sh``/``prof``/``dcterms`` (bound unconditionally first,
+            since every triple this module derives uses at least one of
+            them), in the order given, first-bound-wins.
     """
     from rdflib import Namespace
     from rdflib.namespace import NamespaceManager
@@ -155,60 +160,63 @@ def derive_conforms_to(
     """Derive ``sh:conformsTo`` triples from a validation report, per
     SHACL 1.2 Profiling S5.5.
 
-    ``report_graph`` is a plain SHACL validation report graph (e.g.
-    ``ValidationResult.report_graph``). ``data_graph``/``shapes_graph``
-    name the data/shapes graphs as RDF resources - IRIs or IRI-like
-    strings, using whatever identity scheme the caller's application
-    already uses (a dataset-catalog IRI, a named-graph IRI - there is no
-    single right default). Both are optional here: if the report was
-    produced by ``validate(..., data_graph_iri=..., shapes_graph=...)``,
-    the matching ``sh:usedDataGraph``/``sh:usedShapesGraph`` triples are
-    already on the report and are read from there when the corresponding
-    argument is omitted - only pass them explicitly for a report that
-    wasn't given that identity at validation time. Raises ``ValueError``
-    if ``report_graph`` has no ``sh:ValidationReport`` node, or if a graph
-    IRI is neither supplied nor recoverable from the report.
-
     Only conforming reports (``sh:conforms true``) produce a
     ``sh:conformsTo`` triple, matching the rule's own WHERE clause - a
     non-conformant report derives nothing.
 
-    If ``specification_graph`` is given - any graph asserting
-    ``prof:isProfileOf`` on ``shapes_graph`` itself (e.g. a
-    ``prof:Profile`` declaration for the shapes graph the caller
-    validated against) - the second S5.5 rule also runs once the first
-    has fired, additionally deriving ``dcterms:conformsTo`` triples to
-    whatever specification(s) ``shapes_graph`` is declared a profile of.
-    Not the same relationship ``declared_conformance_profile()`` records
-    (that one is *this library's* own conformance to named SHACL 1.2
-    feature profiles, a different resource than ``shapes_graph``) - pass
-    a graph relating ``shapes_graph`` itself to whatever it profiles.
+    If ``specification_graph`` is given, the second S5.5 rule also runs
+    once the first has fired, additionally deriving ``dcterms:conformsTo``
+    triples to whatever specification(s) ``shapes_graph`` is declared a
+    profile of. This is not the same relationship
+    ``declared_conformance_profile()`` records (that one is *this
+    library's* own conformance to named SHACL 1.2 feature profiles, a
+    different resource than ``shapes_graph``) - pass a graph relating
+    ``shapes_graph`` itself to whatever it profiles.
 
-    Returns a new ``StarLayerGraph`` (2026-10-11 - was a plain
-    ``rdflib.Graph``, found wrong via a real `.serialize(format="turtle12")`
-    failure, the same bug class ``starontology.get_conformance_profiles()``
-    had the same day). ``report_graph``/``specification_graph`` are read,
-    never mutated, either way.
+    Args:
+        report_graph: A plain SHACL validation report graph (e.g.
+            ``ValidationResult.report_graph``). Read, never mutated.
+        data_graph: The data graph as an RDF resource - an IRI or
+            IRI-like string, using whatever identity scheme the caller's
+            application already uses (a dataset-catalog IRI, a
+            named-graph IRI - there is no single right default).
+            Optional: if the report was produced by
+            ``validate(..., data_graph_iri=..., shapes_graph_resource=...)``,
+            the matching ``sh:usedDataGraph`` triple is already on the
+            report and is read from there when this is omitted.
+        shapes_graph: The shapes graph as an RDF resource, same
+            optionality and fallback as ``data_graph`` (read from the
+            report's own ``sh:usedShapesGraph`` when omitted).
+        specification_graph: A graph asserting ``prof:isProfileOf`` on
+            ``shapes_graph`` itself (e.g. a ``prof:Profile`` declaration
+            for the shapes graph the caller validated against), to
+            additionally derive ``dcterms:conformsTo`` triples via S5.5's
+            second rule (see above). Read, never mutated. ``None`` (the
+            default) skips this second rule entirely.
+        conforms_only: If ``True``, the returned graph contains *only* the
+            ``sh:conformsTo``/``dcterms:conformsTo`` triples themselves -
+            not ``report_graph``, and not even the ``sh:validationReport``
+            link this function otherwise adds (that link exists to
+            justify the conformance claim with a path back to the report,
+            which ``conforms_only`` says isn't wanted) - useful when a
+            caller only cares about the conformance claims themselves,
+            e.g. to merge into a dataset catalog entry that has no reason
+            to reference a SHACL validation report at all. If ``False``
+            (the default), the returned graph is ``report_graph`` merged
+            with whatever got newly derived - a self-contained,
+            immediately printable/serializable result, where the added
+            ``sh:validationReport`` link resolves to a real,
+            fully-described node rather than a dangling blank-node
+            reference.
 
-    By default (``conforms_only=False``, 2026-10-11 - was the only
-    behavior before this flag existed), the returned graph is
-    ``report_graph`` merged with whatever got newly derived - a
-    self-contained, immediately printable/serializable result. The
-    ``sh:validationReport`` link this function adds (see below) then
-    resolves to a real, fully-described node rather than a dangling
-    blank-node reference with nothing behind it - the problem with
-    printing *only* the new triples on their own, found live via this
-    project's own user guide notebook.
+    Returns:
+        A new ``StarLayerGraph``. ``report_graph``/``specification_graph``
+        are read, never mutated.
 
-    Pass ``conforms_only=True`` for a graph containing *only* the
-    ``sh:conformsTo``/``dcterms:conformsTo`` triples themselves - not
-    ``report_graph``, and not even the ``sh:validationReport`` link this
-    function otherwise adds (that link exists to justify the conformance
-    claim with a path back to the report, which is exactly what
-    ``conforms_only`` says isn't wanted here) - useful when a caller
-    only cares about the conformance claims themselves, e.g. to merge
-    into a dataset catalog entry that has no reason to reference a
-    SHACL validation report at all.
+    Raises:
+        ValueError: If ``report_graph`` has no ``sh:ValidationReport``
+            node, or if a graph identity (``data_graph``/``shapes_graph``)
+            is neither supplied nor recoverable from the report.
     """
     report_node = _find_report_node(report_graph)
     if report_node is None:
@@ -226,7 +234,7 @@ def derive_conforms_to(
         if shapes_graph is None:
             raise ValueError(
                 "shapes_graph not supplied and report_graph has no sh:usedShapesGraph - "
-                "pass shapes_graph= explicitly, or re-run validate(..., shapes_graph=...)."
+                "pass shapes_graph= explicitly, or re-run validate(..., shapes_graph_resource=...)."
             )
 
     data_graph_iri = data_graph if isinstance(data_graph, URIRef) else URIRef(str(data_graph))

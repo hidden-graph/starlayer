@@ -138,6 +138,13 @@ def can_resolve_import(iri: Any, *, loader: Callable[[Any], Any | None]) -> bool
     resolving would - there is no cheaper way to ask "would this work"
     short of trying it, since only the loader itself knows what it can
     reach.
+
+    Args:
+        iri: The import target to test.
+        loader: Resolves an IRI to a graph, or ``None`` if it can't.
+
+    Returns:
+        True if ``loader(iri)`` returns a graph rather than ``None``.
     """
     return loader(iri) is not None
 
@@ -151,21 +158,21 @@ _raw_triples = Graph.triples
 
 
 class _UnionForQuery(ReadOnlyGraphAggregate):
-    """A 2-member ReadOnlyGraphAggregate, fixed to evaluate a property-path
+    """A 2-member ReadOnlyGraphAggregate that evaluates a property-path
     predicate exactly once against the union as a whole, instead of once per
     member graph.
 
-    Confirmed live: plain rdflib's ReadOnlyGraphAggregate.triples() evaluates
-    a Path-typed predicate by calling p.eval(self, s, o) *inside* its own
-    per-member loop (rdflib/graph.py's own triples() implementation) - for a
-    fixed 2-member aggregate this means the whole path is evaluated against
-    the entire aggregate twice, a deterministic doubling of every
-    path-matched solution row. Ordinary (non-Path) triple patterns are
-    unaffected by this bug and don't need the override - used here to union
-    a graph with its own owl-rl entailment delta (query()'s
-    entailment=ENTAILMENT["OWL-RDF-Based"] - see that branch), which are provably disjoint by
-    construction (a delta triple is defined as "not already present"), so a
-    plain triple can never double-yield either way.
+    Plain rdflib's ReadOnlyGraphAggregate.triples() evaluates a Path-typed
+    predicate by calling p.eval(self, s, o) *inside* its own per-member loop
+    (rdflib/graph.py's own triples() implementation) - for a fixed 2-member
+    aggregate this means the whole path is evaluated against the entire
+    aggregate twice, a deterministic doubling of every path-matched solution
+    row. Ordinary (non-Path) triple patterns are unaffected and don't need
+    the override - used here to union a graph with its own owl-rl
+    entailment delta (query()'s entailment=ENTAILMENT["OWL-RDF-Based"] - see
+    that branch), which are provably disjoint by construction (a delta
+    triple is defined as "not already present"), so a plain triple can
+    never double-yield either way.
     """
     def triples(self, triple):
         s, p, o = triple
@@ -201,6 +208,12 @@ def _unfold_tt_encoding(g) -> Graph:
       the store already holds real TripleTerm values. Walks g.triples()
       (the *decoded* public view, which for a native backend already
       returns real TripleTerm objects) and unfolds those instead.
+
+    Args:
+        g: The graph to unfold - a StarLayerGraph or a plain rdflib.Graph.
+
+    Returns:
+        A new plain rdflib.Graph with every triple term replaced by a BNode.
     """
     if getattr(g, '_is_native', False):
         return _unfold_native_triple_terms(g)
@@ -226,6 +239,12 @@ def _unfold_native_triple_terms(g) -> Graph:
     at all for a native backend), so this unfolds *those* directly into a
     fresh-BNode-based reification shape instead of decoding store-level
     encoding triples.
+
+    Args:
+        g: The native-backend graph to unfold.
+
+    Returns:
+        A new plain rdflib.Graph with every triple term replaced by a BNode.
     """
     fresh: dict = {}
 
@@ -251,17 +270,25 @@ def _unfold_native_triple_terms(g) -> Graph:
 _TT_NOT_FOUND = object()
 
 
-def _is_tt_like(node):
+def _is_tt_like(node: Any) -> bool:
+    """True if node is a TripleTerm or a plain 3-tuple standing in for one."""
     return isinstance(node, (TripleTerm, tuple)) and (
         isinstance(node, TripleTerm) or len(node) == 3
     )
 
 
-def _needs_encoding(node):
+def _needs_encoding(node: Any) -> bool:
     """True if node is a Python value type that _coerce_tt/_coerce_tt_read
     must translate to its internal store representation before it can be
     written or matched: a TripleTerm/tuple (→ tt:HASH URIRef) or a
-    DirLangString (→ Literal with the internal dirlang: datatype)."""
+    DirLangString (→ Literal with the internal dirlang: datatype).
+
+    Args:
+        node: The candidate value.
+
+    Returns:
+        True if node needs translation before it can be written or matched.
+    """
     return _is_tt_like(node) or isinstance(node, DirLangString)
 
 
@@ -270,8 +297,17 @@ def _read_source_text(source=None, file=None, location=None, data=None) -> str:
 
     Precedence matches rdflib's own parse() convention: data, then file,
     then location, then source. Shared by StarLayerGraph.parse() and
-    StarLayerDataset._read_source() (which previously each implemented this
-    exact resolution independently).
+    StarLayerDataset._read_source(), which would otherwise each need to
+    implement this exact resolution independently.
+
+    Args:
+        source: A file path, URL, or raw text string.
+        file: A file-like object or path to read.
+        location: A file path or URL string to read.
+        data: Raw text, taking precedence over all other arguments.
+
+    Returns:
+        The resolved source text.
     """
     from pathlib import Path
     if data is not None:
@@ -302,6 +338,10 @@ def _check_single_graph(graph_ids, *, format: str) -> None:
     parses normally into this graph; two or more raises, since flattening
     them together would silently mix unrelated graphs with no way for the
     caller to know.
+
+    Args:
+        graph_ids: The distinct graph identifiers found while parsing.
+        format: The source format name, used only in the error message.
     """
     if len(graph_ids) > 1:
         from starlayer.graph.parsers.errors import MultipleGraphsError
@@ -334,8 +374,8 @@ class StarLayerGraph(Graph):
             # halves of the API would silently disagree about which graph
             # is "self's data" - query()/update() see the endpoint's real
             # default graph, infer()/triples() see an empty, unreachable
-            # GRAPH <random-bnode-iri> instead. Confirmed live. Defaulting
-            # here - only when the caller supplied no identifier of their
+            # GRAPH <random-bnode-iri> instead. Defaulting here - only when
+            # the caller supplied no identifier of their
             # own (len(args) < 2 leaves a *positional* identifier alone;
             # kwargs.get('identifier') is None covers both "omitted" and
             # explicit identifier=None, which rdflib's own Graph.__init__
@@ -388,13 +428,9 @@ class StarLayerGraph(Graph):
         """Called from every place this graph's own triple content changes
         (add/addN/remove, parse(), update(), add_reification()) - notifies
         StarLayerDataset's raw-query-cache hook (_invalidate_callback, if
-        set), and bumps _mutation_generation (see VALID_INFER_MODES).
-        Consolidates what used to be six separate "if
-        self._invalidate_callback: self._invalidate_callback()" call sites
-        into one, and closes three gaps found while doing so (update() on
-        both backends, the non-native turtle12/trig12 parse() branches,
-        add_reification()'s non-native branch all used to bypass the hook
-        entirely).
+        set), and bumps _mutation_generation (see VALID_INFER_MODES). The
+        single shared call site every mutating method must go through,
+        rather than each implementing its own invalidation.
         """
         if self._invalidate_callback:
             self._invalidate_callback()
@@ -411,7 +447,7 @@ class StarLayerGraph(Graph):
         SPARQLUpdateStore - which categorically cannot write, or be
         queried with, a real blank node at all (``_node_to_sparql()``
         raises "SPARQLStore does not support BNodes!" unconditionally,
-        for reads or writes, native backend or not - confirmed live).
+        for reads or writes, native backend or not).
 
         The native (rdf-1.2) backend already has its own answer to this
         (``_native_add``/``_native_add_many`` skolemize or batch to
@@ -488,6 +524,8 @@ class StarLayerGraph(Graph):
         return f'GRAPH <{self.identifier}> {{ {body} }}'
 
     def _native_add(self, s, p, obj) -> None:
+        """Write a single (s, p, obj) triple to this graph via one SPARQL
+        Update HTTP request."""
         from starlayer.graph.backends.native import http_update, sparql_term
         from starlayer.graph.model.triple import TripleTerm as _TT
         q_url, u_url, hdrs = self._store_http()
@@ -519,10 +557,7 @@ class StarLayerGraph(Graph):
         its real identity for free, and Oxigraph's own engine still
         recognizes it as a genuine blank node (correct ``ORDER BY`` term-kind
         position, ``isBLANK()``) rather than the URI ``skolemize_bnode()``
-        would otherwise turn it into. Confirmed via the W3C SPARQL 1.2
-        eval-triple-terms/order-1 and order-2 fixtures, whose ``ORDER BY``
-        over a blank node alongside an IRI/literal/triple-term only sorts
-        correctly this way.
+        would otherwise turn it into.
 
         Used by ``parse()``/``addN()`` for a single ``StarLayerGraph``,
         where every triple is known up front and destined for this one
@@ -559,6 +594,10 @@ class StarLayerGraph(Graph):
         self._on_mutated()
 
     def _native_triples(self, triple):
+        """Native-backend body of triples() - issues an ASK (fully ground
+        pattern) or a SELECT (any free variable) over HTTP, resolving a
+        bound BNode via provenance-tracked join rather than by label (see
+        the nested functions below for why)."""
         from rdflib import BNode
         from rdflib.term import Variable
 
@@ -684,7 +723,15 @@ class StarLayerGraph(Graph):
     def _coerce_tt(self, node):
         """Translate a tuple/TripleTerm to its internal URIRef, or a DirLangString
         to its internal datatype-encoded Literal, creating it if new.
-        Use only on write paths (add, add_reification). For reads use _coerce_tt_read."""
+        Use only on write paths (add, add_reification) - for reads use _coerce_tt_read.
+
+        Args:
+            node: The value to coerce - a TripleTerm, a 3-tuple, a
+                DirLangString, or any other node (passed through unchanged).
+
+        Returns:
+            The internal store representation of node.
+        """
         if node is None:
             return None
         if isinstance(node, TripleTerm):
@@ -699,12 +746,20 @@ class StarLayerGraph(Graph):
 
     def _coerce_tt_read(self, node):
         """Translate a tuple/TripleTerm to its URIRef, or a DirLangString to its
-        internal datatype-encoded Literal, for read-only paths.
-        Returns _TT_NOT_FOUND if the TripleTerm is not registered — never creates.
-        A DirLangString always succeeds — unlike a TripleTerm, its encoding is a
+        internal datatype-encoded Literal, for read-only paths - never creates.
+
+        A DirLangString always succeeds - unlike a TripleTerm, its encoding is a
         pure function of its own value and needs no registry lookup to exist.
         Partial-wildcard tuples (containing None) are not handled here; callers
-        should check _is_tt_wildcard and use _matching_tt_uris instead."""
+        should check _is_tt_wildcard and use _matching_tt_uris instead.
+
+        Args:
+            node: The value to coerce.
+
+        Returns:
+            The internal store representation of node, or _TT_NOT_FOUND if
+            node is a TripleTerm/tuple not already registered in this graph.
+        """
         if node is None:
             return None
         if isinstance(node, TripleTerm):
@@ -720,7 +775,14 @@ class StarLayerGraph(Graph):
 
     @staticmethod
     def _is_tt_wildcard(node) -> bool:
-        """True if node is a tuple pattern containing at least one None — a wildcard triple-term."""
+        """True if node is a tuple pattern containing at least one None - a wildcard triple-term.
+
+        Args:
+            node: The candidate pattern.
+
+        Returns:
+            True if node is a 3-tuple with at least one None component.
+        """
         return (
             isinstance(node, tuple)
             and len(node) == 3
@@ -732,6 +794,13 @@ class StarLayerGraph(Graph):
 
         Each component of pattern may be None (wildcard) or a ground value.
         Comparison is against the TripleTerm's stored subject/predicate/object.
+
+        Args:
+            pattern: A (subject, predicate, object) pattern; any component
+                may be None to match any value.
+
+        Returns:
+            A generator of matching tt:HASH URIRefs.
         """
         s_pat, p_pat, o_pat = pattern
         for uri, tt in self._tt_nodes.items():
@@ -746,9 +815,13 @@ class StarLayerGraph(Graph):
     def _coerce_choices(self, node):
         """Coerce a subject/object slot in triples_choices.
 
-        Returns (coerced, skip):
-          skip=True  → the caller should yield nothing (TripleTerm not in registry)
-          skip=False → coerced is the value or list to pass to the store
+        Args:
+            node: None, a single node/TripleTerm/tuple, or a list of them.
+
+        Returns:
+            A (coerced, skip) pair: skip=True means the caller should yield
+            nothing (a TripleTerm in node was not in the registry);
+            otherwise coerced is the value or list to pass to the store.
         """
         if node is None:
             return None, False
@@ -775,6 +848,13 @@ class StarLayerGraph(Graph):
         BNode that cannot match anything in the store, giving correct "zero
         rows" semantics rather than silently comparing a raw Python object
         against store terms it can never equal.
+
+        Args:
+            init_bindings: The SPARQL initBindings mapping to encode.
+
+        Returns:
+            An equivalent mapping with every TripleTerm/tuple/DirLangString
+            value resolved to its internal store representation.
         """
         if not init_bindings:
             return init_bindings
@@ -789,7 +869,14 @@ class StarLayerGraph(Graph):
         return encoded
 
     def _intern_tt(self, tt: TripleTerm) -> URIRef:
-        """Return the content-addressed URIRef encoding of tt, creating it if new."""
+        """Return the content-addressed URIRef encoding of tt, creating it if new.
+
+        Args:
+            tt: The triple term to intern.
+
+        Returns:
+            The tt:HASH URIRef naming tt.
+        """
         key = tt._key()
         if key in self._tt_registry:
             return self._tt_registry[key]
@@ -815,8 +902,15 @@ class StarLayerGraph(Graph):
         Recurses for TripleTerm so a nested triple term (whose subject/object
         component is itself an encoded tt:HASH URIRef) resolves fully rather
         than leaving an inner URIRef unresolved. DirLangString decoding needs
-        no recursion — its encoding is a single self-describing Literal, not a
+        no recursion - its encoding is a single self-describing Literal, not a
         chain of triples.
+
+        Args:
+            node: The store-level node to restore.
+
+        Returns:
+            The decoded TripleTerm/DirLangString, or node unchanged if it
+            isn't one of this graph's internal encodings.
         """
         if isinstance(node, URIRef) and str(node).startswith(TT_NS):
             tt = self._tt_nodes.get(node)
@@ -837,8 +931,17 @@ class StarLayerGraph(Graph):
                 return dls
         return node
 
-    def _is_encoding_triple(self, s, p, o):
-        """True if (s, p, o) is internal infrastructure that must not be surfaced."""
+    def _is_encoding_triple(self, s, p, o) -> bool:
+        """True if (s, p, o) is internal infrastructure that must not be surfaced.
+
+        Args:
+            s: The triple's subject.
+            p: The triple's predicate.
+            o: The triple's object.
+
+        Returns:
+            True if the triple is part of the internal tt:HASH encoding.
+        """
         if isinstance(s, URIRef) and str(s).startswith(TT_NS):
             if p in _ENCODING_PREDS:
                 return True
@@ -887,10 +990,8 @@ class StarLayerGraph(Graph):
 
         Delegates to rdflib's Graph.open() then scans the store for any
         existing tt:HASH encoding triples so TripleTerms are immediately
-        usable without a separate rebuild call. Returns self, not whatever
-        status value rdflib's own Graph.open() returns (fixed 2026-10-04 -
-        this override used to blindly forward that raw result, even though
-        its own annotation already claimed StarLayerGraph).
+        usable without a separate rebuild call. Always returns self, not
+        rdflib's own Graph.open() status value.
 
         The store backend (e.g. Sleepycat, rdflib-sqlalchemy) is not a
         StarLayer dependency — install and configure it separately, then
@@ -916,10 +1017,9 @@ class StarLayerGraph(Graph):
 
     def add(self, triple) -> StarLayerGraph:
         """Add a triple. A TripleTerm (or plain 3-tuple) in the object position is
-        converted to its internal encoding automatically. Returns self, matching
-        rdflib's own Graph.add() - fixed 2026-10-04, this override used to fall
-        off the end and return None instead, silently breaking chaining
-        (g.add(...).add(...)) that works fine on plain rdflib.Graph.
+        converted to its internal encoding automatically. Always returns self,
+        matching rdflib's own Graph.add() and enabling method chaining
+        (g.add(...).add(...)).
 
             g.add((s, p, o))              # plain triple
             g.add((s, p, TripleTerm(...))) # TripleTerm as object
@@ -955,9 +1055,15 @@ class StarLayerGraph(Graph):
         Unlike the default Graph.addN() → store.addN() path, this override
         collects encoding triples (rdf:subject/predicate/object for each
         TripleTerm) together with the main triples so that all inserts are
-        submitted to the store in a single batch.  On transaction-aware
+        submitted to the store in a single batch. On transaction-aware
         backends (SQLAlchemy, Sleepycat) this means one commit instead of
         three per triple term, which is significantly faster for bulk loads.
+
+        Args:
+            quads: An iterable of (subject, predicate, object, context) quads.
+
+        Returns:
+            self, enabling method chaining.
         """
         if self._is_native:
             own_triples = [
@@ -1021,12 +1127,11 @@ class StarLayerGraph(Graph):
     def _native_remove(self, s, p, obj) -> None:
         """Remove triples matching (s, p, obj) via raw SPARQL Update -
         mirrors _native_add()/_native_triples()'s own dispatch rather than
-        rdflib's own ``Graph.remove()`` -> ``store.remove()``, which
-        previously reached rdflib's ``SPARQLUpdateStore`` directly and
-        crashed outright on any BNode (``_node_to_sparql()`` raises
-        "SPARQLStore does not support BNodes!", confirmed live against
-        Oxigraph - it has no ``skolemize_bnode()`` of its own to fall
-        back on, unlike this class's own read/write paths).
+        rdflib's own ``Graph.remove()`` -> ``store.remove()``, which reaches
+        rdflib's ``SPARQLUpdateStore`` directly and crashes outright on any
+        BNode (``_node_to_sparql()`` raises "SPARQLStore does not support
+        BNodes!") - it has no ``skolemize_bnode()`` of its own to fall back
+        on, unlike this class's own read/write paths.
 
         None in any position is a wildcard (matching rdflib's own
         ``Graph.remove()`` contract), handled with a ``DELETE {p} WHERE
@@ -1065,9 +1170,9 @@ class StarLayerGraph(Graph):
         http_update(u_url, sparql, hdrs)
 
     def remove(self, triple) -> StarLayerGraph:
-        """Remove a triple. Returns self (matching rdflib's own Graph.remove(),
-        fixed 2026-10-04 - same missing-return bug as add() above) immediately
-        if a TripleTerm in the pattern is not registered."""
+        """Remove a triple matching the pattern. Always returns self, matching
+        rdflib's own Graph.remove() - including when a TripleTerm in the
+        pattern is not registered, in which case this is a no-op."""
         s, p, obj = triple
         if self._is_native:
             self._native_remove(s, p, obj)
@@ -1090,13 +1195,21 @@ class StarLayerGraph(Graph):
         """Iterate triples matching the pattern. Filters internal encoding triples.
 
         TripleTerms in results are returned as TripleTerm objects, not raw URIRefs.
-        Returns nothing if a TripleTerm in the pattern is not registered in this graph.
+        Yields nothing if a TripleTerm in the pattern is not registered in this graph.
 
-        Wildcard triple-term patterns — tuples containing None — are supported in
-        subject and object positions.  ``(None, None, None)`` matches any triple
+        Wildcard triple-term patterns - tuples containing None - are supported in
+        subject and object positions. ``(None, None, None)`` matches any triple
         term; ``(EX.alice, None, None)`` matches only triple terms whose subject
-        is EX.alice.  The fan-out is O(k) where k is the number of registered
+        is EX.alice. The fan-out is O(k) where k is the number of registered
         triple terms that match the pattern.
+
+        Args:
+            triple: The (subject, predicate, object) pattern to match; any
+                position may be None, and subject/object may be a
+                TripleTerm or a wildcard tuple.
+
+        Returns:
+            A generator of matching (subject, predicate, object) triples.
         """
         if self._is_native:
             yield from self._native_triples(triple)
@@ -1141,8 +1254,18 @@ class StarLayerGraph(Graph):
 
         For each registered TripleTerm whose encoding matches the wildcard
         pattern, issues one store query with the concrete tt:HASH URI and
-        unions the results.  A seen-set prevents duplicates when both
+        unions the results. A seen-set prevents duplicates when both
         subject and object carry wildcard patterns.
+
+        Args:
+            s: The subject pattern (a wildcard tuple if s_wild).
+            p: The predicate pattern.
+            obj: The object pattern (a wildcard tuple if o_wild).
+            s_wild: True if s is a wildcard triple-term pattern.
+            o_wild: True if obj is a wildcard triple-term pattern.
+
+        Returns:
+            A generator of matching (subject, predicate, object) triples.
         """
         s_uris  = list(self._matching_tt_uris(s))   if s_wild else None
         o_uris  = list(self._matching_tt_uris(obj))  if o_wild else None
@@ -1173,9 +1296,8 @@ class StarLayerGraph(Graph):
         """Native-backend body of triples_choices() - built directly as a
         SPARQL SELECT with a VALUES clause per list-valued position rather
         than delegating to the store: SPARQLStore.triples_choices() (the
-        rdflib base class's own implementation) is an unconditional
-        ``raise NotImplementedError("Triples choices currently not
-        supported")`` - confirmed live against Oxigraph before this fix.
+        rdflib base class's own implementation) unconditionally raises
+        ``NotImplementedError("Triples choices currently not supported")``.
         A single HTTP round trip regardless of how many choices are given,
         same shape as _native_triples()'s own free-variable/ASK-vs-SELECT
         dispatch.
@@ -1216,6 +1338,13 @@ class StarLayerGraph(Graph):
         Each position may be None (wildcard), a single node, or a list of nodes.
         TripleTerms not registered in this graph are silently dropped from lists;
         an unregistered single TripleTerm causes the method to yield nothing.
+
+        Args:
+            triple: The (subject, predicate, object) choices pattern.
+            context: Passed through to the non-native base implementation.
+
+        Returns:
+            A generator of matching (subject, predicate, object) triples.
         """
         s, p, o = triple
         if self._is_native:
@@ -1229,8 +1358,16 @@ class StarLayerGraph(Graph):
             if not self._is_encoding_triple(s_r, p_r, o_r):
                 yield (self._restore(s_r), p_r, self._restore(o_r))
 
-    def __contains__(self, triple):
-        """Test triple membership. Returns False if a TripleTerm in the pattern is not registered."""
+    def __contains__(self, triple) -> bool:
+        """Test triple membership.
+
+        Args:
+            triple: The (subject, predicate, object) pattern to test.
+
+        Returns:
+            True if a matching triple exists; False if it doesn't, or if a
+            TripleTerm in the pattern is not registered in this graph.
+        """
         s, p, obj = triple
         if self._is_native:
             return any(True for _ in self._native_triples((s, p, obj)))
@@ -1266,21 +1403,10 @@ class StarLayerGraph(Graph):
             # for triples() to filter, so the underlying store's own
             # O(1) count (rdflib.Graph.__len__ -> Store.__len__, a plain
             # dict length for the default Memory store) already *is* the
-            # visible count. Same "empty registry => representation-safe
-            # plain graph" invariant already relied on elsewhere in this
-            # class (see infer()'s own fast_path).
-            #
-            # Confirmed as a real, measured bug, not a theoretical one:
-            # the unconditional full triples()-iteration below made
-            # every len(graph) call O(n) regardless of whether there was
-            # anything to filter - and pySHACL's own validator calls
-            # len(data_graph)/len(shapes_graph) thousands of times during
-            # a single validate() pass (shape cardinality/recursion
-            # bookkeeping). Profiled directly: one validate_query() call
-            # against a ~1700-triple, triple-term-free shapes+ontology
-            # graph made 21,049 len() calls, each re-scanning the whole
-            # graph - 28.9 million triples() iterations, ~104s of a
-            # 114s total call, for a graph with nothing to filter at all.
+            # visible count, far cheaper than re-deriving it via a full
+            # filtered triples() scan below. Same "empty registry =>
+            # representation-safe plain graph" invariant already relied
+            # on elsewhere in this class (see infer()'s own fast_path).
             return super().__len__()
         return sum(1 for _ in self.triples((None, None, None)))
 
@@ -1289,11 +1415,22 @@ class StarLayerGraph(Graph):
     # ------------------------------------------------------------------
 
     def _native_reifiers(self, TT, predicate, object):
-        """Native-backend body of reifiers() - uses self.triples() (which
-        dispatches through _native_triples()) rather than the rdf-1.1 path's
-        super().triples() + _tt_registry lookup, neither of which mean
-        anything for a native backend (no tt:HASH encoding, no local
-        registry of what's in the live store).
+        """Native-backend implementation of reifiers().
+
+        Uses self.triples() (which dispatches through _native_triples())
+        rather than the rdf-1.1 path's super().triples() + _tt_registry
+        lookup, neither of which applies to a native backend (no tt:HASH
+        encoding, no local registry of what's in the live store).
+
+        Args:
+            TT: Only yield reifiers that rdf:reifies this triple term.
+            predicate: Only yield reifiers with (reifier, predicate, ?)
+                in the graph.
+            object: Only yield reifiers with (reifier, ?, object) in
+                the graph.
+
+        Yields:
+            Reifier nodes matching the given filters.
         """
         if TT is not None:
             tt_reifiers = {r for r, _, _ in self.triples((None, RDF_REIFIES, TT))}
@@ -1320,11 +1457,7 @@ class StarLayerGraph(Graph):
     def add_reifier_annotation(self, predicate, obj, name=None) -> IdentifiedNode:
         """Create a reifier node and add one annotation property to it.
 
-        Returns the reifier node itself - a ``URIRef`` if ``name`` was
-        given, otherwise a fresh ``BNode`` - so it can be passed straight
-        into ``add_reification()`` (see below).
-
-        The node is not yet a reifier until add_reification() is called.
+        The node is not yet a reifier until add_reification() is called::
 
             r = g.add_reifier_annotation(EX.confidence, Literal("0.9"), name=EX.stmt1)
             g.add_reification(r, (EX.bob, EX.knows, EX.carol))
@@ -1334,6 +1467,17 @@ class StarLayerGraph(Graph):
                 g.add_reifier_annotation(EX.reported, EX.NYTimes),
                 triple_term
             )
+
+        Args:
+            predicate: The annotation predicate.
+            obj: The annotation value.
+            name: If given, the reifier's URI; otherwise a fresh BNode
+                is minted.
+
+        Returns:
+            The reifier node - a ``URIRef`` if ``name`` was given,
+            otherwise a fresh ``BNode`` - ready to pass into
+            ``add_reification()``.
         """
         reifier = URIRef(name) if name is not None else BNode()
         self.add((reifier, predicate, obj))
@@ -1341,10 +1485,17 @@ class StarLayerGraph(Graph):
 
     def add_reification(self, reifier, triple_term) -> StarLayerGraph:
         """Add reifier rdf:reifies triple_term, making the node an official
-        reifier. Returns this graph, matching every other mutating method
-        on this class (add()/remove()/addN()/etc) - added 2026-10-04, this
-        used to return None, the one mutating method that didn't support
-        chaining."""
+        reifier.
+
+        Args:
+            reifier: The node to make a reifier.
+            triple_term: The TripleTerm to reify - a TripleTerm, or an
+                (s, p, o) tuple to wrap into one.
+
+        Returns:
+            This graph, matching every other mutating method on this
+            class (add()/remove()/addN()/etc), so calls can be chained.
+        """
         tt = triple_term if isinstance(triple_term, TripleTerm) else TripleTerm(*triple_term)
         if self._is_native:
             # self.add() (-> _native_add()) writes tt using the backend's
@@ -1353,9 +1504,7 @@ class StarLayerGraph(Graph):
             # dispatch entirely, correct only for that encoding) - using it
             # here for native would write raw rdf:subject/predicate/object
             # fragments straight into a live RDF-1.2 endpoint instead of a
-            # real triple term. Confirmed live: a second StarLayerGraph
-            # object (same store, no shared in-process state) read back
-            # nothing but the fragments via this path before this fix.
+            # real triple term.
             self.add((reifier, RDF_REIFIES, tt))
             return self
         tt_uri = self._intern_tt(tt)
@@ -1366,12 +1515,18 @@ class StarLayerGraph(Graph):
     def reifiers(self, TT=None, predicate=None, object=None) -> Generator[IdentifiedNode, None, None]:
         """Yield reifier nodes matching the given filters.
 
-        TT        -- only reifiers that rdf:reifies this triple term
-        predicate -- only reifiers that have (reifier, predicate, ?) in the graph
-        object    -- only reifiers that have (reifier, ?, object) in the graph
-
         Filters combine: reifiers(TT=t, predicate=p, object=o) returns
         reifiers that reify t AND have (reifier, p, o) in the graph.
+
+        Args:
+            TT: Only reifiers that rdf:reifies this triple term.
+            predicate: Only reifiers that have (reifier, predicate, ?)
+                in the graph.
+            object: Only reifiers that have (reifier, ?, object) in
+                the graph.
+
+        Yields:
+            Reifier nodes matching the given filters.
         """
         if self._is_native:
             yield from self._native_reifiers(TT, predicate, object)
@@ -1410,6 +1565,14 @@ class StarLayerGraph(Graph):
 
             g.reifications()                 # all reified triple terms
             g.reifications(p=EX.knows)       # reified TTs with that predicate
+
+        Args:
+            s: Only triple terms with this subject.
+            p: Only triple terms with this predicate.
+            o: Only triple terms with this object.
+
+        Yields:
+            Matching TripleTerms, each with at least one reifier.
         """
         if self._is_native:
             seen = set()
@@ -1435,6 +1598,12 @@ class StarLayerGraph(Graph):
         """Yield (reifier, predicate, value) annotation triples for all reifiers of TT.
 
         Excludes the rdf:reifies triple itself.
+
+        Args:
+            TT: The triple term whose reifiers' annotations to yield.
+
+        Yields:
+            (reifier, predicate, value) tuples.
         """
         if self._is_native:
             for reifier, _, _ in self.triples((None, RDF_REIFIES, TT)):
@@ -1451,7 +1620,14 @@ class StarLayerGraph(Graph):
                     yield reifier, pred, self._restore(val)
 
     def reified_triples(self, reifier) -> Generator[TripleTerm, None, None]:
-        """Yield the TripleTerms reified by the given reifier node."""
+        """Yield the TripleTerms reified by the given reifier node.
+
+        Args:
+            reifier: The reifier node to look up.
+
+        Yields:
+            TripleTerms the reifier reifies.
+        """
         if self._is_native:
             for _, _, o in self.triples((reifier, RDF_REIFIES, None)):
                 if isinstance(o, TripleTerm):
@@ -1471,6 +1647,14 @@ class StarLayerGraph(Graph):
             g.triple_terms()                        # all triple terms
             g.triple_terms(predicate=EX.knows)      # all TTs with that predicate
             g.triple_terms(EX.bob, EX.knows, None)  # any TT with that s and p
+
+        Args:
+            subject: Only triple terms with this subject.
+            predicate: Only triple terms with this predicate.
+            object: Only triple terms with this object.
+
+        Yields:
+            Matching TripleTerms registered in this graph.
         """
         if self._is_native:
             # No local registry for native (no tt:HASH encoding at all) -
@@ -1496,7 +1680,16 @@ class StarLayerGraph(Graph):
             yield tt
 
     def has_triple_term(self, subject, predicate, object) -> bool:
-        """Return True if a TripleTerm with these exact components exists in the graph."""
+        """Return True if a TripleTerm with these exact components exists in the graph.
+
+        Args:
+            subject: The triple term's subject.
+            predicate: The triple term's predicate.
+            object: The triple term's object.
+
+        Returns:
+            True if a matching TripleTerm exists in the graph.
+        """
         if self._is_native:
             tt = TripleTerm(subject, predicate, object)
             return any(True for _ in self.triples((None, None, tt)))
@@ -1512,14 +1705,17 @@ class StarLayerGraph(Graph):
         iterating over triples() often doesn't know in advance whether a
         given position holds a plain node or a TripleTerm, and qname_term()
         does the right thing either way without an isinstance check.
+
+        Args:
+            node: The term to render.
+
+        Returns:
+            The term's prefixed N3 form.
         """
         return node.n3(self.namespace_manager)
 
     def remove_reification(self, reifier, triple_term=None) -> StarLayerGraph:
-        """Remove the rdf:reifies triple(s) for the given reifier, and
-        return this graph - matching add_reification() and every other
-        mutating method on this class (added 2026-10-04, this used to
-        return None, the same asymmetry add_reification() had before it).
+        """Remove the rdf:reifies triple(s) for the given reifier.
 
         With triple_term=None (default), removes every rdf:reifies triple
         the reifier has. Pass a specific triple_term (a TripleTerm, or a
@@ -1529,6 +1725,15 @@ class StarLayerGraph(Graph):
         (rather than duplicating its native/non-native and TripleTerm
         encoding handling here), so a triple_term that isn't registered in
         this graph is a safe no-op, same as remove() everywhere else.
+
+        Args:
+            reifier: The reifier node to remove rdf:reifies triple(s) from.
+            triple_term: If given, unlink only this triple term; otherwise
+                remove every rdf:reifies triple the reifier has.
+
+        Returns:
+            This graph, matching every other mutating method on this
+            class, so calls can be chained.
         """
         return self.remove((reifier, RDF_REIFIES, triple_term))
 
@@ -1569,6 +1774,20 @@ class StarLayerGraph(Graph):
         through the single-vs-multiple-graph check above (plain rdflib
         delegation would otherwise silently yield zero triples the moment
         any named graph appears at all, even just one).
+
+        Args:
+            source: Input source, as accepted by rdflib's own parse().
+            publicID: Base URI for relative-IRI resolution; see the
+                per-format notes above.
+            format: The format name - see the per-format notes above.
+            location: A URL or file path to parse from.
+            file: An open file-like object to parse from.
+            data: A string or bytes containing the RDF data to parse.
+            **kwargs: Passed through to rdflib's parse() for any format
+                not listed above.
+
+        Returns:
+            This graph, with the parsed triples added.
         """
         if format in ('n3', 'n3-12', 'text/n3'):
             format = 'turtle12'
@@ -1584,10 +1803,8 @@ class StarLayerGraph(Graph):
                 # publicID, falling back to location's own resolved file://
                 # IRI when publicID isn't given - matching the convention
                 # rdflib's own parsers follow (publicID defaults to the
-                # source's own IRI). Previously nothing was passed here, so
-                # a document with no @base of its own (the common case) had
-                # no working relative-IRI resolution regardless of publicID -
-                # see StarLayerTurtleParser.parse()'s base parameter.
+                # source's own IRI). See StarLayerTurtleParser.parse()'s
+                # base parameter.
                 effective_base = publicID
                 if effective_base is None and location is not None:
                     from pathlib import Path
@@ -1792,88 +2009,110 @@ class StarLayerGraph(Graph):
         starlayer.graph.backends.native.native_query, which uses the endpoint's
         own triple-term syntax.
 
-        entailment -- ``None`` (default, plain simple entailment),
-            ``ENTAILMENT.RDF`` (query-time RDF entailment rewrite, no data
-            copy - see ``starlayer.sparql.entailment_rdf``; not available
-            against the native backend), ``ENTAILMENT.RDFS`` (query-time
-            RDFS rewrite, no data copy - see
-            ``starlayer.sparql.entailment_rdfs``; not available against the
-            native backend), ``ENTAILMENT["OWL-RDF-Based"]`` (queries the
-            live union of ``self`` and a small cached delta of just its
-            newly-entailed triples - see ``infer(mode="delta")`` and the
-            ``infer`` parameter below), ``ENTAILMENT["OWL-Direct"]`` (OWL 2
-            DL's counterpart to ``ENTAILMENT["OWL-RDF-Based"]`` - the
-            SPARQL Entailment Regimes spec's own name for OWL-Direct-
-            Semantics-backed querying: same live-union-with-a-cached-delta
-            design, but the delta comes from
-            ``infer(entailment=ENTAILMENT["OWL-Direct"], engine=...,
-            mode="delta")`` - see the ``engine`` parameter below and
-            ``infer()``'s own docstring for what each engine actually
-            guarantees. **Read this before reaching for it**: genuine
-            tableau DL reasoning is routinely orders of magnitude slower
-            than ``owlrl``'s forward-chaining - an empirical ~20-individual
-            constraint-satisfaction example (``docs/guides/
-            05e-owl-dl-reasoning.ipynb`` section 4) took several seconds
-            per ``infer()`` call, and a ~30-individual version of the same
-            problem didn't finish within 60 seconds. ``infer="changed"``
-            bounds how *often* this cost is paid (once per mutation, same
-            protection ``ENTAILMENT["OWL-RDF-Based"]`` gets), not how
-            *expensive* any single recomputation is - unlike
-            ``ENTAILMENT["OWL-RDF-Based"]``, which is always fast
-            regardless. For a latency-sensitive caller, materialize once
-            ahead of time via ``infer(entailment=ENTAILMENT["OWL-Direct"],
-            mode="in-place"/"full")`` instead and query the result
-            plainly; reserve ``entailment=ENTAILMENT["OWL-Direct"]`` for
-            when live freshness is genuinely worth this cost. Raises
-            ``starlayer.graph.graph.owl_dl.InconsistentOntologyError``
-            uncaught if ``self``'s data is logically inconsistent, unlike
-            ``ENTAILMENT["OWL-RDF-Based"]``'s partial/silent consistency
-            checking - same contract
-            ``infer(entailment=ENTAILMENT["OWL-Direct"])`` already has
-            directly), or ``"native"`` (only legal with
-            ``backend='rdf-1.2'`` - a self-documenting label for "this
-            endpoint is expected to handle entailment itself"; changes no
-            behavior on that path, since ``native_query()`` already sends
-            text straight through unmodified regardless of this value -
-            see ``docs/fuseki-reasoning-setup.md`` for actually
-            configuring an endpoint that makes it meaningful). A per-call
-            choice, not a graph-level setting - the same graph can be
-            queried with different (or no) entailment on different calls.
-        infer -- only consulted when ``entailment=ENTAILMENT["OWL-RDF-Based"]``
-            or ``entailment=ENTAILMENT["OWL-Direct"]``; ignored otherwise.
-            Controls reuse of ``self``'s cached entailment delta
-            (``self._owl_rl_cache`` for ``ENTAILMENT["OWL-RDF-Based"]``;
-            ``self._owl_dl_cache[engine]`` for ``ENTAILMENT["OWL-Direct"]``,
-            keyed per engine so switching ``engine=`` between calls
-            doesn't invalidate the other engine's cached slot) against
-            ``self._mutation_generation``
-            (bumped by ``_on_mutated()`` on every real edit to ``self`` -
-            see ``VALID_INFER_MODES``): ``"changed"`` (default) recomputes
-            only if ``self`` was edited since the cache was last computed;
-            ``"always"`` ignores the cache and always recomputes;
-            ``"cached"`` reuses whatever is cached if anything is, computing
-            only when there's no cache yet. When ``self`` is non-native and
-            has no triple terms, ``self``'s own data is always queried live
-            regardless of this setting - only the entailed delta is subject
-            to it. When ``self`` is native-backed or has triple terms, a
-            snapshot of ``self``'s own data is refreshed on this same
-            cadence too (see the ``ENTAILMENT["OWL-RDF-Based"]`` branch's
-            own comment for why).
-        engine -- only meaningful when ``entailment=ENTAILMENT["OWL-Direct"]``;
-            passing a non-default value with any other ``entailment=``
-            raises ``ValueError`` (fail loudly rather than let a caller
-            believe it silently did something for a different regime).
-            ``"hermit"`` (default) or ``"rustdl"`` - identical choice and
-            tradeoffs as ``infer(entailment=ENTAILMENT["OWL-Direct"],
-            engine=...)``'s own parameter; see that method's docstring
-            rather than repeating it here.
-        timeout -- only meaningful when ``entailment=ENTAILMENT["OWL-Direct"]``;
-            same validation and identical meaning as
-            ``infer(entailment=ENTAILMENT["OWL-Direct"], timeout=...)``'s own
-            parameter (wall-clock budget in seconds for the underlying
-            reasoning call, default ``_timeout.DEFAULT_TIMEOUT_SECONDS``
-            (120s), ``None`` disables it) - see that method's docstring
-            rather than repeating it here.
+        Unlike ``infer()``, which always materializes a new graph, every
+        ``entailment=`` value here does its work at query time with no
+        copy of ``self``'s own data: a plain query rewrite for
+        ``ENTAILMENT.RDF``/``ENTAILMENT.RDFS``, or a live union of ``self``
+        with a small cached delta (never a full copy of ``self``) for
+        ``ENTAILMENT["OWL-RDF-Based"]``/``ENTAILMENT["OWL-Direct"]``.
+
+        Args:
+            query_object: The SPARQL query text, or an already-prepared
+                Query object.
+            processor: Passed through to the underlying rdflib/native
+                query call.
+            result: Passed through to the underlying rdflib/native query
+                call.
+            initNs: Namespace bindings for the query; defaults to this
+                graph's own bound namespaces.
+            initBindings: Initial variable bindings. A TripleTerm or
+                (s, p, o) tuple value is encoded to its internal tt:HASH
+                URIRef first, the same way every other read path resolves
+                triple terms before matching against the store.
+            use_store_provided: Passed through to the underlying rdflib/
+                native query call.
+            entailment: ``None`` (default, plain simple entailment),
+                ``ENTAILMENT.RDF`` (query-time RDF entailment rewrite -
+                see ``starlayer.sparql.entailment_rdf``; not available
+                against the native backend), ``ENTAILMENT.RDFS``
+                (query-time RDFS rewrite - see
+                ``starlayer.sparql.entailment_rdfs``; not available
+                against the native backend), ``ENTAILMENT["OWL-RDF-Based"]``
+                (queries the live union of ``self`` and a small cached
+                delta of just its newly-entailed triples - see
+                ``infer(mode="delta")`` and the ``infer`` parameter
+                below), ``ENTAILMENT["OWL-Direct"]`` (OWL 2 DL's
+                counterpart to ``ENTAILMENT["OWL-RDF-Based"]`` - the
+                SPARQL Entailment Regimes spec's own name for
+                OWL-Direct-Semantics-backed querying: same
+                live-union-with-a-cached-delta design, but the delta
+                comes from ``infer(entailment=ENTAILMENT["OWL-Direct"],
+                engine=..., mode="delta")`` - see ``infer()``'s own
+                docstring for the full ``engine=``/``timeout=`` contract
+                and what each engine guarantees. Tableau DL reasoning is
+                routinely orders of magnitude slower than ``owlrl``'s
+                forward-chaining, so ``infer="changed"`` bounds how
+                *often* this cost is paid, not how *expensive* any single
+                recomputation is - for a latency-sensitive caller,
+                materialize once ahead of time via
+                ``infer(entailment=ENTAILMENT["OWL-Direct"],
+                mode="in-place"/"full")`` instead and query the result
+                plainly; reserve this regime for when live freshness is
+                genuinely worth the cost. Raises
+                ``starlayer.graph.graph.owl_dl.InconsistentOntologyError``
+                uncaught if ``self``'s data is logically inconsistent,
+                unlike ``ENTAILMENT["OWL-RDF-Based"]``'s partial/silent
+                consistency checking), or ``"native"`` (only legal with
+                ``backend='rdf-1.2'`` - a self-documenting label for
+                "this endpoint is expected to handle entailment itself";
+                changes no behavior on that path, since ``native_query()``
+                already sends text straight through unmodified regardless
+                of this value - see ``docs/fuseki-reasoning-setup.md`` for
+                actually configuring an endpoint that makes it
+                meaningful). A per-call choice, not a graph-level setting -
+                the same graph can be queried with different (or no)
+                entailment on different calls.
+            infer: Only consulted when
+                ``entailment=ENTAILMENT["OWL-RDF-Based"]`` or
+                ``entailment=ENTAILMENT["OWL-Direct"]``; ignored otherwise.
+                Controls reuse of ``self``'s cached entailment delta
+                (``self._owl_rl_cache`` for ``ENTAILMENT["OWL-RDF-Based"]``;
+                ``self._owl_dl_cache[engine]`` for ``ENTAILMENT["OWL-Direct"]``,
+                keyed per engine so switching ``engine=`` between calls
+                doesn't invalidate the other engine's cached slot) against
+                ``self._mutation_generation`` (bumped by ``_on_mutated()``
+                on every real edit to ``self`` - see ``VALID_INFER_MODES``):
+                ``"changed"`` (default) recomputes only if ``self`` was
+                edited since the cache was last computed; ``"always"``
+                ignores the cache and always recomputes; ``"cached"``
+                reuses whatever is cached if anything is, computing only
+                when there's no cache yet. When ``self`` is non-native and
+                has no triple terms, ``self``'s own data is always queried
+                live regardless of this setting - only the entailed delta
+                is subject to it. When ``self`` is native-backed or has
+                triple terms, a snapshot of ``self``'s own data is
+                refreshed on this same cadence too (see the
+                ``ENTAILMENT["OWL-RDF-Based"]`` branch's own comment for
+                why).
+            engine: Only meaningful when
+                ``entailment=ENTAILMENT["OWL-Direct"]``; passing a
+                non-default value with any other ``entailment=`` raises
+                ``ValueError`` (fail loudly rather than let a caller
+                believe it silently did something for a different
+                regime). ``"hermit"`` (default) or ``"rustdl"`` - see
+                ``infer()``'s own docstring for the full ``engine=``/
+                ``timeout=`` contract.
+            timeout: Only meaningful when
+                ``entailment=ENTAILMENT["OWL-Direct"]``; same validation
+                and meaning as ``infer()``'s own ``timeout`` parameter -
+                see ``infer()``'s own docstring for the full ``engine=``/
+                ``timeout=`` contract.
+            **kwargs: Passed through to the underlying rdflib/native
+                query call.
+
+        Returns:
+            The query Result, with any tt:HASH URIRef restored to its
+            TripleTerm.
         """
         if entailment not in VALID_ENTAILMENTS:
             raise NotImplementedError(
@@ -2154,30 +2393,26 @@ class StarLayerGraph(Graph):
               initNs=None, initBindings=None, use_store_provided=True, **kwargs) -> None:
         """Execute a SPARQL UPDATE.
 
-        For the native rdf-1.2 backend the update is forwarded to the endpoint
-        via HTTP unchanged (see starlayer.graph.backends.native.native_update).
+        For the native rdf-1.2 backend, the update is forwarded to the
+        endpoint via HTTP unchanged (see
+        ``starlayer.graph.backends.native.native_update``).
 
         Otherwise, SPARQL 1.2 text is parsed via starlayer.sparql's real
-        grammar (prepare_update_12), then lowered to a plain SPARQL 1.1
-        algebra (tt:HASH encoding) and serialized back to real SPARQL 1.1
-        Update text - every shape (triple-term WHERE patterns, ground
-        triple terms in INSERT/DELETE DATA, triple terms in INSERT/DELETE
-        templates) is handled natively by that lowering, no post-processing
-        needed here.
+        grammar (``prepare_update_12``), lowered to a plain SPARQL 1.1
+        algebra (tt:HASH encoding), and serialized back to real SPARQL 1.1
+        Update text before executing - every shape (triple-term WHERE
+        patterns, ground triple terms in INSERT/DELETE DATA, triple terms in
+        INSERT/DELETE templates) is handled natively by that lowering, with
+        no post-processing needed here.
 
-        Text, not a pre-parsed ``Update`` object: ``rdflib.Graph.update()``
-        hands off to ``self.store.update()`` first when the store defines
-        one (``use_store_provided``, true by default) - fine for the
-        default in-memory store, whose generic SPARQL Update processor
-        accepts either, but ``SPARQLUpdateStore.update()`` (a remote
-        Oxigraph/Fuseki endpoint, say) hard-``assert``s on a plain string,
-        since all it can do is POST text over HTTP. Confirmed live: handing
-        it the lowered ``Update`` object instead raised ``AssertionError``
-        for *any* update text against a remote store in this (default)
-        backend mode - untested before, since the only existing live
-        coverage of ``StarLayerGraph.update()`` against a remote store used
-        the native backend, a different code path entirely (see
-        ``tests/integration/test_oxigraph_backend.py::TestOxigraphGraphUpdate``).
+        Always passes text, never a pre-parsed ``Update`` object, to the
+        underlying ``Graph.update()``: a remote store's
+        ``SPARQLUpdateStore.update()`` hard-``assert``s on a plain string,
+        since all it can do is POST text over HTTP, whereas the default
+        in-memory store's generic processor accepts either.
+
+        Returns:
+            None.
         """
         if self._is_native:
             from starlayer.graph.backends.native import native_update
@@ -2223,22 +2458,36 @@ class StarLayerGraph(Graph):
     def serialize(self, destination=None, format='turtle12', **kwargs) -> str | bytes | StarLayerGraph:
         """Serialize the graph.
 
-        format='turtle12'     — Turtle 1.2 with <<( )>> triple terms (default)
-        format='longturtle12' — Turtle 1.2, one triple per line (no grouping)
-        format='nt12'         — N-Triples 1.2 with <<( )>> triple terms
-        format='nq12'         — N-Quads 1.2 (graph name from self.identifier)
-        format='trig12'       — TriG 1.2 (GRAPH block wrapper around Turtle 1.2)
-        format='trix12'       — TriX 1.2 XML (<graph> block with <triple> elements)
-        format='manchester' (alias 'omn') — OWL 2 Manchester Syntax; see
-                             starlayer.graph.serializers.manchester's module
-                             docstring for the supported subset and known
-                             round-tripping limitations
-        format='n3'/'n3-12'/'text/n3' — aliased straight to 'turtle12'; only
-                             the plain-triples subset N3 shares with Turtle
-                             is supported, not real N3 (formulas, '=>' rules,
-                             '?x' variables) - see parse()'s own note.
-        All other formats (e.g. 'turtle', 'xml') delegate to rdflib using the
-        internal tt:HASH encoding — triple terms appear as opaque URIRefs.
+        Args:
+            destination: A file path/file-like object to write to, or None
+                to return the serialized text instead.
+            format: One of:
+
+                - ``'turtle12'`` (default) — Turtle 1.2 with ``<<( )>>``
+                  triple terms.
+                - ``'longturtle12'`` — Turtle 1.2, one triple per line (no
+                  grouping).
+                - ``'nt12'`` — N-Triples 1.2 with ``<<( )>>`` triple terms.
+                - ``'nq12'`` — N-Quads 1.2 (graph name from ``self.identifier``).
+                - ``'trig12'`` — TriG 1.2 (GRAPH block wrapper around Turtle 1.2).
+                - ``'trix12'`` — TriX 1.2 XML (``<graph>`` block with
+                  ``<triple>`` elements).
+                - ``'manchester'`` (alias ``'omn'``) — OWL 2 Manchester
+                  Syntax; see ``starlayer.graph.serializers.manchester``'s
+                  module docstring for the supported subset and known
+                  round-tripping limitations.
+                - ``'n3'``/``'n3-12'``/``'text/n3'`` — aliased straight to
+                  ``'turtle12'``; only the plain-triples subset N3 shares
+                  with Turtle is supported, not real N3 (formulas, ``'=>'``
+                  rules, ``'?x'`` variables) - see ``parse()``'s own note.
+                - Any other format (e.g. ``'turtle'``, ``'xml'``) delegates
+                  to rdflib using the internal tt:HASH encoding - triple
+                  terms appear as opaque URIRefs.
+
+        Returns:
+            The serialized text (or bytes, for a format that produces them)
+            when ``destination`` is None; otherwise ``self``, matching
+            rdflib's own ``Graph.serialize()`` contract.
         """
         if format in ('n3', 'n3-12', 'text/n3'):
             format = 'turtle12'
@@ -2271,10 +2520,8 @@ class StarLayerGraph(Graph):
             if destination is not None:
                 with open(destination, 'w', encoding='utf-8') as f:
                     f.write(text)
-                # self, not the destination path - matches rdflib's own
-                # Graph.serialize() contract (returns self when writing to a
-                # destination, the text only when destination is None) -
-                # fixed 2026-10-04, this used to return the path instead.
+                # Return self, not the destination path, matching rdflib's
+                # own Graph.serialize() contract.
                 return self
             return text
         # For 1.1 formats: de-skolemize internal URIRefs to blank nodes so
@@ -2285,12 +2532,11 @@ class StarLayerGraph(Graph):
             # non-context-aware store as its own single context - see
             # rdflib.plugins.serializers.trig.TrigSerializer.__init__), the
             # NQuads/TriX serializer plugins just raise "...only makes
-            # sense for context-aware stores" for one. Added 2026-10-04 so
-            # all six dataset formats behave consistently on serialize()
-            # (matching the consistent parse() rule added the same day):
-            # wrap the de-skolemized graph as the one context of a real
-            # Dataset, giving these two formats the same single-graph
-            # fallback trig already gets for free.
+            # sense for context-aware stores" for one. Wrap the
+            # de-skolemized graph as the one context of a real Dataset, so
+            # these two formats get the same single-graph fallback trig
+            # already gets for free (keeps all six dataset formats
+            # consistent, matching parse()'s own equivalent rule).
             from rdflib import Dataset
             ds = Dataset()
             ctx = ds.graph(deskolemized.identifier)
@@ -2301,9 +2547,8 @@ class StarLayerGraph(Graph):
             result = ds.serialize(destination=destination, format=format, **kwargs)
         else:
             result = deskolemized.serialize(destination=destination, format=format, **kwargs)
-        # self, not the throwaway de-skolemized Graph - same rdflib-matching
-        # contract as above; fixed 2026-10-04, this used to return that
-        # unrelated internal Graph instead of self when destination was given.
+        # Return self, not the throwaway de-skolemized Graph, matching the
+        # same rdflib contract as the RDF 1.2 branch above.
         return self if destination is not None else result
 
     def _deskolemize_to_graph(self) -> Graph:
@@ -2316,25 +2561,19 @@ class StarLayerGraph(Graph):
         serialize()) so triple terms appear as blank-node reifications
         rather than opaque content-addressed URIRefs.
 
-        The output graph is constructed with `identifier=self.identifier`
-        (both branches below) - a real bug until fixed 2026-10-04: a bare
-        `Graph()` defaults to a fresh random BNode identifier, so
-        `serialize(format='trig')` on a StarLayerGraph with a real URIRef
-        identifier was silently emitting a *different*, randomly-generated
-        graph name instead of the caller's own - confirmed against plain
-        rdflib.Graph(identifier=...).serialize(format='trig'), which gets
-        this right, so StarLayer's own wrapping was the regression, not an
-        rdflib limitation.
+        The output graph must be constructed with `identifier=self.identifier`
+        in both branches below, never a bare `Graph()` (which defaults to a
+        fresh random BNode identifier) - otherwise the caller's own graph
+        identity is silently lost on serialize.
 
-        Native branch: `raw = Graph(store=self.store, identifier=self.identifier)`
-        below (a *plain* rdflib.Graph wrapping the same store, deliberately
-        bypassing StarLayerGraph.triples()) is exactly wrong for native -
-        it hits SPARQLStore.triples()'s own SPARQL JSON parsing, which (per
-        starlayer.graph.backends.native's own module docstring) rdflib 7.x cannot
-        parse a "type":"triple" binding from at all. Uses self.triples()
-        (the native-dispatching, TripleTerm-restoring public method) plus
-        _unfold_native_triple_terms() instead, matching how
-        StarLayerGraph.isomorphic() already handles this same asymmetry.
+        For the native branch specifically, the output is built via
+        self.triples() (the native-dispatching, TripleTerm-restoring public
+        method) plus _unfold_native_triple_terms(), not a plain rdflib.Graph
+        wrapping the same store: that would hit SPARQLStore.triples()'s own
+        SPARQL JSON parsing, which (per starlayer.graph.backends.native's own
+        module docstring) rdflib 7.x cannot parse a "type":"triple" binding
+        from at all. Matches how StarLayerGraph.isomorphic() already handles
+        this same native/non-native asymmetry.
         """
         from starlayer.graph.model.encoding import TT_NS
 
@@ -2369,15 +2608,31 @@ class StarLayerGraph(Graph):
         return out
 
     def print(self, format: str = 'turtle12', out=None) -> None:
-        """Print the graph to stdout. Defaults to turtle12 so TripleTerms display correctly."""
+        """Print the graph to stdout (or `out`).
+
+        Args:
+            format: Serialization format, passed through to serialize().
+                Defaults to 'turtle12' so TripleTerms display correctly.
+            out: File-like object to print to; defaults to sys.stdout.
+        """
         import sys
         print(self.serialize(format=format), file=out or sys.stdout, flush=True)
 
     def cbd(self, resource, *, target_graph=None, include_reifications=True) -> StarLayerGraph:
-        """Concise Bounded Description. Defaults target_graph to a new StarLayerGraph.
+        """Concise Bounded Description.
 
-        Raises TypeError if target_graph is a plain rdflib.Graph — it cannot store
-        TripleTerms that may appear in the CBD results.
+        Args:
+            resource: The resource to compute the CBD for.
+            target_graph: Graph to add the CBD's triples to; defaults to a
+                new StarLayerGraph.
+            include_reifications: Whether to include reification triples.
+
+        Returns:
+            target_graph, populated with the CBD.
+
+        Raises:
+            TypeError: If target_graph is a plain rdflib.Graph - it cannot
+                store TripleTerms that may appear in the CBD results.
         """
         if target_graph is None:
             target_graph = StarLayerGraph()
@@ -2389,16 +2644,27 @@ class StarLayerGraph(Graph):
         return super().cbd(resource, target_graph=target_graph, include_reifications=include_reifications)
 
     def skolemize(self, new_graph=None, bnode=None, authority=None, basepath=None) -> StarLayerGraph:
-        """Convert blank nodes to skolem IRIs. Defaults new_graph to a new StarLayerGraph.
+        """Convert blank nodes to skolem IRIs.
 
-        Without this override, rdflib's own inherited skolemize() hardcodes a
-        plain rdflib.Graph() as the default target - confirmed a real bug,
-        same class as cbd()'s own (see that method's docstring): it crashes
-        with AssertionError the moment self contains a real TripleTerm, since
-        plain Graph.add() rejects it as "not an rdflib term".
+        Overridden because rdflib's inherited skolemize() hardcodes a plain
+        rdflib.Graph() as the default target - the same bug class as cbd()'s
+        own (see that method's docstring): it crashes with AssertionError
+        the moment self contains a real TripleTerm, since plain Graph.add()
+        rejects it as "not an rdflib term".
 
-        Raises TypeError if new_graph is a plain rdflib.Graph — it cannot store
-        TripleTerms that may appear in self.
+        Args:
+            new_graph: Graph to add the skolemized triples to; defaults to a
+                new StarLayerGraph.
+            bnode: If given, only this BNode is skolemized.
+            authority: Authority component of the generated skolem IRIs.
+            basepath: Base path component of the generated skolem IRIs.
+
+        Returns:
+            new_graph, populated with the skolemized triples.
+
+        Raises:
+            TypeError: If new_graph is a plain rdflib.Graph - it cannot
+                store TripleTerms that may appear in self.
         """
         if new_graph is None:
             new_graph = StarLayerGraph()
@@ -2410,9 +2676,22 @@ class StarLayerGraph(Graph):
         return super().skolemize(new_graph=new_graph, bnode=bnode, authority=authority, basepath=basepath)
 
     def de_skolemize(self, new_graph=None, uriref=None) -> StarLayerGraph:
-        """Convert skolem IRIs back to blank nodes. Defaults new_graph to a new StarLayerGraph.
+        """Convert skolem IRIs back to blank nodes.
 
-        Same bug class and same fix as skolemize() above - see its docstring.
+        Overridden for the same reason, and with the same fix, as
+        skolemize() above - see its docstring.
+
+        Args:
+            new_graph: Graph to add the de-skolemized triples to; defaults
+                to a new StarLayerGraph.
+            uriref: If given, only this skolem IRI is de-skolemized.
+
+        Returns:
+            new_graph, populated with the de-skolemized triples.
+
+        Raises:
+            TypeError: If new_graph is a plain rdflib.Graph - it cannot
+                store TripleTerms that may appear in self.
         """
         if new_graph is None:
             new_graph = StarLayerGraph()
@@ -2441,63 +2720,53 @@ class StarLayerGraph(Graph):
         triple term is treated as relabelable, the same as any other BNode,
         rather than baked into an opaque tt:HASH URIRef.
 
-        other need not be a StarLayerGraph — the unfold works directly off
-        raw triples, degrading to a no-op (plain rdflib isomorphism) for a
-        graph with no tt: content at all.
+        Args:
+            other: The graph to compare against. Need not be a
+                StarLayerGraph - the unfold works directly off raw triples,
+                degrading to a no-op (plain rdflib isomorphism) for a graph
+                with no tt: content at all.
+
+        Returns:
+            True if the two graphs are isomorphic.
         """
         from rdflib.compare import isomorphic as _rdflib_isomorphic
         return _rdflib_isomorphic(_unfold_tt_encoding(self), _unfold_tt_encoding(other))
 
     @staticmethod
     def _resolve_owlrl_semantics(regimes: frozenset):
-        """Import owlrl and resolve `regimes` (infer()'s own "which
-        ruleset(s)" choice, a frozenset of one or more ENTAILMENT.* regime
-        IRIs - see entailment_regimes.py) to the owlrl semantics class it
-        names. Shared by _infer_before_and_delta() and infer()'s own
-        mode="in-place" branch, so both draw from one place for what
-        counts as a valid combination.
+        """Import owlrl and resolve `regimes` to the owlrl semantics class
+        it names.
 
-        ENTAILMENT.RDFS **alone** uses a locally defined subclass that
-        suppresses owlrl's own RDFSClosure.RDFS_Semantics.one_time_rules()
-        (2026-10-08, found via a real downstream regression, not assumed)
-        - that specific method implements a "hidden sameAs" rule: for
-        every pair of literals *anywhere* in the graph that compare equal
-        by Python value despite different lexical form/datatype
-        (confirmed live: Literal(True) and Literal(1), since Python's own
-        `1 == True`), it duplicates every triple using one to also use the
-        other, across any unrelated subjects/predicates. This is exactly
-        the wrinkle pySHACL's own CustomRDFSSemantics
-        (pyshacl/inference/custom_rdfs_closure.py) overrides the same
-        method to avoid, with the same one-line reasoning in its own
-        source comment: "breaks some SHACL validation tests." That
-        suppression isn't imported from pyshacl here, to avoid a layering
-        violation (this is starlayer.graph's own general-purpose RDFS
-        reasoning, not SHACL-specific plumbing, and pyshacl is an optional
-        dependency of a different, downstream package) - a small local
-        equivalent instead, applied for *every* ENTAILMENT.RDFS-alone
-        consumer (sh:entailment, inference=, and any direct
-        infer(entailment=ENTAILMENT.RDFS) caller), not just a pySHACL-compat
-        shim.
+        `regimes` is infer()'s own "which ruleset(s)" choice - a frozenset
+        of one or more ENTAILMENT.* regime IRIs (see entailment_regimes.py).
+        Shared by _infer_before_and_delta() and infer()'s own
+        mode="in-place" branch, so both draw from one place for what counts
+        as a valid combination.
 
-        **The combined RDFS+OWL-RL regime does NOT need this override -
-        confirmed by reading owlrl's own source, not assumed by analogy.**
-        owlrl.RDFS_OWLRL_Semantics.one_time_rules() is a completely
-        different method body (full_binding_triples plus
-        OWLRL_Semantics.one_time_rules(self)) that never calls the
-        literal-comparison logic above at all - stock owlrl already
-        rewrote this method for the combined class, for unrelated reasons,
-        and it was never exposed to the hidden-sameAs bug in the first
-        place. Confirmed directly against pySHACL's own
-        CustomRDFSOWLRLSemantics too: despite the "Custom" name, its own
-        one_time_rules() is copied verbatim from stock
-        RDFS_OWLRL_Semantics's, not overridden to a no-op the way
-        CustomRDFSSemantics's is - pySHACL itself only ever needed the
-        suppression for the RDFS-alone case. An earlier version of this
-        fix wrongly no-op'd the combined class's one_time_rules() too, by
-        analogy rather than by checking - caught immediately via
-        test_matches_owlrl_run_directly, which failed with dozens of
-        missing legitimate OWL-RL axioms (e.g. xsd:byte rdf:type
-        owl:Thing) once that override silently ate them.
+        ENTAILMENT.RDFS alone uses the locally defined
+        _NoHiddenSameAsRDFSSemantics subclass (below), which suppresses
+        owlrl's own RDFSClosure.RDFS_Semantics.one_time_rules(): without
+        that suppression, any two literals anywhere in the graph with
+        different lexical form that nonetheless compare equal in Python
+        (e.g. Literal(True) and Literal(1)) get spuriously unified into a
+        "hidden sameAs" relationship during RDFS closure, duplicating every
+        triple that uses one literal to also use the other. This
+        suppression is defined locally rather than imported from pyshacl
+        (which has the same workaround) to avoid a layering violation -
+        this is starlayer.graph's own general-purpose RDFS reasoning, and
+        pyshacl is an optional dependency of a different, downstream
+        package.
+
+        Args:
+            regimes: The ENTAILMENT.* regime IRI(s) to resolve.
+
+        Returns:
+            The owlrl semantics class for `regimes`.
+
+        Raises:
+            ImportError: If the optional 'owlrl' dependency isn't installed.
+            ValueError: If `regimes` isn't one of the supported
+                combinations.
         """
         try:
             import owlrl
@@ -2515,15 +2784,16 @@ class StarLayerGraph(Graph):
             frozenset({ENTAILMENT.RDFS}): _NoHiddenSameAsRDFSSemantics,
             frozenset({ENTAILMENT["OWL-RDF-Based"]}): owlrl.OWLRL_Semantics,
             # Genuinely distinct from ENTAILMENT["OWL-RDF-Based"] alone, not
-            # an alias - confirmed live: OWLRL_Semantics.rules() never calls
-            # into RDFS_Semantics.rules(), so that regime alone omits e.g.
+            # an alias: OWLRL_Semantics.rules() never calls into
+            # RDFS_Semantics.rules(), so that regime alone omits e.g.
             # universal rdfs:Resource typing and several rdfs:Datatype-
             # related entailments that RDFS_OWLRL_Semantics's combined rule
             # set adds - declaring both regimes together gets this combined
             # class, matching sh:entailment's own "declare more than one,
-            # combine into one pass" model. Plain, unmodified owlrl class -
-            # see this method's own docstring for why the hidden-sameAs
-            # override doesn't apply here.
+            # combine into one pass" model. A plain, unmodified owlrl class -
+            # its own one_time_rules() is a different method body that never
+            # exercises the hidden-sameAs literal-comparison logic, so it
+            # needs no suppression subclass of its own.
             frozenset({ENTAILMENT.RDFS, ENTAILMENT["OWL-RDF-Based"]}): owlrl.RDFS_OWLRL_Semantics,
         }
         semantics = semantics_by_regime.get(regimes)
@@ -2535,11 +2805,10 @@ class StarLayerGraph(Graph):
         return semantics
 
     def _infer_before_and_delta(self, regimes: frozenset):
-        """Run entailment against self exactly once, returning both the
-        original data (decomposed - see starlayer.graph.compare._decompose())
-        and just the newly-entailed triples, as two separate plain
-        rdflib.Graph objects. Shared by infer() (mode="full" is their
-        union, mode="delta" is just the second one) and by query()'s
+        """Run entailment against self exactly once.
+
+        Shared by infer() (mode="full" is the union of the two returned
+        graphs, mode="delta" is just the second one) and by query()'s
         entailment=ENTAILMENT["OWL-RDF-Based"] fallback path (see that
         branch's own comment for why it needs both views, not just the
         delta, for graphs where a live store view of self isn't
@@ -2551,6 +2820,15 @@ class StarLayerGraph(Graph):
         exact same triple/BNode objects up to the point ``expanded`` is
         mutated, since ``expanded`` is built by re-adding ``before``'s own
         triples verbatim, not by decomposing self a second time.
+
+        Args:
+            regimes: The ENTAILMENT.* regime IRI(s) to reason under.
+
+        Returns:
+            A (before, delta) pair of plain rdflib.Graph objects: the
+            original data (decomposed - see
+            starlayer.graph.compare._decompose()), and just the
+            newly-entailed triples.
         """
         semantics = self._resolve_owlrl_semantics(regimes)
         import owlrl
@@ -2569,19 +2847,33 @@ class StarLayerGraph(Graph):
         return before, delta
 
     def _before_and_delta_for(self, regimes: frozenset, engine: str = 'hermit', timeout=_OWL_DL_TIMEOUT_DEFAULT):
-        """Dispatch to the right reasoning engine for `regimes` (a
-        frozenset of one or more ENTAILMENT.* regime IRIs). The
-        owlrl-backed combinations (RDFS/OWL-RDF-Based/both together) go
+        """Dispatch to the right reasoning engine for `regimes`.
+
+        The owlrl-backed combinations (RDFS/OWL-RDF-Based/both together) go
         through _infer_before_and_delta() above; {ENTAILMENT["OWL-Direct"]}
         goes through one of two genuinely different tableau-DL bridges -
         owl_dl.py (HermiT, via owlready2, engine="hermit", the default) or
         owl_dl_rustdl.py (RustDL, engine="rustdl") - chosen by `engine`,
         which is otherwise meaningless (anything but OWL-Direct never even
-        looks at it). `timeout` is likewise only meaningful for
-        OWL-Direct - see infer()'s own docstring; `None` unambiguously
-        means "disable the timeout" here (not "use the engine's own
-        default" - the default *is* `_OWL_DL_TIMEOUT_DEFAULT`, a real
-        value, not a sentinel needing translation).
+        looks at it). `timeout` is likewise only meaningful for OWL-Direct -
+        see infer()'s own docstring; `None` unambiguously means "disable the
+        timeout" here, not "use the engine's own default" (the default *is*
+        `_OWL_DL_TIMEOUT_DEFAULT`, a real value, not a sentinel needing
+        translation).
+
+        Args:
+            regimes: The ENTAILMENT.* regime IRI(s) to reason under.
+            engine: Which OWL-Direct bridge to use ('hermit' or 'rustdl');
+                ignored for any other regime.
+            timeout: OWL-Direct reasoning timeout; ignored for any other
+                regime.
+
+        Returns:
+            The (before, delta) pair for `regimes` - see
+            _infer_before_and_delta()'s own Returns for the shape.
+
+        Raises:
+            ValueError: If `engine` is not one of 'hermit'/'rustdl'.
         """
         if regimes == frozenset({ENTAILMENT["OWL-Direct"]}):
             if engine == 'hermit':
@@ -2619,15 +2911,18 @@ class StarLayerGraph(Graph):
         membership, not plain graph-pattern matching) - a real v1 scope
         reduction, not an oversight. Revisit if a real caller needs it.
 
-        Returns ``(before, delta)`` in the same two-value shape
-        ``_infer_before_and_delta()``/the OWL-DL bridges return, so
-        ``infer()``'s ``mode=`` dispatch can treat every regime
-        uniformly - callers conventionally discard ``before`` (see every
-        ``_before, delta = self._before_and_delta_for(...)`` call site),
-        so this builds ``delta`` directly against ``self`` rather than a
-        separate copy; no external reasoner is invoked here, so there's
-        no triple-term crash risk ``_decompose()`` exists to avoid for
-        the owlrl-backed regimes, and nothing needs decomposing first.
+        No external reasoner is invoked here, so there's no triple-term
+        crash risk ``_decompose()`` exists to avoid for the owlrl-backed
+        regimes, and nothing needs decomposing first - ``delta`` is built
+        directly against ``self``.
+
+        Returns:
+            A ``(before, delta)`` pair in the same two-value shape
+            ``_infer_before_and_delta()``/the OWL-DL bridges return, so
+            ``infer()``'s ``mode=`` dispatch can treat every regime
+            uniformly. ``before`` is ``self`` itself, unchanged - callers
+            conventionally discard it (see every
+            ``_before, delta = self._before_and_delta_for(...)`` call site).
         """
         delta = Graph()
 
@@ -2666,141 +2961,39 @@ class StarLayerGraph(Graph):
 
     def infer(self, entailment=ENTAILMENT.RDFS, *, mode: str = 'full', target_graph=None,
               engine: str = 'hermit', timeout=_OWL_DL_TIMEOUT_DEFAULT) -> StarLayerGraph:
-        """Materialize an RDFS/OWL-RL entailment closure - by default into a
-        NEW graph, never mutating self (mode="in-place" is the deliberate
-        exception - see below). Requires the optional ``owlrl`` dependency
-        (``pip install starlayer.graph[reasoning]``).
+        """Materialize an RDFS/OWL-RL entailment closure.
 
-        entailment -- one real entailment regime IRI (``ENTAILMENT.RDF``,
-            ``ENTAILMENT.RDFS``, ``ENTAILMENT["OWL-RDF-Based"]``,
-            ``ENTAILMENT["OWL-Direct"]``) or an iterable of more than one
-            to combine them into a single
-            pass (e.g. ``{ENTAILMENT.RDFS, ENTAILMENT["OWL-RDF-Based"]}``
-            - genuinely more than ``ENTAILMENT["OWL-RDF-Based"]`` alone:
-            e.g. universal rdfs:Resource typing and several
-            rdfs:Datatype-related entailments are only present when RDFS's
-            own rules run alongside OWL-RL's, confirmed live against owlrl
-            directly - see _resolve_owlrl_semantics()). See
-            ``starlayer.graph.graph.entailment_regimes``'s own module
-            docstring for what each IRI means and which combinations are
-            actually supported. ``ENTAILMENT["OWL-Direct"]`` alone selects
-            full OWL 2 DL reasoning - a genuinely different computational
-            model, tableau-based rather than forward-chaining rules, so it
-            can derive disjunctive entailments owlrl structurally cannot,
-            e.g. C subClassOf (A or B), not-A(x) |= B(x). Raises
-            owl_dl.InconsistentOntologyError, not a silent triple, if
-            self's data is logically inconsistent - unlike the owlrl-backed
-            regimes, whose consistency checking is partial and never
-            raises. See `engine` below for which actual reasoner runs this.
-            ``ENTAILMENT.RDF`` alone is implemented natively (no ``owlrl``
-            dependency, no reasoner at all) - just rdfD2 (every predicate
-            used is entailed ``rdf:type rdf:Property``) plus the small
-            fixed set of RDF axiomatic triples actually relevant to self's
-            data. Datatype literal value-space well-typing (rdfD1/rdfD1a)
-            is a deliberate v1 scope reduction, not built - see
-            ``_infer_rdf_before_and_delta()``'s own docstring.
-        engine -- only meaningful for entailment=ENTAILMENT["OWL-Direct"] (any
-            other entailment regime combined with a non-default engine raises
-            ValueError - fail loudly rather than let a caller believe it
-            silently did something for an owlrl-backed regime). Picks
-            which of two
-            genuinely different reasoners runs the tableau reasoning
-            above - neither is a strict replacement for the other, so this
-            is a real tradeoff to make per call, not an implementation
-            detail:
-            - "hermit" (default) - owlready2 + Java HermiT. Sound *and*
-              complete for all of OWL 2 DL (SROIQ) - the strongest
-              guarantee either engine offers. Needs the optional
-              `starlayer.graph[hermit]` extra (`owlready2`) AND a real Java
-              runtime reachable on PATH (owlready2 bundles HermiT as a
-              Java program) - see owl_dl.py's own module docstring for
-              both actionable RuntimeErrors this raises if either is
-              missing.
-            - "rustdl" - a pure-Rust reasoner (no JVM at all). Needs only
-              the optional `starlayer.graph[rustdl]` extra (`rustdl`) - see
-              owl_dl_rustdl.py's own module docstring for the actionable
-              RuntimeError this raises if it's missing. Sound, but only
-              empirically near-complete on full SROIQ, not provably
-              complete (RustDL's own docs: complete by construction only
-              on the EL/Horn fragment) - a real, permanent gap against
-              "hermit"'s guarantee, not a temporary bug. Concretely: it
-              correctly derives disjunctive *class* entailments (confirmed
-              live), but its property-assertion materialization is
-              documented as a "sound under-approximation (no
-              anonymous-witness or disjunctive-derived edges)" - this
-              project no longer has a live, re-verifiable example of that
-              specific behavior (the one previously used for it is now a
-              confirmed hang instead, caught pre-flight - see
-              owl_dl_rustdl.py's own module docstring, points 2 and 4, and
-              `CLAUDE.md`'s "Tracking rustdl's own evolving capabilities"
-              section). Also raises `rustdl.UnsupportedAxiomError` outright
-              (not silently) for `HasKey:` axioms, role chains longer than
-              2, and one specific confirmed-hang idiom detected pre-flight
-              - all three real constructs, not hypothetical.
-        timeout -- only meaningful for entailment=ENTAILMENT["OWL-Direct"]
-            (same ValueError contract as engine= above for any other
-            entailment regime). Wall-clock
-            budget in seconds for the actual reasoner call, shared by both
-            engines - defense-in-depth against a hang *neither* engine has
-            a known, structurally-detectable pattern for yet (RustDL's one
-            *known* hang pattern is already caught separately, fast and
-            pre-flight - see `engine=` above; this timeout is the backstop
-            for everything else). Default `_timeout.DEFAULT_TIMEOUT_SECONDS`
-            (120s); pass `None` to disable entirely (wait indefinitely -
-            the pre-this-feature behavior). Implemented as a real
-            subprocess/process-group kill, not a cooperative
-            cancellation - see `starlayer.graph/graph/_timeout.py`'s own
-            module docstring for why that's the only mechanism that
-            reliably works against an opaque, uninterruptible reasoner
-            call (a JVM subprocess for "hermit", an in-process native
-            PyO3 call for "rustdl") - a raised
-            `_timeout.ReasoningTimeoutError` is guaranteed to leave no
-            orphaned JVM/native process still running behind it.
-        mode -- all three ultimately reach the same closure (self's own data
-            plus everything entailed from it) - this chooses where that ends
-            up and how much of it comes back as a distinct value. "full"
-            (default) returns a NEW graph with the original triples plus
-            everything newly entailed. "delta" returns a NEW graph with only
-            the newly-entailed triples, none of the originals - the smaller
-            artifact query()'s entailment=ENTAILMENT["OWL-RDF-Based"] caches and queries as a
-            live union with self, rather than caching a full closure copy.
-            "in-place" adds just the newly-entailed triples into self
-            directly (self already has the originals) and returns self -
-            works for any self, including native and triple-term-bearing
-            ones (see the triple-term-fidelity paragraph below for the one
-            narrow caveat it still doesn't avoid). target_graph must not be
-            given together with it (raises ValueError - mutating self has no
-            separate destination). See VALID_INFER_RETURN_MODES.
-        target_graph -- only meaningful for mode="full"/"delta"; defaults
-            to a new StarLayerGraph, or if given, entailed triples are added
-            to it (never cleared first) — must be a StarLayerGraph, not a
-            plain rdflib.Graph, same restriction as cbd() and for the same
-            reason: consistency with the rest of this class's API.
+        By default this returns a NEW graph, never mutating self
+        (mode="in-place" is the deliberate exception - see below). Requires
+        the optional ``owlrl`` dependency
+        (``pip install starlayer.graph[reasoning]``).
 
         Any triple term in self is decomposed into its synthetic
         blank-node reification form (the same one rdfc10_hash()/
-        isomorphic() use — see starlayer.graph.compare._decompose()) purely
+        isomorphic() use - see starlayer.graph.compare._decompose()) purely
         so owlrl can run without crashing: its RDFS closure asserts "x
         rdf:type rdfs:Resource" for every term seen anywhere in a triple,
         including subject position, and a triple term is never legal there
-        under RDF 1.2 — confirmed live, owlrl crashes with this class's own
-        "triple terms are not permitted in subject position" guard
-        otherwise (see add()). That decomposition never reaches the
-        returned graph for mode="full"/"delta", though: self's own
-        triples are copied in as-is (real TripleTerm objects intact, for a
+        under RDF 1.2 (see add()'s own "triple terms are not permitted in
+        subject position" guard). That decomposition never reaches the
+        returned graph for mode="full"/"delta", though: self's own triples
+        are copied in as-is (real TripleTerm objects intact, for a
         non-native self), and only the *newly-entailed* portion (mode=
-        "delta"'s content, also included in mode="full") can still
-        contain a decomposed reification fragment instead of a real
-        TripleTerm - and only for a derived fact that isn't itself
-        expressible with one. That's not a gap this implementation chooses
-        to leave open; it's structural: a rule like rdfs4a/4b that types
-        *every* term as rdfs:Resource inherently wants to put a triple term
-        in subject position, which RDF 1.2 never permits for any triple,
-        entailed or asserted - there is no legal real-TripleTerm form of
-        that fact to recover. Nothing rewires the delta's synthetic
-        blank node back to the real triple term self's own copied-in
-        triples use, either - they're unrelated objects in the output
-        graph, not the same node re-described two ways.
+        "delta"'s content, also included in mode="full") can still contain
+        a decomposed reification fragment instead of a real TripleTerm -
+        and only for a derived fact that isn't itself expressible with
+        one. This is structural, not a gap left open by choice: a rule
+        like rdfs4a/4b that types *every* term as rdfs:Resource inherently
+        wants to put a triple term in subject position, which RDF 1.2
+        never permits for any triple, entailed or asserted - there is no
+        legal real-TripleTerm form of that fact to recover. Nothing
+        rewires the delta's synthetic blank node back to the real triple
+        term self's own copied-in triples use, either - they're unrelated
+        objects in the output graph, not the same node re-described two
+        ways. mode="in-place" inherits this same caveat, with one
+        difference: there, a stray decomposed reification fragment lands
+        directly in the graph you're still working with, since there's no
+        disposable copy to contain it instead.
 
         owlrl has no truth maintenance: retracting a fact from self later
         does not retract anything this call already entailed from it.
@@ -2809,11 +3002,11 @@ class StarLayerGraph(Graph):
 
         For a native (backend='rdf-1.2') self, reading "self's own data"
         (via plain iteration, same as _decompose()/for t in self) is scoped
-        to self.identifier — GRAPH <self.identifier> { ... } — unless
+        to self.identifier - GRAPH <self.identifier> { ... } - unless
         self.identifier is exactly rdflib.graph.DATASET_DEFAULT_GRAPH_ID
         (see _native_scoped()). This is unrelated to query()/update(), which
         send text straight through unscoped. A native StarLayerGraph
-        constructed with no explicit identifier= now defaults to
+        constructed with no explicit identifier= defaults to
         DATASET_DEFAULT_GRAPH_ID automatically (see __init__), so the
         common case already agrees with query()/update() by construction.
         The one remaining case this doesn't cover: a caller who explicitly
@@ -2821,18 +3014,104 @@ class StarLayerGraph(Graph):
         named graph on the endpoint - infer() then correctly sees an empty
         graph, same as any SPARQL query would against a real but
         currently-empty named graph. That's expected behavior for a named
-        graph with no data yet, not a footgun - nothing to work around.
+        graph with no data yet, not a footgun.
 
-        mode="in-place" only ever adds the delta into self directly - never
-        a re-decomposed copy of self's own data - so it can't crash the way
-        calling owlrl.DeductiveClosure(...).expand(self) directly would (the
-        crash this whole decomposition step exists to avoid in the first
-        place). It inherits the same narrow leftover caveat as mode=
-        "full"/"delta" above, with one difference worth being explicit
-        about: for those two, a stray decomposed reification fragment lands
-        in a disposable copy; for mode="in-place", it lands directly in the
-        graph you're still working with, since there's no separate copy to
-        contain it.
+        Args:
+            entailment: One real entailment regime IRI (``ENTAILMENT.RDF``,
+                ``ENTAILMENT.RDFS``, ``ENTAILMENT["OWL-RDF-Based"]``,
+                ``ENTAILMENT["OWL-Direct"]``), or an iterable of more than
+                one to combine them into a single pass (e.g.
+                ``{ENTAILMENT.RDFS, ENTAILMENT["OWL-RDF-Based"]}`` -
+                genuinely more than ``ENTAILMENT["OWL-RDF-Based"]`` alone:
+                e.g. universal rdfs:Resource typing and several
+                rdfs:Datatype-related entailments are only present when
+                RDFS's own rules run alongside OWL-RL's - see
+                ``_resolve_owlrl_semantics()``). See
+                ``starlayer.graph.graph.entailment_regimes``'s own module
+                docstring for what each IRI means and which combinations
+                are actually supported. ``ENTAILMENT["OWL-Direct"]`` alone
+                selects full OWL 2 DL reasoning - a genuinely different
+                computational model, tableau-based rather than
+                forward-chaining rules, so it can derive disjunctive
+                entailments owlrl structurally cannot, e.g.
+                C subClassOf (A or B), not-A(x) |= B(x). Raises
+                ``owl_dl.InconsistentOntologyError``, not a silent triple,
+                if self's data is logically inconsistent - unlike the
+                owlrl-backed regimes, whose consistency checking is
+                partial and never raises. See `engine` below for which
+                actual reasoner runs this. ``ENTAILMENT.RDF`` alone is
+                implemented natively (no ``owlrl`` dependency, no reasoner
+                at all) - just rdfD2 (every predicate used is entailed
+                ``rdf:type rdf:Property``) plus the small fixed set of RDF
+                axiomatic triples actually relevant to self's data.
+                Datatype literal value-space well-typing (rdfD1/rdfD1a) is
+                a deliberate v1 scope reduction, not built - see
+                ``_infer_rdf_before_and_delta()``'s own docstring.
+            mode: All three ultimately reach the same closure (self's own
+                data plus everything entailed from it) - this chooses
+                where that ends up and how much of it comes back as a
+                distinct value. "full" (default) returns a NEW graph with
+                the original triples plus everything newly entailed.
+                "delta" returns a NEW graph with only the newly-entailed
+                triples, none of the originals - the smaller artifact
+                query()'s entailment=ENTAILMENT["OWL-RDF-Based"] caches and
+                queries as a live union with self, rather than caching a
+                full closure copy. "in-place" adds just the newly-entailed
+                triples into self directly (self already has the
+                originals) and returns self - works for any self,
+                including native and triple-term-bearing ones (see the
+                triple-term-fidelity paragraph above for the one narrow
+                caveat it still doesn't avoid). target_graph must not be
+                given together with it (raises ValueError - mutating self
+                has no separate destination). See VALID_INFER_RETURN_MODES.
+            target_graph: Only meaningful for mode="full"/"delta"; defaults
+                to a new StarLayerGraph, or if given, entailed triples are
+                added to it (never cleared first) - must be a
+                StarLayerGraph, not a plain rdflib.Graph, same restriction
+                as cbd() and for the same reason: consistency with the
+                rest of this class's API.
+            engine: Only meaningful for entailment=ENTAILMENT["OWL-Direct"]
+                (any other entailment regime combined with a non-default
+                engine raises ValueError - fail loudly rather than let a
+                caller believe it silently did something for an
+                owlrl-backed regime). Picks which of two genuinely
+                different reasoners runs the tableau reasoning above -
+                neither is a strict replacement for the other, so this is
+                a real tradeoff to make per call, not an implementation
+                detail: "hermit" (default) is owlready2 + Java HermiT,
+                sound *and* complete for all of OWL 2 DL (SROIQ) - the
+                strongest guarantee either engine offers, but needs the
+                optional `starlayer.graph[hermit]` extra (`owlready2`) AND
+                a real Java runtime reachable on PATH. "rustdl" is a
+                pure-Rust reasoner (no JVM at all), needing only the
+                optional `starlayer.graph[rustdl]` extra - see
+                ``owl_dl_rustdl.py``'s own module docstring for its full
+                completeness fragment, known gaps, and
+                `rustdl.UnsupportedAxiomError` cases; that file's docstring
+                is the authoritative, current account, not restated here.
+            timeout: Only meaningful for entailment=ENTAILMENT["OWL-Direct"]
+                (same ValueError contract as engine= above for any other
+                entailment regime). Wall-clock budget in seconds for the
+                actual reasoner call, shared by both engines - defense-in-
+                depth against a hang neither engine has a known,
+                structurally-detectable pattern for (RustDL's one *known*
+                hang pattern is already caught separately, fast and
+                pre-flight - see `engine=` above; this timeout is the
+                backstop for everything else). Default
+                `_timeout.DEFAULT_TIMEOUT_SECONDS` (120s); pass `None` to
+                disable entirely (wait indefinitely). Implemented as a
+                real subprocess/process-group kill, not a cooperative
+                cancellation - see `starlayer.graph/graph/_timeout.py`'s
+                own module docstring for why that's the only mechanism
+                that reliably works against an opaque, uninterruptible
+                reasoner call (a JVM subprocess for "hermit", an
+                in-process native PyO3 call for "rustdl") - a raised
+                `_timeout.ReasoningTimeoutError` is guaranteed to leave no
+                orphaned JVM/native process still running behind it.
+
+        Returns:
+            A StarLayerGraph: `target_graph` for mode="full"/"delta", or
+            self for mode="in-place".
         """
         if mode not in VALID_INFER_RETURN_MODES:
             raise ValueError(f"mode must be one of {sorted(VALID_INFER_RETURN_MODES)}, got {mode!r}")
@@ -2916,13 +3195,14 @@ class StarLayerGraph(Graph):
         return target_graph
 
     def owl_imports(self) -> tuple[Any, ...]:
-        """Every object of this graph's own ``owl:imports`` triples,
-        directly declared - deduplicated, in first-seen order. Purely a
-        read of what's already asserted; resolves nothing, fetches
-        nothing, and doesn't recurse into whatever those IRIs might
-        themselves import (that only happens once ``resolve_imports()``
-        actually loads their content - this graph's own triples are the
-        only thing there is to read from here).
+        """Every directly-declared object of this graph's own
+        ``owl:imports`` triples, deduplicated, in first-seen order.
+
+        Purely a read of what's already asserted; resolves nothing,
+        fetches nothing, and doesn't recurse into whatever those IRIs
+        might themselves import (that only happens once
+        ``resolve_imports()`` actually loads their content - this graph's
+        own triples are the only thing there is to read from here).
 
         This is step 1 of the three-step shape this capability has:
         discover what's declared (this method), decide whether a
@@ -2930,29 +3210,33 @@ class StarLayerGraph(Graph):
         (``can_resolve_import()``, a plain function, not a method - it's
         a question about the *loader*, not about this graph's own data),
         then actually resolve/merge (``resolve_imports()`` below).
+
+        Returns:
+            The declared ``owl:imports`` targets, deduplicated, in
+            first-seen order.
         """
         return tuple(dict.fromkeys(o for _, _, o in self.triples((None, OWL.imports, None))))
 
     def has_import_locally(self, iri: Any) -> bool:
-        """True if ``iri`` (typically an ``owl:imports`` target) already
-        has its own content present in this graph - at least one triple
-        with ``iri`` as subject - meaning there's nothing to fetch for
-        it: whatever it describes is already co-located right here.
+        """True iff ``iri`` (typically an ``owl:imports`` target) already
+        has at least one triple with it as subject already present in
+        this graph - i.e. its content is already co-located here, so no
+        loader is needed to resolve it.
 
-        Found as a real gap, not a hypothetical: ``owl_imports()`` scans
-        the *whole* graph for any ``owl:imports`` triple, regardless of
-        subject - so when two shapes-graph "modules" that import each
-        other have simply been loaded together into one single graph
-        (rather than kept as separate documents a loader fetches),
-        ``resolve_imports()`` would otherwise still try to call a loader
-        for an IRI that's already fully present right there, and
-        ``validate()``'s own unresolved-import check would raise on it
-        too - both false positives for exactly this case, confirmed
-        live before this existed. ``resolve_imports()`` checks this
-        before ever calling ``loader`` for a given import - a
-        locally-satisfied import never reaches the loader at all, and
-        a graph where every declared import is already locally
-        satisfied needs no loader whatsoever.
+        Guards against a real false-positive case: two shapes-graphs that
+        mutually ``owl:imports`` each other, loaded together into one
+        graph, would otherwise trip both ``resolve_imports()``'s loader
+        call and ``validate()``'s unresolved-import check for an import
+        that's already fully satisfied right here. ``resolve_imports()``
+        checks this before ever calling ``loader`` for a given import - a
+        locally-satisfied import never reaches the loader at all.
+
+        Args:
+            iri: The import target to check.
+
+        Returns:
+            True if ``iri`` already has at least one triple as subject in
+            this graph.
         """
         return any(True for _ in self.triples((iri, None, None)))
 
@@ -2965,46 +3249,52 @@ class StarLayerGraph(Graph):
     ) -> StarLayerGraph:
         """Follow this graph's own ``owl:imports`` (and, transitively,
         whatever each imported graph itself further imports) and merge
-        the result - by default into a NEW graph, never mutating self
-        (``mode="in-place"`` is the deliberate exception, matching
-        ``infer()``'s own three-way ``mode=`` contract exactly: "full"
-        returns self's own triples plus every resolved import merged in;
-        "delta" returns only the newly-pulled-in triples (computed as a
-        true set difference against self - anything an import happens to
-        also assert that self already has is not "new"); "in-place" adds
-        just the delta into self directly and returns self).
-
-        ``loader`` -- optional: given an import IRI, returns a graph for
-        it, or ``None`` if it can't be resolved (skipped, not an error -
-        matching ``validator.py``'s own ``_resolve_shapes_graph_imports()``,
-        which this generalizes). ``None`` (the default) means "don't
-        attempt any external resolution at all" - every declared import
-        that isn't already satisfied by ``has_import_locally()`` is then
-        simply skipped, same as an unresolvable one. This is a genuine,
-        safe default, not a relaxation of the "never decide retrieval
-        policy for the caller" rule: it doesn't silently reach anywhere,
-        it just means "resolve whatever's already co-located in self,
-        nothing more" - exactly right for a graph whose imports all turn
-        out to be locally satisfied, which needs no loader whatsoever.
-        For a genuinely external import, this library still never
-        decides on your behalf how to fetch it - that policy is entirely
-        the caller's, via whatever ``loader`` they supply when one
-        actually is needed.
+        the result.
 
         Recursive by construction, not an opt-in extra - that's what
-        "import" actually means (§3.4's imports closure): if an imported
-        graph's own content declares further imports, those are resolved
-        too, with cycle protection (an IRI already fetched, or a graph
-        whose own ``owl:versionIRI`` already matched something already
-        imported, is never fetched/merged twice). Mirrors
-        ``_resolve_shapes_graph_imports()``'s own ``^owl:versionIRI?/owl:imports``
-        handling precisely: when a fetched graph declares the IRI it was
-        fetched under as its own ``owl:versionIRI``, further imports are
-        followed from that graph's own *base* IRI (the subject of the
-        ``owl:versionIRI`` triple), not the version IRI itself - so
+        "import" actually means (§3.4's imports closure). Cycle protection:
+        an IRI already fetched, or a graph whose own ``owl:versionIRI``
+        already matched something already imported, is never
+        fetched/merged twice - when a fetched graph declares the IRI it
+        was fetched under as its own ``owl:versionIRI``, further imports
+        are followed from that graph's own *base* IRI (the subject of the
+        ``owl:versionIRI`` triple), not the version IRI itself, so
         importing a versioned module and importing its unversioned base
-        both correctly converge on one shared identity for
-        deduplication.
+        both correctly converge on one shared identity for deduplication.
+        This mirrors ``_resolve_shapes_graph_imports()``'s own
+        ``^owl:versionIRI?/owl:imports`` handling, which this generalizes.
+
+        Args:
+            loader: Given an import IRI, returns a graph for it, or
+                ``None`` if it can't be resolved (skipped, not an error).
+                ``None`` (the default) means "don't attempt any external
+                resolution at all" - every declared import that isn't
+                already satisfied by ``has_import_locally()`` is then
+                simply skipped, same as an unresolvable one. This is a
+                genuine, safe default, not a relaxation of the "never
+                decide retrieval policy for the caller" rule: it doesn't
+                silently reach anywhere, it just resolves whatever's
+                already co-located in self. For a genuinely external
+                import, this library still never decides on your behalf
+                how to fetch it - that policy is entirely the caller's,
+                via whatever ``loader`` they supply when one is needed.
+            mode: Matches ``infer()``'s own three-way ``mode=`` contract
+                exactly: "full" (default) returns a NEW graph with self's
+                own triples plus every resolved import merged in; "delta"
+                returns a NEW graph with only the newly-pulled-in triples
+                (a true set difference against self - anything an import
+                happens to also assert that self already has is not
+                "new"); "in-place" adds just the delta into self directly
+                and returns self. target_graph must not be given together
+                with "in-place" (raises ValueError).
+            target_graph: Only meaningful for mode="full"; defaults to a
+                new StarLayerGraph, or if given, entailed triples are
+                added to it (never cleared first) - must be a
+                StarLayerGraph, not a plain rdflib.Graph.
+
+        Returns:
+            A StarLayerGraph: a new graph for mode="full"/"delta", or self
+            for mode="in-place".
         """
         if mode not in VALID_INFER_RETURN_MODES:
             raise ValueError(f"mode must be one of {sorted(VALID_INFER_RETURN_MODES)}, got {mode!r}")
@@ -3089,43 +3379,7 @@ class StarLayerGraph(Graph):
         """Infer a SHACL shape from self's own data - one ``sh:NodeShape``
         per distinct ``rdf:type`` found (the simplest option: derive shapes
         from classes, never per-node or heuristic clustering), optionally
-        reconciled against an existing template shape. Returns a
-        ``StarLayerGraph`` (a real, standalone shapes graph) - wrapped via
-        ``from_rdflib()`` for consistency with every other graph-returning
-        method on this class, even though a derived shapes graph has no
-        triple-term content of its own today.
-
-        template_shape -- if omitted, every returned NodeShape is built
-            fresh from self's own data. If given (any Graph, including a
-            StarLayerGraph with genuine RDF 1.2 content), its own
-            constraints are validated against self and, wherever a
-            principled data-driven fix exists (cardinality, datatype,
-            class, node kind including ``sh:TripleTerm``, numeric-range
-            bounds, string length, ``sh:languageIn``, additive ``sh:in``
-            widening), recomputed from the *true* current data rather than
-            patched around a single violating value; constraint types with
-            no generic fix (``sh:pattern``, cross-property comparisons like
-            ``sh:equals``/``sh:lessThan``) are dropped with an ``rdfs:comment``
-            note; opaque ``sh:sparql``-based/custom constraint components are
-            left untouched, also with a note, since there's no way to know
-            whether a failure there is a real data problem or a genuinely
-            important check. Any predicate observed in self with no
-            matching ``sh:property`` on the relevant shape, and any class
-            present in self with no shape at all, get freshly-derived
-            additions - "extend any new properties" generalized to the
-            whole graph.
-        ignored_properties -- extra predicates to exclude from every
-            derived ``sh:NodeShape``'s candidate-property scan (union'd
-            into ``sh:ignoredProperties``, alongside the resolved default
-            list below and, unconditionally, ``rdf:type`` itself - required
-            for any closed shape to conform, since ``sh:closed`` doesn't
-            exempt ``rdf:type`` automatically). A template's own existing
-            ``sh:ignoredProperties`` is always carried forward too.
-        use_default_ignored_properties -- when true (default), also
-            excludes ``shape_derivation.DEFAULT_IGNORED_PROPERTIES``
-            (``rdfs:label``/``comment``, ``dcterms:created``/``modified``) -
-            pass False to opt out of that built-in list entirely and rely
-            only on ``ignored_properties=``.
+        reconciled against an existing template shape.
 
         Every returned shape is closed (``sh:closed true``) and is
         self-checked to conform against self before being returned (a real
@@ -3133,6 +3387,47 @@ class StarLayerGraph(Graph):
         Goes through ``starlayer.shacl`` for all SHACL semantics, never bare
         ``pyshacl`` directly - self or template_shape may contain genuine
         RDF 1.2 content (triple terms) that only starlayer.shacl understands.
+
+        Args:
+            template_shape: If omitted, every returned NodeShape is built
+                fresh from self's own data. If given (any Graph, including
+                a StarLayerGraph with genuine RDF 1.2 content), its own
+                constraints are validated against self and, wherever a
+                principled data-driven fix exists (cardinality, datatype,
+                class, node kind including ``sh:TripleTerm``, numeric-range
+                bounds, string length, ``sh:languageIn``, additive
+                ``sh:in`` widening), recomputed from the *true* current
+                data rather than patched around a single violating value;
+                constraint types with no generic fix (``sh:pattern``,
+                cross-property comparisons like ``sh:equals``/
+                ``sh:lessThan``) are dropped with an ``rdfs:comment`` note;
+                opaque ``sh:sparql``-based/custom constraint components are
+                left untouched, also with a note, since there's no way to
+                know whether a failure there is a real data problem or a
+                genuinely important check. Any predicate observed in self
+                with no matching ``sh:property`` on the relevant shape, and
+                any class present in self with no shape at all, get
+                freshly-derived additions - "extend any new properties"
+                generalized to the whole graph.
+            ignored_properties: Extra predicates to exclude from every
+                derived ``sh:NodeShape``'s candidate-property scan (union'd
+                into ``sh:ignoredProperties``, alongside the resolved
+                default list below and, unconditionally, ``rdf:type``
+                itself - required for any closed shape to conform, since
+                ``sh:closed`` doesn't exempt ``rdf:type`` automatically). A
+                template's own existing ``sh:ignoredProperties`` is always
+                carried forward too.
+            use_default_ignored_properties: When true (default), also
+                excludes ``shape_derivation.DEFAULT_IGNORED_PROPERTIES``
+                (``rdfs:label``/``comment``, ``dcterms:created``/
+                ``modified``) - pass False to opt out of that built-in
+                list entirely and rely only on ``ignored_properties=``.
+
+        Returns:
+            A StarLayerGraph (a real, standalone shapes graph) - wrapped
+            via ``from_rdflib()`` for consistency with every other
+            graph-returning method on this class, even though a derived
+            shapes graph has no triple-term content of its own today.
         """
         from starlayer.graph.graph.shape_derivation import derive_shape
         result = derive_shape(
@@ -3147,33 +3442,35 @@ class StarLayerGraph(Graph):
         """Wrap a plain rdflib.Graph (e.g., from StarLayerTurtleParser).
 
         Namespace bindings, triples, and the TripleTerm registry are all
-        copied from the source graph.  If the source uses the intermediate
+        copied from the source graph. If the source uses the intermediate
         BNode TT encoding (with sl:TripleTerm type markers), it is converted
         to content-addressed tt: URIRefs before copying.
 
-        source_graph may also be a Dataset/ConjunctiveGraph: triples are read
-        via its own ``.triples((None, None, None))``, which - like iterating
-        the dataset directly - honors whatever ``default_union`` it was
-        constructed with (rdflib default: False), so only its default graph
-        is copied unless the caller explicitly opted into a unioned view.
-        Named graphs are never selected implicitly; use
-        ``dataset.get_context(identifier)`` first for a specific one.
-
-        ``source_graph.identifier`` is preserved onto the new graph
-        (2026-10-09, previously silently dropped in favor of a fresh random
-        ``BNode`` identifier) - a genuine correctness fix to this method's
-        own "wrap" contract, not specific to any one caller: a graph with a
-        real, caller-given identity (e.g. a named graph retrieved from a
-        ``Dataset``, which always carries its own real IRI) keeps that
-        identity through this conversion, rather than it being silently
-        replaced by an unrelated, meaningless one.
-
-        Deliberately **not** done when ``source_graph`` is itself a whole
+        ``source_graph.identifier`` is preserved onto the new graph: a
+        graph with a real, caller-given identity (e.g. a named graph
+        retrieved from a ``Dataset``, which always carries its own real
+        IRI) keeps that identity through this conversion, rather than it
+        being replaced by an unrelated, meaningless one. Deliberately
+        **not** done when ``source_graph`` is itself a whole
         ``Dataset``/``ConjunctiveGraph`` (as opposed to one of its named
         graphs) - a dataset has no single meaningful identity of its own
         (``Dataset.identifier`` is itself deprecated in modern rdflib), so
         there's nothing worth preserving there; this also avoids triggering
         that deprecation warning on every dataset-to-graph conversion.
+
+        Args:
+            source_graph: The graph to wrap. May also be a
+                Dataset/ConjunctiveGraph: triples are read via its own
+                ``.triples((None, None, None))``, which - like iterating
+                the dataset directly - honors whatever ``default_union``
+                it was constructed with (rdflib default: False), so only
+                its default graph is copied unless the caller explicitly
+                opted into a unioned view. Named graphs are never selected
+                implicitly; use ``dataset.get_context(identifier)`` first
+                for a specific one.
+
+        Returns:
+            A new StarLayerGraph wrapping source_graph's content.
         """
         from rdflib import ConjunctiveGraph, Dataset
 

@@ -8,6 +8,12 @@ re-serialize. "Wholesale replace" per module: a module that's no longer in
 ``target_paths`` simply stays dropped (its old graph was removed and never
 rebuilt) - this function only ever adds back exactly the graphs it's told
 to extract.
+
+Before any single file's own triples are extracted, a whole-project
+``symbol_index.build_symbol_index()`` pass runs once across every target
+path - this is what lets ``slkg:calls`` resolve a call to a function
+defined in a different file than the one making the call (see
+``symbol_index.py``'s own module docstring).
 """
 
 from __future__ import annotations
@@ -35,11 +41,9 @@ def refresh(target_paths: list[Path], repo_root: Path, *, trig_path: Path | None
             Exists for testability (so a test never touches the real,
             checked-in file).
     """
-    from rdflib import URIRef
-
     from starlayer.graph.graph.starlayer_dataset import StarLayerDataset
 
-    from . import visitor
+    from . import symbol_index, visitor
 
     path = trig_path if trig_path is not None else CODEKG_TRIG_PATH
 
@@ -54,11 +58,11 @@ def refresh(target_paths: list[Path], repo_root: Path, *, trig_path: Path | None
 
     starlayer_src_root = repo_root / "packages" / "starlayer" / "starlayer"
 
+    index = symbol_index.build_symbol_index(target_paths, repo_root)
+
     for target_path in target_paths:
-        rel_path = target_path.relative_to(starlayer_src_root)
-        module_iri = URIRef(BLOB_BASE + str(rel_path))
-        module_dotted_path = "starlayer." + str(rel_path.with_suffix("")).replace("/", ".")
-        triples = visitor.extract_module(target_path, module_iri, module_dotted_path)
+        module_iri, module_dotted_path = symbol_index.module_identity(target_path, starlayer_src_root)
+        triples = visitor.extract_module(target_path, module_iri, module_dotted_path, index)
         fresh_ctx = ds.graph(module_iri)
         ds.addN((s, p, o, fresh_ctx) for (s, p, o) in triples)
 

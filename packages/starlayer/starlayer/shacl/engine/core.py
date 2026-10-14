@@ -31,23 +31,38 @@ def target_nodes(
     ont_graph: Any | None = None,
     inference: Any | None = None,
 ) -> tuple[Any, ...]:
-    """Resolves ``shape_node``'s SHACL targets against ``data_graph``.
+    """Resolve ``shape_node``'s SHACL targets against ``data_graph``.
 
-    ``shacl_graph=None`` (2026-10-08) falls back to ``data_graph`` itself -
-    matching ``validate()``'s own "data graph doubles as shapes graph"
-    allowance, for a data file carrying its own embedded shapes.
+    ``shacl_graph=None`` falls back to ``data_graph`` itself - matching
+    ``validate()``'s own "data graph doubles as shapes graph" allowance,
+    for a data file carrying its own embedded shapes.
 
-    Entailment (2026-10-08, closing a consistency gap - every other
-    processing function already had this): ``shacl_graph``'s own declared
-    ``sh:entailment`` regime(s) (SHACL 1.2 Core sec 1.4), plus the optional
-    ``inference=`` keyword (same ``ENTAILMENT.*`` vocabulary), are applied
-    once, up front, onto a private, non-mutating copy of ``data_graph`` -
-    computed over ``data_graph`` union ``ont_graph`` when given (so an
-    axiom declared only in ``ont_graph``, e.g. ``rdfs:domain``, actually
-    widens ``sh:targetClass`` membership), but only the newly-entailed
-    delta is materialized - ``ont_graph``'s own raw triples are never
-    copied in. Neither ``data_graph`` nor ``ont_graph`` is mutated. A
-    no-op when neither is declared nor passed (the common case).
+    ``shacl_graph``'s own declared ``sh:entailment`` regime(s) (SHACL 1.2
+    Core sec 1.4), plus the optional ``inference=`` keyword (same
+    ``ENTAILMENT.*`` vocabulary), are applied once, up front, onto a
+    private, non-mutating copy of ``data_graph`` - computed over
+    ``data_graph`` union ``ont_graph`` when given (so an axiom declared
+    only in ``ont_graph``, e.g. ``rdfs:domain``, actually widens
+    ``sh:targetClass`` membership), but only the newly-entailed delta is
+    materialized - ``ont_graph``'s own raw triples are never copied in.
+    Neither ``data_graph`` nor ``ont_graph`` is mutated. A no-op when
+    neither is declared nor passed (the common case).
+
+    Args:
+        data_graph: The graph to resolve targets against.
+        shacl_graph: The graph holding ``shape_node``'s own target
+            declarations. Falls back to ``data_graph`` when ``None``.
+        shape_node: The shape whose ``sh:targetNode``/``sh:targetClass``/
+            ``sh:targetSubjectsOf``/``sh:targetObjectsOf`` declarations to
+            resolve.
+        ont_graph: An optional ontology graph unioned in for entailment
+            only (see above) - never copied into the result.
+        inference: An optional ``ENTAILMENT.*`` IRI (or iterable of them)
+            to apply alongside any regime(s) ``shacl_graph`` itself
+            declares.
+
+    Returns:
+        The resolved target nodes, in declaration order, deduplicated.
     """
     data, graph, ont = normalize_graph_inputs(
         data_graph, shacl_graph if shacl_graph is not None else data_graph, ont_graph

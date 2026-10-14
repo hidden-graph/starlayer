@@ -36,8 +36,7 @@ rather than hand-duplicated, so the two files can't silently drift apart —
 same discipline used throughout this project's SHACL work.
 
 **A note on ``rdfs:domain``/``rdfs:range`` and why most properties have
-neither — two distinct, both real, reasons, both found by actually
-running reasoning against `validate()`, not by inspection.**
+neither — two distinct, both real, rules.**
 
 1. *Heterogeneous reuse.* Several ``salg:`` properties (``salg:p``,
    ``salg:expr``, ``salg:subject``/``object``, ``salg:PV``, ``salg:var``,
@@ -45,17 +44,16 @@ running reasoning against `validate()`, not by inspection.**
    (see ``vocab.py``), reused across structurally unrelated node types
    with genuinely different value types (or, for ``PV``/``var``/
    ``flags``, a small fixed handful of otherwise-unrelated classes
-   sharing no other superclass) depending on which node uses them.
-   Declaring a single ``rdfs:domain``/``rdfs:range`` for those — or,
-   worse, declaring *multiple* ``rdfs:domain`` triples on one property
-   hoping it reads as "any of these" — is actively wrong, not just
-   imprecise: RDFS domain entailment fires once per ``rdfs:domain``
-   triple independently (not as a union), so two domain declarations on
-   one property make every use of it get typed as *both* classes
-   *simultaneously*. Confirmed as a real bug the moment reasoning was
-   turned on (an ``Extend`` node falsely entailed ``rdf:type
-   salg:Binding`` too, since ``salg:var`` had ``rdfs:domain`` declared
-   for both).
+   sharing no other superclass) depending on which node uses them. A
+   property reused this way must not declare ``rdfs:domain``/
+   ``rdfs:range`` at all — or, worse, declare *multiple* ``rdfs:domain``
+   triples on one property hoping it reads as "any of these" — because
+   that is actively wrong, not just imprecise: RDFS domain entailment
+   fires once per ``rdfs:domain`` triple independently (not as a union),
+   so two domain declarations on one property make every use of it get
+   typed as *both* classes *simultaneously* (e.g. an ``Extend`` node
+   would falsely be entailed ``rdf:type salg:Binding`` too, if
+   ``salg:var``'s ``rdfs:domain`` were declared for both).
 
 2. *Entailment defeating the very validation it's meant to assist.* Any
    property whose value (for range) or subject (for domain) is
@@ -65,15 +63,14 @@ running reasoning against `validate()`, not by inspection.**
    domain/range declared — because RDFS entailment runs *before* SHACL
    validation, it will pre-emptively add the "correct" type to *any*
    value regardless of what it actually is, silently making the SHACL
-   check pass unconditionally. Confirmed as a real, reproducible bug via
-   a negative test that stopped correctly failing the moment
-   ``salg:p1``/``salg:p2`` were given ``rdfs:range salg:GraphPattern``:
+   check pass unconditionally. For example, giving ``salg:p1``/
+   ``salg:p2`` an ``rdfs:range salg:GraphPattern`` declaration would mean
    a deliberately-malformed value with no legitimate operator type at
-   all was auto-entailed ``salg:GraphPattern`` simply for *being* the
-   object of a ``salg:p1`` triple, which is exactly what
+   all gets auto-entailed ``salg:GraphPattern`` simply for *being* the
+   object of a ``salg:p1`` triple — defeating exactly what
    ``GraphPatternShape``'s own ``sh:class salg:GraphPattern`` check
-   exists to catch. This applies to *every* property feeding into an
-   ``sh:class``-checked expression/pattern position (``salg:arg``/
+   exists to catch. This rule applies to *every* property feeding into
+   an ``sh:class``-checked expression/pattern position (``salg:arg``/
    ``arg1``/``arg2``/``arg3``, ``salg:expr``, ``salg:op``, ``salg:other``,
    ``salg:p1``/``p2``, and several more), not just those two — see each
    property's own comment in ``salg-ontology.ttl`` for the specific
@@ -94,13 +91,18 @@ from .expr_families import _EXPR_NODE_FAMILY
 
 
 def _generate_expression_class_turtle() -> str:
-    """The 63 ``rdfs:subClassOf`` declarations linking each real expression
-    builtin class (``salg:Builtin_STR``, ...) to its family's intermediate
-    class (``salg:OneArgExpression``, ...) - generated from
-    ``expr_families._EXPR_NODE_FAMILY`` (the exact table ``shapes.py`` itself
-    generates its per-builtin shapes from) rather than hand-listed. Used to
-    (re)produce the generated section of ``salg-ontology.ttl`` - not called
-    by ``ontology_graph()`` itself, which just loads that file directly.
+    """Generate the 63 ``rdfs:subClassOf`` declarations linking each real
+    expression builtin class (``salg:Builtin_STR``, ...) to its family's
+    intermediate class (``salg:OneArgExpression``, ...).
+
+    Generated from ``expr_families._EXPR_NODE_FAMILY`` (the exact table
+    ``shapes.py`` itself generates its per-builtin shapes from) rather than
+    hand-listed, so the two can't silently drift apart. Used to (re)produce
+    the generated section of ``salg-ontology.ttl`` - not called by
+    ``ontology_graph()`` itself, which just loads that file directly.
+
+    Returns:
+        The generated Turtle declarations, one per line, newline-terminated.
     """
     declarations = []
     for name, family in _EXPR_NODE_FAMILY.items():
@@ -115,20 +117,25 @@ def _generate_expression_class_turtle() -> str:
 
 
 def ontology_graph() -> Graph:
-    """A fresh graph: the RDFS ontology in ``salg-ontology.ttl`` merged with
-    ``spexpr-ontology.ttl`` (lives in the ``starontology`` package).
+    """Build a fresh graph: the RDFS ontology in ``salg-ontology.ttl``
+    merged with ``spexpr-ontology.ttl`` (lives in the ``starontology``
+    package).
 
-    The ``spexpr:`` merge is new (2026-10-10) - ``salg:Expression``/
-    ``salg:Variable``/``salg:Path`` and their subclasses moved out of
-    ``salg-ontology.ttl`` into their own shared vocabulary (see
-    ``starlayer/sparql/vocab.py``'s own ``SPEXPR`` definition for why), so
-    the RDFS subclass axioms ``ExpressionShape``'s ``sh:class
-    spexpr:Expression`` check depends on for entailment now live there
-    instead - without this merge, that entailment silently stops firing
-    and every expression/variable/path check this module's own shapes rely
-    on would start failing. ``salg-ontology.ttl`` on its own now has no
-    opinion about expressions/variables/paths at all - entirely spexpr:'s
-    concern."""
+    The merge is required, not cosmetic: ``salg:Expression``/
+    ``salg:Variable``/``salg:Path`` and their subclasses live in the
+    ``spexpr:`` vocabulary (see ``starlayer/sparql/vocab.py``'s own
+    ``SPEXPR`` definition for why), so the RDFS subclass axioms
+    ``ExpressionShape``'s ``sh:class spexpr:Expression`` check depends on
+    for entailment live there too - without this merge, that entailment
+    would not fire and every expression/variable/path check this module's
+    own shapes rely on would fail. ``salg-ontology.ttl`` on its own has no
+    opinion about expressions/variables/paths at all - entirely
+    ``spexpr:``'s concern.
+
+    Returns:
+        A fresh ``rdflib.Graph`` combining both ontologies (callers get
+        their own copy, not a shared module-level instance).
+    """
     g = starontology.get_ontology_graph("sparql_owl")
     g += starontology.get_ontology_graph("spexpr_owl")
     return g

@@ -2,9 +2,9 @@
 SPARQL arithmetic/numeric-function evaluation (``rdflib.plugins.sparql``) -
 not bugs in this repo's own query rewriting. Found via the W3C SHACL 1.2
 test suite's Node Expressions and Rules fixtures
-(``docs/w3c-shacl12-test-suite-plan.md`` in the ``starShacl`` repo), and
-confirmed independently of any starlayer.graph/pyshacl-starlayer.graph code with plain
-``rdflib.Graph().query()`` reproductions.
+(``docs/w3c-shacl12-test-suite-plan.md`` in the ``starShacl`` repo); each
+bug reproduces against plain ``rdflib.Graph().query()`` with no
+starlayer.graph/pySHACL involvement.
 
 Both patches follow the same idempotent apply-once pattern used elsewhere
 in this project for third-party monkeypatches: a module-level
@@ -37,11 +37,20 @@ def _iter_subexpressions(pyparsing_element):
 
 def _find_comp(root, name, _seen=None):
     """Locate a named ``Comp`` grammar node inside rdflib's already-built
-    pyparsing SPARQL grammar tree. ``Comp.postParse`` reads ``self.evalfn``
-    fresh on every parse (it's a plain mutable instance attribute, not a
-    closure baked in at grammar-definition time), so calling
-    ``.setEvalFn()`` on the node found here changes behavior for every
-    future ``.query()`` call - confirmed empirically before relying on it.
+    pyparsing SPARQL grammar tree.
+
+    ``Comp.postParse`` reads ``self.evalfn`` fresh on every parse (it's a
+    plain mutable instance attribute, not a closure baked in at
+    grammar-definition time), so calling ``.setEvalFn()`` on the node found
+    here changes behavior for every future ``.query()`` call.
+
+    Args:
+        root: The pyparsing grammar node to search from.
+        name: The ``Comp`` node's ``.name`` to match.
+        _seen: Internal recursion guard - set of already-visited node ids.
+
+    Returns:
+        The matching ``Comp`` node, or ``None`` if not found.
     """
     if _seen is None:
         _seen = set()
@@ -62,8 +71,15 @@ def _canonicalize_decimal_lexical_form(literal: Literal) -> Literal:
     at least one digit on each side (e.g. ``"42.0"``, not ``"42"``) - but
     rdflib's own CEIL/FLOOR/ROUND/division construct a whole-number decimal
     result via a Python ``int``/exact ``Decimal``, whose default string form
-    omits the trailing ``.0``. A no-op for any non-decimal-typed or
-    already-fractional literal.
+    omits the trailing ``.0``.
+
+    Args:
+        literal: The ``Literal`` to canonicalize.
+
+    Returns:
+        A re-lexicalized ``Literal`` with a trailing ``.0`` if ``literal``
+        is ``xsd:decimal``-typed and missing a decimal point; otherwise
+        ``literal`` unchanged.
     """
     if literal.datatype == XSD.decimal and "." not in str(literal):
         return Literal(f"{literal}.0", datatype=XSD.decimal)
@@ -81,10 +97,8 @@ def patch_multiplicative_expression_type_promotion() -> bool:
     ``datatype=``, so rdflib infers ``xsd:decimal`` from the Python
     ``Decimal`` type regardless of the operands' actual datatypes. Per
     SPARQL 1.1's op:numeric-multiply, ``xsd:integer * xsd:integer`` must
-    stay ``xsd:integer`` - confirmed live against plain
-    ``rdflib.Graph().query()`` (7.6.0), no starlayer.graph/pyshacl-starlayer.graph
-    involved: ``6 * 7`` returns ``"42"^^xsd:decimal``, not
-    ``"42"^^xsd:integer``.
+    stay ``xsd:integer`` - stock rdflib instead returns
+    ``"42"^^xsd:decimal`` for ``6 * 7``, not ``"42"^^xsd:integer``.
 
     Division is different: op:numeric-divide always promotes to at least
     ``xsd:decimal`` even for two integers (this part of rdflib's behavior
@@ -94,9 +108,8 @@ def patch_multiplicative_expression_type_promotion() -> bool:
     since both live in the same function.
 
     Idempotent and defensive, matching the established
-    ``pyshacl_starlayergraph/validator.py`` patch idiom - returns ``False``
-    without raising if rdflib's internals don't match what this shim
-    expects.
+    ``starlayer.shacl.validator`` patch idiom - returns ``False`` without
+    raising if rdflib's internals don't match what this shim expects.
     """
     global _multiplicative_expression_patch_status
     if _multiplicative_expression_patch_status is not None:
@@ -151,15 +164,14 @@ def patch_decimal_result_lexical_form() -> bool:
     ``Builtin_ROUND`` correctly preserve the argument's ``xsd:decimal``
     datatype, but construct the result via ``Literal(int(...), datatype=...)``
     - a raw Python ``int`` lexicalizes as e.g. ``"4"``, not the canonical
-    decimal form ``"4.0"``. Confirmed live: ``Literal(Decimal(42))``
-    (rdflib's own default datatype inference for a ``Decimal`` value)
-    already lexicalizes as ``"42"``, not ``"42.0"`` - the fractional-zero
-    digit only survives if it's already present in whatever value is
-    handed to ``Decimal(...)``/``Literal(...)``, which these functions
-    never do.
+    decimal form ``"4.0"``. rdflib's own default datatype inference for a
+    ``Decimal`` value has the same gap (``Literal(Decimal(42))``
+    lexicalizes as ``"42"``, not ``"42.0"``) - the fractional-zero digit
+    only survives if it's already present in whatever value is handed to
+    ``Decimal(...)``/``Literal(...)``, which these functions never do.
 
     Idempotent and defensive, matching the established
-    ``pyshacl_starlayergraph/validator.py`` patch idiom.
+    ``starlayer.shacl.validator`` patch idiom.
     """
     global _decimal_result_lexical_form_patch_status
     if _decimal_result_lexical_form_patch_status is not None:

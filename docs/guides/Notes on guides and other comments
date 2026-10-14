@@ -1,0 +1,71 @@
+Notes on guides and other comments
+
+STRUACTURE:
+
+1. Our getting started guide should use the standard rdflib/pyshacl forms.  Dont use StarSHaclScheam
+
+2. Make section 5  a new section on Starlayer Schemas and Ontologies, to hold our discussion of Manchestermn, SPArQL tree, rules tree and SKOS, as long as SHACL meta and salg if we want. Lets not include that in the related user guides.  Then 6 becomes "other"
+
+3. Make the graphs inferencing notebook complete with respect to the explanation of the various inferenicng regimes.  see if there in information in the entailent component of SPARQL that shoudl be in graph inferencing.  Then we can simplify the SPARQL inferencing to show how to use the graph inferencing from a query.
+
+4. move the owl-dl inferencing up to section 2.
+
+5. have SHACL Sparql come before SHACL inferencing (where we discuss the use of SPARQL.)
+
+6. Should SPARQL inferencing be titled entailments (inferening)
+
+7. SRL shoudl come after sparql inferencing.  
+
+7. for the StarLayerSchema we need to introduce that concept when we start talkign about SHACL. (04)
+Functionality:
+
+8.  need to complete the profiling section.
+
+9. for backends we should add a section for inferencing on the backend. 
+
+Function:
+
+1. we need to make the ontologies and shacl files and the profiles available as urls.
+
+2. create a SPARQL equivalent to StarGraph and StarSchema. Do the same with SRL.  
+
+3. when running SHACL - Sparql do we use our Sparql shacl to validate the structure?
+
+4. need to visit SHACL UI.  Can we provide some example of its use?  Also, StarLayer allows enhancements to the shape. we shoudl demonstrate 
+
+5. on shape extraction, suggest we make this a SHACL function and not a SHACLShema method.  this way we do not make this one of the big three.  see if we can come up with simpler ways to describe the use.  similar to cbd, but based on a shape.  could also give it its own
+
+Questions from Claude (answer inline below each, whenever convenient):
+
+1. (re STRUACTURE #2) Exactly which pieces move into the new "StarLayer Schemas and Ontologies" section - all of Manchester/SPARQL-tree/rules-tree/SKOS, or just the ontology-level discussion inside those guides while the "how to use it" parts stay put? And do SHACL meta and salg come along or not?
+- we want to move the how to use it part as well.  this is truly an unique extention to the existing libraries and I want it to be treated separately. we can include shacl.  we do not need a separate guide on slag.  we can describe what it is and where to get the ontology. 
+
+
+>
+
+2. (re STRUACTURE #6) Should 03b actually be retitled, e.g. to "SPARQL Entailment"? Or just leave the title and let the content speak for itself post-simplification?  Yes.  Entitlement is in-line with the specificaiton.
+>
+
+3. (re Functionality #8) Does "complete the profiling section" mean writing more documentation around the open design questions already noted in 04e section 6 (prof:Profile resources, union/roll-up semantics, where starlayer-specific vocab gets documented) - or does it mean those design questions need to be resolved/implemented in code first, before the docs can honestly describe them?
+- I think we need to think through profiling a bit more and make sure we have the story correct.  there may be some work left undone based on where the specification sits.  the profiles of shacl that we would like to use are not complete.
+>
+
+4. (re Function #1) What hosting/URL mechanism did you have in mind for serving ontologies/SHACL files/profiles - a static file server, a package-internal resolver, versioned URIs, something else?
+where the files can be obtained from a url from the github repo.
+>
+
+5. (re Function #2) What should a "SPARQL equivalent to StarGraph and StarSchema" actually do/look like? Trying to understand the target shape before planning it.
+We would have a class that has the primary purpose to hold a query object.  that object then could be used to perform queries on differnt graphs.  It may also hold entailment regime.  we might plan if there are other things we need to include. 
+>
+
+6. (re Function #3) 04c's own "Known limitations" section already says embedded sh:select/sh:ask/sh:construct text isn't parsed as real SPARQL today (checked structurally by meta-shacl, not validated as SPARQL). Do you want this wired up to 05c's query-as-RDF/SHACL-validation path as a real feature, or were you just confirming your own understanding of current behavior?
+I expect we can not do this in shcal directly, but we could have a process to get the sparql and parse it to a tree and validated it.  
+>
+
+7. (re Function #4) What specifically did you mean by "StarLayer allows enhancements to the shape" in the SHACL UI context? Didn't find an obviously-matching named feature in 04d or its neighbors.
+I think that we have a way that a user can add a layer to a shacl file. i.e. add their own ui elements.  is that correct?
+>
+
+8. (re Function #5) This note cuts off at "could also give it its own" - its own what? (a guide section, a name/term, something else?)
+>I dont know what I was thinking.
+

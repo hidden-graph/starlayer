@@ -85,6 +85,15 @@ def next_token(s):
         q = s[:3]
         i = 3
         while i <= len(s) - 3:
+            if s[i] == '\\':
+                # Skip an escaped character as one atomic pair - otherwise
+                # an escaped quote sitting directly against the real
+                # closing delimiter (e.g. a docstring ending "...the word
+                # \"profile.\"\"\"\"") is misread as itself starting the
+                # close, one character early. Same fix as
+                # syntax._split_statements_impl's matching one.
+                i += 2
+                continue
             if s[i:i+3] == q:
                 return s[:i+3], s[i+3:].lstrip()
             i += 1

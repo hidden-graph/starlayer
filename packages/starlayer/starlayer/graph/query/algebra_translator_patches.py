@@ -6,24 +6,22 @@ of each, including standalone plain-rdflib reproductions.
 
 None of these bugs is in a code path *this repo itself* exercises directly
 today — starlayer.graph never calls ``translateAlgebra``/``_AlgebraTranslator``
-anywhere in its own pipeline (confirmed: no reference to either name in
-``starlayer.graph/`` outside this file). All were found while building triple-term
-support in the downstream ``starlayer.sparql`` project, which *does* use
-``_AlgebraTranslator`` directly (subclassing it in its own
-``serialize12.py``); issues 3 and 6 already have independent workarounds
-there (issue 7's empty-``PV`` fix does not — that project's own ``Project``
-handling is about a different, CONSTRUCT-specific empty-``PV`` case, not
-this one). Patching here too is still worthwhile, matching
-``operator_patches.py``'s own stated rationale: any *other* current or
-future consumer of this package that calls ``translateAlgebra``/
-``_AlgebraTranslator`` directly (not through that specific downstream
-subclass) gets correct behavior for free, rather than silently inheriting
-these bugs — and per direct instruction, this pipeline (parse SPARQL 1.2 →
-this project's own RDF algebra representation → ``translateAlgebra``-based
-regeneration → execution) is intended to become the path *every* SPARQL
-query through starlayer.graph goes through, not just this specific downstream
-project's own test suite, which makes fixing these here rather than only in
-one consumer's own workaround the right call.
+anywhere in its own pipeline. They surfaced in the downstream
+``starlayer.sparql`` project, which *does* use ``_AlgebraTranslator``
+directly (subclassing it in its own ``serialize12.py``); issues 3 and 6
+already have independent workarounds there (issue 7's empty-``PV`` fix does
+not — that project's own ``Project`` handling is about a different,
+CONSTRUCT-specific empty-``PV`` case, not this one). Patching here too is
+worthwhile, matching ``operator_patches.py``'s own stated rationale: any
+*other* current or future consumer of this package that calls
+``translateAlgebra``/``_AlgebraTranslator`` directly (not through that
+specific downstream subclass) gets correct behavior for free, rather than
+silently inheriting these bugs — and this ``translateAlgebra``-based
+pipeline (parse SPARQL 1.2 → this project's own RDF algebra representation
+→ regeneration → execution) is intended to become the path *every* SPARQL
+query through starlayer.graph goes through, not just this one downstream
+project's own test suite, which is why these are fixed here rather than
+only in that one consumer's own workaround.
 
 Same idempotent apply-once pattern as ``operator_patches.py``: a
 module-level ``_xxx_patch_status: bool | None`` flag plus a marker attribute
@@ -117,12 +115,9 @@ def patch_algebra_translator_bugs() -> bool:
             # the final `return original_sparql_query_text(self, node)`
             # unconditionally would run the *original*, buggy logic a
             # second time on the same node, on top of this patch's own
-            # fix. Confirmed a real, reproducible bug when first tried:
-            # omitting the explicit `return None` after the "Extend"
-            # branch's own fix still let the original "Extend" branch run
-            # too, via this exact fallthrough - producing both the
-            # corrected in-place BIND *and* the original buggy nested-AS
-            # text in the same output.
+            # fix, producing double output (e.g. both the corrected
+            # in-place BIND and the original buggy nested-AS text for the
+            # same "Extend" node).
             if isinstance(node, CompValue) and node.name == "BGP":
                 # Same four _replace calls the original "BGP" branch makes,
                 # in the same order - only the triples separator differs
@@ -161,10 +156,7 @@ def patch_algebra_translator_bugs() -> bool:
                 # argument, which needs _traverse's own later per-child
                 # recursion to resolve. Returning early here would leave
                 # that placeholder as literal, unresolved text in the
-                # final output - confirmed a real, reproducible bug when
-                # first tried (this project's own CLAUDE.md documents the
-                # identical trap for a different branch, "isTRIPLE"/etc,
-                # in the downstream starlayer.sparql project).
+                # final output.
                 return None
 
             if (
@@ -238,15 +230,12 @@ def patch_algebra_translator_bugs() -> bool:
                 # zero or more times with no required separator between
                 # repetitions), and `)` (BIND's own closing paren) is
                 # already an unambiguous token boundary against anything
-                # that can follow. Confirmed necessary, not just
-                # stylistic: starlayer.graph's own `sparql12_to_11.py` rewriter
-                # (`_rewrite_bind_accessors`) matches the literal text
-                # shape `BIND(SUBJECT(?tt) AS ?s)` and substitutes it
-                # *wholesale* with `?tt <rdf:subject> ?s .` - including its
-                # *own* trailing period - so a trailing "." emitted here
-                # too produced a real, reproducible double-period
-                # (`?s . .`, a syntax error) once this branch's output fed
-                # into that specific downstream rewriter.
+                # that can follow - independently grammar-correct, not
+                # just a stylistic choice. It also matters downstream:
+                # starlayer.graph's own `sparql12_to_11.py` rewriter matches
+                # this exact `BIND(... AS ...)` text shape and appends its
+                # own trailing period, so emitting one here too would
+                # double it (`?s . .`, a syntax error).
                 self._replace(
                     "{Extend}",
                     "{" + node.p.name + "}BIND(" + self.convert_node_arg(node.expr) + " AS " + node.var.n3() + ")",
@@ -256,13 +245,12 @@ def patch_algebra_translator_bugs() -> bool:
                 # child pattern - BGP/ToMultiSet/Join/etc) is only
                 # referenced here as a bare "{NodeName}" placeholder, not
                 # actually resolved - _traverse's own later recursion into
-                # node.p is what fills it in. Confirmed a real,
-                # reproducible bug when first tried: returning early here
-                # left a literal, unresolved "{ToMultiSet}"/"{BGP}" in the
-                # output, and separately meant _traverse never reached the
-                # BGP branch's own "-*-select-*- -> SELECT" marker
-                # cleanup, leaving the literal marker text in the output
-                # too.
+                # node.p is what fills it in and, when that child is a
+                # BGP, also runs the "BGP" branch's own
+                # "-*-select-*- -> SELECT" marker cleanup. Returning early
+                # here would leave the placeholder (and, for a BGP child,
+                # the marker text too) as literal, unresolved text in the
+                # output.
                 return None
 
             if isinstance(node, CompValue) and node.name == "Project" and not node.PV:

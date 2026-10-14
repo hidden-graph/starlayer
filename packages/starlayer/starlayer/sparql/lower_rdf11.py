@@ -25,8 +25,8 @@ Four composable entry points:
   nothing further needed. **Prefer this for actual execution** — hand it
   straight to ``StarLayerGraph.query()``/``StarLayerDataset.query()``,
   both of which already special-case a non-``str`` ``query_object`` to
-  skip their own text rewriting/parsing entirely (confirmed: both branch
-  on ``isinstance(query_object, str)``). No SPARQL 1.1 text needs to
+  skip their own text rewriting/parsing entirely (each branches on
+  ``isinstance(query_object, str)``). No SPARQL 1.1 text needs to
   exist anywhere in this path.
 - ``rdf11_to_sparql11_text(graph, root)`` — same decode, then plain
   rdflib ``algebra.translateAlgebra`` (not ``serialize12.
@@ -38,11 +38,11 @@ Four composable entry points:
   doesn't. Going through this function and re-parsing its output is
   strictly redundant with ``rdf11_to_query`` for in-memory execution, and
   reintroduces exactly the string-serialization fragility this project's
-  tree-based approach exists to avoid (confirmed a real instance of this
-  while building it: rdflib's own ``_AlgebraTranslator`` has no branch at
-  all for a generic ``Function`` call or for ``ConstructQuery``, both
-  patched around here in ``_AlgebraTranslator11``, purely to make this
-  *text* path work — none of that is needed for direct execution).
+  tree-based approach exists to avoid: rdflib's own ``_AlgebraTranslator``
+  has no branch at all for a generic ``Function`` call or for
+  ``ConstructQuery``; both are patched around here in
+  ``_AlgebraTranslator11``, purely to make this *text* path work — none
+  of that is needed for direct execution.
 
 ## What actually needs lowering
 
@@ -55,23 +55,21 @@ so no shorthand form ever reaches the algebra). ``Builtin_isTRIPLE``/
 project's own bespoke grammar productions (``grammar12.py``) for the
 SPARQL 1.2 accessor builtins.
 
-``LANGDIR``/``hasLANGDIR``/``STRLANGDIR``/``hasLANG`` **do** have real
+``LANGDIR``/``hasLANGDIR``/``STRLANGDIR``/``hasLANG`` already have real
 ``_grammar12.py`` ``BuiltInCall`` productions (``Builtin_LANGDIR``/
-``Builtin_hasLANGDIR``/``Builtin_STRLANGDIR``/``Builtin_hasLANG`` - this
-docstring previously said otherwise, stale since whenever those
-productions were added; corrected 2026-10-13 after a direct test proved
-the claim wrong). Each is lowered below via ``_lower_expr``'s own
-dispatch. dirLangString *literals* (``"text"@lang--dir``) need zero
-lowering either: ``grammar12.py``'s ``LangDirLiteral`` production already
-builds ``Literal(text, datatype=encode_dirlang_datatype(lang, dir))`` at
-parse time — the exact encoded form starlayer.graph's in-memory backend
-expects as-is. ``DATATYPE()`` and the whole SPARQL 1.1 "Functions on
-Strings" family (``STRLEN``/``SUBSTR``/``UCASE``/``LCASE``/``STRSTARTS``/
+``Builtin_hasLANGDIR``/``Builtin_STRLANGDIR``/``Builtin_hasLANG``). Each
+is lowered below via ``_lower_expr``'s own dispatch. dirLangString
+*literals* (``"text"@lang--dir``) need zero lowering either:
+``grammar12.py``'s ``LangDirLiteral`` production already builds
+``Literal(text, datatype=encode_dirlang_datatype(lang, dir))`` at parse
+time — the exact encoded form starlayer.graph's in-memory backend expects
+as-is. ``DATATYPE()`` and the whole SPARQL 1.1 "Functions on Strings"
+family (``STRLEN``/``SUBSTR``/``UCASE``/``LCASE``/``STRSTARTS``/
 ``STRENDS``/``CONTAINS``/``STRBEFORE``/``STRAFTER``/``CONCAT``/``REGEX``/
-``REPLACE``/``ENCODE_FOR_URI``) also get dirLangString-aware lowering
-(2026-10-13) - stock rdflib's own evalfns for all of these reject a
-dirLangString value outright (see ``DIRLANG_STRING_FN``'s own comment
-above), and ``DATATYPE()`` would otherwise leak starlayer.graph's internal
+``REPLACE``/``ENCODE_FOR_URI``) also get dirLangString-aware lowering —
+stock rdflib's own evalfns for all of these reject a dirLangString value
+outright (see ``DIRLANG_STRING_FN``'s own comment above), and
+``DATATYPE()`` would otherwise leak starlayer.graph's internal
 ``dirlang:`` encoding IRI instead of the real ``rdf:dirLangString``.
 
 ## Term-slot vs. expression-position lowering
@@ -94,10 +92,9 @@ plain term there), so it needs converting to an actual term:
   literal ``tt:`` ``URIRef`` term — no fresh variable, no ``BIND``, no
   runtime ``Function`` call. Deliberately *not* a ``BIND``-wrapped fresh
   variable (unlike the CONSTRUCT-template case below, which looks
-  superficially similar): confirmed via a real, reproducible bug (W3C
-  fixture ``pattern-4``, "No match" — regressed to a false positive) that
-  rdflib's own ``evalExtend`` does not enforce SPARQL's "a ``BIND`` target
-  must be previously unbound" rule — it unconditionally overwrites
+  superficially similar): rdflib's own ``evalExtend`` does not enforce
+  SPARQL's "a ``BIND`` target must be previously unbound" rule — it
+  unconditionally overwrites
   (``c.merge({extend.var: e})``, no equality check) rather than raising or
   filtering. A pattern-position triple term's minted variable is *also*
   bound by the BGP's own ordinary triple match (that's the point of
@@ -153,7 +150,7 @@ from rdflib.plugins.sparql.sparql import Prologue, Query, Update
 # _AlgebraTranslator11 (below) subclasses plain rdflib's own
 # _AlgebraTranslator, adding only two fixes of its own (a Function-node
 # rendering branch, a couple of leftover-placeholder cleanups). Four other
-# confirmed, real translateAlgebra bugs it relies on - BGP blank-node
+# real translateAlgebra bugs it relies on - BGP blank-node
 # adjacency producing text rdflib's own parser can't re-parse, UNION
 # branches mis-nesting when each contains a subquery + BIND, an inverted
 # IN/NOT IN list-handling guard that crashes on multi-value lists, and a
@@ -226,8 +223,8 @@ DIRLANG_STRING_FN = {
     )
 }
 # The real W3C rdf:dirLangString IRI - not pre-defined on rdflib's own RDF
-# namespace object in the installed version (confirmed: RDF.dirLangString
-# raises AttributeError, "term not in namespace"), so built directly.
+# namespace object in the installed version (RDF.dirLangString raises
+# AttributeError, "term not in namespace"), so built directly.
 RDF_DIRLANGSTRING = URIRef(str(RDF) + "dirLangString")
 
 
@@ -254,10 +251,16 @@ def _is_ground(term) -> bool:
     """True iff `term` contains no Variable and no BlankNode anywhere,
     recursively through nested TripleTermNodes. A blank node counts as
     non-ground here even though it isn't a Variable — matching
-    sparql12_to_11.py's own (session-confirmed) fix for the same question:
-    a BIND target computed from a triple term containing a blank node must
-    still be recomputed per-solution-consistent-skolemization, not hoisted
-    as if it were a constant.
+    sparql12_to_11.py's own fix for the same question: a BIND target
+    computed from a triple term containing a blank node must still be
+    recomputed per-solution-consistent-skolemization, not hoisted as if
+    it were a constant.
+
+    Args:
+        term: The RDF term (or TripleTermNode) to check.
+
+    Returns:
+        True iff term is fully ground.
     """
     if isinstance(term, TripleTermNode):
         return (
@@ -285,15 +288,15 @@ def _is_triple_term_expr(arg) -> CompValue:
     a triple-term-valued expression can hold at evaluation time: a native
     ``TripleTerm`` object (ordinary pattern-matched, or extracted via an
     accessor-function chain — ``STR()`` on one renders it as
-    ``"<<( s p o )>>"``, confirmed empirically, never a `tt:`-prefixed
-    string) or a `tt:` hash ``URIRef`` (freshly constructed via
-    `TT_HASH_FN`, never pattern-matched). Plain `STRSTARTS(STR(x), TT_NS)`
-    alone — this project's own earlier version, and still what the sibling
+    ``"<<( s p o )>>"``, never a `tt:`-prefixed string) or a `tt:` hash
+    ``URIRef`` (freshly constructed via `TT_HASH_FN`, never
+    pattern-matched). Plain `STRSTARTS(STR(x), TT_NS)` alone — this
+    project's own earlier version, and still what the sibling
     `starlayer.graph` repo's own text-based `isTripleTerm()`/`isTRIPLE()`
-    rewriter uses — only recognizes the second form; confirmed as a real,
-    reproducible false-negative for the first (a query testing whether an
-    ordinarily-pattern-matched value is a triple term always got `false`,
-    even when it truly was one).
+    rewriter uses — only recognizes the second form, missing an
+    ordinarily-pattern-matched triple term entirely (a query testing
+    whether such a value is a triple term always got `false`, even when
+    it truly was one).
     """
     str_call = CompValue("Builtin_STR", arg=arg)
     return CompValue(
@@ -312,6 +315,13 @@ def _dirlang_str_datatype(raw_arg, state: _LowerState) -> CompValue:
     this module already follows (see ``lower_algebra_to_rdf11``'s own
     "does not mutate" docstring); `_lower_expr` is a pure function, so this
     just costs a little redundant work, never correctness.
+
+    Args:
+        raw_arg: The not-yet-lowered expression node to test.
+        state: The current `_LowerState`.
+
+    Returns:
+        A `CompValue` for `STR(DATATYPE(lower(raw_arg)))`.
     """
     return CompValue("Builtin_STR", arg=CompValue("Builtin_DATATYPE", arg=_lower_expr(raw_arg, state)))
 
@@ -334,15 +344,21 @@ def _dirlang_langdir_expr(raw_arg, state: _LowerState) -> CompValue:
 def _dirlang_has_langdir_expr(raw_arg, state: _LowerState) -> CompValue:
     """``hasLANGDIR(v)`` -> true iff v's datatype is a dirLangString IRI,
     false for anything else - including a non-literal RDF term (RDF 1.2
-    Query sec 17.4.2.11: ``hasLANGDIR(<http://example/>)`` -> ``false``,
-    confirmed directly against the spec's own table - unlike LANGDIR()
-    itself, which errors on a non-literal). Mirrors
-    ``sparql12_to_11.py::_dirlang_has_langdir``, plus a fix found
-    2026-10-13: the bare STRSTARTS/DATATYPE expression below raises
-    (DATATYPE() requires a literal) for a non-literal argument instead of
-    evaluating to false, so it's wrapped in COALESCE with a ``false``
-    fallback - the same "catch an expression-evaluation error, substitute
-    a default" mechanism SPARQL's own COALESCE exists for.
+    Query sec 17.4.2.11: ``hasLANGDIR(<http://example/>)`` -> ``false`` per
+    the spec's own example table - unlike LANGDIR() itself, which errors
+    on a non-literal). Mirrors ``sparql12_to_11.py::_dirlang_has_langdir``:
+    the bare STRSTARTS/DATATYPE expression below raises (DATATYPE()
+    requires a literal) for a non-literal argument instead of evaluating
+    to false, so it's wrapped in COALESCE with a ``false`` fallback - the
+    same "catch an expression-evaluation error, substitute a default"
+    mechanism SPARQL's own COALESCE exists for.
+
+    Args:
+        raw_arg: The not-yet-lowered expression node to test.
+        state: The current `_LowerState`.
+
+    Returns:
+        A `CompValue` for the lowered `hasLANGDIR(v)` expression.
     """
     starts = CompValue(
         "Builtin_STRSTARTS", arg1=_dirlang_str_datatype(raw_arg, state), arg2=Literal(DIRLANG_NS)
@@ -375,15 +391,21 @@ def _dirlang_has_lang_expr(raw_arg, state: _LowerState) -> CompValue:
     """``hasLANG(v)`` -> true iff v is a dirLangString OR an ordinary
     language-tagged literal, false for anything else - including a
     non-literal RDF term (RDF 1.2 Query sec 17.4.2.10:
-    ``hasLANG(<http://example/>)`` -> ``false``, confirmed directly
-    against the spec's own table - unlike LANG()/LANGDIR() themselves,
-    which both error on a non-literal). Mirrors
-    ``sparql12_to_11.py::_dirlang_has_lang``, plus a fix found 2026-10-13:
-    for a non-literal argument, *both* operands of the OR below raise
+    ``hasLANG(<http://example/>)`` -> ``false`` per the spec's own example
+    table - unlike LANG()/LANGDIR() themselves, which both error on a
+    non-literal). Mirrors ``sparql12_to_11.py::_dirlang_has_lang``: for a
+    non-literal argument, *both* operands of the OR below raise
     (DATATYPE() and LANG() each require a literal), so the OR itself
     raises rather than evaluating to false - wrapped in COALESCE with a
     ``false`` fallback, same fix and reasoning as
     ``_dirlang_has_langdir_expr`` above.
+
+    Args:
+        raw_arg: The not-yet-lowered expression node to test.
+        state: The current `_LowerState`.
+
+    Returns:
+        A `CompValue` for the lowered `hasLANG(v)` expression.
     """
     starts = CompValue(
         "Builtin_STRSTARTS", arg1=_dirlang_str_datatype(raw_arg, state), arg2=Literal(DIRLANG_NS)
@@ -478,20 +500,19 @@ def _lower_expr(node, state: _LowerState):
             return _lower_dirlang_string_fn(fn, [node["arg"]], state)
         if name == "Builtin_SUBSTR":
             args = [node["arg"], node["start"]]
-            # Attribute access, not node.get("length") - confirmed live
-            # that CompValue.get() on a genuinely-absent Optional(...)
-            # grammar field (SUBSTR's own 2-or-3-arg form) returns the key
-            # name itself as a pyparsing-internal placeholder, not None,
-            # while attribute access correctly returns None (the same
-            # convention rdflib's own stock evalfns rely on, e.g.
-            # Builtin_SUBSTR's own "length = expr.length; if length is not
-            # None:"). node.get() returning a truthy non-None placeholder
-            # here made every 2-arg SUBSTR/REGEX/REPLACE call wrongly
-            # append a 3rd positional None-ish argument, breaking arity -
-            # found via a real regression (SHACL's own regex/replace node-
-            # expression tests) once this code path stopped being
-            # dirLangString-only special-cased and started intercepting
-            # every REGEX/REPLACE call unconditionally.
+            # Attribute access, not node.get("length"): CompValue.get()
+            # (built on pyparsing.ParseResults's own
+            # OrderedDict.get(self, a, a) convention) returns the key
+            # name itself as a placeholder when a grammar field is
+            # genuinely absent (SUBSTR's own 2-or-3-arg form) rather than
+            # None, while plain attribute access correctly returns None
+            # (the same convention rdflib's own stock evalfns rely on,
+            # e.g. Builtin_SUBSTR's own "length = expr.length; if length
+            # is not None:"). Using node.get() here would make every 2-arg
+            # SUBSTR/REGEX/REPLACE call wrongly append a 3rd, truthy
+            # placeholder argument, breaking arity - any code checking
+            # whether an optional grammar field was actually provided
+            # must use getattr(node, key, None), never node.get(key).
             if getattr(node, "length", None) is not None:
                 args.append(node["length"])
             return _lower_dirlang_string_fn("substr", args, state)
@@ -513,11 +534,11 @@ def _lower_expr(node, state: _LowerState):
             # zero arguments. Inlined directly as the spec's own constant
             # result (sec 17.4.3.10's errata-query-4 rule: "" with no
             # arguments) rather than emitting a Function call with an empty
-            # expr=[] list - found live that an *empty* list-valued
-            # CompValue field doesn't survive the RDF round-trip this
-            # lowered tree still goes through (query_to_rdf11 encodes it,
-            # then decodes it right back a moment later): it comes back as
-            # the bare RDF.nil term again, not []. A real round-trip gap in
+            # expr=[] list: an *empty* list-valued CompValue field doesn't
+            # survive the RDF round-trip this lowered tree still goes
+            # through (query_to_rdf11 encodes it, then decodes it right
+            # back a moment later) - it comes back as the bare RDF.nil
+            # term again, not []. A real round-trip gap in
             # to_rdf.py/from_rdf.py's own generic list-field handling, but
             # CONCAT() is the first place in this project that ever builds
             # a genuinely empty Function argument list, so it was never
@@ -555,10 +576,10 @@ def _lower_expr(node, state: _LowerState):
                 # `.items()` just yielded here, so `value` can be a stale,
                 # untranslated parse-tree fragment even though `node.graph`
                 # (attribute access) already returns the correct, translated
-                # algebra. Confirmed via `dict.__getitem__(node, "graph")`
-                # still returning the raw `GroupGraphPatternSub` on a node
-                # whose `.graph` attribute already reads back as `Join` -
-                # without this, a `FILTER (NOT) EXISTS { ... }` with more
+                # algebra - `dict.__getitem__(node, "graph")` still returns
+                # the raw `GroupGraphPatternSub` on a node whose `.graph`
+                # attribute already reads back as `Join`. Without this
+                # preference, a `FILTER (NOT) EXISTS { ... }` with more
                 # than one triple in its block gets re-encoded with a
                 # dead, un-evaluable fragment and crashes at execution time
                 # ("What do I do with this CompValue?"). Prefer the
@@ -593,41 +614,45 @@ def _lower_pattern_term(term, extra_constraints: list, already_bound: set, state
     `_eager_lower_value`, the same mechanism VALUES rows already use) and
     substituted as a literal `tt:` URIRef directly — deliberately **not**
     the ``BIND``-a-fresh-variable approach used elsewhere (expression
-    position, CONSTRUCT templates): confirmed via a real, reproducible bug
-    (W3C fixture `pattern-4`, "No match" — regressed to a false match)
-    that rdflib's own `evalExtend` does not enforce SPARQL's "BIND target
-    must be previously unbound" rule at all — it unconditionally
-    overwrites (`c.merge({extend.var: e})`, no equality check against the
-    existing binding) rather than raising/filtering. Wrapping a *pattern-
-    position* ground triple term's own fresh variable in Extend means that
-    exact variable is *also* bound by the BGP's own ordinary triple match
-    (that's the whole point of putting it in the pattern's term slot) —
-    so `BIND` there silently overwrites whatever the BGP actually
-    matched, discarding the very equality check the match was supposed to
-    perform. Computing the value in Python and substituting a constant
-    sidesteps the bug entirely (there's no variable left for anything to
-    overwrite) rather than working around a case-by-case symptom of it.
+    position, CONSTRUCT templates).
+
+    **Why not `BIND`/`Extend` here**: rdflib's own `evalExtend` (the SPARQL
+    `BIND` evaluator) unconditionally overwrites an existing binding
+    (``c.merge({extend.var: e})``, with no equality check against any prior
+    value) rather than treating "BIND onto an already-bound variable" as an
+    error or requiring the new value to equal the old one. Wrapping a
+    *pattern-position* ground triple term's own fresh variable in `Extend`
+    means that exact variable is *also* bound by the BGP's own ordinary
+    triple match (that's the whole point of putting it in the pattern's
+    term slot) — so `BIND` there would silently overwrite whatever the BGP
+    actually matched, discarding the very equality check the match was
+    supposed to perform, and turning what should be a non-match into a
+    false one. Any lowering scheme that reuses a variable which might
+    already be bound elsewhere in the pattern via a `BIND` carries this same
+    risk; the fix is to prefer eager, Python-computed constant values (as
+    here), or an explicit `Filter`-based equality check (see
+    `_add_single_constraint`), over `Extend`/`BIND` whenever the target
+    variable might already be bound from elsewhere in the same pattern.
+    Computing the value in Python and substituting a constant sidesteps the
+    hazard entirely (there's no variable left for anything to overwrite).
     Safe here specifically because the value is already fully known at
-    lowering time; CONSTRUCT-template ground values use the same
-    `Extend` approach safely (see `_lower_template_term`) precisely
-    because *that* fresh variable is never independently pattern-matched
-    anywhere — no overwrite hazard to avoid.
+    lowering time; CONSTRUCT-template ground values use the same `Extend`
+    approach safely (see `_lower_template_term`) precisely because *that*
+    fresh variable is never independently pattern-matched anywhere — no
+    overwrite hazard to avoid.
 
     A **non-ground** triple term cannot be decomposed into
-    ``?ttVar rdf:subject s .`` etc. match triples the way an earlier
-    version of this function did — confirmed empirically that
-    ``StarLayerGraph`` stores a triple term as a native Python
-    ``TripleTerm`` object directly (with its own real ``.subject``/
-    ``.predicate``/``.object`` attributes), never as decomposed
-    ``rdf:subject``/``predicate``/``object`` triples, so there is nothing
-    in the store for such a match triple to ever match against — it
-    silently matched zero rows regardless of real matching data. Fixed by
-    minting a fresh variable for the *whole* triple term (bound the
-    ordinary way, by the BGP's own triple match) and pushing
+    ``?ttVar rdf:subject s .`` etc. match triples: ``StarLayerGraph`` stores
+    a triple term as a native Python ``TripleTerm`` object directly (with
+    its own real ``.subject``/``.predicate``/``.object`` attributes), never
+    as decomposed ``rdf:subject``/``predicate``/``object`` triples, so
+    there is nothing in the store for such a match triple to ever match
+    against. Instead, a fresh variable is minted for the *whole* triple
+    term (bound the ordinary way, by the BGP's own triple match), and
     ``tt:fn/subject``/``predicate``/``object`` accessor-function
-    constraints (see `_add_component_constraints`) — the same accessor
-    functions expression-position `SUBJECT()`/etc. already lower to,
-    extended (in the sibling `starlayer.graph` repo, see
+    constraints are pushed onto it (see `_add_component_constraints`) — the
+    same accessor functions expression-position `SUBJECT()`/etc. already
+    lower to, extended (in the sibling `starlayer.graph` repo, see
     ``_register_tt_accessor_functions``) to accept a native ``TripleTerm``
     object directly, not just a `tt:` hash URIRef, since that's what a
     pattern-matched variable is actually bound to.
@@ -654,30 +679,28 @@ def _add_component_constraints(
     ``TripleTermNode.validate()``), so only object ever needs to recurse.
     A nested object recurses *here* — chaining another accessor call onto
     `base_expr` — regardless of whether that nested object is itself
-    ground: confirmed empirically that ``StarLayerGraph`` always
-    represents a nested triple term as a further native ``TripleTerm``
-    object, never a `tt:` hash URI, even when fully ground, so there is no
-    ordinary BGP pattern slot to substitute an eagerly-computed `tt:` URI
-    into the way the top-level (directly pattern-matched) case can.
+    ground: ``StarLayerGraph`` always represents a nested triple term as a
+    further native ``TripleTerm`` object, never a `tt:` hash URI, even when
+    fully ground, so there is no ordinary BGP pattern slot to substitute an
+    eagerly-computed `tt:` URI into the way the top-level (directly
+    pattern-matched) case can.
 
-    Always pushes an explicit ``isTRIPLE(base_expr)`` `Filter` guard first
-    — confirmed necessary, not defensive-programming overkill, via a real
-    regression (W3C fixture `pattern-10`'s
-    ``<<?s ?p <<( ?st ?pt ?ot )>> >>`` branch): without it, a `base_expr`
-    that turns out *not* to be a triple term (e.g. an outer triple term's
-    object that's an ordinary ground value, not the nested triple term a
-    query pattern's shape merely *hints* it might be) makes every
-    accessor-function call below raise — which, for whichever component
-    happens to be `Extend`-classified rather than `Filter`-classified (see
-    `_add_single_constraint`), rdflib's `evalExtend` silently swallows
-    into "leave that one variable unbound" rather than rejecting the row,
-    exactly the ``evalExtend``-doesn't-enforce-prior-unbound hazard this
-    module's other docstrings describe recurring in a new shape. A row
-    with only *some* of its triple-term-derived variables ever getting
-    bound, instead of being excluded outright, is silently wrong, not
-    merely incomplete — this guard makes the rejection explicit and
-    unconditional instead of an accident of which components happened to
-    need `Filter` anyway.
+    Always pushes an explicit ``isTRIPLE(base_expr)`` `Filter` guard first.
+    Necessary, not defensive-programming overkill: without it, a
+    `base_expr` that turns out *not* to be a triple term (e.g. an outer
+    triple term's object that's an ordinary ground value, not the nested
+    triple term a query pattern's shape merely *hints* it might be) makes
+    every accessor-function call below raise — which, for whichever
+    component happens to be `Extend`-classified rather than
+    `Filter`-classified (see `_add_single_constraint`), rdflib's
+    `evalExtend` silently swallows into "leave that one variable unbound"
+    rather than rejecting the row (see `_lower_pattern_term`'s own
+    docstring for why this function also avoids relying on `Extend` alone
+    here, for the same `evalExtend`-overwrite reason). A row with only
+    *some* of its triple-term-derived variables ever getting bound, instead
+    of being excluded outright, is silently wrong, not merely incomplete —
+    this guard makes the rejection explicit and unconditional instead of an
+    accident of which components happened to need `Filter` anyway.
     """
     extra_constraints.append(("filter", _is_triple_term_expr(base_expr)))
     s, p, o = term["subject"], term["predicate"], term["object"]
@@ -696,19 +719,16 @@ def _add_single_constraint(value, accessor_expr, extra_constraints: list, alread
     """`value` is either a plain ground term (→ equality `Filter`) or a
     `Variable`. A `Variable` needs `Filter`-equality too, not `Extend`,
     whenever it's already guaranteed bound some other way by the time this
-    constraint runs (tracked via `already_bound`) — confirmed as a real,
-    reproducible regression via the W3C fixture `pattern-9`
-    ("Same variable"), whose query reuses the *same* variable as both a
-    triple term's own predicate and the enclosing triple's ordinary
-    predicate (``<<?s ?p :o>> ?p ?z``): rdflib's `evalExtend` does not
-    enforce "BIND target must be previously unbound" (see this function's
-    caller's own docstring for the general form of this rdflib behavior) —
+    constraint runs (tracked via `already_bound`) — e.g. a query reusing
+    the *same* variable as both a triple term's own predicate and the
+    enclosing triple's ordinary predicate (``<<?s ?p :o>> ?p ?z``):
     wrapping `?p` in `Extend` here would silently overwrite whatever the
-    ordinary BGP triple `(?bnode, ?p, ?z)` actually matched, discarding
-    the equality join the shared variable name was supposed to express,
-    and returning a row for every predicate rather than just the matching
-    one. `Extend` is only safe for a variable that this triple term is the
-    *sole* source of a value for — exactly the set `already_bound` is
+    ordinary BGP triple `(?bnode, ?p, ?z)` actually matched, discarding the
+    equality join the shared variable name was supposed to express (see
+    `_lower_pattern_term`'s own docstring for why this function also
+    avoids `Extend`/`BIND` here, for the same `evalExtend`-overwrite
+    reason). `Extend` is only safe for a variable that this triple term is
+    the *sole* source of a value for — exactly the set `already_bound` is
     tracking the complement of.
     """
     if isinstance(value, Variable):
@@ -726,6 +746,17 @@ def _add_single_constraint(value, accessor_expr, extra_constraints: list, alread
 
 
 def _wrap_with_constraints(pattern: CompValue, extra_constraints: list) -> CompValue:
+    """Wrap `pattern` in an `Extend`/`Filter` for each accumulated
+    constraint, outermost-in.
+
+    Args:
+        pattern: The pattern to wrap (typically a `BGP`).
+        extra_constraints: ``("extend", var, expr)``/``("filter", expr)``
+            tuples, in the order they should be applied.
+
+    Returns:
+        `pattern` wrapped in one `Extend`/`Filter` node per constraint.
+    """
     result = pattern
     for kind, *args in extra_constraints:
         if kind == "extend":
@@ -738,12 +769,19 @@ def _wrap_with_constraints(pattern: CompValue, extra_constraints: list) -> CompV
 
 
 def _bgp_plain_vars(triples: list) -> set:
-    """Every `Variable` appearing as an ordinary (non-triple-term) subject/
-    predicate/object anywhere in `triples` — the seed for `already_bound`
-    (see `_add_single_constraint`'s docstring): a variable reused this way
-    is guaranteed bound by the BGP's own ordinary matching regardless of
-    where any triple-term constraint for it ends up, since BGP triples
-    join as one unordered AND, not left-to-right."""
+    """Collect every `Variable` appearing as an ordinary (non-triple-term)
+    subject/predicate/object anywhere in `triples` — the seed for
+    `already_bound` (see `_add_single_constraint`'s docstring): a variable
+    reused this way is guaranteed bound by the BGP's own ordinary matching
+    regardless of where any triple-term constraint for it ends up, since
+    BGP triples join as one unordered AND, not left-to-right.
+
+    Args:
+        triples: Flat (s, p, o) triples from one BGP.
+
+    Returns:
+        The set of `Variable`s appearing in an ordinary term position.
+    """
     return {t for s, p, o in triples for t in (s, p, o) if isinstance(t, Variable)}
 
 
@@ -754,12 +792,12 @@ def _collect_mandatory_plain_vars(node) -> set:
     variables bound by a *different part of the same query* than the
     triple-term constraint being lowered, not just the same BGP.
 
-    Confirmed necessary via a real regression (W3C fixture `graphs-1`):
+    Needed for a case `_bgp_plain_vars` alone can't see: e.g.
     ``:s :p ?o .`` (one BGP) and ``GRAPH ?g { <<:s :p ?o>> ?q ?z }`` (a
     sibling BGP, joined via `Join`, not the same BGP) share `?o` —
-    `_bgp_plain_vars` alone, scoped to one BGP's own triples, can't see
-    that it's already bound by the *other* one, so without this, `Extend`
-    silently clobbers `?o`'s already-joined value exactly the way
+    `_bgp_plain_vars`, scoped to one BGP's own triples, can't see that it's
+    already bound by the *other* one, so without this, `Extend` would
+    silently clobber `?o`'s already-joined value, exactly the hazard
     `_add_single_constraint`'s docstring already documents for the
     same-BGP case.
 
@@ -821,6 +859,16 @@ def _lower_triples_for_pattern(triples: list, already_bound: set, state: _LowerS
     result) and the `DeleteWhere`->`Modify` rewrite below (which also needs
     `new_triples` on its own, unwrapped, for reuse as the DELETE template —
     see `_lower_delete_where`'s own docstring for why that reuse is valid).
+
+    Args:
+        triples: Flat (s, p, o) triples from one BGP.
+        already_bound: Variables guaranteed bound some other way; passed
+            straight through to `_lower_pattern_term`.
+        state: Shared lowering state (fresh-variable counter, etc.).
+
+    Returns:
+        A ``(new_triples, extra_constraints)`` pair — the lowered triples,
+        and the `Extend`/`Filter` constraint tuples still needing a wrap.
     """
     extra_constraints: list = []
     new_triples = []
@@ -835,6 +883,16 @@ def _lower_triples_for_pattern(triples: list, already_bound: set, state: _LowerS
 
 
 def _lower_bgp(node: CompValue, state: _LowerState) -> CompValue:
+    """Lower a BGP's own triples and wrap the result in any accumulated
+    `Extend`/`Filter` constraints.
+
+    Args:
+        node: The `BGP` `CompValue` to lower.
+        state: Shared lowering state.
+
+    Returns:
+        The lowered, constraint-wrapped `BGP`.
+    """
     already_bound = _bgp_plain_vars(node["triples"]) | state.global_plain_vars
     new_triples, extra_constraints = _lower_triples_for_pattern(node["triples"], already_bound, state)
     bgp = CompValue("BGP", triples=new_triples)
@@ -855,11 +913,10 @@ def _lower_template_term(term, pending_extends: list, extra_template_triples: li
     `tt:fn/hash` Function call for a value already fully known at lowering
     time - not just an optimization: `tt:fn/hash` is a starlayer.graph-only
     SPARQL extension function, understood by starlayer.graph's own
-    in-process engine but by no external one. Confirmed live: an UPDATE's
-    DELETE/INSERT template containing a ground triple term produced
-    (via `rdf11_update_to_sparql11_text`) text a real remote SPARQL engine
-    can't execute at all (HTTP 500 against Oxigraph, calling an unknown
-    function) - the eager substitution here needs nothing beyond ordinary
+    in-process engine but by no external one, so an UPDATE's DELETE/INSERT
+    template containing a ground triple term would otherwise regenerate
+    (via `rdf11_update_to_sparql11_text`) text no remote SPARQL engine can
+    execute - the eager substitution here needs nothing beyond ordinary
     SPARQL 1.1 the way a ground triple term in INSERT/DELETE DATA already
     does (see `_lower_flat_triples`/`_lower_pattern_term`). Harmless for
     CONSTRUCT (this function's other caller): fewer/no freshly-minted
@@ -900,6 +957,15 @@ def _eager_lower_template_term(term, extra_template_triples: list):
     assert/retract those triples, unlike pattern position (matching
     against a value the store already holds needs no decomposition of its
     own encoding triples at all).
+
+    Args:
+        term: A ground `TripleTermNode` reached in template position.
+        extra_template_triples: Accumulates the term's own (and any nested
+            ground object term's) `rdf:subject`/`predicate`/`object`
+            encoding triples.
+
+    Returns:
+        The content-addressed `tt:` `URIRef` standing in for `term`.
     """
     from starlayer.graph.model.encoding import TT_NS as _STARLIGHT_TT_NS
     from starlayer.graph.model.encoding import remember_tt_hash, term_key, tt_hash
@@ -918,9 +984,10 @@ def _eager_lower_template_term(term, extra_template_triples: list):
 def _lower_construct_query(node: CompValue, state: _LowerState) -> CompValue:
     # node["p"] is always a Project wrapping the WHERE pattern (rdflib's
     # own algebra.py always wraps a CONSTRUCT's WHERE this way, even
-    # though — per serialize12.py's own finding — its PV is internal
-    # bookkeeping, not a printed variable list; CONSTRUCT has no ORDER
-    # BY/etc. that could put something else here). A minted ground bind
+    # though its PV is internal bookkeeping, not a printed variable list
+    # - see serialize12.py's ConstructQuery branch for the same fact;
+    # CONSTRUCT has no ORDER BY/etc. that could put something else here).
+    # A minted ground bind
     # must wrap the pattern *inside* Project (Project.p), not Project
     # itself from the outside — Extend-outside-Project is structurally
     # backwards (BIND happens before projection, not after) and decodes/
@@ -942,14 +1009,11 @@ def _lower_construct_query(node: CompValue, state: _LowerState) -> CompValue:
     # just the ones already in the original (pre-lowering) template —
     # evalConstructQuery fills the template from evalProject's *output*
     # solutions, and evalProject drops any variable not listed in PV.
-    # Confirmed as a real, reproducible bug (not just a theoretical
-    # concern) once execution stopped round-tripping through SPARQL 1.1
-    # text: re-parsing text-serialized output happened to recompute PV
-    # fresh from the regenerated CONSTRUCT template each time, silently
-    # masking this — executing the decoded Query object directly (see
-    # rdf11_to_query) does not, since it reuses the PV this function
-    # itself produced. Without this, every ground/minted triple-term
-    # template triple silently vanished from CONSTRUCT results.
+    # Without this, every ground/minted triple-term template triple would
+    # silently vanish from CONSTRUCT results whenever the decoded Query
+    # object is executed directly (see rdf11_to_query) rather than
+    # round-tripped through re-parsed SPARQL 1.1 text (which happens to
+    # recompute PV fresh from the regenerated template instead).
     where["PV"] = list(where["PV"]) + [var for var, _ in pending_extends]
     result = CompValue("ConstructQuery")
     for key, value in node.items():
@@ -977,10 +1041,9 @@ def _eager_lower_value(val):
     `StarLayerGraph`'s own result-restoration step has no way to turn the
     computed `tt:` URIRef in a result row back into a real `TripleTerm`
     for display, unlike a triple term that came from an ordinary pattern
-    match against real data. Confirmed via a real W3C fixture
-    (`triple-on-triple-terms`, whose VALUES rows put a ground triple term
-    directly in subject/predicate position of another): a result row's
-    `?subject`/`?predicate` came back as a bare, unresolved `tt:` URIRef
+    match against real data — otherwise a result row binding (e.g. a
+    VALUES row putting a ground triple term directly in subject/predicate
+    position of another) comes back as a bare, unresolved `tt:` URIRef
     instead of the expected `TripleTerm`.
     """
     if not isinstance(val, TripleTermNode):
@@ -997,6 +1060,15 @@ def _eager_lower_value(val):
 
 
 def _lower_values(node: CompValue, state: _LowerState) -> CompValue:
+    """Lower a VALUES clause's own binding rows, cell by cell.
+
+    Args:
+        node: The `values` `CompValue` to lower.
+        state: Shared lowering state.
+
+    Returns:
+        The lowered `values` node.
+    """
     new_res = []
     for row in node["res"]:
         new_res.append({var: _eager_lower_value(val) for var, val in row.items()})
@@ -1011,8 +1083,7 @@ def _lower_values(node: CompValue, state: _LowerState) -> CompValue:
 # ---------------------------------------------------------------------
 # SPARQL Update lowering.
 #
-# Confirmed empirically (not assumed) the real algebra shape of every
-# Update operation before writing any of this:
+# The real algebra shape of every Update operation:
 #
 #   InsertData/DeleteData/DeleteWhere -> ['quads', 'triples']  (same shape)
 #   Modify                            -> ['delete', 'insert', 'where']
@@ -1043,10 +1114,10 @@ def _lower_values(node: CompValue, state: _LowerState) -> CompValue:
 #   `_add_component_constraints`) have nowhere to attach on a bare flat
 #   triples list: `evalDeleteWhere` (rdflib's own `update.py`) calls
 #   `evalBGP` directly on it, with no Filter/Extend wrapping capability at
-#   all — confirmed by reading its source, unlike ordinary WHERE-clause
-#   evaluation (`_lower_bgp`, which the caller can freely wrap). Fixed, not
-#   left as a gap: `_lower_delete_where` rewrites the whole operation into
-#   an equivalent `Modify(delete=<template>, insert=None, where=<pattern>)`
+#   all, unlike ordinary WHERE-clause evaluation (`_lower_bgp`, which the
+#   caller can freely wrap). Fixed, not left as a gap: `_lower_delete_where`
+#   rewrites the whole operation into an equivalent
+#   `Modify(delete=<template>, insert=None, where=<pattern>)`
 #   whenever a non-ground triple term is present, reusing `_lower_bgp`'s
 #   own `Filter`/`Extend`-wrapping machinery for the WHERE side and the
 #   *same* lowered (variable-substituted) triples list directly as the
@@ -1058,8 +1129,8 @@ def _lower_values(node: CompValue, state: _LowerState) -> CompValue:
 #   `.where`'s own solutions by the time the template is instantiated).
 #   Unlike CONSTRUCT, no `Project`/`PV` wrapping exists to worry about:
 #   `translateUpdate` never wraps a `Modify`'s `.where` in `Project` at all
-#   (confirmed via finding #6 - `_addVars`/`analyse` never even run on it),
-#   so a minted `Extend` wrapped directly around `.where` is sufficient for
+#   (`_addVars`/`analyse` never even run on it), so a minted `Extend`
+#   wrapped directly around `.where` is sufficient for
 #   its variable to reach the template - no PV list to remember to update.
 # ---------------------------------------------------------------------
 
@@ -1072,7 +1143,15 @@ def _lower_flat_triples(triples: list, state: _LowerState) -> list:
     reach this function - only `DeleteWhere` could produce one, and that
     case is handled separately now (see `_lower_delete_where`, which
     rewrites into an equivalent `Modify` instead of using this function at
-    all whenever a non-ground triple term is present)."""
+    all whenever a non-ground triple term is present).
+
+    Args:
+        triples: Flat (s, p, o) triples - always ground or plain variables.
+        state: Shared lowering state.
+
+    Returns:
+        The lowered triples.
+    """
     already_bound = _bgp_plain_vars(triples)
     new_triples, extra_constraints = _lower_triples_for_pattern(triples, already_bound, state)
     assert not extra_constraints, (
@@ -1086,6 +1165,15 @@ def _lower_flat_triples(triples: list, state: _LowerState) -> list:
 
 
 def _lower_quads_map(quads: dict, state: _LowerState) -> dict:
+    """Lower each graph's own triples in an Update operation's `.quads` map.
+
+    Args:
+        quads: A ``{graph: triples}`` map.
+        state: Shared lowering state.
+
+    Returns:
+        A new ``{graph: lowered_triples}`` map.
+    """
     return {graph: _lower_flat_triples(triples, state) for graph, triples in quads.items()}
 
 
@@ -1098,15 +1186,15 @@ def _lower_flat_triples_term_for_insert(term, extra_triples: list):
     that must already exist - it must persist its own encoding triples
     (rdf:subject/predicate/object onto its tt:HASH URI), not just compute
     the URI and rely on the ephemeral, process-global `remember_tt_hash`
-    cache `_eager_lower_value` alone populates. Confirmed via a real gap:
-    without this, `has_triple_term()`/`triple_terms()` (which both rebuild
-    their registry from the store's own *persisted* encoding triples, not
-    that process-global cache) never see a triple term introduced this way
+    cache `_eager_lower_value` alone populates: without this,
+    `has_triple_term()`/`triple_terms()` (which both rebuild their registry
+    from the store's own *persisted* encoding triples, not that
+    process-global cache) would never see a triple term introduced this way
     at all, even though the value it hashes to is written correctly and a
-    same-process `.triples()` read (which does consult that cache) appears
-    to work. Recurses into a nested object-position triple term the same
-    way `_lower_template_term` does, accumulating that nested term's own
-    encoding triples too."""
+    same-process `.triples()` read (which does consult that cache) would
+    appear to work. Recurses into a nested object-position triple term the
+    same way `_lower_template_term` does, accumulating that nested term's
+    own encoding triples too."""
     if not isinstance(term, TripleTermNode):
         return term
     from starlayer.graph.model.encoding import TT_NS as _STARLIGHT_TT_NS
@@ -1128,7 +1216,15 @@ def _lower_flat_triples_for_insert(triples: list) -> list:
     `_lower_flat_triples_term_for_insert` for why InsertData can't reuse
     the shared pattern-position lowering every other flat-triples case
     (DeleteData, DeleteWhere, VALUES rows, ordinary WHERE-clause matching)
-    correctly does use."""
+    correctly does use.
+
+    Args:
+        triples: Flat (s, p, o) triples - always ground.
+
+    Returns:
+        The lowered triples, with any triple term's own freshly-persisted
+        encoding triples appended.
+    """
     extra_triples: list = []
     new_triples = []
     for s, p, o in triples:
@@ -1151,6 +1247,13 @@ def _lower_flat_triples_op(node: CompValue, state: _LowerState) -> CompValue:
     ever remove a reference to something that must already exist) doesn't
     - matching `has_triple_term`'s own tests confirming encoding triples
     deliberately survive a DELETE.
+
+    Args:
+        node: The `InsertData`/`DeleteData` `CompValue` to lower.
+        state: Shared lowering state.
+
+    Returns:
+        The lowered operation.
     """
     new_node = CompValue(node.name)
     if node.name == "InsertData":
@@ -1165,6 +1268,15 @@ def _lower_flat_triples_op(node: CompValue, state: _LowerState) -> CompValue:
 
 
 def _contains_nonground_triple_term(triples: list) -> bool:
+    """Check whether any subject/object in `triples` is a non-ground
+    triple term.
+
+    Args:
+        triples: Flat (s, p, o) triples.
+
+    Returns:
+        True if at least one subject/object is a non-ground `TripleTermNode`.
+    """
     return any(
         (isinstance(t, TripleTermNode) and not _is_ground(t)) for s, p, o in triples for t in (s, o)
     )
@@ -1178,9 +1290,8 @@ def _lower_delete_where(node: CompValue, state: _LowerState) -> CompValue:
     below), but a non-ground triple term needs the same
     `Filter`/`Extend`-wrapping `_lower_bgp` gives an ordinary WHERE clause,
     which `evalDeleteWhere` has no way to apply to a bare flat triples list
-    (confirmed via reading its source: it calls `evalBGP` directly, no
-    wrapping possible) - see `_lower_flat_triples`'s own docstring and
-    CLAUDE.md finding #28's closing paragraph for the fuller trace.
+    (it calls `evalBGP` directly, no wrapping possible) - see
+    `_lower_flat_triples`'s own docstring.
 
     Fixed by rewriting the whole operation into an equivalent
     `Modify(delete=<template>, insert=None, where=<pattern>)` *only* when a
@@ -1206,11 +1317,10 @@ def _lower_delete_where(node: CompValue, state: _LowerState) -> CompValue:
     globally for an ordinary WHERE clause: the `Join`/`Graph` nodes built
     here are never marked `lazy=True` (`evalJoin` treats a missing/falsy
     `.lazy` as ordinary independent-branch-then-join evaluation, `_join`),
-    and per CLAUDE.md finding #28's own conclusion, a variable shared only
-    with an *independently* evaluated sibling branch is not actually bound
-    within this branch's own isolated evaluation - the natural join
-    equality check catches a real mismatch afterward regardless, without
-    needing (and, confirmed via the same finding, actively harmed by) this
+    so a variable shared only with an *independently* evaluated sibling
+    branch is not actually bound within this branch's own isolated
+    evaluation - the natural join equality check catches a real mismatch
+    afterward regardless, without needing (and actively harmed by) this
     function pretending it's already bound here.
     """
     has_nonground = _contains_nonground_triple_term(node["triples"]) or any(
@@ -1240,7 +1350,19 @@ def _lower_modify_clause_triples(triples: list, pending_extends: list, state: _L
     position (mirrors `_lower_template_term`/`_lower_construct_query`), not
     ordinary pattern position: see this section's own module-level comment
     for why groundedness doesn't matter here the way it does for
-    InsertData/DeleteData."""
+    InsertData/DeleteData.
+
+    Args:
+        triples: Flat (s, p, o) triples from one DELETE/INSERT clause.
+        pending_extends: Accumulates ``(var, expr)`` `Extend` bindings for
+            freshly minted triple-term variables - threaded through to
+            `_lower_template_term`.
+        state: Shared lowering state.
+
+    Returns:
+        The lowered triples, with any triple term's own freshly-minted
+        encoding triples appended.
+    """
     extra_triples: list = []
     new_triples = []
     for s, p, o in triples:
@@ -1252,9 +1374,20 @@ def _lower_modify_clause_triples(triples: list, pending_extends: list, state: _L
 
 
 def _lower_modify_clause(clause, pending_extends: list, state: _LowerState):
-    """Lower a Modify `.delete`/`.insert` clause - `None` for an INSERT-only
-    or DELETE-only Modify (confirmed via `algebra.translateUpdate1`, same
-    fact finding #26 already relies on)."""
+    """Lower a Modify `.delete`/`.insert` clause.
+
+    Args:
+        clause: The `DeleteClause`/`InsertClause` `CompValue` to lower, or
+            `None` - an INSERT-only or DELETE-only Modify genuinely has no
+            `.delete`/`.insert` clause at all (per
+            `algebra.translateUpdate1`).
+        pending_extends: Accumulates `Extend` bindings - passed straight
+            through to `_lower_modify_clause_triples`.
+        state: Shared lowering state.
+
+    Returns:
+        The lowered clause, or `None` if `clause` was `None`.
+    """
     if clause is None:
         return None
     new_clause = CompValue(clause.name)
@@ -1267,18 +1400,31 @@ def _lower_modify_clause(clause, pending_extends: list, state: _LowerState):
 
 
 def _lower_modify(node: CompValue, state: _LowerState) -> CompValue:
+    """Lower a `Modify` operation's `.where`/`.delete`/`.insert`.
+
+    Args:
+        node: The `Modify` `CompValue` to lower.
+        state: Shared lowering state - `global_plain_vars` is set here
+            (from `.where`) before `.delete`/`.insert` are lowered, so
+            `_lower_pattern_term`'s constraint logic can see every
+            variable `.where` guarantees bound, not just a single BGP's
+            own.
+
+    Returns:
+        The lowered `Modify`.
+    """
     state.global_plain_vars = _collect_mandatory_plain_vars(node["where"])
     where = _lower_expr(node["where"], state)
     pending_extends: list = []
-    # Attribute access, not .get("delete")/.get("insert"): CompValue.get's
-    # signature is get(self, a, variables=False, errors=False) - no default
-    # parameter - and it falls back to returning the key string itself (not
-    # None) when the key is absent (OrderedDict.get(self, a, a)). An
-    # INSERT-only or DELETE-only Modify legitimately has no "delete"/"insert"
-    # key at all, so .get(...) would silently hand back the literal string
-    # "delete"/"insert" instead of None, crashing _lower_modify_clause's own
-    # `clause.name` access below. Attribute access uses CompValue.__getattr__
-    # instead, which does return None for a missing key.
+    # Attribute access, not .get("delete")/.get("insert"): CompValue.get,
+    # inherited from pyparsing.ParseResults' OrderedDict.get(self, a, a)
+    # convention, returns the key name itself - not None - for a key that's
+    # genuinely absent. An INSERT-only or DELETE-only Modify legitimately has
+    # no "delete"/"insert" key at all, so .get(...) would silently hand back
+    # the literal string "delete"/"insert" instead of None, crashing
+    # _lower_modify_clause's own `clause.name` access below. node.delete/
+    # node.insert, via CompValue.__getattr__ (equivalent to
+    # getattr(node, key, None)), correctly return None instead.
     new_delete = _lower_modify_clause(node.delete, pending_extends, state)
     new_insert = _lower_modify_clause(node.insert, pending_extends, state)
     inner = where
@@ -1302,6 +1448,22 @@ _PASSTHROUGH_OPS = {"Load", "Clear", "Drop", "Create", "Add", "Move", "Copy"}
 
 
 def _lower_update_operation(op: CompValue, state: _LowerState) -> CompValue:
+    """Dispatch one Update operation to its own lowering rule, by name - see
+    this module's own "SPARQL Update lowering" comment above for why the
+    three non-passthrough cases need genuinely different treatment.
+
+    Args:
+        op: One Update operation's `CompValue` (`InsertData`, `Modify`,
+            etc.).
+        state: Shared lowering state.
+
+    Returns:
+        The lowered operation.
+
+    Raises:
+        NotImplementedError: If `op.name` isn't one of the operations this
+            module knows how to lower.
+    """
     if op.name in _FLAT_TRIPLES_OPS:
         return _lower_flat_triples_op(op, state)
     if op.name == "DeleteWhere":
@@ -1318,26 +1480,23 @@ def _lower_update_operation(op: CompValue, state: _LowerState) -> CompValue:
 def _restarlayergraph_dirlang_literals(node):
     """Recursively rewrite every Literal in `node` from this project's own
     dirlang: encoding (vocab.encode_dirlang_datatype - see grammar12.py's
-    LangDirLiteral for why this project uses its own, not starlayer.graph's) into
-    starlayer.graph's own dirlang: encoding (starlayer.graph.model.encoding) instead -
-    the one literal-*value* conversion this module's lowering needs to do,
-    parallel to the triple-term-*structure* lowering the rest of this
-    module already does.
+    LangDirLiteral for why this project uses its own, not starlayer.graph's)
+    into starlayer.graph's own dirlang: encoding
+    (starlayer.graph.model.encoding) instead - the one literal-*value*
+    conversion this module's lowering needs to do, parallel to the
+    triple-term-*structure* lowering the rest of this module already does.
 
-    Needed because this project's grammar deliberately does *not* use
-    starlayer.graph's encoding when parsing a dirLangString literal (so the
-    algebra's RDF representation, via to_rdf.py, stays safely storable in a
-    real StarLayerGraph without that graph's own restoration logic
-    mistaking it for one of its own values and silently swapping in a
-    DirLangString object where a plain Literal belongs - see vocab.py's
-    DIRLANG_NS for the full reasoning) - but *execution* against a real
-    StarLayerGraph is the opposite requirement: its own restoration logic
-    only recognizes *its own* encoding, so a lowered query actually run
-    there needs the literal converted at the one point - lowering - where
-    this project hands off to starlayer.graph's execution machinery specifically.
-    Confirmed via a real failure without this: `expression/triple-on-str-
-    literals`, executed via `_run_lowered`, came back with the raw
-    unrecognized Literal instead of a restored DirLangString in results.
+    This project's grammar deliberately does *not* use starlayer.graph's
+    encoding when parsing a dirLangString literal, so the algebra's RDF
+    representation (via to_rdf.py) stays safely storable in a real
+    StarLayerGraph without that graph's own restoration logic mistaking it
+    for one of its own values and silently swapping in a DirLangString
+    object where a plain Literal belongs (see vocab.py's DIRLANG_NS for the
+    full reasoning). *Execution* against a real StarLayerGraph has the
+    opposite requirement, though: its restoration logic only recognizes its
+    own encoding, so a lowered query actually run there needs the literal
+    converted at the one point - lowering - where this project hands off to
+    starlayer.graph's execution machinery.
 
     Mutates and returns `node` in place - safe here specifically because
     lowering (`_lower_expr`/`_lower_update_operation`, both already
@@ -1386,24 +1545,30 @@ def lower_update_to_rdf11(operations: list) -> list:
 
 def update_to_rdf11(update: Update) -> tuple[Graph, URIRef]:
     """Lower `update.algebra` to SPARQL 1.1, then encode via the existing,
-    unmodified `to_rdf.update_to_rdf`. Returns `(graph, root)` - the RDF
-    graph for the lowered 1.1 update, and the node for its root.
+    unmodified `to_rdf.update_to_rdf`.
 
-    Deliberately passes a plain `rdflib.Graph()` here, not
-    `to_rdf`'s own `StarLayerGraph` default: a *lowered* algebra's
-    ground-triple-term term-slot values are already real `tt:`-prefixed
-    URIRefs (or, before lowering runs its course inside a live query,
-    literal `TripleTerm` objects computed via `starlayer.graph.model.encoding`),
-    and those need to stay inert markers in this salg: encoding, not get
-    silently restored back into `TripleTerm` objects by a `StarLayerGraph`'s
-    own tt:HASH lookup (which consults a process-global cache, not one
-    scoped to this graph - confirmed via a real crash: `remember_tt_hash`
-    called during lowering populates that global cache, so any
-    `StarLayerGraph.value()`/`.triples()` call anywhere in the same process
-    would "helpfully" resolve the very URIRef this encoding needs to stay
-    opaque, and `from_rdf.py`'s decoder has no branch for an already-resolved
-    `TripleTerm` node). A plain `Graph` has no such lookup, so it can't
-    misfire here."""
+    Deliberately passes a plain `rdflib.Graph()` here, not `to_rdf`'s own
+    `StarLayerGraph` default: a *lowered* algebra's ground-triple-term
+    term-slot values are already real `tt:`-prefixed URIRefs (or, before
+    lowering runs its course inside a live query, literal `TripleTerm`
+    objects computed via `starlayer.graph.model.encoding`), and those need
+    to stay inert markers in this salg: encoding, not get silently restored
+    back into `TripleTerm` objects by a `StarLayerGraph`'s own tt:HASH
+    lookup. That lookup consults a process-global cache, not one scoped to
+    this graph: `remember_tt_hash` called during lowering populates that
+    global cache, so any `StarLayerGraph.value()`/`.triples()` call anywhere
+    in the same process would "helpfully" resolve the very URIRef this
+    encoding needs to stay opaque, and `from_rdf.py`'s decoder has no branch
+    for an already-resolved `TripleTerm` node. A plain `Graph` has no such
+    lookup, so it can't misfire here.
+
+    Args:
+        update: The Update object to lower (already-parsed 1.2 algebra).
+
+    Returns:
+        A `(graph, root)` tuple - the RDF graph for the lowered 1.1 update,
+        and the node for its root.
+    """
     lowered_ops = lower_update_to_rdf11(update.algebra)
     lowered_update = Update(update.prologue, lowered_ops)
     return update_to_rdf(lowered_update, graph=Graph())
@@ -1431,29 +1596,26 @@ class _AlgebraTranslator11(_AlgebraTranslator):
     registered custom SPARQL function, produced by this module's own
     ``_hash_call``/accessor lowering).
 
-    Confirmed empirically that plain rdflib has **no** branch for this at
-    all, for any ``Function`` node — not a gap specific to this project:
-    reproduced independently of any lowering, straight from a real
-    ``prepareQuery("SELECT * WHERE { BIND(<http://ex/fn>(?x,?y) AS ?z) }")``,
-    whose algebra already contains an ordinary ``Function`` node — plain
-    ``translateAlgebra`` regenerates ``SELECT ({Function} as ?z){}``, an
-    unresolved placeholder. Neither ``starlayer.graph``'s ``sparql12_to_11.py``
-    (which builds function-call *text* directly, never going through
-    algebra/``translateAlgebra`` at all) nor this project's own
-    ``serialize12.py`` (whose SPARQL 1.2 extensions — ``Builtin_isTRIPLE``/
-    ``SUBJECT``/etc. — are bespoke grammar productions, not generic
-    ``Function`` calls) needed this before; lowering to ``TT_HASH_FN``/the
-    ``tt:`` accessor functions is the first thing in either project that
-    does.
+    Plain rdflib has no branch for a ``Function`` node at all, for any
+    ``Function`` node whatsoever — not a gap specific to this project: an
+    ordinary ``prepareQuery("SELECT * WHERE { BIND(<http://ex/fn>(?x,?y) AS
+    ?z) }")``'s algebra already contains one, and plain ``translateAlgebra``
+    regenerates ``SELECT ({Function} as ?z){}``, an unresolved placeholder.
+    Neither ``starlayer.graph``'s ``sparql12_to_11.py`` (builds function-call
+    *text* directly, never going through algebra/``translateAlgebra``) nor
+    this project's own ``serialize12.py`` (whose SPARQL 1.2 extensions —
+    ``Builtin_isTRIPLE``/``SUBJECT``/etc. — are bespoke grammar productions,
+    not generic ``Function`` calls) needed this before; lowering to
+    ``TT_HASH_FN``/the ``tt:`` accessor functions does.
 
-    Mirrors the exact pattern already established by ``serialize12.py``'s
-    own ``Builtin_isTRIPLE``/etc. branches for a multi-child node whose
-    arguments may themselves be unresolved ``CompValue`` placeholders
-    (e.g. a nested ``Function`` call, from a nested ground triple term):
-    fall through with an implicit ``None`` return rather than ``return
-    node``, so rdflib's own ``_traverse`` continues recursing into
-    ``node.expr``'s children afterward and resolves each one's own
-    ``"{Function}"`` placeholder in turn.
+    Mirrors the pattern already established by ``serialize12.py``'s own
+    ``Builtin_isTRIPLE``/etc. branches for a multi-child node whose arguments
+    may themselves be unresolved ``CompValue`` placeholders (e.g. a nested
+    ``Function`` call, from a nested ground triple term): fall through with
+    an implicit ``None`` return rather than ``return node``, so rdflib's own
+    ``_traverse`` continues recursing into ``node.expr``'s children
+    afterward and resolves each one's own ``"{Function}"`` placeholder in
+    turn.
     """
 
     def translateAlgebra(self) -> str:
@@ -1510,8 +1672,7 @@ def lower_algebra_to_rdf11(algebra: CompValue) -> CompValue:
 
 def query_to_rdf11(query: Query) -> tuple[Graph, URIRef]:
     """Lower `query.algebra` to SPARQL 1.1, then encode via the existing,
-    unmodified ``to_rdf.query_to_rdf``. Returns ``(graph, root)`` — the RDF
-    graph for the lowered 1.1 algebra, and the node for its root.
+    unmodified ``to_rdf.query_to_rdf``.
 
     Deliberately passes a plain `rdflib.Graph()` here, not `to_rdf`'s own
     `StarLayerGraph` default — see `update_to_rdf11`'s docstring for why:
@@ -1519,7 +1680,15 @@ def query_to_rdf11(query: Query) -> tuple[Graph, URIRef]:
     inert `tt:`-prefixed URIRefs in this salg: encoding, and a
     `StarLayerGraph` would silently resolve them back into `TripleTerm`
     objects via its process-global tt:HASH cache, which `from_rdf.py`'s
-    decoder can't handle."""
+    decoder can't handle.
+
+    Args:
+        query: The Query object to lower (already-parsed 1.2 algebra).
+
+    Returns:
+        A `(graph, root)` tuple — the RDF graph for the lowered 1.1
+        algebra, and the node for its root.
+    """
     lowered = lower_algebra_to_rdf11(query.algebra)
     lowered_query = Query(query.prologue, lowered)
     return query_to_rdf(lowered_query, graph=Graph())
@@ -1633,12 +1802,12 @@ def _sparql11_text_for_operation(op: CompValue) -> str:
         return t if type(t) is str else f"GRAPH {t.n3()}"
 
     # Attribute access throughout this function, never .get(key): CompValue
-    # .get's signature (get(self, a, variables=False, errors=False)) has no
-    # default parameter and falls back to returning the key string itself
-    # (not None/falsy) for a missing key (OrderedDict.get(self, a, a)) - the
-    # same landmine _lower_modify already hit once (see its own comment).
-    # `op.silent`/`op.withClause`/etc. via __getattr__ correctly return None
-    # for a key that isn't present.
+    # .get, inherited from pyparsing.ParseResults' OrderedDict.get(self, a,
+    # a) convention, returns the key name itself - not None - for a key
+    # that's genuinely absent (e.g. op.silent/op.withClause when that
+    # optional grammar field wasn't provided). `op.silent`/`op.withClause`/
+    # etc. via CompValue.__getattr__ (equivalent to getattr(op, key, None))
+    # correctly return None instead.
     silent = "SILENT " if op.silent else ""
 
     if op.name in ("InsertData", "DeleteData", "DeleteWhere"):

@@ -29,6 +29,7 @@ from rdflib.plugins.sparql.parserutils import CompValue
 
 class InvalidTripleTermError(ValueError):
     """A triple term is being used somewhere RDF 1.2 never permits one.
+
     Covers two distinct rules, both enforced here as hard backstops
     regardless of construction path (parsed from SPARQL 1.2 text, decoded
     from RDF via ``from_rdf.py``, or built programmatically) rather than
@@ -61,42 +62,16 @@ class InvalidTripleTermError(ValueError):
 
     That is the *only* rule admitting a triple term anywhere in a triple,
     and it only ever permits one as ``o`` — every triple-formation rule
-    requires ``s`` to be an IRI or blank node, full stop. Confirmed a real,
-    previously-unfixed gap 2026-08-15 (found via a user directly
-    challenging this project's own claim that triple-term-as-subject was
-    legal): `<<(:x ?R :z )>> :p <<(:a :b ?C )>> .` parsed and constructed
-    without error before ``_reject_triple_term_pattern_subjects`` below
-    existed, even though no valid RDF 1.2 data could ever match it. See
-    ``docs/w3c-sparql12-test-suite-issues.md`` Issue 1 for the two W3C
-    `PositiveSyntaxTest` fixtures this affects (`compound-tripleterm-subject`,
-    `nested-tripleterm-02`) and why they're believed to be a suite defect
-    rather than evidence this shape should be accepted.
+    requires ``s`` to be an IRI or blank node, full stop.
 
     **Does not affect the RDF 1.2 reifier-shorthand form** (`<<s p o>>`/
-    `<<s p o ~ r>>`, no parens) in subject position — confirmed still
-    legal and unaffected by rule 2: that shorthand desugars
-    (`grammar12.py`'s own `_reify`) to an ordinary blank-node reifier
-    substituted into the pattern, with the actual triple term only ever
-    appearing as the *object* of a separate `rdf:reifies` triple — exactly
-    the shape rule 2 allows. Verified live: `<<:x ?R :z >> :p
-    <<:a :b ?C ~ _:bnode >> .` still produces three ordinary, fully legal
-    triples, none with a triple term as subject.
-
-    Rule 1 was confirmed empirically (2026-08-08) to still *parse* as
-    SPARQL syntax (the W3C SPARQL 1.2 test suite labels the two fixtures
-    above `PositiveSyntaxTest`) — but "SPARQL's grammar parses this text"
-    and "this represents a valid RDF 1.2 term" are different claims, and
-    only the first is true here. This project previously (mis)read those
-    fixtures as evidence rule 1's shape should be *accepted* (see git
-    history / CLAUDE.md's now-superseded finding #20) and widened the
-    pattern-position subject grammar accordingly — confirmed as a real bug
-    via a live Oxigraph instance rejecting exactly this shape (`HTTP 500`)
-    while this project's own construction path did not reject it at all;
-    see the sibling `starlayer.graph` repo's
-    `docs/oxigraph-upstream-issues.md` Issue 1 for the full investigation
-    (retracted as an Oxigraph bug, redirected here instead). Rule 2's gap
-    was the same underlying grammar permissiveness, one level up, missed
-    by that earlier investigation because it only tested the nested case.
+    `<<s p o ~ r>>`, no parens) in subject position: that shorthand
+    desugars (`grammar12.py`'s own `_reify`) to an ordinary blank-node
+    reifier substituted into the pattern, with the actual triple term only
+    ever appearing as the *object* of a separate `rdf:reifies` triple —
+    exactly the shape rule 2 allows. `<<:x ?R :z >> :p <<:a :b ?C ~
+    _:bnode >> .` still produces three ordinary, fully legal triples, none
+    with a triple term as subject.
 
     Both rules are deliberately enforced as semantic checks — rule 1 at
     ``TripleTermNode`` construction, rule 2 via a post-translation tree
@@ -107,6 +82,9 @@ class InvalidTripleTermError(ValueError):
     narrow, surgical grammar-level fix risks silently breaking a
     legitimate case elsewhere in the tree - the semantic check catches
     what parsing alone can't, without touching grammar internals at all.
+    Rule 2 in particular is enforced generically across both ordinary BGP
+    triples and SPARQL Update's quad/triple patterns, not just one code
+    path — see ``_reject_triple_term_pattern_subjects`` below.
     """
 
 
@@ -130,13 +108,11 @@ def _sort_key(value):
     *nested* triple-term subject (recursing into another 3-tuple) while
     triple B's subject in that same slot is an ordinary, non-nested term
     (a plain ``repr()`` string), Python ends up comparing a ``tuple``
-    against a ``str`` at that slot — a real, reproducible ``TypeError``
-    confirmed via the W3C test `compound-tripleterm-subject`, not a
-    hypothetical. Wrapping the nested case in `repr(...)` keeps every
-    slot's key a `str` unconditionally, so two sort keys are always
-    comparable regardless of how deeply either side nests — the actual
-    order chosen still doesn't matter semantically, only that comparisons
-    never raise.
+    against a ``str`` at that slot — a real, reproducible ``TypeError``.
+    Wrapping the nested case in `repr(...)` keeps every slot's key a `str`
+    unconditionally, so two sort keys are always comparable regardless of
+    how deeply either side nests — the actual order chosen still doesn't
+    matter semantically, only that comparisons never raise.
     """
     if isinstance(value, TripleTermNode):
         return repr(value._sort_key())
@@ -172,13 +148,17 @@ class TripleTermNode(CompValue):
     def validate(self) -> TripleTermNode:
         """Raise ``InvalidTripleTermError`` if this node's own subject or
         predicate is itself a triple term — see that exception's docstring
-        for why. Not enforced automatically on every dict mutation (kept
-        explicit rather than hooking ``update()``/``__setitem__``, to avoid
+        for why.
+
+        Not enforced automatically on every dict mutation (kept explicit
+        rather than hooking ``update()``/``__setitem__``, to avoid
         surprising ``CompValue``'s existing, delicately-hash/order-balanced
         behavior) — call this at every construction site instead:
         ``grammar12.py``'s ``_promote`` and ``from_rdf.py``'s ``TripleTerm``
-        decode branch both do. Returns ``self`` so it can be chained
-        directly onto a construction call.
+        decode branch both do.
+
+        Returns:
+            self, so this can be chained directly onto a construction call.
         """
         _reject_nested_triple_term(self.get("subject"), "subject", self)
         _reject_nested_triple_term(self.get("predicate"), "predicate", self)

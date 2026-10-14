@@ -3,11 +3,11 @@
 
 pySHACL's own ``meta_shacl=True`` mechanism has no extension point: it
 always validates a shapes graph against its own hardcoded,
-process-cached ``shacl-shacl.pickle`` (confirmed by reading
-``pyshacl/entrypoints.py::meta_validate``/``with_metashacl_shacl_graph_cache``
+process-cached ``shacl-shacl.pickle`` (see
+``pyshacl/entrypoints.py``'s ``meta_validate``/``with_metashacl_shacl_graph_cache``
 - there is no parameter to supply additional or replacement meta-shapes).
-Since that bundled meta-shapes graph predates SHACL 1.2, it produces two
-confirmed problems under starShacl's default ``meta_shacl=True``:
+Since that bundled meta-shapes graph predates SHACL 1.2, it has two
+problems under starShacl's default ``meta_shacl=True``:
 
 1. The 11 brand-new SHACL 1.2 predicates (``sh:someValue``,
    ``sh:uniqueValuesFor``, etc.) have no rule at all, so malformed uses
@@ -17,8 +17,8 @@ confirmed problems under starShacl's default ``meta_shacl=True``:
    ``sh:equals``/``sh:disjoint``/``sh:lessThan``/``sh:lessThanOrEquals``,
    and ``sh:closed sh:ByTypes`` - are *actively rejected*, since pySHACL's
    bundled meta-shapes still enforce the old SHACL 1.0/1.1 single-value
-   shape (confirmed empirically: ``sh:class ( ex:A ex:B )`` raises
-   ``ReportableRuntimeError`` under default settings even though
+   shape (e.g. ``sh:class ( ex:A ex:B )`` raises ``ReportableRuntimeError``
+   under default settings, even though
    ``starlayer.shacl/native_components.py`` fully supports it).
 
 ``build_meta_shapes_graph`` assembles a corrected, extensible replacement:
@@ -70,11 +70,11 @@ def _meta_validate_cache_key(shapes_graph_for_meta: Any, kwargs: dict) -> tuple 
     Uses ``starlayer.graph.rdfc.rdfc10_hash`` - the project's existing
     canonical-hashing tool for exactly this "same content, different
     object, possibly different blank node labels" problem - rather than
-    hashing a raw serialization, which would spuriously miss on every
-    call purely from rdflib minting fresh, arbitrary blank node labels
-    each time it parses the same source text (confirmed empirically:
-    two independent reparses of the identical shapes Turtle produce
-    different N-Triples text but the identical ``rdfc10_hash``).
+    hashing a raw serialization, which would spuriously miss whenever
+    rdflib mints fresh, arbitrary blank node labels on a re-parse of the
+    same source text: two independent reparses of identical shapes
+    Turtle produce different N-Triples text but the identical
+    ``rdfc10_hash``.
 
     The assembled meta-shapes graph itself is deliberately *not* hashed
     here - when ``extra_graphs`` is empty (this cache's only scope, see
@@ -83,16 +83,22 @@ def _meta_validate_cache_key(shapes_graph_for_meta: Any, kwargs: dict) -> tuple 
     contributes nothing distinguishing to the key and hashing it too
     would just be another ~20ms paid for free on every call.
 
-    Returns ``None`` (not cacheable - caller must compute fresh, exactly
-    as if this cache didn't exist) if ``rdfc10_hash`` itself raises.
-    Confirmed a real, live case, not a theoretical one:
-    ``test_validate_uses_integrated_structural_property_path_for_has_value``'s
-    own shapes graph hits a genuine pre-existing edge case in the
-    canonicalization algorithm (an ``AssertionError`` - "blank node ...
-    was never assigned a canonical identifier") unrelated to this cache.
-    A caching *optimization* must never be able to turn a graph that
-    validates correctly into one that raises - correctness always wins
-    over the cache hit.
+    Args:
+        shapes_graph_for_meta: The shapes graph being meta-validated.
+        kwargs: The keyword arguments that will be forwarded to
+            ``pyshacl.validate()``.
+
+    Returns:
+        A ``(content_hash, kwarg_items)`` tuple to use as the cache
+        key, or ``None`` if ``rdfc10_hash`` itself raises - not
+        cacheable; the caller must compute fresh, exactly as if this
+        cache didn't exist. ``rdfc10_hash`` has a known pre-existing
+        edge case in its canonicalization algorithm (an
+        ``AssertionError`` - "blank node ... was never assigned a
+        canonical identifier") that a real shapes graph can hit,
+        unrelated to this cache. A caching *optimization* must never
+        be able to turn a graph that validates correctly into one that
+        raises - correctness always wins over the cache hit.
     """
     from starlayer.graph.rdfc import rdfc10_hash
 
@@ -118,10 +124,10 @@ _SHSH_PROPERTY_SHAPE_SHAPE = URIRef("http://www.w3.org/ns/shacl-shacl#PropertySh
 # The 8 SHACL 1.0/1.1-era rules in pySHACL's own bundled shacl-shacl.ttl
 # that are now too strict for SHACL 1.2's widened value spaces - each
 # located dynamically via (shsh:ShapeShape, sh:property, ?bn) + (?bn,
-# sh:path, <predicate>), never by hardcoding a blank node identifier
-# (confirmed empirically: rdflib assigns fresh blank node IDs on every
-# separate parse of the same source file, so a hardcoded ID would never
-# match a freshly loaded copy).
+# sh:path, <predicate>), never by hardcoding a blank node identifier -
+# rdflib assigns fresh blank node IDs on every separate parse of the
+# same source file, so a hardcoded ID would never match a freshly
+# loaded copy.
 _TOO_STRICT_PATHS: tuple[Any, ...] = (
     SH["class"],
     SH.datatype,
@@ -253,10 +259,10 @@ def meta_validate(shapes_graph: Any, *, extra_graphs: Iterable[Any] = (), **kwar
     # much more deeply (e.g. stsh:RuleShape -> stsh:NodeExpressionShape ->
     # shsh:PathNodeShape's own recursive path grammar) and trips pySHACL's
     # "Validation path too deep!" guard (pyshacl/shape.py) well before any
-    # real recursion/cycle exists. Confirmed live that even a compound
-    # sh:path (sequence + inverse + zeroOrMore) needs depth ~20; 30 leaves
-    # headroom for future meta-shape nesting without raising it near
-    # pySHACL's own internal precedent of 999 (rule_expand_runner.py).
+    # real recursion/cycle exists. A compound sh:path (sequence + inverse +
+    # zeroOrMore) needs depth ~20; 30 leaves headroom for future
+    # meta-shape nesting without raising it near pySHACL's own internal
+    # precedent of 999 (rule_expand_runner.py).
     kwargs.setdefault("max_validation_depth", 30)
 
     # Meta-shacl checks shapes_graph's own structural well-formedness
@@ -265,9 +271,9 @@ def meta_validate(shapes_graph: Any, *, extra_graphs: Iterable[Any] = (), **kwar
     # Snapshotting into a plain in-memory copy first sidesteps an entire
     # category of pySHACL-internal incompatibilities with a
     # SPARQLUpdateStore-backed graph (rdflib's SPARQLStore refuses to
-    # serialize a bound blank node into query text at all - confirmed to
-    # break at least three separate pySHACL-internal code paths this way:
-    # a class-membership check, report-stringification for a blank-node
+    # serialize a bound blank node into query text at all - which breaks
+    # at least three separate pySHACL-internal code paths this way: a
+    # class-membership check, report-stringification for a blank-node
     # focus node, and a query(initBindings=...) call in its own
     # sh:sparql-based constraint evaluator - rather than one fixable root
     # cause). A snapshot is correct here specifically because meta-shacl is
@@ -288,16 +294,14 @@ def meta_validate(shapes_graph: Any, *, extra_graphs: Iterable[Any] = (), **kwar
     # Cache keyed on content, scoped to the common extra_graphs=() case
     # (see _meta_validate_cache_key's own docstring for why identity
     # can't be the key, and why meta_shapes itself doesn't need hashing
-    # here). Measured as the dominant cost of a real validate_query()
-    # call - ~0.93s per call, flat, even for the byte-for-byte identical
-    # shapes graph every time, since nothing here was ever cached before
-    # this: an uncached ~30ms graph (re)build, immediately followed by a
-    # full, uncached pyshacl.validate() pass against a deliberately deep
+    # here). Without this cache, every call pays an uncached ~30ms graph
+    # (re)build, immediately followed by a full, uncached
+    # pyshacl.validate() pass against a deliberately deep
     # (max_validation_depth=30) meta-shapes structure. A real repeated
     # caller (e.g. starontology's own validate_query(), called once per
     # test case against the identical bundled shapes/ontology content
     # every time) pays that full cost on every single call with no
-    # caching anywhere - confirmed directly via cProfile before this fix.
+    # caching anywhere.
     cache_key = _meta_validate_cache_key(shapes_graph_for_meta, kwargs) if not extra_graphs else None
     cached = _META_VALIDATE_CACHE.get(cache_key) if cache_key is not None else None
     if cached is not None:

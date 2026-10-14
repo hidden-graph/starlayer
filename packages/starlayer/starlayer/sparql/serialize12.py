@@ -3,58 +3,55 @@ into SPARQL 1.2 query text — the counterpart to ``parse12.py``.
 
 Extends rdflib's own ``algebra.translateAlgebra``/``_AlgebraTranslator``,
 which already turns an ordinary (SPARQL-1.1-shaped) algebra tree back into
-query text, in three ways:
+query text, in these ways:
 
 1. ``BGP``/``TriplesBlock`` (the latter used for CONSTRUCT templates) call
    ``.n3()`` directly on each triple-pattern term rather than delegating
    through ``convert_node_arg``/child traversal the way most other
-   operators do — confirmed by reading the real ``algebra.py`` source
-   before relying on it. ``CompValue`` (and therefore ``TripleTermNode``)
-   has no ``.n3()`` method, so both branches are overridden to render a
+   operators do. ``CompValue`` (and therefore ``TripleTermNode``) has no
+   ``.n3()`` method, so both branches are overridden to render a
    ``TripleTermNode`` as ``<<( s p o )>>`` instead of crashing with
    ``AttributeError``.
-2. ``Builtin_isTRIPLE``/``SUBJECT``/``PREDICATE``/``OBJECT`` are new SPARQL
-   1.2 builtins rdflib has no branch for at all — added following the same
-   pattern as any other single-argument builtin (e.g. ``Builtin_STR``).
-3. ``ConstructQuery`` is a **new capability**, not a patch to an existing
-   branch: confirmed empirically that plain, unmodified rdflib has *no*
-   ``ConstructQuery`` case at all — ``translateAlgebra`` already returns an
-   empty string for a CONSTRUCT query even with zero triple terms involved,
-   since ``self._alg_translation`` is only ever seeded by the ``SelectQuery``
-   branch. Two non-obvious things had to be gotten right, both found only by
-   testing against a real execution target, not by reading source alone:
-   (a) ``node.p`` (a ``Project`` wrapping the WHERE pattern) can't be
-   referenced the way ``SelectQuery`` does — for CONSTRUCT, ``Project.PV``
-   is internal bookkeeping (which variables the template needs), not "the
-   variable list to print after SELECT", but the base class's ``Project``
-   branch doesn't know that distinction and prints it anyway, producing
-   invalid syntax (a stray ``?x`` between ``WHERE`` and ``{``) — fixed by
-   referencing ``node.p.p`` directly, skipping ``Project``'s own branch
-   entirely; (b) the literal ``WHERE`` keyword, though optional per the
-   SPARQL grammar itself (confirmed: rdflib's own ``WhereClause`` production
-   is ``Optional(Keyword("WHERE")) + ...``, and this project's SELECT
-   serialization has always omitted it), is required for compatibility with
-   *starlayer.graph's* SPARQL-1.2-to-1.1 rewriter specifically — a regex-based,
-   non-full-grammar-parsing tool (by its own docstring) confirmed to fail on
-   a WHERE-less CONSTRUCT even though plain rdflib itself re-parses that
-   same text without complaint.
+2. ``Builtin_isTRIPLE``/``SUBJECT``/``PREDICATE``/``OBJECT`` and
+   ``Builtin_LANGDIR``/``hasLANGDIR``/``hasLANG``/``STRLANGDIR`` are new
+   SPARQL 1.2 builtins rdflib has no branch for at all — added following
+   the same pattern as any other builtin (e.g. ``Builtin_STR`` for the
+   single-argument ones, ``Builtin_STRLANG`` for the three-argument one).
+3. ``ConstructQuery`` and ``AskQuery`` are **new capabilities**, not a
+   patch to an existing branch: plain, unmodified rdflib has no case for
+   either — ``translateAlgebra`` returns an empty string for both query
+   forms even with zero triple terms involved, since
+   ``self._alg_translation`` is only ever seeded by the ``SelectQuery``
+   branch. Two non-obvious things apply to both: (a) ``node.p`` (a
+   ``Project`` wrapping the WHERE pattern) can't be referenced the way
+   ``SelectQuery`` does — for CONSTRUCT/ASK, ``Project.PV`` is internal
+   bookkeeping (which variables the template needs, or every variable the
+   pattern mentions), not "the variable list to print after SELECT", but
+   the base class's ``Project`` branch doesn't know that distinction and
+   prints it anyway, producing invalid syntax — fixed by referencing
+   ``node.p.p`` directly, skipping ``Project``'s own branch entirely; (b)
+   for CONSTRUCT specifically, the literal ``WHERE`` keyword is included
+   explicitly even though it's optional per the SPARQL grammar itself
+   (rdflib's own ``WhereClause`` production is
+   ``Optional(Keyword("WHERE")) + ...``) — required for compatibility with
+   *starlayer.graph's* own SPARQL-1.2-to-1.1 rewriter, a regex-based,
+   non-full-grammar-parsing tool that needs the keyword present even
+   though plain rdflib re-parses a WHERE-less CONSTRUCT without complaint.
 
 Everything else is inherited from ``_AlgebraTranslator`` completely
 unchanged.
 
-Scope: Query algebra only (``SELECT``/``CONSTRUCT``), matching this
-project's existing ``translateAlgebra`` usage — Update algebra was never
-serialized back to text by this project either (see
+Scope: Query algebra only (``SELECT``/``CONSTRUCT``/``ASK``), matching
+this project's existing ``translateAlgebra`` usage — Update algebra is
+never serialized back to text by this project (see
 ``test_phase2_update.py``'s docstring: "this project doesn't attempt to
-serialize Update algebra back to text at all"). ``ASK``/``DESCRIBE`` are
-still unsupported — confirmed the same "no branch, nothing ever seeds
-``self._alg_translation``" gap applies to them too, not investigated
-further since nothing in this project's scope currently needs them. A
-``VALUES`` row containing a triple-term *value* (as opposed to a triple
-term appearing in an ordinary triple pattern) is not yet handled either —
-rdflib's own ``values`` branch calls ``.n3()`` on each row value too, the
-same class of gap, just not hit by any test yet. Worth fixing the same way
-if either comes up.
+serialize Update algebra back to text at all"). ``DESCRIBE`` is still
+unsupported — the same "no branch, nothing ever seeds
+``self._alg_translation``" gap applies to it too, not pursued since
+nothing in this project's scope currently needs it. A ``VALUES`` row
+containing a triple-term *value* (as opposed to a triple term appearing in
+an ordinary triple pattern) is handled too — see the ``values`` branch
+below.
 """
 
 from __future__ import annotations
@@ -74,14 +71,21 @@ from .vocab import decode_dirlang_datatype
 def _dirlang_n3(term) -> str | None:
     """The real ``"text"@lang--dir`` SPARQL 1.2 syntax for `term`, if it's a
     Literal using this project's own ``dirlang:`` datatype encoding (see
-    ``grammar12.py``'s ``LangDirLiteral`` for why that encoding is used at
+    ``_grammar12.py``'s ``LangDirLiteral`` for why that encoding is used at
     all in the algebra in the first place - rdflib's own ``Literal`` can't
     hold ``lang="en--rtl"`` directly, so a plain ``term.n3()`` would emit
     the *internal* encoding datatype IRI verbatim - syntactically valid
     SPARQL, but a real, different, wrong literal value once sent to a real
     RDF 1.2 endpoint, not the base-direction string it's supposed to mean).
-    ``None`` for any other term, so callers fall through to the ordinary
-    ``term.n3()`` path unchanged.
+
+    Args:
+        term: The algebra node to check - any term type is accepted, since
+            callers invoke this unconditionally before falling back to
+            their own ordinary rendering.
+
+    Returns:
+        The ``"text"@lang--dir`` syntax, or ``None`` for any other term, so
+        callers fall through to the ordinary ``term.n3()`` path unchanged.
     """
     if isinstance(term, Literal) and term.datatype is not None:
         decoded = decode_dirlang_datatype(term.datatype)
@@ -116,20 +120,17 @@ def _term_text(term) -> str:
 def _triples_text(triples) -> str:
     # Trailing space after each "." (not just "."), unlike rdflib's own
     # algebra.py BGP branch (`triple[0].n3() + " " + ... + "."`, joined with
-    # "".join with no separator at all) - confirmed via direct reproduction
-    # that this is a real, pre-existing rdflib *parser* bug/sharp-edge, not
-    # a starlayer.graph one: a period-terminated triple ending in a blank-node
-    # object, immediately followed (zero whitespace) by another triple
-    # whose subject is a blank node, fails to reparse
+    # "".join with no separator at all). This is a real, pre-existing
+    # rdflib *parser* bug/sharp-edge, not a starlayer.graph one: a
+    # period-terminated triple ending in a blank-node object, immediately
+    # followed (zero whitespace) by another triple whose subject is also a
+    # blank node, fails to re-parse
     # (`prepareQuery("SELECT * {_:y <p> _:x._:x <p2> <o2>.}")` raises
     # `ParseException` at the second `_:x`; adding a single space before it
-    # fixes it - isolated down to exactly this, with no dependency on this
-    # project's own grammar12 install() being active). Annotation syntax's
-    # reification triples (RDF.subject/predicate/object/reifies, all
-    # blank-node-heavy) hit this constantly once regenerated - previously
-    # misdiagnosed as "starlayer.graph's own Turtle parser rejecting nested
-    # syntax" when investigating W3C harness failures, before tracing it
-    # down to this exact whitespace omission in our own serializer.
+    # fixes it). Annotation syntax's reification triples
+    # (RDF.subject/predicate/object/reifies, all blank-node-heavy) hit this
+    # constantly once regenerated, so every rendered triple needs the
+    # trailing space.
     return "".join(
         _term_text(s) + " " + _term_text(p) + " " + _term_text(o) + ". "
         for s, p, o in triples
@@ -143,6 +144,18 @@ class _AlgebraTranslator12(_AlgebraTranslator):
     these two need it."""
 
     def convert_node_arg(self, node_arg):
+        """Render one expression-position term/value.
+
+        Args:
+            node_arg: The algebra node to render - an ordinary RDF
+                term/Variable/Path, or any other value the base class's
+                own ``convert_node_arg`` already handles.
+
+        Returns:
+            The ``"text"@lang--dir`` syntax for a dirlang-encoded Literal
+            (see ``_dirlang_n3``); otherwise whatever the base class
+            returns.
+        """
         # BGP/TriplesBlock triple positions go through _term_text (see
         # _triples_text), which already checks _dirlang_n3 - but ordinary
         # *expression*-position terms (BIND(...)/FILTER(...)/VALUES row
@@ -157,26 +170,31 @@ class _AlgebraTranslator12(_AlgebraTranslator):
         return super().convert_node_arg(node_arg)
 
     def translateAlgebra(self) -> str:
+        """Render this translator's accumulated algebra text, then resolve
+        the base class's own placeholder tokens unconditionally.
+
+        Returns:
+            The final SPARQL query text, with no unresolved
+            ``-*-SELECT-*-``/``{GroupBy}``/``{Having}`` placeholders left
+            in it regardless of whether the query contains a BGP.
+        """
         text = super().translateAlgebra()
         # -*-SELECT-*-/{GroupBy}/{Having} are rdflib's own base-class
-        # placeholder tokens. The base class only ever replaces them as a
-        # side effect of visiting a BGP/TriplesBlock node (see the BGP
-        # branch below, and algebra.py's own identical pairing) - a real,
-        # pre-existing rdflib bug, confirmed independent of this project's
-        # own RDF-1.2 work: plain, unmodified rdflib produces the exact
-        # same unresolved placeholders for any *ordinary* SPARQL 1.1 query
-        # with no triple pattern at all, e.g.
-        # `SELECT * { VALUES ?t {1 2 3} FILTER(?t > 1) }` (no BGP anywhere)
-        # - confirmed via direct reproduction against
-        # rdflib.plugins.sparql.algebra.translateAlgebra() with zero
-        # involvement from this project. It surfaces here because a
-        # triple-term-using SPARQL 1.2 query can just as easily have no
-        # ordinary BGP either (VALUES of triple terms plus
-        # isTRIPLE()/SUBJECT()/etc FILTERs, no `{?s ?p ?o}` anywhere - see
-        # the W3C expr-2/triple-on-* fixtures, which hit exactly this).
-        # Applying the replacement unconditionally here, rather than only
-        # as a side effect of the BGP branch, guarantees every query gets
-        # valid text regardless of whether it happens to contain a BGP.
+        # placeholder tokens, only ever replaced as a side effect of
+        # visiting a BGP/TriplesBlock node (see the BGP branch below, and
+        # algebra.py's own identical pairing) - a real, pre-existing
+        # rdflib bug: plain, unmodified rdflib produces the exact same
+        # unresolved placeholders for any *ordinary* SPARQL 1.1 query with
+        # no triple pattern at all, e.g.
+        # `SELECT * { VALUES ?t {1 2 3} FILTER(?t > 1) }` (no BGP
+        # anywhere). It surfaces here because a triple-term-using SPARQL
+        # 1.2 query can just as easily have no ordinary BGP either (VALUES
+        # of triple terms plus isTRIPLE()/SUBJECT()/etc FILTERs, no
+        # `{?s ?p ?o}` anywhere - see the W3C expr-2/triple-on-* fixtures,
+        # which hit exactly this). Applying the replacement unconditionally
+        # here, rather than only as a side effect of the BGP branch,
+        # guarantees every query gets valid text regardless of whether it
+        # happens to contain a BGP.
         text = text.replace("-*-SELECT-*-", "SELECT")
         text = text.replace("{GroupBy}", "")
         text = text.replace("{Having}", "")
@@ -199,10 +217,8 @@ class _AlgebraTranslator12(_AlgebraTranslator):
             #    emits a bare "{TripleTerm}" placeholder for any CompValue
             #    argument, same as it would for any other operator name, and
             #    traverse()'s ordinary recursion visits this node afterward
-            #    expecting it to fill that placeholder in — which a bare
-            #    no-op previously failed to do, confirmed empirically
-            #    (BIND(<<(...)>> AS ?x) regenerated as literal, unresolved
-            #    "{TripleTerm}" text before this fix).
+            #    expecting it to fill that placeholder in — a bare no-op
+            #    would leave that placeholder as literal, unresolved text.
             self._replace("{TripleTerm}", _term_text(node))
             return node
 
@@ -226,16 +242,15 @@ class _AlgebraTranslator12(_AlgebraTranslator):
             # Deliberately NOT `return node` here, unlike the TripleTerm/BGP/
             # TriplesBlock branches above/below. rdflib's own _traverse()
             # (algebra.py) stops recursing into a node's *children* the
-            # moment its visitPre callback returns non-None - confirmed
-            # empirically as the exact cause of a real bug: `.arg` can
+            # moment its visitPre callback returns non-None - and `.arg` can
             # itself be a TripleTermNode (e.g. PREDICATE(TRIPLE(:a,:b,:c))),
             # whose own "{TripleTerm}" placeholder (just inserted by the
             # convert_node_arg() call above) needs a *separate* later visit
-            # to resolve - which never happened while this branch returned
-            # `node`, leaving literal unresolved "{TripleTerm}" text in the
-            # output. Falling through (implicit None), matching every
-            # ordinary base-class builtin branch's own convention, lets
-            # _traverse's normal per-child recursion reach `.arg` on its own.
+            # to resolve, which returning `node` here would prevent,
+            # leaving literal unresolved "{TripleTerm}" text in the output.
+            # Falling through (implicit None), matching every ordinary
+            # base-class builtin branch's own convention, lets _traverse's
+            # normal per-child recursion reach `.arg` on its own.
 
         if isinstance(node, CompValue) and node.name in (
             "Builtin_LANGDIR",
@@ -244,13 +259,12 @@ class _AlgebraTranslator12(_AlgebraTranslator):
         ):
             # Same "not in the base class's if/elif chain at all" gap as the
             # isTRIPLE/SUBJECT/PREDICATE/OBJECT branch above, same fix shape
-            # (single `.arg`) - found 2026-10-13 while wiring the W3C
-            # lang-basedir category into the permanent test suite: with no
-            # branch here, these three regenerated as a literal, unresolved
-            # "{Builtin_LANGDIR}"-style placeholder (never valid SPARQL),
-            # which then failed to re-parse - not a lowering/execution bug
-            # at all (lower_rdf11.py already handles all four of these
-            # correctly), purely a missing text-regeneration case.
+            # (single `.arg`): with no branch here, these three regenerate
+            # as a literal, unresolved "{Builtin_LANGDIR}"-style placeholder
+            # (never valid SPARQL), which then fails to re-parse - not a
+            # lowering/execution bug (lower_rdf11.py already handles all
+            # four of these correctly), purely a missing text-regeneration
+            # case.
             keyword = node.name[len("Builtin_") :]
             self._replace(
                 "{" + node.name + "}",
@@ -274,14 +288,14 @@ class _AlgebraTranslator12(_AlgebraTranslator):
             )
 
         if isinstance(node, CompValue) and node.name == "ConstructQuery":
-            # rdflib's own _AlgebraTranslator has NO case for ConstructQuery
-            # at all (confirmed empirically: plain rdflib's translateAlgebra
-            # already returns "" for a CONSTRUCT query with zero triple
-            # terms involved — self._alg_translation is only ever *seeded*
-            # by the SelectQuery branch, so nothing ever gets written for
-            # any other query form). This is a real, pre-existing rdflib
-            # gap unrelated to TripleTerm, not something narrow to work
-            # around — so, unlike the other branches here, this one adds a
+            # rdflib's own _AlgebraTranslator has no case for ConstructQuery
+            # at all: plain, unmodified rdflib's translateAlgebra already
+            # returns "" for a CONSTRUCT query with zero triple terms
+            # involved — self._alg_translation is only ever *seeded* by the
+            # SelectQuery branch, so nothing ever gets written for any
+            # other query form. This is a real, pre-existing rdflib gap
+            # unrelated to TripleTerm, not something narrow to work around
+            # — so, unlike the other branches here, this one adds a
             # genuinely new capability rather than patching an existing one
             # that almost works. `node.template` is a bare list of (s, p, o)
             # tuples directly on the ConstructQuery node (not wrapped in its
@@ -292,19 +306,19 @@ class _AlgebraTranslator12(_AlgebraTranslator):
             # ordinary traversal to resolve, exactly like the SelectQuery
             # branch does for its own `node.p` - not returning early here.
             # The literal "WHERE" keyword is optional per the SPARQL
-            # grammar itself (confirmed: rdflib's own WhereClause production
-            # is `Optional(Keyword("WHERE")) + ...`, and this project's
+            # grammar itself (rdflib's own WhereClause production is
+            # `Optional(Keyword("WHERE")) + ...`, and this project's
             # existing SELECT-query serialization already omits it, e.g.
-            # "SELECT ?x{...}") - but starlayer.graph's *own* SPARQL-1.2-to-1.1
-            # rewriter (sparql12_to_11.py) is a regex-based, non-full-
-            # grammar-parsing tool (by its own docstring), and confirmed
-            # empirically to fail on a WHERE-less CONSTRUCT specifically
-            # (though not on a WHERE-less SELECT) — regenerated text that
-            # plain rdflib itself re-parses without complaint still crashed
-            # going through StarLayerGraph.query(text). Including "WHERE"
-            # explicitly here, unlike the (unmodified, inherited)
-            # SelectQuery branch, is what makes this compatible with both
-            # execution targets rather than just the stricter one.
+            # "SELECT ?x{...}") — but starlayer.graph's *own*
+            # SPARQL-1.2-to-1.1 rewriter (sparql12_to_11.py) is a
+            # regex-based, non-full-grammar-parsing tool (by its own
+            # docstring) that fails on a WHERE-less CONSTRUCT specifically
+            # (though not on a WHERE-less SELECT), even though plain
+            # rdflib itself re-parses that same text without complaint.
+            # Including "WHERE" explicitly here, unlike the (unmodified,
+            # inherited) SelectQuery branch, is what makes this compatible
+            # with both execution targets rather than just the stricter
+            # one.
             #
             # node.p is a Project wrapping the WHERE pattern, but — unlike a
             # SELECT query — its PV here isn't "the variables to print after
@@ -312,21 +326,20 @@ class _AlgebraTranslator12(_AlgebraTranslator):
             # needs projected out of the pattern). The base class's own
             # Project branch doesn't know that distinction: it always
             # renders PV as a printed variable list (correct for SELECT,
-            # confirmed empirically to be wrong here — it inserted a stray
-            # "?x" directly between "WHERE" and "{", which isn't valid
-            # CONSTRUCT syntax at all). Referencing node.p.p directly skips
-            # Project's own branch entirely, going straight to the
-            # underlying pattern (BGP/etc.), which renders correctly via
-            # its own existing branch with no variable-list side effect.
-            # Double braces around node.p.p.name, matching Project's own
-            # "{{" + name + "}}" convention: the *inner* "{Name}" is the
-            # placeholder Name's own branch replaces; the *outer* literal
-            # "{"/"}" are the actual WHERE-clause block delimiters and must
-            # survive that replacement. A single "{" + name + "}" (tried
-            # first) is indistinguishable from the placeholder itself, so
-            # the pattern's own branch consumes the delimiters along with
-            # it — confirmed empirically: produced "WHERE <iri> <iri> ?x."
-            # with the braces gone entirely, invalid SPARQL syntax.
+            # wrong here — it would insert a stray "?x" directly between
+            # "WHERE" and "{", which isn't valid CONSTRUCT syntax at all).
+            # Referencing node.p.p directly skips Project's own branch
+            # entirely, going straight to the underlying pattern (BGP/etc.),
+            # which renders correctly via its own existing branch with no
+            # variable-list side effect. Double braces around node.p.p.name,
+            # matching Project's own "{{" + name + "}}" convention: the
+            # *inner* "{Name}" is the placeholder Name's own branch
+            # replaces; the *outer* literal "{"/"}" are the actual
+            # WHERE-clause block delimiters and must survive that
+            # replacement — a single "{" + name + "}" is indistinguishable
+            # from the placeholder itself, so the pattern's own branch
+            # would consume the delimiters along with it, producing invalid
+            # syntax with the braces gone entirely.
             template_text = _triples_text(node.template) if node.template else ""
             self._alg_translation = (
                 "CONSTRUCT {" + template_text + "} WHERE {{" + node.p.p.name + "}}"
@@ -334,22 +347,17 @@ class _AlgebraTranslator12(_AlgebraTranslator):
             return None
 
         if isinstance(node, CompValue) and node.name == "AskQuery":
-            # Same gap as ConstructQuery immediately above, same root cause
-            # - confirmed via a plain, unmodified rdflib translateAlgebra()
-            # call on a plain ASK query with zero RDF-1.2 syntax involved:
-            # it returns nothing either. self._alg_translation is only ever
-            # seeded by the SelectQuery/ConstructQuery branches, so ASK
-            # silently produced empty text - found 2026-10-13 while wiring
-            # the W3C lang-basedir/rdf11 categories into the permanent
-            # suite (both contributed the first ASK-shaped eval fixtures
-            # this harness's regenerate-then-reparse round trip had ever
-            # exercised).
+            # Same gap as ConstructQuery immediately above, same root
+            # cause: plain, unmodified rdflib's translateAlgebra() returns
+            # nothing for a plain ASK query too — self._alg_translation is
+            # only ever seeded by the SelectQuery/ConstructQuery branches,
+            # so ASK silently produced empty text.
             #
             # node.p is a Project wrapping the WHERE pattern, with its own
             # PV populated to *every* variable the pattern mentions
             # (rdflib's own internal "project everything" bookkeeping for
-            # ASK, confirmed empirically) - not a printed variable list;
-            # ASK syntax has no variable list at all ("ASK { ... }", no
+            # ASK) - not a printed variable list; ASK syntax has no
+            # variable list at all ("ASK { ... }", no
             # "?s ?p ?o" between the keyword and the brace). Referencing
             # node.p.p directly skips Project's own variable-list-printing
             # branch entirely, same fix and same double-brace placeholder
@@ -390,14 +398,13 @@ class _AlgebraTranslator12(_AlgebraTranslator):
             # list case at all, raising ExpressionNotCoveredException.
             # Confirmed via a plain, unmodified rdflib repro with no triple
             # terms involved at all: `FILTER(?o IN (:a, :b, :c))` alone
-            # already crashes `translateAlgebra`. First surfaced here via
-            # the W3C test `basic-9`
-            # (`FILTER (?o IN (<<( :s :p "o" )>>, ...))`), which additionally
+            # already crashes `translateAlgebra`. This branch additionally
             # needs each list element rendered through _term_text (for a
-            # TripleTermNode element) rather than a bare .n3()/
-            # convert_node_arg call - both gaps fixed together here rather
-            # than patching rdflib itself, matching every other override in
-            # this class.
+            # TripleTermNode element, e.g.
+            # `FILTER (?o IN (<<( :s :p "o" )>>, ...))`) rather than a bare
+            # .n3()/convert_node_arg call - both gaps fixed together here
+            # rather than patching rdflib itself, matching every other
+            # override in this class.
             expr = self.convert_node_arg(node.expr)
             other = (
                 "("
@@ -420,12 +427,10 @@ class _AlgebraTranslator12(_AlgebraTranslator):
             # double-brace one), with _term_text in place of a bare
             # term.n3() call so a VALUES row containing a triple-term
             # value (`VALUES ?x { <<( :s :p :o )>> }`) renders instead of
-            # hitting the base class's `ExpressionNotCoveredException`
-            # (confirmed empirically via the W3C test `basic-8`/`basic-9`,
-            # each using several TripleTermNode rows) - previously a
-            # documented, explicitly-deferred gap (see the Phase 6 status
-            # entry in CLAUDE.md), closed here the same way BGP/
-            # TriplesBlock/ConstructQuery already were.
+            # hitting the base class's `ExpressionNotCoveredException` -
+            # previously a documented, explicitly-deferred gap (see the
+            # Phase 6 status entry in CLAUDE.md), closed here the same way
+            # BGP/TriplesBlock/ConstructQuery already were.
             columns = []
             for key in node.res[0].keys():
                 if isinstance(key, Identifier):
@@ -444,13 +449,13 @@ class _AlgebraTranslator12(_AlgebraTranslator):
                         row.append(_term_text(term))
                     elif isinstance(term, Identifier):
                         # _term_text, not a bare term.n3(): also covers a
-                        # dirlang-encoded Literal (see _dirlang_n3) - a bare
-                        # .n3() here was a real, confirmed gap (this exact
-                        # branch is a separate .n3() call site from both
+                        # dirlang-encoded Literal (see _dirlang_n3). This is
+                        # a separate .n3() call site from both
                         # _triples_text and convert_node_arg, so fixing
-                        # those two alone didn't cover VALUES rows) that
-                        # emitted the *internal* dirlang: datatype IRI
-                        # verbatim instead of real "text"@lang--dir syntax.
+                        # those two alone doesn't cover VALUES rows - a bare
+                        # .n3() here would emit the *internal* dirlang:
+                        # datatype IRI verbatim instead of real
+                        # "text"@lang--dir syntax.
                         row.append(_term_text(term))
                     elif isinstance(term, str):
                         row.append(term)
@@ -474,15 +479,14 @@ def _translate_algebra_12(query: Query) -> str:
     ``translateAlgebra`` itself: ``query.prologue`` is never read by this
     machinery — see CLAUDE.md finding #3.
 
-    Private (was ``translate_algebra_12``, public, until 2026-10-06):
-    confirmed via `grep` across the whole repo that this has zero real
-    production callers, internal or external - every use is a test file
-    exercising it as a text-roundtrip correctness oracle (W3C conformance
-    suite, adversarial roundtrip). Even this project's own "give me real
-    text" path (``lower_rdf11.rdf11_to_sparql11_text``) deliberately
-    bypasses it in favor of plain rdflib ``translateAlgebra``, since
-    production code never needs the 1.2-specific triple-term/dirLangString
-    handling this function exists for - parse-edit-reserialize a SPARQL
-    1.2 query's *algebra* back to *text* isn't a real workflow this
-    project has, or needs."""
+    Private (was ``translate_algebra_12``, public, until 2026-10-06): it
+    has zero real production callers, internal or external - every use is
+    a test file exercising it as a text-roundtrip correctness oracle (W3C
+    conformance suite, adversarial roundtrip). Even this project's own
+    "give me real text" path (``lower_rdf11.rdf11_to_sparql11_text``)
+    deliberately bypasses it in favor of plain rdflib ``translateAlgebra``,
+    since production code never needs the 1.2-specific triple-term/
+    dirLangString handling this function exists for - parse-edit-
+    reserialize a SPARQL 1.2 query's *algebra* back to *text* isn't a real
+    workflow this project has, or needs."""
     return _AlgebraTranslator12(query).translateAlgebra()

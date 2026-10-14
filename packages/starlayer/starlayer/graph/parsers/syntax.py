@@ -167,6 +167,12 @@ def _scan_directive_end(data, i):
     while j < len(data):
         c = data[j]
         if in_string:
+            if c == '\\' and j + 1 < len(data):
+                # Same escaped-character-before-the-closing-delimiter fix
+                # as _split_statements_impl()'s matching block - consume
+                # the pair atomically before string_char ever sees it.
+                j += 2
+                continue
             if c == string_char:
                 if triple:
                     # Only a real '"""'/"'''" closes a triple-quoted string -
@@ -177,7 +183,7 @@ def _scan_directive_end(data, i):
                         j += 3
                         in_string = False
                         continue
-                elif data[j-1] != '\\':
+                else:
                     in_string = False
             j += 1
             continue
@@ -275,6 +281,25 @@ def _split_statements_impl(data):
                 continue
         c = data[i]
         if in_string:
+            if c == '\\' and i + 1 < len(data):
+                # Consume an escaped character as one atomic pair, before
+                # the string_char check below ever sees it - otherwise an
+                # escaped quote immediately preceding the real closing
+                # '"""'/"'''" (e.g. a docstring ending "...the word
+                # \"profile.\"\"\"\"", where only the first of the trailing
+                # four quote characters is the escaped one) gets misread as
+                # itself starting the real closing delimiter, one character
+                # too early. The triple-quote branch below already had this
+                # exact bug fixed for a *mid-string* embedded quote (see its
+                # own comment); this is the matching fix for one sitting
+                # directly against the closing delimiter, confirmed live via
+                # the code-KG extractor's own cleaned `shacl_profiling.py`
+                # module docstring, which ends in exactly this shape.
+                # Mirrors _split_on_delimiter()'s own already-correct
+                # backslash-pair handling below.
+                buf += data[i:i + 2]
+                i += 2
+                continue
             buf += c
             if c == string_char:
                 if triple:
@@ -294,7 +319,7 @@ def _split_statements_impl(data):
                         buf += data[i+1:i+3]
                         i += 2
                         in_string = False
-                elif data[i-1] != '\\':
+                else:
                     in_string = False
             i += 1
             continue

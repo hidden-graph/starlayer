@@ -1,19 +1,18 @@
-"""Targeted compatibility shims for the in-memory backend's SPARQL
-*evaluator* (``rdflib.plugins.sparql.evaluate``/``operators``) - not the
-algebra translator (see ``algebra_translator_patches.py`` for those) and not
-the arithmetic/numeric-function evaluation bugs (see
-``operator_patches.py``).
+"""Monkeypatches for the in-memory backend's SPARQL *evaluator*
+(``rdflib.plugins.sparql.evaluate``/``operators``) - not the algebra
+translator (see ``algebra_translator_patches.py``) and not the
+arithmetic/numeric-function evaluation bugs (see ``operator_patches.py``).
 
-Two different categories of shim live here:
+Two categories of shim live here:
 
 1. ``patch_evalextend_forgotten_bind_vars``/``patch_construct_skips_encoding_solutions``
-   fix confirmed bugs in *plain rdflib itself* (see
-   ``docs/rdflib-upstream-issues.md`` issue 5 for the first). This is the
-   most important category to have applied correctly: unlike the
-   algebra-translator bugs (which fail loudly, with a ``ParseException`` or
-   similar on the malformed regenerated text) and the arithmetic bugs
-   (wrong but well-formed output), these silently produce wrong query
-   *results* with no error or warning at all.
+   and most of the others below fix confirmed bugs in *plain rdflib
+   itself* (see ``docs/rdflib-upstream-issues.md`` issue 5 for the first).
+   This is the most important category to have applied correctly: unlike
+   the algebra-translator bugs (which fail loudly, with a
+   ``ParseException`` or similar on the malformed regenerated text) and
+   the arithmetic bugs (wrong but well-formed output), these silently
+   produce wrong query *results* with no error or warning at all.
 
 2. ``patch_relational_expression_tt_hash_equality`` is a different kind of
    thing - not a plain-rdflib bug (rdflib's own ``=``/``!=`` behavior is
@@ -45,43 +44,31 @@ def _expr_free_vars(expr) -> set:
     recursive structural walk, *not* a lookup into the ``_vars``
     bookkeeping rdflib's own ``_addVars`` pass computes.
 
-    An earlier version of this function *did* just read ``expr``'s own
-    ``_vars`` (rdflib's ``algebra.py``, run once during ``translateQuery``)
-    as a shortcut, on the assumption that it already reflects exactly this
-    set. That assumption is confirmed wrong for a ``RelationalExpression``
-    specifically (``FILTER(?x = ?o)``'s own algebra shape): reproduced
-    directly against plain, unpatched rdflib -
-    ``prepareQuery("SELECT * WHERE { ?s ?p ?x FILTER(?x = ?o) }")`` (``?o``
-    appearing *only* in the filter, never in the wrapped pattern) - the
-    resulting ``RelationalExpression`` node's own ``_vars`` is an empty
-    ``set()`` regardless of which side (``expr`` or ``other``) ``?o`` sits
-    on, even though ``?o`` is plainly a free variable of the expression by
-    any reasonable definition. ``_addVars``'s handling of comparison
-    expressions apparently never populates ``_vars`` for them at all (not
-    a one-sided ``other``-only gap, as first suspected - ``expr``-side
-    ``?x`` is *also* absent from ``_vars`` here, it just doesn't matter for
-    callers of this function since ``?x`` is already visible through the
-    wrapped pattern's own ``_vars`` in every real case tested). Confirmed
-    via ``starlayer.sparql``'s own W3C-suite-driven testing (fixture
-    ``graphs-1``): a ``Filter`` built with a ``RelationalExpression``
-    comparing an extracted value against a variable bound only by a
-    lazy-joined *sibling* pattern (not this ``Filter``'s own wrapped ``p``)
-    got that variable silently forgotten by ``evalFilter``'s
-    ``c.forget(ctx, _except=part._vars)`` before the comparison ever ran -
-    same failure shape as the ``evalExtend`` bug this function was
-    originally written for (see ``patch_evalextend_forgotten_bind_vars``),
-    just reached through ``FILTER`` instead of ``BIND``, and not covered by
-    that patch alone since it only touches ``evalExtend``.
+    ``_addVars`` never populates ``_vars`` for a ``RelationalExpression``
+    node (``FILTER(?x = ?o)``'s own algebra shape) - not a one-sided
+    ``other``-only gap either: ``expr``-side ``?x`` is equally absent from
+    ``_vars``, it just doesn't matter for callers of this function since
+    ``?x`` is already visible through the wrapped pattern's own ``_vars``
+    in every real case. Code that trusts ``_vars`` to know what a
+    sub-expression depends on therefore misses a real dependency for any
+    expression containing a comparison - the same failure shape as the
+    ``evalExtend`` bug ``patch_evalextend_forgotten_bind_vars`` fixes,
+    reachable through ``FILTER`` as well as ``BIND`` (see
+    ``patch_evalfilter_forgotten_vars``).
 
     A structural walk sidesteps needing to know which rdflib expression
     types ``_addVars`` does or doesn't populate correctly - it finds every
     bare ``Variable`` in the tree regardless of which key it's stored
     under, recursing through every ``CompValue``/``list``/``tuple``
     (mirroring ``_traverseAgg``'s own generic traversal shape). Strictly
-    more complete than the old ``_vars``-based version for every existing
-    caller (``patch_evalextend_forgotten_bind_vars``,
-    ``_bind_expr_dependencies``) - no behavior it relied on is lost, only
-    gaps like this one are closed.
+    more complete than a ``_vars``-based lookup for every existing caller
+    (``patch_evalextend_forgotten_bind_vars``, ``_bind_expr_dependencies``).
+
+    Args:
+        expr: The rdflib SPARQL algebra expression node to scan.
+
+    Returns:
+        The set of ``Variable`` instances found anywhere in expr's tree.
     """
     found: set = set()
 
@@ -113,21 +100,21 @@ def patch_evalextend_forgotten_bind_vars() -> bool:
     An unbound variable later joined against (e.g. ``?s :p ?o .``) then
     matches *anything*, producing extra, wrong results with no error at
     all. See ``docs/rdflib-upstream-issues.md`` issue 5 for the full
-    root-cause trace (down to ``algebra.py``'s ``_addVars`` "Extend" case,
-    which the root cause - not just the trigger shape - is confirmed
-    against).
+    root-cause trace, down to ``algebra.py``'s ``_addVars`` "Extend" case.
 
     Fix: union in ``expr``'s own free variables (see ``_expr_free_vars``)
     before forgetting, so a variable ``expr`` genuinely depends on is never
     forgotten regardless of whether static analysis attributed it to this
-    ``Extend`` node's own ``_vars``. This is the same evaluation
-    ``evalExtend`` already performs, unchanged in every other respect -
-    only the ``_except`` set passed to ``c.forget(...)`` differs.
+    ``Extend`` node's own ``_vars``. Unchanged from stock ``evalExtend`` in
+    every other respect - only the ``_except`` set passed to
+    ``c.forget(...)`` differs.
 
     Idempotent and defensive, matching the established
-    ``operator_patches.py``/``algebra_translator_patches.py`` idiom -
-    returns ``False`` without raising if rdflib's internals don't match
-    what this shim expects.
+    ``operator_patches.py``/``algebra_translator_patches.py`` idiom.
+
+    Returns:
+        True if the patch applied (or was already applied), False if
+        rdflib's internals didn't match what this shim expects.
     """
     global _evaluate_patch_status
     if _evaluate_patch_status is not None:
@@ -186,34 +173,33 @@ def patch_evalfilter_forgotten_vars() -> bool:
     ``patch_evalextend_forgotten_bind_vars`` above (``_addVars`` failing to
     populate ``_vars`` for the relevant expression node), reached through
     ``FILTER`` instead of ``BIND``, and *not* covered by that patch since it
-    only touches ``evalExtend``.
+    only touches ``evalExtend``. See ``_expr_free_vars``'s own docstring
+    for the underlying mechanism.
 
-    Confirmed via a minimal, standalone plain-rdflib reproduction (no
-    starlayer.graph/starlayer.sparql code involved) - see ``_expr_free_vars``'s
-    own docstring for the exact repro: a ``RelationalExpression`` comparing
-    a variable that's free in the filter but not in the wrapped pattern
-    (``FILTER(?x = ?o)`` where ``?o`` never appears in ``p``) gets its own
-    ``_vars`` computed as an empty ``set()`` by ``_addVars`` regardless of
-    which side of the comparison ``?o`` is on. ``evalFilter``'s
-    ``c.forget(ctx, _except=part._vars)`` then drops ``?o`` before ``_ebv``
-    ever evaluates the expression, making the comparison see an unbound
-    variable - which ``_ebv``/the underlying relational-expression operator
-    treats as an error, so the filter evaluates false for *every* row
-    regardless of ``?o``'s real (outer) value, silently emptying the
-    result with no error at all. Found via ``starlayer.sparql``'s own W3C
-    test suite (fixture ``graphs-1``): a value extracted from a
-    lazily-joined ``GRAPH`` pattern, compared against a variable bound only
-    by the *other* (sibling) branch of that join, needs exactly this shape
-    to work correctly - see that project's ``lower_rdf11.py``
-    ``_add_single_constraint`` for the query-construction side of the same
-    finding.
+    A ``RelationalExpression`` comparing a variable that's free in the
+    filter but not in the wrapped pattern (``FILTER(?x = ?o)`` where ``?o``
+    never appears in ``p``) gets its own ``_vars`` computed as an empty
+    ``set()`` by ``_addVars`` regardless of which side of the comparison
+    ``?o`` is on. ``evalFilter``'s ``c.forget(ctx, _except=part._vars)``
+    then drops ``?o`` before ``_ebv`` ever evaluates the expression, making
+    the comparison see an unbound variable - which ``_ebv``/the underlying
+    relational-expression operator treats as an error, so the filter
+    evaluates false for *every* row regardless of ``?o``'s real (outer)
+    value, silently emptying the result with no error at all. A value
+    extracted from a lazily-joined ``GRAPH`` pattern, compared against a
+    variable bound only by the *other* (sibling) branch of that join,
+    needs exactly this shape to work correctly.
 
     Fix: identical strategy to the ``Extend`` patch - union in ``expr``'s
-    own free variables (the corrected, structural ``_expr_free_vars``, not
-    a re-trust of ``_vars``) before forgetting. Unchanged in every other
-    respect from rdflib's own ``evalFilter``.
+    own free variables (the structural ``_expr_free_vars``, not a re-trust
+    of ``_vars``) before forgetting. Unchanged in every other respect from
+    rdflib's own ``evalFilter``.
 
     Same idempotent apply-once pattern as the other patches in this module.
+
+    Returns:
+        True if the patch applied (or was already applied), False if
+        rdflib's internals didn't match what this shim expects.
     """
     global _evalfilter_patch_status
     if _evalfilter_patch_status is not None:
@@ -258,14 +244,13 @@ def patch_evalmodify_default_graph_selection() -> bool:
     comment even flags this as fragile: "weird type checking logic ... once
     ConjunctiveGraph is removed and Dataset no longer inherits from
     Graph") - rather than ``ctx.graph`` itself, which is what its sibling
-    function ``evalDeleteWhere`` uses unconditionally, and what turns out
-    to be the only one of the two that works correctly against this
-    library's own in-memory backend.
+    function ``evalDeleteWhere`` uses unconditionally, and which is the
+    only one of the two that works correctly against this library's own
+    in-memory backend.
 
-    Confirmed via direct, minimal reproduction (no ``starlayer.sparql``
-    code involved): ``ctx.dataset.default_context`` and ``ctx.graph`` are
-    two *different* Python objects for a ``StarLayerDataset`` (the former
-    a plain ``rdflib.graph.Graph`` wrapper, the latter the real
+    ``ctx.dataset.default_context`` and ``ctx.graph`` are two *different*
+    Python objects for a ``StarLayerDataset`` (the former a plain
+    ``rdflib.graph.Graph`` wrapper, the latter the real
     ``StarLayerDataset``/``StarLayerGraph`` instance with its own
     triple-term-aware ``add``/``remove``/``triples`` overrides) - for an
     *ordinary* triple this doesn't matter (both wrappers share the same
@@ -274,12 +259,7 @@ def patch_evalmodify_default_graph_selection() -> bool:
     real ``StarLayerDataset``/``StarLayerGraph`` object correctly
     translates it to/from this library's internal encoding - going through
     the generic ``default_context`` wrapper silently fails to remove or
-    insert the triple at all, with no error. Found via
-    ``starlayer.sparql``'s own `DeleteWhere`->`Modify` rewrite for a
-    non-ground triple-term pattern (`DELETE WHERE { ?r rdf:reifies
-    <<( ?s :b :c )>> }`): the WHERE clause matched the correct rows, but
-    nothing was actually deleted - traced down to this exact line, not a
-    bug in that project's own lowering.
+    insert the triple at all, with no error.
 
     Fix: use ``ctx.graph`` unconditionally, dropping the
     ``type(ctx.graph) is Graph`` check and the ``default_context``
@@ -292,6 +272,10 @@ def patch_evalmodify_default_graph_selection() -> bool:
 
     Same idempotent apply-once pattern as the other patches in this
     module.
+
+    Returns:
+        True if the patch applied (or was already applied), False if
+        rdflib's internals didn't match what this shim expects.
     """
     global _evalmodify_patch_status
     if _evalmodify_patch_status is not None:
@@ -392,31 +376,29 @@ def patch_evalinsertdata_quad_unpacking() -> bool:
     `GRAPH` clause) - its own ``__iadd__`` override expects ``other`` to
     already *be* quads (4-tuples), so unpacking each plain 3-tuple triple
     from ``u.triples`` as ``s, p, o, g`` raises ``ValueError: not enough
-    values to unpack (expected 4, got 3)``.
+    values to unpack (expected 4, got 3)``. Not specific to RDF 1.2 at
+    all - a plain SPARQL 1.1 `INSERT DATA` against any ``Dataset``-shaped
+    default graph hits this.
 
-    Confirmed via direct, minimal reproduction (no ``starlayer.sparql`` code
-    involved): ``StarLayerDataset().update("INSERT DATA { ... }")`` with
-    zero triple terms anywhere raises this exact error - not specific to
-    RDF 1.2 at all, a plain SPARQL 1.1 `INSERT DATA` against any
-    ``Dataset``-shaped default graph.
+    Asymmetric with `DELETE DATA`: ``evalDeleteData``'s ``g -= u.triples``
+    hits ``Graph.__isub__``, which loops and calls ``self.remove(triple)``
+    per plain triple regardless of graph type (no quad-only override
+    exists for ``-=`` the way there is for ``+=``) - so only
+    ``evalInsertData`` needs this fix.
 
-    Asymmetric with `DELETE DATA`, confirmed by reading both:
-    ``evalDeleteData``'s ``g -= u.triples`` hits ``Graph.__isub__``, which
-    loops and calls ``self.remove(triple)`` per plain triple regardless of
-    graph type (no quad-only override exists for ``-=`` the way there is
-    for ``+=``) - so only ``evalInsertData`` needs this fix, confirmed by
-    reproduction that ``DELETE DATA`` already works correctly against a
-    ``StarLayerDataset`` without it.
-
-    Fix: explicit per-triple ``.add()`` calls instead of ``+=`` - the exact
-    same fix ``patch_evalmodify_default_graph_selection`` above already
-    established for `evalModify`'s own identical `.insert`/`.delete`
-    quad-vs-triple mismatch, applied here to `INSERT DATA`'s simpler,
+    Fix: explicit per-triple ``.add()`` calls instead of ``+=`` - the same
+    fix ``patch_evalmodify_default_graph_selection`` above establishes for
+    `evalModify`'s own identical `.insert`/`.delete` quad-vs-triple
+    mismatch, applied here to `INSERT DATA`'s simpler,
     unconditional-default-graph case. Functionally identical to what
     ``Graph.__iadd__`` already does internally for a plain ``Graph``, and
     correct (rather than crashing) for a ``Dataset``/``StarLayerDataset``.
 
     Same idempotent apply-once pattern as the other patches in this module.
+
+    Returns:
+        True if the patch applied (or was already applied), False if
+        rdflib's internals didn't match what this shim expects.
     """
     global _evalinsertdata_patch_status
     if _evalinsertdata_patch_status is not None:
@@ -459,13 +441,20 @@ _lazy_join_patch_status: bool | None = None
 
 def _bind_expr_dependencies(node) -> set:
     """The set of variables some ``Extend`` (``BIND``) node *anywhere* in
-    `node`'s subtree references in its own expression - a conservative,
+    ``node``'s subtree references in its own expression - a conservative,
     over-inclusive approximation of what this subtree actually needs bound
     before it can evaluate correctly, as opposed to what it's statically
-    attributed as *producing* (`node`'s own ``_vars``, which - per
-    ``_addVars``'s "Extend" case - deliberately excludes exactly these
-    variables). Recurses into every ``CompValue``/``list``/``tuple`` found,
-    mirroring ``_traverseAgg``'s own generic traversal shape.
+    attributed as *producing* (``node``'s own ``_vars``, which - per
+    ``_addVars``'s "Extend" case - excludes exactly these variables).
+    Recurses into every ``CompValue``/``list``/``tuple`` found, mirroring
+    ``_traverseAgg``'s own generic traversal shape.
+
+    Args:
+        node: The rdflib SPARQL algebra subtree to scan.
+
+    Returns:
+        The set of ``Variable`` instances any ``Extend`` node in the
+        subtree depends on via its own expression.
     """
     found: set = set()
 
@@ -497,23 +486,22 @@ def patch_lazy_join_expr_dependency_order() -> bool:
     mistake propagates through the join and any ``FILTER`` referencing that
     variable, silently emptying the result with no error at all.
 
-    Confirmed via a minimal, standalone plain-rdflib reproduction (no
-    starlayer.graph/starlayer.sparql code involved)::
+    For example, against plain, unpatched rdflib::
 
         SELECT ?t{FILTER(?a0 = 1) { BIND(?t + 0 AS ?a0) { BIND(1 AS ?t) } }}
 
     should return ``?t = 1`` (the ``FILTER`` sees ``?a0 = 1`` since
-    ``?t = 1``) but returns empty against plain, unpatched rdflib - even
-    with ``patch_evalextend_forgotten_bind_vars`` above already applied,
-    which fixes a related but distinct bug (``evalExtend`` forgetting a
-    variable *within its own* evaluation) - this one is about *join
-    ordering*, a different rdflib function, not covered by that fix.
-    Same root cause underneath both, though: ``_addVars``'s "Extend" case
-    excludes a ``BIND``'s own expression-only variables from ``_vars`` (by
-    design, for computing what a node's result rows actually contain) -
-    which also means the join-ordering logic that reads ``_vars`` to decide
-    "can I skip pushing bindings, is order-independent lazy evaluation
-    safe" has no way to see this specific kind of cross-branch dependency.
+    ``?t = 1``) but returns empty - even with
+    ``patch_evalextend_forgotten_bind_vars`` above already applied, which
+    fixes a related but distinct bug (``evalExtend`` forgetting a variable
+    *within its own* evaluation); this one is about *join ordering*, a
+    different rdflib function, not covered by that fix. Same root cause
+    underneath both, though: ``_addVars``'s "Extend" case excludes a
+    ``BIND``'s own expression-only variables from ``_vars`` (by design,
+    for computing what a node's result rows actually contain) - which also
+    means the join-ordering logic that reads ``_vars`` to decide "can I
+    skip pushing bindings, is order-independent lazy evaluation safe" has
+    no way to see this specific kind of cross-branch dependency.
 
     Fix: before evaluating a lazy join's branches in rdflib's own default
     order, check whether ``p1`` actually depends (via
@@ -528,9 +516,11 @@ def patch_lazy_join_expr_dependency_order() -> bool:
     behavior.
 
     Idempotent and defensive, matching the established
-    ``operator_patches.py``/``algebra_translator_patches.py`` idiom -
-    returns ``False`` without raising if rdflib's internals don't match
-    what this shim expects.
+    ``operator_patches.py``/``algebra_translator_patches.py`` idiom.
+
+    Returns:
+        True if the patch applied (or was already applied), False if
+        rdflib's internals didn't match what this shim expects.
     """
     global _lazy_join_patch_status
     if _lazy_join_patch_status is not None:
@@ -581,9 +571,9 @@ _construct_patch_status: bool | None = None
 
 
 def patch_construct_skips_encoding_solutions() -> bool:
-    """Fix a real, general gap (not an rdflib bug - a starlayer.graph-side one):
-    ``StarLayerGraph.query()``/``StarLayerDataset.query()`` execute the
-    rewritten SPARQL 1.1 text against a *raw*, unfiltered view of the
+    """Fix a real, general gap (not an rdflib bug - a starlayer.graph-side
+    one): ``StarLayerGraph.query()``/``StarLayerDataset.query()`` execute
+    the rewritten SPARQL 1.1 text against a *raw*, unfiltered view of the
     underlying store (``raw = Graph(store=self.store, ...)`` in
     ``starlayer_graph.py``) - deliberately, since triple-term pattern
     rewriting (``sparql12_to_11.py``) needs to match the internal
@@ -591,26 +581,30 @@ def patch_construct_skips_encoding_solutions() -> bool:
     directly. An *unconstrained* pattern like a bare ``?s ?p ?o .`` matches
     those internal triples too, alongside ordinary user-visible ones.
 
-    For SELECT, ``starlayer.graph.model.encoding.restore_select_bindings`` already
-    drops any result row that incidentally matched these internal triples
-    (a TT_NS-prefixed URIRef paired with an encoding predicate as a bound
-    *value* - never something a real query result should surface). CONSTRUCT
-    has no equivalent: rdflib's own ``evalConstructQuery`` iterates WHERE
-    solutions and instantiates the template for every one, with no per-
-    solution filtering hook. Confirmed via two real W3C SPARQL 1.2 test
-    fixtures (construct-3, expr-1), both using an unconstrained ``?s ?p ?o``
+    For SELECT, ``starlayer.graph.model.encoding.restore_select_bindings``
+    already drops any result row that incidentally matched these internal
+    triples (a TT_NS-prefixed URIRef paired with an encoding predicate as a
+    bound *value* - never something a real query result should surface).
+    CONSTRUCT has no equivalent: rdflib's own ``evalConstructQuery``
+    iterates WHERE solutions and instantiates the template for every one,
+    with no per-solution filtering hook. An unconstrained ``?s ?p ?o``
     inside a CONSTRUCT/GRAPH block over data that already contains
-    reification/triple-term encoding triples: the template silently wrapped
-    an internal row (e.g. ``tt:HASH rdf:subject :a``) into a bogus *nested*
-    triple term, which then crashed downstream in
+    reification/triple-term encoding triples silently wraps an internal
+    row (e.g. ``tt:HASH rdf:subject :a``) into a bogus *nested* triple
+    term, which then crashes downstream in
     ``StarLayerGraph.from_rdflib``/``_restore`` with "the subject of a
-    triple term must be an IRI or blank node, not a triple term" - not a
-    query-authoring mistake, a leak of storage internals into CONSTRUCT
-    output that should never have been visible in the first place.
+    triple term must be an IRI or blank node, not a triple term" - a leak
+    of storage internals into CONSTRUCT output that should never have been
+    visible in the first place. Seen in the W3C SPARQL 1.2
+    ``construct-3``/``expr-1`` fixtures.
 
     Fix: the same skip-check ``restore_select_bindings`` already applies to
     SELECT rows, applied here per-solution before templating instead of
     per-output-row after.
+
+    Returns:
+        True if the patch applied (or was already applied), False if
+        rdflib's internals didn't match what this shim expects.
     """
     global _construct_patch_status
     if _construct_patch_status is not None:
@@ -679,12 +673,11 @@ def _decode_tt_hash(graph, node):
     by calling this function again on each component it compares - keeping
     every value this function ever returns a single, consistent shape (an
     rdflib term, never a tuple) is what makes that recursion correct;
-    pre-decoding a nested component here produced a tuple one level too
-    early, which `_tt_aware_eq`'s own recursive call then couldn't
-    re-decode (`isinstance(node, URIRef)` is false for a tuple), silently
-    falling through to `a.eq(b)` on two raw tuples and crashing - confirmed
-    a real bug this way, not a hypothetical, via the W3C `op-2` fixture's
-    own nested-triple-term case.
+    pre-decoding a nested component here would produce a tuple one level
+    too early, which `_tt_aware_eq`'s own recursive call couldn't re-decode
+    (`isinstance(node, URIRef)` is false for a tuple), falling through to
+    `a.eq(b)` on two raw tuples and crashing - exercised by the W3C `op-2`
+    fixture's own nested-triple-term case.
 
     Deliberately reads the *graph's own* rdf:subject/predicate/object
     triples rather than a `StarLayerGraph._tt_nodes` Python-side registry:
@@ -695,6 +688,15 @@ def _decode_tt_hash(graph, node):
     from here. Reading the on-store encoding triples directly works
     identically to (and is the same technique as) `StarLayerGraph.
     _build_registry_from_store()`'s own reconstruction.
+
+    Args:
+        graph: The graph to read encoding triples from.
+        node: The candidate tt:HASH URIRef to decode.
+
+    Returns:
+        The (subject, predicate, object) tuple of resolved terms, or None
+        if node isn't a tt:HASH URIRef with encoding triples present in
+        graph.
     """
     from starlayer.graph.model.encoding import TT_NS
 
@@ -724,6 +726,14 @@ def _tt_aware_eq(graph, a, b) -> bool:
     either side, so this only adds recursion where the opaque encoding
     would otherwise have masked it; ordinary IRI/BNode/Literal comparisons
     are unaffected.
+
+    Args:
+        graph: The graph to resolve any tt:HASH URIRef against.
+        a: The left-hand term to compare.
+        b: The right-hand term to compare.
+
+    Returns:
+        True if a and b are RDF-1.2-value-equal.
     """
     da = _decode_tt_hash(graph, a)
     db = _decode_tt_hash(graph, b)
@@ -753,13 +763,9 @@ def patch_relational_expression_tt_hash_equality() -> bool:
     equality, which can only ever agree with ``sameTerm`` - never true for
     two triple terms differing only in a component's lexical form (e.g.
     ``123`` vs ``123.0``), which SPARQL's own value-equality rules require.
-
-    Confirmed via the W3C SPARQL 1.2 test suite's own ``eval-triple-terms/
-    op-2`` fixture (``FILTER(!sameTerm(?left,?right)) FILTER(?left =
-    ?right)`` over two triple terms differing only in a literal's lexical
-    form) - previously an unconditional empty result against the in-memory
-    backend; see ``tests/w3c_sparql12/test_w3c_sparql12_eval.py``'s
-    (now-removed) ``op-2`` entry in ``_IN_MEMORY_KNOWN_DIVERGENCES``.
+    Exercised by the W3C SPARQL 1.2 test suite's ``eval-triple-terms/op-2``
+    fixture (``FILTER(!sameTerm(?left,?right)) FILTER(?left = ?right)``
+    over two triple terms differing only in a literal's lexical form).
 
     Only intervenes when at least one operand is a tt:HASH URIRef - zero
     behavior change, and negligible overhead (one cheap ``isinstance``/
@@ -773,9 +779,11 @@ def patch_relational_expression_tt_hash_equality() -> bool:
     attempted.
 
     Idempotent and defensive, matching the established
-    ``operator_patches.py``/``algebra_translator_patches.py`` idiom -
-    returns ``False`` without raising if rdflib's internals don't match
-    what this shim expects.
+    ``operator_patches.py``/``algebra_translator_patches.py`` idiom.
+
+    Returns:
+        True if the patch applied (or was already applied), False if
+        rdflib's internals didn't match what this shim expects.
     """
     global _relational_expression_patch_status
     if _relational_expression_patch_status is not None:
@@ -835,10 +843,10 @@ def _tt_aware_sort_key(graph, v):
     recursively applying this same function to each component (predicate
     is always a plain IRI - RDF 1.2 forbids it being a triple term - but
     object may itself be a nested tt:HASH URIRef, needing the same
-    recursive bucketing again). Confirmed against the W3C SPARQL 1.2
-    eval-triple-terms/order-2 fixture's own expected order, which requires
-    exactly this: subject-then-predicate-then-object, each individually
-    term-kind-bucketed - not e.g. a flat hash/string comparison.
+    recursive bucketing again). This subject-then-predicate-then-object,
+    each individually term-kind-bucketed, ordering is exactly what the W3C
+    SPARQL 1.2 ``eval-triple-terms/order-2`` fixture requires - not e.g. a
+    flat hash/string comparison.
 
     Every non-triple-term bucket's second tuple element is deliberately
     kept exactly what stock ``_val`` would use (raw ``Literal`` for the
@@ -847,6 +855,14 @@ def _tt_aware_sort_key(graph, v):
     plain string comparison, since neither overrides ``__lt__`` specially)
     - this patch only ever *adds* the missing triple-term bucket, never
     changes how any other kind compares against its own kind.
+
+    Args:
+        graph: The graph to resolve a tt:HASH URIRef against, for
+            recursive bucketing of its components.
+        v: The term (or unbound value) to compute a sort key for.
+
+    Returns:
+        A tuple sort key ordering v per RDF 1.2 term-kind rules.
     """
     from rdflib import BNode, Literal, URIRef, Variable
 
@@ -879,26 +895,24 @@ def patch_order_by_tt_hash_term_kind() -> bool:
     rdflib's ``_val``, which has no bucket for triple terms at all (rdflib
     predates RDF 1.2) and so sorts it as an ordinary IRI, intermixed with
     real IRIs. See ``_tt_aware_sort_key`` above for the full detail.
-
-    Confirmed via the W3C SPARQL 1.2 test suite's own ``eval-triple-terms/
+    Exercised by the W3C SPARQL 1.2 test suite's ``eval-triple-terms/
     order-1``/``order-2`` fixtures (``ORDER BY`` across mixed blank-node/
     IRI/literal/triple-term values, several distinct triple terms in
-    ``order-2`` specifically) - previously wrong ordering against the
-    in-memory backend; see ``tests/w3c_sparql12/test_w3c_sparql12_eval.py``'s
-    (now-removed) ``order-1``/``order-2`` entries in
-    ``_IN_MEMORY_KNOWN_DIVERGENCES``.
+    ``order-2`` specifically).
 
-    ``_val`` itself is used exactly once in stock rdflib
-    (``rdflib.plugins.sparql.evaluate``, inside ``evalOrderBy`` only) -
-    confirmed by inspection, not assumed - so replacing ``evalOrderBy``
-    wholesale (rather than trying to patch ``_val`` in place, which has no
-    way to reach the graph a raw value needs decoding against) is safe and
-    complete; no other code path depends on ``_val``'s own bucketing.
+    ``_val`` is used exactly once in stock rdflib
+    (``rdflib.plugins.sparql.evaluate``, inside ``evalOrderBy`` only), so
+    replacing ``evalOrderBy`` wholesale (rather than trying to patch
+    ``_val`` in place, which has no way to reach the graph a raw value
+    needs decoding against) is safe and complete; no other code path
+    depends on ``_val``'s own bucketing.
 
     Idempotent and defensive, matching the established
-    ``operator_patches.py``/``algebra_translator_patches.py`` idiom -
-    returns ``False`` without raising if rdflib's internals don't match
-    what this shim expects.
+    ``operator_patches.py``/``algebra_translator_patches.py`` idiom.
+
+    Returns:
+        True if the patch applied (or was already applied), False if
+        rdflib's internals didn't match what this shim expects.
     """
     global _order_by_patch_status
     if _order_by_patch_status is not None:
@@ -959,43 +973,39 @@ def patch_bgp_skips_encoding_triples() -> bool:
     subquery, but not exclusively) sees these fragments too, with no
     equivalent filter.
 
-    A first version of this patch (filtering *every* BGP match against an
-    encoding triple, regardless of whether the pattern's own predicate
-    position was already constrained) was tried and reverted: it isn't
-    safely generalizable that way - the SPARQL 1.2 -> 1.1 rewriter's own
-    generated queries *legitimately* need to match these same triples to
-    decode a triple-term pattern containing a variable (e.g.
-    ``sparql12_to_11.py``'s own expansion of ``<<:a :b ?o>> ?q :z .`` into
-    ``?tt rdf:subject :a . ?tt rdf:predicate :b . ?tt rdf:object ?o . ...``),
-    and a filter keyed only on the *matched values* can't tell that apart
-    from an accidental wildcard leak - confirmed via a real regression
-    (``basic-5``) when first tried.
-
-    The fix: only filter a match where the *pattern's own* predicate
+    The filter only applies to a match where the *pattern's own* predicate
     position was unconstrained (a variable, not yet bound - ``ctx[p] is
     None`` before this triple is matched) - never one where the pattern
     itself already specifies the predicate as a literal
     rdf:subject/predicate/object IRI, which is exactly the shape every
     rewriter-generated decode pattern always uses (a ground predicate,
-    never a variable there). This is the precise distinguishing signal the
-    first attempt was missing: "did the *query text* ask for this
+    never a variable there). This distinction matters: the SPARQL 1.2 ->
+    1.1 rewriter's own generated queries *legitimately* need to match these
+    same triples to decode a triple-term pattern containing a variable
+    (e.g. ``sparql12_to_11.py``'s own expansion of ``<<:a :b ?o>> ?q :z .``
+    into ``?tt rdf:subject :a . ?tt rdf:predicate :b . ?tt rdf:object
+    ?o . ...``), and a filter keyed only on the *matched values* can't tell
+    that apart from an accidental wildcard leak, since both shapes match
+    the identical encoding triples. "Did the *query text* ask for this
     predicate specifically" vs "did an unconstrained wildcard happen to
-    match it" - not visible from the matched triple's values alone, but
-    directly available from the pattern's own (pre-match) term for the
-    predicate position.
+    match it" is not visible from the matched triple's values alone, but
+    is directly available from the pattern's own (pre-match) term for the
+    predicate position - which is what this patch keys on instead.
 
-    Confirmed via the W3C SPARQL 1.2 ``eval-triple-terms/order-1``/
+    Exercised by the W3C SPARQL 1.2 ``eval-triple-terms/order-1``/
     ``order-2`` fixtures' own query shape (``{ SELECT ?v { ?s ?p ?v }
     ORDER BY ?v OFFSET N LIMIT 1 }``, repeated across 20 ``UNION``
-    branches - predicate ``?p`` genuinely unconstrained there) - and,
-    separately, that this version does *not* regress ``basic-5`` (predicate
-    ``rdf:subject``/etc. always ground in the rewriter's own generated
-    pattern there) or any other currently-passing test.
+    branches - predicate ``?p`` genuinely unconstrained there), without
+    regressing ``basic-5`` (predicate ``rdf:subject``/etc. always ground
+    in the rewriter's own generated pattern there) or any other
+    currently-passing test.
 
     Idempotent and defensive, matching the established
-    ``operator_patches.py``/``algebra_translator_patches.py`` idiom -
-    returns ``False`` without raising if rdflib's internals don't match
-    what this shim expects.
+    ``operator_patches.py``/``algebra_translator_patches.py`` idiom.
+
+    Returns:
+        True if the patch applied (or was already applied), False if
+        rdflib's internals didn't match what this shim expects.
     """
     global _bgp_patch_status
     if _bgp_patch_status is not None:
@@ -1094,16 +1104,15 @@ def patch_group_by_unaliased_expression_key() -> bool:
     ``docs/rdflib-upstream-issues.md`` Issue 9 for the full root-cause
     trace and a minimal, plain-rdflib reproduction.
 
-    Root cause, confirmed by reading ``algebra.py::translate`` directly:
-    for *every* parenthesized-expression ``GROUP BY`` condition (aliased
-    or not), the parser produces a ``GroupAs`` node with an ``.expr``, and
-    (only for the aliased form) a real ``.var``. ``translate``'s own loop
-    (``if isinstance(c, CompValue) and c.name == "GroupAs": M =
-    Extend(M, c.expr, c.var); c = c.var``) uses ``c.var`` for *both* the
-    ``Extend``'s own bind target *and* the value appended to the
-    ``Group.expr`` list that identifies this grouping key later - for the
-    un-aliased form, ``c.var`` is ``None`` (the key is genuinely absent
-    from the ``GroupAs`` node, not just falsy), so both end up
+    Root cause: for *every* parenthesized-expression ``GROUP BY``
+    condition (aliased or not), the parser produces a ``GroupAs`` node
+    with an ``.expr``, and (only for the aliased form) a real ``.var``.
+    ``translate``'s own loop (``if isinstance(c, CompValue) and c.name ==
+    "GroupAs": M = Extend(M, c.expr, c.var); c = c.var``) uses ``c.var``
+    for *both* the ``Extend``'s own bind target *and* the value appended
+    to the ``Group.expr`` list that identifies this grouping key later -
+    for the un-aliased form, ``c.var`` is ``None`` (the key is genuinely
+    absent from the ``GroupAs`` node, not just falsy), so both end up
     ``Extend(var=None)`` and ``Group.expr=[None, ...]``, and neither
     ``evalExtend`` nor ``evalAggregateJoin`` has any handling for a bare
     ``None`` in these positions.
@@ -1117,18 +1126,17 @@ def patch_group_by_unaliased_expression_key() -> bool:
     before ``translate`` runs: for any ``GroupAs`` condition missing its
     own ``var``, mint a fresh synthetic ``Variable`` and assign it
     directly onto the parse-tree node (``cond["var"] = synthetic``) -
-    confirmed via direct reproduction that ``translate``'s own,
-    completely unmodified logic then naturally uses this same synthetic
-    variable for *both* the ``Extend`` and the ``Group.expr`` entry, with
-    no further changes needed anywhere: the pairing was never actually
-    ambiguous at the *parse-tree* level, only after the ``None`` erased
-    the connection between the two positions. Mirrors rdflib's own
-    ``__agg_N__`` naming convention (used elsewhere in the same function
-    for `SAMPLE`'s own synthetic result variables) for the same reason:
-    a name unlikely to collide with any real, user-written variable, and
-    never projected out (this grouping key was never given a name by the
-    query's own author, so it correctly stays invisible in the result set
-    either way - confirmed via execution, not just algebra inspection).
+    ``translate``'s own, completely unmodified logic then naturally uses
+    this same synthetic variable for *both* the ``Extend`` and the
+    ``Group.expr`` entry, with no further changes needed anywhere: the
+    pairing was never actually ambiguous at the *parse-tree* level, only
+    after the ``None`` erased the connection between the two positions.
+    Mirrors rdflib's own ``__agg_N__`` naming convention (used elsewhere in
+    the same function for `SAMPLE`'s own synthetic result variables) for
+    the same reason: a name unlikely to collide with any real,
+    user-written variable, and never projected out - this grouping key
+    was never given a name by the query's own author, so it correctly
+    stays invisible in the result set either way.
 
     Applies to ``algebra.translate`` (rebinding the module attribute, so
     ``translateQuery``'s own internal call - a same-module global lookup,
@@ -1136,6 +1144,10 @@ def patch_group_by_unaliased_expression_key() -> bool:
     the same mechanism every other patch in this file already relies on).
 
     Same idempotent apply-once pattern as the other patches in this module.
+
+    Returns:
+        True if the patch applied (or was already applied), False if
+        rdflib's internals didn't match what this shim expects.
     """
     global _group_by_unaliased_key_patch_status
     if _group_by_unaliased_key_patch_status is not None:

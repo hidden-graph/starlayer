@@ -34,6 +34,7 @@ from collections.abc import Generator
 from rdflib import BNode, Dataset, Graph, URIRef
 from rdflib.graph import DATASET_DEFAULT_GRAPH_ID
 from rdflib.query import Result
+from rdflib.term import Node
 
 from starlayer.graph.graph.starlayer_graph import (
     VALID_BACKENDS,
@@ -98,36 +99,25 @@ class StarLayerDataset(Dataset):
         self._raw_execution_graph: Dataset | None = None
         self._prepared_query_cache: dict = {}  # see starlayer.graph.query.query_cache.prepare_query_cached
 
-        # rdflib's own Dataset.__init__ hardcodes self._default_context as a
-        # plain rdflib.Graph (`Graph(store=self.store, identifier=DATASET_DEFAULT_GRAPH_ID, ...)`)
-        # - confirmed a real, previously-undiscovered bug: default_graph/
-        # default_context (both just return self._default_context directly)
-        # silently handed back a plain Graph, so e.g. ds.default_graph.add()
-        # crashed on a real TripleTerm (plain Graph.add() rejects it as
-        # "not an rdflib term") exactly like the cbd()/skolemize() bugs this
-        # same session found. Fixed the same way every other named context
-        # already works: route it through get_context() instead, which is
-        # cached and TripleTerm-aware (see default_graph/default_context
-        # properties below - NOT a one-time snapshot here, see their own
-        # docstring for why).
+        # Must be set via get_context(), never a bare Graph(...): a plain
+        # Graph can't hold a real TripleTerm, so e.g. ds.default_graph.add()
+        # would crash on a triple-term value. See default_graph/
+        # default_context below for why this isn't cached as a one-time
+        # snapshot instead.
         self._default_context = self.get_context(DATASET_DEFAULT_GRAPH_ID)
 
     @property
     def default_graph(self) -> StarLayerGraph:
-        """The default graph context, always freshly resolved.
+        """The default graph context, re-resolved via get_context() on every
+        access - never cached as self._default_context directly.
 
-        Deliberately NOT a cached snapshot - confirmed a second, narrower
-        instance of the same staleness bug the __init__ comment above
-        describes. _load_context()/_register_sg() (used by the trig12/nq12/
-        trix12 parsers, including turtle12's and now n3's reroute through
-        trig12 - see parse()) always build a *new* StarLayerGraph and swap
-        it into _sg_cache, but never touch self._default_context itself. A
-        cached self._default_context would keep pointing at the pre-parse
-        object - registry-empty, has_triple_term() always False - even
-        though self._sg_cache (and therefore every other access path:
-        get_context(), contexts(), quads()) already has the correct,
-        registry-built one. Resolving through get_context() on every access
-        means there is only ever one path, so it can't go stale.
+        parse() (via _load_context()/_register_sg()) can swap a brand-new
+        StarLayerGraph instance into _sg_cache without updating any
+        previously-cached reference to the old one. A cached snapshot would
+        silently go stale after a parse.
+
+        Returns:
+            The StarLayerGraph for the dataset's default graph.
         """
         return self.get_context(DATASET_DEFAULT_GRAPH_ID)
 
@@ -258,23 +248,25 @@ class StarLayerDataset(Dataset):
     def triples_choices(self, triple, context=None) -> Generator[tuple, None, None]:
         """Iterate triples matching a choices pattern, scoped the same way
         ``triples()`` above is. Filters encoding triples; restores
-        TripleTerms - fixed 2026-10-04. This method didn't exist on this
-        class at all before the fix, so it fell through to rdflib's own
-        ``ConjunctiveGraph.triples_choices()``, which queries ``self.store``
-        directly and bypasses every context's own TripleTerm registry -
-        confirmed live that the raw ``tt:HASH`` encoding ``URIRef`` leaked
-        through unrestored, while this class's own ``triples()`` correctly
-        restores a real ``TripleTerm`` for the identical data.
+        TripleTerms.
 
-        ``context=None``, ``default_union=False`` (the default): only the
-        default graph's own triples, matching ``triples()``'s own semantics
-        above. ``context=None``, ``default_union=True``: every graph,
-        matching rdflib's own ``ConjunctiveGraph.triples_choices()`` - the
-        same triple may appear more than once if it exists in multiple
-        graphs. ``context`` given: scoped to that one named graph only,
-        via the inherited ``_graph()`` helper (accepts an identifier, a
-        ``Graph``, or another dataset, same normalization rdflib's own
-        version used).
+        This override exists because the inherited rdflib version queries
+        ``self.store`` directly, bypassing each context's own per-context
+        TripleTerm registry - the raw ``tt:HASH`` encoding URIRef would
+        otherwise leak through unrestored.
+
+        Args:
+            triple: A choices-pattern triple (see rdflib's own
+                ``triples_choices()``).
+            context: ``None`` with ``default_union=False`` (the default):
+                only the default graph's own triples, matching
+                ``triples()``'s own semantics above. ``None`` with
+                ``default_union=True``: every graph, matching rdflib's own
+                ``ConjunctiveGraph.triples_choices()`` - the same triple
+                may appear more than once if it exists in multiple graphs.
+                Given explicitly: scoped to that one named graph only, via
+                the inherited ``_graph()`` helper (accepts an identifier, a
+                ``Graph``, or another dataset).
         """
         if context is not None:
             yield from self._graph(context).triples_choices(triple)
@@ -289,18 +281,30 @@ class StarLayerDataset(Dataset):
         """Concise Bounded Description, scoped by ``self.default_union`` the
         same way ``triples()``/``subjects()`` are (both are called internally
         by rdflib's own ``Graph.cbd()`` this delegates to) - see
-        ``triples()``'s own docstring. Defaults ``target_graph`` to a new
-        ``StarLayerGraph``, same as ``StarLayerGraph.cbd()``.
+        ``triples()``'s own docstring.
 
-        Without this override, rdflib's own inherited ``cbd()`` hardcodes a
-        plain ``rdflib.Graph()`` as the default target - confirmed a real,
-        previously-undiscovered bug (not just a style gap): it crashes with
+        Defaults ``target_graph`` to a new ``StarLayerGraph``, same as
+        ``StarLayerGraph.cbd()`` - the inherited rdflib ``cbd()`` instead
+        hardcodes a plain ``rdflib.Graph()``, which crashes with
         ``AssertionError: Object ... must be an rdflib term`` the moment the
-        CBD'd data contains a real ``TripleTerm``, since plain ``Graph.add()``
-        asserts its object is an rdflib ``Node``, which ``TripleTerm`` is not.
+        CBD'd data contains a real ``TripleTerm``, since ``Graph.add()``
+        asserts its object is an rdflib ``Node``.
 
-        Raises TypeError if target_graph is a plain rdflib.Graph — it cannot
-        store TripleTerms that may appear in the CBD results.
+        Args:
+            resource: The resource to compute the Concise Bounded
+                Description for.
+            target_graph: The graph to add the CBD's triples to. Must be a
+                StarLayerGraph, since a plain rdflib.Graph cannot store
+                TripleTerms that may appear in the results; defaults to a
+                new one.
+            include_reifications: Whether to include each matched triple's
+                reification triples too.
+
+        Returns:
+            target_graph, populated with the CBD.
+
+        Raises:
+            TypeError: If target_graph is given and is not a StarLayerGraph.
         """
         if target_graph is None:
             target_graph = StarLayerGraph()
@@ -339,20 +343,15 @@ class StarLayerDataset(Dataset):
     # ------------------------------------------------------------------
     # Add/remove with TripleTerm-aware encoding
     #
-    # rdflib's own Dataset has no override for any of these three at all -
-    # confirmed a real, previously-undiscovered gap (not just an
-    # asymmetry with triples()/quads() for its own sake): calling
-    # .add()/.remove()/`+=`/`-=` directly on a bare StarLayerDataset (no
-    # WITH/USING clause naming a specific graph, so SPARQL Update's own
-    # Modify operation reads/writes through ctx.graph = the Dataset itself
-    # - confirmed via tracing a real evalModify call) previously fell
-    # through to plain rdflib Dataset.add/remove/addN, which write a raw
-    # TripleTerm Python object directly into the underlying store with no
-    # translation to this library's own tt:HASH encoding - silently
-    # failing to match anything on a later read or a subsequent remove()
-    # of the exact same value, with no error at all. triples()/quads()
-    # above already delegate to a real per-context StarLayerGraph for
-    # reads; these three do the same for writes.
+    # rdflib's own Dataset has no override for any of these three at all,
+    # so calling .add()/.remove()/`+=`/`-=` directly on a bare
+    # StarLayerDataset falls through to plain rdflib Dataset.add/remove/
+    # addN, which write a raw TripleTerm Python object directly into the
+    # underlying store with no translation to this library's own tt:HASH
+    # encoding - silently failing to match anything on a later read or a
+    # subsequent remove() of the exact same value, with no error at all.
+    # triples()/quads() above already delegate to a real per-context
+    # StarLayerGraph for reads; these three do the same for writes.
     # ------------------------------------------------------------------
 
     def add(self, triple) -> StarLayerDataset:
@@ -366,11 +365,7 @@ class StarLayerDataset(Dataset):
     def remove(self, triple) -> StarLayerDataset:
         """Remove a triple from the default graph, with TripleTerm-aware
         encoding - see this section's own module-level comment for why
-        this override exists at all. Found via a real SPARQL Update
-        (Modify DELETE of a non-ground triple-term pattern): the WHERE
-        clause matched correctly, but nothing was actually removed -
-        traced down to this exact gap, not a bug in the query/update
-        translation that produced the Modify operation."""
+        this override exists at all."""
         default_graph = self.get_context(self.default_graph.identifier)
         default_graph.remove(triple)
         return self
@@ -378,18 +373,16 @@ class StarLayerDataset(Dataset):
     def addN(self, quads) -> StarLayerDataset:
         """Add multiple quads, each routed to its own target graph's real
         StarLayerGraph context for TripleTerm-aware encoding - see this
-        section's own module-level comment. rdflib's own ``Graph.__iadd__``
-        (``+=``) calls this with every quad's graph element set to the
-        same graph object being added to (confirmed by reading its
-        source) - grouped by identifier here regardless, matching
-        ``StarLayerGraph.addN``'s own general handling of a heterogeneous
-        quads iterable, so this is correct for a direct multi-graph
-        ``addN`` call too, not just the ``+=`` case.
+        section's own module-level comment.
+
+        Grouped by identifier regardless of whether every quad's graph
+        element is the same object (as rdflib's own ``Graph.__iadd__``
+        (``+=``) always passes it) or genuinely heterogeneous, matching
+        ``StarLayerGraph.addN``'s own general handling - correct for a
+        direct multi-graph ``addN`` call too, not just the ``+=`` case.
 
         Returns self, matching rdflib's own ConjunctiveGraph.addN() (and
-        StarLayerGraph.addN() above) - fixed 2026-10-04, this override used
-        to fall off the end and return None instead, the same missing-return
-        bug as StarLayerGraph.add()/.remove() had.
+        StarLayerGraph.addN() above).
         """
         by_graph: dict = {}
         for s, p, o, c in quads:
@@ -574,19 +567,24 @@ class StarLayerDataset(Dataset):
     # Query / Update with SPARQL-star support
     # ------------------------------------------------------------------
 
-    def _restore_any(self, node):
-        """Restore a tt:HASH URIRef to a TripleTerm by searching all cached graph
-        registries, falling back to the process-wide TT_HASH_FN memo (see
-        starlayer.graph.model.encoding's lookup_tt_hash) for a fully-ground
-        TRIPLE()/<<( )>> value that was computed but never written to any
-        graph - mirrors StarLayerGraph._restore's own fallback, which this
-        one lacked (a real, separate gap: confirmed via a W3C test, expr-2,
-        that only reaches StarLayerDataset because its data fixture happens
-        to be an empty .nq file, routing it through StarLayerDataset._new_graph
-        instead of a plain StarLayerGraph - the query itself never touches
-        any actual dataset content). Recurses like StarLayerGraph._restore
-        does, so a nested triple-term component (itself a tt:HASH URIRef)
-        resolves fully rather than leaving an inner URIRef unresolved.
+    def _restore_any(self, node: Node | TripleTerm) -> Node | TripleTerm:
+        """Restore a tt:HASH URIRef to a TripleTerm by searching every
+        cached graph's registry, falling back to the process-wide
+        TT_HASH_FN memo (see starlayer.graph.model.encoding's
+        lookup_tt_hash) to reconstruct a fully-ground TripleTerm that was
+        computed but never actually written to any graph.
+
+        Recurses so a nested triple-term component (itself a tt:HASH
+        URIRef) resolves fully rather than leaving an inner URIRef
+        unresolved.
+
+        Args:
+            node: The value to restore - returned unchanged unless it is a
+                tt:HASH URIRef.
+
+        Returns:
+            The restored TripleTerm, or node unchanged if it is not a
+            tt:HASH URIRef, or is not known to any registry or the memo.
         """
         if not (isinstance(node, URIRef) and str(node).startswith(TT_NS)):
             return node
@@ -631,20 +629,18 @@ class StarLayerDataset(Dataset):
         return raw
 
     def __len__(self) -> int:
-        """Total triple count across the *entire* dataset (default graph +
-        every named graph) - matching rdflib's own Dataset.__len__ docstring
-        ("Number of triples in the entire conjunctive graph") and this
-        class's own behavior for the default in-memory backend, where
-        Dataset.__len__ -> self.store.__len__() already sums everything
-        (a Memory store has no separate per-context counting concept).
+        """Total triple count across the entire dataset (default graph plus
+        every named graph).
 
-        Native backend needed its own override: SPARQLStore.__len__(context=
-        None) (what the inherited Dataset.__len__ calls) queries only the
-        endpoint's true default graph - GRAPH-scoped content is invisible to
-        it - so plain inheritance would silently undercount any native-
-        backed dataset with named-graph content. Confirmed live: 3 triples
-        (1 default + 1 each in two named graphs) came back as 1 via
-        inheritance, 3 via the UNION query here.
+        The native backend needs its own override: SPARQLStore.__len__
+        (context=None) - what the inherited Dataset.__len__ calls - only
+        counts the endpoint's true default graph, so named-graph content
+        would otherwise be silently excluded. This runs a UNION-based
+        SPARQL COUNT query instead, covering both the default graph and
+        every named graph.
+
+        Returns:
+            The total number of triples in the dataset.
         """
         if self._backend != 'rdf-1.2':
             return super().__len__()
@@ -815,22 +811,19 @@ class StarLayerDataset(Dataset):
         immediately visible.
 
         Remote-store (Fuseki/Oxigraph) updates bypass rdflib's own
-        ``Dataset(store=...).update()`` and are sent over HTTP directly (see
-        ``starlayer.graph.backends.native.native_update``) — needed for *both*
-        backends: rdflib's ``SPARQLStore._is_contextual()`` treats any string
-        graph identifier other than the literal ``"__UNION__"`` as needing a
-        wrapping ``GRAPH { }`` block, and doesn't special-case ``Dataset``'s
-        own ``DATASET_DEFAULT_GRAPH_ID`` sentinel (a ``URIRef``, which
-        subclasses ``str``) - so ``Dataset.update()`` always wrapped the
-        *entire* update text in an extra ``GRAPH <urn:x-rdflib:default> { }``
-        block, which nests illegally around any update that already has its
-        own ``GRAPH <uri> { }`` clause (the normal way to target a named graph
-        from dataset-level SPARQL). Confirmed via real Oxigraph and Fuseki
-        testing: a plain ``INSERT DATA { GRAPH <uri> {...} }`` with no triple
-        terms at all got a 400 from both. For the rdf-1.2 backend the update
-        text is sent unmodified (the endpoint understands ``<<( )>>``
-        natively); for rdf-1.1 it is parsed and lowered to the tt:HASH
-        encoding first (native_update itself, via starlayer.sparql).
+        ``Dataset(store=...).update()`` and go directly over HTTP instead
+        (see ``starlayer.graph.backends.native.native_update``), for both
+        backends: rdflib's ``SPARQLStore._is_contextual()`` treats any
+        string graph identifier other than the literal ``"__UNION__"`` as
+        needing a wrapping ``GRAPH { }`` block, so ``Dataset.update()``
+        would wrap the whole update text in an extra ``GRAPH { }`` block
+        that nests illegally around a plain ``INSERT DATA { GRAPH <uri>
+        {...} }`` against a real Oxigraph/Fuseki endpoint.
+
+        For the rdf-1.2 backend the update text is sent unmodified (the
+        endpoint understands ``<<( )>>`` natively); for rdf-1.1 it is
+        parsed and lowered to the tt:HASH encoding first (native_update
+        itself, via starlayer.sparql).
         """
         is_remote_http_store = bool(
             getattr(self.store, 'query_endpoint', None) and getattr(self.store, 'update_endpoint', None)
@@ -963,16 +956,14 @@ class StarLayerDataset(Dataset):
                 turtle_text = serialize_turtle12(sg)
                 body_lines = []
                 # iter_lines_outside_strings(), not a blind
-                # ln.startswith('@prefix'/'@version') check - a line that
+                # ln.startswith('@prefix'/'@version') check: a line that
                 # merely *starts with* that text while still inside an
                 # open (triple-quoted) string literal - e.g. a docstring
-                # describing Turtle's own directive syntax, word-wrapped
-                # so one of its lines happens to start that way - is real
-                # body content, not a directive, and must not be torn out
-                # of the literal it's part of. See that function's
-                # docstring for the real, confirmed-live bug this guards
-                # against (this project's own code-KG extractor feeding
-                # this project's own source back through itself).
+                # describing Turtle's own directive syntax, word-wrapped so
+                # one of its lines happens to start that way - is real body
+                # content, not a directive, and must not be torn out of the
+                # literal it's part of. See iter_lines_outside_strings()'s
+                # own docstring for more.
                 for ln, in_string in iter_lines_outside_strings(turtle_text):
                     if in_string:
                         body_lines.append(ln)
@@ -1008,9 +999,8 @@ class StarLayerDataset(Dataset):
         if destination is not None:
             with open(destination, 'w', encoding='utf-8') as f:
                 f.write(text)
-            # self, not the destination path - matches rdflib's own
-            # Graph.serialize() contract and StarLayerGraph.serialize()'s own
-            # RDF12-format branch; fixed 2026-10-04, this used to return the
-            # path instead (same bug as that one).
+            # Returns self when writing to a destination, matching both
+            # rdflib's own Graph.serialize() convention and
+            # StarLayerGraph.serialize()'s own RDF12-format branch.
             return self
         return text

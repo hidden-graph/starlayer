@@ -33,11 +33,19 @@ _AUXILIARY_ROOT_MARKERS = {QUERY}
 
 
 def rdf_ast_to_query(graph: Graph, root) -> Query:
-    """Decode ``root`` (``rdf:type sast:Query`` plus its own grammar-
-    production type, as produced by ``to_ast_rdf.query_ast_to_rdf``) back
-    into a real rdflib ``Query`` — reconstructs the ``[prologue, query]``
-    parse-tree shape and hands it to rdflib's own, unmodified
-    ``translateQuery``."""
+    """Decode ``root`` back into a real, executable rdflib ``Query`` —
+    reconstructs the ``[prologue, query]`` parse-tree shape and hands it to
+    rdflib's own, unmodified ``translateQuery``.
+
+    Args:
+        graph: The RDF graph containing the encoded parse tree.
+        root: The query's root node (``rdf:type sast:Query`` plus its own
+            grammar-production type, as produced by
+            ``to_ast_rdf.query_ast_to_rdf``).
+
+    Returns:
+        A real, executable rdflib ``Query``.
+    """
     prologue = _decode(graph.value(root, PROLOGUE), graph)
     query = _decode(root, graph)
     return translateQuery([prologue, query])

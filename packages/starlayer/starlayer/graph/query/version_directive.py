@@ -11,23 +11,15 @@ directive and raises a ``ParseException`` on it unconditionally, so it must
 always be stripped before ordinary parsing, regardless of pipeline or
 backend.
 
-**``VERSION`` is not always the first token** - confirmed directly against
-the real grammar (``tests/graph/vendor/spec_snapshots/sparql12-query.txt``):
+**``VERSION`` is not always the first token.** Per the real grammar
+(``tests/graph/vendor/spec_snapshots/sparql12-query.txt``):
 ``Prologue ::= ( BaseDecl | PrefixDecl | VersionDecl )*`` - the three
 prologue declaration kinds may appear in *any* order and ``VersionDecl`` may
-appear more than once. Found 2026-10-13, via the W3C suite's own `version`
-category (``version-02`` through ``version-06``: ``VERSION`` after a
-``PREFIX``, a single-quoted form, and one fixture with three separate
-``VERSION`` declarations interleaved with a ``PREFIX``) - this module's
-original implementation only ever matched ``VERSION`` as the very first
-token, which every one of those fixtures violates. Fixed by scanning the
-whole leading prologue token-by-token (recognizing ``BaseDecl``/
-``PrefixDecl`` well enough to skip over them unmodified, removing only
-``VersionDecl`` tokens wherever they appear) rather than a single anchored
-match - still a deliberately simple scanner, not a full grammar parser (see
-the module's own prior design note below), but one that actually matches
-the real ``Prologue`` production instead of a stricter-than-spec guess at
-it.
+appear more than once. That's why this module scans the whole leading
+prologue token-by-token (recognizing ``BaseDecl``/``PrefixDecl`` well enough
+to skip over them unmodified, removing only ``VersionDecl`` tokens wherever
+they appear) rather than anchor-matching ``VERSION`` as the very first
+token of the document, which the grammar does not guarantee.
 
 Kept as its own small, self-contained module (not part of the retired
 ``sparql12_to_11.py`` text rewriter it used to live in): a prologue-only
@@ -66,11 +58,19 @@ def strip_version_directive(query: str) -> tuple[str, str | None]:
     prologue, leaving any ``BASE``/``PREFIX`` declarations - and their
     original relative order - untouched.
 
-    Returns ``(query_with_version_directives_removed, label_or_None)``. If
-    more than one ``VersionDecl`` is present (legal per the grammar's own
+    If more than one ``VersionDecl`` is present (legal per the grammar's own
     ``( ... )*``, though the spec gives no precedence rule for it), the
     *last* one scanned is returned - an arbitrary but documented choice for
     a case real queries are not expected to actually use.
+
+    Args:
+        query: The raw SPARQL 1.2 query/update text, possibly carrying one
+            or more leading ``VERSION`` directives.
+
+    Returns:
+        A ``(stripped_query, label)`` tuple: the query text with every
+        ``VersionDecl`` removed, and the declared version label, or
+        ``None`` if no ``VERSION`` directive was present.
     """
     out_parts: list[str] = []
     pos = 0
@@ -101,6 +101,13 @@ def contains_triple_term(node) -> bool:
     reliable than a text-presence heuristic: this walks the real parsed
     structure, so it can't be fooled by e.g. ``<<(`` appearing inside a
     string literal or comment.
+
+    Args:
+        node: A parse tree/algebra node, list, tuple, or leaf value to
+            search.
+
+    Returns:
+        True if a ``TripleTermNode`` appears anywhere in ``node``.
     """
     from rdflib.plugins.sparql.parserutils import CompValue
 

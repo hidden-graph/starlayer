@@ -4,9 +4,10 @@ The W3C SHACL 1.2 Node Expressions Working Draft exposes SPARQL 1.1/1.2
 built-in functions and operators as node expressions under
 ``sparql: = http://www.w3.org/ns/sparql#`` (e.g. ``sparql:strlen ( "hi" )``,
 ``sparql:greater-than ( 10 5 )``), entirely separate from the ``shnex:``
-namespace ``starlayer.shacl/node_expressions.py`` implements. Confirmed via
-the W3C SHACL 1.2 Node Expressions test suite's ``node-expr/shnex-sparql/``
-fixtures - 77 distinct functions/operators, one fixture file each.
+namespace ``starlayer.shacl/node_expressions.py`` implements. Per the W3C
+SHACL 1.2 Node Expressions test suite's ``node-expr/shnex-sparql/``
+fixtures, this covers 77 distinct functions/operators, one fixture file
+each.
 
 Rather than hand-reimplementing every SPARQL built-in (string functions,
 numeric functions, hashing, date/time extraction, term-type predicates,
@@ -20,11 +21,11 @@ reimplementation.
 
 The query runs against a small, disposable ``StarLayerGraph`` built fresh
 for each call (never against whatever ``data_graph`` object the caller
-happens to have) - confirmed live that in real
-``validate()``/``apply_rules()`` usage, ``data_graph`` as handed to
-node-expression evaluation is ``pyshacl.graph_abstraction.RdfLibDataGraph``
-wrapping a *plain* ``rdflib.Graph``, with no triple-term awareness at all.
-Using a proper ``StarLayerGraph`` instead isn't enough by itself, either:
+happens to have): in real ``validate()``/``apply_rules()`` usage,
+``data_graph`` as handed to node-expression evaluation is
+``pyshacl.graph_abstraction.RdfLibDataGraph`` wrapping a *plain*
+``rdflib.Graph``, with no triple-term awareness at all. Using a proper
+``StarLayerGraph`` instead isn't enough by itself, either:
 `starlayer.graph`'s own ``_encode_init_bindings`` deliberately resolves a
 triple-term value passed via ``initBindings`` to "not found" (a fresh,
 unmatchable ``BNode``) unless that *exact* value is already registered in
@@ -194,37 +195,35 @@ def _decode_triple_term(sg: Any, value: Any) -> Any:
     else (an ordinary URIRef/Literal/BNode, or a value that's already a real
     triple term).
 
-    Confirmed live that node expressions reading directly from
-    ``data_graph`` (e.g. ``shnex:pathValues`` over a triple-term-valued
-    property, via pySHACL's own ``value_nodes_from_path``) get back exactly
-    this raw encoded form, not a decoded value - ``data_graph`` as handed to
-    node-expression evaluation is pySHACL's plain, unwrapped
-    ``RdfLibDataGraph``, which has no decoding step of its own (unlike
-    report-graph decoding, which `starlayer.shacl.validator` does
-    explicitly and separately). Fixing this at the `shnex:` layer generally
-    is future work (see docs/shacl12-gap-matrix.md); this decodes
-    specifically at the boundary into a `sparql:` function call, since an
-    un-decoded value there is silently wrong for every RDF-1.2-specific
-    function (`isTRIPLE`/`SUBJECT`/`PREDICATE`/`OBJECT`) and for value
-    equality against a real triple-term constant.
+    Node expressions reading directly from ``data_graph`` (e.g.
+    ``shnex:pathValues`` over a triple-term-valued property, via pySHACL's
+    own ``value_nodes_from_path``) get back exactly this raw encoded form,
+    not a decoded value - ``data_graph`` as handed to node-expression
+    evaluation is pySHACL's plain, unwrapped ``RdfLibDataGraph``, which has
+    no decoding step of its own (unlike report-graph decoding, which
+    `starlayer.shacl.validator` does explicitly and separately). Fixing
+    this at the `shnex:` layer generally is future work (see
+    docs/shacl12-gap-matrix.md); this decodes specifically at the boundary
+    into a `sparql:` function call, since an un-decoded value there is
+    silently wrong for every RDF-1.2-specific function
+    (`isTRIPLE`/`SUBJECT`/`PREDICATE`/`OBJECT`) and for value equality
+    against a real triple-term constant.
 
     ``sg.graph``'s own ``_tt_adapter`` (the same ``TripleTermAdapter``
-    instance ``starlayer.shacl.validator`` used to encode *both* the data
-    and shapes graphs for one `validate()`/`apply_rules()` call - confirmed
-    via `validator.py`'s `self.adapter.encode_graph(...)` calls sharing one
-    adapter) already has the registry entry needed, since it's the same
-    adapter that minted the hash in the first place. Falls back to a no-op
-    if `sg.graph` has no such attribute (e.g. this session's
-    `tests/w3c_shacl12/` harness, which never encodes anything at all - values
-    are already real triple terms there).
+    instance ``starlayer.shacl.validator`` uses to encode *both* the data
+    and shapes graphs for one `validate()`/`apply_rules()` call) already
+    has the registry entry needed, since it's the same adapter that minted
+    the hash in the first place. Falls back to a no-op if `sg.graph` has no
+    such attribute (e.g. the `tests/w3c_shacl12/` harness, which never
+    encodes anything at all - values are already real triple terms there).
 
     Returns a plain ``(subject, predicate, object)`` 3-tuple, not
     ``starlayer.shacl.adapters.TripleTermValue`` (``adapter.decode_term()``'s
     own return type) - a different class from `starlayer.graph`'s own
     ``starlayer.graph.model.triple.TripleTerm``, which is all
-    ``StarLayerGraph.add()``/query-time coercion actually recognizes
-    (confirmed live: handing it a ``TripleTermValue`` directly crashes with
-    "Object ... must be an rdflib term"). Mirrors the identical conversion
+    ``StarLayerGraph.add()``/query-time coercion actually recognizes (a
+    ``TripleTermValue`` passed directly crashes with "Object ... must be an
+    rdflib term"). Mirrors the identical conversion
     ``starlayer.shacl.adapters._normalize_init_bindings`` already does for
     the same reason.
     """
@@ -241,7 +240,7 @@ def _run_sparql_call(template: str, arg_values: list) -> list:
     """Evaluate a SPARQL expression template against arg_values bound as ?a0, ?a1, ...
 
     Runs against a small ``StarLayerGraph`` built fresh for this one call,
-    not any graph the caller already has - confirmed live that in real
+    not any graph the caller already has: in real
     ``validate()``/``apply_rules()`` usage, the ``data_graph`` pySHACL's own
     node-expression dispatch hands this module is
     ``pyshacl.graph_abstraction.RdfLibDataGraph`` wrapping a *plain*
@@ -257,9 +256,9 @@ def _run_sparql_call(template: str, arg_values: list) -> list:
     per that function's own docstring), but it means a triple-term value
     obtained from actual data (e.g. via ``shnex:pathValues``) needs to be
     registered *somewhere* before any of `isTRIPLE`/`TRIPLE`/`SUBJECT`/
-    `PREDICATE`/`OBJECT` can recognize it - confirmed empirically that
-    querying the *shapes* graph doesn't help, since a data-graph-only
-    triple term was never part of the shapes graph's own content either.
+    `PREDICATE`/`OBJECT` can recognize it - querying the *shapes* graph
+    doesn't help, since a data-graph-only triple term was never part of
+    the shapes graph's own content either.
 
     Solved by registering each triple-term-like argument into this
     single-use scratch graph via one throwaway triple
@@ -366,9 +365,9 @@ def _eval_dirlang_form(pred: URIRef, arg_exprs: list, eval_arg: EvalArg) -> list
         # Literal (starlayer.graph's internal dirlang-encoded datatype URI) by
         # the time pySHACL's node-expression dispatch hands it here - the same
         # flattening _decode_triple_term() above works around for triple
-        # terms. Confirmed live: an un-decoded flat-encoded Literal silently
-        # made hasLangdir/langdir/strlangdir wrong (hasLangdir false, langdir
-        # "") for every real DirLangString value, only ever passing when
+        # terms. An un-decoded flat-encoded Literal silently makes
+        # hasLangdir/langdir/strlangdir wrong (hasLangdir false, langdir
+        # "") for every real DirLangString value; this only passes when
         # called directly with a raw DirLangString instance (e.g. the W3C
         # suite's eval_expr()-direct harness, which never encodes anything).
         if isinstance(value, DirLangString):

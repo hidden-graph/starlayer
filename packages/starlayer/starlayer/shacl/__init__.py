@@ -19,71 +19,28 @@ from starlayer.shacl.validator import (
     validate_each,
 )
 
-# Every public processing-mode function and remaining result class is flat
-# here (2026-10-07 - reverses the 2026-10-06 "qualified submodule" decision
-# below for everything except Profiling): `validate`/`validate_each`
-# (Core), `apply_rules`/`RulesResult` (Inference Rules), `evaluate`
-# (Node Expressions), `extract_subgraph` (subgraph extraction, not a spec
-# document of its own) are all directly `from starlayer.shacl import ...`
-# -able now, alongside `StarShaclSchema`/`ValidationResult`/
-# `ExecutionDiagnostics`, which were already flat. None of the underlying
-# implementations moved - `apply_rules`/`evaluate` still live in
-# `validator.py`, `RulesResult` still in `results.py`, `extract_subgraph`
-# still in `subgraph_extraction.py` - only this file's own import/export
-# list changed. `shacl_inference`/`shacl_node_expr` (the former
-# qualified-only namespaces for the first two) were deleted outright
-# 2026-10-12, once a retrospective audit confirmed zero callers anywhere
-# (production, tests, or notebooks) since this flattening - the flat
-# names above are the only path now, not just the primary one.
+# Flat here: the five processing-mode functions (validate/validate_each/
+# apply_rules/evaluate/extract_subgraph), the result classes that still
+# carry real information (ValidationResult/RulesResult/
+# ExecutionDiagnostics - EvaluationResult/SubgraphExtractionResult no
+# longer exist; evaluate()/extract_subgraph() return a plain graph or None
+# directly instead), StarShaclSchema, target_nodes (a standalone
+# introspection question - "which nodes would this shape target?" - useful
+# without running a full validate() pass), and the cross-cutting RDF 1.2/
+# triple-term infrastructure every module depends on (TripleTermAdapter/
+# Graph/Value, normalize_to_starlayer_graph/normalize_graph_inputs,
+# StarLayerGraphProtocol/MutableStarLayerGraphProtocol).
 #
-# `evaluate()`/`extract_subgraph()` return a plain graph object directly
-# (or `None`, for `extract_subgraph()`) rather than a result class -
-# `EvaluationResult`/`SubgraphExtractionResult` were removed entirely
-# 2026-10-08, once both had shrunk, across the same day's earlier renames,
-# to a single graph-or-`None` field with nothing else attached. See
-# `starlayer/shacl/CLAUDE.md`'s dated entry.
-#
-# SHACL 1.2 Profiling remains the one deliberate exception, still
-# qualified-only (`from starlayer.shacl import shacl_profiling`): its own
-# two helpers (`declared_conformance_profile`/`derive_conforms_to`) are
-# self-declaration/report-annotation utilities, not a fifth processing
-# mode alongside the four above, so there's no case for promoting them to
-# flat names just because these four were.
-#
-# `eval_expr()` (`from starlayer.shacl.node_expressions import eval_expr`,
-# its own module directly now that `shacl_node_expr`'s re-export shim is
-# gone) also stays qualified-only, deliberately: it's a lower-level, one-
-# expression-at-a-time primitive, not a processing mode in its own right
-# (see `docs/api-reference.md`'s "Lower-level" section for the same
-# distinction) - the promotion here is scoped to the top-level processing
-# surface specifically, not every public name in the package.
-#
-# `target_nodes` (2026-10-08) is flat too, for the same reason as the
-# processing functions above: "which nodes would this shape target?" is a
-# real, standalone introspection question (UI tooling, debugging) someone
-# might reasonably want answered without running a full `validate()` pass.
-#
-# `evaluate_component`/`build_report` deliberately did **not** get the same
-# promotion, despite initially being flattened alongside `target_nodes` and
-# then reverted the same day on direct user challenge ("that does not
-# sound like a public function"): unlike `target_nodes`, `evaluate_component`
-# is a hardcoded dispatcher over a fixed set of component names
-# (`hasValue`/`in`/`equals`/`disjoint`/etc.) with no extension mechanism - a
-# caller can't register a new component type into it, and calling it
-# standalone only ever reproduces behavior `validate()` already gives for
-# free. `build_report` only makes sense paired with `evaluate_component()`'s
-# own "events" output shape, so it inherits the same lack of a standalone
-# use case. Both stay reachable via `from starlayer.shacl import engine`,
-# alongside `ComponentRequest` (needed only to call `evaluate_component()`)
-# and `STSH` (needed only to *define* a new native component). Their own
-# return type, `_ComponentEvaluationResult`, is private - not re-exported
-# even from `engine` - for the same reason: no standalone use case means
-# no reason for its own type to be part of any public surface either.
-#
-# `close_shape` is no longer a bare function here at all (2026-10-07) -
-# it's `StarShaclSchema.close_shape(shape)`, a method binding the
-# instance's own `shacl_graph` rather than taking it as a parameter,
-# matching every other processing mode on that class.
+# Reached only via an explicit submodule import: `shacl_profiling`
+# (SHACL 1.2 Profiling's declared_conformance_profile()/
+# derive_conforms_to() - self-declaration/report-annotation utilities, not
+# a processing mode); `node_expressions.eval_expr` (a lower-level, one-
+# expression-at-a-time primitive); `engine` (evaluate_component()/
+# build_report()/ComponentRequest/STSH - evaluate_component() is a
+# hardcoded dispatcher with no extension mechanism and no standalone use
+# case, build_report() only pairs with its own output shape, STSH is only
+# needed to define a new native component); and
+# `StarShaclSchema.close_shape(shape)`, a method, not a bare function.
 
 __all__ = [
     "StarShaclSchema",

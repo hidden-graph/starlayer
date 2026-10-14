@@ -52,22 +52,21 @@ query: identical either way. This is what lets both
 component check each ``salg:Project`` node independently, exactly matching
 SHACL's own per-focus-node evaluation model.
 
-**A real, confirmed gap in rdflib's own ``_addVars`` - not something this
-project's decode pipeline introduced.** A ``VALUES`` clause's rows
-(``values.res``) are ``List[Dict[Variable, term]]`` - one plain Python
-``dict`` per solution row - and rdflib's own ``_traverseAgg`` (the generic
-walker ``_addVars`` runs on) is only closed over
+**A real gap in rdflib's own ``_addVars`` - not something this project's
+decode pipeline introduced.** A ``VALUES`` clause's rows (``values.res``)
+are ``List[Dict[Variable, term]]`` - one plain Python ``dict`` per
+solution row - and rdflib's own ``_traverseAgg`` (the generic walker
+``_addVars`` runs on) is only closed over
 ``CompValue``/``list``/``tuple``/``ParseResults``, never ``dict``, so a
-``Variable`` living as a dict *key* is structurally invisible to it.
-Confirmed directly against **plain, unmodified rdflib** (parsing
-``SELECT ?a ?b WHERE { VALUES (?a ?b) { (1 2) } }`` with no round-trip
-through this project's own code at all): the resulting ``values`` node's
-own ``_vars`` is an empty set. Left unpatched, this would make every
-VALUES-only-bound projected variable a false positive here.
-``_effectively_bound_vars`` below closes exactly this one gap (walking for
-``values``-named nodes and folding their rows' dict keys in) - not a
-general reimplementation of ``_addVars``, just this one confirmed blind
-spot, kept as narrow as the problem it fixes.
+``Variable`` living as a dict *key* is structurally invisible to it: for
+``SELECT ?a ?b WHERE { VALUES (?a ?b) { (1 2) } }``, parsed with plain,
+unmodified rdflib, the resulting ``values`` node's own ``_vars`` is an
+empty set. Left unpatched, this would make every VALUES-only-bound
+projected variable a false positive here. ``_effectively_bound_vars``
+below closes exactly this one gap (walking for ``values``-named nodes and
+folding their rows' dict keys in) - not a general reimplementation of
+``_addVars``, just this one confirmed blind spot, kept as narrow as the
+problem it fixes.
 """
 
 from __future__ import annotations
@@ -86,17 +85,29 @@ from ..vocab import SALG
 @dataclass(frozen=True)
 class UnboundProjectedVariable:
     """One `Project` node whose `PV` names a variable never bound anywhere
-    in its own pattern subtree."""
+    in its own pattern subtree.
+
+    Attributes:
+        project_node: The `Project` node this finding is about.
+        variable: The unbound variable named in `PV`.
+        projected_vars: The node's full `PV`, for context.
+    """
 
     project_node: object
     variable: Variable
-    projected_vars: tuple[Variable, ...]  # the node's full PV, for context
+    projected_vars: tuple[Variable, ...]
 
 
 def _collect_values_bound_vars(node, found: set[Variable]) -> None:
     """Recursively collect every `Variable` used as a row-key inside any
     `values`-named CompValue under `node` - see this module's own docstring
-    for why `_addVars` itself can never see these."""
+    for why `_addVars` itself can never see these.
+
+    Args:
+        node: The algebra (sub)tree to walk.
+        found: Accumulator set, updated in place with every VALUES-bound
+            variable found.
+    """
     if isinstance(node, CompValue):
         if node.name == "values":
             for row in node.get("res") or []:
@@ -112,7 +123,14 @@ def _collect_values_bound_vars(node, found: set[Variable]) -> None:
 def _effectively_bound_vars(node) -> set[Variable]:
     """The real, ground-truth set of variables `node` can bind - rdflib's
     own `_addVars` result, supplemented with the one confirmed gap it has
-    (VALUES-row variables) - see this module's own docstring."""
+    (VALUES-row variables) - see this module's own docstring.
+
+    Args:
+        node: An already `_addVars`-annotated algebra (sub)tree.
+
+    Returns:
+        The full set of variables `node` binds.
+    """
     bound = set(getattr(node, "_vars", None) or set())
     _collect_values_bound_vars(node, bound)
     return bound
@@ -126,6 +144,15 @@ def _unbound_projected_variables_for_node(project_node, graph: Graph) -> list[Un
     cleanly - that's a structural problem ``sparql_shapes.py::validate()``
     already catches independently; this function's own job starts only
     once decoding succeeds.
+
+    Args:
+        project_node: The ``salg:Project`` node to check.
+        graph: The ``salg:`` algebra graph containing it.
+
+    Returns:
+        One `UnboundProjectedVariable` per `PV` variable never bound in
+        `p` (empty if the node decodes cleanly and all are bound, or if
+        it doesn't decode cleanly at all).
     """
     p_node = graph.value(project_node, SALG.p)
     pv_node = graph.value(project_node, SALG.PV)
@@ -160,6 +187,13 @@ def find_unbound_projected_variables(data_graph: Graph) -> list[UnboundProjected
     directly - the same check also runs automatically as a real SHACL
     constraint whenever ``starlayer.sparql.validate()`` validates a graph whose
     ``salg:Project`` nodes activate it (see this module's own docstring).
+
+    Args:
+        data_graph: The ``salg:`` algebra graph to scan.
+
+    Returns:
+        One `UnboundProjectedVariable` per offending `PV` variable, across
+        every `Project` node in `data_graph` (empty if none).
     """
     found: list[UnboundProjectedVariable] = []
     for project_node in data_graph.subjects(RDF.type, SALG.Project):

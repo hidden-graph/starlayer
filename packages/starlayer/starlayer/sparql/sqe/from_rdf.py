@@ -1,12 +1,11 @@
 """Decode ``sqe:`` RDF back into a real, executable rdflib ``Query`` —
 reconstructs the raw-parse-tree-shaped ``CompValue``s ``translateQuery``
-itself expects (confirmed empirically against the real function: a
-``TriplesBlock``'s/``ConstructQuery``'s own ``.template``'s triples-field
-is a list of 3-element lists, concatenated then re-split into groups of 3
-by ``algebra.triples()`` - a single already-grouped triple just needs its
-own ``[[s, p, o]]``-wrapped entry, no different from what a one-triple
-``WHERE`` clause parses to from text), then hands that to rdflib's own,
-completely unmodified ``translateQuery`` — the same function
+itself expects. A ``TriplesBlock``'s/``ConstructQuery``'s own ``.template``'s
+triples-field is a list of 3-element lists, concatenated then re-split into
+groups of 3 by ``algebra.triples()`` - a single already-grouped triple just
+needs its own ``[[s, p, o]]``-wrapped entry, no different from what a
+one-triple ``WHERE`` clause parses to from text - then hands that to
+rdflib's own, completely unmodified ``translateQuery`` — the same function
 ``sqe/to_rdf.py``'s encoder path, ``prepare_query_12``, and the ``sast:``
 layer all already call.
 
@@ -65,6 +64,13 @@ def sqe_tree_to_query(graph: Graph, root) -> Query:
     on ``root`` itself (``salg:prologuePrefix``, via ``to_rdf.py``'s
     ``_encode_prologue``) and are read directly by ``to_text.py`` for
     prefix-aware rendering, not threaded through here.
+
+    Args:
+        graph: The ``sqe:`` RDF graph containing ``root``.
+        root: The query root node to decode.
+
+    Returns:
+        A real, executable rdflib ``Query``.
     """
     query_name = _query_name_for_root(graph, root)
     where = _decode_where_group(graph.value(root, WHERE), graph)
@@ -103,7 +109,16 @@ def _decode_where_group(list_node, graph: Graph) -> CompValue:
     ``to_rdf._encode_where_group``. Each ``sqe:TriplePattern`` sibling
     becomes its own ``TriplesBlock`` (one per triple, not merged into a
     shared block) - simpler and just as valid as rdflib's own parser
-    output, which allows multiple consecutive ``TriplesBlock`` parts."""
+    output, which allows multiple consecutive ``TriplesBlock`` parts.
+
+    Args:
+        list_node: The ``rdf:List`` node of WHERE-clause siblings, or
+            ``None`` for an empty WHERE clause.
+        graph: The ``sqe:`` RDF graph containing ``list_node``.
+
+    Returns:
+        A ``GroupGraphPatternSub``-shaped ``CompValue``.
+    """
     nodes = list(Collection(graph, list_node)) if list_node is not None else []
     parts = [_decode_where_element(node, graph) for node in nodes]
     return CompValue("GroupGraphPatternSub", part=parts)

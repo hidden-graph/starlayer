@@ -53,12 +53,18 @@ def _ontology_graph() -> Graph:
 def sqe_validate(data_graph: Graph) -> tuple[bool, Graph, str]:
     """Validate ``data_graph`` (e.g. from ``to_rdf.sqe_parse_to_tree``, or
     an LLM-/UI-authored ``sqe:`` graph not yet decoded) against the shapes
-    above. Returns ``(conforms, report_graph, report_text)``.
+    above.
 
     Goes through ``starlayer.shacl``, never bare ``pyshacl`` - same reason
     ``salg:``'s own ``validate_query()`` does: a ``sqe:`` graph may embed
     genuine RDF 1.2 content (a triple-term-valued term, via the ``salg:``
     fallback boundary) that only ``starlayer.shacl`` understands correctly.
+
+    Args:
+        data_graph: The ``sqe:`` RDF graph to validate.
+
+    Returns:
+        A ``(conforms, report_graph, report_text)`` tuple.
     """
     from pyshacl.errors import ShapeRecursionWarning
 

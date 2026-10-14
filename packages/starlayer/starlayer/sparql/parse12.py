@@ -37,15 +37,14 @@ def _parse_with_recovery(parse_fn, text: str):
     (``grammar12.install(force=True)``) and retry exactly once before
     giving up.
 
-    The re-verification alone was confirmed insufficient on its own: some
-    pytest runs still hit a residual corruption ``_already_installed()``'s
-    own check doesn't catch (the exact trigger inside pytest's import
-    machinery wasn't fully isolated - non-deterministic-looking, not
-    reproduced by a plain script, only by certain full test-suite runs).
-    A forced reinstall immediately before retrying the *same* text was
-    confirmed to recover every case tried. If the retry *also* fails, that
-    reliably means the query text itself is genuinely invalid syntax, not
-    a grammar-state artifact - propagates normally, no third attempt.
+    Re-verification alone isn't sufficient: some pytest runs hit a residual
+    grammar corruption that ``_already_installed()``'s own live-object
+    check doesn't catch (the trigger lives somewhere in pytest's import
+    machinery, not reproducible via a plain script). A forced reinstall
+    immediately before retrying the *same* text recovers it. If the retry
+    *also* fails, that reliably means the query text itself is genuinely
+    invalid syntax, not a grammar-state artifact - propagates normally, no
+    third attempt.
     """
     grammar12.install()
     try:
@@ -74,13 +73,13 @@ def parse_update_12(text: str):
 
 def _canonicalize_construct_where(query: Query) -> Query:
     """``CONSTRUCT WHERE { pattern }`` shorthand (the template IS the WHERE
-    pattern) reaches here with ``algebra.template`` set to ``None`` —
-    confirmed via plain, unmodified ``rdflib.plugins.sparql.algebra
-    .translateQuery``, not something this project's own grammar/algebra
-    work introduced. ``pattern`` itself is required by the SPARQL grammar
-    (``ConstructWhere`` — a plain ``TriplesTemplate``, no FILTER/OPTIONAL/
-    UNION/etc permitted) to be exactly a flat BGP, so ``algebra.p.p.triples``
-    is always exactly the triple list needed.
+    pattern) reaches here with ``algebra.template`` set to ``None`` — plain,
+    unmodified ``rdflib.plugins.sparql.algebra.translateQuery`` behavior,
+    not something this project's own grammar/algebra work introduced.
+    ``pattern`` itself is required by the SPARQL grammar (``ConstructWhere``
+    — a plain ``TriplesTemplate``, no FILTER/OPTIONAL/UNION/etc permitted)
+    to be exactly a flat BGP, so ``algebra.p.p.triples`` is always exactly
+    the triple list needed.
 
     Populating ``template`` explicitly here — the *canonical*, always-
     explicit-template form of a CONSTRUCT query — rather than leaving the
@@ -88,16 +87,15 @@ def _canonicalize_construct_where(query: Query) -> Query:
     rediscover is a deliberate simplification, not merely a serialization
     workaround: this project's own RDF encoding of the algebra
     (``to_rdf.py``) has no special "template is really the WHERE clause"
-    convention of its own, so leaving ``template=None`` here means that
-    information is silently lost the moment the algebra is encoded to RDF
-    - confirmed via the W3C ``construct-*``/``expr-1`` fixtures, which
-    regenerated as ``CONSTRUCT {}`` (a literal, always-empty-result
-    template) after a round trip through RDF, a real semantic
-    mistranslation, not just lost shorthand syntax. Regenerating the
-    *shorthand* ``CONSTRUCT WHERE`` spelling specifically (as opposed to an
-    equivalent explicit ``CONSTRUCT { ... } WHERE { ... }``) is explicitly
-    out of scope for now, per instruction - only the meaning needs to
-    survive, not the original surface syntax.
+    convention of its own, so leaving ``template=None`` here would mean that
+    information is silently lost the moment the algebra is encoded to RDF —
+    the query would regenerate as ``CONSTRUCT {}`` (a literal, always-
+    empty-result template), a real semantic mistranslation, not just lost
+    shorthand syntax. Regenerating the *shorthand* ``CONSTRUCT WHERE``
+    spelling specifically (as opposed to an equivalent explicit
+    ``CONSTRUCT { ... } WHERE { ... }``) is explicitly out of scope for
+    now, per instruction - only the meaning needs to survive, not the
+    original surface syntax.
     """
     alg = query.algebra
     if getattr(alg, "name", None) == "ConstructQuery" and not alg.template:
@@ -106,15 +104,13 @@ def _canonicalize_construct_where(query: Query) -> Query:
         # whose __getattr__ routes attribute *reads* through to dict access
         # (`alg.template` == `alg['template']`), but has no real __setattr__
         # override at runtime (only a `if TYPE_CHECKING:` stub, never
-        # executed) - so a plain `alg.template = [...]` silently creates an
-        # ordinary shadow instance attribute instead of updating the dict
-        # storage _encode_comp_value's own `for key, value in node.items()`
-        # loop (to_rdf.py) actually iterates over. Confirmed a real, silent
-        # bug this way: `alg.template` read back the assigned list
-        # correctly (plain attribute lookup finds the instance dict first),
-        # while `graph.triples((root, SALG.template, None))` after
-        # query_to_rdf() showed zero results - the assignment never reached
-        # anywhere query_to_rdf() could see it.
+        # executed) - so a plain `alg.template = [...]` would silently
+        # create an ordinary shadow instance attribute instead of updating
+        # the dict storage _encode_comp_value's own `for key, value in
+        # node.items()` loop (to_rdf.py) actually iterates over - readable
+        # back via `alg.template` (plain attribute lookup finds the
+        # instance dict first), but invisible to anything that walks the
+        # dict itself, including query_to_rdf().
         alg["template"] = list(alg.p.p.triples)
     return query
 
@@ -127,14 +123,27 @@ def prepare_query_12(
     ``TripleTermNode`` nodes in triple-pattern position, not a lowered
     SPARQL-1.1-equivalent shape.
 
-    ``base``/``initNs`` are threaded straight through to
-    ``translateQuery`` — same two parameters, same precedence, as plain
-    rdflib's own ``prepareQuery(queryString, initNs=None, base=None)``:
-    ``initNs`` seeds the query's Prologue first, then any ``BASE``/``PREFIX``
-    declaration actually written in ``text`` is applied after and overrides
-    it (confirmed via ``rdflib.plugins.sparql.algebra.translatePrologue``'s
-    own source — ``initNs`` binds first, the parsed prologue's own
-    declarations are applied in a loop afterward)."""
+    ``base``/``initNs`` are threaded straight through to ``translateQuery``
+    — same two parameters, same precedence, as plain rdflib's own
+    ``prepareQuery(queryString, initNs=None, base=None)``: ``initNs`` seeds
+    the query's Prologue first, then any ``BASE``/``PREFIX`` declaration
+    actually written in ``text`` is applied after and overrides it (per
+    ``rdflib.plugins.sparql.algebra.translatePrologue``'s own source —
+    ``initNs`` binds first, the parsed prologue's own declarations are
+    applied in a loop afterward).
+
+    Args:
+        text: The SPARQL 1.2 query text to parse and translate.
+        base: Optional base IRI, passed through to ``translateQuery``.
+        initNs: Optional namespace prefix bindings seeded into the query's
+            Prologue before its own ``BASE``/``PREFIX`` declarations are
+            applied.
+
+    Returns:
+        The translated, executable-shaped ``Query``, with ``CONSTRUCT
+        WHERE`` shorthand canonicalized and triple-term pattern-subject
+        use rejected.
+    """
     query = _canonicalize_construct_where(
         translateQuery(parse_query_12(text), base, initNs)
     )
@@ -160,12 +169,24 @@ def _reject_blank_nodes_in_delete(update: Update) -> Update:
     matching a specific, already-existing term, and a blank node (whether
     written directly as ``_:x`` or minted implicitly by an anonymous
     ``{| ... |}`` annotation reifier - see ``grammar12.py``'s ``_reify``)
-    can never identify one. Confirmed real, unmodified rdflib doesn't
-    enforce this syntactically either, so it's checked here, post-translate,
-    against the two operation shapes that carry a delete template:
-    ``DeleteData.triples``/``.quads`` directly, and ``Modify.delete.triples``/
-    ``.quads`` (``Modify.delete`` is ``None`` for an INSERT-only Modify —
-    confirmed via ``algebra.translateUpdate1``)."""
+    can never identify one. Plain, unmodified rdflib doesn't enforce this
+    syntactically either, so it's checked here, post-translate, against the
+    two operation shapes that carry a delete template: ``DeleteData.triples``/
+    ``.quads`` directly, and ``Modify.delete.triples``/``.quads``
+    (``Modify.delete`` is ``None`` for an INSERT-only Modify, per
+    ``algebra.translateUpdate1``).
+
+    Args:
+        update: The translated ``Update`` to check.
+
+    Returns:
+        ``update`` unchanged, if no blank node was found in a delete
+        template.
+
+    Raises:
+        ValueError: If a blank node appears in a ``DELETE DATA``/``DELETE``
+            template.
+    """
     for op in update.algebra:
         if op.name == "DeleteData":
             _check_no_blank_nodes(op.triples, op.quads, "DELETE DATA")

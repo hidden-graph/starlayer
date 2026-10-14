@@ -81,32 +81,21 @@ class StarShaclSchema:
     """A SHACL schema: a bound shapes graph (``self.shacl_graph``) plus an
     optional ontology graph (``self.ont_graph``), each a reference to its
     own separate graph - this class does not itself *hold* triples the way
-    ``StarLayerGraph`` does (composition, not inheritance). Construct one
-    per distinct shapes-set (``PersonSchema = StarShaclSchema(person_shapes)``,
+    ``StarLayerGraph`` does (composition, not inheritance: there's no real
+    "is-a" relationship available between it and any existing rdflib/
+    pyshacl class - pySHACL's own main entry point, ``validate()``, is a
+    stateless one-shot function, not a long-lived object to subclass, and
+    this class unifies several independent capabilities
+    (``validate``/``apply_rules``/``evaluate``/``extract_subgraph``)
+    rather than specializing any one of them). Construct one per distinct
+    shapes-set (``PersonSchema = StarShaclSchema(person_shapes)``,
     ``ProductSchema = StarShaclSchema(product_shapes)``, ...), then call
     ``validate``/``apply_rules``/``evaluate``/``extract_subgraph`` against
     whatever data graph you're checking.
 
     Adds RDF 1.2/triple-term adaptation around pySHACL, which understands
     neither triple terms nor SHACL 1.2's own predicates natively.
-
-    **Naming history** (renamed twice in one day, 2026-10-06): ``StarLayerShacl``
-    (named after the specification, not what the object is) → ``StarLayerShaclProcessor``
-    ("Processor" is the W3C SHACL spec's own term for an implementation
-    performing its defined operations - better, but implied a singleton
-    worker, the wrong connotation once ``shacl_graph``/``ont_graph`` moved
-    here from a per-call parameter, making each instance a genuinely
-    distinct, named configuration rather than an interchangeable service)
-    → **``StarShaclSchema``** ("Schema" is already the ordinary term for
-    "the thing you validate data against," and - unlike "Processor"/
-    "Engine"/"Service"/"Context" - naturally supports having several
-    differently-named instances in one project, e.g. a `PersonSchema` and
-    a `ProductSchema`, rather than reading as one shared facility).
-    ``Star`` rather than ``StarLayer``: deliberate, the first instance of a
-    planned future prefix simplification (``StarLayerGraph`` may become
-    ``StarGraph`` later) - not yet applied project-wide, so this one class
-    is intentionally inconsistent with `StarLayerGraph`/`StarLayerDataset`
-    for now."""
+    """
 
     def __init__(
         self,
@@ -118,13 +107,71 @@ class StarShaclSchema:
         adapter: TripleTermAdapter | None = None,
         validate_fn: Callable[..., tuple[bool, Graph, str]] | None = None,
     ) -> None:
-        # Normalized once, here, rather than per-call: every method below
-        # reads this same object every time, so apply_rules()'s own
-        # separate normalize_graph_inputs(self.shacl_graph, ...) call (for
-        # rule_set/_global_sparql_rule_triples - needs blank-node identity
-        # to match whatever self.validate() ends up using internally) gets
-        # the identical, already-normalized object back - no second,
-        # independent normalization that could silently diverge.
+        """Bind a shapes graph (plus optional ontology/data graphs and an
+        entailment regime) once, so every processing method
+        (``validate``/``apply_rules``/``evaluate``/``extract_subgraph``/
+        ``target_nodes``) can be called repeatedly without re-passing the
+        same arguments.
+
+        Args:
+            shacl_graph: The SHACL shapes graph to validate against.
+                Normalized once, here, rather than per-call: every method
+                below reads this same object every time, so
+                ``apply_rules()``'s own separate
+                ``normalize_graph_inputs(self.shacl_graph, ...)`` call
+                (for ``rule_set``/``_global_sparql_rule_triples`` - needs
+                blank-node identity to match whatever ``self.validate()``
+                ends up using internally) gets the identical,
+                already-normalized object back - no second, independent
+                normalization that could silently diverge.
+            ont_graph: An optional ontology graph consulted for
+                entailment and other axiom lookups, normalized with
+                ``force_default_union=True``.
+            data_graph: An optional default data graph, bound once here
+                the same way ``shacl_graph``/``ont_graph`` already are, so
+                a caller performing several different operations
+                (``validate()``, ``apply_rules()``, ``evaluate()``, ...)
+                against the same data doesn't have to keep re-passing it
+                to every method call - each method's own ``data_graph``
+                parameter is optional, falling back to this one (see
+                ``_resolve_data_graph()``). Still fully overridable per
+                call - binding a default here doesn't prevent passing a
+                different ``data_graph`` to any one method.
+            inference: An optional entailment regime (one of the real
+                ``ENTAILMENT.*`` IRIs, or an iterable of them), bound once
+                here rather than accepted as a per-method keyword - an
+                entailment regime is realistically a property of "how
+                this schema interprets its data," not something a caller
+                would want to vary call-to-call on the same schema.
+                Methods below don't accept their own ``inference=``
+                parameter at all - construct a second
+                ``StarShaclSchema`` with a different ``inference=`` if
+                two different regimes are genuinely needed against the
+                same shapes/data.
+            adapter: Overrides the ``TripleTermAdapter`` used to
+                encode/decode triple terms around pySHACL. Defaults to a
+                fresh ``TripleTermAdapter()``.
+            validate_fn: Overrides the underlying ``(data_graph,
+                shacl_graph, ont_graph, **options) -> (conforms,
+                report_graph, report_text)`` callable ``validate()``
+                dispatches to. Defaults to pySHACL's own ``validate()``.
+
+        Note:
+            There is deliberately no ``specification_graph=`` constructor
+            parameter, unlike ``shacl_graph``/``ont_graph``/``inference``.
+            Unlike those three, "what specification does this data
+            conform to" isn't an intrinsic fact about how to validate -
+            it's a publishing decision about what claim to make with a
+            result, which can legitimately differ call to call even
+            against the identical ``shacl_graph``. It stays what
+            ``shacl_profiling.derive_conforms_to()``'s own
+            ``specification_graph=`` was already designed for: an
+            explicit, deliberate, application-level call after
+            ``validate()`` returns - not something ``validate()``
+            triggers automatically. ``sh:conformsTo`` (Profiling S5.5's
+            first rule) is unaffected either way - it never depended on
+            ``specification_graph``.
+        """
         self.shacl_graph = (
             normalize_to_starlayer_graph(shacl_graph, name="shacl_graph") if shacl_graph is not None else None
         )
@@ -133,54 +180,29 @@ class StarShaclSchema:
             if ont_graph is not None
             else None
         )
-        # specification_graph was briefly a construction-time property here
-        # (2026-10-10), mirroring shacl_graph/ont_graph/inference's own
-        # "bound once, not per-call" treatment - reverted the same day
-        # (direct user challenge): unlike those three, "what specification
-        # does this data conform to" isn't an intrinsic fact about how to
-        # validate - it's a publishing decision about what claim to make
-        # with the result, which can legitimately differ call to call even
-        # against the identical shacl_graph. Binding it at construction
-        # meant every validate() call on one schema instance always
-        # asserted the same external-spec claim whether or not that
-        # particular caller wanted to make it. Reverted to what
-        # shacl_profiling.derive_conforms_to()'s own specification_graph=
-        # was already designed for: an explicit, deliberate, application-
-        # level call after validate() returns - not something validate()
-        # triggers automatically. sh:conformsTo (S5.5's first rule) is
-        # unaffected either way - it never depended on specification_graph.
-        # data_graph (2026-10-08): an optional default, bound once here the
-        # same way shacl_graph/ont_graph already are, so a caller performing
-        # several different operations (validate(), apply_rules(),
-        # evaluate(), ...) against the same data doesn't have to keep
-        # re-passing it to every method call - each method's own
-        # data_graph parameter becomes optional, falling back to this one
-        # (see _resolve_data_graph()). Still fully overridable per call -
-        # binding a default here doesn't prevent passing a different
-        # data_graph to any one method.
         self.data_graph = (
             normalize_to_starlayer_graph(data_graph, name="data_graph") if data_graph is not None else None
         )
-        # inference (2026-10-08): moved here from a per-method `inference=`
-        # keyword every processing method used to take individually - bound
-        # once, like shacl_graph/ont_graph, since an entailment regime is
-        # realistically a property of "how this schema interprets its
-        # data," not something a caller would want to vary call-to-call on
-        # the same schema. Methods below no longer accept their own
-        # `inference=` parameter at all (removed, not just defaulted) -
-        # construct a second StarShaclSchema with a different `inference=`
-        # if you genuinely need two different regimes against the same
-        # shapes/data.
         self.inference = inference
         self.adapter = adapter or TripleTermAdapter()
         self.validate_fn = validate_fn or _default_validate
 
     def _resolve_data_graph(self, data_graph: Any | None) -> Any:
-        """Every processing method's own ``data_graph`` parameter is
-        optional (2026-10-08) - when omitted (``None``), falls back to this
-        instance's own bound ``self.data_graph``. Raises ``ValueError`` if
-        neither is given, rather than silently proceeding with ``None``
-        (every downstream call expects a real graph)."""
+        """Resolve the effective data graph for a processing method call:
+        falls back to this instance's own bound ``self.data_graph`` when
+        ``data_graph`` is omitted.
+
+        Args:
+            data_graph: The data graph explicitly passed to the calling
+                method, or ``None`` to use the instance's bound default.
+
+        Returns:
+            The resolved data graph to operate on.
+
+        Raises:
+            ValueError: If both ``data_graph`` and ``self.data_graph`` are
+                ``None`` - every downstream call expects a real graph.
+        """
         resolved = data_graph if data_graph is not None else self.data_graph
         if resolved is None:
             raise ValueError(
@@ -190,23 +212,34 @@ class StarShaclSchema:
         return resolved
 
     def _resolve_shacl_graph(self, shapes_graph_resource: Any | None) -> Any | None:
-        """Every processing method's own shapes-graph input is
-        ``self.shacl_graph`` by default; ``shapes_graph_resource=`` (named
-        ``shapes_graph=`` 2026-10-09 through 2026-10-10, renamed again
-        2026-10-11 since the value is always a resource identifier, never
-        an actual graph object - see :meth:`validate`'s own CLAUDE.md
-        entry for the full history), when given,
-        instead resolves to one named ``sh:ShapesGraph`` module pulled out
-        of it via :meth:`extract_shapes_graph`. Unlike :meth:`validate`'s
-        own dual-purpose ``shapes_graph_resource=`` (see
-        :meth:`_resolve_shapes_graph_and_provenance`), every method using
-        *this* helper has no validation report to fall back to tagging -
-        a value that isn't really a module has nothing sensible left to
-        mean, so this still raises rather than silently doing something
-        else. Raises ``ValueError`` if there's no ``self.shacl_graph`` to
-        extract from, or if the given IRI isn't typed ``a sh:ShapesGraph``.
+        """Resolve the shapes graph for a processing method call that has
+        no validation report to fall back to tagging.
+
+        Every processing method's own shapes-graph input is
+        ``self.shacl_graph`` by default; ``shapes_graph_resource=``, when
+        given, instead resolves to one named ``sh:ShapesGraph`` module
+        pulled out of it via :meth:`extract_shapes_graph`. Unlike
+        :meth:`validate`'s own dual-purpose ``shapes_graph_resource=``
+        (see :meth:`_resolve_shapes_graph_and_provenance`), a value that
+        isn't really a module has nothing sensible left to mean here, so
+        this still raises rather than silently doing something else.
         Never mutates or replaces ``self.shacl_graph`` itself - this is a
-        call-local resolution only."""
+        call-local resolution only.
+
+        Args:
+            shapes_graph_resource: The IRI of a named ``sh:ShapesGraph``
+                module within ``self.shacl_graph``, or ``None`` to use
+                ``self.shacl_graph`` unchanged.
+
+        Returns:
+            The resolved shapes graph (``self.shacl_graph`` itself, the
+            extracted module, or ``None``).
+
+        Raises:
+            ValueError: If ``shapes_graph_resource`` is given but
+                ``self.shacl_graph`` is ``None``, or if the given IRI
+                isn't typed ``a sh:ShapesGraph`` in it.
+        """
         if shapes_graph_resource is None:
             return self.shacl_graph
         if self.shacl_graph is None:
@@ -223,52 +256,59 @@ class StarShaclSchema:
         return extracted
 
     def _resolve_shapes_graph_and_provenance(self, shapes_graph_resource: Any | None) -> tuple[Any | None, Any | None]:
-        """:meth:`validate`'s own unified ``shapes_graph_resource=``
-        (unified 2026-10-10 under the name ``shapes_graph=``, replacing
-        the former separate ``shapes_graph_module=``/``shapes_graph_iri=``
-        pair; renamed to ``shapes_graph_resource=`` 2026-10-11, since the
-        value is always a resource identifier, never an actual graph
-        object - see :meth:`validate`'s own CLAUDE.md entry for the full
-        account). One value, two possible meanings
+        """Resolve :meth:`validate`'s own dual-purpose
+        ``shapes_graph_resource=``. One value, two possible meanings
         depending on what's actually true of this instance's own bound
         ``shacl_graph`` - not two independently-settable knobs that could
-        disagree, which is exactly what let the report claim a shapes
-        graph different from the one actually used.
+        disagree about which shapes graph was really used.
 
-        - If ``shapes_graph_resource`` names a real ``a sh:ShapesGraph`` module
-          within the bound ``shacl_graph``: extract just that module (same
-          as :meth:`_resolve_shacl_graph` would), and its own IRI becomes
-          the report's ``sh:usedShapesGraph`` identity - there is only one
-          real fact here ("which shapes graph was used"), so there is no
-          second, separately-overridable value for it.
-        - Otherwise (``self.shacl_graph`` is bound, but ``shapes_graph_resource``
-          genuinely isn't a module within it - typically because
-          ``self.shacl_graph`` is the whole, anonymous graph being
-          validated against as-is): validate against the whole bound
-          ``shacl_graph`` unchanged, and use ``shapes_graph_resource`` purely as
-          the report's ``sh:usedShapesGraph`` identity - the old
-          ``shapes_graph_iri=`` behavior, for exactly the case it existed
-          for (an anonymous graph that needs an externally-assigned
-          identity). This positive check (a real graph exists and
-          genuinely doesn't contain this resource as a module) is what
-          makes "must be an external identity" a safe inference.
-        - ``self.shacl_graph`` is ``None`` and ``shapes_graph_resource`` is given:
-          **raises**, same as :meth:`_resolve_shacl_graph` - caught live,
-          not theoretical: with no bound graph at all, there's no
-          evidence either way about what ``shapes_graph_resource`` means, and
-          pyshacl trivially "conforms" against a ``None`` shapes graph -
-          silently falling back to tag-only here would let the report
-          claim ``sh:usedShapesGraph <shapes_graph_resource>`` for a validation run
-          that checked nothing at all against it.
-        - ``None``: no change, no provenance - today's existing default.
+        - If ``shapes_graph_resource`` names a real ``a sh:ShapesGraph``
+          module within the bound ``shacl_graph``: extract just that
+          module (same as :meth:`_resolve_shacl_graph` would), and its
+          own IRI becomes the report's ``sh:usedShapesGraph`` identity -
+          there is only one real fact here ("which shapes graph was
+          used"), so there is no second, separately-overridable value for
+          it.
+        - Otherwise (``self.shacl_graph`` is bound, but
+          ``shapes_graph_resource`` genuinely isn't a module within it -
+          typically because ``self.shacl_graph`` is the whole, anonymous
+          graph being validated against as-is): validate against the
+          whole bound ``shacl_graph`` unchanged, and use
+          ``shapes_graph_resource`` purely as the report's
+          ``sh:usedShapesGraph`` identity - for exactly the case this
+          exists for (an anonymous graph that needs an
+          externally-assigned identity). This positive check (a real
+          graph exists and genuinely doesn't contain this resource as a
+          module) is what makes "must be an external identity" a safe
+          inference.
+        - ``self.shacl_graph`` is ``None`` and ``shapes_graph_resource``
+          is given: **raises**, same as :meth:`_resolve_shacl_graph` -
+          with no bound graph at all, there's no evidence either way
+          about what ``shapes_graph_resource`` means, and pyshacl
+          trivially "conforms" against a ``None`` shapes graph - silently
+          falling back to tag-only here would let the report claim
+          ``sh:usedShapesGraph <shapes_graph_resource>`` for a
+          validation run that checked nothing at all against it.
+        - ``None``: no change, no provenance.
 
-        One documented edge case, not silently papered over: if a bare
-        provenance IRI happens to coincide with a real ``sh:ShapesGraph``
-        node already in the bound graph, it's read as a module selector,
-        not a plain tag - rare in practice, but a real consequence of
-        collapsing two concepts into one value.
+        One documented edge case: if a bare provenance IRI happens to
+        coincide with a real ``sh:ShapesGraph`` node already in the bound
+        graph, it's read as a module selector, not a plain tag - rare in
+        practice, but a real consequence of collapsing two concepts into
+        one value.
 
-        Returns ``(shacl_graph_to_validate_against, shapes_graph_iri_for_report)``.
+        Args:
+            shapes_graph_resource: A named ``sh:ShapesGraph`` module's
+                IRI, an arbitrary report-provenance identity, or
+                ``None``.
+
+        Returns:
+            A ``(shacl_graph_to_validate_against,
+            shapes_graph_iri_for_report)`` tuple.
+
+        Raises:
+            ValueError: If ``shapes_graph_resource`` is given but
+                ``self.shacl_graph`` is ``None``.
         """
         if shapes_graph_resource is None:
             return self.shacl_graph, None
@@ -300,14 +340,27 @@ class StarShaclSchema:
         shape_node: Any,
         shapes_graph_resource: Any | None = None,
     ) -> tuple[Any, ...]:
-        """2026-10-08: ``data_graph`` is now optional (falls back to
-        ``self.data_graph``), and ``inference`` is no longer a per-call
-        parameter - this instance's own bound ``self.inference`` is always
-        used instead (see ``__init__``'s own docstring). Also threads this
-        instance's own ``self.ont_graph`` through, matching every other
-        method on this class - see ``engine.target_nodes()``'s own
-        docstring for the full entailment design. ``shapes_graph_resource=``
-        (2026-10-09) - see :meth:`_resolve_shacl_graph`."""
+        """Return the tuple of nodes this shape targets.
+
+        ``data_graph`` is optional, falling back to ``self.data_graph``;
+        ``inference`` is not a per-call parameter here - this instance's
+        own bound ``self.inference`` is always used instead (see
+        ``__init__``'s own docstring). Also threads this instance's own
+        ``self.ont_graph`` through, matching every other method on this
+        class - see ``engine.target_nodes()``'s own docstring for the
+        full entailment design.
+
+        Args:
+            data_graph: The data graph to resolve targets against, or
+                ``None`` to use ``self.data_graph``.
+            shape_node: The shape whose targets to resolve.
+            shapes_graph_resource: A named ``sh:ShapesGraph`` module's
+                IRI to resolve ``shape_node`` within - see
+                :meth:`_resolve_shacl_graph`.
+
+        Returns:
+            The tuple of target nodes.
+        """
         data_graph = self._resolve_data_graph(data_graph)
         return native_target_nodes(
             data_graph=data_graph,
@@ -357,12 +410,99 @@ class StarShaclSchema:
         include_used_configuration: bool = False,
         **kwargs: Any,
     ) -> ValidationResult:
-        # data_graph (2026-10-08): optional, falling back to self.data_graph
-        # - see __init__'s own docstring. inference is no longer accepted
-        # here at all (bound only at construction, via self.inference) -
-        # guarded explicitly since **kwargs would otherwise silently accept
-        # and forward a stray inference= straight into options below
-        # without ever raising.
+        """Validate ``data_graph`` against this schema's bound
+        ``shacl_graph``/``ont_graph``, with RDF 1.2/triple-term adaptation
+        and the SHACL 1.2 Core/Node-Expressions/Profiling patches this
+        module applies around pySHACL.
+
+        Args:
+            data_graph: The data graph to validate. Optional, falling
+                back to ``self.data_graph`` (see ``__init__``'s own
+                docstring) when omitted.
+            mode: A validator option preset (``"validation"``/``"rules"``/
+                ``"debug"``, or a ``ValidationMode``) resolved via
+                ``resolve_mode_options()``; any of pySHACL's own options
+                (e.g. ``advanced``, ``inplace``, ``meta_shacl``,
+                ``allow_warnings``, ``allow_infos``) can be overridden
+                through ``**kwargs``.
+            decode_report: Whether to decode the raw pySHACL report graph
+                back through the triple-term adapter (and humanize its
+                report text) before returning it. ``False`` returns the
+                adapter-encoded report as pySHACL produced it.
+            rdfs_subclass_reasoning_includes_shapes_graph: Whether
+                ``sh:rootClass``'s own ``rdfs:subClassOf`` reasoning
+                should also consult the shapes graph's own
+                ``rdfs:subClassOf`` triples, not just the data graph's -
+                SHACL 1.2 Core's "SHACL Type" definition explicitly
+                allows this to be implementation-parameterized. When
+                enabled, the shapes graph's own ``rdfs:subClassOf``
+                triples are injected into a copy of ``data_graph`` handed
+                to pySHACL (the only channel available, since pySHACL
+                constructs the ``sh:rootClass`` component itself with no
+                room for extra constructor arguments) and removed again
+                afterward.
+            shapes_graph_loader: Resolves one ``owl:imports`` target IRI
+                to the graph it names, or ``None`` if it can't be
+                resolved - used to follow ``shacl_graph``'s own
+                ``owl:imports`` (optionally redirected through
+                ``owl:versionIRI``) before validating. This library
+                never decides retrieval policy on its own, so no loader
+                is used unless one is given.
+            ignore_imports: If ``shacl_graph`` declares ``owl:imports``
+                that aren't already locally satisfied (see
+                ``has_import_locally()``) and no ``shapes_graph_loader``
+                was given, ``validate()`` raises ``ValueError`` by
+                default rather than silently proceeding with a possibly
+                incomplete shapes graph. Pass ``True`` to opt out
+                explicitly - e.g. because the imports were already
+                resolved into ``shacl_graph`` beforehand (``resolve_imports()``
+                doesn't strip the ``owl:imports`` triple once resolved,
+                so its mere presence can't otherwise distinguish
+                "already handled" from "genuinely missing").
+            meta_shapes_extra: Extra graphs merged into the meta-shapes
+                graph used for the ``meta_shacl=True`` preflight check
+                (see ``starlayer.shacl.meta_shapes``). Ignored unless
+                ``meta_shacl`` is enabled via ``mode``/``**kwargs``.
+            data_graph_iri: The data graph's identity, recorded on the
+                report as ``sh:usedDataGraph``. Falls back to
+                ``data_graph.identifier`` when that's a real ``URIRef``
+                (not the random ``BNode`` every plain ``rdflib.Graph``
+                otherwise gets) and this is left ``None``.
+            shapes_graph_resource: One value with two possible meanings,
+                depending on what's actually true of this instance's own
+                bound ``shacl_graph`` - see
+                ``_resolve_shapes_graph_and_provenance()``'s own
+                docstring for the full design. If it names a real
+                ``a sh:ShapesGraph`` module within ``shacl_graph``, that
+                module alone is validated against, and its own IRI
+                becomes the report's ``sh:usedShapesGraph`` identity. If
+                ``shacl_graph`` is bound but doesn't contain it as a
+                module, it's used purely as the report's
+                ``sh:usedShapesGraph`` identity, and the whole bound
+                ``shacl_graph`` is validated against unchanged. Raises if
+                given with no bound ``shacl_graph`` at all. Falls back to
+                ``shacl_graph.identifier`` the same way ``data_graph_iri``
+                falls back to ``data_graph.identifier``, when left
+                ``None``.
+            include_used_configuration: Whether to also record the
+                resolved validator options (``mode``,
+                ``rdfs_subclass_reasoning_includes_shapes_graph``, etc.)
+                on the report.
+            **kwargs: Forwarded into ``resolve_mode_options(mode,
+                overrides=kwargs)`` as option overrides on top of
+                whatever ``mode`` preset resolves to (e.g. ``advanced``,
+                ``inplace``, ``meta_shacl``, ``allow_warnings``,
+                ``allow_infos``). ``inference=`` is rejected with
+                ``TypeError`` here - it's bound once at construction
+                instead (``StarShaclSchema(inference=...)``); construct a
+                second ``StarShaclSchema`` for a different regime.
+
+        Returns:
+            A ``ValidationResult`` with ``conforms``, ``report_graph``,
+            ``report_text``, ``data_graph`` (the mutated data graph when
+            ``inplace`` is enabled in the resolved options, else
+            ``None``), and ``diagnostics``.
+        """
         if "inference" in kwargs:
             raise TypeError(
                 "validate() no longer accepts inference= directly - it's bound once at "
@@ -381,23 +521,10 @@ class StarShaclSchema:
 
         options = resolve_mode_options(mode, overrides=kwargs)
 
-        # shapes_graph_resource (2026-10-09, redesigned 2026-10-10 - see CLAUDE.md's
-        # dated entry for the full account): one value, two possible
-        # meanings depending on what's actually true of this instance's
-        # own bound shacl_graph - not two independently-settable
-        # parameters (the former separate shapes_graph_module=/
-        # shapes_graph_iri=) that could silently disagree about which
-        # shapes graph was really used. If shapes_graph_resource names a real
-        # sh:ShapesGraph module within shacl_graph, that module is what
-        # gets validated against, and its own IRI is the report's
-        # sh:usedShapesGraph identity - there's only one fact there, so
-        # there's no second value to override it with. Otherwise,
-        # shapes_graph_resource is just a caller-supplied report-provenance
-        # identity (the old shapes_graph_iri= behavior) and validation
-        # proceeds against the whole bound shacl_graph unchanged. See
-        # _resolve_shapes_graph_and_provenance()'s own docstring for the
-        # full design, including the one documented edge case (an IRI
-        # that coincidentally collides with a real module).
+        # See _resolve_shapes_graph_and_provenance()'s own docstring for
+        # the full design of shapes_graph_resource's two possible
+        # meanings, including the one documented edge case (an IRI that
+        # coincidentally collides with a real module).
         shacl_graph_to_use, shapes_graph_iri = self._resolve_shapes_graph_and_provenance(shapes_graph_resource)
 
         data_graph, shacl_graph, ont_graph = normalize_graph_inputs(
@@ -406,14 +533,13 @@ class StarShaclSchema:
             self.ont_graph,
         )
 
-        # data_graph_iri= falls back to the graph's own .identifier
-        # (2026-10-09), when it's a real URIRef the caller explicitly gave
-        # it at construction - never the default random BNode every
+        # data_graph_iri falls back to the graph's own .identifier when
+        # it's a real URIRef - never the default random BNode every
         # rdflib Graph otherwise gets, which carries no meaningful
-        # identity to report. shapes_graph_iri gets the same .identifier
-        # fallback, but only when shapes_graph_resource= itself was never given at
-        # all (resolved to None above) - an explicit shapes_graph_resource= of
-        # either kind is never overridden.
+        # identity to report. shapes_graph_iri gets the same fallback,
+        # but only when shapes_graph_resource itself was never given at
+        # all (resolved to None above) - an explicit shapes_graph_resource
+        # of either kind is never overridden.
         if data_graph_iri is None and isinstance(data_graph.identifier, URIRef):
             data_graph_iri = data_graph.identifier
         if shapes_graph_iri is None and shacl_graph is not None and isinstance(shacl_graph.identifier, URIRef):
@@ -427,28 +553,25 @@ class StarShaclSchema:
         # resolution, constraint checking, shape-attached sh:rule
         # execution via the "rules" mode below) sees the same entailed
         # data graph uniformly. A no-op when shacl_graph declares no
-        # sh:entailment and inference= isn't given either (the common
+        # sh:entailment and inference isn't given either (the common
         # case). inplace= is threaded through from the resolved mode
-        # options, not hardcoded - see apply_entailment()'s own docstring
-        # for the real regression this fixed (an earlier version always
-        # mutated data_graph in place, silently breaking the plain
-        # "validation" mode's own documented never-mutate-the-caller's-
-        # data guarantee). Reassign data_graph itself: when inplace=False
-        # this returns a *new* graph, not the original. ont_graph is
-        # threaded through too (2026-10-07, matching the bare validate()
-        # function) - entailment is *computed* over data_graph union
+        # options, not hardcoded - the plain "validation" mode's own
+        # documented never-mutate-the-caller's-data guarantee depends on
+        # this. Reassign data_graph itself: when inplace=False this
+        # returns a *new* graph, not the original. ont_graph is threaded
+        # through too - entailment is *computed* over data_graph union
         # ont_graph (so an axiom declared only in ont_graph, the idiomatic
         # place for rdfs:domain/range/etc., is actually seen), but only
         # the newly-entailed delta is materialized - ont_graph's own raw
         # triples are never copied in, and ont_graph itself is never
         # mutated.
         #
-        # inference (2026-10-08) comes from self.inference, bound once at
-        # construction - not a per-call option any more (guarded above) -
-        # and shares sh:entailment's own real ENTAILMENT.* IRI vocabulary
-        # directly, rather than pySHACL's own ad-hoc string vocabulary -
-        # see starlayer.shacl.entailment's own module docstring for the
-        # full account.
+        # inference comes from self.inference, bound once at construction
+        # - not a per-call option (guarded above) - and shares
+        # sh:entailment's own real ENTAILMENT.* IRI vocabulary directly,
+        # rather than pySHACL's own ad-hoc string vocabulary - see
+        # starlayer.shacl.entailment's own module docstring for the full
+        # account.
         from starlayer.shacl.entailment import apply_entailment
 
         data_graph = apply_entailment(
@@ -491,12 +614,8 @@ class StarShaclSchema:
         # (not just shnex:) matters on its own: a shapes graph using ONLY
         # sparql: node expressions, no shnex: ones at all, is entirely
         # legitimate (confirmed via the W3C SHACL 1.2 Node Expressions test
-        # suite, which has fixtures doing exactly this) - found live as a
-        # real wiring gap, not just a hypothetical, while checking that this
-        # session's new sparql: support was reachable through the real
-        # validate() entrypoint, not only through eval_expr() called
-        # directly (which every test in tests/w3c_shacl12/ does, so it never
-        # exercised this trigger condition at all).
+        # suite, which has fixtures doing exactly this), so both namespaces
+        # must be checked to reach this patch through validate() itself.
         if shacl_graph is not None and any(
             True
             for p in shacl_graph.predicates()
@@ -535,15 +654,14 @@ class StarShaclSchema:
         # dictate a network-fetching policy, so retrieval is delegated to a
         # caller-supplied shapes_graph_loader.
         #
-        # ignore_imports (2026-10-08): if shacl_graph declares owl:imports
-        # that aren't already locally satisfied (has_import_locally() -
-        # e.g. two shapes-graph "modules" that import each other but have
-        # simply been loaded together into one graph already, nothing
-        # external to fetch at all - confirmed live as a real false-
-        # positive risk otherwise, not hypothetical) and no
-        # shapes_graph_loader was given, this now raises by default
-        # instead of silently proceeding with a possibly-incomplete shapes
-        # graph - a shape referencing something only defined in a
+        # ignore_imports: if shacl_graph declares owl:imports that aren't
+        # already locally satisfied (has_import_locally() - e.g. two
+        # shapes-graph "modules" that import each other but have simply
+        # been loaded together into one graph already, nothing external
+        # to fetch at all) and no shapes_graph_loader was given, this
+        # raises by default instead of silently proceeding with a
+        # possibly-incomplete shapes graph - a shape referencing
+        # something only defined in a
         # genuinely unresolved import would otherwise simply never fire,
         # with no indication anything was skipped. Pass
         # ignore_imports=True to opt out explicitly - e.g. because the
@@ -581,21 +699,15 @@ class StarShaclSchema:
 
         # sh:deactivated [ shnex:.../sparql:... ]: a node expression computing
         # whether a shape is deactivated, rather than a plain boolean literal.
-        # Corrected 2026-09-06 after a direct user question caught a wrong
-        # first attempt: the node-expr spec's own "Getting Started" section
-        # only mentions sh:deactivated in passing (no worked example, no
-        # evaluation algorithm - confirmed by grepping the live spec text for
-        # every occurrence), but SHACL 1.2 *Core*'s "Deactivating Shapes and
+        # The node-expr spec's own "Getting Started" section only mentions
+        # sh:deactivated in passing (no worked example, no evaluation
+        # algorithm), but SHACL 1.2 *Core*'s "Deactivating Shapes and
         # Constraints" section (which node-expr defers basic SHACL
         # terminology to) gives the actual normative definition: "Let expr be
         # the value of sh:deactivated in a shape. If evalExpr(expr, data
         # graph, focus node, {}) produces true..." - evaluated once **per
-        # focus node**, not once globally. My first attempt evaluated it
-        # globally (no focus node at all), which is a genuinely different,
-        # wrong semantic (a per-shape on/off switch instead of a per-target
-        # filter) - confirmed wrong live before this fix (a `shnex:var
-        # "focusNode"`-referencing expression silently deactivated the whole
-        # shape for every target instead of varying per target).
+        # focus node**, not once globally (a per-shape on/off switch would
+        # be a genuinely different, wrong semantic for a per-target filter).
         #
         # pySHACL's own shape *loading* still hard-requires sh:deactivated's
         # value to be a Literal (ShapeLoadError), so the node-expression
@@ -627,9 +739,9 @@ class StarShaclSchema:
         # SHACL 1.2 widened (list-valued sh:class/sh:datatype/sh:nodeKind,
         # path-valued sh:equals/sh:disjoint/sh:lessThan/
         # sh:lessThanOrEquals, sh:closed sh:ByTypes) are actively rejected
-        # even though starlayer.shacl/native_components.py fully supports them -
-        # confirmed empirically, not merely suspected. starlayer.shacl.meta_shapes
-        # fully replaces pySHACL's own mechanism (not supplements it -
+        # even though starlayer.shacl/native_components.py fully supports
+        # them. starlayer.shacl.meta_shapes fully replaces pySHACL's own
+        # mechanism (not supplements it -
         # running both would still reject the 8 widened forms via
         # pySHACL's unmodified check) with an assembled graph: pySHACL's
         # own base with those 8 now-too-strict triples removed, plus
@@ -807,11 +919,9 @@ class StarShaclSchema:
         data_graphs: Iterable[Any] | None = None,
         **kwargs: Any,
     ) -> dict[int, ValidationResult]:
-        """Validates each of ``data_graphs`` independently against this
+        """Validate each of ``data_graphs`` independently against this
         instance's own bound ``shacl_graph``/``ont_graph``, mirroring
-        pyshacl's own ``validate_each(data_graphs, ...)`` entry point -
-        added 2026-10-06 after confirming starShacl had no equivalent at
-        all.
+        pyshacl's own ``validate_each(data_graphs, ...)`` entry point.
 
         Implemented as a loop calling :meth:`validate` once per data graph,
         rather than driving pyshacl's own ``validate_each``/multi-data-graph
@@ -819,15 +929,23 @@ class StarShaclSchema:
         SHACL 1.2's new predicates, or any of this project's other runtime
         patches, so using it would silently run a different, unpatched
         pipeline per graph instead of the one real ``validate()`` path this
-        class otherwise always goes through. Returns ``dict[int,
-        ValidationResult]`` - this project's own richer result type, not
-        pyshacl's bare ``dict[int, (conforms, report_graph, report_text)]``
-        tuple - the same "wrap the tuple" convention ``validate()`` itself
-        already follows.
+        class otherwise always goes through.
 
-        ``data_graphs=None`` (2026-10-08) falls back to a single-element
-        ``(self.data_graph,)`` - :meth:`validate` itself raises if that's
-        also ``None``, so no separate check is needed here."""
+        Args:
+            data_graphs: The data graphs to validate, each independently.
+                ``None`` falls back to a single-element ``(self.data_graph,)``
+                - :meth:`validate` itself raises if that is also ``None``, so
+                no separate check is needed here.
+            **kwargs: Forwarded verbatim to :meth:`validate` on every call
+                (e.g. ``shapes_graph_resource``, ``mode``, ``inference``).
+
+        Returns:
+            A dict mapping each data graph's index in ``data_graphs`` to its
+            own :class:`ValidationResult` - this project's own richer result
+            type, not pyshacl's bare ``dict[int, (conforms, report_graph,
+            report_text)]`` tuple, the same "wrap the tuple" convention
+            :meth:`validate` itself already follows.
+        """
         if data_graphs is None:
             data_graphs = (self.data_graph,)
         return {i: self.validate(data_graph, **kwargs) for i, data_graph in enumerate(data_graphs)}
@@ -867,17 +985,15 @@ class StarShaclSchema:
         # target nodes dynamically - the SHACL 1.2 Node Expressions spec's
         # own opening ("Getting Started") example
         # (sh:targetNode [ shnex:nodes [ shnex:instancesOf ex:Company ] ;
-        # shnex:filterShape [...] ]). Confirmed live 2026-09-06 that this was
-        # entirely unhandled before this fix: pySHACL's own sh:targetNode
-        # support treats *any* blank-node value as an opaque (bogus) target
-        # in its own right, producing a nonsense "Focus Node" that's really
-        # just the node expression's own blank node identity - a real,
-        # previously-undiscovered gap distinct from the sh:select case above
-        # (which this project had already found and fixed). Evaluated with
-        # no starting focus node (matches the spec's own framing - "a node
-        # expression produces the list of target nodes of a shape", not
-        # "...relative to some other node"); every node expression the spec
-        # actually demonstrates for this position (shnex:instancesOf,
+        # shnex:filterShape [...] ]). pySHACL's own sh:targetNode support
+        # treats *any* blank-node value as an opaque (bogus) target in its
+        # own right, producing a nonsense "Focus Node" that's really just
+        # the node expression's own blank node identity - a gap distinct
+        # from the sh:select case above. Evaluated with no starting focus
+        # node (matches the spec's own framing - "a node expression
+        # produces the list of target nodes of a shape", not "...relative
+        # to some other node"); every node expression the spec actually
+        # demonstrates for this position (shnex:instancesOf,
         # shnex:nodesMatching, shnex:filterShape) is focus-node-independent
         # by construction, so this only matters for a shapes graph that (in
         # violation of the spec's own intent for this position) plugs in a
@@ -893,21 +1009,21 @@ class StarShaclSchema:
         # shared-state risk.
         #
         # Gated strictly on an actual shnex:/sparql: defining predicate -
-        # NOT "any BNode without sh:select" (tried first, reverted after a
-        # confirmed regression, W3C suite's targetWhere-001): sh:targetWhere
-        # resolution (_nodes_conforming_to below) already stuffs arbitrary
-        # data-graph blank nodes into sh:targetNode as plain candidate
-        # values, completely unrelated to node expressions - one of them
+        # NOT "any BNode without sh:select": sh:targetWhere resolution
+        # (_nodes_conforming_to below) already stuffs arbitrary data-graph
+        # blank nodes into sh:targetNode as plain candidate values,
+        # completely unrelated to node expressions - one of them
         # coincidentally carrying sh:path (an ordinary nested property
         # shape's own path declaration, picked up because this fixture's
-        # data graph and shapes graph are literally the same file) got
-        # mis-evaluated by pySHACL's *old-form* node-expression fallback
-        # (which treats any sh:path-bearing blank node as a path
-        # expression), producing a wrong extra target. The spec's own
-        # target-node worked examples exclusively use shnex:-namespaced
-        # expressions, never the ambiguous old sh:union/sh:path forms, so
-        # restricting this to real shnex:/sparql: predicates is both
-        # spec-faithful and sidesteps the ambiguity entirely.
+        # data graph and shapes graph are literally the same file) collides
+        # with pySHACL's own *legacy* node-expression fallback (which
+        # treats any sh:path-bearing blank node as a path expression),
+        # producing a wrong extra target (W3C SHACL test suite's
+        # targetWhere-001 fixture). The spec's own target-node worked
+        # examples exclusively use shnex:-namespaced expressions, never the
+        # ambiguous old sh:union/sh:path forms, so restricting this to real
+        # shnex:/sparql: predicates is both spec-faithful and sidesteps the
+        # ambiguity entirely.
         from starlayer.shacl.node_expressions import _is_shnex_expr
         from starlayer.shacl.sparql_node_expressions import is_sparql_expr
 
@@ -1013,17 +1129,26 @@ class StarShaclSchema:
     def _strip_deactivated_node_expressions(self, shacl_graph: Any) -> tuple[Any, dict[Any, Any]]:
         """Remove every ``sh:deactivated [ shnex:.../sparql:... ]`` triple
         from a copy of ``shacl_graph`` (pySHACL's own shape *loading* hard-
-        requires a Literal here and crashes otherwise), returning
-        ``(graph, registry)`` where ``registry`` maps each affected shape
-        node to its original node-expression value. The caller threads
-        ``registry`` into ``_deactivated_expr_registry`` around the actual
-        pySHACL call, for ``_patch_shape_focus_nodes_for_deactivated_expression``
-        to evaluate per focus node - see that function and the call site's
-        own comment for the full reasoning and spec citation (SHACL 1.2
-        Core's "Deactivating Shapes and Constraints" section).
+        requires a Literal here and crashes otherwise).
 
-        Returns ``(shacl_graph, {})`` unchanged if no such expression is
-        present.
+        The caller threads the returned registry into
+        ``_deactivated_expr_registry`` around the actual pySHACL call, for
+        ``_patch_shape_focus_nodes_for_deactivated_expression`` to evaluate
+        per focus node - see that function and the call site's own comment
+        for the full reasoning and spec citation (SHACL 1.2 Core's
+        "Deactivating Shapes and Constraints" section).
+
+        Args:
+            shacl_graph: The shapes graph to strip, or ``None``.
+
+        Returns:
+            A ``(graph, registry)`` pair: ``graph`` is a stripped copy of
+            ``shacl_graph`` with every node-expression-valued
+            ``sh:deactivated`` triple removed, and ``registry`` maps each
+            affected shape node to its original node-expression value.
+            Returns ``(shacl_graph, {})`` unchanged (same object, empty
+            dict) if ``shacl_graph`` is ``None`` or no such expression is
+            present.
         """
         if shacl_graph is None:
             return shacl_graph, {}
@@ -1089,12 +1214,25 @@ class StarShaclSchema:
         where_shape: Any,
     ) -> list[Any]:
         """Every non-literal node in ``data_graph`` that conforms to
-        ``where_shape``, for ``sh:targetWhere``. Runs one batched nested
-        ``validate()`` call (candidates as ``sh:targetNode`` on ``where_shape``)
-        rather than one call per candidate. Excludes the triggering
-        ``(shape_node, sh:targetWhere, where_shape)`` triple from the copy
-        used for that nested call, or it would re-trigger this exact check on
-        itself forever.
+        ``where_shape``, for ``sh:targetWhere``.
+
+        Runs one batched nested ``validate()`` call (candidates as
+        ``sh:targetNode`` on ``where_shape``) rather than one call per
+        candidate. Excludes the triggering ``(shape_node, sh:targetWhere,
+        where_shape)`` triple from the copy used for that nested call, or
+        it would re-trigger this exact check on itself forever.
+
+        Args:
+            data_graph: The data graph candidates are drawn from.
+            shacl_graph: The shapes graph ``where_shape`` is defined in.
+            shape_node: The shape declaring ``sh:targetWhere where_shape``
+                - excluded from the nested validation copy so the check
+                doesn't recurse on itself.
+            where_shape: The shape every candidate must conform to.
+
+        Returns:
+            Every non-literal node in ``data_graph`` that conforms to
+            ``where_shape``.
         """
         candidates: set[Any] = set()
         for s, _, o in data_graph:
@@ -1241,6 +1379,18 @@ class StarShaclSchema:
         ``sh:Violation``, and conditionally ``sh:Warning``/``sh:Info``, ever
         are. Confirmed via the W3C SHACL 1.2 test suite's severity-004/
         severity-005 fixtures.
+
+        Args:
+            report_graph: The validation report graph to annotate in place.
+            options: The resolved validator options for this run - reads
+                ``allow_warnings``/``allow_infos``.
+            conforms: pySHACL's own computed conformance boolean, used as
+                the fallback return value when no report node is found.
+
+        Returns:
+            The recomputed ``sh:conforms`` value (also written back onto
+            ``report_graph``), or ``conforms`` unchanged if ``report_graph``
+            has no ``sh:ValidationReport`` node at all.
         """
         report_node = next((s for s, _, _ in report_graph.triples((None, RDF.type, SH.ValidationReport))), None)
         if report_node is None:
@@ -1299,6 +1449,19 @@ class StarShaclSchema:
         need"), so with nothing concrete to say about a given run, adding
         an empty blank node to *every* report by default would be pure
         noise - only add the marker when a caller actually asks for it.
+
+        Args:
+            report_graph: The validation report graph to annotate in place.
+            data_graph_iri: The data graph's own IRI/versioned-graph
+                ``Literal``, or ``None`` to omit ``sh:usedDataGraph``.
+            shapes_graph_iri: The shapes graph's own IRI/versioned-graph
+                ``Literal``, or ``None`` to omit ``sh:usedShapesGraph``.
+            include_used_configuration: Whether to add an (empty)
+                ``sh:usedConfiguration``/``sh:ProcessorConfiguration``
+                marker node.
+
+        Returns:
+            None - ``report_graph`` is mutated in place.
         """
         report_node = next((s for s, _, _ in report_graph.triples((None, RDF.type, SH.ValidationReport))), None)
         if report_node is None:
@@ -1329,6 +1492,15 @@ class StarShaclSchema:
         against the adapter's own encoding registry. Applied repeatedly so
         nested triple terms (whose components are themselves encoded URIs)
         resolve fully.
+
+        Args:
+            report_text: pySHACL's own rendered report text, possibly
+                containing encoded triple-term URIs.
+
+        Returns:
+            ``report_text`` with every encoded triple-term URI replaced by
+            its readable ``<<( s p o )>>`` form, or unchanged if
+            ``self.adapter``'s registry has no entries at all.
         """
         registry = self.adapter.export_registry()
         entries = registry.get("entries", [])
@@ -1517,13 +1689,33 @@ class StarShaclSchema:
         ``shacl_rules()`` entry point), not here; this method exists only
         to avoid repeating ``shacl_graph``/``ont_graph`` on every call.
 
-        ``data_graph`` is optional (2026-10-08), falling back to
-        ``self.data_graph`` - see ``__init__``'s own docstring.
-        ``inference`` is always ``self.inference`` now, bound only at
-        construction - passing ``inference=`` here raises ``TypeError``
-        (Python's own "multiple values for keyword argument" - it's
-        already supplied explicitly below). ``shapes_graph_resource=``
-        (2026-10-09) - see :meth:`_resolve_shacl_graph`."""
+        Args:
+            data_graph: The data graph to run rules against. Optional -
+                falls back to ``self.data_graph`` (see :meth:`__init__`)
+                if omitted; raises ``ValueError`` if neither is given.
+            include_source_rule_provenance: If ``True``, annotate each
+                rule-produced triple with ``sh:sourceRule`` provenance
+                pointing back at the rule that materialized it.
+            rule_set: Optional ``sh:RuleSet`` node (or iterable of them)
+                restricting which rule set(s) actually run, instead of
+                every rule declared in the shapes graph.
+            shapes_graph_resource: Selects a named ``sh:ShapesGraph``
+                module within the bound ``shacl_graph`` to run rules
+                against, or - if the bound ``shacl_graph`` doesn't
+                contain it as a module - is used purely as
+                report-provenance metadata. See
+                :meth:`_resolve_shacl_graph`.
+            **kwargs: Forwarded to the module-level :func:`apply_rules`.
+                ``inference`` may not be passed here - it is always
+                taken from ``self.inference``, bound at construction;
+                passing it raises ``TypeError`` (Python's own "multiple
+                values for keyword argument", since it is already
+                supplied explicitly below).
+
+        Returns:
+            The ``RulesResult`` produced by the module-level
+            :func:`apply_rules` call.
+        """
         data_graph = self._resolve_data_graph(data_graph)
         return apply_rules(
             data_graph,
@@ -1545,30 +1737,27 @@ class StarShaclSchema:
         (checks conformance, never mutates) and ``apply_rules()`` (executes
         ``sh:rule``, materializes real triples): compute every ``sh:values``-
         declared *virtual* property across ``shacl_graph``, for every focus
-        node it applies to, and return them merged into a shape-driven
-        *subgraph* (a plain graph object, 2026-10-08 - previously wrapped in
-        a now-removed ``EvaluationResult``, which had shrunk to just this one
-        field) - every property shape's real, stored ``sh:path`` values for
-        its own target focus nodes, plus the computed virtual values layered
-        on top - never the whole of ``data_graph`` (2026-10-07: previously a
-        full copy of it). The caller's own ``data_graph`` is never mutated,
-        and the returned graph is not meant to be persisted (the SHACL 1.2
-        Node Expressions spec's own framing for the virtual values
-        specifically: computed "only on demand", never creating real triples
-        in the data graph or shapes graph).
+        node it applies to, and return the result merged into a shape-driven
+        *subgraph* - every targeted property shape's own real, stored
+        ``sh:path`` values, plus any computed virtual values layered on top -
+        never the whole of ``data_graph``. The caller's own ``data_graph``
+        is never mutated, and the returned graph is not meant to be
+        persisted: SHACL 1.2 Node Expressions' own framing for virtual
+        values is that they are computed "only on demand", never creating
+        real triples in the data graph or shapes graph.
 
-        Confirmed live (2026-09-07) that this is a genuinely separate
-        concern from ``apply_rules()``, not an overlapping one: a
-        ``sh:values``-declared virtual property is invisible to ordinary
-        node-expression path resolution (``shnex:pathValues``/pySHACL's own
-        ``value_nodes_from_path``) the same way it's invisible to a plain
-        ``sh:path`` read - a ``sh:rule`` that tries to *read* a virtual
-        property this way finds nothing, and only ever produces a real
-        triple for that same computation if the rule *recomputes* it itself
-        via the identical node expression. ``sh:values`` is wired only into
-        ``Shape.value_nodes()`` (pySHACL's constraint-evaluation path,
-        patched by ``_patch_shape_value_nodes_for_sh_values``), never into
-        rule execution - so nothing here needs to coordinate with
+        This is a genuinely separate concern from ``apply_rules()``, not an
+        overlapping one: a ``sh:values``-declared virtual property is
+        invisible to ordinary node-expression path resolution
+        (``shnex:pathValues``/pySHACL's own ``value_nodes_from_path``) the
+        same way it's invisible to a plain ``sh:path`` read - a ``sh:rule``
+        that tries to *read* a virtual property this way finds nothing, and
+        only ever produces a real triple for that same computation if the
+        rule *recomputes* it itself via the identical node expression.
+        ``sh:values`` is wired only into ``Shape.value_nodes()`` (pySHACL's
+        constraint-evaluation path, patched by
+        ``_patch_shape_value_nodes_for_sh_values``), never into rule
+        execution - so nothing here needs to coordinate with
         ``apply_rules()`` at all, or worry about double-materializing
         anything it already produces.
 
@@ -1585,32 +1774,39 @@ class StarShaclSchema:
         computed values are both unconditionally *added* to the same set
         (only ``sh:defaultValue`` is conditional, on the set still being
         empty) - see ``_patch_shape_value_nodes_for_sh_values``'s own
-        docstring for the exact quoted algorithm and the same correction
-        applied there. A first version of this method removed the stored
-        value before adding the computed one, based on an incorrect
-        assumption checked only against this project's own prior
-        (also-wrong) behavior, not the actual spec text - caught by a
-        direct user question ("is the draft standard clean on what should
-        happen?").
+        docstring for the exact quoted algorithm. Every property shape with
+        a real ``sh:path`` is visited for this, not only ones that also
+        happen to declare ``sh:values``.
 
-        **Entailment (2026-10-07), matching the bare ``evaluate()``
-        function** - see its own docstring for the full reasoning
-        (confirmed via direct user decision: entailment feeds the whole
-        computation uniformly here, unlike ``apply_rules()``'s own
-        exclusion of entailed triples from its returned "inference
-        graph").
+        **Entailment feeds the whole computation uniformly here** - unlike
+        ``apply_rules()``, where entailment is a pure computational device
+        that is never persisted into its returned inference graph, this
+        method deliberately treats entailed triples as ordinary stored
+        values: SHACL Core's own value-nodes algorithm makes no distinction
+        between asserted and entailed triples, so neither does this method.
 
-        ``self.shacl_graph is None`` (2026-10-08, this schema was
-        constructed with no shapes graph of its own) falls back to
-        ``data_graph`` itself as the source of ``sh:values`` declarations
-        - matching ``validate()``'s own "data graph doubles as shapes
-        graph" allowance.
+        ``self.shacl_graph is None`` (this schema was constructed with no
+        shapes graph of its own) falls back to ``data_graph`` itself as the
+        source of ``sh:values`` declarations - matching ``validate()``'s
+        own "data graph doubles as shapes graph" allowance.
 
-        ``data_graph`` is optional (2026-10-08), falling back to
-        ``self.data_graph``; ``inference`` is no longer a parameter here
-        at all - always ``self.inference``, bound only at construction.
-        ``shapes_graph_resource=`` (2026-10-09) - see
-        :meth:`_resolve_shacl_graph`."""
+        Args:
+            data_graph: The data graph to compute virtual values over.
+                Optional - falls back to ``self.data_graph`` if omitted.
+            shapes_graph_resource: Selects a named ``sh:ShapesGraph``
+                module within the bound ``shacl_graph`` to read
+                ``sh:values``/``sh:defaultValue`` declarations from, or is
+                a no-op if the bound ``shacl_graph`` doesn't contain it as
+                a module. See :meth:`_resolve_shacl_graph`. ``inference``
+                is not a parameter here - it is always taken from
+                ``self.inference``, bound at construction.
+
+        Returns:
+            A plain graph: the real, stored values of every property shape
+            with a simple ``sh:path``, for its own target focus nodes, with
+            any ``sh:values``/``sh:defaultValue``-computed values unioned
+            in.
+        """
         data_graph = self._resolve_data_graph(data_graph)
         shacl_graph_input = self._resolve_shacl_graph(shapes_graph_resource)
         data_graph, shacl_graph, ont_graph = normalize_graph_inputs(
@@ -1707,10 +1903,7 @@ class StarShaclSchema:
         shape, extract exactly the subgraph of real, stored triples that
         shape's constraints covered for that node - e.g. so it can be hashed
         (see ``starlayer.graph.rdfc``) independently of unrelated data
-        elsewhere on the same node. Returns the extracted subgraph itself (a
-        plain graph object), or ``None`` (2026-10-08 - previously wrapped in
-        a now-removed ``SubgraphExtractionResult``, which had shrunk to this
-        exact graph-or-``None`` shape with nothing else attached).
+        elsewhere on the same node.
 
         Assumes ``focus_node`` already conforms to ``shape`` as a
         precondition the caller has checked - if it doesn't, the return
@@ -1719,31 +1912,35 @@ class StarShaclSchema:
 
         Full design (multi-hop paths, nested shapes, logical constraints,
         determinism for ambiguous "at least one" requirements, real-triples-
-        only, and entailment via ``sh:entailment``/``inference=``)
-        documented in ``starlayer.shacl/subgraph_extraction.py``, agreed
-        with the user across several turns before implementation.
+        only, and entailment via ``sh:entailment``/``self.inference``)
+        documented in ``starlayer.shacl/subgraph_extraction.py``.
 
-        2026-10-07: this instance's own bound ``ont_graph`` is now actually
-        threaded through to ``extract_subgraph()`` - a real, pre-existing
-        bug (not a new gap introduced alongside ``inference=``): this
-        method previously always passed ``None`` regardless of what
-        ``self.ont_graph`` held, silently discarding it. Found while adding
-        entailment support, which needed ``ont_graph`` to be real to be
-        useful at all here.
+        This instance's own bound ``ont_graph`` is threaded through to the
+        underlying extraction, so entailment can see ontology-only axioms
+        (like ``rdfs:domain``) that aren't asserted in ``data_graph``
+        itself.
 
-        ``self.shacl_graph is None`` (2026-10-08, this schema was
-        constructed with no shapes graph of its own) falls back to
-        ``data_graph`` itself - matching ``validate()``'s own "data graph
-        doubles as shapes graph" allowance.
+        ``self.shacl_graph is None`` (this schema was constructed with no
+        shapes graph of its own) falls back to ``data_graph`` itself -
+        matching ``validate()``'s own "data graph doubles as shapes graph"
+        allowance.
 
-        ``data_graph`` is optional (2026-10-08), falling back to
-        ``self.data_graph``. ``shape``/``focus_node`` moved to keyword-only
-        at the same time, since a required parameter can't follow one with
-        a default - every existing caller already passed them by keyword
-        anyway. ``inference`` is no longer a parameter here at all -
-        always ``self.inference``, bound only at construction.
-        ``shapes_graph_resource=`` (2026-10-09) - see
-        :meth:`_resolve_shacl_graph`.
+        Args:
+            data_graph: The data graph ``focus_node`` belongs to. Optional
+                - falls back to ``self.data_graph`` if omitted.
+            shape: The shape node (already present in the resolved shapes
+                graph) that ``focus_node`` is assumed to conform to.
+            focus_node: The node to extract the covered subgraph for.
+            shapes_graph_resource: Selects a named ``sh:ShapesGraph``
+                module within the bound ``shacl_graph`` to extract against,
+                or is a no-op if the bound ``shacl_graph`` doesn't contain
+                it as a module. See :meth:`_resolve_shacl_graph`.
+                ``inference`` is not a parameter here - it is always taken
+                from ``self.inference``, bound at construction.
+
+        Returns:
+            The extracted subgraph (a plain graph object), or ``None`` if
+            ``focus_node`` doesn't actually conform to ``shape``.
         """
         from starlayer.shacl.subgraph_extraction import (
             extract_subgraph as _extract_subgraph,
@@ -1774,8 +1971,21 @@ class StarShaclSchema:
         Unlike ``validate()``/``apply_rules()``/``evaluate()``/
         ``extract_subgraph()``, this doesn't take a ``data_graph`` at all -
         it operates purely on the bound ``shacl_graph`` itself.
-        ``shapes_graph_resource=`` (2026-10-09) scopes this to just one named
-        module instead - see :meth:`_resolve_shacl_graph`."""
+
+        Args:
+            shape: The shape node to close, already present in the bound
+                ``shacl_graph``.
+            shapes_graph_resource: Selects a named ``sh:ShapesGraph``
+                module within the bound ``shacl_graph`` to close against,
+                instead of the whole bound graph. See
+                :meth:`_resolve_shacl_graph`.
+
+        Returns:
+            A closed copy of the relevant ``shacl_graph`` (or module).
+
+        Raises:
+            ValueError: If no shapes graph is bound at construction.
+        """
         from starlayer.shacl.subgraph_extraction import _close_shape
 
         shacl_graph_input = self._resolve_shacl_graph(shapes_graph_resource)
@@ -1790,8 +2000,7 @@ class StarShaclSchema:
         of SHACL 1.2 Profiling §2's packaging convention: rather than
         reading a single shapes graph's own self-declared metadata, this
         pulls one *named* module back out of a larger graph that bundles
-        several ``sh:ShapesGraph`` modules together side by side (the
-        scenario this guide's own Section 1 demonstrates).
+        several ``sh:ShapesGraph`` modules together side by side.
 
         A shape counts as a member of ``shapes_graph_iri``'s module via
         any of the three mechanisms SHACL 1.2 Profiling §2 documents,
@@ -1812,12 +2021,12 @@ class StarShaclSchema:
           parameter at all.
 
           **Unlike the dangling-member case below, an unresolvable
-          ``owl:imports`` target raises ``ValueError`` (2026-10-09) rather
-          than being silently skipped** - whether the imported IRI has no
-          triples describing it in ``shacl_graph`` at all, or is present
-          but simply isn't itself typed ``a sh:ShapesGraph``. A shapes
-          graph that declares ``owl:imports`` on a ``sh:ShapesGraph`` node
-          is asserting a real dependency on another packaging module, not
+          ``owl:imports`` target raises ``ValueError`` rather than being
+          silently skipped** - whether the imported IRI has no triples
+          describing it in ``shacl_graph`` at all, or is present but
+          simply isn't itself typed ``a sh:ShapesGraph``. A shapes graph
+          that declares ``owl:imports`` on a ``sh:ShapesGraph`` node is
+          asserting a real dependency on another packaging module, not
           offering optional metadata - call ``resolve_imports(loader=...)``
           on ``shacl_graph`` first if the target genuinely needs fetching
           from elsewhere before extracting.
@@ -1842,9 +2051,8 @@ class StarShaclSchema:
         completeness rule here at all (§2.7, "Calculating Dependencies,"
         is a literal ``TODO`` in the published Working Draft; §2.3-2.5's
         ``rdfs:member``/``rdfs:isDefinedBy`` language is flat and
-        non-transitive, confirmed directly against the spec text, not
-        assumed), so there's no spec basis for choosing a closure over
-        this narrower scope. A member shape's own named structural
+        non-transitive), so there's no spec basis for choosing a closure
+        over this narrower scope. A member shape's own named structural
         reference is deliberately left dangling if its target isn't
         *itself* a direct member too - this lets a caller extract one
         shape, then inject their own (possibly different) definition for
@@ -1856,10 +2064,23 @@ class StarShaclSchema:
         injecting one themselves after extraction) - this method won't
         infer it on their behalf.
 
-        Returns ``None`` if ``shapes_graph_iri`` isn't actually typed
-        ``a sh:ShapesGraph`` in ``shacl_graph`` at all - not every graph
-        bothers with this optional packaging metadata, and a typo'd IRI
-        shouldn't silently return an empty-but-valid-looking graph."""
+        Args:
+            shapes_graph_iri: The IRI of the ``sh:ShapesGraph``-typed
+                resource to extract.
+
+        Returns:
+            A standalone graph containing just that resource's module, or
+            ``None`` if ``shapes_graph_iri`` isn't actually typed
+            ``a sh:ShapesGraph`` in ``shacl_graph`` at all - not every
+            graph bothers with this optional packaging metadata, and a
+            typo'd IRI shouldn't silently return an
+            empty-but-valid-looking graph.
+
+        Raises:
+            ValueError: If no shapes graph is bound at construction, or if
+                an ``owl:imports`` target among ``sh:ShapesGraph`` nodes
+                can't be resolved locally (see above).
+        """
         if self.shacl_graph is None:
             raise ValueError(
                 "extract_shapes_graph() needs a bound shapes graph - construct with "
@@ -1910,13 +2131,25 @@ def _augment_shapes_with_new_target_types(data_graph: Any, shacl_graph: Any) -> 
     into a copy of ``shacl_graph``, so pySHACL's existing ``sh:targetNode``
     support picks them up (returns ``shacl_graph`` unchanged if none apply).
 
-    2026-10-07: moved here from ``StarShaclSchema._augment_shapes_with_new_target_types``
-    verbatim (AST-confirmed zero other ``self.`` dependency beyond the one
-    nested ``_nodes_conforming_to`` call, now a plain module-level call) -
-    see ``starlayer/shacl/CLAUDE.md``'s dated entry for the full account of
-    this move. The class method itself is untouched - this is step 1 of a
-    two-step flip; step 2 (making the method delegate here) is separate,
-    deliberately not done yet.
+    Handles four distinct target mechanisms, each contributing its own
+    ``(shape_node, sh:targetNode, node)`` triples: a ``sh:targetNode``
+    value carrying ``sh:select`` (a SPARQL-computed node set, with the
+    original blank-node triple removed, since a bare ``sh:select``-bearing
+    blank node is never itself a real target); a ``sh:targetNode`` value
+    that is a ``shnex:``/``sparql:`` node expression (evaluated via a
+    throwaway, harvested ``pyshacl.ShapesGraph`` so ``shnex:filterShape``/
+    ``nodesMatching``/etc. can check shape conformance - detection gates
+    on a real ``shnex:``/``sparql:`` defining predicate, not "any blank
+    node without ``sh:select``", to avoid colliding with pySHACL's own
+    legacy ``sh:path``-bearing-blank-node fallback, confirmed against the
+    W3C ``targetWhere-001`` fixture); data-graph ``sh:shape`` triples; and
+    implicit class targets (a shape itself typed ``sh:NodeShape``/
+    ``rdfs:Class``/``sh:ShapeClass`` targets its own data-graph instances,
+    including instances of ``rdfs:subClassOf`` descendants - also adding
+    ``sh:NodeShape`` typing when the shape carries ``sh:rule``, since
+    pySHACL's own rule loader requires that typing to recognize the
+    subject as a shape at all) and ``sh:targetWhere`` (delegates to
+    ``_nodes_conforming_to``).
     """
     if shacl_graph is None:
         return shacl_graph
@@ -2062,8 +2295,7 @@ def _strip_deactivated_node_expressions(shacl_graph: Any) -> tuple[Any, dict[Any
     to evaluate per focus node.
 
     Returns ``(shacl_graph, {})`` unchanged if no such expression is
-    present. 2026-10-07: moved here verbatim from the identically-named
-    ``StarShaclSchema`` method (AST-confirmed zero ``self.`` dependency).
+    present.
     """
     if shacl_graph is None:
         return shacl_graph, {}
@@ -2099,9 +2331,7 @@ def _ensure_native_component_shapes_typed(shacl_graph: Any) -> Any:
     (see ``starlayer.shacl.native_components.SHAPE_EXPECTING_PREDICATES``) as
     ``sh:NodeShape``/``sh:PropertyShape`` in a copy of ``shacl_graph``,
     so pySHACL's shape-graph loader recognizes them (returns
-    ``shacl_graph`` unchanged if none apply). 2026-10-07: moved here
-    verbatim from the identically-named ``StarShaclSchema`` method
-    (AST-confirmed zero ``self.`` dependency).
+    ``shacl_graph`` unchanged if none apply).
     """
     if shacl_graph is None:
         return shacl_graph
@@ -2139,13 +2369,18 @@ def _nodes_conforming_to(
     used for that nested call, or it would re-trigger this exact check on
     itself forever.
 
-    2026-10-07: moved here from the identically-named ``StarShaclSchema``
-    method - that method already built its own throwaway
-    ``StarShaclSchema(shacl_graph=augmented)`` rather than reusing
-    ``self`` (AST-confirmed zero ``self.`` dependency), so this version
-    just calls the module-level ``validate()`` function directly instead
-    of constructing a class instance at all - simpler, not a new
-    abstraction.
+    Args:
+        data_graph: The data graph to scan for non-literal candidate
+            nodes (every subject/object that is a ``URIRef`` or ``BNode``).
+        shacl_graph: The shapes graph ``where_shape`` is defined in.
+        shape_node: The shape declaring ``sh:targetWhere where_shape``.
+        where_shape: The shape every returned node must conform to.
+
+    Returns:
+        The candidate nodes that conform to ``where_shape``, found via
+        the genuine top-level ``sh:result``/``sh:focusNode`` entries of
+        the nested validation report (not any incidental ``sh:focusNode``
+        triple that happens to appear elsewhere in the decoded report).
     """
     candidates: set[Any] = set()
     for s, _, o in data_graph:
@@ -2191,14 +2426,21 @@ def _try_native_literal_only_validation(
     shacl_graph: Any | None,
     decode_report: bool,
 ) -> ValidationResult | None:
-    """2026-10-07: moved here from the identically-named ``StarShaclSchema``
-    method. ``self.target_nodes``/``self.evaluate_component``/
-    ``self.build_report`` each had zero real ``self`` dependency of their
-    own beyond ``self.shacl_graph`` (confirmed via AST + reading
-    ``target_nodes()``/``evaluate_component()``/``build_report()``'s own
-    bodies - the latter two are themselves already pure delegates to
-    ``native_evaluate_component``/``native_build_report``), so this calls
-    those free functions directly instead.
+    """Attempt a fast, native-only validation path that bypasses pySHACL
+    entirely, for the narrow case where ``shacl_graph`` consists only of
+    node shapes whose property shapes each declare exactly one
+    literal-only component (``sh:pattern``/``sh:datatype``/
+    ``sh:languageIn``/``sh:minLength``/``sh:maxLength`` - see
+    ``_LITERAL_ONLY_COMPONENTS``) and carry only ``Literal`` values.
+
+    Returns ``None`` (meaning: fall back to full pySHACL validation)
+    whenever ``shacl_graph`` is ``None``, there are no node shapes, any
+    node shape has ``sh:rule``/no ``sh:property``, any property shape has
+    no ``sh:path``/has ``sh:or``/declares zero or more than one
+    literal-only component, or any focus node's values for a property's
+    path include a non-``Literal`` term. Otherwise evaluates every
+    literal-only component via ``native_evaluate_component`` and returns
+    a ``ValidationResult`` built from the resulting violation events.
     """
     if shacl_graph is None:
         return None
@@ -2277,14 +2519,29 @@ def _try_native_literal_only_validation(
 
 
 def _annotate_conformance_disallows(report_graph: Any, options: dict[str, Any], conforms: bool) -> bool:
-    """Add ``sh:conformanceDisallows`` to the report per the SHACL 1.2
-    Core spec: the set of severities whose presence makes ``sh:conforms``
-    false. Also recomputes ``sh:conforms`` itself (returned, and fixed up
-    in ``report_graph`` to match) rather than trusting pySHACL's own
-    boolean as-is - see the identically-named ``StarShaclSchema`` method's
-    own (now slightly stale, pointing here) docstring for the full
-    SHACL 1.2 Debug/Trace severity reasoning. 2026-10-07: moved here
-    verbatim (AST-confirmed zero ``self.`` dependency).
+    """Add ``sh:conformanceDisallows`` to the report per SHACL 1.2 Core:
+    the set of severities whose presence makes ``sh:conforms`` false.
+    ``sh:Violation`` is always disallowed; ``sh:Warning``/``sh:Info`` are
+    disallowed unless ``options['allow_warnings']``/``['allow_infos']``
+    is set, letting a caller opt into treating warning/info-level results
+    as non-blocking.
+
+    Also recomputes ``sh:conforms`` itself from the report's actual
+    result severities (rewriting the triple in ``report_graph`` to
+    match) rather than trusting pySHACL's own boolean as-is, since
+    pySHACL's default notion of conformance only ever considers
+    ``sh:Violation``.
+
+    Args:
+        report_graph: The decoded validation report graph to annotate
+            in place.
+        options: The resolved validation options; reads
+            ``allow_warnings``/``allow_infos``.
+        conforms: pySHACL's own conformance boolean, returned unchanged
+            if no ``sh:ValidationReport`` node is found.
+
+    Returns:
+        The recomputed conformance boolean.
     """
     report_node = next((s for s, _, _ in report_graph.triples((None, RDF.type, SH.ValidationReport))), None)
     if report_node is None:
@@ -2317,26 +2574,23 @@ def _merge_derived_conforms_to(
     specification_graph: Any | None = None,
 ) -> None:
     """Automatically derive and merge SHACL 1.2 Profiling S5.5's
-    ``sh:conformsTo`` triple into ``report_graph`` (2026-10-09), whenever
-    both ``data_graph_iri=`` and ``shapes_graph_iri=`` were given to
-    ``validate()`` - the one case where both of ``derive_conforms_to()``'s
-    own required graph identities are already unambiguously known, so
-    there's nothing left for a caller to supply via a separate call.
+    ``sh:conformsTo``/``dcterms:conformsTo`` triples into ``report_graph``,
+    whenever both ``data_graph_iri=`` and ``shapes_graph_iri=`` are
+    already resolved - the one case where both of
+    ``derive_conforms_to()``'s own required graph identities are
+    unambiguously known, so there's nothing left for a caller to supply
+    via a separate call. Never guesses either identity itself.
+
     Called unconditionally (not gated on ``conforms``) - a non-conforming
     report simply derives nothing, matching the rule's own ``sh:conforms
     true`` requirement; ``derive_conforms_to()`` already self-limits
     correctly on its own, no extra check needed here.
 
-    ``specification_graph`` (2026-10-10): when also given, forwarded
-    straight through to ``derive_conforms_to()`` so S5.5's *second* rule
-    fires too in the same pass - ``dcterms:conformsTo`` the specification
-    the shapes graph itself is a ``prof:isProfileOf``, not just
-    ``sh:conformsTo`` the shapes graph. Same "nothing left for the caller
-    to supply separately" reasoning as the first rule: once a caller has
-    a ready-made profile declaration (e.g.
-    ``starontology.get_profile_graph(name)``), there's no reason to make
-    them call ``derive_conforms_to()`` by hand just to get the second
-    triple too.
+    ``specification_graph``, when also given, is forwarded straight
+    through to ``derive_conforms_to()`` so S5.5's *second* rule fires too
+    in the same pass - ``dcterms:conformsTo`` the specification the
+    shapes graph itself is a ``prof:isProfileOf``, not just
+    ``sh:conformsTo`` the shapes graph.
 
     Relies on ``_annotate_used_graphs_and_configuration`` having already
     run first (same caller, immediately before this) - that call already
@@ -2392,8 +2646,7 @@ def _rebuild_report_namespaces(
     ``dcat``/.../``ex``/...), none of which starlayer.shacl ever asked
     for. ``ex`` resolving to ``http://example.org/`` in particular is
     pure accident of that table, not anything this project deliberately
-    chose - confirmed live (a fresh plain ``Graph()`` already has it,
-    with zero pySHACL/starlayer involvement).
+    chose.
 
     Rebuilt from a fresh ``bind_namespaces="core"`` base (``rdf``/``rdfs``/
     ``owl``/``xsd``/``xml`` only - note ``sh`` is *not* in rdflib's own
@@ -2438,6 +2691,14 @@ def _relabel_validation_report_node(report_graph: Any) -> None:
     ``Graph.skolemize()``/``.de_skolemize()`` first if that's ever a real
     need. A single report consumed on its own - the normal case here - is
     unaffected.
+
+    Args:
+        report_graph: The decoded validation report graph, relabeled in
+            place. No-op if no ``sh:ValidationReport`` node is found, or
+            if it's already a ``URIRef`` rather than a ``BNode``.
+
+    Returns:
+        None - mutates ``report_graph`` in place.
     """
     report_node = next((s for s, _, _ in report_graph.triples((None, RDF.type, SH.ValidationReport))), None)
     if report_node is None or not isinstance(report_node, BNode):
@@ -2481,6 +2742,20 @@ def _append_provenance_to_report_text(report_text: str, report_graph: Any, data_
     as one real subject-predicate-object sentence per triple found (e.g.
     ``ex:data1 sh:conformsTo ex:AliceShapesGraph .``), falling back to the
     same "Not specified" label only when there's nothing to report.
+
+    Args:
+        report_text: pySHACL's own rendered report string to append to.
+        report_graph: The decoded report graph to read provenance
+            triples from (``sh:usedDataGraph``/``sh:usedShapesGraph``/
+            ``sh:conformsTo``/``dcterms:conformsTo``).
+        data_graph_iri: The data graph's resolved identity, used to look
+            up ``sh:conformsTo``/``dcterms:conformsTo`` triples on it;
+            if ``None``, those lines fall back to "Not specified".
+
+    Returns:
+        ``report_text`` unchanged if no ``sh:ValidationReport`` node is
+        found in ``report_graph``, otherwise ``report_text`` with the
+        provenance appendix appended.
     """
     report_node = next((s for s, _, _ in report_graph.triples((None, RDF.type, SH.ValidationReport))), None)
     if report_node is None:
@@ -2530,10 +2805,30 @@ def _annotate_used_graphs_and_configuration(
     include_used_configuration: bool,
 ) -> None:
     """Add ``sh:usedDataGraph``/``sh:usedShapesGraph``/``sh:usedConfiguration``
-    to the report per SHACL 1.2 Core section 6.7.1.5-6.7.1.8 - see the
-    identically-named ``StarShaclSchema`` method's own docstring for the
-    full spec citation. 2026-10-07: moved here verbatim (AST-confirmed
-    zero ``self.`` dependency).
+    to the report's ``sh:ValidationReport`` node, per SHACL 1.2 Core
+    section 6.7.1.5-6.7.1.8 - no-op if that node isn't found.
+
+    ``sh:usedDataGraph``/``sh:usedShapesGraph`` are added only when their
+    respective IRI argument is not ``None``, coerced to a ``URIRef``
+    unless already a ``URIRef``/``Literal`` (SHACL 1.2 Core allows a
+    versioned graph identity to be given as a literal). When
+    ``include_used_configuration`` is true, a fresh blank node typed
+    ``sh:ProcessorConfiguration`` is created and linked via
+    ``sh:usedConfiguration`` - this project never records any real
+    configuration options on it, just the bare required triple.
+
+    Args:
+        report_graph: The decoded validation report graph to annotate
+            in place.
+        data_graph_iri: The data graph's resolved identity, or ``None``
+            to omit ``sh:usedDataGraph``.
+        shapes_graph_iri: The shapes graph's resolved identity, or
+            ``None`` to omit ``sh:usedShapesGraph``.
+        include_used_configuration: Whether to add the bare
+            ``sh:usedConfiguration`` triple.
+
+    Returns:
+        None - mutates ``report_graph`` in place.
     """
     report_node = next((s for s, _, _ in report_graph.triples((None, RDF.type, SH.ValidationReport))), None)
     if report_node is None:
@@ -2559,9 +2854,19 @@ def _humanize_report_text(report_text: str, adapter: TripleTermAdapter) -> str:
     """Replace encoded triple-term URIs embedded in pySHACL's report text
     with a readable ``<<( s p o )>>`` rendering - string substitution
     against ``adapter``'s own encoding registry, applied repeatedly so
-    nested triple terms resolve fully. 2026-10-07: moved here from the
-    identically-named ``StarShaclSchema`` method, with ``adapter`` now an
-    explicit parameter (its one real ``self.`` dependency, AST-confirmed).
+    nested triple terms resolve fully (a triple term nested inside
+    another only becomes substitutable once its own containing term has
+    already been rewritten).
+
+    Args:
+        report_text: pySHACL's own rendered report string, containing
+            zero or more encoded ``tt:HASH`` URIs in angle brackets.
+        adapter: The ``TripleTermAdapter`` whose registry maps each
+            encoded URI back to its ``(s, p, o)`` components.
+
+    Returns:
+        ``report_text`` unchanged if the adapter's registry is empty,
+        otherwise with every encoded triple-term URI replaced.
     """
     registry = adapter.export_registry()
     entries = registry.get("entries", [])
@@ -2590,10 +2895,22 @@ def _try_native_core_validation(
     shacl_graph: Any | None,
     decode_report: bool,
 ) -> ValidationResult | None:
-    """2026-10-07: moved here verbatim from the identically-named
-    ``StarShaclSchema`` method (its only ``self.`` dependency was calling
-    the two ``_try_native_*_validation`` helpers, now plain module-level
-    calls)."""
+    """Try the native literal-only fast path first, then the native
+    structural-property fast path, returning whichever succeeds.
+
+    Args:
+        data_graph: The data graph to validate.
+        shacl_graph: The shapes graph to validate against, or ``None``
+            (both fast paths then return ``None`` immediately).
+        decode_report: Forwarded to each fast path, controlling whether
+            its (currently unused either way) report-decoding context is
+            built.
+
+    Returns:
+        The first non-``None`` ``ValidationResult`` from either fast
+        path, or ``None`` if neither applies - meaning the caller should
+        fall back to full pySHACL validation.
+    """
     literal_only = _try_native_literal_only_validation(
         data_graph=data_graph,
         shacl_graph=shacl_graph,
@@ -2614,8 +2931,19 @@ def _try_native_core_validation(
 
 
 def _resolve_literal_only_component_name(shapes: Any, prop: Any) -> str | None:
-    """2026-10-07: moved here verbatim from the identically-named
-    ``StarShaclSchema`` method (AST-confirmed zero ``self.`` dependency)."""
+    """Return the single literal-only SHACL component name (from
+    ``_LITERAL_ONLY_COMPONENTS`` - ``pattern``/``datatype``/
+    ``languageIn``/``minLength``/``maxLength``) declared on property
+    shape ``prop``, or ``None`` if zero or more than one of them is
+    present.
+
+    Args:
+        shapes: The shapes graph ``prop`` is defined in.
+        prop: The property shape to inspect.
+
+    Returns:
+        The one present component's name, or ``None``.
+    """
     present: list[str] = []
     for name in _LITERAL_ONLY_COMPONENTS:
         predicate = SH[name]
@@ -2633,10 +2961,23 @@ def _try_native_structural_property_validation(
     shacl_graph: Any | None,
     decode_report: bool,
 ) -> ValidationResult | None:
-    """2026-10-07: moved here from the identically-named ``StarShaclSchema``
-    method - same ``target_nodes``/``evaluate_component``/``build_report``
-    free-function substitution as ``_try_native_literal_only_validation``
-    above (see that function's own docstring)."""
+    """Attempt a fast, native-only validation path for the structural
+    counterpart of ``_try_native_literal_only_validation``: node shapes
+    whose property shapes each declare exactly one structural component
+    (``sh:hasValue``/``sh:in``/``sh:equals``/``sh:disjoint`` - see
+    ``_resolve_structural_component_definition``), where ``equals``/
+    ``disjoint`` compare against another property path's own values
+    rather than requiring literal-only values.
+
+    Returns ``None`` (meaning: fall back to full pySHACL validation)
+    whenever ``shacl_graph`` is ``None``, there are no node shapes, any
+    node shape has ``sh:rule``/no ``sh:property``, or any property shape
+    has no ``sh:path``/doesn't resolve to exactly one well-formed
+    structural component definition. Otherwise evaluates every component
+    via ``native_evaluate_component`` (threading in the other path's
+    values for ``equals``/``disjoint``) and returns a ``ValidationResult``
+    built from the resulting violation events.
+    """
     if shacl_graph is None:
         return None
 
@@ -2718,8 +3059,28 @@ def _try_native_structural_property_validation(
 
 
 def _resolve_structural_component_definition(shapes: Any, prop: Any) -> tuple[str, dict[str, Any]] | None:
-    """2026-10-07: moved here verbatim from the identically-named
-    ``StarShaclSchema`` method (AST-confirmed zero ``self.`` dependency)."""
+    """Resolve property shape ``prop``'s single structural SHACL
+    component - ``sh:hasValue``, ``sh:in``, ``sh:equals``, or
+    ``sh:disjoint`` - into a ``(component_name, component_args)`` pair
+    ready for ``native_evaluate_component``, or ``None`` if zero or more
+    than one of the four is declared, or if the one declared value isn't
+    itself well-formed for that component.
+
+    ``hasValue``/``equals``/``disjoint`` each require exactly one object
+    value; ``in`` requires exactly one ``rdf:List``-valued object,
+    expanded into a tuple of allowed values via ``Collection`` (``None``
+    if it doesn't parse as a well-formed list). ``equals``/``disjoint``
+    return ``other_path`` (the path whose own values the caller compares
+    against) rather than a literal value.
+
+    Args:
+        shapes: The shapes graph ``prop`` is defined in.
+        prop: The property shape to inspect.
+
+    Returns:
+        ``(component_name, component_args)``, or ``None`` if ``prop``
+        doesn't declare exactly one well-formed structural component.
+    """
     has_values = tuple(o for _, _, o in shapes.triples((prop, SH.hasValue, None)))
     in_values = tuple(o for _, _, o in shapes.triples((prop, SH["in"], None)))
     equals_values = tuple(o for _, _, o in shapes.triples((prop, SH.equals, None)))
@@ -2772,25 +3133,94 @@ def validate(
     include_used_configuration: bool = False,
     **kwargs: Any,
 ) -> ValidationResult:
-    """The real SHACL Core validation implementation (2026-10-07: moved
-    here from ``StarShaclSchema.validate()`` - that method's own body,
-    almost verbatim, with ``self.adapter``/``self.validate_fn``/
-    ``self.shacl_graph``/``self.ont_graph`` now explicit parameters -
-    see ``starlayer/shacl/CLAUDE.md``'s dated entry for the full account).
-    ``StarShaclSchema.validate()`` itself is untouched for now - this is
-    step 1 of a two-step flip; step 2 (making the method delegate here,
-    matching ``apply_rules()``'s own already-completed flip) is a
-    separate, later step, not done yet.
+    """Validate ``data_graph`` against ``shacl_graph`` (SHACL 1.2 Core),
+    after applying every SHACL 1.2 pattern this project supports
+    natively (entailment, new target types, node expressions, native
+    component registration, etc.). ``StarShaclSchema.validate()`` keeps
+    its own, separate copy of this body for now (see this module's
+    "two-step flip" note), rather than delegating here.
 
-    ``adapter``/``validate_fn`` default exactly as ``StarShaclSchema.__init__``
-    already does (``adapter or TripleTermAdapter()``, ``validate_fn or
-    _default_validate``) - both already had zero real external callers as
-    constructor overrides (confirmed earlier this session), so defaulting
-    them the same way here changes nothing observable for any real caller.
+    Args:
+        data_graph: The RDF data to validate. Normalized via
+            ``normalize_graph_inputs`` (any rdflib-compatible graph
+            becomes a ``StarLayerGraph``).
+        shacl_graph: The shapes graph. ``None`` lets pySHACL look for
+            shapes embedded directly in ``data_graph`` itself
+            (pySHACL's own "data graph doubles as shapes graph"
+            allowance).
+        ont_graph: An optional ontology graph. Its own axioms (e.g.
+            ``rdfs:domain``/``range``) are visible to entailment and to
+            pySHACL's own validation run, but its triples are never
+            copied into ``data_graph``, and it is never mutated.
+        adapter: The ``TripleTermAdapter`` used to encode RDF-1.2
+            triple terms into the plain RDF-1.1 form pySHACL
+            understands, and decode its report/data back afterward.
+            Defaults to a fresh ``TripleTermAdapter()``.
+        validate_fn: The callable actually invoked to perform
+            validation, taking ``data_graph=``/``shacl_graph=``/
+            ``ont_graph=`` (already encoded) plus every resolved
+            option as keyword arguments, and returning ``(conforms,
+            report_graph, report_text)``. Defaults to
+            ``_default_validate`` (a thin wrapper around
+            ``pyshacl.validate``).
+        mode: Selects a named preset bundle of pySHACL options (e.g.
+            ``"validation"``/``"rules"``/``"debug"``) via
+            ``resolve_mode_options()``; any of its options can be
+            overridden per call via ``**kwargs``.
+        decode_report: Whether to decode ``report_graph``'s
+            triple-term encoding back into real RDF-1.2 triple terms,
+            and humanize ``report_text`` to match, before returning.
+            ``False`` returns both in their raw, pySHACL-native encoded
+            form.
+        rdfs_subclass_reasoning_includes_shapes_graph: When ``True``,
+            ``sh:rootClass``'s ``rdfs:subClassOf`` lookups also consult
+            ``shacl_graph``'s own subclass triples (injected into a
+            copy of ``data_graph`` for the duration of the call), not
+            just ``data_graph``'s.
+        shapes_graph_loader: A loader resolving ``shacl_graph``'s
+            declared ``owl:imports`` (via
+            ``StarLayerGraph.resolve_imports()``). When given, imports
+            are resolved before validation; when omitted, any import
+            that isn't already locally satisfied raises ``ValueError``
+            unless ``ignore_imports=True``.
+        ignore_imports: Suppresses the "unresolved ``owl:imports``"
+            error above when no ``shapes_graph_loader`` is given - for
+            a ``shacl_graph`` whose imports were already resolved by
+            the caller beforehand (or are deliberately being left
+            unresolved).
+        meta_shapes_extra: Extra graphs passed through to
+            ``starlayer.shacl.meta_shapes.meta_validate()`` when the
+            resolved options enable ``meta_shacl``.
+        data_graph_iri: Recorded on the report as ``sh:usedDataGraph``.
+            Falls back to ``data_graph.identifier`` when that's a real
+            ``URIRef`` (not an anonymous ``BNode``) and no explicit
+            value was given.
+        shapes_graph_iri: Recorded on the report as
+            ``sh:usedShapesGraph``, with the same ``.identifier``
+            fallback as ``data_graph_iri``.
+        specification_graph: Passed to
+            ``starlayer.shacl.profiling.derive_conforms_to()`` so SHACL
+            1.2 Profiling's second rule can additionally derive a
+            ``dcterms:conformsTo`` triple from an already-derived
+            ``sh:conformsTo`` one - a no-op unless both
+            ``data_graph_iri`` and ``shapes_graph_iri`` resolve to
+            something.
+        include_used_configuration: Whether
+            ``_annotate_used_graphs_and_configuration()`` also records
+            which validation options were in effect, alongside
+            ``sh:usedDataGraph``/``sh:usedShapesGraph``.
+        **kwargs: Per-call overrides merged into ``mode``'s preset
+            options (e.g. ``advanced``, ``inplace``, ``meta_shacl``,
+            ``allow_warnings``, ``allow_infos``, ``inference``,
+            ``debug``), forwarded to ``validate_fn``.
 
-    See the original method's own docstring history for the full
-    behavioral documentation of every parameter below - unchanged here,
-    only the binding mechanism (explicit parameter vs. ``self.*``) moved.
+    Returns:
+        A ``ValidationResult``: ``conforms`` (bool), ``report_graph``/
+        ``report_text`` (the validation report, decoded unless
+        ``decode_report=False``), ``data_graph`` (the mutated original
+        when the resolved options include ``inplace=True``, otherwise
+        ``None``), and ``diagnostics`` (an ``ExecutionDiagnostics``
+        snapshot of adapter encode/decode activity for this call).
     """
     adapter = adapter or TripleTermAdapter()
     validate_fn = validate_fn or _default_validate
@@ -3078,15 +3508,26 @@ def validate_each(
     ont_graph: Any | None = None,
     **kwargs: Any,
 ) -> dict[int, ValidationResult]:
-    """The real implementation (2026-10-07: moved here from
-    ``StarShaclSchema.validate_each()`` - that method's own body only ever
-    called ``self.validate(...)`` in a loop, so this just loops over the
-    now-real bare ``validate()`` function instead, identical pattern to
-    how ``apply_rules()`` already loops over it). Returns ``dict[int,
-    ValidationResult]``, not pyshacl's own bare tuple form - same "wrap
-    the tuple" convention ``validate()`` itself already follows.
-    ``StarShaclSchema.validate_each()`` itself is untouched for now (step
-    1 of a two-step flip - see ``validate()``'s own docstring)."""
+    """Validate each graph in ``data_graphs`` against the same
+    ``shacl_graph``/``ont_graph``, by calling the module-level
+    ``validate()`` function above once per item.
+    ``StarShaclSchema.validate_each()`` keeps its own, separate copy of
+    this body for now (see ``validate()``'s own docstring).
+
+    Args:
+        data_graphs: The data graphs to validate, one at a time.
+        shacl_graph: The shapes graph shared by every call - see
+            ``validate()``'s own docstring for its ``None`` fallback
+            and every other behavior detail.
+        ont_graph: The ontology graph shared by every call - see
+            ``validate()``'s own docstring.
+        **kwargs: Forwarded unchanged to every ``validate()`` call
+            (e.g. ``mode``, ``inference``, ``data_graph_iri``, ...).
+
+    Returns:
+        A ``dict`` mapping each item's index in ``data_graphs`` (via
+        ``enumerate``) to its own ``ValidationResult``.
+    """
     return {i: validate(data_graph, shacl_graph, ont_graph, **kwargs) for i, data_graph in enumerate(data_graphs)}
 
 
@@ -3097,63 +3538,58 @@ def evaluate(
     *,
     inference: Any | None = None,
 ) -> Any:
-    """The real implementation (2026-10-07: moved here from
-    ``StarShaclSchema.evaluate()`` verbatim - its one helper dependency,
-    ``_augment_shapes_with_new_target_types``, was already AST-confirmed
-    to have zero ``self.`` dependency of its own). A third, independent
-    processing mode alongside ``validate()`` (checks conformance, never
-    mutates) and ``apply_rules()`` (executes ``sh:rule``, materializes
-    real triples): compute every ``sh:values``-declared *virtual*
-    property across ``shacl_graph``, for every focus node it applies to,
-    and return them merged into a shape-driven *subgraph* (a plain graph
-    object, 2026-10-08 - previously wrapped in a now-removed
-    ``EvaluationResult``, which had shrunk to just this one field) -
-    every property shape's real, stored ``sh:path`` values for its own
-    target focus nodes, plus the computed virtual values layered on top -
-    never the whole of ``data_graph`` (2026-10-07: previously a full copy
-    of it). The caller's own ``data_graph`` is never mutated, and the
-    returned graph is not meant to be persisted (the SHACL 1.2 Node
-    Expressions spec's own framing for the virtual values specifically:
-    computed "only on demand", never creating real triples in the data
-    graph or shapes graph).
+    """Compute every ``sh:values``/``sh:defaultValue``-declared virtual
+    property across ``shacl_graph``, for every focus node it applies
+    to, and return the result merged into a shape-driven subgraph - a
+    third, independent processing mode alongside ``validate()`` (checks
+    conformance, never mutates) and ``apply_rules()`` (executes
+    ``sh:rule``, materializes real triples). ``StarShaclSchema.evaluate()``
+    keeps its own, separate copy of this body for now (see
+    ``validate()``'s own docstring).
 
-    Only handles a property shape's simple, single-predicate ``sh:path``
-    - a property path expression (sequence/inverse/etc.) is silently
-    skipped. Unions with any real, already-stored value for the same
-    predicate - does not remove or replace it (SHACL 1.2 Core's own
-    "Value Nodes of Property Shapes" algorithm is explicit that real
-    path-based values and ``sh:values``-computed values are both
-    unconditionally *added* to the same set; only ``sh:defaultValue`` is
-    conditional, on the set still being empty).
+    The returned graph contains every property shape's real, stored
+    ``sh:path`` values for its own target focus nodes (not just the
+    ones also declaring ``sh:values``/``sh:defaultValue``), plus the
+    computed virtual values layered on top - never the whole of
+    ``data_graph``. Only a property shape's simple, single-predicate
+    ``sh:path`` is handled; a property path expression (sequence/
+    inverse/etc.) is silently skipped. A computed value is unioned
+    with any real, already-stored value for the same predicate, never
+    replacing it (SHACL 1.2 Core's "Value Nodes of Property Shapes"
+    algorithm unconditionally adds both real path-based values and
+    ``sh:values``-computed values to the same set; only
+    ``sh:defaultValue`` is conditional, on that set still being empty).
+    The caller's own ``data_graph`` is never mutated, and the returned
+    graph is not meant to be persisted - the SHACL 1.2 Node Expressions
+    spec's own framing for virtual values is that they are computed
+    "only on demand", never creating real triples in the data or
+    shapes graph.
 
-    **Entailment (2026-10-07), added for consistency with validate()/
-    apply_rules() - confirmed as a real gap, not just a doc gap, via a
-    direct user question**: ``shacl_graph``'s own declared ``sh:entailment``
-    regime(s), plus the optional ``inference=`` keyword (a real
-    ``ENTAILMENT.*`` IRI, or an iterable of them - the same vocabulary
-    ``sh:entailment`` itself uses, since 2026-10-08), are applied once, up
-    front, onto a private, non-mutating copy of ``data_graph`` - every
-    subsequent step (target-node resolution, ``sh:values``/
-    ``sh:defaultValue`` computation, and what counts as a "real, stored"
-    value for a property shape's own ``sh:path``) then runs against that
-    entailed copy uniformly, exactly like ``validate()`` already does.
-    Deliberately **not** the ``apply_rules()``-style exclusion (entailed
-    triples kept separate from genuine rule output): confirmed via direct
-    user decision that an entailed value belongs in the returned subgraph
-    like any other "real" one here, since Core's own "Value Nodes of
-    Property Shapes" algorithm doesn't itself distinguish asserted from
-    entailed triples - unlike ``apply_rules()``'s own "inference graph",
-    which is a different, additive concept (newly-produced facts) that
-    entailment only ever helps compute correctly, never contributes to.
+    Args:
+        data_graph: The RDF data to evaluate virtual properties over.
+        shacl_graph: The shapes graph declaring ``sh:values``/
+            ``sh:defaultValue``. ``None`` falls back to ``data_graph``
+            itself, matching ``validate()``'s own "data graph doubles
+            as shapes graph" allowance.
+        ont_graph: An optional ontology graph, visible to entailment
+            the same way as in ``validate()``/``apply_rules()``.
+        inference: A real ``ENTAILMENT.*`` IRI, or an iterable of
+            them, merged with ``shacl_graph``'s own declared
+            ``sh:entailment`` regime(s) and applied once, up front,
+            onto a private, non-mutating copy of ``data_graph``. Every
+            later step (target resolution, ``sh:values``/
+            ``sh:defaultValue`` computation, and what counts as a
+            "real, stored" value) runs against that entailed copy.
+            Unlike ``apply_rules()``'s "inference graph" exclusion, an
+            entailed triple here is treated exactly like an asserted
+            one and can appear in the returned subgraph - a deliberate
+            choice, since Core's own value-nodes algorithm itself
+            never distinguishes asserted from entailed triples.
 
-    ``StarShaclSchema.evaluate()`` itself is untouched for now (step 1 of
-    a two-step flip - see ``validate()``'s own docstring).
-
-    ``shacl_graph=None`` (2026-10-08) falls back to ``data_graph`` itself
-    as the source of ``sh:values`` declarations - matching ``validate()``'s
-    own "data graph doubles as shapes graph" allowance, for the same
-    "a data file validates/evaluates against its own embedded shapes"
-    use case."""
+    Returns:
+        A plain graph object (the same type as ``data_graph``)
+        containing the shape-driven subgraph described above.
+    """
     data_graph, shacl_graph, ont_graph = normalize_graph_inputs(
         data_graph, shacl_graph if shacl_graph is not None else data_graph, ont_graph
     )
@@ -3229,24 +3665,73 @@ def apply_rules(
     rule_set: Any | None = None,
     **kwargs: Any,
 ) -> RulesResult:
-    """Mirrors pyshacl's own module-level ``shacl_rules(data_graph,
-    shacl_graph=..., ont_graph=..., **kwargs)`` entry point - this is the
-    real implementation, unlike ``validate()``/``validate_each()`` above
-    (which wrap ``StarShaclSchema`` instead): ``apply_rules()`` needs its
-    own rule-set/provenance bookkeeping around the underlying
-    ``validate()`` call that a thin wrapper around the class couldn't do
-    without re-exposing ``adapter`` as a public parameter.
-    ``StarShaclSchema.apply_rules()`` delegates here, binding its own
-    ``shacl_graph``/``ont_graph``.
+    """Execute SHACL rules (``sh:rule``/``sh:TripleRule``/
+    ``sh:SPARQLRule``, plus SHACL 1.2's own ``sh:RuleSet``/
+    ``sh:sourceRule`` provenance) against a private working copy of
+    ``data_graph``, then validate the resulting evaluation graph.
+    Mirrors pyshacl's own module-level ``shacl_rules(data_graph,
+    shacl_graph=..., ont_graph=..., **kwargs)`` entry point - this is
+    the real implementation; ``StarShaclSchema.apply_rules()``
+    delegates here, binding its own ``shacl_graph``/``ont_graph``.
 
-    Runs rule execution (``sh:rule``/``sh:TripleRule``/``sh:SPARQLRule``,
-    plus SHACL 1.2's own ``sh:RuleSet``/``sh:sourceRule`` provenance)
-    against a private working copy of ``data_graph`` - the caller's own
-    object is never mutated (see ``RulesResult.inferred_graph``'s own
-    docstring for exactly what comes back instead). ``data_graph`` must
-    still be a ``StarLayerGraph``: the working copy is built via
-    ``type(data_graph)()``, and only a ``StarLayerGraph`` can round-trip
-    rule output through RDF-1.2 triple terms correctly."""
+    The caller's own ``data_graph`` object is never mutated - every
+    step (rule execution, entailment, the final conformance re-check)
+    runs against a fresh working copy instead. ``data_graph`` must be a
+    ``StarLayerGraph`` (the working copy is built via
+    ``type(data_graph)()``, and only a ``StarLayerGraph`` round-trips
+    RDF-1.2 triple terms through rule execution correctly).
+
+    Processing order: (1) the "before rules" entailment/``inference=``
+    pass; (2) shape-attached rule execution, via an internal
+    ``validate(..., mode="rules")`` call; (3) the separate global
+    ``sh:SPARQLRule``/``sh:RuleSet`` pass; (4) entailment is re-applied,
+    since global rules may have produced triples a declared regime
+    should also close over; (5) a final re-validation with
+    ``mode="validation"`` (not ``"rules"`` again - rules have already
+    run), whose conformance result is what's actually returned.
+
+    Args:
+        data_graph: The data graph rules execute against. Must be a
+            ``StarLayerGraph``; raises ``TypeError`` otherwise.
+        shacl_graph: The shapes graph declaring the rules (and, when
+            ``rule_set`` is given, the ``sh:RuleSet``s to select
+            from). ``None`` falls back to ``data_graph`` itself, so an
+            unattached global ``sh:SPARQLRule`` living directly in the
+            data graph is still discovered.
+        ont_graph: An optional ontology graph, visible to entailment
+            the same way as in ``validate()``/``evaluate()``.
+        include_source_rule_provenance: When ``True``, every triple
+            produced by rule execution (shape-attached or global) gets
+            a reifier recording which rule produced it, per SHACL 1.2
+            SPARQL Extensions section 8.7's ``sh:sourceRule``: ``_:id
+            rdf:reifies <<( s p o )>> . _:id sh:sourceRule <rule> .``
+        rule_set: When given, restricts rule execution to only the
+            rules belonging to the named ``sh:RuleSet``(s) (resolved
+            via ``_rule_set_members()`` against the normalized shapes
+            graph).
+        **kwargs: Forwarded to the internal ``validate()`` calls (both
+            the rule-execution pass and the final re-validation),
+            after being merged into the ``"rules"``/``"validation"``
+            mode presets respectively via ``resolve_mode_options()``.
+            ``inference`` is read directly out of ``kwargs`` for the
+            explicit before/after-rules entailment passes described
+            above.
+
+    Returns:
+        A ``RulesResult`` with two fields: ``inferred_graph`` -
+        strictly the triples rule execution itself produced
+        (shape-attached and global rules, plus any ``sh:sourceRule``
+        provenance reifiers); neither the original base triples nor
+        anything any entailment regime added are included, since
+        entailment is purely a computational device here, never
+        persisted. ``validation`` - the full ``ValidationResult`` from
+        the final re-validation pass, whose ``conforms``/
+        ``report_graph``/``report_text`` reflect the complete
+        evaluation graph (base ∪ rules ∪ entailment); its own
+        ``data_graph`` field is always ``None`` in this context (the
+        internal call uses the ``"validation"`` mode's own
+        ``inplace=False`` default).
+    """
     if not _is_starlayer_graph(data_graph):
         raise TypeError(
             "apply_rules() requires data_graph to be a StarLayerGraph, since rule "
@@ -3465,8 +3950,8 @@ def _patch_stringify_for_native_backend_bnodes() -> bool:
     on is backed by a remote SPARQLUpdateStore-style store (Oxigraph,
     Fuseki via ``StarLayerGraph(store=..., backend='rdf-1.2')``).
 
-    Found via direct testing against a real Oxigraph/Fuseki instance:
-    ``pyshacl.constraints.constraint_component.make_v_result_description``
+    A confirmed, real pySHACL defect, not anything of this project's own
+    code: ``pyshacl.constraints.constraint_component.make_v_result_description``
     calls ``stringify_node(datagraph, focus_node)``, which for a BNode
     focus node calls ``find_node_named_graph(dataset, node)`` when
     ``datagraph`` is a ``rdflib.Dataset`` (pySHACL's own internal
@@ -3481,8 +3966,7 @@ def _patch_stringify_for_native_backend_bnodes() -> bool:
     narrower issue than the ``StarLayerGraph._native_triples()`` bug fixed
     in ``starlayer.graph`` itself (a real correctness bug in bound-BNode
     *query results*) - this one only affects being able to *render a
-    report* that names a blank node, not validation correctness, and lives
-    in pySHACL's own code, not anything of this project's own classes.
+    report* that names a blank node, not validation correctness.
 
     Fixed by wrapping ``find_node_named_graph``: try the original first
     (unmodified, zero behavior change for the overwhelmingly common
@@ -3606,6 +4090,12 @@ def _patch_rule_apply_for_source_rule_provenance() -> bool:
     returns ``False`` without raising if pySHACL's internals don't match
     what this expects, so the caller can decide how to react instead of a
     silent no-op or a confusing crash.
+
+    Returns:
+        ``True`` if both ``TripleRule.apply``/``SPARQLRule.apply`` are
+        now wrapped (or already were, on a repeat call); ``False`` if
+        pySHACL's internals didn't match what this patch expects, with
+        neither class touched.
     """
     global _source_rule_patch_status
     if _source_rule_patch_status is not None:
@@ -3671,16 +4161,6 @@ def _materialize_source_rule_provenance(
     execution has completely finished - see ``_patch_rule_apply_for_source_rule_provenance``'s
     docstring for why.
 
-    ``decode=True`` for records captured from pySHACL's own internal,
-    URI-encoded execution (shape-attached ``sh:rule``s, captured via the
-    ``TripleRule``/``SPARQLRule.apply()`` patch) - every term, including the
-    rule node itself, is decoded back through ``adapter`` first, so the
-    reifier's terms match ``out_data``'s own representation (the same
-    ``adapter.decode_graph(encoded_data)`` call that produced ``out_data`` in
-    the first place). ``decode=False`` for records already in ``out_data``'s
-    own terms (the global ``sh:SPARQLRule`` pass, which queries the
-    already-decoded ``out_data`` directly - nothing to decode).
-
     Builds the reifier's ``rdf:reifies`` object as a plain ``(s, p, o)``
     3-tuple rather than via ``adapter.term_factory`` directly: the adapter's
     own ``term_factory`` defaults to the fallback ``TripleTermValue`` (not a
@@ -3694,6 +4174,26 @@ def _materialize_source_rule_provenance(
     matches ``out_data``'s actual representation unconditionally, the same
     convention ``TripleTermAdapter._encode_node`` documents and relies on
     elsewhere in this codebase.
+
+    Args:
+        out_data: The working data graph to add each reifier to.
+        adapter: Used to decode every term (subject/predicate/object and
+            the rule node) back to ``out_data``'s own representation
+            when ``decode=True``.
+        records: ``(triple, rule_node)`` pairs - one per triple that
+            some rule's ``apply()`` call produced, paired with the node
+            identifying the rule that produced it.
+        decode: ``True`` for records captured from pySHACL's own
+            internal, URI-encoded execution (shape-attached
+            ``sh:rule``s, captured via the ``TripleRule``/
+            ``SPARQLRule.apply()`` patch) - every term, including the
+            rule node itself, is decoded back through ``adapter``
+            first, so the reifier's terms match ``out_data``'s own
+            representation (the same ``adapter.decode_graph(encoded_data)``
+            call that produced ``out_data`` in the first place).
+            ``False`` for records already in ``out_data``'s own terms
+            (the global ``sh:SPARQLRule`` pass, which queries the
+            already-decoded ``out_data`` directly - nothing to decode).
     """
     for (s, p, o), rule_node in records:
         if decode:
@@ -3762,16 +4262,14 @@ def _patch_rules_apply_for_layer_and_run_once() -> bool:
     and always executes exactly once, in its existing position after every
     shape-attached rule has finished - fully unifying the two execution
     paths into one shared cross-shape-and-global layered fixpoint was
-    judged out of scope for this change; flagged here explicitly rather
-    than silently under-supporting it.
+    judged out of scope for this change.
 
     Patches ``pyshacl.validator``'s own module-level ``apply_rules`` name
     (bound there via ``from .rules import apply_rules`` at that module's
-    top) rather than ``pyshacl.rules.apply_rules`` itself - confirmed by
-    reading ``pyshacl/validator.py``'s only call site (inside its
-    ``Validator`` class, under ``advanced['rules']``) that Python resolves
-    a bare name at call time via the *calling* module's own globals, so
-    reassigning the name in ``pyshacl.rules`` would not affect an
+    top) rather than ``pyshacl.rules.apply_rules`` itself - pySHACL's only
+    call site (inside its ``Validator`` class, under ``advanced['rules']``)
+    resolves a bare name at call time via the *calling* module's own
+    globals, so reassigning the name in ``pyshacl.rules`` would not affect an
     already-imported reference in ``pyshacl.validator``. This is the only
     call site starlayer.shacl's own ``validate()``/``apply_rules()`` reaches
     (via ``from pyshacl import validate``, i.e. ``pyshacl.entrypoints.validate``
@@ -3927,19 +4425,15 @@ def _materialize_expected_predicates(shapes_rules: dict, data_graph: Any) -> lis
     ever documented, never materialized as a real triple.
 
     **Returns the materialized triples so the caller can remove them again
-    once rule execution finishes** - confirmed via the W3C SHACL 1.2 test
-    suite's own ``expectedPredicate-example`` fixture (added 2026-08-08) that
-    these derived triples must be transient, visible only *during* rule
-    execution, not part of ``apply_rules()``'s permanent output: its own
-    expected-result list includes only the rule's own CONSTRUCTed
-    conclusions (``ex:isSmall``), never the ``ex:area`` values this function
-    computes to let the rule's WHERE clause evaluate correctly - consistent
-    with ``sh:defaultValue``'s well-established SHACL Core meaning as a
-    validation-time *virtual* value, not something a conformant processor
-    permanently asserts. (An earlier version of this function added them
-    permanently, based on a plausible but incorrect reading of the spec
-    prose alone - this was corrected once the concrete fixture evidence
-    became available, not merely a stylistic change.)
+    once rule execution finishes**: these derived triples are transient,
+    visible only *during* rule execution, never part of ``apply_rules()``'s
+    permanent output - consistent with ``sh:defaultValue``'s well-established
+    SHACL Core meaning as a validation-time *virtual* value, not something a
+    conformant processor permanently asserts. The W3C SHACL 1.2 test suite's
+    own ``expectedPredicate-example`` fixture confirms this: its expected-
+    result list includes only the rule's own CONSTRUCTed conclusions
+    (``ex:isSmall``), never the ``ex:area`` values this function computes to
+    let the rule's WHERE clause evaluate correctly.
 
     Called unconditionally, once, from ``_patched_apply_rules`` above -
     before either the original or the native layered rule loop begins -
@@ -3979,23 +4473,19 @@ def _materialize_expected_predicates(shapes_rules: dict, data_graph: Any) -> lis
 def _materialize_default_value_triples(
     data_graph: Any, shapes_graph: Any, shapes_graph_wrapper: Any, predicates: set
 ) -> list[tuple[Any, Any, Any]]:
-    """For each ``predicate`` in ``predicates``, and for every non-deactivated
-    property shape in ``shapes_graph`` whose ``sh:path`` is that predicate,
-    add derived ``(focus, predicate, value)`` triples to ``data_graph`` for
-    every target/focus node of that property shape that has no existing
-    value for the predicate - preferring an ``sh:values``-computed value
-    when the property shape declares one and it produces at least one
-    result, falling back to a plain ``sh:defaultValue`` otherwise (matching
-    the ``expectedPredicate-example`` fixture's own worked case: a rectangle
+    """For each predicate, and for every non-deactivated property shape in
+    ``shapes_graph`` whose ``sh:path`` is that predicate, add derived
+    ``(focus, predicate, value)`` triples to ``data_graph`` for every
+    target/focus node of that property shape that has no existing value for
+    the predicate - preferring an ``sh:values``-computed value when the
+    property shape declares one and it produces at least one result,
+    falling back to a plain ``sh:defaultValue`` otherwise (matching the
+    ``expectedPredicate-example`` fixture's own worked case: a rectangle
     with real width/height gets its area computed via ``sh:values``, one
     with neither falls back to ``sh:defaultValue``'s constant). Never
     overwrites or duplicates an already-asserted value, per
     ``sh:defaultValue``'s own spec-defined semantics ("used when no other
     values are present for a property").
-
-    Returns every ``(focus, predicate, value)`` triple actually added, so
-    the caller can strip them again once rule execution finishes - see
-    ``_materialize_expected_predicates``'s docstring for why.
 
     A property shape's own "target/focus nodes" are, per ordinary SHACL
     Core semantics, the target nodes of whatever node shape(s) reference it
@@ -4004,6 +4494,22 @@ def _materialize_default_value_triples(
     ``ex:RectangleShape-area`` example) - plus, for completeness, the
     property shape's own targets if it happens to declare ``sh:target*``
     directly (a rarer, but spec-legitimate, top-level-property-shape case).
+
+    Args:
+        data_graph: The data graph to materialize derived triples into.
+        shapes_graph: The raw shapes graph (used for ``.triples()``/
+            ``.objects()`` lookups of ``sh:path``/``sh:deactivated``/
+            ``sh:values``/``sh:defaultValue``).
+        shapes_graph_wrapper: pySHACL's own ``ShapesGraph`` wrapper, needed
+            to resolve a property shape node to a real ``Shape`` object for
+            ``sh:values`` computation via ``lookup_shape_from_node``.
+        predicates: The set of ``sh:expectedPredicate`` IRIs to materialize
+            derived triples for.
+
+    Returns:
+        Every ``(focus, predicate, value)`` triple actually added, so the
+        caller can strip them again once rule execution finishes - see
+        ``_materialize_expected_predicates``'s docstring for why.
     """
     added: list[tuple[Any, Any, Any]] = []
     for path in predicates:
@@ -4070,8 +4576,8 @@ def _materialize_default_value_triples(
 
 def _strip_temp_triples(data_graph: Any) -> None:
     """``sh:tempTriple`` (SHACL 1.2 SPARQL Extensions section 8.5,
-    "Temporary Triples") - a genuinely new predicate, found 2026-08-15 via
-    the W3C SHACL 1.2 test suite's ``temp-triples-example`` fixture.
+    "Temporary Triples") - a genuinely new predicate, per the W3C SHACL 1.2
+    test suite's own ``temp-triples-example`` fixture.
 
     Per spec: "It is sometimes useful for inference rules to produce
     triples that are only visible during the execution of other rules but
@@ -4098,9 +4604,9 @@ def _strip_temp_triples(data_graph: Any) -> None:
     mid-execution), but never appear in ``apply_rules()``'s permanent
     output.
 
-    The reified value (the ``rdf:reifies`` object) is, confirmed via a live
-    trace (not assumed), the pySHACL-internal *encoded* form -
-    ``TripleTermAdapter``'s content-addressed ``urn:starlayer:tt:HASH`` URI,
+    The reified value (the ``rdf:reifies`` object) is the pySHACL-internal
+    *encoded* form - ``TripleTermAdapter``'s content-addressed
+    ``urn:starlayer:tt:HASH`` URI,
     not a real ``TripleTerm`` - since ``TRIPLE()`` runs against ``data_graph``
     at this point in ``pyshacl.validate()``'s pipeline, which is already
     adapter-encoded (the outer ``StarShaclSchema.validate()`` call
@@ -4201,6 +4707,11 @@ def _patch_shape_validate_for_filter_shape() -> bool:
     not something scoped to starShacl's own call sites - any other code in
     the same process calling pySHACL directly is affected too, harmlessly,
     since the shim is a strict superset of the original behavior.
+
+    Returns:
+        ``True`` if the patch is installed (or was already, in an earlier
+        call); ``False`` if pySHACL's internals didn't match what this shim
+        expects, in which case nothing was patched.
     """
     global _filter_shape_patch_status
     if _filter_shape_patch_status is not None:
@@ -4246,39 +4757,37 @@ def _patch_rdflib_data_graph_clone_preserves_tt_adapter() -> bool:
     clone's actual triples (the flattened ``urn:starlayer:tt:HASH``
     encoding) are faithfully copied.
 
-    Confirmed live (2026-07-31), found while investigating why
-    ``ReifierShapeConstraintComponent`` silently stopped finding any
-    reifiers - and reported vacuous conformance - specifically when
-    ``advanced=True`` (needed for `sh:expression`/`sh:rule` elsewhere, and
-    therefore always passed by ``tests/w3c_shacl12/test_w3c_validate.py`` since
-    it can't tell in advance which fixtures need it): without ``_tt_adapter``,
+    This breaks ``ReifierShapeConstraintComponent`` - and any other
+    triple-term-aware check - specifically when ``advanced=True`` (needed
+    for ``sh:expression``/``sh:rule`` elsewhere, and therefore always passed
+    by ``tests/w3c_shacl12/test_w3c_validate.py`` since it can't tell in
+    advance which fixtures need it): without ``_tt_adapter``,
     ``native_components.py``'s ``_get_tt_adapter()``/``_encode_key()`` fall
     back to treating a ``(focus, path, value)`` tuple as an un-encodable raw
     value, which can never match the graph's actual encoded
-    ``rdf:reifies`` triples. The same helper backs ``sh:TripleTerm`` node-kind
-    recognition (``_is_encoded_triple_term``), so this affects more than just
-    ``sh:reifierShape`` - anything relying on triple-term encoding awareness,
-    combined with ``advanced=True``.
+    ``rdf:reifies`` triples - so a reifier check against a cloned graph
+    silently finds no reifiers at all and reports vacuous conformance. The
+    same helper backs ``sh:TripleTerm`` node-kind recognition
+    (``_is_encoded_triple_term``), so this affects more than just
+    ``sh:reifierShape`` - anything relying on triple-term encoding
+    awareness, combined with ``advanced=True``.
 
     Patches ``pyshacl.graph_abstraction.RdfLibDataGraph.clone`` two ways:
 
-    1. **(2026-09-06)** When ``self.impl`` carries a ``_tt_adapter`` and the
-       caller didn't already supply a ``destination``, pre-constructs a
-       fresh ``starlayer.shacl.adapters._SparqlAwareEncodedGraph`` (the *same
-       class* ``self.impl`` already is in real ``validate()``/``apply_rules()``
-       usage - see that class's own docstring) and passes it as
-       ``clone_graph()``'s own ``target_graph`` parameter - ``clone_graph``
-       already supports populating a caller-supplied graph instead of always
-       building a bare ``rdflib.Graph()`` (confirmed from its own source:
-       ``target_graph`` is optional, and every triple is copied via ordinary
-       ``g.add(t)`` either way), so this was a real, already-existing
-       extension point, not something requiring pySHACL's own code to
-       change.
+    1. When ``self.impl`` carries a ``_tt_adapter`` and the caller didn't
+       already supply a ``destination``, pre-constructs a fresh
+       ``starlayer.shacl.adapters._SparqlAwareEncodedGraph`` (the *same
+       class* ``self.impl`` already is in real ``validate()``/
+       ``apply_rules()`` usage - see that class's own docstring) and passes
+       it as ``clone_graph()``'s own ``target_graph`` parameter -
+       ``clone_graph``'s ``target_graph`` is optional, and every triple is
+       copied via ordinary ``g.add(t)`` either way, so this is a real,
+       already-existing extension point, not something requiring pySHACL's
+       own code to change.
 
-       An earlier version of this fix constructed a plain ``StarLayerGraph()``
-       instead - wrong, caught live: ``self.impl`` in real usage is
-       ``_SparqlAwareEncodedGraph``, not ``StarLayerGraph`` directly (the
-       adapter wraps the *encoded* graph, decoding to a real
+       A plain ``StarLayerGraph()`` is not a substitute here: ``self.impl``
+       in real usage is ``_SparqlAwareEncodedGraph``, not ``StarLayerGraph``
+       directly (the adapter wraps the *encoded* graph, decoding to a real
        ``StarLayerGraph`` only inside its own ``.query()`` override), and
        that override - the thing that actually routes a query through
        ``StarLayerGraph``'s triple-term-aware SPARQL 1.2 lowering (parsing
@@ -4297,13 +4806,14 @@ def _patch_rdflib_data_graph_clone_preserves_tt_adapter() -> bool:
        intercept them first - so querying a clone that lost this routing
        crashes with ``Exception: Weird - _eval got a CompValue without
        evalfn!``/``Exception: What do I do with this CompValue?`` the moment
-       one of them is used, confirmed live via
+       one of them is used - see
        ``tests/integration/test_sparql_shacl_integration.py``'s triple-term-
-       accessor cases once ``advanced=True`` stopped being a rare opt-in.
+       accessor cases, which exercise exactly this once ``advanced=True``
+       stopped being a rare opt-in.
     2. Copies ``_tt_adapter`` from the pre-clone ``.impl`` onto the post-
-       clone ``.impl`` when present (original 2026-07-31 behavior, kept
-       unchanged, and still needed for a caller-supplied ``destination`` that
-       doesn't already carry one) - lets ``native_components.py``'s
+       clone ``.impl`` when present (still needed for a caller-supplied
+       ``destination`` that doesn't already carry one) - lets
+       ``native_components.py``'s
        ``_get_tt_adapter()``/``_encode_key()`` (``sh:reifierShape`` and
        ``sh:TripleTerm`` node-kind recognition, which read the attribute
        directly rather than going through ``.query()``) keep working against
@@ -4365,23 +4875,39 @@ def _patch_rdflib_data_graph_clone_preserves_tt_adapter() -> bool:
 def _compute_sh_values(shape: Any, values_node: Any, target_graph: Any, focus_node: Any) -> list:
     """The computed value set for one focus node, per a property shape's
     ``sh:values`` (SHACL 1.2 Core's "new ``sh:values``" mechanism, a
-    `sh:PropertyRule`-adjacent but distinct feature). Three forms, tried in
-    order: a full ``sh:select`` query (using its own single projected
-    variable, whatever it's named); a single ``sh:sparqlExpr`` scalar
-    expression (wrapped into a one-row ``SELECT (<expr> AS ?_computed) WHERE
-    {}``), both evaluated with ``$this``/``?this`` bound to ``focus_node``
-    exactly the way ``sh:sparql`` constraints already do, reusing pySHACL's
-    own ``SPARQLQueryHelper`` wholesale (prefix collection via
-    ``sh:prefixes``, ``$this`` pre-binding) rather than reimplementing
-    either; or, if ``values_node`` is neither of those but is itself a node
-    expression (e.g. ``sparql:multiply ( [ shnex:pathValues ex:width ]
-    [ shnex:pathValues ex:height ] )`` - the SHACL 1.2 SPARQL Extensions
-    spec's own worked ``sh:expectedPredicate`` example, found 2026-08-15 via
-    the W3C test suite's ``expectedPredicate-example`` fixture, which this
-    third form was added specifically to make pass), evaluated via
-    ``starlayer.shacl.node_expressions.eval_expr`` - the same node-expression
-    evaluator ``shnex:``/``sparql:`` forms use everywhere else in this
-    codebase, not a separate implementation.
+    `sh:PropertyRule`-adjacent but distinct feature).
+
+    Three forms, tried in order: a full ``sh:select`` query (using its own
+    single projected variable, whatever it's named); a single
+    ``sh:sparqlExpr`` scalar expression (wrapped into a one-row ``SELECT
+    (<expr> AS ?_computed) WHERE {}``), both evaluated with ``$this``/
+    ``?this`` bound to ``focus_node`` exactly the way ``sh:sparql``
+    constraints already do, reusing pySHACL's own ``SPARQLQueryHelper``
+    wholesale (prefix collection via ``sh:prefixes``, ``$this`` pre-binding)
+    rather than reimplementing either; or, if ``values_node`` is neither of
+    those but is itself a node expression (e.g. ``sparql:multiply ( [
+    shnex:pathValues ex:width ] [ shnex:pathValues ex:height ] )`` - the
+    SHACL 1.2 SPARQL Extensions spec's own worked ``sh:expectedPredicate``
+    example, confirmed via the W3C test suite's ``expectedPredicate-example``
+    fixture), evaluated via ``starlayer.shacl.node_expressions.eval_expr`` -
+    the same node-expression evaluator ``shnex:``/``sparql:`` forms use
+    everywhere else in this codebase, not a separate implementation.
+
+    Args:
+        shape: The property shape carrying ``values_node``, used for its
+            ``sg`` (shapes graph wrapper) when delegating to pySHACL's
+            ``SPARQLQueryHelper``.
+        values_node: The object of the shape's ``sh:values`` triple - a
+            ``sh:select``/``sh:sparqlExpr``-bearing node, or a node
+            expression.
+        target_graph: The data graph to evaluate the query/expression
+            against.
+        focus_node: The focus node bound to ``$this``/``?this`` (query
+            forms) or passed as the expression's own focus node.
+
+    Returns:
+        The non-``None`` computed values, in whatever order the query/
+        expression produced them.
     """
     from pyshacl.helper import get_query_helper_cls
 
@@ -4422,17 +4948,21 @@ def _compute_sh_default_value(default_value_node: Any, target_graph: Any, sg: An
     ``Literal``/``URIRef`` constant still evaluates to itself via
     ``eval_expr``'s own constant-node handling, so this is a strict superset
     of "just read the raw RDF object", not a special case for the
-    node-expression form alone.
+    node-expression form alone. A plain object-lookup read of
+    ``sh:defaultValue`` would be wrong for the node-expression form
+    specifically: it would add the blank node itself as a bogus "value"
+    rather than evaluating it.
 
-    Found live (2026-09-11), prompted by a direct user request for a
-    ``sh:defaultValue`` example that falls back to *another property* rather
-    than a literal constant: the pre-existing code on both the ``validate()``
-    side (``_patch_shape_value_nodes_for_sh_values``) and the ``evaluate()``
-    side literally read ``sh:defaultValue``'s object via a plain
-    ``graph.objects()`` lookup and added it to the value set as-is - for a
-    node-expression-valued default (a blank node), that added the *blank
-    node itself* as a bogus "value" (e.g. ``BNode('n6adb...')``), never
-    evaluating it at all.
+    Args:
+        default_value_node: The object of the shape's ``sh:defaultValue``
+            triple - a constant or a node expression.
+        target_graph: The data graph to evaluate the expression against.
+        sg: The shapes graph wrapper (pySHACL's ``ShapesGraph``), passed
+            through to ``eval_expr``.
+        focus_node: The focus node to evaluate the expression relative to.
+
+    Returns:
+        The non-``None`` evaluated default value(s).
     """
     from starlayer.shacl.node_expressions import eval_expr
 
@@ -4458,50 +4988,37 @@ def _patch_shape_value_nodes_for_sh_values() -> bool:
     constraint component (``sh:datatype``, ``sh:hasValue``, etc.) already
     calls generically to get its focus-to-values mapping - rather than
     special-casing each constraint component individually, so every *other*
-    constraint on a ``sh:values``-carrying shape (``sh:datatype``,
-    ``sh:hasValue`` in both W3C SHACL 1.2 test suite fixtures this was found
-    via, ``property-select-001``/``property-sparqlExpr-001``) runs
-    completely unmodified against the resulting value set. Falls straight
-    through to the original method for every shape without ``sh:values``.
+    constraint on a ``sh:values``-carrying shape runs completely unmodified
+    against the resulting value set. Falls straight through to the original
+    method for every shape without ``sh:values``.
 
     **UNIONS with the real, path-based values - does not replace them.**
-    Corrected 2026-09-08 after a direct user question ("is the draft
-    standard clean on what should happen?") prompted checking SHACL 1.2
-    Core's actual normative text instead of trusting this patch's own
-    original (wrong) assumption: Core's "Value Nodes of Property Shapes"
-    section gives an exact, unambiguous three-step algorithm - "Add all
-    nodes in the data graph that can be reached from the focus node with
-    the path mapping of p. If e is the value of sh:values ..., then *add*
-    the output nodes of evalExpr(e, ...). If the set is still empty and d
-    is the value of sh:defaultValue ..., then add the output nodes of
-    evalExpr(d, ...)." Both sh:path's real values and sh:values's computed
-    values are unconditionally *added* to the same set - sh:defaultValue is
-    the only one of the three gated on "if the set is still empty". The
-    original version of this patch returned only the computed values,
-    discarding whatever was actually stored - confirmed live that this
-    was a real, user-facing bug (a focus node with both a stored value and
-    a sh:values computation silently lost the stored one from every
-    constraint checked against this property shape), not merely an
-    unhandled edge case.
+    SHACL 1.2 Core's "Value Nodes of Property Shapes" section gives an
+    exact, unambiguous three-step algorithm: "Add all nodes in the data
+    graph that can be reached from the focus node with the path mapping of
+    p. If e is the value of sh:values ..., then *add* the output nodes of
+    evalExpr(e, ...). If the set is still empty and d is the value of
+    sh:defaultValue ..., then add the output nodes of evalExpr(d, ...)."
+    Both sh:path's real values and sh:values's computed values are
+    unconditionally *added* to the same set - sh:defaultValue is the only
+    one of the three gated on "if the set is still empty".
 
-    **Step 3 (``sh:defaultValue``) added 2026-09-09** - found missing while
-    building a notebook demo, not by spec re-reading: this docstring already
-    quoted the algorithm's three steps accurately, but the code only ever
-    implemented the first two. A live check (a property shape with
-    ``sh:defaultValue "active"``/``sh:hasValue "active"`` and no stored
-    value at all) confirmed ``validate()`` reported a violation instead of
-    conforming. Also gates on ``sh:defaultValue`` *alone*, not just when
-    ``sh:values`` is present too - the original code's ``if values_node is
-    None: return original`` early-out meant a plain property shape with only
-    ``sh:defaultValue`` (no ``sh:values`` at all) was never even inspected
-    for it. See ``tests/integration/test_sh_values.py``'s
-    ``TestDefaultValueFallback`` for the regression coverage - including the
-    negative cases (a real stored value, or a non-empty ``sh:values``
-    computation, both correctly take priority and skip the default).
+    Step 3 (``sh:defaultValue``) applies whenever the shape declares it, not
+    only alongside ``sh:values`` - a plain property shape with only
+    ``sh:defaultValue`` still gets inspected for it. See
+    ``tests/integration/test_sh_values.py``'s ``TestDefaultValueFallback``
+    for the regression coverage, including the negative cases (a real
+    stored value, or a non-empty ``sh:values`` computation, both correctly
+    take priority and skip the default).
 
     Idempotent and defensive like the other patches in this module -
     returns ``False`` without raising if pySHACL's internals don't match
     what this shim expects.
+
+    Returns:
+        ``True`` if the patch is applied (or was already applied by an
+        earlier call), ``False`` if pySHACL's internals didn't match what
+        this shim expects.
     """
     global _value_nodes_patch_status
     if _value_nodes_patch_status is not None:
@@ -4563,15 +5080,11 @@ def _patch_shape_focus_nodes_for_deactivated_expression() -> bool:
     focus node**, from Core's own "Deactivating Shapes and Constraints"
     section (not the node-expr document, which only mentions
     ``sh:deactivated`` once in passing with no worked example or evaluation
-    algorithm of its own - confirmed by grepping the live spec text).
-
-    Corrects a first attempt (2026-09-05) that evaluated the expression once
-    *globally*, with no focus node at all, based on the node-expr document
-    alone - a real, different, and wrong semantic (a per-shape on/off switch
-    instead of a per-target filter), caught by a direct user question and
-    confirmed wrong live: a `shnex:var "focusNode"`-referencing expression
-    silently deactivated the whole shape for every target, never varying
-    per target the way Core's own definition requires.
+    algorithm of its own). A node-expression-valued ``sh:deactivated`` is
+    therefore a per-target filter, not a global per-shape on/off switch
+    evaluated once with no focus node at all - a `shnex:var "focusNode"`
+    -referencing expression must vary per target, the way Core's own
+    definition requires, not deactivate the whole shape uniformly.
 
     Patches ``pyshacl.shape.Shape.focus_nodes`` - the method
     ``Shape.validate()`` calls to resolve a shape's own targets into a
@@ -4644,28 +5157,24 @@ _expression_constraint_scope_patch_status: bool | None = None
 
 
 def _patch_expression_constraint_for_value_scope() -> bool:
-    """Fix two confirmed bugs in pySHACL's own ``ExpressionConstraint.
+    """Fix two real bugs in pySHACL's own ``ExpressionConstraint.
     _evaluate_expression`` (``pyshacl/constraints/advanced/__init__.py``),
-    found live 2026-09-05 by re-reading the SHACL 1.2 Node Expressions
-    spec's own "sh:expression" TEXTUAL DEFINITION - ``evalExpr(expr, data
-    graph, focusNode, {value: v})`` - and its worked example (which uses
-    ``shnex:var "value"`` directly) against real ``validate()`` output,
-    rather than trusting the earlier pass that covered the ``shnex:``/
-    ``sparql:`` operator library exhaustively but never checked *this*
-    constraint component's own scope-seeding contract:
+    found against the SHACL 1.2 Node Expressions spec's own
+    "sh:expression" TEXTUAL DEFINITION - ``evalExpr(expr, data graph,
+    focusNode, {value: v})`` - and its worked example (which uses
+    ``shnex:var "value"`` directly):
 
     1. pySHACL's own call, ``nodes_from_node_expression(expr, v, data_graph,
        self.shape.sg)``, passes the *value* node ``v`` positionally where
        ``focus_node`` belongs - the real shape focus node ``f`` (available
        in the very same loop, via ``f_v_dict.items()``) is never passed to
-       node-expression evaluation at all. Confirmed live:
-       ``shnex:var "focusNode"`` inside ``sh:expression`` on a property
-       shape returns the *value* node, not the real focus node, whenever
-       they differ.
-    2. Scope is never seeded with ``"value"`` at all - confirmed live that
-       ``shnex:var "value"`` (used directly in the spec's own IBAN worked
-       example under this same section) always resolves to unbound, no
-       matter what.
+       node-expression evaluation at all. ``shnex:var "focusNode"`` inside
+       ``sh:expression`` on a property shape therefore returns the *value*
+       node, not the real focus node, whenever they differ.
+    2. Scope is never seeded with ``"value"`` at all, so ``shnex:var
+       "value"`` - used directly in the spec's own IBAN worked example
+       under this same section, a real, spec-exampled pattern, not an edge
+       case - always resolves to unbound.
 
     Patches ``pyshacl.constraints.advanced.ExpressionConstraint.
     _evaluate_expression`` to call ``starlayer.shacl.node_expressions.eval_expr``
@@ -4817,6 +5326,16 @@ def _resolve_shapes_graph_imports(
     returns a parsed graph, or ``None`` if it can't be resolved) - this
     library doesn't dictate a network-fetching policy; an unresolvable
     import is simply skipped rather than raising.
+
+    Args:
+        shacl_graph: The shapes graph to extend - already a
+            ``StarLayerGraph`` by the time this runs.
+        graph_loader: Given an import IRI, returns the parsed graph to merge
+            in, or ``None`` if it can't be resolved.
+
+    Returns:
+        ``shacl_graph`` extended with its transitive ``owl:imports``
+        closure.
     """
     return shacl_graph.resolve_imports(loader=graph_loader, mode="full")
 
@@ -4873,6 +5392,13 @@ def _find_genuine_report_node(report_graph: Any) -> Any | None:
     fresh ``BNode()`` that nothing else in the graph points to, whereas an
     incidental one was pulled in specifically *because* something else
     references it.
+
+    Args:
+        report_graph: The validation report graph to search.
+
+    Returns:
+        The real top-level ``sh:ValidationReport`` node, or ``None`` if
+        ``report_graph`` has none at all.
     """
     nodes = list(report_graph.triples((None, RDF.type, SH.ValidationReport)))
     candidates = [s for s, _, _ in nodes]
@@ -4887,10 +5413,7 @@ def _find_genuine_report_node(report_graph: Any) -> Any | None:
 def _rule_set_members(shapes_graph: Any, rule_set: Any) -> frozenset:
     """Every rule node that's a member of ``rule_set``, including
     transitively via ``sh:includesRuleSet`` (SHACL 1.2 SPARQL Extensions
-    section 8.2.1, added upstream 2026-08-21 - re-verified live 2026-08-26
-    that ``sh:RuleSet``/``sh:hasRule``/``sh:includesRuleSet`` are the
-    current, stable predicate names after churning through two renames in
-    the same upstream PR the week before).
+    section 8.2.1).
 
     Plain worklist/visited-set graph reachability over ``sh:includesRuleSet``
     edges, collecting each visited rule set's own ``sh:hasRule`` members
@@ -4949,6 +5472,11 @@ def _patch_rule_apply_for_rule_set_filtering() -> bool:
     behavior change when a caller opts in (``rule_set is not None``): a
     rule node not in the current ``_rule_set_filter`` value's membership set
     returns immediately (0 modified, no triples added) instead of running.
+
+    Returns:
+        ``True`` if the patch is applied (or was already applied by an
+        earlier call), ``False`` if pySHACL's internals didn't match what
+        this shim expects.
     """
     global _rule_set_patch_status
     if _rule_set_patch_status is not None:
@@ -5022,36 +5550,22 @@ def _global_sparql_rule_triples(
     ``sh:SPARQLRule`` (see ``_global_sparql_rules``) to completion against
     ``data_graph``, honoring ``sh:layer``/``sh:runOnce``/``sh:order``
     (SHACL 1.2 SPARQL Extensions section 8.2.4-8.2.6) and iterating each
-    layer's non-run-once rules to a real fixpoint - **mutates ``data_graph``
-    directly as it goes** (not just at the end), both because later rules
-    in the same/a later layer need to see earlier rules' output, and
-    because a fixpoint can't be detected without materializing each round's
-    triples before running the next one. The caller no longer needs to
-    (and, since this already added everything, should not redundantly)
-    add the returned triples itself - see ``apply_rules``'s own comment at
-    its call site.
-
-    **Fixes a real, pre-existing bug this function used to have**: the
-    original version ran every global rule's CONSTRUCT exactly once, in a
-    single pass, with no fixpoint iteration at all - so a rule depending on
+    layer's non-run-once rules to a real fixpoint - a rule can depend on
     another global rule's own output (e.g. two RDFS-entailment-style rules
     chained together, `?a rdf:type ?x . ?x rdfs:subClassOf ?y` depending on
-    a *different* rule's `rdf:type` inference) only ever produced its first
-    hop. Confirmed via the W3C SHACL 1.2 test suite's newly-synced
-    ``sparql/rules/rdfs/rdfs-{domain,range,subclass,subproperty}-*``
-    fixtures (none of which use ``sh:layer``/``sh:runOnce`` at all - this
-    symptom existed independently of either predicate).
+    a *different* rule's `rdf:type` inference), so a single CONSTRUCT pass
+    per rule is not enough. Every global rule implicitly sits at layer 0 by
+    the spec's own stated default, and the layered/fixpoint loop applies
+    unconditionally, regardless of whether the shapes graph declares
+    ``sh:layer``/``sh:runOnce`` at all.
 
-    **No longer gated/deferred like shape-attached rules' `sh:layer`/
-    `sh:runOnce`support** - unlike ``_run_layered_rules`` (whose native loop
-    only activates when a shapes graph opts in, to avoid changing existing
-    shape-rule behavior), every call here now goes through one shared
-    layered/fixpoint loop unconditionally: the *pre-existing* single-pass
-    behavior was already a bug (see above), so there's no "existing correct
-    behavior" a `sh:layer`-naive shapes graph needs preserved - every
-    global rule implicitly sits at layer 0 already (the spec's own stated
-    default), and running to a fixpoint there is what should always have
-    happened.
+    **Mutates ``data_graph`` directly as it goes** (not just at the end),
+    both because later rules in the same/a later layer need to see earlier
+    rules' output, and because a fixpoint can't be detected without
+    materializing each round's triples before running the next one. The
+    caller no longer needs to (and, since this already added everything,
+    should not redundantly) add the returned triples itself - see
+    ``apply_rules``'s own comment at its call site.
 
     Honors ``sh:deactivated`` on the rule node itself. Prefix resolution
     reuses ``_ambient_shapes_graph_prefixes`` (see that function's own

@@ -8,18 +8,33 @@ from rdflib import Dataset, Graph
 def normalize_to_starlayer_graph(value: Any, *, name: str, force_default_union: bool = False) -> Any:
     """Normalize input graph to StarLayerGraph.
 
-    A plain rdflib.Graph is always converted. Existing StarLayerGraph instances
-    are returned as-is.
+    A plain rdflib.Graph is always converted. Existing StarLayerGraph
+    instances are returned as-is.
 
-    ``force_default_union``: when ``value`` is an ``rdflib.Dataset`` (or
-    ``StarLayerDataset``, a subclass), setting this mutates ``value.default_union
-    = True`` before conversion - matching pySHACL's own native behavior when
-    given a raw ``Dataset`` directly as ``ont_graph`` (``pyshacl/validator.py``:
-    ``if isinstance(self.ont_graph, rdflib.Dataset): self.ont_graph.default_union
-    = True``), so ontology triples across all named graphs are visible for
-    inference regardless of how the caller constructed the dataset. Not used
-    for ``data_graph``/``shacl_graph`` - pySHACL doesn't auto-union those
-    either, only ``ont_graph``.
+    Args:
+        value: The graph to normalize - a StarLayerGraph, a plain
+            rdflib.Graph, or an rdflib.Dataset/StarLayerDataset.
+        name: The parameter name to use in a TypeError message, so callers
+            get an error naming their own argument rather than this
+            helper's.
+        force_default_union: When ``value`` is an ``rdflib.Dataset`` (or
+            ``StarLayerDataset``, a subclass), setting this mutates
+            ``value.default_union = True`` before conversion - matching
+            pySHACL's own native behavior when given a raw ``Dataset``
+            directly as ``ont_graph`` (``pyshacl/validator.py``: ``if
+            isinstance(self.ont_graph, rdflib.Dataset):
+            self.ont_graph.default_union = True``), so ontology triples
+            across all named graphs are visible for inference regardless
+            of how the caller constructed the dataset. Not used for
+            ``data_graph``/``shacl_graph`` - pySHACL doesn't auto-union
+            those either, only ``ont_graph``.
+
+    Returns:
+        The normalized StarLayerGraph.
+
+    Raises:
+        TypeError: If ``value`` is neither a StarLayerGraph nor an
+            rdflib.Graph, or if starlayer.graph is unavailable.
     """
     try:
         from starlayer.graph.graph.starlayer_graph import StarLayerGraph

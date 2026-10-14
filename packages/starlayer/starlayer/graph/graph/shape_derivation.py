@@ -292,7 +292,13 @@ def _close_shape(result: Graph, shape_node, ignored) -> None:
     connective nesting to find every shape that also needs closing, and
     derive_shape()'s own output never has any (sh:class only, never sh:node -
     see module docstring) - there's nothing for that walk to find beyond
-    the one flat shape being closed directly here."""
+    the one flat shape being closed directly here.
+
+    Args:
+        result: The shape graph to update in place.
+        shape_node: The sh:NodeShape node to close.
+        ignored: Predicates to list in sh:ignoredProperties.
+    """
     _clear_list_valued(result, shape_node, SH.ignoredProperties)
     result.remove((shape_node, SH.closed, None))
     result.add((shape_node, SH.closed, Literal(True)))
@@ -352,9 +358,23 @@ def _owning_target_class(working: Graph, shape_node):
 def _recompute_component(working: Graph, data, shape_node, cls, path, component) -> bool:
     """Recompute the sub-constraint `component` on `shape_node` from the
     *true* current data for `cls`/`path` (not incrementally patched from
-    the single violating value). Returns False if there's nothing to
-    recompute from (e.g. no numeric values at all for a numeric-range
-    component) - caller falls back to drop+annotate in that case."""
+    the single violating value).
+
+    Args:
+        working: The shape graph being merged/updated in place.
+        data: The data graph to recompute the constraint from.
+        shape_node: The property shape node whose sub-constraint is being
+            recomputed.
+        cls: The rdf:type whose instances supply the current data.
+        path: The property path (predicate) the constraint applies to.
+        component: The sh:sourceConstraintComponent being recomputed.
+
+    Returns:
+        True if `component` was recomputed (and `working` updated in
+        place) - False if there's nothing to recompute from (e.g. no
+        numeric values at all for a numeric-range component), in which
+        case the caller falls back to drop+annotate instead.
+    """
     instances = set(data.subjects(RDF.type, cls))
     counts = []
     values = set()

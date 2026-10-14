@@ -90,12 +90,11 @@ def query_to_ssyn_rdf(parse_result: ParseResults, graph: Graph | None = None) ->
 
     # Same ordering translate() itself uses (q.where = traverse(q.where,
     # visitPost=translatePath)), and for the same reason: algebra.triples()
-    # (called below, per TriplesBlock) runs reorderTriples, which needs
-    # every term — including the predicate position — to already be
-    # hashable. A raw PathAlternative/PathSequence/PathElt CompValue isn't;
-    # translatePath must run first, not per-predicate after grouping (confirmed
-    # by hitting the exact "cannot use CompValue as a set element" crash
-    # CLAUDE.md finding #11 describes, doing it the other order first).
+    # (called below, per TriplesBlock) runs reorderTriples, which uses every
+    # term — including the predicate position — as a set element, so each
+    # term must already be hashable. A raw PathAlternative/PathSequence/
+    # PathElt CompValue is not hashable the way a set element must be, so
+    # translatePath has to run first, not per-predicate after grouping.
     query.where = traverse(query.where, visitPost=translatePath)
 
     if graph is None:
@@ -107,22 +106,41 @@ def query_to_ssyn_rdf(parse_result: ParseResults, graph: Graph | None = None) ->
     return graph, root
 
 
-def _encode_var_list(projection, graph: Graph):
+def _encode_var_list(projection, graph: Graph) -> BNode | URIRef:
+    """Encode a SELECT projection's variable list as an rdf:List.
+
+    Args:
+        projection: The query's ``.projection`` — a list of CompValues each
+            carrying a ``.var``.
+        graph: The graph to add the encoded list to.
+
+    Returns:
+        The rdf:List node (or ``rdf:nil`` if empty) holding the encoded
+        variables, in projection order.
+    """
     variables = [v.var for v in projection]
     return _build_rdf_list([_encode_variable(v) for v in variables], graph)
 
 
-def _encode_where_group(group: CompValue, graph: Graph):
-    """``GroupGraphPatternSub`` -> a flat, ordered rdf:List of sibling
-    pattern elements — its ``.part`` is already exactly this shape in the
-    raw parse tree, just walked here instead of copied as-is, since each
-    element still needs its own contents simplified/encoded.
+def _encode_where_group(group: CompValue, graph: Graph) -> BNode | URIRef:
+    """Encode a ``GroupGraphPatternSub`` as a flat, ordered rdf:List of
+    sibling pattern elements — its ``.part`` is already exactly this shape
+    in the raw parse tree, just walked here instead of copied as-is, since
+    each element still needs its own contents simplified/encoded.
 
     A ``TriplesBlock`` sibling splices in *multiple* nodes (one per real
     triple, via ``algebra.triples``' own grouping) rather than one wrapper
     node — each triple reads more naturally as its own flat sibling than as
     a member of a BGP-shaped sub-list, matching this layer's "no more
     verbose than the text" goal.
+
+    Args:
+        group: The ``GroupGraphPatternSub`` CompValue to encode.
+        graph: The graph to add the encoded elements to.
+
+    Returns:
+        The rdf:List node (or ``rdf:nil`` if empty) holding the group's
+        encoded sibling elements, in original order.
     """
     nodes: list = []
     for part in group.part or []:
@@ -135,6 +153,20 @@ def _encode_where_group(group: CompValue, graph: Graph):
 
 
 def _encode_where_element(part: CompValue, graph: Graph) -> BNode:
+    """Encode one non-triple-pattern WHERE-clause sibling (``Optional``/
+    ``Filter``/``Bind``/``GroupOrUnionGraphPattern``) as its ``ssyn:`` node.
+
+    Args:
+        part: The parse-tree CompValue for the element.
+        graph: The graph to add the encoded element to.
+
+    Returns:
+        The new node representing the encoded element.
+
+    Raises:
+        NotImplementedError: If ``part.name`` is outside this slice's
+            scope.
+    """
     if part.name == "OptionalGraphPattern":
         node = BNode()
         graph.add((node, RDF.type, OPTIONAL))
@@ -163,6 +195,18 @@ def _encode_where_element(part: CompValue, graph: Graph) -> BNode:
 
 
 def _encode_triple_pattern(s, p, o, graph: Graph) -> BNode:
+    """Encode one already-grouped ``(s, p, o)`` triple as a
+    ``ssyn:TriplePattern`` node.
+
+    Args:
+        s: The triple's subject term.
+        p: The triple's predicate term or path.
+        o: The triple's object term.
+        graph: The graph to add the encoded triple pattern to.
+
+    Returns:
+        The new ``ssyn:TriplePattern`` node.
+    """
     node = BNode()
     graph.add((node, RDF.type, TRIPLE_PATTERN))
     graph.add((node, TRIPLE_PATTERN_SUBJECT, _encode_term(s, graph)))
@@ -172,10 +216,19 @@ def _encode_triple_pattern(s, p, o, graph: Graph) -> BNode:
 
 
 def _encode_predicate(p, graph: Graph):
-    """A predicate position may be a genuine property path — collapse the
-    trivial (non-path) case down to a bare term via rdflib's own
-    translatePath, and fall back to the existing salg: path encoding
-    (to_rdf._encode_path, unchanged) only for a real path."""
+    """Encode a triple pattern's predicate position, which may be a
+    genuine property path — collapse the trivial (non-path) case down to
+    a bare term via rdflib's own translatePath, and fall back to the
+    existing salg: path encoding (to_rdf._encode_path, unchanged) only for
+    a real path.
+
+    Args:
+        p: The predicate term or raw path CompValue.
+        graph: The graph to add the encoded predicate to.
+
+    Returns:
+        The encoded predicate term or path node.
+    """
     translated = translatePath(p) if isinstance(p, CompValue) else p
     if isinstance(translated, Path):
         return _encode_path(translated, graph)
@@ -183,16 +236,45 @@ def _encode_predicate(p, graph: Graph):
 
 
 def _encode_term(value, graph: Graph):
+    """Encode a triple pattern's subject/object term.
+
+    Args:
+        value: The term — a ``Variable``, or a real, already-resolved RDF
+            term (URIRef/BNode/Literal).
+        graph: Accepted for signature uniformity with ``_encode_predicate``;
+            unused here since a non-``Variable`` term needs no graph access.
+
+    Returns:
+        The encoded term.
+    """
     if isinstance(value, Variable):
         return _encode_variable(value)
     return value  # a real, already-resolved RDF term (URIRef/BNode/Literal)
 
 
 def _encode_variable(value: Variable) -> Literal:
+    """Encode a SPARQL variable as a ``Literal`` tagged with
+    ``VARIABLE_DATATYPE``.
+
+    Args:
+        value: The variable to encode.
+
+    Returns:
+        The encoded ``Literal``.
+    """
     return Literal(str(value), datatype=VARIABLE_DATATYPE)
 
 
 def _build_rdf_list(nodes: list, graph: Graph) -> BNode | URIRef:
+    """Build an rdf:List from already-encoded nodes.
+
+    Args:
+        nodes: The already-encoded RDF terms/nodes, in order.
+        graph: The graph to add the list to.
+
+    Returns:
+        The list's head node, or ``rdf:nil`` if ``nodes`` is empty.
+    """
     if not nodes:
         return RDF.nil
     list_node = BNode()

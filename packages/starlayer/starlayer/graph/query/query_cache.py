@@ -19,9 +19,9 @@ already-prepared ``Query`` object instead of a string to ``Graph.query()``
 is a first-class, documented rdflib capability (``Store.query()``'s own
 type signature is ``Union[Query, str]``, and ``SPARQLProcessor.query()``
 branches on exactly this) for the *default* code path - but not every
-store honors that contract: confirmed via real Fuseki testing that
+store honors that contract:
 ``rdflib.plugins.stores.sparqlstore.SPARQLStore``/``SPARQLUpdateStore``
-(used for any remote HTTP SPARQL endpoint, not just Fuseki) hard-require a
+(used for any remote HTTP SPARQL endpoint, e.g. Fuseki) hard-require a
 plain string (``assert isinstance(query, str)`` in their own ``query()``),
 raising ``AssertionError`` rather than falling back gracefully. Callers
 must check ``store_accepts_prepared_query`` before deciding whether to use
@@ -39,11 +39,10 @@ from rdflib.plugins.sparql.sparql import Query
 from starlayer.sparql.lower_rdf11 import query_to_rdf11, rdf11_to_query
 from starlayer.sparql.parse12 import prepare_query_12
 
-# Store classes confirmed (via real Fuseki testing, not just code reading)
-# to hard-require a plain query string - their own query() methods assert
-# isinstance(query, str) rather than accepting a pre-parsed Query object.
-# Both cover any remote HTTP SPARQL endpoint (SPARQLUpdateStore subclasses
-# SPARQLStore), not just Fuseki specifically.
+# Store classes that hard-require a plain query string - their own query()
+# methods assert isinstance(query, str) rather than accepting a pre-parsed
+# Query object. Both cover any remote HTTP SPARQL endpoint
+# (SPARQLUpdateStore subclasses SPARQLStore), not just one specific backend.
 _STRING_ONLY_STORE_TYPES: tuple[type, ...] = ()
 
 
@@ -57,12 +56,19 @@ def store_accepts_prepared_query(store: Any) -> bool:
     """Whether ``store``'s own ``query()`` (if it implements one - see
     ``Graph.query()``'s ``hasattr(self.store, "query")`` dispatch) can
     safely be handed a pre-parsed ``rdflib.plugins.sparql.sparql.Query``
-    object instead of a plain string. ``False`` for known string-only
-    stores (confirmed via real Fuseki testing); ``True`` otherwise,
-    including for the default in-memory ``Memory`` store, whose own
-    ``query()`` just raises ``NotImplementedError`` and falls through to
-    the generic ``SPARQLProcessor`` path, which does correctly accept a
-    prepared ``Query`` object.
+    object instead of a plain string.
+
+    Args:
+        store: The rdflib ``Store`` instance a query is about to be run
+            against.
+
+    Returns:
+        ``False`` for known string-only stores (``SPARQLStore``/
+        ``SPARQLUpdateStore``); ``True`` otherwise, including for the
+        default in-memory ``Memory`` store, whose own ``query()`` just
+        raises ``NotImplementedError`` and falls through to the generic
+        ``SPARQLProcessor`` path, which does correctly accept a prepared
+        ``Query`` object.
     """
     global _STRING_ONLY_STORE_TYPES
     if not _STRING_ONLY_STORE_TYPES:
@@ -81,25 +87,40 @@ def prepare_query_cached(
     previous preparation from ``cache`` if the same
     (query text, effective namespaces, base, entailment) was seen before.
 
-    ``effective_ns`` must already be the namespace mapping that will
-    actually be used - the caller's explicit ``initNs``, or its own bound
-    namespaces if none was given - not ``None`` standing in for "resolve
-    it later"; a cache keyed before that resolution would miss real
-    differences (or worse, reuse a stale mapping) if a graph's bound
-    namespaces change between calls with the same query text.
+    Args:
+        cache: The per-graph/dataset cache dict to read from and populate,
+            keyed on (query text, sorted effective namespace pairs, base,
+            entailment).
+        query_text: The raw SPARQL 1.2 query text (may still carry a
+            leading ``VERSION`` directive - stripped here before parsing).
+        effective_ns: The namespace mapping that will actually be used -
+            the caller's explicit ``initNs``, or its own bound namespaces
+            if none was given - not ``None`` standing in for "resolve it
+            later"; a cache keyed before that resolution would miss real
+            differences (or worse, reuse a stale mapping) if a graph's
+            bound namespaces change between calls with the same query
+            text.
+        base: The base IRI to parse against, baked into the cached
+            ``Query`` the same way ``effective_ns`` is.
+        entailment: ``None`` (default, today's plain behavior) or
+            ``ENTAILMENT.RDFS``/``ENTAILMENT.RDF``
+            (``starlayer.graph.graph.entailment_regimes``), which rewrites
+            every BGP for the given entailment regime (see
+            ``starlayer.sparql.entailment_rdfs``/``entailment_rdf`` for
+            exactly which rules) once here, baked into the cached prepared
+            object - not re-applied on every cache hit. Included in the
+            cache key defensively, even though a given ``StarLayerGraph``
+            instance's ``entailment`` is fixed for its whole lifetime and
+            this cache is per-instance (so in practice it never varies
+            within one cache's lifetime today). Only these three values
+            ever reach this function - ``query()``'s
+            ``ENTAILMENT["OWL-RDF-Based"]``/``ENTAILMENT["OWL-Direct"]``/
+            ``"native"`` branches all return before calling it.
 
-    ``entailment`` -- ``None`` (default, today's plain behavior) or
-    ``ENTAILMENT.RDFS`` (``starlayer.graph.graph.entailment_regimes``),
-    which rewrites every BGP for RDFS entailment (see
-    ``starlayer.sparql.entailment_rdfs`` for exactly which rules) once here,
-    baked into the cached prepared object - not re-applied on every
-    cache hit. Included in the cache key defensively, even though a given
-    ``StarLayerGraph`` instance's ``entailment`` is fixed for its whole
-    lifetime and this cache is per-instance (so in practice it never
-    varies within one cache's lifetime today). Only ``None``/``ENTAILMENT.RDF``/
-    ``ENTAILMENT.RDFS`` ever reach this function - ``query()``'s
-    ``ENTAILMENT["OWL-RDF-Based"]``/``ENTAILMENT["OWL-Direct"]``/``"native"``
-    branches all return before calling it.
+    Returns:
+        The prepared ``rdflib.plugins.sparql.sparql.Query`` object, from
+        cache if present, otherwise freshly parsed and lowered then stored
+        in ``cache`` before returning.
     """
     ns_key = tuple(sorted((str(k), str(v)) for k, v in effective_ns.items())) if effective_ns else ()
     cache_key = (query_text, ns_key, base, entailment)

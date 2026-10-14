@@ -67,6 +67,11 @@ slkg:Parameter a owl:Class ;
     rdfs:label "Parameter" ;
     rdfs:comment "One formal parameter of a Function, including its position, kind, default, and resolved type(s)." .
 
+slkg:Attribute a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Attribute" ;
+    rdfs:comment "A class-body-level typed attribute declaration (an ast.AnnAssign that is a direct child of a ClassDef's own body, e.g. a @dataclass field) - identical in shape to slkg:Parameter (type, default, position), so it reuses slkg:hasType/slkg:annotationText/slkg:defaultValue/slkg:position rather than inventing Attribute-specific duplicates. Never emitted for an assignment inside a method body - only a direct ClassDef.body child." .
+
 slkg:ReturnValue a owl:Class ;
     rdfs:subClassOf prov:Entity ;
     rdfs:label "Return value" ;
@@ -108,6 +113,12 @@ slkg:hasParameter a owl:ObjectProperty ;
     rdfs:label "has parameter" ;
     rdfs:comment "Relates a Function to one of its formal parameters." .
 
+slkg:hasAttribute a owl:ObjectProperty ;
+    rdfs:domain slkg:Class ;
+    rdfs:range slkg:Attribute ;
+    rdfs:label "has attribute" ;
+    rdfs:comment "Relates a Class to one of its class-body-level typed attribute declarations." .
+
 slkg:hasReturnValue a owl:ObjectProperty ;
     rdfs:domain slkg:Function ;
     rdfs:range slkg:ReturnValue ;
@@ -140,6 +151,28 @@ slkg:demonstratedBy a owl:ObjectProperty ;
     rdfs:range slkg:NotebookExample ;
     rdfs:label "demonstrated by" ;
     rdfs:comment "Relates any entity to a NotebookExample that demonstrates its usage. Reserved for future curated-graph use - not populated by the auto-generated extractor." .
+
+slkg:calls a owl:ObjectProperty ;
+    rdfs:domain slkg:Function ;
+    rdfs:range slkg:Function ;
+    rdfs:label "calls" ;
+    rdfs:comment "A function/method's body contains a call site resolved, with confidence, to this target function/method - including across files (see starlayer.codekg.extractor.symbol_index). Absence of an edge means the extractor couldn't resolve the call with confidence (a call through a plain local variable, a dynamic/computed call, an external library/stdlib call) or deliberately didn't try (no type inference) - it does not mean 'confirmed never calls'. Domain/range are both slkg:Function, which slkg:Method already subclasses, so this covers Method->Method, Function->Function, and Method->Function/Function->Method alike without a separate declaration." .
+
+slkg:overrides a owl:ObjectProperty ;
+    rdfs:domain slkg:Method ;
+    rdfs:range slkg:Method ;
+    rdfs:label "overrides" ;
+    rdfs:comment "This method shares a name with, and shadows, a method already declared on one of its class's base classes - only detected when that base class is defined in the *same file* as the overriding method (see starlayer.codekg.extractor.visitor's own same-file-only scope note); a genuine override of a method from a base class defined in a different file gets no edge in this version." .
+
+slkg:isPrivate a owl:DatatypeProperty ;
+    rdfs:range xsd:boolean ;
+    rdfs:label "is private" ;
+    rdfs:comment "True when a Class/Function/Method's name starts with a leading underscore and isn't a dunder (slkg:isDunder) - this project's own naming convention for 'not part of the public API', not a Python language-enforced restriction. Only ever asserted true, mirroring slkg:isAsync's own convention. Domain is the union of slkg:Class and slkg:Function, left informal here (no owl:unionOf) rather than formally declared, matching slkg:hasDecorator's own precedent." .
+
+slkg:isDunder a owl:DatatypeProperty ;
+    rdfs:range xsd:boolean ;
+    rdfs:label "is dunder" ;
+    rdfs:comment "True when a Class/Function/Method's name both starts and ends with a double underscore (e.g. __init__, __eq__) - Python's own operator-protocol naming convention, deliberately kept separate from slkg:isPrivate rather than folded into it: a dunder method is part of a real, if implicit, protocol surface, not hidden the way an ordinary leading-underscore name is. Only ever asserted true. Domain is the union of slkg:Class and slkg:Function, left informal here, matching slkg:isPrivate's own convention." .
 
 # Note on rdfs:subClassOf usage: rdfs:subClassOf is a standard RDFS
 # predicate, reused directly rather than redeclared anywhere in this file.
@@ -216,6 +249,37 @@ slkg:isAsync a owl:DatatypeProperty ;
     rdfs:range xsd:boolean ;
     rdfs:label "is async" ;
     rdfs:comment "True when a Function is defined with async def." .
+
+# Note on isProperty/isClassmethod/isStaticmethod scope: only the BARE
+# decorator name (@property, @classmethod, @staticmethod) is recognized.
+# A qualified form (@functools.property) or an aliased import is not
+# detected and leaves the corresponding flag unasserted - every real
+# instance in this codebase uses the bare form, so this is not a current
+# limitation in practice, just an undemonstrated edge case.
+
+slkg:isProperty a owl:DatatypeProperty ;
+    rdfs:range xsd:boolean ;
+    rdfs:label "is property" ;
+    rdfs:comment "True when a Method is decorated with the bare @property decorator. Only ever asserted true, mirroring slkg:isAsync's own convention." .
+
+slkg:isClassmethod a owl:DatatypeProperty ;
+    rdfs:range xsd:boolean ;
+    rdfs:label "is classmethod" ;
+    rdfs:comment "True when a Method is decorated with the bare @classmethod decorator." .
+
+slkg:isStaticmethod a owl:DatatypeProperty ;
+    rdfs:range xsd:boolean ;
+    rdfs:label "is staticmethod" ;
+    rdfs:comment "True when a Method is decorated with the bare @staticmethod decorator." .
+
+# Note on property scope not yet covered: a setter/deleter-paired property
+# (the @x.setter/@x.deleter forms following an @property getter) and a
+# dataclass field whose default is field(default_factory=...) are both
+# accepted but undemonstrated future extensions - zero real examples exist
+# anywhere in this codebase yet to validate a design against. A
+# default_factory=... call is still captured as literal text in
+# slkg:defaultValue like any other default expression, just with no
+# special boolean semantics attached to it.
 
 slkg:notebookPath a owl:DatatypeProperty ;
     rdfs:domain slkg:NotebookExample ;

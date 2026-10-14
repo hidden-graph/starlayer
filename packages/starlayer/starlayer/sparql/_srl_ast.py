@@ -1,12 +1,12 @@
-"""Private module (renamed from ``srl_ast.py`` 2026-10-05 - not directly
-importable from outside this package). Only ``RuleSet`` and
-``TriplePattern`` are re-exported from ``srl.py`` (e.g. ``srl.RuleSet``),
-so there's one real path to those two, not two paths - everything else
-here (``_Rule``, ``_Data``, ``_FilterElement``, ``_AssignmentElement``,
-``_NegationElement``) is private, made so 2026-10-06: no public function
-or method requires any of them directly, and the only way a caller would
-ever touch one is by walking ``RuleSet.rules``/``Rule.head``/``Rule.body``,
-an inspection/editing concern this API doesn't cover yet.
+"""Private module: not directly importable from outside this package.
+Only ``RuleSet`` and ``TriplePattern`` are re-exported from ``srl.py``
+(e.g. ``srl.RuleSet``), so there's one real path to those two, not two
+paths - everything else here (``_Rule``, ``_Data``, ``_FilterElement``,
+``_AssignmentElement``, ``_NegationElement``) is private: no public
+function or method requires any of them directly, and the only way a
+caller would ever touch one is by walking ``RuleSet.rules``/
+``Rule.head``/``Rule.body``, an inspection/editing concern this API
+doesn't cover yet.
 
 Python dataclasses for the SRL/SPARQL-RL abstract syntax tree, mirroring
 `WD-sparql12-rl-20260919 <https://www.w3.org/TR/sparql12-rl/>`_ §4.1
@@ -61,6 +61,12 @@ class TriplePattern:
     head (where the spec calls it a "triple template") and its body/DATA
     block (where it calls it a "triple pattern") - see ``TripleTemplate``
     alias below for call sites that want the spec's own head-position name.
+
+    Attributes:
+        subject: The triple's subject term.
+        predicate: The triple's predicate term (never a Literal, BNode,
+            or triple term - see ``PredicateTerm``).
+        object: The triple's object term.
     """
 
     subject: Term
@@ -82,9 +88,8 @@ class _FilterElement:
     not a bespoke SRL expression AST.
 
     Private: no public function or method takes or returns one - only
-    reachable by walking ``Rule.body``, an inspection/editing concern this
-    API doesn't cover yet (same reasoning as ``_AssignmentElement``/
-    ``_NegationElement``/``_Data``/``_Rule`` below)."""
+    reachable by walking ``Rule.body``, the same test applied to
+    ``_AssignmentElement``/``_NegationElement``/``_Data``/``_Rule`` below."""
 
     expr: Expr
 
@@ -96,7 +101,12 @@ class _AssignmentElement:
     bound earlier in the same rule body - enforced by
     ``srl_semantic_checks.py``.
 
-    Private - see ``_FilterElement`` above."""
+    Private - see ``_FilterElement`` above.
+
+    Attributes:
+        var: The variable being bound.
+        expr: The expression assigned to ``var``.
+    """
 
     var: Variable
     expr: Expr
@@ -118,7 +128,14 @@ class _NegationElement:
     (``GD``) rather than the evaluation graph, per §6.4's ``evalRuleElements``
     pseudocode (``if rElt with DATA: ... GD, GD else ... G, GD``).
 
-    Private - see ``_FilterElement`` above."""
+    Private - see ``_FilterElement`` above.
+
+    Attributes:
+        inner: The negated body elements (triple patterns and filters only
+            - see ``NegationBodyElement``).
+        data: Whether ``inner`` matches against the DATA graph rather than
+            the evaluation graph.
+    """
 
     inner: list[NegationBodyElement] = field(default_factory=list)
     data: bool = False
@@ -135,13 +152,16 @@ class _Rule:
     against the rule set's DATA graph rather than the base graph - the
     grammar's ``WHERE DATA? { ... }``).
 
-    Private (was ``Rule``, public, until 2026-10-06): no public function or
-    method takes or returns a ``Rule`` directly, and it has no public
-    methods of its own (``_is_run_once`` below is private too) - the only
-    way a caller would ever touch one is by walking ``RuleSet.rules``, an
-    inspection/editing concern this API doesn't cover yet. Unlike
-    ``TriplePattern`` (needed directly as ``RuleSet.query()``'s own
-    ``goal_pattern`` parameter type), nothing requires this type publicly."""
+    Private: the test applied project-wide to every SRL AST type is
+    whether any public function or method signature requires this type
+    directly. No public function or method takes or returns a ``Rule``,
+    and it has no public methods of its own (``_is_run_once`` below is
+    private too) - the only way a caller would ever touch one is by
+    walking ``RuleSet.rules``, an inspection/editing concern this API
+    doesn't cover yet. ``TriplePattern`` is the one type that passes this
+    test (it's ``RuleSet.query()``'s own ``goal_pattern`` parameter type,
+    so a caller must be able to construct one) - nothing requires
+    ``_Rule`` publicly."""
 
     head: list[TripleTemplate] = field(default_factory=list)
     body: list[BodyElement] = field(default_factory=list)
@@ -162,8 +182,11 @@ class _Rule:
         Private: consulted only by ``srl_eval.py``'s own dependency-graph/
         stratification internals (``_build_dependency_graph``/
         ``_stratify``, both private themselves) - no external caller
-        needs this classification directly, same evidentiary standard
-        applied to every other SRL internal this session."""
+        needs this classification directly.
+
+        Returns:
+            True if this rule is run-once; False if it is general.
+        """
         if any(isinstance(e, _AssignmentElement) for e in self.body):
             return True
         return any(isinstance(t.subject, BNode) or isinstance(t.object, BNode) for t in self.head)
@@ -175,7 +198,11 @@ class _Data:
     productions admit no variables), giving the DATA graph GD any rule may
     match against instead of, or in addition to, the base graph.
 
-    Private - see ``_FilterElement`` above."""
+    Private - see ``_FilterElement`` above.
+
+    Attributes:
+        triples: The block's ground triples.
+    """
 
     triples: list[TriplePattern] = field(default_factory=list)
 
@@ -187,6 +214,11 @@ class RuleSet:
     set" (§4.5) is one whose ``imports`` list is empty because every import
     has already been recursively inlined - not modeled as a separate type
     here, just a ``RuleSet`` with ``imports == []``.
+
+    Attributes:
+        rules: The rule set's rules.
+        data: The rule set's DATA blocks.
+        imports: IRIs of other rule sets to inline.
     """
 
     rules: list[_Rule] = field(default_factory=list)
@@ -199,7 +231,14 @@ class RuleSet:
         one real way to run a rule set; ``srl_eval._srl_infer`` is private
         plumbing underneath this, not a second public path. Imported
         locally since ``srl_eval.py`` itself imports this module, so a
-        top-level import here would be circular."""
+        top-level import here would be circular.
+
+        Args:
+            base_graph: The graph to run the rule set against.
+
+        Returns:
+            The inferred-triples-only graph.
+        """
         from . import srl_eval
 
         return srl_eval._srl_infer(base_graph, self)
@@ -207,7 +246,16 @@ class RuleSet:
     def query(self, base_graph: Graph, goal_pattern: TriplePattern) -> list[dict]:
         """Runs :meth:`infer` then returns every match of
         ``goal_pattern`` against ``base_graph`` union the inferred triples
-        (§4.1's ``Query``)."""
+        (§4.1's ``Query``).
+
+        Args:
+            base_graph: The graph to run the rule set against.
+            goal_pattern: The triple pattern to match against the union of
+                ``base_graph`` and the inferred triples.
+
+        Returns:
+            One ``dict[Variable, term]`` solution per match.
+        """
         from . import srl_eval
 
         return srl_eval._srl_query(base_graph, self, goal_pattern)

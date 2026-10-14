@@ -2,7 +2,7 @@
 
 SHACL validation of a SKOS graph against the W3C SKOS Reference's own
 numbered "Documented Consistency and Integrity Conditions"
-(https://www.w3.org/TR/skos-reference/). Moved here (2026-10-03) from
+(https://www.w3.org/TR/skos-reference/). This lives here, not in
 starlayer.ontology.skos_shapes, for the same reason manch:'s manchester_validate()
 lives in starontology.manchester - validating a vocabulary against its own
 shapes is an ontology-management concern, not a starlayer.graph/.sparql one.
@@ -33,9 +33,9 @@ graphs from ``starontology`` directly instead: ``get_ontology_graph(
 faithfully restates the real spec's S19/S20 ``rdfs:domain``/``range``
 axioms, but feeding that ontology into an RDFS-inference validation pass
 would auto-entail exactly the ``skos:Concept`` type the S19/S20 shape
-exists to check for, making it tautologically vacuous - confirmed
-empirically while building this (see ``skos_shapes.ttl``'s own module
-comment for the full account). Every shape there is written to be
+exists to check for, making it tautologically vacuous (see
+``skos_shapes.ttl``'s own module comment for the full account). Every
+shape there is written to be
 self-sufficient against the bare data graph instead - this is also why
 ``skos_validate()`` here needs no combining-with-another-vocabulary's-shapes
 logic the way ``srl.srl_validate()`` does for ``srl:``+``salg:``.
@@ -51,9 +51,7 @@ from . import get_ontology_graph
 
 
 def skos_validate(data_graph: Graph) -> tuple[bool, Graph, str]:
-    """Validate ``data_graph`` (any SKOS thesaurus - hand-authored, parsed
-    from RDF/XML or Turtle, whatever) against the shapes in
-    ``skos_shapes.ttl``.
+    """Validate ``data_graph`` against the shapes in ``skos_shapes.ttl``.
 
     Deliberately no ``ont_graph``/``inference`` - see this module's own
     docstring for why (RDFS domain/range entailment from
@@ -64,17 +62,22 @@ def skos_validate(data_graph: Graph) -> tuple[bool, Graph, str]:
     this validates a caller-supplied ``data_graph`` that may be genuine
     RDF 1.2 content, which only ``starlayer.shacl`` understands correctly.
 
-    Returns ``(conforms, results_graph, results_text)``, unpacked from
-    ``starlayer.shacl``'s own ``ValidationResult``.
-
     ``allow_infos=True`` is passed through unconditionally - without it,
     pyshacl's own ``conforms`` computation doesn't distinguish severity
-    levels at all (confirmed empirically: an ``sh:Info``-severity result
-    still flips ``conforms`` to ``False`` by default). Without this, the
-    best-practice shapes in ``skos_shapes.ttl`` (``sh:severity sh:Info``)
-    would make an otherwise entirely valid thesaurus that merely skips a
-    recommendation report ``conforms == False`` - defeating the entire
-    point of using ``sh:Info`` instead of the default ``sh:Violation``.
+    levels at all: an ``sh:Info``-severity result still flips ``conforms``
+    to ``False`` by default. Without this, the best-practice shapes in
+    ``skos_shapes.ttl`` (``sh:severity sh:Info``) would make an otherwise
+    entirely valid thesaurus that merely skips a recommendation report
+    ``conforms == False`` - defeating the entire point of using
+    ``sh:Info`` instead of the default ``sh:Violation``.
+
+    Args:
+        data_graph: Any SKOS thesaurus - hand-authored, parsed from
+            RDF/XML or Turtle, whatever.
+
+    Returns:
+        ``(conforms, results_graph, results_text)``, unpacked from
+        ``starlayer.shacl``'s own ``ValidationResult``.
     """
     from pyshacl.errors import ShapeRecursionWarning
 

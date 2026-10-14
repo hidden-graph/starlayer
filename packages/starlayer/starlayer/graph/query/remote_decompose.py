@@ -86,6 +86,12 @@ def contains_custom_function_call(node: Any) -> bool:
     ``ConstructQuery`` template minting a fresh triple term - so a caller
     can fail loudly instead of silently sending an unusable query to a
     remote store.
+
+    Args:
+        node: An algebra tree/subtree, list, tuple, or leaf value to search.
+
+    Returns:
+        True if a custom-function call appears anywhere in ``node``.
     """
     if _is_custom_function_call(node):
         return True
@@ -125,6 +131,22 @@ def _strip_custom_extends(node: Any, local_vars: set, recipes: list, filters: li
     Extend too (still matches the direct-call case, since
     contains_custom_function_call checks that first), so both use the same
     condition.
+
+    Args:
+        node: The algebra (sub)tree to process.
+        local_vars: Mutated in place - accumulates every variable bound by
+            a stripped Extend, so a later recipe/filter can tell it's
+            depending on a locally-evaluated value rather than one the
+            remote store will return.
+        recipes: Mutated in place - accumulates (variable, expression)
+            pairs for each stripped Extend, in dependency order.
+        filters: Mutated in place - accumulates each stripped Filter's
+            boolean expression.
+
+    Returns:
+        ``node`` with any matching Extend/Filter wrapper removed (replaced
+        by its inner pattern), or ``node`` unchanged if it isn't a
+        CompValue or doesn't match.
     """
     if not isinstance(node, CompValue):
         return node
@@ -172,6 +194,18 @@ def decompose_for_remote(prepared_query: Any) -> tuple[list[tuple[Variable, Any]
     returns its value - the caller is responsible for trimming the extra
     columns back out of the final result. Same treatment for a variable a
     stripped filter depends on.
+
+    Args:
+        prepared_query: A compiled rdflib ``Query`` object (e.g. from
+            ``sparql_api.prepareQuery``); its ``.algebra`` is mutated in
+            place.
+
+    Returns:
+        A ``(recipes, filters)`` tuple: the ordered (variable, expression)
+        recipes to evaluate locally per result row via
+        ``evaluate_recipes_locally``, and the boolean filter expressions to
+        re-check locally per row via ``row_passes_filters``. Both are empty
+        if ``prepared_query`` isn't SELECT-shaped.
     """
     algebra = prepared_query.algebra
     if algebra.name != 'SelectQuery':
@@ -214,6 +248,20 @@ def evaluate_recipes_locally(recipes: list[tuple[Variable, Any]], row: dict, gra
     own Function() evalfn - evaluating it here runs the identical code path
     evalExtend would have used locally, just against a QueryContext built
     from the returned row instead of a live join.
+
+    Args:
+        recipes: The ordered (variable, expression) list from
+            `decompose_for_remote`.
+        row: The remote result row's bindings (Variable -> Node), not yet
+            restored to their public (e.g. TripleTerm) form.
+        graph: The graph to evaluate expressions against - supplies
+            context (e.g. for any graph-dependent builtin) to the
+            QueryContext built here.
+
+    Returns:
+        `row` merged with each recipe's computed value, in evaluation
+        order. A recipe whose dependency is unbound is left out of the
+        result (same as evalExtend's own "leave unbound" behavior).
     """
     from rdflib.plugins.sparql.evaluate import _eval
     from rdflib.plugins.sparql.sparql import FrozenBindings, QueryContext, SPARQLError
@@ -245,6 +293,16 @@ def row_passes_filters(filters: list[Any], bindings: dict, graph: Any) -> bool:
     expression is false or raises, not just if it's literally ``False``
     (a filter's own "effective boolean value" coercion - `EBV` - already
     handles truthy non-boolean results the same way a real FILTER would).
+
+    Args:
+        filters: The boolean filter expressions from `decompose_for_remote`.
+        bindings: The row's bindings after `evaluate_recipes_locally` has
+            merged in every recipe's computed value.
+        graph: The graph to evaluate expressions against.
+
+    Returns:
+        False if any filter expression is false or raises for `bindings`;
+        True otherwise (including when `filters` is empty).
     """
     from rdflib.plugins.sparql.evaluate import _eval
     from rdflib.plugins.sparql.operators import EBV

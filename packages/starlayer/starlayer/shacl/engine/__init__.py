@@ -10,16 +10,13 @@ from starlayer.shacl.engine.normalization import (
     normalize_to_starlayer_graph,
 )
 
-# _ComponentEvaluationResult (engine/core.py) is deliberately not
-# re-exported here (2026-10-08) - evaluate_component() itself has no real
-# standalone use case (see starlayer/shacl/CLAUDE.md's dated entry: it's a
-# hardcoded dispatcher over a fixed set of component names, with no
-# extension mechanism, that only ever reproduces behavior validate()
-# already gives for free), so its own return type has no reason to be
-# part of the public surface either. A caller importing evaluate_component
+# _ComponentEvaluationResult (engine/core.py) is not re-exported here:
+# evaluate_component() is a hardcoded dispatcher over a fixed set of
+# component names, with no extension mechanism for a caller to register a
+# new component type - so its own return type has no reason to be part of
+# the public surface either. A caller importing evaluate_component
 # directly still gets a real instance back and can read .conforms/
-# .violations off it - just not a clean type-hintable import path, which
-# is an intentional signal, not an oversight.
+# .violations off it - just not a clean type-hintable import path.
 
 __all__ = [
     "ComponentRequest",

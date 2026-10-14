@@ -25,14 +25,14 @@ operates on the *already-translated* ``Prologue`` object
 (``translatePrologue``'s own output), whose ``namespace_manager`` is
 pre-seeded with rdflib's ~29 built-in default prefix bindings
 (``rdf``/``rdfs``/``foaf``/``skos``/...) regardless of what the query
-itself declared - confirmed empirically: encoding straight from that
-object pulled in all ~29 defaults alongside the one real `PREFIX` the
-user wrote. ``_encode_raw_prologue`` below instead walks the *raw*
-``prologue_list`` (``parseQuery()``'s own ``q[0]`` - a flat sequence of
-``PrefixDecl``/``Base`` ``CompValue``s, confirmed directly: exactly and
-only what the query text itself declared, no pollution) - needed for
-``to_text.py``'s prefix-aware rendering to show only the user's own
-prefixes, not rdflib's entire default set.
+itself declared - encoding straight from that object pulls in all ~29
+defaults alongside the one real `PREFIX` the user wrote.
+``_encode_raw_prologue`` below instead walks the *raw* ``prologue_list``
+(``parseQuery()``'s own ``q[0]`` - a flat sequence of ``PrefixDecl``/
+``Base`` ``CompValue``s: exactly and only what the query text itself
+declared, no pollution) - needed for ``to_text.py``'s prefix-aware
+rendering to show only the user's own prefixes, not rdflib's entire
+default set.
 """
 
 from __future__ import annotations
@@ -87,19 +87,26 @@ _ROOT_TYPE_BY_QUERY_NAME = {
 
 def sqe_parse_to_tree(text: str, graph: Graph | None = None) -> tuple[Graph, BNode]:
     """Encode SPARQL ``SELECT``/``ASK``/``CONSTRUCT`` query text as
-    ``sqe:`` RDF. Returns ``(graph, root)``. The one public encoding
-    entry point - parses ``text`` with the same ``parseQuery`` every
-    other SPARQL 1.2 entry point in this package uses, then delegates to
-    ``_query_to_sqe_rdf`` below.
+    ``sqe:`` RDF. The one public encoding entry point - parses ``text``
+    with the same ``parseQuery`` every other SPARQL 1.2 entry point in
+    this package uses, then delegates to ``_query_to_sqe_rdf`` below.
 
-    Raises ``NotImplementedError`` for anything outside v1's scope
-    (``DESCRIBE``; aggregates/``GROUP BY``/``HAVING``, subqueries,
-    ``VALUES``, or any ``WHERE``-clause element besides a triple
-    pattern/``OPTIONAL``/``UNION``/``FILTER``/``BIND``) rather than
-    silently mis-encoding - see ``vocab.py``'s module docstring and
-    `future_enhancements.md` for the deliberate scope reduction this
-    mirrors from SRL. ``graph`` defaults to a fresh ``StarLayerGraph``
-    (see ``to_rdf._new_starlayer_graph``).
+    Args:
+        text: The SPARQL query text to encode.
+        graph: The graph to add the ``sqe:`` RDF to. Defaults to a
+            fresh ``StarLayerGraph`` (see ``to_rdf._new_starlayer_graph``).
+
+    Returns:
+        A ``(graph, root)`` tuple.
+
+    Raises:
+        NotImplementedError: For anything outside v1's scope
+            (``DESCRIBE``; aggregates/``GROUP BY``/``HAVING``,
+            subqueries, ``VALUES``, or any ``WHERE``-clause element
+            besides a triple pattern/``OPTIONAL``/``UNION``/``FILTER``/
+            ``BIND``) rather than silently mis-encoding - see
+            ``vocab.py``'s module docstring and `future_enhancements.md`
+            for the deliberate scope reduction this mirrors from SRL.
     """
     from rdflib.plugins.sparql.parser import parseQuery
 
@@ -109,7 +116,7 @@ def sqe_parse_to_tree(text: str, graph: Graph | None = None) -> tuple[Graph, BNo
 def _query_to_sqe_rdf(parse_result: ParseResults, graph: Graph | None = None) -> tuple[Graph, BNode]:
     """Encode a ``SELECT``/``ASK``/``CONSTRUCT`` query's raw parse tree
     (``parseQuery(text)``'s output — ``[prologue, query]``) as ``sqe:``
-    RDF. Returns ``(graph, root)``.
+    RDF.
 
     Private: ``sqe_parse_to_tree`` above is the public entry point. Taking
     an already-``parseQuery()``'d tree directly (rather than text) is a
@@ -118,6 +125,15 @@ def _query_to_sqe_rdf(parse_result: ParseResults, graph: Graph | None = None) ->
     separate function purely so the actual encoding logic stays testable/
     reusable without forcing a real parse through ``sqe_parse_to_tree`` on
     every call.
+
+    Args:
+        parse_result: ``parseQuery(text)``'s raw ``[prologue, query]``
+            output.
+        graph: The graph to add the ``sqe:`` RDF to. Defaults to a
+            fresh ``StarLayerGraph``.
+
+    Returns:
+        A ``(graph, root)`` tuple.
     """
     prologue_list, query = parse_result[0], parse_result[1]
     root_type = _ROOT_TYPE_BY_QUERY_NAME.get(query.name)
@@ -162,10 +178,10 @@ def _encode_raw_prologue(prologue_list, root, graph: Graph) -> None:
             graph.add((root, SALG.base, decl.iri))
         elif decl.name == "PrefixDecl":
             # A bare `PREFIX :` (the default/no-label prefix) parses with
-            # decl.prefix set to Python None, not an empty string -
-            # confirmed directly. Literal(None, ...) would stringify to
-            # the text "None", silently corrupting the rendered PREFIX
-            # declaration - encode the real empty string instead.
+            # decl.prefix set to Python None, not an empty string.
+            # Literal(None, ...) would stringify to the text "None",
+            # silently corrupting the rendered PREFIX declaration -
+            # encode the real empty string instead.
             label = decl.prefix if decl.prefix is not None else ""
             binding = BNode()
             graph.add((binding, RDF.type, SALG.PrefixBinding))

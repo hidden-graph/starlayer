@@ -930,6 +930,17 @@ def _strip_blank_and_comment_lines(data):
             line_start_in_string = in_string
             i += 2 if data[i:i+2] == '\r\n' else 1
             continue
+        if in_string and c == '\\' and i + 1 < n:
+            # Skip an escaped character as one atomic pair, before the
+            # string_char check below ever sees it - otherwise an escaped
+            # quote sitting directly against the real closing delimiter
+            # (e.g. a docstring ending "...the word \"profile.\"\"\"\"")
+            # is misread as itself starting the close, one character
+            # early. Mirrors syntax._split_statements_impl's matching fix.
+            line_buf.append(c)
+            line_buf.append(data[i + 1])
+            i += 2
+            continue
         line_buf.append(c)
         if in_string:
             if c == string_char:
@@ -940,7 +951,7 @@ def _strip_blank_and_comment_lines(data):
                         i += 3
                         in_string = False
                         continue
-                elif i > 0 and data[i-1] != '\\':
+                else:
                     in_string = False
         elif c in ('"', "'"):
             in_string = True

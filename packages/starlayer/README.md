@@ -1,7 +1,3 @@
-<!-- This file and the repo-root README.md are near-duplicates (this one
-     is also packaged into the sdist/wheel as the PyPI long description).
-     Keep shared prose in sync between the two - only the install command
-     and one relative link are meant to differ. -->
 # StarLayer
 
 StarLayer is a Python RDF 1.2 wrapper built on rdflib and pyshacl. 
@@ -21,7 +17,7 @@ pip install "git+https://github.com/hidden-graph/starlayer.git#subdirectory=pack
 
 This is the supported public install path for the StarLayer stack. It brings in the graph, SPARQL, and SHACL layers together.
 
-For a browser-based walkthrough with example code, see the [user guides index](../../docs/guides/README.md).
+For a browser-based walkthrough with example code, see the [user guides index](../../docs/README.md).
 
 If you are working from a local checkout for development, you can install the same package in editable mode from the repo:
 

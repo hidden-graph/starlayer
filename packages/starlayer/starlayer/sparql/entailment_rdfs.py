@@ -18,15 +18,16 @@ iteration to approximate here, which is exactly why this stays a rewrite
 and never needs StarLayerGraph.infer()'s materialize-then-query approach.
 
 Rules covered (RDF Semantics' own numbering):
+
     rdfs9  - x rdf:type C, C rdfs:subClassOf D => x rdf:type D
     rdfs2  - x P y, P rdfs:domain D            => x rdf:type D
     rdfs3  - x P y, P rdfs:range D             => y rdf:type D
     rdfs11 - subClassOf transitivity (+ rdfs10 reflexivity, for free from
-             the same zero-or-more path - see module-level note below)
+             the same zero-or-more path - see the reflexivity note below)
     rdfs5  - subPropertyOf transitivity (+ rdfs6 reflexivity, likewise)
     rdfs7  - Q rdfs:subPropertyOf P, x Q y     => x P y
 
-Deliberately NOT covered (all "vocabulary-level" facts, not about the
+Deliberately out of scope (all "vocabulary-level" facts, not about the
 data being queried - matching them would mean rewriting e.g. `?x a
 rdfs:Resource` into "any term used anywhere in the graph," a fundamentally
 different and far less useful query shape than what the rules above
@@ -34,19 +35,19 @@ produce): rdfs4a/rdfs4b (every term used anywhere is rdf:type
 rdfs:Resource), rdfs8 (every rdfs:Class is rdfs:subClassOf rdfs:Resource),
 rdfs12/rdfs13 (container-membership-property/datatype axioms), and the
 ~30 fixed RDFS axiomatic triples (e.g. rdf:type rdfs:domain rdfs:Resource).
-Confirmed live against owlrl.RDFS_Semantics that these account for most of
-the triple growth on a real closure - StarLayerGraph.infer(entailment=ENTAILMENT.RDFS)
-still produces all of it for a caller who wants byte-for-byte RDFS
-completeness; this rewrite targets the rules that actually answer a
-question about the data.
+These account for most of the triple growth on a real closure -
+StarLayerGraph.infer(entailment=ENTAILMENT.RDFS) still produces all of it
+for a caller who wants byte-for-byte RDFS completeness; this rewrite
+targets the rules that actually answer a question about the data.
 
 Reflexivity note: rdflib's ZeroOrMorePath (the `*` in a property path) is
-*unconditionally* reflexive - confirmed live that `?x rdfs:subClassOf*
-?x` matches for literally any term, even one with zero subClassOf triples
-anywhere in the graph, not just ones explicitly declared rdfs:Class. This
-is a standard, widely-accepted simplification (the same one virtually
-every practical RDFS query-rewriting/reasoning system makes) rather than
-gating reflexivity on rdfs6/rdfs10's stricter "only if explicitly typed
+unconditionally reflexive - a zero-length path always matches a node
+against itself, so `rdfs:subClassOf*` trivially includes every term as
+its own ancestor, even one with zero subClassOf triples anywhere in the
+graph, not just ones explicitly declared rdfs:Class. This is a standard,
+widely-accepted simplification (the same one virtually every practical
+RDFS query-rewriting/reasoning system makes) rather than gating
+reflexivity on rdfs6/rdfs10's stricter "only if explicitly typed
 rdf:Property/rdfs:Class" precondition, and is why rdfs6/rdfs10 need no
 separate handling here - the path substitution already subsumes them.
 """
@@ -85,6 +86,15 @@ def _rewrite_bgp(bgp: CompValue, fresh: itertools.count) -> CompValue:
     together for efficiency, matching what a plain BGP already does) with
     one Union node per triple that needs multiple alternatives (currently
     only rdf:type, via rdfs9+rdfs2+rdfs3).
+
+    Args:
+        bgp: The BGP algebra node to rewrite.
+        fresh: Shared counter supplying fresh variable suffixes across the
+            whole rewrite pass.
+
+    Returns:
+        The replacement algebra node (a Join chain, or the original-shaped
+        BGP if nothing needed a Union).
     """
     simple_triples: list[tuple[Any, Any, Any]] = []
     unions: list[CompValue] = []
@@ -124,6 +134,16 @@ def _type_union(s: Any, o: Any, fresh: itertools.count) -> CompValue:
     enumeration of the schema (every fresh variable here is joined
     directly against ordinary rdfs:domain/rdfs:range/rdfs:subClassOf
     triples in the same graph being queried, by the query engine itself).
+
+    Args:
+        s: The triple pattern's subject term.
+        o: The triple pattern's rdf:type object term (the class being
+            tested for membership).
+        fresh: Shared counter supplying fresh variable suffixes across the
+            whole rewrite pass.
+
+    Returns:
+        A nested Union algebra node of the three alternatives.
     """
     subclass_branch = CompValue("BGP", triples=[(s, _SUBCLASS_TYPE_PATH, o)])
 
@@ -154,6 +174,13 @@ def rewrite_algebra_for_rdfs(algebra: Any) -> Any:
     predicate position, neither of which matches the ``p == RDF.type`` /
     ``isinstance(p, URIRef)`` checks that trigger rewriting on a second
     pass.
+
+    Args:
+        algebra: The root of an already-lowered plain SPARQL 1.1 algebra
+            tree.
+
+    Returns:
+        The same tree, mutated in place, with every BGP rewritten.
     """
     fresh = itertools.count()
 

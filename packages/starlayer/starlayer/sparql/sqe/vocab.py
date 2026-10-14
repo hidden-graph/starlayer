@@ -62,8 +62,7 @@ covers `SELECT`/`ASK`/`CONSTRUCT` only (no `DESCRIBE`); `WHERE`-clause
 elements limited to triple patterns, `OPTIONAL`, `UNION`, `FILTER`,
 `BIND` (property paths in predicate position, e.g. `foaf:knows+`, *are*
 covered — inherited for free from reusing `to_ssyn_rdf.py`'s own
-`translatePath`/`to_rdf._encode_path` technique, confirmed via direct
-testing, not just assumed from the code it was copied from). Explicitly
+`translatePath`/`to_rdf._encode_path` technique). Explicitly
 **not yet** covered: aggregates/`GROUP BY`/`HAVING`, subqueries, `VALUES`,
 and SPARQL Update entirely — see `packages/starlayer/docs/future_enhancements.md`
 for the plan to widen this deliberately, later.

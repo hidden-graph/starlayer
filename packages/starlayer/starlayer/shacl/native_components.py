@@ -9,21 +9,20 @@ evaluates it exactly like a core component, which is what makes composition
 with logical operators, ``sh:deactivated``, and ``sh:severity`` correct by
 construction, instead of needing to be reimplemented for every native pass
 (see ``docs/shacl12-gap-matrix.md``'s "Note on Architecture Direction",
-pattern 10, for the full rationale and the investigation that led here).
+pattern 10, for the full rationale).
 
 Predicates whose value is itself a referenced shape (e.g. ``sh:someValue``)
 need one extra step: pySHACL's own shape-graph loader only auto-recognizes
 shape nodes reachable via a fixed, hardcoded list of predicates
 (``sh:property``, ``sh:node``, ``sh:not``, ``sh:qualifiedValueShape``, and
-``sh:and``/``sh:or``/``sh:xone`` list members - confirmed by reading
-``pyshacl/shapes_graph.py::ShapesGraph._build_node_shape_cache``, which
-does not consult the constraint-parameter registry at all despite its own
-docstring's third bullet). A value reached only via a newly-registered
-predicate like ``sh:someValue`` is invisible to that loader unless it's
-independently typed ``sh:NodeShape``/``sh:PropertyShape``. ``ensure_shape_typed``
-below patches a copy of the shapes graph with that typing, the same
-augment-a-copy pattern already used for SHACL 1.2's new target types
-(``StarShaclSchema._augment_shapes_with_new_target_types``).
+``sh:and``/``sh:or``/``sh:xone`` list members - see
+``pyshacl/shapes_graph.py::ShapesGraph._build_node_shape_cache``, which does
+not consult the constraint-parameter registry at all). A value reached only
+via a newly-registered predicate like ``sh:someValue`` is invisible to that
+loader unless it's independently typed ``sh:NodeShape``/``sh:PropertyShape``.
+``ensure_shape_typed`` below patches a copy of the shapes graph with that
+typing, the same augment-a-copy pattern already used for SHACL 1.2's new
+target types (``StarShaclSchema._augment_shapes_with_new_target_types``).
 """
 
 from __future__ import annotations
@@ -43,10 +42,17 @@ _registered = False
 
 
 def ensure_shape_typed(shapes_graph: Any, shape_node: Any) -> tuple[Any, Any, Any] | None:
-    """Return an ``(shape_node, rdf:type, sh:NodeShape|sh:PropertyShape)``
-    triple to add to a shapes-graph copy so pySHACL's shape loader
-    recognizes ``shape_node`` as a shape, or ``None`` if it already would
-    (explicit ``sh:NodeShape``/``sh:PropertyShape`` typing already present).
+    """Build the triple needed to make pySHACL's shape loader recognize
+    ``shape_node`` as a shape.
+
+    Args:
+        shapes_graph: The shapes graph to check (not mutated).
+        shape_node: The node to check/type.
+
+    Returns:
+        An ``(shape_node, rdf:type, sh:NodeShape|sh:PropertyShape)`` triple to
+        add to a shapes-graph copy, or ``None`` if ``shape_node`` already has
+        explicit ``sh:NodeShape``/``sh:PropertyShape`` typing.
     """
     existing_types = set(shapes_graph.objects(shape_node, RDF.type))
     if SH.NodeShape in existing_types or SH.PropertyShape in existing_types:
@@ -58,12 +64,21 @@ def ensure_shape_typed(shapes_graph: Any, shape_node: Any) -> tuple[Any, Any, An
 
 def shape_reference_nodes(shapes_graph: Any, value: Any) -> list:
     """Resolve a SHAPE_EXPECTING_PREDICATES value to the actual shape
-    node(s) it references. Most of these predicates (sh:someValue,
-    sh:memberShape, sh:reifierShape) take a single shape reference
-    directly, but sh:condition also accepts a SHACL list of shape
-    references (SHACLRule.get_conditions()) - if ``value`` is itself a
-    well-formed SHACL list (has rdf:first), its members are the real
-    references and ``value`` itself is not a shape at all.
+    node(s) it references.
+
+    Most of these predicates (``sh:someValue``, ``sh:memberShape``,
+    ``sh:reifierShape``) take a single shape reference directly, but
+    ``sh:condition`` also accepts a SHACL list of shape references
+    (``SHACLRule.get_conditions()``) - if ``value`` is itself a well-formed
+    SHACL list (has ``rdf:first``), its members are the real references and
+    ``value`` itself is not a shape at all.
+
+    Args:
+        shapes_graph: The shapes graph to resolve against.
+        value: The raw predicate value to resolve.
+
+    Returns:
+        The list of actual shape reference node(s).
     """
     if any(True for _ in shapes_graph.triples((value, RDF.first, None))):
         return list(shapes_graph.items(value))
@@ -72,9 +87,9 @@ def shape_reference_nodes(shapes_graph: Any, value: Any) -> list:
 
 def register_native_components() -> None:
     """Register starShacl's SHACL 1.2 native constraint components into
-    pySHACL's own dispatch map (idempotent - safe to call many times, only
-    registers once per process).
+    pySHACL's own dispatch map.
 
+    Idempotent - safe to call many times, only registers once per process.
     Mutates ``CONSTRAINT_PARAMETERS_MAP``/``ALL_CONSTRAINT_COMPONENTS``/
     ``ALL_CONSTRAINT_PARAMETERS`` *in place* rather than rebinding them:
     ``pyshacl/shape.py``'s ``Shape.validate()`` lazily caches a reference to
@@ -198,7 +213,7 @@ def _build_single_line_component() -> Any:
             # a string literal like "false" is still truthy in Python
             # (bool() on any non-empty str is True), so sh:singleLine
             # "false" would otherwise silently enable the check instead of
-            # disabling it - the same bug class found and fixed for
+            # disabling it. The same boolean-parameter pitfall applies to
             # sh:closed.
             if not (isinstance(value, Literal) and value.datatype == XSD.boolean):
                 raise ValueError(
@@ -206,10 +221,8 @@ def _build_single_line_component() -> Any:
                 )
             # Exact-term comparison against "true"^^xsd:boolean, not
             # bool(value.value) (XSD's value-space conversion, which also
-            # accepts "1"^^xsd:boolean) - see UniqueLangConstraintComponent's
-            # identical fix (confirmed via the W3C SHACL 1.2 test suite's
-            # uniqueLang-002 fixture) for the reasoning; applied consistently
-            # here since this is the same boolean-parameter grammar.
+            # accepts "1"^^xsd:boolean) - matches UniqueLangConstraintComponent's
+            # identical handling of the same boolean-parameter grammar.
             self.enabled = str(value) == "true"
 
         @classmethod
@@ -249,14 +262,13 @@ def _build_subset_of_component() -> Any:
         """``sh:subsetOf``: every value node reached via the shape's own
         ``sh:path`` must also be reachable from the focus node via the
         comparison path given as the ``sh:subsetOf`` value. The comparison
-        path can be any SHACL property path (simple IRI, sequence,
-        inverse, alternative, etc.) - converted once, in ``__init__``, to a
-        SPARQL property path via pySHACL's own
-        ``shacl_path_to_sparql_path`` (already used elsewhere in pySHACL
-        for ordinary ``sh:path`` evaluation) rather than reimplementing
-        SHACL path semantics here. A malformed path (caught via
-        ``ReportableRuntimeError``, or any query-time failure) is treated
-        as no constraint (conforms) - meta-shacl's job to flag separately.
+        path can be any SHACL property path (simple IRI, sequence, inverse,
+        alternative, etc.) - converted once, in ``__init__``, to a SPARQL
+        property path via pySHACL's own ``shacl_path_to_sparql_path``
+        (already used elsewhere in pySHACL for ordinary ``sh:path``
+        evaluation) rather than reimplementing SHACL path semantics here. A
+        malformed path (caught via ``ReportableRuntimeError``, or any
+        query-time failure) is treated as no constraint (conforms).
         """
 
         shacl_constraint_component = SH.SubsetOfConstraintComponent
@@ -402,25 +414,25 @@ def _build_unique_values_for_component() -> Any:
         comparison.
 
         Composition (``sh:not``/``sh:and``/``sh:or``/``sh:xone``) is
-        correct, not just direct targeting: pySHACL's own logical-operator
-        components normally invoke a nested shape once *per individual
-        value node* (confirmed by reading
-        ``pyshacl/constraints/core/logical_constraints.py`` - e.g.
+        correct, not just direct targeting. pySHACL's own logical-operator
+        components normally invoke a nested shape once *per individual value
+        node* (see ``pyshacl/constraints/core/logical_constraints.py`` - e.g.
         ``AndConstraintComponent._evaluate_and_constraint`` calls
         ``and_shape.validate(executor, target_graph, focus=v, ...)`` with a
-        single scalar ``v``, never the whole batch), which would make a
-        cross-node constraint like this one vacuously conform (or, through
-        ``sh:not``, vacuously violate) every time, regardless of the real
-        data - there's no second node in view to collide with. This is
-        fixed at the composition layer, not here: ``_build_and_component``/
-        ``_build_or_component``/``_build_xone_component``/
-        ``_build_not_component`` below shadow pySHACL's own logical
-        operators and detect (via ``_shape_needs_full_batch``) when a
-        nested shape declares a cross-node predicate, invoking it once with
-        the *full* batch of value nodes as focus instead of one at a time -
-        so this component always sees the real comparison set, whether
-        reached directly or through composition. See
-        ``AndConstraintComponent``'s docstring for the full mechanism.
+        single scalar ``v``, never the whole batch). Invoked that way, a
+        cross-node constraint like this one would vacuously conform (or,
+        through ``sh:not``, vacuously violate) every time regardless of the
+        real data, since there's no second node in view to collide with.
+        This is fixed at the composition layer, not here:
+        ``_build_and_component``/``_build_or_component``/
+        ``_build_xone_component``/``_build_not_component`` below shadow
+        pySHACL's own logical operators and detect (via
+        ``_shape_needs_full_batch``) when a nested shape declares a
+        cross-node predicate, invoking it once with the *full* batch of
+        value nodes as focus instead of one at a time - so this component
+        always sees the real comparison set, whether reached directly or
+        through composition. See ``AndConstraintComponent``'s docstring for
+        the full mechanism.
         """
 
         shacl_constraint_component = SH.UniqueValuesForConstraintComponent
@@ -481,10 +493,11 @@ def _build_member_shape_component() -> Any:
     class MemberShapeConstraintComponent(ConstraintComponent):  # type: ignore[misc]
         """``sh:memberShape``: each value node must be a well-formed SHACL
         list, or that alone is a violation; otherwise every member of the
-        list must conform to the given shape. Matches the SHACL 1.2 Core
-        spec's and starShacl's pre-migration reporting shape: one violation
-        per non-conforming *member*, each blaming the whole list as the
-        value node (not the individual member).
+        list must conform to the given shape.
+
+        Reporting shape matches the SHACL 1.2 Core spec's own convention:
+        one violation per non-conforming *member*, each blaming the whole
+        list as the value node (not the individual member).
         """
 
         shacl_constraint_component = SH.MemberShapeConstraintComponent
@@ -536,10 +549,10 @@ def _build_member_shape_component() -> Any:
                     # report is preserved under sh:detail rather than
                     # discarded or promoted to its own independent top-level
                     # sh:result (which would double-count one list as
-                    # multiple violations - confirmed via the W3C SHACL 1.2
-                    # test suite's memberShape-001 fixture, whose ex:list5
-                    # has two non-conforming members and expects exactly one
-                    # sh:result with two sh:detail entries, not two results).
+                    # multiple violations). Per the W3C SHACL 1.2 test
+                    # suite's memberShape-001 fixture: ex:list5 has two
+                    # non-conforming members and expects exactly one
+                    # sh:result with two sh:detail entries, not two results.
                     member_reports = []
                     for member in _shacl_list_members(target_graph, value):
                         is_conform, _reports = found_shape.validate(
@@ -660,9 +673,11 @@ def _build_unique_members_component() -> Any:
 
     class UniqueMembersConstraintComponent(ConstraintComponent):  # type: ignore[misc]
         """``sh:uniqueMembers``: each value node must be a well-formed SHACL
-        list with no duplicate members. ``sh:uniqueMembers false`` is an
-        explicit opt-out (matches ``sh:singleLine false``'s treatment) - not
-        itself a constraint, not even a "must be a list" check.
+        list with no duplicate members.
+
+        ``sh:uniqueMembers false`` is an explicit opt-out (matches
+        ``sh:singleLine false``'s treatment) - not itself a constraint, not
+        even a "must be a list" check.
         """
 
         shacl_constraint_component = SH.UniqueMembersConstraintComponent
@@ -755,8 +770,10 @@ _cross_node_reachability_cache: _weakref.WeakKeyDictionary[Any, frozenset] = _we
 
 def _shapes_directly_composed_by(shapes_graph: Any, shape_node: Any) -> set[Any]:
     """Every shape node ``shape_node`` directly composes via one of
-    ``_COMPOSITION_PREDICATES`` - list members for ``sh:and``/``sh:or``/
-    ``sh:xone``, the single referenced node otherwise.
+    ``_COMPOSITION_PREDICATES``.
+
+    List members for ``sh:and``/``sh:or``/``sh:xone``, the single
+    referenced node otherwise.
     """
     from starlayer.shacl.validator import _is_shacl_list, _shacl_list_members
 
@@ -789,26 +806,26 @@ def _cross_node_reachable_shapes(shapes_graph: Any) -> frozenset:
     check on the immediate child shape misses this, since the child itself
     doesn't declare the cross-node predicate - only something *it* composes
     does. Every registered component evaluating shapes from the same
-    ``validate()`` call shares the identical (encoded) shapes graph object
-    (confirmed empirically), so this table is naturally computed once per
-    ``validate()`` call and then just looked up, not re-walked live on every
-    branch decision.
+    ``validate()`` call shares the identical (encoded) shapes graph object,
+    so this table is computed once per ``validate()`` call and then just
+    looked up, not re-walked live on every branch decision.
 
     Computed via monotonic fixed-point propagation, not DFS-with-memo: a
     naive DFS that memoizes a node's answer using a cycle-guard's early
     ``False`` return is unsound whenever the composition graph has a real
-    cycle (e.g. ``A`` composes ``B``, ``B`` composes ``A``, and ``A`` also
-    composes a shape ``C`` that declares the cross-node predicate) - ``B``'s
-    correct answer is True (via A -> C), but a DFS starting at A that visits
-    B before C would hit the cycle guard while exploring B (B -> A, A
-    already on the stack) and permanently memoize B as False before C is
-    ever considered, silently reintroducing the exact vacuous-conformance
-    bug this whole mechanism exists to prevent - confirmed empirically as
-    genuinely order-dependent (varies by ``PYTHONHASHSEED`` since set
-    iteration order for URIRef/str-keyed sets depends on it), not merely
-    theoretical. A worklist that repeatedly marks a node reachable if
-    anything it composes is already marked, until nothing changes, is
-    correct regardless of iteration order or how the cycle is shaped.
+    cycle. Counterexample: ``A`` composes ``B``, ``B`` composes ``A``, and
+    ``A`` also composes a shape ``C`` that declares the cross-node
+    predicate. ``B``'s correct answer is True (via A -> C), but a DFS
+    starting at A that visits B before C would hit the cycle guard while
+    exploring B (B -> A, A already on the stack) and permanently memoize B
+    as False before C is ever considered - silently reintroducing the exact
+    vacuous-conformance bug this whole mechanism exists to prevent. This
+    isn't a merely theoretical gap either: Python set iteration order isn't
+    guaranteed, so whether a given run visits B before or after C - and
+    therefore whether it gets this wrong - can vary across runs. A
+    worklist that repeatedly marks a node reachable if anything it composes
+    is already marked, until nothing changes, is correct regardless of
+    iteration order or how the cycle is shaped.
     """
     cached = _cross_node_reachability_cache.get(shapes_graph)
     if cached is not None:
@@ -845,9 +862,11 @@ def _cross_node_reachable_shapes(shapes_graph: Any) -> frozenset:
 def _shape_needs_full_batch(shape: Any) -> bool:
     """Whether ``shape``'s own composition tree - walked transitively
     through ``_COMPOSITION_PREDICATES`` - reaches a shape declaring one of
-    ``_CROSS_NODE_PREDICATES``. Backed by ``_cross_node_reachable_shapes``,
-    a per-shapes-graph table computed once and memoized, so this is an O(1)
-    lookup, not a live graph walk.
+    ``_CROSS_NODE_PREDICATES``.
+
+    Backed by ``_cross_node_reachable_shapes``, a per-shapes-graph table
+    computed once and memoized, so this is an O(1) lookup, not a live
+    graph walk.
     """
     return shape.node in _cross_node_reachable_shapes(shape.sg.graph)
 
@@ -855,18 +874,18 @@ def _shape_needs_full_batch(shape: Any) -> bool:
 def _evaluate_shape_for_all_values(
     shape: Any, executor: Any, target_graph: Any, all_values: list, _evaluation_path: list
 ) -> tuple[dict, list]:
-    """Invoke ``shape.validate()`` ONCE with ``all_values`` as ``focus``
-    (the full batch, not one node at a time) - this is what lets a
-    cross-node constraint like ``sh:uniqueValuesFor`` see every candidate
-    together and compare them, the same way it would if ``shape`` were
-    independently, directly targeted.
+    """Invoke ``shape.validate()`` once with ``all_values`` as ``focus``
+    (the full batch, not one node at a time), so a cross-node constraint
+    like ``sh:uniqueValuesFor`` sees every candidate together and can
+    compare them, the same way it would if ``shape`` were independently,
+    directly targeted.
 
     A full-batch call only returns one aggregate ``is_conform`` for the
     whole batch, but the logical operators calling this need a per-value
     answer (composition semantics attribute violations to individual focus
     nodes, not the batch as a whole). Recovered from the returned reports'
     own ``sh:focusNode`` markers, which every native component here (and
-    every pySHACL core component) sets via ``make_v_result`` - a value not
+    every pySHACL core component) sets via ``make_v_result``: a value not
     named in any report's ``sh:focusNode`` conforms; one that is, doesn't.
     """
     is_conform, reports = shape.validate(
@@ -887,9 +906,9 @@ def _get_tt_adapter(target_graph: Any) -> Any | None:
     call). ``target_graph``, as handed to a ``ConstraintComponent``, is
     pySHACL's own ``RdfLibDataGraph`` wrapper, not the
     ``_SparqlAwareEncodedGraph`` ``encode_graph()`` actually produced - the
-    adapter back-reference lives one level down, on ``.impl`` (confirmed
-    empirically, not documented by pySHACL - see
-    ``ReifierShapeConstraintComponent`` for the same pattern).
+    adapter back-reference lives one level down, on ``.impl`` (undocumented
+    by pySHACL itself - see ``ReifierShapeConstraintComponent`` for the same
+    pattern).
     """
     adapter = getattr(target_graph, "_tt_adapter", None)
     if adapter is None:
@@ -899,10 +918,12 @@ def _get_tt_adapter(target_graph: Any) -> Any | None:
 
 def _is_encoded_triple_term(target_graph: Any, value: Any) -> bool:
     """Whether ``value`` is the content-addressed URI a ``TripleTermAdapter``
-    assigned to a real triple term, given ``target_graph`` (the encoded
-    graph a registered component's ``evaluate()`` receives) - so node-kind
-    matching can recognize ``sh:TripleTerm`` correctly even though the
-    original triple-term object is no longer present in encoded form.
+    assigned to a real triple term.
+
+    ``target_graph`` is the encoded graph a registered component's
+    ``evaluate()`` receives - this lets node-kind matching recognize
+    ``sh:TripleTerm`` correctly even though the original triple-term object
+    is no longer present in encoded form.
     """
     adapter = _get_tt_adapter(target_graph)
     if adapter is None:
@@ -925,7 +946,7 @@ def _annotation_value(shapes_graph: Any, subject: Any, predicate: Any, obj: Any,
     ``ReifierShapeConstraintComponent``'s own triple-term re-encoding
     approach (see its docstring for why re-encoding through the *same*
     adapter/registry that produced the graph's own encoding reproduces the
-    identical lookup key) - here applied to the *shapes* graph (where a
+    identical lookup key), applied here to the *shapes* graph (where a
     constraint-value annotation lives) rather than the data graph.
     """
     adapter = _get_tt_adapter(shapes_graph)
@@ -945,11 +966,10 @@ def _ambient_shapes_graph_prefixes(shapes_graph: Any) -> dict[str, Any]:
     ``_build_sparql_constraint_component``'s own docstring for why pySHACL's
     ``SPARQLQueryHelper.collect_prefixes()`` never falls back to this on its
     own. Deliberately does *not* also consult ``owl:Ontology`` nodes the way
-    pySHACL's own explicit-``sh:prefixes``-reference path does - confirmed
-    via the W3C SHACL 1.2 test suite's ``prefixes-002`` fixture, whose
-    ``owl:Ontology``-declared prefix is a deliberate distractor (the same
-    prefix letter mapped to a different, wrong namespace) that must not be
-    picked up here.
+    pySHACL's own explicit-``sh:prefixes``-reference path does. Per the W3C
+    SHACL 1.2 test suite's ``prefixes-002`` fixture, an ``owl:Ontology``-
+    declared prefix can be a deliberate distractor (the same prefix letter
+    mapped to a different, wrong namespace) that must not be picked up here.
     """
     prefixes: dict[str, Any] = {}
     for sgraph_node in shapes_graph.subjects(RDF.type, SH.ShapesGraph):
@@ -962,33 +982,33 @@ def _ambient_shapes_graph_prefixes(shapes_graph: Any) -> dict[str, Any]:
 
 
 def _build_sparql_constraint_component() -> Any:
-    """Fixes a confirmed pySHACL gap: ``sh:sparql``'s own constraint node
-    (the object of ``sh:sparql``, distinct from the shape it's attached to)
-    can carry its own ``sh:severity`` override, per the SHACL Core spec's
-    SPARQL-based Constraints section - the same way it already carries its
-    own ``sh:message``/``sh:deactivated``. pySHACL's own
-    ``SPARQLBasedConstraint.__init__`` reads ``sh:message``/``sh:deactivated``
-    from that node but never ``sh:severity``, so every violation always
-    reports the *shape's* own severity (``self.shape.severity``, read
-    generically inside ``ConstraintComponent.make_v_result``) regardless of
-    what the constraint node itself declares. Confirmed via the W3C SHACL
-    1.2 test suite's sparql-001 fixture, and via a grep of pySHACL's own
-    ``constraints/sparql/`` and ``helper/`` modules for "severity" (zero
-    matches) - not something specific to advanced/rules mode or any starShacl
-    wrapping.
-
-    Subclasses pySHACL's own ``SPARQLBasedConstraint`` rather than
-    reimplementing it (same "shadow an existing pySHACL component" pattern
-    as ``sh:closed``/``sh:class``/``sh:nodeKind``/``sh:datatype``), only
-    overriding the one method that builds each violation's report triples -
-    everything else (query execution, message/deactivation handling,
-    pre-binding) stays pySHACL's own, unmodified logic.
-    """
     from pyshacl.constraints.sparql.sparql_based_constraints import (
         SPARQLBasedConstraint,
     )
 
     class SparqlConstraintComponentWithSeverity(SPARQLBasedConstraint):  # type: ignore[misc]
+        """Fixes a real pySHACL gap: ``sh:sparql``'s own constraint node
+        (the object of ``sh:sparql``, distinct from the shape it's attached
+        to) can carry its own ``sh:severity`` override, per the SHACL Core
+        spec's SPARQL-based Constraints section - the same way it already
+        carries its own ``sh:message``/``sh:deactivated``. pySHACL's own
+        ``SPARQLBasedConstraint.__init__`` reads
+        ``sh:message``/``sh:deactivated`` from that node but never
+        ``sh:severity``, so every violation always reports the *shape's*
+        own severity (``self.shape.severity``, read generically inside
+        ``ConstraintComponent.make_v_result``) regardless of what the
+        constraint node itself declares - not something specific to
+        advanced/rules mode or any starShacl wrapping.
+
+        Unlike most other native components in this module (which hold a
+        delegate instance rather than subclass one of pySHACL's own
+        concrete constraint classes), this one does real method-override
+        inheritance: it subclasses pySHACL's own ``SPARQLBasedConstraint``
+        directly rather than reimplementing it, overriding only the
+        methods below - query execution, message/deactivation handling,
+        and pre-binding all stay pySHACL's own, unmodified logic.
+        """
+
         def __init__(self, shape: Any) -> None:
             super().__init__(shape)
             # Ambient sh:declare prefix discovery (SHACL 1.2 Core): pySHACL's
@@ -997,15 +1017,15 @@ def _build_sparql_constraint_component() -> Any:
             # explicit sh:prefixes reference on the sh:sparql constraint -
             # if that reference is entirely absent, it returns immediately
             # without considering any sh:ShapesGraph-typed node's own
-            # sh:declare at all. Confirmed via the W3C SHACL 1.2 test
-            # suite's prefixes-002 fixture. Checked via the constraint
-            # node's own sh:prefixes presence, not query_helper.prefixes'
-            # truthiness - collect_prefixes() already unconditionally seeds
-            # a handful of default bindings (rdf/rdfs/owl) regardless of
-            # sh:prefixes, so that dict is never actually empty. An explicit
-            # sh:prefixes reference (however narrow) always wins as-is,
-            # unchanged from pySHACL's own behavior - ambient discovery only
-            # fills in when there's no such reference to begin with.
+            # sh:declare at all (see the prefixes-002 fixture in the W3C
+            # SHACL 1.2 test suite). Checked via the constraint node's own
+            # sh:prefixes presence, not query_helper.prefixes' truthiness -
+            # collect_prefixes() already unconditionally seeds a handful of
+            # default bindings (rdf/rdfs/owl) regardless of sh:prefixes, so
+            # that dict is never actually empty. An explicit sh:prefixes
+            # reference (however narrow) always wins as-is, unchanged from
+            # pySHACL's own behavior - ambient discovery only fills in when
+            # there's no such reference to begin with.
             ambient = _ambient_shapes_graph_prefixes(shape.sg.graph)
             if ambient:
                 for query_helper in self.sparql_constraints:
@@ -1034,22 +1054,18 @@ def _build_sparql_constraint_component() -> Any:
             ``(result, sh:annotationProperty-value, ...)`` triple onto every
             ``sh:ValidationResult`` this constraint produces - value sourced
             either from ``sh:annotationVarName`` (a name from the SELECT
-            query's own result row) or a fixed ``sh:annotationValue``.
-            Confirmed unimplemented anywhere in pySHACL itself (grepped its
-            whole codebase for "resultAnnotation"/"annotationProperty"/
-            "annotationVarName"/"annotationValue" - zero references, not
-            even in ``consts.py``'s own predicate registry).
+            query's own result row) or a fixed ``sh:annotationValue``. Left
+            entirely unimplemented by pySHACL itself, so this method exists
+            to cover the gap.
 
             Hooks here rather than ``_evaluate_sparql_constraint`` above
             (which only sees the *already-built* ``(desc, r_node,
             r_triples)`` reports, with no further access to the per-row
             SPARQL variable bindings) because ``make_v_result`` itself
             receives both ``source_constraint`` (the ``sh:sparql`` node
-            where ``sh:resultAnnotation`` would be declared - confirmed by
-            reading ``_evaluate_sparql_constraint``'s own
-            ``rept_kwargs = {'source_constraint': sparql_constraint.node,
-            ...}``) and ``bound_vars`` (the SELECT row's own bindings) as
-            real parameters, not just derivable from what's returned.
+            where ``sh:resultAnnotation`` would be declared) and
+            ``bound_vars`` (the SELECT row's own bindings) as real
+            parameters, not just derivable from what's returned.
             """
             desc, r_node, r_triples = super().make_v_result(datagraph, focus_node, **kwargs)
             source_constraint = kwargs.get("source_constraint")
@@ -1069,9 +1085,9 @@ def _result_annotation_triples(sg: Any, source_constraint: Any, r_node: Any, bou
     the calling context. ``bound_vars`` mirrors whatever shape
     ``SPARQLBasedConstraint._evaluate_sparql_constraint`` passed straight
     through from pySHACL: a plain ``{str_varname: term}`` dict (rdflib's
-    own SPARQL result row ``.asdict()`` - confirmed live, keys are plain
-    strings without a ``?``/``$`` sigil, not ``rdflib.Variable``) for the
-    common 2-tuple violation shape, or a ``(t, p, v, vars_dict)`` 4-tuple
+    own SPARQL result row ``.asdict()`` - keys are plain strings without a
+    ``?``/``$`` sigil, not ``rdflib.Variable``) for the common 2-tuple
+    violation shape, or a ``(t, p, v, vars_dict)`` 4-tuple
     for the path-valued violation shape - anything else (a plain
     ``True``/``(t, p, v)`` violation with no SELECT row dict at all) has no
     variable bindings to resolve ``sh:annotationVarName`` against, so only
@@ -1103,22 +1119,24 @@ def _result_annotation_triples(sg: Any, source_constraint: Any, r_node: Any, bou
 
 
 def _build_node_by_expression_component() -> Any:
-    """``sh:nodeByExpression``: like ``sh:node``, but the referenced shape is
-    computed via a SHACL 1.2 node expression rather than given directly -
-    the expression is evaluated once per *value* node (using that value
-    node's own focus-shape context as ``$this``, via the shape's own
-    ``eval_expr()``), and the value must conform to whatever shape(s) that
-    evaluates to. The W3C SHACL 1.2 test suite's own fixtures for this
-    (``nodeByExpression-001`` at both node- and property-shape level) note
-    "Core doesn't define interesting node expressions" and only ever use a
-    plain IRI constant as the expression - `eval_expr()` already evaluates a
-    constant to itself via delegation to pySHACL's own
-    ``nodes_from_node_expression``, so this works for the common case
-    without needing shnex:-specific handling here.
-    """
     from pyshacl.constraints.constraint_component import ConstraintComponent
 
     class NodeByExpressionConstraintComponent(ConstraintComponent):  # type: ignore[misc]
+        """``sh:nodeByExpression``: like ``sh:node``, but the referenced
+        shape is computed via a SHACL 1.2 node expression rather than given
+        directly - the expression is evaluated once per *value* node
+        (using that value node's own focus-shape context as ``$this``, via
+        the shape's own ``eval_expr()``), and the value must conform to
+        whatever shape(s) that evaluates to. Per the W3C SHACL 1.2 test
+        suite's own fixtures for this (``nodeByExpression-001`` at both
+        node- and property-shape level), Core itself doesn't define
+        interesting node expressions and only ever uses a plain IRI
+        constant as the expression - ``eval_expr()`` already evaluates a
+        constant to itself via delegation to pySHACL's own
+        ``nodes_from_node_expression``, so this works for the common case
+        without needing shnex:-specific handling here.
+        """
+
         shacl_constraint_component = SH.NodeByExpressionConstraintComponent
         shape_expecting = False
         list_taking = False
@@ -1169,27 +1187,33 @@ def _build_node_by_expression_component() -> Any:
 
 
 def _build_property_constraint_component() -> Any:
-    """Shadows pySHACL's own ``PropertyConstraintComponent`` to honor a
-    per-``sh:property``-value ``sh:deactivated`` override via RDF-1.2's
-    inline reification-annotation shorthand
-    (``sh:property ex:Shape {| sh:deactivated true |}``) - SHACL 1.2 Core,
-    distinct from a shape's own ordinary ``sh:deactivated`` (which
-    deactivates the *referenced* shape's own constraints generically,
-    already handled by pySHACL). This annotation instead deactivates one
-    specific *reference* to a property shape - a shape referenced via
-    multiple ``sh:property`` values elsewhere would be unaffected. Confirmed
-    via the W3C SHACL 1.2 test suite's deactivated-003 fixture. Filters
-    ``self.property_shapes`` once in ``__init__``, before pySHACL's own
-    ``evaluate()`` ever sees it - unlike the severity case (``sh:datatype``,
-    see ``_build_datatype_component``), this fixture doesn't need a
-    per-reference ``sh:severity`` override too, so that isn't implemented
-    here.
-    """
     from pyshacl.constraints.core.shape_based_constraints import (
         PropertyConstraintComponent,
     )
 
     class PropertyConstraintComponentWithAnnotations(PropertyConstraintComponent):  # type: ignore[misc]
+        """Overrides pySHACL's own ``PropertyConstraintComponent`` (real
+        subclassing of a concrete pySHACL class, not the
+        subclass-``ConstraintComponent``-and-hold-a-delegate composition
+        pattern used elsewhere in this module) to honor a
+        per-``sh:property``-value ``sh:deactivated`` override via RDF-1.2's
+        inline reification-annotation shorthand
+        (``sh:property ex:Shape {| sh:deactivated true |}``) - SHACL 1.2
+        Core, distinct from a shape's own ordinary ``sh:deactivated``
+        (which deactivates the *referenced* shape's own constraints
+        generically, already handled by pySHACL). This annotation instead
+        deactivates one specific *reference* to a property shape - a shape
+        referenced via multiple ``sh:property`` values elsewhere is
+        unaffected. Per the W3C SHACL 1.2 test suite's deactivated-003
+        fixture.
+
+        Filters ``self.property_shapes`` once in ``__init__``, before
+        pySHACL's own ``evaluate()`` ever sees it - unlike the severity
+        case (``sh:datatype``, see ``_build_datatype_component``), this
+        fixture doesn't need a per-reference ``sh:severity`` override too,
+        so that isn't implemented here.
+        """
+
         def __init__(self, shape: Any) -> None:
             super().__init__(shape)
             self.property_shapes = [
@@ -1220,16 +1244,15 @@ def _build_reifier_shape_component() -> Any:
           ``sh:value``.
 
         Both predicates are declared as this one class's constraint
-        parameters (pySHACL's own ``done_constraints`` de-duplication in
-        ``Shape.validate()`` then instantiates and evaluates it once even
-        when a shape has both), matching how both were handled together as
-        one bundled pass before this migration.
+        parameters, so pySHACL's own ``done_constraints`` de-duplication in
+        ``Shape.validate()`` instantiates and evaluates it once even when a
+        shape declares both.
 
-        The one real wrinkle migrating this predicate: ``rdf:reifies``
-        matches against real RDF-1.2 triple-term identity, but ``evaluate()``
-        runs on ``target_graph`` *after* ``TripleTermAdapter.encode_graph()``
-        has flattened every triple term into a content-addressed URI. This
-        works anyway because ``encode_graph()`` returns a
+        One real wrinkle: ``rdf:reifies`` matches against real RDF-1.2
+        triple-term identity, but ``evaluate()`` runs on ``target_graph``
+        *after* ``TripleTermAdapter.encode_graph()`` has flattened every
+        triple term into a content-addressed URI. This works anyway
+        because ``encode_graph()`` returns a
         ``_SparqlAwareEncodedGraph`` (``starlayer.shacl/adapters.py``) carrying a
         back-reference to the exact adapter instance that did the encoding
         (``target_graph._tt_adapter``, built earlier for SPARQL/rules
@@ -1328,15 +1351,14 @@ def _build_closed_component() -> Any:
     class ClosedConstraintComponent(ConstraintComponent):  # type: ignore[misc]
         """Shadows pySHACL's own ``ClosedConstraintComponent`` (registered
         under the same predicates, ``sh:closed``/``sh:ignoredProperties``,
-        which fully replaces pySHACL's dispatch entry for both - not an
-        addition alongside it) to add the SHACL 1.2 Core ``sh:closed
-        sh:ByTypes`` value pySHACL 0.40 crashes on outright
-        (``AssertionError: sh:closed must take a xsd:boolean literal`` -
-        it only ever expected a boolean literal). The plain-boolean case
-        below reproduces pySHACL's own non-SPARQL-mode ``evaluate()`` logic
-        exactly (same ``ALWAYS_IGNORE``/``ignored_props``/``working_paths``
-        checks, same violation shape) for parity with existing behavior;
-        only the ``sh:ByTypes`` branch is new.
+        fully replacing pySHACL's dispatch entry for both, not adding
+        alongside it) to add the SHACL 1.2 Core ``sh:closed sh:ByTypes``
+        value - pySHACL 0.40 crashes on this outright
+        (``AssertionError: sh:closed must take a xsd:boolean literal``).
+        The plain-boolean case below reproduces pySHACL's own
+        non-SPARQL-mode ``evaluate()`` logic exactly (same
+        ``ALWAYS_IGNORE``/``ignored_props``/``working_paths`` checks, same
+        violation shape); only the ``sh:ByTypes`` branch is new.
         """
 
         shacl_constraint_component = SH.ClosedConstraintComponent
@@ -1450,17 +1472,16 @@ def _build_class_component() -> Any:
         1.2's list-valued ``sh:class`` (union of choices - a value matches
         if it's a SHACL instance of *any* class in the list). Multiple
         separate ``sh:class`` triples on one shape remain AND'd together
-        (pySHACL's own, pre-existing semantics) - each triple's value can
-        now independently be a plain IRI (one required class) or a list
+        (pySHACL's own pre-existing semantics) - each triple's value can
+        independently be a plain IRI (one required class) or a list
         (any-of-these), combined with AND across triples.
 
         If none of the shape's ``sh:class`` values are list-valued, this
         delegates entirely to a real instance of pySHACL's own component
         for byte-for-byte parity (its transitive-subclass walk and
-        Literal/debug-logging behavior are non-trivial to reproduce
-        faithfully by hand) - native evaluation only kicks in once a list
-        value is actually present, the genuinely new SHACL 1.2 case with no
-        prior pySHACL behavior to preserve.
+        Literal/debug-logging behavior are non-trivial to reproduce by
+        hand) - native evaluation only kicks in once a list value is
+        present, the case with no prior pySHACL behavior to match.
         """
 
         shacl_constraint_component = SH["ClassConstraintComponent"]
@@ -1533,19 +1554,18 @@ def _build_node_kind_component() -> Any:
 
     class NodeKindConstraintComponent(ConstraintComponent):  # type: ignore[misc]
         """Shadows pySHACL's own ``NodeKindConstraintComponent`` to add
-        SHACL 1.2's list-valued ``sh:nodeKind`` (only the four "pure" kinds
-        - ``sh:IRI``/``sh:BlankNode``/``sh:Literal``/``sh:TripleTerm`` - are
-        valid list members per spec, not the combined forms like
-        ``sh:BlankNodeOrIRI`` which stay single-value-only). Delegates to a
-        real instance of pySHACL's own component for the plain single-value
-        case (byte-for-byte parity), except scalar ``sh:TripleTerm`` which is
-        handled natively the same way as list-valued forms because pySHACL has
-        no built-in concept of triple terms. Native evaluation
-        (``_matches_node_kind``, reused from the pre-migration native pass)
-        uses ``_is_encoded_triple_term`` to recognize a ``sh:TripleTerm``-kind
-        value correctly, since a real triple term is already flattened into a
-        plain content-addressed URI by the time this component's ``evaluate()``
-        sees it.
+        SHACL 1.2's list-valued ``sh:nodeKind`` (only the four "pure" kinds -
+        ``sh:IRI``/``sh:BlankNode``/``sh:Literal``/``sh:TripleTerm`` - are
+        valid list members per spec; the combined forms like
+        ``sh:BlankNodeOrIRI`` stay single-value-only). Delegates to a real
+        instance of pySHACL's own component for the plain single-value case
+        (byte-for-byte parity), except scalar ``sh:TripleTerm``, which is
+        handled natively the same way as list-valued forms since pySHACL
+        has no built-in concept of triple terms. Native evaluation uses
+        ``_matches_node_kind_encoded`` with ``_is_encoded_triple_term`` to
+        recognize a ``sh:TripleTerm``-kind value correctly, since a real
+        triple term is already flattened into a plain content-addressed
+        URI by the time this component's ``evaluate()`` sees it.
         """
 
         shacl_constraint_component = SH.NodeKindConstraintComponent
@@ -1620,15 +1640,14 @@ def _matches_node_kind_encoded(value: Any, node_kind: Any, is_triple_term: bool)
 
 def _matches_any_datatype_encoded(value: Any, datatypes: list[Any]) -> bool:
     """Datatype matching for a value from the *encoded* graph. A real
-    ``DirLangString`` object never reaches here (``TripleTermAdapter``
-    flattens it into a plain ``Literal`` carrying starlayer.graph's own internal
-    packing datatype URI before pySHACL ever sees it - see
+    ``DirLangString`` object never reaches here: ``TripleTermAdapter``
+    flattens it into a plain ``Literal`` carrying starlayer.graph's own
+    internal packing datatype URI before pySHACL ever sees it (see
     ``adapters.py::_encode_node``), so the usual ``is_dirlangstring_like``
-    check would always be ``False`` even for a genuine RDF 1.2
-    direction-tagged string. ``_try_decode_dirlangstring`` recognizes the
-    encoded form directly (a pure function keyed off the fixed packing
-    datatype URI, not adapter-instance state, so no back-reference needed
-    here unlike triple terms).
+    check is always ``False`` even for a genuine RDF 1.2 direction-tagged
+    string. ``_try_decode_dirlangstring`` recognizes the encoded form
+    directly, keyed off the fixed packing datatype URI rather than any
+    adapter-instance state.
     """
     from rdflib import RDF, XSD
 
@@ -1653,18 +1672,18 @@ def _build_datatype_component() -> Any:
         SHACL 1.2 cases pySHACL 0.40 gets wrong:
 
         - list-valued ``sh:datatype`` (union of choices) - pySHACL only
-          ever accepts a single IRI value.
+          accepts a single IRI value.
         - ``sh:datatype rdf:dirLangString`` - a ``DirLangString`` is encoded
           internally (``starlayer.graph``) as a ``Literal`` whose datatype
-          is starlayer.graph's own packing URI, never the real ``rdf:dirLangString``,
-          so pySHACL's own datatype-equality check always reports a
-          spurious violation for genuinely well-formed values.
+          is starlayer.graph's own packing URI, never the real
+          ``rdf:dirLangString``, so pySHACL's own datatype-equality check
+          always reports a spurious violation for genuinely well-formed
+          values.
 
         Delegates to a real instance of pySHACL's own component for every
-        other single-IRI value (byte-for-byte parity, including its
-        SPARQL-1.1 ill-typed-literal detection via ``_assert_actual_datatype``
-        - not something to risk reimplementing by hand for a predicate this
-        widely used).
+        other single-IRI value, preserving its behavior byte-for-byte
+        (including its SPARQL-1.1 ill-typed-literal detection via
+        ``_assert_actual_datatype``) rather than reimplementing it.
         """
 
         shacl_constraint_component = SH.DatatypeConstraintComponent
@@ -1686,9 +1705,7 @@ def _build_datatype_component() -> Any:
             # reification annotation (SHACL 1.2 Core) - distinct from, and
             # finer-grained than, this shape's own sh:severity/sh:deactivated
             # (already handled generically by pySHACL itself for every
-            # constraint). See _annotation_value's own docstring. Confirmed
-            # via the W3C SHACL 1.2 test suite's severity-003/deactivated-003
-            # fixtures.
+            # constraint). See _annotation_value's own docstring.
             self.annotation_deactivated = (
                 _annotation_value(shape.sg.graph, shape.node, SH.datatype, value, SH.deactivated) == Literal(True)
             )
@@ -1785,16 +1802,17 @@ def _build_language_in_component() -> Any:
     from pyshacl.constraints.constraint_component import ConstraintComponent
 
     class LanguageInConstraintComponent(ConstraintComponent):  # type: ignore[misc]
-        """Fully replaces (not shadows-for-one-case-only) pySHACL's own
-        ``LanguageInConstraintComponent``: pySHACL's own check keys off
-        ``Literal.language``, which is never set for an encoded
-        ``DirLangString`` value (stored via a special ``datatype=``, not
-        ``lang=``), so any RDF 1.2 direction-tagged string value always
-        spuriously fails, regardless of its real language tag. Matching
-        otherwise reproduces pySHACL's own basic language-range filtering
-        (SPARQL ``langMatches``) exactly for the plain-language-tag case.
-        Base direction plays no part in the match - per spec,
-        ``sh:languageIn`` is about the language tag component only.
+        """Fully replaces pySHACL's own ``LanguageInConstraintComponent``
+        (unlike ``DatatypeConstraintComponent``, which only shadows one
+        case): pySHACL's own check keys off ``Literal.language``, which is
+        never set for an encoded ``DirLangString`` value (stored via a
+        special ``datatype=``, not ``lang=``), so any RDF 1.2
+        direction-tagged string value always spuriously fails, regardless
+        of its real language tag. Matching otherwise reproduces pySHACL's
+        own basic language-range filtering (SPARQL ``langMatches``) exactly
+        for the plain-language-tag case. Base direction plays no part in
+        the match - per spec, ``sh:languageIn`` is about the language tag
+        component only.
         """
 
         shacl_constraint_component = SH.LanguageInConstraintComponent
@@ -1885,8 +1903,8 @@ def _build_unique_lang_component() -> Any:
             # conversion, which also accepts "1"^^xsd:boolean as true. The
             # spec only mentions "true" for this predicate, so "1" (a
             # distinct term, even though value-equal) must leave the
-            # constraint inactive, not silently enable it. Confirmed via the
-            # W3C SHACL 1.2 test suite's uniqueLang-002 fixture.
+            # constraint inactive, not silently enable it. Per the W3C
+            # SHACL 1.2 test suite's uniqueLang-002 fixture.
             self.enabled = str(value) == "true"
 
         @classmethod
@@ -2448,13 +2466,14 @@ def _build_not_component() -> Any:
 
     class NotConstraintComponent(ConstraintComponent):  # type: ignore[misc]
         """Shadows pySHACL's own ``NotConstraintComponent`` - see
-        ``AndConstraintComponent``'s docstring for the full rationale. For
-        ``sh:not``, "full-batch" means: evaluate the negated shape once
-        with every value node this operator resolved as ``focus``, so a
-        cross-node predicate like ``sh:uniqueValuesFor`` sees the real
-        comparison set instead of one isolated node - then negate each
-        value's own per-value result (from the returned reports'
-        ``sh:focusNode`` markers), not one shared aggregate answer.
+        ``AndConstraintComponent``'s docstring for the shared rationale.
+        For ``sh:not``, full-batch evaluation means evaluating the
+        negated shape once with every value node this operator resolved
+        as ``focus``, so a cross-node predicate like
+        ``sh:uniqueValuesFor`` sees the real comparison set instead of
+        one isolated node - then negating each value's own per-value
+        result (from the returned reports' ``sh:focusNode`` markers),
+        not one shared aggregate answer.
         """
 
         shacl_constraint_component = SH.NotConstraintComponent
@@ -2556,18 +2575,19 @@ def _build_node_component() -> Any:
 
     class NodeConstraintComponent(ConstraintComponent):  # type: ignore[misc]
         """Shadows pySHACL's own ``NodeConstraintComponent`` - see
-        ``AndConstraintComponent``'s docstring for the full rationale.
+        ``AndConstraintComponent``'s docstring for the shared rationale.
         ``sh:node`` has the identical per-value-node recursion pattern as
-        the four logical operators (confirmed by reading
+        the four logical operators (see
         ``pyshacl/constraints/core/shape_based_constraints.py::
         NodeConstraintComponent._evaluate_node_shape``), so it needs the
         same fix. This is also the mechanism behind the ``sh:property``
-        case: ``sh:property``'s own per-value recursion (unpatched, and
-        left that way - its target must be a *property* shape, which
-        ``sh:uniqueValuesFor`` can't sit on directly) hands each path
-        value one at a time to the property shape's own ``sh:node``, which
-        is what actually truncates the batch - patching ``sh:node`` here
-        covers that path too, at whatever depth it's reached from.
+        case: ``sh:property``'s own per-value recursion is left
+        unpatched - its target must be a *property* shape, which
+        ``sh:uniqueValuesFor`` can't sit on directly - but it hands each
+        path value one at a time to the property shape's own
+        ``sh:node``, which is what actually truncates the batch.
+        Patching ``sh:node`` here covers that path too, at whatever
+        depth it's reached from.
         """
 
         shacl_constraint_component = SH.NodeConstraintComponent
@@ -2677,10 +2697,10 @@ def _build_qualified_value_shape_component() -> Any:
 
     class QualifiedValueShapeConstraintComponent(ConstraintComponent):  # type: ignore[misc]
         """Shadows pySHACL's own ``QualifiedValueShapeConstraintComponent``
-        - see ``AndConstraintComponent``'s docstring for the full
+        - see ``AndConstraintComponent``'s docstring for the shared
         rationale. ``sh:qualifiedValueShape`` has the identical per-value-
-        node recursion pattern as the four logical operators (confirmed by
-        reading ``pyshacl/constraints/core/shape_based_constraints.py::
+        node recursion pattern as the four logical operators (see
+        ``pyshacl/constraints/core/shape_based_constraints.py::
         QualifiedValueShapeConstraintComponent._evaluate_value_shape``), for
         both the value shape itself and, when ``sh:qualifiedValueShapesDisjoint``
         is set, each sibling shape - both get the same full-batch treatment

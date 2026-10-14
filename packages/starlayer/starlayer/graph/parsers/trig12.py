@@ -82,7 +82,14 @@ def _consume_balanced(text: str, start: int) -> tuple[str, int]:
             if text.startswith(q * 3, i):
                 i += 3
                 while i < len(text) and not text.startswith(q * 3, i):
-                    i += 1
+                    # Skip an escaped character as one atomic pair, same
+                    # fix as the short-string branch just below and
+                    # syntax._split_statements_impl's matching one -
+                    # otherwise an escaped quote sitting directly against
+                    # the real closing delimiter (e.g. a docstring ending
+                    # "...the word \"profile.\"\"\"\"") is misread as
+                    # itself starting the close, one character early.
+                    i += 2 if text[i] == '\\' else 1
                 i = min(i + 3, len(text))
             else:
                 i += 1
@@ -125,7 +132,9 @@ def _mask_string_literals(text: str) -> str:
             if text.startswith(c * 3, i):
                 i += 3
                 while i < n and not text.startswith(c * 3, i):
-                    i += 1
+                    # Same escaped-character-before-the-closing-delimiter
+                    # fix as _consume_balanced()'s matching branch above.
+                    i += 2 if text[i] == '\\' else 1
                 i = min(i + 3, n)
             else:
                 i += 1

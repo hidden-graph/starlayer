@@ -1,10 +1,10 @@
 """``_EXPR_NODE_FAMILY``: name -> argument-signature family, for every one
 of rdflib's 63 expression builtins. Shared, dependency-free source of truth
-for both ``shapes.py`` (generates per-builtin SHACL shapes from it) and
-``ontology.py`` (generates per-builtin ``rdfs:subClassOf`` declarations from
-it) — lives in its own module, not either of those, specifically so
-``ontology.py`` never needs ``pyshacl`` (a ``shapes.py``-only dependency)
-just to read this table.
+for both ``sparql_shapes.py`` (generates per-builtin SHACL shapes from it)
+and ``sparql_ontology.py`` (generates per-builtin ``rdfs:subClassOf``
+declarations from it) — lives in its own module, not either of those,
+specifically so ``sparql_ontology.py`` never needs ``pyshacl`` (a
+``sparql_shapes.py``-only dependency) just to read this table.
 
 ``from_rdf._discover_expr_evalfns()`` is the live source of truth for the
 *name list* (rebuilt by walking rdflib's own pyparsing grammar, so it can't

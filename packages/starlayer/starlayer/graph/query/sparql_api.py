@@ -36,6 +36,13 @@ Use these instead of the rdflib originals when working with SPARQL 1.2 queries::
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pyparsing import ParseResults
+    from rdflib.plugins.sparql.parserutils import CompValue
+    from rdflib.plugins.sparql.sparql import Query, Update
+
 
 def _check_version_conformance(declared_version, stripped_text, tree, context):
     from starlayer.graph.model.conformance import (
@@ -52,19 +59,23 @@ def _check_version_conformance(declared_version, stripped_text, tree, context):
     )
 
 
-def parseQuery(q):
+def parseQuery(q: str) -> ParseResults:
     """Parse a SPARQL 1.2 SELECT/ASK/CONSTRUCT/DESCRIBE query string.
-
-    Returns a pyparsing ``ParseResults`` tree — same type as
-    ``rdflib.plugins.sparql.parser.parseQuery`` — with genuine
-    ``TripleTermNode`` nodes wherever ``<<( s p o )>>``/``TRIPLE(s, p, o)``
-    appears, constructed directly by the grammar (see module docstring),
-    not reassembled from a text-level encoding.
 
     A leading ``VERSION "label"`` prologue directive (SPARQL 1.2 Query sec
     4.3) is stripped first - not real SPARQL grammar at all, same handling
     ``StarLayerGraph.query()`` already gives it (see
     ``version_directive.py``'s own module docstring).
+
+    Args:
+        q: The SPARQL 1.2 query string to parse.
+
+    Returns:
+        A pyparsing ``ParseResults`` tree — same type as
+        ``rdflib.plugins.sparql.parser.parseQuery`` — with genuine
+        ``TripleTermNode`` nodes wherever ``<<( s p o )>>``/
+        ``TRIPLE(s, p, o)`` appears, constructed directly by the grammar
+        (see module docstring), not reassembled from a text-level encoding.
     """
     from starlayer.graph.query.version_directive import strip_version_directive
     from starlayer.sparql.parse12 import parse_query_12
@@ -75,18 +86,25 @@ def parseQuery(q):
     return tree
 
 
-def prepareQuery(queryString: str, initNs=None, base=None):
+def prepareQuery(queryString: str, initNs=None, base=None) -> Query:
     """Parse and translate a SPARQL 1.2 query string to an rdflib ``Query`` object.
 
     The compiled algebra is plain SPARQL 1.1 (triple terms lowered to
     starlayer.graph's own ``tt:`` content-addressed encoding); the lowering is
     transparent at execution time.
 
-    The returned ``Query`` object can be passed directly to
-    ``StarLayerGraph.query()`` or ``rdflib.Graph.query()``.
-
     A leading ``VERSION "label"`` directive is stripped first - see
     ``parseQuery``'s own docstring.
+
+    Args:
+        queryString: The SPARQL 1.2 query string to parse and compile.
+        initNs: Optional namespace prefix bindings, as accepted by
+            ``rdflib.plugins.sparql.prepareQuery``.
+        base: Optional base IRI for relative-IRI resolution.
+
+    Returns:
+        A compiled, directly executable ``Query`` object, usable with
+        ``StarLayerGraph.query()`` or ``rdflib.Graph.query()``.
     """
     from starlayer.graph.query.version_directive import strip_version_directive
     from starlayer.sparql.lower_rdf11 import query_to_rdf11, rdf11_to_query
@@ -99,15 +117,19 @@ def prepareQuery(queryString: str, initNs=None, base=None):
     return rdf11_to_query(rdf_graph, root)
 
 
-def parseUpdate(q):
+def parseUpdate(q: str) -> CompValue:
     """Parse a SPARQL 1.2 Update request string.
-
-    Returns an rdflib ``CompValue`` — same type as
-    ``rdflib.plugins.sparql.parser.parseUpdate`` — with genuine
-    ``TripleTermNode`` nodes preserved (same strategy as ``parseQuery``).
 
     A leading ``VERSION "label"`` directive is stripped first - see
     ``parseQuery``'s own docstring.
+
+    Args:
+        q: The SPARQL 1.2 update request string to parse.
+
+    Returns:
+        An rdflib ``CompValue`` — same type as
+        ``rdflib.plugins.sparql.parser.parseUpdate`` — with genuine
+        ``TripleTermNode`` nodes preserved (same strategy as ``parseQuery``).
     """
     from starlayer.graph.query.version_directive import strip_version_directive
     from starlayer.sparql.parse12 import parse_update_12
@@ -118,16 +140,24 @@ def parseUpdate(q):
     return tree
 
 
-def prepareUpdate(updateString: str, initNs=None, base=None):
+def prepareUpdate(updateString: str, initNs=None, base=None) -> Update:
     """Parse and translate a SPARQL 1.2 Update request string to an rdflib ``Update`` object.
 
     The compiled form is plain SPARQL 1.1, same lowering as ``prepareQuery``.
 
-    The returned ``Update`` object can be passed directly to
-    ``StarLayerGraph.update()`` or ``rdflib.Graph.update()``.
-
     A leading ``VERSION "label"`` directive is stripped first - see
     ``parseQuery``'s own docstring.
+
+    Args:
+        updateString: The SPARQL 1.2 update request string to parse and
+            compile.
+        initNs: Optional namespace prefix bindings, as accepted by
+            ``rdflib.plugins.sparql.prepareUpdate``.
+        base: Optional base IRI for relative-IRI resolution.
+
+    Returns:
+        A compiled, directly executable ``Update`` object, usable with
+        ``StarLayerGraph.update()`` or ``rdflib.Graph.update()``.
     """
     from starlayer.graph.query.version_directive import strip_version_directive
     from starlayer.sparql.lower_rdf11 import rdf11_to_update, update_to_rdf11
@@ -140,7 +170,7 @@ def prepareUpdate(updateString: str, initNs=None, base=None):
     return rdf11_to_update(rdf_graph, root)
 
 
-def processUpdate(graph, updateString: str, initBindings=None, initNs=None, base=None):
+def processUpdate(graph, updateString: str, initBindings=None, initNs=None, base=None) -> None:
     """Execute a SPARQL 1.2 Update against a graph.
 
     This is the SPARQL 1.2-aware replacement for
@@ -163,6 +193,15 @@ def processUpdate(graph, updateString: str, initBindings=None, initNs=None, base
 
     Checks via attribute (``_tt_registry``/``_sg_cache``) rather than
     ``isinstance`` to avoid a circular import.
+
+    Args:
+        graph: The graph to update - a ``StarLayerGraph``/
+            ``StarLayerDataset`` or a plain ``rdflib.Graph``.
+        updateString: The SPARQL 1.2 update request string, or an already-
+            prepared ``Update`` object.
+        initBindings: Optional initial variable bindings.
+        initNs: Optional namespace prefix bindings.
+        base: Optional base IRI for relative-IRI resolution.
     """
     if hasattr(graph, '_tt_registry') or hasattr(graph, '_sg_cache'):
         # No base= here (matches this branch's pre-existing behavior): it

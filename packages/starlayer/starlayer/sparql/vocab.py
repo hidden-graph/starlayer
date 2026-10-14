@@ -43,8 +43,8 @@ Two shapes need a convention beyond that generic rule:
   keyed on ``name == "TripleTerm"``): a plain reconstructed ``CompValue``
   would be unhashable and crash ``algebra.reorderTriples``/``_knownTerms``
   when ``rdf_to_query`` recomputes ``_vars``/``analyse`` bookkeeping after
-  decoding (see ``TripleTermNode``'s own docstring for the full empirical
-  finding — a non-``CompValue`` hashable proxy isn't sufficient either, since
+  decoding (see ``TripleTermNode``'s own docstring for the full account —
+  a non-``CompValue`` hashable proxy isn't sufficient either, since
   rdflib's variable-discovery walk only recurses into ``CompValue``/
   ``list``/``tuple``/``ParseResults``, nothing else, so a variable nested
   inside a pattern-with-variables triple term would otherwise be silently
@@ -115,13 +115,12 @@ Two shapes need a convention beyond that generic rule:
   ``length`` are also ``Builtin_SUBSTR``'s own parameter names (SPARQL's
   ``SUBSTR(str, start[, length])``, a completely unrelated node where they
   must stay real ``Literal``/``Expression`` values, never coerced to a
-  bare Python type) — a bare-key-name match previously converted those
-  too, and `operators.numeric()` raising `SPARQLTypeError` for anything
-  that isn't a `Literal` got silently swallowed by `evalExtend` into
-  "leave the BIND target unbound" rather than raised, so a decoded
-  `BIND(SUBSTR(...) AS ?z)` looked like it worked while `?z` silently
-  never bound. Confirmed via a real `StarLayerGraph` reproduction
-  comparing against plain rdflib before fixing.
+  bare Python type — a bare-key-name match would convert those too, and
+  `operators.numeric()` raising `SPARQLTypeError` for anything that isn't
+  a `Literal` gets silently swallowed by `evalExtend` into "leave the
+  BIND target unbound" rather than raised, so a decoded
+  `BIND(SUBSTR(...) AS ?z)` would look like it worked while `?z` silently
+  never bound).
 
 - **Prologue (BASE/PREFIX).** A query or update's ``Prologue`` (the
   ``BASE``/``PREFIX`` declarations from the source text) is not part of the
@@ -137,17 +136,17 @@ Two shapes need a convention beyond that generic rule:
   an ``rdf:List``.
 
   This is round-tripped for a real reason, not cosmetic completeness:
-  confirmed empirically that ``BASE``-relative IRI resolution at *evaluation*
-  time (the ``IRI()``/``URI()`` builtins, via ``ctx.prologue.absolutize()``)
-  silently produces a different, wrong, unresolved result when the
-  reconstructed ``Query`` carries an empty ``Prologue`` instead of the
-  original ``base``. It does *not*, however, change what
-  ``rdflib.plugins.sparql.algebra.translateAlgebra`` prints — confirmed
-  separately that its output is byte-identical regardless of prologue
-  content, since ``_AlgebraTranslator`` never reads ``query.prologue`` at
-  all and calls bare ``.n3()`` (no namespace manager) throughout. That's a
-  real limitation in rdflib itself, not something round-tripping the
-  prologue can work around — so don't expect prefixed names to reappear in
+  ``BASE``-relative IRI resolution at *evaluation* time (the ``IRI()``/
+  ``URI()`` builtins, via ``ctx.prologue.absolutize()``) silently produces
+  a different, wrong, unresolved result when the reconstructed ``Query``
+  carries an empty ``Prologue`` instead of the original ``base``. It does
+  *not*, however, change what
+  ``rdflib.plugins.sparql.algebra.translateAlgebra`` prints — its output
+  is byte-identical regardless of prologue content, since
+  ``_AlgebraTranslator`` never reads ``query.prologue`` at all and calls
+  bare ``.n3()`` (no namespace manager) throughout. That's a real
+  limitation in rdflib itself, not something round-tripping the prologue
+  can work around — so don't expect prefixed names to reappear in
   regenerated query text even after this.
 
 - **Update quads-by-graph maps.** A SPARQL Update operation's ``quads``
@@ -170,12 +169,12 @@ from rdflib import Namespace, URIRef
 
 SALG = Namespace("https://github.com/hidden-graph/starlayer/ns/sparql/algebra#")
 
-# SPEXPR (2026-10-10) - the SPARQL expression/variable/property-path
-# vocabulary, carved OUT of SALG into its own namespace. Originally
-# minted under salg: because salg: was built first (before sqe: existed)
-# and nobody yet needed to share it - but sqe:/srl: both need exactly this
-# slice (their own expression/variable/path encoding, reused unchanged,
-# not reimplemented - see salg/expr_families.py's own docstring), while
+# SPEXPR - the SPARQL expression/variable/property-path vocabulary,
+# carved OUT of SALG into its own namespace. Originally minted under
+# salg: because salg: was built first (before sqe: existed) and nobody
+# yet needed to share it - but sqe:/srl: both need exactly this slice
+# (their own expression/variable/path encoding, reused unchanged, not
+# reimplemented - see salg/expr_families.py's own docstring), while
 # needing none of salg:'s *other* vocabulary (its own outer algebra
 # operators: Join/LeftJoin/Filter/Project/Union/etc., which only salg:
 # itself ever produces). Splitting this out means salg:/sqe:/srl: all
@@ -184,9 +183,9 @@ SALG = Namespace("https://github.com/hidden-graph/starlayer/ns/sparql/algebra#")
 # never really salg:-specific in the first place.
 #
 # Exactly what moved (see starontology's own ontology-shapes-profiles.ttl
-# header and starlayer/sparql/CLAUDE.md's dated entry for the full
-# account): salg:Expression and its 63 real encodable builtins (plus the
-# 16 purely-organizational rdfs:subClassOf "family" classes above them,
+# header and starlayer/sparql/CLAUDE.md for the full account):
+# salg:Expression and its 63 real encodable builtins (plus the 16
+# purely-organizational rdfs:subClassOf "family" classes above them,
 # used only for SHACL class reasoning, never directly instantiated),
 # salg:Variable, and salg:Path's five concrete subclasses
 # (InvPath/SequencePath/AlternativePath/MulPath/NegatedPath). Everything
@@ -196,12 +195,11 @@ SALG = Namespace("https://github.com/hidden-graph/starlayer/ns/sparql/algebra#")
 # _encode_comp_value()/_decode_comp_value() (to_rdf.py/from_rdf.py) are
 # the one place this matters at runtime: they're one fully generic
 # dispatcher shared by every CompValue, expression and non-expression
-# alike, so they now branch on whether a given node's name is one of
-# the moved expression names (reusing salg.expr_families._EXPR_NODE_FAMILY
+# alike, so they branch on whether a given node's name is one of the
+# moved expression names (reusing salg.expr_families._EXPR_NODE_FAMILY
 # directly, not a second hand-copied list) to decide SALG vs SPEXPR -
-# confirmed live, before this split, that sqe:'s own encoded output
-# already had nested expressions typed under salg: regardless of sqe:'s
-# own namespace, which is exactly the bug this split fixes.
+# without that branch, sqe:'s own encoded output would have nested
+# expressions typed under salg: regardless of sqe:'s own namespace.
 SPEXPR = Namespace("https://github.com/hidden-graph/starlayer/ns/sparql/expr#")
 
 # Reserved datatype URI *namespace* used to encode a SPARQL 1.2 dirLangString
@@ -216,31 +214,50 @@ SPEXPR = Namespace("https://github.com/hidden-graph/starlayer/ns/sparql/expr#")
 # be storable in any graph implementation, including a real StarLayerGraph -
 # and StarLayerGraph.value()/.triples() unconditionally decodes any literal
 # using *its own* dirlang: datatype back into a real DirLangString object,
-# which this project's from_rdf.py decoder has no branch for (confirmed via
-# a real crash: a query containing a dirLangString VALUES-row value,
-# round-tripped through a StarLayerGraph-backed salg: encoding, came back as
-# a DirLangString instead of a Literal). Reusing starlayer.graph's own encoding
-# functions directly, as this project used to, meant a StarLayerGraph always
-# recognized the result as "mine" and silently restored it - exactly the
-# failure mode ground triple terms already avoid via their own structural
-# (non-native) salg: encoding. This gives dirLangString literals the same
-# protection: a StarLayerGraph never recognizes this namespace as its own,
-# so the literal stays an inert term in the salg: representation.
+# which this project's from_rdf.py decoder has no branch for. A
+# dirLangString value appearing in a VALUES row must be re-encoded as a
+# plain Literal under this project's own namespace, or it round-trips as
+# the wrong type: reusing starlayer.graph's own encoding functions directly
+# would mean a StarLayerGraph-backed salg: encoding always recognizes the
+# result as "mine" and silently restores it to a DirLangString instead -
+# exactly the failure mode ground triple terms already avoid via their own
+# structural (non-native) salg: encoding. This gives dirLangString literals
+# the same protection: a StarLayerGraph never recognizes this namespace as
+# its own, so the literal stays an inert term in the salg: representation.
 DIRLANG_NS = SALG["dirlang/"]
 
 
 def encode_dirlang_datatype(language: str, direction: str) -> URIRef:
-    """This project's own internal datatype URIRef encoding of
+    """Return this project's own internal datatype URIRef encoding of
     (language, direction) - see DIRLANG_NS above for why this isn't
-    starlayer.graph's own encode_dirlang_datatype, despite doing the same thing
-    the same way."""
+    starlayer.graph's own encode_dirlang_datatype, despite doing the same
+    thing the same way.
+
+    Args:
+        language: The literal's language tag (e.g. "en").
+        direction: The literal's base direction ("ltr" or "rtl").
+
+    Returns:
+        A URIRef under DIRLANG_NS whose local name is "<language>--<direction>".
+    """
     return URIRef(f"{DIRLANG_NS}{language}--{direction}")
 
 
-def decode_dirlang_datatype(datatype) -> tuple[str, str] | None:
+def decode_dirlang_datatype(datatype: URIRef) -> tuple[str, str] | None:
     """Return (language, direction) if datatype is this project's own
-    dirlang encoding (see DIRLANG_NS above). None for any other datatype -
-    including starlayer.graph's own dirlang: encoding, or plain rdf:langString."""
+    dirlang encoding (see DIRLANG_NS above).
+
+    Returns None for any other datatype - including starlayer.graph's own
+    dirlang: encoding, or plain rdf:langString.
+
+    Args:
+        datatype: The literal's datatype URIRef to test.
+
+    Returns:
+        A (language, direction) tuple decoded from the datatype's local
+        name, or None if datatype is not this project's own dirlang
+        encoding.
+    """
     s = str(datatype)
     if not s.startswith(DIRLANG_NS):
         return None
@@ -252,7 +269,7 @@ def decode_dirlang_datatype(datatype) -> tuple[str, str] | None:
 
 # Reserved datatype URI used to encode a SPARQL Variable as an RDF Literal.
 # See the module docstring's "Variables" section above. spexpr:, not
-# salg:, since 2026-10-10 - see SPEXPR's own definition above for why.
+# salg: - see SPEXPR's own definition above for why.
 VARIABLE_DATATYPE = SPEXPR.Variable
 
 # Reserved datatype URI used to encode a bare Python str (not an RDF term)

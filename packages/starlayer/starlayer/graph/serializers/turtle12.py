@@ -391,13 +391,22 @@ def iter_lines_outside_strings(text):
         while i < n:
             c = line[i]
             if in_string:
+                if c == '\\' and i + 1 < n:
+                    # Skip an escaped character as one atomic pair, before
+                    # the string_char check below ever sees it - otherwise
+                    # an escaped quote sitting directly against the real
+                    # closing delimiter is misread as itself starting the
+                    # close, one character early. Mirrors
+                    # syntax._split_statements_impl's matching fix.
+                    i += 2
+                    continue
                 if c == string_char:
                     if triple:
                         if line[i:i+3] == string_char * 3:
                             i += 3
                             in_string = False
                             continue
-                    elif i > 0 and line[i-1] != '\\':
+                    else:
                         in_string = False
                 i += 1
                 continue

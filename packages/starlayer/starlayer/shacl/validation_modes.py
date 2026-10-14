@@ -1,13 +1,10 @@
 """Named bundles of validator options ("validation"/"rules"/"debug" presets
 for meta_shacl/advanced/inplace/etc.), selected via validate(mode=...).
 
-2026-10-08: renamed from `profiles.py` (ValidationProfile -> ValidationMode,
-etc.) - this had nothing to do with any SHACL spec and the shared word
-"profile" with the *actual* SHACL 1.2 Profiling spec (starlayer.shacl's
-profiling.py) was a real, flagged source of confusion. "Profile" is now
-reserved exclusively for that spec concept across this project; this is an
-ordinary option preset, so it's named that way instead. See
-starlayer/shacl/CLAUDE.md's dated entry for the full rename.
+Not related to the SHACL 1.2 Profiling spec (see starlayer.shacl's
+profiling.py for that) - "profile" is reserved project-wide for that spec
+concept; this is an ordinary internal option preset, unrelated to any W3C
+document.
 """
 
 from __future__ import annotations

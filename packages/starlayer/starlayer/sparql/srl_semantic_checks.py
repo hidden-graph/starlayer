@@ -1,17 +1,18 @@
-"""SRL/SPARQL-RL §4.2 "Well-formedness Conditions" - a cross-referential,
-sequence-position-dependent check SHACL's own per-node shapes structurally
-can't see, so it lives here as a function over the decoded ``srl_ast``
-tree, not a SHACL shape.
+"""SRL/SPARQL-RL §4.2 "Well-formedness Conditions" - e.g. ``SET(...)`` must
+not reuse an already-bound variable, and every filter/assignment/head
+variable must be bound. These conditions are cross-referential and
+sequence-position-dependent (whether a variable is "already bound" depends
+on every element before it in the same rule body), which SHACL's own
+per-node shape model structurally can't express - so this lives here as a
+function over the decoded ``srl_ast`` tree, not a SHACL shape.
 
-Private (renamed 2026-10-05, was callable directly as
-``check_ruleset``/``check_rule``): ``srl.parse_ruleset()`` now runs
-``_check_ruleset`` on every successfully-parsed ``RuleSet`` and raises
-``SRLParseError`` if any issue is found, the same "one real gate" contract
-plain SPARQL's own ``prepareQuery()`` has (succeed with a usable object, or
-raise - never hand back something that looks fine but silently misbehaves
-later). Confirmed live before this change that the gap was real, not
-theoretical: a ruleset violating the "SET(...) must not reuse an already-
-bound variable" condition parsed *and evaluated* with zero error, just
+Private: ``srl.parse_ruleset()`` runs ``_check_ruleset`` on every
+successfully-parsed ``RuleSet`` and raises ``SRLParseError`` if any issue is
+found - the same "one real gate" contract plain SPARQL's own
+``prepareQuery()`` has (succeed with a usable object, or raise - never hand
+back something that looks fine but silently misbehaves later). Without
+this gate, a ruleset violating the "SET(...) must not reuse an already-
+bound variable" condition parses *and evaluates* with zero error, just
 silently rebinding the variable to the wrong value.
 
 Implements the spec's own formalism directly and verbatim (not an
@@ -56,7 +57,14 @@ def _expr_vars(expr) -> set[Variable]:
     expression tree - the same generic ``algebra.traverse`` walk
     ``srl.py`` already uses for prefixed-name resolution, here just
     observing rather than rewriting (``visitPost`` always returns ``None``,
-    so the tree itself is left unchanged)."""
+    so the tree itself is left unchanged).
+
+    Args:
+        expr: The rdflib expression tree to scan.
+
+    Returns:
+        Every ``Variable`` found anywhere in ``expr``.
+    """
     found: set[Variable] = set()
 
     def _visit(node):
@@ -75,9 +83,18 @@ def _check_sequence(
     issues: list[_SRLWellFormednessIssue],
 ) -> set[Variable]:
     """Checks ``elements`` as a well-formed sequence given initial variables
-    ``v0`` (appending any violations found to ``issues``), returning
-    ``Vall`` - ``v0`` plus every variable contributed by the whole
-    sequence, per the spec's own §4.2 definition."""
+    ``v0``, per the spec's own §4.2 definition.
+
+    Args:
+        elements: The body elements to check, in sequence order.
+        v0: The variables bound before ``elements`` begins.
+        rule: The enclosing rule, attached to any issue found.
+        issues: Violations found are appended here.
+
+    Returns:
+        ``Vall`` - ``v0`` plus every variable contributed by the whole
+        sequence.
+    """
     v_current = set(v0)
     for elt in elements:
         if isinstance(elt, srl_ast.TriplePattern):

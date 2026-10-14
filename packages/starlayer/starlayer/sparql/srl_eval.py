@@ -47,9 +47,9 @@ from .srl import SRLError
 
 class SRLEvalError(SRLError):
     """Base class for SRL evaluation errors. Subclasses ``SRLError``
-    (``srl.py``) - added 2026-10-06 - so a caller can catch either "any
-    evaluation failure" (this) or "any SRL failure at all" (``SRLError``,
-    which also covers ``SRLParseError``/``SRLDecodeError``)."""
+    (``srl.py``) so a caller can catch either "any evaluation failure"
+    (this type) or "any SRL failure at all" (``SRLError``, which also
+    covers ``SRLParseError``/``SRLDecodeError``)."""
 
 
 class StratificationError(SRLEvalError):
@@ -96,6 +96,13 @@ def _terms_compatible(pattern_term, template_term) -> bool:
     not on the use of this procedure" - an extra, spurious edge only costs
     a coarser (still correct) stratification, never a wrong inferred
     graph, since every genuine dependency is still found.
+
+    Args:
+        pattern_term: A term from a rule body's triple pattern.
+        template_term: A term from a rule head's triple template.
+
+    Returns:
+        True if the two terms could refer to the same RDF term.
     """
     if isinstance(pattern_term, Variable) or isinstance(template_term, Variable):
         return True
@@ -158,11 +165,19 @@ def _build_dependency_graph(ruleset: srl_ast.RuleSet) -> list[_DependencyEdge]:
 
 
 def _stratify(ruleset: srl_ast.RuleSet) -> list[tuple[list[srl_ast._Rule], list[srl_ast._Rule]]]:
-    """§4.4.2's ``stratification`` algorithm, translated directly. Returns
-    a sequence of ``(once_rules, general_rules)`` pairs, one per stratum,
-    in evaluation order. Raises :class:`StratificationError` if the
-    §4.4.1 Stratification Condition is violated (a recursive dependency
-    involving a closed edge)."""
+    """§4.4.2's ``stratification`` algorithm, translated directly.
+
+    Args:
+        ruleset: The rule set to stratify.
+
+    Returns:
+        A sequence of ``(once_rules, general_rules)`` pairs, one per
+        stratum, in evaluation order.
+
+    Raises:
+        StratificationError: If the §4.4.1 Stratification Condition is
+            violated (a recursive dependency involving a closed edge).
+    """
     edges = _build_dependency_graph(ruleset)
     stratum: dict[int, int] = {id(r): 0 for r in ruleset.rules}
     limit = len(ruleset.rules) + 1
@@ -267,7 +282,16 @@ def _blank_nodes_to_vars(
     a different variable is used for each different blank node." Blank
     nodes then behave exactly like ordinary (existentially-quantified)
     pattern variables during matching - no special-casing needed once
-    substituted."""
+    substituted.
+
+    Args:
+        body: The rule body to substitute blank nodes in.
+        used_vars: Variables already used by the rule - extended in place
+            with each fresh variable minted.
+
+    Returns:
+        ``body`` with every blank node replaced by a fresh variable.
+    """
     mapping: dict[BNode, Variable] = {}
 
     def _sub_term(t):
@@ -313,10 +337,19 @@ def _eval_ebv(expr, mu: dict, g: Graph) -> bool:
 
 
 def _eval_expr(expr, mu: dict, g: Graph):
-    """Returns the evaluated value, or ``None`` if evaluation errored -
+    """Evaluates ``expr`` under solution ``mu`` against graph ``g``,
     matching §6.3's ``evalFunction``/§6.4's "if x is not an error" check
     (``Expr.eval`` catches ``SPARQLError`` internally and returns it as a
-    value rather than raising, per rdflib's own source)."""
+    value rather than raising, per rdflib's own source).
+
+    Args:
+        expr: The rdflib expression to evaluate.
+        mu: The current variable bindings.
+        g: The graph to evaluate against.
+
+    Returns:
+        The evaluated value, or ``None`` if evaluation errored.
+    """
     ctx = QueryContext(graph=g, initBindings=mu)
     val = expr.eval(ctx)
     if isinstance(val, SPARQLError):
@@ -379,6 +412,19 @@ def _subst_head_triple(triple: srl_ast.TriplePattern, mu: dict, bnode_map: dict[
     project's own §6.6 R5 test: ``{ [] a :Notification ; :concerns ?x }``)
     still share one fresh blank node per solution, distinct across
     solutions.
+
+    Args:
+        triple: The head triple template to substitute.
+        mu: The solution providing variable bindings.
+        bnode_map: Blank-node identity shared across every triple template
+            of the one rule instantiation this call is part of; extended
+            in place with any new blank node minted.
+
+    Returns:
+        The substituted ``(subject, predicate, object)`` tuple.
+
+    Raises:
+        SRLEvalError: If the head uses a variable not bound in ``mu``.
     """
 
     def _sub(t):
@@ -433,9 +479,17 @@ def _evaluate_ruleset(base_graph: Graph, ruleset: srl_ast.RuleSet) -> Graph:
     therefore scoped to the rule set's original ground facts only, not to
     anything any rule (including this one) has already inferred.
 
-    Returns ``GI``, the inferred-triples-only graph (never includes a
-    triple already present in ``base_graph``, per §6's own stated output
-    contract) - not the combined evaluation graph.
+    Args:
+        base_graph: The graph to run the rule set against.
+        ruleset: The rule set to evaluate.
+
+    Returns:
+        ``GI``, the inferred-triples-only graph (never includes a triple
+        already present in ``base_graph``, per §6's own stated output
+        contract) - not the combined evaluation graph.
+
+    Raises:
+        SRLImportsNotSupportedError: If ``ruleset.imports`` is non-empty.
     """
     if ruleset.imports:
         raise SRLImportsNotSupportedError(
@@ -483,11 +537,19 @@ def _srl_infer(base_graph: Graph, ruleset: srl_ast.RuleSet) -> Graph:
     evaluation, producing the inference graph. Alias for
     :func:`_evaluate_ruleset` under the spec's own operation name.
 
-    Private (was ``srl_infer``, public, until 2026-10-05): the real public
-    entry point is ``RuleSet.infer()`` (``_srl_ast.py``), which delegates
-    here. Kept as a separate function from ``_evaluate_ruleset`` only to
-    carry the spec's own ``Infer`` name for anyone reading this file
-    against the spec text side by side."""
+    Private: the one real public API is ``RuleSet.infer()``/``.query()``
+    (``_srl_ast.py``), which delegate to this function and ``_srl_query``
+    below respectively. Kept as a separate function from
+    ``_evaluate_ruleset`` only to carry the spec's own ``Infer`` name for
+    anyone reading this file against the spec text side by side.
+
+    Args:
+        base_graph: The graph to run the rule set against.
+        ruleset: The rule set to evaluate.
+
+    Returns:
+        The inferred-triples-only graph.
+    """
     return _evaluate_ruleset(base_graph, ruleset)
 
 
@@ -497,11 +559,20 @@ def _srl_query(base_graph: Graph, ruleset: srl_ast.RuleSet, goal_pattern: srl_as
     equivalence, implemented directly on top of :func:`_srl_infer` rather
     than the selective-rule-evaluation optimization it also permits (a
     documented future enhancement, not required for a correct result).
-    Returns one ``dict[Variable, term]`` solution per match.
 
-    Private (was ``srl_query``, public, until 2026-10-05): the real public
-    entry point is ``RuleSet.query()`` (``_srl_ast.py``), which delegates
-    here."""
+    Private: the one real public API is ``RuleSet.infer()``/``.query()``
+    (``_srl_ast.py``); this function is the plumbing ``RuleSet.query()``
+    delegates to.
+
+    Args:
+        base_graph: The graph to run the rule set against.
+        ruleset: The rule set to evaluate.
+        goal_pattern: The triple pattern to match against the union of
+            ``base_graph`` and the inferred triples.
+
+    Returns:
+        One ``dict[Variable, term]`` solution per match.
+    """
     gi = _evaluate_ruleset(base_graph, ruleset)
     combined = Graph()
     combined += base_graph

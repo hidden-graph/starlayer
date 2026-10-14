@@ -80,7 +80,15 @@ def _trampoline(target: Callable[..., None], args: tuple, queue) -> None:
     here - not left to `target` to remember - is what makes the
     process-group kill below actually work; centralizing it here means no
     future `target` implementation can forget it and silently reintroduce
-    the orphaned-JVM-process bug this module exists to prevent."""
+    the orphaned-JVM-process bug this module exists to prevent.
+
+    Args:
+        target: The module-level function to run, called as
+            `target(*args, queue)`.
+        args: Positional arguments to pass to `target`.
+        queue: The multiprocessing queue `target` puts its result tuple
+            onto.
+    """
     os.setpgrp()
     target(*args, queue)
 
@@ -95,14 +103,21 @@ def run_with_timeout(target: Callable[..., None], args: tuple, timeout_seconds: 
     tuple (each engine's own module defines its own small result-status
     protocol), only whether one arrived before the deadline.
 
-    `timeout_seconds=None` disables the timeout entirely (waits
-    indefinitely, the pre-this-feature behavior) - an explicit opt-out,
-    not the default; every real caller in this codebase passes
-    `DEFAULT_TIMEOUT_SECONDS` unless the caller of *that* overrides it.
+    Args:
+        target: A module-level (picklable-by-reference) function, called
+            as `target(*args, queue)` in the child process.
+        args: Positional arguments to pass to `target`, before the
+            implicit trailing `queue`.
+        timeout_seconds: Wall-clock budget in seconds. `None` disables the
+            timeout entirely (waits indefinitely, the pre-this-feature
+            behavior) - an explicit opt-out, not the default; every real
+            caller in this codebase passes `DEFAULT_TIMEOUT_SECONDS`
+            unless the caller of *that* overrides it.
 
-    Returns whatever `target` put on the queue. Raises
-    ReasoningTimeoutError (after killing the child's entire process group)
-    if nothing arrives within `timeout_seconds`.
+    Returns:
+        Whatever `target` put on the queue. Raises ReasoningTimeoutError
+        (after killing the child's entire process group) if nothing
+        arrives within `timeout_seconds`.
     """
     queue: Any = _CTX.Queue()
     process = _CTX.Process(target=_trampoline, args=(target, args, queue))
@@ -166,7 +181,12 @@ def _kill_process_group(pid: int) -> None:
     process-group ID only because `_trampoline` above called
     `os.setpgrp()` as the child's first action) - not just `pid` itself -
     so a JVM (or other) grandchild the reasoning call spawned is never
-    left orphaned and running. Safe to call on an already-dead process."""
+    left orphaned and running. Safe to call on an already-dead process.
+
+    Args:
+        pid: Process ID of the child process whose process group should
+            be killed.
+    """
     try:
         os.killpg(pid, signal.SIGKILL)
     except ProcessLookupError:

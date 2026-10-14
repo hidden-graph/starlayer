@@ -63,7 +63,15 @@ _KEYWORD_BY_ROOT_TYPE = {
 def sqe_tree_to_text(graph: Graph, root) -> str:
     """Render ``root`` (as produced by ``to_rdf.sqe_parse_to_tree``) back
     into SPARQL query text, re-abbreviating terms using the ``PREFIX``
-    declarations preserved on ``root`` wherever one matches."""
+    declarations preserved on ``root`` wherever one matches.
+
+    Args:
+        graph: The ``sqe:`` RDF graph containing ``root``.
+        root: The query root node to render.
+
+    Returns:
+        The rendered SPARQL query text.
+    """
     keyword = _keyword_for_root(graph, root)
     prefixes = _prefix_map(graph, root)
     lines = [f"PREFIX {label}: <{ns}>" for label, ns in sorted(prefixes.items())]

@@ -54,10 +54,19 @@ from .vocab import SPEXPR
 
 
 def ssyn_rdf_to_query_text(graph: Graph, root) -> str:
-    """Render ``root`` (``rdf:type ssyn:SelectQuery``) back into a plain
-    SPARQL query string — full IRIs only, no prefixes (matching
-    ``translateAlgebra``'s own established behavior, CLAUDE.md finding #3:
-    it never reads a ``Prologue``)."""
+    """Render ``root`` back into a plain SPARQL query string.
+
+    Full IRIs only, no prefixes — matches ``translateAlgebra``'s own
+    established behavior (CLAUDE.md finding #3: it never reads a
+    ``Prologue``).
+
+    Args:
+        graph: The RDF graph containing the encoded query.
+        root: The query's root node (``rdf:type ssyn:SelectQuery``).
+
+    Returns:
+        The reconstructed SPARQL query text.
+    """
     select_vars = [_term_text(v) for v in Collection(graph, graph.value(root, SELECT))]
     where_text = _where_group_text(graph, graph.value(root, WHERE))
     return f"SELECT {' '.join(select_vars)} WHERE {{ {where_text} }}"
@@ -110,16 +119,25 @@ def _predicate_text(graph: Graph, term) -> str:
     Path objects already render themselves as valid SPARQL path syntax,
     no new rendering logic needed.
 
-    Checks spexpr:, not salg: - to_rdf._encode_path types every path node
-    (InvPath/SequencePath/AlternativePath/MulPath/NegatedPath) under
-    spexpr: unconditionally (see that function's own docstring, "Path is
-    one of the vocabularies that moved"). Checking salg: here instead was
-    a real bug: it silently missed every genuine path predicate, falling
-    through to _term_text(term) - which rendered the path's own BNode
-    identifier as if it were an ordinary term, producing a blank-node ID
-    in the regenerated query text instead of e.g. `foaf:knows+` (caught
-    via test_ssyn_ontology.py's own round-trip-by-execution test failing
-    to re-parse the regenerated text)."""
+    Path-encoded nodes are typed under spexpr:, not salg: — to_rdf
+    ._encode_path types every path node (InvPath/SequencePath/
+    AlternativePath/MulPath/NegatedPath) under spexpr: unconditionally (see
+    that function's own docstring, "Path is one of the vocabularies that
+    moved"), so path-detection code must test for spexpr: specifically.
+    Testing salg: here instead would silently miss every genuine path
+    predicate, falling through to _term_text(term) — which renders the
+    path's own BNode identifier as if it were an ordinary term, producing a
+    bare blank-node ID in the regenerated query text instead of e.g.
+    `foaf:knows+`.
+
+    Args:
+        graph: The RDF graph containing the encoded predicate.
+        term: The encoded predicate node/term.
+
+    Returns:
+        The predicate's SPARQL text (a path expression, a prefixed/full
+        IRI, or a variable).
+    """
     if isinstance(term, BNode) and (term, RDF.type, None) in graph:
         types = {str(t) for t in graph.objects(term, RDF.type)}
         if any(t.startswith(str(SPEXPR)) for t in types):
@@ -137,35 +155,48 @@ def _simplify_expr_immutable(expr):
     """A non-mutating equivalent of ``rdflib.plugins.sparql.operators
     .simplify`` — same collapsing rule (any ``*Expression``-named node
     whose ``.other`` is absent/``None`` collapses to its own ``.expr``,
-    recursively), but rdflib's own version is genuinely unsafe to reuse
-    here: it mutates its input **in place** for every node it doesn't
-    collapse outright (``expr[k] = simplify(expr[k])`` on each remaining
-    key) — confirmed live that calling it on a still-referenced
-    ``starlayer.sparql._srl_ast._FilterElement.expr`` silently corrupted that same
-    object's nested structure as a side effect (a later equality check
-    broke, even though the mutating call's own return value was never
-    stored anywhere). ``copy.deepcopy`` isn't a fix either — ``Expr``'s
-    constructor takes ``evalfn`` positionally in a shape deepcopy's default
-    reconstruction can't satisfy (confirmed live: ``TypeError: Expr
-    .__init__() missing 1 required positional argument``). Building fresh
-    nodes bottom-up, as this does, sidesteps both problems - the original
-    tree is never touched, and each ``Expr`` node is reconstructed via its
-    own real constructor with its original ``_evalfn`` reattached.
+    recursively), but rdflib's own version is unsafe to reuse here, for
+    two separate reasons:
+
+    - It mutates its input **in place** for every node it doesn't collapse
+      outright (``expr[k] = simplify(expr[k])`` on each remaining key).
+      Calling it on an expression tree that's still referenced elsewhere
+      (e.g. still held by a ``starlayer.sparql._srl_ast
+      ._FilterElement.expr`` attribute) silently corrupts that other
+      reference as a side effect of a call whose own return value may
+      never even be stored anywhere.
+    - ``copy.deepcopy`` is not a safe alternative either: ``Expr``'s
+      constructor takes ``evalfn`` positionally, in a shape deepcopy's
+      default object-reconstruction protocol can't satisfy (raises
+      ``TypeError: Expr.__init__() missing 1 required positional
+      argument``).
+
+    Building fresh nodes bottom-up, as this does, sidesteps both problems —
+    the original tree is never touched, and each ``Expr`` node is
+    reconstructed via its own real constructor with its original
+    ``_evalfn`` reattached.
 
     Needed at all because a full ``parseQuery``/``translateQuery`` pipeline
     always runs (the mutating) ``simplify`` as part of translating the raw
     grammar tree, collapsing every trivial single-operand precedence-chain
     wrapper (``ConditionalOrExpression``/``ConditionalAndExpression``/
     ``AdditiveExpression``/... with no real ``other``) down to its own
-    inner value - confirmed live that skipping this crashes
+    inner value — skipping this crashes
     ``_AlgebraTranslator.sparql_query_text`` outright (``TypeError:
     'NoneType' object is not iterable``) on an otherwise completely
     ordinary shape like plain ``FILTER(?age > 26)`` (no ``&&``). A caller
     that already goes through a full query parse (every existing
     ``ssyn_to_text.py`` caller) gets this for free from ``translateQuery``
     itself; a caller that only ever ran a bare, standalone ``Constraint``/
-    ``Expression`` parse - as SRL's own grammar does, since SRL text is
-    never a full SPARQL query - does not, and needs it applied explicitly.
+    ``Expression`` parse — as SRL's own grammar does, since SRL text is
+    never a full SPARQL query — does not, and needs it applied explicitly.
+
+    Args:
+        expr: The expression tree (or list of expression trees) to
+            simplify.
+
+    Returns:
+        A fresh, simplified equivalent — the original is never mutated.
     """
     if isinstance(expr, list):
         return [_simplify_expr_immutable(item) for item in expr]
@@ -181,15 +212,27 @@ def _simplify_expr_immutable(expr):
 
 
 def _render_expr_text(expr) -> str:
-    """Render a real algebra expression node (an ``Expr``/``CompValue``
-    tree) as text by wrapping it in a throwaway query and reusing rdflib's
-    own translateAlgebra, then slicing out the FILTER(...) contents — see
-    this module's docstring for why. Public (not module-private) since
+    """Render a real algebra expression node as text.
+
+    Wraps ``expr`` in a throwaway query and reuses rdflib's own
+    ``translateAlgebra``, then slices out the ``FILTER(...)`` contents —
+    see this module's docstring for why. Public (not module-private) since
     ``srl.py`` reuses it directly too — SRL's own ``filter.expr``/
     ``assign.expr`` are the same real rdflib ``Expr`` trees, no RDF
     round-trip needed to call this. See :func:`_simplify_expr_immutable`
     for why the expression is simplified via a fresh, non-mutating rebuild
-    rather than rdflib's own (in-place-mutating) ``operators.simplify``."""
+    rather than rdflib's own (in-place-mutating) ``operators.simplify``.
+
+    Args:
+        expr: An ``Expr``/``CompValue`` expression tree.
+
+    Returns:
+        The expression's SPARQL text.
+
+    Raises:
+        RuntimeError: If the wrapped-query text's parentheses don't
+            balance (should not happen for a well-formed expression tree).
+    """
     expr = _simplify_expr_immutable(expr)
     wrapper = CompValue(
         "SelectQuery",

@@ -28,23 +28,22 @@ summarized here so the code and its rationale stay together):
    satisfied via a node expression is resolved back to whichever real
    triples it actually read.
 
-**Entailment (2026-10-07, ``inference=`` vocabulary updated 2026-10-08)**:
-``shacl_graph``'s own declared ``sh:entailment`` regime(s), plus an optional
-``inference=`` keyword (a real ``ENTAILMENT.*`` IRI, or an iterable of them -
-the same vocabulary ``sh:entailment`` itself uses, not pySHACL's own strings -
-see ``starlayer.shacl.entailment``'s own module docstring) and an optional
-``ont_graph``, are applied once, up front, onto a private, non-mutating copy of
-``data_graph`` - both the conformance re-check (``_shape_conforms``) and the
-extraction walk (``_extract``/``_walk_path``) run against that entailed copy,
-so they agree with whatever entailment the caller's own original ``validate()``
-call used (found via a direct user question: re-checking conformance without
-it could silently disagree with the validation that supposedly already
-confirmed the node conforms). **Decision 5 above still holds strictly for the
-*output* though** - confirmed via direct user decision, not assumed: an
-entailed triple may be *read* to satisfy a constraint (same as any real one),
-but the final triple set is intersected back against the real, pre-entailment
-``data_graph`` before returning, so an entailed-only triple never actually
-appears in ``extracted_graph`` - entailment only ever corrects *which*
+**Entailment**: ``shacl_graph``'s own declared ``sh:entailment`` regime(s),
+plus an optional ``inference=`` keyword (a real ``ENTAILMENT.*`` IRI, or an
+iterable of them - the same vocabulary ``sh:entailment`` itself uses, not
+pySHACL's own strings - see ``starlayer.shacl.entailment``'s own module
+docstring) and an optional ``ont_graph``, are applied once, up front, onto a
+private, non-mutating copy of ``data_graph`` - both the conformance re-check
+(``_shape_conforms``) and the extraction walk (``_extract``/``_walk_path``)
+run against that entailed copy, so they agree with whatever entailment the
+caller's own original ``validate()`` call used: re-checking conformance
+without it could otherwise silently disagree with the validation that
+supposedly already confirmed the node conforms. **Decision 5 above still
+holds strictly for the *output* though**: an entailed triple may be *read*
+to satisfy a constraint (same as any real one), but the final triple set is
+intersected back against the real, pre-entailment ``data_graph`` before
+returning, so an entailed-only triple never actually appears in
+``extracted_graph`` - entailment only ever corrects *which*
 triples/constraints are considered to hold, never contributes new ones to
 what's extracted. This is the opposite choice from ``evaluate()``'s own
 entailment handling (which does let entailed values appear in its own
@@ -320,41 +319,35 @@ def extract_subgraph(
 ) -> Any | None:
     """Implements ``StarShaclSchema.extract_subgraph()`` - see module
     docstring for the design this follows. Returns the extracted subgraph
-    itself (a plain graph object) - or ``None`` if ``focus_node`` doesn't
-    actually conform to ``shape`` (2026-10-08: previously wrapped in a
-    now-removed ``SubgraphExtractionResult``, which had shrunk to this
-    exact graph-or-``None`` shape with nothing else attached - see
-    ``results.py``'s own comment for the full reasoning). This method
-    assumes conformance as a precondition the caller has already checked,
-    rather than existing to diagnose non-conformance - there is no
-    separate report explaining a ``None`` result.
+    itself (a plain graph object), or ``None`` if ``focus_node`` doesn't
+    actually conform to ``shape``. This function assumes conformance as a
+    precondition the caller has already checked, rather than existing to
+    diagnose non-conformance - there is no separate report explaining a
+    ``None`` result.
 
     ``shacl_graph`` is a raw shapes graph (already normalized by the caller,
     matching ``evaluate()``'s own calling convention) - wrapped here into a
     ``pyshacl.ShapesGraph`` so ``lookup_shape_from_node``/shape harvesting
     work the same way they do for ``_shape_conforms`` elsewhere in this
-    codebase. Wrapped over a *copy*, never the caller's own object -
-    confirmed live that ``pyshacl.ShapesGraph.__init__``/``.shapes`` mutates
-    whatever graph it's given in place (injecting a couple of RDFS/OWL
-    class-hierarchy axiom triples for its own implicit-class-target
-    support), which would otherwise silently pollute the caller's
-    ``shacl_graph`` as an unrelated side effect of calling this function.
+    codebase. Wrapped over a *copy*, never the caller's own object:
+    ``pyshacl.ShapesGraph.__init__``/``.shapes`` mutates whatever graph it's
+    given in place (injecting a couple of RDFS/OWL class-hierarchy axiom
+    triples for its own implicit-class-target support), which would
+    otherwise silently pollute the caller's ``shacl_graph`` as an unrelated
+    side effect of calling this function.
 
-    ``shacl_graph=None`` (2026-10-08) falls back to ``data_graph`` itself -
-    matching ``validate()``'s own "data graph doubles as shapes graph"
-    allowance, for a data file carrying its own embedded shapes. Parameter
-    order changed the same day (``shape``/``focus_node`` moved ahead of
-    ``shacl_graph``/``ont_graph``) so the two truly-required parameters
-    stay positional-required while ``shacl_graph`` gets a default - no
-    direct callers of this bare function existed outside
-    ``StarShaclSchema.extract_subgraph()`` (which calls by position and was
-    updated alongside this).
+    ``shacl_graph=None`` falls back to ``data_graph`` itself - matching
+    ``validate()``'s own "data graph doubles as shapes graph" allowance,
+    for a data file carrying its own embedded shapes. ``shape``/
+    ``focus_node`` come before ``shacl_graph``/``ont_graph`` in the
+    signature so the two genuinely-required parameters stay
+    positional-required while ``shacl_graph`` gets a default.
 
-    ``ont_graph``/``inference=`` (2026-10-07): see the module docstring's
-    own dated entry for the full design - entailment feeds the conformance
-    re-check and the extraction walk, but the returned triples are
-    intersected back against the real, pre-entailment ``data_graph`` before
-    returning, so an entailed-only triple never appears in the output.
+    ``ont_graph``/``inference=``: entailment feeds the conformance re-check
+    and the extraction walk, but the returned triples are intersected back
+    against the real, pre-entailment ``data_graph`` before returning, so an
+    entailed-only triple never appears in the output - see the module
+    docstring's entailment section for the full design.
     """
     if shacl_graph is None:
         shacl_graph = data_graph
@@ -422,8 +415,7 @@ def _close_shape(shacl_graph: Any, shape: Any) -> Any:
     set, so closing it would incorrectly require those values to have zero
     other properties.
 
-    Private (2026-10-07: previously the public ``starlayer.shacl.close_shape()``
-    function) - reach this through :meth:`StarShaclSchema.close_shape` instead,
+    Private - reach this through :meth:`StarShaclSchema.close_shape` instead,
     which binds ``self.shacl_graph`` rather than taking it as a parameter,
     matching every other processing mode on that class.
     """

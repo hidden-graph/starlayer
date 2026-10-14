@@ -27,16 +27,14 @@ def patch_result_iter_empty_binding_row() -> bool:
     A zero-variable binding is a real, correct SPARQL solution - it's what
     ``SELECT *`` over a WHERE pattern with no variables anywhere produces
     when it matches (e.g. ``SELECT * WHERE { <a> <b> <c> . }`` - a "does
-    this exact fact exist?" query). Confirmed via a plain, unmodified
-    rdflib reproduction: ``Result.bindings`` (the property) and
+    this exact fact exist?" query). ``Result.bindings`` (the property) and
     ``len(result)`` both correctly report one row for such a query, and
     ``ASK`` on the identical pattern correctly returns ``True`` - only
     iterating the ``Result`` object (``list(result)``, ``for row in
-    result``) silently returns nothing. Confirmed to affect a genuinely
-    remote SPARQLStore-backed result too (tested against a live Oxigraph
-    instance, which itself sends the correct ``{"bindings": [{}]}`` over
-    the wire) - this is purely rdflib's own client-side bug, unrelated to
-    which backend produced the data.
+    result``) silently returns nothing. This is purely rdflib's own
+    client-side bug in ``__iter__``, unrelated to which backend produced
+    the data - a remote SPARQLStore-backed result carries the same
+    ``{"bindings": [{}]}`` shape and is affected identically.
 
     Fix: yield every row in ``self._bindings``/``self._genbindings``
     unconditionally - there is no sentinel value ever placed in either

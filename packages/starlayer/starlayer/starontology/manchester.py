@@ -3,12 +3,12 @@
 Everything about managing an OWL 2 Manchester Syntax document as its own
 syntax tree, independent of the compiled OWL semantics it maps to - and the
 ontology/SHACL-shapes files that tree representation is validated against.
-Moved here (2026-10-03) from starlayer.ontology.to_ast_rdf/manchester_shapes,
+This lives here, not in starlayer.ontology.to_ast_rdf/manchester_shapes,
 on the reasoning that Manchester-tree editing is an *ontology-management*
 concern (same bucket as starontology itself), not a starlayer.graph concern -
 the OWL-compiling parser/serializer pair (StarLayerGraph.parse()/.serialize()
-format='manchester') stays in starlayer.graph, unaffected by this move; only
-the tree layer and its own validation moved.
+format='manchester') stays in starlayer.graph; only the tree layer and its
+own validation live here.
 
 Four entry points:
 
@@ -94,7 +94,7 @@ class-definition time) is defined *inside* ``manchester_parse_to_tree()`` rather
 at module scope, and why the characteristic/data-facet reverse-lookup maps
 are built lazily on first use rather than at import time.
 
-**Fidelity scope, confirmed with the user before building this**: matches
+**Fidelity scope**: matches
 ``manchester_parser.py``'s own internal AST exactly - ``onlysome``/``that``/
 ``SuperClassOf:`` spelling are not recoverable (already desugared before
 this module ever sees them), the same bar ``salg:`` itself holds for SPARQL
@@ -516,6 +516,13 @@ def manchester_parse_to_tree(text: str, base: str | None = None) -> Graph:
     (already no-op-by-default) AST-capture hooks are overridden. See this
     module's own docstring for the exact fidelity scope (matches the
     parser's existing internal AST, not raw text).
+
+    Args:
+        text: The Manchester Syntax document text to parse.
+        base: Base IRI for resolving relative IRIs, if any.
+
+    Returns:
+        A fresh ``Graph`` holding exactly one ``manch:Document`` tree.
     """
     from starlayer.graph.parsers.manchester_parser import _Cursor, _tokenize
 
@@ -1077,6 +1084,12 @@ def manchester_tree_to_owl(graph: Graph) -> StarLayerGraph:
     ``manchester_tree_to_text()`` is a fully faithful renderer of everything this
     module's ``manch:`` encoding captures, so nothing this tree holds is
     lost before the OWL compiler sees it - see this module's own docstring.
+
+    Args:
+        graph: A ``manch:`` syntax tree, e.g. from ``manchester_parse_to_tree()``.
+
+    Returns:
+        The compiled OWL content as a fresh ``StarLayerGraph``.
     """
     from starlayer.graph import StarLayerGraph
 
@@ -1086,11 +1099,9 @@ def manchester_tree_to_owl(graph: Graph) -> StarLayerGraph:
 
 
 def manchester_validate(data_graph: Graph) -> tuple[bool, Graph, str]:
-    """Validate ``data_graph`` (e.g. straight out of ``manchester_parse_to_tree()``, or
-    an LLM-authored ``manch:`` graph not yet decoded) against the shapes in
-    ``manchester_shapes.ttl``. Only the tree being checked is a caller's
-    concern - which shapes to check it against is this module's own, fixed
-    concern, not a parameter.
+    """Validate ``data_graph`` against the shapes in
+    ``manchester_shapes.ttl``. Which shapes to check against is this
+    module's own, fixed concern, not a parameter.
 
     Runs with RDFS reasoning enabled (``ont_graph=get_ontology_graph(
     "manchester_owl")``, ``inference="rdfs"``) - this is what lets the
@@ -1100,9 +1111,9 @@ def manchester_validate(data_graph: Graph) -> tuple[bool, Graph, str]:
     enumerating every concrete tag by name, the same reasoning ``salg:``'s
     own shapes use for SPARQL.
 
-    No public ``ontology_graph()``/``shapes_graph()`` here (unlike the
-    initial version of this module) - get those two graphs directly from
-    ``starontology`` instead: ``get_ontology_graph("manchester_owl")`` /
+    No public ``ontology_graph()``/``shapes_graph()`` here - get those
+    two graphs directly from ``starontology`` instead:
+    ``get_ontology_graph("manchester_owl")`` /
     ``get_ontology_graph("manchester_shacl")``. This function needs no
     combining logic the way ``starlayer.sparql.srl.srl_validate()`` does for
     ``srl:``+``salg:``, so there was nothing worth wrapping here even
@@ -1112,8 +1123,14 @@ def manchester_validate(data_graph: Graph) -> tuple[bool, Graph, str]:
     this validates a caller-supplied ``data_graph`` that may be genuine
     RDF 1.2 content, which only ``starlayer.shacl`` understands correctly.
 
-    Returns ``(conforms, results_graph, results_text)``, unpacked from
-    ``starlayer.shacl``'s own ``ValidationResult``.
+    Args:
+        data_graph: The ``manch:`` tree graph to validate - e.g. straight
+            out of ``manchester_parse_to_tree()``, or an LLM-authored
+            ``manch:`` graph not yet decoded.
+
+    Returns:
+        ``(conforms, results_graph, results_text)``, unpacked from
+        ``starlayer.shacl``'s own ``ValidationResult``.
     """
     from pyshacl.errors import ShapeRecursionWarning
 

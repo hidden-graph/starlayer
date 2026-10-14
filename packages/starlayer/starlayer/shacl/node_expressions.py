@@ -70,31 +70,30 @@ data graph and the shapes graph, via ``validator.py``'s
 ``_transitive_subclasses`` - the same helper ``sh:ShapeClass``'s implicit
 target discovery uses), independent of the caller's ``inference=`` setting.
 
-**Not a departure from the rest of this codebase, despite an earlier
-version of this docstring claiming otherwise** - corrected 2026-09-10 after
-a direct user question ("does shnex:instancesOf perform inferencing on
-class membership - should it?") prompted checking rather than continuing to
-assume. The spec's own "InstancesOf Expressions" section defines this
-purely in terms of the "SHACL instance" term (shared with ``sh:targetClass``
-/``sh:class``) and says outright (non-normatively) that "the definition of
-SHACL instance includes instances of subclasses of the given class." A live
-check of plain, unpatched ``pyshacl.validate()`` (no ``inference=`` argument
-at all) confirms both ``sh:targetClass`` (``pyshacl/shape.py``'s
+Subclass reasoning for ``shnex:instancesOf`` is baseline SHACL Core
+semantics, not a departure from the rest of this codebase, and it is not
+gated by ``inference=``. The spec's own "InstancesOf Expressions" section
+defines this purely in terms of the "SHACL instance" term (shared with
+``sh:targetClass``/``sh:class``) and says outright (non-normatively) that
+"the definition of SHACL instance includes instances of subclasses of the
+given class." Plain, unpatched ``pyshacl.validate()`` (no ``inference=``
+argument at all) already does exactly this same unconditional
+subclass-closure check for both ``sh:targetClass`` (``pyshacl/shape.py``'s
 ``transitive_subjects(RDFS_subClassOf, tc)``, and its SPARQL-mode
 ``rdf:type/rdfs:subClassOf*`` property path) and ``sh:class``
 (``ClassConstraintComponent``'s own ``ASK {$value rdf:type/rdfs:subClassOf*
-$class .}``) already do exactly this same unconditional subclass-closure
-check, with no dependency on ``inference=`` either. Subclass reasoning is
-baseline SHACL Core semantics for *any* class-membership test - not an
-opt-in inference tier - so ``shnex:instancesOf`` doing it unconditionally
-here isn't a special case at all, just the same requirement reimplemented
-at a different call site (node-expression evaluation has no access to
-pySHACL's own ``ClassConstraintComponent``/target-resolution internals, so
-it can't literally reuse their query, only match their semantics). What
-``inference=`` actually gates is unrelated and heavier: RDFS closure beyond
-the class hierarchy, and OWL-RL entailments (``owl:equivalentClass``,
-property-based classification, etc.) - none of which ``shnex:instancesOf``,
-``sh:targetClass``, or ``sh:class`` attempt on their own either.
+$class .}``), with no dependency on ``inference=`` either. Subclass
+reasoning is baseline SHACL Core semantics for *any* class-membership test -
+not an opt-in inference tier - so ``shnex:instancesOf`` doing it
+unconditionally here isn't a special case at all, just the same requirement
+reimplemented at a different call site (node-expression evaluation has no
+access to pySHACL's own ``ClassConstraintComponent``/target-resolution
+internals, so it can't literally reuse their query, only match their
+semantics). What ``inference=`` actually gates is unrelated and heavier:
+RDFS closure beyond the class hierarchy, and OWL-RL entailments
+(``owl:equivalentClass``, property-based classification, etc.) - none of
+which ``shnex:instancesOf``, ``sh:targetClass``, or ``sh:class`` attempt on
+their own either.
 """
 
 from __future__ import annotations
@@ -179,8 +178,8 @@ def _custom_function_registry(sg: Any) -> dict[Any, Any]:
     - Each *key* parameter (``sh:parameter [ sh:path ex:foo ; sh:keyParameter
       true ]``) of a ``sh:NamedParameterExpressionFunction`` maps to that
       function - a call site uses the key parameter's own ``sh:path`` IRI as
-      (one of) the blank node's predicates, e.g. ``[ ex:average [...] ]``.
-      Confirmed live against the spec's own worked examples.
+      (one of) the blank node's predicates, e.g. ``[ ex:average [...] ]``,
+      matching the spec's own worked examples.
 
     Computed once per distinct shapes-graph object and cached in a
     ``WeakKeyDictionary`` keyed on ``sg.graph`` - same pattern and same
@@ -228,23 +227,16 @@ def _eval_custom_function_call(
     bindings - real function-call isolation, not lexical closure.
 
     For the named-parameter case, ``argScope`` is built from *every*
-    declared ``sh:parameter`` of ``fn``, not just the key parameter(s) -
-    found live (2026-09-11), prompted by a direct user question asking for
-    a two-parameter example with one non-key parameter: the spec's own
-    "EVALUATION OF CUSTOM NAMED PARAMETER EXPRESSIONS" algorithm says
-    "argScope is a map of (parameter) nodes as keys and (argument) nodes
-    as values, so that **each parameter** of f has the value of the
-    parameter's sh:path from expr" - not "each key parameter". An earlier
-    version of this function only read ``call_predicates`` (the key
-    parameter(s) alone, since only key parameters are registered by
-    ``_custom_function_registry`` for dispatch purposes), so a call site
-    supplying a value for a declared-but-non-key parameter silently lost
-    it - confirmed live with a two-parameter function (`ex:name` as the
-    key parameter, `ex:greeting` as a plain, non-key one): the whole
-    expression evaluated to an empty result instead of reading
-    ``ex:greeting``'s value at all. Key parameters are still what the
-    registry uses to *find and dispatch to* the right function in the
-    first place - that part is unrelated and correct as-is.
+    declared ``sh:parameter`` of ``fn``, not just the key parameter(s): the
+    spec's own "EVALUATION OF CUSTOM NAMED PARAMETER EXPRESSIONS" algorithm
+    says "argScope is a map of (parameter) nodes as keys and (argument)
+    nodes as values, so that **each parameter** of f has the value of the
+    parameter's sh:path from expr" - not "each key parameter". Key
+    parameters are still what the registry uses to *find and dispatch to*
+    the right function in the first place; building ``argScope`` is a
+    separate step that must cover every declared parameter, key or not, or
+    a call site supplying a value for a declared-but-non-key parameter
+    would silently lose it.
     """
     fns = {registry[p] for p in call_predicates}
     if len(fns) > 1:

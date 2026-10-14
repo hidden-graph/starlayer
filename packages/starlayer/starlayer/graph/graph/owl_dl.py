@@ -135,15 +135,21 @@ def classify_owl_dl(graph, timeout: float | None = _timeout.DEFAULT_TIMEOUT_SECO
     Raises InconsistentOntologyError if the data is logically inconsistent
     under OWL 2 DL semantics.
 
-    timeout -- wall-clock budget in seconds for the actual HermiT call
-        (default `_timeout.DEFAULT_TIMEOUT_SECONDS`, 120s) - the call runs
-        in its own subprocess/process group so it can be forcibly killed,
-        JVM child included, if it's exceeded; raises
-        `_timeout.ReasoningTimeoutError`. Pass `None` to disable the
-        timeout entirely (wait indefinitely - the pre-this-feature
-        behavior). See `_timeout.py`'s own module docstring for why a
-        subprocess kill, not a cooperative cancellation, is the only
-        mechanism that reliably works here.
+    Args:
+        graph: The graph to classify.
+        timeout: Wall-clock budget in seconds for the actual HermiT call
+            (default `_timeout.DEFAULT_TIMEOUT_SECONDS`, 120s) - the call
+            runs in its own subprocess/process group so it can be forcibly
+            killed, JVM child included, if it's exceeded; raises
+            `_timeout.ReasoningTimeoutError`. Pass `None` to disable the
+            timeout entirely (wait indefinitely - the pre-this-feature
+            behavior). See `_timeout.py`'s own module docstring for why a
+            subprocess kill, not a cooperative cancellation, is the only
+            mechanism that reliably works here.
+
+    Returns:
+        A (before, delta) tuple of Graphs - `before` the decomposed input
+        graph, `delta` the newly-entailed triples not already in `before`.
     """
     _require_owlready2()
     _require_java()

@@ -1,16 +1,10 @@
 """Canonical entailment regime IRIs, from the SPARQL 1.2 Entailment Regimes
 spec (https://www.w3.org/TR/sparql12-entailment/) - fetched directly, not
 invented. These are the values both ``infer()``'s ``entailment=`` and
-``query()``'s own ``entailment=`` accept (2026-10-07: replacing this
-project's own prior starlayer-internal string keywords, ``'rdfs'``/
-``'owl-rl'``/``'owl-dl'``/``'direct'``/``'rdf'`` - a full breaking change,
-not an added alias; 2026-10-08: ``infer()``'s own parameter renamed from
-``profile=`` to ``entailment=``, matching ``query()``'s already-established
-name for this exact vocabulary - the two methods now speak one name as
-well as one set of values), and the same IRIs a SHACL shapes graph's own
-``sh:entailment`` triples carry (see ``starlayer.shacl.entailment``), so
-every layer speaks one vocabulary with no separate translation table in
-between.
+``query()``'s own ``entailment=`` accept, and the same IRIs a SHACL shapes
+graph's own ``sh:entailment`` triples carry (see
+``starlayer.shacl.entailment``), so every layer speaks one vocabulary with
+no separate translation table in between.
 
 ``ENTAILMENT`` is an ordinary ``rdflib.Namespace``, not individual module-
 level constants - ``http://www.w3.org/ns/entailment/`` {RDF, RDFS} both
@@ -28,15 +22,14 @@ RDF-Based Semantics and D-Entailment/RIF Core Entailment have no
 implementation here and are not planned - see
 ``docs/future_enhancements.md``.
 
-``ENTAILMENT["OWL-Direct"]`` unifies what this project previously called
-``'owl-dl'`` (``infer()``) and ``'direct'`` (``query()``) - two different
-names for the identical OWL 2 Direct Semantics tableau-reasoning regime,
-found while replacing the string keywords with these IRIs.
+``ENTAILMENT["OWL-Direct"]`` is the one regime both ``infer()`` and
+``query()`` dispatch to for OWL 2 Direct Semantics (tableau) reasoning -
+a single name and IRI for a single regime, used uniformly by both methods.
 
 Two values deliberately have no IRI and are not regimes at all: ``None``
 (simple entailment / no entailment) and the string ``"native"``
 (``query()`` only - delegates entailment to the connected backend/endpoint
-rather than naming a regime). Both are unchanged by this migration.
+rather than naming a regime).
 """
 
 from __future__ import annotations

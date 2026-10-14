@@ -2,13 +2,10 @@
 
 SRL/SPARQL-RL (`WD-sparql12-rl-20260919 <https://www.w3.org/TR/sparql12-rl/>`_)
 - a Datalog-style rules language built on SPARQL triple patterns and filter
-expressions - text, its tree-RDF encoding (``srl:``), and SHACL validation
-of that encoding. Consolidated (2026-10-03) from six previously-separate
-sibling files (``srl_grammar.py``, ``srl_vocab.py``, ``srl_to_rdf.py``,
-``srl_from_rdf.py``, ``srl_to_text.py``, and the shapes-loading half of
-``srl_shapes.py``), mirroring ``starontology.manchester``'s consolidation of
-the equivalent Manchester-syntax pieces - see that module's own docstring
-for the general pattern this follows.
+expressions. This module provides SRL text, its tree-RDF encoding (``srl:``),
+and SHACL validation of that encoding: parsing SRL text to a ``RuleSet`` AST
+and back, encoding/decoding that AST to/from RDF, and validating an
+``srl:``-encoded ruleset against SHACL shapes.
 
 **Where this sits, and why it's not in ``starontology`` like ``manch:``
 is**: SRL rule sets aren't documents describing a vocabulary (what
@@ -68,7 +65,7 @@ needed together for RDFS reasoning to resolve that dispatch) - see
 Deliberately outside this module's scope, unchanged, living in their own
 sibling files:
 
-- ``_srl_ast.py`` (private, renamed from ``srl_ast.py`` 2026-10-05) - the
+- ``_srl_ast.py`` (private) - the
   ``RuleSet``/``_Rule``/``_Data``/``TriplePattern``/``_FilterElement``/
   ``_AssignmentElement``/``_NegationElement`` dataclasses themselves. Stays
   a separate *file* (not folded in here) because it's already a clean,
@@ -80,12 +77,12 @@ sibling files:
   same "no two paths to the same graphs" reasoning ``srl_validate()``'s
   own docstring note above already applies to ``ontology_graph()``/
   ``shapes_graph()``. The rest (``_Rule``/``_Data``/``_FilterElement``/
-  ``_AssignmentElement``/``_NegationElement``) are private, made so
-  2026-10-06: no public function or method requires any of them directly
-  (unlike ``TriplePattern``, needed as ``RuleSet.query()``'s own
-  ``goal_pattern`` parameter type) - the only way a caller would touch one
-  is by walking ``RuleSet.rules``/``Rule.head``/``Rule.body``, an
-  inspection/editing concern this API doesn't cover yet.
+  ``_AssignmentElement``/``_NegationElement``) are private: no public
+  function or method requires any of them directly (unlike
+  ``TriplePattern``, needed as ``RuleSet.query()``'s own ``goal_pattern``
+  parameter type) - the only way a caller would touch one is by walking
+  ``RuleSet.rules``/``Rule.head``/``Rule.body``, an inspection/editing
+  concern this API doesn't cover yet.
 - ``srl_eval.py`` (``RuleSet.infer()``/``.query()``, implemented as thin
   delegates to this module's private ``_srl_infer``/``_srl_query``) -
   *running* a ``RuleSet`` against a base graph is a separate concern from
@@ -102,7 +99,7 @@ sibling files:
   ``srl_validate()``'s own docstring for why structural-only is the line), so
   this is a separate, plain-Python check, not part of this module as a
   *file* - but ``parse_ruleset()`` above calls into it directly (its own
-  ``_check_ruleset``, private since 2026-10-05) as the well-formedness half
+  ``_check_ruleset``) as the well-formedness half
   of this module's one real parse-time gate, the grammar being the other
   half.
 """
@@ -149,7 +146,7 @@ from .to_rdf import _encode, _new_starlayer_graph
 SRL = Namespace("https://github.com/hidden-graph/starlayer/ns/sparql/srl#")
 
 # ---------------------------------------------------------------------------
-# srl: vocabulary (was srl_vocab.py) - field names taken verbatim from the
+# srl: vocabulary - field names taken verbatim from the
 # spec's own §4.1 "Component Notation" table, not invented.
 # ---------------------------------------------------------------------------
 
@@ -184,13 +181,10 @@ _NEGATION_DATA_FLAG = SRL.negationData
 
 
 # ---------------------------------------------------------------------------
-# Grammar (was srl_grammar.py) - reuses rdflib's own real SPARQL 1.2 grammar
+# Grammar - reuses rdflib's own real SPARQL 1.2 grammar
 # productions directly for everything the spec's own grammar text says is
 # unchanged from SPARQL; only the genuinely new SRL-specific productions are
-# hand-written here. See the removed module's own docstring (preserved in
-# git history) for the full production-by-production design notes - kept
-# brief here since this is now one module among several, not the whole
-# story for SRL.
+# hand-written here.
 #
 # Deliberate scope reduction for this first implementation pass: only
 # `;`-chained same-subject property lists are supported (no `,`-chained
@@ -286,16 +280,15 @@ _RuleSetGrammar.ignore("#" + rest_of_line)
 class SRLError(ValueError):
     """Base class for every SRL-specific exception
     (``SRLParseError``/``SRLDecodeError`` here, ``SRLEvalError`` and its
-    own subclasses in ``srl_eval.py``) - added 2026-10-06 so a caller has
-    a single type to catch for "any SRL failure," the same two-tier
-    catch granularity rdflib (``rdflib.exceptions.Error``) and pyshacl
+    own subclasses in ``srl_eval.py``) - gives a caller two real catch
+    granularities, "this specific failure" (``SRLParseError``/
+    ``SRLDecodeError``) vs. "any SRL failure" (``SRLError`` itself), the
+    same two-tier shape rdflib (``rdflib.exceptions.Error``) and pyshacl
     (``pyshacl.errors.ReportableRuntimeError``) each give their own
-    callers. Before this, ``SRLParseError``/``SRLDecodeError``/
-    ``SRLEvalError`` each subclassed ``ValueError`` independently, with no
-    shared ancestor - an oversight from incremental development, not a
-    deliberate choice (contrast ``starlayer.graph.parsers.errors``'s
-    ``Turtle12SyntaxError``/``ManchesterSyntaxError``, which *deliberately*
-    don't share a base, per that module's own docstring)."""
+    callers. Contrast ``starlayer.graph.parsers.errors``'s
+    ``Turtle12SyntaxError``/``ManchesterSyntaxError``, which deliberately
+    don't share a base - see that module's own docstring for why that
+    case is different."""
 
 
 class SRLParseError(SRLError):
@@ -315,7 +308,15 @@ def _list_field(cv: CompValue, key: str) -> list:
     not ``None``/``[]``. A ``Param(..., isList=True)`` field is only ever
     set at all if at least one occurrence matched, so an absent key
     genuinely means "zero occurrences" - this is the correct way to read
-    that as ``[]``."""
+    that as ``[]``.
+
+    Args:
+        cv: The CompValue to read the field from.
+        key: The list-valued field name.
+
+    Returns:
+        The field's values as a list, or ``[]`` if the key is absent.
+    """
     return list(cv[key]) if key in cv else []
 
 
@@ -413,11 +414,21 @@ def parse_ruleset(text: str, base: str | None = None) -> srl_ast.RuleSet:
     A successfully-returned ``RuleSet`` is also guaranteed §4.2 well-formed
     (every filter/assignment/head variable properly bound, no ``SET(...)``
     reusing an already-bound variable) - this function is the one real gate,
-    the same contract plain SPARQL's own ``prepareQuery()`` has. Raises
-    ``SRLParseError`` for a well-formedness violation too, not just a
-    grammar/syntax error - added 2026-10-05 after confirming live that a
-    violating ruleset previously parsed *and evaluated* with no error at
-    all, silently producing a wrong answer.
+    the same contract plain SPARQL's own ``prepareQuery()`` has. ``SRLParseError``
+    is raised for a §4.2 well-formedness violation too, not just a
+    grammar/syntax error: this is what prevents a violating ruleset from
+    silently parsing *and* evaluating to a wrong answer with no error at all.
+
+    Args:
+        text: The SRL rule-set text to parse.
+        base: Base IRI for resolving relative IRIs, if any.
+
+    Returns:
+        The parsed, well-formed ``RuleSet``.
+
+    Raises:
+        SRLParseError: For malformed SRL text, or text that parses but
+            fails a §4.2 well-formedness check.
     """
     try:
         parsed = _RuleSetGrammar.parse_string(text, parse_all=True)
@@ -440,19 +451,26 @@ def parse_ruleset(text: str, base: str | None = None) -> srl_ast.RuleSet:
 
 
 # ---------------------------------------------------------------------------
-# RuleSet -> srl: tree-RDF (was srl_to_rdf.py). Every term/expression leaf
+# RuleSet -> srl: tree-RDF. Every term/expression leaf
 # delegates straight to to_rdf._encode - this only has bespoke logic for
 # the srl:-specific container shapes.
 # ---------------------------------------------------------------------------
 
 def ruleset_to_tree(ruleset: srl_ast.RuleSet, graph: Graph | None = None) -> tuple[Graph, BNode]:
-    """Encode a ``RuleSet`` as ``srl:`` tree-RDF. Returns ``(graph, root)``,
-    ``root`` the ``srl:RuleSet``-typed node.
+    """Encode ``ruleset`` as ``srl:`` tree-RDF.
 
     Useful on its own (not just inside ``srl_parse_to_tree``) for a ``RuleSet``
     built or edited programmatically - rules combined, a filter rewritten -
     that now needs to go back into RDF, e.g. for storage or SHACL
     validation, without round-tripping through text.
+
+    Args:
+        ruleset: The RuleSet to encode.
+        graph: Graph to add the encoding to; a fresh graph is created if
+            not given.
+
+    Returns:
+        A ``(graph, root)`` tuple, ``root`` the ``srl:RuleSet``-typed node.
     """
     if graph is None:
         graph = _new_starlayer_graph()
@@ -527,7 +545,7 @@ def _data_to_rdf(data: srl_ast._Data, graph: Graph) -> BNode:
 
 
 # ---------------------------------------------------------------------------
-# srl: tree-RDF -> RuleSet (was srl_from_rdf.py) - the inverse, same
+# srl: tree-RDF -> RuleSet - the inverse, same
 # "bespoke containers, delegate leaves" split.
 # ---------------------------------------------------------------------------
 
@@ -595,7 +613,7 @@ def tree_to_ruleset(graph: Graph, root) -> srl_ast.RuleSet:
 
 
 # ---------------------------------------------------------------------------
-# RuleSet -> SRL text (was srl_to_text.py) - the inverse of parse_ruleset,
+# RuleSet -> SRL text - the inverse of parse_ruleset,
 # working directly on the dataclass tree, no RDF involved.
 # ---------------------------------------------------------------------------
 
@@ -607,10 +625,16 @@ def ruleset_to_text(ruleset: srl_ast.RuleSet, namespace_manager: NamespaceManage
     **No original ``PREFIX``/``BASE`` declarations are preserved** - like
     rdflib's own ``translateAlgebra``, the parsed AST only ever holds
     fully-resolved absolute IRIs; prefix declarations are consumed during
-    parsing and never stored. Pass a ``namespace_manager`` (e.g. some
-    graph's own) to render prefixed names instead of full ``<...>`` IRIs
-    wherever a match exists - purely cosmetic, the resulting text still
-    parses identically either way.
+    parsing and never stored.
+
+    Args:
+        ruleset: The RuleSet to render.
+        namespace_manager: If given, render prefixed names instead of full
+            ``<...>`` IRIs wherever a match exists - purely cosmetic, the
+            resulting text still parses identically either way.
+
+    Returns:
+        The rendered SRL text.
     """
     lines = [f"IMPORTS {_term_text(iri_, namespace_manager)}" for iri_ in ruleset.imports]
     lines += [_data_text(block, namespace_manager) for block in ruleset.data]
@@ -691,26 +715,25 @@ def srl_tree_to_text(graph: Graph, root) -> str:
 
 
 # ---------------------------------------------------------------------------
-# SHACL validation of an srl: tree-RDF graph (was the srl_validate half of
-# srl_shapes.py - ontology_graph()/shapes_graph() deliberately not exposed
-# publicly here, see module docstring for why).
+# SHACL validation of an srl: tree-RDF graph - ontology_graph()/
+# shapes_graph() deliberately not exposed publicly here, see module
+# docstring for why.
 # ---------------------------------------------------------------------------
 
 def _ontology_graph() -> Graph:
     """The ``srl:`` RDFS ontology, combined with ``salg:``'s and
-    ``spexpr:``'s (needed for the ``sh:class spexpr:Expression``/
-    ``spexpr:Variable`` checks below) - private: see module docstring for
-    why this isn't exposed publicly.
+    ``spexpr:``'s - private: see module docstring for why this isn't
+    exposed publicly.
 
-    ``spexpr:`` merge added 2026-10-10 - ``salg:Expression``/
-    ``salg:Variable`` moved out of ``salg-ontology.ttl`` into their own
-    shared vocabulary (see ``starlayer/sparql/vocab.py``'s ``SPEXPR``
-    definition), so the RDFS subclass axioms the checks below depend on
-    for entailment now live there instead. ``sparql_owl`` kept alongside
-    it rather than replaced outright, even though this file's own shapes
-    never referenced any of salg:'s *other* (non-expression) vocabulary -
-    harmless to keep, and not worth a second, independent risk judgment
-    on top of the one this move already required."""
+    All three must be loaded together: this module's own SHACL shapes use
+    ``sh:class spexpr:Expression``/``spexpr:Variable``, and the RDFS
+    subclass entailment those checks depend on only resolves correctly
+    when ``srl_owl``, ``sparql_owl``, and ``spexpr_owl`` are all present in
+    the same graph.
+
+    Returns:
+        A fresh combined ontology graph.
+    """
     from starlayer import starontology
 
     g = starontology.get_ontology_graph("srl_owl")
@@ -742,8 +765,12 @@ def srl_validate(data_graph: Graph) -> tuple[bool, Graph, str]:
     as a ``srl:subject``/``srl:object``) that only ``starlayer.shacl``
     understands correctly.
 
-    Returns ``(conforms, results_graph, results_text)``, unpacked from
-    ``starlayer.shacl``'s own ``ValidationResult``.
+    Args:
+        data_graph: The ``srl:`` tree-RDF graph to validate.
+
+    Returns:
+        A ``(conforms, report_graph, report_text)`` tuple, unpacked from
+        ``starlayer.shacl``'s own ``ValidationResult``.
     """
     from pyshacl.errors import ShapeRecursionWarning
 
