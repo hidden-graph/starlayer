@@ -164,6 +164,12 @@ slkg:overrides a owl:ObjectProperty ;
     rdfs:label "overrides" ;
     rdfs:comment "This method shares a name with, and shadows, a method already declared on one of its class's base classes - only detected when that base class is defined in the *same file* as the overriding method (see starlayer.codekg.extractor.visitor's own same-file-only scope note); a genuine override of a method from a base class defined in a different file gets no edge in this version." .
 
+slkg:instantiates a owl:ObjectProperty ;
+    rdfs:domain slkg:Function ;
+    rdfs:range slkg:Class ;
+    rdfs:label "instantiates" ;
+    rdfs:comment "A function/method's body contains a call site resolved, with confidence, to a class's own constructor (a bare or import/module-alias-qualified reference to the class name, called directly) - this function creates an instance of that class. Deliberately a separate property from slkg:calls rather than widening that one's range to also admit a Class - 'calls a function' and 'constructs an instance' are different relationships. Same resolution-confidence caveats as slkg:calls: a constructor call through a plain local variable, or any other unresolvable expression, gets no edge." .
+
 slkg:isPrivate a owl:DatatypeProperty ;
     rdfs:range xsd:boolean ;
     rdfs:label "is private" ;

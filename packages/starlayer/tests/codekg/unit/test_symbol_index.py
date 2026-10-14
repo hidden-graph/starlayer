@@ -12,7 +12,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from starlayer.codekg.extractor.symbol_index import build_symbol_index, module_identity
+import pytest
+
+from starlayer.codekg.extractor.symbol_index import build_symbol_index, module_identity, resolve_root
 
 
 def _write(repo_root: Path, rel_path: str, source: str) -> Path:
@@ -22,20 +24,55 @@ def _write(repo_root: Path, rel_path: str, source: str) -> Path:
     return path
 
 
+def _write_test(repo_root: Path, rel_path: str, source: str) -> Path:
+    path = repo_root / "packages" / "starlayer" / "tests" / rel_path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(source, encoding="utf-8")
+    return path
+
+
 class TestModuleIdentity:
     def test_blob_iri_and_dotted_path(self, tmp_path):
         path = _write(tmp_path, "pkg/mod.py", "x = 1\n")
-        module_iri, module_dotted = module_identity(path, tmp_path / "packages" / "starlayer" / "starlayer")
+        module_iri, module_dotted = module_identity(path, tmp_path)
         assert str(module_iri).endswith("pkg/mod.py")
+        assert "/starlayer/starlayer/" in str(module_iri)
         assert module_dotted == "starlayer.pkg.mod"
 
-    def test_raises_value_error_outside_src_root(self, tmp_path):
+    def test_tests_root_blob_iri_and_dotted_path(self, tmp_path):
+        path = _write_test(tmp_path, "pkg/test_mod.py", "x = 1\n")
+        module_iri, module_dotted = module_identity(path, tmp_path)
+        assert str(module_iri).endswith("pkg/test_mod.py")
+        assert "/starlayer/tests/" in str(module_iri)
+        assert module_dotted == "tests.pkg.test_mod"
+
+    def test_raises_value_error_outside_any_known_root(self, tmp_path):
         outside = tmp_path / "elsewhere.py"
         outside.write_text("x = 1\n", encoding="utf-8")
-        import pytest
 
         with pytest.raises(ValueError):
-            module_identity(outside, tmp_path / "packages" / "starlayer" / "starlayer")
+            module_identity(outside, tmp_path)
+
+
+class TestResolveRoot:
+    def test_source_path_resolves_to_starlayer_prefix(self, tmp_path):
+        path = _write(tmp_path, "pkg/mod.py", "x = 1\n")
+        root_path, prefix, blob_base = resolve_root(path, tmp_path)
+        assert prefix == "starlayer"
+        assert root_path == tmp_path / "packages" / "starlayer" / "starlayer"
+        assert blob_base.endswith("/starlayer/starlayer/")
+
+    def test_tests_path_resolves_to_tests_prefix(self, tmp_path):
+        path = _write_test(tmp_path, "pkg/test_mod.py", "x = 1\n")
+        root_path, prefix, blob_base = resolve_root(path, tmp_path)
+        assert prefix == "tests"
+        assert root_path == tmp_path / "packages" / "starlayer" / "tests"
+        assert blob_base.endswith("/starlayer/tests/")
+
+    def test_path_outside_both_roots_returns_none(self, tmp_path):
+        outside = tmp_path / "elsewhere.py"
+        outside.write_text("x = 1\n", encoding="utf-8")
+        assert resolve_root(outside, tmp_path) is None
 
 
 class TestFunctionResolution:

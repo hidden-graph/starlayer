@@ -22,7 +22,7 @@ Built 2026-10-14 (`slkg:calls`, Function→Function) - project-wide resolution v
 - ✅ If I change X's signature, what else might break (direct callers)?
 - ✅ What's the call chain from entry point A down to low-level function B? — a `slkg:calls+` property-path query.
 - ✅ Are there call cycles (A calls B calls A)? — a query over call edges, no separate extraction step.
-- 🔜 Which classes are ever instantiated, and from where? — **checked empirically, not assumed**: a bare constructor call (`Thing()`) does NOT currently resolve to anything - `_resolve_call_target()`'s bare-`Name` branch only checks `functions_by_dotted_path`, never `classes_by_dotted_path`, so `ClassName()` silently produces no edge at all. An earlier version of this doc claimed this "falls out for free" - confirmed wrong via a direct test before writing this entry. Fixing it needs a real design decision first (should a constructor call be `slkg:calls` pointing at the class itself, widening that property's range beyond `slkg:Function`, or a new, separate `slkg:instantiates` property?) - not scheduled yet.
+- ✅ Which classes are ever instantiated, and from where? — `slkg:instantiates` (Function→Class), built 2026-10-14 as a separate property from `slkg:calls` rather than widening its range - "calls a function" and "constructs an instance" are different relationships. Resolved the same way bare/attribute calls are (same-file nesting, import table, module aliases), just checked against `classes_by_dotted_path` too. Verified against the real codebase: 1135 real `slkg:instantiates` edges, e.g. several modules' own helper functions constructing `TripleTerm(...)`, where the same call previously resolved to nothing at all.
 
 ## Inheritance
 
@@ -44,8 +44,10 @@ Built 2026-10-14 (`slkg:isPrivate`/`slkg:isDunder`, Class/Function/Method only -
 
 ## Testing linkage
 
-- 🔜 Does this function have a test that exercises it? — the call-graph machinery needed for this is done; still needs `tests/` pointed at the same extractor (see `build.py::refresh()`'s own hard-coded single-source-root assumption, flagged as a separate follow-on below). Once that's done, a test file calling the function under test is just an ordinary `slkg:calls` edge - no special "testedBy" relationship needed.
-- 🔜 Which functions have zero test coverage (by this graph's own definition)? — same dependency as above.
+`tests/` is now extracted alongside source, built 2026-10-14 - `symbol_index.resolve_root()` dispatches each path to one of two known roots (source, dotted prefix `starlayer.`; tests, dotted prefix `tests.`, its own `TESTS_BLOB_BASE`), so a test file calling the function under test is just an ordinary `slkg:calls` edge across roots - no special "testedBy" relationship needed. Verified against the real codebase: all 181 real test files now appear as their own `slkg:Module`, with 484 real test→source `slkg:calls` edges, e.g. `test_entailment_rdf.py`'s own test calling `rewrite_algebra_for_rdf`.
+
+- ✅ Does this function have a test that exercises it? — a `slkg:calls` edge from a `tests.`-prefixed function to it (same caveats as the rest of the call graph: a test that exercises a function only through an unresolvable indirection won't show up).
+- ✅ Which functions have zero test coverage (by this graph's own definition)? — zero incoming `slkg:calls` edges from any `tests.`-prefixed caller.
 
 ## Architecture / coupling
 
@@ -67,9 +69,6 @@ Built 2026-10-14 (`slkg:isPrivate`/`slkg:isDunder`, Class/Function/Method only -
 
 Call-graph edges, method-override detection, and the public/private/dunder visibility flags were all built 2026-10-14 (`codekg/extractor/symbol_index.py` + `visitor.py`/`build.py` changes) - all computed fresh from the AST on every refresh, never written into any docstring (see this doc's own earlier reasoning, still valid: these are structural facts the code either has or doesn't, independent of what any docstring claims, so they're extracted the same way parameter types already are, not transcribed by hand). Verified against the real codebase, not just unit-tested in isolation - including a real resolution-priority bug found and fixed along the way (`shacl/validator.py::_default_validate()`'s own local `from pyshacl import validate` shadowing a same-named module-level function in the same file - confirmed live before the fix, confirmed gone after it).
 
-Still 🔜, in two different kinds:
+Both gaps logged at the end of the prior phase were closed 2026-10-14: constructor-call resolution (`slkg:instantiates`) and extracting `tests/` as a second named root alongside source (closing the "Testing linkage" section). Both verified against the real codebase via direct SPARQL spot-checks (see each section above) and a full project test-suite run (3713 passed, 4 skipped, 41 xfailed - the one failure, `targetWhere-001`, is a pre-existing flake unrelated to this work, bisected to an earlier phase).
 
-1. **Extracting `tests/` too** - the one remaining piece needed for the "Testing linkage" rows. `build.py::refresh()` hard-codes a single source root (`packages/starlayer/starlayer`) for every target path's dotted-path computation; pointing it at `packages/starlayer/tests/` needs that generalized to a second root with its own prefix. Not scheduled yet.
-2. **A curated layer**, hand-maintained, not AST-derived: the "known upstream bugs" bucket. Separate effort, separate mechanism, not scheduled yet.
-
-One real, confirmed gap, not yet resolved either way: constructor calls (`ClassName()`) don't resolve to anything at all right now (see the "Relationships / call graph" section above) - needs a design decision (widen `slkg:calls`'s range, or add a separate `slkg:instantiates`) before it can be built.
+Still 🔜: **a curated layer**, hand-maintained, not AST-derived - the "known upstream bugs" bucket. Separate effort, separate mechanism, not scheduled yet.

@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from starlayer.codekg import BLOB_BASE, CODEKG_TRIG_PATH, CURATED_GRAPH_IRI, ONTOLOGY_GRAPH_IRI
+from starlayer.codekg import BLOB_BASE, CODEKG_TRIG_PATH, CURATED_GRAPH_IRI, ONTOLOGY_GRAPH_IRI, TESTS_BLOB_BASE
 
 
 def refresh(target_paths: list[Path], repo_root: Path, *, trig_path: Path | None = None) -> None:
@@ -32,10 +32,12 @@ def refresh(target_paths: list[Path], repo_root: Path, *, trig_path: Path | None
             individual files, not directories - see ``cli.py`` for the
             directory-globbing step).
         repo_root: The repository root, used to compute each path's
-            repo-relative identity (``BLOB_BASE``-rooted module IRI and
-            dotted import path) - every entry in ``target_paths`` must
-            live under
-            ``repo_root/packages/starlayer/starlayer/``.
+            repo-relative identity (module IRI and dotted import path) via
+            ``symbol_index.module_identity()`` - every entry in
+            ``target_paths`` must live under one of that function's own
+            known roots (``packages/starlayer/starlayer/`` or
+            ``packages/starlayer/tests/`` - see
+            ``symbol_index.resolve_root()``).
         trig_path: Override for where ``codekg.trig`` is read from/written
             to - defaults to the real ``CODEKG_TRIG_PATH`` module constant.
             Exists for testability (so a test never touches the real,
@@ -53,15 +55,16 @@ def refresh(target_paths: list[Path], repo_root: Path, *, trig_path: Path | None
 
     for ctx in list(ds.contexts()):
         iri = str(ctx.identifier)
-        if iri.startswith(BLOB_BASE) and iri not in (str(CURATED_GRAPH_IRI), str(ONTOLOGY_GRAPH_IRI)):
+        if (iri.startswith(BLOB_BASE) or iri.startswith(TESTS_BLOB_BASE)) and iri not in (
+            str(CURATED_GRAPH_IRI),
+            str(ONTOLOGY_GRAPH_IRI),
+        ):
             ds.remove_graph(ctx)
-
-    starlayer_src_root = repo_root / "packages" / "starlayer" / "starlayer"
 
     index = symbol_index.build_symbol_index(target_paths, repo_root)
 
     for target_path in target_paths:
-        module_iri, module_dotted_path = symbol_index.module_identity(target_path, starlayer_src_root)
+        module_iri, module_dotted_path = symbol_index.module_identity(target_path, repo_root)
         triples = visitor.extract_module(target_path, module_iri, module_dotted_path, index)
         fresh_ctx = ds.graph(module_iri)
         ds.addN((s, p, o, fresh_ctx) for (s, p, o) in triples)

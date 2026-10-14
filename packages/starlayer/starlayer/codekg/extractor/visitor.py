@@ -835,18 +835,39 @@ def _bare_name_call_candidates(module_dotted_path: str, calling_fn_nesting_path:
     return candidates
 
 
+def _lookup_function_or_class(dotted_path: str, symbol_index: SymbolIndex) -> tuple[str, URIRef] | None:
+    """One dotted path -> ``("function", iri)`` or ``("class", iri)``,
+    whichever (if either) it resolves to in the project-wide index -
+    classes and functions share the same ``module_dotted_path + nesting``
+    keying scheme, so any dotted-path candidate worth checking against one
+    is worth checking against the other too. Used wherever a bare-name or
+    module-alias call site's candidate path might turn out to be a
+    constructor call (``Thing()``) rather than an ordinary function call -
+    see ``_resolve_call_target()``."""
+    target = symbol_index.functions_by_dotted_path.get(dotted_path)
+    if target is not None:
+        return "function", target
+    class_info = symbol_index.classes_by_dotted_path.get(dotted_path)
+    if class_info is not None:
+        return "class", class_info.iri
+    return None
+
+
 def _resolve_call_target(
     call: ast.Call,
     ctx: _ExtractionContext,
     calling_fn_nesting_path: str,
     enclosing_class_dotted_path: str | None,
     local_import_table: dict[str, str],
-) -> URIRef | None:
-    """One call site's target function/method, or ``None`` if it can't be
-    resolved with confidence - see this module's own docstring/the plan
-    this was built against for the exact resolution order and what's
-    deliberately never guessed at (a call through a plain local variable,
-    a computed/dynamic call, anything on an unresolvable expression).
+) -> tuple[str, URIRef] | None:
+    """One call site's target - ``("function", iri)`` for an ordinary
+    function/method call (emits ``slkg:calls``), ``("class", iri)`` for a
+    constructor call (emits ``slkg:instantiates`` instead - see
+    ``_emit_calls()``), or ``None`` if it can't be resolved with
+    confidence. See this module's own docstring/the plan this was built
+    against for the exact resolution order and what's deliberately never
+    guessed at (a call through a plain local variable, a computed/dynamic
+    call, anything on an unresolvable expression).
 
     ``local_import_table`` (this one calling function's own direct-body
     lazy imports - see ``_local_import_table()``) is checked BEFORE the
@@ -865,14 +886,14 @@ def _resolve_call_target(
         name = func.id
         local_target = local_import_table.get(name)
         if local_target is not None:
-            return ctx.symbol_index.functions_by_dotted_path.get(local_target)
+            return _lookup_function_or_class(local_target, ctx.symbol_index)
         for candidate in _bare_name_call_candidates(ctx.module_dotted_path, calling_fn_nesting_path, name):
-            target = ctx.symbol_index.functions_by_dotted_path.get(candidate)
-            if target is not None:
-                return target
+            found = _lookup_function_or_class(candidate, ctx.symbol_index)
+            if found is not None:
+                return found
         import_target = ctx.import_table.get(name)
         if import_target is not None:
-            return ctx.symbol_index.functions_by_dotted_path.get(import_target)
+            return _lookup_function_or_class(import_target, ctx.symbol_index)
         return None
 
     if isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name):
@@ -880,19 +901,26 @@ def _resolve_call_target(
         attr = func.attr
 
         if base_name in ("self", "cls") and enclosing_class_dotted_path is not None:
-            return ctx.symbol_index.resolve_method_in_chain(enclosing_class_dotted_path, attr)
+            method_iri = ctx.symbol_index.resolve_method_in_chain(enclosing_class_dotted_path, attr)
+            return ("function", method_iri) if method_iri is not None else None
 
         if base_name in ctx.local_classes:
             full_nesting = ctx.class_path_by_name.get(base_name, base_name)
             class_path = f"{ctx.module_dotted_path}.{full_nesting}"
-            return ctx.symbol_index.resolve_method_in_chain(class_path, attr)
+            method_iri = ctx.symbol_index.resolve_method_in_chain(class_path, attr)
+            return ("function", method_iri) if method_iri is not None else None
 
         base_path = local_import_table.get(base_name, ctx.import_table.get(base_name))
         if base_path is not None:
             class_info = ctx.symbol_index.classes_by_dotted_path.get(base_path)
             if class_info is not None:
-                return class_info.methods.get(attr)
-            return ctx.symbol_index.functions_by_dotted_path.get(f"{base_path}.{attr}")
+                # base_name is itself a class (e.g. "from .mod import
+                # SomeClass" then "SomeClass.classmethod()") - a method
+                # dispatch on that class, same as the local_classes branch
+                # above, never a constructor call for base_path itself.
+                method_iri = class_info.methods.get(attr)
+                return ("function", method_iri) if method_iri is not None else None
+            return _lookup_function_or_class(f"{base_path}.{attr}", ctx.symbol_index)
 
         return None
 
@@ -916,9 +944,11 @@ def _emit_calls(
         local_import_table = {}
     for call in _iter_calls_in_function_body(body):
         try:
-            target = _resolve_call_target(call, ctx, calling_fn_nesting_path, enclosing_class_dotted_path, local_import_table)
+            found = _resolve_call_target(call, ctx, calling_fn_nesting_path, enclosing_class_dotted_path, local_import_table)
         except Exception as exc:
             logger.warning("Could not resolve call at line %s in %s: %s", getattr(call, "lineno", "?"), fn_iri, exc)
             continue
-        if target is not None:
-            ctx.triples.append((fn_iri, SLKG.calls, target))
+        if found is not None:
+            kind, target = found
+            predicate = SLKG.instantiates if kind == "class" else SLKG.calls
+            ctx.triples.append((fn_iri, predicate, target))

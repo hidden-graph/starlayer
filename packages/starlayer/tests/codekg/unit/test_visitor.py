@@ -50,7 +50,7 @@ def _extract_multi(tmp_path: Path, sources: dict[str, str]) -> dict[str, list[tu
 
     result = {}
     for rel_name, path in paths.items():
-        module_iri, module_dotted = module_identity(path, src_root)
+        module_iri, module_dotted = module_identity(path, tmp_path)
         result[rel_name] = extract_module(path, module_iri, module_dotted, index)
     return result
 
@@ -952,3 +952,108 @@ class TestCallResolutionWithoutSymbolIndex:
         assert not _objects(triples, caller, SLKG.calls)
         # Everything else about caller is still extracted normally.
         assert (caller, RDF.type, SLKG.Function) in triples
+
+
+class TestConstructorCallsInstantiates:
+    def test_same_file_bare_constructor_call(self, tmp_path):
+        source = "class Thing:\n    pass\n\n\ndef make_one():\n    return Thing()\n"
+        results = _extract_multi(tmp_path, {"fixture.py": source})
+        triples = results["fixture.py"]
+        caller_iris = [s for s, p, o in triples if p == RDFS.label and o == Literal("make_one")]
+        assert len(caller_iris) == 1
+        thing_iris = [s for s, p, o in triples if p == RDFS.label and o == Literal("Thing")]
+        assert len(thing_iris) == 1
+        assert (caller_iris[0], SLKG.instantiates, thing_iris[0]) in triples
+        # Never also emitted as an ordinary slkg:calls edge.
+        assert thing_iris[0] not in _objects(triples, caller_iris[0], SLKG.calls)
+
+    def test_cross_file_import_constructor_call(self, tmp_path):
+        results = _extract_multi(
+            tmp_path,
+            {
+                "mod_a.py": "class Thing:\n    pass\n",
+                "mod_b.py": "from .mod_a import Thing\n\n\ndef make_one():\n    return Thing()\n",
+            },
+        )
+        b_triples = results["mod_b.py"]
+        a_triples = results["mod_a.py"]
+        caller_iris = [s for s, p, o in b_triples if p == RDFS.label and o == Literal("make_one")]
+        thing_iris = [s for s, p, o in a_triples if p == RDFS.label and o == Literal("Thing")]
+        assert len(caller_iris) == 1
+        assert len(thing_iris) == 1
+        assert (caller_iris[0], SLKG.instantiates, thing_iris[0]) in b_triples
+
+    def test_module_alias_constructor_call(self, tmp_path):
+        results = _extract_multi(
+            tmp_path,
+            {
+                "mod_a.py": "class Thing:\n    pass\n",
+                "mod_b.py": "from . import mod_a\n\n\ndef make_one():\n    return mod_a.Thing()\n",
+            },
+        )
+        b_triples = results["mod_b.py"]
+        a_triples = results["mod_a.py"]
+        caller_iris = [s for s, p, o in b_triples if p == RDFS.label and o == Literal("make_one")]
+        thing_iris = [s for s, p, o in a_triples if p == RDFS.label and o == Literal("Thing")]
+        assert len(caller_iris) == 1
+        assert len(thing_iris) == 1
+        assert (caller_iris[0], SLKG.instantiates, thing_iris[0]) in b_triples
+
+    def test_ordinary_function_calls_still_emit_slkg_calls_not_instantiates(self, tmp_path):
+        """Regression guard: adding class resolution to the same lookup
+        path must not change what an ordinary function call emits."""
+        source = "def helper():\n    return 1\n\n\ndef caller():\n    return helper()\n"
+        results = _extract_multi(tmp_path, {"fixture.py": source})
+        triples = results["fixture.py"]
+        caller_iris = [s for s, p, o in triples if p == RDFS.label and o == Literal("caller")]
+        helper_iris = [s for s, p, o in triples if p == RDFS.label and o == Literal("helper")]
+        assert (caller_iris[0], SLKG.calls, helper_iris[0]) in triples
+        assert (caller_iris[0], SLKG.instantiates, helper_iris[0]) not in triples
+
+
+class TestExtractingTestsRoot:
+    """packages/starlayer/tests/ is now a second known extraction root,
+    alongside packages/starlayer/starlayer/ - see symbol_index.resolve_root()."""
+
+    def _write_under_tests(self, tmp_path: Path, rel_path: str, source: str) -> Path:
+        path = tmp_path / "packages" / "starlayer" / "tests" / rel_path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(source, encoding="utf-8")
+        return path
+
+    def test_test_file_extracts_with_tests_dotted_prefix(self, tmp_path):
+        from starlayer.codekg.extractor.symbol_index import build_symbol_index, module_identity
+
+        path = self._write_under_tests(tmp_path, "unit/test_thing.py", "def test_it():\n    assert True\n")
+        index = build_symbol_index([path], tmp_path)
+        module_iri, module_dotted = module_identity(path, tmp_path)
+        triples = extract_module(path, module_iri, module_dotted, index)
+        fn_iri = URIRef(f"{module_iri}#test_it")
+        assert (fn_iri, RDF.type, SLKG.Function) in triples
+        assert module_dotted == "tests.unit.test_thing"
+
+    def test_test_function_calling_source_function_resolves_cross_root(self, tmp_path):
+        """The real payoff: a test file calling a real source function
+        gets an ordinary slkg:calls edge, exactly like a source-to-source
+        call - test↔function linkage falls out of the same call-graph
+        machinery with no special-casing."""
+        from starlayer.codekg.extractor.symbol_index import build_symbol_index, module_identity
+
+        src_path = tmp_path / "packages" / "starlayer" / "starlayer" / "pkg" / "mod.py"
+        src_path.parent.mkdir(parents=True, exist_ok=True)
+        src_path.write_text("def validate():\n    return True\n", encoding="utf-8")
+
+        test_path = self._write_under_tests(
+            tmp_path,
+            "unit/test_mod.py",
+            "from starlayer.pkg.mod import validate\n\n\ndef test_validate():\n    assert validate()\n",
+        )
+
+        index = build_symbol_index([src_path, test_path], tmp_path)
+        test_module_iri, test_module_dotted = module_identity(test_path, tmp_path)
+        test_triples = extract_module(test_path, test_module_iri, test_module_dotted, index)
+
+        src_module_iri, src_module_dotted = module_identity(src_path, tmp_path)
+        caller_iri = URIRef(f"{test_module_iri}#test_validate")
+        callee_iri = URIRef(f"{src_module_iri}#validate")
+        assert (caller_iri, SLKG.calls, callee_iri) in test_triples

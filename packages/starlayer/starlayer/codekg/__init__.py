@@ -49,6 +49,11 @@ CURATED_GRAPH_IRI = URIRef("https://github.com/hidden-graph/starlayer/ns/codekg/
 # URL convention.
 BLOB_BASE = "https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/"
 
+# Same convention, for files under packages/starlayer/tests/ - see
+# starlayer.codekg.extractor.symbol_index.resolve_root(), which is what
+# decides which of these two bases a given target path gets.
+TESTS_BLOB_BASE = "https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/tests/"
+
 _HERE = Path(__file__).parent
 _ONTOLOGY_TTL_PATH = _HERE / "ontology.ttl"
 

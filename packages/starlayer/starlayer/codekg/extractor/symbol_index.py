@@ -36,7 +36,7 @@ from pathlib import Path
 
 from rdflib import URIRef
 
-from starlayer.codekg import BLOB_BASE
+from starlayer.codekg import BLOB_BASE, TESTS_BLOB_BASE
 from starlayer.codekg.extractor import imports, nesting, types
 
 logger = logging.getLogger(__name__)
@@ -102,30 +102,72 @@ class SymbolIndex:
         return None
 
 
-def module_identity(path: Path, starlayer_src_root: Path) -> tuple[URIRef, str]:
-    """``(module_iri, module_dotted_path)`` for one source file under
-    ``starlayer_src_root`` - the identical rule ``build.py::refresh()``
-    already applies per target, factored out here so the two don't carry
-    two independent copies that could drift apart.
+#: ``(subdirectory-under-repo_root, dotted-path-prefix, blob-base)`` for
+#: every root this extractor knows how to identify a module under - tried
+#: in order, first match wins. Source comes first deliberately: every
+#: ``packages/starlayer/starlayer/...`` path is also, trivially, under
+#: ``packages/starlayer/...`` so the two could never be confused the other
+#: way, but keeping the more specific root first is the clearer intent.
+_KNOWN_ROOTS: tuple[tuple[str, str, str], ...] = (
+    ("packages/starlayer/starlayer", "starlayer", BLOB_BASE),
+    ("packages/starlayer/tests", "tests", TESTS_BLOB_BASE),
+)
+
+
+def resolve_root(path: Path, repo_root: Path) -> tuple[Path, str, str] | None:
+    """Which of this extractor's known roots ``path`` falls under.
+
+    Args:
+        path: The ``.py`` file to place.
+        repo_root: The repository root.
+
+    Returns:
+        ``(root_path, dotted_prefix, blob_base)`` for the first matching
+        root, or ``None`` if ``path`` isn't under any of them.
+    """
+    for rel_root, dotted_prefix, blob_base in _KNOWN_ROOTS:
+        root_path = repo_root / rel_root
+        try:
+            path.relative_to(root_path)
+        except ValueError:
+            continue
+        return root_path, dotted_prefix, blob_base
+    return None
+
+
+def module_identity(path: Path, repo_root: Path) -> tuple[URIRef, str]:
+    """``(module_iri, module_dotted_path)`` for one file under any of this
+    extractor's known roots (see ``resolve_root()``) - the identical rule
+    ``build.py::refresh()`` already applies per target, factored out here
+    so the two don't carry two independent copies that could drift apart.
 
     Args:
         path: The ``.py`` file.
-        starlayer_src_root: ``repo_root/packages/starlayer/starlayer`` -
-            every ``path`` must live under this.
+        repo_root: The repository root.
 
     Returns:
-        The module's blob-URL IRI and its fully dotted import path.
+        The module's blob-URL IRI and its fully dotted import path (the
+        dotted path is a synthetic, consistently-applied convention for
+        anything under ``packages/starlayer/tests/`` specifically, not a
+        claim that it's *really* importable that way - several of that
+        tree's own subdirectories have no ``__init__.py``. It's still
+        enough for relative-import resolution within the tests tree to
+        work correctly, which is all this extractor needs from it).
 
     Raises:
-        ValueError: ``path`` isn't under ``starlayer_src_root`` (the same
-            exception ``Path.relative_to()`` itself raises) - callers
-            processing a mix of real source paths and anything else
-            (there is no such mix in this extractor today) need to catch
-            this themselves.
+        ValueError: ``path`` isn't under any known root (the same
+            exception ``resolve_root()``'s own failed
+            ``Path.relative_to()`` calls raise internally) - callers
+            processing a mix of known-root paths and anything else need
+            to catch this themselves (``build_symbol_index()`` does).
     """
-    rel_path = path.relative_to(starlayer_src_root)
-    module_iri = URIRef(BLOB_BASE + str(rel_path))
-    module_dotted_path = "starlayer." + str(rel_path.with_suffix("")).replace("/", ".")
+    resolved = resolve_root(path, repo_root)
+    if resolved is None:
+        raise ValueError(f"{path} is not under any known extraction root")
+    root_path, dotted_prefix, blob_base = resolved
+    rel_path = path.relative_to(root_path)
+    module_iri = URIRef(blob_base + str(rel_path))
+    module_dotted_path = dotted_prefix + "." + str(rel_path.with_suffix("")).replace("/", ".")
     return module_iri, module_dotted_path
 
 
@@ -233,20 +275,18 @@ def build_symbol_index(target_paths: list[Path], repo_root: Path) -> SymbolIndex
 
     Returns:
         A ``SymbolIndex`` covering every function/method/class found.
-        Never raises - a file that fails to parse, or isn't under
-        ``repo_root/packages/starlayer/starlayer`` (this index only covers
-        that source tree, matching every other part of this extractor),
-        is logged and skipped, exactly like ``visitor.extract_module()``'s
-        own per-file defensiveness.
+        Never raises - a file that fails to parse, or isn't under any
+        known root (see ``resolve_root()`` - this index only covers roots
+        this extractor recognizes), is logged and skipped, exactly like
+        ``visitor.extract_module()``'s own per-file defensiveness.
     """
-    starlayer_src_root = repo_root / "packages" / "starlayer" / "starlayer"
     index = SymbolIndex()
 
     for path in target_paths:
         try:
-            module_iri, module_dotted_path = module_identity(path, starlayer_src_root)
+            module_iri, module_dotted_path = module_identity(path, repo_root)
         except ValueError:
-            logger.warning("Skipping %s: not under %s", path, starlayer_src_root)
+            logger.warning("Skipping %s: not under any known extraction root", path)
             continue
 
         try:
