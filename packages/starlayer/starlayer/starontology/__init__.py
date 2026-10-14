@@ -536,11 +536,11 @@ _SHACL_ENTRIES_WITH_PROFILE_MAPPING = _SHACL_ENTRIES_WITH_ONTOLOGY_COUNTERPART +
 
 # Same "GitHub blob URL as a resource identity" convention
 # starlayer.shacl's own shacl12-conformance-profile.ttl already established
-# for its one self-declaration resource - but computed from each entry's
-# own current, correct filename here (that file's own existing resource
-# IRI is actually stale, still naming the pre-consolidation "packages/shacl"
-# path, a pre-existing, unrelated drift bug not propagated into these
-# IRIs). Each entry's resource identity is "the GitHub blob URL its
+# for its one self-declaration resource (that file's own subject IRI was
+# stale, still naming the pre-merge "packages/shacl" path, until fixed
+# 2026-10-14 alongside this same pass - see that file's own header
+# comment) - computed from each entry's own current, correct filename
+# here. Each entry's resource identity is "the GitHub blob URL its
 # content used to live at as a standalone file," kept stable even though
 # the content itself now lives as a named graph inside one dataset file
 # (below) rather than as that standalone file - so nothing that already
@@ -549,9 +549,29 @@ _SHACL_ENTRIES_WITH_PROFILE_MAPPING = _SHACL_ENTRIES_WITH_ONTOLOGY_COUNTERPART +
 # format changes.
 _GITHUB_BLOB_BASE = "https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/starontology/"
 
+# A *different* URL from the resource identity above - this one is for
+# actually fetching an entry's real bytes, not for identifying it. A blob
+# URL (above) renders a nice HTML page to a plain HTTP GET, not the file's
+# real content; raw.githubusercontent.com does. Deliberately a second,
+# separate base rather than changing _GITHUB_BLOB_BASE itself - the blob
+# value is also the dataset's own internal named-graph context IRI (see
+# _resource_iri()'s own callers), so changing it would silently break
+# every lookup into starontology.trig and the identities already asserted
+# in ontology-shapes-profiles.ttl's own prof:isProfileOf triples. Standard
+# Linked Data move: a resource's IRI need not be the same URL you fetch a
+# representation from. See scripts/publish_starontology_files.py - this
+# URL is only real once that script's own output has been committed.
+_GITHUB_RAW_BASE = "https://raw.githubusercontent.com/hidden-graph/starlayer/main/packages/starlayer/starlayer/starontology/"
+
 
 def _resource_iri(name: str) -> URIRef:
     return URIRef(_GITHUB_BLOB_BASE + _FILENAME_BY_NAME[name])
+
+
+def _raw_filename(name: str) -> str | None:
+    if name == "ontology_shapes_profiles":
+        return _PROFILES_FILENAME
+    return _FILENAME_BY_NAME.get(name)
 
 
 def get_resource_iri(name: str) -> URIRef | None:
@@ -587,6 +607,33 @@ def get_resource_iri(name: str) -> URIRef | None:
     if name not in _FILENAME_BY_NAME:
         return None
     return _resource_iri(name)
+
+
+def get_raw_url(name: str) -> str | None:
+    """Where to actually fetch ``name``'s own real content from - a
+    ``raw.githubusercontent.com`` URL, unlike :func:`get_resource_iri`'s
+    GitHub blob URL (which identifies the resource but returns an HTML
+    viewer page to a plain HTTP GET, not the file's real bytes).
+
+    Accepts every name :func:`get_resource_iri` does, plus
+    ``"ontology_shapes_profiles"`` for the profiles-mapping document
+    itself (:func:`get_conformance_profiles`'s own bundled default,
+    not one of the 13 registered ontology/shapes entries, so it has no
+    :func:`get_resource_iri` equivalent). Returns ``None`` for any other
+    unrecognized name.
+
+    Only real once ``scripts/publish_starontology_files.py``'s own output
+    has been committed - that script regenerates the standalone file this
+    URL points at from ``starontology.trig``, the one real source of
+    truth. Nothing about how :func:`get_ontology_graph`/
+    :func:`get_conformance_profiles` read data at runtime depends on this
+    URL or the file it points at - both still read ``starontology.trig``
+    directly.
+    """
+    filename = _raw_filename(name)
+    if filename is None:
+        return None
+    return _GITHUB_RAW_BASE + filename
 
 
 def get_conformance_profiles(url: str | None = None) -> StarLayerGraph:

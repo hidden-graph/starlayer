@@ -778,13 +778,13 @@ class Child(Base):
         assert not _objects(triples, base_only, SLKG.overrides)
 
 
-class TestMethodOverrideCrossFileNotDetected:
-    """Override detection is deliberately scoped to same-file base classes
-    only (approved scope, narrower than call resolution) - a real
-    override of a cross-file base method must get no edge in this
-    version, not a best-effort guess."""
+class TestMethodOverrideCrossFile:
+    """Override detection is project-wide (reuses
+    SymbolIndex.resolve_method_in_chain(), the same mechanism already used
+    for self/cls call resolution) - a real override of a cross-file base
+    method must get an edge, not be silently dropped."""
 
-    def test_cross_file_override_gets_no_edge(self, tmp_path):
+    def test_cross_file_override_gets_edge(self, tmp_path):
         results = _extract_multi(
             tmp_path,
             {
@@ -797,11 +797,37 @@ class TestMethodOverrideCrossFileNotDetected:
                 ),
             },
         )
+        a_triples = results["mod_a.py"]
         b_triples = results["mod_b.py"]
-        # Find Child.greet's own IRI directly rather than hardcoding it.
-        greet_iris = [s for s, p, o in b_triples if p == RDFS.label and o == Literal("greet")]
-        assert len(greet_iris) == 1
-        assert not _objects(b_triples, greet_iris[0], SLKG.overrides)
+        base_greet = [s for s, p, o in a_triples if p == DCTERMS.identifier and o == Literal("starlayer.mod_a.Base.greet")][0]
+        child_greet = [s for s, p, o in b_triples if p == DCTERMS.identifier and o == Literal("starlayer.mod_b.Child.greet")][0]
+        assert (child_greet, SLKG.overrides, base_greet) in b_triples
+
+    def test_override_reached_through_a_cross_file_chain(self, tmp_path):
+        """Child (mod_c) -> Middle (mod_b, same file as Child's own base
+        reference but the method itself lives even further back) ->
+        Base (mod_a) defines greet. The old same-file-only walk would have
+        stopped dead at Middle (already a cross-file hop from Child) and
+        never reached Base at all - proof this is a real multi-hop,
+        project-wide walk, not just "also checks one more file"."""
+        results = _extract_multi(
+            tmp_path,
+            {
+                "mod_a.py": "class Base:\n    def greet(self):\n        return 'base'\n",
+                "mod_b.py": "from .mod_a import Base\n\n\nclass Middle(Base):\n    pass\n",
+                "mod_c.py": (
+                    "from .mod_b import Middle\n\n\n"
+                    "class Child(Middle):\n"
+                    "    def greet(self):\n"
+                    "        return 'child'\n"
+                ),
+            },
+        )
+        a_triples = results["mod_a.py"]
+        c_triples = results["mod_c.py"]
+        base_greet = [s for s, p, o in a_triples if p == DCTERMS.identifier and o == Literal("starlayer.mod_a.Base.greet")][0]
+        child_greet = [s for s, p, o in c_triples if p == DCTERMS.identifier and o == Literal("starlayer.mod_c.Child.greet")][0]
+        assert (child_greet, SLKG.overrides, base_greet) in c_triples
 
 
 class TestCallResolutionSameFile:

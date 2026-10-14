@@ -2018,7 +2018,21 @@ class StarLayerGraph(Graph):
 
         Args:
             query_object: The SPARQL query text, or an already-prepared
-                Query object.
+                Query object. **Known gap, found 2026-10-14**: for
+                ``entailment=ENTAILMENT.RDF``/``ENTAILMENT.RDFS``
+                specifically, the entailment-rewrite step only ever runs
+                when this is a plain string (inside
+                ``query_cache.prepare_query_cached``, only reached via the
+                ``isinstance(query_object, str)`` branch below) - an
+                already-prepared ``Query`` object's own algebra is used
+                as-is, silently *without* the rewrite, for these two
+                regimes only (``OWL-RDF-Based``/``OWL-Direct`` are
+                unaffected - they union with a cached delta instead of
+                rewriting the query at all). Pass the query as text if you
+                need ``entailment=ENTAILMENT.RDF``/``RDFS`` together with a
+                query you also want prepared once elsewhere - see
+                ``starlayer.sparql.StarQuery``'s own module docstring for
+                the full account and its own workaround.
             processor: Passed through to the underlying rdflib/native
                 query call.
             result: Passed through to the underlying rdflib/native query

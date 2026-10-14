@@ -39,7 +39,9 @@ from starlayer.shacl.validator import (
 # build_report()/ComponentRequest/STSH - evaluate_component() is a
 # hardcoded dispatcher with no extension mechanism and no standalone use
 # case, build_report() only pairs with its own output shape, STSH is only
-# needed to define a new native component); and
+# needed to define a new native component); `asset_urls.get_raw_url(name)`
+# (where to fetch this package's own bundled SHACL asset files as real
+# GitHub URLs - a niche accessor, not a processing mode); and
 # `StarShaclSchema.close_shape(shape)`, a method, not a bare function.
 
 __all__ = [

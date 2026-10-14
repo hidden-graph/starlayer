@@ -4,7 +4,7 @@
 
 `StarLayerGraph.query(..., entailment="native")` (only legal with `backend="rdf-1.2"`) adds no rewriting or materialization of its own - it's a self-documenting label on top of what `native_query()` already does, which is send SPARQL text straight through to the endpoint unmodified (see `backends/native.py`'s own module docstring). That means entailment support for a native-backed `StarLayerGraph` is entirely a property of how the *endpoint itself* is configured, not something this library provides. This doc shows two ways to configure a real Apache Jena Fuseki instance to reason before answering queries - both confirmed live (2026-09-20, Fuseki 6.1.0 via `atomgraph/fuseki:6.1.0`, the same image `docs/fuseki-upstream-issues.md` uses), then queried successfully through `StarLayerGraph`'s own `entailment="native"` path.
 
-See `docs/guides/03b-sparql-inferencing.ipynb` for what this project's *own* reasoning (`entailment="rdfs"`/`"owl-rl"`, `StarLayerGraph.infer()`) covers without needing any of this - delegating to Fuseki is for when you'd rather the endpoint carry that cost, or need something (e.g. custom rules) neither our rewrite nor `owlrl` covers.
+See `docs/guides/02b-graphs-inferencing.ipynb` for what this project's *own* reasoning (`entailment="rdfs"`/`"owl-rl"`, `StarLayerGraph.infer()`) covers without needing any of this - delegating to Fuseki is for when you'd rather the endpoint carry that cost, or need something (e.g. custom rules) neither our rewrite nor `owlrl` covers.
 
 ## Option 1: RDFS via `--rdfs=FILE` (simplest)
 
@@ -94,7 +94,7 @@ list(g.query("PREFIX ex: <http://example.org/> SELECT ?x WHERE { ?x a ex:TeamLea
 
 ## What this does and doesn't give you
 
-Per Jena's own inference documentation: the OWL reasoners (`OWLFBRuleReasoner` above, plus `OWLMiniRuleReasoner`/`OWLMicroRuleReasoner` for lighter-weight subsets) are **sound but explicitly not complete** - Jena's own words: "the rule based approach cannot offer a complete solution for OWL/Lite, let alone the OWL/Full fragment." There's no built-in DL reasoner (for that, Jena's own docs point to an external one - Pellet, Racer, FaCT); D-Entailment (datatype canonicalization) is explicitly excluded from the RDFS reasoner too - see `docs/guides/03b-sparql-inferencing.ipynb`'s entailment-regime status table for how this compares to what StarLayerGraph covers on its own.
+Per Jena's own inference documentation: the OWL reasoners (`OWLFBRuleReasoner` above, plus `OWLMiniRuleReasoner`/`OWLMicroRuleReasoner` for lighter-weight subsets) are **sound but explicitly not complete** - Jena's own words: "the rule based approach cannot offer a complete solution for OWL/Lite, let alone the OWL/Full fragment." There's no built-in DL reasoner (for that, Jena's own docs point to an external one - Pellet, Racer, FaCT); D-Entailment (datatype canonicalization) is explicitly excluded from the RDFS reasoner too - see `docs/guides/02b-graphs-inferencing.ipynb`'s entailment-regime status table for how this compares to what StarLayerGraph covers on its own.
 
 ## Other reasoner URIs
 

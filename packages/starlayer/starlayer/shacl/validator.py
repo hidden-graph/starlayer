@@ -86,12 +86,14 @@ class StarShaclSchema:
     pyshacl class - pySHACL's own main entry point, ``validate()``, is a
     stateless one-shot function, not a long-lived object to subclass, and
     this class unifies several independent capabilities
-    (``validate``/``apply_rules``/``evaluate``/``extract_subgraph``)
+    (``validate``/``apply_rules``/``evaluate``)
     rather than specializing any one of them). Construct one per distinct
     shapes-set (``PersonSchema = StarShaclSchema(person_shapes)``,
     ``ProductSchema = StarShaclSchema(product_shapes)``, ...), then call
-    ``validate``/``apply_rules``/``evaluate``/``extract_subgraph`` against
-    whatever data graph you're checking.
+    ``validate``/``apply_rules``/``evaluate`` against whatever data graph
+    you're checking. Shape-driven subgraph extraction is a separate, plain
+    function (``starlayer.shacl.extract_subgraph()``), not a method here -
+    see its own docstring, and the subgraph-extraction guide, for why.
 
     Adds RDF 1.2/triple-term adaptation around pySHACL, which understands
     neither triple terms nor SHACL 1.2's own predicates natively.
@@ -109,9 +111,8 @@ class StarShaclSchema:
     ) -> None:
         """Bind a shapes graph (plus optional ontology/data graphs and an
         entailment regime) once, so every processing method
-        (``validate``/``apply_rules``/``evaluate``/``extract_subgraph``/
-        ``target_nodes``) can be called repeatedly without re-passing the
-        same arguments.
+        (``validate``/``apply_rules``/``evaluate``/``target_nodes``) can
+        be called repeatedly without re-passing the same arguments.
 
         Args:
             shacl_graph: The SHACL shapes graph to validate against.
@@ -1890,69 +1891,6 @@ class StarShaclSchema:
 
         return merged
 
-    def extract_subgraph(
-        self,
-        data_graph: Any | None = None,
-        *,
-        shape: Any,
-        focus_node: Any,
-        shapes_graph_resource: Any | None = None,
-    ) -> Any | None:
-        """A fourth, independent processing mode alongside ``validate()``,
-        ``apply_rules()``, and ``evaluate()``: given a focus node and a
-        shape, extract exactly the subgraph of real, stored triples that
-        shape's constraints covered for that node - e.g. so it can be hashed
-        (see ``starlayer.graph.rdfc``) independently of unrelated data
-        elsewhere on the same node.
-
-        Assumes ``focus_node`` already conforms to ``shape`` as a
-        precondition the caller has checked - if it doesn't, the return
-        value is simply ``None``, with no report explaining why (this
-        method exists to extract, not to diagnose non-conformance).
-
-        Full design (multi-hop paths, nested shapes, logical constraints,
-        determinism for ambiguous "at least one" requirements, real-triples-
-        only, and entailment via ``sh:entailment``/``self.inference``)
-        documented in ``starlayer.shacl/subgraph_extraction.py``.
-
-        This instance's own bound ``ont_graph`` is threaded through to the
-        underlying extraction, so entailment can see ontology-only axioms
-        (like ``rdfs:domain``) that aren't asserted in ``data_graph``
-        itself.
-
-        ``self.shacl_graph is None`` (this schema was constructed with no
-        shapes graph of its own) falls back to ``data_graph`` itself -
-        matching ``validate()``'s own "data graph doubles as shapes graph"
-        allowance.
-
-        Args:
-            data_graph: The data graph ``focus_node`` belongs to. Optional
-                - falls back to ``self.data_graph`` if omitted.
-            shape: The shape node (already present in the resolved shapes
-                graph) that ``focus_node`` is assumed to conform to.
-            focus_node: The node to extract the covered subgraph for.
-            shapes_graph_resource: Selects a named ``sh:ShapesGraph``
-                module within the bound ``shacl_graph`` to extract against,
-                or is a no-op if the bound ``shacl_graph`` doesn't contain
-                it as a module. See :meth:`_resolve_shacl_graph`.
-                ``inference`` is not a parameter here - it is always taken
-                from ``self.inference``, bound at construction.
-
-        Returns:
-            The extracted subgraph (a plain graph object), or ``None`` if
-            ``focus_node`` doesn't actually conform to ``shape``.
-        """
-        from starlayer.shacl.subgraph_extraction import (
-            extract_subgraph as _extract_subgraph,
-        )
-
-        data_graph = self._resolve_data_graph(data_graph)
-        shacl_graph_input = self._resolve_shacl_graph(shapes_graph_resource)
-        data_graph, shacl_graph, ont_graph = normalize_graph_inputs(
-            data_graph, shacl_graph_input if shacl_graph_input is not None else data_graph, self.ont_graph
-        )
-        return _extract_subgraph(data_graph, shape, focus_node, shacl_graph, ont_graph, inference=self.inference)
-
     def close_shape(self, shape: Any, *, shapes_graph_resource: Any | None = None) -> Any:
         """Takes a shape (a node identifier already in this instance's own
         ``shacl_graph``) and returns a closed copy of ``shacl_graph`` -
@@ -1968,9 +1906,9 @@ class StarShaclSchema:
         no-exemptions form ``extract_subgraph()``'s acceptance test needs,
         without hand-maintaining a second, drift-prone copy of the shape.
 
-        Unlike ``validate()``/``apply_rules()``/``evaluate()``/
-        ``extract_subgraph()``, this doesn't take a ``data_graph`` at all -
-        it operates purely on the bound ``shacl_graph`` itself.
+        Unlike ``validate()``/``apply_rules()``/``evaluate()``, this
+        doesn't take a ``data_graph`` at all - it operates purely on the
+        bound ``shacl_graph`` itself.
 
         Args:
             shape: The shape node to close, already present in the bound

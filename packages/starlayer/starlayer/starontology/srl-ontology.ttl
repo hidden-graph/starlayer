@@ -1,0 +1,33 @@
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#> .
+
+srl:AssignmentElement a rdfs:Class ;
+    rdfs:comment "SET (?var := expr) - srl:var/srl:expr, §4.1. Never legal inside a negation element's own body." ;
+    rdfs:subClassOf srl:BodyElement .
+
+srl:BodyElement a rdfs:Class ;
+    rdfs:comment "The union of every rule-body element kind: TriplePattern, FilterElement, AssignmentElement, NegationElement." .
+
+srl:Data a rdfs:Class ;
+    rdfs:comment "One top-level DATA {} block - srl:triples, ground only, §4.1." .
+
+srl:FilterElement a rdfs:Class ;
+    rdfs:comment "FILTER Constraint - srl:expr, a real salg: expression tree, §4.1." ;
+    rdfs:subClassOf srl:BodyElement, srl:NegationBodyElement .
+
+srl:NegationBodyElement a rdfs:Class ;
+    rdfs:comment "The narrower union a negation element's own inner body is restricted to: TriplePattern or FilterElement only." .
+
+srl:NegationElement a rdfs:Class ;
+    rdfs:comment "NOT DATA? {...} - srl:inner (a list of srl:NegationBodyElement), srl:negationData (bool), §4.1. Never legal inside another negation element's own body." ;
+    rdfs:subClassOf srl:BodyElement .
+
+srl:Rule a rdfs:Class ;
+    rdfs:comment "One RULE - srl:head/srl:body (lists), srl:ruleData (bool: match WHERE DATA), srl:id (optional IRI), §4.1." .
+
+srl:RuleSet a rdfs:Class ;
+    rdfs:comment "A whole SRL rule set - srl:rules/srl:data/srl:imports, §4.1." .
+
+srl:TriplePattern a rdfs:Class ;
+    rdfs:comment "A triple template (rule head) or triple pattern (rule body/DATA) - srl:subject/srl:predicate/srl:object, same shape either way per §4.1." ;
+    rdfs:subClassOf srl:BodyElement, srl:NegationBodyElement .

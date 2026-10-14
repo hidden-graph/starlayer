@@ -900,10 +900,10 @@ class StarLayerDataset(Dataset):
             merged.add((s, p, o))
         return merged
 
-    def serialize(self, destination=None, format='trig', **kwargs) -> str | StarLayerDataset:
+    def serialize(self, destination=None, format='trig12', **kwargs) -> str | StarLayerDataset:
         """Serialize this dataset.
 
-        format='trig12'  — TriG 1.2 with GRAPH blocks and <<( )>> triple terms.
+        format='trig12' (default) — TriG 1.2 with GRAPH blocks and <<( )>> triple terms.
         format='nq12'   — N-Quads 1.2 with <<( )>> triple terms; one quad per line.
         format='trix12' — TriX 1.2 XML with <graph> blocks and <tripleTerm> elements.
         format='turtle12'/'longturtle12'/'nt12'/'rdfxml12' — no

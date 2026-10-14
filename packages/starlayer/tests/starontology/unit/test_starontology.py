@@ -351,16 +351,103 @@ class TestGetResourceIri:
         assert starontology.get_resource_iri("skos_owl") == artifact
 
     def test_shacl_meta_has_a_real_resource_iri(self):
-        """shacl_meta (2026-10-12) gets a real, stable IRI here too - used
-        by ontology-shapes-profiles.ttl's own prof:isProfileOf entry for
-        it - even though the file at this path doesn't exist yet (still
-        generated Python, see docs/future_enhancements.md)."""
+        """shacl_meta gets a real, stable IRI here too - used by
+        ontology-shapes-profiles.ttl's own prof:isProfileOf entry for it.
+        A real stored named graph in starontology.trig since 2026-10-12,
+        and a real standalone published file since 2026-10-14 (see
+        TestGetRawUrl/TestPublishedFiles below) - this IRI's own path
+        predates both and needed no change for either."""
         iri = starontology.get_resource_iri("shacl_meta")
         assert iri is not None
         assert str(iri).endswith("shacl_meta_shapes.ttl")
 
     def test_unknown_name_returns_none(self):
         assert starontology.get_resource_iri("not_a_real_name") is None
+
+
+class TestGetRawUrl:
+    """get_raw_url() is deliberately a different URL from
+    get_resource_iri() - a raw.githubusercontent.com URL for actually
+    fetching real content, not the resource's own stable blob-URL
+    identity (which doubles as starontology.trig's own internal named-
+    graph context IRI and must never change - see get_raw_url()'s own
+    docstring for why these are two separate concerns)."""
+
+    def test_differs_from_get_resource_iri_but_names_the_same_file(self):
+        iri = starontology.get_resource_iri("skos_shacl")
+        url = starontology.get_raw_url("skos_shacl")
+        assert url != str(iri)
+        assert iri.rsplit("/", 1)[-1] == url.rsplit("/", 1)[-1]
+
+    def test_is_a_real_raw_githubusercontent_url(self):
+        url = starontology.get_raw_url("skos_shacl")
+        assert url.startswith("https://raw.githubusercontent.com/hidden-graph/starlayer/main/")
+
+    def test_covers_every_registered_ontology_list_entry(self):
+        for info in starontology.get_ontology_list():
+            assert starontology.get_raw_url(info.name) is not None
+
+    def test_shacl_meta_has_a_real_raw_url_too(self):
+        url = starontology.get_raw_url("shacl_meta")
+        assert url is not None
+        assert url.endswith("shacl_meta_shapes.ttl")
+
+    def test_ontology_shapes_profiles_has_a_raw_url_despite_no_resource_iri(self):
+        """Not one of the 13 registered ontology/shapes entries - its own
+        get_resource_iri() equivalent doesn't exist - but it's still a
+        real published document that needs a real fetch URL."""
+        assert starontology.get_resource_iri("ontology_shapes_profiles") is None
+        url = starontology.get_raw_url("ontology_shapes_profiles")
+        assert url is not None
+        assert url.endswith("ontology-shapes-profiles.ttl")
+
+    def test_unknown_name_returns_none(self):
+        assert starontology.get_raw_url("not_a_real_name") is None
+
+
+class TestPublishedFiles:
+    """scripts/publish_starontology_files.py regenerates a real, standalone
+    file for every get_raw_url() entry, derived from starontology.trig -
+    these tests are the regression guard against "edited the dataset,
+    forgot to re-publish": every raw URL's implied path must be a real
+    file on disk, and that file's content must stay isomorphic to the
+    live named graph in starontology.trig. A filesystem/parse check, not
+    a live network call - consistent with this project's "no network in
+    the normal suite" convention."""
+
+    _RAW_BASE = "https://raw.githubusercontent.com/hidden-graph/starlayer/main/packages/starlayer/starlayer/starontology/"
+
+    def _published_path(self, name):
+        from pathlib import Path
+
+        url = starontology.get_raw_url(name)
+        filename = url[len(self._RAW_BASE) :]
+        return Path(starontology.__file__).parent / filename
+
+    def _all_names(self):
+        return [info.name for info in starontology.get_ontology_list()] + ["ontology_shapes_profiles"]
+
+    def test_every_entry_has_a_real_published_file_on_disk(self):
+        for name in self._all_names():
+            path = self._published_path(name)
+            assert path.is_file(), f"{name}: no published file at {path}"
+
+    def test_every_published_file_is_isomorphic_to_the_live_named_graph(self):
+        from rdflib.compare import to_isomorphic
+
+        from starlayer.graph import StarLayerGraph
+
+        for name in self._all_names():
+            path = self._published_path(name)
+            on_disk = StarLayerGraph()
+            on_disk.parse(str(path), format="turtle12")
+
+            live = (
+                starontology.get_conformance_profiles()
+                if name == "ontology_shapes_profiles"
+                else starontology.get_ontology_graph(name)
+            )
+            assert to_isomorphic(on_disk) == to_isomorphic(live), f"{name}: published file is stale"
 
     def test_end_to_end_chain_actually_derives_dcterms_conforms_to(self):
         """The real motivating workflow: validate against a starontology

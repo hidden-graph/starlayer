@@ -1,0 +1,194 @@
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#> .
+
+spexpr:AdditiveExpression rdfs:subClassOf spexpr:ArithmeticExpression .
+
+spexpr:AlternativePath rdfs:comment "path1|path2 (alternative) - salg:args, same list shape as SequencePath." ;
+    rdfs:subClassOf spexpr:Path .
+
+spexpr:ArithmeticExpression rdfs:comment "+/-/*// chains - salg:expr, salg:op, salg:other (always a list)." ;
+    rdfs:subClassOf spexpr:Expression .
+
+spexpr:Builtin_ABS rdfs:subClassOf spexpr:OneArgExpression .
+
+spexpr:Builtin_BNODE rdfs:subClassOf spexpr:OptionalOneArgExpression .
+
+spexpr:Builtin_BOUND rdfs:subClassOf spexpr:OneArgExpression .
+
+spexpr:Builtin_CEIL rdfs:subClassOf spexpr:OneArgExpression .
+
+spexpr:Builtin_COALESCE rdfs:subClassOf spexpr:VariadicArgExpression .
+
+spexpr:Builtin_CONCAT rdfs:subClassOf spexpr:VariadicArgExpression .
+
+spexpr:Builtin_CONTAINS rdfs:subClassOf spexpr:TwoArgExpression .
+
+spexpr:Builtin_DATATYPE rdfs:subClassOf spexpr:OneArgExpression .
+
+spexpr:Builtin_DAY rdfs:subClassOf spexpr:OneArgExpression .
+
+spexpr:Builtin_ENCODE_FOR_URI rdfs:subClassOf spexpr:OneArgExpression .
+
+spexpr:Builtin_EXISTS rdfs:subClassOf spexpr:ExistsExpression .
+
+spexpr:Builtin_FLOOR rdfs:subClassOf spexpr:OneArgExpression .
+
+spexpr:Builtin_HOURS rdfs:subClassOf spexpr:OneArgExpression .
+
+spexpr:Builtin_IF rdfs:subClassOf spexpr:ThreeArgExpression .
+
+spexpr:Builtin_IRI rdfs:subClassOf spexpr:OneArgExpression .
+
+spexpr:Builtin_LANG rdfs:subClassOf spexpr:OneArgExpression .
+
+spexpr:Builtin_LANGMATCHES rdfs:subClassOf spexpr:TwoArgExpression .
+
+spexpr:Builtin_LCASE rdfs:subClassOf spexpr:OneArgExpression .
+
+spexpr:Builtin_MD5 rdfs:subClassOf spexpr:OneArgExpression .
+
+spexpr:Builtin_MINUTES rdfs:subClassOf spexpr:OneArgExpression .
+
+spexpr:Builtin_MONTH rdfs:subClassOf spexpr:OneArgExpression .
+
+spexpr:Builtin_NOTEXISTS rdfs:subClassOf spexpr:ExistsExpression .
+
+spexpr:Builtin_NOW rdfs:subClassOf spexpr:ZeroArgExpression .
+
+spexpr:Builtin_RAND rdfs:subClassOf spexpr:ZeroArgExpression .
+
+spexpr:Builtin_REGEX rdfs:subClassOf spexpr:RegexExpression .
+
+spexpr:Builtin_REPLACE rdfs:subClassOf spexpr:ReplaceExpression .
+
+spexpr:Builtin_ROUND rdfs:subClassOf spexpr:OneArgExpression .
+
+spexpr:Builtin_SECONDS rdfs:subClassOf spexpr:OneArgExpression .
+
+spexpr:Builtin_SHA1 rdfs:subClassOf spexpr:OneArgExpression .
+
+spexpr:Builtin_SHA256 rdfs:subClassOf spexpr:OneArgExpression .
+
+spexpr:Builtin_SHA384 rdfs:subClassOf spexpr:OneArgExpression .
+
+spexpr:Builtin_SHA512 rdfs:subClassOf spexpr:OneArgExpression .
+
+spexpr:Builtin_STR rdfs:subClassOf spexpr:OneArgExpression .
+
+spexpr:Builtin_STRAFTER rdfs:subClassOf spexpr:TwoArgExpression .
+
+spexpr:Builtin_STRBEFORE rdfs:subClassOf spexpr:TwoArgExpression .
+
+spexpr:Builtin_STRDT rdfs:subClassOf spexpr:TwoArgExpression .
+
+spexpr:Builtin_STRENDS rdfs:subClassOf spexpr:TwoArgExpression .
+
+spexpr:Builtin_STRLANG rdfs:subClassOf spexpr:TwoArgExpression .
+
+spexpr:Builtin_STRLEN rdfs:subClassOf spexpr:OneArgExpression .
+
+spexpr:Builtin_STRSTARTS rdfs:subClassOf spexpr:TwoArgExpression .
+
+spexpr:Builtin_STRUUID rdfs:subClassOf spexpr:ZeroArgExpression .
+
+spexpr:Builtin_SUBSTR rdfs:subClassOf spexpr:SubstrExpression .
+
+spexpr:Builtin_TIMEZONE rdfs:subClassOf spexpr:OneArgExpression .
+
+spexpr:Builtin_TZ rdfs:subClassOf spexpr:OneArgExpression .
+
+spexpr:Builtin_UCASE rdfs:subClassOf spexpr:OneArgExpression .
+
+spexpr:Builtin_URI rdfs:subClassOf spexpr:OneArgExpression .
+
+spexpr:Builtin_UUID rdfs:subClassOf spexpr:ZeroArgExpression .
+
+spexpr:Builtin_YEAR rdfs:subClassOf spexpr:OneArgExpression .
+
+spexpr:Builtin_isBLANK rdfs:subClassOf spexpr:OneArgExpression .
+
+spexpr:Builtin_isIRI rdfs:subClassOf spexpr:OneArgExpression .
+
+spexpr:Builtin_isLITERAL rdfs:subClassOf spexpr:OneArgExpression .
+
+spexpr:Builtin_isNUMERIC rdfs:subClassOf spexpr:OneArgExpression .
+
+spexpr:Builtin_isURI rdfs:subClassOf spexpr:OneArgExpression .
+
+spexpr:Builtin_sameTerm rdfs:subClassOf spexpr:TwoArgExpression .
+
+spexpr:ConditionalAndExpression rdfs:subClassOf spexpr:ConditionalExpression .
+
+spexpr:ConditionalExpression rdfs:comment "&&/|| chains - salg:expr plus an optional salg:other list." ;
+    rdfs:subClassOf spexpr:Expression .
+
+spexpr:ConditionalOrExpression rdfs:subClassOf spexpr:ConditionalExpression .
+
+spexpr:ExistsExpression rdfs:comment "EXISTS{}/NOT EXISTS{} - salg:graph, not salg:expr (a raw, untranslated parse-tree fragment, deliberately unshaped further - see shapes.py)." ;
+    rdfs:subClassOf spexpr:Expression .
+
+spexpr:Expression rdfs:comment "A SPARQL expression-tree node (a FILTER/BIND/ORDER BY expression, or any of rdflib's ~63 expression builtins)." ;
+    rdfs:label "Expression" .
+
+spexpr:Function rdfs:subClassOf spexpr:FunctionExpression .
+
+spexpr:FunctionExpression rdfs:comment "A call to any registered/custom SPARQL function - salg:iri/distinct/expr." ;
+    rdfs:subClassOf spexpr:Expression .
+
+spexpr:InvPath rdfs:comment "^path (inverse) - salg:arg the wrapped path/IRI." ;
+    rdfs:subClassOf spexpr:Path .
+
+spexpr:MulPath rdfs:comment "path* / path+ / path? (repetition) - salg:path the repeated path/IRI, salg:mod the bare \"*\"/\"+\"/\"?\" modifier string. Not salg:PyStr-tagged, unlike salg:silent/salg:graphiri/salg:op - confirmed via to_rdf._encode_path's own MulPath branch (Literal(path.mod), no datatype argument), which is what makes shapes.py's own salg:MulPathShape sh:in (\"*\" \"+\" \"?\") check actually match (that check compares against plain literals; PyStr-tagging it would break the match, since sh:in's term-equality is exact and the two datatypes differ). This comment previously claimed PyStr-tagging incorrectly - found and corrected 2026-08-16, a dedicated ontology audit. The live rdflib object's own zero/more boolean flags are deliberately not encoded, since both are always fully derivable from salg:mod alone (confirmed by reading rdflib.paths.MulPath's own constructor)." ;
+    rdfs:subClassOf spexpr:Path .
+
+spexpr:MultiplicativeExpression rdfs:subClassOf spexpr:ArithmeticExpression .
+
+spexpr:NegatedPath rdfs:comment "!path / !(path1|path2) (negated property set) - salg:args, same list shape as SequencePath/AlternativePath." ;
+    rdfs:subClassOf spexpr:Path .
+
+spexpr:OneArgExpression rdfs:comment "Exactly one required argument (salg:arg)." ;
+    rdfs:subClassOf spexpr:Expression .
+
+spexpr:OptionalOneArgExpression rdfs:comment "Zero or one argument (salg:arg) - BNODE()/BNODE(?x) only." ;
+    rdfs:subClassOf spexpr:Expression .
+
+spexpr:Path rdfs:comment "A SPARQL property-path expression - the salg: mirror of rdflib.paths.Path's own class hierarchy." .
+
+spexpr:RegexExpression rdfs:comment "REGEX(text, pattern[, flags]) - unique key names." ;
+    rdfs:subClassOf spexpr:Expression .
+
+spexpr:RelationalExpression rdfs:comment "=, !=, <, >, <=, >=, IN, NOT IN." ;
+    rdfs:subClassOf spexpr:Expression .
+
+spexpr:ReplaceExpression rdfs:comment "REPLACE(arg, pattern, replacement[, flags]) - unique key names." ;
+    rdfs:subClassOf spexpr:Expression .
+
+spexpr:SequencePath rdfs:comment "path1/path2 (sequence) - salg:args a well-formed rdf:List of the sequenced paths/IRIs." ;
+    rdfs:subClassOf spexpr:Path .
+
+spexpr:SubstrExpression rdfs:comment "SUBSTR(arg, start[, length]) - unique key names." ;
+    rdfs:subClassOf spexpr:Expression .
+
+spexpr:ThreeArgExpression rdfs:comment "Exactly three required arguments (salg:arg1/arg2/arg3) - IF() only." ;
+    rdfs:subClassOf spexpr:Expression .
+
+spexpr:TrueFilter rdfs:comment "The constant-true expression rdflib substitutes for an OPTIONAL with no inline FILTER. No properties of its own." ;
+    rdfs:subClassOf spexpr:Expression .
+
+spexpr:TwoArgExpression rdfs:comment "Exactly two required arguments (salg:arg1/arg2)." ;
+    rdfs:subClassOf spexpr:Expression .
+
+spexpr:UnaryExpression rdfs:comment "Exactly one required operand (salg:expr) - !/-/+ prefix operators." ;
+    rdfs:subClassOf spexpr:Expression .
+
+spexpr:UnaryMinus rdfs:subClassOf spexpr:UnaryExpression .
+
+spexpr:UnaryNot rdfs:subClassOf spexpr:UnaryExpression .
+
+spexpr:UnaryPlus rdfs:subClassOf spexpr:UnaryExpression .
+
+spexpr:VariadicArgExpression rdfs:comment "salg:arg is itself a list of arguments - CONCAT/COALESCE only." ;
+    rdfs:subClassOf spexpr:Expression .
+
+spexpr:ZeroArgExpression rdfs:comment "No arguments (NOW/UUID/STRUUID/RAND)." ;
+    rdfs:subClassOf spexpr:Expression .

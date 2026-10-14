@@ -1088,8 +1088,6 @@ class TestBoundDataGraphAndInference:
             schema.evaluate(inference=None)
         with pytest.raises(TypeError):
             schema.target_nodes(shape_node=EX.PersonShape, inference=None)
-        with pytest.raises(TypeError):
-            schema.extract_subgraph(shape=EX.PersonShape, focus_node=EX.alice, inference=None)
 
     def test_validate_each_falls_back_to_bound_data_graph(self) -> None:
         schema = StarShaclSchema(shacl_graph=self._shapes(), data_graph=self._data(name_present=True))

@@ -1,4 +1,4 @@
-"""Regression coverage for StarShaclSchema.extract_subgraph() - see
+"""Regression coverage for starlayer.shacl.extract_subgraph() - see
 starlayer.shacl/subgraph_extraction.py's module docstring for the full design
 (agreed with the user across several turns before implementation: multi-hop
 paths keep every intervening triple with cycle detection, nested/referenced
@@ -9,7 +9,7 @@ and only real stored triples are ever included).
 """
 
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import StarShaclSchema
+from starlayer.shacl import StarShaclSchema, extract_subgraph
 
 
 def _graph(data: str) -> StarLayerGraph:
@@ -54,10 +54,11 @@ class TestBasicExtractionAndAcceptanceTest:
         from rdflib import Namespace
 
         EX = Namespace("http://example.org/")
-        result = StarShaclSchema(shacl_graph=_graph(self.SHAPE)).extract_subgraph(
-            data_graph=_graph(self.DATA),
-            shape=EX.JEShape,
-            focus_node=EX.je1,
+        result = extract_subgraph(
+            _graph(self.DATA),
+            EX.JEShape,
+            EX.je1,
+            shacl_graph=_graph(self.SHAPE),
         )
         return result
 
@@ -78,9 +79,7 @@ class TestBasicExtractionAndAcceptanceTest:
 
         EX = Namespace("http://example.org/")
         data = _graph("@prefix ex: <http://example.org/> . ex:je2 a ex:JournalEntry .")  # missing amount/account
-        result = StarShaclSchema(shacl_graph=_graph(self.SHAPE)).extract_subgraph(
-            data_graph=data, shape=EX.JEShape, focus_node=EX.je2
-        )
+        result = extract_subgraph(data, EX.JEShape, EX.je2, shacl_graph=_graph(self.SHAPE))
         assert result is None
 
 
@@ -102,9 +101,7 @@ class TestMultiHopPaths:
             "ex:S a sh:NodeShape ; sh:targetNode ex:alice ; "
             "sh:property [ sh:path (ex:employee ex:name) ; sh:minCount 1 ] ."
         )
-        result = StarShaclSchema(shacl_graph=shapes).extract_subgraph(
-            data_graph=data, shape=EX.S, focus_node=EX.alice
-        )
+        result = extract_subgraph(data, EX.S, EX.alice, shacl_graph=shapes)
         serialized = result.serialize(format="turtle12")
         assert "ex:bob" in serialized or "bob" in serialized
         assert "Bob" in serialized
@@ -127,9 +124,7 @@ class TestMultiHopPaths:
             "ex:S a sh:NodeShape ; sh:targetNode ex:alice ; "
             "sh:property [ sh:path [ sh:zeroOrMorePath ex:friend ] ; sh:minCount 1 ] ."
         )
-        result = StarShaclSchema(shacl_graph=shapes).extract_subgraph(
-            data_graph=data, shape=EX.S, focus_node=EX.alice
-        )
+        result = extract_subgraph(data, EX.S, EX.alice, shacl_graph=shapes)
         assert result is not None
         serialized = result.serialize(format="turtle12")
         assert "dave" not in serialized
@@ -156,9 +151,7 @@ class TestNestedShapes:
             "ex:S a sh:NodeShape ; sh:targetNode ex:alice ; "
             "sh:property [ sh:path ex:employee ; sh:node ex:PersonShape ] ."
         )
-        result = StarShaclSchema(shacl_graph=shapes).extract_subgraph(
-            data_graph=data, shape=EX.S, focus_node=EX.alice
-        )
+        result = extract_subgraph(data, EX.S, EX.alice, shacl_graph=shapes)
         serialized = result.serialize(format="turtle12")
         assert "Bob" in serialized
         assert "shh" not in serialized
@@ -186,9 +179,7 @@ class TestLogicalConstraints:
             "ex:HasPhone a sh:NodeShape ; sh:property [ sh:path ex:phone ; sh:minCount 1 ] . "
             "ex:S a sh:NodeShape ; sh:targetNode ex:alice ; sh:or ( ex:HasEmail ex:HasPhone ) ."
         )
-        result = StarShaclSchema(shacl_graph=shapes).extract_subgraph(
-            data_graph=data, shape=EX.S, focus_node=EX.alice
-        )
+        result = extract_subgraph(data, EX.S, EX.alice, shacl_graph=shapes)
         serialized = result.serialize(format="turtle12")
         assert "a@example.org" in serialized
         assert "phoneUnused" not in serialized
@@ -206,9 +197,7 @@ class TestLogicalConstraints:
             "ex:HasPhone a sh:NodeShape ; sh:property [ sh:path ex:phone ; sh:minCount 1 ] . "
             "ex:S a sh:NodeShape ; sh:targetNode ex:alice ; sh:or ( ex:HasEmail ex:HasPhone ) ."
         )
-        result = StarShaclSchema(shacl_graph=shapes).extract_subgraph(
-            data_graph=data, shape=EX.S, focus_node=EX.alice
-        )
+        result = extract_subgraph(data, EX.S, EX.alice, shacl_graph=shapes)
         serialized = result.serialize(format="turtle12")
         assert "a@example.org" in serialized
         assert "555" in serialized
@@ -224,9 +213,7 @@ class TestLogicalConstraints:
             "ex:HasPhone a sh:NodeShape ; sh:property [ sh:path ex:phone ; sh:minCount 1 ] . "
             "ex:S a sh:NodeShape ; sh:targetNode ex:alice ; sh:xone ( ex:HasEmail ex:HasPhone ) ."
         )
-        result = StarShaclSchema(shacl_graph=shapes).extract_subgraph(
-            data_graph=data, shape=EX.S, focus_node=EX.alice
-        )
+        result = extract_subgraph(data, EX.S, EX.alice, shacl_graph=shapes)
         assert result is not None
         assert "a@example.org" in result.serialize(format="turtle12")
 
@@ -247,9 +234,7 @@ class TestLogicalConstraints:
             "ex:HasPhone a sh:NodeShape ; sh:property [ sh:path ex:phone ; sh:minCount 1 ] . "
             "ex:S a sh:NodeShape ; sh:targetNode ex:alice ; sh:xone ( ex:HasEmail ex:HasPhone ) ."
         )
-        result = StarShaclSchema(shacl_graph=shapes).extract_subgraph(
-            data_graph=data, shape=EX.S, focus_node=EX.alice
-        )
+        result = extract_subgraph(data, EX.S, EX.alice, shacl_graph=shapes)
         assert result is None
 
 
@@ -276,9 +261,7 @@ class TestQualifiedValueShapeDeterminism:
             "sh:qualifiedValueShape [ sh:property [ sh:path ex:dept ; sh:hasValue ex:Sales ] ] ; "
             "sh:qualifiedMinCount 1 ] ."
         )
-        result = StarShaclSchema(shacl_graph=shapes).extract_subgraph(
-            data_graph=_graph(self.DATA), shape=EX.S, focus_node=EX.alice
-        )
+        result = extract_subgraph(_graph(self.DATA), EX.S, EX.alice, shacl_graph=shapes)
         serialized = result.serialize(format="turtle12")
         assert "bob" in serialized and "carol" in serialized
         assert "dave" not in serialized
@@ -298,9 +281,7 @@ class TestQualifiedValueShapeDeterminism:
             "sh:qualifiedValueShape [ sh:property [ sh:path ex:dept ; sh:hasValue ex:Sales ] ] ; "
             "sh:qualifiedMinCount 1 ] ."
         )
-        result = StarShaclSchema(shacl_graph=shapes).extract_subgraph(
-            data_graph=_graph(self.DATA), shape=EX.S, focus_node=EX.alice
-        )
+        result = extract_subgraph(_graph(self.DATA), EX.S, EX.alice, shacl_graph=shapes)
         serialized = result.serialize(format="turtle12")
         assert "dave" in serialized
 
@@ -359,9 +340,7 @@ class TestCloseShape:
         EX = Namespace("http://example.org/")
         prod_shapes = _graph(self.PROD_SHAPE)
         before = len(prod_shapes)
-        StarShaclSchema(shacl_graph=prod_shapes).extract_subgraph(
-            data_graph=_graph(self.DATA), shape=EX.JEShape, focus_node=EX.je1
-        )
+        extract_subgraph(_graph(self.DATA), EX.JEShape, EX.je1, shacl_graph=prod_shapes)
         assert len(prod_shapes) == before
 
     def test_extracted_subgraph_conforms_to_the_derived_strict_shape(self) -> None:
@@ -374,9 +353,7 @@ class TestCloseShape:
 
         EX = Namespace("http://example.org/")
         prod_shapes = _graph(self.PROD_SHAPE)
-        result = StarShaclSchema(shacl_graph=prod_shapes).extract_subgraph(
-            data_graph=_graph(self.DATA), shape=EX.JEShape, focus_node=EX.je1
-        )
+        result = extract_subgraph(_graph(self.DATA), EX.JEShape, EX.je1, shacl_graph=prod_shapes)
         assert result is not None
 
         strict_shapes = StarShaclSchema(shacl_graph=prod_shapes).close_shape(EX.JEShape)
@@ -385,10 +362,10 @@ class TestCloseShape:
 
 
 class TestNoShapesGraphFallsBackToDataGraph:
-    """2026-10-08: a StarShaclSchema() constructed with no shapes graph of
-    its own falls back to data_graph itself as the shapes source - matching
-    validate()'s own long-standing "data graph doubles as shapes graph"
-    allowance, for a data file carrying its own embedded shapes."""
+    """2026-10-08: extract_subgraph() with no shacl_graph of its own falls
+    back to data_graph itself as the shapes source - matching validate()'s
+    own long-standing "data graph doubles as shapes graph" allowance, for a
+    data file carrying its own embedded shapes."""
 
     DATA_WITH_EMBEDDED_SHAPE = """
         @prefix ex: <http://example.org/> .
@@ -404,17 +381,8 @@ class TestNoShapesGraphFallsBackToDataGraph:
 
         EX = Namespace("http://example.org/")
         data = _graph(self.DATA_WITH_EMBEDDED_SHAPE)
-        result = StarShaclSchema().extract_subgraph(data_graph=data, shape=EX.JEShape, focus_node=EX.je1)
+        result = extract_subgraph(data, EX.JEShape, EX.je1)
         assert result is not None
         serialized = result.serialize(format="turtle12")
         assert "later note" not in serialized
         assert "100" in serialized
-
-    def test_bare_extract_subgraph_function_same_fallback(self) -> None:
-        from rdflib import Namespace
-        from starlayer.shacl import extract_subgraph
-
-        EX = Namespace("http://example.org/")
-        data = _graph(self.DATA_WITH_EMBEDDED_SHAPE)
-        result = extract_subgraph(data, EX.JEShape, EX.je1)
-        assert result is not None

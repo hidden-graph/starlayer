@@ -2,8 +2,6 @@ Notes on guides and other comments
 
 STRUACTURE:
 
-1. Our getting started guide should use the standard rdflib/pyshacl forms.  Dont use StarSHaclScheam
-
 2. Make section 5  a new section on Starlayer Schemas and Ontologies, to hold our discussion of Manchestermn, SPArQL tree, rules tree and SKOS, as long as SHACL meta and salg if we want. Lets not include that in the related user guides.  Then 6 becomes "other"
 
 3. Make the graphs inferencing notebook complete with respect to the explanation of the various inferenicng regimes.  see if there in information in the entailent component of SPARQL that shoudl be in graph inferencing.  Then we can simplify the SPARQL inferencing to show how to use the graph inferencing from a query.
@@ -34,6 +32,8 @@ Function:
 4. need to visit SHACL UI.  Can we provide some example of its use?  Also, StarLayer allows enhancements to the shape. we shoudl demonstrate 
 
 5. on shape extraction, suggest we make this a SHACL function and not a SHACLShema method.  this way we do not make this one of the big three.  see if we can come up with simpler ways to describe the use.  similar to cbd, but based on a shape.  could also give it its own
+
+6. our graph,infer does not handle rdf entailment,  why not?  
 
 Questions from Claude (answer inline below each, whenever convenient):
 

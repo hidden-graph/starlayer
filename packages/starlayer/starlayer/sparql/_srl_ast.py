@@ -36,6 +36,7 @@ round trip need no follow-up widening once grammar support for it lands.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Any
 
 from rdflib import BNode, Graph, Literal, URIRef, Variable
 from rdflib.plugins.sparql.parserutils import Expr
@@ -225,7 +226,13 @@ class RuleSet:
     data: list[_Data] = field(default_factory=list)
     imports: list[URIRef] = field(default_factory=list)
 
-    def infer(self, base_graph: Graph) -> Graph:
+    def infer(
+        self,
+        base_graph: Graph,
+        *,
+        inference: Any | None = None,
+        schema: Any | None = None,
+    ):
         """Runs this rule set against ``base_graph`` to a fixpoint and
         returns the inferred-triples-only graph (§4.1's ``Infer``) - the
         one real way to run a rule set; ``srl_eval._srl_infer`` is private
@@ -233,17 +240,66 @@ class RuleSet:
         locally since ``srl_eval.py`` itself imports this module, so a
         top-level import here would be circular.
 
+        ``inference``/``schema`` are per-call, not bound on this dataclass
+        itself - ``RuleSet`` is also the value ``ruleset_to_tree()``/
+        ``tree_to_ruleset()`` round-trip to/from RDF (``srl.py``), and a
+        stored "bound schema"/"bound entailment regime" field would either
+        leak into that encoding or need excluding from it for no benefit
+        over a plain per-call argument. See
+        ``packages/starlayer/docs/sparql_srl_object_model_design.md`` for
+        the full design discussion.
+
         Args:
             base_graph: The graph to run the rule set against.
+            inference: An entailment regime IRI (or iterable of them, the
+                same ``ENTAILMENT.*`` vocabulary ``StarShaclSchema``/
+                ``StarLayerGraph`` already use), applied to ``base_graph``
+                (via ``base_graph.infer(entailment=inference, mode="full")``)
+                before the rule set runs against it - the same "entailment
+                feeds inference" relationship SHACL's own
+                ``sh:entailment``-before-rules already has. ``None``
+                (default) runs against ``base_graph`` unchanged.
+            schema: A ``starlayer.shacl.StarShaclSchema`` instance, or a
+                bare SHACL shapes graph, to validate the inferred result
+                against. A bare shapes graph is wrapped in a throwaway
+                ``StarShaclSchema(shacl_graph=schema)`` first; an already-
+                constructed ``StarShaclSchema`` is used as-is, so its own
+                bound ``ont_graph``/``inference`` are honored too.
+                ``None`` (default) skips validation entirely.
 
         Returns:
-            The inferred-triples-only graph.
+            The inferred-triples-only graph (a plain graph object), when
+            ``schema`` is omitted - the unchanged, pre-existing return
+            shape. When ``schema`` is given, a
+            ``starlayer.shacl.RulesResult(inferred_graph=..., validation=...)``
+            instead - the same result shape ``StarShaclSchema.apply_rules()``
+            already returns for the identical underlying concept (inferred
+            triples plus a validation of them), reused rather than
+            duplicated.
         """
         from . import srl_eval
 
-        return srl_eval._srl_infer(base_graph, self)
+        if inference is not None:
+            base_graph = base_graph.infer(entailment=inference, mode="full")
 
-    def query(self, base_graph: Graph, goal_pattern: TriplePattern) -> list[dict]:
+        inferred = srl_eval._srl_infer(base_graph, self)
+
+        if schema is None:
+            return inferred
+
+        from starlayer.shacl import RulesResult, StarShaclSchema
+
+        resolved_schema = schema if isinstance(schema, StarShaclSchema) else StarShaclSchema(shacl_graph=schema)
+        validation = resolved_schema.validate(data_graph=inferred)
+        return RulesResult(inferred_graph=inferred, validation=validation)
+
+    def query(
+        self,
+        base_graph: Graph,
+        goal_pattern: TriplePattern,
+        *,
+        inference: Any | None = None,
+    ) -> list[dict]:
         """Runs :meth:`infer` then returns every match of
         ``goal_pattern`` against ``base_graph`` union the inferred triples
         (§4.1's ``Query``).
@@ -252,10 +308,17 @@ class RuleSet:
             base_graph: The graph to run the rule set against.
             goal_pattern: The triple pattern to match against the union of
                 ``base_graph`` and the inferred triples.
+            inference: Same meaning as :meth:`infer`'s own ``inference=`` -
+                applied to ``base_graph`` before the rule set runs. There
+                is no ``schema=`` here - this method returns rows, not a
+                graph, so there is nothing to validate.
 
         Returns:
             One ``dict[Variable, term]`` solution per match.
         """
         from . import srl_eval
+
+        if inference is not None:
+            base_graph = base_graph.infer(entailment=inference, mode="full")
 
         return srl_eval._srl_query(base_graph, self, goal_pattern)

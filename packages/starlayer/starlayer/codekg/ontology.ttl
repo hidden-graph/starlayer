@@ -162,7 +162,7 @@ slkg:overrides a owl:ObjectProperty ;
     rdfs:domain slkg:Method ;
     rdfs:range slkg:Method ;
     rdfs:label "overrides" ;
-    rdfs:comment "This method shares a name with, and shadows, a method already declared on one of its class's base classes - only detected when that base class is defined in the *same file* as the overriding method (see starlayer.codekg.extractor.visitor's own same-file-only scope note); a genuine override of a method from a base class defined in a different file gets no edge in this version." .
+    rdfs:comment "This method shares a name with, and shadows, a method already declared on one of its class's base classes - resolved project-wide, across files, via the same symbol-index base-chain walk (starlayer.codekg.extractor.symbol_index.SymbolIndex.resolve_method_in_chain) already used for self/cls call resolution. Absence of an edge means no same-named method was found anywhere in the resolvable base chain - an unresolvable/external base (e.g. a stdlib or third-party class) stops the walk at that point, same caveat as slkg:calls." .
 
 slkg:instantiates a owl:ObjectProperty ;
     rdfs:domain slkg:Function ;

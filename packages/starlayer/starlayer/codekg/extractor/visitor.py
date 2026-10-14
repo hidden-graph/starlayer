@@ -719,50 +719,28 @@ def _emit_visibility_flags(name: str, entity_iri: URIRef, ctx: _ExtractionContex
 
 
 # ---------------------------------------------------------------------------
-# Method overrides (slkg:overrides) - same-file base classes only
+# Method overrides (slkg:overrides) - project-wide, same mechanism as
+# self/cls call resolution
 # ---------------------------------------------------------------------------
 
 
-def _find_same_file_override(
-    class_info,
-    method_name: str,
-    module_dotted_path: str,
-    symbol_index: SymbolIndex,
-    _seen: set[str] | None = None,
-):
-    """``class_info``'s own bases, walked depth-first in declared order,
-    looking for ``method_name`` - but only ever following a base whose
-    *own* dotted path is still inside ``module_dotted_path`` (i.e. defined
-    in the same file). The walk stops dead at the first base outside the
-    file, rather than continuing past it to bases-of-bases that might
-    still be local - deliberately narrower than
-    ``SymbolIndex.resolve_method_in_chain()``'s own project-wide walk,
-    per this phase's own approved same-file-only override scope."""
-    if _seen is None:
-        _seen = set()
-    for base_path in class_info.base_dotted_paths:
-        if not base_path.startswith(module_dotted_path + "."):
-            continue
-        if base_path in _seen:
-            continue
-        _seen.add(base_path)
-        base_info = symbol_index.classes_by_dotted_path.get(base_path)
-        if base_info is None:
-            continue
-        if method_name in base_info.methods:
-            return base_info.methods[method_name]
-        found = _find_same_file_override(base_info, method_name, module_dotted_path, symbol_index, _seen)
-        if found is not None:
-            return found
-    return None
-
-
 def _emit_override_edge(method_name: str, method_iri: URIRef, enclosing_class_dotted_path: str, ctx: _ExtractionContext) -> None:
+    """Looks for ``method_name`` on each of the enclosing class's own
+    bases, in declared order, via ``SymbolIndex.resolve_method_in_chain()``
+    - the same project-wide, first-match-wins walk already used for
+    ``self``/``cls`` call resolution. Checking the class's bases rather
+    than the class itself (calling ``resolve_method_in_chain`` directly on
+    ``enclosing_class_dotted_path`` would just return the class's own
+    method) is what makes this an override check rather than a lookup."""
     class_info = ctx.symbol_index.classes_by_dotted_path.get(enclosing_class_dotted_path)
     if class_info is None:
         return
     try:
-        base_method_iri = _find_same_file_override(class_info, method_name, ctx.module_dotted_path, ctx.symbol_index)
+        base_method_iri = None
+        for base_path in class_info.base_dotted_paths:
+            base_method_iri = ctx.symbol_index.resolve_method_in_chain(base_path, method_name)
+            if base_method_iri is not None:
+                break
     except Exception as exc:
         logger.warning("Could not check override for %s: %s", method_iri, exc)
         return

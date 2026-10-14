@@ -1,0 +1,270 @@
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#> .
+@prefix srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+srl:AssignmentElementShape a sh:NodeShape ;
+    sh:property [
+        sh:class spexpr:Expression ;
+        sh:maxCount 1 ;
+        sh:message "srl:AssignmentElement must have exactly one srl:expr, a salg: expression" ;
+        sh:minCount 1 ;
+        sh:path srl:expr
+    ], [
+        sh:datatype spexpr:Variable ;
+        sh:maxCount 1 ;
+        sh:message "srl:AssignmentElement must have exactly one srl:var" ;
+        sh:minCount 1 ;
+        sh:path srl:var
+    ] ;
+    sh:targetClass srl:AssignmentElement .
+
+srl:BodyListShape a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "expected a well-formed rdf:List of srl:BodyElement" ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#>
+            SELECT $this
+            WHERE {
+                {
+                    FILTER ( $this != rdf:nil )
+                    FILTER NOT EXISTS { $this rdf:first ?head }
+                } UNION {
+                    $this rdf:rest*/rdf:first ?item .
+                    FILTER NOT EXISTS { ?item a srl:BodyElement }
+                }
+            }
+        """
+    ] .
+
+srl:DataListShape a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "expected a well-formed rdf:List of srl:Data" ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#>
+            SELECT $this
+            WHERE {
+                {
+                    FILTER ( $this != rdf:nil )
+                    FILTER NOT EXISTS { $this rdf:first ?head }
+                } UNION {
+                    $this rdf:rest*/rdf:first ?item .
+                    FILTER NOT EXISTS { ?item a srl:Data }
+                }
+            }
+        """
+    ] .
+
+srl:DataShape a sh:NodeShape ;
+    sh:property [
+        sh:maxCount 1 ;
+        sh:message "srl:Data must have exactly one srl:triples list" ;
+        sh:minCount 1 ;
+        sh:node srl:TripleListShape ;
+        sh:path srl:triples
+    ] ;
+    sh:targetClass srl:Data .
+
+srl:FilterElementShape a sh:NodeShape ;
+    sh:property [
+        sh:class spexpr:Expression ;
+        sh:maxCount 1 ;
+        sh:message "srl:FilterElement must have exactly one srl:expr, a salg: expression" ;
+        sh:minCount 1 ;
+        sh:path srl:expr
+    ] ;
+    sh:targetClass srl:FilterElement .
+
+srl:ImportsListShape a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "expected a well-formed rdf:List of IRIs" ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            SELECT $this
+            WHERE {
+                {
+                    FILTER ( $this != rdf:nil )
+                    FILTER NOT EXISTS { $this rdf:first ?head }
+                } UNION {
+                    $this rdf:rest*/rdf:first ?item .
+                    FILTER ( !isIRI(?item) )
+                }
+            }
+        """
+    ] .
+
+srl:NegationElementShape a sh:NodeShape ;
+    sh:property [
+        sh:datatype xsd:boolean ;
+        sh:maxCount 1 ;
+        sh:message "srl:NegationElement must have exactly one boolean srl:negationData" ;
+        sh:minCount 1 ;
+        sh:path srl:negationData
+    ], [
+        sh:maxCount 1 ;
+        sh:message "srl:NegationElement must have exactly one srl:inner list" ;
+        sh:minCount 1 ;
+        sh:node srl:NegationInnerListShape ;
+        sh:path srl:inner
+    ] ;
+    sh:targetClass srl:NegationElement .
+
+srl:NegationInnerListShape a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "expected a well-formed rdf:List of srl:NegationBodyElement (triple patterns/filters only)" ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#>
+            SELECT $this
+            WHERE {
+                {
+                    FILTER ( $this != rdf:nil )
+                    FILTER NOT EXISTS { $this rdf:first ?head }
+                } UNION {
+                    $this rdf:rest*/rdf:first ?item .
+                    FILTER NOT EXISTS { ?item a srl:NegationBodyElement }
+                }
+            }
+        """
+    ] .
+
+srl:PredicateOrVariableShape a sh:NodeShape ;
+    sh:or ( [
+        sh:nodeKind sh:IRI
+    ] [
+        sh:datatype spexpr:Variable
+    ] ) .
+
+srl:RuleListShape a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "expected a well-formed rdf:List of srl:Rule" ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#>
+            SELECT $this
+            WHERE {
+                {
+                    FILTER ( $this != rdf:nil )
+                    FILTER NOT EXISTS { $this rdf:first ?head }
+                } UNION {
+                    $this rdf:rest*/rdf:first ?item .
+                    FILTER NOT EXISTS { ?item a srl:Rule }
+                }
+            }
+        """
+    ] .
+
+srl:RuleSetShape a sh:NodeShape ;
+    sh:property [
+        sh:maxCount 1 ;
+        sh:message "srl:RuleSet must have exactly one srl:data list" ;
+        sh:minCount 1 ;
+        sh:node srl:DataListShape ;
+        sh:path srl:data
+    ], [
+        sh:maxCount 1 ;
+        sh:message "srl:RuleSet must have exactly one srl:imports list" ;
+        sh:minCount 1 ;
+        sh:node srl:ImportsListShape ;
+        sh:path srl:imports
+    ], [
+        sh:maxCount 1 ;
+        sh:message "srl:RuleSet must have exactly one srl:rules list" ;
+        sh:minCount 1 ;
+        sh:node srl:RuleListShape ;
+        sh:path srl:rules
+    ] ;
+    sh:targetClass srl:RuleSet .
+
+srl:RuleShape a sh:NodeShape ;
+    sh:property [
+        sh:maxCount 1 ;
+        sh:message "srl:Rule must have exactly one srl:body list" ;
+        sh:minCount 1 ;
+        sh:node srl:BodyListShape ;
+        sh:path srl:body
+    ], [
+        sh:maxCount 1 ;
+        sh:message "srl:Rule must have exactly one srl:head list" ;
+        sh:minCount 1 ;
+        sh:node srl:TripleListShape ;
+        sh:path srl:head
+    ], [
+        sh:datatype xsd:boolean ;
+        sh:maxCount 1 ;
+        sh:message "srl:Rule must have exactly one boolean srl:ruleData" ;
+        sh:minCount 1 ;
+        sh:path srl:ruleData
+    ], [
+        sh:maxCount 1 ;
+        sh:message "srl:id, if present, must be exactly one IRI" ;
+        sh:nodeKind sh:IRI ;
+        sh:path srl:id
+    ] ;
+    sh:targetClass srl:Rule .
+
+srl:ShapesGraph a sh:ShapesGraph ;
+    rdfs:member srl:DataListShape, srl:TriplePatternShape, srl:NegationElementShape, srl:BodyListShape, srl:TripleListShape, srl:DataShape, srl:ImportsListShape, srl:RuleSetShape, srl:NegationInnerListShape, srl:PredicateOrVariableShape, srl:RuleListShape, srl:RuleShape, srl:AssignmentElementShape, srl:FilterElementShape, srl:TermOrVariableShape ;
+    owl:imports spexpr:ShapesGraph .
+
+srl:TermOrVariableShape a sh:NodeShape ;
+    sh:or ( [
+        sh:nodeKind sh:IRI
+    ] [
+        sh:nodeKind sh:BlankNode
+    ] [
+        sh:datatype spexpr:Variable
+    ] [
+        sh:nodeKind sh:Literal
+    ] ) .
+
+srl:TripleListShape a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "expected a well-formed rdf:List of srl:TriplePattern" ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#>
+            SELECT $this
+            WHERE {
+                {
+                    FILTER ( $this != rdf:nil )
+                    FILTER NOT EXISTS { $this rdf:first ?head }
+                } UNION {
+                    $this rdf:rest*/rdf:first ?item .
+                    FILTER NOT EXISTS { ?item a srl:TriplePattern }
+                }
+            }
+        """
+    ] .
+
+srl:TriplePatternShape a sh:NodeShape ;
+    sh:property [
+        sh:maxCount 1 ;
+        sh:message "srl:TriplePattern must have exactly one srl:object" ;
+        sh:minCount 1 ;
+        sh:node srl:TermOrVariableShape ;
+        sh:path srl:object
+    ], [
+        sh:maxCount 1 ;
+        sh:message "srl:TriplePattern must have exactly one srl:subject" ;
+        sh:minCount 1 ;
+        sh:node srl:TermOrVariableShape ;
+        sh:path srl:subject
+    ], [
+        sh:maxCount 1 ;
+        sh:message "srl:TriplePattern must have exactly one srl:predicate, an IRI/Variable" ;
+        sh:minCount 1 ;
+        sh:node srl:PredicateOrVariableShape ;
+        sh:path srl:predicate
+    ] ;
+    sh:targetClass srl:TriplePattern .

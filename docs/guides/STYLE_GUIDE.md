@@ -40,7 +40,7 @@ Always the **third** cell, immediately after the title — never preceded by a s
 
 > This guide assumes StarLayer has been pip installed — see [Getting Started](01-getting-started.ipynb) if not. Run cells from top to bottom; later sections may reuse variables from earlier ones.
 
-Append, don't replace, when a guide has a real extra prerequisite (a JVM, a running Oxigraph/Fuseki instance, an optional extra like `pyshacl`/`rdflib-sqlalchemy`) — state it plainly and say what happens if it's missing (`05e-owl-dl-reasoning.ipynb`'s HermiT/Java note is the right length and specificity). State every real prerequisite here, not scattered across later sections (`05b`'s own `!pip install -q rdflib-sqlalchemy` buried mid-notebook is the anti-example).
+Append, don't replace, when a guide has a real extra prerequisite (a JVM, a running Oxigraph/Fuseki instance, an optional extra like `pyshacl`/`rdflib-sqlalchemy`) — state it plainly and say what happens if it's missing (`02c-owl-dl-reasoning.ipynb`'s HermiT/Java note is the right length and specificity). State every real prerequisite here, not scattered across later sections (`06b`'s own `!pip install -q rdflib-sqlalchemy` buried mid-notebook is the anti-example).
 
 ## 4. Section numbering
 
@@ -54,7 +54,7 @@ Append, don't replace, when a guide has a real extra prerequisite (a JVM, a runn
 
 ## 5. Opening paragraph (per guide, not just the title tagline)
 
-One paragraph, not an essay, stating what's covered and why it matters (see §2) — then move into numbered sections. A reference-style table summarizing the whole topic (`03b-sparql-inferencing.ipynb`'s entailment-regime table) is fine as part of the opening when the guide is genuinely reference-shaped, but state the orienting sentence first, table second — never the reverse.
+One paragraph, not an essay, stating what's covered and why it matters (see §2) — then move into numbered sections. A reference-style table summarizing the whole topic (`02b-graphs-inferencing.ipynb`'s entailment-regime table) is fine as part of the opening when the guide is genuinely reference-shaped, but state the orienting sentence first, table second — never the reverse.
 
 ## 6. Closing: one section, only when there's something to say
 
@@ -92,7 +92,7 @@ Baseline voice is impersonal third person: "`X` does `Y`," "This covers...," "A 
 
 ## 11. No leftover authoring notes, ever
 
-A guide is not done while it contains a scratch note, an open question to a future editor, or a literal `CLAUDE:` directive — whether in its own leading cell or embedded mid-content in a cell a reader will actually see. This is a zero-tolerance rule, not a judgment call: seven of the current 21 guides fail it today (see the review notes for the full list), and `05f-manchester-syntax.ipynb` has directives embedded inside its own title and prerequisites cells, not just a quarantined leading cell. Before considering any guide finished: read every cell once as a first-time reader would, and remove anything that isn't meant for them.
+A guide is not done while it contains a scratch note, an open question to a future editor, or a literal `CLAUDE:` directive — whether in its own leading cell or embedded mid-content in a cell a reader will actually see. This is a zero-tolerance rule, not a judgment call: seven of the current 21 guides fail it today (see the review notes for the full list), and `05a-manchester-syntax.ipynb` (renamed from `05f-`, see `README.md`) has directives embedded inside its own title and prerequisites cells, not just a quarantined leading cell. Before considering any guide finished: read every cell once as a first-time reader would, and remove anything that isn't meant for them.
 
 ## 12. Scope and size
 

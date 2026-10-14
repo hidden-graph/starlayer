@@ -15,7 +15,7 @@ from starlayer import conformance
 
 DCTERMS = conformance.DCTERMS
 
-_SHACL_SUBJECT = URIRef("https://github.com/hidden-graph/starlayer/tree/main/packages/shacl")
+_SHACL_SUBJECT = URIRef("https://github.com/hidden-graph/starlayer/tree/main/packages/starlayer/starlayer/shacl")
 
 _EXPECTED_SHACL_PROFILES = {
     URIRef("http://www.w3.org/ns/shacl/profile/core"),

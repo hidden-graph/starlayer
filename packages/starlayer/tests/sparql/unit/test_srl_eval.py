@@ -215,3 +215,139 @@ def test_query_matches_goal_pattern_against_base_and_inferred():
     results = ruleset.query(base, goal)
     solutions = {r[Variable("x")] for r in results}
     assert solutions == {_p("db"), _p("app"), _p("frontend")}
+
+
+class TestInferAndQueryInferenceParameter:
+    """``inference=`` pre-entails base_graph (via StarLayerGraph.infer())
+    before the rule set runs against it - a per-call parameter, not stored
+    on RuleSet itself (see RuleSet.infer()'s own docstring for why)."""
+
+    RULES = f"""
+    PREFIX : <{EX}>
+    RULE {{ ?x :flagged true }} WHERE {{ ?x :hasVulnerability ?v . ?v rdf:type :Vulnerability . }}
+    """
+
+    def _base_with_subclass_only(self):
+        from starlayer.graph import StarLayerGraph
+
+        base = StarLayerGraph()
+        base.parse(
+            data=f"""
+            @prefix : <{EX}> .
+            @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+            @prefix rdf: <{RDF}> .
+            :CriticalVuln rdfs:subClassOf :Vulnerability .
+            :vuln2 rdf:type :CriticalVuln .
+            :bob :hasVulnerability :vuln2 .
+            """,
+            format="turtle",
+        )
+        return base
+
+    def test_infer_without_entailment_misses_the_subclass_fact(self):
+        from starlayer.sparql.srl import parse_ruleset
+
+        base = self._base_with_subclass_only()
+        ruleset = parse_ruleset(f"PREFIX rdf: <{RDF}>\n" + self.RULES)
+        gi = ruleset.infer(base)
+        assert len(gi) == 0
+
+    def test_infer_with_rdfs_entailment_sees_the_subclass_fact(self):
+        from starlayer.graph.graph.entailment_regimes import ENTAILMENT
+        from starlayer.sparql.srl import parse_ruleset
+
+        base = self._base_with_subclass_only()
+        ruleset = parse_ruleset(f"PREFIX rdf: <{RDF}>\n" + self.RULES)
+        gi = ruleset.infer(base, inference=ENTAILMENT.RDFS)
+        assert len(gi) == 1
+        ((s, p, o),) = gi
+        assert s == _p("bob") and p == _p("flagged") and bool(o.toPython()) is True
+
+    def test_infer_entailment_does_not_mutate_the_callers_base_graph(self):
+        from starlayer.graph.graph.entailment_regimes import ENTAILMENT
+        from starlayer.sparql.srl import parse_ruleset
+
+        base = self._base_with_subclass_only()
+        before = len(base)
+        ruleset = parse_ruleset(f"PREFIX rdf: <{RDF}>\n" + self.RULES)
+        ruleset.infer(base, inference=ENTAILMENT.RDFS)
+        assert len(base) == before
+
+    def test_query_inference_parameter_sees_the_subclass_fact_too(self):
+        from starlayer.graph.graph.entailment_regimes import ENTAILMENT
+        from starlayer.sparql.srl import parse_ruleset
+
+        base = self._base_with_subclass_only()
+        ruleset = parse_ruleset(f"PREFIX rdf: <{RDF}>\n" + self.RULES)
+        goal = ruleset.rules[0].head[0]  # ?x :flagged true
+        rows = ruleset.query(base, goal, inference=ENTAILMENT.RDFS)
+        assert {r[Variable("x")] for r in rows} == {_p("bob")}
+
+
+class TestInferSchemaParameter:
+    """``schema=`` validates the inferred result against a SHACL shape -
+    either a bare shapes graph or an already-constructed StarShaclSchema
+    (("allow both") - returns the inferred graph unchanged when omitted."""
+
+    def _base_and_ruleset(self):
+        base = Graph()
+        base.parse(data=f"@prefix : <{EX}> . :alice :hasVulnerability :vuln1 .", format="turtle")
+        ruleset = parse_ruleset(f"PREFIX : <{EX}>\nRULE {{ ?x :exposedTo ?v }} WHERE {{ ?x :hasVulnerability ?v . }}")
+        return base, ruleset
+
+    def _shapes(self):
+        shapes = Graph()
+        shapes.parse(
+            data=f"""
+            @prefix : <{EX}> .
+            @prefix sh: <http://www.w3.org/ns/shacl#> .
+            :S a sh:NodeShape ; sh:targetSubjectsOf :exposedTo ;
+              sh:property [ sh:path :exposedTo ; sh:minCount 1 ] .
+            """,
+            format="turtle",
+        )
+        return shapes
+
+    def test_schema_omitted_returns_a_bare_graph_unchanged(self):
+        base, ruleset = self._base_and_ruleset()
+        result = ruleset.infer(base)
+        assert isinstance(result, Graph)
+        assert len(result) == 1
+
+    def test_schema_as_bare_shapes_graph_returns_rules_result(self):
+        from starlayer.shacl import RulesResult
+
+        base, ruleset = self._base_and_ruleset()
+        result = ruleset.infer(base, schema=self._shapes())
+        assert isinstance(result, RulesResult)
+        assert result.validation.conforms is True
+        assert len(result.inferred_graph) == 1
+
+    def test_schema_as_starshaclschema_instance_is_used_as_is(self):
+        from starlayer.shacl import StarShaclSchema
+
+        base, ruleset = self._base_and_ruleset()
+        schema_obj = StarShaclSchema(shacl_graph=self._shapes())
+        result = ruleset.infer(base, schema=schema_obj)
+        assert result.validation.conforms is True
+
+    def test_schema_detects_non_conformance(self):
+        # RulesResult.inferred_graph is strictly the newly-inferred triples
+        # (":alice :exposedTo :vuln1" only, same as _base_and_ruleset()'s
+        # own rule) - the shape below targets subjects of :exposedTo
+        # (discoverable from that alone) but also requires :severity,
+        # which this rule never produces, so it's a genuine violation
+        # detectable purely from the inferred output.
+        base, ruleset = self._base_and_ruleset()
+        shapes = Graph()
+        shapes.parse(
+            data=f"""
+            @prefix : <{EX}> .
+            @prefix sh: <http://www.w3.org/ns/shacl#> .
+            :S a sh:NodeShape ; sh:targetSubjectsOf :exposedTo ;
+              sh:property [ sh:path :severity ; sh:minCount 1 ] .
+            """,
+            format="turtle",
+        )
+        result = ruleset.infer(base, schema=shapes)
+        assert result.validation.conforms is False

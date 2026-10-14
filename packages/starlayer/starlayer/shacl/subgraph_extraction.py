@@ -1,6 +1,9 @@
-"""``StarShaclSchema.extract_subgraph()`` - given a focus node that
-conforms to a shape, extract exactly the subgraph of *real, stored* triples
-that shape's constraints covered for that node.
+"""``extract_subgraph()`` - given a focus node that conforms to a shape,
+extract exactly the subgraph of *real, stored* triples that shape's
+constraints covered for that node. A plain, standalone function (not a
+``StarShaclSchema`` method) - conceptually "``StarLayerGraph.cbd()``, but
+the reachability rule is a SHACL shape's own constraints instead of
+blank-node adjacency."
 
 Design decisions (agreed with the user across several turns, recorded in
 full in this project's memory under "shacl-subgraph-extraction-design" -
@@ -317,13 +320,17 @@ def extract_subgraph(
     *,
     inference: Any | None = None,
 ) -> Any | None:
-    """Implements ``StarShaclSchema.extract_subgraph()`` - see module
-    docstring for the design this follows. Returns the extracted subgraph
-    itself (a plain graph object), or ``None`` if ``focus_node`` doesn't
-    actually conform to ``shape``. This function assumes conformance as a
-    precondition the caller has already checked, rather than existing to
-    diagnose non-conformance - there is no separate report explaining a
-    ``None`` result.
+    """The subgraph a shape covers for one focus node - like
+    ``StarLayerGraph.cbd()``, but the reachability rule is ``shape``'s own
+    constraints instead of blank-node adjacency. See module docstring for
+    the full design this follows.
+
+    Returns the extracted subgraph itself (a plain graph object), or
+    ``None`` if ``focus_node`` doesn't actually conform to ``shape`` - this
+    function assumes conformance as a precondition the caller has already
+    checked (e.g. via ``validate()``), rather than existing to diagnose
+    non-conformance, so there's no separate report explaining a ``None``
+    result.
 
     ``shacl_graph`` is a raw shapes graph (already normalized by the caller,
     matching ``evaluate()``'s own calling convention) - wrapped here into a

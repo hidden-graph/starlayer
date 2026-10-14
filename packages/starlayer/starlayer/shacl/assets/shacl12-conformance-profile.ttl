@@ -41,18 +41,27 @@
 # Not declared at all (no known IRI in the published draft, and not
 # tracked by the gap matrix): the community-managed CD1/Pretty
 # Print/OWL Consistent/SHACL 1.0 profiles mentioned in S3.
+#
+# Subject IRI and seeAlso fixed 2026-10-14: both still named the
+# pre-merge "packages/shacl" path (a known, previously-flagged-but-undone
+# drift bug - see starlayer/starontology/__init__.py's own comment on
+# _resource_iri(), written before this fix and updated alongside it) -
+# this repo has had no packages/shacl directory since the three-package
+# merge into packages/starlayer. Now packages/starlayer/starlayer/shacl,
+# matching starlayer/assets/starlayer-conformance.ttl's own already-
+# correct convention for this exact package.
 
 @prefix dcterms: <http://purl.org/dc/terms/> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 @prefix conformance: <https://github.com/hidden-graph/starlayer/ns/conformance#> .
 
-<https://github.com/hidden-graph/starlayer/tree/main/packages/shacl>
+<https://github.com/hidden-graph/starlayer/tree/main/packages/starlayer/starlayer/shacl>
     rdfs:label "starshacl" ;
     rdfs:comment "pySHACL-based SHACL validation and rule execution with RDF 1.2 / triple-term support, part of the StarLayer stack."@en ;
     rdfs:comment "Not claimed: the UI Profile (widget-selection algorithm unimplemented - see this file's own header comment for the full reasoning)."@en ;
-    dcterms:modified "2026-10-09"^^xsd:date ;
-    rdfs:seeAlso <https://github.com/hidden-graph/starlayer/blob/main/packages/shacl/docs/shacl12-gap-matrix.md> ;
+    dcterms:modified "2026-10-14"^^xsd:date ;
+    rdfs:seeAlso <https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/docs/shacl/shacl12-gap-matrix.md> ;
     dcterms:conformsTo
         <http://www.w3.org/ns/shacl/profile/core> ,
         <http://www.w3.org/ns/shacl/profile/sparql> ,

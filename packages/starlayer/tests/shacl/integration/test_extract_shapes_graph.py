@@ -9,7 +9,7 @@ on (follows blank-node objects recursively, never named-IRI ones).
 import pytest
 from rdflib import Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.shacl import StarShaclSchema
+from starlayer.shacl import StarShaclSchema, extract_subgraph
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
@@ -417,15 +417,20 @@ class TestShapesGraphOnOtherMethods:
         assert (EX.acme, EX.name, None) in result or any(True for _ in result.triples((EX.acme, EX.name, None)))
 
     def test_extract_subgraph_scoped_to_one_module(self) -> None:
+        """extract_subgraph() is a plain function, not a StarShaclSchema
+        method, so it has no shapes_graph_resource= of its own - scoping to
+        one module is two explicit calls instead: extract_shapes_graph()
+        pulls the module out, then the bare function is given it directly
+        as shacl_graph=. Nothing is lost, it's just no longer a single
+        convenience call."""
         schema = StarShaclSchema(shacl_graph=_two_module_graph())
         data = StarLayerGraph()
         data.parse(
             data='@prefix ex: <http://example.org/> . ex:acme a ex:Company ; ex:name "Acme" .', format="turtle"
         )
 
-        extracted = schema.extract_subgraph(
-            data_graph=data, shape=EX.CompanyShape, focus_node=EX.acme, shapes_graph_resource=EX.ModuleB
-        )
+        module_b = schema.extract_shapes_graph(EX.ModuleB)
+        extracted = extract_subgraph(data, EX.CompanyShape, EX.acme, shacl_graph=module_b)
         assert extracted is not None
         assert (EX.acme, EX.name, None) in extracted or any(True for _ in extracted.triples((EX.acme, EX.name, None)))
 

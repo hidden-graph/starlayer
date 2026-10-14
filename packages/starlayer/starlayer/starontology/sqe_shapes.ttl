@@ -1,0 +1,161 @@
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#> .
+@prefix sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+sqe:AskQueryShape a sh:NodeShape ;
+    sh:property [
+        sh:maxCount 1 ;
+        sh:message "sqe:AskQuery must have exactly one sqe:where, a well-formed pattern list" ;
+        sh:minCount 1 ;
+        sh:node sqe:WhereListShape ;
+        sh:path sqe:where
+    ] ;
+    sh:targetClass sqe:AskQuery .
+
+sqe:BindShape a sh:NodeShape ;
+    sh:property [
+        sh:maxCount 1 ;
+        sh:message "sqe:Bind must have exactly one sqe:var, a Variable" ;
+        sh:minCount 1 ;
+        sh:node spexpr:VariableShape ;
+        sh:path sqe:var
+    ], [
+        sh:maxCount 1 ;
+        sh:message "sqe:Bind must have exactly one sqe:expr, a well-formed salg: expression" ;
+        sh:minCount 1 ;
+        sh:node spexpr:ExpressionShape ;
+        sh:path sqe:expr
+    ] ;
+    sh:targetClass sqe:Bind .
+
+sqe:ConstructQueryShape a sh:NodeShape ;
+    sh:property [
+        sh:maxCount 1 ;
+        sh:message "sqe:ConstructQuery must have exactly one sqe:where, a well-formed pattern list" ;
+        sh:minCount 1 ;
+        sh:node sqe:WhereListShape ;
+        sh:path sqe:where
+    ], [
+        sh:maxCount 1 ;
+        sh:message "sqe:ConstructQuery must have exactly one sqe:template, an rdf:List of TriplePattern" ;
+        sh:minCount 1 ;
+        sh:path sqe:template
+    ] ;
+    sh:targetClass sqe:ConstructQuery .
+
+sqe:FilterShape a sh:NodeShape ;
+    sh:property [
+        sh:maxCount 1 ;
+        sh:message "sqe:Filter must have exactly one sqe:expr, a well-formed salg: expression" ;
+        sh:minCount 1 ;
+        sh:node spexpr:ExpressionShape ;
+        sh:path sqe:expr
+    ] ;
+    sh:targetClass sqe:Filter .
+
+sqe:ObjectOrVariableShape a sh:NodeShape ;
+    sh:or ( [
+        sh:nodeKind sh:IRI
+    ] [
+        sh:nodeKind sh:BlankNode
+    ] [
+        sh:nodeKind sh:Literal
+    ] spexpr:VariableShape ) .
+
+sqe:OptionalShape a sh:NodeShape ;
+    sh:property [
+        sh:maxCount 1 ;
+        sh:message "sqe:Optional must have exactly one sqe:where, a well-formed pattern list" ;
+        sh:minCount 1 ;
+        sh:node sqe:WhereListShape ;
+        sh:path sqe:where
+    ] ;
+    sh:targetClass sqe:Optional .
+
+sqe:PredicateOrVariableOrPathShape a sh:NodeShape ;
+    sh:or ( [
+        sh:nodeKind sh:IRI
+    ] spexpr:VariableShape spexpr:PathShape ) .
+
+sqe:SelectQueryShape a sh:NodeShape ;
+    sh:property [
+        sh:maxCount 1 ;
+        sh:message "sqe:SelectQuery must have exactly one sqe:projection, an rdf:List of Variables" ;
+        sh:minCount 1 ;
+        sh:path sqe:projection
+    ], [
+        sh:maxCount 1 ;
+        sh:message "sqe:SelectQuery must have exactly one sqe:where, a well-formed pattern list" ;
+        sh:minCount 1 ;
+        sh:node sqe:WhereListShape ;
+        sh:path sqe:where
+    ] ;
+    sh:targetClass sqe:SelectQuery .
+
+sqe:ShapesGraph a sh:ShapesGraph ;
+    rdfs:member sqe:SubjectOrVariableShape, sqe:OptionalShape, sqe:FilterShape, sqe:BindShape, sqe:SelectQueryShape, sqe:ConstructQueryShape, sqe:AskQueryShape, sqe:WhereListShape, sqe:ObjectOrVariableShape, sqe:UnionShape, sqe:TriplePatternShape, sqe:PredicateOrVariableOrPathShape ;
+    owl:imports spexpr:ShapesGraph .
+
+sqe:SubjectOrVariableShape a sh:NodeShape ;
+    sh:or ( [
+        sh:nodeKind sh:IRI
+    ] [
+        sh:nodeKind sh:BlankNode
+    ] spexpr:VariableShape ) .
+
+sqe:TriplePatternShape a sh:NodeShape ;
+    sh:property [
+        sh:maxCount 1 ;
+        sh:message "sqe:TriplePattern must have exactly one sqe:predicate, an IRI/Variable/property path" ;
+        sh:minCount 1 ;
+        sh:node sqe:PredicateOrVariableOrPathShape ;
+        sh:path sqe:predicate
+    ], [
+        sh:maxCount 1 ;
+        sh:message "sqe:TriplePattern must have exactly one sqe:subject, an IRI/blank node/Variable" ;
+        sh:minCount 1 ;
+        sh:node sqe:SubjectOrVariableShape ;
+        sh:path sqe:subject
+    ], [
+        sh:maxCount 1 ;
+        sh:message "sqe:TriplePattern must have exactly one sqe:object" ;
+        sh:minCount 1 ;
+        sh:node sqe:ObjectOrVariableShape ;
+        sh:path sqe:object
+    ] ;
+    sh:targetClass sqe:TriplePattern .
+
+sqe:UnionShape a sh:NodeShape ;
+    sh:property [
+        sh:maxCount 1 ;
+        sh:message "sqe:Union must have exactly one sqe:alternatives, an rdf:List of pattern lists" ;
+        sh:minCount 1 ;
+        sh:path sqe:alternatives
+    ] ;
+    sh:targetClass sqe:Union .
+
+sqe:WhereListShape a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "expected a well-formed rdf:List of sqe:TriplePattern/Optional/Union/Filter/Bind" ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
+            SELECT $this
+            WHERE {
+                {
+                    FILTER ( $this != rdf:nil )
+                    FILTER NOT EXISTS { $this rdf:first ?head }
+                } UNION {
+                    $this rdf:rest*/rdf:first ?item .
+                    FILTER NOT EXISTS {
+                        ?item a ?t .
+                        FILTER ( ?t IN ( sqe:TriplePattern, sqe:Optional, sqe:Union, sqe:Filter, sqe:Bind ) )
+                    }
+                }
+            }
+        """
+    ] .

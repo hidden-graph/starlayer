@@ -15,7 +15,7 @@ EX = Namespace("http://example.org/")
 
 pyshacl = pytest.importorskip("pyshacl")
 
-_LIBRARY_IRI = URIRef("https://github.com/hidden-graph/starlayer/tree/main/packages/shacl")
+_LIBRARY_IRI = URIRef("https://github.com/hidden-graph/starlayer/tree/main/packages/starlayer/starlayer/shacl")
 _DECLARED_PROFILES = (
     URIRef("http://www.w3.org/ns/shacl/profile/core"),
     URIRef("http://www.w3.org/ns/shacl/profile/sparql"),

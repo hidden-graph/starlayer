@@ -1,0 +1,111 @@
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+
+skos:Collection a owl:Class .
+
+skos:Concept a owl:Class ;
+    owl:disjointWith skos:Collection, skos:ConceptScheme .
+
+skos:ConceptScheme a owl:Class ;
+    owl:disjointWith skos:Collection .
+
+skos:OrderedCollection a owl:Class ;
+    rdfs:subClassOf skos:Collection .
+
+skos:altLabel a owl:AnnotationProperty ;
+    rdfs:range rdfs:Literal ;
+    rdfs:subPropertyOf rdfs:label .
+
+skos:broadMatch a owl:ObjectProperty ;
+    rdfs:subPropertyOf skos:mappingRelation, skos:broader .
+
+skos:broader a owl:ObjectProperty ;
+    rdfs:subPropertyOf skos:broaderTransitive .
+
+skos:broaderTransitive a owl:TransitiveProperty, owl:ObjectProperty ;
+    rdfs:subPropertyOf skos:semanticRelation .
+
+skos:changeNote a owl:AnnotationProperty ;
+    rdfs:subPropertyOf skos:note .
+
+skos:closeMatch a owl:SymmetricProperty, owl:ObjectProperty ;
+    rdfs:subPropertyOf skos:mappingRelation .
+
+skos:definition a owl:AnnotationProperty ;
+    rdfs:subPropertyOf skos:note .
+
+skos:editorialNote a owl:AnnotationProperty ;
+    rdfs:subPropertyOf skos:note .
+
+skos:exactMatch a owl:TransitiveProperty, owl:ObjectProperty, owl:SymmetricProperty ;
+    rdfs:subPropertyOf skos:closeMatch .
+
+skos:example a owl:AnnotationProperty ;
+    rdfs:subPropertyOf skos:note .
+
+skos:hasTopConcept a owl:ObjectProperty ;
+    rdfs:domain skos:ConceptScheme ;
+    rdfs:range skos:Concept .
+
+skos:hiddenLabel a owl:AnnotationProperty ;
+    rdfs:range rdfs:Literal ;
+    rdfs:subPropertyOf rdfs:label .
+
+skos:historyNote a owl:AnnotationProperty ;
+    rdfs:subPropertyOf skos:note .
+
+skos:inScheme a owl:ObjectProperty ;
+    rdfs:range skos:ConceptScheme .
+
+skos:mappingRelation a owl:ObjectProperty ;
+    rdfs:subPropertyOf skos:semanticRelation .
+
+skos:member a owl:ObjectProperty ;
+    rdfs:domain skos:Collection ;
+    rdfs:range [
+        a owl:Class ;
+        owl:unionOf ( skos:Concept skos:Collection )
+    ] .
+
+skos:memberList a owl:FunctionalProperty, owl:ObjectProperty ;
+    rdfs:domain skos:OrderedCollection ;
+    rdfs:range rdf:List .
+
+skos:narrowMatch a owl:ObjectProperty ;
+    rdfs:subPropertyOf skos:mappingRelation, skos:narrower ;
+    owl:inverseOf skos:broadMatch .
+
+skos:narrower a owl:ObjectProperty ;
+    rdfs:subPropertyOf skos:narrowerTransitive ;
+    owl:inverseOf skos:broader .
+
+skos:narrowerTransitive a owl:TransitiveProperty, owl:ObjectProperty ;
+    rdfs:subPropertyOf skos:semanticRelation ;
+    owl:inverseOf skos:broaderTransitive .
+
+skos:notation a owl:DatatypeProperty .
+
+skos:note a owl:AnnotationProperty .
+
+skos:prefLabel a owl:AnnotationProperty ;
+    rdfs:range rdfs:Literal ;
+    rdfs:subPropertyOf rdfs:label .
+
+skos:related a owl:SymmetricProperty, owl:ObjectProperty ;
+    rdfs:subPropertyOf skos:semanticRelation .
+
+skos:relatedMatch a owl:ObjectProperty, owl:SymmetricProperty ;
+    rdfs:subPropertyOf skos:related, skos:mappingRelation .
+
+skos:scopeNote a owl:AnnotationProperty ;
+    rdfs:subPropertyOf skos:note .
+
+skos:semanticRelation a owl:ObjectProperty ;
+    rdfs:domain skos:Concept ;
+    rdfs:range skos:Concept .
+
+skos:topConceptOf a owl:ObjectProperty ;
+    rdfs:subPropertyOf skos:inScheme ;
+    owl:inverseOf skos:hasTopConcept .
