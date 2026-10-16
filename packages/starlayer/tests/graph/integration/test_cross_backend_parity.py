@@ -111,6 +111,32 @@ def _fuseki_graph() -> StarLayerGraph:
     return StarLayerGraph(store=store, identifier=GRAPH_URI, backend='rdf-1.2')
 
 
+def _oxigraph_store_available() -> bool:
+    try:
+        import oxrdflib  # noqa: F401
+        import pyoxigraph  # noqa: F401
+    except ImportError:
+        return False
+    return True
+
+
+oxigraph_store = pytest.mark.skipif(
+    not _oxigraph_store_available(),
+    reason="oxrdflib/pyoxigraph not installed - pip install oxrdflib pyoxigraph",
+)
+
+
+def _oxigraph_store_graph() -> StarLayerGraph:
+    # No server, no clearing: a fresh in-process engine per call, wrapped in
+    # oxrdflib's standard OxigraphStore, run in rdf-1.2 native mode (see
+    # starlayer.graph.backends.native_oxigraph).
+    import pyoxigraph
+    from oxrdflib import OxigraphStore
+    return StarLayerGraph(
+        store=OxigraphStore(store=pyoxigraph.Store()), identifier=GRAPH_URI, backend='rdf-1.2'
+    )
+
+
 def _oxigraph_graph() -> StarLayerGraph:
     _clear_http(OXIGRAPH_U)
     store = SPARQLUpdateStore(query_endpoint=OXIGRAPH_Q, update_endpoint=OXIGRAPH_U)
@@ -377,6 +403,26 @@ def test_oxigraph_matches_internal_for_numeric_lexical_form(name, fn):
     assert oxigraph_result == internal_result, (
         f'{name}: oxigraph={oxigraph_result!r} != internal={internal_result!r}'
     )
+
+@oxigraph_store
+@pytest.mark.parametrize('name,fn', SCENARIOS, ids=[s[0] for s in SCENARIOS])
+def test_oxigraph_store_matches_internal(name, fn):
+    """oxrdflib OxigraphStore in rdf-1.2 mode must match the in-memory
+    baseline on every scenario - the same engine as the HTTP axis above,
+    just in-process."""
+    assert fn(_oxigraph_store_graph()) == fn(_internal_graph()), name
+
+
+@oxigraph_store
+@pytest.mark.parametrize(
+    'name,fn', NUMERIC_LEXICAL_FORM_SCENARIOS, ids=[s[0] for s in NUMERIC_LEXICAL_FORM_SCENARIOS]
+)
+def test_oxigraph_store_matches_internal_for_numeric_lexical_form(name, fn):
+    """The engine's whole-number xsd:decimal canonicalization defect also
+    reproduces in-process; _parse_ox_term() applies the same fix as the HTTP
+    transport."""
+    assert fn(_oxigraph_store_graph()) == fn(_internal_graph()), name
+
 
 
 # ---------------------------------------------------------------------------

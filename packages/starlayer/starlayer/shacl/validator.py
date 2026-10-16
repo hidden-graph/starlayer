@@ -3960,7 +3960,7 @@ def _patch_stringify_for_native_backend_bnodes() -> bool:
 
             from rdflib.term import Variable
 
-            from starlayer.graph.backends.native import http_select, resolve_store_http
+            from starlayer.graph.backends.native import execute_select
             from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 
             # Deliberately not dataset.contexts()/dataset.graph(id): rdflib's
@@ -3972,8 +3972,9 @@ def _patch_stringify_for_native_backend_bnodes() -> bool:
             # simply by reaching a code path the original implementation
             # never touched. A plain SELECT DISTINCT for graph names has no
             # such side effect.
-            q_url, _, hdrs = resolve_store_http(dataset.store, "rdf-1.2")
-            _vars, bindings = http_select(q_url, "SELECT DISTINCT ?g WHERE { GRAPH ?g { ?s ?p ?o } }", hdrs)
+            _vars, bindings = execute_select(
+                dataset.store, "rdf-1.2", "SELECT DISTINCT ?g WHERE { GRAPH ?g { ?s ?p ?o } }"
+            )
             graph_names = [row[Variable("g")] for row in bindings if Variable("g") in row]
 
             def _graph_contains(name, pattern) -> bool:

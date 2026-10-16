@@ -414,6 +414,67 @@ def check_native_version_conformance(text: str) -> None:
     )
 
 
+def _in_process(store) -> bool:
+    """True when ``store`` is an in-process Oxigraph (``oxrdflib``'s
+    ``OxigraphStore``) rather than a remote HTTP endpoint. See
+    ``native_oxigraph.py``."""
+    return type(store).__name__ == 'OxigraphStore' and hasattr(type(store), '_inner')
+
+
+def execute_select(store, backend: str, sparql: str) -> tuple[list, list]:
+    """Run a SPARQL SELECT against a native-backend store - remote HTTP or
+    in-process Oxigraph - returning (vars, bindings) either way."""
+    if _in_process(store):
+        from starlayer.graph.backends.native_oxigraph import ox_select
+        return ox_select(store, sparql)
+    q_url, _, hdrs = resolve_store_http(store, backend)
+    return http_select(q_url, sparql, hdrs)
+
+
+def execute_ask(store, backend: str, sparql: str) -> bool:
+    """Run a SPARQL ASK against a native-backend store (HTTP or in-process)."""
+    if _in_process(store):
+        from starlayer.graph.backends.native_oxigraph import ox_ask
+        return ox_ask(store, sparql)
+    q_url, _, hdrs = resolve_store_http(store, backend)
+    return http_ask(q_url, sparql, hdrs)
+
+
+def execute_update(store, backend: str, sparql: str) -> None:
+    """Run a SPARQL UPDATE against a native-backend store (HTTP or in-process)."""
+    if _in_process(store):
+        from starlayer.graph.backends.native_oxigraph import ox_update
+        ox_update(store, sparql)
+        return
+    _, u_url, hdrs = resolve_store_http(store, backend)
+    http_update(u_url, sparql, hdrs)
+
+
+def execute_construct(store, backend: str, sparql: str):
+    """Run a SPARQL CONSTRUCT/DESCRIBE against a native-backend store (HTTP or
+    in-process), returning a deskolemized StarLayerGraph of the results."""
+    from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+
+    if _in_process(store):
+        from starlayer.graph.backends.native_oxigraph import ox_construct
+        g = StarLayerGraph()
+        for s, p, o in ox_construct(store, sparql):
+            g.add((s, p, o))
+        return g
+    q_url, _, hdrs = resolve_store_http(store, backend)
+    body, _ = http_construct(q_url, sparql, hdrs)
+    g = StarLayerGraph()
+    g.parse(data=body.decode('utf-8'), format='turtle12')
+    # Reverse skolemize_bnode(): a CONSTRUCT template can echo back a stored
+    # triple containing one of our own BN_NS URIs (a blank node we skolemized
+    # on write - see skolemize_bnode()'s docstring), which the Turtle parser
+    # has no way to recognize as anything but an ordinary URIRef.
+    deskolemized = StarLayerGraph()
+    for s, p, o in g.triples((None, None, None)):
+        deskolemized.add((deskolemize_bnode(s), p, deskolemize_bnode(o)))
+    return deskolemized
+
+
 def native_query(store, backend: str, query_object: Any, processor: str = 'sparql',
                  result: str = 'sparql', initNs: dict | None = None,
                  initBindings: dict | None = None, use_store_provided: bool = True,
@@ -452,7 +513,6 @@ def native_query(store, backend: str, query_object: Any, processor: str = 'sparq
         (graph set, blank nodes deskolemized), or SELECT (vars/bindings
         set).
     """
-    q_url, _, hdrs = resolve_store_http(store, backend)
     if isinstance(query_object, str):
         check_native_version_conformance(query_object)
 
@@ -466,29 +526,18 @@ def native_query(store, backend: str, query_object: Any, processor: str = 'sparq
     if query_type == 'ASK':
         from rdflib.query import Result as RDFResult
         r = RDFResult('ASK')
-        r.askAnswer = http_ask(q_url, sparql, hdrs)
+        r.askAnswer = execute_ask(store, backend, sparql)
         return r
 
     if query_type in ('CONSTRUCT', 'DESCRIBE'):
         from rdflib.query import Result as RDFResult
 
-        from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-        body, _ = http_construct(q_url, sparql, hdrs)
-        g = StarLayerGraph()
-        g.parse(data=body.decode('utf-8'), format='turtle12')
-        # Reverse skolemize_bnode(): a CONSTRUCT template can echo back a
-        # stored triple containing one of our own BN_NS URIs (a blank node
-        # we skolemized on write - see skolemize_bnode()'s docstring), which
-        # the Turtle parser above has no way to recognize as anything but an
-        # ordinary URIRef.
-        deskolemized = StarLayerGraph()
-        for s, p, o in g.triples((None, None, None)):
-            deskolemized.add((deskolemize_bnode(s), p, deskolemize_bnode(o)))
+        deskolemized = execute_construct(store, backend, sparql)
         r = RDFResult('CONSTRUCT')
         r.graph = deskolemized
         return r
 
-    vars_, bindings = http_select(q_url, sparql, hdrs)
+    vars_, bindings = execute_select(store, backend, sparql)
     return build_result(vars_, bindings)
 
 
@@ -520,7 +569,6 @@ def native_update(store, backend: str, update_object: Any) -> None:
             plain SPARQL 1.1 text.
         update_object: The SPARQL UPDATE text to execute.
     """
-    _, u_url, hdrs = resolve_store_http(store, backend)
     text = update_object
     if backend == 'rdf-1.2':
         if isinstance(text, str):
@@ -565,4 +613,4 @@ def native_update(store, backend: str, update_object: Any) -> None:
                 )
             rdf_graph, root = update_to_rdf11(prepared_12)
             text = rdf11_update_to_sparql11_text(rdf_graph, root)
-    http_update(u_url, text, hdrs)
+    execute_update(store, backend, text)

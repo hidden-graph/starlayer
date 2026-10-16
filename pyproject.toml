@@ -43,6 +43,11 @@ classifiers = [
 # pkg_resources import upstream.
 sqlalchemy = ["rdflib-sqlalchemy>=0.5", "setuptools<81"]
 reasoning = ["owlrl>=6"]
+# Oxigraph as an rdflib Store (oxrdflib's OxigraphStore, wrapping pyoxigraph),
+# usable in rdf-1.2 native mode via StarLayerGraph(store=OxigraphStore(...),
+# backend='rdf-1.2') - real triple terms + SPARQL 1.2, in-process, no HTTP.
+# See starlayer/graph/backends/native_oxigraph.py. Opt-in, never a default.
+oxigraph = ["oxrdflib>=0.4", "pyoxigraph>=0.5"]
 # The two engines StarLayerGraph.infer(entailment=ENTAILMENT["OWL-Direct"], engine=...) can
 # dispatch to - see starlayer/graph/graph/owl_dl.py and owl_dl_rustdl.py.
 # Neither is core: "hermit" also needs a real JVM on PATH that pip alone

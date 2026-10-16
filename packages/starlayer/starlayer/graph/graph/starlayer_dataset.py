@@ -649,10 +649,9 @@ class StarLayerDataset(Dataset):
             return super().__len__()
         from rdflib.term import Variable
 
-        from starlayer.graph.backends.native import http_select, resolve_store_http
-        q_url, _, hdrs = resolve_store_http(self.store, self._backend)
+        from starlayer.graph.backends.native import execute_select
         sparql = 'SELECT (COUNT(*) AS ?c) WHERE { { ?s ?p ?o } UNION { GRAPH ?g { ?s ?p ?o } } }'
-        _vars, bindings = http_select(q_url, sparql, hdrs)
+        _vars, bindings = execute_select(self.store, self._backend, sparql)
         if not bindings:
             return 0
         return int(str(bindings[0][Variable('c')]))
@@ -831,9 +830,10 @@ class StarLayerDataset(Dataset):
         parsed and lowered to the tt:HASH encoding first (native_update
         itself, via starlayer.sparql).
         """
+        from starlayer.graph.backends.native import _in_process
         is_remote_http_store = bool(
             getattr(self.store, 'query_endpoint', None) and getattr(self.store, 'update_endpoint', None)
-        )
+        ) or (self._backend == 'rdf-1.2' and _in_process(self.store))
         if not is_remote_http_store:
             if isinstance(update_object, str):
                 from starlayer.graph.query.version_directive import (

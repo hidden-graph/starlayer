@@ -490,17 +490,6 @@ class StarLayerGraph(Graph):
     # Native backend (rdf-1.2)
     # ------------------------------------------------------------------
 
-    def _store_http(self) -> tuple:
-        """Return (query_url, update_url, extra_headers) from the backing store.
-
-        Raises RuntimeError if the store does not expose HTTP endpoints
-        (e.g. in-memory stores). See starlayer.graph.backends.native.resolve_store_http()
-        - shared with StarLayerDataset's own native-backend dispatch, since a
-        dataset's contexts all share the same underlying store.
-        """
-        from starlayer.graph.backends.native import resolve_store_http
-        return resolve_store_http(self.store, self._backend)
-
     def _native_scoped(self, body: str) -> str:
         """Wrap ``body`` in ``GRAPH <self.identifier> { ... }``, unless this
         graph stands for a dataset's own default graph, in which case
@@ -527,9 +516,8 @@ class StarLayerGraph(Graph):
     def _native_add(self, s, p, obj) -> None:
         """Write a single (s, p, obj) triple to this graph via one SPARQL
         Update HTTP request."""
-        from starlayer.graph.backends.native import http_update, sparql_term
+        from starlayer.graph.backends.native import execute_update, sparql_term
         from starlayer.graph.model.triple import TripleTerm as _TT
-        q_url, u_url, hdrs = self._store_http()
         s_str = sparql_term(s)
         p_str = sparql_term(p)
         o_str = sparql_term(obj)
@@ -542,7 +530,7 @@ class StarLayerGraph(Graph):
             sparql = f'INSERT {{ {self._native_scoped(triple_str)} }} WHERE {{}}'
         else:
             sparql = f'INSERT DATA {{ {self._native_scoped(triple_str)} }}'
-        http_update(u_url, sparql, hdrs)
+        execute_update(self.store, self._backend, sparql)
 
     def _native_add_many(self, triples) -> None:
         """Write every ``(s, p, obj)`` in ``triples`` to this graph in a
@@ -571,7 +559,7 @@ class StarLayerGraph(Graph):
         """
         if not triples:
             return
-        from starlayer.graph.backends.native import http_update, sparql_term
+        from starlayer.graph.backends.native import execute_update, sparql_term
         from starlayer.graph.model.triple import TripleTerm as _TT
 
         parts = []
@@ -589,9 +577,8 @@ class StarLayerGraph(Graph):
             o_str = sparql_term(obj, skolemize_bnodes=False)
             parts.append(f'{s_str} {p_str} {o_str} .')
 
-        _, u_url, hdrs = self._store_http()
         sparql = f'INSERT {{ {self._native_scoped(" ".join(parts))} }} WHERE {{}}'
-        http_update(u_url, sparql, hdrs)
+        execute_update(self.store, self._backend, sparql)
         self._on_mutated()
 
     def _native_triples(self, triple):
@@ -602,8 +589,7 @@ class StarLayerGraph(Graph):
         from rdflib import BNode
         from rdflib.term import Variable
 
-        from starlayer.graph.backends.native import http_ask, http_select, sparql_term
-        q_url, _, hdrs = self._store_http()
+        from starlayer.graph.backends.native import execute_ask, execute_select, sparql_term
         s, p, o = triple
 
         free = []
@@ -688,7 +674,7 @@ class StarLayerGraph(Graph):
 
         if not free and not bnode_filters:
             sparql = f'ASK {{ {body} }}'
-            if http_ask(q_url, sparql, hdrs):
+            if execute_ask(self.store, self._backend, sparql):
                 yield (s, p, o)
             return
 
@@ -696,7 +682,7 @@ class StarLayerGraph(Graph):
         sel = ' '.join(f'?{v}' for v in projected)
         distinct = 'DISTINCT ' if bnode_filters else ''
         sparql = f'SELECT {distinct}{sel} WHERE {{ {body} }}'
-        vars_, bindings = http_select(q_url, sparql, hdrs)
+        vars_, bindings = execute_select(self.store, self._backend, sparql)
         for row in bindings:
             if any(row.get(Variable(v)) != bn for v, bn in bnode_filters.items()):
                 continue
@@ -1139,9 +1125,8 @@ class StarLayerGraph(Graph):
         {p}`` pattern-delete rather than ``DELETE DATA`` - the latter only
         accepts fully ground triples.
         """
-        from starlayer.graph.backends.native import http_update, sparql_term
+        from starlayer.graph.backends.native import execute_update, sparql_term
         from starlayer.graph.model.triple import TripleTerm as _TT
-        _, u_url, hdrs = self._store_http()
 
         # A removal can invalidate a previously-recorded bnode discovery
         # handle (_native_triples()'s join-based fix for bound-BNode
@@ -1168,7 +1153,7 @@ class StarLayerGraph(Graph):
             sparql = f'DELETE {{ {scoped} }} WHERE {{ {scoped} }}'
         else:
             sparql = f'DELETE DATA {{ {scoped} }}'
-        http_update(u_url, sparql, hdrs)
+        execute_update(self.store, self._backend, sparql)
 
     def remove(self, triple) -> StarLayerGraph:
         """Remove a triple matching the pattern. Always returns self, matching
@@ -1305,9 +1290,8 @@ class StarLayerGraph(Graph):
         """
         from rdflib.term import Variable
 
-        from starlayer.graph.backends.native import http_select, sparql_term
+        from starlayer.graph.backends.native import execute_select, sparql_term
         s, p, o = triple
-        q_url, _, hdrs = self._store_http()
 
         free = []
         values_clauses = []
@@ -1325,7 +1309,7 @@ class StarLayerGraph(Graph):
 
         pattern = f'{_slot(s, "s")} {_slot(p, "p")} {_slot(o, "o")} .'
         sparql = f'SELECT * WHERE {{ {self._native_scoped(pattern)} {" ".join(values_clauses)} }}'
-        vars_, bindings = http_select(q_url, sparql, hdrs)
+        vars_, bindings = execute_select(self.store, self._backend, sparql)
         for row in bindings:
             yield (
                 row.get(Variable('s'), s) if 's' in free else s,
@@ -1387,10 +1371,9 @@ class StarLayerGraph(Graph):
         """
         from rdflib.term import Variable
 
-        from starlayer.graph.backends.native import http_select
-        q_url, _, hdrs = self._store_http()
+        from starlayer.graph.backends.native import execute_select
         sparql = f'SELECT (COUNT(*) AS ?c) WHERE {{ {self._native_scoped("?s ?p ?o .")} }}'
-        _vars, bindings = http_select(q_url, sparql, hdrs)
+        _vars, bindings = execute_select(self.store, self._backend, sparql)
         if not bindings:
             return 0
         return int(str(bindings[0][Variable('c')]))
