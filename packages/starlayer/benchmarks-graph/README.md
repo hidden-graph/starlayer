@@ -11,6 +11,7 @@ Performance benchmarks for starlayergraph across all supported backends.
 | `bench_inmemory.py` | In-memory only: insert/query/memory characterization at 100–100K facts | No server — runs standalone |
 | `bench_http.py` | Small-scale (100–10K) generic op comparison (insert/contains/full-scan/SPARQL) across backends | Fuseki and/or Oxigraph — skips whichever isn't reachable |
 | `bench_scaling.py` | Large-scale (50K/250K/500K) TT-pattern query performance: in-memory vs rdf-1.1/Fuseki vs rdf-1.2/Fuseki vs rdf-1.2/Oxigraph | Fuseki and/or Oxigraph — skips whichever isn't reachable |
+| `bench_inmemory_oxigraph.py` | In-memory default store vs in-memory Oxigraph (`OxigraphStore`, `rdf-1.2`), sweeping size (50K-500K) *and* reification rate (10/50/100%): load, memory, TT-pattern queries, lookups. Each cell in its own subprocess (clean peak RSS). `--quick` for a 50K smoke run | `pip install oxrdflib pyoxigraph`; no server |
 
 `bench_http.py` and `bench_scaling.py` look like they'd overlap (both compare backends) but ask different questions: `bench_http.py` measures general per-operation overhead at small scale across both plain-triple and TT workloads, while `bench_scaling.py` is specifically about how TT-pattern query latency scales with dataset size. `bench_scaling.py` replaced three former scripts (`bench_fuseki.py`, `bench_fuseki_rdf11.py`, `bench_oxigraph.py`) that duplicated the same dataset generator, query set, and timing harness three times over with only the backend-loading logic differing.
 

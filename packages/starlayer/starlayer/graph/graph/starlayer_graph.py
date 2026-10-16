@@ -2991,6 +2991,29 @@ class StarLayerGraph(Graph):
 
         return self, delta
 
+    def empty_like(self) -> StarLayerGraph:
+        """A new, empty graph of the same kind as this one, with the same
+        namespace bindings.
+
+        The rule for graphs derived from this one (``infer()``'s default
+        result, a native ``query()``'s CONSTRUCT result): they are created
+        *like their source*. A graph backed by an in-process Oxigraph yields a
+        fresh, independent in-process Oxigraph with the same representation;
+        any other kind - the default in-memory store, a remote endpoint (a new
+        remote database can't be minted), SQLAlchemy - yields an ordinary
+        in-memory ``StarLayerGraph``. Nothing global is consulted: the source
+        graph itself carries the choice, so internal scratch graphs elsewhere
+        are unaffected.
+
+        Returns:
+            A new empty StarLayerGraph.
+        """
+        from starlayer.graph.backends.native import new_graph_like
+        g = new_graph_like(self.store, self._backend)
+        for prefix, ns in self.namespaces():
+            g.bind(prefix, ns)
+        return g
+
     def infer(self, entailment=ENTAILMENT.RDFS, *, mode: str = 'full', target_graph=None,
               engine: str = 'hermit', timeout=_OWL_DL_TIMEOUT_DEFAULT) -> StarLayerGraph:
         """Materialize an RDFS/OWL-RL entailment closure.
@@ -3213,9 +3236,7 @@ class StarLayerGraph(Graph):
             return self
 
         if target_graph is None:
-            target_graph = StarLayerGraph()
-            for prefix, ns in self.namespaces():
-                target_graph.bind(prefix, ns)
+            target_graph = self.empty_like()
         elif not isinstance(target_graph, StarLayerGraph):
             raise TypeError(
                 f"infer() target_graph must be a StarLayerGraph, not {type(target_graph).__name__}. "
@@ -3232,10 +3253,15 @@ class StarLayerGraph(Graph):
             # triples()) - the decomposed form only still leaks through in
             # `delta`, for a newly-entailed fact that isn't itself
             # expressible with a real triple term (see below).
-            for t in self:
+            result_triples = list(self) + list(delta)
+        else:
+            result_triples = list(delta)
+        if target_graph._is_native:
+            # One batched write, not one INSERT per triple.
+            target_graph._native_add_many(result_triples)
+        else:
+            for t in result_triples:
                 target_graph.add(t)
-        for t in delta:
-            target_graph.add(t)
         return target_graph
 
     def owl_imports(self) -> tuple[Any, ...]:

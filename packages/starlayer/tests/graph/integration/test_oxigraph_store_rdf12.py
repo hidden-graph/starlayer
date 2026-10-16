@@ -13,7 +13,7 @@ Requires: pip install oxrdflib pyoxigraph
 """
 
 import pytest
-from rdflib import RDF, RDFS, BNode, Literal, URIRef
+from rdflib import RDF, RDFS, BNode, Literal, Namespace, URIRef
 from rdflib.namespace import OWL
 from starlayer.graph.graph import StarLayerDataset, StarLayerGraph
 from starlayer.graph.graph.entailment_regimes import ENTAILMENT
@@ -191,3 +191,92 @@ class TestEmbeddedCloseReopen:
         g2 = StarLayerGraph(store=store2, backend='rdf-1.2')
         assert (URIRef(EX + 'a'), URIRef(EX + 'b'), URIRef(EX + 'c')) in g2
         g2.close()
+
+
+# ---------------------------------------------------------------------------
+# Derived graphs are created like their source
+# ---------------------------------------------------------------------------
+
+REIFIES = URIRef('http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies')
+
+
+def _oxigraph_graph():
+    g = StarLayerGraph(store=embedded_oxigraph_store(), backend='rdf-1.2')
+    g.bind('ex', Namespace(EX))
+    return g
+
+
+def _is_oxigraph_backed(g) -> bool:
+    return type(g.store).__name__ == 'OxigraphStore' and g._backend == 'rdf-1.2'
+
+
+class TestEmptyLike:
+    def test_oxigraph_source_gives_independent_oxigraph(self):
+        src = _oxigraph_graph()
+        new = src.empty_like()
+        assert _is_oxigraph_backed(new)
+        assert new.store is not src.store
+        assert len(new) == 0
+        new.add((URIRef(EX + 'a'), URIRef(EX + 'p'), Literal('x')))
+        assert len(src) == 0                      # the two stores are independent
+
+    def test_namespaces_are_copied(self):
+        assert 'ex' in dict(_oxigraph_graph().empty_like().namespaces())
+
+    def test_default_source_gives_default_graph(self):
+        new = StarLayerGraph().empty_like()
+        assert not new._is_native
+        assert type(new.store).__name__ == 'Memory'
+
+
+class TestQueryConstructIsCreatedLikeTheSource:
+    def test_graph_construct_result_is_oxigraph_backed_with_triple_terms(self):
+        g = _oxigraph_graph()
+        tt = TripleTerm(URIRef(EX + 's'), URIRef(EX + 'p'), URIRef(EX + 'o'))
+        g.add((URIRef(EX + 'r'), REIFIES, tt))
+        g.add((URIRef(EX + 'a'), URIRef(EX + 'p'), Literal('x')))
+        result = g.query('CONSTRUCT { ?s ?p ?o } WHERE { ?s ?p ?o }').graph
+        assert _is_oxigraph_backed(result)
+        assert result.store is not g.store
+        assert set(result) == set(g)
+
+    def test_dataset_construct_result_is_oxigraph_backed(self):
+        ds = StarLayerDataset(store=embedded_oxigraph_store(), backend='rdf-1.2')
+        ds.default_graph.add((URIRef(EX + 'a'), URIRef(EX + 'p'), Literal('x')))
+        result = ds.query('CONSTRUCT { ?s ?p ?o } WHERE { ?s ?p ?o }').graph
+        assert _is_oxigraph_backed(result)
+        assert len(result) == 1
+
+
+@pytest.mark.skipif(not pytest.importorskip('owlrl', reason='owlrl not installed'), reason='owlrl')
+class TestInferIsCreatedLikeTheSource:
+    @staticmethod
+    def _data(g):
+        g.add((URIRef(EX + 'A'), RDFS.subClassOf, URIRef(EX + 'B')))
+        g.add((URIRef(EX + 'x'), RDF.type, URIRef(EX + 'A')))
+        return g
+
+    @pytest.mark.parametrize('mode', ['full', 'delta'])
+    def test_result_is_oxigraph_backed_and_source_untouched(self, mode):
+        src = self._data(_oxigraph_graph())
+        before = set(src)
+        out = src.infer(ENTAILMENT.RDFS, mode=mode)
+        assert _is_oxigraph_backed(out)
+        assert out.store is not src.store
+        assert set(src) == before
+        assert 'ex' in dict(out.namespaces())
+
+    @pytest.mark.parametrize('mode', ['full', 'delta'])
+    def test_matches_the_default_store_result_exactly(self, mode):
+        ox_out = self._data(_oxigraph_graph()).infer(ENTAILMENT.RDFS, mode=mode)
+        default_out = self._data(StarLayerGraph()).infer(ENTAILMENT.RDFS, mode=mode)
+        assert set(ox_out) == set(default_out)
+
+    def test_default_source_still_yields_default_graph(self):
+        out = self._data(StarLayerGraph()).infer(ENTAILMENT.RDFS)
+        assert not out._is_native
+
+    def test_in_place_mutates_the_source_and_returns_it(self):
+        src = self._data(_oxigraph_graph())
+        assert src.infer(ENTAILMENT.RDFS, mode='in-place') is src
+        assert (URIRef(EX + 'x'), RDF.type, URIRef(EX + 'B')) in src

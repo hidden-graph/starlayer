@@ -421,6 +421,25 @@ def _in_process(store) -> bool:
     return type(store).__name__ == 'OxigraphStore' and hasattr(type(store), '_inner')
 
 
+def new_graph_like(store, backend: str):
+    """A new, empty ``StarLayerGraph`` of the same kind as one backed by
+    ``store`` - the "derived graphs are created like their source" rule.
+
+    An in-process Oxigraph source gets a fresh, independent in-process
+    Oxigraph (a new path-less ``pyoxigraph.Store``) with the same
+    representation; anything else - the default in-memory store, a remote
+    HTTP endpoint (a new remote database can't be minted from here), SQLAlchemy,
+    etc. - gets an ordinary in-memory ``StarLayerGraph``, exactly as before.
+    """
+    from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+
+    if _in_process(store):
+        import pyoxigraph
+        from oxrdflib import OxigraphStore
+        return StarLayerGraph(store=OxigraphStore(store=pyoxigraph.Store()), backend=backend)
+    return StarLayerGraph()
+
+
 def execute_select(store, backend: str, sparql: str) -> tuple[list, list]:
     """Run a SPARQL SELECT against a native-backend store - remote HTTP or
     in-process Oxigraph - returning (vars, bindings) either way."""
@@ -457,9 +476,15 @@ def execute_construct(store, backend: str, sparql: str):
 
     if _in_process(store):
         from starlayer.graph.backends.native_oxigraph import ox_construct
-        g = StarLayerGraph()
-        for s, p, o in ox_construct(store, sparql):
-            g.add((s, p, o))
+        # Results are created like the source (in-process Oxigraph in, Oxigraph
+        # out) and loaded in one batch, not one INSERT per triple.
+        g = new_graph_like(store, backend)
+        triples = list(ox_construct(store, sparql))
+        if g._is_native:
+            g._native_add_many(triples)
+        else:
+            for t in triples:
+                g.add(t)
         return g
     q_url, _, hdrs = resolve_store_http(store, backend)
     body, _ = http_construct(q_url, sparql, hdrs)
