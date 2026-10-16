@@ -42,7 +42,11 @@ from starlayer.shacl.validator import (
 # needed to define a new native component); `asset_urls.get_raw_url(name)`
 # (where to fetch this package's own bundled SHACL asset files as real
 # GitHub URLs - a niche accessor, not a processing mode); and
-# `StarShaclSchema.close_shape(shape)`, a method, not a bare function.
+# `StarShaclSchema.close_shape(shape)`, a method, not a bare function;
+# `ui_widget_selection.select_widget(...)` (SHACL 1.2 User Interfaces'
+# widget-selection algorithm, shui:WidgetScore/shui:WidgetAcceptMatcher -
+# new, additive, no standalone use case for most callers outside a UI
+# rendering context, so qualified-only like the others here).
 
 __all__ = [
     "StarShaclSchema",

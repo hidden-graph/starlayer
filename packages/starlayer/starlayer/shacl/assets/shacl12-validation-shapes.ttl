@@ -613,11 +613,18 @@ stsh:SparqlPrefixesShapes
 # mistake regardless of whether shui: itself affects data validation.
 # Scoped to the three predicates actually documented below
 # (shui:editor/shui:viewer/shui:propertyRole, all of which reference a
-# named widget/role instance and so must be IRIs) - the
-# shui:WidgetScore/shui:WidgetAcceptMatcher selection-algorithm vocabulary
-# remains out of scope, since its own property definitions were never
-# confirmed with confidence (see docs/shacl12-gap-matrix.md's "Not Covered
-# / Deferred").
+# named widget/role instance and so must be IRIs).
+#
+# shui:WidgetScore now gets a real well-formedness shape too (below),
+# confirmed stable upstream as of the 2026-10-16 re-check
+# (https://www.w3.org/TR/shacl12-ui/widgets/score-validator.ttl, fetched
+# live). shui:WidgetAcceptMatcher deliberately still has none - it has no
+# formal shape anywhere upstream, and is actively contested there
+# (w3c/data-shapes#1249, open/unmerged, proposing to change its own
+# shui:widget cardinality) - see docs/shacl/implementation-plan.md item 3
+# and starlayer.shacl.ui_widget_selection's own module docstring, which
+# reads shui:WidgetAcceptMatcher's triples with no assumed cardinality for
+# exactly this reason.
 
 stsh:ShuiPredicateShapes
 	a sh:NodeShape ;
@@ -635,6 +642,34 @@ stsh:ShuiPredicateShapes
 	sh:property [
 		sh:path shui:propertyRole ;
 		sh:nodeKind sh:IRI ;                     # propertyRole-nodeKind: references a shui:PropertyRole instance (e.g. shui:LabelRole), always an IRI
+	] .
+
+stsh:WidgetScoreShape
+	a sh:NodeShape ;
+	rdfs:label "Well-formedness rules for shui:WidgetScore"@en ;
+	sh:targetClass shui:WidgetScore ;
+
+	sh:property [
+		sh:path shui:widget ;
+		sh:minCount 1 ;
+		sh:maxCount 1 ;
+		sh:nodeKind sh:BlankNodeOrIRI ;           # widget-nodeKind: the widget being scored, a named or anonymous widget instance
+	] ;
+	sh:property [
+		sh:path shui:score ;
+		sh:minCount 1 ;
+		sh:maxCount 1 ;
+		sh:or ( [ sh:datatype xsd:decimal ] [ sh:datatype xsd:integer ] ) ; # score-datatype: xsd:decimal or xsd:integer, per the upstream shape
+	] ;
+	sh:property [
+		sh:path shui:dataGraphShape ;
+		sh:maxCount 1 ;
+		sh:nodeKind sh:BlankNodeOrIRI ;           # dataGraphShape-nodeKind: optional, per the upstream shape
+	] ;
+	sh:property [
+		sh:path shui:shapesGraphShape ;
+		sh:maxCount 1 ;
+		sh:nodeKind sh:BlankNodeOrIRI ;           # shapesGraphShape-nodeKind: optional, per the upstream shape
 	] .
 
 #############################################################################

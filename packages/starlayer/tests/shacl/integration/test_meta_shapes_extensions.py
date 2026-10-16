@@ -1150,6 +1150,47 @@ class TestShuiWellFormedness:
         with pytest.raises(pyshacl.errors.ReportableRuntimeError):
             meta_validate(shapes)
 
+    def test_valid_shui_widget_score_passes(self) -> None:
+        """stsh:WidgetScoreShape (starontology.trig, 2026-10-16) -
+        mirrors the upstream spec's own formal shui:WidgetScore shape,
+        confirmed stable (unlike shui:WidgetAcceptMatcher, deliberately
+        left unconstrained - see starlayer.shacl.ui_widget_selection's
+        own module docstring)."""
+        shapes = Graph()
+        shapes.parse(
+            data=self._SHUI_PREFIX
+            + """
+            ex:S1 a shui:WidgetScore ; shui:widget shui:DatePickerEditor ; shui:score 9.0 .
+            """,
+            format="turtle",
+        )
+        conforms, _report_graph, _report_text = meta_validate(shapes)
+        assert conforms is True
+
+    def test_shui_widget_score_with_non_numeric_score_is_rejected(self) -> None:
+        shapes = Graph()
+        shapes.parse(
+            data=self._SHUI_PREFIX
+            + """
+            ex:S1 a shui:WidgetScore ; shui:widget shui:DatePickerEditor ; shui:score "high" .
+            """,
+            format="turtle",
+        )
+        with pytest.raises(pyshacl.errors.ReportableRuntimeError):
+            meta_validate(shapes)
+
+    def test_shui_widget_score_missing_widget_is_rejected(self) -> None:
+        shapes = Graph()
+        shapes.parse(
+            data=self._SHUI_PREFIX
+            + """
+            ex:S1 a shui:WidgetScore ; shui:score 9.0 .
+            """,
+            format="turtle",
+        )
+        with pytest.raises(pyshacl.errors.ReportableRuntimeError):
+            meta_validate(shapes)
+
 
 class TestSparqlPrefixesWellFormedness:
     """sh:prefixes/sh:declare - confirmed functionally implemented

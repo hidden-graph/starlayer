@@ -7,13 +7,13 @@ Notes on graph:
 
 2. Complete the review of the user guides.
 
+3. perform benchark diagnostics of embedded oxigraph vs. rdlib
 
-4. Output documentation artifacts from graph.
+
 
 5. work on SHACL UI.  Need some small demo.
 
-6. make Appendix A, "Public Resources". single user guide.
-    - 2026-10-16: done. Appendix A is now the single notebook (renamed appendix-a-public-resources.ipynb, was appendix-a1-public-resources.ipynb) - the old appendix-a.ipynb index is gone, Appendix A no longer has an "A1" under it.
+
 
 7. Move everythign else to Appendix B - Complex examples.
     - 2026-10-16: done. Appendix B is now the index notebook (appendix-b.ipynb, built from the old appendix-a.ipynb index) linking to B1 (sqe shared parts, renamed from A2) and B2 (DL reasoning examples, renamed from A3). Updates item 12's own history below - the still-pending hashing subgraph extraction from 04f becomes B3, not A4.
@@ -39,50 +39,4 @@ Functionality:
 
 11. clean up the URLs in the registry
 
-12. Create an Appendix A that contains a series of complex examples.  the hashing subgraph extraction would go there. from 04f
-    - 2026-10-14: Appendix A now exists as an index notebook (appendix-a.ipynb) linking to numbered children (A1, A2, ...). A1 (publicly available resources - the GitHub-fetching material moved out of guide 5's old section 6) is built. The complex-examples child (hashing subgraph extraction from 04f, item 3's DL reasoning examples) is still not done - that becomes A2 whenever it's picked up.
-    - 2026-10-14 (later): A2 ended up being a different appendix (named, shared parts in sqe: query trees) - the complex-examples slot moves to A3 instead.
-    - 2026-10-16: Item 3's DL reasoning examples are now built as Appendix A3 (appendix-a3-dl-reasoning-examples.ipynb). The hashing subgraph extraction from 04f is still not done - that becomes A4 whenever it's picked up.
-    - 2026-10-16 (later, items 6/7): Appendix A and B renumbered per items 6/7 above - Appendix A collapsed to a single notebook (public resources only, no more index/children), and the complex-examples role moves to a new Appendix B index instead. A2/A3 are now B1/B2. The still-not-done hashing subgraph extraction from 04f becomes B3 whenever it's picked up, not A4.
-
-Function:
-
-
-2. create a SPARQL equivalent to StarGraph and StarSchema. Do the same with SRL.  
-
-4. need to visit SHACL UI.  Can we provide some example of its use?  Also, StarLayer allows enhancements to the shape. we shoudl demonstrate
-
-Questions from Claude (answer inline below each, whenever convenient):
-
-1. (re STRUACTURE #2) Exactly which pieces move into the new "StarLayer Schemas and Ontologies" section - all of Manchester/SPARQL-tree/rules-tree/SKOS, or just the ontology-level discussion inside those guides while the "how to use it" parts stay put? And do SHACL meta and salg come along or not?
-- we want to move the how to use it part as well.  this is truly an unique extention to the existing libraries and I want it to be treated separately. we can include shacl.  we do not need a separate guide on slag.  we can describe what it is and where to get the ontology. 
-
-
->
-
-2. (re STRUACTURE #6) Should 03b actually be retitled, e.g. to "SPARQL Entailment"? Or just leave the title and let the content speak for itself post-simplification?  Yes.  Entitlement is in-line with the specificaiton.
->
-
-3. (re Functionality #8) Does "complete the profiling section" mean writing more documentation around the open design questions already noted in 04e section 6 (prof:Profile resources, union/roll-up semantics, where starlayer-specific vocab gets documented) - or does it mean those design questions need to be resolved/implemented in code first, before the docs can honestly describe them?
-- I think we need to think through profiling a bit more and make sure we have the story correct.  there may be some work left undone based on where the specification sits.  the profiles of shacl that we would like to use are not complete.
->
-
-4. (re Function #1) What hosting/URL mechanism did you have in mind for serving ontologies/SHACL files/profiles - a static file server, a package-internal resolver, versioned URIs, something else?
-where the files can be obtained from a url from the github repo.
->
-
-5. (re Function #2) What should a "SPARQL equivalent to StarGraph and StarSchema" actually do/look like? Trying to understand the target shape before planning it.
-We would have a class that has the primary purpose to hold a query object.  that object then could be used to perform queries on differnt graphs.  It may also hold entailment regime.  we might plan if there are other things we need to include. 
->
-
-6. (re Function #3) 04c's own "Known limitations" section already says embedded sh:select/sh:ask/sh:construct text isn't parsed as real SPARQL today (checked structurally by meta-shacl, not validated as SPARQL). Do you want this wired up to 05c's query-as-RDF/SHACL-validation path as a real feature, or were you just confirming your own understanding of current behavior?
-I expect we can not do this in shcal directly, but we could have a process to get the sparql and parse it to a tree and validated it.  
->
-
-7. (re Function #4) What specifically did you mean by "StarLayer allows enhancements to the shape" in the SHACL UI context? Didn't find an obviously-matching named feature in 04d or its neighbors.
-I think that we have a way that a user can add a layer to a shacl file. i.e. add their own ui elements.  is that correct?
->
-
-8. (re Function #5) This note cuts off at "could also give it its own" - its own what? (a guide section, a name/term, something else?)
->I dont know what I was thinking.
 
