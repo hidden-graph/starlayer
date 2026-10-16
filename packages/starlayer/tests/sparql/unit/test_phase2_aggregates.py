@@ -81,7 +81,7 @@ def test_unaliased_expression_group_by_key_roundtrips():
     to crash plain, unmodified rdflib's own evaluator outright
     (`evalAggregateJoin`: "Cannot eval thing: None"), independent of this
     project entirely — see the sibling `starlayer.graph` repo's
-    `docs/rdflib-upstream-issues.md` Issue 9 for the full trace. Unlike
+    `docs/upstream-issues/rdflib-upstream-issues.md` Issue 9 for the full trace. Unlike
     every other query in this file, this test needs `starlayer.graph` imported
     (not just plain rdflib): the actual fix is a parse-tree patch applied
     at `import starlayer.graph` time

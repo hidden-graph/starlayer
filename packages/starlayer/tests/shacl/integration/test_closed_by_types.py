@@ -97,7 +97,7 @@ class TestClosedMalformedValueRejectedCleanly:
     """A non-boolean sh:closed value must raise a clean ValueError, not crash
     unpredictably or - the more dangerous case - be silently misinterpreted.
     Found 2026-07-20 while investigating a matching pySHACL bug (see
-    docs/pyshacl-upstream-issues.md, Issue 3): starShacl's own
+    docs/upstream-issues/pyshacl-upstream-issues.md, Issue 3): starShacl's own
     ClosedConstraintComponent shadow already rejected a non-Literal value
     (e.g. an IRI) cleanly, but a string literal like "false" was still
     silently coerced to closed=True - bool("false") is True in Python

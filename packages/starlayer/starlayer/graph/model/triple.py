@@ -33,7 +33,7 @@ class TripleTerm:
         # constructor is the other place a TripleTerm comes into being, e.g.
         # decoding a native-backend query result back into a real Python
         # object, so it needs the same check independently. Confirmed via a
-        # live Fuseki 5.5.0 bug (docs/fuseki-upstream-issues.md, Issue 1)
+        # live Fuseki 5.5.0 bug (docs/upstream-issues/fuseki-upstream-issues.md, Issue 1)
         # that a native backend can return an invalid triple term (a
         # Literal-valued subject) with no error of its own - this
         # constructor must not then silently accept it and construct an

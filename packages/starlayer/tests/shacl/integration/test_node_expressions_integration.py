@@ -26,7 +26,7 @@ pyshacl = pytest.importorskip("pyshacl")
 # data graph instead of the shapes graph, unlike the otherwise-identical
 # sh:union handler right next to it). Fixed upstream in pySHACL v0.40.1
 # (pyproject.toml now requires >=0.40.1); starlayer.shacl's own former
-# workaround for it has been removed. See docs/pyshacl-upstream-issues.md.
+# workaround for it has been removed. See docs/upstream-issues/pyshacl-upstream-issues.md.
 
 
 def test_node_expression_path_carries_triple_term_value() -> None:

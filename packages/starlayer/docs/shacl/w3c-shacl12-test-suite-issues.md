@@ -2,7 +2,7 @@
 
 *Last reviewed: 2026-08-01*
 
-Issues found in the official SHACL 1.2 test suite (https://github.com/w3c/data-shapes, `gh-pages` branch, `shacl12-test-suite/` directory - vendored into this repo at `tests/vendor/shacl12-test-suite/`, see that directory's own `VENDORED_FROM.md` for the exact pinned commit) while integrating it against `starshacl` (`docs/w3c-shacl12-test-suite-plan.md`). Unlike `docs/pyshacl-upstream-issues.md` (bugs in the `pyshacl` *library*) and `starlayergraph`'s own `docs/rdflib-upstream-issues.md` (bugs in the `rdflib` *library*), this file tracks issues in the *test suite itself* - a fixture whose own expected result doesn't follow from the specification it's meant to test.
+Issues found in the official SHACL 1.2 test suite (https://github.com/w3c/data-shapes, `gh-pages` branch, `shacl12-test-suite/` directory - vendored into this repo at `tests/vendor/shacl12-test-suite/`, see that directory's own `VENDORED_FROM.md` for the exact pinned commit) while integrating it against `starshacl` (`docs/w3c-shacl12-test-suite-plan.md`). Unlike `docs/upstream-issues/pyshacl-upstream-issues.md` (bugs in the `pyshacl` *library*) and `starlayergraph`'s own `docs/upstream-issues/rdflib-upstream-issues.md` (bugs in the `rdflib` *library*), this file tracks issues in the *test suite itself* - a fixture whose own expected result doesn't follow from the specification it's meant to test.
 
 ## How To Use
 

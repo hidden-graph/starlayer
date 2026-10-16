@@ -2,16 +2,27 @@ Notes on guides and other comments
 
 Notes on graph:
 
-1. we want to be able to produce something like the functionality overivew and the api-reference document from the graph.  this will introduce the curated protion of the graph, with links between the code and the api reference.  
+
+1. Complete the integration of oxigraph both as in-memory and backend direct store.
+
+2. Complete the review of the user guides.
 
 
-3. 02c on dl reasoning is hermit heavy.  we should start off by talking about both appraoches and then go into a tool agnostic discussion of DL reasonng.  Lets also keep the code examples here simple and add the more complex examples to appendix A in a separate DL reasoning examples.
-    - 2026-10-16: Done. 02c's intro now names engine="hermit"/engine="rustdl" together up front, then a tool-agnostic paragraph on what DL reasoning means (classification, consistency, entailment, sound/complete) before either engine's own internals. The N=20 employee/job constraint-satisfaction example (old section 4, 4.1-4.6) moved out verbatim to the new Appendix A3 (appendix-a3-dl-reasoning-examples.ipynb) - see item 12 below, this is that appendix.
+4. Output documentation artifacts from graph.
+
+5. work on SHACL UI.  Need some small demo.
+
+6. make Appendix A, "Public Resources". single user guide.
+    - 2026-10-16: done. Appendix A is now the single notebook (renamed appendix-a-public-resources.ipynb, was appendix-a1-public-resources.ipynb) - the old appendix-a.ipynb index is gone, Appendix A no longer has an "A1" under it.
+
+7. Move everythign else to Appendix B - Complex examples.
+    - 2026-10-16: done. Appendix B is now the index notebook (appendix-b.ipynb, built from the old appendix-a.ipynb index) linking to B1 (sqe shared parts, renamed from A2) and B2 (DL reasoning examples, renamed from A3). Updates item 12's own history below - the still-pending hashing subgraph extraction from 04f becomes B3, not A4.
+
+8. did we hide the public ability to see the rules plan in SRL.  should that be public?
 
 For subgraph extraction, we can keep the shape as optional. and we do need focus node to be required.  we want to get back a mapping of a node  to its extacted graph. 
 `shape=`/`focus_node=` are optional filters, not required inputs - given neither, `extract_subgraph()` discovers every real entry point the whole shapes graph declares (every shape's own SHACL targets) and returns the union of everything that conforms (section 2).
 
-sparql_owl, shacl files shold be renamed salg.  
 
 
 STRUCTURE:
@@ -23,8 +34,6 @@ Functionality:
 
 9. for backends we should add a section for inferencing on the backend. 
 
-10. How does OWL - RL SPARQL Entailments work work with backends.  
-
 
 
 
@@ -34,6 +43,7 @@ Functionality:
     - 2026-10-14: Appendix A now exists as an index notebook (appendix-a.ipynb) linking to numbered children (A1, A2, ...). A1 (publicly available resources - the GitHub-fetching material moved out of guide 5's old section 6) is built. The complex-examples child (hashing subgraph extraction from 04f, item 3's DL reasoning examples) is still not done - that becomes A2 whenever it's picked up.
     - 2026-10-14 (later): A2 ended up being a different appendix (named, shared parts in sqe: query trees) - the complex-examples slot moves to A3 instead.
     - 2026-10-16: Item 3's DL reasoning examples are now built as Appendix A3 (appendix-a3-dl-reasoning-examples.ipynb). The hashing subgraph extraction from 04f is still not done - that becomes A4 whenever it's picked up.
+    - 2026-10-16 (later, items 6/7): Appendix A and B renumbered per items 6/7 above - Appendix A collapsed to a single notebook (public resources only, no more index/children), and the complex-examples role moves to a new Appendix B index instead. A2/A3 are now B1/B2. The still-not-done hashing subgraph extraction from 04f becomes B3 whenever it's picked up, not A4.
 
 Function:
 

@@ -7,7 +7,7 @@ Two categories of shim live here:
 
 1. ``patch_evalextend_forgotten_bind_vars``/``patch_construct_skips_encoding_solutions``
    and most of the others below fix confirmed bugs in *plain rdflib
-   itself* (see ``docs/rdflib-upstream-issues.md`` issue 5 for the first).
+   itself* (see ``docs/upstream-issues/rdflib-upstream-issues.md`` issue 5 for the first).
    This is the most important category to have applied correctly: unlike
    the algebra-translator bugs (which fail loudly, with a
    ``ParseException`` or similar on the malformed regenerated text) and
@@ -99,7 +99,7 @@ def patch_evalextend_forgotten_bind_vars() -> bool:
     completely unbound instead, rather than raising or skipping the row.
     An unbound variable later joined against (e.g. ``?s :p ?o .``) then
     matches *anything*, producing extra, wrong results with no error at
-    all. See ``docs/rdflib-upstream-issues.md`` issue 5 for the full
+    all. See ``docs/upstream-issues/rdflib-upstream-issues.md`` issue 5 for the full
     root-cause trace, down to ``algebra.py``'s ``_addVars`` "Extend" case.
 
     Fix: union in ``expr``'s own free variables (see ``_expr_free_vars``)
@@ -1085,7 +1085,7 @@ def patch_bgp_skips_encoding_triples() -> bool:
 # opposite direction, algebra-to-*text*) since this module already hosts
 # the other GROUP BY/aggregate-adjacent fixes (issues 5/8) and the
 # observable symptom is a query that fails to evaluate. See
-# docs/rdflib-upstream-issues.md Issue 9 for the full writeup.
+# docs/upstream-issues/rdflib-upstream-issues.md Issue 9 for the full writeup.
 # ---------------------------------------------------------------------------
 
 _group_by_unaliased_key_patch_status: bool | None = None
@@ -1101,7 +1101,7 @@ def patch_group_by_unaliased_expression_key() -> bool:
     that later crashes ``evaluate.evalAggregateJoin`` outright
     (``Exception: Cannot eval thing: None``), with **no** RDF 1.2/triple-
     term/``starlayer.sparql`` involvement at all. See
-    ``docs/rdflib-upstream-issues.md`` Issue 9 for the full root-cause
+    ``docs/upstream-issues/rdflib-upstream-issues.md`` Issue 9 for the full root-cause
     trace and a minimal, plain-rdflib reproduction.
 
     Root cause: for *every* parenthesized-expression ``GROUP BY``

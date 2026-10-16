@@ -437,13 +437,11 @@ is exactly equivalent to writing `?stmt rdf:reifies <<( :bob :knows :carol )>> .
 
 ## How the Rewriter Works
 
-`StarLayerGraph.query()` routes each query based on the configured backend.
+`StarLayerGraph.query()` routes each query based on the configured representation (`backend=`).
 
-**rdf-1.1 backend (default, including in-memory):** the query is translated into SPARQL 1.1, executed against the underlying rdflib store, then any triple term values in the results are restored. Queries with no RDF 1.2 constructs and no triple term results pass through unchanged. This translation has three phases.
+**rdf-1.1 representation (default, including in-memory):** the query is translated into SPARQL 1.1, executed against the underlying rdflib store, then any triple term values in the results are restored. Queries with no RDF 1.2 constructs and no triple term results pass through unchanged. This translation has three phases.
 
-**Native rdf-1.2 backend:** the query is forwarded directly to the
-SPARQL endpoint via HTTP. No phase 1–3 processing applies — the backend handles
-triple terms natively.
+**Native (`rdf-1.2`) representation:** the query is forwarded straight through unmodified to whatever engine is actually plugged in - a remote SPARQL endpoint over HTTP, or an embedded in-process `pyoxigraph.Store` with no HTTP at all. No phase 1–3 processing applies either way — the engine handles triple terms natively, regardless of Transport.
 
 ---
 
@@ -632,5 +630,5 @@ SELECT ?stmt ?t WHERE {
 URIRef. Variables that bind to triple term *components* (e.g. `?s`, `?p`, `?o`
 from `<<( ?s ?p ?o )>>`) are plain RDF terms and are never restored.
 
-Phase 3 applies only to the rdf-1.1 backend. Native backends return triple
-terms directly — no `tt:HASH` encoding, no restoration step.
+Phase 3 applies only to the rdf-1.1 representation. The native (`rdf-1.2`) representation returns triple
+terms directly, regardless of Transport — no `tt:HASH` encoding, no restoration step.

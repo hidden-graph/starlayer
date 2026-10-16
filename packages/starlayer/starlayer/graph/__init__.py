@@ -21,9 +21,15 @@ from rdflib.namespace import RDF, RDFS, XSD
 # effect of some other import) so registration always happens regardless of
 # what a caller imports first. See starlayer.graph/query/custom_functions.py.
 import starlayer.graph.query.custom_functions as _custom_functions  # noqa: F401
+from starlayer.graph.backends.native_pyoxigraph import embedded_oxigraph_store
 from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 from starlayer.graph.graph.starlayer_dataset import StarLayerDataset
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph, can_resolve_import
+from starlayer.graph.graph.starlayer_graph import (
+    StarLayerGraph,
+    can_resolve_import,
+    get_default_representation,
+    set_default_representation,
+)
 from starlayer.graph.model.dirlangstring import DirLangString
 
 # StarLayer-specific additions
@@ -47,7 +53,7 @@ from starlayer.graph.query import (
 # Not exercised by starlayer.graph's own pipeline (it never calls
 # translateAlgebra itself), but protects any other consumer that does. See
 # starlayer.graph/query/algebra_translator_patches.py and
-# docs/rdflib-upstream-issues.md issues 3, 4, and 6.
+# docs/upstream-issues/rdflib-upstream-issues.md issues 3, 4, and 6.
 from starlayer.graph.query.algebra_translator_patches import (
     patch_algebra_translator_bugs as _patch_algebra_translator_bugs,
 )
@@ -79,7 +85,7 @@ from starlayer.graph.query.evaluate_patches import (
 # evaluated through rdflib, including starlayer.graph's own (unlike the
 # algebra-translator patches above, this one *is* exercised by starlayer.graph's
 # own pipeline). See starlayer.graph/query/evaluate_patches.py and
-# docs/rdflib-upstream-issues.md issue 5.
+# docs/upstream-issues/rdflib-upstream-issues.md issue 5.
 from starlayer.graph.query.evaluate_patches import (
     patch_evalextend_forgotten_bind_vars as _patch_evalextend_forgotten_bind_vars,
 )
@@ -124,7 +130,7 @@ from starlayer.graph.query.evaluate_patches import (
 # un-aliased computed GROUP BY key (`GROUP BY (?o+1)`, no `AS ?var`) - legal
 # per SPARQL 1.1's own grammar - produces an algebra shape that crashes
 # evalAggregateJoin outright, with zero RDF 1.2/starlayer.graph involvement. See
-# docs/rdflib-upstream-issues.md Issue 9 and
+# docs/upstream-issues/rdflib-upstream-issues.md Issue 9 and
 # starlayer.graph/query/evaluate_patches.py::patch_group_by_unaliased_expression_key.
 from starlayer.graph.query.evaluate_patches import (
     patch_group_by_unaliased_expression_key as _patch_group_by_unaliased_expression_key,
@@ -175,7 +181,7 @@ from starlayer.graph.query.operator_patches import (
 # falsy - so it's silently dropped, indistinguishable from "no more rows".
 # Result.bindings/len() are unaffected; only iterating the Result object
 # (list(result), for row in result) loses it. See
-# docs/rdflib-upstream-issues.md Issue 6 and
+# docs/upstream-issues/rdflib-upstream-issues.md Issue 6 and
 # starlayer.graph/query/result_patches.py::patch_result_iter_empty_binding_row.
 from starlayer.graph.query.result_patches import (
     patch_result_iter_empty_binding_row as _patch_result_iter_empty_binding_row,
@@ -217,6 +223,9 @@ __all__ = [
     "StarLayerGraph",
     "StarLayerDataset",
     "can_resolve_import",
+    "embedded_oxigraph_store",
+    "set_default_representation",
+    "get_default_representation",
     # SPARQL 1.2-aware rdflib.plugins.sparql counterparts
     "parseQuery",
     "prepareQuery",

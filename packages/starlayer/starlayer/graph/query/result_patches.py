@@ -2,7 +2,7 @@
 ``rdflib.query.Result`` - result *materialization*, a different module and
 phase from every other patch in this package (parsing/algebra translation:
 ``algebra_translator_patches.py``; SPARQL arithmetic: ``operator_patches.py``;
-evaluation: ``evaluate_patches.py``). See ``docs/rdflib-upstream-issues.md``
+evaluation: ``evaluate_patches.py``). See ``docs/upstream-issues/rdflib-upstream-issues.md``
 issue 6 for the full write-up.
 
 Same idempotent apply-once pattern as the other ``*_patches.py`` modules in

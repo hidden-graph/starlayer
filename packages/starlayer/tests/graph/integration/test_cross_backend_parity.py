@@ -91,6 +91,20 @@ oxigraph = pytest.mark.skipif(
 )
 
 
+def _pyoxigraph_available() -> bool:
+    try:
+        import pyoxigraph  # noqa: F401
+    except ImportError:
+        return False
+    return True
+
+
+oxigraph_embedded = pytest.mark.skipif(
+    not _pyoxigraph_available(),
+    reason="pyoxigraph not installed - install with `pip install starlayer.graph[oxigraph-embedded]`",
+)
+
+
 def _clear_http(update_url: str, auth=None) -> None:
     requests.post(
         update_url,
@@ -115,6 +129,15 @@ def _oxigraph_graph() -> StarLayerGraph:
     _clear_http(OXIGRAPH_U)
     store = SPARQLUpdateStore(query_endpoint=OXIGRAPH_Q, update_endpoint=OXIGRAPH_U)
     return StarLayerGraph(store=store, identifier=GRAPH_URI, backend='rdf-1.2')
+
+
+def _oxigraph_embedded_graph() -> StarLayerGraph:
+    # No live server, no clearing needed - a fresh in-process pyoxigraph
+    # store per call (path=None), same engine as _oxigraph_graph() above,
+    # just the embedded transport (see
+    # starlayer.graph.backends.native_pyoxigraph) instead of HTTP.
+    from starlayer.graph.backends.native_pyoxigraph import embedded_oxigraph_store
+    return StarLayerGraph(store=embedded_oxigraph_store(), identifier=GRAPH_URI, backend='rdf-1.2')
 
 
 # ---------------------------------------------------------------------------
@@ -305,6 +328,21 @@ def test_oxigraph_matches_internal(name, fn):
     )
 
 
+@oxigraph_embedded
+@pytest.mark.parametrize('name,fn', SCENARIOS, ids=[s[0] for s in SCENARIOS])
+def test_oxigraph_embedded_matches_internal(name, fn):
+    """Embedded and HTTP-to-the-same-engine must produce identical results
+    for every scenario above - the strongest regression check for the new
+    transport, confirming native.py's execute_*() dispatch (point 3-4 of
+    the embedded-backend plan) is a faithful substitute for the HTTP path,
+    not just independently plausible."""
+    internal_result = fn(_internal_graph())
+    embedded_result = fn(_oxigraph_embedded_graph())
+    assert embedded_result == internal_result, (
+        f'{name}: oxigraph_embedded={embedded_result!r} != internal={internal_result!r}'
+    )
+
+
 # ---------------------------------------------------------------------------
 # Numeric SPARQL-builtin lexical-form parity — found 2026-08-01 while
 # investigating a downstream consumer's confirmed rdflib bugs (see
@@ -379,13 +417,31 @@ def test_oxigraph_matches_internal_for_numeric_lexical_form(name, fn):
     )
 
 
+@oxigraph_embedded
+@pytest.mark.parametrize(
+    'name,fn', NUMERIC_LEXICAL_FORM_SCENARIOS, ids=[s[0] for s in NUMERIC_LEXICAL_FORM_SCENARIOS]
+)
+def test_oxigraph_embedded_matches_internal_for_numeric_lexical_form(name, fn):
+    """Confirmed live elsewhere this session that Oxigraph's whole-number
+    xsd:decimal canonicalization defect reproduces identically through the
+    embedded Store.query() API (it's a property of the engine, not of JSON
+    serialization) - native_pyoxigraph.py's _parse_ox_term() applies the
+    same _canonicalize_decimal_lexical_form() fix native.py's
+    _parse_json_term() already does for HTTP, so this must pass too."""
+    internal_result = fn(_internal_graph())
+    embedded_result = fn(_oxigraph_embedded_graph())
+    assert embedded_result == internal_result, (
+        f'{name}: oxigraph_embedded={embedded_result!r} != internal={internal_result!r}'
+    )
+
+
 # ---------------------------------------------------------------------------
 # Ground triple term as the *subject* of an outer reifier-shorthand term
 # (`<< <<( a b c )>> p o >>`) — never legal RDF 1.2 (`ttSubject ::= iri |
 # BlankNode`), regardless of whether the illegal triple term sits directly
 # in subject position or is nested inside a reifier-shorthand's own subject
 # slot. Deliberately NOT folded into SCENARIOS: parity does not hold here.
-# This is docs/fuseki-upstream-issues.md Issue 1's already-tracked ARQ bug
+# This is docs/upstream-issues/fuseki-upstream-issues.md Issue 1's already-tracked ARQ bug
 # (missing subject-position validation) confirmed under one more shape -
 # see that doc for the full account, apache/jena#4141, and why Oxigraph
 # correctly rejects it while Fuseki/ARQ doesn't. Not a starlayer.graph bug:
@@ -411,7 +467,7 @@ def test_fuseki_wrongly_accepts_triple_term_as_subject_of_nested_reifier_shortha
     # defense (_parse_json_term, which correctly raises ValueError on this
     # exact shape - see test_internal_rejects_... above) entirely. The point
     # here is only what Fuseki itself accepts and stores, matching
-    # docs/fuseki-upstream-issues.md Issue 1's own raw-HTTP reproduction
+    # docs/upstream-issues/fuseki-upstream-issues.md Issue 1's own raw-HTTP reproduction
     # style.
     insert = requests.post(
         FUSEKI_U,
@@ -427,7 +483,7 @@ def test_fuseki_wrongly_accepts_triple_term_as_subject_of_nested_reifier_shortha
         f'Fuseki previously accepted this insert (HTTP 204) - now got HTTP '
         f'{insert.status_code}. Jena ARQ appears to have tightened its subject-'
         f'position validation (apache/jena#4141 may be fixed) - this divergence '
-        f'note in docs/fuseki-upstream-issues.md Issue 1 is stale and should be updated.'
+        f'note in docs/upstream-issues/fuseki-upstream-issues.md Issue 1 is stale and should be updated.'
     )
     # ex:x ex:y ?r binds ?r to the fresh reifier bnode the shorthand minted;
     # ?r rdf:reifies ?tt gets the actual triple term (whose own subject is

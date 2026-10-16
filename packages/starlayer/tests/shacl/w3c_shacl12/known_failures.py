@@ -3,7 +3,7 @@
 Per CLAUDE.md's testing-coverage discipline, a failing conformance test is
 never silently skipped - every entry here names *why* (a specific
 docs/shacl12-gap-matrix.md "Not Covered / Deferred" row, a specific
-docs/pyshacl-upstream-issues.md entry, or a concrete Working-Draft-churn
+docs/upstream-issues/pyshacl-upstream-issues.md entry, or a concrete Working-Draft-churn
 explanation) and is applied as ``pytest.xfail(strict=True)``, so it breaks
 loudly (as an unexpected XPASS) the moment the underlying gap is closed
 instead of silently going stale.

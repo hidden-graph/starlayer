@@ -23,7 +23,7 @@ pyshacl = pytest.importorskip("pyshacl")
 # pyshacl.errors.ValidationFailure crashed starShacl's own report decoding
 # with an unrelated-looking TypeError, because pySHACL's validate() returns
 # the ValidationFailure object itself as report_graph rather than raising it
-# or producing a real Graph - see docs/pyshacl-upstream-issues.md's
+# or producing a real Graph - see docs/upstream-issues/pyshacl-upstream-issues.md's
 # 2026-07-19 entry. Fixed with a defensive re-raise in
 # starlayer.shacl/validator.py::validate(). test_malformed_custom_validator_raises_cleanly
 # below locks in that fix.

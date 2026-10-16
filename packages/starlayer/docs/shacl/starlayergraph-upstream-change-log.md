@@ -398,7 +398,7 @@ Validation/tests needed:
 - `starlayergraph`'s new `tests/unit/test_operator_patches.py` (10 tests: integer\*integer stays integer, integer\*decimal/double promotion, addition unaffected, division/CEIL/FLOOR/ROUND canonical lexical form, ABS unaffected) - all confirmed to fail against the pre-patch code via `git stash push -u -- starlayergraph/__init__.py starlayergraph/query/operator_patches.py`. `starShacl`'s W3C-suite harness re-verified live: all 9 previously-xfailed fixtures now genuinely pass (not just no-longer-gated) - confirmed via the same stash-based adversarial revert against the real fixtures (`tests/w3c_shacl12/`), which reproduced all 9 original failures with the patch removed.
 
 Upstream status:
-- implemented as a monkeypatch in `starlayergraph` (`starlayergraph/query/operator_patches.py`, `starlayergraph/__init__.py`) - the actual bug lives in plain `rdflib`, not this repo; not yet reported upstream to `RDFLib/rdflib`. Full issue write-ups ready to file: `starlayergraph`'s own `docs/rdflib-upstream-issues.md` (Issues 1-2).
+- implemented as a monkeypatch in `starlayergraph` (`starlayergraph/query/operator_patches.py`, `starlayergraph/__init__.py`) - the actual bug lives in plain `rdflib`, not this repo; not yet reported upstream to `RDFLib/rdflib`. Full issue write-ups ready to file: `starlayergraph`'s own `docs/upstream-issues/rdflib-upstream-issues.md` (Issues 1-2).
 
 ## 2026-08-01 - Known gap, not yet fixed: Oxigraph's native SPARQL engine doesn't canonicalize whole-number decimal results, diverging from the in-memory backend and Fuseki
 

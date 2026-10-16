@@ -97,6 +97,16 @@ slkg:NotebookExample a owl:Class ;
     rdfs:label "Notebook example" ;
     rdfs:comment "A notebook cell that demonstrates some entity's usage. Reserved for a future hand-curated graph - zero instances exist yet; nothing in the auto-generated extractor populates this class." .
 
+slkg:CapabilityArea a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Capability area" ;
+    rdfs:comment "A hand-curated grouped heading over a set of Capabilities, e.g. a functionality-overview.md section like \"RDF graph\" or a roadmap group like \"Cross-cutting\". Populated only by hand-curated graphs (see starlayer.codekg's curated/ directory) - never by the AST extractor." .
+
+slkg:Capability a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Capability" ;
+    rdfs:comment "A single hand-curated capability statement (a documented feature, or a planned/roadmap item) belonging to one CapabilityArea. Populated only by hand-curated graphs - never by the AST extractor, same as CapabilityArea." .
+
 #################################################################
 # Object properties
 #################################################################
@@ -163,6 +173,12 @@ slkg:overrides a owl:ObjectProperty ;
     rdfs:range slkg:Method ;
     rdfs:label "overrides" ;
     rdfs:comment "This method shares a name with, and shadows, a method already declared on one of its class's base classes - resolved project-wide, across files, via the same symbol-index base-chain walk (starlayer.codekg.extractor.symbol_index.SymbolIndex.resolve_method_in_chain) already used for self/cls call resolution. Absence of an edge means no same-named method was found anywhere in the resolvable base chain - an unresolvable/external base (e.g. a stdlib or third-party class) stops the walk at that point, same caveat as slkg:calls." .
+
+slkg:inCapabilityArea a owl:ObjectProperty ;
+    rdfs:domain slkg:Capability ;
+    rdfs:range slkg:CapabilityArea ;
+    rdfs:label "in capability area" ;
+    rdfs:comment "Relates a hand-curated Capability to the CapabilityArea it's grouped under. Hand-curated-graph-only, like both classes it relates." .
 
 slkg:instantiates a owl:ObjectProperty ;
     rdfs:domain slkg:Function ;
@@ -298,3 +314,27 @@ slkg:cellIndex a owl:DatatypeProperty ;
     rdfs:range xsd:integer ;
     rdfs:label "cell index" ;
     rdfs:comment "0-based index of a NotebookExample's cell within its notebook." .
+
+#################################################################
+# Hand-curated-graph properties (CapabilityArea / Capability)
+#
+# These three, plus slkg:position above (reused as-is for doc order), are
+# only ever asserted in hand-curated graphs (see starlayer.codekg's
+# curated/ directory) - never by the AST extractor.
+#################################################################
+
+slkg:hasStatus a owl:DatatypeProperty ;
+    rdfs:domain slkg:Capability ;
+    rdfs:range xsd:string ;
+    rdfs:label "has status" ;
+    rdfs:comment "A Capability's curation status: \"implemented\" (documented as already working) or \"roadmap\" (documented as planned/deferred/paused). Deliberately just these two values, matching functionality-overview.md's own two top-level sections - the doc text doesn't consistently distinguish planned from deferred, so this doesn't invent that split." .
+
+slkg:seeAlsoPath a owl:DatatypeProperty ;
+    rdfs:range xsd:string ;
+    rdfs:label "see also path" ;
+    rdfs:comment "A repository-relative path to another hand-maintained doc a CapabilityArea (typically a roadmap group) points readers at for more detail, e.g. \"packages/starlayer/docs/future_enhancements.md\" - a plain path string, not a dereferenceable URI, so rdfs:seeAlso (which expects a resource) isn't reused here; mirrors slkg:filePath's own plain-string convention instead." .
+
+slkg:implementedByIdentifier a owl:DatatypeProperty ;
+    rdfs:range xsd:string ;
+    rdfs:label "implemented by identifier" ;
+    rdfs:comment "Links a Capability or CapabilityArea to the real code that implements it, named by the same dotted Python path string already used as every extracted entity's own dcterms:identifier (e.g. \"starlayer.shacl.subgraph_extraction.extract_subgraph\") - resolved by matching that identifier at query time, not by hand-minting the auto-generated graph's own blob-URL URIRef (which would be fragile across refactors). Asserted only where a bullet clearly maps to specific real code; left off otherwise (most roadmap bullets have nothing to link to yet). Domain is the union of slkg:Capability and slkg:CapabilityArea, left informal here, matching slkg:hasType/slkg:hasDecorator's own precedent for informal unions." .

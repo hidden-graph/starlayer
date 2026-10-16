@@ -22,7 +22,7 @@ Confirmed by a repo-wide grep for any HTTP server framework (`flask`/`wsgi`/`htt
 | §2.2.2 POST, form-urlencoded | No |
 | §2.2.3 POST direct, `Content-Type: application/sparql-query`, raw body | **Yes** — `http_select()`, `http_construct()`, `http_ask()` all use exactly this |
 
-A legitimate, conformant single-mode choice — and a deliberate one: `docs/fuseki-upstream-issues.md` Issue 2 documents a real Fuseki (ARQ) bug specific to this submission mode (inconsistent blank-node labels across SELECT result rows when a blank node appears both as an ordinary binding and nested inside a `"type":"triple"` value). Switching to GET was considered and rejected there (query-length limits; inconsistency with `http_update()`, which has no GET equivalent at all). The affected W3C fixtures are instead marked as known Fuseki-only divergences.
+A legitimate, conformant single-mode choice — and a deliberate one: `docs/upstream-issues/fuseki-upstream-issues.md` Issue 2 documents a real Fuseki (ARQ) bug specific to this submission mode (inconsistent blank-node labels across SELECT result rows when a blank node appears both as an ordinary binding and nested inside a `"type":"triple"` value). Switching to GET was considered and rejected there (query-length limits; inconsistency with `http_update()`, which has no GET equivalent at all). The affected W3C fixtures are instead marked as known Fuseki-only divergences.
 
 - **§2.2.4 Dataset specification** (`default-graph-uri`/`named-graph-uri`): never sent. Scoping is instead handled entirely by `GRAPH <uri> { }` clauses already embedded in the query text — confirmed in `native_query()`'s own docstring. A legitimate alternative channel the spec itself treats as equally valid (protocol-level parameters only need to "win" if both channels are present simultaneously, which can't happen here since this project never populates the protocol-level one).
 - **§2.2.5 Accepted Response Formats**: content negotiation is used, just never varied — `Accept: application/sparql-results+json` for SELECT/ASK, `Accept: text/turtle` for CONSTRUCT/DESCRIBE, always. No CSV/TSV/XML results, no N-Triples/RDF-XML/JSON-LD alternatives. Legitimate: the client only needs to request formats it can parse, and JSON results + `turtle12` cover this project's own term model (triple terms, dir-lang-strings) completely.
@@ -46,7 +46,7 @@ Not this project's obligation beyond what it already does: credentials, when nee
 ## Not planned, and why
 
 - **Any server-side implementation of this protocol.** Confirmed by repo-wide grep: no HTTP server anywhere. This project is, and has only ever been, a client/passthrough role.
-- **GET-based query submission.** Deliberately avoided per `fuseki-upstream-issues.md` Issue 2 (query-length limits, plus consistency with `http_update()`'s POST-with-body convention, which has no GET equivalent under the spec).
+- **GET-based query submission.** Deliberately avoided per `docs/upstream-issues/fuseki-upstream-issues.md` Issue 2 (query-length limits, plus consistency with `http_update()`'s POST-with-body convention, which has no GET equivalent under the spec).
 - **Form-urlencoded submission for either operation.** No reason to prefer it over the direct-body mode already used consistently for both; would only matter against a target endpoint that rejected direct-body POST, which neither Fuseki nor Oxigraph does.
 - **The HTTP `QUERY` method (RFC 10008).** New in this revision, explicitly optional, and not yet supported by either test target (Fuseki, Oxigraph) as far as this project's own testing has gone.
 - **CSV/TSV/XML results, or non-Turtle CONSTRUCT alternatives.** The client only needs formats it already parses; adding more would add parsing surface for zero functional gain.
@@ -65,5 +65,5 @@ None of the following is a conformance requirement — they're the genuine minor
 
 - `packages/graph/starlayergraph/backends/native.py` (entire file)
 - `packages/graph/docs/rdf12_sparql12_gap_analysis.md` (template/model document)
-- `packages/graph/docs/fuseki-upstream-issues.md` (Issue 2)
+- `docs/upstream-issues/fuseki-upstream-issues.md` (Issue 2)
 - `packages/graph/starlayergraph/graph/starlayer_graph.py` / `starlayer_dataset.py` (native-backend dispatch, auth usage)

@@ -123,7 +123,7 @@ New package: `tests/w3c_shacl12/` (parallel to `tests/integration/`, `tests/unit
     are not guaranteed stable across implementations and pySHACL's own reports don't promise
     them either. For `sht:Failure`: assert `validate()` raises (currently expected to be
     `pyshacl.errors.ValidationFailure`/`ReportableRuntimeError` per
-    `docs/pyshacl-upstream-issues.md`'s existing conventions - confirm exact exception type
+    `docs/upstream-issues/pyshacl-upstream-issues.md`'s existing conventions - confirm exact exception type
     empirically per-case during Phase 1, don't assume).
   - `test_w3c_node_expr.py` (`sht:EvalNodeExpr`): calls
     `starshacl.node_expressions.eval_expr(expr, focus_node, data_graph, shapes_graph, scope)`
@@ -160,7 +160,7 @@ to a failing conformance test is never a silent skip - it's one of:
    names the specific gap-matrix row, so the xfail breaks loudly (as a new *pass*, i.e.
    `XPASS`) the moment the gap is closed, rather than silently rotting.
 3. **A confirmed upstream pySHACL bug** - same treatment, reason pointing at the specific
-   `docs/pyshacl-upstream-issues.md` entry.
+   `docs/upstream-issues/pyshacl-upstream-issues.md` entry.
 4. **Working-Draft churn** - the test itself encodes a reading of the spec that has since
    changed, or conflicts with a documented starshacl interpretation - reason explains
    the discrepancy explicitly; this is the rare case and should be treated with suspicion

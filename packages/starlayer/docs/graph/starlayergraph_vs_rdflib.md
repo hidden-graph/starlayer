@@ -101,9 +101,9 @@ All rdflib formats are supported. Seven additional RDF 1.2 formats add TripleTer
 
 SPARQL 1.2 syntax is fully supported. See [sparql12_design.md](sparql12_design.md) for full details.
 
-✅ `g.query(...)` — Accepts SPARQL 1.2 queries including `<<( )>>` triple-term patterns, `{| |}` annotation blocks, `~?r` reifier binding, `TRIPLE(s,p,o)`, `isTripleTerm()`/`isTRIPLE()` (the SPARQL 1.2 spec's own name, accepted as an alias), and the base-direction functions `LANGDIR()`/`hasLANGDIR()`/`STRLANGDIR()` plus a `LANG()`/`hasLANG()` that also recognize a DirLangString. For the default rdf-1.1 backend, queries are rewritten to SPARQL 1.1 internally. For the native rdf-1.2 backend, queries go directly to the endpoint via HTTP. CONSTRUCT can return RDF 1.2 graph.
+✅ `g.query(...)` — Accepts SPARQL 1.2 queries including `<<( )>>` triple-term patterns, `{| |}` annotation blocks, `~?r` reifier binding, `TRIPLE(s,p,o)`, `isTripleTerm()`/`isTRIPLE()` (the SPARQL 1.2 spec's own name, accepted as an alias), and the base-direction functions `LANGDIR()`/`hasLANGDIR()`/`STRLANGDIR()` plus a `LANG()`/`hasLANG()` that also recognize a DirLangString. For the default (`rdf-1.1`) representation, queries are rewritten to SPARQL 1.1 internally. For the native (`rdf-1.2`) representation, queries go straight through unmodified to whatever engine is actually plugged in - a remote endpoint over HTTP, or an embedded in-process `pyoxigraph.Store` with no HTTP at all; native representation and Transport (remote vs. in-process) are independent choices, not one combined mode. CONSTRUCT can return RDF 1.2 graph.
 
-✅ `g.update(...)` — Accepts SPARQL 1.2 UPDATE with triple-term patterns in WHERE, INSERT, and DELETE clauses. For the default rdf-1.1 backend, triple terms are encoded before writing. For native backends, the update goes directly to the endpoint via HTTP.
+✅ `g.update(...)` — Accepts SPARQL 1.2 UPDATE with triple-term patterns in WHERE, INSERT, and DELETE clauses. For the default (`rdf-1.1`) representation, triple terms are encoded before writing. For the native (`rdf-1.2`) representation, the update goes straight through unmodified, regardless of whether the underlying Transport is remote (HTTP) or in-process (embedded).
 
 ---
 

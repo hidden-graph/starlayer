@@ -1,7 +1,7 @@
 """Targeted compatibility shims for confirmed bugs in plain rdflib's own
 ``_AlgebraTranslator``/``translateAlgebra`` (``rdflib.plugins.sparql.algebra``)
 — algebra-tree-back-to-SPARQL-text serialization, not evaluation. See
-``docs/rdflib-upstream-issues.md`` issues 3, 4, and 6 for the full write-up
+``docs/upstream-issues/rdflib-upstream-issues.md`` issues 3, 4, and 6 for the full write-up
 of each, including standalone plain-rdflib reproductions.
 
 None of these bugs is in a code path *this repo itself* exercises directly
@@ -51,7 +51,7 @@ _algebra_translator_patch_status: bool | None = None
 # variable that's *also* directly projected in an implicit SAMPLE() (or
 # wrapping a genuine aggregate function's own result var) so it can be
 # treated uniformly as "just another projected expression." See Issue 7 in
-# docs/rdflib-upstream-issues.md for the full writeup of why the patched
+# docs/upstream-issues/rdflib-upstream-issues.md for the full writeup of why the patched
 # "Extend" branch below can't treat this case the same as an ordinary BIND.
 _AGG_RESULT_VAR_RE = re.compile(r"^__agg_\d+__$")
 
@@ -68,7 +68,7 @@ def patch_algebra_translator_bugs() -> bool:
        term - so a triple ending in a blank-node object immediately
        followed by a triple whose subject is a blank node produces text
        rdflib's own SPARQL parser can't re-tokenize (``_:x._:x`` instead of
-       ``_:x. _:x``). See ``docs/rdflib-upstream-issues.md`` issue 3.
+       ``_:x. _:x``). See ``docs/upstream-issues/rdflib-upstream-issues.md`` issue 3.
 
     2. The ``"RelationalExpression"`` branch (``IN``/``NOT IN`` among other
        relational operators) guards its list-handling code with
@@ -78,7 +78,7 @@ def patch_algebra_translator_bugs() -> bool:
        correct branch dead code - every multi-value ``IN``/``NOT IN`` falls
        through to ``self.convert_node_arg(node.other)``, which has no case
        for a bare list at all, and raises. See
-       ``docs/rdflib-upstream-issues.md`` issue 6.
+       ``docs/upstream-issues/rdflib-upstream-issues.md`` issue 6.
 
     3. The ``"Extend"`` branch (``BIND``/``SELECT (expr AS ?v)``) locates
        the variable it needs to wrap by searching the *already-accumulated
@@ -90,7 +90,7 @@ def patch_algebra_translator_bugs() -> bool:
        branch's replacement matches *inside* an earlier branch's own,
        already-completed replacement instead of a fresh occurrence -
        producing invalid, arbitrarily-nested output. See
-       ``docs/rdflib-upstream-issues.md`` issue 4.
+       ``docs/upstream-issues/rdflib-upstream-issues.md`` issue 4.
 
     Idempotent and defensive, matching the established
     ``operator_patches.py`` idiom - returns ``False`` without raising if
@@ -183,7 +183,7 @@ def patch_algebra_translator_bugs() -> bool:
                 # ...)` shape never matches it, silently defeating the
                 # suppression and leaking a spurious
                 # `BIND(SAMPLE(?p) AS ?p)` into the output). See Issue 7 in
-                # docs/rdflib-upstream-issues.md.
+                # docs/upstream-issues/rdflib-upstream-issues.md.
                 return original_sparql_query_text(self, node)
 
             if isinstance(node, CompValue) and node.name == "Extend":
@@ -196,7 +196,7 @@ def patch_algebra_translator_bugs() -> bool:
                 # already-accumulated text for a bare occurrence of
                 # `var.n3()` (inserted earlier, verbatim, by "Project"'s
                 # own PV rendering) and wrapping it in place with
-                # "(expr AS var)". See docs/rdflib-upstream-issues.md
+                # "(expr AS var)". See docs/upstream-issues/rdflib-upstream-issues.md
                 # issue 4 for the full root-cause writeup: that search
                 # step is not idempotent-safe (its own replacement text
                 # still contains the same variable-name substring it
@@ -269,7 +269,7 @@ def patch_algebra_translator_bugs() -> bool:
                 # string when `node.PV` is `[]` - producing `SELECT {...}`
                 # with no `*` at all, which rdflib's own parser then can't
                 # re-parse (`Expected SelectQuery, found '{'`). See Issue 7
-                # in docs/rdflib-upstream-issues.md for the full writeup.
+                # in docs/upstream-issues/rdflib-upstream-issues.md for the full writeup.
                 # SPARQL's grammar requires a SelectClause to be either `*`
                 # or a non-empty Var/`(Expression AS Var)` list - an empty
                 # PV is unambiguous, there's no other query shape it could

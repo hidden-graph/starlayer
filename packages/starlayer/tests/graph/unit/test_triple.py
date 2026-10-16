@@ -36,7 +36,7 @@ class TestInvalidSubject:
     itself a triple term. Widened from only rejecting a nested TripleTerm
     to the full rule after a live Fuseki 5.5.0 bug (a Literal-valued
     `subject` argument to TRIPLE() is silently accepted, not rejected -
-    see docs/fuseki-upstream-issues.md Issue 1) let an equally-invalid
+    see docs/upstream-issues/fuseki-upstream-issues.md Issue 1) let an equally-invalid
     TripleTerm object be constructed with no error at all when decoding a
     native-backend query result."""
 

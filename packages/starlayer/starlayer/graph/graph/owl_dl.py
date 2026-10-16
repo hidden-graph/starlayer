@@ -154,8 +154,8 @@ def classify_owl_dl(graph, timeout: float | None = _timeout.DEFAULT_TIMEOUT_SECO
     _require_owlready2()
     _require_java()
 
-    from starlayer.graph.compare import _decompose
-    before = _decompose(graph)
+    from starlayer.graph.compare import _decompose_for_entailment
+    before, placeholders = _decompose_for_entailment(graph)
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         owl_path = Path(tmp_dir) / "graph.owl"
@@ -194,8 +194,11 @@ def classify_owl_dl(graph, timeout: float | None = _timeout.DEFAULT_TIMEOUT_SECO
     before_set = set(before)
     delta = Graph()
     for t in expanded:
-        if t not in before_set:
-            delta.add(t)
+        if t in before_set:
+            continue
+        if t[0] in placeholders or t[2] in placeholders:
+            continue
+        delta.add(t)
     return before, delta
 
 

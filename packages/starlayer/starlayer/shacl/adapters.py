@@ -561,11 +561,24 @@ class TripleTermAdapter:
         decoded triple term round-trips through its native triple-term
         support), else a plain ``TripleTermGraph`` fallback that can
         still hold one directly.
+
+        ``use_baseline_representation=True``: the whole point of
+        ``TripleTermAdapter`` is that pySHACL itself only ever sees a
+        flat, backend-agnostic representation - ``encode_graph()`` builds
+        that representation going in, and this is its mirror coming back
+        out. A process-global ``set_default_representation()`` must never
+        make this decode step itself start paying a native/remote-store
+        round trip per triple (this runs on every ``validate()``/
+        ``apply_rules()`` call, for every triple in the result) - that
+        would be the identical class of catastrophic overhead found in
+        ``starlayer.sparql``'s own query-as-RDF scratch graph (see
+        ``starlayer/graph/CLAUDE.md``'s dated entry), just on the write
+        side instead of the read side.
         """
         StarLayerGraph = _starlayer_graph_class()
         if StarLayerGraph is None:
             return TripleTermGraph()
-        return StarLayerGraph()
+        return StarLayerGraph(use_baseline_representation=True)
 
     def _encode_node(self, value: Any) -> Any:
         """Encode one node value for use in a flat, RDF-1.1-compatible

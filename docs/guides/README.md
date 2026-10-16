@@ -31,17 +31,17 @@ The full guide set has been reorganized into `docs/guides/`, one focused noteboo
    - **5.c [SPARQL-RL rules as RDF](05c-sparql-rules-as-rdf.ipynb)** - encoding a parsed SRL rule set as RDF under the `srl:` namespace, and SHACL-validating that encoding.
 6. **Other**
    - **6.a [Serialization formats](06a-serialization-formats.ipynb)** - all eight RDF 1.2 formats `parse()`/`serialize()` support.
-   - **6.b [Working with backend graph databases](06b-backend-graph-databases.ipynb)** - Oxigraph, Fuseki, and SQLAlchemy-backed storage.
+   - **6.b [Choosing where your data lives](06b-backend-graph-databases.ipynb)** - remote SPARQL endpoints, SQLAlchemy-backed storage, and embedded Oxigraph - Transport and Persistence, independent of the RDF 1.1/1.2 representation.
    - **6.c [Canonical hashing and graph comparison](06c-canonical-hashing.ipynb)** - RDFC-1.0 canonicalization/hashing and graph isomorphism.
 
 ## Appendices
 
 Standalone reference notebooks that don't fit the numbered guide sequence above - catalogs and collections of more advanced examples, rather than topic walkthroughs.
 
-- **[Appendix A](appendix-a.ipynb)** - index of the appendix notebooks below.
-  - **A1. [Publicly available resources](appendix-a1-public-resources.ipynb)** - every ontology/SHACL/profile file StarLayer bundles, and how to fetch each one directly from GitHub.
-  - **A2. [Named, shared parts in `sqe:` query trees](appendix-a2-sqe-shared-parts.ipynb)** - giving a query part a real, named identity instead of a private `BNode`, so more than one query can share and jointly edit it.
-  - **A3. [A complex DL reasoning example](appendix-a3-dl-reasoning-examples.ipynb)** - a 20-person employee/job constraint-satisfaction problem encoded as an OWL 2 DL ontology and solved via consistency-checking alone.
+- **[Appendix A: Public Resources](appendix-a-public-resources.ipynb)** - every ontology/SHACL/profile file StarLayer bundles, and how to fetch each one directly from GitHub.
+- **[Appendix B: Complex examples](appendix-b.ipynb)** - index of worked examples too large to keep inline in the guide they're drawn from.
+  - **B1. [Named, shared parts in `sqe:` query trees](appendix-b1-sqe-shared-parts.ipynb)** - giving a query part a real, named identity instead of a private `BNode`, so more than one query can share and jointly edit it.
+  - **B2. [A complex DL reasoning example](appendix-b2-dl-reasoning-examples.ipynb)** - a 20-person employee/job constraint-satisfaction problem encoded as an OWL 2 DL ontology and solved via consistency-checking alone.
 
 ## Related project documentation
 

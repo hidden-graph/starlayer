@@ -1,7 +1,7 @@
 """Confirms starlayer.graph/__init__.py's import-time patch for the confirmed
 plain-rdflib Result.__iter__ bug actually takes effect against real
 Graph().query() calls - see starlayer.graph/query/result_patches.py and
-docs/rdflib-upstream-issues.md issue 6 for the root-cause writeup.
+docs/upstream-issues/rdflib-upstream-issues.md issue 6 for the root-cause writeup.
 """
 
 import starlayer.graph  # noqa: F401  (import-time patch application under test)

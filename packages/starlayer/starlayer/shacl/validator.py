@@ -607,7 +607,7 @@ class StarShaclSchema:
                     "(AttributeError: 'RdfLibDataGraph' object has no attribute 'sparql_mode') "
                     "whenever it's actually used, confirmed with plain RDF 1.1 data, and "
                     "starShacl's compatibility workaround could not be applied against this "
-                    "pySHACL version - see docs/pyshacl-upstream-issues.md."
+                    "pySHACL version - see docs/upstream-issues/pyshacl-upstream-issues.md."
                 )
 
         # SHACL 1.2 Node Expressions moved to the shnex: namespace
@@ -3250,7 +3250,7 @@ def validate(
                 "(AttributeError: 'RdfLibDataGraph' object has no attribute 'sparql_mode') "
                 "whenever it's actually used, confirmed with plain RDF 1.1 data, and "
                 "starShacl's compatibility workaround could not be applied against this "
-                "pySHACL version - see docs/pyshacl-upstream-issues.md."
+                "pySHACL version - see docs/upstream-issues/pyshacl-upstream-issues.md."
             )
 
     # SHACL 1.2 Node Expressions moved to the shnex: namespace - pySHACL
@@ -3902,8 +3902,11 @@ _stringify_bnode_patch_status: bool | None = None
 def _patch_stringify_for_native_backend_bnodes() -> bool:
     """Make pySHACL's own violation-report text generation work when a
     reported focus/value node is a blank node and the graph being reported
-    on is backed by a remote SPARQLUpdateStore-style store (Oxigraph,
-    Fuseki via ``StarLayerGraph(store=..., backend='rdf-1.2')``).
+    on is backed by a native (``backend='rdf-1.2'``) ``StarLayerGraph``
+    store - remote (Oxigraph/Fuseki over HTTP, a ``SPARQLUpdateStore``) or
+    embedded (in-process ``pyoxigraph.Store`` via
+    ``starlayer.graph.backends.native_pyoxigraph.EmbeddedOxigraphStore``)
+    alike.
 
     A confirmed, real pySHACL defect, not anything of this project's own
     code: ``pyshacl.constraints.constraint_component.make_v_result_description``
@@ -3916,22 +3919,32 @@ def _patch_stringify_for_native_backend_bnodes() -> bool:
     original implementation calls ``dataset.quads((node, None, None,
     None))`` - a bound-BNode query sent straight to the raw store, which
     for ``rdflib.plugins.stores.sparqlstore.SPARQLUpdateStore`` always
-    raises ("SPARQLStore does not support BNodes!"), regardless of whether
-    that specific node could actually be found. This is a separate,
-    narrower issue than the ``StarLayerGraph._native_triples()`` bug fixed
-    in ``starlayer.graph`` itself (a real correctness bug in bound-BNode
-    *query results*) - this one only affects being able to *render a
-    report* that names a blank node, not validation correctness.
+    raises ("SPARQLStore does not support BNodes!"), and for
+    ``EmbeddedOxigraphStore`` raises ``NotImplementedError`` (that class's
+    real ``Store``-protocol methods are never meant to be called directly -
+    see its own docstring), regardless of whether that specific node could
+    actually be found either way. This is a separate, narrower issue than
+    the ``StarLayerGraph._native_triples()`` bug fixed in ``starlayer.graph``
+    itself (a real correctness bug in bound-BNode *query results*) - this
+    one only affects being able to *render a report* that names a blank
+    node, not validation correctness.
 
     Fixed by wrapping ``find_node_named_graph``: try the original first
     (unmodified, zero behavior change for the overwhelmingly common
-    in-memory case), and only on failure fall back to reconstructing each
-    of the dataset's contexts as a real ``StarLayerGraph`` sharing the same
-    store and identifier - that class's own ``.triples()`` already handles
-    a bound BNode correctly (matching it back by label after querying the
-    position as an ordinary free variable, rather than trying to serialize
-    the BNode into the query text at all - see its own docstring), so
-    routing through it here finds the right context safely. Mirrors the
+    in-memory case), and only on failure fall back to discovering every
+    named graph via a plain ``SELECT DISTINCT ?g`` query routed through
+    ``starlayer.graph.backends.native.execute_select()`` - the same
+    transport-agnostic dispatcher ``StarLayerGraph`` itself uses
+    internally, so this one discovery query already works identically for
+    both HTTP and embedded stores (confirmed live, not assumed - see
+    ``starlayer/graph/CLAUDE.md``'s dated entry on the two transports'
+    confirmed parity) - then reconstructing each discovered graph as a
+    real ``StarLayerGraph`` sharing the same store and identifier. That
+    class's own ``.triples()`` already handles a bound BNode correctly
+    (matching it back by label after querying the position as an ordinary
+    free variable, rather than trying to serialize the BNode into the
+    query text at all - see its own docstring), so routing through it here
+    finds the right context safely for either transport. Mirrors the
     original's own subject-then-object search order and ``LookupError`` on
     a genuine miss.
 
@@ -3960,7 +3973,7 @@ def _patch_stringify_for_native_backend_bnodes() -> bool:
 
             from rdflib.term import Variable
 
-            from starlayer.graph.backends.native import http_select, resolve_store_http
+            from starlayer.graph.backends.native import execute_select
             from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 
             # Deliberately not dataset.contexts()/dataset.graph(id): rdflib's
@@ -3971,9 +3984,12 @@ def _patch_stringify_for_native_backend_bnodes() -> bool:
             # live), a problem this patch would otherwise newly introduce
             # simply by reaching a code path the original implementation
             # never touched. A plain SELECT DISTINCT for graph names has no
-            # such side effect.
-            q_url, _, hdrs = resolve_store_http(dataset.store, "rdf-1.2")
-            _vars, bindings = http_select(q_url, "SELECT DISTINCT ?g WHERE { GRAPH ?g { ?s ?p ?o } }", hdrs)
+            # such side effect. execute_select() dispatches on the store's
+            # own transport (HTTP vs. embedded pyoxigraph) internally, so
+            # this one call works for either.
+            _vars, bindings = execute_select(
+                dataset.store, "rdf-1.2", "SELECT DISTINCT ?g WHERE { GRAPH ?g { ?s ?p ?o } }"
+            )
             graph_names = [row[Variable("g")] for row in bindings if Variable("g") in row]
 
             def _graph_contains(name, pattern) -> bool:
@@ -4641,7 +4657,7 @@ _filter_shape_patch_status: bool | None = None
 
 def _patch_shape_validate_for_filter_shape() -> bool:
     """Apply a targeted compatibility shim for the confirmed pySHACL bug in
-    ``sh:filterShape`` (see ``docs/pyshacl-upstream-issues.md``): patches
+    ``sh:filterShape`` (see ``docs/upstream-issues/pyshacl-upstream-issues.md``): patches
     ``pyshacl.shape.Shape.validate`` to detect the broken 2-argument calling
     convention pySHACL's own ``nodes_from_node_expression`` filterShape
     branch uses (``filter_shape.validate(data_graph, node)``) and adapt it to
@@ -5598,7 +5614,14 @@ def _global_sparql_rule_triples(
             if getattr(data_graph, "_is_native", False):
                 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 
-                snapshot = StarLayerGraph()
+                # use_baseline_representation=True: this snapshot exists
+                # specifically to escape the native backend's own
+                # unscoped-CONSTRUCT limitation (see the comment above) -
+                # a process-global set_default_representation() pointed at
+                # a native store must never be allowed to silently defeat
+                # that, by handing back exactly the native graph this
+                # snapshot was built to get away from.
+                snapshot = StarLayerGraph(use_baseline_representation=True)
                 for t in data_graph:
                     snapshot.add(t)
                 query_target = snapshot

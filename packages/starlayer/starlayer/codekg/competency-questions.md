@@ -57,7 +57,7 @@ Built 2026-10-14 (`slkg:isPrivate`/`slkg:isDunder`, Class/Function/Method only -
 
 ## Known upstream bugs / workarounds
 
-- 🗂️ Which functions exist specifically to work around a known upstream bug (rdflib/pyshacl/etc.), and which bug? — not derivable from the AST at all; this is a human judgment that only exists in a comment or a person's head. Needs a separate, curated mechanism: a small hand-maintained set of "known bug" entities (seeded from `docs/graph/rdflib-upstream-issues.md` and the scattered `xfail` comments flagged in this session's own `future_enhancements.md` entry), with an explicit link from each affected function to the bug it works around. Closer to the long-deferred "curated graph layered on top of the auto-generated one" idea than to anything the extractor computes.
+- 🗂️ Which functions exist specifically to work around a known upstream bug (rdflib/pyshacl/etc.), and which bug? — not derivable from the AST at all; this is a human judgment that only exists in a comment or a person's head. Needs a separate, curated mechanism: a small hand-maintained set of "known bug" entities (seeded from `docs/upstream-issues/rdflib-upstream-issues.md` and the scattered `xfail` comments flagged in this session's own `future_enhancements.md` entry), with an explicit link from each affected function to the bug it works around. Closer to the long-deferred "curated graph layered on top of the auto-generated one" idea than to anything the extractor computes.
 
 ## Specifications / standards grounding
 

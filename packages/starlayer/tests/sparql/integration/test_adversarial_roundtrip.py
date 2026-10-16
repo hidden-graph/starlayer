@@ -38,7 +38,7 @@ begin with: RDF 1.2's own grammar restricts a triple term's subject to
 `iri | BlankNode` - never another triple term, unconditionally, not just in
 expression position (see starlayer.sparql/triple_term.py's
 `InvalidTripleTermError`, and the sibling starlayer.graph repo's
-docs/oxigraph-upstream-issues.md Issue 1 for the full, retracted
+docs/upstream-issues/oxigraph-upstream-issues.md Issue 1 for the full, retracted
 investigation). `starlayer.sparql.parse12.prepare_query_12` now rejects this
 shape outright (`InvalidTripleTermError`) before any query ever reaches a
 backend - see `test_nested_subject_triple_term_is_rejected` below. Deep

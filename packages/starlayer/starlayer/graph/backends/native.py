@@ -1,17 +1,28 @@
 """
 starlayer.graph.backends.native
 
-HTTP-level utilities for the native RDF 1.2 backend.
+Utilities for the native RDF 1.2 backend (backend='rdf-1.2') - transports it
+over either of two engines, HTTP or embedded.
 
-rdflib 7.x does not handle "type":"triple" in SPARQL JSON results, so these
-functions bypass rdflib's SPARQL stack and talk directly to SPARQL endpoints
-via HTTP.
+rdflib 7.x does not handle "type":"triple" in SPARQL JSON results, so the
+HTTP transport's functions bypass rdflib's SPARQL stack and talk directly to
+a SPARQL endpoint via HTTP. The embedded transport (see
+starlayer.graph.backends.native_pyoxigraph, an independently-optional
+dependency - a pyoxigraph.Store wrapped in EmbeddedOxigraphStore) has no such
+problem at all - pyoxigraph hands back real term objects directly, never
+JSON - but shares this module's execute_select()/execute_update()/
+execute_ask()/execute_construct() dispatch so every _is_native-gated caller
+in starlayer_graph.py/starlayer_dataset.py works unmodified either way.
 
 Public API, shared by StarLayerGraph and StarLayerDataset (a native-backed
 dataset's per-context graphs all share one store, so there is exactly one
-underlying endpoint per dataset, same as for a single graph — see
+underlying endpoint/engine per dataset, same as for a single graph — see
 resolve_store_http()):
     sparql_term(node)                     → SPARQL inline string
+    execute_select(store, backend, sparql) → (vars, bindings)
+    execute_ask(store, backend, sparql)    → bool
+    execute_update(store, backend, sparql) → None
+    execute_construct(store, backend, sparql) → StarLayerGraph
     http_select(url, sparql, auth)        → (vars, bindings)
     http_construct(url, sparql, auth)     → (body_bytes, content_type)
     http_update(url, sparql, auth)        → None
@@ -22,11 +33,12 @@ resolve_store_http()):
     native_query(store, backend, query_object, ...) → rdflib.query.Result
     native_update(store, backend, update_object)    → None
 
-The endpoint (e.g. Apache Jena Fuseki 5.5+, Oxigraph) speaks SPARQL 1.2
-natively - triple-term syntax (<<( s p o )>>), TRIPLE()/isTRIPLE(), and the
-base-direction functions (LANGDIR/hasLANGDIR/STRLANGDIR/LANG/hasLANG) are all
-sent straight through with no rewriting. This is a different code path from the
-default rdf-1.1 backend's SPARQL 1.2 handling (starlayer.sparql's
+An HTTP endpoint (e.g. Apache Jena Fuseki 5.5+, Oxigraph-the-server) or an
+embedded pyoxigraph.Store speaks SPARQL 1.2 natively either way - triple-term
+syntax (<<( s p o )>>), TRIPLE()/isTRIPLE(), and the base-direction functions
+(LANGDIR/hasLANGDIR/STRLANGDIR/LANG/hasLANG) are all sent straight through
+with no rewriting. This is a different code path from the default rdf-1.1
+backend's SPARQL 1.2 handling (starlayer.sparql's
 parse_update_12/update_to_rdf11/rdf11_update_to_sparql11_text pipeline,
 see native_update() below), which never runs for a native-backend
 query/update - see native_query()/native_update() below, and
@@ -41,7 +53,7 @@ import re
 from typing import Any
 
 import requests
-from rdflib import BNode, Literal, URIRef
+from rdflib import BNode, Graph, Literal, URIRef
 from rdflib.namespace import XSD
 from rdflib.query import Result
 from rdflib.term import Node, Variable
@@ -373,6 +385,150 @@ def resolve_store_http(store, backend: str) -> tuple:
     return q, u, extra_headers
 
 
+def _is_embedded(store) -> bool:
+    """True when store is an embedded pyoxigraph-backed shim (see
+    starlayer.graph.backends.native_pyoxigraph.EmbeddedOxigraphStore) rather
+    than a remote HTTP-backed one. Duck-typed, no import needed - consistent
+    with StarLayerDataset.update()'s existing is_remote_http_store check,
+    which likewise detects store shape via getattr() rather than isinstance.
+    """
+    return hasattr(store, '_ox_store')
+
+
+def execute_select(store, backend: str, sparql: str) -> tuple[list, list]:
+    """Execute a SPARQL SELECT against a native-backend store - HTTP or
+    embedded - and return (vars, bindings) in the same shape either way."""
+    if _is_embedded(store):
+        from starlayer.graph.backends.native_pyoxigraph import _ox_select
+        return _ox_select(store, sparql)
+    q_url, _, hdrs = resolve_store_http(store, backend)
+    return http_select(q_url, sparql, hdrs)
+
+
+def execute_ask(store, backend: str, sparql: str) -> bool:
+    """Execute a SPARQL ASK against a native-backend store - HTTP or
+    embedded."""
+    if _is_embedded(store):
+        from starlayer.graph.backends.native_pyoxigraph import _ox_ask
+        return _ox_ask(store, sparql)
+    q_url, _, hdrs = resolve_store_http(store, backend)
+    return http_ask(q_url, sparql, hdrs)
+
+
+def execute_update(store, backend: str, sparql: str) -> None:
+    """Execute a SPARQL UPDATE against a native-backend store - HTTP or
+    embedded."""
+    if _is_embedded(store):
+        from starlayer.graph.backends.native_pyoxigraph import _ox_update
+        _ox_update(store, sparql)
+        return
+    _, u_url, hdrs = resolve_store_http(store, backend)
+    http_update(u_url, sparql, hdrs)
+
+
+def execute_construct(store, backend: str, sparql: str):
+    """Execute a SPARQL CONSTRUCT/DESCRIBE against a native-backend store -
+    HTTP or embedded - returning a deskolemized StarLayerGraph of results
+    either way. The HTTP transport round-trips through Turtle text; the
+    embedded transport converts pyoxigraph's native Triple result objects
+    directly, with no serialize/re-parse step at all."""
+    from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+
+    if _is_embedded(store):
+        from starlayer.graph.backends.native_pyoxigraph import _ox_construct
+        g = StarLayerGraph()
+        for s, p, o in _ox_construct(store, sparql):
+            g.add((s, p, o))
+        return g
+
+    q_url, _, hdrs = resolve_store_http(store, backend)
+    body, _ = http_construct(q_url, sparql, hdrs)
+    g = StarLayerGraph()
+    g.parse(data=body.decode('utf-8'), format='turtle12')
+    # Reverse skolemize_bnode(): a CONSTRUCT template can echo back a
+    # stored triple containing one of our own BN_NS URIs (a blank node
+    # we skolemized on write - see skolemize_bnode()'s docstring), which
+    # the Turtle parser above has no way to recognize as anything but an
+    # ordinary URIRef.
+    deskolemized = StarLayerGraph()
+    for s, p, o in g.triples((None, None, None)):
+        deskolemized.add((deskolemize_bnode(s), p, deskolemize_bnode(o)))
+    return deskolemized
+
+
+def decompose_for_entailment(graph) -> tuple:
+    """Entailment-safe decomposition for a native (backend='rdf-1.2') graph -
+    the native-optimized counterpart to
+    starlayer.graph.compare._decompose_for_entailment_generic(), which
+    starlayer.graph.compare._decompose_for_entailment() dispatches to
+    automatically for any graph with _is_native=True. See that module's own
+    docstring for the correctness bug this exists to fix (RDFS/OWL's
+    universal "every subject/object of every triple" typing rules firing on
+    synthetic structure that was never actually asserted) - this function's
+    own reason for existing is purely a performance one layered on top: an
+    ordinary read (triples() -> _native_triples()) would fetch a triple
+    term's full nested content across the wire/FFI boundary only to
+    immediately discard it in favor of an opaque placeholder, which costs
+    real bytes/time for a large or deeply-nested triple term - unlike an
+    in-memory graph, where the TripleTerm Python object is already sitting
+    in RAM for free and there is nothing to avoid fetching.
+
+    Two queries instead of the usual one bulk SELECT, both scoped via
+    graph._native_scoped() and executed via execute_select() exactly like
+    every other native read:
+
+    1. Plain, non-triple-term data (``FILTER(!isTRIPLE(?o))``) - full
+       fidelity, parsed and returned normally.
+    2. Rows whose object *is* a triple term (``FILTER(isTRIPLE(?o))``), but
+       ``?o`` is deliberately never projected - the engine only has to
+       confirm the pattern matches, never serialize the triple term's own
+       content back to the client. Each returned (s, p) row gets a fresh
+       BNode placeholder.
+
+    Documented trade-off, not hidden: query 2 never sees the triple term's
+    actual value, so unlike the generic (non-native) path, this cannot
+    deduplicate placeholders by triple-term value - two reifiers of the
+    identical triple-term value get two different placeholders here, so an
+    owl:InverseFunctionalProperty-style rule will not derive owl:sameAs
+    between them for a native graph, where it would for an in-memory one.
+    Accepted: this is strictly a cost of avoiding transmission of content
+    that gets discarded either way, and doesn't affect the actual bug this
+    exists to fix (both paths produce placeholders that get filtered out of
+    the final delta identically).
+
+    Args:
+        graph: The native-backend graph to decompose.
+
+    Returns:
+        A (decomposed_graph, placeholder_bnodes) pair - see
+        _decompose_for_entailment_generic()'s own Returns for what a caller
+        does with the second element.
+    """
+    from starlayer.graph.compare import _normalize_literal_term
+
+    out = Graph()
+    placeholders = []
+
+    plain_pattern = graph._native_scoped('?s ?p ?o . FILTER(!isTRIPLE(?o))')
+    vars_, bindings = execute_select(graph.store, graph._backend, f'SELECT ?s ?p ?o WHERE {{ {plain_pattern} }}')
+    for row in bindings:
+        s = row.get(Variable('s'))
+        p = row.get(Variable('p'))
+        o = row.get(Variable('o'))
+        out.add((s, p, _normalize_literal_term(o)))
+
+    tt_pattern = graph._native_scoped('?s ?p ?o . FILTER(isTRIPLE(?o))')
+    vars_, bindings = execute_select(graph.store, graph._backend, f'SELECT ?s ?p WHERE {{ {tt_pattern} }}')
+    for row in bindings:
+        s = row.get(Variable('s'))
+        p = row.get(Variable('p'))
+        placeholder = BNode()
+        placeholders.append(placeholder)
+        out.add((s, p, placeholder))
+
+    return out, frozenset(placeholders)
+
+
 def check_native_version_conformance(text: str) -> None:
     """Run the same SPARQL12ConformanceWarning check the in-memory backend's
     rewrite pipeline runs, for a native (rdf-1.2) backend's raw SPARQL text.
@@ -452,7 +608,6 @@ def native_query(store, backend: str, query_object: Any, processor: str = 'sparq
         (graph set, blank nodes deskolemized), or SELECT (vars/bindings
         set).
     """
-    q_url, _, hdrs = resolve_store_http(store, backend)
     if isinstance(query_object, str):
         check_native_version_conformance(query_object)
 
@@ -466,29 +621,16 @@ def native_query(store, backend: str, query_object: Any, processor: str = 'sparq
     if query_type == 'ASK':
         from rdflib.query import Result as RDFResult
         r = RDFResult('ASK')
-        r.askAnswer = http_ask(q_url, sparql, hdrs)
+        r.askAnswer = execute_ask(store, backend, sparql)
         return r
 
     if query_type in ('CONSTRUCT', 'DESCRIBE'):
         from rdflib.query import Result as RDFResult
-
-        from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-        body, _ = http_construct(q_url, sparql, hdrs)
-        g = StarLayerGraph()
-        g.parse(data=body.decode('utf-8'), format='turtle12')
-        # Reverse skolemize_bnode(): a CONSTRUCT template can echo back a
-        # stored triple containing one of our own BN_NS URIs (a blank node
-        # we skolemized on write - see skolemize_bnode()'s docstring), which
-        # the Turtle parser above has no way to recognize as anything but an
-        # ordinary URIRef.
-        deskolemized = StarLayerGraph()
-        for s, p, o in g.triples((None, None, None)):
-            deskolemized.add((deskolemize_bnode(s), p, deskolemize_bnode(o)))
         r = RDFResult('CONSTRUCT')
-        r.graph = deskolemized
+        r.graph = execute_construct(store, backend, sparql)
         return r
 
-    vars_, bindings = http_select(q_url, sparql, hdrs)
+    vars_, bindings = execute_select(store, backend, sparql)
     return build_result(vars_, bindings)
 
 
@@ -520,7 +662,6 @@ def native_update(store, backend: str, update_object: Any) -> None:
             plain SPARQL 1.1 text.
         update_object: The SPARQL UPDATE text to execute.
     """
-    _, u_url, hdrs = resolve_store_http(store, backend)
     text = update_object
     if backend == 'rdf-1.2':
         if isinstance(text, str):
@@ -565,4 +706,4 @@ def native_update(store, backend: str, update_object: Any) -> None:
                 )
             rdf_graph, root = update_to_rdf11(prepared_12)
             text = rdf11_update_to_sparql11_text(rdf_graph, root)
-    http_update(u_url, text, hdrs)
+    execute_update(store, backend, text)

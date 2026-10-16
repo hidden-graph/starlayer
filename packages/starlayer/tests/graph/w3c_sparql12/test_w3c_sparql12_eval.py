@@ -9,7 +9,7 @@ translation pipeline. Any failure reported here is a real, standalone
 starlayer.graph/rdflib execution defect, independent of anything that project's
 own translation might separately get right or wrong - a query that fails
 here would still fail even if that project's translation pipeline were
-perfect. See docs/rdflib-upstream-issues.md for confirmed rdflib bugs found
+perfect. See docs/upstream-issues/rdflib-upstream-issues.md for confirmed rdflib bugs found
 via this same test suite while building starlayer.sparql.
 
 Two test shapes:
@@ -179,7 +179,7 @@ EVAL_SELECT_OXIGRAPH = _mark_known_divergences(EVAL_SELECT, _OXIGRAPH_KNOWN_DIVE
 # here. These 3 are a genuine Fuseki-only conformance bug: TRIPLE()
 # validates its `predicate` argument but not its `subject` argument
 # (confirmed against a second engine, Oxigraph, which correctly rejects the
-# identical case) - see docs/fuseki-upstream-issues.md Issue 1.
+# identical case) - see docs/upstream-issues/fuseki-upstream-issues.md Issue 1.
 #
 # NOT fixed by upgrading the container - confirmed directly (2026-08-10)
 # against a live jena-6.1.0 endpoint (the latest release at the time):
@@ -190,15 +190,15 @@ EVAL_SELECT_OXIGRAPH = _mark_known_divergences(EVAL_SELECT, _OXIGRAPH_KNOWN_DIVE
 # (`BIND(TRIPLE(?subject, ?predicate, ?object) AS ?triple)`). Re-ran
 # expression/triple-on-triple-terms.rq itself through StarLayerGraph
 # against jena-6.1.0: identical failure to jena-5.5.0. Reported upstream as
-# apache/jena#4141 (2026-08-10, open) - see docs/fuseki-upstream-issues.md
+# apache/jena#4141 (2026-08-10, open) - see docs/upstream-issues/fuseki-upstream-issues.md
 # Issue 1's "Status" section for the full investigation.
 _FUSEKI_KNOWN_DIVERGENCES: dict = {
     "triple-on-literals": "Jena ARQ: TRIPLE() doesn't validate its subject argument - "
-    "reported upstream as apache/jena#4141 - see docs/fuseki-upstream-issues.md Issue 1",
+    "reported upstream as apache/jena#4141 - see docs/upstream-issues/fuseki-upstream-issues.md Issue 1",
     "triple-on-str-literals": "Jena ARQ: TRIPLE() doesn't validate its subject argument - "
-    "reported upstream as apache/jena#4141 - see docs/fuseki-upstream-issues.md Issue 1",
+    "reported upstream as apache/jena#4141 - see docs/upstream-issues/fuseki-upstream-issues.md Issue 1",
     "triple-on-triple-terms": "Jena ARQ: TRIPLE() doesn't validate its subject argument - "
-    "reported upstream as apache/jena#4141 - see docs/fuseki-upstream-issues.md Issue 1",
+    "reported upstream as apache/jena#4141 - see docs/upstream-issues/fuseki-upstream-issues.md Issue 1",
     # Found 2026-09-17 switching anonymous reifiers to real BNodes (see
     # turtle_parser.py::_skolemize_encoding): a blank node nested inside a
     # "type":"triple" JSON result value gets a different label than the
@@ -207,19 +207,19 @@ _FUSEKI_KNOWN_DIVERGENCES: dict = {
     # submission method); a GET query against the identical stored data
     # doesn't show it. The store itself is correct (confirmed via a join
     # ASK query) - this is purely ARQ's JSON results writer. See
-    # docs/fuseki-upstream-issues.md Issue 2.
+    # docs/upstream-issues/fuseki-upstream-issues.md Issue 2.
     "results-reifiedtriples-1j": "Jena ARQ: inconsistent blank-node labels across rows of one "
     "POST-submitted SELECT result set, for a bnode both nested in a triple-term value and bound "
-    "as an ordinary top-level term - see docs/fuseki-upstream-issues.md Issue 2",
+    "as an ordinary top-level term - see docs/upstream-issues/fuseki-upstream-issues.md Issue 2",
     "pattern-6": "Jena ARQ: inconsistent blank-node labels across rows of one "
     "POST-submitted SELECT result set, for a bnode both nested in a triple-term value and bound "
-    "as an ordinary top-level term - see docs/fuseki-upstream-issues.md Issue 2",
+    "as an ordinary top-level term - see docs/upstream-issues/fuseki-upstream-issues.md Issue 2",
     "pattern-7": "Jena ARQ: inconsistent blank-node labels across rows of one "
     "POST-submitted SELECT result set, for a bnode both nested in a triple-term value and bound "
-    "as an ordinary top-level term - see docs/fuseki-upstream-issues.md Issue 2",
+    "as an ordinary top-level term - see docs/upstream-issues/fuseki-upstream-issues.md Issue 2",
     "pattern-10": "Jena ARQ: inconsistent blank-node labels across rows of one "
     "POST-submitted SELECT result set, for a bnode both nested in a triple-term value and bound "
-    "as an ordinary top-level term - see docs/fuseki-upstream-issues.md Issue 2",
+    "as an ordinary top-level term - see docs/upstream-issues/fuseki-upstream-issues.md Issue 2",
 }
 
 EVAL_SELECT_FUSEKI = _mark_known_divergences(EVAL_SELECT, _FUSEKI_KNOWN_DIVERGENCES)

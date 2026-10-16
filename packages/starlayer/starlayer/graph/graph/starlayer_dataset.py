@@ -41,6 +41,7 @@ from starlayer.graph.graph.starlayer_graph import (
     StarLayerGraph,
     _raw_triples,
     _read_source_text,
+    get_default_representation,
 )
 from starlayer.graph.model.encoding import ENCODING_PREDS as _ENCODING_PREDS
 from starlayer.graph.model.encoding import (
@@ -90,9 +91,30 @@ class StarLayerDataset(Dataset):
                                       named graph each one came from
     """
 
-    def __init__(self, *args, backend: str = 'rdf-1.1', **kwargs):
+    def __init__(self, *args, backend: str | None = None, use_baseline_representation: bool = False, **kwargs):
+        # Same backend=None/no_explicit_store resolution as
+        # StarLayerGraph.__init__ - see that method's own docstring for the
+        # full rationale; kept identical deliberately so a bare
+        # StarLayerDataset() and a bare StarLayerGraph() always agree on
+        # what a configured process-global default means. Same
+        # use_baseline_representation=True escape hatch too, for identical
+        # reasons - an internal scratch Dataset that must never be
+        # influenced by a process-global default.
+        no_explicit_store = len(args) < 1 and 'store' not in kwargs
+        if use_baseline_representation:
+            if backend is not None or not no_explicit_store:
+                raise ValueError(
+                    "use_baseline_representation=True is exclusive with an explicit "
+                    "backend= or store= - pass one or the other, not both."
+                )
+            backend = 'rdf-1.1'
+        _recipe = get_default_representation()
+        if backend is None:
+            backend = _recipe[1] if (no_explicit_store and _recipe is not None) else 'rdf-1.1'
         if backend not in VALID_BACKENDS:
             raise ValueError(f"backend must be one of {sorted(VALID_BACKENDS)}, got {backend!r}")
+        if not use_baseline_representation and no_explicit_store and _recipe is not None and backend == _recipe[1]:
+            kwargs['store'] = _recipe[0]()
         super().__init__(*args, **kwargs)
         self._backend = backend
         self._sg_cache: dict[str, StarLayerGraph] = {}
@@ -649,10 +671,9 @@ class StarLayerDataset(Dataset):
             return super().__len__()
         from rdflib.term import Variable
 
-        from starlayer.graph.backends.native import http_select, resolve_store_http
-        q_url, _, hdrs = resolve_store_http(self.store, self._backend)
+        from starlayer.graph.backends.native import execute_select
         sparql = 'SELECT (COUNT(*) AS ?c) WHERE { { ?s ?p ?o } UNION { GRAPH ?g { ?s ?p ?o } } }'
-        _vars, bindings = http_select(q_url, sparql, hdrs)
+        _vars, bindings = execute_select(self.store, self._backend, sparql)
         if not bindings:
             return 0
         return int(str(bindings[0][Variable('c')]))
@@ -831,10 +852,22 @@ class StarLayerDataset(Dataset):
         parsed and lowered to the tt:HASH encoding first (native_update
         itself, via starlayer.sparql).
         """
-        is_remote_http_store = bool(
-            getattr(self.store, 'query_endpoint', None) and getattr(self.store, 'update_endpoint', None)
+        # A remote HTTP store (Fuseki/Oxigraph-the-server) needs native_update()
+        # regardless of backend (see this method's own docstring - both
+        # rdf-1.1 and rdf-1.2 remote stores hit rdflib's illegal
+        # double-GRAPH-wrapping bug). An embedded pyoxigraph store only needs
+        # it for backend='rdf-1.2' - embedded + the default rdf-1.1 encoding
+        # is an unsupported combination (enforced by EmbeddedOxigraphStore's
+        # own protocol methods raising loudly the moment generic rdflib
+        # dispatch, reached whenever this falls through to the rdf-1.1
+        # lowering branch below, would otherwise touch them) - so this check
+        # is deliberately scoped rather than widened unconditionally.
+        from starlayer.graph.backends.native import _is_embedded
+        uses_native_transport = bool(
+            (getattr(self.store, 'query_endpoint', None) and getattr(self.store, 'update_endpoint', None))
+            or (self._backend == 'rdf-1.2' and _is_embedded(self.store))
         )
-        if not is_remote_http_store:
+        if not uses_native_transport:
             if isinstance(update_object, str):
                 from starlayer.graph.query.version_directive import (
                     contains_triple_term,
