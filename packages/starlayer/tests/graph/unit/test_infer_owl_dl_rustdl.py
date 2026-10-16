@@ -205,41 +205,6 @@ class TestOwlDlRustdlModes:
 
 
 @rustdl_extra
-class TestOwlDlRustdlTripleTermDecomposition:
-    """Same honestly-scoped coverage as
-    test_infer_owl_dl.py::TestOwlDlTripleTermDecomposition - this bridge
-    shares the same decompose-before-reasoning architecture (see
-    starlayer.graph.compare._decompose_for_entailment()), but its own
-    class-assertion extraction doesn't appear to materialize
-    rdfs:domain/rdfs:range-driven typing either, so there's no sharper
-    live repro of a *behavior difference* to demonstrate here - these
-    tests confirm the fix doesn't break anything and that nothing about a
-    triple term's own inner components leaks into the closure.
-    """
-
-    def test_triple_term_does_not_crash_and_real_entailments_still_work(self):
-        from rdflib import URIRef
-        reifies = URIRef("http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies")
-
-        g = StarLayerGraph()
-        g.bind("ex", EX)
-        g.parse(data="""
-            @prefix ex: <http://example.org/> .
-            @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
-            @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
-            ex:Manager rdfs:subClassOf ex:Employee .
-            ex:alice a ex:Manager .
-            ex:claim1 rdf:reifies <<( ex:bob ex:manages ex:alice )>> .
-        """, format="turtle12")
-
-        closed = g.infer(entailment=ENTAILMENT["OWL-Direct"], engine="rustdl")
-
-        assert (EX.alice, RDF.type, EX.Employee) in closed
-        assert any(closed.triples((EX.claim1, reifies, None)))
-        assert not any(EX.bob in (s, o) for s, p, o in closed if p != reifies)
-
-
-@rustdl_extra
 class TestOwlDlRustdlTimeout:
     """Wiring coverage only - does infer(entailment=ENTAILMENT["OWL-Direct"], engine="rustdl",
     timeout=...) actually thread through to the real reasoning call. The

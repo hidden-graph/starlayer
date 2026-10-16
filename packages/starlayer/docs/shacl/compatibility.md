@@ -14,17 +14,14 @@ This is the compatibility contract for starshacl: what inputs are supported, wha
 
 ## Backend Compatibility
 
-`data_graph`/`shacl_graph` can be a `StarLayerGraph` in any combination of two independent axes - **Representation** (`backend='rdf-1.1'` default tt:HASH-encoded, or `backend='rdf-1.2'` native) and **Transport** (in-process, or a real remote SPARQL endpoint via `store=SPARQLUpdateStore(...)`) - see `packages/graph/docs/starlayergraph.md`'s own "Terminology" section for the full three-axis picture (the third axis, Persistence, doesn't affect anything in this table). Confirmed live, current status across all four real combinations:
+`data_graph`/`shacl_graph` can be a `StarLayerGraph` backed by an in-memory store (the default) or a real remote SPARQL endpoint (Oxigraph, Fuseki) via `store=SPARQLUpdateStore(...)`, in either of `StarLayerGraph`'s two backend modes (`backend='rdf-1.1'` default tt:HASH-encoded, or `backend='rdf-1.2'` native). Confirmed live 2026-09-13, current status:
 
-| Operation | In-process, `rdf-1.1` (default `Memory` store) | Remote, `rdf-1.1` | Remote, `rdf-1.2` native | In-process, `rdf-1.2` native (`embedded_oxigraph_store()`) |
-| --- | --- | --- | --- | --- |
-| Plain graph read/write, including blank nodes | ✅ | ✅ | ✅ | ✅ |
-| `validate()`, any `meta_shacl` setting, including a BNode focus/value node | ✅ | ✅ | ✅ | ✅ |
-| `apply_rules()` / rule execution | ✅ | ✅ | ✅ | ✅ |
+| Operation | In-memory (default) | Remote store, `rdf-1.1` mode | Remote store, `rdf-1.2` native mode |
+| --- | --- | --- | --- |
+| Plain graph read/write, including blank nodes | ✅ | ✅ | ✅ |
+| `apply_rules()` / `validate()`, any `meta_shacl` setting | ✅ | ✅ | ✅ |
 
-**Plain blank-node read/write against a remote store required real fixes in `starlayergraph` itself** (not starshacl) - see `packages/graph/docs/starlayergraph.md`'s "Blank nodes against a remote store" section for the full mechanism in each representation.
-
-**`apply_rules()`/`validate()` against an in-process, `rdf-1.2`-native graph, including a BNode focus/value node anywhere in the report (real data or the shapes/rules graph's own internal structure, e.g. a `sh:rule [ a sh:TripleRule ; ... ]` blank node): confirmed live, works under any `meta_shacl` setting.** This previously raised a clear, specific `RuntimeError` with `meta_shacl=True` (the default for most `validation_modes.py` presets) - `validator.py`'s `_patch_stringify_for_native_backend_bnodes()` had an HTTP-specific graph-discovery fallback (for pySHACL's own `find_node_named_graph` bug) with no embedded equivalent. Fixed by routing that fallback's own discovery query through `starlayer.graph.backends.native.execute_select()` - the same transport-agnostic dispatcher `StarLayerGraph` itself already uses internally, confirmed live to produce identical results for HTTP and embedded stores - instead of the HTTP-only `resolve_store_http()`/`http_select()` pair; see `starlayer/graph/CLAUDE.md`'s 2026-10-16 entry for the fix.
+**Plain blank-node read/write against a remote store required real fixes in `starlayergraph` itself** (not starshacl) - see `packages/graph/docs/starlayergraph.md`'s "Blank nodes against a remote store" section for the full mechanism in each mode.
 
 **`meta_shacl=True` against a remote store: fixed by never running it against the remote store at all.** Meta-shacl checks `shacl_graph`'s own structural well-formedness against a bundled meta-shapes graph - it never reads `data_graph`, and has no legitimate need for live remote-store behavior. Chasing individual pySHACL-internal code paths that broke on a bound blank node (a class-membership check, report-stringification for a blank-node focus node, and a `query(initBindings=...)` call in the `sh:sparql`-based constraint evaluator were each found, with no sign of converging on one root cause) was abandoned in favor of a much simpler fix: `meta_validate()` (`starshacl/meta_shapes.py`) now snapshots `shacl_graph` into a plain in-memory `StarLayerGraph` before running meta-shacl at all, whenever the original is remote-store-backed (`StarLayerGraph._needs_bnode_skolemization`). A one-time snapshot is the right shape for a one-time structural preflight - there is no matrix exception left to work around.
 

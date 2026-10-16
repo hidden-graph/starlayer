@@ -46,7 +46,7 @@ Not this project's obligation beyond what it already does: credentials, when nee
 ## Not planned, and why
 
 - **Any server-side implementation of this protocol.** Confirmed by repo-wide grep: no HTTP server anywhere. This project is, and has only ever been, a client/passthrough role.
-- **GET-based query submission.** Deliberately avoided per `docs/upstream-issues/fuseki-upstream-issues.md` Issue 2 (query-length limits, plus consistency with `http_update()`'s POST-with-body convention, which has no GET equivalent under the spec).
+- **GET-based query submission.** Deliberately avoided per `fuseki-upstream-issues.md` Issue 2 (query-length limits, plus consistency with `http_update()`'s POST-with-body convention, which has no GET equivalent under the spec).
 - **Form-urlencoded submission for either operation.** No reason to prefer it over the direct-body mode already used consistently for both; would only matter against a target endpoint that rejected direct-body POST, which neither Fuseki nor Oxigraph does.
 - **The HTTP `QUERY` method (RFC 10008).** New in this revision, explicitly optional, and not yet supported by either test target (Fuseki, Oxigraph) as far as this project's own testing has gone.
 - **CSV/TSV/XML results, or non-Turtle CONSTRUCT alternatives.** The client only needs formats it already parses; adding more would add parsing surface for zero functional gain.
@@ -65,5 +65,5 @@ None of the following is a conformance requirement — they're the genuine minor
 
 - `packages/graph/starlayergraph/backends/native.py` (entire file)
 - `packages/graph/docs/rdf12_sparql12_gap_analysis.md` (template/model document)
-- `docs/upstream-issues/fuseki-upstream-issues.md` (Issue 2)
+- `packages/graph/docs/upstream-issues/fuseki-upstream-issues.md` (Issue 2)
 - `packages/graph/starlayergraph/graph/starlayer_graph.py` / `starlayer_dataset.py` (native-backend dispatch, auth usage)

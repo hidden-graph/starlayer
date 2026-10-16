@@ -401,11 +401,7 @@ def extract_subgraph(
 
     from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 
-    # use_baseline_representation=True: this copy exists only to feed
-    # pySHACL's own ShapesGraph wrapper - internal plumbing, never
-    # returned to the caller - and must stay fast/well-behaved regardless
-    # of any process-global set_default_representation() in effect.
-    shacl_graph_copy = StarLayerGraph(use_baseline_representation=True)
+    shacl_graph_copy = StarLayerGraph()
     for prefix, ns in shacl_graph.namespaces():
         shacl_graph_copy.bind(prefix, ns)
     for t in shacl_graph:

@@ -296,13 +296,7 @@ def meta_validate(shapes_graph: Any, *, extra_graphs: Iterable[Any] = (), **kwar
     from starlayer.graph.graph.starlayer_graph import StarLayerGraph as _StarLayerGraph
 
     if isinstance(shapes_graph, _StarLayerGraph) and getattr(shapes_graph, "_needs_bnode_skolemization", False):
-        # use_baseline_representation=True: the whole point of this
-        # snapshot is to escape SPARQLUpdateStore's own bound-BNode
-        # limitations (see above) - a process-global
-        # set_default_representation() must never silently hand back a
-        # native-backed graph here instead, which could reintroduce the
-        # very incompatibilities this snapshot exists to sidestep.
-        snapshot = _StarLayerGraph(use_baseline_representation=True)
+        snapshot = _StarLayerGraph()
         for prefix, ns in shapes_graph.namespaces():
             snapshot.bind(prefix, ns)
         for triple in shapes_graph:

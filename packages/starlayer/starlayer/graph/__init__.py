@@ -21,15 +21,9 @@ from rdflib.namespace import RDF, RDFS, XSD
 # effect of some other import) so registration always happens regardless of
 # what a caller imports first. See starlayer.graph/query/custom_functions.py.
 import starlayer.graph.query.custom_functions as _custom_functions  # noqa: F401
-from starlayer.graph.backends.native_pyoxigraph import embedded_oxigraph_store
 from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 from starlayer.graph.graph.starlayer_dataset import StarLayerDataset
-from starlayer.graph.graph.starlayer_graph import (
-    StarLayerGraph,
-    can_resolve_import,
-    get_default_representation,
-    set_default_representation,
-)
+from starlayer.graph.graph.starlayer_graph import StarLayerGraph, can_resolve_import
 from starlayer.graph.model.dirlangstring import DirLangString
 
 # StarLayer-specific additions
@@ -223,9 +217,6 @@ __all__ = [
     "StarLayerGraph",
     "StarLayerDataset",
     "can_resolve_import",
-    "embedded_oxigraph_store",
-    "set_default_representation",
-    "get_default_representation",
     # SPARQL 1.2-aware rdflib.plugins.sparql counterparts
     "parseQuery",
     "prepareQuery",

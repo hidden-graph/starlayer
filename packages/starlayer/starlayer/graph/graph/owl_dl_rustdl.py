@@ -279,8 +279,8 @@ def classify_owl_dl_rustdl(graph, timeout: float | None = _timeout.DEFAULT_TIMEO
     """
     _require_rustdl()
 
-    from starlayer.graph.compare import _decompose_for_entailment
-    before, placeholders = _decompose_for_entailment(graph)
+    from starlayer.graph.compare import _decompose
+    before = _decompose(graph)
     _check_rustdl_hang_risk(before)
 
     with tempfile.TemporaryDirectory() as tmp_dir:
@@ -330,9 +330,6 @@ def classify_owl_dl_rustdl(graph, timeout: float | None = _timeout.DEFAULT_TIMEO
     before_set = set(before)
     delta = Graph()
     for t in expanded:
-        if t in before_set:
-            continue
-        if t[0] in placeholders or t[2] in placeholders:
-            continue
-        delta.add(t)
+        if t not in before_set:
+            delta.add(t)
     return before, delta

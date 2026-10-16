@@ -281,12 +281,7 @@ def _run_sparql_call(template: str, arg_values: list) -> list:
 
     from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 
-    # use_baseline_representation=True: a tiny, throwaway, internal-only
-    # graph feeding rdflib's own expression evaluator - never returned to
-    # a caller, and called frequently enough (once per sparql: node
-    # expression evaluated) that it must stay fast regardless of any
-    # process-global set_default_representation() in effect.
-    scratch = StarLayerGraph(use_baseline_representation=True)
+    scratch = StarLayerGraph()
     for value in arg_values:
         # A real TripleTerm-like object *or* a plain 3-tuple - StarLayerGraph
         # treats a bare 3-tuple as triple-term shorthand everywhere else

@@ -109,122 +109,36 @@ __all__ = ["isomorphic", "graph_diff", "to_isomorphic", "to_canonical_hash"]
 _TT = Namespace("urn:starlayer:canon-tt#")
 
 
-def _normalize_literal_term(node: Any) -> Any:
-    """A DirLangString is re-encoded as the same flat Literal form used at
-    this codebase's own read/write boundary; an explicit-xsd:string Literal
-    is normalized down to the simple-literal form (datatype=None) it's
-    semantically sugar for, per RDF 1.1 Concepts (see module docstring);
-    anything else (already a plain rdflib term, or a TripleTerm - callers
-    handle that case themselves) passes through unchanged. Shared by
-    _decompose() and _decompose_for_entailment_generic()/
-    starlayer.graph.backends.native.decompose_for_entailment() - the same
-    representation-compatibility concern applies regardless of why a
-    triple term is being decomposed, so this one piece of logic isn't
-    duplicated across any of them."""
-    if isinstance(node, DirLangString):
-        return Literal(node.value, datatype=encode_dirlang_datatype(node.language, node.direction))
-    if isinstance(node, Literal) and node.datatype == XSD.string and node.language is None:
-        return Literal(str(node))
-    return node
-
-
 def _decompose(graph: Any) -> Graph:
     """Return a plain ``rdflib.Graph`` with every triple term replaced by a
     synthetic reification fragment - see module docstring for why this is
     sufficient for correct isomorphism/canonicalization.
-
-    Not for entailment use - see _decompose_for_entailment() instead, which
-    deliberately does NOT expose a triple term's own inner structure to a
-    reasoner (doing so lets vocabulary-level rules like RDFS's universal
-    "every subject/object is rdfs:Resource" fire on terms that only ever
-    appear *inside* a triple term, a conclusion the rule never actually
-    licensed from the real, asserted graph - found and fixed 2026-10-16).
-    This function's own full recursive expansion is still exactly right for
-    isomorphism/canonicalization, which must keep a triple term's real
-    content visible to tell two graphs apart correctly.
     """
     out = Graph()
 
     def _term(node: Any) -> Any:
         """A triple term becomes a fresh blank node (recursing for a nested
-        triple term in object position); see _normalize_literal_term() for
-        the DirLangString/explicit-xsd:string case."""
+        triple term in object position); a DirLangString is re-encoded as
+        the same flat Literal form used at this codebase's own read/write
+        boundary; an explicit-xsd:string Literal is normalized down to the
+        simple-literal form (datatype=None) it's semantically sugar for, per
+        RDF 1.1 Concepts (see module docstring); anything else (already a
+        plain rdflib term) passes through unchanged."""
         if isinstance(node, TripleTerm):
             tt_node = BNode()
             out.add((tt_node, _TT.subject, _term(node.subject)))
             out.add((tt_node, _TT.predicate, node.predicate))
             out.add((tt_node, _TT.object, _term(node.object)))
             return tt_node
-        return _normalize_literal_term(node)
+        if isinstance(node, DirLangString):
+            return Literal(node.value, datatype=encode_dirlang_datatype(node.language, node.direction))
+        if isinstance(node, Literal) and node.datatype == XSD.string and node.language is None:
+            return Literal(str(node))
+        return node
 
     for s, p, o in graph:
         out.add((_term(s), p, _term(o)))
     return out
-
-
-def _decompose_for_entailment_generic(graph: Any) -> tuple[Graph, frozenset]:
-    """Entailment-safe decomposition for a non-native graph (in-memory, or
-    any backend other than StarLayerGraph's own native rdf-1.2 transport -
-    see starlayer.graph.backends.native.decompose_for_entailment() for the
-    native-optimized counterpart this mirrors).
-
-    Unlike _decompose(), a triple term becomes a genuinely *opaque* blank
-    node placeholder - no synthetic edges describing its own
-    subject/predicate/object at all, so a reasoner (owlrl, HermiT, RustDL -
-    none of which understand RDF 1.2 triple terms) never sees anything that
-    only exists *inside* a triple term as if it had been asserted
-    standalone. See _decompose()'s own docstring and this project's
-    starlayer/graph/CLAUDE.md for the bug this specifically fixes.
-
-    Distinct triple-term *values* are deduplicated to the same placeholder
-    within this one call (the TripleTerm class already implements
-    __eq__/__hash__ via its own _key(), so the object itself works directly
-    as a dict key) - this matters for correctness, not just tidiness: if the
-    identical triple-term value is reified by two different reifiers, an
-    owl:InverseFunctionalProperty-style rule needs to see them as the *same*
-    object to correctly derive reifier1 owl:sameAs reifier2. A fresh
-    placeholder is still minted per call (never cached across calls), same
-    "fresh per call" precedent _decompose() itself already documents.
-
-    Args:
-        graph: The graph to decompose.
-
-    Returns:
-        A (decomposed_graph, placeholder_bnodes) pair - the second element
-        is every synthetic placeholder minted, so a caller can filter any
-        newly-entailed triple that still touches one out of its own delta
-        (there is no legal way to express a fact about the real triple term
-        itself - RDF 1.2 forbids a triple term in subject position of any
-        triple, entailed or not - so such a fact can only ever be expressed,
-        incorrectly, in terms of the placeholder standing in for it).
-    """
-    out = Graph()
-    placeholders: dict = {}
-
-    def _term(node: Any) -> Any:
-        if isinstance(node, TripleTerm):
-            if node not in placeholders:
-                placeholders[node] = BNode()
-            return placeholders[node]
-        return _normalize_literal_term(node)
-
-    for s, p, o in graph:
-        out.add((_term(s), p, _term(o)))
-    return out, frozenset(placeholders.values())
-
-
-def _decompose_for_entailment(graph: Any) -> tuple[Graph, frozenset]:
-    """Entailment-safe decomposition, dispatching to the native-optimized
-    path for a native (backend='rdf-1.2') graph - see
-    starlayer.graph.backends.native.decompose_for_entailment() - or the
-    generic one above otherwise. The sole entry point
-    _infer_before_and_delta()/classify_owl_dl()/classify_owl_dl_rustdl() use
-    - callers never need to know which path ran.
-    """
-    if getattr(graph, '_is_native', False):
-        from starlayer.graph.backends.native import decompose_for_entailment
-        return decompose_for_entailment(graph)
-    return _decompose_for_entailment_generic(graph)
 
 
 def isomorphic(graph1: Any, graph2: Any) -> bool:

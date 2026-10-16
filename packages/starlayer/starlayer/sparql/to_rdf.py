@@ -108,26 +108,12 @@ def _new_starlayer_graph() -> Graph:
     own plain ``rdflib.Graph()`` explicitly via the ``graph`` parameter;
     this default is deliberately not that permissive.
 
-    ``use_baseline_representation=True`` — this is a private, ephemeral
-    scratch graph encoding a query's own algebra as RDF (hundreds of
-    triples even for a modest query), walked back out again via many
-    small, individual triple-pattern lookups in ``rdf_to_query``/
-    ``rdf_to_update`` — never the caller's own data, and never something a
-    caller configuring ``starlayer.graph.set_default_representation()``
-    (e.g. to prefer embedded Oxigraph for their *real* graphs) meant to
-    affect. Confirmed live (2026-10-16): with a global default configured,
-    the identical reconstruction that takes ~4ms against the real baseline
-    took well over 30s and climbing against a native/Oxigraph-backed
-    scratch graph — each small lookup pays a full SPARQL-engine round trip
-    instead of a near-free Python dict lookup. See
-    ``starlayer/graph/CLAUDE.md``'s dated entry on this finding.
-
     Returns:
         A fresh ``StarLayerGraph`` instance.
     """
     from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 
-    return StarLayerGraph(use_baseline_representation=True)
+    return StarLayerGraph()
 
 
 def query_to_rdf(query: Query, graph: Graph | None = None) -> tuple[Graph, BNode]:
@@ -417,7 +403,7 @@ def _encode_list(items: list, graph: Graph) -> BNode | URIRef:
     produces ``Extend(var=None)``/``Group.expr=[None, ...]`` for this
     legal-per-grammar construct, which then crashes rdflib's own
     ``evalAggregateJoin`` — see the sibling ``starlayer.graph`` package's
-    ``docs/upstream-issues/rdflib-upstream-issues.md`` Issue 5 for the full repro,
+    ``docs/graph/rdflib-upstream-issues.md`` Issue 5 for the full repro,
     and its own
     ``starlayer.graph/query/evaluate_patches.py::patch_group_by_unaliased_expression_key``
     for the actual fix (a parse-tree pre-processing patch, applied

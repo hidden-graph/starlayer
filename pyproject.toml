@@ -50,12 +50,6 @@ reasoning = ["owlrl>=6"]
 # (no JVM, but not provably complete on full SROIQ) - both opt-in, symmetrically.
 hermit = ["owlready2>=0.51"]
 rustdl = ["rustdl>=0.4"]
-# Embedded-engine transport for the native RDF 1.2 backend
-# (StarLayerGraph(store=embedded_oxigraph_store(), backend='rdf-1.2')) - the
-# same Oxigraph Rust engine the HTTP native backend talks to over a wire,
-# run in-process instead via pyoxigraph. Not core: most callers either use
-# the default in-memory backend or a real remote endpoint.
-oxigraph-embedded = ["pyoxigraph>=0.5"]
 test = ["pytest>=8.0", "hypothesis>=6"]
 # pytest-benchmark for benchmarks-graph/benchmarks-shacl's own test_bench_*.py
 # regression guards (outside `testpaths`, so a bare `pytest` never collects

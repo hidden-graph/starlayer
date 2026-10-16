@@ -174,53 +174,7 @@ class TestOwlDlModes:
 
 @owl_dl_extra
 @java_required
-class TestOwlDlTripleTermDecomposition:
-    """classify_owl_dl() shares the same decompose-before-reasoning
-    architecture as the owlrl-backed regimes (see
-    starlayer.graph.compare._decompose_for_entailment()), so it's
-    susceptible in principle to the same bug class fixed there 2026-10-16:
-    a term that exists only *inside* a triple term getting spuriously
-    typed as if it had been asserted standalone, because decomposing the
-    triple term into synthetic structure exposes it to the reasoner.
-
-    Honestly scoped: unlike owlrl's RDFS_Semantics (which explicitly
-    implements a universal "every subject/object is rdfs:Resource" rule),
-    this bridge's own class-assertion extraction
-    (materialize_inferred_class_assertions() -> RDF/XML realization
-    output) was confirmed live, while writing this test, to not report
-    rdfs:domain/rdfs:range-driven class membership at all - not for a
-    triple term's inner components, and not even for a completely
-    ordinary named individual with no triple terms involved. So a sharper
-    live repro proving a *behavior difference* isn't achievable against
-    this particular bridge's current scope - these tests confirm the fix
-    doesn't break anything and that the placeholder genuinely carries no
-    leaked content, rather than proving a before/after output difference
-    the way test_infer.py's own equivalent test does for the owlrl path.
-    """
-
-    def test_triple_term_does_not_crash_and_real_entailments_still_work(self):
-        from rdflib import URIRef
-        reifies = URIRef("http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies")
-
-        g = StarLayerGraph()
-        g.bind("ex", EX)
-        g.parse(data="""
-            @prefix ex: <http://example.org/> .
-            @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
-            @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
-            ex:Manager rdfs:subClassOf ex:Employee .
-            ex:alice a ex:Manager .
-            ex:claim1 rdf:reifies <<( ex:bob ex:manages ex:alice )>> .
-        """, format="turtle12")
-
-        closed = g.infer(entailment=ENTAILMENT['OWL-Direct'])
-
-        assert (EX.alice, RDF.type, EX.Employee) in closed
-        assert any(closed.triples((EX.claim1, reifies, None)))
-        # ex:bob only ever appears inside the triple term - confirms no
-        # fact about it leaked into the closure, same spirit as the owlrl
-        # test even though this bridge never produced one to begin with.
-        assert not any(EX.bob in (s, o) for s, p, o in closed if p != reifies)
+class TestOwlDlTimeout:
     """Wiring coverage only - does infer(entailment=ENTAILMENT['OWL-Direct'], engine="hermit",
     timeout=...) actually thread through to the real reasoning call. The
     timeout *mechanism* itself (process spawn/deadline/process-group kill)

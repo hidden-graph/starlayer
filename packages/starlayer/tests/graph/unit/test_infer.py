@@ -239,26 +239,17 @@ class TestInferDelta:
         assert (EX.Dog, RDFS.subClassOf, EX.Animal) not in result
 
     def test_triple_term_case_still_correct(self) -> None:
-        # Mirrors TestInferWithTripleTerms.test_delta_matches_owlrl_run_on_the_same_decomposition -
-        # isomorphic(), not raw equality, for the same
-        # _decompose_for_entailment()-mints-a-fresh-BNode-per-call reason.
-        # The oracle uses _decompose_for_entailment() (opaque placeholder,
-        # not the full tt:subject/predicate/object expansion _decompose()
-        # itself still produces for isomorphism/canonicalization use) plus
-        # the same placeholder-touching-delta-triple filter infer() itself
-        # now applies - see starlayer/graph/CLAUDE.md's 2026-10-16 entry for
-        # why: the old oracle (plain _decompose() + no filter) reproduced a
-        # real bug (spurious rdfs:Resource typing for a term that only ever
-        # appears *inside* a triple term), so it's no longer a valid
-        # reference for what infer() should produce.
-        from starlayer.graph.compare import _decompose_for_entailment, isomorphic
+        # Mirrors TestInferWithTripleTerms.test_matches_owlrl_run_on_the_same_decomposition -
+        # isomorphic(), not raw equality, for the same _decompose()-mints-a-
+        # fresh-BNode-per-call reason.
+        from starlayer.graph.compare import _decompose, isomorphic
 
         g = _rdfs_graph()
         g.add((EX.claim, REIFIES, TripleTerm(EX.alice, EX.knows, EX.bob)))
 
         delta = g.infer(mode="delta")
 
-        oracle_before, oracle_placeholders = _decompose_for_entailment(g)
+        oracle_before = _decompose(g)
         oracle_after = Graph()
         for t in oracle_before:
             oracle_after.add(t)
@@ -266,11 +257,8 @@ class TestInferDelta:
         oracle_before_set = set(oracle_before)
         oracle_delta = StarLayerGraph()
         for t in oracle_after:
-            if t in oracle_before_set:
-                continue
-            if t[0] in oracle_placeholders or t[2] in oracle_placeholders:
-                continue
-            oracle_delta.add(t)
+            if t not in oracle_before_set:
+                oracle_delta.add(t)
 
         assert isomorphic(delta, oracle_delta)
         assert len(delta) == len(oracle_delta)
@@ -312,31 +300,23 @@ class TestInferWithTripleTerms:
         assert (EX.claim, REIFIES, tt) in closed
 
     def test_delta_matches_owlrl_run_on_the_same_decomposition(self) -> None:
-        # _decompose_for_entailment() mints a *fresh* BNode per call for the
-        # triple term's synthetic placeholder identity (by design), so
-        # calling it a second time here for the oracle yields a
-        # structurally identical but label-different graph from what
-        # infer() produced internally - compare via isomorphic(), not raw
-        # set equality. Comparing the *delta* specifically (not the whole
-        # closure, which now preserves the real triple term for its own
-        # portion - see the previous test) is the correct oracle comparison
-        # for the part that genuinely still goes through decomposition.
-        #
-        # The oracle uses _decompose_for_entailment() (opaque placeholder)
-        # plus the same placeholder-touching-delta-triple filter infer()
-        # itself now applies, not plain _decompose() with no filter - see
-        # starlayer/graph/CLAUDE.md's 2026-10-16 entry: the old oracle
-        # reproduced a real bug (spurious rdfs:Resource typing for a term
-        # that only ever appears *inside* a triple term), so it's no longer
-        # a valid reference for what infer() should produce.
-        from starlayer.graph.compare import _decompose_for_entailment, isomorphic
+        # _decompose() mints a *fresh* BNode per call for the triple term's
+        # synthetic identity (by design - see its own docstring), so calling
+        # it a second time here for the oracle yields a structurally
+        # identical but label-different graph from what infer() produced
+        # internally - compare via isomorphic(), not raw set equality.
+        # Comparing the *delta* specifically (not the whole closure, which
+        # now preserves the real triple term for its own portion - see the
+        # previous test) is the correct oracle comparison for the part that
+        # genuinely still goes through decomposition.
+        from starlayer.graph.compare import _decompose, isomorphic
 
         g = _rdfs_graph()
         g.add((EX.claim, REIFIES, TripleTerm(EX.alice, EX.knows, EX.bob)))
 
         delta = g.infer(mode="delta")
 
-        oracle_before, oracle_placeholders = _decompose_for_entailment(g)
+        oracle_before = _decompose(g)
         oracle_after = Graph()
         for t in oracle_before:
             oracle_after.add(t)
@@ -344,11 +324,8 @@ class TestInferWithTripleTerms:
         oracle_before_set = set(oracle_before)
         oracle_delta = StarLayerGraph()
         for t in oracle_after:
-            if t in oracle_before_set:
-                continue
-            if t[0] in oracle_placeholders or t[2] in oracle_placeholders:
-                continue
-            oracle_delta.add(t)
+            if t not in oracle_before_set:
+                oracle_delta.add(t)
 
         assert isomorphic(delta, oracle_delta)
         assert len(delta) == len(oracle_delta)
@@ -374,52 +351,6 @@ class TestInferWithTripleTerms:
 
         assert isomorphic(closure, union)
         assert len(closure) == len(union)
-
-    def test_term_only_inside_a_triple_term_is_not_spuriously_typed_resource(self) -> None:
-        # The bug this whole class's own placeholder-filtering exists to
-        # fix (found live, see starlayer/graph/CLAUDE.md's 2026-10-16
-        # entry): ex:bob/ex:alice appear *only* inside a triple term -
-        # never as a real subject/object of any asserted triple. Before
-        # the fix, decomposing the triple term into a full synthetic
-        # tt:subject/predicate/object fragment let RDFS's universal
-        # "every subject/object of every triple is rdfs:Resource" rule
-        # fire on them as if they'd been asserted standalone - a
-        # conclusion the rule never actually licensed from the real graph.
-        g = StarLayerGraph()
-        g.bind("ex", EX)
-        g.add((EX.manages, RDFS.domain, EX.Manager))
-        g.add((EX.manages, RDFS.range, EX.Employee))
-        g.add_reification(EX.claim1, TripleTerm(EX.bob, EX.manages, EX.alice))
-
-        closed = g.infer(entailment=ENTAILMENT.RDFS)
-
-        assert (EX.bob, RDF.type, RDFS.Resource) not in closed
-        assert (EX.alice, RDF.type, RDFS.Resource) not in closed
-        # Unaffected either way - a real subject, and schema-level facts
-        # about ex:manages itself, neither of which ever depended on the
-        # triple term's own inner structure being visible to the reasoner.
-        assert (EX.claim1, RDF.type, RDFS.Resource) in closed
-        assert (EX.manages, RDFS.domain, EX.Manager) in closed
-        assert (EX.manages, RDFS.range, EX.Employee) in closed
-
-    def test_identical_triple_term_value_reified_twice_still_derives_sameas(self) -> None:
-        # The real payoff of deduplicating placeholders by triple-term
-        # *value* (not minting one per occurrence): two different
-        # reifiers of the identical triple-term value, with the reifying
-        # predicate declared owl:InverseFunctionalProperty, must still let
-        # OWL-RL derive reifier1 owl:sameAs reifier2 - that conclusion is
-        # about two real subjects, not about the triple term itself, so it
-        # must survive the placeholder-filtering delta fix above.
-        g = StarLayerGraph()
-        g.bind("ex", EX)
-        g.add((REIFIES, RDF.type, OWL.InverseFunctionalProperty))
-        tt = TripleTerm(EX.bob, EX.manages, EX.alice)
-        g.add_reification(EX.reifier1, tt)
-        g.add_reification(EX.reifier2, tt)
-
-        closed = g.infer(entailment=ENTAILMENT["OWL-RDF-Based"])
-
-        assert (EX.reifier1, OWL.sameAs, EX.reifier2) in closed
 
 
 @owlrl_extra

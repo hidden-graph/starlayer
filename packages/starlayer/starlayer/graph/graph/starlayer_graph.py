@@ -53,74 +53,6 @@ RDF_REIFIES     = URIRef('http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies')
 
 # Valid backend mode identifiers
 VALID_BACKENDS = frozenset({'rdf-1.1', 'rdf-1.2'})
-
-# Process-global default (store factory, representation) pair - see
-# set_default_representation()'s own docstring. "Representation" (not
-# "backend") names the axis this controls deliberately: the real,
-# shipped backend= parameter means how a triple term is stored
-# ('rdf-1.1' synthetic tt:HASH encoding vs 'rdf-1.2' genuine native
-# triple-term storage) - a completely different, independent question
-# from Transport (is the store in-process or remote) or Persistence (does
-# it write to disk) - see docs/graph/starlayergraph.md's own Terminology
-# section for the full three-axis picture. A plain, permanent,
-# process-wide global by deliberate choice, not a context-manager-scoped
-# one - the expected usage is "a developer sets this once for their whole
-# application," not "shift between types mid-process."
-_default_representation_recipe: tuple | None = None
-
-
-def set_default_representation(store_factory, representation: str = 'rdf-1.2') -> None:
-    """Set the (store factory, representation) pair StarLayerGraph()/
-    StarLayerDataset() use when constructed with no explicit store=/
-    backend= of their own - a plain process-global, in effect for the rest
-    of the process until changed again. Pass store_factory=None to restore
-    the ordinary rdf-1.1/in-memory default (representation is ignored in
-    that case).
-
-    `representation` is the value that ends up as the real, shipped
-    `backend=` parameter - named "representation" here, not "backend", to
-    keep this axis distinct from Transport (in-process vs. remote) and
-    Persistence (ephemeral vs. disk), which this setting says nothing
-    about either way.
-
-    store_factory is a zero-arg callable returning a *fresh* Store each
-    call (e.g. embedded_oxigraph_store itself, whose own path=None default
-    already matches this shape) - never a Store instance directly, since
-    every StarLayerGraph()/StarLayerDataset() call needs its own
-    independent store, not one shared across every "new" graph in the
-    process.
-
-    The common case is one line:
-    ``set_default_representation(embedded_oxigraph_store)`` - real native
-    RDF 1.2 triple-term storage, in-process, ephemeral, for every bare
-    StarLayerGraph()/StarLayerDataset() constructed from here on. An
-    explicit store=/backend= on any individual call always overrides this
-    - see StarLayerGraph.__init__'s own docstring for the exact resolution
-    rules.
-
-    Args:
-        store_factory: A zero-arg callable returning a fresh Store, or
-            None to clear the default.
-        representation: The backend= value store_factory's own stores
-            require - must be one of VALID_BACKENDS. Ignored when
-            store_factory is None.
-
-    Raises:
-        ValueError: If representation is not a recognized value.
-    """
-    global _default_representation_recipe
-    if store_factory is None:
-        _default_representation_recipe = None
-        return
-    if representation not in VALID_BACKENDS:
-        raise ValueError(f"representation must be one of {sorted(VALID_BACKENDS)}, got {representation!r}")
-    _default_representation_recipe = (store_factory, representation)
-
-
-def get_default_representation() -> tuple | None:
-    """The (store factory, representation) pair set_default_representation()
-    last configured, or None if no default is set."""
-    return _default_representation_recipe
 # A per-query choice (query()'s own entailment= kwarg, not a graph-level
 # setting - see that method's docstring). None = today's plain
 # simple-entailment behavior. ENTAILMENT.RDF rewrites the query at query
@@ -428,49 +360,9 @@ class StarLayerGraph(Graph):
     serialization, etc.) are inherited and work without modification.
     """
 
-    def __init__(self, *args, backend: str | None = None, use_baseline_representation: bool = False, **kwargs):
-        # backend=None (not a hardcoded 'rdf-1.1' default) is required to
-        # distinguish "caller omitted backend entirely" from "caller
-        # explicitly chose 'rdf-1.1'" - only the former should ever pick up
-        # a process-global default (set_default_representation()); an
-        # explicit choice must never be silently overridden. store has no
-        # equivalent ambiguity - it's never a named parameter of this
-        # signature at all (it flows through *args/**kwargs to
-        # super().__init__() untouched), so "no store at all" is already
-        # unambiguously len(args) < 1 and 'store' not in kwargs.
-        no_explicit_store = len(args) < 1 and 'store' not in kwargs
-        if use_baseline_representation:
-            # For internal, performance-sensitive scratch graphs (e.g.
-            # starlayer.sparql's query-as-RDF encoding) that were never
-            # meant to represent a caller's own data and must never be
-            # influenced by a process-global set_default_representation()
-            # - named around the concept ("the baseline representation"),
-            # not a specific backend string, so callers never need to know
-            # or care that the baseline happens to be 'rdf-1.1' + Memory()
-            # today; only this one resolution point would need to change
-            # if that baseline implementation ever changed. Deliberately
-            # exclusive with an explicit backend=/store= of the caller's
-            # own - "give me the baseline" and "but also use this other
-            # thing" are a contradiction, not a priority order to guess at.
-            if backend is not None or not no_explicit_store:
-                raise ValueError(
-                    "use_baseline_representation=True is exclusive with an explicit "
-                    "backend= or store= - pass one or the other, not both."
-                )
-            backend = 'rdf-1.1'
-        _recipe = _default_representation_recipe
-        if backend is None:
-            backend = _recipe[1] if (no_explicit_store and _recipe is not None) else 'rdf-1.1'
+    def __init__(self, *args, backend: str = 'rdf-1.1', **kwargs):
         if backend not in VALID_BACKENDS:
             raise ValueError(f"backend must be one of {sorted(VALID_BACKENDS)}, got {backend!r}")
-        if not use_baseline_representation and no_explicit_store and _recipe is not None and backend == _recipe[1]:
-            # The resolved backend matches the configured default's own
-            # representation (whether backend was omitted entirely, above,
-            # or the caller explicitly passed the same value with no
-            # store) - pick up its store too. A caller who explicitly
-            # chose the *other* representation never reaches this branch,
-            # so an explicit override is always fully respected.
-            kwargs['store'] = _recipe[0]()
         if backend == 'rdf-1.2' and len(args) < 2 and kwargs.get('identifier') is None:
             # Without this, a native graph constructed with no explicit
             # identifier=  gets rdflib's own default (a fresh random BNode) -
@@ -598,6 +490,17 @@ class StarLayerGraph(Graph):
     # Native backend (rdf-1.2)
     # ------------------------------------------------------------------
 
+    def _store_http(self) -> tuple:
+        """Return (query_url, update_url, extra_headers) from the backing store.
+
+        Raises RuntimeError if the store does not expose HTTP endpoints
+        (e.g. in-memory stores). See starlayer.graph.backends.native.resolve_store_http()
+        - shared with StarLayerDataset's own native-backend dispatch, since a
+        dataset's contexts all share the same underlying store.
+        """
+        from starlayer.graph.backends.native import resolve_store_http
+        return resolve_store_http(self.store, self._backend)
+
     def _native_scoped(self, body: str) -> str:
         """Wrap ``body`` in ``GRAPH <self.identifier> { ... }``, unless this
         graph stands for a dataset's own default graph, in which case
@@ -623,9 +526,10 @@ class StarLayerGraph(Graph):
 
     def _native_add(self, s, p, obj) -> None:
         """Write a single (s, p, obj) triple to this graph via one SPARQL
-        Update call (HTTP or embedded, see native.execute_update())."""
-        from starlayer.graph.backends.native import execute_update, sparql_term
+        Update HTTP request."""
+        from starlayer.graph.backends.native import http_update, sparql_term
         from starlayer.graph.model.triple import TripleTerm as _TT
+        q_url, u_url, hdrs = self._store_http()
         s_str = sparql_term(s)
         p_str = sparql_term(p)
         o_str = sparql_term(obj)
@@ -638,7 +542,7 @@ class StarLayerGraph(Graph):
             sparql = f'INSERT {{ {self._native_scoped(triple_str)} }} WHERE {{}}'
         else:
             sparql = f'INSERT DATA {{ {self._native_scoped(triple_str)} }}'
-        execute_update(self.store, self._backend, sparql)
+        http_update(u_url, sparql, hdrs)
 
     def _native_add_many(self, triples) -> None:
         """Write every ``(s, p, obj)`` in ``triples`` to this graph in a
@@ -667,7 +571,7 @@ class StarLayerGraph(Graph):
         """
         if not triples:
             return
-        from starlayer.graph.backends.native import execute_update, sparql_term
+        from starlayer.graph.backends.native import http_update, sparql_term
         from starlayer.graph.model.triple import TripleTerm as _TT
 
         parts = []
@@ -685,8 +589,9 @@ class StarLayerGraph(Graph):
             o_str = sparql_term(obj, skolemize_bnodes=False)
             parts.append(f'{s_str} {p_str} {o_str} .')
 
+        _, u_url, hdrs = self._store_http()
         sparql = f'INSERT {{ {self._native_scoped(" ".join(parts))} }} WHERE {{}}'
-        execute_update(self.store, self._backend, sparql)
+        http_update(u_url, sparql, hdrs)
         self._on_mutated()
 
     def _native_triples(self, triple):
@@ -697,7 +602,8 @@ class StarLayerGraph(Graph):
         from rdflib import BNode
         from rdflib.term import Variable
 
-        from starlayer.graph.backends.native import execute_ask, execute_select, sparql_term
+        from starlayer.graph.backends.native import http_ask, http_select, sparql_term
+        q_url, _, hdrs = self._store_http()
         s, p, o = triple
 
         free = []
@@ -782,7 +688,7 @@ class StarLayerGraph(Graph):
 
         if not free and not bnode_filters:
             sparql = f'ASK {{ {body} }}'
-            if execute_ask(self.store, self._backend, sparql):
+            if http_ask(q_url, sparql, hdrs):
                 yield (s, p, o)
             return
 
@@ -790,7 +696,7 @@ class StarLayerGraph(Graph):
         sel = ' '.join(f'?{v}' for v in projected)
         distinct = 'DISTINCT ' if bnode_filters else ''
         sparql = f'SELECT {distinct}{sel} WHERE {{ {body} }}'
-        vars_, bindings = execute_select(self.store, self._backend, sparql)
+        vars_, bindings = http_select(q_url, sparql, hdrs)
         for row in bindings:
             if any(row.get(Variable(v)) != bn for v, bn in bnode_filters.items()):
                 continue
@@ -1233,8 +1139,9 @@ class StarLayerGraph(Graph):
         {p}`` pattern-delete rather than ``DELETE DATA`` - the latter only
         accepts fully ground triples.
         """
-        from starlayer.graph.backends.native import execute_update, sparql_term
+        from starlayer.graph.backends.native import http_update, sparql_term
         from starlayer.graph.model.triple import TripleTerm as _TT
+        _, u_url, hdrs = self._store_http()
 
         # A removal can invalidate a previously-recorded bnode discovery
         # handle (_native_triples()'s join-based fix for bound-BNode
@@ -1261,7 +1168,7 @@ class StarLayerGraph(Graph):
             sparql = f'DELETE {{ {scoped} }} WHERE {{ {scoped} }}'
         else:
             sparql = f'DELETE DATA {{ {scoped} }}'
-        execute_update(self.store, self._backend, sparql)
+        http_update(u_url, sparql, hdrs)
 
     def remove(self, triple) -> StarLayerGraph:
         """Remove a triple matching the pattern. Always returns self, matching
@@ -1398,8 +1305,9 @@ class StarLayerGraph(Graph):
         """
         from rdflib.term import Variable
 
-        from starlayer.graph.backends.native import execute_select, sparql_term
+        from starlayer.graph.backends.native import http_select, sparql_term
         s, p, o = triple
+        q_url, _, hdrs = self._store_http()
 
         free = []
         values_clauses = []
@@ -1417,7 +1325,7 @@ class StarLayerGraph(Graph):
 
         pattern = f'{_slot(s, "s")} {_slot(p, "p")} {_slot(o, "o")} .'
         sparql = f'SELECT * WHERE {{ {self._native_scoped(pattern)} {" ".join(values_clauses)} }}'
-        vars_, bindings = execute_select(self.store, self._backend, sparql)
+        vars_, bindings = http_select(q_url, sparql, hdrs)
         for row in bindings:
             yield (
                 row.get(Variable('s'), s) if 's' in free else s,
@@ -1479,9 +1387,10 @@ class StarLayerGraph(Graph):
         """
         from rdflib.term import Variable
 
-        from starlayer.graph.backends.native import execute_select
+        from starlayer.graph.backends.native import http_select
+        q_url, _, hdrs = self._store_http()
         sparql = f'SELECT (COUNT(*) AS ?c) WHERE {{ {self._native_scoped("?s ?p ?o .")} }}'
-        _vars, bindings = execute_select(self.store, self._backend, sparql)
+        _vars, bindings = http_select(q_url, sparql, hdrs)
         if not bindings:
             return 0
         return int(str(bindings[0][Variable('c')]))
@@ -2922,23 +2831,10 @@ class StarLayerGraph(Graph):
 
         Safe to diff by plain triple membership (no BNode-identity surprises
         - see infer()'s own docstring on why this differs from comparing two
-        *separate* _decompose_for_entailment() calls): ``before`` and
-        ``expanded`` share the exact same triple/BNode objects up to the
-        point ``expanded`` is mutated, since ``expanded`` is built by
-        re-adding ``before``'s own triples verbatim, not by decomposing self
-        a second time.
-
-        delta is additionally filtered to drop any newly-entailed triple
-        that still touches one of the opaque placeholders
-        ``_decompose_for_entailment()`` minted for a triple term - such a
-        fact (e.g. a vocabulary-level universal-typing rule firing on the
-        placeholder) was never actually licensed by the real, asserted
-        graph, and there is no legal way to re-express it in terms of the
-        real triple term either (RDF 1.2 forbids one in subject position of
-        any triple, entailed or not) - see
-        starlayer.graph.compare._decompose_for_entailment()'s own docstring
-        and this package's CLAUDE.md (2026-10-16 entry) for the full account
-        of the bug this fixes.
+        *separate* _decompose() calls): ``before`` and ``expanded`` share the
+        exact same triple/BNode objects up to the point ``expanded`` is
+        mutated, since ``expanded`` is built by re-adding ``before``'s own
+        triples verbatim, not by decomposing self a second time.
 
         Args:
             regimes: The ENTAILMENT.* regime IRI(s) to reason under.
@@ -2946,14 +2842,14 @@ class StarLayerGraph(Graph):
         Returns:
             A (before, delta) pair of plain rdflib.Graph objects: the
             original data (decomposed - see
-            starlayer.graph.compare._decompose_for_entailment()), and just
-            the newly-entailed triples.
+            starlayer.graph.compare._decompose()), and just the
+            newly-entailed triples.
         """
         semantics = self._resolve_owlrl_semantics(regimes)
         import owlrl
 
-        from starlayer.graph.compare import _decompose_for_entailment
-        before, placeholders = _decompose_for_entailment(self)
+        from starlayer.graph.compare import _decompose
+        before = _decompose(self)
         expanded = Graph()
         for t in before:
             expanded.add(t)
@@ -2961,11 +2857,8 @@ class StarLayerGraph(Graph):
         before_set = set(before)
         delta = Graph()
         for t in expanded:
-            if t in before_set:
-                continue
-            if t[0] in placeholders or t[2] in placeholders:
-                continue
-            delta.add(t)
+            if t not in before_set:
+                delta.add(t)
         return before, delta
 
     def _before_and_delta_for(self, regimes: frozenset, engine: str = 'hermit', timeout=_OWL_DL_TIMEOUT_DEFAULT):
