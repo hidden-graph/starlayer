@@ -17,7 +17,7 @@ from rdflib.plugins.sparql.processor import prepareQuery, prepareUpdate
 from starlayer.sparql import queries_to_collection, query_to_rdf, update_to_rdf
 from starlayer.sparql.parse12 import prepare_query_12
 from starlayer.sparql.salg import shapes_graph, validate_query
-from starlayer.sparql.vocab import SALG, SPEXPR
+from starlayer.sparql.vocab import PY_STR_DATATYPE, SALG, SPEXPR
 from tests.sparql.unit.test_phase2_aggregates import QUERIES as AGGREGATE_QUERIES
 from tests.sparql.unit.test_phase2_forms import QUERIES as FORMS_QUERIES
 from tests.sparql.unit.test_phase2_paths import QUERIES as PATH_QUERIES
@@ -541,11 +541,11 @@ def test_function_missing_iri_fails():
 
 
 def test_relational_expression_op_wrong_datatype_fails():
-    """spexpr:op must be a salg:PyStr-tagged Literal (RelationalExpression.op
+    """spexpr:op must be a spexpr:PlainString-tagged Literal (RelationalExpression.op
     is a bare Python str in the live algebra, e.g. "=" - see vocab.py's
     "Bare Python strings" section), not merely present. Was previously
     cardinality-only, so any value at all (even an IRI) silently conformed -
-    found via a 2026-08 audit auditing every salg:PyStr encoding site against
+    found via a 2026-08 audit auditing every spexpr:PlainString encoding site against
     its shape."""
     query_text = "PREFIX : <http://example.org/> SELECT * WHERE { ?s ?p ?y . FILTER(?y = 1) }"
     prepared = prepareQuery(query_text)
@@ -561,14 +561,14 @@ def test_relational_expression_op_wrong_datatype_fails():
 
 
 def test_order_condition_order_wrong_datatype_fails():
-    """Same gap as salg:op above, for OrderCondition.order ("ASC"/"DESC")."""
+    """Same gap as spexpr:op above, for OrderCondition.order ("ASC"/"DESC")."""
     query_text = "PREFIX : <http://example.org/> SELECT * WHERE { ?s ?p ?y } ORDER BY DESC(?y)"
     prepared = prepareQuery(query_text)
     graph, root = query_to_rdf(prepared)
     node = next(graph.subjects(RDF.type, SALG.OrderCondition))
     for order in list(graph.objects(node, SALG.order)):
         graph.remove((node, SALG.order, order))
-    graph.add((node, SALG.order, Literal("DESC")))  # plain literal, not salg:PyStr-tagged
+    graph.add((node, SALG.order, Literal("DESC")))  # plain literal, not spexpr:PlainString-tagged
 
     conforms, _, results_text = validate_query(graph)
     assert not conforms
@@ -576,7 +576,7 @@ def test_order_condition_order_wrong_datatype_fails():
 
 
 def test_service_silent_wrong_datatype_fails():
-    """Same gap as salg:op above, for ServiceGraphPattern.silent - confirmed
+    """Same gap as spexpr:op above, for ServiceGraphPattern.silent - confirmed
     via prepareQuery that .silent is the bare string "SILENT", not a
     Python bool, when present."""
     query_text = "SELECT * WHERE { SERVICE SILENT <http://ex/endpoint> { ?s ?p ?o } }"
@@ -593,7 +593,7 @@ def test_service_silent_wrong_datatype_fails():
 
 
 def test_clear_silent_wrong_datatype_fails():
-    """Same salg:PyStr gap as above, on the Update side: Clear/Drop/Create/
+    """Same spexpr:PlainString gap as above, on the Update side: Clear/Drop/Create/
     Add/Move/Copy/Load's own .silent had no shape declaration at all before
     this - not even cardinality - confirmed via prepareUpdate that .silent is
     the bare string "SILENT" here too, same as ServiceGraphPattern's."""
@@ -614,7 +614,7 @@ def test_load_graphiri_pystr_keyword_fails():
     """LOAD's own INTO GRAPH destination is always a plain IRI - unlike
     Clear/Drop/Create's salg:graphiri, LOAD's grammar never allows a
     DEFAULT/NAMED/ALL keyword there (confirmed against real translateUpdate
-    output) - so salg:GraphRefShape's PyStr alternative must NOT apply here.
+    output) - so salg:GraphRefShape's PlainString alternative must NOT apply here.
     Previously salg:graphiri had no shape declaration at all for Load."""
     update_text = "LOAD SILENT <http://ex/src> INTO GRAPH <http://ex/dest>"
     prepared = prepareUpdate(update_text)
@@ -622,7 +622,7 @@ def test_load_graphiri_pystr_keyword_fails():
     node = next(graph.subjects(RDF.type, SALG.Load))
     for graphiri in list(graph.objects(node, SALG.graphiri)):
         graph.remove((node, SALG.graphiri, graphiri))
-    graph.add((node, SALG.graphiri, Literal("DEFAULT", datatype=SALG.PyStr)))
+    graph.add((node, SALG.graphiri, Literal("DEFAULT", datatype=PY_STR_DATATYPE)))
 
     conforms, _, results_text = validate_query(graph)
     assert not conforms
@@ -832,7 +832,7 @@ def test_modify_missing_both_delete_and_insert_fails():
 
 
 def test_clear_graphiri_neither_term_nor_pystr_fails():
-    """salg:graphiri must be a graph term or a salg:PyStr-tagged keyword
+    """salg:graphiri must be a graph term or a spexpr:PlainString-tagged keyword
     (DEFAULT/NAMED/ALL) - a bare integer literal is neither."""
     prepared = prepareUpdate("PREFIX : <http://example.org/> CLEAR DEFAULT")
     graph, root = update_to_rdf(prepared)
@@ -1158,7 +1158,7 @@ def test_aggregate_distinct_wrong_type_fails():
     node = next(graph.subjects(RDF.type, SALG.Aggregate_Count))
     for distinct in list(graph.objects(node, SALG.distinct)):
         graph.remove((node, SALG.distinct, distinct))
-    graph.add((node, SALG.distinct, Literal("DISTINCT")))  # not PyStr-tagged
+    graph.add((node, SALG.distinct, Literal("DISTINCT")))  # not PlainString-tagged
 
     conforms, _, results_text = validate_query(graph)
     assert not conforms
@@ -1201,7 +1201,7 @@ def test_groupconcat_separator_wrong_nodekind_fails():
 def test_binding_val_missing_fails():
     """salg:Binding's own salg:val was "at most one" (0 or 1) - but
     to_rdf._encode_binding_row unconditionally adds this triple for every
-    row/variable pair, including UNDEF (represented as the salg:PyStr
+    row/variable pair, including UNDEF (represented as the spexpr:PlainString
     literal "UNDEF", not by omitting the property) - so a genuinely
     missing salg:val, which the old shape allowed, can never actually be
     produced by this encoder and should be rejected as malformed."""
@@ -1290,7 +1290,7 @@ def test_arithmetic_op_wrong_member_fails():
     cardinality-only despite this shape's own pre-existing message already
     claiming "a well-formed rdf:List of operator strings" - nothing
     actually enforced that. Confirmed op is a real Python list of bare
-    strings (e.g. ['+', '-']), each salg:PyStr-tagged by the generic
+    strings (e.g. ['+', '-']), each spexpr:PlainString-tagged by the generic
     encoder."""
     query_text = "SELECT * WHERE { ?s ?p ?o . FILTER(?o + 1 > 0) }"
     prepared = prepareQuery(query_text)
@@ -1299,11 +1299,88 @@ def test_arithmetic_op_wrong_member_fails():
     op_list = next(graph.objects(node, SPEXPR.op))
     from rdflib.collection import Collection
 
-    Collection(graph, op_list)[0] = Literal("+")  # not PyStr-tagged
+    Collection(graph, op_list)[0] = Literal("+")  # not PlainString-tagged
 
     conforms, _, results_text = validate_query(graph)
     assert not conforms
     assert "spexpr:op" in results_text or "AdditiveExpression" in results_text
+
+
+def test_relational_op_illegal_value_fails():
+    """spexpr:op's value was only ever checked for shape (present, a real
+    spexpr:PlainString-tagged literal), never for being one of the real
+    legal operator symbols (added 2026-10-15) - a hand-edited tree with
+    op set to an arbitrary string previously conformed, decoded, and even
+    executed with no error at all (the bad FILTER just silently dropped
+    its row per SPARQL's own error-as-unbound semantics)."""
+    query_text = "SELECT * WHERE { ?s ?p ?y . FILTER(?y = 1) }"
+    prepared = prepareQuery(query_text)
+    graph, root = query_to_rdf(prepared)
+    node = next(graph.subjects(RDF.type, SPEXPR.RelationalExpression))
+    for op in list(graph.objects(node, SPEXPR.op)):
+        graph.remove((node, SPEXPR.op, op))
+    graph.add((node, SPEXPR.op, Literal("bogus_op", datatype=SPEXPR.PlainString)))
+
+    conforms, _, results_text = validate_query(graph)
+    assert not conforms
+
+
+@pytest.mark.parametrize("op", ["=", "!=", "<", ">", "<=", ">=", "IN", "NOT IN"])
+def test_relational_op_every_real_operator_conforms(op):
+    """Positive companion - confirms the new sh:in enum doesn't
+    overcorrect: every real RelationalExpression operator, including the
+    two found missing from the enum's first draft (IN/NOT IN, found via
+    this project's own meta-shapes self-check rejecting a different
+    shape's sh:select text that happened to use IN), still conforms."""
+    query_text = (
+        "SELECT * WHERE { ?s ?p ?y . FILTER(?y IN (1, 2)) }"
+        if op == "IN"
+        else "SELECT * WHERE { ?s ?p ?y . FILTER(?y NOT IN (1, 2)) }"
+        if op == "NOT IN"
+        else f"SELECT * WHERE {{ ?s ?p ?y . FILTER(?y {op} 1) }}"
+    )
+    prepared = prepareQuery(query_text)
+    graph, root = query_to_rdf(prepared)
+
+    conforms, _, results_text = validate_query(graph)
+    assert conforms, results_text
+
+
+def test_arithmetic_op_illegal_value_fails():
+    """Same gap as spexpr:op above, for the Arithmetic family's own
+    operator-string list (AdditiveExpression/MultiplicativeExpression
+    share it) - a legitimately spexpr:PlainString-tagged but nonsense
+    operator value previously conformed."""
+    query_text = "SELECT * WHERE { ?s ?p ?o . FILTER(?o + 1 > 0) }"
+    prepared = prepareQuery(query_text)
+    graph, root = query_to_rdf(prepared)
+    node = next(graph.subjects(RDF.type, SPEXPR.AdditiveExpression))
+    op_list = next(graph.objects(node, SPEXPR.op))
+    from rdflib.collection import Collection
+
+    Collection(graph, op_list)[0] = Literal("%", datatype=SPEXPR.PlainString)
+
+    conforms, _, results_text = validate_query(graph)
+    assert not conforms
+
+
+@pytest.mark.parametrize("op,text", [
+    ("+", "SELECT * WHERE { ?s ?p ?o . FILTER(?o + 1 > 0) }"),
+    ("-", "SELECT * WHERE { ?s ?p ?o . FILTER(?o - 1 > 0) }"),
+    ("*", "SELECT * WHERE { ?s ?p ?o . FILTER(?o * 1 > 0) }"),
+    ("/", "SELECT * WHERE { ?s ?p ?o . FILTER(?o / 1 > 0) }"),
+])
+def test_arithmetic_op_every_real_operator_conforms(op, text):
+    """Positive companion - all four real Arithmetic operators (shared by
+    Additive and Multiplicative alike) still conform, including */ which
+    a first draft of this enum missed entirely (found by the existing
+    test_expression_family_queries_conform fixture failing on a real
+    multiplicative query, not assumed)."""
+    prepared = prepareQuery(text)
+    graph, root = query_to_rdf(prepared)
+
+    conforms, _, results_text = validate_query(graph)
+    assert conforms, results_text
 
 
 def test_quadsforgraph_graph_wrong_type_fails():

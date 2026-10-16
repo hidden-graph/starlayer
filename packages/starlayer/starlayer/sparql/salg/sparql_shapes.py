@@ -233,5 +233,21 @@ def validate_query(data_graph: Graph) -> tuple[bool, Graph, str]:
             inference=ENTAILMENT.RDFS,
             advanced=True,
             max_validation_depth=100,
+            # meta_shacl defaults to True in starlayer.shacl.validate() -
+            # must be disabled here explicitly. shapes_graph() merges in
+            # starontology's own spexpr_shacl graph, which genuinely
+            # contains its own sh:select literals (ExpressionShape's
+            # supporting shapes) - meta_shacl's own preflight now includes
+            # a real SALG structural check for every sh:select/ask/
+            # construct it finds (check_sparql_query_text(), see
+            # starlayer.shacl/meta_shapes.py), which calls back into this
+            # very function. Leaving meta_shacl at its default here would
+            # recurse infinitely (confirmed live: "maximum recursion depth
+            # exceeded") the moment that check was added - this project's
+            # own bundled shapes/ontology are already vetted by this
+            # module's own test suite, not arbitrary caller content, so
+            # there's nothing to gain from re-running that preflight on
+            # every single validate_query() call anyway.
+            meta_shacl=False,
         )
     return result.conforms, result.report_graph, result.report_text

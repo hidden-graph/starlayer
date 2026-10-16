@@ -386,6 +386,82 @@ class TestInferCombinedRegime:
 
 
 @owlrl_extra
+class TestInferCombinedWithRdf:
+    """ENTAILMENT.RDF combines freely with RDFS/OWL-RDF-Based (any subset,
+    including all three at once) - the native RDF delta is unioned with
+    whatever the owlrl-backed regime(s) entail. Uses rdf:first/rdf:rest/
+    rdf:nil data specifically: RDFS alone does NOT entail
+    ``rdf:nil rdf:type rdf:List`` (confirmed empirically - it has no rule
+    touching rdf:List at all), unlike rdfD2's own property-typing effect
+    which RDFS's rdfs6 reflexivity already happens to subsume for any
+    predicate - so this is a real case where the union adds something the
+    owlrl side alone would not, not a trivially-already-equal result.
+    """
+
+    def _list_and_subclass_graph(self) -> StarLayerGraph:
+        g = StarLayerGraph()
+        g.bind("ex", EX)
+        g.add((EX.list1, RDF.first, EX.a))
+        g.add((EX.list1, RDF.rest, RDF.nil))
+        g.add((EX.Dog, RDFS.subClassOf, EX.Animal))
+        g.add((EX.fido, RDF.type, EX.Dog))
+        return g
+
+    def test_rdf_plus_rdfs_unions_both_deltas(self) -> None:
+        g = self._list_and_subclass_graph()
+
+        combined = set(g.infer(entailment={ENTAILMENT.RDF, ENTAILMENT.RDFS}, mode="delta"))
+
+        # Present only via the native RDF side:
+        assert (RDF.nil, RDF.type, RDF.List) in combined
+        # Present only via the RDFS side:
+        assert (EX.fido, RDF.type, EX.Animal) in combined
+
+    def test_rdf_plus_owl_rl_unions_both_deltas(self) -> None:
+        g = self._list_and_subclass_graph()
+        g.add((EX.Dog, OWL.disjointWith, EX.Cat))
+
+        combined = set(g.infer(entailment={ENTAILMENT.RDF, ENTAILMENT["OWL-RDF-Based"]}, mode="delta"))
+
+        assert (RDF.nil, RDF.type, RDF.List) in combined
+        # OWL-RL-only entailment (owl:sameAs reflexivity over named
+        # individuals actually in the data) confirms the owlrl side
+        # really ran, not just the native RDF side alone. Note: universal
+        # owl:Thing typing is NOT produced by OWL-RL alone - confirmed
+        # empirically - only by RDFS+OWL-RL combined (see
+        # test_all_three_combined below), so it can't be used here.
+        assert (EX.Dog, OWL.sameAs, EX.Dog) in combined
+
+    def test_all_three_combined(self) -> None:
+        g = self._list_and_subclass_graph()
+        g.add((EX.Dog, OWL.disjointWith, EX.Cat))
+
+        combined = set(g.infer(entailment={ENTAILMENT.RDF, ENTAILMENT.RDFS, ENTAILMENT["OWL-RDF-Based"]}, mode="delta"))
+
+        assert (RDF.nil, RDF.type, RDF.List) in combined
+        assert (EX.fido, RDF.type, EX.Animal) in combined
+        assert (EX.fido, RDF.type, OWL.Thing) in combined
+
+    def test_rdf_alone_in_a_set_is_unchanged(self) -> None:
+        # regimes == {ENTAILMENT.RDF} alone must still behave exactly as
+        # it did before this combining logic was added - no owlrl import,
+        # no merge step.
+        g = StarLayerGraph()
+        g.bind("ex", EX)
+        g.add((EX.alice, EX.knows, EX.bob))
+
+        delta = set(g.infer(entailment={ENTAILMENT.RDF}, mode="delta"))
+
+        assert delta == {(EX.knows, RDF.type, RDF.Property)}
+
+    def test_owl_direct_combined_with_rdf_still_raises(self) -> None:
+        g = self._list_and_subclass_graph()
+
+        with pytest.raises(ValueError, match="Unsupported entailment regime combination"):
+            g.infer(entailment={ENTAILMENT.RDF, ENTAILMENT["OWL-Direct"]})
+
+
+@owlrl_extra
 class TestInferInPlace:
     def test_mutates_and_returns_self(self) -> None:
         g = _rdfs_graph()

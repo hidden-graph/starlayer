@@ -118,10 +118,11 @@ def _canonicalize_construct_where(query: Query) -> Query:
 def prepare_query_12(
     text: str, base: str | None = None, initNs: Mapping[str, Any] | None = None
 ) -> Query:
-    """Parse and translate SPARQL 1.2 query text into a real, executable-
-    shaped rdflib ``Query`` — ``query.algebra`` contains genuine
-    ``TripleTermNode`` nodes in triple-pattern position, not a lowered
-    SPARQL-1.1-equivalent shape.
+    """Parses and translates SPARQL 1.2 query text into a real,
+    executable-shaped rdflib ``Query``.
+
+    ``query.algebra`` contains genuine ``TripleTermNode`` nodes in
+    triple-pattern position, not a lowered SPARQL-1.1-equivalent shape.
 
     ``base``/``initNs`` are threaded straight through to ``translateQuery``
     — same two parameters, same precedence, as plain rdflib's own
@@ -155,7 +156,18 @@ def prepare_update_12(
     text: str, base: str | None = None, initNs: Mapping[str, Any] | None = None
 ) -> Update:
     """``prepare_query_12``'s counterpart for SPARQL 1.2 Update text — same
-    ``base``/``initNs`` passthrough to ``translateUpdate``."""
+    ``base``/``initNs`` passthrough to ``translateUpdate``.
+
+    Args:
+        text: The SPARQL 1.2 Update text to parse and translate.
+        base: Optional base IRI, passed through to ``translateUpdate``.
+        initNs: Optional namespace prefix bindings seeded into the
+            request's Prologue before its own ``BASE``/``PREFIX``
+            declarations are applied.
+
+    Returns:
+        The translated, executable-shaped ``Update``.
+    """
     update = _reject_blank_nodes_in_delete(
         translateUpdate(parse_update_12(text), base, initNs)
     )

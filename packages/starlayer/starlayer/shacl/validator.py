@@ -78,17 +78,20 @@ class _RawGraphView:
 
 
 class StarShaclSchema:
-    """A SHACL schema: a bound shapes graph (``self.shacl_graph``) plus an
-    optional ontology graph (``self.ont_graph``), each a reference to its
-    own separate graph - this class does not itself *hold* triples the way
-    ``StarLayerGraph`` does (composition, not inheritance: there's no real
-    "is-a" relationship available between it and any existing rdflib/
-    pyshacl class - pySHACL's own main entry point, ``validate()``, is a
-    stateless one-shot function, not a long-lived object to subclass, and
-    this class unifies several independent capabilities
-    (``validate``/``apply_rules``/``evaluate``)
-    rather than specializing any one of them). Construct one per distinct
-    shapes-set (``PersonSchema = StarShaclSchema(person_shapes)``,
+    """A SHACL schema: a bound shapes graph plus an optional ontology
+    graph, to validate, infer rules against, or evaluate node
+    expressions over any number of data graphs.
+
+    ``self.shacl_graph``/``self.ont_graph`` are each a reference to
+    their own separate graph - this class does not itself *hold* triples
+    the way ``StarLayerGraph`` does. Composition, not inheritance: there
+    is no real "is-a" relationship available between it and any
+    existing rdflib/pyshacl class - pySHACL's own main entry point,
+    ``validate()``, is a stateless one-shot function, not a long-lived
+    object to subclass, and this class unifies several independent
+    capabilities (``validate``/``apply_rules``/``evaluate``) rather than
+    specializing any one of them. Construct one per distinct shapes-set
+    (``PersonSchema = StarShaclSchema(person_shapes)``,
     ``ProductSchema = StarShaclSchema(product_shapes)``, ...), then call
     ``validate``/``apply_rules``/``evaluate`` against whatever data graph
     you're checking. Shape-driven subgraph extraction is a separate, plain
@@ -379,6 +382,9 @@ class StarShaclSchema:
         value_nodes: tuple[Any, ...],
         options: dict[str, Any] | None = None,
     ) -> Any:
+        """Evaluates one native ``ConstraintComponent`` directly against
+        ``component``/``focus_node``/``value_nodes``.
+        """
         request = ComponentRequest(
             component=component,
             focus_node=focus_node,
@@ -394,6 +400,7 @@ class StarShaclSchema:
         graph_context: Any,
         options: dict[str, Any] | None = None,
     ) -> Any:
+        """Builds a ``sh:ValidationReport`` graph from component ``events``."""
         return native_build_report(events=events, graph_context=graph_context, options=options)
 
     def validate(
@@ -1684,11 +1691,13 @@ class StarShaclSchema:
         shapes_graph_resource: Any | None = None,
         **kwargs: Any,
     ) -> RulesResult:
-        """Delegates to the module-level :func:`apply_rules`, binding this
-        instance's own ``shacl_graph``/``ont_graph`` - the real
-        implementation lives there (mirroring pyshacl's own
-        ``shacl_rules()`` entry point), not here; this method exists only
-        to avoid repeating ``shacl_graph``/``ont_graph`` on every call.
+        """Executes SHACL rules against ``data_graph``, using this
+        instance's own bound ``shacl_graph``/``ont_graph``.
+
+        Delegates to the module-level :func:`apply_rules`, which holds
+        the real implementation (mirroring pyshacl's own
+        ``shacl_rules()`` entry point) - this method exists only to
+        avoid repeating ``shacl_graph``/``ont_graph`` on every call.
 
         Args:
             data_graph: The data graph to run rules against. Optional -
@@ -1734,18 +1743,19 @@ class StarShaclSchema:
         *,
         shapes_graph_resource: Any | None = None,
     ) -> Any:
-        """A third, independent processing mode alongside ``validate()``
-        (checks conformance, never mutates) and ``apply_rules()`` (executes
-        ``sh:rule``, materializes real triples): compute every ``sh:values``-
-        declared *virtual* property across ``shacl_graph``, for every focus
-        node it applies to, and return the result merged into a shape-driven
-        *subgraph* - every targeted property shape's own real, stored
-        ``sh:path`` values, plus any computed virtual values layered on top -
-        never the whole of ``data_graph``. The caller's own ``data_graph``
-        is never mutated, and the returned graph is not meant to be
-        persisted: SHACL 1.2 Node Expressions' own framing for virtual
-        values is that they are computed "only on demand", never creating
-        real triples in the data graph or shapes graph.
+        """Computes every ``sh:values``-declared virtual property across
+        ``shacl_graph`` and returns the result as a shape-driven subgraph.
+
+        A third, independent processing mode alongside ``validate()``
+        (checks conformance, never mutates) and ``apply_rules()``
+        (executes ``sh:rule``, materializes real triples). Every focus
+        node a property shape applies to gets its own real, stored
+        ``sh:path`` values, plus any computed virtual values layered on
+        top - never the whole of ``data_graph``. The caller's own
+        ``data_graph`` is never mutated, and the returned graph is not
+        meant to be persisted: SHACL 1.2 Node Expressions' own framing
+        for virtual values is that they are computed "only on demand",
+        never creating real triples in the data graph or shapes graph.
 
         This is a genuinely separate concern from ``apply_rules()``, not an
         overlapping one: a ``sh:values``-declared virtual property is
@@ -1892,12 +1902,14 @@ class StarShaclSchema:
         return merged
 
     def close_shape(self, shape: Any, *, shapes_graph_resource: Any | None = None) -> Any:
-        """Takes a shape (a node identifier already in this instance's own
-        ``shacl_graph``) and returns a closed copy of ``shacl_graph`` -
-        ``shape``, and every shape it recursively references in a way that
-        describes a value node's *complete* property set (``sh:node``,
+        """Returns a closed copy of ``shacl_graph``, closing ``shape`` and
+        every shape it recursively references.
+
+        ``shape`` is a node identifier already in this instance's own
+        ``shacl_graph``. Every shape reached in a way that describes a
+        value node's *complete* property set - ``sh:node``,
         ``sh:qualifiedValueShape``, every ``sh:and``/``sh:or``/``sh:xone``
-        member), is closed (``sh:closed true``) with any
+        member - is closed (``sh:closed true``) with any
         ``sh:ignoredProperties`` stripped. The original ``shacl_graph`` is
         never mutated. See the module-level ``_close_shape`` in
         ``subgraph_extraction.py`` for the full algorithm/rationale -
@@ -1932,13 +1944,15 @@ class StarShaclSchema:
         return _close_shape(shacl_graph_input, shape)
 
     def extract_shapes_graph(self, shapes_graph_iri: Any) -> Any | None:
-        """Given the IRI of one ``sh:ShapesGraph``-typed resource declared
-        within this instance's own bound ``shacl_graph``, extracts just
-        that resource's own "module" as a standalone graph - the inverse
-        of SHACL 1.2 Profiling §2's packaging convention: rather than
-        reading a single shapes graph's own self-declared metadata, this
-        pulls one *named* module back out of a larger graph that bundles
-        several ``sh:ShapesGraph`` modules together side by side.
+        """Extracts the ``sh:ShapesGraph``-typed resource named by
+        ``shapes_graph_iri`` as a standalone graph.
+
+        ``shapes_graph_iri`` must be declared within this instance's own
+        bound ``shacl_graph``. The inverse of SHACL 1.2 Profiling §2's
+        packaging convention: rather than reading a single shapes
+        graph's own self-declared metadata, this pulls one *named*
+        module back out of a larger graph that bundles several
+        ``sh:ShapesGraph`` modules together side by side.
 
         A shape counts as a member of ``shapes_graph_iri``'s module via
         any of the three mechanisms SHACL 1.2 Profiling §2 documents,
@@ -3071,12 +3085,14 @@ def validate(
     include_used_configuration: bool = False,
     **kwargs: Any,
 ) -> ValidationResult:
-    """Validate ``data_graph`` against ``shacl_graph`` (SHACL 1.2 Core),
-    after applying every SHACL 1.2 pattern this project supports
-    natively (entailment, new target types, node expressions, native
-    component registration, etc.). ``StarShaclSchema.validate()`` keeps
-    its own, separate copy of this body for now (see this module's
-    "two-step flip" note), rather than delegating here.
+    """Validates ``data_graph`` against ``shacl_graph`` per SHACL 1.2
+    Core, and returns a ``ValidationResult``.
+
+    Applies every SHACL 1.2 pattern this project supports natively first
+    - entailment, new target types, node expressions, native component
+    registration, and so on. ``StarShaclSchema.validate()`` keeps its
+    own, separate copy of this body for now rather than delegating here
+    - see this module's "two-step flip" note.
 
     Args:
         data_graph: The RDF data to validate. Normalized via
@@ -3476,14 +3492,15 @@ def evaluate(
     *,
     inference: Any | None = None,
 ) -> Any:
-    """Compute every ``sh:values``/``sh:defaultValue``-declared virtual
-    property across ``shacl_graph``, for every focus node it applies
-    to, and return the result merged into a shape-driven subgraph - a
-    third, independent processing mode alongside ``validate()`` (checks
-    conformance, never mutates) and ``apply_rules()`` (executes
+    """Computes every ``sh:values``/``sh:defaultValue``-declared virtual
+    property across ``shacl_graph`` and returns the result as a
+    shape-driven subgraph.
+
+    A third, independent processing mode alongside ``validate()``
+    (checks conformance, never mutates) and ``apply_rules()`` (executes
     ``sh:rule``, materializes real triples). ``StarShaclSchema.evaluate()``
-    keeps its own, separate copy of this body for now (see
-    ``validate()``'s own docstring).
+    keeps its own, separate copy of this body for now - see
+    ``validate()``'s own docstring.
 
     The returned graph contains every property shape's real, stored
     ``sh:path`` values for its own target focus nodes (not just the
@@ -3603,14 +3620,14 @@ def apply_rules(
     rule_set: Any | None = None,
     **kwargs: Any,
 ) -> RulesResult:
-    """Execute SHACL rules (``sh:rule``/``sh:TripleRule``/
-    ``sh:SPARQLRule``, plus SHACL 1.2's own ``sh:RuleSet``/
-    ``sh:sourceRule`` provenance) against a private working copy of
-    ``data_graph``, then validate the resulting evaluation graph.
-    Mirrors pyshacl's own module-level ``shacl_rules(data_graph,
-    shacl_graph=..., ont_graph=..., **kwargs)`` entry point - this is
-    the real implementation; ``StarShaclSchema.apply_rules()``
-    delegates here, binding its own ``shacl_graph``/``ont_graph``.
+    """Executes SHACL rules against a private working copy of
+    ``data_graph``, then validates the resulting evaluation graph.
+
+    Covers ``sh:rule``/``sh:TripleRule``/``sh:SPARQLRule``, plus SHACL
+    1.2's own ``sh:RuleSet``/``sh:sourceRule`` provenance. Mirrors
+    pyshacl's own module-level ``shacl_rules()`` entry point - this is
+    the real implementation; ``StarShaclSchema.apply_rules()`` delegates
+    here, binding its own ``shacl_graph``/``ont_graph``.
 
     The caller's own ``data_graph`` object is never mutated - every
     step (rule execution, entailment, the final conformance re-check)

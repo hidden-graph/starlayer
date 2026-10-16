@@ -5,6 +5,35 @@
 @prefix sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
+sqe:AlternativesListShape a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "expected a well-formed rdf:List whose members are themselves well-formed pattern lists" ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
+            SELECT $this
+            WHERE {
+                {
+                    FILTER ( $this != rdf:nil )
+                    FILTER NOT EXISTS { $this rdf:first ?head }
+                } UNION {
+                    $this rdf:rest*/rdf:first ?alt .
+                    {
+                        FILTER ( ?alt != rdf:nil )
+                        FILTER NOT EXISTS { ?alt rdf:first ?altHead }
+                    } UNION {
+                        ?alt rdf:rest*/rdf:first ?item .
+                        FILTER NOT EXISTS {
+                            ?item a ?t .
+                            FILTER ( ?t IN ( sqe:TriplePattern, sqe:Optional, sqe:Union, sqe:Filter, sqe:Bind ) )
+                        }
+                    }
+                }
+            }
+        """
+    ] .
+
 sqe:AskQueryShape a sh:NodeShape ;
     sh:property [
         sh:maxCount 1 ;
@@ -13,21 +42,51 @@ sqe:AskQueryShape a sh:NodeShape ;
         sh:node sqe:WhereListShape ;
         sh:path sqe:where
     ] ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "Variable {?var} is used inside an expression but is never bound anywhere in this query's own sqe:where pattern." ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
+            PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
+            SELECT $this ?var
+            WHERE {
+                $this (sqe:where|sqe:alternatives|rdf:rest|rdf:first)* ?node .
+                {
+                    ?node a sqe:Filter ; sqe:expr ?exprRoot .
+                } UNION {
+                    ?node a sqe:Bind ; sqe:expr ?exprRoot .
+                }
+                ?exprRoot (spexpr:expr|spexpr:other|spexpr:arg|spexpr:arg1|spexpr:arg2|spexpr:arg3|spexpr:flags|spexpr:pattern|spexpr:text|spexpr:replacement|spexpr:start|spexpr:length|rdf:rest|rdf:first)* ?var .
+                FILTER ( datatype(?var) = spexpr:Variable )
+                FILTER NOT EXISTS {
+                    $this (sqe:where|sqe:alternatives|rdf:rest|rdf:first)* ?node2 .
+                    {
+                        ?node2 a sqe:TriplePattern ;
+                            (sqe:subject|sqe:predicate|sqe:object) ?var .
+                    } UNION {
+                        ?node2 a sqe:Bind ;
+                            sqe:var ?var .
+                    }
+                }
+            }
+        """
+    ] ;
     sh:targetClass sqe:AskQuery .
 
 sqe:BindShape a sh:NodeShape ;
     sh:property [
         sh:maxCount 1 ;
-        sh:message "sqe:Bind must have exactly one sqe:var, a Variable" ;
-        sh:minCount 1 ;
-        sh:node spexpr:VariableShape ;
-        sh:path sqe:var
-    ], [
-        sh:maxCount 1 ;
         sh:message "sqe:Bind must have exactly one sqe:expr, a well-formed salg: expression" ;
         sh:minCount 1 ;
         sh:node spexpr:ExpressionShape ;
         sh:path sqe:expr
+    ], [
+        sh:maxCount 1 ;
+        sh:message "sqe:Bind must have exactly one sqe:var, a Variable" ;
+        sh:minCount 1 ;
+        sh:node spexpr:VariableShape ;
+        sh:path sqe:var
     ] ;
     sh:targetClass sqe:Bind .
 
@@ -42,7 +101,63 @@ sqe:ConstructQueryShape a sh:NodeShape ;
         sh:maxCount 1 ;
         sh:message "sqe:ConstructQuery must have exactly one sqe:template, an rdf:List of TriplePattern" ;
         sh:minCount 1 ;
+        sh:node sqe:TemplateListShape ;
         sh:path sqe:template
+    ] ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "Template variable {?var} is never bound anywhere in this query's own sqe:where pattern." ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
+            PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
+            SELECT $this ?var
+            WHERE {
+                $this sqe:template/rdf:rest*/rdf:first ?tpl .
+                ?tpl a sqe:TriplePattern ;
+                    (sqe:subject|sqe:predicate|sqe:object) ?var .
+                FILTER ( datatype(?var) = spexpr:Variable )
+                FILTER NOT EXISTS {
+                    $this (sqe:where|sqe:alternatives|rdf:rest|rdf:first)* ?node .
+                    {
+                        ?node a sqe:TriplePattern ;
+                            (sqe:subject|sqe:predicate|sqe:object) ?var .
+                    } UNION {
+                        ?node a sqe:Bind ;
+                            sqe:var ?var .
+                    }
+                }
+            }
+        """
+    ], [
+        a sh:SPARQLConstraint ;
+        sh:message "Variable {?var} is used inside an expression but is never bound anywhere in this query's own sqe:where pattern." ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
+            PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
+            SELECT $this ?var
+            WHERE {
+                $this (sqe:where|sqe:alternatives|rdf:rest|rdf:first)* ?node .
+                {
+                    ?node a sqe:Filter ; sqe:expr ?exprRoot .
+                } UNION {
+                    ?node a sqe:Bind ; sqe:expr ?exprRoot .
+                }
+                ?exprRoot (spexpr:expr|spexpr:other|spexpr:arg|spexpr:arg1|spexpr:arg2|spexpr:arg3|spexpr:flags|spexpr:pattern|spexpr:text|spexpr:replacement|spexpr:start|spexpr:length|rdf:rest|rdf:first)* ?var .
+                FILTER ( datatype(?var) = spexpr:Variable )
+                FILTER NOT EXISTS {
+                    $this (sqe:where|sqe:alternatives|rdf:rest|rdf:first)* ?node2 .
+                    {
+                        ?node2 a sqe:TriplePattern ;
+                            (sqe:subject|sqe:predicate|sqe:object) ?var .
+                    } UNION {
+                        ?node2 a sqe:Bind ;
+                            sqe:var ?var .
+                    }
+                }
+            }
+        """
     ] ;
     sh:targetClass sqe:ConstructQuery .
 
@@ -80,6 +195,23 @@ sqe:PredicateOrVariableOrPathShape a sh:NodeShape ;
         sh:nodeKind sh:IRI
     ] spexpr:VariableShape spexpr:PathShape ) .
 
+sqe:PrefixBindingShape a sh:NodeShape ;
+    sh:property [
+        sh:maxCount 1 ;
+        sh:message "sqe:PrefixBinding must have exactly one sqe:namespace, an IRI" ;
+        sh:minCount 1 ;
+        sh:nodeKind sh:IRI ;
+        sh:path sqe:namespace
+    ], [
+        sh:datatype spexpr:PlainString ;
+        sh:maxCount 1 ;
+        sh:message "sqe:PrefixBinding must have exactly one sqe:prefixLabel, a spexpr:PlainString-tagged string" ;
+        sh:minCount 1 ;
+        sh:nodeKind sh:Literal ;
+        sh:path sqe:prefixLabel
+    ] ;
+    sh:targetClass sqe:PrefixBinding .
+
 sqe:SelectQueryShape a sh:NodeShape ;
     sh:property [
         sh:maxCount 1 ;
@@ -93,10 +225,63 @@ sqe:SelectQueryShape a sh:NodeShape ;
         sh:node sqe:WhereListShape ;
         sh:path sqe:where
     ] ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "Projected variable {?var} is never bound anywhere in this query's own sqe:where pattern." ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
+            PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
+            SELECT $this ?var
+            WHERE {
+                $this sqe:projection/rdf:rest*/rdf:first ?var .
+                FILTER ( datatype(?var) = spexpr:Variable )
+                FILTER NOT EXISTS {
+                    $this (sqe:where|sqe:alternatives|rdf:rest|rdf:first)* ?node .
+                    {
+                        ?node a sqe:TriplePattern ;
+                            (sqe:subject|sqe:predicate|sqe:object) ?var .
+                    } UNION {
+                        ?node a sqe:Bind ;
+                            sqe:var ?var .
+                    }
+                }
+            }
+        """
+    ], [
+        a sh:SPARQLConstraint ;
+        sh:message "Variable {?var} is used inside an expression but is never bound anywhere in this query's own sqe:where pattern." ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
+            PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
+            SELECT $this ?var
+            WHERE {
+                $this (sqe:where|sqe:alternatives|rdf:rest|rdf:first)* ?node .
+                {
+                    ?node a sqe:Filter ; sqe:expr ?exprRoot .
+                } UNION {
+                    ?node a sqe:Bind ; sqe:expr ?exprRoot .
+                }
+                ?exprRoot (spexpr:expr|spexpr:other|spexpr:arg|spexpr:arg1|spexpr:arg2|spexpr:arg3|spexpr:flags|spexpr:pattern|spexpr:text|spexpr:replacement|spexpr:start|spexpr:length|rdf:rest|rdf:first)* ?var .
+                FILTER ( datatype(?var) = spexpr:Variable )
+                FILTER NOT EXISTS {
+                    $this (sqe:where|sqe:alternatives|rdf:rest|rdf:first)* ?node2 .
+                    {
+                        ?node2 a sqe:TriplePattern ;
+                            (sqe:subject|sqe:predicate|sqe:object) ?var .
+                    } UNION {
+                        ?node2 a sqe:Bind ;
+                            sqe:var ?var .
+                    }
+                }
+            }
+        """
+    ] ;
     sh:targetClass sqe:SelectQuery .
 
 sqe:ShapesGraph a sh:ShapesGraph ;
-    rdfs:member sqe:SubjectOrVariableShape, sqe:OptionalShape, sqe:FilterShape, sqe:BindShape, sqe:SelectQueryShape, sqe:ConstructQueryShape, sqe:AskQueryShape, sqe:WhereListShape, sqe:ObjectOrVariableShape, sqe:UnionShape, sqe:TriplePatternShape, sqe:PredicateOrVariableOrPathShape ;
+    rdfs:member sqe:FilterShape, sqe:AskQueryShape, sqe:BindShape, sqe:ObjectOrVariableShape, sqe:ConstructQueryShape, sqe:OptionalShape, sqe:SubjectOrVariableShape, sqe:WhereListShape, sqe:UnionShape, sqe:SelectQueryShape, sqe:AlternativesListShape, sqe:PrefixBindingShape, sqe:TemplateListShape, sqe:TriplePatternShape, sqe:PredicateOrVariableOrPathShape ;
     owl:imports spexpr:ShapesGraph .
 
 sqe:SubjectOrVariableShape a sh:NodeShape ;
@@ -106,19 +291,39 @@ sqe:SubjectOrVariableShape a sh:NodeShape ;
         sh:nodeKind sh:BlankNode
     ] spexpr:VariableShape ) .
 
+sqe:TemplateListShape a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "expected a well-formed rdf:List of sqe:TriplePattern" ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
+            SELECT $this
+            WHERE {
+                {
+                    FILTER ( $this != rdf:nil )
+                    FILTER NOT EXISTS { $this rdf:first ?head }
+                } UNION {
+                    $this rdf:rest*/rdf:first ?item .
+                    FILTER NOT EXISTS { ?item a sqe:TriplePattern }
+                }
+            }
+        """
+    ] .
+
 sqe:TriplePatternShape a sh:NodeShape ;
     sh:property [
-        sh:maxCount 1 ;
-        sh:message "sqe:TriplePattern must have exactly one sqe:predicate, an IRI/Variable/property path" ;
-        sh:minCount 1 ;
-        sh:node sqe:PredicateOrVariableOrPathShape ;
-        sh:path sqe:predicate
-    ], [
         sh:maxCount 1 ;
         sh:message "sqe:TriplePattern must have exactly one sqe:subject, an IRI/blank node/Variable" ;
         sh:minCount 1 ;
         sh:node sqe:SubjectOrVariableShape ;
         sh:path sqe:subject
+    ], [
+        sh:maxCount 1 ;
+        sh:message "sqe:TriplePattern must have exactly one sqe:predicate, an IRI/Variable/property path" ;
+        sh:minCount 1 ;
+        sh:node sqe:PredicateOrVariableOrPathShape ;
+        sh:path sqe:predicate
     ], [
         sh:maxCount 1 ;
         sh:message "sqe:TriplePattern must have exactly one sqe:object" ;
@@ -133,6 +338,7 @@ sqe:UnionShape a sh:NodeShape ;
         sh:maxCount 1 ;
         sh:message "sqe:Union must have exactly one sqe:alternatives, an rdf:List of pattern lists" ;
         sh:minCount 1 ;
+        sh:node sqe:AlternativesListShape ;
         sh:path sqe:alternatives
     ] ;
     sh:targetClass sqe:Union .

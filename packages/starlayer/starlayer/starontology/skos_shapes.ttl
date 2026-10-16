@@ -8,20 +8,20 @@
 skshp:CollectionDisjointnessShape a sh:NodeShape ;
     sh:message "S37: skos:Collection is disjoint with skos:Concept and skos:ConceptScheme." ;
     sh:not [
-        sh:class skos:ConceptScheme
-    ], [
         sh:class skos:Concept
+    ], [
+        sh:class skos:ConceptScheme
     ] ;
     sh:targetClass skos:OrderedCollection, skos:Collection .
 
 skshp:ConceptDisjointnessShape a sh:NodeShape ;
     sh:message "S9/S37: skos:Concept is disjoint with skos:ConceptScheme and skos:Collection." ;
     sh:not [
+        sh:class skos:OrderedCollection
+    ], [
         sh:class skos:ConceptScheme
     ], [
         sh:class skos:Collection
-    ], [
-        sh:class skos:OrderedCollection
     ] ;
     sh:targetClass skos:Concept .
 
@@ -51,21 +51,21 @@ skshp:LexicalLabelShape a sh:NodeShape ;
         sh:message "S13: skos:prefLabel/altLabel/hiddenLabel must be pairwise disjoint." ;
         sh:path skos:hiddenLabel
     ], [
-        sh:datatype rdf:langString ;
-        sh:disjoint skos:hiddenLabel, skos:altLabel ;
-        sh:message "S13: skos:prefLabel/altLabel/hiddenLabel must be pairwise disjoint. S14: no more than one skos:prefLabel per language tag." ;
-        sh:path skos:prefLabel ;
-        sh:uniqueLang true
-    ], [
         sh:disjoint skos:prefLabel, skos:hiddenLabel ;
         sh:message "S13: skos:prefLabel/altLabel/hiddenLabel must be pairwise disjoint." ;
         sh:path skos:altLabel
+    ], [
+        sh:datatype rdf:langString ;
+        sh:disjoint skos:altLabel, skos:hiddenLabel ;
+        sh:message "S13: skos:prefLabel/altLabel/hiddenLabel must be pairwise disjoint. S14: no more than one skos:prefLabel per language tag." ;
+        sh:path skos:prefLabel ;
+        sh:uniqueLang true
     ] ;
-    sh:targetSubjectsOf skos:altLabel, skos:prefLabel, skos:hiddenLabel .
+    sh:targetSubjectsOf skos:prefLabel, skos:hiddenLabel, skos:altLabel .
 
 skshp:MappingRelationDisjointnessShape a sh:NodeShape ;
     sh:property [
-        sh:disjoint skos:broadMatch, skos:narrowMatch, skos:relatedMatch ;
+        sh:disjoint skos:narrowMatch, skos:relatedMatch, skos:broadMatch ;
         sh:message "S46: skos:exactMatch is disjoint with skos:broadMatch, skos:narrowMatch, and skos:relatedMatch." ;
         sh:path skos:exactMatch
     ] ;
@@ -97,7 +97,7 @@ skshp:OrderedCollectionMemberListConsistencyShape a sh:NodeShape ;
 
 skshp:RelatedDisjointWithHierarchicalShape a sh:NodeShape ;
     sh:property [
-        sh:disjoint skos:narrowerTransitive, skos:broader, skos:broaderTransitive, skos:narrower ;
+        sh:disjoint skos:narrower, skos:broader, skos:narrowerTransitive, skos:broaderTransitive ;
         sh:message "S27: skos:related is disjoint with skos:broader(Transitive)/skos:narrower(Transitive)." ;
         sh:path skos:related
     ] ;
@@ -106,8 +106,8 @@ skshp:RelatedDisjointWithHierarchicalShape a sh:NodeShape ;
 skshp:SemanticRelationDomainRangeShape a sh:NodeShape ;
     sh:class skos:Concept ;
     sh:message "S19/S20: the domain and range of every SKOS semantic relation is skos:Concept." ;
-    sh:targetObjectsOf skos:narrowerTransitive, skos:broader, skos:semanticRelation, skos:broaderTransitive, skos:related, skos:narrower ;
-    sh:targetSubjectsOf skos:narrowerTransitive, skos:broader, skos:semanticRelation, skos:broaderTransitive, skos:related, skos:narrower .
+    sh:targetObjectsOf skos:semanticRelation, skos:broader, skos:narrowerTransitive, skos:related, skos:broaderTransitive, skos:narrower ;
+    sh:targetSubjectsOf skos:semanticRelation, skos:broader, skos:narrowerTransitive, skos:related, skos:broaderTransitive, skos:narrower .
 
 skshp:ShapesGraph a sh:ShapesGraph ;
-    rdfs:member skshp:OrderedCollectionMemberListConsistencyShape, skshp:ConceptSchemeDisjointnessShape, skshp:ConceptPrefLabelRecommendedShape, skshp:MappingRelationDisjointnessShape, skshp:CollectionDisjointnessShape, skshp:LexicalLabelShape, skshp:ConceptDisjointnessShape, skshp:SemanticRelationDomainRangeShape, skshp:RelatedDisjointWithHierarchicalShape .
+    rdfs:member skshp:CollectionDisjointnessShape, skshp:MappingRelationDisjointnessShape, skshp:ConceptDisjointnessShape, skshp:SemanticRelationDomainRangeShape, skshp:ConceptPrefLabelRecommendedShape, skshp:ConceptSchemeDisjointnessShape, skshp:LexicalLabelShape, skshp:OrderedCollectionMemberListConsistencyShape, skshp:RelatedDisjointWithHierarchicalShape .

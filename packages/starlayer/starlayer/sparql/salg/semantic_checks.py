@@ -177,11 +177,13 @@ def _unbound_projected_variables_for_node(project_node, graph: Graph) -> list[Un
 
 
 def find_unbound_projected_variables(data_graph: Graph) -> list[UnboundProjectedVariable]:
-    """Find every ``salg:Project`` node in ``data_graph`` (a ``salg:``
+    """Returns every ``UnboundProjectedVariable`` finding in ``data_graph``.
+
+    Finds every ``salg:Project`` node in ``data_graph`` (a ``salg:``
     algebra graph, as produced by ``to_rdf.query_to_rdf``/``update_to_rdf``
-    - for a Query or an Update alike, ``Project`` nodes can appear in
-    either) whose ``PV`` names a variable that's never actually bound
-    anywhere in its own pattern subtree.
+    - ``Project`` nodes can appear for a Query or an Update alike) whose
+    ``PV`` names a variable that's never actually bound anywhere in its
+    own pattern subtree.
 
     A plain, standalone function for a caller who wants this one check
     directly - the same check also runs automatically as a real SHACL

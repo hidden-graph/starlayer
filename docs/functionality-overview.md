@@ -19,8 +19,8 @@
 ### SPARQL (`starsparql`)
 
 1. SPARQL 1.2 query of starlayergraph.
-2. Starlayer specific RDF ontology for representing SPARQL queries. (`salg:` namespace)
-3. SHACL shapes for `salg:` graphs.
+2. Starlayer specific RDF ontology for representing SPARQL queries, for hand/UI editing. (`sqe:` namespace - built on an internal, non-public full-algebra encoding)
+3. SHACL shapes for `sqe:` graphs.
 4. SRL/SPARQL-RL (`WD-sparql12-rl-20260919`) - a Datalog-style rules language, general-purpose and SHACL-independent: parsing (`srl.py`, reusing rdflib's own SPARQL expression/terminal grammar directly), a `srl:` RDF-as-AST representation with a full round trip (also `srl.py`), SHACL shapes over `srl:` graphs, the §4.2 well-formedness cross-referential check (`srl_semantic_checks.py`), and a full stratified Datalog evaluation engine (`srl_eval.py` - dependency graph, stratification, `evalRule`, top-level `Infer`/`Query`) verified end to end against the spec's own §6.6 worked example.
 
 

@@ -61,6 +61,9 @@ def normalize_graph_inputs(
     shacl_graph: Any | None = None,
     ont_graph: Any | None = None,
 ) -> tuple[Any, Any | None, Any | None]:
+    """Normalizes a data/shapes/ontology graph, in any shape a caller may
+    pass, to ``StarLayerGraph`` (or ``None``) via ``normalize_to_starlayer_graph()``.
+    """
     data = normalize_to_starlayer_graph(data_graph, name="data_graph")
     shapes = normalize_to_starlayer_graph(shacl_graph, name="shacl_graph") if shacl_graph is not None else None
     ont = (

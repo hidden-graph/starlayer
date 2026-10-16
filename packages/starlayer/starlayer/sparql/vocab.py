@@ -100,7 +100,10 @@ Two shapes need a convention beyond that generic rule:
   down and enumerate every key name this can happen under (an open-ended,
   easy-to-miss list), every bare Python ``str`` value (``type(v) is str``,
   which a real RDF term or a ``Variable`` never is by the time it reaches
-  the encoder) is tagged with the reserved datatype ``SALG.PyStr`` and
+  the encoder) is tagged with the reserved datatype ``SPEXPR.PlainString``
+  (renamed from ``SALG.PyStr`` 2026-10-15 - same reasoning as
+  ``Variable``'s own ``spexpr:`` home: a generic, technology-neutral
+  concept, not something intrinsic to ``salg:``'s own algebra) and
   decoded back to a bare ``str`` — universally, by value shape, not by key
   name, so a future rdflib grammar keyword this project hasn't been taught
   about yet still round-trips correctly. A handful of keys additionally
@@ -274,8 +277,15 @@ VARIABLE_DATATYPE = SPEXPR.Variable
 
 # Reserved datatype URI used to encode a bare Python str (not an RDF term)
 # found inside an algebra tree. See the module docstring's "Bare Python
-# strings" section above.
-PY_STR_DATATYPE = SALG.PyStr
+# strings" section above. spexpr:, not salg: (renamed from SALG.PyStr
+# 2026-10-15) - same reasoning as VARIABLE_DATATYPE above: this is a
+# generic, technology-neutral concept (a plain, untagged string value),
+# not something intrinsic to salg:'s own algebra encoding, and sqe:/manch:
+# each had to mint their own redundant private copy rather than reuse this
+# one as long as it stayed salg:-owned (manch: still mints its own,
+# independent one - a different domain with no other spexpr:/salg:
+# dependency - see manchester.py).
+PY_STR_DATATYPE = SPEXPR.PlainString
 
 # Class used for the (s, p, o) triple-pattern-tuple encoding described above.
 TRIPLE_PATTERN = SALG.TriplePattern

@@ -22,12 +22,19 @@ from starlayer.graph import StarLayerGraph
 
 
 class TestGetOntologyList:
-    def test_returns_all_thirteen_entries(self):
+    def test_returns_all_entries_except_the_internal_salg_pair(self):
+        """sparql_owl/sparql_shacl (salg:) are deliberately excluded (2026-10-14) -
+        salg: is purely an internal encoding (starlayer.sparql's own
+        query_to_rdf()/rdf_to_query() machinery; sqe:/srl: import its
+        shared expression vocabulary), not something an external caller
+        is meant to reach for directly - sqe: is the human-readable,
+        UI-editable public-facing analog. They're still real, fully
+        registered entries otherwise - see TestGetOntologyGraph below,
+        which confirms get_ontology_graph() still resolves them by name."""
         names = {info.name for info in starontology.get_ontology_list()}
         assert names == {
             "manchester_owl", "manchester_shacl",
             "skos_owl", "skos_shacl",
-            "sparql_owl", "sparql_shacl",
             "sqe_owl", "sqe_shacl",
             "srl_owl", "srl_shacl",
             "spexpr_owl", "spexpr_shacl",
@@ -42,27 +49,41 @@ class TestGetOntologyList:
         for info in starontology.get_ontology_list():
             assert info.name
             assert info.description
-            assert info.type in ("shacl", "ast-graph", "owl")
+            assert info.type in ("shacl", "syntax-tree-graph", "owl")
 
     def test_shapes_entries_are_type_shacl(self):
         """shacl_meta has no ontology counterpart to pair with, but it's
-        still a SHACL shapes graph - same type as the five entries that do."""
+        still a SHACL shapes graph - same type as the four entries that
+        do (sparql_shacl excluded from this list - see the class's own
+        test above)."""
         shacl_names = {info.name for info in starontology.get_ontology_list() if info.type == "shacl"}
         assert shacl_names == {
-            "manchester_shacl", "skos_shacl", "sparql_shacl", "sqe_shacl", "srl_shacl",
+            "manchester_shacl", "skos_shacl", "sqe_shacl", "srl_shacl",
             "spexpr_shacl", "shacl_meta",
         }
 
-    def test_skos_owl_is_type_owl_not_ast_graph(self):
+    def test_skos_owl_is_type_owl_not_syntax_tree_graph(self):
         """skos: is a real semantic ontology (formal axioms about an existing
         vocabulary), not a syntax tree represented as RDF like the other
-        three - so it gets "owl", not "ast-graph"."""
+        three - so it gets "owl", not "syntax-tree-graph"."""
         [skos_entry] = [info for info in starontology.get_ontology_list() if info.name == "skos_owl"]
         assert skos_entry.type == "owl"
 
-    def test_manchester_sparql_sqe_srl_owl_entries_are_type_ast_graph(self):
-        ast_graph_names = {info.name for info in starontology.get_ontology_list() if info.type == "ast-graph"}
-        assert ast_graph_names == {"manchester_owl", "sparql_owl", "sqe_owl", "srl_owl", "spexpr_owl"}
+    def test_manchester_sqe_srl_spexpr_owl_entries_are_type_syntax_tree_graph(self):
+        """sparql_owl excluded from this list too - see the class's own
+        first test above."""
+        syntax_tree_graph_names = {
+            info.name for info in starontology.get_ontology_list() if info.type == "syntax-tree-graph"
+        }
+        assert syntax_tree_graph_names == {"manchester_owl", "sqe_owl", "srl_owl", "spexpr_owl"}
+
+    def test_salg_pair_is_excluded_from_the_list_but_still_a_real_registered_entry(self):
+        names = {info.name for info in starontology.get_ontology_list()}
+        assert "sparql_owl" not in names
+        assert "sparql_shacl" not in names
+        # still real and loadable directly by name - just not enumerated.
+        assert len(starontology.get_ontology_graph("sparql_owl")) > 0
+        assert len(starontology.get_ontology_graph("sparql_shacl")) > 0
 
 
 class TestGetOntologyGraph:
@@ -106,23 +127,27 @@ _EXPECTED_SPEC_IRIS = {
 }
 
 
-class TestGetProfileGraph:
-    """Corrected 2026-10-10 (direct user challenge to the original
-    2026-10-08 design): a registered shapes graph is dx-prof
-    prof:isProfileOf the real external *specification* (SPARQL, SKOS,
-    Manchester Syntax, SPARQL-RL) - not the bundled ontology/AST graph,
-    which is instead a prof:hasResource/ResourceDescriptor of that same
-    real spec (role:schema, a sibling of the shapes graph's own
-    role:validation descriptor). See get_profile_graph()'s own docstring
-    for the full design and why the original mapping was wrong.
+class TestConformanceProfilesContent:
+    """The per-pair semantics of the ontology-shapes-profiles.ttl mapping
+    document, checked directly against get_conformance_profiles()'s own
+    full graph - there's no per-entry filter function (get_profile_graph()
+    was removed 2026-10-14; a user only ever needs the full graph, and can
+    extract one entry's own slice themselves if they want it).
+
+    Corrected 2026-10-10 (direct user challenge to the original 2026-10-08
+    design): a registered shapes graph is dx-prof prof:isProfileOf the
+    real external *specification* (SPARQL, SKOS, Manchester Syntax,
+    SPARQL-RL) - not the bundled ontology/AST graph, which is instead a
+    prof:hasResource/ResourceDescriptor of that same real spec
+    (role:schema, a sibling of the shapes graph's own role:validation
+    descriptor).
 
     sparql_shacl/sparql_owl (salg:) deliberately excluded (2026-10-11,
     direct user decision) - salg: is this project's own internal SPARQL
     algebra encoding, not something meant to carry a public-facing
     conformance claim the way manch:/skos:/sqe:/srl: do. It's still a
-    registered entry with real content - get_profile_graph("sparql_shacl")
-    now returns an empty graph (registered, but the document has nothing
-    to say about its profile relationship), not None."""
+    registered entry with real content - the mapping document just has no
+    prof:isProfileOf triple naming it as subject."""
 
     @pytest.mark.parametrize(
         "shapes_name,ontology_name",
@@ -138,8 +163,7 @@ class TestGetProfileGraph:
 
         PROF = Namespace("http://www.w3.org/ns/dx/prof/")
         ROLE = Namespace("http://www.w3.org/ns/dx/prof/role/")
-        graph = starontology.get_profile_graph(shapes_name)
-        assert graph is not None
+        graph = starontology.get_conformance_profiles()
 
         shapes_iri = starontology.get_resource_iri(shapes_name)
         ontology_iri = starontology.get_resource_iri(ontology_name)
@@ -173,26 +197,23 @@ class TestGetProfileGraph:
     def test_sparql_shacl_is_registered_but_deliberately_has_no_profile(self):
         """salg: is excluded from the public profile mapping (2026-10-11) -
         sparql_shacl is still a real registered entry (get_ontology_graph()
-        etc. work normally), but get_profile_graph() returns an empty
-        graph for it, not None - the same "registered, but this document
-        has nothing to say about it" case the url= override tests below
-        already establish, just for the bundled default instead."""
-        graph = starontology.get_profile_graph("sparql_shacl")
-        assert graph is not None
-        assert len(graph) == 0
+        etc. work normally), but the mapping document has no
+        prof:isProfileOf triple naming it as subject."""
+        graph = starontology.get_conformance_profiles()
+        shapes_iri = starontology.get_resource_iri("sparql_shacl")
+        assert list(graph.triples((shapes_iri, None, None))) == []
 
     def test_shacl_meta_has_a_bare_isprofileof_entry_with_no_resource_pairing(self):
         """shacl_meta has no ontology counterpart (2026-10-12) - but it
-        still gets a real profile-graph entry, just a bare
-        prof:isProfileOf with no prof:hasResource/ResourceDescriptor
-        structure alongside it (there's no sibling ontology/AST graph to
-        describe via role:schema)."""
+        still gets a real prof:isProfileOf entry, with no
+        prof:hasResource/ResourceDescriptor structure alongside it
+        (there's no sibling ontology/AST graph to describe via
+        role:schema)."""
         from rdflib import Namespace
 
         PROF = Namespace("http://www.w3.org/ns/dx/prof/")
         PROFILE = Namespace("http://www.w3.org/ns/shacl/profile/")
-        graph = starontology.get_profile_graph("shacl_meta")
-        assert graph is not None
+        graph = starontology.get_conformance_profiles()
         subject = starontology.get_resource_iri("shacl_meta")
         claimed = set(graph.objects(subject, PROF.isProfileOf))
         assert claimed == {
@@ -204,27 +225,17 @@ class TestGetProfileGraph:
         }
         assert list(graph.triples((subject, PROF.hasResource, None))) == []
 
-    def test_unknown_name_returns_none_not_raise(self):
-        assert starontology.get_profile_graph("not_a_real_name") is None
-
-    def test_returns_independent_graphs_each_call(self):
-        first = starontology.get_profile_graph("skos_shacl")
-        second = starontology.get_profile_graph("skos_shacl")
-        assert first is not second
-        before = len(second)
-        first.add((list(first)[0][0], list(first)[0][1], list(first)[0][0]))
-        assert len(second) == before
-
 
 class TestGetConformanceProfiles:
     """2026-10-09: the prof:isProfileOf mapping for every pair now lives
     in one real, persisted document (ontology-shapes-profiles.ttl), loaded
     via get_conformance_profiles() - not synthesized from a Python dict
-    on every get_profile_graph() call, the original 2026-10-08 design.
-    get_profile_graph() is now a thin filter over this. Six pairs as of
+    on every call, the original 2026-10-08 design. Six pairs as of
     2026-10-10 (spexpr: joined the original five once it was carved out of
     salg: into its own shared vocabulary - see starlayer/sparql/CLAUDE.md's
-    dated entry)."""
+    dated entry). No per-entry filter function exists (removed
+    2026-10-14) - a caller wanting one entry's own slice extracts it
+    themselves from this full graph."""
 
     def test_bundled_copy_has_five_pairs(self):
         from rdflib import Namespace
@@ -243,8 +254,7 @@ class TestGetConformanceProfiles:
         # paired ontology/AST graph), each carrying
         # hasArtifact/hasRole/rdfs:label/rdfs:comment, plus an rdfs:label
         # on each of the 4 distinct real specification IRIs involved
-        # (sqe_shacl/spexpr_shacl share sparql12-query) - see
-        # get_profile_graph()'s own docstring for the full design.
+        # (sqe_shacl/spexpr_shacl share sparql12-query).
         assert len(graph) == 74
         # 6 subjects (5 shapes graphs + shacl_meta), 10 prof:isProfileOf
         # triples total (5 shapes graphs x 1 each, + shacl_meta x 5 public
@@ -279,69 +289,36 @@ class TestGetConformanceProfiles:
         assert len(graph) == 1
         assert (URIRef("urn:test:shapes"), None, URIRef("urn:test:ontology")) in graph
 
-    def test_get_profile_graph_passes_url_through(self, tmp_path):
-        """get_profile_graph()'s own url= reaches get_conformance_profiles()
-        - confirmed by overriding with a document that pairs skos_shacl's
-        real resource IRI against a different ontology than the bundled
-        default declares."""
-        from rdflib import URIRef
-
-        skos_shacl_iri = starontology.get_resource_iri("skos_shacl")
-        override = tmp_path / "override-profiles.ttl"
-        override.write_text(
-            "@prefix prof: <http://www.w3.org/ns/dx/prof/> .\n"
-            f"<{skos_shacl_iri}> prof:isProfileOf <urn:test:a-different-ontology> .\n"
-        )
-
-        graph = starontology.get_profile_graph("skos_shacl", url=str(override))
-
-        assert len(graph) == 1
-        [(_, _, obj)] = list(graph)
-        assert obj == URIRef("urn:test:a-different-ontology")
-
-    def test_get_profile_graph_returns_empty_not_none_when_url_lacks_the_entry(self, tmp_path):
-        """A registered name with an override document that simply doesn't
-        mention it: empty graph, not None - None is reserved for "not a
-        registered name at all" (shacl_meta, a typo), a different case
-        than "registered, but this particular document has nothing to
-        say about it"."""
-        override = tmp_path / "empty-profiles.ttl"
-        override.write_text("@prefix prof: <http://www.w3.org/ns/dx/prof/> .\n")
-
-        graph = starontology.get_profile_graph("skos_shacl", url=str(override))
-
-        assert graph is not None
-        assert len(graph) == 0
-
 
 class TestGetResourceIri:
     """get_resource_iri() exists so a caller can give validate()'s own
-    shapes_graph_resource= the exact same identity get_profile_graph() asserts
-    prof:isProfileOf on - otherwise derive_conforms_to()'s second rule can
-    never fire (its WHERE clause requires the same IRI in both places)."""
+    shapes_graph_resource= the exact same identity the conformance-profiles
+    mapping document asserts prof:isProfileOf on - otherwise
+    derive_conforms_to()'s second rule can never fire (its WHERE clause
+    requires the same IRI in both places)."""
 
-    def test_matches_the_subject_get_profile_graph_uses(self):
+    def test_matches_the_subject_used_in_the_profile_mapping(self):
         from rdflib import Namespace
 
         PROF = Namespace("http://www.w3.org/ns/dx/prof/")
-        profile_graph = starontology.get_profile_graph("skos_shacl")
-        [(subject, _, _)] = list(profile_graph.triples((None, PROF.isProfileOf, None)))
-        assert starontology.get_resource_iri("skos_shacl") == subject
+        shapes_iri = starontology.get_resource_iri("skos_shacl")
+        profile_graph = starontology.get_conformance_profiles()
+        assert (shapes_iri, PROF.isProfileOf, None) in profile_graph
 
     def test_matches_the_hasartifact_for_the_ontology_side(self):
         """get_resource_iri("skos_owl") still identifies the ontology/AST
         graph correctly - reachable via the real spec's own
         prof:hasResource/prof:hasArtifact (role:schema) now, not as the
-        object of prof:isProfileOf directly (2026-10-10 correction - see
-        get_profile_graph()'s own docstring: the ontology graph is a
-        *resource of* the real specification, not what the shapes graph
-        itself is a profile of)."""
+        object of prof:isProfileOf directly (2026-10-10 correction: the
+        ontology graph is a *resource of* the real specification, not
+        what the shapes graph itself is a profile of)."""
         from rdflib import Namespace
 
         PROF = Namespace("http://www.w3.org/ns/dx/prof/")
         ROLE = Namespace("http://www.w3.org/ns/dx/prof/role/")
-        profile_graph = starontology.get_profile_graph("skos_shacl")
-        [(_, _, spec_iri)] = list(profile_graph.triples((None, PROF.isProfileOf, None)))
+        profile_graph = starontology.get_conformance_profiles()
+        shapes_iri = starontology.get_resource_iri("skos_shacl")
+        [(_, _, spec_iri)] = list(profile_graph.triples((shapes_iri, PROF.isProfileOf, None)))
         [descriptor] = [
             d
             for d in profile_graph.objects(spec_iri, PROF.hasResource)
@@ -452,9 +429,11 @@ class TestPublishedFiles:
     def test_end_to_end_chain_actually_derives_dcterms_conforms_to(self):
         """The real motivating workflow: validate against a starontology
         shapes graph, using get_resource_iri() for shapes_graph_resource=, then
-        derive_conforms_to() with get_profile_graph() as
+        derive_conforms_to() with get_conformance_profiles() as
         specification_graph= - confirms the second rule actually fires,
-        not just that the two pieces exist independently."""
+        not just that the two pieces exist independently. The full,
+        unfiltered mapping graph works fine here - derive_conforms_to()'s
+        own WHERE clause already filters by the exact shapes-graph IRI."""
         from rdflib import URIRef
         from rdflib.namespace import DCTERMS
         from starlayer.graph import StarLayerGraph
@@ -481,7 +460,7 @@ class TestPublishedFiles:
         assert result.conforms is True
 
         derived = derive_conforms_to(
-            result.report_graph, specification_graph=starontology.get_profile_graph("skos_shacl")
+            result.report_graph, specification_graph=starontology.get_conformance_profiles()
         )
 
         # dcterms:conformsTo now derives against the real SKOS Reference

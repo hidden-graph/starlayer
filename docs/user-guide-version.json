@@ -1,6 +1,6 @@
 {
   "guide": "StarLayer User Guides",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "lastUpdated": "2026-10-14",
   "canonicalSource": "docs/guides/README.md",
   "artifacts": {
@@ -14,7 +14,7 @@
       "docs/guides/02b-graphs-inferencing.ipynb",
       "docs/guides/02c-owl-dl-reasoning.ipynb",
       "docs/guides/03-sparql.ipynb",
-      "docs/guides/03a-sparql-inferencing.ipynb",
+      "docs/guides/03a-sparql-entailment.ipynb",
       "docs/guides/03b-sparql-rules.ipynb",
       "docs/guides/04-shacl-shapes.ipynb",
       "docs/guides/04a-shacl-node-expressions.ipynb",
@@ -23,10 +23,10 @@
       "docs/guides/04d-shacl-ui.ipynb",
       "docs/guides/04e-shacl-profiling.ipynb",
       "docs/guides/04f-shacl-subgraph-extraction.ipynb",
+      "docs/guides/05-starlayer-schemas-and-ontologies.ipynb",
       "docs/guides/05a-manchester-syntax.ipynb",
       "docs/guides/05b-sparql-query-as-rdf.ipynb",
       "docs/guides/05c-sparql-rules-as-rdf.ipynb",
-      "docs/guides/05d-shacl-library-registry.ipynb",
       "docs/guides/06a-serialization-formats.ipynb",
       "docs/guides/06b-backend-graph-databases.ipynb",
       "docs/guides/06c-canonical-hashing.ipynb"
@@ -41,7 +41,7 @@
   },
   "reorganization": {
     "status": "complete",
-    "note": "The guide set lives in docs/guides/, one focused notebook per topic - see docs/guides/README.md for the full table of contents. The files listed under artifacts.superseded no longer exist in the repo (removed in an earlier pass); kept listed here only as a historical record of what was consolidated away, not as a claim that they're still present. 2026-10-14: section 5 was repurposed from a generic 'Other' bucket into 'StarLayer Schemas and Ontologies' (manch:/salg:/srl:-as-RDF/the SHACL library registry), the old 'Other' bucket became section 6, OWL 2 DL reasoning moved up to section 2, and SPARQL inferencing/SRL swapped order and the former was retitled 'SPARQL Entailment' - see docs/guides/README.md and docs/guides/\"Notes on guides and other comments\" for the full rationale."
+    "note": "The guide set lives in docs/guides/, one focused notebook per topic - see docs/guides/README.md for the full table of contents. The files listed under artifacts.superseded no longer exist in the repo (removed in an earlier pass); kept listed here only as a historical record of what was consolidated away, not as a claim that they're still present. 2026-10-14: section 5 was repurposed from a generic 'Other' bucket into 'StarLayer Schemas and Ontologies' (manch:/salg:/srl:-as-RDF/the SHACL library registry), the old 'Other' bucket became section 6, OWL 2 DL reasoning moved up to section 2, and SPARQL inferencing/SRL swapped order and the former was retitled 'SPARQL Entailment' - see docs/guides/README.md and docs/guides/\"Notes on guides and other comments\" for the full rationale. 2026-10-14 (later same day): 03a-sparql-inferencing.ipynb renamed to 03a-sparql-entailment.ipynb to match its retitling; section 5 gained a real top-level lead-in notebook (05-starlayer-schemas-and-ontologies.ipynb, matching sections 2/3/4's own 'top-level notebook + lettered sub-guides' pattern) covering the shared graph-tree/SHACL-validation concept behind 5.a/5.b/5.c plus the former 05d's own registry walkthrough, folded in rather than kept separate - 05d-shacl-library-registry.ipynb no longer exists as its own file."
   },
   "staleDetection": {
     "rule": "An artifact is stale when its content does not reflect this version value or lastUpdated date.",

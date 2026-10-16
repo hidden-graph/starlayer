@@ -18,9 +18,11 @@ existing rdflib function, reused directly (same technique
   whatever real expression is actually present.
 
 Unlike ``to_ssyn_rdf.py``, the query's own original ``PREFIX``/``BASE``
-declarations are also preserved, reusing ``to_rdf.py``'s own
-``salg:base``/``salg:prologuePrefix``/``salg:PrefixBinding`` predicate
-names - but **not** its ``_encode_prologue`` function. That function
+declarations are also preserved, under ``sqe:``'s own
+``sqe:base``/``sqe:prologuePrefix``/``sqe:PrefixBinding`` terms (a real,
+independent duplicate of ``salg:``'s identically-shaped terms, not a
+reuse - see ``vocab.py``'s own docstring for why) - and **not** via
+``to_rdf.py``'s own ``_encode_prologue`` function. That function
 operates on the *already-translated* ``Prologue`` object
 (``translatePrologue``'s own output), whose ``namespace_manager`` is
 pre-seeded with rdflib's ~29 built-in default prefix bindings
@@ -42,6 +44,7 @@ import functools
 from rdflib import BNode, Graph, Literal, URIRef, Variable
 from rdflib.collection import Collection
 from rdflib.namespace import RDF
+from rdflib.term import IdentifiedNode
 from rdflib.paths import Path
 from rdflib.plugins.sparql.algebra import (
     simplifyFilters,
@@ -55,7 +58,6 @@ from rdflib.plugins.sparql.parserutils import CompValue, ParseResults
 
 from ..to_rdf import _encode as _encode_algebra
 from ..to_rdf import _encode_path, _new_starlayer_graph
-from ..vocab import PY_STR_DATATYPE, SALG
 from .vocab import (
     ASK_QUERY,
     BIND,
@@ -64,7 +66,13 @@ from .vocab import (
     EXPR,
     FILTER,
     OPTIONAL,
+    PREFIX_BINDING,
+    PREFIX_LABEL,
+    PREFIX_NAMESPACE,
     PROJECTION,
+    PROLOGUE_BASE,
+    PROLOGUE_PREFIX,
+    PY_STR_DATATYPE,
     QUERY,
     SELECT_QUERY,
     TEMPLATE,
@@ -85,16 +93,70 @@ _ROOT_TYPE_BY_QUERY_NAME = {
 }
 
 
-def sqe_parse_to_tree(text: str, graph: Graph | None = None) -> tuple[Graph, BNode]:
+class SQEError(ValueError):
+    """Base class for every ``sqe:``-specific exception
+    (``SQEValidationError`` here) - gives a caller two real catch
+    granularities, "this specific failure" vs. "any ``sqe:`` failure",
+    the same two-tier shape ``srl.py``'s own ``SRLError``/
+    ``SRLParseError`` already established for the identical reason."""
+
+
+class SQEValidationError(SQEError):
+    """Raised by :func:`sqe_parse_to_tree` when the text parses fine but
+    the resulting ``sqe:`` tree fails ``sqe:``'s own SHACL shapes (most
+    notably the unbound-projected-variable check) - "this text doesn't
+    produce a usable ``sqe:`` tree", matching the same "succeed with a
+    usable object, or raise" contract ``prepareQuery()``/
+    ``srl.parse_ruleset()`` already give their own callers, rather than
+    handing back a tree that's already known to be unusable and leaving
+    it to the caller to remember to check.
+
+    Carries the full validation report as attributes, not just a
+    message, so a caller who wants the structured detail doesn't have to
+    re-run :func:`sqe_validate` themselves to get it.
+
+    Attributes:
+        report_graph: The full ``sh:ValidationReport`` graph.
+        report_text: The same report, rendered as text (this
+            exception's own ``str()`` is a short prefix plus this text).
+    """
+
+    def __init__(self, report_text: str, report_graph: Graph) -> None:
+        super().__init__(f"sqe: parsed query fails SHACL validation:\n{report_text}")
+        self.report_text = report_text
+        self.report_graph = report_graph
+
+
+def sqe_parse_to_tree(
+    text: str, graph: Graph | None = None, root: IdentifiedNode | None = None
+) -> tuple[Graph, IdentifiedNode]:
     """Encode SPARQL ``SELECT``/``ASK``/``CONSTRUCT`` query text as
-    ``sqe:`` RDF. The one public encoding entry point - parses ``text``
-    with the same ``parseQuery`` every other SPARQL 1.2 entry point in
-    this package uses, then delegates to ``_query_to_sqe_rdf`` below.
+    ``sqe:`` RDF, and validate the result. The one public encoding entry
+    point - parses ``text`` with the same ``parseQuery`` every other
+    SPARQL 1.2 entry point in this package uses, delegates to
+    ``_query_to_sqe_rdf`` below, then validates via :func:`sqe_validate`
+    before returning - a caller only ever gets back a tree already
+    confirmed to satisfy ``sqe:``'s own shapes (including the
+    unbound-projected-variable check), never one silently known to fail.
+
+    Validation only runs here, at creation time - it has no way to see,
+    and does not re-run for, any edit made to the tree afterward (see
+    the guide notebook's own section on this). Call :func:`sqe_validate`
+    yourself again after editing a tree directly.
 
     Args:
         text: The SPARQL query text to encode.
         graph: The graph to add the ``sqe:`` RDF to. Defaults to a
             fresh ``StarLayerGraph`` (see ``to_rdf._new_starlayer_graph``).
+        root: The node to use as the query's own root - any ``URIRef``/
+            ``BNode``. Defaults to a fresh ``BNode()``. Give a real
+            ``URIRef`` to make the query findable by that identity later
+            (e.g. ``graph.value(my_iri, RDF.type, SQE.Query)``), rather
+            than only via the ``root`` value this function itself
+            returns - useful once a graph accumulates more than one
+            encoded query (via repeated calls sharing one ``graph=``),
+            where a bare `?s a sqe:Query` lookup can no longer tell them
+            apart on its own.
 
     Returns:
         A ``(graph, root)`` tuple.
@@ -107,13 +169,29 @@ def sqe_parse_to_tree(text: str, graph: Graph | None = None) -> tuple[Graph, BNo
             ``BIND``) rather than silently mis-encoding - see
             ``vocab.py``'s module docstring and `future_enhancements.md`
             for the deliberate scope reduction this mirrors from SRL.
+        SQEValidationError: If the text parses fine but the encoded tree
+            fails ``sqe:``'s own SHACL shapes.
     """
     from rdflib.plugins.sparql.parser import parseQuery
 
-    return _query_to_sqe_rdf(parseQuery(text), graph)
+    # Lazy: sqe_validate() needs pyshacl, which the rest of this module
+    # doesn't - see sqe/__init__.py's own try/except around importing it,
+    # for the identical reason. pyshacl is a core starlayer dependency in
+    # practice (see pyproject.toml), but this keeps to_rdf.py itself
+    # importable without it regardless, same as every other lazy import
+    # already in this file.
+    from .shapes import sqe_validate
+
+    encoded_graph, encoded_root = _query_to_sqe_rdf(parseQuery(text), graph, root)
+    conforms, report_graph, report_text = sqe_validate(encoded_graph)
+    if not conforms:
+        raise SQEValidationError(report_text, report_graph)
+    return encoded_graph, encoded_root
 
 
-def _query_to_sqe_rdf(parse_result: ParseResults, graph: Graph | None = None) -> tuple[Graph, BNode]:
+def _query_to_sqe_rdf(
+    parse_result: ParseResults, graph: Graph | None = None, root: IdentifiedNode | None = None
+) -> tuple[Graph, IdentifiedNode]:
     """Encode a ``SELECT``/``ASK``/``CONSTRUCT`` query's raw parse tree
     (``parseQuery(text)``'s output — ``[prologue, query]``) as ``sqe:``
     RDF.
@@ -131,6 +209,9 @@ def _query_to_sqe_rdf(parse_result: ParseResults, graph: Graph | None = None) ->
             output.
         graph: The graph to add the ``sqe:`` RDF to. Defaults to a
             fresh ``StarLayerGraph``.
+        root: The node to use as the query's own root. Defaults to a
+            fresh ``BNode()`` - see ``sqe_parse_to_tree``'s own docstring
+            for why a caller would give a real ``URIRef`` instead.
 
     Returns:
         A ``(graph, root)`` tuple.
@@ -153,7 +234,8 @@ def _query_to_sqe_rdf(parse_result: ParseResults, graph: Graph | None = None) ->
 
     if graph is None:
         graph = _new_starlayer_graph()
-    root = BNode()
+    if root is None:
+        root = BNode()
     graph.add((root, RDF.type, root_type))
     graph.add((root, RDF.type, QUERY))
     if root_type is SELECT_QUERY:
@@ -175,7 +257,7 @@ def _encode_raw_prologue(prologue_list, root, graph: Graph) -> None:
     ``to_rdf._encode_prologue``."""
     for decl in prologue_list:
         if decl.name == "Base":
-            graph.add((root, SALG.base, decl.iri))
+            graph.add((root, PROLOGUE_BASE, decl.iri))
         elif decl.name == "PrefixDecl":
             # A bare `PREFIX :` (the default/no-label prefix) parses with
             # decl.prefix set to Python None, not an empty string.
@@ -184,10 +266,10 @@ def _encode_raw_prologue(prologue_list, root, graph: Graph) -> None:
             # encode the real empty string instead.
             label = decl.prefix if decl.prefix is not None else ""
             binding = BNode()
-            graph.add((binding, RDF.type, SALG.PrefixBinding))
-            graph.add((binding, SALG.prefixLabel, Literal(label, datatype=PY_STR_DATATYPE)))
-            graph.add((binding, SALG.namespace, decl.iri))
-            graph.add((root, SALG.prologuePrefix, binding))
+            graph.add((binding, RDF.type, PREFIX_BINDING))
+            graph.add((binding, PREFIX_LABEL, Literal(label, datatype=PY_STR_DATATYPE)))
+            graph.add((binding, PREFIX_NAMESPACE, decl.iri))
+            graph.add((root, PROLOGUE_PREFIX, binding))
 
 
 def _encode_var_list(projection, graph: Graph):

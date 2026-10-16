@@ -236,6 +236,8 @@ def _normalize_init_bindings(init_bindings: Any, adapter: TripleTermAdapter) -> 
 
 @dataclass(frozen=True)
 class TripleTermValue:
+    """The default, dependency-free decoded triple-term value type."""
+
     subject: Any
     predicate: Any
     object: Any
@@ -258,11 +260,17 @@ class TripleTermGraph:
         return value in self._triples
 
     def add(self, triple: tuple[Any, Any, Any]) -> TripleTermGraph:
+        """Adds ``triple`` if not already present, and returns this graph."""
         if triple not in self._triples:
             self._triples.append(triple)
         return self
 
     def remove(self, pattern: tuple[Any, Any, Any]) -> TripleTermGraph:
+        """Removes every triple matching ``pattern`` and returns this graph.
+
+        Any ``None`` component of ``pattern`` matches anything; an
+        all-``None`` pattern clears every triple.
+        """
         s, p, o = pattern
         if s is None and p is None and o is None:
             self._triples.clear()
@@ -341,8 +349,9 @@ class TripleTermAdapter:
         self._reverse.clear()
 
     def export_registry(self) -> dict[str, Any]:
-        """Serialize the current registry to a plain JSON-able dict, for
-        persisting or transferring it (see ``import_registry()``).
+        """Serializes the current registry to a plain JSON-able dict.
+
+        For persisting or transferring it - see ``import_registry()``.
 
         Returns:
             A dict with ``"namespace"`` (this adapter's namespace, as a
@@ -420,10 +429,11 @@ class TripleTermAdapter:
 
     @classmethod
     def for_starlayer_graph(cls) -> TripleTermAdapter:
-        """Create an adapter whose decoded triple terms are real
-        ``starlayer.graph.model.triple.TripleTerm`` instances (instead of
-        the default, dependency-free ``TripleTermValue``) - for use
-        wherever the decoded graph needs to interoperate with
+        """Creates an adapter whose decoded triple terms are real
+        ``starlayer.graph.model.triple.TripleTerm`` instances.
+
+        Instead of the default, dependency-free ``TripleTermValue`` - for
+        use wherever the decoded graph needs to interoperate with
         ``StarLayerGraph``.
 
         Raises:
@@ -438,11 +448,13 @@ class TripleTermAdapter:
         return cls(term_factory=TripleTerm)
 
     def encode_graph(self, graph: Iterable[tuple[Any, Any, Any]]) -> Graph:
-        """Return a flat, RDF-1.1-compatible ``_SparqlAwareEncodedGraph``
-        copy of ``graph``, with every triple-term node (in any position)
-        replaced by its content-addressed ``tt:HASH`` URIRef and a
-        DirLangString literal replaced by its internal encoded datatype
-        form.
+        """Returns a flat, RDF-1.1-compatible copy of ``graph`` with every
+        triple term and DirLangString literal flattened to plain terms.
+
+        The result is a ``_SparqlAwareEncodedGraph``: every triple-term
+        node, in any position, is replaced by its content-addressed
+        ``tt:HASH`` URIRef, and a DirLangString literal is replaced by
+        its internal encoded datatype form.
 
         Every triple term encountered anywhere in ``graph`` is registered
         in this adapter's registry (see ``_encode_node()``), and the
@@ -476,10 +488,12 @@ class TripleTermAdapter:
         return encoded
 
     def decode_graph(self, graph: Iterable[tuple[Any, Any, Any]]):
-        """Return the inverse of ``encode_graph()``: a copy of ``graph``
-        with every registered ``tt:HASH`` URIRef resolved back to a real
-        triple term (and a dirlang-encoded Literal back to a
-        ``DirLangString``), dropping the
+        """Returns the inverse of ``encode_graph()``: a copy of ``graph``
+        with every encoded term resolved back to its real form.
+
+        Every registered ``tt:HASH`` URIRef is resolved back to a real
+        triple term, and a dirlang-encoded Literal back to a
+        ``DirLangString``. Drops the
         ``rdf:subject``/``rdf:predicate``/``rdf:object`` encoding triples
         ``encode_graph()`` added for each registered term - those are
         internal bookkeeping, not part of the decoded graph's own
@@ -506,10 +520,12 @@ class TripleTermAdapter:
         return decoded
 
     def replace_graph(self, target: Any, source: Iterable[tuple[Any, Any, Any]]) -> Any:
-        """Replace every triple in ``target`` with the triples from
-        ``source``, in place, via ``target``'s own ``remove()``/``add()``
-        (not a reassignment) - so any identity a caller holds to
-        ``target`` itself stays valid.
+        """Replaces every triple in ``target`` with the triples from
+        ``source``, in place.
+
+        Mutates via ``target``'s own ``remove``/``add`` methods, not a
+        reassignment - so any identity a caller holds to ``target``
+        itself stays valid.
 
         Args:
             target: The graph to empty and refill, mutated in place.
@@ -524,16 +540,18 @@ class TripleTermAdapter:
         return target
 
     def encode_term(self, value: Any) -> Any:
-        """Encode a single term the way ``encode_graph()`` encodes one
-        node - see ``_encode_node()``.
+        """Encodes a single term the same way ``encode_graph`` encodes one
+        node - see ``_encode_node``.
         """
         return self._encode_node(value)
 
     def decode_term(self, value: Any) -> Any:
-        """Decode a single term the way ``decode_graph()`` decodes one
-        node (but without a target graph, so a decoded triple term always
-        comes back as a ``term_factory`` instance, never a plain tuple) -
-        see ``_decode_node()``.
+        """Decodes a single term the same way ``decode_graph`` decodes one
+        node.
+
+        No target graph is involved, so a decoded triple term always
+        comes back as a ``term_factory`` instance, never a plain tuple -
+        see ``_decode_node``.
         """
         return self._decode_node(value)
 

@@ -179,13 +179,15 @@ def update_to_rdf(update: Update, graph: Graph | None = None) -> tuple[Graph, BN
 
 
 def queries_to_collection(queries: list[Query], graph: Graph | None = None) -> tuple[Graph, BNode]:
-    """Encode a list of independent, prepared rdflib ``Query`` objects as one
-    RDF ``salg:QueryCollection`` — the collection-of-independent-queries
-    counterpart of ``update_to_rdf``'s single-request ``salg:operations``
-    list (see ``vocab.QUERY_COLLECTION``). Unlike an Update's operations,
-    which share one Prologue across the whole request, each query keeps its
-    own — ``query_to_rdf`` already encodes it per query, so nothing extra is
-    needed here for that.
+    """Encodes a list of independent, prepared rdflib ``Query`` objects as
+    one RDF ``salg:QueryCollection``.
+
+    The collection-of-independent-queries counterpart of
+    ``update_to_rdf``'s single-request ``salg:operations`` list - see
+    ``vocab.QUERY_COLLECTION``. Unlike an Update's operations, which
+    share one Prologue across the whole request, each query keeps its
+    own — ``query_to_rdf`` already encodes it per query, so nothing extra
+    is needed here for that.
 
     Args:
         queries: The independent queries to encode.

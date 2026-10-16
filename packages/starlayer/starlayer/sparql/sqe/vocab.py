@@ -22,7 +22,7 @@ than inventing a new one:
   docstring). A ``TriplesBlock`` sibling splices in one node per real
   triple (via ``algebra.triples``' own grouping), not one BGP-shaped
   wrapper, for the same "no more verbose than the text" reason.
-- **Variables reuse ``salg:Variable`` directly**, not a separately-minted
+- **Variables reuse ``spexpr:Variable`` directly**, not a separately-minted
   ``sqe:Variable`` — confirmed this is also what ``srl:`` already does
   (encodes `Variable` terms by delegating straight to ``to_rdf._encode``).
   Minting a second reserved datatype for the same concept would make the
@@ -38,11 +38,23 @@ than inventing a new one:
   real IRI can always be re-abbreviated by any Turtle/display layer with
   its own prefix map, so this isn't a readability loss.
 - **The query's own original `PREFIX`/`BASE` declarations are preserved
-  separately**, reusing ``to_rdf.py``'s own existing ``salg:base``/
-  ``salg:prologuePrefix`` convention verbatim (``_encode_prologue``) rather
-  than minting ``sqe:`` duplicates for the same concept - a query's
-  prologue means the same thing regardless of which projection vocabulary
-  is describing it. This is for direct, prefix-aware rendering (see
+  separately**, under ``sqe:``'s own ``sqe:base``/``sqe:prologuePrefix``/
+  ``sqe:PrefixBinding``/``sqe:prefixLabel``/``sqe:namespace`` terms
+  (2026-10-14 - previously reused ``salg:``'s identically-shaped terms
+  verbatim; moved to a real, independent ``sqe:`` duplicate instead,
+  since an ``sqe:`` graph's own encoder/decoder - ``to_rdf.py``'s
+  ``_encode_raw_prologue``/``to_text.py``'s ``_prefix_map`` - never
+  actually called ``salg:``'s own ``_encode_prologue``/decode logic in
+  the first place; they're two independently-maintained implementations
+  that merely *happened* to target the same predicate names, not a real
+  shared dependency - so duplicating cost nothing). ``prefixLabel``'s own
+  bare-string value is tagged with ``spexpr:PlainString`` (reused directly
+  from ``vocab.PY_STR_DATATYPE``, not a separate ``sqe:PyStr`` - that
+  independent copy existed only because the datatype was ``salg:``-owned
+  at the time; renamed and moved to ``spexpr:`` 2026-10-15, so there's no
+  longer a reason to duplicate it - see ``vocab.py``'s own comment on
+  ``PY_STR_DATATYPE`` for why).
+  This is for direct, prefix-aware rendering (see
   ``to_text.py``) and for the UI's own display purposes - **not** for
   execution, which never needs prefixes at all once every term is already
   a resolved `URIRef`, and **not** via ``translateAlgebra``, which never
@@ -72,7 +84,11 @@ from __future__ import annotations
 
 from rdflib import Namespace
 
-from ..vocab import SALG, VARIABLE_DATATYPE  # noqa: F401 - reused as-is, not re-minted
+from ..vocab import (  # noqa: F401 - reused as-is, not re-minted
+    PY_STR_DATATYPE,
+    SALG,
+    VARIABLE_DATATYPE,
+)
 
 SQE = Namespace("https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#")
 
@@ -106,7 +122,17 @@ UNION_ALTERNATIVES = SQE.alternatives
 
 EXPR = SQE.expr  # the salg:-boundary property shared by Filter/Bind
 
-# Prologue predicates are *not* re-minted here - reused verbatim from
-# vocab.py (SALG.base / SALG.prologuePrefix / SALG.PrefixBinding /
-# SALG.prefixLabel / SALG.namespace), via to_rdf._encode_prologue. See this
-# module's own docstring for why.
+# Prologue predicates - a real sqe:-native duplicate of SALG's own
+# identically-shaped base/prologuePrefix/PrefixBinding/prefixLabel/
+# namespace terms (2026-10-14), not a reuse - see this module's own
+# docstring for why duplicating was free (to_rdf.py's _encode_raw_prologue/
+# to_text.py's _prefix_map never called salg:'s own _encode_prologue to
+# begin with). prefixLabel's own bare-string datatype tag is PY_STR_DATATYPE
+# (spexpr:PlainString, imported above) - no separate sqe:PyStr/PlainString
+# of its own; that duplicate datatype was removed 2026-10-15 once the
+# datatype's canonical home moved off of salg: (see vocab.py).
+PROLOGUE_BASE = SQE.base
+PROLOGUE_PREFIX = SQE.prologuePrefix
+PREFIX_BINDING = SQE.PrefixBinding
+PREFIX_LABEL = SQE.prefixLabel
+PREFIX_NAMESPACE = SQE.namespace

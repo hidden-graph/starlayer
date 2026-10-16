@@ -430,8 +430,8 @@ class TestShapesGraphOnOtherMethods:
         )
 
         module_b = schema.extract_shapes_graph(EX.ModuleB)
-        extracted = extract_subgraph(data, EX.CompanyShape, EX.acme, shacl_graph=module_b)
-        assert extracted is not None
+        extracted = extract_subgraph(data, shacl_graph=module_b, shape=EX.CompanyShape, focus_node=EX.acme)
+        assert len(extracted) > 0
         assert (EX.acme, EX.name, None) in extracted or any(True for _ in extracted.triples((EX.acme, EX.name, None)))
 
     def test_apply_rules_scoped_to_one_module(self) -> None:

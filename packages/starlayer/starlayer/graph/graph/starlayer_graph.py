@@ -123,11 +123,12 @@ VALID_INFER_RETURN_MODES = frozenset({'full', 'delta', 'in-place'})
 
 
 def can_resolve_import(iri: Any, *, loader: Callable[[Any], Any | None]) -> bool:
-    """Whether ``loader`` can resolve ``iri`` - a question about the
-    *loader*'s own knowledge, not about any particular graph's data,
-    which is why this is a plain function rather than a
-    ``StarLayerGraph`` method the way ``owl_imports()``/``resolve_imports()``
-    are.
+    """Returns whether ``loader`` can resolve ``iri``.
+
+    A question about the *loader*'s own knowledge, not about any
+    particular graph's data, which is why this is a plain function
+    rather than a ``StarLayerGraph`` method the way
+    ``owl_imports()``/``resolve_imports()`` are.
 
     Implemented the only honest way this can be answered: by actually
     calling ``loader(iri)`` and checking whether it returned a graph
@@ -2875,6 +2876,21 @@ class StarLayerGraph(Graph):
         `_OWL_DL_TIMEOUT_DEFAULT`, a real value, not a sentinel needing
         translation).
 
+        ENTAILMENT.RDF combines freely with RDFS/OWL-RDF-Based (in any
+        subset, including both): the native _infer_rdf_before_and_delta()
+        delta is unioned with whatever owlrl-backed delta the remaining
+        regime(s) produce, if any. Unioning two independently-sound
+        entailment sets can't introduce an incorrect triple, so this is
+        safe even though RDFS/OWL-RL's own rules already produce
+        everything RDF alone would in practice (confirmed empirically) -
+        the union is for completeness/consistency, not because of a gap.
+        ENTAILMENT.RDF alone still returns exactly what
+        _infer_rdf_before_and_delta() itself returns, unchanged. A
+        combination that mixes ENTAILMENT["OWL-Direct"] with anything else
+        still falls through to _infer_before_and_delta() below and raises
+        ValueError there (no such key in _resolve_owlrl_semantics()'s own
+        dict) - OWL-Direct is never combinable, before or after this.
+
         Args:
             regimes: The ENTAILMENT.* regime IRI(s) to reason under.
             engine: Which OWL-Direct bridge to use ('hermit' or 'rustdl');
@@ -2897,8 +2913,27 @@ class StarLayerGraph(Graph):
                 from starlayer.graph.graph.owl_dl_rustdl import classify_owl_dl_rustdl
                 return classify_owl_dl_rustdl(self, timeout=timeout)
             raise ValueError(f"Unsupported engine {engine!r}; expected one of ['hermit', 'rustdl']")
-        if regimes == frozenset({ENTAILMENT.RDF}):
-            return self._infer_rdf_before_and_delta()
+        if ENTAILMENT.RDF in regimes:
+            # RDF combines freely with RDFS/OWL-RDF-Based: the native rdfD2
+            # + axiomatic-triples delta is computed separately from the
+            # owlrl-backed closure (if any other regime is also present)
+            # and the two deltas are unioned. Sound either way - unioning
+            # two independently-correct entailment sets can't introduce a
+            # wrong triple - even though in practice RDFS/OWL-RL's own
+            # rules already produce everything RDF alone would (confirmed
+            # empirically), so the union rarely adds anything new; this
+            # is for completeness/consistency, not because of a gap.
+            _rdf_before, rdf_delta = self._infer_rdf_before_and_delta()
+            owlrl_regimes = regimes - frozenset({ENTAILMENT.RDF})
+            if not owlrl_regimes:
+                return self, rdf_delta
+            owlrl_before, owlrl_delta = self._infer_before_and_delta(owlrl_regimes)
+            merged_delta = Graph()
+            for t in owlrl_delta:
+                merged_delta.add(t)
+            for t in rdf_delta:
+                merged_delta.add(t)
+            return owlrl_before, merged_delta
         return self._infer_before_and_delta(regimes)
 
     def _infer_rdf_before_and_delta(self):
@@ -3034,13 +3069,22 @@ class StarLayerGraph(Graph):
             entailment: One real entailment regime IRI (``ENTAILMENT.RDF``,
                 ``ENTAILMENT.RDFS``, ``ENTAILMENT["OWL-RDF-Based"]``,
                 ``ENTAILMENT["OWL-Direct"]``), or an iterable of more than
-                one to combine them into a single pass (e.g.
-                ``{ENTAILMENT.RDFS, ENTAILMENT["OWL-RDF-Based"]}`` -
+                one to combine them into a single pass. ``ENTAILMENT.RDF``
+                combines freely with ``ENTAILMENT.RDFS``/
+                ``ENTAILMENT["OWL-RDF-Based"]``, in any subset including
+                all three at once - the native RDF delta (see below) is
+                unioned with whatever the other regime(s) entail, sound
+                either way, though in practice RDFS/OWL-RL's own rules
+                already produce everything RDF alone would (confirmed
+                empirically) - the combination is supported for
+                completeness/consistency, not because it adds coverage
+                a caller would otherwise be missing.
+                ``{ENTAILMENT.RDFS, ENTAILMENT["OWL-RDF-Based"]}`` is
                 genuinely more than ``ENTAILMENT["OWL-RDF-Based"]`` alone:
                 e.g. universal rdfs:Resource typing and several
                 rdfs:Datatype-related entailments are only present when
                 RDFS's own rules run alongside OWL-RL's - see
-                ``_resolve_owlrl_semantics()``). See
+                ``_resolve_owlrl_semantics()``. See
                 ``starlayer.graph.graph.entailment_regimes``'s own module
                 docstring for what each IRI means and which combinations
                 are actually supported. ``ENTAILMENT["OWL-Direct"]`` alone
@@ -3053,14 +3097,17 @@ class StarLayerGraph(Graph):
                 if self's data is logically inconsistent - unlike the
                 owlrl-backed regimes, whose consistency checking is
                 partial and never raises. See `engine` below for which
-                actual reasoner runs this. ``ENTAILMENT.RDF`` alone is
-                implemented natively (no ``owlrl`` dependency, no reasoner
-                at all) - just rdfD2 (every predicate used is entailed
-                ``rdf:type rdf:Property``) plus the small fixed set of RDF
-                axiomatic triples actually relevant to self's data.
-                Datatype literal value-space well-typing (rdfD1/rdfD1a) is
-                a deliberate v1 scope reduction, not built - see
-                ``_infer_rdf_before_and_delta()``'s own docstring.
+                actual reasoner runs this. ``ENTAILMENT["OWL-Direct"]`` is
+                never combinable with any other regime (raises
+                ``ValueError``). ``ENTAILMENT.RDF`` is implemented
+                natively (no ``owlrl`` dependency, no reasoner at all for
+                its own portion of the work) - just rdfD2 (every predicate
+                used is entailed ``rdf:type rdf:Property``) plus the small
+                fixed set of RDF axiomatic triples actually relevant to
+                self's data. Datatype literal value-space well-typing
+                (rdfD1/rdfD1a) is a deliberate v1 scope reduction, not
+                built - see ``_infer_rdf_before_and_delta()``'s own
+                docstring.
             mode: All three ultimately reach the same closure (self's own
                 data plus everything entailed from it) - this chooses
                 where that ends up and how much of it comes back as a
@@ -3390,10 +3437,12 @@ class StarLayerGraph(Graph):
 
     def derive_shape(self, template_shape=None, *, ignored_properties=None,
                       use_default_ignored_properties: bool = True) -> StarLayerGraph:
-        """Infer a SHACL shape from self's own data - one ``sh:NodeShape``
-        per distinct ``rdf:type`` found (the simplest option: derive shapes
-        from classes, never per-node or heuristic clustering), optionally
-        reconciled against an existing template shape.
+        """Infer a SHACL shape from self's own data and return it.
+
+        One ``sh:NodeShape`` per distinct ``rdf:type`` found (the simplest
+        option: derive shapes from classes, never per-node or heuristic
+        clustering), optionally reconciled against an existing template
+        shape.
 
         Every returned shape is closed (``sh:closed true``) and is
         self-checked to conform against self before being returned (a real

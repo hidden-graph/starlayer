@@ -54,6 +54,20 @@ SH = Namespace("http://www.w3.org/ns/shacl#")
 _META_VALIDATE_CACHE_MAXSIZE = 256
 _META_VALIDATE_CACHE: OrderedDict[tuple, tuple] = OrderedDict()
 
+# check_sparql_query_text()'s own SALG structural-validation result cache -
+# salg.validate_query() is a real pySHACL validation pass (shapes/ontology
+# graphs rebuilt from Turtle each call, RDFS inference enabled), not cheap,
+# and otherwise uncached. Keyed directly on the exact inputs that determine
+# its result (predicate, the literal query text, and its resolved prefix
+# map) - no graph-identity/blank-node concern here the way
+# _meta_validate_cache_key has, so no rdfc10_hash needed; these values are
+# already directly, stably hashable. Same bounded-LRU shape as
+# _META_VALIDATE_CACHE, kept as a separate cache since it's keyed on
+# different things (one query's text+prefixes, not a whole shapes graph's
+# content).
+_SPARQL_STRUCTURE_CACHE_MAXSIZE = 256
+_SPARQL_STRUCTURE_CACHE: OrderedDict[tuple, tuple] = OrderedDict()
+
 
 def _meta_validate_cache_key(shapes_graph_for_meta: Any, kwargs: dict) -> tuple | None:
     """Content-based cache key for one ``meta_validate()`` outcome.
@@ -373,9 +387,83 @@ def _collect_query_prefixes(shapes_graph: Any, query_node: Any) -> dict[str, Any
     return prefixes
 
 
+def _sparql_structure_cache_key(predicate: Any, text_literal: Literal, prefixes: dict, is_target: bool) -> tuple:
+    """Cache key for one query's structural-validation outcome - the exact
+    inputs the *effective* (exemption-applied) result depends on for this
+    one embedded query: which predicate carried it (part of the error
+    message, not the semantics, but cheap to include and keeps the key
+    unambiguous), the literal text itself, its resolved prefix map (two
+    otherwise-identical query strings can mean different things under
+    different prefix bindings), and ``is_target`` - whether ``$this`` is
+    genuinely required to be bound by this query's own pattern (a
+    ``sh:target``-declared SPARQL target) or externally pre-bound (every
+    other case) changes whether a given unbound-``$this`` violation is a
+    real defect, even for byte-identical query text (see
+    ``_is_prebound_variable_only_report``'s own docstring).
+    """
+    return (
+        predicate,
+        str(text_literal),
+        tuple(sorted(((str(k), str(v)) for k, v in prefixes.items()))),
+        is_target,
+    )
+
+
+# SHACL-SPARQL's own pre-bound pseudo-variables are supplied externally by
+# pySHACL's own execution machinery before a sh:select/sh:ask/sh:construct
+# query ever runs - never by anything in the query's own WHERE pattern -
+# for a CONSTRAINT or RULE query. salg:noUnboundProjectedVariables (a
+# plain, SHACL-unaware generic SPARQL check) has no way to know this, so
+# without this exemption it would flag every single `$this`-only validator
+# (an extremely common, perfectly valid pattern - e.g.
+# `SELECT $this WHERE { FILTER(...) }`, with nothing in the pattern ever
+# referencing $this directly) as a false positive - confirmed live via a
+# real such query. Matches this function's own pre-existing docstring note
+# on these three names (the parse check already didn't need to
+# special-case them; the structural check does).
+#
+# This does NOT hold for a SPARQL-based TARGET (`sh:target [ a
+# sh:SPARQLTarget ; sh:select ... ]`) - there, $this is not pre-bound at
+# all; it's the query's own job to *compute* which nodes are $this, so an
+# unbound $this in a target query is a real defect (the target would never
+# select any candidate), not a false positive. Confirmed live: without
+# excluding target queries from this exemption, a target query that never
+# binds $this silently passed this check. check_sparql_query_text() below
+# detects this via `is_target` (whether query_node is itself the object of
+# a sh:target triple) and only applies this exemption when it's False.
+_SHACL_PREBOUND_VARIABLE_NAMES = frozenset({"this", "value", "PATH"})
+
+
+def _is_prebound_variable_only_report(report_graph: Graph) -> bool:
+    """True iff every violation in a ``salg.validate_query()`` report is a
+    ``salg:noUnboundProjectedVariables`` hit naming only a SHACL pre-bound
+    pseudo-variable (``$this``/``$value``/``$PATH``) - a false positive
+    this check should suppress, not a real defect. ``False`` (never
+    suppressed) for an empty result set too - that would mean ``conforms``
+    was already ``True`` and there was nothing to call this for in the
+    first place.
+    """
+    from starlayer.sparql import SALG
+
+    results = list(report_graph.subjects(RDF.type, SH.ValidationResult))
+    if not results:
+        return False
+    for result in results:
+        component = report_graph.value(result, SH.sourceConstraintComponent)
+        if component != SALG.NoUnboundProjectedVariablesConstraintComponent:
+            return False
+        value = report_graph.value(result, SH.value)
+        if value is None or str(value) not in _SHACL_PREBOUND_VARIABLE_NAMES:
+            return False
+    return True
+
+
 def check_sparql_query_text(shapes_graph: Any) -> None:
     """Preflight: every ``sh:select``/``sh:ask``/``sh:construct`` literal
-    anywhere in ``shapes_graph`` must be syntactically valid SPARQL text.
+    anywhere in ``shapes_graph`` must be syntactically valid SPARQL text,
+    and must not have a defect a bare parse can't catch - most notably an
+    unbound projected variable (a query that compiles and runs, just
+    silently never binds one of its own ``SELECT`` variables).
 
     The meta-shapes graph already checks these structurally (cardinality,
     ``xsd:string`` datatype), but never actually parses the string -
@@ -383,6 +471,18 @@ def check_sparql_query_text(shapes_graph: Any) -> None:
     conforms cleanly under the structural check alone. This is a
     Python-level check, not another SHACL shape, because "is this string
     valid SPARQL" isn't RDF-structural - no shape can express it.
+
+    A literal that parses is additionally encoded as a ``salg:`` (SPARQL-
+    algebra-as-RDF) graph and validated against
+    ``starlayer.sparql.salg``'s own general-purpose SPARQL-structure
+    shapes - which already has a real check for the unbound-projected-
+    variable case (``salg:noUnboundProjectedVariables``), just never
+    pointed at a SHACL shape's own embedded query text before this. This
+    is real extra validation work (pySHACL with RDFS inference, not just a
+    parse), so results are cached per distinct (predicate, text, prefixes)
+    - repeated calls against the same shapes graph only pay this once per
+    distinct embedded query, the same reason ``meta_validate()`` itself
+    caches its own, larger structural pass.
 
     Scans the whole graph for these three predicates directly rather than
     walking ``sh:sparql``/``sh:validator``/``sh:selectValidator``-style
@@ -393,19 +493,34 @@ def check_sparql_query_text(shapes_graph: Any) -> None:
     scan covers every case uniformly.
 
     ``$this``/``$value``/``$PATH``-style pre-bound variables need no
-    special handling here - they parse as ordinary ``Var`` tokens
-    regardless of whether they're bound, which only matters at execution
-    time. Prefixes do matter at parse time (an unresolved ``PrefixedName``
-    is a real parse error), so each query's prefix map is resolved the
-    same way real execution would (see ``_collect_query_prefixes``).
+    special handling for the parse step - they parse as ordinary ``Var``
+    tokens regardless of whether they're bound, which only matters at
+    execution time. They *do* need special handling for the structural
+    step above: ``salg:noUnboundProjectedVariables`` has no SHACL
+    awareness, so a perfectly valid ``$this``-only validator (e.g.
+    ``SELECT $this WHERE { FILTER(...) }``, never referencing ``$this``
+    directly in its own pattern - these variables are bound externally by
+    pySHACL itself, not by anything in the query text) would otherwise be
+    a false positive - confirmed live. See
+    ``_is_prebound_variable_only_report``'s own docstring for exactly
+    which violations this suppresses (only ones naming exactly one of
+    these three pre-bound names; anything else still raises). Prefixes do
+    matter at parse time (an unresolved ``PrefixedName`` is a real parse
+    error), so each query's prefix map is resolved the same way real
+    execution would (see ``_collect_query_prefixes``).
+
+    Args:
+        shapes_graph: The shapes graph to scan.
 
     Raises ``pyshacl.errors.ConstraintLoadError`` (the same exception type
     pySHACL itself raises for other malformed ``sh:sparql`` declarations)
-    naming the offending predicate and the underlying parse error.
+    naming the offending predicate and the underlying parse error, or the
+    SALG structural-validation report.
     """
     from pyshacl.errors import ConstraintLoadError
 
     import starlayer.sparql
+    from starlayer.sparql import salg
 
     for predicate in (SH.select, SH.ask, SH.construct):
         for query_node, text_literal in shapes_graph.subject_objects(predicate):
@@ -413,9 +528,34 @@ def check_sparql_query_text(shapes_graph: Any) -> None:
                 continue  # not xsd:string - already caught by the meta-shapes structural check
             prefixes = _collect_query_prefixes(shapes_graph, query_node)
             try:
-                starlayer.sparql.prepare_query_12(str(text_literal), initNs=prefixes)
+                query = starlayer.sparql.prepare_query_12(str(text_literal), initNs=prefixes)
             except Exception as exc:
                 raise ConstraintLoadError(
                     f"{predicate.n3(shapes_graph.namespace_manager)} value is not valid SPARQL: {exc}",
                     "https://www.w3.org/TR/shacl12-sparql/",
                 ) from exc
+
+            # A sh:target-declared SPARQL target's own $this is NOT
+            # pre-bound - it's the query's own job to compute it - so the
+            # pre-bound-variable exemption below must not apply to it. See
+            # _SHACL_PREBOUND_VARIABLE_NAMES's own comment.
+            is_target = any(True for _ in shapes_graph.subjects(SH.target, query_node))
+            cache_key = _sparql_structure_cache_key(predicate, text_literal, prefixes, is_target)
+            cached = _SPARQL_STRUCTURE_CACHE.get(cache_key)
+            if cached is not None:
+                conforms, report_text = cached
+            else:
+                encoded_graph, _root = starlayer.sparql.query_to_rdf(query)
+                conforms, report_graph, report_text = salg.validate_query(encoded_graph)
+                if not conforms and not is_target and _is_prebound_variable_only_report(report_graph):
+                    conforms = True
+                _SPARQL_STRUCTURE_CACHE[cache_key] = (conforms, report_text)
+                _SPARQL_STRUCTURE_CACHE.move_to_end(cache_key)
+                if len(_SPARQL_STRUCTURE_CACHE) > _SPARQL_STRUCTURE_CACHE_MAXSIZE:
+                    _SPARQL_STRUCTURE_CACHE.popitem(last=False)
+            if not conforms:
+                raise ConstraintLoadError(
+                    f"{predicate.n3(shapes_graph.namespace_manager)} value fails SPARQL structural "
+                    f"validation:\n{report_text}",
+                    "https://www.w3.org/TR/shacl12-sparql/",
+                )

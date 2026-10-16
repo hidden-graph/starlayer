@@ -138,7 +138,7 @@ spexpr:FunctionExpression rdfs:comment "A call to any registered/custom SPARQL f
 spexpr:InvPath rdfs:comment "^path (inverse) - salg:arg the wrapped path/IRI." ;
     rdfs:subClassOf spexpr:Path .
 
-spexpr:MulPath rdfs:comment "path* / path+ / path? (repetition) - salg:path the repeated path/IRI, salg:mod the bare \"*\"/\"+\"/\"?\" modifier string. Not salg:PyStr-tagged, unlike salg:silent/salg:graphiri/salg:op - confirmed via to_rdf._encode_path's own MulPath branch (Literal(path.mod), no datatype argument), which is what makes shapes.py's own salg:MulPathShape sh:in (\"*\" \"+\" \"?\") check actually match (that check compares against plain literals; PyStr-tagging it would break the match, since sh:in's term-equality is exact and the two datatypes differ). This comment previously claimed PyStr-tagging incorrectly - found and corrected 2026-08-16, a dedicated ontology audit. The live rdflib object's own zero/more boolean flags are deliberately not encoded, since both are always fully derivable from salg:mod alone (confirmed by reading rdflib.paths.MulPath's own constructor)." ;
+spexpr:MulPath rdfs:comment "path* / path+ / path? (repetition) - salg:path the repeated path/IRI, salg:mod the bare \"*\"/\"+\"/\"?\" modifier string. Not spexpr:PlainString-tagged, unlike salg:silent/salg:graphiri/salg:op - confirmed via to_rdf._encode_path's own MulPath branch (Literal(path.mod), no datatype argument), which is what makes shapes.py's own salg:MulPathShape sh:in (\"*\" \"+\" \"?\") check actually match (that check compares against plain literals; PlainString-tagging it would break the match, since sh:in's term-equality is exact and the two datatypes differ). This comment previously claimed PlainString-tagging incorrectly - found and corrected 2026-08-16, a dedicated ontology audit. The live rdflib object's own zero/more boolean flags are deliberately not encoded, since both are always fully derivable from salg:mod alone (confirmed by reading rdflib.paths.MulPath's own constructor)." ;
     rdfs:subClassOf spexpr:Path .
 
 spexpr:MultiplicativeExpression rdfs:subClassOf spexpr:ArithmeticExpression .
@@ -153,6 +153,9 @@ spexpr:OptionalOneArgExpression rdfs:comment "Zero or one argument (salg:arg) - 
     rdfs:subClassOf spexpr:Expression .
 
 spexpr:Path rdfs:comment "A SPARQL property-path expression - the salg: mirror of rdflib.paths.Path's own class hierarchy." .
+
+spexpr:PlainString a rdfs:Datatype ;
+    rdfs:comment "A plain, untagged bare string value (not a real RDF term) that needs a reserved datatype to survive RDF round-trip without colliding with an ordinary xsd:string-typed value - e.g. an operator symbol, a prefix label, a bare SPARQL grammar keyword. The shared, technology-neutral home for this concept (reused directly by salg:/sqe:, see vocab.py's PY_STR_DATATYPE) - renamed and moved here from salg:PyStr 2026-10-15, the same spexpr:-not-salg: reasoning already applied to Variable." .
 
 spexpr:RegexExpression rdfs:comment "REGEX(text, pattern[, flags]) - unique key names." ;
     rdfs:subClassOf spexpr:Expression .

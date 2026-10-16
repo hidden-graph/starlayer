@@ -56,13 +56,13 @@ manch:AnnotationAssertionShape a sh:NodeShape ;
     sh:property [
         sh:maxCount 1 ;
         sh:minCount 1 ;
-        sh:nodeKind sh:IRI ;
-        sh:path manch:annotationProperty
+        sh:node manch:ValueShape ;
+        sh:path manch:annotationValue
     ], [
         sh:maxCount 1 ;
         sh:minCount 1 ;
-        sh:node manch:ValueShape ;
-        sh:path manch:annotationValue
+        sh:nodeKind sh:IRI ;
+        sh:path manch:annotationProperty
     ] ;
     sh:targetClass manch:AnnotationAssertion .
 
@@ -221,13 +221,13 @@ manch:DRestrictionShape a sh:NodeShape ;
     sh:property [
         sh:maxCount 1 ;
         sh:minCount 1 ;
-        sh:node manch:WellFormedListShape ;
-        sh:path manch:facets
+        sh:nodeKind sh:IRI ;
+        sh:path manch:onDatatype
     ], [
         sh:maxCount 1 ;
         sh:minCount 1 ;
-        sh:nodeKind sh:IRI ;
-        sh:path manch:onDatatype
+        sh:node manch:WellFormedListShape ;
+        sh:path manch:facets
     ] ;
     sh:targetClass manch:DRestriction .
 
@@ -328,6 +328,16 @@ manch:DatatypeEquivalentToClause a sh:NodeShape ;
 
 manch:DocumentShape a sh:NodeShape ;
     sh:property [
+        sh:maxCount 1 ;
+        sh:minCount 1 ;
+        sh:node manch:WellFormedListShape ;
+        sh:path manch:prefixes
+    ], [
+        sh:maxCount 1 ;
+        sh:minCount 1 ;
+        sh:node manch:FrameListShape ;
+        sh:path manch:frames
+    ], [
         sh:class manch:OntologyHeader ;
         sh:maxCount 1 ;
         sh:path manch:header
@@ -336,16 +346,6 @@ manch:DocumentShape a sh:NodeShape ;
         sh:minCount 1 ;
         sh:node manch:MiscAxiomListShape ;
         sh:path manch:misc
-    ], [
-        sh:maxCount 1 ;
-        sh:minCount 1 ;
-        sh:node manch:FrameListShape ;
-        sh:path manch:frames
-    ], [
-        sh:maxCount 1 ;
-        sh:minCount 1 ;
-        sh:node manch:WellFormedListShape ;
-        sh:path manch:prefixes
     ] ;
     sh:targetClass manch:Document .
 
@@ -357,13 +357,13 @@ manch:ExactShape a sh:NodeShape ;
         sh:path manch:cardinality
     ], [
         sh:maxCount 1 ;
-        sh:node manch:ClassExpressionOrNameShape ;
-        sh:path manch:filler
-    ], [
-        sh:maxCount 1 ;
         sh:minCount 1 ;
         sh:node manch:PropertyExpressionOrNameShape ;
         sh:path manch:onProperty
+    ], [
+        sh:maxCount 1 ;
+        sh:node manch:ClassExpressionOrNameShape ;
+        sh:path manch:filler
     ] ;
     sh:targetClass manch:Exact .
 
@@ -371,13 +371,13 @@ manch:FacetRestrictionShape a sh:NodeShape ;
     sh:property [
         sh:maxCount 1 ;
         sh:minCount 1 ;
-        sh:nodeKind sh:Literal ;
-        sh:path manch:facetValue
+        sh:nodeKind sh:IRI ;
+        sh:path manch:facetPredicate
     ], [
         sh:maxCount 1 ;
         sh:minCount 1 ;
-        sh:nodeKind sh:IRI ;
-        sh:path manch:facetPredicate
+        sh:nodeKind sh:Literal ;
+        sh:path manch:facetValue
     ] ;
     sh:targetClass manch:FacetRestriction .
 
@@ -431,13 +431,13 @@ manch:FrameShapeDetail a sh:NodeShape ;
     sh:property [
         sh:maxCount 1 ;
         sh:minCount 1 ;
-        sh:node manch:ClauseListShape ;
-        sh:path manch:clauses
+        sh:nodeKind sh:IRI ;
+        sh:path manch:subject
     ], [
         sh:maxCount 1 ;
         sh:minCount 1 ;
-        sh:nodeKind sh:IRI ;
-        sh:path manch:subject
+        sh:node manch:ClauseListShape ;
+        sh:path manch:clauses
     ] ;
     sh:targetClass manch:Frame .
 
@@ -479,26 +479,26 @@ manch:MaxShape a sh:NodeShape ;
         sh:path manch:cardinality
     ], [
         sh:maxCount 1 ;
+        sh:node manch:ClassExpressionOrNameShape ;
+        sh:path manch:filler
+    ], [
+        sh:maxCount 1 ;
         sh:minCount 1 ;
         sh:node manch:PropertyExpressionOrNameShape ;
         sh:path manch:onProperty
-    ], [
-        sh:maxCount 1 ;
-        sh:node manch:ClassExpressionOrNameShape ;
-        sh:path manch:filler
     ] ;
     sh:targetClass manch:Max .
 
 manch:MinShape a sh:NodeShape ;
     sh:property [
-        sh:maxCount 1 ;
-        sh:node manch:ClassExpressionOrNameShape ;
-        sh:path manch:filler
-    ], [
         sh:datatype xsd:nonNegativeInteger ;
         sh:maxCount 1 ;
         sh:minCount 1 ;
         sh:path manch:cardinality
+    ], [
+        sh:maxCount 1 ;
+        sh:node manch:ClassExpressionOrNameShape ;
+        sh:path manch:filler
     ], [
         sh:maxCount 1 ;
         sh:minCount 1 ;
@@ -695,12 +695,12 @@ manch:OnlyShape a sh:NodeShape ;
 manch:OntologyHeaderShape a sh:NodeShape ;
     sh:property [
         sh:maxCount 1 ;
-        sh:nodeKind sh:IRI ;
-        sh:path manch:ontologyIri
-    ], [
-        sh:maxCount 1 ;
         sh:node manch:WellFormedListShape ;
         sh:path manch:imports
+    ], [
+        sh:maxCount 1 ;
+        sh:nodeKind sh:IRI ;
+        sh:path manch:ontologyIri
     ] ;
     sh:targetClass manch:OntologyHeader .
 
@@ -715,15 +715,15 @@ manch:OrShape a sh:NodeShape ;
 
 manch:PrefixDeclShape a sh:NodeShape ;
     sh:property [
-        sh:datatype manch:PyStr ;
-        sh:maxCount 1 ;
-        sh:minCount 1 ;
-        sh:path manch:prefixLabel
-    ], [
         sh:maxCount 1 ;
         sh:minCount 1 ;
         sh:nodeKind sh:Literal ;
         sh:path manch:prefixIri
+    ], [
+        sh:datatype manch:PlainString ;
+        sh:maxCount 1 ;
+        sh:minCount 1 ;
+        sh:path manch:prefixLabel
     ] ;
     sh:targetClass manch:PrefixDecl .
 
@@ -783,7 +783,7 @@ manch:SelfRShape a sh:NodeShape ;
     sh:targetClass manch:SelfR .
 
 manch:ShapesGraph a sh:ShapesGraph ;
-    rdfs:member manch:DataPropDomainClause, manch:PropertyExpressionShape, manch:IndividualDifferentFromClause, manch:PropertyExpressionListShape, manch:MiscSameIndividualAxiom, manch:DatatypeEquivalentToClause, manch:DAndShape, manch:ValueShape, manch:ObjPropCharacteristicsClause, manch:ObjPropEquivalentToClause, manch:DataRangeOrNameShape, manch:AnnPropSubPropertyOfClause, manch:DataPropSubPropertyOfClause, manch:IndividualSameAsClause, manch:ValueClauseShape, manch:OntologyHeaderShape, manch:ClauseListShape, manch:NameItemListShape, manch:MiscAxiomItemsShape, manch:WellFormedListShape, manch:DataPropDisjointWithClause, manch:ClauseShape, manch:DRestrictionShape, manch:MiscEquivalentPropertiesAxiom, manch:SelfRShape, manch:OrShape, manch:ClassDisjointWithClause, manch:ClauseItemsShape, manch:AndShape, manch:FacetRestrictionShape, manch:MiscAxiomListShape, manch:SomeShape, manch:DataRangeItemListShape, manch:ClassSubClassOfClause, manch:MaxShape, manch:ExactShape, manch:NotShape, manch:AnnotationAssertionListShape, manch:MiscDifferentIndividualsAxiom, manch:AnnPropRangeClause, manch:OnlyShape, manch:DNotShape, manch:OneOfShape, manch:InverseShape, manch:FrameShapeDetail, manch:PropertyExpressionOrNameShape, manch:FrameShape, manch:DataRangeListShape, manch:ObjPropInverseOfClause, manch:PrefixDeclShape, manch:DataPropEquivalentToClause, manch:ClauseItemShape, manch:DataPropRangeClause, manch:IndividualTypesClause, manch:DocumentShape, manch:MiscDisjointClassesAxiom, manch:MinShape, manch:MiscAxiomShape, manch:MiscDisjointPropertiesAxiom, manch:ClassExpressionListShape, manch:FrameListShape, manch:DOneOfShape, manch:NameListShape, manch:DataRangeShape, manch:ClassExpressionOrNameShape, manch:ObjPropDomainClause, manch:ObjPropSubPropertyOfClause, manch:DataPropCharacteristicsClause, manch:PropertyExpressionItemListShape, manch:ObjPropDisjointWithClause, manch:DOrShape, manch:FactItemShape, manch:ClassEquivalentToClause, manch:AnnotationAssertionShape, manch:ObjPropRangeClause, manch:AnnPropDomainClause, manch:ClassExpressionShape, manch:MiscEquivalentClassesAxiom, manch:ClassExpressionItemListShape .
+    rdfs:member manch:AnnotationAssertionShape, manch:FrameShapeDetail, manch:PropertyExpressionItemListShape, manch:DOneOfShape, manch:IndividualSameAsClause, manch:OneOfShape, manch:MiscAxiomShape, manch:AndShape, manch:PrefixDeclShape, manch:DRestrictionShape, manch:DataPropEquivalentToClause, manch:AnnPropRangeClause, manch:IndividualDifferentFromClause, manch:FrameListShape, manch:ClassSubClassOfClause, manch:ObjPropSubPropertyOfClause, manch:ObjPropRangeClause, manch:PropertyExpressionListShape, manch:ExactShape, manch:ClassExpressionItemListShape, manch:DataPropSubPropertyOfClause, manch:ObjPropCharacteristicsClause, manch:DataPropCharacteristicsClause, manch:ClassDisjointWithClause, manch:MiscDifferentIndividualsAxiom, manch:MiscDisjointPropertiesAxiom, manch:ValueShape, manch:PropertyExpressionOrNameShape, manch:DataRangeListShape, manch:OnlyShape, manch:MiscEquivalentClassesAxiom, manch:MaxShape, manch:SomeShape, manch:DataRangeOrNameShape, manch:DocumentShape, manch:ClassExpressionListShape, manch:DataPropDomainClause, manch:DataRangeShape, manch:ClassExpressionShape, manch:MiscAxiomListShape, manch:FactItemShape, manch:ClauseItemShape, manch:MinShape, manch:WellFormedListShape, manch:ClauseItemsShape, manch:InverseShape, manch:DataPropDisjointWithClause, manch:FacetRestrictionShape, manch:ClassExpressionOrNameShape, manch:IndividualTypesClause, manch:AnnPropSubPropertyOfClause, manch:ClauseListShape, manch:MiscAxiomItemsShape, manch:OrShape, manch:DataRangeItemListShape, manch:MiscSameIndividualAxiom, manch:ObjPropDomainClause, manch:NotShape, manch:DOrShape, manch:ClauseShape, manch:AnnPropDomainClause, manch:ObjPropInverseOfClause, manch:ObjPropEquivalentToClause, manch:MiscDisjointClassesAxiom, manch:ValueClauseShape, manch:NameListShape, manch:PropertyExpressionShape, manch:MiscEquivalentPropertiesAxiom, manch:ClassEquivalentToClause, manch:DatatypeEquivalentToClause, manch:DataPropRangeClause, manch:NameItemListShape, manch:FrameShape, manch:OntologyHeaderShape, manch:DNotShape, manch:ObjPropDisjointWithClause, manch:AnnotationAssertionListShape, manch:DAndShape, manch:SelfRShape .
 
 manch:SomeShape a sh:NodeShape ;
     sh:property [

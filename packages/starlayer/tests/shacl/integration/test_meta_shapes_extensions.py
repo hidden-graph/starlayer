@@ -1306,3 +1306,188 @@ class TestSparqlQueryTextValidation:
         )
         with pytest.raises(pyshacl.errors.ConstraintLoadError, match="sh:ask"):
             StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=True)
+
+
+class TestSparqlQueryStructureValidation:
+    """check_sparql_query_text(): a literal that *parses* fine can still
+    have a real, silent defect a bare parse never catches - most notably
+    an unbound projected variable (compiles and runs, just never binds
+    one of its own SELECT variables). After a successful parse, the query
+    is additionally encoded as a salg: graph and validated against
+    starlayer.sparql.salg's own general-purpose SPARQL-structure shapes,
+    which already has a real check for exactly this
+    (salg:noUnboundProjectedVariables) - just never pointed at a SHACL
+    shape's own embedded query text before. Always runs whenever
+    check_sparql_query_text() itself runs - i.e. whenever meta_shacl=True
+    (the default), same as the parse check alongside it - not a separate
+    opt-in, since it's cached and the whole point is to actually catch
+    this class of bug in real shape libraries, not require remembering to
+    turn it on."""
+
+    _UNBOUND_VAR_SELECT = (
+        "PREFIX ex: <http://example.org/> SELECT $this ?x WHERE { $this ex:email ?e }"
+    )
+    _WELL_FORMED_SELECT = (
+        "PREFIX ex: <http://example.org/> SELECT $this WHERE { $this ex:email ?e }"
+    )
+
+    def _shapes_with(self, query_text: str) -> Graph:
+        shapes = Graph()
+        shapes.parse(
+            data=_RULES_PREFIX + f'ex:S sh:select "{query_text}" .',
+            format="turtle",
+        )
+        return shapes
+
+    def test_unbound_projected_variable_parses_but_fails_structure_check(self) -> None:
+        # Confirms this is a real "beyond parsing" finding, not a
+        # duplicate of the plain parse check: the raw text parses fine on
+        # its own, but check_sparql_query_text() still raises once the
+        # structural check runs against it.
+        import starlayer.sparql
+
+        starlayer.sparql.prepare_query_12(
+            self._UNBOUND_VAR_SELECT, initNs={"ex": EX}
+        )  # must not raise - the query is syntactically valid SPARQL
+
+        shapes = self._shapes_with(self._UNBOUND_VAR_SELECT)
+        with pytest.raises(pyshacl.errors.ConstraintLoadError, match="sh:select"):
+            check_sparql_query_text(shapes)
+
+    def test_well_formed_query_passes_structure_check(self) -> None:
+        shapes = self._shapes_with(self._WELL_FORMED_SELECT)
+        check_sparql_query_text(shapes)  # must not raise
+
+    def test_this_only_validator_is_not_a_false_positive(self) -> None:
+        # A real, previously-caught bug: $this is bound externally by
+        # pySHACL's own execution machinery, never by anything in the
+        # query's own pattern - salg's generic, SHACL-unaware check would
+        # otherwise flag this extremely common, perfectly valid shape as
+        # an unbound projected variable.
+        shapes = self._shapes_with("SELECT $this WHERE { FILTER(true) }")
+        check_sparql_query_text(shapes)  # must not raise
+
+    def test_genuinely_unbound_non_prebound_variable_still_raises_alongside_this(self) -> None:
+        # The exemption is narrow: a real defect on a DIFFERENT variable,
+        # even in a query that also projects $this, must still raise.
+        # (_UNBOUND_VAR_SELECT itself already projects $this alongside
+        # the genuinely-unbound ?x.)
+        shapes = self._shapes_with(self._UNBOUND_VAR_SELECT)
+        with pytest.raises(pyshacl.errors.ConstraintLoadError, match="sh:select"):
+            check_sparql_query_text(shapes)
+
+    def _shapes_with_sparql_target(self, query_text: str) -> Graph:
+        shapes = Graph()
+        shapes.parse(
+            data=_RULES_PREFIX
+            + f"""
+            ex:MyShape a sh:NodeShape ;
+              sh:target [ a sh:SPARQLTarget ; sh:select "{query_text}" ] ;
+              sh:property [ sh:path ex:name ; sh:minCount 1 ] .
+            """,
+            format="turtle",
+        )
+        return shapes
+
+    def test_unbound_this_in_a_sparql_target_is_a_real_defect_not_exempted(self) -> None:
+        # The $this/$value/$PATH pre-bound exemption is for CONSTRAINT/RULE
+        # queries only ($this supplied externally by pySHACL) - a
+        # sh:target's own SPARQLTarget query has the opposite semantics:
+        # $this is NOT pre-bound, it's exactly what the query's own
+        # pattern is supposed to compute. An unbound $this there is a real
+        # bug (the target would never select any candidate) and must
+        # still raise, not be silently exempted the way it would be for
+        # an ordinary sh:sparql constraint.
+        shapes = self._shapes_with_sparql_target(
+            "PREFIX ex: <http://example.org/> SELECT $this WHERE { ?x a ex:SomeClass }"
+        )
+        with pytest.raises(pyshacl.errors.ConstraintLoadError, match="sh:select"):
+            check_sparql_query_text(shapes)
+
+    def test_well_formed_sparql_target_passes(self) -> None:
+        # $this genuinely bound by the target's own pattern - no defect.
+        shapes = self._shapes_with_sparql_target(
+            "PREFIX ex: <http://example.org/> SELECT $this WHERE { $this a ex:SomeClass }"
+        )
+        check_sparql_query_text(shapes)  # must not raise
+
+    def test_bundled_presentation_shapes_conform(self) -> None:
+        # A real, non-contrived fixture (this project's own bundled
+        # meta-shapes asset, which genuinely embeds sh:select/sh:ask/
+        # sh:construct) - proves no false positives on legitimate shapes,
+        # not just on hand-crafted toy queries.
+        from starlayer.shacl.meta_shapes import _PRESENTATION_SHAPES_PATH
+
+        shapes = Graph()
+        shapes.parse(_PRESENTATION_SHAPES_PATH, format="turtle")
+        check_sparql_query_text(shapes)  # must not raise
+
+    def test_bundled_validation_shapes_conform(self) -> None:
+        from starlayer.shacl.meta_shapes import _VALIDATION_SHAPES_PATH
+
+        shapes = Graph()
+        shapes.parse(_VALIDATION_SHAPES_PATH, format="turtle")
+        check_sparql_query_text(shapes)  # must not raise
+
+    def test_repeated_call_hits_cache_not_salg_again(self) -> None:
+        # The only guard against the new cache silently never engaging:
+        # spy on salg.validate_query itself and confirm a second call
+        # against the identical (predicate, text, prefixes) doesn't
+        # invoke it again.
+        from starlayer.sparql import salg
+
+        shapes = self._shapes_with(self._WELL_FORMED_SELECT)
+        check_sparql_query_text(shapes)  # warms the cache
+
+        calls = {"n": 0}
+        original = salg.validate_query
+
+        def _spy(*args, **kwargs):
+            calls["n"] += 1
+            return original(*args, **kwargs)
+
+        salg.validate_query = _spy
+        try:
+            check_sparql_query_text(shapes)
+            check_sparql_query_text(shapes)
+        finally:
+            salg.validate_query = original
+        assert calls["n"] == 0
+
+    def _shapes_with_sparql_constraint(self, query_text: str) -> Graph:
+        # An ordinary sh:sparql-based SPARQL constraint (not a custom
+        # ConstraintComponent) - simpler, and the standard shape for an
+        # embedded sh:select in real use.
+        shapes = Graph()
+        shapes.parse(
+            data=_RULES_PREFIX
+            + f"""
+            ex:EmailShape a sh:NodeShape ;
+              sh:targetSubjectsOf ex:email ;
+              sh:sparql [ sh:select "{query_text}" ] .
+            """,
+            format="turtle",
+        )
+        return shapes
+
+    def test_end_to_end_validate_raises_via_meta_shacl_default(self) -> None:
+        # Confirms this runs for real through StarShaclSchema.validate()'s
+        # own default meta_shacl=True path (every preset in
+        # validation_modes.py sets meta_shacl=True), not just the bare
+        # function in isolation.
+        data = Graph()
+        data.parse(data=_RULES_PREFIX + "ex:alice ex:email ex:bob .", format="turtle")
+        shapes = self._shapes_with_sparql_constraint(self._UNBOUND_VAR_SELECT)
+        with pytest.raises(pyshacl.errors.ConstraintLoadError, match="sh:select"):
+            StarShaclSchema(shacl_graph=shapes).validate(data_graph=data)
+
+    def test_disabled_via_meta_shacl_false(self) -> None:
+        # meta_shacl=False must still skip this check entirely, the same
+        # way it already skips the plain parse check - this is a deeper
+        # layer of that same preflight, not independent of it.
+        data = Graph()
+        data.parse(data=_RULES_PREFIX + "ex:alice ex:email ex:bob .", format="turtle")
+        shapes = self._shapes_with_sparql_constraint(self._UNBOUND_VAR_SELECT)
+        StarShaclSchema(shacl_graph=shapes).validate(
+            data_graph=data, meta_shacl=False
+        )  # must not raise

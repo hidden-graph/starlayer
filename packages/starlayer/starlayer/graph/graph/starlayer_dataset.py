@@ -278,10 +278,13 @@ class StarLayerDataset(Dataset):
         yield from self.get_context(self.default_graph.identifier).triples_choices(triple)
 
     def cbd(self, resource, *, target_graph=None, include_reifications=True) -> StarLayerGraph:
-        """Concise Bounded Description, scoped by ``self.default_union`` the
-        same way ``triples()``/``subjects()`` are (both are called internally
-        by rdflib's own ``Graph.cbd()`` this delegates to) - see
-        ``triples()``'s own docstring.
+        """Computes the Concise Bounded Description of ``resource`` and
+        returns it as a ``StarLayerGraph``.
+
+        Scoped by ``self.default_union`` the same way ``triples()``/
+        ``subjects()`` are (both are called internally by rdflib's own
+        ``Graph.cbd()`` this delegates to) - see ``triples()``'s own
+        docstring.
 
         Defaults ``target_graph`` to a new ``StarLayerGraph``, same as
         ``StarLayerGraph.cbd()`` - the inherited rdflib ``cbd()`` instead
@@ -673,10 +676,12 @@ class StarLayerDataset(Dataset):
     # appear as two separate GRAPH blocks rather than being merged.
 
     def reifiers(self, TT=None, predicate=None, object=None) -> StarLayerDataset:
-        """Return a StarLayerDataset of every matching reifier's full triples
-        (its rdf:reifies link(s) plus annotations), across every graph in
-        this dataset - see StarLayerGraph.reifiers() for filter semantics.
-        Each reifier's triples stay in the named graph they came from.
+        """Return a StarLayerDataset of every matching reifier's full triples,
+        across every graph in this dataset.
+
+        Includes each reifier's rdf:reifies link(s) plus annotations - see
+        StarLayerGraph.reifiers() for filter semantics. Each reifier's
+        triples stay in the named graph they came from.
         """
         result = StarLayerDataset()
         for prefix, ns in self.namespaces():
@@ -710,10 +715,11 @@ class StarLayerDataset(Dataset):
         return result
 
     def reifier_annotations(self, TT) -> StarLayerDataset:
-        """Return a StarLayerDataset of (reifier, predicate, value)
-        annotation triples (excluding rdf:reifies itself) for every reifier
-        of TT, across every graph in this dataset - see
-        StarLayerGraph.reifier_annotations().
+        """Return a StarLayerDataset of annotation triples for every reifier
+        of TT, across every graph in this dataset.
+
+        Each result triple is (reifier, predicate, value), excluding
+        rdf:reifies itself - see StarLayerGraph.reifier_annotations().
         """
         result = StarLayerDataset()
         for prefix, ns in self.namespaces():

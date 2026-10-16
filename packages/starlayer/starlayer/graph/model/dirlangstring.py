@@ -57,6 +57,7 @@ class DirLangString:
         return hash(self._key())
 
     def n3(self, namespace_manager=None) -> str:
+        """Returns the N3/Turtle-1.2 (``"text"@lang--dir``) text form."""
         return f'{Literal(self.value).n3(namespace_manager)}@{self.language}--{self.direction}'
 
     def __str__(self):

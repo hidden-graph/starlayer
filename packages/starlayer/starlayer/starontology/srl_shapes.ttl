@@ -166,16 +166,16 @@ srl:RuleListShape a sh:NodeShape ;
 srl:RuleSetShape a sh:NodeShape ;
     sh:property [
         sh:maxCount 1 ;
-        sh:message "srl:RuleSet must have exactly one srl:data list" ;
-        sh:minCount 1 ;
-        sh:node srl:DataListShape ;
-        sh:path srl:data
-    ], [
-        sh:maxCount 1 ;
         sh:message "srl:RuleSet must have exactly one srl:imports list" ;
         sh:minCount 1 ;
         sh:node srl:ImportsListShape ;
         sh:path srl:imports
+    ], [
+        sh:maxCount 1 ;
+        sh:message "srl:RuleSet must have exactly one srl:data list" ;
+        sh:minCount 1 ;
+        sh:node srl:DataListShape ;
+        sh:path srl:data
     ], [
         sh:maxCount 1 ;
         sh:message "srl:RuleSet must have exactly one srl:rules list" ;
@@ -188,32 +188,32 @@ srl:RuleSetShape a sh:NodeShape ;
 srl:RuleShape a sh:NodeShape ;
     sh:property [
         sh:maxCount 1 ;
+        sh:message "srl:Rule must have exactly one srl:head list" ;
+        sh:minCount 1 ;
+        sh:node srl:TripleListShape ;
+        sh:path srl:head
+    ], [
+        sh:maxCount 1 ;
         sh:message "srl:Rule must have exactly one srl:body list" ;
         sh:minCount 1 ;
         sh:node srl:BodyListShape ;
         sh:path srl:body
     ], [
         sh:maxCount 1 ;
-        sh:message "srl:Rule must have exactly one srl:head list" ;
-        sh:minCount 1 ;
-        sh:node srl:TripleListShape ;
-        sh:path srl:head
+        sh:message "srl:id, if present, must be exactly one IRI" ;
+        sh:nodeKind sh:IRI ;
+        sh:path srl:id
     ], [
         sh:datatype xsd:boolean ;
         sh:maxCount 1 ;
         sh:message "srl:Rule must have exactly one boolean srl:ruleData" ;
         sh:minCount 1 ;
         sh:path srl:ruleData
-    ], [
-        sh:maxCount 1 ;
-        sh:message "srl:id, if present, must be exactly one IRI" ;
-        sh:nodeKind sh:IRI ;
-        sh:path srl:id
     ] ;
     sh:targetClass srl:Rule .
 
 srl:ShapesGraph a sh:ShapesGraph ;
-    rdfs:member srl:DataListShape, srl:TriplePatternShape, srl:NegationElementShape, srl:BodyListShape, srl:TripleListShape, srl:DataShape, srl:ImportsListShape, srl:RuleSetShape, srl:NegationInnerListShape, srl:PredicateOrVariableShape, srl:RuleListShape, srl:RuleShape, srl:AssignmentElementShape, srl:FilterElementShape, srl:TermOrVariableShape ;
+    rdfs:member srl:TripleListShape, srl:TriplePatternShape, srl:DataShape, srl:BodyListShape, srl:AssignmentElementShape, srl:ImportsListShape, srl:RuleSetShape, srl:PredicateOrVariableShape, srl:FilterElementShape, srl:DataListShape, srl:RuleListShape, srl:NegationInnerListShape, srl:TermOrVariableShape, srl:NegationElementShape, srl:RuleShape ;
     owl:imports spexpr:ShapesGraph .
 
 srl:TermOrVariableShape a sh:NodeShape ;
@@ -256,15 +256,15 @@ srl:TriplePatternShape a sh:NodeShape ;
         sh:path srl:object
     ], [
         sh:maxCount 1 ;
-        sh:message "srl:TriplePattern must have exactly one srl:subject" ;
-        sh:minCount 1 ;
-        sh:node srl:TermOrVariableShape ;
-        sh:path srl:subject
-    ], [
-        sh:maxCount 1 ;
         sh:message "srl:TriplePattern must have exactly one srl:predicate, an IRI/Variable" ;
         sh:minCount 1 ;
         sh:node srl:PredicateOrVariableShape ;
         sh:path srl:predicate
+    ], [
+        sh:maxCount 1 ;
+        sh:message "srl:TriplePattern must have exactly one srl:subject" ;
+        sh:minCount 1 ;
+        sh:node srl:TermOrVariableShape ;
+        sh:path srl:subject
     ] ;
     sh:targetClass srl:TriplePattern .

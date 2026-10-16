@@ -279,7 +279,7 @@ class _Cursor:
     def mint_bnode(self):
         return BNode()
 
-    # -- AST-capture hooks ---------------------------------------------------
+    # -- syntax-tree-capture hooks ---------------------------------------------------
     # No-ops by default, so ordinary OWL-semantic parsing (parse_manchester())
     # is completely unaffected. starontology.manchester overrides
     # these on a _Cursor subclass to record the surface grammar (frames,
@@ -292,7 +292,7 @@ class _Cursor:
     def record_frame(self, kind, subject):
         """Called when a frame's own header line was just parsed
         (`Class: Foo`, etc.) - a no-op hook by default (see the
-        AST-capture hooks comment above).
+        syntax-tree-capture hooks comment above).
 
         Args:
             kind: A plain string naming the frame kind - 'Class',

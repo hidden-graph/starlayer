@@ -91,7 +91,7 @@ rather than assuming the original seven were exhaustive**:
   "already conforms to everything it needs... deliberate design
   choices, not gaps", with three small, already-documented optional
   loose ends.
-- **SPARQL 1.2 RL (SRL)** - ``starlayer.sparql``. A full grammar/AST/
+- **SPARQL 1.2 RL (SRL)** - ``starlayer.sparql``. A full grammar/syntax-tree/
   SHACL-shapes/stratified-Datalog-evaluation engine, verified
   end-to-end by reproducing the spec's own S6.6 worked example exactly.
   Documented, deliberate grammar scope reductions (no ``,``-chained

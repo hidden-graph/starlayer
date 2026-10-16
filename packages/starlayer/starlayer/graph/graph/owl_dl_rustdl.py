@@ -25,7 +25,7 @@ packages/starlayer/docs/future_enhancements.md for the fuller writeup:
    design.** `classify()`/`materialize_inferred_class_assertions()`
    correctly derive disjunctive CLASS entailments (confirmed live: the
    nested-three-way-disjunction example this project's own
-   05e-owl-dl-reasoning.ipynb §1.a uses comes back identical to HermiT's
+   02c-owl-dl-reasoning.ipynb §1.1 uses comes back identical to HermiT's
    answer). `materialize_inferred_property_assertions()` documents itself
    as a "sound under-approximation (no anonymous-witness or
    disjunctive-derived edges)" - a forced property assignment via
@@ -60,7 +60,7 @@ packages/starlayer/docs/future_enhancements.md for the fuller writeup:
    `starlayer.shacl` SHACL shape (`_HANG_RISK_SHAPES_TTL`) over the *compiled*
    OWL 2 RDF Mapping triples (`owl:Restriction`/`onProperty`/
    `someValuesFrom`/`oneOf`) - deliberately not gated through this
-   project's own `manch:` Manchester-AST-as-RDF vocabulary, since the
+   project's own `manch:` Manchester-syntax-tree-as-RDF vocabulary, since the
    pattern looks identical regardless of how the ontology was authored
    (Manchester Syntax, Turtle, RDF/XML, or direct triple insertion) and a
    `manch:`-only check would silently miss every non-Manchester-authored

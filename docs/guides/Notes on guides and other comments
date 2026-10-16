@@ -1,18 +1,20 @@
 Notes on guides and other comments
 
-STRUACTURE:
+Notes on graph:
 
-2. Make section 5  a new section on Starlayer Schemas and Ontologies, to hold our discussion of Manchestermn, SPArQL tree, rules tree and SKOS, as long as SHACL meta and salg if we want. Lets not include that in the related user guides.  Then 6 becomes "other"
+1. we want to be able to produce something like the functionality overivew and the api-reference document from the graph.  this will introduce the curated protion of the graph, with links between the code and the api reference.  
 
-3. Make the graphs inferencing notebook complete with respect to the explanation of the various inferenicng regimes.  see if there in information in the entailent component of SPARQL that shoudl be in graph inferencing.  Then we can simplify the SPARQL inferencing to show how to use the graph inferencing from a query.
 
-4. move the owl-dl inferencing up to section 2.
+3. 02c on dl reasoning is hermit heavy.  we should start off by talking about both appraoches and then go into a tool agnostic discussion of DL reasonng.  Lets also keep the code examples here simple and add the more complex examples to appendix A in a separate DL reasoning examples.
+    - 2026-10-16: Done. 02c's intro now names engine="hermit"/engine="rustdl" together up front, then a tool-agnostic paragraph on what DL reasoning means (classification, consistency, entailment, sound/complete) before either engine's own internals. The N=20 employee/job constraint-satisfaction example (old section 4, 4.1-4.6) moved out verbatim to the new Appendix A3 (appendix-a3-dl-reasoning-examples.ipynb) - see item 12 below, this is that appendix.
 
-5. have SHACL Sparql come before SHACL inferencing (where we discuss the use of SPARQL.)
+For subgraph extraction, we can keep the shape as optional. and we do need focus node to be required.  we want to get back a mapping of a node  to its extacted graph. 
+`shape=`/`focus_node=` are optional filters, not required inputs - given neither, `extract_subgraph()` discovers every real entry point the whole shapes graph declares (every shape's own SHACL targets) and returns the union of everything that conforms (section 2).
 
-6. Should SPARQL inferencing be titled entailments (inferening)
+sparql_owl, shacl files shold be renamed salg.  
 
-7. SRL shoudl come after sparql inferencing.  
+
+STRUCTURE:
 
 7. for the StarLayerSchema we need to introduce that concept when we start talkign about SHACL. (04)
 Functionality:
@@ -21,19 +23,24 @@ Functionality:
 
 9. for backends we should add a section for inferencing on the backend. 
 
+10. How does OWL - RL SPARQL Entailments work work with backends.  
+
+
+
+
+11. clean up the URLs in the registry
+
+12. Create an Appendix A that contains a series of complex examples.  the hashing subgraph extraction would go there. from 04f
+    - 2026-10-14: Appendix A now exists as an index notebook (appendix-a.ipynb) linking to numbered children (A1, A2, ...). A1 (publicly available resources - the GitHub-fetching material moved out of guide 5's old section 6) is built. The complex-examples child (hashing subgraph extraction from 04f, item 3's DL reasoning examples) is still not done - that becomes A2 whenever it's picked up.
+    - 2026-10-14 (later): A2 ended up being a different appendix (named, shared parts in sqe: query trees) - the complex-examples slot moves to A3 instead.
+    - 2026-10-16: Item 3's DL reasoning examples are now built as Appendix A3 (appendix-a3-dl-reasoning-examples.ipynb). The hashing subgraph extraction from 04f is still not done - that becomes A4 whenever it's picked up.
+
 Function:
 
-1. we need to make the ontologies and shacl files and the profiles available as urls.
 
 2. create a SPARQL equivalent to StarGraph and StarSchema. Do the same with SRL.  
 
-3. when running SHACL - Sparql do we use our Sparql shacl to validate the structure?
-
-4. need to visit SHACL UI.  Can we provide some example of its use?  Also, StarLayer allows enhancements to the shape. we shoudl demonstrate 
-
-5. on shape extraction, suggest we make this a SHACL function and not a SHACLShema method.  this way we do not make this one of the big three.  see if we can come up with simpler ways to describe the use.  similar to cbd, but based on a shape.  could also give it its own
-
-6. our graph,infer does not handle rdf entailment,  why not?  
+4. need to visit SHACL UI.  Can we provide some example of its use?  Also, StarLayer allows enhancements to the shape. we shoudl demonstrate
 
 Questions from Claude (answer inline below each, whenever convenient):
 

@@ -1,6 +1,5 @@
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
-@prefix salg: <https://github.com/hidden-graph/starlayer/ns/sparql/algebra#> .
 @prefix sh: <http://www.w3.org/ns/shacl#> .
 @prefix spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
@@ -19,7 +18,7 @@ spexpr:AlternativePathShape a sh:NodeShape ;
 spexpr:DistinctMarkerShape a sh:NodeShape ;
     rdfs:isDefinedBy spexpr:ShapesGraph ;
     sh:or ( [
-        sh:datatype salg:PyStr ;
+        sh:datatype spexpr:PlainString ;
         sh:nodeKind sh:Literal
     ] [
         sh:hasValue ()
@@ -72,17 +71,17 @@ spexpr:InvPathShape a sh:NodeShape ;
 spexpr:MulPathShape a sh:NodeShape ;
     rdfs:isDefinedBy spexpr:ShapesGraph ;
     sh:property [
-        sh:in ( "*" "+" "?" ) ;
-        sh:maxCount 1 ;
-        sh:message "salg:MulPath must have exactly one salg:mod, a bare asterisk/plus/question-mark modifier string" ;
-        sh:minCount 1 ;
-        sh:path spexpr:mod
-    ], [
         sh:maxCount 1 ;
         sh:message "salg:MulPath must have exactly one salg:path, a path or IRI" ;
         sh:minCount 1 ;
         sh:node spexpr:PathOrIriShape ;
         sh:path spexpr:path
+    ], [
+        sh:in ( "*" "+" "?" ) ;
+        sh:maxCount 1 ;
+        sh:message "salg:MulPath must have exactly one salg:mod, a bare asterisk/plus/question-mark modifier string" ;
+        sh:minCount 1 ;
+        sh:path spexpr:mod
     ] ;
     sh:targetClass spexpr:MulPath .
 
@@ -101,10 +100,11 @@ spexpr:OperatorStringListShape a sh:NodeShape ;
     rdfs:isDefinedBy spexpr:ShapesGraph ;
     sh:sparql [
         a sh:SPARQLConstraint ;
-        sh:message "expected a well-formed rdf:List of salg:PyStr-tagged operator strings" ;
+        sh:message "expected a well-formed rdf:List of spexpr:PlainString-tagged operator strings, each one of the real Arithmetic operators (+/-/*//), shared by AdditiveExpression and MultiplicativeExpression alike" ;
         sh:select """
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
             PREFIX salg: <https://github.com/hidden-graph/starlayer/ns/sparql/algebra#>
+            PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
             SELECT $this
             WHERE {
                 {
@@ -112,7 +112,8 @@ spexpr:OperatorStringListShape a sh:NodeShape ;
                     FILTER NOT EXISTS { $this rdf:first ?head }
                 } UNION {
                     $this rdf:rest*/rdf:first ?item .
-                    FILTER ( !isLiteral(?item) || datatype(?item) != salg:PyStr )
+                    FILTER ( !isLiteral(?item) || datatype(?item) != spexpr:PlainString ||
+                              ( str(?item) != "+" && str(?item) != "-" && str(?item) != "*" && str(?item) != "/" ) )
                 }
             }
         """
@@ -172,19 +173,19 @@ spexpr:_ArithmeticExprBodyShape a sh:NodeShape ;
     rdfs:isDefinedBy spexpr:ShapesGraph ;
     sh:property [
         sh:maxCount 1 ;
-        sh:message "expected exactly one salg:expr" ;
-        sh:minCount 1 ;
-        sh:node spexpr:ExpressionShape ;
-        sh:path spexpr:expr
-    ], [
-        sh:maxCount 1 ;
         sh:message "expected exactly one salg:other, a well-formed rdf:List of expressions" ;
         sh:minCount 1 ;
         sh:node spexpr:ExpressionListShape ;
         sh:path spexpr:other
     ], [
         sh:maxCount 1 ;
-        sh:message "expected exactly one salg:op, a well-formed rdf:List of salg:PyStr-tagged operator strings" ;
+        sh:message "expected exactly one salg:expr" ;
+        sh:minCount 1 ;
+        sh:node spexpr:ExpressionShape ;
+        sh:path spexpr:expr
+    ], [
+        sh:maxCount 1 ;
+        sh:message "expected exactly one salg:op, a well-formed rdf:List of spexpr:PlainString-tagged operator strings" ;
         sh:minCount 1 ;
         sh:node spexpr:OperatorStringListShape ;
         sh:path spexpr:op
@@ -224,16 +225,16 @@ spexpr:_FunctionExprBodyShape a sh:NodeShape ;
         sh:path spexpr:iri
     ], [
         sh:maxCount 1 ;
+        sh:message "salg:Function's salg:distinct must have exactly one value (a spexpr:PlainString-tagged DISTINCT keyword, or rdf:nil when absent) - confirmed always present, empirically, same as the aggregate bodies' own salg:distinct above" ;
+        sh:minCount 1 ;
+        sh:node spexpr:DistinctMarkerShape ;
+        sh:path spexpr:distinct
+    ], [
+        sh:maxCount 1 ;
         sh:message "salg:Function must have exactly one salg:expr, a well-formed rdf:List of call arguments" ;
         sh:minCount 1 ;
         sh:node spexpr:ExpressionListShape ;
         sh:path spexpr:expr
-    ], [
-        sh:maxCount 1 ;
-        sh:message "salg:Function's salg:distinct must have exactly one value (a salg:PyStr-tagged DISTINCT keyword, or rdf:nil when absent) - confirmed always present, empirically, same as the aggregate bodies' own salg:distinct above" ;
-        sh:minCount 1 ;
-        sh:node spexpr:DistinctMarkerShape ;
-        sh:path spexpr:distinct
     ] .
 
 spexpr:_OneArgExprBodyShape a sh:NodeShape ;
@@ -279,13 +280,6 @@ spexpr:_RegexExprBodyShape a sh:NodeShape ;
 spexpr:_RelationalExprBodyShape a sh:NodeShape ;
     rdfs:isDefinedBy spexpr:ShapesGraph ;
     sh:property [
-        sh:datatype salg:PyStr ;
-        sh:maxCount 1 ;
-        sh:message "expected exactly one salg:op, a salg:PyStr-tagged operator symbol" ;
-        sh:minCount 1 ;
-        sh:nodeKind sh:Literal ;
-        sh:path spexpr:op
-    ], [
         sh:maxCount 1 ;
         sh:message "expected exactly one salg:other, an expression or (for IN/NOT IN) a well-formed rdf:List of expressions" ;
         sh:minCount 1 ;
@@ -299,22 +293,19 @@ spexpr:_RelationalExprBodyShape a sh:NodeShape ;
         sh:minCount 1 ;
         sh:node spexpr:ExpressionShape ;
         sh:path spexpr:expr
+    ], [
+        sh:datatype spexpr:PlainString ;
+        sh:in ( "="^^spexpr:PlainString "!="^^spexpr:PlainString "<"^^spexpr:PlainString ">"^^spexpr:PlainString "<="^^spexpr:PlainString ">="^^spexpr:PlainString "IN"^^spexpr:PlainString "NOT IN"^^spexpr:PlainString ) ;
+        sh:maxCount 1 ;
+        sh:message "expected exactly one salg:op, a spexpr:PlainString-tagged operator symbol" ;
+        sh:minCount 1 ;
+        sh:nodeKind sh:Literal ;
+        sh:path spexpr:op
     ] .
 
 spexpr:_ReplaceExprBodyShape a sh:NodeShape ;
     rdfs:isDefinedBy spexpr:ShapesGraph ;
     sh:property [
-        sh:maxCount 1 ;
-        sh:message "salg:flags is optional but at most one" ;
-        sh:node spexpr:ExpressionShape ;
-        sh:path spexpr:flags
-    ], [
-        sh:maxCount 1 ;
-        sh:message "expected exactly one salg:pattern" ;
-        sh:minCount 1 ;
-        sh:node spexpr:ExpressionShape ;
-        sh:path spexpr:pattern
-    ], [
         sh:maxCount 1 ;
         sh:message "expected exactly one salg:arg" ;
         sh:minCount 1 ;
@@ -326,6 +317,17 @@ spexpr:_ReplaceExprBodyShape a sh:NodeShape ;
         sh:minCount 1 ;
         sh:node spexpr:ExpressionShape ;
         sh:path spexpr:replacement
+    ], [
+        sh:maxCount 1 ;
+        sh:message "salg:flags is optional but at most one" ;
+        sh:node spexpr:ExpressionShape ;
+        sh:path spexpr:flags
+    ], [
+        sh:maxCount 1 ;
+        sh:message "expected exactly one salg:pattern" ;
+        sh:minCount 1 ;
+        sh:node spexpr:ExpressionShape ;
+        sh:path spexpr:pattern
     ] .
 
 spexpr:_SubstrExprBodyShape a sh:NodeShape ;
@@ -353,6 +355,12 @@ spexpr:_ThreeArgExprBodyShape a sh:NodeShape ;
     rdfs:isDefinedBy spexpr:ShapesGraph ;
     sh:property [
         sh:maxCount 1 ;
+        sh:message "expected exactly one salg:arg3" ;
+        sh:minCount 1 ;
+        sh:node spexpr:ExpressionShape ;
+        sh:path spexpr:arg3
+    ], [
+        sh:maxCount 1 ;
         sh:message "expected exactly one salg:arg1" ;
         sh:minCount 1 ;
         sh:node spexpr:ExpressionShape ;
@@ -363,28 +371,22 @@ spexpr:_ThreeArgExprBodyShape a sh:NodeShape ;
         sh:minCount 1 ;
         sh:node spexpr:ExpressionShape ;
         sh:path spexpr:arg2
-    ], [
-        sh:maxCount 1 ;
-        sh:message "expected exactly one salg:arg3" ;
-        sh:minCount 1 ;
-        sh:node spexpr:ExpressionShape ;
-        sh:path spexpr:arg3
     ] .
 
 spexpr:_TwoArgExprBodyShape a sh:NodeShape ;
     rdfs:isDefinedBy spexpr:ShapesGraph ;
     sh:property [
         sh:maxCount 1 ;
-        sh:message "expected exactly one salg:arg1" ;
-        sh:minCount 1 ;
-        sh:node spexpr:ExpressionShape ;
-        sh:path spexpr:arg1
-    ], [
-        sh:maxCount 1 ;
         sh:message "expected exactly one salg:arg2" ;
         sh:minCount 1 ;
         sh:node spexpr:ExpressionShape ;
         sh:path spexpr:arg2
+    ], [
+        sh:maxCount 1 ;
+        sh:message "expected exactly one salg:arg1" ;
+        sh:minCount 1 ;
+        sh:node spexpr:ExpressionShape ;
+        sh:path spexpr:arg1
     ] .
 
 spexpr:_UnaryExprBodyShape a sh:NodeShape ;

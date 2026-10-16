@@ -32,7 +32,7 @@ from rdflib.namespace import RDF
 
 from ..from_rdf import _decode
 from ..ssyn_to_text import _render_expr_text
-from ..vocab import SALG, VARIABLE_DATATYPE
+from ..vocab import VARIABLE_DATATYPE
 from .vocab import (
     ASK_QUERY,
     BIND,
@@ -41,7 +41,11 @@ from .vocab import (
     EXPR,
     FILTER,
     OPTIONAL,
+    PREFIX_LABEL,
+    PREFIX_NAMESPACE,
     PROJECTION,
+    PROLOGUE_BASE,
+    PROLOGUE_PREFIX,
     SELECT_QUERY,
     TEMPLATE,
     TRIPLE_PATTERN,
@@ -76,7 +80,7 @@ def sqe_tree_to_text(graph: Graph, root) -> str:
     prefixes = _prefix_map(graph, root)
     lines = [f"PREFIX {label}: <{ns}>" for label, ns in sorted(prefixes.items())]
 
-    base = graph.value(root, SALG.base)
+    base = graph.value(root, PROLOGUE_BASE)
     if base is not None:
         lines.append(f"BASE <{base}>")
 
@@ -104,9 +108,9 @@ def _keyword_for_root(graph: Graph, root) -> str:
 
 def _prefix_map(graph: Graph, root) -> dict:
     prefixes = {}
-    for binding in graph.objects(root, SALG.prologuePrefix):
-        label = str(graph.value(binding, SALG.prefixLabel))
-        namespace = str(graph.value(binding, SALG.namespace))
+    for binding in graph.objects(root, PROLOGUE_PREFIX):
+        label = str(graph.value(binding, PREFIX_LABEL))
+        namespace = str(graph.value(binding, PREFIX_NAMESPACE))
         prefixes[label] = namespace
     return prefixes
 

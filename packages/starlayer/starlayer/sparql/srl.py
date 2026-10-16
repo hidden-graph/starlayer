@@ -3,17 +3,17 @@
 SRL/SPARQL-RL (`WD-sparql12-rl-20260919 <https://www.w3.org/TR/sparql12-rl/>`_)
 - a Datalog-style rules language built on SPARQL triple patterns and filter
 expressions. This module provides SRL text, its tree-RDF encoding (``srl:``),
-and SHACL validation of that encoding: parsing SRL text to a ``RuleSet`` AST
-and back, encoding/decoding that AST to/from RDF, and validating an
-``srl:``-encoded ruleset against SHACL shapes.
+and SHACL validation of that encoding: parsing SRL text to a ``RuleSet``
+syntax tree and back, encoding/decoding that syntax tree to/from RDF, and
+validating an ``srl:``-encoded ruleset against SHACL shapes.
 
 **Where this sits, and why it's not in ``starontology`` like ``manch:``
 is**: SRL rule sets aren't documents describing a vocabulary (what
 Manchester's tree edits) - they're inference rules built directly out of
 SPARQL triple patterns/filter expressions, run *against* a graph. That's a
 SPARQL-adjacent artifact, and it can't cleanly separate from
-``starlayer.sparql``'s shared internals the way Manchester's AST module
-could: ``_encode``/``_decode``/``_new_starlayer_graph`` (``to_rdf.py``/
+``starlayer.sparql``'s shared internals the way Manchester's syntax-tree
+module could: ``_encode``/``_decode``/``_new_starlayer_graph`` (``to_rdf.py``/
 ``from_rdf.py``) and ``_render_expr_text`` (``ssyn_to_text.py``) are reused
 directly below, not reimplemented - moving this module out of
 ``starlayer.sparql`` would mean forking that machinery. Staying here means
@@ -36,10 +36,10 @@ text<->RuleSet) plus a third already covered by the first two composed
   because ``RuleSet`` is independently useful - ``RuleSet.infer()``/
   ``.query()`` run it directly, with no RDF involved at all. This is
   the one real asymmetry with Manchester: ``manch:``'s ``Document`` object
-  never existed before its own AST-as-RDF module invented it purely as a
-  decode artifact; SRL's ``RuleSet`` already existed independently.
+  never existed before its own syntax-tree-as-RDF module invented it purely
+  as a decode artifact; SRL's ``RuleSet`` already existed independently.
 - ``ruleset_to_text(ruleset, namespace_manager=None) -> str`` - the
-  inverse of ``parse_ruleset``, working on the AST directly.
+  inverse of ``parse_ruleset``, working on the syntax tree directly.
 - ``tree_to_ruleset(graph, root) -> RuleSet`` - decode ``srl:``-encoded
   tree-RDF into a real ``RuleSet``, e.g. after programmatically editing the
   RDF via plain graph surgery.
@@ -623,9 +623,9 @@ def ruleset_to_text(ruleset: srl_ast.RuleSet, namespace_manager: NamespaceManage
     tree.
 
     **No original ``PREFIX``/``BASE`` declarations are preserved** - like
-    rdflib's own ``translateAlgebra``, the parsed AST only ever holds
-    fully-resolved absolute IRIs; prefix declarations are consumed during
-    parsing and never stored.
+    rdflib's own ``translateAlgebra``, the parsed syntax tree only ever
+    holds fully-resolved absolute IRIs; prefix declarations are consumed
+    during parsing and never stored.
 
     Args:
         ruleset: The RuleSet to render.

@@ -208,13 +208,13 @@ manch:OntologyHeader a rdfs:Class ;
 manch:Or rdfs:comment "`C1 or C2 or ...` - manch:operands, same shape as And." ;
     rdfs:subClassOf manch:ClassExpression .
 
+manch:PlainString a rdfs:Datatype ;
+    rdfs:comment "Reserved datatype tag for a bare Python string that must round-trip distinctly from a genuine RDF string literal (rdflib.Literal('x') == 'x' is False, and the two hash differently) - used only for manch:prefixLabel, the one place this vocabulary carries a bare Python str rather than an already-real URIRef/Literal/int (cardinalities, facet literals, individual/data values, and Characteristics: values are all already real terms - see ontology/__init__.py's own module docstring)." .
+
 manch:PrefixDecl a rdfs:Class ;
-    rdfs:comment "One Prefix: declaration - manch:prefixLabel (a manch:PyStr-tagged string, '' for the default prefix), manch:prefixIri (a plain string, not a URIRef - a Prefix: declaration's own IRI is definitional, not a reference)." .
+    rdfs:comment "One Prefix: declaration - manch:prefixLabel (a manch:PlainString-tagged string, '' for the default prefix), manch:prefixIri (a plain string, not a URIRef - a Prefix: declaration's own IRI is definitional, not a reference)." .
 
 manch:PropertyExpression rdfs:comment "A property-expression AST node - a plain property is a bare URIRef, no wrapper; manch:Inverse is the only wrapped form." .
-
-manch:PyStr a rdfs:Datatype ;
-    rdfs:comment "Reserved datatype tag for a bare Python string that must round-trip distinctly from a genuine RDF string literal (rdflib.Literal('x') == 'x' is False, and the two hash differently) - used only for manch:prefixLabel, the one place this vocabulary carries a bare Python str rather than an already-real URIRef/Literal/int (cardinalities, facet literals, individual/data values, and Characteristics: values are all already real terms - see ontology/__init__.py's own module docstring)." .
 
 manch:SelfR rdfs:comment "`p Self` - manch:onProperty only." ;
     rdfs:subClassOf manch:ClassExpression .
@@ -322,7 +322,7 @@ manch:prefixIri a rdf:Property ;
     rdfs:domain manch:PrefixDecl .
 
 manch:prefixLabel a rdf:Property ;
-    rdfs:comment "The bare prefix label ('' for the default prefix) - a manch:PyStr-tagged Literal, not a plain string literal (see manch:PyStr's own comment)." ;
+    rdfs:comment "The bare prefix label ('' for the default prefix) - a manch:PlainString-tagged Literal, not a plain string literal (see manch:PlainString's own comment)." ;
     rdfs:domain manch:PrefixDecl .
 
 manch:prefixes a rdf:Property ;

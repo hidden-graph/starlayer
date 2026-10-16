@@ -45,7 +45,7 @@ salg:BGP rdfs:comment "A basic graph pattern - an ordered list of triple pattern
 salg:Binding a rdfs:Class ;
     rdfs:comment "One (variable, value) pair inside a VALUES row." .
 
-salg:Clear rdfs:comment "CLEAR [SILENT] (GRAPH <g> | DEFAULT | NAMED | ALL) - salg:graphiri a real graph term or a bare DEFAULT/NAMED/ALL keyword (salg:PyStr-tagged, see vocab.py)." ;
+salg:Clear rdfs:comment "CLEAR [SILENT] (GRAPH <g> | DEFAULT | NAMED | ALL) - salg:graphiri a real graph term or a bare DEFAULT/NAMED/ALL keyword (spexpr:PlainString-tagged, see vocab.py)." ;
     rdfs:subClassOf salg:UpdateOperation .
 
 salg:ConstructQuery rdfs:comment "A CONSTRUCT query's root - salg:template holds the construct template (an rdf:List of TriplePattern), salg:p the WHERE-clause pattern." ;
@@ -211,7 +211,7 @@ salg:graph a rdf:Property ;
     rdfs:comment "Three unrelated uses of the same key name (this project's generic key-name-based encoding): on Builtin_EXISTS/NOTEXISTS and ServiceGraphPattern, EXISTS/NOT EXISTS/SERVICE's own raw, untranslated group-graph-pattern fragment - see shapes.py's own scoping note; on Add/Move/Copy, a plain 2-element rdf:List [source, dest] of graph references; on QuadsForGraph, the single graph term one quads-group is qualified by. No rdfs:domain declared: ExistsExpression/ServiceGraphPattern is rdfs:subClassOf salg:Expression/salg:GraphPattern respectively, so declaring it here would risk the same defeats-dispatch-shape-validation problem noted on salg:arg above - and the property is shared across unrelated classes regardless." .
 
 salg:graphiri a rdf:Property ;
-    rdfs:comment "Clear/Drop/Create's own graph reference - a real graph term, or a bare DEFAULT/NAMED/ALL keyword (salg:PyStr-tagged, see vocab.py's 'Bare Python strings' section). No rdfs:domain declared - shared by three otherwise-unrelated classes." .
+    rdfs:comment "Clear/Drop/Create's own graph reference - a real graph term, or a bare DEFAULT/NAMED/ALL keyword (spexpr:PlainString-tagged, see vocab.py's 'Bare Python strings' section). No rdfs:domain declared - shared by three otherwise-unrelated classes." .
 
 salg:insert a rdf:Property ;
     rdfs:comment "Modify's own INSERT clause (a salg:InsertClause), absent for a DELETE-only Modify. Domain safe, same reasoning as salg:delete." ;
@@ -224,7 +224,7 @@ salg:length a rdf:Property ;
     rdfs:comment "No rdfs:domain declared, same reasoning as salg:start." .
 
 salg:mod a rdf:Property ;
-    rdfs:comment "MulPath's own bare \"*\"/\"+\"/\"?\" repetition-modifier string - a plain literal, not salg:PyStr-tagged (see salg:MulPath's own comment above for why; corrected 2026-08-16, this comment previously claimed PyStr-tagging incorrectly). No rdfs:domain declared, same reasoning as salg:args." .
+    rdfs:comment "MulPath's own bare \"*\"/\"+\"/\"?\" repetition-modifier string - a plain literal, not spexpr:PlainString-tagged (see salg:MulPath's own comment above for why; corrected 2026-08-16, this comment previously claimed PlainString-tagging incorrectly). No rdfs:domain declared, same reasoning as salg:args." .
 
 salg:object a rdf:Property ;
     rdfs:comment "No range declared - any RDF term, Variable, or TripleTerm." ;
@@ -290,7 +290,7 @@ salg:service_string a rdf:Property ;
     rdfs:domain salg:ServiceGraphPattern .
 
 salg:silent a rdf:Property ;
-    rdfs:comment "The optional SILENT modifier (Clear/Drop/Create/Add/Move/Copy/Load, and separately ServiceGraphPattern's own SERVICE SILENT) - a bare Python string when present (\"SILENT\", salg:PyStr-tagged), absent otherwise. No rdfs:domain declared - shared across many otherwise-unrelated classes." .
+    rdfs:comment "The optional SILENT modifier (Clear/Drop/Create/Add/Move/Copy/Load, and separately ServiceGraphPattern's own SERVICE SILENT) - a bare Python string when present (\"SILENT\", spexpr:PlainString-tagged), absent otherwise. No rdfs:domain declared - shared across many otherwise-unrelated classes." .
 
 salg:start a rdf:Property ;
     rdfs:comment "No rdfs:domain declared, same reasoning as salg:text (SubstrExpression is a salg:Expression subclass)." .

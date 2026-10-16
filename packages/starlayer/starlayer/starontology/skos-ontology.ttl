@@ -19,7 +19,7 @@ skos:altLabel a owl:AnnotationProperty ;
     rdfs:subPropertyOf rdfs:label .
 
 skos:broadMatch a owl:ObjectProperty ;
-    rdfs:subPropertyOf skos:mappingRelation, skos:broader .
+    rdfs:subPropertyOf skos:broader, skos:mappingRelation .
 
 skos:broader a owl:ObjectProperty ;
     rdfs:subPropertyOf skos:broaderTransitive .
@@ -30,7 +30,7 @@ skos:broaderTransitive a owl:TransitiveProperty, owl:ObjectProperty ;
 skos:changeNote a owl:AnnotationProperty ;
     rdfs:subPropertyOf skos:note .
 
-skos:closeMatch a owl:SymmetricProperty, owl:ObjectProperty ;
+skos:closeMatch a owl:ObjectProperty, owl:SymmetricProperty ;
     rdfs:subPropertyOf skos:mappingRelation .
 
 skos:definition a owl:AnnotationProperty ;
@@ -39,7 +39,7 @@ skos:definition a owl:AnnotationProperty ;
 skos:editorialNote a owl:AnnotationProperty ;
     rdfs:subPropertyOf skos:note .
 
-skos:exactMatch a owl:TransitiveProperty, owl:ObjectProperty, owl:SymmetricProperty ;
+skos:exactMatch a owl:ObjectProperty, owl:SymmetricProperty, owl:TransitiveProperty ;
     rdfs:subPropertyOf skos:closeMatch .
 
 skos:example a owl:AnnotationProperty ;
@@ -74,14 +74,14 @@ skos:memberList a owl:FunctionalProperty, owl:ObjectProperty ;
     rdfs:range rdf:List .
 
 skos:narrowMatch a owl:ObjectProperty ;
-    rdfs:subPropertyOf skos:mappingRelation, skos:narrower ;
+    rdfs:subPropertyOf skos:narrower, skos:mappingRelation ;
     owl:inverseOf skos:broadMatch .
 
 skos:narrower a owl:ObjectProperty ;
     rdfs:subPropertyOf skos:narrowerTransitive ;
     owl:inverseOf skos:broader .
 
-skos:narrowerTransitive a owl:TransitiveProperty, owl:ObjectProperty ;
+skos:narrowerTransitive a owl:ObjectProperty, owl:TransitiveProperty ;
     rdfs:subPropertyOf skos:semanticRelation ;
     owl:inverseOf skos:broaderTransitive .
 
@@ -93,7 +93,7 @@ skos:prefLabel a owl:AnnotationProperty ;
     rdfs:range rdfs:Literal ;
     rdfs:subPropertyOf rdfs:label .
 
-skos:related a owl:SymmetricProperty, owl:ObjectProperty ;
+skos:related a owl:ObjectProperty, owl:SymmetricProperty ;
     rdfs:subPropertyOf skos:semanticRelation .
 
 skos:relatedMatch a owl:ObjectProperty, owl:SymmetricProperty ;

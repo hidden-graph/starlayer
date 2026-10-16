@@ -1,7 +1,9 @@
-"""The RDF vocabulary for the *parse-tree* (AST) level SPARQL representation
-— a prototype, sibling to ``vocab.py``'s ``salg:`` (algebra) vocabulary, one
-level lower: it mirrors ``rdflib.plugins.sparql.parser.parseQuery``'s raw
-output (before ``translateQuery`` runs) instead of the compiled algebra.
+"""The RDF vocabulary for the *parse-tree* (syntax tree) level SPARQL
+representation — a prototype, sibling to ``vocab.py``'s ``salg:`` (algebra)
+vocabulary, one level lower: it mirrors ``rdflib.plugins.sparql.parser.
+parseQuery``'s raw output (before ``translateQuery`` runs) instead of the
+compiled algebra. Abbreviated ``AST`` (Abstract Syntax Tree) below, same
+sense that term has everywhere else in this codebase.
 
 Same generic-mirror design as ``salg:`` (``node.name`` -> ``rdf:type``,
 ``key: value`` -> predicate, recursively), pointed at a different tree.
@@ -18,8 +20,12 @@ sibling in the enclosing group instead), so merging namespaces would be
 actively ambiguous, not just redundant.
 
 ``PyStr``/``Variable`` are the one deliberate exception to "kept fully
-self-contained" below: reused directly from ``vocab.py`` (``salg:PyStr``/
-``salg:Variable``), not re-minted here. These two are pure encoding-
+self-contained" below: reused directly from ``vocab.py`` (``spexpr:
+PlainString``/``spexpr:Variable`` - both ``spexpr:``-housed, not
+``salg:``-housed; ``PY_STR_DATATYPE`` moved from ``salg:PyStr`` to
+``spexpr:PlainString`` 2026-10-15, the same ``spexpr:``-not-``salg:``
+reasoning already applied to ``Variable``), not re-minted here. These two
+are pure encoding-
 primitive tags — they mark "this Python value needs to survive RDF
 round-tripping faithfully," not an AST or algebra *concept* whose meaning
 differs by layer, unlike every other name in this file. Minting a separate

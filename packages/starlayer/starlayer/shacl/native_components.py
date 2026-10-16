@@ -161,6 +161,18 @@ def _build_some_value_component() -> Any:
             focus_value_nodes: dict[Any, Any],
             _evaluation_path: list[Any],
         ) -> tuple[bool, list[Any]]:
+            """pySHACL's own ConstraintComponent.evaluate() override contract
+            - see this class's own docstring above for what it specifically
+            checks.
+
+            ``executor`` is the active SHACLExecutor; ``target_graph`` is the
+            data graph being validated; ``focus_value_nodes`` maps each focus
+            node to its own value nodes under this component's path;
+            ``_evaluation_path`` tracks the shape-recursion chain for
+            pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
+            whether every focus node satisfied this constraint, and a
+            ``sh:ValidationResult`` node per violation found.
+            """
             reports: list[Any] = []
             non_conformant = False
             found_shape = self.shape.get_other_shape(self.some_value_node)
@@ -240,6 +252,18 @@ def _build_single_line_component() -> Any:
             focus_value_nodes: dict[Any, Any],
             _evaluation_path: list[Any],
         ) -> tuple[bool, list[Any]]:
+            """pySHACL's own ConstraintComponent.evaluate() override contract
+            - see this class's own docstring above for what it specifically
+            checks.
+
+            ``executor`` is the active SHACLExecutor; ``target_graph`` is the
+            data graph being validated; ``focus_value_nodes`` maps each focus
+            node to its own value nodes under this component's path;
+            ``_evaluation_path`` tracks the shape-recursion chain for
+            pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
+            whether every focus node satisfied this constraint, and a
+            ``sh:ValidationResult`` node per violation found.
+            """
             reports: list[Any] = []
             non_conformant = False
             if not self.enabled:
@@ -298,6 +322,18 @@ def _build_subset_of_component() -> Any:
             focus_value_nodes: dict[Any, Any],
             _evaluation_path: list[Any],
         ) -> tuple[bool, list[Any]]:
+            """pySHACL's own ConstraintComponent.evaluate() override contract
+            - see this class's own docstring above for what it specifically
+            checks.
+
+            ``executor`` is the active SHACLExecutor; ``target_graph`` is the
+            data graph being validated; ``focus_value_nodes`` maps each focus
+            node to its own value nodes under this component's path;
+            ``_evaluation_path`` tracks the shape-recursion chain for
+            pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
+            whether every focus node satisfied this constraint, and a
+            ``sh:ValidationResult`` node per violation found.
+            """
             reports: list[Any] = []
             non_conformant = False
             if self.other_sparql_path is None:
@@ -387,6 +423,18 @@ def _build_root_class_component() -> Any:
             focus_value_nodes: dict[Any, Any],
             _evaluation_path: list[Any],
         ) -> tuple[bool, list[Any]]:
+            """pySHACL's own ConstraintComponent.evaluate() override contract
+            - see this class's own docstring above for what it specifically
+            checks.
+
+            ``executor`` is the active SHACLExecutor; ``target_graph`` is the
+            data graph being validated; ``focus_value_nodes`` maps each focus
+            node to its own value nodes under this component's path;
+            ``_evaluation_path`` tracks the shape-recursion chain for
+            pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
+            whether every focus node satisfied this constraint, and a
+            ``sh:ValidationResult`` node per violation found.
+            """
             reports: list[Any] = []
             non_conformant = False
             for focus_node, value_nodes in focus_value_nodes.items():
@@ -466,6 +514,18 @@ def _build_unique_values_for_component() -> Any:
             focus_value_nodes: dict[Any, Any],
             _evaluation_path: list[Any],
         ) -> tuple[bool, list[Any]]:
+            """pySHACL's own ConstraintComponent.evaluate() override contract
+            - see this class's own docstring above for what it specifically
+            checks.
+
+            ``executor`` is the active SHACLExecutor; ``target_graph`` is the
+            data graph being validated; ``focus_value_nodes`` maps each focus
+            node to its own value nodes under this component's path;
+            ``_evaluation_path`` tracks the shape-recursion chain for
+            pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
+            whether every focus node satisfied this constraint, and a
+            ``sh:ValidationResult`` node per violation found.
+            """
             reports: list[Any] = []
             non_conformant = False
             signatures: dict[Any, list[Any]] = {}
@@ -523,6 +583,18 @@ def _build_member_shape_component() -> Any:
             focus_value_nodes: dict[Any, Any],
             _evaluation_path: list[Any],
         ) -> tuple[bool, list[Any]]:
+            """pySHACL's own ConstraintComponent.evaluate() override contract
+            - see this class's own docstring above for what it specifically
+            checks.
+
+            ``executor`` is the active SHACLExecutor; ``target_graph`` is the
+            data graph being validated; ``focus_value_nodes`` maps each focus
+            node to its own value nodes under this component's path;
+            ``_evaluation_path`` tracks the shape-recursion chain for
+            pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
+            whether every focus node satisfied this constraint, and a
+            ``sh:ValidationResult`` node per violation found.
+            """
             from starlayer.shacl.validator import _is_shacl_list, _shacl_list_members
 
             reports: list[Any] = []
@@ -602,6 +674,18 @@ def _build_min_list_length_component() -> Any:
             focus_value_nodes: dict[Any, Any],
             _evaluation_path: list[Any],
         ) -> tuple[bool, list[Any]]:
+            """pySHACL's own ConstraintComponent.evaluate() override contract
+            - see this class's own docstring above for what it specifically
+            checks.
+
+            ``executor`` is the active SHACLExecutor; ``target_graph`` is the
+            data graph being validated; ``focus_value_nodes`` maps each focus
+            node to its own value nodes under this component's path;
+            ``_evaluation_path`` tracks the shape-recursion chain for
+            pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
+            whether every focus node satisfied this constraint, and a
+            ``sh:ValidationResult`` node per violation found.
+            """
             from starlayer.shacl.validator import _is_shacl_list, _shacl_list_members
 
             reports: list[Any] = []
@@ -650,6 +734,18 @@ def _build_max_list_length_component() -> Any:
             focus_value_nodes: dict[Any, Any],
             _evaluation_path: list[Any],
         ) -> tuple[bool, list[Any]]:
+            """pySHACL's own ConstraintComponent.evaluate() override contract
+            - see this class's own docstring above for what it specifically
+            checks.
+
+            ``executor`` is the active SHACLExecutor; ``target_graph`` is the
+            data graph being validated; ``focus_value_nodes`` maps each focus
+            node to its own value nodes under this component's path;
+            ``_evaluation_path`` tracks the shape-recursion chain for
+            pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
+            whether every focus node satisfied this constraint, and a
+            ``sh:ValidationResult`` node per violation found.
+            """
             from starlayer.shacl.validator import _is_shacl_list, _shacl_list_members
 
             reports: list[Any] = []
@@ -716,6 +812,18 @@ def _build_unique_members_component() -> Any:
             focus_value_nodes: dict[Any, Any],
             _evaluation_path: list[Any],
         ) -> tuple[bool, list[Any]]:
+            """pySHACL's own ConstraintComponent.evaluate() override contract
+            - see this class's own docstring above for what it specifically
+            checks.
+
+            ``executor`` is the active SHACLExecutor; ``target_graph`` is the
+            data graph being validated; ``focus_value_nodes`` maps each focus
+            node to its own value nodes under this component's path;
+            ``_evaluation_path`` tracks the shape-recursion chain for
+            pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
+            whether every focus node satisfied this constraint, and a
+            ``sh:ValidationResult`` node per violation found.
+            """
             from starlayer.shacl.validator import _is_shacl_list, _shacl_list_members
 
             reports: list[Any] = []
@@ -1160,6 +1268,18 @@ def _build_node_by_expression_component() -> Any:
             focus_value_nodes: dict[Any, Any],
             _evaluation_path: list[Any],
         ) -> tuple[bool, list[Any]]:
+            """pySHACL's own ConstraintComponent.evaluate() override contract
+            - see this class's own docstring above for what it specifically
+            checks.
+
+            ``executor`` is the active SHACLExecutor; ``target_graph`` is the
+            data graph being validated; ``focus_value_nodes`` maps each focus
+            node to its own value nodes under this component's path;
+            ``_evaluation_path`` tracks the shape-recursion chain for
+            pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
+            whether every focus node satisfied this constraint, and a
+            ``sh:ValidationResult`` node per violation found.
+            """
             from starlayer.shacl.node_expressions import eval_expr
 
             reports: list[Any] = []
@@ -1314,6 +1434,18 @@ def _build_reifier_shape_component() -> Any:
             focus_value_nodes: dict[Any, Any],
             _evaluation_path: list[Any],
         ) -> tuple[bool, list[Any]]:
+            """pySHACL's own ConstraintComponent.evaluate() override contract
+            - see this class's own docstring above for what it specifically
+            checks.
+
+            ``executor`` is the active SHACLExecutor; ``target_graph`` is the
+            data graph being validated; ``focus_value_nodes`` maps each focus
+            node to its own value nodes under this component's path;
+            ``_evaluation_path`` tracks the shape-recursion chain for
+            pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
+            whether every focus node satisfied this constraint, and a
+            ``sh:ValidationResult`` node per violation found.
+            """
             reports: list[Any] = []
             non_conformant = False
             found_shape = (
@@ -1420,6 +1552,18 @@ def _build_closed_component() -> Any:
             focus_value_nodes: dict[Any, Any],
             _evaluation_path: list[Any],
         ) -> tuple[bool, list[Any]]:
+            """pySHACL's own ConstraintComponent.evaluate() override contract
+            - see this class's own docstring above for what it specifically
+            checks.
+
+            ``executor`` is the active SHACLExecutor; ``target_graph`` is the
+            data graph being validated; ``focus_value_nodes`` maps each focus
+            node to its own value nodes under this component's path;
+            ``_evaluation_path`` tracks the shape-recursion chain for
+            pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
+            whether every focus node satisfied this constraint, and a
+            ``sh:ValidationResult`` node per violation found.
+            """
             from starlayer.shacl.validator import _collect_by_types_properties
 
             reports: list[Any] = []
@@ -1518,6 +1662,18 @@ def _build_class_component() -> Any:
             focus_value_nodes: dict[Any, Any],
             _evaluation_path: list[Any],
         ) -> tuple[bool, list[Any]]:
+            """pySHACL's own ConstraintComponent.evaluate() override contract
+            - see this class's own docstring above for what it specifically
+            checks.
+
+            ``executor`` is the active SHACLExecutor; ``target_graph`` is the
+            data graph being validated; ``focus_value_nodes`` maps each focus
+            node to its own value nodes under this component's path;
+            ``_evaluation_path`` tracks the shape-recursion chain for
+            pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
+            whether every focus node satisfied this constraint, and a
+            ``sh:ValidationResult`` node per violation found.
+            """
             if self.delegate is not None:
                 return self.delegate.evaluate(executor, target_graph, focus_value_nodes, _evaluation_path)
 
@@ -1608,6 +1764,18 @@ def _build_node_kind_component() -> Any:
             focus_value_nodes: dict[Any, Any],
             _evaluation_path: list[Any],
         ) -> tuple[bool, list[Any]]:
+            """pySHACL's own ConstraintComponent.evaluate() override contract
+            - see this class's own docstring above for what it specifically
+            checks.
+
+            ``executor`` is the active SHACLExecutor; ``target_graph`` is the
+            data graph being validated; ``focus_value_nodes`` maps each focus
+            node to its own value nodes under this component's path;
+            ``_evaluation_path`` tracks the shape-recursion chain for
+            pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
+            whether every focus node satisfied this constraint, and a
+            ``sh:ValidationResult`` node per violation found.
+            """
             if self.delegate is not None:
                 return self.delegate.evaluate(executor, target_graph, focus_value_nodes, _evaluation_path)
 
@@ -1734,6 +1902,18 @@ def _build_datatype_component() -> Any:
             focus_value_nodes: dict[Any, Any],
             _evaluation_path: list[Any],
         ) -> tuple[bool, list[Any]]:
+            """pySHACL's own ConstraintComponent.evaluate() override contract
+            - see this class's own docstring above for what it specifically
+            checks.
+
+            ``executor`` is the active SHACLExecutor; ``target_graph`` is the
+            data graph being validated; ``focus_value_nodes`` maps each focus
+            node to its own value nodes under this component's path;
+            ``_evaluation_path`` tracks the shape-recursion chain for
+            pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
+            whether every focus node satisfied this constraint, and a
+            ``sh:ValidationResult`` node per violation found.
+            """
             if self.annotation_deactivated:
                 return True, []
 
@@ -1846,6 +2026,18 @@ def _build_language_in_component() -> Any:
             focus_value_nodes: dict[Any, Any],
             _evaluation_path: list[Any],
         ) -> tuple[bool, list[Any]]:
+            """pySHACL's own ConstraintComponent.evaluate() override contract
+            - see this class's own docstring above for what it specifically
+            checks.
+
+            ``executor`` is the active SHACLExecutor; ``target_graph`` is the
+            data graph being validated; ``focus_value_nodes`` maps each focus
+            node to its own value nodes under this component's path;
+            ``_evaluation_path`` tracks the shape-recursion chain for
+            pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
+            whether every focus node satisfied this constraint, and a
+            ``sh:ValidationResult`` node per violation found.
+            """
             reports: list[Any] = []
             non_conformant = False
             for focus_node, value_nodes in focus_value_nodes.items():
@@ -1922,6 +2114,18 @@ def _build_unique_lang_component() -> Any:
             focus_value_nodes: dict[Any, Any],
             _evaluation_path: list[Any],
         ) -> tuple[bool, list[Any]]:
+            """pySHACL's own ConstraintComponent.evaluate() override contract
+            - see this class's own docstring above for what it specifically
+            checks.
+
+            ``executor`` is the active SHACLExecutor; ``target_graph`` is the
+            data graph being validated; ``focus_value_nodes`` maps each focus
+            node to its own value nodes under this component's path;
+            ``_evaluation_path`` tracks the shape-recursion chain for
+            pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
+            whether every focus node satisfied this constraint, and a
+            ``sh:ValidationResult`` node per violation found.
+            """
             reports: list[Any] = []
             non_conformant = False
             if not self.enabled:
@@ -2024,6 +2228,18 @@ def _build_property_pair_component(predicate: Any, delegate_cls: Any, mode: str)
             focus_value_nodes: dict[Any, Any],
             _evaluation_path: list[Any],
         ) -> tuple[bool, list[Any]]:
+            """pySHACL's own ConstraintComponent.evaluate() override contract
+            - see this class's own docstring above for what it specifically
+            checks.
+
+            ``executor`` is the active SHACLExecutor; ``target_graph`` is the
+            data graph being validated; ``focus_value_nodes`` maps each focus
+            node to its own value nodes under this component's path;
+            ``_evaluation_path`` tracks the shape-recursion chain for
+            pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
+            whether every focus node satisfied this constraint, and a
+            ``sh:ValidationResult`` node per violation found.
+            """
             if self.delegate is not None:
                 return self.delegate.evaluate(executor, target_graph, focus_value_nodes, _evaluation_path)
 
@@ -2123,6 +2339,18 @@ def _build_and_component() -> Any:
             focus_value_nodes: dict[Any, Any],
             _evaluation_path: list[Any],
         ) -> tuple[bool, list[Any]]:
+            """pySHACL's own ConstraintComponent.evaluate() override contract
+            - see this class's own docstring above for what it specifically
+            checks.
+
+            ``executor`` is the active SHACLExecutor; ``target_graph`` is the
+            data graph being validated; ``focus_value_nodes`` maps each focus
+            node to its own value nodes under this component's path;
+            ``_evaluation_path`` tracks the shape-recursion chain for
+            pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
+            whether every focus node satisfied this constraint, and a
+            ``sh:ValidationResult`` node per violation found.
+            """
             reports: list[Any] = []
             non_conformant = False
             for and_c in self.and_list:
@@ -2246,6 +2474,18 @@ def _build_or_component() -> Any:
             focus_value_nodes: dict[Any, Any],
             _evaluation_path: list[Any],
         ) -> tuple[bool, list[Any]]:
+            """pySHACL's own ConstraintComponent.evaluate() override contract
+            - see this class's own docstring above for what it specifically
+            checks.
+
+            ``executor`` is the active SHACLExecutor; ``target_graph`` is the
+            data graph being validated; ``focus_value_nodes`` maps each focus
+            node to its own value nodes under this component's path;
+            ``_evaluation_path`` tracks the shape-recursion chain for
+            pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
+            whether every focus node satisfied this constraint, and a
+            ``sh:ValidationResult`` node per violation found.
+            """
             reports: list[Any] = []
             non_conformant = False
             for or_c in self.or_list:
@@ -2369,6 +2609,18 @@ def _build_xone_component() -> Any:
             focus_value_nodes: dict[Any, Any],
             _evaluation_path: list[Any],
         ) -> tuple[bool, list[Any]]:
+            """pySHACL's own ConstraintComponent.evaluate() override contract
+            - see this class's own docstring above for what it specifically
+            checks.
+
+            ``executor`` is the active SHACLExecutor; ``target_graph`` is the
+            data graph being validated; ``focus_value_nodes`` maps each focus
+            node to its own value nodes under this component's path;
+            ``_evaluation_path`` tracks the shape-recursion chain for
+            pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
+            whether every focus node satisfied this constraint, and a
+            ``sh:ValidationResult`` node per violation found.
+            """
             reports: list[Any] = []
             non_conformant = False
             for xone_c in self.xone_nodes:
@@ -2503,6 +2755,18 @@ def _build_not_component() -> Any:
             focus_value_nodes: dict[Any, Any],
             _evaluation_path: list[Any],
         ) -> tuple[bool, list[Any]]:
+            """pySHACL's own ConstraintComponent.evaluate() override contract
+            - see this class's own docstring above for what it specifically
+            checks.
+
+            ``executor`` is the active SHACLExecutor; ``target_graph`` is the
+            data graph being validated; ``focus_value_nodes`` maps each focus
+            node to its own value nodes under this component's path;
+            ``_evaluation_path`` tracks the shape-recursion chain for
+            pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
+            whether every focus node satisfied this constraint, and a
+            ``sh:ValidationResult`` node per violation found.
+            """
             reports: list[Any] = []
             non_conformant = False
             potentially_recursive = self.recursion_triggers(_evaluation_path)
@@ -2617,6 +2881,18 @@ def _build_node_component() -> Any:
             focus_value_nodes: dict[Any, Any],
             _evaluation_path: list[Any],
         ) -> tuple[bool, list[Any]]:
+            """pySHACL's own ConstraintComponent.evaluate() override contract
+            - see this class's own docstring above for what it specifically
+            checks.
+
+            ``executor`` is the active SHACLExecutor; ``target_graph`` is the
+            data graph being validated; ``focus_value_nodes`` maps each focus
+            node to its own value nodes under this component's path;
+            ``_evaluation_path`` tracks the shape-recursion chain for
+            pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
+            whether every focus node satisfied this constraint, and a
+            ``sh:ValidationResult`` node per violation found.
+            """
             reports: list[Any] = []
             non_conformant = False
 
@@ -2737,6 +3013,18 @@ def _build_qualified_value_shape_component() -> Any:
             focus_value_nodes: dict[Any, Any],
             _evaluation_path: list[Any],
         ) -> tuple[bool, list[Any]]:
+            """pySHACL's own ConstraintComponent.evaluate() override contract
+            - see this class's own docstring above for what it specifically
+            checks.
+
+            ``executor`` is the active SHACLExecutor; ``target_graph`` is the
+            data graph being validated; ``focus_value_nodes`` maps each focus
+            node to its own value nodes under this component's path;
+            ``_evaluation_path`` tracks the shape-recursion chain for
+            pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
+            whether every focus node satisfied this constraint, and a
+            ``sh:ValidationResult`` node per violation found.
+            """
             reports: list[Any] = []
             non_conformant = False
 

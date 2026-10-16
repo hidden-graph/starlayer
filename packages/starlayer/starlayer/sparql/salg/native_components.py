@@ -106,6 +106,18 @@ def _build_no_unbound_projected_variables_component() -> Any:
             focus_value_nodes: dict[Any, Any],
             _evaluation_path: list[Any],
         ) -> tuple[bool, list[Any]]:
+            """pySHACL's own ConstraintComponent.evaluate() override contract
+            - see this class's own docstring above for what it specifically
+            checks.
+
+            ``executor`` is the active SHACLExecutor; ``target_graph`` is the
+            data graph being validated; ``focus_value_nodes`` maps each focus
+            node to its own value nodes under this component's path;
+            ``_evaluation_path`` tracks the shape-recursion chain for
+            pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
+            whether every focus node satisfied this constraint, and a
+            ``sh:ValidationResult`` node per violation found.
+            """
             reports: list[Any] = []
             non_conformant = False
             if not self.enabled:

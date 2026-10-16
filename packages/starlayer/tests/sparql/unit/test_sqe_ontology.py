@@ -21,15 +21,26 @@ elsewhere in this package:
 """
 
 import pytest
+from rdflib import BNode, Literal, RDF, URIRef
 from rdflib.plugins.sparql.evaluate import evalQuery
 from rdflib.plugins.sparql.processor import prepareQuery
 from starlayer.sparql.sqe import (
+    SQEValidationError,
     sqe_parse_to_tree,
     sqe_tree_to_query,
     sqe_tree_to_text,
     sqe_validate,
 )
-from starlayer.sparql.sqe.vocab import TRIPLE_PATTERN_PREDICATE
+from starlayer.sparql.sqe.vocab import (
+    PREFIX_BINDING,
+    PREFIX_LABEL,
+    PREFIX_NAMESPACE,
+    QUERY,
+    TEMPLATE,
+    TRIPLE_PATTERN_PREDICATE,
+    UNION,
+    UNION_ALTERNATIVES,
+)
 
 PREFIXES = """
 PREFIX : <http://example.org/>
@@ -122,6 +133,56 @@ class TestRoundtripResultEquivalence:
         assert "xmlns.com/foaf" not in where_clause
 
 
+class TestRootParameter:
+    """sqe_parse_to_tree()'s optional root= - gives a caller a stable,
+    named identity for the encoded query instead of always minting a
+    fresh BNode(), useful once a graph accumulates more than one encoded
+    query (via repeated calls sharing one graph=) and a bare
+    `?s a sqe:Query` lookup can no longer tell them apart on its own."""
+
+    QUERY_TEXT = "SELECT ?s WHERE { ?s a <http://example.org/Thing> }"
+
+    def test_defaults_to_a_fresh_bnode(self):
+        graph, root = sqe_parse_to_tree(self.QUERY_TEXT)
+        assert isinstance(root, BNode)
+
+    def test_accepts_a_real_uriref(self):
+        my_iri = URIRef("urn:test:query1")
+        graph, root = sqe_parse_to_tree(self.QUERY_TEXT, root=my_iri)
+        assert root == my_iri
+        assert (my_iri, RDF.type, QUERY) in graph
+
+    def test_named_root_round_trips_through_query_and_text(self):
+        my_iri = URIRef("urn:test:query1")
+        graph, root = sqe_parse_to_tree(self.QUERY_TEXT, root=my_iri)
+
+        reconstructed = sqe_tree_to_query(graph, root)
+        assert reconstructed.algebra is not None
+
+        rendered = sqe_tree_to_text(graph, root)
+        assert "SELECT ?s" in rendered
+
+    def test_two_named_queries_in_one_shared_graph_stay_distinguishable(self):
+        """The real motivating case: a bare `?s a sqe:Query` lookup can't
+        tell two accumulated queries apart, but each one's own given IRI
+        can."""
+        iri1, iri2 = URIRef("urn:test:q1"), URIRef("urn:test:q2")
+        graph, root1 = sqe_parse_to_tree(self.QUERY_TEXT, root=iri1)
+        graph, root2 = sqe_parse_to_tree(
+            "SELECT ?s WHERE { ?s a <http://example.org/Other> }", graph=graph, root=iri2
+        )
+
+        assert root1 == iri1 and root2 == iri2
+        query_subjects = set(graph.subjects(RDF.type, QUERY))
+        assert query_subjects == {iri1, iri2}
+
+        # each one decodes back to its own, distinct query
+        q1_text = sqe_tree_to_text(graph, iri1)
+        q2_text = sqe_tree_to_text(graph, iri2)
+        assert "Thing" in q1_text
+        assert "Other" in q2_text
+
+
 class TestShaclConformance:
     def test_valid_query_conforms(self):
         query_text = PREFIXES + """
@@ -143,4 +204,260 @@ class TestShaclConformance:
 
         conforms, _report_graph, report_text = sqe_validate(graph)
         assert not conforms
-        assert "sqe:predicate" in report_text
+
+
+class TestUnboundProjectedVariable:
+    """A real sh:sparql constraint on sqe:SelectQueryShape (added 2026-10-15):
+    valid SPARQL syntactically - SPARQL allows projecting a variable the
+    WHERE clause never binds, it just comes back unbound in every result
+    row - but flagged as a SHACL violation here, since it almost always
+    signals a typo or an incomplete edit (an "output" with no matching
+    "input"). Mirrors salg:noUnboundProjectedVariables' own semantics
+    (Filter never binds; OPTIONAL/UNION/BIND do), but as a declarative
+    sh:sparql property-path query over sqe:'s own raw tree shape, not a
+    custom Python ConstraintComponent - sqe:'s tree needs no algebra
+    resolution to answer this, unlike salg:'s resolved Project node.
+
+    sqe_parse_to_tree() itself validates and raises SQEValidationError on
+    a non-conforming result (2026-10-15) - these tests exercise that
+    raise directly, not a separate sqe_validate() call after a
+    successful parse."""
+
+    def test_unbound_projected_variable_fails(self):
+        query_text = "SELECT ?s ?z WHERE { ?s <http://example.org/knows> ?o }"
+        with pytest.raises(SQEValidationError) as exc_info:
+            sqe_parse_to_tree(query_text)
+        assert "z" in exc_info.value.report_text
+
+    def test_all_projected_variables_bound_conforms(self):
+        query_text = "SELECT ?s ?o WHERE { ?s <http://example.org/knows> ?o }"
+        graph, root = sqe_parse_to_tree(query_text)
+        conforms, _report_graph, report_text = sqe_validate(graph)
+        assert conforms, report_text
+
+    def test_bound_only_via_optional_conforms(self):
+        query_text = (
+            "SELECT ?s ?z WHERE { ?s <http://example.org/knows> ?o . "
+            "OPTIONAL { ?s <http://example.org/age> ?z } }"
+        )
+        graph, root = sqe_parse_to_tree(query_text)
+        conforms, _report_graph, report_text = sqe_validate(graph)
+        assert conforms, report_text
+
+    def test_bound_only_via_union_conforms(self):
+        query_text = (
+            "SELECT ?s ?z WHERE { ?s <http://example.org/knows> ?o . "
+            "{ ?s <http://example.org/a> ?z } UNION { ?s <http://example.org/b> ?z } }"
+        )
+        graph, root = sqe_parse_to_tree(query_text)
+        conforms, _report_graph, report_text = sqe_validate(graph)
+        assert conforms, report_text
+
+    def test_bound_only_via_bind_conforms(self):
+        query_text = (
+            "SELECT ?s ?z WHERE { ?s <http://example.org/knows> ?o . BIND(?o AS ?z) }"
+        )
+        graph, root = sqe_parse_to_tree(query_text)
+        conforms, _report_graph, report_text = sqe_validate(graph)
+        assert conforms, report_text
+
+    def test_filter_alone_does_not_count_as_binding(self):
+        """FILTER only ever constrains an already-bound variable - it can
+        never bind a new one, so a variable appearing only inside a
+        FILTER's own expression still fails, the same as not appearing at
+        all."""
+        query_text = (
+            "SELECT ?s ?z WHERE { ?s <http://example.org/knows> ?o . FILTER(?o = ?z) }"
+        )
+        with pytest.raises(SQEValidationError) as exc_info:
+            sqe_parse_to_tree(query_text)
+        assert "z" in exc_info.value.report_text
+
+
+class TestTemplateListShape:
+    """sqe:ConstructQuery's sqe:template had zero structural shape at all
+    (added 2026-10-15) - bare sh:minCount/sh:maxCount 1, no sh:node - so
+    the whole template could be replaced with a bare string literal and
+    still conform. sqe:TemplateListShape closes this the same way
+    WhereListShape already does for sqe:where, just restricted to
+    sqe:TriplePattern only (CONSTRUCT's own template can never contain
+    OPTIONAL/UNION/FILTER/BIND)."""
+
+    def test_valid_construct_conforms(self):
+        query_text = (
+            "CONSTRUCT { ?s <http://example.org/q> ?o } "
+            "WHERE { ?s <http://example.org/p> ?o }"
+        )
+        graph, root = sqe_parse_to_tree(query_text)
+        conforms, _report_graph, report_text = sqe_validate(graph)
+        assert conforms, report_text
+
+    def test_template_corrupted_to_bare_literal_fails(self):
+        query_text = (
+            "CONSTRUCT { ?s <http://example.org/q> ?o } "
+            "WHERE { ?s <http://example.org/p> ?o }"
+        )
+        graph, root = sqe_parse_to_tree(query_text)
+        graph.set((root, TEMPLATE, Literal("not a list of triple patterns at all")))
+
+        conforms, _report_graph, report_text = sqe_validate(graph)
+        assert not conforms
+
+
+class TestAlternativesListShape:
+    """sqe:Union's sqe:alternatives had zero structural shape at all
+    (added 2026-10-15) - same bare-cardinality-only gap as sqe:template
+    above. Confirmed via an ASK-form query specifically (no sqe:projection
+    at all, so no incidental catch via the unbound-projected-variable
+    check) that corrupting sqe:alternatives previously went completely
+    undetected. sqe:AlternativesListShape closes it: a well-formed
+    rdf:List whose own members are themselves well-formed pattern lists
+    (sqe:WhereListShape's own type set), checked via a single flat
+    SPARQL query (no sh:node self-recursion), not two chained shapes."""
+
+    def test_valid_union_conforms(self):
+        query_text = (
+            "ASK { { ?s <http://example.org/a> ?o } "
+            "UNION { ?s <http://example.org/b> ?o } }"
+        )
+        graph, root = sqe_parse_to_tree(query_text)
+        conforms, _report_graph, report_text = sqe_validate(graph)
+        assert conforms, report_text
+
+    def test_alternatives_corrupted_fails_even_without_incidental_catch(self):
+        query_text = (
+            "ASK { { ?s <http://example.org/a> ?o } "
+            "UNION { ?s <http://example.org/b> ?o } }"
+        )
+        graph, root = sqe_parse_to_tree(query_text)
+        union_node = next(graph.subjects(RDF.type, UNION))
+        graph.set((union_node, UNION_ALTERNATIVES, Literal("garbage, not a list of pattern-lists")))
+
+        conforms, _report_graph, report_text = sqe_validate(graph)
+        assert not conforms
+
+
+class TestPrefixBindingShape:
+    """sqe:PrefixBinding (the whole prologue encoding) had zero shape of
+    any kind targeting it (added 2026-10-15) - removing sqe:namespace
+    entirely and replacing sqe:prefixLabel with a plain integer both
+    previously conformed."""
+
+    def test_valid_prefix_conforms(self):
+        query_text = "PREFIX ex: <http://example.org/>\nSELECT ?s WHERE { ?s ex:p ?o }"
+        graph, root = sqe_parse_to_tree(query_text)
+        conforms, _report_graph, report_text = sqe_validate(graph)
+        assert conforms, report_text
+
+    def test_empty_string_default_prefix_conforms(self):
+        """The default `:` prefix encodes as the empty string, not absence
+        - a real, legal case (see to_rdf.py's own docstring) that must
+        not be rejected by the new minCount/datatype constraints."""
+        query_text = "PREFIX : <http://example.org/>\nSELECT ?s WHERE { ?s :p ?o }"
+        graph, root = sqe_parse_to_tree(query_text)
+        conforms, _report_graph, report_text = sqe_validate(graph)
+        assert conforms, report_text
+
+    def test_missing_namespace_fails(self):
+        query_text = "PREFIX ex: <http://example.org/>\nSELECT ?s WHERE { ?s ex:p ?o }"
+        graph, root = sqe_parse_to_tree(query_text)
+        prefix_node = next(graph.subjects(RDF.type, PREFIX_BINDING))
+        graph.remove((prefix_node, PREFIX_NAMESPACE, None))
+
+        conforms, _report_graph, report_text = sqe_validate(graph)
+        assert not conforms
+
+    def test_non_string_prefix_label_fails(self):
+        query_text = "PREFIX ex: <http://example.org/>\nSELECT ?s WHERE { ?s ex:p ?o }"
+        graph, root = sqe_parse_to_tree(query_text)
+        prefix_node = next(graph.subjects(RDF.type, PREFIX_BINDING))
+        graph.set((prefix_node, PREFIX_LABEL, Literal(12345)))
+
+        conforms, _report_graph, report_text = sqe_validate(graph)
+        assert not conforms
+
+
+class TestUnboundExpressionVariable:
+    """A second, broader unbound-variable check than
+    TestUnboundProjectedVariable above (added 2026-10-15): that one only
+    ever inspects sqe:projection's own members (SELECT-specific) - a
+    variable referenced only inside a FILTER/BIND expression, that is
+    never itself projected, was never checked at all, for any query form.
+    This generalizes to "every variable used inside any expression must
+    be bound somewhere in scope," reused identically across
+    SelectQueryShape/AskQueryShape/ConstructQueryShape."""
+
+    def test_select_filter_unbound_variable_fails(self):
+        query_text = (
+            "SELECT ?s WHERE { ?s <http://example.org/p> ?o . FILTER(?x > 5) }"
+        )
+        with pytest.raises(SQEValidationError) as exc_info:
+            sqe_parse_to_tree(query_text)
+        assert "x" in exc_info.value.report_text
+
+    def test_select_filter_all_bound_conforms(self):
+        query_text = (
+            "SELECT ?s WHERE { ?s <http://example.org/p> ?o . FILTER(?o > 5) }"
+        )
+        graph, root = sqe_parse_to_tree(query_text)
+        conforms, _report_graph, report_text = sqe_validate(graph)
+        assert conforms, report_text
+
+    def test_ask_filter_unbound_variable_fails(self):
+        query_text = "ASK { ?s <http://example.org/p> ?o . FILTER(?x > 5) }"
+        with pytest.raises(SQEValidationError):
+            sqe_parse_to_tree(query_text)
+
+    def test_ask_filter_all_bound_conforms(self):
+        query_text = "ASK { ?s <http://example.org/p> ?o . FILTER(?o > 5) }"
+        graph, root = sqe_parse_to_tree(query_text)
+        conforms, _report_graph, report_text = sqe_validate(graph)
+        assert conforms, report_text
+
+    def test_construct_filter_unbound_variable_fails(self):
+        query_text = (
+            "CONSTRUCT { ?s <http://example.org/q> ?o } "
+            "WHERE { ?s <http://example.org/p> ?o . FILTER(?x > 5) }"
+        )
+        with pytest.raises(SQEValidationError):
+            sqe_parse_to_tree(query_text)
+
+    def test_bind_then_filter_on_bound_variable_conforms(self):
+        """Regression guard: a variable bound via BIND and then used in a
+        later FILTER must not be flagged - confirms the reachability
+        closure this check shares with the projection check already
+        covers BIND targets correctly."""
+        query_text = (
+            "SELECT ?s WHERE { ?s <http://example.org/p> ?o . "
+            "BIND(?o AS ?z) . FILTER(?z > 5) }"
+        )
+        graph, root = sqe_parse_to_tree(query_text)
+        conforms, _report_graph, report_text = sqe_validate(graph)
+        assert conforms, report_text
+
+
+class TestUnboundTemplateVariable:
+    """CONSTRUCT's own sqe:template had no unbound-variable check at all
+    (added 2026-10-15) - the direct analog of SelectQueryShape's existing
+    sqe:projection check, retargeted at sqe:template's own TriplePattern
+    subject/predicate/object variables instead. This is the exact gap
+    reported earlier in the same conversation (CONSTRUCT { ?s ex:q ?z }
+    conforming while producing zero result triples) - now closed."""
+
+    def test_template_variable_unbound_fails(self):
+        query_text = (
+            "CONSTRUCT { ?s <http://example.org/q> ?z } "
+            "WHERE { ?s <http://example.org/p> ?o }"
+        )
+        with pytest.raises(SQEValidationError) as exc_info:
+            sqe_parse_to_tree(query_text)
+        assert "z" in exc_info.value.report_text
+
+    def test_template_variable_bound_conforms(self):
+        query_text = (
+            "CONSTRUCT { ?s <http://example.org/q> ?o } "
+            "WHERE { ?s <http://example.org/p> ?o }"
+        )
+        graph, root = sqe_parse_to_tree(query_text)
+        conforms, _report_graph, report_text = sqe_validate(graph)
+        assert conforms, report_text

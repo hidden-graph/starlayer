@@ -75,12 +75,14 @@ _DEFAULT_PERMUTATION_BUDGET = 100_000
 
 class CanonicalizationComplexityError(RuntimeError):
     """Raised when canonicalizing would require exploring more permutations
-    than the configured budget - the spec's own required defense against
-    "Dataset Poisoning" (section 7.1): "Implementations MUST defend against
-    potential denial-of-service attacks by raising suitable exceptions and
-    terminating early." Confirmed live that without this, the official test
-    suite's own poisoning fixture (test074, a 10-node blank-node clique)
-    hangs indefinitely rather than raising anything."""
+    than the configured budget.
+
+    The RDFC-1.0 spec's own required defense against "Dataset Poisoning"
+    (section 7.1): "Implementations MUST defend against potential
+    denial-of-service attacks by raising suitable exceptions and
+    terminating early." Confirmed live that without this, the official
+    test suite's own poisoning fixture (test074, a 10-node blank-node
+    clique) hangs indefinitely rather than raising anything."""
 
 
 _Quad = tuple[Any, Any, Any, Any]  # (subject, predicate, object, graph-name-or-None)
@@ -397,8 +399,10 @@ def to_canonical_nquads(
 def rdfc10_hash(
     graph: Any, hash_algorithm: str = "sha256", permutation_budget: int = _DEFAULT_PERMUTATION_BUDGET
 ) -> str:
-    """A single hex digest for ``graph``'s canonical N-Quads form - the
-    portable, spec-compliant equivalent of ``starlayer.graph.compare.
-    to_canonical_hash()`` (which uses rdflib's own, different digest
-    algorithm and returns a plain Python ``int``, not a hex string)."""
+    """Returns a single hex digest for ``graph``'s canonical N-Quads form.
+
+    The portable, spec-compliant equivalent of
+    ``starlayer.graph.compare.to_canonical_hash()`` (which uses rdflib's
+    own, different digest algorithm and returns a plain Python ``int``,
+    not a hex string)."""
     return _hash_func_for(hash_algorithm)(to_canonical_nquads(graph, hash_algorithm, permutation_budget))

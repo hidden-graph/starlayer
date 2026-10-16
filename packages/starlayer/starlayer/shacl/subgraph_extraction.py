@@ -5,6 +5,33 @@ constraints covered for that node. A plain, standalone function (not a
 the reachability rule is a SHACL shape's own constraints instead of
 blank-node adjacency."
 
+``shape=``/``focus_node=`` are optional keyword-only filters, not required
+inputs (redesigned 2026-10-14 - see this project's own memory under
+"shacl-subgraph-extraction-design" for the full history): given neither,
+``extract_subgraph()`` discovers every entry point the whole ``shacl_graph``
+itself declares - every shape's own real SHACL targets (``sh:targetClass``/
+``sh:targetNode``/``sh:targetSubjectsOf``/``sh:targetObjectsOf``/implicit
+class targets/SPARQL-based ``sh:target``), via pySHACL's own
+``Shape.focus_nodes()`` - checks each resulting ``(shape, focus_node)``
+pair for conformance, and returns **one subgraph that's the union of every
+conforming pair's own extraction** (not a per-pair breakdown - decided
+directly with the user). Either filter narrows that search: ``shape=``
+alone unions just that one shape's own real targets; ``focus_node=`` alone
+unions every shape that actually declares this node as one of its own real
+targets (not "any shape it happens to conform to" - anchored to what the
+shapes graph itself declares, the same semantics `validate()` itself
+would apply); both given reproduces the original single-pair behavior
+exactly (same conformance check, same extraction - the only change is the
+return contract below). A deactivated shape (``sh:deactivated true``) is
+never treated as an entry point, matching `validate()`'s own behavior.
+
+**Return contract, unified across every mode**: always a real graph
+object; **empty when nothing conforms**, never ``None`` - a deliberate
+behavioral change from the original single-pair-only version (which
+returned ``None`` to signal non-conformance). One consistent contract
+regardless of how many filters are supplied, rather than the fully-pinned
+case behaving specially.
+
 Design decisions (agreed with the user across several turns, recorded in
 full in this project's memory under "shacl-subgraph-extraction-design" -
 summarized here so the code and its rationale stay together):
@@ -313,24 +340,20 @@ def _extract(
 
 def extract_subgraph(
     data_graph: Any,
-    shape: Any,
-    focus_node: Any,
     shacl_graph: Any | None = None,
     ont_graph: Any | None = None,
     *,
+    shape: Any | None = None,
+    focus_node: Any | None = None,
     inference: Any | None = None,
-) -> Any | None:
-    """The subgraph a shape covers for one focus node - like
-    ``StarLayerGraph.cbd()``, but the reachability rule is ``shape``'s own
-    constraints instead of blank-node adjacency. See module docstring for
-    the full design this follows.
+) -> Any:
+    """Returns the subgraph covered by one shape+focus_node pair, or by
+    every real entry point a whole shapes graph declares.
 
-    Returns the extracted subgraph itself (a plain graph object), or
-    ``None`` if ``focus_node`` doesn't actually conform to ``shape`` - this
-    function assumes conformance as a precondition the caller has already
-    checked (e.g. via ``validate()``), rather than existing to diagnose
-    non-conformance, so there's no separate report explaining a ``None``
-    result.
+    Like ``StarLayerGraph.cbd()``, but the reachability rule is a SHACL
+    shape's own constraints instead of blank-node adjacency. See the
+    module docstring for the full design this follows, including the
+    four filter combinations and the unified return contract.
 
     ``shacl_graph`` is a raw shapes graph (already normalized by the caller,
     matching ``evaluate()``'s own calling convention) - wrapped here into a
@@ -345,16 +368,31 @@ def extract_subgraph(
 
     ``shacl_graph=None`` falls back to ``data_graph`` itself - matching
     ``validate()``'s own "data graph doubles as shapes graph" allowance,
-    for a data file carrying its own embedded shapes. ``shape``/
-    ``focus_node`` come before ``shacl_graph``/``ont_graph`` in the
-    signature so the two genuinely-required parameters stay
-    positional-required while ``shacl_graph`` gets a default.
+    for a data file carrying its own embedded shapes.
 
     ``ont_graph``/``inference=``: entailment feeds the conformance re-check
     and the extraction walk, but the returned triples are intersected back
     against the real, pre-entailment ``data_graph`` before returning, so an
     entailed-only triple never appears in the output - see the module
     docstring's entailment section for the full design.
+
+    Args:
+        data_graph: The full data graph - not a pre-narrowed candidate,
+            since multi-hop paths/nested shapes mean the traversal's real
+            reach can't be known in advance.
+        shacl_graph: The shapes graph. Defaults to ``data_graph``.
+        ont_graph: Optional ontology graph feeding entailment.
+        shape: Restrict to this one shape's own entry point(s). Omit to
+            consider every (non-deactivated) shape in ``shacl_graph``.
+        focus_node: Restrict to this one focus node. Omit to discover
+            every real target ``pySHACL``'s own ``Shape.focus_nodes()``
+            resolves for each candidate shape (declared/implicit targets,
+            including SPARQL-based ``sh:target``).
+        inference: An ``ENTAILMENT.*`` regime IRI, or an iterable of them.
+
+    Returns:
+        A new graph - the union of every conforming ``(shape, focus_node)``
+        pair's own extraction. Empty (never ``None``) if nothing conforms.
     """
     if shacl_graph is None:
         shacl_graph = data_graph
@@ -378,15 +416,27 @@ def extract_subgraph(
 
     entailed_data_graph = apply_entailment(data_graph, shacl_graph, ont_graph, inplace=False, inference=inference)
 
-    if not _shape_conforms(sg, shape, entailed_data_graph, focus_node):
-        return None
+    if shape is not None:
+        candidate_shape_objs = [sg.lookup_shape_from_node(shape)]
+    else:
+        candidate_shape_objs = [s for s in sg.shapes if not s.deactivated]
 
-    shape_obj = sg.lookup_shape_from_node(shape)
-    triples = _extract(entailed_data_graph, sg, shape_obj, focus_node, frozenset())
-    triples &= base_triples
+    all_triples: set[_Triple] = set()
+    for shape_obj in candidate_shape_objs:
+        if focus_node is not None:
+            candidate_focus_nodes: Any = [focus_node]
+        else:
+            shape_obj.set_advanced(True)
+            candidate_focus_nodes = shape_obj.focus_nodes(entailed_data_graph)
+        for node in candidate_focus_nodes:
+            if not _shape_conforms(sg, shape_obj.node, entailed_data_graph, node):
+                continue
+            all_triples |= _extract(entailed_data_graph, sg, shape_obj, node, frozenset())
+
+    all_triples &= base_triples
 
     result_graph = StarLayerGraph()
-    for t in triples:
+    for t in all_triples:
         result_graph.add(t)
     return result_graph
 

@@ -76,12 +76,6 @@ salg:Aggregate_SumShape a sh:NodeShape ;
 salg:AskQueryShape a sh:NodeShape ;
     sh:property [
         sh:maxCount 1 ;
-        sh:message "salg:AskQuery must have exactly one salg:p, a subquery pattern" ;
-        sh:minCount 1 ;
-        sh:node salg:SubSelectShape ;
-        sh:path salg:p
-    ], [
-        sh:maxCount 1 ;
         sh:message "salg:AskQuery must have exactly one salg:PV, a well-formed rdf:List of Variables (always rdf:nil for ASK, but the property itself is always present)" ;
         sh:minCount 1 ;
         sh:node salg:VariableListShape ;
@@ -91,6 +85,12 @@ salg:AskQueryShape a sh:NodeShape ;
         sh:message "salg:AskQuery may have at most one salg:datasetClause, a well-formed rdf:List of salg:DatasetClause" ;
         sh:node salg:DatasetClauseListShape ;
         sh:path salg:datasetClause
+    ], [
+        sh:maxCount 1 ;
+        sh:message "salg:AskQuery must have exactly one salg:p, a subquery pattern" ;
+        sh:minCount 1 ;
+        sh:node salg:SubSelectShape ;
+        sh:path salg:p
     ] ;
     sh:targetClass salg:AskQuery .
 
@@ -132,16 +132,16 @@ salg:BindingRowListShape a sh:NodeShape ;
 salg:BindingShape a sh:NodeShape ;
     sh:property [
         sh:maxCount 1 ;
+        sh:message "salg:Binding must have exactly one salg:val (UNDEF is represented as a value, the spexpr:PlainString-tagged literal UNDEF - confirmed via to_rdf._encode_binding_row always adding this triple, never omitting it; the previous cardinality-only framing was factually wrong about the encoding and left the value completely unconstrained). Reuses ObjectOrVariableOrTripleTermShape rather than a narrower value-only shape - a VALUES row can never legally bind a Variable as a value, so this is slightly more permissive than the encoding actually produces, but still a real improvement over no constraint at all." ;
+        sh:minCount 1 ;
+        sh:node salg:ObjectOrVariableOrTripleTermShape ;
+        sh:path salg:val
+    ], [
+        sh:maxCount 1 ;
         sh:message "salg:Binding must have exactly one salg:var, a Variable" ;
         sh:minCount 1 ;
         sh:node spexpr:VariableShape ;
         sh:path salg:var
-    ], [
-        sh:maxCount 1 ;
-        sh:message "salg:Binding must have exactly one salg:val (UNDEF is represented as a value, the salg:PyStr-tagged literal UNDEF - confirmed via to_rdf._encode_binding_row always adding this triple, never omitting it; the previous cardinality-only framing was factually wrong about the encoding and left the value completely unconstrained). Reuses ObjectOrVariableOrTripleTermShape rather than a narrower value-only shape - a VALUES row can never legally bind a Variable as a value, so this is slightly more permissive than the encoding actually produces, but still a real improvement over no constraint at all." ;
-        sh:minCount 1 ;
-        sh:node salg:ObjectOrVariableOrTripleTermShape ;
-        sh:path salg:val
     ] ;
     sh:targetClass salg:Binding .
 
@@ -152,16 +152,16 @@ salg:ClearShape a sh:NodeShape ;
 salg:ConstructQueryShape a sh:NodeShape ;
     sh:property [
         sh:maxCount 1 ;
-        sh:message "salg:ConstructQuery must have exactly one salg:p, a subquery pattern" ;
-        sh:minCount 1 ;
-        sh:node salg:SubSelectShape ;
-        sh:path salg:p
-    ], [
-        sh:maxCount 1 ;
         sh:message "salg:ConstructQuery must have exactly one salg:template, a well-formed rdf:List of salg:TriplePattern" ;
         sh:minCount 1 ;
         sh:node salg:TriplePatternListShape ;
         sh:path salg:template
+    ], [
+        sh:maxCount 1 ;
+        sh:message "salg:ConstructQuery must have exactly one salg:p, a subquery pattern" ;
+        sh:minCount 1 ;
+        sh:node salg:SubSelectShape ;
+        sh:path salg:p
     ], [
         sh:maxCount 1 ;
         sh:message "salg:ConstructQuery may have at most one salg:datasetClause, a well-formed rdf:List of salg:DatasetClause" ;
@@ -238,14 +238,14 @@ salg:DeleteWhereShape a sh:NodeShape ;
 salg:DescribeQueryShape a sh:NodeShape ;
     sh:property [
         sh:maxCount 1 ;
-        sh:message "salg:DescribeQuery may have at most one salg:datasetClause, a well-formed rdf:List of salg:DatasetClause" ;
-        sh:node salg:DatasetClauseListShape ;
-        sh:path salg:datasetClause
-    ], [
-        sh:maxCount 1 ;
         sh:message "salg:DescribeQuery's salg:p, if present, must be a subquery pattern (absent for a bare DESCRIBE with no WHERE clause)" ;
         sh:node salg:SubSelectShape ;
         sh:path salg:p
+    ], [
+        sh:maxCount 1 ;
+        sh:message "salg:DescribeQuery may have at most one salg:datasetClause, a well-formed rdf:List of salg:DatasetClause" ;
+        sh:node salg:DatasetClauseListShape ;
+        sh:path salg:datasetClause
     ], [
         sh:maxCount 1 ;
         sh:message "salg:DescribeQuery must have exactly one salg:PV (the described variables/IRIs)" ;
@@ -271,10 +271,10 @@ salg:DropShape a sh:NodeShape ;
 salg:ExtendShape a sh:NodeShape ;
     sh:property [
         sh:maxCount 1 ;
-        sh:message "salg:Extend must have exactly one salg:expr" ;
+        sh:message "salg:Extend must have exactly one salg:p, a graph pattern" ;
         sh:minCount 1 ;
-        sh:node spexpr:ExpressionShape ;
-        sh:path salg:expr
+        sh:node salg:GraphPatternShape ;
+        sh:path salg:p
     ], [
         sh:maxCount 1 ;
         sh:message "salg:Extend must have exactly one salg:var, a Variable" ;
@@ -283,26 +283,26 @@ salg:ExtendShape a sh:NodeShape ;
         sh:path salg:var
     ], [
         sh:maxCount 1 ;
-        sh:message "salg:Extend must have exactly one salg:p, a graph pattern" ;
+        sh:message "salg:Extend must have exactly one salg:expr" ;
         sh:minCount 1 ;
-        sh:node salg:GraphPatternShape ;
-        sh:path salg:p
+        sh:node spexpr:ExpressionShape ;
+        sh:path salg:expr
     ] ;
     sh:targetClass salg:Extend .
 
 salg:FilterShape a sh:NodeShape ;
     sh:property [
         sh:maxCount 1 ;
-        sh:message "salg:Filter must have exactly one salg:p, a graph pattern" ;
-        sh:minCount 1 ;
-        sh:node salg:GraphPatternShape ;
-        sh:path salg:p
-    ], [
-        sh:maxCount 1 ;
         sh:message "salg:Filter must have exactly one salg:expr" ;
         sh:minCount 1 ;
         sh:node spexpr:ExpressionShape ;
         sh:path salg:expr
+    ], [
+        sh:maxCount 1 ;
+        sh:message "salg:Filter must have exactly one salg:p, a graph pattern" ;
+        sh:minCount 1 ;
+        sh:node salg:GraphPatternShape ;
+        sh:path salg:p
     ] ;
     sh:targetClass salg:Filter .
 
@@ -313,10 +313,11 @@ salg:GraphPatternShape a sh:NodeShape ;
 salg:GraphRefListShape a sh:NodeShape ;
     sh:sparql [
         a sh:SPARQLConstraint ;
-        sh:message "expected a well-formed 2-element rdf:List [source, dest] of graph references (IRI/BlankNode/PyStr DEFAULT keyword)" ;
+        sh:message "expected a well-formed 2-element rdf:List [source, dest] of graph references (IRI/BlankNode/PlainString DEFAULT keyword)" ;
         sh:select """
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
             PREFIX salg: <https://github.com/hidden-graph/starlayer/ns/sparql/algebra#>
+            PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
             SELECT $this
             WHERE {
                 {
@@ -328,7 +329,7 @@ salg:GraphRefListShape a sh:NodeShape ;
                     FILTER ( ?tail != rdf:nil )
                 } UNION {
                     $this rdf:rest*/rdf:first ?item .
-                    FILTER ( !isIRI(?item) && !isBlank(?item) && !(isLiteral(?item) && datatype(?item) = salg:PyStr) )
+                    FILTER ( !isIRI(?item) && !isBlank(?item) && !(isLiteral(?item) && datatype(?item) = spexpr:PlainString) )
                 }
             }
         """
@@ -340,7 +341,7 @@ salg:GraphRefShape a sh:NodeShape ;
     ] [
         sh:nodeKind sh:BlankNode
     ] [
-        sh:datatype salg:PyStr ;
+        sh:datatype spexpr:PlainString ;
         sh:nodeKind sh:Literal
     ] ) .
 
@@ -388,27 +389,21 @@ salg:InsertDataShape a sh:NodeShape ;
 salg:JoinShape a sh:NodeShape ;
     sh:property [
         sh:maxCount 1 ;
-        sh:message "salg:Join must have exactly one salg:p2, a graph pattern" ;
-        sh:minCount 1 ;
-        sh:node salg:GraphPatternShape ;
-        sh:path salg:p2
-    ], [
-        sh:maxCount 1 ;
         sh:message "salg:Join must have exactly one salg:p1, a graph pattern" ;
         sh:minCount 1 ;
         sh:node salg:GraphPatternShape ;
         sh:path salg:p1
+    ], [
+        sh:maxCount 1 ;
+        sh:message "salg:Join must have exactly one salg:p2, a graph pattern" ;
+        sh:minCount 1 ;
+        sh:node salg:GraphPatternShape ;
+        sh:path salg:p2
     ] ;
     sh:targetClass salg:Join .
 
 salg:LeftJoinShape a sh:NodeShape ;
     sh:property [
-        sh:maxCount 1 ;
-        sh:message "salg:LeftJoin must have exactly one salg:p2, a graph pattern" ;
-        sh:minCount 1 ;
-        sh:node salg:GraphPatternShape ;
-        sh:path salg:p2
-    ], [
         sh:maxCount 1 ;
         sh:message "salg:LeftJoin must have exactly one salg:expr (TrueFilter if OPTIONAL had no inline FILTER)" ;
         sh:minCount 1 ;
@@ -420,16 +415,21 @@ salg:LeftJoinShape a sh:NodeShape ;
         sh:minCount 1 ;
         sh:node salg:GraphPatternShape ;
         sh:path salg:p1
+    ], [
+        sh:maxCount 1 ;
+        sh:message "salg:LeftJoin must have exactly one salg:p2, a graph pattern" ;
+        sh:minCount 1 ;
+        sh:node salg:GraphPatternShape ;
+        sh:path salg:p2
     ] ;
     sh:targetClass salg:LeftJoin .
 
 salg:LoadShape a sh:NodeShape ;
     sh:property [
-        sh:datatype salg:PyStr ;
         sh:maxCount 1 ;
-        sh:message "salg:silent is optional but at most one, a salg:PyStr-tagged SILENT keyword" ;
-        sh:nodeKind sh:Literal ;
-        sh:path salg:silent
+        sh:message "salg:Load's own salg:graphiri (INTO GRAPH) is optional but, when present, must be a plain IRI, not a DEFAULT/NAMED/ALL keyword" ;
+        sh:nodeKind sh:IRI ;
+        sh:path salg:graphiri
     ], [
         sh:maxCount 1 ;
         sh:message "salg:Load must have exactly one salg:iri, an IRI" ;
@@ -437,10 +437,11 @@ salg:LoadShape a sh:NodeShape ;
         sh:nodeKind sh:IRI ;
         sh:path salg:iri
     ], [
+        sh:datatype spexpr:PlainString ;
         sh:maxCount 1 ;
-        sh:message "salg:Load's own salg:graphiri (INTO GRAPH) is optional but, when present, must be a plain IRI, not a DEFAULT/NAMED/ALL keyword" ;
-        sh:nodeKind sh:IRI ;
-        sh:path salg:graphiri
+        sh:message "salg:silent is optional but at most one, a spexpr:PlainString-tagged SILENT keyword" ;
+        sh:nodeKind sh:Literal ;
+        sh:path salg:silent
     ] ;
     sh:targetClass salg:Load .
 
@@ -463,6 +464,12 @@ salg:MinusShape a sh:NodeShape ;
 salg:ModifyShape a sh:NodeShape ;
     sh:property [
         sh:maxCount 1 ;
+        sh:message "salg:Modify must have exactly one salg:where, a graph pattern" ;
+        sh:minCount 1 ;
+        sh:node salg:GraphPatternShape ;
+        sh:path salg:where
+    ], [
+        sh:maxCount 1 ;
         sh:message "salg:Modify's salg:insert, if present, must be a salg:InsertClause" ;
         sh:node salg:InsertClauseShape ;
         sh:path salg:insert
@@ -471,12 +478,6 @@ salg:ModifyShape a sh:NodeShape ;
         sh:message "salg:Modify's salg:delete, if present, must be a salg:DeleteClause" ;
         sh:node salg:DeleteClauseShape ;
         sh:path salg:delete
-    ], [
-        sh:maxCount 1 ;
-        sh:message "salg:Modify must have exactly one salg:where, a graph pattern" ;
-        sh:minCount 1 ;
-        sh:node salg:GraphPatternShape ;
-        sh:path salg:where
     ] ;
     sh:sparql [
         a sh:SPARQLConstraint ;
@@ -511,16 +512,16 @@ salg:ObjectOrVariableShape a sh:NodeShape ;
 salg:OrderByShape a sh:NodeShape ;
     sh:property [
         sh:maxCount 1 ;
-        sh:message "salg:OrderBy must have exactly one salg:expr, a well-formed rdf:List of salg:OrderCondition" ;
-        sh:minCount 1 ;
-        sh:node salg:OrderConditionListShape ;
-        sh:path salg:expr
-    ], [
-        sh:maxCount 1 ;
         sh:message "salg:OrderBy must have exactly one salg:p, a graph pattern" ;
         sh:minCount 1 ;
         sh:node salg:GraphPatternShape ;
         sh:path salg:p
+    ], [
+        sh:maxCount 1 ;
+        sh:message "salg:OrderBy must have exactly one salg:expr, a well-formed rdf:List of salg:OrderCondition" ;
+        sh:minCount 1 ;
+        sh:node salg:OrderConditionListShape ;
+        sh:path salg:expr
     ] ;
     sh:targetClass salg:OrderBy .
 
@@ -552,9 +553,9 @@ salg:OrderConditionShape a sh:NodeShape ;
         sh:node spexpr:ExpressionShape ;
         sh:path salg:expr
     ], [
-        sh:datatype salg:PyStr ;
+        sh:datatype spexpr:PlainString ;
         sh:maxCount 1 ;
-        sh:message "salg:OrderCondition may have at most one salg:order, a salg:PyStr-tagged ASC/DESC keyword (omitted means ASC)" ;
+        sh:message "salg:OrderCondition may have at most one salg:order, a spexpr:PlainString-tagged ASC/DESC keyword (omitted means ASC)" ;
         sh:nodeKind sh:Literal ;
         sh:path salg:order
     ] ;
@@ -668,12 +669,6 @@ salg:ReducedShape a sh:NodeShape ;
 salg:SelectQueryShape a sh:NodeShape ;
     sh:property [
         sh:maxCount 1 ;
-        sh:message "salg:SelectQuery must have exactly one salg:PV, a well-formed rdf:List of Variables (the projected-variables list)" ;
-        sh:minCount 1 ;
-        sh:node salg:VariableListShape ;
-        sh:path salg:PV
-    ], [
-        sh:maxCount 1 ;
         sh:message "salg:SelectQuery may have at most one salg:datasetClause, a well-formed rdf:List of salg:DatasetClause" ;
         sh:node salg:DatasetClauseListShape ;
         sh:path salg:datasetClause
@@ -683,21 +678,27 @@ salg:SelectQueryShape a sh:NodeShape ;
         sh:minCount 1 ;
         sh:node salg:SubSelectShape ;
         sh:path salg:p
+    ], [
+        sh:maxCount 1 ;
+        sh:message "salg:SelectQuery must have exactly one salg:PV, a well-formed rdf:List of Variables (the projected-variables list)" ;
+        sh:minCount 1 ;
+        sh:node salg:VariableListShape ;
+        sh:path salg:PV
     ] ;
     sh:targetClass salg:SelectQuery .
 
 salg:ServiceGraphPatternShape a sh:NodeShape ;
     sh:property [
+        sh:datatype spexpr:PlainString ;
+        sh:maxCount 1 ;
+        sh:message "salg:silent is optional but at most one, a spexpr:PlainString-tagged SILENT keyword" ;
+        sh:nodeKind sh:Literal ;
+        sh:path salg:silent
+    ], [
         sh:maxCount 1 ;
         sh:message "salg:ServiceGraphPattern must have exactly one salg:graph (a raw, untranslated parse-tree fragment - out of scope to shape further, see this property's own comment)" ;
         sh:minCount 1 ;
         sh:path salg:graph
-    ], [
-        sh:datatype salg:PyStr ;
-        sh:maxCount 1 ;
-        sh:message "salg:silent is optional but at most one, a salg:PyStr-tagged SILENT keyword" ;
-        sh:nodeKind sh:Literal ;
-        sh:path salg:silent
     ], [
         sh:maxCount 1 ;
         sh:message "salg:ServiceGraphPattern must have exactly one salg:term, the endpoint IRI or Variable" ;
@@ -710,7 +711,7 @@ salg:ServiceGraphPatternShape a sh:NodeShape ;
     sh:targetClass salg:ServiceGraphPattern .
 
 salg:ShapesGraph a sh:ShapesGraph ;
-    rdfs:member salg:SelectQueryShape, salg:Aggregate_SampleShape, salg:QuadsForGraphListShape, salg:DatasetClauseShape, salg:_FlatTriplesUpdateBodyShape, salg:UnionShape, salg:TriplePatternShape, salg:PredicateOrVariableOrPathShape, salg:BindingRowListShape, salg:DistinctShape, salg:PredicateOrVariableShape, salg:ReducedShape, salg:AggregateListShape, salg:UpdateShape, salg:Aggregate_CountShape, salg:OrderConditionShape, salg:_SampleAggregateBodyShape, salg:OrderByShape, salg:OrderConditionListShape, salg:Aggregate_GroupConcatShape, salg:InsertDataShape, salg:ToMultiSetShape, salg:FilterShape, salg:ExtendShape, salg:QuadsForGraphShape, salg:ConstructQueryShape, salg:SubjectOrVariableShape, salg:MoveShape, salg:DeleteDataShape, salg:TriplePatternListShape, salg:DeleteWhereShape, salg:DropShape, salg:ClearShape, salg:_AggregateBodyShape, salg:DescribeQueryShape, salg:ProjectShape, salg:ObjectOrVariableShape, salg:_GraphRefUpdateBodyShape, salg:ObjectOrVariableOrTripleTermShape, salg:_GraphRefListUpdateBodyShape, salg:GraphRefListShape, salg:GraphShape, salg:DeleteClauseShape, salg:AskQueryShape, salg:LoadShape, salg:AggregateJoinShape, salg:VariableListShape, salg:ServiceGraphPatternShape, salg:BGPShape, salg:TripleTermShape, salg:CreateShape, salg:ModifyShape, salg:MinusShape, salg:GraphPatternShape, salg:GroupShape, salg:LeftJoinShape, salg:QueryListShape, salg:JoinShape, salg:_GroupConcatAggregateBodyShape, salg:InsertClauseShape, salg:GraphRefShape, salg:SubSelectShape, salg:SliceShape, salg:AddShape, salg:UpdateOperationListShape, salg:QueryCollectionShape, salg:CopyShape, salg:Aggregate_MaxShape, salg:BindingShape, salg:valuesShape, salg:DatasetClauseListShape, salg:Aggregate_AvgShape, salg:Aggregate_MinShape, salg:Aggregate_SumShape, salg:SubjectOrVariableOrTripleTermShape ;
+    rdfs:member salg:SliceShape, salg:QueryCollectionShape, salg:GroupShape, salg:TripleTermShape, salg:ConstructQueryShape, salg:OrderConditionListShape, salg:TriplePatternShape, salg:DistinctShape, salg:LoadShape, salg:UpdateOperationListShape, salg:BindingRowListShape, salg:InsertClauseShape, salg:SubjectOrVariableOrTripleTermShape, salg:DropShape, salg:SubSelectShape, salg:QueryListShape, salg:AddShape, salg:DescribeQueryShape, salg:Aggregate_SumShape, salg:PredicateOrVariableOrPathShape, salg:DatasetClauseListShape, salg:AskQueryShape, salg:ClearShape, salg:OrderConditionShape, salg:_GraphRefUpdateBodyShape, salg:ModifyShape, salg:ReducedShape, salg:ServiceGraphPatternShape, salg:VariableListShape, salg:Aggregate_MinShape, salg:PredicateOrVariableShape, salg:BGPShape, salg:QuadsForGraphListShape, salg:Aggregate_SampleShape, salg:JoinShape, salg:ObjectOrVariableShape, salg:InsertDataShape, salg:UpdateShape, salg:SubjectOrVariableShape, salg:MoveShape, salg:GraphRefListShape, salg:Aggregate_AvgShape, salg:LeftJoinShape, salg:TriplePatternListShape, salg:DeleteWhereShape, salg:SelectQueryShape, salg:CreateShape, salg:DeleteDataShape, salg:GraphPatternShape, salg:OrderByShape, salg:ExtendShape, salg:CopyShape, salg:ToMultiSetShape, salg:GraphRefShape, salg:_AggregateBodyShape, salg:ProjectShape, salg:DeleteClauseShape, salg:_GraphRefListUpdateBodyShape, salg:DatasetClauseShape, salg:AggregateListShape, salg:Aggregate_CountShape, salg:Aggregate_GroupConcatShape, salg:AggregateJoinShape, salg:valuesShape, salg:_SampleAggregateBodyShape, salg:_GroupConcatAggregateBodyShape, salg:BindingShape, salg:MinusShape, salg:ObjectOrVariableOrTripleTermShape, salg:QuadsForGraphShape, salg:FilterShape, salg:UnionShape, salg:_FlatTriplesUpdateBodyShape, salg:Aggregate_MaxShape, salg:GraphShape ;
     owl:imports spexpr:ShapesGraph .
 
 salg:SliceShape a sh:NodeShape ;
@@ -809,16 +810,16 @@ salg:TriplePatternShape a sh:NodeShape ;
 salg:TripleTermShape a sh:NodeShape ;
     sh:property [
         sh:maxCount 1 ;
-        sh:message "salg:TripleTerm must have exactly one salg:subject, an IRI/blank node/Variable (nested TripleTerm not permitted here)" ;
-        sh:minCount 1 ;
-        sh:node salg:SubjectOrVariableShape ;
-        sh:path salg:subject
-    ], [
-        sh:maxCount 1 ;
         sh:message "salg:TripleTerm must have exactly one salg:predicate, an IRI/Variable" ;
         sh:minCount 1 ;
         sh:node salg:PredicateOrVariableShape ;
         sh:path salg:predicate
+    ], [
+        sh:maxCount 1 ;
+        sh:message "salg:TripleTerm must have exactly one salg:subject, an IRI/blank node/Variable (nested TripleTerm not permitted here)" ;
+        sh:minCount 1 ;
+        sh:node salg:SubjectOrVariableShape ;
+        sh:path salg:subject
     ], [
         sh:maxCount 1 ;
         sh:message "salg:TripleTerm must have exactly one salg:object" ;
@@ -831,16 +832,16 @@ salg:TripleTermShape a sh:NodeShape ;
 salg:UnionShape a sh:NodeShape ;
     sh:property [
         sh:maxCount 1 ;
-        sh:message "salg:Union must have exactly one salg:p1, a graph pattern" ;
-        sh:minCount 1 ;
-        sh:node salg:GraphPatternShape ;
-        sh:path salg:p1
-    ], [
-        sh:maxCount 1 ;
         sh:message "salg:Union must have exactly one salg:p2, a graph pattern" ;
         sh:minCount 1 ;
         sh:node salg:GraphPatternShape ;
         sh:path salg:p2
+    ], [
+        sh:maxCount 1 ;
+        sh:message "salg:Union must have exactly one salg:p1, a graph pattern" ;
+        sh:minCount 1 ;
+        sh:node salg:GraphPatternShape ;
+        sh:path salg:p1
     ] ;
     sh:targetClass salg:Union .
 
@@ -897,6 +898,12 @@ salg:VariableListShape a sh:NodeShape ;
 salg:_AggregateBodyShape a sh:NodeShape ;
     sh:property [
         sh:maxCount 1 ;
+        sh:message "salg:distinct must have exactly one value (a spexpr:PlainString-tagged DISTINCT keyword, or rdf:nil when absent)" ;
+        sh:minCount 1 ;
+        sh:node spexpr:DistinctMarkerShape ;
+        sh:path salg:distinct
+    ], [
+        sh:maxCount 1 ;
         sh:message "expected exactly one salg:res, the aggregate's own output Variable" ;
         sh:minCount 1 ;
         sh:node spexpr:VariableShape ;
@@ -907,34 +914,28 @@ salg:_AggregateBodyShape a sh:NodeShape ;
         sh:minCount 1 ;
         sh:node spexpr:ExpressionShape ;
         sh:path salg:vars
-    ], [
-        sh:maxCount 1 ;
-        sh:message "salg:distinct must have exactly one value (a salg:PyStr-tagged DISTINCT keyword, or rdf:nil when absent)" ;
-        sh:minCount 1 ;
-        sh:node spexpr:DistinctMarkerShape ;
-        sh:path salg:distinct
     ] .
 
 salg:_FlatTriplesUpdateBodyShape a sh:NodeShape ;
     sh:property [
         sh:maxCount 1 ;
-        sh:message "expected exactly one salg:triples, a well-formed rdf:List of salg:TriplePattern" ;
-        sh:minCount 1 ;
-        sh:node salg:TriplePatternListShape ;
-        sh:path salg:triples
-    ], [
-        sh:maxCount 1 ;
         sh:message "expected exactly one salg:quads, a well-formed rdf:List of salg:QuadsForGraph" ;
         sh:minCount 1 ;
         sh:node salg:QuadsForGraphListShape ;
         sh:path salg:quads
+    ], [
+        sh:maxCount 1 ;
+        sh:message "expected exactly one salg:triples, a well-formed rdf:List of salg:TriplePattern" ;
+        sh:minCount 1 ;
+        sh:node salg:TriplePatternListShape ;
+        sh:path salg:triples
     ] .
 
 salg:_GraphRefListUpdateBodyShape a sh:NodeShape ;
     sh:property [
-        sh:datatype salg:PyStr ;
+        sh:datatype spexpr:PlainString ;
         sh:maxCount 1 ;
-        sh:message "salg:silent is optional but at most one, a salg:PyStr-tagged SILENT keyword" ;
+        sh:message "salg:silent is optional but at most one, a spexpr:PlainString-tagged SILENT keyword" ;
         sh:nodeKind sh:Literal ;
         sh:path salg:silent
     ], [
@@ -947,21 +948,26 @@ salg:_GraphRefListUpdateBodyShape a sh:NodeShape ;
 
 salg:_GraphRefUpdateBodyShape a sh:NodeShape ;
     sh:property [
-        sh:datatype salg:PyStr ;
-        sh:maxCount 1 ;
-        sh:message "salg:silent is optional but at most one, a salg:PyStr-tagged SILENT keyword" ;
-        sh:nodeKind sh:Literal ;
-        sh:path salg:silent
-    ], [
         sh:maxCount 1 ;
         sh:message "expected exactly one salg:graphiri, a graph term or DEFAULT/NAMED/ALL keyword" ;
         sh:minCount 1 ;
         sh:node salg:GraphRefShape ;
         sh:path salg:graphiri
+    ], [
+        sh:datatype spexpr:PlainString ;
+        sh:maxCount 1 ;
+        sh:message "salg:silent is optional but at most one, a spexpr:PlainString-tagged SILENT keyword" ;
+        sh:nodeKind sh:Literal ;
+        sh:path salg:silent
     ] .
 
 salg:_GroupConcatAggregateBodyShape a sh:NodeShape ;
     sh:property [
+        sh:maxCount 1 ;
+        sh:message "salg:separator is optional (absent means the SPARQL-default single-space separator) but at most one, a Literal when present" ;
+        sh:nodeKind sh:Literal ;
+        sh:path salg:separator
+    ], [
         sh:maxCount 1 ;
         sh:message "expected exactly one salg:res, the aggregate's own output Variable" ;
         sh:minCount 1 ;
@@ -969,21 +975,16 @@ salg:_GroupConcatAggregateBodyShape a sh:NodeShape ;
         sh:path salg:res
     ], [
         sh:maxCount 1 ;
-        sh:message "expected exactly one salg:vars" ;
-        sh:minCount 1 ;
-        sh:node spexpr:ExpressionShape ;
-        sh:path salg:vars
-    ], [
-        sh:maxCount 1 ;
-        sh:message "salg:distinct must have exactly one value (a salg:PyStr-tagged DISTINCT keyword, or rdf:nil when absent)" ;
+        sh:message "salg:distinct must have exactly one value (a spexpr:PlainString-tagged DISTINCT keyword, or rdf:nil when absent)" ;
         sh:minCount 1 ;
         sh:node spexpr:DistinctMarkerShape ;
         sh:path salg:distinct
     ], [
         sh:maxCount 1 ;
-        sh:message "salg:separator is optional (absent means the SPARQL-default single-space separator) but at most one, a Literal when present" ;
-        sh:nodeKind sh:Literal ;
-        sh:path salg:separator
+        sh:message "expected exactly one salg:vars" ;
+        sh:minCount 1 ;
+        sh:node spexpr:ExpressionShape ;
+        sh:path salg:vars
     ] .
 
 salg:_SampleAggregateBodyShape a sh:NodeShape ;

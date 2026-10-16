@@ -76,30 +76,34 @@ into the dataset described further below and as the ``.../<filename>``
 suffix of its ``get_resource_iri()`` IRI):
 
 - ``manch:`` (``manchester-ast-ontology.ttl`` / ``manchester_shapes.ttl``) -
-  OWL 2 Manchester Syntax's own internal AST as RDF. Type ``"ast-graph"``.
+  OWL 2 Manchester Syntax's own internal syntax tree, as RDF. Type
+  ``"syntax-tree-graph"``.
 - ``skos:`` (``skos-ontology.ttl`` / ``skos_shapes.ttl``) - the W3C SKOS
   Reference's own formal axioms and integrity conditions, over the real
   ``skos:`` namespace. Type ``"owl"`` - unlike the other vocabularies,
   this is a real semantic ontology (actual axioms about an existing
   vocabulary), not a syntax tree represented as RDF, so it doesn't get the
-  ``"ast-graph"`` label the others earn.
+  ``"syntax-tree-graph"`` label the others earn.
 - ``salg:`` (``salg-ontology.ttl`` / ``sparql_shapes.ttl``) - a SPARQL 1.2
-  query/update's own algebra as RDF. Type ``"ast-graph"``.
+  query/update's own algebra as RDF (a resolved, `translateQuery`'d
+  syntax tree, one level past the raw parse tree `sqe:` below encodes).
+  Type ``"syntax-tree-graph"``.
 - ``sqe:`` (``sqe-ontology.ttl`` / ``sqe_shapes.ttl``) - a SPARQL
   `SELECT`/`ASK`/`CONSTRUCT` query's own raw parse tree (pre-
   `translateQuery`), as a flat, human-readable RDF tree meant for hand/UI
   editing - deliberately not `salg:`'s resolved algebra, which isn't
   readable or editable the same way (see
-  `starlayer.sparql.sqe`'s own module docstrings). Type ``"ast-graph"``.
+  `starlayer.sparql.sqe`'s own module docstrings). Type ``"syntax-tree-graph"``.
 - ``srl:`` (``srl-ontology.ttl`` / ``srl_shapes.ttl``) - SRL/SPARQL-RL's
-  own rule-set abstract syntax as RDF (see `starlayer.sparql.srl`).
-  Type ``"ast-graph"``.
+  own rule-set syntax tree, as RDF (see `starlayer.sparql.srl`).
+  Type ``"syntax-tree-graph"``.
 - ``spexpr:`` (``spexpr-ontology.ttl`` / ``spexpr_shapes.ttl``) - the
   SPARQL expression/variable/property-path vocabulary, the one slice
   ``salg:``/``sqe:``/``srl:`` all need identically (their own expression
   encoding, reused unchanged rather than reimplemented per-vocabulary);
   each of those three's own shapes file imports this one's shapes via
-  ``owl:imports`` rather than defining it separately. Type ``"ast-graph"``.
+  ``owl:imports`` rather than defining it separately. Type
+  ``"syntax-tree-graph"``.
 
 Every shapes file (all six) is type ``"shacl"``, regardless of which of
 the above its own target ontology is.
@@ -142,11 +146,11 @@ handed to a caller directly); ``_named_graph(context_iri)`` copies just one
 named graph's triples into a fresh ``Graph`` per call, which is what every
 public function below actually returns.
 
-**``get_profile_graph()``**: every registered shapes graph is related by
-the dx-prof vocabulary's ``prof:isProfileOf`` to the *real external
-specification* it implements (SPARQL, SKOS, Manchester Syntax,
-SPARQL-RL) - not to the bundled ontology/AST graph. The ontology/AST graph
-is instead one of that same real specification's own
+**``get_conformance_profiles()``**: every registered shapes graph is
+related by the dx-prof vocabulary's ``prof:isProfileOf`` to the *real
+external specification* it implements (SPARQL, SKOS, Manchester Syntax,
+SPARQL-RL) - not to the bundled ontology/syntax-tree graph. The ontology/
+syntax-tree graph is instead one of that same real specification's own
 ``prof:hasResource``/``prof:ResourceDescriptor`` entries (``prof:hasRole
 role:schema``), a sibling of the shapes graph's own ``role:validation``
 descriptor. ``sparql_shacl``/``sparql_owl`` (``salg:``) are deliberately
@@ -154,8 +158,11 @@ excluded from this mapping entirely - unlike the other pairs, ``salg:`` is
 this project's own internal SPARQL algebra encoding, not something meant
 to carry a public-facing conformance claim. This plugs directly into
 ``starlayer.shacl.profiling.derive_conforms_to()``'s own
-``specification_graph=`` parameter - see ``get_profile_graph()``'s own
-docstring for the full design and a worked example.
+``specification_graph=`` parameter - see ``get_conformance_profiles()``'s
+own docstring for the full design and a worked example. There is
+deliberately no per-entry filter function - a caller who only wants one
+pair's own triples can query/extract that slice from the full graph
+themselves (e.g. ``graph.triples((get_resource_iri(name), PROF.isProfileOf, None))``).
 
 The mapping itself lives in a real, persisted document
 (``ontology-shapes-profiles.ttl``, stored as its own named graph inside
@@ -165,10 +172,8 @@ profile relationship is genuine, persisted metadata (the same way
 file), deliberately independent of both endpoints it relates (mixing
 profile metadata into either the ontology or the shapes graph would
 conflate two different concerns - see that named graph's own header
-comment). ``get_conformance_profiles(url=...)`` loads it (the bundled copy
-by default, or any local path/``http(s)://`` location instead);
-``get_profile_graph(shapes_name, url=...)`` is a thin filter over that
-same document.
+comment). ``get_conformance_profiles(url=...)`` loads it - the bundled copy
+by default, or any local path/``http(s)://`` location instead.
 """
 
 from __future__ import annotations
@@ -216,7 +221,7 @@ _FILENAME_BY_NAME: dict[str, str] = {
     "spexpr_shacl": "spexpr_shapes.ttl",
     # shacl_meta gets a real resource IRI too (used by
     # ontology-shapes-profiles.ttl's own prof:isProfileOf entry for it -
-    # see get_profile_graph()'s docstring) - it's a real named graph in
+    # see get_conformance_profiles()'s docstring) - it's a real named graph in
     # starontology.trig at this filename, loaded via the shared _load()
     # like every other entry (see the module docstring's "What's here"
     # section for why build_meta_shapes_graph() still exists separately).
@@ -224,9 +229,9 @@ _FILENAME_BY_NAME: dict[str, str] = {
 }
 
 # The ontology-shapes profile mapping's own filename/named-graph identity -
-# see get_conformance_profiles()/get_profile_graph() below, and
-# _dataset()'s own comment for why it's a named graph inside the same
-# dataset rather than embedded in either endpoint it relates.
+# see get_conformance_profiles() below, and _dataset()'s own comment for
+# why it's a named graph inside the same dataset rather than embedded in
+# either endpoint it relates.
 _PROFILES_FILENAME = "ontology-shapes-profiles.ttl"
 
 
@@ -239,7 +244,7 @@ class OntologyInfo:
 
     name: str
     description: str
-    type: str  # "shacl" | "ast-graph" | "owl"
+    type: str  # "shacl" | "syntax-tree-graph" | "owl"
 
 
 _REGISTRY: dict[str, tuple[OntologyInfo, Callable[[], StarLayerGraph]]] = {
@@ -247,18 +252,18 @@ _REGISTRY: dict[str, tuple[OntologyInfo, Callable[[], StarLayerGraph]]] = {
         OntologyInfo(
             name="manchester_owl",
             description=(
-                "OWL 2 Manchester Syntax's own internal AST as RDF (manch:) - "
-                "frames/clauses/class- and property-expressions/data-ranges, "
-                "one level upstream of the compiled OWL RDF mapping."
+                "OWL 2 Manchester Syntax's own internal syntax tree, as RDF "
+                "(manch:) - frames/clauses/class- and property-expressions/"
+                "data-ranges, one level upstream of the compiled OWL RDF mapping."
             ),
-            type="ast-graph",
+            type="syntax-tree-graph",
         ),
         lambda: _load("manchester_owl"),
     ),
     "manchester_shacl": (
         OntologyInfo(
             name="manchester_shacl",
-            description="SHACL shapes validating a manch: AST graph's own structural well-formedness.",
+            description="SHACL shapes validating a manch: syntax tree's own structural well-formedness.",
             type="shacl",
         ),
         lambda: _load("manchester_shacl"),
@@ -290,7 +295,7 @@ _REGISTRY: dict[str, tuple[OntologyInfo, Callable[[], StarLayerGraph]]] = {
                 "A SPARQL 1.2 query/update's own algebra as RDF (salg:) - "
                 "encode/edit/decode/re-execute a query as data."
             ),
-            type="ast-graph",
+            type="syntax-tree-graph",
         ),
         lambda: _load("sparql_owl"),
     ),
@@ -313,7 +318,7 @@ _REGISTRY: dict[str, tuple[OntologyInfo, Callable[[], StarLayerGraph]]] = {
                 "the same way. v1 scope reduction: no aggregates/"
                 "subqueries/VALUES/Update yet (property paths ARE covered)."
             ),
-            type="ast-graph",
+            type="syntax-tree-graph",
         ),
         lambda: _load("sqe_owl"),
     ),
@@ -333,10 +338,10 @@ _REGISTRY: dict[str, tuple[OntologyInfo, Callable[[], StarLayerGraph]]] = {
         OntologyInfo(
             name="srl_owl",
             description=(
-                "SRL/SPARQL-RL's own rule-set abstract syntax as RDF (srl:) - "
+                "SRL/SPARQL-RL's own rule-set syntax tree, as RDF (srl:) - "
                 "a Datalog-style rules language, general-purpose and SHACL-independent."
             ),
-            type="ast-graph",
+            type="syntax-tree-graph",
         ),
         lambda: _load("srl_owl"),
     ),
@@ -357,7 +362,7 @@ _REGISTRY: dict[str, tuple[OntologyInfo, Callable[[], StarLayerGraph]]] = {
                 "salg:/sqe:/srl: all need identically (their own expression "
                 "encoding, reused unchanged, not reimplemented per-vocabulary)."
             ),
-            type="ast-graph",
+            type="syntax-tree-graph",
         ),
         lambda: _load("spexpr_owl"),
     ),
@@ -487,9 +492,32 @@ def _load(name: str) -> StarLayerGraph:
     return g
 
 
+#  salg: (sparql_owl/sparql_shacl) is purely an internal encoding - the
+# raw SPARQL 1.2 algebra representation starlayer.sparql's own
+# query_to_rdf()/rdf_to_query() machinery uses, and sqe:/srl: import its
+# shared expression vocabulary - not something an external caller is
+# meant to reach for directly (sqe: is the human-readable, UI-editable
+# public-facing analog). Excluded from get_ontology_list()'s own
+# enumeration so it doesn't show up as a thing to pick; still a real,
+# fully registered entry otherwise - get_ontology_graph()/
+# get_resource_iri()/get_raw_url()/local_loader() all still resolve it
+# by name normally, since internal code (srl.py, salg/sparql_ontology.py,
+# salg/sparql_shapes.py) genuinely depends on being able to.
+_EXCLUDED_FROM_ONTOLOGY_LIST = frozenset({"sparql_owl", "sparql_shacl"})
+
+
 def get_ontology_list() -> tuple[OntologyInfo, ...]:
-    """Every registered ontology/shapes file's metadata, sorted by name."""
-    return tuple(sorted((info for info, _loader in _REGISTRY.values()), key=lambda info: info.name))
+    """Every registered ontology/shapes file's metadata, sorted by name.
+
+    Excludes the ``salg:`` pair (``sparql_owl``/``sparql_shacl``) - see
+    ``_EXCLUDED_FROM_ONTOLOGY_LIST``'s own comment just above.
+    """
+    return tuple(
+        sorted(
+            (info for name, (info, _loader) in _REGISTRY.items() if name not in _EXCLUDED_FROM_ONTOLOGY_LIST),
+            key=lambda info: info.name,
+        )
+    )
 
 
 def get_ontology_graph(name: str) -> StarLayerGraph:
@@ -507,7 +535,7 @@ def get_ontology_graph(name: str) -> StarLayerGraph:
     return loader()
 
 
-# Every registered shapes entry that has a paired ontology/AST entry it
+# Every registered shapes entry that has a paired ontology/syntax-tree entry it
 # validates - every "*_shacl" entry except "shacl_meta" (no "shacl_owl"
 # entry exists, since shacl_meta has no ontology of its own to pair
 # with). Just the name list - the actual prof:isProfileOf pairing itself
@@ -524,15 +552,6 @@ _SHACL_ENTRIES_WITH_ONTOLOGY_COUNTERPART = (
     "srl_shacl",
     "spexpr_shacl",
 )
-
-# Every registered shacl-type entry get_profile_graph() will look up in
-# ontology-shapes-profiles.ttl - a genuinely different list than the one
-# above, on purpose (see that tuple's own comment: it's reused for an
-# unrelated reason and "shouldn't share a name with the thing that
-# does"). shacl_meta has a real prof:isProfileOf entry there too (against
-# the public SHACL profile IRIs it represents) despite having no ontology
-# counterpart at all - the two facts are independent.
-_SHACL_ENTRIES_WITH_PROFILE_MAPPING = _SHACL_ENTRIES_WITH_ONTOLOGY_COUNTERPART + ("shacl_meta",)
 
 # Same "GitHub blob URL as a resource identity" convention
 # starlayer.shacl's own shacl12-conformance-profile.ttl already established
@@ -575,11 +594,11 @@ def _raw_filename(name: str) -> str | None:
 
 
 def get_resource_iri(name: str) -> URIRef | None:
-    """The stable resource IRI ``get_profile_graph()`` uses to identify
-    ``name``'s own registered file (a GitHub blob URL - see
-    ``_GITHUB_BLOB_BASE``'s own neighboring comment for the convention).
-    Returns ``None`` for an unregistered name, matching
-    ``get_profile_graph()``'s own no-raise convention.
+    """The stable resource IRI ``get_conformance_profiles()`` uses to
+    identify ``name``'s own registered file as a ``prof:isProfileOf``
+    subject (a GitHub blob URL - see ``_GITHUB_BLOB_BASE``'s own
+    neighboring comment for the convention). Returns ``None`` for an
+    unregistered name.
 
     ``"shacl_meta"`` gets a real IRI here too, despite having no ontology
     counterpart - it's the same one ``ontology-shapes-profiles.ttl``
@@ -590,8 +609,8 @@ def get_resource_iri(name: str) -> URIRef | None:
     ``specification_graph=`` chain expects - `derive_conforms_to()`'s
     second rule only fires when the shapes-graph IRI the caller supplied
     to `validate(..., shapes_graph_resource=...)` is the *exact same* IRI
-    `get_profile_graph()` asserts `prof:isProfileOf` on, not merely some
-    other identity for "the same" file:
+    the conformance-profiles graph asserts `prof:isProfileOf` on, not
+    merely some other identity for "the same" file:
 
     >>> shapes = starontology.get_ontology_graph("skos_shacl")
     >>> result = StarShaclSchema(shacl_graph=shapes).validate(
@@ -601,7 +620,7 @@ def get_resource_iri(name: str) -> URIRef | None:
     ... )
     >>> derive_conforms_to(
     ...     result.report_graph,
-    ...     specification_graph=starontology.get_profile_graph("skos_shacl"),
+    ...     specification_graph=starontology.get_conformance_profiles(),
     ... )  # doctest: +SKIP
     """
     if name not in _FILENAME_BY_NAME:
@@ -647,12 +666,12 @@ def get_conformance_profiles(url: str | None = None) -> StarLayerGraph:
 
     Each registered shapes graph is ``prof:isProfileOf`` the real external
     specification it implements (SPARQL, SKOS, Manchester Syntax,
-    SPARQL-RL) - not the bundled ontology/AST-as-RDF graph, which is
+    SPARQL-RL) - not the bundled ontology/syntax-tree-as-RDF graph, which is
     instead one of that same real specification's own
     ``prof:hasResource``/``prof:ResourceDescriptor`` entries
     (``prof:hasRole role:schema``), a sibling of the shapes graph's own
-    ``role:validation`` descriptor. See ``get_profile_graph()``'s own
-    docstring for the full design.
+    ``role:validation`` descriptor. See this module's own docstring
+    ("``get_conformance_profiles()``") for the full design.
 
     Loads the bundled copy by default. Pass ``url=`` to load a different
     local path or ``http(s)://`` location instead - ``rdflib.Graph.parse()``
@@ -660,8 +679,17 @@ def get_conformance_profiles(url: str | None = None) -> StarLayerGraph:
     local override for testing, without needing a new ``starontology``
     release to pick up a change. An override is read as a plain Turtle
     document (not a dataset) - it's expected to carry just the
-    ``prof:isProfileOf``/``prof:hasResource`` triples themselves, the same
-    shape ``get_profile_graph()`` itself returns.
+    ``prof:isProfileOf``/``prof:hasResource`` triples themselves.
+
+    Returns the whole mapping document - every registered pair's own
+    relationship, not just one. There is deliberately no per-entry filter
+    function: a caller who wants just one pair's own triples can extract
+    that slice themselves (e.g. via ``graph.triples((get_resource_iri(name),
+    PROF.isProfileOf, None))``, or a full subgraph walk if the
+    ``prof:hasResource``/``prof:ResourceDescriptor`` detail is wanted too) -
+    the full graph works equally well as ``derive_conforms_to()``'s own
+    ``specification_graph=`` argument either way, since its WHERE clause
+    already filters by the exact shapes-graph IRI.
 
     A fresh graph on every call, matching this stack's "never share one
     mutable graph object across callers" convention (see
@@ -690,101 +718,11 @@ def get_conformance_profiles(url: str | None = None) -> StarLayerGraph:
     return g
 
 
-def get_profile_graph(shapes_name: str, url: str | None = None) -> StarLayerGraph | None:
-    """A small, fresh ``StarLayerGraph`` describing ``shapes_name``'s own
-    registered shapes graph's real relationship to its *actual*
-    specification - a thin filter over ``get_conformance_profiles(url)`` -
-    pass ``url=`` through to load the mapping from somewhere other than
-    the bundled default.
-
-    The convention this project follows: the shapes graph itself is
-    ``prof:isProfileOf`` the real external specification (e.g. SPARQL 1.2
-    Query, the SKOS Reference, OWL 2 Manchester Syntax) - the same
-    predicate ``starlayer.shacl.profiling.derive_conforms_to()``'s own
-    ``specification_graph=`` parameter already expects, and the exact
-    shape SHACL 1.2 Profiling's own S5.5 rule requires to fire at all (it
-    looks for ``?shapesGraph prof:isProfileOf ?spec`` directly - no way to
-    walk through ``prof:hasResource``/``prof:hasArtifact``/``prof:hasRole``
-    instead). The bundled ontology/AST-as-RDF graph (``manch:``/``sqe:``/
-    ``srl:``/``spexpr:``/``skos_owl``) is **not** what the shapes
-    graph profiles - it's a ``prof:hasResource``/``prof:ResourceDescriptor``
-    of the *same* real specification, tagged ``prof:hasRole
-    role:schema`` ("machine-readable structural descriptions of data"),
-    a sibling of the shapes graph's own ``role:validation`` descriptor
-    ("supplies instructions about how to verify conformance") - not
-    something the shapes graph is itself a profile *of*.
-
-    A pair with no real external specification of its own (``sqe:``,
-    ``spexpr:``) still profiles one correctly - both are genuinely part of
-    SPARQL 1.2 Query's own grammar (raw parse tree / shared expression
-    vocabulary respectively), so both point at
-    ``https://www.w3.org/TR/sparql12-query``.
-
-    **``sparql_shacl``/``sparql_owl`` (``salg:``) excluded entirely**:
-    unlike the other five pairs, ``salg:`` is this project's own internal
-    SPARQL algebra encoding - not something meant to carry a
-    public-facing conformance claim. ``get_profile_graph("sparql_shacl")``
-    returns an empty graph (it's still a real registered entry, just one
-    this document has nothing to say about), never ``None``.
-
-    ``"shacl_meta"`` has a real entry too, despite having no ontology
-    counterpart at all - ``starlayer``'s own SHACL meta-shapes graph
-    declares ``prof:isProfileOf`` the public SHACL 1.2 profile IRIs it
-    represents (Core/SPARQL/Node-Expressions/Rules/Profiling - the same
-    five ``declared_conformance_profile()`` already claims). No
-    ``prof:hasResource`` structure accompanies it, unlike the six real
-    pairs above - there's no sibling ontology/AST graph to describe via
-    ``role:schema``, so this entry is just the bare ``isProfileOf``
-    triples.
-
-    Returns ``None`` only for a name not registered at all, rather than
-    raising - this is optional enrichment, not something every caller
-    needs.
-
-    Ready to pass straight through as ``derive_conforms_to()``'s own
-    ``specification_graph=`` argument: validate real data against
-    ``get_ontology_graph("skos_shacl")``, derive ``sh:conformsTo`` against
-    the shapes graph, then
-    ``derive_conforms_to(result.report_graph, specification_graph=
-    get_profile_graph("skos_shacl"))`` additionally derives
-    ``dcterms:conformsTo`` against the real SKOS Reference spec IRI - one
-    real inference chain from validated data up through the shapes graph
-    up to the actual external standard it implements.
-    """
-    if shapes_name not in _SHACL_ENTRIES_WITH_PROFILE_MAPPING:
-        return None
-
-    from starlayer.graph import (
-        StarLayerGraph,  # lazy: avoids a circular-import deadlock, see _load()'s own comment
-    )
-
-    mapping = get_conformance_profiles(url)
-    subject = _resource_iri(shapes_name)
-    graph = StarLayerGraph()
-    _bind_dataset_namespaces(graph)
-
-    # Breadth-first walk outward from `subject`, following every outgoing
-    # predicate - not a hardcoded hop count or predicate list - so this
-    # stays correct regardless of how many hops the real structure needs.
-    # Today that's: shapes -> prof:isProfileOf -> specification ->
-    # prof:hasResource -> ResourceDescriptor bnode -> its own
-    # hasArtifact/hasRole/rdfs:label/rdfs:comment (3 hops) - but nothing
-    # here assumes that specific shape. Terminates naturally: a Literal or
-    # a leaf URIRef with no further outgoing triples contributes nothing
-    # new to the frontier.
-    seen_nodes = {subject}
-    frontier = [subject]
-    while frontier:
-        next_frontier = []
-        for node in frontier:
-            for triple in mapping.triples((node, None, None)):
-                graph.add(triple)
-                obj = triple[2]
-                if obj not in seen_nodes:
-                    seen_nodes.add(obj)
-                    next_frontier.append(obj)
-        frontier = next_frontier
-    return graph
+# get_profile_graph() (a per-entry filter over get_conformance_profiles())
+# was removed 2026-10-14 - a user only ever needs the full mapping graph;
+# anyone wanting one entry's own slice can extract it themselves from
+# get_conformance_profiles()'s result. See starlayer/shacl/CLAUDE.md's
+# dated entry for the removal.
 
 
 # Every registered shapes entry's own real sh:ShapesGraph node IRI (the one

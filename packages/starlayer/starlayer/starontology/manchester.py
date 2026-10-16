@@ -16,7 +16,7 @@ Four entry points:
   straight to its ``manch:``-encoded syntax tree, reusing
   ``starlayer.graph.parsers.manchester_parser``'s own tokenizer/frame/
   clause/expression-parsing functions completely unchanged (via a
-  ``_Cursor`` subclass overriding its no-op AST-capture hooks - see that
+  ``_Cursor`` subclass overriding its no-op syntax-tree-capture hooks - see that
   module's own comments on ``_Cursor.record_frame``/``record_clause``/etc).
   Returns just the graph, not a ``(graph, root)`` tuple (changed
   2026-10-03) - every graph this produces holds exactly one
@@ -89,7 +89,7 @@ at all) is now structurally impossible, not just avoided by convention.
 Staying deferred here costs nothing and keeps this module consistent with
 ``starontology/__init__.py``'s own ``_load()``, so
 it's kept anyway - just no longer load-bearing. This is also why
-``_AstCursor`` (which needs ``_Cursor`` as a base class at
+``_SyntaxTreeCursor`` (which needs ``_Cursor`` as a base class at
 class-definition time) is defined *inside* ``manchester_parse_to_tree()`` rather than
 at module scope, and why the characteristic/data-facet reverse-lookup maps
 are built lazily on first use rather than at import time.
@@ -493,7 +493,7 @@ def _encode_clause_items(g, clause_class, frame_kind, clause_kind, items):
 
 # ---------------------------------------------------------------------------
 # Encode - manchester_parse_to_tree() + a _Cursor subclass overriding the
-# AST-capture hooks. The subclass is defined inside manchester_parse_to_tree() itself,
+# syntax-tree-capture hooks. The subclass is defined inside manchester_parse_to_tree() itself,
 # not at module scope, since its base class (_Cursor) is only available
 # once starlayer.graph.parsers.manchester_parser is imported - deferred
 # here for the circular-import reason this module's own docstring explains.
@@ -513,7 +513,7 @@ def manchester_parse_to_tree(text: str, base: str | None = None) -> Graph:
 
     Reuses ``manchester_parser.py``'s own tokenizer, frame/clause dispatch,
     and expression/data-range grammar completely unchanged - only the
-    (already no-op-by-default) AST-capture hooks are overridden. See this
+    (already no-op-by-default) syntax-tree-capture hooks are overridden. See this
     module's own docstring for the exact fidelity scope (matches the
     parser's existing internal AST, not raw text).
 
@@ -526,11 +526,11 @@ def manchester_parse_to_tree(text: str, base: str | None = None) -> Graph:
     """
     from starlayer.graph.parsers.manchester_parser import _Cursor, _tokenize
 
-    class _AstCursor(_Cursor):
+    class _SyntaxTreeCursor(_Cursor):
         def __init__(self, tokens, base):
             super().__init__(tokens, base)
-            self.ast_graph = Graph()
-            self.ast_graph.bind('manch', MANCH)
+            self.syntax_tree_graph = Graph()
+            self.syntax_tree_graph.bind('manch', MANCH)
             self._prefix_nodes = []
             self._header_node = None
             self._frame_nodes = []
@@ -540,15 +540,15 @@ def manchester_parse_to_tree(text: str, base: str | None = None) -> Graph:
             self._current_frame_clause_nodes = None
 
         def record_prefix(self, prefix, iri):
-            g = self.ast_graph
+            g = self.syntax_tree_graph
             node = BNode()
             g.add((node, RDF.type, MANCH.PrefixDecl))
-            g.add((node, MANCH.prefixLabel, Literal(prefix, datatype=MANCH.PyStr)))
+            g.add((node, MANCH.prefixLabel, Literal(prefix, datatype=MANCH.PlainString)))
             g.add((node, MANCH.prefixIri, Literal(iri)))
             self._prefix_nodes.append(node)
 
         def record_ontology_header(self, iri, imports):
-            g = self.ast_graph
+            g = self.syntax_tree_graph
             node = BNode()
             g.add((node, RDF.type, MANCH.OntologyHeader))
             if iri is not None:
@@ -557,7 +557,7 @@ def manchester_parse_to_tree(text: str, base: str | None = None) -> Graph:
             self._header_node = node
 
         def record_frame(self, kind, subject):
-            g = self.ast_graph
+            g = self.syntax_tree_graph
             node = BNode()
             frame_class = _FRAME_CLASS[kind]
             g.add((node, RDF.type, frame_class))
@@ -568,7 +568,7 @@ def manchester_parse_to_tree(text: str, base: str | None = None) -> Graph:
             self._frame_nodes.append(node)
 
         def record_clause(self, frame_kind, clause_kind, items):
-            g = self.ast_graph
+            g = self.syntax_tree_graph
             clause_class = _CLAUSE_CLASS[(frame_kind, clause_kind)]
             node = BNode()
             g.add((node, RDF.type, clause_class))
@@ -579,14 +579,14 @@ def manchester_parse_to_tree(text: str, base: str | None = None) -> Graph:
             self._current_frame_clause_nodes.append(node)
 
         def record_frame_end(self):
-            g = self.ast_graph
+            g = self.syntax_tree_graph
             g.add((self._current_frame_node, MANCH.clauses,
                     _build_rdf_list(g, self._current_frame_clause_nodes)))
             self._current_frame_node = None
             self._current_frame_clause_nodes = None
 
         def record_misc(self, keyword, items):
-            g = self.ast_graph
+            g = self.syntax_tree_graph
             misc_class = _MISC_CLASS[keyword]
             node = BNode()
             g.add((node, RDF.type, misc_class))
@@ -595,10 +595,10 @@ def manchester_parse_to_tree(text: str, base: str | None = None) -> Graph:
             g.add((node, MANCH.items, _build_rdf_list(g, item_nodes)))
             self._misc_nodes.append(node)
 
-    cur = _AstCursor(_tokenize(text), base)
+    cur = _SyntaxTreeCursor(_tokenize(text), base)
     _run_top_level(cur)
 
-    g = cur.ast_graph
+    g = cur.syntax_tree_graph
     root = BNode()
     g.add((root, RDF.type, MANCH.Document))
     g.add((root, MANCH.prefixes, _build_rdf_list(g, cur._prefix_nodes)))
@@ -613,7 +613,7 @@ def _run_top_level(cur):
     """The exact same top-level dispatch loop as
     manchester_parser.parse_manchester(), reused verbatim rather than
     duplicated - it's already generic over `cur`, dispatching purely on
-    frame keywords, so an _AstCursor drives it identically to a plain
+    frame keywords, so an _SyntaxTreeCursor drives it identically to a plain
     _Cursor. Kept as a local import-and-copy rather than refactoring
     parse_manchester() itself to accept a pre-built cursor, since that
     function's own signature (text, base) -> list is a stable, tested
@@ -1124,7 +1124,7 @@ def manchester_validate(data_graph: Graph) -> tuple[bool, Graph, str]:
     RDF 1.2 content, which only ``starlayer.shacl`` understands correctly.
 
     Args:
-        data_graph: The ``manch:`` tree graph to validate - e.g. straight
+        data_graph: The ``manch:`` syntax tree to validate - e.g. straight
             out of ``manchester_parse_to_tree()``, or an LLM-authored
             ``manch:`` graph not yet decoded.
 

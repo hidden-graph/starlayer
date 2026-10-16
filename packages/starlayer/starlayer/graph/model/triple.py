@@ -84,6 +84,7 @@ class TripleTerm:
         yield self.object
 
     def n3(self, namespace_manager=None):
+        """Returns the N3/Turtle-1.2 (``<<( s p o )>>``) text form."""
         nm = namespace_manager if namespace_manager is not None else self._namespace_manager
         return f'<<( {self.subject.n3(nm)} {self.predicate.n3(nm)} {self.object.n3(nm)} )>>'
 

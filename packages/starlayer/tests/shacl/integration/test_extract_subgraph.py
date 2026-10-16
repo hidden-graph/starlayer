@@ -56,15 +56,15 @@ class TestBasicExtractionAndAcceptanceTest:
         EX = Namespace("http://example.org/")
         result = extract_subgraph(
             _graph(self.DATA),
-            EX.JEShape,
-            EX.je1,
             shacl_graph=_graph(self.SHAPE),
+            shape=EX.JEShape,
+            focus_node=EX.je1,
         )
         return result
 
     def test_conforms_and_note_is_excluded(self) -> None:
         result = self._extract()
-        assert result is not None
+        assert len(result) > 0
         serialized = result.serialize(format="turtle12")
         assert "later note" not in serialized
         assert "100" in serialized  # amount
@@ -79,8 +79,8 @@ class TestBasicExtractionAndAcceptanceTest:
 
         EX = Namespace("http://example.org/")
         data = _graph("@prefix ex: <http://example.org/> . ex:je2 a ex:JournalEntry .")  # missing amount/account
-        result = extract_subgraph(data, EX.JEShape, EX.je2, shacl_graph=_graph(self.SHAPE))
-        assert result is None
+        result = extract_subgraph(data, shacl_graph=_graph(self.SHAPE), shape=EX.JEShape, focus_node=EX.je2)
+        assert len(result) == 0
 
 
 class TestMultiHopPaths:
@@ -101,7 +101,7 @@ class TestMultiHopPaths:
             "ex:S a sh:NodeShape ; sh:targetNode ex:alice ; "
             "sh:property [ sh:path (ex:employee ex:name) ; sh:minCount 1 ] ."
         )
-        result = extract_subgraph(data, EX.S, EX.alice, shacl_graph=shapes)
+        result = extract_subgraph(data, shacl_graph=shapes, shape=EX.S, focus_node=EX.alice)
         serialized = result.serialize(format="turtle12")
         assert "ex:bob" in serialized or "bob" in serialized
         assert "Bob" in serialized
@@ -124,8 +124,8 @@ class TestMultiHopPaths:
             "ex:S a sh:NodeShape ; sh:targetNode ex:alice ; "
             "sh:property [ sh:path [ sh:zeroOrMorePath ex:friend ] ; sh:minCount 1 ] ."
         )
-        result = extract_subgraph(data, EX.S, EX.alice, shacl_graph=shapes)
-        assert result is not None
+        result = extract_subgraph(data, shacl_graph=shapes, shape=EX.S, focus_node=EX.alice)
+        assert len(result) > 0
         serialized = result.serialize(format="turtle12")
         assert "dave" not in serialized
         # alice, bob, carol should all appear via their friend edges,
@@ -151,7 +151,7 @@ class TestNestedShapes:
             "ex:S a sh:NodeShape ; sh:targetNode ex:alice ; "
             "sh:property [ sh:path ex:employee ; sh:node ex:PersonShape ] ."
         )
-        result = extract_subgraph(data, EX.S, EX.alice, shacl_graph=shapes)
+        result = extract_subgraph(data, shacl_graph=shapes, shape=EX.S, focus_node=EX.alice)
         serialized = result.serialize(format="turtle12")
         assert "Bob" in serialized
         assert "shh" not in serialized
@@ -179,7 +179,7 @@ class TestLogicalConstraints:
             "ex:HasPhone a sh:NodeShape ; sh:property [ sh:path ex:phone ; sh:minCount 1 ] . "
             "ex:S a sh:NodeShape ; sh:targetNode ex:alice ; sh:or ( ex:HasEmail ex:HasPhone ) ."
         )
-        result = extract_subgraph(data, EX.S, EX.alice, shacl_graph=shapes)
+        result = extract_subgraph(data, shacl_graph=shapes, shape=EX.S, focus_node=EX.alice)
         serialized = result.serialize(format="turtle12")
         assert "a@example.org" in serialized
         assert "phoneUnused" not in serialized
@@ -197,7 +197,7 @@ class TestLogicalConstraints:
             "ex:HasPhone a sh:NodeShape ; sh:property [ sh:path ex:phone ; sh:minCount 1 ] . "
             "ex:S a sh:NodeShape ; sh:targetNode ex:alice ; sh:or ( ex:HasEmail ex:HasPhone ) ."
         )
-        result = extract_subgraph(data, EX.S, EX.alice, shacl_graph=shapes)
+        result = extract_subgraph(data, shacl_graph=shapes, shape=EX.S, focus_node=EX.alice)
         serialized = result.serialize(format="turtle12")
         assert "a@example.org" in serialized
         assert "555" in serialized
@@ -213,14 +213,14 @@ class TestLogicalConstraints:
             "ex:HasPhone a sh:NodeShape ; sh:property [ sh:path ex:phone ; sh:minCount 1 ] . "
             "ex:S a sh:NodeShape ; sh:targetNode ex:alice ; sh:xone ( ex:HasEmail ex:HasPhone ) ."
         )
-        result = extract_subgraph(data, EX.S, EX.alice, shacl_graph=shapes)
-        assert result is not None
+        result = extract_subgraph(data, shacl_graph=shapes, shape=EX.S, focus_node=EX.alice)
+        assert len(result) > 0
         assert "a@example.org" in result.serialize(format="turtle12")
 
     def test_sh_xone_second_passing_branch_breaks_conformance(self) -> None:
         """If data later changes so a second xone disjunct also passes,
         sh:xone itself is no longer satisfied - extraction must fail
-        outright (returns None), not silently include a
+        outright (returns an empty graph), not silently include a
         different subgraph."""
         from rdflib import Namespace
 
@@ -234,8 +234,8 @@ class TestLogicalConstraints:
             "ex:HasPhone a sh:NodeShape ; sh:property [ sh:path ex:phone ; sh:minCount 1 ] . "
             "ex:S a sh:NodeShape ; sh:targetNode ex:alice ; sh:xone ( ex:HasEmail ex:HasPhone ) ."
         )
-        result = extract_subgraph(data, EX.S, EX.alice, shacl_graph=shapes)
-        assert result is None
+        result = extract_subgraph(data, shacl_graph=shapes, shape=EX.S, focus_node=EX.alice)
+        assert len(result) == 0
 
 
 class TestQualifiedValueShapeDeterminism:
@@ -261,7 +261,7 @@ class TestQualifiedValueShapeDeterminism:
             "sh:qualifiedValueShape [ sh:property [ sh:path ex:dept ; sh:hasValue ex:Sales ] ] ; "
             "sh:qualifiedMinCount 1 ] ."
         )
-        result = extract_subgraph(_graph(self.DATA), EX.S, EX.alice, shacl_graph=shapes)
+        result = extract_subgraph(_graph(self.DATA), shacl_graph=shapes, shape=EX.S, focus_node=EX.alice)
         serialized = result.serialize(format="turtle12")
         assert "bob" in serialized and "carol" in serialized
         assert "dave" not in serialized
@@ -281,7 +281,7 @@ class TestQualifiedValueShapeDeterminism:
             "sh:qualifiedValueShape [ sh:property [ sh:path ex:dept ; sh:hasValue ex:Sales ] ] ; "
             "sh:qualifiedMinCount 1 ] ."
         )
-        result = extract_subgraph(_graph(self.DATA), EX.S, EX.alice, shacl_graph=shapes)
+        result = extract_subgraph(_graph(self.DATA), shacl_graph=shapes, shape=EX.S, focus_node=EX.alice)
         serialized = result.serialize(format="turtle12")
         assert "dave" in serialized
 
@@ -340,7 +340,7 @@ class TestCloseShape:
         EX = Namespace("http://example.org/")
         prod_shapes = _graph(self.PROD_SHAPE)
         before = len(prod_shapes)
-        extract_subgraph(_graph(self.DATA), EX.JEShape, EX.je1, shacl_graph=prod_shapes)
+        extract_subgraph(_graph(self.DATA), shacl_graph=prod_shapes, shape=EX.JEShape, focus_node=EX.je1)
         assert len(prod_shapes) == before
 
     def test_extracted_subgraph_conforms_to_the_derived_strict_shape(self) -> None:
@@ -353,8 +353,8 @@ class TestCloseShape:
 
         EX = Namespace("http://example.org/")
         prod_shapes = _graph(self.PROD_SHAPE)
-        result = extract_subgraph(_graph(self.DATA), EX.JEShape, EX.je1, shacl_graph=prod_shapes)
-        assert result is not None
+        result = extract_subgraph(_graph(self.DATA), shacl_graph=prod_shapes, shape=EX.JEShape, focus_node=EX.je1)
+        assert len(result) > 0
 
         strict_shapes = StarShaclSchema(shacl_graph=prod_shapes).close_shape(EX.JEShape)
         check = StarShaclSchema(shacl_graph=strict_shapes).validate(data_graph=result, meta_shacl=False)
@@ -381,8 +381,111 @@ class TestNoShapesGraphFallsBackToDataGraph:
 
         EX = Namespace("http://example.org/")
         data = _graph(self.DATA_WITH_EMBEDDED_SHAPE)
-        result = extract_subgraph(data, EX.JEShape, EX.je1)
-        assert result is not None
+        result = extract_subgraph(data, shape=EX.JEShape, focus_node=EX.je1)
+        assert len(result) > 0
         serialized = result.serialize(format="turtle12")
         assert "later note" not in serialized
         assert "100" in serialized
+
+
+class TestWholeShapesGraphExtraction:
+    """shape=/focus_node= are optional filters - given neither, extraction
+    discovers every real entry point (shape, focus_node) pair the whole
+    shapes graph declares (via pySHACL's own Shape.focus_nodes()) and
+    returns the union of every conforming pair's own extraction, not a
+    per-pair breakdown (decided directly with the user)."""
+
+    DATA = """
+        @prefix ex: <http://example.org/> .
+        ex:alice a ex:Person ; ex:name "Alice" .
+        ex:acme a ex:Company ; ex:name "Acme" .
+        ex:bob a ex:Person .
+    """
+    SHAPES = """
+        @prefix ex: <http://example.org/> .
+        @prefix sh: <http://www.w3.org/ns/shacl#> .
+        ex:PersonShape a sh:NodeShape ; sh:targetClass ex:Person ;
+          sh:property [ sh:path ex:name ; sh:minCount 1 ] .
+        ex:CompanyShape a sh:NodeShape ; sh:targetClass ex:Company ;
+          sh:property [ sh:path ex:name ; sh:minCount 1 ] .
+    """
+
+    def test_no_filters_unions_every_conforming_entry_point_across_every_shape(self) -> None:
+        from rdflib import Namespace
+
+        EX = Namespace("http://example.org/")
+        result = extract_subgraph(_graph(self.DATA), shacl_graph=_graph(self.SHAPES))
+        serialized = result.serialize(format="turtle12")
+        assert "Alice" in serialized
+        assert "Acme" in serialized
+
+    def test_non_conforming_candidate_contributes_nothing_not_an_error(self) -> None:
+        # bob (a Person with no ex:name) doesn't conform to PersonShape -
+        # must be silently excluded from the union, not raise.
+        result = extract_subgraph(_graph(self.DATA), shacl_graph=_graph(self.SHAPES))
+        assert "bob" not in result.serialize(format="turtle12")
+
+    def test_shape_alone_unions_every_real_target_of_that_one_shape(self) -> None:
+        from rdflib import Namespace
+
+        EX = Namespace("http://example.org/")
+        result = extract_subgraph(_graph(self.DATA), shacl_graph=_graph(self.SHAPES), shape=EX.PersonShape)
+        serialized = result.serialize(format="turtle12")
+        assert "Alice" in serialized
+        assert "Acme" not in serialized  # CompanyShape's own target, not PersonShape's
+
+    def test_focus_node_alone_unions_every_shape_that_actually_targets_it(self) -> None:
+        # alice is a real target of PersonShape (sh:targetClass ex:Person)
+        # but not of CompanyShape - focus_node= alone must anchor to what
+        # the shapes graph itself declares, not "any shape alice happens
+        # to conform to" (she'd trivially conform to CompanyShape's bare
+        # sh:property too, if CompanyShape ever targeted her - it doesn't).
+        from rdflib import Namespace
+
+        EX = Namespace("http://example.org/")
+        result = extract_subgraph(_graph(self.DATA), shacl_graph=_graph(self.SHAPES), focus_node=EX.alice)
+        serialized = result.serialize(format="turtle12")
+        assert "Alice" in serialized
+        assert "Acme" not in serialized
+
+    def test_deactivated_shape_is_not_treated_as_an_entry_point(self) -> None:
+        shapes = _graph(
+            """
+            @prefix ex: <http://example.org/> .
+            @prefix sh: <http://www.w3.org/ns/shacl#> .
+            ex:PersonShape a sh:NodeShape ; sh:targetClass ex:Person ; sh:deactivated true ;
+              sh:property [ sh:path ex:name ; sh:minCount 1 ] .
+            """
+        )
+        result = extract_subgraph(_graph(self.DATA), shacl_graph=shapes)
+        assert len(result) == 0
+
+    def test_sparql_based_target_is_discovered_via_advanced_mode(self) -> None:
+        # A sh:target[a sh:SPARQLTarget] entry point - only reachable once
+        # set_advanced(True) is called on the harvested Shape before
+        # focus_nodes() runs.
+        shapes = _graph(
+            """
+            @prefix ex: <http://example.org/> .
+            @prefix sh: <http://www.w3.org/ns/shacl#> .
+            ex:NamedThingShape a sh:NodeShape ;
+              sh:target [ a sh:SPARQLTarget ;
+                sh:select "PREFIX ex: <http://example.org/> SELECT $this WHERE { $this ex:name ?n }" ] ;
+              sh:property [ sh:path ex:name ; sh:minCount 1 ] .
+            """
+        )
+        result = extract_subgraph(_graph(self.DATA), shacl_graph=shapes)
+        serialized = result.serialize(format="turtle12")
+        assert "Alice" in serialized
+        assert "Acme" in serialized
+
+    def test_both_filters_given_reproduces_the_original_single_pair_behavior(self) -> None:
+        from rdflib import Namespace
+
+        EX = Namespace("http://example.org/")
+        result = extract_subgraph(
+            _graph(self.DATA), shacl_graph=_graph(self.SHAPES), shape=EX.PersonShape, focus_node=EX.alice
+        )
+        serialized = result.serialize(format="turtle12")
+        assert "Alice" in serialized
+        assert "Acme" not in serialized

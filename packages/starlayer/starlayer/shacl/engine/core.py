@@ -101,6 +101,9 @@ def target_nodes(
 
 
 def evaluate_component(request: ComponentRequest) -> _ComponentEvaluationResult:
+    """Evaluates one native ``ConstraintComponent`` directly against
+    ``request``'s own focus/value nodes, dispatched by component name.
+    """
     name = _component_name(request.component)
 
     if name == str(STSH.TripleTermNodeKind):
@@ -137,6 +140,7 @@ def evaluate_component(request: ComponentRequest) -> _ComponentEvaluationResult:
 
 
 def build_report(*, events: tuple[dict[str, Any], ...], graph_context: Any, options: dict[str, Any] | None = None) -> Any:
+    """Builds a ``sh:ValidationReport`` graph from component ``events``."""
     options = options or {}
     value_decoder = options.get("value_decoder", lambda x: x)
 
