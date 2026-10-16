@@ -13,5 +13,5 @@
 - testing-strategy.md: the four test tiers, what each one actually checks, and known degradation points
 - performance.md: full benchmark write-up and backend recommendations
 - future_enhancements.md: deferred follow-ups and rationale behind non-obvious decisions
-- rdflib-upstream-issues.md, oxigraph-upstream-issues.md, fuseki-upstream-issues.md: bugs found in third-party dependencies to report upstream
+- `../../../../docs/upstream-issues/`: bugs found in third-party dependencies (rdflib, Oxigraph, Fuseki) to report upstream
 - `../tests/vendor/spec_snapshots/`: vendored W3C spec text snapshots used for conformance diffing (see its own README.md)

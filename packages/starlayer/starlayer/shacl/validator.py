@@ -3977,20 +3977,29 @@ def _patch_stringify_for_native_backend_bnodes() -> bool:
             )
             graph_names = [row[Variable("g")] for row in bindings if Variable("g") in row]
 
+            def _wrap(name):
+                # name=None -> the store's default graph (a StarLayerGraph built
+                # with no explicit identifier is scoped there, not to a GRAPH
+                # block - and "GRAPH ?g" above can never enumerate it).
+                if name is None:
+                    return StarLayerGraph(store=dataset.store, backend="rdf-1.2")
+                return StarLayerGraph(store=dataset.store, identifier=name, backend="rdf-1.2")
+
             def _graph_contains(name, pattern) -> bool:
                 try:
-                    wrapped = StarLayerGraph(store=dataset.store, identifier=name, backend="rdf-1.2")
-                    return next(iter(wrapped.triples(pattern)), None) is not None
+                    return next(iter(_wrap(name).triples(pattern)), None) is not None
                 except Exception:
                     return False
 
-            for name in graph_names:
+            # Named graphs first (unchanged behavior), the default graph last.
+            candidates = [*graph_names, None]
+            for name in candidates:
                 if _graph_contains(name, (node, None, None)):
-                    return StarLayerGraph(store=dataset.store, identifier=name, backend="rdf-1.2")
-            for name in graph_names:
+                    return _wrap(name)
+            for name in candidates:
                 if _graph_contains(name, (None, None, node)):
-                    return StarLayerGraph(store=dataset.store, identifier=name, backend="rdf-1.2")
-            raise LookupError(f"Cannot find node {node} in any named graph.")
+                    return _wrap(name)
+            raise LookupError(f"Cannot find node {node} in any named graph or the default graph.")
 
         _patched_find_node_named_graph._starlayer_shacl_native_bnode_patched = True
         _stringify_mod.find_node_named_graph = _patched_find_node_named_graph
