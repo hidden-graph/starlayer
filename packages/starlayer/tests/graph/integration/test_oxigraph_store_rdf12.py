@@ -15,8 +15,7 @@ Requires: pip install oxrdflib pyoxigraph
 import os
 
 import pytest
-from rdflib import RDF, RDFS, BNode, Literal, Namespace, URIRef
-from rdflib.namespace import OWL
+from rdflib import RDF, RDFS, Literal, Namespace, URIRef
 from starlayer.graph.graph import StarLayerDataset, StarLayerGraph
 from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 from starlayer.graph.model.dirlangstring import DirLangString
@@ -304,15 +303,38 @@ _TITLE = 'http://example.org/title'
 
 _ABORT_REPRO = '''
 import pyoxigraph
+
+store = pyoxigraph.Store()
+store.update('INSERT DATA {{ <http://example.org/s> <{title}> "HTML page"@en--ltr }}')
+list(store.query({query!r}))
+print('SURVIVED')
+'''
+
+# The same data and queries, but through StarLayerGraph: the equality guard
+# (starlayer.graph.backends.dirlang_equality) must make every one of them work.
+# Run in a subprocess because, if the guard ever regressed, the engine would abort
+# the whole process.
+_GUARDED_REPRO = '''
+import json, warnings
+warnings.simplefilter("ignore")
+import pyoxigraph
 from oxrdflib import OxigraphStore
+from rdflib import URIRef
 from starlayer.graph.graph import StarLayerGraph
 from starlayer.graph.model.dirlangstring import DirLangString
-from rdflib import URIRef
 
-g = StarLayerGraph(store=OxigraphStore(store=pyoxigraph.Store()), backend='rdf-1.2')
-g.add((URIRef('http://example.org/s'), URIRef('{title}'), DirLangString('HTML page', 'en', 'ltr')))
-list(g.query({query!r}))
-print('SURVIVED')
+T = "http://example.org/title"
+g = StarLayerGraph(store=OxigraphStore(store=pyoxigraph.Store()), backend="rdf-1.2")
+for name, text, direction in (("a", "HTML page", "ltr"), ("b", "HTML page", "ltr"), ("c", "Other", "ltr"), ("d", "HTML page", "rtl")):
+    g.add((URIRef("http://example.org/" + name), URIRef(T), DirLangString(text, "en", direction)))
+
+def subjects(query):
+    return sorted(str(row[0]).rsplit("/", 1)[-1] for row in g.query(query))
+
+out = {{}}
+for name, query in {queries!r}.items():
+    out[name] = subjects(query)
+print(json.dumps(out))
 '''
 
 
@@ -343,12 +365,12 @@ class TestDirLangStringEquality:
         f'SELECT ?s WHERE {{ ?s <{_TITLE}> ?t . FILTER(?t = STRLANGDIR("HTML page", "en", "ltr")) }}',
     ], ids=['self_equality', 'strlangdir_comparison'])
     def test_value_equality_aborts_the_process_known_engine_bug(self, query):
-        """Documents the engine bug by running it in a subprocess (a panic is
-        a hard process abort, not a catchable exception). Opt-in - see
-        _engine_abort above for why and how to run it. If this starts
-        PASSING the query - Oxigraph fixed it upstream - update
-        docs/upstream-issues/oxigraph-upstream-issues.md and replace this
-        test with a plain equality assertion."""
+        """Documents the engine bug by running raw pyoxigraph (no StarLayer
+        guard in between) in a subprocess - a panic is a hard process abort,
+        not a catchable exception. Opt-in - see _engine_abort above for why and
+        how to run it. If this starts PASSING the query - Oxigraph fixed it
+        upstream - update docs/upstream-issues/oxigraph-upstream-issues.md and
+        retire the equality guard (starlayer/graph/backends/dirlang_equality.py)."""
         import subprocess
         import sys
         proc = subprocess.run(
@@ -363,6 +385,63 @@ class TestDirLangStringEquality:
             )
         assert proc.returncode != 0
         assert 'unreachable' in proc.stderr or 'panicked' in proc.stderr or 'Abort' in proc.stderr
+
+
+class TestDirLangStringEqualityGuard:
+    """``=`` over a dirLangString no longer aborts through StarLayerGraph: the query
+    is rewritten before it reaches the engine. Each test runs in a subprocess so a
+    regression would fail the test instead of killing the test run."""
+
+    _QUERIES = {
+        'self_equality': f'SELECT ?s WHERE {{ ?s <{_TITLE}> ?t . FILTER(?t = ?t) }}',
+        'against_strlangdir': (
+            f'SELECT ?s WHERE {{ ?s <{_TITLE}> ?t . '
+            "FILTER(?t = STRLANGDIR('HTML page', 'en', 'ltr')) }"
+        ),
+        'against_literal': f"SELECT ?s WHERE {{ ?s <{_TITLE}> ?t . FILTER(?t = 'HTML page'@en--ltr) }}",
+        'not_equal': f"SELECT ?s WHERE {{ ?s <{_TITLE}> ?t . FILTER(?t != 'HTML page'@en--ltr) }}",
+        'in_list': f"SELECT ?s WHERE {{ ?s <{_TITLE}> ?t . FILTER(?t IN ('Other'@en--ltr, 'x'@en--ltr)) }}",
+        'two_stored_values': (
+            f'SELECT ?a WHERE {{ ?a <{_TITLE}> ?x . ?b <{_TITLE}> ?y . '
+            'FILTER(?a != ?b && ?x = ?y) }'
+        ),
+    }
+
+    @staticmethod
+    def _run():
+        import json
+        import subprocess
+        import sys
+        proc = subprocess.run(
+            [sys.executable, '-c', _GUARDED_REPRO.format(queries=TestDirLangStringEqualityGuard._QUERIES)],
+            capture_output=True, text=True, timeout=180,
+        )
+        assert proc.returncode == 0, proc.stderr[-500:]
+        return json.loads(proc.stdout.strip().splitlines()[-1])
+
+    def test_value_equality_works_and_gives_the_right_answers(self):
+        r = self._run()
+        assert r['self_equality'] == ['a', 'b', 'c', 'd']  # every term equals itself
+        assert r['against_strlangdir'] == ['a', 'b']  # same text, language and direction
+        assert r['against_literal'] == ['a', 'b']
+        assert r['not_equal'] == ['c', 'd']  # different text (c) or direction (d)
+        assert r['in_list'] == ['c']
+        assert r['two_stored_values'] == ['a', 'b']  # a and b hold equal values, in either order
+
+    def test_a_default_store_graph_is_not_rewritten(self):
+        """Only an Oxigraph engine needs the guard: the default store's SPARQL is
+        passed through untouched."""
+        from starlayer.graph.backends.native import engine_aborts_on_dirlang_equality
+        assert engine_aborts_on_dirlang_equality(embedded_oxigraph_store()) is True
+        assert engine_aborts_on_dirlang_equality(object()) is False
+
+    def test_a_remote_endpoint_is_guarded_only_when_it_is_declared_to_be_oxigraph(self):
+        from types import SimpleNamespace
+
+        from starlayer.graph.backends.native import engine_aborts_on_dirlang_equality
+        assert engine_aborts_on_dirlang_equality(SimpleNamespace()) is False
+        assert engine_aborts_on_dirlang_equality(SimpleNamespace(starlayer_engine='fuseki')) is False
+        assert engine_aborts_on_dirlang_equality(SimpleNamespace(starlayer_engine='oxigraph')) is True
 
 
 # ---------------------------------------------------------------------------

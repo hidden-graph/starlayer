@@ -121,18 +121,20 @@ The first write-up wrongly scoped the trigger to `STRLANGDIR()`; the narrower va
 
 #### What it affects
 
-`StarLayerGraph(store=OxigraphStore(...), backend='rdf-1.2')` (the in-process route) and a remote Oxigraph `rdf-1.2` graph both hand SPARQL straight to the affected engine. A caller who relies on `=` equality over `dirLangString` data (not only via `STRLANGDIR()`) will hit the abort today.
+`StarLayerGraph(store=OxigraphStore(...), backend='rdf-1.2')` (the in-process route) and a remote Oxigraph `rdf-1.2` graph both hand SPARQL straight to the affected engine. Before 2026-10-17 a caller who used `=` over `dirLangString` data (not only via `STRLANGDIR()`) hit the abort.
 
-It is not worked around in this project's code: a process abort cannot be caught from Python, and rewriting `=` to `sameTerm()` is only valid where exact-term rather than value equality is acceptable. The default in-memory (`rdf-1.1`) representation is unaffected: `TestSparqlFunctions` exercises exactly this comparison there and passes, with no Oxigraph involved. A project-side guard is tracked in `packages/starlayer/docs/future_enhancements.md`.
+**Worked around in this project since 2026-10-17.** A process abort cannot be caught from Python, so the project rewrites the query before it reaches the engine (`starlayer/graph/backends/dirlang_equality.py`, applied in the `execute_*` seam of `backends/native.py`). Each equality `L = R` that could compare two `dirLangString` terms (and `!=`, `IN`, `NOT IN`) becomes `IF(COALESCE(hasLANGDIR(L), false) && COALESCE(hasLANGDIR(R), false), sameTerm(L, R), L = R)`, so the engine's own `=` never sees two `dirLangString` terms. An equality with a constant on either side (an IRI, a number, a plain or language-tagged string, a call to `STR()` and similar) cannot involve two of them and is left untouched, so most queries are unchanged. Applied automatically for an in-process Oxigraph; for a remote endpoint the engine cannot be probed (the probe is the abort), so declare it with `store.starlayer_engine = 'oxigraph'`. For two `dirLangString` terms the result matches what `=` should return; the one difference is that two unequal `dirLangString` terms give `false` where a strict reading of `=` gives an error, which only shows under `!` or `!=`. Operands that call `RAND()`, `NOW()`, `UUID()`, `STRUUID()`, `BNODE()` or contain `EXISTS` cannot be evaluated twice, so those comparisons are left as written (none of those functions returns a `dirLangString`). The default in-memory (`rdf-1.1`) representation is unaffected.
 
 #### How it is tested
 
 `tests/graph/integration/test_oxigraph_store_rdf12.py::TestDirLangStringEquality`:
 
 - confirms `sameTerm()` works over a `dirLangString` on the Oxigraph store route, and
-- reproduces the abort in a subprocess for both the self-equality case and the original `STRLANGDIR()` comparison.
+- reproduces the abort in a subprocess for both the self-equality case and the original `STRLANGDIR()` comparison, against **raw `pyoxigraph`** (no project guard in between, so it keeps documenting the engine bug).
 
-The two abort tests are **opt-in** (`STARLAYER_RUN_ENGINE_ABORT_TESTS=1`), because each one makes a subprocess genuinely abort, and on macOS every abort files a system crash report and can pop a "Python quit unexpectedly" dialog. They fail loudly, with instructions, if Oxigraph fixes this upstream, so run them deliberately before filing or after upgrading `pyoxigraph`.
+`TestDirLangStringEqualityGuard` (same file, not opt-in) runs the same kinds of query through `StarLayerGraph` in a subprocess and checks that they work and give the right rows (self-equality, against `STRLANGDIR()`, against a `dirLangString` literal, `!=`, `IN`, and two stored values), and `tests/graph/unit/test_dirlang_equality.py` tests the text rewrite itself.
+
+The two abort tests are **opt-in** (`STARLAYER_RUN_ENGINE_ABORT_TESTS=1`), because each one makes a subprocess genuinely abort, and on macOS every abort files a system crash report and can pop a "Python quit unexpectedly" dialog. They fail loudly, with instructions, if Oxigraph fixes this upstream, so run them deliberately after upgrading `pyoxigraph`; when they do, the project guard can be retired.
 
 `oxigraph_dirlangstring_crash_repro.ipynb` (same folder) is a runnable version of the upstream report: the working baselines run live, and the crashing cases carry the real captured subprocess output (stderr panic trace and exit code), since executing them in the notebook's own kernel would kill it.
 

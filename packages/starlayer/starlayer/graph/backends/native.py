@@ -498,9 +498,31 @@ def new_graph_like(store, backend: str):
     return StarLayerGraph()
 
 
+def engine_aborts_on_dirlang_equality(store) -> bool:
+    """Whether this store's engine is Oxigraph, whose SPARQL ``=`` aborts the whole
+    process on a ``rdf:dirLangString`` (oxigraph/oxigraph#1982).
+
+    Always true for an in-process Oxigraph. A remote endpoint is just a SPARQL
+    endpoint, and the engine behind it cannot be probed (the probe is the abort),
+    so a caller who knows it is ``oxigraph serve`` says so on the store:
+    ``store.starlayer_engine = 'oxigraph'``. See ``dirlang_equality.py``.
+    """
+    return _in_process(store) or getattr(store, 'starlayer_engine', None) == 'oxigraph'
+
+
+def _guard_for_engine(store, sparql: str) -> str:
+    """``sparql`` with equality over a possible ``dirLangString`` made safe, for
+    an engine that aborts on it; otherwise unchanged."""
+    if engine_aborts_on_dirlang_equality(store):
+        from starlayer.graph.backends.dirlang_equality import guard
+        return guard(sparql)
+    return sparql
+
+
 def execute_select(store, backend: str, sparql: str) -> tuple[list, list]:
     """Run a SPARQL SELECT against a native-backend store - remote HTTP or
     in-process Oxigraph - returning (vars, bindings) either way."""
+    sparql = _guard_for_engine(store, sparql)
     if _in_process(store):
         from starlayer.graph.backends.native_oxigraph import ox_select
         return ox_select(store, sparql)
@@ -510,6 +532,7 @@ def execute_select(store, backend: str, sparql: str) -> tuple[list, list]:
 
 def execute_ask(store, backend: str, sparql: str) -> bool:
     """Run a SPARQL ASK against a native-backend store (HTTP or in-process)."""
+    sparql = _guard_for_engine(store, sparql)
     if _in_process(store):
         from starlayer.graph.backends.native_oxigraph import ox_ask
         return ox_ask(store, sparql)
@@ -519,6 +542,7 @@ def execute_ask(store, backend: str, sparql: str) -> bool:
 
 def execute_update(store, backend: str, sparql: str) -> None:
     """Run a SPARQL UPDATE against a native-backend store (HTTP or in-process)."""
+    sparql = _guard_for_engine(store, sparql)
     if _in_process(store):
         from starlayer.graph.backends.native_oxigraph import ox_update
         ox_update(store, sparql)
@@ -532,6 +556,7 @@ def execute_construct(store, backend: str, sparql: str):
     in-process), returning a deskolemized StarLayerGraph of the results."""
     from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 
+    sparql = _guard_for_engine(store, sparql)
     if _in_process(store):
         from starlayer.graph.backends.native_oxigraph import ox_construct
         # Results are created like the source (in-process Oxigraph in, Oxigraph
