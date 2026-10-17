@@ -210,7 +210,7 @@ stsh:RulesGroup a sh:PropertyGroup ;
 stsh:WidgetGroup a sh:PropertyGroup ;
 	sh:name "SHACL 1.2 UI Widgets"@en ;
 	sh:order 16 ;
-	sh:description "shui: vocabulary for form generation — widget/editor/viewer assignment and the built-in widget instances. Documented for training purposes; not an implemented starShacl feature."@en .
+	sh:description "shui: vocabulary for form generation — widget/editor/viewer assignment and the built-in widget instances. Documents the vocabulary: validation ignores it; widget selection is implemented separately in starlayer.shacl.ui_widget_selection; property roles are not interpreted."@en .
 
 #############################################################################
 # Predicate rendering hints (sh:group / sh:order): Rules & SPARQL

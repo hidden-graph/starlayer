@@ -22,7 +22,7 @@ The full guide set has been reorganized into `docs/guides/`, one focused noteboo
    - **4.a [SHACL node expressions](04a-shacl-node-expressions.ipynb)** - the `shnex:`/`sparql:` node-expression vocabulary, `sh:values`/`sh:expression`, custom functions.
    - **4.b [SHACL and SPARQL](04b-shacl-and-sparql.ipynb)** - `sh:sparql` constraints, user-defined `sh:ConstraintComponent`.
    - **4.c [SHACL inference rules](04c-shacl-inference-rules.ipynb)** - `sh:rule`/`sh:TripleRule`/`sh:SPARQLRule`, execution ordering, rule sets, provenance.
-   - **4.d [SHACL UI](04d-shacl-ui.ipynb)** - `shui:` presentation metadata.
+   - **4.d [SHACL UI](04d-shacl-ui.ipynb)** - `shui:` widgets: fixed `shui:editor`/`shui:viewer` choices via `select_widgets()` (a dict of property shape to widget), launching a form in a browser, then `shui:WidgetScore` scoring for properties that name no widget.
    - **4.e [SHACL profiling](04e-shacl-profiling.ipynb)** - `sh:ShapesGraph`/`sh:DataGraph`/`owl:imports` packaging conventions.
    - **4.f [SHACL subgraph extraction & hashing](04f-shacl-subgraph-extraction.ipynb)** - `extract_subgraph()`, `close_shape()`, and the hash-and-verify commitment pattern.
 5. **[StarLayer Schemas and Ontologies](05-starlayer-schemas-and-ontologies.ipynb)** - the vocabularies StarLayer defines for representing an artifact's own internal structure as RDF, inspectable/editable/validatable like any other graph; plus the registry that bundles all of them (including SKOS and the SHACL meta-shapes).

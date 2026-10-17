@@ -72,38 +72,59 @@ def _matcher_accepts(
     matcher: Any,
     *,
     shape_node: Any,
-    focus_node: Any,
-    data_graph: Any,
+    focus_node: Any | None,
+    data_graph: Any | None,
+    shapes_graph: Any,
     scoring_graph: Any,
 ) -> bool:
-    """Section 3.4 Matcher Function: the shape node against the matcher's
-    own ``shui:shapesGraphShape`` (checked within ``scoring_graph``, where
-    both the matcher and that shape's definition live) and the focus node
-    against its ``shui:dataGraphShape`` (checked within ``data_graph``) -
-    either absent counts as unconstrained on that axis, matching ordinary
-    SHACL "no constraint means no restriction" semantics."""
+    """Section 3.4 Matcher Function, step for step:
+
+    1. No focus node, a ``shui:dataGraphShape`` present and no
+       ``shui:shapesGraphShape``: reject - the only condition cannot be checked.
+    2. The shape node is validated in the *shapes graph* against the
+       matcher's ``shui:shapesGraphShape``, whose definition is read from the
+       *scoring graph*. Reject on failure.
+    3. No focus node: accept.
+    4. The focus node is validated in the *data graph* against the
+       matcher's ``shui:dataGraphShape``. The spec reads that shape from the
+       shapes graph; the scoring graph is searched too, so a catalog that
+       defines it alongside the matcher also works.
+    """
     shapes_graph_shape = next(scoring_graph.objects(matcher, SHUI.shapesGraphShape), None)
+    data_graph_shape = next(scoring_graph.objects(matcher, SHUI.dataGraphShape), None)
+
+    if focus_node is None and data_graph_shape is not None and shapes_graph_shape is None:
+        return False
+
     if shapes_graph_shape is not None and not _node_conforms(
-        shape_node, shapes_graph_shape, base_graph=scoring_graph, shapes_graph=scoring_graph
+        shape_node, shapes_graph_shape, base_graph=shapes_graph, shapes_graph=scoring_graph
     ):
         return False
 
-    data_graph_shape = next(scoring_graph.objects(matcher, SHUI.dataGraphShape), None)
-    if data_graph_shape is not None and not _node_conforms(
-        focus_node, data_graph_shape, base_graph=data_graph, shapes_graph=scoring_graph
-    ):
-        return False
+    if focus_node is None:
+        return True
+
+    if data_graph_shape is not None:
+        from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+
+        shape_definitions = StarLayerGraph()
+        shape_definitions += shapes_graph
+        shape_definitions += scoring_graph
+        if not _node_conforms(
+            focus_node, data_graph_shape, base_graph=data_graph, shapes_graph=shape_definitions
+        ):
+            return False
 
     return True
 
 
 def select_widget(
-    shape_node: Any,
-    focus_node: Any,
     *,
-    data_graph: Any,
+    shape_node: Any,
+    focus_node: Any | None = None,
+    data_graph: Any | None = None,
     shapes_graph: Any,
-    scoring_graph: Any,
+    scoring_graph: Any | None = None,
     role: Role,
 ) -> URIRef | None:
     """Select the ``shui:editor``/``shui:viewer`` widget ``shape_node``
@@ -124,7 +145,25 @@ def select_widget(
     Returns ``None`` if nothing matches at all. ``data_graph``/
     ``shapes_graph``/``scoring_graph`` may be the same object - the spec
     doesn't require them to be separate graphs, just separate *roles*.
+
+    ``focus_node`` and ``data_graph`` are optional. They are used only to
+    check a matcher's ``shui:dataGraphShape``. With no ``focus_node`` a matcher
+    that has only a data condition rejects its widget (Section 3.4 step 1),
+    while one with a ``shui:shapesGraphShape`` is decided by that alone, so
+    the choice is per shape rather than per node. Passing a ``focus_node``
+    without a ``data_graph`` raises ``ValueError``.
+
+    ``scoring_graph`` is optional: omit it (or pass ``None``) when widgets
+    are fixed in the shapes graph and there is no scoring catalog - an
+    explicit ``shui:editor``/``shui:viewer`` is then accepted outright, and a
+    property with none gets ``None``.
     """
+    if focus_node is not None and data_graph is None:
+        raise ValueError("focus_node needs a data_graph to check its shui:dataGraphShape against")
+    if scoring_graph is None:
+        from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+
+        scoring_graph = StarLayerGraph()
     predicate = SHUI.editor if role == "editor" else SHUI.viewer
     explicit_widget = next(shapes_graph.objects(shape_node, predicate), None)
     if explicit_widget is not None:
@@ -134,6 +173,7 @@ def select_widget(
             shape_node=shape_node,
             focus_node=focus_node,
             data_graph=data_graph,
+            shapes_graph=shapes_graph,
             scoring_graph=scoring_graph,
         ):
             return explicit_widget
@@ -145,7 +185,8 @@ def select_widget(
         if widget is None or score_value is None:
             continue
         ranked.append((float(score_value), widget))
-    ranked.sort(key=lambda pair: pair[0], reverse=True)
+    # highest score first, then by widget IRI codepoints (Section 3.5 step 2)
+    ranked.sort(key=lambda pair: (-pair[0], str(pair[1])))
 
     for _score, widget in ranked:
         matcher = _find_matcher(widget, scoring_graph)
@@ -154,6 +195,7 @@ def select_widget(
             shape_node=shape_node,
             focus_node=focus_node,
             data_graph=data_graph,
+            shapes_graph=shapes_graph,
             scoring_graph=scoring_graph,
         ):
             return widget
@@ -162,38 +204,35 @@ def select_widget(
 
 
 def select_widgets(
-    shape_node: Any,
-    focus_node: Any,
     *,
-    data_graph: Any,
+    shape_node: Any,
+    focus_node: Any | None = None,
+    data_graph: Any | None = None,
     shapes_graph: Any,
-    scoring_graph: Any,
+    scoring_graph: Any | None = None,
     role: Role,
-) -> Any:
+) -> dict[Any, URIRef | None]:
     """Batch sibling of :func:`select_widget` - walks ``shape_node``'s own
     ``sh:property`` list and runs :func:`select_widget` once per property,
-    assembling the results into one graph of ``(property_shape,
-    shui:editor|shui:viewer, widget)`` triples, rather than one value per
-    call. Mirrors this package's own ``evaluate()`` precedent (compute
-    something per property shape, return the result as one assembled
-    graph) instead of inventing a new shape.
+    returning ``{property_shape: widget}`` for the given ``role``
+    (``"editor"`` or ``"viewer"``). Every ``sh:property`` of ``shape_node``
+    is a key.
 
     ``shape_node`` is a ``sh:NodeShape`` here (unlike :func:`select_widget`,
     whose own ``shape_node`` is a single property shape) - its
     ``sh:property`` list is exactly what's walked.
 
-    A property for which :func:`select_widget` returns ``None`` contributes
-    no triple at all - absence, not an asserted null.
-    """
-    from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+    A property for which :func:`select_widget` returns ``None`` maps to
+    ``None``, so the dict always lists every property of the shape.
 
-    predicate = SHUI.editor if role == "editor" else SHUI.viewer
-    result = StarLayerGraph()
+    ``focus_node``, ``data_graph`` and ``scoring_graph`` are optional, as
+    for :func:`select_widget`.
+    """
+    result: dict[Any, URIRef | None] = {}
     for prop in shapes_graph.objects(shape_node, SH.property):
         widget = select_widget(
-            prop, focus_node,
+            shape_node=prop, focus_node=focus_node,
             data_graph=data_graph, shapes_graph=shapes_graph, scoring_graph=scoring_graph, role=role,
         )
-        if widget is not None:
-            result.add((prop, predicate, widget))
+        result[prop] = widget
     return result

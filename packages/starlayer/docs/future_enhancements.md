@@ -11,6 +11,8 @@ package's own top level, not nested under one subpackage's docs.
 
 ## Open suggestions
 
+- **DECIDE: does the shape-authoring UI vocabulary (`stsh:widgetType`, `stsh:WidgetGroup`, `sh:group`/`sh:order` presentation hints) belong in this project at all?** (2026-10-17, found while reviewing what we added around `shui:` for the SHACL UI guide - come back to this.) **What it is:** `starlayer/shacl/assets/shacl12-presentation-shapes.ttl` (plus the matching documentation content in `shacl12-validation-shapes.ttl` and `docs/shacl/shacl-presentation-content.md`) defines a vocabulary *for building a shape-authoring UI*: `stsh:widgetType` tags about 175 SHACL predicates with a suggested input control (~22 string values: `text`, `int`, `bool`, `multiline`, `inline_shape`, `prop_path_expr`, `node_expression_list`, ...), and `sh:group` / `sh:order` arrange those predicates into form sections (`stsh:CardinalityGroup`, `stsh:ValueRangeGroup`, `stsh:WidgetGroup`, ...). It is **separate from and unrelated to** the `shui:` widgets (`shui:editor`, scoring, `select_widgets()`), which render *data* forms; this one renders forms for *editing shapes*. The two are easy to confuse because both say 'widget'. **Evidence it may not belong here:** no `starlayer` library logic reads `stsh:widgetType` or `stsh:WidgetGroup`. In this repo the only code touching the presentation file is `meta_shapes.py` (merges it into the meta-shapes graph, where it has no validation effect) and `asset_urls.py` (mints its URL), plus tests. The real consumers are in the separate **`starlayer-apps`** repository: the SHACL editor and SPARQL editor (`apps/*/ui/panels/shacl_panel/form_panel.py`, `rdf_tree.py`, `components/shacl/src/shacl_model/shacl_field_config.py`, and their own `shacl_editor_shapes.ttl`). **Options:** (a) keep it here as a shared presentation vocabulary the apps depend on; (b) move the presentation file and its documentation to `starlayer-apps`, leaving the library with only validation-relevant meta-shapes (the `shacl_meta` registry graph, 2161 triples, would shrink and `build_meta_shapes_graph()` would stop merging the presentation file); (c) split it, keeping `shui:` documentation here and the `stsh:widgetType` / grouping hints in the apps. **Things to weigh:** the docs call the `stsh:widgetType` values a 'default, not a binding contract' for downstream editors; moving it changes what `starontology.get_ontology_graph("shacl_meta")` returns and the published `shacl_meta_shapes.ttl` URL content; `shacl-presentation-content.md` is described in the asset header as the human-editable source the `.ttl` content is generated from (no generator script exists in the repo today). **Already done in the same review:** the stale 'not an implemented starshacl feature' wording on the 28 `shui:` widget entries and the two property-role entries was corrected (widget selection *is* implemented; property roles are not), the dangling 'see Scope note above' pointers were removed, and the `starontology` snapshot of `shacl_meta` was refreshed to include `stsh:WidgetScoreShape` (verified identical to the real meta-shapes graph).
+
 - **A project-side guard for the Oxigraph `dirLangString` `=` process abort** (2026-10-16 - reported upstream as oxigraph/oxigraph#1982; see `docs/upstream-issues/oxigraph-upstream-issues.md`, Issue 1, and `tests/graph/integration/test_oxigraph_store_rdf12.py::TestDirLangStringEquality`). SPARQL `=` over any `dirLangString` term aborts the whole Python process on an Oxigraph-backed `rdf-1.2` graph (in-process or HTTP); it cannot be caught. Today it is only documented. Two possible mitigations, neither designed yet: rewrite `=` to `sameTerm()` where exact-term equality is acceptable, or pre-scan/rewrite a query before it reaches the engine and raise a clear error instead of aborting. Revisit if upstream has not fixed it, or drop this item when the abort tests in `TestDirLangStringEquality` start failing because it has.
 
 - **Use Oxigraph's direct Python API (`pyoxigraph`) for the store-touching primitives of an in-process Oxigraph graph, instead of going through SPARQL text** (2026-10-16, from the in-memory benchmark - `benchmarks-graph/bench_inmemory_oxigraph.py`). An in-process Oxigraph graph (`StarLayerGraph(store=OxigraphStore(...), backend='rdf-1.2')`, see `starlayer/graph/backends/native_oxigraph.py`) already sends `query()`/`update()` straight to Oxigraph's engine, which is where its large wins on triple-term queries come from (7-120x faster than the default store in the 50K-triple quick run). But every other operation - `add`, `addN`, `remove`, `triples`, `triples_choices`, `__len__`, `__contains__` - is still turned into SPARQL text and parsed by the engine, even though `pyoxigraph.Store` has direct calls for each: `bulk_extend`/`extend`/`bulk_load` (bulk load from `Quad` objects, no giant `INSERT` text to build and parse), `quads_for_pattern(s, p, o, g)` (an index scan, no query), `add`/`remove` (no per-triple `INSERT DATA`/`DELETE DATA`), and `named_graphs()`. The same quick run found single-subject lookups 9-10x *slower* than the default store - exactly the SPARQL-round-trip cost a direct `quads_for_pattern` call should remove. The work is bounded because these primitives already funnel through the `execute_*` seam in `native.py` and about seven `StarLayerGraph` methods (plus `StarLayerDataset.__len__`); SPARQL queries and updates, and everything built on the primitives (SHACL, entailment, canonicalization), would inherit the speedup unchanged, and remote HTTP stores would stay on SPARQL text since they have no direct API. **Needs:** a term converter from rdflib / `TripleTerm` / `DirLangString` to `pyoxigraph` `Quad`/`Triple`/`Literal` objects (the inverse of `_parse_ox_term()`, which already exists); keeping the two code paths in step via the cross-backend parity suite. **A real simplification this would bring:** the direct API takes real blank-node objects, so SPARQL Update's per-request blank-node scoping does not apply - on this path the skolemize/provenance machinery for blank nodes goes away. **Decide with data first:** measure the ceiling with raw `pyoxigraph` (load via `bulk_extend` vs `update()` with `INSERT` text; subject lookup via `quads_for_pattern` vs SPARQL; vs the default store) before writing it - if the direct calls are only ~2x faster the second code path may not be worth carrying, and documenting the lookup tradeoff would be enough.
@@ -236,6 +238,50 @@ package's own top level, not nested under one subpackage's docs.
 **Done**: "produce a documentation doc outlining every method/import
 available under `starlayer`" → `packages/starlayer/docs/api-reference.md`,
 built 2026-09-30.
+
+---
+
+## Before publishing: clean-up checklist
+
+*(Added 2026-10-17.)* Generated and hand-copied material goes stale as the code changes. Before a release or a doc publish, work through this list. None of it is automated yet; deciding which steps to fold into one script is itself a follow-up.
+
+1. **Refresh the code knowledge graph.** `python scripts/build_codekg.py --paths packages/starlayer/starlayer packages/starlayer/tests` rebuilds `packages/starlayer/starlayer/codekg/codekg.trig`.
+2. **Regenerate the help/API docs** from that graph: `python scripts/generate_api_docs.py` writes `docs/generated/api-overview.generated.md` and `api-reference.generated.md`. Still open: whether `docs/generated/` is committed, and whether the generator joins step 1. `docs/api-reference.md` is the hand-kept predecessor and carries a stale-notice banner.
+3. **Republish the starontology standalone files**: `python scripts/publish_starontology_files.py`. It is not byte-stable, so check the diff is real before committing, and confirm `shacl_meta` still equals `build_meta_shapes_graph()`.
+4. **Refresh the widget appendix in `docs/guides/04d-shacl-ui.ipynb`.** The appendix is a deliberately *static* markdown table; the guide does not generate it when run. If the shipped widget descriptions change, regenerate it with the snippet below and paste the output over the appendix cell. The guide expects 16 editors and 10 viewers.
+5. **Re-execute every guide** so the stored outputs are current: `BROWSER=true python -m jupyter nbconvert --to notebook --execute --inplace docs/guides/<guide>.ipynb` (`BROWSER=true` stops the UI guide opening pages).
+6. **Run the test tiers**: the fast tier, the integration tier (live servers), and `pytest --store-matrix` for the W3C suites across every store.
+7. **Check the docs for stale claims**: counts (widgets, triples, tests), spec citations and dates, and the upstream-issue links.
+
+Snippet that produced the 04d appendix tables (run from `packages/starlayer`):
+
+```python
+from starlayer import starontology
+from starlayer.graph import Namespace
+
+SH = Namespace("http://www.w3.org/ns/shacl#")
+SHUI = Namespace("http://www.w3.org/ns/shacl-ui#")
+meta = starontology.get_ontology_graph("shacl_meta")
+
+
+def widget_table(kind):
+    """A markdown table of the built-in shui: widgets whose name ends with `kind`."""
+    widgets = sorted(
+        w for w in set(meta.subjects(SH.description, None))
+        if str(w).startswith(str(SHUI)) and str(w).endswith(kind)
+    )
+    rows = [
+        f"| `shui:{str(w).removeprefix(str(SHUI))}` | {next(meta.objects(w, SH.name), '')} | {next(meta.objects(w, SH.description), '')} |"
+        for w in widgets
+    ]
+    return "| Widget | Name | What it is |\n|---|---|---|\n" + "\n".join(rows), len(widgets)
+
+
+editor_table, n_editors = widget_table("Editor")
+viewer_table, n_viewers = widget_table("Viewer")
+assert (n_editors, n_viewers) == (16, 10)
+print(f"### Editors (`shui:editor`) - {n_editors}\n\n{editor_table}\n\n### Viewers (`shui:viewer`) - {n_viewers}\n\n{viewer_table}")
+```
 
 ---
 

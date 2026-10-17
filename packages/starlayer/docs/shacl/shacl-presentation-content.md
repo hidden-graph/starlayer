@@ -82,7 +82,7 @@ Unlike predicates, a `sh:PropertyGroup` has no validation-layer counterpart at a
 | 13 | `stsh:CrossNodeGroup` | Cross-Node & Reification **[1.2]** | 13 | Constraints spanning multiple focus nodes or RDF 1.2 triple-term reification. |
 | 14 | `stsh:MetadataGroup` | Non-Validating Metadata | 14 | Annotation-only predicates with no effect on conformance — `sh:message`/`sh:severity`/`sh:name`/etc. |
 | 15 | `stsh:RulesGroup` | Rules & SPARQL Extensions **[1.2]** | 15 | SPARQL-based constraints, user-defined constraint components, and SHACL-AF inference rules — `sh:sparql`/`sh:rule`/`sh:condition`/`sh:TripleRule`/`sh:SPARQLRule` and their supporting predicates. |
-| 16 | `stsh:WidgetGroup` | SHACL 1.2 UI Widgets **[1.2]** | 16 | `shui:` vocabulary for form generation — widget/editor/viewer assignment and the built-in widget instances. Documented for training purposes; not an implemented starshacl feature. |
+| 16 | `stsh:WidgetGroup` | SHACL 1.2 UI Widgets **[1.2]** | 16 | `shui:` vocabulary for form generation — widget/editor/viewer assignment and the built-in widget instances. Documents the vocabulary: validation ignores it; widget selection is implemented separately in starlayer.shacl.ui_widget_selection; property roles are not interpreted. |
 
 ---
 
@@ -803,7 +803,7 @@ Fields below use RDF-prefixed names directly (`sh:name`, `sh:description`, `skos
 
 ## 16. SHACL 1.2 UI Widgets **[1.2]**
 
-*Scope note: `shui:` (`http://www.w3.org/ns/shacl-ui#`) is a separate vocabulary from `sh:`, confirmed compatible with starshacl's engine (annotations pass through harmlessly) but not implemented as a feature — this documents the vocabulary for training purposes only. The `shui:WidgetScore`/`shui:WidgetAcceptMatcher` selection-algorithm machinery itself remains out of scope (see `docs/shacl12-gap-matrix.md`'s "Not Covered / Deferred") - its exact property definitions weren't verifiable with confidence, so no entries for `shui:score`/`shui:dataGraphShape`/`shui:shapesGraphShape` are included below.*
+*Scope note: `shui:` (`http://www.w3.org/ns/shacl-ui#`) is a separate vocabulary from `sh:`. Validation ignores `shui:` annotations - they pass through harmlessly (`tests/shacl/integration/test_shacl_ui_compatibility.py`). Widget *selection* is implemented separately: `starlayer.shacl.ui_widget_selection.select_widget()` / `select_widgets()` choose a `shui:editor` / `shui:viewer` by the spec's scoring system (see `docs/guides/04d-shacl-ui.ipynb`); `shui:WidgetScore` has a well-formedness shape (`stsh:WidgetScoreShape`) and `shui:WidgetAcceptMatcher` deliberately has none (see `docs/shacl/shacl12-gap-matrix.md`). Property roles (`shui:propertyRole`, `shui:LabelRole`) are documented here but not interpreted. This section documents the editors, viewers and roles; it has no entries for `shui:WidgetScore`, `shui:score`, `shui:dataGraphShape` or `shui:shapesGraphShape`.*
 
 ### `shui:editor`
 - **sh:name:** editor widget
@@ -811,7 +811,7 @@ Fields below use RDF-prefixed names directly (`sh:name`, `sh:description`, `skos
 - **skos:example:** `sh:property [ sh:path ex:birthDate ; shui:editor shui:DatePickerEditor ]`
 - **rdfs:seeAlso:** `shui:viewer`
 - **rdfs:isDefinedBy:** SHACL 1.2 User Interfaces
-- **stsh:requiredEngine:** stsh:StarShacl (annotation passes through inertly — not an implemented starshacl feature; see Scope note above)
+- **stsh:requiredEngine:** stsh:StarShacl (ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb))
 - **sh:group:** stsh:WidgetGroup — **sh:order:** 1
 
 ### `shui:viewer`
@@ -820,7 +820,7 @@ Fields below use RDF-prefixed names directly (`sh:name`, `sh:description`, `skos
 - **skos:example:** `sh:property [ sh:path ex:homepage ; shui:viewer shui:HyperlinkViewer ]`
 - **rdfs:seeAlso:** `shui:editor`
 - **rdfs:isDefinedBy:** SHACL 1.2 User Interfaces
-- **stsh:requiredEngine:** stsh:StarShacl (annotation passes through inertly — not an implemented starshacl feature; see Scope note above)
+- **stsh:requiredEngine:** stsh:StarShacl (ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb))
 - **sh:group:** stsh:WidgetGroup — **sh:order:** 2
 
 ### `shui:propertyRole`
@@ -828,98 +828,98 @@ Fields below use RDF-prefixed names directly (`sh:name`, `sh:description`, `skos
 - **sh:description:** Marks a property shape as playing a special semantic role for UI purposes — currently just `shui:LabelRole`, marking "this is the property whose value should be used as the resource's own display label."
 - **skos:example:** `sh:property [ sh:path ex:name ; shui:propertyRole shui:LabelRole ]`
 - **rdfs:isDefinedBy:** SHACL 1.2 User Interfaces
-- **stsh:requiredEngine:** stsh:StarShacl (annotation passes through inertly — not an implemented starshacl feature; see Scope note above)
+- **stsh:requiredEngine:** stsh:StarShacl (ignored by validation; not interpreted by starlayer.shacl (property roles are documented here but not implemented))
 - **sh:group:** stsh:WidgetGroup — **sh:order:** 3
 
 ### `shui:TextFieldEditor`
 - **sh:name:** text field
 - **sh:description:** A single-line plain-text input.
 - **rdfs:isDefinedBy:** SHACL 1.2 User Interfaces
-- **stsh:requiredEngine:** stsh:StarShacl (annotation passes through inertly — not an implemented starshacl feature; see Scope note above)
+- **stsh:requiredEngine:** stsh:StarShacl (ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb))
 - **sh:group:** stsh:WidgetGroup — **sh:order:** 4
 
 ### `shui:TextFieldWithLangEditor`
 - **sh:name:** text field with language
 - **sh:description:** A single-line text input paired with a language-tag selector, for editing one language-tagged literal.
 - **rdfs:isDefinedBy:** SHACL 1.2 User Interfaces
-- **stsh:requiredEngine:** stsh:StarShacl (annotation passes through inertly — not an implemented starshacl feature; see Scope note above)
+- **stsh:requiredEngine:** stsh:StarShacl (ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb))
 - **sh:group:** stsh:WidgetGroup — **sh:order:** 5
 
 ### `shui:TextAreaEditor`
 - **sh:name:** text area
 - **sh:description:** A multi-line plain-text input.
 - **rdfs:isDefinedBy:** SHACL 1.2 User Interfaces
-- **stsh:requiredEngine:** stsh:StarShacl (annotation passes through inertly — not an implemented starshacl feature; see Scope note above)
+- **stsh:requiredEngine:** stsh:StarShacl (ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb))
 - **sh:group:** stsh:WidgetGroup — **sh:order:** 6
 
 ### `shui:TextAreaWithLangEditor`
 - **sh:name:** text area with language
 - **sh:description:** A multi-line text input paired with a language-tag selector.
 - **rdfs:isDefinedBy:** SHACL 1.2 User Interfaces
-- **stsh:requiredEngine:** stsh:StarShacl (annotation passes through inertly — not an implemented starshacl feature; see Scope note above)
+- **stsh:requiredEngine:** stsh:StarShacl (ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb))
 - **sh:group:** stsh:WidgetGroup — **sh:order:** 7
 
 ### `shui:RichTextEditor`
 - **sh:name:** rich text editor
 - **sh:description:** A formatted (e.g. HTML/Markdown) text editor, for values meant to render with styling.
 - **rdfs:isDefinedBy:** SHACL 1.2 User Interfaces
-- **stsh:requiredEngine:** stsh:StarShacl (annotation passes through inertly — not an implemented starshacl feature; see Scope note above)
+- **stsh:requiredEngine:** stsh:StarShacl (ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb))
 - **sh:group:** stsh:WidgetGroup — **sh:order:** 8
 
 ### `shui:NumberFieldEditor`
 - **sh:name:** number field
 - **sh:description:** A numeric input, for `xsd:integer`/`xsd:decimal`/`xsd:double`-typed values.
 - **rdfs:isDefinedBy:** SHACL 1.2 User Interfaces
-- **stsh:requiredEngine:** stsh:StarShacl (annotation passes through inertly — not an implemented starshacl feature; see Scope note above)
+- **stsh:requiredEngine:** stsh:StarShacl (ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb))
 - **sh:group:** stsh:WidgetGroup — **sh:order:** 9
 
 ### `shui:BooleanEditor`
 - **sh:name:** boolean editor
 - **sh:description:** A checkbox or toggle, for `xsd:boolean`-typed values.
 - **rdfs:isDefinedBy:** SHACL 1.2 User Interfaces
-- **stsh:requiredEngine:** stsh:StarShacl (annotation passes through inertly — not an implemented starshacl feature; see Scope note above)
+- **stsh:requiredEngine:** stsh:StarShacl (ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb))
 - **sh:group:** stsh:WidgetGroup — **sh:order:** 10
 
 ### `shui:DatePickerEditor`
 - **sh:name:** date picker
 - **sh:description:** A calendar-style date picker, for `xsd:date`-typed values.
 - **rdfs:isDefinedBy:** SHACL 1.2 User Interfaces
-- **stsh:requiredEngine:** stsh:StarShacl (annotation passes through inertly — not an implemented starshacl feature; see Scope note above)
+- **stsh:requiredEngine:** stsh:StarShacl (ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb))
 - **sh:group:** stsh:WidgetGroup — **sh:order:** 11
 
 ### `shui:DateTimePickerEditor`
 - **sh:name:** date-time picker
 - **sh:description:** A calendar-and-time picker, for `xsd:dateTime`-typed values.
 - **rdfs:isDefinedBy:** SHACL 1.2 User Interfaces
-- **stsh:requiredEngine:** stsh:StarShacl (annotation passes through inertly — not an implemented starshacl feature; see Scope note above)
+- **stsh:requiredEngine:** stsh:StarShacl (ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb))
 - **sh:group:** stsh:WidgetGroup — **sh:order:** 12
 
 ### `shui:IRIEditor`
 - **sh:name:** IRI editor
 - **sh:description:** A plain-text input constrained to well-formed IRIs.
 - **rdfs:isDefinedBy:** SHACL 1.2 User Interfaces
-- **stsh:requiredEngine:** stsh:StarShacl (annotation passes through inertly — not an implemented starshacl feature; see Scope note above)
+- **stsh:requiredEngine:** stsh:StarShacl (ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb))
 - **sh:group:** stsh:WidgetGroup — **sh:order:** 13
 
 ### `shui:AutoCompleteEditor`
 - **sh:name:** autocomplete editor
 - **sh:description:** A text input with suggestions, typically backed by `shui:resourceFilter`-style search against existing resources.
 - **rdfs:isDefinedBy:** SHACL 1.2 User Interfaces
-- **stsh:requiredEngine:** stsh:StarShacl (annotation passes through inertly — not an implemented starshacl feature; see Scope note above)
+- **stsh:requiredEngine:** stsh:StarShacl (ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb))
 - **sh:group:** stsh:WidgetGroup — **sh:order:** 14
 
 ### `shui:EnumSelectEditor`
 - **sh:name:** enum select
 - **sh:description:** A dropdown/select list, for a value constrained by `sh:in` to a fixed set of options.
 - **rdfs:isDefinedBy:** SHACL 1.2 User Interfaces
-- **stsh:requiredEngine:** stsh:StarShacl (annotation passes through inertly — not an implemented starshacl feature; see Scope note above)
+- **stsh:requiredEngine:** stsh:StarShacl (ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb))
 - **sh:group:** stsh:WidgetGroup — **sh:order:** 15
 
 ### `shui:InstancesSelectEditor`
 - **sh:name:** instances select
 - **sh:description:** A dropdown/select list populated dynamically from existing instances of a class, rather than a fixed `sh:in` list.
 - **rdfs:isDefinedBy:** SHACL 1.2 User Interfaces
-- **stsh:requiredEngine:** stsh:StarShacl (annotation passes through inertly — not an implemented starshacl feature; see Scope note above)
+- **stsh:requiredEngine:** stsh:StarShacl (ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb))
 - **sh:group:** stsh:WidgetGroup — **sh:order:** 16
 
 ### `shui:SubClassEditor`
@@ -927,63 +927,63 @@ Fields below use RDF-prefixed names directly (`sh:name`, `sh:description`, `skos
 - **sh:description:** A class picker constrained to subclasses of a given root class — the editor-side counterpart to `sh:rootClass`.
 - **rdfs:seeAlso:** `sh:rootClass`
 - **rdfs:isDefinedBy:** SHACL 1.2 User Interfaces
-- **stsh:requiredEngine:** stsh:StarShacl (annotation passes through inertly — not an implemented starshacl feature; see Scope note above)
+- **stsh:requiredEngine:** stsh:StarShacl (ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb))
 - **sh:group:** stsh:WidgetGroup — **sh:order:** 17
 
 ### `shui:BlankNodeEditor`
 - **sh:name:** blank node editor
 - **sh:description:** A nested sub-form for editing a blank-node-valued property in place, rather than as a reference.
 - **rdfs:isDefinedBy:** SHACL 1.2 User Interfaces
-- **stsh:requiredEngine:** stsh:StarShacl (annotation passes through inertly — not an implemented starshacl feature; see Scope note above)
+- **stsh:requiredEngine:** stsh:StarShacl (ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb))
 - **sh:group:** stsh:WidgetGroup — **sh:order:** 18
 
 ### `shui:DetailsEditor`
 - **sh:name:** details editor
 - **sh:description:** An expandable/collapsible nested editor for a complex (typically shape-constrained) value.
 - **rdfs:isDefinedBy:** SHACL 1.2 User Interfaces
-- **stsh:requiredEngine:** stsh:StarShacl (annotation passes through inertly — not an implemented starshacl feature; see Scope note above)
+- **stsh:requiredEngine:** stsh:StarShacl (ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb))
 - **sh:group:** stsh:WidgetGroup — **sh:order:** 19
 
 ### `shui:LiteralViewer`
 - **sh:name:** literal viewer
 - **sh:description:** Plain read-only display of a literal value's lexical form.
 - **rdfs:isDefinedBy:** SHACL 1.2 User Interfaces
-- **stsh:requiredEngine:** stsh:StarShacl (annotation passes through inertly — not an implemented starshacl feature; see Scope note above)
+- **stsh:requiredEngine:** stsh:StarShacl (ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb))
 - **sh:group:** stsh:WidgetGroup — **sh:order:** 20
 
 ### `shui:LangStringViewer`
 - **sh:name:** language string viewer
 - **sh:description:** Read-only display of a language-tagged literal, typically showing the language tag alongside the text.
 - **rdfs:isDefinedBy:** SHACL 1.2 User Interfaces
-- **stsh:requiredEngine:** stsh:StarShacl (annotation passes through inertly — not an implemented starshacl feature; see Scope note above)
+- **stsh:requiredEngine:** stsh:StarShacl (ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb))
 - **sh:group:** stsh:WidgetGroup — **sh:order:** 21
 
 ### `shui:HTMLViewer`
 - **sh:name:** HTML viewer
 - **sh:description:** Renders a value's content as formatted HTML rather than as plain escaped text.
 - **rdfs:isDefinedBy:** SHACL 1.2 User Interfaces
-- **stsh:requiredEngine:** stsh:StarShacl (annotation passes through inertly — not an implemented starshacl feature; see Scope note above)
+- **stsh:requiredEngine:** stsh:StarShacl (ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb))
 - **sh:group:** stsh:WidgetGroup — **sh:order:** 22
 
 ### `shui:IRIViewer`
 - **sh:name:** IRI viewer
 - **sh:description:** Read-only display of an IRI value, typically abbreviated with a known prefix.
 - **rdfs:isDefinedBy:** SHACL 1.2 User Interfaces
-- **stsh:requiredEngine:** stsh:StarShacl (annotation passes through inertly — not an implemented starshacl feature; see Scope note above)
+- **stsh:requiredEngine:** stsh:StarShacl (ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb))
 - **sh:group:** stsh:WidgetGroup — **sh:order:** 23
 
 ### `shui:HyperlinkViewer`
 - **sh:name:** hyperlink viewer
 - **sh:description:** Displays an IRI value as a clickable link.
 - **rdfs:isDefinedBy:** SHACL 1.2 User Interfaces
-- **stsh:requiredEngine:** stsh:StarShacl (annotation passes through inertly — not an implemented starshacl feature; see Scope note above)
+- **stsh:requiredEngine:** stsh:StarShacl (ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb))
 - **sh:group:** stsh:WidgetGroup — **sh:order:** 24
 
 ### `shui:ImageViewer`
 - **sh:name:** image viewer
 - **sh:description:** Renders an IRI value inline as an image, for properties known to point at image resources.
 - **rdfs:isDefinedBy:** SHACL 1.2 User Interfaces
-- **stsh:requiredEngine:** stsh:StarShacl (annotation passes through inertly — not an implemented starshacl feature; see Scope note above)
+- **stsh:requiredEngine:** stsh:StarShacl (ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb))
 - **sh:group:** stsh:WidgetGroup — **sh:order:** 25
 
 ### `shui:LabelViewer`
@@ -991,14 +991,14 @@ Fields below use RDF-prefixed names directly (`sh:name`, `sh:description`, `skos
 - **sh:description:** Displays a resource by its resolved human-readable label (e.g. via `shui:LabelRole`/`shui:displayProvider`) rather than its raw IRI.
 - **rdfs:seeAlso:** `shui:propertyRole`
 - **rdfs:isDefinedBy:** SHACL 1.2 User Interfaces
-- **stsh:requiredEngine:** stsh:StarShacl (annotation passes through inertly — not an implemented starshacl feature; see Scope note above)
+- **stsh:requiredEngine:** stsh:StarShacl (ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb))
 - **sh:group:** stsh:WidgetGroup — **sh:order:** 26
 
 ### `shui:BlankNodeViewer`
 - **sh:name:** blank node viewer
 - **sh:description:** Read-only nested display of a blank-node-valued property's own properties.
 - **rdfs:isDefinedBy:** SHACL 1.2 User Interfaces
-- **stsh:requiredEngine:** stsh:StarShacl (annotation passes through inertly — not an implemented starshacl feature; see Scope note above)
+- **stsh:requiredEngine:** stsh:StarShacl (ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb))
 - **sh:group:** stsh:WidgetGroup — **sh:order:** 27
 
 ### `shui:DetailsViewer`
@@ -1006,14 +1006,14 @@ Fields below use RDF-prefixed names directly (`sh:name`, `sh:description`, `skos
 - **sh:description:** An expandable/collapsible read-only view for a complex value, the viewer counterpart to `shui:DetailsEditor`.
 - **rdfs:seeAlso:** `shui:DetailsEditor`
 - **rdfs:isDefinedBy:** SHACL 1.2 User Interfaces
-- **stsh:requiredEngine:** stsh:StarShacl (annotation passes through inertly — not an implemented starshacl feature; see Scope note above)
+- **stsh:requiredEngine:** stsh:StarShacl (ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb))
 - **sh:group:** stsh:WidgetGroup — **sh:order:** 28
 
 ### `shui:ValueTableViewer`
 - **sh:name:** value table viewer
 - **sh:description:** Displays multiple values for a property as rows of a table, rather than a simple list.
 - **rdfs:isDefinedBy:** SHACL 1.2 User Interfaces
-- **stsh:requiredEngine:** stsh:StarShacl (annotation passes through inertly — not an implemented starshacl feature; see Scope note above)
+- **stsh:requiredEngine:** stsh:StarShacl (ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb))
 - **sh:group:** stsh:WidgetGroup — **sh:order:** 29
 
 ### `shui:LabelRole`
@@ -1021,7 +1021,7 @@ Fields below use RDF-prefixed names directly (`sh:name`, `sh:description`, `skos
 - **sh:description:** The one built-in `shui:propertyRole` value — marks a property shape's values as the resource's own display label.
 - **rdfs:seeAlso:** `shui:propertyRole`
 - **rdfs:isDefinedBy:** SHACL 1.2 User Interfaces
-- **stsh:requiredEngine:** stsh:StarShacl (annotation passes through inertly — not an implemented starshacl feature; see Scope note above)
+- **stsh:requiredEngine:** stsh:StarShacl (ignored by validation; not interpreted by starlayer.shacl (property roles are documented here but not implemented))
 - **sh:group:** stsh:WidgetGroup — **sh:order:** 30
 
 ## 17. Form-Field Membership (NodeShape vs PropertyShape)

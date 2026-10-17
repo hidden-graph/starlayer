@@ -94,7 +94,8 @@ class StarShaclSchema:
     (``PersonSchema = StarShaclSchema(person_shapes)``,
     ``ProductSchema = StarShaclSchema(product_shapes)``, ...), then call
     ``validate``/``apply_rules``/``evaluate`` against whatever data graph
-    you're checking. Shape-driven subgraph extraction is a separate, plain
+    you're checking. ``select_widgets`` is the one method that needs no data
+    graph at all - it chooses SHACL 1.2 UI widgets from the shapes graph alone. Shape-driven subgraph extraction is a separate, plain
     function (``starlayer.shacl.extract_subgraph()``), not a method here -
     see its own docstring, and the subgraph-extraction guide, for why.
 
@@ -108,6 +109,7 @@ class StarShaclSchema:
         ont_graph: Any | None = None,
         *,
         data_graph: Any | None = None,
+        scoring_graph: Any | None = None,
         inference: Any | None = None,
         adapter: TripleTermAdapter | None = None,
         validate_fn: Callable[..., tuple[bool, Graph, str]] | None = None,
@@ -141,6 +143,11 @@ class StarShaclSchema:
                 ``_resolve_data_graph()``). Still fully overridable per
                 call - binding a default here doesn't prevent passing a
                 different ``data_graph`` to any one method.
+            scoring_graph: An optional catalog of ``shui:WidgetScore``/
+                ``shui:WidgetAcceptMatcher`` entries, bound once here the
+                same way ``data_graph`` is. :meth:`select_widgets` uses it
+                when called without its own ``scoring_graph=``; a per-call
+                value overrides it. Only :meth:`select_widgets` reads it.
             inference: An optional entailment regime (one of the real
                 ``ENTAILMENT.*`` IRIs, or an iterable of them), bound once
                 here rather than accepted as a per-method keyword - an
@@ -186,6 +193,9 @@ class StarShaclSchema:
         )
         self.data_graph = (
             normalize_to_starlayer_graph(data_graph, name="data_graph") if data_graph is not None else None
+        )
+        self.scoring_graph = (
+            normalize_to_starlayer_graph(scoring_graph, name="scoring_graph") if scoring_graph is not None else None
         )
         self.inference = inference
         self.adapter = adapter or TripleTermAdapter()
@@ -1900,6 +1910,70 @@ class StarShaclSchema:
                             merged.add((focus_node, predicate, value))
 
         return merged
+
+    def select_widgets(
+        self,
+        *,
+        shape_node: Any,
+        focus_node: Any | None = None,
+        role: str,
+        data_graph: Any | None = None,
+        scoring_graph: Any | None = None,
+        shapes_graph_resource: Any | None = None,
+    ) -> dict[Any, Any]:
+        """Chooses a SHACL 1.2 UI widget for each property of the node
+        shape ``shape_node``, using this instance's own bound
+        ``shacl_graph`` as the shapes graph.
+
+        Delegates to
+        :func:`starlayer.shacl.ui_widget_selection.select_widgets`, which
+        holds the real implementation and its full semantics - this method
+        only supplies the bound shapes graph, the bound ``scoring_graph``
+        and (when a ``focus_node`` is given) the bound ``data_graph``, so
+        none of them is repeated per call. Each can be overridden per call.
+
+        Args:
+            shape_node: A ``sh:NodeShape`` in the shapes graph; its
+                ``sh:property`` list is what is walked.
+            focus_node: Optional node whose data a matcher's
+                ``shui:dataGraphShape`` is checked against.
+            role: ``"editor"`` or ``"viewer"``.
+            data_graph: The graph holding ``focus_node``. Falls back to
+                ``self.data_graph``; only needed (and only required) when
+                ``focus_node`` is given.
+            scoring_graph: Optional catalog of ``shui:WidgetScore`` /
+                ``shui:WidgetAcceptMatcher`` entries. Falls back to
+                ``self.scoring_graph``; to ignore a bound catalog for one
+                call, pass an empty graph.
+            shapes_graph_resource: Selects a named ``sh:ShapesGraph``
+                module within the bound ``shacl_graph``, as for
+                :meth:`apply_rules`.
+
+        Returns:
+            ``{property_shape: widget}``, with ``None`` for a property
+            that has no widget.
+
+        Raises:
+            ValueError: If this schema has no ``shacl_graph``, or a
+                ``focus_node`` is given with no data graph available.
+        """
+        from starlayer.shacl.ui_widget_selection import select_widgets
+
+        shapes_graph = self._resolve_shacl_graph(shapes_graph_resource)
+        if shapes_graph is None:
+            raise ValueError("select_widgets() needs a shapes graph, and this schema has no shacl_graph bound.")
+        if focus_node is not None:
+            data_graph = self._resolve_data_graph(data_graph)
+        if scoring_graph is None:
+            scoring_graph = self.scoring_graph
+        return select_widgets(
+            shape_node=shape_node,
+            focus_node=focus_node,
+            data_graph=data_graph,
+            shapes_graph=shapes_graph,
+            scoring_graph=scoring_graph,
+            role=role,  # type: ignore[arg-type]
+        )
 
     def close_shape(self, shape: Any, *, shapes_graph_resource: Any | None = None) -> Any:
         """Returns a closed copy of ``shacl_graph``, closing ``shape`` and

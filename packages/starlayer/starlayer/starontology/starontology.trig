@@ -1396,7 +1396,7 @@ starontology:shacl_meta_shapes.ttl {
             sh:or,
             sh:xone .
 
-    shui:AutoCompleteEditor rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
+    shui:AutoCompleteEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
         rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
         sh:description "A text input with suggestions, typically backed by shui:resourceFilter-style search against existing resources."@en ;
         sh:group stsh:WidgetGroup ;
@@ -1404,7 +1404,7 @@ starontology:shacl_meta_shapes.ttl {
         sh:order 14 ;
         stsh:requiredEngine stsh:StarShacl .
 
-    shui:BlankNodeEditor rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
+    shui:BlankNodeEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
         rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
         sh:description "A nested sub-form for editing a blank-node-valued property in place, rather than as a reference."@en ;
         sh:group stsh:WidgetGroup ;
@@ -1412,7 +1412,7 @@ starontology:shacl_meta_shapes.ttl {
         sh:order 18 ;
         stsh:requiredEngine stsh:StarShacl .
 
-    shui:BlankNodeViewer rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
+    shui:BlankNodeViewer rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
         rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
         sh:description "Read-only nested display of a blank-node-valued property's own properties."@en ;
         sh:group stsh:WidgetGroup ;
@@ -1420,7 +1420,7 @@ starontology:shacl_meta_shapes.ttl {
         sh:order 27 ;
         stsh:requiredEngine stsh:StarShacl .
 
-    shui:BooleanEditor rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
+    shui:BooleanEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
         rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
         sh:description "A checkbox or toggle, for xsd:boolean-typed values."@en ;
         sh:group stsh:WidgetGroup ;
@@ -1428,7 +1428,7 @@ starontology:shacl_meta_shapes.ttl {
         sh:order 10 ;
         stsh:requiredEngine stsh:StarShacl .
 
-    shui:DatePickerEditor rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
+    shui:DatePickerEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
         rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
         sh:description "A calendar-style date picker, for xsd:date-typed values."@en ;
         sh:group stsh:WidgetGroup ;
@@ -1436,7 +1436,7 @@ starontology:shacl_meta_shapes.ttl {
         sh:order 11 ;
         stsh:requiredEngine stsh:StarShacl .
 
-    shui:DateTimePickerEditor rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
+    shui:DateTimePickerEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
         rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
         sh:description "A calendar-and-time picker, for xsd:dateTime-typed values."@en ;
         sh:group stsh:WidgetGroup ;
@@ -1444,7 +1444,7 @@ starontology:shacl_meta_shapes.ttl {
         sh:order 12 ;
         stsh:requiredEngine stsh:StarShacl .
 
-    shui:DetailsViewer rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
+    shui:DetailsViewer rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
         rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
         rdfs:seeAlso shui:DetailsEditor ;
         sh:description "An expandable/collapsible read-only view for a complex value, the viewer counterpart to shui:DetailsEditor."@en ;
@@ -1453,7 +1453,7 @@ starontology:shacl_meta_shapes.ttl {
         sh:order 28 ;
         stsh:requiredEngine stsh:StarShacl .
 
-    shui:EnumSelectEditor rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
+    shui:EnumSelectEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
         rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
         sh:description "A dropdown/select list, for a value constrained by sh:in to a fixed set of options."@en ;
         sh:group stsh:WidgetGroup ;
@@ -1461,7 +1461,7 @@ starontology:shacl_meta_shapes.ttl {
         sh:order 15 ;
         stsh:requiredEngine stsh:StarShacl .
 
-    shui:HTMLViewer rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
+    shui:HTMLViewer rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
         rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
         sh:description "Renders a value's content as formatted HTML rather than as plain escaped text."@en ;
         sh:group stsh:WidgetGroup ;
@@ -1469,7 +1469,7 @@ starontology:shacl_meta_shapes.ttl {
         sh:order 22 ;
         stsh:requiredEngine stsh:StarShacl .
 
-    shui:HyperlinkViewer rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
+    shui:HyperlinkViewer rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
         rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
         sh:description "Displays an IRI value as a clickable link."@en ;
         sh:group stsh:WidgetGroup ;
@@ -1477,7 +1477,7 @@ starontology:shacl_meta_shapes.ttl {
         sh:order 24 ;
         stsh:requiredEngine stsh:StarShacl .
 
-    shui:IRIEditor rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
+    shui:IRIEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
         rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
         sh:description "A plain-text input constrained to well-formed IRIs."@en ;
         sh:group stsh:WidgetGroup ;
@@ -1485,7 +1485,7 @@ starontology:shacl_meta_shapes.ttl {
         sh:order 13 ;
         stsh:requiredEngine stsh:StarShacl .
 
-    shui:IRIViewer rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
+    shui:IRIViewer rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
         rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
         sh:description "Read-only display of an IRI value, typically abbreviated with a known prefix."@en ;
         sh:group stsh:WidgetGroup ;
@@ -1493,7 +1493,7 @@ starontology:shacl_meta_shapes.ttl {
         sh:order 23 ;
         stsh:requiredEngine stsh:StarShacl .
 
-    shui:ImageViewer rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
+    shui:ImageViewer rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
         rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
         sh:description "Renders an IRI value inline as an image, for properties known to point at image resources."@en ;
         sh:group stsh:WidgetGroup ;
@@ -1501,7 +1501,7 @@ starontology:shacl_meta_shapes.ttl {
         sh:order 25 ;
         stsh:requiredEngine stsh:StarShacl .
 
-    shui:InstancesSelectEditor rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
+    shui:InstancesSelectEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
         rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
         sh:description "A dropdown/select list populated dynamically from existing instances of a class, rather than a fixed sh:in list."@en ;
         sh:group stsh:WidgetGroup ;
@@ -1509,7 +1509,7 @@ starontology:shacl_meta_shapes.ttl {
         sh:order 16 ;
         stsh:requiredEngine stsh:StarShacl .
 
-    shui:LabelRole rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
+    shui:LabelRole rdfs:comment "ignored by validation; not interpreted by starlayer.shacl (property roles are documented here but not implemented)"@en ;
         rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
         rdfs:seeAlso shui:propertyRole ;
         sh:description "The one built-in shui:propertyRole value — marks a property shape's values as the resource's own display label."@en ;
@@ -1518,7 +1518,7 @@ starontology:shacl_meta_shapes.ttl {
         sh:order 30 ;
         stsh:requiredEngine stsh:StarShacl .
 
-    shui:LabelViewer rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
+    shui:LabelViewer rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
         rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
         rdfs:seeAlso shui:propertyRole ;
         sh:description "Displays a resource by its resolved human-readable label (e.g. via shui:LabelRole/shui:displayProvider) rather than its raw IRI."@en ;
@@ -1527,7 +1527,7 @@ starontology:shacl_meta_shapes.ttl {
         sh:order 26 ;
         stsh:requiredEngine stsh:StarShacl .
 
-    shui:LangStringViewer rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
+    shui:LangStringViewer rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
         rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
         sh:description "Read-only display of a language-tagged literal, typically showing the language tag alongside the text."@en ;
         sh:group stsh:WidgetGroup ;
@@ -1535,7 +1535,7 @@ starontology:shacl_meta_shapes.ttl {
         sh:order 21 ;
         stsh:requiredEngine stsh:StarShacl .
 
-    shui:LiteralViewer rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
+    shui:LiteralViewer rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
         rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
         sh:description "Plain read-only display of a literal value's lexical form."@en ;
         sh:group stsh:WidgetGroup ;
@@ -1543,7 +1543,7 @@ starontology:shacl_meta_shapes.ttl {
         sh:order 20 ;
         stsh:requiredEngine stsh:StarShacl .
 
-    shui:NumberFieldEditor rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
+    shui:NumberFieldEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
         rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
         sh:description "A numeric input, for xsd:integer/xsd:decimal/xsd:double-typed values."@en ;
         sh:group stsh:WidgetGroup ;
@@ -1551,7 +1551,7 @@ starontology:shacl_meta_shapes.ttl {
         sh:order 9 ;
         stsh:requiredEngine stsh:StarShacl .
 
-    shui:RichTextEditor rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
+    shui:RichTextEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
         rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
         sh:description "A formatted (e.g. HTML/Markdown) text editor, for values meant to render with styling."@en ;
         sh:group stsh:WidgetGroup ;
@@ -1559,7 +1559,7 @@ starontology:shacl_meta_shapes.ttl {
         sh:order 8 ;
         stsh:requiredEngine stsh:StarShacl .
 
-    shui:SubClassEditor rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
+    shui:SubClassEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
         rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
         rdfs:seeAlso sh:rootClass ;
         sh:description "A class picker constrained to subclasses of a given root class — the editor-side counterpart to sh:rootClass."@en ;
@@ -1568,7 +1568,7 @@ starontology:shacl_meta_shapes.ttl {
         sh:order 17 ;
         stsh:requiredEngine stsh:StarShacl .
 
-    shui:TextAreaEditor rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
+    shui:TextAreaEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
         rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
         sh:description "A multi-line plain-text input."@en ;
         sh:group stsh:WidgetGroup ;
@@ -1576,7 +1576,7 @@ starontology:shacl_meta_shapes.ttl {
         sh:order 6 ;
         stsh:requiredEngine stsh:StarShacl .
 
-    shui:TextAreaWithLangEditor rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
+    shui:TextAreaWithLangEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
         rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
         sh:description "A multi-line text input paired with a language-tag selector."@en ;
         sh:group stsh:WidgetGroup ;
@@ -1584,7 +1584,7 @@ starontology:shacl_meta_shapes.ttl {
         sh:order 7 ;
         stsh:requiredEngine stsh:StarShacl .
 
-    shui:TextFieldEditor rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
+    shui:TextFieldEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
         rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
         sh:description "A single-line plain-text input."@en ;
         sh:group stsh:WidgetGroup ;
@@ -1592,7 +1592,7 @@ starontology:shacl_meta_shapes.ttl {
         sh:order 4 ;
         stsh:requiredEngine stsh:StarShacl .
 
-    shui:TextFieldWithLangEditor rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
+    shui:TextFieldWithLangEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
         rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
         sh:description "A single-line text input paired with a language-tag selector, for editing one language-tagged literal."@en ;
         sh:group stsh:WidgetGroup ;
@@ -1600,7 +1600,7 @@ starontology:shacl_meta_shapes.ttl {
         sh:order 5 ;
         stsh:requiredEngine stsh:StarShacl .
 
-    shui:ValueTableViewer rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
+    shui:ValueTableViewer rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
         rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
         sh:description "Displays multiple values for a property as rows of a table, rather than a simple list."@en ;
         sh:group stsh:WidgetGroup ;
@@ -1805,7 +1805,7 @@ starontology:shacl_meta_shapes.ttl {
         sh:or _:ne19aa9c3ba57449da6d8872363851322b188 ;
         sh:targetObjectsOf sh:property .
 
-    shui:DetailsEditor rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
+    shui:DetailsEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
         rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
         sh:description "An expandable/collapsible nested editor for a complex (typically shape-constrained) value."@en ;
         sh:group stsh:WidgetGroup ;
@@ -2493,7 +2493,7 @@ starontology:shacl_meta_shapes.ttl {
 
     shsh:PathNodeShape sh:xone _:ne19aa9c3ba57449da6d8872363851322b236 .
 
-    shui:editor rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
+    shui:editor rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
         rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
         rdfs:seeAlso shui:viewer ;
         skos:example "sh:property [ sh:path ex:birthDate ; shui:editor shui:DatePickerEditor ]"@en ;
@@ -2503,7 +2503,7 @@ starontology:shacl_meta_shapes.ttl {
         sh:order 1 ;
         stsh:requiredEngine stsh:StarShacl .
 
-    shui:viewer rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
+    shui:viewer rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
         rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
         rdfs:seeAlso shui:editor ;
         skos:example "sh:property [ sh:path ex:homepage ; shui:viewer shui:HyperlinkViewer ]"@en ;
@@ -2763,7 +2763,7 @@ starontology:shacl_meta_shapes.ttl {
         stsh:requiredEngine stsh:PySHACL ;
         stsh:widgetType "inline_shape" .
 
-    shui:propertyRole rdfs:comment "annotation passes through inertly — not an implemented starshacl feature; see Scope note above"@en ;
+    shui:propertyRole rdfs:comment "ignored by validation; not interpreted by starlayer.shacl (property roles are documented here but not implemented)"@en ;
         rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
         skos:example "sh:property [ sh:path ex:name ; shui:propertyRole shui:LabelRole ]"@en ;
         sh:description "Marks a property shape as playing a special semantic role for UI purposes — currently just shui:LabelRole, marking \"this is the property whose value should be used as the resource's own display label.\""@en ;
@@ -2942,7 +2942,7 @@ starontology:shacl_meta_shapes.ttl {
         sh:order 15 .
 
     stsh:WidgetGroup a sh:PropertyGroup ;
-        sh:description "shui: vocabulary for form generation — widget/editor/viewer assignment and the built-in widget instances. Documented for training purposes; not an implemented starShacl feature."@en ;
+        sh:description "shui: vocabulary for form generation — widget/editor/viewer assignment and the built-in widget instances. Documents the vocabulary: validation ignores it; widget selection is implemented separately in starlayer.shacl.ui_widget_selection; property roles are not interpreted."@en ;
         sh:name "SHACL 1.2 UI Widgets"@en ;
         sh:order 16 .
 
@@ -3959,6 +3959,34 @@ starontology:shacl_meta_shapes.ttl {
 
     _:ne19aa9c3ba57449da6d8872363851322b474 rdf:first stsh:NamedParameterFunctionCallShape ;
         rdf:rest () .
+
+stsh:WidgetScoreShape
+	a sh:NodeShape ;
+	rdfs:label "Well-formedness rules for shui:WidgetScore"@en ;
+	sh:targetClass shui:WidgetScore ;
+
+	sh:property [
+		sh:path shui:widget ;
+		sh:minCount 1 ;
+		sh:maxCount 1 ;
+		sh:nodeKind sh:BlankNodeOrIRI ;           # widget-nodeKind: the widget being scored, a named or anonymous widget instance
+	] ;
+	sh:property [
+		sh:path shui:score ;
+		sh:minCount 1 ;
+		sh:maxCount 1 ;
+		sh:or ( [ sh:datatype xsd:decimal ] [ sh:datatype xsd:integer ] ) ; # score-datatype: xsd:decimal or xsd:integer, per the upstream shape
+	] ;
+	sh:property [
+		sh:path shui:dataGraphShape ;
+		sh:maxCount 1 ;
+		sh:nodeKind sh:BlankNodeOrIRI ;           # dataGraphShape-nodeKind: optional, per the upstream shape
+	] ;
+	sh:property [
+		sh:path shui:shapesGraphShape ;
+		sh:maxCount 1 ;
+		sh:nodeKind sh:BlankNodeOrIRI ;           # shapesGraphShape-nodeKind: optional, per the upstream shape
+	] .
 }
 
 starontology:skos_shapes.ttl {
