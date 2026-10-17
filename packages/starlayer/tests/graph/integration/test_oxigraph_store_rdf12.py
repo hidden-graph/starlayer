@@ -287,7 +287,8 @@ class TestInferIsCreatedLikeTheSource:
 
 # ---------------------------------------------------------------------------
 # Known Oxigraph engine bug: SPARQL `=` panics on any dirLangString term
-# (docs/upstream-issues/oxigraph-upstream-issues.md, Issue 1)
+# (docs/upstream-issues/oxigraph-upstream-issues.md, Issue 1; reported upstream as
+# oxigraph/oxigraph#1982)
 # ---------------------------------------------------------------------------
 #
 # Why this lives here: the dirLangString coverage elsewhere against Oxigraph
