@@ -174,57 +174,19 @@ KNOWN_FAILURES_OXIGRAPH_PERSISTED: dict[str, str] = {**KNOWN_FAILURES_OXIGRAPH_S
 KNOWN_FAILURES_OXIGRAPH_HTTP: dict[str, str] = {**KNOWN_FAILURES_OXIGRAPH_STORE}
 _FUSEKI_LITERAL_NORMALIZATION = (
     "Apache Jena (Fuseki 6.1.0) also rewrites literals when it stores them - this fixture's data holds "
-    "values whose lexical form does not survive (e.g. \"1\"^^xsd:boolean becomes \"true\", an ill-formed "
-    "\"none\"^^xsd:boolean is dropped, \"2011-01-01\"^^xsd:dateTime gains a time part), so the exact data "
-    "the fixture needs is not what comes back. Same effect as oxigraph/oxigraph#526, observed on Jena."
+    "values whose lexical form does not survive (e.g. \"1\"^^xsd:boolean becomes \"true\", \"04\"^^xsd:integer "
+    "becomes \"4\", an ill-formed \"none\"^^xsd:boolean is dropped, \"2011-01-01\"^^xsd:dateTime gains a time "
+    "part), so the exact data the fixture needs is not what comes back. Same effect as "
+    "oxigraph/oxigraph#526, observed on Jena."
 )
 
-_FUSEKI_BNODE_LABELS_ARE_PER_QUERY = (
-    "Fuseki labels blank nodes with a per-query counter (b0, b1, ...), so the same label can name "
-    "different nodes in different queries (probed directly: a node is 'b1' as the second of two rows "
-    "and 'b0' on its own). This is permitted by SPARQL 1.1 - result blank-node labels are scoped to "
-    "the result set (Query Results JSON sec 3.2.2) - so it is not a Fuseki defect; Oxigraph's stable "
-    "ids are an extra the spec does not promise. A bound blank node therefore cannot be identified exactly on Fuseki - "
-    "StarLayerGraph falls back to a content join that is ambiguous when two nodes share a triple - "
-    "and this fixture's RDF lists / nested blank nodes depend on that identity, so it fails, "
-    "sometimes intermittently (it depends on result-row order). See starlayer/graph/CLAUDE.md, "
-    "'The W3C suites now run through the in-process Oxigraph store'. Not a SHACL defect."
-)
-
+# Fuseki's other former failures (RDF lists / nested blank nodes, ~30 fixtures) are fixed: it labels blank nodes
+# with a per-query counter, so this library stores them as skolem IRIs there and rewrites isBLANK / isIRI /
+# ORDER BY to match (see starlayer/graph/backends/skolem_semantics.py). Only literal normalization remains.
 KNOWN_FAILURES_FUSEKI_HTTP: dict[str, str] = {
     "tests/core/property/datatype-001::datatype-001": _FUSEKI_LITERAL_NORMALIZATION,
     "tests/core/property/or-datatypes-001::or-datatypes-001": _FUSEKI_LITERAL_NORMALIZATION,
     "tests/core/property/uniqueLang-002::uniqueLang-002": _FUSEKI_LITERAL_NORMALIZATION,
-    "tests/node-expr/shnex-sparql/equals::equals-example": _FUSEKI_BNODE_LABELS_ARE_PER_QUERY,
-    "tests/node-expr/shnex-sparql/greater-than-or-equal::greater-than-or-equal-example": _FUSEKI_BNODE_LABELS_ARE_PER_QUERY,
-    "tests/node-expr/shnex-sparql/if::if-example": _FUSEKI_BNODE_LABELS_ARE_PER_QUERY,
-    "tests/node-expr/shnex-sparql/less-than-or-equal::less-than-or-equal-example": _FUSEKI_BNODE_LABELS_ARE_PER_QUERY,
-    "tests/node-expr/shnex-sparql/logical-and::logical-and-example": _FUSEKI_BNODE_LABELS_ARE_PER_QUERY,
-    "tests/node-expr/shnex-sparql/logical-or::logical-or-example": _FUSEKI_BNODE_LABELS_ARE_PER_QUERY,
-    "tests/node-expr/shnex-sparql/sameTerm::sameTerm-example": _FUSEKI_BNODE_LABELS_ARE_PER_QUERY,
-    "tests/node-expr/shnex-sparql/sameValue::sameValue-example": _FUSEKI_BNODE_LABELS_ARE_PER_QUERY,
-    "tests/node-expr/shnex/concat::concat-three-constants": _FUSEKI_BNODE_LABELS_ARE_PER_QUERY,
-    "tests/node-expr/shnex/concat::concat-two-lists": _FUSEKI_BNODE_LABELS_ARE_PER_QUERY,
-    "tests/node-expr/shnex/count::count-list-3": _FUSEKI_BNODE_LABELS_ARE_PER_QUERY,
-    "tests/node-expr/shnex/distinct::distinct-list": _FUSEKI_BNODE_LABELS_ARE_PER_QUERY,
-    "tests/node-expr/shnex/distinct::distinct-termEquality": _FUSEKI_BNODE_LABELS_ARE_PER_QUERY,
-    "tests/node-expr/shnex/filterShape::filterShape-integers": _FUSEKI_BNODE_LABELS_ARE_PER_QUERY,
-    "tests/node-expr/shnex/filterShape::filterShape-unconstrained": _FUSEKI_BNODE_LABELS_ARE_PER_QUERY,
-    "tests/node-expr/shnex/if::if-then-no-else": _FUSEKI_BNODE_LABELS_ARE_PER_QUERY,
-    "tests/node-expr/shnex/intersection::intersection-three-lists": _FUSEKI_BNODE_LABELS_ARE_PER_QUERY,
-    "tests/node-expr/shnex/intersection::intersection-two-lists": _FUSEKI_BNODE_LABELS_ARE_PER_QUERY,
-    "tests/node-expr/shnex/matchAll::matchAll-minInclusive-3-false": _FUSEKI_BNODE_LABELS_ARE_PER_QUERY,
-    "tests/node-expr/shnex/matchAll::matchAll-minInclusive-3-true": _FUSEKI_BNODE_LABELS_ARE_PER_QUERY,
-    "tests/node-expr/shnex/nodesMatching::nodesMatching-base-class": _FUSEKI_BNODE_LABELS_ARE_PER_QUERY,
-    "tests/node-expr/shnex/offset::offset-2-empty": _FUSEKI_BNODE_LABELS_ARE_PER_QUERY,
-    "tests/node-expr/shnex/offset::offset-2-list-4": _FUSEKI_BNODE_LABELS_ARE_PER_QUERY,
-    "tests/node-expr/shnex/orderBy::orderBy-integer-list": _FUSEKI_BNODE_LABELS_ARE_PER_QUERY,
-    "tests/node-expr/shnex/orderBy::orderBy-integer-list-desc": _FUSEKI_BNODE_LABELS_ARE_PER_QUERY,
-    "tests/node-expr/shnex/pathValues::pathValues-simple": _FUSEKI_BNODE_LABELS_ARE_PER_QUERY,
-    "tests/node-expr/shnex/remove::remove-list-from-list": _FUSEKI_BNODE_LABELS_ARE_PER_QUERY,
-    "tests/node-expr/shnex/remove::remove-nested": _FUSEKI_BNODE_LABELS_ARE_PER_QUERY,
-    "tests/node-expr/shnex/sum::sum-list-3-integers": _FUSEKI_BNODE_LABELS_ARE_PER_QUERY,
-    "tests/node-expr/shnex/sum::sum-list-3-mixed": _FUSEKI_BNODE_LABELS_ARE_PER_QUERY,
-    "tests/node-expr/shnex/sum::sum-totalRevenue": _FUSEKI_BNODE_LABELS_ARE_PER_QUERY,
-    "tests/sparql/rules/layers-example::layers-example": _FUSEKI_BNODE_LABELS_ARE_PER_QUERY,
+    "tests/node-expr/shnex/remove::remove-list-from-list": _FUSEKI_LITERAL_NORMALIZATION,  # "01"^^xsd:integer
+    "tests/node-expr/shnex/distinct::distinct-termEquality": _FUSEKI_LITERAL_NORMALIZATION,  # "04"^^xsd:integer
 }

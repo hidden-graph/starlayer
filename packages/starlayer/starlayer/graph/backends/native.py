@@ -600,6 +600,12 @@ def native_query(store, backend: str, query_object: Any, processor: str = 'sparq
         check_native_version_conformance(query_object)
 
     sparql = query_object
+    if isinstance(sparql, str) and not blank_node_ids_are_stable(store, backend):
+        # This engine's blank-node ids are not stable, so blank nodes were
+        # stored as skolem IRIs - make isBLANK/isIRI/ORDER BY treat them as
+        # the blank nodes they are (see skolem_semantics.py).
+        from starlayer.graph.backends.skolem_semantics import rewrite
+        sparql = rewrite(sparql)
 
     # Detect query type by searching for the keyword — startswith() fails when
     # PREFIX declarations appear before ASK / CONSTRUCT / DESCRIBE.

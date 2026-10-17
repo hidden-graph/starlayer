@@ -224,18 +224,6 @@ _FUSEKI_KNOWN_DIVERGENCES: dict = {
     # doesn't show it. The store itself is correct (confirmed via a join
     # ASK query) - this is purely ARQ's JSON results writer. See
     # docs/upstream-issues/fuseki-upstream-issues.md Issue 2.
-    "results-reifiedtriples-1j": "Jena ARQ: inconsistent blank-node labels across rows of one "
-    "POST-submitted SELECT result set, for a bnode both nested in a triple-term value and bound "
-    "as an ordinary top-level term - see docs/upstream-issues/fuseki-upstream-issues.md Issue 2",
-    "pattern-6": "Jena ARQ: inconsistent blank-node labels across rows of one "
-    "POST-submitted SELECT result set, for a bnode both nested in a triple-term value and bound "
-    "as an ordinary top-level term - see docs/upstream-issues/fuseki-upstream-issues.md Issue 2",
-    "pattern-7": "Jena ARQ: inconsistent blank-node labels across rows of one "
-    "POST-submitted SELECT result set, for a bnode both nested in a triple-term value and bound "
-    "as an ordinary top-level term - see docs/upstream-issues/fuseki-upstream-issues.md Issue 2",
-    "pattern-10": "Jena ARQ: inconsistent blank-node labels across rows of one "
-    "POST-submitted SELECT result set, for a bnode both nested in a triple-term value and bound "
-    "as an ordinary top-level term - see docs/upstream-issues/fuseki-upstream-issues.md Issue 2",
 }
 
 EVAL_SELECT_FUSEKI = _mark_known_divergences(EVAL_SELECT, _FUSEKI_KNOWN_DIVERGENCES)

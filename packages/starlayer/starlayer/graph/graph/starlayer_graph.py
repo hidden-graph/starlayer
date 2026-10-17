@@ -532,7 +532,7 @@ class StarLayerGraph(Graph):
             sparql = f'INSERT DATA {{ {self._native_scoped(triple_str)} }}'
         execute_update(self.store, self._backend, sparql)
 
-    def _native_add_many(self, triples, *, skolemize_bnodes: bool = False) -> None:
+    def _native_add_many(self, triples, *, skolemize_bnodes: bool | None = None) -> None:
         """Write every ``(s, p, obj)`` in ``triples`` to this graph in a
         single SPARQL Update request, rather than one ``_native_add()`` HTTP
         call per triple.
@@ -559,7 +559,10 @@ class StarLayerGraph(Graph):
 
         Args:
             triples: The ``(s, p, obj)`` triples to write.
-            skolemize_bnodes: Write blank nodes as their stable skolem URIs,
+            skolemize_bnodes: ``None`` (default) decides from the store: skolemize
+                only on an engine whose blank-node ids are not stable across
+                queries (``blank_node_ids_are_stable()``), where a real blank
+                node could never be referred to again. Write blank nodes as their stable skolem URIs,
                 exactly like ``add()`` does, instead of as real blank nodes.
                 Real blank nodes get engine-assigned ids, so a ``BNode``
                 object that existed *before* the write (a label from some
@@ -572,9 +575,15 @@ class StarLayerGraph(Graph):
         """
         if not triples:
             return
-        from starlayer.graph.backends.native import execute_update, sparql_term
+        from starlayer.graph.backends.native import (
+            blank_node_ids_are_stable,
+            execute_update,
+            sparql_term,
+        )
         from starlayer.graph.model.triple import TripleTerm as _TT
 
+        if skolemize_bnodes is None:
+            skolemize_bnodes = not blank_node_ids_are_stable(self.store, self._backend)
         parts = []
         for s, p, obj in triples:
             if isinstance(s, (_TT, tuple)):
@@ -594,7 +603,15 @@ class StarLayerGraph(Graph):
         execute_update(self.store, self._backend, sparql)
         self._on_mutated()
 
-    def _native_triples(self, triple):
+    def _native_skolem_node_exists(self, node) -> bool:
+        """Whether ``node`` is stored in this graph as its skolem IRI (in
+        subject or object position)."""
+        from starlayer.graph.backends.native import execute_ask, skolemize_bnode
+        iri = skolemize_bnode(node).n3()
+        body = self._native_scoped(f'{{ {iri} ?_a ?_b }} UNION {{ ?_c ?_d {iri} }}')
+        return execute_ask(self.store, self._backend, f'ASK {{ {body} }}')
+
+    def _native_triples(self, triple, _skolem_exact: bool = False):
         """Native-backend body of triples() - issues an ASK (fully ground
         pattern) or a SELECT (any free variable) over HTTP, resolving a
         bound BNode via provenance-tracked join rather than by label (see
@@ -617,6 +634,23 @@ class StarLayerGraph(Graph):
             if not stable_cache:
                 stable_cache.append(blank_node_ids_are_stable(self.store, self._backend))
             return stable_cache[0]
+
+        if not _skolem_exact and any(isinstance(x, BNode) for x in (s, p, o)) and not stable_ids():
+            # A blank node written through this library on an engine with
+            # unstable ids is stored as its skolem IRI, so it can be named
+            # exactly. Try that first; only if nothing is there (data loaded
+            # some other way, as real blank nodes) fall back to the heuristics.
+            exact = list(self._native_triples(triple, _skolem_exact=True))
+            if exact:
+                yield from exact
+                return
+            # An empty exact answer is legitimate ("this node has no such
+            # triple") - only fall back when a bound blank node is not stored
+            # as a skolem node at all, otherwise the heuristic would hand back
+            # a look-alike node's rows.
+            bound = [x for x in (s, p, o) if isinstance(x, BNode)]
+            if all(self._native_skolem_node_exists(x) for x in bound):
+                return
 
         free = []
         bnode_filters = {}  # var -> BNode, only when no provenance is known (best-effort fallback)
@@ -661,6 +695,8 @@ class StarLayerGraph(Graph):
             if node is None:
                 free.append(var)
                 return f'?{var}'
+            if isinstance(node, BNode) and _skolem_exact:
+                return sparql_term(node)
             if isinstance(node, BNode):
                 # A bound BNode can't safely be pushed into the query text
                 # at all. sparql_term()'s skolemized form only matches
