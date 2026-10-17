@@ -285,7 +285,7 @@ class TestInferIsCreatedLikeTheSource:
 
 # ---------------------------------------------------------------------------
 # Known Oxigraph engine bug: SPARQL `=` panics on any dirLangString term
-# (docs/upstream-issues/oxigraph-upstream-issues.md, Issue 2)
+# (docs/upstream-issues/oxigraph-upstream-issues.md, Issue 1)
 # ---------------------------------------------------------------------------
 #
 # Why this lives here: the dirLangString coverage elsewhere against Oxigraph
@@ -342,7 +342,7 @@ class TestDirLangStringEquality:
             pytest.fail(
                 "Oxigraph no longer aborts on `=` over a dirLangString - the upstream bug "
                 "appears fixed. Update docs/upstream-issues/oxigraph-upstream-issues.md "
-                "(Issue 2) and turn this into a normal equality test."
+                "(Issue 1) and turn this into a normal equality test."
             )
         assert proc.returncode != 0
         assert 'unreachable' in proc.stderr or 'panicked' in proc.stderr or 'Abort' in proc.stderr
