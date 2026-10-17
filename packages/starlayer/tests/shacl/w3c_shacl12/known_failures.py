@@ -182,7 +182,9 @@ _FUSEKI_LITERAL_NORMALIZATION = (
 _FUSEKI_BNODE_LABELS_ARE_PER_QUERY = (
     "Fuseki labels blank nodes with a per-query counter (b0, b1, ...), so the same label can name "
     "different nodes in different queries (probed directly: a node is 'b1' as the second of two rows "
-    "and 'b0' on its own). A bound blank node therefore cannot be identified exactly on Fuseki - "
+    "and 'b0' on its own). This is permitted by SPARQL 1.1 - result blank-node labels are scoped to "
+    "the result set (Query Results JSON sec 3.2.2) - so it is not a Fuseki defect; Oxigraph's stable "
+    "ids are an extra the spec does not promise. A bound blank node therefore cannot be identified exactly on Fuseki - "
     "StarLayerGraph falls back to a content join that is ambiguous when two nodes share a triple - "
     "and this fixture's RDF lists / nested blank nodes depend on that identity, so it fails, "
     "sometimes intermittently (it depends on result-row order). See starlayer/graph/CLAUDE.md, "
