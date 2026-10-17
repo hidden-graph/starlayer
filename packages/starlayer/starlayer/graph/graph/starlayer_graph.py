@@ -532,7 +532,7 @@ class StarLayerGraph(Graph):
             sparql = f'INSERT DATA {{ {self._native_scoped(triple_str)} }}'
         execute_update(self.store, self._backend, sparql)
 
-    def _native_add_many(self, triples) -> None:
+    def _native_add_many(self, triples, *, skolemize_bnodes: bool = False) -> None:
         """Write every ``(s, p, obj)`` in ``triples`` to this graph in a
         single SPARQL Update request, rather than one ``_native_add()`` HTTP
         call per triple.
@@ -556,6 +556,19 @@ class StarLayerGraph(Graph):
         ``:g2``), each its own separate ``StarLayerGraph``/HTTP request -
         only ``skolemize_bnode()`` keeps that case safe, so that path still
         goes through ``add()`` one triple at a time.
+
+        Args:
+            triples: The ``(s, p, obj)`` triples to write.
+            skolemize_bnodes: Write blank nodes as their stable skolem URIs,
+                exactly like ``add()`` does, instead of as real blank nodes.
+                Real blank nodes get engine-assigned ids, so a ``BNode``
+                object that existed *before* the write (a label from some
+                other graph, a variable the caller still holds) no longer
+                names the stored node afterwards; skolemizing keeps the
+                original label addressable, at the cost of the stored node
+                not being a true blank node to ``isBLANK()``/``ORDER BY``.
+                Use it when copying a graph whose existing ``BNode`` labels
+                must keep working; leave it off for ``parse()``-style loads.
         """
         if not triples:
             return
@@ -572,9 +585,9 @@ class StarLayerGraph(Graph):
                 raise ValueError(
                     "RDF 1.2: a literal (dirLangString) is not permitted in subject position of a triple."
                 )
-            s_str = sparql_term(s, skolemize_bnodes=False)
-            p_str = sparql_term(p, skolemize_bnodes=False)
-            o_str = sparql_term(obj, skolemize_bnodes=False)
+            s_str = sparql_term(s, skolemize_bnodes=skolemize_bnodes)
+            p_str = sparql_term(p, skolemize_bnodes=skolemize_bnodes)
+            o_str = sparql_term(obj, skolemize_bnodes=skolemize_bnodes)
             parts.append(f'{s_str} {p_str} {o_str} .')
 
         sparql = f'INSERT {{ {self._native_scoped(" ".join(parts))} }} WHERE {{}}'
@@ -589,9 +602,21 @@ class StarLayerGraph(Graph):
         from rdflib import BNode
         from rdflib.term import Variable
 
-        from starlayer.graph.backends.native import _in_process, execute_ask, execute_select, sparql_term
+        from starlayer.graph.backends.native import (
+            blank_node_ids_are_stable,
+            execute_ask,
+            execute_select,
+            sparql_term,
+        )
         s, p, o = triple
-        in_process = _in_process(self.store)
+        stable_cache: list[bool] = []
+
+        def stable_ids() -> bool:
+            # Lazy and memoized: only a lookup that actually involves a blank
+            # node needs to know, and a remote store is probed at most once.
+            if not stable_cache:
+                stable_cache.append(blank_node_ids_are_stable(self.store, self._backend))
+            return stable_cache[0]
 
         free = []
         bnode_filters = {}  # var -> BNode, only when no provenance is known (best-effort fallback)
@@ -609,9 +634,10 @@ class StarLayerGraph(Graph):
             # strong reference to `node` specifically to keep id(node) from
             # being reused by a later, unrelated object once this one is
             # garbage collected.
-            if in_process:
-                # An in-process Oxigraph's blank-node ids are stable across
-                # queries, so the plain label comparison below is exact - and
+            if stable_ids():
+                # This store's blank-node ids are stable across queries (in-
+                # process Oxigraph, or an HTTP Oxigraph - see
+                # blank_node_ids_are_stable()), so the plain label comparison below is exact - and
                 # the content join this builds is NOT: it re-identifies a node
                 # by one of its own triples (e.g. "the node whose rdf:first is
                 # 'big'"), which is not unique (two list nodes can share that
@@ -700,20 +726,18 @@ class StarLayerGraph(Graph):
             s_val = row.get(Variable('s'), s) if 's' in free else s
             p_val = row.get(Variable('p'), p) if 'p' in free else p
             o_val = row.get(Variable('o'), o) if 'o' in free else o
-            if in_process:
-                pass
-            elif (
+            if (
                 isinstance(s_val, BNode)
                 and p_val is not None and not isinstance(p_val, BNode)
                 and o_val is not None and not isinstance(o_val, BNode)
+                and not stable_ids()
             ):
                 self._native_bnode_provenance.setdefault(id(s_val), (s_val, ('s', p_val, o_val)))
-            if in_process:
-                pass
-            elif (
+            if (
                 isinstance(o_val, BNode)
                 and s_val is not None and not isinstance(s_val, BNode)
                 and p_val is not None and not isinstance(p_val, BNode)
+                and not stable_ids()
             ):
                 self._native_bnode_provenance.setdefault(id(o_val), (o_val, ('o', s_val, p_val)))
             yield (s_val, p_val, o_val)

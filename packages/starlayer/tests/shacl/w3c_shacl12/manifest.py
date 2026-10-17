@@ -85,8 +85,16 @@ def clone_graph(source: StarLayerGraph, new_graph=StarLayerGraph) -> StarLayerGr
     clone = new_graph()
     for prefix, namespace in source.namespaces():
         clone.bind(prefix, namespace)
-    for triple in source.triples((None, None, None)):
-        clone.add(triple)
+    triples = list(source.triples((None, None, None)))
+    if getattr(clone, "_is_native", False):
+        # One batched request rather than one per triple - but with blank
+        # nodes skolemized (as add() does), not written as real blank nodes:
+        # these tests look nodes up by the BNode labels from the parsed
+        # manifest, and an engine-assigned id would break every such lookup.
+        clone._native_add_many(triples, skolemize_bnodes=True)
+    else:
+        for triple in triples:
+            clone.add(triple)
     return clone
 
 

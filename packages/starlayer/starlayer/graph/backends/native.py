@@ -427,6 +427,58 @@ def _in_process(store) -> bool:
     return type(store).__name__ == 'OxigraphStore' and hasattr(type(store), '_inner')
 
 
+_BNODE_ID_STABILITY: dict[str, bool] = {}
+
+
+def blank_node_ids_are_stable(store, backend: str) -> bool:
+    """Whether a blank-node label this store returns can be used as a stable
+    identity in a later query.
+
+    In-process Oxigraph: yes, always. A remote endpoint is *probed once* and
+    the answer cached per query URL: two blank nodes are written to a scratch
+    named graph, read back in two different query shapes, and their labels
+    compared. Oxigraph returns the same id both times; Fuseki labels blank
+    nodes with a per-query counter (``b0``, ``b1``...), so the same label can
+    name different nodes in different queries. Any error means "not stable",
+    the conservative answer (the provenance join is then kept).
+
+    The probe leaves nothing behind (the scratch graph is cleared).
+    """
+    if _in_process(store):
+        return True
+    try:
+        q_url, u_url, hdrs = resolve_store_http(store, backend)
+    except Exception:
+        return False
+    if q_url in _BNODE_ID_STABILITY:
+        return _BNODE_ID_STABILITY[q_url]
+
+    import uuid
+    graph = f'urn:starlayer:probe:{uuid.uuid4().hex}'
+    p = 'urn:starlayer:probe:p'
+    stable = False
+    try:
+        http_update(u_url, f'INSERT DATA {{ GRAPH <{graph}> {{ _:a <{p}> 1 . _:b <{p}> 2 }} }}', hdrs)
+        _, both = http_select(q_url, f'SELECT ?s ?o WHERE {{ GRAPH <{graph}> {{ ?s <{p}> ?o }} }} ORDER BY ?o', hdrs)
+        _, alone = http_select(
+            q_url, f'SELECT ?s ?o WHERE {{ GRAPH <{graph}> {{ ?s <{p}> ?o FILTER(?o = 2) }} }}', hdrs
+        )
+        # the second node, seen as the 2nd row of two and then on its own
+        from rdflib.term import Variable
+
+        s = Variable('s')
+        stable = len(both) == 2 and len(alone) == 1 and str(both[1][s]) == str(alone[0][s])
+    except Exception:
+        stable = False
+    finally:
+        try:
+            http_update(u_url, f'CLEAR SILENT GRAPH <{graph}>', hdrs)
+        except Exception:
+            pass
+    _BNODE_ID_STABILITY[q_url] = stable
+    return stable
+
+
 def new_graph_like(store, backend: str):
     """A new, empty ``StarLayerGraph`` of the same kind as one backed by
     ``store`` - the "derived graphs are created like their source" rule.

@@ -153,3 +153,9 @@ def test_w3c_eval_node_expr_oxigraph_store(entry: ManifestEntry) -> None:
     """The same fixtures with data and shapes graphs held in an in-process
     Oxigraph (rdf-1.2 native mode) instead of the in-memory default."""
     _check_eval_node_expr(entry, oxigraph_store_graph, {**KNOWN_FAILURES, **KNOWN_FAILURES_OXIGRAPH_STORE})
+
+
+def test_w3c_eval_node_expr_other_stores(entry: ManifestEntry, store_under_test) -> None:
+    """The same fixtures with data and shapes graphs held in each further store:
+    the Oxigraph and Fuseki servers (HTTP) and an on-disk Oxigraph."""
+    _check_eval_node_expr(entry, store_under_test.new_graph, {**KNOWN_FAILURES, **store_under_test.known_failures})

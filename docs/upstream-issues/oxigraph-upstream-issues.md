@@ -162,6 +162,8 @@ Observed directly against `pyoxigraph` 0.5.11, reading back what was inserted (9
 
 RDF Concepts identifies a literal by lexical form, datatype and language tag, so the values above that differ only in lexical form are distinct terms in the abstract model; an Oxigraph store holds one.
 
+Not unique to Oxigraph: running the same W3C SHACL fixtures through Apache Jena (Fuseki 6.1.0) showed the same effect on the same three fixtures (`"1"^^xsd:boolean` becomes `"true"`, an ill-formed `"none"^^xsd:boolean` is dropped, `"2011-01-01"^^xsd:dateTime` gains a time part). Exact lexical forms should not be assumed to survive storage in either engine.
+
 ### In this project
 
-Not worked around, and nothing to fix here: it is a property of the engine. It matters wherever exact lexical forms are significant, which is most visibly the W3C SHACL 1.2 suites, where six fixtures depend on it (`"01"` and `"04"` in the node-expression lists; ill-formed values in the `datatype` / `or-datatypes` / `uniqueLang` fixtures). Those six pass on the default in-memory store and are recorded as known failures for the in-process Oxigraph store in `tests/shacl/w3c_shacl12/known_failures.py` (`KNOWN_FAILURES_OXIGRAPH_STORE`), each checked against its own data. Re-check them when #526 lands.
+Not worked around, and nothing to fix here: it is a property of the engines. It matters wherever exact lexical forms are significant, which is most visibly the W3C SHACL 1.2 suites, where six fixtures depend on it (`"01"` and `"04"` in the node-expression lists; ill-formed values in the `datatype` / `or-datatypes` / `uniqueLang` fixtures). Those six pass on the default in-memory store and are recorded as known failures for the Oxigraph stores (in-process, on-disk and server) in `tests/shacl/w3c_shacl12/known_failures.py` (`KNOWN_FAILURES_OXIGRAPH_STORE`), each checked against its own data; Fuseki's three are in `KNOWN_FAILURES_FUSEKI_HTTP`. Re-check them when #526 lands.
