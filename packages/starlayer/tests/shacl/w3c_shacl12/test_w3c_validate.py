@@ -150,6 +150,7 @@ def test_w3c_validate(entry: ManifestEntry) -> None:
     _check_validate(entry, StarLayerGraph, KNOWN_FAILURES)
 
 
+@pytest.mark.store_matrix
 @oxigraph_store
 def test_w3c_validate_oxigraph_store(entry: ManifestEntry) -> None:
     """The same fixtures with data and shapes graphs held in an in-process
@@ -157,6 +158,7 @@ def test_w3c_validate_oxigraph_store(entry: ManifestEntry) -> None:
     _check_validate(entry, oxigraph_store_graph, {**KNOWN_FAILURES, **KNOWN_FAILURES_OXIGRAPH_STORE})
 
 
+@pytest.mark.store_matrix
 def test_w3c_validate_other_stores(entry: ManifestEntry, store_under_test) -> None:
     """The same fixtures with data and shapes graphs held in each further store:
     the Oxigraph and Fuseki servers (HTTP) and an on-disk Oxigraph."""

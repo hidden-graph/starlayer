@@ -78,6 +78,7 @@ testpaths = ["packages/starlayer/tests"]
 markers = [
     "integration: tests requiring a running Fuseki/Oxigraph server or a real backend store (e.g. SQLite via rdflib-sqlalchemy) - the 'full testing' tier.",
     "w3c_sparql12: W3C SPARQL 1.2 test suite cross-checks.",
+    "store_matrix: the W3C conformance suites run through every store (in-process, on-disk and server-backed Oxigraph, Fuseki) - slow, opt-in: pytest --store-matrix (or STARLAYER_STORE_MATRIX=1, or -m store_matrix). See tests/conftest.py.",
 ]
 
 [tool.ruff]

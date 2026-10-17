@@ -529,6 +529,7 @@ def test_eval_construct_original_query_oxigraph(entry):
 # installed.
 # ---------------------------------------------------------------------------
 
+@pytest.mark.store_matrix
 @_no_data
 @_oxigraph_store
 @pytest.mark.parametrize("entry", EVAL_SELECT_OXIGRAPH, ids=lambda e: e.test_iri)
@@ -550,6 +551,7 @@ def test_eval_select_original_query_oxigraph_store(entry):
     assert bindings_match(actual, expected)
 
 
+@pytest.mark.store_matrix
 @_no_data
 @_oxigraph_store
 @pytest.mark.parametrize("entry", EVAL_CONSTRUCT, ids=lambda e: e.test_iri)

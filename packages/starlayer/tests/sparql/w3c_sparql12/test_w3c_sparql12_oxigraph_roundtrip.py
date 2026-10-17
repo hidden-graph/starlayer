@@ -102,7 +102,7 @@ def _backend_available(name: str) -> bool:
         return False
 
 
-@pytest.fixture(params=[*_ENDPOINTS, IN_PROCESS])
+@pytest.fixture(params=[*_ENDPOINTS, pytest.param(IN_PROCESS, marks=pytest.mark.store_matrix)])
 def backend(request) -> str:
     name = request.param
     if not _backend_available(name):
