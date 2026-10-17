@@ -1400,7 +1400,7 @@ class StarShaclSchema:
             ``report_graph``), or ``conforms`` unchanged if ``report_graph``
             has no ``sh:ValidationReport`` node at all.
         """
-        report_node = next((s for s, _, _ in report_graph.triples((None, RDF.type, SH.ValidationReport))), None)
+        report_node = _find_genuine_report_node(report_graph)
         if report_node is None:
             return conforms
 
@@ -1471,7 +1471,7 @@ class StarShaclSchema:
         Returns:
             None - ``report_graph`` is mutated in place.
         """
-        report_node = next((s for s, _, _ in report_graph.triples((None, RDF.type, SH.ValidationReport))), None)
+        report_node = _find_genuine_report_node(report_graph)
         if report_node is None:
             return
 
@@ -2495,7 +2495,7 @@ def _annotate_conformance_disallows(report_graph: Any, options: dict[str, Any], 
     Returns:
         The recomputed conformance boolean.
     """
-    report_node = next((s for s, _, _ in report_graph.triples((None, RDF.type, SH.ValidationReport))), None)
+    report_node = _find_genuine_report_node(report_graph)
     if report_node is None:
         return conforms
 
@@ -2652,7 +2652,7 @@ def _relabel_validation_report_node(report_graph: Any) -> None:
     Returns:
         None - mutates ``report_graph`` in place.
     """
-    report_node = next((s for s, _, _ in report_graph.triples((None, RDF.type, SH.ValidationReport))), None)
+    report_node = _find_genuine_report_node(report_graph)
     if report_node is None or not isinstance(report_node, BNode):
         return
     new_node = BNode("report")
@@ -2709,7 +2709,7 @@ def _append_provenance_to_report_text(report_text: str, report_graph: Any, data_
         found in ``report_graph``, otherwise ``report_text`` with the
         provenance appendix appended.
     """
-    report_node = next((s for s, _, _ in report_graph.triples((None, RDF.type, SH.ValidationReport))), None)
+    report_node = _find_genuine_report_node(report_graph)
     if report_node is None:
         return report_text
 
@@ -2782,7 +2782,7 @@ def _annotate_used_graphs_and_configuration(
     Returns:
         None - mutates ``report_graph`` in place.
     """
-    report_node = next((s for s, _, _ in report_graph.triples((None, RDF.type, SH.ValidationReport))), None)
+    report_node = _find_genuine_report_node(report_graph)
     if report_node is None:
         return
 
@@ -5342,21 +5342,30 @@ def _find_genuine_report_node(report_graph: Any) -> Any | None:
     ``sh:ValidationReport``-typed node that happens to be copied into the
     report as some unrelated result's ``sh:value``/``sh:focusNode``.
 
-    This ambiguity is real, not hypothetical: found via
-    ``_nodes_conforming_to``'s own nested ``validate()`` call, whose
-    ``data_graph`` can itself already contain report-shaped content (e.g.
-    the W3C SHACL 1.2 test suite's own manifest format - a fixture using
-    ``sht:dataGraph <>`` treats its own ``mf:result [ a sh:ValidationReport ;
-    sh:conforms ... ; sh:result [...] ]`` expected-result block as ordinary
-    data). If some *other*, genuine violation's value/focus node happens to
-    equal that embedded block, pySHACL's own report-graph construction
-    copies its triples into the output report as part of representing that
-    value - producing a second, spurious ``sh:ValidationReport``-typed node
-    that a naive "first/any node of this type" scan can't tell apart from
-    the real one. The real one is identifiable structurally: it is always a
-    fresh ``BNode()`` that nothing else in the graph points to, whereas an
-    incidental one was pulled in specifically *because* something else
-    references it.
+    This ambiguity is real, not hypothetical: a fixture using
+    ``sht:dataGraph <>`` (the W3C SHACL 1.2 test suite's own format) treats
+    its own ``mf:result [ a sh:ValidationReport ; ... ]`` expected-result
+    block as ordinary data. If some violation's value/focus node is that
+    block, pySHACL's report construction copies its triples into the output
+    report, producing a second ``sh:ValidationReport``-typed node.
+
+    Every post-processing step that needs "the report node" must use this, not
+    "the first node of that type": picking the wrong one is not harmless. One
+    step relabels the chosen node (``_relabel_validation_report_node``), which
+    rewrites its identity everywhere it appears - so choosing the incidental
+    copy renames a *data* node inside the results, after which the violation
+    no longer names the original node. That made ``sh:targetWhere`` (which
+    reads focus nodes back out of a nested report) intermittently treat a
+    non-conforming node as conforming, depending on graph iteration order.
+
+    The genuine report is told apart structurally: it is a fresh node that
+    nothing in the report refers to, whereas an incidental copy was pulled in
+    specifically because a result's ``sh:focusNode`` / ``sh:value`` (or other
+    data) refers to it. The one reference the genuine report may have is this
+    library's own ``<graph> sh:validationReport <report>`` link. If that still
+    leaves more than one candidate, the one with the most ``sh:result`` is
+    taken, with a deterministic tie-break, so the answer never depends on
+    iteration order.
 
     Args:
         report_graph: The validation report graph to search.
@@ -5365,14 +5374,18 @@ def _find_genuine_report_node(report_graph: Any) -> Any | None:
         The real top-level ``sh:ValidationReport`` node, or ``None`` if
         ``report_graph`` has none at all.
     """
-    nodes = list(report_graph.triples((None, RDF.type, SH.ValidationReport)))
-    candidates = [s for s, _, _ in nodes]
+    candidates = sorted({s for s, _, _ in report_graph.triples((None, RDF.type, SH.ValidationReport))}, key=str)
     if len(candidates) <= 1:
         return candidates[0] if candidates else None
-    roots = [n for n in candidates if next(report_graph.subjects(None, n), None) is None]
+
+    def only_linked_to(node: Any) -> bool:
+        return all(p == SH.validationReport for _, p, _ in report_graph.triples((None, None, node)))
+
+    roots = [n for n in candidates if only_linked_to(n)]
     if len(roots) == 1:
         return roots[0]
-    return candidates[0]
+    pool = roots or candidates
+    return max(pool, key=lambda n: (len(list(report_graph.objects(n, SH.result))), str(n)))
 
 
 def _rule_set_members(shapes_graph: Any, rule_set: Any) -> frozenset:
