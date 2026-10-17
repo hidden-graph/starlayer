@@ -97,6 +97,7 @@ def test_no_rdf_involved_at_all(monkeypatch):
     def _boom(*args, **kwargs):
         raise AssertionError("ruleset_to_text must not call ruleset_to_tree")
 
-    monkeypatch.setattr(srl_module, "ruleset_to_tree", _boom)
+    # parse first: parse_ruleset validates against the shapes, which encodes the rule set as RDF
     rs = parse_ruleset("PREFIX ex: <http://example.org/>\nRULE { ?x ex:p ?y } WHERE { ?x ex:q ?y . }")
+    monkeypatch.setattr(srl_module, "ruleset_to_tree", _boom)
     ruleset_to_text(rs)  # must not raise

@@ -1,4 +1,4 @@
-"""Extended checks of SRL's stratification (SPARQL 1.2 RL §4.3.2 dependency
+"""Extended checks of SRL's stratification (SRL §4.3.2 dependency
 graph, §4.4.2 stratification) beyond the spec's one worked example in
 ``test_srl_eval.py``: indirect negation cycles, long chains, edge cases of
 the dependency graph, and the deliberately loose pattern match.

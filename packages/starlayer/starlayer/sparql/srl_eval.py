@@ -1,4 +1,4 @@
-"""SRL/SPARQL-RL evaluation engine - `WD-sparql12-rl-20261014
+"""SRL evaluation engine - `WD-sparql12-rl-20261014
 <https://www.w3.org/TR/sparql12-rl/>`_ (dependency graph updated from the
 2026-09-19 draft: WHERE DATA / NOT DATA add no dependencies) §4.3 (Rule Dependency),
 §4.4 (Stratification), and §6 (Rule Set Evaluation), translated directly
@@ -140,7 +140,7 @@ def _build_dependency_graph(ruleset: srl_ast.RuleSet) -> list[_DependencyEdge]:
 
     for r1 in ruleset.rules:
         # A rule that matches only the base graph (WHERE DATA) has no dependencies
-        # (SPARQL-RL 2026-10-14 §4.3.1: ``evaldata`` false).
+        # (SRL 2026-10-14 §4.3.1: ``evaldata`` false).
         if not r1.evaldata:
             continue
         body_dependencies: list[tuple[srl_ast.TriplePattern, str]] = []
@@ -241,6 +241,107 @@ def _stratify(ruleset: srl_ast.RuleSet) -> list[tuple[list[srl_ast._Rule], list[
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# Triple terms (RDF 1.2) in patterns, templates and DATA blocks
+# ---------------------------------------------------------------------------
+
+
+def _has_triple_term(term) -> bool:
+    """True if ``term`` is a triple term (a ``TripleTermNode``)."""
+    return isinstance(term, TripleTermNode)
+
+
+def _term_variables(term) -> list[Variable]:
+    """Every variable in ``term``, looking inside triple terms at any depth."""
+    if isinstance(term, Variable):
+        return [term]
+    if isinstance(term, TripleTermNode):
+        return [v for part in _triple_term_parts(term) for v in _term_variables(part)]
+    return []
+
+
+def _triple_term_parts(term: TripleTermNode) -> tuple:
+    return (term.get("subject"), term.get("predicate"), term.get("object"))
+
+
+def _triple_uses_triple_terms(t: srl_ast.TriplePattern) -> bool:
+    return any(_has_triple_term(x) for x in (t.subject, t.predicate, t.object))
+
+
+def _ruleset_uses_triple_terms(ruleset: srl_ast.RuleSet) -> bool:
+    """True if any rule (head or body, including inside a negation) or DATA
+    block mentions a triple term - such a rule set is evaluated over a
+    ``StarLayerGraph``, which can hold them."""
+
+    def _element(e) -> bool:
+        if isinstance(e, srl_ast.TriplePattern):
+            return _triple_uses_triple_terms(e)
+        if isinstance(e, srl_ast._NegationElement):
+            return any(_element(x) for x in e.inner)
+        return False
+
+    return any(
+        any(_triple_uses_triple_terms(t) for t in rule.head) or any(_element(e) for e in rule.body)
+        for rule in ruleset.rules
+    ) or any(_triple_uses_triple_terms(t) for block in ruleset.data for t in block.triples)
+
+
+class _InvalidInstance(Exception):
+    """A head template instantiated to something that is not a valid RDF 1.2
+    triple term (for example a literal as the subject of a triple term). The
+    triple is skipped, as ordinary SPARQL ``CONSTRUCT`` skips an invalid triple."""
+
+
+def _graph_term(term, resolve=None):
+    """The graph-storable form of a pattern/template term: a ``TripleTermNode``
+    becomes a ``starlayer.graph`` ``TripleTerm`` (recursively); every other term is
+    returned unchanged. ``resolve`` maps a leaf (variable or blank node) to its
+    value, and is ``None`` for ground terms (DATA blocks).
+
+    Raises:
+        _InvalidInstance: If a triple term would be invalid RDF 1.2.
+    """
+    from starlayer.graph.model.triple import TripleTerm
+
+    if isinstance(term, TripleTermNode):
+        s, p, o = (_graph_term(part, resolve) for part in _triple_term_parts(term))
+        try:
+            return TripleTerm(s, p, o)
+        except ValueError as exc:
+            raise _InvalidInstance(str(exc)) from exc
+    return resolve(term) if resolve is not None else term
+
+
+def _pattern_term_text(term) -> str:
+    """SPARQL 1.2 text for one pattern term, for matching a triple pattern that
+    contains a triple term by running it as a query against the graph."""
+    from starlayer.graph.backends.native import sparql_term
+
+    if isinstance(term, Variable):
+        return "?" + str(term)
+    if isinstance(term, TripleTermNode):
+        s, p, o = (_pattern_term_text(part) for part in _triple_term_parts(term))
+        return f"<<( {s} {p} {o} )>>"
+    return sparql_term(term, skolemize_bnodes=False)
+
+
+def _match_with_query(run: list[srl_ast.TriplePattern], g: Graph) -> list[dict]:
+    """Every solution of the basic graph pattern ``run`` against ``g`` (a
+    ``StarLayerGraph``), found by running the pattern as a SPARQL 1.2 query. Used
+    for a run of triple patterns that contains a triple term, which rdflib's own
+    ``evalBGP`` cannot match."""
+    body = " . ".join(
+        f"{_pattern_term_text(t.subject)} {_pattern_term_text(t.predicate)} {_pattern_term_text(t.object)}"
+        for t in run
+    )
+    result = g.query(f"SELECT * WHERE {{ {body} }}")
+    return [dict(binding) for binding in result.bindings]
+
+
+def _compatible(mu1: dict, mu2: dict) -> bool:
+    return all(mu1[v] == mu2[v] for v in mu1.keys() & mu2.keys())
+
+
 def _collect_vars_in_expr(expr, found: set[Variable]) -> None:
     def _visit(node):
         if isinstance(node, Variable):
@@ -258,8 +359,7 @@ def _collect_variables(rule: srl_ast._Rule) -> set[Variable]:
 
     def _triple(t: srl_ast.TriplePattern) -> None:
         for term in (t.subject, t.predicate, t.object):
-            if isinstance(term, Variable):
-                found.add(term)
+            found.update(_term_variables(term))
 
     def _element(e: srl_ast.BodyElement) -> None:
         if isinstance(e, srl_ast.TriplePattern):
@@ -316,6 +416,9 @@ def _blank_nodes_to_vars(
             if t not in mapping:
                 mapping[t] = _fresh_variable(used_vars)
             return mapping[t]
+        if isinstance(t, TripleTermNode):
+            s, p, o = (_sub_term(part) for part in _triple_term_parts(t))
+            return TripleTermNode("TripleTerm", subject=s, predicate=p, object=o)
         return t
 
     def _sub_triple(t: srl_ast.TriplePattern) -> srl_ast.TriplePattern:
@@ -335,6 +438,10 @@ def _eval_triple_run(run: list[srl_ast.TriplePattern], seq: list[dict], g: Graph
     """One ``evalBGP`` call per incoming solution for a maximal consecutive
     run of triple-pattern elements - see module docstring for why this is
     equivalent to (and more efficient than) matching them one at a time."""
+    if any(_triple_uses_triple_terms(t) for t in run):
+        # a pattern with a triple term is matched once, then joined with the incoming solutions
+        matches = _match_with_query(run, g)
+        return [{**mu, **m} for mu in seq for m in matches if _compatible(mu, m)]
     bgp = [(t.subject, t.predicate, t.object) for t in run]
     run_vars = {term for t in run for term in (t.subject, t.predicate, t.object) if isinstance(term, Variable)}
     out: list[dict] = []
@@ -459,7 +566,7 @@ def _subst_head_triple(triple: srl_ast.TriplePattern, mu: dict, bnode_map: dict[
             return bnode_map[t]
         return t
 
-    return (_sub(triple.subject), _sub(triple.predicate), _sub(triple.object))
+    return tuple(_graph_term(part, _sub) for part in (triple.subject, triple.predicate, triple.object))
 
 
 def _eval_rule(rule: srl_ast._Rule, g: Graph, gd: Graph) -> set[tuple]:
@@ -475,13 +582,44 @@ def _eval_rule(rule: srl_ast._Rule, g: Graph, gd: Graph) -> set[tuple]:
     for mu in seq:
         bnode_map: dict[BNode, BNode] = {}
         for template in rule.head:
-            out.add(_subst_head_triple(template, mu, bnode_map))
+            try:
+                out.add(_subst_head_triple(template, mu, bnode_map))
+            except _InvalidInstance:
+                continue  # not valid RDF 1.2 (e.g. a literal as a triple term's subject): skipped
     return out
 
 
 # ---------------------------------------------------------------------------
 # §6.5 Evaluation of a Rule Set / top-level Infer / Query (§4.1)
 # ---------------------------------------------------------------------------
+
+
+def _is_starlayer_graph(graph) -> bool:
+    from starlayer.graph import StarLayerGraph
+
+    return isinstance(graph, StarLayerGraph)
+
+
+def _new_graph(use_starlayer: bool):
+    if use_starlayer:
+        from starlayer.graph import StarLayerGraph
+
+        return StarLayerGraph()
+    return Graph()
+
+
+def _add_all(dst, src) -> None:
+    for triple in src:
+        dst.add(triple)
+
+
+def _as_graph_kind(graph, use_starlayer: bool):
+    """``graph`` itself, or a ``StarLayerGraph`` copy of it if one is needed and it is not one."""
+    if use_starlayer and not _is_starlayer_graph(graph):
+        copy = _new_graph(True)
+        _add_all(copy, graph)
+        return copy
+    return graph
 
 
 def _evaluate_ruleset(base_graph: Graph, ruleset: srl_ast.RuleSet) -> Graph:
@@ -515,19 +653,27 @@ def _evaluate_ruleset(base_graph: Graph, ruleset: srl_ast.RuleSet) -> Graph:
             "containing IMPORTS statements, rather than silently ignoring them"
         )
 
-    d = Graph()
+    # A StarLayerGraph can hold RDF 1.2 triple terms; a plain Graph cannot. Use one when
+    # the rule set mentions a triple term or the base graph is already a StarLayerGraph.
+    use_starlayer = _ruleset_uses_triple_terms(ruleset) or _is_starlayer_graph(base_graph)
+    base_graph = _as_graph_kind(base_graph, use_starlayer)
+
+    d = _new_graph(use_starlayer)
     for block in ruleset.data:
         for t in block.triples:
-            d.add((t.subject, t.predicate, t.object))
+            try:
+                d.add(tuple(_graph_term(part) for part in (t.subject, t.predicate, t.object)))
+            except _InvalidInstance as exc:
+                raise SRLEvalError(f"SRL: a DATA block has an invalid triple term: {exc}") from exc
 
-    gi = Graph()
+    gi = _new_graph(use_starlayer)
     for t in d:
         if t not in base_graph:
             gi.add(t)
 
-    ge = Graph()
-    ge += base_graph
-    ge += d
+    ge = _new_graph(use_starlayer)
+    _add_all(ge, base_graph)
+    _add_all(ge, d)
 
     for once_rules, general_rules in _stratify(ruleset):
         for rule in once_rules:
@@ -591,15 +737,16 @@ def _srl_query(base_graph: Graph, ruleset: srl_ast.RuleSet, goal_pattern: srl_as
         One ``dict[Variable, term]`` solution per match.
     """
     gi = _evaluate_ruleset(base_graph, ruleset)
-    combined = Graph()
-    combined += base_graph
-    combined += gi
+    use_starlayer = _is_starlayer_graph(gi) or _triple_uses_triple_terms(goal_pattern)
+    combined = _new_graph(use_starlayer)
+    _add_all(combined, base_graph)
+    _add_all(combined, gi)
 
     goal_vars = {
-        term
-        for term in (goal_pattern.subject, goal_pattern.predicate, goal_pattern.object)
-        if isinstance(term, Variable)
+        v for term in (goal_pattern.subject, goal_pattern.predicate, goal_pattern.object) for v in _term_variables(term)
     }
+    if _triple_uses_triple_terms(goal_pattern):
+        return [{v: m[v] for v in goal_vars if v in m} for m in _match_with_query([goal_pattern], combined)]
     bgp = [(goal_pattern.subject, goal_pattern.predicate, goal_pattern.object)]
     ctx = QueryContext(graph=combined)
     return [{v: binding[v] for v in goal_vars} for binding in evalBGP(ctx, bgp)]

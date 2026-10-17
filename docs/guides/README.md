@@ -17,7 +17,7 @@ The full guide set has been reorganized into `docs/guides/`, one focused noteboo
    - **2.c [OWL 2 DL reasoning](02c-owl-dl-reasoning.ipynb)** - `infer(entailment=ENTAILMENT["OWL-Direct"])`, genuine DL reasoning via HermiT (default, needs a real JVM) or RustDL (pure Rust, no JVM, with its own tradeoffs).
 3. **[SPARQL](03-sparql.ipynb)** - query semantics and built-in functions.
    - **3.a [SPARQL entailment](03a-sparql-entailment.ipynb)** - what's specific to `query(entailment=...)` beyond what 2.b already covers per regime: caching behavior (`infer=`) and detecting an inconsistency via `ASK`.
-   - **3.b [SPARQL-RL rules](03b-sparql-rules.ipynb)** - SRL, a separate Datalog-style rules language independent of SHACL: parsing, inference, the evaluation plan (strata and dependency edges), querying, and well-formedness checking.
+   - **3.b [SRL (SPARQL Rules)](03b-srl-sparql-rules.ipynb)** - a separate Datalog-style rules language independent of SHACL: parsing (including RDF 1.2 triple terms, annotations, `/` `^` property paths and `IMPORTS`), inference, the evaluation plan (strata and dependency edges), querying, and well-formedness checking.
 4. **[SHACL shapes](04-shacl-shapes.ipynb)** - what starshacl adds over pySHACL, and an overview of its four processing modes (`validate()`, `apply_rules()`, `evaluate()`, `extract_subgraph()`).
    - **4.a [SHACL node expressions](04a-shacl-node-expressions.ipynb)** - the `shnex:`/`sparql:` node-expression vocabulary, `sh:values`/`sh:expression`, custom functions.
    - **4.b [SHACL and SPARQL](04b-shacl-and-sparql.ipynb)** - `sh:sparql` constraints, user-defined `sh:ConstraintComponent`.
@@ -28,7 +28,7 @@ The full guide set has been reorganized into `docs/guides/`, one focused noteboo
 5. **[StarLayer Schemas and Ontologies](05-starlayer-schemas-and-ontologies.ipynb)** - the vocabularies StarLayer defines for representing an artifact's own internal structure as RDF, inspectable/editable/validatable like any other graph; plus the registry that bundles all of them (including SKOS and the SHACL meta-shapes).
    - **5.a [Manchester Syntax](05a-manchester-syntax.ipynb)** - OWL 2 Manchester Syntax's English-readable notation, via `parse()`/`serialize()` with `format="manchester"`, plus treating a document's own internal structure as an inspectable, editable RDF graph via the `manch:` ontology.
    - **5.b [SPARQL queries as RDF](05b-sparql-query-as-rdf.ipynb)** - encoding, editing, and validating a query itself as an RDF graph, under the `sqe:` ontology.
-   - **5.c [SPARQL-RL rules as RDF](05c-sparql-rules-as-rdf.ipynb)** - encoding a parsed SRL rule set as RDF under the `srl:` namespace, and SHACL-validating that encoding.
+   - **5.c [SRL (SPARQL Rules) as RDF](05c-srl-sparql-rules-as-rdf.ipynb)** - encoding a parsed SRL rule set as RDF under the `srl:` namespace, and SHACL-validating that encoding.
 6. **Other**
    - **6.a [Serialization formats](06a-serialization-formats.ipynb)** - all eight RDF 1.2 formats `parse()`/`serialize()` support.
    - **6.b [Choosing where your data lives](06b-backend-graph-databases.ipynb)** - remote SPARQL endpoints, SQLAlchemy-backed storage, and embedded Oxigraph - Transport and Persistence, independent of the RDF 1.1/1.2 representation.

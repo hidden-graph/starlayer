@@ -83,7 +83,7 @@ tr:sparql12-rl rdfs:label "SPARQL 1.2 RL" ;
         prof:hasRole role:validation
     ], [
         a prof:ResourceDescriptor ;
-        rdfs:comment "SRL/SPARQL-RL's own rule-set abstract syntax as RDF (srl:) - a Datalog-style rules language, general-purpose and SHACL-independent." ;
+        rdfs:comment "SRL's own rule-set abstract syntax as RDF (srl:) - a Datalog-style rules language, general-purpose and SHACL-independent." ;
         rdfs:label "srl_owl" ;
         prof:hasArtifact starontology:srl-ontology.ttl ;
         prof:hasRole role:schema

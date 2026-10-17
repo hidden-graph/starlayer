@@ -3,14 +3,8 @@ Notes on guides and other comments
 Notes on graph:
 
 
-1. Complete the integration of oxigraph both as in-memory and backend direct store.
-
 2. Complete the review of the user guides.
 
-
-
-
-8. did we hide the public ability to see the rules plan in SRL.  should that be public?
 
 For subgraph extraction, we can keep the shape as optional. and we do need focus node to be required.  we want to get back a mapping of a node  to its extacted graph. 
 `shape=`/`focus_node=` are optional filters, not required inputs - given neither, `extract_subgraph()` discovers every real entry point the whole shapes graph declares (every shape's own SHACL targets) and returns the union of everything that conforms (section 2).

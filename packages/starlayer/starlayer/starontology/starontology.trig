@@ -5418,7 +5418,7 @@ starontology:ontology-shapes-profiles.ttl {
 
     _:ne19aa9c3ba57449da6d8872363851322b740 a prof:ResourceDescriptor ;
         rdfs:label "srl_owl" ;
-        rdfs:comment "SRL/SPARQL-RL's own rule-set abstract syntax as RDF (srl:) - a Datalog-style rules language, general-purpose and SHACL-independent." ;
+        rdfs:comment "SRL's own rule-set abstract syntax as RDF (srl:) - a Datalog-style rules language, general-purpose and SHACL-independent." ;
         prof:hasArtifact starontology:srl-ontology.ttl ;
         prof:hasRole role:schema .
 

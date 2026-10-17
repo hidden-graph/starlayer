@@ -128,3 +128,50 @@ def test_body_list_rejects_a_non_body_element_member():
 
     conforms, _report_graph, _report_text = srl_validate(g)
     assert conforms is False
+
+
+# --- parse_ruleset() also validates against the shapes ------------------------
+
+_AGGREGATE_IN_SET = "PREFIX : <http://example.org/>\nRULE { ?x :n ?n } WHERE { ?x :p ?y . SET(?n := COUNT(?y)) }"
+
+
+def test_parse_ruleset_raises_when_the_rule_set_does_not_conform_to_the_shapes(
+    monkeypatch,
+):
+    """The Python well-formedness check normally catches an aggregate in SET first, so switch
+    it off to reach the shapes, which reject the same rule set."""
+    from starlayer.sparql import srl
+
+    monkeypatch.setattr(srl, "_check_ruleset", lambda ruleset: [])
+    with pytest.raises(srl.SRLParseError, match="does not conform to the srl: shapes"):
+        srl.parse_ruleset(_AGGREGATE_IN_SET)
+
+
+def test_validate_false_skips_the_shape_check(monkeypatch):
+    from starlayer.sparql import srl
+
+    monkeypatch.setattr(srl, "_check_ruleset", lambda ruleset: [])
+    assert len(srl.parse_ruleset(_AGGREGATE_IN_SET, validate=False).rules) == 1
+
+
+def test_a_valid_rule_set_passes_the_shape_check_at_parse_time():
+    from starlayer.sparql import srl
+
+    ruleset = srl.parse_ruleset(
+        "PREFIX : <http://example.org/>\nRULE { ?x :b ?y } WHERE { ?x :a ?y . NOT { ?x :c ?y } }"
+    )
+    assert len(ruleset.rules) == 1
+
+
+def test_validating_does_not_change_the_cached_shapes_graphs():
+    from starlayer.sparql import srl
+
+    shapes, ontology = srl._validation_graphs()
+    before = (len(shapes), len(ontology))
+    srl.parse_ruleset(
+        "PREFIX : <http://example.org/>\nRULE { ?x :b ?y } WHERE { ?x :a ?y }"
+    )
+    srl.parse_ruleset(
+        "PREFIX : <http://example.org/>\nRULE { ?x :b ?y } WHERE { ?x :a ?y }"
+    )
+    assert (len(shapes), len(ontology)) == before

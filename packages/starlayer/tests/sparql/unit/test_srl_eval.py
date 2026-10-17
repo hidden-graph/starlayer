@@ -390,7 +390,7 @@ def test_plan_raises_stratification_error_without_running_anything():
         ruleset.plan()
 
 
-# --- SPARQL-RL 2026-10-14: base-graph matching (WHERE DATA / NOT DATA) ---------
+# --- SRL 2026-10-14: base-graph matching (WHERE DATA / NOT DATA) ---------
 # The spec's Examples 9 and 10 (kilometres from miles), as written. They need
 # xsd:integer() of a decimal, which starlayer.graph's operator patches fix in rdflib.
 

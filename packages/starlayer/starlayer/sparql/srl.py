@@ -1,6 +1,6 @@
 """starlayer.sparql.srl
 
-SRL/SPARQL-RL (`WD-sparql12-rl-20260919 <https://www.w3.org/TR/sparql12-rl/>`_)
+SRL (SPARQL Rules; spec `WD-sparql12-rl-20260919 <https://www.w3.org/TR/sparql12-rl/>`_)
 - a Datalog-style rules language built on SPARQL triple patterns and filter
 expressions. This module provides SRL text, its tree-RDF encoding (``srl:``),
 and SHACL validation of that encoding: parsing SRL text to a ``RuleSet``
@@ -30,8 +30,10 @@ text<->RuleSet) plus a third already covered by the first two composed
   ``ruleset_to_tree``.
 - ``srl_tree_to_text(graph, root) -> str`` - the inverse. Composes
   ``tree_to_ruleset`` + ``ruleset_to_text``.
-- ``parse_ruleset(text, base=None) -> RuleSet`` - SRL text straight to a
-  real ``RuleSet`` object, skipping RDF entirely. Kept as its own
+- ``parse_ruleset(text, base=None, *, validate=True) -> RuleSet`` - SRL text
+  straight to a real ``RuleSet`` object, skipping RDF entirely in the result
+  (with ``validate=True`` the rule set is also checked against the ``srl:``
+  SHACL shapes, which encodes it as RDF internally; see below). Kept as its own
   entry point (not just an implementation detail of ``srl_parse_to_tree``)
   because ``RuleSet`` is independently useful - ``RuleSet.infer()``/
   ``.query()`` run it directly, with no RDF involved at all. This is
@@ -110,23 +112,21 @@ import warnings
 from functools import partial
 
 from pyparsing import CaselessKeyword as Keyword
+from pyparsing import Group, Optional, Suppress, ZeroOrMore
 from pyparsing import Literal as _PPLiteral
-from pyparsing import Optional, Suppress, ZeroOrMore
 from rdflib import RDF, BNode, Graph, Namespace, URIRef
 from rdflib.collection import Collection
 from rdflib.namespace import NamespaceManager
 from rdflib.plugins.sparql import algebra
 from rdflib.plugins.sparql.parser import (
-    A,
     BaseDecl,
     Constraint,
     Expression,
-    GraphTerm,
     PrefixDecl,
     String,
+    TriplesSameSubject,
+    TriplesSameSubjectPath,
     Var,
-    VarOrIri,
-    VarOrTerm,
     iri,
 )
 from rdflib.plugins.sparql.parserutils import Comp, CompValue, Param
@@ -146,6 +146,7 @@ from .from_rdf import _decode
 from .srl_semantic_checks import _check_ruleset
 from .ssyn_to_text import _render_expr_text
 from .to_rdf import _encode, _new_starlayer_graph
+from .triple_term import TripleTermNode
 
 SRL = Namespace("https://github.com/hidden-graph/starlayer/ns/sparql/srl#")
 
@@ -192,11 +193,9 @@ _NEGATION_EVALDATA_FLAG = SRL.negationEvaldata
 # unchanged from SPARQL; only the genuinely new SRL-specific productions are
 # hand-written here.
 #
-# Deliberate scope reduction for this first implementation pass: only
-# `;`-chained same-subject property lists are supported (no `,`-chained
-# object lists); no property paths beyond a bare IRI predicate; no
-# reified-triple/triple-term syntax in pattern/template/data position yet
-# (srl_ast.Term already types this in for a follow-up grammar widening).
+# Triple groups use rdflib's own TriplesSameSubject (see ``_SameSubject`` below), so the
+# whole SPARQL 1.2 triple syntax is available. Property paths in rule bodies are limited to
+# `/` and `^`, as the spec says, and are expanded into triple patterns.
 # ---------------------------------------------------------------------------
 
 _VersionDecl = Comp("VersionDecl", Keyword("VERSION") + Param("version", String))
@@ -207,34 +206,56 @@ _Period = Suppress(_PPLiteral("."))
 _BoolFlag = lambda keyword: Optional(Keyword(keyword)).set_parse_action(lambda t: bool(t))  # noqa: E731
 
 
-def _property_list(term=VarOrTerm, predicate=VarOrIri):
-    pair = Comp("PredObj", Param("predicate", predicate) + Param("object", term))
-    return Comp(
-        "SameSubject",
-        Param("subject", term)
-        + Param("verbs", pair, isList=True)
-        + ZeroOrMore(Suppress(";") + Param("verbs", pair, isList=True)),
-    )
+# A group of triples sharing a subject, written exactly as in SPARQL 1.2: rdflib's own
+# TriplesSameSubject production, extended in place by this project's SPARQL 1.2 grammar
+# (``_grammar12.install()``), expands `,` object lists, `;` property lists, `[ ... ]`
+# blank-node property lists, `( ... )` collections, RDF 1.2 triple terms `<<( s p o )>>`,
+# reified triples `<< s p o >>`, reifiers `~ r` and annotations `{| ... |}` into a flat
+# sequence of (subject, predicate, object) terms. The same production is used for DATA
+# blocks (where `_check_ruleset` then rejects variables), head templates and body patterns.
+_SameSubject = Comp("SameSubject", Param("terms", Group(TriplesSameSubject)))
+_SameSubjectData = _SameSubject
+# Rule bodies (and the bodies of NOT) may also use a property path as a predicate; the head
+# and DATA blocks may not (§7.6: only `Verb` there). SRL allows only the `/` and `^`
+# path operators; they are expanded into plain triple patterns when the rule is built.
+_SameSubjectPattern = Comp("SameSubject", Param("terms", Group(TriplesSameSubjectPath)))
 
 
-# Ground-only triples (Data block) - predicate is a bare `iri`, never a Var.
-_SameSubjectData = _property_list(term=GraphTerm, predicate=iri)
-# Ordinary pattern/template-position triples.
-_SameSubjectPattern = _property_list(term=VarOrTerm, predicate=A | VarOrIri)
+def _expand_path(subject, predicate, obj) -> list[srl_ast.TriplePattern]:
+    """Expand a property path into the triple patterns it stands for (§5: "Property
+    path syntax only covers paths with / and ^. These can be expanded into triple
+    patterns"). ``s p/q o`` becomes ``s p _:m . _:m q o``; ``s ^p o`` becomes ``o p s``.
+    A blank node introduced here behaves as a variable in a rule body.
+
+    Raises:
+        SRLParseError: For any other path operator (``|``, ``*``, ``+``, ``?``, ``!``).
+    """
+    from rdflib.paths import InvPath, Path, SequencePath
+
+    if isinstance(predicate, CompValue):  # the parse tree of a path, with prefixed names resolved
+        predicate = algebra.traverse(predicate, visitPost=algebra.translatePath)
+    if isinstance(predicate, SequencePath):
+        nodes = [subject, *(BNode() for _ in predicate.args[:-1]), obj]
+        return [t for i, arg in enumerate(predicate.args) for t in _expand_path(nodes[i], arg, nodes[i + 1])]
+    if isinstance(predicate, InvPath):
+        return _expand_path(obj, predicate.arg, subject)
+    if isinstance(predicate, Path):
+        raise SRLParseError(
+            f"SRL: property path {predicate.n3()} is not allowed: SRL property paths use only the / and ^ operators "
+            "(write a repeated or optional step with a recursive rule instead)"
+        )
+    return [srl_ast.TriplePattern(subject=subject, predicate=predicate, object=obj)]
 
 
 def _expand_same_subject(cv: CompValue) -> list[srl_ast.TriplePattern]:
-    subject = cv["subject"]
-    return [
-        srl_ast.TriplePattern(subject=subject, predicate=pair["predicate"], object=pair["object"])
-        for pair in _list_field(cv, "verbs")
-    ]
+    terms = list(cv["terms"])
+    return [t for i in range(0, len(terms), 3) for t in _expand_path(terms[i], terms[i + 1], terms[i + 2])]
 
 
 _DataTriplesBlock = ZeroOrMore(Param("subjects", _SameSubjectData, isList=True) + Optional(_Period))
 _SRLData = Comp("Data", Keyword("DATA") + Suppress("{") + _DataTriplesBlock + Suppress("}"))
 
-_HeadTemplateBlock = ZeroOrMore(Param("subjects", _SameSubjectPattern, isList=True) + Optional(_Period))
+_HeadTemplateBlock = ZeroOrMore(Param("subjects", _SameSubject, isList=True) + Optional(_Period))
 _HeadTemplate = Comp("HeadTemplate", Suppress("{") + _HeadTemplateBlock + Suppress("}"))
 
 _Filter = Comp("Filter", Keyword("FILTER") + Param("expr", Constraint))
@@ -304,6 +325,12 @@ class SRLParseError(SRLError):
     produce a usable `RuleSet`", matching how a caller already has to
     handle this exception from this function regardless of which case
     occurred."""
+
+
+class SRLImportError(SRLError):
+    """Raised by :func:`resolve_imports` when an ``IMPORTS`` document cannot be
+    read, or is not a valid rule set (§4.5: a processor MUST signal an error in
+    either case)."""
 
 
 def _list_field(cv: CompValue, key: str) -> list:
@@ -407,7 +434,7 @@ def _build_ruleset(cv: CompValue) -> srl_ast.RuleSet:
     return srl_ast.RuleSet(rules=rules, data=data_blocks, imports=imports)
 
 
-def parse_ruleset(text: str, base: str | None = None) -> srl_ast.RuleSet:
+def parse_ruleset(text: str, base: str | None = None, *, validate: bool = True) -> srl_ast.RuleSet:
     """Parse SRL rule-set text into a real ``RuleSet``, with no RDF
     involved at all.
 
@@ -425,16 +452,25 @@ def parse_ruleset(text: str, base: str | None = None) -> srl_ast.RuleSet:
     grammar/syntax error: this is what prevents a violating ruleset from
     silently parsing *and* evaluating to a wrong answer with no error at all.
 
+    By default the rule set is then also encoded as RDF and checked against
+    the ``srl:`` SHACL shapes (the same check as :func:`srl_validate`), and
+    ``SRLParseError`` is raised if it does not conform. That costs on the
+    order of 150 ms, against a few ms for parsing alone, so a caller parsing
+    many rule sets that it already trusts can pass ``validate=False``.
+
     Args:
         text: The SRL rule-set text to parse.
         base: Base IRI for resolving relative IRIs, if any.
+        validate: Also validate the rule set against the ``srl:`` shapes.
+            Defaults to ``True``.
 
     Returns:
         The parsed, well-formed ``RuleSet``.
 
     Raises:
-        SRLParseError: For malformed SRL text, or text that parses but
-            fails a §4.2 well-formedness check.
+        SRLParseError: For malformed SRL text, text that parses but fails a
+            §4.2 well-formedness check, or (with ``validate=True``) a rule set
+            that does not conform to the ``srl:`` shapes.
     """
     try:
         parsed = _RuleSetGrammar.parse_string(text, parse_all=True)
@@ -450,9 +486,13 @@ def parse_ruleset(text: str, base: str | None = None) -> srl_ast.RuleSet:
 
     issues = _check_ruleset(ruleset)
     if issues:
-        summary = "; ".join(f"{i.kind} ({i.variable} in {i.context})" for i in issues)
+        summary = "; ".join(
+            f"{i.kind} ({i.variable} in {i.context})" if i.variable is not None else f"{i.kind} (in {i.context})"
+            for i in issues
+        )
         raise SRLParseError(f"SRL: rule set is not well-formed per §4.2: {summary}")
-
+    if validate:
+        _check_against_shapes(ruleset)
     return ruleset
 
 
@@ -658,11 +698,10 @@ def _term_text(term, namespace_manager: NamespaceManager | None) -> str:
         return "?" + str(term)
     if isinstance(term, (_URIRef, _BNode, _Literal)):
         return term.n3(namespace_manager) if namespace_manager is not None else term.n3()
-    raise NotImplementedError(
-        f"starlayer.sparql.srl: no text rendering yet for term {term!r} - triple terms "
-        "in pattern/template/data position aren't produced by the parser yet either, "
-        "see this module's own documented scope reduction"
-    )
+    if isinstance(term, TripleTermNode):
+        s, p, o = (_term_text(term.get(part), namespace_manager) for part in ("subject", "predicate", "object"))
+        return f"<<( {s} {p} {o} )>>"
+    raise NotImplementedError(f"starlayer.sparql.srl: no text rendering for term {term!r}")
 
 
 def _triple_text(triple: srl_ast.TriplePattern, namespace_manager: NamespaceManager | None) -> str:
@@ -721,6 +760,94 @@ def srl_tree_to_text(graph: Graph, root) -> str:
 
 
 # ---------------------------------------------------------------------------
+# IMPORTS (§3.7, §4.5, Appendix B)
+# ---------------------------------------------------------------------------
+
+
+def _rename_blank_nodes(term, mapping: dict):
+    if isinstance(term, BNode):
+        return mapping.setdefault(term, BNode())
+    if isinstance(term, TripleTermNode):
+        parts = {k: _rename_blank_nodes(term.get(k), mapping) for k in ("subject", "predicate", "object")}
+        return TripleTermNode("TripleTerm", **parts)
+    return term
+
+
+def resolve_imports(ruleset: srl_ast.RuleSet, loader, *, location: str | None = None) -> srl_ast.RuleSet:
+    """Return the *resolved* rule set (§4.5): ``ruleset`` with every ``IMPORTS``
+    document read, recursively, and its rules and ``DATA`` merged in. The result
+    has no imports left. ``ruleset`` itself is not changed.
+
+    Reading a document from the web has security implications, so nothing is read
+    unless the caller supplies ``loader`` - there is no default. The loader decides
+    where documents come from: a directory, a verified copy, a dictionary.
+
+    Each document is imported only once (§3.7), so a diamond or a cycle among the
+    imports does not repeat or loop. The merge follows Appendix B: the importing rule
+    set's rules come first, then each import's, in order; ``DATA`` blocks are
+    combined as an RDF merge, so a blank node in an imported document stays distinct
+    from a same-labelled blank node in another document.
+
+    Args:
+        ruleset: The rule set whose imports are resolved.
+        loader: ``loader(iri) -> str | RuleSet``: given an import IRI (a string),
+            returns the document's SRL text (parsed with ``base=iri``) or an already
+            parsed ``RuleSet``. It may raise to say the document cannot be read.
+        location: The IRI ``ruleset`` was read from, if any. It counts as already
+            imported, so a document that imports itself is not read again.
+
+    Returns:
+        A new ``RuleSet`` with ``imports == []``.
+
+    Raises:
+        SRLImportError: If the loader fails for an import, or returns text that is
+            not a valid rule set.
+    """
+    visited: set[str] = {str(location)} if location else set()
+
+    def _merge(rs: srl_ast.RuleSet, renamed: bool) -> tuple[list, list]:
+        rules = list(rs.rules)
+        if renamed:
+            mapping: dict = {}
+            data = [
+                srl_ast._Data(
+                    triples=[
+                        srl_ast.TriplePattern(
+                            _rename_blank_nodes(t.subject, mapping),
+                            t.predicate,
+                            _rename_blank_nodes(t.object, mapping),
+                        )
+                        for t in block.triples
+                    ]
+                )
+                for block in rs.data
+            ]
+        else:
+            data = list(rs.data)
+        for import_iri in rs.imports:
+            if str(import_iri) in visited:
+                continue
+            visited.add(str(import_iri))
+            try:
+                loaded = loader(str(import_iri))
+            except Exception as exc:
+                reason = "not found" if isinstance(exc, KeyError) else f"{type(exc).__name__}: {exc}"
+                raise SRLImportError(f"SRL: cannot read the import <{import_iri}>: {reason}") from exc
+            if isinstance(loaded, str):
+                try:
+                    loaded = parse_ruleset(loaded, base=str(import_iri))
+                except SRLParseError as exc:
+                    raise SRLImportError(f"SRL: the import <{import_iri}> is not a valid rule set: {exc}") from exc
+            sub_rules, sub_data = _merge(loaded, renamed=True)
+            rules += sub_rules
+            data += sub_data
+        return rules, data
+
+    rules, data = _merge(ruleset, renamed=False)
+    return srl_ast.RuleSet(rules=rules, data=data, imports=[])
+
+
+# ---------------------------------------------------------------------------
 # SHACL validation of an srl: tree-RDF graph - ontology_graph()/
 # shapes_graph() deliberately not exposed publicly here, see module
 # docstring for why.
@@ -760,6 +887,32 @@ def _shapes_graph() -> Graph:
     return g
 
 
+_validation_graphs_cache: tuple[Graph, Graph] | None = None
+
+
+def _validation_graphs() -> tuple[Graph, Graph]:
+    """The ``(shapes, ontology)`` graphs ``srl_validate`` uses, built once and
+    reused: validation does not modify them, and building them costs about 20 ms
+    per call."""
+    global _validation_graphs_cache
+    if _validation_graphs_cache is None:
+        _validation_graphs_cache = (_shapes_graph(), _ontology_graph())
+    return _validation_graphs_cache
+
+
+def _check_against_shapes(ruleset: srl_ast.RuleSet) -> None:
+    """Raise ``SRLParseError`` if ``ruleset``'s RDF encoding does not conform to
+    the ``srl:`` shapes."""
+    graph, _root = ruleset_to_tree(ruleset)
+    conforms, report_graph, report_text = srl_validate(graph)
+    if conforms:
+        return
+    shacl_message = Namespace("http://www.w3.org/ns/shacl#").resultMessage
+    messages = sorted({str(m) for m in report_graph.objects(None, shacl_message)})
+    detail = "; ".join(messages) if messages else report_text.strip().splitlines()[0]
+    raise SRLParseError(f"SRL: rule set does not conform to the srl: shapes: {detail}")
+
+
 def srl_validate(data_graph: Graph) -> tuple[bool, Graph, str]:
     """Validate ``data_graph`` (e.g. straight out of ``srl_parse_to_tree()``,
     or an LLM-authored ``srl:`` graph not yet decoded) against the ``srl:``
@@ -787,8 +940,8 @@ def srl_validate(data_graph: Graph) -> tuple[bool, Graph, str]:
         warnings.simplefilter("ignore", category=ShapeRecursionWarning)
         result = starlayer.shacl.validate(
             data_graph,
-            shacl_graph=_shapes_graph(),
-            ont_graph=_ontology_graph(),
+            shacl_graph=_validation_graphs()[0],
+            ont_graph=_validation_graphs()[1],
             inference=ENTAILMENT.RDFS,
             advanced=True,
             max_validation_depth=100,

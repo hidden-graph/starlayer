@@ -45,7 +45,7 @@
 # assuming the original seven above were exhaustive - see
 # starlayer/conformance.py's own module docstring for the full account:
 # RDF Dataset Canonicalization (RDFC-1.0) and SPARQL 1.2 Protocol
-# (starlayer.graph), SPARQL 1.2 RL/SRL (starlayer.sparql). Each has its
+# (starlayer.graph), SRL (SPARQL Rules) (starlayer.sparql). Each has its
 # own documented, narrow scope limits (see that module docstring), same
 # "claim within documented limits, not an exclusion" treatment as RDF/XML.
 #
@@ -85,5 +85,5 @@
 <https://github.com/hidden-graph/starlayer/tree/main/packages/starlayer/starlayer/sparql>
     rdfs:label "starlayer.sparql" ;
     rdfs:comment "SPARQL 1.2 query/update grammar, rewriting, and rule vocabularies (SRL/SQE) over RDF 1.2 graphs."@en ;
-    rdfs:comment "SPARQL 1.2 RL has documented grammar scope reductions - no ','-chained object lists, limited property paths, no reified-triple syntax yet, IMPORTS hard-rejected (see starlayer/sparql/CLAUDE.md)."@en ;
+    rdfs:comment "SRL has documented grammar scope reductions - no ','-chained object lists, limited property paths, no reified-triple syntax yet, IMPORTS hard-rejected (see starlayer/sparql/CLAUDE.md)."@en ;
     dcterms:modified "2026-10-09"^^xsd:date .

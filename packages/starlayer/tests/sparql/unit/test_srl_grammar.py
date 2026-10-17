@@ -1,4 +1,4 @@
-"""Tests for starlayer.sparql.srl.parse_ruleset - SRL/SPARQL-RL text
+"""Tests for starlayer.sparql.srl.parse_ruleset - SRL text
 syntax parsing (WD-sparql12-rl-20260919 §7.6 grammar), Phase 1 of the SRL
 implementation plan (see docs/functionality-overview.md).
 

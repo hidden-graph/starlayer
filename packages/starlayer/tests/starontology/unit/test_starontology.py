@@ -137,7 +137,7 @@ class TestConformanceProfilesContent:
     Corrected 2026-10-10 (direct user challenge to the original 2026-10-08
     design): a registered shapes graph is dx-prof prof:isProfileOf the
     real external *specification* (SPARQL, SKOS, Manchester Syntax,
-    SPARQL-RL) - not the bundled ontology/AST graph, which is instead a
+    SRL) - not the bundled ontology/AST graph, which is instead a
     prof:hasResource/ResourceDescriptor of that same real spec
     (role:schema, a sibling of the shapes graph's own role:validation
     descriptor).

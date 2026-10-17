@@ -8,7 +8,7 @@ caller would ever touch one is by walking ``RuleSet.rules``/
 ``Rule.head``/``Rule.body``, an inspection/editing concern this API
 doesn't cover yet.
 
-Python dataclasses for the SRL/SPARQL-RL abstract syntax tree, mirroring
+Python dataclasses for the SRL abstract syntax tree, mirroring
 `WD-sparql12-rl-20260919 <https://www.w3.org/TR/sparql12-rl/>`_ §4.1
 "Elements of the Abstract Syntax" (+ its own "Component Notation" table)
 field-for-field - field names here are the spec's own attribute names
@@ -27,10 +27,9 @@ minted. A triple pattern/template's subject/object may additionally be a
 ``starlayer.sparql.triple_term.TripleTermNode`` (RDF 1.2 triple term) per the
 spec's own grammar (productions 25-46 "Data", 47-60 "Template", 61-82
 "Pattern" all admit reified-triple/triple-term syntax structurally
-identical to Turtle 1.2's own) - **not yet parsed by ``srl.py``**
-(see that module's own docstring for the explicit scope note); the field
-type already allows it so decoding (``srl.py``) and the AST-as-RDF
-round trip need no follow-up widening once grammar support for it lands.
+identical to Turtle 1.2's own). ``srl.py`` parses, renders and encodes them,
+and ``srl_eval.py`` matches and builds them; a reified triple or annotation is
+expanded at parse time into a reifier plus ``rdf:reifies <<( s p o )>>``.
 """
 
 from __future__ import annotations
@@ -306,7 +305,17 @@ class RuleSet:
     data: list[_Data] = field(default_factory=list)
     imports: list[URIRef] = field(default_factory=list)
 
-    def plan(self) -> RulePlan:
+    def _with_imports_resolved(self, imports_loader) -> RuleSet:
+        """This rule set with its ``IMPORTS`` resolved by ``imports_loader``, or ``self``
+        when no loader is given (then ``infer()`` rejects any imports, as §4.5 requires
+        of a processor that does not support them)."""
+        if imports_loader is None or not self.imports:
+            return self
+        from . import srl
+
+        return srl.resolve_imports(self, imports_loader)
+
+    def plan(self, *, imports_loader: Any | None = None) -> RulePlan:
         """Shows how this rule set would be evaluated, without running it:
         the strata in evaluation order and the rule dependency graph they
         were computed from (§4.3.2 and §4.4.2 of the spec). Rules are
@@ -317,6 +326,10 @@ class RuleSet:
         stratifies before running it. ``IMPORTS`` are not resolved here;
         ``infer()`` rejects them.
 
+        Args:
+            imports_loader: Resolves ``IMPORTS`` first, as for :meth:`infer`; the plan
+                then covers the imported rules too. Without one, imports are ignored.
+
         Returns:
             The :class:`RulePlan`.
 
@@ -326,16 +339,14 @@ class RuleSet:
         """
         from . import srl, srl_eval
 
+        self = self._with_imports_resolved(imports_loader)
+
         edges = srl_eval._build_dependency_graph(self)
         layers = srl_eval._stratify(self)
         index = {id(rule): i for i, rule in enumerate(self.rules)}
 
         def plan_rule(rule: _Rule) -> PlanRule:
-            try:
-                text = srl._rule_text(rule, None)
-            except NotImplementedError:  # triple terms have no text rendering yet
-                text = "(rule text not available: it uses a triple term)"
-            return PlanRule(index[id(rule)], rule.id, text)
+            return PlanRule(index[id(rule)], rule.id, srl._rule_text(rule, None))
 
         return RulePlan(
             strata=[
@@ -351,6 +362,7 @@ class RuleSet:
         *,
         inference: Any | None = None,
         schema: Any | None = None,
+        imports_loader: Any | None = None,
     ):
         """Runs this rule set against ``base_graph`` to a fixpoint and
         returns the inferred-triples-only graph (§4.1's ``Infer``) - the
@@ -378,6 +390,12 @@ class RuleSet:
                 feeds inference" relationship SHACL's own
                 ``sh:entailment``-before-rules already has. ``None``
                 (default) runs against ``base_graph`` unchanged.
+            imports_loader: ``loader(iri) -> str | RuleSet``, used to read the
+                documents named by this rule set's ``IMPORTS`` (see
+                :func:`starlayer.sparql.srl.resolve_imports`). There is no default
+                loader, because reading a document has security implications; without
+                one, a rule set that has imports is rejected with
+                ``SRLImportsNotSupportedError``.
             schema: A ``starlayer.shacl.StarShaclSchema`` instance, or a
                 bare SHACL shapes graph, to validate the inferred result
                 against. A bare shapes graph is wrapped in a throwaway
@@ -401,7 +419,7 @@ class RuleSet:
         if inference is not None:
             base_graph = base_graph.infer(entailment=inference, mode="full")
 
-        inferred = srl_eval._srl_infer(base_graph, self)
+        inferred = srl_eval._srl_infer(base_graph, self._with_imports_resolved(imports_loader))
 
         if schema is None:
             return inferred
@@ -418,6 +436,7 @@ class RuleSet:
         goal_pattern: TriplePattern,
         *,
         inference: Any | None = None,
+        imports_loader: Any | None = None,
     ) -> list[dict]:
         """Runs :meth:`infer` then returns every match of
         ``goal_pattern`` against ``base_graph`` union the inferred triples
@@ -431,6 +450,7 @@ class RuleSet:
                 applied to ``base_graph`` before the rule set runs. There
                 is no ``schema=`` here - this method returns rows, not a
                 graph, so there is nothing to validate.
+            imports_loader: Same meaning as :meth:`infer`'s own ``imports_loader=``.
 
         Returns:
             One ``dict[Variable, term]`` solution per match.
@@ -440,4 +460,4 @@ class RuleSet:
         if inference is not None:
             base_graph = base_graph.infer(entailment=inference, mode="full")
 
-        return srl_eval._srl_query(base_graph, self, goal_pattern)
+        return srl_eval._srl_query(base_graph, self._with_imports_resolved(imports_loader), goal_pattern)
