@@ -24,6 +24,7 @@ from rdflib.plugins.sparql.parserutils import ParseResults  # re-exported for ca
 from rdflib.plugins.sparql.sparql import Query, Update
 
 from . import _grammar12 as grammar12
+from ._syntax_checks import check_parse_tree, reject_surrogate_escapes
 from .triple_term import _reject_triple_term_pattern_subjects
 
 grammar12.install()
@@ -62,13 +63,19 @@ def parse_query_12(text: str) -> ParseResults:
     ``_parse_with_recovery`` for why this isn't just a bare ``parseQuery``
     call.
     """
-    return _parse_with_recovery(parseQuery, text)
+    reject_surrogate_escapes(text)
+    tree = _parse_with_recovery(parseQuery, text)
+    check_parse_tree(tree)
+    return tree
 
 
 def parse_update_12(text: str):
     """``parse_query_12``'s counterpart for SPARQL 1.2 Update text - same
     re-verify-then-recover-on-failure treatment, same reason."""
-    return _parse_with_recovery(parseUpdate, text)
+    reject_surrogate_escapes(text)
+    tree = _parse_with_recovery(parseUpdate, text)
+    check_parse_tree(tree)
+    return tree
 
 
 def _canonicalize_construct_where(query: Query) -> Query:

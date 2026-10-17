@@ -185,37 +185,19 @@ def _syntax_positive_param(entry):
 # Found 2026-10-13 while wiring the `codepoint-escapes`/`syntax` categories
 # into this suite for the first time - see starlayer/graph/CLAUDE.md's
 # dated entry for the full account of each:
-#   - nested-aggregate-functions / duplicated-values-variable: rdflib's own
-#     grammar never rejects a nested aggregate (COUNT(COUNT(*))) or a
-#     repeated variable within one VALUES row (VALUES (?a ?a) {...}),
-#     despite both being syntax errors per the SPARQL 1.1/1.2 grammar.
-#   - group-by-scope-bad-1/2/3: rdflib never rejects reusing a GROUP BY
-#     key's own variable name as a fresh SELECT-expression target (the
-#     SPARQL grammar's own variable-scoping rule).
 #   - codepoint-esc-01-bad/03-bad: rdflib accepts a whole query spelled via
 #     \\uXXXX codepoint escapes outside any string/IRI token, and a
 #     codepoint escape inside a PN_LOCAL prefixed name - both of which the
 #     SPARQL 1.2 grammar's own codepoint-escape production restricts to
 #     specific token contexts.
-#   - surrogate-esc-01 through -05-bad: rdflib's \\uXXXX handling never
-#     validates that a lone or reversed-order UTF-16 surrogate pair is a
-#     valid Unicode scalar value - it accepts each one unconditionally.
+# (The nested-aggregate, duplicated-VALUES-variable, GROUP BY scope and surrogate
+# escape gaps are now rejected by starlayer/sparql/_syntax_checks.py.)
 # xfail(strict=True), same reasoning as _KNOWN_SUITE_DEFECT_FRAGMENTS above:
 # an unexpected pass means rdflib's own grammar changed, which is the
 # signal to revisit this list, not something to stay silently green on.
 _INHERITED_RDFLIB_GAP_FRAGMENTS = {
-    "nested-aggregate-functions",
-    "duplicated-values-variable",
-    "group-by-scope-bad-1",
-    "group-by-scope-bad-2",
-    "group-by-scope-bad-3",
     "codepoint-esc-01-bad",
     "codepoint-esc-03-bad",
-    "surrogate-esc-01-bad",
-    "surrogate-esc-02-bad",
-    "surrogate-esc-03-bad",
-    "surrogate-esc-04-bad",
-    "surrogate-esc-05-bad",
 }
 
 
@@ -239,15 +221,12 @@ def _syntax_negative_param(entry):
 # Confirmed inherited rdflib *term-equality* gaps (not grammar this time) -
 # both checked directly against plain, unmodified rdflib before being added
 # here. Found 2026-10-13, same investigation as above:
-#   - strlang: stock Builtin_STRLANG never rejects an empty language-tag
-#     argument (STRLANG("abc", "")), though RDF 1.2 Query sec 17.4.2.16
-#     requires it to error.
 #   - plain-string-same (rdf11 category): stock sameTerm()/Literal.__eq__
 #     treats a simple literal and its ^^xsd:string equivalent as different
 #     terms (confirmed: Literal("foo") != Literal("foo", datatype=XSD.string)),
 #     contradicting RDF 1.1/1.2 Concepts' own "a simple literal is shorthand
 #     for the identical xsd:string literal" definition.
-_INHERITED_RDFLIB_GAP_EVAL_FRAGMENTS = {"strlang", "plain-string-same"}
+_INHERITED_RDFLIB_GAP_EVAL_FRAGMENTS = {"plain-string-same"}
 
 
 def _eval_select_param(entry):

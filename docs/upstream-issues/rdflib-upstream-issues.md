@@ -14,8 +14,11 @@ Bugs in rdflib 7.6.0 found while building SPARQL 1.2 support here. Every example
 | 8 | `FILTER` loses a variable bound outside it | filter always false | `evaluate_patches` |
 | 9 | `INSERT DATA` into a `Dataset` default graph | crash | `evaluate_patches` |
 | 10 | `REPLACE` ignores its flags argument | wrong result | `custom_functions` |
-| 11 | `STRLANG` accepts an empty language tag | should be an error | not yet patched |
+| 11 | `STRLANG` accepts an empty language tag | should be an error | `operator_patches` |
 | 12 | `CEIL`/`FLOOR`/`ROUND` of a decimal | non-canonical `"2"` | `operator_patches` |
+| 13 | Invalid queries the parser accepts (nested aggregate, repeated `VALUES` variable, `GROUP BY` scope clash) | no syntax error | `sparql/_syntax_checks` (nested aggregate, `VALUES`, `GROUP BY`) |
+| 14 | Codepoint and surrogate escapes accepted anywhere | no syntax error | `sparql/_syntax_checks` (surrogates only) |
+| 15 | Simple literal differs from its `^^xsd:string` form | unequal terms | not patched (W3C xfail) |
 
 ## 1. `MultiplicativeExpression` doesn't apply numeric type promotion for `*`
 
@@ -219,7 +222,7 @@ list(Graph().query('SELECT (STRLANG("a", "") AS ?r) WHERE {}'))[0][0]
 # expected: an error, so ?r is unbound
 ```
 
-Not yet patched here.
+Fix: `starlayer/graph/query/operator_patches.py::patch_strlang_rejects_empty_language_tag`.
 
 ## 12. `CEIL`, `FLOOR` and `ROUND` of a decimal give a non-canonical lexical form
 
@@ -231,3 +234,46 @@ list(Graph().query("SELECT (CEIL(1.5) AS ?r) WHERE {}"))[0][0]
 ```
 
 Fix: `starlayer/graph/query/operator_patches.py::patch_decimal_result_lexical_form`.
+
+
+## 13. Queries that break the grammar are accepted
+
+Each should be a syntax error. rdflib runs them.
+
+```python
+from rdflib import Graph
+g = Graph()
+list(g.query("SELECT (COUNT(COUNT(*)) AS ?c) WHERE { ?s ?p ?o }"))  # nested aggregate
+list(g.query("SELECT * WHERE { VALUES (?a ?a) { (1 2) } }"))         # variable repeated in one VALUES row
+list(g.query("SELECT (1 AS ?s) WHERE { ?s ?p ?o } GROUP BY ?s"))     # SELECT alias reuses a GROUP BY key's name
+# actual:   all three return rows
+# expected: a parse error for each
+```
+
+Fix: `starlayer/sparql/_syntax_checks.py::check_parse_tree`, run by `parse_query_12`/`parse_update_12`. The `GROUP BY` check covers a `SELECT` alias that reuses a `GROUP BY` key's name, not an alias that clashes with a variable in the `WHERE` pattern.
+
+## 14. Codepoint and surrogate escapes are accepted anywhere
+
+SPARQL allows `\uXXXX` escapes only in certain tokens, and only for valid Unicode scalar values.
+
+```python
+list(Graph().query("\\u0053ELECT * WHERE {}"))      # the keyword SELECT spelled with an escape
+list(Graph().query('SELECT * WHERE { ?s ?p "\\uD800" }'))  # lone surrogate
+# actual:   both run
+# expected: a parse error for each
+```
+
+Surrogate escapes are now rejected by `starlayer/sparql/_syntax_checks.py::reject_surrogate_escapes`. Still accepted, and tracked as xfail: a keyword spelled with an escape (`codepoint-esc-01-bad`) and an escape inside a prefixed name (`codepoint-esc-03-bad`).
+
+## 15. A simple literal and its `^^xsd:string` form are different terms
+
+RDF 1.1 and 1.2 Concepts define a simple literal as shorthand for the `xsd:string` literal, so they are the same term.
+
+```python
+from rdflib import Literal, XSD
+Literal("foo") == Literal("foo", datatype=XSD.string)
+# actual:   False   (so sameTerm("foo", "foo"^^xsd:string) is false)
+# expected: True
+```
+
+Tracked as xfail: `plain-string-same`. 

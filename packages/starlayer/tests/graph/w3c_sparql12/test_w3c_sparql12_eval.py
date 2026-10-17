@@ -307,10 +307,6 @@ _IN_MEMORY_KNOWN_DIVERGENCES: dict = {
     # pass) and confirmed against *plain, unmodified* rdflib directly (no
     # starlayer.graph involved at all), not just this backend - see
     # starlayer/graph/CLAUDE.md's dated entry for the full account:
-    "strlang": "Plain rdflib's own Builtin_STRLANG never rejects an empty "
-    "language-tag argument (STRLANG(\"abc\", \"\")), though RDF 1.2 Query "
-    "sec 17.4.2.16 requires it to error - confirmed identical against "
-    "stock, unmodified rdflib.",
     "plain-string-same": "Plain rdflib's own sameTerm()/Literal.__eq__ "
     "treats a simple literal and its ^^xsd:string equivalent as different "
     "terms (Literal(\"foo\") != Literal(\"foo\", datatype=XSD.string)), "

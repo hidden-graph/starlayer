@@ -271,6 +271,46 @@ def patch_integer_cast_from_numeric_and_boolean() -> bool:
     return _integer_cast_patch_status
 
 
+_strlang_empty_tag_patch_status: bool | None = None
+
+
+def patch_strlang_rejects_empty_language_tag() -> bool:
+    """Fix a confirmed rdflib bug: ``STRLANG("a", "")`` returns the plain
+    string ``"a"`` (an empty ``lang=`` is treated as no language), but an empty
+    language tag is not a valid tag, so the call is an error and the result
+    unbound (SPARQL 1.2 Query, ``STRLANG``).
+
+    Wraps rdflib's ``Builtin_STRLANG`` evaluation function and raises
+    ``SPARQLError`` for an empty tag; everything else is delegated unchanged.
+    Idempotent and defensive, like the other patches in this module.
+    """
+    global _strlang_empty_tag_patch_status
+    if _strlang_empty_tag_patch_status is not None:
+        return _strlang_empty_tag_patch_status
+
+    try:
+        from rdflib.plugins.sparql import parser as rdflib_sparql_parser
+
+        comp = _find_comp(rdflib_sparql_parser.Expression, "Builtin_STRLANG")
+        original_evalfn = comp.evalfn
+        if getattr(original_evalfn, "_starlayer_graph_strlang_empty_tag_patch", False):
+            _strlang_empty_tag_patch_status = True
+            return True
+
+        def _patched_strlang(e, ctx):
+            if str(e.arg2) == "":
+                raise SPARQLError("STRLANG: the language tag must not be empty")
+            return original_evalfn(e, ctx)
+
+        _patched_strlang._starlayer_graph_strlang_empty_tag_patch = True  # type: ignore[attr-defined]
+        comp.setEvalFn(_patched_strlang)
+        _strlang_empty_tag_patch_status = True
+    except Exception:
+        _strlang_empty_tag_patch_status = False
+
+    return _strlang_empty_tag_patch_status
+
+
 def apply_all_operator_patches() -> None:
     """Apply every patch in this module. Called eagerly from ``starlayer.graph/__init__.py`` so
     every consumer of this package gets spec-correct arithmetic, regardless
@@ -279,3 +319,4 @@ def apply_all_operator_patches() -> None:
     patch_multiplicative_expression_type_promotion()
     patch_decimal_result_lexical_form()
     patch_integer_cast_from_numeric_and_boolean()
+    patch_strlang_rejects_empty_language_tag()

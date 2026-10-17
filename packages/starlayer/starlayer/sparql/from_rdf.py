@@ -24,7 +24,14 @@ from pyparsing import ParserElement
 from rdflib import BNode, Graph, Literal, URIRef, Variable
 from rdflib.collection import Collection
 from rdflib.namespace import RDF
-from rdflib.paths import AlternativePath, InvPath, MulPath, NegatedPath, Path, SequencePath
+from rdflib.paths import (
+    AlternativePath,
+    InvPath,
+    MulPath,
+    NegatedPath,
+    Path,
+    SequencePath,
+)
 from rdflib.plugins.sparql.parserutils import CompValue, Expr
 from rdflib.plugins.sparql.sparql import Prologue, Query, Update
 

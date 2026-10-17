@@ -44,7 +44,6 @@ import functools
 from rdflib import BNode, Graph, Literal, URIRef, Variable
 from rdflib.collection import Collection
 from rdflib.namespace import RDF
-from rdflib.term import IdentifiedNode
 from rdflib.paths import Path
 from rdflib.plugins.sparql.algebra import (
     simplifyFilters,
@@ -55,6 +54,7 @@ from rdflib.plugins.sparql.algebra import (
 )
 from rdflib.plugins.sparql.algebra import triples as group_triples
 from rdflib.plugins.sparql.parserutils import CompValue, ParseResults
+from rdflib.term import IdentifiedNode
 
 from ..to_rdf import _encode as _encode_algebra
 from ..to_rdf import _encode_path, _new_starlayer_graph
