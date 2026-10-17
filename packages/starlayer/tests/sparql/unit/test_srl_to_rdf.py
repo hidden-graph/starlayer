@@ -64,7 +64,7 @@ def test_assignment_and_filter_expression_roundtrip():
     rs, rs2, _ = _roundtrip(text)
     assert rs == rs2
     (rule,) = rs2.rules
-    assert rule.data is True
+    assert rule.evaldata is False  # WHERE DATA matches the base graph only
 
 
 def test_negation_with_data_flag_roundtrips():
@@ -76,7 +76,7 @@ def test_negation_with_data_flag_roundtrips():
     assert rs == rs2
     (rule,) = rs2.rules
     neg = rule.body[1]
-    assert neg.data is True
+    assert neg.evaldata is False  # NOT DATA matches the base graph only
 
 
 def test_blank_node_identity_preserved_across_roundtrip():

@@ -111,3 +111,20 @@ def test_filter_inside_negation_referencing_unbound_variable_is_rejected():
         "unbound_filter_variable",
         Variable("unbound"),
     )
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        "?x :p ?y . SET(?n := COUNT(?y))",
+        "?x :p ?y . FILTER(COUNT(?y) > 1)",
+        "?x :p ?y . SET(?n := SUM(?y) + 1)",
+    ],
+)
+def test_aggregate_inside_filter_or_set_is_rejected_at_parse_time(body):
+    """Aggregation is a separate rule element in SPARQL-RL (still an open issue), never a
+    function inside FILTER or SET - rejected here rather than crashing at infer()."""
+    with pytest.raises(SRLParseError, match="aggregate_in_expression"):
+        parse_ruleset(
+            f"PREFIX : <http://example.org/>\nRULE {{ ?x :n ?n }} WHERE {{ {body} }}"
+        )

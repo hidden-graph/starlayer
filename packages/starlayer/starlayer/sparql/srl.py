@@ -174,14 +174,16 @@ _BODY = SRL.body
 _INNER = SRL.inner
 _TRIPLES = SRL.triples
 
-# The spec reuses the bare name "data" for three different components
-# (rule.data/ruleset.data/negation.data) - each gets its own predicate URI
-# to avoid a same-URI-different-shape collision within one shared graph.
-_RULE_DATA_FLAG = SRL.ruleData
+# The spec reuses the name "evaldata" for two components (rule.evaldata and
+# negation.evaldata), and "data" for a third (ruleset.data) - each gets its own
+# predicate URI to avoid a same-URI-different-shape collision within one shared
+# graph. The flag is the spec's own: true = match the evaluation graph (plain
+# WHERE / NOT), false = match the base graph only (WHERE DATA / NOT DATA).
+_RULE_EVALDATA_FLAG = SRL.ruleEvaldata
 _RULE_ID = SRL.id
 _EXPR = SRL.expr
 _VAR = SRL.var
-_NEGATION_DATA_FLAG = SRL.negationData
+_NEGATION_EVALDATA_FLAG = SRL.negationEvaldata
 
 
 # ---------------------------------------------------------------------------
@@ -361,7 +363,7 @@ def _build_body_elements(items: list) -> list[srl_ast.BodyElement]:
         elif cv.name == "Assignment":
             out.append(srl_ast._AssignmentElement(var=cv["var"], expr=cv["expr"]))
         elif cv.name == "Negation":
-            out.append(srl_ast._NegationElement(inner=_build_negation_inner(_list_field(cv, "inner")), data=bool(cv["data"])))
+            out.append(srl_ast._NegationElement(inner=_build_negation_inner(_list_field(cv, "inner")), evaldata=not bool(cv["data"])))
         else:
             raise SRLParseError(f"unknown rule body element: {cv!r}")  # pragma: no cover
     return out
@@ -374,7 +376,7 @@ def _build_rule(cv: CompValue) -> srl_ast._Rule:
     return srl_ast._Rule(
         head=head,
         body=body,
-        data=bool(cv["data"]),
+        evaldata=not bool(cv["data"]),  # the grammar's DATA keyword means evaldata is false
         id=URIRef(rule_id) if rule_id is not None else None,
     )
 
@@ -522,7 +524,7 @@ def _body_element_to_rdf(element: srl_ast.BodyElement, graph: Graph) -> BNode:
         graph.add((node, RDF.type, _NEGATION_ELEMENT))
         inner_nodes = [_body_element_to_rdf(e, graph) for e in element.inner]
         graph.add((node, _INNER, _rdf_list(graph, inner_nodes)))
-        graph.add((node, _NEGATION_DATA_FLAG, _encode(element.data, graph)))
+        graph.add((node, _NEGATION_EVALDATA_FLAG, _encode(element.evaldata, graph)))
         return node
     raise NotImplementedError(f"starlayer.sparql.srl: no encoding for body element {element!r}")  # pragma: no cover
 
@@ -534,7 +536,7 @@ def _rule_to_rdf(rule: srl_ast._Rule, graph: Graph) -> BNode:
     graph.add((node, _HEAD, _rdf_list(graph, head_nodes)))
     body_nodes = [_body_element_to_rdf(e, graph) for e in rule.body]
     graph.add((node, _BODY, _rdf_list(graph, body_nodes)))
-    graph.add((node, _RULE_DATA_FLAG, _encode(rule.data, graph)))
+    graph.add((node, _RULE_EVALDATA_FLAG, _encode(rule.evaldata, graph)))
     if rule.id is not None:
         graph.add((node, _RULE_ID, rule.id))
     return node
@@ -588,17 +590,17 @@ def _decode_body_element(node, graph: Graph) -> srl_ast.BodyElement:
         )
     if t == _NEGATION_ELEMENT:
         inner = [_decode_body_element(n, graph) for n in _read_rdf_list(graph.value(node, _INNER), graph)]
-        data_flag = bool(_decode(graph.value(node, _NEGATION_DATA_FLAG), graph))
-        return srl_ast._NegationElement(inner=inner, data=data_flag)
+        evaldata = bool(_decode(graph.value(node, _NEGATION_EVALDATA_FLAG), graph))
+        return srl_ast._NegationElement(inner=inner, evaldata=evaldata)
     raise SRLDecodeError(f"unrecognized rule body element node {node!r} (rdf:type {t!r})")
 
 
 def _decode_rule(node, graph: Graph) -> srl_ast._Rule:
     head = [_decode_triple(n, graph) for n in _read_rdf_list(graph.value(node, _HEAD), graph)]
     body = [_decode_body_element(n, graph) for n in _read_rdf_list(graph.value(node, _BODY), graph)]
-    data_flag = bool(_decode(graph.value(node, _RULE_DATA_FLAG), graph))
+    evaldata = bool(_decode(graph.value(node, _RULE_EVALDATA_FLAG), graph))
     rule_id = graph.value(node, _RULE_ID)
-    return srl_ast._Rule(head=head, body=body, data=data_flag, id=rule_id)
+    return srl_ast._Rule(head=head, body=body, evaldata=evaldata, id=rule_id)
 
 
 def _decode_data(node, graph: Graph) -> srl_ast._Data:
@@ -684,7 +686,7 @@ def _body_element_text(element: srl_ast.BodyElement, namespace_manager: Namespac
         return f"SET ({var} := {_render_expr_text(element.expr)})"
     if isinstance(element, srl_ast._NegationElement):
         inner = " ".join(_body_element_text(e, namespace_manager) for e in element.inner)
-        data = "DATA " if element.data else ""
+        data = "" if element.evaldata else "DATA "
         return f"NOT {data}{{ {inner} }}"
     raise NotImplementedError(f"starlayer.sparql.srl: no text rendering yet for body element {element!r}")
 
@@ -697,7 +699,7 @@ def _rule_text(rule: srl_ast._Rule, namespace_manager: NamespaceManager | None) 
     rule_id = f"{_term_text(rule.id, namespace_manager)} " if rule.id is not None else ""
     head = _block_text(rule.head, namespace_manager)
     body = " ".join(_body_element_text(e, namespace_manager) for e in rule.body)
-    data = "DATA " if rule.data else ""
+    data = "" if rule.evaldata else "DATA "
     return f"RULE {rule_id}{{ {head} }} WHERE {data}{{ {body} }}"
 
 

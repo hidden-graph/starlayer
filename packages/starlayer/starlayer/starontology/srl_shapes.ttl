@@ -104,9 +104,9 @@ srl:NegationElementShape a sh:NodeShape ;
     sh:property [
         sh:datatype xsd:boolean ;
         sh:maxCount 1 ;
-        sh:message "srl:NegationElement must have exactly one boolean srl:negationData" ;
+        sh:message "srl:NegationElement must have exactly one boolean srl:negationEvaldata" ;
         sh:minCount 1 ;
-        sh:path srl:negationData
+        sh:path srl:negationEvaldata
     ], [
         sh:maxCount 1 ;
         sh:message "srl:NegationElement must have exactly one srl:inner list" ;
@@ -206,9 +206,9 @@ srl:RuleShape a sh:NodeShape ;
     ], [
         sh:datatype xsd:boolean ;
         sh:maxCount 1 ;
-        sh:message "srl:Rule must have exactly one boolean srl:ruleData" ;
+        sh:message "srl:Rule must have exactly one boolean srl:ruleEvaldata" ;
         sh:minCount 1 ;
-        sh:path srl:ruleData
+        sh:path srl:ruleEvaldata
     ] ;
     sh:targetClass srl:Rule .
 

@@ -241,6 +241,23 @@ built 2026-09-30.
 
 ---
 
+## SPARQL-RL follow-ups (spec draft 2026-10-14)
+
+*(Added 2026-10-17, from diffing `WD-sparql12-rl-20260919` against `WD-sparql12-rl-20261014`; what was fixed is in `starlayer/sparql/CLAUDE.md`.)* The 03b guide has a matching "Not yet covered" section to fill in as the open items land.
+
+**Open**
+1. **Aggregation (Issue 840).** *Trigger:* the draft gains grammar in §7.6 (today it has none) and a finished `evalAggregate`. *Then:* add the aggregation element to `_srl_ast.py`; the well-formedness conditions (keys in scope, aggregation variables distinct and new, functions over the pattern's variables); dependencies (the aggregation pattern is a closed dependency, and aggregation rules are run-once); the grammar and `ruleset_to_text`; the `srl:` RDF encoding and its SHACL shapes; evaluation (`COUNT`, `COUNT DISTINCT`, `MIN`, `MAX`, `SUM`; an error in a group drops that group); a guide section. *Until then:* an aggregate inside `FILTER` or `SET` is rejected at parse time.
+2. **Triple terms in rule patterns and templates.** The draft's grammar has them (`<<( ... )>>` triple terms and `<< ... >>` reified triples in DATA blocks and, by the same productions, in patterns and templates). *Next action:* grammar support, text rendering (`ruleset_to_text`; `plan()` shows a placeholder today), and the RDF encoding. Dependency matching and the run-once rule already handle them at the AST level.
+3. **SRL-to-SPARQL translation (Issue 1303, Appendix A).** A placeholder in the draft; a worked algorithm would also give a way to run rule sets on a SPARQL engine.
+4. **Re-diff the draft when it changes** (`/TR/sparql12-rl/` is a moving working draft); the date in the module docstrings and notes should follow.
+
+**Resolved 2026-10-17**
+- *`data` renamed to the spec's `evaldata`, with the spec's polarity.* In the AST, the parser, evaluation, the `srl:` vocabulary (`srl:ruleEvaldata`/`srl:negationEvaldata`), the shapes, the published `.ttl` files and the 05c guide; no compatibility layer, so RDF written with `srl:ruleData`/`srl:negationData` no longer decodes.
+- *rdflib `xsd:integer()` of a decimal/double/boolean was an error* (the spec's Examples 9 and 10 depend on it). Patched in `operator_patches.py` and recorded in `docs/upstream-issues/rdflib-upstream-issues.md` (item 7, not filed). The Examples now infer `:B :distanceKilometers 16`.
+- *Blank-node rule ids.* The abstract syntax allows them, but the grammar (§7.6, `Rule ::= 'RULE' iri? ...`) only has an IRI, so there is no text syntax to add. The RDF encoding can already carry one.
+- *Lint-level checks (literal head subject, duplicate rule ids, empty head).* The draft says nothing that forbids them: rule ids only "help identify" a rule, and a template term is "a variable or an RDF term". They stay accepted.
+- *Parse-time stratification check.* The draft puts "check well-formed" and "calculate the dependency graph and stratification" in the *preparation for evaluation*, not in parsing. `parse_ruleset()` checks well-formedness (§4.2) and `plan()`/`infer()` raise `StratificationError`, which matches that split, so it stays as it is.
+
 ## Before publishing: clean-up checklist
 
 *(Added 2026-10-17.)* Generated and hand-copied material goes stale as the code changes. Before a release or a doc publish, work through this list. None of it is automated yet; deciding which steps to fold into one script is itself a follow-up.

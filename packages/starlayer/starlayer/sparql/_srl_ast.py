@@ -124,34 +124,45 @@ NegationBodyElement = TriplePattern | _FilterElement
 
 @dataclass(frozen=True)
 class _NegationElement:
-    """§4.1 "Negation element" - ``NOT DATA? { ... }``. ``data=True`` means
-    the negated pattern is matched against the rule set's own DATA graph
-    (``GD``) rather than the evaluation graph, per §6.4's ``evalRuleElements``
-    pseudocode (``if rElt with DATA: ... GD, GD else ... G, GD``).
+    """§4.1 "Negation element" - ``NOT DATA? { ... }``. ``evaldata`` is the
+    spec's own flag (``negation.evaldata``): true (a plain ``NOT { }``) matches
+    the negated pattern against the evaluation graph, false (``NOT DATA { }``)
+    against the base graph only, per §6.4's ``evalRuleElements`` pseudocode
+    (``if N.evaldata: ... G, GD else ... GD, GD``).
 
     Private - see ``_FilterElement`` above.
 
     Attributes:
         inner: The negated body elements (triple patterns and filters only
             - see ``NegationBodyElement``).
-        data: Whether ``inner`` matches against the DATA graph rather than
-            the evaluation graph.
+        evaldata: True to match ``inner`` against the evaluation graph (a
+            plain ``NOT``); False to match only the base graph (``NOT DATA``).
     """
 
     inner: list[NegationBodyElement] = field(default_factory=list)
-    data: bool = False
+    evaldata: bool = True
 
 
 # §4.1's "Rule element" - the union every rule body member belongs to.
 BodyElement = TriplePattern | _FilterElement | _NegationElement | _AssignmentElement
 
 
+def _triple_term_has_variable(term: Any) -> bool:
+    """True if ``term`` is a triple term (at any depth) that contains a variable."""
+    if not isinstance(term, TripleTermNode):
+        return False
+    return any(
+        isinstance(part, Variable) or _triple_term_has_variable(part)
+        for part in (term.get("subject"), term.get("predicate"), term.get("object"))
+    )
+
+
 @dataclass(frozen=True)
 class _Rule:
     """§4.1 "Rule" - ``head`` + ``body``, optional ``id`` (an IRI naming the
-    rule), and ``data`` (match the body's own top-level triple patterns
-    against the rule set's DATA graph rather than the base graph - the
-    grammar's ``WHERE DATA? { ... }``).
+    rule), and ``evaldata`` (the spec's own ``rule.evaldata``: true matches the
+    body's triple patterns against the evaluation graph; false matches the base
+    graph only - the grammar's ``WHERE DATA { ... }``).
 
     Private: the test applied project-wide to every SRL AST type is
     whether any public function or method signature requires this type
@@ -166,7 +177,7 @@ class _Rule:
 
     head: list[TripleTemplate] = field(default_factory=list)
     body: list[BodyElement] = field(default_factory=list)
-    data: bool = False
+    evaldata: bool = True
     id: URIRef | None = None
 
     @property
@@ -190,7 +201,13 @@ class _Rule:
         """
         if any(isinstance(e, _AssignmentElement) for e in self.body):
             return True
-        return any(isinstance(t.subject, BNode) or isinstance(t.object, BNode) for t in self.head)
+        return any(
+            isinstance(t.subject, BNode)
+            or isinstance(t.object, BNode)
+            or _triple_term_has_variable(t.subject)
+            or _triple_term_has_variable(t.object)
+            for t in self.head
+        )
 
 
 @dataclass(frozen=True)
@@ -314,7 +331,11 @@ class RuleSet:
         index = {id(rule): i for i, rule in enumerate(self.rules)}
 
         def plan_rule(rule: _Rule) -> PlanRule:
-            return PlanRule(index[id(rule)], rule.id, srl._rule_text(rule, None))
+            try:
+                text = srl._rule_text(rule, None)
+            except NotImplementedError:  # triple terms have no text rendering yet
+                text = "(rule text not available: it uses a triple term)"
+            return PlanRule(index[id(rule)], rule.id, text)
 
         return RulePlan(
             strata=[

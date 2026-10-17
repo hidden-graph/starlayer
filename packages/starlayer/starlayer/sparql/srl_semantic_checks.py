@@ -39,7 +39,7 @@ from . import _srl_ast as srl_ast
 class _SRLWellFormednessIssue:
     rule: srl_ast._Rule
     kind: str  # "unbound_filter_variable" | "unbound_assignment_expr_variable"
-    # | "reused_assignment_variable" | "unbound_head_variable"
+    # | "reused_assignment_variable" | "unbound_head_variable" | "aggregate_in_expression"
     variable: Variable
     context: str
 
@@ -76,6 +76,22 @@ def _expr_vars(expr) -> set[Variable]:
     return found
 
 
+def _has_aggregate(expr) -> bool:
+    """True if an ``Aggregate_*`` node (COUNT, SUM, ...) occurs anywhere in ``expr``.
+    Aggregation is a separate rule element in SPARQL-RL (still an open issue),
+    never a function inside ``FILTER`` or ``SET``."""
+    found = False
+
+    def _visit(node):
+        nonlocal found
+        if str(getattr(node, "name", "")).startswith("Aggregate_"):
+            found = True
+        return None
+
+    algebra.traverse(expr, visitPost=_visit)
+    return found
+
+
 def _check_sequence(
     elements: list[srl_ast.BodyElement],
     v0: set[Variable],
@@ -106,10 +122,14 @@ def _check_sequence(
             # own (empty) varsi contribution.
             for v in _expr_vars(elt.expr) - v_current:
                 issues.append(_SRLWellFormednessIssue(rule, "unbound_filter_variable", v, "FILTER"))
+            if _has_aggregate(elt.expr):
+                issues.append(_SRLWellFormednessIssue(rule, "aggregate_in_expression", Variable("*"), "FILTER"))
             # varsi = {} for a filter element - v_current unchanged.
         elif isinstance(elt, srl_ast._AssignmentElement):
             for v in _expr_vars(elt.expr) - v_current:
                 issues.append(_SRLWellFormednessIssue(rule, "unbound_assignment_expr_variable", v, "SET(...)"))
+            if _has_aggregate(elt.expr):
+                issues.append(_SRLWellFormednessIssue(rule, "aggregate_in_expression", Variable("*"), "SET(...)"))
             if elt.var in v_current:
                 issues.append(_SRLWellFormednessIssue(rule, "reused_assignment_variable", elt.var, "SET(...)"))
             # varsi = {the assignment variable}, regardless of whether the

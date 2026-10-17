@@ -72,7 +72,7 @@ def test_rule_missing_body_is_rejected():
     rule = URIRef("urn:rule1")
     g.add((rule, RDF.type, SRL.Rule))
     g.add((rule, SRL.head, RDF.nil))
-    g.add((rule, SRL.ruleData, Literal(False)))
+    g.add((rule, SRL.ruleEvaldata, Literal(True)))
     # srl:body deliberately omitted.
     rules_list = URIRef("urn:list")
     Collection(g, rules_list, [rule])
@@ -88,7 +88,7 @@ def test_triple_pattern_with_literal_predicate_is_rejected():
     g, root = _minimal_ruleset_graph()
     rule = URIRef("urn:rule1")
     g.add((rule, RDF.type, SRL.Rule))
-    g.add((rule, SRL.ruleData, Literal(False)))
+    g.add((rule, SRL.ruleEvaldata, Literal(True)))
     g.add((rule, SRL.head, RDF.nil))
 
     tp = URIRef("urn:tp1")
@@ -114,7 +114,7 @@ def test_body_list_rejects_a_non_body_element_member():
     g, root = _minimal_ruleset_graph()
     rule = URIRef("urn:rule1")
     g.add((rule, RDF.type, SRL.Rule))
-    g.add((rule, SRL.ruleData, Literal(False)))
+    g.add((rule, SRL.ruleEvaldata, Literal(True)))
     g.add((rule, SRL.head, RDF.nil))
 
     not_a_body_element = URIRef("urn:bogus")

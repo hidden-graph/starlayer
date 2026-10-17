@@ -19,11 +19,11 @@ srl:NegationBodyElement a rdfs:Class ;
     rdfs:comment "The narrower union a negation element's own inner body is restricted to: TriplePattern or FilterElement only." .
 
 srl:NegationElement a rdfs:Class ;
-    rdfs:comment "NOT DATA? {...} - srl:inner (a list of srl:NegationBodyElement), srl:negationData (bool), §4.1. Never legal inside another negation element's own body." ;
+    rdfs:comment "NOT DATA? {...} - srl:inner (a list of srl:NegationBodyElement), srl:negationEvaldata (bool: true = match the evaluation graph, false = NOT DATA), §4.1. Never legal inside another negation element's own body." ;
     rdfs:subClassOf srl:BodyElement .
 
 srl:Rule a rdfs:Class ;
-    rdfs:comment "One RULE - srl:head/srl:body (lists), srl:ruleData (bool: match WHERE DATA), srl:id (optional IRI), §4.1." .
+    rdfs:comment "One RULE - srl:head/srl:body (lists), srl:ruleEvaldata (bool: true = match the evaluation graph, false = WHERE DATA), srl:id (optional IRI), §4.1." .
 
 srl:RuleSet a rdfs:Class ;
     rdfs:comment "A whole SRL rule set - srl:rules/srl:data/srl:imports, §4.1." .

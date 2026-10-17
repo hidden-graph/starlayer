@@ -141,3 +141,22 @@ r2.bindings, len(r2), list(r2)
 ```
 
 Fix: `starlayergraph/query/result_patches.py::patch_result_iter_empty_binding_row`.
+
+## 7. `xsd:integer()` cannot cast a decimal, double, float or boolean
+
+rdflib 7.6.0 (the latest release). The `xsd:integer` cast (`rdflib.plugins.sparql.operators.default_cast`) is `int(<lexical form>)`, so any source whose lexical form is not already an integer is an evaluation error. SPARQL 1.1 §17.5 casts through the XPath constructor functions, where a number casts to `xsd:integer` by truncation toward zero and a boolean casts to 1 or 0. A string such as `"16.0934"` correctly stays an error.
+
+```python
+from rdflib import Graph
+
+q = 'PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>\nSELECT (COALESCE(xsd:integer({}), "ERROR") AS ?r) WHERE {{}}'
+for arg in ("16.0934", "-2.7", "1.5e0", "true"):
+    print(arg, list(Graph().query(q.format(arg)))[0][0])
+# actual:   ERROR for all four
+# expected: 16, -2, 1, 1
+```
+
+Found because the SPARQL-RL spec's own Examples 9 and 10 compute `xsd:integer(?miles * 1.60934)` and infer nothing without it. (Without the `COALESCE`, the row is silently dropped; see item 6.)
+
+Fix: `starlayer/graph/query/operator_patches.py::patch_integer_cast_from_numeric_and_boolean`, applied on `import starlayer.graph`. `NaN` and the infinities stay errors. **Not filed upstream.**
+

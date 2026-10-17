@@ -56,7 +56,7 @@ def test_r1_simple_rule():
     assert len(rs.rules) == 1
     (rule,) = rs.rules
     assert rule.id is None
-    assert rule.data is False
+    assert rule.evaldata is True  # a plain WHERE matches the evaluation graph
     assert rule.head == [TriplePattern(Variable("x"), _p("exposedTo"), Variable("v"))]
     assert rule.body == [TriplePattern(Variable("x"), _p("hasVulnerability"), Variable("v"))]
 
@@ -99,7 +99,7 @@ def test_r4_negation_element_body_restricted_shape():
     assert isinstance(rule.body[0], TriplePattern)
     neg = rule.body[1]
     assert isinstance(neg, NegationElement)
-    assert neg.data is False
+    assert neg.evaldata is True  # a plain NOT matches the evaluation graph
     assert neg.inner == [TriplePattern(Variable("x"), _p("status"), _p("criticallyExposed"))]
 
 
@@ -149,7 +149,7 @@ def test_where_data_and_assignment_element():
     text = WORKED_EXAMPLE_PREFIXES + "RULE { ?x :flag true } WHERE DATA { ?x :severity ?s . SET (?y := ?s + 1) . }"
     rs = parse_ruleset(text)
     (rule,) = rs.rules
-    assert rule.data is True
+    assert rule.evaldata is False  # WHERE DATA matches the base graph only
     assert isinstance(rule.body[0], TriplePattern)
     assign = rule.body[1]
     assert isinstance(assign, AssignmentElement)

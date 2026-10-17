@@ -1,5 +1,6 @@
-"""SRL/SPARQL-RL evaluation engine - `WD-sparql12-rl-20260919
-<https://www.w3.org/TR/sparql12-rl/>`_ §4.3 (Rule Dependency),
+"""SRL/SPARQL-RL evaluation engine - `WD-sparql12-rl-20261014
+<https://www.w3.org/TR/sparql12-rl/>`_ (dependency graph updated from the
+2026-09-19 draft: WHERE DATA / NOT DATA add no dependencies) §4.3 (Rule Dependency),
 §4.4 (Stratification), and §6 (Rule Set Evaluation), translated directly
 from the spec's own verbatim pseudocode rather than an approximation of it.
 
@@ -43,6 +44,7 @@ from rdflib.plugins.sparql.sparql import QueryContext, SPARQLError
 
 from . import _srl_ast as srl_ast
 from .srl import SRLError
+from .triple_term import TripleTermNode
 
 
 class SRLEvalError(SRLError):
@@ -104,8 +106,16 @@ def _terms_compatible(pattern_term, template_term) -> bool:
     Returns:
         True if the two terms could refer to the same RDF term.
     """
-    if isinstance(pattern_term, Variable) or isinstance(template_term, Variable):
+    # A blank node in a body pattern behaves like a variable (§4.3.1, §6.4).
+    if isinstance(pattern_term, (Variable, BNode)) or isinstance(template_term, Variable):
         return True
+    if isinstance(pattern_term, TripleTermNode) or isinstance(template_term, TripleTermNode):
+        if not (isinstance(pattern_term, TripleTermNode) and isinstance(template_term, TripleTermNode)):
+            return False
+        return all(
+            _terms_compatible(pattern_term.get(position), template_term.get(position))
+            for position in ("subject", "predicate", "object")
+        )
     return pattern_term == template_term
 
 
@@ -129,9 +139,16 @@ def _build_dependency_graph(ruleset: srl_ast.RuleSet) -> list[_DependencyEdge]:
     id_to_rule: dict[int, srl_ast._Rule] = {id(r): r for r in ruleset.rules}
 
     for r1 in ruleset.rules:
+        # A rule that matches only the base graph (WHERE DATA) has no dependencies
+        # (SPARQL-RL 2026-10-14 §4.3.1: ``evaldata`` false).
+        if not r1.evaldata:
+            continue
         body_dependencies: list[tuple[srl_ast.TriplePattern, str]] = []
         for elt in r1.body:
             if isinstance(elt, srl_ast._NegationElement):
+                # NOT DATA matches only the base graph, so it adds no dependency either.
+                if not elt.evaldata:
+                    continue
                 for inner in elt.inner:
                     if isinstance(inner, srl_ast.TriplePattern):
                         body_dependencies.append((inner, "closed"))
@@ -308,7 +325,7 @@ def _blank_nodes_to_vars(
         if isinstance(e, srl_ast.TriplePattern):
             return _sub_triple(e)
         if isinstance(e, srl_ast._NegationElement):
-            return srl_ast._NegationElement(inner=[_sub_element(x) for x in e.inner], data=e.data)
+            return srl_ast._NegationElement(inner=[_sub_element(x) for x in e.inner], evaldata=e.evaldata)
         return e  # FilterElement/AssignmentElement: no raw BNode terms to substitute
 
     return [_sub_element(e) for e in body]
@@ -386,7 +403,7 @@ def _eval_rule_elements(elements: list[srl_ast.BodyElement], seq: list[dict], g:
             seq = new_seq
             i += 1
         elif isinstance(elt, srl_ast._NegationElement):
-            inner_g = gd if elt.data else g
+            inner_g = g if elt.evaldata else gd
             new_seq = []
             for mu in seq:
                 neg = _eval_rule_elements(elt.inner, [mu], inner_g, gd)
@@ -449,10 +466,10 @@ def _eval_rule(rule: srl_ast._Rule, g: Graph, gd: Graph) -> set[tuple]:
     """§6.4's ``evalRule``."""
     used_vars = _collect_variables(rule)
     body = _blank_nodes_to_vars(rule.body, used_vars)
-    if rule.data:
-        seq = _eval_rule_elements(body, [{}], gd, gd)
-    else:
+    if rule.evaldata:
         seq = _eval_rule_elements(body, [{}], g, gd)
+    else:
+        seq = _eval_rule_elements(body, [{}], gd, gd)
 
     out: set[tuple] = set()
     for mu in seq:
