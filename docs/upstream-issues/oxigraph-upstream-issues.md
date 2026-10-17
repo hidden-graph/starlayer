@@ -4,21 +4,101 @@
 
 Bugs found in [Oxigraph](https://github.com/oxigraph/oxigraph) (the native `rdf-1.2` backend's primary SPARQL-star HTTP engine option - see `starlayergraph/backends/native.py`'s own module docstring: this repo does zero query/data rewriting for either native-backend engine, so what the engine accepts and returns is exactly what a client sees) while cross-checking findings from the downstream `starsparql` project's adversarial round-trip test battery (`tests/test_adversarial_roundtrip.py`, built specifically to try to falsify that project's "round-trip preserves semantics" claim). Confirmed against Oxigraph `0.5.9`.
 
-Same entry structure/conventions as `docs/upstream-issues/rdflib-upstream-issues.md` (see that file's "How To Use" section) - `##`/`###` headings pastable directly into a GitHub issue.
+Same entry structure/conventions as `rdflib-upstream-issues.md` (see that file's "How To Use" section) - `##`/`###` headings pastable directly into a GitHub issue.
 
 ## Status Summary
 
 | # | Issue | Reporting upstream? |
 | --- | --- | --- |
 | 1 | ~~Nested-subject triple term pattern returns `HTTP 500` even when matching data exists~~ | **No — retracted, see below** |
+| 2 | SPARQL `=` panics the whole engine on *any* `dirLangString`-typed term (crashes the process, not a catchable error) | **Yes — pending** |
 
-No issues currently pending upstream report. One investigated and retracted (see Issue 1) — not a bug in Oxigraph.
+One issue pending upstream report (Issue 2). One investigated and retracted (see Issue 1) — not a bug in Oxigraph.
 
 ## Entries
 
 | # | Title | Found | Status |
 | --- | --- | --- | --- |
 | 1 | Nested-subject triple term pattern returns `HTTP 500` | 2026-08-08 | Retracted 2026-08-08 — invalid input, not a bug |
+| 2 | SPARQL `=` panics on any `dirLangString` term | 2026-10-16 | Confirmed live, pending upstream report |
+
+## Issue 2 - SPARQL `=` panics the engine on *any* `rdf:dirLangString`-typed term (crashes the whole process, not a catchable SPARQL error) (found 2026-10-16, scope corrected same day)
+
+A runnable version of everything in this entry - both the working baselines and the crash cases, with real captured output for each - lives at `oxigraph_dirlangstring_crash_repro.ipynb` (same folder).
+
+### How this was found, and how the scope was narrowed
+
+First found while answering a direct question - "have we run all the tests with an oxigraph embedded?" - by running the project's whole test suite with every bare `StarLayerGraph()`/`StarLayerDataset()` redirected onto an in-process Oxigraph (a temporary diagnostic on a since-rolled-back experimental branch, `oxigraph-wip-2026-10-16`; nothing like it remains on the working branches). The suite aborted entirely (`Fatal Python error: Aborted`, `SIGABRT`) partway through, at `tests/graph/unit/test_dirlangstring.py::TestSparqlFunctions::test_strlangdir_constructs_matching_value` - a query filtering on `?t = STRLANGDIR(...)`.
+
+**That test is not an Oxigraph test.** It is a unit test of the `STRLANGDIR()` function that normally runs on the default in-memory store; it only reached Oxigraph's engine because the diagnostic redirected it. The Oxigraph-backed `dirLangString` coverage that did exist (cross-backend parity's write/read and function scenarios, the W3C `lang-basedir` fixtures) never compares two `dirLangString` values with `=`, the one operation that panics - so the bug sat in a gap between tests that all passed. `tests/graph/integration/test_oxigraph_store_rdf12.py::TestDirLangStringEquality` now covers that gap directly (see "Impact on this project").
+
+**The initial write-up of this issue wrongly scoped it to `STRLANGDIR()` specifically** - corrected the same day by testing several narrower variants directly against bare `pyoxigraph`, one at a time, rather than assuming the first repro's own shape was the real trigger:
+
+| Scenario | Crashes? |
+| --- | --- |
+| Construct a `dirLangString` via `STRLANGDIR()`, no comparison | No |
+| Read a stored `dirLangString` value, no comparison | No |
+| `sameTerm(?t, ?t)` on a stored `dirLangString` value | No |
+| `FILTER(?t = ?t)` - self-equality on one stored value | **Crashes** |
+| `FILTER(?t1 = ?t2)` - two independently stored values | **Crashes** |
+| `STRLANGDIR(...) = STRLANGDIR(...)` - no stored data at all | **Crashes** |
+| A stored value `=` a `STRLANGDIR()`-constructed one (the original repro) | **Crashes** |
+
+**The real trigger is SPARQL `=` (value equality) applied to a `dirLangString` term, full stop** - unconditionally, regardless of whether either side is stored data or a `STRLANGDIR()` construction, and even for the most trivial case (a value compared against itself). `sameTerm()` (exact RDF-term equality, a different SPARQL operator with no per-datatype value-equality dispatch) is unaffected.
+
+### Repro
+
+```python
+import pyoxigraph as ox
+store = ox.Store()
+store.update('INSERT DATA { <http://example.org/a> <http://example.org/title> "hi"@en--ltr }')
+list(store.query('SELECT ?s WHERE { ?s <http://example.org/title> ?t . FILTER(?t = ?t) }'))
+```
+
+No `STRLANGDIR()`, no StarLayer code, no second value to compare against - the minimal case is a single stored `dirLangString` value compared against itself.
+
+### What happens
+
+A hard process abort, not a Python exception - cannot be caught with `try`/`except`, and takes down the entire process (a whole `pytest` run, in the case that first surfaced this):
+
+```
+thread '<unnamed>' panicked at lib/spareval/src/dataset.rs:350:27:
+internal error: entered unreachable code
+```
+
+### Confirmed against both the embedded binding and the standalone server - same bug, two different released versions
+
+- **Embedded**: `pyoxigraph` `0.5.11` (the version installed with this project's `oxigraph` extra, `pyoxigraph>=0.5`) - the exact panic above, via the Python binding directly.
+- **HTTP/remote**: the project's own local test server, `ghcr.io/oxigraph/oxigraph` (image pulled 2026-06-18, server reports itself as `oxigraph 0.5.9`) - the identical query, sent as an HTTP `POST` to `/query` against a graph-scoped version of the same data, crashed the **server process itself** (confirmed via `docker ps` showing `Exited (133)` - `133` = `128 + SIGABRT`, the same signal as the embedded case). The client sees `requests.exceptions.ConnectionError` / `RemoteDisconnected` with no SPARQL-level error response at all, since the server died before it could write one. Recovered with a plain `docker restart`.
+
+Same root defect in both: an `unreachable!()` in `spareval`'s per-datatype value-equality dispatch (`op:RDFterm-equal`), missing a case for `rdf:dirLangString` - present across at least two released versions (`0.5.9` through `0.5.11`), not something fixed in between.
+
+### Exact root cause, found by reading the live upstream source directly (still present on `main`, not yet fixed in unreleased code either)
+
+`lib/spareval/src/dataset.rs`'s `impl PartialEq for ExpressionTerm` has an explicit match arm for every one of the enum's ~20 variants *except* `DirLangStringLiteral` - it falls through to the catch-all `(_, _) => unreachable!()` at the end of the match. Confirmed this is a narrow, surgical omission rather than a deeper design gap: the sibling `impl Hash for ExpressionTerm`, a few lines below in the same file, *does* correctly handle `DirLangStringLiteral` (`(value, language, direction).hash(state)`) - the variant was wired into `Hash` but the matching `PartialEq` arm was never added alongside it. A one-line fix:
+
+```rust
+(
+    Self::DirLangStringLiteral { value: lv, language: ll, direction: ld },
+    Self::DirLangStringLiteral { value: rv, language: rl, direction: rd },
+) => lv == rv && ll == rl && ld == rd,
+```
+
+Checked directly against `main` via the GitHub API (not just the two released versions already tested) - the gap is still there in current unreleased development, not something already fixed and awaiting a release.
+
+### Not yet reported upstream - checked via `gh search issues`/`gh search prs` against `oxigraph/oxigraph`
+
+Searched for `dirLangString`, `DirLangStringLiteral`, `BaseDirection`, `STRLANGDIR`, `spareval` + `dirLang`, `entered unreachable code`, `RDFterm-equal`, and `direction literal`, across both issues and PRs, open and closed. No existing report matches - this appears to be a genuinely new finding, not a duplicate.
+
+### Confirmed as Oxigraph-specific, not a spec ambiguity: Apache Jena Fuseki handles every scenario correctly
+
+Ran the identical scenario table against this project's own local Fuseki test server (`atomgraph/fuseki:6.1.0`, Apache Jena 6.1.0/ARQ) - both via raw HTTP (SPARQL 1.1 Protocol, matching how Oxigraph's own HTTP server was tested above) and via `StarLayerGraph(store=SPARQLUpdateStore(...), backend="rdf-1.2")` (this project's own native-representation code path, not bypassing it). Every single case - construction, plain read, `sameTerm()`, self-equality (`?t = ?t`), and `?t = STRLANGDIR(...)` - returned a correct `200`/`204` result with no crash, through either access path, with the server staying healthy throughout (confirmed via `/$/ping` before and after). Rules out "the SPARQL 1.2 spec is ambiguous here and both engines reasonably disagree" - Jena/ARQ implements `dirLangString` value-equality correctly; this is specifically a gap in Oxigraph's `spareval` crate.
+
+### Impact on this project
+
+`StarLayerGraph(store=OxigraphStore(...), backend='rdf-1.2')` - the in-process Oxigraph route, and a remote Oxigraph/HTTP `rdf-1.2` graph alike - hands SPARQL straight to the affected engine, so a caller who relies on `=`-based equality over `dirLangString` data (not just via `STRLANGDIR()`) will hit this crash today. It is not worked around or guarded against in this project's own code: there is no safe way to catch a process abort from Python, and rewriting `=` to `sameTerm()` is only valid where exact-term rather than value equality is acceptable. The default (`rdf-1.1`, in-memory) representation is unaffected - `tests/graph/unit/test_dirlangstring.py`'s `TestSparqlFunctions` exercises exactly this comparison and passes there, with no Oxigraph involved.
+
+**Test coverage:** `tests/graph/integration/test_oxigraph_store_rdf12.py::TestDirLangStringEquality` confirms `sameTerm()` works over a `dirLangString` on the Oxigraph store route, and reproduces the abort in a subprocess for both the self-equality and the original `STRLANGDIR()` comparison. The abort tests are written to fail loudly if Oxigraph fixes this upstream, as a prompt to update this document. Known limitation pending upstream resolution; a project-side guard is tracked in `docs/future_enhancements.md`.
 
 ## Issue 1 - RETRACTED: "Nested-subject triple term pattern returns `HTTP 500`" (found 2026-08-08, retracted same day)
 
@@ -37,7 +117,7 @@ SELECT * WHERE { ?s ?p <<( <<( :a :b :c )>> :d :e )>> . }
 
 ### Why it looked valid (and was believed distinct from an earlier, correctly-declined Oxigraph finding)
 
-The downstream `starsparql` project's own `CLAUDE.md` (finding #20) documents building a grammar extension that deliberately *permits* a triple term to nest in subject position when used in ordinary query-pattern position (as opposed to `BIND`/`FILTER`/`VALUES` expression position) - and cites the official W3C SPARQL 1.2 test suite's own `PositiveSyntaxTest` fixtures (`syntax-triple-terms-positive/compound-tripleterm-subject.rq`, `nested-tripleterm-02.rq`) as confirming this is legal syntax. Those fixtures do contain exactly this shape (`<<( <<(:x ?R :z)>> :p <<(:a :b [])>> )>>`) and are indeed labeled `PositiveSyntaxTest`. This, plus data appearing to load successfully for the same shape via `StarLayerGraph.parse()`, looked like enough to distinguish this from an earlier, similar-looking Oxigraph finding that had been investigated and correctly declined as "a query that can never match real data either way" (see the note in `docs/upstream-issues/fuseki-upstream-issues.md`'s Issue 1 "Status" section).
+The downstream `starsparql` project's own `CLAUDE.md` (finding #20) documents building a grammar extension that deliberately *permits* a triple term to nest in subject position when used in ordinary query-pattern position (as opposed to `BIND`/`FILTER`/`VALUES` expression position) - and cites the official W3C SPARQL 1.2 test suite's own `PositiveSyntaxTest` fixtures (`syntax-triple-terms-positive/compound-tripleterm-subject.rq`, `nested-tripleterm-02.rq`) as confirming this is legal syntax. Those fixtures do contain exactly this shape (`<<( <<(:x ?R :z)>> :p <<(:a :b [])>> )>>`) and are indeed labeled `PositiveSyntaxTest`. This, plus data appearing to load successfully for the same shape via `StarLayerGraph.parse()`, looked like enough to distinguish this from an earlier, similar-looking Oxigraph finding that had been investigated and correctly declined as "a query that can never match real data either way" (see the note in `fuseki-upstream-issues.md`'s Issue 1 "Status" section).
 
 ### Why that reasoning was wrong
 

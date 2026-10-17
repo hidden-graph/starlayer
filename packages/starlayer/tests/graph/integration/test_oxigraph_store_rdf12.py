@@ -17,6 +17,7 @@ from rdflib import RDF, RDFS, BNode, Literal, Namespace, URIRef
 from rdflib.namespace import OWL
 from starlayer.graph.graph import StarLayerDataset, StarLayerGraph
 from starlayer.graph.graph.entailment_regimes import ENTAILMENT
+from starlayer.graph.model.dirlangstring import DirLangString
 from starlayer.graph.model.triple import TripleTerm
 
 pyoxigraph = pytest.importorskip('pyoxigraph')
@@ -280,3 +281,68 @@ class TestInferIsCreatedLikeTheSource:
         src = self._data(_oxigraph_graph())
         assert src.infer(ENTAILMENT.RDFS, mode='in-place') is src
         assert (URIRef(EX + 'x'), RDF.type, URIRef(EX + 'B')) in src
+
+
+# ---------------------------------------------------------------------------
+# Known Oxigraph engine bug: SPARQL `=` panics on any dirLangString term
+# (docs/upstream-issues/oxigraph-upstream-issues.md, Issue 2)
+# ---------------------------------------------------------------------------
+#
+# Why this lives here: the dirLangString coverage elsewhere against Oxigraph
+# (cross-backend parity's write/read and function scenarios, the W3C
+# lang-basedir fixtures) never compares two dirLangString values with `=`, the
+# one operation that aborts the whole process. So the engine's weak spot sat
+# in a gap between tests that all passed. It was first noticed only because a
+# since-removed diagnostic redirected the default-store test
+# tests/graph/unit/test_dirlangstring.py::TestSparqlFunctions::
+# test_strlangdir_constructs_matching_value onto Oxigraph.
+
+_TITLE = 'http://example.org/title'
+
+_ABORT_REPRO = '''
+import pyoxigraph
+from oxrdflib import OxigraphStore
+from starlayer.graph.graph import StarLayerGraph
+from starlayer.graph.model.dirlangstring import DirLangString
+from rdflib import URIRef
+
+g = StarLayerGraph(store=OxigraphStore(store=pyoxigraph.Store()), backend='rdf-1.2')
+g.add((URIRef('http://example.org/s'), URIRef('{title}'), DirLangString('HTML page', 'en', 'ltr')))
+list(g.query({query!r}))
+print('SURVIVED')
+'''
+
+
+class TestDirLangStringEquality:
+    def test_sameterm_on_dirlangstring_works(self):
+        """The workaround the upstream-issue doc recommends: sameTerm() is
+        exact-term equality, a different operator, and is unaffected."""
+        g = StarLayerGraph(store=embedded_oxigraph_store(), backend='rdf-1.2')
+        g.add((URIRef(EX + 's'), URIRef(_TITLE), DirLangString('HTML page', 'en', 'ltr')))
+        rows = list(g.query(f'SELECT ?s WHERE {{ ?s <{_TITLE}> ?t . FILTER(sameTerm(?t, ?t)) }}'))
+        assert len(rows) == 1
+
+    @pytest.mark.parametrize('query', [
+        f'SELECT ?s WHERE {{ ?s <{_TITLE}> ?t . FILTER(?t = ?t) }}',
+        f'SELECT ?s WHERE {{ ?s <{_TITLE}> ?t . FILTER(?t = STRLANGDIR("HTML page", "en", "ltr")) }}',
+    ], ids=['self_equality', 'strlangdir_comparison'])
+    def test_value_equality_aborts_the_process_known_engine_bug(self, query):
+        """Documents the engine bug by running it in a subprocess (a panic is
+        a hard process abort, not a catchable exception). If this starts
+        PASSING the query - Oxigraph fixed it upstream - update
+        docs/upstream-issues/oxigraph-upstream-issues.md and replace this
+        test with a plain equality assertion."""
+        import subprocess
+        import sys
+        proc = subprocess.run(
+            [sys.executable, '-c', _ABORT_REPRO.format(title=_TITLE, query=query)],
+            capture_output=True, text=True, timeout=120,
+        )
+        if proc.returncode == 0 and 'SURVIVED' in proc.stdout:
+            pytest.fail(
+                "Oxigraph no longer aborts on `=` over a dirLangString - the upstream bug "
+                "appears fixed. Update docs/upstream-issues/oxigraph-upstream-issues.md "
+                "(Issue 2) and turn this into a normal equality test."
+            )
+        assert proc.returncode != 0
+        assert 'unreachable' in proc.stderr or 'panicked' in proc.stderr or 'Abort' in proc.stderr
