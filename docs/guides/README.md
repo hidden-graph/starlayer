@@ -17,7 +17,7 @@ The full guide set has been reorganized into `docs/guides/`, one focused noteboo
    - **2.c [OWL 2 DL reasoning](02c-owl-dl-reasoning.ipynb)** - `infer(entailment=ENTAILMENT["OWL-Direct"])`, genuine DL reasoning via HermiT (default, needs a real JVM) or RustDL (pure Rust, no JVM, with its own tradeoffs).
 3. **[SPARQL](03-sparql.ipynb)** - query semantics and built-in functions.
    - **3.a [SPARQL entailment](03a-sparql-entailment.ipynb)** - what's specific to `query(entailment=...)` beyond what 2.b already covers per regime: caching behavior (`infer=`) and detecting an inconsistency via `ASK`.
-   - **3.b [SPARQL-RL rules](03b-sparql-rules.ipynb)** - SRL, a separate Datalog-style rules language independent of SHACL: parsing, inference, dependency-graph/stratification, and well-formedness checking.
+   - **3.b [SPARQL-RL rules](03b-sparql-rules.ipynb)** - SRL, a separate Datalog-style rules language independent of SHACL: parsing, inference, the evaluation plan (strata and dependency edges), querying, and well-formedness checking.
 4. **[SHACL shapes](04-shacl-shapes.ipynb)** - what starshacl adds over pySHACL, and an overview of its four processing modes (`validate()`, `apply_rules()`, `evaluate()`, `extract_subgraph()`).
    - **4.a [SHACL node expressions](04a-shacl-node-expressions.ipynb)** - the `shnex:`/`sparql:` node-expression vocabulary, `sh:values`/`sh:expression`, custom functions.
    - **4.b [SHACL and SPARQL](04b-shacl-and-sparql.ipynb)** - `sh:sparql` constraints, user-defined `sh:ConstraintComponent`.

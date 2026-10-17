@@ -135,6 +135,10 @@ from rdflib.plugins.sparql.sparql import Prologue
 
 from . import _srl_ast as srl_ast
 from ._srl_ast import (  # noqa: F401 - re-exported, see module docstring
+    PlanEdge,
+    PlanRule,
+    PlanStratum,
+    RulePlan,
     RuleSet,
     TriplePattern,
 )

@@ -208,6 +208,69 @@ class _Data:
     triples: list[TriplePattern] = field(default_factory=list)
 
 
+@dataclass(frozen=True)
+class PlanRule:
+    """One rule as it appears in a :class:`RulePlan`.
+
+    Attributes:
+        index: The rule's position in ``RuleSet.rules`` (0-based).
+        id: The rule's IRI, or ``None`` if it has none.
+        text: The rule rendered as SRL text (full IRIs, no prefixes).
+    """
+
+    index: int
+    id: URIRef | None
+    text: str
+
+
+@dataclass(frozen=True)
+class PlanStratum:
+    """One stratum of a :class:`RulePlan`: the rules evaluated together.
+
+    Attributes:
+        number: The stratum's position in evaluation order (0-based).
+        run_once: Rules evaluated exactly once in this stratum.
+        general: Rules evaluated to a fixpoint in this stratum.
+    """
+
+    number: int
+    run_once: list[PlanRule]
+    general: list[PlanRule]
+
+
+@dataclass(frozen=True)
+class PlanEdge:
+    """A dependency between two rules: ``source``'s body reads what
+    ``target``'s head can produce, so ``target`` must be evaluated first (or
+    in the same stratum).
+
+    Attributes:
+        source: ``PlanRule.index`` of the rule that depends on ``target``.
+        target: ``PlanRule.index`` of the rule it depends on.
+        label: ``"open"`` (a positive dependency) or ``"closed"`` (a
+            negation, or any dependency of a run-once rule), which forces
+            ``source`` into a later stratum than ``target``.
+    """
+
+    source: int
+    target: int
+    label: str
+
+
+@dataclass(frozen=True)
+class RulePlan:
+    """How a rule set will be evaluated, from :meth:`RuleSet.plan` -
+    nothing is run to produce it.
+
+    Attributes:
+        strata: The strata in evaluation order.
+        edges: The rule dependency graph the strata were computed from.
+    """
+
+    strata: list[PlanStratum]
+    edges: list[PlanEdge]
+
+
 @dataclass
 class RuleSet:
     """§4.1 "Rule set" - ``rules`` + ``data`` blocks + ``imports`` (IRIs of
@@ -225,6 +288,41 @@ class RuleSet:
     rules: list[_Rule] = field(default_factory=list)
     data: list[_Data] = field(default_factory=list)
     imports: list[URIRef] = field(default_factory=list)
+
+    def plan(self) -> RulePlan:
+        """Shows how this rule set would be evaluated, without running it:
+        the strata in evaluation order and the rule dependency graph they
+        were computed from (§4.3.2 and §4.4.2 of the spec). Rules are
+        identified by their position in ``self.rules``.
+
+        Useful for seeing why a rule fires in a later stratum than another,
+        which matters with negation, and for checking that a rule set
+        stratifies before running it. ``IMPORTS`` are not resolved here;
+        ``infer()`` rejects them.
+
+        Returns:
+            The :class:`RulePlan`.
+
+        Raises:
+            StratificationError: If a recursive dependency involves a
+                negation, so no valid evaluation order exists (§4.4.1).
+        """
+        from . import srl, srl_eval
+
+        edges = srl_eval._build_dependency_graph(self)
+        layers = srl_eval._stratify(self)
+        index = {id(rule): i for i, rule in enumerate(self.rules)}
+
+        def plan_rule(rule: _Rule) -> PlanRule:
+            return PlanRule(index[id(rule)], rule.id, srl._rule_text(rule, None))
+
+        return RulePlan(
+            strata=[
+                PlanStratum(number, [plan_rule(r) for r in once], [plan_rule(r) for r in general])
+                for number, (once, general) in enumerate(layers)
+            ],
+            edges=[PlanEdge(index[id(e.source)], index[id(e.target)], e.label) for e in edges],
+        )
 
     def infer(
         self,

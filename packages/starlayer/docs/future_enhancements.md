@@ -250,7 +250,7 @@ built 2026-09-30.
 3. **Republish the starontology standalone files**: `python scripts/publish_starontology_files.py`. It is not byte-stable, so check the diff is real before committing, and confirm `shacl_meta` still equals `build_meta_shapes_graph()`.
 4. **Refresh the widget appendix in `docs/guides/04d-shacl-ui.ipynb`.** The appendix is a deliberately *static* markdown table; the guide does not generate it when run. If the shipped widget descriptions change, regenerate it with the snippet below and paste the output over the appendix cell. The guide expects 16 editors and 10 viewers.
 5. **Re-execute every guide** so the stored outputs are current: `BROWSER=true python -m jupyter nbconvert --to notebook --execute --inplace docs/guides/<guide>.ipynb` (`BROWSER=true` stops the UI guide opening pages).
-6. **Run the test tiers**: the fast tier, the integration tier (live servers), and `pytest --store-matrix` for the W3C suites across every store.
+6. **Run the test tiers**: the fast tier, the integration tier (live servers), `pytest --store-matrix` for the W3C suites across every store, and `pytest --srl-stratification` for the extended SRL stratification checks (both are opt-in groups, see `tests/conftest.py`).
 7. **Check the docs for stale claims**: counts (widgets, triples, tests), spec citations and dates, and the upstream-issue links.
 
 Snippet that produced the 04d appendix tables (run from `packages/starlayer`):

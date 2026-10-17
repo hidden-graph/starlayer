@@ -351,3 +351,29 @@ class TestInferSchemaParameter:
         )
         result = ruleset.infer(base, schema=shapes)
         assert result.validation.conforms is False
+
+
+def test_plan_shows_strata_and_dependency_edges_for_the_worked_example():
+    """Same §6.6.2 example as above: stratum 0 holds general R1-R3, stratum 1 holds run-once R5 and general R4."""
+    _, ruleset = _worked_example()
+    plan = ruleset.plan()
+
+    assert [(s.number, [r.index for r in s.run_once], [r.index for r in s.general]) for s in plan.strata] == [
+        (0, [], [0, 1, 2]),
+        (1, [4], [3]),
+    ]
+    # R4's NOT {} makes its dependency on R3 closed; open edges stay open
+    labels = {(e.source, e.target): e.label for e in plan.edges}
+    assert labels[(3, 2)] == "closed"
+    assert labels[(2, 0)] == "open"
+    # the edges are exactly what the private dependency graph computes
+    assert len(plan.edges) == len(_build_dependency_graph(ruleset))
+    # each planned rule carries its position and its rendered text
+    assert plan.strata[1].general[0].text.startswith("RULE {")
+    assert "safeToDeploy" in plan.strata[1].general[0].text
+
+
+def test_plan_raises_stratification_error_without_running_anything():
+    ruleset = parse_ruleset(f"PREFIX : <{EX}>\nRULE {{ ?x :p ?y }} WHERE {{ ?x :q ?y . NOT {{ ?x :p ?y }} }}")
+    with pytest.raises(StratificationError):
+        ruleset.plan()
