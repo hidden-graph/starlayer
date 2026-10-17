@@ -311,6 +311,58 @@ def patch_strlang_rejects_empty_language_tag() -> bool:
     return _strlang_empty_tag_patch_status
 
 
+_sameterm_string_patch_status: bool | None = None
+
+
+def _string_identity_key(term):
+    """A literal with no language and datatype ``xsd:string`` is the same RDF
+    term as the simple literal of that text (RDF 1.1/1.2 Concepts); map both to
+    one key. Other terms are returned unchanged."""
+    if (
+        isinstance(term, Literal)
+        and term.language is None
+        and term.datatype in (None, XSD.string)
+    ):
+        return ("string", str(term))
+    return term
+
+
+def patch_sameterm_simple_literal_is_xsd_string() -> bool:
+    """Fix a confirmed rdflib bug: ``sameTerm("foo", "foo"^^xsd:string)`` is
+    false because rdflib compares ``Literal("foo") == Literal("foo",
+    datatype=XSD.string)`` as different terms, though RDF Concepts defines a
+    simple literal as shorthand for the ``xsd:string`` literal.
+
+    Fixes ``sameTerm()`` only. Matching a triple pattern against stored data
+    still distinguishes the two forms, because the store compares them as
+    different terms; correcting that means changing ``Literal`` itself.
+    Idempotent and defensive, like the other patches in this module.
+    """
+    global _sameterm_string_patch_status
+    if _sameterm_string_patch_status is not None:
+        return _sameterm_string_patch_status
+
+    try:
+        from rdflib.plugins.sparql import parser as rdflib_sparql_parser
+
+        comp = _find_comp(rdflib_sparql_parser.Expression, "Builtin_sameTerm")
+        original_evalfn = comp.evalfn
+        if getattr(original_evalfn, "_starlayer_graph_sameterm_string_patch", False):
+            _sameterm_string_patch_status = True
+            return True
+
+        def _patched_sameterm(e, ctx):
+            return Literal(_string_identity_key(e.arg1) == _string_identity_key(e.arg2))
+
+        _patched_sameterm._starlayer_graph_sameterm_string_patch = True  # type: ignore[attr-defined]
+        comp.setEvalFn(_patched_sameterm)
+        _sameterm_string_patch_status = True
+    except Exception:
+        _sameterm_string_patch_status = False
+
+    return _sameterm_string_patch_status
+
+
 def apply_all_operator_patches() -> None:
     """Apply every patch in this module. Called eagerly from ``starlayer.graph/__init__.py`` so
     every consumer of this package gets spec-correct arithmetic, regardless
@@ -320,3 +372,4 @@ def apply_all_operator_patches() -> None:
     patch_decimal_result_lexical_form()
     patch_integer_cast_from_numeric_and_boolean()
     patch_strlang_rejects_empty_language_tag()
+    patch_sameterm_simple_literal_is_xsd_string()

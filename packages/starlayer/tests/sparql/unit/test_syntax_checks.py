@@ -59,3 +59,13 @@ def test_escaped_backslash_before_u_is_not_an_escape():
     from starlayer.sparql._syntax_checks import reject_surrogate_escapes
 
     reject_surrogate_escapes('"\\\\uD800"')
+
+
+def test_sameterm_treats_simple_literal_and_xsd_string_as_one_term():
+    q = (
+        "PREFIX xsd: <http://www.w3.org/2001/XMLSchema#> "
+        'SELECT (sameTerm("a", "a"^^xsd:string) AS ?same) (sameTerm("a", "b") AS ?diff) '
+        '(sameTerm("a", "a"@en) AS ?lang) WHERE {}'
+    )
+    same, diff, lang = list(Graph().query(q))[0]
+    assert (bool(same), bool(diff), bool(lang)) == (True, False, False)

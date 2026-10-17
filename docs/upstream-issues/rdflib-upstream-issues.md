@@ -18,7 +18,7 @@ Bugs in rdflib 7.6.0 found while building SPARQL 1.2 support here. Every example
 | 12 | `CEIL`/`FLOOR`/`ROUND` of a decimal | non-canonical `"2"` | `operator_patches` |
 | 13 | Invalid queries the parser accepts (nested aggregate, repeated `VALUES` variable, `GROUP BY` scope clash) | no syntax error | `sparql/_syntax_checks` (nested aggregate, `VALUES`, `GROUP BY`) |
 | 14 | Codepoint and surrogate escapes accepted anywhere | no syntax error | `sparql/_syntax_checks` (surrogates only) |
-| 15 | Simple literal differs from its `^^xsd:string` form | unequal terms | not patched (W3C xfail) |
+| 15 | Simple literal differs from its `^^xsd:string` form | unequal terms | `operator_patches` (`sameTerm()` only) |
 
 ## 1. `MultiplicativeExpression` doesn't apply numeric type promotion for `*`
 
@@ -276,4 +276,4 @@ Literal("foo") == Literal("foo", datatype=XSD.string)
 # expected: True
 ```
 
-Tracked as xfail: `plain-string-same`. 
+Fix: `starlayer/graph/query/operator_patches.py::patch_sameterm_simple_literal_is_xsd_string` makes `sameTerm()` treat them as one term. `Literal.__eq__` and triple-pattern matching are unchanged, so `?s ?p "a"^^xsd:string` still does not match a stored `"a"`; fixing that means changing `Literal` itself.

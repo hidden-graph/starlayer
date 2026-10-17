@@ -218,15 +218,10 @@ def _syntax_negative_param(entry):
     return pytest.param(entry, id=entry.test_iri)
 
 
-# Confirmed inherited rdflib *term-equality* gaps (not grammar this time) -
-# both checked directly against plain, unmodified rdflib before being added
-# here. Found 2026-10-13, same investigation as above:
-#   - plain-string-same (rdf11 category): stock sameTerm()/Literal.__eq__
-#     treats a simple literal and its ^^xsd:string equivalent as different
-#     terms (confirmed: Literal("foo") != Literal("foo", datatype=XSD.string)),
-#     contradicting RDF 1.1/1.2 Concepts' own "a simple literal is shorthand
-#     for the identical xsd:string literal" definition.
-_INHERITED_RDFLIB_GAP_EVAL_FRAGMENTS = {"plain-string-same"}
+# Confirmed inherited rdflib evaluation gaps, as fixture-name fragments. Empty now:
+# sameTerm() of a simple literal and its ^^xsd:string form is fixed by
+# operator_patches.patch_sameterm_simple_literal_is_xsd_string.
+_INHERITED_RDFLIB_GAP_EVAL_FRAGMENTS: set = set()
 
 
 def _eval_select_param(entry):

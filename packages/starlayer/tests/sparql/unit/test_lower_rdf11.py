@@ -719,7 +719,7 @@ class TestInsertDataGroundTripleTermPersistsEncoding:
 # rdflib; confirmed in-memory-only, Oxigraph/Fuseki both pass). Duplicated
 # here rather than imported - same small-test-support-duplication
 # convention this project already uses for harness.py itself.
-_INHERITED_RDFLIB_GAP_EVAL_FRAGMENTS = {"plain-string-same"}
+_INHERITED_RDFLIB_GAP_EVAL_FRAGMENTS: set = set()
 
 
 def _eval_select_param(entry):

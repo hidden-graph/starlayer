@@ -301,18 +301,6 @@ EVAL_SELECT_FUSEKI = _mark_known_divergences(EVAL_SELECT, _FUSEKI_KNOWN_DIVERGEN
 #      matched triple's values alone (what the first attempt checked), but
 #      is directly available from the pattern's own pre-match term.
 _IN_MEMORY_KNOWN_DIVERGENCES: dict = {
-    # Found 2026-10-13 wiring the `lang-basedir`/`rdf11` categories in -
-    # both confirmed in-memory-only (Oxigraph and Fuseki, run against this
-    # same fixture via EVAL_SELECT_OXIGRAPH/EVAL_SELECT_FUSEKI below, both
-    # pass) and confirmed against *plain, unmodified* rdflib directly (no
-    # starlayer.graph involved at all), not just this backend - see
-    # starlayer/graph/CLAUDE.md's dated entry for the full account:
-    "plain-string-same": "Plain rdflib's own sameTerm()/Literal.__eq__ "
-    "treats a simple literal and its ^^xsd:string equivalent as different "
-    "terms (Literal(\"foo\") != Literal(\"foo\", datatype=XSD.string)), "
-    "contradicting RDF 1.1/1.2 Concepts' own \"simple literal is shorthand "
-    "for xsd:string\" definition - confirmed identical against stock, "
-    "unmodified rdflib.",
 }
 
 EVAL_SELECT_IN_MEMORY = _mark_known_divergences(EVAL_SELECT, _IN_MEMORY_KNOWN_DIVERGENCES)
