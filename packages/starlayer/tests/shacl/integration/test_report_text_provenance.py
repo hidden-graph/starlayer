@@ -1,6 +1,7 @@
-"""``ValidationResult.report_text`` only makes statements it has data for: a
-``Provenance:`` line appears when the report knows the thing it states, and the
-whole block is left out when nothing is known (no "Not specified" placeholders)."""
+"""``ValidationResult.report_text`` agrees with ``report_graph``: a ``Provenance:`` line
+appears only when the report knows the thing it states (the whole block is left out when
+nothing is known, with no "Not specified" placeholders), and its ``Conforms:`` line matches
+the recomputed conformance."""
 
 from __future__ import annotations
 
@@ -63,3 +64,46 @@ def test_a_non_conforming_result_makes_no_conforms_to_statement():
         "conformsTo" not in result.report_text
         and "Not specified" not in result.report_text
     )
+
+
+_SEVERITY_SHAPES = """
+    @prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> .
+    ex:S a sh:NodeShape ; sh:targetClass ex:P ;
+        sh:property [ sh:path ex:n ; sh:minCount 1 ; sh:severity {severity} ] .
+"""
+
+
+def _validate_with_severity(severity: str, **kwargs):
+    data = StarLayerGraph()
+    data.parse(data=_NOT_CONFORMING, format="turtle")
+    shapes = StarLayerGraph()
+    shapes.parse(data=_SEVERITY_SHAPES.format(severity=severity), format="turtle")
+    return validate(data, shapes, **kwargs)
+
+
+@pytest.mark.parametrize("severity", ["sh:Debug", "sh:Trace"])
+def test_a_debug_or_trace_only_result_does_not_block_conformance_in_the_text_either(
+    severity,
+):
+    """SHACL 1.2's lowest severities never block conformance. pySHACL does not know them and
+    renders ``Conforms: False``; the text is corrected to match ``conforms`` and the graph."""
+    result = _validate_with_severity(severity)
+    assert result.conforms is True
+    assert result.report_text.splitlines()[1] == "Conforms: True"
+    assert "Results (1)" in result.report_text  # the result itself is still listed
+
+
+@pytest.mark.parametrize(
+    "severity, kwargs, expected",
+    [
+        ("sh:Violation", {}, False),
+        ("sh:Warning", {}, False),
+        ("sh:Info", {}, False),
+        ("sh:Warning", {"allow_warnings": True}, True),
+        ("sh:Info", {"allow_infos": True}, True),
+    ],
+)
+def test_the_conforms_line_always_matches_the_result(severity, kwargs, expected):
+    result = _validate_with_severity(severity, **kwargs)
+    assert result.conforms is expected
+    assert result.report_text.splitlines()[1] == f"Conforms: {expected}"

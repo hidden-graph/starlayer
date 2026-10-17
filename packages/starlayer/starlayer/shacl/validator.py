@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import contextvars
+import re
 from collections.abc import Callable, Iterable
 from typing import Any
 
@@ -889,6 +890,7 @@ class StarShaclSchema:
         _relabel_validation_report_node(out_report)
 
         conforms = self._annotate_conformance_disallows(out_report, options, conforms)
+        report_text = _sync_report_text_conforms(report_text, conforms)
         self._annotate_used_graphs_and_configuration(
             out_report,
             data_graph_iri=data_graph_iri,
@@ -2740,6 +2742,30 @@ def _relabel_validation_report_node(report_graph: Any) -> None:
         report_graph.add((s, p, new_node))
 
 
+_REPORT_TEXT_CONFORMS_LINE = re.compile(r"^Conforms: (?:True|False)$", re.MULTILINE)
+
+
+def _sync_report_text_conforms(report_text: str, conforms: bool) -> str:
+    """Make the ``Conforms:`` line of pySHACL's rendered ``report_text`` agree with
+    ``conforms``, the value this project recomputes (see
+    ``_annotate_conformance_disallows``).
+
+    pySHACL has no notion of SHACL 1.2's ``sh:Debug``/``sh:Trace`` severities,
+    which never block conformance, so for a result of only that severity it
+    renders ``Conforms: False`` while ``report_graph`` (and
+    ``ValidationResult.conforms``) correctly say true. Only that one line is
+    rewritten; pySHACL's own result listing is left as it is.
+
+    Args:
+        report_text: pySHACL's rendered report string.
+        conforms: The recomputed conformance value.
+
+    Returns:
+        ``report_text`` with its first ``Conforms:`` line set to ``conforms``.
+    """
+    return _REPORT_TEXT_CONFORMS_LINE.sub(f"Conforms: {conforms}", report_text, count=1)
+
+
 def _append_provenance_to_report_text(report_text: str, report_graph: Any, data_graph_iri: Any | None) -> str:
     """Append a small, deterministic provenance appendix to pySHACL's own
     ``report_text`` - the one thing it never reflects, since pySHACL
@@ -3489,6 +3515,7 @@ def validate(
     _relabel_validation_report_node(out_report)
 
     conforms = _annotate_conformance_disallows(out_report, options, conforms)
+    report_text = _sync_report_text_conforms(report_text, conforms)
     _annotate_used_graphs_and_configuration(
         out_report,
         data_graph_iri=data_graph_iri,
