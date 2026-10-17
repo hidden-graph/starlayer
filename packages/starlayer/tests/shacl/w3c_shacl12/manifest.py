@@ -64,8 +64,12 @@ def load_document(path: Path) -> StarLayerGraph:
     return _DOCUMENT_CACHE[path]
 
 
-def clone_graph(source: StarLayerGraph) -> StarLayerGraph:
+def clone_graph(source: StarLayerGraph, new_graph=StarLayerGraph) -> StarLayerGraph:
     """Return an independent copy of a StarLayerGraph.
+
+    ``new_graph`` is the factory for the empty graph copied into - the default
+    in-memory ``StarLayerGraph`` unless a suite is being run through another
+    store (see stores.py).
 
     Round-trips through the public ``.triples()`` view (real, decoded
     TripleTerm values) and ``.add()`` (which re-encodes/re-registers them for
@@ -78,7 +82,7 @@ def clone_graph(source: StarLayerGraph) -> StarLayerGraph:
     into the other role or into a later test that reuses the same cached
     document.
     """
-    clone = StarLayerGraph()
+    clone = new_graph()
     for prefix, namespace in source.namespaces():
         clone.bind(prefix, namespace)
     for triple in source.triples((None, None, None)):

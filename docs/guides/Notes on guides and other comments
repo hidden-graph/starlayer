@@ -15,9 +15,6 @@ Notes on graph:
 
 
 
-7. Move everythign else to Appendix B - Complex examples.
-    - 2026-10-16: done. Appendix B is now the index notebook (appendix-b.ipynb, built from the old appendix-a.ipynb index) linking to B1 (sqe shared parts, renamed from A2) and B2 (DL reasoning examples, renamed from A3). Updates item 12's own history below - the still-pending hashing subgraph extraction from 04f becomes B3, not A4.
-
 8. did we hide the public ability to see the rules plan in SRL.  should that be public?
 
 For subgraph extraction, we can keep the shape as optional. and we do need focus node to be required.  we want to get back a mapping of a node  to its extacted graph. 

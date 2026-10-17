@@ -142,3 +142,26 @@ KNOWN_FAILURES: dict[str, str] = {
         "docs/w3c-shacl12-test-suite-issues.md."
     ),
 }
+
+
+# Entries that pass on the default in-memory store but not through the
+# in-process Oxigraph store (stores.oxigraph_store_graph). Same discipline as
+# KNOWN_FAILURES: every entry names why, and is applied as a strict xfail.
+_OXIGRAPH_LITERAL_NORMALIZATION = (
+    "Oxigraph normalizes literals when it stores them (e.g. \"04\"^^xsd:integer -> \"4\", "
+    "\"1\"^^xsd:boolean -> \"true\", an ill-formed value is rewritten or re-typed), so this fixture's "
+    "exact lexical form / datatype does not survive storage - upstream and by design, tracked as "
+    "oxigraph/oxigraph#526 (an option to avoid literal normalization). "
+    "See docs/upstream-issues/oxigraph-upstream-issues.md, 'Known limitation: literal normalization'."
+)
+
+KNOWN_FAILURES_OXIGRAPH_STORE: dict[str, str] = {
+    # Each fixture's own data contains a literal Oxigraph rewrites on storage
+    # (checked fixture by fixture against the clone held in the store):
+    "tests/node-expr/shnex/remove::remove-list-from-list": _OXIGRAPH_LITERAL_NORMALIZATION,  # "01"^^xsd:integer
+    "tests/node-expr/shnex/distinct::distinct-termEquality": _OXIGRAPH_LITERAL_NORMALIZATION,  # "04"^^xsd:integer
+    "tests/core/property/or-datatypes-001::or-datatypes-001": _OXIGRAPH_LITERAL_NORMALIZATION,  # ill-formed "none"^^xsd:boolean dropped
+    "tests/core/property/datatype-001::datatype-001": _OXIGRAPH_LITERAL_NORMALIZATION,  # "2011-01-01"^^xsd:dateTime gains T00:00:00
+    "tests/core/property/uniqueLang-002::uniqueLang-002": _OXIGRAPH_LITERAL_NORMALIZATION,  # "1"^^xsd:boolean -> "true"
+    "tests/core/property/datatype-ill-formed::datatype-ill-formed": _OXIGRAPH_LITERAL_NORMALIZATION,  # "300"^^xsd:byte -> xsd:integer
+}

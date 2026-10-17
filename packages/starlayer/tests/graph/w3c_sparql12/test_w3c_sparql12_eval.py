@@ -110,6 +110,22 @@ def _new_fuseki_graph(entry) -> StarLayerGraph | StarLayerDataset:
     return StarLayerGraph(store=store, identifier=DATASET_DEFAULT_GRAPH_ID, backend="rdf-1.2")
 
 
+def _new_oxigraph_store_graph(entry) -> StarLayerGraph | StarLayerDataset:
+    """Same shape as _new_oxigraph_graph(), but the engine runs in-process:
+    oxrdflib's OxigraphStore wrapping a fresh path-less pyoxigraph.Store, in
+    rdf-1.2 native mode (see starlayer.graph.backends.native_oxigraph). No
+    server, so nothing to start or clear - every call is a fresh, empty,
+    independent store. Same DATASET_DEFAULT_GRAPH_ID reasoning as
+    _new_oxigraph_graph() above."""
+    import pyoxigraph
+    from oxrdflib import OxigraphStore
+
+    store = OxigraphStore(store=pyoxigraph.Store())
+    if entry.data_file and data_format(entry) in _DATASET_FORMATS:
+        return StarLayerDataset(store=store, backend="rdf-1.2")
+    return StarLayerGraph(store=store, identifier=DATASET_DEFAULT_GRAPH_ID, backend="rdf-1.2")
+
+
 ALL_ENTRIES = load_index()
 
 EVAL_SELECT = [
@@ -330,6 +346,20 @@ _oxigraph = pytest.mark.skipif(
     "ghcr.io/oxigraph/oxigraph serve --location /data --bind 0.0.0.0:7878",
 )
 
+def _oxigraph_store_installed() -> bool:
+    try:
+        import oxrdflib  # noqa: F401
+        import pyoxigraph  # noqa: F401
+    except ImportError:
+        return False
+    return True
+
+
+_oxigraph_store = pytest.mark.skipif(
+    not _oxigraph_store_installed(),
+    reason="oxrdflib/pyoxigraph not installed - pip install oxrdflib pyoxigraph",
+)
+
 _fuseki = pytest.mark.skipif(
     not fuseki_available(),
     reason="Fuseki not running - start with: "
@@ -484,6 +514,51 @@ def test_eval_construct_original_query_oxigraph(entry):
 
     clear_oxigraph()
     g = _new_oxigraph_graph(entry)
+    if entry.data_file:
+        g.parse(data=entry.read(entry.data_file), format=data_format(entry))
+
+    actual_graph = g.query(query_text).graph
+    assert to_isomorphic(_skolemize_graph(actual_graph)) == to_isomorphic(_skolemize_graph(expected_graph))
+
+
+# ---------------------------------------------------------------------------
+# Same two checks, a fourth time: an in-process Oxigraph (OxigraphStore),
+# via _new_oxigraph_store_graph(). Same engine as the live-Oxigraph tests
+# above, so it reuses EVAL_SELECT_OXIGRAPH's known-divergence marks; unlike
+# them it needs no server, so it runs whenever oxrdflib/pyoxigraph are
+# installed.
+# ---------------------------------------------------------------------------
+
+@_no_data
+@_oxigraph_store
+@pytest.mark.parametrize("entry", EVAL_SELECT_OXIGRAPH, ids=lambda e: e.test_iri)
+def test_eval_select_original_query_oxigraph_store(entry):
+    query_text = entry.read(entry.query_file)
+    result_text = entry.read(entry.result_file)
+    is_ask = "boolean" in json.loads(result_text)
+
+    g = _new_oxigraph_store_graph(entry)
+    if entry.data_file:
+        g.parse(data=entry.read(entry.data_file), format=data_format(entry))
+
+    if is_ask:
+        assert g.query(query_text).askAnswer == json.loads(result_text)["boolean"]
+        return
+
+    expected = parse_srj(result_text)
+    actual = [{k: v for k, v in dict(row).items() if v is not None} for row in g.query(query_text).bindings]
+    assert bindings_match(actual, expected)
+
+
+@_no_data
+@_oxigraph_store
+@pytest.mark.parametrize("entry", EVAL_CONSTRUCT, ids=lambda e: e.test_iri)
+def test_eval_construct_original_query_oxigraph_store(entry):
+    query_text = entry.read(entry.query_file)
+    expected_graph = StarLayerGraph()
+    expected_graph.parse(data=entry.read(entry.result_file), format="turtle12")
+
+    g = _new_oxigraph_store_graph(entry)
     if entry.data_file:
         g.parse(data=entry.read(entry.data_file), format=data_format(entry))
 

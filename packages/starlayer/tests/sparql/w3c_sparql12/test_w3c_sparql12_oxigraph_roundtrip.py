@@ -81,7 +81,19 @@ _ENDPOINTS = {
 }
 
 
+# A third backend that needs no server: an in-process Oxigraph (oxrdflib's
+# OxigraphStore over a path-less pyoxigraph.Store) in rdf-1.2 native mode.
+IN_PROCESS = "oxigraph-store"
+
+
 def _backend_available(name: str) -> bool:
+    if name == IN_PROCESS:
+        try:
+            import oxrdflib  # noqa: F401
+            import pyoxigraph  # noqa: F401
+        except ImportError:
+            return False
+        return True
     base = _ENDPOINTS[name][0]
     try:
         url = base if name == "oxigraph" else f"{base.rsplit('/', 1)[0]}/$/ping"
@@ -90,7 +102,7 @@ def _backend_available(name: str) -> bool:
         return False
 
 
-@pytest.fixture(params=list(_ENDPOINTS))
+@pytest.fixture(params=[*_ENDPOINTS, IN_PROCESS])
 def backend(request) -> str:
     name = request.param
     if not _backend_available(name):
@@ -99,6 +111,8 @@ def backend(request) -> str:
 
 
 def _clear_store(backend: str) -> None:
+    if backend == IN_PROCESS:
+        return  # every graph below gets its own fresh, empty in-process store
     _, _, update_url = _ENDPOINTS[backend]
     requests.post(
         update_url,
@@ -145,8 +159,14 @@ def _new_oxigraph_graph(entry, backend: str = "oxigraph") -> StarLayerGraph | St
     at a second engine (Fuseki) instead, to distinguish a genuine translation
     bug from an engine-specific quirk.
     """
-    _, query_url, update_url = _ENDPOINTS[backend]
-    store = SPARQLUpdateStore(query_endpoint=query_url, update_endpoint=update_url)
+    if backend == IN_PROCESS:
+        import pyoxigraph
+        from oxrdflib import OxigraphStore
+
+        store = OxigraphStore(store=pyoxigraph.Store())
+    else:
+        _, query_url, update_url = _ENDPOINTS[backend]
+        store = SPARQLUpdateStore(query_endpoint=query_url, update_endpoint=update_url)
     if entry.data_file and _data_format(entry) in _DATASET_FORMATS:
         return StarLayerDataset(store=store, backend="rdf-1.2")
     return StarLayerGraph(store=store, identifier=DATASET_DEFAULT_GRAPH_ID, backend="rdf-1.2")

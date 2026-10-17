@@ -589,8 +589,9 @@ class StarLayerGraph(Graph):
         from rdflib import BNode
         from rdflib.term import Variable
 
-        from starlayer.graph.backends.native import execute_ask, execute_select, sparql_term
+        from starlayer.graph.backends.native import _in_process, execute_ask, execute_select, sparql_term
         s, p, o = triple
+        in_process = _in_process(self.store)
 
         free = []
         bnode_filters = {}  # var -> BNode, only when no provenance is known (best-effort fallback)
@@ -608,6 +609,16 @@ class StarLayerGraph(Graph):
             # strong reference to `node` specifically to keep id(node) from
             # being reused by a later, unrelated object once this one is
             # garbage collected.
+            if in_process:
+                # An in-process Oxigraph's blank-node ids are stable across
+                # queries, so the plain label comparison below is exact - and
+                # the content join this builds is NOT: it re-identifies a node
+                # by one of its own triples (e.g. "the node whose rdf:first is
+                # 'big'"), which is not unique (two list nodes can share that
+                # triple), so the join silently returns rows belonging to a
+                # different node. Only a backend that renumbers blank nodes
+                # per query (Fuseki) needs this machinery.
+                return None
             entry = self._native_bnode_provenance.get(id(node))
             if entry is None:
                 return None
@@ -689,13 +700,17 @@ class StarLayerGraph(Graph):
             s_val = row.get(Variable('s'), s) if 's' in free else s
             p_val = row.get(Variable('p'), p) if 'p' in free else p
             o_val = row.get(Variable('o'), o) if 'o' in free else o
-            if (
+            if in_process:
+                pass
+            elif (
                 isinstance(s_val, BNode)
                 and p_val is not None and not isinstance(p_val, BNode)
                 and o_val is not None and not isinstance(o_val, BNode)
             ):
                 self._native_bnode_provenance.setdefault(id(s_val), (s_val, ('s', p_val, o_val)))
-            if (
+            if in_process:
+                pass
+            elif (
                 isinstance(o_val, BNode)
                 and s_val is not None and not isinstance(s_val, BNode)
                 and p_val is not None and not isinstance(p_val, BNode)

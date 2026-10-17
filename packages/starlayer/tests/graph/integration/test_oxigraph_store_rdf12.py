@@ -12,6 +12,8 @@ no pytest.mark.integration.
 Requires: pip install oxrdflib pyoxigraph
 """
 
+import os
+
 import pytest
 from rdflib import RDF, RDFS, BNode, Literal, Namespace, URIRef
 from rdflib.namespace import OWL
@@ -313,6 +315,18 @@ print('SURVIVED')
 '''
 
 
+# Opt-in: these two tests make a subprocess genuinely abort (SIGABRT), and on
+# macOS every abort files a system crash report and can pop a "Python quit
+# unexpectedly" dialog - not something every ordinary test run should do. Run
+# them deliberately (before filing/updating the upstream report, or to check
+# whether a new Oxigraph release fixed it):
+#     STARLAYER_RUN_ENGINE_ABORT_TESTS=1 pytest tests/graph/integration/test_oxigraph_store_rdf12.py
+_engine_abort = pytest.mark.skipif(
+    not os.environ.get('STARLAYER_RUN_ENGINE_ABORT_TESTS'),
+    reason='opt-in: aborts a subprocess (crash report on macOS) - set STARLAYER_RUN_ENGINE_ABORT_TESTS=1',
+)
+
+
 class TestDirLangStringEquality:
     def test_sameterm_on_dirlangstring_works(self):
         """The workaround the upstream-issue doc recommends: sameTerm() is
@@ -322,13 +336,15 @@ class TestDirLangStringEquality:
         rows = list(g.query(f'SELECT ?s WHERE {{ ?s <{_TITLE}> ?t . FILTER(sameTerm(?t, ?t)) }}'))
         assert len(rows) == 1
 
+    @_engine_abort
     @pytest.mark.parametrize('query', [
         f'SELECT ?s WHERE {{ ?s <{_TITLE}> ?t . FILTER(?t = ?t) }}',
         f'SELECT ?s WHERE {{ ?s <{_TITLE}> ?t . FILTER(?t = STRLANGDIR("HTML page", "en", "ltr")) }}',
     ], ids=['self_equality', 'strlangdir_comparison'])
     def test_value_equality_aborts_the_process_known_engine_bug(self, query):
         """Documents the engine bug by running it in a subprocess (a panic is
-        a hard process abort, not a catchable exception). If this starts
+        a hard process abort, not a catchable exception). Opt-in - see
+        _engine_abort above for why and how to run it. If this starts
         PASSING the query - Oxigraph fixed it upstream - update
         docs/upstream-issues/oxigraph-upstream-issues.md and replace this
         test with a plain equality assertion."""
@@ -346,3 +362,49 @@ class TestDirLangStringEquality:
             )
         assert proc.returncode != 0
         assert 'unreachable' in proc.stderr or 'panicked' in proc.stderr or 'Abort' in proc.stderr
+
+
+# ---------------------------------------------------------------------------
+# Bound blank-node lookups and plain-tuple triple terms
+# ---------------------------------------------------------------------------
+
+class TestBoundBlankNodeLookups:
+    def test_list_nodes_sharing_a_first_value_stay_distinct(self):
+        """Two RDF lists with a node that has the same rdf:first ("big").
+
+        The native read path used to re-identify a bound blank node by a
+        content join on one of its own triples ("the node whose rdf:first is
+        'big'"), which matched BOTH nodes and returned the other list's
+        rdf:rest too - so Graph.items() sometimes dropped an element,
+        depending on result-row order. Found by running the W3C SHACL
+        node-expression fixtures through the store. Repeated over fresh
+        graphs because the failure depended on engine row order."""
+        ttl = (f'@prefix ex: <{EX}> . '
+               'ex:a ex:p ( [ ex:x 1 ] "big" "small" ) . '
+               'ex:b ex:p ( "big" ) .')
+        for _ in range(25):
+            g = _oxigraph_graph()
+            g.parse(data=ttl, format='turtle12')
+            head_a = next(g.objects(URIRef(EX + 'a'), URIRef(EX + 'p')))
+            head_b = next(g.objects(URIRef(EX + 'b'), URIRef(EX + 'p')))
+            assert len(list(g.items(head_a))) == 3
+            assert [str(x) for x in g.items(head_b)] == ['big']
+
+    def test_bound_blank_node_returns_only_its_own_values(self):
+        g = _oxigraph_graph()
+        g.parse(data=f'@prefix ex: <{EX}> . ex:s ex:p [ ex:v 1 ] , [ ex:v 1 ] .', format='turtle12')
+        nodes = list(g.objects(URIRef(EX + 's'), URIRef(EX + 'p')))
+        assert len(nodes) == 2
+        for n in nodes:
+            assert len(list(g.objects(n, URIRef(EX + 'v')))) == 1
+
+
+class TestPlainTupleIsATripleTerm:
+    def test_tuple_object_round_trips_as_a_triple_term(self):
+        """add()'s docstring: a plain 3-tuple in object position means a
+        triple term. The native write path used to send it to sparql_term()
+        unconverted ('tuple' object has no attribute 'n3')."""
+        g = _oxigraph_graph()
+        s, p, o = URIRef(EX + 's'), URIRef(EX + 'p'), URIRef(EX + 'o')
+        g.add((URIRef(EX + 'r'), REIFIES, (s, p, o)))
+        assert list(g.objects(URIRef(EX + 'r'), REIFIES)) == [TripleTerm(s, p, o)]

@@ -27,13 +27,14 @@ from starlayer.shacl.native_components import ensure_shape_typed  # noqa: E402
 from starlayer.shacl.node_expressions import eval_expr  # noqa: E402
 
 from .ids import portable_id  # noqa: E402
-from .known_failures import KNOWN_FAILURES  # noqa: E402
+from .known_failures import KNOWN_FAILURES, KNOWN_FAILURES_OXIGRAPH_STORE  # noqa: E402
 from .manifest import (  # noqa: E402
     ManifestEntry,
     clone_graph,
     iter_manifest_entries,
     load_document,
 )
+from .stores import oxigraph_store, oxigraph_store_graph  # noqa: E402
 from .namespaces import MF, SHNEX, SHT  # noqa: E402
 
 VENDOR_ROOT = Path(__file__).resolve().parents[1] / "vendor" / "shacl12-test-suite"
@@ -81,8 +82,8 @@ def pytest_generate_tests(metafunc):
         )
 
 
-def _build_shapes_graph(document: StarLayerGraph) -> ShapesGraph:
-    graph = clone_graph(document)
+def _build_shapes_graph(document: StarLayerGraph, new_graph=StarLayerGraph) -> ShapesGraph:
+    graph = clone_graph(document, new_graph)
     for predicate in _SHAPE_REFERENCING_SHNEX_PREDICATES:
         for shape_node in graph.objects(None, predicate):
             typing_triple = ensure_shape_typed(graph, shape_node)
@@ -108,14 +109,14 @@ def _scope_bindings(entry: ManifestEntry, action) -> dict:
     return scope
 
 
-def test_w3c_eval_node_expr(entry: ManifestEntry) -> None:
+def _check_eval_node_expr(entry: ManifestEntry, new_graph, known_failures) -> None:
     entry_key = portable_id(entry, VENDOR_ROOT)
-    if entry_key in KNOWN_FAILURES:
-        pytest.xfail(KNOWN_FAILURES[entry_key])
+    if entry_key in known_failures:
+        pytest.xfail(known_failures[entry_key])
 
     document = load_document(entry.source_path)
-    data_graph = clone_graph(document)
-    shapes_graph = _build_shapes_graph(document)
+    data_graph = clone_graph(document, new_graph)
+    shapes_graph = _build_shapes_graph(document, new_graph)
 
     action = next(entry.graph.objects(entry.iri, MF.action))
     expr = next(entry.graph.objects(action, SHT.nodeExpr))
@@ -141,3 +142,14 @@ def test_w3c_eval_node_expr(entry: ManifestEntry) -> None:
         )
     else:
         assert actual == expected, f"node-expr result mismatch\nexpected: {expected}\nactual: {actual}"
+
+
+def test_w3c_eval_node_expr(entry: ManifestEntry) -> None:
+    _check_eval_node_expr(entry, StarLayerGraph, KNOWN_FAILURES)
+
+
+@oxigraph_store
+def test_w3c_eval_node_expr_oxigraph_store(entry: ManifestEntry) -> None:
+    """The same fixtures with data and shapes graphs held in an in-process
+    Oxigraph (rdf-1.2 native mode) instead of the in-memory default."""
+    _check_eval_node_expr(entry, oxigraph_store_graph, {**KNOWN_FAILURES, **KNOWN_FAILURES_OXIGRAPH_STORE})

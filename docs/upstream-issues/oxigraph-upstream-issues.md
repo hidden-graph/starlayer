@@ -14,6 +14,7 @@ Same overall conventions as `rdflib-upstream-issues.md`.
 | # | Issue | Where the defect is | Reported upstream? |
 | --- | --- | --- | --- |
 | 1 | SPARQL `=` panics the whole engine on any `rdf:dirLangString` term | Oxigraph core (`spareval` crate) - affects both `pyoxigraph` and `oxigraph serve` | **Not yet** - ready to file |
+| - | Literals are normalized on storage, so exact lexical forms are not preserved | Oxigraph storage layer - by design | **No report needed** - already tracked upstream as [oxigraph/oxigraph#526](https://github.com/oxigraph/oxigraph/issues/526) |
 
 ---
 
@@ -131,10 +132,36 @@ It is not worked around in this project's code: a process abort cannot be caught
 - confirms `sameTerm()` works over a `dirLangString` on the Oxigraph store route, and
 - reproduces the abort in a subprocess for both the self-equality case and the original `STRLANGDIR()` comparison.
 
-The abort tests fail loudly, with instructions, if Oxigraph fixes this upstream.
+The two abort tests are **opt-in** (`STARLAYER_RUN_ENGINE_ABORT_TESTS=1`), because each one makes a subprocess genuinely abort, and on macOS every abort files a system crash report and can pop a "Python quit unexpectedly" dialog. They fail loudly, with instructions, if Oxigraph fixes this upstream, so run them deliberately before filing or after upgrading `pyoxigraph`.
 
 `oxigraph_dirlangstring_crash_repro.ipynb` (same folder) is a runnable version of the upstream report: the working baselines run live, and the crashing cases carry the real captured subprocess output (stderr panic trace and exit code), since executing them in the notebook's own kernel would kill it.
 
 #### Status
 
 Confirmed live, pending upstream report. Re-check against the latest `oxigraph` / `pyoxigraph` release before filing.
+
+---
+
+## Known limitation (tracked upstream, no report needed) - literals are normalized when stored
+
+### Upstream status
+
+Oxigraph rewrites some literals into a canonical form when it loads them, to store them compactly. The maintainer describes it in [oxigraph/oxigraph#526](https://github.com/oxigraph/oxigraph/issues/526) ("Allows to avoid literal normalization in Oxigraph", open, a feature request for an option to switch it off): *"Currently Oxigraph normalises some literals on data load to store them in a more compact form that is easier to process. For example `"+1"^^xsd:int` will be normalized as `"1"^^xsd:integer`."* Related: #524 (closed).
+
+Observed directly against `pyoxigraph` 0.5.11, reading back what was inserted (9 distinct input terms became 6 stored terms):
+
+| Inserted | Stored as |
+| --- | --- |
+| `"04"^^xsd:integer`, `"4"^^xsd:integer`, `"+4"^^xsd:integer` | one term, `"4"^^xsd:integer` |
+| `"1.50"^^xsd:decimal` | `"1.5"^^xsd:decimal` |
+| `"1"^^xsd:boolean`, `"true"^^xsd:boolean` | one term, `"true"^^xsd:boolean` |
+| `"2011-01-01"^^xsd:dateTime` (ill-formed, no time part) | `"2011-01-01T00:00:00"^^xsd:dateTime` |
+| `"300"^^xsd:byte` (ill-formed, out of range) | `"300"^^xsd:integer` - the datatype changes |
+| `"hi"@EN`, `"hi"@en-US` | `"hi"@en`, `"hi"@en-us` |
+| `"abc"^^xsd:integer` (ill-formed) | kept as written |
+
+RDF Concepts identifies a literal by lexical form, datatype and language tag, so the values above that differ only in lexical form are distinct terms in the abstract model; an Oxigraph store holds one.
+
+### In this project
+
+Not worked around, and nothing to fix here: it is a property of the engine. It matters wherever exact lexical forms are significant, which is most visibly the W3C SHACL 1.2 suites, where six fixtures depend on it (`"01"` and `"04"` in the node-expression lists; ill-formed values in the `datatype` / `or-datatypes` / `uniqueLang` fixtures). Those six pass on the default in-memory store and are recorded as known failures for the in-process Oxigraph store in `tests/shacl/w3c_shacl12/known_failures.py` (`KNOWN_FAILURES_OXIGRAPH_STORE`), each checked against its own data. Re-check them when #526 lands.

@@ -104,6 +104,12 @@ def sparql_term(node, skolemize_bnodes: bool = True) -> str:
         p = sparql_term(node.predicate, skolemize_bnodes)
         o = sparql_term(node.object, skolemize_bnodes)
         return f'<<( {s} {p} {o} )>>'
+    if isinstance(node, tuple) and len(node) == 3:
+        # A plain 3-tuple means a triple term everywhere else in the public
+        # API (StarLayerGraph.add()'s own docstring); the non-native path
+        # coerces it via _coerce_tt() - this is the native equivalent.
+        s, p, o = (sparql_term(x, skolemize_bnodes) for x in node)
+        return f'<<( {s} {p} {o} )>>'
     if isinstance(node, DirLangString):
         escaped = node.value.replace('\\', '\\\\').replace('"', '\\"')
         return f'"{escaped}"@{node.language}--{node.direction}'

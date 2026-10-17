@@ -41,7 +41,7 @@ pyshacl = pytest.importorskip("pyshacl")
 from starlayer.shacl import StarShaclSchema  # noqa: E402
 
 from .ids import portable_id  # noqa: E402
-from .known_failures import KNOWN_FAILURES  # noqa: E402
+from .known_failures import KNOWN_FAILURES, KNOWN_FAILURES_OXIGRAPH_STORE  # noqa: E402
 from .manifest import (  # noqa: E402
     ManifestEntry,
     clone_graph,
@@ -49,6 +49,7 @@ from .manifest import (  # noqa: E402
     load_document,
     uri_to_path,
 )
+from .stores import oxigraph_store, oxigraph_store_graph  # noqa: E402
 from .namespaces import MF, SHT  # noqa: E402
 
 VENDOR_ROOT = Path(__file__).resolve().parents[1] / "vendor" / "shacl12-test-suite"
@@ -77,13 +78,13 @@ def pytest_generate_tests(metafunc):
         )
 
 
-def _resolve_action_graph(entry: ManifestEntry, predicate) -> StarLayerGraph:
+def _resolve_action_graph(entry: ManifestEntry, predicate, new_graph=StarLayerGraph) -> StarLayerGraph:
     action = next(entry.graph.objects(entry.iri, MF.action))
     target_iri = next(entry.graph.objects(action, predicate))
     # Fresh copies, not the cached document objects directly - see
     # clone_graph()'s docstring for why (shared self-contained fixtures,
     # cache reused across the whole test session).
-    return clone_graph(load_document(uri_to_path(target_iri)))
+    return clone_graph(load_document(uri_to_path(target_iri)), new_graph)
 
 
 def _expected_triples(entry: ManifestEntry) -> set[tuple]:
@@ -106,13 +107,13 @@ def _expected_triples(entry: ManifestEntry) -> set[tuple]:
     return triples
 
 
-def test_w3c_infer(entry: ManifestEntry) -> None:
+def _check_infer(entry: ManifestEntry, new_graph, known_failures) -> None:
     entry_key = portable_id(entry, VENDOR_ROOT)
-    if entry_key in KNOWN_FAILURES:
-        pytest.xfail(KNOWN_FAILURES[entry_key])
+    if entry_key in known_failures:
+        pytest.xfail(known_failures[entry_key])
 
-    data_graph = _resolve_action_graph(entry, SHT.dataGraph)
-    shapes_graph = _resolve_action_graph(entry, SHT.shapesGraph)
+    data_graph = _resolve_action_graph(entry, SHT.dataGraph, new_graph)
+    shapes_graph = _resolve_action_graph(entry, SHT.shapesGraph, new_graph)
     expected = _expected_triples(entry)
 
     before = set(data_graph.triples((None, None, None)))
@@ -126,3 +127,14 @@ def test_w3c_infer(entry: ManifestEntry) -> None:
     assert added == expected, (
         f"inferred-triple set mismatch\nexpected added: {expected}\nactual added: {added}"
     )
+
+
+def test_w3c_infer(entry: ManifestEntry) -> None:
+    _check_infer(entry, StarLayerGraph, KNOWN_FAILURES)
+
+
+@oxigraph_store
+def test_w3c_infer_oxigraph_store(entry: ManifestEntry) -> None:
+    """The same fixtures with data and shapes graphs held in an in-process
+    Oxigraph (rdf-1.2 native mode) instead of the in-memory default."""
+    _check_infer(entry, oxigraph_store_graph, {**KNOWN_FAILURES, **KNOWN_FAILURES_OXIGRAPH_STORE})
