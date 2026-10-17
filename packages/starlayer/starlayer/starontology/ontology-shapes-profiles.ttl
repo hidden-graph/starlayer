@@ -7,7 +7,7 @@
 
 starontology:manchester_shapes.ttl prof:isProfileOf tr:owl2-manchester-syntax .
 
-starontology:shacl_meta_shapes.ttl prof:isProfileOf profile:rules, profile:profiling, profile:core, profile:sparql, profile:node-expr .
+starontology:shacl12-shacl.ttl prof:isProfileOf profile:rules, profile:profiling, profile:core, profile:sparql, profile:node-expr .
 
 starontology:skos_shapes.ttl prof:isProfileOf tr:skos-reference .
 

@@ -1,7 +1,7 @@
 """tests/unit/test_starontology.py
 
 starontology is pure data (one TriG dataset, starontology.trig, holding
-every registered entry including shacl_meta as of 2026-10-12) behind a
+every registered entry including shacl12_shacl as of 2026-10-12) behind a
 thin registry (get_ontology_list()/get_ontology_graph()) -
 this suite confirms every registered entry loads and parses, and the
 registry's own list/lookup behavior is correct. The underlying
@@ -38,7 +38,7 @@ class TestGetOntologyList:
             "sqe_owl", "sqe_shacl",
             "srl_owl", "srl_shacl",
             "spexpr_owl", "spexpr_shacl",
-            "shacl_meta",
+            "shacl12_shacl",
         }
 
     def test_sorted_by_name(self):
@@ -52,14 +52,14 @@ class TestGetOntologyList:
             assert info.type in ("shacl", "syntax-tree-graph", "owl")
 
     def test_shapes_entries_are_type_shacl(self):
-        """shacl_meta has no ontology counterpart to pair with, but it's
+        """shacl12_shacl has no ontology counterpart to pair with, but it's
         still a SHACL shapes graph - same type as the four entries that
         do (sparql_shacl excluded from this list - see the class's own
         test above)."""
         shacl_names = {info.name for info in starontology.get_ontology_list() if info.type == "shacl"}
         assert shacl_names == {
             "manchester_shacl", "skos_shacl", "sqe_shacl", "srl_shacl",
-            "spexpr_shacl", "shacl_meta",
+            "spexpr_shacl", "shacl12_shacl",
         }
 
     def test_skos_owl_is_type_owl_not_syntax_tree_graph(self):
@@ -92,7 +92,7 @@ class TestGetOntologyGraph:
         "skos_owl", "skos_shacl",
         "sparql_owl", "sparql_shacl",
         "srl_owl", "srl_shacl",
-        "shacl_meta",
+        "shacl12_shacl",
     ])
     def test_every_registered_name_loads_and_parses(self, name):
         g = starontology.get_ontology_graph(name)
@@ -108,14 +108,14 @@ class TestGetOntologyGraph:
         g2 = starontology.get_ontology_graph("manchester_owl")
         assert g1 is not g2
 
-    def test_shacl_meta_is_wrapped_as_starlayergraph_not_left_plain(self):
+    def test_shacl12_shacl_is_wrapped_as_starlayergraph_not_left_plain(self):
         """build_meta_shapes_graph() (starlayer.shacl) returns a plain
         rdflib.Graph - confirmed in its own source - so this entry
         specifically needs StarLayerGraph.from_rdflib() wrapping to keep
         the same return type as every other entry. isinstance alone would
         pass on a plain Graph too (StarLayerGraph is not involved there),
         so check the exact type instead."""
-        g = starontology.get_ontology_graph("shacl_meta")
+        g = starontology.get_ontology_graph("shacl12_shacl")
         assert type(g) is StarLayerGraph
 
 
@@ -203,8 +203,8 @@ class TestConformanceProfilesContent:
         shapes_iri = starontology.get_resource_iri("sparql_shacl")
         assert list(graph.triples((shapes_iri, None, None))) == []
 
-    def test_shacl_meta_has_a_bare_isprofileof_entry_with_no_resource_pairing(self):
-        """shacl_meta has no ontology counterpart (2026-10-12) - but it
+    def test_shacl12_shacl_has_a_bare_isprofileof_entry_with_no_resource_pairing(self):
+        """shacl12_shacl has no ontology counterpart (2026-10-12) - but it
         still gets a real prof:isProfileOf entry, with no
         prof:hasResource/ResourceDescriptor structure alongside it
         (there's no sibling ontology/AST graph to describe via
@@ -214,7 +214,7 @@ class TestConformanceProfilesContent:
         PROF = Namespace("http://www.w3.org/ns/dx/prof/")
         PROFILE = Namespace("http://www.w3.org/ns/shacl/profile/")
         graph = starontology.get_conformance_profiles()
-        subject = starontology.get_resource_iri("shacl_meta")
+        subject = starontology.get_resource_iri("shacl12_shacl")
         claimed = set(graph.objects(subject, PROF.isProfileOf))
         assert claimed == {
             PROFILE.core,
@@ -242,7 +242,7 @@ class TestGetConformanceProfiles:
 
         PROF = Namespace("http://www.w3.org/ns/dx/prof/")
         graph = starontology.get_conformance_profiles()
-        # 74 triples (2026-10-12: +5 for shacl_meta's own bare
+        # 74 triples (2026-10-12: +5 for shacl12_shacl's own bare
         # prof:isProfileOf entry against the five public SHACL profile
         # IRIs it represents - no prof:ResourceDescriptor pairing, since
         # it has no ontology counterpart). Before that: 69 (2026-10-11:
@@ -256,8 +256,8 @@ class TestGetConformanceProfiles:
         # on each of the 4 distinct real specification IRIs involved
         # (sqe_shacl/spexpr_shacl share sparql12-query).
         assert len(graph) == 74
-        # 6 subjects (5 shapes graphs + shacl_meta), 10 prof:isProfileOf
-        # triples total (5 shapes graphs x 1 each, + shacl_meta x 5 public
+        # 6 subjects (5 shapes graphs + shacl12_shacl), 10 prof:isProfileOf
+        # triples total (5 shapes graphs x 1 each, + shacl12_shacl x 5 public
         # SHACL profile IRIs).
         isprofileof_subjects = {s for s, _, _ in graph.triples((None, PROF.isProfileOf, None))}
         assert len(isprofileof_subjects) == 6
@@ -327,16 +327,16 @@ class TestGetResourceIri:
         [artifact] = list(profile_graph.objects(descriptor, PROF.hasArtifact))
         assert starontology.get_resource_iri("skos_owl") == artifact
 
-    def test_shacl_meta_has_a_real_resource_iri(self):
-        """shacl_meta gets a real, stable IRI here too - used by
+    def test_shacl12_shacl_has_a_real_resource_iri(self):
+        """shacl12_shacl gets a real, stable IRI here too - used by
         ontology-shapes-profiles.ttl's own prof:isProfileOf entry for it.
         A real stored named graph in starontology.trig since 2026-10-12,
         and a real standalone published file since 2026-10-14 (see
         TestGetRawUrl/TestPublishedFiles below) - this IRI's own path
         predates both and needed no change for either."""
-        iri = starontology.get_resource_iri("shacl_meta")
+        iri = starontology.get_resource_iri("shacl12_shacl")
         assert iri is not None
-        assert str(iri).endswith("shacl_meta_shapes.ttl")
+        assert str(iri).endswith("shacl12-shacl.ttl")
 
     def test_unknown_name_returns_none(self):
         assert starontology.get_resource_iri("not_a_real_name") is None
@@ -364,10 +364,10 @@ class TestGetRawUrl:
         for info in starontology.get_ontology_list():
             assert starontology.get_raw_url(info.name) is not None
 
-    def test_shacl_meta_has_a_real_raw_url_too(self):
-        url = starontology.get_raw_url("shacl_meta")
+    def test_shacl12_shacl_has_a_real_raw_url_too(self):
+        url = starontology.get_raw_url("shacl12_shacl")
         assert url is not None
-        assert url.endswith("shacl_meta_shapes.ttl")
+        assert url.endswith("shacl12-shacl.ttl")
 
     def test_ontology_shapes_profiles_has_a_raw_url_despite_no_resource_iri(self):
         """Not one of the 13 registered ontology/shapes entries - its own

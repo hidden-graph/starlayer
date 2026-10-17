@@ -21,6 +21,7 @@ from starlayer.shacl.meta_shapes import (
     _load_pyshacl_base_meta_shapes,
     build_meta_shapes_graph,
     check_sparql_query_text,
+    load_meta_shapes_graph,
     meta_validate,
 )
 
@@ -663,6 +664,38 @@ def test_too_strict_base_triples_absent_from_assembled_graph() -> None:
             for bn in assembled.objects(_SHSH_SHAPE_SHAPE, SH.property)
         )
         assert not still_present, f"{path} should have been stripped from the assembled graph"
+
+
+def test_stored_meta_shapes_file_matches_a_fresh_build() -> None:
+    """meta_validate() reads the stored shacl12-shacl.ttl, so it must equal
+    what build_meta_shapes_graph() produces. On failure, run
+    scripts/refresh_shacl_meta.py (an asset file was edited, or pySHACL's
+    own shacl-shacl.ttl changed)."""
+    from rdflib.compare import to_isomorphic
+
+    assert to_isomorphic(load_meta_shapes_graph()) == to_isomorphic(build_meta_shapes_graph()), (
+        "starontology's shacl12-shacl.ttl is out of date - run scripts/refresh_shacl_meta.py"
+    )
+
+
+def test_meta_validate_reads_the_stored_file_and_does_not_rebuild(monkeypatch) -> None:
+    import starlayer.shacl.meta_shapes as ms
+
+    def _boom(*_a, **_k):
+        raise AssertionError("meta_validate must not rebuild the meta-shapes graph")
+
+    monkeypatch.setattr(ms, "build_meta_shapes_graph", _boom)
+    shapes = Graph()
+    shapes.parse(data="@prefix sh: <http://www.w3.org/ns/shacl#> . <urn:s> a sh:NodeShape .", format="turtle")
+    conforms, _, _ = ms.meta_validate(shapes)
+    assert conforms
+
+
+def test_load_meta_shapes_graph_returns_independent_copies() -> None:
+    first = load_meta_shapes_graph()
+    n = len(first)
+    first.add((EX.a, EX.b, EX.c))
+    assert len(load_meta_shapes_graph()) == n
 
 
 def test_pyshacl_own_base_meta_shapes_never_mutated() -> None:

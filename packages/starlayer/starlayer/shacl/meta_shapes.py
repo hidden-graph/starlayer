@@ -21,7 +21,9 @@ problems under starShacl's default ``meta_shacl=True``:
    under default settings, even though
    ``starlayer.shacl/native_components.py`` fully supports it).
 
-``build_meta_shapes_graph`` assembles a corrected, extensible replacement:
+``build_meta_shapes_graph`` assembles a corrected, extensible replacement
+(its output is stored as ``starontology``'s ``shacl12-shacl.ttl``, which
+``meta_validate()`` reads via ``load_meta_shapes_graph``):
 pySHACL's own base graph with exactly those 8 now-too-strict triples
 removed (SHACL constraints combine via AND, so a relaxed rule added
 *alongside* an unremoved strict one would not help), plus starShacl's own
@@ -92,7 +94,7 @@ def _meta_validate_cache_key(shapes_graph_for_meta: Any, kwargs: dict) -> tuple 
 
     The assembled meta-shapes graph itself is deliberately *not* hashed
     here - when ``extra_graphs`` is empty (this cache's only scope, see
-    ``meta_validate()``'s own gating), ``build_meta_shapes_graph(())``'s
+    ``meta_validate()``'s own gating), ``load_meta_shapes_graph(())``'s
     output is itself always identical within one process, so it
     contributes nothing distinguishing to the key and hashing it too
     would just be another ~20ms paid for free on every call.
@@ -238,6 +240,42 @@ def _strip_too_strict_base_rules(graph: Graph) -> Graph:
     return graph
 
 
+_STORED_META_SHAPES: Graph | None = None
+
+
+def load_meta_shapes_graph(extra_graphs: Iterable[Any] = ()) -> Graph:
+    """The meta-shapes graph ``meta_validate()`` checks against, read from
+    the stored ``shacl12-shacl.ttl`` (``starontology``'s ``"shacl12_shacl"``
+    entry) rather than reassembled from pySHACL's base graph and starShacl's
+    two supplementary asset files on every call.
+
+    The stored file is the result of ``build_meta_shapes_graph()``; it is
+    the authoritative copy at run time, so changing either asset file or
+    upgrading pySHACL has no effect on validation until the file is
+    regenerated (``scripts/refresh_shacl_meta.py``). A test compares the
+    stored file with a fresh ``build_meta_shapes_graph()`` and fails on
+    drift.
+
+    The stored graph is read once per process. Each call returns a fresh
+    copy, so ``extra_graphs`` can be added (plain triple addition, as in
+    ``build_meta_shapes_graph``) without affecting later calls.
+    """
+    global _STORED_META_SHAPES
+    if _STORED_META_SHAPES is None:
+        # Lazy: starontology must finish importing before this module reads it.
+        from starlayer import starontology
+
+        stored = Graph()
+        stored += starontology.get_ontology_graph("shacl12_shacl")
+        _STORED_META_SHAPES = stored
+    graph = Graph()
+    graph += _STORED_META_SHAPES
+    for extra in extra_graphs:
+        for triple in extra:
+            graph.add(triple)
+    return graph
+
+
 def build_meta_shapes_graph(extra_graphs: Iterable[Any] = ()) -> Graph:
     """Assemble the complete meta-shapes graph used for starShacl's own
     meta-shacl preflight: pySHACL's own base graph (with the 8 too-strict
@@ -259,7 +297,7 @@ def build_meta_shapes_graph(extra_graphs: Iterable[Any] = ()) -> Graph:
 
 def meta_validate(shapes_graph: Any, *, extra_graphs: Iterable[Any] = (), **kwargs: Any) -> tuple[bool, Any, str]:
     """Validate ``shapes_graph`` against the assembled meta-shapes graph
-    (see ``build_meta_shapes_graph``), replacing starShacl's previous
+    (see ``load_meta_shapes_graph``), replacing starShacl's previous
     reliance on pySHACL's own ``meta_shacl`` kwarg. Raises
     ``pyshacl.errors.ReportableRuntimeError`` with the same message prefix
     pySHACL's own mechanism used, for compatibility with existing callers
@@ -328,7 +366,7 @@ def meta_validate(shapes_graph: Any, *, extra_graphs: Iterable[Any] = (), **kwar
         report_graph = Graph()
         report_graph += cached_report_graph
     else:
-        meta_shapes = build_meta_shapes_graph(extra_graphs)
+        meta_shapes = load_meta_shapes_graph(extra_graphs)
         conforms, report_graph, report_text = pyshacl.validate(shapes_graph_for_meta, shacl_graph=meta_shapes, **kwargs)
         if cache_key is not None:
             _META_VALIDATE_CACHE[cache_key] = (conforms, report_graph, report_text)

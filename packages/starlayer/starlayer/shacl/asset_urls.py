@@ -3,8 +3,8 @@ bundled SHACL assets from, as real GitHub URLs.
 
 Unlike starontology's 13 registered ontology/shapes entries (consolidated
 into one starontology.trig dataset - see that package's own get_raw_url()
-for the publish-step story that makes its URLs real), the three files
-here are each already a real, standalone file on disk - no publish step
+for the publish-step story that makes its URLs real), the file
+here is already a real, standalone file on disk - no publish step
 needed, this module just mints the right URL for each.
 """
 
@@ -13,8 +13,6 @@ from __future__ import annotations
 _GITHUB_RAW_BASE = "https://raw.githubusercontent.com/hidden-graph/starlayer/main/packages/starlayer/starlayer/shacl/assets/"
 
 _FILENAME_BY_NAME = {
-    "presentation_shapes": "shacl12-presentation-shapes.ttl",
-    "validation_shapes": "shacl12-validation-shapes.ttl",
     "conformance_profile": "shacl12-conformance-profile.ttl",
 }
 
@@ -25,8 +23,7 @@ def get_raw_url(name: str) -> str | None:
     blob URL, which returns an HTML viewer page to a plain HTTP GET).
 
     Args:
-        name: ``"presentation_shapes"``, ``"validation_shapes"``, or
-            ``"conformance_profile"``.
+        name: ``"conformance_profile"``.
 
     Returns:
         The raw URL, or ``None`` for an unrecognized name.

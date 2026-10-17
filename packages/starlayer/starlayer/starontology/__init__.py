@@ -70,7 +70,7 @@ content as Turtle text: ``get_ontology_graph(name).serialize(format=
 
 **What's here**: thirteen registered entries - an OWL/RDFS ontology and a
 SHACL shapes graph for each of six vocabularies, plus one further
-registered entry (``shacl_meta``, see below) with no ontology counterpart.
+registered entry (``shacl12_shacl``, see below) with no ontology counterpart.
 The filenames below are each entry's own identity (both as a dict key
 into the dataset described further below and as the ``.../<filename>``
 suffix of its ``get_resource_iri()`` IRI):
@@ -108,29 +108,22 @@ suffix of its ``get_resource_iri()`` IRI):
 Every shapes file (all six) is type ``"shacl"``, regardless of which of
 the above its own target ontology is.
 
-The further entry, ``shacl_meta`` (also type ``"shacl"``), is the SHACL
+The further entry, ``shacl12_shacl`` (also type ``"shacl"``), is the SHACL
 1.2 meta-shapes themselves (``starlayer.shacl``'s own shapes-about-shapes,
 validating a shapes graph's own well-formedness) - loaded exactly like
 every other entry, via the shared ``_load()``. There's no ``shacl_owl``
 counterpart, since this entry has no ontology of its own to pair with.
 
-The stored content is a one-time snapshot of
-``starlayer.shacl.meta_shapes.build_meta_shapes_graph()``'s own output
-with no ``extra_graphs`` - the common case, and the only one a *registry
-entry* (a fixed, nameable resource) can represent at all.
-``build_meta_shapes_graph()`` itself is deliberately **not** replaced or
-removed: ``starlayer.shacl.validator.py``'s own internal meta-shacl
-preflight (``meta_validate()``, used by every ``validate(meta_shacl=True)``
-call) still calls it dynamically every time, since a *caller's own*
-``extra_graphs`` there is genuinely per-call data this static snapshot
-has no way to represent. (That preflight's own, separate performance
-concern - re-running a full meta-validation pass on every call regardless
-of ``extra_graphs`` - is addressed independently, by content-hash-keyed
-result caching inside ``meta_validate()`` itself; see that module's own
-comments.) The two code paths simply agree, rather than one replacing
-the other: this registry's stored copy for "give me the meta-shapes
-graph as data," ``build_meta_shapes_graph()`` live for "check this shapes
-graph is well-formed, possibly with extra rules."
+This stored graph (``shacl12-shacl.ttl``) is the one
+``starlayer.shacl.meta_shapes.meta_validate()`` reads at run time, via
+``load_meta_shapes_graph()``, instead of reassembling it on every call.
+It is generated from ``build_meta_shapes_graph()`` - pySHACL's base graph
+(minus the eight rules SHACL 1.2 widened) plus starShacl's two
+supplementary asset files - by ``scripts/refresh_shacl_meta.py``. Editing
+either asset file, or upgrading pySHACL, changes nothing at run time until
+that script is re-run; a test fails while the stored copy and a fresh
+build disagree. ``build_meta_shapes_graph()`` is kept for that script and
+that test.
 
 **One dataset, not thirteen files.** Every registered entry, plus the
 ontology-shapes profile mapping (see below), lives as its own named graph
@@ -219,13 +212,13 @@ _FILENAME_BY_NAME: dict[str, str] = {
     "srl_shacl": "srl_shapes.ttl",
     "spexpr_owl": "spexpr-ontology.ttl",
     "spexpr_shacl": "spexpr_shapes.ttl",
-    # shacl_meta gets a real resource IRI too (used by
+    # shacl12_shacl gets a real resource IRI too (used by
     # ontology-shapes-profiles.ttl's own prof:isProfileOf entry for it -
     # see get_conformance_profiles()'s docstring) - it's a real named graph in
     # starontology.trig at this filename, loaded via the shared _load()
     # like every other entry (see the module docstring's "What's here"
     # section for why build_meta_shapes_graph() still exists separately).
-    "shacl_meta": "shacl_meta_shapes.ttl",
+    "shacl12_shacl": "shacl12-shacl.ttl",
 }
 
 # The ontology-shapes profile mapping's own filename/named-graph identity -
@@ -379,21 +372,20 @@ _REGISTRY: dict[str, tuple[OntologyInfo, Callable[[], StarLayerGraph]]] = {
         ),
         lambda: _load("spexpr_shacl"),
     ),
-    "shacl_meta": (
+    "shacl12_shacl": (
         OntologyInfo(
-            name="shacl_meta",
+            name="shacl12_shacl",
             description=(
                 "The SHACL 1.2 meta-shapes themselves (starlayer.shacl's own "
                 "shapes-about-shapes, validating a shapes graph's own "
-                "well-formedness) - a real stored snapshot (no "
-                "extra_graphs) of starlayer.shacl.meta_shapes."
-                "build_meta_shapes_graph()'s own output; there's still no "
+                "well-formedness) - the stored graph meta_validate() reads, "
+                "generated from build_meta_shapes_graph(); there's still no "
                 "shacl_owl counterpart, since this entry has no ontology "
                 "of its own to pair with."
             ),
             type="shacl",
         ),
-        lambda: _load("shacl_meta"),
+        lambda: _load("shacl12_shacl"),
     ),
 }
 
@@ -536,8 +528,8 @@ def get_ontology_graph(name: str) -> StarLayerGraph:
 
 
 # Every registered shapes entry that has a paired ontology/syntax-tree entry it
-# validates - every "*_shacl" entry except "shacl_meta" (no "shacl_owl"
-# entry exists, since shacl_meta has no ontology of its own to pair
+# validates - every "*_shacl" entry except "shacl12_shacl" (no "shacl_owl"
+# entry exists, since shacl12_shacl has no ontology of its own to pair
 # with). Just the name list - the actual prof:isProfileOf pairing itself
 # lives in ontology-shapes-profiles.ttl, not here, deliberately: this
 # tuple is reused below by _real_shapes_graph_iri_to_name() for an
@@ -600,7 +592,7 @@ def get_resource_iri(name: str) -> URIRef | None:
     neighboring comment for the convention). Returns ``None`` for an
     unregistered name.
 
-    ``"shacl_meta"`` gets a real IRI here too, despite having no ontology
+    ``"shacl12_shacl"`` gets a real IRI here too, despite having no ontology
     counterpart - it's the same one ``ontology-shapes-profiles.ttl``
     already uses for its own ``prof:isProfileOf`` entry.
 
