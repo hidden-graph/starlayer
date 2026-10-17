@@ -35,6 +35,8 @@ def _validate(data_ttl: str, shapes_ttl: str, **kwargs):
     data.parse(data=data_ttl, format="turtle")
     shapes = Graph()
     shapes.parse(data=shapes_ttl, format="turtle")
+    # meta_shacl is off by default (a development-time check); these tests are about it
+    kwargs.setdefault("meta_shacl", True)
     return StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, **kwargs)
 
 
@@ -1511,16 +1513,23 @@ class TestSparqlQueryStructureValidation:
         )
         return shapes
 
-    def test_end_to_end_validate_raises_via_meta_shacl_default(self) -> None:
+    def test_end_to_end_validate_raises_when_meta_shacl_is_requested(self) -> None:
         # Confirms this runs for real through StarShaclSchema.validate()'s
-        # own default meta_shacl=True path (every preset in
-        # validation_modes.py sets meta_shacl=True), not just the bare
-        # function in isolation.
+        # meta_shacl=True path, not just the bare function in isolation.
         data = Graph()
         data.parse(data=_RULES_PREFIX + "ex:alice ex:email ex:bob .", format="turtle")
         shapes = self._shapes_with_sparql_constraint(self._UNBOUND_VAR_SELECT)
         with pytest.raises(pyshacl.errors.ConstraintLoadError, match="sh:select"):
-            StarShaclSchema(shacl_graph=shapes).validate(data_graph=data)
+            StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=True)
+
+    def test_meta_shacl_is_off_by_default(self) -> None:
+        # The preflight is a development-time check on the shapes graph, so a
+        # plain validate() does not run it (every preset in validation_modes.py
+        # sets meta_shacl=False); ask for it with meta_shacl=True.
+        data = Graph()
+        data.parse(data=_RULES_PREFIX + "ex:alice ex:email ex:bob .", format="turtle")
+        shapes = self._shapes_with_sparql_constraint(self._UNBOUND_VAR_SELECT)
+        StarShaclSchema(shacl_graph=shapes).validate(data_graph=data)  # must not raise
 
     def test_disabled_via_meta_shacl_false(self) -> None:
         # meta_shacl=False must still skip this check entirely, the same

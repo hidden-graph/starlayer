@@ -163,7 +163,7 @@ The actual architecture is "pySHACL wrapper with a growing set of native carve-o
 
 ## Meta-SHACL Policy
 
-All three profiles (`validation`, `rules`, `debug`) default `meta_shacl=True`; callers may override with `meta_shacl=False`. This is meant to catch malformed shape graphs early and avoid mistaking shape defects for data defects during debugging - but until this was investigated, that guarantee only held for SHACL 1.0/1.1 predicates.
+**Changed 2026-10-17: all three profiles (`validation`, `rules`, `debug`) now default `meta_shacl=False`; request the preflight with `meta_shacl=True`.** The check is a development-time one - validate a shapes graph when it is written, not on every `validate()` call (it costs about half of a small validation). Before the change all three defaulted `meta_shacl=True`. The preflight is meant to catch malformed shape graphs early and avoid mistaking shape defects for data defects during debugging - but until this was investigated, that guarantee only held for SHACL 1.0/1.1 predicates.
 
 **starshacl no longer delegates to pySHACL's own `meta_shacl` kwarg.** pySHACL's mechanism has no extension point (`pyshacl/entrypoints.py::meta_validate`/`with_metashacl_shacl_graph_cache` always validates against its own hardcoded, process-cached `shacl-shacl.pickle` - no parameter exists to supply additional or replacement meta-shapes), so it never learned about anything starshacl adds. This produced two confirmed problems under the default `meta_shacl=True`:
 

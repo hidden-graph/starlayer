@@ -301,7 +301,7 @@ def test_meta_shacl_reports_a_genuine_blank_node_violation_without_crashing() ->
     data = _native_graph("@prefix ex: <http://example.org/> . ex:alice a ex:Person .")
 
     with pytest.raises(Exception) as exc_info:
-        StarShaclSchema(shacl_graph=shapes).validate(data_graph=data)
+        StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=True)
 
     assert "sh:TripleRule" in str(exc_info.value)
     assert "sh:subject sh:this" in str(exc_info.value) or "sh:this" in str(exc_info.value)
