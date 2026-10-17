@@ -2762,12 +2762,17 @@ def _append_provenance_to_report_text(report_text: str, report_graph: Any, data_
     (``term.n3(report_graph.namespace_manager)``), matching how
     ``report_graph.serialize()`` already reads - falls back to the full
     ``<...>`` form for anything unbound, same as any other n3 rendering.
-    ``Used Data Graph``/``Used Shapes Graph`` print ``"Not specified"``
-    when absent, so a missing line is never ambiguous with "not
-    implemented"; ``sh:conformsTo``/``dcterms:conformsTo`` instead render
-    as one real subject-predicate-object sentence per triple found (e.g.
-    ``ex:data1 sh:conformsTo ex:AliceShapesGraph .``), falling back to the
-    same "Not specified" label only when there's nothing to report.
+    A line appears only when there is something to say. ``Used Data
+    Graph``/``Used Shapes Graph`` are listed only when the report has the
+    corresponding ``sh:usedDataGraph``/``sh:usedShapesGraph``, and
+    ``sh:conformsTo``/``dcterms:conformsTo`` render as one real
+    subject-predicate-object sentence per triple found (e.g.
+    ``ex:data1 sh:conformsTo ex:AliceShapesGraph .``) - never as a "Not
+    specified" placeholder. When nothing at all is known (no data graph
+    or shapes graph identity was given or resolved), no ``Provenance:``
+    block is added and ``report_text`` is returned unchanged: the report
+    makes no statement it has no data for, the same way ``report_graph``
+    omits those triples.
 
     Args:
         report_text: pySHACL's own rendered report string to append to.
@@ -2776,12 +2781,12 @@ def _append_provenance_to_report_text(report_text: str, report_graph: Any, data_
             ``sh:conformsTo``/``dcterms:conformsTo``).
         data_graph_iri: The data graph's resolved identity, used to look
             up ``sh:conformsTo``/``dcterms:conformsTo`` triples on it;
-            if ``None``, those lines fall back to "Not specified".
+            if ``None``, no ``conformsTo`` line is added.
 
     Returns:
         ``report_text`` unchanged if no ``sh:ValidationReport`` node is
-        found in ``report_graph``, otherwise ``report_text`` with the
-        provenance appendix appended.
+        found in ``report_graph`` or there is no provenance to report,
+        otherwise ``report_text`` with the provenance appendix appended.
     """
     report_node = _find_genuine_report_node(report_graph)
     if report_node is None:
@@ -2792,9 +2797,6 @@ def _append_provenance_to_report_text(report_text: str, report_graph: Any, data_
     def _n3(term: Any) -> str:
         return term.n3(nm)
 
-    def _joined(values: Any) -> str:
-        values = list(values)
-        return ", ".join(_n3(v) for v in values) if values else "Not specified"
 
     data_graph_subject = None
     if data_graph_iri is not None:
@@ -2808,19 +2810,16 @@ def _append_provenance_to_report_text(report_text: str, report_graph: Any, data_
             for obj in report_graph.objects(data_graph_subject, predicate):
                 conforms_to_triples.append((data_graph_subject, predicate, obj))
 
-    lines = [
-        "",
-        "Provenance:",
-        f"\tUsed Data Graph: {_joined(report_graph.objects(report_node, SH.usedDataGraph))}",
-        f"\tUsed Shapes Graph: {_joined(report_graph.objects(report_node, SH.usedShapesGraph))}",
-    ]
-    if conforms_to_triples:
-        for s, p, o in conforms_to_triples:
-            lines.append(f"\t{_n3(s)} {_n3(p)} {_n3(o)} .")
-    else:
-        lines.append("\tConforms To: Not specified")
+    lines: list[str] = []
+    for label, predicate in (("Used Data Graph", SH.usedDataGraph), ("Used Shapes Graph", SH.usedShapesGraph)):
+        values = list(report_graph.objects(report_node, predicate))
+        if values:
+            lines.append(f"\t{label}: {', '.join(_n3(v) for v in values)}")
+    lines.extend(f"\t{_n3(s)} {_n3(p)} {_n3(o)} ." for s, p, o in conforms_to_triples)
 
-    return report_text + "\n".join(lines)
+    if not lines:
+        return report_text
+    return report_text + "\n".join(["", "Provenance:", *lines])
 
 
 def _annotate_used_graphs_and_configuration(
