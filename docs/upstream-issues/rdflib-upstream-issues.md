@@ -1,6 +1,21 @@
 # rdflib Upstream Issues
 
-rdflib 7.6.0. Found while building SPARQL 1.2 support in this repo; every repro is plain `rdflib`, no starlayergraph code. **Not filed upstream** - deferred until rdflib itself starts RDF 1.2 work, then reported as a batch rather than piecemeal now. All have a real fix applied in this repo.
+Bugs in rdflib 7.6.0 found while building SPARQL 1.2 support here. Every example is plain `rdflib` (do not `import starlayer.graph`, which applies the fixes). **None are filed upstream yet**; they will be reported as a batch. Each has a fix applied in this repo, in `starlayer/graph/query/*_patches.py`.
+
+| # | Bug | Effect | Fix |
+|---|-----|--------|-----|
+| 1 | `*` ignores numeric type promotion | wrong datatype | `operator_patches` |
+| 2 | `translateAlgebra` emits invalid SPARQL | crash / bad text | `algebra_translator_patches` |
+| 3 | `BIND` read through earlier `BIND` in `UNION` | wrong, duplicate rows | `evaluate_patches` |
+| 4 | `BIND` needing a sibling branch's variable | silently missing value | `evaluate_patches` |
+| 5 | `GROUP BY (expr)` without `AS` | crash | `evaluate_patches` |
+| 6 | `SELECT *` row with no variables | row lost on iteration | `result_patches` |
+| 7 | `xsd:integer()` of decimal/double/boolean | error | `operator_patches` |
+| 8 | `FILTER` loses a variable bound outside it | filter always false | `evaluate_patches` |
+| 9 | `INSERT DATA` into a `Dataset` default graph | crash | `evaluate_patches` |
+| 10 | `REPLACE` ignores its flags argument | wrong result | `custom_functions` |
+| 11 | `STRLANG` accepts an empty language tag | should be an error | not yet patched |
+| 12 | `CEIL`/`FLOOR`/`ROUND` of a decimal | non-canonical `"2"` | `operator_patches` |
 
 ## 1. `MultiplicativeExpression` doesn't apply numeric type promotion for `*`
 
@@ -13,7 +28,7 @@ list(Graph().query("SELECT (6 * 7 AS ?r) WHERE {}"))[0][0]
 # expected: Literal('42', datatype=xsd:integer)
 ```
 
-Fix: `starlayergraph/query/operator_patches.py::patch_multiplicative_expression_type_promotion`.
+Fix: `starlayer/graph/query/operator_patches.py::patch_multiplicative_expression_type_promotion`.
 
 ## 2. `translateAlgebra` regenerates invalid or crashing SPARQL text
 
@@ -53,7 +68,7 @@ translateAlgebra(q)
 
 Also affects: two `UNION` branches each `BIND`ing the same variable name regenerate as `(expr1 AS (expr2 AS ?var))` - nested, invalid.
 
-Fix: `starlayergraph/query/algebra_translator_patches.py::patch_algebra_translator_bugs`.
+Fix: `starlayer/graph/query/algebra_translator_patches.py::patch_algebra_translator_bugs`.
 
 ## 3. A `BIND` read through an earlier `BIND`, inside `UNION`, gives wrong/duplicate rows
 
@@ -80,7 +95,7 @@ SELECT ?s WHERE {
 # -> [(:s1,), (:s2,)]  - correct
 ```
 
-Fix: `starlayergraph/query/evaluate_patches.py::patch_evalextend_forgotten_bind_vars`.
+Fix: `starlayer/graph/query/evaluate_patches.py::patch_evalextend_forgotten_bind_vars`.
 
 ## 4. A `BIND` inside one branch of a join can silently lose its value
 
@@ -102,7 +117,7 @@ SELECT ?t {
 # expected: [(Literal(1, datatype=xsd:integer),)]
 ```
 
-Fix: `starlayergraph/query/evaluate_patches.py::patch_lazy_join_expr_dependency_order`.
+Fix: `starlayer/graph/query/evaluate_patches.py::patch_lazy_join_expr_dependency_order`.
 
 ## 5. Un-aliased computed `GROUP BY` key crashes
 
@@ -117,7 +132,7 @@ list(g.query("SELECT (COUNT(?o) as ?c) WHERE { ?s <http://ex/p> ?o } GROUP BY (?
 # expected: 2 grouped rows (GROUP BY ?o and GROUP BY (?o+1 AS ?k) both work fine)
 ```
 
-Fix: `starlayergraph/query/evaluate_patches.py::patch_group_by_unaliased_expression_key`.
+Fix: `starlayer/graph/query/evaluate_patches.py::patch_group_by_unaliased_expression_key`.
 
 ## 6. A `SELECT` row with no variable bindings gets silently dropped when iterated
 
@@ -140,7 +155,7 @@ r2.bindings, len(r2), list(r2)
 # -> ([], 0, [])  - genuinely zero rows; before the fix, indistinguishable from the "exists" case via list()
 ```
 
-Fix: `starlayergraph/query/result_patches.py::patch_result_iter_empty_binding_row`.
+Fix: `starlayer/graph/query/result_patches.py::patch_result_iter_empty_binding_row`.
 
 ## 7. `xsd:integer()` cannot cast a decimal, double, float or boolean
 
@@ -160,3 +175,59 @@ Found because the SRL spec's own Examples 9 and 10 compute `xsd:integer(?miles *
 
 Fix: `starlayer/graph/query/operator_patches.py::patch_integer_cast_from_numeric_and_boolean`, applied on `import starlayer.graph`. `NaN` and the infinities stay errors. **Not filed upstream.**
 
+
+
+## 8. `FILTER` forgets a variable bound outside its group
+
+```python
+from rdflib import Graph
+list(Graph().query("SELECT ?x WHERE { BIND(1 AS ?o) { BIND(2 AS ?x) FILTER(?x = ?o + 1) } }"))
+# actual:   []
+# expected: [(Literal(2),)]
+```
+
+Fix: `starlayer/graph/query/evaluate_patches.py::patch_evalfilter_forgotten_vars`.
+
+## 9. `INSERT DATA` into a `Dataset`'s default graph crashes
+
+```python
+from rdflib import Dataset
+Dataset().update("INSERT DATA { <http://ex/a> <http://ex/b> <http://ex/c> }")
+# actual:   ValueError: not enough values to unpack (expected 4, got 3)
+# expected: one triple added (a plain Graph works)
+```
+
+Fix: `starlayer/graph/query/evaluate_patches.py::patch_evalinsertdata_quad_unpacking`.
+
+## 10. `REPLACE` ignores its flags argument
+
+```python
+from rdflib import Graph
+list(Graph().query('SELECT (REPLACE("aBc", "b", "X", "i") AS ?r) WHERE {}'))[0][0]
+# actual:   'aBc'   (flags "i" not applied)
+# expected: 'aXc'
+```
+
+Cause: rdflib calls `re.sub(pattern, repl, text, flags)`, but the fourth positional parameter of `re.sub` is `count`, not `flags`. Worked around in `starlayer/graph/query/custom_functions.py` (`_replace`).
+
+## 11. `STRLANG` accepts an empty language tag
+
+```python
+from rdflib import Graph
+list(Graph().query('SELECT (STRLANG("a", "") AS ?r) WHERE {}'))[0][0]
+# actual:   Literal('a')   (a plain string)
+# expected: an error, so ?r is unbound
+```
+
+Not yet patched here.
+
+## 12. `CEIL`, `FLOOR` and `ROUND` of a decimal give a non-canonical lexical form
+
+```python
+from rdflib import Graph
+list(Graph().query("SELECT (CEIL(1.5) AS ?r) WHERE {}"))[0][0]
+# actual:   Literal('2', datatype=xsd:decimal)
+# expected: Literal('2.0', datatype=xsd:decimal)
+```
+
+Fix: `starlayer/graph/query/operator_patches.py::patch_decimal_result_lexical_form`.
