@@ -43,7 +43,7 @@ def test_meta_shacl_rejects_ill_formed_shapes_graph() -> None:
     validator = StarShaclSchema(shacl_graph=shapes)
 
     with pytest.raises(Exception) as exc_info:
-        validator.validate(data_graph=data)
+        validator.validate(data_graph=data, meta_shacl=True)
 
     message = str(exc_info.value)
     assert "metashacl" in message.lower() or "meta-shacl" in message.lower()

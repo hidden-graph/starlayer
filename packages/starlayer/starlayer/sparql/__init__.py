@@ -26,7 +26,7 @@ from .vocab import SALG
 # from a package named after a fourth one. See `salg/__init__.py`'s own
 # comment for the full account.
 
-# SRL/SPARQL-RL - deliberately NOT flattened into individual names here
+# SRL - deliberately NOT flattened into individual names here
 # (tried 2026-10-03, reverted same day) - that would mean every one of
 # `srl.py`/`srl_eval.py`'s own names is reachable by two different paths
 # (`starlayer.sparql.X` and `starlayer.sparql.srl.X`), the exact anti-

@@ -94,7 +94,7 @@ suffix of its ``get_resource_iri()`` IRI):
   editing - deliberately not `salg:`'s resolved algebra, which isn't
   readable or editable the same way (see
   `starlayer.sparql.sqe`'s own module docstrings). Type ``"syntax-tree-graph"``.
-- ``srl:`` (``srl-ontology.ttl`` / ``srl_shapes.ttl``) - SRL/SPARQL-RL's
+- ``srl:`` (``srl-ontology.ttl`` / ``srl_shapes.ttl``) - SRL's
   own rule-set syntax tree, as RDF (see `starlayer.sparql.srl`).
   Type ``"syntax-tree-graph"``.
 - ``spexpr:`` (``spexpr-ontology.ttl`` / ``spexpr_shapes.ttl``) - the
@@ -149,7 +149,7 @@ public function below actually returns.
 **``get_conformance_profiles()``**: every registered shapes graph is
 related by the dx-prof vocabulary's ``prof:isProfileOf`` to the *real
 external specification* it implements (SPARQL, SKOS, Manchester Syntax,
-SPARQL-RL) - not to the bundled ontology/syntax-tree graph. The ontology/
+SRL) - not to the bundled ontology/syntax-tree graph. The ontology/
 syntax-tree graph is instead one of that same real specification's own
 ``prof:hasResource``/``prof:ResourceDescriptor`` entries (``prof:hasRole
 role:schema``), a sibling of the shapes graph's own ``role:validation``
@@ -338,7 +338,7 @@ _REGISTRY: dict[str, tuple[OntologyInfo, Callable[[], StarLayerGraph]]] = {
         OntologyInfo(
             name="srl_owl",
             description=(
-                "SRL/SPARQL-RL's own rule-set syntax tree, as RDF (srl:) - "
+                "SRL's own rule-set syntax tree, as RDF (srl:) - "
                 "a Datalog-style rules language, general-purpose and SHACL-independent."
             ),
             type="syntax-tree-graph",
@@ -666,7 +666,7 @@ def get_conformance_profiles(url: str | None = None) -> StarLayerGraph:
 
     Each registered shapes graph is ``prof:isProfileOf`` the real external
     specification it implements (SPARQL, SKOS, Manchester Syntax,
-    SPARQL-RL) - not the bundled ontology/syntax-tree-as-RDF graph, which is
+    SRL) - not the bundled ontology/syntax-tree-as-RDF graph, which is
     instead one of that same real specification's own
     ``prof:hasResource``/``prof:ResourceDescriptor`` entries
     (``prof:hasRole role:schema``), a sibling of the shapes graph's own

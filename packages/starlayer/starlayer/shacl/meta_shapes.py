@@ -7,7 +7,7 @@ process-cached ``shacl-shacl.pickle`` (see
 ``pyshacl/entrypoints.py``'s ``meta_validate``/``with_metashacl_shacl_graph_cache``
 - there is no parameter to supply additional or replacement meta-shapes).
 Since that bundled meta-shapes graph predates SHACL 1.2, it has two
-problems under starShacl's default ``meta_shacl=True``:
+problems when ``meta_shacl=True`` is requested (it is off by default):
 
 1. The 11 brand-new SHACL 1.2 predicates (``sh:someValue``,
    ``sh:uniqueValuesFor``, etc.) have no rule at all, so malformed uses

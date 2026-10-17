@@ -230,3 +230,6 @@ Results: Fuseki on the SHACL W3C suites went from 30-36 failures to 5, all liter
 
 Limits: reading only - changing or deleting triples about a blank node that already exists on the server (loaded some other way, as real blank nodes) is still inexact. Data written by this library on Fuseki is stored as IRIs, so another SPARQL client sees skolem IRIs, not blank nodes.
 
+## `xsd:integer()` casts from decimal, double, float and boolean now work (2026-10-17)
+
+rdflib casts to `xsd:integer` through `int(<lexical form>)`, so `xsd:integer(16.0934)` and `xsd:integer(true)` were evaluation errors (a `SELECT` row with such an error is also silently dropped, see `rdflib-upstream-issues.md` item 6). `query/operator_patches.py::patch_integer_cast_from_numeric_and_boolean`, applied with the other operator patches on `import starlayer.graph`, truncates a number toward zero and maps `true`/`false` to 1/0; `NaN`, the infinities and a non-integer *string* stay errors. Found through the SRL spec's Examples 9 and 10; recorded as item 7 in `docs/upstream-issues/rdflib-upstream-issues.md` (not filed). Tests: `tests/graph/unit/test_operator_patches.py::TestIntegerCastFromNumericAndBoolean`.

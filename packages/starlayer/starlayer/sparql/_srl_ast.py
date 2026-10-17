@@ -8,7 +8,7 @@ caller would ever touch one is by walking ``RuleSet.rules``/
 ``Rule.head``/``Rule.body``, an inspection/editing concern this API
 doesn't cover yet.
 
-Python dataclasses for the SRL/SPARQL-RL abstract syntax tree, mirroring
+Python dataclasses for the SRL abstract syntax tree, mirroring
 `WD-sparql12-rl-20260919 <https://www.w3.org/TR/sparql12-rl/>`_ §4.1
 "Elements of the Abstract Syntax" (+ its own "Component Notation" table)
 field-for-field - field names here are the spec's own attribute names
@@ -27,10 +27,9 @@ minted. A triple pattern/template's subject/object may additionally be a
 ``starlayer.sparql.triple_term.TripleTermNode`` (RDF 1.2 triple term) per the
 spec's own grammar (productions 25-46 "Data", 47-60 "Template", 61-82
 "Pattern" all admit reified-triple/triple-term syntax structurally
-identical to Turtle 1.2's own) - **not yet parsed by ``srl.py``**
-(see that module's own docstring for the explicit scope note); the field
-type already allows it so decoding (``srl.py``) and the AST-as-RDF
-round trip need no follow-up widening once grammar support for it lands.
+identical to Turtle 1.2's own). ``srl.py`` parses, renders and encodes them,
+and ``srl_eval.py`` matches and builds them; a reified triple or annotation is
+expanded at parse time into a reifier plus ``rdf:reifies <<( s p o )>>``.
 """
 
 from __future__ import annotations
@@ -124,34 +123,45 @@ NegationBodyElement = TriplePattern | _FilterElement
 
 @dataclass(frozen=True)
 class _NegationElement:
-    """§4.1 "Negation element" - ``NOT DATA? { ... }``. ``data=True`` means
-    the negated pattern is matched against the rule set's own DATA graph
-    (``GD``) rather than the evaluation graph, per §6.4's ``evalRuleElements``
-    pseudocode (``if rElt with DATA: ... GD, GD else ... G, GD``).
+    """§4.1 "Negation element" - ``NOT DATA? { ... }``. ``evaldata`` is the
+    spec's own flag (``negation.evaldata``): true (a plain ``NOT { }``) matches
+    the negated pattern against the evaluation graph, false (``NOT DATA { }``)
+    against the base graph only, per §6.4's ``evalRuleElements`` pseudocode
+    (``if N.evaldata: ... G, GD else ... GD, GD``).
 
     Private - see ``_FilterElement`` above.
 
     Attributes:
         inner: The negated body elements (triple patterns and filters only
             - see ``NegationBodyElement``).
-        data: Whether ``inner`` matches against the DATA graph rather than
-            the evaluation graph.
+        evaldata: True to match ``inner`` against the evaluation graph (a
+            plain ``NOT``); False to match only the base graph (``NOT DATA``).
     """
 
     inner: list[NegationBodyElement] = field(default_factory=list)
-    data: bool = False
+    evaldata: bool = True
 
 
 # §4.1's "Rule element" - the union every rule body member belongs to.
 BodyElement = TriplePattern | _FilterElement | _NegationElement | _AssignmentElement
 
 
+def _triple_term_has_variable(term: Any) -> bool:
+    """True if ``term`` is a triple term (at any depth) that contains a variable."""
+    if not isinstance(term, TripleTermNode):
+        return False
+    return any(
+        isinstance(part, Variable) or _triple_term_has_variable(part)
+        for part in (term.get("subject"), term.get("predicate"), term.get("object"))
+    )
+
+
 @dataclass(frozen=True)
 class _Rule:
     """§4.1 "Rule" - ``head`` + ``body``, optional ``id`` (an IRI naming the
-    rule), and ``data`` (match the body's own top-level triple patterns
-    against the rule set's DATA graph rather than the base graph - the
-    grammar's ``WHERE DATA? { ... }``).
+    rule), and ``evaldata`` (the spec's own ``rule.evaldata``: true matches the
+    body's triple patterns against the evaluation graph; false matches the base
+    graph only - the grammar's ``WHERE DATA { ... }``).
 
     Private: the test applied project-wide to every SRL AST type is
     whether any public function or method signature requires this type
@@ -166,7 +176,7 @@ class _Rule:
 
     head: list[TripleTemplate] = field(default_factory=list)
     body: list[BodyElement] = field(default_factory=list)
-    data: bool = False
+    evaldata: bool = True
     id: URIRef | None = None
 
     @property
@@ -190,7 +200,13 @@ class _Rule:
         """
         if any(isinstance(e, _AssignmentElement) for e in self.body):
             return True
-        return any(isinstance(t.subject, BNode) or isinstance(t.object, BNode) for t in self.head)
+        return any(
+            isinstance(t.subject, BNode)
+            or isinstance(t.object, BNode)
+            or _triple_term_has_variable(t.subject)
+            or _triple_term_has_variable(t.object)
+            for t in self.head
+        )
 
 
 @dataclass(frozen=True)
@@ -206,6 +222,69 @@ class _Data:
     """
 
     triples: list[TriplePattern] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class PlanRule:
+    """One rule as it appears in a :class:`RulePlan`.
+
+    Attributes:
+        index: The rule's position in ``RuleSet.rules`` (0-based).
+        id: The rule's IRI, or ``None`` if it has none.
+        text: The rule rendered as SRL text (full IRIs, no prefixes).
+    """
+
+    index: int
+    id: URIRef | None
+    text: str
+
+
+@dataclass(frozen=True)
+class PlanStratum:
+    """One stratum of a :class:`RulePlan`: the rules evaluated together.
+
+    Attributes:
+        number: The stratum's position in evaluation order (0-based).
+        run_once: Rules evaluated exactly once in this stratum.
+        general: Rules evaluated to a fixpoint in this stratum.
+    """
+
+    number: int
+    run_once: list[PlanRule]
+    general: list[PlanRule]
+
+
+@dataclass(frozen=True)
+class PlanEdge:
+    """A dependency between two rules: ``source``'s body reads what
+    ``target``'s head can produce, so ``target`` must be evaluated first (or
+    in the same stratum).
+
+    Attributes:
+        source: ``PlanRule.index`` of the rule that depends on ``target``.
+        target: ``PlanRule.index`` of the rule it depends on.
+        label: ``"open"`` (a positive dependency) or ``"closed"`` (a
+            negation, or any dependency of a run-once rule), which forces
+            ``source`` into a later stratum than ``target``.
+    """
+
+    source: int
+    target: int
+    label: str
+
+
+@dataclass(frozen=True)
+class RulePlan:
+    """How a rule set will be evaluated, from :meth:`RuleSet.plan` -
+    nothing is run to produce it.
+
+    Attributes:
+        strata: The strata in evaluation order.
+        edges: The rule dependency graph the strata were computed from.
+    """
+
+    strata: list[PlanStratum]
+    edges: list[PlanEdge]
 
 
 @dataclass
@@ -226,12 +305,64 @@ class RuleSet:
     data: list[_Data] = field(default_factory=list)
     imports: list[URIRef] = field(default_factory=list)
 
+    def _with_imports_resolved(self, imports_loader) -> RuleSet:
+        """This rule set with its ``IMPORTS`` resolved by ``imports_loader``, or ``self``
+        when no loader is given (then ``infer()`` rejects any imports, as §4.5 requires
+        of a processor that does not support them)."""
+        if imports_loader is None or not self.imports:
+            return self
+        from . import srl
+
+        return srl.resolve_imports(self, imports_loader)
+
+    def plan(self, *, imports_loader: Any | None = None) -> RulePlan:
+        """Shows how this rule set would be evaluated, without running it:
+        the strata in evaluation order and the rule dependency graph they
+        were computed from (§4.3.2 and §4.4.2 of the spec). Rules are
+        identified by their position in ``self.rules``.
+
+        Useful for seeing why a rule fires in a later stratum than another,
+        which matters with negation, and for checking that a rule set
+        stratifies before running it. ``IMPORTS`` are not resolved here;
+        ``infer()`` rejects them.
+
+        Args:
+            imports_loader: Resolves ``IMPORTS`` first, as for :meth:`infer`; the plan
+                then covers the imported rules too. Without one, imports are ignored.
+
+        Returns:
+            The :class:`RulePlan`.
+
+        Raises:
+            StratificationError: If a recursive dependency involves a
+                negation, so no valid evaluation order exists (§4.4.1).
+        """
+        from . import srl, srl_eval
+
+        self = self._with_imports_resolved(imports_loader)
+
+        edges = srl_eval._build_dependency_graph(self)
+        layers = srl_eval._stratify(self)
+        index = {id(rule): i for i, rule in enumerate(self.rules)}
+
+        def plan_rule(rule: _Rule) -> PlanRule:
+            return PlanRule(index[id(rule)], rule.id, srl._rule_text(rule, None))
+
+        return RulePlan(
+            strata=[
+                PlanStratum(number, [plan_rule(r) for r in once], [plan_rule(r) for r in general])
+                for number, (once, general) in enumerate(layers)
+            ],
+            edges=[PlanEdge(index[id(e.source)], index[id(e.target)], e.label) for e in edges],
+        )
+
     def infer(
         self,
         base_graph: Graph,
         *,
         inference: Any | None = None,
         schema: Any | None = None,
+        imports_loader: Any | None = None,
     ):
         """Runs this rule set against ``base_graph`` to a fixpoint and
         returns the inferred-triples-only graph (§4.1's ``Infer``) - the
@@ -259,6 +390,12 @@ class RuleSet:
                 feeds inference" relationship SHACL's own
                 ``sh:entailment``-before-rules already has. ``None``
                 (default) runs against ``base_graph`` unchanged.
+            imports_loader: ``loader(iri) -> str | RuleSet``, used to read the
+                documents named by this rule set's ``IMPORTS`` (see
+                :func:`starlayer.sparql.srl.resolve_imports`). There is no default
+                loader, because reading a document has security implications; without
+                one, a rule set that has imports is rejected with
+                ``SRLImportsNotSupportedError``.
             schema: A ``starlayer.shacl.StarShaclSchema`` instance, or a
                 bare SHACL shapes graph, to validate the inferred result
                 against. A bare shapes graph is wrapped in a throwaway
@@ -282,7 +419,7 @@ class RuleSet:
         if inference is not None:
             base_graph = base_graph.infer(entailment=inference, mode="full")
 
-        inferred = srl_eval._srl_infer(base_graph, self)
+        inferred = srl_eval._srl_infer(base_graph, self._with_imports_resolved(imports_loader))
 
         if schema is None:
             return inferred
@@ -299,6 +436,7 @@ class RuleSet:
         goal_pattern: TriplePattern,
         *,
         inference: Any | None = None,
+        imports_loader: Any | None = None,
     ) -> list[dict]:
         """Runs :meth:`infer` then returns every match of
         ``goal_pattern`` against ``base_graph`` union the inferred triples
@@ -312,6 +450,7 @@ class RuleSet:
                 applied to ``base_graph`` before the rule set runs. There
                 is no ``schema=`` here - this method returns rows, not a
                 graph, so there is nothing to validate.
+            imports_loader: Same meaning as :meth:`infer`'s own ``imports_loader=``.
 
         Returns:
             One ``dict[Variable, term]`` solution per match.
@@ -321,4 +460,4 @@ class RuleSet:
         if inference is not None:
             base_graph = base_graph.infer(entailment=inference, mode="full")
 
-        return srl_eval._srl_query(base_graph, self, goal_pattern)
+        return srl_eval._srl_query(base_graph, self._with_imports_resolved(imports_loader), goal_pattern)

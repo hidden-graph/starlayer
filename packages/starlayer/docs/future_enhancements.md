@@ -241,6 +241,46 @@ built 2026-09-30.
 
 ---
 
+## SRL follow-ups (spec draft 2026-10-14)
+
+*(Added 2026-10-17, from diffing `WD-sparql12-rl-20260919` against `WD-sparql12-rl-20261014`; what was fixed is in `starlayer/sparql/CLAUDE.md`.)* The 03b guide has a matching "Not yet covered" section to fill in as the open items land.
+
+**Open**
+1. **Aggregation (Issue 840).** *Trigger:* the draft gains grammar in §7.6 (today it has none) and a finished `evalAggregate`. *Then:* add the aggregation element to `_srl_ast.py`; the well-formedness conditions (keys in scope, aggregation variables distinct and new, functions over the pattern's variables); dependencies (the aggregation pattern is a closed dependency, and aggregation rules are run-once); the grammar and `ruleset_to_text`; the `srl:` RDF encoding and its SHACL shapes; evaluation (`COUNT`, `COUNT DISTINCT`, `MIN`, `MAX`, `SUM`; an error in a group drops that group); a guide section. *Until then:* an aggregate inside `FILTER` or `SET` is rejected at parse time.
+2. **SRL-to-SPARQL translation (Issue 1303, Appendix A).** A placeholder in the draft; a worked algorithm would also give a way to run rule sets on a SPARQL engine.
+3. **Re-diff the draft when it changes** (`/TR/sparql12-rl/` is a moving working draft); the date in the module docstrings and notes should follow.
+
+**Resolved 2026-10-17**
+- *`IMPORTS`.* Supported through a caller-supplied loader (`srl.resolve_imports`, `imports_loader=` on `infer()`/`query()`/`plan()`); import-once and the Appendix B merge as specified. No default loader on purpose (reading documents has security implications). Possible later additions: a ready-made directory loader, and caching of loaded documents.
+- *Property paths in rule bodies.* The spec allows only `/` and `^` (§5, §7.6) and says arbitrary-length paths are written with recursion; both are supported, expanded into triple patterns when the rule is built, and every other operator is rejected with a clear message. Kept strict on purpose (decision 2026-10-17): no `|`, `*`, `+`, `?` or `!` extension.
+- *Triple terms in rule text.* `<<( s p o )>>`, reified triples, reifiers and annotations parse, render, round-trip through RDF and evaluate, in bodies, heads and DATA blocks; `,` lists, `[ ]` and collections came with them. See `starlayer/sparql/CLAUDE.md`.
+- *`parse_ruleset()` validates against the `srl:` shapes.* On by default, with `validate=False` to skip it. It costs about 140 ms per parse (the shapes run over the rule set's RDF encoding); that cost is accepted. Decision (2026-10-17): shapes are not re-implemented in Python to make this faster. Any speed-up has to come from the SHACL validator itself (a generic fast path), not from a hand-written copy of one shapes graph.
+- *`data` renamed to the spec's `evaldata`, with the spec's polarity.* In the AST, the parser, evaluation, the `srl:` vocabulary (`srl:ruleEvaldata`/`srl:negationEvaldata`), the shapes, the published `.ttl` files and the 05c guide; no compatibility layer, so RDF written with `srl:ruleData`/`srl:negationData` no longer decodes.
+- *rdflib `xsd:integer()` of a decimal/double/boolean was an error* (the spec's Examples 9 and 10 depend on it). Patched in `operator_patches.py` and recorded in `docs/upstream-issues/rdflib-upstream-issues.md` (item 7, not filed). The Examples now infer `:B :distanceKilometers 16`.
+- *Blank-node rule ids.* The abstract syntax allows them, but the grammar (§7.6, `Rule ::= 'RULE' iri? ...`) only has an IRI, so there is no text syntax to add. The RDF encoding can already carry one.
+- *Lint-level checks (literal head subject, duplicate rule ids, empty head).* The draft says nothing that forbids them: rule ids only "help identify" a rule, and a template term is "a variable or an RDF term". They stay accepted.
+- *Parse-time stratification check.* The draft puts "check well-formed" and "calculate the dependency graph and stratification" in the *preparation for evaluation*, not in parsing. `parse_ruleset()` checks well-formedness (§4.2) and `plan()`/`infer()` raise `StratificationError`, which matches that split, so it stays as it is.
+
+## Rationalize the three import mechanisms
+
+*(Added 2026-10-17, after adding `IMPORTS` to SRL.)* The project now resolves imports in three places that were built separately, and they differ in naming and loader contract:
+
+| | where | loader argument | loader returns | an import it cannot load |
+|---|---|---|---|---|
+| `owl:imports` on a graph | `StarLayerGraph.resolve_imports()` | `loader=` | a graph, or `None` | skipped, no error |
+| `owl:imports` in SHACL validation | `validate(shapes_graph_loader=, ignore_imports=)` | `shapes_graph_loader=` | a graph, or `None` | skipped, no error |
+| SRL `IMPORTS` | `srl.resolve_imports()`; `imports_loader=` on `RuleSet.infer()`/`.query()`/`.plan()` | `loader` (positional) / `imports_loader=` | SRL text or a `RuleSet` | `SRLImportError` |
+
+The differences in error policy and in the merge (graph union with `owl:versionIRI` identity, against rules appended plus an RDF merge of `DATA` with blank nodes renamed) come from the specs and should stay. A single generic resolver is not worth it: its core is a visited set and a queue, about 15 lines, and the parsing step, the merge and the missing-import policy would all have to be parameters.
+
+**To rationalize**
+1. **Loader names.** Settle on one name for a loader argument across the three (`loader=` is the one `StarLayerGraph.resolve_imports()` already uses), and decide whether the SRL positional `loader` becomes keyword-only.
+2. **Shared loaders.** Reading a document has security implications in all three, yet each caller writes its own loader today. Provide a small shared set so the safe choice is the easy one: a directory-confined loader, an allowlist-of-IRIs loader, and the bundled-files loader that already exists as `starontology.local_loader` (it returns graphs; SRL needs text or a `RuleSet`, so a thin adapter or a text variant is needed).
+3. **Document the contract once**: what a loader receives (an IRI string or a `URIRef`), what it may return, what happens on failure, and that none of them has a default.
+4. **Optional:** caching of loaded documents across calls, if resolving the same libraries repeatedly turns out to be slow.
+
+*Not planned:* extracting the visited-set traversal into a shared helper, and changing the OWL/SHACL skip-on-failure behavior.
+
 ## Before publishing: clean-up checklist
 
 *(Added 2026-10-17.)* Generated and hand-copied material goes stale as the code changes. Before a release or a doc publish, work through this list. None of it is automated yet; deciding which steps to fold into one script is itself a follow-up.
@@ -250,7 +290,7 @@ built 2026-09-30.
 3. **Republish the starontology standalone files**: `python scripts/publish_starontology_files.py`. It is not byte-stable, so check the diff is real before committing, and confirm `shacl_meta` still equals `build_meta_shapes_graph()`.
 4. **Refresh the widget appendix in `docs/guides/04d-shacl-ui.ipynb`.** The appendix is a deliberately *static* markdown table; the guide does not generate it when run. If the shipped widget descriptions change, regenerate it with the snippet below and paste the output over the appendix cell. The guide expects 16 editors and 10 viewers.
 5. **Re-execute every guide** so the stored outputs are current: `BROWSER=true python -m jupyter nbconvert --to notebook --execute --inplace docs/guides/<guide>.ipynb` (`BROWSER=true` stops the UI guide opening pages).
-6. **Run the test tiers**: the fast tier, the integration tier (live servers), and `pytest --store-matrix` for the W3C suites across every store.
+6. **Run the test tiers**: the fast tier, the integration tier (live servers), `pytest --store-matrix` for the W3C suites across every store, and `pytest --srl-stratification` for the extended SRL stratification checks (both are opt-in groups, see `tests/conftest.py`).
 7. **Check the docs for stale claims**: counts (widgets, triples, tests), spec citations and dates, and the upstream-issue links.
 
 Snippet that produced the 04d appendix tables (run from `packages/starlayer`):

@@ -1,4 +1,4 @@
-"""SRL/SPARQL-RL §4.2 "Well-formedness Conditions" - e.g. ``SET(...)`` must
+"""SRL §4.2 "Well-formedness Conditions" - e.g. ``SET(...)`` must
 not reuse an already-bound variable, and every filter/assignment/head
 variable must be bound. These conditions are cross-referential and
 sequence-position-dependent (whether a variable is "already bound" depends
@@ -33,19 +33,26 @@ from rdflib import Variable
 from rdflib.plugins.sparql import algebra
 
 from . import _srl_ast as srl_ast
+from .triple_term import TripleTermNode
 
 
 @dataclass(frozen=True)
 class _SRLWellFormednessIssue:
-    rule: srl_ast._Rule
+    rule: srl_ast._Rule | None  # None for an issue in a rule set's DATA block
     kind: str  # "unbound_filter_variable" | "unbound_assignment_expr_variable"
-    # | "reused_assignment_variable" | "unbound_head_variable"
-    variable: Variable
+    # | "reused_assignment_variable" | "unbound_head_variable" | "aggregate_in_expression"
+    # | "triple_term_in_subject" | "triple_term_in_predicate" | "variable_in_data"
+    variable: Variable | None  # None when the issue is not about one variable
     context: str
 
 
 def _term_vars(term) -> set[Variable]:
-    return {term} if isinstance(term, Variable) else set()
+    """Variables in ``term``, looking inside triple terms at any depth."""
+    if isinstance(term, Variable):
+        return {term}
+    if isinstance(term, TripleTermNode):
+        return set().union(*(_term_vars(term.get(part)) for part in ("subject", "predicate", "object")))
+    return set()
 
 
 def _triple_vars(triple: srl_ast.TriplePattern) -> set[Variable]:
@@ -70,6 +77,22 @@ def _expr_vars(expr) -> set[Variable]:
     def _visit(node):
         if isinstance(node, Variable):
             found.add(node)
+        return None
+
+    algebra.traverse(expr, visitPost=_visit)
+    return found
+
+
+def _has_aggregate(expr) -> bool:
+    """True if an ``Aggregate_*`` node (COUNT, SUM, ...) occurs anywhere in ``expr``.
+    Aggregation is a separate rule element in SRL (still an open issue),
+    never a function inside ``FILTER`` or ``SET``."""
+    found = False
+
+    def _visit(node):
+        nonlocal found
+        if str(getattr(node, "name", "")).startswith("Aggregate_"):
+            found = True
         return None
 
     algebra.traverse(expr, visitPost=_visit)
@@ -106,10 +129,14 @@ def _check_sequence(
             # own (empty) varsi contribution.
             for v in _expr_vars(elt.expr) - v_current:
                 issues.append(_SRLWellFormednessIssue(rule, "unbound_filter_variable", v, "FILTER"))
+            if _has_aggregate(elt.expr):
+                issues.append(_SRLWellFormednessIssue(rule, "aggregate_in_expression", None, "FILTER"))
             # varsi = {} for a filter element - v_current unchanged.
         elif isinstance(elt, srl_ast._AssignmentElement):
             for v in _expr_vars(elt.expr) - v_current:
                 issues.append(_SRLWellFormednessIssue(rule, "unbound_assignment_expr_variable", v, "SET(...)"))
+            if _has_aggregate(elt.expr):
+                issues.append(_SRLWellFormednessIssue(rule, "aggregate_in_expression", None, "SET(...)"))
             if elt.var in v_current:
                 issues.append(_SRLWellFormednessIssue(rule, "reused_assignment_variable", elt.var, "SET(...)"))
             # varsi = {the assignment variable}, regardless of whether the
@@ -129,11 +156,41 @@ def _check_sequence(
     return v_current
 
 
+def _triples_of(rule: srl_ast._Rule) -> list[srl_ast.TriplePattern]:
+    """Every triple pattern or template in ``rule``: head, body and negation bodies."""
+    found = list(rule.head)
+
+    def _element(e) -> None:
+        if isinstance(e, srl_ast.TriplePattern):
+            found.append(e)
+        elif isinstance(e, srl_ast._NegationElement):
+            for inner in e.inner:
+                _element(inner)
+
+    for e in rule.body:
+        _element(e)
+    return found
+
+
+def _check_triple_term_positions(
+    rule: srl_ast._Rule | None, triples: list[srl_ast.TriplePattern], issues: list[_SRLWellFormednessIssue]
+) -> None:
+    """RDF 1.2: a triple term is only ever legal as the object of a triple, never
+    as its subject or predicate."""
+    for t in triples:
+        for position, term in (("subject", t.subject), ("predicate", t.predicate)):
+            if isinstance(term, TripleTermNode):
+                issues.append(
+                    _SRLWellFormednessIssue(rule, "triple_term_in_" + position, None, "triple pattern")
+                )
+
+
 def _check_rule(rule: srl_ast._Rule) -> list[_SRLWellFormednessIssue]:
     """§4.2: is ``rule`` a well-formed rule? Its body must be a well-formed
     sequence given V0 = the empty set, and every variable in a head triple
     template must be in the body's own ``Vall``."""
     issues: list[_SRLWellFormednessIssue] = []
+    _check_triple_term_positions(rule, _triples_of(rule), issues)
     v_all = _check_sequence(rule.body, set(), rule, issues)
     for template in rule.head:
         for v in _triple_vars(template):
@@ -149,4 +206,10 @@ def _check_ruleset(ruleset: srl_ast.RuleSet) -> list[_SRLWellFormednessIssue]:
     issues: list[_SRLWellFormednessIssue] = []
     for rule in ruleset.rules:
         issues.extend(_check_rule(rule))
+    for block in ruleset.data:
+        _check_triple_term_positions(None, block.triples, issues)
+        # a DATA block holds ground facts: the grammar (§7.6) does not allow a variable in one
+        for t in block.triples:
+            for v in sorted(_term_vars(t.subject) | _term_vars(t.predicate) | _term_vars(t.object)):
+                issues.append(_SRLWellFormednessIssue(None, "variable_in_data", v, "DATA block"))
     return issues

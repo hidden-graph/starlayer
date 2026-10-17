@@ -24,19 +24,19 @@ _MODE_OPTIONS: dict[str, dict[str, Any]] = {
     "validation": {
         "advanced": True,
         "inplace": False,
-        "meta_shacl": True,
+        "meta_shacl": False,
     },
     "rules": {
         "advanced": True,
         "iterate_rules": True,
         "inplace": True,
-        "meta_shacl": True,
+        "meta_shacl": False,
     },
     "debug": {
         "advanced": True,
         "inplace": False,
         "debug": True,
-        "meta_shacl": True,
+        "meta_shacl": False,
     },
 }
 

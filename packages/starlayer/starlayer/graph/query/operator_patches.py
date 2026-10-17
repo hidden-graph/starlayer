@@ -6,7 +6,7 @@ test suite's Node Expressions and Rules fixtures
 bug reproduces against plain ``rdflib.Graph().query()`` with no
 starlayer.graph/pySHACL involvement.
 
-Both patches follow the same idempotent apply-once pattern used elsewhere
+Every patch here follows the same idempotent apply-once pattern used elsewhere
 in this project for third-party monkeypatches: a module-level
 ``_xxx_patch_status: bool | None`` flag plus a marker attribute on the
 patched callable, so repeated calls (e.g. from multiple import sites) are
@@ -219,10 +219,63 @@ def patch_decimal_result_lexical_form() -> bool:
     return _decimal_result_lexical_form_patch_status
 
 
+_integer_cast_patch_status: bool | None = None
+
+
+def patch_integer_cast_from_numeric_and_boolean() -> bool:
+    """Fix a confirmed rdflib bug: ``xsd:integer(x)`` casts through
+    ``int(<lexical form>)``, so a cast from an ``xsd:decimal``, ``xsd:double``,
+    ``xsd:float`` or ``xsd:boolean`` is an error (``xsd:integer(16.0934)``,
+    ``xsd:integer(true)``) although SPARQL 1.1 §17.5 (via XPath casting) allows
+    each of these: a number is truncated toward zero, ``true`` is 1 and
+    ``false`` is 0. ``NaN`` and the infinities stay errors. A string argument
+    is still cast from its lexical form, so ``xsd:integer("16.0934")``
+    remains an error, as it should.
+
+    Wraps rdflib's registered ``xsd:integer`` cast, handling only those source
+    types and deferring to the original for everything else. Idempotent and
+    defensive, like the other patches in this module.
+    """
+    global _integer_cast_patch_status
+    if _integer_cast_patch_status is not None:
+        return _integer_cast_patch_status
+
+    try:
+        from rdflib.plugins.sparql import operators as rdflib_operators
+
+        original, raw = rdflib_operators._CUSTOM_FUNCTIONS[XSD.integer]
+        if getattr(original, "_starlayer_graph_integer_cast_patch", False):
+            _integer_cast_patch_status = True
+            return True
+
+        def _patched_integer_cast(e, ctx):
+            args = e.expr
+            if args and len(args) == 1 and isinstance(args[0], Literal):
+                arg = args[0]
+                if arg.datatype in (XSD.decimal, XSD.double, XSD.float):
+                    value = arg.toPython()
+                    try:
+                        return Literal(int(value), datatype=XSD.integer)
+                    except (ValueError, OverflowError, TypeError, InvalidOperation):
+                        raise SPARQLError(f"Cannot cast {arg!r} to xsd:integer") from None
+                if arg.datatype == XSD.boolean:
+                    return Literal(int(bool(arg.toPython())), datatype=XSD.integer)
+            return original(e, ctx)
+
+        _patched_integer_cast._starlayer_graph_integer_cast_patch = True  # type: ignore[attr-defined]
+        rdflib_operators.register_custom_function(XSD.integer, _patched_integer_cast, override=True, raw=True)
+        _integer_cast_patch_status = True
+    except Exception:
+        _integer_cast_patch_status = False
+
+    return _integer_cast_patch_status
+
+
 def apply_all_operator_patches() -> None:
-    """Apply both patches. Called eagerly from ``starlayer.graph/__init__.py`` so
+    """Apply every patch in this module. Called eagerly from ``starlayer.graph/__init__.py`` so
     every consumer of this package gets spec-correct arithmetic, regardless
     of whether they use any triple-term-specific feature.
     """
     patch_multiplicative_expression_type_promotion()
     patch_decimal_result_lexical_form()
+    patch_integer_cast_from_numeric_and_boolean()

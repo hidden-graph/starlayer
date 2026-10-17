@@ -4,8 +4,9 @@ Graph().query() calls - see starlayer.graph/query/operator_patches.py for the
 root-cause writeups.
 """
 
+import pytest
 import starlayer.graph  # noqa: F401  (import-time patch application under test)
-from rdflib import XSD, Graph
+from rdflib import XSD, Graph, Literal
 
 
 def _eval(query: str):
@@ -62,3 +63,46 @@ class TestDecimalResultLexicalForm:
         result = _eval("SELECT (ABS(-5) AS ?r) WHERE {}")
         assert str(result) == "5"
         assert result.datatype == XSD.integer
+
+
+class TestIntegerCastFromNumericAndBoolean:
+    """``xsd:integer()`` of a decimal, double, float or boolean (rdflib casts via the lexical form and errors)."""
+
+    @staticmethod
+    def _cast(argument: str):
+        # COALESCE turns an evaluation error into a visible marker instead of an unbound variable
+        return _eval(
+            "PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>\n"
+            f'SELECT (COALESCE(xsd:integer({argument}), "ERROR") AS ?r) WHERE {{}}'
+        )
+
+    @pytest.mark.parametrize(
+        "argument, expected",
+        [
+            ("16.0934", 16),
+            ("-2.7", -2),  # truncates toward zero
+            ("16.0", 16),
+            ("1.5e0", 1),  # xsd:double
+            ("true", 1),
+            ("false", 0),
+        ],
+    )
+    def test_cast_succeeds(self, argument: str, expected: int) -> None:
+        result = self._cast(argument)
+        assert result == Literal(expected, datatype=XSD.integer)
+
+    @pytest.mark.parametrize("argument", ['"16.0934"', 'xsd:double("NaN")', 'xsd:double("INF")', '"abc"'])
+    def test_cast_that_should_stay_an_error(self, argument: str) -> None:
+        assert str(self._cast(argument)) == "ERROR"
+
+    @pytest.mark.parametrize("argument, expected", [("7", 7), ('"7"', 7), ("-3", -3)])
+    def test_existing_integer_and_string_casts_are_unchanged(self, argument: str, expected: int) -> None:
+        assert self._cast(argument) == Literal(expected, datatype=XSD.integer)
+
+    def test_apply_is_idempotent(self) -> None:
+        from starlayer.graph.query.operator_patches import (
+            patch_integer_cast_from_numeric_and_boolean,
+        )
+
+        assert patch_integer_cast_from_numeric_and_boolean() is True
+        assert patch_integer_cast_from_numeric_and_boolean() is True

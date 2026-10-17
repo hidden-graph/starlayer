@@ -15,7 +15,7 @@
       "docs/guides/02c-owl-dl-reasoning.ipynb",
       "docs/guides/03-sparql.ipynb",
       "docs/guides/03a-sparql-entailment.ipynb",
-      "docs/guides/03b-sparql-rules.ipynb",
+      "docs/guides/03b-srl-sparql-rules.ipynb",
       "docs/guides/04-shacl-shapes.ipynb",
       "docs/guides/04a-shacl-node-expressions.ipynb",
       "docs/guides/04b-shacl-and-sparql.ipynb",
@@ -26,7 +26,7 @@
       "docs/guides/05-starlayer-schemas-and-ontologies.ipynb",
       "docs/guides/05a-manchester-syntax.ipynb",
       "docs/guides/05b-sparql-query-as-rdf.ipynb",
-      "docs/guides/05c-sparql-rules-as-rdf.ipynb",
+      "docs/guides/05c-srl-sparql-rules-as-rdf.ipynb",
       "docs/guides/06a-serialization-formats.ipynb",
       "docs/guides/06b-backend-graph-databases.ipynb",
       "docs/guides/06c-canonical-hashing.ipynb"

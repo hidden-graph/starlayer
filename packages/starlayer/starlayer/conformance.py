@@ -91,7 +91,7 @@ rather than assuming the original seven were exhaustive**:
   "already conforms to everything it needs... deliberate design
   choices, not gaps", with three small, already-documented optional
   loose ends.
-- **SPARQL 1.2 RL (SRL)** - ``starlayer.sparql``. A full grammar/syntax-tree/
+- **SRL (SPARQL Rules)** - ``starlayer.sparql``. A full grammar/syntax-tree/
   SHACL-shapes/stratified-Datalog-evaluation engine, verified
   end-to-end by reproducing the spec's own S6.6 worked example exactly.
   Documented, deliberate grammar scope reductions (no ``,``-chained
@@ -179,7 +179,7 @@ GRAPH_EXTRA_TR_URLS = (
     "https://www.w3.org/TR/sparql12-protocol",
 )
 
-# SPARQL 1.2 RL (SRL) - starlayer.sparql's own domain.
+# SRL (SPARQL Rules) - starlayer.sparql's own domain.
 SPARQL_EXTRA_TR_URLS = ("https://www.w3.org/TR/sparql12-rl",)
 
 
@@ -198,7 +198,7 @@ def declared_conformance() -> Graph:
     Regime IRI (reused directly from ``entailment_regimes.SUPPORTED_REGIMES``,
     not hand-copied - the three genuinely unimplemented regimes are simply
     never added, no document-level claim is made for that spec as a whole).
-    On ``starlayer.sparql``'s own resource: SPARQL 1.2 RL.
+    On ``starlayer.sparql``'s own resource: SRL.
 
     A fresh graph on every call (matching ``declared_conformance_profile()``'s
     own "never share one mutable graph object across callers" convention -
