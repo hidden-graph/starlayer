@@ -116,11 +116,10 @@ def declared_conformance_profile() -> StarLayerGraph:
         A fresh StarLayerGraph containing the bundled conformance
         statement.
     """
+    from starlayer import starontology
     from starlayer.graph import (
         StarLayerGraph,  # lazy: avoids a circular-import deadlock
     )
-
-    from starlayer import starontology
 
     whole = starontology.get_conformance_profiles()
     graph = StarLayerGraph()

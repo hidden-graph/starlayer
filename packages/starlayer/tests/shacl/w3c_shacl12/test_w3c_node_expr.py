@@ -34,8 +34,8 @@ from .manifest import (  # noqa: E402
     iter_manifest_entries,
     load_document,
 )
-from .stores import oxigraph_store, oxigraph_store_graph  # noqa: E402
 from .namespaces import MF, SHNEX, SHT  # noqa: E402
+from .stores import oxigraph_store, oxigraph_store_graph  # noqa: E402
 
 VENDOR_ROOT = Path(__file__).resolve().parents[1] / "vendor" / "shacl12-test-suite"
 TOP_MANIFEST = VENDOR_ROOT / "tests" / "manifest.ttl"

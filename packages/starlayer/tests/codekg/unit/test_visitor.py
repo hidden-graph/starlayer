@@ -11,7 +11,6 @@ from pathlib import Path
 
 from rdflib import Literal, URIRef
 from rdflib.namespace import DCTERMS, RDF, RDFS
-
 from starlayer.codekg import CODEKG_NS, EXTERNALTYPE_NS
 from starlayer.codekg.extractor.symbol_index import build_symbol_index, module_identity
 from starlayer.codekg.extractor.visitor import extract_module
@@ -1048,7 +1047,10 @@ class TestExtractingTestsRoot:
         return path
 
     def test_test_file_extracts_with_tests_dotted_prefix(self, tmp_path):
-        from starlayer.codekg.extractor.symbol_index import build_symbol_index, module_identity
+        from starlayer.codekg.extractor.symbol_index import (
+            build_symbol_index,
+            module_identity,
+        )
 
         path = self._write_under_tests(tmp_path, "unit/test_thing.py", "def test_it():\n    assert True\n")
         index = build_symbol_index([path], tmp_path)
@@ -1063,7 +1065,10 @@ class TestExtractingTestsRoot:
         gets an ordinary slkg:calls edge, exactly like a source-to-source
         call - test↔function linkage falls out of the same call-graph
         machinery with no special-casing."""
-        from starlayer.codekg.extractor.symbol_index import build_symbol_index, module_identity
+        from starlayer.codekg.extractor.symbol_index import (
+            build_symbol_index,
+            module_identity,
+        )
 
         src_path = tmp_path / "packages" / "starlayer" / "starlayer" / "pkg" / "mod.py"
         src_path.parent.mkdir(parents=True, exist_ok=True)

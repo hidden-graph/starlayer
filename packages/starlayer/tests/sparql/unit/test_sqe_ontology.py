@@ -21,7 +21,7 @@ elsewhere in this package:
 """
 
 import pytest
-from rdflib import BNode, Literal, RDF, URIRef
+from rdflib import RDF, BNode, Literal, URIRef
 from rdflib.plugins.sparql.evaluate import evalQuery
 from rdflib.plugins.sparql.processor import prepareQuery
 from starlayer.sparql.sqe import (

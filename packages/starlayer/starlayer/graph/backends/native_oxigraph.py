@@ -98,7 +98,7 @@ def ox_select(store, sparql: str) -> tuple[list, list]:
     bindings = []
     for sol in solutions:
         binding = {}
-        for rdf_var, native_var in zip(vars_, native_vars):
+        for rdf_var, native_var in zip(vars_, native_vars, strict=True):
             raw = sol[native_var]
             if raw is not None:
                 binding[rdf_var] = _parse_ox_term(raw)

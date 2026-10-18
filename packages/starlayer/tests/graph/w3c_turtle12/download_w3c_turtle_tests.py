@@ -153,7 +153,7 @@ def main() -> None:
 
     # Write referenced files - always overwrite, the source is pinned.
     written = 0
-    for category, (test_name, test_type, ttl_file, nt_file) in all_tests:
+    for category, (test_name, _test_type, ttl_file, nt_file) in all_tests:
         files = by_category[category]
         for fname in (ttl_file, nt_file):
             if not fname:

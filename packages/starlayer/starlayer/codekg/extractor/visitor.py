@@ -547,7 +547,7 @@ def _emit_parameters(
     if args.vararg is not None:
         _emit_one_parameter(args.vararg, "vararg", None, None, fn_iri, ctx, documented_params)
 
-    for arg, kw_default in zip(args.kwonlyargs, args.kw_defaults):
+    for arg, kw_default in zip(args.kwonlyargs, args.kw_defaults, strict=True):
         _emit_one_parameter(arg, "kwonly", position, kw_default, fn_iri, ctx, documented_params)
         position += 1
 

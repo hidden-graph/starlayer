@@ -15,7 +15,6 @@ from pathlib import Path
 
 from rdflib import Literal, URIRef
 from rdflib.namespace import RDF, RDFS
-
 from starlayer.codekg import BLOB_BASE, CODEKG_NS
 from starlayer.codekg.extractor.build import refresh
 from starlayer.graph.graph.starlayer_dataset import StarLayerDataset

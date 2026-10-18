@@ -12,7 +12,10 @@ copy to "report", rewriting a data node's identity inside the results.
 import pytest
 from rdflib import RDF, BNode, Graph, Literal, URIRef
 from rdflib.namespace import XSD
-from starlayer.shacl.validator import _find_genuine_report_node, _relabel_validation_report_node
+from starlayer.shacl.validator import (
+    _find_genuine_report_node,
+    _relabel_validation_report_node,
+)
 
 SH = "http://www.w3.org/ns/shacl#"
 EX = "http://example.org/"

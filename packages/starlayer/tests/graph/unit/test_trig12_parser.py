@@ -14,7 +14,6 @@ docstrings do.
 """
 
 from rdflib import URIRef
-
 from starlayer.graph.parsers.trig12 import (
     _consume_balanced,
     _extract_prefix_lines,

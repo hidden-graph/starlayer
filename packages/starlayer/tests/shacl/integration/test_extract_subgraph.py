@@ -411,9 +411,6 @@ class TestWholeShapesGraphExtraction:
     """
 
     def test_no_filters_unions_every_conforming_entry_point_across_every_shape(self) -> None:
-        from rdflib import Namespace
-
-        EX = Namespace("http://example.org/")
         result = extract_subgraph(_graph(self.DATA), shacl_graph=_graph(self.SHAPES))
         serialized = result.serialize(format="turtle12")
         assert "Alice" in serialized

@@ -20,7 +20,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from starlayer.codekg import BLOB_BASE, CODEKG_TRIG_PATH, CURATED_GRAPH_IRI, ONTOLOGY_GRAPH_IRI, TESTS_BLOB_BASE
+from starlayer.codekg import (
+    BLOB_BASE,
+    CODEKG_TRIG_PATH,
+    CURATED_GRAPH_IRI,
+    ONTOLOGY_GRAPH_IRI,
+    TESTS_BLOB_BASE,
+)
 
 
 def refresh(target_paths: list[Path], repo_root: Path, *, trig_path: Path | None = None) -> None:

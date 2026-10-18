@@ -885,7 +885,6 @@ class TestLongStringWithEmbeddedQuoteOrBlankLine:
 
         from rdflib import Graph
         from rdflib.compare import isomorphic
-
         from starlayer.codekg.extractor import visitor
         from starlayer.graph.serializers.turtle12 import serialize_turtle12
 

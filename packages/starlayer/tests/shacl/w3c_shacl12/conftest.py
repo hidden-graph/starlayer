@@ -9,7 +9,13 @@ from .known_failures import (
     KNOWN_FAILURES_OXIGRAPH_HTTP,
     KNOWN_FAILURES_OXIGRAPH_PERSISTED,
 )
-from .stores import OTHER_STORES, http_engine_available, http_store, oxigraph_store_installed, persisted_oxigraph_store
+from .stores import (
+    OTHER_STORES,
+    http_engine_available,
+    http_store,
+    oxigraph_store_installed,
+    persisted_oxigraph_store,
+)
 
 
 @pytest.fixture(params=OTHER_STORES)

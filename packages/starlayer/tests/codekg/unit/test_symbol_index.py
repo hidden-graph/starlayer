@@ -13,8 +13,11 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-
-from starlayer.codekg.extractor.symbol_index import build_symbol_index, module_identity, resolve_root
+from starlayer.codekg.extractor.symbol_index import (
+    build_symbol_index,
+    module_identity,
+    resolve_root,
+)
 
 
 def _write(repo_root: Path, rel_path: str, source: str) -> Path:
