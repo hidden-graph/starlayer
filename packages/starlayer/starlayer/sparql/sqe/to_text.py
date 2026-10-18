@@ -26,7 +26,7 @@ directly get prefix-aware treatment.
 
 from __future__ import annotations
 
-from rdflib import BNode, Graph, Literal, URIRef
+from rdflib import BNode, Graph, Literal, URIRef, Variable
 from rdflib.collection import Collection
 from rdflib.namespace import RDF
 
@@ -38,14 +38,21 @@ from .vocab import (
     BIND,
     BIND_VAR,
     CONSTRUCT_QUERY,
+    DISTINCT,
     EXPR,
     FILTER,
+    LIMIT,
+    OFFSET,
     OPTIONAL,
+    ORDER_BY,
+    ORDER_DESCENDING,
     PREFIX_LABEL,
     PREFIX_NAMESPACE,
     PROJECTION,
     PROLOGUE_BASE,
     PROLOGUE_PREFIX,
+    REDUCED,
+    SELECT_ALL,
     SELECT_QUERY,
     TEMPLATE,
     TRIPLE_PATTERN,
@@ -85,8 +92,16 @@ def sqe_tree_to_text(graph: Graph, root) -> str:
         lines.append(f"BASE <{base}>")
 
     if keyword == "SELECT":
-        var_names = [str(v) for v in Collection(graph, graph.value(root, PROJECTION))]
-        lines.append(f"SELECT {' '.join('?' + v for v in var_names)}")
+        modifier = (
+            "DISTINCT " if graph.value(root, DISTINCT) is not None
+            else "REDUCED " if graph.value(root, REDUCED) is not None
+            else ""
+        )
+        if graph.value(root, SELECT_ALL) is not None:
+            lines.append(f"SELECT {modifier}*")
+        else:
+            var_names = [str(v) for v in Collection(graph, graph.value(root, PROJECTION))]
+            lines.append(f"SELECT {modifier}{' '.join('?' + v for v in var_names)}")
     elif keyword == "CONSTRUCT":
         template_list = graph.value(root, TEMPLATE)
         template_nodes = list(Collection(graph, template_list)) if template_list is not None else []
@@ -96,7 +111,31 @@ def sqe_tree_to_text(graph: Graph, root) -> str:
         lines.append("ASK")
 
     lines.append(f"WHERE {_where_group_text(graph.value(root, WHERE), graph, prefixes)}")
+    lines.extend(_solution_modifier_lines(graph, root))
     return "\n".join(lines)
+
+
+def _solution_modifier_lines(graph: Graph, root) -> list:
+    lines = []
+    order_list = graph.value(root, ORDER_BY)
+    if order_list is not None:
+        parts = []
+        for node in Collection(graph, order_list):
+            expr = _decode(graph.value(node, EXPR), graph)
+            text = f"?{expr}" if isinstance(expr, Variable) else _render_expr_text(expr)
+            if graph.value(node, ORDER_DESCENDING) is not None:
+                parts.append(f"DESC({text})")
+            elif isinstance(expr, Variable):
+                parts.append(text)
+            else:
+                parts.append(f"ASC({text})")
+        lines.append("ORDER BY " + " ".join(parts))
+    limit, offset = graph.value(root, LIMIT), graph.value(root, OFFSET)
+    if limit is not None:
+        lines.append(f"LIMIT {int(limit)}")
+    if offset is not None:
+        lines.append(f"OFFSET {int(offset)}")
+    return lines
 
 
 def _keyword_for_root(graph: Graph, root) -> str:

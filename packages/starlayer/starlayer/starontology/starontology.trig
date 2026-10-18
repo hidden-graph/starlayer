@@ -4789,6 +4789,9 @@ starontology:sqe-ontology.ttl {
     sqe:Optional a rdfs:Class ;
         rdfs:comment "An OPTIONAL { ... } block - sqe:where -> its own nested flat pattern list." .
 
+    sqe:OrderCondition a rdfs:Class ;
+        rdfs:comment "One ORDER BY condition - sqe:expr -> a variable or expression; sqe:descending true for DESC(...), absent for ascending." .
+
     sqe:TriplePattern a rdfs:Class ;
         rdfs:comment "One (subject, predicate, object) triple pattern - exactly one of each, via sqe:subject/sqe:predicate/sqe:object. A predicate that's a real property path falls back to the existing salg: path encoding." .
 
@@ -4801,16 +4804,40 @@ starontology:sqe-ontology.ttl {
     sqe:alternatives a rdf:Property ;
         rdfs:domain sqe:Union .
 
+    sqe:descending a rdf:Property ;
+        rdfs:domain sqe:OrderCondition .
+
+    sqe:distinct a rdf:Property ;
+        rdfs:comment "true for SELECT DISTINCT." ;
+        rdfs:domain sqe:SelectQuery .
+
     sqe:expr a rdf:Property ;
         rdfs:domain sqe:Filter .
 
+    sqe:limit a rdf:Property ;
+        rdfs:comment "LIMIT n (xsd:integer), on a SELECT or CONSTRUCT root." .
+
     sqe:object a rdf:Property ;
         rdfs:domain sqe:TriplePattern .
+
+    sqe:offset a rdf:Property ;
+        rdfs:comment "OFFSET n (xsd:integer), on a SELECT or CONSTRUCT root." .
+
+    sqe:orderBy a rdf:Property ;
+        rdfs:comment "ORDER BY: a flat rdf:List of sqe:OrderCondition, on a SELECT or CONSTRUCT root." .
 
     sqe:predicate a rdf:Property ;
         rdfs:domain sqe:TriplePattern .
 
     sqe:projection a rdf:Property ;
+        rdfs:domain sqe:SelectQuery .
+
+    sqe:reduced a rdf:Property ;
+        rdfs:comment "true for SELECT REDUCED." ;
+        rdfs:domain sqe:SelectQuery .
+
+    sqe:selectAll a rdf:Property ;
+        rdfs:comment "true for SELECT *; replaces sqe:projection." ;
         rdfs:domain sqe:SelectQuery .
 
     sqe:subject a rdf:Property ;
@@ -4828,10 +4855,10 @@ starontology:sqe-ontology.ttl {
     sqe:ConstructQuery rdfs:comment "A CONSTRUCT query's root. sqe:template -> rdf:List of sqe:TriplePattern; sqe:where -> the flat pattern list." ;
         rdfs:subClassOf sqe:Query .
 
+    sqe:Query rdfs:comment "The root of any encoded sqe: query, of any form - also typed sqe:Query regardless of query form, see to_rdf.query_to_sqe_rdf." .
+
     sqe:SelectQuery rdfs:comment "A SELECT query's root. sqe:projection -> rdf:List of sqe:Variable-tagged Literals; sqe:where -> the flat pattern list." ;
         rdfs:subClassOf sqe:Query .
-
-    sqe:Query rdfs:comment "The root of any encoded sqe: query, of any form - also typed sqe:Query regardless of query form, see to_rdf.query_to_sqe_rdf." .
 }
 
 starontology:sqe_shapes.ttl {
@@ -4843,9 +4870,13 @@ starontology:sqe_shapes.ttl {
             sqe:FilterShape,
             sqe:ObjectOrVariableShape,
             sqe:OptionalShape,
+            sqe:OrderByListShape,
+            sqe:OrderConditionShape,
             sqe:PredicateOrVariableOrPathShape,
             sqe:PrefixBindingShape,
+            sqe:SelectModifierShape,
             sqe:SelectQueryShape,
+            sqe:SolutionModifierShape,
             sqe:SubjectOrVariableShape,
             sqe:TemplateListShape,
             sqe:TriplePatternShape,
@@ -4983,6 +5014,18 @@ starontology:sqe_shapes.ttl {
                 sh:path sqe:where ] ;
         sh:targetClass sqe:Optional .
 
+    sqe:OrderConditionShape a sh:NodeShape ;
+        sh:property [ sh:maxCount 1 ;
+                sh:message "sqe:OrderCondition must have exactly one sqe:expr, a variable or well-formed expression" ;
+                sh:minCount 1 ;
+                sh:node spexpr:ExpressionShape ;
+                sh:path sqe:expr ],
+            [ sh:datatype xsd:boolean ;
+                sh:maxCount 1 ;
+                sh:message "sqe:descending must be a single xsd:boolean" ;
+                sh:path sqe:descending ] ;
+        sh:targetClass sqe:OrderCondition .
+
     sqe:PrefixBindingShape a sh:NodeShape ;
         sh:property [ sh:maxCount 1 ;
                 sh:message "sqe:PrefixBinding must have exactly one sqe:namespace, an IRI" ;
@@ -4997,10 +5040,45 @@ starontology:sqe_shapes.ttl {
                 sh:path sqe:prefixLabel ] ;
         sh:targetClass sqe:PrefixBinding .
 
+    sqe:SelectModifierShape a sh:NodeShape ;
+        sh:property [ sh:datatype xsd:boolean ;
+                sh:maxCount 1 ;
+                sh:message "sqe:selectAll must be a single xsd:boolean" ;
+                sh:path sqe:selectAll ],
+            [ sh:datatype xsd:boolean ;
+                sh:maxCount 1 ;
+                sh:message "sqe:distinct must be a single xsd:boolean" ;
+                sh:path sqe:distinct ],
+            [ sh:datatype xsd:boolean ;
+                sh:maxCount 1 ;
+                sh:message "sqe:reduced must be a single xsd:boolean" ;
+                sh:path sqe:reduced ] ;
+        sh:sparql [ a sh:SPARQLConstraint ;
+                sh:message "A sqe:SelectQuery needs exactly one of sqe:projection (a variable list) or sqe:selectAll (SELECT *)." ;
+                sh:select """
+            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
+            SELECT $this
+            WHERE {
+                {
+                    FILTER NOT EXISTS { $this sqe:projection ?p }
+                    FILTER NOT EXISTS { $this sqe:selectAll ?a }
+                } UNION {
+                    $this sqe:projection ?p ; sqe:selectAll ?a .
+                }
+            }
+        """ ],
+            [ a sh:SPARQLConstraint ;
+                sh:message "A sqe:SelectQuery cannot be both sqe:distinct and sqe:reduced." ;
+                sh:select """
+            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
+            SELECT $this
+            WHERE { $this sqe:distinct ?d ; sqe:reduced ?r . }
+        """ ] ;
+        sh:targetClass sqe:SelectQuery .
+
     sqe:SelectQueryShape a sh:NodeShape ;
         sh:property [ sh:maxCount 1 ;
-                sh:message "sqe:SelectQuery must have exactly one sqe:projection, an rdf:List of Variables" ;
-                sh:minCount 1 ;
+                sh:message "sqe:SelectQuery may have at most one sqe:projection, an rdf:List of Variables" ;
                 sh:path sqe:projection ],
             [ sh:maxCount 1 ;
                 sh:message "sqe:SelectQuery must have exactly one sqe:where, a well-formed pattern list" ;
@@ -5059,6 +5137,24 @@ starontology:sqe_shapes.ttl {
         """ ] ;
         sh:targetClass sqe:SelectQuery .
 
+    sqe:SolutionModifierShape a sh:NodeShape ;
+        sh:property [ sh:maxCount 1 ;
+                sh:message "sqe:orderBy must be a single, well-formed rdf:List of sqe:OrderCondition" ;
+                sh:node sqe:OrderByListShape ;
+                sh:path sqe:orderBy ],
+            [ sh:datatype xsd:integer ;
+                sh:maxCount 1 ;
+                sh:message "sqe:limit must be a single non-negative xsd:integer" ;
+                sh:minInclusive 0 ;
+                sh:path sqe:limit ],
+            [ sh:datatype xsd:integer ;
+                sh:maxCount 1 ;
+                sh:message "sqe:offset must be a single non-negative xsd:integer" ;
+                sh:minInclusive 0 ;
+                sh:path sqe:offset ] ;
+        sh:targetClass sqe:ConstructQuery,
+            sqe:SelectQuery .
+
     sqe:TriplePatternShape a sh:NodeShape ;
         sh:property [ sh:maxCount 1 ;
                 sh:message "sqe:TriplePattern must have exactly one sqe:subject, an IRI/blank node/Variable" ;
@@ -5114,6 +5210,26 @@ starontology:sqe_shapes.ttl {
 
     sqe:ObjectOrVariableShape a sh:NodeShape ;
         sh:or ( [ sh:nodeKind sh:IRI ] [ sh:nodeKind sh:BlankNode ] [ sh:nodeKind sh:Literal ] spexpr:VariableShape ) .
+
+    sqe:OrderByListShape a sh:NodeShape ;
+        sh:sparql [ a sh:SPARQLConstraint ;
+                sh:message "expected a well-formed, non-empty rdf:List of sqe:OrderCondition" ;
+                sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
+            SELECT $this
+            WHERE {
+                {
+                    FILTER ( $this = rdf:nil )
+                } UNION {
+                    FILTER ( $this != rdf:nil )
+                    FILTER NOT EXISTS { $this rdf:first ?head }
+                } UNION {
+                    $this rdf:rest*/rdf:first ?item .
+                    FILTER NOT EXISTS { ?item a sqe:OrderCondition }
+                }
+            }
+        """ ] .
 
     sqe:PredicateOrVariableOrPathShape a sh:NodeShape ;
         sh:or ( [ sh:nodeKind sh:IRI ] spexpr:VariableShape spexpr:PathShape ) .

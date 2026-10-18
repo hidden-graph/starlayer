@@ -106,6 +106,16 @@ PROJECTION = SQE.projection  # SelectQuery only - rdf:List of sqe:Variable-tagge
 TEMPLATE = SQE.template  # ConstructQuery only - flat rdf:List of TriplePattern nodes
 WHERE = SQE.where  # flat, ordered rdf:List of pattern elements
 
+# Solution modifiers (SELECT/CONSTRUCT roots; ASK has none)
+SELECT_ALL = SQE.selectAll  # SELECT * - boolean true; replaces sqe:projection
+DISTINCT = SQE.distinct  # boolean true on a SelectQuery
+REDUCED = SQE.reduced  # boolean true on a SelectQuery
+ORDER_BY = SQE.orderBy  # flat rdf:List of sqe:OrderCondition nodes
+ORDER_CONDITION = SQE.OrderCondition  # .expr -> expression/variable, optional .descending
+ORDER_DESCENDING = SQE.descending  # boolean true for DESC(...)
+LIMIT = SQE.limit  # xsd:integer
+OFFSET = SQE.offset  # xsd:integer
+
 TRIPLE_PATTERN = SQE.TriplePattern
 TRIPLE_PATTERN_SUBJECT = SQE.subject
 TRIPLE_PATTERN_PREDICATE = SQE.predicate

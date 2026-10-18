@@ -63,9 +63,15 @@ from .vocab import (
     BIND,
     BIND_VAR,
     CONSTRUCT_QUERY,
+    DISTINCT,
     EXPR,
     FILTER,
+    LIMIT,
+    OFFSET,
     OPTIONAL,
+    ORDER_BY,
+    ORDER_CONDITION,
+    ORDER_DESCENDING,
     PREFIX_BINDING,
     PREFIX_LABEL,
     PREFIX_NAMESPACE,
@@ -74,6 +80,8 @@ from .vocab import (
     PROLOGUE_PREFIX,
     PY_STR_DATATYPE,
     QUERY,
+    REDUCED,
+    SELECT_ALL,
     SELECT_QUERY,
     TEMPLATE,
     TRIPLE_PATTERN,
@@ -232,6 +240,8 @@ def _query_to_sqe_rdf(
     if root_type is CONSTRUCT_QUERY:
         query.template = traverse(query.template, visitPost=translatePath)
 
+    _reject_unmodeled_query_parts(query)
+
     if graph is None:
         graph = _new_starlayer_graph()
     if root is None:
@@ -239,15 +249,67 @@ def _query_to_sqe_rdf(
     graph.add((root, RDF.type, root_type))
     graph.add((root, RDF.type, QUERY))
     if root_type is SELECT_QUERY:
-        graph.add((root, PROJECTION, _encode_var_list(query.projection, graph)))
+        if query.projection:
+            graph.add((root, PROJECTION, _encode_var_list(query.projection, graph)))
+        else:
+            graph.add((root, SELECT_ALL, Literal(True)))
+        if query.modifier == "DISTINCT":
+            graph.add((root, DISTINCT, Literal(True)))
+        elif query.modifier == "REDUCED":
+            graph.add((root, REDUCED, Literal(True)))
     elif root_type is CONSTRUCT_QUERY:
-        template_nodes = [
-            _encode_triple_pattern(s, p, o, graph) for s, p, o in query.template
-        ]
+        if query.template is None:
+            # CONSTRUCT WHERE { ... }: the template is the WHERE clause's own
+            # triples (SPARQL 1.1 sec 16.2.4) - written out explicitly.
+            triples = [t for part in query.where.part or [] for t in group_triples(part.triples)]
+        else:
+            triples = query.template
+        template_nodes = [_encode_triple_pattern(s, p, o, graph) for s, p, o in triples]
         graph.add((root, TEMPLATE, _build_rdf_list(template_nodes, graph)))
     graph.add((root, WHERE, _encode_where_group(query.where, graph)))
+    if root_type is not ASK_QUERY:
+        _encode_solution_modifiers(query, root, graph)
     _encode_raw_prologue(prologue_list, root, graph)
     return graph, root
+
+
+def _reject_unmodeled_query_parts(query: CompValue) -> None:
+    """Raise rather than silently drop any part of a query the tree cannot
+    represent yet - a dropped clause changes the query's meaning with no
+    warning (found by the 2026-10 coverage probe)."""
+    unmodeled = []
+    for key, label in (
+        ("groupby", "GROUP BY"),
+        ("having", "HAVING"),
+        ("valuesClause", "a trailing VALUES clause"),
+    ):
+        if getattr(query, key, None):
+            unmodeled.append(label)
+    if any(getattr(v, "evar", None) for v in query.projection or []):
+        unmodeled.append("a projected expression (SELECT (expr AS ?var))")
+    if unmodeled:
+        raise NotImplementedError(
+            f"starlayer.sparql.sqe: {', '.join(unmodeled)} not modeled yet - "
+            "see vocab.py's module docstring"
+        )
+
+
+def _encode_solution_modifiers(query: CompValue, root, graph: Graph) -> None:
+    if query.orderby:
+        conditions = []
+        for cond in query.orderby.condition:
+            node = BNode()
+            graph.add((node, RDF.type, ORDER_CONDITION))
+            graph.add((node, EXPR, _encode_algebra(simplifyFilters(cond.expr), graph)))
+            if cond.order == "DESC":
+                graph.add((node, ORDER_DESCENDING, Literal(True)))
+            conditions.append(node)
+        graph.add((root, ORDER_BY, _build_rdf_list(conditions, graph)))
+    if query.limitoffset:
+        if query.limitoffset.limit is not None:
+            graph.add((root, LIMIT, query.limitoffset.limit))
+        if query.limitoffset.offset is not None:
+            graph.add((root, OFFSET, query.limitoffset.offset))
 
 
 def _encode_raw_prologue(prologue_list, root, graph: Graph) -> None:

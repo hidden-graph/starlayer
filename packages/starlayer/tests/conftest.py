@@ -43,6 +43,11 @@ OPT_IN_GROUPS = {
         "STARLAYER_SRL_STRATIFICATION",
         "also run the extended SRL stratification checks",
     ),
+    "sqe_coverage": (
+        "--sqe-coverage",
+        "STARLAYER_SQE_COVERAGE",
+        "also run the sqe query-coverage set (every SPARQL feature round-tripped through sqe)",
+    ),
 }
 
 

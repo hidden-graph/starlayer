@@ -17,6 +17,9 @@ sqe:Filter a rdfs:Class ;
 sqe:Optional a rdfs:Class ;
     rdfs:comment "An OPTIONAL { ... } block - sqe:where -> its own nested flat pattern list." .
 
+sqe:OrderCondition a rdfs:Class ;
+    rdfs:comment "One ORDER BY condition - sqe:expr -> a variable or expression; sqe:descending true for DESC(...), absent for ascending." .
+
 sqe:Query rdfs:comment "The root of any encoded sqe: query, of any form - also typed sqe:Query regardless of query form, see to_rdf.query_to_sqe_rdf." .
 
 sqe:SelectQuery rdfs:comment "A SELECT query's root. sqe:projection -> rdf:List of sqe:Variable-tagged Literals; sqe:where -> the flat pattern list." ;
@@ -54,3 +57,27 @@ sqe:var a rdf:Property ;
 
 sqe:where a rdf:Property ;
     rdfs:comment "A flat, ordered rdf:List of sibling pattern elements (sqe:TriplePattern/sqe:Optional/sqe:Union/sqe:Filter/sqe:Bind) - mirrors the raw parse tree's own already-flat GroupGraphPatternSub.part shape, not the salg: algebra's nested LeftJoin/Filter wrapping." .
+
+sqe:selectAll a rdf:Property ;
+    rdfs:domain sqe:SelectQuery ;
+    rdfs:comment "true for SELECT *; replaces sqe:projection." .
+
+sqe:distinct a rdf:Property ;
+    rdfs:domain sqe:SelectQuery ;
+    rdfs:comment "true for SELECT DISTINCT." .
+
+sqe:reduced a rdf:Property ;
+    rdfs:domain sqe:SelectQuery ;
+    rdfs:comment "true for SELECT REDUCED." .
+
+sqe:orderBy a rdf:Property ;
+    rdfs:comment "ORDER BY: a flat rdf:List of sqe:OrderCondition, on a SELECT or CONSTRUCT root." .
+
+sqe:descending a rdf:Property ;
+    rdfs:domain sqe:OrderCondition .
+
+sqe:limit a rdf:Property ;
+    rdfs:comment "LIMIT n (xsd:integer), on a SELECT or CONSTRUCT root." .
+
+sqe:offset a rdf:Property ;
+    rdfs:comment "OFFSET n (xsd:integer), on a SELECT or CONSTRUCT root." .

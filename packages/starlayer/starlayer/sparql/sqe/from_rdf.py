@@ -31,10 +31,16 @@ from .vocab import (
     BIND,
     BIND_VAR,
     CONSTRUCT_QUERY,
+    DISTINCT,
     EXPR,
     FILTER,
+    LIMIT,
+    OFFSET,
     OPTIONAL,
+    ORDER_BY,
+    ORDER_DESCENDING,
     PROJECTION,
+    REDUCED,
     SELECT_QUERY,
     TEMPLATE,
     TRIPLE_PATTERN,
@@ -76,11 +82,17 @@ def sqe_tree_to_query(graph: Graph, root) -> Query:
     where = _decode_where_group(graph.value(root, WHERE), graph)
 
     if query_name == "SelectQuery":
-        projection = [
-            CompValue("vars", var=Variable(str(v)))
-            for v in Collection(graph, graph.value(root, PROJECTION))
-        ]
+        projection_list = graph.value(root, PROJECTION)
+        projection = (
+            [CompValue("vars", var=Variable(str(v))) for v in Collection(graph, projection_list)]
+            if projection_list is not None
+            else None  # SELECT *
+        )
         query = CompValue(query_name, projection=projection, where=where)
+        if graph.value(root, DISTINCT) is not None:
+            query["modifier"] = "DISTINCT"
+        elif graph.value(root, REDUCED) is not None:
+            query["modifier"] = "REDUCED"
     elif query_name == "ConstructQuery":
         template_list = graph.value(root, TEMPLATE)
         template = [
@@ -91,7 +103,24 @@ def sqe_tree_to_query(graph: Graph, root) -> Query:
     else:  # AskQuery
         query = CompValue(query_name, where=where)
 
+    if query_name != "AskQuery":
+        _decode_solution_modifiers(graph, root, query)
     return translateQuery([[], query])
+
+
+def _decode_solution_modifiers(graph: Graph, root, query: CompValue) -> None:
+    order_list = graph.value(root, ORDER_BY)
+    if order_list is not None:
+        conditions = []
+        for node in Collection(graph, order_list):
+            cond = CompValue("OrderCondition", expr=_decode(graph.value(node, EXPR), graph))
+            if graph.value(node, ORDER_DESCENDING) is not None:
+                cond["order"] = "DESC"
+            conditions.append(cond)
+        query["orderby"] = CompValue("OrderClause", condition=conditions)
+    limit, offset = graph.value(root, LIMIT), graph.value(root, OFFSET)
+    if limit is not None or offset is not None:
+        query["limitoffset"] = CompValue("LimitOffsetClauses", limit=limit, offset=offset)
 
 
 def _query_name_for_root(graph: Graph, root) -> str:
