@@ -1,3 +1,31 @@
+# StarLayer's profiles and its conformance declaration, in one document.
+#
+# 1. Public layer: W3C specifications (tr:) and the public SHACL profiles
+#    (profile:). Defined elsewhere; only labelled here.
+# 2. StarLayer profiles (slp:): each is a prof:Profile that is a profile of a
+#    public specification or public SHACL profile, and lists its own ontology
+#    and shapes files as resources. A shapes graph checks conformance to the
+#    StarLayer profile that lists it; the link from that profile to the public
+#    specification is what makes the conformance claim reach the public layer
+#    (see starlayer.shacl.derive_conforms_to()).
+# 3. StarLayer's own modules (pkg:): the self-declared conformance of
+#    starlayer.graph, starlayer.sparql and starlayer.shacl, written out in full.
+#    dcterms:conformsTo is the claim; conformance:doesNotConformTo is this
+#    project's own term (no standard negative predicate exists in dx-prof or
+#    Dublin Core) and is used only where the excluded thing has its own IRI.
+#
+# This is a self-declaration, not a third-party certification. RDF 1.2, SPARQL
+# 1.2 and the SHACL 1.2 documents are still drafts, so treat the claims as a
+# dated snapshot; docs/graph/rdf12_sparql12_gap_analysis.md and
+# docs/shacl/shacl12-gap-matrix.md are the working sources they come from.
+#
+# SPARQL has no named-profile vocabulary like SHACL's, so starlayer.sparql
+# conforms to the SPARQL TR documents directly. SPARQL 1.2 Entailment Regimes
+# is not claimed as a document (three of its six regimes are unimplemented);
+# each supported regime is claimed by its own IRI instead, and the
+# unsupported D-Entailment regime is excluded by IRI. RDF/XML 1.2 and SPARQL
+# 1.2 RL are claimed within documented scope limits.
+
 @prefix conformance: <https://github.com/hidden-graph/starlayer/ns/conformance#> .
 @prefix dcterms: <http://purl.org/dc/terms/> .
 @prefix ns1: <http://www.w3.org/ns/entailment/> .

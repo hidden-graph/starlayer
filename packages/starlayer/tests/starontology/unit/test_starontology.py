@@ -326,14 +326,12 @@ class TestGetRawUrl:
 
 
 class TestPublishedFiles:
-    """scripts/publish_starontology_files.py regenerates a real, standalone
-    file for every get_raw_url() entry, derived from starontology.trig -
-    these tests are the regression guard against "edited the dataset,
-    forgot to re-publish": every raw URL's implied path must be a real
-    file on disk, and that file's content must stay isomorphic to the
-    live named graph in starontology.trig. A filesystem/parse check, not
-    a live network call - consistent with this project's "no network in
-    the normal suite" convention."""
+    """Every get_raw_url() entry's implied path must be a real .ttl file on
+    disk (those files are the source; get_ontology_graph() reads them), and
+    starontology.trig, which scripts/build_starontology.py assembles from
+    them, must hold an isomorphic named graph for each. A filesystem/parse
+    check, not a live network call - consistent with this project's "no
+    network in the normal suite" convention."""
 
     _RAW_BASE = "https://raw.githubusercontent.com/hidden-graph/starlayer/main/packages/starlayer/starlayer/starontology/"
 
@@ -352,22 +350,38 @@ class TestPublishedFiles:
             path = self._published_path(name)
             assert path.is_file(), f"{name}: no published file at {path}"
 
-    def test_every_published_file_is_isomorphic_to_the_live_named_graph(self):
+    def test_trig_matches_the_ttl_files(self):
+        """Fails if a .ttl was edited without rebuilding the trig:
+        run scripts/build_starontology.py."""
+        from pathlib import Path
+
+        from rdflib import Dataset, Graph
         from rdflib.compare import to_isomorphic
 
-        from starlayer.graph import StarLayerGraph
+        trig = Path(starontology.__file__).parent / "starontology.trig"
+        ds = Dataset()
+        ds.parse(str(trig), format="trig")
+        in_trig = {}
+        for g in ds.graphs():
+            if len(g):
+                copy = Graph()
+                for triple in g:
+                    copy.add(triple)
+                in_trig[str(g.identifier)] = copy
 
         for name in self._all_names():
-            path = self._published_path(name)
-            on_disk = StarLayerGraph()
-            on_disk.parse(str(path), format="turtle12")
-
+            iri = (
+                str(starontology.get_resource_iri(name))
+                if name != "starlayer_profiles"
+                else starontology._GITHUB_BLOB_BASE + starontology._PROFILES_FILENAME
+            )
             live = (
                 starontology.get_conformance_profiles()
                 if name == "starlayer_profiles"
                 else starontology.get_ontology_graph(name)
             )
-            assert to_isomorphic(on_disk) == to_isomorphic(live), f"{name}: published file is stale"
+            assert iri in in_trig, f"{name}: no named graph {iri} in starontology.trig"
+            assert to_isomorphic(in_trig[iri]) == to_isomorphic(live), f"{name}: starontology.trig is stale"
 
     def test_end_to_end_chain_actually_derives_dcterms_conforms_to(self):
         """The real motivating workflow: validate against a starontology

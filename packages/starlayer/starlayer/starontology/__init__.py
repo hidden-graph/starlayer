@@ -123,25 +123,27 @@ This stored graph (``shacl12-shacl.ttl``) is the one
 ``load_meta_shapes_graph()``, instead of reassembling it on every call.
 It is generated from ``build_meta_shapes_graph()`` - pySHACL's base graph
 (minus the eight rules SHACL 1.2 widened) plus starShacl's two
-supplementary asset files - by ``scripts/refresh_shacl_meta.py``. Editing
+supplementary asset files - by ``scripts/build_starontology.py``. Editing
 either asset file, or upgrading pySHACL, changes nothing at run time until
 that script is re-run; a test fails while the stored copy and a fresh
 build disagree. ``build_meta_shapes_graph()`` is kept for that script and
 that test.
 
-**One dataset, not thirteen files.** Every registered entry, plus the
-ontology-shapes profile mapping (see below), lives as its own named graph
-inside one file, ``starontology.trig`` (TriG - Turtle's own named-graph
-extension, so every entry stays as readable/diffable as a standalone
-``.ttl`` file would be). Each named graph's context IRI is the same
-GitHub-blob-URL resource identity ``get_resource_iri()``/``_resource_iri()``
-mints for that entry, so every ``prof:isProfileOf`` triple and every
-caller's own ``validate(shapes_graph_resource=...)`` usage keeps working
-regardless of how the data is actually stored on disk. ``_dataset()``
-parses the whole file once and caches the result (never mutated, never
-handed to a caller directly); ``_named_graph(context_iri)`` copies just one
-named graph's triples into a fresh ``Graph`` per call, which is what every
-public function below actually returns.
+**One Turtle file per entry, a TriG copy for convenience.** Every registered
+entry, and the profiles document (see below), is one ``.ttl`` file in this
+directory, and those files are the source. ``get_ontology_graph()`` parses
+only the file it is asked for, once, and caches it (``_file_graph()``);
+``_named_graph(context_iri)`` copies its triples into a fresh ``Graph`` per
+call, which is what every public function below returns. Each entry's
+identity is the GitHub-blob-URL resource IRI ``get_resource_iri()`` mints
+for it, which is also its ``.../<filename>`` file, so every
+``prof:isProfileOf`` triple and every caller's own
+``validate(shapes_graph_resource=...)`` usage keeps working. Two files are
+generated, not hand-edited: ``shacl12-shacl.ttl`` and ``skos-ontology.ttl``
+(see ``scripts/build_starontology.py``). ``starontology.trig`` holds the same
+graphs as named graphs in a single file, for tooling that wants everything
+at once; the build script regenerates it and a test fails if it drifts from
+the ``.ttl`` files, but nothing in the library reads it.
 
 **``get_conformance_profiles()``**: StarLayer defines its own profiles
 (``slp:Manchester``, ``slp:Skos``, ``slp:SparqlQuery``, ``slp:SparqlRL``,
@@ -163,8 +165,7 @@ deliberately no per-entry filter function - a caller who only wants one
 pair's own triples can query/extract that slice from the full graph
 themselves (e.g. ``graph.triples((profile, PROF.hasResource, None))``).
 
-The profiles document (``starlayer-profiles.ttl``, stored as its own
-named graph inside ``starontology.trig``) holds StarLayer's profiles and
+The profiles document (``starlayer-profiles.ttl``) holds StarLayer's profiles and
 its conformance declaration together, in a real persisted document rather
 than assembled in memory: each StarLayer profile (``slp:``) is a
 ``prof:Profile`` of a public specification or public SHACL profile and
@@ -172,8 +173,7 @@ lists its ontology and shapes files as resources; the document also
 declares the conformance of ``starlayer.graph``, ``starlayer.sparql`` and
 ``starlayer.shacl`` themselves. It is deliberately independent of the
 files it describes (mixing profile metadata into an ontology or shapes
-graph would conflate two concerns - see that named graph's own header
-comment). ``get_conformance_profiles(url=...)`` loads it - the bundled copy
+graph would conflate two concerns - see that file's own header comment). ``get_conformance_profiles(url=...)`` loads it - the bundled copy
 by default, or any local path/``http(s)://`` location instead.
 """
 
@@ -193,16 +193,48 @@ PROF = Namespace("http://www.w3.org/ns/dx/prof/")
 
 _HERE = Path(__file__).parent
 
-# Every registered ontology/shapes entry, plus the ontology-shapes profile
-# mapping, lives in ONE multi-graph dataset file (starontology.trig), not
-# as separate .ttl files. Each entry keeps its own real identity as a
-# *named graph* inside that one file, rather than as a separate file on
-# disk - see _dataset()/_named_graph() below for how that's read back out,
-# and this module's own docstring for the full reasoning (one dataset is
-# easier to hand to tooling as a whole, and avoids many independently-
-# tracked files for content that's always shipped and read together
-# anyway).
+# Every registered ontology/shapes entry, and the profiles document, is one
+# Turtle file in this directory (the file named in _FILENAME_BY_NAME below).
+# Those files are the source: edit them directly, except the two generated
+# ones (shacl12-shacl.ttl, skos-ontology.ttl), which scripts/ rebuilds.
+# Each is parsed on first use and cached, so asking for one entry never
+# parses the others. starontology.trig, the same graphs in one TriG file, is
+# generated from these files by scripts/build_starontology.py as a
+# convenience for tooling that wants everything at once; nothing here reads
+# it.
 _DATASET_TTL_PATH = _HERE / "starontology.trig"
+
+# Prefixes bound onto every graph this module hands out (and written into the
+# header of starontology.trig). Callers rely on them being present: for
+# example salg/sparql_shapes.py appends hand-written ``salg:`` Turtle to a
+# serialized copy of an entry.
+_PREFIXES: dict[str, str] = {
+    "conformance": "https://github.com/hidden-graph/starlayer/ns/conformance#",
+    "dcterms": "http://purl.org/dc/terms/",
+    "manch": "https://github.com/hidden-graph/starlayer/ns/graph/manchester-ast#",
+    "owl": "http://www.w3.org/2002/07/owl#",
+    "pkg": "https://github.com/hidden-graph/starlayer/tree/main/packages/starlayer/starlayer/",
+    "prof": "http://www.w3.org/ns/dx/prof/",
+    "profile": "http://www.w3.org/ns/shacl/profile/",
+    "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+    "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+    "role": "http://www.w3.org/ns/dx/prof/role/",
+    "salg": "https://github.com/hidden-graph/starlayer/ns/sparql/algebra#",
+    "sh": "http://www.w3.org/ns/shacl#",
+    "shnex": "http://www.w3.org/ns/shacl-node-expr#",
+    "shsh": "http://www.w3.org/ns/shacl-shacl#",
+    "shui": "http://www.w3.org/ns/shacl-ui#",
+    "skos": "http://www.w3.org/2004/02/skos/core#",
+    "skshp": "https://github.com/hidden-graph/starlayer/ns/graph/skos-shapes#",
+    "slp": "https://github.com/hidden-graph/starlayer/ns/profile#",
+    "spexpr": "https://github.com/hidden-graph/starlayer/ns/sparql/expr#",
+    "sqe": "https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#",
+    "srl": "https://github.com/hidden-graph/starlayer/ns/sparql/srl#",
+    "starontology": "https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/starontology/",
+    "stsh": "https://github.com/hidden-graph/starlayer/ns/shacl#",
+    "tr": "https://www.w3.org/TR/",
+    "xsd": "http://www.w3.org/2001/XMLSchema#",
+}
 
 # Each registered name's own filename *within* the dataset - reused only
 # to compute _resource_iri() below (the same GitHub-blob-URL identity this
@@ -222,15 +254,13 @@ _FILENAME_BY_NAME: dict[str, str] = {
     "spexpr_shacl": "spexpr_shapes.ttl",
     # shacl_shacl gets a real resource IRI too (used by
     # starlayer-profiles.ttl's own prof:isProfileOf entry for it -
-    # see get_conformance_profiles()'s docstring) - it's a real named graph in
-    # starontology.trig at this filename, loaded via the shared _load()
-    # like every other entry (see the module docstring's "What's here"
-    # section for why build_meta_shapes_graph() still exists separately).
+    # see get_conformance_profiles()'s docstring) - a generated .ttl at this
+    # filename, loaded via the shared _load() like every other entry.
     "shacl_shacl": "shacl12-shacl.ttl",
 }
 
 # The ontology-shapes profile mapping's own filename/named-graph identity -
-# see get_conformance_profiles() below, and _dataset()'s own comment for
+# see get_conformance_profiles() below, and the module docstring for
 # why it's a named graph inside the same dataset rather than embedded in
 # either endpoint it relates.
 _PROFILES_FILENAME = "starlayer-profiles.ttl"
@@ -402,68 +432,49 @@ _REGISTRY: dict[str, tuple[OntologyInfo, Callable[[], StarLayerGraph]]] = {
 }
 
 
-_dataset_cache: Any | None = None
+_file_graph_cache: dict[str, Graph] = {}
 
 
-def _dataset() -> Any:
-    """The shared ``rdflib.Dataset`` backing every file-based registry
-    entry plus the ontology-shapes profile mapping - parsed from
-    ``starontology.trig`` once and cached, not re-parsed on every
-    call. This file never changes at runtime (bundled, static), so
-    re-reading ~3000 triples from disk on every single
-    ``get_ontology_graph()`` call would be pure waste - same reasoning as
-    ``_real_shapes_graph_iri_to_name()``'s own caching below.
+def _file_graph(filename: str) -> Graph:
+    """The parsed contents of one bundled Turtle file, read once and cached.
 
-    Never mutated, and never handed to a caller directly - every accessor
-    (``_named_graph()`` below) copies just the one named graph it needs
-    into a fresh, independent ``Graph`` first, so this cached object stays
-    safe to share across every call without any caller being able to see
-    (or corrupt) another caller's view of it.
+    Never mutated and never handed to a caller directly: ``_named_graph()``
+    copies the triples into a fresh ``Graph`` first, so no caller can see or
+    corrupt another caller's view of the cached one.
     """
-    global _dataset_cache
-    if _dataset_cache is None:
-        from rdflib import Dataset
-
-        ds = Dataset()
-        ds.parse(str(_DATASET_TTL_PATH), format="trig")
-        _dataset_cache = ds
-    return _dataset_cache
+    cached = _file_graph_cache.get(filename)
+    if cached is None:
+        cached = Graph()
+        cached.parse(str(_HERE / filename), format="turtle")
+        _file_graph_cache[filename] = cached
+    return cached
 
 
 def _bind_dataset_namespaces(graph: Graph) -> None:
-    """Bind every prefix the shared dataset itself has (``manch:``/
-    ``salg:``/``sqe:``/``srl:``/``skshp:``/etc., bound in
-    ``starontology.trig``'s own header) onto ``graph``. This matters
-    because copying triples one at a time via ``graph.add(triple)``
-    (``_named_graph()``'s own approach, needed since two callers must
-    never share - or corrupt - the same graph object) never carries over
-    namespace bindings the way ``graph.parse(path)`` does when reading a
-    standalone file directly. Without this,
-    ``get_ontology_graph(name).serialize(...)`` falls back to rdflib's own
-    auto-generated ``ns1:``/``ns2:`` prefixes instead of the expected
-    ``salg:``/``sqe:`` - breaking real downstream callers
-    (``starlayer/sparql/salg/sparql_shapes.py``'s own
-    ``SHAPES_TURTLE = get_ontology_graph("sparql_shacl").serialize(...)``,
-    later string-concatenated with more hand-written ``salg:``-prefixed
-    Turtle text that assumes that exact prefix is already bound in the
-    combined document). Binding every dataset-wide prefix on every
-    extracted graph (not just the subset that entry's own triples
-    actually use) is harmless - rdflib's Turtle serializer only ever
-    emits an ``@prefix`` line for a namespace actually used by the
-    triples being serialized, so an unused binding here costs nothing."""
-    for prefix, namespace in _dataset().namespaces():
+    """Bind every prefix in ``_PREFIXES`` onto ``graph``.
+
+    Copying triples one at a time with ``graph.add(triple)`` (what
+    ``_named_graph()`` does, so that two callers never share a graph object)
+    does not carry namespace bindings over the way ``graph.parse(path)``
+    does. Without these bindings ``get_ontology_graph(name).serialize(...)``
+    falls back to rdflib's auto-generated ``ns1:``/``ns2:``, which breaks
+    callers that append hand-written ``salg:``-prefixed Turtle to the
+    serialized text (``salg/sparql_shapes.py``'s ``SHAPES_TURTLE``). Binding
+    prefixes the entry does not use is harmless: the Turtle serializer only
+    writes an ``@prefix`` line for a namespace its triples use.
+    """
+    for prefix, namespace in _PREFIXES.items():
         graph.bind(prefix, namespace, override=False)
 
 
 def _named_graph(context_iri: URIRef) -> Graph:
-    """A fresh, independent ``Graph`` containing just the triples from one
-    named graph in the shared, cached dataset - never the shared
-    ``Dataset`` object itself, and never a graph object owned by it
-    either, so two callers (or two calls) never see or mutate the same
-    object."""
+    """A fresh, independent ``Graph`` with the triples of the entry whose
+    resource IRI is ``context_iri`` (the IRI is ``_GITHUB_BLOB_BASE`` plus
+    the entry's filename)."""
+    filename = str(context_iri)[len(_GITHUB_BLOB_BASE) :]
     graph = Graph()
     _bind_dataset_namespaces(graph)
-    for triple in _dataset().graph(context_iri):
+    for triple in _file_graph(filename):
         graph.add(triple)
     return graph
 
@@ -577,13 +588,13 @@ _GITHUB_BLOB_BASE = "https://github.com/hidden-graph/starlayer/blob/main/package
 # URL (above) renders a nice HTML page to a plain HTTP GET, not the file's
 # real content; raw.githubusercontent.com does. Deliberately a second,
 # separate base rather than changing _GITHUB_BLOB_BASE itself - the blob
-# value is also the dataset's own internal named-graph context IRI (see
-# _resource_iri()'s own callers), so changing it would silently break
-# every lookup into starontology.trig and the identities already asserted
-# in starlayer-profiles.ttl's own prof:isProfileOf triples. Standard
+# value is also each entry's resource identity (see _resource_iri()'s own
+# callers, and the named graphs in starontology.trig), so changing it would
+# silently break the identities already asserted in
+# starlayer-profiles.ttl's own prof:isProfileOf triples. Standard
 # Linked Data move: a resource's IRI need not be the same URL you fetch a
-# representation from. See scripts/publish_starontology_files.py - this
-# URL is only real once that script's own output has been committed.
+# representation from. The files are the source in this
+# directory, so this URL is real once they are committed and pushed.
 _GITHUB_RAW_BASE = "https://raw.githubusercontent.com/hidden-graph/starlayer/main/packages/starlayer/starlayer/starontology/"
 
 
@@ -645,13 +656,10 @@ def get_raw_url(name: str) -> str | None:
     :func:`get_resource_iri` equivalent). Returns ``None`` for any other
     unrecognized name.
 
-    Only real once ``scripts/publish_starontology_files.py``'s own output
-    has been committed - that script regenerates the standalone file this
-    URL points at from ``starontology.trig``, the one real source of
-    truth. Nothing about how :func:`get_ontology_graph`/
-    :func:`get_conformance_profiles` read data at runtime depends on this
-    URL or the file it points at - both still read ``starontology.trig``
-    directly.
+    The URL points at the entry's own ``.ttl`` file in this package, which
+    is also what :func:`get_ontology_graph` and
+    :func:`get_conformance_profiles` read, so it is real once the file is
+    committed and pushed.
     """
     filename = _raw_filename(name)
     if filename is None:
@@ -661,8 +669,7 @@ def get_raw_url(name: str) -> str | None:
 
 def get_conformance_profiles(url: str | None = None) -> StarLayerGraph:
     """StarLayer's profiles and its conformance declaration, as one real
-    persisted named graph (``<.../starlayer-profiles.ttl>`` inside
-    ``starontology.trig``) - not synthesized from this module's own
+    persisted document (``starlayer-profiles.ttl``) - not synthesized from this module's own
     registry on the fly.
 
     It has three layers: the public specifications and SHACL profiles

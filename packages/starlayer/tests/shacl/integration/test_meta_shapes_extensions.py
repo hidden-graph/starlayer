@@ -671,12 +671,12 @@ def test_too_strict_base_triples_absent_from_assembled_graph() -> None:
 def test_stored_meta_shapes_file_matches_a_fresh_build() -> None:
     """meta_validate() reads the stored shacl12-shacl.ttl, so it must equal
     what build_meta_shapes_graph() produces. On failure, run
-    scripts/refresh_shacl_meta.py (an asset file was edited, or pySHACL's
+    scripts/build_starontology.py (an asset file was edited, or pySHACL's
     own shacl-shacl.ttl changed)."""
     from rdflib.compare import to_isomorphic
 
     assert to_isomorphic(load_meta_shapes_graph()) == to_isomorphic(build_meta_shapes_graph()), (
-        "starontology's shacl12-shacl.ttl is out of date - run scripts/refresh_shacl_meta.py"
+        "starontology's shacl12-shacl.ttl is out of date - run scripts/build_starontology.py"
     )
 
 
