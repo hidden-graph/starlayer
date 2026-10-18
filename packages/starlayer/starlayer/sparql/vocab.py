@@ -185,7 +185,7 @@ SALG = Namespace("https://github.com/hidden-graph/starlayer/ns/sparql/algebra#")
 # depending on an unrelated sibling's namespace for something that was
 # never really salg:-specific in the first place.
 #
-# Exactly what moved (see starontology's own ontology-shapes-profiles.ttl
+# Exactly what moved (see starontology's own starlayer-profiles.ttl
 # header and starlayer/sparql/CLAUDE.md for the full account):
 # salg:Expression and its 63 real encodable builtins (plus the 16
 # purely-organizational rdfs:subClassOf "family" classes above them,
