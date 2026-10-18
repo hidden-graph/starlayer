@@ -103,10 +103,8 @@ def check_links() -> list[str]:
     return problems
 
 
-# Guides that are deliberately not indexed, with the reason. Remove an entry when the guide is fixed or deleted.
-_UNINDEXED = {
-    "05d-shacl-library-registry.ipynb": "calls starontology.get_profile_graph(), which was removed; repair or delete (decision pending)",
-}
+# Guides that are deliberately not indexed, with the reason. Empty now; add an entry only with a stated reason.
+_UNINDEXED: dict[str, str] = {}
 
 
 def check_guide_index() -> list[str]:

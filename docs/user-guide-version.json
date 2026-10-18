@@ -27,6 +27,7 @@
       "docs/guides/05a-manchester-syntax.ipynb",
       "docs/guides/05b-sparql-query-as-rdf.ipynb",
       "docs/guides/05c-srl-sparql-rules-as-rdf.ipynb",
+      "docs/guides/05d-shacl-library-registry.ipynb",
       "docs/guides/06a-serialization-formats.ipynb",
       "docs/guides/06b-backend-graph-databases.ipynb",
       "docs/guides/06c-canonical-hashing.ipynb",

@@ -53,7 +53,7 @@ These are the default assumptions we start from, written into AGENTS.md as "Defa
 ## Progress (2026-10-18)
 - Workstream 1 done: `AGENTS.md`, `CLAUDE.md`, "Rules that bite" in the three subpackage `CLAUDE.md` files, a test guarding `AGENTS.md`.
 - Workstream 6, part 1 done: root `README.md` (with a tested example), `CONTRIBUTING.md`, `docs/README.md` (the docs map), `docs/sparql/README.md`, dead links fixed in the graph and shacl docs READMEs.
-- Workstream 6 guards done: `scripts/check_docs.py` (links, anchors, guide index, paths in the Rules-that-bite blocks), run by `build.py --check` and so by CI. Open decision: guide `05d-shacl-library-registry.ipynb` calls a removed function; it is listed as a known exception in `check_docs.py` until it is repaired or deleted.
+- Workstream 6 guards done: `scripts/check_docs.py` (links, anchors, guide index, paths in the Rules-that-bite blocks), run by `build.py --check` and so by CI. Guide `05d-shacl-library-registry.ipynb` was repaired (it called a removed function and described the old profile model) and is indexed as 5.d.
 - Still open in workstream 6: the remaining stale-doc repairs (the "Notes on guides" file, Appendix A status, the changelog-style paragraph at the top of `docs/guides/README.md`, `future_enhancements.md` cleanup).
 
 ## Workstreams
