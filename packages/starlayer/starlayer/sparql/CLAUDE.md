@@ -2,6 +2,20 @@
 
 Project-specific instructions for Claude Code sessions working in this repo.
 
+## Rules that bite
+
+- **`sqe:` is the public "SPARQL query as RDF" vocabulary** (a flat, editable tree from the raw parse tree). `salg:` is the internal full-algebra encoding; do not expose it in public docs or output.
+- **Import order matters.** `sparql/__init__.py` imports `parse12` first; it extends rdflib's shared grammar in place (`_grammar12.install()`), and `from_rdf.py` snapshots that grammar at import. Importing the package another way silently breaks later query evaluation.
+- **Execution goes: SPARQL 1.2 text -> `parse12` -> 1.2 algebra (real `TripleTermNode`s) -> `lower_rdf11` -> a runnable 1.1 `Query`.** A ground triple term in a pattern is computed in Python and substituted as a constant, never through `BIND` (rdflib's `evalExtend` overwrites an existing binding). `FILTER(isTRIPLE(?x))` over a variable the same pattern binds is lowered to a typed join for speed; it is exact only there.
+- **A bare Python `str` in the algebra is not a `Literal`** (`Literal("=") == "="` is `False`). `RelationalExpression.op`, `UNDEF` and similar are bare strings; the encoder converts them.
+- **`translateAlgebra` ignores `query.prologue`**, and rdflib's version of it fails on some queries (see `docs/upstream-issues/rdflib-upstream-issues.md`, item 2). The project's own `serialize12.py` carries fixes.
+- **`_vars` and `lazy` must be recomputed after decoding a Query's algebra, but not an Update's.**
+- **A triple term can never be the subject or predicate of another triple term**, enforced at construction (`InvalidTripleTermError`), not just in the grammar.
+- **Use bracket access for namespace terms that collide with methods:** `SALG["term"]`, not `SALG.term`.
+- **A "conforms" test is not an execution test.** A query that only passes `query_to_rdf` plus SHACL validation has not been shown to decode and run. Every new query shape needs a test that runs it through the real path and compares the result with plain rdflib.
+- **SRL (SPARQL Rules).** `parse_ruleset()` validates against the `srl:` shapes by default (about 140 ms; `validate=False` skips). `evaldata` is the spec's polarity: `WHERE DATA` and `NOT DATA` match the base graph. `IMPORTS` need a caller-supplied loader and nothing is fetched on its own. `RuleSet.plan()` shows the rule order. Aggregation and SRL-to-SPARQL are waiting on the spec.
+- **Run the tests with** `cd packages/starlayer && pytest tests/sparql`. The W3C SPARQL 1.2 suite is pinned; seven subject-position fixtures are marked `xfail(strict=True)` because the suite itself is wrong (`docs/sparql/w3c-sparql12-test-suite-issues.md`).
+
 ## Purpose
 
 Translate SPARQL 1.2 queries into and out of an RDF representation of their algebra, so a query can be stored, versioned, annotated, and queried about at the same granularity as any other RDF data — and eventually, so a query can be *produced* as structured RDF (e.g. by an LLM) rather than as an opaque string.
@@ -93,6 +107,10 @@ A query/update list that only gets `query_to_rdf()`/`update_to_rdf()` + SHACL-sh
 - **A collection-order-dependent test flake, found 2026-09-28, not yet root-caused.** `tests/unit/test_lower_rdf11.py::test_eval_select_via_lowering[...eval-triple-terms/manifest#op-2]` (and the identical fixture via `test_w3c_sparql12.py::test_eval_select`) fails with an empty actual-results list when the *whole* `tests/unit/` directory is collected (imported) together — but passes when run alone, or in most smaller combinations. Confirmed via `-k` filtering (only op-2 executes, everything else just gets collected) that this is a **collection-time**, not execution-order, effect — some other test module's mere import corrupts shared state before op-2 ever runs. Confirmed via `git stash` on `from_rdf.py` (this session's own biggest change) that the flake reproduces identically with that file fully reverted to its pre-session state — **not caused by anything in this session's work** (the `_LIST_VALUED_KEYS` fix, `semantic_checks.py`, or `native_components.py` — each independently ruled out via `--ignore`). `op-2` itself compares `TripleTerm`-valued bindings differing only in numeric literal lexical form (`"123"^^xsd:integer` vs `"123.0"^^xsd:decimal`) - suspect this is related to the already-documented `_TT_HASH_MEMO` content-addressing collision risk `starlayergraph/model/encoding.py::term_key()`'s own docstring describes (a global, process-wide memo table that a value-equal-but-lexically-different literal could plausibly collide in), but this hasn't been confirmed against the actual mechanism yet - bisection stopped once non-involvement of this session's changes was established, not carried through to a root cause. Worth root-causing properly in a future session; low urgency since it doesn't affect real usage (an in-process quirk of running a large test suite, not user-facing behavior).
 - The W3C harness's `StarLayerGraph()` construction isn't dataset-capable, so named-graph fixtures (`.trig`/`.nq`) using `GRAPH ?g { }` patterns can't work regardless of query-text correctness.
 - Seven W3C `PositiveSyntaxTest` fixtures (`basic-tripleterm-01`/`-03`, `bnode-tripleterm-01`/`-02`/`-03`, `compound-tripleterm-subject`, `nested-tripleterm-02`) construct a triple term directly as an ordinary pattern's *subject* — never legal RDF 1.2 (a triple term is only ever an object, per RDF 1.2 Concepts' own triple-formation rules; see `starsparql/triple_term.py`'s `InvalidTripleTermError` rule 2, added 2026-08-15). Not a gap in this project — `_reject_triple_term_pattern_subjects` correctly rejects all seven; believed to be a suite defect, written up for upstream reporting in `docs/w3c-sparql12-test-suite-issues.md` Issue 1. (Related nuance, not a contradiction: the SPARQL Query spec's own §18.1.3 frames a triple-pattern-in-subject-position as "will fail to match" — an always-empty *evaluation* outcome — rather than explicitly mandating a construction-time error; rejecting early is a defensible fail-fast choice the spec doesn't forbid, not a stricter-than-spec bug.)
+
+## Design history
+
+Dated entries below record why things are the way they are. Read one when you work on that topic; the block above is what you need first.
 
 ## `_grammar12.py`'s `install(force=True)` recovery hatch was quietly bloating rdflib's shared grammar objects forever (2026-10-12)
 
@@ -322,8 +340,7 @@ Verified: `tests/sparql/unit/test_sqe_ontology.py` (43 passed, 16 new). `tests/s
 Not published to PyPI. This is a subpackage of `starlayer` (merged in from the formerly-separate `starsparql` package 2026-09-30 - see `packages/starlayer/docs/`), not independently installable:
 
 ```bash
-pip install -e packages/starlayer
-pip install -e packages/starlayer[test]   # includes pyshacl, hypothesis
+pip install -e ".[test]"   # from the repo root
 cd packages/starlayer && pytest tests/sparql
 ```
 

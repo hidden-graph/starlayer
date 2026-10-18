@@ -1,6 +1,24 @@
 # CLAUDE.md
 
-Project-specific instructions for Claude Code sessions working in this repo. See `docs/guides/README.md` for the docs index (start with `docs/shacl/implementation-plan.md`).
+Project-specific instructions for Claude Code sessions working in this repo. See `docs/guides/README.md` for the docs index (start with `packages/starlayer/docs/shacl/implementation-plan.md`).
+
+## Rules that bite
+
+- **This wraps pySHACL; it does not replace it.** Several pySHACL bugs are fixed by process-global monkeypatches in `validator.py` (idempotent, sentinel attributes `_starlayer_shacl_*_patch`). Triple terms reach pySHACL through `TripleTermAdapter` (`adapters.py`), which uses its own private `urn:starlayer:tt:` encoding, separate from the graph's storage encoding.
+- **Shape of the API.** The processing functions are flat in `starlayer.shacl`: `validate`, `validate_each`, `apply_rules`, `evaluate`, `target_nodes`, `extract_subgraph` (a function only, no method). `StarShaclSchema(shacl_graph, ont_graph, data_graph, inference, scoring_graph)` binds the inputs once and delegates; `close_shape`, `extract_shapes_graph` and `select_widgets` are methods. Qualified-only on purpose: `starlayer.shacl.engine`, `shacl_profiling`. Do not widen `__all__` without a decision.
+- **Results.** `ValidationResult`; `RulesResult(inferred_graph, validation)`, where `inferred_graph` is only what the rules produced and the caller's data is never touched; `evaluate()` and `extract_subgraph()` return a plain graph.
+- **`mode=` is a validator option preset** (`validation_modes.py`), not a SHACL Profile. "Profile" means only the SHACL 1.2 Profiling spec (`shacl_profiling`).
+- **`meta_shacl` is off by default.** The meta-shapes are built, not assembled at run time: edit `scripts/assets/shacl12-validation-shapes.ttl`, run `python scripts/build.py`, and the library reads the stored `starontology/shacl12-shacl.ttl`. A test fails if the stored file drifts from a fresh build.
+- **Entailment uses the graph package's IRIs** (`inference=ENTAILMENT.RDFS`, or `sh:entailment` in the shapes). pySHACL's string options (`"rdfs"`, `"owlrl"`) are rejected on purpose.
+- **`owl:imports` that are not already in the shapes graph raise** in `validate()` unless you pass a loader (`shapes_graph_loader=`) or `ignore_imports=True`. Nothing is fetched on its own.
+- **`shapes_graph_resource=`** selects a named `sh:ShapesGraph` module of the bound shapes graph (its IRI becomes `sh:usedShapesGraph`), or is only a provenance tag when the graph does not contain it. With no bound shapes graph it raises.
+- **Reports.** `report_text` and `report_graph` must agree on what the report knows: no "Not specified" placeholders, and the `Conforms:` line is rewritten when SHACL 1.2's `sh:Debug`/`sh:Trace` severities change the result. The `sh:conformsTo` derivation is automatic when both graph identities are known.
+- **A passing test is not proof.** Before calling a fix done, run the fixture through plain `pyshacl.validate()`; if it gives the same answer, the test proves nothing about our code. For meta-shapes, check that a malformed value is rejected, not only that a valid one passes.
+- **The six SHACL 1.2 documents are all still moving.** Status and procedure: `packages/starlayer/docs/shacl/shacl12-gap-matrix.md`, "Tracking Upstream Spec Changes".
+
+## Design history
+
+Dated entries below record why things are the way they are. Read one when you work on that topic; the block above is what you need first.
 
 ## `starlayer.shacl`'s own namespace: Core stays flat, each SHACL 1.2 spec document gets its own explicit import (2026-10-06)
 
