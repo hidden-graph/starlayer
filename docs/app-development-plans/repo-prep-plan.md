@@ -109,7 +109,7 @@ Guards (new, in `scripts/check_docs.py`, wired into `build.py --check` and CI):
 - Triage doc: `docs/CONTRIBUTING-feedback.md` (what happens to a report, how reports become curated-KG/gap-matrix updates).
 
 ### 8. Query log and auto-generated FAQ
-- Log every named-query and free-form query made through `starlayer.codekg.queries` (and the workbench's KG browser) to a local, gitignored JSONL (`.starlayer/query-log.jsonl`): timestamp, query name or SPARQL text, topic IRIs, params, row count, duration, caller kind (human/agent if declared via env var), and an `empty_result` flag. Opt-out via env var; no network, no personal data.
+- **Primary feed is the public endpoint's server-side log (see "Public KG endpoint")**; the rest of this workstream describes the local fallback. Log every named-query and free-form query made through `starlayer.codekg.queries` (and the workbench's KG browser) to a local, gitignored JSONL (`.starlayer/query-log.jsonl`): timestamp, query name or SPARQL text, topic IRIs, params, row count, duration, caller kind (human/agent if declared via env var), and an `empty_result` flag. Opt-out via env var; no network, no personal data.
 - `scripts/build_faq.py` aggregates logs (from any number of contributors' log files passed in, or a shared log committed as an anonymised summary) into `docs/generated/faq.generated.md`: top named queries per topic, most-asked free-form questions grouped by topic, and **unanswered/empty-result questions** ranked, each rendered with its answering named query (from the query graph) or a "no answer yet" marker.
 - Closing the loop: unanswered clusters become candidate `slkg:CompetencyQuestion` entries and a pre-filled `docs-or-kg-gap` issue (workstream 7). FAQ is built into `build.py` but not CI-checked for freshness (it depends on local data); the generator and its output format are tested with fixture logs.
 - Privacy/consent note in AGENTS.md: logs stay local unless the user chooses to share a summary.
@@ -138,9 +138,20 @@ Each phase is its own commit on `prep-for-app-development`.
 - `python scripts/check_docs.py` reports zero broken links/drift; CI workflow runs it.
 - Validate curated queries/ontology additions with `sqe_validate` and the new shapes.
 
-## Hosting the KG (no MCP in this plan)
-- An MCP server is only a process that exposes tools; it does not require a hosted graph. A later local stdio MCP server could wrap `starlayer.codekg.queries` over the committed `codekg.trig` with zero hosting. Deferred per decision.
-- GitHub cannot run a SPARQL endpoint (Pages is static). A queryable KG on GitHub is possible statically: publish `codekg.trig`/`queries.ttl` via Pages and query in-browser with Oxigraph WASM. Treated as an optional follow-up, not in this plan; its trade-off is that a static site cannot log queries (workstream 8 stays local-first).
+## Public KG endpoint (proposed 2026-10-18; replaces the earlier "hosting" note)
+**Idea (user):** the code and curated KG do not need to live in the repo for outside users, and an outside agent should not have to build its own. Agents query a **public, read-only copy**, so we can log what they ask (see workstream 8) instead of each agent keeping a private copy. Nothing stops an agent building its own (`build_codekg.py` stays), but the documented path is the public one.
+
+**What it needs**
+- **A host** running a read-only SPARQL endpoint (Oxigraph server fits: the library already supports it as a store) with a query timeout, a result cap, no update endpoint and rate limiting. A thin HTTP API in front of it (named queries by id + parameters, plus a size-limited free-form route) is easier to log and limit than a raw SPARQL endpoint, and matches the "bounded results, never the whole graph" principle.
+- **A publish step**: on merge to `main` (or on demand) a job loads `codekg.trig`, the curated graphs and `queries.ttl` into the endpoint, replacing the old copy. The build stamp from workstream 4 becomes the endpoint's "built from commit X on date Y".
+- **A client**: `starlayer.codekg.queries` takes `endpoint=` (default: the public URL when reachable) and falls back to the local file, so offline or sandboxed agents still work. `get_codekg_dataset()` stays.
+- **Server-side logging**: query text or named-query id, parameters, timestamp, row count, duration, a caller-kind header. This replaces the contributor-local log as the main feed to the FAQ (workstream 8); the local opt-in log stays for offline use. AGENTS.md must say that queries to the public endpoint are logged, what is kept, and for how long.
+
+**Decisions needed before building:** who hosts it and who pays; the domain; retention period and what counts as personal data; whether free-form SPARQL is allowed or only named queries; abuse handling; whether to keep `codekg.trig` in the repo once the endpoint exists (it must stay until the publish pipeline does, because the scripts, tests and generated API docs read it).
+
+**Limits:** GitHub Pages cannot run an endpoint or log queries, so this needs real hosting. A published KG is only as fresh as its last publish. An agent without network access cannot reach it. A later local stdio MCP server could wrap the same queries; MCP is still deferred.
+
+**Effect on workstream 1:** AGENTS.md describes the local KG now and carries a short "planned: public endpoint" note, with no URL until one exists.
 
 ## Open risks
 - SQE may not express all needed SPARQL; mitigated by the coverage probe and logging gaps.
