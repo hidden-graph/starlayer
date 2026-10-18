@@ -7,13 +7,19 @@ Runs the individual build scripts in dependency order:
 3. ``generate_api_docs.py``   - ``docs/generated/api-*.generated.md`` from the code KG
 
 Build-time only: nothing in the library runs or imports this. Each script can
-still be run on its own. A rerun on an unchanged tree rewrites nothing in step 1;
-steps 2 and 3 regenerate their outputs every time, so expect a diff there.
+still be run on its own.
+
+``--check`` treats every step the same way: it runs the step, compares what it
+wrote with what is committed, then puts the committed files back. Nothing is left
+changed, and the exit status is 1 if any output was stale. Outputs are compared by
+graph isomorphism for the ``.trig`` files (rdflib labels blank nodes randomly, so
+two correct builds differ byte for byte) and byte for byte for the markdown. The
+steps run in order, so the API docs are checked against the freshly built code KG.
 
 Run:
     python scripts/build.py                    # everything
-    python scripts/build.py --only starontology
-    python scripts/build.py --check            # change nothing; exit 1 if starontology is stale
+    python scripts/build.py --only codekg apidocs
+    python scripts/build.py --check            # change nothing; exit 1 if anything is stale
 """
 
 from __future__ import annotations
@@ -21,44 +27,106 @@ from __future__ import annotations
 import argparse
 import subprocess
 import sys
+from dataclasses import dataclass, field
 from pathlib import Path
 
 _SCRIPTS = Path(__file__).resolve().parent
 _ROOT = _SCRIPTS.parent
 
-# name -> (script, extra args, supports --check)
-_STEPS: dict[str, tuple[str, list[str], bool]] = {
-    "starontology": ("build_starontology.py", [], True),
-    "codekg": (
+
+@dataclass(frozen=True)
+class Step:
+    script: str
+    args: list[str] = field(default_factory=list)
+    outputs: list[str] = field(default_factory=list)  # repo-relative; compared in --check
+    own_check: bool = False  # the script has its own --check (it handles its own comparison)
+
+
+_STEPS: dict[str, Step] = {
+    "starontology": Step("build_starontology.py", own_check=True),
+    "codekg": Step(
         "build_codekg.py",
         ["--paths", "packages/starlayer/starlayer", "packages/starlayer/tests"],
-        False,
+        ["packages/starlayer/starlayer/codekg/codekg.trig"],
     ),
-    "apidocs": ("generate_api_docs.py", [], False),
+    "apidocs": Step(
+        "generate_api_docs.py",
+        outputs=["docs/generated/api-overview.generated.md", "docs/generated/api-reference.generated.md"],
+    ),
 }
+
+
+def _same(path: Path, before: bytes | None) -> bool:
+    """Whether the file now holds the same content as ``before``."""
+    after = path.read_bytes() if path.exists() else None
+    if after == before:
+        return True
+    if path.suffix != ".trig" or before is None or after is None:
+        return False
+    return _trig_isomorphic(before, after)
+
+
+def _trig_isomorphic(a: bytes, b: bytes) -> bool:
+    from rdflib.compare import isomorphic
+
+    from starlayer.graph import StarLayerDataset
+
+    def graphs(data: bytes) -> dict:
+        ds = StarLayerDataset()
+        ds.parse(data=data.decode("utf-8"), format="trig12")
+        return {str(g.identifier): g for g in ds.graphs() if len(g)}
+
+    ga, gb = graphs(a), graphs(b)
+    return ga.keys() == gb.keys() and all(isomorphic(ga[k], gb[k]) for k in ga)
+
+
+def _run(name: str, step: Step, extra: list[str]) -> bool:
+    cmd = [sys.executable, str(_SCRIPTS / step.script), *step.args, *extra]
+    print(f"[{name}] {step.script} {' '.join(step.args + extra)}".rstrip(), flush=True)
+    return subprocess.run(cmd, cwd=_ROOT).returncode == 0
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--only", choices=list(_STEPS), nargs="+", help="run just these steps")
-    parser.add_argument("--check", action="store_true", help="change nothing; exit 1 if a checkable step is stale")
+    parser.add_argument("--check", action="store_true", help="change nothing; exit 1 if anything is stale")
     args = parser.parse_args()
+    names = args.only or list(_STEPS)
 
-    failed = []
-    for name in args.only or list(_STEPS):
-        script, extra, checkable = _STEPS[name]
-        if args.check and not checkable:
-            print(f"[{name}] no check mode; skipped", flush=True)
-            continue
-        cmd = [sys.executable, str(_SCRIPTS / script), *extra, *(["--check"] if args.check else [])]
-        print(f"[{name}] {' '.join(Path(c).name if c.endswith('.py') else c for c in cmd[1:])}", flush=True)
-        if subprocess.run(cmd, cwd=_ROOT).returncode != 0:
-            failed.append(name)
-            if not args.check:
-                break
-    if failed:
-        print(f"failed: {', '.join(failed)}", file=sys.stderr)
+    if not args.check:
+        for name in names:
+            if not _run(name, _STEPS[name], []):
+                print(f"failed: {name}", file=sys.stderr)
+                return 1
+        return 0
+
+    # Check: snapshot every output, run each step, compare, then restore everything.
+    snapshots = {
+        _ROOT / out: ((_ROOT / out).read_bytes() if (_ROOT / out).exists() else None)
+        for name in names
+        for out in _STEPS[name].outputs
+    }
+    stale: list[str] = []
+    try:
+        for name in names:
+            step = _STEPS[name]
+            if not _run(name, step, ["--check"] if step.own_check else []):
+                stale.append(name)
+                continue
+            if step.own_check:
+                continue
+            if any(not _same(_ROOT / out, snapshots[_ROOT / out]) for out in step.outputs):
+                stale.append(name)
+    finally:
+        for path, content in snapshots.items():
+            if content is None:
+                path.unlink(missing_ok=True)
+            elif not path.exists() or path.read_bytes() != content:
+                path.write_bytes(content)
+    if stale:
+        print(f"stale: {', '.join(stale)} - run `python scripts/build.py --only {' '.join(stale)}` and commit", file=sys.stderr)
         return 1
+    print("all generated files are current")
     return 0
 
 

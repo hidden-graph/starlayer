@@ -129,7 +129,8 @@ def collect_public_entities(ds: Dataset) -> list[tuple[str, str]]:
 
     for bucket in _BUCKET_ORDER:
         for name in sorted(all_names_by_bucket.get(bucket, ())):
-            for ent in label_index.get(name, []):
+            # Sorted: the dataset's own iteration order is not stable across builds.
+            for ent in sorted(label_index.get(name, []), key=str):
                 if _is_external_type(ds, ent):
                     continue
                 ident = _val(ds, ent, DCTERMS.identifier)
@@ -140,7 +141,8 @@ def collect_public_entities(ds: Dataset) -> list[tuple[str, str]]:
                     seen.add(ident)
                     entities.append((ident, bucket))
                 if _is_class(ds, ent):
-                    for _s2, _p2, method_ent, _c2 in ds.quads((ent, SLKG.declares, None, None)):
+                    methods = sorted((o for _s2, _p2, o, _c2 in ds.quads((ent, SLKG.declares, None, None))), key=str)
+                    for method_ent in methods:
                         if not _is_method(ds, method_ent):
                             continue
                         m_label = str(_val(ds, method_ent, RDFS.label) or "")
@@ -318,7 +320,7 @@ def main() -> None:
     raw_entities = collect_public_entities(ds)
     entities: list[tuple[str, dict]] = []
     for ident, bucket in raw_entities:
-        candidates = [e for e in label_index.get(ident, []) if not _is_external_type(ds, e)]
+        candidates = sorted((e for e in label_index.get(ident, []) if not _is_external_type(ds, e)), key=str)
         if not candidates:
             continue
         ent = candidates[0]

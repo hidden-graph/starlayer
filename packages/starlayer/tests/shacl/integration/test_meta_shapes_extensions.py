@@ -12,26 +12,23 @@ pySHACL's still-SHACL-1.0/1.1-era bundled meta-shapes, under starShacl's
 own default ``meta_shacl=True``.
 """
 
-import sys
-from pathlib import Path
-
 import pytest
+
+# The meta-shapes build is a build-time tool, not part of the library: it lives
+# in scripts/, which pytest puts on sys.path (pyproject.toml's `pythonpath`).
+from build_meta_shapes import (
+    _SHSH_SHAPE_SHAPE,
+    _TOO_STRICT_PATHS,
+    VALIDATION_SHAPES_PATH,
+    _load_pyshacl_base_meta_shapes,
+    build_meta_shapes_graph,
+)
 from rdflib import Graph, Namespace
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl.meta_shapes import (
     check_sparql_query_text,
     load_meta_shapes_graph,
     meta_validate,
-)
-
-# The meta-shapes build is a build-time tool, not part of the library: it lives in scripts/.
-sys.path.insert(0, str(Path(__file__).resolve().parents[5] / "scripts"))
-from build_meta_shapes import (  # noqa: E402
-    _SHSH_SHAPE_SHAPE,
-    _TOO_STRICT_PATHS,
-    VALIDATION_SHAPES_PATH,
-    _load_pyshacl_base_meta_shapes,
-    build_meta_shapes_graph,
 )
 
 EX = Namespace("http://example.org/")

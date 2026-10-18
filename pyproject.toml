@@ -66,15 +66,25 @@ Homepage = "https://github.com/hidden-graph/starlayer"
 Repository = "https://github.com/hidden-graph/starlayer"
 Issues = "https://github.com/hidden-graph/starlayer/issues"
 
+# package-data below is the whole list of non-Python files that ship; without
+# this, setuptools also adds anything a stale *.egg-info/SOURCES.txt lists.
+[tool.setuptools]
+include-package-data = false
+
 [tool.setuptools.packages.find]
 where = ["packages/starlayer"]
 include = ["starlayer*"]
 
 [tool.setuptools.package-data]
-starlayer = ["py.typed", "starontology/*.ttl", "starontology/*.trig", "codekg/*.ttl", "codekg/*.trig"]
+# Only what the library reads at run time. Not shipped: starontology.trig (a
+# generated copy of the .ttl files), skos.rdf (build input) and the code
+# knowledge graph under codekg/ (repo tooling, built by scripts/build_codekg.py).
+starlayer = ["py.typed", "starontology/*.ttl"]
 
 [tool.pytest.ini_options]
 testpaths = ["packages/starlayer/tests"]
+# Lets tests import the build-time modules in scripts/ (build_meta_shapes.py) directly.
+pythonpath = ["scripts"]
 markers = [
     "integration: tests requiring a running Fuseki/Oxigraph server or a real backend store (e.g. SQLite via rdflib-sqlalchemy) - the 'full testing' tier.",
     "w3c_sparql12: W3C SPARQL 1.2 test suite cross-checks.",

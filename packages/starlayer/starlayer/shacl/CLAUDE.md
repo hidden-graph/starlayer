@@ -978,3 +978,10 @@ UI claims, resolved 2026-10-17: the SHACL UI *Profile* (`profile/ui`) is neither
 
 **Skipped tests are environmental.** The fast tier now reports ~450 skips (`oxigraph not running` / `fuseki not running`) where earlier runs showed 11, because no local Oxigraph/Fuseki server was up; not caused by these changes.
 
+### Follow-up, same day: packaging audit, uniform `--check`, single cache
+
+- **Wheel trimmed from 2.07 MB to 0.75 MB.** `pyproject.toml` now ships only what the library reads: `py.typed` and `starontology/*.ttl`. Dropped: `starontology.trig` (generated copy), `codekg/codekg.trig` (6 MB, repo tooling) and the codekg ontology/curated files. `include-package-data = false` makes that list authoritative; before, a stale `*.egg-info/SOURCES.txt` silently added the files it listed, and a stale gitignored `build/` directory (August-era `starshacl`, `starsparql`, `starlayergraph` packages) was being copied into every locally built wheel. Verified by unpacking the wheel and running the library from it with `-I`. `starlayer.codekg` (the extractor code) still ships as Python; nothing in the library imports it, so excluding the whole subpackage is a further, undecided step.
+- **`scripts/build.py --check` treats every step alike** (run it, compare with the committed output, restore) and CI runs it. Making that possible exposed a real bug: `generate_api_docs.py` ordered a class's methods by the dataset's iteration order, so two correct builds of the code KG produced differently ordered docs. It now sorts. The code KG itself is only isomorphic, not byte-identical, across builds (blank-node labels), hence the isomorphism comparison for `.trig`. The committed generated API docs and code KG were stale and have been regenerated.
+- **One cache for the meta-shapes file**: `load_meta_shapes_graph()` no longer keeps its own copy; it copies from `starontology`'s per-file cache.
+- Tests import `scripts/build_meta_shapes.py` through pytest's `pythonpath = ["scripts"]` instead of editing `sys.path`.
+

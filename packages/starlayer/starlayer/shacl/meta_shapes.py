@@ -111,9 +111,6 @@ def _meta_validate_cache_key(shapes_graph_for_meta: Any, kwargs: dict) -> tuple 
         return None
     return (content_hash, kwarg_items)
 
-_STORED_META_SHAPES: Graph | None = None
-
-
 def load_meta_shapes_graph(extra_graphs: Iterable[Any] = ()) -> Graph:
     """The meta-shapes graph ``meta_validate()`` checks against, read from
     the stored ``shacl12-shacl.ttl`` (``starontology``'s ``"shacl_shacl"``
@@ -126,20 +123,15 @@ def load_meta_shapes_graph(extra_graphs: Iterable[Any] = ()) -> Graph:
     on validation until the file is regenerated. A test compares the stored
     file with a fresh build and fails on drift.
 
-    The stored graph is read once per process. Each call returns a fresh
-    copy, so ``extra_graphs`` can be added (plain triple addition) without
-    affecting later calls.
+    The file is parsed once per process by ``starontology`` and cached there;
+    each call returns a fresh copy, so ``extra_graphs`` can be added (plain
+    triple addition) without affecting later calls.
     """
-    global _STORED_META_SHAPES
-    if _STORED_META_SHAPES is None:
-        # Lazy: starontology must finish importing before this module reads it.
-        from starlayer import starontology
+    # Lazy: starontology must finish importing before this module reads it.
+    from starlayer import starontology
 
-        stored = Graph()
-        stored += starontology.get_ontology_graph("shacl_shacl")
-        _STORED_META_SHAPES = stored
     graph = Graph()
-    graph += _STORED_META_SHAPES
+    graph += starontology.get_ontology_graph("shacl_shacl")
     for extra in extra_graphs:
         for triple in extra:
             graph.add(triple)
