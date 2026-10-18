@@ -44,7 +44,7 @@ python scripts/build.py          # rebuild everything
 python scripts/build.py --check --skip codekg   # what CI runs
 ```
 
-CI fails when a committed generated file is out of date. The code knowledge graph is not checked in CI; rebuild it with `python scripts/build.py --only codekg apidocs` after larger code changes.
+CI fails when a committed generated file is out of date. The same command runs `scripts/check_docs.py`, which fails on a broken relative link or anchor in any Markdown file or guide, and on a guide missing from `docs/guides/README.md` or `docs/user-guide-version.json`. The code knowledge graph is not checked in CI; rebuild it with `python scripts/build.py --only codekg apidocs` after larger code changes.
 
 ## Pull requests
 

@@ -75,4 +75,4 @@ A document or query can declare a VERSION label (`"1.2"`, `"1.2-basic"`, or `"1.
 - [starlayergraph_vs_rdflib.md](starlayergraph_vs_rdflib.md) — full method-by-method coverage tracker: what is overridden, what is inherited, what is StarLayer-only
 - [sparql12_design.md](sparql12_design.md) — SPARQL 1.2 query support, rewrite strategy, and query examples
 - [rdf12_sparql12_gap_analysis.md](rdf12_sparql12_gap_analysis.md) — RDF 1.2/SPARQL 1.2 feature-by-feature conformance tracking
-- [future_enhancements.md](future_enhancements.md) — design history, deferred follow-ups, and rationale behind non-obvious decisions
+- [future_enhancements.md](../future_enhancements.md) — design history, deferred follow-ups, and rationale behind non-obvious decisions

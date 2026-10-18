@@ -1,7 +1,7 @@
 {
   "guide": "StarLayer User Guides",
   "version": "1.5.0",
-  "lastUpdated": "2026-10-14",
+  "lastUpdated": "2026-10-18",
   "canonicalSource": "docs/guides/README.md",
   "artifacts": {
     "index": [
@@ -29,7 +29,11 @@
       "docs/guides/05c-srl-sparql-rules-as-rdf.ipynb",
       "docs/guides/06a-serialization-formats.ipynb",
       "docs/guides/06b-backend-graph-databases.ipynb",
-      "docs/guides/06c-canonical-hashing.ipynb"
+      "docs/guides/06c-canonical-hashing.ipynb",
+      "docs/guides/appendix-a-public-resources.ipynb",
+      "docs/guides/appendix-b.ipynb",
+      "docs/guides/appendix-b1-sqe-shared-parts.ipynb",
+      "docs/guides/appendix-b2-dl-reasoning-examples.ipynb"
     ],
     "markdown": [],
     "superseded": [
@@ -45,6 +49,6 @@
   },
   "staleDetection": {
     "rule": "An artifact is stale when its content does not reflect this version value or lastUpdated date.",
-    "note": "Update this manifest in the same change whenever guide content changes. Markdown/HTML single-file renders (docs/user-guide-v1.md/.html) are not yet generated - see the repo-root Task List item 'create an HTML based user guide'; GitHub's native notebook rendering is the current viewing path."
+    "note": "Update this manifest in the same change whenever guide content changes; scripts/check_docs.py fails if a notebook in docs/guides/ is missing from this list or from docs/guides/README.md. Markdown/HTML single-file renders (docs/user-guide-v1.md/.html) are not generated - see the 'No HTML-rendered user guide exists' entry in packages/starlayer/docs/future_enhancements.md; GitHub's native notebook rendering is the current viewing path."
   }
 }

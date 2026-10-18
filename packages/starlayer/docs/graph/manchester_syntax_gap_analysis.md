@@ -153,7 +153,7 @@ above, not a replacement for either: `manchester_parse_to_tree()` gives you
 (`manchester_validate()`) against SHACL shapes before decoding it back into
 runnable Manchester text (`manchester_tree_to_text()`) or straight to a
 compiled OWL graph (`manchester_tree_to_owl()`) - see the
-[Manchester Syntax as RDF guide](../../../docs/guides/05g-manchester-syntax-as-rdf.ipynb)
+[Manchester Syntax guide](../../../../docs/guides/05a-manchester-syntax.ipynb)
 for a full worked example. Tests:
 `packages/starlayer/tests/graph/unit/test_manchester_ast.py` (round-trip
 correctness, verified via `starlayer.graph.compare.isomorphic()` on both
