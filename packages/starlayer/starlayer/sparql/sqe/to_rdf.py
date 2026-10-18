@@ -56,8 +56,8 @@ from rdflib.plugins.sparql.algebra import triples as group_triples
 from rdflib.plugins.sparql.parserutils import CompValue, ParseResults
 from rdflib.term import IdentifiedNode
 
+from ..to_rdf import _NS_OVERRIDES, _encode_path, _new_starlayer_graph
 from ..to_rdf import _encode as _encode_algebra
-from ..to_rdf import _encode_path, _new_starlayer_graph
 from .vocab import (
     ASK_QUERY,
     BIND,
@@ -83,6 +83,7 @@ from .vocab import (
     REDUCED,
     SELECT_ALL,
     SELECT_QUERY,
+    SQE,
     TEMPLATE,
     TRIPLE_PATTERN,
     TRIPLE_PATTERN_OBJECT,
@@ -93,6 +94,17 @@ from .vocab import (
     VARIABLE_DATATYPE,
     WHERE,
 )
+
+
+def _encode_expr(value, graph: Graph):
+    """Encode an expression (or any term that may contain a triple term) with
+    the shared encoder, typing triple terms as sqe: rather than salg: nodes."""
+    token = _NS_OVERRIDES.set({"TripleTerm": SQE})
+    try:
+        return _encode_algebra(value, graph)
+    finally:
+        _NS_OVERRIDES.reset(token)
+
 
 _ROOT_TYPE_BY_QUERY_NAME = {
     "SelectQuery": SELECT_QUERY,
@@ -180,7 +192,7 @@ def sqe_parse_to_tree(
         SQEValidationError: If the text parses fine but the encoded tree
             fails ``sqe:``'s own SHACL shapes.
     """
-    from rdflib.plugins.sparql.parser import parseQuery
+    from ..parse12 import parse_query_12
 
     # Lazy: sqe_validate() needs pyshacl, which the rest of this module
     # doesn't - see sqe/__init__.py's own try/except around importing it,
@@ -190,7 +202,7 @@ def sqe_parse_to_tree(
     # already in this file.
     from .shapes import sqe_validate
 
-    encoded_graph, encoded_root = _query_to_sqe_rdf(parseQuery(text), graph, root)
+    encoded_graph, encoded_root = _query_to_sqe_rdf(parse_query_12(text), graph, root)
     conforms, report_graph, report_text = sqe_validate(encoded_graph)
     if not conforms:
         raise SQEValidationError(report_text, report_graph)
@@ -263,7 +275,7 @@ def _query_to_sqe_rdf(
             # triples (SPARQL 1.1 sec 16.2.4) - written out explicitly.
             triples = [t for part in query.where.part or [] for t in group_triples(part.triples)]
         else:
-            triples = query.template
+            triples = group_triples(query.template)
         template_nodes = [_encode_triple_pattern(s, p, o, graph) for s, p, o in triples]
         graph.add((root, TEMPLATE, _build_rdf_list(template_nodes, graph)))
     graph.add((root, WHERE, _encode_where_group(query.where, graph)))
@@ -300,7 +312,7 @@ def _encode_solution_modifiers(query: CompValue, root, graph: Graph) -> None:
         for cond in query.orderby.condition:
             node = BNode()
             graph.add((node, RDF.type, ORDER_CONDITION))
-            graph.add((node, EXPR, _encode_algebra(simplifyFilters(cond.expr), graph)))
+            graph.add((node, EXPR, _encode_expr(simplifyFilters(cond.expr), graph)))
             if cond.order == "DESC":
                 graph.add((node, ORDER_DESCENDING, Literal(True)))
             conditions.append(node)
@@ -363,12 +375,12 @@ def _encode_where_element(part: CompValue, graph: Graph) -> BNode:
     if part.name == "Filter":
         node = BNode()
         graph.add((node, RDF.type, FILTER))
-        graph.add((node, EXPR, _encode_algebra(simplifyFilters(part.expr), graph)))
+        graph.add((node, EXPR, _encode_expr(simplifyFilters(part.expr), graph)))
         return node
     if part.name == "Bind":
         node = BNode()
         graph.add((node, RDF.type, BIND))
-        graph.add((node, EXPR, _encode_algebra(simplifyFilters(part.expr), graph)))
+        graph.add((node, EXPR, _encode_expr(simplifyFilters(part.expr), graph)))
         graph.add((node, BIND_VAR, _encode_variable(part.var)))
         return node
     if part.name == "GroupOrUnionGraphPattern":
@@ -406,6 +418,8 @@ def _encode_predicate(p, graph: Graph):
 def _encode_term(value, graph: Graph):
     if isinstance(value, Variable):
         return _encode_variable(value)
+    if isinstance(value, CompValue) and value.name == "TripleTerm":
+        return _encode_expr(value, graph)
     return value  # a real, already-resolved RDF term (URIRef/BNode/Literal)
 
 

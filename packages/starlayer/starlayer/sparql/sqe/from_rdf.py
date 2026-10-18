@@ -178,7 +178,14 @@ def _decode_where_element(node, graph: Graph) -> CompValue:
 
 
 def _decode_triple_pattern_fields(node, graph: Graph) -> list:
-    s = _decode(graph.value(node, TRIPLE_PATTERN_SUBJECT), graph)
-    p = _decode(graph.value(node, TRIPLE_PATTERN_PREDICATE), graph)
-    o = _decode(graph.value(node, TRIPLE_PATTERN_OBJECT), graph)
-    return [s, p, o]
+    return [
+        _decode_term(graph.value(node, TRIPLE_PATTERN_SUBJECT), graph),
+        _decode(graph.value(node, TRIPLE_PATTERN_PREDICATE), graph),
+        _decode_term(graph.value(node, TRIPLE_PATTERN_OBJECT), graph),
+    ]
+
+
+def _decode_term(node, graph: Graph):
+    """A subject/object position: a plain term, a variable, or an sqe:TripleTerm
+    (the shared decoder rebuilds the TripleTermNode, validating it)."""
+    return _decode(node, graph)

@@ -4286,6 +4286,8 @@ starontology:spexpr-ontology.ttl {
 
     spexpr:Builtin_LANG rdfs:subClassOf spexpr:OneArgExpression .
 
+    spexpr:Builtin_LANGDIR rdfs:subClassOf spexpr:OneArgExpression .
+
     spexpr:Builtin_LANGMATCHES rdfs:subClassOf spexpr:TwoArgExpression .
 
     spexpr:Builtin_LCASE rdfs:subClassOf spexpr:OneArgExpression .
@@ -4299,6 +4301,10 @@ starontology:spexpr-ontology.ttl {
     spexpr:Builtin_NOTEXISTS rdfs:subClassOf spexpr:ExistsExpression .
 
     spexpr:Builtin_NOW rdfs:subClassOf spexpr:ZeroArgExpression .
+
+    spexpr:Builtin_OBJECT rdfs:subClassOf spexpr:OneArgExpression .
+
+    spexpr:Builtin_PREDICATE rdfs:subClassOf spexpr:OneArgExpression .
 
     spexpr:Builtin_RAND rdfs:subClassOf spexpr:ZeroArgExpression .
 
@@ -4330,11 +4336,15 @@ starontology:spexpr-ontology.ttl {
 
     spexpr:Builtin_STRLANG rdfs:subClassOf spexpr:TwoArgExpression .
 
+    spexpr:Builtin_STRLANGDIR rdfs:subClassOf spexpr:StrLangDirExpression .
+
     spexpr:Builtin_STRLEN rdfs:subClassOf spexpr:OneArgExpression .
 
     spexpr:Builtin_STRSTARTS rdfs:subClassOf spexpr:TwoArgExpression .
 
     spexpr:Builtin_STRUUID rdfs:subClassOf spexpr:ZeroArgExpression .
+
+    spexpr:Builtin_SUBJECT rdfs:subClassOf spexpr:OneArgExpression .
 
     spexpr:Builtin_SUBSTR rdfs:subClassOf spexpr:SubstrExpression .
 
@@ -4350,6 +4360,10 @@ starontology:spexpr-ontology.ttl {
 
     spexpr:Builtin_YEAR rdfs:subClassOf spexpr:OneArgExpression .
 
+    spexpr:Builtin_hasLANG rdfs:subClassOf spexpr:OneArgExpression .
+
+    spexpr:Builtin_hasLANGDIR rdfs:subClassOf spexpr:OneArgExpression .
+
     spexpr:Builtin_isBLANK rdfs:subClassOf spexpr:OneArgExpression .
 
     spexpr:Builtin_isIRI rdfs:subClassOf spexpr:OneArgExpression .
@@ -4357,6 +4371,8 @@ starontology:spexpr-ontology.ttl {
     spexpr:Builtin_isLITERAL rdfs:subClassOf spexpr:OneArgExpression .
 
     spexpr:Builtin_isNUMERIC rdfs:subClassOf spexpr:OneArgExpression .
+
+    spexpr:Builtin_isTRIPLE rdfs:subClassOf spexpr:OneArgExpression .
 
     spexpr:Builtin_isURI rdfs:subClassOf spexpr:OneArgExpression .
 
@@ -4407,6 +4423,9 @@ starontology:spexpr-ontology.ttl {
         rdfs:subClassOf spexpr:Expression .
 
     spexpr:ReplaceExpression rdfs:comment "REPLACE(arg, pattern, replacement[, flags]) - unique key names." ;
+        rdfs:subClassOf spexpr:Expression .
+
+    spexpr:StrLangDirExpression rdfs:comment "STRLANGDIR(lex, lang, direction) - three required arguments under their own key names." ;
         rdfs:subClassOf spexpr:Expression .
 
     spexpr:SubstrExpression rdfs:comment "SUBSTR(arg, start[, length]) - unique key names." ;
@@ -4625,6 +4644,24 @@ starontology:spexpr_shapes.ttl {
                 sh:node spexpr:ExpressionShape ;
                 sh:path spexpr:pattern ] .
 
+    spexpr:_StrLangDirExprBodyShape a sh:NodeShape ;
+        rdfs:isDefinedBy spexpr:ShapesGraph ;
+        sh:property [ sh:maxCount 1 ;
+                sh:message "expected exactly one spexpr:lex" ;
+                sh:minCount 1 ;
+                sh:node spexpr:ExpressionShape ;
+                sh:path spexpr:lex ],
+            [ sh:maxCount 1 ;
+                sh:message "expected exactly one spexpr:lang" ;
+                sh:minCount 1 ;
+                sh:node spexpr:ExpressionShape ;
+                sh:path spexpr:lang ],
+            [ sh:maxCount 1 ;
+                sh:message "expected exactly one spexpr:direction" ;
+                sh:minCount 1 ;
+                sh:node spexpr:ExpressionShape ;
+                sh:path spexpr:direction ] .
+
     spexpr:_SubstrExprBodyShape a sh:NodeShape ;
         rdfs:isDefinedBy spexpr:ShapesGraph ;
         sh:property [ sh:maxCount 1 ;
@@ -4795,6 +4832,10 @@ starontology:sqe-ontology.ttl {
     sqe:TriplePattern a rdfs:Class ;
         rdfs:comment "One (subject, predicate, object) triple pattern - exactly one of each, via sqe:subject/sqe:predicate/sqe:object. A predicate that's a real property path falls back to the existing salg: path encoding." .
 
+    sqe:TripleTerm a rdfs:Class ;
+        rdfs:comment "An RDF 1.2 triple term <<( s p o )>> in a pattern's object position (or nested as another triple term's object) - sqe:subject/sqe:predicate/sqe:object, each a term or variable. Reified-triple and annotation shorthand is written out as its expansion: a rdf:reifies triple plus ordinary triples." ;
+        rdfs:subClassOf spexpr:Expression .
+
     sqe:Union a rdfs:Class ;
         rdfs:comment "A { ... } UNION { ... } [UNION { ... }]* block - sqe:alternatives -> rdf:List of nested flat pattern lists, one per alternative." .
 
@@ -4880,6 +4921,7 @@ starontology:sqe_shapes.ttl {
             sqe:SubjectOrVariableShape,
             sqe:TemplateListShape,
             sqe:TriplePatternShape,
+            sqe:TripleTermShape,
             sqe:UnionShape,
             sqe:WhereListShape ;
         owl:imports spexpr:ShapesGraph .
@@ -4904,13 +4946,13 @@ starontology:sqe_shapes.ttl {
                 } UNION {
                     ?node a sqe:Bind ; sqe:expr ?exprRoot .
                 }
-                ?exprRoot (spexpr:expr|spexpr:other|spexpr:arg|spexpr:arg1|spexpr:arg2|spexpr:arg3|spexpr:flags|spexpr:pattern|spexpr:text|spexpr:replacement|spexpr:start|spexpr:length|rdf:rest|rdf:first)* ?var .
+                ?exprRoot (spexpr:expr|spexpr:other|spexpr:arg|spexpr:arg1|spexpr:arg2|spexpr:arg3|spexpr:flags|spexpr:pattern|spexpr:text|spexpr:replacement|spexpr:start|spexpr:length|sqe:subject|sqe:predicate|sqe:object|rdf:rest|rdf:first)* ?var .
                 FILTER ( datatype(?var) = spexpr:Variable )
                 FILTER NOT EXISTS {
                     $this (sqe:where|sqe:alternatives|rdf:rest|rdf:first)* ?node2 .
                     {
                         ?node2 a sqe:TriplePattern ;
-                            (sqe:subject|sqe:predicate|sqe:object) ?var .
+                            (sqe:subject|sqe:predicate|sqe:object)+ ?var .
                     } UNION {
                         ?node2 a sqe:Bind ;
                             sqe:var ?var .
@@ -4954,13 +4996,13 @@ starontology:sqe_shapes.ttl {
             WHERE {
                 $this sqe:template/rdf:rest*/rdf:first ?tpl .
                 ?tpl a sqe:TriplePattern ;
-                    (sqe:subject|sqe:predicate|sqe:object) ?var .
+                    (sqe:subject|sqe:predicate|sqe:object)+ ?var .
                 FILTER ( datatype(?var) = spexpr:Variable )
                 FILTER NOT EXISTS {
                     $this (sqe:where|sqe:alternatives|rdf:rest|rdf:first)* ?node .
                     {
                         ?node a sqe:TriplePattern ;
-                            (sqe:subject|sqe:predicate|sqe:object) ?var .
+                            (sqe:subject|sqe:predicate|sqe:object)+ ?var .
                     } UNION {
                         ?node a sqe:Bind ;
                             sqe:var ?var .
@@ -4982,13 +5024,13 @@ starontology:sqe_shapes.ttl {
                 } UNION {
                     ?node a sqe:Bind ; sqe:expr ?exprRoot .
                 }
-                ?exprRoot (spexpr:expr|spexpr:other|spexpr:arg|spexpr:arg1|spexpr:arg2|spexpr:arg3|spexpr:flags|spexpr:pattern|spexpr:text|spexpr:replacement|spexpr:start|spexpr:length|rdf:rest|rdf:first)* ?var .
+                ?exprRoot (spexpr:expr|spexpr:other|spexpr:arg|spexpr:arg1|spexpr:arg2|spexpr:arg3|spexpr:flags|spexpr:pattern|spexpr:text|spexpr:replacement|spexpr:start|spexpr:length|sqe:subject|sqe:predicate|sqe:object|rdf:rest|rdf:first)* ?var .
                 FILTER ( datatype(?var) = spexpr:Variable )
                 FILTER NOT EXISTS {
                     $this (sqe:where|sqe:alternatives|rdf:rest|rdf:first)* ?node2 .
                     {
                         ?node2 a sqe:TriplePattern ;
-                            (sqe:subject|sqe:predicate|sqe:object) ?var .
+                            (sqe:subject|sqe:predicate|sqe:object)+ ?var .
                     } UNION {
                         ?node2 a sqe:Bind ;
                             sqe:var ?var .
@@ -5099,7 +5141,7 @@ starontology:sqe_shapes.ttl {
                     $this (sqe:where|sqe:alternatives|rdf:rest|rdf:first)* ?node .
                     {
                         ?node a sqe:TriplePattern ;
-                            (sqe:subject|sqe:predicate|sqe:object) ?var .
+                            (sqe:subject|sqe:predicate|sqe:object)+ ?var .
                     } UNION {
                         ?node a sqe:Bind ;
                             sqe:var ?var .
@@ -5121,13 +5163,13 @@ starontology:sqe_shapes.ttl {
                 } UNION {
                     ?node a sqe:Bind ; sqe:expr ?exprRoot .
                 }
-                ?exprRoot (spexpr:expr|spexpr:other|spexpr:arg|spexpr:arg1|spexpr:arg2|spexpr:arg3|spexpr:flags|spexpr:pattern|spexpr:text|spexpr:replacement|spexpr:start|spexpr:length|rdf:rest|rdf:first)* ?var .
+                ?exprRoot (spexpr:expr|spexpr:other|spexpr:arg|spexpr:arg1|spexpr:arg2|spexpr:arg3|spexpr:flags|spexpr:pattern|spexpr:text|spexpr:replacement|spexpr:start|spexpr:length|sqe:subject|sqe:predicate|sqe:object|rdf:rest|rdf:first)* ?var .
                 FILTER ( datatype(?var) = spexpr:Variable )
                 FILTER NOT EXISTS {
                     $this (sqe:where|sqe:alternatives|rdf:rest|rdf:first)* ?node2 .
                     {
                         ?node2 a sqe:TriplePattern ;
-                            (sqe:subject|sqe:predicate|sqe:object) ?var .
+                            (sqe:subject|sqe:predicate|sqe:object)+ ?var .
                     } UNION {
                         ?node2 a sqe:Bind ;
                             sqe:var ?var .
@@ -5173,6 +5215,24 @@ starontology:sqe_shapes.ttl {
                 sh:path sqe:object ] ;
         sh:targetClass sqe:TriplePattern .
 
+    sqe:TripleTermShape a sh:NodeShape ;
+        sh:property [ sh:maxCount 1 ;
+                sh:message "sqe:TripleTerm must have exactly one sqe:subject (an IRI, blank node or variable - never a triple term)" ;
+                sh:minCount 1 ;
+                sh:node sqe:SubjectOrVariableShape ;
+                sh:path sqe:subject ],
+            [ sh:maxCount 1 ;
+                sh:message "sqe:TripleTerm must have exactly one sqe:predicate (an IRI or variable)" ;
+                sh:minCount 1 ;
+                sh:or ( [ sh:nodeKind sh:IRI ] spexpr:VariableShape ) ;
+                sh:path sqe:predicate ],
+            [ sh:maxCount 1 ;
+                sh:message "sqe:TripleTerm must have exactly one sqe:object" ;
+                sh:minCount 1 ;
+                sh:node sqe:ObjectOrVariableShape ;
+                sh:path sqe:object ] ;
+        sh:targetClass sqe:TripleTerm .
+
     sqe:UnionShape a sh:NodeShape ;
         sh:property [ sh:maxCount 1 ;
                 sh:message "sqe:Union must have exactly one sqe:alternatives, an rdf:List of pattern lists" ;
@@ -5208,9 +5268,6 @@ starontology:sqe_shapes.ttl {
             }
         """ ] .
 
-    sqe:ObjectOrVariableShape a sh:NodeShape ;
-        sh:or ( [ sh:nodeKind sh:IRI ] [ sh:nodeKind sh:BlankNode ] [ sh:nodeKind sh:Literal ] spexpr:VariableShape ) .
-
     sqe:OrderByListShape a sh:NodeShape ;
         sh:sparql [ a sh:SPARQLConstraint ;
                 sh:message "expected a well-formed, non-empty rdf:List of sqe:OrderCondition" ;
@@ -5234,9 +5291,6 @@ starontology:sqe_shapes.ttl {
     sqe:PredicateOrVariableOrPathShape a sh:NodeShape ;
         sh:or ( [ sh:nodeKind sh:IRI ] spexpr:VariableShape spexpr:PathShape ) .
 
-    sqe:SubjectOrVariableShape a sh:NodeShape ;
-        sh:or ( [ sh:nodeKind sh:IRI ] [ sh:nodeKind sh:BlankNode ] spexpr:VariableShape ) .
-
     sqe:TemplateListShape a sh:NodeShape ;
         sh:sparql [ a sh:SPARQLConstraint ;
                 sh:message "expected a well-formed rdf:List of sqe:TriplePattern" ;
@@ -5254,6 +5308,12 @@ starontology:sqe_shapes.ttl {
                 }
             }
         """ ] .
+
+    sqe:ObjectOrVariableShape a sh:NodeShape ;
+        sh:or ( [ sh:nodeKind sh:IRI ] [ sh:nodeKind sh:BlankNode ] [ sh:nodeKind sh:Literal ] [ sh:class sqe:TripleTerm ] spexpr:VariableShape ) .
+
+    sqe:SubjectOrVariableShape a sh:NodeShape ;
+        sh:or ( [ sh:nodeKind sh:IRI ] [ sh:nodeKind sh:BlankNode ] spexpr:VariableShape ) .
 
     sqe:WhereListShape a sh:NodeShape ;
         sh:sparql [ a sh:SPARQLConstraint ;

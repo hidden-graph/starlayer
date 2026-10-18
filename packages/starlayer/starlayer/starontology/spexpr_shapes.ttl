@@ -411,3 +411,25 @@ spexpr:_VariadicArgExprBodyShape a sh:NodeShape ;
 
 spexpr:_ZeroArgExprBodyShape a sh:NodeShape ;
     rdfs:isDefinedBy spexpr:ShapesGraph .
+
+spexpr:_StrLangDirExprBodyShape a sh:NodeShape ;
+    rdfs:isDefinedBy spexpr:ShapesGraph ;
+    sh:property [
+        sh:maxCount 1 ;
+        sh:message "expected exactly one spexpr:lex" ;
+        sh:minCount 1 ;
+        sh:node spexpr:ExpressionShape ;
+        sh:path spexpr:lex
+    ], [
+        sh:maxCount 1 ;
+        sh:message "expected exactly one spexpr:lang" ;
+        sh:minCount 1 ;
+        sh:node spexpr:ExpressionShape ;
+        sh:path spexpr:lang
+    ], [
+        sh:maxCount 1 ;
+        sh:message "expected exactly one spexpr:direction" ;
+        sh:minCount 1 ;
+        sh:node spexpr:ExpressionShape ;
+        sh:path spexpr:direction
+    ] .

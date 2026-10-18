@@ -208,6 +208,12 @@ def _simplify_expr_immutable(expr):
     if isinstance(expr, Expr):
         evalfn = expr._evalfn.__func__ if expr._evalfn is not None else None
         return Expr(expr.name, evalfn, **new_values)
+    from .triple_term import TripleTermNode
+
+    if isinstance(expr, TripleTermNode):
+        rebuilt = TripleTermNode(expr.name)
+        rebuilt.update(new_values)
+        return rebuilt
     return CompValue(expr.name, **new_values)
 
 

@@ -41,12 +41,14 @@ from .vocab import (
     QUERY_COLLECTION,
     SALG,
     SPEXPR,
+    SQE,
     UPDATE,
     UPDATE_OPERATION,
     VARIABLE_DATATYPE,
 )
 
 _SALG_NS = str(SALG)
+_SQE_NS = str(SQE)
 _SPEXPR_NS = str(SPEXPR)
 
 
@@ -71,6 +73,8 @@ def _strip_vocab_ns(uri: str) -> str | None:
         return uri[len(_SPEXPR_NS):]
     if uri.startswith(_SALG_NS):
         return uri[len(_SALG_NS):]
+    if uri.startswith(_SQE_NS):
+        return uri[len(_SQE_NS):]
     return None
 
 # (node name, key) pairs whose value must decode to a genuine Python

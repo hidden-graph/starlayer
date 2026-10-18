@@ -31,7 +31,7 @@ from rdflib.collection import Collection
 from rdflib.namespace import RDF
 
 from ..from_rdf import _decode
-from ..ssyn_to_text import _render_expr_text
+from ..ssyn_to_text import _simplify_expr_immutable
 from ..vocab import VARIABLE_DATATYPE
 from .vocab import (
     ASK_QUERY,
@@ -59,10 +59,43 @@ from .vocab import (
     TRIPLE_PATTERN_OBJECT,
     TRIPLE_PATTERN_PREDICATE,
     TRIPLE_PATTERN_SUBJECT,
+    TRIPLE_TERM,
     UNION,
     UNION_ALTERNATIVES,
     WHERE,
 )
+
+
+def _render_expr_text(expr) -> str:
+    """Render an expression with the SPARQL 1.2-aware translator (triple terms,
+    dirLangString), unlike the shared helper that wraps stock translateAlgebra."""
+    from rdflib.plugins.sparql.algebra import CompValue
+    from rdflib.plugins.sparql.sparql import Prologue, Query
+
+    from ..serialize12 import _AlgebraTranslator12, _term_text
+    from ..triple_term import TripleTermNode
+
+    if isinstance(expr, TripleTermNode):
+        return _term_text(expr)
+    expr = _simplify_expr_immutable(expr)
+    wrapper = CompValue(
+        "SelectQuery",
+        p=CompValue("Project", p=CompValue("Filter", expr=expr, p=CompValue("BGP", triples=[])), PV=[]),
+        datasetClause=None,
+        PV=[],
+    )
+    text = _AlgebraTranslator12(Query(Prologue(), wrapper)).translateAlgebra()
+    start = text.index("FILTER(") + len("FILTER")
+    depth = 0
+    for i in range(start, len(text)):
+        if text[i] == "(":
+            depth += 1
+        elif text[i] == ")":
+            depth -= 1
+            if depth == 0:
+                return text[start + 1 : i]
+    raise RuntimeError(f"unbalanced parens rendering expression: {text!r}")
+
 
 _KEYWORD_BY_ROOT_TYPE = {
     SELECT_QUERY: "SELECT",
@@ -184,9 +217,9 @@ def _where_element_text(node, graph: Graph, prefixes: dict) -> str:
 
 
 def _triple_pattern_text(node, graph: Graph, prefixes: dict) -> str:
-    s = _term_text(graph.value(node, TRIPLE_PATTERN_SUBJECT), prefixes)
+    s = _term_text(graph.value(node, TRIPLE_PATTERN_SUBJECT), prefixes, graph)
     p = _predicate_text(graph.value(node, TRIPLE_PATTERN_PREDICATE), graph, prefixes)
-    o = _term_text(graph.value(node, TRIPLE_PATTERN_OBJECT), prefixes)
+    o = _term_text(graph.value(node, TRIPLE_PATTERN_OBJECT), prefixes, graph)
     return f"{s} {p} {o}"
 
 
@@ -207,7 +240,9 @@ def _predicate_text(node, graph: Graph, prefixes: dict) -> str:
     return _term_text(node, prefixes)
 
 
-def _term_text(value, prefixes: dict) -> str:
+def _term_text(value, prefixes: dict, graph: Graph | None = None) -> str:
+    if graph is not None and (value, RDF.type, TRIPLE_TERM) in graph:
+        return "<<( " + _triple_pattern_text(value, graph, prefixes) + " )>>"
     if isinstance(value, Literal) and value.datatype == VARIABLE_DATATYPE:
         return "?" + str(value)
     if isinstance(value, URIRef):

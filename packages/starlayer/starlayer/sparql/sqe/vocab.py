@@ -82,15 +82,11 @@ for the plan to widen this deliberately, later.
 
 from __future__ import annotations
 
-from rdflib import Namespace
-
 from ..vocab import (  # noqa: F401 - reused as-is, not re-minted
     PY_STR_DATATYPE,
-    SALG,
+    SQE,
     VARIABLE_DATATYPE,
 )
-
-SQE = Namespace("https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#")
 
 # Root query-form types, each also typed sqe:Query (see salg:Query's own
 # identical convention) so a store holding many encoded queries can find
@@ -126,6 +122,8 @@ OPTIONAL = SQE.Optional  # .where -> nested flat list
 FILTER = SQE.Filter  # .expr -> salg: expression (fallback boundary)
 BIND = SQE.Bind  # .expr -> salg: expression (fallback boundary), .var
 BIND_VAR = SQE.var
+
+TRIPLE_TERM = SQE.TripleTerm  # <<( s p o )>> - .subject/.predicate/.object, recursively
 
 UNION = SQE.Union  # .alternatives -> rdf:List of nested flat lists
 UNION_ALTERNATIVES = SQE.alternatives

@@ -31,6 +31,19 @@ from tests.sparql.w3c_sparql12.test_w3c_sparql12 import _data_format, _new_graph
 
 pytestmark = pytest.mark.sqe_coverage
 
+SALG_NS = "https://github.com/hidden-graph/starlayer/ns/sparql/algebra#"
+
+
+def assert_no_salg_terms(graph) -> None:
+    """sqe output must never contain a salg: term (sqe may share spexpr:, never salg:)."""
+    leaked = set()
+    for triple in graph:
+        for term in triple:
+            candidates = [term, getattr(term, "datatype", None)]
+            leaked.update(str(c) for c in candidates if c is not None and str(c).startswith(SALG_NS))
+    assert not leaked, f"salg: terms leaked into the sqe tree: {sorted(leaked)}"
+
+
 _GAPS_FILE = Path(__file__).with_name("sqe_known_gaps.txt")
 _ENTRIES = [
     e for e in load_index() if e.test_type in ("PositiveSyntaxTest", "QueryEvaluationTest")
@@ -50,6 +63,7 @@ def _known_gaps() -> set[str]:
 def run_entry(entry) -> None:
     text, _ = strip_version_directive(entry.read(entry.query_file))
     graph, root = sqe_parse_to_tree(text)
+    assert_no_salg_terms(graph)
     regenerated = sqe_tree_to_text(graph, root)
     graph2, root2 = sqe_parse_to_tree(regenerated)
     sqe_tree_to_query(graph2, root2)
@@ -85,6 +99,18 @@ def _param(entry):
 @pytest.mark.parametrize("entry", [_param(e) for e in _ENTRIES])
 def test_w3c_fixture_through_sqe(entry):
     run_entry(entry)
+
+
+@pytest.mark.skipif(not _ENTRIES, reason="W3C SPARQL 1.2 test data not fetched")
+@pytest.mark.parametrize("entry", _ENTRIES, ids=_key)
+def test_no_salg_terms_in_any_tree(entry):
+    """Checked separately from the round-trip so a leak can never hide inside a known gap."""
+    text, _ = strip_version_directive(entry.read(entry.query_file))
+    try:
+        graph, _root = sqe_parse_to_tree(text)
+    except Exception:  # noqa: BLE001 - unparseable/unsupported fixtures have no tree to check
+        pytest.skip("no sqe tree for this fixture")
+    assert_no_salg_terms(graph)
 
 
 if __name__ == "__main__":

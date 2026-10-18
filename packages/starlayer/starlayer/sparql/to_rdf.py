@@ -7,6 +7,8 @@ that is the design (and not one function per operator name).
 
 from __future__ import annotations
 
+from contextvars import ContextVar
+
 from rdflib import BNode, Graph, Literal, Namespace, URIRef, Variable
 from rdflib.collection import Collection
 from rdflib.namespace import RDF
@@ -67,11 +69,21 @@ def _expr_comp_value_names() -> frozenset:
     return _EXPR_COMP_VALUE_NAMES
 
 
+# Per-call namespace overrides for specific CompValue names. sqe's encoder
+# sets {"TripleTerm": SQE} while encoding so a triple term inside a query tree
+# is an sqe: node, not a salg: one. A ContextVar, not a parameter, because the
+# encoder recurses generically through many layers.
+_NS_OVERRIDES: ContextVar[dict | None] = ContextVar("_NS_OVERRIDES", default=None)
+
+
 def _comp_value_ns(name: str) -> Namespace:
     """Which namespace a given CompValue.name encodes under - spexpr: for
     the expression-family names that moved out of salg: (2026-10-10), salg:
     for every other algebra operator (Join/Filter/Project/etc. - salg:'s
     own, unmoved vocabulary)."""
+    override = (_NS_OVERRIDES.get() or {}).get(name)
+    if override is not None:
+        return override
     return SPEXPR if name in _expr_comp_value_names() else SALG
 
 _LEAF_TERM_TYPES = (URIRef, BNode, Literal)

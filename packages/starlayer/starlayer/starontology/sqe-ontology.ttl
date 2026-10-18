@@ -1,5 +1,6 @@
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#> .
 @prefix sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#> .
 
 sqe:AskQuery rdfs:comment "An ASK query's root. sqe:where -> the flat pattern list; no projection." ;
@@ -27,6 +28,9 @@ sqe:SelectQuery rdfs:comment "A SELECT query's root. sqe:projection -> rdf:List 
 
 sqe:TriplePattern a rdfs:Class ;
     rdfs:comment "One (subject, predicate, object) triple pattern - exactly one of each, via sqe:subject/sqe:predicate/sqe:object. A predicate that's a real property path falls back to the existing salg: path encoding." .
+
+sqe:TripleTerm a rdfs:Class ;
+    rdfs:comment "An RDF 1.2 triple term <<( s p o )>> in a pattern's object position (or nested as another triple term's object) - sqe:subject/sqe:predicate/sqe:object, each a term or variable. Reified-triple and annotation shorthand is written out as its expansion: a rdf:reifies triple plus ordinary triples." .
 
 sqe:Union a rdfs:Class ;
     rdfs:comment "A { ... } UNION { ... } [UNION { ... }]* block - sqe:alternatives -> rdf:List of nested flat pattern lists, one per alternative." .
@@ -81,3 +85,5 @@ sqe:limit a rdf:Property ;
 
 sqe:offset a rdf:Property ;
     rdfs:comment "OFFSET n (xsd:integer), on a SELECT or CONSTRUCT root." .
+
+sqe:TripleTerm rdfs:subClassOf spexpr:Expression .

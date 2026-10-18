@@ -13,6 +13,7 @@ from starlayer.sparql.sqe import (
     sqe_tree_to_text,
     sqe_validate,
 )
+from tests.sparql.sqe_coverage.test_w3c_through_sqe import assert_no_salg_terms
 
 pytestmark = pytest.mark.sqe_coverage
 
@@ -59,6 +60,7 @@ def test_modifier_query_matches_rdflib(name, data):
     text = QUERIES[name]
     graph, root = sqe_parse_to_tree(text)
     assert sqe_validate(graph)[0]
+    assert_no_salg_terms(graph)
     expected = _rows(data, text)
 
     decoded = _rows(data, sqe_tree_to_query(graph, root))

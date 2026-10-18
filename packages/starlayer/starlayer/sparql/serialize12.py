@@ -167,6 +167,11 @@ class _AlgebraTranslator12(_AlgebraTranslator):
         dirlang = _dirlang_n3(node_arg)
         if dirlang is not None:
             return dirlang
+        if isinstance(node_arg, TripleTermNode):
+            # Rendered here rather than via the "{TripleTerm}" placeholder,
+            # which is never filled in when the term sits inside a list
+            # argument (e.g. an IN (...) list).
+            return _term_text(node_arg)
         return super().convert_node_arg(node_arg)
 
     def translateAlgebra(self) -> str:
@@ -220,6 +225,13 @@ class _AlgebraTranslator12(_AlgebraTranslator):
             #    expecting it to fill that placeholder in — a bare no-op
             #    would leave that placeholder as literal, unresolved text.
             self._replace("{TripleTerm}", _term_text(node))
+            return node
+
+        if isinstance(node, CompValue) and node.name in ("UnaryMinus", "UnaryPlus"):
+            # Stock rdflib has no branch for these two (only UnaryNot), so the
+            # placeholder survived into the text ("?x * {UnaryMinus}").
+            sign = "-" if node.name == "UnaryMinus" else "+"
+            self._replace("{" + node.name + "}", sign + self.convert_node_arg(node.expr))
             return node
 
         if isinstance(node, CompValue) and node.name in (

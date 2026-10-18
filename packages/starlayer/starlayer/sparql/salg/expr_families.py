@@ -35,6 +35,10 @@ _EXPR_NODE_FAMILY: dict[str, str] = {
     "Builtin_DAY": "OneArg", "Builtin_HOURS": "OneArg", "Builtin_MINUTES": "OneArg",
     "Builtin_SECONDS": "OneArg", "Builtin_TIMEZONE": "OneArg", "Builtin_TZ": "OneArg",
     "Builtin_IRI": "OneArg", "Builtin_URI": "OneArg",
+    # RDF 1.2 (SPARQL 1.2 sec 17.4): triple-term accessors and base-direction functions
+    "Builtin_isTRIPLE": "OneArg", "Builtin_SUBJECT": "OneArg", "Builtin_PREDICATE": "OneArg",
+    "Builtin_OBJECT": "OneArg", "Builtin_LANGDIR": "OneArg", "Builtin_hasLANG": "OneArg",
+    "Builtin_hasLANGDIR": "OneArg",
     # one-arg, but optional (BNODE() vs BNODE(?x) - see _OptionalOneArgExprBodyShape)
     "Builtin_BNODE": "OptionalOneArg",
     # unary (salg:expr, required)
@@ -48,6 +52,7 @@ _EXPR_NODE_FAMILY: dict[str, str] = {
     # variadic (salg:arg is a list)
     "Builtin_CONCAT": "VariadicArg", "Builtin_COALESCE": "VariadicArg",
     # unique key names
+    "Builtin_STRLANGDIR": "StrLangDir",
     "Builtin_REGEX": "Regex", "Builtin_REPLACE": "Replace", "Builtin_SUBSTR": "Substr",
     "Builtin_EXISTS": "Exists", "Builtin_NOTEXISTS": "Exists",
     "Function": "Function",

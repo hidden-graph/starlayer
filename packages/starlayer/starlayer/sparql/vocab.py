@@ -172,6 +172,12 @@ from rdflib import Namespace, URIRef
 
 SALG = Namespace("https://github.com/hidden-graph/starlayer/ns/sparql/algebra#")
 
+# sqe:'s namespace, defined here (and imported by sqe/vocab.py) so the shared
+# encoder/decoder can recognize sqe-typed nodes without importing the sqe
+# package (which imports this module). salg may depend on sqe, never the
+# reverse: sqe output must contain no salg: terms.
+SQE = Namespace("https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#")
+
 # SPEXPR - the SPARQL expression/variable/property-path vocabulary,
 # carved OUT of SALG into its own namespace. Originally minted under
 # salg: because salg: was built first (before sqe: existed) and nobody
@@ -227,7 +233,10 @@ SPEXPR = Namespace("https://github.com/hidden-graph/starlayer/ns/sparql/expr#")
 # structural (non-native) salg: encoding. This gives dirLangString literals
 # the same protection: a StarLayerGraph never recognizes this namespace as
 # its own, so the literal stays an inert term in the salg: representation.
-DIRLANG_NS = SALG["dirlang/"]
+# spexpr:, not salg: (moved 2026-10-18): a dirLangString value appears inside
+# expressions, which sqe: shares, and sqe: output must hold no salg: terms.
+DIRLANG_NS = SPEXPR["dirlang/"]
+_LEGACY_DIRLANG_NS = str(SALG["dirlang/"])  # still decoded, never written
 
 
 def encode_dirlang_datatype(language: str, direction: str) -> URIRef:
@@ -262,9 +271,12 @@ def decode_dirlang_datatype(datatype: URIRef) -> tuple[str, str] | None:
         encoding.
     """
     s = str(datatype)
-    if not s.startswith(DIRLANG_NS):
+    if s.startswith(_LEGACY_DIRLANG_NS):
+        suffix = s[len(_LEGACY_DIRLANG_NS):]
+    elif s.startswith(DIRLANG_NS):
+        suffix = s[len(DIRLANG_NS):]
+    else:
         return None
-    suffix = s[len(DIRLANG_NS):]
     language, sep, direction = suffix.rpartition("--")
     if not sep:
         return None
