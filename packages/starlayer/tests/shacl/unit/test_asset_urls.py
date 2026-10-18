@@ -24,8 +24,8 @@ class TestGetRawUrl:
         url = asset_urls.get_raw_url("conformance_profile")
         assert url == _RAW_BASE + "shacl12-conformance-profile.ttl"
 
-    def test_covers_all_three_assets(self):
-        for name in ("presentation_shapes", "validation_shapes", "conformance_profile"):
+    def test_covers_all_assets(self):
+        for name in ("validation_shapes", "conformance_profile"):
             assert asset_urls.get_raw_url(name) is not None
 
     def test_unknown_name_returns_none(self):
@@ -34,6 +34,6 @@ class TestGetRawUrl:
 
 class TestPublishedFiles:
     def test_every_asset_url_resolves_to_a_real_file_on_disk(self):
-        for name in ("presentation_shapes", "validation_shapes", "conformance_profile"):
+        for name in ("validation_shapes", "conformance_profile"):
             path = _published_path(name)
             assert path.is_file(), f"{name}: no file at {path}"

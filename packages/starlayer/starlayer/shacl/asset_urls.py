@@ -13,7 +13,6 @@ from __future__ import annotations
 _GITHUB_RAW_BASE = "https://raw.githubusercontent.com/hidden-graph/starlayer/main/packages/starlayer/starlayer/shacl/assets/"
 
 _FILENAME_BY_NAME = {
-    "presentation_shapes": "shacl12-presentation-shapes.ttl",
     "validation_shapes": "shacl12-validation-shapes.ttl",
     "conformance_profile": "shacl12-conformance-profile.ttl",
 }
@@ -25,8 +24,7 @@ def get_raw_url(name: str) -> str | None:
     blob URL, which returns an HTML viewer page to a plain HTTP GET).
 
     Args:
-        name: ``"presentation_shapes"``, ``"validation_shapes"``, or
-            ``"conformance_profile"``.
+        name: ``"validation_shapes"`` or ``"conformance_profile"``.
 
     Returns:
         The raw URL, or ``None`` for an unrecognized name.

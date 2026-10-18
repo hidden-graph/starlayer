@@ -1454,17 +1454,6 @@ class TestSparqlQueryStructureValidation:
         )
         check_sparql_query_text(shapes)  # must not raise
 
-    def test_bundled_presentation_shapes_conform(self) -> None:
-        # A real, non-contrived fixture (this project's own bundled
-        # meta-shapes asset, which genuinely embeds sh:select/sh:ask/
-        # sh:construct) - proves no false positives on legitimate shapes,
-        # not just on hand-crafted toy queries.
-        from starlayer.shacl.meta_shapes import _PRESENTATION_SHAPES_PATH
-
-        shapes = Graph()
-        shapes.parse(_PRESENTATION_SHAPES_PATH, format="turtle")
-        check_sparql_query_text(shapes)  # must not raise
-
     def test_bundled_validation_shapes_conform(self) -> None:
         from starlayer.shacl.meta_shapes import _VALIDATION_SHAPES_PATH
 

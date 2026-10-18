@@ -1,3 +1,6 @@
+# ARCHIVED 2026-10-17: no longer shipped or merged into the meta-shapes graph.
+# See README.md in this folder.
+#
 # baseURI: https://github.com/hidden-graph/starlayer/ns/shacl#
 #
 # UI/rendering-specific metadata for the full SHACL Core + SHACL 1.2
@@ -268,8 +271,12 @@ shui:LabelRole sh:group stsh:WidgetGroup ; sh:order 30 .
 #############################################################################
 # Editor hint vocabulary
 #
-# stsh:widgetType — signals the nature of the data to a consuming editor
-#   (int, bool, text, inline_shape, …); not a binding UI contract.
+# shui:editor — standard SHACL 1.2 UI widget, used in its standard form: on a
+#   property shape keyed by sh:path (see stsh:ShapeEditorShape at the end of
+#   this file), wherever a built-in shui widget fits.
+# stsh:widgetType — used on the same property shapes, only for the structured
+#   cases no built-in shui widget covers (prop_path_expr, node_expression_list/ref, message_list, group,
+#   rdf_term, has_value_pick, in_list); not a binding UI contract.
 # stsh:nodePrimary — false signals that a predicate is allowed but not
 #   commonly expected; editors may choose to show it in a secondary section.
 #
@@ -278,7 +285,7 @@ shui:LabelRole sh:group stsh:WidgetGroup ; sh:order 30 .
 
 stsh:widgetType a rdf:Property ;
     rdfs:label "widget type"@en ;
-    rdfs:comment "Signals the nature of this predicate's data to a consuming editor. Suggested values: text, multiline, int, number, bool, severity, datatype, node_kind, class_multi, property_multi, prop_path_expr, has_value_pick, in_list, uri_list, message_list, inline_shape, group."@en .
+    rdfs:comment "Signals the nature of a predicate's data to a consuming editor; set on a property shape (see stsh:ShapeEditorShape). Used only where no built-in shui widget fits; the values still in use are prop_path_expr, node_expression_list, node_expression_ref, message_list, group, rdf_term, has_value_pick and in_list. Everything else now uses shui:editor."@en .
 
 stsh:nodePrimary a rdf:Property ;
     rdfs:label "node primary"@en ;
@@ -290,10 +297,6 @@ stsh:nodePrimary a rdf:Property ;
 # Targeting predicates
 #############################################################################
 
-sh:targetClass       stsh:widgetType "text" .
-sh:targetNode        stsh:widgetType "text" .
-sh:targetSubjectsOf  stsh:widgetType "text" .
-sh:targetObjectsOf   stsh:widgetType "text" .
 
 
 #############################################################################
@@ -307,136 +310,94 @@ sh:targetObjectsOf   stsh:widgetType "text" .
 # a bare IRI.
 #############################################################################
 
-sh:path             stsh:widgetType "prop_path_expr" .
-sh:alternativePath  stsh:widgetType "prop_path_expr" .
-sh:inversePath      stsh:widgetType "prop_path_expr" .
-sh:oneOrMorePath    stsh:widgetType "prop_path_expr" .
-sh:zeroOrMorePath   stsh:widgetType "prop_path_expr" .
-sh:zeroOrOnePath    stsh:widgetType "prop_path_expr" .
 
 
 #############################################################################
 # Non-validating metadata
 #############################################################################
 
-sh:name          stsh:widgetType "langstring" .
-sh:description   stsh:widgetType "langstring" ; stsh:multiline true .
-sh:severity      stsh:widgetType "severity" .
-sh:message       stsh:widgetType "message_list" ; stsh:multiline true .
-sh:group         stsh:widgetType "group" .
-sh:order         stsh:widgetType "int" .
-sh:deactivated   stsh:widgetType "bool" .
-sh:defaultValue  stsh:widgetType "text" .
+sh:description stsh:multiline true .
+sh:message stsh:multiline true .
 
 
 #############################################################################
 # Closed shapes
 #############################################################################
 
-sh:closed             stsh:widgetType "bool" .
-sh:ignoredProperties  stsh:widgetType "property_multi" .
 
 
 #############################################################################
 # Value type
 #############################################################################
 
-sh:class     stsh:widgetType "class_multi" .
-sh:datatype  stsh:widgetType "datatype"  ; stsh:nodePrimary false .
-sh:nodeKind  stsh:widgetType "node_kind" .
-sh:rootClass stsh:widgetType "class_multi" .
+sh:datatype stsh:nodePrimary false .
 
 
 #############################################################################
 # Cardinality
 #############################################################################
 
-sh:minCount  stsh:widgetType "int" .
-sh:maxCount  stsh:widgetType "int" .
 
 
 #############################################################################
 # List constraints
 #############################################################################
 
-sh:minListLength  stsh:widgetType "int"  ; stsh:nodePrimary false .
-sh:maxListLength  stsh:widgetType "int"  ; stsh:nodePrimary false .
-sh:uniqueMembers  stsh:widgetType "bool" ; stsh:nodePrimary false .
+sh:minListLength stsh:nodePrimary false .
+sh:maxListLength stsh:nodePrimary false .
+sh:uniqueMembers stsh:nodePrimary false .
 
 
 #############################################################################
 # Value range
 #############################################################################
 
-sh:minInclusive  stsh:widgetType "number" ; stsh:nodePrimary false .
-sh:maxInclusive  stsh:widgetType "number" ; stsh:nodePrimary false .
-sh:minExclusive  stsh:widgetType "number" ; stsh:nodePrimary false .
-sh:maxExclusive  stsh:widgetType "number" ; stsh:nodePrimary false .
+sh:minInclusive stsh:nodePrimary false .
+sh:maxInclusive stsh:nodePrimary false .
+sh:minExclusive stsh:nodePrimary false .
+sh:maxExclusive stsh:nodePrimary false .
 
 
 #############################################################################
 # String constraints
 #############################################################################
 
-sh:minLength  stsh:widgetType "int"  ; stsh:nodePrimary false .
-sh:maxLength  stsh:widgetType "int"  ; stsh:nodePrimary false .
-sh:pattern    stsh:widgetType "text" ; stsh:nodePrimary false .
-sh:flags      stsh:widgetType "text" ; stsh:nodePrimary false .
-sh:uniqueLang stsh:widgetType "bool" .
-sh:singleLine stsh:widgetType "bool" ; stsh:nodePrimary false .
+sh:minLength stsh:nodePrimary false .
+sh:maxLength stsh:nodePrimary false .
+sh:pattern stsh:nodePrimary false .
+sh:flags stsh:nodePrimary false .
+sh:singleLine stsh:nodePrimary false .
 
 
 #############################################################################
 # Value enumeration
 #############################################################################
 
-sh:in          stsh:widgetType "in_list" .
-sh:hasValue    stsh:widgetType "has_value_pick" .
-sh:languageIn  stsh:widgetType "uri_list" ; stsh:nodePrimary false .
+sh:languageIn stsh:nodePrimary false .
 
 
 #############################################################################
 # Value comparison
 #############################################################################
 
-sh:equals           stsh:widgetType "prop_path_expr" .
-sh:disjoint         stsh:widgetType "prop_path_expr" .
-sh:lessThan         stsh:widgetType "prop_path_expr" .
-sh:lessThanOrEquals stsh:widgetType "prop_path_expr" .
-sh:subsetOf         stsh:widgetType "prop_path_expr" .
 
 
 #############################################################################
 # Shape composition (logical / nested shapes)
 #############################################################################
 
-sh:not       stsh:widgetType "text" .
-sh:and       stsh:widgetType "text" .
-sh:or        stsh:widgetType "text" .
-sh:xone      stsh:widgetType "text" .
-sh:node      stsh:widgetType "text" .
-sh:property  stsh:widgetType "text" .
-sh:someValue  stsh:widgetType "inline_shape" .
-sh:memberShape stsh:widgetType "inline_shape" .
 
 
 #############################################################################
 # Qualified value shapes
 #############################################################################
 
-sh:qualifiedValueShape          stsh:widgetType "inline_shape" .
-sh:qualifiedMinCount            stsh:widgetType "int" .
-sh:qualifiedMaxCount            stsh:widgetType "int" .
-sh:qualifiedValueShapesDisjoint stsh:widgetType "bool" .
 
 
 #############################################################################
 # Cross-node constraints and RDF 1.2 reification
 #############################################################################
 
-sh:uniqueValuesFor     stsh:widgetType "uri_list" .
-sh:reifierShape        stsh:widgetType "inline_shape" .
-sh:reificationRequired stsh:widgetType "bool" .
 
 
 #############################################################################
@@ -455,23 +416,7 @@ sh:reificationRequired stsh:widgetType "bool" .
 # sh:qualifiedValueShape above.
 #############################################################################
 
-sh:select             stsh:widgetType "multiline" .
-sh:ask                stsh:widgetType "multiline" .
-sh:construct           stsh:widgetType "multiline" .
 
-sh:sparql              stsh:widgetType "inline_shape" .
-sh:rule                stsh:widgetType "inline_shape" .
-sh:condition            stsh:widgetType "inline_shape" .
-sh:ConstraintComponent  stsh:widgetType "inline_shape" .
-sh:parameter            stsh:widgetType "inline_shape" .
-sh:validator            stsh:widgetType "inline_shape" .
-sh:nodeValidator        stsh:widgetType "inline_shape" .
-sh:propertyValidator    stsh:widgetType "inline_shape" .
-sh:TripleRule           stsh:widgetType "inline_shape" .
-sh:SPARQLRule           stsh:widgetType "inline_shape" .
-sh:subject              stsh:widgetType "inline_shape" .
-sh:predicate            stsh:widgetType "inline_shape" .
-sh:object               stsh:widgetType "inline_shape" .
 
 
 #############################################################################
@@ -499,8 +444,7 @@ stsh:formMaxCount a rdf:Property ;
 #############################################################################
 
 rdfs:comment
-    sh:group stsh:MetadataGroup ; sh:order 9 ;
-    stsh:widgetType "multiline" .
+    sh:group stsh:MetadataGroup ; sh:order 9 .
     # stsh:nodeFormField / stsh:propertyFormField intentionally absent: sh:name and
     # sh:description are the SHACL-native annotation predicates. rdfs:comment on a
     # shape is treated as a Custom Property — visible only if the shape has it.
@@ -645,10 +589,109 @@ sh:reificationRequired stsh:propertyFormField true ; stsh:formMaxCount 1 .
 # ordered before the expression-type predicates.  Widget type is declared globally above.
 sh:name           sh:group stsh:NodeExpressionGroup ; sh:order 1 .
 sh:description    sh:group stsh:NodeExpressionGroup ; sh:order 2 .
-sh:union          sh:group stsh:NodeExpressionGroup ; sh:order 10 ; stsh:widgetType "node_expression_list" .
-sh:intersection   sh:group stsh:NodeExpressionGroup ; sh:order 11 ; stsh:widgetType "node_expression_list" .
-sh:nodes          sh:group stsh:NodeExpressionGroup ; sh:order 12 ; stsh:widgetType "node_expression_ref" .
-sh:constant       sh:group stsh:NodeExpressionGroup ; sh:order 13 ; stsh:widgetType "rdf_term" .
-sh:function       sh:group stsh:NodeExpressionGroup ; sh:order 14 ; stsh:widgetType "text" .
-sh:arguments      sh:group stsh:NodeExpressionGroup ; sh:order 15 ; stsh:widgetType "node_expression_list" .
-sh:filterShape    sh:group stsh:NodeExpressionGroup ; sh:order 16 ; stsh:widgetType "shape_ref" .
+sh:union          sh:group stsh:NodeExpressionGroup ; sh:order 10 .
+sh:intersection   sh:group stsh:NodeExpressionGroup ; sh:order 11 .
+sh:nodes          sh:group stsh:NodeExpressionGroup ; sh:order 12 .
+sh:constant       sh:group stsh:NodeExpressionGroup ; sh:order 13 .
+sh:function       sh:group stsh:NodeExpressionGroup ; sh:order 14 .
+sh:arguments      sh:group stsh:NodeExpressionGroup ; sh:order 15 .
+sh:filterShape    sh:group stsh:NodeExpressionGroup ; sh:order 16 .
+
+#############################################################################
+# Editor assignment: one property shape per SHACL predicate
+#
+# shui:editor is used in its standard form - on a property shape, keyed by
+# sh:path. stsh:widgetType is used (on the same kind of property shape) only
+# where no built-in shui widget fits. No constraints here, so this node shape
+# never changes what validates.
+#############################################################################
+
+stsh:ShapeEditorShape a sh:NodeShape ;
+    sh:targetClass sh:NodeShape, sh:PropertyShape ;
+    sh:property
+        [ sh:path sh:targetClass ; shui:editor shui:TextFieldEditor ] ,
+        [ sh:path sh:targetNode ; shui:editor shui:TextFieldEditor ] ,
+        [ sh:path sh:targetSubjectsOf ; shui:editor shui:TextFieldEditor ] ,
+        [ sh:path sh:targetObjectsOf ; shui:editor shui:TextFieldEditor ] ,
+        [ sh:path sh:path ; stsh:widgetType "prop_path_expr" ] ,
+        [ sh:path sh:alternativePath ; stsh:widgetType "prop_path_expr" ] ,
+        [ sh:path sh:inversePath ; stsh:widgetType "prop_path_expr" ] ,
+        [ sh:path sh:oneOrMorePath ; stsh:widgetType "prop_path_expr" ] ,
+        [ sh:path sh:zeroOrMorePath ; stsh:widgetType "prop_path_expr" ] ,
+        [ sh:path sh:zeroOrOnePath ; stsh:widgetType "prop_path_expr" ] ,
+        [ sh:path sh:name ; shui:editor shui:TextFieldWithLangEditor ] ,
+        [ sh:path sh:description ; shui:editor shui:TextFieldWithLangEditor ] ,
+        [ sh:path sh:severity ; shui:editor shui:EnumSelectEditor ] ,
+        [ sh:path sh:message ; stsh:widgetType "message_list" ] ,
+        [ sh:path sh:group ; stsh:widgetType "group" ] ,
+        [ sh:path sh:order ; shui:editor shui:NumberFieldEditor ] ,
+        [ sh:path sh:deactivated ; shui:editor shui:BooleanEditor ] ,
+        [ sh:path sh:defaultValue ; shui:editor shui:TextFieldEditor ] ,
+        [ sh:path sh:closed ; shui:editor shui:BooleanEditor ] ,
+        [ sh:path sh:ignoredProperties ; shui:editor shui:InstancesSelectEditor ] ,
+        [ sh:path sh:class ; shui:editor shui:InstancesSelectEditor ] ,
+        [ sh:path sh:datatype ; shui:editor shui:InstancesSelectEditor ] ,
+        [ sh:path sh:nodeKind ; shui:editor shui:EnumSelectEditor ] ,
+        [ sh:path sh:rootClass ; shui:editor shui:InstancesSelectEditor ] ,
+        [ sh:path sh:minCount ; shui:editor shui:NumberFieldEditor ] ,
+        [ sh:path sh:maxCount ; shui:editor shui:NumberFieldEditor ] ,
+        [ sh:path sh:minListLength ; shui:editor shui:NumberFieldEditor ] ,
+        [ sh:path sh:maxListLength ; shui:editor shui:NumberFieldEditor ] ,
+        [ sh:path sh:uniqueMembers ; shui:editor shui:BooleanEditor ] ,
+        [ sh:path sh:minInclusive ; shui:editor shui:NumberFieldEditor ] ,
+        [ sh:path sh:maxInclusive ; shui:editor shui:NumberFieldEditor ] ,
+        [ sh:path sh:minExclusive ; shui:editor shui:NumberFieldEditor ] ,
+        [ sh:path sh:maxExclusive ; shui:editor shui:NumberFieldEditor ] ,
+        [ sh:path sh:minLength ; shui:editor shui:NumberFieldEditor ] ,
+        [ sh:path sh:maxLength ; shui:editor shui:NumberFieldEditor ] ,
+        [ sh:path sh:pattern ; shui:editor shui:TextFieldEditor ] ,
+        [ sh:path sh:flags ; shui:editor shui:TextFieldEditor ] ,
+        [ sh:path sh:uniqueLang ; shui:editor shui:BooleanEditor ] ,
+        [ sh:path sh:singleLine ; shui:editor shui:BooleanEditor ] ,
+        [ sh:path sh:in ; stsh:widgetType "in_list" ] ,
+        [ sh:path sh:hasValue ; stsh:widgetType "has_value_pick" ] ,
+        [ sh:path sh:languageIn ; shui:editor shui:IRIEditor ] ,
+        [ sh:path sh:equals ; stsh:widgetType "prop_path_expr" ] ,
+        [ sh:path sh:disjoint ; stsh:widgetType "prop_path_expr" ] ,
+        [ sh:path sh:lessThan ; stsh:widgetType "prop_path_expr" ] ,
+        [ sh:path sh:lessThanOrEquals ; stsh:widgetType "prop_path_expr" ] ,
+        [ sh:path sh:subsetOf ; stsh:widgetType "prop_path_expr" ] ,
+        [ sh:path sh:not ; shui:editor shui:TextFieldEditor ] ,
+        [ sh:path sh:and ; shui:editor shui:TextFieldEditor ] ,
+        [ sh:path sh:or ; shui:editor shui:TextFieldEditor ] ,
+        [ sh:path sh:xone ; shui:editor shui:TextFieldEditor ] ,
+        [ sh:path sh:node ; shui:editor shui:TextFieldEditor ] ,
+        [ sh:path sh:property ; shui:editor shui:TextFieldEditor ] ,
+        [ sh:path sh:someValue ; shui:editor shui:DetailsEditor ] ,
+        [ sh:path sh:memberShape ; shui:editor shui:DetailsEditor ] ,
+        [ sh:path sh:qualifiedValueShape ; shui:editor shui:DetailsEditor ] ,
+        [ sh:path sh:qualifiedMinCount ; shui:editor shui:NumberFieldEditor ] ,
+        [ sh:path sh:qualifiedMaxCount ; shui:editor shui:NumberFieldEditor ] ,
+        [ sh:path sh:qualifiedValueShapesDisjoint ; shui:editor shui:BooleanEditor ] ,
+        [ sh:path sh:uniqueValuesFor ; shui:editor shui:IRIEditor ] ,
+        [ sh:path sh:reifierShape ; shui:editor shui:DetailsEditor ] ,
+        [ sh:path sh:reificationRequired ; shui:editor shui:BooleanEditor ] ,
+        [ sh:path sh:select ; shui:editor shui:TextAreaEditor ] ,
+        [ sh:path sh:ask ; shui:editor shui:TextAreaEditor ] ,
+        [ sh:path sh:construct ; shui:editor shui:TextAreaEditor ] ,
+        [ sh:path sh:sparql ; shui:editor shui:DetailsEditor ] ,
+        [ sh:path sh:rule ; shui:editor shui:DetailsEditor ] ,
+        [ sh:path sh:condition ; shui:editor shui:DetailsEditor ] ,
+        [ sh:path sh:ConstraintComponent ; shui:editor shui:DetailsEditor ] ,
+        [ sh:path sh:parameter ; shui:editor shui:DetailsEditor ] ,
+        [ sh:path sh:validator ; shui:editor shui:DetailsEditor ] ,
+        [ sh:path sh:nodeValidator ; shui:editor shui:DetailsEditor ] ,
+        [ sh:path sh:propertyValidator ; shui:editor shui:DetailsEditor ] ,
+        [ sh:path sh:TripleRule ; shui:editor shui:DetailsEditor ] ,
+        [ sh:path sh:SPARQLRule ; shui:editor shui:DetailsEditor ] ,
+        [ sh:path sh:subject ; shui:editor shui:DetailsEditor ] ,
+        [ sh:path sh:predicate ; shui:editor shui:DetailsEditor ] ,
+        [ sh:path sh:object ; shui:editor shui:DetailsEditor ] ,
+        [ sh:path rdfs:comment ; shui:editor shui:TextAreaEditor ] ,
+        [ sh:path sh:union ; stsh:widgetType "node_expression_list" ] ,
+        [ sh:path sh:intersection ; stsh:widgetType "node_expression_list" ] ,
+        [ sh:path sh:nodes ; stsh:widgetType "node_expression_ref" ] ,
+        [ sh:path sh:constant ; stsh:widgetType "rdf_term" ] ,
+        [ sh:path sh:function ; shui:editor shui:TextFieldEditor ] ,
+        [ sh:path sh:arguments ; stsh:widgetType "node_expression_list" ] ,
+        [ sh:path sh:filterShape ; shui:editor shui:InstancesSelectEditor ] .

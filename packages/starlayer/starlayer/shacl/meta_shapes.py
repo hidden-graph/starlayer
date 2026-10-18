@@ -25,8 +25,7 @@ problems when ``meta_shacl=True`` is requested (it is off by default):
 pySHACL's own base graph with exactly those 8 now-too-strict triples
 removed (SHACL constraints combine via AND, so a relaxed rule added
 *alongside* an unremoved strict one would not help), plus starShacl's own
-supplementary rules (``starlayer.shacl/assets/shacl12-validation-shapes.ttl``,
-``shacl12-presentation-shapes.ttl``), plus any caller-supplied extra
+supplementary rules (``starlayer.shacl/assets/shacl12-validation-shapes.ttl``), plus any caller-supplied extra
 graphs - e.g. a downstream SHACL editor's own domain-specific rules,
 merged in the same way. ``meta_validate`` runs this assembled graph
 directly through ``pyshacl.validate()`` (not through the ``meta_shacl``
@@ -130,7 +129,6 @@ def _meta_validate_cache_key(shapes_graph_for_meta: Any, kwargs: dict) -> tuple 
 
 _ASSETS_DIR = os.path.join(os.path.dirname(__file__), "assets")
 _VALIDATION_SHAPES_PATH = os.path.join(_ASSETS_DIR, "shacl12-validation-shapes.ttl")
-_PRESENTATION_SHAPES_PATH = os.path.join(_ASSETS_DIR, "shacl12-presentation-shapes.ttl")
 
 _SHSH_SHAPE_SHAPE = URIRef("http://www.w3.org/ns/shacl-shacl#ShapeShape")
 _SHSH_PROPERTY_SHAPE_SHAPE = URIRef("http://www.w3.org/ns/shacl-shacl#PropertyShapeShape")
@@ -241,8 +239,8 @@ def _strip_too_strict_base_rules(graph: Graph) -> Graph:
 def build_meta_shapes_graph(extra_graphs: Iterable[Any] = ()) -> Graph:
     """Assemble the complete meta-shapes graph used for starShacl's own
     meta-shacl preflight: pySHACL's own base graph (with the 8 too-strict
-    triples removed) plus starShacl's own SHACL 1.2 validation and
-    presentation rules plus every graph in ``extra_graphs`` - all unioned
+    triples removed) plus starShacl's own SHACL 1.2 validation
+    rules plus every graph in ``extra_graphs`` - all unioned
     into one graph via plain triple addition ("they would be merged into
     one shapes graph"), so a caller (e.g. a downstream SHACL editor) can
     freely add its own validation and/or presentation rule sets without
@@ -250,7 +248,6 @@ def build_meta_shapes_graph(extra_graphs: Iterable[Any] = ()) -> Graph:
     """
     graph = _strip_too_strict_base_rules(_load_pyshacl_base_meta_shapes())
     graph.parse(_VALIDATION_SHAPES_PATH, format="turtle")
-    graph.parse(_PRESENTATION_SHAPES_PATH, format="turtle")
     for extra in extra_graphs:
         for triple in extra:
             graph.add(triple)

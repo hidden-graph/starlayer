@@ -22,7 +22,7 @@ Each predicate entry below becomes a set of triples on the predicate IRI:
 | Order | `sh:order` | UI | Position within its group, for UI ordering — rendering-specific. |
 | Spec provenance | `rdfs:isDefinedBy` | Validation | Repeatable. Which W3C document(s) the predicate comes from — see "Spec Provenance" below for the controlled vocabulary. Replaces the old `**[1.2]**` tag with something precise and machine-queryable. |
 | Required engine | `stsh:requiredEngine` | Validation | Single-valued. The minimum engine under which the predicate actually works — see "Required Engine" below. |
-| Widget | `stsh:widgetType` | UI | Single-valued string tag suggesting an input control (see `stsh:widgetType`'s own `rdfs:comment` in the UI file for the full suggested-value vocabulary). A **default**, not a binding contract — downstream editors are expected to override per-predicate as needed. |
+| Widget | `shui:editor` (standard); `stsh:widgetType` only for structured cases with no built-in shui widget | UI | Suggested input control (see `stsh:widgetType`'s own `rdfs:comment` in the UI file for the full suggested-value vocabulary). A **default**, not a binding contract — downstream editors are expected to override per-predicate as needed. |
 | Node form field | `stsh:nodeFormField` | UI | Boolean. True when this predicate should appear as a field in a NodeShape editor. See "17. Form-Field Membership" below. |
 | Property form field | `stsh:propertyFormField` | UI | Boolean. True when this predicate should appear as a field in a PropertyShape editor. See "17. Form-Field Membership" below. |
 | Form max count | `stsh:formMaxCount` | UI | Integer. Maximum cardinality in the editing form; absent means multi-valued. |
@@ -652,7 +652,7 @@ Fields below use RDF-prefixed names directly (`sh:name`, `sh:description`, `skos
 - **rdfs:seeAlso:** `sh:select`, `sh:ConstraintComponent`
 - **rdfs:isDefinedBy:** SHACL-AF, SHACL 1.2 SPARQL Extensions
 - **stsh:requiredEngine:** stsh:PySHACL
-- **stsh:widgetType:** inline_shape — resolves to a nested SPARQLConstraint shape (stsh:SelectValidatorShape), an open-ended structure
+- **shui:editor:** shui:DetailsEditor — resolves to a nested SPARQLConstraint shape (stsh:SelectValidatorShape), an open-ended structure
 - **sh:group:** stsh:RulesGroup — **sh:order:** 1
 
 ### `sh:select`
@@ -662,7 +662,7 @@ Fields below use RDF-prefixed names directly (`sh:name`, `sh:description`, `skos
 - **rdfs:seeAlso:** `sh:sparql`, `sh:ask`
 - **rdfs:isDefinedBy:** SHACL-AF, SHACL 1.2 SPARQL Extensions
 - **stsh:requiredEngine:** stsh:PySHACL
-- **stsh:widgetType:** multiline — confirmed sh:datatype xsd:string (plain, not language-tagged) in the validation shapes
+- **shui:editor:** shui:TextAreaEditor — confirmed sh:datatype xsd:string (plain, not language-tagged) in the validation shapes
 - **sh:group:** stsh:RulesGroup — **sh:order:** 2
 
 ### `sh:ask`
@@ -673,7 +673,7 @@ Fields below use RDF-prefixed names directly (`sh:name`, `sh:description`, `skos
 - **rdfs:seeAlso:** `sh:select`
 - **rdfs:isDefinedBy:** SHACL-AF, SHACL 1.2 SPARQL Extensions
 - **stsh:requiredEngine:** stsh:PySHACL
-- **stsh:widgetType:** multiline — confirmed sh:datatype xsd:string in the validation shapes
+- **shui:editor:** shui:TextAreaEditor — confirmed sh:datatype xsd:string in the validation shapes
 - **sh:group:** stsh:RulesGroup — **sh:order:** 3
 
 ### `sh:ConstraintComponent`
@@ -684,7 +684,7 @@ Fields below use RDF-prefixed names directly (`sh:name`, `sh:description`, `skos
 - **rdfs:seeAlso:** `sh:parameter`, `sh:validator`
 - **rdfs:isDefinedBy:** SHACL-AF, SHACL 1.2 SPARQL Extensions
 - **stsh:requiredEngine:** stsh:PySHACL
-- **stsh:widgetType:** inline_shape — a component definition (sh:parameter list + a validator), open-ended nested content, not a leaf value
+- **shui:editor:** shui:DetailsEditor — a component definition (sh:parameter list + a validator), open-ended nested content, not a leaf value
 - **sh:group:** stsh:RulesGroup — **sh:order:** 4
 
 ### `sh:parameter`
@@ -694,7 +694,7 @@ Fields below use RDF-prefixed names directly (`sh:name`, `sh:description`, `skos
 - **rdfs:seeAlso:** `sh:ConstraintComponent`
 - **rdfs:isDefinedBy:** SHACL-AF, SHACL 1.2 SPARQL Extensions
 - **stsh:requiredEngine:** stsh:PySHACL
-- **stsh:widgetType:** inline_shape — each parameter is a nested blank node with its own sh:path
+- **shui:editor:** shui:DetailsEditor — each parameter is a nested blank node with its own sh:path
 - **sh:group:** stsh:RulesGroup — **sh:order:** 5
 
 ### `sh:validator`
@@ -703,7 +703,7 @@ Fields below use RDF-prefixed names directly (`sh:name`, `sh:description`, `skos
 - **rdfs:seeAlso:** `sh:nodeValidator`, `sh:propertyValidator`, `sh:ask`
 - **rdfs:isDefinedBy:** SHACL-AF, SHACL 1.2 SPARQL Extensions
 - **stsh:requiredEngine:** stsh:PySHACL
-- **stsh:widgetType:** inline_shape — resolves to a nested stsh:AskValidatorShape
+- **shui:editor:** shui:DetailsEditor — resolves to a nested stsh:AskValidatorShape
 - **sh:group:** stsh:RulesGroup — **sh:order:** 6
 
 ### `sh:nodeValidator`
@@ -712,7 +712,7 @@ Fields below use RDF-prefixed names directly (`sh:name`, `sh:description`, `skos
 - **rdfs:seeAlso:** `sh:propertyValidator`, `sh:select`
 - **rdfs:isDefinedBy:** SHACL-AF, SHACL 1.2 SPARQL Extensions
 - **stsh:requiredEngine:** stsh:PySHACL
-- **stsh:widgetType:** inline_shape — resolves to a nested stsh:SelectValidatorShape
+- **shui:editor:** shui:DetailsEditor — resolves to a nested stsh:SelectValidatorShape
 - **sh:group:** stsh:RulesGroup — **sh:order:** 7
 
 ### `sh:propertyValidator`
@@ -721,7 +721,7 @@ Fields below use RDF-prefixed names directly (`sh:name`, `sh:description`, `skos
 - **rdfs:seeAlso:** `sh:nodeValidator`, `sh:select`
 - **rdfs:isDefinedBy:** SHACL-AF, SHACL 1.2 SPARQL Extensions
 - **stsh:requiredEngine:** stsh:PySHACL
-- **stsh:widgetType:** inline_shape — resolves to a nested stsh:SelectValidatorShape
+- **shui:editor:** shui:DetailsEditor — resolves to a nested stsh:SelectValidatorShape
 - **sh:group:** stsh:RulesGroup — **sh:order:** 8
 
 ### `sh:rule`
@@ -731,7 +731,7 @@ Fields below use RDF-prefixed names directly (`sh:name`, `sh:description`, `skos
 - **rdfs:seeAlso:** `sh:TripleRule`, `sh:SPARQLRule`, `sh:condition`
 - **rdfs:isDefinedBy:** SHACL-AF, SHACL 1.2 Rules
 - **stsh:requiredEngine:** stsh:PySHACL
-- **stsh:widgetType:** inline_shape — resolves to a nested stsh:RuleShape (sh:TripleRule or sh:SPARQLRule)
+- **shui:editor:** shui:DetailsEditor — resolves to a nested stsh:RuleShape (sh:TripleRule or sh:SPARQLRule)
 - **sh:group:** stsh:RulesGroup — **sh:order:** 9
 
 ### `sh:condition`
@@ -741,7 +741,7 @@ Fields below use RDF-prefixed names directly (`sh:name`, `sh:description`, `skos
 - **rdfs:comment:** The condition shape needs a real constraint to be discriminating — a shape with only a target predicate (e.g. `sh:targetClass`) trivially "conforms" for any node when checked ad hoc, since targeting doesn't itself constrain anything.
 - **rdfs:isDefinedBy:** SHACL-AF, SHACL 1.2 Rules
 - **stsh:requiredEngine:** stsh:PySHACL
-- **stsh:widgetType:** inline_shape — resolves to a nested shape (or list of shapes) restricting which focus nodes the rule applies to
+- **shui:editor:** shui:DetailsEditor — resolves to a nested shape (or list of shapes) restricting which focus nodes the rule applies to
 - **sh:group:** stsh:RulesGroup — **sh:order:** 10
 
 ### `sh:TripleRule`
@@ -751,7 +751,7 @@ Fields below use RDF-prefixed names directly (`sh:name`, `sh:description`, `skos
 - **rdfs:seeAlso:** `sh:SPARQLRule`, `sh:subject`, `sh:predicate`, `sh:object`
 - **rdfs:isDefinedBy:** SHACL-AF, SHACL 1.2 Rules
 - **stsh:requiredEngine:** stsh:PySHACL
-- **stsh:widgetType:** inline_shape — a class marker on a rule node that itself carries sh:subject/sh:predicate/sh:object, open-ended nested content
+- **shui:editor:** shui:DetailsEditor — a class marker on a rule node that itself carries sh:subject/sh:predicate/sh:object, open-ended nested content
 - **sh:group:** stsh:RulesGroup — **sh:order:** 11
 
 ### `sh:SPARQLRule`
@@ -761,7 +761,7 @@ Fields below use RDF-prefixed names directly (`sh:name`, `sh:description`, `skos
 - **rdfs:seeAlso:** `sh:TripleRule`, `sh:construct`
 - **rdfs:isDefinedBy:** SHACL-AF, SHACL 1.2 Rules
 - **stsh:requiredEngine:** stsh:PySHACL
-- **stsh:widgetType:** inline_shape — a class marker on a rule node that itself carries sh:construct (query text), open-ended nested content
+- **shui:editor:** shui:DetailsEditor — a class marker on a rule node that itself carries sh:construct (query text), open-ended nested content
 - **sh:group:** stsh:RulesGroup — **sh:order:** 12
 
 ### `sh:construct`
@@ -771,7 +771,7 @@ Fields below use RDF-prefixed names directly (`sh:name`, `sh:description`, `skos
 - **rdfs:seeAlso:** `sh:SPARQLRule`
 - **rdfs:isDefinedBy:** SHACL-AF, SHACL 1.2 Rules
 - **stsh:requiredEngine:** stsh:PySHACL
-- **stsh:widgetType:** multiline — confirmed sh:datatype xsd:string in the validation shapes
+- **shui:editor:** shui:TextAreaEditor — confirmed sh:datatype xsd:string in the validation shapes
 - **sh:group:** stsh:RulesGroup — **sh:order:** 13
 
 ### `sh:subject`
@@ -780,7 +780,7 @@ Fields below use RDF-prefixed names directly (`sh:name`, `sh:description`, `skos
 - **rdfs:seeAlso:** `sh:TripleRule`, `sh:predicate`, `sh:object`
 - **rdfs:isDefinedBy:** SHACL-AF, SHACL 1.2 Rules
 - **stsh:requiredEngine:** stsh:PySHACL
-- **stsh:widgetType:** inline_shape — confirmed sh:node stsh:NodeExpressionShape in the validation shapes, a potentially-recursive node expression, not guaranteed a plain term
+- **shui:editor:** shui:DetailsEditor — confirmed sh:node stsh:NodeExpressionShape in the validation shapes, a potentially-recursive node expression, not guaranteed a plain term
 - **sh:group:** stsh:RulesGroup — **sh:order:** 14
 
 ### `sh:predicate`
@@ -789,7 +789,7 @@ Fields below use RDF-prefixed names directly (`sh:name`, `sh:description`, `skos
 - **rdfs:seeAlso:** `sh:TripleRule`, `sh:subject`, `sh:object`
 - **rdfs:isDefinedBy:** SHACL-AF, SHACL 1.2 Rules
 - **stsh:requiredEngine:** stsh:PySHACL
-- **stsh:widgetType:** inline_shape — confirmed sh:node stsh:NodeExpressionShape in the validation shapes, a potentially-recursive node expression, not guaranteed a plain term
+- **shui:editor:** shui:DetailsEditor — confirmed sh:node stsh:NodeExpressionShape in the validation shapes, a potentially-recursive node expression, not guaranteed a plain term
 - **sh:group:** stsh:RulesGroup — **sh:order:** 15
 
 ### `sh:object`
@@ -798,7 +798,7 @@ Fields below use RDF-prefixed names directly (`sh:name`, `sh:description`, `skos
 - **rdfs:seeAlso:** `sh:TripleRule`, `sh:subject`, `sh:predicate`
 - **rdfs:isDefinedBy:** SHACL-AF, SHACL 1.2 Rules
 - **stsh:requiredEngine:** stsh:PySHACL
-- **stsh:widgetType:** inline_shape — confirmed sh:node stsh:NodeExpressionShape in the validation shapes, a potentially-recursive node expression, not guaranteed a plain term
+- **shui:editor:** shui:DetailsEditor — confirmed sh:node stsh:NodeExpressionShape in the validation shapes, a potentially-recursive node expression, not guaranteed a plain term
 - **sh:group:** stsh:RulesGroup — **sh:order:** 16
 
 ## 16. SHACL 1.2 UI Widgets **[1.2]**
@@ -1094,6 +1094,7 @@ ConstraintComponent, or Validator sub-form), and class markers used only via `rd
 
 - **`sh:rule`/`sh:TripleRule`/`sh:SPARQLRule`/`sh:condition`** (SHACL 1.2 Rules) and **`sh:sparql`**/user-defined **`sh:ConstraintComponent`** (SHACL 1.2 SPARQL Extensions) are functionally supported and tested in starshacl (`tests/integration/test_rule_iteration.py`, `test_rule_condition.py`, `test_custom_constraint_components.py`, `test_sparql_shacl_integration.py`). **Update 2026-07-19: presentation content for these predicates now exists** — see "15. Rules & SPARQL Extensions" below (`sh:sparql`, `sh:select`, `sh:ask`, `sh:ConstraintComponent`, `sh:parameter`, `sh:validator`/`sh:nodeValidator`/`sh:propertyValidator`, `sh:rule`, `sh:condition`, `sh:TripleRule`, `sh:SPARQLRule`, `sh:construct`, `sh:subject`/`sh:predicate`/`sh:object`), converted into both `.ttl` files. **Update 2026-07-19: meta-shacl well-formedness validation rules for these predicates are now done too** — real `sh:property`/`sh:node`/`sh:or` logic (not just descriptive text) in `stsh:RulesAndSparqlShapes`/`stsh:ConstraintComponentShape`/`stsh:SparqlPrefixesShapes`/`stsh:NodeExpressionShape`, covering `sh:sparql`/`sh:rule`/`sh:condition`, custom `sh:ConstraintComponent`, `sh:declare`/`sh:prefix`/`sh:namespace`/`sh:prefixes`, and node expressions themselves (`sh:subject`/`sh:predicate`/`sh:object`'s own values). See `docs/shacl12-gap-matrix.md`'s "Not Covered / Deferred" for the exact scope boundaries still in place (e.g. SPARQL query text content isn't parsed). `sh:resultAnnotation`/etc. remain undocumented, since pySHACL itself has zero implementation of them.
 - **`shui:` (SHACL 1.2 User Interfaces)** is a separate vocabulary entirely (namespace `http://www.w3.org/ns/shacl-ui#`, not `sh:`), confirmed compatible with starshacl's validation/rules engine (`tests/integration/test_shacl_ui_compatibility.py`). **Update 2026-07-19: now documented** — see "16. SHACL 1.2 UI Widgets" below (`shui:editor`/`shui:viewer`/`shui:propertyRole`/`shui:LabelRole` plus the ~26 built-in editor/viewer instances), converted into both `.ttl` files, ahead of the general training-app phase resuming.
+  - **Update 2026-10-17: superseded.** Predicates whose control matches a built-in shui widget now carry `shui:editor` instead of `stsh:widgetType` (mapping in README.md); the 8 structured values that no built-in widget covers keep `stsh:widgetType`. The paragraph below is the original 2026-08-15 decision.
   - **Update 2026-08-15: the `stsh:widgetType` question below is now decided and done** — not via `shui:editor`/`shui:viewer` (those stay documentation-only, per the Scope note at the top of section 16), but via `stsh:widgetType`, this project's own simpler string-tag mechanism (see its `rdfs:comment` in `shacl12-presentation-shapes.ttl` for the full suggested-value vocabulary: `text`, `multiline`, `int`, `number`, `bool`, `severity`, `datatype`, `node_kind`, `class_multi`, `property_multi`, `prop_path_expr`, `has_value_pick`, `in_list`, `uri_list`, `message_list`, `inline_shape`, `group`). Every one of the 108 documented predicates now has a `stsh:widgetType` default (the ~30 `shui:` vocabulary reference entries themselves are the one deliberate exception — they're widget *definitions*, not shape-authoring predicates, so they don't need one). Design intent, per direct instruction: this is a **default**, not a binding contract — a downstream editor is expected to override per-predicate as it sees fit; `stsh:widgetType`'s own `rdfs:comment` already says as much ("not a binding UI contract").
   - The `shui:WidgetScore`/`shui:WidgetAcceptMatcher` *selection algorithm* remains a separate, deferred capability (see `docs/shacl12-gap-matrix.md`'s "Not Covered / Deferred") — not a presentation-content concern at all, and its own supporting vocabulary (`shui:score`, `shui:dataGraphShape`, `shui:shapesGraphShape`) is deliberately excluded from the Widgets section below for the same reason.
   - **Update 2026-08-15: `stsh:nodeFormField`/`stsh:propertyFormField` coverage is now complete for direct shape-level predicates** — was 35/108, now 60/108, with the remaining 48 being either the ~30 `shui:` vocabulary reference entries (widget definitions, not shape-authoring predicates, same exception as `stsh:widgetType` above) or the ~18 nested-sub-form predicates enumerated in "17. Form-Field Membership" above (deliberately out of scope for this binary — they belong to a not-yet-built sub-form field-membership mechanism). Grounded in the official SHACL 1.2 WG draft's own meta-shapes (`tests/vendor/shacl12-vocabularies/shacl-shacl.ttl`'s `shsh:ShapeShape`/`NodeShapeShape`/`PropertyShapeShape`) wherever it applies, not invented from scratch — see section 17 for the full reasoning and predicate lists.
