@@ -24,10 +24,11 @@ jobs:
         run: ruff check packages/
 
   # Generated files are committed: the generated starontology .ttl files and
-  # starontology.trig, the code knowledge graph (codekg.trig), and the generated
-  # API docs. This runs every build step and fails if any committed output no
-  # longer matches (e.g. after a code change, a pySHACL upgrade, or an edited
-  # .ttl). Fix with `python scripts/build.py` and commit the result.
+  # starontology.trig, and the generated API docs. This fails if any no longer
+  # matches what its build produces (e.g. after a pySHACL upgrade, an edited
+  # .ttl, or a changed generator). The code knowledge graph (codekg.trig) is
+  # repo tooling and is not checked here; the API docs are checked against the
+  # committed copy. Fix with `python scripts/build.py` and commit the result.
   generated-files:
     runs-on: ubuntu-latest
     steps:
@@ -41,7 +42,7 @@ jobs:
         run: pip install -e ".[test]"
 
       - name: Check generated files are current
-        run: python scripts/build.py --check
+        run: python scripts/build.py --check --skip codekg
 
   test:
     runs-on: ubuntu-latest

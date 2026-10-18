@@ -74,11 +74,14 @@ include-package-data = false
 [tool.setuptools.packages.find]
 where = ["packages/starlayer"]
 include = ["starlayer*"]
+# starlayer.codekg is repo tooling (the code knowledge graph extractor); nothing in
+# the library imports it, so it is not shipped. Scripts and tests use it from the repo.
+exclude = ["starlayer.codekg*"]
 
 [tool.setuptools.package-data]
 # Only what the library reads at run time. Not shipped: starontology.trig (a
-# generated copy of the .ttl files), skos.rdf (build input) and the code
-# knowledge graph under codekg/ (repo tooling, built by scripts/build_codekg.py).
+# generated copy of the .ttl files) and skos.rdf (build input). The codekg
+# subpackage is excluded above.
 starlayer = ["py.typed", "starontology/*.ttl"]
 
 [tool.pytest.ini_options]

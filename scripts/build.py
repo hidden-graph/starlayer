@@ -14,12 +14,14 @@ wrote with what is committed, then puts the committed files back. Nothing is lef
 changed, and the exit status is 1 if any output was stale. Outputs are compared by
 graph isomorphism for the ``.trig`` files (rdflib labels blank nodes randomly, so
 two correct builds differ byte for byte) and byte for byte for the markdown. The
-steps run in order, so the API docs are checked against the freshly built code KG.
+steps run in order, so the API docs are checked against the freshly built code KG;
+with ``--skip codekg`` (what CI does) they are checked against the committed one.
 
 Run:
     python scripts/build.py                    # everything
     python scripts/build.py --only codekg apidocs
     python scripts/build.py --check            # change nothing; exit 1 if anything is stale
+    python scripts/build.py --check --skip codekg   # what CI runs
 """
 
 from __future__ import annotations
@@ -89,9 +91,10 @@ def _run(name: str, step: Step, extra: list[str]) -> bool:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--only", choices=list(_STEPS), nargs="+", help="run just these steps")
+    parser.add_argument("--skip", choices=list(_STEPS), nargs="+", default=[], help="leave these steps out")
     parser.add_argument("--check", action="store_true", help="change nothing; exit 1 if anything is stale")
     args = parser.parse_args()
-    names = args.only or list(_STEPS)
+    names = [n for n in (args.only or list(_STEPS)) if n not in args.skip]
 
     if not args.check:
         for name in names:
