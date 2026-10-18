@@ -23,6 +23,27 @@ jobs:
       - name: ruff check
         run: ruff check packages/
 
+  # The starontology .ttl files that are generated (shacl12-shacl.ttl from
+  # pySHACL's shacl-shacl plus scripts/assets/shacl12-validation-shapes.ttl;
+  # skos-ontology.ttl from skos.rdf) and starontology.trig are committed.
+  # This fails if they no longer match what the build produces, e.g. after a
+  # pySHACL upgrade or an edit to a .ttl without rerunning
+  # `python scripts/build.py --only starontology`.
+  generated-files:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install starlayer
+        run: pip install -e ".[test]"
+
+      - name: Check generated starontology files are current
+        run: python scripts/build.py --only starontology --check
+
   test:
     runs-on: ubuntu-latest
     strategy:
