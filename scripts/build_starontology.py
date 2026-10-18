@@ -33,9 +33,8 @@ _PACKAGES_STARLAYER = Path(__file__).resolve().parents[1] / "packages" / "starla
 if str(_PACKAGES_STARLAYER) not in sys.path:
     sys.path.insert(0, str(_PACKAGES_STARLAYER))
 
-from rdflib import Dataset, Graph, URIRef  # noqa: E402
+from rdflib import Dataset, Graph  # noqa: E402
 from rdflib.compare import isomorphic  # noqa: E402
-
 from starlayer import starontology  # noqa: E402
 
 _DIR = _PACKAGES_STARLAYER / "starlayer" / "starontology"
@@ -150,7 +149,7 @@ def build(check: bool) -> int:
     if _write_ttl(_SKOS_TTL, _SKOS_NOTICE, original, check=check):
         stale.append(_SKOS_TTL.name)
 
-    from starlayer.shacl.meta_shapes import build_meta_shapes_graph
+    from build_meta_shapes import build_meta_shapes_graph
 
     if _write_ttl(_SHACL_TTL, _SHACL_NOTICE, build_meta_shapes_graph(), check=check):
         stale.append(_SHACL_TTL.name)

@@ -109,7 +109,7 @@ class TestGetOntologyGraph:
         assert g1 is not g2
 
     def test_shacl_shacl_is_wrapped_as_starlayergraph_not_left_plain(self):
-        """build_meta_shapes_graph() (starlayer.shacl) returns a plain
+        """The meta-shapes build (scripts/build_meta_shapes.py) returns a plain
         rdflib.Graph - confirmed in its own source - so this entry
         specifically needs StarLayerGraph.from_rdflib() wrapping to keep
         the same return type as every other entry. isinstance alone would

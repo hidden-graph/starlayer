@@ -27,7 +27,7 @@ from starlayer.sparql.parse12 import prepare_query_12
 SH = Namespace("http://www.w3.org/ns/shacl#")
 
 _HERE = os.path.dirname(__file__)
-_ASSETS_DIR = os.path.join(_HERE, "..", "..", "starlayer.shacl", "assets")
+_ASSETS_DIR = os.path.join(_HERE, "..", "..", "..", "..", "scripts", "assets")
 _FIXTURES_DIR = os.path.join(_HERE, "..", "fixtures", "shapes")
 
 

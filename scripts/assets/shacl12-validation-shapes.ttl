@@ -13,7 +13,7 @@
 # widened to accept sh:ByTypes).
 #
 # Meant to be MERGED with pySHACL's own base shacl-shacl graph, not to
-# replace it - see starshacl/meta_shapes.py::build_meta_shapes_graph, which
+# replace it - see scripts/build_meta_shapes.py::build_meta_shapes_graph, which
 # also strips the specific now-too-strict triples from the base graph that
 # would otherwise conflict (SHACL constraints combine via AND, so a
 # relaxed rule added alongside an unremoved strict one would not help).

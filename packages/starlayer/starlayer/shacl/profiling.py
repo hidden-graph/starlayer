@@ -105,7 +105,7 @@ def declared_conformance_profile() -> StarLayerGraph:
     conformance statement (S3) - the starlayer.shacl resource in the
     library's one conformance file. Parses the bundled asset fresh on every
     call rather than caching - matching this project's convention
-    elsewhere (see meta_shapes.py::build_meta_shapes_graph) of never
+    elsewhere (see starontology/__init__.py::_file_graph) of never
     sharing one mutable graph object across callers.
 
     Returns a ``StarLayerGraph``, not a plain ``rdflib.Graph`` - this is a

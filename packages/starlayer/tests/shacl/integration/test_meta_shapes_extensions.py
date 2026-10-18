@@ -12,17 +12,26 @@ pySHACL's still-SHACL-1.0/1.1-era bundled meta-shapes, under starShacl's
 own default ``meta_shacl=True``.
 """
 
+import sys
+from pathlib import Path
+
 import pytest
 from rdflib import Graph, Namespace
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl.meta_shapes import (
-    _SHSH_SHAPE_SHAPE,
-    _TOO_STRICT_PATHS,
-    _load_pyshacl_base_meta_shapes,
-    build_meta_shapes_graph,
     check_sparql_query_text,
     load_meta_shapes_graph,
     meta_validate,
+)
+
+# The meta-shapes build is a build-time tool, not part of the library: it lives in scripts/.
+sys.path.insert(0, str(Path(__file__).resolve().parents[5] / "scripts"))
+from build_meta_shapes import (  # noqa: E402
+    _SHSH_SHAPE_SHAPE,
+    _TOO_STRICT_PATHS,
+    VALIDATION_SHAPES_PATH,
+    _load_pyshacl_base_meta_shapes,
+    build_meta_shapes_graph,
 )
 
 EX = Namespace("http://example.org/")
@@ -680,17 +689,17 @@ def test_stored_meta_shapes_file_matches_a_fresh_build() -> None:
     )
 
 
-def test_meta_validate_reads_the_stored_file_and_does_not_rebuild(monkeypatch) -> None:
+def test_meta_validate_reads_the_stored_file_and_the_library_has_no_build_code() -> None:
+    """The build lives in scripts/; the library only reads the stored file."""
     import starlayer.shacl.meta_shapes as ms
 
-    def _boom(*_a, **_k):
-        raise AssertionError("meta_validate must not rebuild the meta-shapes graph")
-
-    monkeypatch.setattr(ms, "build_meta_shapes_graph", _boom)
+    assert not hasattr(ms, "build_meta_shapes_graph")
+    assert not hasattr(ms, "_load_pyshacl_base_meta_shapes")
     shapes = Graph()
     shapes.parse(data="@prefix sh: <http://www.w3.org/ns/shacl#> . <urn:s> a sh:NodeShape .", format="turtle")
     conforms, _, _ = ms.meta_validate(shapes)
     assert conforms
+
 
 
 def test_load_meta_shapes_graph_returns_independent_copies() -> None:
@@ -1488,10 +1497,8 @@ class TestSparqlQueryStructureValidation:
         check_sparql_query_text(shapes)  # must not raise
 
     def test_bundled_validation_shapes_conform(self) -> None:
-        from starlayer.shacl.meta_shapes import _VALIDATION_SHAPES_PATH
-
         shapes = Graph()
-        shapes.parse(_VALIDATION_SHAPES_PATH, format="turtle")
+        shapes.parse(VALIDATION_SHAPES_PATH, format="turtle")
         check_sparql_query_text(shapes)  # must not raise
 
     def test_repeated_call_hits_cache_not_salg_again(self) -> None:
