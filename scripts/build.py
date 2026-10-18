@@ -82,6 +82,21 @@ def _trig_isomorphic(a: bytes, b: bytes) -> bool:
     return ga.keys() == gb.keys() and all(isomorphic(ga[k], gb[k]) for k in ga)
 
 
+def _show_diff(path: Path, before: bytes | None, limit: int = 40) -> None:
+    """Print the start of a unified diff for a stale text output, so a CI log shows what differs."""
+    import difflib
+
+    if path.suffix == ".trig" or before is None or not path.exists():
+        return
+    old = before.decode("utf-8", "replace").splitlines()
+    new = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    diff = list(difflib.unified_diff(old, new, f"committed/{path.name}", f"rebuilt/{path.name}", n=1, lineterm=""))
+    for line in diff[:limit]:
+        print(line[:200], file=sys.stderr)
+    if len(diff) > limit:
+        print(f"... {len(diff) - limit} more diff lines", file=sys.stderr)
+
+
 def _run(name: str, step: Step, extra: list[str]) -> bool:
     cmd = [sys.executable, str(_SCRIPTS / step.script), *step.args, *extra]
     print(f"[{name}] {step.script} {' '.join(step.args + extra)}".rstrip(), flush=True)
@@ -118,8 +133,11 @@ def main() -> int:
                 continue
             if step.own_check:
                 continue
-            if any(not _same(_ROOT / out, snapshots[_ROOT / out]) for out in step.outputs):
+            changed = [out for out in step.outputs if not _same(_ROOT / out, snapshots[_ROOT / out])]
+            if changed:
                 stale.append(name)
+                for out in changed:
+                    _show_diff(_ROOT / out, snapshots[_ROOT / out])
     finally:
         for path, content in snapshots.items():
             if content is None:

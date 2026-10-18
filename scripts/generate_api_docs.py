@@ -175,11 +175,14 @@ def _source_link(ds: Dataset, ent) -> str | None:
     line_end = _val(ds, ent, SLKG.lineEnd)
     if file_path is None:
         return None
-    try:
-        rel = pathlib.Path(str(file_path)).relative_to(PKG_ROOT)
-    except ValueError:
+    # codekg.trig stores the absolute path of the machine that built it, so take
+    # what follows the package directory instead of requiring the same checkout path
+    # (otherwise every link disappears when this runs anywhere else, e.g. in CI).
+    marker = "packages/starlayer/starlayer/"
+    text = str(file_path).replace("\\", "/")
+    if marker not in text:
         return None
-    url = BLOB_BASE + str(rel)
+    url = BLOB_BASE + text.split(marker, 1)[1]
     if line_start is not None and line_end is not None:
         url += f"#L{line_start}-L{line_end}"
     return url
