@@ -2,7 +2,7 @@
 built from the hand-curated functionality graph
 (packages/starlayer/starlayer/codekg/curated/functionality.ttl).
 
-Not aiming to reproduce docs/functionality-overview.md exactly - a first, simple
+Not aiming to reproduce docs/working/archive/functionality-overview.md exactly - a first, simple
 pass to see what the curated graph renders into. Deliberately doesn't cross-
 reference codekg.trig or render any code/source links - prose only.
 
@@ -38,7 +38,7 @@ def main() -> None:
         "Generated from the hand-curated functionality graph "
         "(`packages/starlayer/starlayer/codekg/curated/functionality.ttl`). "
         "First pass - not a byte-for-byte reproduction of the hand-written "
-        "`docs/functionality-overview.md` this is meant to eventually replace.",
+        "`docs/working/archive/functionality-overview.md` this is meant to eventually replace.",
         "",
     ]
 

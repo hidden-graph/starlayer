@@ -87,8 +87,7 @@ Baseline voice is impersonal third person: "`X` does `Y`," "This covers...," "A 
 ## 10. Cross-referencing
 
 - **Sibling guides**: always a real markdown link with descriptive text, `[Topic](NNx-filename.ipynb)`, optionally with a heading anchor (`02b-graphs-inferencing.ipynb#2.4-Detecting-inconsistencies`) when pointing at one specific subsection rather than a whole guide.
-- **Deeper project docs** (`CLAUDE.md` files, the gap-matrix, `functionality-overview.md`, `api-reference.md`): also real markdown links from now on, not bare backtick-quoted paths — e.g. `[shacl12-gap-matrix.md](../../packages/starlayer/docs/shacl/shacl12-gap-matrix.md)`, not `` `packages/starlayer/docs/shacl/shacl12-gap-matrix.md` ``. A bare path isn't clickable in a rendered notebook; a link is, and costs nothing extra. This is a deliberate change from the currently-dominant-but-inconsistent practice, not a continuation of it.
-- `docs/api-reference.md` and `docs/future_enhancements.md` are currently never linked from any of the 21 guides. At minimum, `docs/guides/README.md`'s own "Related project documentation" section should point to `api-reference.md` (it already links `functionality-overview.md`) — a reader who wants the exhaustive, reference-style name-by-name surface currently has no path there from the guides at all.
+- **Deeper project docs** (`CLAUDE.md` files, the gap-matrix): also real markdown links from now on, not bare backtick-quoted paths — e.g. `[shacl12-gap-matrix.md](../../packages/starlayer/docs/shacl/shacl12-gap-matrix.md)`, not `` `packages/starlayer/docs/shacl/shacl12-gap-matrix.md` ``. A bare path isn't clickable in a rendered notebook; a link is, and costs nothing extra. This is a deliberate change from the currently-dominant-but-inconsistent practice, not a continuation of it.
 
 ## 11. No leftover authoring notes, ever
 

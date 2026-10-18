@@ -1,6 +1,6 @@
 """Tests for starlayer.sparql.srl.parse_ruleset - SRL text
 syntax parsing (WD-sparql12-rl-20260919 §7.6 grammar), Phase 1 of the SRL
-implementation plan (see docs/functionality-overview.md).
+implementation plan (see docs/working/archive/functionality-overview.md).
 
 The primary fixture is the spec's own §6.6 "Worked Example" (rules R1-R5,
 also introduced piecemeal across §3) - reused again by test_srl_eval.py

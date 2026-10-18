@@ -2,7 +2,7 @@
 any build/test pipeline.
 
 Answers a direct question: can packages/starlayer/starlayer/codekg/codekg.trig
-*alone* - no docs/api-reference.md involved at all - produce something that
+*alone* - no docs/working/archive/api-reference.md involved at all - produce something that
 reads like standard generated API documentation (the Sphinx autodoc/pdoc
 shape: signature, docstring, a Parameters list with type/default/
 description, a Returns line, a source-location link)?

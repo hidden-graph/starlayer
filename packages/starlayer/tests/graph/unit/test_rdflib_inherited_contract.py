@@ -15,7 +15,7 @@ If this test fails after an rdflib upgrade: don't just copy the new
 signature into the contract file and move on. Read *why* it changed first
 (a real behavior change this project's docs/users should know about, vs. a
 cosmetic typing-only update) - then update the entry and, if it's a real
-behavior change, check whether `docs/api-reference.md`'s own description
+behavior change, check whether `docs/working/archive/api-reference.md`'s own description
 for that row still holds.
 """
 

@@ -1,7 +1,7 @@
 """Generates two cross-linked markdown documents straight from
 ``packages/starlayer/starlayer/codekg/codekg.trig`` - no hand-maintained
-curated content involved, unlike ``docs/api-reference.md``/
-``docs/functionality-overview.md``.
+curated content involved, unlike ``docs/working/archive/api-reference.md``/
+``docs/working/archive/functionality-overview.md``.
 
 - ``docs/generated/api-overview.generated.md`` - one line per PublicAccess
   entity: its headline sentence(s) only, linked to its full entry.

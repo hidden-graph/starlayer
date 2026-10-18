@@ -1,7 +1,7 @@
 """Exploratory script - NOT part of the production package, not wired into
 any build/test pipeline.
 
-Parses docs/api-reference.md into a small in-memory RDF graph (an ad hoc
+Parses docs/working/archive/api-reference.md into a small in-memory RDF graph (an ad hoc
 apiref: vocabulary - one apiref:Entry node per table row: name/kind/status/
 description/module), then tries to resolve each entry to the matching
 codekg entity (packages/starlayer/starlayer/codekg/codekg.trig) via its
@@ -30,7 +30,7 @@ from pathlib import Path
 from rdflib import Dataset, Graph, Literal, Namespace, RDF, URIRef
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-API_REF_PATH = REPO_ROOT / "docs" / "api-reference.md"
+API_REF_PATH = REPO_ROOT / "docs" / "working" / "archive" / "api-reference.md"
 CODEKG_PATH = REPO_ROOT / "packages" / "starlayer" / "starlayer" / "codekg" / "codekg.trig"
 
 APIREF = Namespace("urn:starlayer:apiref-exploratory#")
@@ -152,7 +152,7 @@ def _entry_row_index(entry: URIRef) -> int:
 
 def render_report(apiref_graph: Graph) -> str:
     """Render the parsed (and resolved) graph back out as a text report
-    shaped like docs/api-reference.md's own content - demonstrating that
+    shaped like docs/working/archive/api-reference.md's own content - demonstrating that
     the graph actually holds everything needed to reproduce it, plus the
     one thing the hand-written original doesn't show: each entry's own
     resolved codekg identifier, when one was found.
@@ -172,7 +172,7 @@ def render_report(apiref_graph: Graph) -> str:
     lines.append("# StarLayer API Reference (generated from the apiref/codekg graphs)")
     lines.append("")
     lines.append(
-        "Regenerated from the apiref: graph parsed out of docs/api-reference.md, "
+        "Regenerated from the apiref: graph parsed out of docs/working/archive/api-reference.md, "
         "cross-linked to packages/starlayer/starlayer/codekg/codekg.trig - "
         "exploratory, see scripts/explore_apiref_graph.py."
     )

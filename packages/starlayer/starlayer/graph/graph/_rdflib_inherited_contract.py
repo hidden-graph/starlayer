@@ -17,8 +17,8 @@ currently know about each one - consumed two ways:
    still matches ``signature`` below - a future rdflib upgrade that
    changes one of these (renamed/reordered/added parameter, changed
    return type) fails loudly and visibly, forcing a deliberate update to
-   this file, rather than ``docs/api-reference.md`` silently going stale.
-2. ``docs/api-reference.md``'s generation step reads ``returns`` from here
+   this file, rather than ``docs/working/archive/api-reference.md`` silently going stale.
+2. ``docs/working/archive/api-reference.md``'s generation step reads ``returns`` from here
    to populate the Returns column for these rows - most of rdflib's own
    methods already carry a real return-type annotation (introspectable
    directly, no need to duplicate it here), but a few genuinely don't
@@ -185,7 +185,7 @@ INHERITED_METHOD_CONTRACTS: dict[str, InheritedMethodContract] = {
         # so a hit returns one - but the Optional in rdflib's own annotation is
         # itself misleading: a miss raises IndexError, never returns None.
         # Confirmed live, a pre-existing rdflib bug, not a StarLayer one - see
-        # docs/api-reference.md's own row for this method for the full note.
+        # docs/working/archive/api-reference.md's own row for this method for the full note.
         returns="Optional[StarLayerGraph]",
     ),
     "graph": InheritedMethodContract(

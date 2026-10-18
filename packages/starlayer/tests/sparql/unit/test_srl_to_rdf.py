@@ -1,5 +1,5 @@
 """Round-trip tests for starlayer.sparql.srl's ruleset_to_tree/tree_to_ruleset -
-Phase 2 of the SRL implementation plan (see docs/functionality-overview.md):
+Phase 2 of the SRL implementation plan (see docs/working/archive/functionality-overview.md):
 SRL text -> srl_ast (via parse_ruleset) -> srl: RDF -> srl_ast again,
 compared by value.
 

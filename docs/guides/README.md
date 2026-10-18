@@ -47,8 +47,8 @@ Standalone reference notebooks that don't fit the numbered guide sequence above 
 
 The guides above are user-facing walkthroughs. For implementation detail, compatibility contracts, and spec-tracking:
 
-- [`functionality-overview.md`](../functionality-overview.md) - a concise, bullet-point inventory of what's currently covered across all three packages, and what's planned/deferred - start here for "does StarLayer support X".
-- [`api-reference.md`](../api-reference.md) - the exhaustive, name-by-name public API surface (every class/function/method importable from `starlayer`) - start here for "what's the exact signature of X."
+- [`functionality-overview.generated.md`](../generated/functionality-overview.generated.md) - an inventory of what's currently covered, generated from the curated functionality graph - start here for "does StarLayer support X".
+- [`api-overview.generated.md`](../generated/api-overview.generated.md) and [`api-reference.generated.md`](../generated/api-reference.generated.md) - the public API surface, name by name, generated from the code knowledge graph - start here for "what's the exact signature of X."
 - [`../../packages/starlayer/docs/future_enhancements.md`](../../packages/starlayer/docs/future_enhancements.md) - open suggestions and known, deliberately-deferred gaps.
 - [`../../packages/starlayer/docs/graph/starlayergraph.md`](../../packages/starlayer/docs/graph/starlayergraph.md) - the graph subpackage's architecture and design, including backend compatibility.
 - [`../../packages/starlayer/docs/shacl/compatibility.md`](../../packages/starlayer/docs/shacl/compatibility.md) - the shacl subpackage's graph contract, version support, and backend compatibility matrix.
