@@ -2,10 +2,10 @@
 
 *Last reviewed: 2026-08-13*
 
-- `../CLAUDE.md`: project-specific instructions for Claude Code sessions (currently: the testing-coverage verification discipline)
-- `../CHANGELOG.md`: what changed, grouped by theme
+- [Rules that bite](../../starlayer/shacl/CLAUDE.md) (with design history, including the testing-coverage discipline)
+- [what changed](../../starlayer/shacl/CHANGELOG.md), grouped by theme
 - implementation-plan.md: current status, architecture direction, and roadmap - start here
-- shacl12-gap-matrix.md: SHACL 1.2 feature-by-feature status matrix across all six documents, including Meta-SHACL policy, gaps, and how to track upstream spec changes - see also `starshacl/assets/shacl12-*.ttl` (the meta-shapes themselves, reusable standalone - documented in `../README.md`'s "SHACL 1.2 Meta-Shapes" section)
+- shacl12-gap-matrix.md: SHACL 1.2 feature-by-feature status matrix across all six documents, including Meta-SHACL policy, gaps, and how to track upstream spec changes - see also [`shacl12-shacl.ttl`](../../starlayer/starontology/shacl12-shacl.ttl) (the meta-shapes themselves, built by `scripts/build.py` and reusable standalone)
 - w3c-shacl12-test-suite-plan.md: plan for vendoring and running the W3C SHACL 1.2 test suite (`w3c/data-shapes` repo's `shacl12-test-suite/`), and the procedure for absorbing it as the Working Group keeps growing it
 - (archived 2026-10-17) the presentation content and `shacl12-presentation-shapes.ttl` now live in the repo-root `docs/working/shacl-presentation/` - see its README.md
 - `../../../../docs/upstream-issues/pyshacl-upstream-issues.md`: bugs found in pySHACL (third-party dependency) to report to its maintainers
