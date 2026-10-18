@@ -8,7 +8,7 @@ starlayer is a platform for building Python semantic apps on the RDF/SPARQL/SHAC
 - Root `README.md`, `CONTRIBUTING.md`, `packages/starlayer/README.md`, and doc indexes still describe the pre-2026-10-12 three-package layout (dead paths, wrong import names, failing dev commands).
 - No way to ask the KG a question without hand-writing rdflib + SPARQL. No query library.
 - Curated layer is thin and unwired (`CURATED_GRAPH_IRI` never populated; `demonstratedBy` has 0 triples; no links to specs, gap matrices, docs, upstream bugs).
-- CI skips `codekg.trig` freshness; hand-written docs/indexes/manifest are unchecked and have drifted.
+- CI deliberately does not rebuild `codekg.trig` (decision 2026-10-18: every code change would force a ~90,000-line regeneration); hand-written docs/indexes/manifest are unchecked and have drifted.
 - No runnable examples; onboarding requires Jupyter notebooks.
 
 Intended outcome: an agent landing in the repo reads one short file, learns that the KG is the map, can query it via named queries, and finds runnable examples; a human gets a working quick-start. Decisions from the user: query library only (no MCP) but stored **as a graph of SQE graphs**, not text; add `examples/` with runnable apps; do all cleanup including CI guards.
@@ -71,9 +71,12 @@ These are the default assumptions we start from, written into AGENTS.md as "Defa
 - Add a test that every `slkg:implementedByIdentifier` in `functionality.ttl` resolves in `codekg.trig` (currently unchecked).
 - Add a "how to build with starlayer" capability taxonomy: tag each capability with `slkg:appRole` (storage, query, validate, infer, UI-generate) so an agent can go from "I need to build a form app" to capabilities, queries, symbols, and examples.
 
-### 4. Keep the KG fresh
-- Make `scripts/build.py --check` cover `codekg` (CI currently passes `--skip codekg`), or if cost/determinism is prohibitive, add a cheaper staleness test: every module in the source tree has a named graph and per-file content hash/mtime digest matches. Decide after measuring extractor runtime; prefer the full check using graph isomorphism like the other `.trig` files.
+### 4. Keep the KG usable while it can lag the source
+**Decision (2026-10-18): CI does not check `codekg.trig`.** `build.py --check --skip codekg` stays as is; `build.py --only codekg apidocs` rebuilds on demand. So the KG can be behind the source, and the plan makes that visible instead of preventing it:
+- `build_codekg.py` records a small build stamp in the KG (a `slkg:KGBuild` node: git commit, date, source file count). `run_query`/`list_queries` print it in their footer ("KG built from commit abc1234, 3 days old"), and AGENTS.md says to rebuild when it is older than the code being changed.
+- AGENTS.md states plainly that the KG may lag, how to rebuild (`python scripts/build.py --only codekg apidocs`, about 30 s), and that line numbers in query results should be checked against the file.
 - Auto-append the `codekg/CHANGELOG.md` entry from `build_codekg.py` instead of by hand.
+- The tests on stored queries run against the committed `codekg.trig`, so they check the queries, not the KG's freshness.
 
 ### 5. Runnable examples (`examples/`)
 - `examples/README.md` index + small apps, each with a pytest in `tests/examples/` so they cannot rot:
@@ -125,11 +128,11 @@ Each phase is its own commit on `prep-for-app-development`.
 ## Reuse (do not rebuild)
 - SQE encode/decode: `starlayer/sparql/sqe/{to_rdf,from_rdf,to_text,shapes}.py`; query execution: `StarQuery` in `starlayer/sparql/star_query.py`.
 - Loader pattern: `starlayer/codekg/__init__.py` (fresh-copy-per-call, `CURATED_GRAPH_IRI`).
-- Check harness: `scripts/build.py --check` (isomorphism/byte compare) – extend rather than add a second runner.
+- Check harness: `scripts/build.py --check --skip codekg` (isomorphism/byte compare) – extend rather than add a second runner.
 - Existing generators: `scripts/generate_api_docs.py`, `generate_functionality_overview.py`.
 
 ## Verification
-- `python scripts/build.py --check` passes (now including codekg and docs checks).
+- `python scripts/build.py --check --skip codekg` passes (now including the docs checks; the code KG stays out of CI).
 - `pytest -m "not integration"` green, including new `tests/codekg/unit` (query library) and `tests/examples`.
 - Smoke as a fresh agent: in a clean checkout, follow only AGENTS.md to (a) install, (b) run a named query ("who calls X") and get results, (c) run an example, (d) run tests. Record any step that needed outside knowledge and fix the docs.
 - `python scripts/check_docs.py` reports zero broken links/drift; CI workflow runs it.
@@ -141,5 +144,22 @@ Each phase is its own commit on `prep-for-app-development`.
 
 ## Open risks
 - SQE may not express all needed SPARQL; mitigated by the coverage probe and logging gaps.
-- Full codekg freshness check may be slow/non-deterministic; fall back to the digest check.
+- A lagging `codekg.trig` can mislead an agent; mitigated by the build stamp and AGENTS.md guidance, not by CI.
 - `README.md` sync approach (pointer vs. generated) is a small design choice made during implementation.
+
+## Open items from `future_enhancements.md` to settle before or with this work (reviewed 2026-10-18)
+Checked against the repo, not just read:
+
+**Do first (they feed the workstreams):**
+- **Clean `packages/starlayer/docs/future_enhancements.md` itself.** Several entries are already stale: "20+ notebooks import `starlayergraph`" (none do now), the three root-level frozen SHACL guides and the "CLAUDE:" leftover in the Manchester guide (both gone), "only two examples exist in `packages/starlayer/examples/`" (the folder does not exist), and two entries about `docs/api-reference.md` (archived 2026-10-17; replaced by the generated docs). An agent will treat this file as a source of truth, so fix it as part of workstream 6.
+- **The "Before publishing" checklist** overlaps workstream 6 (steps 5 and 7: re-execute guides, check for stale claims). Reconcile it with `check_docs.py` so there is one list.
+- **Code-KG extractor misses `namedtuple(...)` types** (8 types in `starontology/manchester.py`). Fix before workstream 2/3, since the query library's answers are only as complete as the KG.
+- **More examples / a `StarLayerDataset` example:** fold into workstream 5 (include a multi-graph example).
+
+**With the workstreams:**
+- **Functionality overview: a guide reference for each item, and stub guides for gaps** (curated graph `demonstratedBy` links, workstream 3). Known gaps: no guide for `derive_shape()`, none for `validate()`/`StarShaclSchema` as a whole.
+- **No HTML-rendered user guide:** decide when writing the docs map (workstream 6). The workbench could serve rendered guides, so this may be answered by the app.
+- **Remaining guide-review findings** (Getting Started missing the Manchester guide, the `06c` isomorphism wording, the stale `subgraph_extraction` docstring): workstream 6.
+
+**Defer:** the SHACL UI shapes for the validation shapes and the `pyoxigraph` direct API (both app-time), SRL follow-ups (waiting on the spec), the three import mechanisms, rdflib 8, the testing-process question, and the upstream-bug tail.
+
