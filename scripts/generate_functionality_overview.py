@@ -2,9 +2,8 @@
 built from the hand-curated functionality graph
 (packages/starlayer/starlayer/codekg/curated/functionality.ttl).
 
-Not aiming to reproduce docs/working/archive/functionality-overview.md exactly - a first, simple
-pass to see what the curated graph renders into. Deliberately doesn't cross-
-reference codekg.trig or render any code/source links - prose only.
+Prose only: it does not render code or source links. A roadmap item's
+slkg:seeAlsoPath becomes a link to that file on GitHub.
 
 Run: python3 scripts/generate_functionality_overview.py
 """
@@ -21,6 +20,7 @@ CURATED_PATH = PKG_ROOT / "codekg/curated/functionality.ttl"
 OUT_PATH = REPO_ROOT / "docs/generated/functionality-overview.generated.md"
 
 SLKG = Namespace("https://github.com/hidden-graph/starlayer/ns/codekg#")
+BLOB_BASE = "https://github.com/hidden-graph/starlayer/blob/main/"
 
 
 def main() -> None:
@@ -33,12 +33,9 @@ def main() -> None:
     )
 
     lines = [
-        "# StarLayer Functionality Overview (generated)",
+        "# StarLayer Functionality Overview",
         "",
-        "Generated from the hand-curated functionality graph "
-        "(`packages/starlayer/starlayer/codekg/curated/functionality.ttl`). "
-        "First pass - not a byte-for-byte reproduction of the hand-written "
-        "`docs/working/archive/functionality-overview.md` this is meant to eventually replace.",
+        "What StarLayer does today, and what is planned.",
         "",
     ]
 
@@ -67,7 +64,7 @@ def main() -> None:
                 see_also = curated.value(cap, SLKG.seeAlsoPath)
                 line = f"- {comment}"
                 if see_also:
-                    line += f" (see `{see_also}`)"
+                    line += f" ([details]({BLOB_BASE}{see_also}))"
                 lines.append(line)
             lines.append("")
 

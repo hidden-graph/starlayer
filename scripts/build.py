@@ -5,6 +5,8 @@ Runs the individual build scripts in dependency order:
 1. ``build_starontology.py``  - ``starontology`` generated ``.ttl`` files and ``starontology.trig``
 2. ``build_codekg.py``        - ``codekg/codekg.trig`` from the source and tests
 3. ``generate_api_docs.py``   - ``docs/generated/api-*.generated.md`` from the code KG
+4. ``generate_functionality_overview.py`` - ``docs/generated/functionality-overview.generated.md``
+   from the curated functionality graph
 
 Build-time only: nothing in the library runs or imports this. Each script can
 still be run on its own.
@@ -54,6 +56,10 @@ _STEPS: dict[str, Step] = {
     "apidocs": Step(
         "generate_api_docs.py",
         outputs=["docs/generated/api-overview.generated.md", "docs/generated/api-reference.generated.md"],
+    ),
+    "overview": Step(
+        "generate_functionality_overview.py",
+        outputs=["docs/generated/functionality-overview.generated.md"],
     ),
 }
 
