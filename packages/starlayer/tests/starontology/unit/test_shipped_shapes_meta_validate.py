@@ -19,7 +19,7 @@ from starlayer import starontology
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl.meta_shapes import meta_validate
 
-_SHAPES_GRAPHS = sorted([name for name in starontology._REGISTRY if name.endswith("_shacl")] + ["shacl_meta"])
+_SHAPES_GRAPHS = sorted([name for name in starontology._REGISTRY if name.endswith("_shacl")])
 
 
 def test_the_registry_has_shapes_graphs_to_check() -> None:

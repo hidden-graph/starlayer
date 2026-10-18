@@ -15,7 +15,7 @@ implementation *can* do that this module provides:
 1. ``declared_conformance_profile()`` - starlayer.shacl's own self-declaration
    (S3, "Profiles of SHACL") of which named SHACL 1.2 feature profiles it
    implements, as a small bundled RDF document
-   (assets/shacl12-conformance-profile.ttl) using the same dx-prof
+   (the starlayer.shacl resource in starontology's starlayer-profiles.ttl) using the same dx-prof
    vocabulary the spec itself uses, rather than only the prose gap matrix.
 2. ``derive_conforms_to()`` - S5.5's sh:conformsTo inference rule. This is
    MAY-level (S2.8) and mechanically just an ordinary SPARQL CONSTRUCT
@@ -38,7 +38,6 @@ implementation *can* do that this module provides:
 
 from __future__ import annotations
 
-import os
 from typing import TYPE_CHECKING, Any
 
 from rdflib import Graph, URIRef
@@ -55,8 +54,12 @@ _SH_usedShapesGraph = URIRef(_SH + "usedShapesGraph")
 _SH_conformsTo = URIRef(_SH + "conformsTo")
 _DCTERMS_conformsTo = URIRef("http://purl.org/dc/terms/conformsTo")
 
-_ASSETS_DIR = os.path.join(os.path.dirname(__file__), "assets")
-_CONFORMANCE_PROFILE_PATH = os.path.join(_ASSETS_DIR, "shacl12-conformance-profile.ttl")
+# starlayer.shacl's own resource inside the profiles document
+# (starontology.get_conformance_profiles()); declared_conformance_profile()
+# returns just that resource's triples.
+_SHACL_SUBJECT = URIRef(
+    "https://github.com/hidden-graph/starlayer/tree/main/packages/starlayer/starlayer/shacl"
+)
 
 # Verbatim from SHACL 1.2 Profiling S5.5 (https://www.w3.org/TR/shacl12-profiling/),
 # modulo prefix declarations rdflib's parser requires inline.
@@ -70,21 +73,37 @@ WHERE {
 }
 """
 
+# The second S5.5 rule, extended. S5.5 itself only has the first branch below
+# (a shapes graph that is directly a prof:isProfileOf a specification). The
+# second branch is StarLayer's extension: a shapes graph listed as a
+# role:validation resource of a prof:Profile means data that conforms to it
+# conforms to that profile, and the profile's own prof:isProfileOf chain
+# (zero or more steps, so the profile itself is included) carries the claim
+# up to the public specification or SHACL profile.
 _CONFORMS_TO_SPECIFICATION_RULE = """
 PREFIX sh: <http://www.w3.org/ns/shacl#>
 PREFIX prof: <http://www.w3.org/ns/dx/prof/>
+PREFIX role: <http://www.w3.org/ns/dx/prof/role/>
 PREFIX dcterms: <http://purl.org/dc/terms/>
 CONSTRUCT { ?x dcterms:conformsTo ?spec }
 WHERE {
     ?x sh:conformsTo ?shapesGraph .
-    ?shapesGraph prof:isProfileOf ?spec .
+    {
+        ?shapesGraph prof:isProfileOf ?spec .
+    } UNION {
+        ?profile prof:hasResource ?resource .
+        ?resource prof:hasArtifact ?shapesGraph ;
+                  prof:hasRole role:validation .
+        ?profile prof:isProfileOf* ?spec .
+    }
 }
 """
 
 
 def declared_conformance_profile() -> StarLayerGraph:
-    """A fresh copy of starlayer.shacl's bundled self-declared SHACL 1.2
-    conformance statement (S3). Parses the bundled asset fresh on every
+    """A fresh copy of starlayer.shacl's self-declared SHACL 1.2
+    conformance statement (S3) - the starlayer.shacl resource in the
+    library's one conformance file. Parses the bundled asset fresh on every
     call rather than caching - matching this project's convention
     elsewhere (see meta_shapes.py::build_meta_shapes_graph) of never
     sharing one mutable graph object across callers.
@@ -101,8 +120,14 @@ def declared_conformance_profile() -> StarLayerGraph:
         StarLayerGraph,  # lazy: avoids a circular-import deadlock
     )
 
+    from starlayer import starontology
+
+    whole = starontology.get_conformance_profiles()
     graph = StarLayerGraph()
-    graph.parse(_CONFORMANCE_PROFILE_PATH, format="turtle")
+    for prefix, namespace in whole.namespaces():
+        graph.bind(prefix, namespace)
+    for triple in whole.triples((_SHACL_SUBJECT, None, None)):
+        graph.add(triple)
     return graph
 
 
@@ -166,8 +191,11 @@ def derive_conforms_to(
 
     If ``specification_graph`` is given, the second S5.5 rule also runs
     once the first has fired, additionally deriving ``dcterms:conformsTo``
-    triples to whatever specification(s) ``shapes_graph`` is declared a
-    profile of. This is not the same relationship
+    triples to whatever ``shapes_graph`` is declared a profile of (the S5.5
+    rule), and also - StarLayer's extension - to the ``prof:Profile`` that
+    lists ``shapes_graph`` as a ``role:validation`` resource and to every
+    specification or profile that profile ``prof:isProfileOf``, however
+    many steps up. This is not the same relationship
     ``declared_conformance_profile()`` records (that one is *this
     library's* own conformance to named SHACL 1.2 feature profiles, a
     different resource than ``shapes_graph``) - pass a graph relating
@@ -187,9 +215,11 @@ def derive_conforms_to(
         shapes_graph: The shapes graph as an RDF resource, same
             optionality and fallback as ``data_graph`` (read from the
             report's own ``sh:usedShapesGraph`` when omitted).
-        specification_graph: A graph asserting ``prof:isProfileOf`` on
-            ``shapes_graph`` itself (e.g. a ``prof:Profile`` declaration
-            for the shapes graph the caller validated against), to
+        specification_graph: A graph relating ``shapes_graph`` to what it
+            profiles - either ``prof:isProfileOf`` on ``shapes_graph``
+            itself, or a ``prof:Profile`` that lists it as a
+            ``role:validation`` ``prof:hasResource`` artifact (e.g.
+            ``starontology.get_conformance_profiles()``) - to
             additionally derive ``dcterms:conformsTo`` triples via S5.5's
             second rule (see above). Read, never mutated. ``None`` (the
             default) skips this second rule entirely.

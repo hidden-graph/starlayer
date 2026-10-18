@@ -287,7 +287,7 @@ The differences in error policy and in the merge (graph union with `owl:versionI
 
 1. **Refresh the code knowledge graph.** `python scripts/build_codekg.py --paths packages/starlayer/starlayer packages/starlayer/tests` rebuilds `packages/starlayer/starlayer/codekg/codekg.trig`.
 2. **Regenerate the help/API docs** from that graph: `python scripts/generate_api_docs.py` writes `docs/generated/api-overview.generated.md` and `api-reference.generated.md`. Still open: whether `docs/generated/` is committed, and whether the generator joins step 1. `docs/api-reference.md` is the hand-kept predecessor and carries a stale-notice banner.
-3. **Republish the starontology standalone files**: `python scripts/publish_starontology_files.py`. It is not byte-stable, so check the diff is real before committing, and confirm `shacl_meta` still equals `build_meta_shapes_graph()`.
+3. **Republish the starontology standalone files**: `python scripts/publish_starontology_files.py`. It is not byte-stable, so check the diff is real before committing, and run `python scripts/refresh_shacl_meta.py` first if either shacl12 asset file or pySHACL changed (a test fails while `shacl12-shacl.ttl` and `build_meta_shapes_graph()` disagree).
 4. **Refresh the widget appendix in `docs/guides/04d-shacl-ui.ipynb`.** The appendix is a deliberately *static* markdown table; the guide does not generate it when run. If the shipped widget descriptions change, regenerate it with the snippet below and paste the output over the appendix cell. The guide expects 16 editors and 10 viewers.
 5. **Re-execute every guide** so the stored outputs are current: `BROWSER=true python -m jupyter nbconvert --to notebook --execute --inplace docs/guides/<guide>.ipynb` (`BROWSER=true` stops the UI guide opening pages).
 6. **Run the test tiers**: the fast tier, the integration tier (live servers), `pytest --store-matrix` for the W3C suites across every store, and `pytest --srl-stratification` for the extended SRL stratification checks (both are opt-in groups, see `tests/conftest.py`).
@@ -301,7 +301,7 @@ from starlayer.graph import Namespace
 
 SH = Namespace("http://www.w3.org/ns/shacl#")
 SHUI = Namespace("http://www.w3.org/ns/shacl-ui#")
-meta = starontology.get_ontology_graph("shacl_meta")
+meta = starontology.get_ontology_graph("shacl_shacl")
 
 
 def widget_table(kind):

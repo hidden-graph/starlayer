@@ -12,22 +12,22 @@
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
 sh:ConstraintComponent rdfs:comment "Requires at least one non-optional sh:parameter — a component with only optional parameters fails to load."@en ;
-    rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-sparql/>, <https://www.w3.org/TR/shacl-af/> ;
-    rdfs:seeAlso sh:parameter, sh:validator ;
+    rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>, <https://www.w3.org/TR/shacl12-sparql/> ;
+    rdfs:seeAlso sh:validator, sh:parameter ;
     skos:example "ex:MinScoreConstraintComponent a sh:ConstraintComponent ; sh:parameter [ sh:path ex:minScore ] ; sh:validator [ a sh:SPARQLAskValidator ; sh:ask \"...\" ]"@en ;
     sh:description "Declares a reusable, user-defined SHACL constraint type, similar to a built-in one like sh:minCount. Combines one or more sh:parameter declarations with a sh:validator (or sh:nodeValidator/sh:propertyValidator) that implements the check."@en ;
     sh:name "constraint component"@en ;
     stsh:requiredEngine stsh:PySHACL .
 
 sh:SPARQLRule rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-rules/>, <https://www.w3.org/TR/shacl-af/> ;
-    rdfs:seeAlso sh:construct, sh:TripleRule ;
+    rdfs:seeAlso sh:TripleRule, sh:construct ;
     skos:example "[ a sh:SPARQLRule ; sh:construct \"CONSTRUCT { $this ex:ancestor ?a } WHERE { $this ex:parent+ ?a }\" ]"@en ;
     sh:description "A rule type that derives new triples via an arbitrary SPARQL CONSTRUCT query (sh:construct), for derivations too complex for a single sh:TripleRule."@en ;
     sh:name "SPARQL rule"@en ;
     stsh:requiredEngine stsh:PySHACL .
 
-sh:TripleRule rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>, <https://www.w3.org/TR/shacl12-rules/> ;
-    rdfs:seeAlso sh:SPARQLRule, sh:predicate, sh:object, sh:subject ;
+sh:TripleRule rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-rules/>, <https://www.w3.org/TR/shacl-af/> ;
+    rdfs:seeAlso sh:subject, sh:object, sh:SPARQLRule, sh:predicate ;
     skos:example "[ a sh:TripleRule ; sh:subject sh:this ; sh:predicate ex:ancestor ; sh:object [ sh:path ex:parent ] ]"@en ;
     sh:description "A rule type that derives one new triple per matching focus node from three independently-evaluated node expressions — sh:subject/sh:predicate/sh:object — without needing any SPARQL."@en ;
     sh:name "triple rule"@en ;
@@ -47,7 +47,7 @@ sh:and rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
     stsh:requiredEngine stsh:PySHACL .
 
 sh:ask rdfs:comment "Unlike sh:select, false means *violation* here — the query must return true for conformance, the opposite polarity from a SELECT constraint's \"any row is a violation.\""@en ;
-    rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>, <https://www.w3.org/TR/shacl12-sparql/> ;
+    rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-sparql/>, <https://www.w3.org/TR/shacl-af/> ;
     rdfs:seeAlso sh:select ;
     skos:example "sh:validator [ a sh:SPARQLAskValidator ; sh:ask \"ASK { FILTER (?value >= ?minScore) }\" ]"@en ;
     sh:description "The SPARQL ASK query text for a custom sh:ConstraintComponent's generic sh:validator. The value node conforms only if the query returns true."@en ;
@@ -55,14 +55,14 @@ sh:ask rdfs:comment "Unlike sh:select, false means *violation* here — the quer
     stsh:requiredEngine stsh:PySHACL .
 
 sh:class rdfs:comment "plain single-value form only — the SHACL 1.2 list-valued form requires stsh:StarShacl"@en, "A list value here means \"any of these classes,\" not \"all of these classes\" — for an intersection, nest a separate sh:node shape instead."@en ;
-    rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/>, <https://www.w3.org/TR/shacl/> ;
+    rdfs:isDefinedBy <https://www.w3.org/TR/shacl/>, <https://www.w3.org/TR/shacl12-core/> ;
     rdfs:seeAlso sh:nodeKind, sh:datatype ;
     skos:example "sh:path ex:employer ; sh:class ex:Organization"@en ;
     sh:description "Every value node must be an instance of this class (or a subclass, under RDFS/OWL reasoning). SHACL 1.2 widens this to also accept a list of classes — the value must be an instance of *at least one* of them (a union, not an intersection)."@en ;
     sh:name "class"@en ;
     stsh:requiredEngine stsh:PySHACL .
 
-sh:closed rdfs:comment "rdf:type is always implicitly allowed on a closed shape. sh:ignoredProperties is needed to permit other \"bookkeeping\" properties (e.g. dcterms:created) without listing each as sh:property."@en, "plain `xsd:boolean` value only — `sh:closed sh:ByTypes` requires stsh:StarShacl"@en ;
+sh:closed rdfs:comment "plain `xsd:boolean` value only — `sh:closed sh:ByTypes` requires stsh:StarShacl"@en, "rdf:type is always implicitly allowed on a closed shape. sh:ignoredProperties is needed to permit other \"bookkeeping\" properties (e.g. dcterms:created) without listing each as sh:property."@en ;
     rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/>, <https://www.w3.org/TR/shacl/> ;
     rdfs:seeAlso sh:ignoredProperties ;
     skos:example "ex:PersonShape sh:closed true ; sh:property [ sh:path ex:name ] . — ex:Person nodes may *only* have ex:name (and rdf:type)."@en ;
@@ -77,7 +77,7 @@ sh:condition rdfs:comment "The condition shape needs a real constraint to be dis
     sh:name "condition"@en ;
     stsh:requiredEngine stsh:PySHACL .
 
-sh:construct rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-rules/>, <https://www.w3.org/TR/shacl-af/> ;
+sh:construct rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>, <https://www.w3.org/TR/shacl12-rules/> ;
     rdfs:seeAlso sh:SPARQLRule ;
     skos:example "sh:construct \"PREFIX ex: <http://example.org/> CONSTRUCT { $this ex:ancestor ?a } WHERE { $this ex:parent ?a }\""@en ;
     sh:description "The SPARQL CONSTRUCT query text for a sh:SPARQLRule — its WHERE clause is evaluated once per matching focus node (bound to $this), and every triple in its result is added to the data graph."@en ;
@@ -116,7 +116,7 @@ sh:disjoint rdfs:comment "plain-IRI object only — the SHACL 1.2 path-valued fo
     stsh:requiredEngine stsh:PySHACL .
 
 sh:equals rdfs:comment "plain-IRI object only — the SHACL 1.2 path-valued form requires stsh:StarShacl"@en ;
-    rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/>, <https://www.w3.org/TR/shacl/> ;
+    rdfs:isDefinedBy <https://www.w3.org/TR/shacl/>, <https://www.w3.org/TR/shacl12-core/> ;
     skos:example "sh:path ex:homeAddress ; sh:equals ex:mailingAddress"@en ;
     sh:description "The set of value nodes at this shape's path must be exactly equal (as a set) to the set of value nodes at the given path or property. SHACL 1.2 widens the object from a plain IRI to any property path."@en ;
     sh:name "equals"@en ;
@@ -235,7 +235,7 @@ sh:minExclusive rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
     stsh:requiredEngine stsh:PySHACL .
 
 sh:minInclusive rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-    rdfs:seeAlso sh:maxInclusive, sh:minExclusive ;
+    rdfs:seeAlso sh:minExclusive, sh:maxInclusive ;
     skos:example "sh:path ex:age ; sh:minInclusive 0"@en ;
     sh:description "Every value node must be numerically or ordinally ≥ this value. Requires an orderable datatype (numbers, dates)."@en ;
     sh:name "minimum inclusive value"@en ;
@@ -268,13 +268,13 @@ sh:node rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
     stsh:requiredEngine stsh:PySHACL .
 
 sh:nodeKind rdfs:comment "plain single-value form only — the SHACL 1.2 list-valued form requires stsh:StarShacl"@en ;
-    rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/>, <https://www.w3.org/TR/shacl/> ;
+    rdfs:isDefinedBy <https://www.w3.org/TR/shacl/>, <https://www.w3.org/TR/shacl12-core/> ;
     skos:example "sh:path ex:homepage ; sh:nodeKind sh:IRI — the value must be a real IRI, not a literal string."@en ;
     sh:description "Restricts what *kind* of RDF term a value node may be, independent of class or datatype: sh:IRI, sh:BlankNode, sh:Literal, or one of the three compound kinds (sh:BlankNodeOrIRI, sh:BlankNodeOrLiteral, sh:IRIOrLiteral). SHACL 1.2 widens this to also accept a list of node kinds."@en ;
     sh:name "node kind"@en ;
     stsh:requiredEngine stsh:PySHACL .
 
-sh:nodeValidator rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>, <https://www.w3.org/TR/shacl12-sparql/> ;
+sh:nodeValidator rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-sparql/>, <https://www.w3.org/TR/shacl-af/> ;
     rdfs:seeAlso sh:propertyValidator, sh:select ;
     sh:description "A SELECT-based validator for a custom sh:ConstraintComponent, used specifically when the component is applied via a node shape."@en ;
     sh:name "node validator"@en ;
@@ -287,8 +287,8 @@ sh:not rdfs:comment "Negating a shape with its own violations can be confusing t
     sh:name "not"@en ;
     stsh:requiredEngine stsh:PySHACL .
 
-sh:object rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-rules/>, <https://www.w3.org/TR/shacl-af/> ;
-    rdfs:seeAlso sh:predicate, sh:TripleRule, sh:subject ;
+sh:object rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>, <https://www.w3.org/TR/shacl12-rules/> ;
+    rdfs:seeAlso sh:predicate, sh:subject, sh:TripleRule ;
     sh:description "The node expression producing the object of the triple a sh:TripleRule derives — often a shnex:pathValues/sh:path expression pulling a value from elsewhere in the data."@en ;
     sh:name "object expression"@en ;
     stsh:requiredEngine stsh:PySHACL .
@@ -333,7 +333,7 @@ sh:pattern rdfs:comment "SHACL patterns are *not* implicitly anchored — sh:pat
     stsh:requiredEngine stsh:PySHACL .
 
 sh:predicate rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-rules/>, <https://www.w3.org/TR/shacl-af/> ;
-    rdfs:seeAlso sh:object, sh:TripleRule, sh:subject ;
+    rdfs:seeAlso sh:object, sh:subject, sh:TripleRule ;
     sh:description "The node expression producing the predicate of the triple a sh:TripleRule derives — typically a constant IRI naming the derived property."@en ;
     sh:name "predicate expression"@en ;
     stsh:requiredEngine stsh:PySHACL .
@@ -345,7 +345,7 @@ sh:property rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
     stsh:requiredEngine stsh:PySHACL .
 
 sh:propertyValidator rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>, <https://www.w3.org/TR/shacl12-sparql/> ;
-    rdfs:seeAlso sh:select, sh:nodeValidator ;
+    rdfs:seeAlso sh:nodeValidator, sh:select ;
     sh:description "A SELECT-based validator for a custom sh:ConstraintComponent, used specifically when the component is applied via a property shape."@en ;
     sh:name "property validator"@en ;
     stsh:requiredEngine stsh:PySHACL .
@@ -361,7 +361,7 @@ sh:qualifiedMinCount rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
     stsh:requiredEngine stsh:PySHACL .
 
 sh:qualifiedValueShape rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-    rdfs:seeAlso sh:qualifiedMaxCount, sh:qualifiedMinCount ;
+    rdfs:seeAlso sh:qualifiedMinCount, sh:qualifiedMaxCount ;
     skos:example "sh:path ex:contact ; sh:qualifiedValueShape ex:PhoneShape ; sh:qualifiedMinCount 1"@en ;
     sh:description "Works together with sh:qualifiedMinCount/sh:qualifiedMaxCount to count *how many* value nodes conform to a given shape (rather than requiring all or none to conform, like sh:node does)."@en ;
     sh:name "qualified value shape"@en ;
@@ -392,15 +392,15 @@ sh:rootClass rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/> ;
     sh:name "root class"@en ;
     stsh:requiredEngine stsh:StarShacl .
 
-sh:rule rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-rules/>, <https://www.w3.org/TR/shacl-af/> ;
-    rdfs:seeAlso sh:TripleRule, sh:SPARQLRule, sh:condition ;
+sh:rule rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>, <https://www.w3.org/TR/shacl12-rules/> ;
+    rdfs:seeAlso sh:SPARQLRule, sh:TripleRule, sh:condition ;
     skos:example "ex:R sh:rule [ a sh:TripleRule ; sh:subject sh:this ; sh:predicate ex:derived ; sh:object [ sh:path ex:source ] ]"@en ;
     sh:description "Attaches a SHACL-AF inference rule to a shape, applied to every focus node the shape targets when rule execution (not plain validation) is requested. sh:TripleRule and sh:SPARQLRule are the two concrete rule types."@en ;
     sh:name "rule"@en ;
     stsh:requiredEngine stsh:PySHACL .
 
-sh:select rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-sparql/>, <https://www.w3.org/TR/shacl-af/> ;
-    rdfs:seeAlso sh:sparql, sh:ask ;
+sh:select rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>, <https://www.w3.org/TR/shacl12-sparql/> ;
+    rdfs:seeAlso sh:ask, sh:sparql ;
     skos:example "sh:select \"SELECT $this ?value WHERE { ?value ex:score ?s . FILTER (?s < 0) }\""@en ;
     sh:description "The SPARQL SELECT query text for a sh:sparql constraint or a custom sh:ConstraintComponent's sh:nodeValidator/sh:propertyValidator. Any row returned counts as a violation; bindings for ?value/?path/?this in the result customize the reported focus/value/path."@en ;
     sh:name "SELECT query"@en ;
@@ -426,7 +426,7 @@ sh:someValue rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/> ;
     stsh:requiredEngine stsh:StarShacl .
 
 sh:sparql rdfs:comment "The query must project $this (or ?this); MINUS and VALUES against pre-bound variables are disallowed per spec."@en ;
-    rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-sparql/>, <https://www.w3.org/TR/shacl-af/> ;
+    rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>, <https://www.w3.org/TR/shacl12-sparql/> ;
     rdfs:seeAlso sh:ConstraintComponent, sh:select ;
     skos:example "sh:sparql [ sh:select \"SELECT $this WHERE { FILTER NOT EXISTS { $this ex:email ?e } }\" ]"@en ;
     sh:description "Attaches a SPARQL-based constraint to a shape — the query is evaluated once per focus node, and any result row it returns is treated as a violation."@en ;
@@ -434,7 +434,7 @@ sh:sparql rdfs:comment "The query must project $this (or ?this); MINUS and VALUE
     stsh:requiredEngine stsh:PySHACL .
 
 sh:subject rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-rules/>, <https://www.w3.org/TR/shacl-af/> ;
-    rdfs:seeAlso sh:object, sh:TripleRule, sh:predicate ;
+    rdfs:seeAlso sh:predicate, sh:TripleRule, sh:object ;
     sh:description "The node expression producing the subject of the triple a sh:TripleRule derives — most commonly just sh:this, the rule's own focus node."@en ;
     sh:name "subject expression"@en ;
     stsh:requiredEngine stsh:PySHACL .
@@ -447,7 +447,7 @@ sh:subsetOf rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/> ;
     stsh:requiredEngine stsh:StarShacl .
 
 sh:targetClass rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-    rdfs:seeAlso sh:rootClass, sh:targetNode ;
+    rdfs:seeAlso sh:targetNode, sh:rootClass ;
     skos:example "ex:PersonShape sh:targetClass ex:Person ."@en ;
     sh:description "Every instance of this class (including subclasses, when RDFS/OWL reasoning is used) is a focus node for the shape. The most common way to attach a shape to \"all things of type X.\""@en ;
     sh:name "target class"@en ;
@@ -495,8 +495,8 @@ sh:uniqueValuesFor rdfs:comment "Because this checks *across* focus nodes rather
     sh:name "unique values for"@en ;
     stsh:requiredEngine stsh:StarShacl .
 
-sh:validator rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-sparql/>, <https://www.w3.org/TR/shacl-af/> ;
-    rdfs:seeAlso sh:ask, sh:propertyValidator, sh:nodeValidator ;
+sh:validator rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>, <https://www.w3.org/TR/shacl12-sparql/> ;
+    rdfs:seeAlso sh:nodeValidator, sh:ask, sh:propertyValidator ;
     sh:description "The generic SPARQL ASK validator for a custom sh:ConstraintComponent, used when the component doesn't need to distinguish node vs. property shapes."@en ;
     sh:name "validator"@en ;
     stsh:requiredEngine stsh:PySHACL .
@@ -581,19 +581,19 @@ shsh:NodeShapeShape a sh:NodeShape ;
         sh:path sh:qualifiedValueShape
     ], [
         sh:maxCount 0 ;
+        sh:path sh:maxCount
+    ], [
+        sh:maxCount 0 ;
         sh:path sh:lessThan
     ], [
         sh:maxCount 0 ;
-        sh:path sh:lessThanOrEquals
-    ], [
-        sh:maxCount 0 ;
-        sh:path sh:maxCount
+        sh:path sh:minCount
     ], [
         sh:maxCount 0 ;
         sh:path sh:uniqueLang
     ], [
         sh:maxCount 0 ;
-        sh:path sh:minCount
+        sh:path sh:lessThanOrEquals
     ] ;
     sh:targetObjectsOf sh:node .
 
@@ -694,7 +694,7 @@ shsh:PropertyShapeShape a sh:NodeShape ;
 shsh:ShapeShape a sh:NodeShape ;
     rdfs:comment "A shape that can be used to validate syntax rules for other shapes."@en ;
     rdfs:label "Shape shape"@en ;
-    sh:or ( [
+    sh:or ( shsh:NodeShapeShape shsh:PropertyShapeShape ), ( [
         sh:not [
             sh:class rdfs:Class ;
             sh:or ( [
@@ -705,49 +705,27 @@ shsh:ShapeShape a sh:NodeShape ;
         ]
     ] [
         sh:nodeKind sh:IRI
-    ] ), ( shsh:NodeShapeShape shsh:PropertyShapeShape ) ;
+    ] ) ;
     sh:property [
-        sh:datatype xsd:integer ;
-        sh:maxCount 1 ;
-        sh:path sh:maxCount
-    ], [
-        sh:in ( true false ) ;
-        sh:maxCount 1 ;
-        sh:path sh:deactivated
-    ], [
-        sh:datatype xsd:integer ;
-        sh:maxCount 1 ;
-        sh:path sh:qualifiedMinCount
-    ], [
         sh:maxCount 1 ;
         sh:nodeKind sh:Literal ;
         sh:path sh:minInclusive
     ], [
-        sh:datatype xsd:boolean ;
+        sh:datatype xsd:string ;
         sh:maxCount 1 ;
-        sh:path sh:qualifiedValueShapesDisjoint
+        sh:path sh:pattern
     ], [
         sh:maxCount 1 ;
         sh:node shsh:ListShape ;
-        sh:path sh:ignoredProperties
-    ], [
-        sh:maxCount 1 ;
-        sh:node shsh:ListShape ;
-        sh:path sh:languageIn
-    ], [
-        sh:node shsh:ListShape ;
-        sh:path sh:or
-    ], [
-        sh:maxCount 1 ;
-        sh:nodeKind sh:Literal ;
-        sh:path sh:maxInclusive
+        sh:path sh:in
     ], [
         sh:datatype xsd:integer ;
         sh:maxCount 1 ;
-        sh:path sh:maxLength
+        sh:path sh:minCount
     ], [
-        sh:nodeKind sh:IRIOrLiteral ;
-        sh:path sh:targetNode
+        sh:maxCount 1 ;
+        sh:nodeKind sh:IRI ;
+        sh:path sh:severity
     ], [
         sh:or ( [
             sh:datatype xsd:string
@@ -756,77 +734,99 @@ shsh:ShapeShape a sh:NodeShape ;
         ] ) ;
         sh:path sh:message
     ], [
-        sh:datatype xsd:string ;
-        sh:path ( sh:languageIn [
-            sh:zeroOrMorePath rdf:rest
-        ] rdf:first )
-    ], [
-        sh:datatype xsd:integer ;
+        sh:in ( true false ) ;
         sh:maxCount 1 ;
-        sh:path sh:minCount
+        sh:path sh:deactivated
     ], [
         sh:datatype xsd:boolean ;
         sh:maxCount 1 ;
         sh:path sh:uniqueLang
     ], [
+        sh:datatype xsd:integer ;
+        sh:maxCount 1 ;
+        sh:path sh:maxLength
+    ], [
         sh:maxCount 1 ;
         sh:nodeKind sh:Literal ;
         sh:path sh:maxExclusive
+    ], [
+        sh:node shsh:ListShape ;
+        sh:path sh:or
+    ], [
+        sh:maxCount 1 ;
+        sh:node shsh:ListShape ;
+        sh:path sh:languageIn
+    ], [
+        sh:maxCount 1 ;
+        sh:node shsh:ListShape ;
+        sh:path sh:ignoredProperties
+    ], [
+        sh:datatype xsd:integer ;
+        sh:maxCount 1 ;
+        sh:path sh:qualifiedMinCount
+    ], [
+        sh:datatype xsd:integer ;
+        sh:maxCount 1 ;
+        sh:path sh:minLength
     ], [
         sh:nodeKind sh:IRI ;
         sh:path ( sh:ignoredProperties [
             sh:zeroOrMorePath rdf:rest
         ] rdf:first )
     ], [
-        sh:nodeKind sh:IRI ;
-        sh:path sh:targetObjectsOf
+        sh:maxCount 1 ;
+        sh:nodeKind sh:Literal ;
+        sh:path sh:maxInclusive
     ], [
         sh:node shsh:ListShape ;
         sh:path sh:xone
     ], [
-        sh:datatype xsd:integer ;
-        sh:maxCount 1 ;
-        sh:path sh:qualifiedMaxCount
-    ], [
-        sh:maxCount 1 ;
-        sh:node shsh:ListShape ;
-        sh:path sh:in
-    ], [
         sh:nodeKind sh:IRI ;
-        sh:path sh:targetSubjectsOf
+        sh:path sh:targetObjectsOf
     ], [
-        sh:node shsh:ListShape ;
-        sh:path sh:and
-    ], [
-        sh:nodeKind sh:IRI ;
-        sh:path sh:targetClass
+        sh:maxCount 1 ;
+        sh:path sh:qualifiedValueShape
     ], [
         sh:maxCount 1 ;
         sh:nodeKind sh:Literal ;
         sh:path sh:minExclusive
     ], [
+        sh:nodeKind sh:IRI ;
+        sh:path sh:targetClass
+    ], [
+        sh:node shsh:ListShape ;
+        sh:path sh:and
+    ], [
         sh:datatype xsd:integer ;
         sh:maxCount 1 ;
-        sh:path sh:minLength
-    ], [
-        sh:maxCount 1 ;
-        sh:nodeKind sh:IRI ;
-        sh:path sh:severity
-    ], [
-        sh:maxCount 1 ;
-        sh:path sh:qualifiedValueShape
+        sh:path sh:qualifiedMaxCount
     ], [
         sh:datatype xsd:string ;
         sh:maxCount 1 ;
         sh:path sh:flags
     ], [
-        sh:datatype xsd:string ;
+        sh:nodeKind sh:IRI ;
+        sh:path sh:targetSubjectsOf
+    ], [
+        sh:datatype xsd:integer ;
         sh:maxCount 1 ;
-        sh:path sh:pattern
+        sh:path sh:maxCount
+    ], [
+        sh:datatype xsd:boolean ;
+        sh:maxCount 1 ;
+        sh:path sh:qualifiedValueShapesDisjoint
+    ], [
+        sh:datatype xsd:string ;
+        sh:path ( sh:languageIn [
+            sh:zeroOrMorePath rdf:rest
+        ] rdf:first )
+    ], [
+        sh:nodeKind sh:IRIOrLiteral ;
+        sh:path sh:targetNode
     ] ;
     sh:targetClass sh:NodeShape, sh:PropertyShape ;
-    sh:targetObjectsOf sh:node, sh:qualifiedValueShape, sh:not, sh:property ;
-    sh:targetSubjectsOf sh:disjoint, sh:flags, sh:qualifiedValueShape, sh:maxExclusive, sh:minExclusive, sh:datatype, sh:and, sh:node, sh:in, sh:minLength, sh:lessThan, sh:targetNode, sh:qualifiedMaxCount, sh:uniqueLang, sh:not, sh:targetSubjectsOf, sh:languageIn, sh:pattern, sh:closed, sh:targetObjectsOf, sh:nodeKind, sh:qualifiedMinCount, sh:minCount, sh:targetClass, sh:maxCount, sh:xone, sh:sparql, sh:minInclusive, sh:property, sh:hasValue, sh:class, sh:maxInclusive, sh:lessThanOrEquals, sh:equals, sh:or, sh:ignoredProperties, sh:qualifiedValueShapesDisjoint, sh:maxLength .
+    sh:targetObjectsOf sh:qualifiedValueShape, sh:property, sh:not, sh:node ;
+    sh:targetSubjectsOf sh:targetObjectsOf, sh:ignoredProperties, sh:maxLength, sh:closed, sh:minExclusive, sh:qualifiedMaxCount, sh:sparql, sh:disjoint, sh:xone, sh:minInclusive, sh:maxCount, sh:minLength, sh:lessThan, sh:or, sh:class, sh:nodeKind, sh:qualifiedValueShape, sh:minCount, sh:lessThanOrEquals, sh:targetSubjectsOf, sh:targetClass, sh:uniqueLang, sh:maxInclusive, sh:languageIn, sh:property, sh:targetNode, sh:not, sh:flags, sh:in, sh:qualifiedMinCount, sh:and, sh:datatype, sh:hasValue, sh:pattern, sh:maxExclusive, sh:equals, sh:qualifiedValueShapesDisjoint, sh:node .
 
 shsh:ShapesGraphShape a sh:NodeShape ;
     sh:nodeKind sh:IRI ;
@@ -839,7 +839,7 @@ shsh:ShapesListShape a sh:NodeShape ;
             sh:zeroOrMorePath rdf:rest
         ] rdf:first )
     ] ;
-    sh:targetObjectsOf sh:xone, sh:or, sh:and .
+    sh:targetObjectsOf sh:and, sh:xone, sh:or .
 
 shui:AutoCompleteEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
     rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
@@ -1062,14 +1062,11 @@ stsh:ConstraintComponentShape a sh:NodeShape ;
         ]
     ] ) ;
     sh:property [
-        sh:node stsh:SelectValidatorShape ;
-        sh:path sh:nodeValidator
-    ], [
-        sh:node stsh:SelectValidatorShape ;
-        sh:path sh:propertyValidator
-    ], [
         sh:node stsh:AskValidatorShape ;
         sh:path sh:validator
+    ], [
+        sh:node stsh:SelectValidatorShape ;
+        sh:path sh:nodeValidator
     ], [
         sh:minCount 1 ;
         sh:node [
@@ -1082,6 +1079,9 @@ stsh:ConstraintComponentShape a sh:NodeShape ;
             ]
         ] ;
         sh:path sh:parameter
+    ], [
+        sh:node stsh:SelectValidatorShape ;
+        sh:path sh:propertyValidator
     ] ;
     sh:targetClass sh:ConstraintComponent .
 
@@ -1140,7 +1140,7 @@ stsh:IgnoredPropertiesLanguageInMinListLengthShapes a sh:NodeShape ;
         sh:minListLength 1 ;
         sh:path sh:languageIn
     ] ;
-    sh:targetSubjectsOf sh:ignoredProperties, sh:languageIn .
+    sh:targetSubjectsOf sh:languageIn, sh:ignoredProperties .
 
 stsh:InXoneSatisfiabilityShapes a sh:NodeShape ;
     rdfs:comment "sh:in mirrors the official SHACL 1.2 WG draft's own shsh:inSubjectsShape exactly - Warning severity, since an empty sh:in list is soft-ignorable (confirmed live: allow_warnings=True lets it through cleanly, no crash). sh:xone deliberately diverges from the official draft's own shsh:xoneSubjectsShape (which uses Warning there too): pySHACL's own shape LOADER unconditionally rejects an empty sh:and/sh:or/sh:xone list with a raw ShapeLoadError the moment real validation runs, regardless of meta-shacl or allow_warnings - confirmed live for all three predicates. A Warning severity here would imply a working allow_warnings escape hatch that doesn't actually exist for sh:xone (unlike sh:in), trading a clear meta-shacl report for an uglier crash later - so this is Violation, an honest reflection of what's actually unconditionally enforced, not a hint."@en ;
@@ -1182,13 +1182,6 @@ stsh:NewPredicateShapes a sh:NodeShape ;
         sh:node stsh:ShapeReferenceShape ;
         sh:path sh:reifierShape
     ], [
-        sh:datatype xsd:boolean ;
-        sh:maxCount 1 ;
-        sh:path sh:reificationRequired
-    ], [
-        sh:node stsh:IRIOrListOfIRIsShape ;
-        sh:path sh:rootClass
-    ], [
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:path sh:subsetOf
@@ -1199,31 +1192,38 @@ stsh:NewPredicateShapes a sh:NodeShape ;
     ], [
         sh:datatype xsd:boolean ;
         sh:maxCount 1 ;
+        sh:path sh:reificationRequired
+    ], [
+        sh:datatype xsd:boolean ;
+        sh:maxCount 1 ;
+        sh:path sh:uniqueMembers
+    ], [
+        sh:datatype xsd:boolean ;
+        sh:maxCount 1 ;
         sh:path sh:singleLine
     ], [
-        sh:datatype xsd:integer ;
-        sh:maxCount 1 ;
-        sh:minInclusive 0 ;
-        sh:path sh:maxListLength
+        sh:node stsh:IRIOrListOfIRIsShape ;
+        sh:path sh:rootClass
     ], [
         sh:maxCount 1 ;
         sh:node stsh:IRIOrListOfIRIsShape ;
         sh:path sh:uniqueValuesFor
+    ], [
+        sh:node shsh:NodeShapeShape ;
+        sh:nodeKind sh:BlankNodeOrIRI ;
+        sh:path sh:memberShape
     ], [
         sh:datatype xsd:integer ;
         sh:maxCount 1 ;
         sh:minInclusive 0 ;
         sh:path sh:minListLength
     ], [
-        sh:datatype xsd:boolean ;
+        sh:datatype xsd:integer ;
         sh:maxCount 1 ;
-        sh:path sh:uniqueMembers
-    ], [
-        sh:node shsh:NodeShapeShape ;
-        sh:nodeKind sh:BlankNodeOrIRI ;
-        sh:path sh:memberShape
+        sh:minInclusive 0 ;
+        sh:path sh:maxListLength
     ] ;
-    sh:targetSubjectsOf sh:singleLine, sh:uniqueMembers, sh:reifierShape, sh:maxListLength, sh:minListLength, sh:uniqueValuesFor, sh:reificationRequired, sh:someValue, sh:memberShape, sh:subsetOf, sh:rootClass .
+    sh:targetSubjectsOf sh:reifierShape, sh:uniqueValuesFor, sh:minListLength, sh:reificationRequired, sh:uniqueMembers, sh:memberShape, sh:singleLine, sh:rootClass, sh:subsetOf, sh:maxListLength, sh:someValue .
 
 stsh:NodeExpressionFunctionCallShape a sh:NodeShape ;
     rdfs:comment "Matches pyshacl's own FunctionExpression detection: some predicate other than sh:message whose object is a well-formed list (has rdf:first). Structural only - does not confirm the referenced function is actually defined via sh:SPARQLFunction/sh:JSFunction, or that the argument count/types match."@en ;
@@ -1396,11 +1396,6 @@ stsh:NodeExpressionShape a sh:NodeShape ;
 stsh:PrefixDeclarationShape a sh:NodeShape ;
     rdfs:label "Well-formed sh:declare prefix declaration"@en ;
     sh:property [
-        sh:datatype xsd:string ;
-        sh:maxCount 1 ;
-        sh:minCount 1 ;
-        sh:path sh:prefix
-    ], [
         sh:maxCount 1 ;
         sh:minCount 1 ;
         sh:or ( [
@@ -1409,6 +1404,11 @@ stsh:PrefixDeclarationShape a sh:NodeShape ;
             sh:datatype xsd:string
         ] ) ;
         sh:path sh:namespace
+    ], [
+        sh:datatype xsd:string ;
+        sh:maxCount 1 ;
+        sh:minCount 1 ;
+        sh:path sh:prefix
     ] .
 
 stsh:RuleShape a sh:NodeShape ;
@@ -1424,12 +1424,12 @@ stsh:RuleShape a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:node stsh:NodeExpressionShape ;
-            sh:path sh:object
+            sh:path sh:predicate
         ], [
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:node stsh:NodeExpressionShape ;
-            sh:path sh:predicate
+            sh:path sh:object
         ]
     ] [
         sh:class sh:SPARQLRule ;
@@ -1446,13 +1446,13 @@ stsh:RulesAndSparqlShapes a sh:NodeShape ;
         sh:node stsh:RuleShape ;
         sh:path sh:rule
     ], [
-        sh:node stsh:SelectValidatorShape ;
-        sh:path sh:sparql
-    ], [
         sh:node stsh:ShapeOrListOfShapesShape ;
         sh:path sh:condition
+    ], [
+        sh:node stsh:SelectValidatorShape ;
+        sh:path sh:sparql
     ] ;
-    sh:targetSubjectsOf sh:sparql, sh:rule, sh:condition .
+    sh:targetSubjectsOf sh:condition, sh:sparql, sh:rule .
 
 stsh:SelectValidatorShape a sh:NodeShape ;
     rdfs:comment "The value of sh:nodeValidator/sh:propertyValidator on a custom sh:ConstraintComponent, and of sh:sparql's own SPARQLConstraint value - pySHACL requires exactly one sh:select (an xsd:string) (SelectConstraintValidator.__init__, SPARQLBasedConstraint.__init__)."@en ;
@@ -1489,16 +1489,6 @@ stsh:ShapeReferenceShape a sh:NodeShape ;
 stsh:ShapeShapeOverrides a sh:NodeShape ;
     rdfs:label "SHACL 1.2 replacement rules for widened parameters"@en ;
     sh:property [
-        sh:node stsh:IRIOrPathShape ;
-        sh:path sh:lessThanOrEquals
-    ], [
-        sh:maxCount 1 ;
-        sh:node stsh:IRIOrListOfIRIsShape ;
-        sh:path sh:datatype
-    ], [
-        sh:node stsh:IRIOrPathShape ;
-        sh:path sh:disjoint
-    ], [
         sh:maxCount 1 ;
         sh:or ( [
             sh:datatype xsd:boolean
@@ -1508,13 +1498,13 @@ stsh:ShapeShapeOverrides a sh:NodeShape ;
         sh:path sh:closed
     ], [
         sh:node stsh:IRIOrPathShape ;
+        sh:path sh:lessThanOrEquals
+    ], [
+        sh:node stsh:IRIOrPathShape ;
         sh:path sh:lessThan
     ], [
         sh:node stsh:IRIOrListOfIRIsShape ;
         sh:path sh:class
-    ], [
-        sh:node stsh:IRIOrPathShape ;
-        sh:path sh:equals
     ], [
         sh:maxCount 1 ;
         sh:or ( [
@@ -1532,8 +1522,18 @@ stsh:ShapeShapeOverrides a sh:NodeShape ;
             ]
         ] ) ;
         sh:path sh:nodeKind
+    ], [
+        sh:node stsh:IRIOrPathShape ;
+        sh:path sh:disjoint
+    ], [
+        sh:node stsh:IRIOrPathShape ;
+        sh:path sh:equals
+    ], [
+        sh:maxCount 1 ;
+        sh:node stsh:IRIOrListOfIRIsShape ;
+        sh:path sh:datatype
     ] ;
-    sh:targetSubjectsOf sh:lessThan, sh:closed, sh:equals, sh:nodeKind, sh:datatype, sh:class, sh:lessThanOrEquals, sh:disjoint .
+    sh:targetSubjectsOf sh:class, sh:disjoint, sh:lessThanOrEquals, sh:nodeKind, sh:equals, sh:closed, sh:datatype, sh:lessThan .
 
 stsh:ShuiPredicateShapes a sh:NodeShape ;
     rdfs:label "Well-formedness rules for shui: predicates"@en ;
@@ -1542,12 +1542,12 @@ stsh:ShuiPredicateShapes a sh:NodeShape ;
         sh:path shui:propertyRole
     ], [
         sh:nodeKind sh:IRI ;
-        sh:path shui:editor
+        sh:path shui:viewer
     ], [
         sh:nodeKind sh:IRI ;
-        sh:path shui:viewer
+        sh:path shui:editor
     ] ;
-    sh:targetSubjectsOf shui:propertyRole, shui:viewer, shui:editor .
+    sh:targetSubjectsOf shui:viewer, shui:editor, shui:propertyRole .
 
 stsh:SparqlPrefixesShapes a sh:NodeShape ;
     rdfs:label "Well-formedness rules for sh:prefixes / sh:declare"@en ;
@@ -1567,12 +1567,13 @@ stsh:WidgetScoreShape a sh:NodeShape ;
     rdfs:label "Well-formedness rules for shui:WidgetScore"@en ;
     sh:property [
         sh:maxCount 1 ;
+        sh:minCount 1 ;
         sh:nodeKind sh:BlankNodeOrIRI ;
-        sh:path shui:dataGraphShape
+        sh:path shui:widget
     ], [
         sh:maxCount 1 ;
         sh:nodeKind sh:BlankNodeOrIRI ;
-        sh:path shui:shapesGraphShape
+        sh:path shui:dataGraphShape
     ], [
         sh:maxCount 1 ;
         sh:minCount 1 ;
@@ -1584,8 +1585,7 @@ stsh:WidgetScoreShape a sh:NodeShape ;
         sh:path shui:score
     ], [
         sh:maxCount 1 ;
-        sh:minCount 1 ;
         sh:nodeKind sh:BlankNodeOrIRI ;
-        sh:path shui:widget
+        sh:path shui:shapesGraphShape
     ] ;
     sh:targetClass shui:WidgetScore .

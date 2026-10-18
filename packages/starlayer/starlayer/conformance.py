@@ -1,15 +1,15 @@
-"""Whole-library SHACL-1.2-Profiling-style self-declaration (2026-10-09).
+"""starlayer's own self-declared conformance, read from the profiles
+document (``starontology.get_conformance_profiles()``, the
+``starlayer-profiles.ttl`` named graph).
 
-Generalizes ``starlayer.shacl.shacl_profiling.declared_conformance_profile()``'s
-own pattern (SHACL 1.2 Profiling S3, "Profiles of SHACL" - ``dcterms:conformsTo``
-plus the dx-prof vocabulary) beyond just the four named SHACL feature
-profiles, to also cover the RDF 1.2/SPARQL 1.2 suite documents this project
-already tracks (``docs/graph/rdf12_sparql12_gap_analysis.md``'s own seven
-tracked documents, refreshed via
-``tests/graph/vendor/spec_snapshots/refresh_snapshots.py``) - reused here as
-a short, independently-maintained list of their stable TR URLs, not
-imported from that test-tooling script (production code shouldn't depend
-on a test-only module).
+The claims are data, written out in that document - not built in code. This
+module only reads the three module resources out of it: ``starlayer.graph``
+(the RDF 1.2 documents, RDFC-1.0, the SPARQL 1.2 Protocol, and each
+supported entailment regime by its own IRI), ``starlayer.sparql`` (SPARQL
+1.2 Query, Update and RL) and ``starlayer.shacl`` (the SHACL profiles it
+implements). A test checks the entailment regimes listed in the document
+against ``entailment_regimes.SUPPORTED_REGIMES``, the one claim that
+depends on code.
 
 **Per-subpackage resources, not one flat "whole library" node (2026-10-09,
 revised the same day it was first built)**: a claim like "conforms to
@@ -19,8 +19,8 @@ rewriter - not about the library as an undifferentiated whole. Flattening
 every claim onto one invented aggregate resource would lose exactly that
 precision, so this module instead returns one graph containing *three*
 real resources side by side: ``starlayer.shacl``'s own, already-existing
-declaration (``declared_conformance_profile()``'s real resource, merged in
-unchanged - its own subject, triples, and all), plus two new resources for
+declaration (``declared_conformance_profile()`` reads the same
+resource), plus two new resources for
 ``starlayer.graph`` (the RDF 1.2 Concepts/Schema/Turtle/N-Triples/XML
 documents) and ``starlayer.sparql`` (SPARQL 1.2 Query/Update). No
 aggregate "the whole library" node is minted at all - three real,
@@ -55,18 +55,22 @@ per-resource ``rdfs:comment`` triples (above) already partly addressed,
 but ``rdfs:comment`` is free text, not a queryable claim with a real
 object IRI.
 
-Deliberately used for only the two cases where the excluded thing has its
-own real, dereferenceable IRI and the exclusion is total (not a partial/
+Deliberately used for only the case where the excluded thing has its own
+real, dereferenceable IRI and the exclusion is total (not a partial/
 scope-limited claim already made positively elsewhere, which would make
 asserting both predicates on the same object self-contradictory):
-``starlayer.shacl`` doesNotConformTo the UI Profile
-(``http://www.w3.org/ns/shacl/profile/ui``), and ``starlayer.graph``
-doesNotConformTo SPARQL 1.2 Entailment Regimes' D-Entailment regime
+``starlayer.graph`` doesNotConformTo SPARQL 1.2 Entailment Regimes'
+D-Entailment regime
 (``http://www.w3.org/ns/entailment/D``, known-but-unsupported per
 ``entailment_regimes.KNOWN_REGIMES - SUPPORTED_REGIMES``). Everything else
 still has no real IRI to hang a predicate off at all - JSON-LD "1.2"/
 TriX "1.2" (no real RDF 1.2 companion spec exists to name), RIF Core
-Entailment (no IRI defined for it anywhere), the community-managed SHACL
+Entailment (no IRI defined for it anywhere), the SHACL UI Profile
+(``http://www.w3.org/ns/shacl/profile/ui`` - SHACL 1.2 Profiling A.3
+defines it only as an unlisted subset of SHACL Core with no conformance
+requirements, so there is nothing to claim or exclude; it was asserted as
+a doesNotConformTo until 2026-10-17, on a reason that confused the UI
+profile with the SHACL UI widget-selection specification), the community-managed SHACL
 profiles in S3 (none has a published IRI), and OWL 2 RDF-Based Semantics'
 *full* regime (shares the exact same IRI as the RL fragment this project
 already claims ``dcterms:conformsTo`` for - the gap is "more than the RL
@@ -117,106 +121,37 @@ what they'll actually run.
 
 from __future__ import annotations
 
-import os
-
 from rdflib import Graph, Namespace, URIRef
 
 DCTERMS = Namespace("http://purl.org/dc/terms/")
 
-# Project-minted, not borrowed - see this module's own docstring for why
-# no standard "does not conform" predicate exists to reuse instead.
 CONFORMANCE = Namespace("https://github.com/hidden-graph/starlayer/ns/conformance#")
 DOES_NOT_CONFORM_TO = CONFORMANCE.doesNotConformTo
 
-_ASSET_PATH = os.path.join(os.path.dirname(__file__), "assets", "starlayer-conformance.ttl")
-
-GRAPH_SUBJECT = URIRef(
-    "https://github.com/hidden-graph/starlayer/tree/main/packages/starlayer/starlayer/graph"
-)
-SPARQL_SUBJECT = URIRef(
-    "https://github.com/hidden-graph/starlayer/tree/main/packages/starlayer/starlayer/sparql"
-)
-
-# RDF 1.2 Concepts/Schema/Turtle/N-Triples/XML - starlayer.graph's own
-# domain. docs/graph/rdf12_sparql12_gap_analysis.md confirms "no open
-# items... a confirmed match" against all five (as of that document's own
-# 2026-09-20 last review) - the same five RDF-prefixed documents
-# tests/graph/vendor/spec_snapshots/refresh_snapshots.py re-fetches.
-# RDF/XML 1.2's own documented scope limits still count as a "Match" per
-# that review, not an exclusion - see this module's own docstring for why
-# no RDF-level caveat predicate exists for that nuance.
-#
-# No trailing slash (2026-10-09), deliberately not the exact canonical
-# form W3C serves these at - confirmed live via curl that
-# https://www.w3.org/TR/rdf12-concepts (no slash) still 301-redirects to
-# .../rdf12-concepts/ and resolves to the identical 200 OK content, so
-# nothing is lost by omitting it; keeping it would otherwise make every
-# one of these un-abbreviatable under any bound Turtle prefix (PN_LOCAL
-# forbids "/", even a trailing one - confirmed the hard way while trying
-# to prefix these in the profiling guide's own Section 4).
-RDF12_CORE_TR_URLS = (
-    "https://www.w3.org/TR/rdf12-concepts",
-    "https://www.w3.org/TR/rdf12-schema",
-    "https://www.w3.org/TR/rdf12-turtle",
-    "https://www.w3.org/TR/rdf12-n-triples",
-    "https://www.w3.org/TR/rdf12-xml",
-)
-
-# SPARQL 1.2 Query/Update - starlayer.sparql's own domain. Same
-# gap-analysis document, same "confirmed match" verdict, for the two
-# sparql-prefixed documents. Same no-trailing-slash reasoning as above.
-SPARQL12_TR_URLS = (
-    "https://www.w3.org/TR/sparql12-query",
-    "https://www.w3.org/TR/sparql12-update",
-)
-
-# RDF Dataset Canonicalization (RDFC-1.0) and SPARQL 1.2 Protocol - also
-# starlayer.graph's own domain (rdfc.py; backends/native.py). Same
-# no-trailing-slash reasoning as above - both confirmed live to
-# 301-redirect to the identical trailing-slash page.
-GRAPH_EXTRA_TR_URLS = (
-    "https://www.w3.org/TR/rdf-canon",
-    "https://www.w3.org/TR/sparql12-protocol",
-)
-
-# SRL (SPARQL Rules) - starlayer.sparql's own domain.
-SPARQL_EXTRA_TR_URLS = ("https://www.w3.org/TR/sparql12-rl",)
+_PKG = "https://github.com/hidden-graph/starlayer/tree/main/packages/starlayer/starlayer/"
+GRAPH_SUBJECT = URIRef(_PKG + "graph")
+SPARQL_SUBJECT = URIRef(_PKG + "sparql")
+SHACL_SUBJECT = URIRef(_PKG + "shacl")
 
 
 def declared_conformance() -> Graph:
     """starlayer's own multi-resource self-declared conformance statement -
-    one graph containing three real, individually-identified resources:
-    ``starlayer.shacl``'s own existing declaration
-    (``declared_conformance_profile()``'s real graph, merged in verbatim -
-    its own subject and triples, unchanged, so the two can never drift
-    apart), plus new ``starlayer.graph``/``starlayer.sparql`` resources
-    each asserting ``dcterms:conformsTo`` the RDF 1.2/SPARQL 1.2 suite
-    documents specific to what that subpackage actually implements.
-
-    Also asserts, on ``starlayer.graph``'s own resource: RDFC-1.0, SPARQL
-    1.2 Protocol, and each *individually* supported SPARQL 1.2 Entailment
-    Regime IRI (reused directly from ``entailment_regimes.SUPPORTED_REGIMES``,
-    not hand-copied - the three genuinely unimplemented regimes are simply
-    never added, no document-level claim is made for that spec as a whole).
-    On ``starlayer.sparql``'s own resource: SRL.
+    one graph containing three real, individually-identified resources
+    (``starlayer.graph``, ``starlayer.sparql``, ``starlayer.shacl``), each
+    read from the profiles document with all its ``dcterms:conformsTo``,
+    ``conformance:doesNotConformTo`` and ``rdfs:comment`` triples.
 
     A fresh graph on every call (matching ``declared_conformance_profile()``'s
     own "never share one mutable graph object across callers" convention -
     see ``starlayer/shacl/profiling.py``).
     """
-    from starlayer.graph.graph.entailment_regimes import ENTAILMENT, SUPPORTED_REGIMES
-    from starlayer.shacl.shacl_profiling import declared_conformance_profile
+    from starlayer import starontology
 
+    whole = starontology.get_conformance_profiles()
     graph = Graph()
-    graph.parse(_ASSET_PATH, format="turtle")
-    graph += declared_conformance_profile()
-
-    for url in RDF12_CORE_TR_URLS + GRAPH_EXTRA_TR_URLS:
-        graph.add((GRAPH_SUBJECT, DCTERMS.conformsTo, URIRef(url)))
-    for regime in SUPPORTED_REGIMES:
-        graph.add((GRAPH_SUBJECT, DCTERMS.conformsTo, regime))
-    graph.add((GRAPH_SUBJECT, DOES_NOT_CONFORM_TO, ENTAILMENT.D))
-    for url in SPARQL12_TR_URLS + SPARQL_EXTRA_TR_URLS:
-        graph.add((SPARQL_SUBJECT, DCTERMS.conformsTo, URIRef(url)))
-
+    for prefix, namespace in whole.namespaces():
+        graph.bind(prefix, namespace)
+    for subject in (GRAPH_SUBJECT, SPARQL_SUBJECT, SHACL_SUBJECT):
+        for triple in whole.triples((subject, None, None)):
+            graph.add(triple)
     return graph

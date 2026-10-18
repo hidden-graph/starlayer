@@ -1,6 +1,6 @@
 import pytest
 from rdflib import Graph, Literal, Namespace, URIRef
-from rdflib.namespace import RDF
+from rdflib.namespace import RDF, RDFS
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl.shacl_profiling import (
@@ -65,24 +65,24 @@ def test_declared_conformance_profile_asserts_the_five_implemented_profiles() ->
         assert profile_iri in declared
 
 
-def test_declared_conformance_profile_deliberately_excludes_ui() -> None:
+def test_declared_conformance_profile_does_not_claim_the_ui_profile() -> None:
     graph = declared_conformance_profile()
     declared = set(graph.objects(_LIBRARY_IRI, DCTERMS.conformsTo))
     for profile_iri in _UNDECLARED_PROFILES:
         assert profile_iri not in declared
 
 
-def test_declared_conformance_profile_asserts_does_not_conform_to_ui() -> None:
-    """The UI Profile exclusion is also a real conformance:doesNotConformTo
-    triple, not just something absent from the positive claim set above."""
+def test_declared_conformance_profile_says_why_the_ui_profile_is_not_claimed() -> None:
+    """The UI Profile is neither claimed nor excluded: the spec lists no
+    members and states no conformance requirements for it, so a
+    doesNotConformTo would assert more than the spec supports."""
     from starlayer import conformance
 
     graph = declared_conformance_profile()
-    assert (
-        _LIBRARY_IRI,
-        conformance.DOES_NOT_CONFORM_TO,
-        URIRef("http://www.w3.org/ns/shacl/profile/ui"),
-    ) in graph
+    ui = URIRef("http://www.w3.org/ns/shacl/profile/ui")
+    assert (_LIBRARY_IRI, conformance.DOES_NOT_CONFORM_TO, ui) not in graph
+    comments = " ".join(str(c) for c in graph.objects(_LIBRARY_IRI, RDFS.comment))
+    assert "Not claimed: the UI Profile" in comments
 
 
 def test_declared_conformance_profile_returns_independent_copies() -> None:

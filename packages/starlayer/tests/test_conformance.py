@@ -15,19 +15,23 @@ from starlayer import conformance
 
 DCTERMS = conformance.DCTERMS
 
-_SHACL_SUBJECT = URIRef("https://github.com/hidden-graph/starlayer/tree/main/packages/starlayer/starlayer/shacl")
+_SHACL_SUBJECT = conformance.SHACL_SUBJECT
 
-_EXPECTED_SHACL_PROFILES = {
+_EXPECTED_SHACL_CLAIMS = {
+    URIRef("https://www.w3.org/TR/shacl12-ui"),
     URIRef("http://www.w3.org/ns/shacl/profile/core"),
     URIRef("http://www.w3.org/ns/shacl/profile/sparql"),
     URIRef("http://www.w3.org/ns/shacl/profile/node-expr"),
     URIRef("http://www.w3.org/ns/shacl/profile/rules"),
     URIRef("http://www.w3.org/ns/shacl/profile/profiling"),
 }
-_EXPECTED_RDF12_CORE = {URIRef(url) for url in conformance.RDF12_CORE_TR_URLS}
-_EXPECTED_SPARQL12 = {URIRef(url) for url in conformance.SPARQL12_TR_URLS}
-_EXPECTED_GRAPH_EXTRA = {URIRef(url) for url in conformance.GRAPH_EXTRA_TR_URLS}
-_EXPECTED_SPARQL_EXTRA = {URIRef(url) for url in conformance.SPARQL_EXTRA_TR_URLS}
+_EXPECTED_RDF12_CORE = {
+    URIRef(f"https://www.w3.org/TR/{name}")
+    for name in ("rdf12-concepts", "rdf12-schema", "rdf12-turtle", "rdf12-n-triples", "rdf12-xml")
+}
+_EXPECTED_SPARQL12 = {URIRef(f"https://www.w3.org/TR/{name}") for name in ("sparql12-query", "sparql12-update")}
+_EXPECTED_GRAPH_EXTRA = {URIRef(f"https://www.w3.org/TR/{name}") for name in ("rdf-canon", "sparql12-protocol")}
+_EXPECTED_SPARQL_EXTRA = {URIRef("https://www.w3.org/TR/sparql12-rl")}
 _EXPECTED_ENTAILMENT_REGIMES = {
     URIRef("http://www.w3.org/ns/entailment/RDF"),
     URIRef("http://www.w3.org/ns/entailment/RDFS"),
@@ -38,10 +42,10 @@ _EXPECTED_GRAPH = _EXPECTED_RDF12_CORE | _EXPECTED_GRAPH_EXTRA | _EXPECTED_ENTAI
 _EXPECTED_SPARQL = _EXPECTED_SPARQL12 | _EXPECTED_SPARQL_EXTRA
 
 
-def test_shacl_resource_has_all_five_profiles() -> None:
+def test_shacl_resource_claims_the_five_profiles_and_the_ui_specification() -> None:
     graph = conformance.declared_conformance()
     claimed = set(graph.objects(_SHACL_SUBJECT, DCTERMS.conformsTo))
-    assert claimed == _EXPECTED_SHACL_PROFILES
+    assert claimed == _EXPECTED_SHACL_CLAIMS
 
 
 def test_graph_resource_has_every_expected_document_and_regime() -> None:
@@ -58,14 +62,16 @@ def test_sparql_resource_has_every_expected_document() -> None:
 
 def test_entailment_regimes_are_individual_iris_not_the_whole_document() -> None:
     """SPARQL 1.2 Entailment Regimes itself (the document) must never be
-    claimed - only the four individually-supported regime IRIs, reused
-    from the real SUPPORTED_REGIMES constant, not hand-copied."""
+    claimed - only the four individually-supported regime IRIs, and they
+    must be exactly the regimes the library's code supports
+    (SUPPORTED_REGIMES), so the declaration can't drift from the code."""
     from starlayer.graph.graph.entailment_regimes import SUPPORTED_REGIMES
 
     graph = conformance.declared_conformance()
     claimed = set(graph.objects(conformance.GRAPH_SUBJECT, DCTERMS.conformsTo))
 
-    assert set(SUPPORTED_REGIMES).issubset(claimed)
+    claimed_regimes = {c for c in claimed if str(c).startswith("http://www.w3.org/ns/entailment/")}
+    assert claimed_regimes == set(SUPPORTED_REGIMES)
     assert not any(True for _ in graph.triples((None, DCTERMS.conformsTo, URIRef("https://www.w3.org/TR/sparql12-entailment"))))
     # the known-but-unsupported D regime must never appear
     assert URIRef("http://www.w3.org/ns/entailment/D") not in claimed
@@ -85,18 +91,14 @@ def test_claims_stay_on_their_own_resource_not_cross_contaminated() -> None:
     assert sparql_claims.isdisjoint(shacl_claims)
 
 
-def test_shacl_resource_is_reused_verbatim_not_hand_copied() -> None:
-    """Confirms starlayer.shacl's own resource here is the exact same
-    declaration declared_conformance_profile() itself returns (same
-    subject, same triples) - not a separately-maintained copy that could
-    silently drift."""
+def test_shacl_resource_matches_declared_conformance_profile() -> None:
+    """declared_conformance_profile() returns exactly the starlayer.shacl
+    resource's triples from the same profiles document."""
     from starlayer.shacl.shacl_profiling import declared_conformance_profile
 
-    shacl_declaration = declared_conformance_profile()
-
     graph = conformance.declared_conformance()
-    for triple in shacl_declaration:
-        assert triple in graph
+    declared = set(declared_conformance_profile())
+    assert declared == set(graph.triples((_SHACL_SUBJECT, None, None)))
 
 
 def test_each_resource_has_identity_metadata() -> None:
@@ -119,15 +121,23 @@ def test_each_resource_states_what_it_does_not_claim() -> None:
         assert any("not claim" in str(c).lower() or "scope reduction" in str(c).lower() for c in comments)
 
 
-def test_shacl_resource_does_not_conform_to_ui_profile_explicitly() -> None:
-    """conformance:doesNotConformTo makes the UI Profile exclusion a real,
-    queryable triple, not just prose in the asset's header comment."""
+def test_ui_specification_is_claimed_with_its_scope_limits_stated() -> None:
+    """SHACL 1.2 User Interfaces is claimed (not the UI Profile, which is a
+    different document); the resource's comments state what is not covered."""
     graph = conformance.declared_conformance()
-    assert (
-        _SHACL_SUBJECT,
-        conformance.DOES_NOT_CONFORM_TO,
-        URIRef("http://www.w3.org/ns/shacl/profile/ui"),
-    ) in graph
+    assert (_SHACL_SUBJECT, DCTERMS.conformsTo, URIRef("https://www.w3.org/TR/shacl12-ui")) in graph
+    comments = " ".join(str(c) for c in graph.objects(_SHACL_SUBJECT, RDFS.comment))
+    assert "propertyRole" in comments and "scoring catalog" in comments
+
+
+def test_shacl_resource_neither_claims_nor_excludes_the_ui_profile() -> None:
+    """SHACL 1.2 Profiling A.3 defines the UI Profile with no members and no
+    conformance requirements, so there is nothing to claim or exclude; the
+    resource's comment says so instead."""
+    graph = conformance.declared_conformance()
+    ui = URIRef("http://www.w3.org/ns/shacl/profile/ui")
+    assert (_SHACL_SUBJECT, conformance.DOES_NOT_CONFORM_TO, ui) not in graph
+    assert (_SHACL_SUBJECT, DCTERMS.conformsTo, ui) not in graph
 
 
 def test_graph_resource_does_not_conform_to_d_entailment_explicitly() -> None:
