@@ -559,6 +559,10 @@ def _lower_expr(node, state: _LowerState):
             return _lower_dirlang_string_fn("replace", args, state)
         if name == "BGP":
             return _lower_bgp(node, state)
+        if name == "Filter":
+            joined = _filter_is_triple_as_join(node, state)
+            if joined is not None:
+                return joined
         if name == "ConstructQuery":
             return _lower_construct_query(node, state)
         if name == "values":
@@ -595,6 +599,73 @@ def _lower_expr(node, state: _LowerState):
         return tuple(_lower_expr(item, state) for item in node)
 
     return node
+
+
+# Rewrite `FILTER(isTRIPLE(?x))` over a basic graph pattern into a join with the
+# pattern `?x rdf:type rdf:PropositionForm` (see _filter_is_triple_as_join).
+# A switch only so tests can compare both forms; always on otherwise.
+_REWRITE_IS_TRIPLE_FILTERS = True
+
+
+def _conjuncts(expr) -> list:
+    """The operands of a top-level `&&` chain (or just `expr` itself)."""
+    if isinstance(expr, CompValue) and expr.name == "ConditionalAndExpression":
+        return [expr["expr"], *list(expr["other"])]
+    return [expr]
+
+
+def _filter_is_triple_as_join(node: CompValue, state: _LowerState):
+    """Lower `Filter(isTRIPLE(?x) [&& ...], BGP)` as a join, or return None.
+
+    The general lowering of `isTRIPLE(x)` is a string test on every row
+    (`STRSTARTS(STR(x), TT_NS) || STRSTARTS(STR(x), "<<")`), so a query like
+    `?s ?p ?o . FILTER(isTRIPLE(?o))` visits every triple in the graph. Every
+    stored triple-term node is typed `rdf:PropositionForm`, so for a variable
+    that the pattern itself binds the filter is equivalent to adding the
+    triple pattern `?x rdf:type rdf:PropositionForm`, which the store answers
+    from an index. The typed pattern goes first, so it drives the evaluation:
+    the (few) triple terms are found first and the rest of the pattern is
+    matched with `?x` already bound.
+
+    Applies only when it is exactly equivalent:
+    * the filter's operand is a bare variable that is the subject or object of
+      a triple in the filter's own BGP (so every row binds it to a stored node
+      or a plain term - a value computed by `TRIPLE()` or bound by `BIND`
+      never reaches the store, has no type triple, and keeps the string test);
+    * `isTRIPLE` is a top-level `&&` conjunct (not negated, not under `||`);
+    * the BGP has no triple-term syntax of its own (that has its own lowering).
+    Any other conjuncts stay as a filter around the join.
+    """
+    if not _REWRITE_IS_TRIPLE_FILTERS:
+        return None
+    pattern = node.p
+    if not (isinstance(pattern, CompValue) and pattern.name == "BGP"):
+        return None
+    triples = list(pattern["triples"])
+    if any(isinstance(term, TripleTermNode) for triple in triples for term in triple):
+        return None
+    bound = {term for s, _p, o in triples for term in (s, o) if isinstance(term, Variable)}
+    typed: list = []
+    rest: list = []
+    for conjunct in _conjuncts(node.expr):
+        arg = conjunct["arg"] if isinstance(conjunct, CompValue) and conjunct.name == "Builtin_isTRIPLE" else None
+        if isinstance(arg, Variable) and arg in bound:
+            if arg not in typed:
+                typed.append(arg)
+        else:
+            rest.append(conjunct)
+    if not typed:
+        return None
+    from starlayer.graph.model.encoding import TT_CLASS
+
+    joined = _lower_bgp(
+        CompValue("BGP", triples=[(var, RDF.type, TT_CLASS) for var in typed] + triples),
+        state,
+    )
+    if not rest:
+        return joined
+    remaining = rest[0] if len(rest) == 1 else CompValue("ConditionalAndExpression", expr=rest[0], other=rest[1:])
+    return CompValue("Filter", p=joined, expr=_lower_expr(remaining, state))
 
 
 def _lower_pattern_term(term, extra_constraints: list, already_bound: set, state: _LowerState):
