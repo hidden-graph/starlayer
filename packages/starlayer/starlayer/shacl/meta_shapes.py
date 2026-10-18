@@ -245,7 +245,7 @@ _STORED_META_SHAPES: Graph | None = None
 
 def load_meta_shapes_graph(extra_graphs: Iterable[Any] = ()) -> Graph:
     """The meta-shapes graph ``meta_validate()`` checks against, read from
-    the stored ``shacl12-shacl.ttl`` (``starontology``'s ``"shacl12_shacl"``
+    the stored ``shacl12-shacl.ttl`` (``starontology``'s ``"shacl_shacl"``
     entry) rather than reassembled from pySHACL's base graph and starShacl's
     two supplementary asset files on every call.
 
@@ -266,7 +266,7 @@ def load_meta_shapes_graph(extra_graphs: Iterable[Any] = ()) -> Graph:
         from starlayer import starontology
 
         stored = Graph()
-        stored += starontology.get_ontology_graph("shacl12_shacl")
+        stored += starontology.get_ontology_graph("shacl_shacl")
         _STORED_META_SHAPES = stored
     graph = Graph()
     graph += _STORED_META_SHAPES

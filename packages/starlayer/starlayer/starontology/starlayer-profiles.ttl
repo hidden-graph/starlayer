@@ -1,0 +1,129 @@
+@prefix conformance: <https://github.com/hidden-graph/starlayer/ns/conformance#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix ns1: <http://www.w3.org/ns/entailment/> .
+@prefix ns2: <https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/docs/shacl/> .
+@prefix pkg: <https://github.com/hidden-graph/starlayer/tree/main/packages/starlayer/starlayer/> .
+@prefix prof: <http://www.w3.org/ns/dx/prof/> .
+@prefix profile: <http://www.w3.org/ns/shacl/profile/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix role: <http://www.w3.org/ns/dx/prof/role/> .
+@prefix slp: <https://github.com/hidden-graph/starlayer/ns/profile#> .
+@prefix starontology: <https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/starontology/> .
+@prefix tr: <https://www.w3.org/TR/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+slp:Manchester a prof:Profile ;
+    rdfs:label "StarLayer OWL 2 Manchester Syntax profile" ;
+    prof:hasResource [
+        a prof:ResourceDescriptor ;
+        rdfs:comment "OWL 2 Manchester Syntax's own internal AST as RDF (manch:) - frames/clauses/class- and property-expressions/data-ranges, one level upstream of the compiled OWL RDF mapping." ;
+        rdfs:label "manchester_owl" ;
+        prof:hasArtifact starontology:manchester-ast-ontology.ttl ;
+        prof:hasRole role:schema
+    ], [
+        a prof:ResourceDescriptor ;
+        rdfs:comment "SHACL shapes validating a manch: AST graph's own structural well-formedness." ;
+        rdfs:label "manchester_shacl" ;
+        prof:hasArtifact starontology:manchester_shapes.ttl ;
+        prof:hasRole role:validation
+    ] ;
+    prof:isProfileOf tr:owl2-manchester-syntax .
+
+slp:Shacl a prof:Profile ;
+    rdfs:label "StarLayer SHACL 1.2 profile" ;
+    prof:hasResource [
+        a prof:ResourceDescriptor ;
+        rdfs:comment "The SHACL 1.2 meta-shapes: the shapes that check a shapes graph is well-formed." ;
+        rdfs:label "shacl_shacl" ;
+        prof:hasArtifact starontology:shacl12-shacl.ttl ;
+        prof:hasRole role:validation
+    ] ;
+    prof:isProfileOf profile:rules, profile:sparql, profile:node-expr, profile:profiling, profile:core .
+
+slp:Skos a prof:Profile ;
+    rdfs:label "StarLayer SKOS profile" ;
+    prof:hasResource [
+        a prof:ResourceDescriptor ;
+        rdfs:comment "The W3C's own SKOS vocabulary (skos.rdf from the SKOS Reference, W3C Recommendation 2009), over the real skos: namespace." ;
+        rdfs:label "skos_owl" ;
+        prof:hasArtifact starontology:skos-ontology.ttl ;
+        prof:hasRole role:schema
+    ], [
+        a prof:ResourceDescriptor ;
+        rdfs:comment "SHACL shapes for SKOS: the Reference's numbered conditions as validation shapes, plus form shapes carrying shui:editor/shui:viewer widgets chosen by each property's datatype." ;
+        rdfs:label "skos_shacl" ;
+        prof:hasArtifact starontology:skos_shapes.ttl ;
+        prof:hasRole role:validation
+    ] ;
+    prof:isProfileOf tr:skos-reference .
+
+slp:SparqlQuery a prof:Profile ;
+    rdfs:label "StarLayer SPARQL 1.2 Query profile" ;
+    prof:hasResource [
+        a prof:ResourceDescriptor ;
+        rdfs:comment "SHACL shapes validating an sqe: query-edit graph's own structural well-formedness, designed for UI-editor field-level validation, not just decode-ability." ;
+        rdfs:label "sqe_shacl" ;
+        prof:hasArtifact starontology:sqe_shapes.ttl ;
+        prof:hasRole role:validation
+    ], [
+        a prof:ResourceDescriptor ;
+        rdfs:comment "The SPARQL expression/variable/property-path vocabulary (spexpr:) - the one slice salg:/sqe:/srl: all need identically." ;
+        rdfs:label "spexpr_owl" ;
+        prof:hasArtifact starontology:spexpr-ontology.ttl ;
+        prof:hasRole role:schema
+    ], [
+        a prof:ResourceDescriptor ;
+        rdfs:comment "A SPARQL SELECT/ASK/CONSTRUCT query's own raw parse tree, pre-translateQuery, as a flat, human-readable RDF tree (sqe:) meant for hand/UI editing - deliberately not the resolved salg: algebra." ;
+        rdfs:label "sqe_owl" ;
+        prof:hasArtifact starontology:sqe-ontology.ttl ;
+        prof:hasRole role:schema
+    ], [
+        a prof:ResourceDescriptor ;
+        rdfs:comment "SHACL shapes validating an spexpr: expression/variable/path value's own well-formedness - imported by salg:/sqe:/srl: alike (each via owl:imports), not defined separately by any one of them." ;
+        rdfs:label "spexpr_shacl" ;
+        prof:hasArtifact starontology:spexpr_shapes.ttl ;
+        prof:hasRole role:validation
+    ] ;
+    prof:isProfileOf tr:sparql12-query .
+
+slp:SparqlRL a prof:Profile ;
+    rdfs:label "StarLayer SPARQL 1.2 RL profile" ;
+    prof:hasResource [
+        a prof:ResourceDescriptor ;
+        rdfs:comment "SRL/SPARQL-RL's own rule-set abstract syntax as RDF (srl:) - a Datalog-style rules language, general-purpose and SHACL-independent." ;
+        rdfs:label "srl_owl" ;
+        prof:hasArtifact starontology:srl-ontology.ttl ;
+        prof:hasRole role:schema
+    ], [
+        a prof:ResourceDescriptor ;
+        rdfs:comment "SHACL shapes validating an srl: rule-set graph's own structural well-formedness." ;
+        rdfs:label "srl_shacl" ;
+        prof:hasArtifact starontology:srl_shapes.ttl ;
+        prof:hasRole role:validation
+    ] ;
+    prof:isProfileOf tr:sparql12-rl .
+
+pkg:graph dcterms:conformsTo tr:rdf12-schema, tr:rdf12-concepts, tr:rdf12-turtle, ns1:OWL-Direct, ns1:RDFS, tr:rdf12-n-triples, ns1:OWL-RDF-Based, tr:rdf-canon, tr:rdf12-xml, ns1:RDF, tr:sparql12-protocol ;
+    dcterms:modified "2026-10-17"^^xsd:date ;
+    rdfs:comment "Not claimed: the full SPARQL 1.2 Entailment Regimes document (D-Entailment, full OWL 2 RDF-Based Semantics, and RIF Core Entailment are unimplemented - see the individually-listed supported regimes instead), nor JSON-LD \"1.2\"/TriX \"1.2\" (neither has a real RDF 1.2 companion spec to converge on at all)."@en, "RDF 1.2 graph management - the rdflib replacement, with triple-term and direction-tagged-literal support."@en ;
+    rdfs:label "starlayer.graph" ;
+    conformance:doesNotConformTo ns1:D .
+
+pkg:shacl dcterms:conformsTo profile:rules, profile:sparql, tr:shacl12-ui, profile:node-expr, profile:profiling, profile:core ;
+    dcterms:modified "2026-10-17"^^xsd:date ;
+    rdfs:comment "pySHACL-based SHACL validation and rule execution with RDF 1.2 / triple-term support, part of the StarLayer stack."@en, "SHACL 1.2 User Interfaces is claimed within documented scope limits: shui:editor, shui:viewer and the built-in widget annotations are accepted, documented and checked for well-formedness, and the Section 3 widget-selection algorithm is implemented (select_widget, select_widgets); shui:propertyRole annotations are accepted and documented but not interpreted, and no default widget scoring catalog ships with the library."@en, "Not claimed: the UI Profile. SHACL 1.2 Profiling defines it only as a subset of the SHACL Core vocabulary chosen for ease of UI implementation, lists no members and states no conformance requirements (Appendix A.3 is a TODO), so there is nothing to claim or exclude yet. The SHACL 1.2 UI widget-selection algorithm is implemented separately - see docs/shacl/shacl12-gap-matrix.md."@en ;
+    rdfs:label "starlayer.shacl" ;
+    rdfs:seeAlso ns2:shacl12-gap-matrix.md .
+
+pkg:sparql dcterms:conformsTo tr:sparql12-update, tr:sparql12-query, tr:sparql12-rl ;
+    dcterms:modified "2026-10-17"^^xsd:date ;
+    rdfs:comment "SPARQL 1.2 query/update grammar, rewriting, and rule vocabularies (SRL/SQE) over RDF 1.2 graphs."@en, "SPARQL 1.2 RL has documented grammar scope reductions - no ','-chained object lists, limited property paths, no reified-triple syntax yet, IMPORTS hard-rejected (see starlayer/sparql/CLAUDE.md)."@en ;
+    rdfs:label "starlayer.sparql" .
+
+tr:owl2-manchester-syntax rdfs:label "OWL 2 Manchester Syntax" .
+
+tr:skos-reference rdfs:label "SKOS Reference" .
+
+tr:sparql12-query rdfs:label "SPARQL 1.2 Query" .
+
+tr:sparql12-rl rdfs:label "SPARQL 1.2 RL" .

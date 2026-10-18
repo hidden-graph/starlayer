@@ -52,7 +52,7 @@ def main() -> int:
 
     check = Dataset()
     check.parse(data=new_text, format="trig")
-    iri = URIRef(starontology.get_resource_iri("shacl12_shacl"))
+    iri = URIRef(starontology.get_resource_iri("shacl_shacl"))
     stored = Graph()
     for triple in check.graph(iri):
         stored.add(triple)

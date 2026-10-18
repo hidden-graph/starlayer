@@ -60,7 +60,7 @@
    - `skos_owl` / `skos_shacl`
    - `sparql_owl` / `sparql_shacl`
    - `srl_owl` / `srl_shacl`
-   - `shacl12_shacl`
+   - `shacl_shacl`
 
 ## Planned / deferred
 

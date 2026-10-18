@@ -1,3 +1,7 @@
+@prefix pkg: <https://github.com/hidden-graph/starlayer/tree/main/packages/starlayer/starlayer/> .
+@prefix conformance: <https://github.com/hidden-graph/starlayer/ns/conformance#> .
+@prefix slp: <https://github.com/hidden-graph/starlayer/ns/profile#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
 @prefix manch: <https://github.com/hidden-graph/starlayer/ns/graph/manchester-ast#> .
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
 @prefix prof: <http://www.w3.org/ns/dx/prof/> .
@@ -76,130 +80,294 @@ starontology:sqe-ontology.ttl {
 }
 
 starontology:skos-ontology.ttl {
-    skos:altLabel a owl:AnnotationProperty ;
-        rdfs:range rdfs:Literal ;
-        rdfs:subPropertyOf rdfs:label .
+    # Copyright (c) 2009 World Wide Web Consortium. https://www.w3.org/copyright/document-license-2023/
+    # SKOS vocabulary: https://www.w3.org/TR/skos-reference/skos.rdf (original, RDF/XML)
+    # Part of: SKOS Simple Knowledge Organization System Reference,
+    #   W3C Recommendation, 18 August 2009, https://www.w3.org/TR/skos-reference/
+    # This file includes material copied from that document, converted from RDF/XML to
+    # Turtle with no change to its content.
 
-    skos:changeNote a owl:AnnotationProperty ;
-        rdfs:subPropertyOf skos:note .
+skos:altLabel a rdf:Property,
+        owl:AnnotationProperty ;
+    rdfs:label "alternative label"@en ;
+    rdfs:comment "The range of skos:altLabel is the class of RDF plain literals."@en,
+        "skos:prefLabel, skos:altLabel and skos:hiddenLabel are pairwise disjoint properties."@en ;
+    rdfs:isDefinedBy <http://www.w3.org/2004/02/skos/core> ;
+    rdfs:subPropertyOf rdfs:label ;
+    skos:definition "An alternative lexical label for a resource."@en ;
+    skos:example "Acronyms, abbreviations, spelling variants, and irregular plural/singular forms may be included among the alternative labels for a concept. Mis-spelled terms are normally included as hidden labels (see skos:hiddenLabel)."@en .
 
-    skos:definition a owl:AnnotationProperty ;
-        rdfs:subPropertyOf skos:note .
+skos:changeNote a rdf:Property,
+        owl:AnnotationProperty ;
+    rdfs:label "change note"@en ;
+    rdfs:isDefinedBy <http://www.w3.org/2004/02/skos/core> ;
+    rdfs:subPropertyOf skos:note ;
+    skos:definition "A note about a modification to a concept."@en .
 
-    skos:editorialNote a owl:AnnotationProperty ;
-        rdfs:subPropertyOf skos:note .
+skos:definition a rdf:Property,
+        owl:AnnotationProperty ;
+    rdfs:label "definition"@en ;
+    rdfs:isDefinedBy <http://www.w3.org/2004/02/skos/core> ;
+    rdfs:subPropertyOf skos:note ;
+    skos:definition "A statement or formal explanation of the meaning of a concept."@en .
 
-    skos:exactMatch a owl:ObjectProperty,
-            owl:SymmetricProperty,
-            owl:TransitiveProperty ;
-        rdfs:subPropertyOf skos:closeMatch .
+skos:editorialNote a rdf:Property,
+        owl:AnnotationProperty ;
+    rdfs:label "editorial note"@en ;
+    rdfs:isDefinedBy <http://www.w3.org/2004/02/skos/core> ;
+    rdfs:subPropertyOf skos:note ;
+    skos:definition "A note for an editor, translator or maintainer of the vocabulary."@en .
 
-    skos:example a owl:AnnotationProperty ;
-        rdfs:subPropertyOf skos:note .
+skos:exactMatch a rdf:Property,
+        owl:ObjectProperty,
+        owl:SymmetricProperty,
+        owl:TransitiveProperty ;
+    rdfs:label "has exact match"@en ;
+    rdfs:comment "skos:exactMatch is disjoint with each of the properties skos:broadMatch and skos:relatedMatch."@en ;
+    rdfs:isDefinedBy <http://www.w3.org/2004/02/skos/core> ;
+    rdfs:subPropertyOf skos:closeMatch ;
+    skos:definition "skos:exactMatch is used to link two concepts, indicating a high degree of confidence that the concepts can be used interchangeably across a wide range of information retrieval applications. skos:exactMatch is a transitive property, and is a sub-property of skos:closeMatch."@en .
 
-    skos:hiddenLabel a owl:AnnotationProperty ;
-        rdfs:range rdfs:Literal ;
-        rdfs:subPropertyOf rdfs:label .
+skos:example a rdf:Property,
+        owl:AnnotationProperty ;
+    rdfs:label "example"@en ;
+    rdfs:isDefinedBy <http://www.w3.org/2004/02/skos/core> ;
+    rdfs:subPropertyOf skos:note ;
+    skos:definition "An example of the use of a concept."@en .
 
-    skos:historyNote a owl:AnnotationProperty ;
-        rdfs:subPropertyOf skos:note .
+skos:hiddenLabel a rdf:Property,
+        owl:AnnotationProperty ;
+    rdfs:label "hidden label"@en ;
+    rdfs:comment "The range of skos:hiddenLabel is the class of RDF plain literals."@en,
+        "skos:prefLabel, skos:altLabel and skos:hiddenLabel are pairwise disjoint properties."@en ;
+    rdfs:isDefinedBy <http://www.w3.org/2004/02/skos/core> ;
+    rdfs:subPropertyOf rdfs:label ;
+    skos:definition "A lexical label for a resource that should be hidden when generating visual displays of the resource, but should still be accessible to free text search operations."@en .
 
-    skos:member a owl:ObjectProperty ;
-        rdfs:domain skos:Collection ;
-        rdfs:range _:ne19aa9c3ba57449da6d8872363851322b145 .
+skos:historyNote a rdf:Property,
+        owl:AnnotationProperty ;
+    rdfs:label "history note"@en ;
+    rdfs:isDefinedBy <http://www.w3.org/2004/02/skos/core> ;
+    rdfs:subPropertyOf skos:note ;
+    skos:definition "A note about the past state/use/meaning of a concept."@en .
 
-    skos:memberList a owl:FunctionalProperty,
-            owl:ObjectProperty ;
-        rdfs:domain skos:OrderedCollection ;
-        rdfs:range rdf:List .
+skos:member a rdf:Property,
+        owl:ObjectProperty ;
+    rdfs:label "has member"@en ;
+    rdfs:domain skos:Collection ;
+    rdfs:isDefinedBy <http://www.w3.org/2004/02/skos/core> ;
+    rdfs:range [ a owl:Class ;
+            owl:unionOf ( skos:Concept skos:Collection ) ] ;
+    skos:definition "Relates a collection to one of its members."@en .
 
-    skos:narrowMatch a owl:ObjectProperty ;
-        rdfs:subPropertyOf skos:mappingRelation,
-            skos:narrower ;
-        owl:inverseOf skos:broadMatch .
+skos:memberList a rdf:Property,
+        owl:FunctionalProperty,
+        owl:ObjectProperty ;
+    rdfs:label "has member list"@en ;
+    rdfs:comment """For any resource, every item in the list given as the value of the
+      skos:memberList property is also a value of the skos:member property."""@en ;
+    rdfs:domain skos:OrderedCollection ;
+    rdfs:isDefinedBy <http://www.w3.org/2004/02/skos/core> ;
+    rdfs:range rdf:List ;
+    skos:definition "Relates an ordered collection to the RDF list containing its members."@en .
 
-    skos:notation a owl:DatatypeProperty .
+skos:notation a rdf:Property,
+        owl:DatatypeProperty ;
+    rdfs:label "notation"@en ;
+    rdfs:isDefinedBy <http://www.w3.org/2004/02/skos/core> ;
+    skos:definition "A notation, also known as classification code, is a string of characters such as \"T58.5\" or \"303.4833\" used to uniquely identify a concept within the scope of a given concept scheme."@en ;
+    skos:scopeNote "By convention, skos:notation is used with a typed literal in the object position of the triple."@en .
 
-    skos:prefLabel a owl:AnnotationProperty ;
-        rdfs:range rdfs:Literal ;
-        rdfs:subPropertyOf rdfs:label .
+skos:prefLabel a rdf:Property,
+        owl:AnnotationProperty ;
+    rdfs:label "preferred label"@en ;
+    rdfs:comment "A resource has no more than one value of skos:prefLabel per language tag, and no more than one value of skos:prefLabel without language tag."@en,
+        "The range of skos:prefLabel is the class of RDF plain literals."@en,
+        """skos:prefLabel, skos:altLabel and skos:hiddenLabel are pairwise
+      disjoint properties."""@en ;
+    rdfs:isDefinedBy <http://www.w3.org/2004/02/skos/core> ;
+    rdfs:subPropertyOf rdfs:label ;
+    skos:definition "The preferred lexical label for a resource, in a given language."@en .
 
-    skos:relatedMatch a owl:ObjectProperty,
-            owl:SymmetricProperty ;
-        rdfs:subPropertyOf skos:mappingRelation,
-            skos:related .
+skos:relatedMatch a rdf:Property,
+        owl:ObjectProperty,
+        owl:SymmetricProperty ;
+    rdfs:label "has related match"@en ;
+    rdfs:isDefinedBy <http://www.w3.org/2004/02/skos/core> ;
+    rdfs:subPropertyOf skos:mappingRelation,
+        skos:related ;
+    skos:definition "skos:relatedMatch is used to state an associative mapping link between two conceptual resources in different concept schemes."@en .
 
-    skos:scopeNote a owl:AnnotationProperty ;
-        rdfs:subPropertyOf skos:note .
+skos:scopeNote a rdf:Property,
+        owl:AnnotationProperty ;
+    rdfs:label "scope note"@en ;
+    rdfs:isDefinedBy <http://www.w3.org/2004/02/skos/core> ;
+    rdfs:subPropertyOf skos:note ;
+    skos:definition "A note that helps to clarify the meaning and/or the use of a concept."@en .
 
-    skos:topConceptOf a owl:ObjectProperty ;
-        rdfs:subPropertyOf skos:inScheme ;
-        owl:inverseOf skos:hasTopConcept .
+skos:OrderedCollection a owl:Class ;
+    rdfs:label "Ordered Collection"@en ;
+    rdfs:isDefinedBy <http://www.w3.org/2004/02/skos/core> ;
+    rdfs:subClassOf skos:Collection ;
+    skos:definition "An ordered collection of concepts, where both the grouping and the ordering are meaningful."@en ;
+    skos:scopeNote "Ordered collections can be used where you would like a set of concepts to be displayed in a specific order, and optionally under a 'node label'."@en .
 
-    skos:OrderedCollection a owl:Class ;
-        rdfs:subClassOf skos:Collection .
+skos:broadMatch a rdf:Property,
+        owl:ObjectProperty ;
+    rdfs:label "has broader match"@en ;
+    rdfs:isDefinedBy <http://www.w3.org/2004/02/skos/core> ;
+    rdfs:subPropertyOf skos:broader,
+        skos:mappingRelation ;
+    owl:inverseOf skos:narrowMatch ;
+    skos:definition "skos:broadMatch is used to state a hierarchical mapping link between two conceptual resources in different concept schemes."@en .
 
-    skos:broadMatch a owl:ObjectProperty ;
-        rdfs:subPropertyOf skos:broader,
-            skos:mappingRelation .
+skos:closeMatch a rdf:Property,
+        owl:ObjectProperty,
+        owl:SymmetricProperty ;
+    rdfs:label "has close match"@en ;
+    rdfs:isDefinedBy <http://www.w3.org/2004/02/skos/core> ;
+    rdfs:subPropertyOf skos:mappingRelation ;
+    skos:definition "skos:closeMatch is used to link two concepts that are sufficiently similar that they can be used interchangeably in some information retrieval applications. In order to avoid the possibility of \"compound errors\" when combining mappings across more than two concept schemes, skos:closeMatch is not declared to be a transitive property."@en .
 
-    skos:closeMatch a owl:ObjectProperty,
-            owl:SymmetricProperty ;
-        rdfs:subPropertyOf skos:mappingRelation .
+skos:hasTopConcept a rdf:Property,
+        owl:ObjectProperty ;
+    rdfs:label "has top concept"@en ;
+    rdfs:domain skos:ConceptScheme ;
+    rdfs:isDefinedBy <http://www.w3.org/2004/02/skos/core> ;
+    rdfs:range skos:Concept ;
+    owl:inverseOf skos:topConceptOf ;
+    skos:definition "Relates, by convention, a concept scheme to a concept which is topmost in the broader/narrower concept hierarchies for that scheme, providing an entry point to these hierarchies."@en .
 
-    skos:hasTopConcept a owl:ObjectProperty ;
-        rdfs:domain skos:ConceptScheme ;
-        rdfs:range skos:Concept .
+skos:inScheme a rdf:Property,
+        owl:ObjectProperty ;
+    rdfs:label "is in scheme"@en ;
+    rdfs:isDefinedBy <http://www.w3.org/2004/02/skos/core> ;
+    rdfs:range skos:ConceptScheme ;
+    skos:definition "Relates a resource (for example a concept) to a concept scheme in which it is included."@en ;
+    skos:scopeNote "A concept may be a member of more than one concept scheme."@en .
 
-    skos:inScheme a owl:ObjectProperty ;
-        rdfs:range skos:ConceptScheme .
+skos:narrowMatch a rdf:Property,
+        owl:ObjectProperty ;
+    rdfs:label "has narrower match"@en ;
+    rdfs:isDefinedBy <http://www.w3.org/2004/02/skos/core> ;
+    rdfs:subPropertyOf skos:mappingRelation,
+        skos:narrower ;
+    owl:inverseOf skos:broadMatch ;
+    skos:definition "skos:narrowMatch is used to state a hierarchical mapping link between two conceptual resources in different concept schemes."@en .
 
-    skos:narrower a owl:ObjectProperty ;
-        rdfs:subPropertyOf skos:narrowerTransitive ;
-        owl:inverseOf skos:broader .
+skos:related a rdf:Property,
+        owl:ObjectProperty,
+        owl:SymmetricProperty ;
+    rdfs:label "has related"@en ;
+    rdfs:comment "skos:related is disjoint with skos:broaderTransitive"@en ;
+    rdfs:isDefinedBy <http://www.w3.org/2004/02/skos/core> ;
+    rdfs:subPropertyOf skos:semanticRelation ;
+    skos:definition "Relates a concept to a concept with which there is an associative semantic relationship."@en .
 
-    skos:narrowerTransitive a owl:ObjectProperty,
-            owl:TransitiveProperty ;
-        rdfs:subPropertyOf skos:semanticRelation ;
-        owl:inverseOf skos:broaderTransitive .
+skos:topConceptOf a rdf:Property,
+        owl:ObjectProperty ;
+    rdfs:label "is top concept in scheme"@en ;
+    rdfs:domain skos:Concept ;
+    rdfs:isDefinedBy <http://www.w3.org/2004/02/skos/core> ;
+    rdfs:range skos:ConceptScheme ;
+    rdfs:subPropertyOf skos:inScheme ;
+    owl:inverseOf skos:hasTopConcept ;
+    skos:definition "Relates a concept to the concept scheme that it is a top level concept of."@en .
 
-    skos:related a owl:ObjectProperty,
-            owl:SymmetricProperty ;
-        rdfs:subPropertyOf skos:semanticRelation .
+skos:broader a rdf:Property,
+        owl:ObjectProperty ;
+    rdfs:label "has broader"@en ;
+    rdfs:comment "Broader concepts are typically rendered as parents in a concept hierarchy (tree)."@en ;
+    rdfs:isDefinedBy <http://www.w3.org/2004/02/skos/core> ;
+    rdfs:subPropertyOf skos:broaderTransitive ;
+    owl:inverseOf skos:narrower ;
+    skos:definition "Relates a concept to a concept that is more general in meaning."@en ;
+    skos:scopeNote "By convention, skos:broader is only used to assert an immediate (i.e. direct) hierarchical link between two conceptual resources."@en .
 
-    skos:broader a owl:ObjectProperty ;
-        rdfs:subPropertyOf skos:broaderTransitive .
+skos:broaderTransitive a rdf:Property,
+        owl:ObjectProperty,
+        owl:TransitiveProperty ;
+    rdfs:label "has broader transitive"@en ;
+    rdfs:isDefinedBy <http://www.w3.org/2004/02/skos/core> ;
+    rdfs:subPropertyOf skos:semanticRelation ;
+    owl:inverseOf skos:narrowerTransitive ;
+    skos:definition "skos:broaderTransitive is a transitive superproperty of skos:broader." ;
+    skos:scopeNote "By convention, skos:broaderTransitive is not used to make assertions. Rather, the properties can be used to draw inferences about the transitive closure of the hierarchical relation, which is useful e.g. when implementing a simple query expansion algorithm in a search application."@en .
 
-    skos:broaderTransitive a owl:ObjectProperty,
-            owl:TransitiveProperty ;
-        rdfs:subPropertyOf skos:semanticRelation .
+skos:narrower a rdf:Property,
+        owl:ObjectProperty ;
+    rdfs:label "has narrower"@en ;
+    rdfs:comment "Narrower concepts are typically rendered as children in a concept hierarchy (tree)."@en ;
+    rdfs:isDefinedBy <http://www.w3.org/2004/02/skos/core> ;
+    rdfs:subPropertyOf skos:narrowerTransitive ;
+    owl:inverseOf skos:broader ;
+    skos:definition "Relates a concept to a concept that is more specific in meaning."@en ;
+    skos:scopeNote "By convention, skos:broader is only used to assert an immediate (i.e. direct) hierarchical link between two conceptual resources."@en .
 
-    skos:ConceptScheme a owl:Class ;
-        owl:disjointWith skos:Collection .
+skos:narrowerTransitive a rdf:Property,
+        owl:ObjectProperty,
+        owl:TransitiveProperty ;
+    rdfs:label "has narrower transitive"@en ;
+    rdfs:isDefinedBy <http://www.w3.org/2004/02/skos/core> ;
+    rdfs:subPropertyOf skos:semanticRelation ;
+    owl:inverseOf skos:broaderTransitive ;
+    skos:definition "skos:narrowerTransitive is a transitive superproperty of skos:narrower." ;
+    skos:scopeNote "By convention, skos:narrowerTransitive is not used to make assertions. Rather, the properties can be used to draw inferences about the transitive closure of the hierarchical relation, which is useful e.g. when implementing a simple query expansion algorithm in a search application."@en .
 
-    skos:Concept a owl:Class ;
-        owl:disjointWith skos:Collection,
-            skos:ConceptScheme .
+skos:Collection a owl:Class ;
+    rdfs:label "Collection"@en ;
+    rdfs:isDefinedBy <http://www.w3.org/2004/02/skos/core> ;
+    owl:disjointWith skos:Concept,
+        skos:ConceptScheme ;
+    skos:definition "A meaningful collection of concepts."@en ;
+    skos:scopeNote "Labelled collections can be used where you would like a set of concepts to be displayed under a 'node label' in the hierarchy."@en .
 
-    skos:mappingRelation a owl:ObjectProperty ;
-        rdfs:subPropertyOf skos:semanticRelation .
+skos:ConceptScheme a owl:Class ;
+    rdfs:label "Concept Scheme"@en ;
+    rdfs:isDefinedBy <http://www.w3.org/2004/02/skos/core> ;
+    owl:disjointWith skos:Concept ;
+    skos:definition "A set of concepts, optionally including statements about semantic relationships between those concepts."@en ;
+    skos:example "Thesauri, classification schemes, subject heading lists, taxonomies, 'folksonomies', and other types of controlled vocabulary are all examples of concept schemes. Concept schemes are also embedded in glossaries and terminologies."@en ;
+    skos:scopeNote "A concept scheme may be defined to include concepts from different sources."@en .
 
-    skos:semanticRelation a owl:ObjectProperty ;
-        rdfs:domain skos:Concept ;
-        rdfs:range skos:Concept .
+skos:mappingRelation a rdf:Property,
+        owl:ObjectProperty ;
+    rdfs:label "is in mapping relation with"@en ;
+    rdfs:comment "These concept mapping relations mirror semantic relations, and the data model defined below is similar (with the exception of skos:exactMatch) to the data model defined for semantic relations. A distinct vocabulary is provided for concept mapping relations, to provide a convenient way to differentiate links within a concept scheme from links between concept schemes. However, this pattern of usage is not a formal requirement of the SKOS data model, and relies on informal definitions of best practice."@en ;
+    rdfs:isDefinedBy <http://www.w3.org/2004/02/skos/core> ;
+    rdfs:subPropertyOf skos:semanticRelation ;
+    skos:definition "Relates two concepts coming, by convention, from different schemes, and that have comparable meanings"@en .
 
-    skos:Collection a owl:Class .
+skos:semanticRelation a rdf:Property,
+        owl:ObjectProperty ;
+    rdfs:label "is in semantic relation with"@en ;
+    rdfs:domain skos:Concept ;
+    rdfs:isDefinedBy <http://www.w3.org/2004/02/skos/core> ;
+    rdfs:range skos:Concept ;
+    skos:definition "Links a concept to a concept related by meaning."@en ;
+    skos:scopeNote "This property should not be used directly, but as a super-property for all properties denoting a relationship of meaning between concepts."@en .
 
-    skos:note a owl:AnnotationProperty .
+skos:note a rdf:Property,
+        owl:AnnotationProperty ;
+    rdfs:label "note"@en ;
+    rdfs:isDefinedBy <http://www.w3.org/2004/02/skos/core> ;
+    skos:definition "A general note, for any purpose."@en ;
+    skos:scopeNote "This property may be used directly, or as a super-property for more specific note types."@en .
 
-    _:ne19aa9c3ba57449da6d8872363851322b145 a owl:Class ;
-        owl:unionOf _:ne19aa9c3ba57449da6d8872363851322b146 .
+skos:Concept a owl:Class ;
+    rdfs:label "Concept"@en ;
+    rdfs:isDefinedBy <http://www.w3.org/2004/02/skos/core> ;
+    skos:definition "An idea or notion; a unit of thought."@en .
 
-    _:ne19aa9c3ba57449da6d8872363851322b146 rdf:first skos:Concept ;
-        rdf:rest _:ne19aa9c3ba57449da6d8872363851322b147 .
-
-    _:ne19aa9c3ba57449da6d8872363851322b147 rdf:first skos:Collection ;
-        rdf:rest () .
+<http://www.w3.org/2004/02/skos/core> a owl:Ontology ;
+    dcterms:contributor "Dave Beckett",
+        "Nikki Rogers",
+        "Participants in W3C's Semantic Web Deployment Working Group." ;
+    dcterms:creator "Alistair Miles",
+        "Sean Bechhofer" ;
+    dcterms:description "An RDF vocabulary for describing the basic structure and content of concept schemes such as thesauri, classification schemes, subject heading lists, taxonomies, 'folksonomies', other types of controlled vocabulary, and also concept schemes embedded in glossaries and terminologies."@en ;
+    dcterms:title "SKOS Vocabulary"@en ;
+    rdfs:seeAlso <http://www.w3.org/TR/skos-reference/> .
 }
 
 starontology:manchester-ast-ontology.ttl {
@@ -2278,9 +2446,9 @@ shsh:PathListWithAtLeast2Members a sh:NodeShape ;
 shsh:ShapeShape a sh:NodeShape ;
     rdfs:label "Shape shape"@en ;
     rdfs:comment "A shape that can be used to validate syntax rules for other shapes."@en ;
-    sh:or ( shsh:NodeShapeShape shsh:PropertyShapeShape ),
-        ( [ sh:not [ sh:class rdfs:Class ;
-                        sh:or ( [ sh:class sh:NodeShape ] [ sh:class sh:PropertyShape ] ) ] ] [ sh:nodeKind sh:IRI ] ) ;
+    sh:or ( [ sh:not [ sh:class rdfs:Class ;
+                        sh:or ( [ sh:class sh:NodeShape ] [ sh:class sh:PropertyShape ] ) ] ] [ sh:nodeKind sh:IRI ] ),
+        ( shsh:NodeShapeShape shsh:PropertyShapeShape ) ;
     sh:property [ sh:nodeKind sh:IRIOrLiteral ;
             sh:path sh:targetNode ],
         [ sh:nodeKind sh:IRI ;
@@ -3219,125 +3387,252 @@ stsh:WidgetGroup a sh:PropertyGroup ;
 }
 
 starontology:skos_shapes.ttl {
-    skshp:ShapesGraph a sh:ShapesGraph ;
-        rdfs:member skshp:CollectionDisjointnessShape,
-            skshp:ConceptDisjointnessShape,
-            skshp:ConceptPrefLabelRecommendedShape,
-            skshp:ConceptSchemeDisjointnessShape,
-            skshp:LexicalLabelShape,
-            skshp:MappingRelationDisjointnessShape,
-            skshp:OrderedCollectionMemberListConsistencyShape,
-            skshp:RelatedDisjointWithHierarchicalShape,
-            skshp:SemanticRelationDomainRangeShape .
+skshp:ShapesGraph a sh:ShapesGraph ;
+    rdfs:member skshp:CollectionDisjointnessShape,
+        skshp:CollectionFormShape,
+        skshp:ConceptDisjointnessShape,
+        skshp:ConceptFormShape,
+        skshp:ConceptPrefLabelRecommendedShape,
+        skshp:ConceptSchemeDisjointnessShape,
+        skshp:ConceptSchemeFormShape,
+        skshp:LexicalLabelShape,
+        skshp:MappingRelationDisjointnessShape,
+        skshp:OrderedCollectionMemberListConsistencyShape,
+        skshp:RelatedDisjointWithHierarchicalShape,
+        skshp:SemanticRelationDomainRangeShape .
 
-    skshp:CollectionDisjointnessShape a sh:NodeShape ;
-        sh:message "S37: skos:Collection is disjoint with skos:Concept and skos:ConceptScheme." ;
-        sh:not _:ne19aa9c3ba57449da6d8872363851322b475,
-            _:ne19aa9c3ba57449da6d8872363851322b476 ;
-        sh:targetClass skos:Collection,
-            skos:OrderedCollection .
+skshp:CollectionDisjointnessShape a sh:NodeShape ;
+    sh:message "S37: skos:Collection is disjoint with skos:Concept and skos:ConceptScheme." ;
+    sh:not [ sh:class skos:Concept ],
+        [ sh:class skos:ConceptScheme ] ;
+    sh:targetClass skos:Collection,
+        skos:OrderedCollection .
 
-    skshp:ConceptDisjointnessShape a sh:NodeShape ;
-        sh:message "S9/S37: skos:Concept is disjoint with skos:ConceptScheme and skos:Collection." ;
-        sh:not _:ne19aa9c3ba57449da6d8872363851322b477,
-            _:ne19aa9c3ba57449da6d8872363851322b478,
-            _:ne19aa9c3ba57449da6d8872363851322b479 ;
-        sh:targetClass skos:Concept .
+skshp:CollectionFormShape a sh:NodeShape ;
+    sh:property [ sh:datatype rdf:langString ;
+            sh:name "preferred label"@en ;
+            sh:order 1 ;
+            sh:path skos:prefLabel ;
+            shui:editor shui:TextFieldWithLangEditor ;
+            shui:viewer shui:LangStringViewer ],
+        [ sh:datatype rdf:langString ;
+            sh:name "alternative label"@en ;
+            sh:order 2 ;
+            sh:path skos:altLabel ;
+            shui:editor shui:TextFieldWithLangEditor ;
+            shui:viewer shui:LangStringViewer ],
+        [ sh:datatype rdf:langString ;
+            sh:name "definition"@en ;
+            sh:order 3 ;
+            sh:path skos:definition ;
+            shui:editor shui:TextAreaWithLangEditor ;
+            shui:viewer shui:LangStringViewer ],
+        [ sh:name "member"@en ;
+            sh:nodeKind sh:IRI ;
+            sh:order 4 ;
+            sh:path skos:member ;
+            shui:editor shui:IRIEditor ;
+            shui:viewer shui:HyperlinkViewer ] .
 
-    skshp:ConceptPrefLabelRecommendedShape a sh:NodeShape ;
-        sh:property _:ne19aa9c3ba57449da6d8872363851322b480 ;
-        sh:targetClass skos:Concept .
+skshp:ConceptDisjointnessShape a sh:NodeShape ;
+    sh:message "S9/S37: skos:Concept is disjoint with skos:ConceptScheme and skos:Collection." ;
+    sh:not [ sh:class skos:ConceptScheme ],
+        [ sh:class skos:Collection ],
+        [ sh:class skos:OrderedCollection ] ;
+    sh:targetClass skos:Concept .
 
-    skshp:ConceptSchemeDisjointnessShape a sh:NodeShape ;
-        sh:message "S9/S37: skos:ConceptScheme is disjoint with skos:Concept and skos:Collection." ;
-        sh:not _:ne19aa9c3ba57449da6d8872363851322b481,
-            _:ne19aa9c3ba57449da6d8872363851322b482,
-            _:ne19aa9c3ba57449da6d8872363851322b483 ;
-        sh:targetClass skos:ConceptScheme .
+skshp:ConceptFormShape a sh:NodeShape ;
+    sh:property [ sh:datatype rdf:langString ;
+            sh:name "preferred label"@en ;
+            sh:order 1 ;
+            sh:path skos:prefLabel ;
+            shui:editor shui:TextFieldWithLangEditor ;
+            shui:viewer shui:LangStringViewer ],
+        [ sh:datatype rdf:langString ;
+            sh:name "editorial note"@en ;
+            sh:order 10 ;
+            sh:path skos:editorialNote ;
+            shui:editor shui:TextAreaWithLangEditor ;
+            shui:viewer shui:LangStringViewer ],
+        [ sh:class skos:Concept ;
+            sh:name "broader concept"@en ;
+            sh:nodeKind sh:IRI ;
+            sh:order 11 ;
+            sh:path skos:broader ;
+            shui:editor shui:InstancesSelectEditor ;
+            shui:viewer shui:LabelViewer ],
+        [ sh:class skos:Concept ;
+            sh:name "narrower concept"@en ;
+            sh:nodeKind sh:IRI ;
+            sh:order 12 ;
+            sh:path skos:narrower ;
+            shui:editor shui:InstancesSelectEditor ;
+            shui:viewer shui:LabelViewer ],
+        [ sh:class skos:Concept ;
+            sh:name "related concept"@en ;
+            sh:nodeKind sh:IRI ;
+            sh:order 13 ;
+            sh:path skos:related ;
+            shui:editor shui:InstancesSelectEditor ;
+            shui:viewer shui:LabelViewer ],
+        [ sh:class skos:ConceptScheme ;
+            sh:name "concept scheme"@en ;
+            sh:nodeKind sh:IRI ;
+            sh:order 14 ;
+            sh:path skos:inScheme ;
+            shui:editor shui:InstancesSelectEditor ;
+            shui:viewer shui:LabelViewer ],
+        [ sh:name "exact match"@en ;
+            sh:nodeKind sh:IRI ;
+            sh:order 15 ;
+            sh:path skos:exactMatch ;
+            shui:editor shui:IRIEditor ;
+            shui:viewer shui:HyperlinkViewer ],
+        [ sh:name "close match"@en ;
+            sh:nodeKind sh:IRI ;
+            sh:order 16 ;
+            sh:path skos:closeMatch ;
+            shui:editor shui:IRIEditor ;
+            shui:viewer shui:HyperlinkViewer ],
+        [ sh:name "broader match"@en ;
+            sh:nodeKind sh:IRI ;
+            sh:order 17 ;
+            sh:path skos:broadMatch ;
+            shui:editor shui:IRIEditor ;
+            shui:viewer shui:HyperlinkViewer ],
+        [ sh:name "narrower match"@en ;
+            sh:nodeKind sh:IRI ;
+            sh:order 18 ;
+            sh:path skos:narrowMatch ;
+            shui:editor shui:IRIEditor ;
+            shui:viewer shui:HyperlinkViewer ],
+        [ sh:name "related match"@en ;
+            sh:nodeKind sh:IRI ;
+            sh:order 19 ;
+            sh:path skos:relatedMatch ;
+            shui:editor shui:IRIEditor ;
+            shui:viewer shui:HyperlinkViewer ],
+        [ sh:datatype rdf:langString ;
+            sh:name "alternative label"@en ;
+            sh:order 2 ;
+            sh:path skos:altLabel ;
+            shui:editor shui:TextFieldWithLangEditor ;
+            shui:viewer shui:LangStringViewer ],
+        [ sh:datatype rdf:langString ;
+            sh:name "hidden label"@en ;
+            sh:order 3 ;
+            sh:path skos:hiddenLabel ;
+            shui:editor shui:TextFieldWithLangEditor ;
+            shui:viewer shui:LangStringViewer ],
+        [ sh:name "notation"@en ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path skos:notation ;
+            shui:editor shui:TextFieldEditor ;
+            shui:viewer shui:LiteralViewer ],
+        [ sh:datatype rdf:langString ;
+            sh:name "definition"@en ;
+            sh:order 5 ;
+            sh:path skos:definition ;
+            shui:editor shui:TextAreaWithLangEditor ;
+            shui:viewer shui:LangStringViewer ],
+        [ sh:datatype rdf:langString ;
+            sh:name "scope note"@en ;
+            sh:order 6 ;
+            sh:path skos:scopeNote ;
+            shui:editor shui:TextAreaWithLangEditor ;
+            shui:viewer shui:LangStringViewer ],
+        [ sh:datatype rdf:langString ;
+            sh:name "example"@en ;
+            sh:order 7 ;
+            sh:path skos:example ;
+            shui:editor shui:TextAreaWithLangEditor ;
+            shui:viewer shui:LangStringViewer ],
+        [ sh:datatype rdf:langString ;
+            sh:name "history note"@en ;
+            sh:order 8 ;
+            sh:path skos:historyNote ;
+            shui:editor shui:TextAreaWithLangEditor ;
+            shui:viewer shui:LangStringViewer ],
+        [ sh:datatype rdf:langString ;
+            sh:name "change note"@en ;
+            sh:order 9 ;
+            sh:path skos:changeNote ;
+            shui:editor shui:TextAreaWithLangEditor ;
+            shui:viewer shui:LangStringViewer ] .
 
-    skshp:LexicalLabelShape a sh:NodeShape ;
-        sh:property _:ne19aa9c3ba57449da6d8872363851322b484,
-            _:ne19aa9c3ba57449da6d8872363851322b485,
-            _:ne19aa9c3ba57449da6d8872363851322b486 ;
-        sh:targetSubjectsOf skos:altLabel,
-            skos:hiddenLabel,
-            skos:prefLabel .
+skshp:ConceptPrefLabelRecommendedShape a sh:NodeShape ;
+    sh:property [ sh:message "Recommended: a skos:Concept should have at least one skos:prefLabel." ;
+            sh:minCount 1 ;
+            sh:path skos:prefLabel ;
+            sh:severity sh:Info ] ;
+    sh:targetClass skos:Concept .
 
-    skshp:MappingRelationDisjointnessShape a sh:NodeShape ;
-        sh:property _:ne19aa9c3ba57449da6d8872363851322b487 ;
-        sh:targetSubjectsOf skos:exactMatch .
+skshp:ConceptSchemeDisjointnessShape a sh:NodeShape ;
+    sh:message "S9/S37: skos:ConceptScheme is disjoint with skos:Concept and skos:Collection." ;
+    sh:not [ sh:class skos:Concept ],
+        [ sh:class skos:Collection ],
+        [ sh:class skos:OrderedCollection ] ;
+    sh:targetClass skos:ConceptScheme .
 
-    skshp:OrderedCollectionMemberListConsistencyShape a sh:NodeShape ;
-        sh:sparql _:ne19aa9c3ba57449da6d8872363851322b488 ;
-        sh:targetClass skos:OrderedCollection .
+skshp:ConceptSchemeFormShape a sh:NodeShape ;
+    sh:property [ sh:datatype rdf:langString ;
+            sh:name "preferred label"@en ;
+            sh:order 1 ;
+            sh:path skos:prefLabel ;
+            shui:editor shui:TextFieldWithLangEditor ;
+            shui:viewer shui:LangStringViewer ],
+        [ sh:datatype rdf:langString ;
+            sh:name "alternative label"@en ;
+            sh:order 2 ;
+            sh:path skos:altLabel ;
+            shui:editor shui:TextFieldWithLangEditor ;
+            shui:viewer shui:LangStringViewer ],
+        [ sh:datatype rdf:langString ;
+            sh:name "definition"@en ;
+            sh:order 3 ;
+            sh:path skos:definition ;
+            shui:editor shui:TextAreaWithLangEditor ;
+            shui:viewer shui:LangStringViewer ],
+        [ sh:class skos:Concept ;
+            sh:name "top concept"@en ;
+            sh:nodeKind sh:IRI ;
+            sh:order 4 ;
+            sh:path skos:hasTopConcept ;
+            shui:editor shui:InstancesSelectEditor ;
+            shui:viewer shui:LabelViewer ] .
 
-    skshp:RelatedDisjointWithHierarchicalShape a sh:NodeShape ;
-        sh:property _:ne19aa9c3ba57449da6d8872363851322b489 ;
-        sh:targetSubjectsOf skos:related .
+skshp:LexicalLabelShape a sh:NodeShape ;
+    sh:property [ sh:disjoint skos:hiddenLabel,
+                skos:prefLabel ;
+            sh:message "S13: skos:prefLabel/altLabel/hiddenLabel must be pairwise disjoint." ;
+            sh:path skos:altLabel ],
+        [ sh:disjoint skos:altLabel,
+                skos:prefLabel ;
+            sh:message "S13: skos:prefLabel/altLabel/hiddenLabel must be pairwise disjoint." ;
+            sh:path skos:hiddenLabel ],
+        [ sh:datatype rdf:langString ;
+            sh:disjoint skos:altLabel,
+                skos:hiddenLabel ;
+            sh:message "S13: skos:prefLabel/altLabel/hiddenLabel must be pairwise disjoint. S14: no more than one skos:prefLabel per language tag." ;
+            sh:path skos:prefLabel ;
+            sh:uniqueLang true ] ;
+    sh:targetSubjectsOf skos:altLabel,
+        skos:hiddenLabel,
+        skos:prefLabel .
 
-    skshp:SemanticRelationDomainRangeShape a sh:NodeShape ;
-        sh:class skos:Concept ;
-        sh:message "S19/S20: the domain and range of every SKOS semantic relation is skos:Concept." ;
-        sh:targetObjectsOf skos:broader,
-            skos:broaderTransitive,
-            skos:narrower,
-            skos:narrowerTransitive,
-            skos:related,
-            skos:semanticRelation ;
-        sh:targetSubjectsOf skos:broader,
-            skos:broaderTransitive,
-            skos:narrower,
-            skos:narrowerTransitive,
-            skos:related,
-            skos:semanticRelation .
+skshp:MappingRelationDisjointnessShape a sh:NodeShape ;
+    sh:property [ sh:disjoint skos:broadMatch,
+                skos:narrowMatch,
+                skos:relatedMatch ;
+            sh:message "S46: skos:exactMatch is disjoint with skos:broadMatch, skos:narrowMatch, and skos:relatedMatch." ;
+            sh:path skos:exactMatch ] ;
+    sh:targetSubjectsOf skos:exactMatch .
 
-    _:ne19aa9c3ba57449da6d8872363851322b475 sh:class skos:Concept .
-
-    _:ne19aa9c3ba57449da6d8872363851322b476 sh:class skos:ConceptScheme .
-
-    _:ne19aa9c3ba57449da6d8872363851322b477 sh:class skos:ConceptScheme .
-
-    _:ne19aa9c3ba57449da6d8872363851322b478 sh:class skos:Collection .
-
-    _:ne19aa9c3ba57449da6d8872363851322b479 sh:class skos:OrderedCollection .
-
-    _:ne19aa9c3ba57449da6d8872363851322b480 sh:message "Recommended: a skos:Concept should have at least one skos:prefLabel." ;
-        sh:minCount 1 ;
-        sh:path skos:prefLabel ;
-        sh:severity sh:Info .
-
-    _:ne19aa9c3ba57449da6d8872363851322b481 sh:class skos:Concept .
-
-    _:ne19aa9c3ba57449da6d8872363851322b482 sh:class skos:Collection .
-
-    _:ne19aa9c3ba57449da6d8872363851322b483 sh:class skos:OrderedCollection .
-
-    _:ne19aa9c3ba57449da6d8872363851322b484 sh:disjoint skos:hiddenLabel,
-            skos:prefLabel ;
-        sh:message "S13: skos:prefLabel/altLabel/hiddenLabel must be pairwise disjoint." ;
-        sh:path skos:altLabel .
-
-    _:ne19aa9c3ba57449da6d8872363851322b485 sh:disjoint skos:altLabel,
-            skos:prefLabel ;
-        sh:message "S13: skos:prefLabel/altLabel/hiddenLabel must be pairwise disjoint." ;
-        sh:path skos:hiddenLabel .
-
-    _:ne19aa9c3ba57449da6d8872363851322b486 sh:datatype rdf:langString ;
-        sh:disjoint skos:altLabel,
-            skos:hiddenLabel ;
-        sh:message "S13: skos:prefLabel/altLabel/hiddenLabel must be pairwise disjoint. S14: no more than one skos:prefLabel per language tag." ;
-        sh:path skos:prefLabel ;
-        sh:uniqueLang true .
-
-    _:ne19aa9c3ba57449da6d8872363851322b487 sh:disjoint skos:broadMatch,
-            skos:narrowMatch,
-            skos:relatedMatch ;
-        sh:message "S46: skos:exactMatch is disjoint with skos:broadMatch, skos:narrowMatch, and skos:relatedMatch." ;
-        sh:path skos:exactMatch .
-
-    _:ne19aa9c3ba57449da6d8872363851322b488 a sh:SPARQLConstraint ;
-        sh:message "skos:memberList and skos:member must describe the same set of members." ;
-        sh:select """
+skshp:OrderedCollectionMemberListConsistencyShape a sh:NodeShape ;
+    sh:sparql [ a sh:SPARQLConstraint ;
+            sh:message "skos:memberList and skos:member must describe the same set of members." ;
+            sh:select """
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
             PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
             SELECT DISTINCT $this
@@ -3353,14 +3648,33 @@ starontology:skos_shapes.ttl {
                     FILTER NOT EXISTS { ?list rdf:rest*/rdf:first ?item }
                 }
             }
-        """ .
+        """ ] ;
+    sh:targetClass skos:OrderedCollection .
 
-    _:ne19aa9c3ba57449da6d8872363851322b489 sh:disjoint skos:broader,
-            skos:broaderTransitive,
-            skos:narrower,
-            skos:narrowerTransitive ;
-        sh:message "S27: skos:related is disjoint with skos:broader(Transitive)/skos:narrower(Transitive)." ;
-        sh:path skos:related .
+skshp:RelatedDisjointWithHierarchicalShape a sh:NodeShape ;
+    sh:property [ sh:disjoint skos:broader,
+                skos:broaderTransitive,
+                skos:narrower,
+                skos:narrowerTransitive ;
+            sh:message "S27: skos:related is disjoint with skos:broader(Transitive)/skos:narrower(Transitive)." ;
+            sh:path skos:related ] ;
+    sh:targetSubjectsOf skos:related .
+
+skshp:SemanticRelationDomainRangeShape a sh:NodeShape ;
+    sh:class skos:Concept ;
+    sh:message "S19/S20: the domain and range of every SKOS semantic relation is skos:Concept." ;
+    sh:targetObjectsOf skos:broader,
+        skos:broaderTransitive,
+        skos:narrower,
+        skos:narrowerTransitive,
+        skos:related,
+        skos:semanticRelation ;
+    sh:targetSubjectsOf skos:broader,
+        skos:broaderTransitive,
+        skos:narrower,
+        skos:narrowerTransitive,
+        skos:related,
+        skos:semanticRelation .
 }
 
 starontology:sparql_shapes.ttl {
@@ -4580,100 +4894,159 @@ starontology:sparql_shapes.ttl {
     _:ne19aa9c3ba57449da6d8872363851322b632 sh:class salg:TripleTerm .
 }
 
-starontology:ontology-shapes-profiles.ttl {
-    starontology:shacl12-shacl.ttl prof:isProfileOf profile:core,
-            profile:node-expr,
-            profile:profiling,
-            profile:rules,
-            profile:sparql .
+starontology:starlayer-profiles.ttl {
+    # StarLayer's profiles and its conformance declaration, in one document.
+    #
+    # 1. Public layer: W3C specifications (tr:) and the public SHACL profiles
+    #    (profile:). Defined elsewhere; only labelled here.
+    # 2. StarLayer profiles (slp:): each is a prof:Profile that is a profile of a
+    #    public specification or public SHACL profile, and lists its own ontology
+    #    and shapes files as resources. A shapes graph checks conformance to the
+    #    StarLayer profile that lists it; the link from that profile to the public
+    #    specification is what makes the conformance claim reach the public layer
+    #    (see starlayer.shacl.derive_conforms_to()).
+    # 3. StarLayer's own modules (pkg:): the self-declared conformance of
+    #    starlayer.graph, starlayer.sparql and starlayer.shacl, written out in full.
+    #    dcterms:conformsTo is the claim; conformance:doesNotConformTo is this
+    #    project's own term (no standard negative predicate exists in dx-prof or
+    #    Dublin Core) and is used only where the excluded thing has its own IRI.
+    #
+    # This is a self-declaration, not a third-party certification. RDF 1.2, SPARQL
+    # 1.2 and the SHACL 1.2 documents are still drafts, so treat the claims as a
+    # dated snapshot; docs/graph/rdf12_sparql12_gap_analysis.md and
+    # docs/shacl/shacl12-gap-matrix.md are the working sources they come from.
+    #
+    # SPARQL has no named-profile vocabulary like SHACL's, so starlayer.sparql
+    # conforms to the SPARQL TR documents directly. SPARQL 1.2 Entailment Regimes
+    # is not claimed as a document (three of its six regimes are unimplemented);
+    # each supported regime is claimed by its own IRI instead, and the
+    # unsupported D-Entailment regime is excluded by IRI. RDF/XML 1.2 and SPARQL
+    # 1.2 RL are claimed within documented scope limits.
 
-    starontology:manchester_shapes.ttl prof:isProfileOf tr:owl2-manchester-syntax .
+slp:Manchester a prof:Profile ;
+    rdfs:label "StarLayer OWL 2 Manchester Syntax profile" ;
+    prof:hasResource [ a prof:ResourceDescriptor ;
+            rdfs:label "manchester_owl" ;
+            rdfs:comment "OWL 2 Manchester Syntax's own internal AST as RDF (manch:) - frames/clauses/class- and property-expressions/data-ranges, one level upstream of the compiled OWL RDF mapping." ;
+            prof:hasArtifact starontology:manchester-ast-ontology.ttl ;
+            prof:hasRole role:schema ],
+        [ a prof:ResourceDescriptor ;
+            rdfs:label "manchester_shacl" ;
+            rdfs:comment "SHACL shapes validating a manch: AST graph's own structural well-formedness." ;
+            prof:hasArtifact starontology:manchester_shapes.ttl ;
+            prof:hasRole role:validation ] ;
+    prof:isProfileOf tr:owl2-manchester-syntax .
 
-    starontology:skos_shapes.ttl prof:isProfileOf tr:skos-reference .
+slp:Shacl a prof:Profile ;
+    rdfs:label "StarLayer SHACL 1.2 profile" ;
+    prof:hasResource [ a prof:ResourceDescriptor ;
+            rdfs:label "shacl_shacl" ;
+            rdfs:comment "The SHACL 1.2 meta-shapes: the shapes that check a shapes graph is well-formed." ;
+            prof:hasArtifact starontology:shacl12-shacl.ttl ;
+            prof:hasRole role:validation ] ;
+    prof:isProfileOf profile:core,
+        profile:node-expr,
+        profile:profiling,
+        profile:rules,
+        profile:sparql .
 
-    starontology:spexpr_shapes.ttl prof:isProfileOf tr:sparql12-query .
+slp:Skos a prof:Profile ;
+    rdfs:label "StarLayer SKOS profile" ;
+    prof:hasResource [ a prof:ResourceDescriptor ;
+            rdfs:label "skos_owl" ;
+            rdfs:comment "The W3C's own SKOS vocabulary (skos.rdf from the SKOS Reference, W3C Recommendation 2009), over the real skos: namespace." ;
+            prof:hasArtifact starontology:skos-ontology.ttl ;
+            prof:hasRole role:schema ],
+        [ a prof:ResourceDescriptor ;
+            rdfs:label "skos_shacl" ;
+            rdfs:comment "SHACL shapes for SKOS: the Reference's numbered conditions as validation shapes, plus form shapes carrying shui:editor/shui:viewer widgets chosen by each property's datatype." ;
+            prof:hasArtifact starontology:skos_shapes.ttl ;
+            prof:hasRole role:validation ] ;
+    prof:isProfileOf tr:skos-reference .
 
-    starontology:sqe_shapes.ttl prof:isProfileOf tr:sparql12-query .
+slp:SparqlQuery a prof:Profile ;
+    rdfs:label "StarLayer SPARQL 1.2 Query profile" ;
+    prof:hasResource [ a prof:ResourceDescriptor ;
+            rdfs:label "sqe_owl" ;
+            rdfs:comment "A SPARQL SELECT/ASK/CONSTRUCT query's own raw parse tree, pre-translateQuery, as a flat, human-readable RDF tree (sqe:) meant for hand/UI editing - deliberately not the resolved salg: algebra." ;
+            prof:hasArtifact starontology:sqe-ontology.ttl ;
+            prof:hasRole role:schema ],
+        [ a prof:ResourceDescriptor ;
+            rdfs:label "sqe_shacl" ;
+            rdfs:comment "SHACL shapes validating an sqe: query-edit graph's own structural well-formedness, designed for UI-editor field-level validation, not just decode-ability." ;
+            prof:hasArtifact starontology:sqe_shapes.ttl ;
+            prof:hasRole role:validation ],
+        [ a prof:ResourceDescriptor ;
+            rdfs:label "spexpr_owl" ;
+            rdfs:comment "The SPARQL expression/variable/property-path vocabulary (spexpr:) - the one slice salg:/sqe:/srl: all need identically." ;
+            prof:hasArtifact starontology:spexpr-ontology.ttl ;
+            prof:hasRole role:schema ],
+        [ a prof:ResourceDescriptor ;
+            rdfs:label "spexpr_shacl" ;
+            rdfs:comment "SHACL shapes validating an spexpr: expression/variable/path value's own well-formedness - imported by salg:/sqe:/srl: alike (each via owl:imports), not defined separately by any one of them." ;
+            prof:hasArtifact starontology:spexpr_shapes.ttl ;
+            prof:hasRole role:validation ] ;
+    prof:isProfileOf tr:sparql12-query .
 
-    starontology:srl_shapes.ttl prof:isProfileOf tr:sparql12-rl .
+slp:SparqlRL a prof:Profile ;
+    rdfs:label "StarLayer SPARQL 1.2 RL profile" ;
+    prof:hasResource [ a prof:ResourceDescriptor ;
+            rdfs:label "srl_shacl" ;
+            rdfs:comment "SHACL shapes validating an srl: rule-set graph's own structural well-formedness." ;
+            prof:hasArtifact starontology:srl_shapes.ttl ;
+            prof:hasRole role:validation ],
+        [ a prof:ResourceDescriptor ;
+            rdfs:label "srl_owl" ;
+            rdfs:comment "SRL/SPARQL-RL's own rule-set abstract syntax as RDF (srl:) - a Datalog-style rules language, general-purpose and SHACL-independent." ;
+            prof:hasArtifact starontology:srl-ontology.ttl ;
+            prof:hasRole role:schema ] ;
+    prof:isProfileOf tr:sparql12-rl .
 
-    tr:owl2-manchester-syntax rdfs:label "OWL 2 Manchester Syntax" ;
-        prof:hasResource _:ne19aa9c3ba57449da6d8872363851322b735,
-            _:ne19aa9c3ba57449da6d8872363851322b736 .
+pkg:graph rdfs:label "starlayer.graph" ;
+    dcterms:conformsTo <http://www.w3.org/ns/entailment/OWL-Direct>,
+        <http://www.w3.org/ns/entailment/OWL-RDF-Based>,
+        <http://www.w3.org/ns/entailment/RDF>,
+        <http://www.w3.org/ns/entailment/RDFS>,
+        tr:rdf-canon,
+        tr:rdf12-concepts,
+        tr:rdf12-n-triples,
+        tr:rdf12-schema,
+        tr:rdf12-turtle,
+        tr:rdf12-xml,
+        tr:sparql12-protocol ;
+    dcterms:modified "2026-10-17"^^xsd:date ;
+    rdfs:comment "Not claimed: the full SPARQL 1.2 Entailment Regimes document (D-Entailment, full OWL 2 RDF-Based Semantics, and RIF Core Entailment are unimplemented - see the individually-listed supported regimes instead), nor JSON-LD \"1.2\"/TriX \"1.2\" (neither has a real RDF 1.2 companion spec to converge on at all)."@en,
+        "RDF 1.2 graph management - the rdflib replacement, with triple-term and direction-tagged-literal support."@en ;
+    conformance:doesNotConformTo <http://www.w3.org/ns/entailment/D> .
 
-    tr:skos-reference rdfs:label "SKOS Reference" ;
-        prof:hasResource _:ne19aa9c3ba57449da6d8872363851322b737,
-            _:ne19aa9c3ba57449da6d8872363851322b738 .
+pkg:shacl rdfs:label "starlayer.shacl" ;
+    dcterms:conformsTo profile:core,
+        profile:node-expr,
+        profile:profiling,
+        profile:rules,
+        profile:sparql,
+        tr:shacl12-ui ;
+    dcterms:modified "2026-10-17"^^xsd:date ;
+    rdfs:comment "SHACL 1.2 User Interfaces is claimed within documented scope limits: shui:editor, shui:viewer and the built-in widget annotations are accepted, documented and checked for well-formedness, and the Section 3 widget-selection algorithm is implemented (select_widget, select_widgets); shui:propertyRole annotations are accepted and documented but not interpreted, and no default widget scoring catalog ships with the library."@en,
+        "Not claimed: the UI Profile. SHACL 1.2 Profiling defines it only as a subset of the SHACL Core vocabulary chosen for ease of UI implementation, lists no members and states no conformance requirements (Appendix A.3 is a TODO), so there is nothing to claim or exclude yet. The SHACL 1.2 UI widget-selection algorithm is implemented separately - see docs/shacl/shacl12-gap-matrix.md."@en,
+        "pySHACL-based SHACL validation and rule execution with RDF 1.2 / triple-term support, part of the StarLayer stack."@en ;
+    rdfs:seeAlso <https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/docs/shacl/shacl12-gap-matrix.md> .
 
-    tr:sparql12-rl rdfs:label "SPARQL 1.2 RL" ;
-        prof:hasResource _:ne19aa9c3ba57449da6d8872363851322b739,
-            _:ne19aa9c3ba57449da6d8872363851322b740 .
+pkg:sparql rdfs:label "starlayer.sparql" ;
+    dcterms:conformsTo tr:sparql12-query,
+        tr:sparql12-rl,
+        tr:sparql12-update ;
+    dcterms:modified "2026-10-17"^^xsd:date ;
+    rdfs:comment "SPARQL 1.2 RL has documented grammar scope reductions - no ','-chained object lists, limited property paths, no reified-triple syntax yet, IMPORTS hard-rejected (see starlayer/sparql/CLAUDE.md)."@en,
+        "SPARQL 1.2 query/update grammar, rewriting, and rule vocabularies (SRL/SQE) over RDF 1.2 graphs."@en .
 
-    tr:sparql12-query rdfs:label "SPARQL 1.2 Query" ;
-        prof:hasResource _:ne19aa9c3ba57449da6d8872363851322b741,
-            _:ne19aa9c3ba57449da6d8872363851322b742,
-            _:ne19aa9c3ba57449da6d8872363851322b743,
-            _:ne19aa9c3ba57449da6d8872363851322b744 .
+tr:owl2-manchester-syntax rdfs:label "OWL 2 Manchester Syntax" .
 
-    _:ne19aa9c3ba57449da6d8872363851322b735 a prof:ResourceDescriptor ;
-        rdfs:label "manchester_owl" ;
-        rdfs:comment "OWL 2 Manchester Syntax's own internal AST as RDF (manch:) - frames/clauses/class- and property-expressions/data-ranges, one level upstream of the compiled OWL RDF mapping." ;
-        prof:hasArtifact starontology:manchester-ast-ontology.ttl ;
-        prof:hasRole role:schema .
+tr:skos-reference rdfs:label "SKOS Reference" .
 
-    _:ne19aa9c3ba57449da6d8872363851322b736 a prof:ResourceDescriptor ;
-        rdfs:label "manchester_shacl" ;
-        rdfs:comment "SHACL shapes validating a manch: AST graph's own structural well-formedness." ;
-        prof:hasArtifact starontology:manchester_shapes.ttl ;
-        prof:hasRole role:validation .
+tr:sparql12-query rdfs:label "SPARQL 1.2 Query" .
 
-    _:ne19aa9c3ba57449da6d8872363851322b737 a prof:ResourceDescriptor ;
-        rdfs:label "skos_shacl" ;
-        rdfs:comment "SHACL shapes checking SKOS's own numbered integrity conditions against a data graph." ;
-        prof:hasArtifact starontology:skos_shapes.ttl ;
-        prof:hasRole role:validation .
-
-    _:ne19aa9c3ba57449da6d8872363851322b738 a prof:ResourceDescriptor ;
-        rdfs:label "skos_owl" ;
-        rdfs:comment "The W3C SKOS Reference's own formal axioms and numbered Documented Consistency and Integrity Conditions, over the real skos: namespace." ;
-        prof:hasArtifact starontology:skos-ontology.ttl ;
-        prof:hasRole role:schema .
-
-    _:ne19aa9c3ba57449da6d8872363851322b739 a prof:ResourceDescriptor ;
-        rdfs:label "srl_shacl" ;
-        rdfs:comment "SHACL shapes validating an srl: rule-set graph's own structural well-formedness." ;
-        prof:hasArtifact starontology:srl_shapes.ttl ;
-        prof:hasRole role:validation .
-
-    _:ne19aa9c3ba57449da6d8872363851322b740 a prof:ResourceDescriptor ;
-        rdfs:label "srl_owl" ;
-        rdfs:comment "SRL/SPARQL-RL's own rule-set abstract syntax as RDF (srl:) - a Datalog-style rules language, general-purpose and SHACL-independent." ;
-        prof:hasArtifact starontology:srl-ontology.ttl ;
-        prof:hasRole role:schema .
-
-    _:ne19aa9c3ba57449da6d8872363851322b741 a prof:ResourceDescriptor ;
-        rdfs:label "sqe_owl" ;
-        rdfs:comment "A SPARQL SELECT/ASK/CONSTRUCT query's own raw parse tree, pre-translateQuery, as a flat, human-readable RDF tree (sqe:) meant for hand/UI editing - deliberately not the resolved salg: algebra, which isn't readable or editable the same way. v1 scope reduction: no aggregates/subqueries/VALUES/Update yet (property paths ARE covered)." ;
-        prof:hasArtifact starontology:sqe-ontology.ttl ;
-        prof:hasRole role:schema .
-
-    _:ne19aa9c3ba57449da6d8872363851322b742 a prof:ResourceDescriptor ;
-        rdfs:label "spexpr_owl" ;
-        rdfs:comment "The SPARQL expression/variable/property-path vocabulary (spexpr:), carved out of salg: 2026-10-10 - the one slice salg:/sqe:/srl: all need identically (their own expression encoding, reused unchanged, not reimplemented per-vocabulary), originally minted under salg: only because salg: was built first, before sqe: existed to need sharing it." ;
-        prof:hasArtifact starontology:spexpr-ontology.ttl ;
-        prof:hasRole role:schema .
-
-    _:ne19aa9c3ba57449da6d8872363851322b743 a prof:ResourceDescriptor ;
-        rdfs:label "spexpr_shacl" ;
-        rdfs:comment "SHACL shapes validating an spexpr: expression/variable/path value's own well-formedness - imported by salg:/sqe:/srl: alike (each via owl:imports), not defined separately by any one of them." ;
-        prof:hasArtifact starontology:spexpr_shapes.ttl ;
-        prof:hasRole role:validation .
-
-    _:ne19aa9c3ba57449da6d8872363851322b744 a prof:ResourceDescriptor ;
-        rdfs:label "sqe_shacl" ;
-        rdfs:comment "SHACL shapes validating an sqe: query-edit graph's own structural well-formedness, designed for UI-editor field-level validation, not just decode-ability." ;
-        prof:hasArtifact starontology:sqe_shapes.ttl ;
-        prof:hasRole role:validation .
+tr:sparql12-rl rdfs:label "SPARQL 1.2 RL" .
 }
 
 starontology:spexpr-ontology.ttl {

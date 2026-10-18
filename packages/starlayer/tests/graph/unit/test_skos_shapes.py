@@ -4,9 +4,9 @@ Unlike the manch:/salg: vocabularies, SKOS needs no encode/decode/round-trip
 layer - a SKOS thesaurus is already plain RDF the moment it's authored - so
 this is the *only* test file for SKOS support: does the ontology load with
 the right entailments, does a well-formed thesaurus conform, and does each
-of the W3C SKOS Reference's own numbered integrity conditions (S9, S13, S14,
+of the W3C SKOS Reference's own numbered conditions (S9, S13, S14,
 S19/S20, S27, S37, S46) get caught when violated - plus two shapes that
-aren't numbered integrity conditions:
+aren't numbered conditions:
 OrderedCollectionMemberListConsistencyShape (the spec's own §9.4 prose
 expectation that skos:memberList and skos:member describe the same set) and
 ConceptPrefLabelRecommendedShape (a non-normative sh:Info-severity best
@@ -15,7 +15,7 @@ above).
 """
 
 import owlrl
-from rdflib import RDF, BNode, Graph, Literal, Namespace
+from rdflib import RDF, RDFS, BNode, Graph, Literal, Namespace
 from rdflib.collection import Collection
 from rdflib.namespace import SKOS
 from starlayer import starontology
@@ -223,7 +223,7 @@ def test_ordered_collection_with_no_memberlist_at_all_is_unaffected():
 
 def test_concept_missing_preflabel_still_conforms_but_is_reported():
     """sh:severity sh:Info - a real, non-normative recommendation, not an
-    integrity condition: missing it must not flip conforms, but should
+    numbered condition: missing it must not flip conforms, but should
     still show up in the report text (allow_infos=True, not just a bare
     'ignore Info entirely')."""
     g = Graph()
@@ -248,3 +248,71 @@ def test_shapes_graph_is_valid_shacl_and_reusable():
     g2 = starontology.get_ontology_graph("skos_shacl")
     assert g1 is not g2
     assert len(g1) == len(g2) > 0
+
+
+# ---------------------------------------------------------------------------
+# Form shapes: lightweight shui:editor/shui:viewer widgets chosen by datatype
+# ---------------------------------------------------------------------------
+
+_SH = Namespace("http://www.w3.org/ns/shacl#")
+_SHUI = Namespace("http://www.w3.org/ns/shacl-ui#")
+_SKSHP = Namespace("https://github.com/hidden-graph/starlayer/ns/graph/skos-shapes#")
+_FORM_SHAPES = (_SKSHP.ConceptFormShape, _SKSHP.ConceptSchemeFormShape, _SKSHP.CollectionFormShape)
+
+
+def _form_properties():
+    shapes = starontology.get_ontology_graph("skos_shacl")
+    for form in _FORM_SHAPES:
+        for prop in shapes.objects(form, _SH.property):
+            yield shapes, form, prop
+
+
+def test_form_shapes_are_untargeted_so_they_never_change_validation():
+    shapes = starontology.get_ontology_graph("skos_shacl")
+    for form in _FORM_SHAPES:
+        assert (form, RDF.type, _SH.NodeShape) in shapes
+        for target in (_SH.targetClass, _SH.targetNode, _SH.targetSubjectsOf, _SH.targetObjectsOf):
+            assert (form, target, None) not in shapes
+
+
+def test_form_shapes_are_members_of_the_shapes_graph():
+    shapes = starontology.get_ontology_graph("skos_shacl")
+    members = set(shapes.objects(_SKSHP.ShapesGraph, RDFS.member))
+    assert set(_FORM_SHAPES) <= members
+
+
+def test_every_form_property_has_a_name_an_order_an_editor_and_a_viewer():
+    count = 0
+    for shapes, _form, prop in _form_properties():
+        count += 1
+        for predicate in (_SH.path, _SH.name, _SH.order, _SHUI.editor, _SHUI.viewer):
+            assert (prop, predicate, None) in shapes, f"{prop} lacks {predicate}"
+    assert count > 0
+
+
+def test_widgets_follow_the_value_datatype():
+    for shapes, _form, prop in _form_properties():
+        editor = shapes.value(prop, _SHUI.editor)
+        viewer = shapes.value(prop, _SHUI.viewer)
+        datatype = shapes.value(prop, _SH.datatype)
+        node_class = shapes.value(prop, _SH["class"])
+        node_kind = shapes.value(prop, _SH.nodeKind)
+        if datatype == RDF.langString:
+            assert editor in (_SHUI.TextFieldWithLangEditor, _SHUI.TextAreaWithLangEditor)
+            assert viewer == _SHUI.LangStringViewer
+        elif node_kind == _SH.Literal:
+            assert (editor, viewer) == (_SHUI.TextFieldEditor, _SHUI.LiteralViewer)
+        elif node_class is not None:
+            assert (editor, viewer) == (_SHUI.InstancesSelectEditor, _SHUI.LabelViewer)
+        else:
+            assert node_kind == _SH.IRI
+            assert (editor, viewer) == (_SHUI.IRIEditor, _SHUI.HyperlinkViewer)
+
+
+def test_form_shapes_conform_to_the_meta_shapes():
+    shapes = starontology.get_ontology_graph("skos_shacl")
+    conforms, _, text = ss.skos_validate(_valid_thesaurus())
+    assert conforms, text
+    from starlayer.shacl.meta_shapes import meta_validate
+
+    meta_validate(shapes)

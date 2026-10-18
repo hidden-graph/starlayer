@@ -33,6 +33,9 @@ if str(_PACKAGES_STARLAYER) not in sys.path:
 
 from rdflib.compare import to_isomorphic  # noqa: E402
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from import_skos_ontology import NOTICE as _SKOS_NOTICE  # noqa: E402
+
 from starlayer import starontology  # noqa: E402
 from starlayer.graph import StarLayerGraph  # noqa: E402
 
@@ -47,12 +50,12 @@ def _entries() -> list[tuple[str, str]]:
     list at all (get_conformance_profiles() is its own accessor)."""
     names = [info.name for info in starontology.get_ontology_list()]
     entries = [(name, starontology.get_resource_iri(name).split("/")[-1]) for name in names]
-    entries.append(("ontology_shapes_profiles", "ontology-shapes-profiles.ttl"))
+    entries.append(("starlayer_profiles", "starlayer-profiles.ttl"))
     return entries
 
 
 def _graph_for(name: str):
-    if name == "ontology_shapes_profiles":
+    if name == "starlayer_profiles":
         return starontology.get_conformance_profiles()
     return starontology.get_ontology_graph(name)
 
@@ -63,7 +66,8 @@ def publish() -> None:
     for name, filename in entries:
         source_graph = _graph_for(name)
         path = _STARONTOLOGY_DIR / filename
-        path.write_text(source_graph.serialize(format="turtle12"), encoding="utf-8")
+        header = _SKOS_NOTICE + "\n" if name == "skos_owl" else ""
+        path.write_text(header + source_graph.serialize(format="turtle12"), encoding="utf-8")
 
         check = StarLayerGraph()
         check.parse(str(path), format="turtle12")

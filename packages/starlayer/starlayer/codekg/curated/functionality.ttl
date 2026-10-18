@@ -339,5 +339,5 @@ cur:cap-other-4 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-other ;
     slkg:position 4 ;
     slkg:hasStatus "implemented" ;
-    rdfs:comment "A registry of the supported ontology and SHACL-shapes files: `manchester_owl` / `manchester_shacl`, `skos_owl` / `skos_shacl`, `sparql_owl` / `sparql_shacl`, `srl_owl` / `srl_shacl`, `shacl12_shacl`." ;
+    rdfs:comment "A registry of the supported ontology and SHACL-shapes files: `manchester_owl` / `manchester_shacl`, `skos_owl` / `skos_shacl`, `sparql_owl` / `sparql_shacl`, `srl_owl` / `srl_shacl`, `shacl_shacl`." ;
     slkg:implementedByIdentifier "starlayer.starontology.__init__" .
