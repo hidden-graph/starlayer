@@ -301,9 +301,10 @@ class TestEncodingHidden:
     def test_encoding_triples_not_in_triples(self, sg):
         sg.add((URIRef(EX+'r'), RDF_REIFIES, (URIRef(EX+'s'), URIRef(EX+'p'), URIRef(EX+'o'))))
         preds = {p for _, p, _ in sg.triples((None, None, None))}
-        assert RDF.subject   not in preds
-        assert RDF.predicate not in preds
-        assert RDF.object    not in preds
+        for pred in ('propositionFormSubject', 'propositionFormPredicate', 'propositionFormObject'):
+            assert URIRef(str(RDF) + pred) not in preds
+        # the type triple that marks a triple term is hidden too
+        assert (None, RDF.type, URIRef(str(RDF) + 'PropositionForm')) not in sg
 
     def test_sl_triple_term_type_hidden(self, sg):
         from starlayer.graph.graph.starlayer_graph import SL_TRIPLE_TERM

@@ -121,11 +121,16 @@ _TT_ACCESSOR_FN = {
 
 def _register_tt_accessor_functions() -> None:
     from rdflib import URIRef
-    from rdflib.namespace import RDF
     from rdflib.plugins.sparql.operators import register_custom_function
     from rdflib.plugins.sparql.sparql import SPARQLError
 
-    from starlayer.graph.model.encoding import TT_NS, lookup_tt_hash
+    from starlayer.graph.model.encoding import (
+        TT_NS,
+        TT_OBJECT,
+        TT_PREDICATE,
+        TT_SUBJECT,
+        lookup_tt_hash,
+    )
     from starlayer.graph.model.triple import TripleTerm
 
     def _make_accessor(label: str, index: int, pred):
@@ -166,9 +171,9 @@ def _register_tt_accessor_functions() -> None:
         return _accessor
 
     for name, index, pred in (
-        ('SUBJECT', 0, RDF.subject),
-        ('PREDICATE', 1, RDF.predicate),
-        ('OBJECT', 2, RDF.object),
+        ('SUBJECT', 0, TT_SUBJECT),
+        ('PREDICATE', 1, TT_PREDICATE),
+        ('OBJECT', 2, TT_OBJECT),
     ):
         register_custom_function(
             URIRef(_TT_ACCESSOR_FN[name][1:-1]), _make_accessor(name, index, pred),

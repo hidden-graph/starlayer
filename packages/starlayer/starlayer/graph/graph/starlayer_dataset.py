@@ -33,6 +33,7 @@ from collections.abc import Generator
 
 from rdflib import BNode, Dataset, Graph, URIRef
 from rdflib.graph import DATASET_DEFAULT_GRAPH_ID
+from rdflib.namespace import RDF
 from rdflib.query import Result
 from rdflib.term import Node
 
@@ -44,6 +45,7 @@ from starlayer.graph.graph.starlayer_graph import (
 )
 from starlayer.graph.model.encoding import ENCODING_PREDS as _ENCODING_PREDS
 from starlayer.graph.model.encoding import (
+    TT_CLASS,
     TT_NS,
     lookup_tt_hash,
     restore_select_bindings,
@@ -210,11 +212,8 @@ class StarLayerDataset(Dataset):
     # ------------------------------------------------------------------
 
     def _is_encoding_triple(self, s, p, o) -> bool:
-        return (
-            isinstance(s, URIRef)
-            and str(s).startswith(TT_NS)
-            and p in _ENCODING_PREDS
-        )
+        # Identified by the encoding vocabulary, not by the node's name.
+        return p in _ENCODING_PREDS or (p == RDF.type and o == TT_CLASS)
 
     def quads(self, triple=(None, None, None)) -> Generator[tuple, None, None]:
         """Yield (s, p, o, StarLayerGraph) with encoding triples filtered out

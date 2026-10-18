@@ -618,7 +618,7 @@ def patch_construct_skips_encoding_solutions() -> bool:
 
         from rdflib import Graph, URIRef
 
-        from starlayer.graph.model.encoding import ENCODING_PREDS, TT_NS
+        from starlayer.graph.model.encoding import ENCODING_MARKERS, TT_NS
 
         evalPart = evaluate.evalPart
         _fillTemplate = evaluate._fillTemplate
@@ -627,7 +627,7 @@ def patch_construct_skips_encoding_solutions() -> bool:
             values = list(c.values())
             return (
                 any(isinstance(v, URIRef) and str(v).startswith(TT_NS) for v in values)
-                and bool(ENCODING_PREDS.intersection(values))
+                and bool(ENCODING_MARKERS.intersection(values))
             )
 
         def _patched_eval_construct_query(ctx, query):
@@ -702,9 +702,11 @@ def _decode_tt_hash(graph, node):
 
     if not (isinstance(node, URIRef) and str(node).startswith(TT_NS)):
         return None
-    s = graph.value(node, RDF.subject)
-    p = graph.value(node, RDF.predicate)
-    o = graph.value(node, RDF.object)
+    from starlayer.graph.model.encoding import TT_OBJECT, TT_PREDICATE, TT_SUBJECT
+
+    s = graph.value(node, TT_SUBJECT)
+    p = graph.value(node, TT_PREDICATE)
+    o = graph.value(node, TT_OBJECT)
     if s is None or p is None or o is None:
         return None
     return (s, p, o)
@@ -1012,24 +1014,23 @@ def patch_bgp_skips_encoding_triples() -> bool:
         return _bgp_patch_status
 
     try:
-        from rdflib import URIRef
         from rdflib.plugins.sparql.sparql import AlreadyBound
 
-        from starlayer.graph.model.encoding import ENCODING_PREDS, TT_NS
+        from starlayer.graph.model.encoding import ENCODING_PREDS, TT_CLASS
 
         original_eval_bgp = evaluate.evalBGP
         if getattr(original_eval_bgp, "_starlayer_graph_bgp_patch", False):
             _bgp_patch_status = True
             return True
 
-        def _is_unconstrained_encoding_leak(pattern_p_was_bound: bool, sp, ss) -> bool:
+        def _is_unconstrained_encoding_leak(pattern_p_was_bound: bool, sp, so) -> bool:
             if pattern_p_was_bound:
                 # The pattern itself already specified this predicate (a
                 # ground rdf:subject/predicate/object, or any other already-
                 # bound term) - a deliberate, constrained match, never a
                 # wildcard leak, regardless of what it matches.
                 return False
-            return sp in ENCODING_PREDS and isinstance(ss, URIRef) and str(ss).startswith(TT_NS)
+            return sp in ENCODING_PREDS or (sp == RDF.type and so == TT_CLASS)
 
         def _patched_eval_bgp(ctx, bgp):
             if not bgp:
@@ -1043,7 +1044,7 @@ def patch_bgp_skips_encoding_triples() -> bool:
             p_was_bound = _p is not None
 
             for ss, sp, so in ctx.graph.triples((_s, _p, _o)):
-                if _is_unconstrained_encoding_leak(p_was_bound, sp, ss):
+                if _is_unconstrained_encoding_leak(p_was_bound, sp, so):
                     continue
 
                 if None in (_s, _p, _o):

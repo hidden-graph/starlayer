@@ -36,7 +36,12 @@ from starlayer.graph.model.dirlangstring import (
 )
 from starlayer.graph.model.encoding import ENCODING_PREDS as _ENCODING_PREDS
 from starlayer.graph.model.encoding import (
+    TT_CLASS,
     TT_NS,
+    TT_OBJECT,
+    TT_PREDICATE,
+    TT_SUBJECT,
+    encoding_triples,
     lookup_tt_hash,
     restore_select_bindings,
     term_key,
@@ -254,9 +259,8 @@ def _unfold_native_triple_terms(g) -> Graph:
             if node not in fresh:
                 bn = BNode()
                 fresh[node] = bn
-                out.add((bn, RDF.subject,   unfold(node.subject)))
-                out.add((bn, RDF.predicate, node.predicate))
-                out.add((bn, RDF.object,    unfold(node.object)))
+                for triple in encoding_triples(bn, unfold(node.subject), node.predicate, unfold(node.object)):
+                    out.add(triple)
             return fresh[node]
         return node
 
@@ -952,9 +956,8 @@ class StarLayerGraph(Graph):
         # tuple or unnormalized TripleTerm on tt itself, which _restore() couldn't
         # resolve further since it only follows tt:HASH URIRef chains.
         self._tt_nodes[uri] = TripleTerm(s_n, tt.predicate, o_n)
-        super().add((uri, RDF.subject,   s_n))
-        super().add((uri, RDF.predicate, tt.predicate))
-        super().add((uri, RDF.object,    o_n))
+        for triple in encoding_triples(uri, s_n, tt.predicate, o_n):
+            super().add(triple)
         return uri
 
     def _restore(self, node):
@@ -1004,15 +1007,77 @@ class StarLayerGraph(Graph):
         Returns:
             True if the triple is part of the internal tt:HASH encoding.
         """
-        if isinstance(s, URIRef) and str(s).startswith(TT_NS):
-            if p in _ENCODING_PREDS:
-                return True
-            # rdf:type rdf:TripleTerm is emitted by the JSON-LD 1.2 serializer so
-            # that standard JSON-LD parsers can reconstruct triple terms; filter it
-            # here so it never appears in user-visible results.
-            if p == RDF.type and isinstance(o, URIRef) and str(o) == _RDF_TRIPLE_TERM:
-                return True
+        # Identified by the encoding vocabulary itself (the three description
+        # predicates, and the class in "node rdf:type PropositionForm"), not by
+        # the name of the node.
+        if p in _ENCODING_PREDS:
+            return True
+        if p == RDF.type and o == TT_CLASS:
+            return True
+        # rdf:type rdf:TripleTerm is emitted by the JSON-LD 1.2 serializer so
+        # that standard JSON-LD parsers can reconstruct triple terms; filter it
+        # here so it never appears in user-visible results.
+        if (isinstance(s, URIRef) and str(s).startswith(TT_NS)
+                and p == RDF.type and isinstance(o, URIRef) and str(o) == _RDF_TRIPLE_TERM):
+            return True
         return False
+
+    def _adopt_basic_encoding(self) -> None:
+        """Convert the RDF 1.2 Interoperability "basic encoding" into this
+        graph's own encoding: every blank node typed ``rdf:PropositionForm``
+        (with exactly one ``rdf:propositionFormSubject/Predicate/Object``)
+        becomes the content-addressed triple-term node for the same
+        subject/predicate/object, and every other triple mentioning it is
+        rewritten to that node. A node that does not have exactly one of each
+        property is left alone (the spec names that an error; we do not guess).
+
+        Called after parsing a plain RDF 1.1 format (Turtle, RDF/XML, N-Triples,
+        ...), the only place basic-encoded data can arrive. Does nothing when
+        there is no such node. The inverse is ``_deskolemize_to_graph()``,
+        which is what ``serialize()`` uses for those same formats.
+        """
+        if self._is_native:
+            return
+        bnodes = {s for s, _p, _o in _raw_triples(self, (None, RDF.type, TT_CLASS)) if isinstance(s, BNode)}
+        if not bnodes:
+            return
+        parts: dict = {}
+        for bn in bnodes:
+            found = [
+                [o for _s, _p, o in _raw_triples(self, (bn, pred, None))]
+                for pred in (TT_SUBJECT, TT_PREDICATE, TT_OBJECT)
+            ]
+            if all(len(f) == 1 for f in found):
+                parts[bn] = tuple(f[0] for f in found)
+        uris: dict = {}
+
+        def uri_for(bn):
+            if bn not in uris:
+                s_n, p_n, o_n = parts[bn]
+                s_n = uri_for(s_n) if s_n in parts else s_n
+                o_n = uri_for(o_n) if o_n in parts else o_n
+                uris[bn] = URIRef(TT_NS + tt_hash(term_key(s_n), term_key(p_n), term_key(o_n)))
+            return uris[bn]
+
+        for bn in parts:
+            uri_for(bn)
+        for bn, (s_n, p_n, o_n) in parts.items():
+            for pred in (TT_SUBJECT, TT_PREDICATE, TT_OBJECT, RDF.type):
+                for triple in list(_raw_triples(self, (bn, pred, None))):
+                    super().remove(triple)
+            uri = uris[bn]
+            for triple in encoding_triples(
+                uri, uris.get(s_n, s_n), p_n, uris.get(o_n, o_n)
+            ):
+                super().add(triple)
+        for bn, uri in uris.items():
+            for s, p, o in list(_raw_triples(self, (None, None, bn))):
+                super().remove((s, p, o))
+                super().add((s, p, uri))
+            for s, p, o in list(_raw_triples(self, (bn, None, None))):
+                super().remove((s, p, o))
+                super().add((uri, p, o))
+        self._build_registry_from_store()
 
     def _build_registry_from_store(self):
         """Scan the underlying store for TT_NS URIRefs and populate the registry.
@@ -1022,19 +1087,21 @@ class StarLayerGraph(Graph):
         """
         if self._is_native:
             return
+        # One indexed lookup for everything typed as a triple term - no scan of
+        # subjects and no test on the node's name.
         tt_uris = set(
-            s for s, p, o in _raw_triples(self, (None, RDF.subject, None))
-            if isinstance(s, URIRef) and str(s).startswith(TT_NS)
+            s for s, p, o in _raw_triples(self, (None, RDF.type, TT_CLASS))
+            if isinstance(s, URIRef)
         )
 
         def reconstruct(uri):
             if uri in self._tt_nodes:
                 return self._tt_nodes[uri]
-            s_n = next((o for _, _, o in _raw_triples(self, (uri, RDF.subject,   None))), None)
-            p_n = next((o for _, _, o in _raw_triples(self, (uri, RDF.predicate, None))), None)
-            o_n = next((o for _, _, o in _raw_triples(self, (uri, RDF.object,    None))), None)
-            s = reconstruct(s_n) if isinstance(s_n, URIRef) and str(s_n).startswith(TT_NS) else s_n
-            o = reconstruct(o_n) if isinstance(o_n, URIRef) and str(o_n).startswith(TT_NS) else o_n
+            s_n = next((o for _, _, o in _raw_triples(self, (uri, TT_SUBJECT,   None))), None)
+            p_n = next((o for _, _, o in _raw_triples(self, (uri, TT_PREDICATE, None))), None)
+            o_n = next((o for _, _, o in _raw_triples(self, (uri, TT_OBJECT,    None))), None)
+            s = reconstruct(s_n) if s_n in tt_uris else s_n
+            o = reconstruct(o_n) if o_n in tt_uris else o_n
             tt = TripleTerm(s, p_n, o)
             self._tt_registry[tt._key()] = uri
             self._tt_nodes[uri] = tt
@@ -1155,9 +1222,8 @@ class StarLayerGraph(Graph):
             uri = URIRef(TT_NS + tt_hash(s_key, term_key(tt.predicate), o_key))
             self._tt_registry[key] = uri
             self._tt_nodes[uri] = tt
-            all_quads.append((uri, RDF.subject,   s_n,          self))
-            all_quads.append((uri, RDF.predicate, tt.predicate, self))
-            all_quads.append((uri, RDF.object,    o_n,          self))
+            for triple in encoding_triples(uri, s_n, tt.predicate, o_n):
+                all_quads.append((*triple, self))
             return uri
 
         def _enc(node):
@@ -2047,8 +2113,10 @@ class StarLayerGraph(Graph):
                 for triple in ctx:
                     self.add(triple)
             return self
-        return super().parse(source=source, publicID=publicID, format=format,
-                             location=location, file=file, data=data, **kwargs)
+        result = super().parse(source=source, publicID=publicID, format=format,
+                               location=location, file=file, data=data, **kwargs)
+        self._adopt_basic_encoding()
+        return result
 
     def query(self, query_object, processor='sparql', result='sparql',
               initNs=None, initBindings=None, use_store_provided=True,

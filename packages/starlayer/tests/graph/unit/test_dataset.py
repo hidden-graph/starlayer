@@ -164,9 +164,9 @@ class TestContextAPI:
         enc_triples = [
             (s, p, o) for s, p, o in g1.triples((None, None, None))
             if str(p) in (
-                'http://www.w3.org/1999/02/22-rdf-syntax-ns#subject',
-                'http://www.w3.org/1999/02/22-rdf-syntax-ns#predicate',
-                'http://www.w3.org/1999/02/22-rdf-syntax-ns#object',
+                'http://www.w3.org/1999/02/22-rdf-syntax-ns#propositionFormSubject',
+                'http://www.w3.org/1999/02/22-rdf-syntax-ns#propositionFormPredicate',
+                'http://www.w3.org/1999/02/22-rdf-syntax-ns#propositionFormObject',
             )
         ]
         assert enc_triples == []
@@ -306,9 +306,9 @@ class TestQuads:
         ds = StarLayerDataset()
         ds.parse(data=TRIG_BASIC, format='trig12')
         enc_preds = {
-            'http://www.w3.org/1999/02/22-rdf-syntax-ns#subject',
-            'http://www.w3.org/1999/02/22-rdf-syntax-ns#predicate',
-            'http://www.w3.org/1999/02/22-rdf-syntax-ns#object',
+            'http://www.w3.org/1999/02/22-rdf-syntax-ns#propositionFormSubject',
+            'http://www.w3.org/1999/02/22-rdf-syntax-ns#propositionFormPredicate',
+            'http://www.w3.org/1999/02/22-rdf-syntax-ns#propositionFormObject',
         }
         for _, p, _, _ in ds.quads():
             assert str(p) not in enc_preds

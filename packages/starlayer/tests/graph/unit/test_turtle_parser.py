@@ -8,6 +8,7 @@ RDF 1.2 features (triple terms, reification, annotations).
 import pytest
 from rdflib import BNode, Graph, Literal, URIRef
 from rdflib.namespace import RDF, XSD
+from starlayer.graph.model.encoding import TT_OBJECT, TT_SUBJECT
 from starlayer.graph.parsers.errors import Turtle12SyntaxError
 from starlayer.graph.parsers.turtle_parser import SL_NS, StarLayerTurtleParser
 
@@ -266,7 +267,7 @@ class TestTripleTerms:
             'ex:r rdf:reifies <<( ex:s ex:p ex:o )>> .\n'
         )
         tt = list(g.subjects(RDF.type, SL_TRIPLE_TERM))[0]
-        assert list(g.objects(tt, RDF.subject)) == [URIRef(EX+'s')]
+        assert list(g.objects(tt, TT_SUBJECT)) == [URIRef(EX+'s')]
 
     def test_triple_term_deduplication(self, parser):
         g = parser.parse(
@@ -307,7 +308,7 @@ class TestBnodeListInTripleTerm:
             'ex:a ex:says <<( ex:bob ex:knows [] )>> .\n'
         )
         tt = list(g.subjects(RDF.type, SL_TRIPLE_TERM))[0]
-        obj = list(g.objects(tt, RDF.object))[0]
+        obj = list(g.objects(tt, TT_OBJECT))[0]
         assert isinstance(obj, BNode)
 
     def test_empty_bnode_in_subject_position_accepted(self, parser):
@@ -316,7 +317,7 @@ class TestBnodeListInTripleTerm:
             'ex:a ex:says <<( [] ex:knows ex:carol )>> .\n'
         )
         tt = list(g.subjects(RDF.type, SL_TRIPLE_TERM))[0]
-        subj = list(g.objects(tt, RDF.subject))[0]
+        subj = list(g.objects(tt, TT_SUBJECT))[0]
         assert isinstance(subj, BNode)
 
     def test_bnode_with_properties_in_object_position_rejected(self, parser):

@@ -19,7 +19,11 @@ from rdflib import BNode, Graph, Literal, URIRef
 from rdflib.namespace import RDF, XSD
 
 from starlayer.graph.model.encoding import (
+    TT_CLASS,
     TT_NS,
+    TT_OBJECT,
+    TT_PREDICATE,
+    TT_SUBJECT,
     encode_dirlang_datatype,
     term_key,
     tt_hash,
@@ -576,15 +580,15 @@ class _Expander:
         bnode = self._alloc()
         self.qt_cache[val] = bnode
         extras.extend([
-            {'subject': bnode, 'predicate': 'rdf:subject',   'object': subj_str or ''},
-            {'subject': bnode, 'predicate': 'rdf:predicate', 'object': pred_str or ''},
+            {'subject': bnode, 'predicate': 'rdf:propositionFormSubject',   'object': subj_str or ''},
+            {'subject': bnode, 'predicate': 'rdf:propositionFormPredicate', 'object': pred_str or ''},
             # Not "obj_str or ''" - coerce_object() can legitimately return
             # the Python bool False (RDF 1.2 Turtle "false" literal), which
             # is falsy, so "or ''" silently dropped it in favor of an empty
             # string, discarding the object entirely for exactly that one
             # value. coerce_object() never returns None, so obj_str itself
             # is already the right fallback-free value here.
-            {'subject': bnode, 'predicate': 'rdf:object',    'object': obj_str},
+            {'subject': bnode, 'predicate': 'rdf:propositionFormObject',    'object': obj_str},
             {'subject': bnode, 'predicate': 'rdf:type',      'object': 'sl:TripleTerm'},
         ])
         return bnode, extras
@@ -765,8 +769,8 @@ def _skolemize_encoding(g: Graph) -> Graph:
     def _visit(bn):
         if bn in visited:
             return
-        s_n = next(g.objects(bn, RDF.subject),   None)
-        o_n = next(g.objects(bn, RDF.object),    None)
+        s_n = next(g.objects(bn, TT_SUBJECT),   None)
+        o_n = next(g.objects(bn, TT_OBJECT),    None)
         if s_n in tt_bnodes:
             _visit(s_n)
         if o_n in tt_bnodes:
@@ -780,9 +784,9 @@ def _skolemize_encoding(g: Graph) -> Graph:
     # --- compute content-addressed URIs ---
     bn_to_uri: dict = {}
     for bn in sorted_tt:
-        s_n = next(g.objects(bn, RDF.subject),   None)
-        p_n = next(g.objects(bn, RDF.predicate), None)
-        o_n = next(g.objects(bn, RDF.object),    None)
+        s_n = next(g.objects(bn, TT_SUBJECT),   None)
+        p_n = next(g.objects(bn, TT_PREDICATE), None)
+        o_n = next(g.objects(bn, TT_OBJECT),    None)
         s_key = term_key(bn_to_uri.get(s_n, s_n))
         p_key = term_key(p_n)
         o_key = term_key(bn_to_uri.get(o_n, o_n))
@@ -813,6 +817,9 @@ def _skolemize_encoding(g: Graph) -> Graph:
     # than forcing a union regardless of that setting.
     for s, p, o in g.triples((None, None, None)):
         if p == RDF.type and o in (SL_TRIPLE_TERM, SL_REIFICATION):
+            if o == SL_TRIPLE_TERM:
+                # The intermediate tag becomes the encoding's real type triple.
+                new_g.add((bn_to_uri.get(s, s), RDF.type, TT_CLASS))
             continue
         s2 = bn_to_uri.get(s, s) if isinstance(s, BNode) else s
         o2 = bn_to_uri.get(o, o) if isinstance(o, BNode) else o
@@ -858,22 +865,22 @@ def decode_tt_encoded_triples(g: Graph):
     def reconstruct(uri):
         if uri in tt_nodes:
             return tt_nodes[uri]
-        s_n = next((o for _, _, o in g.triples((uri, RDF.subject, None))), None)
-        p_n = next((o for _, _, o in g.triples((uri, RDF.predicate, None))), None)
-        o_n = next((o for _, _, o in g.triples((uri, RDF.object, None))), None)
-        s = reconstruct(s_n) if isinstance(s_n, URIRef) and str(s_n).startswith(TT_NS) else s_n
-        o = reconstruct(o_n) if isinstance(o_n, URIRef) and str(o_n).startswith(TT_NS) else o_n
+        s_n = next((o for _, _, o in g.triples((uri, TT_SUBJECT, None))), None)
+        p_n = next((o for _, _, o in g.triples((uri, TT_PREDICATE, None))), None)
+        o_n = next((o for _, _, o in g.triples((uri, TT_OBJECT, None))), None)
+        s = reconstruct(s_n) if s_n in tt_uris else s_n
+        o = reconstruct(o_n) if o_n in tt_uris else o_n
         tt = TripleTerm(s, p_n, o)
         tt_nodes[uri] = tt
         return tt
 
     tt_uris = frozenset(
-        s for s, _, _ in g.triples((None, RDF.subject, None))
-        if isinstance(s, URIRef) and str(s).startswith(TT_NS)
+        s for s, _, _ in g.triples((None, RDF.type, TT_CLASS))
+        if isinstance(s, URIRef)
     )
 
     for s, p, o in g:
-        if s in tt_uris and p in (RDF.subject, RDF.predicate, RDF.object):
+        if s in tt_uris and (p in (TT_SUBJECT, TT_PREDICATE, TT_OBJECT) or (p == RDF.type and o == TT_CLASS)):
             continue  # the encoding fragment itself, not a real triple
         s_out = reconstruct(s) if s in tt_uris else s
         o_out = reconstruct(o) if o in tt_uris else o

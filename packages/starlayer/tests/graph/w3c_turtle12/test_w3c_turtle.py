@@ -25,6 +25,7 @@ import pytest
 from rdflib import BNode, Graph, Literal, URIRef
 from rdflib.compare import isomorphic
 from rdflib.namespace import RDF
+from starlayer.graph.model.encoding import TT_OBJECT, TT_PREDICATE, TT_SUBJECT
 from starlayer.graph.parsers.lexer import next_token
 from starlayer.graph.parsers.turtle_parser import SL_NS
 
@@ -126,9 +127,9 @@ def parse_nt12(text):
             return tt_cache[key]
         bn = BNode()
         g.add((bn, RDF.type,      SL_TRIPLE_TERM))
-        g.add((bn, RDF.subject,   s))
-        g.add((bn, RDF.predicate, p))
-        g.add((bn, RDF.object,    o))
+        g.add((bn, TT_SUBJECT,   s))
+        g.add((bn, TT_PREDICATE, p))
+        g.add((bn, TT_OBJECT,    o))
         tt_cache[key] = bn
         return bn
 

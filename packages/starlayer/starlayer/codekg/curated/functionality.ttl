@@ -96,6 +96,13 @@ cur:cap-rdf-graph-9 a slkg:Capability ;
         "starlayer.graph.graph.starlayer_graph.StarLayerGraph.cbd",
         "starlayer.graph.graph.starlayer_graph.StarLayerGraph.reifications" .
 
+cur:cap-rdf-graph-13 a slkg:Capability ;
+    slkg:inCapabilityArea cur:area-rdf-graph ;
+    slkg:position 10 ;
+    slkg:hasStatus "implemented" ;
+    rdfs:comment "Triple terms are stored using the vocabulary of the RDF 1.2 Interoperability specification (each one a node typed rdf:PropositionForm), found by that type, and converted to and from the standard's blank-node form when writing or reading plain RDF formats." ;
+    slkg:implementedByIdentifier "starlayer.graph.model.encoding" .
+
 cur:cap-rdf-graph-10 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-rdf-graph ;
     slkg:position 10 ;
@@ -107,13 +114,6 @@ cur:cap-rdf-graph-11 a slkg:Capability ;
     slkg:position 11 ;
     slkg:hasStatus "roadmap" ;
     rdfs:comment "Built-in fetching of owl:imports, and one import mechanism shared by graphs, SHACL and SRL." ;
-    slkg:seeAlsoPath "packages/starlayer/docs/future_enhancements.md" .
-
-cur:cap-rdf-graph-12 a slkg:Capability ;
-    slkg:inCapabilityArea cur:area-rdf-graph ;
-    slkg:position 12 ;
-    slkg:hasStatus "roadmap" ;
-    rdfs:comment "Store triple terms in the standard encoding from the RDF 1.2 Interoperability specification (a blank node typed rdf:PropositionForm, with its subject, predicate and object as plain triples), instead of StarLayer's own internal encoding. That encoding lets systems that do not support triple terms hold RDF 1.2 data and convert it back. The change is fully designed but paused: it would be slower and more complex, and gains little beyond matching the standard." ;
     slkg:seeAlsoPath "packages/starlayer/docs/future_enhancements.md" .
 
 

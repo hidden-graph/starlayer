@@ -531,8 +531,8 @@ class TestQ15:
         )
 
     def test_open_scan_no_encoding_predicates(self, g):
-        from rdflib.namespace import RDF as _RDF
-        encoding_preds = {_RDF.subject, _RDF.predicate, _RDF.object}
+        from starlayer.graph.model.encoding import ENCODING_PREDS
+        encoding_preds = set(ENCODING_PREDS)
         r = g.query('SELECT * WHERE { ?s ?p ?o }')
         p_var = r.vars[1]
         leaked = [row for row in r.bindings if row[p_var] in encoding_preds]

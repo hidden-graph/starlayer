@@ -3,7 +3,13 @@ starlayer.graph.model.encoding
 
 Shared constants and hash function for the starlayer.graph internal graph encoding.
 
-Triple terms    → content-addressed URIRefs under TT_NS (same content = same URI)
+Triple terms    → content-addressed URIRefs under TT_NS (same content = same URI),
+                  each typed ``rdf:PropositionForm`` and described by
+                  ``rdf:propositionFormSubject/Predicate/Object`` - the vocabulary
+                  of the RDF 1.2 Interoperability "basic encoding". Only the node
+                  *name* differs from the spec (a stable content hash instead of a
+                  fresh blank node); see to_basic()/from_basic() for the conversion.
+                  Reads find triple terms by that type, not by the name.
 Anon reifiers   → ordinary BNodes (each {| |} block is distinct); no internal
                   skolemization scheme of their own - see
                   starlayer.graph.parsers.turtle_parser._skolemize_encoding
@@ -31,10 +37,36 @@ TT_NS      = 'https://github.com/hidden-graph/starlayergraph/ns/tt#'       # tri
 DIRLANG_NS = 'https://github.com/hidden-graph/starlayergraph/ns/dirlang#'  # dirLangString datatype encoding
 BN_NS      = 'https://github.com/hidden-graph/starlayergraph/ns/bn#'       # native-backend blank-node skolemization
 
+# The RDF 1.2 Interoperability vocabulary (https://w3c.github.io/rdf-interop/spec/,
+# an Editor's Draft): a node typed TT_CLASS, described by three properties. These
+# constants are the only place the vocabulary is spelled out.
+_RDF_NS = str(RDF)
+TT_CLASS = URIRef(_RDF_NS + 'PropositionForm')
+TT_SUBJECT = URIRef(_RDF_NS + 'propositionFormSubject')
+TT_PREDICATE = URIRef(_RDF_NS + 'propositionFormPredicate')
+TT_OBJECT = URIRef(_RDF_NS + 'propositionFormObject')
+
 # Predicates used in the internal TripleTerm URIRef encoding - shared by
 # StarLayerGraph and StarLayerDataset's _is_encoding_triple() checks and by
 # restore_select_bindings() below.
-ENCODING_PREDS = frozenset({RDF.subject, RDF.predicate, RDF.object})
+ENCODING_PREDS = frozenset({TT_SUBJECT, TT_PREDICATE, TT_OBJECT})
+
+# Every term that marks a triple as encoding infrastructure: the three
+# description predicates, and the class in (node rdf:type TT_CLASS).
+ENCODING_MARKERS = ENCODING_PREDS | {TT_CLASS}
+
+
+def encoding_triples(node: Node, s: Node, p: Node, o: Node) -> tuple:
+    """The four triples that encode one triple term: its type, then its
+    subject, predicate and object. ``node`` names the triple term; ``s`` and
+    ``o`` are its already-resolved components (a nested triple term is
+    passed as its own node)."""
+    return (
+        (node, RDF.type, TT_CLASS),
+        (node, TT_SUBJECT, s),
+        (node, TT_PREDICATE, p),
+        (node, TT_OBJECT, o),
+    )
 
 
 def term_key(term: Node) -> str:
@@ -322,7 +354,7 @@ def restore_select_bindings(r: Result, restore_fn: Callable[[Any], Any]) -> None
         for row in r.bindings
         if not (any(isinstance(v, URIRef) and str(v).startswith(TT_NS)
                     for v in row.values())
-                and ENCODING_PREDS.intersection(row.values()))
+                and ENCODING_MARKERS.intersection(row.values()))
     ]
 
 
@@ -347,9 +379,8 @@ def _reencode_tt(tt: TripleTerm, out_graph: Graph) -> URIRef:
     s_n = _reencode_tt(tt.subject, out_graph) if isinstance(tt.subject, TripleTerm) else tt.subject
     o_n = _reencode_tt(tt.object, out_graph) if isinstance(tt.object, TripleTerm) else tt.object
     uri = URIRef(TT_NS + tt_hash(term_key(s_n), term_key(tt.predicate), term_key(o_n)))
-    out_graph.add((uri, RDF.subject, s_n))
-    out_graph.add((uri, RDF.predicate, tt.predicate))
-    out_graph.add((uri, RDF.object, o_n))
+    for triple in encoding_triples(uri, s_n, tt.predicate, o_n):
+        out_graph.add(triple)
     return uri
 
 
@@ -382,7 +413,7 @@ def inject_missing_tt_encoding(graph: Graph, restore_fn: Callable[[Any], Any]) -
         restore_fn: Resolves a tt:HASH URIRef to its TripleTerm, if known to
             the caller's own registry/registries.
     """
-    already_encoded = {s for s, _p, _o in graph.triples((None, RDF.subject, None))}
+    already_encoded = {s for s, _p, _o in graph.triples((None, RDF.type, TT_CLASS))}
     candidates = {
         term for s, p, o in graph for term in (s, o)
         if isinstance(term, URIRef) and str(term).startswith(TT_NS)

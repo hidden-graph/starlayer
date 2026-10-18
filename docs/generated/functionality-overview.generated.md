@@ -13,12 +13,12 @@ What StarLayer does today, and what is planned.
 - RDFC-1.0 canonicalization and hashing of RDF 1.2 graphs.
 - Resolve owl:imports using a loader you supply, so you decide how an imported document is fetched. There is no built-in fetching.
 - Concise bounded descriptions of a resource, and lookup of the triple terms that have at least one reifier.
+- Triple terms are stored using the vocabulary of the RDF 1.2 Interoperability specification (each one a node typed rdf:PropositionForm), found by that type, and converted to and from the standard's blank-node form when writing or reading plain RDF formats.
 
 **Planned / deferred:**
 
 - rdflib 8 compatibility (currently pinned to rdflib 7.x; revisit once a stable rdflib 8 ships).
 - Built-in fetching of owl:imports, and one import mechanism shared by graphs, SHACL and SRL. ([details](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/docs/future_enhancements.md))
-- Store triple terms in the standard encoding from the RDF 1.2 Interoperability specification (a blank node typed rdf:PropositionForm, with its subject, predicate and object as plain triples), instead of StarLayer's own internal encoding. That encoding lets systems that do not support triple terms hold RDF 1.2 data and convert it back. The change is fully designed but paused: it would be slower and more complex, and gains little beyond matching the standard. ([details](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/docs/future_enhancements.md))
 
 ## SPARQL
 

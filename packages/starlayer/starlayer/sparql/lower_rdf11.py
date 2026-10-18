@@ -928,6 +928,8 @@ def _lower_template_term(term, pending_extends: list, extra_template_triples: li
         return term
     if _is_ground(term):
         return _eager_lower_template_term(term, extra_template_triples)
+    from starlayer.graph.model.encoding import encoding_triples
+
     s, p, o = term["subject"], term["predicate"], term["object"]
     var = state.new_var()
     pending_extends.append((var, _hash_call(s, p, o, state)))
@@ -938,9 +940,7 @@ def _lower_template_term(term, pending_extends: list, extra_template_triples: li
     # inlining above (tt_hash is a pure, cheap function): the encoding
     # triple's object slot needs an actual TERM, not an expression.
     o2 = _lower_template_term(o, pending_extends, extra_template_triples, state)
-    extra_template_triples.append((var, RDF.subject, s))
-    extra_template_triples.append((var, RDF.predicate, p))
-    extra_template_triples.append((var, RDF.object, o2))
+    extra_template_triples.extend(encoding_triples(var, s, p, o2))
     return var
 
 
@@ -968,16 +968,19 @@ def _eager_lower_template_term(term, extra_template_triples: list):
         The content-addressed `tt:` `URIRef` standing in for `term`.
     """
     from starlayer.graph.model.encoding import TT_NS as _STARLIGHT_TT_NS
-    from starlayer.graph.model.encoding import remember_tt_hash, term_key, tt_hash
+    from starlayer.graph.model.encoding import (
+        encoding_triples,
+        remember_tt_hash,
+        term_key,
+        tt_hash,
+    )
 
     s, p, o = term["subject"], term["predicate"], term["object"]
     if isinstance(o, TripleTermNode):
         o = _eager_lower_template_term(o, extra_template_triples)
     uri = URIRef(_STARLIGHT_TT_NS + tt_hash(term_key(s), term_key(p), term_key(o)))
     remember_tt_hash(uri, s, p, o)
-    extra_template_triples.append((uri, RDF.subject, s))
-    extra_template_triples.append((uri, RDF.predicate, p))
-    extra_template_triples.append((uri, RDF.object, o))
+    extra_template_triples.extend(encoding_triples(uri, s, p, o))
     return uri
 
 
@@ -1049,7 +1052,11 @@ def _eager_lower_value(val):
     if not isinstance(val, TripleTermNode):
         return val
     from starlayer.graph.model.encoding import TT_NS as _STARLIGHT_TT_NS
-    from starlayer.graph.model.encoding import remember_tt_hash, term_key, tt_hash
+    from starlayer.graph.model.encoding import (
+        remember_tt_hash,
+        term_key,
+        tt_hash,
+    )
 
     s = _eager_lower_value(val["subject"])
     p = val["predicate"]
@@ -1198,16 +1205,19 @@ def _lower_flat_triples_term_for_insert(term, extra_triples: list):
     if not isinstance(term, TripleTermNode):
         return term
     from starlayer.graph.model.encoding import TT_NS as _STARLIGHT_TT_NS
-    from starlayer.graph.model.encoding import remember_tt_hash, term_key, tt_hash
+    from starlayer.graph.model.encoding import (
+        encoding_triples,
+        remember_tt_hash,
+        term_key,
+        tt_hash,
+    )
 
     s = _lower_flat_triples_term_for_insert(term["subject"], extra_triples)
     p = term["predicate"]
     o = _lower_flat_triples_term_for_insert(term["object"], extra_triples)
     uri = URIRef(_STARLIGHT_TT_NS + tt_hash(term_key(s), term_key(p), term_key(o)))
     remember_tt_hash(uri, s, p, o)
-    extra_triples.append((uri, RDF.subject, s))
-    extra_triples.append((uri, RDF.predicate, p))
-    extra_triples.append((uri, RDF.object, o))
+    extra_triples.extend(encoding_triples(uri, s, p, o))
     return uri
 
 
