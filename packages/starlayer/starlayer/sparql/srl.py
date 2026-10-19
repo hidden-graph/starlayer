@@ -254,10 +254,19 @@ def _expand_same_subject(cv: CompValue) -> list[srl_ast.TriplePattern]:
     return [t for i in range(0, len(terms), 3) for t in _expand_path(terms[i], terms[i + 1], terms[i + 2])]
 
 
-_DataTriplesBlock = ZeroOrMore(Param("subjects", _SameSubjectData, isList=True) + Optional(_Period))
+def _group_end(production):
+    """What may follow a triple group: a ``.``, or anything that is not another triple group.
+
+    The grammar's ``TriplesBlock ::= TriplesSameSubject ( '.' TriplesBlock? )?`` needs the ``.`` between two
+    groups; reading it as optional made ``?x :a ?y ?y :b ?z`` parse as two triples.
+    """
+    return _Period | ~production
+
+
+_DataTriplesBlock = ZeroOrMore(Param("subjects", _SameSubjectData, isList=True) + _group_end(_SameSubjectData))
 _SRLData = Comp("Data", Keyword("DATA") + Suppress("{") + _DataTriplesBlock + Suppress("}"))
 
-_HeadTemplateBlock = ZeroOrMore(Param("subjects", _SameSubject, isList=True) + Optional(_Period))
+_HeadTemplateBlock = ZeroOrMore(Param("subjects", _SameSubject, isList=True) + _group_end(_SameSubject))
 _HeadTemplate = Comp("HeadTemplate", Suppress("{") + _HeadTemplateBlock + Suppress("}"))
 
 _Filter = Comp("Filter", Keyword("FILTER") + Param("expr", Constraint))
@@ -270,7 +279,7 @@ _Assignment = Comp(
 # Negation bodies are grammatically restricted to triple patterns + filters
 # only (no nested negation/assignment) - enforced structurally: this
 # alternation has no Negation/Assignment branch.
-_NegationBodyItem = (Param("inner", _SameSubjectPattern, isList=True) + Optional(_Period)) | (
+_NegationBodyItem = (Param("inner", _SameSubjectPattern, isList=True) + _group_end(_SameSubjectPattern)) | (
     Param("inner", _Filter, isList=True) + Optional(_Period)
 )
 _Negation = Comp(
@@ -278,7 +287,7 @@ _Negation = Comp(
     Keyword("NOT") + Param("data", _BoolFlag("DATA")) + Suppress("{") + ZeroOrMore(_NegationBodyItem) + Suppress("}"),
 )
 
-_BodyItem = (Param("body", _SameSubjectPattern, isList=True) + Optional(_Period)) | (
+_BodyItem = (Param("body", _SameSubjectPattern, isList=True) + _group_end(_SameSubjectPattern)) | (
     Param("body", _Filter | _Negation | _Assignment, isList=True) + Optional(_Period)
 )
 _BodyPattern = Comp("BodyPattern", Suppress("{") + ZeroOrMore(_BodyItem) + Suppress("}"))
@@ -358,6 +367,32 @@ def _list_field(cv: CompValue, key: str) -> list:
 def _opt_field(cv: CompValue, key: str):
     """See :func:`_list_field` for why ``cv.get(key)`` is unsafe here too."""
     return cv[key] if key in cv else None
+
+
+# SPARQL built-ins that rdflib's shared expression grammar accepts but SRL's BuiltInCall (spec [118]) does not
+# list. RAND is non-deterministic, which a fixpoint evaluation cannot allow, and EXISTS has no defined meaning
+# in a rule; the rest are simply outside the draft's function set.
+_NOT_IN_SRL = {
+    "Builtin_BOUND": "BOUND",
+    "Builtin_COALESCE": "COALESCE",
+    "Builtin_RAND": "RAND",
+    "Builtin_MD5": "MD5",
+    "Builtin_SHA1": "SHA1",
+    "Builtin_SHA256": "SHA256",
+    "Builtin_SHA384": "SHA384",
+    "Builtin_SHA512": "SHA512",
+    "Builtin_EXISTS": "EXISTS",
+    "Builtin_NOTEXISTS": "NOT EXISTS",
+}
+
+
+def _reject_non_srl_builtins(tree) -> None:
+    def visit(node):
+        name = getattr(node, "name", None)
+        if name in _NOT_IN_SRL:
+            raise SRLParseError(f"SRL: {_NOT_IN_SRL[name]} is not part of SRL's built-in function set (spec BuiltInCall)")
+
+    algebra.traverse(tree, visitPost=visit)
 
 
 def _resolve_pnames(tree, prologue: Prologue):
@@ -492,10 +527,16 @@ def parse_ruleset(text: str, base: str | None = None, *, validate: bool = True) 
         raise SRLParseError(str(exc)) from exc
 
     root: CompValue = parsed[0]
+    _reject_non_srl_builtins(root)
     prologue = _build_prologue(_list_field(root, "prologue"))
     if base:
         prologue.base = base
-    resolved = _resolve_pnames(root, prologue)
+    try:
+        resolved = _resolve_pnames(root, prologue)
+    except SRLError:
+        raise
+    except Exception as exc:  # rdflib raises a bare Exception for an undeclared prefix
+        raise SRLParseError(f"SRL: {exc}") from exc
     ruleset = _build_ruleset(resolved)
 
     issues = _check_ruleset(ruleset)

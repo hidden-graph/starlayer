@@ -56,35 +56,14 @@ CORPUS_FAILURES: dict[str, str] = {
     'rdf12-reified-bare-tilde::tree': _CAUSES['P1'],
 }
 
-_LEAK = "SPARQL function missing from SRL's BuiltInCall (spec [118]) but accepted: the expression grammar is rdflib's SPARQL one, only partly narrowed."
-
-# SPARQL functions that SRL's BuiltInCall production does NOT include but the parser accepts.
-BUILTIN_LEAKS: dict[str, str] = {
-    'BOUND': _LEAK,
-    'COALESCE': _LEAK,
-    'RAND': _LEAK,
-    'MD5': _LEAK,
-    'SHA1': _LEAK,
-    'SHA256': _LEAK,
-    'SHA384': _LEAK,
-    'SHA512': _LEAK,
-    'EXISTS': _LEAK,
-    'NOT EXISTS': _LEAK,
-}
+# SPARQL functions that SRL's BuiltInCall does NOT include but the parser accepted: none since L2 was fixed.
+BUILTIN_LEAKS: dict[str, str] = {}
 
 # functions that ARE in the spec's BuiltInCall but fail to parse or to be represented as a tree.
 BUILTIN_FAILURES: dict[str, str] = {}
 
 # negative case id -> reason the parser wrongly ACCEPTS it (or fails to refuse it with an SRL error)
-NEGATIVE_FAILURES: dict[str, str] = {
-    'missing-dot-between-triples': "L1 `?x :a ?y ?y :b ?z` is accepted and read as two triples; the grammar requires '.' between triples (TriplesBlockPattern, spec [62]).",
-    'unknown-prefix': "V1 an undeclared prefix IS rejected, but with a bare `Exception('Unknown namespace prefix')` from rdflib, not an SRLParseError, so `except SRLError` does not catch it.",
-    'filter-exists': "L2 FILTER (EXISTS {...}) is accepted; EXISTS is not in SRL's BuiltInCall and has no defined meaning in a rule body.",
-    'filter-not-exists': 'L2 FILTER (NOT EXISTS {...}) is accepted; see filter-exists.',
-    'filter-bound': "L2 BOUND() is accepted; not in SRL's BuiltInCall.",
-    'filter-coalesce': "L2 COALESCE() is accepted; not in SRL's BuiltInCall.",
-    'filter-rand': "L2 RAND() is accepted; not in SRL's BuiltInCall (and non-deterministic, which a fixpoint evaluation cannot allow).",
-}
+NEGATIVE_FAILURES: dict[str, str] = {}
 
 # spec example block number -> reason it fails
 SPEC_EXAMPLE_FAILURES: dict[int, str] = {}
