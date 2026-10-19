@@ -430,6 +430,7 @@ starontology:manchester_shapes.ttl {
             manch:DatatypeEquivalentToClause,
             manch:DocumentShape,
             manch:ExactShape,
+            manch:FacetRestrictionListShape,
             manch:FacetRestrictionShape,
             manch:FactItemShape,
             manch:FrameListShape,
@@ -439,6 +440,8 @@ starontology:manchester_shapes.ttl {
             manch:IndividualSameAsClause,
             manch:IndividualTypesClause,
             manch:InverseShape,
+            manch:IriListShape,
+            manch:LiteralListShape,
             manch:MaxShape,
             manch:MinShape,
             manch:MiscAxiomItemsShape,
@@ -464,6 +467,7 @@ starontology:manchester_shapes.ttl {
             manch:OnlyShape,
             manch:OntologyHeaderShape,
             manch:OrShape,
+            manch:PrefixDeclListShape,
             manch:PrefixDeclShape,
             manch:PropertyExpressionItemListShape,
             manch:PropertyExpressionListShape,
@@ -581,7 +585,7 @@ starontology:manchester_shapes.ttl {
     manch:DOneOfShape a sh:NodeShape ;
         sh:property [ sh:maxCount 1 ;
                 sh:minCount 1 ;
-                sh:node manch:WellFormedListShape ;
+                sh:node manch:LiteralListShape ;
                 sh:path manch:literals ] ;
         sh:targetClass manch:DOneOf .
 
@@ -610,7 +614,7 @@ starontology:manchester_shapes.ttl {
                 sh:path manch:onDatatype ],
             [ sh:maxCount 1 ;
                 sh:minCount 1 ;
-                sh:node manch:WellFormedListShape ;
+                sh:node manch:FacetRestrictionListShape ;
                 sh:path manch:facets ] ;
         sh:targetClass manch:DRestriction .
 
@@ -628,7 +632,7 @@ starontology:manchester_shapes.ttl {
     manch:DocumentShape a sh:NodeShape ;
         sh:property [ sh:maxCount 1 ;
                 sh:minCount 1 ;
-                sh:node manch:WellFormedListShape ;
+                sh:node manch:PrefixDeclListShape ;
                 sh:path manch:prefixes ],
             [ sh:maxCount 1 ;
                 sh:minCount 1 ;
@@ -760,7 +764,7 @@ starontology:manchester_shapes.ttl {
     manch:OneOfShape a sh:NodeShape ;
         sh:property [ sh:maxCount 1 ;
                 sh:minCount 1 ;
-                sh:node manch:WellFormedListShape ;
+                sh:node manch:IriListShape ;
                 sh:path manch:individuals ] ;
         sh:targetClass manch:OneOf .
 
@@ -777,7 +781,7 @@ starontology:manchester_shapes.ttl {
 
     manch:OntologyHeaderShape a sh:NodeShape ;
         sh:property [ sh:maxCount 1 ;
-                sh:node manch:WellFormedListShape ;
+                sh:node manch:IriListShape ;
                 sh:path manch:imports ],
             [ sh:maxCount 1 ;
                 sh:nodeKind sh:IRI ;
@@ -872,6 +876,7 @@ starontology:manchester_shapes.ttl {
         sh:targetClass manch:ClassSubClassOfClause .
 
     manch:ClauseListShape a sh:NodeShape ;
+        sh:node manch:WellFormedListShape ;
         sh:sparql [ a sh:SPARQLConstraint ;
                 sh:message "expected a well-formed rdf:List of Clause" ;
                 sh:select """
@@ -927,7 +932,22 @@ starontology:manchester_shapes.ttl {
                 sh:path manch:items ] ;
         sh:targetClass manch:DatatypeEquivalentToClause .
 
+    manch:FacetRestrictionListShape a sh:NodeShape ;
+        sh:node manch:WellFormedListShape ;
+        sh:sparql [ a sh:SPARQLConstraint ;
+                sh:message "expected an rdf:List of FacetRestriction" ;
+                sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX manch: <https://github.com/hidden-graph/starlayer/ns/graph/manchester-ast#>
+            SELECT $this
+            WHERE {
+                $this rdf:rest*/rdf:first ?item .
+                FILTER NOT EXISTS { ?item a manch:FacetRestriction }
+            }
+        """ ] .
+
     manch:FrameListShape a sh:NodeShape ;
+        sh:node manch:WellFormedListShape ;
         sh:sparql [ a sh:SPARQLConstraint ;
                 sh:message "expected a well-formed rdf:List of Frame" ;
                 sh:select """
@@ -959,7 +979,22 @@ starontology:manchester_shapes.ttl {
                 sh:path manch:items ] ;
         sh:targetClass manch:IndividualTypesClause .
 
+    manch:LiteralListShape a sh:NodeShape ;
+        sh:node manch:WellFormedListShape ;
+        sh:sparql [ a sh:SPARQLConstraint ;
+                sh:message "expected an rdf:List of literals" ;
+                sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX manch: <https://github.com/hidden-graph/starlayer/ns/graph/manchester-ast#>
+            SELECT $this
+            WHERE {
+                $this rdf:rest*/rdf:first ?item .
+                FILTER ( !isLiteral(?item) )
+            }
+        """ ] .
+
     manch:MiscAxiomListShape a sh:NodeShape ;
+        sh:node manch:WellFormedListShape ;
         sh:sparql [ a sh:SPARQLConstraint ;
                 sh:message "expected a well-formed rdf:List of MiscAxiom" ;
                 sh:select """
@@ -1041,11 +1076,26 @@ starontology:manchester_shapes.ttl {
                 sh:path manch:items ] ;
         sh:targetClass manch:ObjPropSubPropertyOfClause .
 
+    manch:PrefixDeclListShape a sh:NodeShape ;
+        sh:node manch:WellFormedListShape ;
+        sh:sparql [ a sh:SPARQLConstraint ;
+                sh:message "expected an rdf:List of PrefixDecl" ;
+                sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX manch: <https://github.com/hidden-graph/starlayer/ns/graph/manchester-ast#>
+            SELECT $this
+            WHERE {
+                $this rdf:rest*/rdf:first ?item .
+                FILTER NOT EXISTS { ?item a manch:PrefixDecl }
+            }
+        """ ] .
+
     manch:PropertyExpressionShape a sh:NodeShape ;
         sh:class manch:PropertyExpression ;
         sh:message "expected a recognized property-expression tag" .
 
     manch:DataRangeItemListShape a sh:NodeShape ;
+        sh:node manch:WellFormedListShape ;
         sh:sparql [ a sh:SPARQLConstraint ;
                 sh:message "expected a well-formed rdf:List of ClauseItem whose value is a data range" ;
                 sh:select """
@@ -1061,6 +1111,7 @@ starontology:manchester_shapes.ttl {
         """ ] .
 
     manch:DataRangeListShape a sh:NodeShape ;
+        sh:node manch:WellFormedListShape ;
         sh:sparql [ a sh:SPARQLConstraint ;
                 sh:message "expected a well-formed rdf:List of data ranges" ;
                 sh:select """
@@ -1078,7 +1129,22 @@ starontology:manchester_shapes.ttl {
             }
         """ ] .
 
+    manch:IriListShape a sh:NodeShape ;
+        sh:node manch:WellFormedListShape ;
+        sh:sparql [ a sh:SPARQLConstraint ;
+                sh:message "expected an rdf:List of IRIs" ;
+                sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX manch: <https://github.com/hidden-graph/starlayer/ns/graph/manchester-ast#>
+            SELECT $this
+            WHERE {
+                $this rdf:rest*/rdf:first ?item .
+                FILTER ( !isIRI(?item) )
+            }
+        """ ] .
+
     manch:NameListShape a sh:NodeShape ;
+        sh:node manch:WellFormedListShape ;
         sh:sparql [ a sh:SPARQLConstraint ;
                 sh:message "expected a well-formed rdf:List of bare IRIs" ;
                 sh:select """
@@ -1091,6 +1157,7 @@ starontology:manchester_shapes.ttl {
         """ ] .
 
     manch:PropertyExpressionListShape a sh:NodeShape ;
+        sh:node manch:WellFormedListShape ;
         sh:sparql [ a sh:SPARQLConstraint ;
                 sh:message "expected a well-formed rdf:List of property expressions" ;
                 sh:select """
@@ -1113,6 +1180,7 @@ starontology:manchester_shapes.ttl {
         sh:or ( [ sh:nodeKind sh:IRI ] [ sh:nodeKind sh:Literal ] ) .
 
     manch:ClassExpressionListShape a sh:NodeShape ;
+        sh:node manch:WellFormedListShape ;
         sh:sparql [ a sh:SPARQLConstraint ;
                 sh:message "expected a well-formed rdf:List of class expressions" ;
                 sh:select """
@@ -1131,6 +1199,7 @@ starontology:manchester_shapes.ttl {
         """ ] .
 
     manch:AnnotationAssertionListShape a sh:NodeShape ;
+        sh:node manch:WellFormedListShape ;
         sh:sparql [ a sh:SPARQLConstraint ;
                 sh:message "expected a well-formed rdf:List of AnnotationAssertion" ;
                 sh:select """
@@ -1154,6 +1223,7 @@ starontology:manchester_shapes.ttl {
         sh:or ( [ sh:nodeKind sh:IRI ] manch:DataRangeShape ) .
 
     manch:ClassExpressionItemListShape a sh:NodeShape ;
+        sh:node manch:WellFormedListShape ;
         sh:sparql [ a sh:SPARQLConstraint ;
                 sh:message "expected a well-formed rdf:List of ClauseItem whose value is a class expression" ;
                 sh:select """
@@ -1169,6 +1239,7 @@ starontology:manchester_shapes.ttl {
         """ ] .
 
     manch:NameItemListShape a sh:NodeShape ;
+        sh:node manch:WellFormedListShape ;
         sh:sparql [ a sh:SPARQLConstraint ;
                 sh:message "expected a well-formed rdf:List of ClauseItem whose value is a bare IRI" ;
                 sh:select """
@@ -1183,6 +1254,7 @@ starontology:manchester_shapes.ttl {
         """ ] .
 
     manch:PropertyExpressionItemListShape a sh:NodeShape ;
+        sh:node manch:WellFormedListShape ;
         sh:sparql [ a sh:SPARQLConstraint ;
                 sh:message "expected a well-formed rdf:List of ClauseItem whose value is a property expression" ;
                 sh:select """
@@ -1197,21 +1269,21 @@ starontology:manchester_shapes.ttl {
             }
         """ ] .
 
+    manch:PropertyExpressionOrNameShape a sh:NodeShape ;
+        sh:or ( [ sh:nodeKind sh:IRI ] manch:PropertyExpressionShape ) .
+
     manch:WellFormedListShape a sh:NodeShape ;
         sh:sparql [ a sh:SPARQLConstraint ;
-                sh:message "expected a well-formed rdf:List" ;
+                sh:message "expected a well-formed rdf:List (every cell has rdf:first, and the chain ends in rdf:nil without a cycle)" ;
                 sh:select """
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
             SELECT $this
             WHERE {
                 $this rdf:rest* ?cell .
                 FILTER ( ?cell != rdf:nil )
-                FILTER NOT EXISTS { ?cell rdf:first ?x }
+                FILTER ( NOT EXISTS { ?cell rdf:first ?x } || NOT EXISTS { ?cell rdf:rest* rdf:nil } )
             }
         """ ] .
-
-    manch:PropertyExpressionOrNameShape a sh:NodeShape ;
-        sh:or ( [ sh:nodeKind sh:IRI ] manch:PropertyExpressionShape ) .
 }
 
 starontology:salg-ontology.ttl {

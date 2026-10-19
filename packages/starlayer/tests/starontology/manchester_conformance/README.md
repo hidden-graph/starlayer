@@ -18,6 +18,7 @@ deviation in `known_failures.py` and breaks loudly if its status changes.
 | `test_mc_tree.py` | tree validates; tree→OWL ≅ direct parse; render re-parses; second pass stable | the parser itself |
 | `test_mc_negative.py` | malformed input raises `ManchesterSyntaxError` (incl. truncation probes) | OWL API for the "genuine defect" ones |
 | `test_mc_introspection.py` | ontology, encoder and shapes agree; snapshots match live files | structural |
+| `test_mc_shapes_mutation.py` | the shapes REJECT damaged trees; anything that validates must decode | mutation |
 | `test_mc_generated.py` | Hypothesis: random valid documents hold the tree invariants | the parser itself |
 
 Marker: `manchester_conformance`. Run: `pytest packages/starlayer/tests/starontology/manchester_conformance`.
@@ -65,6 +66,33 @@ but OWL API accepts - a one-member `DisjointClasses:`, a one-member `DisjointUni
 `test_mc_negative.py` (`LENIENT_LIKE_OWLAPI`). The same rule decided the earlier cases where the oracle
 and the Note disagree: where OWL API follows the OWL 2 RDF Mapping we match it; where it deviates from the
 Mapping (F13, F14) the deviation is recorded and our spec-conformant output is kept.
+
+### Can the shapes validate a Manchester document as an RDF tree?
+
+Accepting every valid tree (above) shows the shapes are not too strict. To test that they are not too
+lax, `tools/mutation_scan.py` damages the tree of every corpus case (remove a triple, swap a value for a
+literal, add a second value, drop an `rdf:type`, break a list) once per distinct (node class, property,
+operator): 430 mutants. First run: **390 rejected (91%), 30 survived and still decode, 10 passed
+validation yet crashed the decoder.** Of the 30 survivors, all but three were legitimately optional
+(annotations, an unqualified cardinality's filler, optional header parts) or a literal swapped for a
+literal where literals are valid. The weaknesses:
+
+| Weakness | Cause | Fix |
+|---|---|---|
+| A node with its `rdf:type` deleted still validated, then crashed the decoder (10 cases; also a tree with no `manch:Document`) | Validation runs with RDFS inference and several properties declare an `rdfs:domain` (`subject`/`clauses` -> `Frame`, `frames` -> `Document`, ...), so the missing type is inferred straight back and every shape is satisfied; the decoder reads *asserted* types | `manchester_validate` runs a pre-flight on the asserted graph: exactly one `Document`, every node with `manch:` properties has an asserted concrete type, every asserted `manch:` type exists |
+| A list whose last `rdf:rest` was missing validated | `WellFormedListShape` checked that each cell has an `rdf:first`, not that the chain ends in `rdf:nil` | the shape now requires every cell to reach `rdf:nil` (no unterminated or cyclic lists); the 12 other list shapes inherit it |
+| A cyclic list made the validator itself raise | pySHACL walks `rdf:rest` while cloning the data graph, before any shape runs | the pre-flight detects cycles and reports them without running SHACL |
+| List items of the wrong kind validated (a literal as a prefix, a string as an import, ...) | five lists were checked only for being lists | typed item shapes: `PrefixDeclListShape`, `IriListShape` (imports, enumerated individuals), `LiteralListShape`, `FacetRestrictionListShape` |
+
+After the fixes `test_mc_shapes_mutation.py` pins each weakness (30 tests, ~100 s, mostly the one that
+removes every triple of a rich tree in turn and requires that whatever validates also decodes), and the
+full scan was re-run: **408 of 430 mutants rejected (95%), 22 survivors, zero holes.** All 22 survivors are
+benign - 17 remove something optional (annotations; an unqualified cardinality's filler; the header, its IRI,
+version IRI or imports) and 5 replace a literal by a literal where a literal is valid.
+
+What the shapes still do not do, by design: check that a tree means anything coherent beyond its structure
+(they accept a `Min` with a cardinality of 3 and a filler, or a `Value` whose individual does not exist),
+and they accept extra unknown triples on a node (the shapes are open, not `sh:closed`).
 
 ### Process finding
 

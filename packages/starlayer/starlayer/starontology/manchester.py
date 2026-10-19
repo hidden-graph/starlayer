@@ -1097,6 +1097,82 @@ def manchester_tree_to_owl(graph: Graph) -> StarLayerGraph:
     return owl_graph
 
 
+def _concrete_classes() -> frozenset:
+    """The ``manch:`` classes that have no subclass: the only types a tree node may be *asserted* with
+    (abstract ones such as ``manch:Frame`` exist to dispatch shapes, and are inferred)."""
+    from rdflib.namespace import OWL, RDFS
+
+    onto = get_ontology_graph("manchester_owl")
+    classes = {
+        c for c in set(onto.subjects(RDF.type, RDFS.Class)) | set(onto.subjects(RDF.type, OWL.Class))
+        | set(onto.subjects(RDFS.subClassOf)) | set(onto.objects(None, RDFS.subClassOf))
+        if isinstance(c, URIRef) and str(c).startswith(str(MANCH))
+    }
+    with_subclasses = {
+        o for s_, o in onto.subject_objects(RDFS.subClassOf) if s_ != o and isinstance(o, URIRef)
+    }
+    return frozenset(classes - with_subclasses)
+
+
+def _preflight(data_graph: Graph) -> list[tuple]:
+    """Structural problems visible only in the *asserted* graph, as ``(focus_node, message)`` pairs.
+
+    ``manchester_validate`` runs SHACL with RDFS inference, and several ``manch:`` properties declare an
+    ``rdfs:domain`` - so a node whose ``rdf:type`` was deleted gets a type inferred back from its
+    properties and looks fine to every shape, while the decoder, which reads the asserted types, cannot
+    handle it. This check looks before inference does:
+
+    - exactly one ``manch:Document``;
+    - every node that has a ``manch:`` property is asserted with a concrete ``manch:`` type;
+    - every asserted ``manch:`` type is a class of the vocabulary;
+    - no ``rdf:List`` loops back on itself (pySHACL itself raises on a cyclic list while cloning the data
+      graph, before any shape runs, so this one has to be caught here).
+    """
+    concrete = _concrete_classes()
+    known = _known_classes()
+    problems: list[tuple] = []
+
+    documents = list(data_graph.subjects(RDF.type, MANCH.Document))
+    if len(documents) != 1:
+        problems.append((documents[0] if documents else None,
+                         f"expected exactly one manch:Document, found {len(documents)}"))
+
+    done: set = set()
+    for start in {s_ for s_ in data_graph.subjects(RDF.rest, None)}:
+        walk: list = []
+        node = start
+        while node is not None and node != RDF.nil and node not in done:
+            if node in walk:
+                problems.append((start, "rdf:List contains a cycle (rdf:rest leads back to a cell already visited)"))
+                break
+            walk.append(node)
+            node = data_graph.value(node, RDF.rest)
+        done.update(walk)
+
+    has_manch_property: dict = {}
+    for s_, p_, o_ in data_graph:
+        if isinstance(p_, URIRef) and str(p_).startswith(str(MANCH)) and p_ != MANCH.negative:
+            has_manch_property.setdefault(s_, set()).add(p_)
+        if p_ == RDF.type and isinstance(o_, URIRef) and str(o_).startswith(str(MANCH)) and o_ not in known:
+            problems.append((s_, f"{o_} is not a class of the manch: vocabulary"))
+    for node, props in has_manch_property.items():
+        if not (set(data_graph.objects(node, RDF.type)) & concrete):
+            names = ", ".join(sorted(str(p_).rsplit("#", 1)[-1] for p_ in props))
+            problems.append((node, f"node has manch:{names} but no asserted concrete manch: type"))
+    return problems
+
+
+def _known_classes() -> frozenset:
+    from rdflib.namespace import OWL, RDFS
+
+    onto = get_ontology_graph("manchester_owl")
+    return frozenset(
+        c for c in set(onto.subjects(RDF.type, RDFS.Class)) | set(onto.subjects(RDF.type, OWL.Class))
+        | set(onto.subjects(RDFS.subClassOf)) | set(onto.objects(None, RDFS.subClassOf))
+        if isinstance(c, URIRef) and str(c).startswith(str(MANCH))
+    )
+
+
 def manchester_validate(data_graph: Graph) -> tuple[bool, Graph, str]:
     """Validate ``data_graph`` against the shapes in
     ``manchester_shapes.ttl``. Which shapes to check against is this
@@ -1122,6 +1198,10 @@ def manchester_validate(data_graph: Graph) -> tuple[bool, Graph, str]:
     this validates a caller-supplied ``data_graph`` that may be genuine
     RDF 1.2 content, which only ``starlayer.shacl`` understands correctly.
 
+    Before SHACL runs, a pre-flight check looks at the graph as asserted (see ``_preflight``): inference
+    would otherwise repair a missing ``rdf:type`` from a property's ``rdfs:domain`` and hide a tree the
+    decoder cannot read. Its findings are merged into the returned report.
+
     Args:
         data_graph: The ``manch:`` syntax tree to validate - e.g. straight
             out of ``manchester_parse_to_tree()``, or an LLM-authored
@@ -1136,6 +1216,11 @@ def manchester_validate(data_graph: Graph) -> tuple[bool, Graph, str]:
     import starlayer.shacl  # lazy: avoids a circular-import deadlock at module load time
     from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 
+    problems = _preflight(data_graph)
+    if any("cycle" in message for _, message in problems):
+        # pySHACL cannot even load a graph with a cyclic list, so report without running it.
+        return False, _preflight_report(problems, None), _preflight_text(problems, "")
+
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", category=ShapeRecursionWarning)
         result = starlayer.shacl.validate(
@@ -1146,4 +1231,47 @@ def manchester_validate(data_graph: Graph) -> tuple[bool, Graph, str]:
             advanced=True,
             max_validation_depth=100,
         )
-    return result.conforms, result.report_graph, result.report_text
+    if not problems:
+        return result.conforms, result.report_graph, result.report_text
+
+    return (
+        False,
+        _preflight_report(problems, result.report_graph),
+        _preflight_text(problems, "" if result.conforms else result.report_text),
+    )
+
+
+_SH = "http://www.w3.org/ns/shacl#"
+
+
+def _preflight_report(problems, report_graph):
+    """``report_graph`` (or a fresh one) with the pre-flight findings added as sh:ValidationResult."""
+    from rdflib.namespace import Namespace
+
+    sh = Namespace(_SH)
+    if report_graph is None:
+        report_graph = Graph()
+        report_graph.add((BNode(), RDF.type, sh.ValidationReport))
+    report_node = report_graph.value(None, RDF.type, sh.ValidationReport)
+    for focus, message in problems:
+        res = BNode()
+        report_graph.add((res, RDF.type, sh.ValidationResult))
+        report_graph.add((res, sh.resultSeverity, sh.Violation))
+        report_graph.add((res, sh.resultMessage, Literal(message)))
+        if focus is not None:
+            report_graph.add((res, sh.focusNode, focus))
+        if report_node is not None:
+            report_graph.add((report_node, sh.result, res))
+    if report_node is not None:
+        report_graph.remove((report_node, sh.conforms, None))
+        report_graph.add((report_node, sh.conforms, Literal(False)))
+    return report_graph
+
+
+def _preflight_text(problems, shacl_text):
+    lines = "\n".join(f"  - {m}" + (f" (node {f})" if f is not None else "") for f, m in problems)
+    text = (
+        "Validation Report\nConforms: False\n\n"
+        f"Pre-flight problems (asserted graph, checked before inference):\n{lines}\n"
+    )
+    return text + ("\n" + shacl_text if shacl_text else "")
