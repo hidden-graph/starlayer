@@ -12,6 +12,14 @@ different branch. To avoid conflicts, fixes to the tree layer are made in `wip/`
 The parser (`starlayer/graph/parsers/manchester_parser.py`) and serializer are not in `starontology/`
 and are edited in place.
 
+**Coupling hazard, and the one live edit.** The parser drives the tree layer through recording hooks
+(`record_ontology_header`, `record_misc`, ...). Changing a hook's signature in the parser breaks the *live*
+tree module until the merge. So `starlayer/starontology/manchester.py` carries a small compatibility shim:
+those two hooks accept the new arguments and **refuse them with a clear error** (never silently drop
+them). The merge replaces the whole file with `wip/manchester.py`, so the shim disappears. The same
+reasoning is why the tree module's duplicated top-level loop was removed: `_run_top_level` now lives only
+in the parser.
+
 `test_snapshot_matches_live_file` fails if the live files change under us: that is the signal to rebase
 the working copy on the new live version before merging.
 

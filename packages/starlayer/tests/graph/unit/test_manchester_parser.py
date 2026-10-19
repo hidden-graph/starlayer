@@ -477,6 +477,45 @@ class TestInlineAxiomAnnotations:
         t = parse('Class: Animal\nClass: Cat\n    SubClassOf: Animal\n')
         assert not any(p == RDF.type and o == OWL.Axiom for s, p, o in t)
 
+    # -- annotations on the top-level (Misc) axioms ---------------------------------------------
+    # The note's misc production allows one leading Annotations: for the whole axiom. OWL 2 RDF mapping:
+    # a pairwise triple is reified as owl:Axiom; the n-ary AllDisjoint* node carries the annotation itself.
+
+    def test_misc_pairwise_axiom_annotation_reifies_the_triple(self):
+        t = set(parse('Class: A\nClass: B\nAnnotationProperty: why\n'
+                      'EquivalentClasses: Annotations: why "same thing" A, B\n'))
+        node = self._axiom_node(t, ex('A'), OWL.equivalentClass, ex('B'))
+        assert (node, ex('why'), Literal('same thing')) in t
+        assert (ex('A'), OWL.equivalentClass, ex('B')) in t  # the plain triple is still asserted
+
+    def test_misc_three_way_equivalence_annotates_every_pairwise_triple(self):
+        t = set(parse('Class: A\nClass: B\nClass: C\nAnnotationProperty: why\n'
+                      'EquivalentClasses: Annotations: why "x" A, B, C\n'))
+        self._axiom_node(t, ex('A'), OWL.equivalentClass, ex('B'))
+        self._axiom_node(t, ex('B'), OWL.equivalentClass, ex('C'))
+
+    def test_misc_nary_disjoint_annotation_hangs_off_the_collection_node(self):
+        t = set(parse('Class: A\nClass: B\nClass: C\nAnnotationProperty: why\n'
+                      'DisjointClasses: Annotations: why "x" A, B, C\n'))
+        (node,) = [s for s, p, o in t if p == RDF.type and o == OWL.AllDisjointClasses]
+        assert (node, ex('why'), Literal('x')) in t
+
+    def test_annotation_of_an_annotation_uses_owl_annotation(self):
+        t = set(parse('Class: A\nClass: B\nAnnotationProperty: why\nAnnotationProperty: who\n'
+                      'Class: A\n  SubClassOf: Annotations: Annotations: who "me" why "because" B\n'))
+        axiom = self._axiom_node(t, ex('A'), RDFS.subClassOf, ex('B'))
+        (inner,) = [s for s, p, o in t if p == RDF.type and o == OWL.Annotation]
+        assert (inner, OWL.annotatedSource, axiom) in t
+        assert (inner, OWL.annotatedProperty, ex('why')) in t
+        assert (inner, OWL.annotatedTarget, Literal('because')) in t
+        assert (inner, ex('who'), Literal('me')) in t
+
+    def test_annotation_on_a_frame_level_annotation_reifies_the_assertion(self):
+        t = set(parse('Class: A\nAnnotationProperty: why\nAnnotationProperty: who\n'
+                      'Class: A\n  Annotations: Annotations: who "me" why "because"\n'))
+        node = self._axiom_node(t, ex('A'), ex('why'), Literal('because'))
+        assert (node, ex('who'), Literal('me')) in t
+
 
 # ---------------------------------------------------------------------------
 # Deliberately unsupported constructs - must raise, not mis-parse
@@ -493,15 +532,6 @@ class TestUnsupported:
         # not actually wired up as parseable even by the oracle itself.
         with pytest.raises(ManchesterSyntaxError):
             parse('ValuePartition: Speed\n')
-
-    def test_misc_axiom_inline_annotation_not_supported(self):
-        # Unlike every other clause (see TestInlineAxiomAnnotations), the
-        # six top-level Misc axioms don't support this - their pairwise-
-        # chain/AllDisjoint* encoding means one list item doesn't
-        # correspond to one axiom triple the way it does everywhere else.
-        with pytest.raises(ManchesterSyntaxError):
-            parse('Class: A\nClass: B\nClass: C\n'
-                  'EquivalentClasses: Annotations: rdfs:comment "why" A, B, C\n')
 
     def test_undeclared_default_prefix(self):
         with pytest.raises(ManchesterSyntaxError):

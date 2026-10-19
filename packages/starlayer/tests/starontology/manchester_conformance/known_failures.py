@@ -20,9 +20,6 @@ from __future__ import annotations
 
 _F1 = "F1 top-level truncation: a non-keyword token at top level ends parsing and silently drops the rest of the document (manchester_parser.py: peek_word() returns None for any non-WORD token and the top-level loop treats None as end of input)."
 _F2 = "F2 Ontology: <iri> <versionIRI>: no owl:versionIRI triple is emitted and, via F1, every following frame is silently dropped."
-_F3 = "F3 'Annotations:' in the Ontology: header is refused (manchester_parser.py: 'not supported yet'; same in starontology/manchester.py). The W3C Note's ontology production allows { annotations } and OWL API accepts it."
-_F9 = "F9 annotation-of-annotation ('Annotations: Annotations: p v p2 v2') is not supported: the inner 'Annotations' is read as a prefixed name ('unknown prefix Annotations'). The Note's annotation list allows a nested annotations prefix."
-_F10 = "F10 inline Annotations: on top-level Misc axioms (EquivalentClasses: etc.) are refused; documented as deliberately unsupported in manchester_syntax_gap_analysis.md, but the Note's misc production has 'annotations' and OWL API accepts and maps them."
 _F13 = "F13 length facets (length/minLength/maxLength): our value literal is xsd:integer ('5'^^xsd:integer, from the Note's integerLiteral); the OWL API writes a plain literal '5'. Which is right per the OWL 2 RDF mapping is UNRESOLVED - needs the W3C Mapping check before deciding which side to change."
 _F14a = "F14 oracle quirk (pending W3C check): OWL API additionally types the annotated propertyChain list as rdf:List."
 _F14b = "F14 oracle quirk (pending W3C check): OWL API emits the annotated owl:sameAs axiom in both directions (i->j and j->i); we emit one. The property is symmetric so likely equivalent, but not isomorphic."
@@ -30,15 +27,7 @@ _F14b = "F14 oracle quirk (pending W3C check): OWL API emits the annotated owl:s
 # case id -> reason: the oracle accepts it, but our parse is not OWL-equivalent (or raises). Real gaps
 # to close, except F13/F14 which are pending a W3C check.
 DIFFERENTIAL_FAILURES: dict[str, str] = {
-    "hdr-annotations-nested": _F3 + " " + _F9,
-    "class-subclassof-annotation-nested": _F9,
-    "class-annotations-annotated": _F9,
-    "misc-equivalentclasses-annotated": _F10,
-    "misc-disjointclasses-annotated": _F10,
-    "misc-equivalentproperties-annotated": _F10,
-    "misc-disjointproperties-annotated": _F10,
-    "misc-sameindividual-annotated": _F10,
-    "misc-differentindividuals-annotated": _F10,
+    "misc-sameindividual-annotated": _F14b,
     "facet-length": _F13,
     "facet-minlength": _F13,
     "facet-maxlength": _F13,

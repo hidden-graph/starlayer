@@ -454,17 +454,23 @@ def _encode_value(g, kind, value):
     raise AssertionError(f'unhandled value kind {kind!r}')
 
 
+def _encode_annotation(g, ann):
+    """One AnnotationAssertion node; an annotation that is itself annotated carries manch:annotations."""
+    prop, value = ann
+    node = BNode()
+    g.add((node, RDF.type, MANCH.AnnotationAssertion))
+    g.add((node, MANCH.annotationProperty, prop))
+    g.add((node, MANCH.annotationValue, _enc_term(value)))
+    nested = _encode_annotations(g, getattr(ann, 'nested', None))
+    if nested is not None:
+        g.add((node, MANCH.annotations, nested))
+    return node
+
+
 def _encode_annotations(g, anns):
     if not anns:
         return None
-    nodes = []
-    for prop, value in anns:
-        node = BNode()
-        g.add((node, RDF.type, MANCH.AnnotationAssertion))
-        g.add((node, MANCH.annotationProperty, prop))
-        g.add((node, MANCH.annotationValue, _enc_term(value)))
-        nodes.append(node)
-    return _build_rdf_list(g, nodes)
+    return _build_rdf_list(g, [_encode_annotation(g, a) for a in anns])
 
 
 def _encode_clause_item(g, kind, anns, value):
@@ -494,14 +500,7 @@ def _encode_clause_items(g, clause_class, frame_kind, clause_kind, items):
     if clause_kind == 'Annotations:':
         # Frame-level Annotations: - bare AnnotationAssertion items, no
         # ClauseItem wrapper, no per-item annotations slot.
-        nodes = []
-        for prop, value in items:
-            node = BNode()
-            g.add((node, RDF.type, MANCH.AnnotationAssertion))
-            g.add((node, MANCH.annotationProperty, prop))
-            g.add((node, MANCH.annotationValue, _enc_term(value)))
-            nodes.append(node)
-        return nodes
+        return [_encode_annotation(g, a) for a in items]
     if clause_kind == 'Facts:':
         return [_encode_fact_item(g, anns, fact) for anns, fact in items]
     value_kind = _CLAUSE_VALUE_KIND[clause_class]
@@ -613,7 +612,7 @@ def manchester_parse_to_tree(text: str, base: str | None = None) -> Graph:
             self._current_frame_node = None
             self._current_frame_clause_nodes = None
 
-        def record_misc(self, keyword, items):
+        def record_misc(self, keyword, items, annotations=None):
             g = self.syntax_tree_graph
             misc_class = _MISC_CLASS[keyword]
             node = BNode()
@@ -621,6 +620,9 @@ def manchester_parse_to_tree(text: str, base: str | None = None) -> Graph:
             value_kind = _MISC_VALUE_KIND[misc_class]
             item_nodes = [_encode_value(g, value_kind, v) for v in items]
             g.add((node, MANCH.items, _build_rdf_list(g, item_nodes)))
+            ann_list = _encode_annotations(g, annotations)
+            if ann_list is not None:
+                g.add((node, MANCH.annotations, ann_list))
             self._misc_nodes.append(node)
 
     cur = _SyntaxTreeCursor(_tokenize(text), base)
@@ -658,7 +660,7 @@ Document = namedtuple('Document', ['prefixes', 'header', 'frames', 'misc'])
 PrefixDecl = namedtuple('PrefixDecl', ['label', 'iri'])
 OntologyHeader = namedtuple('OntologyHeader', ['iri', 'version', 'imports', 'annotations'])
 Frame = namedtuple('Frame', ['kind', 'subject', 'clauses'])
-Clause = namedtuple('Clause', ['clause_kind', 'items'])
+Clause = namedtuple('Clause', ['clause_kind', 'items', 'annotations'], defaults=[None])
 ClauseItem = namedtuple('ClauseItem', ['value', 'annotations'])
 FactItem = namedtuple('FactItem', ['negative', 'property', 'value', 'annotations'])
 AnnotationAssertion = namedtuple('AnnotationAssertion', ['property', 'value'])
@@ -742,13 +744,27 @@ def _decode_value(g, kind, node):
     raise AssertionError(f'unhandled value kind {kind!r}')
 
 
+class _Ann(tuple):
+    """``(property, value)`` plus ``nested``: the annotations on this annotation, or None."""
+
+    def __new__(cls, prop, value, nested=None):
+        self = super().__new__(cls, (prop, value))
+        self.nested = nested
+        return self
+
+
+def _decode_annotation(g, node):
+    return _Ann(
+        g.value(node, MANCH.annotationProperty),
+        _dec_term(g.value(node, MANCH.annotationValue)),
+        _decode_annotations(g, g.value(node, MANCH.annotations)),
+    )
+
+
 def _decode_annotations(g, ann_list_node):
     if ann_list_node is None:
         return None
-    result = []
-    for node in _read_rdf_list(g, ann_list_node):
-        result.append((g.value(node, MANCH.annotationProperty), _dec_term(g.value(node, MANCH.annotationValue))))
-    return result
+    return [_decode_annotation(g, node) for node in _read_rdf_list(g, ann_list_node)]
 
 
 def _decode_clause(g, node):
@@ -760,9 +776,7 @@ def _decode_clause(g, node):
     item_nodes = _read_rdf_list(g, g.value(node, MANCH.items))
 
     if clause_kind == 'Annotations:':
-        items = [AnnotationAssertion(g.value(n, MANCH.annotationProperty),
-                                      _dec_term(g.value(n, MANCH.annotationValue))) for n in item_nodes]
-        return Clause(clause_kind, items)
+        return Clause(clause_kind, [_decode_annotation(g, n) for n in item_nodes])
 
     if clause_kind == 'Facts:':
         items = []
@@ -806,7 +820,7 @@ def _decode_misc(g, node):
     keyword = _MISC_CLASS_TO_KEYWORD[misc_class]
     value_kind = _MISC_VALUE_KIND[misc_class]
     items = [_decode_value(g, value_kind, n) for n in _read_rdf_list(g, g.value(node, MANCH.items))]
-    return Clause(keyword, items)
+    return Clause(keyword, items, _decode_annotations(g, g.value(node, MANCH.annotations)))
 
 
 def _tree_to_document(graph: Graph, root) -> Document:
@@ -927,11 +941,21 @@ def _render_data_range(dr, top: bool = True) -> str:
     raise AssertionError(f'unhandled data-range tag {tag!r}')
 
 
+def _render_annotation_list(anns) -> str:
+    """``prop value, prop value`` - an annotation that is itself annotated is preceded by its own
+    ``Annotations: ...`` (the note's ``annotationAnnotatedList``)."""
+    parts = []
+    for ann in anns:
+        prop, value = ann
+        nested = getattr(ann, 'nested', None)
+        parts.append(f'{_render_annotations_prefix(nested)}{_render_name(prop)} {_render_value(value)}')
+    return ', '.join(parts)
+
+
 def _render_annotations_prefix(anns) -> str:
     if not anns:
         return ''
-    parts = ', '.join(f'{_render_name(p)} {_render_value(v)}' for p, v in anns)
-    return f'Annotations: {parts} '
+    return f'Annotations: {_render_annotation_list(anns)} '
 
 
 def _render_one(clause_class, value) -> str:
@@ -962,8 +986,7 @@ def _render_one(clause_class, value) -> str:
 def _render_clause(clause: Clause, frame_kind: str) -> str:
     kind = clause.clause_kind
     if kind == 'Annotations:':
-        items = ', '.join(f'{_render_name(a.property)} {_render_value(a.value)}' for a in clause.items)
-        return f'Annotations: {items}'
+        return f'Annotations: {_render_annotation_list(clause.items)}'
     if kind == 'Facts:':
         parts = []
         for item in clause.items:
@@ -996,7 +1019,7 @@ def _render_misc(clause: Clause) -> str:
     # the 6 maps to exactly one class in _MISC_CLASS).
     misc_class = _MISC_CLASS[clause.clause_kind]
     rendered = ', '.join(_render_one(misc_class, v) for v in clause.items)
-    return f'{clause.clause_kind} {rendered}'
+    return f'{clause.clause_kind} {_render_annotations_prefix(clause.annotations)}{rendered}'
 
 
 _FRAME_KEYWORD = {

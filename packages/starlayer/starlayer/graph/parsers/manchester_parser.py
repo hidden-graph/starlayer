@@ -396,7 +396,7 @@ class _Cursor:
                 compilation to OWL triples, never a compiled node.
         """
 
-    def record_misc(self, keyword, items):
+    def record_misc(self, keyword, items, annotations=None):
         """Called when a top-level Misc axiom (EquivalentClasses:, etc.,
         no subject frame) was just parsed. A no-op hook by default.
 
@@ -404,6 +404,8 @@ class _Cursor:
             keyword: The Misc axiom's own keyword, e.g.
                 'EquivalentClasses:'.
             items: The axiom's own comma-list, before compilation.
+            annotations: The axiom's leading `Annotations:` as a list of
+                annotations, or None.
         """
 
     def record_ontology_header(self, iri, imports, version_iri=None, annotations=None):
@@ -1030,25 +1032,62 @@ def _parse_comma_list(cur, parse_item):
             return items
 
 
-def _pairwise_chain(cur, nodes, pred):
+def _pairwise_chain(cur, nodes, pred, annotations=None):
     # nodes/nodes[1:] are deliberately always length-1 apart (the sliding-
     # window pairwise idiom) - strict=True would always raise here, not
     # catch a real mismatch.
+    # Annotations on the axiom annotate every pairwise triple it expands to (OWL 2 RDF mapping).
     for a, b in zip(nodes, nodes[1:]):  # noqa: B905
         cur.triples.append((a, pred, b))
+        _maybe_reify(cur, a, pred, b, annotations)
 
 
-def _nary_disjoint_or_different(cur, nodes, binary_pred, collection_class):
+def _nary_disjoint_or_different(cur, nodes, binary_pred, collection_class, annotations=None):
     if len(nodes) == 2:
         cur.triples.append((nodes[0], binary_pred, nodes[1]))
+        _maybe_reify(cur, nodes[0], binary_pred, nodes[1], annotations)
         return
     node = cur.mint_bnode()
     cur.triples.append((node, RDF.type, collection_class))
     cur.triples.append((node, OWL.members, _build_list(cur, nodes)))
+    # The n-ary form is one node, so the axiom's annotations hang directly off it.
+    _annotation_triples(cur, node, annotations or ())
+
+
+class _Annotation(tuple):
+    """One annotation: ``(property, value)``, plus ``nested`` - the annotations on this annotation (the
+    note's ``annotationAnnotatedList ::= [annotations] annotation ...``), or None.
+
+    A 2-tuple subclass on purpose: every place that unpacks ``(prop, value)`` keeps working, and only the
+    code that cares about annotations-of-annotations reads ``.nested``.
+    """
+
+    def __new__(cls, prop, value, nested=None):
+        self = super().__new__(cls, (prop, value))
+        self.nested = nested
+        return self
 
 
 def _parse_annotation_assertion(cur):
-    return cur.read_name(), cur.read_literal_or_name()
+    nested = _parse_item_annotations(cur)
+    prop = cur.read_name()
+    return _Annotation(prop, cur.read_literal_or_name(), nested)
+
+
+def _annotation_triples(cur, node, annotations):
+    """Hang ``annotations`` on ``node``. An annotation that is itself annotated is reified as an
+    ``owl:Annotation`` (OWL 2 RDF mapping, annotations of annotations), recursively."""
+    for ann in annotations:
+        prop, value = ann
+        cur.triples.append((node, prop, value))
+        nested = getattr(ann, 'nested', None)
+        if nested:
+            inner = cur.mint_bnode()
+            cur.triples.append((inner, RDF.type, OWL.Annotation))
+            cur.triples.append((inner, OWL.annotatedSource, node))
+            cur.triples.append((inner, OWL.annotatedProperty, prop))
+            cur.triples.append((inner, OWL.annotatedTarget, value))
+            _annotation_triples(cur, inner, nested)
 
 
 def _handle_frame_annotations(cur, frame_kind, subject):
@@ -1068,8 +1107,11 @@ def _handle_frame_annotations(cur, frame_kind, subject):
             asserted directly on.
     """
     items = _parse_comma_list(cur, _parse_annotation_assertion)
-    for prop, value in items:
+    for ann in items:
+        prop, value = ann
         cur.triples.append((subject, prop, value))
+        # An annotation assertion is itself an axiom, so annotating it reifies it as owl:Axiom.
+        _maybe_reify(cur, subject, prop, value, getattr(ann, 'nested', None))
     cur.record_clause(frame_kind, 'Annotations:', items)
 
 
@@ -1136,8 +1178,7 @@ def _maybe_reify(cur, subject, pred, obj, annotations):
     cur.triples.append((node, OWL.annotatedSource, subject))
     cur.triples.append((node, OWL.annotatedProperty, pred))
     cur.triples.append((node, OWL.annotatedTarget, obj))
-    for prop, value in annotations:
-        cur.triples.append((node, prop, value))
+    _annotation_triples(cur, node, annotations)
 
 
 # ---------------------------------------------------------------------------
@@ -1393,29 +1434,34 @@ def _parse_datatype_frame(cur):
 
 
 def _parse_misc(cur, keyword):
+    # misc ::= 'EquivalentClasses:' annotations description2List | ... - one optional Annotations:
+    # prefix for the whole axiom.
+    annotations = _parse_item_annotations(cur)
     if keyword in ('EquivalentClasses:', 'DisjointClasses:'):
         exprs = _parse_comma_list(cur, _parse_description)
         nodes = [_expr_node(cur, e) for e in exprs]
         if keyword == 'EquivalentClasses:':
-            _pairwise_chain(cur, nodes, OWL.equivalentClass)
+            _pairwise_chain(cur, nodes, OWL.equivalentClass, annotations)
         else:
-            _nary_disjoint_or_different(cur, nodes, OWL.disjointWith, OWL.AllDisjointClasses)
-        cur.record_misc(keyword, exprs)
+            _nary_disjoint_or_different(cur, nodes, OWL.disjointWith, OWL.AllDisjointClasses, annotations)
+        cur.record_misc(keyword, exprs, annotations)
     elif keyword in ('EquivalentProperties:', 'DisjointProperties:'):
         prop_exprs = _parse_comma_list(cur, _parse_property_expr)
         nodes = [_prop_node(cur, e) for e in prop_exprs]
         if keyword == 'EquivalentProperties:':
-            _pairwise_chain(cur, nodes, OWL.equivalentProperty)
+            _pairwise_chain(cur, nodes, OWL.equivalentProperty, annotations)
         else:
-            _nary_disjoint_or_different(cur, nodes, OWL.propertyDisjointWith, OWL.AllDisjointProperties)
-        cur.record_misc(keyword, prop_exprs)
+            _nary_disjoint_or_different(
+                cur, nodes, OWL.propertyDisjointWith, OWL.AllDisjointProperties, annotations
+            )
+        cur.record_misc(keyword, prop_exprs, annotations)
     else:
         names = _parse_comma_list(cur, lambda c: c.read_individual())
         if keyword == 'SameIndividual:':
-            _pairwise_chain(cur, names, OWL.sameAs)
+            _pairwise_chain(cur, names, OWL.sameAs, annotations)
         else:
-            _nary_disjoint_or_different(cur, names, OWL.differentFrom, OWL.AllDifferent)
-        cur.record_misc(keyword, names)
+            _nary_disjoint_or_different(cur, names, OWL.differentFrom, OWL.AllDifferent, annotations)
+        cur.record_misc(keyword, names, annotations)
 
 
 # ---------------------------------------------------------------------------
@@ -1480,8 +1526,7 @@ def _run_top_level(cur):
             while cur.peek_word() == 'Annotations:':
                 cur.advance()
                 annotations = (annotations or []) + _parse_comma_list(cur, _parse_annotation_assertion)
-            for prop, value in annotations or ():
-                cur.triples.append((ontology_node, prop, value))
+            _annotation_triples(cur, ontology_node, annotations or ())
             cur.record_ontology_header(ontology_iri, imports, version_iri, annotations)
         elif word == 'Datatype:':
             cur.advance()

@@ -19,7 +19,7 @@ manch:AnnPropSubPropertyOfClause rdfs:comment "AnnotationProperty: SubPropertyOf
     rdfs:subClassOf manch:Clause .
 
 manch:AnnotationAssertion a rdfs:Class ;
-    rdfs:comment "One (annotationProperty, value) pair - manch:annotationProperty (a URIRef), manch:annotationValue (a URIRef or Literal). Used both for a frame-level Annotations: clause's own items, and inside a ClauseItem's/FactItem's manch:annotations list." .
+    rdfs:comment "One (annotationProperty, value) pair - manch:annotationProperty (a URIRef), manch:annotationValue (a URIRef or Literal). Used both for a frame-level Annotations: clause's own items, and inside a ClauseItem's/FactItem's manch:annotations list. May itself carry manch:annotations: the annotations on this annotation (annotationAnnotatedList)." .
 
 manch:AnnotationPropertyFrame rdfs:comment "AnnotationProperty: <name>." ;
     rdfs:subClassOf manch:Frame .
@@ -143,7 +143,7 @@ manch:Max rdfs:comment "`p max n` / `p max n C` - same shape as Min." ;
 manch:Min rdfs:comment "`p min n` / `p min n C` (qualified) - manch:onProperty, manch:cardinality (an xsd:nonNegativeInteger Literal), manch:filler (a ClassExpression, absent for the unqualified form - same tag either way, per manchester_parser.py's own AST, not two separate constructs)." ;
     rdfs:subClassOf manch:ClassExpression .
 
-manch:MiscAxiom rdfs:comment "A top-level Misc axiom (no subject frame) - manch:items, an rdf:List whose member shape depends on the concrete axiom (see each subclass). Never carries manch:annotations on its own items - a genuine grammar gap, not an oversight (the pairwise-chain/AllDisjoint* OWL-semantic encoding means a single list item doesn't correspond to a single axiom the way it does everywhere else, so there is nothing to reify against - see manchester_parser.py's own docstring)." .
+manch:MiscAxiom rdfs:comment "A top-level Misc axiom (no subject frame) - manch:items, an rdf:List whose member shape depends on the concrete axiom (see each subclass), and optionally manch:annotations: the axiom's own leading `Annotations:`, one list for the whole axiom (the note's misc production), never per item." .
 
 manch:MiscDifferentIndividualsAxiom rdfs:comment "DifferentIndividuals: - same item shape as MiscSameIndividualAxiom." ;
     rdfs:subClassOf manch:MiscAxiom .

@@ -547,7 +547,12 @@ def manchester_parse_to_tree(text: str, base: str | None = None) -> Graph:
             g.add((node, MANCH.prefixIri, Literal(iri)))
             self._prefix_nodes.append(node)
 
-        def record_ontology_header(self, iri, imports):
+        def record_ontology_header(self, iri, imports, version_iri=None, annotations=None):
+            # The parser now passes the version IRI and header Annotations:; this (pre-completeness)
+            # tree layer cannot record them, so refuse instead of silently dropping. Replaced when the
+            # completeness work in tests/starontology/manchester_conformance/wip/ is merged.
+            if version_iri is not None or annotations:
+                self.error('a version IRI or Annotations: in the Ontology: header is not supported by this tree layer yet')
             g = self.syntax_tree_graph
             node = BNode()
             g.add((node, RDF.type, MANCH.OntologyHeader))
@@ -585,7 +590,10 @@ def manchester_parse_to_tree(text: str, base: str | None = None) -> Graph:
             self._current_frame_node = None
             self._current_frame_clause_nodes = None
 
-        def record_misc(self, keyword, items):
+        def record_misc(self, keyword, items, annotations=None):
+            # See record_ontology_header: refuse rather than silently drop what this layer cannot record.
+            if annotations:
+                self.error('Annotations: on a top-level axiom is not supported by this tree layer yet')
             g = self.syntax_tree_graph
             misc_class = _MISC_CLASS[keyword]
             node = BNode()

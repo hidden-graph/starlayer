@@ -63,6 +63,10 @@ manch:AnnotationAssertionShape a sh:NodeShape ;
         sh:minCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:path manch:annotationProperty
+    ], [
+        sh:maxCount 1 ;
+        sh:node manch:AnnotationAssertionListShape ;
+        sh:path manch:annotations
     ] ;
     sh:targetClass manch:AnnotationAssertion .
 
@@ -513,6 +517,10 @@ manch:MiscAxiomItemsShape a sh:NodeShape ;
         sh:minCount 1 ;
         sh:node manch:WellFormedListShape ;
         sh:path manch:items
+    ], [
+        sh:maxCount 1 ;
+        sh:node manch:AnnotationAssertionListShape ;
+        sh:path manch:annotations
     ] ;
     sh:targetClass manch:MiscAxiom .
 
