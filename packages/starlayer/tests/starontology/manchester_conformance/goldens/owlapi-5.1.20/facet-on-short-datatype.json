@@ -1,0 +1,8 @@
+{
+ "accepted": false,
+ "case": "facet-on-short-datatype",
+ "error": "Could not initialize class org.eclipse.rdf4j.rio.jsonld.JSONLDParser",
+ "error_detail": "",
+ "jar_sha256": "bda7cbd71fffff6727716678e3d3fa42911f07ae7eb85abdaf6d12c8332d0e3f",
+ "oracle": "OWL API 5.1.20 (direct load)"
+}

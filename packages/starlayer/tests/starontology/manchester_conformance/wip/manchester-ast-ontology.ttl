@@ -1,0 +1,366 @@
+@prefix manch: <https://github.com/hidden-graph/starlayer/ns/graph/manchester-ast#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+manch:And rdfs:comment "`C1 and C2 and ...` - manch:operands, an rdf:List of >=2 ClassExpression." ;
+    rdfs:subClassOf manch:ClassExpression .
+
+manch:AnnPropAnnotationsClause rdfs:comment "AnnotationProperty: Annotations: - same shape as ClassAnnotationsClause." ;
+    rdfs:subClassOf manch:Clause .
+
+manch:AnnPropDomainClause rdfs:comment "AnnotationProperty: Domain: - items' manch:value is a bare URIRef." ;
+    rdfs:subClassOf manch:Clause .
+
+manch:AnnPropRangeClause rdfs:comment "AnnotationProperty: Range: - items' manch:value is a bare URIRef." ;
+    rdfs:subClassOf manch:Clause .
+
+manch:AnnPropSubPropertyOfClause rdfs:comment "AnnotationProperty: SubPropertyOf: - items' manch:value is a bare URIRef." ;
+    rdfs:subClassOf manch:Clause .
+
+manch:AnnotationAssertion a rdfs:Class ;
+    rdfs:comment "One (annotationProperty, value) pair - manch:annotationProperty (a URIRef), manch:annotationValue (a URIRef or Literal). Used both for a frame-level Annotations: clause's own items, and inside a ClauseItem's/FactItem's manch:annotations list. May itself carry manch:annotations: the annotations on this annotation (annotationAnnotatedList)." .
+
+manch:AnnotationPropertyFrame rdfs:comment "AnnotationProperty: <name>." ;
+    rdfs:subClassOf manch:Frame .
+
+manch:ClassAnnotationsClause rdfs:comment "Class: Annotations: - manch:items, an rdf:List of bare AnnotationAssertion (no ClauseItem wrapper, no per-item annotations slot - a frame-level Annotations: clause is never itself annotated)." ;
+    rdfs:subClassOf manch:Clause .
+
+manch:ClassDisjointUnionOfClause rdfs:comment "DisjointUnionOf: - a single-axiom clause: manch:items holds exactly one ClauseItem, whose manch:value is itself an rdf:List of >=2 ClassExpression (the whole comma list is one axiom, annotated once - see manchester_parser.py's own DisjointUnionOf: handling)." ;
+    rdfs:subClassOf manch:Clause .
+
+manch:ClassDisjointWithClause rdfs:comment "Class: DisjointWith: - same item shape as ClassSubClassOfClause." ;
+    rdfs:subClassOf manch:Clause .
+
+manch:ClassEquivalentToClause rdfs:comment "Class: EquivalentTo: - same item shape as ClassSubClassOfClause." ;
+    rdfs:subClassOf manch:Clause .
+
+manch:ClassExpression rdfs:comment "An OWL class-expression AST node (manchester_parser.py's own And/Or/Not/OneOf/Some/Only/Value/SelfR/Min/Max/Exact tags) - an atomic class is a bare URIRef, no wrapper." .
+
+manch:ClassFrame rdfs:comment "Class: <name>." ;
+    rdfs:subClassOf manch:Frame .
+
+manch:ClassHasKeyClause rdfs:comment "HasKey: - single-axiom, same shape as ClassDisjointUnionOfClause but manch:value is an rdf:List of PropertyExpression." ;
+    rdfs:subClassOf manch:Clause .
+
+manch:ClassSubClassOfClause rdfs:comment "SubClassOf:/SuperClassOf: - manch:items, an rdf:List of ClauseItem whose manch:value is a ClassExpression. See manch:reversed for how the two keywords are told apart." ;
+    rdfs:subClassOf manch:Clause .
+
+manch:Clause rdfs:comment "One clause body inside a frame - manch:items, an rdf:List whose member shape depends on the concrete clause type (see each subclass's own comment). SuperClassOf:/SuperPropertyOf: fold into the same clause class as their SubClassOf:/SubPropertyOf: counterpart (same manch:items shape either way) - but unlike other spelling variants, this pair is not cosmetic: it flips which side of the compiled rdfs:subClassOf/subPropertyOf triple the frame's own subject lands on, so the optional manch:reversed boolean (see its own comment) is what actually distinguishes the two on decode, not the keyword." .
+
+manch:ClauseItem a rdfs:Class ;
+    rdfs:comment "One ordinary clause-list item - manch:value (shape depends on the enclosing clause, see each Clause subclass's own comment), manch:annotations (optional, an rdf:List of AnnotationAssertion - present only when the item had an inline Annotations: prefix). Deliberately one uniform shape for every per-item-annotatable clause, regardless of whether the OWL 2 RDF mapping ultimately reifies it via owl:Axiom or (for a negative Fact:) attaches directly to an owl:NegativePropertyAssertion bnode - that distinction is an artifact of the final OWL-semantic compile step, not something that exists yet at this AST layer." .
+
+manch:DAnd rdfs:comment "`D1 and D2 and ...` - manch:operands, an rdf:List of >=2 DataRange." ;
+    rdfs:subClassOf manch:DataRange .
+
+manch:DNot rdfs:comment "`not D` - manch:operand, a single DataRange." ;
+    rdfs:subClassOf manch:DataRange .
+
+manch:DOneOf rdfs:comment "`{ lit1, lit2, ... }` - manch:literals, an rdf:List of Literal." ;
+    rdfs:subClassOf manch:DataRange .
+
+manch:DOr rdfs:comment "`D1 or D2 or ...` - same shape as DAnd." ;
+    rdfs:subClassOf manch:DataRange .
+
+manch:DRestriction rdfs:comment "`datatype[facet lit, ...]` - manch:onDatatype (a URIRef), manch:facets (an rdf:List of manch:FacetRestriction)." ;
+    rdfs:subClassOf manch:DataRange .
+
+manch:DataPropAnnotationsClause rdfs:comment "DataProperty: Annotations: - same shape as ClassAnnotationsClause." ;
+    rdfs:subClassOf manch:Clause .
+
+manch:DataPropCharacteristicsClause rdfs:comment "DataProperty: Characteristics: - same item shape as ObjPropCharacteristicsClause (only Functional is legal here, but the AST/ontology doesn't restrict which characteristic keyword)." ;
+    rdfs:subClassOf manch:Clause .
+
+manch:DataPropDisjointWithClause rdfs:comment "DataProperty: DisjointWith: - same item shape as DataPropSubPropertyOfClause." ;
+    rdfs:subClassOf manch:Clause .
+
+manch:DataPropDomainClause rdfs:comment "DataProperty: Domain: - items' manch:value is a ClassExpression." ;
+    rdfs:subClassOf manch:Clause .
+
+manch:DataPropEquivalentToClause rdfs:comment "DataProperty: EquivalentTo: - same item shape as DataPropSubPropertyOfClause." ;
+    rdfs:subClassOf manch:Clause .
+
+manch:DataPropRangeClause rdfs:comment "DataProperty: Range: - items' manch:value is a DataRange, not a ClassExpression (genuinely distinct shape from ObjPropRangeClause)." ;
+    rdfs:subClassOf manch:Clause .
+
+manch:DataPropSubPropertyOfClause rdfs:comment "DataProperty SubPropertyOf:/SuperPropertyOf: - items' manch:value is a PropertyExpression (same grammar as the object-property case; the parser doesn't restrict `inverse` away from data properties even though it's semantically meaningless there - a deliberate parser permissiveness, not enforced by this AST either, matching manchester_parser.py's own documented declaration-order-strictness stance). See manch:reversed for how the two keywords are told apart." ;
+    rdfs:subClassOf manch:Clause .
+
+manch:DataPropertyFrame rdfs:comment "DataProperty: <name>." ;
+    rdfs:subClassOf manch:Frame .
+
+manch:DataRange rdfs:comment "A data-range AST node (DataProperty: Range:, Datatype: EquivalentTo:) - an atomic datatype is a bare URIRef, no wrapper." .
+
+manch:DatatypeAnnotationsClause rdfs:comment "Datatype: Annotations: - same shape as ClassAnnotationsClause." ;
+    rdfs:subClassOf manch:Clause .
+
+manch:DatatypeEquivalentToClause rdfs:comment "Datatype: EquivalentTo: - items' manch:value is a DataRange." ;
+    rdfs:subClassOf manch:Clause .
+
+manch:DatatypeFrame rdfs:comment "Datatype: <name>." ;
+    rdfs:subClassOf manch:Frame .
+
+manch:Document a rdfs:Class ;
+    rdfs:comment "The root of one parsed Manchester document." .
+
+manch:Exact rdfs:comment "`p exactly n` / `p exactly n C` - same shape as Min." ;
+    rdfs:subClassOf manch:ClassExpression .
+
+manch:FacetRestriction a rdfs:Class ;
+    rdfs:comment "One (facet, literal) pair inside a DRestriction - manch:facetPredicate (the xsd: facet URIRef, e.g. xsd:minInclusive), manch:facetValue (the Literal)." .
+
+manch:FactItem a rdfs:Class ;
+    rdfs:comment "One Individual: Facts: item - manch:negative (an xsd:boolean Literal), manch:property (a URIRef), manch:value (a URIRef or Literal), manch:annotations (optional, same shape as ClauseItem's)." .
+
+manch:Frame rdfs:comment "A top-level Manchester frame (Class:/ObjectProperty:/DataProperty:/AnnotationProperty:/Individual:/Datatype:) - manch:subject (the frame's own name), manch:clauses (an rdf:List of Clause, in written order)." .
+
+manch:IndividualAnnotationsClause rdfs:comment "Individual: Annotations: - same shape as ClassAnnotationsClause." ;
+    rdfs:subClassOf manch:Clause .
+
+manch:IndividualDifferentFromClause rdfs:comment "DifferentFrom: - same item shape as IndividualSameAsClause." ;
+    rdfs:subClassOf manch:Clause .
+
+manch:IndividualFactsClause rdfs:comment "Individual: Facts: - manch:items is an rdf:List of manch:FactItem (not plain ClauseItem - a fact is itself a (negative, property, value) triple, not a bare expression; see manch:FactItem)." ;
+    rdfs:subClassOf manch:Clause .
+
+manch:IndividualFrame rdfs:comment "Individual: <name>." ;
+    rdfs:subClassOf manch:Frame .
+
+manch:IndividualSameAsClause rdfs:comment "SameAs: - items' manch:value is a bare individual URIRef." ;
+    rdfs:subClassOf manch:Clause .
+
+manch:IndividualTypesClause rdfs:comment "Individual: Types: - items' manch:value is a ClassExpression." ;
+    rdfs:subClassOf manch:Clause .
+
+manch:Inverse rdfs:comment "`inverse p` - manch:operand, the wrapped property URIRef." ;
+    rdfs:subClassOf manch:PropertyExpression .
+
+manch:Max rdfs:comment "`p max n` / `p max n C` - same shape as Min." ;
+    rdfs:subClassOf manch:ClassExpression .
+
+manch:Min rdfs:comment "`p min n` / `p min n C` (qualified) - manch:onProperty, manch:cardinality (an xsd:nonNegativeInteger Literal), manch:filler (a ClassExpression, absent for the unqualified form - same tag either way, per manchester_parser.py's own AST, not two separate constructs)." ;
+    rdfs:subClassOf manch:ClassExpression .
+
+manch:MiscAxiom rdfs:comment "A top-level Misc axiom (no subject frame) - manch:items, an rdf:List whose member shape depends on the concrete axiom (see each subclass), and optionally manch:annotations: the axiom's own leading `Annotations:`, one list for the whole axiom (the note's misc production), never per item." .
+
+manch:MiscDifferentIndividualsAxiom rdfs:comment "DifferentIndividuals: - same item shape as MiscSameIndividualAxiom." ;
+    rdfs:subClassOf manch:MiscAxiom .
+
+manch:MiscDisjointClassesAxiom rdfs:comment "DisjointClasses: - same item shape as MiscEquivalentClassesAxiom." ;
+    rdfs:subClassOf manch:MiscAxiom .
+
+manch:MiscDisjointPropertiesAxiom rdfs:comment "DisjointProperties: - same item shape as MiscEquivalentPropertiesAxiom." ;
+    rdfs:subClassOf manch:MiscAxiom .
+
+manch:MiscEquivalentClassesAxiom rdfs:comment "EquivalentClasses: - manch:items an rdf:List of ClassExpression." ;
+    rdfs:subClassOf manch:MiscAxiom .
+
+manch:MiscEquivalentPropertiesAxiom rdfs:comment "EquivalentProperties: - manch:items an rdf:List of PropertyExpression." ;
+    rdfs:subClassOf manch:MiscAxiom .
+
+manch:MiscSameIndividualAxiom rdfs:comment "SameIndividual: - manch:items an rdf:List of bare individual URIRef." ;
+    rdfs:subClassOf manch:MiscAxiom .
+
+manch:Not rdfs:comment "`not C` - manch:operand, a single ClassExpression." ;
+    rdfs:subClassOf manch:ClassExpression .
+
+manch:ObjPropAnnotationsClause rdfs:comment "ObjectProperty: Annotations: - same shape as ClassAnnotationsClause." ;
+    rdfs:subClassOf manch:Clause .
+
+manch:ObjPropCharacteristicsClause rdfs:comment "Characteristics: - items' manch:value is a URIRef (owl:FunctionalProperty etc, the resolved characteristic, not the bare keyword)." ;
+    rdfs:subClassOf manch:Clause .
+
+manch:ObjPropDisjointWithClause rdfs:comment "ObjectProperty: DisjointWith: - same item shape as ObjPropSubPropertyOfClause." ;
+    rdfs:subClassOf manch:Clause .
+
+manch:ObjPropDomainClause rdfs:comment "ObjectProperty: Domain: - items' manch:value is a ClassExpression." ;
+    rdfs:subClassOf manch:Clause .
+
+manch:ObjPropEquivalentToClause rdfs:comment "ObjectProperty: EquivalentTo: - same item shape as ObjPropSubPropertyOfClause." ;
+    rdfs:subClassOf manch:Clause .
+
+manch:ObjPropInverseOfClause rdfs:comment "InverseOf: (object property only) - same item shape as ObjPropSubPropertyOfClause." ;
+    rdfs:subClassOf manch:Clause .
+
+manch:ObjPropRangeClause rdfs:comment "ObjectProperty: Range: - items' manch:value is a ClassExpression (contrast DataPropRangeClause)." ;
+    rdfs:subClassOf manch:Clause .
+
+manch:ObjPropSubPropertyChainClause rdfs:comment "SubPropertyChain: (object property only) - single-axiom, manch:items holds exactly one ClauseItem whose manch:value is an rdf:List of PropertyExpression, in chain order (`p1 o p2 o p3`)." ;
+    rdfs:subClassOf manch:Clause .
+
+manch:ObjPropSubPropertyOfClause rdfs:comment "SubPropertyOf:/SuperPropertyOf: - items' manch:value is a PropertyExpression. See manch:reversed for how the two keywords are told apart." ;
+    rdfs:subClassOf manch:Clause .
+
+manch:ObjectPropertyFrame rdfs:comment "ObjectProperty: <name>." ;
+    rdfs:subClassOf manch:Frame .
+
+manch:OneOf rdfs:comment "`{ ind1, ind2, ... }` - manch:individuals, an rdf:List of URIRef." ;
+    rdfs:subClassOf manch:ClassExpression .
+
+manch:Only rdfs:comment "`p only C` - same shape as Some." ;
+    rdfs:subClassOf manch:ClassExpression .
+
+manch:OntologyHeader a rdfs:Class ;
+    rdfs:comment "The Ontology: header - manch:ontologyIri (optional URIRef), manch:versionIri (optional URIRef, only with an ontologyIri), manch:imports (rdf:List of URIRef, in order), manch:annotations (optional rdf:List of AnnotationAssertion - the ontology's own Annotations:)." .
+
+manch:Or rdfs:comment "`C1 or C2 or ...` - manch:operands, same shape as And." ;
+    rdfs:subClassOf manch:ClassExpression .
+
+manch:PlainString a rdfs:Datatype ;
+    rdfs:comment "Reserved datatype tag for a bare Python string that must round-trip distinctly from a genuine RDF string literal (rdflib.Literal('x') == 'x' is False, and the two hash differently) - used only for manch:prefixLabel, the one place this vocabulary carries a bare Python str rather than an already-real URIRef/Literal/int (cardinalities, facet literals, individual/data values, and Characteristics: values are all already real terms - see ontology/__init__.py's own module docstring)." .
+
+manch:PrefixDecl a rdfs:Class ;
+    rdfs:comment "One Prefix: declaration - manch:prefixLabel (a manch:PlainString-tagged string, '' for the default prefix), manch:prefixIri (a plain string, not a URIRef - a Prefix: declaration's own IRI is definitional, not a reference)." .
+
+manch:PropertyExpression rdfs:comment "A property-expression AST node - a plain property is a bare URIRef, no wrapper; manch:Inverse is the only wrapped form." .
+
+manch:SelfR rdfs:comment "`p Self` - manch:onProperty only." ;
+    rdfs:subClassOf manch:ClassExpression .
+
+manch:Some rdfs:comment "`p some C` - manch:onProperty (a PropertyExpression), manch:filler (a ClassExpression)." ;
+    rdfs:subClassOf manch:ClassExpression .
+
+manch:Value rdfs:comment "`p value v` - manch:onProperty, manch:filler (an individual URIRef or a data Literal - `value` accepts either)." ;
+    rdfs:subClassOf manch:ClassExpression .
+
+manch:annotationProperty a rdf:Property ;
+    rdfs:comment "Domain safe: leaf class." ;
+    rdfs:domain manch:AnnotationAssertion .
+
+manch:annotationValue a rdf:Property ;
+    rdfs:comment "Domain safe: leaf class." ;
+    rdfs:domain manch:AnnotationAssertion .
+
+manch:annotations a rdf:Property ;
+    rdfs:comment "A ClauseItem's, FactItem's or OntologyHeader's own optional rdf:List of AnnotationAssertion - present only when an Annotations: was written there. No rdfs:domain: shared across leaf classes with no other common superclass." ;
+    rdfs:range rdf:List .
+
+manch:cardinality a rdf:Property ;
+    rdfs:comment "Min/Max/Exact's own xsd:nonNegativeInteger cardinality Literal. No rdfs:domain - three sibling leaf classes, kept undeclared for the same consistency reasoning as manch:onProperty." .
+
+manch:clauses a rdf:Property ;
+    rdfs:comment "The frame's own rdf:List of Clause, in written order. Domain safe, same reasoning as manch:subject." ;
+    rdfs:domain manch:Frame ;
+    rdfs:range rdf:List .
+
+manch:facetPredicate a rdf:Property ;
+    rdfs:comment "The facet's own xsd: URIRef (xsd:minInclusive etc). Domain safe: leaf class." ;
+    rdfs:domain manch:FacetRestriction .
+
+manch:facetValue a rdf:Property ;
+    rdfs:comment "The facet's own Literal value. Domain safe: leaf class." ;
+    rdfs:domain manch:FacetRestriction .
+
+manch:facets a rdf:Property ;
+    rdfs:comment "DRestriction's own rdf:List of FacetRestriction. Domain safe: leaf class." ;
+    rdfs:domain manch:DRestriction ;
+    rdfs:range rdf:List .
+
+manch:filler a rdf:Property ;
+    rdfs:comment "Some/Only/Value/Min/Max/Exact's own filler (absent on Min/Max/Exact's unqualified form). No rdfs:domain: its own value is independently sh:class-dispatch-checked (a ClassExpression, or for Value a plain URIRef/Literal, not always dispatch-checked at all) - declaring range would risk pre-satisfying that check for the ClassExpression-valued uses." .
+
+manch:frames a rdf:Property ;
+    rdfs:comment "Document's own rdf:List of Frame, in written order." ;
+    rdfs:domain manch:Document ;
+    rdfs:range rdf:List .
+
+manch:header a rdf:Property ;
+    rdfs:comment "Document's own Ontology: header - range safe here: nothing dispatch-checks manch:OntologyHeader via sh:class (it's a leaf, no subclasses)." ;
+    rdfs:domain manch:Document ;
+    rdfs:range manch:OntologyHeader .
+
+manch:imports a rdf:Property ;
+    rdfs:comment "The header's own rdf:List of Import: URIRef, in order." ;
+    rdfs:domain manch:OntologyHeader ;
+    rdfs:range rdf:List .
+
+manch:individuals a rdf:Property ;
+    rdfs:comment "OneOf's own rdf:List of individual URIRef. Domain safe: manch:OneOf is a leaf ClassExpression subclass, not itself a dispatch superclass." ;
+    rdfs:domain manch:OneOf ;
+    rdfs:range rdf:List .
+
+manch:items a rdf:Property ;
+    rdfs:comment "A Clause's or MiscAxiom's own rdf:List of items - member shape depends on the concrete (sub)class, see each one's own comment. No rdfs:domain: shared across manch:Clause and manch:MiscAxiom, two unrelated dispatch families." ;
+    rdfs:range rdf:List .
+
+manch:literals a rdf:Property ;
+    rdfs:comment "DOneOf's own rdf:List of Literal. Domain safe: leaf class." ;
+    rdfs:domain manch:DOneOf ;
+    rdfs:range rdf:List .
+
+manch:misc a rdf:Property ;
+    rdfs:comment "Document's own rdf:List of MiscAxiom, in written order." ;
+    rdfs:domain manch:Document ;
+    rdfs:range rdf:List .
+
+manch:negative a rdf:Property ;
+    rdfs:comment "Whether this is a negative fact (`not prop value`). Domain safe: leaf class." ;
+    rdfs:domain manch:FactItem .
+
+manch:onDatatype a rdf:Property ;
+    rdfs:comment "DRestriction's own base datatype URIRef. Domain safe: leaf class." ;
+    rdfs:domain manch:DRestriction .
+
+manch:onProperty a rdf:Property ;
+    rdfs:comment "Some/Only/Value/SelfR/Min/Max/Exact's own property expression. No rdfs:domain (shared across 7 sibling leaf classes, no other common superclass but manch:ClassExpression itself - declaring it would be technically harmless here since all 7 truly are ClassExpression subclasses, but left undeclared for consistency with manch:filler below, which cannot safely declare it)." .
+
+manch:ontologyIri a rdf:Property ;
+    rdfs:comment "The optional Ontology: <iri> - absent for a bare `Ontology:` header." ;
+    rdfs:domain manch:OntologyHeader .
+
+manch:versionIri a rdf:Property ;
+    rdfs:comment "The optional version IRI that follows the ontology IRI in `Ontology: <iri> <versionIri>`." ;
+    rdfs:domain manch:OntologyHeader .
+
+manch:operand a rdf:Property ;
+    rdfs:comment "Not/DNot/Inverse's own single operand. No rdfs:domain - shared across three unrelated dispatch families (ClassExpression/DataRange/PropertyExpression), and its own value is independently sh:class-dispatch-checked depending on which clause it's reached through." .
+
+manch:operands a rdf:Property ;
+    rdfs:comment "And/Or/DAnd/DOr's own rdf:List of >=2 operands. No rdfs:domain - shared across manch:ClassExpression and manch:DataRange subclasses, two unrelated dispatch families." ;
+    rdfs:range rdf:List .
+
+manch:prefixIri a rdf:Property ;
+    rdfs:comment "The declaration's own IRI text, as a plain string Literal (not a URIRef - this is the definition of the prefix mapping itself, not a reference resolved through it)." ;
+    rdfs:domain manch:PrefixDecl .
+
+manch:prefixLabel a rdf:Property ;
+    rdfs:comment "The bare prefix label ('' for the default prefix) - a manch:PlainString-tagged Literal, not a plain string literal (see manch:PlainString's own comment)." ;
+    rdfs:domain manch:PrefixDecl .
+
+manch:prefixes a rdf:Property ;
+    rdfs:comment "Document's own rdf:List of PrefixDecl, in written order." ;
+    rdfs:domain manch:Document ;
+    rdfs:range rdf:List .
+
+manch:property a rdf:Property ;
+    rdfs:comment "The fact's own property URIRef. Domain safe: leaf class - manch:FactItem is the only class using this exact property name (deliberately distinct from manch:onProperty above, which is used elsewhere)." ;
+    rdfs:domain manch:FactItem .
+
+manch:reversed a rdf:Property ;
+    rdfs:comment "Present (true) only on a ClassSubClassOfClause/ObjPropSubPropertyOfClause/DataPropSubPropertyOfClause instance that was originally written as SuperClassOf:/SuperPropertyOf: rather than SubClassOf:/SubPropertyOf: - absent (not just false) otherwise. This is load-bearing, not spelling trivia: SuperClassOf:/SuperPropertyOf: compiles to the OPPOSITE rdfs:subClassOf/subPropertyOf triple direction from its Sub* counterpart (the frame's own subject ends up as the *object*, not the subject, of the relation), and manch:items alone can't distinguish the two cases (same item shape either way) - so without this flag, decoding a Super* clause and re-rendering it as Sub* would silently reverse the compiled OWL semantics. Domain safe: only ever asserted on a manch:Clause instance." ;
+    rdfs:domain manch:Clause ;
+    rdfs:range xsd:boolean .
+
+manch:subject a rdf:Property ;
+    rdfs:comment "The frame's own name (class/property/individual/datatype URIRef). Domain safe: used consistently across every manch:Frame subclass, no other class anywhere reuses this property name." ;
+    rdfs:domain manch:Frame .
+
+manch:value a rdf:Property ;
+    rdfs:comment "A ClauseItem's own value - shape depends on the enclosing clause (a ClassExpression, PropertyExpression, DataRange, or bare URIRef/Literal). No rdfs:domain/range: deliberately polymorphic by design (see manch:ClauseItem's own comment), and several of its possible shapes are independently sh:class-dispatch-checked." .
+
+manch:DSome rdfs:comment "`d some D` - a Some restriction on a DATA property: manch:onProperty, manch:filler (a DataRange, not a ClassExpression). Distinct from manch:Some because the OWL mapping differs (rdfs:Datatype fillers, owl:onDataRange for the qualified forms) and Manchester syntax itself does not mark the difference - the parser decides from the property's declaration or the filler's shape." ;
+    rdfs:subClassOf manch:ClassExpression .
+
+manch:DOnly rdfs:comment "`d only D` - data-property counterpart of manch:Only; manch:filler is a DataRange." ;
+    rdfs:subClassOf manch:ClassExpression .
+
+manch:DMin rdfs:comment "`d min n D` - QUALIFIED data cardinality (the unqualified form stays manch:Min, it has no filler to tell data from object): manch:onProperty, manch:cardinality, manch:filler (a DataRange, required)." ;
+    rdfs:subClassOf manch:ClassExpression .
+
+manch:DMax rdfs:comment "`d max n D` - same shape as DMin." ;
+    rdfs:subClassOf manch:ClassExpression .
+
+manch:DExact rdfs:comment "`d exactly n D` - same shape as DMin." ;
+    rdfs:subClassOf manch:ClassExpression .

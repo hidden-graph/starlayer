@@ -45,7 +45,12 @@ authoritative "what's supported and why" reference; the summary:
   Data ranges (DataProperty Range:, Datatype EquivalentTo:): atomic
   datatype, `and`/`or`/`not`, `{lit, lit, ...}` (DataOneOf), facet
   restrictions (`datatype[facet literal, ...]` - `>=`/`<=`/`>`/`<`/
-  `length`/`minLength`/`maxLength`/`pattern`).
+  `length`/`minLength`/`maxLength`/`pattern`/`langRange`). The short names
+  `integer`/`decimal`/`float`/`string` mean the xsd datatypes.
+  Restrictions on a DATA property (`d some xsd:integer[>= 5]`, `d min 1 string`)
+  are told from object ones by the property's declaration (a `DataProperty:`
+  frame anywhere in the document) or, failing that, by the filler's shape;
+  see _restriction_is_data(). Individuals may be nodeIDs (`_:b1`).
 
 Two distinct kinds of Annotations: are both supported, mapped differently:
 
@@ -57,19 +62,21 @@ Two distinct kinds of Annotations: are both supported, mapped differently:
     the B axiom, not C, confirmed empirically) - needs full owl:Axiom
     reification (owl:annotatedSource/Property/Target + the annotation
     triples themselves), alongside the plain axiom triple, never instead
-    of it. See _parse_item_annotations()/_maybe_reify(). Supported on
-    every clause where "one list item -> one axiom triple" holds; *not*
-    supported on the six top-level Misc axioms (EquivalentClasses: and
-    friends), whose pairwise-chain/AllDisjoint* encoding means a single
-    list item doesn't correspond to a single axiom the way it does
-    everywhere else - flagged in the gap-analysis doc rather than guessed
-    at without an empirical grammar reference to check it against.
+    of it. See _parse_item_annotations()/_maybe_reify().
+
+  Also supported: the Ontology: header's own `Annotations:` and version
+  IRI; `Annotations:` on the six top-level Misc axioms (OWL 2 RDF Mapping
+  section 2.3.2: repeated on every pairwise triple; the n-ary AllDisjoint*/
+  AllDifferent node carries them itself); and an annotation that is itself
+  annotated (`Annotations: Annotations: p v  p2 v2`, an owl:Axiom for a
+  frame-level assertion, an owl:Annotation otherwise).
 
 See the gap-analysis doc for the full list of what's deliberately not
-implemented and why (SWRL Rule:, Misc-axiom inline annotations, a couple
-of reserved-but-dead oracle keywords, and the declaration-order
-strictness the OWL API's own parser enforces that this one deliberately
-doesn't).
+implemented and why (SWRL Rule:, a couple of reserved-but-dead oracle
+keywords, and the declaration-order strictness the OWL API's own parser
+enforces that this one deliberately doesn't). The completeness suite
+tests/starontology/manchester_conformance/ checks all of this against the
+W3C grammar and the OWL API.
 
 Also deliberately unsupported: any use of a name under the default `:`
 prefix without an explicit `Prefix: :` declaration for it (no implicit
@@ -78,13 +85,13 @@ ontology-IRI-based default is guessed).
 
 from __future__ import annotations
 
+import re
 from urllib.parse import urljoin
 
 from rdflib import BNode, Literal, URIRef
 from rdflib.namespace import OWL, RDF, RDFS, XSD
 
 from starlayer.graph.parsers.errors import ManchesterSyntaxError
-from starlayer.graph.parsers.syntax import coerce_object
 
 _DEFAULT_PREFIXES = {
     'owl': 'http://www.w3.org/2002/07/owl#',
@@ -133,6 +140,7 @@ _DATA_FACETS = {
     '>': XSD.minExclusive, '<': XSD.maxExclusive,
     'length': XSD.length, 'minLength': XSD.minLength, 'maxLength': XSD.maxLength,
     'pattern': XSD.pattern,
+    'langRange': URIRef(str(RDF) + 'langRange'),
 }
 
 _CHARACTERISTICS = {
@@ -145,7 +153,51 @@ _CHARACTERISTICS = {
     'Irreflexive': OWL.IrreflexiveProperty,
 }
 
+_SHORT_DATATYPES = {
+    'integer': XSD.integer,
+    'decimal': XSD.decimal,
+    'float': XSD.float,
+    'string': XSD.string,
+}
+
+# Datatypes that need no declaration: the xsd namespace plus the OWL 2 / RDF built-ins that are not in it.
+_BUILTIN_DATATYPES = frozenset({
+    URIRef(str(RDF) + 'PlainLiteral'), URIRef(str(RDF) + 'XMLLiteral'), URIRef(str(RDF) + 'langString'),
+    RDFS.Literal, OWL.real, OWL.rational,
+})
+
+
+def _is_builtin_datatype(uri):
+    return uri in _BUILTIN_DATATYPES or str(uri).startswith(str(XSD))
+
+
 _RESTRICTION_KEYWORDS = {'some', 'only', 'onlysome', 'value', 'Self', 'min', 'max', 'exactly'}
+
+
+# ---------------------------------------------------------------------------
+# Numeric literals (the note's integerLiteral / decimalLiteral / floatingPointLiteral)
+# ---------------------------------------------------------------------------
+
+_INTEGER_RE = re.compile(r'^[+-]?[0-9]+$')
+_DECIMAL_RE = re.compile(r'^[+-]?[0-9]+\.[0-9]+$')
+_FLOAT_RE = re.compile(r'^([+-]?(?:[0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?|\.[0-9]+(?:[eE][+-]?[0-9]+)?))[fF]$')
+
+
+def _numeric_literal(word):
+    """The Literal for a bare numeric token, or None if ``word`` is not one.
+
+    integer -> xsd:integer, decimal -> xsd:decimal, and a number ending in ``f``/``F`` (the only way the
+    note's grammar spells a floating-point literal, with an optional exponent) -> xsd:float. A leading
+    ``+`` is accepted and not kept in the lexical form, matching the OWL API.
+    """
+    if _INTEGER_RE.match(word):
+        return Literal(str(int(word)), datatype=XSD.integer, normalize=False)
+    if _DECIMAL_RE.match(word):
+        return Literal(word.lstrip('+'), datatype=XSD.decimal, normalize=False)
+    m = _FLOAT_RE.match(word)
+    if m:
+        return Literal(repr(float(m.group(1))), datatype=XSD.float, normalize=False)
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -155,6 +207,27 @@ _RESTRICTION_KEYWORDS = {'some', 'only', 'onlysome', 'value', 'Self', 'min', 'ma
 # A bare word (keyword, prefixed name, integer, ...) never legally contains
 # any of these - each unambiguously starts a different token form.
 _WORD_STOP_CHARS = ('<', '"', '(', ')', ',', '{', '}', '[', ']')
+
+
+def _unescape_quoted(raw):
+    """Decode the two escapes the note's ``quotedString`` production defines, ``\\"`` and ``\\\\``.
+
+    Any other backslash is left alone (the note defines no other escape; the OWL API does the same), so a
+    lone backslash in a string such as a regular expression survives unchanged.
+    """
+    if '\\' not in raw:
+        return raw
+    out = []
+    i, n = 0, len(raw)
+    while i < n:
+        c = raw[i]
+        if c == '\\' and i + 1 < n and raw[i + 1] in '"\\':
+            out.append(raw[i + 1])
+            i += 2
+        else:
+            out.append(c)
+            i += 1
+    return ''.join(out)
 
 
 def _tokenize(text):
@@ -221,7 +294,7 @@ def _tokenize(text):
                 j += 1
             if j >= n:
                 err('unterminated string literal', i)
-            value = text[i + 1:j]
+            value = _unescape_quoted(text[i + 1:j])
             tok = {'kind': 'LITERAL', 'text': value, 'line': line, 'lang': None, 'datatype': None}
             j += 1
             if j < n and text[j] == '@':
@@ -253,6 +326,13 @@ def _tokenize(text):
             tokens.append({'kind': 'PUNCT', 'text': c, 'line': line})
             i += 1
             continue
+        if c == '>':
+            # '>=' / '>' are facet operators; the note puts no whitespace requirement between one and
+            # its value ('[>=1,<10]'), so they are tokens of their own, like '<=' and '<' above.
+            op = '>=' if text[i:i + 2] == '>=' else '>'
+            tokens.append({'kind': 'WORD', 'text': op, 'line': line})
+            i += len(op)
+            continue
         j = i
         while j < n and not text[j].isspace() and text[j] not in _WORD_STOP_CHARS:
             j += 1
@@ -275,6 +355,8 @@ class _Cursor:
         self.prefixes = dict(_DEFAULT_PREFIXES)
         self.base = base
         self.triples = []
+        self._declared = None
+        self._blank_nodes = {}
 
     def mint_bnode(self):
         return BNode()
@@ -331,6 +413,18 @@ class _Cursor:
             items: The axiom's own comma-list, before compilation.
         """
 
+    def record_misc_annotations(self, annotations):
+        """Called right after record_misc() when the Misc axiom had a leading
+        `Annotations:`. A no-op hook by default.
+
+        A separate hook, not an extra argument of record_misc(), so existing
+        subclasses that override record_misc() keep working unchanged: hook
+        signatures are never changed, only added to.
+
+        Args:
+            annotations: The axiom's `Annotations:` as a list of annotations.
+        """
+
     def record_ontology_header(self, iri, imports):
         """Called when the Ontology: header line was just parsed. A no-op
         hook by default.
@@ -339,6 +433,17 @@ class _Cursor:
             iri: The ontology's own IRI, or None for a bare `Ontology:`
                 with no IRI.
             imports: The list of Import: names, in order.
+        """
+
+    def record_ontology_extras(self, version_iri, annotations):
+        """Called right after record_ontology_header() when the header had a
+        version IRI and/or `Annotations:`. A no-op hook by default (a separate
+        hook so record_ontology_header()'s signature never changes).
+
+        Args:
+            version_iri: The version IRI following the ontology IRI, or None.
+            annotations: The header's `Annotations:` as a list of annotations,
+                or None if none were written.
         """
 
     def record_prefix(self, prefix, iri):
@@ -392,6 +497,23 @@ class _Cursor:
     def resolve_iri(self, raw):
         return URIRef(urljoin(self.base, raw) if self.base else raw)
 
+    def blank_node(self, label):
+        """The blank node for a ``_:label`` nodeID. The label is the node's identity within the
+        document, so every ``_:b1`` is the same node and a rendered label can be read back."""
+        node = self._blank_nodes.get(label)
+        if node is None:
+            node = self._blank_nodes[label] = BNode(label)
+        return node
+
+    def read_individual(self):
+        """Consume an individual: a name, or a nodeID (``_:label``, the note's ``individual ::=
+        individualIRI | nodeID``)."""
+        tok = self.peek()
+        if tok is not None and tok['kind'] == 'WORD' and tok['text'].startswith('_:') and len(tok['text']) > 2:
+            self.advance()
+            return self.blank_node(tok['text'][2:])
+        return self.read_name()
+
     def read_name(self):
         """Consume one IRI/WORD token naming a class/property/individual/datatype.
 
@@ -429,13 +551,69 @@ class _Cursor:
                 return Literal(tok['text'], lang=tok['lang'])
             return Literal(tok['text'])
         word = self.peek_word()
-        if word is not None and (word.replace('.', '', 1).replace('-', '', 1).isdigit() or word in ('true', 'false')):
+        if word is not None:
+            number = _numeric_literal(word)
+            if number is not None:
+                self.advance()
+                return number
+            if word in ('true', 'false'):
+                self.advance()
+                return Literal(word == 'true')
+        return self.read_individual()
+
+    def try_name(self, tok):
+        """The resolved URIRef a name token denotes, or None if ``tok`` is not a usable name here (a
+        keyword, a literal, an unknown prefix). Never consumes anything and never raises."""
+        if tok is None:
+            return None
+        if tok['kind'] == 'IRI':
+            return self.resolve_iri(tok['text'])
+        if tok['kind'] != 'WORD' or tok['text'].endswith(':'):
+            return None
+        text = tok['text']
+        prefix, local = text.split(':', 1) if ':' in text else ('', text)
+        if prefix not in self.prefixes:
+            return None
+        return URIRef(self.prefixes[prefix] + local)
+
+    def declared_kinds(self):
+        """``(property_kinds, datatypes)`` read from the document's own frames, wherever they occur.
+
+        Manchester syntax does not mark a restriction as data or object syntactically (``p some X``
+        reads the same either way); the property's declaration does. ``property_kinds`` maps a property
+        IRI to 'data' or 'object'; ``datatypes`` is the set of IRIs declared with ``Datatype:``.
+        Computed once, on first use, from the token stream (by then every Prefix: is known)."""
+        if self._declared is None:
+            kinds, datatypes = {}, set()
+            for i, tok in enumerate(self.tokens[:-1]):
+                if tok['kind'] != 'WORD':
+                    continue
+                keyword = tok['text']
+                if keyword not in ('DataProperty:', 'ObjectProperty:', 'Datatype:'):
+                    continue
+                uri = self.try_name(self.tokens[i + 1])
+                if uri is None:
+                    continue
+                if keyword == 'Datatype:':
+                    datatypes.add(uri)
+                else:
+                    kinds[uri] = 'data' if keyword == 'DataProperty:' else 'object'
+            self._declared = (kinds, datatypes)
+        return self._declared
+
+    def read_datatype_name(self):
+        """Consume a datatype name: the note's ``Datatype ::= datatypeIRI | 'integer' | 'decimal' |
+        'float' | 'string'``, so the four short words mean the xsd datatypes, not names in the default
+        namespace."""
+        word = self.peek_word()
+        if word in _SHORT_DATATYPES:
             self.advance()
-            val = coerce_object(word)
-            return Literal(val) if isinstance(val, bool) else val
+            return _SHORT_DATATYPES[word]
         return self.read_name()
 
     def _resolve_word(self, text):
+        if text in _SHORT_DATATYPES:
+            return _SHORT_DATATYPES[text]
         if ':' in text:
             prefix, local = text.split(':', 1)
         else:
@@ -495,10 +673,10 @@ def _parse_primary(cur):
         return expr
     if tok is not None and tok['kind'] == 'PUNCT' and tok['text'] == '{':
         cur.advance()
-        individuals = [cur.read_name()]
+        individuals = [cur.read_individual()]
         while cur.peek() is not None and cur.peek()['kind'] == 'PUNCT' and cur.peek()['text'] == ',':
             cur.advance()
-            individuals.append(cur.read_name())
+            individuals.append(cur.read_individual())
         cur.expect_punct('}')
         return ('OneOf', individuals)
 
@@ -557,20 +735,64 @@ def _starts_a_primary(tok):
     return False
 
 
+def _filler_is_data(cur):
+    """Does the filler about to be read look like a data range? Looks ahead without consuming.
+
+    Used only when the property's own declaration does not settle data-vs-object: a literal enumeration
+    (``{1, 2}``), a datatype name (xsd:, the short ``integer``/``string``/..., OWL/RDF built-ins, or a
+    ``Datatype:`` declared in the document), or a name followed by ``[`` (a facet restriction). Leading
+    ``(`` and ``not`` are looked through, so ``not xsd:string`` and ``(xsd:integer or ...)`` count."""
+    tokens, i = cur.tokens, cur.pos
+    while i < len(tokens) and (
+        (tokens[i]['kind'] == 'PUNCT' and tokens[i]['text'] == '(')
+        or (tokens[i]['kind'] == 'WORD' and tokens[i]['text'] == 'not')
+    ):
+        i += 1
+    if i >= len(tokens):
+        return False
+    tok = tokens[i]
+    nxt = tokens[i + 1] if i + 1 < len(tokens) else None
+    if tok['kind'] == 'PUNCT' and tok['text'] == '{':
+        return nxt is not None and (
+            nxt['kind'] == 'LITERAL'
+            or (nxt['kind'] == 'WORD' and (_numeric_literal(nxt['text']) is not None or nxt['text'] in ('true', 'false')))
+        )
+    if tok['kind'] == 'WORD' and tok['text'] in _SHORT_DATATYPES:
+        return True
+    uri = cur.try_name(tok)
+    if uri is None:
+        return False
+    if _is_builtin_datatype(uri) or uri in cur.declared_kinds()[1]:
+        return True
+    return nxt is not None and nxt['kind'] == 'PUNCT' and nxt['text'] == '['
+
+
+def _restriction_is_data(cur, prop_expr):
+    """Is a ``p some/only/min/max/exactly`` restriction on a data property? The property's declaration
+    (a ``DataProperty:``/``ObjectProperty:`` frame anywhere in the document) decides when there is one;
+    otherwise the filler's shape does (see ``_filler_is_data``). ``inverse p`` is always an object property."""
+    if isinstance(prop_expr, URIRef):
+        kind = cur.declared_kinds()[0].get(prop_expr)
+        if kind is not None:
+            return kind == 'data'
+    elif isinstance(prop_expr, tuple):
+        return False
+    return _filler_is_data(cur)
+
+
 def _parse_restriction_tail(cur, prop_expr):
     kw = cur.advance()['text']
-    if kw == 'some':
-        return ('Some', prop_expr, _parse_primary(cur))
-    if kw == 'only':
-        return ('Only', prop_expr, _parse_primary(cur))
-    if kw == 'onlysome':
-        # `p onlysome C` - OWL-API GCI-writing convenience, confirmed
-        # empirically to expand to `(p some C) and (p only C)` exactly
-        # (same owl:intersectionOf-of-two-restrictions shape the oracle
-        # emits) - reuses the existing And/Some/Only RDF mapping rather
-        # than needing a dedicated tag.
-        filler = _parse_primary(cur)
-        return ('And', [('Some', prop_expr, filler), ('Only', prop_expr, filler)])
+    if kw in ('some', 'only', 'onlysome'):
+        # `p onlysome C` is an OWL-API convenience, confirmed against the oracle to expand to
+        # `(p some C) and (p only C)` exactly, so it reuses the Some/Only mapping and needs no tag.
+        data = _restriction_is_data(cur, prop_expr)
+        filler = _parse_data_primary(cur) if data else _parse_primary(cur)
+        some, only = ('DSome', 'DOnly') if data else ('Some', 'Only')
+        if kw == 'some':
+            return (some, prop_expr, filler)
+        if kw == 'only':
+            return (only, prop_expr, filler)
+        return ('And', [(some, prop_expr, filler), (only, prop_expr, filler)])
     if kw == 'value':
         return ('Value', prop_expr, cur.read_literal_or_name())
     if kw == 'Self':
@@ -581,8 +803,11 @@ def _parse_restriction_tail(cur, prop_expr):
         cur.error(f'expected a non-negative integer after {kw!r}, got {n_tok["text"]!r}')
     n = int(n_tok['text'])
     tag = {'min': 'Min', 'max': 'Max', 'exactly': 'Exact'}[kw]
-    filler = _parse_primary(cur) if _starts_a_primary(cur.peek()) else None
-    return (tag, n, prop_expr, filler)
+    if not _starts_a_primary(cur.peek()):
+        return (tag, n, prop_expr, None)
+    if _restriction_is_data(cur, prop_expr):
+        return ('D' + tag, n, prop_expr, _parse_data_primary(cur))
+    return (tag, n, prop_expr, _parse_primary(cur))
 
 
 # ---------------------------------------------------------------------------
@@ -629,6 +854,14 @@ def _expr_node(cur, expr):
         pred = OWL.someValuesFrom if tag == 'Some' else OWL.allValuesFrom
         t.append((node, pred, _expr_node(cur, filler)))
         return node
+    if tag in ('DSome', 'DOnly'):
+        _, prop_expr, filler = expr
+        node = cur.mint_bnode()
+        t.append((node, RDF.type, OWL.Restriction))
+        t.append((node, OWL.onProperty, _prop_node(cur, prop_expr)))
+        pred = OWL.someValuesFrom if tag == 'DSome' else OWL.allValuesFrom
+        t.append((node, pred, _data_range_node(cur, filler)))
+        return node
     if tag == 'Value':
         _, prop_expr, value = expr
         node = cur.mint_bnode()
@@ -660,6 +893,19 @@ def _expr_node(cur, expr):
             }[tag]
             t.append((node, pred, card))
             t.append((node, OWL.onClass, _expr_node(cur, filler)))
+        return node
+    if tag in ('DMin', 'DMax', 'DExact'):
+        _, n, prop_expr, filler = expr
+        node = cur.mint_bnode()
+        t.append((node, RDF.type, OWL.Restriction))
+        t.append((node, OWL.onProperty, _prop_node(cur, prop_expr)))
+        pred = {
+            'DMin': OWL.minQualifiedCardinality,
+            'DMax': OWL.maxQualifiedCardinality,
+            'DExact': OWL.qualifiedCardinality,
+        }[tag]
+        t.append((node, pred, Literal(n, datatype=XSD.nonNegativeInteger)))
+        t.append((node, OWL.onDataRange, _data_range_node(cur, filler)))
         return node
     if tag == 'Inverse':
         return _prop_node(cur, expr)
@@ -746,7 +992,7 @@ def _parse_data_atomic(cur):
         cur.expect_punct('}')
         return ('DOneOf', literals)
 
-    datatype = cur.read_name()
+    datatype = cur.read_datatype_name()
     if cur.peek() is not None and cur.peek()['kind'] == 'PUNCT' and cur.peek()['text'] == '[':
         cur.advance()
         facets = [_parse_facet_restriction(cur)]
@@ -810,25 +1056,62 @@ def _parse_comma_list(cur, parse_item):
             return items
 
 
-def _pairwise_chain(cur, nodes, pred):
+def _pairwise_chain(cur, nodes, pred, annotations=None):
     # nodes/nodes[1:] are deliberately always length-1 apart (the sliding-
     # window pairwise idiom) - strict=True would always raise here, not
     # catch a real mismatch.
+    # Annotations on the axiom annotate every pairwise triple it expands to (OWL 2 RDF mapping).
     for a, b in zip(nodes, nodes[1:]):  # noqa: B905
         cur.triples.append((a, pred, b))
+        _maybe_reify(cur, a, pred, b, annotations)
 
 
-def _nary_disjoint_or_different(cur, nodes, binary_pred, collection_class):
+def _nary_disjoint_or_different(cur, nodes, binary_pred, collection_class, annotations=None):
     if len(nodes) == 2:
         cur.triples.append((nodes[0], binary_pred, nodes[1]))
+        _maybe_reify(cur, nodes[0], binary_pred, nodes[1], annotations)
         return
     node = cur.mint_bnode()
     cur.triples.append((node, RDF.type, collection_class))
     cur.triples.append((node, OWL.members, _build_list(cur, nodes)))
+    # The n-ary form is one node, so the axiom's annotations hang directly off it.
+    _annotation_triples(cur, node, annotations or ())
+
+
+class _Annotation(tuple):
+    """One annotation: ``(property, value)``, plus ``nested`` - the annotations on this annotation (the
+    note's ``annotationAnnotatedList ::= [annotations] annotation ...``), or None.
+
+    A 2-tuple subclass on purpose: every place that unpacks ``(prop, value)`` keeps working, and only the
+    code that cares about annotations-of-annotations reads ``.nested``.
+    """
+
+    def __new__(cls, prop, value, nested=None):
+        self = super().__new__(cls, (prop, value))
+        self.nested = nested
+        return self
 
 
 def _parse_annotation_assertion(cur):
-    return cur.read_name(), cur.read_literal_or_name()
+    nested = _parse_item_annotations(cur)
+    prop = cur.read_name()
+    return _Annotation(prop, cur.read_literal_or_name(), nested)
+
+
+def _annotation_triples(cur, node, annotations):
+    """Hang ``annotations`` on ``node``. An annotation that is itself annotated is reified as an
+    ``owl:Annotation`` (OWL 2 RDF mapping, annotations of annotations), recursively."""
+    for ann in annotations:
+        prop, value = ann
+        cur.triples.append((node, prop, value))
+        nested = getattr(ann, 'nested', None)
+        if nested:
+            inner = cur.mint_bnode()
+            cur.triples.append((inner, RDF.type, OWL.Annotation))
+            cur.triples.append((inner, OWL.annotatedSource, node))
+            cur.triples.append((inner, OWL.annotatedProperty, prop))
+            cur.triples.append((inner, OWL.annotatedTarget, value))
+            _annotation_triples(cur, inner, nested)
 
 
 def _handle_frame_annotations(cur, frame_kind, subject):
@@ -848,8 +1131,11 @@ def _handle_frame_annotations(cur, frame_kind, subject):
             asserted directly on.
     """
     items = _parse_comma_list(cur, _parse_annotation_assertion)
-    for prop, value in items:
+    for ann in items:
+        prop, value = ann
         cur.triples.append((subject, prop, value))
+        # An annotation assertion is itself an axiom, so annotating it reifies it as owl:Axiom.
+        _maybe_reify(cur, subject, prop, value, getattr(ann, 'nested', None))
     cur.record_clause(frame_kind, 'Annotations:', items)
 
 
@@ -916,8 +1202,7 @@ def _maybe_reify(cur, subject, pred, obj, annotations):
     cur.triples.append((node, OWL.annotatedSource, subject))
     cur.triples.append((node, OWL.annotatedProperty, pred))
     cur.triples.append((node, OWL.annotatedTarget, obj))
-    for prop, value in annotations:
-        cur.triples.append((node, prop, value))
+    _annotation_triples(cur, node, annotations)
 
 
 # ---------------------------------------------------------------------------
@@ -1006,6 +1291,9 @@ def _parse_property_frame(cur, frame_kind, rdf_type, clauses, deferred, range_is
             for anns, name in items:
                 if name not in _CHARACTERISTICS:
                     cur.error(f'unknown property characteristic {name!r}')
+                if frame_kind == 'DataProperty' and name != 'Functional':
+                    # dataPropertyFrame ::= ... | 'Characteristics:' annotations 'Functional'
+                    cur.error(f'a data property can only be Functional, not {name!r}')
                 obj = _CHARACTERISTICS[name]
                 cur.triples.append((subject, RDF.type, obj))
                 _maybe_reify(cur, subject, RDF.type, obj, anns)
@@ -1099,8 +1387,10 @@ def _parse_fact(cur):
 
 
 def _parse_individual_frame(cur):
-    subject = cur.read_name()
-    cur.triples.append((subject, RDF.type, OWL.NamedIndividual))
+    subject = cur.read_individual()
+    if isinstance(subject, URIRef):
+        # A nodeID names an anonymous individual: it is not declared owl:NamedIndividual.
+        cur.triples.append((subject, RDF.type, OWL.NamedIndividual))
     cur.record_frame('Individual', subject)
 
     def handle(clause):
@@ -1137,7 +1427,7 @@ def _parse_individual_frame(cur):
             cur.record_clause('Individual', clause, items)
         else:
             pred = OWL.sameAs if clause == 'SameAs:' else OWL.differentFrom
-            items = _parse_comma_list(cur, _annotated(lambda c: c.read_name()))
+            items = _parse_comma_list(cur, _annotated(lambda c: c.read_individual()))
             for anns, name in items:
                 cur.triples.append((subject, pred, name))
                 _maybe_reify(cur, subject, pred, name, anns)
@@ -1171,55 +1461,62 @@ def _parse_datatype_frame(cur):
 
 
 def _parse_misc(cur, keyword):
+    # misc ::= 'EquivalentClasses:' annotations description2List | ... - one optional Annotations:
+    # prefix for the whole axiom.
+    annotations = _parse_item_annotations(cur)
     if keyword in ('EquivalentClasses:', 'DisjointClasses:'):
         exprs = _parse_comma_list(cur, _parse_description)
         nodes = [_expr_node(cur, e) for e in exprs]
         if keyword == 'EquivalentClasses:':
-            _pairwise_chain(cur, nodes, OWL.equivalentClass)
+            _pairwise_chain(cur, nodes, OWL.equivalentClass, annotations)
         else:
-            _nary_disjoint_or_different(cur, nodes, OWL.disjointWith, OWL.AllDisjointClasses)
+            _nary_disjoint_or_different(cur, nodes, OWL.disjointWith, OWL.AllDisjointClasses, annotations)
         cur.record_misc(keyword, exprs)
+        if annotations:
+            cur.record_misc_annotations(annotations)
     elif keyword in ('EquivalentProperties:', 'DisjointProperties:'):
         prop_exprs = _parse_comma_list(cur, _parse_property_expr)
         nodes = [_prop_node(cur, e) for e in prop_exprs]
         if keyword == 'EquivalentProperties:':
-            _pairwise_chain(cur, nodes, OWL.equivalentProperty)
+            _pairwise_chain(cur, nodes, OWL.equivalentProperty, annotations)
         else:
-            _nary_disjoint_or_different(cur, nodes, OWL.propertyDisjointWith, OWL.AllDisjointProperties)
+            _nary_disjoint_or_different(
+                cur, nodes, OWL.propertyDisjointWith, OWL.AllDisjointProperties, annotations
+            )
         cur.record_misc(keyword, prop_exprs)
+        if annotations:
+            cur.record_misc_annotations(annotations)
     else:
-        names = _parse_comma_list(cur, lambda c: c.read_name())
+        names = _parse_comma_list(cur, lambda c: c.read_individual())
         if keyword == 'SameIndividual:':
-            _pairwise_chain(cur, names, OWL.sameAs)
+            _pairwise_chain(cur, names, OWL.sameAs, annotations)
         else:
-            _nary_disjoint_or_different(cur, names, OWL.differentFrom, OWL.AllDifferent)
+            _nary_disjoint_or_different(cur, names, OWL.differentFrom, OWL.AllDifferent, annotations)
         cur.record_misc(keyword, names)
+        if annotations:
+            cur.record_misc_annotations(annotations)
 
 
 # ---------------------------------------------------------------------------
 # Top level
 # ---------------------------------------------------------------------------
 
-def parse_manchester(text: str, base: str = None) -> list:
-    """Parse Manchester OWL Syntax text and return a list of (s, p, o)
-    triples.
+def _run_top_level(cur):
+    """Drive ``cur`` through a whole document: Prefix:/Ontology: headers, frames and Misc axioms.
 
-    Args:
-        text: The Manchester OWL Syntax document text to parse.
-        base: Seeds resolution of the `Ontology: <iri>` header and any
-            other relative IRIs, the same role every other
-            starlayer.graph parser's base argument plays.
-
-    Returns:
-        A list of (s, p, o) triples (plain rdflib terms -
-        URIRef/BNode/Literal).
+    Shared by ``parse_manchester`` and the syntax-tree parser in ``starlayer.starontology.manchester``
+    (which drives it with a recording cursor), so a parsing fix is made once and cannot drift between
+    the two entry points.
     """
-    cur = _Cursor(_tokenize(text), base)
-
     while True:
+        tok = cur.peek()
+        if tok is None:
+            break
         word = cur.peek_word()
         if word is None:
-            break
+            # A token that is not a keyword (stray IRI, string, number, punctuation) is not the end of
+            # the document: ending here would silently discard everything after it.
+            cur.error(f'expected a Prefix:/Ontology:/frame/Misc-axiom keyword, got {tok["text"]!r}')
         if word == 'Prefix:':
             cur.advance()
             name_tok = cur.advance()
@@ -1235,21 +1532,37 @@ def parse_manchester(text: str, base: str = None) -> list:
             cur.advance()
             tok = cur.peek()
             ontology_iri = None
+            version_iri = None
             if tok is not None and tok['kind'] == 'IRI':
                 cur.advance()
                 ontology_iri = cur.resolve_iri(tok['text'])
                 cur.base = str(ontology_iri)
-                cur.triples.append((ontology_iri, RDF.type, OWL.Ontology))
+                # ontology ::= 'Ontology:' [ ontologyIRI [ versionIRI ] ] ...
+                version_tok = cur.peek()
+                if version_tok is not None and version_tok['kind'] == 'IRI':
+                    cur.advance()
+                    version_iri = cur.resolve_iri(version_tok['text'])
+            # OWL 2 RDF mapping: the ontology is always a node typed owl:Ontology - a fresh blank node
+            # when it has no IRI - and its imports and annotations hang off that node.
+            ontology_node = ontology_iri if ontology_iri is not None else cur.mint_bnode()
+            cur.triples.append((ontology_node, RDF.type, OWL.Ontology))
+            if version_iri is not None:
+                cur.triples.append((ontology_node, OWL.versionIRI, version_iri))
             imports = []
             while cur.peek_word() == 'Import:':
                 cur.advance()
                 imported = cur.read_name()
                 imports.append(imported)
-                if ontology_iri is not None:
-                    cur.triples.append((ontology_iri, OWL.imports, imported))
-            if cur.peek_word() == 'Annotations:':
-                cur.error('Annotations: in the Ontology: header is not supported yet')
+                cur.triples.append((ontology_node, OWL.imports, imported))
+            # ... { import } { annotations } - the annotations belong to the ontology itself.
+            annotations = None
+            while cur.peek_word() == 'Annotations:':
+                cur.advance()
+                annotations = (annotations or []) + _parse_comma_list(cur, _parse_annotation_assertion)
+            _annotation_triples(cur, ontology_node, annotations or ())
             cur.record_ontology_header(ontology_iri, imports)
+            if version_iri is not None or annotations:
+                cur.record_ontology_extras(version_iri, annotations)
         elif word == 'Datatype:':
             cur.advance()
             _parse_datatype_frame(cur)
@@ -1275,4 +1588,21 @@ def parse_manchester(text: str, base: str = None) -> list:
         else:
             cur.error(f'expected a Prefix:/Ontology:/frame/Misc-axiom keyword, got {word!r}')
 
+
+def parse_manchester(text: str, base: str = None) -> list:
+    """Parse Manchester OWL Syntax text and return a list of (s, p, o)
+    triples.
+
+    Args:
+        text: The Manchester OWL Syntax document text to parse.
+        base: Seeds resolution of the `Ontology: <iri>` header and any
+            other relative IRIs, the same role every other
+            starlayer.graph parser's base argument plays.
+
+    Returns:
+        A list of (s, p, o) triples (plain rdflib terms -
+        URIRef/BNode/Literal).
+    """
+    cur = _Cursor(_tokenize(text), base)
+    _run_top_level(cur)
     return cur.triples
