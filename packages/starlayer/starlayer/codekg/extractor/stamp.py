@@ -12,7 +12,7 @@ from __future__ import annotations
 import re
 import subprocess
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from rdflib import RDF, Literal
@@ -48,7 +48,7 @@ def write_stamp(dataset, repo_root: Path, file_count: int, now: datetime | None 
     graph.remove((None, None, None))
     node = BUILD_NODE_IRI
     graph.add((node, RDF.type, CODEKG_NS.KGBuild))
-    graph.add((node, CODEKG_NS.builtAt, Literal((now or datetime.now(UTC)).strftime("%Y-%m-%dT%H:%M:%SZ"), datatype=XSD.dateTime)))
+    graph.add((node, CODEKG_NS.builtAt, Literal((now or datetime.now(timezone.utc)).strftime("%Y-%m-%dT%H:%M:%SZ"), datatype=XSD.dateTime)))
     graph.add((node, CODEKG_NS.sourceFileCount, Literal(file_count, datatype=XSD.integer)))
     commit = head_commit(repo_root)
     if commit:
@@ -108,7 +108,7 @@ def append_changelog_entry(changelog: Path, repo_root: Path, file_count: int, tr
     Hand-written entries are left alone. The automatic one says only what the stamp says; what the extractor learned
     to extract is still written by hand.
     """
-    day = (today or datetime.now(UTC)).strftime("%Y-%m-%d")
+    day = (today or datetime.now(timezone.utc)).strftime("%Y-%m-%d")
     commit = head_commit(repo_root)
     changes = uncommitted_python_changes(repo_root)
     where = "no git commit" if not commit else f"commit {commit[:7]}" + (" with uncommitted changes" if changes else "")
