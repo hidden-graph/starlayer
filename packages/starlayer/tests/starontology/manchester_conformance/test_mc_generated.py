@@ -88,6 +88,28 @@ def data_range():
     )
 
 
+node_id = st.sampled_from(["_:b1", "_:b2", "_:anon"])
+
+literal = st.one_of(
+    st.integers(min_value=-9, max_value=99).map(str),
+    st.integers(min_value=0, max_value=9).map(lambda n: f"+{n}"),
+    st.sampled_from(["1.5", "-2.25", "+0.5"]),
+    st.sampled_from(["2f", ".5f", "1.5e3f", "-3.25f", "2E-2F"]),
+    st.sampled_from(['"plain"', '"with \\"quote\\" and \\\\ slash"', '"hello"@en', '"5"^^xsd:integer', '"x"^^string']),
+)
+
+
+def annotation_prefix():
+    """``Annotations: ...`` (possibly nested) followed by a space, or nothing."""
+    plain = st.sampled_from(['note "a"', 'note2 "b"', "note 5"])
+    nested = st.tuples(plain, plain).map(lambda t: f"Annotations: {t[0]} {t[1]}")
+    return st.one_of(
+        st.just(""),
+        plain.map(lambda a: f"Annotations: {a} "),
+        nested.map(lambda a: f"Annotations: {a} "),
+    )
+
+
 def axiom_text():
     cls = class_expr()
     return st.one_of(
@@ -101,6 +123,23 @@ def axiom_text():
         st.tuples(st.sampled_from(DATA_PROPS), data_range()).map(lambda t: f"DataProperty: {t[0]}\n  Range: {t[1]}\n"),
         st.lists(cls, min_size=2, max_size=3).map(lambda xs: "DisjointClasses: " + ", ".join(xs) + "\n"),
         st.lists(cls, min_size=2, max_size=3).map(lambda xs: "EquivalentClasses: " + ", ".join(xs) + "\n"),
+        # annotations: on one list item, nested, and on a whole top-level axiom
+        st.tuples(names, annotation_prefix(), cls).map(lambda t: f"Class: {t[0]}\n  SubClassOf: {t[1]}{t[2]}\n"),
+        st.tuples(annotation_prefix(), st.lists(cls, min_size=2, max_size=3)).map(
+            lambda t: "EquivalentClasses: " + t[0] + ", ".join(t[1]) + "\n"
+        ),
+        st.tuples(annotation_prefix(), st.lists(cls, min_size=2, max_size=3)).map(
+            lambda t: "DisjointClasses: " + t[0] + ", ".join(t[1]) + "\n"
+        ),
+        st.tuples(annotation_prefix(), st.lists(st.sampled_from(INDIVIDUALS), min_size=2, max_size=3, unique=True)).map(
+            lambda t: "DifferentIndividuals: " + t[0] + ", ".join(t[1]) + "\n"
+        ),
+        # nodeID individuals and the new literal forms
+        st.tuples(node_id, cls).map(lambda t: f"Individual: {t[0]}\n  Types: {t[1]}\n"),
+        st.tuples(st.sampled_from(INDIVIDUALS), node_id).map(lambda t: f"Individual: {t[0]}\n  SameAs: {t[1]}\n"),
+        st.tuples(st.sampled_from(INDIVIDUALS), st.sampled_from(DATA_PROPS), literal).map(
+            lambda t: f"Individual: {t[0]}\n  Facts: {t[1]} {t[2]}\n"
+        ),
     )
 
 
