@@ -17,6 +17,9 @@ slkg:CapabilityShape a sh:NodeShape ;
         sh:path slkg:inCapabilityArea ; sh:minCount 1 ; sh:maxCount 1 ; sh:class slkg:CapabilityArea ;
         sh:message "a slkg:Capability belongs to exactly one slkg:CapabilityArea"
     ], [
+        sh:path slkg:implementsSpecification ; sh:nodeKind sh:IRI ; sh:pattern "^https://www\\.w3\\.org/TR/[a-z0-9-]+/?$" ;
+        sh:message "slkg:implementsSpecification must be a https://www.w3.org/TR/... IRI"
+    ], [
         sh:path slkg:appRole ; sh:minCount 1 ;
         sh:in ( "storage" "interchange" "query" "validate" "infer" "ui-generate" "reference" ) ;
         sh:message "slkg:appRole must be one or more of storage, interchange, query, validate, infer, ui-generate, reference"

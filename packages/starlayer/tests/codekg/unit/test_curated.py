@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 import starlayer.codekg as codekg
-from rdflib import RDF, Literal
+from rdflib import RDF, Literal, URIRef
 from rdflib.namespace import DCTERMS
 from starlayer.codekg import (
     CODEKG_NS,
@@ -64,8 +64,9 @@ def test_the_capability_list_conforms_to_its_shapes():
         lambda g, c: g.set((c, CODEKG_NS.appRole, Literal("make-coffee"))),
         lambda g, c: g.set((c, CODEKG_NS.hasStatus, Literal("done"))),
         lambda g, c: g.remove((c, CODEKG_NS.inCapabilityArea, None)),
+        lambda g, c: g.add((c, CODEKG_NS.implementsSpecification, URIRef("http://example.org/not-a-w3c-spec"))),
     ],
-    ids=["no-role", "unknown-role", "unknown-status", "no-area"],
+    ids=["no-role", "unknown-role", "unknown-status", "no-area", "spec-not-w3c"],
 )
 def test_the_capability_shapes_notice_a_damaged_capability(corrupt):
     from rdflib import Graph
@@ -95,3 +96,13 @@ def test_every_notebook_link_names_symbols_the_code_graph_has_and_demonstratedby
     derived = list(curated.subject_objects(CODEKG_NS.demonstratedBy))
     assert len(derived) >= len(cited)
     assert all((example, RDF.type, CODEKG_NS.NotebookExample) in curated for _entity, example in derived)
+
+
+def test_capabilities_name_the_specifications_they_implement():
+    from rdflib import Graph
+
+    graph = Graph().parse(FUNCTIONALITY_TTL, format="turtle")
+    specs = {str(o) for o in graph.objects(None, CODEKG_NS.implementsSpecification)}
+    assert len(specs) >= 12
+    assert "https://www.w3.org/TR/shacl12-core" in specs and "https://www.w3.org/TR/sparql12-update" in specs
+    assert all(s.startswith("https://www.w3.org/TR/") for s in specs)

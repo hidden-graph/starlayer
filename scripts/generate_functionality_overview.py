@@ -53,7 +53,11 @@ def main() -> None:
 
         for cap in implemented:
             comment = str(curated.value(cap, RDFS.comment))
-            lines.append(f"- {comment}")
+            specs = sorted(str(s) for s in curated.objects(cap, SLKG.implementsSpecification))
+            line = f"- {comment}"
+            if specs:
+                line += " (" + ", ".join(f"[{s.rstrip('/').rsplit('/', 1)[-1]}]({s})" for s in specs) + ")"
+            lines.append(line)
         lines.append("")
 
         if roadmap:

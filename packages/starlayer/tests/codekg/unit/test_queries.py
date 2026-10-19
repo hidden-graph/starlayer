@@ -70,7 +70,7 @@ def test_query_text_round_trips_and_follows_the_parameter_rules(name):
     select = re.search(r"SELECT(.*?)WHERE", text, re.S).group(1)
     for param in described.parameters:
         assert f"?{param.name}" in text, f"{name}: parameter {param.name} is not used in the query"
-        assert f"?{param.name}" not in select, f"{name}: parameter {param.name} must not be in the SELECT list"
+        assert not re.search(rf"\?{param.name}\b", select), f"{name}: parameter {param.name} must not be in the SELECT list"
         if not param.required:
             assert f"VALUES ?{param.name} {{ UNDEF }}" in text, f"{name}: optional parameter {param.name} is not declared"
 
