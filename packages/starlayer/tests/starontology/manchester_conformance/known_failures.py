@@ -20,20 +20,36 @@ from __future__ import annotations
 
 _F1 = "F1 top-level truncation: a non-keyword token at top level ends parsing and silently drops the rest of the document (manchester_parser.py: peek_word() returns None for any non-WORD token and the top-level loop treats None as end of input)."
 _F2 = "F2 Ontology: <iri> <versionIRI>: no owl:versionIRI triple is emitted and, via F1, every following frame is silently dropped."
-_F13 = "F13 length facets (length/minLength/maxLength): our value literal is xsd:integer ('5'^^xsd:integer, from the Note's integerLiteral); the OWL API writes a plain literal '5'. Which is right per the OWL 2 RDF mapping is UNRESOLVED - needs the W3C Mapping check before deciding which side to change."
-_F14a = "F14 oracle quirk (pending W3C check): OWL API additionally types the annotated propertyChain list as rdf:List."
-_F14b = "F14 oracle quirk (pending W3C check): OWL API emits the annotated owl:sameAs axiom in both directions (i->j and j->i); we emit one. The property is symmetric so likely equivalent, but not isomorphic."
+
+# case id -> reason: the oracle accepts it and its output DIFFERS from ours, but ours is what the W3C
+# OWL 2 RDF Mapping specifies. The oracle comparison is therefore not applied; the spec-derived
+# expectation lives in test_mc_note_only.py (CHECKS) and is required to exist for every entry.
+_FACET_LEN = (
+    "OWL API writes length/minLength/maxLength facet values as plain literals ('5'); we keep the literal as "
+    "written in the document (5 is an integer literal, so '5'^^xsd:integer), which is what the RDF Mapping's "
+    "'_:y_i F_i lt_i' rule says (the facet value is the literal lt as given)."
+)
+ORACLE_DEVIATIONS: dict[str, str] = {
+    "facet-length": _FACET_LEN,
+    "facet-minlength": _FACET_LEN,
+    "facet-maxlength": _FACET_LEN,
+    "facet-min-and-max-length": _FACET_LEN,
+    "op-chain-annotated": (
+        "OWL API additionally types the annotated property-chain list rdf:List. The RDF Mapping's Table 1 builds "
+        "a SEQ from rdf:first/rdf:rest only; rdf:type rdf:List appears only in the parsing direction."
+    ),
+    "ind-sameas-annotated": (
+        "OWL API reifies an annotated owl:sameAs axiom in BOTH directions. RDF Mapping section 2.3.2: the axiom "
+        "is split into pairwise triples and the annotation is repeated on each; two individuals give one triple."
+    ),
+    "misc-sameindividual-annotated": (
+        "Same as ind-sameas-annotated, for the top-level SameIndividual: axiom (RDF Mapping section 2.3.2)."
+    ),
+}
 
 # case id -> reason: the oracle accepts it, but our parse is not OWL-equivalent (or raises). Real gaps
 # to close, except F13/F14 which are pending a W3C check.
 DIFFERENTIAL_FAILURES: dict[str, str] = {
-    "misc-sameindividual-annotated": _F14b,
-    "facet-length": _F13,
-    "facet-minlength": _F13,
-    "facet-maxlength": _F13,
-    "facet-min-and-max-length": _F13,
-    "op-chain-annotated": _F14a,
-    "ind-sameas-annotated": _F14b,
 }
 
 _REJ_ACCEPTED_OK = "OWL API rejects; our parser accepts and the construct is allowed by the W3C Note. Output checked by test_mc_note_only.py."
@@ -73,7 +89,6 @@ _N_NOTE_STRICTER = "OWL API ACCEPTS this input but the W3C Note's grammar requir
 
 # negative case id -> reason the parser wrongly ACCEPTS it (silent mis-parse).
 NEGATIVE_FAILURES: dict[str, str] = {
-    "data-property-transitive": _N_ORACLE_AGREES + "'Characteristics: Transitive' on a DataProperty is accepted; the Note allows only 'Functional' for data properties.",
     "misc-single-member": _N_NOTE_STRICTER + "'DisjointClasses: A' (the Note's description2List needs at least two).",
     "chain-single-property": _N_NOTE_STRICTER + "'SubPropertyChain: q' (the Note needs at least two properties around 'o').",
     "disjointunion-single-member": _N_NOTE_STRICTER + "'DisjointUnionOf: B' (description2List needs at least two).",

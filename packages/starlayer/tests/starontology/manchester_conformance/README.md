@@ -1,9 +1,12 @@
 # Manchester completeness suite
 
 Answers one question: **is the Manchester Syntax parser, and the `manch:` tree built from it, complete?**
-Triggered by the SQE finding that an RDF encoding of SPARQL could not express arbitrary queries. Status:
-**Part A (find the gaps) is done; no library code has been changed.** Every gap below is a strict xfail in
-`known_failures.py` and flips to a failing XPASS the moment it is fixed.
+Triggered by the SQE finding that an RDF encoding of SPARQL could not express arbitrary queries.
+
+Status: the suite found 14 gaps; all genuine defects are fixed in the parser, and the tree layer is fixed in
+a working copy (`wip/`, see `WIP.md`) that still has to be merged into `starontology/`. What remains is
+listed in the Findings table below; every remaining exception is a strict xfail or a documented oracle
+deviation in `known_failures.py` and breaks loudly if its status changes.
 
 ## What it checks
 
@@ -31,46 +34,49 @@ Each golden records the jar's SHA-256. The goldens in the repo were produced on 
 bundling OWL API 5.1.20. The harness's Turtle writer drops the `#` from the default prefix, repaired in
 `helpers.owlapi_graph_from_golden`.
 
-## Findings (first run)
+## Findings
 
-Codes are used in `known_failures.py`. "Oracle" = OWL API 5.1.20; "Note" = W3C Manchester Syntax Note.
+Codes are used in `known_failures.py`. "Oracle" = OWL API 5.1.20; "Note" = W3C Manchester Syntax Note;
+"Mapping" = W3C OWL 2 RDF Mapping. Status is as of the last commit on this branch.
 
-| Code | Finding | Severity | Oracle agrees it is a defect? |
-|---|---|---|---|
-| F1 | **Top-level truncation**: a non-keyword token (IRI, string, `)`) at top level silently ends parsing and drops the rest of the document. `peek_word()` returns `None` for any non-WORD token and the top-level loop treats that as end of input. | **Critical, silent loss** | Yes (rejects all 5 truncation probes) |
-| F2 | `Ontology: <iri> <versionIRI>`: no `owl:versionIRI`, and via F1 every following frame is dropped | High, silent loss | n/a (oracle accepts) |
-| F3 | `Annotations:` in the `Ontology:` header refused | Medium | Oracle accepts |
-| F4 | Quoted-string escapes `\"` `\\` not decoded | High, wrong value | Oracle decodes |
-| F5 | `+7`, `+0.125` and **all floating-point literals** (`2f`, `.5f`, `1.5e3f`) parsed as IRIs, not literals | High, silent mis-parse | Oracle: integer/decimal/float literals |
-| F6 | nodeID (`_:b1`) individuals unsupported (frame name, SameAs, Facts, enumeration, `value`, annotation target) | Medium | Oracle accepts in frames, rejects `value`/annotation target; Note allows all |
-| F7 | **Data-range fillers use the class-expression path**: `d some xsd:integer[>= 5]` silently drops the facet; `d some {1,2}`/`not xsd:string`/`or` get `owl:Class` types and `owl:complementOf`; qualified data cardinalities use `owl:onClass` instead of `owl:onDataRange` | **High, silent loss + wrong OWL** | Yes |
-| F8 | `langRange` facet unsupported | Low (documented) | Oracle accepts |
-| F9 | Annotation-of-annotation (`Annotations: Annotations: ... `) unsupported | Medium | Oracle accepts |
-| F10 | Inline `Annotations:` on the six Misc axioms unsupported | Medium (documented as deliberate) | Oracle accepts and maps |
-| F11 | **Short datatype names** `integer`/`decimal`/`float`/`string` (allowed by the Note) are mis-parsed as `:integer` etc. in the default namespace | **High, silent wrong** | Oracle rejects them; Note allows |
-| F12 | `[>=1,<10]` (no spaces) mis-tokenised | Low | Oracle accepts |
-| F13 | Length facets: we emit `xsd:integer` values, oracle writes plain literals | **Unresolved**: needs the OWL 2 RDF-mapping check | — |
-| F14 | Oracle writing quirks (annotated chain list typed `rdf:List`; annotated `sameAs` in both directions) | Pending W3C check | — |
+| Code | Finding | Status |
+|---|---|---|
+| F1 | **Top-level truncation**: a non-keyword token (IRI, string, `)`, `[`) at top level silently ended parsing and dropped the rest of the document (`peek_word()` returned `None`, which the loop took for end of input). It also hid F7's dropped facet. | **Fixed.** |
+| F1b | The tree module kept its own copy of the top-level loop, so every parser fix would have missed it. | **Fixed**: one shared `_run_top_level`. |
+| F2 | `Ontology: <iri> <versionIRI>`: no `owl:versionIRI`, and (via F1) every following frame dropped | **Fixed** |
+| F3 | `Annotations:` in the `Ontology:` header refused; an anonymous ontology produced no `owl:Ontology` node and dropped its imports | **Fixed** (header annotations, blank ontology node) |
+| F4 | Quoted-string escapes `\"` `\\` not decoded (the serializer already encoded them) | **Fixed** |
+| F5 | `+7`, `+0.125` and every floating-point literal (`2f`, `.5f`, `1.5e3f`) parsed as IRIs | **Fixed** |
+| F6 | nodeID (`_:b1`) individuals unsupported (frame name, SameAs, Facts, enumeration, `value`, annotation target) | **Fixed** |
+| F7 | Data-property restrictions used the class-expression path: wrong OWL types, `owl:onClass` for qualified data cardinalities, `d some xsd:integer[>= 5]` dropped its facet | **Fixed**: the parser classifies each restriction as data or object from the property's declaration anywhere in the document, else from the filler's shape |
+| F8 | `langRange` facet unsupported | **Fixed** |
+| F9 | Annotation-of-annotation unsupported | **Fixed** (`owl:Axiom` for a frame-level assertion, `owl:Annotation` otherwise) |
+| F10 | Inline `Annotations:` on the six Misc axioms unsupported (documented as deliberate) | **Fixed** (pairwise triples reified, n-ary `AllDisjoint*`/`AllDifferent` nodes carry them) |
+| F11 | **Short datatype names** `integer`/`decimal`/`float`/`string` mis-parsed as `:integer` etc. | **Fixed** |
+| F12 | `[>=1,<10]` mis-tokenised | **Fixed** |
+| F13 | Length facets: we keep the literal as written (`"5"^^xsd:integer`), the oracle writes a plain literal | **Resolved: oracle deviation.** The Mapping's rule `_:y_i F_i lt_i` uses the literal as given. Spec-derived check in `test_mc_note_only.py`. |
+| F14 | Oracle writing quirks: annotated `sameAs` in both directions; annotated chain list typed `rdf:List` | **Resolved: oracle deviations.** Mapping section 2.3.2 repeats annotations per pairwise triple; Table 1 builds lists without `rdf:type rdf:List`. |
+| F15 | **The Note's own facet table looks erroneous**: it maps `<=` to `xsd:minInclusive`, `<` to `minExclusive`, `>=` to `maxInclusive`, `>` to `maxExclusive`. We and the oracle follow the meaning (`>=` is the minimum). | **Noted, not followed.** Worth reporting upstream. |
+| N | `Characteristics: Transitive` (etc.) accepted on a data property; the Note allows only `Functional` | **Fixed** |
 
-Also recorded (not defects of the same kind): OWL API accepts `DisjointClasses: A`, a one-element
-`SubPropertyChain:` and `"x"@` which the Note's grammar rejects (policy: Note vs OWL API parity).
-Accepted-by-us, rejected-by-oracle cases where the Note allows the construct and our output is correct are
-in `test_mc_note_only.py` (`p some q some B`, `p some not B`, `B that not p some C`, ...).
+**Open policy question (4 strict xfails):** OWL API accepts four inputs the Note's grammar rejects: a
+one-member `DisjointClasses:`, a one-member `DisjointUnionOf:`, a one-member `SubPropertyChain:`, and
+`"x"@` (empty language tag). The suite pins the current behaviour; decide whether to follow the Note
+(reject) or the oracle (accept). Not defects either way.
 
-### What passed (and why it matters)
+### Process finding
 
-- **The tree layer is structurally sound.** Every corpus case the parser accepts passes all four tree
-  checks, the ontology/encoder/shape vocabularies agree in both directions, and the generated documents
-  hold the invariants (20 examples by default; a larger unseeded hunt is run before sign-off). The tree
-  gaps are *inherited from the parser*: the tree faithfully records what the parser understood, including
-  its mistakes (for F7 the dropped facet is dropped in the tree too).
-- Of 252 corpus cases, 250 were put to the oracle: it accepted 232 and rejected 18. Of the 232, 194 match
-  OWL API exactly and 38 are the gaps above.
-- Coverage matrix: 96 of 97 rows exercised (only `entity` has no surface syntax; 97 = 71 productions
-  minus 3 list templates, plus 13 labelled alternatives, plus 16 list instantiations).
+The conformance suite caught two regressions introduced by the fixes themselves within one run each: the
+tree's nodeID encoding mistaking an `rdf:List` head for an individual, and the live tree module breaking
+when the parser's recording hooks gained arguments (see `WIP.md`, "Coupling hazard").
 
-## Next (Part B, awaiting review of this report)
+## Next
 
-Fix in dependency order, each starting from its xfail: F1 (and F2) first because they silently lose data;
-F7 and F5/F11/F4 (wrong values); then F3/F9/F10/F6; then F8/F12; resolve F13/F14 against the W3C mapping.
-Each fix flips its registry entries; regenerate derived files with `python scripts/build.py`.
+1. Merge the tree-layer working copy back into `starlayer/starontology/` (procedure in `WIP.md`), then
+   regenerate `starontology.trig` with `python scripts/build.py`. Check whether `manchester_shapes.ttl` is
+   generated or hand-maintained before editing it there.
+2. Decide the four Note-versus-OWL-API strictness questions above.
+3. Update `docs/graph/manchester_syntax_gap_analysis.md` (it still lists header annotations, `langRange`
+   and Misc annotations as unsupported) and `docs/graph/CHANGELOG`.
+4. Keep the Hypothesis generator growing: nodeIDs, annotations (including nested), header annotations and
+   the remaining facets are not generated yet.

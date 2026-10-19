@@ -13,7 +13,7 @@ from starlayer.graph.parsers.errors import ManchesterSyntaxError
 
 from .corpus import CASES
 from .helpers import load_golden, owlapi_graph_from_golden, parse_to_graph, same_owl
-from .known_failures import DIFFERENTIAL_FAILURES, ORACLE_REJECTS
+from .known_failures import DIFFERENTIAL_FAILURES, ORACLE_DEVIATIONS, ORACLE_REJECTS
 
 GOLDEN_CASES = [c for c in CASES if c.oracle]
 
@@ -31,6 +31,14 @@ def test_matches_owlapi(case, request):
             f"{case.id}: OWL API rejected this input ({golden.get('error_detail', '')[:120]}) and the "
             "case is not classified in known_failures.ORACLE_REJECTS"
         )
+        return
+
+    if case.id in ORACLE_DEVIATIONS:
+        # The oracle's output differs from the W3C mapping here; the spec-derived expectation is checked
+        # in test_mc_note_only.py instead of diffing against the oracle.
+        from .test_mc_note_only import CHECKS
+
+        assert case.id in CHECKS, f"{case.id} deviates from the oracle but has no spec-derived check"
         return
 
     if case.id in DIFFERENTIAL_FAILURES:

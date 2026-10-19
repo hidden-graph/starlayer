@@ -45,7 +45,12 @@ authoritative "what's supported and why" reference; the summary:
   Data ranges (DataProperty Range:, Datatype EquivalentTo:): atomic
   datatype, `and`/`or`/`not`, `{lit, lit, ...}` (DataOneOf), facet
   restrictions (`datatype[facet literal, ...]` - `>=`/`<=`/`>`/`<`/
-  `length`/`minLength`/`maxLength`/`pattern`).
+  `length`/`minLength`/`maxLength`/`pattern`/`langRange`). The short names
+  `integer`/`decimal`/`float`/`string` mean the xsd datatypes.
+  Restrictions on a DATA property (`d some xsd:integer[>= 5]`, `d min 1 string`)
+  are told from object ones by the property's declaration (a `DataProperty:`
+  frame anywhere in the document) or, failing that, by the filler's shape;
+  see _restriction_is_data(). Individuals may be nodeIDs (`_:b1`).
 
 Two distinct kinds of Annotations: are both supported, mapped differently:
 
@@ -57,19 +62,21 @@ Two distinct kinds of Annotations: are both supported, mapped differently:
     the B axiom, not C, confirmed empirically) - needs full owl:Axiom
     reification (owl:annotatedSource/Property/Target + the annotation
     triples themselves), alongside the plain axiom triple, never instead
-    of it. See _parse_item_annotations()/_maybe_reify(). Supported on
-    every clause where "one list item -> one axiom triple" holds; *not*
-    supported on the six top-level Misc axioms (EquivalentClasses: and
-    friends), whose pairwise-chain/AllDisjoint* encoding means a single
-    list item doesn't correspond to a single axiom the way it does
-    everywhere else - flagged in the gap-analysis doc rather than guessed
-    at without an empirical grammar reference to check it against.
+    of it. See _parse_item_annotations()/_maybe_reify().
+
+  Also supported: the Ontology: header's own `Annotations:` and version
+  IRI; `Annotations:` on the six top-level Misc axioms (OWL 2 RDF Mapping
+  section 2.3.2: repeated on every pairwise triple; the n-ary AllDisjoint*/
+  AllDifferent node carries them itself); and an annotation that is itself
+  annotated (`Annotations: Annotations: p v  p2 v2`, an owl:Axiom for a
+  frame-level assertion, an owl:Annotation otherwise).
 
 See the gap-analysis doc for the full list of what's deliberately not
-implemented and why (SWRL Rule:, Misc-axiom inline annotations, a couple
-of reserved-but-dead oracle keywords, and the declaration-order
-strictness the OWL API's own parser enforces that this one deliberately
-doesn't).
+implemented and why (SWRL Rule:, a couple of reserved-but-dead oracle
+keywords, and the declaration-order strictness the OWL API's own parser
+enforces that this one deliberately doesn't). The completeness suite
+tests/starontology/manchester_conformance/ checks all of this against the
+W3C grammar and the OWL API.
 
 Also deliberately unsupported: any use of a name under the default `:`
 prefix without an explicit `Prefix: :` declaration for it (no implicit
@@ -1267,6 +1274,9 @@ def _parse_property_frame(cur, frame_kind, rdf_type, clauses, deferred, range_is
             for anns, name in items:
                 if name not in _CHARACTERISTICS:
                     cur.error(f'unknown property characteristic {name!r}')
+                if frame_kind == 'DataProperty' and name != 'Functional':
+                    # dataPropertyFrame ::= ... | 'Characteristics:' annotations 'Functional'
+                    cur.error(f'a data property can only be Functional, not {name!r}')
                 obj = _CHARACTERISTICS[name]
                 cur.triples.append((subject, RDF.type, obj))
                 _maybe_reify(cur, subject, RDF.type, obj, anns)

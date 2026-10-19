@@ -14,7 +14,7 @@ from rdflib.namespace import OWL, RDF, RDFS, XSD
 
 from .corpus import CASES
 from .helpers import parse_to_graph
-from .known_failures import ORACLE_REJECTS
+from .known_failures import ORACLE_DEVIATIONS, ORACLE_REJECTS
 
 EX = "http://example.org/o#"
 CASE = {c.id: c for c in CASES}
@@ -91,7 +91,47 @@ def check_annotation_target_forms(g):
     assert any(isinstance(t, BNode) for t in targets) and Literal("lit") in targets
 
 
+def _facet_check(*expected):
+    """The datatype restriction on d has exactly these (facet, lexical) values, each an xsd:integer literal."""
+
+    def check(g):
+        (dt,) = list(g.objects(URIRef(EX + "d"), RDFS.range))
+        cells = list(Collection(g, g.value(dt, OWL.withRestrictions)))
+        got = {}
+        for cell in cells:
+            ((p, o),) = [(p, o) for p, o in g.predicate_objects(cell)]
+            got[p] = o
+        assert got == {XSD[name]: Literal(lex, datatype=XSD.integer) for name, lex in expected}, got
+
+    return check
+
+
+def _annotated_same_as_once(g):
+    i, j = URIRef(EX + "i"), URIRef(EX + "j")
+    assert (i, OWL.sameAs, j) in g
+    axioms = [a for a in g.subjects(RDF.type, OWL.Axiom)]
+    assert len(axioms) == 1, "an annotated pairwise axiom is reified exactly once"
+    (a,) = axioms
+    assert g.value(a, OWL.annotatedSource) == i and g.value(a, OWL.annotatedTarget) == j
+    assert (a, URIRef(EX + "note"), Literal("x")) in g
+
+
+def _annotated_chain_list_is_untyped(g):
+    p = URIRef(EX + "p")
+    chain = g.value(p, OWL.propertyChainAxiom)
+    assert chain is not None and (chain, RDF.type, RDF.List) not in g
+    (a,) = list(g.subjects(RDF.type, OWL.Axiom))
+    assert g.value(a, OWL.annotatedTarget) == chain and g.value(a, OWL.annotatedSource) == p
+
+
 CHECKS = {
+    "facet-length": _facet_check(("length", "5")),
+    "facet-minlength": _facet_check(("minLength", "1")),
+    "facet-maxlength": _facet_check(("maxLength", "9")),
+    "facet-min-and-max-length": _facet_check(("minLength", "1"), ("maxLength", "9")),
+    "ind-sameas-annotated": _annotated_same_as_once,
+    "misc-sameindividual-annotated": _annotated_same_as_once,
+    "op-chain-annotated": _annotated_chain_list_is_untyped,
     "r-some-chained": check_some_chained,
     "r-some-not-filler": check_some_not,
     "that-not": check_that_not,
@@ -111,8 +151,8 @@ CHECKS = {
 @pytest.mark.manchester_conformance
 @pytest.mark.parametrize("case_id", sorted(CHECKS))
 def test_note_allowed_construct(case_id, request):
-    assert case_id in ORACLE_REJECTS, "only for cases the oracle rejects"
-    if ORACLE_REJECTS[case_id][:1] == "F":
+    assert case_id in ORACLE_REJECTS or case_id in ORACLE_DEVIATIONS, "only for rejected or deviating cases"
+    if ORACLE_REJECTS.get(case_id, "")[:1] == "F":
         request.applymarker(pytest.mark.xfail(reason=ORACLE_REJECTS[case_id], strict=True))
     g = parse_to_graph(CASE[case_id].text)
     CHECKS[case_id](g)
@@ -124,7 +164,8 @@ def test_every_note_allowed_reject_has_a_check():
         cid for cid, why in ORACLE_REJECTS.items()
         if "Output checked by test_mc_note_only.py" in why or why[:1] == "F"
     }
-    assert needs <= set(CHECKS), f"oracle-rejected, Note-allowed cases with no expectation: {sorted(needs - set(CHECKS))}"
+    needs |= set(ORACLE_DEVIATIONS)
+    assert needs <= set(CHECKS), f"cases with no spec-derived expectation: {sorted(needs - set(CHECKS))}"
 
 
 # Silence the unused-import linter for names used only in type positions above.
