@@ -172,7 +172,7 @@ Checked against the repo, not just read:
 **Do first (they feed the workstreams):**
 - **Clean `packages/starlayer/docs/future_enhancements.md` itself.** Several entries are already stale: "20+ notebooks import `starlayergraph`" (none do now), the three root-level frozen SHACL guides and the "CLAUDE:" leftover in the Manchester guide (both gone), "only two examples exist in `packages/starlayer/examples/`" (the folder does not exist), and two entries about `docs/api-reference.md` (archived 2026-10-17; replaced by the generated docs). An agent will treat this file as a source of truth, so fix it as part of workstream 6.
 - **The "Before publishing" checklist** overlaps workstream 6 (steps 5 and 7: re-execute guides, check for stale claims). Reconcile it with `check_docs.py` so there is one list.
-- **Code-KG extractor misses `namedtuple(...)` types** (8 types in `starontology/manchester.py`). Fix before workstream 2/3, since the query library's answers are only as complete as the KG.
+- **Code-KG extractor misses `namedtuple(...)` types** (8 types in `starontology/manchester.py`). Fixed 2026-10-19.
 - **More examples / a `StarLayerDataset` example:** fold into workstream 5 (include a multi-graph example).
 
 **With the workstreams:**

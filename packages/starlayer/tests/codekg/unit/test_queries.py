@@ -211,3 +211,9 @@ def test_a_table_keeps_identifiers_whole_and_cuts_long_prose():
     table = str(queries.QueryResult("t", ["symbol", "summary"], [(long_id, prose)], 1))
     assert long_id in table
     assert prose.strip() not in table and "…" in table
+
+
+@pytest.mark.codekg_queries
+def test_members_of_class_lists_named_tuple_and_dataclass_fields(kg):
+    fields = [r["member"] for r in queries.run_query("members-of-class", symbol="starlayer.starontology.manchester.Clause").as_dicts()]
+    assert fields == ["clause_kind", "items", "annotations"] or set(fields) == {"clause_kind", "items", "annotations"}

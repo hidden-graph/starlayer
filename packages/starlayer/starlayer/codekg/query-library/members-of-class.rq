@@ -1,6 +1,6 @@
 # name: members-of-class
 # label: Public members of a class
-# comment: The methods and attributes of a class that do not start with an underscore.
+# comment: The methods and attributes (dataclass fields, named-tuple fields) of a class that do not start with an underscore.
 # topic: api-surface
 # answers: What's the public API surface of a module/package
 # param: symbol | dotted identifier of a class | starlayer.graph.graph.starlayer_graph.StarLayerGraph | required
@@ -9,11 +9,12 @@ PREFIX dcterms: <http://purl.org/dc/terms/>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 SELECT ?member ?kind ?line WHERE {
   ?c dcterms:identifier ?symbol ;
-     slkg:declares ?m .
-  ?m dcterms:identifier ?member .
-  ?m a ?type .
+     (slkg:declares|slkg:hasAttribute) ?m .
+  ?m rdfs:label ?member ;
+     a ?type .
   FILTER(?type IN (slkg:Method, slkg:Attribute))
   BIND(LCASE(REPLACE(STR(?type), "^.*#", "")) AS ?kind)
+  FILTER(!STRSTARTS(?member, "_"))
   FILTER NOT EXISTS { ?m slkg:isPrivate true }
   OPTIONAL { ?m slkg:lineStart ?line }
 }

@@ -1088,3 +1088,62 @@ class TestExtractingTestsRoot:
         caller_iri = URIRef(f"{test_module_iri}#test_validate")
         callee_iri = URIRef(f"{src_module_iri}#validate")
         assert (caller_iri, SLKG.calls, callee_iri) in test_triples
+
+
+class TestNamedTupleTypes:
+    """``Name = namedtuple("Name", [...])`` defines a class but contains no ClassDef, so the walk used to miss it."""
+
+    SOURCE = (
+        "from collections import namedtuple\n"
+        "import typing\n\n"
+        "Doc = namedtuple('Doc', ['prefixes', 'header'])\n"
+        "Clause = namedtuple('Clause', 'kind items annotations', defaults=[None])\n"
+        "Pair = typing.NamedTuple('Pair', [('a', int), ('b', str)])\n\n\n"
+        "def make():\n    return Doc(1, 2)\n"
+    )
+
+    def _class_iri(self, triples, name):
+        found = [s for s, p, o in triples if p == RDFS.label and o == Literal(name) and (s, RDF.type, SLKG.Class) in triples]
+        assert len(found) == 1, f"{name} was not extracted as a class"
+        return found[0]
+
+    def test_assignments_become_classes_with_location_identifier_and_module_link(self, tmp_path):
+        triples = _extract(tmp_path, self.SOURCE)
+        doc = self._class_iri(triples, "Doc")
+        assert (doc, DCTERMS.identifier, Literal("starlayer.fixture.Doc")) in triples
+        assert (doc, SLKG.lineStart, Literal(4)) in triples
+        assert (MODULE_IRI, SLKG.declares, doc) in triples
+        assert any(p == RDFS.subClassOf and str(o).endswith("builtins.tuple") for s, p, o in triples if s == doc)
+
+    def test_fields_become_ordered_attributes_for_list_string_and_typing_forms(self, tmp_path):
+        triples = _extract(tmp_path, self.SOURCE)
+        for name, expected in (("Doc", ["prefixes", "header"]), ("Clause", ["kind", "items", "annotations"]), ("Pair", ["a", "b"])):
+            cls = self._class_iri(triples, name)
+            attrs = sorted(
+                ((next(o for s, p, o in triples if s == a and p == SLKG.position), next(o for s, p, o in triples if s == a and p == RDFS.label))
+                 for a in (o for s, p, o in triples if s == cls and p == SLKG.hasAttribute)),
+                key=lambda pair: int(pair[0]),
+            )
+            assert [str(label) for _pos, label in attrs] == expected
+
+    def test_defaults_apply_to_the_last_fields(self, tmp_path):
+        triples = _extract(tmp_path, self.SOURCE)
+        cls = self._class_iri(triples, "Clause")
+        defaults = {
+            str(next(o for s2, p2, o in triples if s2 == a and p2 == RDFS.label)): str(o)
+            for s, p, a in triples
+            if s == cls and p == SLKG.hasAttribute
+            for s3, p3, o in triples
+            if s3 == a and p3 == SLKG.defaultValue
+        }
+        assert defaults == {"annotations": "None"}
+
+    def test_calling_one_counts_as_instantiating_it(self, tmp_path):
+        triples = _extract_multi(tmp_path, {"fixture.py": self.SOURCE})["fixture.py"]
+        doc = self._class_iri(triples, "Doc")
+        make = next(s for s, p, o in triples if p == RDFS.label and o == Literal("make"))
+        assert (make, SLKG.instantiates, doc) in triples
+
+    def test_other_assignments_are_not_classes(self, tmp_path):
+        triples = _extract(tmp_path, "Value = make_thing('Value', ['a'])\nOther = 3\n")
+        assert not any(o == SLKG.Class for s, p, o in triples if p == RDF.type)
