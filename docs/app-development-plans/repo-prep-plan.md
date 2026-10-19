@@ -161,6 +161,13 @@ Each phase is its own commit on `prep-for-app-development`.
 
 **Decisions needed before building:** who hosts it and who pays; the domain; retention period and what counts as personal data; whether free-form SPARQL is allowed or only named queries; abuse handling; whether to keep `codekg.trig` in the repo once the endpoint exists (it must stay until the publish pipeline does, because the scripts, tests and generated API docs read it).
 
+**Decisions (2026-10-19):**
+- **Public for now = what is on GitHub.** Source, guides, generated docs, the curated `.ttl` files, the upstream-issue write-ups, `AGENTS.md`, and `codekg.trig` itself, which stays in the repository (no release asset, no separate dump). No endpoint is hosted yet.
+- **When an endpoint is built: named queries only.** Callers choose a library query by id and give parameters; results are bounded. No free-form SPARQL, no raw SPARQL endpoint, no update route. Free-form can be reconsidered later.
+- **Logging, when an endpoint exists:** query id, parameters, row count, duration and time. No IP addresses or caller identity. Raw entries are kept 30 days; only aggregated counts are kept for the FAQ. `AGENTS.md` states this before the endpoint is announced.
+- **Never public:** raw query logs, anything that identifies a caller, any write or update route.
+- **Effect on the workstreams:** workstream 7 (the GitHub feedback channel) needs no hosting and can go ahead. Workstream 8 builds the local, opt-in log and the FAQ generator now; the endpoint feed is added when a host is chosen. The host, the domain and who pays are still open.
+
 **Limits:** GitHub Pages cannot run an endpoint or log queries, so this needs real hosting. A published KG is only as fresh as its last publish. An agent without network access cannot reach it. A later local stdio MCP server could wrap the same queries; MCP is still deferred.
 
 **Effect on workstream 1:** AGENTS.md describes the local KG now and carries a short "planned: public endpoint" note, with no URL until one exists.
