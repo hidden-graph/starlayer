@@ -14,6 +14,7 @@ Named queries over the code knowledge graph. Run one with `starlayer.codekg.quer
 ## Capabilities
 
 - **`capabilities`** (`text` (optional)): What StarLayer does, and which code does it. The curated capability list with the symbols that implement each, optionally limited to words in the capability text. Capabilities with no implementing symbol are roadmap items or are implemented by a SHACL or OWL file.
+- **`capabilities-by-role`** (`role`): Which capabilities serve a job when building an app?. The capabilities tagged with an app role (storage, interchange, query, validate, infer, ui-generate or reference), with the symbols that implement each. Start here when you know what the app must do but not which StarLayer parts to use.
 - **`capability-of-symbol`** (`symbol`): Which capability does a symbol implement?. The curated capability, if any, that names a symbol as its implementation.
 
 ## Dead code and unused surface
@@ -59,6 +60,10 @@ Questions the code knowledge graph should answer, and whether it can yet: ✅ an
 - ✅ Finer-grained coupling (which *function* in module A calls which *function* in module B) — now answerable directly via `slkg:calls`, subject to the same resolution-confidence caveats noted above. (`subpackage-coupling`)
 - 🔜 Which starlayer modules import which other starlayer modules? — not answerable yet: `slkg:importsModule` only records imports of *external* modules (third-party and standard library); imports between this project's own modules are not extracted. Found 2026-10-19 while building the query library. Use the call graph (`slkg:calls`) for dependencies inside the project.
 - ✅ Which two subpackages are most tightly coupled? — answered from the call graph (calls between subpackages), not from imports, because imports between this project's modules are not extracted (see the question above).
+
+### Capabilities
+
+- ✅ Which capabilities serve a job when building an app (storage, query, validate, infer, ui-generate)? — from each capability's slkg:appRole tag, a hand-curated layer (`capabilities-by-role`)
 
 ### Dead code and unused surface
 

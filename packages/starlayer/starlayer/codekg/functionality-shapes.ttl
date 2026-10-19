@@ -1,0 +1,23 @@
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix slkg: <https://github.com/hidden-graph/starlayer/ns/codekg#> .
+
+# Shapes for the capability list (curated/functionality.ttl).
+
+slkg:CapabilityShape a sh:NodeShape ;
+    sh:targetClass slkg:Capability ;
+    sh:property [
+        sh:path rdfs:comment ; sh:minCount 1 ; sh:maxCount 1 ;
+        sh:message "a slkg:Capability needs exactly one rdfs:comment saying what it is"
+    ], [
+        sh:path slkg:hasStatus ; sh:minCount 1 ; sh:maxCount 1 ; sh:in ( "implemented" "roadmap" ) ;
+        sh:message "slkg:hasStatus must be implemented or roadmap"
+    ], [
+        sh:path slkg:inCapabilityArea ; sh:minCount 1 ; sh:maxCount 1 ; sh:class slkg:CapabilityArea ;
+        sh:message "a slkg:Capability belongs to exactly one slkg:CapabilityArea"
+    ], [
+        sh:path slkg:appRole ; sh:minCount 1 ;
+        sh:in ( "storage" "interchange" "query" "validate" "infer" "ui-generate" "reference" ) ;
+        sh:message "slkg:appRole must be one or more of storage, interchange, query, validate, infer, ui-generate, reference"
+    ] .

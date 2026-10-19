@@ -67,6 +67,18 @@ ql:capabilities a slkg:NamedQuery ;
             slkg:paramRequired false ] ;
     slkg:queryRoot ql:capabilities-tree .
 
+ql:capabilities-by-role a slkg:NamedQuery ;
+    rdfs:label "Which capabilities serve a job when building an app?" ;
+    rdfs:comment "The capabilities tagged with an app role (storage, interchange, query, validate, infer, ui-generate or reference), with the symbols that implement each. Start here when you know what the app must do but not which StarLayer parts to use." ;
+    slkg:aboutTopic ql:topic-capabilities ;
+    slkg:answersCompetencyQuestion ql:cq-which-capabilities-serve-a-job-when-building-an-app ;
+    slkg:queryParameter [ a slkg:QueryParameter ;
+            rdfs:comment "the job: storage, interchange, query, validate, infer, ui-generate or reference" ;
+            slkg:paramExample "ui-generate" ;
+            slkg:paramName "role" ;
+            slkg:paramRequired true ] ;
+    slkg:queryRoot ql:capabilities-by-role-tree .
+
 ql:capability-of-symbol a slkg:NamedQuery ;
     rdfs:label "Which capability does a symbol implement?" ;
     rdfs:comment "The curated capability, if any, that names a symbol as its implementation." ;
@@ -435,6 +447,58 @@ ql:callers-of-tree a sqe:Query,
                             sqe:predicate slkg:lineStart ;
                             sqe:subject "c"^^spexpr:Variable ] ) ] ) .
 
+ql:capabilities-by-role-tree a sqe:Query,
+        sqe:SelectQuery ;
+    sqe:orderBy ( [ a sqe:OrderCondition ;
+                sqe:expr "area"^^spexpr:Variable ] [ a sqe:OrderCondition ;
+                sqe:expr "capability"^^spexpr:Variable ] [ a sqe:OrderCondition ;
+                sqe:expr "symbol"^^spexpr:Variable ] ) ;
+    sqe:projection ( "area"^^spexpr:Variable "capability"^^spexpr:Variable "status"^^spexpr:Variable "symbol"^^spexpr:Variable "file"^^spexpr:Variable "line"^^spexpr:Variable ) ;
+    sqe:prologuePrefix [ a sqe:PrefixBinding ;
+            sqe:namespace dcterms: ;
+            sqe:prefixLabel "dcterms"^^spexpr:PlainString ],
+        [ a sqe:PrefixBinding ;
+            sqe:namespace slkg: ;
+            sqe:prefixLabel "slkg"^^spexpr:PlainString ],
+        [ a sqe:PrefixBinding ;
+            sqe:namespace rdfs: ;
+            sqe:prefixLabel "rdfs"^^spexpr:PlainString ] ;
+    sqe:where ( [ a sqe:TriplePattern ;
+                sqe:object slkg:Capability ;
+                sqe:predicate rdf:type ;
+                sqe:subject "cap"^^spexpr:Variable ] [ a sqe:TriplePattern ;
+                sqe:object "a"^^spexpr:Variable ;
+                sqe:predicate slkg:inCapabilityArea ;
+                sqe:subject "cap"^^spexpr:Variable ] [ a sqe:TriplePattern ;
+                sqe:object "capability"^^spexpr:Variable ;
+                sqe:predicate rdfs:comment ;
+                sqe:subject "cap"^^spexpr:Variable ] [ a sqe:TriplePattern ;
+                sqe:object "role"^^spexpr:Variable ;
+                sqe:predicate slkg:appRole ;
+                sqe:subject "cap"^^spexpr:Variable ] [ a sqe:TriplePattern ;
+                sqe:object "status"^^spexpr:Variable ;
+                sqe:predicate slkg:hasStatus ;
+                sqe:subject "cap"^^spexpr:Variable ] [ a sqe:TriplePattern ;
+                sqe:object "area"^^spexpr:Variable ;
+                sqe:predicate rdfs:label ;
+                sqe:subject "a"^^spexpr:Variable ] [ a sqe:Optional ;
+                sqe:where ( [ a sqe:TriplePattern ;
+                            sqe:object "symbol"^^spexpr:Variable ;
+                            sqe:predicate slkg:implementedByIdentifier ;
+                            sqe:subject "cap"^^spexpr:Variable ] [ a sqe:Optional ;
+                            sqe:where ( [ a sqe:TriplePattern ;
+                                        sqe:object "symbol"^^spexpr:Variable ;
+                                        sqe:predicate dcterms:identifier ;
+                                        sqe:subject "s"^^spexpr:Variable ] [ a sqe:Optional ;
+                                        sqe:where ( [ a sqe:TriplePattern ;
+                                                    sqe:object "file"^^spexpr:Variable ;
+                                                    sqe:predicate slkg:filePath ;
+                                                    sqe:subject "s"^^spexpr:Variable ] ) ] [ a sqe:Optional ;
+                                        sqe:where ( [ a sqe:TriplePattern ;
+                                                    sqe:object "line"^^spexpr:Variable ;
+                                                    sqe:predicate slkg:lineStart ;
+                                                    sqe:subject "s"^^spexpr:Variable ] ) ] ) ] ) ] ) .
+
 ql:capabilities-tree a sqe:Query,
         sqe:SelectQuery ;
     sqe:orderBy ( [ a sqe:OrderCondition ;
@@ -590,6 +654,12 @@ ql:cq-what-s-the-call-chain-from-entry a slkg:CompetencyQuestion ;
     rdfs:label "What's the call chain from entry point A down to low-level function B?" ;
     rdfs:comment "a `slkg:calls+` property-path query." ;
     slkg:aboutTopic ql:topic-call-graph ;
+    slkg:cqStatus "answerable" .
+
+ql:cq-which-capabilities-serve-a-job-when-building-an-app a slkg:CompetencyQuestion ;
+    rdfs:label "Which capabilities serve a job when building an app (storage, query, validate, infer, ui-generate)?" ;
+    rdfs:comment "from each capability's slkg:appRole tag, a hand-curated layer" ;
+    slkg:aboutTopic ql:topic-capabilities ;
     slkg:cqStatus "answerable" .
 
 ql:cq-which-classes-are-ever-instantiated-and-from a slkg:CompetencyQuestion ;
@@ -1364,10 +1434,6 @@ ql:cq-what-s-the-public-api-surface-of a slkg:CompetencyQuestion ;
     slkg:aboutTopic ql:topic-api-surface ;
     slkg:cqStatus "answerable" .
 
-ql:topic-capabilities a slkg:Topic ;
-    rdfs:label "Capabilities" ;
-    rdfs:comment "The curated list of what StarLayer does, and the code behind each item." .
-
 ql:topic-inheritance a slkg:Topic ;
     rdfs:label "Inheritance" ;
     rdfs:comment "Overrides and base classes." .
@@ -1375,6 +1441,10 @@ ql:topic-inheritance a slkg:Topic ;
 ql:topic-dead-code a slkg:Topic ;
     rdfs:label "Dead code and unused surface" ;
     rdfs:comment "Functions nothing calls." .
+
+ql:topic-capabilities a slkg:Topic ;
+    rdfs:label "Capabilities" ;
+    rdfs:comment "The curated list of what StarLayer does, and the code behind each item." .
 
 ql:topic-testing a slkg:Topic ;
     rdfs:label "Testing linkage" ;

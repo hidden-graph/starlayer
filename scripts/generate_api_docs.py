@@ -24,11 +24,11 @@ docstrings have changed since the last build).
 
 from __future__ import annotations
 
-import pathlib
 import ast
+import pathlib
 from collections import defaultdict
 
-from rdflib import Dataset, Namespace, RDF, RDFS
+from rdflib import RDF, RDFS, Dataset, Namespace
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 CODEKG_PATH = REPO_ROOT / "packages/starlayer/starlayer/codekg/codekg.trig"

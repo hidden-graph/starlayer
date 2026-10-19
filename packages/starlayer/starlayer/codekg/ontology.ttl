@@ -329,6 +329,12 @@ slkg:hasStatus a owl:DatatypeProperty ;
     rdfs:label "has status" ;
     rdfs:comment "A Capability's curation status: \"implemented\" (documented as already working) or \"roadmap\" (documented as planned/deferred/paused). Deliberately just these two values, matching functionality-overview.md's own two top-level sections - the doc text doesn't consistently distinguish planned from deferred, so this doesn't invent that split." .
 
+slkg:appRole a owl:DatatypeProperty ;
+    rdfs:domain slkg:Capability ;
+    rdfs:range xsd:string ;
+    rdfs:label "app role" ;
+    rdfs:comment "What a Capability is for when building an application, so someone who knows the job (\"I need a form editor\") can find the capabilities for it. One or more of: \"storage\" (hold and manage RDF data), \"interchange\" (read, write, compare, canonicalize), \"query\" (SPARQL and extraction), \"validate\" (SHACL checking), \"infer\" (rules and reasoning), \"ui-generate\" (build forms and editors from shapes and vocabularies) or \"reference\" (bundled vocabularies and registries)." .
+
 slkg:seeAlsoPath a owl:DatatypeProperty ;
     rdfs:range xsd:string ;
     rdfs:label "see also path" ;

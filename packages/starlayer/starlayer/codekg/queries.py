@@ -38,7 +38,6 @@ from . import CODEKG_NS, get_codekg_dataset
 
 _HERE = Path(__file__).parent
 LIBRARY_TTL = _HERE / "curated" / "query-library.ttl"
-FUNCTIONALITY_TTL = _HERE / "curated" / "functionality.ttl"
 
 DEFAULT_LIMIT = 25
 MAX_LIMIT = 500
@@ -160,13 +159,12 @@ def _library():
 
 @functools.lru_cache(maxsize=1)
 def _kg():
-    """All the code KG's module graphs merged into one graph, plus the curated capabilities."""
+    """All the code KG's module graphs merged into one graph, plus the curated layer (capabilities and the query library)."""
     from starlayer.graph import StarLayerGraph
 
     graph = StarLayerGraph()
-    for s, p, o, _g in get_codekg_dataset().quads((None, None, None, None)):
+    for s, p, o, _g in get_codekg_dataset(include_curated=True).quads((None, None, None, None)):
         graph.add((s, p, o))
-    graph.parse(str(FUNCTIONALITY_TTL), format="turtle")
     return graph
 
 
