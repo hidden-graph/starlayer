@@ -58,7 +58,13 @@ def class_expr(max_depth: int = 3):
             st.tuples(obj_prop, st.sampled_from(["min", "max", "exactly"]), small_int, paren).map(
                 lambda t: f"{t[0]} {t[1]} {t[2]} {t[3]}"
             ),
-            st.tuples(st.sampled_from(DATA_PROPS), st.sampled_from(DATATYPES)).map(lambda t: f"{t[0]} some {t[1]}"),
+            # A restriction's filler is one dataPrimary, so a compound data range needs parentheses.
+            st.tuples(st.sampled_from(DATA_PROPS), st.sampled_from(["some", "only"]), data_range()).map(
+                lambda t: f"{t[0]} {t[1]} ({t[2]})"
+            ),
+            st.tuples(st.sampled_from(DATA_PROPS), st.sampled_from(["min", "max", "exactly"]), small_int, data_range()).map(
+                lambda t: f"{t[0]} {t[1]} {t[2]} ({t[3]})"
+            ),
             st.tuples(st.sampled_from(DATA_PROPS), small_int).map(lambda t: f"{t[0]} value {t[1]}"),
         )
 
@@ -66,7 +72,11 @@ def class_expr(max_depth: int = 3):
 
 
 def data_range():
-    atom = st.sampled_from(DATATYPES)
+    atom = st.one_of(
+        st.sampled_from(DATATYPES),
+        st.sampled_from(["xsd:integer[>= 1]", "xsd:integer[>= 0, <= 9]", "xsd:string[minLength 1]", "xsd:decimal[> 0.5]"]),
+        st.lists(small_int, min_size=1, max_size=3, unique=True).map(lambda xs: "{" + ", ".join(map(str, xs)) + "}"),
+    )
     return st.recursive(
         atom,
         lambda child: st.one_of(

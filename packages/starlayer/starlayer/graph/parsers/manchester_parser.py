@@ -152,6 +152,17 @@ _SHORT_DATATYPES = {
     'string': XSD.string,
 }
 
+# Datatypes that need no declaration: the xsd namespace plus the OWL 2 / RDF built-ins that are not in it.
+_BUILTIN_DATATYPES = frozenset({
+    URIRef(str(RDF) + 'PlainLiteral'), URIRef(str(RDF) + 'XMLLiteral'), URIRef(str(RDF) + 'langString'),
+    RDFS.Literal, OWL.real, OWL.rational,
+})
+
+
+def _is_builtin_datatype(uri):
+    return uri in _BUILTIN_DATATYPES or str(uri).startswith(str(XSD))
+
+
 _RESTRICTION_KEYWORDS = {'some', 'only', 'onlysome', 'value', 'Self', 'min', 'max', 'exactly'}
 
 
@@ -329,6 +340,7 @@ class _Cursor:
         self.prefixes = dict(_DEFAULT_PREFIXES)
         self.base = base
         self.triples = []
+        self._declared = None
 
     def mint_bnode(self):
         return BNode()
@@ -497,6 +509,46 @@ class _Cursor:
                 return Literal(word == 'true')
         return self.read_name()
 
+    def try_name(self, tok):
+        """The resolved URIRef a name token denotes, or None if ``tok`` is not a usable name here (a
+        keyword, a literal, an unknown prefix). Never consumes anything and never raises."""
+        if tok is None:
+            return None
+        if tok['kind'] == 'IRI':
+            return self.resolve_iri(tok['text'])
+        if tok['kind'] != 'WORD' or tok['text'].endswith(':'):
+            return None
+        text = tok['text']
+        prefix, local = text.split(':', 1) if ':' in text else ('', text)
+        if prefix not in self.prefixes:
+            return None
+        return URIRef(self.prefixes[prefix] + local)
+
+    def declared_kinds(self):
+        """``(property_kinds, datatypes)`` read from the document's own frames, wherever they occur.
+
+        Manchester syntax does not mark a restriction as data or object syntactically (``p some X``
+        reads the same either way); the property's declaration does. ``property_kinds`` maps a property
+        IRI to 'data' or 'object'; ``datatypes`` is the set of IRIs declared with ``Datatype:``.
+        Computed once, on first use, from the token stream (by then every Prefix: is known)."""
+        if self._declared is None:
+            kinds, datatypes = {}, set()
+            for i, tok in enumerate(self.tokens[:-1]):
+                if tok['kind'] != 'WORD':
+                    continue
+                keyword = tok['text']
+                if keyword not in ('DataProperty:', 'ObjectProperty:', 'Datatype:'):
+                    continue
+                uri = self.try_name(self.tokens[i + 1])
+                if uri is None:
+                    continue
+                if keyword == 'Datatype:':
+                    datatypes.add(uri)
+                else:
+                    kinds[uri] = 'data' if keyword == 'DataProperty:' else 'object'
+            self._declared = (kinds, datatypes)
+        return self._declared
+
     def read_datatype_name(self):
         """Consume a datatype name: the note's ``Datatype ::= datatypeIRI | 'integer' | 'decimal' |
         'float' | 'string'``, so the four short words mean the xsd datatypes, not names in the default
@@ -631,20 +683,64 @@ def _starts_a_primary(tok):
     return False
 
 
+def _filler_is_data(cur):
+    """Does the filler about to be read look like a data range? Looks ahead without consuming.
+
+    Used only when the property's own declaration does not settle data-vs-object: a literal enumeration
+    (``{1, 2}``), a datatype name (xsd:, the short ``integer``/``string``/..., OWL/RDF built-ins, or a
+    ``Datatype:`` declared in the document), or a name followed by ``[`` (a facet restriction). Leading
+    ``(`` and ``not`` are looked through, so ``not xsd:string`` and ``(xsd:integer or ...)`` count."""
+    tokens, i = cur.tokens, cur.pos
+    while i < len(tokens) and (
+        (tokens[i]['kind'] == 'PUNCT' and tokens[i]['text'] == '(')
+        or (tokens[i]['kind'] == 'WORD' and tokens[i]['text'] == 'not')
+    ):
+        i += 1
+    if i >= len(tokens):
+        return False
+    tok = tokens[i]
+    nxt = tokens[i + 1] if i + 1 < len(tokens) else None
+    if tok['kind'] == 'PUNCT' and tok['text'] == '{':
+        return nxt is not None and (
+            nxt['kind'] == 'LITERAL'
+            or (nxt['kind'] == 'WORD' and (_numeric_literal(nxt['text']) is not None or nxt['text'] in ('true', 'false')))
+        )
+    if tok['kind'] == 'WORD' and tok['text'] in _SHORT_DATATYPES:
+        return True
+    uri = cur.try_name(tok)
+    if uri is None:
+        return False
+    if _is_builtin_datatype(uri) or uri in cur.declared_kinds()[1]:
+        return True
+    return nxt is not None and nxt['kind'] == 'PUNCT' and nxt['text'] == '['
+
+
+def _restriction_is_data(cur, prop_expr):
+    """Is a ``p some/only/min/max/exactly`` restriction on a data property? The property's declaration
+    (a ``DataProperty:``/``ObjectProperty:`` frame anywhere in the document) decides when there is one;
+    otherwise the filler's shape does (see ``_filler_is_data``). ``inverse p`` is always an object property."""
+    if isinstance(prop_expr, URIRef):
+        kind = cur.declared_kinds()[0].get(prop_expr)
+        if kind is not None:
+            return kind == 'data'
+    elif isinstance(prop_expr, tuple):
+        return False
+    return _filler_is_data(cur)
+
+
 def _parse_restriction_tail(cur, prop_expr):
     kw = cur.advance()['text']
-    if kw == 'some':
-        return ('Some', prop_expr, _parse_primary(cur))
-    if kw == 'only':
-        return ('Only', prop_expr, _parse_primary(cur))
-    if kw == 'onlysome':
-        # `p onlysome C` - OWL-API GCI-writing convenience, confirmed
-        # empirically to expand to `(p some C) and (p only C)` exactly
-        # (same owl:intersectionOf-of-two-restrictions shape the oracle
-        # emits) - reuses the existing And/Some/Only RDF mapping rather
-        # than needing a dedicated tag.
-        filler = _parse_primary(cur)
-        return ('And', [('Some', prop_expr, filler), ('Only', prop_expr, filler)])
+    if kw in ('some', 'only', 'onlysome'):
+        # `p onlysome C` is an OWL-API convenience, confirmed against the oracle to expand to
+        # `(p some C) and (p only C)` exactly, so it reuses the Some/Only mapping and needs no tag.
+        data = _restriction_is_data(cur, prop_expr)
+        filler = _parse_data_primary(cur) if data else _parse_primary(cur)
+        some, only = ('DSome', 'DOnly') if data else ('Some', 'Only')
+        if kw == 'some':
+            return (some, prop_expr, filler)
+        if kw == 'only':
+            return (only, prop_expr, filler)
+        return ('And', [(some, prop_expr, filler), (only, prop_expr, filler)])
     if kw == 'value':
         return ('Value', prop_expr, cur.read_literal_or_name())
     if kw == 'Self':
@@ -655,8 +751,11 @@ def _parse_restriction_tail(cur, prop_expr):
         cur.error(f'expected a non-negative integer after {kw!r}, got {n_tok["text"]!r}')
     n = int(n_tok['text'])
     tag = {'min': 'Min', 'max': 'Max', 'exactly': 'Exact'}[kw]
-    filler = _parse_primary(cur) if _starts_a_primary(cur.peek()) else None
-    return (tag, n, prop_expr, filler)
+    if not _starts_a_primary(cur.peek()):
+        return (tag, n, prop_expr, None)
+    if _restriction_is_data(cur, prop_expr):
+        return ('D' + tag, n, prop_expr, _parse_data_primary(cur))
+    return (tag, n, prop_expr, _parse_primary(cur))
 
 
 # ---------------------------------------------------------------------------
@@ -703,6 +802,14 @@ def _expr_node(cur, expr):
         pred = OWL.someValuesFrom if tag == 'Some' else OWL.allValuesFrom
         t.append((node, pred, _expr_node(cur, filler)))
         return node
+    if tag in ('DSome', 'DOnly'):
+        _, prop_expr, filler = expr
+        node = cur.mint_bnode()
+        t.append((node, RDF.type, OWL.Restriction))
+        t.append((node, OWL.onProperty, _prop_node(cur, prop_expr)))
+        pred = OWL.someValuesFrom if tag == 'DSome' else OWL.allValuesFrom
+        t.append((node, pred, _data_range_node(cur, filler)))
+        return node
     if tag == 'Value':
         _, prop_expr, value = expr
         node = cur.mint_bnode()
@@ -734,6 +841,19 @@ def _expr_node(cur, expr):
             }[tag]
             t.append((node, pred, card))
             t.append((node, OWL.onClass, _expr_node(cur, filler)))
+        return node
+    if tag in ('DMin', 'DMax', 'DExact'):
+        _, n, prop_expr, filler = expr
+        node = cur.mint_bnode()
+        t.append((node, RDF.type, OWL.Restriction))
+        t.append((node, OWL.onProperty, _prop_node(cur, prop_expr)))
+        pred = {
+            'DMin': OWL.minQualifiedCardinality,
+            'DMax': OWL.maxQualifiedCardinality,
+            'DExact': OWL.qualifiedCardinality,
+        }[tag]
+        t.append((node, pred, Literal(n, datatype=XSD.nonNegativeInteger)))
+        t.append((node, OWL.onDataRange, _data_range_node(cur, filler)))
         return node
     if tag == 'Inverse':
         return _prop_node(cur, expr)

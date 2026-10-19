@@ -306,12 +306,14 @@ def _encode_class_expr(g, expr):
         g.add((node, RDF.type, MANCH.OneOf))
         g.add((node, MANCH.individuals, _build_rdf_list(g, expr[1])))
         return node
-    if tag in ('Some', 'Only'):
+    if tag in ('Some', 'Only', 'DSome', 'DOnly'):
         _, prop_expr, filler = expr
         node = BNode()
         g.add((node, RDF.type, MANCH[tag]))
         g.add((node, MANCH.onProperty, _encode_prop_expr(g, prop_expr)))
-        g.add((node, MANCH.filler, _encode_class_expr(g, filler)))
+        # D-tags are restrictions on a data property: their filler is a data range, not a class.
+        encode_filler = _encode_data_range if tag.startswith('D') else _encode_class_expr
+        g.add((node, MANCH.filler, encode_filler(g, filler)))
         return node
     if tag == 'Value':
         _, prop_expr, value = expr
@@ -326,14 +328,15 @@ def _encode_class_expr(g, expr):
         g.add((node, RDF.type, MANCH.SelfR))
         g.add((node, MANCH.onProperty, _encode_prop_expr(g, prop_expr)))
         return node
-    if tag in ('Min', 'Max', 'Exact'):
+    if tag in ('Min', 'Max', 'Exact', 'DMin', 'DMax', 'DExact'):
         _, n, prop_expr, filler = expr
         node = BNode()
         g.add((node, RDF.type, MANCH[tag]))
         g.add((node, MANCH.onProperty, _encode_prop_expr(g, prop_expr)))
         g.add((node, MANCH.cardinality, Literal(n, datatype=XSD.nonNegativeInteger)))
         if filler is not None:
-            g.add((node, MANCH.filler, _encode_class_expr(g, filler)))
+            encode_filler = _encode_data_range if tag.startswith('D') else _encode_class_expr
+            g.add((node, MANCH.filler, encode_filler(g, filler)))
         return node
     raise AssertionError(f'unhandled class-expression tag {tag!r}')
 
@@ -665,24 +668,24 @@ def _decode_class_expr(g, node):
         return ('Not', _decode_class_expr(g, g.value(node, MANCH.operand)))
     if MANCH.OneOf in types:
         return ('OneOf', _read_rdf_list(g, g.value(node, MANCH.individuals)))
-    for tag in ('Some', 'Only'):
+    for tag in ('Some', 'Only', 'DSome', 'DOnly'):
         if MANCH[tag] in types:
             prop = _decode_prop_expr(g, g.value(node, MANCH.onProperty))
-            filler = _decode_class_expr(g, g.value(node, MANCH.filler))
-            return (tag, prop, filler)
+            decode_filler = _decode_data_range if tag.startswith('D') else _decode_class_expr
+            return (tag, prop, decode_filler(g, g.value(node, MANCH.filler)))
     if MANCH.Value in types:
         prop = _decode_prop_expr(g, g.value(node, MANCH.onProperty))
         value = g.value(node, MANCH.filler)
         return ('Value', prop, value)
     if MANCH.SelfR in types:
         return ('SelfR', _decode_prop_expr(g, g.value(node, MANCH.onProperty)))
-    for tag in ('Min', 'Max', 'Exact'):
+    for tag in ('Min', 'Max', 'Exact', 'DMin', 'DMax', 'DExact'):
         if MANCH[tag] in types:
             prop = _decode_prop_expr(g, g.value(node, MANCH.onProperty))
             n = int(g.value(node, MANCH.cardinality))
             filler_node = g.value(node, MANCH.filler)
-            filler = _decode_class_expr(g, filler_node) if filler_node is not None else None
-            return (tag, n, prop, filler)
+            decode_filler = _decode_data_range if tag.startswith('D') else _decode_class_expr
+            return (tag, n, prop, decode_filler(g, filler_node) if filler_node is not None else None)
     raise ValueError(f'unrecognized class-expression node {node!r} (types: {types})')
 
 
@@ -857,10 +860,11 @@ def _render_class_expr(expr, top: bool = True) -> str:
         return _paren(f'not {_render_class_expr(expr[1], top=False)}', not top)
     if tag == 'OneOf':
         return '{' + ', '.join(_render_name(u) for u in expr[1]) + '}'
-    if tag in ('Some', 'Only'):
+    if tag in ('Some', 'Only', 'DSome', 'DOnly'):
         _, prop, filler = expr
-        kw = 'some' if tag == 'Some' else 'only'
-        inner = f'{_render_prop_expr(prop)} {kw} {_render_class_expr(filler, top=False)}'
+        kw = 'some' if tag in ('Some', 'DSome') else 'only'
+        render_filler = _render_data_range if tag.startswith('D') else _render_class_expr
+        inner = f'{_render_prop_expr(prop)} {kw} {render_filler(filler, top=False)}'
         return _paren(inner, not top)
     if tag == 'Value':
         _, prop, value = expr
@@ -868,12 +872,13 @@ def _render_class_expr(expr, top: bool = True) -> str:
     if tag == 'SelfR':
         _, prop = expr
         return _paren(f'{_render_prop_expr(prop)} Self', not top)
-    if tag in ('Min', 'Max', 'Exact'):
+    if tag in ('Min', 'Max', 'Exact', 'DMin', 'DMax', 'DExact'):
         _, n, prop, filler = expr
-        kw = {'Min': 'min', 'Max': 'max', 'Exact': 'exactly'}[tag]
+        kw = {'Min': 'min', 'Max': 'max', 'Exact': 'exactly'}[tag.removeprefix('D')]
         inner = f'{_render_prop_expr(prop)} {kw} {n}'
         if filler is not None:
-            inner += f' {_render_class_expr(filler, top=False)}'
+            render_filler = _render_data_range if tag.startswith('D') else _render_class_expr
+            inner += f' {render_filler(filler, top=False)}'
         return _paren(inner, not top)
     raise AssertionError(f'unhandled class-expression tag {tag!r}')
 

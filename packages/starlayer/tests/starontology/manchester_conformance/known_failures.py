@@ -22,7 +22,6 @@ _F1 = "F1 top-level truncation: a non-keyword token at top level ends parsing an
 _F2 = "F2 Ontology: <iri> <versionIRI>: no owl:versionIRI triple is emitted and, via F1, every following frame is silently dropped."
 _F3 = "F3 'Annotations:' in the Ontology: header is refused (manchester_parser.py: 'not supported yet'; same in starontology/manchester.py). The W3C Note's ontology production allows { annotations } and OWL API accepts it."
 _F6 = "F6 nodeID individuals (_:b1) are not supported in individual positions (frame name, SameAs/DifferentFrom target, Facts target, enumeration member, 'value'): raises 'unknown prefix _'. The Note's individual production allows nodeID."
-_F7 = "F7 data-range fillers in restrictions go through the class-expression path: wrong OWL types (owl:Class instead of rdfs:Datatype), owl:complementOf instead of owl:datatypeComplementOf, owl:onClass instead of owl:onDataRange for qualified cardinalities, and for 'd some xsd:integer[>= 5]' the facet restriction is DROPPED entirely (silent semantic loss)."
 _F8 = "F8 facet 'langRange' is rejected ('unknown facet'); documented as narrow in manchester_syntax_gap_analysis.md but the Note lists it in the facet production and OWL API accepts it."
 _F9 = "F9 annotation-of-annotation ('Annotations: Annotations: p v p2 v2') is not supported: the inner 'Annotations' is read as a prefixed name ('unknown prefix Annotations'). The Note's annotation list allows a nested annotations prefix."
 _F10 = "F10 inline Annotations: on top-level Misc axioms (EquivalentClasses: etc.) are refused; documented as deliberately unsupported in manchester_syntax_gap_analysis.md, but the Note's misc production has 'annotations' and OWL API accepts and maps them."
@@ -39,13 +38,6 @@ DIFFERENTIAL_FAILURES: dict[str, str] = {
     "ind-nodeid-frame": _F6,
     "ind-nodeid-fact-target": _F6,
     "ind-nodeid-sameas": _F6,
-    "dr-some-restricted": _F7,
-    "dr-some-enumeration": _F7,
-    "dr-some-not": _F7,
-    "dr-some-union": _F7,
-    "dr-min-qualified": _F7,
-    "dr-max-qualified": _F7,
-    "dr-exactly-qualified": _F7,
     "facet-langrange": _F8,
     "class-subclassof-annotation-nested": _F9,
     "class-annotations-annotated": _F9,
@@ -78,7 +70,7 @@ ORACLE_REJECTS: dict[str, str] = {
     "r-some-chained": _REJ_ACCEPTED_OK + " (primary may be a restriction, so 'p some q some B' is valid.)",
     "that-not": _REJ_ACCEPTED_OK + " (conjunction ::= classIRI 'that' [ 'not' ] restriction ...)",
     "that-and-not": _REJ_ACCEPTED_OK + " (... { 'and' [ 'not' ] restriction })",
-    "dr-short-datatype-name": "F11 short datatype name in a data restriction: Note allows; OWL API rejects; WE MIS-PARSE it as :integer.",
+    "dr-short-datatype-name": _REJ_ACCEPTED_OK + " (The note's Datatype production allows the short names integer/decimal/float/string, meaning the xsd datatypes.)",
     "range-short-integer": _REJ_ACCEPTED_OK + " (The note's Datatype production allows the short names integer/decimal/float/string, meaning the xsd datatypes.)",
     "range-short-decimal": _REJ_ACCEPTED_OK + " (The note's Datatype production allows the short names integer/decimal/float/string, meaning the xsd datatypes.)",
     "range-short-float": _REJ_ACCEPTED_OK + " (The note's Datatype production allows the short names integer/decimal/float/string, meaning the xsd datatypes.)",

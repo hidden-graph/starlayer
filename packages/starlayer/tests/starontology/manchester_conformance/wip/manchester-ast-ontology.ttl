@@ -349,3 +349,18 @@ manch:subject a rdf:Property ;
 
 manch:value a rdf:Property ;
     rdfs:comment "A ClauseItem's own value - shape depends on the enclosing clause (a ClassExpression, PropertyExpression, DataRange, or bare URIRef/Literal). No rdfs:domain/range: deliberately polymorphic by design (see manch:ClauseItem's own comment), and several of its possible shapes are independently sh:class-dispatch-checked." .
+
+manch:DSome rdfs:comment "`d some D` - a Some restriction on a DATA property: manch:onProperty, manch:filler (a DataRange, not a ClassExpression). Distinct from manch:Some because the OWL mapping differs (rdfs:Datatype fillers, owl:onDataRange for the qualified forms) and Manchester syntax itself does not mark the difference - the parser decides from the property's declaration or the filler's shape." ;
+    rdfs:subClassOf manch:ClassExpression .
+
+manch:DOnly rdfs:comment "`d only D` - data-property counterpart of manch:Only; manch:filler is a DataRange." ;
+    rdfs:subClassOf manch:ClassExpression .
+
+manch:DMin rdfs:comment "`d min n D` - QUALIFIED data cardinality (the unqualified form stays manch:Min, it has no filler to tell data from object): manch:onProperty, manch:cardinality, manch:filler (a DataRange, required)." ;
+    rdfs:subClassOf manch:ClassExpression .
+
+manch:DMax rdfs:comment "`d max n D` - same shape as DMin." ;
+    rdfs:subClassOf manch:ClassExpression .
+
+manch:DExact rdfs:comment "`d exactly n D` - same shape as DMin." ;
+    rdfs:subClassOf manch:ClassExpression .
