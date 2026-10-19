@@ -1,0 +1,16 @@
+# name: overrides
+# label: What overrides a method, and what does it override?
+# comment: Both directions of the override relation for one method: the base-class method it overrides, and the subclass methods that override it.
+# topic: inheritance
+# answers: Does method X on a subclass override a same-named method on a base class
+# param: symbol | dotted identifier of a method | starlayer.graph.parsers.manchester_parser._Cursor.record_prefix | required
+PREFIX slkg: <https://github.com/hidden-graph/starlayer/ns/codekg#>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+SELECT ?relation ?method WHERE {
+  ?m dcterms:identifier ?symbol .
+  { ?m slkg:overrides ?o . ?o dcterms:identifier ?method . BIND("overrides" AS ?relation) }
+  UNION
+  { ?o slkg:overrides ?m . ?o dcterms:identifier ?method . BIND("overridden by" AS ?relation) }
+}
+ORDER BY ?relation ?method

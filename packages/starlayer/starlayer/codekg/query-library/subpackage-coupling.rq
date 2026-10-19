@@ -1,0 +1,19 @@
+# name: subpackage-coupling
+# label: Which subpackages call into each other most?
+# comment: Counts calls between the top-level subpackages of starlayer (graph, sparql, shacl, ...), largest first. It uses the call graph, because the graph does not record imports between starlayer modules.
+# topic: architecture
+# answers: Finer-grained coupling
+PREFIX slkg: <https://github.com/hidden-graph/starlayer/ns/codekg#>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+SELECT ?from ?to (COUNT(*) AS ?calls) WHERE {
+  ?a slkg:calls ?b ;
+     dcterms:identifier ?id1 .
+  ?b dcterms:identifier ?id2 .
+  FILTER(STRSTARTS(?id1, "starlayer.") && STRSTARTS(?id2, "starlayer."))
+  BIND(REPLACE(?id1, "^(starlayer\\.[^.]+).*$", "$1") AS ?from)
+  BIND(REPLACE(?id2, "^(starlayer\\.[^.]+).*$", "$1") AS ?to)
+  FILTER(?from != ?to)
+}
+GROUP BY ?from ?to
+ORDER BY DESC(?calls) ?from ?to

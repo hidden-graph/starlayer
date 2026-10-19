@@ -1,0 +1,23 @@
+# name: public-without-docstring
+# label: Public symbols with no docstring
+# comment: Public classes, functions and methods that have no summary, optionally limited to a dotted prefix.
+# topic: api-surface
+# answers: Which public functions have no docstring
+# param: prefix | only symbols whose dotted identifier starts with this | starlayer.shacl | optional
+PREFIX slkg: <https://github.com/hidden-graph/starlayer/ns/codekg#>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+SELECT ?symbol ?kind ?file ?line WHERE {
+  VALUES ?prefix { UNDEF }
+  ?s a ?type ;
+     dcterms:identifier ?symbol ;
+     slkg:filePath ?file .
+  FILTER(?type IN (slkg:Class, slkg:Function, slkg:Method))
+  BIND(LCASE(REPLACE(STR(?type), "^.*#", "")) AS ?kind)
+  FILTER(STRSTARTS(?file, "packages/starlayer/starlayer/"))
+  FILTER(!BOUND(?prefix) || STRSTARTS(?symbol, ?prefix))
+  FILTER NOT EXISTS { ?s slkg:isPrivate true }
+  FILTER NOT EXISTS { ?s rdfs:comment ?c }
+  OPTIONAL { ?s slkg:lineStart ?line }
+}
+ORDER BY ?symbol

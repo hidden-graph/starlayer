@@ -7,7 +7,9 @@ Runs the individual build scripts in dependency order:
 3. ``generate_api_docs.py``   - ``docs/generated/api-*.generated.md`` from the code KG
 4. ``generate_functionality_overview.py`` - ``docs/generated/functionality-overview.generated.md``
    from the curated functionality graph
-5. ``check_docs.py``          - checks links, anchors and the guide index (changes nothing)
+5. ``build_query_library.py`` - ``codekg/curated/query-library.ttl`` (the named queries, as sqe trees) and
+   ``docs/generated/query-library.generated.md``, from ``codekg/query-library/*.rq``
+6. ``check_docs.py``          - checks links, anchors and the guide index (changes nothing)
 
 Build-time only: nothing in the library runs or imports this. Each script can
 still be run on its own.
@@ -62,6 +64,7 @@ _STEPS: dict[str, Step] = {
         "generate_functionality_overview.py",
         outputs=["docs/generated/functionality-overview.generated.md"],
     ),
+    "queries": Step("build_query_library.py", own_check=True),
     "docs": Step("check_docs.py", own_check=True),
 }
 

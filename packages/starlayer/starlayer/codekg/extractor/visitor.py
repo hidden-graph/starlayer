@@ -102,6 +102,15 @@ class _ExtractionContext:
         self.symbol_index = symbol_index
 
 
+def _repo_relative_path(module_iri, path) -> str:
+    """The file's path relative to the repository root, taken from its module IRI (which is the GitHub blob
+    URL of the file). ``slkg:filePath`` used to hold the absolute path on whichever machine ran the
+    extractor, which is wrong for anyone else reading the committed graph."""
+    marker = "/blob/main/"
+    text = str(module_iri)
+    return text.split(marker, 1)[1] if marker in text else str(path)
+
+
 def extract_module(
     path: Path,
     module_iri: URIRef,
@@ -170,7 +179,8 @@ def extract_module(
     triples.append((module_iri, RDF.type, SLKG.Module))
     triples.append((module_iri, RDFS.label, Literal(path.stem)))
     triples.append((module_iri, DCTERMS.identifier, Literal(module_dotted_path)))
-    triples.append((module_iri, SLKG.filePath, Literal(str(path))))
+    repo_path = _repo_relative_path(module_iri, path)
+    triples.append((module_iri, SLKG.filePath, Literal(repo_path)))
 
     try:
         parsed = docstrings.parse_docstring(ast.get_docstring(tree, clean=False))
@@ -182,7 +192,7 @@ def extract_module(
     ctx = _ExtractionContext(
         module_iri=module_iri,
         module_dotted_path=module_dotted_path,
-        file_path_literal=str(path),
+        file_path_literal=repo_path,
         import_table=import_table,
         local_classes=local_classes,
         class_path_by_name=class_path_by_name,

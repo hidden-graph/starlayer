@@ -43,6 +43,11 @@ OPT_IN_GROUPS = {
         "STARLAYER_SRL_STRATIFICATION",
         "also run the extended SRL stratification checks",
     ),
+    "codekg_queries": (
+        "--codekg-queries",
+        "STARLAYER_CODEKG_QUERIES",
+        "also run the code-KG query library against the real code knowledge graph (loads it, ~1 min)",
+    ),
     "manchester_conformance": (
         "--manchester-conformance",
         "STARLAYER_MANCHESTER_CONFORMANCE",

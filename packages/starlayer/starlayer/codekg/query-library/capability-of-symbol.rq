@@ -1,0 +1,17 @@
+# name: capability-of-symbol
+# label: Which capability does a symbol implement?
+# comment: The curated capability, if any, that names a symbol as its implementation.
+# topic: capabilities
+# param: symbol | dotted identifier of the implementing symbol | starlayer.graph.graph.starlayer_graph.StarLayerGraph | required
+PREFIX slkg: <https://github.com/hidden-graph/starlayer/ns/codekg#>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+SELECT ?area ?capability ?status WHERE {
+  ?cap a slkg:Capability ;
+       slkg:implementedByIdentifier ?symbol ;
+       slkg:inCapabilityArea ?a ;
+       rdfs:comment ?capability ;
+       slkg:hasStatus ?status .
+  ?a rdfs:label ?area .
+}
+ORDER BY ?area ?capability

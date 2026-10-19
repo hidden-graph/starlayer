@@ -1,0 +1,16 @@
+# name: call-cycles
+# label: Pairs of functions that call each other
+# comment: Direct two-step call cycles (A calls B and B calls A). Longer cycles are not found.
+# topic: call-graph
+# answers: Are there call cycles
+PREFIX slkg: <https://github.com/hidden-graph/starlayer/ns/codekg#>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+SELECT ?first ?second WHERE {
+  ?a slkg:calls ?b .
+  ?b slkg:calls ?a .
+  ?a dcterms:identifier ?first .
+  ?b dcterms:identifier ?second .
+  FILTER(STR(?a) < STR(?b))
+}
+ORDER BY ?first ?second
