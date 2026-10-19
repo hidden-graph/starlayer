@@ -23,35 +23,56 @@ EX = Namespace("http://x/")
 P = "PREFIX ex: <http://x/>\nPREFIX xsd: <http://www.w3.org/2001/XMLSchema#>\n"
 
 
-@pytest.fixture(scope="module")
-def data():
-    ds = StarLayerDataset()
-    g = ds.graph(EX.g1)
-    h = ds.graph(EX.g2)
+RDF12_TURTLE = """
+PREFIX ex: <http://x/>
+ex:s0 ex:believes <<( ex:s1 ex:num 1 )>> .
+ex:s2 ex:believes <<( ex:s3 ex:num 3 )>> .
+ex:s1 ex:num 1 {| ex:certainty 9 |} .
+ex:s0 ex:title "hello"@en--ltr .
+ex:s1 ex:title "shalom"@he--rtl .
+ex:s2 ex:title "plain" .
+"""
+
+
+def synthetic_triples():
+    """(triples, tags): the plain data, and the two ex:tag triples that go in the second named graph."""
+    triples = []
     for i in range(8):
         s = EX[f"s{i}"]
-        g.add((s, EX.num, Literal(i)))
-        g.add((s, EX.name, Literal(f"name{i % 3}")))
-        g.add((s, EX.kind, EX.even if i % 2 == 0 else EX.odd))
+        triples.append((s, EX.num, Literal(i)))
+        triples.append((s, EX.name, Literal(f"name{i % 3}")))
+        triples.append((s, EX.kind, EX.even if i % 2 == 0 else EX.odd))
         if i % 3 == 0:
-            g.add((s, EX.next, EX[f"s{i + 1}"]))
+            triples.append((s, EX.next, EX[f"s{i + 1}"]))
         if i < 3:
-            g.add((s, EX.lang, Literal(f"w{i}", lang="en")))
-    h.add((EX.s0, EX.tag, Literal("in-g2")))
-    h.add((EX.s1, EX.tag, Literal("also-g2")))
-    ds.parse(
-        data="""
-        PREFIX ex: <http://x/>
-        ex:s0 ex:believes <<( ex:s1 ex:num 1 )>> .
-        ex:s2 ex:believes <<( ex:s3 ex:num 3 )>> .
-        ex:s1 ex:num 1 {| ex:certainty 9 |} .
-        ex:s0 ex:title "hello"@en--ltr .
-        ex:s1 ex:title "shalom"@he--rtl .
-        ex:s2 ex:title "plain" .
-        """,
-        format="turtle12",
-    )
+            triples.append((s, EX.lang, Literal(f"w{i}", lang="en")))
+    triples.append((EX.s1, EX.next, EX.s2))  # so a two-step ex:next path (s0 -> s1 -> s2) exists
+    tags = [(EX.s0, EX.tag, Literal("in-g2")), (EX.s1, EX.tag, Literal("also-g2"))]
+    return triples, tags
+
+
+def build_dataset(dataset=None, rdf12=True):
+    """The synthetic data. Everything is in the default graph (so ordinary queries see it) and the same
+    triples are also in named graphs (so GRAPH queries see them): a dataset that held the triples only in
+    named graphs made every default-graph query return nothing, and the comparisons vacuous."""
+    ds = dataset if dataset is not None else StarLayerDataset()
+    g = ds.graph(EX.g1)
+    h = ds.graph(EX.g2)
+    triples, tags = synthetic_triples()
+    for triple in triples + tags:
+        ds.add(triple)
+    for triple in triples:
+        g.add(triple)
+    for triple in tags:
+        h.add(triple)
+    if rdf12:
+        ds.parse(data=RDF12_TURTLE, format="turtle12")
     return ds
+
+
+@pytest.fixture(scope="module")
+def data():
+    return build_dataset()
 
 
 def _rows(graph, query):
@@ -81,7 +102,7 @@ FEATURES = {
     "filter not exists": "SELECT ?s WHERE { ?s ex:num ?n FILTER NOT EXISTS { ?s ex:next ?x } } ORDER BY ?s",
     "blank node pattern": "SELECT ?s WHERE { ?s ex:next [ ex:num ?n ] } ORDER BY ?s",
     "property list": "SELECT ?s WHERE { ?s ex:kind ex:even ; ex:num ?n } ORDER BY ?s",
-    "object list": "SELECT ?s WHERE { ?s ex:kind ex:even , ex:odd } ORDER BY ?s",
+    "object list": "SELECT ?s WHERE { ?s ex:kind ex:even , ?k ; ex:num ?n } ORDER BY ?s",
     "a keyword": "SELECT ?s WHERE { ?s a ?t } ORDER BY ?s",
     # --- paths
     "path sequence": "SELECT ?s ?z WHERE { ?s ex:next/ex:next ?z } ORDER BY ?s",
@@ -184,11 +205,18 @@ def _run_decoded(data, query, text, name):
     return _rows(data, _translate_algebra_12(query))
 
 
+# Queries whose correct answer is empty or trivially false on this data; every other feature query must
+# return something, or "same as the original" would compare nothing with nothing.
+MAY_BE_EMPTY = {"ask false", "sameterm"}
+
+
 def _check(data, text, name):
     tree, root = sqe_parse_to_tree(text)
     assert sqe_validate(tree)[0]
     assert_no_salg_terms(tree)
     expected = _rows(data, text)
+    if name not in MAY_BE_EMPTY:
+        assert expected not in ([], False), f"feature query {name!r} returns nothing on the test data"
     decoded = sqe_tree_to_query(tree, root)
     assert _run_decoded(data, decoded, text, name) == expected, "decoded query differs"
     regenerated = sqe_tree_to_text(tree, root)

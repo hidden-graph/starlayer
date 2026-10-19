@@ -461,3 +461,58 @@ class TestUnboundTemplateVariable:
         graph, root = sqe_parse_to_tree(query_text)
         conforms, _report_graph, report_text = sqe_validate(graph)
         assert conforms, report_text
+
+
+from starlayer.sparql.sqe import vocab as V  # noqa: E402
+
+
+class TestShapesForTheWiderVocabulary:
+    """Each of these corruptions was accepted before the list shapes were added."""
+
+    QUERY = (
+        "PREFIX ex: <http://x/> SELECT ?s (COUNT(?o) AS ?c) WHERE { ?s ex:p ?o } GROUP BY ?s HAVING (COUNT(?o) > 0) "
+        "VALUES ?o { 1 2 }"
+    )
+
+    def _corrupted(self, predicate_local, find_node):
+        from rdflib import Literal
+        from starlayer.sparql.sqe import sqe_parse_to_tree, sqe_validate
+        from starlayer.sparql.sqe.vocab import SQE
+
+        tree, _root = sqe_parse_to_tree(self.QUERY)
+        node = find_node(tree)
+        predicate = SQE[predicate_local]
+        tree.remove((node, predicate, None))
+        tree.add((node, predicate, Literal("JUNK")))
+        return sqe_validate(tree)[0]
+
+    def test_group_by_must_be_a_list(self):
+        assert not self._corrupted("groupBy", lambda t: next(t.subjects(V.GROUP_BY)))
+
+    def test_having_must_be_a_list(self):
+        assert not self._corrupted("having", lambda t: next(t.subjects(V.HAVING)))
+
+    def test_trailing_values_must_be_a_values_block(self):
+        assert not self._corrupted("values", lambda t: next(t.subjects(V.QUERY_VALUES)))
+
+    def test_values_vars_must_be_a_list(self):
+        assert not self._corrupted("vars", lambda t: next(t.subjects(V.VALUES_VARS)))
+
+    def test_values_rows_must_be_a_list(self):
+        assert not self._corrupted("rows", lambda t: next(t.subjects(V.VALUES_ROWS)))
+
+    def test_projection_must_be_a_list(self):
+        assert not self._corrupted("projection", lambda t: next(t.subjects(V.PROJECTION)))
+
+    def test_shared_properties_declare_no_domain(self):
+        """sqe:expr, var, subject, predicate and object are used by several node types; a domain would give
+        an Alias the type Filter (and a TripleTerm the type TriplePattern) under RDFS inference."""
+        from rdflib import RDFS
+        from starlayer import starontology
+
+        ontology = starontology.get_ontology_graph("sqe_owl")
+        from starlayer.sparql.sqe.vocab import SQE
+
+        for name in ("expr", "var", "subject", "predicate", "object"):
+            assert (SQE[name], RDFS.domain, None) not in ontology, name
+

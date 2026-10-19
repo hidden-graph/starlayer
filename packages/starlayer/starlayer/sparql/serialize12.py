@@ -137,6 +137,18 @@ def _triples_text(triples) -> str:
     )
 
 
+_OPERATOR_EXPRESSIONS = {
+    "ConditionalOrExpression",
+    "ConditionalAndExpression",
+    "RelationalExpression",
+    "AdditiveExpression",
+    "MultiplicativeExpression",
+    "UnaryNot",
+    "UnaryMinus",
+    "UnaryPlus",
+}
+
+
 class _AlgebraTranslator12(_AlgebraTranslator):
     """``rdflib.plugins.sparql.algebra._AlgebraTranslator``, with the two
     triple-serialization branches (``BGP``, ``TriplesBlock``) patched to
@@ -167,6 +179,10 @@ class _AlgebraTranslator12(_AlgebraTranslator):
         dirlang = _dirlang_n3(node_arg)
         if dirlang is not None:
             return dirlang
+        if isinstance(node_arg, CompValue) and node_arg.name in _OPERATOR_EXPRESSIONS:
+            # An operator expression used as an operand keeps its own parentheses: without them
+            # `?a * (?b + ?c)` was written `?a * ?b + ?c`, and `(?a = ?b) = ?c` lost its grouping.
+            return "(" + super().convert_node_arg(node_arg) + ")"
         if isinstance(node_arg, TripleTermNode):
             # Rendered here rather than via the "{TripleTerm}" placeholder,
             # which is never filled in when the term sits inside a list
@@ -227,12 +243,20 @@ class _AlgebraTranslator12(_AlgebraTranslator):
             self._replace("{TripleTerm}", _term_text(node))
             return node
 
-        if isinstance(node, CompValue) and node.name in ("UnaryMinus", "UnaryPlus"):
-            # Stock rdflib has no branch for these two (only UnaryNot), so the
-            # placeholder survived into the text ("?x * {UnaryMinus}").
-            sign = "-" if node.name == "UnaryMinus" else "+"
-            self._replace("{" + node.name + "}", sign + self.convert_node_arg(node.expr))
-            return node
+        if isinstance(node, CompValue) and node.name in ("UnaryNot", "UnaryMinus", "UnaryPlus"):
+            # Stock rdflib has no branch for UnaryMinus/UnaryPlus (the placeholder survived into the text),
+            # and its UnaryNot branch drops the operand's parentheses: `!(a = b)` came out as `!a = b`
+            # (wrong precedence) and `!(!x)` as `!!x` (not valid SPARQL). A computed operand is always
+            # parenthesized here.
+            sign = {"UnaryNot": "!", "UnaryMinus": "-", "UnaryPlus": "+"}[node.name]
+            operand = self.convert_node_arg(node.expr)
+            if isinstance(node.expr, CompValue):
+                operand = f"({operand})"
+            self._replace("{" + node.name + "}", sign + operand)
+            # None, not the node: the traversal must go on into the operand so its own placeholder is
+            # filled, and the base class's UnaryNot branch must not run too (it would fill the next
+            # "{UnaryNot}" placeholder, the operand's, with the wrong text).
+            return None
 
         if isinstance(node, CompValue) and node.name in (
             "Builtin_isTRIPLE",
@@ -430,7 +454,10 @@ class _AlgebraTranslator12(_AlgebraTranslator):
                 "{RelationalExpression}",
                 f"{expr} {node.op} {other}",
             )
-            return node
+            # None, not the node: the traversal has to descend into the left operand so its own
+            # placeholder is filled (returning the node left e.g. "{AdditiveExpression} IN (...)" in
+            # the text).
+            return None
 
         if isinstance(node, CompValue) and node.name == "values":
             # Mirrors algebra.py's own "values" branch exactly (same

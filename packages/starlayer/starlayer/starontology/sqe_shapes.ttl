@@ -101,7 +101,7 @@ sqe:AskQueryShape a sh:NodeShape ;
 sqe:BindShape a sh:NodeShape ;
     sh:property [
         sh:maxCount 1 ;
-        sh:message "sqe:Bind must have exactly one sqe:expr, a well-formed salg: expression" ;
+        sh:message "sqe:Bind must have exactly one sqe:expr, a well-formed expression" ;
         sh:minCount 1 ;
         sh:node spexpr:ExpressionShape ;
         sh:path sqe:expr
@@ -226,7 +226,7 @@ sqe:ConstructQueryShape a sh:NodeShape ;
 sqe:FilterShape a sh:NodeShape ;
     sh:property [
         sh:maxCount 1 ;
-        sh:message "sqe:Filter must have exactly one sqe:expr, a well-formed salg: expression" ;
+        sh:message "sqe:Filter must have exactly one sqe:expr, a well-formed expression" ;
         sh:minCount 1 ;
         sh:node spexpr:ExpressionShape ;
         sh:path sqe:expr
@@ -279,7 +279,8 @@ sqe:PrefixBindingShape a sh:NodeShape ;
 sqe:SelectQueryShape a sh:NodeShape ;
     sh:property [
         sh:maxCount 1 ;
-        sh:message "sqe:SelectQuery may have at most one sqe:projection, an rdf:List of Variables" ;
+        sh:message "sqe:SelectQuery may have at most one sqe:projection, a non-empty rdf:List of variables and aliases" ;
+        sh:node sqe:ProjectionListShape ;
         sh:path sqe:projection
     ], [
         sh:maxCount 1 ;
@@ -386,10 +387,12 @@ sqe:SelectModifierShape a sh:NodeShape ;
     sh:property [
         sh:maxCount 1 ;
         sh:message "sqe:groupBy must be a single, non-empty rdf:List of variables, expressions or sqe:Alias" ;
+        sh:node sqe:GroupByListShape ;
         sh:path sqe:groupBy
     ], [
         sh:maxCount 1 ;
         sh:message "sqe:having must be a single, non-empty rdf:List of expressions" ;
+        sh:node sqe:HavingListShape ;
         sh:path sqe:having
     ], [
         sh:datatype xsd:boolean ;
@@ -579,17 +582,149 @@ sqe:ValuesShape a sh:NodeShape ;
         sh:maxCount 1 ;
         sh:message "sqe:Values must have exactly one sqe:vars, an rdf:List of variables" ;
         sh:minCount 1 ;
+        sh:node sqe:VariableListShape ;
         sh:path sqe:vars
     ], [
         sh:maxCount 1 ;
         sh:message "sqe:Values must have exactly one sqe:rows, an rdf:List of rdf:List rows" ;
         sh:minCount 1 ;
+        sh:node sqe:RowsListShape ;
         sh:path sqe:rows
     ] ;
     sh:targetClass sqe:Values .
 
+sqe:ProjectionListShape a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "sqe:projection must be a non-empty rdf:List of variables and sqe:Alias nodes" ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
+            PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
+            SELECT $this
+            WHERE {
+                {
+                    FILTER ( $this = rdf:nil )
+                } UNION {
+                    FILTER ( $this != rdf:nil )
+                    FILTER NOT EXISTS { $this rdf:first ?head }
+                } UNION {
+                    $this rdf:rest*/rdf:first ?item .
+                    FILTER NOT EXISTS { ?item a sqe:Alias }
+                    FILTER NOT EXISTS { FILTER ( isLiteral(?item) && datatype(?item) = spexpr:Variable ) }
+                }
+            }
+        """
+    ] .
+
+sqe:GroupByListShape a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "sqe:groupBy must be a non-empty rdf:List of variables, sqe:Alias nodes or expressions" ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
+            PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
+            SELECT $this
+            WHERE {
+                {
+                    FILTER ( $this = rdf:nil )
+                } UNION {
+                    FILTER ( $this != rdf:nil )
+                    FILTER NOT EXISTS { $this rdf:first ?head }
+                } UNION {
+                    $this rdf:rest*/rdf:first ?item .
+                    FILTER ( isLiteral(?item) && datatype(?item) != spexpr:Variable || isIRI(?item) )
+                }
+            }
+        """
+    ] .
+
+sqe:HavingListShape a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "sqe:having must be a non-empty rdf:List of expressions" ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
+            PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
+            SELECT $this
+            WHERE {
+                {
+                    FILTER ( $this = rdf:nil )
+                } UNION {
+                    FILTER ( $this != rdf:nil )
+                    FILTER NOT EXISTS { $this rdf:first ?head }
+                }
+            }
+        """
+    ] .
+
+sqe:VariableListShape a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "expected an rdf:List of variables" ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
+            PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
+            SELECT $this
+            WHERE {
+                {
+                    FILTER ( $this != rdf:nil )
+                    FILTER NOT EXISTS { $this rdf:first ?head }
+                } UNION {
+                    $this rdf:rest*/rdf:first ?item .
+                    FILTER NOT EXISTS { FILTER ( isLiteral(?item) && datatype(?item) = spexpr:Variable ) }
+                }
+            }
+        """
+    ] .
+
+sqe:RowsListShape a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "sqe:rows must be a well-formed rdf:List of rdf:List rows" ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            SELECT $this
+            WHERE {
+                {
+                    FILTER ( $this != rdf:nil )
+                    FILTER NOT EXISTS { $this rdf:first ?head }
+                } UNION {
+                    $this rdf:rest*/rdf:first ?row .
+                    FILTER ( ?row != rdf:nil )
+                    FILTER NOT EXISTS { ?row rdf:first ?cell }
+                }
+            }
+        """
+    ] .
+
+sqe:QueryValuesShape a sh:NodeShape ;
+    sh:property [
+        sh:maxCount 1 ;
+        sh:class sqe:Values ;
+        sh:message "a query's trailing sqe:values must be a single sqe:Values block" ;
+        sh:path sqe:values
+    ] ;
+    sh:targetClass sqe:Query, sqe:SubSelect .
+
+sqe:PrologueShape a sh:NodeShape ;
+    sh:property [
+        sh:class sqe:PrefixBinding ;
+        sh:message "sqe:prologuePrefix must be a sqe:PrefixBinding node" ;
+        sh:path sqe:prologuePrefix
+    ], [
+        sh:maxCount 1 ;
+        sh:message "sqe:base must be a single IRI" ;
+        sh:nodeKind sh:IRI ;
+        sh:path sqe:base
+    ] ;
+    sh:targetClass sqe:Query .
+
 sqe:ShapesGraph a sh:ShapesGraph ;
-    rdfs:member sqe:FilterShape, sqe:AskQueryShape, sqe:BindShape, sqe:ObjectOrVariableShape, sqe:ConstructQueryShape, sqe:OptionalShape, sqe:SubjectOrVariableShape, sqe:WhereListShape, sqe:UnionShape, sqe:SelectQueryShape, sqe:AlternativesListShape, sqe:PrefixBindingShape, sqe:TemplateListShape, sqe:TriplePatternShape, sqe:PredicateOrVariableOrPathShape, sqe:SelectModifierShape, sqe:SolutionModifierShape, sqe:OrderByListShape, sqe:OrderConditionShape, sqe:TripleTermShape, sqe:ExistsShape, sqe:AliasShape, sqe:MinusShape, sqe:GraphShape, sqe:ValuesShape ;
+    rdfs:member sqe:FilterShape, sqe:AskQueryShape, sqe:BindShape, sqe:ObjectOrVariableShape, sqe:ConstructQueryShape, sqe:OptionalShape, sqe:SubjectOrVariableShape, sqe:WhereListShape, sqe:UnionShape, sqe:SelectQueryShape, sqe:AlternativesListShape, sqe:PrefixBindingShape, sqe:TemplateListShape, sqe:TriplePatternShape, sqe:PredicateOrVariableOrPathShape, sqe:SelectModifierShape, sqe:SolutionModifierShape, sqe:OrderByListShape, sqe:OrderConditionShape, sqe:TripleTermShape, sqe:ExistsShape, sqe:AliasShape, sqe:MinusShape, sqe:GraphShape, sqe:ValuesShape, sqe:ProjectionListShape, sqe:GroupByListShape, sqe:HavingListShape, sqe:VariableListShape, sqe:RowsListShape, sqe:QueryValuesShape, sqe:PrologueShape ;
     owl:imports spexpr:ShapesGraph .
 
 sqe:SubjectOrVariableShape a sh:NodeShape ;

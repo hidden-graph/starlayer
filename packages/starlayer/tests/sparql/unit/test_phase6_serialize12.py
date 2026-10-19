@@ -215,3 +215,32 @@ def test_construct_execution_roundtrip_via_starlayergraph():
 
         assert original_graph == roundtripped_graph, query_text
         assert len(original_graph) > 0, query_text
+
+
+def test_operators_keep_their_operand_parenthesized():
+    """`!(a = b)` used to come out as `!a = b` (wrong precedence), `!(!x)` as `!!x` (not valid SPARQL),
+    and the placeholder for unary minus/plus was never filled."""
+    from rdflib import Graph, Literal, Namespace
+    from starlayer.sparql.parse12 import prepare_query_12
+    from starlayer.sparql.serialize12 import _translate_algebra_12
+
+    graph = Graph()
+    ex = Namespace("http://x/")
+    for i in range(4):
+        graph.add((ex[f"s{i}"], ex.n, Literal(i)))
+    queries = [
+        "ASK { ?s <http://x/n> ?n FILTER(!(!(?n = 2))) }",
+        "SELECT ?s { ?s <http://x/n> ?n FILTER(!(?n = 2)) } ORDER BY ?s",
+        "SELECT ?s { ?s <http://x/n> ?n FILTER(-(?n + 1) < -2) } ORDER BY ?s",
+        "SELECT ?s { ?s <http://x/n> ?n FILTER(+(?n * 2) = 4 && !(?n > 2 || ?n < 1)) } ORDER BY ?s",
+        # operands of an operator keep their grouping; an IN list's left operand is rendered
+        "SELECT ?s { ?s <http://x/n> ?n FILTER(?n * (?n + 1) = 6) } ORDER BY ?s",
+        "SELECT ?s { ?s <http://x/n> ?n FILTER((?n + 1) IN (1, 2)) } ORDER BY ?s",
+        "SELECT ?s { ?s <http://x/n> ?n FILTER(STR(?n) IN ('1', '3') || (?n > 1 && ?n < 3)) } ORDER BY ?s",
+    ]
+    for query in queries:
+        text = _translate_algebra_12(prepare_query_12(query))
+        assert "{Unary" not in text, text
+        expected = graph.query(query)
+        got = graph.query(text)
+        assert (expected.askAnswer == got.askAnswer) if expected.type == "ASK" else (list(expected) == list(got)), text
