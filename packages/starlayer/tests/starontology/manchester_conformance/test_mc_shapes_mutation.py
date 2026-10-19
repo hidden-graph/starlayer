@@ -18,9 +18,7 @@ from __future__ import annotations
 import pytest
 from rdflib import BNode, Graph, Literal, URIRef
 from rdflib.namespace import RDF
-
-from .corpus import CASES
-from .wip.manchester import (
+from starlayer.starontology.manchester import (
     MANCH,
     _concrete_classes,
     _preflight,
@@ -28,6 +26,8 @@ from .wip.manchester import (
     manchester_tree_to_text,
     manchester_validate,
 )
+
+from .corpus import CASES
 
 # A document that contains the list-bearing constructs: prefixes, imports, an enumeration, a datatype
 # restriction with facets, a data enumeration, clauses and a Misc axiom.

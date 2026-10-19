@@ -3,9 +3,9 @@
 Answers one question: **is the Manchester Syntax parser, and the `manch:` tree built from it, complete?**
 Triggered by the SQE finding that an RDF encoding of SPARQL could not express arbitrary queries.
 
-Status: the suite found 14 gaps; all genuine defects are fixed in the parser, and the tree layer is fixed in
-a working copy (`wip/`, see `WIP.md`) that is deliberately **not** merged into `starontology/` yet. What remains is
-listed in the Findings table below; every remaining exception is a strict xfail or a documented oracle
+Status: the suite found 14 gaps; all genuine defects are fixed, in the parser and in the tree layer
+(`starlayer/starontology/manchester.py` and its two `.ttl` files; the tree-layer fixes were made in a working copy
+and folded back on 2026-10-18). What remains is listed in the Findings table below; every remaining exception is a strict xfail or a documented oracle
 deviation in `known_failures.py` and breaks loudly if its status changes.
 
 ## What it checks
@@ -98,13 +98,13 @@ and they accept extra unknown triples on a node (the shapes are open, not `sh:cl
 
 The conformance suite caught two regressions introduced by the fixes themselves within one run each: the
 tree's nodeID encoding mistaking an `rdf:List` head for an individual, and the original tree module breaking
-when the parser's recording hooks gained arguments. The second is why hook changes are now additive only
-(see `WIP.md`).
+when the parser's recording hooks gained arguments. The second is why hook changes are additive only: an existing hook's signature must not change, new information
+arrives through new no-op hooks.
 
 ## Next
 
-1. When the other agent's `starontology` work is finished, compare and merge the working copy (`wip/`) into
-   `starlayer/starontology/` (procedure in `WIP.md`). Nothing under `starontology/` has been changed yet.
+1. (done 2026-10-18) The working copy was folded back into `starlayer/starontology/`, the suite now runs against it, and
+   the snapshots were refreshed.
 2. Decide the four Note-versus-OWL-API strictness questions above.
 3. Update `docs/graph/manchester_syntax_gap_analysis.md` (it still lists header annotations, `langRange`
    and Misc annotations as unsupported) and `docs/graph/CHANGELOG`.
