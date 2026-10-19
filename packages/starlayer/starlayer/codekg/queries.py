@@ -107,6 +107,7 @@ class QueryResult:
     offset: int = 0
     limit: int = DEFAULT_LIMIT
     warnings: list[str] = field(default_factory=list)
+    kg_note: str = ""  # how old the code KG is, from its build stamp
 
     @property
     def truncated(self) -> bool:
@@ -131,6 +132,7 @@ class QueryResult:
         footer = f"{shown}."
         if self.truncated:
             footer += f" More: pass offset={self.offset + len(self.rows)}, or narrow the query."
+        footer += f" {self.kg_note}" if self.kg_note else ""
         lines.append(footer + " The code KG can lag the source; check line numbers in the file.")
         return "\n".join(lines)
 
@@ -166,6 +168,19 @@ def _kg():
     for s, p, o, _g in get_codekg_dataset(include_curated=True).quads((None, None, None, None)):
         graph.add((s, p, o))
     return graph
+
+
+@functools.lru_cache(maxsize=1)
+def kg_status() -> str:
+    """One sentence on how old the code KG is: when it was built, from which commit, and what changed in the source since.
+
+    Read from the ``slkg:KGBuild`` stamp the extractor writes, compared with the git repository as it is now. Empty
+    when there is no stamp (a graph built before stamps existed).
+    """
+    from starlayer.codekg.extractor.stamp import freshness
+
+    found = freshness(_kg(), Path(__file__).resolve().parents[4])
+    return found.sentence() if found else ""
 
 
 def _slkg(term: str) -> URIRef:
@@ -357,7 +372,7 @@ def _bounded(query_name: str, result, limit: int, offset: int, warnings: list[st
         return QueryResult(query_name, ["answer"], [(str(bool(result.askAnswer)).lower(),)], 1, 0, limit, warnings)
     columns = [str(v) for v in result.vars]
     rows = [tuple(_term_text(t) for t in row) for row in result]
-    return QueryResult(query_name, columns, rows[offset : offset + limit], len(rows), offset, limit, warnings)
+    return QueryResult(query_name, columns, rows[offset : offset + limit], len(rows), offset, limit, warnings, kg_status())
 
 
 def run_query(name: str, *, limit: int = DEFAULT_LIMIT, offset: int = 0, **params) -> QueryResult:
@@ -427,6 +442,7 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("list", help="list the named queries")
     p.add_argument("--topic", help="only this topic (see 'topics')")
     sub.add_parser("topics", help="list the topics")
+    sub.add_parser("status", help="how old the code KG is compared with the source (loads the graph)")
     p = sub.add_parser("show", help="describe a query and print its SPARQL")
     p.add_argument("name")
     p = sub.add_parser("run", help="run a named query: run NAME param=value ...")
@@ -449,6 +465,8 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "topics":
             for key, label in sorted(topics().items()):
                 print(f"{key:14} {label}")
+        elif args.command == "status":
+            print(kg_status() or "The code KG has no build stamp; rebuild it: python scripts/build.py --only codekg apidocs")
         elif args.command == "show":
             q = get_query(args.name)
             print(f"{q.name}: {q.label}\n{q.description}\n")

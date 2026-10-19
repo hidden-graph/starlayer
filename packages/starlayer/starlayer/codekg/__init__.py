@@ -44,6 +44,11 @@ ONTOLOGY_GRAPH_IRI = URIRef("https://github.com/hidden-graph/starlayer/ns/codekg
 # are the source; the extractor leaves this graph alone when it rebuilds codekg.trig.
 CURATED_GRAPH_IRI = URIRef("https://github.com/hidden-graph/starlayer/ns/codekg/curated")
 
+# The named graph holding the build stamp (a single slkg:KGBuild node saying when and from which commit codekg.trig
+# was built). Written by the extractor on every refresh, replaced each time.
+BUILD_GRAPH_IRI = URIRef("https://github.com/hidden-graph/starlayer/ns/codekg/build")
+BUILD_NODE_IRI = URIRef("https://github.com/hidden-graph/starlayer/ns/codekg/build#latest")
+
 # Per-module named-graph IRIs are BLOB_BASE + <repo-relative path from
 # packages/starlayer/starlayer/>, matching starontology's own GitHub-blob-
 # URL convention.

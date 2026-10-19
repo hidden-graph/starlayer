@@ -65,6 +65,10 @@ def main(argv: list[str] | None = None) -> int:
     dataset = get_codekg_dataset()
     total_triples = len(dataset)
 
+    from starlayer.codekg.extractor import stamp
+
+    stamp.append_changelog_entry(Path(__file__).resolve().parents[1] / "CHANGELOG.md", repo_root, len(target_paths), total_triples)
+
     print(f"Extracted {len(target_paths)} file(s).")
     print(f"codekg.trig now contains {total_triples} triple(s) across {len(list(dataset.contexts()))} named graph(s).")
 

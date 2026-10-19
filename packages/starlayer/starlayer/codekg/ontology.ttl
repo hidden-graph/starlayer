@@ -434,3 +434,38 @@ slkg:cqStatus a owl:DatatypeProperty ;
     rdfs:label "competency question status" ;
     rdfs:comment "\"answerable\" (the graph can answer it now), \"roadmap\" (not built yet), \"curated\" (needs a hand-maintained layer) or \"out-of-scope\" (deliberately excluded). The catalogue marks them ✅ 🔜 🗂️ ⛔." .
 
+#################################################################
+# Build stamp
+#
+# One slkg:KGBuild node, in its own named graph of codekg.trig, written by
+# the extractor (starlayer.codekg.extractor.stamp) each time it runs. It
+# lets a reader see how old the generated graph is.
+#################################################################
+
+slkg:KGBuild a owl:Class ;
+    rdfs:label "Code KG build" ;
+    rdfs:comment "The record of one run of the extractor: when it ran, from which git commit, and how much it extracted. Exactly one exists in codekg.trig, replaced on every run." .
+
+slkg:builtAt a owl:DatatypeProperty ;
+    rdfs:domain slkg:KGBuild ;
+    rdfs:range xsd:dateTime ;
+    rdfs:label "built at" ;
+    rdfs:comment "When the extractor ran (UTC)." .
+
+slkg:builtFromCommit a owl:DatatypeProperty ;
+    rdfs:domain slkg:KGBuild ;
+    rdfs:range xsd:string ;
+    rdfs:label "built from commit" ;
+    rdfs:comment "The full git commit hash that was checked out when the extractor ran. Absent when git was not available. The extractor reads the working tree, so see slkg:hadUncommittedChanges as well." .
+
+slkg:hadUncommittedChanges a owl:DatatypeProperty ;
+    rdfs:domain slkg:KGBuild ;
+    rdfs:range xsd:boolean ;
+    rdfs:label "had uncommitted changes" ;
+    rdfs:comment "True if a Python file in the extracted source or tests differed from that commit when the extractor ran, so the graph describes more than the commit." .
+
+slkg:sourceFileCount a owl:DatatypeProperty ;
+    rdfs:domain slkg:KGBuild ;
+    rdfs:range xsd:integer ;
+    rdfs:label "source file count" ;
+    rdfs:comment "How many Python files the run extracted." .
