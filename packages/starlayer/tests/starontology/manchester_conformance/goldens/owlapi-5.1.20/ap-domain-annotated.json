@@ -1,0 +1,8 @@
+{
+ "accepted": false,
+ "case": "ap-domain-annotated",
+ "error": "Error: Problem parsing http://example.org/oraw-tmp",
+ "error_detail": "Encountered :A at line 23 column 33. Expected one of: Encountered :A at line 23 column 33. Expected one of:",
+ "jar_sha256": "bda7cbd71fffff6727716678e3d3fa42911f07ae7eb85abdaf6d12c8332d0e3f",
+ "oracle": "OWL API 5.1.20"
+}
