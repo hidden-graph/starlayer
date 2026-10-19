@@ -16,6 +16,9 @@ in `known_failures.py` that flips to a failing XPASS the moment it is fixed.
 | `test_sr_spec_examples.py` | the draft's 13 code examples parse, plan (stratify), round-trip and keep their meaning | the draft |
 | `test_sr_builtins.py` | 70 SPARQL functions: those in SRL's `BuiltInCall` parse and encode; those that are not are rejected | the draft's `BuiltInCall` production |
 | `test_sr_negative.py` | ill-formed SRL is refused: grammar errors, SPARQL-only constructs, section 4.2 well-formedness, non-stratifiable sets | the draft |
+| `test_sr_evaluator.py` | `RuleSet.infer()` equals an independent evaluator written from the draft's section 6.4/6.5 pseudocode: hand-derived known answers, plus Hypothesis-generated rule sets and graphs | the draft's pseudocode |
+| `test_sr_architecture.py` | SRL does not depend on `salg:`: four measurable ways, three of them strict xfails that list today's dependencies | the architecture rule |
+| `tools/mutation_scan.py` | (tool, not a test) damages `srl:` trees and checks whether the shapes reject them | mutation |
 
 Marker: `srl_conformance`. The corpus tests take about 10 minutes (each `parse_ruleset` runs SHACL validation
 by default, about 140 ms); parses are cached across tests.
@@ -62,12 +65,74 @@ A triple term in subject position is rejected by section 4.2, correctly; several
 Spec Examples 19 and 39 differ between the tree and text paths only in parser-minted blank-node labels, which
 the tests now canonicalise.
 
+## Shape mutation analysis: the `srl:` shapes are weak
+
+`tools/mutation_scan.py` damages the `srl:` tree of every corpus case (remove a triple, swap a value for a
+literal, add a second value, drop an `rdf:type`, break a list) once per distinct (node class, property,
+operator): 153 mutants, about 3 minutes.
+
+| Verdict | Mutants |
+|---|---|
+| rejected by `srl_validate` | **63 (41%)** |
+| validates and still decodes | 63 |
+| **validates yet crashes the decoder** | **27** |
+
+For comparison the Manchester shapes rejected 95% and, after hardening, had no holes. The SRL shapes constrain
+the rule, body and head structure; the **expression subtrees are barely constrained**:
+
+- every one of the 27 holes is inside an expression (`ConditionalOrExpression`, `ConditionalAndExpression`,
+  `RelationalExpression`, `AdditiveExpression`, `MultiplicativeExpression`, `UnaryNot`, `Builtin_*`): removing
+  its `srl:expr`, an operand, an operator or its type passes validation, then the decoder raises
+  `ExpressionNotCoveredException`, `TypeError` or `IndexError`;
+- many survivors are semantically wrong, not merely optional: a function node whose IRI is replaced by a
+  literal, a `RelationalExpression` whose operator is replaced by the string "MUTANT", an extra second operand;
+- a tree with its `srl:RuleSet` type removed still validates (same RDFS-inference cause as Manchester);
+- those expression shapes are the shared `salg:ExpressionShape` family, which is why this cannot be fixed inside
+  SRL without either owning the expression shapes or waiting for `sqe:` to provide them.
+
+## Independent evaluator: no disagreement found
+
+`test_sr_evaluator.py` contains an evaluator that shares no code with the implementation (plain Python sets, its
+own matcher and expression evaluator), following the draft's section 6.4 `evalRuleElements` / `evalRule` and
+6.5 stratum-by-stratum evaluation line by line. Scope: positive and negated triple patterns, `FILTER` and `SET`
+over integers, `DATA` blocks, `WHERE DATA` / `NOT DATA`, recursion and stratified negation. Out of scope:
+blank nodes in heads (run-once rules), triple terms, aggregation (undecided in the draft), imports.
+
+The oracle is grounded without the implementation: it reproduces the draft's worked example (section 6.6) and the
+`G0`-only rule for `WHERE DATA`. Against `RuleSet.infer()`: **no disagreement in 3,000 unseeded generated cases**
+(recursive chains, mutual recursion, negation, `NOT DATA`, `SET`, `DATA` blocks), nor in four hand-derived known
+answers (transitive closure, `WHERE DATA`, `NOT` against `NOT DATA`, `DATA` blocks). So the stratifier and
+evaluator are consistent with the draft's pseudocode on this subset.
+
+**How much does a passing comparison prove?** I checked, by deliberately breaking the oracle five ways (`WHERE
+DATA` matching the evaluation graph; `NOT DATA` ignored; no fixpoint within a stratum; errors keeping the
+solution; `DATA` not added to the evaluation graph). The first version of the generated test caught only one:
+random rule sets almost never contain a recursive join needing several passes, and 60 examples rarely hit
+`WHERE DATA`. Fixes: a generator that builds recursive chains, and the deterministic known-answer tests. All
+five mutations are now caught. Lesson recorded for the other suites: a generated comparison should be
+mutation-tested before it is trusted.
+
+## Architecture: SRL and `salg:`
+
+The rule is that SRL may rely on `sqe:` but not on `salg:`. Measured (2026-10-19), and enforced by
+`test_sr_architecture.py`:
+
+| Where | Finding | Test |
+|---|---|---|
+| the `srl:` trees SRL produces | only four `salg:` terms: `TripleTerm`, `subject`, `predicate`, `object` (triple terms). Everything else is `srl:` or `spexpr:` | strict xfail |
+| the graphs SRL validates against | `srl_validate` loads the **whole** `salg:` ontology (290 triples) and shapes (617), because the expression shapes it reuses live there; SRL's own `srl:` terms are 30 and 111 | strict xfail |
+| source | `srl.py` loads `sparql_owl`/`sparql_shacl` by name; `ast_vocab.py`, `srl_shapes.ttl`, `srl-ontology.ttl` name `salg:` | strict xfail |
+| the expression vocabulary `spexpr:` | **already free of `salg:` IRIs** (text mentions are comments and prefixes only). An earlier count of 39 was a text search and over-stated it. | passing guard |
+
+So the dependency is narrower than it looked: SRL's data is almost entirely independent, and the real coupling
+is the shared expression *shapes and renderer* (the same machinery behind findings S1 to S6, T1 and the
+shape holes above). Moving SRL onto `sqe:` means `sqe:` supplying expression shapes, an encoder and a
+renderer without `salg:`; the SQE work is the prerequisite, not a parallel task.
+
 ## Next
 
-1. **Shape mutation analysis** of `srl_shapes.ttl` (reuse the Manchester `mutation_scan.py`). A 48-mutant probe
-   already found 5 mutants that validate but crash the decoder (`ExpressionNotCoveredException`).
-2. **Independent evaluator oracle**: a small naive stratified-Datalog evaluator in the test code, and a
-   Hypothesis generator of rule sets and graphs, compared with `RuleSet.infer()`.
-3. **Architecture test**: SRL must not reference `salg:`; the inventory is the strict-xfail list of today's
-   references.
-4. Part B: fix the findings above, starting with S3 (silent change of meaning) and P3.
+Part B, in dependency order. (a) Fixes that live in SRL alone: the parser/lexer findings P1 to P4, V1 and the
+leaks L1/L2 (reject the ten SPARQL-only functions, require the `.` between triples). (b) Fixes that live in the
+shared expression machinery (S1 to S6, T1, the shape holes): a working copy under this suite, as with
+Manchester, merged only after the SQE work is done. (c) An opt-in pre-flight on asserted types, and stronger
+expression shapes, once (b) exists.
