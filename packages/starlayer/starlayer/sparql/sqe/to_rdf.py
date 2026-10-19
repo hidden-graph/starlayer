@@ -218,13 +218,9 @@ def sqe_parse_to_tree(
         A ``(graph, root)`` tuple.
 
     Raises:
-        NotImplementedError: For anything outside v1's scope
-            (``DESCRIBE``; aggregates/``GROUP BY``/``HAVING``,
-            subqueries, ``VALUES``, or any ``WHERE``-clause element
-            besides a triple pattern/``OPTIONAL``/``UNION``/``FILTER``/
-            ``BIND``) rather than silently mis-encoding - see
-            ``vocab.py``'s module docstring and `future_enhancements.md`
-            for the deliberate scope reduction this mirrors from SRL.
+        NotImplementedError: For ``DESCRIBE`` or a WHERE-clause element the
+            tree does not model, rather than silently mis-encoding - see
+            ``vocab.py``'s module docstring for what is covered.
         SQEValidationError: If the text parses fine but the encoded tree
             fails ``sqe:``'s own SHACL shapes.
     """

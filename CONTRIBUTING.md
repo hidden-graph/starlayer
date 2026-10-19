@@ -23,6 +23,7 @@ pytest tests -m "not integration"        # the fast tier
 pytest tests -m integration              # needs local Oxigraph and Fuseki servers; skips without them
 pytest tests --store-matrix              # W3C suites through every store (slow, opt-in)
 pytest tests --srl-stratification        # extended SRL stratification checks (opt-in)
+pytest tests --sqe-coverage              # every SPARQL feature and W3C query fixture through sqe (opt-in, ~4 min)
 ```
 
 `STARLAYER_RUN_ENGINE_ABORT_TESTS=1` also runs the tests that really crash Oxigraph's engine (opt-in, because they file a crash report). CI runs the fast and integration tiers on Python 3.10 to 3.13; see [.github/workflows/test.yml](.github/workflows/test.yml).

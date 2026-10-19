@@ -23,7 +23,7 @@ What StarLayer does today, and what is planned.
 ## SPARQL
 
 - SPARQL 1.2 queries over StarLayer graphs.
-- A StarLayer RDF vocabulary for representing SPARQL queries as graphs, for hand or UI editing (the sqe namespace), built on an internal full-algebra encoding.
+- A StarLayer RDF vocabulary for representing SPARQL queries as graphs, for hand or UI editing (the sqe namespace). It covers SELECT, ASK and CONSTRUCT with every clause, aggregates, sub-selects, VALUES and the SPARQL 1.2 additions; DESCRIBE and Update are not covered.
 - SHACL shapes for sqe graphs.
 - Prepared queries: prepare a query once, with options such as entailment, and run it against any number of graphs.
 

@@ -54,6 +54,7 @@ These are the default assumptions we start from, written into AGENTS.md as "Defa
 - Workstream 1 done: `AGENTS.md`, `CLAUDE.md`, "Rules that bite" in the three subpackage `CLAUDE.md` files, a test guarding `AGENTS.md`.
 - Workstream 6, part 1 done: root `README.md` (with a tested example), `CONTRIBUTING.md`, `docs/README.md` (the docs map), `docs/sparql/README.md`, dead links fixed in the graph and shacl docs READMEs.
 - Workstream 6 guards done: `scripts/check_docs.py` (links, anchors, guide index, paths in the Rules-that-bite blocks), run by `build.py --check` and so by CI. Guide `05d-shacl-library-registry.ipynb` was repaired (it called a removed function and described the old profile model) and is indexed as 5.d.
+- Workstream 2, SQE coverage done (2026-10-18): sqe widened to every query form and clause except DESCRIBE/Update, with an opt-in test set (`--sqe-coverage`) over the W3C fixtures and a per-feature suite. Docs corrected. Next: `queries.ttl` and `queries.py`.
 - Still open in workstream 6: the remaining stale-doc repairs (the "Notes on guides" file, Appendix A status, the changelog-style paragraph at the top of `docs/guides/README.md`, `future_enhancements.md` cleanup).
 
 ## Workstreams
@@ -68,7 +69,7 @@ These are the default assumptions we start from, written into AGENTS.md as "Defa
 - Ontology additions in `codekg/ontology.ttl`: `slkg:NamedQuery`, `slkg:CompetencyQuestion` (promote the rows in `competency-questions.md` to RDF with status), `slkg:aboutTopic`, `slkg:answersCompetencyQuestion`, `slkg:queryRoot`, `slkg:queryParameter`. Add SHACL shapes for them (reuse the `sqe_validate` pattern in `sparql/sqe/shapes.py`).
 - New `starlayer/codekg/queries.py`: `list_queries(topic=None)`, `get_query(name)`, `run_query(name, **params)` which loads the dataset, decodes the SQE tree to a `Query`, binds params, runs it via `StarQuery`. Also `queries_for_topic(capability_iri)` so topic -> query links are traversable in SPARQL itself.
 - Seed ~15 queries from `competency-questions.md` (who calls X, what overrides Y, public API of module, untested functions, capabilities and their implementing symbols, notebooks demonstrating X, ...).
-- **Risk:** the SQE encoder may not cover every SPARQL feature (OPTIONAL/FILTER/aggregates/property paths). Step 1 of this workstream is a round-trip coverage probe; queries the SQE form can't express get logged in the library as a documented gap (and become upstream-style TODOs in `docs/`), not silently stored as text.
+- **Risk (resolved 2026-10-18):** the SQE encoder did not cover enough: the coverage probe passed 11 of 34 questions and silently dropped solution modifiers. SQE was widened rather than falling back to `salg:`; the probe now passes 34 of 34 and 161 of 167 W3C query fixtures round-trip (see `starlayer/sparql/CLAUDE.md`, 2026-10-18). Queries that use SPARQL 1.2 syntax run as text (`sqe_tree_to_text`); the code-KG queries are plain SPARQL, so the decoded `Query` runs directly.
 - Tests in `tests/codekg/unit/`: every stored query SQE-validates, round-trips to text, executes against the committed `codekg.trig` and returns non-empty (or documented-empty) results; every `aboutTopic` resolves.
 
 ### 3. Enrich and wire up the curated KG

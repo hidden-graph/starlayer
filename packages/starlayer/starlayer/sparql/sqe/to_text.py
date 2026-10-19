@@ -14,14 +14,10 @@ care to preserve. Execution doesn't need any of this - ``from_rdf.py``'s
 ``sqe_tree_to_query`` + rdflib's own unmodified ``translateQuery`` handles
 that unaffected by anything in this module.
 
-Expression text reuses ``..ssyn_to_text._render_expr_text`` directly (the
-same helper ``srl.py`` already depends on) - slated to move to a neutral,
-shared location once the old ``ssyn:``/``sast:`` prototype layers are
-retired, see `future_enhancements.md`. One known, accepted limitation
-inherited from that reuse: an IRI literal *inside* an expression (e.g. a
-bare ``IRI(<...>)`` builtin call) renders unprefixed, same as ``ssyn:``
-already accepts - only term/predicate positions this module renders
-directly get prefix-aware treatment.
+Expression text comes from ``expr_text.py``, which renders straight from the
+sqe tree (aggregates, EXISTS bodies, triple terms and the SPARQL 1.2 builtins
+included), and prefix-aware term rendering lives here. An IRI inside an
+expression is abbreviated with the preserved prefixes too.
 """
 
 from __future__ import annotations

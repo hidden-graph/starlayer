@@ -164,13 +164,20 @@ package's own top level, not nested under one subpackage's docs.
   `sast:` don't already serve this purpose). **v1 scope, deliberately
   reduced, mirroring the SRL precedent above**: `SELECT`/`ASK`/
   `CONSTRUCT` only (no `DESCRIBE`); `WHERE`-clause limited to triple
-  patterns (property paths included - confirmed working, inherited for
-  free from the same technique reused), `OPTIONAL`, `UNION`, `FILTER`,
-  `BIND`. Not yet covered: aggregates/`GROUP BY`/`HAVING`, subqueries,
-  `VALUES`, and SPARQL Update entirely - widen deliberately, later, one
-  construct at a time, each with its own round-trip + SHACL coverage
-  added alongside it (same testing discipline `test_sqe_ontology.py`
-  already establishes).
+  patterns, `OPTIONAL`, `UNION`, `FILTER`, `BIND`.
+
+  **Widened 2026-10-18 (the v1 limits above no longer apply):** sqe now
+  also covers solution modifiers, `SELECT *`, `CONSTRUCT WHERE`, projected
+  expressions, aggregates with `GROUP BY`/`HAVING`, sub-selects, `VALUES`,
+  `MINUS`, `GRAPH`, `EXISTS`, every expression builtin, and the SPARQL 1.2
+  additions (triple terms, reifiers, annotations, base-direction strings).
+  Still not covered: `DESCRIBE` and SPARQL Update. The coverage is measured,
+  not assumed: the opt-in test set (`pytest --sqe-coverage`) runs every W3C
+  SPARQL 1.2 query fixture and a per-feature suite through sqe against a
+  StarLayerGraph/Dataset (see `starlayer/sparql/CLAUDE.md`'s 2026-10-18
+  entry). Earlier docs and notes that described sqe as covering "queries"
+  generally were wrong at the time they were written (a probe of 34 real
+  questions passed only 11) - they are corrected, not just superseded.
 
   **Open follow-up, deliberately not resolved as part of building
   `sqe:`**: once `sqe:` is in real use, revisit whether `salg:` (the
@@ -196,7 +203,7 @@ package's own top level, not nested under one subpackage's docs.
   location too). Before deleting `ssyn:`: move `render_expr_text` out of
   `ssyn_to_text.py` into its own small, neutral module (e.g.
   `starlayer/sparql/expr_text.py`) first, and update both `srl.py`'s and
-  `sqe/to_text.py`'s imports to the new location - so neither depends on
+  `sqe/to_text.py`'s imports (sqe no longer imports it, as of 2026-10-18) to the new location - so neither depends on
   a module slated for deletion. Then delete the rest of `ssyn:`/all of
   `sast:` plus their test files (`test_ast_ontology.py`,
   `test_ssyn_ontology.py`), and update `starlayer/sparql/CLAUDE.md`'s
