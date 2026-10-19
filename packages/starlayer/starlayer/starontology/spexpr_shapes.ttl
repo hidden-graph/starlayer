@@ -433,3 +433,25 @@ spexpr:_StrLangDirExprBodyShape a sh:NodeShape ;
         sh:node spexpr:ExpressionShape ;
         sh:path spexpr:direction
     ] .
+
+spexpr:AggregateBodyShape a sh:NodeShape ;
+    rdfs:isDefinedBy spexpr:ShapesGraph ;
+    sh:property [
+        sh:maxCount 1 ;
+        sh:message "an aggregate must have exactly one spexpr:vars, the aggregated expression (or the marker *)" ;
+        sh:minCount 1 ;
+        sh:node spexpr:ExpressionShape ;
+        sh:path spexpr:vars
+    ], [
+        sh:maxCount 1 ;
+        sh:message "spexpr:distinct must be empty (rdf:nil) or the string DISTINCT" ;
+        sh:in ( rdf:nil "DISTINCT"^^spexpr:PlainString ) ;
+        sh:path spexpr:distinct
+    ], [
+        sh:maxCount 1 ;
+        sh:message "spexpr:separator must be a single literal" ;
+        sh:nodeKind sh:Literal ;
+        sh:path spexpr:separator
+    ] ;
+    sh:targetClass spexpr:Aggregate_Avg, spexpr:Aggregate_Count, spexpr:Aggregate_GroupConcat,
+        spexpr:Aggregate_Max, spexpr:Aggregate_Min, spexpr:Aggregate_Sample, spexpr:Aggregate_Sum .

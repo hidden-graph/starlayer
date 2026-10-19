@@ -22,26 +22,37 @@ from rdflib import Graph, Variable
 from rdflib.collection import Collection
 from rdflib.namespace import RDF
 from rdflib.plugins.sparql.algebra import translateQuery
-from rdflib.plugins.sparql.parserutils import CompValue
+from rdflib.plugins.sparql.parserutils import CompValue, Expr
 from rdflib.plugins.sparql.sparql import Query
 
-from ..from_rdf import _decode
+from ..from_rdf import _DECODE_HOOK, _EXPR_EVALFNS
+from ..from_rdf import _decode as _decode_generic
 from .vocab import (
+    ALIAS,
     ASK_QUERY,
     BIND,
     BIND_VAR,
     CONSTRUCT_QUERY,
     DISTINCT,
+    EXISTS,
     EXPR,
     FILTER,
+    GRAPH_PATTERN,
+    GRAPH_TERM,
+    GROUP_BY,
+    HAVING,
     LIMIT,
+    MINUS,
+    NEGATED,
     OFFSET,
     OPTIONAL,
     ORDER_BY,
     ORDER_DESCENDING,
     PROJECTION,
+    QUERY_VALUES,
     REDUCED,
     SELECT_QUERY,
+    SUB_SELECT,
     TEMPLATE,
     TRIPLE_PATTERN,
     TRIPLE_PATTERN_OBJECT,
@@ -49,8 +60,33 @@ from .vocab import (
     TRIPLE_PATTERN_SUBJECT,
     UNION,
     UNION_ALTERNATIVES,
+    VALUES,
+    VALUES_ROWS,
+    VALUES_UNDEF,
+    VALUES_VARS,
     WHERE,
 )
+
+
+def _decode_exists_hook(node, graph: Graph):
+    if (node, RDF.type, EXISTS) not in graph:
+        return NotImplemented
+    name = "Builtin_NOTEXISTS" if graph.value(node, NEGATED) is not None else "Builtin_EXISTS"
+    group = _decode_where_group(graph.value(node, WHERE), graph)
+    result = Expr(name, _EXPR_EVALFNS[name], graph=group)
+    result.graph = group  # rdflib reads this as an attribute (see the shared decoder)
+    return result
+
+
+def _decode(node, graph: Graph):
+    """Decode an expression or term, rebuilding sqe:Exists blocks (the shared
+    decoder handles everything else)."""
+    token = _DECODE_HOOK.set(_decode_exists_hook)
+    try:
+        return _decode_generic(node, graph)
+    finally:
+        _DECODE_HOOK.reset(token)
+
 
 _QUERY_NAME_BY_ROOT_TYPE = {
     SELECT_QUERY: "SelectQuery",
@@ -79,12 +115,18 @@ def sqe_tree_to_query(graph: Graph, root) -> Query:
         A real, executable rdflib ``Query``.
     """
     query_name = _query_name_for_root(graph, root)
+    query = _decode_query_cv(graph, root, query_name)
+    return translateQuery([[], query])
+
+
+def _decode_query_cv(graph: Graph, root, query_name: str) -> CompValue:
+    """The raw-parse-tree-shaped CompValue for a query form or a sub-select."""
     where = _decode_where_group(graph.value(root, WHERE), graph)
 
-    if query_name == "SelectQuery":
+    if query_name in ("SelectQuery", "SubSelect"):
         projection_list = graph.value(root, PROJECTION)
         projection = (
-            [CompValue("vars", var=Variable(str(v))) for v in Collection(graph, projection_list)]
+            [_decode_projection_item(v, graph) for v in Collection(graph, projection_list)]
             if projection_list is not None
             else None  # SELECT *
         )
@@ -105,10 +147,59 @@ def sqe_tree_to_query(graph: Graph, root) -> Query:
 
     if query_name != "AskQuery":
         _decode_solution_modifiers(graph, root, query)
-    return translateQuery([[], query])
+    values_node = graph.value(root, QUERY_VALUES)
+    if values_node is not None:
+        variables, rows = _decode_values(values_node, graph)
+        query["valuesClause"] = CompValue("ValuesClause", var=variables, value=rows)
+    return query
+
+
+def _decode_values(node, graph: Graph) -> tuple[list, list]:
+    """(variables, value) in the raw parse tree's own VALUES shape: a flat list
+    of terms for one variable, a list of rows otherwise."""
+    variables = [Variable(str(v)) for v in Collection(graph, graph.value(node, VALUES_VARS))]
+    rows = []
+    for row_node in Collection(graph, graph.value(node, VALUES_ROWS)):
+        row = ["UNDEF" if cell == VALUES_UNDEF else _decode_term(cell, graph) for cell in Collection(graph, row_node)]
+        if len(row) != len(variables):
+            raise ValueError(
+                f"starlayer.sparql.sqe: a VALUES row has {len(row)} cells for {len(variables)} variables"
+            )
+        rows.append(row)
+    return variables, ([row[0] for row in rows] if len(variables) == 1 else rows)
+
+
+def _decode_projection_item(item, graph: Graph) -> CompValue:
+    if (item, RDF.type, ALIAS) in graph:
+        return CompValue(
+            "vars",
+            expr=_decode(graph.value(item, EXPR), graph),
+            evar=Variable(str(graph.value(item, BIND_VAR))),
+        )
+    return CompValue("vars", var=Variable(str(item)))
 
 
 def _decode_solution_modifiers(graph: Graph, root, query: CompValue) -> None:
+    group_list = graph.value(root, GROUP_BY)
+    if group_list is not None:
+        conditions = []
+        for item in Collection(graph, group_list):
+            if (item, RDF.type, ALIAS) in graph:
+                conditions.append(
+                    CompValue(
+                        "GroupAs",
+                        expr=_decode(graph.value(item, EXPR), graph),
+                        var=Variable(str(graph.value(item, BIND_VAR))),
+                    )
+                )
+            else:
+                conditions.append(_decode(item, graph))
+        query["groupby"] = CompValue("GroupClause", condition=conditions)
+    having_list = graph.value(root, HAVING)
+    if having_list is not None:
+        query["having"] = CompValue(
+            "HavingClause", condition=[_decode(c, graph) for c in Collection(graph, having_list)]
+        )
     order_list = graph.value(root, ORDER_BY)
     if order_list is not None:
         conditions = []
@@ -149,6 +240,9 @@ def _decode_where_group(list_node, graph: Graph) -> CompValue:
         A ``GroupGraphPatternSub``-shaped ``CompValue``.
     """
     nodes = list(Collection(graph, list_node)) if list_node is not None else []
+    if len(nodes) == 1 and (nodes[0], RDF.type, SUB_SELECT) in graph:
+        # `{ SELECT ... }`: the group is the sub-select itself in the parse tree
+        return _decode_query_cv(graph, nodes[0], "SubSelect")
     parts = [_decode_where_element(node, graph) for node in nodes]
     return CompValue("GroupGraphPatternSub", part=parts)
 
@@ -167,6 +261,19 @@ def _decode_where_element(node, graph: Graph) -> CompValue:
         expr = _decode(graph.value(node, EXPR), graph)
         var = _decode(graph.value(node, BIND_VAR), graph)
         return CompValue("Bind", expr=expr, var=var)
+    if (node, RDF.type, MINUS) in graph:
+        return CompValue("MinusGraphPattern", graph=_decode_where_group(graph.value(node, WHERE), graph))
+    if (node, RDF.type, GRAPH_PATTERN) in graph:
+        return CompValue(
+            "GraphGraphPattern",
+            term=_decode_term(graph.value(node, GRAPH_TERM), graph),
+            graph=_decode_where_group(graph.value(node, WHERE), graph),
+        )
+    if (node, RDF.type, VALUES) in graph:
+        variables, rows = _decode_values(node, graph)
+        return CompValue("InlineData", var=variables, value=rows)
+    if (node, RDF.type, SUB_SELECT) in graph:
+        return CompValue("GroupOrUnionGraphPattern", graph=[_decode_query_cv(graph, node, "SubSelect")])
     if (node, RDF.type, UNION) in graph:
         alt_list = graph.value(node, UNION_ALTERNATIVES)
         alts = [_decode_where_group(alt, graph) for alt in Collection(graph, alt_list)]

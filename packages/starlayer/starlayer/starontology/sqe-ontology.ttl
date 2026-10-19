@@ -87,3 +87,44 @@ sqe:offset a rdf:Property ;
     rdfs:comment "OFFSET n (xsd:integer), on a SELECT or CONSTRUCT root." .
 
 sqe:TripleTerm rdfs:subClassOf spexpr:Expression .
+
+sqe:Exists a rdfs:Class ;
+    rdfs:subClassOf spexpr:Expression ;
+    rdfs:comment "EXISTS { ... } (or NOT EXISTS when sqe:negated is true) inside an expression - sqe:where -> its own flat pattern list." .
+
+sqe:negated a rdf:Property ;
+    rdfs:domain sqe:Exists .
+
+sqe:Alias a rdfs:Class ;
+    rdfs:comment "(expr AS ?var) in a projection or GROUP BY - sqe:expr the expression, sqe:var the variable it binds." .
+
+sqe:groupBy a rdf:Property ;
+    rdfs:domain sqe:SelectQuery .
+
+sqe:having a rdf:Property ;
+    rdfs:domain sqe:SelectQuery .
+
+sqe:Minus a rdfs:Class ;
+    rdfs:comment "A MINUS { ... } block - sqe:where -> its own flat pattern list." .
+
+sqe:Graph a rdfs:Class ;
+    rdfs:comment "A GRAPH ?g { ... } block - sqe:graph the graph IRI or variable, sqe:where the flat pattern list." .
+
+sqe:Values a rdfs:Class ;
+    rdfs:comment "A VALUES block, as a pattern or as a query's trailing sqe:values - sqe:vars the variables, sqe:rows an rdf:List of rows (rdf:List of terms, or sqe:undef)." .
+
+sqe:SubSelect a rdfs:Class ;
+    rdfs:subClassOf sqe:SelectQuery ;
+    rdfs:comment "A nested SELECT in a pattern list - the same properties as a sqe:SelectQuery; not itself a sqe:Query." .
+
+sqe:graph a rdf:Property ;
+    rdfs:domain sqe:Graph .
+
+sqe:vars a rdf:Property ;
+    rdfs:domain sqe:Values .
+
+sqe:rows a rdf:Property ;
+    rdfs:domain sqe:Values .
+
+sqe:values a rdf:Property ;
+    rdfs:comment "A query's trailing VALUES clause (a sqe:Values)." .

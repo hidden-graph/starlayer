@@ -123,6 +123,21 @@ FILTER = SQE.Filter  # .expr -> salg: expression (fallback boundary)
 BIND = SQE.Bind  # .expr -> salg: expression (fallback boundary), .var
 BIND_VAR = SQE.var
 
+EXISTS = SQE.Exists  # EXISTS { ... } / NOT EXISTS { ... } inside an expression - .where, .negated
+NEGATED = SQE.negated  # boolean true on a NOT EXISTS
+ALIAS = SQE.Alias  # (expr AS ?var) in a projection or GROUP BY - .expr, .var
+GROUP_BY = SQE.groupBy  # rdf:List of variables / expressions / sqe:Alias
+HAVING = SQE.having  # rdf:List of expressions
+SUB_SELECT = SQE.SubSelect  # a nested SELECT in a pattern list - same properties as sqe:SelectQuery
+VALUES = SQE.Values  # VALUES block - .vars list, .rows list of lists
+VALUES_VARS = SQE.vars
+VALUES_ROWS = SQE.rows
+VALUES_UNDEF = SQE.undef  # the UNDEF marker inside a VALUES row
+QUERY_VALUES = SQE.values  # a query's trailing VALUES clause -> sqe:Values
+MINUS = SQE.Minus  # MINUS { ... } - .where
+GRAPH_PATTERN = SQE.Graph  # GRAPH ?g { ... } - .graph, .where
+GRAPH_TERM = SQE.graph
+
 TRIPLE_TERM = SQE.TripleTerm  # <<( s p o )>> - .subject/.predicate/.object, recursively
 
 UNION = SQE.Union  # .alternatives -> rdf:List of nested flat lists

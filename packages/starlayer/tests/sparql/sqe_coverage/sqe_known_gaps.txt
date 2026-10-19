@@ -1,36 +1,9 @@
-# W3C fixtures sqe cannot yet round-trip (strict xfail). Regenerate: see test_w3c_through_sqe.py
-codepoint-escapes/codepoint-esc-05
-codepoint-escapes/codepoint-esc-06
-codepoint-escapes/codepoint-esc-07
+# W3C fixtures sqe cannot round-trip (strict xfail). Regenerate: see test_w3c_through_sqe.py
+# Every one left is a fixture the project's own SPARQL parser also rejects (inherited rdflib grammar gaps: !!, codepoint
+# escapes) or one the W3C suite gets wrong (triple term as a subject); none is an sqe gap.
 codepoint-escapes/codepoint-esc-08
 codepoint-escapes/codepoint-esc-09
-eval-triple-terms/basic-8
-eval-triple-terms/expr-1
-eval-triple-terms/expr-2
-eval-triple-terms/graphs-1
-eval-triple-terms/graphs-2
-eval-triple-terms/order-1
-eval-triple-terms/order-2
 expression/not-not
-expression/triple-on-literals
-expression/triple-on-str-literals
-expression/triple-on-triple-terms
-expression/triple-on-undefs
-grouping/group01
-grouping/select-variable-reuse
-lang-basedir/concat
-lang-basedir/datatype
-lang-basedir/langdir-literal
-lang-basedir/strlang
-lang-basedir/strlangdir
-rdf11/langstring-datatype
-rdf11/plain-string-datatype
-syntax-triple-terms-positive/annotation-anonreifier-08
-syntax-triple-terms-positive/annotation-reifier-08
-syntax-triple-terms-positive/basic-tripleterm-05
 syntax-triple-terms-positive/compound-tripleterm-subject
-syntax-triple-terms-positive/expr-tripleterm-04
-syntax-triple-terms-positive/expr-tripleterm-06
 syntax-triple-terms-positive/nested-tripleterm-02
 syntax-triple-terms-positive/subject-tripleterm
-syntax/group-by-scope-1

@@ -782,3 +782,21 @@ def test_eval_construct_via_lowering(entry):
     query_object = rdf11_to_query(rdf_graph, root)
     actual_graph = graph.query(query_object).graph
     assert to_isomorphic(skolemize_graph(actual_graph)) == to_isomorphic(skolemize_graph(expected_graph))
+
+
+def test_construct_with_limit_lowers_and_runs():
+    """CONSTRUCT ... ORDER BY ... LIMIT wraps the Project in a Slice; lowering used to assume the Project
+    was directly under the ConstructQuery and failed with KeyError: 'PV'."""
+    from rdflib import Literal, Namespace
+    from starlayer.graph import StarLayerGraph
+
+    ex = Namespace("http://x/")
+    graph = StarLayerGraph()
+    for i in range(5):
+        graph.add((ex[f"a{i}"], ex.p, Literal(i)))
+    plain = "PREFIX ex: <http://x/> CONSTRUCT { ?s ex:r ?n } WHERE { ?s ex:p ?n } ORDER BY ?n LIMIT 2"
+    assert len(list(graph.query(plain).graph)) == 2
+    with_triple_term = (
+        "PREFIX ex: <http://x/> CONSTRUCT { ?s ex:r <<( ?s ex:p ?n )>> } WHERE { ?s ex:p ?n } ORDER BY ?n LIMIT 2"
+    )
+    assert len(list(graph.query(with_triple_term).graph)) >= 2

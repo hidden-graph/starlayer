@@ -26,14 +26,15 @@ directly get prefix-aware treatment.
 
 from __future__ import annotations
 
-from rdflib import BNode, Graph, Literal, URIRef, Variable
+from rdflib import BNode, Graph, Literal, URIRef
 from rdflib.collection import Collection
 from rdflib.namespace import RDF
 
 from ..from_rdf import _decode
-from ..ssyn_to_text import _simplify_expr_immutable
 from ..vocab import VARIABLE_DATATYPE
+from .expr_text import expr_text
 from .vocab import (
+    ALIAS,
     ASK_QUERY,
     BIND,
     BIND_VAR,
@@ -41,7 +42,12 @@ from .vocab import (
     DISTINCT,
     EXPR,
     FILTER,
+    GRAPH_PATTERN,
+    GRAPH_TERM,
+    GROUP_BY,
+    HAVING,
     LIMIT,
+    MINUS,
     OFFSET,
     OPTIONAL,
     ORDER_BY,
@@ -51,9 +57,11 @@ from .vocab import (
     PROJECTION,
     PROLOGUE_BASE,
     PROLOGUE_PREFIX,
+    QUERY_VALUES,
     REDUCED,
     SELECT_ALL,
     SELECT_QUERY,
+    SUB_SELECT,
     TEMPLATE,
     TRIPLE_PATTERN,
     TRIPLE_PATTERN_OBJECT,
@@ -62,40 +70,12 @@ from .vocab import (
     TRIPLE_TERM,
     UNION,
     UNION_ALTERNATIVES,
+    VALUES,
+    VALUES_ROWS,
+    VALUES_UNDEF,
+    VALUES_VARS,
     WHERE,
 )
-
-
-def _render_expr_text(expr) -> str:
-    """Render an expression with the SPARQL 1.2-aware translator (triple terms,
-    dirLangString), unlike the shared helper that wraps stock translateAlgebra."""
-    from rdflib.plugins.sparql.algebra import CompValue
-    from rdflib.plugins.sparql.sparql import Prologue, Query
-
-    from ..serialize12 import _AlgebraTranslator12, _term_text
-    from ..triple_term import TripleTermNode
-
-    if isinstance(expr, TripleTermNode):
-        return _term_text(expr)
-    expr = _simplify_expr_immutable(expr)
-    wrapper = CompValue(
-        "SelectQuery",
-        p=CompValue("Project", p=CompValue("Filter", expr=expr, p=CompValue("BGP", triples=[])), PV=[]),
-        datasetClause=None,
-        PV=[],
-    )
-    text = _AlgebraTranslator12(Query(Prologue(), wrapper)).translateAlgebra()
-    start = text.index("FILTER(") + len("FILTER")
-    depth = 0
-    for i in range(start, len(text)):
-        if text[i] == "(":
-            depth += 1
-        elif text[i] == ")":
-            depth -= 1
-            if depth == 0:
-                return text[start + 1 : i]
-    raise RuntimeError(f"unbalanced parens rendering expression: {text!r}")
-
 
 _KEYWORD_BY_ROOT_TYPE = {
     SELECT_QUERY: "SELECT",
@@ -116,7 +96,6 @@ def sqe_tree_to_text(graph: Graph, root) -> str:
     Returns:
         The rendered SPARQL query text.
     """
-    keyword = _keyword_for_root(graph, root)
     prefixes = _prefix_map(graph, root)
     lines = [f"PREFIX {label}: <{ns}>" for label, ns in sorted(prefixes.items())]
 
@@ -124,6 +103,15 @@ def sqe_tree_to_text(graph: Graph, root) -> str:
     if base is not None:
         lines.append(f"BASE <{base}>")
 
+    lines.extend(_query_lines(graph, root, prefixes))
+    return "\n".join(lines)
+
+
+def _query_lines(graph: Graph, root, prefixes: dict) -> list:
+    """The SELECT/CONSTRUCT/ASK clause, WHERE and solution modifiers of a query
+    root or a sub-select."""
+    keyword = _keyword_for_root(graph, root)
+    lines: list = []
     if keyword == "SELECT":
         modifier = (
             "DISTINCT " if graph.value(root, DISTINCT) is not None
@@ -133,8 +121,8 @@ def sqe_tree_to_text(graph: Graph, root) -> str:
         if graph.value(root, SELECT_ALL) is not None:
             lines.append(f"SELECT {modifier}*")
         else:
-            var_names = [str(v) for v in Collection(graph, graph.value(root, PROJECTION))]
-            lines.append(f"SELECT {modifier}{' '.join('?' + v for v in var_names)}")
+            items = [_alias_or_var_text(v, graph, prefixes) for v in Collection(graph, graph.value(root, PROJECTION))]
+            lines.append(f"SELECT {modifier}{' '.join(items)}")
     elif keyword == "CONSTRUCT":
         template_list = graph.value(root, TEMPLATE)
         template_nodes = list(Collection(graph, template_list)) if template_list is not None else []
@@ -144,21 +132,48 @@ def sqe_tree_to_text(graph: Graph, root) -> str:
         lines.append("ASK")
 
     lines.append(f"WHERE {_where_group_text(graph.value(root, WHERE), graph, prefixes)}")
-    lines.extend(_solution_modifier_lines(graph, root))
-    return "\n".join(lines)
+    lines.extend(_solution_modifier_lines(graph, root, prefixes))
+    values_node = graph.value(root, QUERY_VALUES)
+    if values_node is not None:
+        lines.append(_values_text(values_node, graph, prefixes))
+    return lines
 
 
-def _solution_modifier_lines(graph: Graph, root) -> list:
+def _values_text(node, graph: Graph, prefixes: dict) -> str:
+    variables = ["?" + str(v) for v in Collection(graph, graph.value(node, VALUES_VARS))]
+    rows = []
+    for row_node in Collection(graph, graph.value(node, VALUES_ROWS)):
+        cells = ["UNDEF" if cell == VALUES_UNDEF else expr_text(cell, graph, prefixes) for cell in Collection(graph, row_node)]
+        rows.append(cells[0] if len(variables) == 1 else "(" + " ".join(cells) + ")")
+    head = variables[0] if len(variables) == 1 else "(" + " ".join(variables) + ")"
+    return f"VALUES {head} {{ {' '.join(rows)} }}"
+
+
+def _alias_or_var_text(item, graph: Graph, prefixes: dict) -> str:
+    if (item, RDF.type, ALIAS) in graph:
+        return f"({expr_text(graph.value(item, EXPR), graph, prefixes)} AS ?{graph.value(item, BIND_VAR)})"
+    if isinstance(item, Literal):
+        return "?" + str(item)
+    return f"({expr_text(item, graph, prefixes)})"
+
+
+def _solution_modifier_lines(graph: Graph, root, prefixes: dict) -> list:
     lines = []
+    group_list = graph.value(root, GROUP_BY)
+    if group_list is not None:
+        lines.append("GROUP BY " + " ".join(_alias_or_var_text(i, graph, prefixes) for i in Collection(graph, group_list)))
+    having_list = graph.value(root, HAVING)
+    if having_list is not None:
+        lines.append("HAVING " + " ".join(f"({expr_text(c, graph, prefixes)})" for c in Collection(graph, having_list)))
     order_list = graph.value(root, ORDER_BY)
     if order_list is not None:
         parts = []
         for node in Collection(graph, order_list):
-            expr = _decode(graph.value(node, EXPR), graph)
-            text = f"?{expr}" if isinstance(expr, Variable) else _render_expr_text(expr)
+            expr_node = graph.value(node, EXPR)
+            text = expr_text(expr_node, graph, prefixes)
             if graph.value(node, ORDER_DESCENDING) is not None:
                 parts.append(f"DESC({text})")
-            elif isinstance(expr, Variable):
+            elif isinstance(expr_node, Literal):
                 parts.append(text)
             else:
                 parts.append(f"ASC({text})")
@@ -200,12 +215,19 @@ def _where_element_text(node, graph: Graph, prefixes: dict) -> str:
         inner = _where_group_text(graph.value(node, WHERE), graph, prefixes)
         return f"OPTIONAL {inner}"
     if (node, RDF.type, FILTER) in graph:
-        expr = _decode(graph.value(node, EXPR), graph)
-        return f"FILTER({_render_expr_text(expr)})"
+        return f"FILTER({expr_text(graph.value(node, EXPR), graph, prefixes)})"
     if (node, RDF.type, BIND) in graph:
-        expr = _decode(graph.value(node, EXPR), graph)
-        var = str(_decode(graph.value(node, BIND_VAR), graph))
-        return f"BIND({_render_expr_text(expr)} AS ?{var})"
+        var = str(graph.value(node, BIND_VAR))
+        return f"BIND({expr_text(graph.value(node, EXPR), graph, prefixes)} AS ?{var})"
+    if (node, RDF.type, MINUS) in graph:
+        return f"MINUS {_where_group_text(graph.value(node, WHERE), graph, prefixes)}"
+    if (node, RDF.type, GRAPH_PATTERN) in graph:
+        term = expr_text(graph.value(node, GRAPH_TERM), graph, prefixes)
+        return f"GRAPH {term} {_where_group_text(graph.value(node, WHERE), graph, prefixes)}"
+    if (node, RDF.type, VALUES) in graph:
+        return _values_text(node, graph, prefixes)
+    if (node, RDF.type, SUB_SELECT) in graph:
+        return "{ " + " ".join(_query_lines(graph, node, prefixes)) + " }"
     if (node, RDF.type, UNION) in graph:
         alt_list = graph.value(node, UNION_ALTERNATIVES)
         alts = [_where_group_text(alt, graph, prefixes) for alt in Collection(graph, alt_list)]

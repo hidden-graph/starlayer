@@ -214,3 +214,20 @@ spexpr:Builtin_STRLANGDIR rdfs:subClassOf spexpr:StrLangDirExpression .
 
 spexpr:StrLangDirExpression rdfs:comment "STRLANGDIR(lex, lang, direction) - three required arguments under their own key names." ;
     rdfs:subClassOf spexpr:Expression .
+
+spexpr:Aggregate rdfs:comment "An aggregate call (COUNT/SUM/MIN/MAX/AVG/SAMPLE/GROUP_CONCAT) in a projection, HAVING or ORDER BY expression - spexpr:vars the aggregated expression (or the marker *), spexpr:distinct DISTINCT or empty." ;
+    rdfs:subClassOf spexpr:Expression .
+
+spexpr:Aggregate_Count rdfs:subClassOf spexpr:Aggregate .
+
+spexpr:Aggregate_Sum rdfs:subClassOf spexpr:Aggregate .
+
+spexpr:Aggregate_Min rdfs:subClassOf spexpr:Aggregate .
+
+spexpr:Aggregate_Max rdfs:subClassOf spexpr:Aggregate .
+
+spexpr:Aggregate_Avg rdfs:subClassOf spexpr:Aggregate .
+
+spexpr:Aggregate_Sample rdfs:subClassOf spexpr:Aggregate .
+
+spexpr:Aggregate_GroupConcat rdfs:subClassOf spexpr:Aggregate .

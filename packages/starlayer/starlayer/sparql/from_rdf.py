@@ -20,6 +20,8 @@ encoder in ``to_rdf.py`` and the design note in ``vocab.py``.
 
 from __future__ import annotations
 
+from contextvars import ContextVar
+
 from pyparsing import ParserElement
 from rdflib import BNode, Graph, Literal, URIRef, Variable
 from rdflib.collection import Collection
@@ -244,9 +246,20 @@ def _decode_prologue(root, graph: Graph) -> Prologue:
     return prologue
 
 
+# Optional per-call decoding hook: ``hook(node, graph)`` returns the decoded
+# value, or ``NotImplemented`` to fall through (see to_rdf._ENCODE_HOOK).
+_DECODE_HOOK: ContextVar = ContextVar("_DECODE_HOOK", default=None)
+
+
 def _decode(node, graph: Graph):
     if node is None:
         return None
+
+    hook = _DECODE_HOOK.get()
+    if hook is not None and isinstance(node, BNode):
+        hooked = hook(node, graph)
+        if hooked is not NotImplemented:
+            return hooked
 
     if isinstance(node, Literal):
         if node.datatype == VARIABLE_DATATYPE:

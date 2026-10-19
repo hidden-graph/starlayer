@@ -6,7 +6,8 @@ data. Unsupported constructs must raise, never be silently dropped.
 """
 
 import pytest
-from rdflib import Graph, Literal, Namespace
+from rdflib import Literal, Namespace
+from starlayer.graph import StarLayerGraph
 from starlayer.sparql.sqe import (
     sqe_parse_to_tree,
     sqe_tree_to_query,
@@ -23,7 +24,7 @@ P = "PREFIX ex: <http://x/>\n"
 
 @pytest.fixture(scope="module")
 def data():
-    g = Graph()
+    g = StarLayerGraph()
     for i in range(12):
         g.add((EX[f"s{i}"], EX.p, Literal(i)))
         g.add((EX[f"s{i}"], EX.q, Literal(f"name{i % 4}")))
@@ -69,20 +70,6 @@ def test_modifier_query_matches_rdflib(name, data):
     regenerated = sqe_tree_to_text(graph, root)
     graph2, root2 = sqe_parse_to_tree(regenerated)
     assert _rows(data, sqe_tree_to_query(graph2, root2)) == expected
-
-
-@pytest.mark.parametrize(
-    "text",
-    [
-        P + "SELECT ?q (COUNT(?s) AS ?c) WHERE { ?s ex:q ?q } GROUP BY ?q",
-        P + "SELECT ?q WHERE { ?s ex:q ?q } GROUP BY ?q HAVING (COUNT(?s) > 1)",
-        P + "SELECT ?s WHERE { ?s ex:p ?n } VALUES ?n { 1 2 }",
-        P + "SELECT (?n + 1 AS ?m) WHERE { ?s ex:p ?n }",
-    ],
-)
-def test_unmodeled_parts_raise_instead_of_being_dropped(text):
-    with pytest.raises(NotImplementedError):
-        sqe_parse_to_tree(text)
 
 
 def test_select_star_and_projection_are_exclusive():

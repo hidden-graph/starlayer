@@ -125,7 +125,9 @@ if __name__ == "__main__":
         except Exception:  # noqa: BLE001 - recording which fixtures fail, whatever the reason
             failing.append(_key(e))
     _GAPS_FILE.write_text(
-        "# W3C fixtures sqe cannot yet round-trip (strict xfail). Regenerate: see test_w3c_through_sqe.py\n"
+        "# W3C fixtures sqe cannot round-trip (strict xfail). Regenerate: see test_w3c_through_sqe.py\n"
+        "# Every one left is a fixture the project's own SPARQL parser also rejects (inherited rdflib grammar gaps: !!, codepoint\n"
+        "# escapes) or one the W3C suite gets wrong (triple term as a subject); none is an sqe gap.\n"
         + "\n".join(sorted(failing))
         + "\n"
     )

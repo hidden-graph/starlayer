@@ -75,6 +75,11 @@ def _expr_comp_value_names() -> frozenset:
 # encoder recurses generically through many layers.
 _NS_OVERRIDES: ContextVar[dict | None] = ContextVar("_NS_OVERRIDES", default=None)
 
+# Optional per-call encoding hook: ``hook(value, graph)`` returns an RDF node to
+# use instead of the generic encoding, or ``NotImplemented`` to fall through.
+# sqe uses it to give EXISTS blocks a native where-list encoding.
+_ENCODE_HOOK: ContextVar = ContextVar("_ENCODE_HOOK", default=None)
+
 
 def _comp_value_ns(name: str) -> Namespace:
     """Which namespace a given CompValue.name encodes under - spexpr: for
@@ -252,6 +257,12 @@ def _encode(value, graph: Graph):
     """Encode one algebra-tree value; return the RDF term/node representing it."""
     if value is None:
         return None
+
+    hook = _ENCODE_HOOK.get()
+    if hook is not None and isinstance(value, CompValue):
+        hooked = hook(value, graph)
+        if hooked is not NotImplemented:
+            return hooked
 
     if isinstance(value, Variable):
         return Literal(str(value), datatype=VARIABLE_DATATYPE)
