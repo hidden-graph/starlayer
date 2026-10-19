@@ -1,53 +1,62 @@
 # Contributing to StarLayer
 
-Thanks for contributing to StarLayer.
+Thanks for contributing. Working with an AI agent? [AGENTS.md](AGENTS.md) is its entry point.
 
-## Development setup
+## Layout
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e packages/graph -e packages/sparql -e packages/shacl
-pip install pytest hypothesis ruff
-```
+One Python package, `starlayer`, with its `pyproject.toml` at the repository root and its source in `packages/starlayer/starlayer/` (`graph/`, `sparql/`, `shacl/`, `starontology/`). Tests are in `packages/starlayer/tests/`, guides in `docs/guides/`, build scripts in `scripts/`. The [docs map](docs/README.md) lists everything else.
 
-## Testing
-
-Run the package-specific suites from the repo root or from each package directory:
+## Set up
 
 ```bash
-cd packages/graph && pytest tests/ -m "not integration" -v
-cd packages/sparql && pytest tests/ -q
-cd packages/shacl && pytest tests/ -q
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e ".[test]"
+pip install ruff
 ```
 
-For the full repository validation flow, see [.github/workflows/test.yml](.github/workflows/test.yml).
+## Tests
 
-## Linting
+From `packages/starlayer`:
+
+```bash
+pytest tests -m "not integration"        # the fast tier
+pytest tests -m integration              # needs local Oxigraph and Fuseki servers; skips without them
+pytest tests --store-matrix              # W3C suites through every store (slow, opt-in)
+pytest tests --srl-stratification        # extended SRL stratification checks (opt-in)
+pytest tests --manchester-conformance   # Manchester Syntax completeness suite (opt-in, ~75 s)
+pytest tests --codekg-queries            # the code-KG query library against the real KG (opt-in, ~1 min)
+pytest tests --sqe-coverage              # sqe: W3C fixtures, per-feature, Hypothesis, rdflib and Oxigraph comparisons, shape audit (opt-in, ~25 min)
+```
+
+`STARLAYER_RUN_ENGINE_ABORT_TESTS=1` also runs the tests that really crash Oxigraph's engine (opt-in, because they file a crash report). CI runs the fast and integration tiers on Python 3.10 to 3.13; see [.github/workflows/test.yml](.github/workflows/test.yml).
+
+## Lint
 
 ```bash
 ruff check packages/
 ```
 
+CI runs the same command and it must pass. Formatting is not enforced, so do not reformat files you are not changing.
+
+## Generated files
+
+Some files are built, not written: `docs/generated/*.generated.md`, the code knowledge graph (`codekg.trig`), and in `starontology/` the `.trig`, `shacl12-shacl.ttl` and `skos-ontology.ttl`. Edit the source and run:
+
+```bash
+python scripts/build.py          # rebuild everything
+python scripts/build.py --check --skip codekg   # what CI runs
+```
+
+CI fails when a committed generated file is out of date. The same command runs `scripts/check_docs.py`, which fails on a broken relative link or anchor in any Markdown file or guide, and on a guide missing from `docs/guides/README.md` or `docs/user-guide-version.json`. The code knowledge graph is not checked in CI; rebuild it with `python scripts/build.py --only codekg apidocs` after larger code changes.
+
 ## Pull requests
 
-- keep scope narrow and well described
-- add or update tests for behavior changes
-- note any compatibility caveats or upstream dependencies
-- prefer small, reviewable changes
+- Keep the change focused and describe what it does and why.
+- Add or update tests. For a fix, check that the new test fails without it. For SHACL and SPARQL behaviour, compare against plain pySHACL or rdflib.
+- Note compatibility effects and upstream dependencies.
+- Do not commit build output, editor files, secrets or local environment files.
+- Follow the style of the code around you. Docstrings give the reason, not what the signature already shows.
 
-## Coding expectations
+## Reporting a bug
 
-- follow the existing style of the package you are editing
-- avoid committing generated build artifacts or editor metadata
-- do not add secrets, credentials, or local environment files to the repo
-
-## Project structure
-
-The repository is a monorepo with three Python packages:
-
-- [packages/graph](packages/graph)
-- [packages/sparql](packages/sparql)
-- [packages/shacl](packages/shacl)
-
-Each package has its own tests and README. Prefer package-local changes unless the work clearly spans the full stack.
+Open a GitHub issue with a minimal example, the commit or version, and the backend (in-memory, Oxigraph, Fuseki). Bugs in rdflib, pySHACL and Oxigraph that we work around are written up, with repros, in [docs/upstream-issues/](docs/upstream-issues/).

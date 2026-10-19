@@ -102,6 +102,15 @@ class _ExtractionContext:
         self.symbol_index = symbol_index
 
 
+def _repo_relative_path(module_iri, path) -> str:
+    """The file's path relative to the repository root, taken from its module IRI (which is the GitHub blob
+    URL of the file). ``slkg:filePath`` used to hold the absolute path on whichever machine ran the
+    extractor, which is wrong for anyone else reading the committed graph."""
+    marker = "/blob/main/"
+    text = str(module_iri)
+    return text.split(marker, 1)[1] if marker in text else str(path)
+
+
 def extract_module(
     path: Path,
     module_iri: URIRef,
@@ -170,7 +179,8 @@ def extract_module(
     triples.append((module_iri, RDF.type, SLKG.Module))
     triples.append((module_iri, RDFS.label, Literal(path.stem)))
     triples.append((module_iri, DCTERMS.identifier, Literal(module_dotted_path)))
-    triples.append((module_iri, SLKG.filePath, Literal(str(path))))
+    repo_path = _repo_relative_path(module_iri, path)
+    triples.append((module_iri, SLKG.filePath, Literal(repo_path)))
 
     try:
         parsed = docstrings.parse_docstring(ast.get_docstring(tree, clean=False))
@@ -182,7 +192,7 @@ def extract_module(
     ctx = _ExtractionContext(
         module_iri=module_iri,
         module_dotted_path=module_dotted_path,
-        file_path_literal=str(path),
+        file_path_literal=repo_path,
         import_table=import_table,
         local_classes=local_classes,
         class_path_by_name=class_path_by_name,
@@ -308,6 +318,8 @@ def _visit_body(
                 _visit_class(node, enclosing_iri, nesting_prefix, ctx)
             elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 _visit_function(node, enclosing_iri, enclosing_kind, nesting_prefix, ctx)
+            elif nesting.namedtuple_definition(node) is not None:
+                _visit_namedtuple(node, enclosing_iri, nesting_prefix, ctx)
         except Exception as exc:
             logger.warning(
                 "Could not extract %s at line %s: %s",
@@ -463,6 +475,34 @@ def _has_bare_decorator(decorator_list: list[ast.expr], name: str) -> bool:
 # ---------------------------------------------------------------------------
 # Class attributes
 # ---------------------------------------------------------------------------
+
+
+def _visit_namedtuple(node: ast.Assign, enclosing_iri: URIRef, nesting_prefix: str, ctx: _ExtractionContext) -> None:
+    """``Name = namedtuple("Name", ["a", "b"])`` as a class with one attribute per field. These are real data types
+    (``manchester.py`` defines eight), but the assignment has no ``ClassDef`` for the walk to find."""
+    name, fields, defaults = nesting.namedtuple_definition(node)
+    dotted_nesting = _dotted_nesting(nesting_prefix, name)
+    class_iri = URIRef(f"{ctx.module_iri}#{dotted_nesting}")
+
+    ctx.triples.append((class_iri, RDF.type, SLKG.Class))
+    ctx.triples.append((class_iri, RDFS.label, Literal(name)))
+    ctx.triples.append((class_iri, DCTERMS.identifier, Literal(f"{ctx.module_dotted_path}.{dotted_nesting}")))
+    ctx.triples.append((class_iri, SLKG.filePath, Literal(ctx.file_path_literal)))
+    ctx.triples.append((class_iri, SLKG.lineStart, Literal(node.lineno)))
+    if node.end_lineno is not None:
+        ctx.triples.append((class_iri, SLKG.lineEnd, Literal(node.end_lineno)))
+    _emit_visibility_flags(name, class_iri, ctx)
+    ctx.triples.append((enclosing_iri, SLKG.declares, class_iri))
+    ctx.triples.append((class_iri, RDFS.subClassOf, _resolve_type_target("tuple", ctx)))
+
+    for position, field_name in enumerate(fields):
+        attr_iri = URIRef(f"{class_iri}.attr.{field_name}")
+        ctx.triples.append((attr_iri, RDF.type, SLKG.Attribute))
+        ctx.triples.append((attr_iri, RDFS.label, Literal(field_name)))
+        ctx.triples.append((attr_iri, SLKG.position, Literal(position)))
+        if field_name in defaults:
+            ctx.triples.append((attr_iri, SLKG.defaultValue, Literal(defaults[field_name])))
+        ctx.triples.append((class_iri, SLKG.hasAttribute, attr_iri))
 
 
 def _emit_class_attributes(body: list[ast.stmt], class_iri: URIRef, ctx: _ExtractionContext) -> None:

@@ -20,8 +20,7 @@ package's own top level, not nested under one subpackage's docs.
 
 - **Periodically re-check the W3C SPARQL 1.2 test suite for the 7 documented syntax-triple-terms-positive divergences** (2026-10-12, re-check procedure revised 2026-10-13) - `docs/sparql/w3c-sparql12-test-suite-issues.md` tracks 7 fixtures believed to be a suite defect (triple-term-as-subject, now `xfail(strict=True)` in `test_syntax_positive` so an upstream fix surfaces as an unexpected pass, not silent drift). That doc's own "Maintenance" section has the concrete re-check steps - as of 2026-10-13 the downloader fetches one pinned-commit tarball snapshot rather than live per-file requests, so a real check means bumping `PINNED_SHA` (via `git ls-remote`) and re-running, not just re-running as-is (re-running alone always reproduces the same pinned commit byte-for-byte now) - and the decision rule: if unchanged on re-check, file Issue 1 upstream against `w3c/rdf-tests` (not yet done as of this writing). A 2026-10-13 bump (incidental to an unrelated fetch-script consistency pass, not a dedicated re-check) found the 7 fixtures unchanged. (The eighth fixture this item originally also tracked, `list-anonreifier-01`, turned out to be a real implementation gap rather than suite ambiguity and was fixed the same day - see `starlayer/sparql/CLAUDE.md`.)
 
-- **The code-KG extractor has no case for a `namedtuple(...)` type definition** (2026-10-14, found while scoping the `starontology/` documentation-cleanup pass). `starlayer/starontology/manchester.py` defines 8 real data types this way (`Document`, `PrefixDecl`, `OntologyHeader`, `Frame`, `Clause`, `ClauseItem`, `FactItem`, `AnnotationAssertion`) - a pattern not used anywhere else in the codebase. `codekg/extractor/visitor.py` only reads `ast.AnnAssign` field annotations inside a `ClassDef` body (the dataclass-field case) or a `ClassDef`/`FunctionDef` node directly - a plain module-level `Name = namedtuple(...)` call matches neither, so these 8 types extract (if at all) as bare names with no field information, unlike `OntologyInfo` (a real `@dataclass`) two files over in the same subpackage. Not fixed at the time found - none of the 8 currently have field-level documentation that would be lost, and building a new extractor case for a pattern used exactly once in the whole codebase wasn't worth doing mid-phase. Worth a small, scoped extractor extension if `namedtuple`-based types become more common, or if these 8 specifically ever need field documentation surfaced in the graph.
-
+- **The code-KG extractor does not record imports between starlayer's own modules** (2026-10-19, found building the query library): `slkg:importsModule` points only at `slkg:ExternalModule` nodes, so "which module imports which" and import-based coupling cannot be answered; `subpackage-coupling` uses the call graph instead. Fix in `codekg/extractor/imports.py`/`visitor.py` by resolving project imports to `slkg:Module` nodes, then restore the competency question to answerable.
 - **No HTML-rendered user guide exists** (migrated 2026-10-12 from the repo-root `Task List` scratch file, retired the same day after a full review - see that file's own git history for the original note). Confirmed still true: no `mkdocs.yml`/Sphinx `conf.py`/rendered HTML anywhere in the repo as of this writing - the guides are notebook-only (`docs/guides/*.ipynb`, readable on GitHub or via Jupyter, but not published as a browsable HTML site). Worth deciding whether this is actually wanted before building it (a notebook-rendering static-site generator, vs. just linking GitHub's own notebook preview) - no decision made yet, just confirmed the gap is real and still open.
 
 - **Process question, not yet answered: why does real-usage testing keep surfacing bugs that the existing test suite didn't catch - does the testing approach itself need to change?** (migrated 2026-10-12 from the same retired `Task List` file, original wording: "why are we still finding bugs? need to expand testing? different approach?"). Not a concrete code gap - a standing question about testing methodology, carried forward rather than dropped since it's never actually been answered anywhere in this project's own docs. One partial, suggestive data point from the same day this item was migrated: a dedicated retrospective performance audit (triggered by a direct user question, not by any existing test failing) found four independent, real, previously-undetected bugs purely by profiling real call patterns rather than by unit-testing individual functions in isolation (unbounded global grammar growth, a factorial brute-force search, an O(n) `__len__`, an uncached meta-validation pass - see `starlayer/graph/CLAUDE.md`/`starlayer/shacl/CLAUDE.md`/`starlayer/sparql/CLAUDE.md`'s 2026-10-12 entries). None of these were wrong *outputs* a correctness-focused unit test would have caught - they were real-world-usage-pattern costs (repeated calls, cumulative state, realistic data shapes) invisible to tests that each exercise one function once, in isolation, with trivial input. Worth considering whether this suite's own testing strategy should add a periodic "run realistic, repeated, larger-scale usage patterns and profile them" pass alongside its existing per-function correctness tests - not yet decided or scheduled.
@@ -164,13 +163,20 @@ package's own top level, not nested under one subpackage's docs.
   `sast:` don't already serve this purpose). **v1 scope, deliberately
   reduced, mirroring the SRL precedent above**: `SELECT`/`ASK`/
   `CONSTRUCT` only (no `DESCRIBE`); `WHERE`-clause limited to triple
-  patterns (property paths included - confirmed working, inherited for
-  free from the same technique reused), `OPTIONAL`, `UNION`, `FILTER`,
-  `BIND`. Not yet covered: aggregates/`GROUP BY`/`HAVING`, subqueries,
-  `VALUES`, and SPARQL Update entirely - widen deliberately, later, one
-  construct at a time, each with its own round-trip + SHACL coverage
-  added alongside it (same testing discipline `test_sqe_ontology.py`
-  already establishes).
+  patterns, `OPTIONAL`, `UNION`, `FILTER`, `BIND`.
+
+  **Widened 2026-10-18 (the v1 limits above no longer apply):** sqe now
+  also covers solution modifiers, `SELECT *`, `CONSTRUCT WHERE`, projected
+  expressions, aggregates with `GROUP BY`/`HAVING`, sub-selects, `VALUES`,
+  `MINUS`, `GRAPH`, `EXISTS`, every expression builtin, and the SPARQL 1.2
+  additions (triple terms, reifiers, annotations, base-direction strings).
+  Still not covered: `DESCRIBE` and SPARQL Update. The coverage is measured,
+  not assumed: the opt-in test set (`pytest --sqe-coverage`) runs every W3C
+  SPARQL 1.2 query fixture and a per-feature suite through sqe against a
+  StarLayerGraph/Dataset (see `starlayer/sparql/CLAUDE.md`'s 2026-10-18
+  entry). Earlier docs and notes that described sqe as covering "queries"
+  generally were wrong at the time they were written (a probe of 34 real
+  questions passed only 11) - they are corrected, not just superseded.
 
   **Open follow-up, deliberately not resolved as part of building
   `sqe:`**: once `sqe:` is in real use, revisit whether `salg:` (the
@@ -196,7 +202,7 @@ package's own top level, not nested under one subpackage's docs.
   location too). Before deleting `ssyn:`: move `render_expr_text` out of
   `ssyn_to_text.py` into its own small, neutral module (e.g.
   `starlayer/sparql/expr_text.py`) first, and update both `srl.py`'s and
-  `sqe/to_text.py`'s imports to the new location - so neither depends on
+  `sqe/to_text.py`'s imports (sqe no longer imports it, as of 2026-10-18) to the new location - so neither depends on
   a module slated for deletion. Then delete the rest of `ssyn:`/all of
   `sast:` plus their test files (`test_ast_ontology.py`,
   `test_ssyn_ontology.py`), and update `starlayer/sparql/CLAUDE.md`'s

@@ -30,7 +30,7 @@ Same idempotent apply-once pattern as ``operator_patches.py``/
 
 from __future__ import annotations
 
-from rdflib import Literal, URIRef, Variable
+from rdflib import BNode, Literal, URIRef, Variable
 from rdflib.namespace import RDF
 from rdflib.plugins.sparql import evaluate
 from rdflib.plugins.sparql.parserutils import CompValue
@@ -162,6 +162,101 @@ def patch_evalextend_forgotten_bind_vars() -> bool:
     return _evaluate_patch_status
 
 
+
+def _inside_exists_evaluation() -> bool:
+    """True when the caller is (indirectly) evaluating an ``EXISTS``/``NOT EXISTS`` pattern. SPARQL
+    evaluates those by substituting the outer solution into the pattern, so a filter inside one DOES see
+    the outer variables; rdflib's evaluation of a lazily joined group looks the same to a filter, so the
+    two are told apart by the call stack."""
+    import sys
+
+    frame = sys._getframe(2)
+    while frame is not None:
+        if frame.f_code.co_name in ("Builtin_EXISTS", "Builtin_NOTEXISTS"):
+            return True
+        frame = frame.f_back
+    return False
+
+
+def _is_lowered_triple_term_filter(expr) -> bool:
+    """True when a filter expression was written by the triple-term lowering, not by the user. A pattern
+    like ``<<:s :p ?o>>`` is lowered to a pattern variable plus a filter over its parts, which leaves ``?o``
+    in the filter only; such a filter must keep seeing ``?o``. Recognized by the internal ``tt:`` functions
+    and ``__tt`` variables the lowering uses."""
+    from starlayer.graph.model.encoding import TT_NS
+
+    def walk(item) -> bool:
+        if isinstance(item, Variable):
+            return str(item).startswith("__tt")
+        if isinstance(item, CompValue):
+            iri = item.get("iri") if item.name == "Function" else None
+            if iri is not None and str(iri).startswith(TT_NS):
+                return True
+            return any(walk(v) for v in item.values())
+        if isinstance(item, (list, tuple)):
+            return any(walk(v) for v in item)
+        return False
+
+    return walk(expr)
+
+
+def _expr_blank_nodes(expr) -> set:
+    """Blank nodes appearing inside a filter expression. The lowering of triple terms writes a query blank
+    node into an expression as an operand; it stands for a variable and must stay visible to the filter."""
+    found: set = set()
+
+    def walk(item) -> None:
+        if isinstance(item, BNode):
+            found.add(item)
+        elif isinstance(item, CompValue):
+            for value in item.values():
+                walk(value)
+        elif isinstance(item, (list, tuple)):
+            for sub in item:
+                walk(sub)
+
+    walk(expr)
+    return found
+
+
+def _pattern_scope_vars(node) -> set:
+    """The variables a graph pattern can bind (what a ``FILTER`` over it may refer to): every variable in
+    its triple patterns, ``BIND`` targets, ``VALUES`` columns and graph terms, a sub-select's projection
+    only, and the left side of a ``MINUS`` only. Filter and ``ORDER BY`` expressions are not part of it.
+    """
+    found: set = set()
+
+    def walk(item) -> None:
+        if isinstance(item, (Variable, BNode)):
+            # a blank node in a pattern is a variable too (the lowering of triple terms puts them there)
+            found.add(item)
+        elif isinstance(item, CompValue):
+            name = item.name
+            if name == "Project":
+                found.update(item.PV or [])
+                return
+            if name == "Minus":
+                walk(item.p1)
+                return
+            for key, value in item.items():
+                if key in ("expr", "_vars", "lazy"):
+                    continue
+                if key == "var":
+                    walk(value)
+                else:
+                    walk(value)
+        elif isinstance(item, dict):
+            for key, value in item.items():
+                walk(key)
+                walk(value)
+        elif isinstance(item, (list, tuple)):
+            for sub in item:
+                walk(sub)
+
+    walk(node)
+    return found
+
+
 _evalfilter_patch_status: bool | None = None
 
 
@@ -211,16 +306,32 @@ def patch_evalfilter_forgotten_vars() -> bool:
             _evalfilter_patch_status = True
             return True
 
+        from rdflib.plugins.sparql.sparql import FrozenBindings
+
         _ebv = evaluate._ebv
         evalPart = evaluate.evalPart
 
         def _patched_eval_filter(ctx, part):
-            except_vars = (part._vars or set()) | _expr_free_vars(part.expr)
+            # The filter may see exactly the variables its own group can bind (spec sec 18.2.2.7: a
+            # group is evaluated on its own and joined with its siblings afterwards). rdflib hands a
+            # lazily joined group the outer solution, so the solution `c` also carries variables bound
+            # outside the group, and `forget(ctx, ...)` never removes those (it only drops variables
+            # bound since `ctx`). The group's variables are taken from a structural walk of its pattern
+            # (rdflib's `_vars` is sometimes incomplete, which an earlier version of this patch worked
+            # around by keeping every variable the expression mentions - that let a filter see
+            # variables bound OUTSIDE its group), and the expression is evaluated over those only.
+            # The solution that is yielded is unchanged.
+            scope = _pattern_scope_vars(part.p) | _expr_blank_nodes(part.expr)
+            if _is_lowered_triple_term_filter(part.expr) or _inside_exists_evaluation():
+                scope |= _expr_free_vars(part.expr)
             for c in evalPart(ctx, part.p):
-                if _ebv(
-                    part.expr,
-                    c.forget(ctx, _except=except_vars) if not part.no_isolated_scope else c,
-                ):
+                if part.no_isolated_scope:
+                    visible = c
+                else:
+                    visible = FrozenBindings(
+                        c.ctx, ((k, v) for k, v in c.items() if k in scope or k in c.ctx.initBindings)
+                    )
+                if _ebv(part.expr, visible):
                     yield c
 
         _patched_eval_filter._starlayer_graph_evalfilter_patch = True  # type: ignore[attr-defined]
@@ -616,7 +727,7 @@ def patch_construct_skips_encoding_solutions() -> bool:
             _construct_patch_status = True
             return True
 
-        from rdflib import Graph, URIRef
+        from rdflib import Graph, Literal, URIRef
 
         from starlayer.graph.model.encoding import ENCODING_MARKERS, TT_NS
 
@@ -640,7 +751,15 @@ def patch_construct_skips_encoding_solutions() -> bool:
             for c in evalPart(ctx, query.p):
                 if _is_encoding_solution(c):
                     continue
-                graph += _fillTemplate(template, c)
+                # SPARQL 1.1 sec 16.2.1: a template triple that instantiates to something that is not valid
+                # RDF (a literal subject, a predicate that is not an IRI) is left out of the output.
+                # rdflib kept them, so `CONSTRUCT { ?n ex:p ?n }` over numbers produced literal-subject
+                # triples (found by the Oxigraph differential tests).
+                graph += (
+                    (s, p, o)
+                    for s, p, o in _fillTemplate(template, c)
+                    if not isinstance(s, Literal) and isinstance(p, URIRef)
+                )
 
             return {"type_": "CONSTRUCT", "graph": graph}
 
@@ -651,6 +770,68 @@ def patch_construct_skips_encoding_solutions() -> bool:
         _construct_patch_status = False
 
     return _construct_patch_status
+
+
+# ---------------------------------------------------------------------------
+# Explicit GROUP BY over no solutions: no groups, so no rows.
+# ---------------------------------------------------------------------------
+
+_aggregate_join_patch_status: bool | None = None
+
+
+def patch_aggregate_join_no_row_for_empty_explicit_group() -> bool:
+    """Fix a confirmed rdflib bug: ``evalAggregateJoin`` ends with ``if len(res) == 0: yield
+    FrozenBindings(ctx)``. For an *implicit* group (aggregates, no ``GROUP BY``) ``res`` always holds the
+    one group, so that line never runs; it only runs for an explicit ``GROUP BY`` that matched nothing, and
+    there it adds a row that should not exist. SPARQL 1.1 sec 11.2: grouping an empty solution sequence by
+    a key gives no groups, hence no rows (only the implicit single group exists even when empty, and gives
+    one row, e.g. ``COUNT`` = 0). Found by the Oxigraph differential tests.
+
+    Fix: the same function without that last line.
+
+    Returns:
+        True if the patch applied (or was already applied), False if rdflib's internals differ.
+    """
+    global _aggregate_join_patch_status
+    if _aggregate_join_patch_status is not None:
+        return _aggregate_join_patch_status
+
+    try:
+        import collections
+
+        from rdflib.plugins.sparql.aggregates import Aggregator
+        from rdflib.plugins.sparql.sparql import FrozenBindings
+
+        original = evaluate.evalAggregateJoin
+        if getattr(original, "_starlayer_graph_aggregate_join_patch", False):
+            _aggregate_join_patch_status = True
+            return True
+
+        evalPart = evaluate.evalPart
+        _eval = evaluate._eval
+
+        def _patched_eval_aggregate_join(ctx, agg):
+            p = evalPart(ctx, agg.p)
+            group_expr = agg.p.expr
+            res = collections.defaultdict(lambda: Aggregator(aggregations=agg.A))
+            if group_expr is None:
+                aggregator = res[True]
+                for row in p:
+                    aggregator.update(row)
+            else:
+                for row in p:
+                    k = tuple(_eval(e, row, False) for e in group_expr)
+                    res[k].update(row)
+            for aggregator in res.values():
+                yield FrozenBindings(ctx, aggregator.get_bindings())
+
+        _patched_eval_aggregate_join._starlayer_graph_aggregate_join_patch = True  # type: ignore[attr-defined]
+        evaluate.evalAggregateJoin = _patched_eval_aggregate_join
+        _aggregate_join_patch_status = True
+    except Exception:
+        _aggregate_join_patch_status = False
+
+    return _aggregate_join_patch_status
 
 
 # ---------------------------------------------------------------------------

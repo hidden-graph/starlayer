@@ -6,7 +6,10 @@ genuine import cycle (``symbol_index`` needs this to build its project-
 wide index; ``visitor`` needs ``symbol_index.SymbolIndex`` as a type for
 ``extract_module()``'s own new parameter).
 
-Two functions:
+Three functions:
+
+- ``namedtuple_definition(node)`` - recognize ``Name = namedtuple("Name", [...])`` (or
+  ``typing.NamedTuple``'s functional form) as a class definition.
 
 - ``dotted_nesting(prefix, name)`` - join one more name onto a nesting
   path.
@@ -20,6 +23,47 @@ Two functions:
 from __future__ import annotations
 
 import ast
+
+
+def _call_name(func: ast.expr) -> str | None:
+    if isinstance(func, ast.Name):
+        return func.id
+    if isinstance(func, ast.Attribute):
+        return func.attr
+    return None
+
+
+def namedtuple_definition(node: ast.stmt) -> tuple[str, list[str], dict[str, str]] | None:
+    """``(class_name, field_names, default_text_by_field)`` when ``node`` is a functional named-tuple definition
+    (``Name = namedtuple("Name", ["a", "b"], defaults=[None])``, ``collections.namedtuple`` or
+    ``typing.NamedTuple`` spelled the same way), else ``None``.
+
+    The class is named after the assignment target, which is what code imports and calls. A field list that
+    cannot be read statically (not a literal list, tuple or string) gives an empty field list, so the class is
+    still recorded. Defaults apply to the last fields, as ``namedtuple`` does.
+    """
+    if not isinstance(node, ast.Assign) or len(node.targets) != 1 or not isinstance(node.targets[0], ast.Name):
+        return None
+    call = node.value
+    if not isinstance(call, ast.Call) or _call_name(call.func) not in ("namedtuple", "NamedTuple"):
+        return None
+    fields_node = call.args[1] if len(call.args) > 1 else next((k.value for k in call.keywords if k.arg == "field_names"), None)
+    fields: list[str] = []
+    if isinstance(fields_node, (ast.List, ast.Tuple)):
+        for element in fields_node.elts:
+            if isinstance(element, ast.Constant) and isinstance(element.value, str):
+                fields.append(element.value)
+            elif isinstance(element, (ast.Tuple, ast.List)) and element.elts and isinstance(element.elts[0], ast.Constant):
+                fields.append(str(element.elts[0].value))  # NamedTuple("N", [("a", int)])
+    elif isinstance(fields_node, ast.Constant) and isinstance(fields_node.value, str):
+        fields = fields_node.value.replace(",", " ").split()
+    defaults_node = next((k.value for k in call.keywords if k.arg == "defaults"), None)
+    defaults: dict[str, str] = {}
+    if isinstance(defaults_node, (ast.List, ast.Tuple)) and fields:
+        values = [ast.unparse(e) for e in defaults_node.elts]
+        for name, value in zip(fields[len(fields) - len(values) :], values, strict=False):
+            defaults[name] = value
+    return node.targets[0].id, fields, defaults
 
 
 def dotted_nesting(nesting_prefix: str, name: str) -> str:
@@ -46,3 +90,6 @@ def collect_local_classes(
         elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             dotted = dotted_nesting(nesting_prefix, node.name)
             collect_local_classes(node.body, dotted, local_classes, class_path_by_name)
+        elif (named := namedtuple_definition(node)) is not None:
+            local_classes.add(named[0])
+            class_path_by_name.setdefault(named[0], dotted_nesting(nesting_prefix, named[0]))

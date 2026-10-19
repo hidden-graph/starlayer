@@ -249,6 +249,9 @@ def _index_body(
                 index.classes_by_dotted_path[full_dotted] = info
 
                 _index_body(node.body, module_iri, module_dotted_path, dotted, import_table, local_classes, class_path_by_name, index)
+            elif (named := nesting.namedtuple_definition(node)) is not None:
+                dotted = nesting.dotted_nesting(nesting_prefix, named[0])
+                index.classes_by_dotted_path[f"{module_dotted_path}.{dotted}"] = ClassInfo(iri=URIRef(f"{module_iri}#{dotted}"))
             elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 dotted = nesting.dotted_nesting(nesting_prefix, node.name)
                 full_dotted = f"{module_dotted_path}.{dotted}"

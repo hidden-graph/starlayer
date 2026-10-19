@@ -87,7 +87,8 @@ from rdflib import Graph
 
 from starlayer import starontology
 
-from .expr_families import _EXPR_NODE_FAMILY
+from ..expr_families import _EXPR_NODE_FAMILY
+from ..expr_validation import ontology_graph as _spexpr_ontology_graph
 
 
 def _generate_expression_class_turtle() -> str:
@@ -137,5 +138,5 @@ def ontology_graph() -> Graph:
         their own copy, not a shared module-level instance).
     """
     g = starontology.get_ontology_graph("sparql_owl")
-    g += starontology.get_ontology_graph("spexpr_owl")
+    g += _spexpr_ontology_graph()
     return g

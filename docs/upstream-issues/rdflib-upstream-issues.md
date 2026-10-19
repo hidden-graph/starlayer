@@ -189,7 +189,7 @@ list(Graph().query("SELECT ?x WHERE { BIND(1 AS ?o) { BIND(2 AS ?x) FILTER(?x = 
 # expected: [(Literal(2),)]
 ```
 
-Fix: `starlayer/graph/query/evaluate_patches.py::patch_evalfilter_forgotten_vars`.
+Fix: `starlayer/graph/query/evaluate_patches.py::patch_evalfilter_forgotten_vars`. (Revised 2026-10-18: the first version of this patch kept every variable the filter mentions, which also made it see variables bound outside its group - see item 16. It now evaluates the filter over the variables its own group binds.)
 
 ## 9. `INSERT DATA` into a `Dataset`'s default graph crashes
 
@@ -277,3 +277,49 @@ Literal("foo") == Literal("foo", datatype=XSD.string)
 ```
 
 Fix: `starlayer/graph/query/operator_patches.py::patch_sameterm_simple_literal_is_xsd_string` makes `sameTerm()` treat them as one term. `Literal.__eq__` and triple-pattern matching are unchanged, so `?s ?p "a"^^xsd:string` still does not match a stored `"a"`; fixing that means changing `Literal` itself.
+
+## 16. A `FILTER` in a nested group sees variables bound outside the group
+
+SPARQL evaluates a group on its own and joins it with its siblings afterwards, so a `FILTER` can only see variables bound inside its own group. rdflib passes the outer bindings in, so `BOUND()` is true and comparisons use values the group should not have. Oxigraph follows the spec.
+
+```python
+from rdflib import Graph
+q = "SELECT ?x WHERE { BIND(1 AS ?o) { BIND(2 AS ?x) FILTER(!BOUND(?o)) } }"
+list(Graph().query(q))
+# actual:   []
+# expected: [(Literal(2),)]   (Oxigraph returns it)
+```
+
+Found 2026-10-18 by the Oxigraph differential tests (`tests/sparql/sqe_coverage/test_oxigraph_differential.py`); it shows up in `UNION`, `MINUS` and `GRAPH` blocks too.
+
+Fix: `evaluate_patches.py::patch_evalfilter_forgotten_vars` now evaluates a filter over the variables its group binds (a structural walk of the group's pattern), not over the solution it was handed. Three cases keep the wider view on purpose: a filter in an `EXISTS`/`NOT EXISTS` pattern (the spec substitutes the outer solution into it, found by looking for `Builtin_EXISTS` on the call stack), a filter the triple-term lowering wrote (it leaves a pattern variable only in the filter), and `OPTIONAL` (its filter belongs to the join, so rdflib already gets it right). Tests: `tests/graph/unit/test_filter_group_scope.py`.
+
+## 17. An explicit `GROUP BY` over no solutions returns one empty row
+
+Grouping an empty solution sequence by a key gives no groups, so no rows (SPARQL 1.1 section 11.2). Only the implicit single group, for aggregates with no `GROUP BY`, exists when empty (`COUNT` is then 0). rdflib's `evalAggregateJoin` ends with `if len(res) == 0: yield FrozenBindings(ctx)`, which only ever runs for the explicit case and adds a row.
+
+```python
+from rdflib import Graph
+q = "SELECT ?n (COUNT(?n) AS ?c) { ?s <http://x/p> ?n } GROUP BY ?n"
+Graph().query(q).bindings
+# actual:   [{}]
+# expected: []
+```
+
+Fix: `starlayer/graph/query/evaluate_patches.py::patch_aggregate_join_no_row_for_empty_explicit_group`. Found by the Oxigraph differential tests.
+
+## 18. `CONSTRUCT` keeps template triples that are not valid RDF
+
+A template triple that instantiates to a literal subject or a non-IRI predicate is left out of the result (SPARQL 1.1 section 16.2.1). rdflib keeps it.
+
+```python
+from rdflib import Graph, Literal, URIRef
+g = Graph()
+g.add((URIRef("http://x/a"), URIRef("http://x/n"), Literal(1)))
+list(g.query("CONSTRUCT { ?n <http://x/p> ?n } WHERE { ?s <http://x/n> ?n }").graph)
+# actual:   [(Literal(1), <http://x/p>, Literal(1))]
+# expected: []
+```
+
+Fix: `evaluate_patches.py::patch_construct_skips_encoding_solutions` (the CONSTRUCT patch) now filters them. Found by the Oxigraph differential tests.
+

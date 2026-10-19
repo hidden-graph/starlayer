@@ -52,6 +52,20 @@ from starlayer.graph.query.algebra_translator_patches import (
     patch_algebra_translator_bugs as _patch_algebra_translator_bugs,
 )
 
+# Fix for a confirmed rdflib bug (a different module/phase again - result
+# *materialization*, rdflib.query.Result, not parsing/algebra/evaluation): a
+# SELECT row with zero variable bindings (SELECT * over a pattern with no
+# variables at all - "does this fact exist?") is a real, correct solution,
+# but Result.__iter__ checks `if b:` before yielding it, and an empty dict is
+# falsy - so it's silently dropped, indistinguishable from "no more rows".
+# Result.bindings/len() are unaffected; only iterating the Result object
+# (list(result), for row in result) loses it. See
+# docs/upstream-issues/rdflib-upstream-issues.md Issue 6 and
+# starlayer.graph/query/result_patches.py::patch_result_iter_empty_binding_row.
+from starlayer.graph.query.evaluate_patches import (
+    patch_aggregate_join_no_row_for_empty_explicit_group as _patch_aggregate_join_no_row,
+)
+
 # Fix for a starlayer.graph-side (not rdflib) gap: an *unconstrained* BGP match
 # (e.g. a bare `?s ?p ?o` inside a nested SELECT subquery, not just
 # CONSTRUCT - see patch_construct_skips_encoding_solutions above, which only
@@ -166,17 +180,6 @@ from starlayer.graph.query.evaluate_patches import (
 from starlayer.graph.query.operator_patches import (
     apply_all_operator_patches as _apply_all_operator_patches,
 )
-
-# Fix for a confirmed rdflib bug (a different module/phase again - result
-# *materialization*, rdflib.query.Result, not parsing/algebra/evaluation): a
-# SELECT row with zero variable bindings (SELECT * over a pattern with no
-# variables at all - "does this fact exist?") is a real, correct solution,
-# but Result.__iter__ checks `if b:` before yielding it, and an empty dict is
-# falsy - so it's silently dropped, indistinguishable from "no more rows".
-# Result.bindings/len() are unaffected; only iterating the Result object
-# (list(result), for row in result) loses it. See
-# docs/upstream-issues/rdflib-upstream-issues.md Issue 6 and
-# starlayer.graph/query/result_patches.py::patch_result_iter_empty_binding_row.
 from starlayer.graph.query.result_patches import (
     patch_result_iter_empty_binding_row as _patch_result_iter_empty_binding_row,
 )
@@ -189,6 +192,7 @@ _patch_evalmodify_default_graph_selection()
 _patch_evalinsertdata_quad_unpacking()
 _patch_lazy_join_expr_dependency_order()
 _patch_construct_skips_encoding_solutions()
+_patch_aggregate_join_no_row()
 _patch_relational_expression_tt_hash_equality()
 _patch_order_by_tt_hash_term_kind()
 _patch_bgp_skips_encoding_triples()

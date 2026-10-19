@@ -26,7 +26,7 @@
 
 starontology:manchester-ast-ontology.ttl {
     manch:AnnotationAssertion a rdfs:Class ;
-        rdfs:comment "One (annotationProperty, value) pair - manch:annotationProperty (a URIRef), manch:annotationValue (a URIRef or Literal). Used both for a frame-level Annotations: clause's own items, and inside a ClauseItem's/FactItem's manch:annotations list." .
+        rdfs:comment "One (annotationProperty, value) pair - manch:annotationProperty (a URIRef), manch:annotationValue (a URIRef or Literal). Used both for a frame-level Annotations: clause's own items, and inside a ClauseItem's/FactItem's manch:annotations list. May itself carry manch:annotations: the annotations on this annotation (annotationAnnotatedList)." .
 
     manch:ClauseItem a rdfs:Class ;
         rdfs:comment "One ordinary clause-list item - manch:value (shape depends on the enclosing clause, see each Clause subclass's own comment), manch:annotations (optional, an rdf:List of AnnotationAssertion - present only when the item had an inline Annotations: prefix). Deliberately one uniform shape for every per-item-annotatable clause, regardless of whether the OWL 2 RDF mapping ultimately reifies it via owl:Axiom or (for a negative Fact:) attaches directly to an owl:NegativePropertyAssertion bnode - that distinction is an artifact of the final OWL-semantic compile step, not something that exists yet at this AST layer." .
@@ -41,7 +41,7 @@ starontology:manchester-ast-ontology.ttl {
         rdfs:comment "One Individual: Facts: item - manch:negative (an xsd:boolean Literal), manch:property (a URIRef), manch:value (a URIRef or Literal), manch:annotations (optional, same shape as ClauseItem's)." .
 
     manch:OntologyHeader a rdfs:Class ;
-        rdfs:comment "The Ontology: header - manch:ontologyIri (optional URIRef), manch:imports (rdf:List of URIRef, in order)." .
+        rdfs:comment "The Ontology: header - manch:ontologyIri (optional URIRef), manch:versionIri (optional URIRef, only with an ontologyIri), manch:imports (rdf:List of URIRef, in order), manch:annotations (optional rdf:List of AnnotationAssertion - the ontology's own Annotations:)." .
 
     manch:PrefixDecl a rdfs:Class ;
         rdfs:comment "One Prefix: declaration - manch:prefixLabel (a manch:PlainString-tagged string, '' for the default prefix), manch:prefixIri (a plain string, not a URIRef - a Prefix: declaration's own IRI is definitional, not a reference)." .
@@ -88,11 +88,26 @@ starontology:manchester-ast-ontology.ttl {
     manch:DAnd rdfs:comment "`D1 and D2 and ...` - manch:operands, an rdf:List of >=2 DataRange." ;
         rdfs:subClassOf manch:DataRange .
 
+    manch:DExact rdfs:comment "`d exactly n D` - same shape as DMin." ;
+        rdfs:subClassOf manch:ClassExpression .
+
+    manch:DMax rdfs:comment "`d max n D` - same shape as DMin." ;
+        rdfs:subClassOf manch:ClassExpression .
+
+    manch:DMin rdfs:comment "`d min n D` - QUALIFIED data cardinality (the unqualified form stays manch:Min, it has no filler to tell data from object): manch:onProperty, manch:cardinality, manch:filler (a DataRange, required)." ;
+        rdfs:subClassOf manch:ClassExpression .
+
     manch:DNot rdfs:comment "`not D` - manch:operand, a single DataRange." ;
         rdfs:subClassOf manch:DataRange .
 
+    manch:DOnly rdfs:comment "`d only D` - data-property counterpart of manch:Only; manch:filler is a DataRange." ;
+        rdfs:subClassOf manch:ClassExpression .
+
     manch:DOr rdfs:comment "`D1 or D2 or ...` - same shape as DAnd." ;
         rdfs:subClassOf manch:DataRange .
+
+    manch:DSome rdfs:comment "`d some D` - a Some restriction on a DATA property: manch:onProperty, manch:filler (a DataRange, not a ClassExpression). Distinct from manch:Some because the OWL mapping differs (rdfs:Datatype fillers, owl:onDataRange for the qualified forms) and Manchester syntax itself does not mark the difference - the parser decides from the property's declaration or the filler's shape." ;
+        rdfs:subClassOf manch:ClassExpression .
 
     manch:DataPropAnnotationsClause rdfs:comment "DataProperty: Annotations: - same shape as ClassAnnotationsClause." ;
         rdfs:subClassOf manch:Clause .
@@ -235,7 +250,7 @@ starontology:manchester-ast-ontology.ttl {
         rdfs:domain manch:AnnotationAssertion .
 
     manch:annotations a rdf:Property ;
-        rdfs:comment "A ClauseItem's or FactItem's own optional rdf:List of AnnotationAssertion - present only when an inline Annotations: prefix was written. No rdfs:domain: shared across both leaf classes with no other common superclass." ;
+        rdfs:comment "A ClauseItem's, FactItem's or OntologyHeader's own optional rdf:List of AnnotationAssertion - present only when an Annotations: was written there. No rdfs:domain: shared across leaf classes with no other common superclass." ;
         rdfs:range rdf:List .
 
     manch:cardinality a rdf:Property ;
@@ -347,6 +362,10 @@ starontology:manchester-ast-ontology.ttl {
     manch:value a rdf:Property ;
         rdfs:comment "A ClauseItem's own value - shape depends on the enclosing clause (a ClassExpression, PropertyExpression, DataRange, or bare URIRef/Literal). No rdfs:domain/range: deliberately polymorphic by design (see manch:ClauseItem's own comment), and several of its possible shapes are independently sh:class-dispatch-checked." .
 
+    manch:versionIri a rdf:Property ;
+        rdfs:comment "The optional version IRI that follows the ontology IRI in `Ontology: <iri> <versionIri>`." ;
+        rdfs:domain manch:OntologyHeader .
+
     manch:DOneOf rdfs:comment "`{ lit1, lit2, ... }` - manch:literals, an rdf:List of Literal." ;
         rdfs:subClassOf manch:DataRange .
 
@@ -360,7 +379,7 @@ starontology:manchester-ast-ontology.ttl {
 
     manch:DataRange rdfs:comment "A data-range AST node (DataProperty: Range:, Datatype: EquivalentTo:) - an atomic datatype is a bare URIRef, no wrapper." .
 
-    manch:MiscAxiom rdfs:comment "A top-level Misc axiom (no subject frame) - manch:items, an rdf:List whose member shape depends on the concrete axiom (see each subclass). Never carries manch:annotations on its own items - a genuine grammar gap, not an oversight (the pairwise-chain/AllDisjoint* OWL-semantic encoding means a single list item doesn't correspond to a single axiom the way it does everywhere else, so there is nothing to reify against - see manchester_parser.py's own docstring)." .
+    manch:MiscAxiom rdfs:comment "A top-level Misc axiom (no subject frame) - manch:items, an rdf:List whose member shape depends on the concrete axiom (see each subclass), and optionally manch:annotations: the axiom's own leading `Annotations:`, one list for the whole axiom (the note's misc production), never per item." .
 
     manch:Frame rdfs:comment "A top-level Manchester frame (Class:/ObjectProperty:/DataProperty:/AnnotationProperty:/Individual:/Datatype:) - manch:subject (the frame's own name), manch:clauses (an rdf:List of Clause, in written order)." .
 
@@ -389,10 +408,15 @@ starontology:manchester_shapes.ttl {
             manch:ClauseListShape,
             manch:ClauseShape,
             manch:DAndShape,
+            manch:DExactShape,
+            manch:DMaxShape,
+            manch:DMinShape,
             manch:DNotShape,
             manch:DOneOfShape,
+            manch:DOnlyShape,
             manch:DOrShape,
             manch:DRestrictionShape,
+            manch:DSomeShape,
             manch:DataPropCharacteristicsClause,
             manch:DataPropDisjointWithClause,
             manch:DataPropDomainClause,
@@ -406,6 +430,7 @@ starontology:manchester_shapes.ttl {
             manch:DatatypeEquivalentToClause,
             manch:DocumentShape,
             manch:ExactShape,
+            manch:FacetRestrictionListShape,
             manch:FacetRestrictionShape,
             manch:FactItemShape,
             manch:FrameListShape,
@@ -415,6 +440,8 @@ starontology:manchester_shapes.ttl {
             manch:IndividualSameAsClause,
             manch:IndividualTypesClause,
             manch:InverseShape,
+            manch:IriListShape,
+            manch:LiteralListShape,
             manch:MaxShape,
             manch:MinShape,
             manch:MiscAxiomItemsShape,
@@ -440,6 +467,7 @@ starontology:manchester_shapes.ttl {
             manch:OnlyShape,
             manch:OntologyHeaderShape,
             manch:OrShape,
+            manch:PrefixDeclListShape,
             manch:PrefixDeclShape,
             manch:PropertyExpressionItemListShape,
             manch:PropertyExpressionListShape,
@@ -466,7 +494,10 @@ starontology:manchester_shapes.ttl {
             [ sh:maxCount 1 ;
                 sh:minCount 1 ;
                 sh:nodeKind sh:IRI ;
-                sh:path manch:annotationProperty ] ;
+                sh:path manch:annotationProperty ],
+            [ sh:maxCount 1 ;
+                sh:node manch:AnnotationAssertionListShape ;
+                sh:path manch:annotations ] ;
         sh:targetClass manch:AnnotationAssertion .
 
     manch:ClauseItemShape a sh:NodeShape ;
@@ -499,6 +530,51 @@ starontology:manchester_shapes.ttl {
                 sh:path manch:operands ] ;
         sh:targetClass manch:DAnd .
 
+    manch:DExactShape a sh:NodeShape ;
+        sh:property [ sh:datatype xsd:nonNegativeInteger ;
+                sh:maxCount 1 ;
+                sh:minCount 1 ;
+                sh:path manch:cardinality ],
+            [ sh:maxCount 1 ;
+                sh:minCount 1 ;
+                sh:node manch:DataRangeOrNameShape ;
+                sh:path manch:filler ],
+            [ sh:maxCount 1 ;
+                sh:minCount 1 ;
+                sh:node manch:PropertyExpressionOrNameShape ;
+                sh:path manch:onProperty ] ;
+        sh:targetClass manch:DExact .
+
+    manch:DMaxShape a sh:NodeShape ;
+        sh:property [ sh:datatype xsd:nonNegativeInteger ;
+                sh:maxCount 1 ;
+                sh:minCount 1 ;
+                sh:path manch:cardinality ],
+            [ sh:maxCount 1 ;
+                sh:minCount 1 ;
+                sh:node manch:DataRangeOrNameShape ;
+                sh:path manch:filler ],
+            [ sh:maxCount 1 ;
+                sh:minCount 1 ;
+                sh:node manch:PropertyExpressionOrNameShape ;
+                sh:path manch:onProperty ] ;
+        sh:targetClass manch:DMax .
+
+    manch:DMinShape a sh:NodeShape ;
+        sh:property [ sh:datatype xsd:nonNegativeInteger ;
+                sh:maxCount 1 ;
+                sh:minCount 1 ;
+                sh:path manch:cardinality ],
+            [ sh:maxCount 1 ;
+                sh:minCount 1 ;
+                sh:node manch:DataRangeOrNameShape ;
+                sh:path manch:filler ],
+            [ sh:maxCount 1 ;
+                sh:minCount 1 ;
+                sh:node manch:PropertyExpressionOrNameShape ;
+                sh:path manch:onProperty ] ;
+        sh:targetClass manch:DMin .
+
     manch:DNotShape a sh:NodeShape ;
         sh:property [ sh:maxCount 1 ;
                 sh:minCount 1 ;
@@ -509,9 +585,20 @@ starontology:manchester_shapes.ttl {
     manch:DOneOfShape a sh:NodeShape ;
         sh:property [ sh:maxCount 1 ;
                 sh:minCount 1 ;
-                sh:node manch:WellFormedListShape ;
+                sh:node manch:LiteralListShape ;
                 sh:path manch:literals ] ;
         sh:targetClass manch:DOneOf .
+
+    manch:DOnlyShape a sh:NodeShape ;
+        sh:property [ sh:maxCount 1 ;
+                sh:minCount 1 ;
+                sh:node manch:DataRangeOrNameShape ;
+                sh:path manch:filler ],
+            [ sh:maxCount 1 ;
+                sh:minCount 1 ;
+                sh:node manch:PropertyExpressionOrNameShape ;
+                sh:path manch:onProperty ] ;
+        sh:targetClass manch:DOnly .
 
     manch:DOrShape a sh:NodeShape ;
         sh:property [ sh:maxCount 1 ;
@@ -527,14 +614,25 @@ starontology:manchester_shapes.ttl {
                 sh:path manch:onDatatype ],
             [ sh:maxCount 1 ;
                 sh:minCount 1 ;
-                sh:node manch:WellFormedListShape ;
+                sh:node manch:FacetRestrictionListShape ;
                 sh:path manch:facets ] ;
         sh:targetClass manch:DRestriction .
+
+    manch:DSomeShape a sh:NodeShape ;
+        sh:property [ sh:maxCount 1 ;
+                sh:minCount 1 ;
+                sh:node manch:DataRangeOrNameShape ;
+                sh:path manch:filler ],
+            [ sh:maxCount 1 ;
+                sh:minCount 1 ;
+                sh:node manch:PropertyExpressionOrNameShape ;
+                sh:path manch:onProperty ] ;
+        sh:targetClass manch:DSome .
 
     manch:DocumentShape a sh:NodeShape ;
         sh:property [ sh:maxCount 1 ;
                 sh:minCount 1 ;
-                sh:node manch:WellFormedListShape ;
+                sh:node manch:PrefixDeclListShape ;
                 sh:path manch:prefixes ],
             [ sh:maxCount 1 ;
                 sh:minCount 1 ;
@@ -646,7 +744,10 @@ starontology:manchester_shapes.ttl {
         sh:property [ sh:maxCount 1 ;
                 sh:minCount 1 ;
                 sh:node manch:WellFormedListShape ;
-                sh:path manch:items ] ;
+                sh:path manch:items ],
+            [ sh:maxCount 1 ;
+                sh:node manch:AnnotationAssertionListShape ;
+                sh:path manch:annotations ] ;
         sh:targetClass manch:MiscAxiom .
 
     manch:MiscAxiomShape a sh:NodeShape ;
@@ -663,7 +764,7 @@ starontology:manchester_shapes.ttl {
     manch:OneOfShape a sh:NodeShape ;
         sh:property [ sh:maxCount 1 ;
                 sh:minCount 1 ;
-                sh:node manch:WellFormedListShape ;
+                sh:node manch:IriListShape ;
                 sh:path manch:individuals ] ;
         sh:targetClass manch:OneOf .
 
@@ -680,11 +781,17 @@ starontology:manchester_shapes.ttl {
 
     manch:OntologyHeaderShape a sh:NodeShape ;
         sh:property [ sh:maxCount 1 ;
-                sh:node manch:WellFormedListShape ;
+                sh:node manch:IriListShape ;
                 sh:path manch:imports ],
             [ sh:maxCount 1 ;
                 sh:nodeKind sh:IRI ;
-                sh:path manch:ontologyIri ] ;
+                sh:path manch:ontologyIri ],
+            [ sh:maxCount 1 ;
+                sh:nodeKind sh:IRI ;
+                sh:path manch:versionIri ],
+            [ sh:maxCount 1 ;
+                sh:node manch:AnnotationAssertionListShape ;
+                sh:path manch:annotations ] ;
         sh:targetClass manch:OntologyHeader .
 
     manch:OrShape a sh:NodeShape ;
@@ -726,12 +833,12 @@ starontology:manchester_shapes.ttl {
     manch:ValueClauseShape a sh:NodeShape ;
         sh:property [ sh:maxCount 1 ;
                 sh:minCount 1 ;
-                sh:node manch:PropertyExpressionOrNameShape ;
-                sh:path manch:onProperty ],
+                sh:node manch:ValueShape ;
+                sh:path manch:filler ],
             [ sh:maxCount 1 ;
                 sh:minCount 1 ;
-                sh:node manch:ValueShape ;
-                sh:path manch:filler ] ;
+                sh:node manch:PropertyExpressionOrNameShape ;
+                sh:path manch:onProperty ] ;
         sh:targetClass manch:Value .
 
     manch:AnnPropDomainClause a sh:NodeShape ;
@@ -769,6 +876,7 @@ starontology:manchester_shapes.ttl {
         sh:targetClass manch:ClassSubClassOfClause .
 
     manch:ClauseListShape a sh:NodeShape ;
+        sh:node manch:WellFormedListShape ;
         sh:sparql [ a sh:SPARQLConstraint ;
                 sh:message "expected a well-formed rdf:List of Clause" ;
                 sh:select """
@@ -815,9 +923,6 @@ starontology:manchester_shapes.ttl {
                 sh:path manch:items ] ;
         sh:targetClass manch:DataPropSubPropertyOfClause .
 
-    manch:DataRangeOrNameShape a sh:NodeShape ;
-        sh:or ( [ sh:nodeKind sh:IRI ] manch:DataRangeShape ) .
-
     manch:DataRangeShape a sh:NodeShape ;
         sh:class manch:DataRange ;
         sh:message "expected a recognized data-range tag" .
@@ -827,7 +932,22 @@ starontology:manchester_shapes.ttl {
                 sh:path manch:items ] ;
         sh:targetClass manch:DatatypeEquivalentToClause .
 
+    manch:FacetRestrictionListShape a sh:NodeShape ;
+        sh:node manch:WellFormedListShape ;
+        sh:sparql [ a sh:SPARQLConstraint ;
+                sh:message "expected an rdf:List of FacetRestriction" ;
+                sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX manch: <https://github.com/hidden-graph/starlayer/ns/graph/manchester-ast#>
+            SELECT $this
+            WHERE {
+                $this rdf:rest*/rdf:first ?item .
+                FILTER NOT EXISTS { ?item a manch:FacetRestriction }
+            }
+        """ ] .
+
     manch:FrameListShape a sh:NodeShape ;
+        sh:node manch:WellFormedListShape ;
         sh:sparql [ a sh:SPARQLConstraint ;
                 sh:message "expected a well-formed rdf:List of Frame" ;
                 sh:select """
@@ -859,7 +979,22 @@ starontology:manchester_shapes.ttl {
                 sh:path manch:items ] ;
         sh:targetClass manch:IndividualTypesClause .
 
+    manch:LiteralListShape a sh:NodeShape ;
+        sh:node manch:WellFormedListShape ;
+        sh:sparql [ a sh:SPARQLConstraint ;
+                sh:message "expected an rdf:List of literals" ;
+                sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX manch: <https://github.com/hidden-graph/starlayer/ns/graph/manchester-ast#>
+            SELECT $this
+            WHERE {
+                $this rdf:rest*/rdf:first ?item .
+                FILTER ( !isLiteral(?item) )
+            }
+        """ ] .
+
     manch:MiscAxiomListShape a sh:NodeShape ;
+        sh:node manch:WellFormedListShape ;
         sh:sparql [ a sh:SPARQLConstraint ;
                 sh:message "expected a well-formed rdf:List of MiscAxiom" ;
                 sh:select """
@@ -941,28 +1076,26 @@ starontology:manchester_shapes.ttl {
                 sh:path manch:items ] ;
         sh:targetClass manch:ObjPropSubPropertyOfClause .
 
-    manch:PropertyExpressionShape a sh:NodeShape ;
-        sh:class manch:PropertyExpression ;
-        sh:message "expected a recognized property-expression tag" .
-
-    manch:AnnotationAssertionListShape a sh:NodeShape ;
+    manch:PrefixDeclListShape a sh:NodeShape ;
+        sh:node manch:WellFormedListShape ;
         sh:sparql [ a sh:SPARQLConstraint ;
-                sh:message "expected a well-formed rdf:List of AnnotationAssertion" ;
+                sh:message "expected an rdf:List of PrefixDecl" ;
                 sh:select """
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
             PREFIX manch: <https://github.com/hidden-graph/starlayer/ns/graph/manchester-ast#>
             SELECT $this
             WHERE {
-                { FILTER ( $this != rdf:nil ) FILTER NOT EXISTS { $this rdf:first ?head } }
-                UNION
-                {
-                    $this rdf:rest*/rdf:first ?item .
-                    FILTER NOT EXISTS { ?item a manch:AnnotationAssertion }
-                }
+                $this rdf:rest*/rdf:first ?item .
+                FILTER NOT EXISTS { ?item a manch:PrefixDecl }
             }
         """ ] .
 
+    manch:PropertyExpressionShape a sh:NodeShape ;
+        sh:class manch:PropertyExpression ;
+        sh:message "expected a recognized property-expression tag" .
+
     manch:DataRangeItemListShape a sh:NodeShape ;
+        sh:node manch:WellFormedListShape ;
         sh:sparql [ a sh:SPARQLConstraint ;
                 sh:message "expected a well-formed rdf:List of ClauseItem whose value is a data range" ;
                 sh:select """
@@ -978,6 +1111,7 @@ starontology:manchester_shapes.ttl {
         """ ] .
 
     manch:DataRangeListShape a sh:NodeShape ;
+        sh:node manch:WellFormedListShape ;
         sh:sparql [ a sh:SPARQLConstraint ;
                 sh:message "expected a well-formed rdf:List of data ranges" ;
                 sh:select """
@@ -995,7 +1129,22 @@ starontology:manchester_shapes.ttl {
             }
         """ ] .
 
+    manch:IriListShape a sh:NodeShape ;
+        sh:node manch:WellFormedListShape ;
+        sh:sparql [ a sh:SPARQLConstraint ;
+                sh:message "expected an rdf:List of IRIs" ;
+                sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX manch: <https://github.com/hidden-graph/starlayer/ns/graph/manchester-ast#>
+            SELECT $this
+            WHERE {
+                $this rdf:rest*/rdf:first ?item .
+                FILTER ( !isIRI(?item) )
+            }
+        """ ] .
+
     manch:NameListShape a sh:NodeShape ;
+        sh:node manch:WellFormedListShape ;
         sh:sparql [ a sh:SPARQLConstraint ;
                 sh:message "expected a well-formed rdf:List of bare IRIs" ;
                 sh:select """
@@ -1008,6 +1157,7 @@ starontology:manchester_shapes.ttl {
         """ ] .
 
     manch:PropertyExpressionListShape a sh:NodeShape ;
+        sh:node manch:WellFormedListShape ;
         sh:sparql [ a sh:SPARQLConstraint ;
                 sh:message "expected a well-formed rdf:List of property expressions" ;
                 sh:select """
@@ -1030,6 +1180,7 @@ starontology:manchester_shapes.ttl {
         sh:or ( [ sh:nodeKind sh:IRI ] [ sh:nodeKind sh:Literal ] ) .
 
     manch:ClassExpressionListShape a sh:NodeShape ;
+        sh:node manch:WellFormedListShape ;
         sh:sparql [ a sh:SPARQLConstraint ;
                 sh:message "expected a well-formed rdf:List of class expressions" ;
                 sh:select """
@@ -1047,10 +1198,32 @@ starontology:manchester_shapes.ttl {
             }
         """ ] .
 
+    manch:AnnotationAssertionListShape a sh:NodeShape ;
+        sh:node manch:WellFormedListShape ;
+        sh:sparql [ a sh:SPARQLConstraint ;
+                sh:message "expected a well-formed rdf:List of AnnotationAssertion" ;
+                sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX manch: <https://github.com/hidden-graph/starlayer/ns/graph/manchester-ast#>
+            SELECT $this
+            WHERE {
+                { FILTER ( $this != rdf:nil ) FILTER NOT EXISTS { $this rdf:first ?head } }
+                UNION
+                {
+                    $this rdf:rest*/rdf:first ?item .
+                    FILTER NOT EXISTS { ?item a manch:AnnotationAssertion }
+                }
+            }
+        """ ] .
+
     manch:ClassExpressionOrNameShape a sh:NodeShape ;
         sh:or ( [ sh:nodeKind sh:IRI ] manch:ClassExpressionShape ) .
 
+    manch:DataRangeOrNameShape a sh:NodeShape ;
+        sh:or ( [ sh:nodeKind sh:IRI ] manch:DataRangeShape ) .
+
     manch:ClassExpressionItemListShape a sh:NodeShape ;
+        sh:node manch:WellFormedListShape ;
         sh:sparql [ a sh:SPARQLConstraint ;
                 sh:message "expected a well-formed rdf:List of ClauseItem whose value is a class expression" ;
                 sh:select """
@@ -1066,6 +1239,7 @@ starontology:manchester_shapes.ttl {
         """ ] .
 
     manch:NameItemListShape a sh:NodeShape ;
+        sh:node manch:WellFormedListShape ;
         sh:sparql [ a sh:SPARQLConstraint ;
                 sh:message "expected a well-formed rdf:List of ClauseItem whose value is a bare IRI" ;
                 sh:select """
@@ -1080,6 +1254,7 @@ starontology:manchester_shapes.ttl {
         """ ] .
 
     manch:PropertyExpressionItemListShape a sh:NodeShape ;
+        sh:node manch:WellFormedListShape ;
         sh:sparql [ a sh:SPARQLConstraint ;
                 sh:message "expected a well-formed rdf:List of ClauseItem whose value is a property expression" ;
                 sh:select """
@@ -1099,14 +1274,14 @@ starontology:manchester_shapes.ttl {
 
     manch:WellFormedListShape a sh:NodeShape ;
         sh:sparql [ a sh:SPARQLConstraint ;
-                sh:message "expected a well-formed rdf:List" ;
+                sh:message "expected a well-formed rdf:List (every cell has rdf:first, and the chain ends in rdf:nil without a cycle)" ;
                 sh:select """
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
             SELECT $this
             WHERE {
                 $this rdf:rest* ?cell .
                 FILTER ( ?cell != rdf:nil )
-                FILTER NOT EXISTS { ?cell rdf:first ?x }
+                FILTER ( NOT EXISTS { ?cell rdf:first ?x } || NOT EXISTS { ?cell rdf:rest* rdf:nil } )
             }
         """ ] .
 }
@@ -4251,6 +4426,20 @@ starontology:sparql_shapes.ttl {
 starontology:spexpr-ontology.ttl {
     spexpr:AdditiveExpression rdfs:subClassOf spexpr:ArithmeticExpression .
 
+    spexpr:Aggregate_Avg rdfs:subClassOf spexpr:Aggregate .
+
+    spexpr:Aggregate_Count rdfs:subClassOf spexpr:Aggregate .
+
+    spexpr:Aggregate_GroupConcat rdfs:subClassOf spexpr:Aggregate .
+
+    spexpr:Aggregate_Max rdfs:subClassOf spexpr:Aggregate .
+
+    spexpr:Aggregate_Min rdfs:subClassOf spexpr:Aggregate .
+
+    spexpr:Aggregate_Sample rdfs:subClassOf spexpr:Aggregate .
+
+    spexpr:Aggregate_Sum rdfs:subClassOf spexpr:Aggregate .
+
     spexpr:AlternativePath rdfs:comment "path1|path2 (alternative) - salg:args, same list shape as SequencePath." ;
         rdfs:subClassOf spexpr:Path .
 
@@ -4286,6 +4475,8 @@ starontology:spexpr-ontology.ttl {
 
     spexpr:Builtin_LANG rdfs:subClassOf spexpr:OneArgExpression .
 
+    spexpr:Builtin_LANGDIR rdfs:subClassOf spexpr:OneArgExpression .
+
     spexpr:Builtin_LANGMATCHES rdfs:subClassOf spexpr:TwoArgExpression .
 
     spexpr:Builtin_LCASE rdfs:subClassOf spexpr:OneArgExpression .
@@ -4299,6 +4490,10 @@ starontology:spexpr-ontology.ttl {
     spexpr:Builtin_NOTEXISTS rdfs:subClassOf spexpr:ExistsExpression .
 
     spexpr:Builtin_NOW rdfs:subClassOf spexpr:ZeroArgExpression .
+
+    spexpr:Builtin_OBJECT rdfs:subClassOf spexpr:OneArgExpression .
+
+    spexpr:Builtin_PREDICATE rdfs:subClassOf spexpr:OneArgExpression .
 
     spexpr:Builtin_RAND rdfs:subClassOf spexpr:ZeroArgExpression .
 
@@ -4330,11 +4525,15 @@ starontology:spexpr-ontology.ttl {
 
     spexpr:Builtin_STRLANG rdfs:subClassOf spexpr:TwoArgExpression .
 
+    spexpr:Builtin_STRLANGDIR rdfs:subClassOf spexpr:StrLangDirExpression .
+
     spexpr:Builtin_STRLEN rdfs:subClassOf spexpr:OneArgExpression .
 
     spexpr:Builtin_STRSTARTS rdfs:subClassOf spexpr:TwoArgExpression .
 
     spexpr:Builtin_STRUUID rdfs:subClassOf spexpr:ZeroArgExpression .
+
+    spexpr:Builtin_SUBJECT rdfs:subClassOf spexpr:OneArgExpression .
 
     spexpr:Builtin_SUBSTR rdfs:subClassOf spexpr:SubstrExpression .
 
@@ -4350,6 +4549,10 @@ starontology:spexpr-ontology.ttl {
 
     spexpr:Builtin_YEAR rdfs:subClassOf spexpr:OneArgExpression .
 
+    spexpr:Builtin_hasLANG rdfs:subClassOf spexpr:OneArgExpression .
+
+    spexpr:Builtin_hasLANGDIR rdfs:subClassOf spexpr:OneArgExpression .
+
     spexpr:Builtin_isBLANK rdfs:subClassOf spexpr:OneArgExpression .
 
     spexpr:Builtin_isIRI rdfs:subClassOf spexpr:OneArgExpression .
@@ -4357,6 +4560,8 @@ starontology:spexpr-ontology.ttl {
     spexpr:Builtin_isLITERAL rdfs:subClassOf spexpr:OneArgExpression .
 
     spexpr:Builtin_isNUMERIC rdfs:subClassOf spexpr:OneArgExpression .
+
+    spexpr:Builtin_isTRIPLE rdfs:subClassOf spexpr:OneArgExpression .
 
     spexpr:Builtin_isURI rdfs:subClassOf spexpr:OneArgExpression .
 
@@ -4409,6 +4614,9 @@ starontology:spexpr-ontology.ttl {
     spexpr:ReplaceExpression rdfs:comment "REPLACE(arg, pattern, replacement[, flags]) - unique key names." ;
         rdfs:subClassOf spexpr:Expression .
 
+    spexpr:StrLangDirExpression rdfs:comment "STRLANGDIR(lex, lang, direction) - three required arguments under their own key names." ;
+        rdfs:subClassOf spexpr:Expression .
+
     spexpr:SubstrExpression rdfs:comment "SUBSTR(arg, start[, length]) - unique key names." ;
         rdfs:subClassOf spexpr:Expression .
 
@@ -4435,6 +4643,9 @@ starontology:spexpr-ontology.ttl {
 
     spexpr:Path rdfs:comment "A SPARQL property-path expression - the salg: mirror of rdflib.paths.Path's own class hierarchy." .
 
+    spexpr:Aggregate rdfs:comment "An aggregate call (COUNT/SUM/MIN/MAX/AVG/SAMPLE/GROUP_CONCAT) in a projection, HAVING or ORDER BY expression - spexpr:vars the aggregated expression (or the marker *), spexpr:distinct DISTINCT or empty." ;
+        rdfs:subClassOf spexpr:Expression .
+
     spexpr:TwoArgExpression rdfs:comment "Exactly two required arguments (salg:arg1/arg2)." ;
         rdfs:subClassOf spexpr:Expression .
 
@@ -4446,6 +4657,29 @@ starontology:spexpr-ontology.ttl {
 }
 
 starontology:spexpr_shapes.ttl {
+    spexpr:AggregateBodyShape a sh:NodeShape ;
+        rdfs:isDefinedBy spexpr:ShapesGraph ;
+        sh:property [ sh:maxCount 1 ;
+                sh:message "an aggregate must have exactly one spexpr:vars, the aggregated expression (or the marker *)" ;
+                sh:minCount 1 ;
+                sh:node spexpr:ExpressionShape ;
+                sh:path spexpr:vars ],
+            [ sh:in ( () "DISTINCT"^^spexpr:PlainString ) ;
+                sh:maxCount 1 ;
+                sh:message "spexpr:distinct must be empty (rdf:nil) or the string DISTINCT" ;
+                sh:path spexpr:distinct ],
+            [ sh:maxCount 1 ;
+                sh:message "spexpr:separator must be a single literal" ;
+                sh:nodeKind sh:Literal ;
+                sh:path spexpr:separator ] ;
+        sh:targetClass spexpr:Aggregate_Avg,
+            spexpr:Aggregate_Count,
+            spexpr:Aggregate_GroupConcat,
+            spexpr:Aggregate_Max,
+            spexpr:Aggregate_Min,
+            spexpr:Aggregate_Sample,
+            spexpr:Aggregate_Sum .
+
     spexpr:AlternativePathShape a sh:NodeShape ;
         rdfs:isDefinedBy spexpr:ShapesGraph ;
         sh:property [ sh:maxCount 1 ;
@@ -4625,6 +4859,24 @@ starontology:spexpr_shapes.ttl {
                 sh:node spexpr:ExpressionShape ;
                 sh:path spexpr:pattern ] .
 
+    spexpr:_StrLangDirExprBodyShape a sh:NodeShape ;
+        rdfs:isDefinedBy spexpr:ShapesGraph ;
+        sh:property [ sh:maxCount 1 ;
+                sh:message "expected exactly one spexpr:lex" ;
+                sh:minCount 1 ;
+                sh:node spexpr:ExpressionShape ;
+                sh:path spexpr:lex ],
+            [ sh:maxCount 1 ;
+                sh:message "expected exactly one spexpr:lang" ;
+                sh:minCount 1 ;
+                sh:node spexpr:ExpressionShape ;
+                sh:path spexpr:lang ],
+            [ sh:maxCount 1 ;
+                sh:message "expected exactly one spexpr:direction" ;
+                sh:minCount 1 ;
+                sh:node spexpr:ExpressionShape ;
+                sh:path spexpr:direction ] .
+
     spexpr:_SubstrExprBodyShape a sh:NodeShape ;
         rdfs:isDefinedBy spexpr:ShapesGraph ;
         sh:property [ sh:maxCount 1 ;
@@ -4780,20 +5032,47 @@ starontology:spexpr_shapes.ttl {
 }
 
 starontology:sqe-ontology.ttl {
+    sqe:Alias a rdfs:Class ;
+        rdfs:comment "(expr AS ?var) in a projection or GROUP BY - sqe:expr the expression, sqe:var the variable it binds." .
+
     sqe:Bind a rdfs:Class ;
-        rdfs:comment "A BIND(... AS ?var) element - sqe:expr -> a salg: expression tree; sqe:var -> the bound variable." .
+        rdfs:comment "A BIND(... AS ?var) element - sqe:expr -> an expression tree (spexpr:); sqe:var -> the bound variable." .
+
+    sqe:Exists a rdfs:Class ;
+        rdfs:comment "EXISTS { ... } (or NOT EXISTS when sqe:negated is true) inside an expression - sqe:where -> its own flat pattern list." ;
+        rdfs:subClassOf spexpr:Expression .
 
     sqe:Filter a rdfs:Class ;
-        rdfs:comment "A FILTER(...) element - sqe:expr -> a salg: expression tree (reused as-is, not re-modeled here)." .
+        rdfs:comment "A FILTER(...) element - sqe:expr -> an expression tree (the shared spexpr: vocabulary, not re-modeled here)." .
+
+    sqe:Graph a rdfs:Class ;
+        rdfs:comment "A GRAPH ?g { ... } block - sqe:graph the graph IRI or variable, sqe:where the flat pattern list." .
+
+    sqe:Minus a rdfs:Class ;
+        rdfs:comment "A MINUS { ... } block - sqe:where -> its own flat pattern list." .
 
     sqe:Optional a rdfs:Class ;
         rdfs:comment "An OPTIONAL { ... } block - sqe:where -> its own nested flat pattern list." .
 
+    sqe:OrderCondition a rdfs:Class ;
+        rdfs:comment "One ORDER BY condition - sqe:expr -> a variable or expression; sqe:descending true for DESC(...), absent for ascending." .
+
+    sqe:SubSelect a rdfs:Class ;
+        rdfs:comment "A nested SELECT in a pattern list - the same properties as a sqe:SelectQuery; not itself a sqe:Query." ;
+        rdfs:subClassOf sqe:SelectQuery .
+
     sqe:TriplePattern a rdfs:Class ;
-        rdfs:comment "One (subject, predicate, object) triple pattern - exactly one of each, via sqe:subject/sqe:predicate/sqe:object. A predicate that's a real property path falls back to the existing salg: path encoding." .
+        rdfs:comment "One (subject, predicate, object) triple pattern - exactly one of each, via sqe:subject/sqe:predicate/sqe:object. A predicate that's a real property path uses the shared spexpr: path encoding." .
+
+    sqe:TripleTerm a rdfs:Class ;
+        rdfs:comment "An RDF 1.2 triple term <<( s p o )>> in a pattern's object position (or nested as another triple term's object) - sqe:subject/sqe:predicate/sqe:object, each a term or variable. Reified-triple and annotation shorthand is written out as its expansion: a rdf:reifies triple plus ordinary triples." ;
+        rdfs:subClassOf spexpr:Expression .
 
     sqe:Union a rdfs:Class ;
         rdfs:comment "A { ... } UNION { ... } [UNION { ... }]* block - sqe:alternatives -> rdf:List of nested flat pattern lists, one per alternative." .
+
+    sqe:Values a rdfs:Class ;
+        rdfs:comment "A VALUES block, as a pattern or as a query's trailing sqe:values - sqe:vars the variables, sqe:rows an rdf:List of rows (rdf:List of terms, or sqe:undef)." .
 
     sqe:AskQuery rdfs:comment "An ASK query's root. sqe:where -> the flat pattern list; no projection." ;
         rdfs:subClassOf sqe:Query .
@@ -4801,57 +5080,132 @@ starontology:sqe-ontology.ttl {
     sqe:alternatives a rdf:Property ;
         rdfs:domain sqe:Union .
 
+    sqe:descending a rdf:Property ;
+        rdfs:domain sqe:OrderCondition .
+
+    sqe:distinct a rdf:Property ;
+        rdfs:comment "true for SELECT DISTINCT." ;
+        rdfs:domain sqe:SelectQuery .
+
     sqe:expr a rdf:Property ;
-        rdfs:domain sqe:Filter .
+        rdfs:comment "Shared by several node types (sqe:Filter, Bind, Alias, OrderCondition); deliberately no rdfs:domain, which would give each of them the wrong extra type under RDFS inference." .
+
+    sqe:graph a rdf:Property ;
+        rdfs:domain sqe:Graph .
+
+    sqe:groupBy a rdf:Property ;
+        rdfs:domain sqe:SelectQuery .
+
+    sqe:having a rdf:Property ;
+        rdfs:domain sqe:SelectQuery .
+
+    sqe:limit a rdf:Property ;
+        rdfs:comment "LIMIT n (xsd:integer), on a SELECT or CONSTRUCT root." .
+
+    sqe:negated a rdf:Property ;
+        rdfs:domain sqe:Exists .
 
     sqe:object a rdf:Property ;
-        rdfs:domain sqe:TriplePattern .
+        rdfs:comment "Shared by several node types (sqe:TriplePattern, TripleTerm); deliberately no rdfs:domain, which would give each of them the wrong extra type under RDFS inference." .
+
+    sqe:offset a rdf:Property ;
+        rdfs:comment "OFFSET n (xsd:integer), on a SELECT or CONSTRUCT root." .
+
+    sqe:orderBy a rdf:Property ;
+        rdfs:comment "ORDER BY: a flat rdf:List of sqe:OrderCondition, on a SELECT or CONSTRUCT root." .
 
     sqe:predicate a rdf:Property ;
-        rdfs:domain sqe:TriplePattern .
+        rdfs:comment "Shared by several node types (sqe:TriplePattern, TripleTerm); deliberately no rdfs:domain, which would give each of them the wrong extra type under RDFS inference." .
 
     sqe:projection a rdf:Property ;
         rdfs:domain sqe:SelectQuery .
 
+    sqe:reduced a rdf:Property ;
+        rdfs:comment "true for SELECT REDUCED." ;
+        rdfs:domain sqe:SelectQuery .
+
+    sqe:rows a rdf:Property ;
+        rdfs:domain sqe:Values .
+
+    sqe:selectAll a rdf:Property ;
+        rdfs:comment "true for SELECT *; replaces sqe:projection." ;
+        rdfs:domain sqe:SelectQuery .
+
     sqe:subject a rdf:Property ;
-        rdfs:domain sqe:TriplePattern .
+        rdfs:comment "Shared by several node types (sqe:TriplePattern, TripleTerm); deliberately no rdfs:domain, which would give each of them the wrong extra type under RDFS inference." .
 
     sqe:template a rdf:Property ;
         rdfs:domain sqe:ConstructQuery .
 
+    sqe:values a rdf:Property ;
+        rdfs:comment "A query's trailing VALUES clause (a sqe:Values)." .
+
     sqe:var a rdf:Property ;
-        rdfs:domain sqe:Bind .
+        rdfs:comment "Shared by several node types (sqe:Bind, Alias); deliberately no rdfs:domain, which would give each of them the wrong extra type under RDFS inference." .
+
+    sqe:vars a rdf:Property ;
+        rdfs:domain sqe:Values .
 
     sqe:where a rdf:Property ;
-        rdfs:comment "A flat, ordered rdf:List of sibling pattern elements (sqe:TriplePattern/sqe:Optional/sqe:Union/sqe:Filter/sqe:Bind) - mirrors the raw parse tree's own already-flat GroupGraphPatternSub.part shape, not the salg: algebra's nested LeftJoin/Filter wrapping." .
+        rdfs:comment "A flat, ordered rdf:List of sibling pattern elements (sqe:TriplePattern/Optional/Union/Minus/Graph/Filter/Bind/Values/SubSelect) - mirrors the raw parse tree's own already-flat GroupGraphPatternSub.part shape, not the salg: algebra's nested LeftJoin/Filter wrapping." .
 
     sqe:ConstructQuery rdfs:comment "A CONSTRUCT query's root. sqe:template -> rdf:List of sqe:TriplePattern; sqe:where -> the flat pattern list." ;
         rdfs:subClassOf sqe:Query .
 
-    sqe:SelectQuery rdfs:comment "A SELECT query's root. sqe:projection -> rdf:List of sqe:Variable-tagged Literals; sqe:where -> the flat pattern list." ;
-        rdfs:subClassOf sqe:Query .
-
     sqe:Query rdfs:comment "The root of any encoded sqe: query, of any form - also typed sqe:Query regardless of query form, see to_rdf.query_to_sqe_rdf." .
+
+    sqe:SelectQuery rdfs:comment "A SELECT query's root. sqe:projection -> rdf:List of variables and sqe:Alias nodes (or sqe:selectAll true for SELECT *); sqe:where -> the flat pattern list; optionally sqe:distinct/reduced, sqe:groupBy, sqe:having, sqe:orderBy, sqe:limit, sqe:offset and a trailing sqe:values." ;
+        rdfs:subClassOf sqe:Query .
 }
 
 starontology:sqe_shapes.ttl {
     sqe:ShapesGraph a sh:ShapesGraph ;
-        rdfs:member sqe:AlternativesListShape,
+        rdfs:member sqe:AliasShape,
+            sqe:AlternativesListShape,
             sqe:AskQueryShape,
             sqe:BindShape,
             sqe:ConstructQueryShape,
+            sqe:ExistsShape,
             sqe:FilterShape,
+            sqe:GraphShape,
+            sqe:GroupByListShape,
+            sqe:HavingListShape,
+            sqe:MinusShape,
             sqe:ObjectOrVariableShape,
             sqe:OptionalShape,
+            sqe:OrderByListShape,
+            sqe:OrderConditionShape,
             sqe:PredicateOrVariableOrPathShape,
             sqe:PrefixBindingShape,
+            sqe:ProjectionListShape,
+            sqe:PrologueShape,
+            sqe:QueryValuesShape,
+            sqe:RowsListShape,
+            sqe:SelectModifierShape,
             sqe:SelectQueryShape,
+            sqe:SolutionModifierShape,
             sqe:SubjectOrVariableShape,
             sqe:TemplateListShape,
             sqe:TriplePatternShape,
+            sqe:TripleTermShape,
             sqe:UnionShape,
+            sqe:ValuesShape,
+            sqe:VariableListShape,
             sqe:WhereListShape ;
         owl:imports spexpr:ShapesGraph .
+
+    sqe:AliasShape a sh:NodeShape ;
+        sh:property [ sh:maxCount 1 ;
+                sh:message "sqe:Alias must have exactly one sqe:expr, an expression" ;
+                sh:minCount 1 ;
+                sh:node spexpr:ExpressionShape ;
+                sh:path sqe:expr ],
+            [ sh:maxCount 1 ;
+                sh:message "sqe:Alias must have exactly one sqe:var, the variable it binds" ;
+                sh:minCount 1 ;
+                sh:node spexpr:VariableShape ;
+                sh:path sqe:var ] ;
+        sh:targetClass sqe:Alias .
 
     sqe:AskQueryShape a sh:NodeShape ;
         sh:property [ sh:maxCount 1 ;
@@ -4867,22 +5221,46 @@ starontology:sqe_shapes.ttl {
             PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
             SELECT $this ?var
             WHERE {
-                $this (sqe:where|sqe:alternatives|rdf:rest|rdf:first)* ?node .
                 {
-                    ?node a sqe:Filter ; sqe:expr ?exprRoot .
+                    $this (sqe:where|sqe:alternatives|rdf:rest|rdf:first)* ?node .
+                    {
+                        ?node a sqe:Filter ; sqe:expr ?exprRoot .
+                    } UNION {
+                        ?node a sqe:Bind ; sqe:expr ?exprRoot .
+                    }
                 } UNION {
-                    ?node a sqe:Bind ; sqe:expr ?exprRoot .
+                    { $this (sqe:projection|sqe:orderBy)/rdf:rest*/rdf:first/sqe:expr ?exprRoot . }
+                    UNION {
+                        $this (sqe:groupBy|sqe:having)/rdf:rest*/rdf:first ?exprRoot .
+                        FILTER NOT EXISTS { ?exprRoot sqe:expr ?inner }
+                    }
+                    UNION { $this sqe:groupBy/rdf:rest*/rdf:first/sqe:expr ?exprRoot . }
                 }
-                ?exprRoot (spexpr:expr|spexpr:other|spexpr:arg|spexpr:arg1|spexpr:arg2|spexpr:arg3|spexpr:flags|spexpr:pattern|spexpr:text|spexpr:replacement|spexpr:start|spexpr:length|rdf:rest|rdf:first)* ?var .
+                ?exprRoot (spexpr:expr|spexpr:other|spexpr:arg|spexpr:arg1|spexpr:arg2|spexpr:arg3|spexpr:flags|spexpr:pattern|spexpr:text|spexpr:replacement|spexpr:start|spexpr:length|spexpr:vars|spexpr:lex|spexpr:lang|spexpr:direction|sqe:subject|sqe:predicate|sqe:object|rdf:rest|rdf:first)* ?var .
                 FILTER ( datatype(?var) = spexpr:Variable )
+                FILTER NOT EXISTS { $this (sqe:projection|sqe:groupBy)/rdf:rest*/rdf:first/sqe:var ?var }
                 FILTER NOT EXISTS {
                     $this (sqe:where|sqe:alternatives|rdf:rest|rdf:first)* ?node2 .
                     {
                         ?node2 a sqe:TriplePattern ;
-                            (sqe:subject|sqe:predicate|sqe:object) ?var .
+                            (sqe:subject|sqe:predicate|sqe:object)+ ?var .
                     } UNION {
                         ?node2 a sqe:Bind ;
                             sqe:var ?var .
+                    } UNION {
+                        ?node2 a sqe:Values ;
+                            sqe:vars/rdf:rest*/rdf:first ?var .
+                    } UNION {
+                        ?node2 a sqe:Graph ;
+                            sqe:graph ?var .
+                    } UNION {
+                        ?node2 a sqe:SubSelect ;
+                            sqe:projection/rdf:rest*/rdf:first ?var .
+                    } UNION {
+                        ?node2 a sqe:SubSelect ;
+                            sqe:projection/rdf:rest*/rdf:first/sqe:var ?var .
+                    } UNION {
+                        $this sqe:values/sqe:vars/rdf:rest*/rdf:first ?var .
                     }
                 }
             }
@@ -4891,7 +5269,7 @@ starontology:sqe_shapes.ttl {
 
     sqe:BindShape a sh:NodeShape ;
         sh:property [ sh:maxCount 1 ;
-                sh:message "sqe:Bind must have exactly one sqe:expr, a well-formed salg: expression" ;
+                sh:message "sqe:Bind must have exactly one sqe:expr, a well-formed expression" ;
                 sh:minCount 1 ;
                 sh:node spexpr:ExpressionShape ;
                 sh:path sqe:expr ],
@@ -4923,16 +5301,30 @@ starontology:sqe_shapes.ttl {
             WHERE {
                 $this sqe:template/rdf:rest*/rdf:first ?tpl .
                 ?tpl a sqe:TriplePattern ;
-                    (sqe:subject|sqe:predicate|sqe:object) ?var .
+                    (sqe:subject|sqe:predicate|sqe:object)+ ?var .
                 FILTER ( datatype(?var) = spexpr:Variable )
                 FILTER NOT EXISTS {
                     $this (sqe:where|sqe:alternatives|rdf:rest|rdf:first)* ?node .
                     {
                         ?node a sqe:TriplePattern ;
-                            (sqe:subject|sqe:predicate|sqe:object) ?var .
+                            (sqe:subject|sqe:predicate|sqe:object)+ ?var .
                     } UNION {
                         ?node a sqe:Bind ;
                             sqe:var ?var .
+                    } UNION {
+                        ?node a sqe:Values ;
+                            sqe:vars/rdf:rest*/rdf:first ?var .
+                    } UNION {
+                        ?node a sqe:Graph ;
+                            sqe:graph ?var .
+                    } UNION {
+                        ?node a sqe:SubSelect ;
+                            sqe:projection/rdf:rest*/rdf:first ?var .
+                    } UNION {
+                        ?node a sqe:SubSelect ;
+                            sqe:projection/rdf:rest*/rdf:first/sqe:var ?var .
+                    } UNION {
+                        $this sqe:values/sqe:vars/rdf:rest*/rdf:first ?var .
                     }
                 }
             }
@@ -4945,35 +5337,92 @@ starontology:sqe_shapes.ttl {
             PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
             SELECT $this ?var
             WHERE {
-                $this (sqe:where|sqe:alternatives|rdf:rest|rdf:first)* ?node .
                 {
-                    ?node a sqe:Filter ; sqe:expr ?exprRoot .
+                    $this (sqe:where|sqe:alternatives|rdf:rest|rdf:first)* ?node .
+                    {
+                        ?node a sqe:Filter ; sqe:expr ?exprRoot .
+                    } UNION {
+                        ?node a sqe:Bind ; sqe:expr ?exprRoot .
+                    }
                 } UNION {
-                    ?node a sqe:Bind ; sqe:expr ?exprRoot .
+                    { $this (sqe:projection|sqe:orderBy)/rdf:rest*/rdf:first/sqe:expr ?exprRoot . }
+                    UNION {
+                        $this (sqe:groupBy|sqe:having)/rdf:rest*/rdf:first ?exprRoot .
+                        FILTER NOT EXISTS { ?exprRoot sqe:expr ?inner }
+                    }
+                    UNION { $this sqe:groupBy/rdf:rest*/rdf:first/sqe:expr ?exprRoot . }
                 }
-                ?exprRoot (spexpr:expr|spexpr:other|spexpr:arg|spexpr:arg1|spexpr:arg2|spexpr:arg3|spexpr:flags|spexpr:pattern|spexpr:text|spexpr:replacement|spexpr:start|spexpr:length|rdf:rest|rdf:first)* ?var .
+                ?exprRoot (spexpr:expr|spexpr:other|spexpr:arg|spexpr:arg1|spexpr:arg2|spexpr:arg3|spexpr:flags|spexpr:pattern|spexpr:text|spexpr:replacement|spexpr:start|spexpr:length|spexpr:vars|spexpr:lex|spexpr:lang|spexpr:direction|sqe:subject|sqe:predicate|sqe:object|rdf:rest|rdf:first)* ?var .
                 FILTER ( datatype(?var) = spexpr:Variable )
+                FILTER NOT EXISTS { $this (sqe:projection|sqe:groupBy)/rdf:rest*/rdf:first/sqe:var ?var }
                 FILTER NOT EXISTS {
                     $this (sqe:where|sqe:alternatives|rdf:rest|rdf:first)* ?node2 .
                     {
                         ?node2 a sqe:TriplePattern ;
-                            (sqe:subject|sqe:predicate|sqe:object) ?var .
+                            (sqe:subject|sqe:predicate|sqe:object)+ ?var .
                     } UNION {
                         ?node2 a sqe:Bind ;
                             sqe:var ?var .
+                    } UNION {
+                        ?node2 a sqe:Values ;
+                            sqe:vars/rdf:rest*/rdf:first ?var .
+                    } UNION {
+                        ?node2 a sqe:Graph ;
+                            sqe:graph ?var .
+                    } UNION {
+                        ?node2 a sqe:SubSelect ;
+                            sqe:projection/rdf:rest*/rdf:first ?var .
+                    } UNION {
+                        ?node2 a sqe:SubSelect ;
+                            sqe:projection/rdf:rest*/rdf:first/sqe:var ?var .
+                    } UNION {
+                        $this sqe:values/sqe:vars/rdf:rest*/rdf:first ?var .
                     }
                 }
             }
         """ ] ;
         sh:targetClass sqe:ConstructQuery .
 
+    sqe:ExistsShape a sh:NodeShape ;
+        sh:property [ sh:maxCount 1 ;
+                sh:message "sqe:Exists must have exactly one sqe:where, a well-formed pattern list" ;
+                sh:minCount 1 ;
+                sh:node sqe:WhereListShape ;
+                sh:path sqe:where ],
+            [ sh:datatype xsd:boolean ;
+                sh:maxCount 1 ;
+                sh:message "sqe:negated must be a single xsd:boolean" ;
+                sh:path sqe:negated ] ;
+        sh:targetClass sqe:Exists .
+
     sqe:FilterShape a sh:NodeShape ;
         sh:property [ sh:maxCount 1 ;
-                sh:message "sqe:Filter must have exactly one sqe:expr, a well-formed salg: expression" ;
+                sh:message "sqe:Filter must have exactly one sqe:expr, a well-formed expression" ;
                 sh:minCount 1 ;
                 sh:node spexpr:ExpressionShape ;
                 sh:path sqe:expr ] ;
         sh:targetClass sqe:Filter .
+
+    sqe:GraphShape a sh:NodeShape ;
+        sh:property [ sh:maxCount 1 ;
+                sh:message "sqe:Graph must have exactly one sqe:where, a well-formed pattern list" ;
+                sh:minCount 1 ;
+                sh:node sqe:WhereListShape ;
+                sh:path sqe:where ],
+            [ sh:maxCount 1 ;
+                sh:message "sqe:Graph must have exactly one sqe:graph, an IRI or variable" ;
+                sh:minCount 1 ;
+                sh:or ( [ sh:nodeKind sh:IRI ] spexpr:VariableShape ) ;
+                sh:path sqe:graph ] ;
+        sh:targetClass sqe:Graph .
+
+    sqe:MinusShape a sh:NodeShape ;
+        sh:property [ sh:maxCount 1 ;
+                sh:message "sqe:Minus must have exactly one sqe:where, a well-formed pattern list" ;
+                sh:minCount 1 ;
+                sh:node sqe:WhereListShape ;
+                sh:path sqe:where ] ;
+        sh:targetClass sqe:Minus .
 
     sqe:OptionalShape a sh:NodeShape ;
         sh:property [ sh:maxCount 1 ;
@@ -4982,6 +5431,18 @@ starontology:sqe_shapes.ttl {
                 sh:node sqe:WhereListShape ;
                 sh:path sqe:where ] ;
         sh:targetClass sqe:Optional .
+
+    sqe:OrderConditionShape a sh:NodeShape ;
+        sh:property [ sh:maxCount 1 ;
+                sh:message "sqe:OrderCondition must have exactly one sqe:expr, a variable or well-formed expression" ;
+                sh:minCount 1 ;
+                sh:node spexpr:ExpressionShape ;
+                sh:path sqe:expr ],
+            [ sh:datatype xsd:boolean ;
+                sh:maxCount 1 ;
+                sh:message "sqe:descending must be a single xsd:boolean" ;
+                sh:path sqe:descending ] ;
+        sh:targetClass sqe:OrderCondition .
 
     sqe:PrefixBindingShape a sh:NodeShape ;
         sh:property [ sh:maxCount 1 ;
@@ -4997,10 +5458,72 @@ starontology:sqe_shapes.ttl {
                 sh:path sqe:prefixLabel ] ;
         sh:targetClass sqe:PrefixBinding .
 
+    sqe:PrologueShape a sh:NodeShape ;
+        sh:property [ sh:class sqe:PrefixBinding ;
+                sh:message "sqe:prologuePrefix must be a sqe:PrefixBinding node" ;
+                sh:path sqe:prologuePrefix ],
+            [ sh:maxCount 1 ;
+                sh:message "sqe:base must be a single IRI" ;
+                sh:nodeKind sh:IRI ;
+                sh:path sqe:base ] ;
+        sh:targetClass sqe:Query .
+
+    sqe:QueryValuesShape a sh:NodeShape ;
+        sh:property [ sh:class sqe:Values ;
+                sh:maxCount 1 ;
+                sh:message "a query's trailing sqe:values must be a single sqe:Values block" ;
+                sh:path sqe:values ] ;
+        sh:targetClass sqe:Query,
+            sqe:SubSelect .
+
+    sqe:SelectModifierShape a sh:NodeShape ;
+        sh:property [ sh:maxCount 1 ;
+                sh:message "sqe:groupBy must be a single, non-empty rdf:List of variables, expressions or sqe:Alias" ;
+                sh:node sqe:GroupByListShape ;
+                sh:path sqe:groupBy ],
+            [ sh:maxCount 1 ;
+                sh:message "sqe:having must be a single, non-empty rdf:List of expressions" ;
+                sh:node sqe:HavingListShape ;
+                sh:path sqe:having ],
+            [ sh:datatype xsd:boolean ;
+                sh:maxCount 1 ;
+                sh:message "sqe:selectAll must be a single xsd:boolean" ;
+                sh:path sqe:selectAll ],
+            [ sh:datatype xsd:boolean ;
+                sh:maxCount 1 ;
+                sh:message "sqe:distinct must be a single xsd:boolean" ;
+                sh:path sqe:distinct ],
+            [ sh:datatype xsd:boolean ;
+                sh:maxCount 1 ;
+                sh:message "sqe:reduced must be a single xsd:boolean" ;
+                sh:path sqe:reduced ] ;
+        sh:sparql [ a sh:SPARQLConstraint ;
+                sh:message "A sqe:SelectQuery needs exactly one of sqe:projection (a variable list) or sqe:selectAll (SELECT *)." ;
+                sh:select """
+            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
+            SELECT $this
+            WHERE {
+                {
+                    FILTER NOT EXISTS { $this sqe:projection ?p }
+                    FILTER NOT EXISTS { $this sqe:selectAll ?a }
+                } UNION {
+                    $this sqe:projection ?p ; sqe:selectAll ?a .
+                }
+            }
+        """ ],
+            [ a sh:SPARQLConstraint ;
+                sh:message "A sqe:SelectQuery cannot be both sqe:distinct and sqe:reduced." ;
+                sh:select """
+            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
+            SELECT $this
+            WHERE { $this sqe:distinct ?d ; sqe:reduced ?r . }
+        """ ] ;
+        sh:targetClass sqe:SelectQuery .
+
     sqe:SelectQueryShape a sh:NodeShape ;
         sh:property [ sh:maxCount 1 ;
-                sh:message "sqe:SelectQuery must have exactly one sqe:projection, an rdf:List of Variables" ;
-                sh:minCount 1 ;
+                sh:message "sqe:SelectQuery may have at most one sqe:projection, a non-empty rdf:List of variables and aliases" ;
+                sh:node sqe:ProjectionListShape ;
                 sh:path sqe:projection ],
             [ sh:maxCount 1 ;
                 sh:message "sqe:SelectQuery must have exactly one sqe:where, a well-formed pattern list" ;
@@ -5017,14 +5540,29 @@ starontology:sqe_shapes.ttl {
             WHERE {
                 $this sqe:projection/rdf:rest*/rdf:first ?var .
                 FILTER ( datatype(?var) = spexpr:Variable )
+                FILTER NOT EXISTS { $this sqe:groupBy/rdf:rest*/rdf:first/sqe:var ?var }
                 FILTER NOT EXISTS {
                     $this (sqe:where|sqe:alternatives|rdf:rest|rdf:first)* ?node .
                     {
                         ?node a sqe:TriplePattern ;
-                            (sqe:subject|sqe:predicate|sqe:object) ?var .
+                            (sqe:subject|sqe:predicate|sqe:object)+ ?var .
                     } UNION {
                         ?node a sqe:Bind ;
                             sqe:var ?var .
+                    } UNION {
+                        ?node a sqe:Values ;
+                            sqe:vars/rdf:rest*/rdf:first ?var .
+                    } UNION {
+                        ?node a sqe:Graph ;
+                            sqe:graph ?var .
+                    } UNION {
+                        ?node a sqe:SubSelect ;
+                            sqe:projection/rdf:rest*/rdf:first ?var .
+                    } UNION {
+                        ?node a sqe:SubSelect ;
+                            sqe:projection/rdf:rest*/rdf:first/sqe:var ?var .
+                    } UNION {
+                        $this sqe:values/sqe:vars/rdf:rest*/rdf:first ?var .
                     }
                 }
             }
@@ -5037,27 +5575,69 @@ starontology:sqe_shapes.ttl {
             PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
             SELECT $this ?var
             WHERE {
-                $this (sqe:where|sqe:alternatives|rdf:rest|rdf:first)* ?node .
                 {
-                    ?node a sqe:Filter ; sqe:expr ?exprRoot .
+                    $this (sqe:where|sqe:alternatives|rdf:rest|rdf:first)* ?node .
+                    {
+                        ?node a sqe:Filter ; sqe:expr ?exprRoot .
+                    } UNION {
+                        ?node a sqe:Bind ; sqe:expr ?exprRoot .
+                    }
                 } UNION {
-                    ?node a sqe:Bind ; sqe:expr ?exprRoot .
+                    { $this (sqe:projection|sqe:orderBy)/rdf:rest*/rdf:first/sqe:expr ?exprRoot . }
+                    UNION {
+                        $this (sqe:groupBy|sqe:having)/rdf:rest*/rdf:first ?exprRoot .
+                        FILTER NOT EXISTS { ?exprRoot sqe:expr ?inner }
+                    }
+                    UNION { $this sqe:groupBy/rdf:rest*/rdf:first/sqe:expr ?exprRoot . }
                 }
-                ?exprRoot (spexpr:expr|spexpr:other|spexpr:arg|spexpr:arg1|spexpr:arg2|spexpr:arg3|spexpr:flags|spexpr:pattern|spexpr:text|spexpr:replacement|spexpr:start|spexpr:length|rdf:rest|rdf:first)* ?var .
+                ?exprRoot (spexpr:expr|spexpr:other|spexpr:arg|spexpr:arg1|spexpr:arg2|spexpr:arg3|spexpr:flags|spexpr:pattern|spexpr:text|spexpr:replacement|spexpr:start|spexpr:length|spexpr:vars|spexpr:lex|spexpr:lang|spexpr:direction|sqe:subject|sqe:predicate|sqe:object|rdf:rest|rdf:first)* ?var .
                 FILTER ( datatype(?var) = spexpr:Variable )
+                FILTER NOT EXISTS { $this (sqe:projection|sqe:groupBy)/rdf:rest*/rdf:first/sqe:var ?var }
                 FILTER NOT EXISTS {
                     $this (sqe:where|sqe:alternatives|rdf:rest|rdf:first)* ?node2 .
                     {
                         ?node2 a sqe:TriplePattern ;
-                            (sqe:subject|sqe:predicate|sqe:object) ?var .
+                            (sqe:subject|sqe:predicate|sqe:object)+ ?var .
                     } UNION {
                         ?node2 a sqe:Bind ;
                             sqe:var ?var .
+                    } UNION {
+                        ?node2 a sqe:Values ;
+                            sqe:vars/rdf:rest*/rdf:first ?var .
+                    } UNION {
+                        ?node2 a sqe:Graph ;
+                            sqe:graph ?var .
+                    } UNION {
+                        ?node2 a sqe:SubSelect ;
+                            sqe:projection/rdf:rest*/rdf:first ?var .
+                    } UNION {
+                        ?node2 a sqe:SubSelect ;
+                            sqe:projection/rdf:rest*/rdf:first/sqe:var ?var .
+                    } UNION {
+                        $this sqe:values/sqe:vars/rdf:rest*/rdf:first ?var .
                     }
                 }
             }
         """ ] ;
         sh:targetClass sqe:SelectQuery .
+
+    sqe:SolutionModifierShape a sh:NodeShape ;
+        sh:property [ sh:maxCount 1 ;
+                sh:message "sqe:orderBy must be a single, well-formed rdf:List of sqe:OrderCondition" ;
+                sh:node sqe:OrderByListShape ;
+                sh:path sqe:orderBy ],
+            [ sh:datatype xsd:integer ;
+                sh:maxCount 1 ;
+                sh:message "sqe:limit must be a single non-negative xsd:integer" ;
+                sh:minInclusive 0 ;
+                sh:path sqe:limit ],
+            [ sh:datatype xsd:integer ;
+                sh:maxCount 1 ;
+                sh:message "sqe:offset must be a single non-negative xsd:integer" ;
+                sh:minInclusive 0 ;
+                sh:path sqe:offset ] ;
+        sh:targetClass sqe:ConstructQuery,
+            sqe:SelectQuery .
 
     sqe:TriplePatternShape a sh:NodeShape ;
         sh:property [ sh:maxCount 1 ;
@@ -5077,6 +5657,24 @@ starontology:sqe_shapes.ttl {
                 sh:path sqe:object ] ;
         sh:targetClass sqe:TriplePattern .
 
+    sqe:TripleTermShape a sh:NodeShape ;
+        sh:property [ sh:maxCount 1 ;
+                sh:message "sqe:TripleTerm must have exactly one sqe:subject (an IRI, blank node or variable - never a triple term)" ;
+                sh:minCount 1 ;
+                sh:node sqe:SubjectOrVariableShape ;
+                sh:path sqe:subject ],
+            [ sh:maxCount 1 ;
+                sh:message "sqe:TripleTerm must have exactly one sqe:predicate (an IRI or variable)" ;
+                sh:minCount 1 ;
+                sh:or ( [ sh:nodeKind sh:IRI ] spexpr:VariableShape ) ;
+                sh:path sqe:predicate ],
+            [ sh:maxCount 1 ;
+                sh:message "sqe:TripleTerm must have exactly one sqe:object" ;
+                sh:minCount 1 ;
+                sh:node sqe:ObjectOrVariableShape ;
+                sh:path sqe:object ] ;
+        sh:targetClass sqe:TripleTerm .
+
     sqe:UnionShape a sh:NodeShape ;
         sh:property [ sh:maxCount 1 ;
                 sh:message "sqe:Union must have exactly one sqe:alternatives, an rdf:List of pattern lists" ;
@@ -5084,6 +5682,19 @@ starontology:sqe_shapes.ttl {
                 sh:node sqe:AlternativesListShape ;
                 sh:path sqe:alternatives ] ;
         sh:targetClass sqe:Union .
+
+    sqe:ValuesShape a sh:NodeShape ;
+        sh:property [ sh:maxCount 1 ;
+                sh:message "sqe:Values must have exactly one sqe:vars, an rdf:List of variables" ;
+                sh:minCount 1 ;
+                sh:node sqe:VariableListShape ;
+                sh:path sqe:vars ],
+            [ sh:maxCount 1 ;
+                sh:message "sqe:Values must have exactly one sqe:rows, an rdf:List of rdf:List rows" ;
+                sh:minCount 1 ;
+                sh:node sqe:RowsListShape ;
+                sh:path sqe:rows ] ;
+        sh:targetClass sqe:Values .
 
     sqe:AlternativesListShape a sh:NodeShape ;
         sh:sparql [ a sh:SPARQLConstraint ;
@@ -5105,21 +5716,114 @@ starontology:sqe_shapes.ttl {
                         ?alt rdf:rest*/rdf:first ?item .
                         FILTER NOT EXISTS {
                             ?item a ?t .
-                            FILTER ( ?t IN ( sqe:TriplePattern, sqe:Optional, sqe:Union, sqe:Filter, sqe:Bind ) )
+                            FILTER ( ?t IN ( sqe:TriplePattern, sqe:Optional, sqe:Union, sqe:Filter, sqe:Bind, sqe:Minus, sqe:Graph, sqe:Values, sqe:SubSelect ) )
                         }
                     }
                 }
             }
         """ ] .
 
-    sqe:ObjectOrVariableShape a sh:NodeShape ;
-        sh:or ( [ sh:nodeKind sh:IRI ] [ sh:nodeKind sh:BlankNode ] [ sh:nodeKind sh:Literal ] spexpr:VariableShape ) .
+    sqe:GroupByListShape a sh:NodeShape ;
+        sh:sparql [ a sh:SPARQLConstraint ;
+                sh:message "sqe:groupBy must be a non-empty rdf:List of variables, sqe:Alias nodes or expressions" ;
+                sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
+            PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
+            SELECT $this
+            WHERE {
+                {
+                    FILTER ( $this = rdf:nil )
+                } UNION {
+                    FILTER ( $this != rdf:nil )
+                    FILTER NOT EXISTS { $this rdf:first ?head }
+                } UNION {
+                    $this rdf:rest*/rdf:first ?item .
+                    FILTER ( isLiteral(?item) && datatype(?item) != spexpr:Variable || isIRI(?item) )
+                }
+            }
+        """ ] .
+
+    sqe:HavingListShape a sh:NodeShape ;
+        sh:sparql [ a sh:SPARQLConstraint ;
+                sh:message "sqe:having must be a non-empty rdf:List of expressions" ;
+                sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
+            PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
+            SELECT $this
+            WHERE {
+                {
+                    FILTER ( $this = rdf:nil )
+                } UNION {
+                    FILTER ( $this != rdf:nil )
+                    FILTER NOT EXISTS { $this rdf:first ?head }
+                }
+            }
+        """ ] .
+
+    sqe:OrderByListShape a sh:NodeShape ;
+        sh:sparql [ a sh:SPARQLConstraint ;
+                sh:message "expected a well-formed, non-empty rdf:List of sqe:OrderCondition" ;
+                sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
+            SELECT $this
+            WHERE {
+                {
+                    FILTER ( $this = rdf:nil )
+                } UNION {
+                    FILTER ( $this != rdf:nil )
+                    FILTER NOT EXISTS { $this rdf:first ?head }
+                } UNION {
+                    $this rdf:rest*/rdf:first ?item .
+                    FILTER NOT EXISTS { ?item a sqe:OrderCondition }
+                }
+            }
+        """ ] .
 
     sqe:PredicateOrVariableOrPathShape a sh:NodeShape ;
         sh:or ( [ sh:nodeKind sh:IRI ] spexpr:VariableShape spexpr:PathShape ) .
 
-    sqe:SubjectOrVariableShape a sh:NodeShape ;
-        sh:or ( [ sh:nodeKind sh:IRI ] [ sh:nodeKind sh:BlankNode ] spexpr:VariableShape ) .
+    sqe:ProjectionListShape a sh:NodeShape ;
+        sh:sparql [ a sh:SPARQLConstraint ;
+                sh:message "sqe:projection must be a non-empty rdf:List of variables and sqe:Alias nodes" ;
+                sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
+            PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
+            SELECT $this
+            WHERE {
+                {
+                    FILTER ( $this = rdf:nil )
+                } UNION {
+                    FILTER ( $this != rdf:nil )
+                    FILTER NOT EXISTS { $this rdf:first ?head }
+                } UNION {
+                    $this rdf:rest*/rdf:first ?item .
+                    FILTER NOT EXISTS { ?item a sqe:Alias }
+                    FILTER NOT EXISTS { FILTER ( isLiteral(?item) && datatype(?item) = spexpr:Variable ) }
+                }
+            }
+        """ ] .
+
+    sqe:RowsListShape a sh:NodeShape ;
+        sh:sparql [ a sh:SPARQLConstraint ;
+                sh:message "sqe:rows must be a well-formed rdf:List of rdf:List rows" ;
+                sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            SELECT $this
+            WHERE {
+                {
+                    FILTER ( $this != rdf:nil )
+                    FILTER NOT EXISTS { $this rdf:first ?head }
+                } UNION {
+                    $this rdf:rest*/rdf:first ?row .
+                    FILTER ( ?row != rdf:nil )
+                    FILTER NOT EXISTS { ?row rdf:first ?cell }
+                }
+            }
+        """ ] .
 
     sqe:TemplateListShape a sh:NodeShape ;
         sh:sparql [ a sh:SPARQLConstraint ;
@@ -5139,9 +5843,34 @@ starontology:sqe_shapes.ttl {
             }
         """ ] .
 
+    sqe:VariableListShape a sh:NodeShape ;
+        sh:sparql [ a sh:SPARQLConstraint ;
+                sh:message "expected an rdf:List of variables" ;
+                sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
+            PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
+            SELECT $this
+            WHERE {
+                {
+                    FILTER ( $this != rdf:nil )
+                    FILTER NOT EXISTS { $this rdf:first ?head }
+                } UNION {
+                    $this rdf:rest*/rdf:first ?item .
+                    FILTER NOT EXISTS { FILTER ( isLiteral(?item) && datatype(?item) = spexpr:Variable ) }
+                }
+            }
+        """ ] .
+
+    sqe:ObjectOrVariableShape a sh:NodeShape ;
+        sh:or ( [ sh:nodeKind sh:IRI ] [ sh:nodeKind sh:BlankNode ] [ sh:nodeKind sh:Literal ] [ sh:class sqe:TripleTerm ] spexpr:VariableShape ) .
+
+    sqe:SubjectOrVariableShape a sh:NodeShape ;
+        sh:or ( [ sh:nodeKind sh:IRI ] [ sh:nodeKind sh:BlankNode ] spexpr:VariableShape ) .
+
     sqe:WhereListShape a sh:NodeShape ;
         sh:sparql [ a sh:SPARQLConstraint ;
-                sh:message "expected a well-formed rdf:List of sqe:TriplePattern/Optional/Union/Filter/Bind" ;
+                sh:message "expected a well-formed rdf:List of sqe:TriplePattern/Optional/Union/Filter/Bind/Minus/Graph/Values/SubSelect" ;
                 sh:select """
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
             PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
@@ -5154,7 +5883,7 @@ starontology:sqe_shapes.ttl {
                     $this rdf:rest*/rdf:first ?item .
                     FILTER NOT EXISTS {
                         ?item a ?t .
-                        FILTER ( ?t IN ( sqe:TriplePattern, sqe:Optional, sqe:Union, sqe:Filter, sqe:Bind ) )
+                        FILTER ( ?t IN ( sqe:TriplePattern, sqe:Optional, sqe:Union, sqe:Filter, sqe:Bind, sqe:Minus, sqe:Graph, sqe:Values, sqe:SubSelect ) )
                     }
                 }
             }

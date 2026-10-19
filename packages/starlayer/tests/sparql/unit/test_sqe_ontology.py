@@ -461,3 +461,100 @@ class TestUnboundTemplateVariable:
         graph, root = sqe_parse_to_tree(query_text)
         conforms, _report_graph, report_text = sqe_validate(graph)
         assert conforms, report_text
+
+
+from starlayer.sparql.sqe import vocab as V  # noqa: E402
+
+
+class TestShapesForTheWiderVocabulary:
+    """Each of these corruptions was accepted before the list shapes were added."""
+
+    QUERY = (
+        "PREFIX ex: <http://x/> SELECT ?s (COUNT(?o) AS ?c) WHERE { ?s ex:p ?o } GROUP BY ?s HAVING (COUNT(?o) > 0) "
+        "VALUES ?o { 1 2 }"
+    )
+
+    def _corrupted(self, predicate_local, find_node):
+        from rdflib import Literal
+        from starlayer.sparql.sqe import sqe_parse_to_tree, sqe_validate
+        from starlayer.sparql.sqe.vocab import SQE
+
+        tree, _root = sqe_parse_to_tree(self.QUERY)
+        node = find_node(tree)
+        predicate = SQE[predicate_local]
+        tree.remove((node, predicate, None))
+        tree.add((node, predicate, Literal("JUNK")))
+        return sqe_validate(tree)[0]
+
+    def test_group_by_must_be_a_list(self):
+        assert not self._corrupted("groupBy", lambda t: next(t.subjects(V.GROUP_BY)))
+
+    def test_having_must_be_a_list(self):
+        assert not self._corrupted("having", lambda t: next(t.subjects(V.HAVING)))
+
+    def test_trailing_values_must_be_a_values_block(self):
+        assert not self._corrupted("values", lambda t: next(t.subjects(V.QUERY_VALUES)))
+
+    def test_values_vars_must_be_a_list(self):
+        assert not self._corrupted("vars", lambda t: next(t.subjects(V.VALUES_VARS)))
+
+    def test_values_rows_must_be_a_list(self):
+        assert not self._corrupted("rows", lambda t: next(t.subjects(V.VALUES_ROWS)))
+
+    def test_projection_must_be_a_list(self):
+        assert not self._corrupted("projection", lambda t: next(t.subjects(V.PROJECTION)))
+
+    def test_shared_properties_declare_no_domain(self):
+        """sqe:expr, var, subject, predicate and object are used by several node types; a domain would give
+        an Alias the type Filter (and a TripleTerm the type TriplePattern) under RDFS inference."""
+        from rdflib import RDFS
+        from starlayer import starontology
+
+        ontology = starontology.get_ontology_graph("sqe_owl")
+        from starlayer.sparql.sqe.vocab import SQE
+
+        for name in ("expr", "var", "subject", "predicate", "object"):
+            assert (SQE[name], RDFS.domain, None) not in ontology, name
+
+
+
+class TestSqeDoesNotDependOnSalg:
+    """sqe: shares the spexpr: expression vocabulary with salg:, but never imports salg (salg may use sqe)."""
+
+    def test_no_sqe_module_imports_salg(self):
+        import ast
+        from pathlib import Path
+
+        package = Path(__import__("starlayer.sparql.sqe", fromlist=["x"]).__file__).parent
+        offenders = []
+        for path in sorted(package.glob("*.py")):
+            for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+                names = []
+                if isinstance(node, ast.ImportFrom):
+                    names = [node.module or "", *[a.name for a in node.names]]
+                elif isinstance(node, ast.Import):
+                    names = [a.name for a in node.names]
+                if any("salg" in name.split(".") for name in names):
+                    offenders.append(f"{path.name}:{node.lineno}")
+        assert not offenders, f"sqe imports salg: {offenders}"
+
+    def test_parsing_and_validating_never_loads_the_salg_package(self):
+        import subprocess
+        import sys
+
+        code = (
+            "import sys; from starlayer.sparql.sqe import sqe_parse_to_tree, sqe_validate, sqe_tree_to_text, sqe_tree_to_query\\n"
+            "t, r = sqe_parse_to_tree('SELECT ?s WHERE { ?s ?p ?o FILTER(STRLEN(STR(?o)) > 1) }')\\n"
+            "assert sqe_validate(t)[0]; sqe_tree_to_text(t, r); sqe_tree_to_query(t, r)\\n"
+            "loaded = sorted(m for m in sys.modules if m.startswith('starlayer.sparql.salg'))\\n"
+            "print('LOADED', loaded)\\n"
+        )
+        out = subprocess.run([sys.executable, "-c", code.replace("\\n", "\n")], capture_output=True, text=True, check=True).stdout
+        assert "LOADED []" in out, out
+
+    def test_the_shared_expression_validation_graphs_have_no_salg_terms(self):
+        from starlayer.sparql import expr_validation
+
+        salg = "https://github.com/hidden-graph/starlayer/ns/sparql/algebra#"
+        for graph in (expr_validation.shapes_graph(), expr_validation.ontology_graph()):
+            assert not {str(t) for triple in graph for t in triple if str(t).startswith(salg)}

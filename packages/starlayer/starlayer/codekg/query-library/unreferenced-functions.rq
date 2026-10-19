@@ -1,0 +1,22 @@
+# name: unreferenced-functions
+# label: Functions nothing calls
+# comment: Public functions and methods with no incoming call edge at all, optionally limited to a dotted prefix. Entry points, hooks and anything called through indirection show up here, so treat it as a lead.
+# topic: dead-code
+# answers: Is this function ever called by anything, anywhere in the codebase
+# param: prefix | only symbols whose dotted identifier starts with this | starlayer.sparql | optional
+PREFIX slkg: <https://github.com/hidden-graph/starlayer/ns/codekg#>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+SELECT ?symbol ?file ?line WHERE {
+  VALUES ?prefix { UNDEF }
+  ?f a ?type ;
+     dcterms:identifier ?symbol ;
+     slkg:filePath ?file .
+  FILTER(?type IN (slkg:Function, slkg:Method))
+  FILTER(STRSTARTS(?file, "packages/starlayer/starlayer/"))
+  FILTER(!BOUND(?prefix) || STRSTARTS(?symbol, ?prefix))
+  FILTER NOT EXISTS { ?f slkg:isPrivate true }
+  FILTER NOT EXISTS { ?c slkg:calls ?f }
+  OPTIONAL { ?f slkg:lineStart ?line }
+}
+ORDER BY ?symbol

@@ -2,6 +2,12 @@
 
 Tracks when `codekg.trig` was last regenerated via `scripts/build_codekg.py`, with what paths were covered and what the extractor could pull out of the code as of that run. The graph is **not** regenerated on every change - update this file whenever it *is* regenerated, even if the extractor itself didn't change, so a reader can tell how stale the graph might be without re-running anything. See `competency-questions.md` for what each capability actually answers.
 
+## 2026-10-19 — regenerated (repo-relative `slkg:filePath`, named-tuple types)
+
+- Extractor change: `Name = namedtuple("Name", [...])` (and `typing.NamedTuple`'s functional form) is extracted as a `slkg:Class` with one `slkg:Attribute` per field (defaults included), a `rdfs:subClassOf` builtins.tuple edge, and counts as the target of constructor calls (`slkg:instantiates`). `starlayer.starontology.manchester` defines eight such types that were missing.
+- Extractor change: `slkg:filePath` is now the path relative to the repository root (`packages/starlayer/starlayer/graph/model/encoding.py`). It used to be the absolute path on the machine that ran the extractor, which was wrong for anyone else reading the committed graph.
+- Known gap found while building the query library: `slkg:importsModule` only records imports of external modules (third-party and standard library). Imports between starlayer's own modules are not extracted. Dependencies inside the project have to come from `slkg:calls`.
+
 ## 2026-10-14 — regenerated (cross-file `slkg:overrides`)
 
 - 277 files extracted (96 source + 181 tests), 75,766 triples.

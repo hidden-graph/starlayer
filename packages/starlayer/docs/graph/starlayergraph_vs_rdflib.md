@@ -15,7 +15,7 @@ Summary of all public `rdflib.Graph` methods and status in `StarLayerGraph`.
 
 ## Core Mutation
 
-TripleTerm as used below can refer to either a plain 3-tuple `(s, p, o)` in object position, or a `TripleTerm` instance created as `TT = TripleTerm(s, p, o)`. A `DirLangString(value, language, direction)` instance (RDF 1.2 base-direction-tagged literal, `"text"@lang--dir`) is accepted anywhere an object may appear, with the same read/write transparency as TripleTerm, but no tuple shorthand and no registry — see [StarLayer Classes](#starlayergraph-classes) below.
+TripleTerm as used below can refer to either a plain 3-tuple `(s, p, o)` in object position, or a `TripleTerm` instance created as `TT = TripleTerm(s, p, o)`. A `DirLangString(value, language, direction)` instance (RDF 1.2 base-direction-tagged literal, `"text"@lang--dir`) is accepted anywhere an object may appear, with the same read/write transparency as TripleTerm, but no tuple shorthand and no registry — see [StarLayer classes](starlayergraph.md#core-concepts) below.
 
 ✅ `g.add(triple)` — Adds one triple. Allows triple term as an object.
 

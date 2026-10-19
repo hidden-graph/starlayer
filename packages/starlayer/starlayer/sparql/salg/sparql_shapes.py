@@ -82,7 +82,7 @@ from rdflib import Graph
 
 from starlayer import starontology
 
-from .expr_families import _EXPR_NODE_FAMILY
+from ..expr_validation import expression_shapes_turtle
 from .sparql_ontology import ontology_graph
 
 try:
@@ -115,35 +115,8 @@ except ImportError as exc:  # pragma: no cover - exercised only when pyshacl isn
 SHAPES_TURTLE = starontology.get_ontology_graph("sparql_shacl").serialize(format="turtle12")
 
 
-def _generate_expression_shapes_turtle() -> str:
-    """Generate the 63 short per-expression-node-name declarations, each
-    pointing at its family's reusable body shape via ``sh:node``.
-
-    Generated from ``_EXPR_NODE_FAMILY`` rather than hand-written - see
-    that table's own docstring for why. Targets ``spexpr:``, not ``salg:``
-    - both the target class and the body shape it points at live in the
-    shared expression vocabulary (see ``vocab.py``'s own ``SPEXPR``
-    definition), not in ``salg:`` itself; a node actually typed
-    ``spexpr:{name}`` at runtime would never match a
-    ``sh:targetClass salg:{name}`` shape. Carries its own
-    ``@prefix spexpr:`` line - self-contained regardless of whether
-    whatever this gets concatenated with (``shapes_graph()`` below)
-    happens to declare that prefix itself.
-
-    Returns:
-        The generated Turtle declarations, newline-terminated, with their
-        own leading ``@prefix spexpr:`` line.
-    """
-    declarations = [
-        f"spexpr:{name}Shape a sh:NodeShape ; sh:targetClass spexpr:{name} ; "
-        f"sh:node spexpr:_{family}ExprBodyShape ."
-        for name, family in _EXPR_NODE_FAMILY.items()
-    ]
-    return (
-        "@prefix spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#> .\n"
-        + "\n".join(declarations)
-        + "\n"
-    )
+# the per-builtin expression shapes are shared with sqe:/srl: and generated in expr_validation.py
+_generate_expression_shapes_turtle = expression_shapes_turtle
 
 
 def shapes_graph() -> Graph:

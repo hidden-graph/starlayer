@@ -1,29 +1,36 @@
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#> .
 @prefix sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#> .
 
 sqe:AskQuery rdfs:comment "An ASK query's root. sqe:where -> the flat pattern list; no projection." ;
     rdfs:subClassOf sqe:Query .
 
 sqe:Bind a rdfs:Class ;
-    rdfs:comment "A BIND(... AS ?var) element - sqe:expr -> a salg: expression tree; sqe:var -> the bound variable." .
+    rdfs:comment "A BIND(... AS ?var) element - sqe:expr -> an expression tree (spexpr:); sqe:var -> the bound variable." .
 
 sqe:ConstructQuery rdfs:comment "A CONSTRUCT query's root. sqe:template -> rdf:List of sqe:TriplePattern; sqe:where -> the flat pattern list." ;
     rdfs:subClassOf sqe:Query .
 
 sqe:Filter a rdfs:Class ;
-    rdfs:comment "A FILTER(...) element - sqe:expr -> a salg: expression tree (reused as-is, not re-modeled here)." .
+    rdfs:comment "A FILTER(...) element - sqe:expr -> an expression tree (the shared spexpr: vocabulary, not re-modeled here)." .
 
 sqe:Optional a rdfs:Class ;
     rdfs:comment "An OPTIONAL { ... } block - sqe:where -> its own nested flat pattern list." .
 
+sqe:OrderCondition a rdfs:Class ;
+    rdfs:comment "One ORDER BY condition - sqe:expr -> a variable or expression; sqe:descending true for DESC(...), absent for ascending." .
+
 sqe:Query rdfs:comment "The root of any encoded sqe: query, of any form - also typed sqe:Query regardless of query form, see to_rdf.query_to_sqe_rdf." .
 
-sqe:SelectQuery rdfs:comment "A SELECT query's root. sqe:projection -> rdf:List of sqe:Variable-tagged Literals; sqe:where -> the flat pattern list." ;
+sqe:SelectQuery rdfs:comment "A SELECT query's root. sqe:projection -> rdf:List of variables and sqe:Alias nodes (or sqe:selectAll true for SELECT *); sqe:where -> the flat pattern list; optionally sqe:distinct/reduced, sqe:groupBy, sqe:having, sqe:orderBy, sqe:limit, sqe:offset and a trailing sqe:values." ;
     rdfs:subClassOf sqe:Query .
 
 sqe:TriplePattern a rdfs:Class ;
-    rdfs:comment "One (subject, predicate, object) triple pattern - exactly one of each, via sqe:subject/sqe:predicate/sqe:object. A predicate that's a real property path falls back to the existing salg: path encoding." .
+    rdfs:comment "One (subject, predicate, object) triple pattern - exactly one of each, via sqe:subject/sqe:predicate/sqe:object. A predicate that's a real property path uses the shared spexpr: path encoding." .
+
+sqe:TripleTerm a rdfs:Class ;
+    rdfs:comment "An RDF 1.2 triple term <<( s p o )>> in a pattern's object position (or nested as another triple term's object) - sqe:subject/sqe:predicate/sqe:object, each a term or variable. Reified-triple and annotation shorthand is written out as its expansion: a rdf:reifies triple plus ordinary triples." .
 
 sqe:Union a rdfs:Class ;
     rdfs:comment "A { ... } UNION { ... } [UNION { ... }]* block - sqe:alternatives -> rdf:List of nested flat pattern lists, one per alternative." .
@@ -32,25 +39,92 @@ sqe:alternatives a rdf:Property ;
     rdfs:domain sqe:Union .
 
 sqe:expr a rdf:Property ;
-    rdfs:domain sqe:Filter .
+    rdfs:comment "Shared by several node types (sqe:Filter, Bind, Alias, OrderCondition); deliberately no rdfs:domain, which would give each of them the wrong extra type under RDFS inference." .
 
 sqe:object a rdf:Property ;
-    rdfs:domain sqe:TriplePattern .
+    rdfs:comment "Shared by several node types (sqe:TriplePattern, TripleTerm); deliberately no rdfs:domain, which would give each of them the wrong extra type under RDFS inference." .
 
 sqe:predicate a rdf:Property ;
-    rdfs:domain sqe:TriplePattern .
+    rdfs:comment "Shared by several node types (sqe:TriplePattern, TripleTerm); deliberately no rdfs:domain, which would give each of them the wrong extra type under RDFS inference." .
 
 sqe:projection a rdf:Property ;
     rdfs:domain sqe:SelectQuery .
 
 sqe:subject a rdf:Property ;
-    rdfs:domain sqe:TriplePattern .
+    rdfs:comment "Shared by several node types (sqe:TriplePattern, TripleTerm); deliberately no rdfs:domain, which would give each of them the wrong extra type under RDFS inference." .
 
 sqe:template a rdf:Property ;
     rdfs:domain sqe:ConstructQuery .
 
 sqe:var a rdf:Property ;
-    rdfs:domain sqe:Bind .
+    rdfs:comment "Shared by several node types (sqe:Bind, Alias); deliberately no rdfs:domain, which would give each of them the wrong extra type under RDFS inference." .
 
 sqe:where a rdf:Property ;
-    rdfs:comment "A flat, ordered rdf:List of sibling pattern elements (sqe:TriplePattern/sqe:Optional/sqe:Union/sqe:Filter/sqe:Bind) - mirrors the raw parse tree's own already-flat GroupGraphPatternSub.part shape, not the salg: algebra's nested LeftJoin/Filter wrapping." .
+    rdfs:comment "A flat, ordered rdf:List of sibling pattern elements (sqe:TriplePattern/Optional/Union/Minus/Graph/Filter/Bind/Values/SubSelect) - mirrors the raw parse tree's own already-flat GroupGraphPatternSub.part shape, not the salg: algebra's nested LeftJoin/Filter wrapping." .
+
+sqe:selectAll a rdf:Property ;
+    rdfs:domain sqe:SelectQuery ;
+    rdfs:comment "true for SELECT *; replaces sqe:projection." .
+
+sqe:distinct a rdf:Property ;
+    rdfs:domain sqe:SelectQuery ;
+    rdfs:comment "true for SELECT DISTINCT." .
+
+sqe:reduced a rdf:Property ;
+    rdfs:domain sqe:SelectQuery ;
+    rdfs:comment "true for SELECT REDUCED." .
+
+sqe:orderBy a rdf:Property ;
+    rdfs:comment "ORDER BY: a flat rdf:List of sqe:OrderCondition, on a SELECT or CONSTRUCT root." .
+
+sqe:descending a rdf:Property ;
+    rdfs:domain sqe:OrderCondition .
+
+sqe:limit a rdf:Property ;
+    rdfs:comment "LIMIT n (xsd:integer), on a SELECT or CONSTRUCT root." .
+
+sqe:offset a rdf:Property ;
+    rdfs:comment "OFFSET n (xsd:integer), on a SELECT or CONSTRUCT root." .
+
+sqe:TripleTerm rdfs:subClassOf spexpr:Expression .
+
+sqe:Exists a rdfs:Class ;
+    rdfs:subClassOf spexpr:Expression ;
+    rdfs:comment "EXISTS { ... } (or NOT EXISTS when sqe:negated is true) inside an expression - sqe:where -> its own flat pattern list." .
+
+sqe:negated a rdf:Property ;
+    rdfs:domain sqe:Exists .
+
+sqe:Alias a rdfs:Class ;
+    rdfs:comment "(expr AS ?var) in a projection or GROUP BY - sqe:expr the expression, sqe:var the variable it binds." .
+
+sqe:groupBy a rdf:Property ;
+    rdfs:domain sqe:SelectQuery .
+
+sqe:having a rdf:Property ;
+    rdfs:domain sqe:SelectQuery .
+
+sqe:Minus a rdfs:Class ;
+    rdfs:comment "A MINUS { ... } block - sqe:where -> its own flat pattern list." .
+
+sqe:Graph a rdfs:Class ;
+    rdfs:comment "A GRAPH ?g { ... } block - sqe:graph the graph IRI or variable, sqe:where the flat pattern list." .
+
+sqe:Values a rdfs:Class ;
+    rdfs:comment "A VALUES block, as a pattern or as a query's trailing sqe:values - sqe:vars the variables, sqe:rows an rdf:List of rows (rdf:List of terms, or sqe:undef)." .
+
+sqe:SubSelect a rdfs:Class ;
+    rdfs:subClassOf sqe:SelectQuery ;
+    rdfs:comment "A nested SELECT in a pattern list - the same properties as a sqe:SelectQuery; not itself a sqe:Query." .
+
+sqe:graph a rdf:Property ;
+    rdfs:domain sqe:Graph .
+
+sqe:vars a rdf:Property ;
+    rdfs:domain sqe:Values .
+
+sqe:rows a rdf:Property ;
+    rdfs:domain sqe:Values .
+
+sqe:values a rdf:Property ;
+    rdfs:comment "A query's trailing VALUES clause (a sqe:Values)." .

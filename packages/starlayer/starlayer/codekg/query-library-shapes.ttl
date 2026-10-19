@@ -1,0 +1,70 @@
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix slkg: <https://github.com/hidden-graph/starlayer/ns/codekg#> .
+@prefix sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#> .
+
+# Shapes for the query library (curated/query-library.ttl): the slkg:NamedQuery, slkg:QueryParameter,
+# slkg:Topic and slkg:CompetencyQuestion nodes. The sqe: trees the queries point at are checked by sqe's own
+# shapes (starlayer.sparql.sqe.sqe_validate); the tests run both.
+
+slkg:TopicShape a sh:NodeShape ;
+    sh:targetClass slkg:Topic ;
+    sh:property [
+        sh:path rdfs:label ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ;
+        sh:message "a slkg:Topic needs exactly one rdfs:label"
+    ] .
+
+slkg:CompetencyQuestionShape a sh:NodeShape ;
+    sh:targetClass slkg:CompetencyQuestion ;
+    sh:property [
+        sh:path rdfs:label ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ;
+        sh:message "a slkg:CompetencyQuestion needs exactly one rdfs:label (the question)"
+    ], [
+        sh:path slkg:cqStatus ; sh:minCount 1 ; sh:maxCount 1 ;
+        sh:in ( "answerable" "roadmap" "curated" "out-of-scope" ) ;
+        sh:message "slkg:cqStatus must be answerable, roadmap, curated or out-of-scope"
+    ], [
+        sh:path slkg:aboutTopic ; sh:minCount 1 ; sh:maxCount 1 ; sh:class slkg:Topic ;
+        sh:message "a slkg:CompetencyQuestion is about exactly one slkg:Topic"
+    ] .
+
+slkg:QueryParameterShape a sh:NodeShape ;
+    sh:targetClass slkg:QueryParameter ;
+    sh:property [
+        sh:path slkg:paramName ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ;
+        sh:pattern "^[A-Za-z_][A-Za-z0-9_]*$" ;
+        sh:message "slkg:paramName must be a single variable name without the question mark"
+    ], [
+        sh:path slkg:paramExample ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ;
+        sh:message "a parameter needs exactly one slkg:paramExample"
+    ], [
+        sh:path slkg:paramRequired ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:boolean ;
+        sh:message "slkg:paramRequired must be a single boolean"
+    ], [
+        sh:path rdfs:comment ; sh:minCount 1 ; sh:maxCount 1 ;
+        sh:message "a parameter needs a one-sentence rdfs:comment"
+    ] .
+
+slkg:NamedQueryShape a sh:NodeShape ;
+    sh:targetClass slkg:NamedQuery ;
+    sh:property [
+        sh:path rdfs:label ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ;
+        sh:message "a slkg:NamedQuery needs exactly one rdfs:label"
+    ], [
+        sh:path rdfs:comment ; sh:minCount 1 ; sh:maxCount 1 ;
+        sh:message "a slkg:NamedQuery needs exactly one rdfs:comment saying what it answers"
+    ], [
+        sh:path slkg:aboutTopic ; sh:minCount 1 ; sh:maxCount 1 ; sh:class slkg:Topic ;
+        sh:message "a slkg:NamedQuery is about exactly one slkg:Topic"
+    ], [
+        sh:path slkg:answersCompetencyQuestion ; sh:class slkg:CompetencyQuestion ;
+        sh:message "slkg:answersCompetencyQuestion must point at a slkg:CompetencyQuestion"
+    ], [
+        sh:path slkg:queryParameter ; sh:class slkg:QueryParameter ;
+        sh:message "slkg:queryParameter must point at a slkg:QueryParameter"
+    ], [
+        sh:path slkg:queryRoot ; sh:minCount 1 ; sh:maxCount 1 ;
+        sh:or ( [ sh:class sqe:SelectQuery ] [ sh:class sqe:AskQuery ] [ sh:class sqe:ConstructQuery ] ) ;
+        sh:message "slkg:queryRoot must be the root of an sqe: SELECT, ASK or CONSTRUCT tree"
+    ] .

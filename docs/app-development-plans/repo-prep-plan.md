@@ -8,7 +8,7 @@ starlayer is a platform for building Python semantic apps on the RDF/SPARQL/SHAC
 - Root `README.md`, `CONTRIBUTING.md`, `packages/starlayer/README.md`, and doc indexes still describe the pre-2026-10-12 three-package layout (dead paths, wrong import names, failing dev commands).
 - No way to ask the KG a question without hand-writing rdflib + SPARQL. No query library.
 - Curated layer is thin and unwired (`CURATED_GRAPH_IRI` never populated; `demonstratedBy` has 0 triples; no links to specs, gap matrices, docs, upstream bugs).
-- CI skips `codekg.trig` freshness; hand-written docs/indexes/manifest are unchecked and have drifted.
+- CI deliberately does not rebuild `codekg.trig` (decision 2026-10-18: every code change would force a ~90,000-line regeneration); hand-written docs/indexes/manifest are unchecked and have drifted.
 - No runnable examples; onboarding requires Jupyter notebooks.
 
 Intended outcome: an agent landing in the repo reads one short file, learns that the KG is the map, can query it via named queries, and finds runnable examples; a human gets a working quick-start. Decisions from the user: query library only (no MCP) but stored **as a graph of SQE graphs**, not text; add `examples/` with runnable apps; do all cleanup including CI guards.
@@ -50,6 +50,14 @@ These are the default assumptions we start from, written into AGENTS.md as "Defa
 ## Immediate step: put the plans in the repo (done)
 - These plans live in `docs/app-development-plans/` (this file as `repo-prep-plan.md`, plus `graph-workbench-app.md` and a `README.md` index). Docs only, no library code. Wording in this file that refers to the "approved plan" or to plan mode is a leftover of how it was drafted.
 
+## Progress (2026-10-18)
+- Workstream 1 done: `AGENTS.md`, `CLAUDE.md`, "Rules that bite" in the three subpackage `CLAUDE.md` files, a test guarding `AGENTS.md`.
+- Workstream 6, part 1 done: root `README.md` (with a tested example), `CONTRIBUTING.md`, `docs/README.md` (the docs map), `docs/sparql/README.md`, dead links fixed in the graph and shacl docs READMEs.
+- Workstream 6 guards done: `scripts/check_docs.py` (links, anchors, guide index, paths in the Rules-that-bite blocks), run by `build.py --check` and so by CI. Guide `05d-shacl-library-registry.ipynb` was repaired (it called a removed function and described the old profile model) and is indexed as 5.d.
+- Workstream 2, SQE coverage done (2026-10-18): sqe widened to every query form and clause except DESCRIBE/Update, with an opt-in test set (`--sqe-coverage`) over the W3C fixtures and a per-feature suite. Docs corrected.
+- Workstream 2, query library done (2026-10-19): `starlayer.codekg.queries` (`list_queries`, `get_query`, `run_query`, `run_sparql`, `queries_for_topic`, `competency_questions`, and a command line, `python -m starlayer.codekg.queries`). 21 named queries are authored as `.rq` files in `codekg/query-library/` and generated into `codekg/curated/query-library.ttl` as sqe trees under `slkg:NamedQuery` (with `slkg:Topic` and `slkg:CompetencyQuestion` nodes promoted from `competency-questions.md`), plus a catalogue at `docs/generated/query-library.generated.md`. Results are limited to 25 rows and paged; free-form SPARQL is SELECT/ASK only. Built by `build.py --only queries` and checked in CI. Found and fixed on the way: `slkg:filePath` was an absolute machine path (now repo-relative). Found, not fixed: the extractor records only external imports, so "which module imports which" is not answerable (marked 🔜 in the competency questions). The file is named `query-library.ttl`, not `queries.ttl`.
+- Still open in workstream 6: the remaining stale-doc repairs (the "Notes on guides" file, Appendix A status, the changelog-style paragraph at the top of `docs/guides/README.md`, `future_enhancements.md` cleanup).
+
 ## Workstreams
 
 ### 1. Agent entry point (highest leverage, smallest effort)
@@ -62,7 +70,7 @@ These are the default assumptions we start from, written into AGENTS.md as "Defa
 - Ontology additions in `codekg/ontology.ttl`: `slkg:NamedQuery`, `slkg:CompetencyQuestion` (promote the rows in `competency-questions.md` to RDF with status), `slkg:aboutTopic`, `slkg:answersCompetencyQuestion`, `slkg:queryRoot`, `slkg:queryParameter`. Add SHACL shapes for them (reuse the `sqe_validate` pattern in `sparql/sqe/shapes.py`).
 - New `starlayer/codekg/queries.py`: `list_queries(topic=None)`, `get_query(name)`, `run_query(name, **params)` which loads the dataset, decodes the SQE tree to a `Query`, binds params, runs it via `StarQuery`. Also `queries_for_topic(capability_iri)` so topic -> query links are traversable in SPARQL itself.
 - Seed ~15 queries from `competency-questions.md` (who calls X, what overrides Y, public API of module, untested functions, capabilities and their implementing symbols, notebooks demonstrating X, ...).
-- **Risk:** the SQE encoder may not cover every SPARQL feature (OPTIONAL/FILTER/aggregates/property paths). Step 1 of this workstream is a round-trip coverage probe; queries the SQE form can't express get logged in the library as a documented gap (and become upstream-style TODOs in `docs/`), not silently stored as text.
+- **Risk (resolved 2026-10-18):** the SQE encoder did not cover enough: the coverage probe passed 11 of 34 questions and silently dropped solution modifiers. SQE was widened rather than falling back to `salg:`; the probe now passes 34 of 34 and 161 of 167 W3C query fixtures round-trip (see `starlayer/sparql/CLAUDE.md`, 2026-10-18). Queries that use SPARQL 1.2 syntax run as text (`sqe_tree_to_text`); the code-KG queries are plain SPARQL, so the decoded `Query` runs directly.
 - Tests in `tests/codekg/unit/`: every stored query SQE-validates, round-trips to text, executes against the committed `codekg.trig` and returns non-empty (or documented-empty) results; every `aboutTopic` resolves.
 
 ### 3. Enrich and wire up the curated KG
@@ -71,9 +79,12 @@ These are the default assumptions we start from, written into AGENTS.md as "Defa
 - Add a test that every `slkg:implementedByIdentifier` in `functionality.ttl` resolves in `codekg.trig` (currently unchecked).
 - Add a "how to build with starlayer" capability taxonomy: tag each capability with `slkg:appRole` (storage, query, validate, infer, UI-generate) so an agent can go from "I need to build a form app" to capabilities, queries, symbols, and examples.
 
-### 4. Keep the KG fresh
-- Make `scripts/build.py --check` cover `codekg` (CI currently passes `--skip codekg`), or if cost/determinism is prohibitive, add a cheaper staleness test: every module in the source tree has a named graph and per-file content hash/mtime digest matches. Decide after measuring extractor runtime; prefer the full check using graph isomorphism like the other `.trig` files.
+### 4. Keep the KG usable while it can lag the source
+**Decision (2026-10-18): CI does not check `codekg.trig`.** `build.py --check --skip codekg` stays as is; `build.py --only codekg apidocs` rebuilds on demand. So the KG can be behind the source, and the plan makes that visible instead of preventing it:
+- `build_codekg.py` records a small build stamp in the KG (a `slkg:KGBuild` node: git commit, date, source file count). `run_query`/`list_queries` print it in their footer ("KG built from commit abc1234, 3 days old"), and AGENTS.md says to rebuild when it is older than the code being changed.
+- AGENTS.md states plainly that the KG may lag, how to rebuild (`python scripts/build.py --only codekg apidocs`, about 30 s), and that line numbers in query results should be checked against the file.
 - Auto-append the `codekg/CHANGELOG.md` entry from `build_codekg.py` instead of by hand.
+- The tests on stored queries run against the committed `codekg.trig`, so they check the queries, not the KG's freshness.
 
 ### 5. Runnable examples (`examples/`)
 - `examples/README.md` index + small apps, each with a pytest in `tests/examples/` so they cannot rot:
@@ -106,7 +117,7 @@ Guards (new, in `scripts/check_docs.py`, wired into `build.py --check` and CI):
 - Triage doc: `docs/CONTRIBUTING-feedback.md` (what happens to a report, how reports become curated-KG/gap-matrix updates).
 
 ### 8. Query log and auto-generated FAQ
-- Log every named-query and free-form query made through `starlayer.codekg.queries` (and the workbench's KG browser) to a local, gitignored JSONL (`.starlayer/query-log.jsonl`): timestamp, query name or SPARQL text, topic IRIs, params, row count, duration, caller kind (human/agent if declared via env var), and an `empty_result` flag. Opt-out via env var; no network, no personal data.
+- **Primary feed is the public endpoint's server-side log (see "Public KG endpoint")**; the rest of this workstream describes the local fallback. Log every named-query and free-form query made through `starlayer.codekg.queries` (and the workbench's KG browser) to a local, gitignored JSONL (`.starlayer/query-log.jsonl`): timestamp, query name or SPARQL text, topic IRIs, params, row count, duration, caller kind (human/agent if declared via env var), and an `empty_result` flag. Opt-out via env var; no network, no personal data.
 - `scripts/build_faq.py` aggregates logs (from any number of contributors' log files passed in, or a shared log committed as an anonymised summary) into `docs/generated/faq.generated.md`: top named queries per topic, most-asked free-form questions grouped by topic, and **unanswered/empty-result questions** ranked, each rendered with its answering named query (from the query graph) or a "no answer yet" marker.
 - Closing the loop: unanswered clusters become candidate `slkg:CompetencyQuestion` entries and a pre-filled `docs-or-kg-gap` issue (workstream 7). FAQ is built into `build.py` but not CI-checked for freshness (it depends on local data); the generator and its output format are tested with fixture logs.
 - Privacy/consent note in AGENTS.md: logs stay local unless the user chooses to share a summary.
@@ -125,21 +136,49 @@ Each phase is its own commit on `prep-for-app-development`.
 ## Reuse (do not rebuild)
 - SQE encode/decode: `starlayer/sparql/sqe/{to_rdf,from_rdf,to_text,shapes}.py`; query execution: `StarQuery` in `starlayer/sparql/star_query.py`.
 - Loader pattern: `starlayer/codekg/__init__.py` (fresh-copy-per-call, `CURATED_GRAPH_IRI`).
-- Check harness: `scripts/build.py --check` (isomorphism/byte compare) – extend rather than add a second runner.
+- Check harness: `scripts/build.py --check --skip codekg` (isomorphism/byte compare) – extend rather than add a second runner.
 - Existing generators: `scripts/generate_api_docs.py`, `generate_functionality_overview.py`.
 
 ## Verification
-- `python scripts/build.py --check` passes (now including codekg and docs checks).
+- `python scripts/build.py --check --skip codekg` passes (now including the docs checks; the code KG stays out of CI).
 - `pytest -m "not integration"` green, including new `tests/codekg/unit` (query library) and `tests/examples`.
 - Smoke as a fresh agent: in a clean checkout, follow only AGENTS.md to (a) install, (b) run a named query ("who calls X") and get results, (c) run an example, (d) run tests. Record any step that needed outside knowledge and fix the docs.
 - `python scripts/check_docs.py` reports zero broken links/drift; CI workflow runs it.
 - Validate curated queries/ontology additions with `sqe_validate` and the new shapes.
 
-## Hosting the KG (no MCP in this plan)
-- An MCP server is only a process that exposes tools; it does not require a hosted graph. A later local stdio MCP server could wrap `starlayer.codekg.queries` over the committed `codekg.trig` with zero hosting. Deferred per decision.
-- GitHub cannot run a SPARQL endpoint (Pages is static). A queryable KG on GitHub is possible statically: publish `codekg.trig`/`queries.ttl` via Pages and query in-browser with Oxigraph WASM. Treated as an optional follow-up, not in this plan; its trade-off is that a static site cannot log queries (workstream 8 stays local-first).
+## Public KG endpoint (proposed 2026-10-18; replaces the earlier "hosting" note)
+**Idea (user):** the code and curated KG do not need to live in the repo for outside users, and an outside agent should not have to build its own. Agents query a **public, read-only copy**, so we can log what they ask (see workstream 8) instead of each agent keeping a private copy. Nothing stops an agent building its own (`build_codekg.py` stays), but the documented path is the public one.
+
+**What it needs**
+- **A host** running a read-only SPARQL endpoint (Oxigraph server fits: the library already supports it as a store) with a query timeout, a result cap, no update endpoint and rate limiting. A thin HTTP API in front of it (named queries by id + parameters, plus a size-limited free-form route) is easier to log and limit than a raw SPARQL endpoint, and matches the "bounded results, never the whole graph" principle.
+- **A publish step**: on merge to `main` (or on demand) a job loads `codekg.trig`, the curated graphs and `queries.ttl` into the endpoint, replacing the old copy. The build stamp from workstream 4 becomes the endpoint's "built from commit X on date Y".
+- **A client**: `starlayer.codekg.queries` takes `endpoint=` (default: the public URL when reachable) and falls back to the local file, so offline or sandboxed agents still work. `get_codekg_dataset()` stays.
+- **Server-side logging**: query text or named-query id, parameters, timestamp, row count, duration, a caller-kind header. This replaces the contributor-local log as the main feed to the FAQ (workstream 8); the local opt-in log stays for offline use. AGENTS.md must say that queries to the public endpoint are logged, what is kept, and for how long.
+
+**Decisions needed before building:** who hosts it and who pays; the domain; retention period and what counts as personal data; whether free-form SPARQL is allowed or only named queries; abuse handling; whether to keep `codekg.trig` in the repo once the endpoint exists (it must stay until the publish pipeline does, because the scripts, tests and generated API docs read it).
+
+**Limits:** GitHub Pages cannot run an endpoint or log queries, so this needs real hosting. A published KG is only as fresh as its last publish. An agent without network access cannot reach it. A later local stdio MCP server could wrap the same queries; MCP is still deferred.
+
+**Effect on workstream 1:** AGENTS.md describes the local KG now and carries a short "planned: public endpoint" note, with no URL until one exists.
 
 ## Open risks
 - SQE may not express all needed SPARQL; mitigated by the coverage probe and logging gaps.
-- Full codekg freshness check may be slow/non-deterministic; fall back to the digest check.
+- A lagging `codekg.trig` can mislead an agent; mitigated by the build stamp and AGENTS.md guidance, not by CI.
 - `README.md` sync approach (pointer vs. generated) is a small design choice made during implementation.
+
+## Open items from `future_enhancements.md` to settle before or with this work (reviewed 2026-10-18)
+Checked against the repo, not just read:
+
+**Do first (they feed the workstreams):**
+- **Clean `packages/starlayer/docs/future_enhancements.md` itself.** Several entries are already stale: "20+ notebooks import `starlayergraph`" (none do now), the three root-level frozen SHACL guides and the "CLAUDE:" leftover in the Manchester guide (both gone), "only two examples exist in `packages/starlayer/examples/`" (the folder does not exist), and two entries about `docs/api-reference.md` (archived 2026-10-17; replaced by the generated docs). An agent will treat this file as a source of truth, so fix it as part of workstream 6.
+- **The "Before publishing" checklist** overlaps workstream 6 (steps 5 and 7: re-execute guides, check for stale claims). Reconcile it with `check_docs.py` so there is one list.
+- **Code-KG extractor misses `namedtuple(...)` types** (8 types in `starontology/manchester.py`). Fixed 2026-10-19.
+- **More examples / a `StarLayerDataset` example:** fold into workstream 5 (include a multi-graph example).
+
+**With the workstreams:**
+- **Functionality overview: a guide reference for each item, and stub guides for gaps** (curated graph `demonstratedBy` links, workstream 3). Known gaps: no guide for `derive_shape()`, none for `validate()`/`StarShaclSchema` as a whole.
+- **No HTML-rendered user guide:** decide when writing the docs map (workstream 6). The workbench could serve rendered guides, so this may be answered by the app.
+- **Remaining guide-review findings** (Getting Started missing the Manchester guide, the `06c` isomorphism wording, the stale `subgraph_extraction` docstring): workstream 6.
+
+**Defer:** the SHACL UI shapes for the validation shapes and the `pyoxigraph` direct API (both app-time), SRL follow-ups (waiting on the spec), the three import mechanisms, rdflib 8, the testing-process question, and the upstream-bug tail.
+

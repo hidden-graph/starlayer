@@ -14,14 +14,10 @@ care to preserve. Execution doesn't need any of this - ``from_rdf.py``'s
 ``sqe_tree_to_query`` + rdflib's own unmodified ``translateQuery`` handles
 that unaffected by anything in this module.
 
-Expression text reuses ``..ssyn_to_text._render_expr_text`` directly (the
-same helper ``srl.py`` already depends on) - slated to move to a neutral,
-shared location once the old ``ssyn:``/``sast:`` prototype layers are
-retired, see `future_enhancements.md`. One known, accepted limitation
-inherited from that reuse: an IRI literal *inside* an expression (e.g. a
-bare ``IRI(<...>)`` builtin call) renders unprefixed, same as ``ssyn:``
-already accepts - only term/predicate positions this module renders
-directly get prefix-aware treatment.
+Expression text comes from ``expr_text.py``, which renders straight from the
+sqe tree (aggregates, EXISTS bodies, triple terms and the SPARQL 1.2 builtins
+included), and prefix-aware term rendering lives here. An IRI inside an
+expression is abbreviated with the preserved prefixes too.
 """
 
 from __future__ import annotations
@@ -31,29 +27,49 @@ from rdflib.collection import Collection
 from rdflib.namespace import RDF
 
 from ..from_rdf import _decode
-from ..ssyn_to_text import _render_expr_text
 from ..vocab import VARIABLE_DATATYPE
+from .expr_text import expr_text
 from .vocab import (
+    ALIAS,
     ASK_QUERY,
     BIND,
     BIND_VAR,
     CONSTRUCT_QUERY,
+    DISTINCT,
     EXPR,
     FILTER,
+    GRAPH_PATTERN,
+    GRAPH_TERM,
+    GROUP_BY,
+    HAVING,
+    LIMIT,
+    MINUS,
+    OFFSET,
     OPTIONAL,
+    ORDER_BY,
+    ORDER_DESCENDING,
     PREFIX_LABEL,
     PREFIX_NAMESPACE,
     PROJECTION,
     PROLOGUE_BASE,
     PROLOGUE_PREFIX,
+    QUERY_VALUES,
+    REDUCED,
+    SELECT_ALL,
     SELECT_QUERY,
+    SUB_SELECT,
     TEMPLATE,
     TRIPLE_PATTERN,
     TRIPLE_PATTERN_OBJECT,
     TRIPLE_PATTERN_PREDICATE,
     TRIPLE_PATTERN_SUBJECT,
+    TRIPLE_TERM,
     UNION,
     UNION_ALTERNATIVES,
+    VALUES,
+    VALUES_ROWS,
+    VALUES_UNDEF,
+    VALUES_VARS,
     WHERE,
 )
 
@@ -76,7 +92,6 @@ def sqe_tree_to_text(graph: Graph, root) -> str:
     Returns:
         The rendered SPARQL query text.
     """
-    keyword = _keyword_for_root(graph, root)
     prefixes = _prefix_map(graph, root)
     lines = [f"PREFIX {label}: <{ns}>" for label, ns in sorted(prefixes.items())]
 
@@ -84,9 +99,26 @@ def sqe_tree_to_text(graph: Graph, root) -> str:
     if base is not None:
         lines.append(f"BASE <{base}>")
 
+    lines.extend(_query_lines(graph, root, prefixes))
+    return "\n".join(lines)
+
+
+def _query_lines(graph: Graph, root, prefixes: dict) -> list:
+    """The SELECT/CONSTRUCT/ASK clause, WHERE and solution modifiers of a query
+    root or a sub-select."""
+    keyword = _keyword_for_root(graph, root)
+    lines: list = []
     if keyword == "SELECT":
-        var_names = [str(v) for v in Collection(graph, graph.value(root, PROJECTION))]
-        lines.append(f"SELECT {' '.join('?' + v for v in var_names)}")
+        modifier = (
+            "DISTINCT " if graph.value(root, DISTINCT) is not None
+            else "REDUCED " if graph.value(root, REDUCED) is not None
+            else ""
+        )
+        if graph.value(root, SELECT_ALL) is not None:
+            lines.append(f"SELECT {modifier}*")
+        else:
+            items = [_alias_or_var_text(v, graph, prefixes) for v in Collection(graph, graph.value(root, PROJECTION))]
+            lines.append(f"SELECT {modifier}{' '.join(items)}")
     elif keyword == "CONSTRUCT":
         template_list = graph.value(root, TEMPLATE)
         template_nodes = list(Collection(graph, template_list)) if template_list is not None else []
@@ -96,7 +128,58 @@ def sqe_tree_to_text(graph: Graph, root) -> str:
         lines.append("ASK")
 
     lines.append(f"WHERE {_where_group_text(graph.value(root, WHERE), graph, prefixes)}")
-    return "\n".join(lines)
+    lines.extend(_solution_modifier_lines(graph, root, prefixes))
+    values_node = graph.value(root, QUERY_VALUES)
+    if values_node is not None:
+        lines.append(_values_text(values_node, graph, prefixes))
+    return lines
+
+
+def _values_text(node, graph: Graph, prefixes: dict) -> str:
+    variables = ["?" + str(v) for v in Collection(graph, graph.value(node, VALUES_VARS))]
+    rows = []
+    for row_node in Collection(graph, graph.value(node, VALUES_ROWS)):
+        cells = ["UNDEF" if cell == VALUES_UNDEF else expr_text(cell, graph, prefixes) for cell in Collection(graph, row_node)]
+        rows.append(cells[0] if len(variables) == 1 else "(" + " ".join(cells) + ")")
+    head = variables[0] if len(variables) == 1 else "(" + " ".join(variables) + ")"
+    return f"VALUES {head} {{ {' '.join(rows)} }}"
+
+
+def _alias_or_var_text(item, graph: Graph, prefixes: dict) -> str:
+    if (item, RDF.type, ALIAS) in graph:
+        return f"({expr_text(graph.value(item, EXPR), graph, prefixes)} AS ?{graph.value(item, BIND_VAR)})"
+    if isinstance(item, Literal):
+        return "?" + str(item)
+    return f"({expr_text(item, graph, prefixes)})"
+
+
+def _solution_modifier_lines(graph: Graph, root, prefixes: dict) -> list:
+    lines = []
+    group_list = graph.value(root, GROUP_BY)
+    if group_list is not None:
+        lines.append("GROUP BY " + " ".join(_alias_or_var_text(i, graph, prefixes) for i in Collection(graph, group_list)))
+    having_list = graph.value(root, HAVING)
+    if having_list is not None:
+        lines.append("HAVING " + " ".join(f"({expr_text(c, graph, prefixes)})" for c in Collection(graph, having_list)))
+    order_list = graph.value(root, ORDER_BY)
+    if order_list is not None:
+        parts = []
+        for node in Collection(graph, order_list):
+            expr_node = graph.value(node, EXPR)
+            text = expr_text(expr_node, graph, prefixes)
+            if graph.value(node, ORDER_DESCENDING) is not None:
+                parts.append(f"DESC({text})")
+            elif isinstance(expr_node, Literal):
+                parts.append(text)
+            else:
+                parts.append(f"ASC({text})")
+        lines.append("ORDER BY " + " ".join(parts))
+    limit, offset = graph.value(root, LIMIT), graph.value(root, OFFSET)
+    if limit is not None:
+        lines.append(f"LIMIT {int(limit)}")
+    if offset is not None:
+        lines.append(f"OFFSET {int(offset)}")
+    return lines
 
 
 def _keyword_for_root(graph: Graph, root) -> str:
@@ -128,12 +211,19 @@ def _where_element_text(node, graph: Graph, prefixes: dict) -> str:
         inner = _where_group_text(graph.value(node, WHERE), graph, prefixes)
         return f"OPTIONAL {inner}"
     if (node, RDF.type, FILTER) in graph:
-        expr = _decode(graph.value(node, EXPR), graph)
-        return f"FILTER({_render_expr_text(expr)})"
+        return f"FILTER({expr_text(graph.value(node, EXPR), graph, prefixes)})"
     if (node, RDF.type, BIND) in graph:
-        expr = _decode(graph.value(node, EXPR), graph)
-        var = str(_decode(graph.value(node, BIND_VAR), graph))
-        return f"BIND({_render_expr_text(expr)} AS ?{var})"
+        var = str(graph.value(node, BIND_VAR))
+        return f"BIND({expr_text(graph.value(node, EXPR), graph, prefixes)} AS ?{var})"
+    if (node, RDF.type, MINUS) in graph:
+        return f"MINUS {_where_group_text(graph.value(node, WHERE), graph, prefixes)}"
+    if (node, RDF.type, GRAPH_PATTERN) in graph:
+        term = expr_text(graph.value(node, GRAPH_TERM), graph, prefixes)
+        return f"GRAPH {term} {_where_group_text(graph.value(node, WHERE), graph, prefixes)}"
+    if (node, RDF.type, VALUES) in graph:
+        return _values_text(node, graph, prefixes)
+    if (node, RDF.type, SUB_SELECT) in graph:
+        return "{ " + " ".join(_query_lines(graph, node, prefixes)) + " }"
     if (node, RDF.type, UNION) in graph:
         alt_list = graph.value(node, UNION_ALTERNATIVES)
         alts = [_where_group_text(alt, graph, prefixes) for alt in Collection(graph, alt_list)]
@@ -145,9 +235,9 @@ def _where_element_text(node, graph: Graph, prefixes: dict) -> str:
 
 
 def _triple_pattern_text(node, graph: Graph, prefixes: dict) -> str:
-    s = _term_text(graph.value(node, TRIPLE_PATTERN_SUBJECT), prefixes)
+    s = _term_text(graph.value(node, TRIPLE_PATTERN_SUBJECT), prefixes, graph)
     p = _predicate_text(graph.value(node, TRIPLE_PATTERN_PREDICATE), graph, prefixes)
-    o = _term_text(graph.value(node, TRIPLE_PATTERN_OBJECT), prefixes)
+    o = _term_text(graph.value(node, TRIPLE_PATTERN_OBJECT), prefixes, graph)
     return f"{s} {p} {o}"
 
 
@@ -168,7 +258,9 @@ def _predicate_text(node, graph: Graph, prefixes: dict) -> str:
     return _term_text(node, prefixes)
 
 
-def _term_text(value, prefixes: dict) -> str:
+def _term_text(value, prefixes: dict, graph: Graph | None = None) -> str:
+    if graph is not None and (value, RDF.type, TRIPLE_TERM) in graph:
+        return "<<( " + _triple_pattern_text(value, graph, prefixes) + " )>>"
     if isinstance(value, Literal) and value.datatype == VARIABLE_DATATYPE:
         return "?" + str(value)
     if isinstance(value, URIRef):

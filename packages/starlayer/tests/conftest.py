@@ -43,6 +43,21 @@ OPT_IN_GROUPS = {
         "STARLAYER_SRL_STRATIFICATION",
         "also run the extended SRL stratification checks",
     ),
+    "codekg_queries": (
+        "--codekg-queries",
+        "STARLAYER_CODEKG_QUERIES",
+        "also run the code-KG query library against the real code knowledge graph (loads it, ~1 min)",
+    ),
+    "manchester_conformance": (
+        "--manchester-conformance",
+        "STARLAYER_MANCHESTER_CONFORMANCE",
+        "also run the Manchester Syntax completeness suite (tests/starontology/manchester_conformance, ~75 s)",
+    ),
+    "sqe_coverage": (
+        "--sqe-coverage",
+        "STARLAYER_SQE_COVERAGE",
+        "also run the sqe query-coverage set (every SPARQL feature round-tripped through sqe)",
+    ),
 }
 
 
@@ -61,6 +76,11 @@ def _requested(config, marker: str) -> bool:
 
 
 def pytest_collection_modifyitems(config, items):
+    # every test in the Manchester conformance directory belongs to that opt-in group, whether or not it
+    # carries the marker itself
+    for item in items:
+        if "manchester_conformance" in item.nodeid and not item.get_closest_marker("manchester_conformance"):
+            item.add_marker("manchester_conformance")
     left_out = [marker for marker in OPT_IN_GROUPS if not _requested(config, marker)]
     if not left_out:
         return

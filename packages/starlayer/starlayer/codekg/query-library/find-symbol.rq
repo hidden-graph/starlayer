@@ -1,0 +1,20 @@
+# name: find-symbol
+# label: Find a symbol by part of its name
+# comment: Start here when you know a word but not the full dotted path: lists the classes, functions, methods and modules whose dotted identifier contains the text (ignoring case), with where each is defined.
+# topic: navigation
+# param: text | part of a dotted identifier, case-insensitive | tt_hash | required
+PREFIX slkg: <https://github.com/hidden-graph/starlayer/ns/codekg#>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+SELECT ?symbol ?kind ?file ?line ?summary WHERE {
+  VALUES ?text { UNDEF }
+  ?s dcterms:identifier ?symbol .
+  FILTER(CONTAINS(LCASE(?symbol), LCASE(?text)))
+  ?s a ?type .
+  FILTER(?type IN (slkg:Class, slkg:Function, slkg:Method, slkg:Module))
+  BIND(LCASE(REPLACE(STR(?type), "^.*#", "")) AS ?kind)
+  OPTIONAL { ?s slkg:filePath ?file }
+  OPTIONAL { ?s slkg:lineStart ?line }
+  OPTIONAL { ?s rdfs:comment ?summary }
+}
+ORDER BY ?symbol

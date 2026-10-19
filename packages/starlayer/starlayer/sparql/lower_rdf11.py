@@ -1060,7 +1060,8 @@ def _lower_construct_query(node: CompValue, state: _LowerState) -> CompValue:
     # own algebra.py always wraps a CONSTRUCT's WHERE this way, even
     # though its PV is internal bookkeeping, not a printed variable list
     # - see serialize12.py's ConstructQuery branch for the same fact;
-    # CONSTRUCT has no ORDER BY/etc. that could put something else here).
+    # with LIMIT/OFFSET, a Slice (and Distinct/Reduced) sits above the Project,
+    # so the Project is found by walking down, below).
     # A minted ground bind
     # must wrap the pattern *inside* Project (Project.p), not Project
     # itself from the outside — Extend-outside-Project is structurally
@@ -1075,10 +1076,13 @@ def _lower_construct_query(node: CompValue, state: _LowerState) -> CompValue:
         o2 = _lower_template_term(o, pending_extends, extra_template_triples, state)
         new_template.append((s2, p, o2))
     new_template.extend(extra_template_triples)
-    inner = where["p"]
+    project = where
+    while project.name != "Project":
+        project = project["p"]
+    inner = project["p"]
     for var, expr in pending_extends:
         inner = CompValue("Extend", p=inner, expr=expr, var=var)
-    where["p"] = inner
+    project["p"] = inner
     # Project.PV must include every freshly minted template variable, not
     # just the ones already in the original (pre-lowering) template —
     # evalConstructQuery fills the template from evalProject's *output*
@@ -1088,7 +1092,7 @@ def _lower_construct_query(node: CompValue, state: _LowerState) -> CompValue:
     # object is executed directly (see rdf11_to_query) rather than
     # round-tripped through re-parsed SPARQL 1.1 text (which happens to
     # recompute PV fresh from the regenerated template instead).
-    where["PV"] = list(where["PV"]) + [var for var, _ in pending_extends]
+    project["PV"] = list(project["PV"]) + [var for var, _ in pending_extends]
     result = CompValue("ConstructQuery")
     for key, value in node.items():
         if key in ("_vars", "lazy", "p", "template"):

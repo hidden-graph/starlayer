@@ -1,0 +1,9 @@
+# W3C fixtures sqe cannot round-trip (strict xfail). Regenerate: see test_w3c_through_sqe.py
+# Every one left is a fixture the project's own SPARQL parser also rejects (inherited rdflib grammar gaps: !!, codepoint
+# escapes) or one the W3C suite gets wrong (triple term as a subject); none is an sqe gap.
+codepoint-escapes/codepoint-esc-08
+codepoint-escapes/codepoint-esc-09
+expression/not-not
+syntax-triple-terms-positive/compound-tripleterm-subject
+syntax-triple-terms-positive/nested-tripleterm-02
+syntax-triple-terms-positive/subject-tripleterm

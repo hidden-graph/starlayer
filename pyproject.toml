@@ -93,6 +93,9 @@ markers = [
     "w3c_sparql12: W3C SPARQL 1.2 test suite cross-checks.",
     "store_matrix: the W3C conformance suites run through every store (in-process, on-disk and server-backed Oxigraph, Fuseki) - slow, opt-in: pytest --store-matrix (or STARLAYER_STORE_MATRIX=1, or -m store_matrix). See tests/conftest.py.",
     "srl_stratification: extended checks of SRL's stratification algorithm - opt-in: pytest --srl-stratification (or STARLAYER_SRL_STRATIFICATION=1, or -m srl_stratification). See tests/conftest.py.",
+    "sqe_coverage: the sqe query-coverage set (each SPARQL feature round-tripped through sqe and compared with plain rdflib) - opt-in: pytest --sqe-coverage (or STARLAYER_SQE_COVERAGE=1, or -m sqe_coverage). See tests/conftest.py.",
+    "codekg_queries: the code-KG query library run against the real code knowledge graph - opt-in: pytest --codekg-queries (or STARLAYER_CODEKG_QUERIES=1, or -m codekg_queries). See tests/conftest.py.",
+    "manchester_conformance: completeness suite for the Manchester Syntax parser and manch: tree (tests/starontology/manchester_conformance). Opt-in: pytest --manchester-conformance (or STARLAYER_MANCHESTER_CONFORMANCE=1, or -m manchester_conformance). Runs from committed OWL API goldens; no JVM needed. See tests/conftest.py.",
 ]
 
 [tool.ruff]

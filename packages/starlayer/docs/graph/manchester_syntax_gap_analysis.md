@@ -59,7 +59,7 @@ re-verify this table if it's ever upgraded.
 | `onlysome` | confirmed = `(p some C) and (p only C)` | ✅ Match |
 | `min`/`max`/`exactly` (qualified + unqualified) | `owl:{min,max,}[Qualified]Cardinality` (+`owl:onClass`) | ✅ Match |
 | `{a, b}` (class enumeration) | `owl:oneOf` | ✅ Match |
-| Data ranges: atomic, `and`/`or`/`not`, `{lit, ...}` (DataOneOf), `datatype[facet lit, ...]` | `owl:DatatypeRestriction`/`onDatatype`/`withRestrictions`, `datatypeComplementOf`, `unionOf`/`intersectionOf`/`oneOf` typed `rdfs:Datatype` | ✅ Match (numeric + length/pattern facets: `>=`/`<=`/`>`/`<`/`length`/`minLength`/`maxLength`/`pattern`; `langRange` not implemented - narrow, rarely-used facet) |
+| Data ranges: atomic, `and`/`or`/`not`, `{lit, ...}` (DataOneOf), `datatype[facet lit, ...]` | `owl:DatatypeRestriction`/`onDatatype`/`withRestrictions`, `datatypeComplementOf`, `unionOf`/`intersectionOf`/`oneOf` typed `rdfs:Datatype` | ✅ Match (numeric + length/pattern/`langRange` facets: `>=`/`<=`/`>`/`<`/`length`/`minLength`/`maxLength`/`pattern`/`langRange`) |
 | `Datatype: EquivalentTo:` | `owl:equivalentClass` (yes, reused for datatype definitions - confirmed, not a typo) | ✅ Match |
 | `Types:`, `SameAs:`, `DifferentFrom:` | `rdf:type`, `owl:sameAs`, `owl:differentFrom` | ✅ Match |
 | `Facts:` (positive) | direct triple / data-property assertion | ✅ Match |
@@ -68,7 +68,7 @@ re-verify this table if it's ever upgraded.
 | `EquivalentProperties:`, `DisjointProperties:` (Misc) | same shape, property-flavored (`owl:AllDisjointProperties` for >2) | ✅ Match |
 | `SameIndividual:`, `DifferentIndividuals:` (Misc) | pairwise chain / `owl:AllDifferent`+`members` for >2 | ✅ Match |
 | Frame-level `Annotations:` clause | direct triples on the frame's own subject (`Class: A Annotations: rdfs:label "Foo"` → `(A, rdfs:label, "Foo")`) - confirmed **no** reification | ✅ Match |
-| Inline per-axiom `Annotations:` (e.g. `SubClassOf: Annotations: rdfs:comment "why" B, C` - annotates just the B axiom, not C) | `owl:Axiom`/`owl:annotatedSource`/`owl:annotatedProperty`/`owl:annotatedTarget` + the annotation triples, alongside the plain axiom triple - confirmed on `SubClassOf:`, `HasKey:`, and `Facts:` (object-property case); generalized by the same mechanism (`_parse_item_annotations()`/`_maybe_reify()`) to every other clause where one list item maps to one axiom triple. A negative `Facts:` item attaches its annotation straight to the existing `owl:NegativePropertyAssertion` bnode instead of a second wrapper node (that bnode is already the reification-like structure) - a reasoned extrapolation from the OWL 2 RDF mapping, not independently oracle-confirmed for that specific combination. **Not** supported on the six top-level Misc axioms (`EquivalentClasses:` and friends) - see below. | ✅ Match (Misc axioms excepted) |
+| Inline per-axiom `Annotations:` (e.g. `SubClassOf: Annotations: rdfs:comment "why" B, C` - annotates just the B axiom, not C) | `owl:Axiom`/`owl:annotatedSource`/`owl:annotatedProperty`/`owl:annotatedTarget` + the annotation triples, alongside the plain axiom triple - confirmed on `SubClassOf:`, `HasKey:`, and `Facts:` (object-property case); generalized by the same mechanism (`_parse_item_annotations()`/`_maybe_reify()`) to every other clause where one list item maps to one axiom triple. A negative `Facts:` item attaches its annotation straight to the existing `owl:NegativePropertyAssertion` bnode instead of a second wrapper node (that bnode is already the reification-like structure) - a reasoned extrapolation from the OWL 2 RDF mapping, not independently oracle-confirmed for that specific combination. Also supported on the six top-level Misc axioms (see the 2026-10-18 note below). | ✅ Match |
 
 ## Deliberately not matched, with reasons
 
@@ -77,9 +77,23 @@ re-verify this table if it's ever upgraded.
 | `inv` (short alias for `inverse`) | Empirically confirmed the oracle **itself rejects it** (`Encountered inv... Expected one of: Object property name, inverse`) - a reserved-but-dead enum entry. Nothing to conform to. |
 | `ValuePartition:`, `DASH` (`-`) | Every `frameKeyword`/`sectionKeyword`/`axiomKeyword`/quantifier/connective flag on both enum constants is `false` - not wired up as parseable input even by OWL API 5.1.20 itself, despite the token being reserved. |
 | `Rule:` (SWRL rules) | Real and functional in the oracle, but a whole separate rule-language grammar orthogonal to OWL axiom parsing - out of scope for this parser, not a small conformance gap. Revisit as its own piece of work if wanted. |
-| Inline `Annotations:` on the six top-level Misc axioms (`EquivalentClasses:`/`DisjointClasses:`/`EquivalentProperties:`/`DisjointProperties:`/`SameIndividual:`/`DifferentIndividuals:`) | Every other clause reduces cleanly to "one list item → one axiom triple," which is what `_maybe_reify()` reifies. Misc axioms don't: their RDF mapping is a pairwise chain (2 items) or an `owl:AllDisjoint*`/`members` collection (>2 items) - there's no single item-to-triple correspondence to hang a per-item annotation off. Rather than guess at an unconfirmed grammar/mapping for this shape, it's left unimplemented - `ManchesterSyntaxError`, not silently mis-parsed. |
 | Declaration-order / entity-type-checking strictness | The oracle requires every name to be declared via its own frame before use elsewhere (`Encountered Pet at line 9... Expected one of: Class name, Object property name...` for an undeclared name) - because it builds a strongly-typed `OWLOntology` object model where an entity's punning type must be resolvable from context. `manchester_parser.py` only produces RDF triples, where `(x, rdf:type, owl:Class)` doesn't require `x` to have been "declared" first. Replicating this would make the parser *reject* well-formed axiom fragments that map to perfectly valid RDF, for no benefit here - a deliberate design difference, not a bug. |
 | `owl:unionOf`/`intersectionOf`/`oneOf`/`members`/`withRestrictions` **list member order** | Confirmed via a direct probe (`xsd:string or xsd:integer`) that the oracle's `rdf:List` member order for these mathematically-unordered constructs doesn't reliably match written order - almost certainly Java `HashSet`/collection iteration order inside OWL API, not a spec requirement. `graph_diff()`/`isomorphic()` will report a difference here purely from list-cell ordering even when both sides represent the identical OWL axiom; this is expected and not something to chase - don't read a list-order mismatch alone as a real bug. |
+
+## 2026-10-18: completeness review against the W3C Note
+
+A systematic walk of the W3C Manchester Syntax grammar (every production, 97 rows) found gaps this
+OWL-API-keyword-driven table could not see. They are fixed, with a standing suite that keeps them fixed:
+`packages/starlayer/tests/starontology/manchester_conformance/` (README there has the full findings table).
+In short: a stray token at top level silently ended the document; `Ontology: <iri> <version>`, header
+`Annotations:`, annotations of annotations and annotations on the Misc axioms were unsupported; string
+escapes, `+`-signed numbers and floating-point literals were mis-parsed; the short datatype names `integer`,
+`decimal`, `float`, `string` and `_:` nodeID individuals were unsupported; and restrictions on data
+properties used the class-expression mapping (wrong OWL types, `owl:onClass` instead of `owl:onDataRange`).
+`langRange` is now supported. Two places where OWL API differs from the OWL 2 RDF Mapping (annotated
+`SameIndividual:` written in both directions; annotated property-chain list typed `rdf:List`) and one
+where it writes length-facet values as plain literals are documented as oracle deviations, not matched.
+The Note's own facet table maps `>=` to `xsd:maxInclusive`, which is backwards; we follow the meaning.
 
 ## The reverse direction: RDF → Manchester Syntax
 
@@ -153,7 +167,7 @@ above, not a replacement for either: `manchester_parse_to_tree()` gives you
 (`manchester_validate()`) against SHACL shapes before decoding it back into
 runnable Manchester text (`manchester_tree_to_text()`) or straight to a
 compiled OWL graph (`manchester_tree_to_owl()`) - see the
-[Manchester Syntax as RDF guide](../../../docs/guides/05g-manchester-syntax-as-rdf.ipynb)
+[Manchester Syntax guide](../../../../docs/guides/05a-manchester-syntax.ipynb)
 for a full worked example. Tests:
 `packages/starlayer/tests/graph/unit/test_manchester_ast.py` (round-trip
 correctness, verified via `starlayer.graph.compare.isomorphic()` on both

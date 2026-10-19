@@ -60,37 +60,50 @@ than inventing a new one:
   a resolved `URIRef`, and **not** via ``translateAlgebra``, which never
   reads ``query.prologue`` in the first place (a documented rdflib
   limitation - see ``to_text.py``'s own module docstring).
-- **Expressions reuse the existing `salg:` expression vocabulary as-is**
-  (``sqe:Filter``/``sqe:Bind``'s ``sqe:expr`` falls back to `salg:
-  Expression`) — the same boundary choice ``ssyn:``/``srl:`` already
-  made. Expressions are inherently tree-shaped even in the surface syntax
-  (``?age > 18``), so there's no flattening benefit to chase here, and
-  `salg:`'s expression coverage (~63 builtins, generated from
-  ``expr_families.py``) is already complete and tested.
+- **Expressions use the shared `spexpr:` vocabulary** (``sqe:Filter``/
+  ``sqe:Bind``/``sqe:Alias``/``sqe:OrderCondition`` hold their expression in
+  ``sqe:expr``), the same boundary ``ssyn:``/``srl:`` use. Expressions are
+  inherently tree-shaped even in the surface syntax (``?age > 18``), so
+  there is no flattening benefit to chase. An sqe tree contains **no
+  ``salg:`` terms at all** (checked across the W3C corpus by the opt-in test
+  set): the pieces sqe needs that are not plain expressions are sqe-native
+  (``sqe:TripleTerm``, ``sqe:Exists`` with its own where-list) or sit in
+  ``spexpr:`` (aggregates, the SPARQL 1.2 builtins, the direction-string
+  datatype). ``salg`` may use sqe's vocabulary; sqe never uses salg's.
+- **Text is rendered from the tree** by ``expr_text.py`` and ``to_text.py``,
+  not through rdflib's ``translateAlgebra``.
 
-**Deliberate v1 scope reduction, not an oversight** (mirroring
-``srl_grammar.py``'s own documented precedent for the same discipline):
-covers `SELECT`/`ASK`/`CONSTRUCT` only (no `DESCRIBE`); `WHERE`-clause
-elements limited to triple patterns, `OPTIONAL`, `UNION`, `FILTER`,
-`BIND` (property paths in predicate position, e.g. `foaf:knows+`, *are*
-covered — inherited for free from reusing `to_ssyn_rdf.py`'s own
-`translatePath`/`to_rdf._encode_path` technique). Explicitly
-**not yet** covered: aggregates/`GROUP BY`/`HAVING`, subqueries, `VALUES`,
-and SPARQL Update entirely — see `packages/starlayer/docs/future_enhancements.md`
-for the plan to widen this deliberately, later.
+**Coverage** (verified against the W3C SPARQL 1.2 query fixtures and a
+per-feature suite, both run on a StarLayerGraph/Dataset - see
+``tests/sparql/sqe_coverage``): ``SELECT`` (``*``, ``DISTINCT``/``REDUCED``,
+projected ``(expr AS ?v)``), ``ASK``, ``CONSTRUCT`` (including ``CONSTRUCT
+WHERE``); triple patterns, property paths, ``OPTIONAL``, ``UNION``,
+``MINUS``, ``GRAPH``, ``FILTER`` (including ``EXISTS``/``NOT EXISTS``),
+``BIND``, ``VALUES`` (inline and trailing), sub-selects; aggregates with
+``GROUP BY``/``HAVING``; ``ORDER BY``/``LIMIT``/``OFFSET``; every expression
+builtin; and the SPARQL 1.2 additions (triple terms, reified triples and
+annotations, base-direction strings and their functions). Reified-triple and
+annotation shorthand is stored in its expanded form (a ``rdf:reifies`` triple
+plus ordinary triples), so it renders back expanded.
+
+**Not covered:** ``DESCRIBE`` and SPARQL Update. Anything the tree cannot
+represent raises ``NotImplementedError`` instead of being silently dropped.
+Six W3C fixtures do not round-trip, none because of sqe: three are rejected by
+the project's own parser (``!!``, codepoint escapes) and three are suite
+errors (a triple term as a subject).
+
+**Running a decoded 1.2 query:** a ``Query`` from ``sqe_tree_to_query`` for a
+query that uses SPARQL 1.2 syntax cannot be executed directly by starlayer (a
+prepared 1.2 ``Query`` never can); run the text from ``sqe_tree_to_text``.
 """
 
 from __future__ import annotations
 
-from rdflib import Namespace
-
 from ..vocab import (  # noqa: F401 - reused as-is, not re-minted
     PY_STR_DATATYPE,
-    SALG,
+    SQE,
     VARIABLE_DATATYPE,
 )
-
-SQE = Namespace("https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#")
 
 # Root query-form types, each also typed sqe:Query (see salg:Query's own
 # identical convention) so a store holding many encoded queries can find
@@ -106,6 +119,16 @@ PROJECTION = SQE.projection  # SelectQuery only - rdf:List of sqe:Variable-tagge
 TEMPLATE = SQE.template  # ConstructQuery only - flat rdf:List of TriplePattern nodes
 WHERE = SQE.where  # flat, ordered rdf:List of pattern elements
 
+# Solution modifiers (SELECT/CONSTRUCT roots; ASK has none)
+SELECT_ALL = SQE.selectAll  # SELECT * - boolean true; replaces sqe:projection
+DISTINCT = SQE.distinct  # boolean true on a SelectQuery
+REDUCED = SQE.reduced  # boolean true on a SelectQuery
+ORDER_BY = SQE.orderBy  # flat rdf:List of sqe:OrderCondition nodes
+ORDER_CONDITION = SQE.OrderCondition  # .expr -> expression/variable, optional .descending
+ORDER_DESCENDING = SQE.descending  # boolean true for DESC(...)
+LIMIT = SQE.limit  # xsd:integer
+OFFSET = SQE.offset  # xsd:integer
+
 TRIPLE_PATTERN = SQE.TriplePattern
 TRIPLE_PATTERN_SUBJECT = SQE.subject
 TRIPLE_PATTERN_PREDICATE = SQE.predicate
@@ -116,6 +139,23 @@ OPTIONAL = SQE.Optional  # .where -> nested flat list
 FILTER = SQE.Filter  # .expr -> salg: expression (fallback boundary)
 BIND = SQE.Bind  # .expr -> salg: expression (fallback boundary), .var
 BIND_VAR = SQE.var
+
+EXISTS = SQE.Exists  # EXISTS { ... } / NOT EXISTS { ... } inside an expression - .where, .negated
+NEGATED = SQE.negated  # boolean true on a NOT EXISTS
+ALIAS = SQE.Alias  # (expr AS ?var) in a projection or GROUP BY - .expr, .var
+GROUP_BY = SQE.groupBy  # rdf:List of variables / expressions / sqe:Alias
+HAVING = SQE.having  # rdf:List of expressions
+SUB_SELECT = SQE.SubSelect  # a nested SELECT in a pattern list - same properties as sqe:SelectQuery
+VALUES = SQE.Values  # VALUES block - .vars list, .rows list of lists
+VALUES_VARS = SQE.vars
+VALUES_ROWS = SQE.rows
+VALUES_UNDEF = SQE.undef  # the UNDEF marker inside a VALUES row
+QUERY_VALUES = SQE.values  # a query's trailing VALUES clause -> sqe:Values
+MINUS = SQE.Minus  # MINUS { ... } - .where
+GRAPH_PATTERN = SQE.Graph  # GRAPH ?g { ... } - .graph, .where
+GRAPH_TERM = SQE.graph
+
+TRIPLE_TERM = SQE.TripleTerm  # <<( s p o )>> - .subject/.predicate/.object, recursively
 
 UNION = SQE.Union  # .alternatives -> rdf:List of nested flat lists
 UNION_ALTERNATIVES = SQE.alternatives

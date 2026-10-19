@@ -338,3 +338,75 @@ slkg:implementedByIdentifier a owl:DatatypeProperty ;
     rdfs:range xsd:string ;
     rdfs:label "implemented by identifier" ;
     rdfs:comment "Links a Capability or CapabilityArea to the real code that implements it, named by the same dotted Python path string already used as every extracted entity's own dcterms:identifier (e.g. \"starlayer.shacl.subgraph_extraction.extract_subgraph\") - resolved by matching that identifier at query time, not by hand-minting the auto-generated graph's own blob-URL URIRef (which would be fragile across refactors). Asserted only where a bullet clearly maps to specific real code; left off otherwise (most roadmap bullets have nothing to link to yet). Domain is the union of slkg:Capability and slkg:CapabilityArea, left informal here, matching slkg:hasType/slkg:hasDecorator's own precedent for informal unions." .
+
+#################################################################
+# Query-library classes and properties
+#
+# Hand-curated, like the capability terms above: asserted only in
+# curated/query-library.ttl (generated from query-library/*.rq by
+# scripts/build_query_library.py), never by the AST extractor. A NamedQuery
+# stores its query as an sqe: tree (see starlayer.sparql.sqe), not as text.
+#################################################################
+
+slkg:Topic a owl:Class ;
+    rdfs:label "Topic" ;
+    rdfs:comment "A subject area of questions about the code (call graph, inheritance, API surface, ...). Groups CompetencyQuestions and NamedQueries." .
+
+slkg:CompetencyQuestion a owl:Class ;
+    rdfs:label "Competency question" ;
+    rdfs:comment "A question the code knowledge graph should be able to answer, promoted from codekg/competency-questions.md. slkg:cqStatus says whether it is answerable now." .
+
+slkg:NamedQuery a owl:Class ;
+    rdfs:label "Named query" ;
+    rdfs:comment "A reusable, parameterised query over the code knowledge graph, stored as an sqe: tree (slkg:queryRoot). Run it with starlayer.codekg.queries.run_query." .
+
+slkg:QueryParameter a owl:Class ;
+    rdfs:label "Query parameter" ;
+    rdfs:comment "A value a NamedQuery needs from its caller. It is bound to the query variable of the same name (slkg:paramName) when the query runs." .
+
+slkg:aboutTopic a owl:ObjectProperty ;
+    rdfs:range slkg:Topic ;
+    rdfs:label "about topic" ;
+    rdfs:comment "Places a NamedQuery or CompetencyQuestion under a Topic." .
+
+slkg:answersCompetencyQuestion a owl:ObjectProperty ;
+    rdfs:domain slkg:NamedQuery ;
+    rdfs:range slkg:CompetencyQuestion ;
+    rdfs:label "answers competency question" ;
+    rdfs:comment "A NamedQuery that answers a CompetencyQuestion." .
+
+slkg:queryRoot a owl:ObjectProperty ;
+    rdfs:domain slkg:NamedQuery ;
+    rdfs:label "query root" ;
+    rdfs:comment "The root node of the sqe: tree that holds the query (an sqe:SelectQuery, sqe:AskQuery or sqe:ConstructQuery)." .
+
+slkg:queryParameter a owl:ObjectProperty ;
+    rdfs:domain slkg:NamedQuery ;
+    rdfs:range slkg:QueryParameter ;
+    rdfs:label "query parameter" ;
+    rdfs:comment "A parameter of a NamedQuery." .
+
+slkg:paramName a owl:DatatypeProperty ;
+    rdfs:domain slkg:QueryParameter ;
+    rdfs:range xsd:string ;
+    rdfs:label "parameter name" ;
+    rdfs:comment "The name of the query variable (without the question mark) this parameter is bound to." .
+
+slkg:paramExample a owl:DatatypeProperty ;
+    rdfs:domain slkg:QueryParameter ;
+    rdfs:range xsd:string ;
+    rdfs:label "parameter example" ;
+    rdfs:comment "An example value that works against the committed code knowledge graph. The tests run every NamedQuery with its examples." .
+
+slkg:paramRequired a owl:DatatypeProperty ;
+    rdfs:domain slkg:QueryParameter ;
+    rdfs:range xsd:boolean ;
+    rdfs:label "parameter required" ;
+    rdfs:comment "True when the query cannot run without this parameter." .
+
+slkg:cqStatus a owl:DatatypeProperty ;
+    rdfs:domain slkg:CompetencyQuestion ;
+    rdfs:range xsd:string ;
+    rdfs:label "competency question status" ;
+    rdfs:comment "\"answerable\" (the graph can answer it now), \"roadmap\" (not built yet), \"curated\" (needs a hand-maintained layer) or \"out-of-scope\" (deliberately excluded). The same four states as the status marks in competency-questions.md." .
+

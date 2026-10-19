@@ -56,16 +56,31 @@ from rdflib.plugins.sparql.algebra import triples as group_triples
 from rdflib.plugins.sparql.parserutils import CompValue, ParseResults
 from rdflib.term import IdentifiedNode
 
+from ..to_rdf import _ENCODE_HOOK, _NS_OVERRIDES, _encode_path, _new_starlayer_graph
 from ..to_rdf import _encode as _encode_algebra
-from ..to_rdf import _encode_path, _new_starlayer_graph
+from ..vocab import SPEXPR
 from .vocab import (
+    ALIAS,
     ASK_QUERY,
     BIND,
     BIND_VAR,
     CONSTRUCT_QUERY,
+    DISTINCT,
+    EXISTS,
     EXPR,
     FILTER,
+    GRAPH_PATTERN,
+    GRAPH_TERM,
+    GROUP_BY,
+    HAVING,
+    LIMIT,
+    MINUS,
+    NEGATED,
+    OFFSET,
     OPTIONAL,
+    ORDER_BY,
+    ORDER_CONDITION,
+    ORDER_DESCENDING,
     PREFIX_BINDING,
     PREFIX_LABEL,
     PREFIX_NAMESPACE,
@@ -74,7 +89,12 @@ from .vocab import (
     PROLOGUE_PREFIX,
     PY_STR_DATATYPE,
     QUERY,
+    QUERY_VALUES,
+    REDUCED,
+    SELECT_ALL,
     SELECT_QUERY,
+    SQE,
+    SUB_SELECT,
     TEMPLATE,
     TRIPLE_PATTERN,
     TRIPLE_PATTERN_OBJECT,
@@ -82,9 +102,45 @@ from .vocab import (
     TRIPLE_PATTERN_SUBJECT,
     UNION,
     UNION_ALTERNATIVES,
+    VALUES,
+    VALUES_ROWS,
+    VALUES_UNDEF,
+    VALUES_VARS,
     VARIABLE_DATATYPE,
     WHERE,
 )
+
+_AGGREGATE_NAMES = (
+    "Aggregate_Count", "Aggregate_Sum", "Aggregate_Min", "Aggregate_Max",
+    "Aggregate_Avg", "Aggregate_Sample", "Aggregate_GroupConcat",
+)
+
+
+def _encode_exists_hook(value, graph: Graph):
+    """EXISTS / NOT EXISTS gets an sqe:Exists node holding a normal where-list."""
+    if value.name not in ("Builtin_EXISTS", "Builtin_NOTEXISTS"):
+        return NotImplemented
+    node = BNode()
+    graph.add((node, RDF.type, EXISTS))
+    if value.name == "Builtin_NOTEXISTS":
+        graph.add((node, NEGATED, Literal(True)))
+    graph.add((node, WHERE, _encode_where_group(value["graph"], graph)))
+    return node
+
+
+def _encode_expr(value, graph: Graph):
+    """Encode an expression (or any term that may contain a triple term) with
+    the shared encoder, typing triple terms, aggregates and EXISTS blocks with
+    sqe:/spexpr: terms rather than salg: ones."""
+    overrides = {"TripleTerm": SQE, **{name: SPEXPR for name in _AGGREGATE_NAMES}}
+    ns_token = _NS_OVERRIDES.set(overrides)
+    hook_token = _ENCODE_HOOK.set(_encode_exists_hook)
+    try:
+        return _encode_algebra(value, graph)
+    finally:
+        _ENCODE_HOOK.reset(hook_token)
+        _NS_OVERRIDES.reset(ns_token)
+
 
 _ROOT_TYPE_BY_QUERY_NAME = {
     "SelectQuery": SELECT_QUERY,
@@ -162,17 +218,13 @@ def sqe_parse_to_tree(
         A ``(graph, root)`` tuple.
 
     Raises:
-        NotImplementedError: For anything outside v1's scope
-            (``DESCRIBE``; aggregates/``GROUP BY``/``HAVING``,
-            subqueries, ``VALUES``, or any ``WHERE``-clause element
-            besides a triple pattern/``OPTIONAL``/``UNION``/``FILTER``/
-            ``BIND``) rather than silently mis-encoding - see
-            ``vocab.py``'s module docstring and `future_enhancements.md`
-            for the deliberate scope reduction this mirrors from SRL.
+        NotImplementedError: For ``DESCRIBE`` or a WHERE-clause element the
+            tree does not model, rather than silently mis-encoding - see
+            ``vocab.py``'s module docstring for what is covered.
         SQEValidationError: If the text parses fine but the encoded tree
             fails ``sqe:``'s own SHACL shapes.
     """
-    from rdflib.plugins.sparql.parser import parseQuery
+    from ..parse12 import parse_query_12
 
     # Lazy: sqe_validate() needs pyshacl, which the rest of this module
     # doesn't - see sqe/__init__.py's own try/except around importing it,
@@ -182,7 +234,7 @@ def sqe_parse_to_tree(
     # already in this file.
     from .shapes import sqe_validate
 
-    encoded_graph, encoded_root = _query_to_sqe_rdf(parseQuery(text), graph, root)
+    encoded_graph, encoded_root = _query_to_sqe_rdf(parse_query_12(text), graph, root)
     conforms, report_graph, report_text = sqe_validate(encoded_graph)
     if not conforms:
         raise SQEValidationError(report_text, report_graph)
@@ -238,16 +290,91 @@ def _query_to_sqe_rdf(
         root = BNode()
     graph.add((root, RDF.type, root_type))
     graph.add((root, RDF.type, QUERY))
-    if root_type is SELECT_QUERY:
-        graph.add((root, PROJECTION, _encode_var_list(query.projection, graph)))
-    elif root_type is CONSTRUCT_QUERY:
-        template_nodes = [
-            _encode_triple_pattern(s, p, o, graph) for s, p, o in query.template
-        ]
-        graph.add((root, TEMPLATE, _build_rdf_list(template_nodes, graph)))
-    graph.add((root, WHERE, _encode_where_group(query.where, graph)))
+    _encode_query_body(query, root, root_type, graph)
     _encode_raw_prologue(prologue_list, root, graph)
     return graph, root
+
+
+def _encode_query_body(query: CompValue, root, root_type, graph: Graph) -> None:
+    """The form-specific content shared by a root query and a nested sub-select."""
+    if root_type is SELECT_QUERY:
+        if query.projection:
+            graph.add((root, PROJECTION, _encode_var_list(query.projection, graph)))
+        else:
+            graph.add((root, SELECT_ALL, Literal(True)))
+        if query.modifier == "DISTINCT":
+            graph.add((root, DISTINCT, Literal(True)))
+        elif query.modifier == "REDUCED":
+            graph.add((root, REDUCED, Literal(True)))
+    elif root_type is CONSTRUCT_QUERY:
+        if query.template is None:
+            # CONSTRUCT WHERE { ... }: the template is the WHERE clause's own
+            # triples (SPARQL 1.1 sec 16.2.4) - written out explicitly.
+            triples = [t for part in query.where.part or [] for t in group_triples(part.triples)]
+        else:
+            triples = group_triples(query.template)
+        template_nodes = [_encode_triple_pattern(s, p, o, graph) for s, p, o in triples]
+        graph.add((root, TEMPLATE, _build_rdf_list(template_nodes, graph)))
+    graph.add((root, WHERE, _encode_where_group(query.where, graph)))
+    if root_type is not ASK_QUERY:
+        _encode_solution_modifiers(query, root, graph)
+    if getattr(query, "valuesClause", None):
+        graph.add((root, QUERY_VALUES, _encode_values(query.valuesClause, graph)))
+
+
+def _encode_values(block: CompValue, graph: Graph) -> BNode:
+    """A VALUES block (inline or trailing): variables plus rows of terms."""
+    variables = list(block.var or [])
+    values = list(block.value or [])
+    rows = [[v] if len(variables) == 1 else list(v) for v in values]
+    node = BNode()
+    graph.add((node, RDF.type, VALUES))
+    graph.add((node, VALUES_VARS, _build_rdf_list([_encode_variable(v) for v in variables], graph)))
+    row_nodes = []
+    for row in rows:
+        cells = [VALUES_UNDEF if cell == "UNDEF" else _encode_term(cell, graph) for cell in row]
+        row_nodes.append(_build_rdf_list(cells, graph))
+    graph.add((node, VALUES_ROWS, _build_rdf_list(row_nodes, graph)))
+    return node
+
+
+def _encode_sub_select(sub: CompValue, graph: Graph) -> BNode:
+    node = BNode()
+    graph.add((node, RDF.type, SUB_SELECT))
+    graph.add((node, RDF.type, SELECT_QUERY))
+    _encode_query_body(sub, node, SELECT_QUERY, graph)
+    return node
+
+
+def _encode_solution_modifiers(query: CompValue, root, graph: Graph) -> None:
+    if query.groupby:
+        items = []
+        for cond in query.groupby.condition:
+            if isinstance(cond, Variable):
+                items.append(_encode_variable(cond))
+            elif isinstance(cond, CompValue) and cond.name == "GroupAs":
+                items.append(_encode_alias(cond.expr, cond.var, graph))
+            else:
+                items.append(_encode_expr(simplifyFilters(cond), graph))
+        graph.add((root, GROUP_BY, _build_rdf_list(items, graph)))
+    if query.having:
+        items = [_encode_expr(simplifyFilters(c), graph) for c in query.having.condition]
+        graph.add((root, HAVING, _build_rdf_list(items, graph)))
+    if query.orderby:
+        conditions = []
+        for cond in query.orderby.condition:
+            node = BNode()
+            graph.add((node, RDF.type, ORDER_CONDITION))
+            graph.add((node, EXPR, _encode_expr(simplifyFilters(cond.expr), graph)))
+            if cond.order == "DESC":
+                graph.add((node, ORDER_DESCENDING, Literal(True)))
+            conditions.append(node)
+        graph.add((root, ORDER_BY, _build_rdf_list(conditions, graph)))
+    if query.limitoffset:
+        if query.limitoffset.limit is not None:
+            graph.add((root, LIMIT, query.limitoffset.limit))
+        if query.limitoffset.offset is not None:
+            graph.add((root, OFFSET, query.limitoffset.offset))
 
 
 def _encode_raw_prologue(prologue_list, root, graph: Graph) -> None:
@@ -272,9 +399,21 @@ def _encode_raw_prologue(prologue_list, root, graph: Graph) -> None:
             graph.add((root, PROLOGUE_PREFIX, binding))
 
 
+def _encode_alias(expr, var, graph: Graph) -> BNode:
+    node = BNode()
+    graph.add((node, RDF.type, ALIAS))
+    graph.add((node, EXPR, _encode_expr(simplifyFilters(expr), graph)))
+    graph.add((node, BIND_VAR, _encode_variable(var)))
+    return node
+
+
 def _encode_var_list(projection, graph: Graph):
-    variables = [v.var for v in projection]
-    return _build_rdf_list([_encode_variable(v) for v in variables], graph)
+    """A projection: plain variables, or (expr AS ?var) aliases."""
+    items = [
+        _encode_alias(v.expr, v.evar, graph) if getattr(v, "evar", None) else _encode_variable(v.var)
+        for v in projection
+    ]
+    return _build_rdf_list(items, graph)
 
 
 def _encode_where_group(group: CompValue, graph: Graph):
@@ -283,6 +422,8 @@ def _encode_where_group(group: CompValue, graph: Graph):
     raw parse tree. See ``to_ssyn_rdf.py``'s own docstring for the full
     rationale (identical technique, reused directly)."""
     nodes: list = []
+    if group.name == "SubSelect":
+        return _build_rdf_list([_encode_sub_select(group, graph)], graph)
     for part in group.part or []:
         if part.name == "TriplesBlock":
             for s, p, o in group_triples(part.triples):
@@ -301,14 +442,29 @@ def _encode_where_element(part: CompValue, graph: Graph) -> BNode:
     if part.name == "Filter":
         node = BNode()
         graph.add((node, RDF.type, FILTER))
-        graph.add((node, EXPR, _encode_algebra(simplifyFilters(part.expr), graph)))
+        graph.add((node, EXPR, _encode_expr(simplifyFilters(part.expr), graph)))
         return node
     if part.name == "Bind":
         node = BNode()
         graph.add((node, RDF.type, BIND))
-        graph.add((node, EXPR, _encode_algebra(simplifyFilters(part.expr), graph)))
+        graph.add((node, EXPR, _encode_expr(simplifyFilters(part.expr), graph)))
         graph.add((node, BIND_VAR, _encode_variable(part.var)))
         return node
+    if part.name == "MinusGraphPattern":
+        node = BNode()
+        graph.add((node, RDF.type, MINUS))
+        graph.add((node, WHERE, _encode_where_group(part.graph, graph)))
+        return node
+    if part.name == "GraphGraphPattern":
+        node = BNode()
+        graph.add((node, RDF.type, GRAPH_PATTERN))
+        graph.add((node, GRAPH_TERM, _encode_term(part.term, graph)))
+        graph.add((node, WHERE, _encode_where_group(part.graph, graph)))
+        return node
+    if part.name == "InlineData":
+        return _encode_values(part, graph)
+    if part.name == "GroupOrUnionGraphPattern" and len(part.graph) == 1 and part.graph[0].name == "SubSelect":
+        return _encode_sub_select(part.graph[0], graph)
     if part.name == "GroupOrUnionGraphPattern":
         node = BNode()
         graph.add((node, RDF.type, UNION))
@@ -344,6 +500,8 @@ def _encode_predicate(p, graph: Graph):
 def _encode_term(value, graph: Graph):
     if isinstance(value, Variable):
         return _encode_variable(value)
+    if isinstance(value, CompValue) and value.name == "TripleTerm":
+        return _encode_expr(value, graph)
     return value  # a real, already-resolved RDF term (URIRef/BNode/Literal)
 
 

@@ -34,6 +34,7 @@ manch:AnnPropSubPropertyOfClause a sh:NodeShape ;
     sh:targetClass manch:AnnPropSubPropertyOfClause .
 
 manch:AnnotationAssertionListShape a sh:NodeShape ;
+    sh:node manch:WellFormedListShape ;
     sh:sparql [
         a sh:SPARQLConstraint ;
         sh:message "expected a well-formed rdf:List of AnnotationAssertion" ;
@@ -63,6 +64,10 @@ manch:AnnotationAssertionShape a sh:NodeShape ;
         sh:minCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:path manch:annotationProperty
+    ], [
+        sh:maxCount 1 ;
+        sh:node manch:AnnotationAssertionListShape ;
+        sh:path manch:annotations
     ] ;
     sh:targetClass manch:AnnotationAssertion .
 
@@ -81,6 +86,7 @@ manch:ClassEquivalentToClause a sh:NodeShape ;
     sh:targetClass manch:ClassEquivalentToClause .
 
 manch:ClassExpressionItemListShape a sh:NodeShape ;
+    sh:node manch:WellFormedListShape ;
     sh:sparql [
         a sh:SPARQLConstraint ;
         sh:message "expected a well-formed rdf:List of ClauseItem whose value is a class expression" ;
@@ -98,6 +104,7 @@ manch:ClassExpressionItemListShape a sh:NodeShape ;
     ] .
 
 manch:ClassExpressionListShape a sh:NodeShape ;
+    sh:node manch:WellFormedListShape ;
     sh:sparql [
         a sh:SPARQLConstraint ;
         sh:message "expected a well-formed rdf:List of class expressions" ;
@@ -159,6 +166,7 @@ manch:ClauseItemsShape a sh:NodeShape ;
     sh:targetClass manch:Clause .
 
 manch:ClauseListShape a sh:NodeShape ;
+    sh:node manch:WellFormedListShape ;
     sh:sparql [
         a sh:SPARQLConstraint ;
         sh:message "expected a well-formed rdf:List of Clause" ;
@@ -203,7 +211,7 @@ manch:DOneOfShape a sh:NodeShape ;
     sh:property [
         sh:maxCount 1 ;
         sh:minCount 1 ;
-        sh:node manch:WellFormedListShape ;
+        sh:node manch:LiteralListShape ;
         sh:path manch:literals
     ] ;
     sh:targetClass manch:DOneOf .
@@ -226,7 +234,7 @@ manch:DRestrictionShape a sh:NodeShape ;
     ], [
         sh:maxCount 1 ;
         sh:minCount 1 ;
-        sh:node manch:WellFormedListShape ;
+        sh:node manch:FacetRestrictionListShape ;
         sh:path manch:facets
     ] ;
     sh:targetClass manch:DRestriction .
@@ -274,6 +282,7 @@ manch:DataPropSubPropertyOfClause a sh:NodeShape ;
     sh:targetClass manch:DataPropSubPropertyOfClause .
 
 manch:DataRangeItemListShape a sh:NodeShape ;
+    sh:node manch:WellFormedListShape ;
     sh:sparql [
         a sh:SPARQLConstraint ;
         sh:message "expected a well-formed rdf:List of ClauseItem whose value is a data range" ;
@@ -291,6 +300,7 @@ manch:DataRangeItemListShape a sh:NodeShape ;
     ] .
 
 manch:DataRangeListShape a sh:NodeShape ;
+    sh:node manch:WellFormedListShape ;
     sh:sparql [
         a sh:SPARQLConstraint ;
         sh:message "expected a well-formed rdf:List of data ranges" ;
@@ -330,7 +340,7 @@ manch:DocumentShape a sh:NodeShape ;
     sh:property [
         sh:maxCount 1 ;
         sh:minCount 1 ;
-        sh:node manch:WellFormedListShape ;
+        sh:node manch:PrefixDeclListShape ;
         sh:path manch:prefixes
     ], [
         sh:maxCount 1 ;
@@ -405,6 +415,7 @@ manch:FactItemShape a sh:NodeShape ;
     sh:targetClass manch:FactItem .
 
 manch:FrameListShape a sh:NodeShape ;
+    sh:node manch:WellFormedListShape ;
     sh:sparql [
         a sh:SPARQLConstraint ;
         sh:message "expected a well-formed rdf:List of Frame" ;
@@ -513,10 +524,15 @@ manch:MiscAxiomItemsShape a sh:NodeShape ;
         sh:minCount 1 ;
         sh:node manch:WellFormedListShape ;
         sh:path manch:items
+    ], [
+        sh:maxCount 1 ;
+        sh:node manch:AnnotationAssertionListShape ;
+        sh:path manch:annotations
     ] ;
     sh:targetClass manch:MiscAxiom .
 
 manch:MiscAxiomListShape a sh:NodeShape ;
+    sh:node manch:WellFormedListShape ;
     sh:sparql [
         a sh:SPARQLConstraint ;
         sh:message "expected a well-formed rdf:List of MiscAxiom" ;
@@ -582,6 +598,7 @@ manch:MiscSameIndividualAxiom a sh:NodeShape ;
     sh:targetClass manch:MiscSameIndividualAxiom .
 
 manch:NameItemListShape a sh:NodeShape ;
+    sh:node manch:WellFormedListShape ;
     sh:sparql [
         a sh:SPARQLConstraint ;
         sh:message "expected a well-formed rdf:List of ClauseItem whose value is a bare IRI" ;
@@ -598,6 +615,7 @@ manch:NameItemListShape a sh:NodeShape ;
     ] .
 
 manch:NameListShape a sh:NodeShape ;
+    sh:node manch:WellFormedListShape ;
     sh:sparql [
         a sh:SPARQLConstraint ;
         sh:message "expected a well-formed rdf:List of bare IRIs" ;
@@ -673,7 +691,7 @@ manch:OneOfShape a sh:NodeShape ;
     sh:property [
         sh:maxCount 1 ;
         sh:minCount 1 ;
-        sh:node manch:WellFormedListShape ;
+        sh:node manch:IriListShape ;
         sh:path manch:individuals
     ] ;
     sh:targetClass manch:OneOf .
@@ -695,12 +713,20 @@ manch:OnlyShape a sh:NodeShape ;
 manch:OntologyHeaderShape a sh:NodeShape ;
     sh:property [
         sh:maxCount 1 ;
-        sh:node manch:WellFormedListShape ;
+        sh:node manch:IriListShape ;
         sh:path manch:imports
     ], [
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:path manch:ontologyIri
+    ], [
+        sh:maxCount 1 ;
+        sh:nodeKind sh:IRI ;
+        sh:path manch:versionIri
+    ], [
+        sh:maxCount 1 ;
+        sh:node manch:AnnotationAssertionListShape ;
+        sh:path manch:annotations
     ] ;
     sh:targetClass manch:OntologyHeader .
 
@@ -728,6 +754,7 @@ manch:PrefixDeclShape a sh:NodeShape ;
     sh:targetClass manch:PrefixDecl .
 
 manch:PropertyExpressionItemListShape a sh:NodeShape ;
+    sh:node manch:WellFormedListShape ;
     sh:sparql [
         a sh:SPARQLConstraint ;
         sh:message "expected a well-formed rdf:List of ClauseItem whose value is a property expression" ;
@@ -745,6 +772,7 @@ manch:PropertyExpressionItemListShape a sh:NodeShape ;
     ] .
 
 manch:PropertyExpressionListShape a sh:NodeShape ;
+    sh:node manch:WellFormedListShape ;
     sh:sparql [
         a sh:SPARQLConstraint ;
         sh:message "expected a well-formed rdf:List of property expressions" ;
@@ -783,7 +811,7 @@ manch:SelfRShape a sh:NodeShape ;
     sh:targetClass manch:SelfR .
 
 manch:ShapesGraph a sh:ShapesGraph ;
-    rdfs:member manch:AnnotationAssertionShape, manch:FrameShapeDetail, manch:PropertyExpressionItemListShape, manch:DOneOfShape, manch:IndividualSameAsClause, manch:OneOfShape, manch:MiscAxiomShape, manch:AndShape, manch:PrefixDeclShape, manch:DRestrictionShape, manch:DataPropEquivalentToClause, manch:AnnPropRangeClause, manch:IndividualDifferentFromClause, manch:FrameListShape, manch:ClassSubClassOfClause, manch:ObjPropSubPropertyOfClause, manch:ObjPropRangeClause, manch:PropertyExpressionListShape, manch:ExactShape, manch:ClassExpressionItemListShape, manch:DataPropSubPropertyOfClause, manch:ObjPropCharacteristicsClause, manch:DataPropCharacteristicsClause, manch:ClassDisjointWithClause, manch:MiscDifferentIndividualsAxiom, manch:MiscDisjointPropertiesAxiom, manch:ValueShape, manch:PropertyExpressionOrNameShape, manch:DataRangeListShape, manch:OnlyShape, manch:MiscEquivalentClassesAxiom, manch:MaxShape, manch:SomeShape, manch:DataRangeOrNameShape, manch:DocumentShape, manch:ClassExpressionListShape, manch:DataPropDomainClause, manch:DataRangeShape, manch:ClassExpressionShape, manch:MiscAxiomListShape, manch:FactItemShape, manch:ClauseItemShape, manch:MinShape, manch:WellFormedListShape, manch:ClauseItemsShape, manch:InverseShape, manch:DataPropDisjointWithClause, manch:FacetRestrictionShape, manch:ClassExpressionOrNameShape, manch:IndividualTypesClause, manch:AnnPropSubPropertyOfClause, manch:ClauseListShape, manch:MiscAxiomItemsShape, manch:OrShape, manch:DataRangeItemListShape, manch:MiscSameIndividualAxiom, manch:ObjPropDomainClause, manch:NotShape, manch:DOrShape, manch:ClauseShape, manch:AnnPropDomainClause, manch:ObjPropInverseOfClause, manch:ObjPropEquivalentToClause, manch:MiscDisjointClassesAxiom, manch:ValueClauseShape, manch:NameListShape, manch:PropertyExpressionShape, manch:MiscEquivalentPropertiesAxiom, manch:ClassEquivalentToClause, manch:DatatypeEquivalentToClause, manch:DataPropRangeClause, manch:NameItemListShape, manch:FrameShape, manch:OntologyHeaderShape, manch:DNotShape, manch:ObjPropDisjointWithClause, manch:AnnotationAssertionListShape, manch:DAndShape, manch:SelfRShape .
+    rdfs:member manch:AnnotationAssertionShape, manch:FrameShapeDetail, manch:PropertyExpressionItemListShape, manch:DOneOfShape, manch:IndividualSameAsClause, manch:OneOfShape, manch:MiscAxiomShape, manch:AndShape, manch:PrefixDeclShape, manch:DRestrictionShape, manch:DataPropEquivalentToClause, manch:AnnPropRangeClause, manch:IndividualDifferentFromClause, manch:FrameListShape, manch:ClassSubClassOfClause, manch:ObjPropSubPropertyOfClause, manch:ObjPropRangeClause, manch:PropertyExpressionListShape, manch:ExactShape, manch:ClassExpressionItemListShape, manch:DataPropSubPropertyOfClause, manch:ObjPropCharacteristicsClause, manch:DataPropCharacteristicsClause, manch:ClassDisjointWithClause, manch:MiscDifferentIndividualsAxiom, manch:MiscDisjointPropertiesAxiom, manch:ValueShape, manch:PropertyExpressionOrNameShape, manch:DataRangeListShape, manch:OnlyShape, manch:MiscEquivalentClassesAxiom, manch:MaxShape, manch:SomeShape, manch:DataRangeOrNameShape, manch:DocumentShape, manch:ClassExpressionListShape, manch:DataPropDomainClause, manch:DataRangeShape, manch:ClassExpressionShape, manch:MiscAxiomListShape, manch:FactItemShape, manch:ClauseItemShape, manch:MinShape, manch:WellFormedListShape, manch:ClauseItemsShape, manch:InverseShape, manch:DataPropDisjointWithClause, manch:FacetRestrictionShape, manch:ClassExpressionOrNameShape, manch:IndividualTypesClause, manch:AnnPropSubPropertyOfClause, manch:ClauseListShape, manch:MiscAxiomItemsShape, manch:OrShape, manch:DataRangeItemListShape, manch:MiscSameIndividualAxiom, manch:ObjPropDomainClause, manch:NotShape, manch:DOrShape, manch:ClauseShape, manch:AnnPropDomainClause, manch:ObjPropInverseOfClause, manch:ObjPropEquivalentToClause, manch:MiscDisjointClassesAxiom, manch:ValueClauseShape, manch:NameListShape, manch:PropertyExpressionShape, manch:MiscEquivalentPropertiesAxiom, manch:ClassEquivalentToClause, manch:DatatypeEquivalentToClause, manch:DataPropRangeClause, manch:NameItemListShape, manch:FrameShape, manch:OntologyHeaderShape, manch:LiteralListShape, manch:IriListShape, manch:PrefixDeclListShape, manch:FacetRestrictionListShape, manch:DSomeShape, manch:DOnlyShape, manch:DMinShape, manch:DMaxShape, manch:DExactShape, manch:DNotShape, manch:ObjPropDisjointWithClause, manch:AnnotationAssertionListShape, manch:DAndShape, manch:SelfRShape .
 
 manch:SomeShape a sh:NodeShape ;
     sh:property [
@@ -824,14 +852,163 @@ manch:ValueShape a sh:NodeShape ;
 manch:WellFormedListShape a sh:NodeShape ;
     sh:sparql [
         a sh:SPARQLConstraint ;
-        sh:message "expected a well-formed rdf:List" ;
+        sh:message "expected a well-formed rdf:List (every cell has rdf:first, and the chain ends in rdf:nil without a cycle)" ;
         sh:select """
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
             SELECT $this
             WHERE {
                 $this rdf:rest* ?cell .
                 FILTER ( ?cell != rdf:nil )
-                FILTER NOT EXISTS { ?cell rdf:first ?x }
+                FILTER ( NOT EXISTS { ?cell rdf:first ?x } || NOT EXISTS { ?cell rdf:rest* rdf:nil } )
+            }
+        """
+    ] .
+
+manch:DSomeShape a sh:NodeShape ;
+    sh:property [
+        sh:maxCount 1 ;
+        sh:minCount 1 ;
+        sh:node manch:DataRangeOrNameShape ;
+        sh:path manch:filler
+    ], [
+        sh:maxCount 1 ;
+        sh:minCount 1 ;
+        sh:node manch:PropertyExpressionOrNameShape ;
+        sh:path manch:onProperty
+    ] ;
+    sh:targetClass manch:DSome .
+
+manch:DOnlyShape a sh:NodeShape ;
+    sh:property [
+        sh:maxCount 1 ;
+        sh:minCount 1 ;
+        sh:node manch:DataRangeOrNameShape ;
+        sh:path manch:filler
+    ], [
+        sh:maxCount 1 ;
+        sh:minCount 1 ;
+        sh:node manch:PropertyExpressionOrNameShape ;
+        sh:path manch:onProperty
+    ] ;
+    sh:targetClass manch:DOnly .
+
+manch:DMinShape a sh:NodeShape ;
+    sh:property [
+        sh:datatype xsd:nonNegativeInteger ;
+        sh:maxCount 1 ;
+        sh:minCount 1 ;
+        sh:path manch:cardinality
+    ], [
+        sh:maxCount 1 ;
+        sh:minCount 1 ;
+        sh:node manch:DataRangeOrNameShape ;
+        sh:path manch:filler
+    ], [
+        sh:maxCount 1 ;
+        sh:minCount 1 ;
+        sh:node manch:PropertyExpressionOrNameShape ;
+        sh:path manch:onProperty
+    ] ;
+    sh:targetClass manch:DMin .
+
+manch:DMaxShape a sh:NodeShape ;
+    sh:property [
+        sh:datatype xsd:nonNegativeInteger ;
+        sh:maxCount 1 ;
+        sh:minCount 1 ;
+        sh:path manch:cardinality
+    ], [
+        sh:maxCount 1 ;
+        sh:minCount 1 ;
+        sh:node manch:DataRangeOrNameShape ;
+        sh:path manch:filler
+    ], [
+        sh:maxCount 1 ;
+        sh:minCount 1 ;
+        sh:node manch:PropertyExpressionOrNameShape ;
+        sh:path manch:onProperty
+    ] ;
+    sh:targetClass manch:DMax .
+
+manch:DExactShape a sh:NodeShape ;
+    sh:property [
+        sh:datatype xsd:nonNegativeInteger ;
+        sh:maxCount 1 ;
+        sh:minCount 1 ;
+        sh:path manch:cardinality
+    ], [
+        sh:maxCount 1 ;
+        sh:minCount 1 ;
+        sh:node manch:DataRangeOrNameShape ;
+        sh:path manch:filler
+    ], [
+        sh:maxCount 1 ;
+        sh:minCount 1 ;
+        sh:node manch:PropertyExpressionOrNameShape ;
+        sh:path manch:onProperty
+    ] ;
+    sh:targetClass manch:DExact .
+
+manch:LiteralListShape a sh:NodeShape ;
+    sh:node manch:WellFormedListShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "expected an rdf:List of literals" ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX manch: <https://github.com/hidden-graph/starlayer/ns/graph/manchester-ast#>
+            SELECT $this
+            WHERE {
+                $this rdf:rest*/rdf:first ?item .
+                FILTER ( !isLiteral(?item) )
+            }
+        """
+    ] .
+
+manch:IriListShape a sh:NodeShape ;
+    sh:node manch:WellFormedListShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "expected an rdf:List of IRIs" ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX manch: <https://github.com/hidden-graph/starlayer/ns/graph/manchester-ast#>
+            SELECT $this
+            WHERE {
+                $this rdf:rest*/rdf:first ?item .
+                FILTER ( !isIRI(?item) )
+            }
+        """
+    ] .
+
+manch:PrefixDeclListShape a sh:NodeShape ;
+    sh:node manch:WellFormedListShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "expected an rdf:List of PrefixDecl" ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX manch: <https://github.com/hidden-graph/starlayer/ns/graph/manchester-ast#>
+            SELECT $this
+            WHERE {
+                $this rdf:rest*/rdf:first ?item .
+                FILTER NOT EXISTS { ?item a manch:PrefixDecl }
+            }
+        """
+    ] .
+
+manch:FacetRestrictionListShape a sh:NodeShape ;
+    sh:node manch:WellFormedListShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "expected an rdf:List of FacetRestriction" ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX manch: <https://github.com/hidden-graph/starlayer/ns/graph/manchester-ast#>
+            SELECT $this
+            WHERE {
+                $this rdf:rest*/rdf:first ?item .
+                FILTER NOT EXISTS { ?item a manch:FacetRestriction }
             }
         """
     ] .

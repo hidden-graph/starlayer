@@ -7,6 +7,8 @@ that is the design (and not one function per operator name).
 
 from __future__ import annotations
 
+from contextvars import ContextVar
+
 from rdflib import BNode, Graph, Literal, Namespace, URIRef, Variable
 from rdflib.collection import Collection
 from rdflib.namespace import RDF
@@ -43,9 +45,9 @@ def _expr_comp_value_names() -> frozenset:
 
     Lazily imported and cached, not resolved at module top level, to avoid
     a real circular-import risk: this file is itself imported by
-    starlayer.sparql's own top-level __init__.py, and salg/expr_families.py
-    sits inside the salg subpackage, whose own __init__.py pulls in
-    sparql_shapes.py -> starontology - a path this project's own
+    starlayer.sparql's own top-level __init__.py, and expr_families.py
+    is imported lazily for the same reason as everything that pulls in
+    starontology - a path this project's own
     established "lazy, not top-level" convention exists specifically to
     avoid (see starontology/__init__.py's identical reasoning). Safe to
     defer: nothing can call _encode_comp_value() before starlayer.sparql
@@ -56,7 +58,7 @@ def _expr_comp_value_names() -> frozenset:
     """
     global _EXPR_COMP_VALUE_NAMES
     if _EXPR_COMP_VALUE_NAMES is None:
-        from .salg.expr_families import _EXPR_NODE_FAMILY
+        from .expr_families import _EXPR_NODE_FAMILY
 
         # TrueFilter is the one spexpr:-bound CompValue name with no entry
         # in _EXPR_NODE_FAMILY (it has no fields of its own to generate a
@@ -67,11 +69,26 @@ def _expr_comp_value_names() -> frozenset:
     return _EXPR_COMP_VALUE_NAMES
 
 
+# Per-call namespace overrides for specific CompValue names. sqe's encoder
+# sets {"TripleTerm": SQE} while encoding so a triple term inside a query tree
+# is an sqe: node, not a salg: one. A ContextVar, not a parameter, because the
+# encoder recurses generically through many layers.
+_NS_OVERRIDES: ContextVar[dict | None] = ContextVar("_NS_OVERRIDES", default=None)
+
+# Optional per-call encoding hook: ``hook(value, graph)`` returns an RDF node to
+# use instead of the generic encoding, or ``NotImplemented`` to fall through.
+# sqe uses it to give EXISTS blocks a native where-list encoding.
+_ENCODE_HOOK: ContextVar = ContextVar("_ENCODE_HOOK", default=None)
+
+
 def _comp_value_ns(name: str) -> Namespace:
     """Which namespace a given CompValue.name encodes under - spexpr: for
     the expression-family names that moved out of salg: (2026-10-10), salg:
     for every other algebra operator (Join/Filter/Project/etc. - salg:'s
     own, unmoved vocabulary)."""
+    override = (_NS_OVERRIDES.get() or {}).get(name)
+    if override is not None:
+        return override
     return SPEXPR if name in _expr_comp_value_names() else SALG
 
 _LEAF_TERM_TYPES = (URIRef, BNode, Literal)
@@ -240,6 +257,12 @@ def _encode(value, graph: Graph):
     """Encode one algebra-tree value; return the RDF term/node representing it."""
     if value is None:
         return None
+
+    hook = _ENCODE_HOOK.get()
+    if hook is not None and isinstance(value, CompValue):
+        hooked = hook(value, graph)
+        if hooked is not NotImplemented:
+            return hooked
 
     if isinstance(value, Variable):
         return Literal(str(value), datatype=VARIABLE_DATATYPE)

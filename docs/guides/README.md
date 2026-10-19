@@ -29,6 +29,7 @@ The full guide set has been reorganized into `docs/guides/`, one focused noteboo
    - **5.a [Manchester Syntax](05a-manchester-syntax.ipynb)** - OWL 2 Manchester Syntax's English-readable notation, via `parse()`/`serialize()` with `format="manchester"`, plus treating a document's own internal structure as an inspectable, editable RDF graph via the `manch:` ontology.
    - **5.b [SPARQL queries as RDF](05b-sparql-query-as-rdf.ipynb)** - encoding, editing, and validating a query itself as an RDF graph, under the `sqe:` ontology.
    - **5.c [SRL (SPARQL Rules) as RDF](05c-srl-sparql-rules-as-rdf.ipynb)** - encoding a parsed SRL rule set as RDF under the `srl:` namespace, and SHACL-validating that encoding.
+   - **5.d [The SHACL library registry](05d-shacl-library-registry.ipynb)** - loading the bundled ontologies and shapes by name, validating data against them, the StarLayer profiles that tie each shapes graph to its specification, and fetching each file directly from GitHub.
 6. **Other**
    - **6.a [Serialization formats](06a-serialization-formats.ipynb)** - all eight RDF 1.2 formats `parse()`/`serialize()` support.
    - **6.b [Choosing where your data lives](06b-backend-graph-databases.ipynb)** - remote SPARQL endpoints, SQLAlchemy-backed storage, and embedded Oxigraph - Transport and Persistence, independent of the RDF 1.1/1.2 representation.

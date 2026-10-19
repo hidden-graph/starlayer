@@ -51,8 +51,8 @@ Built 2026-10-14 (`slkg:isPrivate`/`slkg:isDunder`, Class/Function/Method only -
 
 ## Architecture / coupling
 
-- ✅ Which modules import which other modules? (already captured via `importsModule`.)
-- ✅ Which two subpackages are most tightly coupled (most cross-import edges)? — a query over existing data, no extractor change needed.
+- 🔜 Which starlayer modules import which other starlayer modules? — not answerable yet: `slkg:importsModule` only records imports of *external* modules (third-party and standard library); imports between this project's own modules are not extracted. Found 2026-10-19 while building the query library. Use the call graph (`slkg:calls`) for dependencies inside the project.
+- ✅ Which two subpackages are most tightly coupled? — answered from the call graph (calls between subpackages), not from imports, because imports between this project's modules are not extracted (see the question above).
 - ✅ Finer-grained coupling (which *function* in module A calls which *function* in module B) — now answerable directly via `slkg:calls`, subject to the same resolution-confidence caveats noted above.
 
 ## Known upstream bugs / workarounds

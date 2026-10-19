@@ -135,7 +135,7 @@ cur:cap-sparql-2 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-sparql ;
     slkg:position 2 ;
     slkg:hasStatus "implemented" ;
-    rdfs:comment "A StarLayer RDF vocabulary for representing SPARQL queries as graphs, for hand or UI editing (the sqe namespace), built on an internal full-algebra encoding." ;
+    rdfs:comment "A StarLayer RDF vocabulary for representing SPARQL queries as graphs, for hand or UI editing (the sqe namespace). It covers SELECT, ASK and CONSTRUCT with every clause, aggregates, sub-selects, VALUES and the SPARQL 1.2 additions; DESCRIBE and Update are not covered." ;
     slkg:implementedByIdentifier "starlayer.sparql.sqe.__init__" .
 
 cur:cap-sparql-3 a slkg:Capability ;
