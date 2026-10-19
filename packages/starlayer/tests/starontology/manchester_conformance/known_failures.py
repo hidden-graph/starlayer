@@ -36,10 +36,6 @@ _F14b = "F14 oracle quirk (pending W3C check): OWL API emits the annotated owl:s
 # case id -> reason: the oracle accepts it, but our parse is not OWL-equivalent (or raises). Real gaps
 # to close, except F13/F14 which are pending a W3C check.
 DIFFERENTIAL_FAILURES: dict[str, str] = {
-    "hdr-iri-and-version": _F2,
-    "hdr-version-and-annotations-and-frames": _F2 + " Also " + _F3,
-    "hdr-annotations": _F3,
-    "hdr-annotations-list": _F3,
     "hdr-annotations-nested": _F3 + " " + _F9,
     "lit-string-escapes": _F4,
     "lit-integer-signed": _F5,
@@ -113,11 +109,6 @@ _N_NOTE_STRICTER = "OWL API ACCEPTS this input but the W3C Note's grammar requir
 
 # negative case id -> reason the parser wrongly ACCEPTS it (silent mis-parse).
 NEGATIVE_FAILURES: dict[str, str] = {
-    "trunc-stray-iri": _N_ORACLE_AGREES + _F1,
-    "trunc-stray-string": _N_ORACLE_AGREES + _F1,
-    "trunc-stray-punct": _N_ORACLE_AGREES + _F1,
-    "trunc-iri-after-ontology-iri-pair-then-junk": _N_ORACLE_AGREES + _F1,
-    "unbalanced-close-paren": _N_ORACLE_AGREES + "a trailing ')' after a complete class expression is accepted (same top-level truncation, F1).",
     "data-property-transitive": _N_ORACLE_AGREES + "'Characteristics: Transitive' on a DataProperty is accepted; the Note allows only 'Functional' for data properties.",
     "misc-single-member": _N_NOTE_STRICTER + "'DisjointClasses: A' (the Note's description2List needs at least two).",
     "chain-single-property": _N_NOTE_STRICTER + "'SubPropertyChain: q' (the Note needs at least two properties around 'o').",

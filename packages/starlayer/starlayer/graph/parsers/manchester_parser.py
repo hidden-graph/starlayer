@@ -331,7 +331,7 @@ class _Cursor:
             items: The axiom's own comma-list, before compilation.
         """
 
-    def record_ontology_header(self, iri, imports):
+    def record_ontology_header(self, iri, imports, version_iri=None, annotations=None):
         """Called when the Ontology: header line was just parsed. A no-op
         hook by default.
 
@@ -339,6 +339,10 @@ class _Cursor:
             iri: The ontology's own IRI, or None for a bare `Ontology:`
                 with no IRI.
             imports: The list of Import: names, in order.
+            version_iri: The version IRI following the ontology IRI, or
+                None.
+            annotations: The header's `Annotations:` as a list of
+                (property, value) pairs, or None if none were written.
         """
 
     def record_prefix(self, prefix, iri):
@@ -1200,26 +1204,22 @@ def _parse_misc(cur, keyword):
 # Top level
 # ---------------------------------------------------------------------------
 
-def parse_manchester(text: str, base: str = None) -> list:
-    """Parse Manchester OWL Syntax text and return a list of (s, p, o)
-    triples.
+def _run_top_level(cur):
+    """Drive ``cur`` through a whole document: Prefix:/Ontology: headers, frames and Misc axioms.
 
-    Args:
-        text: The Manchester OWL Syntax document text to parse.
-        base: Seeds resolution of the `Ontology: <iri>` header and any
-            other relative IRIs, the same role every other
-            starlayer.graph parser's base argument plays.
-
-    Returns:
-        A list of (s, p, o) triples (plain rdflib terms -
-        URIRef/BNode/Literal).
+    Shared by ``parse_manchester`` and the syntax-tree parser in ``starlayer.starontology.manchester``
+    (which drives it with a recording cursor), so a parsing fix is made once and cannot drift between
+    the two entry points.
     """
-    cur = _Cursor(_tokenize(text), base)
-
     while True:
+        tok = cur.peek()
+        if tok is None:
+            break
         word = cur.peek_word()
         if word is None:
-            break
+            # A token that is not a keyword (stray IRI, string, number, punctuation) is not the end of
+            # the document: ending here would silently discard everything after it.
+            cur.error(f'expected a Prefix:/Ontology:/frame/Misc-axiom keyword, got {tok["text"]!r}')
         if word == 'Prefix:':
             cur.advance()
             name_tok = cur.advance()
@@ -1235,21 +1235,36 @@ def parse_manchester(text: str, base: str = None) -> list:
             cur.advance()
             tok = cur.peek()
             ontology_iri = None
+            version_iri = None
             if tok is not None and tok['kind'] == 'IRI':
                 cur.advance()
                 ontology_iri = cur.resolve_iri(tok['text'])
                 cur.base = str(ontology_iri)
-                cur.triples.append((ontology_iri, RDF.type, OWL.Ontology))
+                # ontology ::= 'Ontology:' [ ontologyIRI [ versionIRI ] ] ...
+                version_tok = cur.peek()
+                if version_tok is not None and version_tok['kind'] == 'IRI':
+                    cur.advance()
+                    version_iri = cur.resolve_iri(version_tok['text'])
+            # OWL 2 RDF mapping: the ontology is always a node typed owl:Ontology - a fresh blank node
+            # when it has no IRI - and its imports and annotations hang off that node.
+            ontology_node = ontology_iri if ontology_iri is not None else cur.mint_bnode()
+            cur.triples.append((ontology_node, RDF.type, OWL.Ontology))
+            if version_iri is not None:
+                cur.triples.append((ontology_node, OWL.versionIRI, version_iri))
             imports = []
             while cur.peek_word() == 'Import:':
                 cur.advance()
                 imported = cur.read_name()
                 imports.append(imported)
-                if ontology_iri is not None:
-                    cur.triples.append((ontology_iri, OWL.imports, imported))
-            if cur.peek_word() == 'Annotations:':
-                cur.error('Annotations: in the Ontology: header is not supported yet')
-            cur.record_ontology_header(ontology_iri, imports)
+                cur.triples.append((ontology_node, OWL.imports, imported))
+            # ... { import } { annotations } - the annotations belong to the ontology itself.
+            annotations = None
+            while cur.peek_word() == 'Annotations:':
+                cur.advance()
+                annotations = (annotations or []) + _parse_comma_list(cur, _parse_annotation_assertion)
+            for prop, value in annotations or ():
+                cur.triples.append((ontology_node, prop, value))
+            cur.record_ontology_header(ontology_iri, imports, version_iri, annotations)
         elif word == 'Datatype:':
             cur.advance()
             _parse_datatype_frame(cur)
@@ -1275,4 +1290,21 @@ def parse_manchester(text: str, base: str = None) -> list:
         else:
             cur.error(f'expected a Prefix:/Ontology:/frame/Misc-axiom keyword, got {word!r}')
 
+
+def parse_manchester(text: str, base: str = None) -> list:
+    """Parse Manchester OWL Syntax text and return a list of (s, p, o)
+    triples.
+
+    Args:
+        text: The Manchester OWL Syntax document text to parse.
+        base: Seeds resolution of the `Ontology: <iri>` header and any
+            other relative IRIs, the same role every other
+            starlayer.graph parser's base argument plays.
+
+    Returns:
+        A list of (s, p, o) triples (plain rdflib terms -
+        URIRef/BNode/Literal).
+    """
+    cur = _Cursor(_tokenize(text), base)
+    _run_top_level(cur)
     return cur.triples

@@ -17,8 +17,10 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 # Imported by path so the tool works when run as a script from anywhere.
@@ -27,20 +29,25 @@ sys.path.insert(0, str(SUITE.parent))
 
 from manchester_conformance.corpus import CASES  # noqa: E402
 
-ONTOLOGY_IRI = "http://example.org/o"
 GOLDEN_DIR = SUITE / "goldens" / "owlapi-5.1.20"
 
 
-def run_oracle(jar: Path, text: str) -> dict:
-    request = json.dumps({"ontologyIRI": ONTOLOGY_IRI, "rawFormat": "manchester", "rawText": text})
-    proc = subprocess.run(
-        ["java", "-cp", str(jar), "OWLAPIInterface", "parse"],
-        input=request, capture_output=True, text=True, timeout=120,
-    )
-    out = proc.stdout.strip()
-    if not out:
-        return {"success": False, "error": f"no output; stderr={proc.stderr[:500]}"}
-    return json.loads(out.splitlines()[-1])
+def run_oracle_batch(jar: Path, cases) -> dict[str, dict]:
+    """One JVM for the whole corpus. ``OwlApiDirect`` loads each document straight into the OWL API
+    (no scratch ontology), so ontology-level triples (IRI, version IRI, annotations) are visible."""
+    with tempfile.TemporaryDirectory() as classes:
+        subprocess.run(
+            ["javac", "-cp", str(jar), "-d", classes, str(SUITE / "tools" / "OwlApiDirect.java")],
+            check=True, capture_output=True, text=True,
+        )
+        request = json.dumps([{"id": c.id, "text": c.text} for c in cases])
+        proc = subprocess.run(
+            ["java", "-cp", f"{jar}{os.pathsep}{classes}", "OwlApiDirect"],
+            input=request, capture_output=True, text=True, timeout=1800,
+        )
+    if proc.returncode != 0 or not proc.stdout.strip():
+        raise SystemExit(f"oracle failed: {proc.stderr[:800]}")
+    return {r["id"]: r for r in json.loads(proc.stdout.strip().splitlines()[-1])}
 
 
 def main() -> int:
@@ -51,32 +58,30 @@ def main() -> int:
 
     jar_sha = hashlib.sha256(args.jar.read_bytes()).hexdigest()
     GOLDEN_DIR.mkdir(parents=True, exist_ok=True)
-    wrote = 0
-    for case in CASES:
-        if not case.oracle or (args.only and case.id not in args.only):
-            continue
-        result = run_oracle(args.jar, case.text)
+    chosen = [c for c in CASES if c.oracle and (not args.only or c.id in args.only)]
+    results = run_oracle_batch(args.jar, chosen)
+    for case in chosen:
+        result = results[case.id]
         golden = {
             "case": case.id,
-            "oracle": "OWL API 5.1.20",
+            "oracle": "OWL API 5.1.20 (direct load)",
             "jar_sha256": jar_sha,
-            "accepted": bool(result.get("success")),
+            "accepted": bool(result.get("accepted")),
         }
         if golden["accepted"]:
-            golden["turtle"] = result["rdf"]
-            golden["manchester"] = result["manchester"]
+            golden["turtle"] = result["turtle"]
         else:
-            # Keep only the one-line reason, not the Java stack trace.
-            golden["error"] = (result.get("error") or "").split("\n")[0][:400]
+            # Keep only the useful lines, not the Java stack trace.
+            error = result.get("error") or ""
+            golden["error"] = error.split("\n")[0][:400]
             golden["error_detail"] = " ".join(
-                line.strip() for line in (result.get("error") or "").split("\n") if "Encountered" in line
+                line.strip() for line in error.split("\n") if "Encountered" in line
             )[:400]
         (GOLDEN_DIR / f"{case.id}.json").write_text(
             json.dumps(golden, indent=1, sort_keys=True) + "\n", encoding="utf-8"
         )
-        wrote += 1
         print(f"{'ok ' if golden['accepted'] else 'REJ'} {case.id}")
-    print(f"wrote {wrote} goldens", file=sys.stderr)
+    print(f"wrote {len(chosen)} goldens", file=sys.stderr)
     return 0
 
 

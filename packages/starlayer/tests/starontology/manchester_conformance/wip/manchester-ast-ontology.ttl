@@ -203,7 +203,7 @@ manch:Only rdfs:comment "`p only C` - same shape as Some." ;
     rdfs:subClassOf manch:ClassExpression .
 
 manch:OntologyHeader a rdfs:Class ;
-    rdfs:comment "The Ontology: header - manch:ontologyIri (optional URIRef), manch:imports (rdf:List of URIRef, in order)." .
+    rdfs:comment "The Ontology: header - manch:ontologyIri (optional URIRef), manch:versionIri (optional URIRef, only with an ontologyIri), manch:imports (rdf:List of URIRef, in order), manch:annotations (optional rdf:List of AnnotationAssertion - the ontology's own Annotations:)." .
 
 manch:Or rdfs:comment "`C1 or C2 or ...` - manch:operands, same shape as And." ;
     rdfs:subClassOf manch:ClassExpression .
@@ -234,7 +234,7 @@ manch:annotationValue a rdf:Property ;
     rdfs:domain manch:AnnotationAssertion .
 
 manch:annotations a rdf:Property ;
-    rdfs:comment "A ClauseItem's or FactItem's own optional rdf:List of AnnotationAssertion - present only when an inline Annotations: prefix was written. No rdfs:domain: shared across both leaf classes with no other common superclass." ;
+    rdfs:comment "A ClauseItem's, FactItem's or OntologyHeader's own optional rdf:List of AnnotationAssertion - present only when an Annotations: was written there. No rdfs:domain: shared across leaf classes with no other common superclass." ;
     rdfs:range rdf:List .
 
 manch:cardinality a rdf:Property ;
@@ -308,6 +308,10 @@ manch:onProperty a rdf:Property ;
 
 manch:ontologyIri a rdf:Property ;
     rdfs:comment "The optional Ontology: <iri> - absent for a bare `Ontology:` header." ;
+    rdfs:domain manch:OntologyHeader .
+
+manch:versionIri a rdf:Property ;
+    rdfs:comment "The optional version IRI that follows the ontology IRI in `Ontology: <iri> <versionIri>`." ;
     rdfs:domain manch:OntologyHeader .
 
 manch:operand a rdf:Property ;

@@ -547,13 +547,18 @@ def manchester_parse_to_tree(text: str, base: str | None = None) -> Graph:
             g.add((node, MANCH.prefixIri, Literal(iri)))
             self._prefix_nodes.append(node)
 
-        def record_ontology_header(self, iri, imports):
+        def record_ontology_header(self, iri, imports, version_iri=None, annotations=None):
             g = self.syntax_tree_graph
             node = BNode()
             g.add((node, RDF.type, MANCH.OntologyHeader))
             if iri is not None:
                 g.add((node, MANCH.ontologyIri, iri))
+            if version_iri is not None:
+                g.add((node, MANCH.versionIri, version_iri))
             g.add((node, MANCH.imports, _build_rdf_list(g, list(imports))))
+            ann_list = _encode_annotations(g, annotations)
+            if ann_list is not None:
+                g.add((node, MANCH.annotations, ann_list))
             self._header_node = node
 
         def record_frame(self, kind, subject):
@@ -610,78 +615,12 @@ def manchester_parse_to_tree(text: str, base: str | None = None) -> Graph:
 
 
 def _run_top_level(cur):
-    """The exact same top-level dispatch loop as
-    manchester_parser.parse_manchester(), reused verbatim rather than
-    duplicated - it's already generic over `cur`, dispatching purely on
-    frame keywords, so an _SyntaxTreeCursor drives it identically to a plain
-    _Cursor. Kept as a local import-and-copy rather than refactoring
-    parse_manchester() itself to accept a pre-built cursor, since that
-    function's own signature (text, base) -> list is a stable, tested
-    public entry point not worth changing shape for this."""
-    from starlayer.graph.parsers import manchester_parser as _mp
+    """The parser's own top-level dispatch loop, driven by a recording cursor. Delegated, not copied:
+    a second copy here once drifted from the parser (it kept ending silently on a stray token after the
+    parser was fixed)."""
+    from starlayer.graph.parsers.manchester_parser import _run_top_level as _parser_run_top_level
 
-    while True:
-        word = cur.peek_word()
-        if word is None:
-            break
-        if word == 'Prefix:':
-            cur.advance()
-            name_tok = cur.advance()
-            if name_tok['kind'] != 'WORD' or not name_tok['text'].endswith(':'):
-                cur.error("expected a prefix name ending in ':'")
-            prefix = name_tok['text'][:-1]
-            iri_tok = cur.advance()
-            if iri_tok['kind'] != 'IRI':
-                cur.error('expected an <IRI> for the Prefix: declaration')
-            cur.prefixes[prefix] = iri_tok['text']
-            cur.record_prefix(prefix, iri_tok['text'])
-        elif word == 'Ontology:':
-            cur.advance()
-            tok = cur.peek()
-            ontology_iri = None
-            if tok is not None and tok['kind'] == 'IRI':
-                cur.advance()
-                ontology_iri = cur.resolve_iri(tok['text'])
-                cur.base = str(ontology_iri)
-                cur.triples.append((ontology_iri, RDF.type, _mp.OWL.Ontology))
-            imports = []
-            while cur.peek_word() == 'Import:':
-                cur.advance()
-                imported = cur.read_name()
-                imports.append(imported)
-                if ontology_iri is not None:
-                    cur.triples.append((ontology_iri, _mp.OWL.imports, imported))
-            if cur.peek_word() == 'Annotations:':
-                cur.error('Annotations: in the Ontology: header is not supported yet')
-            cur.record_ontology_header(ontology_iri, imports)
-        elif word == 'Datatype:':
-            cur.advance()
-            _mp._parse_datatype_frame(cur)
-        elif word == 'Class:':
-            cur.advance()
-            _mp._parse_class_frame(cur)
-        elif word == 'ObjectProperty:':
-            cur.advance()
-            _mp._parse_property_frame(cur, 'ObjectProperty', _mp.OWL.ObjectProperty,
-                                       _mp._OBJPROP_CLAUSES, _mp._OBJPROP_DEFERRED,
-                                       range_is_class_expr=True)
-        elif word == 'DataProperty:':
-            cur.advance()
-            _mp._parse_property_frame(cur, 'DataProperty', _mp.OWL.DatatypeProperty,
-                                       _mp._DATAPROP_CLAUSES, _mp._DATAPROP_DEFERRED,
-                                       range_is_class_expr=False)
-        elif word == 'AnnotationProperty:':
-            cur.advance()
-            _mp._parse_annotation_property_frame(cur)
-        elif word == 'Individual:':
-            cur.advance()
-            _mp._parse_individual_frame(cur)
-        elif word in ('EquivalentClasses:', 'DisjointClasses:', 'EquivalentProperties:',
-                      'DisjointProperties:', 'SameIndividual:', 'DifferentIndividuals:'):
-            cur.advance()
-            _mp._parse_misc(cur, word)
-        else:
-            cur.error(f'expected a Prefix:/Ontology:/frame/Misc-axiom keyword, got {word!r}')
+    _parser_run_top_level(cur)
 
 
 # ---------------------------------------------------------------------------
@@ -692,7 +631,7 @@ def _run_top_level(cur):
 
 Document = namedtuple('Document', ['prefixes', 'header', 'frames', 'misc'])
 PrefixDecl = namedtuple('PrefixDecl', ['label', 'iri'])
-OntologyHeader = namedtuple('OntologyHeader', ['iri', 'imports'])
+OntologyHeader = namedtuple('OntologyHeader', ['iri', 'version', 'imports', 'annotations'])
 Frame = namedtuple('Frame', ['kind', 'subject', 'clauses'])
 Clause = namedtuple('Clause', ['clause_kind', 'items'])
 ClauseItem = namedtuple('ClauseItem', ['value', 'annotations'])
@@ -855,8 +794,10 @@ def _tree_to_document(graph: Graph, root) -> Document:
     header = None
     if header_node is not None:
         iri = graph.value(header_node, MANCH.ontologyIri)
+        version = graph.value(header_node, MANCH.versionIri)
         imports = _read_rdf_list(graph, graph.value(header_node, MANCH.imports))
-        header = OntologyHeader(iri, imports)
+        annotations = _decode_annotations(graph, graph.value(header_node, MANCH.annotations))
+        header = OntologyHeader(iri, version, imports, annotations)
     frames = [_decode_frame(graph, n) for n in _read_rdf_list(graph, graph.value(root, MANCH.frames))]
     misc = [_decode_misc(graph, n) for n in _read_rdf_list(graph, graph.value(root, MANCH.misc))]
     return Document(prefixes, header, frames, misc)
@@ -1050,9 +991,13 @@ def _document_to_text(document: Document) -> str:
     if document.header is not None:
         h = document.header
         header_line = 'Ontology:' if h.iri is None else f'Ontology: <{h.iri}>'
+        if h.version is not None:
+            header_line += f' <{h.version}>'
         lines.append(header_line)
         for imp in h.imports:
             lines.append(f'Import: {_render_name(imp)}')
+        if h.annotations:
+            lines.append(_render_annotations_prefix(h.annotations).rstrip())
     if lines:
         lines.append('')
     for frame in document.frames:
