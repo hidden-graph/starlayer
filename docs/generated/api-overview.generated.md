@@ -123,6 +123,7 @@ Generated directly from `packages/starlayer/starlayer/codekg/codekg.trig` - ever
 
 - **[`UnboundProjectedVariable`](api-reference.generated.md#entity-starlayer-sparql-salg-semantic_checks-UnboundProjectedVariable)** (class) - One `Project` node whose `PV` names a variable never bound anywhere in its own pattern subtree.
 - **[`find_unbound_projected_variables`](api-reference.generated.md#entity-starlayer-sparql-salg-semantic_checks-find_unbound_projected_variables)** (function) - Returns every ``UnboundProjectedVariable`` finding in ``data_graph``.
+- **[`ontology_graph`](api-reference.generated.md#entity-starlayer-sparql-expr_validation-ontology_graph)** (function) - A fresh graph of the ``spexpr:`` RDFS ontology (the subclass axioms behind ``sh:class spexpr:Expression`` and the variable and path classes).
 - **[`ontology_graph`](api-reference.generated.md#entity-starlayer-sparql-salg-sparql_ontology-ontology_graph)** (function) - Build a fresh graph: the RDFS ontology in ``salg-ontology.ttl`` merged with ``spexpr-ontology.ttl`` (lives in the ``starontology`` package).
 
 ## `starlayer.sparql.sqe`

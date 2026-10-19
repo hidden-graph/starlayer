@@ -3094,6 +3094,22 @@ Returns every ``UnboundProjectedVariable`` finding in ``data_graph``.
 
 ---
 
+<a id="entity-starlayer-sparql-expr_validation-ontology_graph"></a>
+### `ontology_graph`  _(function)_
+
+```python
+def ontology_graph() -> Graph
+```
+
+A fresh graph of the ``spexpr:`` RDFS ontology (the subclass axioms behind ``sh:class spexpr:Expression``
+    and the variable and path classes).
+
+**Returns:** `Graph`
+
+**Source:** [starlayer.sparql.expr_validation.ontology_graph](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/expr_validation.py#L56-L59)
+
+---
+
 <a id="entity-starlayer-sparql-salg-sparql_ontology-ontology_graph"></a>
 ### `ontology_graph`  _(function)_
 
@@ -3118,7 +3134,7 @@ Build a fresh graph: the RDFS ontology in ``salg-ontology.ttl``
 
 **Returns:** `Graph` - A fresh ``rdflib.Graph`` combining both ontologies (callers get their own copy, not a shared module-level instance).
 
-**Source:** [starlayer.sparql.salg.sparql_ontology.ontology_graph](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/salg/sparql_ontology.py#L119-L141)
+**Source:** [starlayer.sparql.salg.sparql_ontology.ontology_graph](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/salg/sparql_ontology.py#L120-L142)
 
 ---
 
