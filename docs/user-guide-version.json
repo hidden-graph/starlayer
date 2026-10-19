@@ -1,7 +1,7 @@
 {
   "guide": "StarLayer User Guides",
   "version": "1.5.0",
-  "lastUpdated": "2026-10-18",
+  "lastUpdated": "2026-10-19",
   "canonicalSource": "docs/guides/README.md",
   "artifacts": {
     "index": [
@@ -36,17 +36,11 @@
       "docs/guides/appendix-b1-sqe-shared-parts.ipynb",
       "docs/guides/appendix-b2-dl-reasoning-examples.ipynb"
     ],
-    "markdown": [],
-    "superseded": [
-      "docs/user-guide-v1_01.ipynb",
-      "docs/shacl-node-expressions-guide.ipynb",
-      "docs/shacl-rules-guide.ipynb",
-      "docs/shacl-subgraph-extraction-guide.ipynb"
-    ]
+    "markdown": []
   },
   "reorganization": {
     "status": "complete",
-    "note": "The guide set lives in docs/guides/, one focused notebook per topic - see docs/guides/README.md for the full table of contents. The files listed under artifacts.superseded no longer exist in the repo (removed in an earlier pass); kept listed here only as a historical record of what was consolidated away, not as a claim that they're still present. 2026-10-14: section 5 was repurposed from a generic 'Other' bucket into 'StarLayer Schemas and Ontologies' (manch:/salg:/srl:-as-RDF/the SHACL library registry), the old 'Other' bucket became section 6, OWL 2 DL reasoning moved up to section 2, and SPARQL inferencing/SRL swapped order and the former was retitled 'SPARQL Entailment' - see docs/guides/README.md and docs/guides/\"Notes on guides and other comments\" for the full rationale. 2026-10-14 (later same day): 03a-sparql-inferencing.ipynb renamed to 03a-sparql-entailment.ipynb to match its retitling; section 5 gained a real top-level lead-in notebook (05-starlayer-schemas-and-ontologies.ipynb, matching sections 2/3/4's own 'top-level notebook + lettered sub-guides' pattern) covering the shared graph-tree/SHACL-validation concept behind 5.a/5.b/5.c plus the former 05d's own registry walkthrough, folded in rather than kept separate - 05d-shacl-library-registry.ipynb no longer exists as its own file."
+    "note": "The guide set lives in docs/guides/, one focused notebook per topic; docs/guides/README.md is the table of contents. Every cell of every guide has a stable id (checked by scripts/check_docs.py)."
   },
   "staleDetection": {
     "rule": "An artifact is stale when its content does not reflect this version value or lastUpdated date.",

@@ -4,8 +4,6 @@
 
 This is the single master index for every guide notebook - every notebook's own "How to run this notebook" cell links back here, rather than repeating this list in-body (see [`STYLE_GUIDE.md`](STYLE_GUIDE.md)). Update this file when a guide is added, renamed, or reordered; no other file needs to change.
 
-The full guide set has been reorganized into `docs/guides/`, one focused notebook per topic, replacing the single broad `user-guide-v1_01.ipynb` plus three separately-named SHACL deep-dives (those four original files are deleted as of 2026-10-10 - nothing referenced them except this note - everything below now lives in `docs/guides/`).
-
 **Reading order**: if you're new to the project, start at the top and work down. If you already know what you're doing, jump straight to the topic you need.
 
 ## The guides

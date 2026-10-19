@@ -223,7 +223,7 @@ package's own top level, not nested under one subpackage's docs.
   specifically, which costs unnecessary constraint-checking work for a
   caller who only wants the expansion. **Before implementing**: check
   whether the SHACL 1.2
-  Inference Rules draft (`docs/shacl12-gap-matrix.md` tracks it) says
+  Inference Rules draft (`packages/starlayer/docs/shacl/shacl12-gap-matrix.md` tracks it) says
   anything that bears on whether rule expansion and validation are meant
   to be separable operations in SHACL 1.2 specifically, not just in
   pyshacl's own (SHACL-AF-era) API shape - `apply_rules()`'s own

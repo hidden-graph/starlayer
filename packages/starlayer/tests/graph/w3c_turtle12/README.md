@@ -5,7 +5,7 @@
 This folder contains the local parser test harness (`test_w3c_turtle.py`) plus the full set of W3C RDF 1.2 Turtle conformance tests it runs against (triple terms, reified-triple annotations, `{| |}` annotation syntax), organized as follows. (test data as of 2026-10-13, pulled from both the `eval/` and `syntax/` manifests W3C publishes — see `download_w3c_turtle_tests.py`)
 
 - `data/` — all .ttl and .nt files, direct copies from the official W3C test suite, plus `data/manifest.csv` listing all tests, their types, and expected results, and `data/VENDORED_FROM.md` recording the pinned commit SHA and sync date this snapshot came from.
-- `test_w3c_turtle.py` — the pytest harness; run with `pytest tests/w3c_turtle12/`.
+- `test_w3c_turtle.py` — the pytest harness; run with `pytest tests/graph/w3c_turtle12/`.
 - `download_w3c_turtle_tests.py` — fetches `data/` from a single pinned-commit tarball snapshot of `w3c/rdf-tests` (not live per-file requests, as of 2026-10-13); safe to re-run any time, but re-running alone can never pick up an upstream change - re-running always reproduces the same pinned commit byte-for-byte by design. To check for a real upstream change, bump `PINNED_SHA` inside the script first (see its own module docstring), then re-run and diff `data/`.
 
 106 tests across three types, one test function per type in `test_w3c_turtle.py`:
