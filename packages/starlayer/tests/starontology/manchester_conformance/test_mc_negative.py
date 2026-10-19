@@ -41,9 +41,6 @@ NEGATIVE: list[tuple[str, str]] = [
     ("empty-enumeration", "Class: A\n  EquivalentTo: {}\n"),
     ("empty-facet-list", "DataProperty: d\n  Range: xsd:integer[]\n"),
     ("trailing-comma-in-list", "Class: A\n  SubClassOf: B,\n"),
-    ("misc-single-member", "DisjointClasses: A\n"),
-    ("chain-single-property", "ObjectProperty: p\n  SubPropertyChain: q\n"),
-    ("disjointunion-single-member", "Class: A\n  DisjointUnionOf: B\n"),
     # --- literals and numbers
     ("unterminated-string", 'Individual: i\n  Facts: d "oops\n'),
     ("cardinality-not-a-number", "Class: A\n  SubClassOf: p min x\n"),
@@ -51,7 +48,6 @@ NEGATIVE: list[tuple[str, str]] = [
     ("cardinality-decimal", "Class: A\n  SubClassOf: p min 1.5\n"),
     ("unknown-facet", "DataProperty: d\n  Range: xsd:integer[approx 5]\n"),
     ("facet-without-value", "DataProperty: d\n  Range: xsd:integer[>=]\n"),
-    ("language-tag-without-text", 'Individual: i\n  Facts: d "x"@\n'),
     # --- names and prefixes
     ("unknown-prefix", "Class: nope:A\n"),
     ("unterminated-iri", "Class: <http://example.org/o#A\n"),
@@ -71,6 +67,23 @@ def test_malformed_input_raises(case_id, text, request):
     full = (PRELUDE + text) if case_id in _WITH_PRELUDE else _PREFIXES + text
     with pytest.raises(ManchesterSyntaxError):
         parse_manchester(full)
+
+
+# Policy (decided 2026-10-18): stay consistent with the OWL API. These are inputs the W3C Note's grammar
+# rejects (its description2List / objectPropertyExpression-chain / languageTag need more) but which OWL
+# API 5.1.20 accepts, checked against the oracle. Pinned here so the choice is deliberate, not drift.
+LENIENT_LIKE_OWLAPI: list[tuple[str, str]] = [
+    ("one-member-disjointclasses", "Class: A\nDisjointClasses: A\n"),
+    ("one-member-disjointunionof", "Class: A\nClass: B\nClass: A\n  DisjointUnionOf: B\n"),
+    ("one-property-subpropertychain", "ObjectProperty: p\nObjectProperty: q\nObjectProperty: p\n  SubPropertyChain: q\n"),
+    ("empty-language-tag", 'DataProperty: d\nIndividual: i\n  Facts: d "x"@\n'),
+]
+
+
+@pytest.mark.manchester_conformance
+@pytest.mark.parametrize(("case_id", "text"), LENIENT_LIKE_OWLAPI, ids=[c[0] for c in LENIENT_LIKE_OWLAPI])
+def test_lenient_where_owlapi_is_lenient(case_id, text):
+    parse_manchester(_PREFIXES + text)  # must not raise
 
 
 _PREFIXES = (

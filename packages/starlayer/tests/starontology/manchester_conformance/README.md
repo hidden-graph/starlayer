@@ -59,10 +59,12 @@ Codes are used in `known_failures.py`. "Oracle" = OWL API 5.1.20; "Note" = W3C M
 | F15 | **The Note's own facet table looks erroneous**: it maps `<=` to `xsd:minInclusive`, `<` to `minExclusive`, `>=` to `maxInclusive`, `>` to `maxExclusive`. We and the oracle follow the meaning (`>=` is the minimum). | **Noted, not followed.** Worth reporting upstream. |
 | N | `Characteristics: Transitive` (etc.) accepted on a data property; the Note allows only `Functional` | **Fixed** |
 
-**Open policy question (4 strict xfails):** OWL API accepts four inputs the Note's grammar rejects: a
-one-member `DisjointClasses:`, a one-member `DisjointUnionOf:`, a one-member `SubPropertyChain:`, and
-`"x"@` (empty language tag). The suite pins the current behaviour; decide whether to follow the Note
-(reject) or the oracle (accept). Not defects either way.
+**Policy (decided 2026-10-18): stay consistent with the OWL API.** Four inputs the Note's grammar rejects
+but OWL API accepts - a one-member `DisjointClasses:`, a one-member `DisjointUnionOf:`, a one-member
+`SubPropertyChain:`, and `"x"@` (empty language tag) - are therefore accepted, and pinned as such in
+`test_mc_negative.py` (`LENIENT_LIKE_OWLAPI`). The same rule decided the earlier cases where the oracle
+and the Note disagree: where OWL API follows the OWL 2 RDF Mapping we match it; where it deviates from the
+Mapping (F13, F14) the deviation is recorded and our spec-conformant output is kept.
 
 ### Process finding
 

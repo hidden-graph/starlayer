@@ -85,14 +85,9 @@ ORACLE_REJECTS: dict[str, str] = {
 TREE_FAILURES: dict[str, str] = {}
 
 _N_ORACLE_AGREES = "oracle also rejects this input, so it is a genuine parser defect: "
-_N_NOTE_STRICTER = "OWL API ACCEPTS this input but the W3C Note's grammar requires otherwise; policy decision pending (Note vs OWL API parity), not necessarily a defect: "
 
 # negative case id -> reason the parser wrongly ACCEPTS it (silent mis-parse).
 NEGATIVE_FAILURES: dict[str, str] = {
-    "misc-single-member": _N_NOTE_STRICTER + "'DisjointClasses: A' (the Note's description2List needs at least two).",
-    "chain-single-property": _N_NOTE_STRICTER + "'SubPropertyChain: q' (the Note needs at least two properties around 'o').",
-    "disjointunion-single-member": _N_NOTE_STRICTER + "'DisjointUnionOf: B' (description2List needs at least two).",
-    "language-tag-without-text": _N_NOTE_STRICTER + "'\"x\"@' (languageTag needs a nonempty sequence after '@').",
 }
 
 # ontology term (local name in the manch: namespace) -> reason nothing in manchester.py uses it.
