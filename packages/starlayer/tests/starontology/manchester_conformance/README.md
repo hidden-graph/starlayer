@@ -107,6 +107,6 @@ arrives through new no-op hooks.
    the snapshots were refreshed.
 2. Decide the four Note-versus-OWL-API strictness questions above.
 3. Update `docs/graph/manchester_syntax_gap_analysis.md` (it still lists header annotations, `langRange`
-   and Misc annotations as unsupported) and `docs/graph/CHANGELOG`.
+   and Misc annotations as unsupported).
 4. Keep the Hypothesis generator growing: nodeIDs, annotations (including nested), header annotations and
    the remaining facets are not generated yet.

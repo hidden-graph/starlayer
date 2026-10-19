@@ -13,7 +13,7 @@ pytest -q tests/integration
 python benchmarks/bench_adapter.py --triples 1000 --nested-depth 1
 ```
 
-Record the benchmark output in `docs/benchmark-baselines.md`.
+Record the benchmark output in `packages/starlayer/docs/shacl/benchmark-baselines.md`.
 
 ## 2. Verify the contract
 
@@ -22,12 +22,12 @@ Record the benchmark output in `docs/benchmark-baselines.md`.
 
 ## 3. Check docs are current
 
-- `docs/implementation-plan.md`, `docs/compatibility.md`, and the architecture docs match current behavior.
+- `packages/starlayer/docs/shacl/implementation-plan.md`, `packages/starlayer/docs/shacl/compatibility.md`, and the architecture docs match current behavior.
 - README examples still execute against the current API.
 
 ## 4. Choose the version bump
 
-Per `docs/compatibility.md`'s semantic versioning policy:
+Per `packages/starlayer/docs/shacl/compatibility.md`'s semantic versioning policy:
 
 - **MAJOR** for breaking contracts or behavior
 - **MINOR** for backward-compatible features
@@ -37,7 +37,7 @@ Update the version in `pyproject.toml`.
 
 ## 5. Write release notes
 
-Copy `docs/release-notes-template.md`, fill in all sections, and move `CHANGELOG.md`'s "Unreleased" section content under a new dated version heading.
+Copy `packages/starlayer/docs/shacl/release-notes-template.md`, fill in all sections, and write the changes from `git log` since the last release.
 
 ## 6. Re-run validation
 

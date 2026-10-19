@@ -76,7 +76,7 @@ python benchmarks/bench_scaling.py    # same
 
 See `benchmarks/README.md` for setup and what each script measures. Run these manually before a release, or after any change likely to affect performance (encoding scheme, query rewriting, backend dispatch) — not on every commit; results are noisy on shared CI runners and there's no fixed pass/fail threshold to gate on.
 
-**Known degradation points**, from the last full run (`docs/performance.md`, re-measured 2026-07-17 — re-run `bench_scaling.py` before trusting these numbers on a materially different codebase or dataset shape):
+**Known degradation points**, from the last full run (`packages/starlayer/docs/graph/performance.md`, re-measured 2026-07-17 — re-run `bench_scaling.py` before trusting these numbers on a materially different codebase or dataset shape):
 
 - **In-memory**: fine up to ~100K annotated facts; memory pressure sets in around there, hard ceiling near 1.5M. Full-annotation scans (not single lookups, which stay near-instant) slow from ~150ms at 50K to ~1.7s at 500K.
 - **SQLite**: single-subject/object lookups stay fast (<35ms) even at millions of plain triples, but a full annotation scan is **67× slower than in-memory** at 250K annotated facts (54s vs <1s) — not a suitable backend for workloads that regularly query large numbers of annotated facts.
@@ -84,4 +84,4 @@ See `benchmarks/README.md` for setup and what each script measures. Run these ma
 - **Fuseki (`rdf-1.2`)**: same server cost, but native triple-term storage cuts stored triples ~20% and query time 35–48% versus `rdf-1.1` encoding.
 - **Oxigraph (`rdf-1.2`)**: fastest backend for broad scans/joins at every scale tested (194ms full-scan at 250K, 4.7× faster than in-memory); the one place it loses is single-subject/object lookup, where in-memory's plain dict lookup (~2ms) beats Oxigraph's HTTP round-trip (13–36ms).
 
-For the full write-up and backend recommendations, see `docs/performance.md`.
+For the full write-up and backend recommendations, see `packages/starlayer/docs/graph/performance.md`.

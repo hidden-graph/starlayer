@@ -2,7 +2,7 @@
 
 *Last reviewed: 2026-08-01*
 
-Issues found in the official SHACL 1.2 test suite (https://github.com/w3c/data-shapes, `gh-pages` branch, `shacl12-test-suite/` directory - vendored into this repo at `tests/vendor/shacl12-test-suite/`, see that directory's own `VENDORED_FROM.md` for the exact pinned commit) while integrating it against `starshacl` (`docs/w3c-shacl12-test-suite-plan.md`). Unlike `docs/upstream-issues/pyshacl-upstream-issues.md` (bugs in the `pyshacl` *library*) and `starlayergraph`'s own `docs/upstream-issues/rdflib-upstream-issues.md` (bugs in the `rdflib` *library*), this file tracks issues in the *test suite itself* - a fixture whose own expected result doesn't follow from the specification it's meant to test.
+Issues found in the official SHACL 1.2 test suite (https://github.com/w3c/data-shapes, `gh-pages` branch, `shacl12-test-suite/` directory - vendored into this repo at `packages/starlayer/tests/shacl/vendor/shacl12-test-suite/`, see that directory's own `VENDORED_FROM.md` for the exact pinned commit) while integrating it against `starshacl` (`packages/starlayer/docs/shacl/w3c-shacl12-test-suite-plan.md`). Unlike `docs/upstream-issues/pyshacl-upstream-issues.md` (bugs in the `pyshacl` *library*) and `starlayergraph`'s own `docs/upstream-issues/rdflib-upstream-issues.md` (bugs in the `rdflib` *library*), this file tracks issues in the *test suite itself* - a fixture whose own expected result doesn't follow from the specification it's meant to test.
 
 ## How To Use
 
@@ -16,7 +16,7 @@ Same convention as the two library-issue documents: each entry's `##`/`###` stru
 
 ## Issue 1 - `seconds-example`'s expected result requires zero-padding `SECONDS()`'s numeric output, which nothing in SPARQL/XPath's specification requires (found 2026-08-01)
 
-**Fixture:** `tests/node-expr/shnex-sparql/seconds.ttl` (`<seconds-example>`, `sht:EvalNodeExpr`)
+**Fixture:** `packages/starlayer/tests/shacl/vendor/shacl12-test-suite/tests/node-expr/shnex-sparql/seconds.ttl` (`<seconds-example>`, `sht:EvalNodeExpr`)
 
 ### Description
 
@@ -68,4 +68,4 @@ Change `mf:result` from `( "00"^^xsd:decimal )` to `( "0"^^xsd:decimal )` (or, i
 
 ### Status
 
-Found 2026-08-01 while triaging `starshacl`'s remaining W3C SHACL 1.2 test suite failures (`starShacl`'s `tests/w3c_shacl12/known_failures.py`). Reporting upstream planned, not yet filed against `w3c/data-shapes`. Left as a permanent, `strict=True` xfail in `starshacl`'s own test suite in the meantime (`tests/w3c_shacl12/known_failures.py`'s `seconds-example` entry) - not patched around, since patching any of `starshacl`'s three constituent SPARQL engines (rdflib, and by extension Fuseki/Oxigraph parity) to zero-pad `SECONDS()`'s output would make their behavior *less* spec-compliant, not more.
+Found 2026-08-01 while triaging `starshacl`'s remaining W3C SHACL 1.2 test suite failures (`starShacl`'s `packages/starlayer/tests/shacl/w3c_shacl12/known_failures.py`). Reporting upstream planned, not yet filed against `w3c/data-shapes`. Left as a permanent, `strict=True` xfail in `starshacl`'s own test suite in the meantime (`packages/starlayer/tests/shacl/w3c_shacl12/known_failures.py`'s `seconds-example` entry) - not patched around, since patching any of `starshacl`'s three constituent SPARQL engines (rdflib, and by extension Fuseki/Oxigraph parity) to zero-pad `SECONDS()`'s output would make their behavior *less* spec-compliant, not more.

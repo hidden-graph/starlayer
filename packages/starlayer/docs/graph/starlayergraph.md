@@ -47,7 +47,7 @@ The real, shipped `backend=` constructor parameter means Representation only - t
 - **Native (`rdf-1.2`) representation**: `StarLayerGraph._native_triples()` resolves a bound blank node via a *provenance-tracked join* — the first time a blank node is yielded from a free-variable slot, its single-hop discovery pattern (the triple's other, concrete parts) is recorded keyed by Python object `id()` (not the node's own value - two `BNode`s can be `==` equal by label while denoting different stored nodes, confirmed on Fuseki). A later bound-BNode query re-derives the same node via a real SPARQL join against that recorded anchor, never by comparing labels across separate requests - correct regardless of how either server labels results.
 - **Default (`rdf-1.1`, tt:HASH-encoded) representation**: simpler fix, via `StarLayerGraph._needs_bnode_skolemization` (true whenever `self.store` is a `SPARQLUpdateStore`) - always skolemize a blank node on write, always deskolemize on read, via the same deterministic `skolemize_bnode()`/`deskolemize_bnode()` mapping the native representation already uses for its own single-triple `add()` path. Simpler than the native fix because skolemizing is a pure function of the BNode's own label, so no provenance tracking is needed - but the trade-off (accepted only here, not for native representation) is that a real blank node's own term-kind (`isBLANK()`/`ORDER BY` fidelity) isn't preserved once round-tripped, consistent with this representation already being an encoded *simulation* of RDF 1.2 rather than a wire-faithful one.
 
-See `packages/shacl/docs/compatibility.md`'s "Backend Compatibility" section for what this means for `starshacl` specifically - both representations now fully support SHACL validation and rule execution against a remote store, `meta_shacl` on or off.
+See `packages/starlayer/docs/shacl/compatibility.md`'s "Backend Compatibility" section for what this means for `starshacl` specifically - both representations now fully support SHACL validation and rule execution against a remote store, `meta_shacl` on or off.
 
 ---
 
@@ -57,7 +57,7 @@ See `packages/shacl/docs/compatibility.md`'s "Backend Compatibility" section for
 |---|---|
 | `starlayergraph/model/` | `TripleTerm`/`DirLangString` classes, `tt_hash()` content-address encoding, and RDF 1.2 VERSION-directive conformance checking (`conformance.py`) |
 | `starlayergraph/graph/` | `StarLayerGraph` and `StarLayerDataset` — the public API |
-| `starlayergraph/parsers/` | Format-specific RDF 1.2 parsers: Turtle 1.2/LongTurtle 1.2, N-Triples 1.2, N-Quads 1.2, TriG 1.2, RDF/XML 1.2, TriX 1.2 (`jsonld12` was removed as a recognized format entirely, 2026-10-02 — see `docs/rdf12_sparql12_gap_analysis.md` §6) |
+| `starlayergraph/parsers/` | Format-specific RDF 1.2 parsers: Turtle 1.2/LongTurtle 1.2, N-Triples 1.2, N-Quads 1.2, TriG 1.2, RDF/XML 1.2, TriX 1.2 (`jsonld12` was removed as a recognized format entirely, 2026-10-02 — see `packages/starlayer/docs/graph/rdf12_sparql12_gap_analysis.md` §6) |
 | `starlayergraph/serializers/` | Format-specific RDF 1.2 serializers for the same formats |
 | `starlayergraph/query/` | SPARQL 1.2 → SPARQL 1.1 rewriter (`sparql12_to_11.py`) and parse-tree helpers (`sparql_api.py`) for the default (`rdf-1.1`) representation |
 | `starlayergraph/backends/` | Transport utilities for the native (`rdf-1.2`) representation - both remote (HTTP) and in-process Oxigraph (`native_oxigraph.py`) |

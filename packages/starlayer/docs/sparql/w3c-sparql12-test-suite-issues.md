@@ -2,7 +2,7 @@
 
 *Last reviewed: 2026-10-12*
 
-Issues found in the official SPARQL 1.2 test suite (https://github.com/w3c/rdf-tests, `main` branch, `sparql/sparql12/` directory) while validating `starsparql`'s own RDF 1.2 triple-term handling against it. Unlike `packages/graph/docs/upstream-issues/rdflib-upstream-issues.md`/`oxigraph-upstream-issues.md`/`fuseki-upstream-issues.md` (bugs in a SPARQL *engine*), this file tracks issues in the *test suite itself* - a fixture whose own expected result (or, here, its own maturity-classification label) doesn't follow from the specification it's meant to test. Same convention as `packages/shacl/docs/w3c-shacl12-test-suite-issues.md` (a sibling package's identically-purposed file) - each entry's `##`/`###` structure can be pasted directly into a GitHub issue against `w3c/rdf-tests` with minimal editing.
+Issues found in the official SPARQL 1.2 test suite (https://github.com/w3c/rdf-tests, `main` branch, `sparql/sparql12/` directory) while validating `starsparql`'s own RDF 1.2 triple-term handling against it. Unlike `docs/upstream-issues/rdflib-upstream-issues.md`/`oxigraph-upstream-issues.md`/`fuseki-upstream-issues.md` (bugs in a SPARQL *engine*), this file tracks issues in the *test suite itself* - a fixture whose own expected result (or, here, its own maturity-classification label) doesn't follow from the specification it's meant to test. Same convention as `packages/starlayer/docs/shacl/w3c-shacl12-test-suite-issues.md` (a sibling package's identically-purposed file) - each entry's `##`/`###` structure can be pasted directly into a GitHub issue against `w3c/rdf-tests` with minimal editing.
 
 ## How To Use
 
