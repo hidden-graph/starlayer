@@ -17,7 +17,7 @@ import pytest
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 from starlayer.graph.compare import isomorphic
-from starlayer.starontology.manchester import (
+from .wip.manchester import (
     manchester_parse_to_tree,
     manchester_tree_to_owl,
     manchester_tree_to_text,

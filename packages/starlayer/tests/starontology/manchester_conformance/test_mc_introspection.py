@@ -19,6 +19,7 @@ from .known_failures import ORPHAN_ONTOLOGY_TERMS
 
 HERE = Path(__file__).parent
 LIVE = HERE.parent.parent.parent / "starlayer" / "starontology"
+WIP = HERE / "wip"  # the working copy the fixes are made in; LIVE stays untouched until the merge
 MANCH = "https://github.com/hidden-graph/starlayer/ns/graph/manchester-ast#"
 
 
@@ -38,7 +39,7 @@ def test_snapshot_matches_live_file(name):
 
 
 def _ontology_terms() -> set[str]:
-    g = Graph().parse(LIVE / "manchester-ast-ontology.ttl", format="turtle")
+    g = Graph().parse(WIP / "manchester-ast-ontology.ttl", format="turtle")
     return {
         str(s)[len(MANCH):]
         for s in set(g.subjects()) if isinstance(s, URIRef) and str(s).startswith(MANCH)
@@ -49,7 +50,7 @@ def _terms_used_by_code() -> set[str]:
     """Terms the encoder/decoder reference: ``MANCH.Name`` attribute use, plus quoted tag names that are
     looked up as ``MANCH[tag]`` (expression/data-range tags are dispatched that way). The quoted-name
     scan only counts names that are real ontology terms, so it cannot invent a use."""
-    source = (LIVE / "manchester.py").read_text(encoding="utf-8")
+    source = (WIP / "manchester.py").read_text(encoding="utf-8")
     attr = set(re.findall(r"\bMANCH\.([A-Za-z_][A-Za-z0-9_]*)", source))
     quoted = set(re.findall(r"['\"]([A-Za-z][A-Za-z0-9]*)['\"]", source))
     return attr | (quoted & _ontology_terms())
@@ -63,7 +64,7 @@ def test_every_term_the_code_uses_is_defined_in_the_ontology():
 
 @pytest.mark.manchester_conformance
 def test_every_ontology_term_is_used_by_the_code():
-    g = Graph().parse(LIVE / "manchester-ast-ontology.ttl", format="turtle")
+    g = Graph().parse(WIP / "manchester-ast-ontology.ttl", format="turtle")
     # Abstract grouping classes (only ever superclasses) are reached through RDFS reasoning, not named in code.
     abstract = {
         str(c)[len(MANCH):]
@@ -83,8 +84,8 @@ def test_orphan_registry_has_no_stale_entries():
 def test_every_concrete_class_has_a_shape_or_inherits_one():
     """Every non-abstract manch: class must be covered by some SHACL shape (directly, or via a
     superclass the shapes target with RDFS reasoning on, as ``manchester_validate`` does)."""
-    onto = Graph().parse(LIVE / "manchester-ast-ontology.ttl", format="turtle")
-    shapes = Graph().parse(LIVE / "manchester_shapes.ttl", format="turtle")
+    onto = Graph().parse(WIP / "manchester-ast-ontology.ttl", format="turtle")
+    shapes = Graph().parse(WIP / "manchester_shapes.ttl", format="turtle")
     targeted = {str(o) for o in shapes.objects(None, URIRef("http://www.w3.org/ns/shacl#targetClass"))}
     # classes mentioned in sh:class / sh:or lists also count as constrained
     sh_class = {str(o) for o in shapes.objects(None, URIRef("http://www.w3.org/ns/shacl#class"))}
