@@ -26,7 +26,7 @@
 
 starontology:manchester-ast-ontology.ttl {
     manch:AnnotationAssertion a rdfs:Class ;
-        rdfs:comment "One (annotationProperty, value) pair - manch:annotationProperty (a URIRef), manch:annotationValue (a URIRef or Literal). Used both for a frame-level Annotations: clause's own items, and inside a ClauseItem's/FactItem's manch:annotations list." .
+        rdfs:comment "One (annotationProperty, value) pair - manch:annotationProperty (a URIRef), manch:annotationValue (a URIRef or Literal). Used both for a frame-level Annotations: clause's own items, and inside a ClauseItem's/FactItem's manch:annotations list. May itself carry manch:annotations: the annotations on this annotation (annotationAnnotatedList)." .
 
     manch:ClauseItem a rdfs:Class ;
         rdfs:comment "One ordinary clause-list item - manch:value (shape depends on the enclosing clause, see each Clause subclass's own comment), manch:annotations (optional, an rdf:List of AnnotationAssertion - present only when the item had an inline Annotations: prefix). Deliberately one uniform shape for every per-item-annotatable clause, regardless of whether the OWL 2 RDF mapping ultimately reifies it via owl:Axiom or (for a negative Fact:) attaches directly to an owl:NegativePropertyAssertion bnode - that distinction is an artifact of the final OWL-semantic compile step, not something that exists yet at this AST layer." .
@@ -41,7 +41,7 @@ starontology:manchester-ast-ontology.ttl {
         rdfs:comment "One Individual: Facts: item - manch:negative (an xsd:boolean Literal), manch:property (a URIRef), manch:value (a URIRef or Literal), manch:annotations (optional, same shape as ClauseItem's)." .
 
     manch:OntologyHeader a rdfs:Class ;
-        rdfs:comment "The Ontology: header - manch:ontologyIri (optional URIRef), manch:imports (rdf:List of URIRef, in order)." .
+        rdfs:comment "The Ontology: header - manch:ontologyIri (optional URIRef), manch:versionIri (optional URIRef, only with an ontologyIri), manch:imports (rdf:List of URIRef, in order), manch:annotations (optional rdf:List of AnnotationAssertion - the ontology's own Annotations:)." .
 
     manch:PrefixDecl a rdfs:Class ;
         rdfs:comment "One Prefix: declaration - manch:prefixLabel (a manch:PlainString-tagged string, '' for the default prefix), manch:prefixIri (a plain string, not a URIRef - a Prefix: declaration's own IRI is definitional, not a reference)." .
@@ -88,11 +88,26 @@ starontology:manchester-ast-ontology.ttl {
     manch:DAnd rdfs:comment "`D1 and D2 and ...` - manch:operands, an rdf:List of >=2 DataRange." ;
         rdfs:subClassOf manch:DataRange .
 
+    manch:DExact rdfs:comment "`d exactly n D` - same shape as DMin." ;
+        rdfs:subClassOf manch:ClassExpression .
+
+    manch:DMax rdfs:comment "`d max n D` - same shape as DMin." ;
+        rdfs:subClassOf manch:ClassExpression .
+
+    manch:DMin rdfs:comment "`d min n D` - QUALIFIED data cardinality (the unqualified form stays manch:Min, it has no filler to tell data from object): manch:onProperty, manch:cardinality, manch:filler (a DataRange, required)." ;
+        rdfs:subClassOf manch:ClassExpression .
+
     manch:DNot rdfs:comment "`not D` - manch:operand, a single DataRange." ;
         rdfs:subClassOf manch:DataRange .
 
+    manch:DOnly rdfs:comment "`d only D` - data-property counterpart of manch:Only; manch:filler is a DataRange." ;
+        rdfs:subClassOf manch:ClassExpression .
+
     manch:DOr rdfs:comment "`D1 or D2 or ...` - same shape as DAnd." ;
         rdfs:subClassOf manch:DataRange .
+
+    manch:DSome rdfs:comment "`d some D` - a Some restriction on a DATA property: manch:onProperty, manch:filler (a DataRange, not a ClassExpression). Distinct from manch:Some because the OWL mapping differs (rdfs:Datatype fillers, owl:onDataRange for the qualified forms) and Manchester syntax itself does not mark the difference - the parser decides from the property's declaration or the filler's shape." ;
+        rdfs:subClassOf manch:ClassExpression .
 
     manch:DataPropAnnotationsClause rdfs:comment "DataProperty: Annotations: - same shape as ClassAnnotationsClause." ;
         rdfs:subClassOf manch:Clause .
@@ -235,7 +250,7 @@ starontology:manchester-ast-ontology.ttl {
         rdfs:domain manch:AnnotationAssertion .
 
     manch:annotations a rdf:Property ;
-        rdfs:comment "A ClauseItem's or FactItem's own optional rdf:List of AnnotationAssertion - present only when an inline Annotations: prefix was written. No rdfs:domain: shared across both leaf classes with no other common superclass." ;
+        rdfs:comment "A ClauseItem's, FactItem's or OntologyHeader's own optional rdf:List of AnnotationAssertion - present only when an Annotations: was written there. No rdfs:domain: shared across leaf classes with no other common superclass." ;
         rdfs:range rdf:List .
 
     manch:cardinality a rdf:Property ;
@@ -347,6 +362,10 @@ starontology:manchester-ast-ontology.ttl {
     manch:value a rdf:Property ;
         rdfs:comment "A ClauseItem's own value - shape depends on the enclosing clause (a ClassExpression, PropertyExpression, DataRange, or bare URIRef/Literal). No rdfs:domain/range: deliberately polymorphic by design (see manch:ClauseItem's own comment), and several of its possible shapes are independently sh:class-dispatch-checked." .
 
+    manch:versionIri a rdf:Property ;
+        rdfs:comment "The optional version IRI that follows the ontology IRI in `Ontology: <iri> <versionIri>`." ;
+        rdfs:domain manch:OntologyHeader .
+
     manch:DOneOf rdfs:comment "`{ lit1, lit2, ... }` - manch:literals, an rdf:List of Literal." ;
         rdfs:subClassOf manch:DataRange .
 
@@ -360,7 +379,7 @@ starontology:manchester-ast-ontology.ttl {
 
     manch:DataRange rdfs:comment "A data-range AST node (DataProperty: Range:, Datatype: EquivalentTo:) - an atomic datatype is a bare URIRef, no wrapper." .
 
-    manch:MiscAxiom rdfs:comment "A top-level Misc axiom (no subject frame) - manch:items, an rdf:List whose member shape depends on the concrete axiom (see each subclass). Never carries manch:annotations on its own items - a genuine grammar gap, not an oversight (the pairwise-chain/AllDisjoint* OWL-semantic encoding means a single list item doesn't correspond to a single axiom the way it does everywhere else, so there is nothing to reify against - see manchester_parser.py's own docstring)." .
+    manch:MiscAxiom rdfs:comment "A top-level Misc axiom (no subject frame) - manch:items, an rdf:List whose member shape depends on the concrete axiom (see each subclass), and optionally manch:annotations: the axiom's own leading `Annotations:`, one list for the whole axiom (the note's misc production), never per item." .
 
     manch:Frame rdfs:comment "A top-level Manchester frame (Class:/ObjectProperty:/DataProperty:/AnnotationProperty:/Individual:/Datatype:) - manch:subject (the frame's own name), manch:clauses (an rdf:List of Clause, in written order)." .
 
@@ -389,10 +408,15 @@ starontology:manchester_shapes.ttl {
             manch:ClauseListShape,
             manch:ClauseShape,
             manch:DAndShape,
+            manch:DExactShape,
+            manch:DMaxShape,
+            manch:DMinShape,
             manch:DNotShape,
             manch:DOneOfShape,
+            manch:DOnlyShape,
             manch:DOrShape,
             manch:DRestrictionShape,
+            manch:DSomeShape,
             manch:DataPropCharacteristicsClause,
             manch:DataPropDisjointWithClause,
             manch:DataPropDomainClause,
@@ -466,7 +490,10 @@ starontology:manchester_shapes.ttl {
             [ sh:maxCount 1 ;
                 sh:minCount 1 ;
                 sh:nodeKind sh:IRI ;
-                sh:path manch:annotationProperty ] ;
+                sh:path manch:annotationProperty ],
+            [ sh:maxCount 1 ;
+                sh:node manch:AnnotationAssertionListShape ;
+                sh:path manch:annotations ] ;
         sh:targetClass manch:AnnotationAssertion .
 
     manch:ClauseItemShape a sh:NodeShape ;
@@ -499,6 +526,51 @@ starontology:manchester_shapes.ttl {
                 sh:path manch:operands ] ;
         sh:targetClass manch:DAnd .
 
+    manch:DExactShape a sh:NodeShape ;
+        sh:property [ sh:datatype xsd:nonNegativeInteger ;
+                sh:maxCount 1 ;
+                sh:minCount 1 ;
+                sh:path manch:cardinality ],
+            [ sh:maxCount 1 ;
+                sh:minCount 1 ;
+                sh:node manch:DataRangeOrNameShape ;
+                sh:path manch:filler ],
+            [ sh:maxCount 1 ;
+                sh:minCount 1 ;
+                sh:node manch:PropertyExpressionOrNameShape ;
+                sh:path manch:onProperty ] ;
+        sh:targetClass manch:DExact .
+
+    manch:DMaxShape a sh:NodeShape ;
+        sh:property [ sh:datatype xsd:nonNegativeInteger ;
+                sh:maxCount 1 ;
+                sh:minCount 1 ;
+                sh:path manch:cardinality ],
+            [ sh:maxCount 1 ;
+                sh:minCount 1 ;
+                sh:node manch:DataRangeOrNameShape ;
+                sh:path manch:filler ],
+            [ sh:maxCount 1 ;
+                sh:minCount 1 ;
+                sh:node manch:PropertyExpressionOrNameShape ;
+                sh:path manch:onProperty ] ;
+        sh:targetClass manch:DMax .
+
+    manch:DMinShape a sh:NodeShape ;
+        sh:property [ sh:datatype xsd:nonNegativeInteger ;
+                sh:maxCount 1 ;
+                sh:minCount 1 ;
+                sh:path manch:cardinality ],
+            [ sh:maxCount 1 ;
+                sh:minCount 1 ;
+                sh:node manch:DataRangeOrNameShape ;
+                sh:path manch:filler ],
+            [ sh:maxCount 1 ;
+                sh:minCount 1 ;
+                sh:node manch:PropertyExpressionOrNameShape ;
+                sh:path manch:onProperty ] ;
+        sh:targetClass manch:DMin .
+
     manch:DNotShape a sh:NodeShape ;
         sh:property [ sh:maxCount 1 ;
                 sh:minCount 1 ;
@@ -512,6 +584,17 @@ starontology:manchester_shapes.ttl {
                 sh:node manch:WellFormedListShape ;
                 sh:path manch:literals ] ;
         sh:targetClass manch:DOneOf .
+
+    manch:DOnlyShape a sh:NodeShape ;
+        sh:property [ sh:maxCount 1 ;
+                sh:minCount 1 ;
+                sh:node manch:DataRangeOrNameShape ;
+                sh:path manch:filler ],
+            [ sh:maxCount 1 ;
+                sh:minCount 1 ;
+                sh:node manch:PropertyExpressionOrNameShape ;
+                sh:path manch:onProperty ] ;
+        sh:targetClass manch:DOnly .
 
     manch:DOrShape a sh:NodeShape ;
         sh:property [ sh:maxCount 1 ;
@@ -530,6 +613,17 @@ starontology:manchester_shapes.ttl {
                 sh:node manch:WellFormedListShape ;
                 sh:path manch:facets ] ;
         sh:targetClass manch:DRestriction .
+
+    manch:DSomeShape a sh:NodeShape ;
+        sh:property [ sh:maxCount 1 ;
+                sh:minCount 1 ;
+                sh:node manch:DataRangeOrNameShape ;
+                sh:path manch:filler ],
+            [ sh:maxCount 1 ;
+                sh:minCount 1 ;
+                sh:node manch:PropertyExpressionOrNameShape ;
+                sh:path manch:onProperty ] ;
+        sh:targetClass manch:DSome .
 
     manch:DocumentShape a sh:NodeShape ;
         sh:property [ sh:maxCount 1 ;
@@ -646,7 +740,10 @@ starontology:manchester_shapes.ttl {
         sh:property [ sh:maxCount 1 ;
                 sh:minCount 1 ;
                 sh:node manch:WellFormedListShape ;
-                sh:path manch:items ] ;
+                sh:path manch:items ],
+            [ sh:maxCount 1 ;
+                sh:node manch:AnnotationAssertionListShape ;
+                sh:path manch:annotations ] ;
         sh:targetClass manch:MiscAxiom .
 
     manch:MiscAxiomShape a sh:NodeShape ;
@@ -684,7 +781,13 @@ starontology:manchester_shapes.ttl {
                 sh:path manch:imports ],
             [ sh:maxCount 1 ;
                 sh:nodeKind sh:IRI ;
-                sh:path manch:ontologyIri ] ;
+                sh:path manch:ontologyIri ],
+            [ sh:maxCount 1 ;
+                sh:nodeKind sh:IRI ;
+                sh:path manch:versionIri ],
+            [ sh:maxCount 1 ;
+                sh:node manch:AnnotationAssertionListShape ;
+                sh:path manch:annotations ] ;
         sh:targetClass manch:OntologyHeader .
 
     manch:OrShape a sh:NodeShape ;
@@ -726,12 +829,12 @@ starontology:manchester_shapes.ttl {
     manch:ValueClauseShape a sh:NodeShape ;
         sh:property [ sh:maxCount 1 ;
                 sh:minCount 1 ;
-                sh:node manch:PropertyExpressionOrNameShape ;
-                sh:path manch:onProperty ],
+                sh:node manch:ValueShape ;
+                sh:path manch:filler ],
             [ sh:maxCount 1 ;
                 sh:minCount 1 ;
-                sh:node manch:ValueShape ;
-                sh:path manch:filler ] ;
+                sh:node manch:PropertyExpressionOrNameShape ;
+                sh:path manch:onProperty ] ;
         sh:targetClass manch:Value .
 
     manch:AnnPropDomainClause a sh:NodeShape ;
@@ -814,9 +917,6 @@ starontology:manchester_shapes.ttl {
         sh:property [ sh:node manch:PropertyExpressionItemListShape ;
                 sh:path manch:items ] ;
         sh:targetClass manch:DataPropSubPropertyOfClause .
-
-    manch:DataRangeOrNameShape a sh:NodeShape ;
-        sh:or ( [ sh:nodeKind sh:IRI ] manch:DataRangeShape ) .
 
     manch:DataRangeShape a sh:NodeShape ;
         sh:class manch:DataRange ;
@@ -945,23 +1045,6 @@ starontology:manchester_shapes.ttl {
         sh:class manch:PropertyExpression ;
         sh:message "expected a recognized property-expression tag" .
 
-    manch:AnnotationAssertionListShape a sh:NodeShape ;
-        sh:sparql [ a sh:SPARQLConstraint ;
-                sh:message "expected a well-formed rdf:List of AnnotationAssertion" ;
-                sh:select """
-            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            PREFIX manch: <https://github.com/hidden-graph/starlayer/ns/graph/manchester-ast#>
-            SELECT $this
-            WHERE {
-                { FILTER ( $this != rdf:nil ) FILTER NOT EXISTS { $this rdf:first ?head } }
-                UNION
-                {
-                    $this rdf:rest*/rdf:first ?item .
-                    FILTER NOT EXISTS { ?item a manch:AnnotationAssertion }
-                }
-            }
-        """ ] .
-
     manch:DataRangeItemListShape a sh:NodeShape ;
         sh:sparql [ a sh:SPARQLConstraint ;
                 sh:message "expected a well-formed rdf:List of ClauseItem whose value is a data range" ;
@@ -1047,8 +1130,28 @@ starontology:manchester_shapes.ttl {
             }
         """ ] .
 
+    manch:AnnotationAssertionListShape a sh:NodeShape ;
+        sh:sparql [ a sh:SPARQLConstraint ;
+                sh:message "expected a well-formed rdf:List of AnnotationAssertion" ;
+                sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX manch: <https://github.com/hidden-graph/starlayer/ns/graph/manchester-ast#>
+            SELECT $this
+            WHERE {
+                { FILTER ( $this != rdf:nil ) FILTER NOT EXISTS { $this rdf:first ?head } }
+                UNION
+                {
+                    $this rdf:rest*/rdf:first ?item .
+                    FILTER NOT EXISTS { ?item a manch:AnnotationAssertion }
+                }
+            }
+        """ ] .
+
     manch:ClassExpressionOrNameShape a sh:NodeShape ;
         sh:or ( [ sh:nodeKind sh:IRI ] manch:ClassExpressionShape ) .
+
+    manch:DataRangeOrNameShape a sh:NodeShape ;
+        sh:or ( [ sh:nodeKind sh:IRI ] manch:DataRangeShape ) .
 
     manch:ClassExpressionItemListShape a sh:NodeShape ;
         sh:sparql [ a sh:SPARQLConstraint ;
@@ -1094,9 +1197,6 @@ starontology:manchester_shapes.ttl {
             }
         """ ] .
 
-    manch:PropertyExpressionOrNameShape a sh:NodeShape ;
-        sh:or ( [ sh:nodeKind sh:IRI ] manch:PropertyExpressionShape ) .
-
     manch:WellFormedListShape a sh:NodeShape ;
         sh:sparql [ a sh:SPARQLConstraint ;
                 sh:message "expected a well-formed rdf:List" ;
@@ -1109,6 +1209,9 @@ starontology:manchester_shapes.ttl {
                 FILTER NOT EXISTS { ?cell rdf:first ?x }
             }
         """ ] .
+
+    manch:PropertyExpressionOrNameShape a sh:NodeShape ;
+        sh:or ( [ sh:nodeKind sh:IRI ] manch:PropertyExpressionShape ) .
 }
 
 starontology:salg-ontology.ttl {

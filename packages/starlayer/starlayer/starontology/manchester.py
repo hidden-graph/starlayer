@@ -277,6 +277,23 @@ def _read_rdf_list(g, node):
 # OWL 2 RDF Mapping's own)
 # ---------------------------------------------------------------------------
 
+# A nodeID (``_:label``) is a BNode in the parser's OWL-semantic output, but this tree uses blank nodes
+# for its own structure, so a nodeID is stored as a reserved IRI carrying the label. That keeps every
+# "name is an IRI" shape valid, survives graph copying and serialization, and lets the rendered label
+# be read back so the text round-trips.
+_NODEID_PREFIX = 'urn:starlayer:manchester:nodeid:'
+
+
+def _enc_term(term):
+    return URIRef(_NODEID_PREFIX + str(term)) if isinstance(term, BNode) else term
+
+
+def _dec_term(term):
+    if isinstance(term, URIRef) and str(term).startswith(_NODEID_PREFIX):
+        return BNode(str(term)[len(_NODEID_PREFIX):])
+    return term
+
+
 def _encode_prop_expr(g, prop_expr):
     if isinstance(prop_expr, URIRef):
         return prop_expr
@@ -304,21 +321,23 @@ def _encode_class_expr(g, expr):
     if tag == 'OneOf':
         node = BNode()
         g.add((node, RDF.type, MANCH.OneOf))
-        g.add((node, MANCH.individuals, _build_rdf_list(g, expr[1])))
+        g.add((node, MANCH.individuals, _build_rdf_list(g, [_enc_term(i) for i in expr[1]])))
         return node
-    if tag in ('Some', 'Only'):
+    if tag in ('Some', 'Only', 'DSome', 'DOnly'):
         _, prop_expr, filler = expr
         node = BNode()
         g.add((node, RDF.type, MANCH[tag]))
         g.add((node, MANCH.onProperty, _encode_prop_expr(g, prop_expr)))
-        g.add((node, MANCH.filler, _encode_class_expr(g, filler)))
+        # D-tags are restrictions on a data property: their filler is a data range, not a class.
+        encode_filler = _encode_data_range if tag.startswith('D') else _encode_class_expr
+        g.add((node, MANCH.filler, encode_filler(g, filler)))
         return node
     if tag == 'Value':
         _, prop_expr, value = expr
         node = BNode()
         g.add((node, RDF.type, MANCH.Value))
         g.add((node, MANCH.onProperty, _encode_prop_expr(g, prop_expr)))
-        g.add((node, MANCH.filler, value))
+        g.add((node, MANCH.filler, _enc_term(value)))
         return node
     if tag == 'SelfR':
         _, prop_expr = expr
@@ -326,14 +345,15 @@ def _encode_class_expr(g, expr):
         g.add((node, RDF.type, MANCH.SelfR))
         g.add((node, MANCH.onProperty, _encode_prop_expr(g, prop_expr)))
         return node
-    if tag in ('Min', 'Max', 'Exact'):
+    if tag in ('Min', 'Max', 'Exact', 'DMin', 'DMax', 'DExact'):
         _, n, prop_expr, filler = expr
         node = BNode()
         g.add((node, RDF.type, MANCH[tag]))
         g.add((node, MANCH.onProperty, _encode_prop_expr(g, prop_expr)))
         g.add((node, MANCH.cardinality, Literal(n, datatype=XSD.nonNegativeInteger)))
         if filler is not None:
-            g.add((node, MANCH.filler, _encode_class_expr(g, filler)))
+            encode_filler = _encode_data_range if tag.startswith('D') else _encode_class_expr
+            g.add((node, MANCH.filler, encode_filler(g, filler)))
         return node
     raise AssertionError(f'unhandled class-expression tag {tag!r}')
 
@@ -426,22 +446,31 @@ def _encode_value(g, kind, value):
         return _encode_prop_expr(g, value)
     if kind == 'data':
         return _encode_data_range(g, value)
-    if kind in ('name', 'characteristic'):
+    if kind == 'encoded':
+        # Already a node in this graph (the rdf:List of a single-axiom clause): never a nodeID.
         return value
+    if kind in ('name', 'characteristic'):
+        return _enc_term(value)
     raise AssertionError(f'unhandled value kind {kind!r}')
+
+
+def _encode_annotation(g, ann):
+    """One AnnotationAssertion node; an annotation that is itself annotated carries manch:annotations."""
+    prop, value = ann
+    node = BNode()
+    g.add((node, RDF.type, MANCH.AnnotationAssertion))
+    g.add((node, MANCH.annotationProperty, prop))
+    g.add((node, MANCH.annotationValue, _enc_term(value)))
+    nested = _encode_annotations(g, getattr(ann, 'nested', None))
+    if nested is not None:
+        g.add((node, MANCH.annotations, nested))
+    return node
 
 
 def _encode_annotations(g, anns):
     if not anns:
         return None
-    nodes = []
-    for prop, value in anns:
-        node = BNode()
-        g.add((node, RDF.type, MANCH.AnnotationAssertion))
-        g.add((node, MANCH.annotationProperty, prop))
-        g.add((node, MANCH.annotationValue, value))
-        nodes.append(node)
-    return _build_rdf_list(g, nodes)
+    return _build_rdf_list(g, [_encode_annotation(g, a) for a in anns])
 
 
 def _encode_clause_item(g, kind, anns, value):
@@ -460,7 +489,7 @@ def _encode_fact_item(g, anns, fact):
     g.add((node, RDF.type, MANCH.FactItem))
     g.add((node, MANCH.negative, Literal(negative)))
     g.add((node, MANCH.property, prop))
-    g.add((node, MANCH.value, value))
+    g.add((node, MANCH.value, _enc_term(value)))
     ann_list = _encode_annotations(g, anns)
     if ann_list is not None:
         g.add((node, MANCH.annotations, ann_list))
@@ -471,14 +500,7 @@ def _encode_clause_items(g, clause_class, frame_kind, clause_kind, items):
     if clause_kind == 'Annotations:':
         # Frame-level Annotations: - bare AnnotationAssertion items, no
         # ClauseItem wrapper, no per-item annotations slot.
-        nodes = []
-        for prop, value in items:
-            node = BNode()
-            g.add((node, RDF.type, MANCH.AnnotationAssertion))
-            g.add((node, MANCH.annotationProperty, prop))
-            g.add((node, MANCH.annotationValue, value))
-            nodes.append(node)
-        return nodes
+        return [_encode_annotation(g, a) for a in items]
     if clause_kind == 'Facts:':
         return [_encode_fact_item(g, anns, fact) for anns, fact in items]
     value_kind = _CLAUSE_VALUE_KIND[clause_class]
@@ -487,7 +509,7 @@ def _encode_clause_items(g, clause_class, frame_kind, clause_kind, items):
         (anns, values), = items
         inner_kind = 'class' if value_kind == 'class_list' else 'prop'
         encoded = _build_rdf_list(g, [_encode_value(g, inner_kind, v) for v in values])
-        return [_encode_clause_item(g, 'name', anns, encoded)]
+        return [_encode_clause_item(g, 'encoded', anns, encoded)]
     return [_encode_clause_item(g, value_kind, anns, value) for anns, value in items]
 
 
@@ -548,17 +570,17 @@ def manchester_parse_to_tree(text: str, base: str | None = None) -> Graph:
             self._prefix_nodes.append(node)
 
         def record_ontology_header(self, iri, imports, version_iri=None, annotations=None):
-            # The parser now passes the version IRI and header Annotations:; this (pre-completeness)
-            # tree layer cannot record them, so refuse instead of silently dropping. Replaced when the
-            # completeness work in tests/starontology/manchester_conformance/wip/ is merged.
-            if version_iri is not None or annotations:
-                self.error('a version IRI or Annotations: in the Ontology: header is not supported by this tree layer yet')
             g = self.syntax_tree_graph
             node = BNode()
             g.add((node, RDF.type, MANCH.OntologyHeader))
             if iri is not None:
                 g.add((node, MANCH.ontologyIri, iri))
+            if version_iri is not None:
+                g.add((node, MANCH.versionIri, version_iri))
             g.add((node, MANCH.imports, _build_rdf_list(g, list(imports))))
+            ann_list = _encode_annotations(g, annotations)
+            if ann_list is not None:
+                g.add((node, MANCH.annotations, ann_list))
             self._header_node = node
 
         def record_frame(self, kind, subject):
@@ -566,7 +588,7 @@ def manchester_parse_to_tree(text: str, base: str | None = None) -> Graph:
             node = BNode()
             frame_class = _FRAME_CLASS[kind]
             g.add((node, RDF.type, frame_class))
-            g.add((node, MANCH.subject, subject))
+            g.add((node, MANCH.subject, _enc_term(subject)))
             self._current_frame_node = node
             self._current_frame_class = frame_class
             self._current_frame_clause_nodes = []
@@ -591,9 +613,6 @@ def manchester_parse_to_tree(text: str, base: str | None = None) -> Graph:
             self._current_frame_clause_nodes = None
 
         def record_misc(self, keyword, items, annotations=None):
-            # See record_ontology_header: refuse rather than silently drop what this layer cannot record.
-            if annotations:
-                self.error('Annotations: on a top-level axiom is not supported by this tree layer yet')
             g = self.syntax_tree_graph
             misc_class = _MISC_CLASS[keyword]
             node = BNode()
@@ -601,6 +620,9 @@ def manchester_parse_to_tree(text: str, base: str | None = None) -> Graph:
             value_kind = _MISC_VALUE_KIND[misc_class]
             item_nodes = [_encode_value(g, value_kind, v) for v in items]
             g.add((node, MANCH.items, _build_rdf_list(g, item_nodes)))
+            ann_list = _encode_annotations(g, annotations)
+            if ann_list is not None:
+                g.add((node, MANCH.annotations, ann_list))
             self._misc_nodes.append(node)
 
     cur = _SyntaxTreeCursor(_tokenize(text), base)
@@ -618,78 +640,14 @@ def manchester_parse_to_tree(text: str, base: str | None = None) -> Graph:
 
 
 def _run_top_level(cur):
-    """The exact same top-level dispatch loop as
-    manchester_parser.parse_manchester(), reused verbatim rather than
-    duplicated - it's already generic over `cur`, dispatching purely on
-    frame keywords, so an _SyntaxTreeCursor drives it identically to a plain
-    _Cursor. Kept as a local import-and-copy rather than refactoring
-    parse_manchester() itself to accept a pre-built cursor, since that
-    function's own signature (text, base) -> list is a stable, tested
-    public entry point not worth changing shape for this."""
-    from starlayer.graph.parsers import manchester_parser as _mp
+    """The parser's own top-level dispatch loop, driven by a recording cursor. Delegated, not copied:
+    a second copy here once drifted from the parser (it kept ending silently on a stray token after the
+    parser was fixed)."""
+    from starlayer.graph.parsers.manchester_parser import (
+        _run_top_level as _parser_run_top_level,
+    )
 
-    while True:
-        word = cur.peek_word()
-        if word is None:
-            break
-        if word == 'Prefix:':
-            cur.advance()
-            name_tok = cur.advance()
-            if name_tok['kind'] != 'WORD' or not name_tok['text'].endswith(':'):
-                cur.error("expected a prefix name ending in ':'")
-            prefix = name_tok['text'][:-1]
-            iri_tok = cur.advance()
-            if iri_tok['kind'] != 'IRI':
-                cur.error('expected an <IRI> for the Prefix: declaration')
-            cur.prefixes[prefix] = iri_tok['text']
-            cur.record_prefix(prefix, iri_tok['text'])
-        elif word == 'Ontology:':
-            cur.advance()
-            tok = cur.peek()
-            ontology_iri = None
-            if tok is not None and tok['kind'] == 'IRI':
-                cur.advance()
-                ontology_iri = cur.resolve_iri(tok['text'])
-                cur.base = str(ontology_iri)
-                cur.triples.append((ontology_iri, RDF.type, _mp.OWL.Ontology))
-            imports = []
-            while cur.peek_word() == 'Import:':
-                cur.advance()
-                imported = cur.read_name()
-                imports.append(imported)
-                if ontology_iri is not None:
-                    cur.triples.append((ontology_iri, _mp.OWL.imports, imported))
-            if cur.peek_word() == 'Annotations:':
-                cur.error('Annotations: in the Ontology: header is not supported yet')
-            cur.record_ontology_header(ontology_iri, imports)
-        elif word == 'Datatype:':
-            cur.advance()
-            _mp._parse_datatype_frame(cur)
-        elif word == 'Class:':
-            cur.advance()
-            _mp._parse_class_frame(cur)
-        elif word == 'ObjectProperty:':
-            cur.advance()
-            _mp._parse_property_frame(cur, 'ObjectProperty', _mp.OWL.ObjectProperty,
-                                       _mp._OBJPROP_CLAUSES, _mp._OBJPROP_DEFERRED,
-                                       range_is_class_expr=True)
-        elif word == 'DataProperty:':
-            cur.advance()
-            _mp._parse_property_frame(cur, 'DataProperty', _mp.OWL.DatatypeProperty,
-                                       _mp._DATAPROP_CLAUSES, _mp._DATAPROP_DEFERRED,
-                                       range_is_class_expr=False)
-        elif word == 'AnnotationProperty:':
-            cur.advance()
-            _mp._parse_annotation_property_frame(cur)
-        elif word == 'Individual:':
-            cur.advance()
-            _mp._parse_individual_frame(cur)
-        elif word in ('EquivalentClasses:', 'DisjointClasses:', 'EquivalentProperties:',
-                      'DisjointProperties:', 'SameIndividual:', 'DifferentIndividuals:'):
-            cur.advance()
-            _mp._parse_misc(cur, word)
-        else:
-            cur.error(f'expected a Prefix:/Ontology:/frame/Misc-axiom keyword, got {word!r}')
+    _parser_run_top_level(cur)
 
 
 # ---------------------------------------------------------------------------
@@ -700,9 +658,9 @@ def _run_top_level(cur):
 
 Document = namedtuple('Document', ['prefixes', 'header', 'frames', 'misc'])
 PrefixDecl = namedtuple('PrefixDecl', ['label', 'iri'])
-OntologyHeader = namedtuple('OntologyHeader', ['iri', 'imports'])
+OntologyHeader = namedtuple('OntologyHeader', ['iri', 'version', 'imports', 'annotations'])
 Frame = namedtuple('Frame', ['kind', 'subject', 'clauses'])
-Clause = namedtuple('Clause', ['clause_kind', 'items'])
+Clause = namedtuple('Clause', ['clause_kind', 'items', 'annotations'], defaults=[None])
 ClauseItem = namedtuple('ClauseItem', ['value', 'annotations'])
 FactItem = namedtuple('FactItem', ['negative', 'property', 'value', 'annotations'])
 AnnotationAssertion = namedtuple('AnnotationAssertion', ['property', 'value'])
@@ -731,25 +689,25 @@ def _decode_class_expr(g, node):
     if MANCH.Not in types:
         return ('Not', _decode_class_expr(g, g.value(node, MANCH.operand)))
     if MANCH.OneOf in types:
-        return ('OneOf', _read_rdf_list(g, g.value(node, MANCH.individuals)))
-    for tag in ('Some', 'Only'):
+        return ('OneOf', [_dec_term(i) for i in _read_rdf_list(g, g.value(node, MANCH.individuals))])
+    for tag in ('Some', 'Only', 'DSome', 'DOnly'):
         if MANCH[tag] in types:
             prop = _decode_prop_expr(g, g.value(node, MANCH.onProperty))
-            filler = _decode_class_expr(g, g.value(node, MANCH.filler))
-            return (tag, prop, filler)
+            decode_filler = _decode_data_range if tag.startswith('D') else _decode_class_expr
+            return (tag, prop, decode_filler(g, g.value(node, MANCH.filler)))
     if MANCH.Value in types:
         prop = _decode_prop_expr(g, g.value(node, MANCH.onProperty))
-        value = g.value(node, MANCH.filler)
+        value = _dec_term(g.value(node, MANCH.filler))
         return ('Value', prop, value)
     if MANCH.SelfR in types:
         return ('SelfR', _decode_prop_expr(g, g.value(node, MANCH.onProperty)))
-    for tag in ('Min', 'Max', 'Exact'):
+    for tag in ('Min', 'Max', 'Exact', 'DMin', 'DMax', 'DExact'):
         if MANCH[tag] in types:
             prop = _decode_prop_expr(g, g.value(node, MANCH.onProperty))
             n = int(g.value(node, MANCH.cardinality))
             filler_node = g.value(node, MANCH.filler)
-            filler = _decode_class_expr(g, filler_node) if filler_node is not None else None
-            return (tag, n, prop, filler)
+            decode_filler = _decode_data_range if tag.startswith('D') else _decode_class_expr
+            return (tag, n, prop, decode_filler(g, filler_node) if filler_node is not None else None)
     raise ValueError(f'unrecognized class-expression node {node!r} (types: {types})')
 
 
@@ -782,17 +740,31 @@ def _decode_value(g, kind, node):
     if kind == 'data':
         return _decode_data_range(g, node)
     if kind in ('name', 'characteristic'):
-        return node
+        return _dec_term(node)
     raise AssertionError(f'unhandled value kind {kind!r}')
+
+
+class _Ann(tuple):
+    """``(property, value)`` plus ``nested``: the annotations on this annotation, or None."""
+
+    def __new__(cls, prop, value, nested=None):
+        self = super().__new__(cls, (prop, value))
+        self.nested = nested
+        return self
+
+
+def _decode_annotation(g, node):
+    return _Ann(
+        g.value(node, MANCH.annotationProperty),
+        _dec_term(g.value(node, MANCH.annotationValue)),
+        _decode_annotations(g, g.value(node, MANCH.annotations)),
+    )
 
 
 def _decode_annotations(g, ann_list_node):
     if ann_list_node is None:
         return None
-    result = []
-    for node in _read_rdf_list(g, ann_list_node):
-        result.append((g.value(node, MANCH.annotationProperty), g.value(node, MANCH.annotationValue)))
-    return result
+    return [_decode_annotation(g, node) for node in _read_rdf_list(g, ann_list_node)]
 
 
 def _decode_clause(g, node):
@@ -804,16 +776,14 @@ def _decode_clause(g, node):
     item_nodes = _read_rdf_list(g, g.value(node, MANCH.items))
 
     if clause_kind == 'Annotations:':
-        items = [AnnotationAssertion(g.value(n, MANCH.annotationProperty),
-                                      g.value(n, MANCH.annotationValue)) for n in item_nodes]
-        return Clause(clause_kind, items)
+        return Clause(clause_kind, [_decode_annotation(g, n) for n in item_nodes])
 
     if clause_kind == 'Facts:':
         items = []
         for n in item_nodes:
             negative = bool(g.value(n, MANCH.negative))
             prop = g.value(n, MANCH.property)
-            value = g.value(n, MANCH.value)
+            value = _dec_term(g.value(n, MANCH.value))
             anns = _decode_annotations(g, g.value(n, MANCH.annotations))
             items.append(FactItem(negative, prop, value, anns))
         return Clause(clause_kind, items)
@@ -839,7 +809,7 @@ def _decode_frame(g, node):
     types = _node_types(g, node)
     frame_class = next(t for t in types if t in _FRAME_CLASS_TO_KIND)
     kind = _FRAME_CLASS_TO_KIND[frame_class]
-    subject = g.value(node, MANCH.subject)
+    subject = _dec_term(g.value(node, MANCH.subject))
     clauses = [_decode_clause(g, n) for n in _read_rdf_list(g, g.value(node, MANCH.clauses))]
     return Frame(kind, subject, clauses)
 
@@ -850,7 +820,7 @@ def _decode_misc(g, node):
     keyword = _MISC_CLASS_TO_KEYWORD[misc_class]
     value_kind = _MISC_VALUE_KIND[misc_class]
     items = [_decode_value(g, value_kind, n) for n in _read_rdf_list(g, g.value(node, MANCH.items))]
-    return Clause(keyword, items)
+    return Clause(keyword, items, _decode_annotations(g, g.value(node, MANCH.annotations)))
 
 
 def _tree_to_document(graph: Graph, root) -> Document:
@@ -863,8 +833,10 @@ def _tree_to_document(graph: Graph, root) -> Document:
     header = None
     if header_node is not None:
         iri = graph.value(header_node, MANCH.ontologyIri)
+        version = graph.value(header_node, MANCH.versionIri)
         imports = _read_rdf_list(graph, graph.value(header_node, MANCH.imports))
-        header = OntologyHeader(iri, imports)
+        annotations = _decode_annotations(graph, graph.value(header_node, MANCH.annotations))
+        header = OntologyHeader(iri, version, imports, annotations)
     frames = [_decode_frame(graph, n) for n in _read_rdf_list(graph, graph.value(root, MANCH.frames))]
     misc = [_decode_misc(graph, n) for n in _read_rdf_list(graph, graph.value(root, MANCH.misc))]
     return Document(prefixes, header, frames, misc)
@@ -877,15 +849,19 @@ def _tree_to_document(graph: Graph, root) -> Document:
 # ---------------------------------------------------------------------------
 
 def _render_name(node) -> str:
+    if isinstance(node, BNode):
+        return f'_:{node}'
     return f'<{node}>'
 
 
 def _render_literal(lit: Literal) -> str:
+    # The note's quotedString escapes exactly two characters: the double quote and the backslash.
+    text = str(lit).replace('\\', '\\\\').replace('"', '\\"')
     if lit.language:
-        return f'"{lit}"@{lit.language}'
+        return f'"{text}"@{lit.language}'
     if lit.datatype:
-        return f'"{lit}"^^<{lit.datatype}>'
-    return f'"{lit}"'
+        return f'"{text}"^^<{lit.datatype}>'
+    return f'"{text}"'
 
 
 def _render_value(v) -> str:
@@ -920,10 +896,11 @@ def _render_class_expr(expr, top: bool = True) -> str:
         return _paren(f'not {_render_class_expr(expr[1], top=False)}', not top)
     if tag == 'OneOf':
         return '{' + ', '.join(_render_name(u) for u in expr[1]) + '}'
-    if tag in ('Some', 'Only'):
+    if tag in ('Some', 'Only', 'DSome', 'DOnly'):
         _, prop, filler = expr
-        kw = 'some' if tag == 'Some' else 'only'
-        inner = f'{_render_prop_expr(prop)} {kw} {_render_class_expr(filler, top=False)}'
+        kw = 'some' if tag in ('Some', 'DSome') else 'only'
+        render_filler = _render_data_range if tag.startswith('D') else _render_class_expr
+        inner = f'{_render_prop_expr(prop)} {kw} {render_filler(filler, top=False)}'
         return _paren(inner, not top)
     if tag == 'Value':
         _, prop, value = expr
@@ -931,12 +908,13 @@ def _render_class_expr(expr, top: bool = True) -> str:
     if tag == 'SelfR':
         _, prop = expr
         return _paren(f'{_render_prop_expr(prop)} Self', not top)
-    if tag in ('Min', 'Max', 'Exact'):
+    if tag in ('Min', 'Max', 'Exact', 'DMin', 'DMax', 'DExact'):
         _, n, prop, filler = expr
-        kw = {'Min': 'min', 'Max': 'max', 'Exact': 'exactly'}[tag]
+        kw = {'Min': 'min', 'Max': 'max', 'Exact': 'exactly'}[tag.removeprefix('D')]
         inner = f'{_render_prop_expr(prop)} {kw} {n}'
         if filler is not None:
-            inner += f' {_render_class_expr(filler, top=False)}'
+            render_filler = _render_data_range if tag.startswith('D') else _render_class_expr
+            inner += f' {render_filler(filler, top=False)}'
         return _paren(inner, not top)
     raise AssertionError(f'unhandled class-expression tag {tag!r}')
 
@@ -963,11 +941,21 @@ def _render_data_range(dr, top: bool = True) -> str:
     raise AssertionError(f'unhandled data-range tag {tag!r}')
 
 
+def _render_annotation_list(anns) -> str:
+    """``prop value, prop value`` - an annotation that is itself annotated is preceded by its own
+    ``Annotations: ...`` (the note's ``annotationAnnotatedList``)."""
+    parts = []
+    for ann in anns:
+        prop, value = ann
+        nested = getattr(ann, 'nested', None)
+        parts.append(f'{_render_annotations_prefix(nested)}{_render_name(prop)} {_render_value(value)}')
+    return ', '.join(parts)
+
+
 def _render_annotations_prefix(anns) -> str:
     if not anns:
         return ''
-    parts = ', '.join(f'{_render_name(p)} {_render_value(v)}' for p, v in anns)
-    return f'Annotations: {parts} '
+    return f'Annotations: {_render_annotation_list(anns)} '
 
 
 def _render_one(clause_class, value) -> str:
@@ -998,8 +986,7 @@ def _render_one(clause_class, value) -> str:
 def _render_clause(clause: Clause, frame_kind: str) -> str:
     kind = clause.clause_kind
     if kind == 'Annotations:':
-        items = ', '.join(f'{_render_name(a.property)} {_render_value(a.value)}' for a in clause.items)
-        return f'Annotations: {items}'
+        return f'Annotations: {_render_annotation_list(clause.items)}'
     if kind == 'Facts:':
         parts = []
         for item in clause.items:
@@ -1032,7 +1019,7 @@ def _render_misc(clause: Clause) -> str:
     # the 6 maps to exactly one class in _MISC_CLASS).
     misc_class = _MISC_CLASS[clause.clause_kind]
     rendered = ', '.join(_render_one(misc_class, v) for v in clause.items)
-    return f'{clause.clause_kind} {rendered}'
+    return f'{clause.clause_kind} {_render_annotations_prefix(clause.annotations)}{rendered}'
 
 
 _FRAME_KEYWORD = {
@@ -1058,9 +1045,13 @@ def _document_to_text(document: Document) -> str:
     if document.header is not None:
         h = document.header
         header_line = 'Ontology:' if h.iri is None else f'Ontology: <{h.iri}>'
+        if h.version is not None:
+            header_line += f' <{h.version}>'
         lines.append(header_line)
         for imp in h.imports:
             lines.append(f'Import: {_render_name(imp)}')
+        if h.annotations:
+            lines.append(_render_annotations_prefix(h.annotations).rstrip())
     if lines:
         lines.append('')
     for frame in document.frames:
