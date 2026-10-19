@@ -2,7 +2,7 @@
 
 *Last reviewed: 2026-09-13*
 
-This is the compatibility contract for starshacl: what inputs are supported, what guarantees hold across releases, and what callers need to know about the pySHACL layer underneath. For implementation rationale or SHACL 1.2 feature-by-feature status, see `docs/implementation-plan.md` and `docs/shacl12-gap-matrix.md`.
+This is the compatibility contract for starshacl: what inputs are supported, what guarantees hold across releases, and what callers need to know about the pySHACL layer underneath. For implementation rationale or SHACL 1.2 feature-by-feature status, see `packages/starlayer/docs/shacl/implementation-plan.md` and `packages/starlayer/docs/shacl/shacl12-gap-matrix.md`.
 
 ## Graph Contract
 
@@ -10,11 +10,11 @@ This is the compatibility contract for starshacl: what inputs are supported, wha
 - `rdflib.Dataset` / `StarLayerDataset` are also accepted at the type check (rdflib's `Dataset` is a Python subclass of `Graph`), but starshacl validates it as a single graph, not as a collection of named graphs.
   - For `data_graph` and `shacl_graph`: the dataset's default graph is used, unless it was built with `default_union=True` or a specific graph is passed directly (e.g. `ds.get_context(uri)`). Named-graph-only data is otherwise silently invisible - no error, just a partial or empty result.
   - For `ont_graph`: starshacl always treats it as the union of all named graphs, regardless of the dataset's own `default_union` setting - matching pySHACL's own native behavior when given a raw `Dataset` as `ont_graph`. This is intentionally asymmetric with `data_graph`/`shacl_graph` above.
-  - See `tests/integration/test_starlayer_dataset_input.py`.
+  - See `packages/starlayer/tests/shacl/integration/test_starlayergraph_dataset_input.py`.
 
 ## Backend Compatibility
 
-`data_graph`/`shacl_graph` can be a `StarLayerGraph` in any combination of two independent axes - **Representation** (`backend='rdf-1.1'` default tt:HASH-encoded, or `backend='rdf-1.2'` native) and **Transport** (in-process, or a real remote SPARQL endpoint via `store=SPARQLUpdateStore(...)`) - see `packages/graph/docs/starlayergraph.md`'s own "Terminology" section for the full three-axis picture (the third axis, Persistence, doesn't affect anything in this table). Confirmed live, current status across all four real combinations:
+`data_graph`/`shacl_graph` can be a `StarLayerGraph` in any combination of two independent axes - **Representation** (`backend='rdf-1.1'` default tt:HASH-encoded, or `backend='rdf-1.2'` native) and **Transport** (in-process, or a real remote SPARQL endpoint via `store=SPARQLUpdateStore(...)`) - see `packages/starlayer/docs/graph/starlayergraph.md`'s own "Terminology" section for the full three-axis picture (the third axis, Persistence, doesn't affect anything in this table). Confirmed live, current status across all four real combinations:
 
 | Operation | In-process, `rdf-1.1` (default `Memory` store) | Remote, `rdf-1.1` | Remote, `rdf-1.2` native | In-process, `rdf-1.2` native (`OxigraphStore`) |
 | --- | --- | --- | --- | --- |
@@ -22,7 +22,7 @@ This is the compatibility contract for starshacl: what inputs are supported, wha
 | `validate()`, any `meta_shacl` setting, including a BNode focus/value node | ✅ | ✅ | ✅ | ✅ |
 | `apply_rules()` / rule execution | ✅ | ✅ | ✅ | ✅ |
 
-**Plain blank-node read/write against a remote store required real fixes in `starlayergraph` itself** (not starshacl) - see `packages/graph/docs/starlayergraph.md`'s "Blank nodes against a remote store" section for the full mechanism in each representation.
+**Plain blank-node read/write against a remote store required real fixes in `starlayergraph` itself** (not starshacl) - see `packages/starlayer/docs/graph/starlayergraph.md`'s "Blank nodes against a remote store" section for the full mechanism in each representation.
 
 **`apply_rules()`/`validate()` against an in-process, `rdf-1.2`-native graph (`oxrdflib`'s `OxigraphStore`), including a BNode focus/value node anywhere in the report (real data or the shapes/rules graph's own internal structure, e.g. a `sh:rule [ a sh:TripleRule ; ... ]` blank node): confirmed live, works under any `meta_shacl` setting.** `validator.py`'s `_patch_stringify_for_native_backend_bnodes()` (a workaround for pySHACL's own `find_node_named_graph`) discovers graphs through `starlayer.graph.backends.native.execute_select()`, the same transport-agnostic dispatcher `StarLayerGraph` uses internally, and also searches the store's default graph - a `StarLayerGraph` built with no explicit identifier lives there, where a `GRAPH ?g` query can't see it. Covered by `tests/shacl/integration/test_native_backend_oxigraph_store.py`; see `starlayer/graph/CLAUDE.md`'s 2026-10-16 entry.
 
@@ -33,7 +33,7 @@ This is the compatibility contract for starshacl: what inputs are supported, wha
 - **RDF 1.2** (triple terms, `rdf:dirLangString` direction-tagged literals) is a first-class value type, not an add-on: `StarLayerGraph` carries these natively, and they round-trip through validation and rules unchanged.
 - **RDF 1.1 / SHACL 1.0-1.1** inputs are fully supported through the same code path - there are no separate 1.1/1.2 runtime modes.
 
-**"SHACL 1.2" spans six separate W3C documents**, each with its own status and coverage below. All are still Working Drafts, not Candidate Recommendations - see `docs/shacl12-gap-matrix.md` for full per-document detail and how to track upstream spec changes.
+**"SHACL 1.2" spans six separate W3C documents**, each with its own status and coverage below. All are still Working Drafts, not Candidate Recommendations - see `packages/starlayer/docs/shacl/shacl12-gap-matrix.md` for full per-document detail and how to track upstream spec changes.
 
 ### SHACL 1.2 Core
 
@@ -67,7 +67,7 @@ This is the compatibility contract for starshacl: what inputs are supported, wha
 
 ### Meta-shacl validation
 
-`meta_shacl=True` (the shapes-graph well-formedness preflight, on by default) covers predicates from all six documents above, via starshacl's own preflight (`starshacl/meta_shapes.py`) rather than pySHACL's built-in mechanism. See `docs/shacl12-gap-matrix.md`'s Meta-SHACL Policy section for exact coverage and the `meta_shapes_extra` extension hook.
+`meta_shacl=True` (the shapes-graph well-formedness preflight, on by default) covers predicates from all six documents above, via starshacl's own preflight (`starshacl/meta_shapes.py`) rather than pySHACL's built-in mechanism. See `packages/starlayer/docs/shacl/shacl12-gap-matrix.md`'s Meta-SHACL Policy section for exact coverage and the `meta_shapes_extra` extension hook.
 
 ## starshacl and pySHACL
 
@@ -117,4 +117,4 @@ When upgrading between minor versions:
 
 ## Release Process
 
-- Follow `docs/releasing.md` before cutting a release.
+- Follow `packages/starlayer/docs/shacl/releasing.md` before cutting a release.

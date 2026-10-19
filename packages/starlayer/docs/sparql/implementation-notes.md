@@ -52,6 +52,6 @@ The validation layer deliberately checks structure, not just text form. This is 
 - `starsparql/from_rdf.py` — decode RDF back to algebra
 - `starsparql/lower_rdf11.py` — lower algebra to executable SPARQL 1.1 objects
 - `starsparql/ontology/sparql_shapes.py` — SHACL validation of algebra RDF
-- `tests/test_w3c_sparql12.py` — conformance checks
+- `packages/starlayer/tests/sparql/w3c_sparql12/test_w3c_sparql12.py` — conformance checks
 
 See the package `CLAUDE.md` for additional notes on current gaps and implementation status.

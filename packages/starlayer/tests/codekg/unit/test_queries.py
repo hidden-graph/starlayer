@@ -17,27 +17,49 @@ from starlayer.codekg import CODEKG_NS, queries
 
 CODEKG_DIR = Path(queries.__file__).parent
 SHAPES_TTL = CODEKG_DIR / "query-library-shapes.ttl"
-SOURCES = sorted((CODEKG_DIR / "query-library").glob("*.rq"))
+LIBRARY_TTL = CODEKG_DIR / "curated" / "query-library.ttl"
+QUERY_NAMES = sorted(q.name for q in queries.list_queries())
 
 
 # ---------------------------------------------------------------------------
 # the stored library (no code KG needed)
 
 
-def test_every_source_file_is_in_the_library_and_the_other_way_round():
-    assert {q.name for q in queries.list_queries()} == {p.stem for p in SOURCES}
+@pytest.mark.deferred
+def test_the_library_is_valid():
+    """The stored library is the source of the queries: its shapes, and every sqe tree, must hold."""
+    assert queries.validate_library() == []
+    assert len(QUERY_NAMES) >= 20
 
 
-def test_library_conforms_to_its_shapes():
-    import starlayer.shacl
+@pytest.mark.deferred
+def test_validate_library_notices_a_damaged_tree():
+    """A tree the sqe shapes reject must be reported, not passed over."""
+    from starlayer.sparql.sqe import vocab
 
-    shapes = Graph().parse(SHAPES_TTL, format="turtle")
-    result = starlayer.shacl.validate(queries._library(), shacl_graph=shapes)
-    assert result.conforms, result.report_text
+    library = Graph()
+    for triple in queries._library():
+        library.add(triple)
+    root = library.value(next(n for n in library.subjects(RDF.type, CODEKG_NS.NamedQuery) if str(n).endswith("#callers-of")), CODEKG_NS.queryRoot)
+    library.remove((root, RDF.type, None))
+    library.add((root, RDF.type, vocab.SQE.Query))
+    original = queries._library
+    queries._library = lambda: library
+    try:
+        problems = queries.validate_library()
+    finally:
+        queries._library = original
+    assert any("callers-of" in p for p in problems)
+
+
+def test_the_stored_library_is_the_only_source():
+    """No build step writes the library, so no generator header may claim otherwise."""
+    assert "Do not edit" not in LIBRARY_TTL.read_text(encoding="utf-8")
+    assert not (CODEKG_DIR / "query-library").exists()
 
 
 @pytest.mark.codekg_queries
-@pytest.mark.parametrize("name", [p.stem for p in SOURCES])
+@pytest.mark.parametrize("name", QUERY_NAMES)
 def test_query_text_round_trips_and_follows_the_parameter_rules(name):
     from starlayer.sparql.sqe import sqe_parse_to_tree
 
@@ -82,11 +104,9 @@ def test_run_query_checks_its_arguments_before_touching_the_graph():
         queries.run_query("callers-of", symbol="x", nonsense=1)
 
 
-def test_competency_questions_come_from_the_markdown_with_their_status():
+def test_competency_questions_carry_their_status():
     questions = queries.competency_questions()
-    text = (CODEKG_DIR / "competency-questions.md").read_text(encoding="utf-8")
-    bullets = re.findall(r"^- (?:✅|🔜|🗂️|⛔) ", text, re.M)
-    assert len(questions) == len(bullets)
+    assert len(questions) >= 20
     assert {q.status for q in questions} <= {"answerable", "roadmap", "curated", "out-of-scope"}
     answered = [q for q in questions if q.answered_by]
     assert answered and all(q.status == "answerable" for q in answered)
@@ -113,7 +133,7 @@ MAY_BE_EMPTY: dict[str, str] = {}
 
 
 @pytest.mark.codekg_queries
-@pytest.mark.parametrize("name", [p.stem for p in SOURCES])
+@pytest.mark.parametrize("name", QUERY_NAMES)
 def test_query_runs_with_its_examples_and_is_bounded(name, kg):
     described = queries.get_query(name)
     params = {p.name: p.example for p in described.parameters if p.required}
@@ -217,3 +237,11 @@ def test_a_table_keeps_identifiers_whole_and_cuts_long_prose():
 def test_members_of_class_lists_named_tuple_and_dataclass_fields(kg):
     fields = [r["member"] for r in queries.run_query("members-of-class", symbol="starlayer.starontology.manchester.Clause").as_dicts()]
     assert fields == ["clause_kind", "items", "annotations"] or set(fields) == {"clause_kind", "items", "annotations"}
+
+
+@pytest.mark.codekg_queries
+def test_results_say_how_old_the_kg_is(kg):
+    sentence = queries.kg_status()
+    assert sentence.startswith("KG built 20") and "commit" in sentence
+    assert sentence in str(queries.run_query("find-symbol", text="tt_hash", limit=2))
+    assert queries.main(["status"]) == 0

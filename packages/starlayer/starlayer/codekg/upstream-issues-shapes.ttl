@@ -1,0 +1,39 @@
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix slkg: <https://github.com/hidden-graph/starlayer/ns/codekg#> .
+
+# Shapes for the upstream issues (curated/upstream-issues.ttl).
+
+slkg:UpstreamIssueShape a sh:NodeShape ;
+    sh:targetClass slkg:UpstreamIssue ;
+    sh:property [
+        sh:path rdfs:label ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ;
+        sh:message "a slkg:UpstreamIssue needs exactly one rdfs:label (the issue's title)"
+    ], [
+        sh:path slkg:upstreamProject ; sh:minCount 1 ; sh:maxCount 1 ; sh:in ( "rdflib" "pyshacl" "fuseki" "oxigraph" ) ;
+        sh:message "slkg:upstreamProject must be rdflib, pyshacl, fuseki or oxigraph"
+    ], [
+        sh:path slkg:issueDocPath ; sh:minCount 1 ; sh:maxCount 1 ;
+        sh:pattern "^docs/upstream-issues/[A-Za-z0-9_.-]+\\.md$" ;
+        sh:message "slkg:issueDocPath must be a repository-relative path of a write-up in docs/upstream-issues"
+    ], [
+        sh:path slkg:issueNumber ; sh:maxCount 1 ; sh:datatype xsd:integer ;
+        sh:message "slkg:issueNumber must be a single integer"
+    ], [
+        sh:path slkg:issueStatus ; sh:minCount 1 ; sh:maxCount 1 ; sh:in ( "worked-around" "fixed-upstream" "documented-only" ) ;
+        sh:message "slkg:issueStatus must be worked-around, fixed-upstream or documented-only"
+    ], [
+        sh:path slkg:workedAroundByIdentifier ; sh:datatype xsd:string
+    ] ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "an issue is worked-around exactly when it names the code that works around it" ;
+        sh:select """
+            PREFIX slkg: <https://github.com/hidden-graph/starlayer/ns/codekg#>
+            SELECT $this WHERE {
+              $this slkg:issueStatus ?status .
+              OPTIONAL { $this slkg:workedAroundByIdentifier ?code }
+              FILTER( (?status = "worked-around" && !BOUND(?code)) || (?status != "worked-around" && BOUND(?code)) )
+            }""" ;
+    ] .

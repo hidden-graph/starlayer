@@ -674,6 +674,7 @@ def test_too_strict_base_triples_absent_from_assembled_graph() -> None:
         assert not still_present, f"{path} should have been stripped from the assembled graph"
 
 
+@pytest.mark.deferred
 def test_stored_meta_shapes_file_matches_a_fresh_build() -> None:
     """meta_validate() reads the stored shacl12-shacl.ttl, so it must equal
     what build_meta_shapes_graph() produces. On failure, run

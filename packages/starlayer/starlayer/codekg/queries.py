@@ -14,8 +14,9 @@ short. The graph is built from the source and **can lag it**: line numbers in a 
 the file, and ``python scripts/build.py --only codekg apidocs`` rebuilds it.
 
 The queries are stored as RDF, not text: ``curated/query-library.ttl`` holds each one as an ``sqe:`` tree
-(``starlayer.sparql.sqe``) under a ``slkg:NamedQuery``. ``run_query`` decodes the tree and runs it. The library is
-generated from ``query-library/*.rq`` by ``scripts/build_query_library.py``; add a query by adding a ``.rq`` file.
+(``starlayer.sparql.sqe``) under a ``slkg:NamedQuery``, and ``run_query`` decodes the tree and runs it. That file is
+the source, edited directly (nothing generates it); ``validate_library()`` checks it, and
+``scripts/build_query_catalogue.py`` runs that check and writes the readable catalogue.
 
 Also runnable from a shell: ``python -m starlayer.codekg.queries --help``.
 
@@ -37,7 +38,6 @@ from . import CODEKG_NS, get_codekg_dataset
 
 _HERE = Path(__file__).parent
 LIBRARY_TTL = _HERE / "curated" / "query-library.ttl"
-FUNCTIONALITY_TTL = _HERE / "curated" / "functionality.ttl"
 
 DEFAULT_LIMIT = 25
 MAX_LIMIT = 500
@@ -50,7 +50,7 @@ _DEFAULT_PREFIXES = {
     "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
 }
 
-# the words used on the status marks of competency-questions.md
+# the values of slkg:cqStatus
 _STATUSES = ("answerable", "roadmap", "curated", "out-of-scope")
 
 
@@ -107,6 +107,7 @@ class QueryResult:
     offset: int = 0
     limit: int = DEFAULT_LIMIT
     warnings: list[str] = field(default_factory=list)
+    kg_note: str = ""  # how old the code KG is, from its build stamp
 
     @property
     def truncated(self) -> bool:
@@ -131,6 +132,7 @@ class QueryResult:
         footer = f"{shown}."
         if self.truncated:
             footer += f" More: pass offset={self.offset + len(self.rows)}, or narrow the query."
+        footer += f" {self.kg_note}" if self.kg_note else ""
         lines.append(footer + " The code KG can lag the source; check line numbers in the file.")
         return "\n".join(lines)
 
@@ -159,14 +161,26 @@ def _library():
 
 @functools.lru_cache(maxsize=1)
 def _kg():
-    """All the code KG's module graphs merged into one graph, plus the curated capabilities."""
+    """All the code KG's module graphs merged into one graph, plus the curated layer (capabilities and the query library)."""
     from starlayer.graph import StarLayerGraph
 
     graph = StarLayerGraph()
-    for s, p, o, _g in get_codekg_dataset().quads((None, None, None, None)):
+    for s, p, o, _g in get_codekg_dataset(include_curated=True).quads((None, None, None, None)):
         graph.add((s, p, o))
-    graph.parse(str(FUNCTIONALITY_TTL), format="turtle")
     return graph
+
+
+@functools.lru_cache(maxsize=1)
+def kg_status() -> str:
+    """One sentence on how old the code KG is: when it was built, from which commit, and what changed in the source since.
+
+    Read from the ``slkg:KGBuild`` stamp the extractor writes, compared with the git repository as it is now. Empty
+    when there is no stamp (a graph built before stamps existed).
+    """
+    from starlayer.codekg.extractor.stamp import freshness
+
+    found = freshness(_kg(), Path(__file__).resolve().parents[4])
+    return found.sentence() if found else ""
 
 
 def _slkg(term: str) -> URIRef:
@@ -249,7 +263,7 @@ def query_text(name: str) -> str:
 
 
 def competency_questions(status: str | None = None, unanswered: bool = False) -> list[CompetencyQuestion]:
-    """The questions the graph should answer (from ``competency-questions.md``), in text order of their topic.
+    """The questions the graph should answer (the ``slkg:CompetencyQuestion`` nodes), sorted by topic then text.
 
     ``status`` filters by ``"answerable"``, ``"roadmap"``, ``"curated"`` or ``"out-of-scope"``; ``unanswered=True``
     keeps those no named query answers yet.
@@ -270,6 +284,63 @@ def competency_questions(status: str | None = None, unanswered: bool = False) ->
         if (status is None or item.status == status) and (not unanswered or not item.answered_by):
             found.append(item)
     return sorted(found, key=lambda q: (q.topic, q.question))
+
+
+def _tree_triples(library, root) -> list:
+    """The triples of the ``sqe:`` tree under ``root``: everything reachable through blank nodes."""
+    from rdflib import BNode
+
+    seen, todo, triples = set(), [root], []
+    while todo:
+        node = todo.pop()
+        if node in seen:
+            continue
+        seen.add(node)
+        for p, o in library.predicate_objects(node):
+            triples.append((node, p, o))
+            if isinstance(o, BNode):
+                todo.append(o)
+    return triples
+
+
+def validate_library() -> list[str]:
+    """Problems in the stored library, or an empty list when it is sound.
+
+    Checks the library against ``query-library-shapes.ttl``, then validates each query's tree on its own against
+    the sqe shapes (one tree at a time: validating the whole library at once re-checks every tree for each one)
+    and checks that it decodes back to SPARQL text.
+    """
+    from rdflib import Graph
+
+    import starlayer.shacl
+    from starlayer.sparql.sqe import sqe_tree_to_text, sqe_validate
+
+    library = _library()
+    problems: list[str] = []
+    shapes = Graph().parse(str(_HERE / "query-library-shapes.ttl"), format="turtle")
+    report = starlayer.shacl.validate(library, shacl_graph=shapes)
+    if not report.conforms:
+        problems.append(f"library does not conform to query-library-shapes.ttl:\n{report.report_text}")
+    for node in library.subjects(RDF.type, _slkg("NamedQuery")):
+        name = str(node).rsplit("#", 1)[-1]
+        root = library.value(node, _slkg("queryRoot"))
+        if root is None:
+            continue  # the shapes report the missing root
+        tree = Graph()
+        for triple in _tree_triples(library, root):
+            tree.add(triple)
+        if not len(tree):
+            problems.append(f"{name}: the query root {root} has no tree")
+            continue
+        conforms, _report, text = sqe_validate(tree)
+        if not conforms:
+            problems.append(f"{name}: the sqe tree is invalid:\n{text}")
+            continue
+        try:
+            sqe_tree_to_text(library, root)
+        except Exception as error:  # noqa: BLE001 - any failure to decode is a problem to report
+            problems.append(f"{name}: the tree does not decode to SPARQL: {error}")
+    return problems
 
 
 # ---------------------------------------------------------------------------
@@ -301,7 +372,7 @@ def _bounded(query_name: str, result, limit: int, offset: int, warnings: list[st
         return QueryResult(query_name, ["answer"], [(str(bool(result.askAnswer)).lower(),)], 1, 0, limit, warnings)
     columns = [str(v) for v in result.vars]
     rows = [tuple(_term_text(t) for t in row) for row in result]
-    return QueryResult(query_name, columns, rows[offset : offset + limit], len(rows), offset, limit, warnings)
+    return QueryResult(query_name, columns, rows[offset : offset + limit], len(rows), offset, limit, warnings, kg_status())
 
 
 def run_query(name: str, *, limit: int = DEFAULT_LIMIT, offset: int = 0, **params) -> QueryResult:
@@ -371,6 +442,7 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("list", help="list the named queries")
     p.add_argument("--topic", help="only this topic (see 'topics')")
     sub.add_parser("topics", help="list the topics")
+    sub.add_parser("status", help="how old the code KG is compared with the source (loads the graph)")
     p = sub.add_parser("show", help="describe a query and print its SPARQL")
     p.add_argument("name")
     p = sub.add_parser("run", help="run a named query: run NAME param=value ...")
@@ -393,6 +465,8 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "topics":
             for key, label in sorted(topics().items()):
                 print(f"{key:14} {label}")
+        elif args.command == "status":
+            print(kg_status() or "The code KG has no build stamp; rebuild it: python scripts/build.py --only codekg apidocs")
         elif args.command == "show":
             q = get_query(args.name)
             print(f"{q.name}: {q.label}\n{q.description}\n")

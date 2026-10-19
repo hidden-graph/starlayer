@@ -6,6 +6,8 @@
 2. Every notebook in ``docs/guides/`` appears in ``docs/guides/README.md`` and in
    ``docs/user-guide-version.json``, and neither lists one that does not exist.
 3. Every file path named in a ``Rules that bite`` block (the ``CLAUDE.md`` files) exists.
+4. Every cell of a notebook in ``docs/guides/`` has an ``id``, unique within the notebook. Links from the curated
+   knowledge graph to notebook cells use those ids.
 
 Build-time only. Run through ``python scripts/build.py`` (step ``docs``) or alone:
 
@@ -145,9 +147,22 @@ def check_rule_paths() -> list[str]:
     return problems
 
 
+def check_cell_ids() -> list[str]:
+    problems: list[str] = []
+    for path in sorted((ROOT / "docs" / "guides").glob("*.ipynb")):
+        ids = [cell.get("id") for cell in json.loads(path.read_text(encoding="utf-8")).get("cells", [])]
+        name = path.relative_to(ROOT)
+        if not all(ids):
+            problems.append(f"{name}: {ids.count(None)} cell(s) have no id")
+        seen = [i for i in ids if i]
+        if len(set(seen)) != len(seen):
+            problems.append(f"{name}: cell ids are not unique")
+    return problems
+
+
 def main() -> int:
     # `--check` is accepted so build.py can pass it to every step; this script only ever checks.
-    problems = [*check_links(), *check_guide_index(), *check_rule_paths()]
+    problems = [*check_links(), *check_guide_index(), *check_rule_paths(), *check_cell_ids()]
     for p in problems:
         print(p)
     print(f"{len(problems)} problem(s)" if problems else "docs check passed")

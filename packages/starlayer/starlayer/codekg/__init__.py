@@ -12,10 +12,10 @@ Two files, two very different lifecycles:
   run (see ``starlayer.codekg.extractor``, built separately). It does not
   exist until the extractor has run at least once.
 
-A third named graph, identified by ``CURATED_GRAPH_IRI``, is reserved for
-a future hand-maintained curated graph (e.g. "this notebook demonstrates
-this method") - not file-backed yet, created on demand by whatever later
-code populates it. This loader never writes to it.
+A third named graph, identified by ``CURATED_GRAPH_IRI``, holds the hand-maintained
+curated layer: every ``curated/*.ttl`` file (the capabilities in ``functionality.ttl``,
+the named queries in ``query-library.ttl``). It is read from those files on request,
+``get_codekg_dataset(include_curated=True)``, and is never written into ``codekg.trig``.
 
 Mirrors ``starlayer.starontology``'s own loader pattern: parse once,
 never hand back a shared mutable object, copy out a fresh graph/dataset
@@ -40,9 +40,14 @@ EXTERNALTYPE_NS = Namespace("https://github.com/hidden-graph/starlayer/ns/codekg
 # into a dataset alongside codekg.trig's per-module graphs.
 ONTOLOGY_GRAPH_IRI = URIRef("https://github.com/hidden-graph/starlayer/ns/codekg")
 
-# Reserved for the future hand-curated graph (see module docstring) - not
-# file-backed yet, never written to by this loader.
+# The named graph the curated layer is loaded into (see module docstring). The files
+# are the source; the extractor leaves this graph alone when it rebuilds codekg.trig.
 CURATED_GRAPH_IRI = URIRef("https://github.com/hidden-graph/starlayer/ns/codekg/curated")
+
+# The named graph holding the build stamp (a single slkg:KGBuild node saying when and from which commit codekg.trig
+# was built). Written by the extractor on every refresh, replaced each time.
+BUILD_GRAPH_IRI = URIRef("https://github.com/hidden-graph/starlayer/ns/codekg/build")
+BUILD_NODE_IRI = URIRef("https://github.com/hidden-graph/starlayer/ns/codekg/build#latest")
 
 # Per-module named-graph IRIs are BLOB_BASE + <repo-relative path from
 # packages/starlayer/starlayer/>, matching starontology's own GitHub-blob-
@@ -63,6 +68,9 @@ _ONTOLOGY_TTL_PATH = _HERE / "ontology.ttl"
 # needs to work both before and after the extractor's first run.
 CODEKG_TRIG_PATH = _HERE / "codekg.trig"
 
+# The hand-edited curated files, all loaded into CURATED_GRAPH_IRI on request.
+CURATED_DIR = _HERE / "curated"
+
 
 def get_ontology_graph() -> StarLayerGraph:
     """A fresh ``StarLayerGraph`` of ``ontology.ttl`` alone (plain Turtle,
@@ -81,10 +89,13 @@ def get_ontology_graph() -> StarLayerGraph:
     return graph
 
 
-def get_codekg_dataset() -> StarLayerDataset:
+def get_codekg_dataset(include_curated: bool = False) -> StarLayerDataset:
     """A fresh ``StarLayerDataset`` with ``codekg.trig`` parsed into it, or
     an empty dataset (no module graphs) if the extractor hasn't produced
-    that file yet. Never cached/shared - the extractor mutates a dataset
+    that file yet. With ``include_curated=True`` the ``curated/*.ttl`` files
+    are also parsed into the ``CURATED_GRAPH_IRI`` graph (the default leaves
+    it out, so the extractor's read-modify-write of the dataset can never
+    write curated triples into ``codekg.trig``). Never cached/shared - the extractor mutates a dataset
     returned from a similar pattern, so a caller must never be handed back
     the same mutable object another caller could also be holding."""
     from starlayer.graph.graph.starlayer_dataset import StarLayerDataset
@@ -92,7 +103,33 @@ def get_codekg_dataset() -> StarLayerDataset:
     dataset = StarLayerDataset()
     if CODEKG_TRIG_PATH.exists():
         dataset.parse(str(CODEKG_TRIG_PATH), format="trig12")
+    if include_curated:
+        curated = dataset.get_context(CURATED_GRAPH_IRI)
+        for path in sorted(CURATED_DIR.glob("*.ttl")):
+            curated.parse(str(path), format="turtle")
+        _derive_demonstrated_by(dataset, curated)
     return dataset
+
+
+def _derive_demonstrated_by(dataset: StarLayerDataset, curated: StarLayerGraph) -> None:
+    """Add ``entity slkg:demonstratedBy example`` for each ``slkg:demonstratesIdentifier`` that names an extracted entity.
+
+    The curated files name code by dotted identifier (stable across refactors); this resolves them to the entities'
+    IRIs once the module graphs are loaded, the same way ``slkg:implementedByIdentifier`` is resolved at query time.
+    """
+    from rdflib.namespace import DCTERMS
+
+    wanted: dict[str, list] = {}
+    for example, identifier in curated.subject_objects(CODEKG_NS.demonstratesIdentifier):
+        wanted.setdefault(str(identifier), []).append(example)
+    if not wanted:
+        return
+    for ctx in dataset.contexts():
+        if ctx.identifier == CURATED_GRAPH_IRI:
+            continue
+        for entity, identifier in ctx.subject_objects(DCTERMS.identifier):
+            for example in wanted.get(str(identifier), ()):
+                curated.add((entity, CODEKG_NS.demonstratedBy, example))
 
 
 def get_module_graph(module_path: str) -> StarLayerGraph | None:

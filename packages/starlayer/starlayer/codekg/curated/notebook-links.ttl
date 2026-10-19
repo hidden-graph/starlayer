@@ -1,0 +1,230 @@
+# Hand-made links from guide notebook cells to the code they demonstrate. This file is the source: edit it directly.
+# Each link names a cell by notebook and cell id, the dotted identifiers it demonstrates (as in
+# functionality.ttl), and a hash of the cell's source from when a person last reviewed the link.
+# `python scripts/check_notebook_links.py` compares the hashes with the notebooks and fails on a changed,
+# moved or broken cell; review those with the review-notebook-links skill, then `--restamp`.
+
+@prefix nl: <https://github.com/hidden-graph/starlayer/ns/codekg/curated/notebook-links#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix slkg: <https://github.com/hidden-graph/starlayer/ns/codekg#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+nl:01-b8032fd8 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/01-getting-started.ipynb" ;
+    slkg:cellId "b8032fd8" ;
+    slkg:cellHash "0b0d8c746b4247a5" ;
+    slkg:reviewedOn "2026-10-19"^^xsd:date ;
+    rdfs:comment "The first cell a reader runs: imports StarLayerGraph and sets up the namespace used to build graphs." ;
+    slkg:demonstratesIdentifier
+        "starlayer.graph.graph.starlayer_graph.StarLayerGraph" .
+
+nl:01-6f4c59ad a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/01-getting-started.ipynb" ;
+    slkg:cellId "6f4c59ad" ;
+    slkg:cellHash "3f80d8bd5d149824" ;
+    slkg:reviewedOn "2026-10-19"^^xsd:date ;
+    rdfs:comment "Parses Turtle into a StarLayerGraph and queries it with SPARQL, the smallest complete use of both." ;
+    slkg:demonstratesIdentifier
+        "starlayer.graph.graph.starlayer_graph.StarLayerGraph.parse",
+        "starlayer.graph.graph.starlayer_graph.StarLayerGraph.query" .
+
+nl:02-3f4f3ecb a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/02-graphs.ipynb" ;
+    slkg:cellId "3f4f3ecb" ;
+    slkg:cellHash "fd7c3b994645ef43" ;
+    slkg:reviewedOn "2026-10-19"^^xsd:date ;
+    rdfs:comment "Builds a graph with a triple term and a reifier and shows it serialized, the basic way to see a graph's contents." ;
+    slkg:demonstratesIdentifier
+        "starlayer.graph.graph.starlayer_graph.StarLayerGraph.serialize" .
+
+nl:02-7334cc46 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/02-graphs.ipynb" ;
+    slkg:cellId "7334cc46" ;
+    slkg:cellHash "c179de1580cd71a9" ;
+    slkg:reviewedOn "2026-10-19"^^xsd:date ;
+    rdfs:comment "Calls reifications() to list the triple terms that have a reifier, next to reifiers()." ;
+    slkg:demonstratesIdentifier
+        "starlayer.graph.graph.starlayer_graph.StarLayerGraph.reifications" .
+
+nl:02a-122b54fa a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/02a-graphs-datasets.ipynb" ;
+    slkg:cellId "122b54fa" ;
+    slkg:cellHash "ed1ddf45ea775ab4" ;
+    slkg:reviewedOn "2026-10-19"^^xsd:date ;
+    rdfs:comment "Creates a StarLayerDataset and adds two named graphs to it." ;
+    slkg:demonstratesIdentifier
+        "starlayer.graph.graph.starlayer_dataset.StarLayerDataset" .
+
+nl:02b-2c6151e0 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/02b-graphs-inferencing.ipynb" ;
+    slkg:cellId "2c6151e0" ;
+    slkg:cellHash "07e637c801ed2c7c" ;
+    slkg:reviewedOn "2026-10-19"^^xsd:date ;
+    rdfs:comment "Runs infer() with the RDF entailment regime and shows the graph before and after." ;
+    slkg:demonstratesIdentifier
+        "starlayer.graph.graph.starlayer_graph.StarLayerGraph.infer" .
+
+nl:02c-b87b0ce5 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/02c-owl-dl-reasoning.ipynb" ;
+    slkg:cellId "b87b0ce5" ;
+    slkg:cellHash "75516ee3f345e132" ;
+    slkg:reviewedOn "2026-10-19"^^xsd:date ;
+    rdfs:comment "Shows the OWL-Direct (OWL-DL) regime raising InconsistentOntologyError for a contradiction that the rule-based OWL-RDF-Based regime does not report." ;
+    slkg:demonstratesIdentifier
+        "starlayer.graph.graph.owl_dl" .
+
+nl:03-2e4d34f3 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/03-sparql.ipynb" ;
+    slkg:cellId "2e4d34f3" ;
+    slkg:cellHash "09f23154c6015a4f" ;
+    slkg:reviewedOn "2026-10-19"^^xsd:date ;
+    rdfs:comment "A SPARQL 1.2 query that binds the terms inside a triple term, run with query()." ;
+    slkg:demonstratesIdentifier
+        "starlayer.graph.graph.starlayer_graph.StarLayerGraph.query" .
+
+nl:03b-7790f87d a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/03b-srl-sparql-rules.ipynb" ;
+    slkg:cellId "7790f87d" ;
+    slkg:cellHash "7ee015a752fc04fe" ;
+    slkg:reviewedOn "2026-10-19"^^xsd:date ;
+    rdfs:comment "Writes a small SRL rule set and parses it with parse_ruleset()." ;
+    slkg:demonstratesIdentifier
+        "starlayer.sparql.srl.parse_ruleset" .
+
+nl:03b-c0a10002 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/03b-srl-sparql-rules.ipynb" ;
+    slkg:cellId "c0a10002" ;
+    slkg:cellHash "7726415044e17133" ;
+    slkg:reviewedOn "2026-10-19"^^xsd:date ;
+    rdfs:comment "Calls plan() on a rule set to show its strata and the dependency edges between rules." ;
+    slkg:demonstratesIdentifier
+        "starlayer.sparql._srl_ast.RuleSet.plan" .
+
+nl:03b-4d30d29d a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/03b-srl-sparql-rules.ipynb" ;
+    slkg:cellId "4d30d29d" ;
+    slkg:cellHash "504c70ea3d002a78" ;
+    slkg:reviewedOn "2026-10-19"^^xsd:date ;
+    rdfs:comment "Runs a rule set over a graph with infer() and prints the new triples it returns." ;
+    slkg:demonstratesIdentifier
+        "starlayer.sparql._srl_ast.RuleSet.infer" .
+
+nl:03b-d9a10023 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/03b-srl-sparql-rules.ipynb" ;
+    slkg:cellId "d9a10023" ;
+    slkg:cellHash "b90862cf91a035e4" ;
+    slkg:reviewedOn "2026-10-19"^^xsd:date ;
+    rdfs:comment "Resolves a rule set's IMPORTS through a loader, giving a rule set that needs no loader." ;
+    slkg:demonstratesIdentifier
+        "starlayer.sparql.srl.resolve_imports" .
+
+nl:04-22edd3bd a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/04-shacl-shapes.ipynb" ;
+    slkg:cellId "22edd3bd" ;
+    slkg:cellHash "3e7beb88ffe33276" ;
+    slkg:reviewedOn "2026-10-19"^^xsd:date ;
+    rdfs:comment "Builds a StarShaclSchema from a shapes graph and validates data with validate(), including a failing case." ;
+    slkg:demonstratesIdentifier
+        "starlayer.shacl.validator.StarShaclSchema",
+        "starlayer.shacl.validator.StarShaclSchema.validate" .
+
+nl:04-72ce32cb a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/04-shacl-shapes.ipynb" ;
+    slkg:cellId "72ce32cb" ;
+    slkg:cellHash "3d00f0e6ac2a9b8c" ;
+    slkg:reviewedOn "2026-10-19"^^xsd:date ;
+    rdfs:comment "Runs sh:rule rules with apply_rules() and materializes the inferred triples." ;
+    slkg:demonstratesIdentifier
+        "starlayer.shacl.validator.StarShaclSchema.apply_rules" .
+
+nl:04d-n13-editors a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/04d-shacl-ui.ipynb" ;
+    slkg:cellId "n13-editors" ;
+    slkg:cellHash "8cc2198884edbf32" ;
+    slkg:reviewedOn "2026-10-19"^^xsd:date ;
+    rdfs:comment "Calls the select_widgets() function to pick an editor widget for each property of a shape." ;
+    slkg:demonstratesIdentifier
+        "starlayer.shacl.ui_widget_selection.select_widgets" .
+
+nl:04d-n45-schema-select a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/04d-shacl-ui.ipynb" ;
+    slkg:cellId "n45-schema-select" ;
+    slkg:cellHash "755cfc0073b6da0b" ;
+    slkg:reviewedOn "2026-10-19"^^xsd:date ;
+    rdfs:comment "Calls select_widgets() as a method of a StarShaclSchema, which supplies its own shapes graph and scoring catalog." ;
+    slkg:demonstratesIdentifier
+        "starlayer.shacl.validator.StarShaclSchema.select_widgets" .
+
+nl:04e-96560f37 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/04e-shacl-profiling.ipynb" ;
+    slkg:cellId "96560f37" ;
+    slkg:cellHash "8e1ab260230152d1" ;
+    slkg:reviewedOn "2026-10-19"^^xsd:date ;
+    rdfs:comment "Validates against a profile and then calls shacl_profiling.derive_conforms_to() explicitly to add the conformsTo statements from the report." ;
+    slkg:demonstratesIdentifier
+        "starlayer.shacl.profiling.derive_conforms_to",
+        "starlayer.shacl.shacl_profiling" .
+
+nl:04e-c2a7c429 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/04e-shacl-profiling.ipynb" ;
+    slkg:cellId "c2a7c429" ;
+    slkg:cellHash "5ecd3e182557b826" ;
+    slkg:reviewedOn "2026-10-19"^^xsd:date ;
+    rdfs:comment "Uses extract_shapes_graph() to pull the shapes of one named sh:ShapesGraph out of a larger shapes graph." ;
+    slkg:demonstratesIdentifier
+        "starlayer.shacl.validator.StarShaclSchema.extract_shapes_graph" .
+
+nl:04f-98caadf5 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/04f-shacl-subgraph-extraction.ipynb" ;
+    slkg:cellId "98caadf5" ;
+    slkg:cellHash "6604b3a31a892163" ;
+    slkg:reviewedOn "2026-10-19"^^xsd:date ;
+    rdfs:comment "The basic use of extract_subgraph(): pull the part of a data graph a shape needs and leave out the rest." ;
+    slkg:demonstratesIdentifier
+        "starlayer.shacl.subgraph_extraction.extract_subgraph" .
+
+nl:04f-80d50838 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/04f-shacl-subgraph-extraction.ipynb" ;
+    slkg:cellId "80d50838" ;
+    slkg:cellHash "0b4de454b720a282" ;
+    slkg:reviewedOn "2026-10-19"^^xsd:date ;
+    rdfs:comment "Uses close_shape() to turn a production shape into a closed one, so an extraction can be checked as exactly right." ;
+    slkg:demonstratesIdentifier
+        "starlayer.shacl.validator.StarShaclSchema.close_shape" .
+
+nl:05b-e00d4c27 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/05b-sparql-query-as-rdf.ipynb" ;
+    slkg:cellId "e00d4c27" ;
+    slkg:cellHash "0825a30c28e8502f" ;
+    slkg:reviewedOn "2026-10-19"^^xsd:date ;
+    rdfs:comment "Parses a SPARQL query into an sqe RDF tree with sqe_parse_to_tree(), the first use of the sqe package." ;
+    slkg:demonstratesIdentifier
+        "starlayer.sparql.sqe.__init__" .
+
+nl:06c-421f2a31 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/06c-canonical-hashing.ipynb" ;
+    slkg:cellId "421f2a31" ;
+    slkg:cellHash "8ea1d5fc09b726dc" ;
+    slkg:reviewedOn "2026-10-19"^^xsd:date ;
+    rdfs:comment "Shows two graphs with different blank-node labels being isomorphic and having the same RDFC-1.0 hash." ;
+    slkg:demonstratesIdentifier
+        "starlayer.graph.rdfc.rdfc10_hash",
+        "starlayer.graph.compare.isomorphic" .
+
+nl:06c-9e831b35 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/06c-canonical-hashing.ipynb" ;
+    slkg:cellId "9e831b35" ;
+    slkg:cellHash "87e3b921fd427413" ;
+    slkg:reviewedOn "2026-10-19"^^xsd:date ;
+    rdfs:comment "Prints the canonical N-Quads form the hash is computed from." ;
+    slkg:demonstratesIdentifier
+        "starlayer.graph.rdfc.to_canonical_nquads" .
+
+nl:appendix-34b06f8c a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/appendix-b1-sqe-shared-parts.ipynb" ;
+    slkg:cellId "34b06f8c" ;
+    slkg:cellHash "6584dc7fe8ca87e3" ;
+    slkg:reviewedOn "2026-10-19"^^xsd:date ;
+    rdfs:comment "Uses cbd() to delete a shared filter and everything hanging from it in a query graph." ;
+    slkg:demonstratesIdentifier
+        "starlayer.graph.graph.starlayer_graph.StarLayerGraph.cbd" .

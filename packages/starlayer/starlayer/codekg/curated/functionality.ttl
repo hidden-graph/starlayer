@@ -13,6 +13,8 @@
 #   dcterms:identifier in ../codekg.trig. A capability implemented only by a SHACL
 #   or OWL file has none. Packages are identified by their __init__ module
 #   ("starlayer.sparql.__init__"), because the code KG has no package entity.
+# - slkg:appRole says what a capability is for when building an app: storage, interchange, query,
+#   validate, infer, ui-generate or reference (see ../ontology.ttl). One or more per capability.
 # - Where several entities could anchor a capability, prefer the public entry
 #   point (a method over a module, a function over a thin method that delegates
 #   to it) and never a whole module standing in for many per-format files.
@@ -28,6 +30,7 @@ cur:cap-rdf-graph-1 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-rdf-graph ;
     slkg:position 1 ;
     slkg:hasStatus "implemented" ;
+    slkg:appRole "storage" ;
     rdfs:comment "Manage RDF 1.2 graphs, including triple terms and direction-tagged literals." ;
     slkg:implementedByIdentifier "starlayer.graph.model.encoding" .
 
@@ -35,6 +38,7 @@ cur:cap-rdf-graph-2 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-rdf-graph ;
     slkg:position 2 ;
     slkg:hasStatus "implemented" ;
+    slkg:appRole "storage" ;
     rdfs:comment "In-memory graph management through rdflib using an RDF 1.1 transformation of RDF 1.2 graphs (the default backend)." ;
     slkg:implementedByIdentifier "starlayer.graph.graph.starlayer_graph.StarLayerGraph" .
 
@@ -42,6 +46,7 @@ cur:cap-rdf-graph-3 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-rdf-graph ;
     slkg:position 3 ;
     slkg:hasStatus "implemented" ;
+    slkg:appRole "interchange" ;
     rdfs:comment "Parse and serialize various RDF formats including both 1.1 and 1.2 versions of Turtle, LongTurtle, N-Triples, N-Quads, TriG, RDF/XML, and TriX 1.2. Parse and serialize JSON-LD 1.1 (1.2 pending)." ;
     slkg:implementedByIdentifier 
         "starlayer.graph.graph.starlayer_graph.StarLayerGraph.parse",
@@ -51,6 +56,7 @@ cur:cap-rdf-graph-4 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-rdf-graph ;
     slkg:position 4 ;
     slkg:hasStatus "implemented" ;
+    slkg:appRole "storage" ;
     rdfs:comment "Multi-graph datasets with named graphs." ;
     slkg:implementedByIdentifier "starlayer.graph.graph.starlayer_dataset.StarLayerDataset" .
 
@@ -58,6 +64,7 @@ cur:cap-rdf-graph-5 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-rdf-graph ;
     slkg:position 5 ;
     slkg:hasStatus "implemented" ;
+    slkg:appRole "storage" ;
     rdfs:comment "Storage backends: the default in-memory rdflib store; Oxigraph in memory, on disk or as a server; Fuseki as a server; and SQLAlchemy-backed storage through a store plugin. Oxigraph and Fuseki use their own RDF 1.2 support when available." ;
     slkg:implementedByIdentifier "starlayer.graph.backends.native" .
 
@@ -65,6 +72,7 @@ cur:cap-rdf-graph-6 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-rdf-graph ;
     slkg:position 6 ;
     slkg:hasStatus "implemented" ;
+    slkg:appRole "interchange" ;
     rdfs:comment "RDF-1.2-aware graph isomorphism and comparison." ;
     slkg:implementedByIdentifier 
         "starlayer.graph.compare.graph_diff",
@@ -74,6 +82,7 @@ cur:cap-rdf-graph-7 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-rdf-graph ;
     slkg:position 7 ;
     slkg:hasStatus "implemented" ;
+    slkg:appRole "interchange" ;
     rdfs:comment "RDFC-1.0 canonicalization and hashing of RDF 1.2 graphs." ;
     slkg:implementedByIdentifier 
         "starlayer.graph.rdfc.CanonicalizationComplexityError",
@@ -84,6 +93,7 @@ cur:cap-rdf-graph-8 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-rdf-graph ;
     slkg:position 8 ;
     slkg:hasStatus "implemented" ;
+    slkg:appRole "storage" ;
     rdfs:comment "Resolve owl:imports using a loader you supply, so you decide how an imported document is fetched. There is no built-in fetching." ;
     slkg:implementedByIdentifier "starlayer.graph.graph.starlayer_graph.StarLayerGraph.resolve_imports" .
 
@@ -91,6 +101,7 @@ cur:cap-rdf-graph-9 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-rdf-graph ;
     slkg:position 9 ;
     slkg:hasStatus "implemented" ;
+    slkg:appRole "query" ;
     rdfs:comment "Concise bounded descriptions of a resource, and lookup of the triple terms that have at least one reifier." ;
     slkg:implementedByIdentifier 
         "starlayer.graph.graph.starlayer_graph.StarLayerGraph.cbd",
@@ -100,6 +111,7 @@ cur:cap-rdf-graph-13 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-rdf-graph ;
     slkg:position 10 ;
     slkg:hasStatus "implemented" ;
+    slkg:appRole "interchange" ;
     rdfs:comment "Triple terms are stored using the vocabulary of the RDF 1.2 Interoperability specification (each one a node typed rdf:PropositionForm), found by that type, and converted to and from the standard's blank-node form when writing or reading plain RDF formats." ;
     slkg:implementedByIdentifier "starlayer.graph.model.encoding" .
 
@@ -107,12 +119,14 @@ cur:cap-rdf-graph-10 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-rdf-graph ;
     slkg:position 10 ;
     slkg:hasStatus "roadmap" ;
+    slkg:appRole "storage" ;
     rdfs:comment "rdflib 8 compatibility (currently pinned to rdflib 7.x; revisit once a stable rdflib 8 ships)." .
 
 cur:cap-rdf-graph-11 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-rdf-graph ;
     slkg:position 11 ;
     slkg:hasStatus "roadmap" ;
+    slkg:appRole "storage" ;
     rdfs:comment "Built-in fetching of owl:imports, and one import mechanism shared by graphs, SHACL and SRL." ;
     slkg:seeAlsoPath "packages/starlayer/docs/future_enhancements.md" .
 
@@ -128,6 +142,7 @@ cur:cap-sparql-1 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-sparql ;
     slkg:position 1 ;
     slkg:hasStatus "implemented" ;
+    slkg:appRole "query" ;
     rdfs:comment "SPARQL 1.2 queries over StarLayer graphs." ;
     slkg:implementedByIdentifier "starlayer.graph.graph.starlayer_graph.StarLayerGraph.query" .
 
@@ -135,6 +150,7 @@ cur:cap-sparql-2 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-sparql ;
     slkg:position 2 ;
     slkg:hasStatus "implemented" ;
+    slkg:appRole "query", "ui-generate" ;
     rdfs:comment "A StarLayer RDF vocabulary for representing SPARQL queries as graphs, for hand or UI editing (the sqe namespace). It covers SELECT, ASK and CONSTRUCT with every clause, aggregates, sub-selects, VALUES and the SPARQL 1.2 additions; DESCRIBE and Update are not covered." ;
     slkg:implementedByIdentifier "starlayer.sparql.sqe.__init__" .
 
@@ -142,12 +158,14 @@ cur:cap-sparql-3 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-sparql ;
     slkg:position 3 ;
     slkg:hasStatus "implemented" ;
+    slkg:appRole "query", "validate" ;
     rdfs:comment "SHACL shapes for sqe graphs." .
 
 cur:cap-sparql-4 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-sparql ;
     slkg:position 4 ;
     slkg:hasStatus "implemented" ;
+    slkg:appRole "query" ;
     rdfs:comment "Prepared queries: prepare a query once, with options such as entailment, and run it against any number of graphs." ;
     slkg:implementedByIdentifier "starlayer.sparql.star_query.StarQuery" .
 
@@ -163,6 +181,7 @@ cur:cap-srl-1 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-srl ;
     slkg:position 1 ;
     slkg:hasStatus "implemented" ;
+    slkg:appRole "infer" ;
     rdfs:comment "A Datalog-style rules language from the W3C SPARQL 1.2 working draft (2026-10-14), general-purpose and independent of SHACL." ;
     slkg:implementedByIdentifier "starlayer.sparql.srl" .
 
@@ -170,6 +189,7 @@ cur:cap-srl-2 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-srl ;
     slkg:position 2 ;
     slkg:hasStatus "implemented" ;
+    slkg:appRole "infer", "ui-generate" ;
     rdfs:comment "Parse rule sets and represent them as RDF graphs that convert back to the same rule set (the srl namespace), with SHACL shapes that validate them." ;
     slkg:implementedByIdentifier "starlayer.sparql.srl.parse_ruleset" .
 
@@ -177,6 +197,7 @@ cur:cap-srl-3 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-srl ;
     slkg:position 3 ;
     slkg:hasStatus "implemented" ;
+    slkg:appRole "infer", "validate" ;
     rdfs:comment "Rule sets are checked against those shapes as they are parsed, so a malformed rule set is rejected up front." ;
     slkg:implementedByIdentifier 
         "starlayer.sparql.srl.parse_ruleset",
@@ -186,12 +207,14 @@ cur:cap-srl-4 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-srl ;
     slkg:position 4 ;
     slkg:hasStatus "implemented" ;
+    slkg:appRole "infer" ;
     rdfs:comment "Rule bodies and heads can use RDF 1.2 triple terms, reified triples and annotations; bodies can use the / and ^ property paths." .
 
 cur:cap-srl-5 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-srl ;
     slkg:position 5 ;
     slkg:hasStatus "implemented" ;
+    slkg:appRole "infer" ;
     rdfs:comment "IMPORTS of other rule sets, resolved through a loader you supply." ;
     slkg:implementedByIdentifier "starlayer.sparql.srl.resolve_imports" .
 
@@ -199,6 +222,7 @@ cur:cap-srl-6 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-srl ;
     slkg:position 6 ;
     slkg:hasStatus "implemented" ;
+    slkg:appRole "infer" ;
     rdfs:comment "Stratified evaluation: infer new triples, query the result, and show the order in which rules run." ;
     slkg:implementedByIdentifier 
         "starlayer.sparql._srl_ast.RuleSet.infer",
@@ -210,6 +234,7 @@ cur:cap-srl-7 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-srl ;
     slkg:position 7 ;
     slkg:hasStatus "implemented" ;
+    slkg:appRole "infer", "validate" ;
     rdfs:comment "Optional entailment and SHACL validation of the result." ;
     slkg:implementedByIdentifier "starlayer.sparql._srl_ast.RuleSet.infer" .
 
@@ -217,12 +242,14 @@ cur:cap-srl-8 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-srl ;
     slkg:position 8 ;
     slkg:hasStatus "implemented" ;
+    slkg:appRole "infer" ;
     rdfs:comment "Verified against the specification's own worked example." .
 
 cur:cap-srl-9 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-srl ;
     slkg:position 9 ;
     slkg:hasStatus "roadmap" ;
+    slkg:appRole "infer" ;
     rdfs:comment "Aggregation, and converting a rule set to SPARQL - waiting on the specification." ;
     slkg:seeAlsoPath "packages/starlayer/docs/future_enhancements.md" .
 
@@ -237,6 +264,7 @@ cur:cap-manchester-1 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-manchester ;
     slkg:position 1 ;
     slkg:hasStatus "implemented" ;
+    slkg:appRole "interchange" ;
     rdfs:comment "Manchester OWL syntax support for parse and serialize." ;
     slkg:implementedByIdentifier 
         "starlayer.graph.graph.starlayer_graph.StarLayerGraph.parse",
@@ -246,6 +274,7 @@ cur:cap-manchester-2 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-manchester ;
     slkg:position 2 ;
     slkg:hasStatus "implemented" ;
+    slkg:appRole "interchange", "ui-generate" ;
     rdfs:comment "A StarLayer RDF vocabulary for representing a Manchester document (the manch namespace)." ;
     slkg:implementedByIdentifier "starlayer.starontology.manchester" .
 
@@ -253,6 +282,7 @@ cur:cap-manchester-3 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-manchester ;
     slkg:position 3 ;
     slkg:hasStatus "implemented" ;
+    slkg:appRole "validate" ;
     rdfs:comment "SHACL shapes for manch graphs." .
 
 
@@ -266,6 +296,7 @@ cur:cap-reasoning-1 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-reasoning ;
     slkg:position 1 ;
     slkg:hasStatus "implemented" ;
+    slkg:appRole "infer" ;
     rdfs:comment "Support for reasoning and inference using various entailment regimes: RDF, RDFS, OWL-RL, and OWL-DL." ;
     slkg:implementedByIdentifier 
         "starlayer.graph.graph.starlayer_graph.StarLayerGraph.infer",
@@ -276,6 +307,7 @@ cur:cap-reasoning-2 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-reasoning ;
     slkg:position 2 ;
     slkg:hasStatus "implemented" ;
+    slkg:appRole "infer" ;
     rdfs:comment "OWL-DL support via two engines: HermiT (through owlready2, which needs Java) or a Rust engine." ;
     slkg:implementedByIdentifier 
         "starlayer.graph.graph.owl_dl",
@@ -285,6 +317,7 @@ cur:cap-reasoning-3 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-reasoning ;
     slkg:position 3 ;
     slkg:hasStatus "implemented" ;
+    slkg:appRole "infer" ;
     rdfs:comment "Support for both graph reasoning and query-time reasoning." ;
     slkg:implementedByIdentifier 
         "starlayer.graph.graph.starlayer_graph.StarLayerGraph.infer",
@@ -302,6 +335,7 @@ cur:cap-shacl-1 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-shacl ;
     slkg:position 1 ;
     slkg:hasStatus "implemented" ;
+    slkg:appRole "validate" ;
     rdfs:comment "Support for SHACL 1.2 over RDF 1.2 graphs." ;
     slkg:implementedByIdentifier 
         "starlayer.shacl.validator.StarShaclSchema",
@@ -311,6 +345,7 @@ cur:cap-shacl-2 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-shacl ;
     slkg:position 2 ;
     slkg:hasStatus "implemented" ;
+    slkg:appRole "validate" ;
     rdfs:comment "Support for additional SHACL 1.2 specifications: SPARQL Extensions, Node Expressions, Rules, User Interfaces, Profiling." ;
     slkg:implementedByIdentifier 
         "starlayer.shacl.shacl_profiling",
@@ -321,12 +356,14 @@ cur:cap-shacl-3 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-shacl ;
     slkg:position 3 ;
     slkg:hasStatus "implemented" ;
+    slkg:appRole "validate" ;
     rdfs:comment "SHACL 1.2 meta-shapes for checking shapes graphs." .
 
 cur:cap-shacl-4 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-shacl ;
     slkg:position 4 ;
     slkg:hasStatus "implemented" ;
+    slkg:appRole "query", "validate" ;
     rdfs:comment "SHACL-driven subgraph extraction." ;
     slkg:implementedByIdentifier 
         "starlayer.shacl.subgraph_extraction.extract_subgraph",
@@ -337,6 +374,7 @@ cur:cap-shacl-5 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-shacl ;
     slkg:position 5 ;
     slkg:hasStatus "implemented" ;
+    slkg:appRole "validate" ;
     rdfs:comment "Derive a SHACL shape from a graph's own data." ;
     slkg:implementedByIdentifier "starlayer.graph.graph.shape_derivation.derive_shape" .
 
@@ -344,6 +382,7 @@ cur:cap-shacl-6 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-shacl ;
     slkg:position 6 ;
     slkg:hasStatus "implemented" ;
+    slkg:appRole "ui-generate" ;
     rdfs:comment "SHACL 1.2 User Interfaces widget selection: choose a widget for each property of a shape using the specification's scoring and matcher rules." ;
     slkg:implementedByIdentifier 
         "starlayer.shacl.ui_widget_selection.select_widget",
@@ -354,6 +393,7 @@ cur:cap-shacl-7 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-shacl ;
     slkg:position 7 ;
     slkg:hasStatus "implemented" ;
+    slkg:appRole "validate" ;
     rdfs:comment "Validation reports record the data and shapes graphs used and derive sh:conformsTo, and dcterms:conformsTo when given a profiles graph." ;
     slkg:implementedByIdentifier 
         "starlayer.shacl.profiling.derive_conforms_to",
@@ -363,6 +403,7 @@ cur:cap-shacl-8 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-shacl ;
     slkg:position 8 ;
     slkg:hasStatus "implemented" ;
+    slkg:appRole "validate" ;
     rdfs:comment "Named shapes graph modules: validate against one module, extract one, and resolve owl:imports using a loader you supply." ;
     slkg:implementedByIdentifier "starlayer.shacl.validator.StarShaclSchema.extract_shapes_graph" .
 
@@ -370,6 +411,7 @@ cur:cap-shacl-9 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-shacl ;
     slkg:position 9 ;
     slkg:hasStatus "implemented" ;
+    slkg:appRole "validate", "infer" ;
     rdfs:comment "Entailment during validation: a shapes graph's sh:entailment declarations, or an inference option, run the same entailment regimes as graph reasoning." ;
     slkg:implementedByIdentifier "starlayer.shacl.entailment.apply_entailment" .
 
@@ -377,6 +419,7 @@ cur:cap-shacl-10 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-shacl ;
     slkg:position 10 ;
     slkg:hasStatus "roadmap" ;
+    slkg:appRole "ui-generate" ;
     rdfs:comment "SHACL 1.2 User Interfaces: property roles (shui:propertyRole) are accepted but not interpreted, and no default widget scoring catalog ships (the specification publishes none)." ;
     slkg:seeAlsoPath "packages/starlayer/docs/shacl/shacl12-gap-matrix.md" .
 
@@ -384,6 +427,7 @@ cur:cap-shacl-11 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-shacl ;
     slkg:position 11 ;
     slkg:hasStatus "roadmap" ;
+    slkg:appRole "validate" ;
     rdfs:comment "SHACL Compact syntax support, plus an ontology and shapes over that syntax (mirroring the Manchester and SPARQL syntax-as-RDF pattern) to drive validation and an editor." ;
     slkg:seeAlsoPath "packages/starlayer/docs/shacl/shacl12-gap-matrix.md" .
 
@@ -391,6 +435,7 @@ cur:cap-shacl-12 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-shacl ;
     slkg:position 12 ;
     slkg:hasStatus "roadmap" ;
+    slkg:appRole "ui-generate" ;
     rdfs:comment "SHACL UI shapes for the SHACL validation shapes, so a form can edit a shapes graph, starting from the archived presentation shapes." ;
     slkg:seeAlsoPath "packages/starlayer/docs/future_enhancements.md" .
 
@@ -405,6 +450,7 @@ cur:cap-other-1 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-other ;
     slkg:position 1 ;
     slkg:hasStatus "implemented" ;
+    slkg:appRole "interchange" ;
     rdfs:comment "VERSION-directive conformance warnings." ;
     slkg:implementedByIdentifier "starlayer.graph.parsers.syntax" .
 
@@ -412,6 +458,7 @@ cur:cap-other-2 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-other ;
     slkg:position 2 ;
     slkg:hasStatus "implemented" ;
+    slkg:appRole "reference" ;
     rdfs:comment "SKOS: the W3C's own SKOS vocabulary as an OWL/RDFS ontology (skos.rdf from the SKOS Reference, converted to Turtle with no change to its content)." ;
     slkg:implementedByIdentifier "starlayer.starontology.skos" .
 
@@ -419,12 +466,14 @@ cur:cap-other-3 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-other ;
     slkg:position 3 ;
     slkg:hasStatus "implemented" ;
+    slkg:appRole "validate", "reference" ;
     rdfs:comment "SHACL shapes for SKOS: the Reference's numbered conditions as validation shapes, some non-normative recommendations, and form shapes with datatype-based UI widgets." .
 
 cur:cap-other-4 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-other ;
     slkg:position 4 ;
     slkg:hasStatus "implemented" ;
+    slkg:appRole "reference" ;
     rdfs:comment "A registry of the bundled ontologies and SHACL shapes (Manchester Syntax, SKOS, SPARQL algebra, SQE, SPARQL expressions, SRL), the SHACL 1.2 meta-shapes, and the profiles document, each available by name and as a file on GitHub." ;
     slkg:implementedByIdentifier "starlayer.starontology.__init__" .
 
@@ -432,6 +481,7 @@ cur:cap-other-5 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-other ;
     slkg:position 5 ;
     slkg:hasStatus "implemented" ;
+    slkg:appRole "reference" ;
     rdfs:comment "StarLayer declares its conformance in one profiles document: StarLayer profiles for SKOS, Manchester Syntax, SPARQL 1.2 Query, SRL and SHACL 1.2, each a profile of the public specification, plus the declared conformance of the graph, SPARQL and SHACL packages. Data validated against a shapes graph is reported as conforming to the matching profile and, through it, to the specification." ;
     slkg:implementedByIdentifier 
         "starlayer.conformance.declared_conformance",

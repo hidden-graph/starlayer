@@ -10,7 +10,7 @@ Every document in the repository, by what you want to do. Files marked *generate
 - [Functionality overview](generated/functionality-overview.generated.md) (*generated*): what StarLayer does today and what is planned.
 - [API overview](generated/api-overview.generated.md) and [API reference](generated/api-reference.generated.md) (*generated*): the public API, one line per symbol and in full.
 - [Code KG query library](generated/query-library.generated.md) (*generated*): the named queries over the code knowledge graph, by topic, with their parameters.
-- Rules and gotchas for each area, at the top of [graph](../packages/starlayer/starlayer/graph/CLAUDE.md), [sparql](../packages/starlayer/starlayer/sparql/CLAUDE.md) and [shacl](../packages/starlayer/starlayer/shacl/CLAUDE.md) `CLAUDE.md`. What changed, by theme: the `CHANGELOG.md` beside each.
+- Rules and gotchas for each area, at the top of [graph](../packages/starlayer/starlayer/graph/CLAUDE.md), [sparql](../packages/starlayer/starlayer/sparql/CLAUDE.md) and [shacl](../packages/starlayer/starlayer/shacl/CLAUDE.md) `CLAUDE.md`. What changed: `git log`.
 
 ## How it is designed, and how closely it follows the specs
 - Graph: [docs/graph/](../packages/starlayer/docs/graph/README.md) (architecture, SPARQL 1.2 design, the RDF 1.2 and SPARQL 1.2 gap analyses, the Protocol and Interoperability analyses, performance, testing strategy).
@@ -22,7 +22,7 @@ Every document in the repository, by what you want to do. Files marked *generate
 [docs/upstream-issues/](upstream-issues/): rdflib, pySHACL, Oxigraph and Fuseki bugs we found, each with a minimal repro and where we work around it.
 
 ## The knowledge graph
-The code knowledge graph (`codekg.trig`) and the capability graph (`functionality.ttl`) are in [`starlayer/codekg/`](../packages/starlayer/starlayer/codekg/). Its [competency questions](../packages/starlayer/starlayer/codekg/competency-questions.md) list what it can answer. Do not read `codekg.trig` directly; see [AGENTS.md](../AGENTS.md).
+The code knowledge graph (`codekg.trig`) and the capability graph (`functionality.ttl`) are in [`starlayer/codekg/`](../packages/starlayer/starlayer/codekg/). Its [competency questions and named queries](generated/query-library.generated.md) list what it can answer. Do not read `codekg.trig` directly; see [AGENTS.md](../AGENTS.md).
 
 ## Plans
 - [App development plans](app-development-plans/README.md): preparing the repository for app development, and the first app. Planning only.

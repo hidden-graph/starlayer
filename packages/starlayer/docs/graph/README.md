@@ -2,7 +2,7 @@
 
 *Last reviewed: 2026-09-27*
 
-- [Rules that bite](../../starlayer/graph/CLAUDE.md) (with design history) and [what changed](../../starlayer/graph/CHANGELOG.md) - start here
+- [Rules that bite](../../starlayer/graph/CLAUDE.md) (with design history) - start here
 - starlayergraph.md: architecture and design overview - core concepts, package structure
 - starlayergraph_vs_rdflib.md: full method-by-method coverage tracker - what's overridden, what's inherited, what's StarLayer-only
 - sparql12_design.md: SPARQL 1.2 query support, rewrite strategy, and query examples

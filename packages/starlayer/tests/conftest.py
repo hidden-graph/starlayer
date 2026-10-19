@@ -21,6 +21,17 @@ ones make real HTTP calls.
     STARLAYER_SRL_STRATIFICATION=1 pytest
     pytest -m srl_stratification
 
+``deferred``: checks of committed data that CI runs anyway (the code-KG tests that load ``codekg.trig`` and the
+stored-file-matches-a-fresh-build tests, about a minute in all). Not needed on every local run; CI always includes them.
+
+    pytest --deferred                     # before a push
+    STARLAYER_DEFERRED=1 pytest
+    pytest -m deferred                    # only these
+
+Every test also carries a marker for its area, taken from its directory (``tests/<area>/``): ``graph``, ``shacl``,
+``sparql``, ``starontology`` or ``codekg``. So one area runs alone with ``pytest -m shacl`` (or
+``pytest tests/shacl``), and ``pytest -m "graph or sparql"`` runs two.
+
 Done at collection time rather than with a default ``-m`` in ``addopts``
 because a ``-m`` given on the command line (``-m "not integration"`` is the
 repo's usual fast tier) would replace an ``addopts`` one and silently bring
@@ -53,6 +64,11 @@ OPT_IN_GROUPS = {
         "STARLAYER_MANCHESTER_CONFORMANCE",
         "also run the Manchester Syntax completeness suite (tests/starontology/manchester_conformance, ~75 s)",
     ),
+    "deferred": (
+        "--deferred",
+        "STARLAYER_DEFERRED",
+        "also run the checks of committed data that CI runs anyway (code-KG tests that load codekg.trig, stored-file-matches-build tests; ~1 min)",
+    ),
     "sqe_coverage": (
         "--sqe-coverage",
         "STARLAYER_SQE_COVERAGE",
@@ -75,7 +91,17 @@ def _requested(config, marker: str) -> bool:
     return marker in expr and f"not {marker}" not in expr
 
 
+AREAS = ("graph", "shacl", "sparql", "starontology", "codekg")
+
+
 def pytest_collection_modifyitems(config, items):
+    # every test carries the marker of its area, taken from its directory
+    for item in items:
+        parts = item.path.parts
+        if "tests" in parts:
+            area = parts[parts.index("tests") + 1 : parts.index("tests") + 2]
+            if area and area[0] in AREAS:
+                item.add_marker(area[0])
     # every test in the Manchester conformance directory belongs to that opt-in group, whether or not it
     # carries the marker itself
     for item in items:

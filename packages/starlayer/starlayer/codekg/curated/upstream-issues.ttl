@@ -1,0 +1,234 @@
+# Known bugs in the libraries StarLayer builds on (rdflib, pySHACL, Fuseki, Oxigraph), and the code that works around each.
+# This file is the source: edit it directly. Each issue names the write-up in docs/upstream-issues/ (document and entry
+# number) and, for a workaround in this repository, the dotted identifiers of the code (as in functionality.ttl).
+# slkg:issueStatus is "worked-around" (the code named here exists for it), "fixed-upstream" (fixed in the library; the
+# write-up stays as history) or "documented-only" (known, no code here deals with it).
+
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix slkg: <https://github.com/hidden-graph/starlayer/ns/codekg#> .
+@prefix ui: <https://github.com/hidden-graph/starlayer/ns/codekg/curated/upstream-issues#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+ui:rdflib-1 a slkg:UpstreamIssue ;
+    rdfs:label "`MultiplicativeExpression` doesn't apply numeric type promotion for `*`" ;
+    slkg:upstreamProject "rdflib" ;
+    slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
+    slkg:issueNumber 1 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.graph.query.operator_patches.patch_multiplicative_expression_type_promotion" .
+
+ui:rdflib-2 a slkg:UpstreamIssue ;
+    rdfs:label "`translateAlgebra` regenerates invalid or crashing SPARQL text" ;
+    slkg:upstreamProject "rdflib" ;
+    slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
+    slkg:issueNumber 2 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.graph.query.algebra_translator_patches.patch_algebra_translator_bugs" .
+
+ui:rdflib-3 a slkg:UpstreamIssue ;
+    rdfs:label "A `BIND` read through an earlier `BIND`, inside `UNION`, gives wrong/duplicate rows" ;
+    slkg:upstreamProject "rdflib" ;
+    slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
+    slkg:issueNumber 3 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.graph.query.evaluate_patches.patch_evalextend_forgotten_bind_vars" .
+
+ui:rdflib-4 a slkg:UpstreamIssue ;
+    rdfs:label "A `BIND` inside one branch of a join can silently lose its value" ;
+    slkg:upstreamProject "rdflib" ;
+    slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
+    slkg:issueNumber 4 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.graph.query.evaluate_patches.patch_lazy_join_expr_dependency_order" .
+
+ui:rdflib-5 a slkg:UpstreamIssue ;
+    rdfs:label "Un-aliased computed `GROUP BY` key crashes" ;
+    slkg:upstreamProject "rdflib" ;
+    slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
+    slkg:issueNumber 5 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.graph.query.evaluate_patches.patch_group_by_unaliased_expression_key" .
+
+ui:rdflib-6 a slkg:UpstreamIssue ;
+    rdfs:label "A `SELECT` row with no variable bindings gets silently dropped when iterated" ;
+    slkg:upstreamProject "rdflib" ;
+    slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
+    slkg:issueNumber 6 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.graph.query.result_patches.patch_result_iter_empty_binding_row" .
+
+ui:rdflib-7 a slkg:UpstreamIssue ;
+    rdfs:label "`xsd:integer()` cannot cast a decimal, double, float or boolean" ;
+    slkg:upstreamProject "rdflib" ;
+    slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
+    slkg:issueNumber 7 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.graph.query.operator_patches.patch_integer_cast_from_numeric_and_boolean" .
+
+ui:rdflib-8 a slkg:UpstreamIssue ;
+    rdfs:label "`FILTER` forgets a variable bound outside its group" ;
+    slkg:upstreamProject "rdflib" ;
+    slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
+    slkg:issueNumber 8 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.graph.query.evaluate_patches.patch_evalfilter_forgotten_vars" .
+
+ui:rdflib-9 a slkg:UpstreamIssue ;
+    rdfs:label "`INSERT DATA` into a `Dataset`'s default graph crashes" ;
+    slkg:upstreamProject "rdflib" ;
+    slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
+    slkg:issueNumber 9 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.graph.query.evaluate_patches.patch_evalinsertdata_quad_unpacking" .
+
+ui:rdflib-10 a slkg:UpstreamIssue ;
+    rdfs:label "`REPLACE` ignores its flags argument" ;
+    slkg:upstreamProject "rdflib" ;
+    slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
+    slkg:issueNumber 10 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.graph.query.custom_functions._register_dirlang_string_functions._replace" .
+
+ui:rdflib-11 a slkg:UpstreamIssue ;
+    rdfs:label "`STRLANG` accepts an empty language tag" ;
+    slkg:upstreamProject "rdflib" ;
+    slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
+    slkg:issueNumber 11 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.graph.query.operator_patches.patch_strlang_rejects_empty_language_tag" .
+
+ui:rdflib-12 a slkg:UpstreamIssue ;
+    rdfs:label "`CEIL`, `FLOOR` and `ROUND` of a decimal give a non-canonical lexical form" ;
+    slkg:upstreamProject "rdflib" ;
+    slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
+    slkg:issueNumber 12 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.graph.query.operator_patches.patch_decimal_result_lexical_form" .
+
+ui:rdflib-13 a slkg:UpstreamIssue ;
+    rdfs:label "Queries that break the grammar are accepted" ;
+    slkg:upstreamProject "rdflib" ;
+    slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
+    slkg:issueNumber 13 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.sparql._syntax_checks.check_parse_tree" .
+
+ui:rdflib-14 a slkg:UpstreamIssue ;
+    rdfs:label "Codepoint and surrogate escapes are accepted anywhere" ;
+    slkg:upstreamProject "rdflib" ;
+    slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
+    slkg:issueNumber 14 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.sparql._syntax_checks.reject_surrogate_escapes" .
+
+ui:rdflib-15 a slkg:UpstreamIssue ;
+    rdfs:label "A simple literal and its `^^xsd:string` form are different terms" ;
+    slkg:upstreamProject "rdflib" ;
+    slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
+    slkg:issueNumber 15 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.graph.query.operator_patches.patch_sameterm_simple_literal_is_xsd_string" .
+
+ui:rdflib-16 a slkg:UpstreamIssue ;
+    rdfs:label "A `FILTER` in a nested group sees variables bound outside the group" ;
+    slkg:upstreamProject "rdflib" ;
+    slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
+    slkg:issueNumber 16 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.graph.query.evaluate_patches.patch_evalfilter_forgotten_vars" .
+
+ui:rdflib-17 a slkg:UpstreamIssue ;
+    rdfs:label "An explicit `GROUP BY` over no solutions returns one empty row" ;
+    slkg:upstreamProject "rdflib" ;
+    slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
+    slkg:issueNumber 17 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.graph.query.evaluate_patches.patch_aggregate_join_no_row_for_empty_explicit_group" .
+
+ui:rdflib-18 a slkg:UpstreamIssue ;
+    rdfs:label "`CONSTRUCT` keeps template triples that are not valid RDF" ;
+    slkg:upstreamProject "rdflib" ;
+    slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
+    slkg:issueNumber 18 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.graph.query.evaluate_patches.patch_construct_skips_encoding_solutions" .
+
+ui:pyshacl-1 a slkg:UpstreamIssue ;
+    rdfs:label "`sh:intersection` node expression silently evaluates empty" ;
+    slkg:upstreamProject "pyshacl" ;
+    slkg:issueDocPath "docs/upstream-issues/pyshacl-upstream-issues.md" ;
+    slkg:issueNumber 1 ;
+    slkg:issueStatus "fixed-upstream" .
+
+ui:pyshacl-2 a slkg:UpstreamIssue ;
+    rdfs:label "`pyshacl.validate()` returns a `ValidationFailure` exception object as `report_graph` instead of raising it" ;
+    slkg:upstreamProject "pyshacl" ;
+    slkg:issueDocPath "docs/upstream-issues/pyshacl-upstream-issues.md" ;
+    slkg:issueNumber 2 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.shacl.validator.StarShaclSchema.validate",
+        "starlayer.shacl.validator.validate" .
+
+ui:pyshacl-3 a slkg:UpstreamIssue ;
+    rdfs:label "A malformed `sh:closed` value either crashes the run or is silently misinterpreted" ;
+    slkg:upstreamProject "pyshacl" ;
+    slkg:issueDocPath "docs/upstream-issues/pyshacl-upstream-issues.md" ;
+    slkg:issueNumber 3 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.shacl.native_components._build_closed_component" .
+
+ui:pyshacl-4 a slkg:UpstreamIssue ;
+    rdfs:label "`sh:filterShape` node expression crashes with an `AttributeError`" ;
+    slkg:upstreamProject "pyshacl" ;
+    slkg:issueDocPath "docs/upstream-issues/pyshacl-upstream-issues.md" ;
+    slkg:issueNumber 4 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.shacl.validator._patch_shape_validate_for_filter_shape" .
+
+ui:pyshacl-5 a slkg:UpstreamIssue ;
+    rdfs:label "`RdfLibDataGraph.clone()` discards a caller-supplied `Graph` subclass's identity and extra state" ;
+    slkg:upstreamProject "pyshacl" ;
+    slkg:issueDocPath "docs/upstream-issues/pyshacl-upstream-issues.md" ;
+    slkg:issueNumber 5 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.shacl.validator._patch_rdflib_data_graph_clone_preserves_tt_adapter" .
+
+ui:pyshacl-6 a slkg:UpstreamIssue ;
+    rdfs:label "`sh:sparql`'s own constraint node ignores its own `sh:severity`" ;
+    slkg:upstreamProject "pyshacl" ;
+    slkg:issueDocPath "docs/upstream-issues/pyshacl-upstream-issues.md" ;
+    slkg:issueNumber 6 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.shacl.native_components._build_sparql_constraint_component" .
+
+ui:fuseki-1 a slkg:UpstreamIssue ;
+    rdfs:label "ARQ rejects an invalid triple-term predicate, but not an invalid triple-term subject" ;
+    slkg:upstreamProject "fuseki" ;
+    slkg:issueDocPath "docs/upstream-issues/fuseki-upstream-issues.md" ;
+    slkg:issueNumber 1 ;
+    slkg:upstreamUrl "https://github.com/apache/jena/issues/4141" ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.graph.model.triple.TripleTerm.__init__" .
+
+ui:fuseki-2 a slkg:UpstreamIssue ;
+    rdfs:label "SPARQL JSON Results blank-node labels are inconsistent across rows of one result set" ;
+    slkg:upstreamProject "fuseki" ;
+    slkg:issueDocPath "docs/upstream-issues/fuseki-upstream-issues.md" ;
+    slkg:issueNumber 2 ;
+    slkg:issueStatus "documented-only" .
+
+ui:oxigraph-1 a slkg:UpstreamIssue ;
+    rdfs:label "SPARQL `=` panics on any `rdf:dirLangString` term, aborting the whole process" ;
+    slkg:upstreamProject "oxigraph" ;
+    slkg:issueDocPath "docs/upstream-issues/oxigraph-upstream-issues.md" ;
+    slkg:issueNumber 1 ;
+    slkg:upstreamUrl "https://github.com/oxigraph/oxigraph/issues/1982" ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.graph.backends.dirlang_equality.guard" .
+
+ui:oxigraph-literal-normalization a slkg:UpstreamIssue ;
+    rdfs:label "Literals are normalized when stored, so exact lexical forms are not preserved" ;
+    slkg:upstreamProject "oxigraph" ;
+    slkg:issueDocPath "docs/upstream-issues/oxigraph-upstream-issues.md" ;
+    slkg:upstreamUrl "https://github.com/oxigraph/oxigraph/issues/526" ;
+    slkg:issueStatus "documented-only" .

@@ -7,7 +7,7 @@ direction), against OWL API 5.1.20's
 (the real, standard-conformant OWL API parser - not a reimplementation),
 run via `manchester-owl/manchester-syntax-parser`'s `OWLAPIInterface parse`
 command. This is a snapshot conformance checklist against a specific
-external tool, not a changelog - for fix-by-fix history see `CHANGELOG.md`.
+external tool, not a changelog - for fix-by-fix history see `git log`.
 For the RDF 1.2/SPARQL 1.2 equivalent of this document (tracking a W3C
 spec directly rather than a reference implementation) see
 `rdf12_sparql12_gap_analysis.md`.
@@ -97,7 +97,7 @@ The Note's own facet table maps `>=` to `xsd:maxInclusive`, which is backwards; 
 
 ## The reverse direction: RDF → Manchester Syntax
 
-`packages/graph/starlayergraph/serializers/manchester.py` (entry point
+`packages/starlayer/starlayer/graph/serializers/manchester.py` (entry point
 `serialize_manchester(graph) -> str`), wired into
 `StarLayerGraph.serialize(format="manchester")` (alias `"omn"`), targets
 the same construct coverage as the table above, in reverse - see that
@@ -176,15 +176,15 @@ shape conformance, positive and negative).
 
 ## Where the code lives
 
-Parser: `packages/graph/starlayergraph/parsers/manchester_parser.py`
+Parser: `packages/starlayer/starlayer/graph/parsers/manchester_parser.py`
 (entry point `parse_manchester(text, base=None) -> list[tuple]`), wired
 into `StarLayerGraph.parse(format="manchester")` (alias `"omn"`). Tests:
-`packages/graph/tests/unit/test_manchester_parser.py` - oracle-free,
+`packages/starlayer/tests/graph/unit/test_manchester_parser.py` - oracle-free,
 asserting the RDF shapes this document describes directly.
 
-Serializer: `packages/graph/starlayergraph/serializers/manchester.py`,
+Serializer: `packages/starlayer/starlayer/graph/serializers/manchester.py`,
 wired into `StarLayerGraph.serialize(format="manchester")`. Tests:
-`packages/graph/tests/unit/test_manchester_serializer.py` - also
+`packages/starlayer/tests/graph/unit/test_manchester_serializer.py` - also
 oracle-free, checking round-trip isomorphism plus a few direct RDF-shape
 assertions for the reconstructions above.
 

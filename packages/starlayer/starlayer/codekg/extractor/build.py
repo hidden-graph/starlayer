@@ -2,7 +2,7 @@
 
 One public function, ``refresh()``: parse the existing ``codekg.trig`` (if
 any), drop every per-module named graph (leaving the ontology's own graph
-and the reserved curated graph untouched - neither is ever file-backed by
+and the reserved curated graph untouched, and replacing the build-stamp graph - neither is ever file-backed by
 this extractor), re-extract each target path fresh via ``visitor.py``, and
 re-serialize. "Wholesale replace" per module: a module that's no longer in
 ``target_paths`` simply stays dropped (its old graph was removed and never
@@ -51,7 +51,7 @@ def refresh(target_paths: list[Path], repo_root: Path, *, trig_path: Path | None
     """
     from starlayer.graph.graph.starlayer_dataset import StarLayerDataset
 
-    from . import symbol_index, visitor
+    from . import stamp, symbol_index, visitor
 
     path = trig_path if trig_path is not None else CODEKG_TRIG_PATH
 
@@ -74,6 +74,8 @@ def refresh(target_paths: list[Path], repo_root: Path, *, trig_path: Path | None
         triples = visitor.extract_module(target_path, module_iri, module_dotted_path, index)
         fresh_ctx = ds.graph(module_iri)
         ds.addN((s, p, o, fresh_ctx) for (s, p, o) in triples)
+
+    stamp.write_stamp(ds, repo_root, len(target_paths))
 
     path.parent.mkdir(parents=True, exist_ok=True)
     ds.serialize(destination=str(path), format="trig12")
