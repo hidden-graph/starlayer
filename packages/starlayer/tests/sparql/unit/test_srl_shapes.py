@@ -186,3 +186,23 @@ def test_validating_does_not_change_the_cached_shapes_graphs():
         "PREFIX : <http://example.org/>\nRULE { ?x :b ?y } WHERE { ?x :a ?y }"
     )
     assert (len(shapes), len(ontology)) == before
+
+
+def test_validating_a_rule_set_does_not_validate_the_shapes_file_against_the_meta_shapes(monkeypatch):
+    """The shipped shapes are checked once, by their own tests; every parse must not re-check them
+    (pySHACL's ``meta_shacl`` and starlayer's own meta-shape layer are both off for ``srl_validate``)."""
+    import pyshacl.entrypoints as entrypoints
+    from starlayer.shacl import meta_shapes
+    from starlayer.sparql.srl import srl_parse_to_tree, srl_validate
+
+    called = []
+    monkeypatch.setattr(entrypoints, "meta_validate", lambda *a, **k: called.append("pyshacl"))
+    for name in ("check_sparql_query_text",):
+        if hasattr(meta_shapes, name):
+            monkeypatch.setattr(meta_shapes, name, lambda *a, _n=name, **k: called.append(_n))
+
+    text = "PREFIX : <http://e/>\nRULE { ?x :p ?y } WHERE { ?x :q ?y }"
+    parse_ruleset(text)
+    graph, _root = srl_parse_to_tree(text)
+    assert srl_validate(graph)[0]
+    assert called == []

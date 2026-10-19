@@ -4,8 +4,8 @@ Answers: **how solid are the SRL (SPARQL Rules) parser, the `srl:` graph syntax 
 Mirrors `tests/starontology/manchester_conformance/`. Target: the W3C Working Draft *SPARQL 1.2 RL*, 14 October
 2026 (https://www.w3.org/TR/sparql12-rl/), the draft `srl.py` is implemented against.
 
-**Status: Part A (find the gaps) done; Part B started.** On 2026-10-19 `srl.py` (only) was wired onto `sqe:`/`spexpr:`,
-which closed findings S1 to S6, T1 and the `salg:` dependency (see "Closed" below). Every remaining gap is a strict
+**Status: Part A (find the gaps) done; Part B largely done.** On 2026-10-19 `srl.py` (only) was wired onto `sqe:`/`spexpr:`,
+which closed findings S1 to S6, T1 and the `salg:` dependency; the same day P1 to P4, L1, L2 and V1 were fixed (see "Closed" below). Every remaining gap is a strict
 xfail in `known_failures.py` that flips to a failing XPASS the moment it is fixed.
 
 ## What it checks
@@ -146,6 +146,14 @@ New findings from the wiring:
 |---|---|
 | V2 | A zero-argument function call (`FILTER :f()`) fails `spexpr:_FunctionExprBodyShape` (requires an argument list and `distinct`). Shared spexpr defect: sqe rejects it too. |
 | V3 | An aggregate inside `SET` is no longer rejected by the shapes (the shared spexpr shapes accept aggregates); `parse_ruleset` still rejects it in Python. Needs a constraint in `srl_shapes.ttl` (strict xfail in `tests/sparql/unit/test_srl_shapes.py`). |
+
+Later the same day: L1 (a `.` is now required between triple groups), L2 (the ten non-SRL functions are rejected),
+V1 (`SRLParseError` for an undeclared prefix), P2b (unicode escapes: `parse_ruleset` now runs rdflib's
+`expandUnicodeEscapes` like `parseQuery` does), tabs inside string literals (pyparsing expanded them) and P1 (bare
+`~`, in `_grammar12.py`). P2 (`\'`), P3 (negative decimals) and P4 (`PN_LOCAL_ESC`) are **rdflib defects** that fail
+in plain `prepareQuery` too; they are patched in `_grammar12._fix_rdflib_lexical_gaps`, which changes parsing for all
+of starlayer's SPARQL, and are items 19 to 21 in `docs/upstream-issues/rdflib-upstream-issues.md`. Regressions:
+`tests/sparql/unit/test_lexical_gaps.py`. Only V2 and V3 remain.
 
 The shape mutation scan predates the wiring and should be re-run against the new validation configuration.
 

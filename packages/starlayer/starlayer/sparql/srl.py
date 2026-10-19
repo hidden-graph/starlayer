@@ -129,6 +129,7 @@ from rdflib.plugins.sparql.parser import (
     Var,
     iri,
 )
+from rdflib.plugins.sparql.parser import expandUnicodeEscapes as _expand_unicode_escapes
 from rdflib.plugins.sparql.parserutils import Comp, CompValue, Param
 from rdflib.plugins.sparql.pyparsing_compat import rest_of_line
 from rdflib.plugins.sparql.sparql import Prologue
@@ -313,6 +314,8 @@ _RuleSetGrammar = Comp(
     ZeroOrMore(Param("prologue", _Prologue1Decl, isList=True) | Param("body", _RuleOrData, isList=True)),
 )
 _RuleSetGrammar.ignore("#" + rest_of_line)
+# pyparsing expands tabs to spaces before parsing unless told not to, which silently changed a tab inside a string literal.
+_RuleSetGrammar.parse_with_tabs()
 
 
 class SRLError(ValueError):
@@ -522,7 +525,7 @@ def parse_ruleset(text: str, base: str | None = None, *, validate: bool = True) 
             that does not conform to the ``srl:`` shapes.
     """
     try:
-        parsed = _RuleSetGrammar.parse_string(text, parse_all=True)
+        parsed = _RuleSetGrammar.parse_string(_expand_unicode_escapes(text), parse_all=True)
     except Exception as exc:  # pyparsing.ParseException et al.
         raise SRLParseError(str(exc)) from exc
 

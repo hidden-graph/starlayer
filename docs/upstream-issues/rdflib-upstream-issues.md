@@ -323,3 +323,40 @@ list(g.query("CONSTRUCT { ?n <http://x/p> ?n } WHERE { ?s <http://x/n> ?n }").gr
 
 Fix: `evaluate_patches.py::patch_construct_skips_encoding_solutions` (the CONSTRUCT patch) now filters them. Found by the Oxigraph differential tests.
 
+
+## 19. A negative decimal literal is a parse error
+
+`-1.5` (`DECIMAL_NEGATIVE`, SPARQL 1.1 grammar [153]) raises "Not a number"; `-1` and `-1e3` work. The parse action negates with `Literal(-literal, datatype=...)`.
+
+```python
+from rdflib.plugins.sparql import prepareQuery
+prepareQuery("SELECT * WHERE { ?s ?p -1.5 }")
+# actual:   Exception: Not a number; Literal('1.5', datatype=xsd:decimal)
+# expected: parses, the object is "-1.5"^^xsd:decimal
+```
+
+Fix: `starlayer/sparql/_grammar12.py::_fix_rdflib_lexical_gaps` replaces the parse action. Found by the SRL conformance suite (rdflib 7.6.0).
+
+## 20. `\'` is rejected in a double-quoted string, and `\"` in a single-quoted one
+
+ECHAR (grammar [160]) is `\` followed by one of `t b n r f " ' \`, in every string form. rdflib's `STRING_LITERAL1`/`STRING_LITERAL2` regexes allow only `\'` in the first and `\"` in the second.
+
+```python
+prepareQuery("""SELECT * WHERE { ?s ?p "a\\'b" }""")
+# actual:   ParseException: Expected SelectQuery
+# expected: parses, the object is "a'b"
+```
+
+Fix: same function, widens both regexes. Found by the SRL conformance suite.
+
+## 21. `PN_LOCAL_ESC` keeps its backslash
+
+In a prefixed name, `\-`, `\.` and the other `PN_LOCAL_ESC` escapes (grammar [173]) stand for the escaped character. rdflib leaves the backslash in the local name, giving the IRI `http://e/a\-b`, which it then warns "does not look like a valid URI".
+
+```python
+prepareQuery("PREFIX : <http://e/> SELECT * WHERE { :a\\-b ?p ?o }")
+# actual:   subject <http://e/a\-b>
+# expected: <http://e/a-b>
+```
+
+Fix: same function, strips the backslash in a parse action on `PN_LOCAL`. Found by the SRL conformance suite.
