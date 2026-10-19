@@ -17,15 +17,15 @@ import pytest
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 from starlayer.graph.compare import isomorphic
-from starlayer.starontology.manchester import (
+
+from .corpus import PRELUDE
+from .helpers import parse_to_graph, to_graph
+from .wip.manchester import (
     manchester_parse_to_tree,
     manchester_tree_to_owl,
     manchester_tree_to_text,
     manchester_validate,
 )
-
-from .corpus import PRELUDE
-from .helpers import parse_to_graph, to_graph
 
 CLASSES = ["A", "B", "C", "D"]
 OBJ_PROPS = ["p", "q", "r"]

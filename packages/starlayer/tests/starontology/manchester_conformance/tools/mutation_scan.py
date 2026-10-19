@@ -28,14 +28,14 @@ sys.path.insert(0, str(SUITE.parent))
 
 from rdflib import BNode, Graph, Literal, URIRef  # noqa: E402
 from rdflib.namespace import RDF  # noqa: E402
-from starlayer.starontology.manchester import (  # noqa: E402
+
+from manchester_conformance.corpus import CASES  # noqa: E402
+from manchester_conformance.wip.manchester import (  # noqa: E402
     MANCH,
     manchester_parse_to_tree,
     manchester_tree_to_text,
     manchester_validate,
 )
-
-from manchester_conformance.corpus import CASES  # noqa: E402
 
 
 def local(term) -> str:

@@ -403,7 +403,7 @@ class _Cursor:
                 compilation to OWL triples, never a compiled node.
         """
 
-    def record_misc(self, keyword, items, annotations=None):
+    def record_misc(self, keyword, items):
         """Called when a top-level Misc axiom (EquivalentClasses:, etc.,
         no subject frame) was just parsed. A no-op hook by default.
 
@@ -411,11 +411,21 @@ class _Cursor:
             keyword: The Misc axiom's own keyword, e.g.
                 'EquivalentClasses:'.
             items: The axiom's own comma-list, before compilation.
-            annotations: The axiom's leading `Annotations:` as a list of
-                annotations, or None.
         """
 
-    def record_ontology_header(self, iri, imports, version_iri=None, annotations=None):
+    def record_misc_annotations(self, annotations):
+        """Called right after record_misc() when the Misc axiom had a leading
+        `Annotations:`. A no-op hook by default.
+
+        A separate hook, not an extra argument of record_misc(), so existing
+        subclasses that override record_misc() keep working unchanged: hook
+        signatures are never changed, only added to.
+
+        Args:
+            annotations: The axiom's `Annotations:` as a list of annotations.
+        """
+
+    def record_ontology_header(self, iri, imports):
         """Called when the Ontology: header line was just parsed. A no-op
         hook by default.
 
@@ -423,10 +433,17 @@ class _Cursor:
             iri: The ontology's own IRI, or None for a bare `Ontology:`
                 with no IRI.
             imports: The list of Import: names, in order.
-            version_iri: The version IRI following the ontology IRI, or
-                None.
-            annotations: The header's `Annotations:` as a list of
-                (property, value) pairs, or None if none were written.
+        """
+
+    def record_ontology_extras(self, version_iri, annotations):
+        """Called right after record_ontology_header() when the header had a
+        version IRI and/or `Annotations:`. A no-op hook by default (a separate
+        hook so record_ontology_header()'s signature never changes).
+
+        Args:
+            version_iri: The version IRI following the ontology IRI, or None.
+            annotations: The header's `Annotations:` as a list of annotations,
+                or None if none were written.
         """
 
     def record_prefix(self, prefix, iri):
@@ -1454,7 +1471,9 @@ def _parse_misc(cur, keyword):
             _pairwise_chain(cur, nodes, OWL.equivalentClass, annotations)
         else:
             _nary_disjoint_or_different(cur, nodes, OWL.disjointWith, OWL.AllDisjointClasses, annotations)
-        cur.record_misc(keyword, exprs, annotations)
+        cur.record_misc(keyword, exprs)
+        if annotations:
+            cur.record_misc_annotations(annotations)
     elif keyword in ('EquivalentProperties:', 'DisjointProperties:'):
         prop_exprs = _parse_comma_list(cur, _parse_property_expr)
         nodes = [_prop_node(cur, e) for e in prop_exprs]
@@ -1464,14 +1483,18 @@ def _parse_misc(cur, keyword):
             _nary_disjoint_or_different(
                 cur, nodes, OWL.propertyDisjointWith, OWL.AllDisjointProperties, annotations
             )
-        cur.record_misc(keyword, prop_exprs, annotations)
+        cur.record_misc(keyword, prop_exprs)
+        if annotations:
+            cur.record_misc_annotations(annotations)
     else:
         names = _parse_comma_list(cur, lambda c: c.read_individual())
         if keyword == 'SameIndividual:':
             _pairwise_chain(cur, names, OWL.sameAs, annotations)
         else:
             _nary_disjoint_or_different(cur, names, OWL.differentFrom, OWL.AllDifferent, annotations)
-        cur.record_misc(keyword, names, annotations)
+        cur.record_misc(keyword, names)
+        if annotations:
+            cur.record_misc_annotations(annotations)
 
 
 # ---------------------------------------------------------------------------
@@ -1537,7 +1560,9 @@ def _run_top_level(cur):
                 cur.advance()
                 annotations = (annotations or []) + _parse_comma_list(cur, _parse_annotation_assertion)
             _annotation_triples(cur, ontology_node, annotations or ())
-            cur.record_ontology_header(ontology_iri, imports, version_iri, annotations)
+            cur.record_ontology_header(ontology_iri, imports)
+            if version_iri is not None or annotations:
+                cur.record_ontology_extras(version_iri, annotations)
         elif word == 'Datatype:':
             cur.advance()
             _parse_datatype_frame(cur)

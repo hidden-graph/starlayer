@@ -19,7 +19,7 @@ manch:AnnPropSubPropertyOfClause rdfs:comment "AnnotationProperty: SubPropertyOf
     rdfs:subClassOf manch:Clause .
 
 manch:AnnotationAssertion a rdfs:Class ;
-    rdfs:comment "One (annotationProperty, value) pair - manch:annotationProperty (a URIRef), manch:annotationValue (a URIRef or Literal). Used both for a frame-level Annotations: clause's own items, and inside a ClauseItem's/FactItem's manch:annotations list. May itself carry manch:annotations: the annotations on this annotation (annotationAnnotatedList)." .
+    rdfs:comment "One (annotationProperty, value) pair - manch:annotationProperty (a URIRef), manch:annotationValue (a URIRef or Literal). Used both for a frame-level Annotations: clause's own items, and inside a ClauseItem's/FactItem's manch:annotations list." .
 
 manch:AnnotationPropertyFrame rdfs:comment "AnnotationProperty: <name>." ;
     rdfs:subClassOf manch:Frame .
@@ -143,7 +143,7 @@ manch:Max rdfs:comment "`p max n` / `p max n C` - same shape as Min." ;
 manch:Min rdfs:comment "`p min n` / `p min n C` (qualified) - manch:onProperty, manch:cardinality (an xsd:nonNegativeInteger Literal), manch:filler (a ClassExpression, absent for the unqualified form - same tag either way, per manchester_parser.py's own AST, not two separate constructs)." ;
     rdfs:subClassOf manch:ClassExpression .
 
-manch:MiscAxiom rdfs:comment "A top-level Misc axiom (no subject frame) - manch:items, an rdf:List whose member shape depends on the concrete axiom (see each subclass), and optionally manch:annotations: the axiom's own leading `Annotations:`, one list for the whole axiom (the note's misc production), never per item." .
+manch:MiscAxiom rdfs:comment "A top-level Misc axiom (no subject frame) - manch:items, an rdf:List whose member shape depends on the concrete axiom (see each subclass). Never carries manch:annotations on its own items - a genuine grammar gap, not an oversight (the pairwise-chain/AllDisjoint* OWL-semantic encoding means a single list item doesn't correspond to a single axiom the way it does everywhere else, so there is nothing to reify against - see manchester_parser.py's own docstring)." .
 
 manch:MiscDifferentIndividualsAxiom rdfs:comment "DifferentIndividuals: - same item shape as MiscSameIndividualAxiom." ;
     rdfs:subClassOf manch:MiscAxiom .
@@ -203,7 +203,7 @@ manch:Only rdfs:comment "`p only C` - same shape as Some." ;
     rdfs:subClassOf manch:ClassExpression .
 
 manch:OntologyHeader a rdfs:Class ;
-    rdfs:comment "The Ontology: header - manch:ontologyIri (optional URIRef), manch:versionIri (optional URIRef, only with an ontologyIri), manch:imports (rdf:List of URIRef, in order), manch:annotations (optional rdf:List of AnnotationAssertion - the ontology's own Annotations:)." .
+    rdfs:comment "The Ontology: header - manch:ontologyIri (optional URIRef), manch:imports (rdf:List of URIRef, in order)." .
 
 manch:Or rdfs:comment "`C1 or C2 or ...` - manch:operands, same shape as And." ;
     rdfs:subClassOf manch:ClassExpression .
@@ -234,7 +234,7 @@ manch:annotationValue a rdf:Property ;
     rdfs:domain manch:AnnotationAssertion .
 
 manch:annotations a rdf:Property ;
-    rdfs:comment "A ClauseItem's, FactItem's or OntologyHeader's own optional rdf:List of AnnotationAssertion - present only when an Annotations: was written there. No rdfs:domain: shared across leaf classes with no other common superclass." ;
+    rdfs:comment "A ClauseItem's or FactItem's own optional rdf:List of AnnotationAssertion - present only when an inline Annotations: prefix was written. No rdfs:domain: shared across both leaf classes with no other common superclass." ;
     rdfs:range rdf:List .
 
 manch:cardinality a rdf:Property ;
@@ -310,10 +310,6 @@ manch:ontologyIri a rdf:Property ;
     rdfs:comment "The optional Ontology: <iri> - absent for a bare `Ontology:` header." ;
     rdfs:domain manch:OntologyHeader .
 
-manch:versionIri a rdf:Property ;
-    rdfs:comment "The optional version IRI that follows the ontology IRI in `Ontology: <iri> <versionIri>`." ;
-    rdfs:domain manch:OntologyHeader .
-
 manch:operand a rdf:Property ;
     rdfs:comment "Not/DNot/Inverse's own single operand. No rdfs:domain - shared across three unrelated dispatch families (ClassExpression/DataRange/PropertyExpression), and its own value is independently sh:class-dispatch-checked depending on which clause it's reached through." .
 
@@ -349,18 +345,3 @@ manch:subject a rdf:Property ;
 
 manch:value a rdf:Property ;
     rdfs:comment "A ClauseItem's own value - shape depends on the enclosing clause (a ClassExpression, PropertyExpression, DataRange, or bare URIRef/Literal). No rdfs:domain/range: deliberately polymorphic by design (see manch:ClauseItem's own comment), and several of its possible shapes are independently sh:class-dispatch-checked." .
-
-manch:DSome rdfs:comment "`d some D` - a Some restriction on a DATA property: manch:onProperty, manch:filler (a DataRange, not a ClassExpression). Distinct from manch:Some because the OWL mapping differs (rdfs:Datatype fillers, owl:onDataRange for the qualified forms) and Manchester syntax itself does not mark the difference - the parser decides from the property's declaration or the filler's shape." ;
-    rdfs:subClassOf manch:ClassExpression .
-
-manch:DOnly rdfs:comment "`d only D` - data-property counterpart of manch:Only; manch:filler is a DataRange." ;
-    rdfs:subClassOf manch:ClassExpression .
-
-manch:DMin rdfs:comment "`d min n D` - QUALIFIED data cardinality (the unqualified form stays manch:Min, it has no filler to tell data from object): manch:onProperty, manch:cardinality, manch:filler (a DataRange, required)." ;
-    rdfs:subClassOf manch:ClassExpression .
-
-manch:DMax rdfs:comment "`d max n D` - same shape as DMin." ;
-    rdfs:subClassOf manch:ClassExpression .
-
-manch:DExact rdfs:comment "`d exactly n D` - same shape as DMin." ;
-    rdfs:subClassOf manch:ClassExpression .

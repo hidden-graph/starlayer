@@ -4,7 +4,7 @@ Answers one question: **is the Manchester Syntax parser, and the `manch:` tree b
 Triggered by the SQE finding that an RDF encoding of SPARQL could not express arbitrary queries.
 
 Status: the suite found 14 gaps; all genuine defects are fixed in the parser, and the tree layer is fixed in
-a working copy (`wip/`, see `WIP.md`) that still has to be merged into `starontology/`. What remains is
+a working copy (`wip/`, see `WIP.md`) that is deliberately **not** merged into `starontology/` yet. What remains is
 listed in the Findings table below; every remaining exception is a strict xfail or a documented oracle
 deviation in `known_failures.py` and breaks loudly if its status changes.
 
@@ -97,14 +97,14 @@ and they accept extra unknown triples on a node (the shapes are open, not `sh:cl
 ### Process finding
 
 The conformance suite caught two regressions introduced by the fixes themselves within one run each: the
-tree's nodeID encoding mistaking an `rdf:List` head for an individual, and the live tree module breaking
-when the parser's recording hooks gained arguments (see `WIP.md`, "Coupling hazard").
+tree's nodeID encoding mistaking an `rdf:List` head for an individual, and the original tree module breaking
+when the parser's recording hooks gained arguments. The second is why hook changes are now additive only
+(see `WIP.md`).
 
 ## Next
 
-1. Merge the tree-layer working copy back into `starlayer/starontology/` (procedure in `WIP.md`), then
-   regenerate `starontology.trig` with `python scripts/build.py`. Check whether `manchester_shapes.ttl` is
-   generated or hand-maintained before editing it there.
+1. When the other agent's `starontology` work is finished, compare and merge the working copy (`wip/`) into
+   `starlayer/starontology/` (procedure in `WIP.md`). Nothing under `starontology/` has been changed yet.
 2. Decide the four Note-versus-OWL-API strictness questions above.
 3. Update `docs/graph/manchester_syntax_gap_analysis.md` (it still lists header annotations, `langRange`
    and Misc annotations as unsupported) and `docs/graph/CHANGELOG`.
