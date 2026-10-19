@@ -516,3 +516,45 @@ class TestShapesForTheWiderVocabulary:
         for name in ("expr", "var", "subject", "predicate", "object"):
             assert (SQE[name], RDFS.domain, None) not in ontology, name
 
+
+
+class TestSqeDoesNotDependOnSalg:
+    """sqe: shares the spexpr: expression vocabulary with salg:, but never imports salg (salg may use sqe)."""
+
+    def test_no_sqe_module_imports_salg(self):
+        import ast
+        from pathlib import Path
+
+        package = Path(__import__("starlayer.sparql.sqe", fromlist=["x"]).__file__).parent
+        offenders = []
+        for path in sorted(package.glob("*.py")):
+            for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+                names = []
+                if isinstance(node, ast.ImportFrom):
+                    names = [node.module or "", *[a.name for a in node.names]]
+                elif isinstance(node, ast.Import):
+                    names = [a.name for a in node.names]
+                if any("salg" in name.split(".") for name in names):
+                    offenders.append(f"{path.name}:{node.lineno}")
+        assert not offenders, f"sqe imports salg: {offenders}"
+
+    def test_parsing_and_validating_never_loads_the_salg_package(self):
+        import subprocess
+        import sys
+
+        code = (
+            "import sys; from starlayer.sparql.sqe import sqe_parse_to_tree, sqe_validate, sqe_tree_to_text, sqe_tree_to_query\\n"
+            "t, r = sqe_parse_to_tree('SELECT ?s WHERE { ?s ?p ?o FILTER(STRLEN(STR(?o)) > 1) }')\\n"
+            "assert sqe_validate(t)[0]; sqe_tree_to_text(t, r); sqe_tree_to_query(t, r)\\n"
+            "loaded = sorted(m for m in sys.modules if m.startswith('starlayer.sparql.salg'))\\n"
+            "print('LOADED', loaded)\\n"
+        )
+        out = subprocess.run([sys.executable, "-c", code.replace("\\n", "\n")], capture_output=True, text=True, check=True).stdout
+        assert "LOADED []" in out, out
+
+    def test_the_shared_expression_validation_graphs_have_no_salg_terms(self):
+        from starlayer.sparql import expr_validation
+
+        salg = "https://github.com/hidden-graph/starlayer/ns/sparql/algebra#"
+        for graph in (expr_validation.shapes_graph(), expr_validation.ontology_graph()):
+            assert not {str(t) for triple in graph for t in triple if str(t).startswith(salg)}

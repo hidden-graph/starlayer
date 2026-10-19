@@ -45,9 +45,9 @@ def _expr_comp_value_names() -> frozenset:
 
     Lazily imported and cached, not resolved at module top level, to avoid
     a real circular-import risk: this file is itself imported by
-    starlayer.sparql's own top-level __init__.py, and salg/expr_families.py
-    sits inside the salg subpackage, whose own __init__.py pulls in
-    sparql_shapes.py -> starontology - a path this project's own
+    starlayer.sparql's own top-level __init__.py, and expr_families.py
+    is imported lazily for the same reason as everything that pulls in
+    starontology - a path this project's own
     established "lazy, not top-level" convention exists specifically to
     avoid (see starontology/__init__.py's identical reasoning). Safe to
     defer: nothing can call _encode_comp_value() before starlayer.sparql
@@ -58,7 +58,7 @@ def _expr_comp_value_names() -> frozenset:
     """
     global _EXPR_COMP_VALUE_NAMES
     if _EXPR_COMP_VALUE_NAMES is None:
-        from .salg.expr_families import _EXPR_NODE_FAMILY
+        from .expr_families import _EXPR_NODE_FAMILY
 
         # TrueFilter is the one spexpr:-bound CompValue name with no entry
         # in _EXPR_NODE_FAMILY (it has no fields of its own to generate a

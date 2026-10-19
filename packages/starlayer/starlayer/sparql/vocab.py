@@ -183,7 +183,7 @@ SQE = Namespace("https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#
 # salg: because salg: was built first (before sqe: existed) and nobody
 # yet needed to share it - but sqe:/srl: both need exactly this slice
 # (their own expression/variable/path encoding, reused unchanged, not
-# reimplemented - see salg/expr_families.py's own docstring), while
+# reimplemented - see expr_families.py's own docstring), while
 # needing none of salg:'s *other* vocabulary (its own outer algebra
 # operators: Join/LeftJoin/Filter/Project/Union/etc., which only salg:
 # itself ever produces). Splitting this out means salg:/sqe:/srl: all
@@ -205,7 +205,7 @@ SQE = Namespace("https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#
 # the one place this matters at runtime: they're one fully generic
 # dispatcher shared by every CompValue, expression and non-expression
 # alike, so they branch on whether a given node's name is one of the
-# moved expression names (reusing salg.expr_families._EXPR_NODE_FAMILY
+# moved expression names (reusing expr_families._EXPR_NODE_FAMILY
 # directly, not a second hand-copied list) to decide SALG vs SPEXPR -
 # without that branch, sqe:'s own encoded output would have nested
 # expressions typed under salg: regardless of sqe:'s own namespace.
