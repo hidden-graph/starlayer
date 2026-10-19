@@ -53,6 +53,11 @@ OPT_IN_GROUPS = {
         "STARLAYER_MANCHESTER_CONFORMANCE",
         "also run the Manchester Syntax completeness suite (tests/starontology/manchester_conformance, ~75 s)",
     ),
+    "srl_conformance": (
+        "--srl-conformance",
+        "STARLAYER_SRL_CONFORMANCE",
+        "also run the SRL (SPARQL Rules) completeness suite (tests/sparql/srl_conformance, ~10 min)",
+    ),
     "sqe_coverage": (
         "--sqe-coverage",
         "STARLAYER_SQE_COVERAGE",
@@ -76,11 +81,12 @@ def _requested(config, marker: str) -> bool:
 
 
 def pytest_collection_modifyitems(config, items):
-    # every test in the Manchester conformance directory belongs to that opt-in group, whether or not it
-    # carries the marker itself
+    # every test in a conformance suite's directory belongs to that opt-in group, whether or not it carries
+    # the marker itself
     for item in items:
-        if "manchester_conformance" in item.nodeid and not item.get_closest_marker("manchester_conformance"):
-            item.add_marker("manchester_conformance")
+        for suite in ("manchester_conformance", "srl_conformance"):
+            if suite in item.nodeid and not item.get_closest_marker(suite):
+                item.add_marker(suite)
     left_out = [marker for marker in OPT_IN_GROUPS if not _requested(config, marker)]
     if not left_out:
         return

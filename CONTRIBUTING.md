@@ -24,6 +24,7 @@ pytest tests -m integration              # needs local Oxigraph and Fuseki serve
 pytest tests --store-matrix              # W3C suites through every store (slow, opt-in)
 pytest tests --srl-stratification        # extended SRL stratification checks (opt-in)
 pytest tests --manchester-conformance   # Manchester Syntax completeness suite (opt-in, ~75 s)
+pytest tests --srl-conformance          # SRL (SPARQL Rules) completeness suite (opt-in, ~10 min)
 pytest tests --codekg-queries            # the code-KG query library against the real KG (opt-in, ~1 min)
 pytest tests --sqe-coverage              # sqe: W3C fixtures, per-feature, Hypothesis, rdflib and Oxigraph comparisons, shape audit (opt-in, ~25 min)
 ```

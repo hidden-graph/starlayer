@@ -20,8 +20,10 @@ in `known_failures.py` that flips to a failing XPASS the moment it is fixed.
 | `test_sr_architecture.py` | SRL does not depend on `salg:`: four measurable ways, three of them strict xfails that list today's dependencies | the architecture rule |
 | `tools/mutation_scan.py` | (tool, not a test) damages `srl:` trees and checks whether the shapes reject them | mutation |
 
-Marker: `srl_conformance`. The corpus tests take about 10 minutes (each `parse_ruleset` runs SHACL validation
-by default, about 140 ms); parses are cached across tests.
+Marker: `srl_conformance`. **Opt-in**: left out of an ordinary run, including a bare `pytest`. Run it with
+`pytest --srl-conformance`, `STARLAYER_SRL_CONFORMANCE=1 pytest`, or `pytest -m srl_conformance` (the same
+mechanism as the Manchester suite; see `tests/conftest.py`). It takes about 10 minutes: each `parse_ruleset` runs
+SHACL validation by default, about 140 ms, and parses are cached across tests.
 
 ## Where there is no oracle
 

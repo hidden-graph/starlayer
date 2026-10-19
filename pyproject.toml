@@ -96,7 +96,7 @@ markers = [
     "sqe_coverage: the sqe query-coverage set (each SPARQL feature round-tripped through sqe and compared with plain rdflib) - opt-in: pytest --sqe-coverage (or STARLAYER_SQE_COVERAGE=1, or -m sqe_coverage). See tests/conftest.py.",
     "codekg_queries: the code-KG query library run against the real code knowledge graph - opt-in: pytest --codekg-queries (or STARLAYER_CODEKG_QUERIES=1, or -m codekg_queries). See tests/conftest.py.",
     "manchester_conformance: completeness suite for the Manchester Syntax parser and manch: tree (tests/starontology/manchester_conformance). Opt-in: pytest --manchester-conformance (or STARLAYER_MANCHESTER_CONFORMANCE=1, or -m manchester_conformance). Runs from committed OWL API goldens; no JVM needed. See tests/conftest.py.",
-    "srl_conformance: completeness suite for the SRL (SPARQL Rules) parser, srl: tree and evaluator (tests/sparql/srl_conformance). About 10 minutes, no external tools; NOT yet an opt-in group like manchester_conformance (see OPT_IN_GROUPS in tests/conftest.py).",
+    "srl_conformance: completeness suite for the SRL (SPARQL Rules) parser, srl: tree and evaluator (tests/sparql/srl_conformance). Opt-in: pytest --srl-conformance (or STARLAYER_SRL_CONFORMANCE=1, or -m srl_conformance). About 10 minutes; no external tools. See tests/conftest.py.",
 ]
 
 [tool.ruff]
