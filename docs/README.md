@@ -22,7 +22,7 @@ Every document in the repository, by what you want to do. Files marked *generate
 [docs/upstream-issues/](upstream-issues/): rdflib, pySHACL, Oxigraph and Fuseki bugs we found, each with a minimal repro and where we work around it.
 
 ## The knowledge graph
-The code knowledge graph (`codekg.trig`) and the capability graph (`functionality.ttl`) are in [`starlayer/codekg/`](../packages/starlayer/starlayer/codekg/). Its [competency questions](../packages/starlayer/starlayer/codekg/competency-questions.md) list what it can answer. Do not read `codekg.trig` directly; see [AGENTS.md](../AGENTS.md).
+The code knowledge graph (`codekg.trig`) and the capability graph (`functionality.ttl`) are in [`starlayer/codekg/`](../packages/starlayer/starlayer/codekg/). Its [competency questions and named queries](generated/query-library.generated.md) list what it can answer. Do not read `codekg.trig` directly; see [AGENTS.md](../AGENTS.md).
 
 ## Plans
 - [App development plans](app-development-plans/README.md): preparing the repository for app development, and the first app. Planning only.

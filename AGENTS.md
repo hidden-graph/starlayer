@@ -16,19 +16,19 @@ starlayer is a platform for building Python semantic apps on the RDF 1.2 / SPARQ
 - `ruff check packages/` must pass (CI runs it). Formatting is not enforced; do not reformat files you are not changing.
 
 ## Generated files: never edit by hand
-`docs/generated/*.generated.md`, and in `packages/starlayer/starlayer/`: `starontology/starontology.trig`, `starontology/shacl12-shacl.ttl`, `starontology/skos-ontology.ttl`, `codekg/codekg.trig`, `codekg/curated/query-library.ttl`.
-Edit the source (another `.ttl` in `starontology/`, `scripts/assets/shacl12-validation-shapes.ttl`, `codekg/curated/functionality.ttl`, a `.rq` file in `codekg/query-library/`) and run `python scripts/build.py`.
+`docs/generated/*.generated.md`, and in `packages/starlayer/starlayer/`: `starontology/starontology.trig`, `starontology/shacl12-shacl.ttl`, `starontology/skos-ontology.ttl`, `codekg/codekg.trig`.
+Edit the source (another `.ttl` in `starontology/`, `scripts/assets/shacl12-validation-shapes.ttl`, `codekg/curated/functionality.ttl`) and run `python scripts/build.py`. `codekg/curated/query-library.ttl` is itself a source (hand-edited, nothing generates it).
 CI runs `python scripts/build.py --check --skip codekg`. The code KG is rebuilt on demand (`--only codekg apidocs`, about 30 s) and can lag the source.
 
 ## Use the knowledge graph first
 Do not read large files into context: `codekg/codekg.trig` (6 MB), `docs/generated/api-reference.generated.md` (about 5,000 lines), `starontology/starontology.trig`, or any `CLAUDE.md` below its "Rules that bite" block. Ask the graph a narrow question instead.
 - Three layers: the vocabulary `packages/starlayer/starlayer/codekg/ontology.ttl` (`slkg:`), the generated dataset `codekg/codekg.trig` (one named graph per module: classes, functions, calls, overrides, tests), and the hand-written capability graph `codekg/curated/functionality.ttl`.
 - Capability map in plain text: `docs/generated/functionality-overview.generated.md`. One line per public symbol: `docs/generated/api-overview.generated.md`.
-- **Start with a named query**, not raw SPARQL: `python -m starlayer.codekg.queries list` (or `list --topic call-graph`), then `run find-symbol text=tt_hash` or `run callers-of symbol=<dotted path>`. From Python: `from starlayer.codekg import queries`, then `queries.run_query("callers-of", symbol=...)`. Results are tables limited to 25 rows (`--limit`, `--offset` to page), with file and line. The catalogue is `docs/generated/query-library.generated.md`; to add a query, add a `.rq` file in `codekg/query-library/` and run `python scripts/build.py --only queries`.
+- **Start with a named query**, not raw SPARQL: `python -m starlayer.codekg.queries list` (or `list --topic call-graph`), then `run find-symbol text=tt_hash` or `run callers-of symbol=<dotted path>`. From Python: `from starlayer.codekg import queries`, then `queries.run_query("callers-of", symbol=...)`. Results are tables limited to 25 rows (`--limit`, `--offset` to page), with file and line. The catalogue is `docs/generated/query-library.generated.md`; queries live in `codekg/curated/query-library.ttl` (edit it directly), and `python scripts/build.py --only queries` validates it and rewrites the catalogue.
 - No named query fits: `queries.run_sparql("SELECT ... LIMIT 20")` (SELECT and ASK only; `slkg:`, `dcterms:`, `rdfs:` are predeclared). Raw access: `get_codekg_dataset()` returns a `StarLayerDataset`; always put a `LIMIT` on queries and select a few columns.
 - Recipe: find the topic in the functionality overview, take its `implementedByIdentifier` (a dotted path), run `symbol-info` for its file and lines, then open only that range.
 - A zero-row call-graph answer means no caller this extractor could resolve, not proof of none. Imports between starlayer modules are not in the graph (only external imports are); use the call graph for dependencies.
-- Questions the KG can answer, and which it cannot yet: `packages/starlayer/starlayer/codekg/competency-questions.md` (`python -m starlayer.codekg.queries questions --unanswered`).
+- Questions the KG can answer, and which it cannot yet: the `slkg:CompetencyQuestion` nodes in `codekg/curated/query-library.ttl` (`python -m starlayer.codekg.queries questions --unanswered`).
 - Planned, not built yet: a public read-only KG endpoint that logs questions. See `docs/app-development-plans/repo-prep-plan.md`.
 
 ## Working agreements

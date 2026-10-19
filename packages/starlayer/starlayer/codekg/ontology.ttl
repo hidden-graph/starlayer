@@ -343,8 +343,8 @@ slkg:implementedByIdentifier a owl:DatatypeProperty ;
 # Query-library classes and properties
 #
 # Hand-curated, like the capability terms above: asserted only in
-# curated/query-library.ttl (generated from query-library/*.rq by
-# scripts/build_query_library.py), never by the AST extractor. A NamedQuery
+# curated/query-library.ttl (the source, edited directly; checked by
+# scripts/build_query_catalogue.py), never by the AST extractor. A NamedQuery
 # stores its query as an sqe: tree (see starlayer.sparql.sqe), not as text.
 #################################################################
 
@@ -354,7 +354,7 @@ slkg:Topic a owl:Class ;
 
 slkg:CompetencyQuestion a owl:Class ;
     rdfs:label "Competency question" ;
-    rdfs:comment "A question the code knowledge graph should be able to answer, promoted from codekg/competency-questions.md. slkg:cqStatus says whether it is answerable now." .
+    rdfs:comment "A question the code knowledge graph should be able to answer, kept in curated/query-library.ttl. slkg:cqStatus says whether it is answerable now." .
 
 slkg:NamedQuery a owl:Class ;
     rdfs:label "Named query" ;
@@ -408,5 +408,5 @@ slkg:cqStatus a owl:DatatypeProperty ;
     rdfs:domain slkg:CompetencyQuestion ;
     rdfs:range xsd:string ;
     rdfs:label "competency question status" ;
-    rdfs:comment "\"answerable\" (the graph can answer it now), \"roadmap\" (not built yet), \"curated\" (needs a hand-maintained layer) or \"out-of-scope\" (deliberately excluded). The same four states as the status marks in competency-questions.md." .
+    rdfs:comment "\"answerable\" (the graph can answer it now), \"roadmap\" (not built yet), \"curated\" (needs a hand-maintained layer) or \"out-of-scope\" (deliberately excluded). The catalogue marks them ✅ 🔜 🗂️ ⛔." .
 

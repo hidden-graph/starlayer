@@ -14,8 +14,9 @@ short. The graph is built from the source and **can lag it**: line numbers in a 
 the file, and ``python scripts/build.py --only codekg apidocs`` rebuilds it.
 
 The queries are stored as RDF, not text: ``curated/query-library.ttl`` holds each one as an ``sqe:`` tree
-(``starlayer.sparql.sqe``) under a ``slkg:NamedQuery``. ``run_query`` decodes the tree and runs it. The library is
-generated from ``query-library/*.rq`` by ``scripts/build_query_library.py``; add a query by adding a ``.rq`` file.
+(``starlayer.sparql.sqe``) under a ``slkg:NamedQuery``, and ``run_query`` decodes the tree and runs it. That file is
+the source, edited directly (nothing generates it); ``validate_library()`` checks it, and
+``scripts/build_query_catalogue.py`` runs that check and writes the readable catalogue.
 
 Also runnable from a shell: ``python -m starlayer.codekg.queries --help``.
 
@@ -50,7 +51,7 @@ _DEFAULT_PREFIXES = {
     "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
 }
 
-# the words used on the status marks of competency-questions.md
+# the values of slkg:cqStatus
 _STATUSES = ("answerable", "roadmap", "curated", "out-of-scope")
 
 
@@ -249,7 +250,7 @@ def query_text(name: str) -> str:
 
 
 def competency_questions(status: str | None = None, unanswered: bool = False) -> list[CompetencyQuestion]:
-    """The questions the graph should answer (from ``competency-questions.md``), in text order of their topic.
+    """The questions the graph should answer (the ``slkg:CompetencyQuestion`` nodes), sorted by topic then text.
 
     ``status`` filters by ``"answerable"``, ``"roadmap"``, ``"curated"`` or ``"out-of-scope"``; ``unanswered=True``
     keeps those no named query answers yet.
@@ -270,6 +271,63 @@ def competency_questions(status: str | None = None, unanswered: bool = False) ->
         if (status is None or item.status == status) and (not unanswered or not item.answered_by):
             found.append(item)
     return sorted(found, key=lambda q: (q.topic, q.question))
+
+
+def _tree_triples(library, root) -> list:
+    """The triples of the ``sqe:`` tree under ``root``: everything reachable through blank nodes."""
+    from rdflib import BNode
+
+    seen, todo, triples = set(), [root], []
+    while todo:
+        node = todo.pop()
+        if node in seen:
+            continue
+        seen.add(node)
+        for p, o in library.predicate_objects(node):
+            triples.append((node, p, o))
+            if isinstance(o, BNode):
+                todo.append(o)
+    return triples
+
+
+def validate_library() -> list[str]:
+    """Problems in the stored library, or an empty list when it is sound.
+
+    Checks the library against ``query-library-shapes.ttl``, then validates each query's tree on its own against
+    the sqe shapes (one tree at a time: validating the whole library at once re-checks every tree for each one)
+    and checks that it decodes back to SPARQL text.
+    """
+    from rdflib import Graph
+
+    import starlayer.shacl
+    from starlayer.sparql.sqe import sqe_tree_to_text, sqe_validate
+
+    library = _library()
+    problems: list[str] = []
+    shapes = Graph().parse(str(_HERE / "query-library-shapes.ttl"), format="turtle")
+    report = starlayer.shacl.validate(library, shacl_graph=shapes)
+    if not report.conforms:
+        problems.append(f"library does not conform to query-library-shapes.ttl:\n{report.report_text}")
+    for node in library.subjects(RDF.type, _slkg("NamedQuery")):
+        name = str(node).rsplit("#", 1)[-1]
+        root = library.value(node, _slkg("queryRoot"))
+        if root is None:
+            continue  # the shapes report the missing root
+        tree = Graph()
+        for triple in _tree_triples(library, root):
+            tree.add(triple)
+        if not len(tree):
+            problems.append(f"{name}: the query root {root} has no tree")
+            continue
+        conforms, _report, text = sqe_validate(tree)
+        if not conforms:
+            problems.append(f"{name}: the sqe tree is invalid:\n{text}")
+            continue
+        try:
+            sqe_tree_to_text(library, root)
+        except Exception as error:  # noqa: BLE001 - any failure to decode is a problem to report
+            problems.append(f"{name}: the tree does not decode to SPARQL: {error}")
+    return problems
 
 
 # ---------------------------------------------------------------------------

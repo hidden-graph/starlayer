@@ -1,6 +1,6 @@
 # Changelog
 
-Tracks when `codekg.trig` was last regenerated via `scripts/build_codekg.py`, with what paths were covered and what the extractor could pull out of the code as of that run. The graph is **not** regenerated on every change - update this file whenever it *is* regenerated, even if the extractor itself didn't change, so a reader can tell how stale the graph might be without re-running anything. See `competency-questions.md` for what each capability actually answers.
+Tracks when `codekg.trig` was last regenerated via `scripts/build_codekg.py`, with what paths were covered and what the extractor could pull out of the code as of that run. The graph is **not** regenerated on every change - update this file whenever it *is* regenerated, even if the extractor itself didn't change, so a reader can tell how stale the graph might be without re-running anything. The competency questions (what the graph can and cannot answer) are in `curated/query-library.ttl`; `docs/generated/query-library.generated.md` lists them.
 
 ## 2026-10-19 — regenerated (repo-relative `slkg:filePath`, named-tuple types)
 
