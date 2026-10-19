@@ -15,6 +15,7 @@ Named queries over the code knowledge graph. Run one with `starlayer.codekg.quer
 
 - **`capabilities`** (`text` (optional)): What StarLayer does, and which code does it. The curated capability list with the symbols that implement each, optionally limited to words in the capability text. Capabilities with no implementing symbol are roadmap items or are implemented by a SHACL or OWL file.
 - **`capabilities-by-role`** (`role`): Which capabilities serve a job when building an app?. The capabilities tagged with an app role (storage, interchange, query, validate, infer, ui-generate or reference), with the symbols that implement each. Start here when you know what the app must do but not which StarLayer parts to use.
+- **`capabilities-by-specification`** (`spec` (optional)): Which capabilities implement a specification?. The capabilities that implement a W3C specification (wholly or in part), with the symbols that implement each; optionally limited to specifications whose IRI contains some text, such as shacl12-core or sparql12.
 - **`capability-of-symbol`** (`symbol`): Which capability does a symbol implement?. The curated capability, if any, that names a symbol as its implementation.
 
 ## Dead code and unused surface

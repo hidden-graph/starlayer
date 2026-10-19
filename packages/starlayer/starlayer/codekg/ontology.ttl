@@ -353,6 +353,11 @@ slkg:appRole a owl:DatatypeProperty ;
     rdfs:label "app role" ;
     rdfs:comment "What a Capability is for when building an application, so someone who knows the job (\"I need a form editor\") can find the capabilities for it. One or more of: \"storage\" (hold and manage RDF data), \"interchange\" (read, write, compare, canonicalize), \"query\" (SPARQL and extraction), \"validate\" (SHACL checking), \"infer\" (rules and reasoning), \"ui-generate\" (build forms and editors from shapes and vocabularies) or \"reference\" (bundled vocabularies and registries)." .
 
+slkg:implementsSpecification a owl:ObjectProperty ;
+    rdfs:domain slkg:Capability ;
+    rdfs:label "implements specification" ;
+    rdfs:comment "The specification (a W3C Technical Report IRI such as https://www.w3.org/TR/shacl12-core/) that a Capability implements. Wholly or in part: starlayer-profiles.ttl and the specification's gap analysis say what is and is not claimed. Absent where the capability is StarLayer's own design rather than a standard." .
+
 slkg:seeAlsoPath a owl:DatatypeProperty ;
     rdfs:range xsd:string ;
     rdfs:label "see also path" ;

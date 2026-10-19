@@ -79,6 +79,17 @@ ql:capabilities-by-role a slkg:NamedQuery ;
             slkg:paramRequired true ] ;
     slkg:queryRoot ql:capabilities-by-role-tree .
 
+ql:capabilities-by-specification a slkg:NamedQuery ;
+    rdfs:label "Which capabilities implement a specification?" ;
+    rdfs:comment "The capabilities that implement a W3C specification (wholly or in part), with the symbols that implement each; optionally limited to specifications whose IRI contains some text, such as shacl12-core or sparql12." ;
+    slkg:aboutTopic ql:topic-capabilities ;
+    slkg:queryParameter [ a slkg:QueryParameter ;
+            rdfs:comment "only specifications whose IRI contains this, case-insensitive" ;
+            slkg:paramExample "shacl12" ;
+            slkg:paramName "spec" ;
+            slkg:paramRequired false ] ;
+    slkg:queryRoot ql:capabilities-by-specification-tree .
+
 ql:capability-of-symbol a slkg:NamedQuery ;
     rdfs:label "Which capability does a symbol implement?" ;
     rdfs:comment "The curated capability, if any, that names a symbol as its implementation." ;
@@ -493,6 +504,71 @@ ql:capabilities-by-role-tree a sqe:Query,
                 sqe:object "area"^^spexpr:Variable ;
                 sqe:predicate rdfs:label ;
                 sqe:subject "a"^^spexpr:Variable ] [ a sqe:Optional ;
+                sqe:where ( [ a sqe:TriplePattern ;
+                            sqe:object "symbol"^^spexpr:Variable ;
+                            sqe:predicate slkg:implementedByIdentifier ;
+                            sqe:subject "cap"^^spexpr:Variable ] [ a sqe:Optional ;
+                            sqe:where ( [ a sqe:TriplePattern ;
+                                        sqe:object "symbol"^^spexpr:Variable ;
+                                        sqe:predicate dcterms:identifier ;
+                                        sqe:subject "s"^^spexpr:Variable ] [ a sqe:Optional ;
+                                        sqe:where ( [ a sqe:TriplePattern ;
+                                                    sqe:object "file"^^spexpr:Variable ;
+                                                    sqe:predicate slkg:filePath ;
+                                                    sqe:subject "s"^^spexpr:Variable ] ) ] [ a sqe:Optional ;
+                                        sqe:where ( [ a sqe:TriplePattern ;
+                                                    sqe:object "line"^^spexpr:Variable ;
+                                                    sqe:predicate slkg:lineStart ;
+                                                    sqe:subject "s"^^spexpr:Variable ] ) ] ) ] ) ] ) .
+
+ql:capabilities-by-specification-tree a sqe:Query,
+        sqe:SelectQuery ;
+    sqe:orderBy ( [ a sqe:OrderCondition ;
+                sqe:expr "specification"^^spexpr:Variable ] [ a sqe:OrderCondition ;
+                sqe:expr "area"^^spexpr:Variable ] [ a sqe:OrderCondition ;
+                sqe:expr "capability"^^spexpr:Variable ] [ a sqe:OrderCondition ;
+                sqe:expr "symbol"^^spexpr:Variable ] ) ;
+    sqe:projection ( "area"^^spexpr:Variable "capability"^^spexpr:Variable "status"^^spexpr:Variable "specification"^^spexpr:Variable "symbol"^^spexpr:Variable "file"^^spexpr:Variable "line"^^spexpr:Variable ) ;
+    sqe:prologuePrefix [ a sqe:PrefixBinding ;
+            sqe:namespace slkg: ;
+            sqe:prefixLabel "slkg"^^spexpr:PlainString ],
+        [ a sqe:PrefixBinding ;
+            sqe:namespace rdfs: ;
+            sqe:prefixLabel "rdfs"^^spexpr:PlainString ],
+        [ a sqe:PrefixBinding ;
+            sqe:namespace dcterms: ;
+            sqe:prefixLabel "dcterms"^^spexpr:PlainString ] ;
+    sqe:where ( [ a sqe:Values ;
+                sqe:rows ( ( sqe:undef ) ) ;
+                sqe:vars ( "spec"^^spexpr:Variable ) ] [ a sqe:TriplePattern ;
+                sqe:object slkg:Capability ;
+                sqe:predicate rdf:type ;
+                sqe:subject "cap"^^spexpr:Variable ] [ a sqe:TriplePattern ;
+                sqe:object "a"^^spexpr:Variable ;
+                sqe:predicate slkg:inCapabilityArea ;
+                sqe:subject "cap"^^spexpr:Variable ] [ a sqe:TriplePattern ;
+                sqe:object "capability"^^spexpr:Variable ;
+                sqe:predicate rdfs:comment ;
+                sqe:subject "cap"^^spexpr:Variable ] [ a sqe:TriplePattern ;
+                sqe:object "status"^^spexpr:Variable ;
+                sqe:predicate slkg:hasStatus ;
+                sqe:subject "cap"^^spexpr:Variable ] [ a sqe:TriplePattern ;
+                sqe:object "specification"^^spexpr:Variable ;
+                sqe:predicate slkg:implementsSpecification ;
+                sqe:subject "cap"^^spexpr:Variable ] [ a sqe:TriplePattern ;
+                sqe:object "area"^^spexpr:Variable ;
+                sqe:predicate rdfs:label ;
+                sqe:subject "a"^^spexpr:Variable ] [ a sqe:Filter ;
+                sqe:expr [ a spexpr:ConditionalOrExpression ;
+                        spexpr:expr [ a spexpr:UnaryNot ;
+                                spexpr:expr [ a spexpr:Builtin_BOUND ;
+                                        spexpr:arg "spec"^^spexpr:Variable ] ] ;
+                        spexpr:other ( [ a spexpr:Builtin_CONTAINS ;
+                                    spexpr:arg1 [ a spexpr:Builtin_LCASE ;
+                                            spexpr:arg [ a spexpr:Builtin_STR ;
+                                                    spexpr:arg "specification"^^spexpr:Variable ] ] ;
+                                    spexpr:arg2 [ a spexpr:Builtin_LCASE ;
+                                            spexpr:arg "spec"^^spexpr:Variable ] ] ) ] ] [ a sqe:Optional ;
                 sqe:where ( [ a sqe:TriplePattern ;
                             sqe:object "symbol"^^spexpr:Variable ;
                             sqe:predicate slkg:implementedByIdentifier ;
@@ -1531,13 +1607,13 @@ ql:topic-dead-code a slkg:Topic ;
     rdfs:label "Dead code and unused surface" ;
     rdfs:comment "Functions nothing calls." .
 
-ql:topic-capabilities a slkg:Topic ;
-    rdfs:label "Capabilities" ;
-    rdfs:comment "The curated list of what StarLayer does, and the code behind each item." .
-
 ql:topic-testing a slkg:Topic ;
     rdfs:label "Testing linkage" ;
     rdfs:comment "Which tests exercise which code." .
+
+ql:topic-capabilities a slkg:Topic ;
+    rdfs:label "Capabilities" ;
+    rdfs:comment "The curated list of what StarLayer does, and the code behind each item." .
 
 ql:topic-architecture a slkg:Topic ;
     rdfs:label "Architecture and coupling" ;

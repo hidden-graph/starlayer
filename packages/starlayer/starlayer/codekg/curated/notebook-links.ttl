@@ -228,3 +228,74 @@ nl:appendix-34b06f8c a slkg:NotebookExample ;
     rdfs:comment "Uses cbd() to delete a shared filter and everything hanging from it in a query graph." ;
     slkg:demonstratesIdentifier
         "starlayer.graph.graph.starlayer_graph.StarLayerGraph.cbd" .
+
+nl:05-da3100e0 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/05-starlayer-schemas-and-ontologies.ipynb" ;
+    slkg:cellId "da3100e0" ;
+    slkg:cellHash "49befc46f331c179" ;
+    slkg:reviewedOn "2026-10-19"^^xsd:date ;
+    rdfs:comment "Loads the bundled SKOS shapes graph and validates a SKOS concept scheme against it with a StarShaclSchema." ;
+    slkg:demonstratesIdentifier
+        "starlayer.starontology.skos" .
+
+nl:05d-2957fd17 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/05d-shacl-library-registry.ipynb" ;
+    slkg:cellId "2957fd17" ;
+    slkg:cellHash "55bccadc783b2d09" ;
+    slkg:reviewedOn "2026-10-19"^^xsd:date ;
+    rdfs:comment "Loads StarLayer's profiles document with get_conformance_profiles() and queries which resources each profile has." ;
+    slkg:demonstratesIdentifier
+        "starlayer.starontology.__init__.get_conformance_profiles" .
+
+nl:05a-92f83318 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/05a-manchester-syntax.ipynb" ;
+    slkg:cellId "92f83318" ;
+    slkg:cellHash "5972eccb49cd811c" ;
+    slkg:reviewedOn "2026-10-19"^^xsd:date ;
+    rdfs:comment "Parses Manchester Syntax into a graph and serializes it back with format='manchester'." ;
+    slkg:demonstratesIdentifier
+        "starlayer.starontology.manchester" .
+
+nl:03b-c0a10008 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/03b-srl-sparql-rules.ipynb" ;
+    slkg:cellId "c0a10008" ;
+    slkg:cellHash "13762bd8ccd8e936" ;
+    slkg:reviewedOn "2026-10-19"^^xsd:date ;
+    rdfs:comment "Asks a goal pattern of a rule set with query() and gets back only the matching bindings." ;
+    slkg:demonstratesIdentifier
+        "starlayer.sparql._srl_ast.RuleSet.query" .
+
+nl:03b-c0a10006 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/03b-srl-sparql-rules.ipynb" ;
+    slkg:cellId "c0a10006" ;
+    slkg:cellHash "e3c05bf0bef4601e" ;
+    slkg:reviewedOn "2026-10-19"^^xsd:date ;
+    rdfs:comment "Shows the StratificationError from srl_eval that plan() and infer() raise for a rule set with no valid evaluation order." ;
+    slkg:demonstratesIdentifier
+        "starlayer.sparql.srl_eval" .
+
+nl:04a-6d36cd11 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/04a-shacl-node-expressions.ipynb" ;
+    slkg:cellId "6d36cd11" ;
+    slkg:cellHash "5b1233cd1387df3f" ;
+    slkg:reviewedOn "2026-10-19"^^xsd:date ;
+    rdfs:comment "Evaluates sh:values with StarShaclSchema.evaluate(), producing a display-only graph and leaving the data graph unchanged." ;
+    slkg:demonstratesIdentifier
+        "starlayer.shacl.validator.StarShaclSchema.evaluate" .
+
+nl:06b-252791c5 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/06b-backend-graph-databases.ipynb" ;
+    slkg:cellId "252791c5" ;
+    slkg:cellHash "4f009adc71a4356b" ;
+    slkg:reviewedOn "2026-10-19"^^xsd:date ;
+    rdfs:comment "Connects a StarLayerGraph to a SPARQL endpoint; in rdf-1.2 mode queries go through the native HTTP layer." ;
+    slkg:demonstratesIdentifier
+        "starlayer.graph.backends.native" .
+
+nl:03-b337c254 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/03-sparql.ipynb" ;
+    slkg:cellId "b337c254" ;
+    slkg:cellHash "17bd5c55a23e6ba2" ;
+    slkg:reviewedOn "2026-10-19"^^xsd:date ;
+    rdfs:comment "Runs a SPARQL 1.2 INSERT DATA with a triple term through update() on a StarLayerGraph." ;
+    slkg:demonstratesIdentifier "starlayer.graph.graph.starlayer_graph.StarLayerGraph.update" .
