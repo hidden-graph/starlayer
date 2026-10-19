@@ -78,13 +78,13 @@ ontology-IRI-based default is guessed).
 
 from __future__ import annotations
 
+import re
 from urllib.parse import urljoin
 
 from rdflib import BNode, Literal, URIRef
 from rdflib.namespace import OWL, RDF, RDFS, XSD
 
 from starlayer.graph.parsers.errors import ManchesterSyntaxError
-from starlayer.graph.parsers.syntax import coerce_object
 
 _DEFAULT_PREFIXES = {
     'owl': 'http://www.w3.org/2002/07/owl#',
@@ -145,7 +145,40 @@ _CHARACTERISTICS = {
     'Irreflexive': OWL.IrreflexiveProperty,
 }
 
+_SHORT_DATATYPES = {
+    'integer': XSD.integer,
+    'decimal': XSD.decimal,
+    'float': XSD.float,
+    'string': XSD.string,
+}
+
 _RESTRICTION_KEYWORDS = {'some', 'only', 'onlysome', 'value', 'Self', 'min', 'max', 'exactly'}
+
+
+# ---------------------------------------------------------------------------
+# Numeric literals (the note's integerLiteral / decimalLiteral / floatingPointLiteral)
+# ---------------------------------------------------------------------------
+
+_INTEGER_RE = re.compile(r'^[+-]?[0-9]+$')
+_DECIMAL_RE = re.compile(r'^[+-]?[0-9]+\.[0-9]+$')
+_FLOAT_RE = re.compile(r'^([+-]?(?:[0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?|\.[0-9]+(?:[eE][+-]?[0-9]+)?))[fF]$')
+
+
+def _numeric_literal(word):
+    """The Literal for a bare numeric token, or None if ``word`` is not one.
+
+    integer -> xsd:integer, decimal -> xsd:decimal, and a number ending in ``f``/``F`` (the only way the
+    note's grammar spells a floating-point literal, with an optional exponent) -> xsd:float. A leading
+    ``+`` is accepted and not kept in the lexical form, matching the OWL API.
+    """
+    if _INTEGER_RE.match(word):
+        return Literal(str(int(word)), datatype=XSD.integer, normalize=False)
+    if _DECIMAL_RE.match(word):
+        return Literal(word.lstrip('+'), datatype=XSD.decimal, normalize=False)
+    m = _FLOAT_RE.match(word)
+    if m:
+        return Literal(repr(float(m.group(1))), datatype=XSD.float, normalize=False)
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -155,6 +188,27 @@ _RESTRICTION_KEYWORDS = {'some', 'only', 'onlysome', 'value', 'Self', 'min', 'ma
 # A bare word (keyword, prefixed name, integer, ...) never legally contains
 # any of these - each unambiguously starts a different token form.
 _WORD_STOP_CHARS = ('<', '"', '(', ')', ',', '{', '}', '[', ']')
+
+
+def _unescape_quoted(raw):
+    """Decode the two escapes the note's ``quotedString`` production defines, ``\\"`` and ``\\\\``.
+
+    Any other backslash is left alone (the note defines no other escape; the OWL API does the same), so a
+    lone backslash in a string such as a regular expression survives unchanged.
+    """
+    if '\\' not in raw:
+        return raw
+    out = []
+    i, n = 0, len(raw)
+    while i < n:
+        c = raw[i]
+        if c == '\\' and i + 1 < n and raw[i + 1] in '"\\':
+            out.append(raw[i + 1])
+            i += 2
+        else:
+            out.append(c)
+            i += 1
+    return ''.join(out)
 
 
 def _tokenize(text):
@@ -221,7 +275,7 @@ def _tokenize(text):
                 j += 1
             if j >= n:
                 err('unterminated string literal', i)
-            value = text[i + 1:j]
+            value = _unescape_quoted(text[i + 1:j])
             tok = {'kind': 'LITERAL', 'text': value, 'line': line, 'lang': None, 'datatype': None}
             j += 1
             if j < n and text[j] == '@':
@@ -433,13 +487,29 @@ class _Cursor:
                 return Literal(tok['text'], lang=tok['lang'])
             return Literal(tok['text'])
         word = self.peek_word()
-        if word is not None and (word.replace('.', '', 1).replace('-', '', 1).isdigit() or word in ('true', 'false')):
+        if word is not None:
+            number = _numeric_literal(word)
+            if number is not None:
+                self.advance()
+                return number
+            if word in ('true', 'false'):
+                self.advance()
+                return Literal(word == 'true')
+        return self.read_name()
+
+    def read_datatype_name(self):
+        """Consume a datatype name: the note's ``Datatype ::= datatypeIRI | 'integer' | 'decimal' |
+        'float' | 'string'``, so the four short words mean the xsd datatypes, not names in the default
+        namespace."""
+        word = self.peek_word()
+        if word in _SHORT_DATATYPES:
             self.advance()
-            val = coerce_object(word)
-            return Literal(val) if isinstance(val, bool) else val
+            return _SHORT_DATATYPES[word]
         return self.read_name()
 
     def _resolve_word(self, text):
+        if text in _SHORT_DATATYPES:
+            return _SHORT_DATATYPES[text]
         if ':' in text:
             prefix, local = text.split(':', 1)
         else:
@@ -750,7 +820,7 @@ def _parse_data_atomic(cur):
         cur.expect_punct('}')
         return ('DOneOf', literals)
 
-    datatype = cur.read_name()
+    datatype = cur.read_datatype_name()
     if cur.peek() is not None and cur.peek()['kind'] == 'PUNCT' and cur.peek()['text'] == '[':
         cur.advance()
         facets = [_parse_facet_restriction(cur)]

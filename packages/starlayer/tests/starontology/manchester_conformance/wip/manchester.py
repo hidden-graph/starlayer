@@ -814,11 +814,13 @@ def _render_name(node) -> str:
 
 
 def _render_literal(lit: Literal) -> str:
+    # The note's quotedString escapes exactly two characters: the double quote and the backslash.
+    text = str(lit).replace('\\', '\\\\').replace('"', '\\"')
     if lit.language:
-        return f'"{lit}"@{lit.language}'
+        return f'"{text}"@{lit.language}'
     if lit.datatype:
-        return f'"{lit}"^^<{lit.datatype}>'
-    return f'"{lit}"'
+        return f'"{text}"^^<{lit.datatype}>'
+    return f'"{text}"'
 
 
 def _render_value(v) -> str:

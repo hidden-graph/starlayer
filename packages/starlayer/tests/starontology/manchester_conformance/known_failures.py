@@ -21,8 +21,6 @@ from __future__ import annotations
 _F1 = "F1 top-level truncation: a non-keyword token at top level ends parsing and silently drops the rest of the document (manchester_parser.py: peek_word() returns None for any non-WORD token and the top-level loop treats None as end of input)."
 _F2 = "F2 Ontology: <iri> <versionIRI>: no owl:versionIRI triple is emitted and, via F1, every following frame is silently dropped."
 _F3 = "F3 'Annotations:' in the Ontology: header is refused (manchester_parser.py: 'not supported yet'; same in starontology/manchester.py). The W3C Note's ontology production allows { annotations } and OWL API accepts it."
-_F4 = "F4 quoted strings keep their backslash escapes: \\\" and \\\\ should decode to \" and \\ (W3C quotedString production; OWL API decodes)."
-_F5 = "F5 numeric literal forms: signed '+' numbers and every floatingPointLiteral form (2f, .5f, 1.5e3f, -3.25f) are parsed as IRIs (default-namespace names) instead of literals; the Note's literal production has integer, decimal and floating-point forms and OWL API produces xsd:integer/xsd:decimal/xsd:float."
 _F6 = "F6 nodeID individuals (_:b1) are not supported in individual positions (frame name, SameAs/DifferentFrom target, Facts target, enumeration member, 'value'): raises 'unknown prefix _'. The Note's individual production allows nodeID."
 _F7 = "F7 data-range fillers in restrictions go through the class-expression path: wrong OWL types (owl:Class instead of rdfs:Datatype), owl:complementOf instead of owl:datatypeComplementOf, owl:onClass instead of owl:onDataRange for qualified cardinalities, and for 'd some xsd:integer[>= 5]' the facet restriction is DROPPED entirely (silent semantic loss)."
 _F8 = "F8 facet 'langRange' is rejected ('unknown facet'); documented as narrow in manchester_syntax_gap_analysis.md but the Note lists it in the facet production and OWL API accepts it."
@@ -37,12 +35,6 @@ _F14b = "F14 oracle quirk (pending W3C check): OWL API emits the annotated owl:s
 # to close, except F13/F14 which are pending a W3C check.
 DIFFERENTIAL_FAILURES: dict[str, str] = {
     "hdr-annotations-nested": _F3 + " " + _F9,
-    "lit-string-escapes": _F4,
-    "lit-integer-signed": _F5,
-    "lit-decimal": _F5,
-    "lit-float": _F5,
-    "lit-float-exponent": _F5,
-    "facet-float": _F5 + " (a float facet value)",
     "ce-enumeration-with-nodeid": _F6,
     "ind-nodeid-frame": _F6,
     "ind-nodeid-fact-target": _F6,
@@ -79,7 +71,7 @@ _REJ_ORACLE_MODEL = "OWL API rejects because of its typed object model (it needs
 # the construct, test_mc_note_only.py checks our output against an expectation derived from the Note.
 ORACLE_REJECTS: dict[str, str] = {
     "iri-mixed-forms": _REJ_ORACLE_MODEL + " (full-IRI class in a SubClassOf list.)",
-    "lit-typed-short-datatype-names": "F11 short datatype names (integer/decimal/float/string): the Note's Datatype production allows them and OWL API 5.1.20 rejects them. WE MIS-PARSE them as default-namespace names (:integer), silently wrong.",
+    "lit-typed-short-datatype-names": _REJ_ACCEPTED_OK + " (The note's Datatype production allows the short names integer/decimal/float/string, meaning the xsd datatypes.)",
     "lit-annotation-target-forms": "F6 nodeID as annotation target: the Note allows annotationTarget ::= nodeID; OWL API rejects; we raise 'unknown prefix _'.",
     "r-value-nodeid": "F6 'value _:anon': the Note allows an individual (nodeID); OWL API rejects; we raise.",
     "r-some-not-filler": _REJ_ACCEPTED_OK + " (primary ::= [not] (restriction | atomic), so 'p some not B' is valid.)",
@@ -87,11 +79,11 @@ ORACLE_REJECTS: dict[str, str] = {
     "that-not": _REJ_ACCEPTED_OK + " (conjunction ::= classIRI 'that' [ 'not' ] restriction ...)",
     "that-and-not": _REJ_ACCEPTED_OK + " (... { 'and' [ 'not' ] restriction })",
     "dr-short-datatype-name": "F11 short datatype name in a data restriction: Note allows; OWL API rejects; WE MIS-PARSE it as :integer.",
-    "range-short-integer": "F11 'Range: integer': Note allows; OWL API rejects; WE MIS-PARSE it as :integer.",
-    "range-short-decimal": "F11 'Range: decimal': Note allows; OWL API rejects; WE MIS-PARSE it as :decimal.",
-    "range-short-float": "F11 'Range: float': Note allows; OWL API rejects; WE MIS-PARSE it as :float.",
-    "range-short-string": "F11 'Range: string': Note allows; OWL API rejects; WE MIS-PARSE it as :string.",
-    "facet-on-short-datatype": "F11 'integer[>= 1]': Note allows; OWL API rejects; WE MIS-PARSE the base datatype as :integer.",
+    "range-short-integer": _REJ_ACCEPTED_OK + " (The note's Datatype production allows the short names integer/decimal/float/string, meaning the xsd datatypes.)",
+    "range-short-decimal": _REJ_ACCEPTED_OK + " (The note's Datatype production allows the short names integer/decimal/float/string, meaning the xsd datatypes.)",
+    "range-short-float": _REJ_ACCEPTED_OK + " (The note's Datatype production allows the short names integer/decimal/float/string, meaning the xsd datatypes.)",
+    "range-short-string": _REJ_ACCEPTED_OK + " (The note's Datatype production allows the short names integer/decimal/float/string, meaning the xsd datatypes.)",
+    "facet-on-short-datatype": _REJ_ACCEPTED_OK + " (The note's Datatype production allows the short names integer/decimal/float/string, meaning the xsd datatypes.)",
     "datatype-frame-equiv-annotations": _REJ_ORACLE_MODEL + " (annotated EquivalentTo: data range in a Datatype frame.)",
     "ap-domain-abbreviated": _REJ_ORACLE_MODEL + " (abbreviated IRI as an annotation-property Domain:.)",
     "ap-domain-annotated": _REJ_ORACLE_MODEL + " (annotated annotation-property Domain:.)",
