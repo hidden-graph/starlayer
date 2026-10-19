@@ -133,6 +133,7 @@ _DATA_FACETS = {
     '>': XSD.minExclusive, '<': XSD.maxExclusive,
     'length': XSD.length, 'minLength': XSD.minLength, 'maxLength': XSD.maxLength,
     'pattern': XSD.pattern,
+    'langRange': URIRef(str(RDF) + 'langRange'),
 }
 
 _CHARACTERISTICS = {
@@ -318,6 +319,13 @@ def _tokenize(text):
             tokens.append({'kind': 'PUNCT', 'text': c, 'line': line})
             i += 1
             continue
+        if c == '>':
+            # '>=' / '>' are facet operators; the note puts no whitespace requirement between one and
+            # its value ('[>=1,<10]'), so they are tokens of their own, like '<=' and '<' above.
+            op = '>=' if text[i:i + 2] == '>=' else '>'
+            tokens.append({'kind': 'WORD', 'text': op, 'line': line})
+            i += len(op)
+            continue
         j = i
         while j < n and not text[j].isspace() and text[j] not in _WORD_STOP_CHARS:
             j += 1
@@ -341,6 +349,7 @@ class _Cursor:
         self.base = base
         self.triples = []
         self._declared = None
+        self._blank_nodes = {}
 
     def mint_bnode(self):
         return BNode()
@@ -462,6 +471,23 @@ class _Cursor:
     def resolve_iri(self, raw):
         return URIRef(urljoin(self.base, raw) if self.base else raw)
 
+    def blank_node(self, label):
+        """The blank node for a ``_:label`` nodeID. The label is the node's identity within the
+        document, so every ``_:b1`` is the same node and a rendered label can be read back."""
+        node = self._blank_nodes.get(label)
+        if node is None:
+            node = self._blank_nodes[label] = BNode(label)
+        return node
+
+    def read_individual(self):
+        """Consume an individual: a name, or a nodeID (``_:label``, the note's ``individual ::=
+        individualIRI | nodeID``)."""
+        tok = self.peek()
+        if tok is not None and tok['kind'] == 'WORD' and tok['text'].startswith('_:') and len(tok['text']) > 2:
+            self.advance()
+            return self.blank_node(tok['text'][2:])
+        return self.read_name()
+
     def read_name(self):
         """Consume one IRI/WORD token naming a class/property/individual/datatype.
 
@@ -507,7 +533,7 @@ class _Cursor:
             if word in ('true', 'false'):
                 self.advance()
                 return Literal(word == 'true')
-        return self.read_name()
+        return self.read_individual()
 
     def try_name(self, tok):
         """The resolved URIRef a name token denotes, or None if ``tok`` is not a usable name here (a
@@ -621,10 +647,10 @@ def _parse_primary(cur):
         return expr
     if tok is not None and tok['kind'] == 'PUNCT' and tok['text'] == '{':
         cur.advance()
-        individuals = [cur.read_name()]
+        individuals = [cur.read_individual()]
         while cur.peek() is not None and cur.peek()['kind'] == 'PUNCT' and cur.peek()['text'] == ',':
             cur.advance()
-            individuals.append(cur.read_name())
+            individuals.append(cur.read_individual())
         cur.expect_punct('}')
         return ('OneOf', individuals)
 
@@ -1293,8 +1319,10 @@ def _parse_fact(cur):
 
 
 def _parse_individual_frame(cur):
-    subject = cur.read_name()
-    cur.triples.append((subject, RDF.type, OWL.NamedIndividual))
+    subject = cur.read_individual()
+    if isinstance(subject, URIRef):
+        # A nodeID names an anonymous individual: it is not declared owl:NamedIndividual.
+        cur.triples.append((subject, RDF.type, OWL.NamedIndividual))
     cur.record_frame('Individual', subject)
 
     def handle(clause):
@@ -1331,7 +1359,7 @@ def _parse_individual_frame(cur):
             cur.record_clause('Individual', clause, items)
         else:
             pred = OWL.sameAs if clause == 'SameAs:' else OWL.differentFrom
-            items = _parse_comma_list(cur, _annotated(lambda c: c.read_name()))
+            items = _parse_comma_list(cur, _annotated(lambda c: c.read_individual()))
             for anns, name in items:
                 cur.triples.append((subject, pred, name))
                 _maybe_reify(cur, subject, pred, name, anns)
@@ -1382,7 +1410,7 @@ def _parse_misc(cur, keyword):
             _nary_disjoint_or_different(cur, nodes, OWL.propertyDisjointWith, OWL.AllDisjointProperties)
         cur.record_misc(keyword, prop_exprs)
     else:
-        names = _parse_comma_list(cur, lambda c: c.read_name())
+        names = _parse_comma_list(cur, lambda c: c.read_individual())
         if keyword == 'SameIndividual:':
             _pairwise_chain(cur, names, OWL.sameAs)
         else:

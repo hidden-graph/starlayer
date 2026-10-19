@@ -277,6 +277,23 @@ def _read_rdf_list(g, node):
 # OWL 2 RDF Mapping's own)
 # ---------------------------------------------------------------------------
 
+# A nodeID (``_:label``) is a BNode in the parser's OWL-semantic output, but this tree uses blank nodes
+# for its own structure, so a nodeID is stored as a reserved IRI carrying the label. That keeps every
+# "name is an IRI" shape valid, survives graph copying and serialization, and lets the rendered label
+# be read back so the text round-trips.
+_NODEID_PREFIX = 'urn:starlayer:manchester:nodeid:'
+
+
+def _enc_term(term):
+    return URIRef(_NODEID_PREFIX + str(term)) if isinstance(term, BNode) else term
+
+
+def _dec_term(term):
+    if isinstance(term, URIRef) and str(term).startswith(_NODEID_PREFIX):
+        return BNode(str(term)[len(_NODEID_PREFIX):])
+    return term
+
+
 def _encode_prop_expr(g, prop_expr):
     if isinstance(prop_expr, URIRef):
         return prop_expr
@@ -304,7 +321,7 @@ def _encode_class_expr(g, expr):
     if tag == 'OneOf':
         node = BNode()
         g.add((node, RDF.type, MANCH.OneOf))
-        g.add((node, MANCH.individuals, _build_rdf_list(g, expr[1])))
+        g.add((node, MANCH.individuals, _build_rdf_list(g, [_enc_term(i) for i in expr[1]])))
         return node
     if tag in ('Some', 'Only', 'DSome', 'DOnly'):
         _, prop_expr, filler = expr
@@ -320,7 +337,7 @@ def _encode_class_expr(g, expr):
         node = BNode()
         g.add((node, RDF.type, MANCH.Value))
         g.add((node, MANCH.onProperty, _encode_prop_expr(g, prop_expr)))
-        g.add((node, MANCH.filler, value))
+        g.add((node, MANCH.filler, _enc_term(value)))
         return node
     if tag == 'SelfR':
         _, prop_expr = expr
@@ -429,8 +446,11 @@ def _encode_value(g, kind, value):
         return _encode_prop_expr(g, value)
     if kind == 'data':
         return _encode_data_range(g, value)
-    if kind in ('name', 'characteristic'):
+    if kind == 'encoded':
+        # Already a node in this graph (the rdf:List of a single-axiom clause): never a nodeID.
         return value
+    if kind in ('name', 'characteristic'):
+        return _enc_term(value)
     raise AssertionError(f'unhandled value kind {kind!r}')
 
 
@@ -442,7 +462,7 @@ def _encode_annotations(g, anns):
         node = BNode()
         g.add((node, RDF.type, MANCH.AnnotationAssertion))
         g.add((node, MANCH.annotationProperty, prop))
-        g.add((node, MANCH.annotationValue, value))
+        g.add((node, MANCH.annotationValue, _enc_term(value)))
         nodes.append(node)
     return _build_rdf_list(g, nodes)
 
@@ -463,7 +483,7 @@ def _encode_fact_item(g, anns, fact):
     g.add((node, RDF.type, MANCH.FactItem))
     g.add((node, MANCH.negative, Literal(negative)))
     g.add((node, MANCH.property, prop))
-    g.add((node, MANCH.value, value))
+    g.add((node, MANCH.value, _enc_term(value)))
     ann_list = _encode_annotations(g, anns)
     if ann_list is not None:
         g.add((node, MANCH.annotations, ann_list))
@@ -479,7 +499,7 @@ def _encode_clause_items(g, clause_class, frame_kind, clause_kind, items):
             node = BNode()
             g.add((node, RDF.type, MANCH.AnnotationAssertion))
             g.add((node, MANCH.annotationProperty, prop))
-            g.add((node, MANCH.annotationValue, value))
+            g.add((node, MANCH.annotationValue, _enc_term(value)))
             nodes.append(node)
         return nodes
     if clause_kind == 'Facts:':
@@ -490,7 +510,7 @@ def _encode_clause_items(g, clause_class, frame_kind, clause_kind, items):
         (anns, values), = items
         inner_kind = 'class' if value_kind == 'class_list' else 'prop'
         encoded = _build_rdf_list(g, [_encode_value(g, inner_kind, v) for v in values])
-        return [_encode_clause_item(g, 'name', anns, encoded)]
+        return [_encode_clause_item(g, 'encoded', anns, encoded)]
     return [_encode_clause_item(g, value_kind, anns, value) for anns, value in items]
 
 
@@ -569,7 +589,7 @@ def manchester_parse_to_tree(text: str, base: str | None = None) -> Graph:
             node = BNode()
             frame_class = _FRAME_CLASS[kind]
             g.add((node, RDF.type, frame_class))
-            g.add((node, MANCH.subject, subject))
+            g.add((node, MANCH.subject, _enc_term(subject)))
             self._current_frame_node = node
             self._current_frame_class = frame_class
             self._current_frame_clause_nodes = []
@@ -667,7 +687,7 @@ def _decode_class_expr(g, node):
     if MANCH.Not in types:
         return ('Not', _decode_class_expr(g, g.value(node, MANCH.operand)))
     if MANCH.OneOf in types:
-        return ('OneOf', _read_rdf_list(g, g.value(node, MANCH.individuals)))
+        return ('OneOf', [_dec_term(i) for i in _read_rdf_list(g, g.value(node, MANCH.individuals))])
     for tag in ('Some', 'Only', 'DSome', 'DOnly'):
         if MANCH[tag] in types:
             prop = _decode_prop_expr(g, g.value(node, MANCH.onProperty))
@@ -675,7 +695,7 @@ def _decode_class_expr(g, node):
             return (tag, prop, decode_filler(g, g.value(node, MANCH.filler)))
     if MANCH.Value in types:
         prop = _decode_prop_expr(g, g.value(node, MANCH.onProperty))
-        value = g.value(node, MANCH.filler)
+        value = _dec_term(g.value(node, MANCH.filler))
         return ('Value', prop, value)
     if MANCH.SelfR in types:
         return ('SelfR', _decode_prop_expr(g, g.value(node, MANCH.onProperty)))
@@ -718,7 +738,7 @@ def _decode_value(g, kind, node):
     if kind == 'data':
         return _decode_data_range(g, node)
     if kind in ('name', 'characteristic'):
-        return node
+        return _dec_term(node)
     raise AssertionError(f'unhandled value kind {kind!r}')
 
 
@@ -727,7 +747,7 @@ def _decode_annotations(g, ann_list_node):
         return None
     result = []
     for node in _read_rdf_list(g, ann_list_node):
-        result.append((g.value(node, MANCH.annotationProperty), g.value(node, MANCH.annotationValue)))
+        result.append((g.value(node, MANCH.annotationProperty), _dec_term(g.value(node, MANCH.annotationValue))))
     return result
 
 
@@ -741,7 +761,7 @@ def _decode_clause(g, node):
 
     if clause_kind == 'Annotations:':
         items = [AnnotationAssertion(g.value(n, MANCH.annotationProperty),
-                                      g.value(n, MANCH.annotationValue)) for n in item_nodes]
+                                      _dec_term(g.value(n, MANCH.annotationValue))) for n in item_nodes]
         return Clause(clause_kind, items)
 
     if clause_kind == 'Facts:':
@@ -749,7 +769,7 @@ def _decode_clause(g, node):
         for n in item_nodes:
             negative = bool(g.value(n, MANCH.negative))
             prop = g.value(n, MANCH.property)
-            value = g.value(n, MANCH.value)
+            value = _dec_term(g.value(n, MANCH.value))
             anns = _decode_annotations(g, g.value(n, MANCH.annotations))
             items.append(FactItem(negative, prop, value, anns))
         return Clause(clause_kind, items)
@@ -775,7 +795,7 @@ def _decode_frame(g, node):
     types = _node_types(g, node)
     frame_class = next(t for t in types if t in _FRAME_CLASS_TO_KIND)
     kind = _FRAME_CLASS_TO_KIND[frame_class]
-    subject = g.value(node, MANCH.subject)
+    subject = _dec_term(g.value(node, MANCH.subject))
     clauses = [_decode_clause(g, n) for n in _read_rdf_list(g, g.value(node, MANCH.clauses))]
     return Frame(kind, subject, clauses)
 
@@ -815,6 +835,8 @@ def _tree_to_document(graph: Graph, root) -> Document:
 # ---------------------------------------------------------------------------
 
 def _render_name(node) -> str:
+    if isinstance(node, BNode):
+        return f'_:{node}'
     return f'<{node}>'
 
 
