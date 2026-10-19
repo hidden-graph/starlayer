@@ -10,6 +10,7 @@ Runs the individual build scripts in dependency order:
 5. ``build_query_catalogue.py`` - validates the hand-edited ``codekg/curated/query-library.ttl`` (the named
    queries, as sqe trees) and writes ``docs/generated/query-library.generated.md`` from it
 6. ``check_docs.py``          - checks links, anchors and the guide index (changes nothing)
+7. ``check_notebook_links.py`` - checks the hand-made notebook-to-code links against the notebooks (changes nothing)
 
 Build-time only: nothing in the library runs or imports this. Each script can
 still be run on its own.
@@ -66,6 +67,7 @@ _STEPS: dict[str, Step] = {
     ),
     "queries": Step("build_query_catalogue.py", own_check=True),
     "docs": Step("check_docs.py", own_check=True),
+    "notebooks": Step("check_notebook_links.py", own_check=True),
 }
 
 

@@ -102,7 +102,29 @@ def get_codekg_dataset(include_curated: bool = False) -> StarLayerDataset:
         curated = dataset.get_context(CURATED_GRAPH_IRI)
         for path in sorted(CURATED_DIR.glob("*.ttl")):
             curated.parse(str(path), format="turtle")
+        _derive_demonstrated_by(dataset, curated)
     return dataset
+
+
+def _derive_demonstrated_by(dataset: StarLayerDataset, curated: StarLayerGraph) -> None:
+    """Add ``entity slkg:demonstratedBy example`` for each ``slkg:demonstratesIdentifier`` that names an extracted entity.
+
+    The curated files name code by dotted identifier (stable across refactors); this resolves them to the entities'
+    IRIs once the module graphs are loaded, the same way ``slkg:implementedByIdentifier`` is resolved at query time.
+    """
+    from rdflib.namespace import DCTERMS
+
+    wanted: dict[str, list] = {}
+    for example, identifier in curated.subject_objects(CODEKG_NS.demonstratesIdentifier):
+        wanted.setdefault(str(identifier), []).append(example)
+    if not wanted:
+        return
+    for ctx in dataset.contexts():
+        if ctx.identifier == CURATED_GRAPH_IRI:
+            continue
+        for entity, identifier in ctx.subject_objects(DCTERMS.identifier):
+            for example in wanted.get(str(identifier), ()):
+                curated.add((entity, CODEKG_NS.demonstratedBy, example))
 
 
 def get_module_graph(module_path: str) -> StarLayerGraph | None:

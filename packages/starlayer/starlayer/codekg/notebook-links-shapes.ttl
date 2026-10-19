@@ -1,0 +1,29 @@
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix slkg: <https://github.com/hidden-graph/starlayer/ns/codekg#> .
+
+# Shapes for the guide-notebook links (curated/notebook-links.ttl).
+
+slkg:NotebookExampleShape a sh:NodeShape ;
+    sh:targetClass slkg:NotebookExample ;
+    sh:property [
+        sh:path slkg:notebookPath ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ;
+        sh:pattern "^docs/guides/[A-Za-z0-9_.-]+\\.ipynb$" ;
+        sh:message "slkg:notebookPath must be a repository-relative path of a notebook in docs/guides"
+    ], [
+        sh:path slkg:cellId ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ;
+        sh:message "a slkg:NotebookExample needs exactly one slkg:cellId"
+    ], [
+        sh:path slkg:cellHash ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^[0-9a-f]{16}$" ;
+        sh:message "slkg:cellHash must be 16 lowercase hex digits"
+    ], [
+        sh:path slkg:reviewedOn ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:date ;
+        sh:message "slkg:reviewedOn must be a single xsd:date"
+    ], [
+        sh:path slkg:demonstratesIdentifier ; sh:minCount 1 ; sh:datatype xsd:string ;
+        sh:message "a slkg:NotebookExample demonstrates at least one dotted identifier"
+    ], [
+        sh:path rdfs:comment ; sh:minCount 1 ; sh:maxCount 1 ;
+        sh:message "a slkg:NotebookExample needs one sentence saying why the cell demonstrates the symbols"
+    ] .

@@ -30,7 +30,7 @@ def test_the_curated_graph_holds_every_curated_file(dataset):
     curated = dataset.get_context(CURATED_GRAPH_IRI)
     assert next(curated.subjects(RDF.type, CODEKG_NS.Capability), None) is not None
     assert next(curated.subjects(RDF.type, CODEKG_NS.NamedQuery), None) is not None
-    assert sorted(p.name for p in CURATED_DIR.glob("*.ttl")) == ["functionality.ttl", "query-library.ttl"]
+    assert sorted(p.name for p in CURATED_DIR.glob("*.ttl")) == ["functionality.ttl", "notebook-links.ttl", "query-library.ttl"]
 
 
 def test_every_implementing_symbol_of_a_capability_exists_in_the_code_graph(dataset):
@@ -84,3 +84,14 @@ def test_every_app_role_is_used():
 
     used = {str(o) for o in Graph().parse(FUNCTIONALITY_TTL, format="turtle").objects(None, CODEKG_NS.appRole)}
     assert used == {"storage", "interchange", "query", "validate", "infer", "ui-generate", "reference"}
+
+
+def test_every_notebook_link_names_symbols_the_code_graph_has_and_demonstratedby_is_derived(dataset):
+    curated = dataset.get_context(CURATED_GRAPH_IRI)
+    cited = {str(o) for o in curated.objects(None, CODEKG_NS.demonstratesIdentifier)}
+    known = {str(o) for ctx in dataset.contexts() if ctx.identifier != CURATED_GRAPH_IRI for o in ctx.objects(None, DCTERMS.identifier)}
+    assert len(cited) >= 20
+    assert not sorted(cited - known), f"notebook links cite symbols the code KG does not have: {sorted(cited - known)}"
+    derived = list(curated.subject_objects(CODEKG_NS.demonstratedBy))
+    assert len(derived) >= len(cited)
+    assert all((example, RDF.type, CODEKG_NS.NotebookExample) in curated for _entity, example in derived)

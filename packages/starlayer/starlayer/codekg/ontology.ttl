@@ -95,7 +95,7 @@ slkg:ExternalModule a owl:Class ;
 slkg:NotebookExample a owl:Class ;
     rdfs:subClassOf prov:Entity ;
     rdfs:label "Notebook example" ;
-    rdfs:comment "A notebook cell that demonstrates some entity's usage. Reserved for a future hand-curated graph - zero instances exist yet; nothing in the auto-generated extractor populates this class." .
+    rdfs:comment "A guide notebook cell that demonstrates some entities' usage, reviewed by a person. Hand-curated in curated/notebook-links.ttl (never by the extractor): the cell is named by slkg:notebookPath and slkg:cellId, the code by slkg:demonstratesIdentifier, and slkg:cellHash records the cell as it was when slkg:reviewedOn." .
 
 slkg:CapabilityArea a owl:Class ;
     rdfs:subClassOf prov:Entity ;
@@ -160,7 +160,7 @@ slkg:demonstratedBy a owl:ObjectProperty ;
     rdfs:domain prov:Entity ;
     rdfs:range slkg:NotebookExample ;
     rdfs:label "demonstrated by" ;
-    rdfs:comment "Relates any entity to a NotebookExample that demonstrates its usage. Reserved for future curated-graph use - not populated by the auto-generated extractor." .
+    rdfs:comment "Relates any entity to a NotebookExample that demonstrates its usage. Not asserted in any file: it is derived when the curated graph is loaded (get_codekg_dataset(include_curated=True)), by matching each slkg:demonstratesIdentifier to an entity's dcterms:identifier." .
 
 slkg:calls a owl:ObjectProperty ;
     rdfs:domain slkg:Function ;
@@ -309,11 +309,29 @@ slkg:notebookPath a owl:DatatypeProperty ;
     rdfs:label "notebook path" ;
     rdfs:comment "Repository-relative path of the notebook a NotebookExample's cell belongs to." .
 
-slkg:cellIndex a owl:DatatypeProperty ;
+slkg:cellId a owl:DatatypeProperty ;
     rdfs:domain slkg:NotebookExample ;
-    rdfs:range xsd:integer ;
-    rdfs:label "cell index" ;
-    rdfs:comment "0-based index of a NotebookExample's cell within its notebook." .
+    rdfs:range xsd:string ;
+    rdfs:label "cell id" ;
+    rdfs:comment "The nbformat cell id of a NotebookExample's cell. Unique within a notebook, and it stays with the cell when the cell moves, unlike its position, so it is the reference. Ids are not unique across notebooks: always pair with slkg:notebookPath." .
+
+slkg:cellHash a owl:DatatypeProperty ;
+    rdfs:domain slkg:NotebookExample ;
+    rdfs:range xsd:string ;
+    rdfs:label "cell hash" ;
+    rdfs:comment "The first 16 hex digits of the SHA-256 of the cell's source (trailing whitespace and surrounding blank lines removed) when the link was last reviewed. A different hash now means the cell was edited and the link needs review. See starlayer.codekg.notebook_links." .
+
+slkg:reviewedOn a owl:DatatypeProperty ;
+    rdfs:domain slkg:NotebookExample ;
+    rdfs:range xsd:date ;
+    rdfs:label "reviewed on" ;
+    rdfs:comment "The date a person last confirmed that the cell still demonstrates the symbols, and recorded slkg:cellHash." .
+
+slkg:demonstratesIdentifier a owl:DatatypeProperty ;
+    rdfs:domain slkg:NotebookExample ;
+    rdfs:range xsd:string ;
+    rdfs:label "demonstrates identifier" ;
+    rdfs:comment "The dotted path (a dcterms:identifier in codekg.trig) of a symbol the cell demonstrates, by the same convention as slkg:implementedByIdentifier. At least one." .
 
 #################################################################
 # Hand-curated-graph properties (CapabilityArea / Capability)
