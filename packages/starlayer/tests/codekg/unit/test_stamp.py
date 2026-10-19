@@ -109,3 +109,11 @@ def test_the_changelog_gets_one_automatic_entry_per_day_and_keeps_the_hand_writt
     assert text.index("2026-10-19") < text.index("2026-10-14") and "Extractor now does X." in text and "Intro." in text
     stamp.append_changelog_entry(changelog, tmp_path, 12, 2345, datetime(2026, 10, 20, tzinfo=UTC))
     assert text.count("(automatic entry)") == 1 and changelog.read_text(encoding="utf-8").count("(automatic entry)") == 2
+
+
+def test_the_committed_graph_carries_a_stamp():
+    """After ``python scripts/build.py --only codekg``: the stamp is in the checked-in graph, not only in fresh builds."""
+    from starlayer.codekg import CODEKG_TRIG_PATH
+
+    text = CODEKG_TRIG_PATH.read_text(encoding="utf-8")
+    assert "KGBuild" in text and "builtAt" in text

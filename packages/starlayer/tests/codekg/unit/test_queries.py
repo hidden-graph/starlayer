@@ -235,3 +235,11 @@ def test_a_table_keeps_identifiers_whole_and_cuts_long_prose():
 def test_members_of_class_lists_named_tuple_and_dataclass_fields(kg):
     fields = [r["member"] for r in queries.run_query("members-of-class", symbol="starlayer.starontology.manchester.Clause").as_dicts()]
     assert fields == ["clause_kind", "items", "annotations"] or set(fields) == {"clause_kind", "items", "annotations"}
+
+
+@pytest.mark.codekg_queries
+def test_results_say_how_old_the_kg_is(kg):
+    sentence = queries.kg_status()
+    assert sentence.startswith("KG built 20") and "commit" in sentence
+    assert sentence in str(queries.run_query("find-symbol", text="tt_hash", limit=2))
+    assert queries.main(["status"]) == 0
