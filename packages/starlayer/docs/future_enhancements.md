@@ -248,6 +248,19 @@ built 2026-09-30.
 
 ---
 
+## Review how well the guides demonstrate the capabilities (2026-10-19)
+
+The curated capability list (`codekg/curated/functionality.ttl`) and the guide notebooks should describe the same thing, and the notebook links (`codekg/curated/notebook-links.ttl`, 31 so far) are the bridge. A first pass found gaps in both directions. Revisit them, ideally with the `review-notebook-links` skill, once the guides settle.
+
+- **Capability symbols no guide cell demonstrates.** `derive_shape`, `apply_entailment`, `select_widget` (only `select_widgets` is shown), `graph_diff`, `declared_conformance`, the RDF and RDFS entailment helpers, `StarQuery`, the Rust OWL-DL engine module, and `CanonicalizationComplexityError`. For each, decide whether the guides should cover it (a cell or a section) or whether it is internal and should not be named by a capability.
+- **Things the guides demonstrate that the capability list does not name.** SPARQL 1.2 *Update* (guide 03, section 2; the list says only "queries"); `infer()` returning only the delta or mutating in place (02b, section 5); caching query-time entailment with `infer=` (03a); delegating reasoning to the store with `entailment="native"` on Fuseki (06b, section 1.2); class unsatisfiability detection in OWL-DL (02c, section 2). Candidates for new capabilities or for widening an existing one.
+- **Guide ideas that are patterns, not capabilities.** Hash a tracked subgraph and re-verify it (04f, sections 5 and 12); use the OWL-DL reasoner as a constraint solver (appendix B2). Worth a line in the overview as "what you can build", not as a capability.
+- **Weak links.** The link for the native backend (06b, cell `252791c5`) rests on a cell that sets up an endpoint demo and mentions the native layer only in a comment. Find or write a better cell.
+- **Not covered by any guide or capability.** The reasoning timeout (`ReasoningTimeoutError`) has tests but no guide cell and no capability.
+- **Keep it current.** The check (`python scripts/check_notebook_links.py`) catches edited, moved and broken cells but not new capabilities or new guide sections. A periodic review (each release) should compare the guide headings with the capability list again.
+
+---
+
 ## SRL follow-ups (spec draft 2026-10-14)
 
 *(Added 2026-10-17, from diffing `WD-sparql12-rl-20260919` against `WD-sparql12-rl-20261014`; what was fixed is in `starlayer/sparql/CLAUDE.md`.)* The 03b guide has a matching "Not yet covered" section to fill in as the open items land.
