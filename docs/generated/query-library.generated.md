@@ -26,7 +26,7 @@ Named queries over the code knowledge graph. Run one with `starlayer.codekg.quer
 ## Visibility and API surface
 
 - **`leaky-private-functions`** (`prefix` (optional)): Private functions called from another module. Functions whose name starts with an underscore but that a different module (file) calls anyway, which usually means the abstraction leaks or the function should be public.
-- **`members-of-class`** (`symbol`): Public members of a class. The methods and attributes of a class that do not start with an underscore.
+- **`members-of-class`** (`symbol`): Public members of a class. The methods and attributes (dataclass fields, named-tuple fields) of a class that do not start with an underscore.
 - **`public-api-of-module`** (`symbol`): Public classes and functions of a module. What a module defines at its top level that does not start with an underscore.
 - **`public-without-docstring`** (`prefix` (optional)): Public symbols with no docstring. Public classes, functions and methods that have no summary, optionally limited to a dotted prefix.
 

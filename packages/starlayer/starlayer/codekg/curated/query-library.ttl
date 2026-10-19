@@ -168,7 +168,7 @@ ql:longest-functions a slkg:NamedQuery ;
 
 ql:members-of-class a slkg:NamedQuery ;
     rdfs:label "Public members of a class" ;
-    rdfs:comment "The methods and attributes of a class that do not start with an underscore." ;
+    rdfs:comment "The methods and attributes (dataclass fields, named-tuple fields) of a class that do not start with an underscore." ;
     slkg:aboutTopic ql:topic-api-surface ;
     slkg:answersCompetencyQuestion ql:cq-what-s-the-public-api-surface-of ;
     slkg:queryParameter [ a slkg:QueryParameter ;
@@ -315,11 +315,11 @@ ql:call-chain-from-tree a ns1:Query,
             ns1:namespace slkg: ;
             ns1:prefixLabel "slkg"^^ns2:PlainString ],
         [ a ns1:PrefixBinding ;
-            ns1:namespace rdfs: ;
-            ns1:prefixLabel "rdfs"^^ns2:PlainString ],
-        [ a ns1:PrefixBinding ;
             ns1:namespace dcterms: ;
-            ns1:prefixLabel "dcterms"^^ns2:PlainString ] ;
+            ns1:prefixLabel "dcterms"^^ns2:PlainString ],
+        [ a ns1:PrefixBinding ;
+            ns1:namespace rdfs: ;
+            ns1:prefixLabel "rdfs"^^ns2:PlainString ] ;
     ns1:where ( [ a ns1:TriplePattern ;
                 ns1:object "b"^^ns2:Variable ;
                 ns1:predicate [ a ns2:MulPath ;
@@ -340,11 +340,11 @@ ql:call-cycles-tree a ns1:Query,
                 ns1:expr "second"^^ns2:Variable ] ) ;
     ns1:projection ( "first"^^ns2:Variable "second"^^ns2:Variable ) ;
     ns1:prologuePrefix [ a ns1:PrefixBinding ;
-            ns1:namespace dcterms: ;
-            ns1:prefixLabel "dcterms"^^ns2:PlainString ],
-        [ a ns1:PrefixBinding ;
             ns1:namespace rdfs: ;
             ns1:prefixLabel "rdfs"^^ns2:PlainString ],
+        [ a ns1:PrefixBinding ;
+            ns1:namespace dcterms: ;
+            ns1:prefixLabel "dcterms"^^ns2:PlainString ],
         [ a ns1:PrefixBinding ;
             ns1:namespace slkg: ;
             ns1:prefixLabel "slkg"^^ns2:PlainString ] ;
@@ -374,14 +374,14 @@ ql:callees-of-tree a ns1:Query,
                 ns1:expr "callee"^^ns2:Variable ] ) ;
     ns1:projection ( "callee"^^ns2:Variable "file"^^ns2:Variable "line"^^ns2:Variable ) ;
     ns1:prologuePrefix [ a ns1:PrefixBinding ;
-            ns1:namespace rdfs: ;
-            ns1:prefixLabel "rdfs"^^ns2:PlainString ],
-        [ a ns1:PrefixBinding ;
             ns1:namespace slkg: ;
             ns1:prefixLabel "slkg"^^ns2:PlainString ],
         [ a ns1:PrefixBinding ;
             ns1:namespace dcterms: ;
-            ns1:prefixLabel "dcterms"^^ns2:PlainString ] ;
+            ns1:prefixLabel "dcterms"^^ns2:PlainString ],
+        [ a ns1:PrefixBinding ;
+            ns1:namespace rdfs: ;
+            ns1:prefixLabel "rdfs"^^ns2:PlainString ] ;
     ns1:where ( [ a ns1:TriplePattern ;
                 ns1:object "t"^^ns2:Variable ;
                 ns1:predicate slkg:calls ;
@@ -410,11 +410,11 @@ ql:callers-of-tree a ns1:Query,
             ns1:namespace rdfs: ;
             ns1:prefixLabel "rdfs"^^ns2:PlainString ],
         [ a ns1:PrefixBinding ;
-            ns1:namespace slkg: ;
-            ns1:prefixLabel "slkg"^^ns2:PlainString ],
-        [ a ns1:PrefixBinding ;
             ns1:namespace dcterms: ;
-            ns1:prefixLabel "dcterms"^^ns2:PlainString ] ;
+            ns1:prefixLabel "dcterms"^^ns2:PlainString ],
+        [ a ns1:PrefixBinding ;
+            ns1:namespace slkg: ;
+            ns1:prefixLabel "slkg"^^ns2:PlainString ] ;
     ns1:where ( [ a ns1:TriplePattern ;
                 ns1:object "target"^^ns2:Variable ;
                 ns1:predicate slkg:calls ;
@@ -445,11 +445,11 @@ ql:capabilities-tree a ns1:Query,
             ns1:namespace dcterms: ;
             ns1:prefixLabel "dcterms"^^ns2:PlainString ],
         [ a ns1:PrefixBinding ;
-            ns1:namespace slkg: ;
-            ns1:prefixLabel "slkg"^^ns2:PlainString ],
-        [ a ns1:PrefixBinding ;
             ns1:namespace rdfs: ;
-            ns1:prefixLabel "rdfs"^^ns2:PlainString ] ;
+            ns1:prefixLabel "rdfs"^^ns2:PlainString ],
+        [ a ns1:PrefixBinding ;
+            ns1:namespace slkg: ;
+            ns1:prefixLabel "slkg"^^ns2:PlainString ] ;
     ns1:where ( [ a ns1:Values ;
                 ns1:rows ( ( ns1:undef ) ) ;
                 ns1:vars ( "text"^^ns2:Variable ) ] [ a ns1:TriplePattern ;
@@ -501,11 +501,11 @@ ql:capability-of-symbol-tree a ns1:Query,
                 ns1:expr "capability"^^ns2:Variable ] ) ;
     ns1:projection ( "area"^^ns2:Variable "capability"^^ns2:Variable "status"^^ns2:Variable ) ;
     ns1:prologuePrefix [ a ns1:PrefixBinding ;
-            ns1:namespace rdfs: ;
-            ns1:prefixLabel "rdfs"^^ns2:PlainString ],
-        [ a ns1:PrefixBinding ;
             ns1:namespace slkg: ;
             ns1:prefixLabel "slkg"^^ns2:PlainString ],
+        [ a ns1:PrefixBinding ;
+            ns1:namespace rdfs: ;
+            ns1:prefixLabel "rdfs"^^ns2:PlainString ],
         [ a ns1:PrefixBinding ;
             ns1:namespace dcterms: ;
             ns1:prefixLabel "dcterms"^^ns2:PlainString ] ;
@@ -668,14 +668,14 @@ ql:leaky-private-functions-tree a ns1:Query,
                 ns1:expr "caller"^^ns2:Variable ] ) ;
     ns1:projection ( "private"^^ns2:Variable "callerModule"^^ns2:Variable "caller"^^ns2:Variable ) ;
     ns1:prologuePrefix [ a ns1:PrefixBinding ;
+            ns1:namespace rdfs: ;
+            ns1:prefixLabel "rdfs"^^ns2:PlainString ],
+        [ a ns1:PrefixBinding ;
             ns1:namespace dcterms: ;
             ns1:prefixLabel "dcterms"^^ns2:PlainString ],
         [ a ns1:PrefixBinding ;
             ns1:namespace slkg: ;
-            ns1:prefixLabel "slkg"^^ns2:PlainString ],
-        [ a ns1:PrefixBinding ;
-            ns1:namespace rdfs: ;
-            ns1:prefixLabel "rdfs"^^ns2:PlainString ] ;
+            ns1:prefixLabel "slkg"^^ns2:PlainString ] ;
     ns1:where ( [ a ns1:Values ;
                 ns1:rows ( ( ns1:undef ) ) ;
                 ns1:vars ( "prefix"^^ns2:Variable ) ] [ a ns1:TriplePattern ;
@@ -727,14 +727,14 @@ ql:longest-functions-tree a ns1:Query,
                 ns1:expr "symbol"^^ns2:Variable ] ) ;
     ns1:projection ( "symbol"^^ns2:Variable "lines"^^ns2:Variable "file"^^ns2:Variable "line"^^ns2:Variable ) ;
     ns1:prologuePrefix [ a ns1:PrefixBinding ;
-            ns1:namespace dcterms: ;
-            ns1:prefixLabel "dcterms"^^ns2:PlainString ],
+            ns1:namespace slkg: ;
+            ns1:prefixLabel "slkg"^^ns2:PlainString ],
         [ a ns1:PrefixBinding ;
             ns1:namespace rdfs: ;
             ns1:prefixLabel "rdfs"^^ns2:PlainString ],
         [ a ns1:PrefixBinding ;
-            ns1:namespace slkg: ;
-            ns1:prefixLabel "slkg"^^ns2:PlainString ] ;
+            ns1:namespace dcterms: ;
+            ns1:prefixLabel "dcterms"^^ns2:PlainString ] ;
     ns1:where ( [ a ns1:Values ;
                 ns1:rows ( ( ns1:undef ) ) ;
                 ns1:vars ( "prefix"^^ns2:Variable ) ] [ a ns1:TriplePattern ;
@@ -780,23 +780,24 @@ ql:members-of-class-tree a ns1:Query,
                 ns1:expr "member"^^ns2:Variable ] ) ;
     ns1:projection ( "member"^^ns2:Variable "kind"^^ns2:Variable "line"^^ns2:Variable ) ;
     ns1:prologuePrefix [ a ns1:PrefixBinding ;
-            ns1:namespace dcterms: ;
-            ns1:prefixLabel "dcterms"^^ns2:PlainString ],
-        [ a ns1:PrefixBinding ;
             ns1:namespace slkg: ;
             ns1:prefixLabel "slkg"^^ns2:PlainString ],
+        [ a ns1:PrefixBinding ;
+            ns1:namespace dcterms: ;
+            ns1:prefixLabel "dcterms"^^ns2:PlainString ],
         [ a ns1:PrefixBinding ;
             ns1:namespace rdfs: ;
             ns1:prefixLabel "rdfs"^^ns2:PlainString ] ;
     ns1:where ( [ a ns1:TriplePattern ;
                 ns1:object "m"^^ns2:Variable ;
-                ns1:predicate slkg:declares ;
+                ns1:predicate [ a ns2:AlternativePath ;
+                        ns2:args ( slkg:declares slkg:hasAttribute ) ] ;
                 ns1:subject "c"^^ns2:Variable ] [ a ns1:TriplePattern ;
-                ns1:object "member"^^ns2:Variable ;
-                ns1:predicate dcterms:identifier ;
-                ns1:subject "m"^^ns2:Variable ] [ a ns1:TriplePattern ;
                 ns1:object "type"^^ns2:Variable ;
                 ns1:predicate rdf:type ;
+                ns1:subject "m"^^ns2:Variable ] [ a ns1:TriplePattern ;
+                ns1:object "member"^^ns2:Variable ;
+                ns1:predicate rdfs:label ;
                 ns1:subject "m"^^ns2:Variable ] [ a ns1:TriplePattern ;
                 ns1:object "symbol"^^ns2:Variable ;
                 ns1:predicate dcterms:identifier ;
@@ -812,6 +813,10 @@ ql:members-of-class-tree a ns1:Query,
                                 ns2:pattern "^.*#" ;
                                 ns2:replacement "" ] ] ;
                 ns1:var "kind"^^ns2:Variable ] [ a ns1:Filter ;
+                ns1:expr [ a ns2:UnaryNot ;
+                        ns2:expr [ a ns2:Builtin_STRSTARTS ;
+                                ns2:arg1 "member"^^ns2:Variable ;
+                                ns2:arg2 "_" ] ] ] [ a ns1:Filter ;
                 ns1:expr [ a ns1:Exists ;
                         ns1:negated true ;
                         ns1:where ( [ a ns1:TriplePattern ;
@@ -829,14 +834,14 @@ ql:module-imports-tree a ns1:Query,
                 ns1:expr "imported"^^ns2:Variable ] ) ;
     ns1:projection ( "imported"^^ns2:Variable ) ;
     ns1:prologuePrefix [ a ns1:PrefixBinding ;
-            ns1:namespace slkg: ;
-            ns1:prefixLabel "slkg"^^ns2:PlainString ],
-        [ a ns1:PrefixBinding ;
             ns1:namespace rdfs: ;
             ns1:prefixLabel "rdfs"^^ns2:PlainString ],
         [ a ns1:PrefixBinding ;
             ns1:namespace dcterms: ;
-            ns1:prefixLabel "dcterms"^^ns2:PlainString ] ;
+            ns1:prefixLabel "dcterms"^^ns2:PlainString ],
+        [ a ns1:PrefixBinding ;
+            ns1:namespace slkg: ;
+            ns1:prefixLabel "slkg"^^ns2:PlainString ] ;
     ns1:where ( [ a ns1:TriplePattern ;
                 ns1:object "symbol"^^ns2:Variable ;
                 ns1:predicate dcterms:identifier ;
@@ -861,11 +866,11 @@ ql:overrides-tree a ns1:Query,
             ns1:namespace slkg: ;
             ns1:prefixLabel "slkg"^^ns2:PlainString ],
         [ a ns1:PrefixBinding ;
-            ns1:namespace dcterms: ;
-            ns1:prefixLabel "dcterms"^^ns2:PlainString ],
-        [ a ns1:PrefixBinding ;
             ns1:namespace rdfs: ;
-            ns1:prefixLabel "rdfs"^^ns2:PlainString ] ;
+            ns1:prefixLabel "rdfs"^^ns2:PlainString ],
+        [ a ns1:PrefixBinding ;
+            ns1:namespace dcterms: ;
+            ns1:prefixLabel "dcterms"^^ns2:PlainString ] ;
     ns1:where ( [ a ns1:TriplePattern ;
                 ns1:object "symbol"^^ns2:Variable ;
                 ns1:predicate dcterms:identifier ;
@@ -894,14 +899,14 @@ ql:parameters-of-tree a ns1:Query,
                 ns1:expr "position"^^ns2:Variable ] ) ;
     ns1:projection ( "position"^^ns2:Variable "name"^^ns2:Variable "kind"^^ns2:Variable "annotation"^^ns2:Variable "default"^^ns2:Variable ) ;
     ns1:prologuePrefix [ a ns1:PrefixBinding ;
+            ns1:namespace slkg: ;
+            ns1:prefixLabel "slkg"^^ns2:PlainString ],
+        [ a ns1:PrefixBinding ;
             ns1:namespace rdfs: ;
             ns1:prefixLabel "rdfs"^^ns2:PlainString ],
         [ a ns1:PrefixBinding ;
             ns1:namespace dcterms: ;
-            ns1:prefixLabel "dcterms"^^ns2:PlainString ],
-        [ a ns1:PrefixBinding ;
-            ns1:namespace slkg: ;
-            ns1:prefixLabel "slkg"^^ns2:PlainString ] ;
+            ns1:prefixLabel "dcterms"^^ns2:PlainString ] ;
     ns1:where ( [ a ns1:TriplePattern ;
                 ns1:object "p"^^ns2:Variable ;
                 ns1:predicate slkg:hasParameter ;
@@ -935,11 +940,11 @@ ql:public-api-of-module-tree a ns1:Query,
                 ns1:expr "line"^^ns2:Variable ] ) ;
     ns1:projection ( "name"^^ns2:Variable "kind"^^ns2:Variable "line"^^ns2:Variable "summary"^^ns2:Variable ) ;
     ns1:prologuePrefix [ a ns1:PrefixBinding ;
-            ns1:namespace rdfs: ;
-            ns1:prefixLabel "rdfs"^^ns2:PlainString ],
-        [ a ns1:PrefixBinding ;
             ns1:namespace dcterms: ;
             ns1:prefixLabel "dcterms"^^ns2:PlainString ],
+        [ a ns1:PrefixBinding ;
+            ns1:namespace rdfs: ;
+            ns1:prefixLabel "rdfs"^^ns2:PlainString ],
         [ a ns1:PrefixBinding ;
             ns1:namespace slkg: ;
             ns1:prefixLabel "slkg"^^ns2:PlainString ] ;
@@ -988,11 +993,11 @@ ql:public-without-docstring-tree a ns1:Query,
                 ns1:expr "symbol"^^ns2:Variable ] ) ;
     ns1:projection ( "symbol"^^ns2:Variable "kind"^^ns2:Variable "file"^^ns2:Variable "line"^^ns2:Variable ) ;
     ns1:prologuePrefix [ a ns1:PrefixBinding ;
-            ns1:namespace dcterms: ;
-            ns1:prefixLabel "dcterms"^^ns2:PlainString ],
-        [ a ns1:PrefixBinding ;
             ns1:namespace rdfs: ;
             ns1:prefixLabel "rdfs"^^ns2:PlainString ],
+        [ a ns1:PrefixBinding ;
+            ns1:namespace dcterms: ;
+            ns1:prefixLabel "dcterms"^^ns2:PlainString ],
         [ a ns1:PrefixBinding ;
             ns1:namespace slkg: ;
             ns1:prefixLabel "slkg"^^ns2:PlainString ] ;
@@ -1060,14 +1065,14 @@ ql:subpackage-coupling-tree a ns1:Query,
                         ns2:vars "*"^^ns2:PlainString ] ;
                 ns1:var "calls"^^ns2:Variable ] ) ;
     ns1:prologuePrefix [ a ns1:PrefixBinding ;
-            ns1:namespace rdfs: ;
-            ns1:prefixLabel "rdfs"^^ns2:PlainString ],
-        [ a ns1:PrefixBinding ;
             ns1:namespace dcterms: ;
             ns1:prefixLabel "dcterms"^^ns2:PlainString ],
         [ a ns1:PrefixBinding ;
             ns1:namespace slkg: ;
-            ns1:prefixLabel "slkg"^^ns2:PlainString ] ;
+            ns1:prefixLabel "slkg"^^ns2:PlainString ],
+        [ a ns1:PrefixBinding ;
+            ns1:namespace rdfs: ;
+            ns1:prefixLabel "rdfs"^^ns2:PlainString ] ;
     ns1:where ( [ a ns1:TriplePattern ;
                 ns1:object "b"^^ns2:Variable ;
                 ns1:predicate slkg:calls ;
@@ -1157,11 +1162,11 @@ ql:tests-of-tree a ns1:Query,
                 ns1:expr "test"^^ns2:Variable ] ) ;
     ns1:projection ( "test"^^ns2:Variable "file"^^ns2:Variable "line"^^ns2:Variable ) ;
     ns1:prologuePrefix [ a ns1:PrefixBinding ;
-            ns1:namespace slkg: ;
-            ns1:prefixLabel "slkg"^^ns2:PlainString ],
-        [ a ns1:PrefixBinding ;
             ns1:namespace dcterms: ;
             ns1:prefixLabel "dcterms"^^ns2:PlainString ],
+        [ a ns1:PrefixBinding ;
+            ns1:namespace slkg: ;
+            ns1:prefixLabel "slkg"^^ns2:PlainString ],
         [ a ns1:PrefixBinding ;
             ns1:namespace rdfs: ;
             ns1:prefixLabel "rdfs"^^ns2:PlainString ] ;
@@ -1200,14 +1205,14 @@ ql:unreferenced-functions-tree a ns1:Query,
                 ns1:expr "symbol"^^ns2:Variable ] ) ;
     ns1:projection ( "symbol"^^ns2:Variable "file"^^ns2:Variable "line"^^ns2:Variable ) ;
     ns1:prologuePrefix [ a ns1:PrefixBinding ;
-            ns1:namespace slkg: ;
-            ns1:prefixLabel "slkg"^^ns2:PlainString ],
+            ns1:namespace dcterms: ;
+            ns1:prefixLabel "dcterms"^^ns2:PlainString ],
         [ a ns1:PrefixBinding ;
             ns1:namespace rdfs: ;
             ns1:prefixLabel "rdfs"^^ns2:PlainString ],
         [ a ns1:PrefixBinding ;
-            ns1:namespace dcterms: ;
-            ns1:prefixLabel "dcterms"^^ns2:PlainString ] ;
+            ns1:namespace slkg: ;
+            ns1:prefixLabel "slkg"^^ns2:PlainString ] ;
     ns1:where ( [ a ns1:Values ;
                 ns1:rows ( ( ns1:undef ) ) ;
                 ns1:vars ( "prefix"^^ns2:Variable ) ] [ a ns1:TriplePattern ;
@@ -1257,14 +1262,14 @@ ql:untested-functions-tree a ns1:Query,
                 ns1:expr "symbol"^^ns2:Variable ] ) ;
     ns1:projection ( "symbol"^^ns2:Variable "file"^^ns2:Variable "line"^^ns2:Variable ) ;
     ns1:prologuePrefix [ a ns1:PrefixBinding ;
-            ns1:namespace rdfs: ;
-            ns1:prefixLabel "rdfs"^^ns2:PlainString ],
-        [ a ns1:PrefixBinding ;
             ns1:namespace slkg: ;
             ns1:prefixLabel "slkg"^^ns2:PlainString ],
         [ a ns1:PrefixBinding ;
             ns1:namespace dcterms: ;
-            ns1:prefixLabel "dcterms"^^ns2:PlainString ] ;
+            ns1:prefixLabel "dcterms"^^ns2:PlainString ],
+        [ a ns1:PrefixBinding ;
+            ns1:namespace rdfs: ;
+            ns1:prefixLabel "rdfs"^^ns2:PlainString ] ;
     ns1:where ( [ a ns1:Values ;
                 ns1:rows ( ( ns1:undef ) ) ;
                 ns1:vars ( "prefix"^^ns2:Variable ) ] [ a ns1:TriplePattern ;
@@ -1320,14 +1325,14 @@ ql:who-instantiates-tree a ns1:Query,
                 ns1:expr "constructor"^^ns2:Variable ] ) ;
     ns1:projection ( "constructor"^^ns2:Variable "file"^^ns2:Variable "line"^^ns2:Variable ) ;
     ns1:prologuePrefix [ a ns1:PrefixBinding ;
-            ns1:namespace slkg: ;
-            ns1:prefixLabel "slkg"^^ns2:PlainString ],
-        [ a ns1:PrefixBinding ;
             ns1:namespace dcterms: ;
             ns1:prefixLabel "dcterms"^^ns2:PlainString ],
         [ a ns1:PrefixBinding ;
             ns1:namespace rdfs: ;
-            ns1:prefixLabel "rdfs"^^ns2:PlainString ] ;
+            ns1:prefixLabel "rdfs"^^ns2:PlainString ],
+        [ a ns1:PrefixBinding ;
+            ns1:namespace slkg: ;
+            ns1:prefixLabel "slkg"^^ns2:PlainString ] ;
     ns1:where ( [ a ns1:TriplePattern ;
                 ns1:object "class"^^ns2:Variable ;
                 ns1:predicate slkg:instantiates ;
