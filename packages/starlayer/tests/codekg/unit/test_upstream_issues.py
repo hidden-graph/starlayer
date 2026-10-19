@@ -6,6 +6,7 @@ import re
 from pathlib import Path
 
 import pytest
+import starlayer.codekg as codekg
 from rdflib import RDF, Graph, Literal
 from rdflib.namespace import DCTERMS
 from starlayer.codekg import (
@@ -85,8 +86,9 @@ def test_every_write_up_entry_is_in_the_list(graph):
         assert found == {n for p, n in listed if p == relative}, f"{relative}: entries {sorted(found)} vs listed"
 
 
-def test_every_workaround_exists_in_the_code_graph(graph):
-    dataset = get_codekg_dataset()
+@pytest.mark.deferred
+def test_every_workaround_exists_in_the_code_graph(graph, codekg_dataset):
+    dataset = codekg_dataset
     known = {str(o) for ctx in dataset.contexts() for o in ctx.objects(None, DCTERMS.identifier)}
     cited = {str(o) for o in graph.objects(None, CODEKG_NS.workedAroundByIdentifier)}
     assert len(cited) >= 20
@@ -105,6 +107,7 @@ def test_every_patch_function_is_recorded_as_a_workaround_or_explained(graph):
     assert set(NOT_UPSTREAM_BUGS) <= defined and WORKAROUND_WITHOUT_WRITE_UP <= defined, "an exemption names a function that is gone"
 
 
-def test_the_curated_graph_carries_the_issues():
+def test_the_curated_graph_carries_the_issues(monkeypatch, tmp_path):
+    monkeypatch.setattr(codekg, "CODEKG_TRIG_PATH", tmp_path / "absent.trig")  # the curated files do not need the 15 s parse
     curated = get_codekg_dataset(include_curated=True).get_context(CURATED_GRAPH_IRI)
     assert next(curated.subjects(RDF.type, CODEKG_NS.UpstreamIssue), None) is not None

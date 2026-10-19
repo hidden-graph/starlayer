@@ -93,7 +93,7 @@ jobs:
 
       - name: Unit and W3C tests
         working-directory: packages/starlayer
-        run: pytest tests/ -m "not integration" -v
+        run: pytest tests/ -m "not integration" --deferred -v
 
       - name: Integration tests (Oxigraph + SQLite; Fuseki-only tests self-skip)
         working-directory: packages/starlayer

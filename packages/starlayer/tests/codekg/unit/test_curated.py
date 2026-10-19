@@ -14,11 +14,6 @@ from starlayer.codekg import (
 )
 
 
-@pytest.fixture(scope="module")
-def dataset():
-    return get_codekg_dataset(include_curated=True)
-
-
 def test_the_curated_graph_is_left_out_unless_asked_for(monkeypatch, tmp_path):
     """The extractor reads and rewrites the dataset it gets, so the default must never carry curated triples."""
     monkeypatch.setattr(codekg, "CODEKG_TRIG_PATH", tmp_path / "absent.trig")  # skip the 15 s parse of the real file
@@ -26,14 +21,17 @@ def test_the_curated_graph_is_left_out_unless_asked_for(monkeypatch, tmp_path):
     assert len(get_codekg_dataset(include_curated=True).get_context(CURATED_GRAPH_IRI)) > 0
 
 
-def test_the_curated_graph_holds_every_curated_file(dataset):
-    curated = dataset.get_context(CURATED_GRAPH_IRI)
+def test_the_curated_graph_holds_every_curated_file(monkeypatch, tmp_path):
+    monkeypatch.setattr(codekg, "CODEKG_TRIG_PATH", tmp_path / "absent.trig")  # the curated files do not need the 15 s parse
+    curated = get_codekg_dataset(include_curated=True).get_context(CURATED_GRAPH_IRI)
     assert next(curated.subjects(RDF.type, CODEKG_NS.Capability), None) is not None
     assert next(curated.subjects(RDF.type, CODEKG_NS.NamedQuery), None) is not None
     assert sorted(p.name for p in CURATED_DIR.glob("*.ttl")) == ["functionality.ttl", "notebook-links.ttl", "query-library.ttl", "upstream-issues.ttl"]
 
 
-def test_every_implementing_symbol_of_a_capability_exists_in_the_code_graph(dataset):
+@pytest.mark.deferred
+def test_every_implementing_symbol_of_a_capability_exists_in_the_code_graph(codekg_dataset):
+    dataset = codekg_dataset
     """``slkg:implementedByIdentifier`` names a dotted path; each must be a ``dcterms:identifier`` in ``codekg.trig``."""
     curated = dataset.get_context(CURATED_GRAPH_IRI)
     cited = {str(o) for o in curated.objects(None, CODEKG_NS.implementedByIdentifier)}
@@ -86,7 +84,9 @@ def test_every_app_role_is_used():
     assert used == {"storage", "interchange", "query", "validate", "infer", "ui-generate", "reference"}
 
 
-def test_every_notebook_link_names_symbols_the_code_graph_has_and_demonstratedby_is_derived(dataset):
+@pytest.mark.deferred
+def test_every_notebook_link_names_symbols_the_code_graph_has_and_demonstratedby_is_derived(codekg_dataset):
+    dataset = codekg_dataset
     curated = dataset.get_context(CURATED_GRAPH_IRI)
     cited = {str(o) for o in curated.objects(None, CODEKG_NS.demonstratesIdentifier)}
     known = {str(o) for ctx in dataset.contexts() if ctx.identifier != CURATED_GRAPH_IRI for o in ctx.objects(None, DCTERMS.identifier)}

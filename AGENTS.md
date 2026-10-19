@@ -12,6 +12,7 @@ starlayer is a platform for building Python semantic apps on the RDF 1.2 / SPARQ
 ## Set up, test, lint
 - `pip install -e ".[test]"` from the repo root (extras: `sqlalchemy`, `reasoning`, `oxigraph`, `hermit`, `rustdl`, `benchmark`; see `pyproject.toml`).
 - `cd packages/starlayer && pytest tests -m "not integration"` is the fast tier. Integration tests need local Oxigraph/Fuseki servers and skip without them.
+- Test one area alone: `pytest packages/starlayer/tests -m shacl` (areas: graph, shacl, sparql, starontology, codekg). Checks of committed data that CI runs anyway are in `--deferred`; run it before a push.
 - Opt-in groups (deselected by default): `--store-matrix`, `--srl-stratification`, `--sqe-coverage`, `--manchester-conformance`, `--codekg-queries`, `STARLAYER_RUN_ENGINE_ABORT_TESTS=1` (see `packages/starlayer/tests/conftest.py`).
 - `ruff check packages/` must pass (CI runs it). Formatting is not enforced; do not reformat files you are not changing.
 

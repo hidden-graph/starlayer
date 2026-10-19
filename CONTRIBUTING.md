@@ -21,6 +21,8 @@ From `packages/starlayer`:
 ```bash
 pytest tests -m "not integration"        # the fast tier
 pytest tests -m integration              # needs local Oxigraph and Fuseki servers; skips without them
+pytest tests -m shacl                    # one area alone: graph, shacl, sparql, starontology or codekg
+pytest tests --deferred                  # also the checks of committed data that CI runs anyway (~1 min); run before a push
 pytest tests --store-matrix              # W3C suites through every store (slow, opt-in)
 pytest tests --srl-stratification        # extended SRL stratification checks (opt-in)
 pytest tests --manchester-conformance   # Manchester Syntax completeness suite (opt-in, ~75 s)

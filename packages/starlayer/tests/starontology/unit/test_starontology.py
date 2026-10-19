@@ -350,6 +350,7 @@ class TestPublishedFiles:
             path = self._published_path(name)
             assert path.is_file(), f"{name}: no published file at {path}"
 
+    @pytest.mark.deferred
     def test_trig_matches_the_ttl_files(self):
         """Fails if a .ttl was edited without rebuilding the trig:
         run scripts/build_starontology.py."""

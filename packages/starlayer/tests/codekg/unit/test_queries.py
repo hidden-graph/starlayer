@@ -25,12 +25,14 @@ QUERY_NAMES = sorted(q.name for q in queries.list_queries())
 # the stored library (no code KG needed)
 
 
+@pytest.mark.deferred
 def test_the_library_is_valid():
     """The stored library is the source of the queries: its shapes, and every sqe tree, must hold."""
     assert queries.validate_library() == []
     assert len(QUERY_NAMES) >= 20
 
 
+@pytest.mark.deferred
 def test_validate_library_notices_a_damaged_tree():
     """A tree the sqe shapes reject must be reported, not passed over."""
     from starlayer.sparql.sqe import vocab
