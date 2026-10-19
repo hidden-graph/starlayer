@@ -291,3 +291,11 @@ nl:06b-252791c5 a slkg:NotebookExample ;
     rdfs:comment "Connects a StarLayerGraph to a SPARQL endpoint; in rdf-1.2 mode queries go through the native HTTP layer." ;
     slkg:demonstratesIdentifier
         "starlayer.graph.backends.native" .
+
+nl:03-b337c254 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/03-sparql.ipynb" ;
+    slkg:cellId "b337c254" ;
+    slkg:cellHash "17bd5c55a23e6ba2" ;
+    slkg:reviewedOn "2026-10-19"^^xsd:date ;
+    rdfs:comment "Runs a SPARQL 1.2 INSERT DATA with a triple term through update() on a StarLayerGraph." ;
+    slkg:demonstratesIdentifier "starlayer.graph.graph.starlayer_graph.StarLayerGraph.update" .

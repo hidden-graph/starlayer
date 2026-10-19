@@ -169,6 +169,14 @@ cur:cap-sparql-4 a slkg:Capability ;
     rdfs:comment "Prepared queries: prepare a query once, with options such as entailment, and run it against any number of graphs." ;
     slkg:implementedByIdentifier "starlayer.sparql.star_query.StarQuery" .
 
+cur:cap-sparql-5 a slkg:Capability ;
+    slkg:inCapabilityArea cur:area-sparql ;
+    slkg:position 5 ;
+    slkg:hasStatus "implemented" ;
+    slkg:appRole "query", "storage" ;
+    rdfs:comment "SPARQL 1.2 Update over StarLayer graphs and datasets: INSERT DATA, DELETE DATA and DELETE/INSERT WHERE, including triple terms." ;
+    slkg:implementedByIdentifier "starlayer.graph.graph.starlayer_graph.StarLayerGraph.update" .
+
 
 ### SRL (SPARQL Rules)
 

@@ -26,6 +26,7 @@ What StarLayer does today, and what is planned.
 - A StarLayer RDF vocabulary for representing SPARQL queries as graphs, for hand or UI editing (the sqe namespace). It covers SELECT, ASK and CONSTRUCT with every clause, aggregates, sub-selects, VALUES and the SPARQL 1.2 additions; DESCRIBE and Update are not covered.
 - SHACL shapes for sqe graphs.
 - Prepared queries: prepare a query once, with options such as entailment, and run it against any number of graphs.
+- SPARQL 1.2 Update over StarLayer graphs and datasets: INSERT DATA, DELETE DATA and DELETE/INSERT WHERE, including triple terms.
 
 ## SRL (SPARQL Rules)
 
