@@ -4,8 +4,9 @@ Same discipline as the Manchester suite and tests/shacl/w3c_shacl12/known_failur
 case is never silently skipped; each entry says *why* and is applied as a strict xfail, so it breaks loudly
 (as an unexpected XPASS) the moment the underlying gap is closed.
 
-Finding codes: S* = the text renderer / expression encoder (shared salg: machinery), P* = the parser or
-lexer, L* = a SPARQL construct that leaks through the reused rdflib grammar, V* = validation, T = triple terms.
+Finding codes: P* = the parser or lexer, L* = a SPARQL construct that leaks through the reused rdflib grammar, V* =
+validation. (S* = the text renderer / expression encoder and T = triple terms were closed on 2026-10-19 by encoding,
+rendering and validating SRL expressions the way sqe: does; see README.)
 """
 
 from __future__ import annotations
@@ -14,43 +15,21 @@ from __future__ import annotations
 UNCOVERED_PRODUCTIONS: dict[str, str] = {}
 
 _CAUSES = {
-    'S1': "Function calls in an expression render as the placeholder '{Function}': `FILTER xsd:integer(?y)` / `:f(?y, 2)` come back as unparseable, meaningless text (so do the spec's own Examples 9 and 10). The renderer is the shared salg:/ssyn expression renderer (ssyn_to_text._render_expr_text), not SRL code.",
-    'S2': "Unary plus and minus render as the placeholders '{UnaryPlus}' / '{UnaryMinus}' (same shared expression renderer).",
-    'S3': 'Parentheses are dropped on rendering: `(?y + 1) * 2` comes back as `?y + 1 * 2`, which parses fine and means something else. A SILENT change of meaning, caught by evaluating the expression before and after (same shared expression renderer).',
-    'S4': '`?y IN ()` (empty expression list, spec [20] NIL) renders as `?y IN <rdf:nil>`; the tree path renders it correctly, the direct ruleset renderer does not.',
-    'S5': "`BNODE()` (no argument, spec [118] 'BNODE' NIL) cannot be rendered or encoded to a tree: ExpressionNotCoveredException 'The expression None might not be covered yet' (shared salg: expression encoder).",
-    'S6': "A triple term inside an expression (`?y = <<( ?x :r ?z )>>`, spec [114]) renders as the placeholder '{TripleTerm}' (shared expression renderer).",
     'P1': "A bare reifier `<< ?x :q ?y ~ >>` is rejected, though the grammar allows it: Reifier ::= '~' ReifierId? (spec [75]/[77]).",
     'P2': "String escapes: `\\'` (ECHAR, spec [139]) inside a double-quoted string is rejected.",
     'P2b': 'Unicode escapes in strings, `\\u00e9` and `\\U0001F600` (UCHAR, spec [140]), are rejected.',
     'P3': "Negative decimals are unusable: `-1.5`, `-0.5` (DECIMAL_NEGATIVE, spec [133]) raise 'Not a number'; `-1`, `-1e3` and all positive forms work.",
     'P4': 'PN_LOCAL_ESC (spec [153]) is not decoded: `:a\\-b` becomes the IRI `http://example.org/a\\-b` with a literal backslash, which is not a valid IRI and cannot be serialized.',
+    'V2': 'A function call with NO arguments (`FILTER :f()`, spec [18] ArgList NIL) does not validate: spexpr:_FunctionExprBodyShape requires every function node to carry an argument list and a `distinct` marker, which the encoder omits for a zero-argument call. This is a defect in the SHARED spexpr: shape/encoder, not in SRL: sqe: rejects `FILTER(<f>())` with an SQEValidationError too. (Parsing and rendering are fine; only validation fails.)',
 }
 
 # "case-id::check" -> reason (check is parses | fixpoint | meaning | tree | encoding)
 CORPUS_FAILURES: dict[str, str] = {
-    'body-filter-function-nil::fixpoint': _CAUSES['S1'],
-    'body-filter-function-nil::meaning': _CAUSES['S1'],
-    'body-filter-function::fixpoint': _CAUSES['S1'],
-    'body-filter-function::meaning': _CAUSES['S1'],
-    'expr-bnode-nil::fixpoint': _CAUSES['S5'],
-    'expr-bnode-nil::meaning': _CAUSES['S5'],
-    'expr-bnode-nil::tree': _CAUSES['S5'],
-    'expr-function-two-args::fixpoint': _CAUSES['S1'],
-    'expr-function-two-args::meaning': _CAUSES['S1'],
-    'expr-in-empty::fixpoint': _CAUSES['S4'],
-    'expr-in-empty::meaning': _CAUSES['S4'],
-    'expr-in-empty::tree': _CAUSES['S4'],
-    'expr-nested-function::fixpoint': _CAUSES['S1'],
-    'expr-nested-function::meaning': _CAUSES['S1'],
-    'expr-parens::fixpoint': _CAUSES['S3'],
-    'expr-parens::meaning': _CAUSES['S3'],
-    'expr-set-arith::fixpoint': _CAUSES['S3'],
-    'expr-set-arith::meaning': _CAUSES['S3'],
-    'expr-unary-minus::fixpoint': _CAUSES['S2'],
-    'expr-unary-minus::meaning': _CAUSES['S2'],
-    'expr-unary-plus::fixpoint': _CAUSES['S2'],
-    'expr-unary-plus::meaning': _CAUSES['S2'],
+    'body-filter-function-nil::encoding': _CAUSES['V2'],
+    'body-filter-function-nil::tree': _CAUSES['V2'],
+    'body-filter-function-nil::meaning': _CAUSES['V2'],
+    'body-filter-function-nil::fixpoint': _CAUSES['V2'],
+    'body-filter-function-nil::parses': _CAUSES['V2'],
     'iri-pname-escapes::encoding': _CAUSES['P4'],
     'iri-pname-escapes::fixpoint': _CAUSES['P4'],
     'iri-pname-escapes::meaning': _CAUSES['P4'],
@@ -75,10 +54,6 @@ CORPUS_FAILURES: dict[str, str] = {
     'rdf12-reified-bare-tilde::meaning': _CAUSES['P1'],
     'rdf12-reified-bare-tilde::parses': _CAUSES['P1'],
     'rdf12-reified-bare-tilde::tree': _CAUSES['P1'],
-    'rdf12-triple-term-in-expression-nested::fixpoint': _CAUSES['S6'],
-    'rdf12-triple-term-in-expression-nested::meaning': _CAUSES['S6'],
-    'rdf12-triple-term-in-expression::fixpoint': _CAUSES['S6'],
-    'rdf12-triple-term-in-expression::meaning': _CAUSES['S6'],
 }
 
 _LEAK = "SPARQL function missing from SRL's BuiltInCall (spec [118]) but accepted: the expression grammar is rdflib's SPARQL one, only partly narrowed."
@@ -98,9 +73,7 @@ BUILTIN_LEAKS: dict[str, str] = {
 }
 
 # functions that ARE in the spec's BuiltInCall but fail to parse or to be represented as a tree.
-BUILTIN_FAILURES: dict[str, str] = {
-    'TRIPLE': "TRIPLE(s, p, o) (spec [118]) parses but the resulting tree does not conform to the srl:/salg: expression shapes, so the rule cannot be encoded as a valid srl: tree.",
-}
+BUILTIN_FAILURES: dict[str, str] = {}
 
 # negative case id -> reason the parser wrongly ACCEPTS it (or fails to refuse it with an SRL error)
 NEGATIVE_FAILURES: dict[str, str] = {
@@ -114,7 +87,4 @@ NEGATIVE_FAILURES: dict[str, str] = {
 }
 
 # spec example block number -> reason it fails
-SPEC_EXAMPLE_FAILURES: dict[int, str] = {
-    22: _CAUSES['S1'] + ' (Example 9)',
-    24: _CAUSES['S1'] + ' (Example 10)',
-}
+SPEC_EXAMPLE_FAILURES: dict[int, str] = {}

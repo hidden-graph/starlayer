@@ -4,8 +4,9 @@ Answers: **how solid are the SRL (SPARQL Rules) parser, the `srl:` graph syntax 
 Mirrors `tests/starontology/manchester_conformance/`. Target: the W3C Working Draft *SPARQL 1.2 RL*, 14 October
 2026 (https://www.w3.org/TR/sparql12-rl/), the draft `srl.py` is implemented against.
 
-**Status: Part A (find the gaps) is in progress. No library code has been changed.** Every gap is a strict xfail
-in `known_failures.py` that flips to a failing XPASS the moment it is fixed.
+**Status: Part A (find the gaps) done; Part B started.** On 2026-10-19 `srl.py` (only) was wired onto `sqe:`/`spexpr:`,
+which closed findings S1 to S6, T1 and the `salg:` dependency (see "Closed" below). Every remaining gap is a strict
+xfail in `known_failures.py` that flips to a failing XPASS the moment it is fixed.
 
 ## What it checks
 
@@ -17,7 +18,7 @@ in `known_failures.py` that flips to a failing XPASS the moment it is fixed.
 | `test_sr_builtins.py` | 70 SPARQL functions: those in SRL's `BuiltInCall` parse and encode; those that are not are rejected | the draft's `BuiltInCall` production |
 | `test_sr_negative.py` | ill-formed SRL is refused: grammar errors, SPARQL-only constructs, section 4.2 well-formedness, non-stratifiable sets | the draft |
 | `test_sr_evaluator.py` | `RuleSet.infer()` equals an independent evaluator written from the draft's section 6.4/6.5 pseudocode: hand-derived known answers, plus Hypothesis-generated rule sets and graphs | the draft's pseudocode |
-| `test_sr_architecture.py` | SRL does not depend on `salg:`: four measurable ways, three of them strict xfails that list today's dependencies | the architecture rule |
+| `test_sr_architecture.py` | SRL does not depend on `salg:`: published shapes, trees, validation graphs and `srl.py` are salg-free, and the published `.ttl` files validate SRL trees in a process that never imports starlayer | the architecture rule |
 | `tools/mutation_scan.py` | (tool, not a test) damages `srl:` trees and checks whether the shapes reject them | mutation |
 
 Marker: `srl_conformance`. **Opt-in**: left out of an ordinary run, including a bare `pytest`. Run it with
@@ -130,6 +131,23 @@ So the dependency is narrower than it looked: SRL's data is almost entirely inde
 is the shared expression *shapes and renderer* (the same machinery behind findings S1 to S6, T1 and the
 shape holes above). Moving SRL onto `sqe:` means `sqe:` supplying expression shapes, an encoder and a
 renderer without `salg:`; the SQE work is the prerequisite, not a parallel task.
+
+## Closed on 2026-10-19: SRL wired onto `sqe:`/`spexpr:`
+
+Change confined to `srl.py`. Expressions are encoded with sqe's encoder (after `simplifyFilters`, so the AST holds the
+canonical form), rendered with sqe's `expr_text`, triple terms use `sqe:TripleTerm`, and validation loads
+`spexpr` + `srl` + `sqe` shapes only. Results: S1 to S6 and T1 fixed (spec Examples 9 and 10 now round-trip); no
+`salg:` term in trees, validation graphs or `srl.py`; 145 of 145 trees validate with plain rdflib + pyshacl using only
+the published `.ttl` files.
+
+New findings from the wiring:
+
+| Code | Finding |
+|---|---|
+| V2 | A zero-argument function call (`FILTER :f()`) fails `spexpr:_FunctionExprBodyShape` (requires an argument list and `distinct`). Shared spexpr defect: sqe rejects it too. |
+| V3 | An aggregate inside `SET` is no longer rejected by the shapes (the shared spexpr shapes accept aggregates); `parse_ruleset` still rejects it in Python. Needs a constraint in `srl_shapes.ttl` (strict xfail in `tests/sparql/unit/test_srl_shapes.py`). |
+
+The shape mutation scan predates the wiring and should be re-run against the new validation configuration.
 
 ## Next
 
