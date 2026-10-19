@@ -127,12 +127,6 @@ ql:cq-which-functions-cite-a-specific-w3c-spec a slkg:CompetencyQuestion ;
     slkg:aboutTopic ql:topic-specifications ;
     slkg:cqStatus "out-of-scope" .
 
-ql:cq-which-functions-exist-specifically-to-work-around a slkg:CompetencyQuestion ;
-    rdfs:label "Which functions exist specifically to work around a known upstream bug (rdflib/pyshacl/etc.), and which bug?" ;
-    rdfs:comment "not derivable from the AST at all; this is a human judgment that only exists in a comment or a person's head. Needs a separate, curated mechanism: a small hand-maintained set of \"known bug\" entities (seeded from `docs/upstream-issues/rdflib-upstream-issues.md` and the scattered `xfail` comments flagged in this session's own `future_enhancements.md` entry), with an explicit link from each affected function to the bug it works around. Closer to the long-deferred \"curated graph layered on top of the auto-generated one\" idea than to anything the extractor computes." ;
-    slkg:aboutTopic ql:topic-upstream-bugs ;
-    slkg:cqStatus "curated" .
-
 ql:cq-which-starlayer-modules-import-which-other-starlayer a slkg:CompetencyQuestion ;
     rdfs:label "Which starlayer modules import which other starlayer modules?" ;
     rdfs:comment "not answerable yet: `slkg:importsModule` only records imports of *external* modules (third-party and standard library); imports between this project's own modules are not extracted. Found 2026-10-19 while building the query library. Use the call graph (`slkg:calls`) for dependencies inside the project." ;
@@ -305,6 +299,23 @@ ql:untested-functions a slkg:NamedQuery ;
             slkg:paramName "prefix" ;
             slkg:paramRequired false ] ;
     slkg:queryRoot ql:untested-functions-tree .
+
+ql:upstream-workarounds a slkg:NamedQuery ;
+    rdfs:label "Which code works around a bug in a library we build on?" ;
+    rdfs:comment "The documented bugs in rdflib, pySHACL, Fuseki and Oxigraph and the code that works around each, optionally limited to one library or to one symbol (to ask whether a function exists because of an upstream bug). The curated list is in curated/upstream-issues.ttl; the write-ups are in docs/upstream-issues/." ;
+    slkg:aboutTopic ql:topic-upstream-bugs ;
+    slkg:answersCompetencyQuestion ql:cq-which-functions-exist-specifically-to-work-around ;
+    slkg:queryParameter [ a slkg:QueryParameter ;
+            rdfs:comment "only issues in this library: rdflib, pyshacl, fuseki or oxigraph" ;
+            slkg:paramExample "rdflib" ;
+            slkg:paramName "project" ;
+            slkg:paramRequired false ],
+        [ a slkg:QueryParameter ;
+            rdfs:comment "dotted identifier of a function to ask about" ;
+            slkg:paramExample "starlayer.graph.query.evaluate_patches.patch_evalfilter_forgotten_vars" ;
+            slkg:paramName "symbol" ;
+            slkg:paramRequired false ] ;
+    slkg:queryRoot ql:upstream-workarounds-tree .
 
 ql:who-instantiates a slkg:NamedQuery ;
     rdfs:label "Where is a class instantiated?" ;
@@ -666,6 +677,12 @@ ql:cq-which-classes-are-ever-instantiated-and-from a slkg:CompetencyQuestion ;
     rdfs:label "Which classes are ever instantiated, and from where?" ;
     rdfs:comment "`slkg:instantiates` (Function→Class), built 2026-10-14 as a separate property from `slkg:calls` rather than widening its range - \"calls a function\" and \"constructs an instance\" are different relationships. Resolved the same way bare/attribute calls are (same-file nesting, import table, module aliases), just checked against `classes_by_dotted_path` too. Verified against the real codebase: 1135 real `slkg:instantiates` edges, e.g. several modules' own helper functions constructing `TripleTerm(...)`, where the same call previously resolved to nothing at all." ;
     slkg:aboutTopic ql:topic-call-graph ;
+    slkg:cqStatus "answerable" .
+
+ql:cq-which-functions-exist-specifically-to-work-around a slkg:CompetencyQuestion ;
+    rdfs:label "Which functions exist specifically to work around a known upstream bug (rdflib/pyshacl/etc.), and which bug?" ;
+    rdfs:comment "a hand-maintained list, curated/upstream-issues.ttl, since this is not derivable from the code; it names each workaround by identifier and the write-up in docs/upstream-issues/" ;
+    slkg:aboutTopic ql:topic-upstream-bugs ;
     slkg:cqStatus "answerable" .
 
 ql:cq-which-functions-have-zero-test-coverage-by a slkg:CompetencyQuestion ;
@@ -1266,10 +1283,6 @@ ql:topic-specifications a slkg:Topic ;
     rdfs:label "Specifications and standards grounding" ;
     rdfs:comment "Which code cites which specification." .
 
-ql:topic-upstream-bugs a slkg:Topic ;
-    rdfs:label "Known upstream bugs and workarounds" ;
-    rdfs:comment "Code that exists to work around a bug in another project." .
-
 ql:unreferenced-functions-tree a sqe:Query,
         sqe:SelectQuery ;
     sqe:orderBy ( [ a sqe:OrderCondition ;
@@ -1390,6 +1403,78 @@ ql:untested-functions-tree a sqe:Query,
                             sqe:predicate slkg:lineStart ;
                             sqe:subject "f"^^spexpr:Variable ] ) ] ) .
 
+ql:upstream-workarounds-tree a sqe:Query,
+        sqe:SelectQuery ;
+    sqe:orderBy ( [ a sqe:OrderCondition ;
+                sqe:expr "upstream"^^spexpr:Variable ] [ a sqe:OrderCondition ;
+                sqe:expr "number"^^spexpr:Variable ] [ a sqe:OrderCondition ;
+                sqe:expr "workaround"^^spexpr:Variable ] ) ;
+    sqe:projection ( "upstream"^^spexpr:Variable "number"^^spexpr:Variable "issue"^^spexpr:Variable "status"^^spexpr:Variable "workaround"^^spexpr:Variable "file"^^spexpr:Variable "line"^^spexpr:Variable ) ;
+    sqe:prologuePrefix [ a sqe:PrefixBinding ;
+            sqe:namespace slkg: ;
+            sqe:prefixLabel "slkg"^^spexpr:PlainString ],
+        [ a sqe:PrefixBinding ;
+            sqe:namespace dcterms: ;
+            sqe:prefixLabel "dcterms"^^spexpr:PlainString ],
+        [ a sqe:PrefixBinding ;
+            sqe:namespace rdfs: ;
+            sqe:prefixLabel "rdfs"^^spexpr:PlainString ] ;
+    sqe:where ( [ a sqe:Values ;
+                sqe:rows ( ( sqe:undef ) ) ;
+                sqe:vars ( "project"^^spexpr:Variable ) ] [ a sqe:Values ;
+                sqe:rows ( ( sqe:undef ) ) ;
+                sqe:vars ( "symbol"^^spexpr:Variable ) ] [ a sqe:TriplePattern ;
+                sqe:object slkg:UpstreamIssue ;
+                sqe:predicate rdf:type ;
+                sqe:subject "i"^^spexpr:Variable ] [ a sqe:TriplePattern ;
+                sqe:object "issue"^^spexpr:Variable ;
+                sqe:predicate rdfs:label ;
+                sqe:subject "i"^^spexpr:Variable ] [ a sqe:TriplePattern ;
+                sqe:object "status"^^spexpr:Variable ;
+                sqe:predicate slkg:issueStatus ;
+                sqe:subject "i"^^spexpr:Variable ] [ a sqe:TriplePattern ;
+                sqe:object "upstream"^^spexpr:Variable ;
+                sqe:predicate slkg:upstreamProject ;
+                sqe:subject "i"^^spexpr:Variable ] [ a sqe:Optional ;
+                sqe:where ( [ a sqe:TriplePattern ;
+                            sqe:object "number"^^spexpr:Variable ;
+                            sqe:predicate slkg:issueNumber ;
+                            sqe:subject "i"^^spexpr:Variable ] ) ] [ a sqe:Optional ;
+                sqe:where ( [ a sqe:TriplePattern ;
+                            sqe:object "workaround"^^spexpr:Variable ;
+                            sqe:predicate slkg:workedAroundByIdentifier ;
+                            sqe:subject "i"^^spexpr:Variable ] [ a sqe:Optional ;
+                            sqe:where ( [ a sqe:TriplePattern ;
+                                        sqe:object "workaround"^^spexpr:Variable ;
+                                        sqe:predicate dcterms:identifier ;
+                                        sqe:subject "s"^^spexpr:Variable ] [ a sqe:Optional ;
+                                        sqe:where ( [ a sqe:TriplePattern ;
+                                                    sqe:object "file"^^spexpr:Variable ;
+                                                    sqe:predicate slkg:filePath ;
+                                                    sqe:subject "s"^^spexpr:Variable ] ) ] [ a sqe:Optional ;
+                                        sqe:where ( [ a sqe:TriplePattern ;
+                                                    sqe:object "line"^^spexpr:Variable ;
+                                                    sqe:predicate slkg:lineStart ;
+                                                    sqe:subject "s"^^spexpr:Variable ] ) ] ) ] ) ] [ a sqe:Filter ;
+                sqe:expr [ a spexpr:ConditionalOrExpression ;
+                        spexpr:expr [ a spexpr:UnaryNot ;
+                                spexpr:expr [ a spexpr:Builtin_BOUND ;
+                                        spexpr:arg "project"^^spexpr:Variable ] ] ;
+                        spexpr:other ( [ a spexpr:RelationalExpression ;
+                                    spexpr:expr [ a spexpr:Builtin_LCASE ;
+                                            spexpr:arg "upstream"^^spexpr:Variable ] ;
+                                    spexpr:op "="^^spexpr:PlainString ;
+                                    spexpr:other [ a spexpr:Builtin_LCASE ;
+                                            spexpr:arg "project"^^spexpr:Variable ] ] ) ] ] [ a sqe:Filter ;
+                sqe:expr [ a spexpr:ConditionalOrExpression ;
+                        spexpr:expr [ a spexpr:UnaryNot ;
+                                spexpr:expr [ a spexpr:Builtin_BOUND ;
+                                        spexpr:arg "symbol"^^spexpr:Variable ] ] ;
+                        spexpr:other ( [ a spexpr:RelationalExpression ;
+                                    spexpr:expr "workaround"^^spexpr:Variable ;
+                                    spexpr:op "="^^spexpr:PlainString ;
+                                    spexpr:other "symbol"^^spexpr:Variable ] ) ] ] ) .
+
 ql:who-instantiates-tree a sqe:Query,
         sqe:SelectQuery ;
     sqe:orderBy ( [ a sqe:OrderCondition ;
@@ -1437,6 +1522,10 @@ ql:cq-what-s-the-public-api-surface-of a slkg:CompetencyQuestion ;
 ql:topic-inheritance a slkg:Topic ;
     rdfs:label "Inheritance" ;
     rdfs:comment "Overrides and base classes." .
+
+ql:topic-upstream-bugs a slkg:Topic ;
+    rdfs:label "Known upstream bugs and workarounds" ;
+    rdfs:comment "Code that exists to work around a bug in another project." .
 
 ql:topic-dead-code a slkg:Topic ;
     rdfs:label "Dead code and unused surface" ;

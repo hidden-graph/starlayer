@@ -25,6 +25,10 @@ Named queries over the code knowledge graph. Run one with `starlayer.codekg.quer
 
 - **`overrides`** (`symbol`): What overrides a method, and what does it override?. Both directions of the override relation for one method: the base-class method it overrides, and the subclass methods that override it.
 
+## Known upstream bugs and workarounds
+
+- **`upstream-workarounds`** (`project` (optional), `symbol` (optional)): Which code works around a bug in a library we build on?. The documented bugs in rdflib, pySHACL, Fuseki and Oxigraph and the code that works around each, optionally limited to one library or to one symbol (to ask whether a function exists because of an upstream bug). The curated list is in curated/upstream-issues.ttl; the write-ups are in docs/upstream-issues/.
+
 ## Relationships and the call graph
 
 - **`call-chain-from`** (`symbol`): Everything a function reaches through calls. All functions and methods reachable from a symbol by following calls any number of steps (a property-path query). Large for entry points; narrow the symbol first.
@@ -76,7 +80,7 @@ Questions the code knowledge graph should answer, and whether it can yet: ✅ an
 
 ### Known upstream bugs and workarounds
 
-- 🗂️ Which functions exist specifically to work around a known upstream bug (rdflib/pyshacl/etc.), and which bug? — not derivable from the AST at all; this is a human judgment that only exists in a comment or a person's head. Needs a separate, curated mechanism: a small hand-maintained set of "known bug" entities (seeded from `docs/upstream-issues/rdflib-upstream-issues.md` and the scattered `xfail` comments flagged in this session's own `future_enhancements.md` entry), with an explicit link from each affected function to the bug it works around. Closer to the long-deferred "curated graph layered on top of the auto-generated one" idea than to anything the extractor computes.
+- ✅ Which functions exist specifically to work around a known upstream bug (rdflib/pyshacl/etc.), and which bug? — a hand-maintained list, curated/upstream-issues.ttl, since this is not derivable from the code; it names each workaround by identifier and the write-up in docs/upstream-issues/ (`upstream-workarounds`)
 
 ### Relationships and the call graph
 

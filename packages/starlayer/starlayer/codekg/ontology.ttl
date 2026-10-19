@@ -469,3 +469,52 @@ slkg:sourceFileCount a owl:DatatypeProperty ;
     rdfs:range xsd:integer ;
     rdfs:label "source file count" ;
     rdfs:comment "How many Python files the run extracted." .
+
+#################################################################
+# Upstream issues
+#
+# Hand-curated in curated/upstream-issues.ttl, never by the extractor: the bugs
+# in rdflib, pySHACL, Fuseki and Oxigraph that StarLayer documents in
+# docs/upstream-issues/, and the code that works around each.
+#################################################################
+
+slkg:UpstreamIssue a owl:Class ;
+    rdfs:label "Upstream issue" ;
+    rdfs:comment "A defect or limitation in a library StarLayer builds on, written up in docs/upstream-issues/. Says which code, if any, exists because of it." .
+
+slkg:upstreamProject a owl:DatatypeProperty ;
+    rdfs:domain slkg:UpstreamIssue ;
+    rdfs:range xsd:string ;
+    rdfs:label "upstream project" ;
+    rdfs:comment "The library with the defect: \"rdflib\", \"pyshacl\", \"fuseki\" or \"oxigraph\"." .
+
+slkg:issueDocPath a owl:DatatypeProperty ;
+    rdfs:domain slkg:UpstreamIssue ;
+    rdfs:range xsd:string ;
+    rdfs:label "issue document path" ;
+    rdfs:comment "Repository-relative path of the write-up in docs/upstream-issues/." .
+
+slkg:issueNumber a owl:DatatypeProperty ;
+    rdfs:domain slkg:UpstreamIssue ;
+    rdfs:range xsd:integer ;
+    rdfs:label "issue number" ;
+    rdfs:comment "The entry's number in that write-up. Absent for an entry that is a note rather than a numbered issue." .
+
+slkg:upstreamUrl a owl:DatatypeProperty ;
+    rdfs:domain slkg:UpstreamIssue ;
+    rdfs:range xsd:string ;
+    rdfs:label "upstream URL" ;
+    rdfs:comment "Where the issue was reported or is tracked upstream, if it was." .
+
+slkg:issueStatus a owl:DatatypeProperty ;
+    rdfs:domain slkg:UpstreamIssue ;
+    rdfs:range xsd:string ;
+    rdfs:label "issue status" ;
+    rdfs:comment "\"worked-around\" (code in this repository exists for it), \"fixed-upstream\" (fixed in the library; the write-up stays as history) or \"documented-only\" (known, and no code here deals with it)." .
+
+slkg:workedAroundByIdentifier a owl:DatatypeProperty ;
+    rdfs:domain slkg:UpstreamIssue ;
+    rdfs:range xsd:string ;
+    rdfs:label "worked around by identifier" ;
+    rdfs:comment "The dotted path (a dcterms:identifier in codekg.trig) of code that exists as a workaround for the issue, by the same convention as slkg:implementedByIdentifier." .
+

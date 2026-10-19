@@ -30,7 +30,7 @@ def test_the_curated_graph_holds_every_curated_file(dataset):
     curated = dataset.get_context(CURATED_GRAPH_IRI)
     assert next(curated.subjects(RDF.type, CODEKG_NS.Capability), None) is not None
     assert next(curated.subjects(RDF.type, CODEKG_NS.NamedQuery), None) is not None
-    assert sorted(p.name for p in CURATED_DIR.glob("*.ttl")) == ["functionality.ttl", "notebook-links.ttl", "query-library.ttl"]
+    assert sorted(p.name for p in CURATED_DIR.glob("*.ttl")) == ["functionality.ttl", "notebook-links.ttl", "query-library.ttl", "upstream-issues.ttl"]
 
 
 def test_every_implementing_symbol_of_a_capability_exists_in_the_code_graph(dataset):
