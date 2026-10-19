@@ -18,16 +18,16 @@ from __future__ import annotations
 import pytest
 from starlayer.graph.compare import isomorphic
 from starlayer.graph.parsers.errors import ManchesterSyntaxError
+
+from .corpus import CASES
+from .helpers import parse_to_graph, to_graph
+from .known_failures import TREE_FAILURES
 from .wip.manchester import (
     manchester_parse_to_tree,
     manchester_tree_to_owl,
     manchester_tree_to_text,
     manchester_validate,
 )
-
-from .corpus import CASES
-from .helpers import parse_to_graph, to_graph
-from .known_failures import TREE_FAILURES
 
 
 def _prepare(case, check: str, request):

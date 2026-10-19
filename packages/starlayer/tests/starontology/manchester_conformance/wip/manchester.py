@@ -618,7 +618,9 @@ def _run_top_level(cur):
     """The parser's own top-level dispatch loop, driven by a recording cursor. Delegated, not copied:
     a second copy here once drifted from the parser (it kept ending silently on a stray token after the
     parser was fixed)."""
-    from starlayer.graph.parsers.manchester_parser import _run_top_level as _parser_run_top_level
+    from starlayer.graph.parsers.manchester_parser import (
+        _run_top_level as _parser_run_top_level,
+    )
 
     _parser_run_top_level(cur)
 
@@ -1079,9 +1081,8 @@ def manchester_validate(data_graph: Graph) -> tuple[bool, Graph, str]:
         ``(conforms, results_graph, results_text)``, unpacked from
         ``starlayer.shacl``'s own ``ValidationResult``.
     """
-    from pyshacl.errors import ShapeRecursionWarning
-
     import starlayer.shacl  # lazy: avoids a circular-import deadlock at module load time
+    from pyshacl.errors import ShapeRecursionWarning
     from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 
     with warnings.catch_warnings():
