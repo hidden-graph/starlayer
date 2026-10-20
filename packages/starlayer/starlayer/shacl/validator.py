@@ -1840,7 +1840,13 @@ class StarShaclSchema:
 
         data_graph = apply_entailment(data_graph, shacl_graph, ont_graph, inplace=False, inference=self.inference)
 
-        shacl_graph = self._augment_shapes_with_new_target_types(data_graph, shacl_graph)
+        working_shapes = type(shacl_graph)()
+        for prefix, ns in shacl_graph.namespaces():
+            working_shapes.bind(prefix, ns)
+        for t in shacl_graph:
+            working_shapes.add(t)
+
+        shacl_graph = self._augment_shapes_with_new_target_types(data_graph, working_shapes)
 
         from pyshacl.shapes_graph import ShapesGraph
 
@@ -3653,7 +3659,13 @@ def evaluate(
 
     data_graph = apply_entailment(data_graph, shacl_graph, ont_graph, inplace=False, inference=inference)
 
-    shacl_graph = _augment_shapes_with_new_target_types(data_graph, shacl_graph)
+    working_shapes = type(shacl_graph)()
+    for prefix, ns in shacl_graph.namespaces():
+        working_shapes.bind(prefix, ns)
+    for t in shacl_graph:
+        working_shapes.add(t)
+
+    shacl_graph = _augment_shapes_with_new_target_types(data_graph, working_shapes)
 
     from pyshacl.shapes_graph import ShapesGraph
 

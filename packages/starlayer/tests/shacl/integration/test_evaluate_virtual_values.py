@@ -80,6 +80,25 @@ class TestBasicComputation:
         assert result is not data  # a genuinely different object
         assert (EX.alice, EX.friendCount, None) not in [(s, p, None) for s, p, _o in data]
 
+    def test_original_shapes_graph_never_mutated(self) -> None:
+        data = StarLayerGraph()
+        data.parse(
+            data="@prefix ex: <http://example.org/> . ex:alice a ex:Person ; ex:friend ex:bob .",
+            format="turtle",
+        )
+        shapes = StarLayerGraph()
+        shapes.parse(
+            data=PREFIXES
+            + """
+            ex:S a sh:NodeShape ; sh:targetNode ex:alice ;
+              sh:property [ sh:path ex:friendCount ; sh:values [ shnex:count [ shnex:pathValues ex:friend ] ] ] .
+            """,
+            format="turtle",
+        )
+        before = set(shapes)
+        StarShaclSchema(shacl_graph=shapes).evaluate(data_graph=data)
+        assert set(shapes) == before
+
     def test_multiple_focus_nodes_each_get_their_own_value(self) -> None:
         data = StarLayerGraph()
         data.parse(
