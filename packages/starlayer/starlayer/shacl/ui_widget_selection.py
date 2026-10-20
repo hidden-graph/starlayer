@@ -58,6 +58,49 @@ def _node_conforms(node: Any, shape: Any, *, base_graph: Any, shapes_graph: Any)
     return result.conforms
 
 
+class _ConformanceBatch:
+    """Answers "does ``node`` conform to ``shape``?" for a fixed set of ``nodes`` with one ``validate()`` per distinct
+    ``shape`` instead of one per (node, shape) pair.
+
+    ``select_widgets`` asks the same matcher shapes about every property shape of a node shape. Each single check
+    re-encodes the whole shapes graph, which dominated its cost (GitHub issue #14). Here all the nodes are targets
+    of one probe shape, so the graph is encoded once per matcher shape. The answer for a node is the same as
+    :func:`_node_conforms` gives for it alone.
+    """
+
+    def __init__(self, nodes: Any, *, base_graph: Any, shapes_graph: Any) -> None:
+        self._nodes = tuple(nodes)
+        self._base_graph = base_graph
+        self._shapes_graph = shapes_graph
+        self._conforming: dict[Any, frozenset] = {}
+
+    def conforms(self, node: Any, shape: Any) -> bool:
+        if node not in self._nodes:
+            return _node_conforms(node, shape, base_graph=self._base_graph, shapes_graph=self._shapes_graph)
+        if shape not in self._conforming:
+            self._conforming[shape] = self._check(shape)
+        return node in self._conforming[shape]
+
+    def _check(self, shape: Any) -> frozenset:
+        from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+        from starlayer.shacl.validator import _find_genuine_report_node
+
+        probe_shapes = StarLayerGraph()
+        probe_shapes += self._shapes_graph
+        wrapper = BNode()
+        probe_shapes.add((wrapper, RDF.type, SH.NodeShape))
+        probe_shapes.add((wrapper, SH.node, shape))
+        for node in self._nodes:
+            probe_shapes.add((wrapper, SH.targetNode, node))
+        result = validate(self._base_graph, probe_shapes, meta_shacl=False)
+        violating: set[Any] = set()
+        report_node = _find_genuine_report_node(result.report_graph)
+        if report_node is not None:
+            for result_node in result.report_graph.objects(report_node, SH.result):
+                violating.update(result.report_graph.objects(result_node, SH.focusNode))
+        return frozenset(n for n in self._nodes if n not in violating)
+
+
 def _find_matcher(widget: Any, scoring_graph: Any) -> Any | None:
     """The ``shui:WidgetAcceptMatcher`` naming ``widget`` via its own
     ``shui:widget`` value(s), or ``None`` if ``widget`` has none - no
@@ -76,6 +119,7 @@ def _matcher_accepts(
     data_graph: Any | None,
     shapes_graph: Any,
     scoring_graph: Any,
+    batch: _ConformanceBatch | None = None,
 ) -> bool:
     """Section 3.4 Matcher Function, step for step:
 
@@ -96,10 +140,15 @@ def _matcher_accepts(
     if focus_node is None and data_graph_shape is not None and shapes_graph_shape is None:
         return False
 
-    if shapes_graph_shape is not None and not _node_conforms(
-        shape_node, shapes_graph_shape, base_graph=shapes_graph, shapes_graph=scoring_graph
-    ):
-        return False
+    if shapes_graph_shape is not None:
+        if batch is not None:
+            conforms = batch.conforms(shape_node, shapes_graph_shape)
+        else:
+            conforms = _node_conforms(
+                shape_node, shapes_graph_shape, base_graph=shapes_graph, shapes_graph=scoring_graph
+            )
+        if not conforms:
+            return False
 
     if focus_node is None:
         return True
@@ -126,6 +175,7 @@ def select_widget(
     shapes_graph: Any,
     scoring_graph: Any | None = None,
     role: Role,
+    _batch: _ConformanceBatch | None = None,
 ) -> URIRef | None:
     """Select the ``shui:editor``/``shui:viewer`` widget ``shape_node``
     should use for ``focus_node``, per the spec's own Section 3.2 "Select
@@ -181,6 +231,7 @@ def select_widget(
             data_graph=data_graph,
             shapes_graph=shapes_graph,
             scoring_graph=scoring_graph,
+            batch=_batch,
         ):
             return explicit_widget
 
@@ -203,6 +254,7 @@ def select_widget(
             data_graph=data_graph,
             shapes_graph=shapes_graph,
             scoring_graph=scoring_graph,
+            batch=_batch,
         ):
             return widget
 
@@ -234,11 +286,17 @@ def select_widgets(
     ``focus_node``, ``data_graph`` and ``scoring_graph`` are optional, as
     for :func:`select_widget`.
     """
+    properties = list(shapes_graph.objects(shape_node, SH.property))
+    if scoring_graph is None:
+        from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+
+        scoring_graph = StarLayerGraph()
+    batch = _ConformanceBatch(properties, base_graph=shapes_graph, shapes_graph=scoring_graph)
     result: dict[Any, URIRef | None] = {}
-    for prop in shapes_graph.objects(shape_node, SH.property):
-        widget = select_widget(
+    for prop in properties:
+        result[prop] = select_widget(
             shape_node=prop, focus_node=focus_node,
             data_graph=data_graph, shapes_graph=shapes_graph, scoring_graph=scoring_graph, role=role,
+            _batch=batch,
         )
-        result[prop] = widget
     return result
