@@ -626,3 +626,76 @@ class TestFunctionArgumentMustBeAList:
 
     def test_shnex_count_still_takes_a_single_expression(self):
         assert self._evaluate("[ shnex:count [ shnex:pathValues ex:name ] ]") == ["1"]
+
+
+class TestRestrictToFocusNodesAndProperties:
+    """GitHub issue #7: evaluate() computed every property for every target node, so a UI that shows one node at a
+    time had to evaluate the whole data graph. ``focus_nodes=`` and ``properties=`` restrict the work."""
+
+    _DATA = """
+        @prefix ex: <http://example.org/> .
+        ex:a a ex:Person ; ex:first "Ann" ; ex:last "Lee" .
+        ex:b a ex:Person ; ex:first "Bo" ; ex:last "Ng" .
+        ex:c a ex:Person ; ex:first "Cy" ; ex:last "Ox" ."""
+    _SHAPES = """
+        @prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> .
+        @prefix shnex: <http://www.w3.org/ns/shacl-node-expr#> . @prefix sparql: <http://www.w3.org/ns/sparql#> .
+        ex:S a sh:NodeShape ; sh:targetClass ex:Person ;
+          sh:property [ sh:path ex:label ; sh:values [ sparql:concat ( [ shnex:pathValues ex:first ] " " [ shnex:pathValues ex:last ] ) ] ] ;
+          sh:property [ sh:path ex:first ] ."""
+
+    def _graphs(self):
+        data, shapes = StarLayerGraph(), StarLayerGraph()
+        data.parse(data=self._DATA, format="turtle12")
+        shapes.parse(data=self._SHAPES, format="turtle12")
+        return data, shapes
+
+    @staticmethod
+    def _labels(result):
+        return {str(s)[-1]: str(o) for s, o in result.subject_objects(EX.label)}
+
+    def test_everything_by_default(self):
+        data, shapes = self._graphs()
+        result = StarShaclSchema(shacl_graph=shapes).evaluate(data_graph=data)
+        assert self._labels(result) == {"a": "Ann Lee", "b": "Bo Ng", "c": "Cy Ox"}
+
+    def test_one_focus_node(self):
+        data, shapes = self._graphs()
+        result = StarShaclSchema(shacl_graph=shapes).evaluate(data_graph=data, focus_nodes=[EX.b])
+        assert self._labels(result) == {"b": "Bo Ng"}
+        assert set(result.subjects()) == {EX.b}
+
+    def test_several_focus_nodes(self):
+        data, shapes = self._graphs()
+        result = StarShaclSchema(shacl_graph=shapes).evaluate(data_graph=data, focus_nodes={EX.a, EX.c})
+        assert self._labels(result) == {"a": "Ann Lee", "c": "Cy Ox"}
+
+    def test_a_node_the_shapes_do_not_target_is_not_evaluated(self):
+        data, shapes = self._graphs()
+        data.parse(data="@prefix ex: <http://example.org/> . ex:z ex:first \"Zed\" ; ex:last \"Yu\" .", format="turtle12")
+        result = StarShaclSchema(shacl_graph=shapes).evaluate(data_graph=data, focus_nodes=[EX.z])
+        assert len(result) == 0
+
+    def test_one_property(self):
+        data, shapes = self._graphs()
+        result = StarShaclSchema(shacl_graph=shapes).evaluate(data_graph=data, properties=[EX.label])
+        assert self._labels(result) == {"a": "Ann Lee", "b": "Bo Ng", "c": "Cy Ox"}
+        assert not list(result.triples((None, EX.first, None)))
+
+    def test_one_property_of_one_node(self):
+        data, shapes = self._graphs()
+        result = StarShaclSchema(shacl_graph=shapes).evaluate(data_graph=data, focus_nodes=[EX.a], properties=[EX.label])
+        assert set(result) == {(EX.a, EX.label, Literal("Ann Lee"))}
+
+    def test_the_bare_function_takes_them_too(self):
+        from starlayer.shacl import evaluate
+
+        data, shapes = self._graphs()
+        result = evaluate(data, shapes, focus_nodes=[EX.c], properties=[EX.label])
+        assert set(result) == {(EX.c, EX.label, Literal("Cy Ox"))}
+
+    def test_a_restricted_result_is_a_subset_of_the_full_one(self):
+        data, shapes = self._graphs()
+        schema = StarShaclSchema(shacl_graph=shapes)
+        full = set(schema.evaluate(data_graph=data))
+        assert set(schema.evaluate(data_graph=data, focus_nodes=[EX.a, EX.b])) <= full

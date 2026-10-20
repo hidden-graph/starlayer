@@ -1754,6 +1754,8 @@ class StarShaclSchema:
         data_graph: Any | None = None,
         *,
         shapes_graph_resource: Any | None = None,
+        focus_nodes: Any | None = None,
+        properties: Any | None = None,
     ) -> Any:
         """Computes every ``sh:values``-declared virtual property across
         ``shacl_graph`` and returns the result as a shape-driven subgraph.
@@ -1824,6 +1826,16 @@ class StarShaclSchema:
                 is not a parameter here - it is always taken from
                 ``self.inference``, bound at construction.
 
+            focus_nodes: Restrict evaluation to these focus nodes (an iterable of
+                nodes). ``None`` (the default) evaluates every node the shapes
+                target; a node that is not one of a shape's targets is not
+                evaluated for it. Only the per-node work (reading stored values and
+                computing ``sh:values``/``sh:defaultValue``) is limited; the shapes'
+                own targets are still resolved over ``data_graph``.
+            properties: Restrict evaluation to property shapes whose ``sh:path`` is
+                one of these predicates (an iterable of IRIs). ``None`` evaluates
+                every property shape.
+
         Returns:
             A plain graph: the real, stored values of every property shape
             with a simple ``sh:path``, for its own target focus nodes, with
@@ -1862,18 +1874,24 @@ class StarShaclSchema:
         # up front and only the sh:values/sh:defaultValue-bearing shapes
         # were visited at all).
         all_prop_shapes = {s for s, _, _ in shacl_graph.triples((None, SH.path, None))}
+        wanted_focus_nodes = None if focus_nodes is None else frozenset(focus_nodes)
+        wanted_predicates = None if properties is None else frozenset(properties)
 
         for prop_shape in all_prop_shapes:
             path_vals = list(shacl_graph.objects(prop_shape, SH.path))
             if len(path_vals) != 1 or not isinstance(path_vals[0], URIRef):
                 continue
             predicate = path_vals[0]
+            if wanted_predicates is not None and predicate not in wanted_predicates:
+                continue
             values_node = next(iter(shacl_graph.objects(prop_shape, SH.values)), None)
             default_values = list(shacl_graph.objects(prop_shape, SH.defaultValue))
 
             focus_nodes = set(_shape_target_nodes(data_graph, shacl_graph, prop_shape))
             for node_shape, _, _ in shacl_graph.triples((None, SH.property, prop_shape)):
                 focus_nodes |= _shape_target_nodes(data_graph, shacl_graph, node_shape)
+            if wanted_focus_nodes is not None:
+                focus_nodes &= wanted_focus_nodes
             if not focus_nodes:
                 continue
 
@@ -3607,6 +3625,8 @@ def evaluate(
     ont_graph: Any | None = None,
     *,
     inference: Any | None = None,
+    focus_nodes: Any | None = None,
+    properties: Any | None = None,
 ) -> Any:
     """Computes every ``sh:values``/``sh:defaultValue``-declared virtual
     property across ``shacl_graph`` and returns the result as a
@@ -3657,6 +3677,16 @@ def evaluate(
             choice, since Core's own value-nodes algorithm itself
             never distinguishes asserted from entailed triples.
 
+        focus_nodes: Restrict evaluation to these focus nodes (an iterable of
+            nodes). ``None`` (the default) evaluates every node the shapes
+            target; a node that is not one of a shape's targets is not
+            evaluated for it. Only the per-node work (reading stored values and
+            computing ``sh:values``/``sh:defaultValue``) is limited; the shapes'
+            own targets are still resolved over ``data_graph``.
+        properties: Restrict evaluation to property shapes whose ``sh:path`` is
+            one of these predicates (an iterable of IRIs). ``None`` evaluates
+            every property shape.
+
     Returns:
         A plain graph object (the same type as ``data_graph``)
         containing the shape-driven subgraph described above.
@@ -3688,18 +3718,24 @@ def evaluate(
     # copy of data_graph - with virtual sh:values/sh:defaultValue output
     # layered on top of that subgraph.
     all_prop_shapes = {s for s, _, _ in shacl_graph.triples((None, SH.path, None))}
+    wanted_focus_nodes = None if focus_nodes is None else frozenset(focus_nodes)
+    wanted_predicates = None if properties is None else frozenset(properties)
 
     for prop_shape in all_prop_shapes:
         path_vals = list(shacl_graph.objects(prop_shape, SH.path))
         if len(path_vals) != 1 or not isinstance(path_vals[0], URIRef):
             continue
         predicate = path_vals[0]
+        if wanted_predicates is not None and predicate not in wanted_predicates:
+            continue
         values_node = next(iter(shacl_graph.objects(prop_shape, SH.values)), None)
         default_values = list(shacl_graph.objects(prop_shape, SH.defaultValue))
 
         focus_nodes = set(_shape_target_nodes(data_graph, shacl_graph, prop_shape))
         for node_shape, _, _ in shacl_graph.triples((None, SH.property, prop_shape)):
             focus_nodes |= _shape_target_nodes(data_graph, shacl_graph, node_shape)
+        if wanted_focus_nodes is not None:
+            focus_nodes &= wanted_focus_nodes
         if not focus_nodes:
             continue
 
