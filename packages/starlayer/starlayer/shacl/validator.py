@@ -5000,9 +5000,12 @@ def _compute_sh_values(shape: Any, values_node: Any, target_graph: Any, focus_no
         query_text = f"SELECT ({expr_vals[0]} AS ?_computed) WHERE {{}}"
     else:
         from starlayer.shacl.node_expressions import eval_expr
+        from starlayer.shacl.sparql_node_expressions import NodeExpressionError
 
         try:
             return [v for v in eval_expr(values_node, focus_node, target_graph, shape.sg) if v is not None]
+        except NodeExpressionError:
+            raise
         except Exception:
             return []
 
@@ -5046,9 +5049,12 @@ def _compute_sh_default_value(default_value_node: Any, target_graph: Any, sg: An
         The non-``None`` evaluated default value(s).
     """
     from starlayer.shacl.node_expressions import eval_expr
+    from starlayer.shacl.sparql_node_expressions import NodeExpressionError
 
     try:
         return [v for v in eval_expr(default_value_node, focus_node, target_graph, sg) if v is not None]
+    except NodeExpressionError:
+        raise
     except Exception:
         return []
 

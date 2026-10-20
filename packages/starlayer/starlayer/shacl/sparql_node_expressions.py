@@ -60,7 +60,7 @@ from collections.abc import Callable
 from typing import Any
 
 from rdflib import BNode, Literal, URIRef
-from rdflib.namespace import Namespace
+from rdflib.namespace import RDF, Namespace
 
 from starlayer.shacl.types import is_triple_term_like
 
@@ -167,6 +167,26 @@ _ALL_PREDICATES = frozenset(
 )
 
 EvalArg = Callable[[Any], list]
+
+
+class NodeExpressionError(ValueError):
+    """A node expression is written wrongly (a definition error, as opposed to a value that has no result for some
+    data). ``sh:values`` and ``sh:defaultValue`` treat an expression that errors on some data as having no value,
+    but let this one through so a malformed shape is reported rather than quietly producing nothing."""
+
+
+def require_list_argument(sg: Any, expr: Any, label: str, arg: Any) -> None:
+    """Raise :class:`NodeExpressionError` unless ``arg`` is an RDF list (``rdf:nil`` or a node with ``rdf:first``).
+
+    The node-expression grammar gives a function or list operator its arguments as an RDF list. A bare node, e.g.
+    ``sparql:year [ shnex:pathValues ex:d ]``, has no ``rdf:first``, so reading it as a list gave no arguments and
+    the expression quietly produced no value (GitHub issue #8).
+    """
+    if arg != RDF.nil and next(iter(sg.graph.objects(arg, RDF.first)), None) is None:
+        raise NodeExpressionError(
+            f"Node expression {expr}: the argument of {label} must be an RDF list, "
+            f"e.g. `{label} ( <expression> )`, not the bare node {arg}."
+        )
 
 
 def is_sparql_expr(sg: Any, expr: Any) -> bool:
@@ -308,6 +328,7 @@ def eval_sparql_expr(expr: Any, sg: Any, eval_arg: EvalArg) -> list:
     """Evaluate a ``sparql:``-tagged node expression. See module docstring."""
     pred = _defining_predicate(sg, expr)
     arg_list = next(iter(sg.graph.objects(expr, pred)))
+    require_list_argument(sg, expr, "sparql:" + pred.rsplit("#", 1)[-1], arg_list)
     arg_exprs = list(sg.graph.items(arg_list))
 
     if pred == SPARQL.bound:

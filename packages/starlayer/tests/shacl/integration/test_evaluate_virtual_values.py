@@ -570,3 +570,59 @@ class TestShapesGraphIsNotModified:
         before = set(data)
         StarShaclSchema().evaluate(data_graph=data)
         assert set(data) == before
+
+
+class TestFunctionArgumentMustBeAList:
+    """GitHub issue #8: a function whose argument was a bare node (``sparql:year [ ... ]``) instead of a list
+    (``sparql:year ( [ ... ] )``) silently produced no value. It is now reported as a malformed expression."""
+
+    _PREFIXES = """
+        @prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> .
+        @prefix shnex: <http://www.w3.org/ns/shacl-node-expr#> . @prefix sparql: <http://www.w3.org/ns/sparql#> .
+        @prefix xsd: <http://www.w3.org/2001/XMLSchema#> ."""
+
+    def _evaluate(self, values: str):
+        data = StarLayerGraph()
+        data.parse(
+            data=self._PREFIXES + ' ex:alice ex:birthDate "1990-01-01"^^xsd:date ; ex:name "Al" .', format="turtle12"
+        )
+        shapes = StarLayerGraph()
+        shapes.parse(
+            data=self._PREFIXES
+            + f" ex:S a sh:NodeShape ; sh:targetNode ex:alice ; sh:property [ sh:path ex:out ; sh:values {values} ] .",
+            format="turtle12",
+        )
+        result = StarShaclSchema(shacl_graph=shapes).evaluate(data_graph=data)
+        return sorted(str(o) for o in result.objects(EX.alice, EX.out))
+
+    def test_list_form_works(self):
+        assert self._evaluate("[ sparql:year ( [ shnex:pathValues ex:birthDate ] ) ]") == ["1990"]
+
+    def test_empty_list_is_still_a_call_with_no_arguments(self):
+        assert self._evaluate("[ sparql:year () ]") == []
+
+    @pytest.mark.parametrize(
+        "values",
+        [
+            "[ sparql:year [ shnex:pathValues ex:birthDate ] ]",
+            "[ sparql:str [ shnex:pathValues ex:name ] ]",
+            "[ sparql:concat [ shnex:pathValues ex:name ] ]",
+            "[ shnex:concat [ shnex:pathValues ex:name ] ]",
+            "[ shnex:intersection [ shnex:pathValues ex:name ] ]",
+        ],
+    )
+    def test_bare_node_is_reported_not_silently_empty(self, values):
+        from starlayer.shacl.sparql_node_expressions import NodeExpressionError
+
+        with pytest.raises(NodeExpressionError, match="must be an RDF list"):
+            self._evaluate(values)
+
+    def test_a_bare_node_nested_in_coalesce_no_longer_falls_back_quietly(self):
+        from starlayer.shacl.sparql_node_expressions import NodeExpressionError
+
+        nested = "[ sparql:coalesce ( [ sparql:year [ shnex:pathValues ex:birthDate ] ] [ shnex:pathValues ex:name ] ) ]"
+        with pytest.raises(NodeExpressionError):
+            self._evaluate(nested)
+
+    def test_shnex_count_still_takes_a_single_expression(self):
+        assert self._evaluate("[ shnex:count [ shnex:pathValues ex:name ] ]") == ["1"]

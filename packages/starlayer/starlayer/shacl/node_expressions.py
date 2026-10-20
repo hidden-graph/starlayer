@@ -104,7 +104,11 @@ from typing import Any
 from rdflib import BNode, Literal, URIRef
 from rdflib.namespace import RDF, XSD, Namespace
 
-from starlayer.shacl.sparql_node_expressions import eval_sparql_expr, is_sparql_expr
+from starlayer.shacl.sparql_node_expressions import (
+    eval_sparql_expr,
+    is_sparql_expr,
+    require_list_argument,
+)
 from starlayer.shacl.types import is_dirlangstring_like, is_triple_term_like
 
 SHNEX = Namespace("http://www.w3.org/ns/shacl-node-expr#")
@@ -563,6 +567,7 @@ def eval_expr(
 
     if pred == SHNEX.intersection:
         list_node = next(iter(sg.graph.objects(expr, SHNEX.intersection)))
+        require_list_argument(sg, expr, "shnex:intersection", list_node)
         members = list(sg.graph.items(list_node))
         result: list[Any] | None = None
         for m in members:
@@ -586,6 +591,7 @@ def eval_expr(
 
     if pred == SHNEX.concat:
         list_node = next(iter(sg.graph.objects(expr, SHNEX.concat)))
+        require_list_argument(sg, expr, "shnex:concat", list_node)
         members = list(sg.graph.items(list_node))
         out: list[Any] = []
         for m in members:
