@@ -55,6 +55,22 @@ from starlayer.graph.model.triple import TripleTerm
 _raw_graph_add = Graph.add
 
 
+def _indent_outside_long_strings(body: str, indent: str) -> str:
+    """Indent each line of ``body`` except the continuation lines of a triple-quoted string literal.
+
+    Indenting a line inside a long string changes the literal's value (and every later round trip adds more), so the
+    lines of one are left exactly as the serializer wrote them. A line starts inside a long string when an odd number
+    of ``\"\"\"`` delimiters came before it.
+    """
+    out = []
+    inside = False
+    for line in body.splitlines():
+        out.append(line if inside or not line.strip() else indent + line)
+        if line.count('"' * 3) % 2:
+            inside = not inside
+    return '\n'.join(out)
+
+
 class StarLayerDataset(Dataset):
     """An RDF dataset where every named-graph context is a StarLayerGraph.
 
@@ -993,10 +1009,7 @@ class StarLayerDataset(Dataset):
                 if isinstance(identifier, BNode):
                     blocks.append(body)
                 else:
-                    indented = '\n'.join(
-                        indent + ln if ln.strip() else ln
-                        for ln in body.splitlines()
-                    )
+                    indented = _indent_outside_long_strings(body, indent)
                     blocks.append(f'GRAPH <{identifier}> {{\n{indented}\n}}')
 
             text = '\n\n'.join(blocks) + '\n'

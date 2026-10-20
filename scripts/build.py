@@ -11,6 +11,8 @@ Runs the individual build scripts in dependency order:
    queries, as sqe trees) and writes ``docs/generated/query-library.generated.md`` from it
 6. ``check_docs.py``          - checks links, anchors and the guide index (changes nothing)
 7. ``check_notebook_links.py`` - checks the hand-made notebook-to-code links against the notebooks (changes nothing)
+8. ``build_kg.py``           - ``codekg/starlayer-kg.trig``: the code graph, vocabulary, curated layer and every named
+   query's SPARQL text in one plain-TriG file (checked by isomorphism, per named graph)
 
 Build-time only: nothing in the library runs or imports this. Each script can
 still be run on its own.
@@ -66,6 +68,7 @@ _STEPS: dict[str, Step] = {
         outputs=["docs/generated/functionality-overview.generated.md"],
     ),
     "queries": Step("build_query_catalogue.py", own_check=True),
+    "kg": Step("build_kg.py", own_check=True),
     "docs": Step("check_docs.py", own_check=True),
     "notebooks": Step("check_notebook_links.py", own_check=True),
 }
