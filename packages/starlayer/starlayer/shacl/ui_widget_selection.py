@@ -153,6 +153,12 @@ def select_widget(
     the choice is per shape rather than per node. Passing a ``focus_node``
     without a ``data_graph`` raises ``ValueError``.
 
+    **``role`` does not filter the scoring catalog.** Following the draft's Select Function (Section 3.2), ``role``
+    only chooses which predicate (``shui:editor`` or ``shui:viewer``) is read for a widget the shape names itself. The
+    scoring step then considers every ``shui:WidgetScore`` in ``scoring_graph``, whether its widget is an editor or a
+    viewer, so one catalog used for both roles can return a viewer for ``role="editor"`` and the reverse. Keep a
+    separate catalog per role (GitHub issue #9).
+
     ``scoring_graph`` is optional: omit it (or pass ``None``) when widgets
     are fixed in the shapes graph and there is no scoring catalog - an
     explicit ``shui:editor``/``shui:viewer`` is then accepted outright, and a
