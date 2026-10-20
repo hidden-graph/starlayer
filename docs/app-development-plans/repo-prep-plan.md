@@ -168,6 +168,8 @@ Each phase is its own commit on `prep-for-app-development`.
 - **Never public:** raw query logs, anything that identifies a caller, any write or update route.
 - **Effect on the workstreams:** workstream 7 (the GitHub feedback channel) needs no hosting and can go ahead. Workstream 8 builds the local, opt-in log and the FAQ generator now; the endpoint feed is added when a host is chosen. The host, the domain and who pays are still open.
 
+**Single-file KG (2026-10-19):** until an endpoint exists, `packages/starlayer/starlayer/codekg/starlayer-kg.trig` holds the whole KG in one file: the code graph and build stamp, the vocabulary, the curated layer (capabilities, notebook links, upstream issues, the query library as sqe trees, derived `demonstratedBy`) and a derived graph with each named query's SPARQL text (`slkg:queryText`). An agent downloads it, loads it with `StarLayerDataset(default_union=True).parse(path, format="trig12")` and runs the queries it reads from the graph. Built by `scripts/build_kg.py` (build step `kg`), checked in CI by isomorphism per named graph. Written and read only with StarLayer's own TriG support, not plain rdflib.
+
 **Limits:** GitHub Pages cannot run an endpoint or log queries, so this needs real hosting. A published KG is only as fresh as its last publish. An agent without network access cannot reach it. A later local stdio MCP server could wrap the same queries; MCP is still deferred.
 
 **Effect on workstream 1:** AGENTS.md describes the local KG now and carries a short "planned: public endpoint" note, with no URL until one exists.

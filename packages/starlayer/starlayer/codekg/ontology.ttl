@@ -523,3 +523,9 @@ slkg:workedAroundByIdentifier a owl:DatatypeProperty ;
     rdfs:label "worked around by identifier" ;
     rdfs:comment "The dotted path (a dcterms:identifier in codekg.trig) of code that exists as a workaround for the issue, by the same convention as slkg:implementedByIdentifier." .
 
+slkg:queryText a owl:DatatypeProperty ;
+    rdfs:domain slkg:NamedQuery ;
+    rdfs:range xsd:string ;
+    rdfs:label "query text" ;
+    rdfs:comment "The SPARQL text of a NamedQuery, rendered from its sqe: tree. Derived: it exists only in starlayer-kg.trig (named graph .../codekg/derived), so a reader with only an RDF library can run the query. A parameter is a variable of the same name as its slkg:paramName: bind it (initBindings) or substitute it." .
+
