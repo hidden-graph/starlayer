@@ -11,40 +11,40 @@ Generated directly from `packages/starlayer/starlayer/codekg/codekg.trig` - ever
 
 An RDF dataset where every named-graph context is a StarLayerGraph.
 
-    All RDF 1.2 triple-term handling (encoding, filtering, restoration) is
-    delegated to per-context StarLayerGraph instances.  The shared store holds
-    the tt: URIRef encoding triples; each StarLayerGraph's registry maps those
-    back to TripleTerm objects.
+All RDF 1.2 triple-term handling (encoding, filtering, restoration) is
+delegated to per-context StarLayerGraph instances.  The shared store holds
+the tt: URIRef encoding triples; each StarLayerGraph's registry maps those
+back to TripleTerm objects.
 
-    The default graph is an explicit, independent graph (``default_union=False``
-    per the RDF dataset spec and rdflib 7 default).  Pass
-    ``default_union=True`` to make the default graph a union of all named graphs.
+The default graph is an explicit, independent graph (``default_union=False``
+per the RDF dataset spec and rdflib 7 default).  Pass
+``default_union=True`` to make the default graph a union of all named graphs.
 
-    Public API additions vs Dataset:
-        parse(format='trig12')      — load TriG 1.2 with triple-term support
-        parse(format='nq12')        — load N-Quads 1.2 with triple-term support
-        serialize(format='trig12')  — emit TriG 1.2 with triple-term support
-        serialize(format='nq12')    — emit N-Quads 1.2 with triple-term support
-        serialize(format='turtle12'/'longturtle12'/'nt12'/'rdfxml12')
-                                    — no multi-graph syntax exists for these,
-                                      so every quad is flattened into one
-                                      StarLayerGraph first (graph boundaries
-                                      are lost)
-        to_graph()                  — flatten every quad into one new
-                                      StarLayerGraph (graph boundaries lost);
-                                      same flattening serialize() uses above,
-                                      exposed for querying/hashing/etc.
-        get_context(identifier)     — returns StarLayerGraph (not plain Graph)
-        contexts()                  — yields StarLayerGraph instances
-        quads()                     — yields (s, p, o, StarLayerGraph) with
-                                      TripleTerms restored; encoding triples filtered
-        reifiers()/reifications()/reifier_annotations()/reified_triples()
-                                    — dataset-wide reification lookups; each
-                                      returns a StarLayerDataset of the
-                                      matching triples, still scoped to the
-                                      named graph each one came from
+Public API additions vs Dataset:
+    parse(format='trig12')      — load TriG 1.2 with triple-term support
+    parse(format='nq12')        — load N-Quads 1.2 with triple-term support
+    serialize(format='trig12')  — emit TriG 1.2 with triple-term support
+    serialize(format='nq12')    — emit N-Quads 1.2 with triple-term support
+    serialize(format='turtle12'/'longturtle12'/'nt12'/'rdfxml12')
+                                — no multi-graph syntax exists for these,
+                                  so every quad is flattened into one
+                                  StarLayerGraph first (graph boundaries
+                                  are lost)
+    to_graph()                  — flatten every quad into one new
+                                  StarLayerGraph (graph boundaries lost);
+                                  same flattening serialize() uses above,
+                                  exposed for querying/hashing/etc.
+    get_context(identifier)     — returns StarLayerGraph (not plain Graph)
+    contexts()                  — yields StarLayerGraph instances
+    quads()                     — yields (s, p, o, StarLayerGraph) with
+                                  TripleTerms restored; encoding triples filtered
+    reifiers()/reifications()/reifier_annotations()/reified_triples()
+                                — dataset-wide reification lookups; each
+                                  returns a StarLayerDataset of the
+                                  matching triples, still scoped to the
+                                  named graph each one came from
 
-**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L58-L1011)
+**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L74-L1024)
 
 ---
 
@@ -56,8 +56,8 @@ def add(self, triple) -> StarLayerDataset
 ```
 
 Add a triple to the default graph, with TripleTerm-aware
-    encoding - see this section's own module-level comment for why
-    this override exists at all.
+encoding - see this section's own module-level comment for why
+this override exists at all.
 
 **Parameters:**
 
@@ -65,7 +65,7 @@ Add a triple to the default graph, with TripleTerm-aware
 
 **Returns:** `StarLayerDataset`
 
-**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.add](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L359-L365)
+**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.add](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L375-L381)
 
 ---
 
@@ -77,17 +77,17 @@ def addN(self, quads) -> StarLayerDataset
 ```
 
 Add multiple quads, each routed to its own target graph's real
-    StarLayerGraph context for TripleTerm-aware encoding - see this
-    section's own module-level comment.
+StarLayerGraph context for TripleTerm-aware encoding - see this
+section's own module-level comment.
 
-    Grouped by identifier regardless of whether every quad's graph
-    element is the same object (as rdflib's own ``Graph.__iadd__``
-    (``+=``) always passes it) or genuinely heterogeneous, matching
-    ``StarLayerGraph.addN``'s own general handling - correct for a
-    direct multi-graph ``addN`` call too, not just the ``+=`` case.
+Grouped by identifier regardless of whether every quad's graph
+element is the same object (as rdflib's own ``Graph.__iadd__``
+(``+=``) always passes it) or genuinely heterogeneous, matching
+``StarLayerGraph.addN``'s own general handling - correct for a
+direct multi-graph ``addN`` call too, not just the ``+=`` case.
 
-    Returns self, matching rdflib's own ConjunctiveGraph.addN() (and
-    StarLayerGraph.addN() above).
+Returns self, matching rdflib's own ConjunctiveGraph.addN() (and
+StarLayerGraph.addN() above).
 
 **Parameters:**
 
@@ -95,7 +95,7 @@ Add multiple quads, each routed to its own target graph's real
 
 **Returns:** `StarLayerDataset`
 
-**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.addN](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L375-L396)
+**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.addN](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L391-L412)
 
 ---
 
@@ -107,19 +107,19 @@ def cbd(self, resource, *, target_graph=None, include_reifications=True) -> Star
 ```
 
 Computes the Concise Bounded Description of ``resource`` and
-    returns it as a ``StarLayerGraph``.
+returns it as a ``StarLayerGraph``.
 
-    Scoped by ``self.default_union`` the same way ``triples()``/
-    ``subjects()`` are (both are called internally by rdflib's own
-    ``Graph.cbd()`` this delegates to) - see ``triples()``'s own
-    docstring.
+Scoped by ``self.default_union`` the same way ``triples()``/
+``subjects()`` are (both are called internally by rdflib's own
+``Graph.cbd()`` this delegates to) - see ``triples()``'s own
+docstring.
 
-    Defaults ``target_graph`` to a new ``StarLayerGraph``, same as
-    ``StarLayerGraph.cbd()`` - the inherited rdflib ``cbd()`` instead
-    hardcodes a plain ``rdflib.Graph()``, which crashes with
-    ``AssertionError: Object ... must be an rdflib term`` the moment the
-    CBD'd data contains a real ``TripleTerm``, since ``Graph.add()``
-    asserts its object is an rdflib ``Node``.
+Defaults ``target_graph`` to a new ``StarLayerGraph``, same as
+``StarLayerGraph.cbd()`` - the inherited rdflib ``cbd()`` instead
+hardcodes a plain ``rdflib.Graph()``, which crashes with
+``AssertionError: Object ... must be an rdflib term`` the moment the
+CBD'd data contains a real ``TripleTerm``, since ``Graph.add()``
+asserts its object is an rdflib ``Node``.
 
 **Parameters:**
 
@@ -129,7 +129,7 @@ Computes the Concise Bounded Description of ``resource`` and
 
 **Returns:** `StarLayerGraph` - target_graph, populated with the CBD.
 
-**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.cbd](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L279-L318)
+**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.cbd](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L295-L334)
 
 ---
 
@@ -148,7 +148,7 @@ Close the underlying store, optionally committing pending writes.
 
 **Returns:** `None`
 
-**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.close](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L161-L163)
+**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.close](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L177-L179)
 
 ---
 
@@ -167,7 +167,7 @@ Yield a StarLayerGraph for every named graph in this dataset.
 
 **Returns:** `Generator[StarLayerGraph, None, None]`
 
-**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.contexts](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L205-L208)
+**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.contexts](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L221-L224)
 
 ---
 
@@ -179,7 +179,7 @@ def de_skolemize(self, new_graph=None, uriref=None) -> StarLayerGraph
 ```
 
 Convert skolem IRIs back to blank nodes. Same bug class and same
-    fix as skolemize() above.
+fix as skolemize() above.
 
 **Parameters:**
 
@@ -188,7 +188,7 @@ Convert skolem IRIs back to blank nodes. Same bug class and same
 
 **Returns:** `StarLayerGraph`
 
-**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.de_skolemize](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L333-L343)
+**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.de_skolemize](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L349-L359)
 
 ---
 
@@ -203,7 +203,7 @@ Deprecated alias for default_graph (matches rdflib's own deprecation).
 
 **Returns:** `StarLayerGraph`
 
-**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.default_context](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L127-L135)
+**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.default_context](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L143-L151)
 
 ---
 
@@ -215,16 +215,16 @@ def default_graph(self) -> StarLayerGraph
 ```
 
 The default graph context, re-resolved via get_context() on every
-    access - never cached as self._default_context directly.
+access - never cached as self._default_context directly.
 
-    parse() (via _load_context()/_register_sg()) can swap a brand-new
-    StarLayerGraph instance into _sg_cache without updating any
-    previously-cached reference to the old one. A cached snapshot would
-    silently go stale after a parse.
+parse() (via _load_context()/_register_sg()) can swap a brand-new
+StarLayerGraph instance into _sg_cache without updating any
+previously-cached reference to the old one. A cached snapshot would
+silently go stale after a parse.
 
 **Returns:** `StarLayerGraph` - The StarLayerGraph for the dataset's default graph.
 
-**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.default_graph](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L112-L124)
+**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.default_graph](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L128-L140)
 
 ---
 
@@ -237,9 +237,9 @@ def get_context(self, identifier, quoted: bool=False, base=None) -> StarLayerGra
 
 Return the StarLayerGraph for the named graph with the given identifier.
 
-    If the graph was populated via parse(), its TripleTerm registry is
-    already current.  If the context was added through other means, the
-    registry is rebuilt on first access.
+If the graph was populated via parse(), its TripleTerm registry is
+already current.  If the context was added through other means, the
+registry is rebuilt on first access.
 
 **Parameters:**
 
@@ -249,7 +249,7 @@ Return the StarLayerGraph for the named graph with the given identifier.
 
 **Returns:** `StarLayerGraph`
 
-**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.get_context](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L186-L203)
+**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.get_context](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L202-L219)
 
 ---
 
@@ -261,16 +261,16 @@ def open(self, configuration, create: bool=False) -> StarLayerDataset
 ```
 
 Open a persistent store and rebuild all per-context TripleTerm registries.
-    Returns self, not whatever status value rdflib's own Graph.open()
-    returns (fixed 2026-10-04 - same bug as StarLayerGraph.open()).
+Returns self, not whatever status value rdflib's own Graph.open()
+returns (fixed 2026-10-04 - same bug as StarLayerGraph.open()).
 
-    The store backend is not a StarLayer dependency — install and configure
-    it separately, then pass store='StoreName' to the constructor.
+The store backend is not a StarLayer dependency — install and configure
+it separately, then pass store='StoreName' to the constructor.
 
-    Example::
+Example::
 
-        ds = StarLayerDataset(store='Sleepycat')
-        ds.open('/path/to/db', create=True)
+    ds = StarLayerDataset(store='Sleepycat')
+    ds.open('/path/to/db', create=True)
 
 **Parameters:**
 
@@ -279,7 +279,7 @@ Open a persistent store and rebuild all per-context TripleTerm registries.
 
 **Returns:** `StarLayerDataset`
 
-**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.open](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L141-L159)
+**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.open](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L157-L175)
 
 ---
 
@@ -292,19 +292,19 @@ def parse(self, source=None, publicID=None, format=None, location=None, file=Non
 
 Parse RDF data into named-graph contexts.
 
-    format='turtle12' — Turtle 1.2; triples go into the default graph as a StarLayerGraph.
-    format='trig12'   — TriG 1.2; each GRAPH block becomes a StarLayerGraph.
-                        Plain Turtle content (no GRAPH blocks) goes into the default graph.
-    format='nq12'     — N-Quads 1.2; each distinct graph name becomes a StarLayerGraph.
-    format='trix12'   — TriX 1.2 XML; each <graph> block becomes a StarLayerGraph.
-    format='longturtle12'/'nt12'/'rdfxml12'/'manchester' (alias 'omn') —
-                        no multi-graph syntax exists for these (same reasoning
-                        as turtle12 above, just without a GRAPH-block
-                        superset to route through) - triples go straight
-                        into the default graph as a StarLayerGraph.
-    format='n3'/'n3-12'/'text/n3' — aliased straight to 'turtle12', same
-                        as on StarLayerGraph; must be valid Turtle/Turtle 1.2.
-    All other formats delegate to rdflib (no triple-term support).
+format='turtle12' — Turtle 1.2; triples go into the default graph as a StarLayerGraph.
+format='trig12'   — TriG 1.2; each GRAPH block becomes a StarLayerGraph.
+                    Plain Turtle content (no GRAPH blocks) goes into the default graph.
+format='nq12'     — N-Quads 1.2; each distinct graph name becomes a StarLayerGraph.
+format='trix12'   — TriX 1.2 XML; each <graph> block becomes a StarLayerGraph.
+format='longturtle12'/'nt12'/'rdfxml12'/'manchester' (alias 'omn') —
+                    no multi-graph syntax exists for these (same reasoning
+                    as turtle12 above, just without a GRAPH-block
+                    superset to route through) - triples go straight
+                    into the default graph as a StarLayerGraph.
+format='n3'/'n3-12'/'text/n3' — aliased straight to 'turtle12', same
+                    as on StarLayerGraph; must be valid Turtle/Turtle 1.2.
+All other formats delegate to rdflib (no triple-term support).
 
 **Parameters:**
 
@@ -318,7 +318,7 @@ Parse RDF data into named-graph contexts.
 
 **Returns:** `StarLayerDataset`
 
-**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.parse](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L428-L550)
+**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.parse](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L444-L566)
 
 ---
 
@@ -330,7 +330,7 @@ def quads(self, triple=(None, None, None)) -> Generator[tuple, None, None]
 ```
 
 Yield (s, p, o, StarLayerGraph) with encoding triples filtered out
-    and tt:HASH URIRefs restored to TripleTerm objects.
+and tt:HASH URIRefs restored to TripleTerm objects.
 
 **Parameters:**
 
@@ -338,7 +338,7 @@ Yield (s, p, o, StarLayerGraph) with encoding triples filtered out
 
 **Returns:** `Generator[tuple, None, None]`
 
-**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.quads](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L218-L228)
+**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.quads](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L234-L244)
 
 ---
 
@@ -351,25 +351,25 @@ def query(self, query_object, processor='sparql', result='sparql', initNs=None, 
 
 Execute a SPARQL query across all named graphs with SPARQL-star support.
 
-    SPARQL 1.2 syntax (``<<( )>>``, ``{| |}``, ``~``, SUBJECT/PREDICATE/
-    OBJECT/isTRIPLE) is parsed via starlayer.sparql's real grammar and
-    lowered to plain SPARQL 1.1 (tt:HASH encoding) before execution.
-    SELECT result rows are post-processed to restore tt:HASH URIRefs
-    back to TripleTerm objects.
+SPARQL 1.2 syntax (``<<( )>>``, ``{| |}``, ``~``, SUBJECT/PREDICATE/
+OBJECT/isTRIPLE) is parsed via starlayer.sparql's real grammar and
+lowered to plain SPARQL 1.1 (tt:HASH encoding) before execution.
+SELECT result rows are post-processed to restore tt:HASH URIRefs
+back to TripleTerm objects.
 
-    Rewriting and parsing are cached (``prepare_query_cached``) on
-    (query text, effective namespaces, base) - not cleared on
-    parse()/update() unlike ``_raw_execution_graph``, since a query's
-    parse tree depends only on its own text, not on graph content.
+Rewriting and parsing are cached (``prepare_query_cached``) on
+(query text, effective namespaces, base) - not cleared on
+parse()/update() unlike ``_raw_execution_graph``, since a query's
+parse tree depends only on its own text, not on graph content.
 
-    For the native rdf-1.2 backend the query is routed through
-    ``starlayer.graph.backends.native.native_query``, same as
-    ``StarLayerGraph.query()`` (a native-backed dataset's contexts all
-    share one store, so it's the same underlying HTTP operation) -
-    ``_build_raw_execution_graph()``'s plain-Graph-copy approach can't
-    represent real triple-term-valued bindings (rdflib's SPARQL JSON
-    result parsing doesn't understand "type":"triple"; see
-    starlayer.graph.backends.native's module docstring).
+For the native rdf-1.2 backend the query is routed through
+``starlayer.graph.backends.native.native_query``, same as
+``StarLayerGraph.query()`` (a native-backed dataset's contexts all
+share one store, so it's the same underlying HTTP operation) -
+``_build_raw_execution_graph()``'s plain-Graph-copy approach can't
+represent real triple-term-valued bindings (rdflib's SPARQL JSON
+result parsing doesn't understand "type":"triple"; see
+starlayer.graph.backends.native's module docstring).
 
 **Parameters:**
 
@@ -383,7 +383,7 @@ Execute a SPARQL query across all named graphs with SPARQL-star support.
 
 **Returns:** `Result`
 
-**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.query](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L752-L806)
+**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.query](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L768-L822)
 
 ---
 
@@ -395,8 +395,8 @@ def reifications(self, s=None, p=None, o=None) -> StarLayerDataset
 ```
 
 Return a StarLayerDataset of the rdf:reifies triples for every
-    reified triple term matching the given s/p/o pattern, across every
-    graph in this dataset - see StarLayerGraph.reifications().
+reified triple term matching the given s/p/o pattern, across every
+graph in this dataset - see StarLayerGraph.reifications().
 
 **Parameters:**
 
@@ -406,7 +406,7 @@ Return a StarLayerDataset of the rdf:reifies triples for every
 
 **Returns:** `StarLayerDataset`
 
-**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.reifications](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L697-L713)
+**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.reifications](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L713-L729)
 
 ---
 
@@ -418,9 +418,9 @@ def reified_triples(self, reifier) -> StarLayerDataset
 ```
 
 Return a StarLayerDataset of the rdf:reifies triples for the given
-    reifier node, across every graph in this dataset - a reifier node
-    reused in more than one graph shows up as a separate match per
-    graph. See StarLayerGraph.reified_triples().
+reifier node, across every graph in this dataset - a reifier node
+reused in more than one graph shows up as a separate match per
+graph. See StarLayerGraph.reified_triples().
 
 **Parameters:**
 
@@ -428,7 +428,7 @@ Return a StarLayerDataset of the rdf:reifies triples for the given
 
 **Returns:** `StarLayerDataset`
 
-**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.reified_triples](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L734-L750)
+**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.reified_triples](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L750-L766)
 
 ---
 
@@ -440,10 +440,10 @@ def reifier_annotations(self, TT) -> StarLayerDataset
 ```
 
 Return a StarLayerDataset of annotation triples for every reifier
-    of TT, across every graph in this dataset.
+of TT, across every graph in this dataset.
 
-    Each result triple is (reifier, predicate, value), excluding
-    rdf:reifies itself - see StarLayerGraph.reifier_annotations().
+Each result triple is (reifier, predicate, value), excluding
+rdf:reifies itself - see StarLayerGraph.reifier_annotations().
 
 **Parameters:**
 
@@ -451,7 +451,7 @@ Return a StarLayerDataset of annotation triples for every reifier
 
 **Returns:** `StarLayerDataset`
 
-**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.reifier_annotations](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L715-L732)
+**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.reifier_annotations](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L731-L748)
 
 ---
 
@@ -463,11 +463,11 @@ def reifiers(self, TT=None, predicate=None, object=None) -> StarLayerDataset
 ```
 
 Return a StarLayerDataset of every matching reifier's full triples,
-    across every graph in this dataset.
+across every graph in this dataset.
 
-    Includes each reifier's rdf:reifies link(s) plus annotations - see
-    StarLayerGraph.reifiers() for filter semantics. Each reifier's
-    triples stay in the named graph they came from.
+Includes each reifier's rdf:reifies link(s) plus annotations - see
+StarLayerGraph.reifiers() for filter semantics. Each reifier's
+triples stay in the named graph they came from.
 
 **Parameters:**
 
@@ -477,7 +477,7 @@ Return a StarLayerDataset of every matching reifier's full triples,
 
 **Returns:** `StarLayerDataset`
 
-**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.reifiers](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L676-L695)
+**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.reifiers](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L692-L711)
 
 ---
 
@@ -489,8 +489,8 @@ def remove(self, triple) -> StarLayerDataset
 ```
 
 Remove a triple from the default graph, with TripleTerm-aware
-    encoding - see this section's own module-level comment for why
-    this override exists at all.
+encoding - see this section's own module-level comment for why
+this override exists at all.
 
 **Parameters:**
 
@@ -498,7 +498,7 @@ Remove a triple from the default graph, with TripleTerm-aware
 
 **Returns:** `StarLayerDataset`
 
-**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.remove](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L367-L373)
+**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.remove](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L383-L389)
 
 ---
 
@@ -511,17 +511,17 @@ def serialize(self, destination=None, format='trig12', **kwargs) -> str | StarLa
 
 Serialize this dataset.
 
-    format='trig12' (default) — TriG 1.2 with GRAPH blocks and <<( )>> triple terms.
-    format='nq12'   — N-Quads 1.2 with <<( )>> triple terms; one quad per line.
-    format='trix12' — TriX 1.2 XML with <graph> blocks and <tripleTerm> elements.
-    format='turtle12'/'longturtle12'/'nt12'/'rdfxml12' — no
-        multi-graph syntax exists for these, so every quad is flattened
-        into one StarLayerGraph (see to_graph()) and serialized with
-        that format; which named graph each triple came from is not
-        preserved.
-    format='n3'/'n3-12'/'text/n3' — aliased straight to 'turtle12', same
-        as on StarLayerGraph.
-    All other formats delegate to rdflib.
+format='trig12' (default) — TriG 1.2 with GRAPH blocks and <<( )>> triple terms.
+format='nq12'   — N-Quads 1.2 with <<( )>> triple terms; one quad per line.
+format='trix12' — TriX 1.2 XML with <graph> blocks and <tripleTerm> elements.
+format='turtle12'/'longturtle12'/'nt12'/'rdfxml12' — no
+    multi-graph syntax exists for these, so every quad is flattened
+    into one StarLayerGraph (see to_graph()) and serialized with
+    that format; which named graph each triple came from is not
+    preserved.
+format='n3'/'n3-12'/'text/n3' — aliased straight to 'turtle12', same
+    as on StarLayerGraph.
+All other formats delegate to rdflib.
 
 **Parameters:**
 
@@ -531,7 +531,7 @@ Serialize this dataset.
 
 **Returns:** `str | StarLayerDataset`
 
-**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.serialize](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L908-L1011)
+**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.serialize](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L924-L1024)
 
 ---
 
@@ -543,8 +543,8 @@ def skolemize(self, new_graph=None, bnode=None, authority=None, basepath=None) -
 ```
 
 Convert blank nodes to skolem IRIs. Same bug class and same fix as
-    StarLayerGraph.skolemize() - see its own docstring. Defaults
-    new_graph to a new StarLayerGraph.
+StarLayerGraph.skolemize() - see its own docstring. Defaults
+new_graph to a new StarLayerGraph.
 
 **Parameters:**
 
@@ -555,7 +555,7 @@ Convert blank nodes to skolem IRIs. Same bug class and same fix as
 
 **Returns:** `StarLayerGraph`
 
-**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.skolemize](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L320-L331)
+**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.skolemize](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L336-L347)
 
 ---
 
@@ -568,16 +568,16 @@ def to_graph(self) -> StarLayerGraph
 
 Flatten every quad in this dataset into one new StarLayerGraph.
 
-    Which named graph each triple came from is not preserved - two
-    different graphs asserting the same triple collapse into one. This
-    is the same flattening serialize() uses for single-graph formats
-    (turtle12, longturtle12, nt12, rdfxml12, manchester); call this
-    directly when a real in-memory Graph is wanted - to query it, check
-    isomorphism, hash it, etc. - rather than a serialized string.
+Which named graph each triple came from is not preserved - two
+different graphs asserting the same triple collapse into one. This
+is the same flattening serialize() uses for single-graph formats
+(turtle12, longturtle12, nt12, rdfxml12, manchester); call this
+directly when a real in-memory Graph is wanted - to query it, check
+isomorphism, hash it, etc. - rather than a serialized string.
 
 **Returns:** `StarLayerGraph`
 
-**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.to_graph](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L893-L906)
+**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.to_graph](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L909-L922)
 
 ---
 
@@ -590,12 +590,12 @@ def triples(self, triple=(None, None, None)) -> Generator[tuple, None, None]
 
 Yield (s, p, o), scoped by ``self.default_union`` like rdflib's own Dataset.
 
-    default_union=False (the default): only the default graph's own triples,
-    matching this dataset's declared default-graph-isolation semantics.
-    default_union=True: the union of every graph, default and named alike.
-    The same triple may appear more than once if it exists in multiple graphs.
+default_union=False (the default): only the default graph's own triples,
+matching this dataset's declared default-graph-isolation semantics.
+default_union=True: the union of every graph, default and named alike.
+The same triple may appear more than once if it exists in multiple graphs.
 
-    Encoding triples are filtered; TripleTerms are restored either way.
+Encoding triples are filtered; TripleTerms are restored either way.
 
 **Parameters:**
 
@@ -603,7 +603,7 @@ Yield (s, p, o), scoped by ``self.default_union`` like rdflib's own Dataset.
 
 **Returns:** `Generator[tuple, None, None]`
 
-**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.triples](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L230-L245)
+**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.triples](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L246-L261)
 
 ---
 
@@ -615,13 +615,13 @@ def triples_choices(self, triple, context=None) -> Generator[tuple, None, None]
 ```
 
 Iterate triples matching a choices pattern, scoped the same way
-    ``triples()`` above is. Filters encoding triples; restores
-    TripleTerms.
+``triples()`` above is. Filters encoding triples; restores
+TripleTerms.
 
-    This override exists because the inherited rdflib version queries
-    ``self.store`` directly, bypassing each context's own per-context
-    TripleTerm registry - the raw ``tt:HASH`` encoding URIRef would
-    otherwise leak through unrestored.
+This override exists because the inherited rdflib version queries
+``self.store`` directly, bypassing each context's own per-context
+TripleTerm registry - the raw ``tt:HASH`` encoding URIRef would
+otherwise leak through unrestored.
 
 **Parameters:**
 
@@ -630,7 +630,7 @@ Iterate triples matching a choices pattern, scoped the same way
 
 **Returns:** `Generator[tuple, None, None]`
 
-**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.triples_choices](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L247-L277)
+**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.triples_choices](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L263-L293)
 
 ---
 
@@ -643,25 +643,25 @@ def update(self, update_object, processor='sparql', initNs=None, initBindings=No
 
 Execute a SPARQL UPDATE across named graphs with SPARQL-star support.
 
-    Triple-term patterns in WHERE clauses are rewritten to SPARQL 1.1
-    (rdf-1.1 backend only — see below). All cached per-graph registries
-    are rebuilt after execution so that newly added triple terms are
-    immediately visible.
+Triple-term patterns in WHERE clauses are rewritten to SPARQL 1.1
+(rdf-1.1 backend only — see below). All cached per-graph registries
+are rebuilt after execution so that newly added triple terms are
+immediately visible.
 
-    Remote-store (Fuseki/Oxigraph) updates bypass rdflib's own
-    ``Dataset(store=...).update()`` and go directly over HTTP instead
-    (see ``starlayer.graph.backends.native.native_update``), for both
-    backends: rdflib's ``SPARQLStore._is_contextual()`` treats any
-    string graph identifier other than the literal ``"__UNION__"`` as
-    needing a wrapping ``GRAPH { }`` block, so ``Dataset.update()``
-    would wrap the whole update text in an extra ``GRAPH { }`` block
-    that nests illegally around a plain ``INSERT DATA { GRAPH <uri>
-    {...} }`` against a real Oxigraph/Fuseki endpoint.
+Remote-store (Fuseki/Oxigraph) updates bypass rdflib's own
+``Dataset(store=...).update()`` and go directly over HTTP instead
+(see ``starlayer.graph.backends.native.native_update``), for both
+backends: rdflib's ``SPARQLStore._is_contextual()`` treats any
+string graph identifier other than the literal ``"__UNION__"`` as
+needing a wrapping ``GRAPH { }`` block, so ``Dataset.update()``
+would wrap the whole update text in an extra ``GRAPH { }`` block
+that nests illegally around a plain ``INSERT DATA { GRAPH <uri>
+{...} }`` against a real Oxigraph/Fuseki endpoint.
 
-    For the rdf-1.2 backend the update text is sent unmodified (the
-    endpoint understands ``<<( )>>`` natively); for rdf-1.1 it is
-    parsed and lowered to the tt:HASH encoding first (native_update
-    itself, via starlayer.sparql).
+For the rdf-1.2 backend the update text is sent unmodified (the
+endpoint understands ``<<( )>>`` natively); for rdf-1.1 it is
+parsed and lowered to the tt:HASH encoding first (native_update
+itself, via starlayer.sparql).
 
 **Parameters:**
 
@@ -674,7 +674,7 @@ Execute a SPARQL UPDATE across named graphs with SPARQL-star support.
 
 **Returns:** `None`
 
-**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.update](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L808-L879)
+**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.update](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L824-L895)
 
 ---
 
@@ -683,12 +683,12 @@ Execute a SPARQL UPDATE across named graphs with SPARQL-star support.
 
 rdflib.Graph extended with RDF 1.2 triple-term support.
 
-    Triple terms are represented as Python 3-tuples or TripleTerm objects.
-    Internally they are encoded as content-addressed URIRefs under TT_NS in
-    the rdflib store; that encoding is completely hidden from callers.
+Triple terms are represented as Python 3-tuples or TripleTerm objects.
+Internally they are encoded as content-addressed URIRefs under TT_NS in
+the rdflib store; that encoding is completely hidden from callers.
 
-    All unoverridden rdflib.Graph methods (namespace management, SPARQL,
-    serialization, etc.) are inherited and work without modification.
+All unoverridden rdflib.Graph methods (namespace management, SPARQL,
+serialization, etc.) are inherited and work without modification.
 
 **Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L356-L3703)
 
@@ -702,13 +702,13 @@ def add(self, triple) -> StarLayerGraph
 ```
 
 Add a triple. A TripleTerm (or plain 3-tuple) in the object position is
-    converted to its internal encoding automatically. Always returns self,
-    matching rdflib's own Graph.add() and enabling method chaining
-    (g.add(...).add(...)).
+converted to its internal encoding automatically. Always returns self,
+matching rdflib's own Graph.add() and enabling method chaining
+(g.add(...).add(...)).
 
-        g.add((s, p, o))              # plain triple
-        g.add((s, p, TripleTerm(...))) # TripleTerm as object
-        g.add((s, p, (a, b, c)))      # plain tuple treated as TripleTerm
+    g.add((s, p, o))              # plain triple
+    g.add((s, p, TripleTerm(...))) # TripleTerm as object
+    g.add((s, p, (a, b, c)))      # plain tuple treated as TripleTerm
 
 **Parameters:**
 
@@ -729,12 +729,12 @@ def addN(self, quads) -> StarLayerGraph
 
 Add multiple quads, encoding all TripleTerms in one store.addN() call.
 
-    Unlike the default Graph.addN() → store.addN() path, this override
-    collects encoding triples (rdf:subject/predicate/object for each
-    TripleTerm) together with the main triples so that all inserts are
-    submitted to the store in a single batch. On transaction-aware
-    backends (SQLAlchemy, Sleepycat) this means one commit instead of
-    three per triple term, which is significantly faster for bulk loads.
+Unlike the default Graph.addN() → store.addN() path, this override
+collects encoding triples (rdf:subject/predicate/object for each
+TripleTerm) together with the main triples so that all inserts are
+submitted to the store in a single batch. On transaction-aware
+backends (SQLAlchemy, Sleepycat) this means one commit instead of
+three per triple term, which is significantly faster for bulk loads.
 
 **Parameters:**
 
@@ -754,7 +754,7 @@ def add_reification(self, reifier, triple_term) -> StarLayerGraph
 ```
 
 Add reifier rdf:reifies triple_term, making the node an official
-    reifier.
+reifier.
 
 **Parameters:**
 
@@ -776,16 +776,16 @@ def add_reifier_annotation(self, predicate, obj, name=None) -> IdentifiedNode
 
 Create a reifier node and add one annotation property to it.
 
-    The node is not yet a reifier until add_reification() is called::
+The node is not yet a reifier until add_reification() is called::
 
-        r = g.add_reifier_annotation(EX.confidence, Literal("0.9"), name=EX.stmt1)
-        g.add_reification(r, (EX.bob, EX.knows, EX.carol))
+    r = g.add_reifier_annotation(EX.confidence, Literal("0.9"), name=EX.stmt1)
+    g.add_reification(r, (EX.bob, EX.knows, EX.carol))
 
-        # or inline:
-        g.add_reification(
-            g.add_reifier_annotation(EX.reported, EX.NYTimes),
-            triple_term
-        )
+    # or inline:
+    g.add_reification(
+        g.add_reifier_annotation(EX.reported, EX.NYTimes),
+        triple_term
+    )
 
 **Parameters:**
 
@@ -848,8 +848,8 @@ def de_skolemize(self, new_graph=None, uriref=None) -> StarLayerGraph
 
 Convert skolem IRIs back to blank nodes.
 
-    Overridden for the same reason, and with the same fix, as
-    skolemize() above - see its docstring.
+Overridden for the same reason, and with the same fix, as
+skolemize() above - see its docstring.
 
 **Parameters:**
 
@@ -871,17 +871,17 @@ def derive_shape(self, template_shape=None, *, ignored_properties=None, use_defa
 
 Infer a SHACL shape from self's own data and return it.
 
-    One ``sh:NodeShape`` per distinct ``rdf:type`` found (the simplest
-    option: derive shapes from classes, never per-node or heuristic
-    clustering), optionally reconciled against an existing template
-    shape.
+One ``sh:NodeShape`` per distinct ``rdf:type`` found (the simplest
+option: derive shapes from classes, never per-node or heuristic
+clustering), optionally reconciled against an existing template
+shape.
 
-    Every returned shape is closed (``sh:closed true``) and is
-    self-checked to conform against self before being returned (a real
-    assertion, not just documentation - see ``shape_derivation.py``).
-    Goes through ``starlayer.shacl`` for all SHACL semantics, never bare
-    ``pyshacl`` directly - self or template_shape may contain genuine
-    RDF 1.2 content (triple terms) that only starlayer.shacl understands.
+Every returned shape is closed (``sh:closed true``) and is
+self-checked to conform against self before being returned (a real
+assertion, not just documentation - see ``shape_derivation.py``).
+Goes through ``starlayer.shacl`` for all SHACL semantics, never bare
+``pyshacl`` directly - self or template_shape may contain genuine
+RDF 1.2 content (triple terms) that only starlayer.shacl understands.
 
 **Parameters:**
 
@@ -903,17 +903,17 @@ def empty_like(self) -> StarLayerGraph
 ```
 
 A new, empty graph of the same kind as this one, with the same
-    namespace bindings.
+namespace bindings.
 
-    The rule for graphs derived from this one (``infer()``'s default
-    result, a native ``query()``'s CONSTRUCT result): they are created
-    *like their source*. A graph backed by an in-process Oxigraph yields a
-    fresh, independent in-process Oxigraph with the same representation;
-    any other kind - the default in-memory store, a remote endpoint (a new
-    remote database can't be minted), SQLAlchemy - yields an ordinary
-    in-memory ``StarLayerGraph``. Nothing global is consulted: the source
-    graph itself carries the choice, so internal scratch graphs elsewhere
-    are unaffected.
+The rule for graphs derived from this one (``infer()``'s default
+result, a native ``query()``'s CONSTRUCT result): they are created
+*like their source*. A graph backed by an in-process Oxigraph yields a
+fresh, independent in-process Oxigraph with the same representation;
+any other kind - the default in-memory store, a remote endpoint (a new
+remote database can't be minted), SQLAlchemy - yields an ordinary
+in-memory ``StarLayerGraph``. Nothing global is consulted: the source
+graph itself carries the choice, so internal scratch graphs elsewhere
+are unaffected.
 
 **Returns:** `StarLayerGraph` - A new empty StarLayerGraph.
 
@@ -930,22 +930,22 @@ def from_rdflib(cls, source_graph) -> StarLayerGraph
 
 Wrap a plain rdflib.Graph (e.g., from StarLayerTurtleParser).
 
-    Namespace bindings, triples, and the TripleTerm registry are all
-    copied from the source graph. If the source uses the intermediate
-    BNode TT encoding (with sl:TripleTerm type markers), it is converted
-    to content-addressed tt: URIRefs before copying.
+Namespace bindings, triples, and the TripleTerm registry are all
+copied from the source graph. If the source uses the intermediate
+BNode TT encoding (with sl:TripleTerm type markers), it is converted
+to content-addressed tt: URIRefs before copying.
 
-    ``source_graph.identifier`` is preserved onto the new graph: a
-    graph with a real, caller-given identity (e.g. a named graph
-    retrieved from a ``Dataset``, which always carries its own real
-    IRI) keeps that identity through this conversion, rather than it
-    being replaced by an unrelated, meaningless one. Deliberately
-    **not** done when ``source_graph`` is itself a whole
-    ``Dataset``/``ConjunctiveGraph`` (as opposed to one of its named
-    graphs) - a dataset has no single meaningful identity of its own
-    (``Dataset.identifier`` is itself deprecated in modern rdflib), so
-    there's nothing worth preserving there; this also avoids triggering
-    that deprecation warning on every dataset-to-graph conversion.
+``source_graph.identifier`` is preserved onto the new graph: a
+graph with a real, caller-given identity (e.g. a named graph
+retrieved from a ``Dataset``, which always carries its own real
+IRI) keeps that identity through this conversion, rather than it
+being replaced by an unrelated, meaningless one. Deliberately
+**not** done when ``source_graph`` is itself a whole
+``Dataset``/``ConjunctiveGraph`` (as opposed to one of its named
+graphs) - a dataset has no single meaningful identity of its own
+(``Dataset.identifier`` is itself deprecated in modern rdflib), so
+there's nothing worth preserving there; this also avoids triggering
+that deprecation warning on every dataset-to-graph conversion.
 
 **Parameters:**
 
@@ -965,17 +965,17 @@ def has_import_locally(self, iri: Any) -> bool
 ```
 
 True iff ``iri`` (typically an ``owl:imports`` target) already
-    has at least one triple with it as subject already present in
-    this graph - i.e. its content is already co-located here, so no
-    loader is needed to resolve it.
+has at least one triple with it as subject already present in
+this graph - i.e. its content is already co-located here, so no
+loader is needed to resolve it.
 
-    Guards against a real false-positive case: two shapes-graphs that
-    mutually ``owl:imports`` each other, loaded together into one
-    graph, would otherwise trip both ``resolve_imports()``'s loader
-    call and ``validate()``'s unresolved-import check for an import
-    that's already fully satisfied right here. ``resolve_imports()``
-    checks this before ever calling ``loader`` for a given import - a
-    locally-satisfied import never reaches the loader at all.
+Guards against a real false-positive case: two shapes-graphs that
+mutually ``owl:imports`` each other, loaded together into one
+graph, would otherwise trip both ``resolve_imports()``'s loader
+call and ``validate()``'s unresolved-import check for an import
+that's already fully satisfied right here. ``resolve_imports()``
+checks this before ever calling ``loader`` for a given import - a
+locally-satisfied import never reaches the loader at all.
 
 **Parameters:**
 
@@ -1017,58 +1017,58 @@ def infer(self, entailment=ENTAILMENT.RDFS, *, mode: str='full', target_graph=No
 
 Materialize an RDFS/OWL-RL entailment closure.
 
-    By default this returns a NEW graph, never mutating self
-    (mode="in-place" is the deliberate exception - see below). Requires
-    the optional ``owlrl`` dependency
-    (``pip install starlayer.graph[reasoning]``).
+By default this returns a NEW graph, never mutating self
+(mode="in-place" is the deliberate exception - see below). Requires
+the optional ``owlrl`` dependency
+(``pip install starlayer.graph[reasoning]``).
 
-    Any triple term in self is decomposed into its synthetic
-    blank-node reification form (the same one rdfc10_hash()/
-    isomorphic() use - see starlayer.graph.compare._decompose()) purely
-    so owlrl can run without crashing: its RDFS closure asserts "x
-    rdf:type rdfs:Resource" for every term seen anywhere in a triple,
-    including subject position, and a triple term is never legal there
-    under RDF 1.2 (see add()'s own "triple terms are not permitted in
-    subject position" guard). That decomposition never reaches the
-    returned graph for mode="full"/"delta", though: self's own triples
-    are copied in as-is (real TripleTerm objects intact, for a
-    non-native self), and only the *newly-entailed* portion (mode=
-    "delta"'s content, also included in mode="full") can still contain
-    a decomposed reification fragment instead of a real TripleTerm -
-    and only for a derived fact that isn't itself expressible with
-    one. This is structural, not a gap left open by choice: a rule
-    like rdfs4a/4b that types *every* term as rdfs:Resource inherently
-    wants to put a triple term in subject position, which RDF 1.2
-    never permits for any triple, entailed or asserted - there is no
-    legal real-TripleTerm form of that fact to recover. Nothing
-    rewires the delta's synthetic blank node back to the real triple
-    term self's own copied-in triples use, either - they're unrelated
-    objects in the output graph, not the same node re-described two
-    ways. mode="in-place" inherits this same caveat, with one
-    difference: there, a stray decomposed reification fragment lands
-    directly in the graph you're still working with, since there's no
-    disposable copy to contain it instead.
+Any triple term in self is decomposed into its synthetic
+blank-node reification form (the same one rdfc10_hash()/
+isomorphic() use - see starlayer.graph.compare._decompose()) purely
+so owlrl can run without crashing: its RDFS closure asserts "x
+rdf:type rdfs:Resource" for every term seen anywhere in a triple,
+including subject position, and a triple term is never legal there
+under RDF 1.2 (see add()'s own "triple terms are not permitted in
+subject position" guard). That decomposition never reaches the
+returned graph for mode="full"/"delta", though: self's own triples
+are copied in as-is (real TripleTerm objects intact, for a
+non-native self), and only the *newly-entailed* portion (mode=
+"delta"'s content, also included in mode="full") can still contain
+a decomposed reification fragment instead of a real TripleTerm -
+and only for a derived fact that isn't itself expressible with
+one. This is structural, not a gap left open by choice: a rule
+like rdfs4a/4b that types *every* term as rdfs:Resource inherently
+wants to put a triple term in subject position, which RDF 1.2
+never permits for any triple, entailed or asserted - there is no
+legal real-TripleTerm form of that fact to recover. Nothing
+rewires the delta's synthetic blank node back to the real triple
+term self's own copied-in triples use, either - they're unrelated
+objects in the output graph, not the same node re-described two
+ways. mode="in-place" inherits this same caveat, with one
+difference: there, a stray decomposed reification fragment lands
+directly in the graph you're still working with, since there's no
+disposable copy to contain it instead.
 
-    owlrl has no truth maintenance: retracting a fact from self later
-    does not retract anything this call already entailed from it.
-    Re-run infer() from the original facts after any edit, rather than
-    trying to patch a previous call's output.
+owlrl has no truth maintenance: retracting a fact from self later
+does not retract anything this call already entailed from it.
+Re-run infer() from the original facts after any edit, rather than
+trying to patch a previous call's output.
 
-    For a native (backend='rdf-1.2') self, reading "self's own data"
-    (via plain iteration, same as _decompose()/for t in self) is scoped
-    to self.identifier - GRAPH <self.identifier> { ... } - unless
-    self.identifier is exactly rdflib.graph.DATASET_DEFAULT_GRAPH_ID
-    (see _native_scoped()). This is unrelated to query()/update(), which
-    send text straight through unscoped. A native StarLayerGraph
-    constructed with no explicit identifier= defaults to
-    DATASET_DEFAULT_GRAPH_ID automatically (see __init__), so the
-    common case already agrees with query()/update() by construction.
-    The one remaining case this doesn't cover: a caller who explicitly
-    passes a *different*, non-default identifier= that has no matching
-    named graph on the endpoint - infer() then correctly sees an empty
-    graph, same as any SPARQL query would against a real but
-    currently-empty named graph. That's expected behavior for a named
-    graph with no data yet, not a footgun.
+For a native (backend='rdf-1.2') self, reading "self's own data"
+(via plain iteration, same as _decompose()/for t in self) is scoped
+to self.identifier - GRAPH <self.identifier> { ... } - unless
+self.identifier is exactly rdflib.graph.DATASET_DEFAULT_GRAPH_ID
+(see _native_scoped()). This is unrelated to query()/update(), which
+send text straight through unscoped. A native StarLayerGraph
+constructed with no explicit identifier= defaults to
+DATASET_DEFAULT_GRAPH_ID automatically (see __init__), so the
+common case already agrees with query()/update() by construction.
+The one remaining case this doesn't cover: a caller who explicitly
+passes a *different*, non-default identifier= that has no matching
+named graph on the endpoint - infer() then correctly sees an empty
+graph, same as any SPARQL query would against a real but
+currently-empty named graph. That's expected behavior for a named
+graph with no data yet, not a footgun.
 
 **Parameters:**
 
@@ -1093,20 +1093,20 @@ def isomorphic(self, other) -> bool
 
 Graph isomorphism, aware of TripleTerms.
 
-    Overridden because the inherited rdflib.Graph.isomorphic() is (a) a
-    crude approximation — see that method's own docstring: "only an
-    approximation ... very well could be a false positive" — and (b)
-    blind to BNodes embedded inside a TripleTerm's content-address,
-    which would otherwise compare as different, unrelated ground terms
-    across separately parsed graphs that are actually the same shape
-    (e.g. <<( _:x :p :o )>> vs <<( _:other :p :o )>>, both otherwise
-    identical). Delegates to rdflib.compare's real canonical-labeling
-    algorithm after unfolding each graph's TripleTerms back to native
-    BNode-based reification (_unfold_tt_encoding), which mirrors the
-    parser's own intermediate form before content-address skolemization
-    (see turtle_parser._skolemize_encoding) — so a BNode nested inside a
-    triple term is treated as relabelable, the same as any other BNode,
-    rather than baked into an opaque tt:HASH URIRef.
+Overridden because the inherited rdflib.Graph.isomorphic() is (a) a
+crude approximation — see that method's own docstring: "only an
+approximation ... very well could be a false positive" — and (b)
+blind to BNodes embedded inside a TripleTerm's content-address,
+which would otherwise compare as different, unrelated ground terms
+across separately parsed graphs that are actually the same shape
+(e.g. <<( _:x :p :o )>> vs <<( _:other :p :o )>>, both otherwise
+identical). Delegates to rdflib.compare's real canonical-labeling
+algorithm after unfolding each graph's TripleTerms back to native
+BNode-based reification (_unfold_tt_encoding), which mirrors the
+parser's own intermediate form before content-address skolemization
+(see turtle_parser._skolemize_encoding) — so a BNode nested inside a
+triple term is treated as relabelable, the same as any other BNode,
+rather than baked into an opaque tt:HASH URIRef.
 
 **Parameters:**
 
@@ -1127,19 +1127,19 @@ def open(self, configuration, create: bool=False) -> StarLayerGraph
 
 Open a persistent store and rebuild the TripleTerm registry.
 
-    Delegates to rdflib's Graph.open() then scans the store for any
-    existing tt:HASH encoding triples so TripleTerms are immediately
-    usable without a separate rebuild call. Always returns self, not
-    rdflib's own Graph.open() status value.
+Delegates to rdflib's Graph.open() then scans the store for any
+existing tt:HASH encoding triples so TripleTerms are immediately
+usable without a separate rebuild call. Always returns self, not
+rdflib's own Graph.open() status value.
 
-    The store backend (e.g. Sleepycat, rdflib-sqlalchemy) is not a
-    StarLayer dependency — install and configure it separately, then
-    pass store='StoreName' to the constructor before calling open().
+The store backend (e.g. Sleepycat, rdflib-sqlalchemy) is not a
+StarLayer dependency — install and configure it separately, then
+pass store='StoreName' to the constructor before calling open().
 
-    Example::
+Example::
 
-        sg = StarLayerGraph(store='Sleepycat')
-        sg.open('/path/to/db', create=True)
+    sg = StarLayerGraph(store='Sleepycat')
+    sg.open('/path/to/db', create=True)
 
 **Parameters:**
 
@@ -1160,20 +1160,20 @@ def owl_imports(self) -> tuple[Any, ...]
 ```
 
 Every directly-declared object of this graph's own
-    ``owl:imports`` triples, deduplicated, in first-seen order.
+``owl:imports`` triples, deduplicated, in first-seen order.
 
-    Purely a read of what's already asserted; resolves nothing,
-    fetches nothing, and doesn't recurse into whatever those IRIs
-    might themselves import (that only happens once
-    ``resolve_imports()`` actually loads their content - this graph's
-    own triples are the only thing there is to read from here).
+Purely a read of what's already asserted; resolves nothing,
+fetches nothing, and doesn't recurse into whatever those IRIs
+might themselves import (that only happens once
+``resolve_imports()`` actually loads their content - this graph's
+own triples are the only thing there is to read from here).
 
-    This is step 1 of the three-step shape this capability has:
-    discover what's declared (this method), decide whether a
-    particular loader can do anything with a given IRI
-    (``can_resolve_import()``, a plain function, not a method - it's
-    a question about the *loader*, not about this graph's own data),
-    then actually resolve/merge (``resolve_imports()`` below).
+This is step 1 of the three-step shape this capability has:
+discover what's declared (this method), decide whether a
+particular loader can do anything with a given IRI
+(``can_resolve_import()``, a plain function, not a method - it's
+a question about the *loader*, not about this graph's own data),
+then actually resolve/merge (``resolve_imports()`` below).
 
 **Returns:** `tuple[Any, ...]` - The declared ``owl:imports`` targets, deduplicated, in first-seen order.
 
@@ -1190,39 +1190,39 @@ def parse(self, source=None, publicID=None, format=None, location=None, file=Non
 
 Parse RDF data into the graph.
 
-    format='turtle12'  — Turtle 1.2 with <<( )>>, {| |}, ~ reifier syntax
-    format='nt12'      — N-Triples 1.2 with <<( )>> triple terms
-    format='nq12'      — N-Quads 1.2
-    format='trig12'    — TriG 1.2
-    format='trix12'    — TriX 1.2 XML
-    format='rdfxml12'  — RDF/XML 1.2 with rdf:parseType="Triple" and
-                         rdf:annotation/rdf:annotationNodeID (RDF 1.2 XML Syntax)
-    format='manchester' (alias 'omn') — OWL 2 Manchester Syntax; see
-                         starlayer.graph.parsers.manchester_parser's module
-                         docstring for the supported subset
-    format='n3'/'n3-12'/'text/n3' — aliased straight to 'turtle12'.
-                         Only the plain-triples subset N3 shares with
-                         Turtle is supported, not real N3 — a formula
-                         ('{ }'), a '=>' rule, or a '?x' variable raises
-                         Turtle12SyntaxError, since those aren't Turtle
-                         syntax at all. The input must be valid
-                         Turtle/Turtle 1.2.
+format='turtle12'  — Turtle 1.2 with <<( )>>, {| |}, ~ reifier syntax
+format='nt12'      — N-Triples 1.2 with <<( )>> triple terms
+format='nq12'      — N-Quads 1.2
+format='trig12'    — TriG 1.2
+format='trix12'    — TriX 1.2 XML
+format='rdfxml12'  — RDF/XML 1.2 with rdf:parseType="Triple" and
+                     rdf:annotation/rdf:annotationNodeID (RDF 1.2 XML Syntax)
+format='manchester' (alias 'omn') — OWL 2 Manchester Syntax; see
+                     starlayer.graph.parsers.manchester_parser's module
+                     docstring for the supported subset
+format='n3'/'n3-12'/'text/n3' — aliased straight to 'turtle12'.
+                     Only the plain-triples subset N3 shares with
+                     Turtle is supported, not real N3 — a formula
+                     ('{ }'), a '=>' rule, or a '?x' variable raises
+                     Turtle12SyntaxError, since those aren't Turtle
+                     syntax at all. The input must be valid
+                     Turtle/Turtle 1.2.
 
-    'nq12'/'trig12'/'trix12' above, and the bare (RDF 1.1) 'nquads'/
-    'trig'/'trix' handled by the fallback below, all name quad-shaped
-    (multi-graph-capable) formats being parsed into a single graph.
-    A document resolving to at most one distinct graph - including the
-    trivial case of everything being in the default graph - parses
-    normally (any explicit graph name is simply dropped). A document
-    genuinely spanning two or more distinct graphs raises
-    MultipleGraphsError instead of silently flattening them together -
-    use StarLayerDataset.parse() to keep each graph separate.
+'nq12'/'trig12'/'trix12' above, and the bare (RDF 1.1) 'nquads'/
+'trig'/'trix' handled by the fallback below, all name quad-shaped
+(multi-graph-capable) formats being parsed into a single graph.
+A document resolving to at most one distinct graph - including the
+trivial case of everything being in the default graph - parses
+normally (any explicit graph name is simply dropped). A document
+genuinely spanning two or more distinct graphs raises
+MultipleGraphsError instead of silently flattening them together -
+use StarLayerDataset.parse() to keep each graph separate.
 
-    All other formats delegate to rdflib (no triple-term support) -
-    except bare 'nquads'/'trig'/'trix', which this project still routes
-    through the single-vs-multiple-graph check above (plain rdflib
-    delegation would otherwise silently yield zero triples the moment
-    any named graph appears at all, even just one).
+All other formats delegate to rdflib (no triple-term support) -
+except bare 'nquads'/'trig'/'trix', which this project still routes
+through the single-vs-multiple-graph check above (plain rdflib
+delegation would otherwise silently yield zero triples the moment
+any named graph appears at all, even just one).
 
 **Parameters:**
 
@@ -1268,13 +1268,13 @@ def qname_term(self, node) -> str
 ```
 
 Prefixed n3 form of any term - URIRef, BNode, Literal, TripleTerm,
-    or DirLangString.
+or DirLangString.
 
-    Unlike the inherited qname(), which only accepts a URI and raises on
-    anything else, this dispatches on whatever it's given: a caller
-    iterating over triples() often doesn't know in advance whether a
-    given position holds a plain node or a TripleTerm, and qname_term()
-    does the right thing either way without an isinstance check.
+Unlike the inherited qname(), which only accepts a URI and raises on
+anything else, this dispatches on whatever it's given: a caller
+iterating over triples() often doesn't know in advance whether a
+given position holds a plain node or a TripleTerm, and qname_term()
+does the right thing either way without an isinstance check.
 
 **Parameters:**
 
@@ -1295,24 +1295,24 @@ def query(self, query_object, processor='sparql', result='sparql', initNs=None, 
 
 Execute a SPARQL query. Triple-term patterns are rewritten to SPARQL 1.1.
 
-    The rewritten query runs against a plain Graph view of the same store so
-    that encoding triples (rdf:subject/predicate/object on tt: URIRefs) are
-    visible to the SPARQL engine. TripleTerm/tuple values in ``initBindings``
-    are encoded to their internal tt:HASH URIRef first, the same way every
-    other read path in this class resolves triple terms before matching
-    against the store. Results are post-processed to restore tt:HASH
-    URIRefs back to TripleTerm objects.
+The rewritten query runs against a plain Graph view of the same store so
+that encoding triples (rdf:subject/predicate/object on tt: URIRefs) are
+visible to the SPARQL engine. TripleTerm/tuple values in ``initBindings``
+are encoded to their internal tt:HASH URIRef first, the same way every
+other read path in this class resolves triple terms before matching
+against the store. Results are post-processed to restore tt:HASH
+URIRefs back to TripleTerm objects.
 
-    For the native rdf-1.2 backend the query is routed through
-    starlayer.graph.backends.native.native_query, which uses the endpoint's
-    own triple-term syntax.
+For the native rdf-1.2 backend the query is routed through
+starlayer.graph.backends.native.native_query, which uses the endpoint's
+own triple-term syntax.
 
-    Unlike ``infer()``, which always materializes a new graph, every
-    ``entailment=`` value here does its work at query time with no
-    copy of ``self``'s own data: a plain query rewrite for
-    ``ENTAILMENT.RDF``/``ENTAILMENT.RDFS``, or a live union of ``self``
-    with a small cached delta (never a full copy of ``self``) for
-    ``ENTAILMENT["OWL-RDF-Based"]``/``ENTAILMENT["OWL-Direct"]``.
+Unlike ``infer()``, which always materializes a new graph, every
+``entailment=`` value here does its work at query time with no
+copy of ``self``'s own data: a plain query rewrite for
+``ENTAILMENT.RDF``/``ENTAILMENT.RDFS``, or a live union of ``self``
+with a small cached delta (never a full copy of ``self``) for
+``ENTAILMENT["OWL-RDF-Based"]``/``ENTAILMENT["OWL-Direct"]``.
 
 **Parameters:**
 
@@ -1343,8 +1343,8 @@ def reifications(self, s=None, p=None, o=None) -> Generator[TripleTerm, None, No
 
 Yield TripleTerms that have at least one reifier and match the s/p/o pattern.
 
-        g.reifications()                 # all reified triple terms
-        g.reifications(p=EX.knows)       # reified TTs with that predicate
+    g.reifications()                 # all reified triple terms
+    g.reifications(p=EX.knows)       # reified TTs with that predicate
 
 **Parameters:**
 
@@ -1386,7 +1386,7 @@ def reifier_annotations(self, TT) -> Generator[tuple, None, None]
 
 Yield (reifier, predicate, value) annotation triples for all reifiers of TT.
 
-    Excludes the rdf:reifies triple itself.
+Excludes the rdf:reifies triple itself.
 
 **Parameters:**
 
@@ -1407,8 +1407,8 @@ def reifiers(self, TT=None, predicate=None, object=None) -> Generator[Identified
 
 Yield reifier nodes matching the given filters.
 
-    Filters combine: reifiers(TT=t, predicate=p, object=o) returns
-    reifiers that reify t AND have (reifier, p, o) in the graph.
+Filters combine: reifiers(TT=t, predicate=p, object=o) returns
+reifiers that reify t AND have (reifier, p, o) in the graph.
 
 **Parameters:**
 
@@ -1430,8 +1430,8 @@ def remove(self, triple) -> StarLayerGraph
 ```
 
 Remove a triple matching the pattern. Always returns self, matching
-    rdflib's own Graph.remove() - including when a TripleTerm in the
-    pattern is not registered, in which case this is a no-op.
+rdflib's own Graph.remove() - including when a TripleTerm in the
+pattern is not registered, in which case this is a no-op.
 
 **Parameters:**
 
@@ -1452,14 +1452,14 @@ def remove_reification(self, reifier, triple_term=None) -> StarLayerGraph
 
 Remove the rdf:reifies triple(s) for the given reifier.
 
-    With triple_term=None (default), removes every rdf:reifies triple
-    the reifier has. Pass a specific triple_term (a TripleTerm, or a
-    plain (s, p, o) tuple) to unlink only that one reifier<->triple
-    pair, leaving any other triple(s) the same reifier reifies - and
-    all of its annotation triples - untouched. Delegates to remove()
-    (rather than duplicating its native/non-native and TripleTerm
-    encoding handling here), so a triple_term that isn't registered in
-    this graph is a safe no-op, same as remove() everywhere else.
+With triple_term=None (default), removes every rdf:reifies triple
+the reifier has. Pass a specific triple_term (a TripleTerm, or a
+plain (s, p, o) tuple) to unlink only that one reifier<->triple
+pair, leaving any other triple(s) the same reifier reifies - and
+all of its annotation triples - untouched. Delegates to remove()
+(rather than duplicating its native/non-native and TripleTerm
+encoding handling here), so a triple_term that isn't registered in
+this graph is a safe no-op, same as remove() everywhere else.
 
 **Parameters:**
 
@@ -1480,21 +1480,21 @@ def resolve_imports(self, *, loader: Callable[[Any], Any | None] | None=None, mo
 ```
 
 Follow this graph's own ``owl:imports`` (and, transitively,
-    whatever each imported graph itself further imports) and merge
-    the result.
+whatever each imported graph itself further imports) and merge
+the result.
 
-    Recursive by construction, not an opt-in extra - that's what
-    "import" actually means (§3.4's imports closure). Cycle protection:
-    an IRI already fetched, or a graph whose own ``owl:versionIRI``
-    already matched something already imported, is never
-    fetched/merged twice - when a fetched graph declares the IRI it
-    was fetched under as its own ``owl:versionIRI``, further imports
-    are followed from that graph's own *base* IRI (the subject of the
-    ``owl:versionIRI`` triple), not the version IRI itself, so
-    importing a versioned module and importing its unversioned base
-    both correctly converge on one shared identity for deduplication.
-    This mirrors ``_resolve_shapes_graph_imports()``'s own
-    ``^owl:versionIRI?/owl:imports`` handling, which this generalizes.
+Recursive by construction, not an opt-in extra - that's what
+"import" actually means (§3.4's imports closure). Cycle protection:
+an IRI already fetched, or a graph whose own ``owl:versionIRI``
+already matched something already imported, is never
+fetched/merged twice - when a fetched graph declares the IRI it
+was fetched under as its own ``owl:versionIRI``, further imports
+are followed from that graph's own *base* IRI (the subject of the
+``owl:versionIRI`` triple), not the version IRI itself, so
+importing a versioned module and importing its unversioned base
+both correctly converge on one shared identity for deduplication.
+This mirrors ``_resolve_shapes_graph_imports()``'s own
+``^owl:versionIRI?/owl:imports`` handling, which this generalizes.
 
 **Parameters:**
 
@@ -1538,11 +1538,11 @@ def skolemize(self, new_graph=None, bnode=None, authority=None, basepath=None) -
 
 Convert blank nodes to skolem IRIs.
 
-    Overridden because rdflib's inherited skolemize() hardcodes a plain
-    rdflib.Graph() as the default target - the same bug class as cbd()'s
-    own (see that method's docstring): it crashes with AssertionError
-    the moment self contains a real TripleTerm, since plain Graph.add()
-    rejects it as "not an rdflib term".
+Overridden because rdflib's inherited skolemize() hardcodes a plain
+rdflib.Graph() as the default target - the same bug class as cbd()'s
+own (see that method's docstring): it crashes with AssertionError
+the moment self contains a real TripleTerm, since plain Graph.add()
+rejects it as "not an rdflib term".
 
 **Parameters:**
 
@@ -1566,10 +1566,10 @@ def triple_terms(self, subject=None, predicate=None, object=None) -> Generator[T
 
 Yield all TripleTerms registered in this graph, with optional filters.
 
-    Any combination of subject, predicate, object narrows the results:
-        g.triple_terms()                        # all triple terms
-        g.triple_terms(predicate=EX.knows)      # all TTs with that predicate
-        g.triple_terms(EX.bob, EX.knows, None)  # any TT with that s and p
+Any combination of subject, predicate, object narrows the results:
+    g.triple_terms()                        # all triple terms
+    g.triple_terms(predicate=EX.knows)      # all TTs with that predicate
+    g.triple_terms(EX.bob, EX.knows, None)  # any TT with that s and p
 
 **Parameters:**
 
@@ -1592,14 +1592,14 @@ def triples(self, triple) -> Generator[tuple, None, None]
 
 Iterate triples matching the pattern. Filters internal encoding triples.
 
-    TripleTerms in results are returned as TripleTerm objects, not raw URIRefs.
-    Yields nothing if a TripleTerm in the pattern is not registered in this graph.
+TripleTerms in results are returned as TripleTerm objects, not raw URIRefs.
+Yields nothing if a TripleTerm in the pattern is not registered in this graph.
 
-    Wildcard triple-term patterns - tuples containing None - are supported in
-    subject and object positions. ``(None, None, None)`` matches any triple
-    term; ``(EX.alice, None, None)`` matches only triple terms whose subject
-    is EX.alice. The fan-out is O(k) where k is the number of registered
-    triple terms that match the pattern.
+Wildcard triple-term patterns - tuples containing None - are supported in
+subject and object positions. ``(None, None, None)`` matches any triple
+term; ``(EX.alice, None, None)`` matches only triple terms whose subject
+is EX.alice. The fan-out is O(k) where k is the number of registered
+triple terms that match the pattern.
 
 **Parameters:**
 
@@ -1620,9 +1620,9 @@ def triples_choices(self, triple, context=None) -> Generator[tuple, None, None]
 
 Iterate triples matching a choices pattern. Filters encoding triples; restores TripleTerms.
 
-    Each position may be None (wildcard), a single node, or a list of nodes.
-    TripleTerms not registered in this graph are silently dropped from lists;
-    an unregistered single TripleTerm causes the method to yield nothing.
+Each position may be None (wildcard), a single node, or a list of nodes.
+TripleTerms not registered in this graph are silently dropped from lists;
+an unregistered single TripleTerm causes the method to yield nothing.
 
 **Parameters:**
 
@@ -1644,23 +1644,23 @@ def update(self, update_object, processor='sparql', initNs=None, initBindings=No
 
 Execute a SPARQL UPDATE.
 
-    For the native rdf-1.2 backend, the update is forwarded to the
-    endpoint via HTTP unchanged (see
-    ``starlayer.graph.backends.native.native_update``).
+For the native rdf-1.2 backend, the update is forwarded to the
+endpoint via HTTP unchanged (see
+``starlayer.graph.backends.native.native_update``).
 
-    Otherwise, SPARQL 1.2 text is parsed via starlayer.sparql's real
-    grammar (``prepare_update_12``), lowered to a plain SPARQL 1.1
-    algebra (tt:HASH encoding), and serialized back to real SPARQL 1.1
-    Update text before executing - every shape (triple-term WHERE
-    patterns, ground triple terms in INSERT/DELETE DATA, triple terms in
-    INSERT/DELETE templates) is handled natively by that lowering, with
-    no post-processing needed here.
+Otherwise, SPARQL 1.2 text is parsed via starlayer.sparql's real
+grammar (``prepare_update_12``), lowered to a plain SPARQL 1.1
+algebra (tt:HASH encoding), and serialized back to real SPARQL 1.1
+Update text before executing - every shape (triple-term WHERE
+patterns, ground triple terms in INSERT/DELETE DATA, triple terms in
+INSERT/DELETE templates) is handled natively by that lowering, with
+no post-processing needed here.
 
-    Always passes text, never a pre-parsed ``Update`` object, to the
-    underlying ``Graph.update()``: a remote store's
-    ``SPARQLUpdateStore.update()`` hard-``assert``s on a plain string,
-    since all it can do is POST text over HTTP, whereas the default
-    in-memory store's generic processor accepts either.
+Always passes text, never a pre-parsed ``Update`` object, to the
+underlying ``Graph.update()``: a remote store's
+``SPARQLUpdateStore.update()`` hard-``assert``s on a plain string,
+since all it can do is POST text over HTTP, whereas the default
+in-memory store's generic processor accepts either.
 
 **Parameters:**
 
@@ -1681,8 +1681,8 @@ Execute a SPARQL UPDATE.
 ### `StarQuery`  _(class)_
 
 A SPARQL query, prepared once, bound with the options
-    ``StarLayerGraph.query()`` otherwise takes per call - run it against as
-    many graphs as you like via :meth:`run`.
+``StarLayerGraph.query()`` otherwise takes per call - run it against as
+many graphs as you like via :meth:`run`.
 
 **Source:** [starlayer.sparql.star_query.StarQuery](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/star_query.py#L62-L155)
 
@@ -1697,9 +1697,9 @@ def run(self, graph: Any, **overrides: Any) -> Result
 
 Run the bound query against ``graph``.
 
-    Any option bound at construction can be overridden for just this
-    one call via ``**overrides`` - the bound value itself is never
-    changed.
+Any option bound at construction can be overridden for just this
+one call via ``**overrides`` - the bound value itself is never
+changed.
 
 **Parameters:**
 
@@ -1716,28 +1716,28 @@ Run the bound query against ``graph``.
 ### `StarShaclSchema`  _(class)_
 
 A SHACL schema: a bound shapes graph plus an optional ontology
-    graph, to validate, infer rules against, or evaluate node
-    expressions over any number of data graphs.
+graph, to validate, infer rules against, or evaluate node
+expressions over any number of data graphs.
 
-    ``self.shacl_graph``/``self.ont_graph`` are each a reference to
-    their own separate graph - this class does not itself *hold* triples
-    the way ``StarLayerGraph`` does. Composition, not inheritance: there
-    is no real "is-a" relationship available between it and any
-    existing rdflib/pyshacl class - pySHACL's own main entry point,
-    ``validate()``, is a stateless one-shot function, not a long-lived
-    object to subclass, and this class unifies several independent
-    capabilities (``validate``/``apply_rules``/``evaluate``) rather than
-    specializing any one of them. Construct one per distinct shapes-set
-    (``PersonSchema = StarShaclSchema(person_shapes)``,
-    ``ProductSchema = StarShaclSchema(product_shapes)``, ...), then call
-    ``validate``/``apply_rules``/``evaluate`` against whatever data graph
-    you're checking. ``select_widgets`` is the one method that needs no data
-    graph at all - it chooses SHACL 1.2 UI widgets from the shapes graph alone. Shape-driven subgraph extraction is a separate, plain
-    function (``starlayer.shacl.extract_subgraph()``), not a method here -
-    see its own docstring, and the subgraph-extraction guide, for why.
+``self.shacl_graph``/``self.ont_graph`` are each a reference to
+their own separate graph - this class does not itself *hold* triples
+the way ``StarLayerGraph`` does. Composition, not inheritance: there
+is no real "is-a" relationship available between it and any
+existing rdflib/pyshacl class - pySHACL's own main entry point,
+``validate()``, is a stateless one-shot function, not a long-lived
+object to subclass, and this class unifies several independent
+capabilities (``validate``/``apply_rules``/``evaluate``) rather than
+specializing any one of them. Construct one per distinct shapes-set
+(``PersonSchema = StarShaclSchema(person_shapes)``,
+``ProductSchema = StarShaclSchema(product_shapes)``, ...), then call
+``validate``/``apply_rules``/``evaluate`` against whatever data graph
+you're checking. ``select_widgets`` is the one method that needs no data
+graph at all - it chooses SHACL 1.2 UI widgets from the shapes graph alone. Shape-driven subgraph extraction is a separate, plain
+function (``starlayer.shacl.extract_subgraph()``), not a method here -
+see its own docstring, and the subgraph-extraction guide, for why.
 
-    Adds RDF 1.2/triple-term adaptation around pySHACL, which understands
-    neither triple terms nor SHACL 1.2's own predicates natively.
+Adds RDF 1.2/triple-term adaptation around pySHACL, which understands
+neither triple terms nor SHACL 1.2's own predicates natively.
 
 **Source:** [starlayer.shacl.validator.StarShaclSchema](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L81-L2154)
 
@@ -1751,12 +1751,12 @@ def apply_rules(self, data_graph: Any | None=None, include_source_rule_provenanc
 ```
 
 Executes SHACL rules against ``data_graph``, using this
-    instance's own bound ``shacl_graph``/``ont_graph``.
+instance's own bound ``shacl_graph``/``ont_graph``.
 
-    Delegates to the module-level :func:`apply_rules`, which holds
-    the real implementation (mirroring pyshacl's own
-    ``shacl_rules()`` entry point) - this method exists only to
-    avoid repeating ``shacl_graph``/``ont_graph`` on every call.
+Delegates to the module-level :func:`apply_rules`, which holds
+the real implementation (mirroring pyshacl's own
+``shacl_rules()`` entry point) - this method exists only to
+avoid repeating ``shacl_graph``/``ont_graph`` on every call.
 
 **Parameters:**
 
@@ -1801,24 +1801,24 @@ def close_shape(self, shape: Any, *, shapes_graph_resource: Any | None=None) -> 
 ```
 
 Returns a closed copy of ``shacl_graph``, closing ``shape`` and
-    every shape it recursively references.
+every shape it recursively references.
 
-    ``shape`` is a node identifier already in this instance's own
-    ``shacl_graph``. Every shape reached in a way that describes a
-    value node's *complete* property set - ``sh:node``,
-    ``sh:qualifiedValueShape``, every ``sh:and``/``sh:or``/``sh:xone``
-    member - is closed (``sh:closed true``) with any
-    ``sh:ignoredProperties`` stripped. The original ``shacl_graph`` is
-    never mutated. See the module-level ``_close_shape`` in
-    ``subgraph_extraction.py`` for the full algorithm/rationale -
-    turning a shape's normal production form (which often tolerates a
-    few properties via ``sh:ignoredProperties``) into the strict,
-    no-exemptions form ``extract_subgraph()``'s acceptance test needs,
-    without hand-maintaining a second, drift-prone copy of the shape.
+``shape`` is a node identifier already in this instance's own
+``shacl_graph``. Every shape reached in a way that describes a
+value node's *complete* property set - ``sh:node``,
+``sh:qualifiedValueShape``, every ``sh:and``/``sh:or``/``sh:xone``
+member - is closed (``sh:closed true``) with any
+``sh:ignoredProperties`` stripped. The original ``shacl_graph`` is
+never mutated. See the module-level ``_close_shape`` in
+``subgraph_extraction.py`` for the full algorithm/rationale -
+turning a shape's normal production form (which often tolerates a
+few properties via ``sh:ignoredProperties``) into the strict,
+no-exemptions form ``extract_subgraph()``'s acceptance test needs,
+without hand-maintaining a second, drift-prone copy of the shape.
 
-    Unlike ``validate()``/``apply_rules()``/``evaluate()``, this
-    doesn't take a ``data_graph`` at all - it operates purely on the
-    bound ``shacl_graph`` itself.
+Unlike ``validate()``/``apply_rules()``/``evaluate()``, this
+doesn't take a ``data_graph`` at all - it operates purely on the
+bound ``shacl_graph`` itself.
 
 **Parameters:**
 
@@ -1839,62 +1839,62 @@ def evaluate(self, data_graph: Any | None=None, *, shapes_graph_resource: Any | 
 ```
 
 Computes every ``sh:values``-declared virtual property across
-    ``shacl_graph`` and returns the result as a shape-driven subgraph.
+``shacl_graph`` and returns the result as a shape-driven subgraph.
 
-    A third, independent processing mode alongside ``validate()``
-    (checks conformance, never mutates) and ``apply_rules()``
-    (executes ``sh:rule``, materializes real triples). Every focus
-    node a property shape applies to gets its own real, stored
-    ``sh:path`` values, plus any computed virtual values layered on
-    top - never the whole of ``data_graph``. The caller's own
-    ``data_graph`` is never mutated, and the returned graph is not
-    meant to be persisted: SHACL 1.2 Node Expressions' own framing
-    for virtual values is that they are computed "only on demand",
-    never creating real triples in the data graph or shapes graph.
+A third, independent processing mode alongside ``validate()``
+(checks conformance, never mutates) and ``apply_rules()``
+(executes ``sh:rule``, materializes real triples). Every focus
+node a property shape applies to gets its own real, stored
+``sh:path`` values, plus any computed virtual values layered on
+top - never the whole of ``data_graph``. The caller's own
+``data_graph`` is never mutated, and the returned graph is not
+meant to be persisted: SHACL 1.2 Node Expressions' own framing
+for virtual values is that they are computed "only on demand",
+never creating real triples in the data graph or shapes graph.
 
-    This is a genuinely separate concern from ``apply_rules()``, not an
-    overlapping one: a ``sh:values``-declared virtual property is
-    invisible to ordinary node-expression path resolution
-    (``shnex:pathValues``/pySHACL's own ``value_nodes_from_path``) the
-    same way it's invisible to a plain ``sh:path`` read - a ``sh:rule``
-    that tries to *read* a virtual property this way finds nothing, and
-    only ever produces a real triple for that same computation if the
-    rule *recomputes* it itself via the identical node expression.
-    ``sh:values`` is wired only into ``Shape.value_nodes()`` (pySHACL's
-    constraint-evaluation path, patched by
-    ``_patch_shape_value_nodes_for_sh_values``), never into rule
-    execution - so nothing here needs to coordinate with
-    ``apply_rules()`` at all, or worry about double-materializing
-    anything it already produces.
+This is a genuinely separate concern from ``apply_rules()``, not an
+overlapping one: a ``sh:values``-declared virtual property is
+invisible to ordinary node-expression path resolution
+(``shnex:pathValues``/pySHACL's own ``value_nodes_from_path``) the
+same way it's invisible to a plain ``sh:path`` read - a ``sh:rule``
+that tries to *read* a virtual property this way finds nothing, and
+only ever produces a real triple for that same computation if the
+rule *recomputes* it itself via the identical node expression.
+``sh:values`` is wired only into ``Shape.value_nodes()`` (pySHACL's
+constraint-evaluation path, patched by
+``_patch_shape_value_nodes_for_sh_values``), never into rule
+execution - so nothing here needs to coordinate with
+``apply_rules()`` at all, or worry about double-materializing
+anything it already produces.
 
-    Only handles a property shape's simple, single-predicate ``sh:path``
-    (the form every worked example in the spec uses) - a property path
-    expression (sequence/inverse/etc.) is silently skipped, matching
-    this module's general "shallow but broad" tolerance elsewhere for
-    forms not worth a full path-grammar evaluation here.
+Only handles a property shape's simple, single-predicate ``sh:path``
+(the form every worked example in the spec uses) - a property path
+expression (sequence/inverse/etc.) is silently skipped, matching
+this module's general "shallow but broad" tolerance elsewhere for
+forms not worth a full path-grammar evaluation here.
 
-    **Unions with any real, already-stored value for the same
-    predicate - does not remove or replace it.** SHACL 1.2 Core's own
-    "Value Nodes of Property Shapes" algorithm is explicit and
-    unambiguous about this: real path-based values and ``sh:values``-
-    computed values are both unconditionally *added* to the same set
-    (only ``sh:defaultValue`` is conditional, on the set still being
-    empty) - see ``_patch_shape_value_nodes_for_sh_values``'s own
-    docstring for the exact quoted algorithm. Every property shape with
-    a real ``sh:path`` is visited for this, not only ones that also
-    happen to declare ``sh:values``.
+**Unions with any real, already-stored value for the same
+predicate - does not remove or replace it.** SHACL 1.2 Core's own
+"Value Nodes of Property Shapes" algorithm is explicit and
+unambiguous about this: real path-based values and ``sh:values``-
+computed values are both unconditionally *added* to the same set
+(only ``sh:defaultValue`` is conditional, on the set still being
+empty) - see ``_patch_shape_value_nodes_for_sh_values``'s own
+docstring for the exact quoted algorithm. Every property shape with
+a real ``sh:path`` is visited for this, not only ones that also
+happen to declare ``sh:values``.
 
-    **Entailment feeds the whole computation uniformly here** - unlike
-    ``apply_rules()``, where entailment is a pure computational device
-    that is never persisted into its returned inference graph, this
-    method deliberately treats entailed triples as ordinary stored
-    values: SHACL Core's own value-nodes algorithm makes no distinction
-    between asserted and entailed triples, so neither does this method.
+**Entailment feeds the whole computation uniformly here** - unlike
+``apply_rules()``, where entailment is a pure computational device
+that is never persisted into its returned inference graph, this
+method deliberately treats entailed triples as ordinary stored
+values: SHACL Core's own value-nodes algorithm makes no distinction
+between asserted and entailed triples, so neither does this method.
 
-    ``self.shacl_graph is None`` (this schema was constructed with no
-    shapes graph of its own) falls back to ``data_graph`` itself as the
-    source of ``sh:values`` declarations - matching ``validate()``'s
-    own "data graph doubles as shapes graph" allowance.
+``self.shacl_graph is None`` (this schema was constructed with no
+shapes graph of its own) falls back to ``data_graph`` itself as the
+source of ``sh:values`` declarations - matching ``validate()``'s
+own "data graph doubles as shapes graph" allowance.
 
 **Parameters:**
 
@@ -1915,7 +1915,7 @@ def evaluate_component(self, *, component: Any, focus_node: Any, value_nodes: tu
 ```
 
 Evaluates one native ``ConstraintComponent`` directly against
-    ``component``/``focus_node``/``value_nodes``.
+``component``/``focus_node``/``value_nodes``.
 
 **Parameters:**
 
@@ -1938,76 +1938,76 @@ def extract_shapes_graph(self, shapes_graph_iri: Any) -> Any | None
 ```
 
 Extracts the ``sh:ShapesGraph``-typed resource named by
-    ``shapes_graph_iri`` as a standalone graph.
+``shapes_graph_iri`` as a standalone graph.
 
-    ``shapes_graph_iri`` must be declared within this instance's own
-    bound ``shacl_graph``. The inverse of SHACL 1.2 Profiling §2's
-    packaging convention: rather than reading a single shapes
-    graph's own self-declared metadata, this pulls one *named*
-    module back out of a larger graph that bundles several
-    ``sh:ShapesGraph`` modules together side by side.
+``shapes_graph_iri`` must be declared within this instance's own
+bound ``shacl_graph``. The inverse of SHACL 1.2 Profiling §2's
+packaging convention: rather than reading a single shapes
+graph's own self-declared metadata, this pulls one *named*
+module back out of a larger graph that bundles several
+``sh:ShapesGraph`` modules together side by side.
 
-    A shape counts as a member of ``shapes_graph_iri``'s module via
-    any of the three mechanisms SHACL 1.2 Profiling §2 documents,
-    and all three are honored here:
+A shape counts as a member of ``shapes_graph_iri``'s module via
+any of the three mechanisms SHACL 1.2 Profiling §2 documents,
+and all three are honored here:
 
-    - ``<shapes_graph_iri> rdfs:member <Shape>`` - the ShapesGraph
-      declares its own members (forward direction).
-    - ``<Shape> rdfs:isDefinedBy <shapes_graph_iri>`` - a shape
-      declares *itself* part of the ShapesGraph (inverse direction).
-    - ``owl:imports`` - if ``shapes_graph_iri`` imports another
-      ``sh:ShapesGraph`` node that's *already present in this same
-      ``shacl_graph``*, that other module's own members (via either
-      direction above) count as part of this module's result too,
-      transitively. Only locally co-located modules are chased, the
-      same "no implicit network/loader access" scope
-      ``has_import_locally()``/``resolve_imports()`` already
-      establish elsewhere - this method takes no ``loader=``
-      parameter at all.
+- ``<shapes_graph_iri> rdfs:member <Shape>`` - the ShapesGraph
+  declares its own members (forward direction).
+- ``<Shape> rdfs:isDefinedBy <shapes_graph_iri>`` - a shape
+  declares *itself* part of the ShapesGraph (inverse direction).
+- ``owl:imports`` - if ``shapes_graph_iri`` imports another
+  ``sh:ShapesGraph`` node that's *already present in this same
+  ``shacl_graph``*, that other module's own members (via either
+  direction above) count as part of this module's result too,
+  transitively. Only locally co-located modules are chased, the
+  same "no implicit network/loader access" scope
+  ``has_import_locally()``/``resolve_imports()`` already
+  establish elsewhere - this method takes no ``loader=``
+  parameter at all.
 
-      **Unlike the dangling-member case below, an unresolvable
-      ``owl:imports`` target raises ``ValueError`` rather than being
-      silently skipped** - whether the imported IRI has no triples
-      describing it in ``shacl_graph`` at all, or is present but
-      simply isn't itself typed ``a sh:ShapesGraph``. A shapes graph
-      that declares ``owl:imports`` on a ``sh:ShapesGraph`` node is
-      asserting a real dependency on another packaging module, not
-      offering optional metadata - call ``resolve_imports(loader=...)``
-      on ``shacl_graph`` first if the target genuinely needs fetching
-      from elsewhere before extracting.
+  **Unlike the dangling-member case below, an unresolvable
+  ``owl:imports`` target raises ``ValueError`` rather than being
+  silently skipped** - whether the imported IRI has no triples
+  describing it in ``shacl_graph`` at all, or is present but
+  simply isn't itself typed ``a sh:ShapesGraph``. A shapes graph
+  that declares ``owl:imports`` on a ``sh:ShapesGraph`` node is
+  asserting a real dependency on another packaging module, not
+  offering optional metadata - call ``resolve_imports(loader=...)``
+  on ``shacl_graph`` first if the target genuinely needs fetching
+  from elsewhere before extracting.
 
-    The result contains every involved ``sh:ShapesGraph`` node's own
-    Concise Bounded Description (``StarLayerGraph.cbd()`` - its
-    ``rdf:type sh:ShapesGraph``/``rdfs:member``/``owl:imports``
-    triples, plus anything hanging off it via a blank node) **and**
-    every member shape's own CBD too - CBD alone on a ShapesGraph
-    node would include the bare ``rdfs:member`` triples themselves
-    (each member is an ordinary named IRI, not a blank node, so CBD
-    doesn't follow it further on its own) but not the member shapes'
-    own content, which is why each one gets its own explicit CBD call
-    here, the same way ``sh:property``'s own near-universally-blank-
-    node shapes already come along for free via CBD's own blank-
-    node-following behavior.
+The result contains every involved ``sh:ShapesGraph`` node's own
+Concise Bounded Description (``StarLayerGraph.cbd()`` - its
+``rdf:type sh:ShapesGraph``/``rdfs:member``/``owl:imports``
+triples, plus anything hanging off it via a blank node) **and**
+every member shape's own CBD too - CBD alone on a ShapesGraph
+node would include the bare ``rdfs:member`` triples themselves
+(each member is an ordinary named IRI, not a blank node, so CBD
+doesn't follow it further on its own) but not the member shapes'
+own content, which is why each one gets its own explicit CBD call
+here, the same way ``sh:property``'s own near-universally-blank-
+node shapes already come along for free via CBD's own blank-
+node-following behavior.
 
-    Deliberately does **not** recurse into a member's own structural
-    references (``sh:property``/``sh:node``/``sh:qualifiedValueShape``/
-    etc.) to pull in whatever *named* shape they point at - only each
-    direct member's own CBD. SHACL 1.2 Profiling itself gives no
-    completeness rule here at all (§2.7, "Calculating Dependencies,"
-    is a literal ``TODO`` in the published Working Draft; §2.3-2.5's
-    ``rdfs:member``/``rdfs:isDefinedBy`` language is flat and
-    non-transitive), so there's no spec basis for choosing a closure
-    over this narrower scope. A member shape's own named structural
-    reference is deliberately left dangling if its target isn't
-    *itself* a direct member too - this lets a caller extract one
-    shape, then inject their own (possibly different) definition for
-    whatever it references, without the extraction silently dragging
-    along a stale copy that would conflict with the injected one.
-    If the caller wants a fully self-contained, ready-to-validate
-    module instead, they're responsible for making sure every
-    referenced named shape is also a declared member (or for
-    injecting one themselves after extraction) - this method won't
-    infer it on their behalf.
+Deliberately does **not** recurse into a member's own structural
+references (``sh:property``/``sh:node``/``sh:qualifiedValueShape``/
+etc.) to pull in whatever *named* shape they point at - only each
+direct member's own CBD. SHACL 1.2 Profiling itself gives no
+completeness rule here at all (§2.7, "Calculating Dependencies,"
+is a literal ``TODO`` in the published Working Draft; §2.3-2.5's
+``rdfs:member``/``rdfs:isDefinedBy`` language is flat and
+non-transitive), so there's no spec basis for choosing a closure
+over this narrower scope. A member shape's own named structural
+reference is deliberately left dangling if its target isn't
+*itself* a direct member too - this lets a caller extract one
+shape, then inject their own (possibly different) definition for
+whatever it references, without the extraction silently dragging
+along a stale copy that would conflict with the injected one.
+If the caller wants a fully self-contained, ready-to-validate
+module instead, they're responsible for making sure every
+referenced named shape is also a declared member (or for
+injecting one themselves after extraction) - this method won't
+infer it on their behalf.
 
 **Parameters:**
 
@@ -2027,15 +2027,15 @@ def select_widgets(self, *, shape_node: Any, focus_node: Any | None=None, role: 
 ```
 
 Chooses a SHACL 1.2 UI widget for each property of the node
-    shape ``shape_node``, using this instance's own bound
-    ``shacl_graph`` as the shapes graph.
+shape ``shape_node``, using this instance's own bound
+``shacl_graph`` as the shapes graph.
 
-    Delegates to
-    :func:`starlayer.shacl.ui_widget_selection.select_widgets`, which
-    holds the real implementation and its full semantics - this method
-    only supplies the bound shapes graph, the bound ``scoring_graph``
-    and (when a ``focus_node`` is given) the bound ``data_graph``, so
-    none of them is repeated per call. Each can be overridden per call.
+Delegates to
+:func:`starlayer.shacl.ui_widget_selection.select_widgets`, which
+holds the real implementation and its full semantics - this method
+only supplies the bound shapes graph, the bound ``scoring_graph``
+and (when a ``focus_node`` is given) the bound ``data_graph``, so
+none of them is repeated per call. Each can be overridden per call.
 
 **Parameters:**
 
@@ -2061,13 +2061,13 @@ def target_nodes(self, *, data_graph: Any | None=None, shape_node: Any, shapes_g
 
 Return the tuple of nodes this shape targets.
 
-    ``data_graph`` is optional, falling back to ``self.data_graph``;
-    ``inference`` is not a per-call parameter here - this instance's
-    own bound ``self.inference`` is always used instead (see
-    ``__init__``'s own docstring). Also threads this instance's own
-    ``self.ont_graph`` through, matching every other method on this
-    class - see ``engine.target_nodes()``'s own docstring for the
-    full entailment design.
+``data_graph`` is optional, falling back to ``self.data_graph``;
+``inference`` is not a per-call parameter here - this instance's
+own bound ``self.inference`` is always used instead (see
+``__init__``'s own docstring). Also threads this instance's own
+``self.ont_graph`` through, matching every other method on this
+class - see ``engine.target_nodes()``'s own docstring for the
+full entailment design.
 
 **Parameters:**
 
@@ -2089,9 +2089,9 @@ def validate(self, data_graph: Any | None=None, *, mode: str | ValidationMode | 
 ```
 
 Validate ``data_graph`` against this schema's bound
-    ``shacl_graph``/``ont_graph``, with RDF 1.2/triple-term adaptation
-    and the SHACL 1.2 Core/Node-Expressions/Profiling patches this
-    module applies around pySHACL.
+``shacl_graph``/``ont_graph``, with RDF 1.2/triple-term adaptation
+and the SHACL 1.2 Core/Node-Expressions/Profiling patches this
+module applies around pySHACL.
 
 **Parameters:**
 
@@ -2121,16 +2121,16 @@ def validate_each(self, data_graphs: Iterable[Any] | None=None, **kwargs: Any) -
 ```
 
 Validate each of ``data_graphs`` independently against this
-    instance's own bound ``shacl_graph``/``ont_graph``, mirroring
-    pyshacl's own ``validate_each(data_graphs, ...)`` entry point.
+instance's own bound ``shacl_graph``/``ont_graph``, mirroring
+pyshacl's own ``validate_each(data_graphs, ...)`` entry point.
 
-    Implemented as a loop calling :meth:`validate` once per data graph,
-    rather than driving pyshacl's own ``validate_each``/multi-data-graph
-    path directly: that path knows nothing about RDF 1.2 triple terms,
-    SHACL 1.2's new predicates, or any of this project's other runtime
-    patches, so using it would silently run a different, unpatched
-    pipeline per graph instead of the one real ``validate()`` path this
-    class otherwise always goes through.
+Implemented as a loop calling :meth:`validate` once per data graph,
+rather than driving pyshacl's own ``validate_each``/multi-data-graph
+path directly: that path knows nothing about RDF 1.2 triple terms,
+SHACL 1.2's new predicates, or any of this project's other runtime
+patches, so using it would silently run a different, unpatched
+pipeline per graph instead of the one real ``validate()`` path this
+class otherwise always goes through.
 
 **Parameters:**
 
@@ -2151,14 +2151,14 @@ Validate each of ``data_graphs`` independently against this
 ### `CanonicalizationComplexityError`  _(class)_
 
 Raised when canonicalizing would require exploring more permutations
-    than the configured budget.
+than the configured budget.
 
-    The RDFC-1.0 spec's own required defense against "Dataset Poisoning"
-    (section 7.1): "Implementations MUST defend against potential
-    denial-of-service attacks by raising suitable exceptions and
-    terminating early." Confirmed live that without this, the official
-    test suite's own poisoning fixture (test074, a 10-node blank-node
-    clique) hangs indefinitely rather than raising anything.
+The RDFC-1.0 spec's own required defense against "Dataset Poisoning"
+(section 7.1): "Implementations MUST defend against potential
+denial-of-service attacks by raising suitable exceptions and
+terminating early." Confirmed live that without this, the official
+test suite's own poisoning fixture (test074, a 10-node blank-node
+clique) hangs indefinitely rather than raising anything.
 
 **Source:** [starlayer.graph.rdfc.CanonicalizationComplexityError](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/rdfc.py#L76-L85)
 
@@ -2169,10 +2169,10 @@ Raised when canonicalizing would require exploring more permutations
 
 An RDF 1.2 directional language-tagged string literal.
 
-    Value-typed: two instances with the same (value, language, direction) are
-    equal and have the same hash. Per RDF 1.2 Concepts sec 3.4.1, a language
-    tag's case does not participate in the abstract syntax - it is folded to
-    lowercase here, mirroring rdflib.Literal's existing behaviour for lang=.
+Value-typed: two instances with the same (value, language, direction) are
+equal and have the same hash. Per RDF 1.2 Concepts sec 3.4.1, a language
+tag's case does not participate in the abstract syntax - it is folded to
+lowercase here, mirroring rdflib.Literal's existing behaviour for lang=.
 
 **Source:** [starlayer.graph.model.dirlangstring.DirLangString](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/model/dirlangstring.py#L26-L67)
 
@@ -2202,13 +2202,13 @@ Returns the N3/Turtle-1.2 (``"text"@lang--dir``) text form.
 
 An RDF 1.2 triple term — a triple used as a resource.
 
-    Value-typed: two instances with the same (s, p, o) are equal and have the
-    same hash. A plain Python 3-tuple is coerced to TripleTerm wherever the
-    StarLayerGraph API expects a node.
+Value-typed: two instances with the same (s, p, o) are equal and have the
+same hash. A plain Python 3-tuple is coerced to TripleTerm wherever the
+StarLayerGraph API expects a node.
 
-    _namespace_manager is set by StarLayerGraph._restore() when returning a
-    TripleTerm from a query result so that __str__ can emit prefixed names.
-    It is excluded from equality and hashing.
+_namespace_manager is set by StarLayerGraph._restore() when returning a
+TripleTerm from a query result so that __str__ can emit prefixed names.
+It is excluded from equality and hashing.
 
 **Source:** [starlayer.graph.model.triple.TripleTerm](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/model/triple.py#L10-L109)
 
@@ -2235,7 +2235,7 @@ Returns the N3/Turtle-1.2 (``<<( s p o )>>``) text form.
 ### `Turtle12SyntaxError`  _(class)_
 
 Malformed Turtle 1.2 input that the parser cannot recognize as any
-    valid token or statement form.
+valid token or statement form.
 
 **Source:** [starlayer.graph.parsers.errors.Turtle12SyntaxError](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/parsers/errors.py#L19-L56)
 
@@ -2250,20 +2250,20 @@ def can_resolve_import(iri: Any, *, loader: Callable[[Any], Any | None]) -> bool
 
 Returns whether ``loader`` can resolve ``iri``.
 
-    A question about the *loader*'s own knowledge, not about any
-    particular graph's data, which is why this is a plain function
-    rather than a ``StarLayerGraph`` method the way
-    ``owl_imports()``/``resolve_imports()`` are.
+A question about the *loader*'s own knowledge, not about any
+particular graph's data, which is why this is a plain function
+rather than a ``StarLayerGraph`` method the way
+``owl_imports()``/``resolve_imports()`` are.
 
-    Implemented the only honest way this can be answered: by actually
-    calling ``loader(iri)`` and checking whether it returned a graph
-    instead of ``None``. For a loader that only ever consults an
-    already-known local registry (e.g. ``starontology``'s own), this is
-    free - a dict lookup. For a loader that makes a real network
-    request, this has the *exact same* cost and side effects as actually
-    resolving would - there is no cheaper way to ask "would this work"
-    short of trying it, since only the loader itself knows what it can
-    reach.
+Implemented the only honest way this can be answered: by actually
+calling ``loader(iri)`` and checking whether it returned a graph
+instead of ``None``. For a loader that only ever consults an
+already-known local registry (e.g. ``starontology``'s own), this is
+free - a dict lookup. For a loader that makes a real network
+request, this has the *exact same* cost and side effects as actually
+resolving would - there is no cheaper way to ask "would this work"
+short of trying it, since only the loader itself knows what it can
+reach.
 
 **Parameters:**
 
@@ -2285,11 +2285,11 @@ def graph_diff(g1: Any, g2: Any)
 
 RDF-1.2-aware replacement for ``rdflib.compare.graph_diff``.
 
-    Operates on (and returns) the *decomposed* graphs - the returned
-    "in first only"/"in second only" graphs describe differences in terms of
-    the synthetic reification fragments, not the original triple terms, so
-    this is meant for programmatic use (e.g. ``len(in_first) == 0``), not for
-    display back to a user.
+Operates on (and returns) the *decomposed* graphs - the returned
+"in first only"/"in second only" graphs describe differences in terms of
+the synthetic reification fragments, not the original triple terms, so
+this is meant for programmatic use (e.g. ``len(in_first) == 0``), not for
+display back to a user.
 
 **Parameters:**
 
@@ -2308,11 +2308,11 @@ def isomorphic(graph1: Any, graph2: Any) -> bool
 ```
 
 RDF-1.2-aware replacement for ``rdflib.compare.isomorphic`` - correct
-    for graphs containing triple terms (including ones with nested blank
-    nodes), identical to the original for graphs that don't. Also RDF
-    1.1-correct for simple-literal-vs-explicit-``xsd:string`` (see module
-    docstring): a plain ``Literal("x")`` and ``Literal("x", datatype=XSD.string)``
-    compare equal here, unlike in plain ``rdflib.compare.isomorphic``.
+for graphs containing triple terms (including ones with nested blank
+nodes), identical to the original for graphs that don't. Also RDF
+1.1-correct for simple-literal-vs-explicit-``xsd:string`` (see module
+docstring): a plain ``Literal("x")`` and ``Literal("x", datatype=XSD.string)``
+compare equal here, unlike in plain ``rdflib.compare.isomorphic``.
 
 **Parameters:**
 
@@ -2334,10 +2334,10 @@ def parseQuery(q: str) -> ParseResults
 
 Parse a SPARQL 1.2 SELECT/ASK/CONSTRUCT/DESCRIBE query string.
 
-    A leading ``VERSION "label"`` prologue directive (SPARQL 1.2 Query sec
-    4.3) is stripped first - not real SPARQL grammar at all, same handling
-    ``StarLayerGraph.query()`` already gives it (see
-    ``version_directive.py``'s own module docstring).
+A leading ``VERSION "label"`` prologue directive (SPARQL 1.2 Query sec
+4.3) is stripped first - not real SPARQL grammar at all, same handling
+``StarLayerGraph.query()`` already gives it (see
+``version_directive.py``'s own module docstring).
 
 **Parameters:**
 
@@ -2358,8 +2358,8 @@ def parseUpdate(q: str) -> CompValue
 
 Parse a SPARQL 1.2 Update request string.
 
-    A leading ``VERSION "label"`` directive is stripped first - see
-    ``parseQuery``'s own docstring.
+A leading ``VERSION "label"`` directive is stripped first - see
+``parseQuery``'s own docstring.
 
 **Parameters:**
 
@@ -2380,12 +2380,12 @@ def prepareQuery(queryString: str, initNs=None, base=None) -> Query
 
 Parse and translate a SPARQL 1.2 query string to an rdflib ``Query`` object.
 
-    The compiled algebra is plain SPARQL 1.1 (triple terms lowered to
-    starlayer.graph's own ``tt:`` content-addressed encoding); the lowering is
-    transparent at execution time.
+The compiled algebra is plain SPARQL 1.1 (triple terms lowered to
+starlayer.graph's own ``tt:`` content-addressed encoding); the lowering is
+transparent at execution time.
 
-    A leading ``VERSION "label"`` directive is stripped first - see
-    ``parseQuery``'s own docstring.
+A leading ``VERSION "label"`` directive is stripped first - see
+``parseQuery``'s own docstring.
 
 **Parameters:**
 
@@ -2408,10 +2408,10 @@ def prepareUpdate(updateString: str, initNs=None, base=None) -> Update
 
 Parse and translate a SPARQL 1.2 Update request string to an rdflib ``Update`` object.
 
-    The compiled form is plain SPARQL 1.1, same lowering as ``prepareQuery``.
+The compiled form is plain SPARQL 1.1, same lowering as ``prepareQuery``.
 
-    A leading ``VERSION "label"`` directive is stripped first - see
-    ``parseQuery``'s own docstring.
+A leading ``VERSION "label"`` directive is stripped first - see
+``parseQuery``'s own docstring.
 
 **Parameters:**
 
@@ -2434,26 +2434,26 @@ def processUpdate(graph, updateString: str, initBindings=None, initNs=None, base
 
 Execute a SPARQL 1.2 Update against a graph.
 
-    This is the SPARQL 1.2-aware replacement for
-    ``rdflib.plugins.sparql.processUpdate``. The rdflib original calls
-    ``parseUpdate()`` directly, bypassing any ``graph.update()`` override.
+This is the SPARQL 1.2-aware replacement for
+``rdflib.plugins.sparql.processUpdate``. The rdflib original calls
+``parseUpdate()`` directly, bypassing any ``graph.update()`` override.
 
-    For ``StarLayerGraph``/``StarLayerDataset`` instances, this delegates
-    the *original* SPARQL 1.2 text straight to ``graph.update()`` so that
-    graph's own full update pipeline runs unmodified (registry rebuild,
-    ``_invalidate_callback``, native-backend routing, INSERT/DELETE
-    template-position triple-term handling — all of which is specific to
-    those classes' own ``.update()``, not something to reimplement or
-    bypass here). For a plain ``rdflib.Graph`` (which has no notion of
-    SPARQL 1.2 syntax at all), ``updateString`` is first compiled via this
-    module's own ``prepareUpdate`` into a directly executable, already-
-    SPARQL-1.1 ``Update`` object, then handed to ``graph.update()`` — the
-    same general entry point, not the more narrowly-typed
-    ``rdflib.plugins.sparql.processUpdate`` function, since ``Graph.update()``
-    already accepts a prepared object or text uniformly.
+For ``StarLayerGraph``/``StarLayerDataset`` instances, this delegates
+the *original* SPARQL 1.2 text straight to ``graph.update()`` so that
+graph's own full update pipeline runs unmodified (registry rebuild,
+``_invalidate_callback``, native-backend routing, INSERT/DELETE
+template-position triple-term handling — all of which is specific to
+those classes' own ``.update()``, not something to reimplement or
+bypass here). For a plain ``rdflib.Graph`` (which has no notion of
+SPARQL 1.2 syntax at all), ``updateString`` is first compiled via this
+module's own ``prepareUpdate`` into a directly executable, already-
+SPARQL-1.1 ``Update`` object, then handed to ``graph.update()`` — the
+same general entry point, not the more narrowly-typed
+``rdflib.plugins.sparql.processUpdate`` function, since ``Graph.update()``
+already accepts a prepared object or text uniformly.
 
-    Checks via attribute (``_tt_registry``/``_sg_cache``) rather than
-    ``isinstance`` to avoid a circular import.
+Checks via attribute (``_tt_registry``/``_sg_cache``) rather than
+``isinstance`` to avoid a circular import.
 
 **Parameters:**
 
@@ -2478,10 +2478,10 @@ def rdfc10_hash(graph: Any, hash_algorithm: str='sha256', permutation_budget: in
 
 Returns a single hex digest for ``graph``'s canonical N-Quads form.
 
-    The portable, spec-compliant equivalent of
-    ``starlayer.graph.compare.to_canonical_hash()`` (which uses rdflib's
-    own, different digest algorithm and returns a plain Python ``int``,
-    not a hex string).
+The portable, spec-compliant equivalent of
+``starlayer.graph.compare.to_canonical_hash()`` (which uses rdflib's
+own, different digest algorithm and returns a plain Python ``int``,
+not a hex string).
 
 **Parameters:**
 
@@ -2504,9 +2504,9 @@ def serialize_longturtle12(graph) -> str
 
 Serialize a StarLayerGraph to longturtle 1.2 — one triple per line.
 
-    Identical to turtle12 but with no subject/predicate grouping: every triple
-    is emitted as ``s p o .`` on its own line.  Prefix declarations and the
-    ``@version`` directive are emitted the same way as turtle12.
+Identical to turtle12 but with no subject/predicate grouping: every triple
+is emitted as ``s p o .`` on its own line.  Prefix declarations and the
+``@version`` directive are emitted the same way as turtle12.
 
 **Parameters:**
 
@@ -2527,8 +2527,8 @@ def serialize_nquads12(g, graph_uri=None, _include_header: bool=True) -> str
 
 Serialize a StarLayerGraph to N-Quads 1.2 text.
 
-    One quad per line: ``subject predicate object graph .``
-    If *graph_uri* is None the graph's own identifier is used.
+One quad per line: ``subject predicate object graph .``
+If *graph_uri* is None the graph's own identifier is used.
 
 **Parameters:**
 
@@ -2551,8 +2551,8 @@ def serialize_ntriples12(g) -> str
 
 Serialize a StarLayerGraph to N-Triples 1.2 text.
 
-    One triple per line: ``subject predicate object .``
-    Triple terms are written as ``<<( s p o )>>``.
+One triple per line: ``subject predicate object .``
+Triple terms are written as ``<<( s p o )>>``.
 
 **Parameters:**
 
@@ -2573,13 +2573,13 @@ def serialize_rdfxml12(graph) -> str
 
 Serialize a StarLayerGraph to RDF/XML 1.2 text.
 
-    Triple terms in object position → ``rdf:parseType="Triple"`` wrapping a
-    single ``<rdf:Description>`` (RDF 1.2 XML Syntax sec 2.19). Reification is
-    the ordinary ``rdf:reifies`` predicate with a triple-term-valued object -
-    the same "formal pattern" used as the canonical form everywhere else in
-    this codebase, not the ``rdf:annotation``/``rdf:annotationNodeID``
-    shorthand (which the parser accepts for reading, but this serializer
-    never emits).
+Triple terms in object position → ``rdf:parseType="Triple"`` wrapping a
+single ``<rdf:Description>`` (RDF 1.2 XML Syntax sec 2.19). Reification is
+the ordinary ``rdf:reifies`` predicate with a triple-term-valued object -
+the same "formal pattern" used as the canonical form everywhere else in
+this codebase, not the ``rdf:annotation``/``rdf:annotationNodeID``
+shorthand (which the parser accepts for reading, but this serializer
+never emits).
 
 **Parameters:**
 
@@ -2600,8 +2600,8 @@ def serialize_trig12(g) -> str
 
 Serialize *g* to TriG 1.2 text.
 
-    Named graph identifier → ``GRAPH <uri> { ... }``
-    BNode identifier        → plain Turtle 1.2 (default graph in TriG)
+Named graph identifier → ``GRAPH <uri> { ... }``
+BNode identifier        → plain Turtle 1.2 (default graph in TriG)
 
 **Parameters:**
 
@@ -2622,10 +2622,10 @@ def serialize_trix12(g) -> str
 
 Serialize a StarLayerGraph to TriX 1.2 XML text.
 
-    Named graph identifier → <uri> as first child of <graph>.
-    BNode identifier        → anonymous <graph> (default/unnamed graph).
-    Triple terms emitted as a nested <triple> (Jena convention), not a
-    distinct <tripleTerm> tag.
+Named graph identifier → <uri> as first child of <graph>.
+BNode identifier        → anonymous <graph> (default/unnamed graph).
+Triple terms emitted as a nested <triple> (Jena convention), not a
+distinct <tripleTerm> tag.
 
 **Parameters:**
 
@@ -2646,7 +2646,7 @@ def serialize_trix12_dataset(ds) -> str
 
 Serialize a StarLayerDataset to TriX 1.2 XML text.
 
-    Each non-empty named graph becomes a separate <graph> block.
+Each non-empty named graph becomes a separate <graph> block.
 
 **Parameters:**
 
@@ -2667,11 +2667,11 @@ def serialize_turtle12(graph) -> str
 
 Serialize a StarLayerGraph or rdflib.Graph (with SL encoding) to Turtle 1.2.
 
-    Triple terms are emitted as <<( s p o )>>. Internal encoding triples
-    (sl:TripleTerm, sl:Reification, rdf:subject/predicate/object) are omitted.
-    Reifier bnodes whose annotated triple is asserted in the graph are folded
-    into inline {| ann_pred ann_val |} syntax on the base triple.
-    Only namespace prefixes actually used in the graph are emitted.
+Triple terms are emitted as <<( s p o )>>. Internal encoding triples
+(sl:TripleTerm, sl:Reification, rdf:subject/predicate/object) are omitted.
+Reifier bnodes whose annotated triple is asserted in the graph are folded
+into inline {| ann_pred ann_val |} syntax on the base triple.
+Only namespace prefixes actually used in the graph are emitted.
 
 **Parameters:**
 
@@ -2691,13 +2691,13 @@ def to_canonical_hash(graph: Any) -> int
 ```
 
 A single canonical digest for ``graph``, stable under blank-node
-    relabeling and correct for triple terms (including nested blank nodes).
+relabeling and correct for triple terms (including nested blank nodes).
 
-    Not yet a spec-compliant RDFC-1.0 digest (see module docstring) - two
-    graphs get equal digests here if and only if ``isomorphic()`` (this
-    module's version) says they're isomorphic, which is the property this
-    is actually needed for today; a portable, standards-compliant canonical
-    N-Quads form is separate, larger, future work.
+Not yet a spec-compliant RDFC-1.0 digest (see module docstring) - two
+graphs get equal digests here if and only if ``isomorphic()`` (this
+module's version) says they're isomorphic, which is the property this
+is actually needed for today; a portable, standards-compliant canonical
+N-Quads form is separate, larger, future work.
 
 **Parameters:**
 
@@ -2717,11 +2717,11 @@ def to_canonical_nquads(graph: Any, hash_algorithm: str='sha256', permutation_bu
 ```
 
 The canonical N-Quads serialization of ``graph`` (spec section 5),
-    correct for triple terms and directional language strings.
+correct for triple terms and directional language strings.
 
-    ``graph`` is decomposed first (triple terms unstarred into synthetic
-    blank-node reification, directional language strings re-encoded) - see
-    module and ``starlayer.graph.compare`` docstrings.
+``graph`` is decomposed first (triple terms unstarred into synthetic
+blank-node reification, directional language strings re-encoded) - see
+module and ``starlayer.graph.compare`` docstrings.
 
 **Parameters:**
 
@@ -2743,9 +2743,9 @@ def to_isomorphic(graph: Any)
 ```
 
 RDF-1.2-aware replacement for ``rdflib.compare.to_isomorphic`` -
-    doesn't crash on a triple-term-valued term. Returns an
-    ``IsomorphicGraph`` over the *decomposed* graph (see module docstring);
-    use ``to_canonical_hash()`` if you just want a single digest value.
+doesn't crash on a triple-term-valued term. Returns an
+``IsomorphicGraph`` over the *decomposed* graph (see module docstring);
+use ``to_canonical_hash()`` if you just want a single digest value.
 
 **Parameters:**
 
@@ -2767,19 +2767,19 @@ def prepare_query_12(text: str, base: str | None=None, initNs: Mapping[str, Any]
 ```
 
 Parses and translates SPARQL 1.2 query text into a real,
-    executable-shaped rdflib ``Query``.
+executable-shaped rdflib ``Query``.
 
-    ``query.algebra`` contains genuine ``TripleTermNode`` nodes in
-    triple-pattern position, not a lowered SPARQL-1.1-equivalent shape.
+``query.algebra`` contains genuine ``TripleTermNode`` nodes in
+triple-pattern position, not a lowered SPARQL-1.1-equivalent shape.
 
-    ``base``/``initNs`` are threaded straight through to ``translateQuery``
-    — same two parameters, same precedence, as plain rdflib's own
-    ``prepareQuery(queryString, initNs=None, base=None)``: ``initNs`` seeds
-    the query's Prologue first, then any ``BASE``/``PREFIX`` declaration
-    actually written in ``text`` is applied after and overrides it (per
-    ``rdflib.plugins.sparql.algebra.translatePrologue``'s own source —
-    ``initNs`` binds first, the parsed prologue's own declarations are
-    applied in a loop afterward).
+``base``/``initNs`` are threaded straight through to ``translateQuery``
+— same two parameters, same precedence, as plain rdflib's own
+``prepareQuery(queryString, initNs=None, base=None)``: ``initNs`` seeds
+the query's Prologue first, then any ``BASE``/``PREFIX`` declaration
+actually written in ``text`` is applied after and overrides it (per
+``rdflib.plugins.sparql.algebra.translatePrologue``'s own source —
+``initNs`` binds first, the parsed prologue's own declarations are
+applied in a loop afterward).
 
 **Parameters:**
 
@@ -2801,7 +2801,7 @@ def prepare_update_12(text: str, base: str | None=None, initNs: Mapping[str, Any
 ```
 
 ``prepare_query_12``'s counterpart for SPARQL 1.2 Update text — same
-    ``base``/``initNs`` passthrough to ``translateUpdate``.
+``base``/``initNs`` passthrough to ``translateUpdate``.
 
 **Parameters:**
 
@@ -2823,14 +2823,14 @@ def queries_to_collection(queries: list[Query], graph: Graph | None=None) -> tup
 ```
 
 Encodes a list of independent, prepared rdflib ``Query`` objects as
-    one RDF ``salg:QueryCollection``.
+one RDF ``salg:QueryCollection``.
 
-    The collection-of-independent-queries counterpart of
-    ``update_to_rdf``'s single-request ``salg:operations`` list - see
-    ``vocab.QUERY_COLLECTION``. Unlike an Update's operations, which
-    share one Prologue across the whole request, each query keeps its
-    own — ``query_to_rdf`` already encodes it per query, so nothing extra
-    is needed here for that.
+The collection-of-independent-queries counterpart of
+``update_to_rdf``'s single-request ``salg:operations`` list - see
+``vocab.QUERY_COLLECTION``. Unlike an Update's operations, which
+share one Prologue across the whole request, each query keeps its
+own — ``query_to_rdf`` already encodes it per query, so nothing extra
+is needed here for that.
 
 **Parameters:**
 
@@ -2851,12 +2851,12 @@ def query_to_rdf(query: Query, graph: Graph | None=None) -> tuple[Graph, BNode]
 ```
 
 Encode a prepared rdflib ``Query`` (from ``prepareQuery``/``translateQuery``,
-    starlayer.graph's SPARQL-1.2-aware variants included) as RDF triples.
+starlayer.graph's SPARQL-1.2-aware variants included) as RDF triples.
 
-    ``root`` is the node for ``query.algebra``, additionally typed
-    ``salg:Query`` (see ``vocab.QUERY``) so encoded queries in a larger
-    store can always be found via ``?q a salg:Query`` regardless of query
-    form.
+``root`` is the node for ``query.algebra``, additionally typed
+``salg:Query`` (see ``vocab.QUERY``) so encoded queries in a larger
+store can always be found via ``?q a salg:Query`` regardless of query
+form.
 
 **Parameters:**
 
@@ -2877,17 +2877,17 @@ def rdf_to_collection(graph: Graph, root: BNode) -> list[Query]
 ```
 
 Decode ``root`` (as produced by ``to_rdf.queries_to_collection``)
-    back into a list of independent, directly executable rdflib ``Query``
-    objects, in the same order they were encoded.
+back into a list of independent, directly executable rdflib ``Query``
+objects, in the same order they were encoded.
 
-    Each member is decoded via ``rdf_to_query`` individually — not the
-    generic ``_decode`` walker an ordinary ``rdf:List`` goes through
-    elsewhere in this module — since each member needs that function's own
-    per-query handling (recomputed ``_vars``/``lazy`` bookkeeping via
-    ``_addVars``/``analyse``, its own reconstructed Prologue), the same
-    reason ``rdf_to_update`` doesn't reuse plain ``_decode`` for its own
-    operations list's *individual members* either (only the list structure
-    itself goes through the generic walker there).
+Each member is decoded via ``rdf_to_query`` individually — not the
+generic ``_decode`` walker an ordinary ``rdf:List`` goes through
+elsewhere in this module — since each member needs that function's own
+per-query handling (recomputed ``_vars``/``lazy`` bookkeeping via
+``_addVars``/``analyse``, its own reconstructed Prologue), the same
+reason ``rdf_to_update`` doesn't reuse plain ``_decode`` for its own
+operations list's *individual members* either (only the list structure
+itself goes through the generic walker there).
 
 **Parameters:**
 
@@ -2908,15 +2908,15 @@ def rdf_to_query(graph: Graph, root: BNode) -> Query
 ```
 
 Decode ``root`` (as produced by ``to_rdf.query_to_rdf``) back into an
-    rdflib ``Query`` — same type ``prepareQuery``/``translateQuery`` return.
+rdflib ``Query`` — same type ``prepareQuery``/``translateQuery`` return.
 
-    The returned ``Query``'s ``Prologue`` is reconstructed from
-    ``salg:base``/``salg:prologuePrefix`` on ``root`` (see vocab.py's
-    "Prologue (BASE/PREFIX)" section) — this fixes real evaluation-time
-    behavior (``BASE``-relative ``IRI()``/``URI()`` builtin resolution), but
-    does *not* make ``algebra.translateAlgebra`` emit prefixed names: that
-    function never reads ``query.prologue`` at all, confirmed empirically,
-    so its output stays full-IRI-only regardless.
+The returned ``Query``'s ``Prologue`` is reconstructed from
+``salg:base``/``salg:prologuePrefix`` on ``root`` (see vocab.py's
+"Prologue (BASE/PREFIX)" section) — this fixes real evaluation-time
+behavior (``BASE``-relative ``IRI()``/``URI()`` builtin resolution), but
+does *not* make ``algebra.translateAlgebra`` emit prefixed names: that
+function never reads ``query.prologue`` at all, confirmed empirically,
+so its output stays full-IRI-only regardless.
 
 **Parameters:**
 
@@ -2937,18 +2937,18 @@ def rdf_to_update(graph: Graph, root: BNode) -> Update
 ```
 
 Decode ``root`` (as produced by ``to_rdf.update_to_rdf``) back into an
-    rdflib ``Update`` — same type ``prepareUpdate``/``translateUpdate``
-    return, runnable via ``rdflib.plugins.sparql.update.evalUpdate``.
+rdflib ``Update`` — same type ``prepareUpdate``/``translateUpdate``
+return, runnable via ``rdflib.plugins.sparql.update.evalUpdate``.
 
-    Unlike a Query's algebra, an Update operation's WHERE clause (Modify)
-    never gets the _vars/lazy bookkeeping pass in stock rdflib either —
-    ``translateUpdate`` never calls ``_addVars``/``analyse`` the way
-    ``translateQuery`` does for a SELECT/etc. — so there's nothing to
-    recompute here to match. The request's single shared Prologue (see
-    ``update_to_rdf``) is reconstructed the same way as a Query's, and
-    assigned to every operation — ``evalUpdate`` reads ``u.prologue`` off
-    each operation individually, even though it's the same object for all
-    of them in a real ``prepareUpdate`` result too.
+Unlike a Query's algebra, an Update operation's WHERE clause (Modify)
+never gets the _vars/lazy bookkeeping pass in stock rdflib either —
+``translateUpdate`` never calls ``_addVars``/``analyse`` the way
+``translateQuery`` does for a SELECT/etc. — so there's nothing to
+recompute here to match. The request's single shared Prologue (see
+``update_to_rdf``) is reconstructed the same way as a Query's, and
+assigned to every operation — ``evalUpdate`` reads ``u.prologue`` off
+each operation individually, even though it's the same object for all
+of them in a real ``prepareUpdate`` result too.
 
 **Parameters:**
 
@@ -2969,12 +2969,12 @@ def rewrite_algebra_for_rdf(algebra: Any) -> Any
 ```
 
 Return ``algebra`` with every BGP rewritten for RDF entailment (see
-    module docstring for exactly which rule). Mutates and returns the same
-    tree (matching ``rdflib.plugins.sparql.algebra.traverse``'s own
-    contract) - idempotent, since every triple this rewrite produces uses a
-    fresh ``__starlayer_rdf_N`` variable in a slot that never matches the
-    ``p == RDF.type and o == RDF.Property`` trigger a second time (the
-    fresh predicate variable is never literally ``rdf:Property``).
+module docstring for exactly which rule). Mutates and returns the same
+tree (matching ``rdflib.plugins.sparql.algebra.traverse``'s own
+contract) - idempotent, since every triple this rewrite produces uses a
+fresh ``__starlayer_rdf_N`` variable in a slot that never matches the
+``p == RDF.type and o == RDF.Property`` trigger a second time (the
+fresh predicate variable is never literally ``rdf:Property``).
 
 **Parameters:**
 
@@ -2994,14 +2994,14 @@ def rewrite_algebra_for_rdfs(algebra: Any) -> Any
 ```
 
 Return ``algebra`` with every BGP rewritten for RDFS entailment (see
-    module docstring for exactly which rules). Mutates and returns the
-    same tree (matching ``rdflib.plugins.sparql.algebra.traverse``'s own
-    contract, already relied on elsewhere in this codebase's lowering
-    passes) - idempotent, since every triple this rewrite produces uses
-    either a ``Path`` object or a fresh ``__starlayer_rdfs_N`` variable in
-    predicate position, neither of which matches the ``p == RDF.type`` /
-    ``isinstance(p, URIRef)`` checks that trigger rewriting on a second
-    pass.
+module docstring for exactly which rules). Mutates and returns the
+same tree (matching ``rdflib.plugins.sparql.algebra.traverse``'s own
+contract, already relied on elsewhere in this codebase's lowering
+passes) - idempotent, since every triple this rewrite produces uses
+either a ``Path`` object or a fresh ``__starlayer_rdfs_N`` variable in
+predicate position, neither of which matches the ``p == RDF.type`` /
+``isinstance(p, URIRef)`` checks that trigger rewriting on a second
+pass.
 
 **Parameters:**
 
@@ -3021,18 +3021,18 @@ def update_to_rdf(update: Update, graph: Graph | None=None) -> tuple[Graph, BNod
 ```
 
 Encode a prepared rdflib ``Update`` (from ``prepareUpdate``/
-    ``translateUpdate``) as RDF triples.
+``translateUpdate``) as RDF triples.
 
-    ``update.algebra`` is a ``List[CompValue]`` — one operation per
-    semicolon-separated request in the Update string, executed in that
-    order. ``root`` is a dedicated container node (not itself a CompValue,
-    typed ``salg:Update`` — see ``vocab.UPDATE``) holding ``salg:operations``
-    (an ``rdf:List`` of the encoded operations — order matters and must
-    survive the round-trip) plus the request's shared Prologue
-    (``salg:base``/``salg:prologuePrefix`` — SPARQL Update has one Prologue
-    per request, not one per operation, unlike a Query). Each operation node
-    is additionally typed ``salg:UpdateOperation`` (see
-    ``vocab.UPDATE_OPERATION``).
+``update.algebra`` is a ``List[CompValue]`` — one operation per
+semicolon-separated request in the Update string, executed in that
+order. ``root`` is a dedicated container node (not itself a CompValue,
+typed ``salg:Update`` — see ``vocab.UPDATE``) holding ``salg:operations``
+(an ``rdf:List`` of the encoded operations — order matters and must
+survive the round-trip) plus the request's shared Prologue
+(``salg:base``/``salg:prologuePrefix`` — SPARQL Update has one Prologue
+per request, not one per operation, unlike a Query). Each operation node
+is additionally typed ``salg:UpdateOperation`` (see
+``vocab.UPDATE_OPERATION``).
 
 **Parameters:**
 
@@ -3053,12 +3053,12 @@ Encode a prepared rdflib ``Update`` (from ``prepareUpdate``/
 ### `UnboundProjectedVariable`  _(class)_
 
 One `Project` node whose `PV` names a variable never bound anywhere
-    in its own pattern subtree.
+in its own pattern subtree.
 
-    Attributes:
-        project_node: The `Project` node this finding is about.
-        variable: The unbound variable named in `PV`.
-        projected_vars: The node's full `PV`, for context.
+Attributes:
+    project_node: The `Project` node this finding is about.
+    variable: The unbound variable named in `PV`.
+    projected_vars: The node's full `PV`, for context.
 
 **Source:** [starlayer.sparql.salg.semantic_checks.UnboundProjectedVariable](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/salg/semantic_checks.py#L86-L98)
 
@@ -3073,16 +3073,16 @@ def find_unbound_projected_variables(data_graph: Graph) -> list[UnboundProjected
 
 Returns every ``UnboundProjectedVariable`` finding in ``data_graph``.
 
-    Finds every ``salg:Project`` node in ``data_graph`` (a ``salg:``
-    algebra graph, as produced by ``to_rdf.query_to_rdf``/``update_to_rdf``
-    - ``Project`` nodes can appear for a Query or an Update alike) whose
-    ``PV`` names a variable that's never actually bound anywhere in its
-    own pattern subtree.
+Finds every ``salg:Project`` node in ``data_graph`` (a ``salg:``
+algebra graph, as produced by ``to_rdf.query_to_rdf``/``update_to_rdf``
+- ``Project`` nodes can appear for a Query or an Update alike) whose
+``PV`` names a variable that's never actually bound anywhere in its
+own pattern subtree.
 
-    A plain, standalone function for a caller who wants this one check
-    directly - the same check also runs automatically as a real SHACL
-    constraint whenever ``starlayer.sparql.validate()`` validates a graph whose
-    ``salg:Project`` nodes activate it (see this module's own docstring).
+A plain, standalone function for a caller who wants this one check
+directly - the same check also runs automatically as a real SHACL
+constraint whenever ``starlayer.sparql.validate()`` validates a graph whose
+``salg:Project`` nodes activate it (see this module's own docstring).
 
 **Parameters:**
 
@@ -3102,7 +3102,7 @@ def ontology_graph() -> Graph
 ```
 
 A fresh graph of the ``spexpr:`` RDFS ontology (the subclass axioms behind ``sh:class spexpr:Expression``
-    and the variable and path classes).
+and the variable and path classes).
 
 **Returns:** `Graph`
 
@@ -3118,19 +3118,19 @@ def ontology_graph() -> Graph
 ```
 
 Build a fresh graph: the RDFS ontology in ``salg-ontology.ttl``
-    merged with ``spexpr-ontology.ttl`` (lives in the ``starontology``
-    package).
+merged with ``spexpr-ontology.ttl`` (lives in the ``starontology``
+package).
 
-    The merge is required, not cosmetic: ``salg:Expression``/
-    ``salg:Variable``/``salg:Path`` and their subclasses live in the
-    ``spexpr:`` vocabulary (see ``starlayer/sparql/vocab.py``'s own
-    ``SPEXPR`` definition for why), so the RDFS subclass axioms
-    ``ExpressionShape``'s ``sh:class spexpr:Expression`` check depends on
-    for entailment live there too - without this merge, that entailment
-    would not fire and every expression/variable/path check this module's
-    own shapes rely on would fail. ``salg-ontology.ttl`` on its own has no
-    opinion about expressions/variables/paths at all - entirely
-    ``spexpr:``'s concern.
+The merge is required, not cosmetic: ``salg:Expression``/
+``salg:Variable``/``salg:Path`` and their subclasses live in the
+``spexpr:`` vocabulary (see ``starlayer/sparql/vocab.py``'s own
+``SPEXPR`` definition for why), so the RDFS subclass axioms
+``ExpressionShape``'s ``sh:class spexpr:Expression`` check depends on
+for entailment live there too - without this merge, that entailment
+would not fire and every expression/variable/path check this module's
+own shapes rely on would fail. ``salg-ontology.ttl`` on its own has no
+opinion about expressions/variables/paths at all - entirely
+``spexpr:``'s concern.
 
 **Returns:** `Graph` - A fresh ``rdflib.Graph`` combining both ontologies (callers get their own copy, not a shared module-level instance).
 
@@ -3146,10 +3146,10 @@ Build a fresh graph: the RDFS ontology in ``salg-ontology.ttl``
 ### `SQEError`  _(class)_
 
 Base class for every ``sqe:``-specific exception
-    (``SQEValidationError`` here) - gives a caller two real catch
-    granularities, "this specific failure" vs. "any ``sqe:`` failure",
-    the same two-tier shape ``srl.py``'s own ``SRLError``/
-    ``SRLParseError`` already established for the identical reason.
+(``SQEValidationError`` here) - gives a caller two real catch
+granularities, "this specific failure" vs. "any ``sqe:`` failure",
+the same two-tier shape ``srl.py``'s own ``SRLError``/
+``SRLParseError`` already established for the identical reason.
 
 **Source:** [starlayer.sparql.sqe.to_rdf.SQEError](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/sqe/to_rdf.py#L152-L157)
 
@@ -3159,22 +3159,22 @@ Base class for every ``sqe:``-specific exception
 ### `SQEValidationError`  _(class)_
 
 Raised by :func:`sqe_parse_to_tree` when the text parses fine but
-    the resulting ``sqe:`` tree fails ``sqe:``'s own SHACL shapes (most
-    notably the unbound-projected-variable check) - "this text doesn't
-    produce a usable ``sqe:`` tree", matching the same "succeed with a
-    usable object, or raise" contract ``prepareQuery()``/
-    ``srl.parse_ruleset()`` already give their own callers, rather than
-    handing back a tree that's already known to be unusable and leaving
-    it to the caller to remember to check.
+the resulting ``sqe:`` tree fails ``sqe:``'s own SHACL shapes (most
+notably the unbound-projected-variable check) - "this text doesn't
+produce a usable ``sqe:`` tree", matching the same "succeed with a
+usable object, or raise" contract ``prepareQuery()``/
+``srl.parse_ruleset()`` already give their own callers, rather than
+handing back a tree that's already known to be unusable and leaving
+it to the caller to remember to check.
 
-    Carries the full validation report as attributes, not just a
-    message, so a caller who wants the structured detail doesn't have to
-    re-run :func:`sqe_validate` themselves to get it.
+Carries the full validation report as attributes, not just a
+message, so a caller who wants the structured detail doesn't have to
+re-run :func:`sqe_validate` themselves to get it.
 
-    Attributes:
-        report_graph: The full ``sh:ValidationReport`` graph.
-        report_text: The same report, rendered as text (this
-            exception's own ``str()`` is a short prefix plus this text).
+Attributes:
+    report_graph: The full ``sh:ValidationReport`` graph.
+    report_text: The same report, rendered as text (this
+        exception's own ``str()`` is a short prefix plus this text).
 
 **Source:** [starlayer.sparql.sqe.to_rdf.SQEValidationError](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/sqe/to_rdf.py#L160-L183)
 
@@ -3188,18 +3188,18 @@ def sqe_parse_to_tree(text: str, graph: Graph | None=None, root: IdentifiedNode 
 ```
 
 Encode SPARQL ``SELECT``/``ASK``/``CONSTRUCT`` query text as
-    ``sqe:`` RDF, and validate the result. The one public encoding entry
-    point - parses ``text`` with the same ``parseQuery`` every other
-    SPARQL 1.2 entry point in this package uses, delegates to
-    ``_query_to_sqe_rdf`` below, then validates via :func:`sqe_validate`
-    before returning - a caller only ever gets back a tree already
-    confirmed to satisfy ``sqe:``'s own shapes (including the
-    unbound-projected-variable check), never one silently known to fail.
+``sqe:`` RDF, and validate the result. The one public encoding entry
+point - parses ``text`` with the same ``parseQuery`` every other
+SPARQL 1.2 entry point in this package uses, delegates to
+``_query_to_sqe_rdf`` below, then validates via :func:`sqe_validate`
+before returning - a caller only ever gets back a tree already
+confirmed to satisfy ``sqe:``'s own shapes (including the
+unbound-projected-variable check), never one silently known to fail.
 
-    Validation only runs here, at creation time - it has no way to see,
-    and does not re-run for, any edit made to the tree afterward (see
-    the guide notebook's own section on this). Call :func:`sqe_validate`
-    yourself again after editing a tree directly.
+Validation only runs here, at creation time - it has no way to see,
+and does not re-run for, any edit made to the tree afterward (see
+the guide notebook's own section on this). Call :func:`sqe_validate`
+yourself again after editing a tree directly.
 
 **Parameters:**
 
@@ -3221,15 +3221,15 @@ def sqe_tree_to_query(graph: Graph, root) -> Query
 ```
 
 Decode ``root`` (one of ``sqe:SelectQuery``/``sqe:AskQuery``/
-    ``sqe:ConstructQuery``, as produced by
-    ``to_rdf.sqe_parse_to_tree``) back into a real rdflib ``Query``.
+``sqe:ConstructQuery``, as produced by
+``to_rdf.sqe_parse_to_tree``) back into a real rdflib ``Query``.
 
-    The returned ``Query``'s own ``.prologue`` is empty (rdflib's default,
-    no prefixes) — execution never needs prefixes once every term is
-    already a resolved ``URIRef``. The *original* preserved prefixes live
-    on ``root`` itself (``salg:prologuePrefix``, via ``to_rdf.py``'s
-    ``_encode_prologue``) and are read directly by ``to_text.py`` for
-    prefix-aware rendering, not threaded through here.
+The returned ``Query``'s own ``.prologue`` is empty (rdflib's default,
+no prefixes) — execution never needs prefixes once every term is
+already a resolved ``URIRef``. The *original* preserved prefixes live
+on ``root`` itself (``salg:prologuePrefix``, via ``to_rdf.py``'s
+``_encode_prologue``) and are read directly by ``to_text.py`` for
+prefix-aware rendering, not threaded through here.
 
 **Parameters:**
 
@@ -3250,8 +3250,8 @@ def sqe_tree_to_text(graph: Graph, root) -> str
 ```
 
 Render ``root`` (as produced by ``to_rdf.sqe_parse_to_tree``) back
-    into SPARQL query text, re-abbreviating terms using the ``PREFIX``
-    declarations preserved on ``root`` wherever one matches.
+into SPARQL query text, re-abbreviating terms using the ``PREFIX``
+declarations preserved on ``root`` wherever one matches.
 
 **Parameters:**
 
@@ -3272,7 +3272,7 @@ Render ``root`` (as produced by ``to_rdf.sqe_parse_to_tree``) back
 ### `ComponentRequest`  _(class)_
 
 One native-component evaluation request - ``evaluate_component()``'s
-    own sole argument.
+own sole argument.
 
 **Source:** [starlayer.shacl.engine.contracts.ComponentRequest](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/engine/contracts.py#L8-L16)
 
@@ -3282,10 +3282,10 @@ One native-component evaluation request - ``evaluate_component()``'s
 ### `ExecutionDiagnostics`  _(class)_
 
 Internal adapter bookkeeping for the RDF 1.2 triple-term adaptation
-    layer - not general-purpose validation statistics.
+layer - not general-purpose validation statistics.
 
-    The type of ``ValidationResult.diagnostics``. Not a type you'd
-    construct directly.
+The type of ``ValidationResult.diagnostics``. Not a type you'd
+construct directly.
 
 **Source:** [starlayer.shacl.results.ExecutionDiagnostics](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/results.py#L8-L23)
 
@@ -3295,7 +3295,7 @@ Internal adapter bookkeeping for the RDF 1.2 triple-term adaptation
 ### `MutableStarLayerGraphProtocol`  _(class)_
 
 ``StarLayerGraphProtocol`` plus mutation methods - ``add()``/
-    ``remove()``.
+``remove()``.
 
 **Source:** [starlayer.shacl.types.MutableStarLayerGraphProtocol](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/types.py#L19-L32)
 
@@ -3328,7 +3328,7 @@ def remove(self, triple_pattern: tuple[Any, Any, Any]) -> Any
 ```
 
 Removes every triple matching ``triple_pattern`` from the
-    graph.
+graph.
 
 **Parameters:**
 
@@ -3345,28 +3345,28 @@ Removes every triple matching ``triple_pattern`` from the
 
 Result of ``apply_rules()``.
 
-    ``apply_rules()`` executes ``sh:rule``/``sh:SPARQLRule`` against a
-    private working copy of the caller's ``data_graph`` (never mutated
-    in place) and returns what the rules produced.
+``apply_rules()`` executes ``sh:rule``/``sh:SPARQLRule`` against a
+private working copy of the caller's ``data_graph`` (never mutated
+in place) and returns what the rules produced.
 
-    ``inferred_graph`` is strictly the SHACL 1.2 Inference Rules spec's own
-    "inference graph" - only the triples rule execution itself produced
-    (shape-attached ``sh:rule``, global ``sh:SPARQLRule``/``sh:RuleSet``,
-    and ``sh:sourceRule`` provenance reifiers). It contains neither the
-    original base triples nor anything an entailment regime
-    (``sh:entailment`` or ``inference=``) added - entailment is purely a
-    computational device for correct rule matching and conformance
-    checking here, never persisted into the result.
+``inferred_graph`` is strictly the SHACL 1.2 Inference Rules spec's own
+"inference graph" - only the triples rule execution itself produced
+(shape-attached ``sh:rule``, global ``sh:SPARQLRule``/``sh:RuleSet``,
+and ``sh:sourceRule`` provenance reifiers). It contains neither the
+original base triples nor anything an entailment regime
+(``sh:entailment`` or ``inference=``) added - entailment is purely a
+computational device for correct rule matching and conformance
+checking here, never persisted into the result.
 
-    ``validation`` is the result of one real ``validate()`` call
-    ``apply_rules()`` makes internally, over the *complete* evaluation
-    graph: base ∪ every rule-produced triple ∪ every entailed triple.
-    ``validation.conforms``/``.report_graph``/``.report_text`` correctly
-    reflect everything that was true during execution, even though
-    entailment's own triples don't appear in ``inferred_graph`` itself.
-    ``validation.data_graph`` is always ``None`` in this context (that
-    internal call always uses the ``"validation"`` mode's own
-    ``inplace=False`` default) - harmless, just not meaningful here.
+``validation`` is the result of one real ``validate()`` call
+``apply_rules()`` makes internally, over the *complete* evaluation
+graph: base ∪ every rule-produced triple ∪ every entailed triple.
+``validation.conforms``/``.report_graph``/``.report_text`` correctly
+reflect everything that was true during execution, even though
+entailment's own triples don't appear in ``inferred_graph`` itself.
+``validation.data_graph`` is always ``None`` in this context (that
+internal call always uses the ``"validation"`` mode's own
+``inplace=False`` default) - harmless, just not meaningful here.
 
 **Source:** [starlayer.shacl.results.RulesResult](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/results.py#L46-L74)
 
@@ -3376,7 +3376,7 @@ Result of ``apply_rules()``.
 ### `StarLayerGraphProtocol`  _(class)_
 
 Structural protocol every graph-like input to this package must
-    satisfy: a bound ``namespace_manager`` plus iterability over triples.
+satisfy: a bound ``namespace_manager`` plus iterability over triples.
 
 **Source:** [starlayer.shacl.types.StarLayerGraphProtocol](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/types.py#L7-L15)
 
@@ -3414,15 +3414,15 @@ def decode_graph(self, graph: Iterable[tuple[Any, Any, Any]])
 ```
 
 Returns the inverse of ``encode_graph()``: a copy of ``graph``
-    with every encoded term resolved back to its real form.
+with every encoded term resolved back to its real form.
 
-    Every registered ``tt:HASH`` URIRef is resolved back to a real
-    triple term, and a dirlang-encoded Literal back to a
-    ``DirLangString``. Drops the
-    ``rdf:subject``/``rdf:predicate``/``rdf:object`` encoding triples
-    ``encode_graph()`` added for each registered term - those are
-    internal bookkeeping, not part of the decoded graph's own
-    content.
+Every registered ``tt:HASH`` URIRef is resolved back to a real
+triple term, and a dirlang-encoded Literal back to a
+``DirLangString``. Drops the
+``rdf:subject``/``rdf:predicate``/``rdf:object`` encoding triples
+``encode_graph()`` added for each registered term - those are
+internal bookkeeping, not part of the decoded graph's own
+content.
 
 **Parameters:**
 
@@ -3440,11 +3440,11 @@ def decode_term(self, value: Any) -> Any
 ```
 
 Decodes a single term the same way ``decode_graph`` decodes one
-    node.
+node.
 
-    No target graph is involved, so a decoded triple term always
-    comes back as a ``term_factory`` instance, never a plain tuple -
-    see ``_decode_node``.
+No target graph is involved, so a decoded triple term always
+comes back as a ``term_factory`` instance, never a plain tuple -
+see ``_decode_node``.
 
 **Parameters:**
 
@@ -3464,8 +3464,8 @@ def diagnostics_snapshot(self) -> dict[str, int]
 ```
 
 Return a copy of the current diagnostic counters
-    (``encode_graph_calls``, ``decode_graph_calls``,
-    ``encoded_triple_terms``, ``decoded_triple_terms``).
+(``encode_graph_calls``, ``decode_graph_calls``,
+``encoded_triple_terms``, ``decoded_triple_terms``).
 
 **Returns:** `dict[str, int]`
 
@@ -3481,21 +3481,21 @@ def encode_graph(self, graph: Iterable[tuple[Any, Any, Any]]) -> Graph
 ```
 
 Returns a flat, RDF-1.1-compatible copy of ``graph`` with every
-    triple term and DirLangString literal flattened to plain terms.
+triple term and DirLangString literal flattened to plain terms.
 
-    The result is a ``_SparqlAwareEncodedGraph``: every triple-term
-    node, in any position, is replaced by its content-addressed
-    ``tt:HASH`` URIRef, and a DirLangString literal is replaced by
-    its internal encoded datatype form.
+The result is a ``_SparqlAwareEncodedGraph``: every triple-term
+node, in any position, is replaced by its content-addressed
+``tt:HASH`` URIRef, and a DirLangString literal is replaced by
+its internal encoded datatype form.
 
-    Every triple term encountered anywhere in ``graph`` is registered
-    in this adapter's registry (see ``_encode_node()``), and the
-    resulting graph also carries that registry's own
-    ``rdf:subject``/``rdf:predicate``/``rdf:object`` triples for every
-    term registered so far (not just the ones from this one call), so
-    a consumer with no access to the adapter itself (e.g. plain
-    pySHACL machinery) can still see each encoded term's components
-    as ordinary triples.
+Every triple term encountered anywhere in ``graph`` is registered
+in this adapter's registry (see ``_encode_node()``), and the
+resulting graph also carries that registry's own
+``rdf:subject``/``rdf:predicate``/``rdf:object`` triples for every
+term registered so far (not just the ones from this one call), so
+a consumer with no access to the adapter itself (e.g. plain
+pySHACL machinery) can still see each encoded term's components
+as ordinary triples.
 
 **Parameters:**
 
@@ -3515,7 +3515,7 @@ def encode_term(self, value: Any) -> Any
 ```
 
 Encodes a single term the same way ``encode_graph`` encodes one
-    node - see ``_encode_node``.
+node - see ``_encode_node``.
 
 **Parameters:**
 
@@ -3536,7 +3536,7 @@ def export_registry(self) -> dict[str, Any]
 
 Serializes the current registry to a plain JSON-able dict.
 
-    For persisting or transferring it - see ``import_registry()``.
+For persisting or transferring it - see ``import_registry()``.
 
 **Returns:** `dict[str, Any]` - A dict with ``"namespace"`` (this adapter's namespace, as a string) and ``"entries"`` (one dict per registered triple term, its encoded URI and its subject/predicate/object each in N3 form).
 
@@ -3552,14 +3552,14 @@ def for_starlayer_graph(cls) -> TripleTermAdapter
 ```
 
 Creates an adapter whose decoded triple terms are real
-    ``starlayer.graph.model.triple.TripleTerm`` instances.
+``starlayer.graph.model.triple.TripleTerm`` instances.
 
-    Instead of the default, dependency-free ``TripleTermValue`` - for
-    use wherever the decoded graph needs to interoperate with
-    ``StarLayerGraph``.
+Instead of the default, dependency-free ``TripleTermValue`` - for
+use wherever the decoded graph needs to interoperate with
+``StarLayerGraph``.
 
-    Raises:
-        RuntimeError: ``starlayer.graph`` is not installed.
+Raises:
+    RuntimeError: ``starlayer.graph`` is not installed.
 
 **Returns:** `TripleTermAdapter`
 
@@ -3596,11 +3596,11 @@ def replace_graph(self, target: Any, source: Iterable[tuple[Any, Any, Any]]) -> 
 ```
 
 Replaces every triple in ``target`` with the triples from
-    ``source``, in place.
+``source``, in place.
 
-    Mutates via ``target``'s own ``remove``/``add`` methods, not a
-    reassignment - so any identity a caller holds to ``target``
-    itself stays valid.
+Mutates via ``target``'s own ``remove``/``add`` methods, not a
+reassignment - so any identity a caller holds to ``target``
+itself stays valid.
 
 **Parameters:**
 
@@ -3621,8 +3621,8 @@ def reset_diagnostics(self) -> None
 ```
 
 Reset the call/encode/decode counters returned by
-    ``diagnostics_snapshot()`` back to zero, without touching the
-    encode/decode registry itself.
+``diagnostics_snapshot()`` back to zero, without touching the
+encode/decode registry itself.
 
 **Returns:** `None`
 
@@ -3638,8 +3638,8 @@ def support_triple_count(self) -> int
 ```
 
 Return the number of ``rdf:subject``/``rdf:predicate``/
-    ``rdf:object`` encoding triples this adapter's registry would add
-    to a graph - 3 per registered triple term.
+``rdf:object`` encoding triples this adapter's registry would add
+to a graph - 3 per registered triple term.
 
 **Returns:** `int`
 
@@ -3684,8 +3684,8 @@ def remove(self, pattern: tuple[Any, Any, Any]) -> TripleTermGraph
 
 Removes every triple matching ``pattern`` and returns this graph.
 
-    Any ``None`` component of ``pattern`` matches anything; an
-    all-``None`` pattern clears every triple.
+Any ``None`` component of ``pattern`` matches anything; an
+all-``None`` pattern clears every triple.
 
 **Parameters:**
 
@@ -3710,13 +3710,13 @@ The default, dependency-free decoded triple-term value type.
 ### `ValidationResult`  _(class)_
 
 Result of ``validate()`` - a richer replacement for pyshacl's own
-    bare ``(conforms, report_graph, report_text)`` tuple.
+bare ``(conforms, report_graph, report_text)`` tuple.
 
-    ``data_graph`` is only populated when the call used ``inplace=True``
-    (the ``"rules"`` mode's own default) - the caller's own data graph,
-    mutated with any in-place changes decoded back; ``None`` otherwise,
-    not an error. ``diagnostics`` is internal adapter bookkeeping (see
-    ``ExecutionDiagnostics``), not general-purpose validation statistics.
+``data_graph`` is only populated when the call used ``inplace=True``
+(the ``"rules"`` mode's own default) - the caller's own data graph,
+mutated with any in-place changes decoded back; ``None`` otherwise,
+not an error. ``diagnostics`` is internal adapter bookkeeping (see
+``ExecutionDiagnostics``), not general-purpose validation statistics.
 
 **Source:** [starlayer.shacl.results.ValidationResult](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/results.py#L27-L42)
 
@@ -3730,29 +3730,29 @@ def apply_rules(data_graph: Any, shacl_graph: Any | None=None, ont_graph: Any | 
 ```
 
 Executes SHACL rules against a private working copy of
-    ``data_graph``, then validates the resulting evaluation graph.
+``data_graph``, then validates the resulting evaluation graph.
 
-    Covers ``sh:rule``/``sh:TripleRule``/``sh:SPARQLRule``, plus SHACL
-    1.2's own ``sh:RuleSet``/``sh:sourceRule`` provenance. Mirrors
-    pyshacl's own module-level ``shacl_rules()`` entry point - this is
-    the real implementation; ``StarShaclSchema.apply_rules()`` delegates
-    here, binding its own ``shacl_graph``/``ont_graph``.
+Covers ``sh:rule``/``sh:TripleRule``/``sh:SPARQLRule``, plus SHACL
+1.2's own ``sh:RuleSet``/``sh:sourceRule`` provenance. Mirrors
+pyshacl's own module-level ``shacl_rules()`` entry point - this is
+the real implementation; ``StarShaclSchema.apply_rules()`` delegates
+here, binding its own ``shacl_graph``/``ont_graph``.
 
-    The caller's own ``data_graph`` object is never mutated - every
-    step (rule execution, entailment, the final conformance re-check)
-    runs against a fresh working copy instead. ``data_graph`` must be a
-    ``StarLayerGraph`` (the working copy is built via
-    ``type(data_graph)()``, and only a ``StarLayerGraph`` round-trips
-    RDF-1.2 triple terms through rule execution correctly).
+The caller's own ``data_graph`` object is never mutated - every
+step (rule execution, entailment, the final conformance re-check)
+runs against a fresh working copy instead. ``data_graph`` must be a
+``StarLayerGraph`` (the working copy is built via
+``type(data_graph)()``, and only a ``StarLayerGraph`` round-trips
+RDF-1.2 triple terms through rule execution correctly).
 
-    Processing order: (1) the "before rules" entailment/``inference=``
-    pass; (2) shape-attached rule execution, via an internal
-    ``validate(..., mode="rules")`` call; (3) the separate global
-    ``sh:SPARQLRule``/``sh:RuleSet`` pass; (4) entailment is re-applied,
-    since global rules may have produced triples a declared regime
-    should also close over; (5) a final re-validation with
-    ``mode="validation"`` (not ``"rules"`` again - rules have already
-    run), whose conformance result is what's actually returned.
+Processing order: (1) the "before rules" entailment/``inference=``
+pass; (2) shape-attached rule execution, via an internal
+``validate(..., mode="rules")`` call; (3) the separate global
+``sh:SPARQLRule``/``sh:RuleSet`` pass; (4) entailment is re-applied,
+since global rules may have produced triples a declared regime
+should also close over; (5) a final re-validation with
+``mode="validation"`` (not ``"rules"`` again - rules have already
+run), whose conformance result is what's actually returned.
 
 **Parameters:**
 
@@ -3798,15 +3798,15 @@ def declared_conformance_profile() -> StarLayerGraph
 ```
 
 A fresh copy of starlayer.shacl's self-declared SHACL 1.2
-    conformance statement (S3) - the starlayer.shacl resource in the
-    library's one conformance file. Parses the bundled asset fresh on every
-    call rather than caching - matching this project's convention
-    elsewhere (see starontology/__init__.py::_file_graph) of never
-    sharing one mutable graph object across callers.
+conformance statement (S3) - the starlayer.shacl resource in the
+library's one conformance file. Parses the bundled asset fresh on every
+call rather than caching - matching this project's convention
+elsewhere (see starontology/__init__.py::_file_graph) of never
+sharing one mutable graph object across callers.
 
-    Returns a ``StarLayerGraph``, not a plain ``rdflib.Graph`` - this is a
-    public, caller-facing result meant to be inspected/serialized/merged,
-    not internal plumbing fed straight to pySHACL.
+Returns a ``StarLayerGraph``, not a plain ``rdflib.Graph`` - this is a
+public, caller-facing result meant to be inspected/serialized/merged,
+not internal plumbing fed straight to pySHACL.
 
 **Returns:** `StarLayerGraph` - A fresh StarLayerGraph containing the bundled conformance statement.
 
@@ -3822,23 +3822,23 @@ def derive_conforms_to(report_graph: Any, *, data_graph: str | URIRef | None=Non
 ```
 
 Derive ``sh:conformsTo`` triples from a validation report, per
-    SHACL 1.2 Profiling S5.5.
+SHACL 1.2 Profiling S5.5.
 
-    Only conforming reports (``sh:conforms true``) produce a
-    ``sh:conformsTo`` triple, matching the rule's own WHERE clause - a
-    non-conformant report derives nothing.
+Only conforming reports (``sh:conforms true``) produce a
+``sh:conformsTo`` triple, matching the rule's own WHERE clause - a
+non-conformant report derives nothing.
 
-    If ``specification_graph`` is given, the second S5.5 rule also runs
-    once the first has fired, additionally deriving ``dcterms:conformsTo``
-    triples to whatever ``shapes_graph`` is declared a profile of (the S5.5
-    rule), and also - StarLayer's extension - to the ``prof:Profile`` that
-    lists ``shapes_graph`` as a ``role:validation`` resource and to every
-    specification or profile that profile ``prof:isProfileOf``, however
-    many steps up. This is not the same relationship
-    ``declared_conformance_profile()`` records (that one is *this
-    library's* own conformance to named SHACL 1.2 feature profiles, a
-    different resource than ``shapes_graph``) - pass a graph relating
-    ``shapes_graph`` itself to whatever it profiles.
+If ``specification_graph`` is given, the second S5.5 rule also runs
+once the first has fired, additionally deriving ``dcterms:conformsTo``
+triples to whatever ``shapes_graph`` is declared a profile of (the S5.5
+rule), and also - StarLayer's extension - to the ``prof:Profile`` that
+lists ``shapes_graph`` as a ``role:validation`` resource and to every
+specification or profile that profile ``prof:isProfileOf``, however
+many steps up. This is not the same relationship
+``declared_conformance_profile()`` records (that one is *this
+library's* own conformance to named SHACL 1.2 feature profiles, a
+different resource than ``shapes_graph``) - pass a graph relating
+``shapes_graph`` itself to whatever it profiles.
 
 **Parameters:**
 
@@ -3862,16 +3862,16 @@ def evaluate(self, executor: Any, target_graph: Any, focus_value_nodes: dict[Any
 ```
 
 pySHACL's own ConstraintComponent.evaluate() override contract
-    - see this class's own docstring above for what it specifically
-    checks.
+- see this class's own docstring above for what it specifically
+checks.
 
-    ``executor`` is the active SHACLExecutor; ``target_graph`` is the
-    data graph being validated; ``focus_value_nodes`` maps each focus
-    node to its own value nodes under this component's path;
-    ``_evaluation_path`` tracks the shape-recursion chain for
-    pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
-    whether every focus node satisfied this constraint, and a
-    ``sh:ValidationResult`` node per violation found.
+``executor`` is the active SHACLExecutor; ``target_graph`` is the
+data graph being validated; ``focus_value_nodes`` maps each focus
+node to its own value nodes under this component's path;
+``_evaluation_path`` tracks the shape-recursion chain for
+pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
+whether every focus node satisfied this constraint, and a
+``sh:ValidationResult`` node per violation found.
 
 **Parameters:**
 
@@ -3894,16 +3894,16 @@ def evaluate(self, executor: Any, target_graph: Any, focus_value_nodes: dict[Any
 ```
 
 pySHACL's own ConstraintComponent.evaluate() override contract
-    - see this class's own docstring above for what it specifically
-    checks.
+- see this class's own docstring above for what it specifically
+checks.
 
-    ``executor`` is the active SHACLExecutor; ``target_graph`` is the
-    data graph being validated; ``focus_value_nodes`` maps each focus
-    node to its own value nodes under this component's path;
-    ``_evaluation_path`` tracks the shape-recursion chain for
-    pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
-    whether every focus node satisfied this constraint, and a
-    ``sh:ValidationResult`` node per violation found.
+``executor`` is the active SHACLExecutor; ``target_graph`` is the
+data graph being validated; ``focus_value_nodes`` maps each focus
+node to its own value nodes under this component's path;
+``_evaluation_path`` tracks the shape-recursion chain for
+pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
+whether every focus node satisfied this constraint, and a
+``sh:ValidationResult`` node per violation found.
 
 **Parameters:**
 
@@ -3926,16 +3926,16 @@ def evaluate(self, executor: Any, target_graph: Any, focus_value_nodes: dict[Any
 ```
 
 pySHACL's own ConstraintComponent.evaluate() override contract
-    - see this class's own docstring above for what it specifically
-    checks.
+- see this class's own docstring above for what it specifically
+checks.
 
-    ``executor`` is the active SHACLExecutor; ``target_graph`` is the
-    data graph being validated; ``focus_value_nodes`` maps each focus
-    node to its own value nodes under this component's path;
-    ``_evaluation_path`` tracks the shape-recursion chain for
-    pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
-    whether every focus node satisfied this constraint, and a
-    ``sh:ValidationResult`` node per violation found.
+``executor`` is the active SHACLExecutor; ``target_graph`` is the
+data graph being validated; ``focus_value_nodes`` maps each focus
+node to its own value nodes under this component's path;
+``_evaluation_path`` tracks the shape-recursion chain for
+pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
+whether every focus node satisfied this constraint, and a
+``sh:ValidationResult`` node per violation found.
 
 **Parameters:**
 
@@ -3958,16 +3958,16 @@ def evaluate(self, executor: Any, target_graph: Any, focus_value_nodes: dict[Any
 ```
 
 pySHACL's own ConstraintComponent.evaluate() override contract
-    - see this class's own docstring above for what it specifically
-    checks.
+- see this class's own docstring above for what it specifically
+checks.
 
-    ``executor`` is the active SHACLExecutor; ``target_graph`` is the
-    data graph being validated; ``focus_value_nodes`` maps each focus
-    node to its own value nodes under this component's path;
-    ``_evaluation_path`` tracks the shape-recursion chain for
-    pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
-    whether every focus node satisfied this constraint, and a
-    ``sh:ValidationResult`` node per violation found.
+``executor`` is the active SHACLExecutor; ``target_graph`` is the
+data graph being validated; ``focus_value_nodes`` maps each focus
+node to its own value nodes under this component's path;
+``_evaluation_path`` tracks the shape-recursion chain for
+pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
+whether every focus node satisfied this constraint, and a
+``sh:ValidationResult`` node per violation found.
 
 **Parameters:**
 
@@ -3990,16 +3990,16 @@ def evaluate(self, executor: Any, target_graph: Any, focus_value_nodes: dict[Any
 ```
 
 pySHACL's own ConstraintComponent.evaluate() override contract
-    - see this class's own docstring above for what it specifically
-    checks.
+- see this class's own docstring above for what it specifically
+checks.
 
-    ``executor`` is the active SHACLExecutor; ``target_graph`` is the
-    data graph being validated; ``focus_value_nodes`` maps each focus
-    node to its own value nodes under this component's path;
-    ``_evaluation_path`` tracks the shape-recursion chain for
-    pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
-    whether every focus node satisfied this constraint, and a
-    ``sh:ValidationResult`` node per violation found.
+``executor`` is the active SHACLExecutor; ``target_graph`` is the
+data graph being validated; ``focus_value_nodes`` maps each focus
+node to its own value nodes under this component's path;
+``_evaluation_path`` tracks the shape-recursion chain for
+pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
+whether every focus node satisfied this constraint, and a
+``sh:ValidationResult`` node per violation found.
 
 **Parameters:**
 
@@ -4022,16 +4022,16 @@ def evaluate(self, executor: Any, target_graph: Any, focus_value_nodes: dict[Any
 ```
 
 pySHACL's own ConstraintComponent.evaluate() override contract
-    - see this class's own docstring above for what it specifically
-    checks.
+- see this class's own docstring above for what it specifically
+checks.
 
-    ``executor`` is the active SHACLExecutor; ``target_graph`` is the
-    data graph being validated; ``focus_value_nodes`` maps each focus
-    node to its own value nodes under this component's path;
-    ``_evaluation_path`` tracks the shape-recursion chain for
-    pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
-    whether every focus node satisfied this constraint, and a
-    ``sh:ValidationResult`` node per violation found.
+``executor`` is the active SHACLExecutor; ``target_graph`` is the
+data graph being validated; ``focus_value_nodes`` maps each focus
+node to its own value nodes under this component's path;
+``_evaluation_path`` tracks the shape-recursion chain for
+pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
+whether every focus node satisfied this constraint, and a
+``sh:ValidationResult`` node per violation found.
 
 **Parameters:**
 
@@ -4054,16 +4054,16 @@ def evaluate(self, executor: Any, target_graph: Any, focus_value_nodes: dict[Any
 ```
 
 pySHACL's own ConstraintComponent.evaluate() override contract
-    - see this class's own docstring above for what it specifically
-    checks.
+- see this class's own docstring above for what it specifically
+checks.
 
-    ``executor`` is the active SHACLExecutor; ``target_graph`` is the
-    data graph being validated; ``focus_value_nodes`` maps each focus
-    node to its own value nodes under this component's path;
-    ``_evaluation_path`` tracks the shape-recursion chain for
-    pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
-    whether every focus node satisfied this constraint, and a
-    ``sh:ValidationResult`` node per violation found.
+``executor`` is the active SHACLExecutor; ``target_graph`` is the
+data graph being validated; ``focus_value_nodes`` maps each focus
+node to its own value nodes under this component's path;
+``_evaluation_path`` tracks the shape-recursion chain for
+pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
+whether every focus node satisfied this constraint, and a
+``sh:ValidationResult`` node per violation found.
 
 **Parameters:**
 
@@ -4086,16 +4086,16 @@ def evaluate(self, executor: Any, target_graph: Any, focus_value_nodes: dict[Any
 ```
 
 pySHACL's own ConstraintComponent.evaluate() override contract
-    - see this class's own docstring above for what it specifically
-    checks.
+- see this class's own docstring above for what it specifically
+checks.
 
-    ``executor`` is the active SHACLExecutor; ``target_graph`` is the
-    data graph being validated; ``focus_value_nodes`` maps each focus
-    node to its own value nodes under this component's path;
-    ``_evaluation_path`` tracks the shape-recursion chain for
-    pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
-    whether every focus node satisfied this constraint, and a
-    ``sh:ValidationResult`` node per violation found.
+``executor`` is the active SHACLExecutor; ``target_graph`` is the
+data graph being validated; ``focus_value_nodes`` maps each focus
+node to its own value nodes under this component's path;
+``_evaluation_path`` tracks the shape-recursion chain for
+pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
+whether every focus node satisfied this constraint, and a
+``sh:ValidationResult`` node per violation found.
 
 **Parameters:**
 
@@ -4118,16 +4118,16 @@ def evaluate(self, executor: Any, target_graph: Any, focus_value_nodes: dict[Any
 ```
 
 pySHACL's own ConstraintComponent.evaluate() override contract
-    - see this class's own docstring above for what it specifically
-    checks.
+- see this class's own docstring above for what it specifically
+checks.
 
-    ``executor`` is the active SHACLExecutor; ``target_graph`` is the
-    data graph being validated; ``focus_value_nodes`` maps each focus
-    node to its own value nodes under this component's path;
-    ``_evaluation_path`` tracks the shape-recursion chain for
-    pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
-    whether every focus node satisfied this constraint, and a
-    ``sh:ValidationResult`` node per violation found.
+``executor`` is the active SHACLExecutor; ``target_graph`` is the
+data graph being validated; ``focus_value_nodes`` maps each focus
+node to its own value nodes under this component's path;
+``_evaluation_path`` tracks the shape-recursion chain for
+pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
+whether every focus node satisfied this constraint, and a
+``sh:ValidationResult`` node per violation found.
 
 **Parameters:**
 
@@ -4150,16 +4150,16 @@ def evaluate(self, executor: Any, target_graph: Any, focus_value_nodes: dict[Any
 ```
 
 pySHACL's own ConstraintComponent.evaluate() override contract
-    - see this class's own docstring above for what it specifically
-    checks.
+- see this class's own docstring above for what it specifically
+checks.
 
-    ``executor`` is the active SHACLExecutor; ``target_graph`` is the
-    data graph being validated; ``focus_value_nodes`` maps each focus
-    node to its own value nodes under this component's path;
-    ``_evaluation_path`` tracks the shape-recursion chain for
-    pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
-    whether every focus node satisfied this constraint, and a
-    ``sh:ValidationResult`` node per violation found.
+``executor`` is the active SHACLExecutor; ``target_graph`` is the
+data graph being validated; ``focus_value_nodes`` maps each focus
+node to its own value nodes under this component's path;
+``_evaluation_path`` tracks the shape-recursion chain for
+pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
+whether every focus node satisfied this constraint, and a
+``sh:ValidationResult`` node per violation found.
 
 **Parameters:**
 
@@ -4182,16 +4182,16 @@ def evaluate(self, executor: Any, target_graph: Any, focus_value_nodes: dict[Any
 ```
 
 pySHACL's own ConstraintComponent.evaluate() override contract
-    - see this class's own docstring above for what it specifically
-    checks.
+- see this class's own docstring above for what it specifically
+checks.
 
-    ``executor`` is the active SHACLExecutor; ``target_graph`` is the
-    data graph being validated; ``focus_value_nodes`` maps each focus
-    node to its own value nodes under this component's path;
-    ``_evaluation_path`` tracks the shape-recursion chain for
-    pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
-    whether every focus node satisfied this constraint, and a
-    ``sh:ValidationResult`` node per violation found.
+``executor`` is the active SHACLExecutor; ``target_graph`` is the
+data graph being validated; ``focus_value_nodes`` maps each focus
+node to its own value nodes under this component's path;
+``_evaluation_path`` tracks the shape-recursion chain for
+pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
+whether every focus node satisfied this constraint, and a
+``sh:ValidationResult`` node per violation found.
 
 **Parameters:**
 
@@ -4214,16 +4214,16 @@ def evaluate(self, executor: Any, target_graph: Any, focus_value_nodes: dict[Any
 ```
 
 pySHACL's own ConstraintComponent.evaluate() override contract
-    - see this class's own docstring above for what it specifically
-    checks.
+- see this class's own docstring above for what it specifically
+checks.
 
-    ``executor`` is the active SHACLExecutor; ``target_graph`` is the
-    data graph being validated; ``focus_value_nodes`` maps each focus
-    node to its own value nodes under this component's path;
-    ``_evaluation_path`` tracks the shape-recursion chain for
-    pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
-    whether every focus node satisfied this constraint, and a
-    ``sh:ValidationResult`` node per violation found.
+``executor`` is the active SHACLExecutor; ``target_graph`` is the
+data graph being validated; ``focus_value_nodes`` maps each focus
+node to its own value nodes under this component's path;
+``_evaluation_path`` tracks the shape-recursion chain for
+pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
+whether every focus node satisfied this constraint, and a
+``sh:ValidationResult`` node per violation found.
 
 **Parameters:**
 
@@ -4246,16 +4246,16 @@ def evaluate(self, executor: Any, target_graph: Any, focus_value_nodes: dict[Any
 ```
 
 pySHACL's own ConstraintComponent.evaluate() override contract
-    - see this class's own docstring above for what it specifically
-    checks.
+- see this class's own docstring above for what it specifically
+checks.
 
-    ``executor`` is the active SHACLExecutor; ``target_graph`` is the
-    data graph being validated; ``focus_value_nodes`` maps each focus
-    node to its own value nodes under this component's path;
-    ``_evaluation_path`` tracks the shape-recursion chain for
-    pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
-    whether every focus node satisfied this constraint, and a
-    ``sh:ValidationResult`` node per violation found.
+``executor`` is the active SHACLExecutor; ``target_graph`` is the
+data graph being validated; ``focus_value_nodes`` maps each focus
+node to its own value nodes under this component's path;
+``_evaluation_path`` tracks the shape-recursion chain for
+pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
+whether every focus node satisfied this constraint, and a
+``sh:ValidationResult`` node per violation found.
 
 **Parameters:**
 
@@ -4278,16 +4278,16 @@ def evaluate(self, executor: Any, target_graph: Any, focus_value_nodes: dict[Any
 ```
 
 pySHACL's own ConstraintComponent.evaluate() override contract
-    - see this class's own docstring above for what it specifically
-    checks.
+- see this class's own docstring above for what it specifically
+checks.
 
-    ``executor`` is the active SHACLExecutor; ``target_graph`` is the
-    data graph being validated; ``focus_value_nodes`` maps each focus
-    node to its own value nodes under this component's path;
-    ``_evaluation_path`` tracks the shape-recursion chain for
-    pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
-    whether every focus node satisfied this constraint, and a
-    ``sh:ValidationResult`` node per violation found.
+``executor`` is the active SHACLExecutor; ``target_graph`` is the
+data graph being validated; ``focus_value_nodes`` maps each focus
+node to its own value nodes under this component's path;
+``_evaluation_path`` tracks the shape-recursion chain for
+pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
+whether every focus node satisfied this constraint, and a
+``sh:ValidationResult`` node per violation found.
 
 **Parameters:**
 
@@ -4310,16 +4310,16 @@ def evaluate(self, executor: Any, target_graph: Any, focus_value_nodes: dict[Any
 ```
 
 pySHACL's own ConstraintComponent.evaluate() override contract
-    - see this class's own docstring above for what it specifically
-    checks.
+- see this class's own docstring above for what it specifically
+checks.
 
-    ``executor`` is the active SHACLExecutor; ``target_graph`` is the
-    data graph being validated; ``focus_value_nodes`` maps each focus
-    node to its own value nodes under this component's path;
-    ``_evaluation_path`` tracks the shape-recursion chain for
-    pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
-    whether every focus node satisfied this constraint, and a
-    ``sh:ValidationResult`` node per violation found.
+``executor`` is the active SHACLExecutor; ``target_graph`` is the
+data graph being validated; ``focus_value_nodes`` maps each focus
+node to its own value nodes under this component's path;
+``_evaluation_path`` tracks the shape-recursion chain for
+pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
+whether every focus node satisfied this constraint, and a
+``sh:ValidationResult`` node per violation found.
 
 **Parameters:**
 
@@ -4342,16 +4342,16 @@ def evaluate(self, executor: Any, target_graph: Any, focus_value_nodes: dict[Any
 ```
 
 pySHACL's own ConstraintComponent.evaluate() override contract
-    - see this class's own docstring above for what it specifically
-    checks.
+- see this class's own docstring above for what it specifically
+checks.
 
-    ``executor`` is the active SHACLExecutor; ``target_graph`` is the
-    data graph being validated; ``focus_value_nodes`` maps each focus
-    node to its own value nodes under this component's path;
-    ``_evaluation_path`` tracks the shape-recursion chain for
-    pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
-    whether every focus node satisfied this constraint, and a
-    ``sh:ValidationResult`` node per violation found.
+``executor`` is the active SHACLExecutor; ``target_graph`` is the
+data graph being validated; ``focus_value_nodes`` maps each focus
+node to its own value nodes under this component's path;
+``_evaluation_path`` tracks the shape-recursion chain for
+pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
+whether every focus node satisfied this constraint, and a
+``sh:ValidationResult`` node per violation found.
 
 **Parameters:**
 
@@ -4374,16 +4374,16 @@ def evaluate(self, executor: Any, target_graph: Any, focus_value_nodes: dict[Any
 ```
 
 pySHACL's own ConstraintComponent.evaluate() override contract
-    - see this class's own docstring above for what it specifically
-    checks.
+- see this class's own docstring above for what it specifically
+checks.
 
-    ``executor`` is the active SHACLExecutor; ``target_graph`` is the
-    data graph being validated; ``focus_value_nodes`` maps each focus
-    node to its own value nodes under this component's path;
-    ``_evaluation_path`` tracks the shape-recursion chain for
-    pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
-    whether every focus node satisfied this constraint, and a
-    ``sh:ValidationResult`` node per violation found.
+``executor`` is the active SHACLExecutor; ``target_graph`` is the
+data graph being validated; ``focus_value_nodes`` maps each focus
+node to its own value nodes under this component's path;
+``_evaluation_path`` tracks the shape-recursion chain for
+pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
+whether every focus node satisfied this constraint, and a
+``sh:ValidationResult`` node per violation found.
 
 **Parameters:**
 
@@ -4406,16 +4406,16 @@ def evaluate(self, executor: Any, target_graph: Any, focus_value_nodes: dict[Any
 ```
 
 pySHACL's own ConstraintComponent.evaluate() override contract
-    - see this class's own docstring above for what it specifically
-    checks.
+- see this class's own docstring above for what it specifically
+checks.
 
-    ``executor`` is the active SHACLExecutor; ``target_graph`` is the
-    data graph being validated; ``focus_value_nodes`` maps each focus
-    node to its own value nodes under this component's path;
-    ``_evaluation_path`` tracks the shape-recursion chain for
-    pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
-    whether every focus node satisfied this constraint, and a
-    ``sh:ValidationResult`` node per violation found.
+``executor`` is the active SHACLExecutor; ``target_graph`` is the
+data graph being validated; ``focus_value_nodes`` maps each focus
+node to its own value nodes under this component's path;
+``_evaluation_path`` tracks the shape-recursion chain for
+pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
+whether every focus node satisfied this constraint, and a
+``sh:ValidationResult`` node per violation found.
 
 **Parameters:**
 
@@ -4438,16 +4438,16 @@ def evaluate(self, executor: Any, target_graph: Any, focus_value_nodes: dict[Any
 ```
 
 pySHACL's own ConstraintComponent.evaluate() override contract
-    - see this class's own docstring above for what it specifically
-    checks.
+- see this class's own docstring above for what it specifically
+checks.
 
-    ``executor`` is the active SHACLExecutor; ``target_graph`` is the
-    data graph being validated; ``focus_value_nodes`` maps each focus
-    node to its own value nodes under this component's path;
-    ``_evaluation_path`` tracks the shape-recursion chain for
-    pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
-    whether every focus node satisfied this constraint, and a
-    ``sh:ValidationResult`` node per violation found.
+``executor`` is the active SHACLExecutor; ``target_graph`` is the
+data graph being validated; ``focus_value_nodes`` maps each focus
+node to its own value nodes under this component's path;
+``_evaluation_path`` tracks the shape-recursion chain for
+pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
+whether every focus node satisfied this constraint, and a
+``sh:ValidationResult`` node per violation found.
 
 **Parameters:**
 
@@ -4470,16 +4470,16 @@ def evaluate(self, executor: Any, target_graph: Any, focus_value_nodes: dict[Any
 ```
 
 pySHACL's own ConstraintComponent.evaluate() override contract
-    - see this class's own docstring above for what it specifically
-    checks.
+- see this class's own docstring above for what it specifically
+checks.
 
-    ``executor`` is the active SHACLExecutor; ``target_graph`` is the
-    data graph being validated; ``focus_value_nodes`` maps each focus
-    node to its own value nodes under this component's path;
-    ``_evaluation_path`` tracks the shape-recursion chain for
-    pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
-    whether every focus node satisfied this constraint, and a
-    ``sh:ValidationResult`` node per violation found.
+``executor`` is the active SHACLExecutor; ``target_graph`` is the
+data graph being validated; ``focus_value_nodes`` maps each focus
+node to its own value nodes under this component's path;
+``_evaluation_path`` tracks the shape-recursion chain for
+pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
+whether every focus node satisfied this constraint, and a
+``sh:ValidationResult`` node per violation found.
 
 **Parameters:**
 
@@ -4502,16 +4502,16 @@ def evaluate(self, executor: Any, target_graph: Any, focus_value_nodes: dict[Any
 ```
 
 pySHACL's own ConstraintComponent.evaluate() override contract
-    - see this class's own docstring above for what it specifically
-    checks.
+- see this class's own docstring above for what it specifically
+checks.
 
-    ``executor`` is the active SHACLExecutor; ``target_graph`` is the
-    data graph being validated; ``focus_value_nodes`` maps each focus
-    node to its own value nodes under this component's path;
-    ``_evaluation_path`` tracks the shape-recursion chain for
-    pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
-    whether every focus node satisfied this constraint, and a
-    ``sh:ValidationResult`` node per violation found.
+``executor`` is the active SHACLExecutor; ``target_graph`` is the
+data graph being validated; ``focus_value_nodes`` maps each focus
+node to its own value nodes under this component's path;
+``_evaluation_path`` tracks the shape-recursion chain for
+pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
+whether every focus node satisfied this constraint, and a
+``sh:ValidationResult`` node per violation found.
 
 **Parameters:**
 
@@ -4534,16 +4534,16 @@ def evaluate(self, executor: Any, target_graph: Any, focus_value_nodes: dict[Any
 ```
 
 pySHACL's own ConstraintComponent.evaluate() override contract
-    - see this class's own docstring above for what it specifically
-    checks.
+- see this class's own docstring above for what it specifically
+checks.
 
-    ``executor`` is the active SHACLExecutor; ``target_graph`` is the
-    data graph being validated; ``focus_value_nodes`` maps each focus
-    node to its own value nodes under this component's path;
-    ``_evaluation_path`` tracks the shape-recursion chain for
-    pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
-    whether every focus node satisfied this constraint, and a
-    ``sh:ValidationResult`` node per violation found.
+``executor`` is the active SHACLExecutor; ``target_graph`` is the
+data graph being validated; ``focus_value_nodes`` maps each focus
+node to its own value nodes under this component's path;
+``_evaluation_path`` tracks the shape-recursion chain for
+pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
+whether every focus node satisfied this constraint, and a
+``sh:ValidationResult`` node per violation found.
 
 **Parameters:**
 
@@ -4566,16 +4566,16 @@ def evaluate(self, executor: Any, target_graph: Any, focus_value_nodes: dict[Any
 ```
 
 pySHACL's own ConstraintComponent.evaluate() override contract
-    - see this class's own docstring above for what it specifically
-    checks.
+- see this class's own docstring above for what it specifically
+checks.
 
-    ``executor`` is the active SHACLExecutor; ``target_graph`` is the
-    data graph being validated; ``focus_value_nodes`` maps each focus
-    node to its own value nodes under this component's path;
-    ``_evaluation_path`` tracks the shape-recursion chain for
-    pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
-    whether every focus node satisfied this constraint, and a
-    ``sh:ValidationResult`` node per violation found.
+``executor`` is the active SHACLExecutor; ``target_graph`` is the
+data graph being validated; ``focus_value_nodes`` maps each focus
+node to its own value nodes under this component's path;
+``_evaluation_path`` tracks the shape-recursion chain for
+pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
+whether every focus node satisfied this constraint, and a
+``sh:ValidationResult`` node per violation found.
 
 **Parameters:**
 
@@ -4598,16 +4598,16 @@ def evaluate(self, executor: Any, target_graph: Any, focus_value_nodes: dict[Any
 ```
 
 pySHACL's own ConstraintComponent.evaluate() override contract
-    - see this class's own docstring above for what it specifically
-    checks.
+- see this class's own docstring above for what it specifically
+checks.
 
-    ``executor`` is the active SHACLExecutor; ``target_graph`` is the
-    data graph being validated; ``focus_value_nodes`` maps each focus
-    node to its own value nodes under this component's path;
-    ``_evaluation_path`` tracks the shape-recursion chain for
-    pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
-    whether every focus node satisfied this constraint, and a
-    ``sh:ValidationResult`` node per violation found.
+``executor`` is the active SHACLExecutor; ``target_graph`` is the
+data graph being validated; ``focus_value_nodes`` maps each focus
+node to its own value nodes under this component's path;
+``_evaluation_path`` tracks the shape-recursion chain for
+pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
+whether every focus node satisfied this constraint, and a
+``sh:ValidationResult`` node per violation found.
 
 **Parameters:**
 
@@ -4630,32 +4630,32 @@ def evaluate(data_graph: Any, shacl_graph: Any | None=None, ont_graph: Any | Non
 ```
 
 Computes every ``sh:values``/``sh:defaultValue``-declared virtual
-    property across ``shacl_graph`` and returns the result as a
-    shape-driven subgraph.
+property across ``shacl_graph`` and returns the result as a
+shape-driven subgraph.
 
-    A third, independent processing mode alongside ``validate()``
-    (checks conformance, never mutates) and ``apply_rules()`` (executes
-    ``sh:rule``, materializes real triples). ``StarShaclSchema.evaluate()``
-    keeps its own, separate copy of this body for now - see
-    ``validate()``'s own docstring.
+A third, independent processing mode alongside ``validate()``
+(checks conformance, never mutates) and ``apply_rules()`` (executes
+``sh:rule``, materializes real triples). ``StarShaclSchema.evaluate()``
+keeps its own, separate copy of this body for now - see
+``validate()``'s own docstring.
 
-    The returned graph contains every property shape's real, stored
-    ``sh:path`` values for its own target focus nodes (not just the
-    ones also declaring ``sh:values``/``sh:defaultValue``), plus the
-    computed virtual values layered on top - never the whole of
-    ``data_graph``. Only a property shape's simple, single-predicate
-    ``sh:path`` is handled; a property path expression (sequence/
-    inverse/etc.) is silently skipped. A computed value is unioned
-    with any real, already-stored value for the same predicate, never
-    replacing it (SHACL 1.2 Core's "Value Nodes of Property Shapes"
-    algorithm unconditionally adds both real path-based values and
-    ``sh:values``-computed values to the same set; only
-    ``sh:defaultValue`` is conditional, on that set still being empty).
-    The caller's own ``data_graph`` is never mutated, and the returned
-    graph is not meant to be persisted - the SHACL 1.2 Node Expressions
-    spec's own framing for virtual values is that they are computed
-    "only on demand", never creating real triples in the data or
-    shapes graph.
+The returned graph contains every property shape's real, stored
+``sh:path`` values for its own target focus nodes (not just the
+ones also declaring ``sh:values``/``sh:defaultValue``), plus the
+computed virtual values layered on top - never the whole of
+``data_graph``. Only a property shape's simple, single-predicate
+``sh:path`` is handled; a property path expression (sequence/
+inverse/etc.) is silently skipped. A computed value is unioned
+with any real, already-stored value for the same predicate, never
+replacing it (SHACL 1.2 Core's "Value Nodes of Property Shapes"
+algorithm unconditionally adds both real path-based values and
+``sh:values``-computed values to the same set; only
+``sh:defaultValue`` is conditional, on that set still being empty).
+The caller's own ``data_graph`` is never mutated, and the returned
+graph is not meant to be persisted - the SHACL 1.2 Node Expressions
+spec's own framing for virtual values is that they are computed
+"only on demand", never creating real triples in the data or
+shapes graph.
 
 **Parameters:**
 
@@ -4678,16 +4678,16 @@ def evaluate(self, executor: Any, target_graph: Any, focus_value_nodes: dict[Any
 ```
 
 pySHACL's own ConstraintComponent.evaluate() override contract
-    - see this class's own docstring above for what it specifically
-    checks.
+- see this class's own docstring above for what it specifically
+checks.
 
-    ``executor`` is the active SHACLExecutor; ``target_graph`` is the
-    data graph being validated; ``focus_value_nodes`` maps each focus
-    node to its own value nodes under this component's path;
-    ``_evaluation_path`` tracks the shape-recursion chain for
-    pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
-    whether every focus node satisfied this constraint, and a
-    ``sh:ValidationResult`` node per violation found.
+``executor`` is the active SHACLExecutor; ``target_graph`` is the
+data graph being validated; ``focus_value_nodes`` maps each focus
+node to its own value nodes under this component's path;
+``_evaluation_path`` tracks the shape-recursion chain for
+pySHACL's own cycle detection. Returns ``(conforms, reports)`` -
+whether every focus node satisfied this constraint, and a
+``sh:ValidationResult`` node per violation found.
 
 **Parameters:**
 
@@ -4710,7 +4710,7 @@ def evaluate_component(request: ComponentRequest) -> _ComponentEvaluationResult
 ```
 
 Evaluates one native ``ConstraintComponent`` directly against
-    ``request``'s own focus/value nodes, dispatched by component name.
+``request``'s own focus/value nodes, dispatched by component name.
 
 **Parameters:**
 
@@ -4730,33 +4730,33 @@ def extract_subgraph(data_graph: Any, shacl_graph: Any | None=None, ont_graph: A
 ```
 
 Returns the subgraph covered by one shape+focus_node pair, or by
-    every real entry point a whole shapes graph declares.
+every real entry point a whole shapes graph declares.
 
-    Like ``StarLayerGraph.cbd()``, but the reachability rule is a SHACL
-    shape's own constraints instead of blank-node adjacency. See the
-    module docstring for the full design this follows, including the
-    four filter combinations and the unified return contract.
+Like ``StarLayerGraph.cbd()``, but the reachability rule is a SHACL
+shape's own constraints instead of blank-node adjacency. See the
+module docstring for the full design this follows, including the
+four filter combinations and the unified return contract.
 
-    ``shacl_graph`` is a raw shapes graph (already normalized by the caller,
-    matching ``evaluate()``'s own calling convention) - wrapped here into a
-    ``pyshacl.ShapesGraph`` so ``lookup_shape_from_node``/shape harvesting
-    work the same way they do for ``_shape_conforms`` elsewhere in this
-    codebase. Wrapped over a *copy*, never the caller's own object:
-    ``pyshacl.ShapesGraph.__init__``/``.shapes`` mutates whatever graph it's
-    given in place (injecting a couple of RDFS/OWL class-hierarchy axiom
-    triples for its own implicit-class-target support), which would
-    otherwise silently pollute the caller's ``shacl_graph`` as an unrelated
-    side effect of calling this function.
+``shacl_graph`` is a raw shapes graph (already normalized by the caller,
+matching ``evaluate()``'s own calling convention) - wrapped here into a
+``pyshacl.ShapesGraph`` so ``lookup_shape_from_node``/shape harvesting
+work the same way they do for ``_shape_conforms`` elsewhere in this
+codebase. Wrapped over a *copy*, never the caller's own object:
+``pyshacl.ShapesGraph.__init__``/``.shapes`` mutates whatever graph it's
+given in place (injecting a couple of RDFS/OWL class-hierarchy axiom
+triples for its own implicit-class-target support), which would
+otherwise silently pollute the caller's ``shacl_graph`` as an unrelated
+side effect of calling this function.
 
-    ``shacl_graph=None`` falls back to ``data_graph`` itself - matching
-    ``validate()``'s own "data graph doubles as shapes graph" allowance,
-    for a data file carrying its own embedded shapes.
+``shacl_graph=None`` falls back to ``data_graph`` itself - matching
+``validate()``'s own "data graph doubles as shapes graph" allowance,
+for a data file carrying its own embedded shapes.
 
-    ``ont_graph``/``inference=``: entailment feeds the conformance re-check
-    and the extraction walk, but the returned triples are intersected back
-    against the real, pre-entailment ``data_graph`` before returning, so an
-    entailed-only triple never appears in the output - see the module
-    docstring's entailment section for the full design.
+``ont_graph``/``inference=``: entailment feeds the conformance re-check
+and the extraction walk, but the returned triples are intersected back
+against the real, pre-entailment ``data_graph`` before returning, so an
+entailed-only triple never appears in the output - see the module
+docstring's entailment section for the full design.
 
 **Parameters:**
 
@@ -4781,7 +4781,7 @@ def normalize_graph_inputs(data_graph: Any, shacl_graph: Any | None=None, ont_gr
 ```
 
 Normalizes a data/shapes/ontology graph, in any shape a caller may
-    pass, to ``StarLayerGraph`` (or ``None``) via ``normalize_to_starlayer_graph()``.
+pass, to ``StarLayerGraph`` (or ``None``) via ``normalize_to_starlayer_graph()``.
 
 **Parameters:**
 
@@ -4804,8 +4804,8 @@ def normalize_to_starlayer_graph(value: Any, *, name: str, force_default_union: 
 
 Normalize input graph to StarLayerGraph.
 
-    A plain rdflib.Graph is always converted. Existing StarLayerGraph
-    instances are returned as-is.
+A plain rdflib.Graph is always converted. Existing StarLayerGraph
+instances are returned as-is.
 
 **Parameters:**
 
@@ -4828,20 +4828,20 @@ def target_nodes(*, data_graph: Any, shacl_graph: Any | None=None, shape_node: A
 
 Resolve ``shape_node``'s SHACL targets against ``data_graph``.
 
-    ``shacl_graph=None`` falls back to ``data_graph`` itself - matching
-    ``validate()``'s own "data graph doubles as shapes graph" allowance,
-    for a data file carrying its own embedded shapes.
+``shacl_graph=None`` falls back to ``data_graph`` itself - matching
+``validate()``'s own "data graph doubles as shapes graph" allowance,
+for a data file carrying its own embedded shapes.
 
-    ``shacl_graph``'s own declared ``sh:entailment`` regime(s) (SHACL 1.2
-    Core sec 1.4), plus the optional ``inference=`` keyword (same
-    ``ENTAILMENT.*`` vocabulary), are applied once, up front, onto a
-    private, non-mutating copy of ``data_graph`` - computed over
-    ``data_graph`` union ``ont_graph`` when given (so an axiom declared
-    only in ``ont_graph``, e.g. ``rdfs:domain``, actually widens
-    ``sh:targetClass`` membership), but only the newly-entailed delta is
-    materialized - ``ont_graph``'s own raw triples are never copied in.
-    Neither ``data_graph`` nor ``ont_graph`` is mutated. A no-op when
-    neither is declared nor passed (the common case).
+``shacl_graph``'s own declared ``sh:entailment`` regime(s) (SHACL 1.2
+Core sec 1.4), plus the optional ``inference=`` keyword (same
+``ENTAILMENT.*`` vocabulary), are applied once, up front, onto a
+private, non-mutating copy of ``data_graph`` - computed over
+``data_graph`` union ``ont_graph`` when given (so an axiom declared
+only in ``ont_graph``, e.g. ``rdfs:domain``, actually widens
+``sh:targetClass`` membership), but only the newly-entailed delta is
+materialized - ``ont_graph``'s own raw triples are never copied in.
+Neither ``data_graph`` nor ``ont_graph`` is mutated. A no-op when
+neither is declared nor passed (the common case).
 
 **Parameters:**
 
@@ -4865,13 +4865,13 @@ def validate(data_graph: Any, shacl_graph: Any | None=None, ont_graph: Any | Non
 ```
 
 Validates ``data_graph`` against ``shacl_graph`` per SHACL 1.2
-    Core, and returns a ``ValidationResult``.
+Core, and returns a ``ValidationResult``.
 
-    Applies every SHACL 1.2 pattern this project supports natively first
-    - entailment, new target types, node expressions, native component
-    registration, and so on. ``StarShaclSchema.validate()`` keeps its
-    own, separate copy of this body for now rather than delegating here
-    - see this module's "two-step flip" note.
+Applies every SHACL 1.2 pattern this project supports natively first
+- entailment, new target types, node expressions, native component
+registration, and so on. ``StarShaclSchema.validate()`` keeps its
+own, separate copy of this body for now rather than delegating here
+- see this module's "two-step flip" note.
 
 **Parameters:**
 
@@ -4906,15 +4906,15 @@ def validate(self) -> TripleTermNode
 ```
 
 Raise ``InvalidTripleTermError`` if this node's own subject or
-    predicate is itself a triple term — see that exception's docstring
-    for why.
+predicate is itself a triple term — see that exception's docstring
+for why.
 
-    Not enforced automatically on every dict mutation (kept explicit
-    rather than hooking ``update()``/``__setitem__``, to avoid
-    surprising ``CompValue``'s existing, delicately-hash/order-balanced
-    behavior) — call this at every construction site instead:
-    ``grammar12.py``'s ``_promote`` and ``from_rdf.py``'s ``TripleTerm``
-    decode branch both do.
+Not enforced automatically on every dict mutation (kept explicit
+rather than hooking ``update()``/``__setitem__``, to avoid
+surprising ``CompValue``'s existing, delicately-hash/order-balanced
+behavior) — call this at every construction site instead:
+``grammar12.py``'s ``_promote`` and ``from_rdf.py``'s ``TripleTerm``
+decode branch both do.
 
 **Returns:** `TripleTermNode` - self, so this can be chained directly onto a construction call.
 
@@ -4930,10 +4930,10 @@ def validate_each(data_graphs: Iterable[Any], shacl_graph: Any | None=None, ont_
 ```
 
 Validate each graph in ``data_graphs`` against the same
-    ``shacl_graph``/``ont_graph``, by calling the module-level
-    ``validate()`` function above once per item.
-    ``StarShaclSchema.validate_each()`` keeps its own, separate copy of
-    this body for now (see ``validate()``'s own docstring).
+``shacl_graph``/``ont_graph``, by calling the module-level
+``validate()`` function above once per item.
+``StarShaclSchema.validate_each()`` keeps its own, separate copy of
+this body for now (see ``validate()``'s own docstring).
 
 **Parameters:**
 
