@@ -1844,7 +1844,7 @@ class StarShaclSchema:
 
         from pyshacl.shapes_graph import ShapesGraph
 
-        harvested_sg = ShapesGraph(shacl_graph)
+        harvested_sg = ShapesGraph(_private_shapes_copy(shacl_graph))
         harvested_sg.shapes  # noqa: B018 - property getter triggers shape-cache harvest
 
         merged = type(data_graph)()
@@ -2152,6 +2152,22 @@ class StarShaclSchema:
             for t in sg.cbd(member):
                 result.add(t)
         return result
+
+
+def _private_shapes_copy(shacl_graph: Any) -> Any:
+    """A copy of ``shacl_graph`` for pySHACL's ``ShapesGraph`` to harvest.
+
+    ``ShapesGraph`` adds RDFS axioms (``owl:Class rdfs:subClassOf rdfs:Class`` and
+    ``owl:DatatypeProperty rdfs:subClassOf rdf:Property``) to the graph it is given, which would leave the caller's own
+    shapes graph changed after ``evaluate()``. Node identities are the same in the copy, so shapes found in it
+    can be looked up by the nodes of the original.
+    """
+    copy = type(shacl_graph)()
+    for prefix, namespace in shacl_graph.namespaces():
+        copy.bind(prefix, namespace)
+    for triple in shacl_graph:
+        copy.add(triple)
+    return copy
 
 
 def _augment_shapes_with_new_target_types(data_graph: Any, shacl_graph: Any) -> Any:
@@ -3657,7 +3673,7 @@ def evaluate(
 
     from pyshacl.shapes_graph import ShapesGraph
 
-    harvested_sg = ShapesGraph(shacl_graph)
+    harvested_sg = ShapesGraph(_private_shapes_copy(shacl_graph))
     harvested_sg.shapes  # noqa: B018 - property getter triggers shape-cache harvest
 
     merged = type(data_graph)()

@@ -532,3 +532,41 @@ class TestDefaultValueAsNodeExpression:
         )
         result = StarShaclSchema(shacl_graph=shapes).evaluate(data_graph=data)
         assert list(result.objects(EX.bob, EX.nickname)) == [Literal("Bobby")]
+
+
+class TestShapesGraphIsNotModified:
+    """GitHub issue #13: evaluate() used to add two RDFS axioms (``owl:Class rdfs:subClassOf rdfs:Class`` and
+    ``owl:DatatypeProperty rdfs:subClassOf rdf:Property``) to the caller's shapes graph, because pySHACL's
+    ``ShapesGraph`` adds them to whatever graph it is given. validate(), target_nodes() and the others never did."""
+
+    _SHAPES = """
+        @prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> .
+        ex:S a sh:NodeShape ; sh:targetNode ex:alice ; sh:property [ sh:path ex:friend ; sh:minCount 1 ] ."""
+
+    def _graphs(self):
+        data = StarLayerGraph()
+        data.parse(data="@prefix ex: <http://example.org/> . ex:alice a ex:Person ; ex:friend ex:bob .", format="turtle12")
+        shapes = StarLayerGraph()
+        shapes.parse(data=self._SHAPES, format="turtle12")
+        return data, shapes
+
+    def test_schema_method_leaves_the_shapes_graph_alone(self):
+        data, shapes = self._graphs()
+        before = set(shapes)
+        StarShaclSchema(shacl_graph=shapes).evaluate(data_graph=data)
+        assert set(shapes) == before
+
+    def test_bare_function_leaves_the_shapes_graph_alone(self):
+        from starlayer.shacl import evaluate
+
+        data, shapes = self._graphs()
+        before = set(shapes)
+        evaluate(data, shapes)
+        assert set(shapes) == before
+
+    def test_the_data_graph_as_its_own_shapes_graph_is_left_alone_too(self):
+        data, _ = self._graphs()
+        data.parse(data=self._SHAPES, format="turtle12")
+        before = set(data)
+        StarShaclSchema().evaluate(data_graph=data)
+        assert set(data) == before
