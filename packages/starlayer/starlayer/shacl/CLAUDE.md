@@ -18,6 +18,15 @@ Project-specific instructions for Claude Code sessions working in this repo. See
 
 ## Design history
 
+## UI companions of `shacl_shacl`: `shacl_shacl_ui` and `shacl_ui_baseline` (2026-10-21)
+
+Two hand-edited files in `starontology/`, registered like the others (GitHub issues #12 and #10). Neither changes what validates.
+
+- **`shacl_shacl_ui`** (`shacl12-shacl-ui.ttl`) is the archived presentation file, restored: 18 `sh:PropertyGroup` sections, `sh:group` and `sh:order` on each SHACL predicate, the `stsh:` form flags, and `stsh:ShapeEditorShape` carrying `shui:editor` hints per `sh:path` (66 of 86; 20 need a widget the built-ins lack and say so with `stsh:widgetType`). It could not simply be restored: the new `sh:order` rule (one value) rejected it, because `sh:name` and `sh:description` had two groups and two orders. They keep the Metadata group only. Load it beside `shacl_shacl` (`meta_validate(..., extra_graphs=[ui])` or a graph union).
+- **`shacl_ui_baseline`** (`shacl-ui-baseline.ttl`, type `"scoring-catalog"`) is the catalog from issue #10, unchanged. **One catalog serves both roles**, because `select_widgets(role=...)` filters candidates by each widget's class; the user rejected the idea of one catalog per role. Opt-in: pass it as `scoring_graph=`.
+- **Catalog matchers override hints.** The draft (section 3.2) still runs a matcher on a widget a shape names itself, and falls through to scoring if it rejects. The overlay's carrier property shapes have a hint but no `sh:datatype`, so with the baseline catalog `sh:order` loses its `NumberFieldEditor` hint and gets a text field. Use the overlay without a catalog, or give its property shapes the constraints a matcher reads (which would add validation). A test documents this.
+- **Found while doing this:** `meta_validate()` called first in a process rejected `shacl_shacl` itself, because the Working Group's file uses `sh:memberShape`, which pySHACL only knows after `register_native_components()`; `validate()` registered it, `meta_validate()` did not. It now registers it too (`test_wg_overrides.py` runs it in a fresh process).
+
 ## The meta-shapes base is the Working Group's file, extended by adding only (2026-10-21)
 
 `shacl_shacl` used to be pySHACL's bundled 2017 `shacl-shacl.ttl` with eight rules deleted, plus our asset. It is now the W3C Data Shapes WG's own `shacl-shacl.ttl`, pinned verbatim at `scripts/assets/vendor/w3c-shacl-shacl.ttl` (provenance and SHA-256 in `VENDORED_FROM.md`), plus additions. **Reason:** the WG file is where SHACL 1.2 is being specified, and it moves; a base we delete from cannot be compared with a newer copy, a base we only add to can. The user's rule: "just add".

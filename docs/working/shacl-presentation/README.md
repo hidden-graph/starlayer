@@ -1,10 +1,10 @@
-# SHACL presentation shapes (archived working files)
+# SHACL presentation shapes (working files)
 
-Archived 2026-10-17. Not shipped in the wheel (`docs/` is outside the package data) and no longer merged into the meta-shapes graph. Kept for future reference, in case a shape-editing UI is built in this repo or in `starlayer-apps`.
+**2026-10-21: `shacl12-presentation-shapes.ttl` moved to `packages/starlayer/starlayer/starontology/shacl12-shacl-ui.ttl`** and is now the registered companion graph `shacl_shacl_ui` (GitHub issue #12). The `.ttl` there is the source; this folder keeps the content notes. Archived 2026-10-17 because nothing read it.
 
 | File | What it is |
 |---|---|
-| `shacl12-presentation-shapes.ttl` | UI hints for the SHACL vocabulary itself: 18 `sh:PropertyGroup` form sections, `sh:group`/`sh:order` on each predicate, and the `stsh:` form flags (`nodeFormField`, `propertyFormField`, `formMaxCount`, `nodePrimary`). |
+| `shacl12-presentation-shapes.ttl` (now `starontology/shacl12-shacl-ui.ttl`) | UI hints for the SHACL vocabulary itself: 18 `sh:PropertyGroup` form sections, `sh:group`/`sh:order` on each predicate, and the `stsh:` form flags (`nodeFormField`, `propertyFormField`, `formMaxCount`, `nodePrimary`). |
 | `shacl-presentation-content.md` | The human-editable content the `.ttl` was written from. No generator script exists, so the `.ttl` is the working copy and the two may have drifted. |
 
 It describes the same predicates as `starlayer/shacl/assets/shacl12-validation-shapes.ttl` (the shacl-shacl file): that file says what is valid, this one says how to present it.

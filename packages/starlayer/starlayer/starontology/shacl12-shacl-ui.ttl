@@ -1,41 +1,18 @@
-# ARCHIVED 2026-10-17: no longer shipped or merged into the meta-shapes graph.
-# See README.md in this folder.
+# UI overlay for the SHACL meta-shapes (registry entry shacl_shacl_ui): how to present the SHACL vocabulary in a form,
+# as opposed to shacl_shacl, which says what is valid. Companion to shacl_shacl; load both together to build a form
+# for editing a shapes graph (GitHub issue #12).
+#
+# Contents: 18 sh:PropertyGroup sections (stsh:TargetGroup, ...), sh:group and sh:order on each SHACL predicate (one
+# group and one order per predicate: SHACL gives sh:order a single value, and the meta-shapes check that), the stsh:
+# form flags (nodeFormField, propertyFormField, formMaxCount, nodePrimary), and stsh:ShapeEditorShape, a node shape
+# with no constraints that carries the shui:editor / stsh:widgetType hints per sh:path.
+#
+# This file has no sh:target* or constraint triples except stsh:ShapeEditorShape's constraint-free property shapes, so
+# merging it with shacl_shacl never changes what validates. It is a hand-edited source file (the human-editable
+# content is docs/working/shacl-presentation/shacl-presentation-content.md, which may have drifted). It was archived
+# on 2026-10-17 because nothing read it, and restored on 2026-10-21 as a registered companion graph.
 #
 # baseURI: https://github.com/hidden-graph/starlayer/ns/shacl#
-#
-# UI/rendering-specific metadata for the full SHACL Core + SHACL 1.2
-# predicate vocabulary: SHACL's own non-validating annotation properties
-# (sh:order, sh:group) plus - in future - language-variant sh:name/
-# sh:description values and widget/editor assignment, attached directly to
-# each predicate IRI, independent of any particular shape using it, so a
-# form-generating or property-picker UI can look up "in what order should
-# sh:uniqueValuesFor appear, and which group does it belong to" without
-# needing a specific example shape.
-#
-# Division of responsibility with shacl12-validation-shapes.ttl: the
-# canonical (single, @en) sh:name/sh:description/skos:example/rdfs:comment/
-# rdfs:seeAlso for every predicate lives in the validation file, attached
-# once, alongside the rules that define it - not duplicated here. This file
-# is strictly rendering hints (sh:order/sh:group below) plus the
-# sh:PropertyGroup definitions themselves, which - unlike predicates - have
-# no validation-layer counterpart at all (a PropertyGroup exists purely to
-# organize form rendering), so their own sh:name/sh:description/sh:order
-# live here in full, not split. Never re-describe a predicate's own
-# identity here (e.g. no root-level rdfs:label/rdfs:comment - see the
-# validation file's own root description instead).
-#
-# sh:name/sh:description/sh:order/sh:group are SHACL Core's own
-# "non-validating constraint parameters" - carrying zero validation
-# semantics per spec, safe to attach anywhere. This file has no
-# sh:property, sh:node, or sh:target* triples of its own, so merging it
-# with anything (starshacl/meta_shapes.py::build_meta_shapes_graph, or a
-# downstream editor's own base) can never change what validates - purely
-# additive metadata.
-#
-# Keyed on the same predicate identifiers as shacl12-validation-shapes.ttl,
-# so a consumer can load either file independently or both together.
-# Generated from docs/shacl-presentation-content.md - see that file for the
-# human-editable source.
 
 @prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
@@ -585,10 +562,8 @@ sh:reificationRequired stsh:propertyFormField true ; stsh:formMaxCount 1 .
 # PropertyShape) and stsh:NodeExpressionGroup (on expressions).
 #############################################################################
 
-# sh:name and sh:description apply to node expressions as identity annotations,
-# ordered before the expression-type predicates.  Widget type is declared globally above.
-sh:name           sh:group stsh:NodeExpressionGroup ; sh:order 1 .
-sh:description    sh:group stsh:NodeExpressionGroup ; sh:order 2 .
+# sh:name and sh:description also apply to node expressions as identity annotations, but they keep the one group and
+# order they have in stsh:MetadataGroup: a predicate has a single sh:order, so it cannot also be ordered first here.
 sh:union          sh:group stsh:NodeExpressionGroup ; sh:order 10 .
 sh:intersection   sh:group stsh:NodeExpressionGroup ; sh:order 11 .
 sh:nodes          sh:group stsh:NodeExpressionGroup ; sh:order 12 .

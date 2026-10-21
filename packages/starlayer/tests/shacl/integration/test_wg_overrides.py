@@ -107,3 +107,20 @@ def test_every_predicate_the_working_group_file_constrains_is_constrained_by_the
 def test_the_assembled_graph_still_rejects_what_it_should(assembled) -> None:
     assert not _conforms("ex:S a sh:NodeShape ; sh:property [ sh:minCount 1 ] .", assembled)  # no path, no expression
     assert not _conforms('ex:S a sh:NodeShape ; sh:property [ sh:path ex:p ; sh:minCount "x" ] .', assembled)
+
+
+def test_meta_validate_works_as_the_first_call_in_a_fresh_process() -> None:
+    """The Working Group's meta-shapes use sh:memberShape, which pySHACL only knows once starlayer has registered its
+    native components. validate() does that on its first call, but meta_validate() can be called first: it must
+    register them itself, or the shipped shacl_shacl graph rejects *itself* (found 2026-10-21)."""
+    import subprocess
+    import sys
+
+    code = (
+        "import warnings; warnings.simplefilter('ignore')\n"
+        "from starlayer import starontology\n"
+        "from starlayer.shacl.meta_shapes import meta_validate\n"
+        "print(meta_validate(starontology.get_ontology_graph('shacl_shacl'))[0])\n"
+    )
+    result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=300)
+    assert result.stdout.strip().splitlines()[-1:] == ["True"], result.stdout + result.stderr

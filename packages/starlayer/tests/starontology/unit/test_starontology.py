@@ -38,7 +38,7 @@ class TestGetOntologyList:
             "sqe_owl", "sqe_shacl",
             "srl_owl", "srl_shacl",
             "spexpr_owl", "spexpr_shacl",
-            "shacl_shacl",
+            "shacl_shacl", "shacl_shacl_ui", "shacl_ui_baseline",
         }
 
     def test_sorted_by_name(self):
@@ -49,7 +49,7 @@ class TestGetOntologyList:
         for info in starontology.get_ontology_list():
             assert info.name
             assert info.description
-            assert info.type in ("shacl", "syntax-tree-graph", "owl")
+            assert info.type in ("shacl", "syntax-tree-graph", "owl", "scoring-catalog")
 
     def test_shapes_entries_are_type_shacl(self):
         """shacl_shacl has no ontology counterpart to pair with, but it's
@@ -59,7 +59,11 @@ class TestGetOntologyList:
         shacl_names = {info.name for info in starontology.get_ontology_list() if info.type == "shacl"}
         assert shacl_names == {
             "manchester_shacl", "skos_shacl", "sqe_shacl", "srl_shacl",
-            "spexpr_shacl", "shacl_shacl",
+            "spexpr_shacl", "shacl_shacl", "shacl_shacl_ui",
+        }
+        # the scoring catalog is not a shapes graph
+        assert {info.name for info in starontology.get_ontology_list() if info.type == "scoring-catalog"} == {
+            "shacl_ui_baseline"
         }
 
     def test_skos_owl_is_type_owl_not_syntax_tree_graph(self):

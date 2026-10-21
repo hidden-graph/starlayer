@@ -153,6 +153,12 @@ def meta_validate(shapes_graph: Any, *, extra_graphs: Iterable[Any] = (), **kwar
     import pyshacl
     from pyshacl.errors import ReportableRuntimeError, ShapeRecursionWarning
 
+    from starlayer.shacl.native_components import register_native_components
+
+    # The Working Group's meta-shapes use SHACL 1.2 components (sh:memberShape) that pySHACL only knows once starlayer
+    # has registered its native components. validate() does that on its first call; meta_validate() can be the first.
+    register_native_components()
+
     # pySHACL's default max_validation_depth (15, pyshacl/pytypes.py) is sized
     # for ordinary data validation. Meta-validation nests shapes-about-shapes
     # much more deeply (e.g. stsh:RuleShape -> stsh:NodeExpressionShape ->

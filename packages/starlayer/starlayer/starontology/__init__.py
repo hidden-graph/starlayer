@@ -257,6 +257,9 @@ _FILENAME_BY_NAME: dict[str, str] = {
     # see get_conformance_profiles()'s docstring) - a generated .ttl at this
     # filename, loaded via the shared _load() like every other entry.
     "shacl_shacl": "shacl12-shacl.ttl",
+    # Companions of shacl_shacl and the SHACL UI widget selection (GitHub issues #12 and #10). Hand-edited files.
+    "shacl_shacl_ui": "shacl12-shacl-ui.ttl",
+    "shacl_ui_baseline": "shacl-ui-baseline.ttl",
 }
 
 # The ontology-shapes profile mapping's own filename/named-graph identity -
@@ -275,7 +278,7 @@ class OntologyInfo:
 
     name: str
     description: str
-    type: str  # "shacl" | "syntax-tree-graph" | "owl"
+    type: str  # "shacl" | "syntax-tree-graph" | "owl" | "scoring-catalog"
 
 
 _REGISTRY: dict[str, tuple[OntologyInfo, Callable[[], StarLayerGraph]]] = {
@@ -428,6 +431,31 @@ _REGISTRY: dict[str, tuple[OntologyInfo, Callable[[], StarLayerGraph]]] = {
             type="shacl",
         ),
         lambda: _load("shacl_shacl"),
+    ),
+    "shacl_shacl_ui": (
+        OntologyInfo(
+            name="shacl_shacl_ui",
+            description=(
+                "UI overlay for shacl_shacl, to build a form for editing a shapes graph: 18 sh:PropertyGroup "
+                "sections, sh:group and sh:order on each SHACL predicate, and shui:editor widget hints per "
+                "sh:path (stsh:ShapeEditorShape). Adds no constraints, so loading it with shacl_shacl never "
+                "changes what validates."
+            ),
+            type="shacl",
+        ),
+        lambda: _load("shacl_shacl_ui"),
+    ),
+    "shacl_ui_baseline": (
+        OntologyInfo(
+            name="shacl_ui_baseline",
+            description=(
+                "A baseline SHACL UI scoring catalog: widget scores and accept matchers that choose an editor or "
+                "a viewer from how a property shape is written (datatype, class, nodeKind, sh:in). One catalog "
+                "serves both roles. Pass it as scoring_graph= to select_widgets; nothing uses it by default."
+            ),
+            type="scoring-catalog",
+        ),
+        lambda: _load("shacl_ui_baseline"),
     ),
 }
 
