@@ -124,3 +124,11 @@ def test_meta_validate_works_as_the_first_call_in_a_fresh_process() -> None:
     )
     result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=300)
     assert result.stdout.strip().splitlines()[-1:] == ["True"], result.stdout + result.stderr
+
+
+@pytest.mark.parametrize("name", ["memberShape", "singleLine", "minListLength", "maxListLength", "uniqueMembers"])
+def test_the_working_group_still_has_the_rules_our_asset_does_not_repeat(name, wg_alone) -> None:
+    """These rules were removed from shacl12-validation-shapes.ttl because the Working Group's file has the same rule
+    (2026-10-21). If a later copy of that file drops one, put it back in the asset."""
+    sh_path = URIRef(SH + "path")
+    assert any(wg_alone.subjects(sh_path, URIRef(SH + name))), f"the Working Group file has no rule for sh:{name}"

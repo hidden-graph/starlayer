@@ -2882,9 +2882,6 @@ starontology:shacl12-shacl.ttl {
         sh:property [ sh:maxCount 1 ;
                 sh:node stsh:ShapeReferenceShape ;
                 sh:path sh:someValue ],
-            [ sh:datatype xsd:boolean ;
-                sh:maxCount 1 ;
-                sh:path sh:singleLine ],
             [ sh:maxCount 1 ;
                 sh:nodeKind sh:IRI ;
                 sh:path sh:subsetOf ],
@@ -2893,36 +2890,20 @@ starontology:shacl12-shacl.ttl {
             [ sh:maxCount 1 ;
                 sh:node stsh:IRIOrListOfIRIsShape ;
                 sh:path sh:uniqueValuesFor ],
-            [ sh:node shsh:NodeShapeShape ;
-                sh:nodeKind sh:BlankNodeOrIRI ;
+            [ sh:nodeKind sh:BlankNodeOrIRI ;
                 sh:path sh:memberShape ],
-            [ sh:datatype xsd:integer ;
-                sh:maxCount 1 ;
-                sh:minInclusive 0 ;
-                sh:path sh:minListLength ],
-            [ sh:datatype xsd:integer ;
-                sh:maxCount 1 ;
-                sh:minInclusive 0 ;
-                sh:path sh:maxListLength ],
-            [ sh:datatype xsd:boolean ;
-                sh:maxCount 1 ;
-                sh:path sh:uniqueMembers ],
             [ sh:maxCount 1 ;
                 sh:node stsh:ShapeReferenceShape ;
                 sh:path sh:reifierShape ],
             [ sh:datatype xsd:boolean ;
                 sh:maxCount 1 ;
                 sh:path sh:reificationRequired ] ;
-        sh:targetSubjectsOf sh:maxListLength,
-            sh:memberShape,
-            sh:minListLength,
+        sh:targetSubjectsOf sh:memberShape,
             sh:reificationRequired,
             sh:reifierShape,
             sh:rootClass,
-            sh:singleLine,
             sh:someValue,
             sh:subsetOf,
-            sh:uniqueMembers,
             sh:uniqueValuesFor .
 
     stsh:OrderShape a sh:NodeShape ;
@@ -3214,6 +3195,13 @@ starontology:shacl12-shacl.ttl {
         sh:name "minimum length"@en ;
         stsh:requiredEngine stsh:PySHACL .
 
+    sh:minListLength rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/> ;
+        rdfs:seeAlso sh:maxListLength ;
+        skos:example "sh:path ex:coordinates ; sh:minListLength 2"@en ;
+        sh:description "The value node must be a well-formed SHACL list with at least this many members."@en ;
+        sh:name "minimum list length"@en ;
+        stsh:requiredEngine stsh:StarShacl .
+
     sh:name rdfs:comment "The value is checked when a shapes graph is validated: an xsd:string or language-tagged string (stsh:NameAndDescriptionShape)."@en ;
         rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
         skos:example "sh:name \"email address\"@en"@en ;
@@ -3267,6 +3255,12 @@ starontology:shacl12-shacl.ttl {
         sh:name "rule"@en ;
         stsh:requiredEngine stsh:PySHACL .
 
+    sh:singleLine rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/> ;
+        skos:example "sh:path ex:title ; sh:singleLine true"@en ;
+        sh:description "When true, every value node's string form must not contain a line break — a lightweight way to reject accidentally-pasted multi-paragraph text in a field meant to hold a short label."@en ;
+        sh:name "single line"@en ;
+        stsh:requiredEngine stsh:StarShacl .
+
     sh:someValue rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/> ;
         rdfs:seeAlso sh:node ;
         skos:example "sh:path ex:contactMethod ; sh:someValue [ sh:datatype xsd:anyURI ] — at least one contact method must be a URI, others can be anything."@en ;
@@ -3288,6 +3282,12 @@ starontology:shacl12-shacl.ttl {
         sh:description "Every instance of this class (including subclasses, when RDFS/OWL reasoning is used) is a focus node for the shape. The most common way to attach a shape to \"all things of type X.\""@en ;
         sh:name "target class"@en ;
         stsh:requiredEngine stsh:PySHACL .
+
+    sh:uniqueMembers rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/> ;
+        skos:example "sh:path ex:coordinates ; sh:uniqueMembers true"@en ;
+        sh:description "When true, the value node must be a well-formed SHACL list with no duplicate members (by RDF term equality)."@en ;
+        sh:name "unique members"@en ;
+        stsh:requiredEngine stsh:StarShacl .
 
     sh:uniqueValuesFor rdfs:comment "Because this checks *across* focus nodes rather than within one, it needs the *entire* batch of candidate focus nodes evaluated together — composing it inside sh:and/sh:or/sh:not/sh:node/sh:qualifiedValueShape requires special handling to still see the full batch (which starShacl's native components provide — see docs/shacl12-gap-matrix.md)."@en ;
         rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/> ;
@@ -3411,6 +3411,11 @@ starontology:shacl12-shacl.ttl {
         sh:name "maximum length"@en ;
         stsh:requiredEngine stsh:PySHACL .
 
+    sh:maxListLength rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/> ;
+        sh:description "The value node must be a well-formed SHACL list with at most this many members."@en ;
+        sh:name "maximum list length"@en ;
+        stsh:requiredEngine stsh:StarShacl .
+
     sh:minExclusive rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
         skos:example "sh:path ex:temperature ; sh:minExclusive 0 — must be above absolute freezing on some scale, never equal to it."@en ;
         sh:description "Every value node must be strictly greater than this value (boundary itself not allowed)."@en ;
@@ -3513,6 +3518,25 @@ starontology:shacl12-shacl.ttl {
                 sh:node shsh:ListNodeShape ;
                 sh:path [ sh:zeroOrMorePath rdf:rest ] ] .
 
+    shsh:NodeShapeShape a sh:NodeShape ;
+        sh:property [ sh:maxCount 0 ;
+                sh:path sh:expression ],
+            [ sh:maxCount 0 ;
+                sh:path sh:path ],
+            [ sh:maxCount 0 ;
+                sh:path sh:lessThan ],
+            [ sh:maxCount 0 ;
+                sh:path sh:lessThanOrEquals ],
+            [ sh:maxCount 0 ;
+                sh:path sh:maxCount ],
+            [ sh:maxCount 0 ;
+                sh:path sh:minCount ],
+            [ sh:maxCount 0 ;
+                sh:path sh:qualifiedValueShape ],
+            [ sh:maxCount 0 ;
+                sh:path sh:uniqueLang ] ;
+        sh:targetObjectsOf sh:node .
+
     shsh:PathNodeShape sh:xone ( [ sh:nodeKind sh:IRI ] [ sh:memberShape shsh:PathShape ;
                     sh:minListLength 2 ;
                     sh:nodeKind sh:BlankNode ] [ sh:closed true ;
@@ -3602,13 +3626,6 @@ starontology:shacl12-shacl.ttl {
         sh:name "minimum count"@en ;
         stsh:requiredEngine stsh:PySHACL .
 
-    sh:minListLength rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/> ;
-        rdfs:seeAlso sh:maxListLength ;
-        skos:example "sh:path ex:coordinates ; sh:minListLength 2"@en ;
-        sh:description "The value node must be a well-formed SHACL list with at least this many members."@en ;
-        sh:name "minimum list length"@en ;
-        stsh:requiredEngine stsh:StarShacl .
-
     sh:node rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
         skos:example "sh:path ex:address ; sh:node ex:AddressShape"@en ;
         sh:description "Every value node must conform to the given (node) shape. The main way to nest shapes — validating the *shape* of a related resource, not just a scalar constraint on it."@en ;
@@ -3670,12 +3687,6 @@ starontology:shacl12-shacl.ttl {
         sh:name "root class"@en ;
         stsh:requiredEngine stsh:StarShacl .
 
-    sh:singleLine rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/> ;
-        skos:example "sh:path ex:title ; sh:singleLine true"@en ;
-        sh:description "When true, every value node's string form must not contain a line break — a lightweight way to reject accidentally-pasted multi-paragraph text in a field meant to hold a short label."@en ;
-        sh:name "single line"@en ;
-        stsh:requiredEngine stsh:StarShacl .
-
     sh:subject rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
             <https://www.w3.org/TR/shacl12-rules/> ;
         rdfs:seeAlso sh:TripleRule,
@@ -3684,31 +3695,6 @@ starontology:shacl12-shacl.ttl {
         sh:description "The node expression producing the subject of the triple a sh:TripleRule derives — most commonly just sh:this, the rule's own focus node."@en ;
         sh:name "subject expression"@en ;
         stsh:requiredEngine stsh:PySHACL .
-
-    sh:uniqueMembers rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/> ;
-        skos:example "sh:path ex:coordinates ; sh:uniqueMembers true"@en ;
-        sh:description "When true, the value node must be a well-formed SHACL list with no duplicate members (by RDF term equality)."@en ;
-        sh:name "unique members"@en ;
-        stsh:requiredEngine stsh:StarShacl .
-
-    shsh:NodeShapeShape a sh:NodeShape ;
-        sh:property [ sh:maxCount 0 ;
-                sh:path sh:expression ],
-            [ sh:maxCount 0 ;
-                sh:path sh:path ],
-            [ sh:maxCount 0 ;
-                sh:path sh:lessThan ],
-            [ sh:maxCount 0 ;
-                sh:path sh:lessThanOrEquals ],
-            [ sh:maxCount 0 ;
-                sh:path sh:maxCount ],
-            [ sh:maxCount 0 ;
-                sh:path sh:minCount ],
-            [ sh:maxCount 0 ;
-                sh:path sh:qualifiedValueShape ],
-            [ sh:maxCount 0 ;
-                sh:path sh:uniqueLang ] ;
-        sh:targetObjectsOf sh:node .
 
     shsh:PathShape a sh:NodeShape ;
         rdfs:label "Path shape"@en ;
@@ -3757,11 +3743,6 @@ starontology:shacl12-shacl.ttl {
         sh:description "Every value node at this shape's path must be strictly less than every value node at the given path, for the same focus node. Requires an orderable datatype. SHACL 1.2 widens the object to any property path."@en ;
         sh:name "less than"@en ;
         stsh:requiredEngine stsh:PySHACL .
-
-    sh:maxListLength rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/> ;
-        sh:description "The value node must be a well-formed SHACL list with at most this many members."@en ;
-        sh:name "maximum list length"@en ;
-        stsh:requiredEngine stsh:StarShacl .
 
     sh:memberShape rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/> ;
         skos:example "sh:path ex:tags ; sh:memberShape [ sh:datatype xsd:string ]"@en ;
@@ -3850,9 +3831,9 @@ starontology:shacl12-shacl.ttl {
     shsh:ShapeShape a sh:NodeShape ;
         rdfs:label "Shape shape"@en ;
         rdfs:comment "A shape that can be used to validate syntax rules for other shapes."@en ;
-        sh:or ( shsh:NodeShapeShape shsh:PropertyShapeShape ),
-            ( [ sh:not [ sh:class rdfs:Class ;
-                            sh:or ( [ sh:class sh:NodeShape ] [ sh:class sh:PropertyShape ] ) ] ] [ sh:nodeKind sh:IRI ] ) ;
+        sh:or ( [ sh:not [ sh:class rdfs:Class ;
+                            sh:or ( [ sh:class sh:NodeShape ] [ sh:class sh:PropertyShape ] ) ] ] [ sh:nodeKind sh:IRI ] ),
+            ( shsh:NodeShapeShape shsh:PropertyShapeShape ) ;
         sh:property [ sh:nodeKind sh:IRIOrLiteral ;
                 sh:path sh:targetNode ],
             [ sh:nodeKind sh:IRI ;

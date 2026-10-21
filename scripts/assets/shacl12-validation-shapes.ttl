@@ -4,13 +4,16 @@
 # scripts/assets/vendor/w3c-shacl-shacl.ttl). scripts/build_meta_shapes.py merges the two by ADDING: nothing in the
 # Working Group's file is deleted or edited.
 #
-# This file holds (1) well-formedness rules for SHACL 1.2 predicates the Working Group's file has no rule for yet
-# (sh:someValue, sh:subsetOf, sh:rootClass, sh:uniqueValuesFor, sh:reifierShape, sh:reificationRequired; and rules
-# for sh:memberShape, sh:singleLine, sh:minListLength, sh:maxListLength and sh:uniqueMembers that are stricter than,
-# or duplicate, the Working Group's own), (2) replacement rules for the parameters whose value space SHACL 1.2
-# widened and that the Working Group's file still rejects: sh:nodeKind as a list, and sh:equals, sh:disjoint,
-# sh:lessThan, sh:lessThanOrEquals as a path (stsh:ShapeShapeOverrides), (3) our own stsh: shapes (rules, node
-# expressions, SPARQL, UI hints) and (4) documentation of the terms.
+# This file holds:
+#   (1) well-formedness rules for SHACL 1.2 predicates the Working Group's file has no rule for yet (sh:someValue,
+#       sh:subsetOf, sh:rootClass, sh:uniqueValuesFor, sh:reifierShape, sh:reificationRequired), plus one addition to its
+#       sh:memberShape rule (a value must be a blank node or IRI). The Working Group's own rules for sh:memberShape,
+#       sh:singleLine, sh:minListLength, sh:maxListLength and sh:uniqueMembers are not repeated here;
+#   (2) replacement rules for the parameters whose value space SHACL 1.2 widened and that the Working Group's file
+#       still rejects: sh:nodeKind as a list, and sh:equals, sh:disjoint, sh:lessThan, sh:lessThanOrEquals as a path
+#       (stsh:ShapeShapeOverrides);
+#   (3) rules for sh:name, sh:description, sh:order, sh:group, sh:defaultValue and sh:PropertyGroup;
+#   (4) our own stsh: shapes (rules, node expressions, SPARQL, UI hints) and documentation of the terms.
 #
 # For (2), SHACL constraints combine by AND, so a looser rule added beside a strict one changes nothing. The build
 # therefore switches the Working Group's strict rule off with sh:deactivated true (build_meta_shapes.py,
@@ -148,19 +151,13 @@ stsh:ShapeShapeOverrides
 stsh:NewPredicateShapes
 	a sh:NodeShape ;
 	rdfs:label "Well-formedness rules for new SHACL 1.2 predicates"@en ;
-	sh:targetSubjectsOf sh:someValue, sh:singleLine, sh:subsetOf, sh:rootClass, sh:uniqueValuesFor,
-		sh:memberShape, sh:minListLength, sh:maxListLength, sh:uniqueMembers, sh:reifierShape,
-		sh:reificationRequired ;
+	sh:targetSubjectsOf sh:someValue, sh:subsetOf, sh:rootClass, sh:uniqueValuesFor, sh:memberShape,
+		sh:reifierShape, sh:reificationRequired ;
 
 	sh:property [
 		sh:path sh:someValue ;
 		sh:node stsh:ShapeReferenceShape ;
 		sh:maxCount 1 ;                         # someValue-maxCount (SomeValueConstraintComponent.__init__ takes one)
-	] ;
-	sh:property [
-		sh:path sh:singleLine ;
-		sh:datatype xsd:boolean ;                # singleLine-datatype
-		sh:maxCount 1 ;                          # singleLine-maxCount
 	] ;
 	sh:property [
 		sh:path sh:subsetOf ;
@@ -178,25 +175,7 @@ stsh:NewPredicateShapes
 	] ;
 	sh:property [
 		sh:path sh:memberShape ;
-		sh:nodeKind sh:BlankNodeOrIRI ;          # memberShape-nodeKind (reject a vacuously-passing literal - see stsh:ShapeReferenceShape's own rdfs:comment for why this guard is needed)
-		sh:node shsh:NodeShapeShape ;            # memberShape-node (a node shape specifically, not a property shape, and no maxCount cap - matches the official SHACL 1.2 WG draft's own shsh:ShapeShape in tests/vendor/shacl12-vocabularies/shacl-shacl.ttl; a property shape has no natural "does this node conform" semantics without an implicit sh:path, unlike a node shape, unlike sh:someValue/sh:reifierShape which still accept either via stsh:ShapeReferenceShape - the official draft doesn't cover those two yet)
-	] ;
-	sh:property [
-		sh:path sh:minListLength ;
-		sh:datatype xsd:integer ;                # minListLength-datatype
-		sh:minInclusive 0 ;                      # minListLength-minInclusive
-		sh:maxCount 1 ;                          # minListLength-maxCount
-	] ;
-	sh:property [
-		sh:path sh:maxListLength ;
-		sh:datatype xsd:integer ;                # maxListLength-datatype
-		sh:minInclusive 0 ;                      # maxListLength-minInclusive
-		sh:maxCount 1 ;                          # maxListLength-maxCount
-	] ;
-	sh:property [
-		sh:path sh:uniqueMembers ;
-		sh:datatype xsd:boolean ;                # uniqueMembers-datatype
-		sh:maxCount 1 ;                          # uniqueMembers-maxCount
+		sh:nodeKind sh:BlankNodeOrIRI ;          # memberShape-nodeKind (reject a vacuously-passing literal - see stsh:ShapeReferenceShape's own rdfs:comment). The Working Group's file already requires sh:node shsh:NodeShapeShape and has no nodeKind rule, so this is the only part of the rule that is ours.
 	] ;
 	sh:property [
 		sh:path sh:reifierShape ;
