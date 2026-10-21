@@ -1617,148 +1617,128 @@ starontology:salg-ontology.ttl {
 }
 
 starontology:shacl-ui-baseline.ttl {
-    # A baseline SHACL UI scoring catalog (registry entry shacl_ui_baseline): which widget suits a property that names none,
-    # judged from how its property shape is written (datatype, class, nodeKind, sh:in). Pass it as scoring_graph= to
-    # starlayer.shacl.ui_widget_selection.select_widgets, or to StarShaclSchema(scoring_graph=...). Nothing uses it unless asked.
+    # The generic SHACL UI scoring catalog (registry entry shacl_ui_baseline): which widget suits a property that names none.
+    # It knows nothing about any application or about SHACL itself, and nothing uses it unless it is passed as
+    # scoring_graph= to starlayer.shacl.ui_widget_selection.select_widgets (or StarShaclSchema(scoring_graph=...)).
+    #
+    # Three tiers, by score:
+    #   1  a default that matches everything     TextFieldEditor, LiteralViewer
+    #   2  defaults by datatype                  number, boolean, date, dateTime, language-tagged string
+    #   3  defaults by a constraint that lists   sh:in, sh:class, sh:nodeKind sh:IRI
+    #      the answers
+    # A constraint is a stronger signal than a datatype (an xsd:string with sh:in is an enumeration), so tier 3 beats 2. A
+    # layer on top (an editor for SHACL, an application, a user) adds scores that beat these (the Working Group's own
+    # files use 40 for a preference).
     #
     # ONE catalog serves both roles: select_widgets(role="editor") considers only editors and role="viewer" only viewers,
-    # because a widget's role comes from its class (the draft's built-in editors and viewers, or an rdf:type in a graph).
-    # A widget a shape names itself with shui:editor / shui:viewer always wins over this catalog. Nothing here is specific
-    # to any application.
+    # because a widget's role comes from its class. A widget a shape names itself with shui:editor / shui:viewer wins.
     #
-    # Contributed in GitHub issue #10 (from the graph workbench) and kept unchanged, apart from this header. The draft publishes
-    # its built-in scores only as prose (SHACL UI section 9), so these scores are ours, not the Working Group's.
+    # Every condition is written on its own score (shui:shapesGraphShape on the shui:WidgetScore), as in the Working Group's
+    # widget files, so it applies to that score only. There are NO per-widget shui:WidgetAcceptMatcher entries: a matcher
+    # is shared by every layer, so a layer on top could not add back a widget a lower layer had excluded. A score without
+    # a condition applies to everything.
     #
-    # The shui:WidgetAcceptMatcher entries use one matcher per widget; the matcher cardinality is contested upstream
-    # (w3c/data-shapes#1249). A matcher also applies to a widget a shape names itself, so a matcher that is too strict can
-    # veto an author's choice: LabelViewer's matcher accepts anything without an sh:datatype for that reason.
+    # Contributed in GitHub issue #10 (from the graph workbench) and restructured into tiers on 2026-10-21. The draft
+    # publishes its built-in scores only as prose (SHACL UI section 9), so these scores are ours, not the Working Group's.
     #
     # baseURI: https://github.com/hidden-graph/starlayer/ns/ui-baseline#
 
-    <https://github.com/hidden-graph/starlayer/ns/ui-baseline#BooleanProperty> a sh:NodeShape ;
+    <https://github.com/hidden-graph/starlayer/ns/ui-baseline#booleanEditorScore2> a shui:WidgetScore ;
+        shui:score 2 ;
+        shui:shapesGraphShape <https://github.com/hidden-graph/starlayer/ns/ui-baseline#HasBooleanDatatype> ;
+        shui:widget shui:BooleanEditor .
+
+    <https://github.com/hidden-graph/starlayer/ns/ui-baseline#datePickerScore2> a shui:WidgetScore ;
+        shui:score 2 ;
+        shui:shapesGraphShape <https://github.com/hidden-graph/starlayer/ns/ui-baseline#HasDateDatatype> ;
+        shui:widget shui:DatePickerEditor .
+
+    <https://github.com/hidden-graph/starlayer/ns/ui-baseline#dateTimePickerScore2> a shui:WidgetScore ;
+        shui:score 2 ;
+        shui:shapesGraphShape <https://github.com/hidden-graph/starlayer/ns/ui-baseline#HasDateTimeDatatype> ;
+        shui:widget shui:DateTimePickerEditor .
+
+    <https://github.com/hidden-graph/starlayer/ns/ui-baseline#enumSelectEditorScore3> a shui:WidgetScore ;
+        shui:score 3 ;
+        shui:shapesGraphShape <https://github.com/hidden-graph/starlayer/ns/ui-baseline#HasInList> ;
+        shui:widget shui:EnumSelectEditor .
+
+    <https://github.com/hidden-graph/starlayer/ns/ui-baseline#instancesSelectEditorScore3> a shui:WidgetScore ;
+        shui:score 3 ;
+        shui:shapesGraphShape <https://github.com/hidden-graph/starlayer/ns/ui-baseline#HasClass> ;
+        shui:widget shui:InstancesSelectEditor .
+
+    <https://github.com/hidden-graph/starlayer/ns/ui-baseline#iriEditorScore3> a shui:WidgetScore ;
+        shui:score 3 ;
+        shui:shapesGraphShape <https://github.com/hidden-graph/starlayer/ns/ui-baseline#IsIRIWithoutClass> ;
+        shui:widget shui:IRIEditor .
+
+    <https://github.com/hidden-graph/starlayer/ns/ui-baseline#labelViewerScore3> a shui:WidgetScore ;
+        shui:score 3 ;
+        shui:shapesGraphShape <https://github.com/hidden-graph/starlayer/ns/ui-baseline#IsResource> ;
+        shui:widget shui:LabelViewer .
+
+    <https://github.com/hidden-graph/starlayer/ns/ui-baseline#langStringViewerScore2> a shui:WidgetScore ;
+        shui:score 2 ;
+        shui:shapesGraphShape <https://github.com/hidden-graph/starlayer/ns/ui-baseline#HasLangStringDatatype> ;
+        shui:widget shui:LangStringViewer .
+
+    <https://github.com/hidden-graph/starlayer/ns/ui-baseline#literalViewerScore1> a shui:WidgetScore ;
+        shui:score 1 ;
+        shui:widget shui:LiteralViewer .
+
+    <https://github.com/hidden-graph/starlayer/ns/ui-baseline#numberFieldEditorScore2> a shui:WidgetScore ;
+        shui:score 2 ;
+        shui:shapesGraphShape <https://github.com/hidden-graph/starlayer/ns/ui-baseline#HasNumericDatatype> ;
+        shui:widget shui:NumberFieldEditor .
+
+    <https://github.com/hidden-graph/starlayer/ns/ui-baseline#textFieldEditorScore1> a shui:WidgetScore ;
+        shui:score 1 ;
+        shui:widget shui:TextFieldEditor .
+
+    <https://github.com/hidden-graph/starlayer/ns/ui-baseline#textFieldWithLangScore2> a shui:WidgetScore ;
+        shui:score 2 ;
+        shui:shapesGraphShape <https://github.com/hidden-graph/starlayer/ns/ui-baseline#HasLangStringDatatype> ;
+        shui:widget shui:TextFieldWithLangEditor .
+
+    <https://github.com/hidden-graph/starlayer/ns/ui-baseline#HasBooleanDatatype> a sh:NodeShape ;
         sh:property [ sh:hasValue xsd:boolean ;
                 sh:path sh:datatype ] .
 
-    <https://github.com/hidden-graph/starlayer/ns/ui-baseline#ClassedProperty> a sh:NodeShape ;
-        sh:property [ sh:minCount 1 ;
-                sh:path sh:class ] .
-
-    <https://github.com/hidden-graph/starlayer/ns/ui-baseline#DateProperty> a sh:NodeShape ;
+    <https://github.com/hidden-graph/starlayer/ns/ui-baseline#HasDateDatatype> a sh:NodeShape ;
         sh:property [ sh:hasValue xsd:date ;
                 sh:path sh:datatype ] .
 
-    <https://github.com/hidden-graph/starlayer/ns/ui-baseline#DateTimeProperty> a sh:NodeShape ;
+    <https://github.com/hidden-graph/starlayer/ns/ui-baseline#HasDateTimeDatatype> a sh:NodeShape ;
         sh:property [ sh:hasValue xsd:dateTime ;
                 sh:path sh:datatype ] .
 
-    <https://github.com/hidden-graph/starlayer/ns/ui-baseline#EnumeratedProperty> a sh:NodeShape ;
+    <https://github.com/hidden-graph/starlayer/ns/ui-baseline#HasInList> a sh:NodeShape ;
         sh:property [ sh:minCount 1 ;
                 sh:path sh:in ] .
 
-    <https://github.com/hidden-graph/starlayer/ns/ui-baseline#LangStringProperty> a sh:NodeShape ;
-        sh:property [ sh:hasValue rdf:langString ;
-                sh:path sh:datatype ] .
-
-    <https://github.com/hidden-graph/starlayer/ns/ui-baseline#NumericProperty> a sh:NodeShape ;
+    <https://github.com/hidden-graph/starlayer/ns/ui-baseline#HasNumericDatatype> a sh:NodeShape ;
         sh:property [ sh:in ( xsd:integer xsd:decimal xsd:double xsd:float ) ;
                 sh:minCount 1 ;
                 sh:path sh:datatype ] .
 
-    <https://github.com/hidden-graph/starlayer/ns/ui-baseline#UntypedProperty> a sh:NodeShape ;
-        sh:property [ sh:maxCount 0 ;
-                sh:path sh:datatype ] .
-
-    <https://github.com/hidden-graph/starlayer/ns/ui-baseline#IRIProperty> a sh:NodeShape ;
+    <https://github.com/hidden-graph/starlayer/ns/ui-baseline#IsIRIWithoutClass> a sh:NodeShape ;
         sh:property [ sh:hasValue sh:IRI ;
-                sh:path sh:nodeKind ] .
+                sh:path sh:nodeKind ],
+            [ sh:maxCount 0 ;
+                sh:path sh:class ] .
 
-    [] a shui:WidgetScore ;
-        shui:score 1.0 ;
-        shui:widget shui:TextFieldEditor .
+    <https://github.com/hidden-graph/starlayer/ns/ui-baseline#IsResource> a sh:NodeShape ;
+        sh:or ( <https://github.com/hidden-graph/starlayer/ns/ui-baseline#HasClass> [ sh:property [ sh:hasValue sh:IRI ;
+                            sh:path sh:nodeKind ] ] ) .
 
-    [] a shui:WidgetScore ;
-        shui:score 3.0 ;
-        shui:widget shui:LangStringViewer .
+    <https://github.com/hidden-graph/starlayer/ns/ui-baseline#HasClass> a sh:NodeShape ;
+        sh:property [ sh:minCount 1 ;
+                sh:path sh:class ] .
 
-    [] a shui:WidgetScore ;
-        shui:score 3.0 ;
-        shui:widget shui:HyperlinkViewer .
-
-    [] a shui:WidgetScore ;
-        shui:score 4.0 ;
-        shui:widget shui:LabelViewer .
-
-    [] a shui:WidgetAcceptMatcher ;
-        shui:shapesGraphShape <https://github.com/hidden-graph/starlayer/ns/ui-baseline#NumericProperty> ;
-        shui:widget shui:NumberFieldEditor .
-
-    [] a shui:WidgetAcceptMatcher ;
-        shui:shapesGraphShape <https://github.com/hidden-graph/starlayer/ns/ui-baseline#BooleanProperty> ;
-        shui:widget shui:BooleanEditor .
-
-    [] a shui:WidgetAcceptMatcher ;
-        shui:shapesGraphShape <https://github.com/hidden-graph/starlayer/ns/ui-baseline#DateProperty> ;
-        shui:widget shui:DatePickerEditor .
-
-    [] a shui:WidgetAcceptMatcher ;
-        shui:shapesGraphShape <https://github.com/hidden-graph/starlayer/ns/ui-baseline#DateTimeProperty> ;
-        shui:widget shui:DateTimePickerEditor .
-
-    [] a shui:WidgetAcceptMatcher ;
-        shui:shapesGraphShape <https://github.com/hidden-graph/starlayer/ns/ui-baseline#EnumeratedProperty> ;
-        shui:widget shui:EnumSelectEditor .
-
-    [] a shui:WidgetAcceptMatcher ;
-        shui:shapesGraphShape <https://github.com/hidden-graph/starlayer/ns/ui-baseline#ClassedProperty> ;
-        shui:widget shui:InstancesSelectEditor .
-
-    [] a shui:WidgetAcceptMatcher ;
-        shui:shapesGraphShape <https://github.com/hidden-graph/starlayer/ns/ui-baseline#IRIProperty> ;
-        shui:widget shui:IRIEditor .
-
-    [] a shui:WidgetScore ;
-        shui:score 5.0 ;
-        shui:widget shui:NumberFieldEditor .
-
-    [] a shui:WidgetAcceptMatcher ;
-        shui:shapesGraphShape <https://github.com/hidden-graph/starlayer/ns/ui-baseline#LangStringProperty> ;
-        shui:widget shui:LangStringViewer .
-
-    [] a shui:WidgetAcceptMatcher ;
-        shui:shapesGraphShape <https://github.com/hidden-graph/starlayer/ns/ui-baseline#IRIProperty> ;
-        shui:widget shui:HyperlinkViewer .
-
-    [] a shui:WidgetAcceptMatcher ;
-        shui:shapesGraphShape <https://github.com/hidden-graph/starlayer/ns/ui-baseline#UntypedProperty> ;
-        shui:widget shui:LabelViewer .
-
-    [] a shui:WidgetScore ;
-        shui:score 5.0 ;
-        shui:widget shui:BooleanEditor .
-
-    [] a shui:WidgetScore ;
-        shui:score 5.0 ;
-        shui:widget shui:DatePickerEditor .
-
-    [] a shui:WidgetScore ;
-        shui:score 5.0 ;
-        shui:widget shui:DateTimePickerEditor .
-
-    [] a shui:WidgetScore ;
-        shui:score 6.0 ;
-        shui:widget shui:EnumSelectEditor .
-
-    [] a shui:WidgetScore ;
-        shui:score 4.0 ;
-        shui:widget shui:InstancesSelectEditor .
-
-    [] a shui:WidgetScore ;
-        shui:score 3.0 ;
-        shui:widget shui:IRIEditor .
-
-    [] a shui:WidgetScore ;
-        shui:score 1.0 ;
-        shui:widget shui:LiteralViewer .
+    <https://github.com/hidden-graph/starlayer/ns/ui-baseline#HasLangStringDatatype> a sh:NodeShape ;
+        sh:property [ sh:hasValue rdf:langString ;
+                sh:path sh:datatype ] .
 }
 
 starontology:shacl12-shacl-ui.ttl {
