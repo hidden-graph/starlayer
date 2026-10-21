@@ -1,18 +1,26 @@
-# A baseline SHACL UI scoring catalog (registry entry shacl_ui_baseline): which widget suits a property that names none,
-# judged from how its property shape is written (datatype, class, nodeKind, sh:in). Pass it as scoring_graph= to
-# starlayer.shacl.ui_widget_selection.select_widgets, or to StarShaclSchema(scoring_graph=...). Nothing uses it unless asked.
+# The generic SHACL UI scoring catalog (registry entry shacl_ui_baseline): which widget suits a property that names none.
+# It knows nothing about any application or about SHACL itself, and nothing uses it unless it is passed as
+# scoring_graph= to starlayer.shacl.ui_widget_selection.select_widgets (or StarShaclSchema(scoring_graph=...)).
+#
+# Three tiers, by score:
+#   1  a default that matches everything     TextFieldEditor, LiteralViewer
+#   2  defaults by datatype                  number, boolean, date, dateTime, language-tagged string
+#   3  defaults by a constraint that lists   sh:in, sh:class, sh:nodeKind sh:IRI
+#      the answers
+# A constraint is a stronger signal than a datatype (an xsd:string with sh:in is an enumeration), so tier 3 beats 2. A
+# layer on top (an editor for SHACL, an application, a user) adds scores that beat these (the Working Group's own
+# files use 40 for a preference).
 #
 # ONE catalog serves both roles: select_widgets(role="editor") considers only editors and role="viewer" only viewers,
-# because a widget's role comes from its class (the draft's built-in editors and viewers, or an rdf:type in a graph).
-# A widget a shape names itself with shui:editor / shui:viewer always wins over this catalog. Nothing here is specific
-# to any application.
+# because a widget's role comes from its class. A widget a shape names itself with shui:editor / shui:viewer wins.
 #
-# Contributed in GitHub issue #10 (from the graph workbench) and kept unchanged, apart from this header. The draft publishes
-# its built-in scores only as prose (SHACL UI section 9), so these scores are ours, not the Working Group's.
+# Every condition is written on its own score (shui:shapesGraphShape on the shui:WidgetScore), as in the Working Group's
+# widget files, so it applies to that score only. There are NO per-widget shui:WidgetAcceptMatcher entries: a matcher
+# is shared by every layer, so a layer on top could not add back a widget a lower layer had excluded. A score without
+# a condition applies to everything.
 #
-# The shui:WidgetAcceptMatcher entries use one matcher per widget; the matcher cardinality is contested upstream
-# (w3c/data-shapes#1249). A matcher also applies to a widget a shape names itself, so a matcher that is too strict can
-# veto an author's choice: LabelViewer's matcher accepts anything without an sh:datatype for that reason.
+# Contributed in GitHub issue #10 (from the graph workbench) and restructured into tiers on 2026-10-21. The draft
+# publishes its built-in scores only as prose (SHACL UI section 9), so these scores are ours, not the Working Group's.
 #
 # baseURI: https://github.com/hidden-graph/starlayer/ns/ui-baseline#
 
@@ -22,51 +30,43 @@
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 @prefix uib: <https://github.com/hidden-graph/starlayer/ns/ui-baseline#> .
 
-# ---- editors
-[] a shui:WidgetScore ; shui:widget shui:TextFieldEditor ; shui:score 1.0 .
-[] a shui:WidgetScore ; shui:widget shui:NumberFieldEditor ; shui:score 5.0 .
-[] a shui:WidgetScore ; shui:widget shui:BooleanEditor ; shui:score 5.0 .
-[] a shui:WidgetScore ; shui:widget shui:DatePickerEditor ; shui:score 5.0 .
-[] a shui:WidgetScore ; shui:widget shui:DateTimePickerEditor ; shui:score 5.0 .
-[] a shui:WidgetScore ; shui:widget shui:EnumSelectEditor ; shui:score 6.0 .
-[] a shui:WidgetScore ; shui:widget shui:InstancesSelectEditor ; shui:score 4.0 .
-[] a shui:WidgetScore ; shui:widget shui:IRIEditor ; shui:score 3.0 .
+# ---- tier 1 (score 1): matches everything - no condition
+uib:textFieldEditorScore1 a shui:WidgetScore ; shui:widget shui:TextFieldEditor ; shui:score 1 .
+uib:literalViewerScore1   a shui:WidgetScore ; shui:widget shui:LiteralViewer   ; shui:score 1 .
 
-# ---- viewers
-[] a shui:WidgetScore ; shui:widget shui:LiteralViewer ; shui:score 1.0 .
-[] a shui:WidgetScore ; shui:widget shui:LangStringViewer ; shui:score 3.0 .
-[] a shui:WidgetScore ; shui:widget shui:HyperlinkViewer ; shui:score 3.0 .
-[] a shui:WidgetScore ; shui:widget shui:LabelViewer ; shui:score 4.0 .
+# ---- tier 2 (score 2): by datatype
+uib:numberFieldEditorScore2 a shui:WidgetScore ; shui:widget shui:NumberFieldEditor     ; shui:score 2 ; shui:shapesGraphShape uib:HasNumericDatatype .
+uib:booleanEditorScore2     a shui:WidgetScore ; shui:widget shui:BooleanEditor         ; shui:score 2 ; shui:shapesGraphShape uib:HasBooleanDatatype .
+uib:datePickerScore2        a shui:WidgetScore ; shui:widget shui:DatePickerEditor      ; shui:score 2 ; shui:shapesGraphShape uib:HasDateDatatype .
+uib:dateTimePickerScore2    a shui:WidgetScore ; shui:widget shui:DateTimePickerEditor  ; shui:score 2 ; shui:shapesGraphShape uib:HasDateTimeDatatype .
+uib:textFieldWithLangScore2 a shui:WidgetScore ; shui:widget shui:TextFieldWithLangEditor ; shui:score 2 ; shui:shapesGraphShape uib:HasLangStringDatatype .
+uib:langStringViewerScore2  a shui:WidgetScore ; shui:widget shui:LangStringViewer      ; shui:score 2 ; shui:shapesGraphShape uib:HasLangStringDatatype .
 
-# ---- matchers: each says which property shapes a widget is accepted for
-[] a shui:WidgetAcceptMatcher ; shui:widget shui:NumberFieldEditor ; shui:shapesGraphShape uib:NumericProperty .
-[] a shui:WidgetAcceptMatcher ; shui:widget shui:BooleanEditor ; shui:shapesGraphShape uib:BooleanProperty .
-[] a shui:WidgetAcceptMatcher ; shui:widget shui:DatePickerEditor ; shui:shapesGraphShape uib:DateProperty .
-[] a shui:WidgetAcceptMatcher ; shui:widget shui:DateTimePickerEditor ; shui:shapesGraphShape uib:DateTimeProperty .
-[] a shui:WidgetAcceptMatcher ; shui:widget shui:EnumSelectEditor ; shui:shapesGraphShape uib:EnumeratedProperty .
-[] a shui:WidgetAcceptMatcher ; shui:widget shui:InstancesSelectEditor ; shui:shapesGraphShape uib:ClassedProperty .
-[] a shui:WidgetAcceptMatcher ; shui:widget shui:IRIEditor ; shui:shapesGraphShape uib:IRIProperty .
-[] a shui:WidgetAcceptMatcher ; shui:widget shui:LangStringViewer ; shui:shapesGraphShape uib:LangStringProperty .
-[] a shui:WidgetAcceptMatcher ; shui:widget shui:HyperlinkViewer ; shui:shapesGraphShape uib:IRIProperty .
-[] a shui:WidgetAcceptMatcher ; shui:widget shui:LabelViewer ; shui:shapesGraphShape uib:UntypedProperty .
+# ---- tier 3 (score 3): by a constraint that lists the answers
+uib:enumSelectEditorScore3      a shui:WidgetScore ; shui:widget shui:EnumSelectEditor      ; shui:score 3 ; shui:shapesGraphShape uib:HasInList .
+uib:instancesSelectEditorScore3 a shui:WidgetScore ; shui:widget shui:InstancesSelectEditor ; shui:score 3 ; shui:shapesGraphShape uib:HasClass .
+uib:iriEditorScore3             a shui:WidgetScore ; shui:widget shui:IRIEditor             ; shui:score 3 ; shui:shapesGraphShape uib:IsIRIWithoutClass .
+uib:labelViewerScore3           a shui:WidgetScore ; shui:widget shui:LabelViewer           ; shui:score 3 ; shui:shapesGraphShape uib:IsResource .
 
-uib:NumericProperty a sh:NodeShape ;
+# ---- the conditions: shapes about the property shape being rendered
+uib:HasNumericDatatype a sh:NodeShape ;
     sh:property [ sh:path sh:datatype ; sh:minCount 1 ; sh:in ( xsd:integer xsd:decimal xsd:double xsd:float ) ] .
-uib:BooleanProperty a sh:NodeShape ;
+uib:HasBooleanDatatype a sh:NodeShape ;
     sh:property [ sh:path sh:datatype ; sh:hasValue xsd:boolean ] .
-uib:DateProperty a sh:NodeShape ;
+uib:HasDateDatatype a sh:NodeShape ;
     sh:property [ sh:path sh:datatype ; sh:hasValue xsd:date ] .
-uib:DateTimeProperty a sh:NodeShape ;
+uib:HasDateTimeDatatype a sh:NodeShape ;
     sh:property [ sh:path sh:datatype ; sh:hasValue xsd:dateTime ] .
-uib:EnumeratedProperty a sh:NodeShape ;
-    sh:property [ sh:path sh:in ; sh:minCount 1 ] .
-uib:ClassedProperty a sh:NodeShape ;
-    sh:property [ sh:path sh:class ; sh:minCount 1 ] .
-uib:IRIProperty a sh:NodeShape ;
-    sh:property [ sh:path sh:nodeKind ; sh:hasValue sh:IRI ] .
-# A matcher must not veto a widget a shape names itself, so LabelViewer (which shows a resource by its label, or a plain
-# value as it is) is accepted unless the property says it is a typed literal.
-uib:UntypedProperty a sh:NodeShape ;
-    sh:property [ sh:path sh:datatype ; sh:maxCount 0 ] .
-uib:LangStringProperty a sh:NodeShape ;
+uib:HasLangStringDatatype a sh:NodeShape ;
     sh:property [ sh:path sh:datatype ; sh:hasValue rdf:langString ] .
+uib:HasInList a sh:NodeShape ;
+    sh:property [ sh:path sh:in ; sh:minCount 1 ] .
+uib:HasClass a sh:NodeShape ;
+    sh:property [ sh:path sh:class ; sh:minCount 1 ] .
+# an IRI-valued property that names no class: with a class, InstancesSelectEditor is the better fit, and the two would
+# otherwise tie at 3 (ties go to the widget IRI, which would pick IRIEditor)
+uib:IsIRIWithoutClass a sh:NodeShape ;
+    sh:property [ sh:path sh:nodeKind ; sh:hasValue sh:IRI ] ;
+    sh:property [ sh:path sh:class ; sh:maxCount 0 ] .
+uib:IsResource a sh:NodeShape ;
+    sh:or ( uib:HasClass [ sh:property [ sh:path sh:nodeKind ; sh:hasValue sh:IRI ] ] ) .

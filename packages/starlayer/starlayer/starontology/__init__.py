@@ -449,9 +449,11 @@ _REGISTRY: dict[str, tuple[OntologyInfo, Callable[[], StarLayerGraph]]] = {
         OntologyInfo(
             name="shacl_ui_baseline",
             description=(
-                "A baseline SHACL UI scoring catalog: widget scores and accept matchers that choose an editor or "
-                "a viewer from how a property shape is written (datatype, class, nodeKind, sh:in). One catalog "
-                "serves both roles. Pass it as scoring_graph= to select_widgets; nothing uses it by default."
+                "The generic SHACL UI scoring catalog, in three tiers: a default that matches everything "
+                "(score 1), defaults by datatype (2), and defaults by a constraint that lists the answers "
+                "(sh:in, sh:class, sh:nodeKind; 3). Each condition is written on its own score, with no "
+                "per-widget matchers, so a layer on top can add scores freely. One catalog serves both roles. "
+                "Pass it as scoring_graph= to select_widgets; nothing uses it by default."
             ),
             type="scoring-catalog",
         ),

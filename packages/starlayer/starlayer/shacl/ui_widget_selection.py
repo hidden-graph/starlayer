@@ -230,8 +230,11 @@ def select_widget(
     2. Otherwise (or on fallthrough), collect every ``shui:WidgetScore`` in
        ``scoring_graph`` with both a ``shui:widget`` and a ``shui:score``,
        ranked highest-score-first.
-    3. Walk that ranked list, running the same matcher check on each,
-       returning the first one that's either unmatched or accepted.
+    3. Walk that ranked list and return the first entry whose conditions hold: the
+       ``shui:shapesGraphShape`` / ``shui:dataGraphShape`` written on the score itself (none means it applies
+       to everything), and then, if its widget has a ``shui:WidgetAcceptMatcher``, that matcher too.
+       Conditions on a score are local to it, so a catalog layered on top can add a score for a widget another
+       layer conditioned without having to remove anything; a per-widget matcher is shared by every layer.
 
     Returns ``None`` if nothing matches at all. ``data_graph``/
     ``shapes_graph``/``scoring_graph`` may be the same object - the spec
@@ -279,7 +282,7 @@ def select_widget(
         ):
             return explicit_widget
 
-    ranked: list[tuple[float, Any]] = []
+    ranked: list[tuple[float, Any, Any]] = []
     for score_node in scoring_graph.subjects(RDF.type, SHUI.WidgetScore):
         widget = next(scoring_graph.objects(score_node, SHUI.widget), None)
         score_value = next(scoring_graph.objects(score_node, SHUI.score), None)
@@ -288,21 +291,25 @@ def select_widget(
         roles = _widget_roles(widget, scoring_graph, shapes_graph)
         if roles and role not in roles:
             continue  # a widget known only as the other role is not a candidate (draft Sections 4.1 and 4.2)
-        ranked.append((float(score_value), widget))
+        ranked.append((float(score_value), widget, score_node))
     # highest score first, then by widget IRI codepoints (Section 3.5 step 2)
-    ranked.sort(key=lambda pair: (-pair[0], str(pair[1])))
+    ranked.sort(key=lambda entry: (-entry[0], str(entry[1])))
 
-    for _score, widget in ranked:
+    common = {
+        "shape_node": shape_node,
+        "focus_node": focus_node,
+        "data_graph": data_graph,
+        "shapes_graph": shapes_graph,
+        "scoring_graph": scoring_graph,
+        "batch": _batch,
+    }
+    for _score, widget, score_node in ranked:
+        # A condition written on the score itself (shui:shapesGraphShape / shui:dataGraphShape, as the Working
+        # Group's own widget files do) applies to that score only. A score without one applies to everything.
+        if not _matcher_accepts(score_node, **common):
+            continue
         matcher = _find_matcher(widget, scoring_graph)
-        if matcher is None or _matcher_accepts(
-            matcher,
-            shape_node=shape_node,
-            focus_node=focus_node,
-            data_graph=data_graph,
-            shapes_graph=shapes_graph,
-            scoring_graph=scoring_graph,
-            batch=_batch,
-        ):
+        if matcher is None or _matcher_accepts(matcher, **common):
             return widget
 
     return None

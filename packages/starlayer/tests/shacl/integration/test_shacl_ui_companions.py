@@ -92,14 +92,16 @@ def test_the_overlay_alone_gives_a_form_for_editing_a_shape(overlay) -> None:
     assert len(unhinted) == 20 and all(list(overlay.objects(prop, STSH.widgetType)) for prop in unhinted)
 
 
-def test_a_catalog_matcher_can_override_a_hint_the_overlay_gives(overlay, baseline) -> None:
-    """SHACL UI section 3.2: a widget a shape names itself is still checked by that widget's matcher, and a matcher that
-    rejects it falls through to scoring. The overlay's property shapes carry a hint but no sh:datatype, so the baseline's
-    number-field matcher rejects NumberFieldEditor for sh:order. Use the overlay without a catalog (or give its property
-    shapes the constraints a matcher reads) when the hints must win."""
-    widgets = select_widgets(shape_node=STSH.ShapeEditorShape, shapes_graph=overlay, scoring_graph=baseline, role="editor")
-    by_path = {next(overlay.objects(prop, SH.path)): widget for prop, widget in widgets.items()}
-    assert by_path[SH.order] != SHUI.NumberFieldEditor
+def test_the_overlays_preferences_win_with_the_baseline_catalog(overlay, baseline) -> None:
+    """A widget a shape names itself wins. (The first baseline had a matcher per widget, which could reject a named
+    widget and override it; the baseline now has none, so the overlay's preferences stand with it.)"""
+    alone = select_widgets(shape_node=STSH.ShapeEditorShape, shapes_graph=overlay, role="editor")
+    with_catalog = select_widgets(
+        shape_node=STSH.ShapeEditorShape, shapes_graph=overlay, scoring_graph=baseline, role="editor"
+    )
+    by_path = {next(overlay.objects(prop, SH.path)): widget for prop, widget in with_catalog.items()}
+    assert by_path[SH.order] == SHUI.NumberFieldEditor
+    assert all(with_catalog[prop] == widget for prop, widget in alone.items() if widget is not None)
 
 
 # --------------------------------------------------------------------------- the baseline catalog
@@ -121,26 +123,42 @@ def test_every_widget_in_the_baseline_has_a_known_role(baseline) -> None:
     assert {w for w in widgets if "editor" in uws._widget_roles(w)} and {w for w in widgets if "viewer" in uws._widget_roles(w)}
 
 
+def test_the_baseline_has_three_tiers_and_no_per_widget_matchers(baseline) -> None:
+    """Tier 1 matches everything (no condition), tier 2 is by datatype, tier 3 by a constraint; the conditions sit on
+    the scores, and there is no shui:WidgetAcceptMatcher (a shared gate a layer on top could not undo)."""
+    assert not list(baseline.subjects(RDF.type, SHUI.WidgetAcceptMatcher))
+    by_tier = {1: [], 2: [], 3: []}
+    for score in baseline.subjects(RDF.type, SHUI.WidgetScore):
+        by_tier[int(next(baseline.objects(score, SHUI.score)))].append(score)
+    assert {tier: len(scores) for tier, scores in by_tier.items()} == {1: 2, 2: 6, 3: 4}
+    assert all(not list(baseline.objects(score, SHUI.shapesGraphShape)) for score in by_tier[1])
+    assert all(len(list(baseline.objects(score, SHUI.shapesGraphShape))) == 1 for score in by_tier[2] + by_tier[3])
+
+
 SHAPES = """
 @prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> . @prefix shui: <http://www.w3.org/ns/shacl-ui#> .
-ex:S a sh:NodeShape ; sh:property ex:age, ex:active, ex:born, ex:kind, ex:boss, ex:home, ex:note, ex:title, ex:pinned .
+ex:S a sh:NodeShape ; sh:property ex:age, ex:active, ex:born, ex:stamp, ex:kind, ex:boss, ex:home, ex:note, ex:title, ex:pinned, ex:both .
 ex:age sh:path ex:age ; sh:datatype xsd:integer . ex:active sh:path ex:active ; sh:datatype xsd:boolean .
-ex:born sh:path ex:born ; sh:datatype xsd:date . ex:kind sh:path ex:kind ; sh:in ( "a" "b" ) .
+ex:born sh:path ex:born ; sh:datatype xsd:date . ex:stamp sh:path ex:stamp ; sh:datatype xsd:dateTime .
+ex:kind sh:path ex:kind ; sh:datatype xsd:string ; sh:in ( "a" "b" ) .
 ex:boss sh:path ex:boss ; sh:class ex:Person . ex:home sh:path ex:home ; sh:nodeKind sh:IRI .
+ex:both sh:path ex:both ; sh:nodeKind sh:IRI ; sh:class ex:Person .
 ex:note sh:path ex:note . ex:title sh:path ex:title ; sh:datatype rdf:langString .
 ex:pinned sh:path ex:pinned ; shui:editor shui:TextAreaEditor ."""
 
 # one catalog, both roles: editors for role="editor", viewers for role="viewer"
 EDITORS = {
     EX.age: SHUI.NumberFieldEditor, EX.active: SHUI.BooleanEditor, EX.born: SHUI.DatePickerEditor,
-    EX.kind: SHUI.EnumSelectEditor, EX.boss: SHUI.InstancesSelectEditor, EX.home: SHUI.IRIEditor,
-    EX.note: SHUI.TextFieldEditor, EX.title: SHUI.TextFieldEditor, EX.pinned: SHUI.TextAreaEditor,
+    EX.stamp: SHUI.DateTimePickerEditor, EX.kind: SHUI.EnumSelectEditor, EX.boss: SHUI.InstancesSelectEditor,
+    EX.home: SHUI.IRIEditor, EX.both: SHUI.InstancesSelectEditor, EX.note: SHUI.TextFieldEditor,
+    EX.title: SHUI.TextFieldWithLangEditor, EX.pinned: SHUI.TextAreaEditor,
 }
 VIEWERS = {
     EX.age: SHUI.LiteralViewer, EX.active: SHUI.LiteralViewer, EX.born: SHUI.LiteralViewer,
-    EX.kind: SHUI.LabelViewer, EX.boss: SHUI.LabelViewer, EX.home: SHUI.LabelViewer,
-    EX.note: SHUI.LabelViewer, EX.title: SHUI.LangStringViewer, EX.pinned: SHUI.LabelViewer,
+    EX.stamp: SHUI.LiteralViewer, EX.kind: SHUI.LiteralViewer, EX.boss: SHUI.LabelViewer,
+    EX.home: SHUI.LabelViewer, EX.both: SHUI.LabelViewer, EX.note: SHUI.LiteralViewer,
+    EX.title: SHUI.LangStringViewer, EX.pinned: SHUI.LiteralViewer,
 }
 
 
