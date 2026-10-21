@@ -5,156 +5,130 @@ Build-time only: the library never imports this. It reads the stored result,
 ``starontology/shacl12-shacl.ttl``, which ``scripts/build_starontology.py``
 regenerates from ``build_meta_shapes_graph()`` below.
 
-Why a build step at all. pySHACL's own ``meta_shacl=True`` always validates a
-shapes graph against its bundled ``shacl-shacl.ttl``, with no way to add or
-replace rules. That graph predates SHACL 1.2, so:
+The graph is the W3C Data Shapes Working Group's own SHACL-for-SHACL
+(``assets/vendor/w3c-shacl-shacl.ttl``, a pinned verbatim copy, see
+``assets/vendor/VENDORED_FROM.md``) **plus additions only - nothing in the
+Working Group's file is deleted or edited**, so a newer upstream copy can be
+dropped in and compared. The additions are:
 
-1. The 11 brand-new SHACL 1.2 predicates (``sh:someValue``,
-   ``sh:uniqueValuesFor``, etc.) have no rule at all, so malformed uses
-   silently pass.
-2. 8 predicates whose value space SHACL 1.2 *widened* - list-valued
-   ``sh:class``/``sh:datatype``/``sh:nodeKind``, path-valued
-   ``sh:equals``/``sh:disjoint``/``sh:lessThan``/``sh:lessThanOrEquals``, and
-   ``sh:closed sh:ByTypes`` - are *actively rejected*, because pySHACL's
-   bundled rules still enforce the old single-value shape.
+1. ``assets/shacl12-validation-shapes.ttl``: rules for the SHACL 1.2 predicates
+   the Working Group's file has no rule for yet (``sh:someValue``,
+   ``sh:uniqueValuesFor``, ``sh:subsetOf``, ``sh:rootClass``, ``sh:reifierShape``,
+   ``sh:reificationRequired``, SPARQL, rules, ...), our ``stsh:`` shapes, and
+   documentation of the terms.
+2. ``sh:deactivated true`` on the Working Group rules that are still stricter
+   than SHACL 1.2 allows (``RELAXED_PATHS``). SHACL constraints combine by AND,
+   so a looser rule added beside a strict one would change nothing; the
+   Working Group's own file says to customise it this way ("this graph should
+   be supplemented with 'shsh:xoneSubjectsShape sh:deactivated true'"). The
+   replacement rules are in (1).
+3. Expression-based property shapes (``sh:expression`` instead of ``sh:path``):
+   the Working Group's ``shsh:PropertyShapeShape`` requires ``sh:path``, so that
+   rule is deactivated (its replacement, "path or expression", is in (1)), and
+   ``shsh:NodeShapeShape`` is told a node shape carries no ``sh:expression``,
+   which keeps the Working Group's ``sh:xone`` between node shapes and property
+   shapes exclusive.
+4. The ``rdf:type`` the shape-valued predicates of the native components need
+   (``sh:memberShape``), which starlayer otherwise adds at validation time.
 
-``build_meta_shapes_graph`` assembles the corrected replacement: pySHACL's base
-graph with exactly those 8 too-strict rules removed (SHACL constraints combine
-by AND, so a relaxed rule added next to an unremoved strict one would not
-help), plus ``assets/shacl12-validation-shapes.ttl``.
+``tests/shacl/integration/test_wg_overrides.py`` checks that each deactivation
+is still needed, so when upstream fixes one the test fails and prompts a review.
 """
 
 from __future__ import annotations
 
+import hashlib
 import os
 from collections.abc import Iterable
 from typing import Any
 
-from rdflib import BNode, Graph, Namespace, URIRef
+from rdflib import BNode, Graph, Literal, Namespace, URIRef
 
 SH = Namespace("http://www.w3.org/ns/shacl#")
+SHSH = Namespace("http://www.w3.org/ns/shacl-shacl#")
 
 _ASSETS_DIR = os.path.join(os.path.dirname(__file__), "assets")
 VALIDATION_SHAPES_PATH = os.path.join(_ASSETS_DIR, "shacl12-validation-shapes.ttl")
+WG_SHAPES_PATH = os.path.join(_ASSETS_DIR, "vendor", "w3c-shacl-shacl.ttl")
+WG_VENDORED_FROM_PATH = os.path.join(_ASSETS_DIR, "vendor", "VENDORED_FROM.md")
 
-_SHSH_SHAPE_SHAPE = URIRef("http://www.w3.org/ns/shacl-shacl#ShapeShape")
-_SHSH_PROPERTY_SHAPE_SHAPE = URIRef("http://www.w3.org/ns/shacl-shacl#PropertyShapeShape")
-
-# The 8 SHACL 1.0/1.1-era rules in pySHACL's own bundled shacl-shacl.ttl
-# that are now too strict for SHACL 1.2's widened value spaces - each
-# located dynamically via (shsh:ShapeShape, sh:property, ?bn) + (?bn,
-# sh:path, <predicate>), never by hardcoding a blank node identifier -
-# rdflib assigns fresh blank node IDs on every separate parse of the
-# same source file, so a hardcoded ID would never match a freshly
-# loaded copy.
-_TOO_STRICT_PATHS: tuple[Any, ...] = (
-    SH["class"],
-    SH.datatype,
+# The predicates whose Working Group rule on shsh:ShapeShape is still stricter than SHACL 1.2 allows (list-valued
+# sh:nodeKind, path-valued sh:equals/sh:disjoint/sh:lessThan/sh:lessThanOrEquals). As of the pinned copy the Working
+# Group has already fixed sh:class, sh:datatype and sh:closed; test_wg_overrides.py fails when one of these is fixed too.
+RELAXED_PATHS: tuple[URIRef, ...] = (
     SH.nodeKind,
     SH.disjoint,
     SH.equals,
     SH.lessThan,
     SH.lessThanOrEquals,
-    SH.closed,
 )
 
 
-def _remove_blank_node_subtree(graph: Graph, node: Any, _seen: set[Any] | None = None) -> None:
-    """Remove ``node``'s own triples, and (recursively) the triples of any
-    blank node it points to - so excising a property-shape blank node also
-    removes structure hanging off it (e.g. ``sh:in``'s list), not just the
-    blank node's own top-level triples, leaving no orphaned garbage behind.
-    """
-    if _seen is None:
-        _seen = set()
-    if node in _seen or not isinstance(node, BNode):
-        return
-    _seen.add(node)
-    for p, o in list(graph.predicate_objects(node)):
-        graph.remove((node, p, o))
-        _remove_blank_node_subtree(graph, o, _seen)
+def wg_file_sha256() -> str:
+    """The SHA-256 of the pinned Working Group file (compared with ``VENDORED_FROM.md`` by a test)."""
+    with open(WG_SHAPES_PATH, "rb") as handle:
+        return hashlib.sha256(handle.read()).hexdigest()
 
 
-def _load_pyshacl_base_meta_shapes() -> Graph:
-    """A fresh, independent copy of pySHACL's own bundled SHACL-of-SHACL
-    meta-shapes graph, loaded directly from its ``shacl-shacl.ttl`` asset
-    (not the pickle pySHACL's own ``meta_shacl`` mechanism uses, avoiding
-    any dependence on pickle-format compatibility across pySHACL versions;
-    not pySHACL's own process-wide cached graph object either, so nothing
-    here ever mutates what a caller using plain ``pyshacl.validate(...,
-    meta_shacl=True)`` directly would see).
-    """
-    import pyshacl
-
-    pyshacl_dir = os.path.dirname(pyshacl.__file__)
-    shacl_shacl_ttl = os.path.join(pyshacl_dir, "assets", "shacl-shacl.ttl")
+def load_wg_shapes() -> Graph:
+    """A fresh copy of the pinned Working Group file, unchanged."""
     graph = Graph()
-    graph.parse(shacl_shacl_ttl, format="turtle")
+    graph.parse(WG_SHAPES_PATH, format="turtle")
     return graph
 
 
-def _strip_too_strict_base_rules(graph: Graph) -> Graph:
-    """Remove the 8 SHACL 1.0/1.1-era rules documented on
-    ``_TOO_STRICT_PATHS`` from ``graph`` (mutated in place), so
-    starShacl's own replacement rules (``shacl12-validation-shapes.ttl``'s
-    ``stsh:ShapeShapeOverrides``) are the only ones left governing those
-    paths - if the old triple weren't removed, SHACL's AND-combination of
-    multiple ``sh:property`` constraints on the same path would mean a
-    valid SHACL 1.2 shape still had to *also* satisfy the old, narrower
-    rule to conform, defeating the relaxation entirely.
+def _property_shapes_of(graph: Graph, shape: URIRef, path: URIRef) -> list[Any]:
+    """The blank-node property shapes of ``shape`` whose ``sh:path`` is ``path``, found by structure - the blank
+    node labels differ on every parse, so they cannot be hard-coded."""
+    return [bn for bn in graph.objects(shape, SH.property) if (bn, SH.path, path) in graph]
 
-    Also makes two SHACL 1.2 adjustments for ``sh:expression`` as a
-    property-shape path alternative:
 
-    * Strips ``sh:xone (shsh:NodeShapeShape shsh:PropertyShapeShape)``
-      from ``shsh:ShapeShape``.  An expression-based property shape has no
-      ``sh:path``, so it passes ``shsh:NodeShapeShape``'s ``sh:path
-      maxCount 0`` *and* the new ``shsh:PropertyShapeShape`` (which now
-      accepts ``sh:expression``), meaning both xone branches are satisfied
-      and the xone fires.  Replaced by ``sh:or`` in
-      ``shacl12-validation-shapes.ttl``.
-
-    * Strips ``shsh:PropertyShapeShape``'s ``sh:path minCount 1`` rule so
-      expression-based property shapes are not unconditionally rejected.
-      Replaced by ``sh:or (sh:path | sh:expression)`` in
-      ``shacl12-validation-shapes.ttl``, keeping the shape non-trivial.
-    """
-    for path in _TOO_STRICT_PATHS:
-        for prop_bn in list(graph.objects(_SHSH_SHAPE_SHAPE, SH.property)):
-            if (prop_bn, SH.path, path) in graph:
-                graph.remove((_SHSH_SHAPE_SHAPE, SH.property, prop_bn))
-                _remove_blank_node_subtree(graph, prop_bn)
-    # Strip sh:xone from shsh:ShapeShape.  SHACL 1.2 expression-based property
-    # shapes (sh:expression instead of sh:path) legitimately satisfy BOTH
-    # shsh:NodeShapeShape (no sh:path → maxCount 0 passes) and the new
-    # shsh:PropertyShapeShape (sh:expression branch), so sh:xone would fire.
-    # Replaced by sh:or in shacl12-validation-shapes.ttl.
-    for xone_bn in list(graph.objects(_SHSH_SHAPE_SHAPE, SH.xone)):
-        graph.remove((_SHSH_SHAPE_SHAPE, SH.xone, xone_bn))
-        _remove_blank_node_subtree(graph, xone_bn)
-    # Strip the original sh:path minCount 1 from shsh:PropertyShapeShape so it
-    # is no longer trivially violated by expression-based property shapes.
-    # The replacement sh:or constraint (path OR expression) is in
-    # shacl12-validation-shapes.ttl and keeps the shape non-trivial.
-    for prop_bn in list(graph.objects(_SHSH_PROPERTY_SHAPE_SHAPE, SH.property)):
-        if (prop_bn, SH.path, SH.path) in graph:
-            graph.remove((_SHSH_PROPERTY_SHAPE_SHAPE, SH.property, prop_bn))
-            _remove_blank_node_subtree(graph, prop_bn)
+def _add_overrides(graph: Graph) -> Graph:
+    """Add (never remove) the deactivations and the node-shape rule described in the module docstring."""
+    for path in RELAXED_PATHS:
+        for property_shape in _property_shapes_of(graph, SHSH.ShapeShape, path):
+            graph.add((property_shape, SH.deactivated, Literal(True)))
+    for property_shape in _property_shapes_of(graph, SHSH.PropertyShapeShape, SH.path):
+        graph.add((property_shape, SH.deactivated, Literal(True)))
+    no_expression = BNode()
+    graph.add((SHSH.NodeShapeShape, SH.property, no_expression))
+    graph.add((no_expression, SH.path, SH.expression))
+    graph.add((no_expression, SH.maxCount, Literal(0)))
     return graph
 
 
-def build_meta_shapes_graph(extra_graphs: Iterable[Any] = ()) -> Graph:
-    """Assemble the complete meta-shapes graph used for starShacl's own
-    meta-shacl preflight: pySHACL's own base graph (with the 8 too-strict
-    triples removed) plus starShacl's own SHACL 1.2 validation
-    rules plus every graph in ``extra_graphs`` - all unioned
-    into one graph via plain triple addition ("they would be merged into
-    one shapes graph"), so a caller (e.g. a downstream SHACL editor) can
-    freely add its own validation and/or presentation rule sets without
-    this function needing to know or care what they're for.
-    """
-    graph = _strip_too_strict_base_rules(_load_pyshacl_base_meta_shapes())
+def _type_shape_values(graph: Graph) -> Graph:
+    """Add the ``rdf:type`` triples starlayer adds before handing a shapes graph to pySHACL (the Working Group's
+    file uses ``sh:memberShape``, which pySHACL does not know). Only adds."""
+    from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+    from starlayer.shacl.validator import _ensure_native_component_shapes_typed
+
+    working = StarLayerGraph()
+    for triple in graph:
+        working.add(triple)
+    typed = _ensure_native_component_shapes_typed(working)
+    result = Graph()
+    for prefix, namespace in graph.namespaces():
+        result.bind(prefix, namespace)
+    for triple in typed:
+        result.add(triple)
+    return result
+
+
+def build_meta_shapes_graph(extra_graphs: Iterable[Any] = (), *, wg_graph: Graph | None = None) -> Graph:
+    """Assemble the complete meta-shapes graph: the Working Group's file, ``shacl12-validation-shapes.ttl``, the
+    overrides above, and every graph in ``extra_graphs`` (plain triple addition, so a caller such as a SHACL editor
+    can add its own rules without this function knowing what they are for). ``wg_graph`` is for tests: a
+    Working Group graph already loaded, copied with its blank nodes unchanged so the result can be compared with it."""
+    if wg_graph is None:
+        graph = load_wg_shapes()
+    else:
+        graph = Graph()
+        for triple in wg_graph:
+            graph.add(triple)
     graph.parse(VALIDATION_SHAPES_PATH, format="turtle")
+    _add_overrides(graph)
+    graph = _type_shape_values(graph)
     for extra in extra_graphs:
         for triple in extra:
             graph.add(triple)

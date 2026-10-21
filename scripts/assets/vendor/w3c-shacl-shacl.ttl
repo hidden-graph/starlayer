@@ -181,7 +181,10 @@ shsh:ShapeShape
 	] ;
 	sh:property [
 		sh:path sh:closed ;
-		sh:datatype xsd:boolean ;       # closed-datatype
+		sh:or (                         # closed-datatype
+			[ sh:datatype xsd:boolean ]
+			[ sh:hasValue sh:ByTypes ]
+		) ;
 		sh:maxCount 1 ;                 # multiple-parameters
 	] ;
 	sh:property [
@@ -531,3 +534,19 @@ shsh:EntailmentShape
 	a sh:NodeShape ;
 	sh:targetObjectsOf sh:entailment ;
 	sh:nodeKind sh:IRI .                # entailment-nodeKind
+
+shsh:ValidationReportShape
+	a sh:NodeShape ;
+	sh:targetClass sh:ValidationReport ;
+	sh:property [
+		sh:path sh:usedDataGraph ;
+		sh:nodeKind sh:IRI ;
+	] ;
+	sh:property [
+		sh:path sh:usedShapesGraph ;
+		sh:nodeKind sh:IRI ;
+	] ;
+	sh:property [
+		sh:path sh:usedConfiguration ;
+		sh:maxCount 1 ;
+	] .

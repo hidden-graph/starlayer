@@ -17,13 +17,12 @@ import pytest
 # The meta-shapes build is a build-time tool, not part of the library: it lives
 # in scripts/, which pytest puts on sys.path (pyproject.toml's `pythonpath`).
 from build_meta_shapes import (
-    _SHSH_SHAPE_SHAPE,
-    _TOO_STRICT_PATHS,
+    RELAXED_PATHS,
     VALIDATION_SHAPES_PATH,
-    _load_pyshacl_base_meta_shapes,
     build_meta_shapes_graph,
+    load_wg_shapes,
 )
-from rdflib import Graph, Namespace
+from rdflib import Graph, Literal, Namespace, URIRef
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl.meta_shapes import (
     check_sparql_query_text,
@@ -33,6 +32,7 @@ from starlayer.shacl.meta_shapes import (
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
+SHSH_SHAPE_SHAPE = URIRef("http://www.w3.org/ns/shacl-shacl#ShapeShape")
 
 pyshacl = pytest.importorskip("pyshacl")
 
@@ -664,22 +664,29 @@ def test_meta_shapes_extra_hook_enforced_end_to_end() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_too_strict_base_triples_absent_from_assembled_graph() -> None:
-    assembled = build_meta_shapes_graph()
-    for path in _TOO_STRICT_PATHS:
-        still_present = any(
-            (_SHSH_SHAPE_SHAPE, SH.property, bn) in assembled and (bn, SH.path, path) in assembled
-            for bn in assembled.objects(_SHSH_SHAPE_SHAPE, SH.property)
-        )
-        assert not still_present, f"{path} should have been stripped from the assembled graph"
+def test_the_working_group_file_is_only_added_to_never_edited() -> None:
+    """Nothing in the pinned Working Group file is deleted or changed by the build: every one of its triples is in the
+    assembled graph, and the relaxed rules are switched off with sh:deactivated, not removed."""
+    wg = load_wg_shapes()
+    assembled = build_meta_shapes_graph(wg_graph=wg)
+    missing = set(wg) - set(assembled)
+    assert not missing, f"{len(missing)} Working Group triples are missing from the assembled graph, e.g. {sorted(missing)[:3]}"
+    for path in RELAXED_PATHS:
+        rules = [
+            bn
+            for bn in assembled.objects(SHSH_SHAPE_SHAPE, SH.property)
+            if (bn, SH.path, path) in assembled
+        ]
+        assert rules, f"the Working Group no longer has a rule for {path}; drop it from RELAXED_PATHS"
+        assert all((bn, SH.deactivated, Literal(True)) in assembled for bn in rules)
 
 
 @pytest.mark.deferred
 def test_stored_meta_shapes_file_matches_a_fresh_build() -> None:
     """meta_validate() reads the stored shacl12-shacl.ttl, so it must equal
     what build_meta_shapes_graph() produces. On failure, run
-    scripts/build_starontology.py (an asset file was edited, or pySHACL's
-    own shacl-shacl.ttl changed)."""
+    scripts/build_starontology.py (an asset file or the pinned Working Group
+    file was edited)."""
     from rdflib.compare import to_isomorphic
 
     assert to_isomorphic(load_meta_shapes_graph()) == to_isomorphic(build_meta_shapes_graph()), (
@@ -692,7 +699,7 @@ def test_meta_validate_reads_the_stored_file_and_the_library_has_no_build_code()
     import starlayer.shacl.meta_shapes as ms
 
     assert not hasattr(ms, "build_meta_shapes_graph")
-    assert not hasattr(ms, "_load_pyshacl_base_meta_shapes")
+    assert not hasattr(ms, "load_wg_shapes")
     shapes = Graph()
     shapes.parse(data="@prefix sh: <http://www.w3.org/ns/shacl#> . <urn:s> a sh:NodeShape .", format="turtle")
     conforms, _, _ = ms.meta_validate(shapes)
@@ -705,16 +712,6 @@ def test_load_meta_shapes_graph_returns_independent_copies() -> None:
     n = len(first)
     first.add((EX.a, EX.b, EX.c))
     assert len(load_meta_shapes_graph()) == n
-
-
-def test_pyshacl_own_base_meta_shapes_never_mutated() -> None:
-    build_meta_shapes_graph()  # exercise the assembly path once
-    fresh_base = _load_pyshacl_base_meta_shapes()
-    still_present = any(
-        (_SHSH_SHAPE_SHAPE, SH.property, bn) in fresh_base and (bn, SH.path, SH["class"]) in fresh_base
-        for bn in fresh_base.objects(_SHSH_SHAPE_SHAPE, SH.property)
-    )
-    assert still_present, "pySHACL's own base meta-shapes must be untouched by our assembly"
 
 
 def test_meta_validate_raises_reportable_runtime_error_with_expected_message() -> None:

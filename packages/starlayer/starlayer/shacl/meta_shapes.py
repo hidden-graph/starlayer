@@ -3,7 +3,7 @@
 
 pySHACL's own ``meta_shacl=True`` always validates a shapes graph against its
 bundled ``shacl-shacl.ttl``, with no way to add or replace rules, and that graph
-predates SHACL 1.2 (it has no rule for the 11 new predicates and rejects the 8
+predates SHACL 1.2 (it has no rule for the new predicates and rejects the ones
 whose value space SHACL 1.2 widened, e.g. ``sh:class ( ex:A ex:B )``).
 ``meta_validate`` instead checks a shapes graph against starShacl's own
 meta-shapes graph, run directly through ``pyshacl.validate()``, so this
@@ -11,16 +11,20 @@ preflight fully replaces pySHACL's rather than running both.
 
 That graph is not assembled at run time. It is stored as ``starontology``'s
 ``shacl12-shacl.ttl`` (registry entry ``shacl_shacl``) and read by
-``load_meta_shapes_graph``. The build that produces it (pySHACL's graph with the
-8 too-strict rules removed, plus ``shacl12-validation-shapes.ttl``) lives in
-``scripts/build_meta_shapes.py`` and is run by ``scripts/build_starontology.py``;
-a test fails if the stored file drifts from a fresh build. Upgrading pySHACL or
-editing the validation shapes therefore changes nothing here until that build is
-re-run.
+``load_meta_shapes_graph``. The build that produces it lives in
+``scripts/build_meta_shapes.py`` and is run by ``scripts/build_starontology.py``.
+It starts from the W3C Data Shapes Working Group's own SHACL-for-SHACL (a pinned
+copy, ``scripts/assets/vendor/w3c-shacl-shacl.ttl``) and only adds to it:
+``shacl12-validation-shapes.ttl`` plus ``sh:deactivated`` on the few Working
+Group rules that are still stricter than SHACL 1.2. A test fails if the stored
+file drifts from a fresh build, and ``test_wg_overrides.py`` fails when the
+Working Group fixes something we override. Editing the validation shapes or
+updating the pinned copy changes nothing here until that build is re-run.
 """
 
 from __future__ import annotations
 
+import warnings
 from collections import OrderedDict
 from collections.abc import Iterable
 from typing import Any
@@ -114,13 +118,13 @@ def _meta_validate_cache_key(shapes_graph_for_meta: Any, kwargs: dict) -> tuple 
 def load_meta_shapes_graph(extra_graphs: Iterable[Any] = ()) -> Graph:
     """The meta-shapes graph ``meta_validate()`` checks against, read from
     the stored ``shacl12-shacl.ttl`` (``starontology``'s ``"shacl_shacl"``
-    entry) rather than reassembled from pySHACL's base graph and starShacl's
-    validation shapes on every call.
+    entry) rather than reassembled from the Working Group's meta-shapes and
+    starShacl's additions on every call.
 
     The stored file is built by ``scripts/build_meta_shapes.py`` (run through
     ``scripts/build_starontology.py``); it is the authoritative copy at run
-    time, so editing the validation shapes or upgrading pySHACL has no effect
-    on validation until the file is regenerated. A test compares the stored
+    time, so editing the validation shapes or the pinned Working Group file has
+    no effect on validation until the file is regenerated. A test compares the stored
     file with a fresh build and fails on drift.
 
     The file is parsed once per process by ``starontology`` and cached there;
@@ -147,7 +151,7 @@ def meta_validate(shapes_graph: Any, *, extra_graphs: Iterable[Any] = (), **kwar
     that check for that text.
     """
     import pyshacl
-    from pyshacl.errors import ReportableRuntimeError
+    from pyshacl.errors import ReportableRuntimeError, ShapeRecursionWarning
 
     # pySHACL's default max_validation_depth (15, pyshacl/pytypes.py) is sized
     # for ordinary data validation. Meta-validation nests shapes-about-shapes
@@ -210,7 +214,13 @@ def meta_validate(shapes_graph: Any, *, extra_graphs: Iterable[Any] = (), **kwar
         report_graph += cached_report_graph
     else:
         meta_shapes = load_meta_shapes_graph(extra_graphs)
-        conforms, report_graph, report_text = pyshacl.validate(shapes_graph_for_meta, shacl_graph=meta_shapes, **kwargs)
+        # The Working Group's meta-shapes are recursive by design (a shape's members are shapes), and pySHACL warns
+        # each time it backs out of that recursion; that is expected here, so do not show it to the caller.
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=ShapeRecursionWarning)
+            conforms, report_graph, report_text = pyshacl.validate(
+                shapes_graph_for_meta, shacl_graph=meta_shapes, **kwargs
+            )
         if cache_key is not None:
             _META_VALIDATE_CACHE[cache_key] = (conforms, report_graph, report_text)
             _META_VALIDATE_CACHE.move_to_end(cache_key)

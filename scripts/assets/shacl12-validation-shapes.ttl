@@ -1,26 +1,25 @@
 # baseURI: https://github.com/hidden-graph/starlayer/ns/shacl#
 #
-# Supplementary SHACL-of-SHACL well-formedness rules for SHACL 1.2 Core
-# predicates: additive rules for predicates pySHACL's own bundled
-# shacl-shacl.ttl has no knowledge of at all (sh:someValue, sh:singleLine,
-# sh:subsetOf, sh:rootClass, sh:uniqueValuesFor, sh:memberShape,
-# sh:minListLength, sh:maxListLength, sh:uniqueMembers, sh:reifierShape,
-# sh:reificationRequired), and replacement rules for predicates whose value
-# space SHACL 1.2 widened past what pySHACL's own (SHACL 1.0/1.1-era)
-# meta-shapes still enforce (sh:class, sh:datatype, sh:nodeKind widened to
-# accept a list/union; sh:equals, sh:disjoint, sh:lessThan,
-# sh:lessThanOrEquals widened to accept a full property path; sh:closed
-# widened to accept sh:ByTypes).
+# Our additions to the W3C Data Shapes Working Group's SHACL-for-SHACL (the pinned copy in
+# scripts/assets/vendor/w3c-shacl-shacl.ttl). scripts/build_meta_shapes.py merges the two by ADDING: nothing in the
+# Working Group's file is deleted or edited.
 #
-# Meant to be MERGED with pySHACL's own base shacl-shacl graph, not to
-# replace it - see scripts/build_meta_shapes.py::build_meta_shapes_graph, which
-# also strips the specific now-too-strict triples from the base graph that
-# would otherwise conflict (SHACL constraints combine via AND, so a
-# relaxed rule added alongside an unremoved strict one would not help).
+# This file holds (1) well-formedness rules for SHACL 1.2 predicates the Working Group's file has no rule for yet
+# (sh:someValue, sh:subsetOf, sh:rootClass, sh:uniqueValuesFor, sh:reifierShape, sh:reificationRequired; and rules
+# for sh:memberShape, sh:singleLine, sh:minListLength, sh:maxListLength and sh:uniqueMembers that are stricter than,
+# or duplicate, the Working Group's own), (2) replacement rules for the parameters whose value space SHACL 1.2
+# widened and that the Working Group's file still rejects: sh:nodeKind as a list, and sh:equals, sh:disjoint,
+# sh:lessThan, sh:lessThanOrEquals as a path (stsh:ShapeShapeOverrides), (3) our own stsh: shapes (rules, node
+# expressions, SPARQL, UI hints) and (4) documentation of the terms.
+#
+# For (2), SHACL constraints combine by AND, so a looser rule added beside a strict one changes nothing. The build
+# therefore switches the Working Group's strict rule off with sh:deactivated true (build_meta_shapes.py,
+# RELAXED_PATHS) and these shapes take over. sh:class, sh:datatype and sh:closed were handled this way too until the
+# Working Group fixed them (2026-10-12); test_wg_overrides.py fails when it fixes another, so its entry can go.
 #
 # Also includes 4 gaps found 2026-08-01 by diffing against the official
-# SHACL 1.2 WG's own draft meta-shapes (tests/vendor/shacl12-vocabularies/
-# shacl-shacl.ttl - see docs/shacl12-gap-matrix.md's "Official SHACL 1.2
+# SHACL 1.2 WG's own draft meta-shapes (scripts/assets/vendor/
+# w3c-shacl-shacl.ttl - see docs/shacl12-gap-matrix.md's "Official SHACL 1.2
 # meta-shapes (shsh:) comparison" section for the full writeup): sh:
 # DataGraph/owl:imports well-formedness, sh:in/sh:xone satisfiability
 # warnings, sh:ignoredProperties/sh:languageIn minimum list length, and a
@@ -81,7 +80,7 @@ stsh:IRIOrListOfIRIsShape
 stsh:IRIOrPathShape
 	a sh:NodeShape ;
 	rdfs:label "IRI or SHACL property path"@en ;
-	rdfs:comment "SHACL 1.2 widened sh:equals/sh:disjoint/sh:lessThan/sh:lessThanOrEquals from a single comparison-property IRI to a full SHACL property path expression. Reuses pySHACL's own shsh:PathNodeShape (present once this file is merged with pySHACL's own base meta-shapes graph) rather than re-deriving SHACL's path grammar."@en ;
+	rdfs:comment "SHACL 1.2 widened sh:equals/sh:disjoint/sh:lessThan/sh:lessThanOrEquals from a single comparison-property IRI to a full SHACL property path expression. Reuses the Working Group's shsh:PathNodeShape (present once this file is merged with the Working Group's meta-shapes graph) rather than re-deriving SHACL's path grammar."@en ;
 	sh:or (
 		[ sh:nodeKind sh:IRI ]
 		[ sh:node shsh:PathNodeShape ]
@@ -90,33 +89,22 @@ stsh:IRIOrPathShape
 stsh:ShapeReferenceShape
 	a sh:NodeShape ;
 	rdfs:label "Well-formed shape reference"@en ;
-	rdfs:comment "Used for SHACL 1.2 predicates whose value must itself be a well-formed shape (sh:someValue, sh:memberShape, sh:reifierShape). sh:node's semantics evaluate the referenced shape's own constraint components regardless of that shape's own targets, so referencing shsh:ShapeShape here checks full shape well-formedness, not just the node/property-shape distinction. sh:nodeKind is added on top because pySHACL's own shsh:ShapeShape doesn't itself enforce blank-node-or-IRI - a bare literal vacuously satisfies shsh:NodeShapeShape's xone branch (every one of its checks is a maxCount 0 'must not have' rule, trivially true for a literal with no outgoing properties at all), so without this a literal value would incorrectly pass as 'a well-formed shape'."@en ;
+	rdfs:comment "Used for SHACL 1.2 predicates whose value must itself be a well-formed shape (sh:someValue, sh:memberShape, sh:reifierShape). sh:node's semantics evaluate the referenced shape's own constraint components regardless of that shape's own targets, so referencing shsh:ShapeShape here checks full shape well-formedness, not just the node/property-shape distinction. sh:nodeKind is added on top because the Working Group's shsh:ShapeShape doesn't itself enforce blank-node-or-IRI - a bare literal vacuously satisfies shsh:NodeShapeShape's xone branch (every one of its checks is a maxCount 0 'must not have' rule, trivially true for a literal with no outgoing properties at all), so without this a literal value would incorrectly pass as 'a well-formed shape'."@en ;
 	sh:nodeKind sh:BlankNodeOrIRI ;
 	sh:node shsh:ShapeShape .
 
 #############################################################################
 # Replacement rules for SHACL 1.2-widened parameters
 #############################################################################
-# pySHACL's own shsh:ShapeShape still enforces the old SHACL 1.0/1.1
-# single-IRI/boolean-only shape for these eight paths - see
-# starshacl/meta_shapes.py's documented removal list for the specific
-# triples stripped from the base graph so these replacements take effect
-# instead of being ANDed against the old (too strict) rule.
+# The Working Group's shsh:ShapeShape still enforces the old SHACL 1.0/1.1 single-value shape for these five paths.
+# build_meta_shapes.py switches its rules off with sh:deactivated (RELAXED_PATHS), so these replacements are the
+# only ones that apply instead of being ANDed against the too-strict rule.
 
 stsh:ShapeShapeOverrides
 	a sh:NodeShape ;
-	rdfs:label "SHACL 1.2 replacement rules for widened parameters"@en ;
-	sh:targetSubjectsOf sh:class, sh:datatype, sh:nodeKind, sh:equals, sh:disjoint, sh:lessThan, sh:lessThanOrEquals, sh:closed ;
+	rdfs:label "SHACL 1.2 replacement rules for widened parameters the Working Group file still rejects"@en ;
+	sh:targetSubjectsOf sh:nodeKind, sh:equals, sh:disjoint, sh:lessThan, sh:lessThanOrEquals ;
 
-	sh:property [
-		sh:path sh:class ;
-		sh:node stsh:IRIOrListOfIRIsShape ;    # class-nodeKind, replaces pySHACL's IRI-only rule
-	] ;
-	sh:property [
-		sh:path sh:datatype ;
-		sh:node stsh:IRIOrListOfIRIsShape ;    # datatype-nodeKind, replaces pySHACL's IRI-only rule
-		sh:maxCount 1 ;                        # datatype-maxCount, unchanged from pySHACL's own rule
-	] ;
 	sh:property [
 		sh:path sh:nodeKind ;
 		sh:or (
@@ -130,32 +118,24 @@ stsh:ShapeShapeOverrides
 				] ;
 			  ]
 			]
-		) ;                                     # nodeKind-in, replaces pySHACL's single-value-only rule
-		sh:maxCount 1 ;                         # nodeKind-maxCount, unchanged from pySHACL's own rule
+		) ;                                     # nodeKind-in, replaces the Working Group's single-value-only rule
+		sh:maxCount 1 ;                         # nodeKind-maxCount, as in the Working Group's rule
 	] ;
 	sh:property [
 		sh:path sh:equals ;
-		sh:node stsh:IRIOrPathShape ;           # equals-nodeKind, replaces pySHACL's IRI-only rule
+		sh:node stsh:IRIOrPathShape ;           # equals-nodeKind, replaces the Working Group's IRI-only rule
 	] ;
 	sh:property [
 		sh:path sh:disjoint ;
-		sh:node stsh:IRIOrPathShape ;           # disjoint-nodeKind, replaces pySHACL's IRI-only rule
+		sh:node stsh:IRIOrPathShape ;           # disjoint-nodeKind, replaces the Working Group's IRI-only rule
 	] ;
 	sh:property [
 		sh:path sh:lessThan ;
-		sh:node stsh:IRIOrPathShape ;           # lessThan-nodeKind, replaces pySHACL's IRI-only rule
+		sh:node stsh:IRIOrPathShape ;           # lessThan-nodeKind, replaces the Working Group's IRI-only rule
 	] ;
 	sh:property [
 		sh:path sh:lessThanOrEquals ;
-		sh:node stsh:IRIOrPathShape ;           # lessThanOrEquals-nodeKind, replaces pySHACL's IRI-only rule
-	] ;
-	sh:property [
-		sh:path sh:closed ;
-		sh:or (
-			[ sh:datatype xsd:boolean ]
-			[ sh:hasValue sh:ByTypes ]
-		) ;                                      # closed-datatype, replaces pySHACL's boolean-only rule
-		sh:maxCount 1 ;                          # closed-maxCount, unchanged from pySHACL's own rule
+		sh:node stsh:IRIOrPathShape ;           # lessThanOrEquals-nodeKind, replaces the Working Group's IRI-only rule
 	] .
 
 #############################################################################
@@ -231,7 +211,7 @@ stsh:NewPredicateShapes
 
 #############################################################################
 # Gaps closed 2026-08-01 by comparing against the official SHACL 1.2 WG
-# draft meta-shapes (tests/vendor/shacl12-vocabularies/shacl-shacl.ttl,
+# draft meta-shapes (scripts/assets/vendor/w3c-shacl-shacl.ttl,
 # see docs/shacl12-gap-matrix.md's "Official SHACL 1.2 meta-shapes (shsh:)
 # comparison" section) - none of these are among the 11 new predicates
 # this file otherwise tracks; found only by diffing against the official

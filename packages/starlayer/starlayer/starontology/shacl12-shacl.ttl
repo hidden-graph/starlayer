@@ -55,10 +55,26 @@ sh:order rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
     sh:name "order"@en ;
     stsh:requiredEngine stsh:PySHACL .
 
-shsh: rdfs:label "SHACL for SHACL"@en ;
+shsh: a owl:Ontology ;
+    rdfs:label "W3C SHACL for SHACL Validator"@en ;
+    dcterms:creator "W3C Data Shapes Working Group" ;
+    dcterms:license "https://www.w3.org/copyright/software-license/"^^xsd:anyURI ;
+    dcterms:publisher "World Wide Web Consortium" ;
     rdfs:comment "This shapes graph can be used to validate SHACL shapes graphs against a subset of the syntax rules."@en ;
-    sh:declare [ sh:namespace "http://www.w3.org/ns/shacl-shacl#" ;
+    owl:imports sh: ;
+    owl:versionIRI shsh:1.2 ;
+    sh:declare [ sh:namespace "http://www.w3.org/ns/shacl-shacl#"^^xsd:anyURI ;
             sh:prefix "shsh" ] .
+
+shsh:DataGraphImportsShape a sh:NodeShape ;
+    rdfs:seeAlso <https://www.w3.org/TR/2012/REC-owl2-mapping-to-rdf-20121211/#Resolving_Included_RDF_Graphs>,
+        <https://www.w3.org/TR/shacl12-core/#data-graph> ;
+    sh:message "In light of the OWL RDF mapping section \"Resolving Included RDF Graphs\" and its reliance on certain triples being present, sh:DataGraphs using owl:imports should explicitly include the type owl:Ontology."@en ;
+    sh:or ( [ sh:property [ sh:maxCount 0 ;
+                        sh:path owl:imports ] ] [ sh:property [ sh:hasValue owl:Ontology ;
+                        sh:path rdf:type ] ] ) ;
+    sh:severity sh:Info ;
+    sh:targetClass sh:DataGraph .
 
 shsh:EntailmentShape a sh:NodeShape ;
     sh:nodeKind sh:IRI ;
@@ -69,11 +85,29 @@ shsh:ShapesGraphShape a sh:NodeShape ;
     sh:targetObjectsOf sh:shapesGraph .
 
 shsh:ShapesListShape a sh:NodeShape ;
-    sh:property [ sh:node shsh:ShapeShape ;
-            sh:path ( [ sh:zeroOrMorePath rdf:rest ] rdf:first ) ] ;
+    sh:memberShape shsh:ShapeShape ;
     sh:targetObjectsOf sh:and,
         sh:or,
         sh:xone .
+
+shsh:ValidationReportShape a sh:NodeShape ;
+    sh:property [ sh:nodeKind sh:IRI ;
+            sh:path sh:usedDataGraph ],
+        [ sh:nodeKind sh:IRI ;
+            sh:path sh:usedShapesGraph ],
+        [ sh:maxCount 1 ;
+            sh:path sh:usedConfiguration ] ;
+    sh:targetClass sh:ValidationReport .
+
+shsh:inSubjectsShape a sh:NodeShape ;
+    rdfs:comment "A shape that raises warnings on unsatisfiable lists.  If some use case requires a length-0 list on 'sh:in', this graph should be supplemented with 'shsh:inSubjectsShape sh:deactivated true .'."@en ;
+    sh:property shsh:inSubjectsShapeInPropertyShape ;
+    sh:targetSubjectsOf sh:in .
+
+shsh:xoneSubjectsShape a sh:NodeShape ;
+    rdfs:comment "A shape that raises warnings on unsatisfiable lists.  If some use case requires a length-0 list on 'sh:xone', this graph should be supplemented with 'shsh:xoneSubjectsShape sh:deactivated true .'."@en ;
+    sh:property shsh:xoneSubjectsShapeXonePropertyShape ;
+    sh:targetSubjectsOf sh:xone .
 
 shui:AutoCompleteEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
     rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
@@ -351,13 +385,8 @@ stsh:RulesAndSparqlShapes a sh:NodeShape ;
         sh:sparql .
 
 stsh:ShapeShapeOverrides a sh:NodeShape ;
-    rdfs:label "SHACL 1.2 replacement rules for widened parameters"@en ;
-    sh:property [ sh:node stsh:IRIOrListOfIRIsShape ;
-            sh:path sh:class ],
-        [ sh:maxCount 1 ;
-            sh:node stsh:IRIOrListOfIRIsShape ;
-            sh:path sh:datatype ],
-        [ sh:maxCount 1 ;
+    rdfs:label "SHACL 1.2 replacement rules for widened parameters the Working Group file still rejects"@en ;
+    sh:property [ sh:maxCount 1 ;
             sh:or ( [ sh:in ( sh:BlankNode sh:IRI sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral sh:TripleTerm ) ] [ sh:node shsh:ListShape ;
                         sh:property [ sh:path [ sh:zeroOrMorePath rdf:rest ] ;
                                 sh:property [ sh:in ( sh:BlankNode sh:IRI sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral sh:TripleTerm ) ;
@@ -370,14 +399,8 @@ stsh:ShapeShapeOverrides a sh:NodeShape ;
         [ sh:node stsh:IRIOrPathShape ;
             sh:path sh:lessThan ],
         [ sh:node stsh:IRIOrPathShape ;
-            sh:path sh:lessThanOrEquals ],
-        [ sh:maxCount 1 ;
-            sh:or ( [ sh:datatype xsd:boolean ] [ sh:hasValue sh:ByTypes ] ) ;
-            sh:path sh:closed ] ;
-    sh:targetSubjectsOf sh:class,
-        sh:closed,
-        sh:datatype,
-        sh:disjoint,
+            sh:path sh:lessThanOrEquals ] ;
+    sh:targetSubjectsOf sh:disjoint,
         sh:equals,
         sh:lessThan,
         sh:lessThanOrEquals,
@@ -454,22 +477,15 @@ shsh:ListNodeShape a sh:NodeShape ;
                         sh:minCount 1 ;
                         sh:path rdf:first ] ] ) .
 
-shsh:PathShape a sh:NodeShape ;
-    rdfs:label "Path shape"@en ;
-    rdfs:comment "A shape that can be used to validate the syntax rules of well-formed SHACL paths."@en ;
-    rdfs:seeAlso <https://www.w3.org/TR/shacl/#property-paths> ;
-    sh:property [ sh:node shsh:PathNodeShape ;
-            sh:path [ sh:zeroOrMorePath [ sh:alternativePath ( ( [ sh:zeroOrMorePath rdf:rest ] rdf:first ) ( sh:alternativePath [ sh:zeroOrMorePath rdf:rest ] rdf:first ) sh:inversePath sh:zeroOrMorePath sh:oneOrMorePath sh:zeroOrOnePath ) ] ] ] .
+shsh:inSubjectsShapeInPropertyShape a sh:PropertyShape ;
+    sh:minListLength 1 ;
+    sh:path sh:in ;
+    sh:severity sh:Warning .
 
-shsh:PropertyShapeShape a sh:NodeShape ;
-    sh:or ( [ sh:property [ sh:maxCount 1 ;
-                        sh:minCount 1 ;
-                        sh:or ( shsh:PathShape [ sh:nodeKind sh:IRI ] ) ;
-                        sh:path sh:path ] ] [ sh:property [ sh:maxCount 1 ;
-                        sh:minCount 1 ;
-                        sh:node stsh:NodeExpressionShape ;
-                        sh:path sh:expression ] ] ) ;
-    sh:targetObjectsOf sh:property .
+shsh:xoneSubjectsShapeXonePropertyShape a sh:PropertyShape ;
+    sh:minListLength 1 ;
+    sh:path sh:xone ;
+    sh:severity sh:Warning .
 
 shui:DetailsEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
     rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
@@ -556,6 +572,16 @@ stsh:ShapeOrListOfShapesShape a sh:NodeShape ;
                         sh:property [ sh:node stsh:ShapeReferenceShape ;
                                 sh:path rdf:first ] ] ] ) .
 
+sh:closed rdfs:comment "plain `xsd:boolean` value only — `sh:closed sh:ByTypes` requires stsh:StarShacl"@en,
+        "rdf:type is always implicitly allowed on a closed shape. sh:ignoredProperties is needed to permit other \"bookkeeping\" properties (e.g. dcterms:created) without listing each as sh:property."@en ;
+    rdfs:isDefinedBy <https://www.w3.org/TR/shacl/>,
+        <https://www.w3.org/TR/shacl12-core/> ;
+    rdfs:seeAlso sh:ignoredProperties ;
+    skos:example "ex:PersonShape sh:closed true ; sh:property [ sh:path ex:name ] . — ex:Person nodes may *only* have ex:name (and rdf:type)."@en ;
+    sh:description "When true, a conforming focus node may only have values for paths explicitly listed via sh:property (plus anything in sh:ignoredProperties) — any other property present is a violation. SHACL 1.2 adds sh:ByTypes, which closes the shape per-rdf:type rather than universally, useful when a class hierarchy adds properties incrementally."@en ;
+    sh:name "closed"@en ;
+    stsh:requiredEngine stsh:PySHACL .
+
 sh:construct rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
         <https://www.w3.org/TR/shacl12-rules/> ;
     rdfs:seeAlso sh:SPARQLRule ;
@@ -576,12 +602,6 @@ sh:maxExclusive rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
     sh:name "maximum exclusive value"@en ;
     stsh:requiredEngine stsh:PySHACL .
 
-sh:memberShape rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/> ;
-    skos:example "sh:path ex:tags ; sh:memberShape [ sh:datatype xsd:string ]"@en ;
-    sh:description "The value node must be a well-formed SHACL list, and every member of that list must conform to the given shape. Combines list-well-formedness checking with per-member validation in one predicate."@en ;
-    sh:name "member shape"@en ;
-    stsh:requiredEngine stsh:StarShacl .
-
 sh:minInclusive rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
     rdfs:seeAlso sh:maxInclusive,
         sh:minExclusive ;
@@ -596,13 +616,6 @@ sh:minLength rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
     sh:description "The string form of every value node must have at least this many characters. Applies to both literals and IRIs (an IRI's length is measured too)."@en ;
     sh:name "minimum length"@en ;
     stsh:requiredEngine stsh:PySHACL .
-
-sh:minListLength rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/> ;
-    rdfs:seeAlso sh:maxListLength ;
-    skos:example "sh:path ex:coordinates ; sh:minListLength 2"@en ;
-    sh:description "The value node must be a well-formed SHACL list with at least this many members."@en ;
-    sh:name "minimum list length"@en ;
-    stsh:requiredEngine stsh:StarShacl .
 
 sh:not rdfs:comment "Negating a shape with its own violations can be confusing to debug — the validation report shows that sh:not's inner shape *did* conform (which is why the outer shape failed), which reads backwards at first glance."@en ;
     rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
@@ -650,12 +663,6 @@ sh:rule rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
     sh:name "rule"@en ;
     stsh:requiredEngine stsh:PySHACL .
 
-sh:singleLine rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/> ;
-    skos:example "sh:path ex:title ; sh:singleLine true"@en ;
-    sh:description "When true, every value node's string form must not contain a line break — a lightweight way to reject accidentally-pasted multi-paragraph text in a field meant to hold a short label."@en ;
-    sh:name "single line"@en ;
-    stsh:requiredEngine stsh:StarShacl .
-
 sh:someValue rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/> ;
     rdfs:seeAlso sh:node ;
     skos:example "sh:path ex:contactMethod ; sh:someValue [ sh:datatype xsd:anyURI ] — at least one contact method must be a URI, others can be anything."@en ;
@@ -678,12 +685,6 @@ sh:targetClass rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
     sh:name "target class"@en ;
     stsh:requiredEngine stsh:PySHACL .
 
-sh:uniqueMembers rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/> ;
-    skos:example "sh:path ex:coordinates ; sh:uniqueMembers true"@en ;
-    sh:description "When true, the value node must be a well-formed SHACL list with no duplicate members (by RDF term equality)."@en ;
-    sh:name "unique members"@en ;
-    stsh:requiredEngine stsh:StarShacl .
-
 sh:uniqueValuesFor rdfs:comment "Because this checks *across* focus nodes rather than within one, it needs the *entire* batch of candidate focus nodes evaluated together — composing it inside sh:and/sh:or/sh:not/sh:node/sh:qualifiedValueShape requires special handling to still see the full batch (which starShacl's native components provide — see docs/shacl12-gap-matrix.md)."@en ;
     rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/> ;
     skos:example "ex:PersonShape sh:targetClass ex:Person ; sh:uniqueValuesFor ex:username ."@en ;
@@ -700,157 +701,28 @@ sh:zeroOrMorePath rdfs:comment "Zero repetitions means the *starting node itself
     sh:name "zero-or-more path"@en ;
     stsh:requiredEngine stsh:PySHACL .
 
-shsh:NodeShapeShape a sh:NodeShape ;
-    sh:property [ sh:maxCount 0 ;
-            sh:path sh:path ],
-        [ sh:maxCount 0 ;
-            sh:path sh:lessThan ],
-        [ sh:maxCount 0 ;
-            sh:path sh:lessThanOrEquals ],
-        [ sh:maxCount 0 ;
-            sh:path sh:maxCount ],
-        [ sh:maxCount 0 ;
-            sh:path sh:minCount ],
-        [ sh:maxCount 0 ;
-            sh:path sh:qualifiedValueShape ],
-        [ sh:maxCount 0 ;
-            sh:path sh:uniqueLang ] ;
-    sh:targetObjectsOf sh:node .
+shsh:PropertyShapeShape a sh:NodeShape ;
+    sh:or ( [ sh:property [ sh:maxCount 1 ;
+                        sh:minCount 1 ;
+                        sh:or ( shsh:PathShape [ sh:nodeKind sh:IRI ] ) ;
+                        sh:path sh:path ] ] [ sh:property [ sh:maxCount 1 ;
+                        sh:minCount 1 ;
+                        sh:node stsh:NodeExpressionShape ;
+                        sh:path sh:expression ] ] ) ;
+    sh:property [ sh:deactivated true ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:node shsh:PathShape ;
+            sh:path sh:path ] ;
+    sh:targetObjectsOf sh:property .
 
-shsh:PathListWithAtLeast2Members a sh:NodeShape ;
-    sh:node shsh:ListShape ;
-    sh:property [ sh:minCount 2 ;
-            sh:path [ sh:oneOrMorePath rdf:rest ] ] .
-
-shsh:ShapeShape a sh:NodeShape ;
-    rdfs:label "Shape shape"@en ;
-    rdfs:comment "A shape that can be used to validate syntax rules for other shapes."@en ;
-    sh:or ( shsh:NodeShapeShape shsh:PropertyShapeShape ),
-        ( [ sh:not [ sh:class rdfs:Class ;
-                        sh:or ( [ sh:class sh:NodeShape ] [ sh:class sh:PropertyShape ] ) ] ] [ sh:nodeKind sh:IRI ] ) ;
-    sh:property [ sh:nodeKind sh:IRIOrLiteral ;
-            sh:path sh:targetNode ],
-        [ sh:nodeKind sh:IRI ;
-            sh:path sh:targetClass ],
-        [ sh:nodeKind sh:IRI ;
-            sh:path sh:targetSubjectsOf ],
-        [ sh:nodeKind sh:IRI ;
-            sh:path sh:targetObjectsOf ],
-        [ sh:maxCount 1 ;
-            sh:nodeKind sh:IRI ;
-            sh:path sh:severity ],
-        [ sh:or ( [ sh:datatype xsd:string ] [ sh:datatype rdf:langString ] ) ;
-            sh:path sh:message ],
-        [ sh:in ( true false ) ;
-            sh:maxCount 1 ;
-            sh:path sh:deactivated ],
-        [ sh:node shsh:ListShape ;
-            sh:path sh:and ],
-        [ sh:maxCount 1 ;
-            sh:node shsh:ListShape ;
-            sh:path sh:ignoredProperties ],
-        [ sh:nodeKind sh:IRI ;
-            sh:path ( sh:ignoredProperties [ sh:zeroOrMorePath rdf:rest ] rdf:first ) ],
-        [ sh:maxCount 1 ;
-            sh:node shsh:ListShape ;
-            sh:path sh:in ],
-        [ sh:maxCount 1 ;
-            sh:node shsh:ListShape ;
-            sh:path sh:languageIn ],
-        [ sh:datatype xsd:string ;
-            sh:path ( sh:languageIn [ sh:zeroOrMorePath rdf:rest ] rdf:first ) ],
-        [ sh:datatype xsd:integer ;
-            sh:maxCount 1 ;
-            sh:path sh:maxCount ],
-        [ sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:path sh:maxExclusive ],
-        [ sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:path sh:maxInclusive ],
-        [ sh:datatype xsd:integer ;
-            sh:maxCount 1 ;
-            sh:path sh:maxLength ],
-        [ sh:datatype xsd:integer ;
-            sh:maxCount 1 ;
-            sh:path sh:minCount ],
-        [ sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:path sh:minExclusive ],
-        [ sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:path sh:minInclusive ],
-        [ sh:datatype xsd:integer ;
-            sh:maxCount 1 ;
-            sh:path sh:minLength ],
-        [ sh:node shsh:ListShape ;
-            sh:path sh:or ],
-        [ sh:datatype xsd:string ;
-            sh:maxCount 1 ;
-            sh:path sh:pattern ],
-        [ sh:datatype xsd:string ;
-            sh:maxCount 1 ;
-            sh:path sh:flags ],
-        [ sh:datatype xsd:integer ;
-            sh:maxCount 1 ;
-            sh:path sh:qualifiedMaxCount ],
-        [ sh:datatype xsd:integer ;
-            sh:maxCount 1 ;
-            sh:path sh:qualifiedMinCount ],
-        [ sh:maxCount 1 ;
-            sh:path sh:qualifiedValueShape ],
-        [ sh:datatype xsd:boolean ;
-            sh:maxCount 1 ;
-            sh:path sh:qualifiedValueShapesDisjoint ],
-        [ sh:datatype xsd:boolean ;
-            sh:maxCount 1 ;
-            sh:path sh:uniqueLang ],
-        [ sh:node shsh:ListShape ;
-            sh:path sh:xone ] ;
-    sh:targetClass sh:NodeShape,
-        sh:PropertyShape ;
-    sh:targetObjectsOf sh:node,
-        sh:not,
-        sh:property,
-        sh:qualifiedValueShape ;
-    sh:targetSubjectsOf sh:and,
-        sh:class,
-        sh:closed,
-        sh:datatype,
-        sh:disjoint,
-        sh:equals,
-        sh:flags,
-        sh:hasValue,
-        sh:ignoredProperties,
-        sh:in,
-        sh:languageIn,
-        sh:lessThan,
-        sh:lessThanOrEquals,
-        sh:maxCount,
-        sh:maxExclusive,
-        sh:maxInclusive,
-        sh:maxLength,
-        sh:minCount,
-        sh:minExclusive,
-        sh:minInclusive,
-        sh:minLength,
-        sh:node,
-        sh:nodeKind,
-        sh:not,
-        sh:or,
-        sh:pattern,
-        sh:property,
-        sh:qualifiedMaxCount,
-        sh:qualifiedMinCount,
-        sh:qualifiedValueShape,
-        sh:qualifiedValueShapesDisjoint,
-        sh:sparql,
-        sh:targetClass,
-        sh:targetNode,
-        sh:targetObjectsOf,
-        sh:targetSubjectsOf,
-        sh:uniqueLang,
-        sh:xone .
+stsh:IRIOrListOfIRIsShape a sh:NodeShape ;
+    rdfs:label "IRI or list of IRIs"@en ;
+    rdfs:comment "SHACL 1.2 widened several single-IRI-valued parameters (sh:class, sh:datatype, sh:rootClass, sh:uniqueValuesFor) to also accept a well-formed SHACL list of IRIs, meaning a union of the listed values."@en ;
+    sh:or ( [ sh:nodeKind sh:IRI ] [ sh:node shsh:ListShape ;
+                sh:property [ sh:path [ sh:zeroOrMorePath rdf:rest ] ;
+                        sh:property [ sh:nodeKind sh:IRI ;
+                                sh:path rdf:first ] ] ] ) .
 
 sh:ConstraintComponent rdfs:comment "Requires at least one non-optional sh:parameter — a component with only optional parameters fails to load."@en ;
     rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
@@ -885,14 +757,15 @@ sh:ask rdfs:comment "Unlike sh:select, false means *violation* here — the quer
     sh:name "ASK query"@en ;
     stsh:requiredEngine stsh:PySHACL .
 
-sh:closed rdfs:comment "plain `xsd:boolean` value only — `sh:closed sh:ByTypes` requires stsh:StarShacl"@en,
-        "rdf:type is always implicitly allowed on a closed shape. sh:ignoredProperties is needed to permit other \"bookkeeping\" properties (e.g. dcterms:created) without listing each as sh:property."@en ;
+sh:class rdfs:comment "A list value here means \"any of these classes,\" not \"all of these classes\" — for an intersection, nest a separate sh:node shape instead."@en,
+        "plain single-value form only — the SHACL 1.2 list-valued form requires stsh:StarShacl"@en ;
     rdfs:isDefinedBy <https://www.w3.org/TR/shacl/>,
         <https://www.w3.org/TR/shacl12-core/> ;
-    rdfs:seeAlso sh:ignoredProperties ;
-    skos:example "ex:PersonShape sh:closed true ; sh:property [ sh:path ex:name ] . — ex:Person nodes may *only* have ex:name (and rdf:type)."@en ;
-    sh:description "When true, a conforming focus node may only have values for paths explicitly listed via sh:property (plus anything in sh:ignoredProperties) — any other property present is a violation. SHACL 1.2 adds sh:ByTypes, which closes the shape per-rdf:type rather than universally, useful when a class hierarchy adds properties incrementally."@en ;
-    sh:name "closed"@en ;
+    rdfs:seeAlso sh:datatype,
+        sh:nodeKind ;
+    skos:example "sh:path ex:employer ; sh:class ex:Organization"@en ;
+    sh:description "Every value node must be an instance of this class (or a subclass, under RDFS/OWL reasoning). SHACL 1.2 widens this to also accept a list of classes — the value must be an instance of *at least one* of them (a union, not an intersection)."@en ;
+    sh:name "class"@en ;
     stsh:requiredEngine stsh:PySHACL .
 
 sh:condition rdfs:comment "The condition shape needs a real constraint to be discriminating — a shape with only a target predicate (e.g. sh:targetClass) trivially \"conforms\" for any node when checked ad hoc, since targeting doesn't itself constrain anything."@en ;
@@ -903,12 +776,13 @@ sh:condition rdfs:comment "The condition shape needs a real constraint to be dis
     sh:name "condition"@en ;
     stsh:requiredEngine stsh:PySHACL .
 
-sh:disjoint rdfs:comment "plain-IRI object only — the SHACL 1.2 path-valued form requires stsh:StarShacl"@en ;
+sh:datatype rdfs:comment "plain single-value form only — the SHACL 1.2 list-valued form requires stsh:StarShacl"@en,
+        "xsd:integer and xsd:int/xsd:decimal are *not* the same datatype to SHACL — the match is exact, not numerically-compatible."@en ;
     rdfs:isDefinedBy <https://www.w3.org/TR/shacl/>,
         <https://www.w3.org/TR/shacl12-core/> ;
-    skos:example "sh:path ex:blockedUsers ; sh:disjoint ex:friends — a user can't be both blocked and a friend."@en ;
-    sh:description "The set of value nodes at this shape's path must share *no* members with the set of value nodes at the given path. SHACL 1.2 widens the object to any property path."@en ;
-    sh:name "disjoint"@en ;
+    skos:example "sh:path ex:age ; sh:datatype xsd:integer"@en ;
+    sh:description "Every value node must be a literal with this exact XSD (or other) datatype IRI. SHACL 1.2 widens this to also accept a list of datatypes (a union, same as sh:class)."@en ;
+    sh:name "datatype"@en ;
     stsh:requiredEngine stsh:PySHACL .
 
 sh:flags rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
@@ -932,11 +806,6 @@ sh:maxLength rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
     sh:description "The string form of every value node must have at most this many characters."@en ;
     sh:name "maximum length"@en ;
     stsh:requiredEngine stsh:PySHACL .
-
-sh:maxListLength rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/> ;
-    sh:description "The value node must be a well-formed SHACL list with at most this many members."@en ;
-    sh:name "maximum list length"@en ;
-    stsh:requiredEngine stsh:StarShacl .
 
 sh:minExclusive rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
     skos:example "sh:path ex:temperature ; sh:minExclusive 0 — must be above absolute freezing on some scale, never equal to it."@en ;
@@ -970,6 +839,16 @@ sh:reificationRequired rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/> ;
     sh:description "When true, every triple term reached by the shape's path must actually have at least one reifier in the data — not just be well-formed, but be genuinely annotated/reified somewhere."@en ;
     sh:name "reification required"@en ;
     stsh:requiredEngine stsh:StarShacl .
+
+sh:sparql rdfs:comment "The query must project $this (or ?this); MINUS and VALUES against pre-bound variables are disallowed per spec."@en ;
+    rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
+        <https://www.w3.org/TR/shacl12-sparql/> ;
+    rdfs:seeAlso sh:ConstraintComponent,
+        sh:select ;
+    skos:example "sh:sparql [ sh:select \"SELECT $this WHERE { FILTER NOT EXISTS { $this ex:email ?e } }\" ]"@en ;
+    sh:description "Attaches a SPARQL-based constraint to a shape — the query is evaluated once per focus node, and any result row it returns is treated as a violation."@en ;
+    sh:name "SPARQL constraint"@en ;
+    stsh:requiredEngine stsh:PySHACL .
 
 sh:targetNode rdfs:comment "Doesn't scale — for validating \"all instances of a class,\" use sh:targetClass instead."@en ;
     rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
@@ -1015,12 +894,23 @@ sh:zeroOrOnePath rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
     sh:name "zero-or-one path"@en ;
     stsh:requiredEngine stsh:PySHACL .
 
-shsh:PathNodeShape sh:xone ( [ sh:nodeKind sh:IRI ] [ sh:node shsh:PathListWithAtLeast2Members ;
+shsh:ListShape a sh:NodeShape ;
+    rdfs:label "List shape"@en ;
+    rdfs:comment "A shape describing well-formed RDF lists. Currently does not check for non-recursion (this could be expressed using SHACL-SPARQL)."@en ;
+    rdfs:seeAlso <https://www.w3.org/TR/shacl/#syntax-rule-SHACL-list> ;
+    sh:property [ rdfs:comment "Each list member (including this node) must have the shape shsh:ListNodeShape."@en ;
+            sh:hasValue () ;
+            sh:node shsh:ListNodeShape ;
+            sh:path [ sh:zeroOrMorePath rdf:rest ] ] .
+
+shsh:PathNodeShape sh:xone ( [ sh:nodeKind sh:IRI ] [ sh:memberShape shsh:PathShape ;
+                sh:minListLength 2 ;
                 sh:nodeKind sh:BlankNode ] [ sh:closed true ;
                 sh:nodeKind sh:BlankNode ;
                 sh:property [ sh:maxCount 1 ;
+                        sh:memberShape shsh:PathShape ;
                         sh:minCount 1 ;
-                        sh:node shsh:PathListWithAtLeast2Members ;
+                        sh:minListLength 2 ;
                         sh:path sh:alternativePath ] ] [ sh:closed true ;
                 sh:nodeKind sh:BlankNode ;
                 sh:property [ sh:maxCount 1 ;
@@ -1072,41 +962,19 @@ sh:SPARQLRule rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
     sh:name "SPARQL rule"@en ;
     stsh:requiredEngine stsh:PySHACL .
 
-sh:class rdfs:comment "A list value here means \"any of these classes,\" not \"all of these classes\" — for an intersection, nest a separate sh:node shape instead."@en,
-        "plain single-value form only — the SHACL 1.2 list-valued form requires stsh:StarShacl"@en ;
+sh:disjoint rdfs:comment "plain-IRI object only — the SHACL 1.2 path-valued form requires stsh:StarShacl"@en ;
     rdfs:isDefinedBy <https://www.w3.org/TR/shacl/>,
         <https://www.w3.org/TR/shacl12-core/> ;
-    rdfs:seeAlso sh:datatype,
-        sh:nodeKind ;
-    skos:example "sh:path ex:employer ; sh:class ex:Organization"@en ;
-    sh:description "Every value node must be an instance of this class (or a subclass, under RDFS/OWL reasoning). SHACL 1.2 widens this to also accept a list of classes — the value must be an instance of *at least one* of them (a union, not an intersection)."@en ;
-    sh:name "class"@en ;
+    skos:example "sh:path ex:blockedUsers ; sh:disjoint ex:friends — a user can't be both blocked and a friend."@en ;
+    sh:description "The set of value nodes at this shape's path must share *no* members with the set of value nodes at the given path. SHACL 1.2 widens the object to any property path."@en ;
+    sh:name "disjoint"@en ;
     stsh:requiredEngine stsh:PySHACL .
 
-sh:datatype rdfs:comment "plain single-value form only — the SHACL 1.2 list-valued form requires stsh:StarShacl"@en,
-        "xsd:integer and xsd:int/xsd:decimal are *not* the same datatype to SHACL — the match is exact, not numerically-compatible."@en ;
-    rdfs:isDefinedBy <https://www.w3.org/TR/shacl/>,
-        <https://www.w3.org/TR/shacl12-core/> ;
-    skos:example "sh:path ex:age ; sh:datatype xsd:integer"@en ;
-    sh:description "Every value node must be a literal with this exact XSD (or other) datatype IRI. SHACL 1.2 widens this to also accept a list of datatypes (a union, same as sh:class)."@en ;
-    sh:name "datatype"@en ;
-    stsh:requiredEngine stsh:PySHACL .
-
-sh:equals rdfs:comment "plain-IRI object only — the SHACL 1.2 path-valued form requires stsh:StarShacl"@en ;
-    rdfs:isDefinedBy <https://www.w3.org/TR/shacl/>,
-        <https://www.w3.org/TR/shacl12-core/> ;
-    skos:example "sh:path ex:homeAddress ; sh:equals ex:mailingAddress"@en ;
-    sh:description "The set of value nodes at this shape's path must be exactly equal (as a set) to the set of value nodes at the given path or property. SHACL 1.2 widens the object from a plain IRI to any property path."@en ;
-    sh:name "equals"@en ;
-    stsh:requiredEngine stsh:PySHACL .
-
-sh:lessThan rdfs:comment "plain-IRI object only — the SHACL 1.2 path-valued form requires stsh:StarShacl"@en ;
-    rdfs:isDefinedBy <https://www.w3.org/TR/shacl/>,
-        <https://www.w3.org/TR/shacl12-core/> ;
-    rdfs:seeAlso sh:lessThanOrEquals ;
-    skos:example "sh:path ex:startDate ; sh:lessThan ex:endDate"@en ;
-    sh:description "Every value node at this shape's path must be strictly less than every value node at the given path, for the same focus node. Requires an orderable datatype. SHACL 1.2 widens the object to any property path."@en ;
-    sh:name "less than"@en ;
+sh:languageIn rdfs:comment "plain literals only — `rdf:dirLangString` recognition requires stsh:StarShacl"@en ;
+    rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
+    skos:example "sh:path ex:label ; sh:languageIn ( \"en\" \"en-US\" \"fr\" )"@en ;
+    sh:description "Every value node must be a language-tagged literal (or rdf:dirLangString under RDF 1.2) whose language tag is in this list. A plain literal with no language tag never matches."@en ;
+    sh:name "language in"@en ;
     stsh:requiredEngine stsh:PySHACL .
 
 sh:maxCount rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
@@ -1124,18 +992,17 @@ sh:minCount rdfs:comment "A frequent mistake: writing sh:minCount 0 to mean \"op
     sh:name "minimum count"@en ;
     stsh:requiredEngine stsh:PySHACL .
 
+sh:minListLength rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/> ;
+    rdfs:seeAlso sh:maxListLength ;
+    skos:example "sh:path ex:coordinates ; sh:minListLength 2"@en ;
+    sh:description "The value node must be a well-formed SHACL list with at least this many members."@en ;
+    sh:name "minimum list length"@en ;
+    stsh:requiredEngine stsh:StarShacl .
+
 sh:node rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
     skos:example "sh:path ex:address ; sh:node ex:AddressShape"@en ;
     sh:description "Every value node must conform to the given (node) shape. The main way to nest shapes — validating the *shape* of a related resource, not just a scalar constraint on it."@en ;
     sh:name "node"@en ;
-    stsh:requiredEngine stsh:PySHACL .
-
-sh:nodeKind rdfs:comment "plain single-value form only — the SHACL 1.2 list-valued form requires stsh:StarShacl"@en ;
-    rdfs:isDefinedBy <https://www.w3.org/TR/shacl/>,
-        <https://www.w3.org/TR/shacl12-core/> ;
-    skos:example "sh:path ex:homepage ; sh:nodeKind sh:IRI — the value must be a real IRI, not a literal string."@en ;
-    sh:description "Restricts what *kind* of RDF term a value node may be, independent of class or datatype: sh:IRI, sh:BlankNode, sh:Literal, or one of the three compound kinds (sh:BlankNodeOrIRI, sh:BlankNodeOrLiteral, sh:IRIOrLiteral). SHACL 1.2 widens this to also accept a list of node kinds."@en ;
-    sh:name "node kind"@en ;
     stsh:requiredEngine stsh:PySHACL .
 
 sh:nodeValidator rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
@@ -1159,14 +1026,6 @@ sh:or rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
     skos:example "sh:or ( [ sh:datatype xsd:string ] [ sh:datatype xsd:integer ] )"@en ;
     sh:description "A value node must conform to at least one shape in this list — logical disjunction. Commonly used to allow a value to be one of several alternative shapes (e.g. either an IRI reference or an inline literal)."@en ;
     sh:name "or"@en ;
-    stsh:requiredEngine stsh:PySHACL .
-
-sh:path rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-    rdfs:seeAlso sh:alternativePath,
-        sh:inversePath ;
-    skos:example "sh:path ex:email — the simple case, a single predicate."@en ;
-    sh:description "Required on every property shape. Names the property more complex path expression that connects a focus node to its value nodes. The simplest form is a single IRI; SHACL also supports sequence, alternative, inverse, and repeated (*/+/?) paths."@en ;
-    sh:name "path"@en ;
     stsh:requiredEngine stsh:PySHACL .
 
 sh:predicate rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
@@ -1201,15 +1060,11 @@ sh:rootClass rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/> ;
     sh:name "root class"@en ;
     stsh:requiredEngine stsh:StarShacl .
 
-sh:sparql rdfs:comment "The query must project $this (or ?this); MINUS and VALUES against pre-bound variables are disallowed per spec."@en ;
-    rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
-        <https://www.w3.org/TR/shacl12-sparql/> ;
-    rdfs:seeAlso sh:ConstraintComponent,
-        sh:select ;
-    skos:example "sh:sparql [ sh:select \"SELECT $this WHERE { FILTER NOT EXISTS { $this ex:email ?e } }\" ]"@en ;
-    sh:description "Attaches a SPARQL-based constraint to a shape — the query is evaluated once per focus node, and any result row it returns is treated as a violation."@en ;
-    sh:name "SPARQL constraint"@en ;
-    stsh:requiredEngine stsh:PySHACL .
+sh:singleLine rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/> ;
+    skos:example "sh:path ex:title ; sh:singleLine true"@en ;
+    sh:description "When true, every value node's string form must not contain a line break — a lightweight way to reject accidentally-pasted multi-paragraph text in a field meant to hold a short label."@en ;
+    sh:name "single line"@en ;
+    stsh:requiredEngine stsh:StarShacl .
 
 sh:subject rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
         <https://www.w3.org/TR/shacl12-rules/> ;
@@ -1220,6 +1075,38 @@ sh:subject rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
     sh:name "subject expression"@en ;
     stsh:requiredEngine stsh:PySHACL .
 
+sh:uniqueMembers rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/> ;
+    skos:example "sh:path ex:coordinates ; sh:uniqueMembers true"@en ;
+    sh:description "When true, the value node must be a well-formed SHACL list with no duplicate members (by RDF term equality)."@en ;
+    sh:name "unique members"@en ;
+    stsh:requiredEngine stsh:StarShacl .
+
+shsh:NodeShapeShape a sh:NodeShape ;
+    sh:property [ sh:maxCount 0 ;
+            sh:path sh:expression ],
+        [ sh:maxCount 0 ;
+            sh:path sh:path ],
+        [ sh:maxCount 0 ;
+            sh:path sh:lessThan ],
+        [ sh:maxCount 0 ;
+            sh:path sh:lessThanOrEquals ],
+        [ sh:maxCount 0 ;
+            sh:path sh:maxCount ],
+        [ sh:maxCount 0 ;
+            sh:path sh:minCount ],
+        [ sh:maxCount 0 ;
+            sh:path sh:qualifiedValueShape ],
+        [ sh:maxCount 0 ;
+            sh:path sh:uniqueLang ] ;
+    sh:targetObjectsOf sh:node .
+
+shsh:PathShape a sh:NodeShape ;
+    rdfs:label "Path shape"@en ;
+    rdfs:comment "A shape that can be used to validate the syntax rules of well-formed SHACL paths."@en ;
+    rdfs:seeAlso <https://www.w3.org/TR/shacl/#property-paths> ;
+    sh:property [ sh:node shsh:PathNodeShape ;
+            sh:path [ sh:zeroOrMorePath [ sh:alternativePath ( ( [ sh:zeroOrMorePath rdf:rest ] rdf:first ) ( sh:alternativePath [ sh:zeroOrMorePath rdf:rest ] rdf:first ) sh:inversePath sh:zeroOrMorePath sh:oneOrMorePath sh:zeroOrOnePath ) ] ] ] .
+
 shui:propertyRole rdfs:comment "ignored by validation; not interpreted by starlayer.shacl (property roles are documented here but not implemented)"@en ;
     rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
     skos:example "sh:property [ sh:path ex:name ; shui:propertyRole shui:LabelRole ]"@en ;
@@ -1227,17 +1114,9 @@ shui:propertyRole rdfs:comment "ignored by validation; not interpreted by starla
     sh:name "property role"@en ;
     stsh:requiredEngine stsh:StarShacl .
 
-stsh:IRIOrListOfIRIsShape a sh:NodeShape ;
-    rdfs:label "IRI or list of IRIs"@en ;
-    rdfs:comment "SHACL 1.2 widened several single-IRI-valued parameters (sh:class, sh:datatype, sh:rootClass, sh:uniqueValuesFor) to also accept a well-formed SHACL list of IRIs, meaning a union of the listed values."@en ;
-    sh:or ( [ sh:nodeKind sh:IRI ] [ sh:node shsh:ListShape ;
-                sh:property [ sh:path [ sh:zeroOrMorePath rdf:rest ] ;
-                        sh:property [ sh:nodeKind sh:IRI ;
-                                sh:path rdf:first ] ] ] ) .
-
 stsh:IRIOrPathShape a sh:NodeShape ;
     rdfs:label "IRI or SHACL property path"@en ;
-    rdfs:comment "SHACL 1.2 widened sh:equals/sh:disjoint/sh:lessThan/sh:lessThanOrEquals from a single comparison-property IRI to a full SHACL property path expression. Reuses pySHACL's own shsh:PathNodeShape (present once this file is merged with pySHACL's own base meta-shapes graph) rather than re-deriving SHACL's path grammar."@en ;
+    rdfs:comment "SHACL 1.2 widened sh:equals/sh:disjoint/sh:lessThan/sh:lessThanOrEquals from a single comparison-property IRI to a full SHACL property path expression. Reuses the Working Group's shsh:PathNodeShape (present once this file is merged with the Working Group's meta-shapes graph) rather than re-deriving SHACL's path grammar."@en ;
     sh:or ( [ sh:nodeKind sh:IRI ] [ sh:node shsh:PathNodeShape ] ) .
 
 stsh:NodeExpressionShape a sh:NodeShape ;
@@ -1277,30 +1156,58 @@ stsh:NodeExpressionShape a sh:NodeShape ;
 
 stsh:ShapeReferenceShape a sh:NodeShape ;
     rdfs:label "Well-formed shape reference"@en ;
-    rdfs:comment "Used for SHACL 1.2 predicates whose value must itself be a well-formed shape (sh:someValue, sh:memberShape, sh:reifierShape). sh:node's semantics evaluate the referenced shape's own constraint components regardless of that shape's own targets, so referencing shsh:ShapeShape here checks full shape well-formedness, not just the node/property-shape distinction. sh:nodeKind is added on top because pySHACL's own shsh:ShapeShape doesn't itself enforce blank-node-or-IRI - a bare literal vacuously satisfies shsh:NodeShapeShape's xone branch (every one of its checks is a maxCount 0 'must not have' rule, trivially true for a literal with no outgoing properties at all), so without this a literal value would incorrectly pass as 'a well-formed shape'."@en ;
+    rdfs:comment "Used for SHACL 1.2 predicates whose value must itself be a well-formed shape (sh:someValue, sh:memberShape, sh:reifierShape). sh:node's semantics evaluate the referenced shape's own constraint components regardless of that shape's own targets, so referencing shsh:ShapeShape here checks full shape well-formedness, not just the node/property-shape distinction. sh:nodeKind is added on top because the Working Group's shsh:ShapeShape doesn't itself enforce blank-node-or-IRI - a bare literal vacuously satisfies shsh:NodeShapeShape's xone branch (every one of its checks is a maxCount 0 'must not have' rule, trivially true for a literal with no outgoing properties at all), so without this a literal value would incorrectly pass as 'a well-formed shape'."@en ;
     sh:node shsh:ShapeShape ;
     sh:nodeKind sh:BlankNodeOrIRI .
 
-sh:in rdfs:comment "List membership is exact-value matching, including datatype — sh:in (1 2 3) (integers) will not match the string \"1\"."@en ;
-    rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-    rdfs:seeAlso sh:hasValue ;
-    skos:example "sh:path ex:status ; sh:in ( \"active\" \"inactive\" \"pending\" )"@en ;
-    sh:description "Every value node must be exactly one of the members of this list — an enumeration/allow-list constraint."@en ;
-    sh:name "in"@en ;
-    stsh:requiredEngine stsh:PySHACL .
-
-sh:languageIn rdfs:comment "plain literals only — `rdf:dirLangString` recognition requires stsh:StarShacl"@en ;
-    rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-    skos:example "sh:path ex:label ; sh:languageIn ( \"en\" \"en-US\" \"fr\" )"@en ;
-    sh:description "Every value node must be a language-tagged literal (or rdf:dirLangString under RDF 1.2) whose language tag is in this list. A plain literal with no language tag never matches."@en ;
-    sh:name "language in"@en ;
-    stsh:requiredEngine stsh:PySHACL .
-
-sh:lessThanOrEquals rdfs:comment "plain-IRI object only — the SHACL 1.2 path-valued form requires stsh:StarShacl"@en ;
+sh:equals rdfs:comment "plain-IRI object only — the SHACL 1.2 path-valued form requires stsh:StarShacl"@en ;
     rdfs:isDefinedBy <https://www.w3.org/TR/shacl/>,
         <https://www.w3.org/TR/shacl12-core/> ;
-    sh:description "Same as sh:lessThan, but allows equality. SHACL 1.2 widens the object to any property path."@en ;
-    sh:name "less than or equal to"@en ;
+    skos:example "sh:path ex:homeAddress ; sh:equals ex:mailingAddress"@en ;
+    sh:description "The set of value nodes at this shape's path must be exactly equal (as a set) to the set of value nodes at the given path or property. SHACL 1.2 widens the object from a plain IRI to any property path."@en ;
+    sh:name "equals"@en ;
+    stsh:requiredEngine stsh:PySHACL .
+
+sh:ignoredProperties rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
+    skos:example "sh:ignoredProperties ( rdf:type dcterms:created )"@en ;
+    sh:description "A list of properties exempted from sh:closed's restriction — present without needing a matching sh:property entry."@en ;
+    sh:name "ignored properties"@en ;
+    stsh:requiredEngine stsh:PySHACL .
+
+sh:lessThan rdfs:comment "plain-IRI object only — the SHACL 1.2 path-valued form requires stsh:StarShacl"@en ;
+    rdfs:isDefinedBy <https://www.w3.org/TR/shacl/>,
+        <https://www.w3.org/TR/shacl12-core/> ;
+    rdfs:seeAlso sh:lessThanOrEquals ;
+    skos:example "sh:path ex:startDate ; sh:lessThan ex:endDate"@en ;
+    sh:description "Every value node at this shape's path must be strictly less than every value node at the given path, for the same focus node. Requires an orderable datatype. SHACL 1.2 widens the object to any property path."@en ;
+    sh:name "less than"@en ;
+    stsh:requiredEngine stsh:PySHACL .
+
+sh:maxListLength rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/> ;
+    sh:description "The value node must be a well-formed SHACL list with at most this many members."@en ;
+    sh:name "maximum list length"@en ;
+    stsh:requiredEngine stsh:StarShacl .
+
+sh:memberShape rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/> ;
+    skos:example "sh:path ex:tags ; sh:memberShape [ sh:datatype xsd:string ]"@en ;
+    sh:description "The value node must be a well-formed SHACL list, and every member of that list must conform to the given shape. Combines list-well-formedness checking with per-member validation in one predicate."@en ;
+    sh:name "member shape"@en ;
+    stsh:requiredEngine stsh:StarShacl .
+
+sh:nodeKind rdfs:comment "plain single-value form only — the SHACL 1.2 list-valued form requires stsh:StarShacl"@en ;
+    rdfs:isDefinedBy <https://www.w3.org/TR/shacl/>,
+        <https://www.w3.org/TR/shacl12-core/> ;
+    skos:example "sh:path ex:homepage ; sh:nodeKind sh:IRI — the value must be a real IRI, not a literal string."@en ;
+    sh:description "Restricts what *kind* of RDF term a value node may be, independent of class or datatype: sh:IRI, sh:BlankNode, sh:Literal, or one of the three compound kinds (sh:BlankNodeOrIRI, sh:BlankNodeOrLiteral, sh:IRIOrLiteral). SHACL 1.2 widens this to also accept a list of node kinds."@en ;
+    sh:name "node kind"@en ;
+    stsh:requiredEngine stsh:PySHACL .
+
+sh:path rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
+    rdfs:seeAlso sh:alternativePath,
+        sh:inversePath ;
+    skos:example "sh:path ex:email — the simple case, a single predicate."@en ;
+    sh:description "Required on every property shape. Names the property more complex path expression that connects a focus node to its value nodes. The simplest form is a single IRI; SHACL also supports sequence, alternative, inverse, and repeated (*/+/?) paths."@en ;
+    sh:name "path"@en ;
     stsh:requiredEngine stsh:PySHACL .
 
 sh:select rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
@@ -1323,10 +1230,203 @@ sh:TripleRule rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
     sh:name "triple rule"@en ;
     stsh:requiredEngine stsh:PySHACL .
 
-sh:ignoredProperties rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-    skos:example "sh:ignoredProperties ( rdf:type dcterms:created )"@en ;
-    sh:description "A list of properties exempted from sh:closed's restriction — present without needing a matching sh:property entry."@en ;
-    sh:name "ignored properties"@en ;
+sh:lessThanOrEquals rdfs:comment "plain-IRI object only — the SHACL 1.2 path-valued form requires stsh:StarShacl"@en ;
+    rdfs:isDefinedBy <https://www.w3.org/TR/shacl/>,
+        <https://www.w3.org/TR/shacl12-core/> ;
+    sh:description "Same as sh:lessThan, but allows equality. SHACL 1.2 widens the object to any property path."@en ;
+    sh:name "less than or equal to"@en ;
+    stsh:requiredEngine stsh:PySHACL .
+
+shsh:ShapeShape a sh:NodeShape ;
+    rdfs:label "Shape shape"@en ;
+    rdfs:comment "A shape that can be used to validate syntax rules for other shapes."@en ;
+    sh:or ( shsh:NodeShapeShape shsh:PropertyShapeShape ),
+        ( [ sh:not [ sh:class rdfs:Class ;
+                        sh:or ( [ sh:class sh:NodeShape ] [ sh:class sh:PropertyShape ] ) ] ] [ sh:nodeKind sh:IRI ] ) ;
+    sh:property [ sh:nodeKind sh:IRIOrLiteral ;
+            sh:path sh:targetNode ],
+        [ sh:nodeKind sh:IRI ;
+            sh:path sh:targetClass ],
+        [ sh:nodeKind sh:IRI ;
+            sh:path sh:targetSubjectsOf ],
+        [ sh:nodeKind sh:IRI ;
+            sh:path sh:targetObjectsOf ],
+        [ sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:path sh:severity ],
+        [ sh:or ( [ sh:datatype xsd:string ] [ sh:datatype rdf:langString ] ) ;
+            sh:path sh:message ],
+        [ sh:datatype xsd:boolean ;
+            sh:maxCount 1 ;
+            sh:path sh:deactivated ],
+        [ sh:memberShape shsh:ShapeShape ;
+            sh:path sh:and ],
+        [ sh:or ( [ sh:nodeKind sh:IRI ] [ sh:memberShape [ a sh:NodeShape ;
+                                sh:nodeKind sh:IRI ] ] ) ;
+            sh:path sh:class ],
+        [ sh:maxCount 1 ;
+            sh:or ( [ sh:datatype xsd:boolean ] [ sh:hasValue sh:ByTypes ] ) ;
+            sh:path sh:closed ],
+        [ sh:maxCount 1 ;
+            sh:memberShape [ a sh:NodeShape ;
+                    sh:nodeKind sh:IRI ] ;
+            sh:minListLength 1 ;
+            sh:path sh:ignoredProperties ],
+        [ sh:maxCount 1 ;
+            sh:or ( [ sh:nodeKind sh:IRI ] [ sh:memberShape [ a sh:NodeShape ;
+                                sh:nodeKind sh:IRI ] ] ) ;
+            sh:path sh:datatype ],
+        [ sh:deactivated true ;
+            sh:nodeKind sh:IRI ;
+            sh:path sh:disjoint ],
+        [ sh:deactivated true ;
+            sh:nodeKind sh:IRI ;
+            sh:path sh:equals ],
+        [ sh:maxCount 1 ;
+            sh:path sh:in ],
+        [ sh:maxCount 1 ;
+            sh:memberShape [ a sh:NodeShape ;
+                    sh:datatype xsd:string ] ;
+            sh:minListLength 1 ;
+            sh:path sh:languageIn ],
+        [ sh:deactivated true ;
+            sh:nodeKind sh:IRI ;
+            sh:path sh:lessThan ],
+        [ sh:deactivated true ;
+            sh:nodeKind sh:IRI ;
+            sh:path sh:lessThanOrEquals ],
+        [ sh:datatype xsd:integer ;
+            sh:maxCount 1 ;
+            sh:minInclusive 0 ;
+            sh:path sh:maxCount ],
+        [ sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:path sh:maxExclusive ],
+        [ sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:path sh:maxInclusive ],
+        [ sh:datatype xsd:integer ;
+            sh:maxCount 1 ;
+            sh:minInclusive 0 ;
+            sh:path sh:maxLength ],
+        [ sh:datatype xsd:integer ;
+            sh:maxCount 1 ;
+            sh:minInclusive 0 ;
+            sh:path sh:minCount ],
+        [ sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:path sh:minExclusive ],
+        [ sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:path sh:minInclusive ],
+        [ sh:datatype xsd:integer ;
+            sh:maxCount 1 ;
+            sh:minInclusive 0 ;
+            sh:path sh:minLength ],
+        [ sh:node shsh:NodeShapeShape ;
+            sh:path sh:memberShape ],
+        [ sh:datatype xsd:integer ;
+            sh:maxCount 1 ;
+            sh:minInclusive 0 ;
+            sh:path sh:minListLength ],
+        [ sh:datatype xsd:integer ;
+            sh:maxCount 1 ;
+            sh:minInclusive 0 ;
+            sh:path sh:maxListLength ],
+        [ sh:datatype xsd:boolean ;
+            sh:maxCount 1 ;
+            sh:path sh:uniqueMembers ],
+        [ sh:deactivated true ;
+            sh:in ( sh:BlankNode sh:IRI sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) ;
+            sh:maxCount 1 ;
+            sh:path sh:nodeKind ],
+        [ sh:memberShape shsh:ShapeShape ;
+            sh:path sh:or ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:path sh:pattern ],
+        [ sh:datatype xsd:boolean ;
+            sh:maxCount 1 ;
+            sh:path sh:singleLine ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:path sh:flags ],
+        [ sh:datatype xsd:integer ;
+            sh:maxCount 1 ;
+            sh:minInclusive 0 ;
+            sh:path sh:qualifiedMaxCount ],
+        [ sh:datatype xsd:integer ;
+            sh:maxCount 1 ;
+            sh:minInclusive 0 ;
+            sh:path sh:qualifiedMinCount ],
+        [ sh:maxCount 1 ;
+            sh:node shsh:ShapeShape ;
+            sh:path sh:qualifiedValueShape ],
+        [ sh:datatype xsd:boolean ;
+            sh:maxCount 1 ;
+            sh:path sh:qualifiedValueShapesDisjoint ],
+        [ sh:datatype xsd:boolean ;
+            sh:maxCount 1 ;
+            sh:path sh:uniqueLang ],
+        [ sh:memberShape shsh:ShapeShape ;
+            sh:path sh:xone ] ;
+    sh:targetClass sh:NodeShape,
+        sh:PropertyShape ;
+    sh:targetObjectsOf sh:memberShape,
+        sh:node,
+        sh:not,
+        sh:property,
+        sh:qualifiedValueShape ;
+    sh:targetSubjectsOf sh:and,
+        sh:class,
+        sh:closed,
+        sh:datatype,
+        sh:disjoint,
+        sh:equals,
+        sh:flags,
+        sh:hasValue,
+        sh:ignoredProperties,
+        sh:in,
+        sh:languageIn,
+        sh:lessThan,
+        sh:lessThanOrEquals,
+        sh:maxCount,
+        sh:maxExclusive,
+        sh:maxInclusive,
+        sh:maxLength,
+        sh:maxListLength,
+        sh:memberShape,
+        sh:minCount,
+        sh:minExclusive,
+        sh:minInclusive,
+        sh:minLength,
+        sh:minListLength,
+        sh:node,
+        sh:nodeKind,
+        sh:not,
+        sh:or,
+        sh:pattern,
+        sh:property,
+        sh:qualifiedMaxCount,
+        sh:qualifiedMinCount,
+        sh:qualifiedValueShape,
+        sh:qualifiedValueShapesDisjoint,
+        sh:singleLine,
+        sh:targetClass,
+        sh:targetNode,
+        sh:targetObjectsOf,
+        sh:targetSubjectsOf,
+        sh:uniqueLang,
+        sh:uniqueMembers,
+        sh:xone ;
+    sh:xone ( shsh:NodeShapeShape shsh:PropertyShapeShape ) .
+
+sh:in rdfs:comment "List membership is exact-value matching, including datatype — sh:in (1 2 3) (integers) will not match the string \"1\"."@en ;
+    rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
+    rdfs:seeAlso sh:hasValue ;
+    skos:example "sh:path ex:status ; sh:in ( \"active\" \"inactive\" \"pending\" )"@en ;
+    sh:description "Every value node must be exactly one of the members of this list — an enumeration/allow-list constraint."@en ;
+    sh:name "in"@en ;
     stsh:requiredEngine stsh:PySHACL .
 
 sh:xone rdfs:comment "If two shapes in the list overlap (a value could satisfy both), a value that matches both fails sh:xone even though it would pass sh:or — easy to trip over when shapes aren't as mutually exclusive as intended."@en ;
@@ -1335,12 +1435,3 @@ sh:xone rdfs:comment "If two shapes in the list overlap (a value could satisfy b
     sh:description "A value node must conform to *exactly one* shape in this list — not zero, not two or more. Stricter than sh:or, useful when alternatives are meant to be mutually exclusive."@en ;
     sh:name "exactly one"@en ;
     stsh:requiredEngine stsh:PySHACL .
-
-shsh:ListShape a sh:NodeShape ;
-    rdfs:label "List shape"@en ;
-    rdfs:comment "A shape describing well-formed RDF lists. Currently does not check for non-recursion. This could be expressed using SHACL-SPARQL."@en ;
-    rdfs:seeAlso <https://www.w3.org/TR/shacl/#syntax-rule-SHACL-list> ;
-    sh:property [ rdfs:comment "Each list member (including this node) must be have the shape shsh:ListNodeShape."@en ;
-            sh:hasValue () ;
-            sh:node shsh:ListNodeShape ;
-            sh:path [ sh:zeroOrMorePath rdf:rest ] ] .
