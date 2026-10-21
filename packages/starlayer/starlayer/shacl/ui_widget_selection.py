@@ -38,6 +38,47 @@ SH = Namespace("http://www.w3.org/ns/shacl#")
 
 Role = Literal["editor", "viewer"]
 
+# The built-in widgets of SHACL 1.2 UI, Section 9.1 (editors) and 9.2 (viewers). The draft does not publish the
+# vocabulary in machine-readable form, so the lists are kept here; a test compares them with the 26 widgets the
+# shipped shapes graph documents.
+_BUILTIN_EDITORS = frozenset(
+    SHUI[name]
+    for name in (
+        "AutoCompleteEditor", "BlankNodeEditor", "BooleanEditor", "DatePickerEditor", "DateTimePickerEditor",
+        "DetailsEditor", "EnumSelectEditor", "InstancesSelectEditor", "IRIEditor", "NumberFieldEditor",
+        "RichTextEditor", "SubClassEditor", "TextAreaEditor", "TextAreaWithLangEditor", "TextFieldEditor",
+        "TextFieldWithLangEditor",
+    )
+)
+_BUILTIN_VIEWERS = frozenset(
+    SHUI[name]
+    for name in (
+        "BlankNodeViewer", "DetailsViewer", "HTMLViewer", "HyperlinkViewer", "ImageViewer", "IRIViewer",
+        "LabelViewer", "LangStringViewer", "LiteralViewer", "ValueTableViewer",
+    )
+)
+_EDITOR_CLASSES = (SHUI.Editor, SHUI.SingleEditor, SHUI.MultiEditor)
+_VIEWER_CLASSES = (SHUI.Viewer, SHUI.SingleViewer, SHUI.MultiViewer)
+
+
+def _widget_roles(widget: Any, *graphs: Any) -> set[str]:
+    """The roles ``widget`` is known to have: ``"editor"``, ``"viewer"``, both, or none (a widget nothing says
+    anything about, for example a custom one). Known from the draft's built-in lists and from any ``rdf:type``
+    (``shui:Editor``/``shui:SingleEditor``/``shui:MultiEditor`` or the viewer equivalents) in the given graphs."""
+    roles: set[str] = set()
+    if widget in _BUILTIN_EDITORS:
+        roles.add("editor")
+    if widget in _BUILTIN_VIEWERS:
+        roles.add("viewer")
+    for graph in graphs:
+        if graph is None:
+            continue
+        if any((widget, RDF.type, cls) in graph for cls in _EDITOR_CLASSES):
+            roles.add("editor")
+        if any((widget, RDF.type, cls) in graph for cls in _VIEWER_CLASSES):
+            roles.add("viewer")
+    return roles
+
 
 def _node_conforms(node: Any, shape: Any, *, base_graph: Any, shapes_graph: Any) -> bool:
     """True iff ``node`` (a resource in ``base_graph``) conforms to
@@ -203,11 +244,14 @@ def select_widget(
     the choice is per shape rather than per node. Passing a ``focus_node``
     without a ``data_graph`` raises ``ValueError``.
 
-    **``role`` does not filter the scoring catalog.** Following the draft's Select Function (Section 3.2), ``role``
-    only chooses which predicate (``shui:editor`` or ``shui:viewer``) is read for a widget the shape names itself. The
-    scoring step then considers every ``shui:WidgetScore`` in ``scoring_graph``, whether its widget is an editor or a
-    viewer, so one catalog used for both roles can return a viewer for ``role="editor"`` and the reverse. Keep a
-    separate catalog per role (GitHub issue #9).
+    **``role`` limits the candidates in the scoring catalog to that role.** The draft's Select Function
+    (Section 3.2) takes a widget predicate and its Score Function (Section 3.5) lists every ``shui:WidgetScore``
+    without a type, but Sections 4.1 and 4.2 say an editor is chosen for ``shui:editor`` and a viewer for
+    ``shui:viewer``. A widget counts as an editor if it is one of the draft's built-in editors (Section 9.1) or the
+    catalog or shapes graph types it ``shui:Editor`` (or ``shui:SingleEditor``/``shui:MultiEditor``), and as a
+    viewer likewise (Section 9.2). A widget with no known role, such as a custom one, is a candidate for both. A
+    widget the shape names itself with ``shui:editor``/``shui:viewer`` is not checked. So a property with only
+    viewers in the catalog gets ``None`` for ``role="editor"`` (GitHub issue #9).
 
     ``scoring_graph`` is optional: omit it (or pass ``None``) when widgets
     are fixed in the shapes graph and there is no scoring catalog - an
@@ -241,6 +285,9 @@ def select_widget(
         score_value = next(scoring_graph.objects(score_node, SHUI.score), None)
         if widget is None or score_value is None:
             continue
+        roles = _widget_roles(widget, scoring_graph, shapes_graph)
+        if roles and role not in roles:
+            continue  # a widget known only as the other role is not a candidate (draft Sections 4.1 and 4.2)
         ranked.append((float(score_value), widget))
     # highest score first, then by widget IRI codepoints (Section 3.5 step 2)
     ranked.sort(key=lambda pair: (-pair[0], str(pair[1])))
