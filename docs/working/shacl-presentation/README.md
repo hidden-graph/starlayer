@@ -9,7 +9,9 @@
 
 It describes the same predicates as `starlayer/shacl/assets/shacl12-validation-shapes.ttl` (the shacl-shacl file): that file says what is valid, this one says how to present it.
 
-## Widgets: standard shui, with `stsh:widgetType` for the rest
+## Widgets (historical): this section describes the file before 2026-10-21
+
+**On 2026-10-21 the widget preferences moved to the scoring layer `shacl_shacl_ui_scores`, and the 20 `stsh:widgetType` fields and `stsh:ShapeEditorShape` were dropped from `shacl12-shacl-ui.ttl`.** What follows is how it was.
 
 Of the 86 widget hints, 66 were converted to standard `shui:editor` (a built-in widget fits) and 20 were left as they were:
 

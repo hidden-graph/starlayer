@@ -4,11 +4,14 @@
 #
 # Contents: 18 sh:PropertyGroup sections (stsh:TargetGroup, ...), sh:group and sh:order on each SHACL predicate (one
 # group and one order per predicate: SHACL gives sh:order a single value, and the meta-shapes check that), the stsh:
-# form flags (nodeFormField, propertyFormField, formMaxCount, nodePrimary), and stsh:ShapeEditorShape, a node shape
-# with no constraints that carries the shui:editor / stsh:widgetType hints per sh:path.
+# form flags (nodeFormField, propertyFormField, formMaxCount, nodePrimary).
 #
-# This file has no sh:target* or constraint triples except stsh:ShapeEditorShape's constraint-free property shapes, so
-# merging it with shacl_shacl never changes what validates. It is a hand-edited source file (the human-editable
+# There is NO widget in this file. The 66 widget preferences it used to carry (shui:editor per sh:path) moved on
+# 2026-10-21 to shacl_shacl_ui_scores, a scoring-side layer, because select_widgets reads scores from the scoring graph.
+# The 20 fields no built-in widget fits (stsh:widgetType: path expressions, node expression lists, message lists, ...)
+# were dropped on the same day; they belong in an application layer whose application understands them.
+#
+# This file has no sh:target* or constraint triples, so merging it with shacl_shacl never changes what validates. It is a hand-edited source file (the human-editable
 # content is docs/working/shacl-presentation/shacl-presentation-content.md, which may have drifted). It was archived
 # on 2026-10-17 because nothing read it, and restored on 2026-10-21 as a registered companion graph.
 #
@@ -246,23 +249,15 @@ shui:LabelRole sh:group stsh:WidgetGroup ; sh:order 30 .
 
 
 #############################################################################
-# Editor hint vocabulary
+# Form flags
 #
-# shui:editor — standard SHACL 1.2 UI widget, used in its standard form: on a
-#   property shape keyed by sh:path (see stsh:ShapeEditorShape at the end of
-#   this file), wherever a built-in shui widget fits.
-# stsh:widgetType — used on the same property shapes, only for the structured
-#   cases no built-in shui widget covers (prop_path_expr, node_expression_list/ref, message_list, group,
-#   rdf_term, has_value_pick, in_list); not a binding UI contract.
+# Widget choice is not made here: there is no widget in this file. It is in a scoring layer (shacl_shacl_ui_scores).
+#
 # stsh:nodePrimary — false signals that a predicate is allowed but not
 #   commonly expected; editors may choose to show it in a secondary section.
 #
 # These carry no validation semantics and are safe to add to any graph.
 #############################################################################
-
-stsh:widgetType a rdf:Property ;
-    rdfs:label "widget type"@en ;
-    rdfs:comment "Signals the nature of a predicate's data to a consuming editor; set on a property shape (see stsh:ShapeEditorShape). Used only where no built-in shui widget fits; the values still in use are prop_path_expr, node_expression_list, node_expression_ref, message_list, group, rdf_term, has_value_pick and in_list. Everything else now uses shui:editor."@en .
 
 stsh:nodePrimary a rdf:Property ;
     rdfs:label "node primary"@en ;
@@ -571,102 +566,3 @@ sh:constant       sh:group stsh:NodeExpressionGroup ; sh:order 13 .
 sh:function       sh:group stsh:NodeExpressionGroup ; sh:order 14 .
 sh:arguments      sh:group stsh:NodeExpressionGroup ; sh:order 15 .
 sh:filterShape    sh:group stsh:NodeExpressionGroup ; sh:order 16 .
-
-#############################################################################
-# Editor assignment: one property shape per SHACL predicate
-#
-# shui:editor is used in its standard form - on a property shape, keyed by
-# sh:path. stsh:widgetType is used (on the same kind of property shape) only
-# where no built-in shui widget fits. No constraints here, so this node shape
-# never changes what validates.
-#############################################################################
-
-stsh:ShapeEditorShape a sh:NodeShape ;
-    sh:targetClass sh:NodeShape, sh:PropertyShape ;
-    sh:property
-        [ sh:path sh:targetClass ; shui:editor shui:TextFieldEditor ] ,
-        [ sh:path sh:targetNode ; shui:editor shui:TextFieldEditor ] ,
-        [ sh:path sh:targetSubjectsOf ; shui:editor shui:TextFieldEditor ] ,
-        [ sh:path sh:targetObjectsOf ; shui:editor shui:TextFieldEditor ] ,
-        [ sh:path sh:path ; stsh:widgetType "prop_path_expr" ] ,
-        [ sh:path sh:alternativePath ; stsh:widgetType "prop_path_expr" ] ,
-        [ sh:path sh:inversePath ; stsh:widgetType "prop_path_expr" ] ,
-        [ sh:path sh:oneOrMorePath ; stsh:widgetType "prop_path_expr" ] ,
-        [ sh:path sh:zeroOrMorePath ; stsh:widgetType "prop_path_expr" ] ,
-        [ sh:path sh:zeroOrOnePath ; stsh:widgetType "prop_path_expr" ] ,
-        [ sh:path sh:name ; shui:editor shui:TextFieldWithLangEditor ] ,
-        [ sh:path sh:description ; shui:editor shui:TextFieldWithLangEditor ] ,
-        [ sh:path sh:severity ; shui:editor shui:EnumSelectEditor ] ,
-        [ sh:path sh:message ; stsh:widgetType "message_list" ] ,
-        [ sh:path sh:group ; stsh:widgetType "group" ] ,
-        [ sh:path sh:order ; shui:editor shui:NumberFieldEditor ] ,
-        [ sh:path sh:deactivated ; shui:editor shui:BooleanEditor ] ,
-        [ sh:path sh:defaultValue ; shui:editor shui:TextFieldEditor ] ,
-        [ sh:path sh:closed ; shui:editor shui:BooleanEditor ] ,
-        [ sh:path sh:ignoredProperties ; shui:editor shui:InstancesSelectEditor ] ,
-        [ sh:path sh:class ; shui:editor shui:InstancesSelectEditor ] ,
-        [ sh:path sh:datatype ; shui:editor shui:InstancesSelectEditor ] ,
-        [ sh:path sh:nodeKind ; shui:editor shui:EnumSelectEditor ] ,
-        [ sh:path sh:rootClass ; shui:editor shui:InstancesSelectEditor ] ,
-        [ sh:path sh:minCount ; shui:editor shui:NumberFieldEditor ] ,
-        [ sh:path sh:maxCount ; shui:editor shui:NumberFieldEditor ] ,
-        [ sh:path sh:minListLength ; shui:editor shui:NumberFieldEditor ] ,
-        [ sh:path sh:maxListLength ; shui:editor shui:NumberFieldEditor ] ,
-        [ sh:path sh:uniqueMembers ; shui:editor shui:BooleanEditor ] ,
-        [ sh:path sh:minInclusive ; shui:editor shui:NumberFieldEditor ] ,
-        [ sh:path sh:maxInclusive ; shui:editor shui:NumberFieldEditor ] ,
-        [ sh:path sh:minExclusive ; shui:editor shui:NumberFieldEditor ] ,
-        [ sh:path sh:maxExclusive ; shui:editor shui:NumberFieldEditor ] ,
-        [ sh:path sh:minLength ; shui:editor shui:NumberFieldEditor ] ,
-        [ sh:path sh:maxLength ; shui:editor shui:NumberFieldEditor ] ,
-        [ sh:path sh:pattern ; shui:editor shui:TextFieldEditor ] ,
-        [ sh:path sh:flags ; shui:editor shui:TextFieldEditor ] ,
-        [ sh:path sh:uniqueLang ; shui:editor shui:BooleanEditor ] ,
-        [ sh:path sh:singleLine ; shui:editor shui:BooleanEditor ] ,
-        [ sh:path sh:in ; stsh:widgetType "in_list" ] ,
-        [ sh:path sh:hasValue ; stsh:widgetType "has_value_pick" ] ,
-        [ sh:path sh:languageIn ; shui:editor shui:IRIEditor ] ,
-        [ sh:path sh:equals ; stsh:widgetType "prop_path_expr" ] ,
-        [ sh:path sh:disjoint ; stsh:widgetType "prop_path_expr" ] ,
-        [ sh:path sh:lessThan ; stsh:widgetType "prop_path_expr" ] ,
-        [ sh:path sh:lessThanOrEquals ; stsh:widgetType "prop_path_expr" ] ,
-        [ sh:path sh:subsetOf ; stsh:widgetType "prop_path_expr" ] ,
-        [ sh:path sh:not ; shui:editor shui:TextFieldEditor ] ,
-        [ sh:path sh:and ; shui:editor shui:TextFieldEditor ] ,
-        [ sh:path sh:or ; shui:editor shui:TextFieldEditor ] ,
-        [ sh:path sh:xone ; shui:editor shui:TextFieldEditor ] ,
-        [ sh:path sh:node ; shui:editor shui:TextFieldEditor ] ,
-        [ sh:path sh:property ; shui:editor shui:TextFieldEditor ] ,
-        [ sh:path sh:someValue ; shui:editor shui:DetailsEditor ] ,
-        [ sh:path sh:memberShape ; shui:editor shui:DetailsEditor ] ,
-        [ sh:path sh:qualifiedValueShape ; shui:editor shui:DetailsEditor ] ,
-        [ sh:path sh:qualifiedMinCount ; shui:editor shui:NumberFieldEditor ] ,
-        [ sh:path sh:qualifiedMaxCount ; shui:editor shui:NumberFieldEditor ] ,
-        [ sh:path sh:qualifiedValueShapesDisjoint ; shui:editor shui:BooleanEditor ] ,
-        [ sh:path sh:uniqueValuesFor ; shui:editor shui:IRIEditor ] ,
-        [ sh:path sh:reifierShape ; shui:editor shui:DetailsEditor ] ,
-        [ sh:path sh:reificationRequired ; shui:editor shui:BooleanEditor ] ,
-        [ sh:path sh:select ; shui:editor shui:TextAreaEditor ] ,
-        [ sh:path sh:ask ; shui:editor shui:TextAreaEditor ] ,
-        [ sh:path sh:construct ; shui:editor shui:TextAreaEditor ] ,
-        [ sh:path sh:sparql ; shui:editor shui:DetailsEditor ] ,
-        [ sh:path sh:rule ; shui:editor shui:DetailsEditor ] ,
-        [ sh:path sh:condition ; shui:editor shui:DetailsEditor ] ,
-        [ sh:path sh:ConstraintComponent ; shui:editor shui:DetailsEditor ] ,
-        [ sh:path sh:parameter ; shui:editor shui:DetailsEditor ] ,
-        [ sh:path sh:validator ; shui:editor shui:DetailsEditor ] ,
-        [ sh:path sh:nodeValidator ; shui:editor shui:DetailsEditor ] ,
-        [ sh:path sh:propertyValidator ; shui:editor shui:DetailsEditor ] ,
-        [ sh:path sh:TripleRule ; shui:editor shui:DetailsEditor ] ,
-        [ sh:path sh:SPARQLRule ; shui:editor shui:DetailsEditor ] ,
-        [ sh:path sh:subject ; shui:editor shui:DetailsEditor ] ,
-        [ sh:path sh:predicate ; shui:editor shui:DetailsEditor ] ,
-        [ sh:path sh:object ; shui:editor shui:DetailsEditor ] ,
-        [ sh:path rdfs:comment ; shui:editor shui:TextAreaEditor ] ,
-        [ sh:path sh:union ; stsh:widgetType "node_expression_list" ] ,
-        [ sh:path sh:intersection ; stsh:widgetType "node_expression_list" ] ,
-        [ sh:path sh:nodes ; stsh:widgetType "node_expression_ref" ] ,
-        [ sh:path sh:constant ; stsh:widgetType "rdf_term" ] ,
-        [ sh:path sh:function ; shui:editor shui:TextFieldEditor ] ,
-        [ sh:path sh:arguments ; stsh:widgetType "node_expression_list" ] ,
-        [ sh:path sh:filterShape ; shui:editor shui:InstancesSelectEditor ] .

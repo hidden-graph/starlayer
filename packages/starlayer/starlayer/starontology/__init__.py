@@ -260,6 +260,7 @@ _FILENAME_BY_NAME: dict[str, str] = {
     # Companions of shacl_shacl and the SHACL UI widget selection (GitHub issues #12 and #10). Hand-edited files.
     "shacl_shacl_ui": "shacl12-shacl-ui.ttl",
     "shacl_ui_baseline": "shacl-ui-baseline.ttl",
+    "shacl_shacl_ui_scores": "shacl12-shacl-ui-scores.ttl",
 }
 
 # The ontology-shapes profile mapping's own filename/named-graph identity -
@@ -436,10 +437,10 @@ _REGISTRY: dict[str, tuple[OntologyInfo, Callable[[], StarLayerGraph]]] = {
         OntologyInfo(
             name="shacl_shacl_ui",
             description=(
-                "UI overlay for shacl_shacl, to build a form for editing a shapes graph: 18 sh:PropertyGroup "
-                "sections, sh:group and sh:order on each SHACL predicate, and shui:editor widget hints per "
-                "sh:path (stsh:ShapeEditorShape). Adds no constraints, so loading it with shacl_shacl never "
-                "changes what validates."
+                "Presentation for shacl_shacl, to build a form for editing a shapes graph: 18 sh:PropertyGroup "
+                "sections, sh:group and sh:order on each SHACL predicate, and form flags. It contains no widget: "
+                "widget choice is in shacl_shacl_ui_scores. Adds no constraints, so loading it with shacl_shacl "
+                "never changes what validates."
             ),
             type="shacl",
         ),
@@ -458,6 +459,19 @@ _REGISTRY: dict[str, tuple[OntologyInfo, Callable[[], StarLayerGraph]]] = {
             type="scoring-catalog",
         ),
         lambda: _load("shacl_ui_baseline"),
+    ),
+    "shacl_shacl_ui_scores": (
+        OntologyInfo(
+            name="shacl_shacl_ui_scores",
+            description=(
+                "The scoring layer for editing SHACL, built on shacl_ui_baseline: 9 widget scores at 40 that pick "
+                "the editor for each of 66 SHACL predicates (a number field for sh:minCount, an enum select for "
+                "sh:nodeKind, ...). An application layer that ships with starlayer; pass it with the generic "
+                "catalog as scoring_graph=. Editors only."
+            ),
+            type="scoring-catalog",
+        ),
+        lambda: _load("shacl_shacl_ui_scores"),
     ),
 }
 

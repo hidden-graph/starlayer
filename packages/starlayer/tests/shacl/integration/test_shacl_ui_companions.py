@@ -5,7 +5,8 @@ import warnings
 
 import pytest
 from pyshacl.errors import ReportableRuntimeError
-from rdflib import RDF, Graph, Namespace
+from rdflib import RDF, Graph, Namespace, URIRef
+from rdflib.collection import Collection
 from starlayer import starontology
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
@@ -73,35 +74,88 @@ def test_every_predicate_has_one_order(overlay) -> None:
         assert len(list(overlay.objects(subject, SH.order))) == 1, subject
 
 
-def test_the_overlay_hints_are_built_in_editors(overlay) -> None:
-    editors = set(overlay.objects(None, SHUI.editor))
-    assert editors and editors <= uws._BUILTIN_EDITORS, editors - uws._BUILTIN_EDITORS
+def test_the_overlay_contains_no_widget(overlay) -> None:
+    """Widget choice is scoring, in shacl_shacl_ui_scores; the overlay holds sections, order and form flags only. The 20
+    stsh:widgetType fields (no built-in widget fits) were dropped: an application layer can bring them back."""
+    assert not list(overlay.triples((None, SHUI.editor, None)))
+    assert not list(overlay.triples((None, SHUI.viewer, None)))
+    assert not list(overlay.triples((None, STSH.widgetType, None)))
+    assert (STSH.ShapeEditorShape, RDF.type, SH.NodeShape) not in overlay
 
 
-def test_the_overlay_alone_gives_a_form_for_editing_a_shape(overlay) -> None:
-    widgets = select_widgets(shape_node=STSH.ShapeEditorShape, shapes_graph=overlay, role="editor")
-    by_path = {next(overlay.objects(prop, SH.path)): widget for prop, widget in widgets.items()}
-    assert len(widgets) == 86 and sum(w is not None for w in widgets.values()) == 66
-    assert by_path[SH.order] == SHUI.NumberFieldEditor
-    assert by_path[SH.minCount] == SHUI.NumberFieldEditor
-    assert by_path[SH.closed] == SHUI.BooleanEditor
-    assert by_path[SH.nodeKind] == SHUI.EnumSelectEditor
-    assert by_path[SH.name] == SHUI.TextFieldWithLangEditor
-    # the rest need a widget the built-in set has no match for, and say so with stsh:widgetType
-    unhinted = [prop for prop, widget in widgets.items() if widget is None]
-    assert len(unhinted) == 20 and all(list(overlay.objects(prop, STSH.widgetType)) for prop in unhinted)
+# --------------------------------------------------------------------------- the shacl_shacl scoring layer
+@pytest.fixture(scope="module")
+def scores() -> Graph:
+    return starontology.get_ontology_graph("shacl_shacl_ui_scores")
 
 
-def test_the_overlays_preferences_win_with_the_baseline_catalog(overlay, baseline) -> None:
-    """A widget a shape names itself wins. (The first baseline had a matcher per widget, which could reject a named
-    widget and override it; the baseline now has none, so the overlay's preferences stand with it.)"""
-    alone = select_widgets(shape_node=STSH.ShapeEditorShape, shapes_graph=overlay, role="editor")
-    with_catalog = select_widgets(
-        shape_node=STSH.ShapeEditorShape, shapes_graph=overlay, scoring_graph=baseline, role="editor"
-    )
-    by_path = {next(overlay.objects(prop, SH.path)): widget for prop, widget in with_catalog.items()}
-    assert by_path[SH.order] == SHUI.NumberFieldEditor
-    assert all(with_catalog[prop] == widget for prop, widget in alone.items() if widget is not None)
+@pytest.fixture(scope="module")
+def stacked(baseline, scores) -> Graph:
+    """The generic catalog plus the SHACL layer: the caller combines scoring graphs, and higher scores win."""
+    graph = Graph()
+    graph += baseline
+    graph += scores
+    return graph
+
+
+def test_the_scores_layer_is_well_formed(scores, shacl_shacl) -> None:
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        meta_validate(scores)
+    assert StarShaclSchema(shacl_graph=shacl_shacl).validate(data_graph=scores, ignore_imports=True).conforms
+
+
+def _paths_by_widget(scores) -> dict:
+    out = {}
+    for score in scores.subjects(RDF.type, SHUI.WidgetScore):
+        widget = next(scores.objects(score, SHUI.widget))
+        condition = next(scores.objects(score, SHUI.shapesGraphShape))
+        listed = next(scores.objects(next(scores.objects(condition, SH.property)), SH["in"]))
+        out[widget] = set(Collection(scores, listed))
+    return out
+
+
+def test_the_scores_layer_is_nine_editor_scores_at_forty(scores) -> None:
+    entries = list(scores.subjects(RDF.type, SHUI.WidgetScore))
+    assert len(entries) == 9
+    assert {int(next(scores.objects(score, SHUI.score))) for score in entries} == {40}
+    widgets = {next(scores.objects(score, SHUI.widget)) for score in entries}
+    assert widgets <= uws._BUILTIN_EDITORS and len(widgets) == 9, "an application layer uses standard shui widgets only"
+    assert not list(scores.subjects(RDF.type, SHUI.WidgetAcceptMatcher))
+
+
+def test_no_predicate_is_scored_by_two_widgets(scores) -> None:
+    """Two scores of the same value for one predicate would tie, and a tie goes to the widget IRI."""
+    by_widget = _paths_by_widget(scores)
+    all_paths = [path for paths in by_widget.values() for path in paths]
+    assert len(all_paths) == 66 and len(set(all_paths)) == 66
+
+
+def test_the_layer_gives_a_form_for_editing_a_shape(shacl_shacl, baseline, stacked) -> None:
+    shape = URIRef("http://www.w3.org/ns/shacl-shacl#ShapeShape")
+
+    def by_path(scoring):
+        widgets = select_widgets(shape_node=shape, shapes_graph=shacl_shacl, scoring_graph=scoring, role="editor")
+        return {next(shacl_shacl.objects(prop, SH.path)): widget for prop, widget in widgets.items()}
+
+    generic, with_layer = by_path(baseline), by_path(stacked)
+    assert with_layer[SH.closed] == SHUI.BooleanEditor
+    assert with_layer[SH.minInclusive] == SHUI.NumberFieldEditor
+    assert with_layer[SH.severity] == SHUI.EnumSelectEditor
+    assert with_layer[SH["class"]] == SHUI.InstancesSelectEditor
+    assert with_layer[SH.memberShape] == SHUI.DetailsEditor
+    assert generic[SH.closed] == SHUI.TextFieldEditor  # the layer is what makes the difference
+    assert sum(generic[p] != with_layer[p] for p in generic) >= 10
+
+
+def test_the_layer_does_not_touch_other_shapes_or_viewers(shapes, baseline, stacked) -> None:
+    for role in ("editor", "viewer"):
+        assert select_widgets(shape_node=EX.S, shapes_graph=shapes, scoring_graph=stacked, role=role) == select_widgets(
+            shape_node=EX.S, shapes_graph=shapes, scoring_graph=baseline, role=role
+        )
+    shacl_shape = URIRef("http://www.w3.org/ns/shacl-shacl#ShapeShape")
+    viewers = select_widgets(shape_node=shacl_shape, shapes_graph=starontology.get_ontology_graph("shacl_shacl"), scoring_graph=stacked, role="viewer")
+    assert all(widget in uws._BUILTIN_VIEWERS or widget is None for widget in viewers.values())
 
 
 # --------------------------------------------------------------------------- the baseline catalog

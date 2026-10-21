@@ -1,0 +1,88 @@
+# The scoring layer for editing SHACL (registry entry shacl_shacl_ui_scores): which widget edits which SHACL predicate in a form
+# built from shacl_shacl. It builds on the generic catalog (shacl_ui_baseline: tier 1 score 1, tier 2 score 2, tier 3 score 3)
+# and adds scores at 40, the tier the Working Group's own widget files use for a preference, so these beat the generic ones.
+#
+# This is an APPLICATION layer that ships with starlayer because shacl_shacl is part of starlayer. It knows about SHACL; the
+# generic catalog does not. The same pattern is meant for the other vocabularies in starontology (sqe, srl, manch, ...): a
+# shapes-side file for the presentation (here shacl_shacl_ui: groups, sh:order, form flags) and a scoring-side file like this
+# one, each built on the generic catalog.
+#
+# Use it as the scoring graph together with the generic catalog (the caller combines them; higher scores win):
+#     select_widgets(shape_node=..., shapes_graph=shacl_shacl (+ shacl_shacl_ui),
+#                    scoring_graph=baseline + this, role="editor")
+# Editors only: for a viewer the generic defaults apply. Conditions are written on the scores (nothing is a shared gate),
+# so a layer above this one, or a user, can add or replace entries freely.
+#
+# Each score applies when the property shape being rendered has a sh:path that is one of the listed predicates (so it
+# works with the property shapes of shacl_shacl itself, or of any form shape that edits those predicates).
+#
+# Generated once from the preferences the overlay used to carry (66 predicates, 9 widgets) on 2026-10-21; hand-edited since.
+#
+# baseURI: https://github.com/hidden-graph/starlayer/ns/shacl#
+
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix shui: <http://www.w3.org/ns/shacl-ui#> .
+@prefix stsh: <https://github.com/hidden-graph/starlayer/ns/shacl#> .
+
+stsh:score40BooleanEditor a shui:WidgetScore ; shui:widget shui:BooleanEditor ; shui:score 40 ;
+    shui:shapesGraphShape stsh:PathsEditedWithBooleanEditor .
+
+stsh:score40DetailsEditor a shui:WidgetScore ; shui:widget shui:DetailsEditor ; shui:score 40 ;
+    shui:shapesGraphShape stsh:PathsEditedWithDetailsEditor .
+
+stsh:score40EnumSelectEditor a shui:WidgetScore ; shui:widget shui:EnumSelectEditor ; shui:score 40 ;
+    shui:shapesGraphShape stsh:PathsEditedWithEnumSelectEditor .
+
+stsh:score40IRIEditor a shui:WidgetScore ; shui:widget shui:IRIEditor ; shui:score 40 ;
+    shui:shapesGraphShape stsh:PathsEditedWithIRIEditor .
+
+stsh:score40InstancesSelectEditor a shui:WidgetScore ; shui:widget shui:InstancesSelectEditor ; shui:score 40 ;
+    shui:shapesGraphShape stsh:PathsEditedWithInstancesSelectEditor .
+
+stsh:score40NumberFieldEditor a shui:WidgetScore ; shui:widget shui:NumberFieldEditor ; shui:score 40 ;
+    shui:shapesGraphShape stsh:PathsEditedWithNumberFieldEditor .
+
+stsh:score40TextAreaEditor a shui:WidgetScore ; shui:widget shui:TextAreaEditor ; shui:score 40 ;
+    shui:shapesGraphShape stsh:PathsEditedWithTextAreaEditor .
+
+stsh:score40TextFieldEditor a shui:WidgetScore ; shui:widget shui:TextFieldEditor ; shui:score 40 ;
+    shui:shapesGraphShape stsh:PathsEditedWithTextFieldEditor .
+
+stsh:score40TextFieldWithLangEditor a shui:WidgetScore ; shui:widget shui:TextFieldWithLangEditor ; shui:score 40 ;
+    shui:shapesGraphShape stsh:PathsEditedWithTextFieldWithLangEditor .
+
+stsh:PathsEditedWithBooleanEditor a sh:NodeShape ;
+    sh:property [ sh:path sh:path ; sh:minCount 1 ;
+        sh:in ( sh:closed sh:deactivated sh:qualifiedValueShapesDisjoint sh:reificationRequired sh:singleLine sh:uniqueLang sh:uniqueMembers ) ] .
+
+stsh:PathsEditedWithDetailsEditor a sh:NodeShape ;
+    sh:property [ sh:path sh:path ; sh:minCount 1 ;
+        sh:in ( sh:ConstraintComponent sh:SPARQLRule sh:TripleRule sh:condition sh:memberShape sh:nodeValidator sh:object sh:parameter sh:predicate sh:propertyValidator sh:qualifiedValueShape sh:reifierShape sh:rule sh:someValue sh:sparql sh:subject sh:validator ) ] .
+
+stsh:PathsEditedWithEnumSelectEditor a sh:NodeShape ;
+    sh:property [ sh:path sh:path ; sh:minCount 1 ;
+        sh:in ( sh:nodeKind sh:severity ) ] .
+
+stsh:PathsEditedWithIRIEditor a sh:NodeShape ;
+    sh:property [ sh:path sh:path ; sh:minCount 1 ;
+        sh:in ( sh:languageIn sh:uniqueValuesFor ) ] .
+
+stsh:PathsEditedWithInstancesSelectEditor a sh:NodeShape ;
+    sh:property [ sh:path sh:path ; sh:minCount 1 ;
+        sh:in ( sh:class sh:datatype sh:filterShape sh:ignoredProperties sh:rootClass ) ] .
+
+stsh:PathsEditedWithNumberFieldEditor a sh:NodeShape ;
+    sh:property [ sh:path sh:path ; sh:minCount 1 ;
+        sh:in ( sh:maxCount sh:maxExclusive sh:maxInclusive sh:maxLength sh:maxListLength sh:minCount sh:minExclusive sh:minInclusive sh:minLength sh:minListLength sh:order sh:qualifiedMaxCount sh:qualifiedMinCount ) ] .
+
+stsh:PathsEditedWithTextAreaEditor a sh:NodeShape ;
+    sh:property [ sh:path sh:path ; sh:minCount 1 ;
+        sh:in ( sh:ask sh:comment sh:construct sh:select ) ] .
+
+stsh:PathsEditedWithTextFieldEditor a sh:NodeShape ;
+    sh:property [ sh:path sh:path ; sh:minCount 1 ;
+        sh:in ( sh:and sh:defaultValue sh:flags sh:function sh:node sh:not sh:or sh:pattern sh:property sh:targetClass sh:targetNode sh:targetObjectsOf sh:targetSubjectsOf sh:xone ) ] .
+
+stsh:PathsEditedWithTextFieldWithLangEditor a sh:NodeShape ;
+    sh:property [ sh:path sh:path ; sh:minCount 1 ;
+        sh:in ( sh:description sh:name ) ] .

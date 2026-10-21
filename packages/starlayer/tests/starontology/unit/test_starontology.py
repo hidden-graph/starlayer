@@ -38,7 +38,7 @@ class TestGetOntologyList:
             "sqe_owl", "sqe_shacl",
             "srl_owl", "srl_shacl",
             "spexpr_owl", "spexpr_shacl",
-            "shacl_shacl", "shacl_shacl_ui", "shacl_ui_baseline",
+            "shacl_shacl", "shacl_shacl_ui", "shacl_ui_baseline", "shacl_shacl_ui_scores",
         }
 
     def test_sorted_by_name(self):
@@ -63,7 +63,7 @@ class TestGetOntologyList:
         }
         # the scoring catalog is not a shapes graph
         assert {info.name for info in starontology.get_ontology_list() if info.type == "scoring-catalog"} == {
-            "shacl_ui_baseline"
+            "shacl_ui_baseline", "shacl_shacl_ui_scores",
         }
 
     def test_skos_owl_is_type_owl_not_syntax_tree_graph(self):
