@@ -144,6 +144,10 @@ def test_the_layer_gives_a_form_for_editing_a_shape(shacl_shacl, baseline, stack
     assert with_layer[SH.severity] == SHUI.EnumSelectEditor
     assert with_layer[SH["class"]] == SHUI.InstancesSelectEditor
     assert with_layer[SH.memberShape] == SHUI.DetailsEditor
+    # IRI-valued targets get the IRI editor; sh:targetNode may hold a literal (SHACL 1.0 section 2.1.3), so a text field
+    for iri_only in (SH.targetClass, SH.targetSubjectsOf, SH.targetObjectsOf):
+        assert with_layer[iri_only] == SHUI.IRIEditor, iri_only
+    assert with_layer[SH.targetNode] == SHUI.TextFieldEditor
     assert generic[SH.closed] == SHUI.TextFieldEditor  # the layer is what makes the difference
     assert sum(generic[p] != with_layer[p] for p in generic) >= 10
 

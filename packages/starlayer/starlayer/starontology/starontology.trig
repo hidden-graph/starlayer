@@ -1760,7 +1760,9 @@ starontology:shacl12-shacl-ui-scores.ttl {
     # Each score applies when the property shape being rendered has a sh:path that is one of the listed predicates (so it
     # works with the property shapes of shacl_shacl itself, or of any form shape that edits those predicates).
     #
-    # Generated once from the preferences the overlay used to carry (66 predicates, 9 widgets) on 2026-10-21; hand-edited since.
+    # Generated once from the preferences the overlay used to carry (66 predicates, 9 widgets) on 2026-10-21; hand-edited since:
+    # sh:targetClass, sh:targetSubjectsOf and sh:targetObjectsOf (IRIs only, per SHACL) were moved from the text field to the IRI
+    # editor; sh:targetNode keeps the text field because its values may be literals.
     #
     # baseURI: https://github.com/hidden-graph/starlayer/ns/shacl#
 
@@ -1825,7 +1827,7 @@ starontology:shacl12-shacl-ui-scores.ttl {
                 sh:path sh:path ] .
 
     stsh:PathsEditedWithIRIEditor a sh:NodeShape ;
-        sh:property [ sh:in ( sh:languageIn sh:uniqueValuesFor ) ;
+        sh:property [ sh:in ( sh:languageIn sh:targetClass sh:targetObjectsOf sh:targetSubjectsOf sh:uniqueValuesFor ) ;
                 sh:minCount 1 ;
                 sh:path sh:path ] .
 
@@ -1845,7 +1847,7 @@ starontology:shacl12-shacl-ui-scores.ttl {
                 sh:path sh:path ] .
 
     stsh:PathsEditedWithTextFieldEditor a sh:NodeShape ;
-        sh:property [ sh:in ( sh:and sh:defaultValue sh:flags sh:function sh:node sh:not sh:or sh:pattern sh:property sh:targetClass sh:targetNode sh:targetObjectsOf sh:targetSubjectsOf sh:xone ) ;
+        sh:property [ sh:in ( sh:and sh:defaultValue sh:flags sh:function sh:node sh:not sh:or sh:pattern sh:property sh:targetNode sh:xone ) ;
                 sh:minCount 1 ;
                 sh:path sh:path ] .
 
