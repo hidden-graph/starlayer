@@ -722,6 +722,7 @@ sh:deactivated
 sh:defaultValue
 	sh:name "default value"@en ;
 	sh:description "A suggested default value for a property shape, for a UI to pre-fill when creating a new instance. Purely informational — has no effect on validation."@en ;
+	rdfs:comment "The value is checked when a shapes graph is validated: at most one, and a well-formed node expression (stsh:DefaultValueShape)."@en ;
 	skos:example "sh:path ex:status ; sh:defaultValue \"pending\""@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
 	stsh:requiredEngine stsh:PySHACL .
@@ -729,6 +730,7 @@ sh:defaultValue
 sh:description
 	sh:name "description"@en ;
 	sh:description "A longer human-readable explanation of a shape's purpose — again, the same property this file uses for every predicate's own description."@en ;
+	rdfs:comment "The value is checked when a shapes graph is validated: an xsd:string or language-tagged string (stsh:NameAndDescriptionShape)."@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
 	stsh:requiredEngine stsh:PySHACL .
 
@@ -757,6 +759,7 @@ sh:flags
 sh:group
 	sh:name "group"@en ;
 	sh:description "Links a property shape to a sh:PropertyGroup, letting a UI cluster related fields into named sections — exactly how this presentation file's own groups (Targeting, Cardinality, etc.) work."@en ;
+	rdfs:comment "The value is checked when a shapes graph is validated: an instance of sh:PropertyGroup (stsh:GroupShape)."@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
 	stsh:requiredEngine stsh:PySHACL .
 
@@ -905,6 +908,7 @@ sh:minListLength
 sh:name
 	sh:name "name"@en ;
 	sh:description "A short, human-readable label for a shape — this exact same annotation property is what this presentation file itself uses for every predicate's display label."@en ;
+	rdfs:comment "The value is checked when a shapes graph is validated: an xsd:string or language-tagged string (stsh:NameAndDescriptionShape)."@en ;
 	skos:example "sh:name \"email address\"@en"@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
 	stsh:requiredEngine stsh:PySHACL .
@@ -949,6 +953,7 @@ sh:or
 sh:order
 	sh:name "order"@en ;
 	sh:description "A number suggesting where a property shape should appear relative to its siblings when a UI renders a form — lower numbers first. Purely a rendering hint."@en ;
+	rdfs:comment "The value is checked when a shapes graph is validated: at most one, a decimal (stsh:OrderShape)."@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
 	stsh:requiredEngine stsh:PySHACL .
 
@@ -1137,6 +1142,94 @@ sh:zeroOrOnePath
 
 #############################################################################
 # Rules & SPARQL Extensions, and SHACL 1.2 UI widget documentation content
+#############################################################################
+# Non-validating property shape characteristics, and property groups
+#############################################################################
+# sh:name, sh:description, sh:order and sh:group do not affect validation (SHACL 1.0 section 2.3.2), but a shapes
+# graph is also edited by form-based tools, so their values are checked here. Per SHACL 1.0: sh:name and
+# sh:description are xsd:string or rdf:langString (one or more values); sh:order has at most one value, a decimal, and
+# "may be used with any type of subjects"; sh:group names an instance of sh:PropertyGroup. SHACL 1.2 adds: a property
+# shape has at most one sh:defaultValue, a well-formed node expression. The Working Group's file has no rule for any of
+# these (see docs/shacl/shacl12-gap-matrix.md, 2026-10-21).
+
+stsh:NameAndDescriptionShape
+	a sh:NodeShape ;
+	rdfs:label "Well-formed sh:name and sh:description"@en ;
+	sh:targetSubjectsOf sh:name, sh:description ;
+	sh:property [
+		sh:path sh:name ;
+		sh:name "name"@en ;
+		sh:order 1 ;
+		sh:or ( [ sh:datatype xsd:string ] [ sh:datatype rdf:langString ] [ sh:datatype rdf:dirLangString ] ) ;
+		sh:message "sh:name must be an xsd:string or a language-tagged string"@en ;
+	] ;
+	sh:property [
+		sh:path sh:description ;
+		sh:name "description"@en ;
+		sh:order 2 ;
+		sh:or ( [ sh:datatype xsd:string ] [ sh:datatype rdf:langString ] [ sh:datatype rdf:dirLangString ] ) ;
+		sh:message "sh:description must be an xsd:string or a language-tagged string"@en ;
+	] .
+
+stsh:OrderShape
+	a sh:NodeShape ;
+	rdfs:label "Well-formed sh:order"@en ;
+	sh:targetSubjectsOf sh:order ;
+	sh:property [
+		sh:path sh:order ;
+		sh:name "order"@en ;
+		sh:order 3 ;
+		sh:maxCount 1 ;
+		sh:or ( [ sh:datatype xsd:decimal ] [ sh:datatype xsd:integer ] ) ;
+		sh:message "sh:order must be a single decimal"@en ;
+	] .
+
+stsh:GroupShape
+	a sh:NodeShape ;
+	rdfs:label "Well-formed sh:group"@en ;
+	sh:targetSubjectsOf sh:group ;
+	sh:property [
+		sh:path sh:group ;
+		sh:name "group"@en ;
+		sh:order 4 ;
+		sh:nodeKind sh:BlankNodeOrIRI ;
+		sh:class sh:PropertyGroup ;
+		sh:message "sh:group must name an instance of sh:PropertyGroup"@en ;
+	] .
+
+stsh:DefaultValueShape
+	a sh:NodeShape ;
+	rdfs:label "Well-formed sh:defaultValue"@en ;
+	sh:targetSubjectsOf sh:defaultValue ;
+	sh:property [
+		sh:path sh:defaultValue ;
+		sh:name "default value"@en ;
+		sh:order 5 ;
+		sh:maxCount 1 ;
+		sh:node stsh:NodeExpressionShape ;
+		sh:message "a shape has at most one sh:defaultValue, a well-formed node expression"@en ;
+	] .
+
+stsh:PropertyGroupShape
+	a sh:NodeShape ;
+	rdfs:label "Well-formed sh:PropertyGroup"@en ;
+	sh:targetClass sh:PropertyGroup ;
+	sh:nodeKind sh:BlankNodeOrIRI ;
+	sh:property [
+		sh:path rdfs:label ;
+		sh:name "label"@en ;
+		sh:order 1 ;
+		sh:or ( [ sh:datatype xsd:string ] [ sh:datatype rdf:langString ] [ sh:datatype rdf:dirLangString ] ) ;
+		sh:message "a property group's rdfs:label must be an xsd:string or a language-tagged string"@en ;
+	] ;
+	sh:property [
+		sh:path sh:order ;
+		sh:name "order"@en ;
+		sh:order 2 ;
+		sh:maxCount 1 ;
+		sh:or ( [ sh:datatype xsd:decimal ] [ sh:datatype xsd:integer ] ) ;
+	] .
+
 #############################################################################
 # Documentation-only (sh:name/sh:description/skos:example/rdfs:comment/
 # rdfs:seeAlso), same non-validating pattern as the SHACL Core section

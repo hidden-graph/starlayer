@@ -1621,33 +1621,6 @@ starontology:shacl12-shacl.ttl {
     # The SHACL 1.2 meta-shapes: pySHACL's bundled shacl-shacl (adjusted for the rules
     # SHACL 1.2 widened) plus StarLayer's shacl12-validation-shapes.ttl.
 
-    sh:defaultValue rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-        skos:example "sh:path ex:status ; sh:defaultValue \"pending\""@en ;
-        sh:description "A suggested default value for a property shape, for a UI to pre-fill when creating a new instance. Purely informational — has no effect on validation."@en ;
-        sh:name "default value"@en ;
-        stsh:requiredEngine stsh:PySHACL .
-
-    sh:description rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-        sh:description "A longer human-readable explanation of a shape's purpose — again, the same property this file uses for every predicate's own description."@en ;
-        sh:name "description"@en ;
-        stsh:requiredEngine stsh:PySHACL .
-
-    sh:group rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-        sh:description "Links a property shape to a sh:PropertyGroup, letting a UI cluster related fields into named sections — exactly how this presentation file's own groups (Targeting, Cardinality, etc.) work."@en ;
-        sh:name "group"@en ;
-        stsh:requiredEngine stsh:PySHACL .
-
-    sh:name rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-        skos:example "sh:name \"email address\"@en"@en ;
-        sh:description "A short, human-readable label for a shape — this exact same annotation property is what this presentation file itself uses for every predicate's display label."@en ;
-        sh:name "name"@en ;
-        stsh:requiredEngine stsh:PySHACL .
-
-    sh:order rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-        sh:description "A number suggesting where a property shape should appear relative to its siblings when a UI renders a form — lower numbers first. Purely a rendering hint."@en ;
-        sh:name "order"@en ;
-        stsh:requiredEngine stsh:PySHACL .
-
     shsh: a owl:Ontology ;
         rdfs:label "W3C SHACL for SHACL Validator"@en ;
         dcterms:creator "W3C Data Shapes Working Group" ;
@@ -1896,6 +1869,26 @@ starontology:shacl12-shacl.ttl {
         sh:severity sh:Info ;
         sh:targetClass sh:DataGraph .
 
+    stsh:DefaultValueShape a sh:NodeShape ;
+        rdfs:label "Well-formed sh:defaultValue"@en ;
+        sh:property [ sh:maxCount 1 ;
+                sh:message "a shape has at most one sh:defaultValue, a well-formed node expression"@en ;
+                sh:name "default value"@en ;
+                sh:node stsh:NodeExpressionShape ;
+                sh:order 5 ;
+                sh:path sh:defaultValue ] ;
+        sh:targetSubjectsOf sh:defaultValue .
+
+    stsh:GroupShape a sh:NodeShape ;
+        rdfs:label "Well-formed sh:group"@en ;
+        sh:property [ sh:class sh:PropertyGroup ;
+                sh:message "sh:group must name an instance of sh:PropertyGroup"@en ;
+                sh:name "group"@en ;
+                sh:nodeKind sh:BlankNodeOrIRI ;
+                sh:order 4 ;
+                sh:path sh:group ] ;
+        sh:targetSubjectsOf sh:group .
+
     stsh:IgnoredPropertiesLanguageInMinListLengthShapes a sh:NodeShape ;
         rdfs:label "sh:ignoredProperties / sh:languageIn minimum list length"@en ;
         rdfs:comment "Mirrors the official SHACL 1.2 WG draft's own minListLength additions to shsh:ShapeShape for these two predicates - an empty sh:ignoredProperties or sh:languageIn list is rejected outright (Violation, unlike the Warning-level sh:in/sh:xone checks above, matching the official draft's own severity choice for these two - no explicit sh:severity override there either). Purely additive: pySHACL's own bundled base graph already correctly checks list-of-IRI/list-of-string membership for both, unmodified and untouched here - only the missing minimum-length check is added."@en ;
@@ -1916,6 +1909,21 @@ starontology:shacl12-shacl.ttl {
                 sh:path sh:xone ] ;
         sh:targetSubjectsOf sh:in,
             sh:xone .
+
+    stsh:NameAndDescriptionShape a sh:NodeShape ;
+        rdfs:label "Well-formed sh:name and sh:description"@en ;
+        sh:property [ sh:message "sh:name must be an xsd:string or a language-tagged string"@en ;
+                sh:name "name"@en ;
+                sh:or ( [ sh:datatype xsd:string ] [ sh:datatype rdf:langString ] [ sh:datatype rdf:dirLangString ] ) ;
+                sh:order 1 ;
+                sh:path sh:name ],
+            [ sh:message "sh:description must be an xsd:string or a language-tagged string"@en ;
+                sh:name "description"@en ;
+                sh:or ( [ sh:datatype xsd:string ] [ sh:datatype rdf:langString ] [ sh:datatype rdf:dirLangString ] ) ;
+                sh:order 2 ;
+                sh:path sh:description ] ;
+        sh:targetSubjectsOf sh:description,
+            sh:name .
 
     stsh:NewPredicateShapes a sh:NodeShape ;
         rdfs:label "Well-formedness rules for new SHACL 1.2 predicates"@en ;
@@ -1965,6 +1973,31 @@ starontology:shacl12-shacl.ttl {
             sh:uniqueMembers,
             sh:uniqueValuesFor .
 
+    stsh:OrderShape a sh:NodeShape ;
+        rdfs:label "Well-formed sh:order"@en ;
+        sh:property [ sh:maxCount 1 ;
+                sh:message "sh:order must be a single decimal"@en ;
+                sh:name "order"@en ;
+                sh:or ( [ sh:datatype xsd:decimal ] [ sh:datatype xsd:integer ] ) ;
+                sh:order 3 ;
+                sh:path sh:order ] ;
+        sh:targetSubjectsOf sh:order .
+
+    stsh:PropertyGroupShape a sh:NodeShape ;
+        rdfs:label "Well-formed sh:PropertyGroup"@en ;
+        sh:nodeKind sh:BlankNodeOrIRI ;
+        sh:property [ sh:message "a property group's rdfs:label must be an xsd:string or a language-tagged string"@en ;
+                sh:name "label"@en ;
+                sh:or ( [ sh:datatype xsd:string ] [ sh:datatype rdf:langString ] [ sh:datatype rdf:dirLangString ] ) ;
+                sh:order 1 ;
+                sh:path rdfs:label ],
+            [ sh:maxCount 1 ;
+                sh:name "order"@en ;
+                sh:or ( [ sh:datatype xsd:decimal ] [ sh:datatype xsd:integer ] ) ;
+                sh:order 2 ;
+                sh:path sh:order ] ;
+        sh:targetClass sh:PropertyGroup .
+
     stsh:RulesAndSparqlShapes a sh:NodeShape ;
         rdfs:label "Well-formedness rules for sh:sparql / sh:rule / sh:condition"@en ;
         sh:property [ sh:node stsh:SelectValidatorShape ;
@@ -1979,20 +2012,20 @@ starontology:shacl12-shacl.ttl {
 
     stsh:ShapeShapeOverrides a sh:NodeShape ;
         rdfs:label "SHACL 1.2 replacement rules for widened parameters the Working Group file still rejects"@en ;
-        sh:property [ sh:maxCount 1 ;
-                sh:or ( [ sh:in ( sh:BlankNode sh:IRI sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral sh:TripleTerm ) ] [ sh:node shsh:ListShape ;
-                            sh:property [ sh:path [ sh:zeroOrMorePath rdf:rest ] ;
-                                    sh:property [ sh:in ( sh:BlankNode sh:IRI sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral sh:TripleTerm ) ;
-                                            sh:path rdf:first ] ] ] ) ;
-                sh:path sh:nodeKind ],
-            [ sh:node stsh:IRIOrPathShape ;
+        sh:property [ sh:node stsh:IRIOrPathShape ;
                 sh:path sh:equals ],
             [ sh:node stsh:IRIOrPathShape ;
                 sh:path sh:disjoint ],
             [ sh:node stsh:IRIOrPathShape ;
                 sh:path sh:lessThan ],
             [ sh:node stsh:IRIOrPathShape ;
-                sh:path sh:lessThanOrEquals ] ;
+                sh:path sh:lessThanOrEquals ],
+            [ sh:maxCount 1 ;
+                sh:or ( [ sh:in ( sh:BlankNode sh:IRI sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral sh:TripleTerm ) ] [ sh:node shsh:ListShape ;
+                            sh:property [ sh:path [ sh:zeroOrMorePath rdf:rest ] ;
+                                    sh:property [ sh:in ( sh:BlankNode sh:IRI sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral sh:TripleTerm ) ;
+                                            sh:path rdf:first ] ] ] ) ;
+                sh:path sh:nodeKind ] ;
         sh:targetSubjectsOf sh:disjoint,
             sh:equals,
             sh:lessThan,
@@ -2183,6 +2216,25 @@ starontology:shacl12-shacl.ttl {
         sh:name "CONSTRUCT query"@en ;
         stsh:requiredEngine stsh:PySHACL .
 
+    sh:defaultValue rdfs:comment "The value is checked when a shapes graph is validated: at most one, and a well-formed node expression (stsh:DefaultValueShape)."@en ;
+        rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
+        skos:example "sh:path ex:status ; sh:defaultValue \"pending\""@en ;
+        sh:description "A suggested default value for a property shape, for a UI to pre-fill when creating a new instance. Purely informational — has no effect on validation."@en ;
+        sh:name "default value"@en ;
+        stsh:requiredEngine stsh:PySHACL .
+
+    sh:description rdfs:comment "The value is checked when a shapes graph is validated: an xsd:string or language-tagged string (stsh:NameAndDescriptionShape)."@en ;
+        rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
+        sh:description "A longer human-readable explanation of a shape's purpose — again, the same property this file uses for every predicate's own description."@en ;
+        sh:name "description"@en ;
+        stsh:requiredEngine stsh:PySHACL .
+
+    sh:group rdfs:comment "The value is checked when a shapes graph is validated: an instance of sh:PropertyGroup (stsh:GroupShape)."@en ;
+        rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
+        sh:description "Links a property shape to a sh:PropertyGroup, letting a UI cluster related fields into named sections — exactly how this presentation file's own groups (Targeting, Cardinality, etc.) work."@en ;
+        sh:name "group"@en ;
+        stsh:requiredEngine stsh:PySHACL .
+
     sh:hasValue rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
         rdfs:seeAlso sh:in ;
         skos:example "sh:path rdf:type ; sh:hasValue ex:Person — requires the focus node to be typed ex:Person (among possibly other types)."@en ;
@@ -2208,6 +2260,13 @@ starontology:shacl12-shacl.ttl {
         skos:example "sh:path ex:username ; sh:minLength 3"@en ;
         sh:description "The string form of every value node must have at least this many characters. Applies to both literals and IRIs (an IRI's length is measured too)."@en ;
         sh:name "minimum length"@en ;
+        stsh:requiredEngine stsh:PySHACL .
+
+    sh:name rdfs:comment "The value is checked when a shapes graph is validated: an xsd:string or language-tagged string (stsh:NameAndDescriptionShape)."@en ;
+        rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
+        skos:example "sh:name \"email address\"@en"@en ;
+        sh:description "A short, human-readable label for a shape — this exact same annotation property is what this presentation file itself uses for every predicate's display label."@en ;
+        sh:name "name"@en ;
         stsh:requiredEngine stsh:PySHACL .
 
     sh:not rdfs:comment "Negating a shape with its own violations can be confusing to debug — the validation report shows that sh:not's inner shape *did* conform (which is why the outer shape failed), which reads backwards at first glance."@en ;
@@ -2410,6 +2469,12 @@ starontology:shacl12-shacl.ttl {
         skos:example "sh:path [ sh:oneOrMorePath ex:parent ] — every ancestor, not including the node itself."@en ;
         sh:description "Matches the given path repeated one or more times — like + in a regular expression. Same as sh:zeroOrMorePath but excludes the zero-repetition (starting-node) case."@en ;
         sh:name "one-or-more path"@en ;
+        stsh:requiredEngine stsh:PySHACL .
+
+    sh:order rdfs:comment "The value is checked when a shapes graph is validated: at most one, a decimal (stsh:OrderShape)."@en ;
+        rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
+        sh:description "A number suggesting where a property shape should appear relative to its siblings when a UI renders a form — lower numbers first. Purely a rendering hint."@en ;
+        sh:name "order"@en ;
         stsh:requiredEngine stsh:PySHACL .
 
     sh:property rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
@@ -2712,41 +2777,6 @@ starontology:shacl12-shacl.ttl {
         rdfs:comment "SHACL 1.2 widened sh:equals/sh:disjoint/sh:lessThan/sh:lessThanOrEquals from a single comparison-property IRI to a full SHACL property path expression. Reuses the Working Group's shsh:PathNodeShape (present once this file is merged with the Working Group's meta-shapes graph) rather than re-deriving SHACL's path grammar."@en ;
         sh:or ( [ sh:nodeKind sh:IRI ] [ sh:node shsh:PathNodeShape ] ) .
 
-    stsh:NodeExpressionShape a sh:NodeShape ;
-        rdfs:label "Well-formed SHACL node expression"@en ;
-        rdfs:comment "Accepts a constant (IRI/literal), sh:this, a blank node carrying a known sh:/shnex: node-expression defining predicate, a blank node structurally shaped like a SHACL Function call or a custom List Parameter Function call, or a call to a declared custom Named Parameter Expression Function. Deliberately shallow beyond that - see rdfs:comment on stsh:NodeExpressionFunctionCallShape and the section header above for the exact scope boundary."@en ;
-        sh:or ( [ sh:nodeKind sh:IRIOrLiteral ] [ sh:nodeKind sh:BlankNode ;
-                    sh:or ( [ sh:property [ sh:minCount 1 ;
-                                        sh:node shsh:PathNodeShape ;
-                                        sh:path sh:path ] ] [ sh:property [ sh:minCount 1 ;
-                                        sh:path sh:union ] ] [ sh:property [ sh:minCount 1 ;
-                                        sh:path sh:intersection ] ] [ sh:property [ sh:minCount 1 ;
-                                        sh:path sh:nodes ] ] [ sh:property [ sh:minCount 1 ;
-                                        sh:path sh:filterShape ] ] [ sh:property [ sh:minCount 1 ;
-                                        sh:path shnex:pathValues ] ] [ sh:property [ sh:minCount 1 ;
-                                        sh:path shnex:filterShape ] ] [ sh:property [ sh:minCount 1 ;
-                                        sh:path shnex:var ] ] [ sh:property [ sh:minCount 1 ;
-                                        sh:path shnex:if ] ] [ sh:property [ sh:minCount 1 ;
-                                        sh:path shnex:exists ] ] [ sh:property [ sh:minCount 1 ;
-                                        sh:path shnex:distinct ] ] [ sh:property [ sh:minCount 1 ;
-                                        sh:path shnex:remove ] ] [ sh:property [ sh:minCount 1 ;
-                                        sh:path shnex:intersection ] ] [ sh:property [ sh:minCount 1 ;
-                                        sh:path shnex:concat ] ] [ sh:property [ sh:minCount 1 ;
-                                        sh:path shnex:orderBy ] ] [ sh:property [ sh:minCount 1 ;
-                                        sh:path shnex:limit ] ] [ sh:property [ sh:minCount 1 ;
-                                        sh:path shnex:offset ] ] [ sh:property [ sh:minCount 1 ;
-                                        sh:path shnex:flatMap ] ] [ sh:property [ sh:minCount 1 ;
-                                        sh:path shnex:findFirst ] ] [ sh:property [ sh:minCount 1 ;
-                                        sh:path shnex:matchAll ] ] [ sh:property [ sh:minCount 1 ;
-                                        sh:path shnex:count ] ] [ sh:property [ sh:minCount 1 ;
-                                        sh:path shnex:min ] ] [ sh:property [ sh:minCount 1 ;
-                                        sh:path shnex:max ] ] [ sh:property [ sh:minCount 1 ;
-                                        sh:path shnex:sum ] ] [ sh:property [ sh:minCount 1 ;
-                                        sh:path shnex:instancesOf ] ] [ sh:property [ sh:minCount 1 ;
-                                        sh:path shnex:nodesMatching ] ] [ sh:property [ sh:minCount 1 ;
-                                        sh:path shnex:conformsToShape ] ] [ sh:property [ sh:minCount 1 ;
-                                        sh:path shnex:arg ] ] stsh:NodeExpressionFunctionCallShape stsh:NamedParameterFunctionCallShape ) ] ) .
-
     stsh:ShapeReferenceShape a sh:NodeShape ;
         rdfs:label "Well-formed shape reference"@en ;
         rdfs:comment "Used for SHACL 1.2 predicates whose value must itself be a well-formed shape (sh:someValue, sh:memberShape, sh:reifierShape). sh:node's semantics evaluate the referenced shape's own constraint components regardless of that shape's own targets, so referencing shsh:ShapeShape here checks full shape well-formedness, not just the node/property-shape distinction. sh:nodeKind is added on top because the Working Group's shsh:ShapeShape doesn't itself enforce blank-node-or-IRI - a bare literal vacuously satisfies shsh:NodeShapeShape's xone branch (every one of its checks is a maxCount 0 'must not have' rule, trivially true for a literal with no outgoing properties at all), so without this a literal value would incorrectly pass as 'a well-formed shape'."@en ;
@@ -2811,6 +2841,41 @@ starontology:shacl12-shacl.ttl {
         sh:description "The SPARQL SELECT query text for a sh:sparql constraint or a custom sh:ConstraintComponent's sh:nodeValidator/sh:propertyValidator. Any row returned counts as a violation; bindings for ?value/?path/?this in the result customize the reported focus/value/path."@en ;
         sh:name "SELECT query"@en ;
         stsh:requiredEngine stsh:PySHACL .
+
+    stsh:NodeExpressionShape a sh:NodeShape ;
+        rdfs:label "Well-formed SHACL node expression"@en ;
+        rdfs:comment "Accepts a constant (IRI/literal), sh:this, a blank node carrying a known sh:/shnex: node-expression defining predicate, a blank node structurally shaped like a SHACL Function call or a custom List Parameter Function call, or a call to a declared custom Named Parameter Expression Function. Deliberately shallow beyond that - see rdfs:comment on stsh:NodeExpressionFunctionCallShape and the section header above for the exact scope boundary."@en ;
+        sh:or ( [ sh:nodeKind sh:IRIOrLiteral ] [ sh:nodeKind sh:BlankNode ;
+                    sh:or ( [ sh:property [ sh:minCount 1 ;
+                                        sh:node shsh:PathNodeShape ;
+                                        sh:path sh:path ] ] [ sh:property [ sh:minCount 1 ;
+                                        sh:path sh:union ] ] [ sh:property [ sh:minCount 1 ;
+                                        sh:path sh:intersection ] ] [ sh:property [ sh:minCount 1 ;
+                                        sh:path sh:nodes ] ] [ sh:property [ sh:minCount 1 ;
+                                        sh:path sh:filterShape ] ] [ sh:property [ sh:minCount 1 ;
+                                        sh:path shnex:pathValues ] ] [ sh:property [ sh:minCount 1 ;
+                                        sh:path shnex:filterShape ] ] [ sh:property [ sh:minCount 1 ;
+                                        sh:path shnex:var ] ] [ sh:property [ sh:minCount 1 ;
+                                        sh:path shnex:if ] ] [ sh:property [ sh:minCount 1 ;
+                                        sh:path shnex:exists ] ] [ sh:property [ sh:minCount 1 ;
+                                        sh:path shnex:distinct ] ] [ sh:property [ sh:minCount 1 ;
+                                        sh:path shnex:remove ] ] [ sh:property [ sh:minCount 1 ;
+                                        sh:path shnex:intersection ] ] [ sh:property [ sh:minCount 1 ;
+                                        sh:path shnex:concat ] ] [ sh:property [ sh:minCount 1 ;
+                                        sh:path shnex:orderBy ] ] [ sh:property [ sh:minCount 1 ;
+                                        sh:path shnex:limit ] ] [ sh:property [ sh:minCount 1 ;
+                                        sh:path shnex:offset ] ] [ sh:property [ sh:minCount 1 ;
+                                        sh:path shnex:flatMap ] ] [ sh:property [ sh:minCount 1 ;
+                                        sh:path shnex:findFirst ] ] [ sh:property [ sh:minCount 1 ;
+                                        sh:path shnex:matchAll ] ] [ sh:property [ sh:minCount 1 ;
+                                        sh:path shnex:count ] ] [ sh:property [ sh:minCount 1 ;
+                                        sh:path shnex:min ] ] [ sh:property [ sh:minCount 1 ;
+                                        sh:path shnex:max ] ] [ sh:property [ sh:minCount 1 ;
+                                        sh:path shnex:sum ] ] [ sh:property [ sh:minCount 1 ;
+                                        sh:path shnex:instancesOf ] ] [ sh:property [ sh:minCount 1 ;
+                                        sh:path shnex:nodesMatching ] ] [ sh:property [ sh:minCount 1 ;
+                                        sh:path shnex:conformsToShape ] ] [ sh:property [ sh:minCount 1 ;
+                                        sh:path shnex:arg ] ] stsh:NodeExpressionFunctionCallShape stsh:NamedParameterFunctionCallShape ) ] ) .
 
     sh:TripleRule rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
             <https://www.w3.org/TR/shacl12-rules/> ;
