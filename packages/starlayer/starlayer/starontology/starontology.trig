@@ -2351,6 +2351,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:NodeShapeForm_sh_ignoredProperties a sh:PropertyShape ;
         sh:group stsh:ClosedGroup ;
+        sh:maxCount 1 ;
         sh:order 2 ;
         sh:path sh:ignoredProperties .
 
@@ -2454,7 +2455,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:NodeShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n518a6fa947a44bb4a16373685686feedb8 ;
+        sh:in _:na4f306ff4dfa43188be402a3fc6e503cb8 ;
         sh:maxCount 1 ;
         sh:order 3 ;
         sh:path sh:nodeKind .
@@ -2515,6 +2516,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:NodeShapeForm_sh_someValue a sh:PropertyShape ;
         sh:group stsh:CompositionGroup ;
+        sh:maxCount 1 ;
         sh:order 7 ;
         sh:path sh:someValue .
 
@@ -2604,6 +2606,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:PropertyShapeForm_sh_defaultValue a sh:PropertyShape ;
         sh:group stsh:MetadataGroup ;
+        sh:maxCount 1 ;
         sh:order 8 ;
         sh:path sh:defaultValue .
 
@@ -2627,6 +2630,7 @@ starontology:shacl12-shacl-ui.ttl {
     stsh:PropertyShapeForm_sh_expression a sh:PropertyShape ;
         sh:group stsh:PathGroup ;
         sh:maxCount 1 ;
+        sh:minCount 1 ;
         sh:order 7 ;
         sh:path sh:expression .
 
@@ -2638,6 +2642,7 @@ starontology:shacl12-shacl-ui.ttl {
         sh:path sh:flags .
 
     stsh:PropertyShapeForm_sh_group a sh:PropertyShape ;
+        sh:class sh:PropertyGroup ;
         sh:group stsh:MetadataGroup ;
         sh:maxCount 1 ;
         sh:nodeKind sh:BlankNodeOrIRI ;
@@ -2766,7 +2771,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:PropertyShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n518a6fa947a44bb4a16373685686feedb8 ;
+        sh:in _:na4f306ff4dfa43188be402a3fc6e503cb8 ;
         sh:maxCount 1 ;
         sh:order 3 ;
         sh:path sh:nodeKind .
@@ -2790,6 +2795,7 @@ starontology:shacl12-shacl-ui.ttl {
     stsh:PropertyShapeForm_sh_path a sh:PropertyShape ;
         sh:group stsh:PathGroup ;
         sh:maxCount 1 ;
+        sh:minCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 1 ;
         sh:path sh:path .
@@ -2822,6 +2828,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:PropertyShapeForm_sh_qualifiedValueShape a sh:PropertyShape ;
         sh:group stsh:QualifiedGroup ;
+        sh:maxCount 1 ;
         sh:order 1 ;
         sh:path sh:qualifiedValueShape .
 
@@ -2871,6 +2878,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:PropertyShapeForm_sh_someValue a sh:PropertyShape ;
         sh:group stsh:CompositionGroup ;
+        sh:maxCount 1 ;
         sh:order 7 ;
         sh:path sh:someValue .
 
@@ -3291,14 +3299,14 @@ starontology:shacl12-shacl-ui.ttl {
         sh:name "SHACL 1.2 UI Widgets"@en ;
         sh:order 16 .
 
-    _:n518a6fa947a44bb4a16373685686feedb10 rdf:first sh:Literal ;
+    _:na4f306ff4dfa43188be402a3fc6e503cb10 rdf:first sh:Literal ;
         rdf:rest ( sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) .
 
-    _:n518a6fa947a44bb4a16373685686feedb9 rdf:first sh:IRI ;
-        rdf:rest _:n518a6fa947a44bb4a16373685686feedb10 .
+    _:na4f306ff4dfa43188be402a3fc6e503cb9 rdf:first sh:IRI ;
+        rdf:rest _:na4f306ff4dfa43188be402a3fc6e503cb10 .
 
-    _:n518a6fa947a44bb4a16373685686feedb8 rdf:first sh:BlankNode ;
-        rdf:rest _:n518a6fa947a44bb4a16373685686feedb9 .
+    _:na4f306ff4dfa43188be402a3fc6e503cb8 rdf:first sh:BlankNode ;
+        rdf:rest _:na4f306ff4dfa43188be402a3fc6e503cb9 .
 }
 
 starontology:shacl12-shacl.ttl {

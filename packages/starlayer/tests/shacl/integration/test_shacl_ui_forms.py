@@ -137,3 +137,119 @@ def test_uncommon_predicates_are_marked_secondary_on_the_node_shape_form_only(ui
     assert {p for p, f in node_fields.items() if (f, STSH.secondary, Literal(True)) in ui} == flagged
     assert not list(ui.triples((None, STSH.secondary, None)) ) or all(f in node_fields.values() for f, _, _ in ui.triples((None, STSH.secondary, None)))
     assert not any((f, STSH.secondary, None) in ui for f in prop_fields.values())
+
+
+# --------------------------------------------------------------------------- honesty: the forms cannot make an invalid shapes graph
+#
+# A tool that builds a shapes graph only from the fields of these forms, with values the form allows, must get a graph that
+# validates against shacl_shacl. Two checks keep the hand-curated flags honest: what shacl_shacl forbids on a kind of shape is
+# not a field of that kind's form, and every single field set to a value its own constraints allow validates.
+
+EX = "http://example.org/"
+_NODE_BASE = "ex:S a sh:NodeShape ."
+_PROPERTY_BASE = "ex:S a sh:NodeShape ; sh:property ex:P . ex:P a sh:PropertyShape ; sh:path ex:p ."
+_PREFIXES = "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix xsd: <http://www.w3.org/2001/XMLSchema#> . @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> . @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> . "
+
+# Fields whose values are structures (a list of shapes, a node expression, a property path) a single sample cannot stand for.
+# They are the fields not checked here, named so that adding one to a form is a visible decision.
+NOT_SAMPLED = {sh(x) for x in ("and", "or", "xone", "not", "node", "property", "qualifiedValueShape", "someValue", "memberShape",
+                              "reifierShape", "expression", "sparql", "rule", "ignoredProperties", "languageIn", "in", "path")}
+
+# What a user would reasonably enter, for the fields whose own constraints do not say (shacl_shacl gives them no datatype or node kind).
+SAMPLES = {
+    **{sh(x): ['"x"'] for x in ("name", "description", "message", "flags", "defaultValue", "pattern")},
+    sh("order"): ["1"], sh("group"): ["ex:G"], sh("datatype"): ["xsd:string"], sh("class"): ["ex:C"], sh("rootClass"): ["ex:C"],
+    sh("closed"): ["true"], sh("hasValue"): ["ex:x"], sh("uniqueValuesFor"): ["ex:p"], sh("targetClass"): ["ex:C"], sh("targetNode"): ["ex:x"],
+    sh("targetSubjectsOf"): ["ex:p"], sh("targetObjectsOf"): ["ex:p"], sh("subsetOf"): ["ex:p"],
+    URIRef("http://www.w3.org/2000/01/rdf-schema#isDefinedBy"): ["ex:G"],
+}
+
+# Triples a sample needs besides the value: a sh:group must name an sh:PropertyGroup, so the form offers the groups that exist.
+EXTRA = {sh("group"): "ex:G a sh:PropertyGroup ."}
+
+
+def forbidden_on_node_shapes(shacl_shacl: Graph) -> set[URIRef]:
+    """What shacl_shacl says a node shape must not have: the paths of NodeShapeShape's property shapes with sh:maxCount 0."""
+    node_shape_shape = URIRef("http://www.w3.org/ns/shacl-shacl#NodeShapeShape")
+    return {
+        next(shacl_shacl.objects(prop, sh("path")))
+        for prop in shacl_shacl.objects(node_shape_shape, sh("property"))
+        if (prop, sh("maxCount"), Literal(0)) in shacl_shacl
+    }
+
+
+def test_what_shacl_shacl_forbids_on_a_node_shape_is_not_a_field_of_the_node_shape_form(ui, shacl_shacl) -> None:
+    forbidden = forbidden_on_node_shapes(shacl_shacl)
+    assert sh("path") in forbidden and len(forbidden) >= 5, "the Working Group's NodeShapeShape bans path, cardinality and others"
+    assert not (set(fields_of(ui, STSH.NodeShapeForm)) & forbidden)
+
+
+def test_the_property_shape_form_requires_the_path_the_validation_requires(ui) -> None:
+    path = fields_of(ui, STSH.PropertyShapeForm)[sh("path")]
+    assert (path, sh("minCount"), Literal(1)) in ui and (path, sh("maxCount"), Literal(1)) in ui
+
+
+def test_a_form_never_allows_more_values_than_shacl_shacl_does(ui, shacl_shacl) -> None:
+    for name in ("NodeShapeForm", "PropertyShapeForm"):
+        for predicate, field in fields_of(ui, STSH[name]).items():
+            limits = [int(o) for owner in shacl_shacl.subjects(sh("path"), predicate) for o in shacl_shacl.objects(owner, sh("maxCount"))]
+            if limits and min(limits) > 0:
+                allowed = [int(o) for o in ui.objects(field, sh("maxCount"))]
+                assert allowed and min(allowed) <= min(limits), (name, predicate, limits, allowed)
+
+
+def _samples(ui: Graph, field) -> list[str]:
+    """Turtle values the field's own constraints allow (empty when a single sample cannot stand for it)."""
+    in_lists = list(ui.objects(field, sh("in")))
+    if in_lists:
+        return [o.n3() if isinstance(o, URIRef) and False else (f"<{o}>" if isinstance(o, URIRef) else o.n3()) for o in ui.items(in_lists[0])]
+    datatype = next(ui.objects(field, sh("datatype")), None)
+    node_kind = next(ui.objects(field, sh("nodeKind")), None)
+    if datatype == XSD.integer:
+        return ["1"]
+    if datatype == XSD.boolean:
+        return ["true"]
+    if datatype == XSD.string:
+        return ['"x"']
+    if datatype == XSD.decimal:
+        return ["1.5"]
+    if node_kind in (sh("IRI"), sh("BlankNodeOrIRI")):
+        return ["ex:x"]
+    if node_kind == sh("Literal"):
+        return ['"x"']
+    return []
+
+
+@pytest.mark.parametrize("form,base,subject", [("NodeShapeForm", _NODE_BASE, "ex:S"), ("PropertyShapeForm", _PROPERTY_BASE, "ex:P")])
+def test_every_field_set_to_a_value_its_constraints_allow_still_validates(ui, form, base, subject) -> None:
+    """The honesty check: one field at a time, on a minimal valid shape of that kind. A field that makes the graph invalid is a
+    predicate that should not be on that form (or a constraint the form is missing)."""
+    from pyshacl.errors import ReportableRuntimeError
+
+    from starlayer.shacl.meta_shapes import meta_validate
+
+    checked, bad = 0, []
+    for predicate, field in fields_of(ui, STSH[form]).items():
+        if predicate in NOT_SAMPLED:
+            continue
+        samples = SAMPLES.get(predicate) or _samples(ui, field)
+        if not samples:
+            bad.append((predicate, "no sample value from the field's constraints; add it to NOT_SAMPLED with a reason, or give the field a datatype / node kind"))
+            continue
+        for value in samples:
+            graph = Graph()
+            graph.parse(data=_PREFIXES + f"{base} {EXTRA.get(predicate, '')} {subject} <{predicate}> {value} .", format="turtle")
+            try:
+                meta_validate(graph)
+            except ReportableRuntimeError as error:
+                bad.append((predicate, value, str(error).splitlines()[0][:100]))
+        checked += 1
+    assert not bad, f"{form}: " + "; ".join(str(b) for b in bad[:6])
+    assert checked > 25
+
+
+def test_the_group_field_offers_only_property_groups(ui) -> None:
+    """shacl_shacl requires a sh:group value to be a sh:PropertyGroup, so the field says so: a tool lists the groups that exist
+    and a graph cannot get a group that is not one."""
+    group = fields_of(ui, STSH.PropertyShapeForm)[sh("group")]
+    assert (group, sh("class"), sh("PropertyGroup")) in ui

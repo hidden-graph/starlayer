@@ -12,7 +12,8 @@ The registered file is two things:
 2. the **form shapes** generated from it: ``stsh:NodeShapeForm`` and ``stsh:PropertyShapeForm``, each a node shape whose
    property shapes are the fields of that kind of shape. A field is one property shape per flagged predicate, named
    ``stsh:<Form>_<prefix>_<local>``, with the predicate's ``sh:group`` and ``sh:order``, a ``sh:maxCount`` where the form
-   allows one value, and the ``sh:datatype``, ``sh:nodeKind`` and ``sh:in`` list the predicate has in ``shacl_shacl`` (so a
+   allows one value, and the ``sh:datatype``, ``sh:nodeKind``, ``sh:class``, ``sh:in`` list, ``sh:minCount`` and ``sh:maxCount`` the predicate has in
+   ``shacl_shacl`` (so a
    number is stored as a number and an enumeration lists its values). A node shape form's field for a predicate flagged
    ``stsh:nodePrimary false`` gets ``stsh:secondary true`` (allowed, but not commonly expected there).
 
@@ -95,15 +96,55 @@ def _copy(graph: Graph, node, out: Graph) -> None:
                 pending.append(value)
 
 
-def _constraints_in_shacl_shacl(shacl_shacl: Graph, predicate: URIRef):
-    """The datatype, node kind and sh:in list of a predicate in shacl_shacl: those of its first property shape that has one."""
-    owners = sorted(shacl_shacl.subjects(SH.path, predicate), key=str)
-    for term in (SH.datatype, SH.nodeKind, SH["in"]):
+SHSH = Namespace("http://www.w3.org/ns/shacl-shacl#")
+# The Working Group's rules that apply to one kind of shape only: what a node shape must not have, what a property shape must have.
+_KIND_SPECIFIC = {SH.NodeShape: SHSH.NodeShapeShape, SH.PropertyShape: SHSH.PropertyShapeShape}
+
+
+def _roots(graph: Graph, node) -> set[URIRef]:
+    """The named shapes a (possibly nested) property shape belongs to: walk up through blank nodes to the IRIs that hold it."""
+    roots, seen, pending = set(), set(), [node]
+    while pending:
+        current = pending.pop()
+        if current in seen:
+            continue
+        seen.add(current)
+        for subject, _predicate in graph.subject_predicates(current):
+            if isinstance(subject, URIRef):
+                roots.add(subject)
+            else:
+                pending.append(subject)
+    return roots
+
+
+def _owners(shacl_shacl: Graph, predicate: URIRef, kind) -> list:
+    """The property shapes of shacl_shacl for a predicate that apply to a kind of shape, in a stable order (blank node labels
+    change between builds, so the order is by the named shape that holds them and by their own content)."""
+    other = _KIND_SPECIFIC[SH.PropertyShape if kind == SH.NodeShape else SH.NodeShape]
+    found = []
+    for owner in shacl_shacl.subjects(SH.path, predicate):
+        roots = _roots(shacl_shacl, owner)
+        if roots == {other}:
+            continue  # a rule for the other kind of shape (NodeShapeShape forbids sh:path; PropertyShapeShape requires it)
+        content = tuple(sorted((str(p), "_" if isinstance(v, BNode) else str(v)) for p, v in shacl_shacl.predicate_objects(owner)))
+        found.append((sorted(map(str, roots)), content, owner))
+    return [owner for _roots_, _content, owner in sorted(found, key=lambda item: (item[0], item[1]))]
+
+
+def _constraints_in_shacl_shacl(shacl_shacl: Graph, predicate: URIRef, kind):
+    """The datatype, node kind, class, sh:in list and cardinality of a predicate in shacl_shacl for a kind of shape: the first
+    property shape that applies to it and has the term (a ``sh:maxCount 0`` is a ban, not a limit, and is skipped)."""
+    owners = _owners(shacl_shacl, predicate, kind)
+    for term in (SH.datatype, SH.nodeKind, SH["class"], SH["in"], SH.minCount, SH.maxCount):
         for owner in owners:
-            values = list(shacl_shacl.objects(owner, term))
+            values = [v for v in shacl_shacl.objects(owner, term) if not (term == SH.maxCount and v == Literal(0))]
             if values:
                 yield term, values
                 break
+
+
+def _max_count_in_shacl_shacl(shacl_shacl: Graph, predicate: URIRef, kind) -> bool:
+    return any(term == SH.maxCount for term, _values in _constraints_in_shacl_shacl(shacl_shacl, predicate, kind))
 
 
 def build_shacl_ui_graph(overlay: Graph | None = None, shacl_shacl: Graph | None = None) -> Graph:
@@ -133,11 +174,12 @@ def build_shacl_ui_graph(overlay: Graph | None = None, shacl_shacl: Graph | None
             for term in (SH.group, SH.order):
                 for value in overlay.objects(predicate, term):
                     out.add((field, term, value))
-            for value in overlay.objects(predicate, STSH.formMaxCount):
-                out.add((field, SH.maxCount, value))
+            if not _max_count_in_shacl_shacl(shacl_shacl, predicate, kind):
+                for value in overlay.objects(predicate, STSH.formMaxCount):  # the form's own limit where shacl_shacl has none
+                    out.add((field, SH.maxCount, value))
             if kind == SH.NodeShape and (predicate, STSH.nodePrimary, Literal(False)) in overlay:
                 out.add((field, STSH.secondary, Literal(True)))  # allowed, but not commonly expected on a node shape
-            for term, values in _constraints_in_shacl_shacl(shacl_shacl, predicate):
+            for term, values in _constraints_in_shacl_shacl(shacl_shacl, predicate, kind):
                 for value in values:
                     out.add((field, term, value))
                     if isinstance(value, BNode):
