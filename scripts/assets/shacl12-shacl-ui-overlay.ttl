@@ -6,7 +6,7 @@
 # node kind and sh:in list its predicate has in shacl_shacl. The build checks that every predicate shacl_shacl validates is a
 # field of some form or is on build_shacl_ui.EXCLUDED with a reason, so the forms cannot fall behind the validation shapes.
 #
-# Contents of this source: 18 sh:PropertyGroup sections (stsh:TargetGroup, ...), sh:group and sh:order on each SHACL
+# Contents of this source: 19 sh:PropertyGroup sections (stsh:TargetGroup, ...), sh:group and sh:order on each SHACL
 # predicate (one group and one order per predicate: SHACL gives sh:order a single value, and the meta-shapes check that), the
 # stsh: form flags (nodeFormField, propertyFormField, formMaxCount, nodePrimary), stsh:formFor, and two small hand-written forms
 # (stsh:PropertyGroupForm, stsh:ShapesGraphForm).
@@ -38,6 +38,11 @@
 #############################################################################
 # Property groups (suggested UI section order)
 #############################################################################
+
+stsh:TypeGroup a sh:PropertyGroup ;
+	sh:name "Type"@en ;
+	sh:order 0 ;
+	sh:description "What kind of thing this is — rdf:type, a simple multi-valued IRI. Allowed on any shape and expected on most (a shape need not be typed, SHACL 1.2 Core section 3.1, but a form should show and set the type)."@en .
 
 stsh:TargetGroup a sh:PropertyGroup ;
 	sh:name "Targeting"@en ;
@@ -587,6 +592,10 @@ stsh:formFor a rdf:Property ;
 # The link from a shape to the shapes graph that defines it (SHACL 1.2 Profiling section 2.4): a field of both forms.
 rdfs:isDefinedBy stsh:nodeFormField true ; stsh:propertyFormField true ; stsh:formMaxCount 1 ;
     sh:group stsh:MetadataGroup ; sh:order 10 .
+
+# rdf:type: a simple multi-valued IRI, the first field of both forms. A UI-only node kind (shacl_shacl has no rule for it) lets the
+# scoring pick the IRI editor and the honesty check give it a sample.
+rdf:type stsh:nodeFormField true ; stsh:propertyFormField true ; sh:group stsh:TypeGroup ; sh:order 1 ; sh:nodeKind sh:IRI .
 
 # A property shape's own widget fields (shui: preferences): a field of the property shape form only.
 shui:editor stsh:propertyFormField true .

@@ -158,7 +158,7 @@ NOT_SAMPLED = {sh(x) for x in ("and", "or", "xone", "not", "node", "property", "
 # What a user would reasonably enter, for the fields whose own constraints do not say (shacl_shacl gives them no datatype or node kind).
 SAMPLES = {
     **{sh(x): ['"x"'] for x in ("name", "description", "message", "flags", "defaultValue", "pattern")},
-    sh("order"): ["1"], sh("group"): ["ex:G"], sh("datatype"): ["xsd:string"], sh("class"): ["ex:C"], sh("rootClass"): ["ex:C"],
+    sh("order"): ["1"], sh("group"): ["ex:G"], URIRef("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"): ["ex:T"], sh("datatype"): ["xsd:string"], sh("class"): ["ex:C"], sh("rootClass"): ["ex:C"],
     sh("closed"): ["true"], sh("hasValue"): ["ex:x"], sh("uniqueValuesFor"): ["ex:p"], sh("targetClass"): ["ex:C"], sh("targetNode"): ["ex:x"],
     sh("targetSubjectsOf"): ["ex:p"], sh("targetObjectsOf"): ["ex:p"], sh("subsetOf"): ["ex:p"],
     URIRef("http://www.w3.org/2000/01/rdf-schema#isDefinedBy"): ["ex:G"],
@@ -253,3 +253,12 @@ def test_the_group_field_offers_only_property_groups(ui) -> None:
     and a graph cannot get a group that is not one."""
     group = fields_of(ui, STSH.PropertyShapeForm)[sh("group")]
     assert (group, sh("class"), sh("PropertyGroup")) in ui
+
+
+def test_rdf_type_is_a_simple_multi_valued_iri_field_of_both_forms_in_its_own_first_group(ui) -> None:
+    rdf_type = URIRef("http://www.w3.org/1999/02/22-rdf-syntax-ns#type")
+    for name in ("NodeShapeForm", "PropertyShapeForm"):
+        field = fields_of(ui, STSH[name])[rdf_type]
+        assert (field, sh("nodeKind"), sh("IRI")) in ui and not list(ui.objects(field, sh("maxCount"))), "an IRI, many allowed"
+        assert (field, sh("group"), STSH.TypeGroup) in ui
+    assert (STSH.TypeGroup, sh("order"), Literal(0)) in ui, "the type comes first"

@@ -192,7 +192,8 @@ shui:ValueTableViewer sh:group stsh:WidgetGroup ;
 
 stsh:NodeShapeForm a sh:NodeShape ;
     rdfs:label "Form for a NodeShape"@en ;
-    sh:property stsh:NodeShapeForm_rdfs_isDefinedBy,
+    sh:property stsh:NodeShapeForm_rdf_type,
+        stsh:NodeShapeForm_rdfs_isDefinedBy,
         stsh:NodeShapeForm_sh_and,
         stsh:NodeShapeForm_sh_class,
         stsh:NodeShapeForm_sh_closed,
@@ -256,7 +257,8 @@ stsh:PropertyGroupForm a sh:NodeShape ;
 
 stsh:PropertyShapeForm a sh:NodeShape ;
     rdfs:label "Form for a PropertyShape"@en ;
-    sh:property stsh:PropertyShapeForm_rdfs_isDefinedBy,
+    sh:property stsh:PropertyShapeForm_rdf_type,
+        stsh:PropertyShapeForm_rdfs_isDefinedBy,
         stsh:PropertyShapeForm_sh_and,
         stsh:PropertyShapeForm_sh_class,
         stsh:PropertyShapeForm_sh_datatype,
@@ -461,6 +463,12 @@ shui:viewer sh:group stsh:WidgetGroup ;
     sh:order 2 ;
     stsh:propertyFormField true .
 
+stsh:NodeShapeForm_rdf_type a sh:PropertyShape ;
+    sh:group stsh:TypeGroup ;
+    sh:nodeKind sh:IRI ;
+    sh:order 1 ;
+    sh:path rdf:type .
+
 stsh:NodeShapeForm_rdfs_isDefinedBy a sh:PropertyShape ;
     sh:group stsh:MetadataGroup ;
     sh:maxCount 1 ;
@@ -621,7 +629,7 @@ stsh:NodeShapeForm_sh_node a sh:PropertyShape ;
 
 stsh:NodeShapeForm_sh_nodeKind a sh:PropertyShape ;
     sh:group stsh:ValueTypeGroup ;
-    sh:in _:n9fe0e65f8c2d4f9f9caf3755df34b215b75 ;
+    sh:in _:n4115888544df4b1faae810f3b9169f49b75 ;
     sh:maxCount 1 ;
     sh:order 3 ;
     sh:path sh:nodeKind .
@@ -740,6 +748,12 @@ stsh:NodeShapeForm_sh_xone a sh:PropertyShape ;
     sh:group stsh:CompositionGroup ;
     sh:order 4 ;
     sh:path sh:xone .
+
+stsh:PropertyShapeForm_rdf_type a sh:PropertyShape ;
+    sh:group stsh:TypeGroup ;
+    sh:nodeKind sh:IRI ;
+    sh:order 1 ;
+    sh:path rdf:type .
 
 stsh:PropertyShapeForm_rdfs_isDefinedBy a sh:PropertyShape ;
     sh:group stsh:MetadataGroup ;
@@ -937,7 +951,7 @@ stsh:PropertyShapeForm_sh_node a sh:PropertyShape ;
 
 stsh:PropertyShapeForm_sh_nodeKind a sh:PropertyShape ;
     sh:group stsh:ValueTypeGroup ;
-    sh:in _:n9fe0e65f8c2d4f9f9caf3755df34b215b75 ;
+    sh:in _:n4115888544df4b1faae810f3b9169f49b75 ;
     sh:maxCount 1 ;
     sh:order 3 ;
     sh:path sh:nodeKind .
@@ -1126,6 +1140,12 @@ stsh:PropertyShapeForm_shui_viewer a sh:PropertyShape ;
     sh:nodeKind sh:IRI ;
     sh:order 2 ;
     sh:path shui:viewer .
+
+rdf:type sh:group stsh:TypeGroup ;
+    sh:nodeKind sh:IRI ;
+    sh:order 1 ;
+    stsh:nodeFormField true ;
+    stsh:propertyFormField true .
 
 rdfs:isDefinedBy sh:group stsh:MetadataGroup ;
     sh:order 10 ;
@@ -1380,6 +1400,11 @@ stsh:CrossNodeGroup a sh:PropertyGroup ;
     sh:name "Cross-Node"@en ;
     sh:order 13 .
 
+stsh:TypeGroup a sh:PropertyGroup ;
+    sh:description "What kind of thing this is — rdf:type, a simple multi-valued IRI. Allowed on any shape and expected on most (a shape need not be typed, SHACL 1.2 Core section 3.1, but a form should show and set the type)."@en ;
+    sh:name "Type"@en ;
+    sh:order 0 .
+
 stsh:CardinalityGroup a sh:PropertyGroup ;
     sh:description "How many values a path may or must have — sh:minCount/sh:maxCount."@en ;
     sh:name "Cardinality"@en ;
@@ -1465,8 +1490,8 @@ stsh:WidgetGroup a sh:PropertyGroup ;
     sh:name "SHACL 1.2 UI Widgets"@en ;
     sh:order 16 .
 
-_:n9fe0e65f8c2d4f9f9caf3755df34b215b76 rdf:first sh:IRI ;
+_:n4115888544df4b1faae810f3b9169f49b76 rdf:first sh:IRI ;
     rdf:rest ( sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) .
 
-_:n9fe0e65f8c2d4f9f9caf3755df34b215b75 rdf:first sh:BlankNode ;
-    rdf:rest _:n9fe0e65f8c2d4f9f9caf3755df34b215b76 .
+_:n4115888544df4b1faae810f3b9169f49b75 rdf:first sh:BlankNode ;
+    rdf:rest _:n4115888544df4b1faae810f3b9169f49b76 .

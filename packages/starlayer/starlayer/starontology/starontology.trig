@@ -2026,7 +2026,8 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:NodeShapeForm a sh:NodeShape ;
         rdfs:label "Form for a NodeShape"@en ;
-        sh:property stsh:NodeShapeForm_rdfs_isDefinedBy,
+        sh:property stsh:NodeShapeForm_rdf_type,
+            stsh:NodeShapeForm_rdfs_isDefinedBy,
             stsh:NodeShapeForm_sh_and,
             stsh:NodeShapeForm_sh_class,
             stsh:NodeShapeForm_sh_closed,
@@ -2090,7 +2091,8 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:PropertyShapeForm a sh:NodeShape ;
         rdfs:label "Form for a PropertyShape"@en ;
-        sh:property stsh:PropertyShapeForm_rdfs_isDefinedBy,
+        sh:property stsh:PropertyShapeForm_rdf_type,
+            stsh:PropertyShapeForm_rdfs_isDefinedBy,
             stsh:PropertyShapeForm_sh_and,
             stsh:PropertyShapeForm_sh_class,
             stsh:PropertyShapeForm_sh_datatype,
@@ -2295,6 +2297,12 @@ starontology:shacl12-shacl-ui.ttl {
         sh:order 2 ;
         stsh:propertyFormField true .
 
+    stsh:NodeShapeForm_rdf_type a sh:PropertyShape ;
+        sh:group stsh:TypeGroup ;
+        sh:nodeKind sh:IRI ;
+        sh:order 1 ;
+        sh:path rdf:type .
+
     stsh:NodeShapeForm_rdfs_isDefinedBy a sh:PropertyShape ;
         sh:group stsh:MetadataGroup ;
         sh:maxCount 1 ;
@@ -2455,7 +2463,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:NodeShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:na4f306ff4dfa43188be402a3fc6e503cb8 ;
+        sh:in _:n0b91e508d72e47df99d8d83110ae9872b8 ;
         sh:maxCount 1 ;
         sh:order 3 ;
         sh:path sh:nodeKind .
@@ -2574,6 +2582,12 @@ starontology:shacl12-shacl-ui.ttl {
         sh:group stsh:CompositionGroup ;
         sh:order 4 ;
         sh:path sh:xone .
+
+    stsh:PropertyShapeForm_rdf_type a sh:PropertyShape ;
+        sh:group stsh:TypeGroup ;
+        sh:nodeKind sh:IRI ;
+        sh:order 1 ;
+        sh:path rdf:type .
 
     stsh:PropertyShapeForm_rdfs_isDefinedBy a sh:PropertyShape ;
         sh:group stsh:MetadataGroup ;
@@ -2771,7 +2785,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:PropertyShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:na4f306ff4dfa43188be402a3fc6e503cb8 ;
+        sh:in _:n0b91e508d72e47df99d8d83110ae9872b8 ;
         sh:maxCount 1 ;
         sh:order 3 ;
         sh:path sh:nodeKind .
@@ -2960,6 +2974,12 @@ starontology:shacl12-shacl-ui.ttl {
         sh:nodeKind sh:IRI ;
         sh:order 2 ;
         sh:path shui:viewer .
+
+    rdf:type sh:group stsh:TypeGroup ;
+        sh:nodeKind sh:IRI ;
+        sh:order 1 ;
+        stsh:nodeFormField true ;
+        stsh:propertyFormField true .
 
     rdfs:isDefinedBy sh:group stsh:MetadataGroup ;
         sh:order 10 ;
@@ -3214,6 +3234,11 @@ starontology:shacl12-shacl-ui.ttl {
         sh:name "Cross-Node"@en ;
         sh:order 13 .
 
+    stsh:TypeGroup a sh:PropertyGroup ;
+        sh:description "What kind of thing this is — rdf:type, a simple multi-valued IRI. Allowed on any shape and expected on most (a shape need not be typed, SHACL 1.2 Core section 3.1, but a form should show and set the type)."@en ;
+        sh:name "Type"@en ;
+        sh:order 0 .
+
     stsh:CardinalityGroup a sh:PropertyGroup ;
         sh:description "How many values a path may or must have — sh:minCount/sh:maxCount."@en ;
         sh:name "Cardinality"@en ;
@@ -3299,14 +3324,14 @@ starontology:shacl12-shacl-ui.ttl {
         sh:name "SHACL 1.2 UI Widgets"@en ;
         sh:order 16 .
 
-    _:na4f306ff4dfa43188be402a3fc6e503cb10 rdf:first sh:Literal ;
+    _:n0b91e508d72e47df99d8d83110ae9872b10 rdf:first sh:Literal ;
         rdf:rest ( sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) .
 
-    _:na4f306ff4dfa43188be402a3fc6e503cb9 rdf:first sh:IRI ;
-        rdf:rest _:na4f306ff4dfa43188be402a3fc6e503cb10 .
+    _:n0b91e508d72e47df99d8d83110ae9872b9 rdf:first sh:IRI ;
+        rdf:rest _:n0b91e508d72e47df99d8d83110ae9872b10 .
 
-    _:na4f306ff4dfa43188be402a3fc6e503cb8 rdf:first sh:BlankNode ;
-        rdf:rest _:na4f306ff4dfa43188be402a3fc6e503cb9 .
+    _:n0b91e508d72e47df99d8d83110ae9872b8 rdf:first sh:BlankNode ;
+        rdf:rest _:n0b91e508d72e47df99d8d83110ae9872b9 .
 }
 
 starontology:shacl12-shacl.ttl {

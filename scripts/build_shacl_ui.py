@@ -65,7 +65,7 @@ EXCLUDED: dict[URIRef, str] = {
     **{p: "an operator of a property path (the value of sh:path), not a field of a shape" for p in (SH.alternativePath, SH.inversePath, SH.oneOrMorePath, SH.zeroOrMorePath, SH.zeroOrOnePath)},
     **{p: "a field of a node expression (the value of sh:values and the like), not of a shape" for p in (SH.nodes, SH.union, SH.intersection, SH.filterShape)},
     **{p: "a field of a rule (sh:TripleRule, sh:SPARQLRule), not of a shape" for p in (SH.subject, SH.predicate, SH.object, SH.construct)},
-    **{p: "RDF list structure or a type, never a field of a form" for p in (RDF.first, RDF.rest, RDF.type)},
+    **{p: "RDF list structure, never a field of a form" for p in (RDF.first, RDF.rest)},
 }
 # Every term of the node expression vocabulary is a field of a node expression, not of a shape.
 EXCLUDED_NAMESPACES: dict[str, str] = {str(SHNEX): "a field of a node expression, not of a shape"}
@@ -179,7 +179,11 @@ def build_shacl_ui_graph(overlay: Graph | None = None, shacl_shacl: Graph | None
                     out.add((field, SH.maxCount, value))
             if kind == SH.NodeShape and (predicate, STSH.nodePrimary, Literal(False)) in overlay:
                 out.add((field, STSH.secondary, Literal(True)))  # allowed, but not commonly expected on a node shape
-            for term, values in _constraints_in_shacl_shacl(shacl_shacl, predicate, kind):
+            found = dict(_constraints_in_shacl_shacl(shacl_shacl, predicate, kind))
+            for term in (SH.datatype, SH.nodeKind, SH["class"]):
+                if term not in found and list(overlay.objects(predicate, term)):
+                    found[term] = list(overlay.objects(predicate, term))  # a constraint the overlay gives where shacl_shacl has none
+            for term, values in found.items():
                 for value in values:
                     out.add((field, term, value))
                     if isinstance(value, BNode):
