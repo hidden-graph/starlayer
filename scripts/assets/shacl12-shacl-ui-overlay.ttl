@@ -593,6 +593,15 @@ shui:editor stsh:propertyFormField true .
 shui:viewer stsh:propertyFormField true .
 shui:propertyRole stsh:propertyFormField true .
 
+# stsh:secondary is the mark on a FIELD of a generated form: allowed but not commonly expected there, so a tool may show it
+# in a collapsed section. The generator sets it on a field of the node shape form for each predicate flagged
+# stsh:nodePrimary false above (sh:datatype or sh:pattern on a node shape is legal but unusual; on a property shape they are
+# the normal case, so the property shape form has no such mark).
+stsh:secondary a rdf:Property ;
+    rdfs:label "secondary"@en ;
+    rdfs:comment "True on a field of a form shape when the predicate is allowed but not commonly expected for that kind of node; a tool may show it in a collapsed section. Absent is treated as false. Generated from stsh:nodePrimary false for the node shape form."@en ;
+    rdfs:range xsd:boolean .
+
 # A property group's form: its name (and SHACL Core's rdfs:label) and its order among the groups.
 stsh:PropertyGroupForm a sh:NodeShape ;
     stsh:formFor sh:PropertyGroup ;

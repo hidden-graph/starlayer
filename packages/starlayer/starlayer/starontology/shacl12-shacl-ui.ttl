@@ -356,6 +356,11 @@ stsh:propertyFormField a rdf:Property ;
     rdfs:comment "True when this predicate appears as an inline form field in PropertyShape editors."@en ;
     rdfs:range xsd:boolean .
 
+stsh:secondary a rdf:Property ;
+    rdfs:label "secondary"@en ;
+    rdfs:comment "True on a field of a form shape when the predicate is allowed but not commonly expected for that kind of node; a tool may show it in a collapsed section. Absent is treated as false. Generated from stsh:nodePrimary false for the node shape form."@en ;
+    rdfs:range xsd:boolean .
+
 sh:closed sh:group stsh:ClosedGroup ;
     sh:order 1 ;
     stsh:formMaxCount 1 ;
@@ -482,7 +487,8 @@ stsh:NodeShapeForm_sh_datatype a sh:PropertyShape ;
     sh:group stsh:ValueTypeGroup ;
     sh:maxCount 1 ;
     sh:order 2 ;
-    sh:path sh:datatype .
+    sh:path sh:datatype ;
+    stsh:secondary true .
 
 stsh:NodeShapeForm_sh_deactivated a sh:PropertyShape ;
     sh:datatype xsd:boolean ;
@@ -501,7 +507,8 @@ stsh:NodeShapeForm_sh_flags a sh:PropertyShape ;
     sh:group stsh:StringGroup ;
     sh:maxCount 1 ;
     sh:order 4 ;
-    sh:path sh:flags .
+    sh:path sh:flags ;
+    stsh:secondary true .
 
 stsh:NodeShapeForm_sh_hasValue a sh:PropertyShape ;
     sh:group stsh:ValueEnumerationGroup ;
@@ -523,35 +530,40 @@ stsh:NodeShapeForm_sh_languageIn a sh:PropertyShape ;
     sh:group stsh:StringGroup ;
     sh:maxCount 1 ;
     sh:order 5 ;
-    sh:path sh:languageIn .
+    sh:path sh:languageIn ;
+    stsh:secondary true .
 
 stsh:NodeShapeForm_sh_maxExclusive a sh:PropertyShape ;
     sh:group stsh:ValueRangeGroup ;
     sh:maxCount 1 ;
     sh:nodeKind sh:Literal ;
     sh:order 4 ;
-    sh:path sh:maxExclusive .
+    sh:path sh:maxExclusive ;
+    stsh:secondary true .
 
 stsh:NodeShapeForm_sh_maxInclusive a sh:PropertyShape ;
     sh:group stsh:ValueRangeGroup ;
     sh:maxCount 1 ;
     sh:nodeKind sh:Literal ;
     sh:order 3 ;
-    sh:path sh:maxInclusive .
+    sh:path sh:maxInclusive ;
+    stsh:secondary true .
 
 stsh:NodeShapeForm_sh_maxLength a sh:PropertyShape ;
     sh:datatype xsd:integer ;
     sh:group stsh:StringGroup ;
     sh:maxCount 1 ;
     sh:order 2 ;
-    sh:path sh:maxLength .
+    sh:path sh:maxLength ;
+    stsh:secondary true .
 
 stsh:NodeShapeForm_sh_maxListLength a sh:PropertyShape ;
     sh:datatype xsd:integer ;
     sh:group stsh:ListGroup ;
     sh:maxCount 1 ;
     sh:order 2 ;
-    sh:path sh:maxListLength .
+    sh:path sh:maxListLength ;
+    stsh:secondary true .
 
 stsh:NodeShapeForm_sh_memberShape a sh:PropertyShape ;
     sh:group stsh:CompositionGroup ;
@@ -569,28 +581,32 @@ stsh:NodeShapeForm_sh_minExclusive a sh:PropertyShape ;
     sh:maxCount 1 ;
     sh:nodeKind sh:Literal ;
     sh:order 2 ;
-    sh:path sh:minExclusive .
+    sh:path sh:minExclusive ;
+    stsh:secondary true .
 
 stsh:NodeShapeForm_sh_minInclusive a sh:PropertyShape ;
     sh:group stsh:ValueRangeGroup ;
     sh:maxCount 1 ;
     sh:nodeKind sh:Literal ;
     sh:order 1 ;
-    sh:path sh:minInclusive .
+    sh:path sh:minInclusive ;
+    stsh:secondary true .
 
 stsh:NodeShapeForm_sh_minLength a sh:PropertyShape ;
     sh:datatype xsd:integer ;
     sh:group stsh:StringGroup ;
     sh:maxCount 1 ;
     sh:order 1 ;
-    sh:path sh:minLength .
+    sh:path sh:minLength ;
+    stsh:secondary true .
 
 stsh:NodeShapeForm_sh_minListLength a sh:PropertyShape ;
     sh:datatype xsd:integer ;
     sh:group stsh:ListGroup ;
     sh:maxCount 1 ;
     sh:order 1 ;
-    sh:path sh:minListLength .
+    sh:path sh:minListLength ;
+    stsh:secondary true .
 
 stsh:NodeShapeForm_sh_name a sh:PropertyShape ;
     sh:group stsh:MetadataGroup ;
@@ -604,7 +620,7 @@ stsh:NodeShapeForm_sh_node a sh:PropertyShape ;
 
 stsh:NodeShapeForm_sh_nodeKind a sh:PropertyShape ;
     sh:group stsh:ValueTypeGroup ;
-    sh:in _:nd12ca728edd24c798c18bcfe1fbd00f2b75 ;
+    sh:in _:nd244e52ccd51487ab0cda14c184a7f3fb75 ;
     sh:maxCount 1 ;
     sh:order 3 ;
     sh:path sh:nodeKind .
@@ -630,7 +646,8 @@ stsh:NodeShapeForm_sh_pattern a sh:PropertyShape ;
     sh:group stsh:StringGroup ;
     sh:maxCount 1 ;
     sh:order 3 ;
-    sh:path sh:pattern .
+    sh:path sh:pattern ;
+    stsh:secondary true .
 
 stsh:NodeShapeForm_sh_property a sh:PropertyShape ;
     sh:group stsh:CompositionGroup ;
@@ -659,7 +676,8 @@ stsh:NodeShapeForm_sh_singleLine a sh:PropertyShape ;
     sh:group stsh:StringGroup ;
     sh:maxCount 1 ;
     sh:order 7 ;
-    sh:path sh:singleLine .
+    sh:path sh:singleLine ;
+    stsh:secondary true .
 
 stsh:NodeShapeForm_sh_someValue a sh:PropertyShape ;
     sh:group stsh:CompositionGroup ;
@@ -707,7 +725,8 @@ stsh:NodeShapeForm_sh_uniqueMembers a sh:PropertyShape ;
     sh:group stsh:ListGroup ;
     sh:maxCount 1 ;
     sh:order 3 ;
-    sh:path sh:uniqueMembers .
+    sh:path sh:uniqueMembers ;
+    stsh:secondary true .
 
 stsh:NodeShapeForm_sh_uniqueValuesFor a sh:PropertyShape ;
     sh:group stsh:CrossNodeGroup ;
@@ -913,7 +932,7 @@ stsh:PropertyShapeForm_sh_node a sh:PropertyShape ;
 
 stsh:PropertyShapeForm_sh_nodeKind a sh:PropertyShape ;
     sh:group stsh:ValueTypeGroup ;
-    sh:in _:nd12ca728edd24c798c18bcfe1fbd00f2b75 ;
+    sh:in _:nd244e52ccd51487ab0cda14c184a7f3fb75 ;
     sh:maxCount 1 ;
     sh:order 3 ;
     sh:path sh:nodeKind .
@@ -1438,8 +1457,8 @@ stsh:WidgetGroup a sh:PropertyGroup ;
     sh:name "SHACL 1.2 UI Widgets"@en ;
     sh:order 16 .
 
-_:nd12ca728edd24c798c18bcfe1fbd00f2b76 rdf:first sh:IRI ;
+_:nd244e52ccd51487ab0cda14c184a7f3fb76 rdf:first sh:IRI ;
     rdf:rest ( sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) .
 
-_:nd12ca728edd24c798c18bcfe1fbd00f2b75 rdf:first sh:BlankNode ;
-    rdf:rest _:nd12ca728edd24c798c18bcfe1fbd00f2b76 .
+_:nd244e52ccd51487ab0cda14c184a7f3fb75 rdf:first sh:BlankNode ;
+    rdf:rest _:nd244e52ccd51487ab0cda14c184a7f3fb76 .

@@ -13,7 +13,8 @@ The registered file is two things:
    property shapes are the fields of that kind of shape. A field is one property shape per flagged predicate, named
    ``stsh:<Form>_<prefix>_<local>``, with the predicate's ``sh:group`` and ``sh:order``, a ``sh:maxCount`` where the form
    allows one value, and the ``sh:datatype``, ``sh:nodeKind`` and ``sh:in`` list the predicate has in ``shacl_shacl`` (so a
-   number is stored as a number and an enumeration lists its values).
+   number is stored as a number and an enumeration lists its values). A node shape form's field for a predicate flagged
+   ``stsh:nodePrimary false`` gets ``stsh:secondary true`` (allowed, but not commonly expected there).
 
 Why this is needed: ``shacl_shacl`` is many small shapes that mostly target the *subjects of one predicate*, which is right for
 validation (a name is checked when there is one) and wrong for a form (a shape with no name yet needs a field for one). So no
@@ -134,6 +135,8 @@ def build_shacl_ui_graph(overlay: Graph | None = None, shacl_shacl: Graph | None
                     out.add((field, term, value))
             for value in overlay.objects(predicate, STSH.formMaxCount):
                 out.add((field, SH.maxCount, value))
+            if kind == SH.NodeShape and (predicate, STSH.nodePrimary, Literal(False)) in overlay:
+                out.add((field, STSH.secondary, Literal(True)))  # allowed, but not commonly expected on a node shape
             for term, values in _constraints_in_shacl_shacl(shacl_shacl, predicate):
                 for value in values:
                     out.add((field, term, value))

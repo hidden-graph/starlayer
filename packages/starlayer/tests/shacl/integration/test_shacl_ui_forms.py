@@ -126,3 +126,14 @@ def test_the_forms_change_nothing_about_what_validates(ui, shacl_shacl) -> None:
     assert meta_validate(good, extra_graphs=[ui])[0]
     with pytest.raises(ReportableRuntimeError):
         meta_validate(bad, extra_graphs=[ui])
+
+
+def test_uncommon_predicates_are_marked_secondary_on_the_node_shape_form_only(ui) -> None:
+    """stsh:nodePrimary false in the overlay (a predicate allowed on a node shape but not commonly expected) becomes
+    stsh:secondary true on that field of the node shape form; the property shape form has no such mark."""
+    node_fields, prop_fields = fields_of(ui, STSH.NodeShapeForm), fields_of(ui, STSH.PropertyShapeForm)
+    flagged = {p for p in node_fields if (p, STSH.nodePrimary, Literal(False)) in ui}
+    assert len(flagged) == 14 and sh("datatype") in flagged and sh("pattern") in flagged
+    assert {p for p, f in node_fields.items() if (f, STSH.secondary, Literal(True)) in ui} == flagged
+    assert not list(ui.triples((None, STSH.secondary, None)) ) or all(f in node_fields.values() for f, _, _ in ui.triples((None, STSH.secondary, None)))
+    assert not any((f, STSH.secondary, None) in ui for f in prop_fields.values())
