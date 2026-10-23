@@ -1760,12 +1760,12 @@ sh:xone a rdf:Property ;
 
 stsh:ShapesGraphDefines a sh:PropertyShape ;
     sh:name "defines" ;
-    sh:or ( [ sh:class sh:NodeShape ] [ sh:class sh:PropertyShape ] [ sh:class sh:PropertyGroup ] ) ;
+    sh:or ( [ sh:class sh:NodeShape ] [ sh:class sh:PropertyShape ] [ sh:class sh:PropertyGroup ] [ sh:class sh:ConstraintComponent ] [ sh:class sh:SPARQLAskValidator ] [ sh:class sh:SPARQLSelectValidator ] [ sh:class sh:TripleRule ] [ sh:class sh:SPARQLRule ] [ sh:class sh:Function ] [ sh:class sh:SPARQLFunction ] [ sh:class sh:Target ] [ sh:class sh:PrefixDeclaration ] [ sh:class shui:WidgetScore ] ) ;
     sh:path [ sh:inversePath rdfs:isDefinedBy ] .
 
 stsh:ShapesGraphUses a sh:PropertyShape ;
     sh:name "uses" ;
-    sh:or ( [ sh:class sh:NodeShape ] [ sh:class sh:PropertyShape ] [ sh:class sh:PropertyGroup ] ) ;
+    sh:or ( [ sh:class sh:NodeShape ] [ sh:class sh:PropertyShape ] [ sh:class sh:PropertyGroup ] [ sh:class sh:ConstraintComponent ] [ sh:class sh:SPARQLAskValidator ] [ sh:class sh:SPARQLSelectValidator ] [ sh:class sh:TripleRule ] [ sh:class sh:SPARQLRule ] [ sh:class sh:Function ] [ sh:class sh:SPARQLFunction ] [ sh:class sh:Target ] [ sh:class sh:PrefixDeclaration ] [ sh:class shui:WidgetScore ] ) ;
     sh:path rdfs:member .
 
 sh:conformanceDisallows a rdf:Property ;

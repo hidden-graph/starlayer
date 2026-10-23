@@ -541,7 +541,8 @@ class TestShaclVocabulary:
 
         (path,) = vocabulary.objects(STSH.ShapesGraphDefines, SH.path)
         assert (path, SH.inversePath, RDFS.isDefinedBy) in vocabulary
-        assert kinds(STSH.ShapesGraphDefines) == [SH.NodeShape, SH.PropertyShape, SH.PropertyGroup]
+        defined = kinds(STSH.ShapesGraphDefines)
+        assert defined[:3] == [SH.NodeShape, SH.PropertyShape, SH.PropertyGroup] and {SH.Function, SH.ConstraintComponent, SH.TripleRule, SH.Target} <= set(defined)
         assert (STSH.ShapesGraphUses, SH.path, RDFS.member) in vocabulary and kinds(STSH.ShapesGraphUses) == kinds(STSH.ShapesGraphDefines)
         assert (STSH.ShapesGraphHolds, SH.targetClass, SH.ShapesGraph) in vocabulary and (STSH.ShapesGraphHolds, RDF.type, SH.NodeShape) in vocabulary
 

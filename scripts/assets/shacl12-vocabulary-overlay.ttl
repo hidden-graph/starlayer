@@ -5,7 +5,7 @@
 # Contents: stsh:ShapesGraphHolds, a description of what a shapes graph holds, for tools that show shapes graphs. It is written as
 # SHACL shapes because a path says it best: the things a shapes graph DEFINES are at the end of the INVERSE of rdfs:isDefinedBy
 # (the entity says rdfs:isDefinedBy the graph, SHACL 1.2 Profiling "Indicating Element definition"), and the things it USES are
-# at the end of rdfs:member ("Indicating Element use"). The class lists say which of them a tool cares about; the Profiling
+# at the end of rdfs:member ("Indicating Element use"). The class lists say which of them a tool offers a home for (the shapes, the property groups, the constraint components and their validators, the rules, targets and functions, prefix declarations, and SHACL UI widget scores); the Profiling
 # vocabulary itself does not restrict the types. The shapes describe, they do not validate: this graph is never loaded for
 # validation, and a shape in it is not a constraint on a user's file.
 #
@@ -13,6 +13,7 @@
 
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix sh:   <http://www.w3.org/ns/shacl#> .
+@prefix shui: <http://www.w3.org/ns/shacl-ui#> .
 @prefix stsh: <https://github.com/hidden-graph/starlayer/ns/shacl#> .
 
 stsh:ShapesGraphHolds a sh:NodeShape ;
@@ -24,9 +25,37 @@ stsh:ShapesGraphHolds a sh:NodeShape ;
 stsh:ShapesGraphDefines a sh:PropertyShape ;
     sh:name "defines" ;
     sh:path [ sh:inversePath rdfs:isDefinedBy ] ;
-    sh:or ( [ sh:class sh:NodeShape ] [ sh:class sh:PropertyShape ] [ sh:class sh:PropertyGroup ] ) .
+    sh:or (
+        [ sh:class sh:NodeShape ]
+        [ sh:class sh:PropertyShape ]
+        [ sh:class sh:PropertyGroup ]
+        [ sh:class sh:ConstraintComponent ]
+        [ sh:class sh:SPARQLAskValidator ]
+        [ sh:class sh:SPARQLSelectValidator ]
+        [ sh:class sh:TripleRule ]
+        [ sh:class sh:SPARQLRule ]
+        [ sh:class sh:Function ]
+        [ sh:class sh:SPARQLFunction ]
+        [ sh:class sh:Target ]
+        [ sh:class sh:PrefixDeclaration ]
+        [ sh:class shui:WidgetScore ]
+    ) .
 
 stsh:ShapesGraphUses a sh:PropertyShape ;
     sh:name "uses" ;
     sh:path rdfs:member ;
-    sh:or ( [ sh:class sh:NodeShape ] [ sh:class sh:PropertyShape ] [ sh:class sh:PropertyGroup ] ) .
+    sh:or (
+        [ sh:class sh:NodeShape ]
+        [ sh:class sh:PropertyShape ]
+        [ sh:class sh:PropertyGroup ]
+        [ sh:class sh:ConstraintComponent ]
+        [ sh:class sh:SPARQLAskValidator ]
+        [ sh:class sh:SPARQLSelectValidator ]
+        [ sh:class sh:TripleRule ]
+        [ sh:class sh:SPARQLRule ]
+        [ sh:class sh:Function ]
+        [ sh:class sh:SPARQLFunction ]
+        [ sh:class sh:Target ]
+        [ sh:class sh:PrefixDeclaration ]
+        [ sh:class shui:WidgetScore ]
+    ) .
