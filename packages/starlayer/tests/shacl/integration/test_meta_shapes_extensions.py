@@ -1127,6 +1127,12 @@ class TestConstraintComponentWellFormedness:
         assert conforms is True
 
 
+def _shui_ui_graph():
+    from starlayer import starontology
+
+    return starontology.get_ontology_graph("shacl_shacl_ui")
+
+
 class TestShuiWellFormedness:
     """shui: (SHACL 1.2 User Interfaces) has zero data-validation semantics
     of its own, but its own predicates still have expected value shapes
@@ -1135,6 +1141,7 @@ class TestShuiWellFormedness:
     named widget/role instance and so must be IRIs.
     """
 
+    # the well-formedness shapes live in the UI companion since 2026-10-23 (GitHub issue #23)
     _SHUI_PREFIX = _RULES_PREFIX + "@prefix shui: <http://www.w3.org/ns/shacl-ui#> . "
 
     def test_valid_shui_editor_passes(self) -> None:
@@ -1147,7 +1154,7 @@ class TestShuiWellFormedness:
             """,
             format="turtle",
         )
-        conforms, _report_graph, _report_text = meta_validate(shapes)
+        conforms, _report_graph, _report_text = meta_validate(shapes, extra_graphs=[_shui_ui_graph()])
         assert conforms is True
 
     def test_shui_editor_as_literal_is_rejected(self) -> None:
@@ -1161,7 +1168,7 @@ class TestShuiWellFormedness:
             format="turtle",
         )
         with pytest.raises(pyshacl.errors.ReportableRuntimeError):
-            meta_validate(shapes)
+            meta_validate(shapes, extra_graphs=[_shui_ui_graph()])
 
     def test_valid_shui_property_role_passes(self) -> None:
         shapes = Graph()
@@ -1173,7 +1180,7 @@ class TestShuiWellFormedness:
             """,
             format="turtle",
         )
-        conforms, _report_graph, _report_text = meta_validate(shapes)
+        conforms, _report_graph, _report_text = meta_validate(shapes, extra_graphs=[_shui_ui_graph()])
         assert conforms is True
 
     def test_shui_viewer_as_blank_node_is_rejected(self) -> None:
@@ -1187,7 +1194,7 @@ class TestShuiWellFormedness:
             format="turtle",
         )
         with pytest.raises(pyshacl.errors.ReportableRuntimeError):
-            meta_validate(shapes)
+            meta_validate(shapes, extra_graphs=[_shui_ui_graph()])
 
     def test_valid_shui_widget_score_passes(self) -> None:
         """stsh:WidgetScoreShape (starontology.trig, 2026-10-16) -
@@ -1203,7 +1210,7 @@ class TestShuiWellFormedness:
             """,
             format="turtle",
         )
-        conforms, _report_graph, _report_text = meta_validate(shapes)
+        conforms, _report_graph, _report_text = meta_validate(shapes, extra_graphs=[_shui_ui_graph()])
         assert conforms is True
 
     def test_shui_widget_score_with_non_numeric_score_is_rejected(self) -> None:
@@ -1216,7 +1223,7 @@ class TestShuiWellFormedness:
             format="turtle",
         )
         with pytest.raises(pyshacl.errors.ReportableRuntimeError):
-            meta_validate(shapes)
+            meta_validate(shapes, extra_graphs=[_shui_ui_graph()])
 
     def test_shui_widget_score_missing_widget_is_rejected(self) -> None:
         shapes = Graph()
@@ -1228,7 +1235,7 @@ class TestShuiWellFormedness:
             format="turtle",
         )
         with pytest.raises(pyshacl.errors.ReportableRuntimeError):
-            meta_validate(shapes)
+            meta_validate(shapes, extra_graphs=[_shui_ui_graph()])
 
 
 class TestSparqlPrefixesWellFormedness:

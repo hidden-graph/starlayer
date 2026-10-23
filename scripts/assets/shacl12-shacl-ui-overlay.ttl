@@ -16,7 +16,8 @@
 # The 20 fields no built-in widget fits (stsh:widgetType: path expressions, node expression lists, message lists, ...)
 # were dropped on the same day; they belong in an application layer whose application understands them.
 #
-# A form shape has no sh:target*: it is not applied to anything, so merging this with shacl_shacl never changes what validates.
+# A form shape has no sh:target*: it is not applied to anything. The exceptions are the two well-formedness shapes at the end
+# (stsh:ShuiPredicateShapes, stsh:WidgetScoreShape), which validate shui: terms when this graph is merged with shacl_shacl.
 # A tool picks the form for a node by stsh:formFor (the class of node the form is for) and passes it to select_widgets as
 # shape_node. The human-editable content is docs/working/shacl-presentation/shacl-presentation-content.md, which may have
 # drifted.
@@ -598,9 +599,9 @@ rdfs:isDefinedBy stsh:nodeFormField true ; stsh:propertyFormField true ; stsh:fo
 rdf:type stsh:nodeFormField true ; stsh:propertyFormField true ; sh:group stsh:TypeGroup ; sh:order 1 ; sh:nodeKind sh:IRI .
 
 # A property shape's own widget fields (shui: preferences): a field of the property shape form only.
-shui:editor stsh:propertyFormField true .
-shui:viewer stsh:propertyFormField true .
-shui:propertyRole stsh:propertyFormField true .
+shui:editor stsh:propertyFormField true ; sh:nodeKind sh:IRI .
+shui:viewer stsh:propertyFormField true ; sh:nodeKind sh:IRI .
+shui:propertyRole stsh:propertyFormField true ; sh:nodeKind sh:IRI .
 
 # stsh:secondary is the mark on a FIELD of a generated form: allowed but not commonly expected there, so a tool may show it
 # in a collapsed section. The generator sets it on a field of the node shape form for each predicate flagged
@@ -668,3 +669,55 @@ sh:xone               sh:nodeKind sh:BlankNodeOrIRI .
 sh:rule               sh:nodeKind sh:BlankNodeOrIRI .
 sh:sparql             sh:nodeKind sh:BlankNodeOrIRI .
 sh:expression         sh:nodeKind sh:BlankNodeOrIRI .
+
+#############################################################################
+# Well-formedness of shui: terms (moved here from shacl_shacl, 2026-10-23, GitHub issue #23)
+#############################################################################
+# Unlike the form shapes, these two DO validate: load this graph beside shacl_shacl
+# (meta_validate(shapes, extra_graphs=[ui])) to have shui: terms in a shapes graph checked.
+
+stsh:ShuiPredicateShapes
+	a sh:NodeShape ;
+	rdfs:label "Well-formedness rules for shui: predicates"@en ;
+	sh:targetSubjectsOf shui:editor, shui:viewer, shui:propertyRole ;
+
+	sh:property [
+		sh:path shui:editor ;
+		sh:nodeKind sh:IRI ;                     # editor-nodeKind: references a shui:Editor instance (built-in or custom), always an IRI
+	] ;
+	sh:property [
+		sh:path shui:viewer ;
+		sh:nodeKind sh:IRI ;                     # viewer-nodeKind: references a shui:Viewer instance, always an IRI
+	] ;
+	sh:property [
+		sh:path shui:propertyRole ;
+		sh:nodeKind sh:IRI ;                     # propertyRole-nodeKind: references a shui:PropertyRole instance (e.g. shui:LabelRole), always an IRI
+	] .
+
+stsh:WidgetScoreShape
+	a sh:NodeShape ;
+	rdfs:label "Well-formedness rules for shui:WidgetScore"@en ;
+	sh:targetClass shui:WidgetScore ;
+
+	sh:property [
+		sh:path shui:widget ;
+		sh:minCount 1 ;
+		sh:maxCount 1 ;
+		sh:nodeKind sh:BlankNodeOrIRI ;           # widget-nodeKind: the widget being scored, a named or anonymous widget instance
+	] ;
+	sh:property [
+		sh:path shui:score ;
+		sh:minCount 1 ;
+		sh:maxCount 1 ;
+		sh:or ( [ sh:datatype xsd:decimal ] [ sh:datatype xsd:integer ] ) ; # score-datatype: xsd:decimal or xsd:integer, per the upstream shape
+	] ;
+	sh:property [
+		sh:path shui:dataGraphShape ;
+		sh:maxCount 1 ;
+		sh:nodeKind sh:BlankNodeOrIRI ;           # dataGraphShape-nodeKind: optional, per the upstream shape
+	] ;
+	sh:property [
+		sh:path shui:shapesGraphShape ;
+		sh:maxCount 1 ;
+		sh:nodeKind sh:BlankNodeOrIRI ;           # shapesGraphShape-nodeKind: optional, per the upstream shape
+	] .

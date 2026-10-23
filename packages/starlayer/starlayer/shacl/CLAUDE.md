@@ -18,6 +18,10 @@ Project-specific instructions for Claude Code sessions working in this repo. See
 
 ## Design history
 
+## Layering of `shacl_shacl` decided (2026-10-23, GitHub issue #23)
+
+The user's decision: **the rules, node-expression, SPARQL and constraint-component shapes stay in `shacl_shacl`** (they describe SHACL itself); **the UI goes in the UI companion.** So `stsh:ShuiPredicateShapes` and `stsh:WidgetScoreShape` moved from `scripts/assets/shacl12-validation-shapes.ttl` to `scripts/assets/shacl12-shacl-ui-overlay.ttl` (registry entry `shacl_shacl_ui`). **Consequence:** they validate only when the UI graph is loaded beside `shacl_shacl` (`meta_validate(shapes, extra_graphs=[get_ontology_graph("shacl_shacl_ui")])`); plain `meta_validate()` no longer checks `shui:` terms. This is the one place the UI graph has `sh:target*`; the form shapes still have none. The three `shui:` fields kept their `sh:nodeKind sh:IRI` by stating it in the overlay. Splitting `shacl_shacl` further by domain is a separate investigation (a new issue).
+
 ## `extract_subgraph()` is the shape fragment of the paper; the Conformance Theorem is its contract (2026-10-23, GitHub issue #11)
 
 Compared with Delva et al., *Shape Fragments* (arXiv 2112.11796) and its companion specification; write-up in `docs/shacl/shape-fragments-comparison.md`. Four of eleven test cases failed and the target triples were missing, so three changes were made (the user agreed to all three):

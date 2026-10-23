@@ -334,6 +334,36 @@ stsh:ShapesGraphForm a sh:NodeShape ;
             sh:path owl:imports ] ;
     stsh:formFor sh:ShapesGraph .
 
+stsh:ShuiPredicateShapes a sh:NodeShape ;
+    rdfs:label "Well-formedness rules for shui: predicates"@en ;
+    sh:property [ sh:nodeKind sh:IRI ;
+            sh:path shui:propertyRole ],
+        [ sh:nodeKind sh:IRI ;
+            sh:path shui:editor ],
+        [ sh:nodeKind sh:IRI ;
+            sh:path shui:viewer ] ;
+    sh:targetSubjectsOf shui:editor,
+        shui:propertyRole,
+        shui:viewer .
+
+stsh:WidgetScoreShape a sh:NodeShape ;
+    rdfs:label "Well-formedness rules for shui:WidgetScore"@en ;
+    sh:property [ sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:path shui:widget ],
+        [ sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:or ( [ sh:datatype xsd:decimal ] [ sh:datatype xsd:integer ] ) ;
+            sh:path shui:score ],
+        [ sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:path shui:dataGraphShape ],
+        [ sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:path shui:shapesGraphShape ] ;
+    sh:targetClass shui:WidgetScore .
+
 stsh:formFor a rdf:Property ;
     rdfs:label "form for"@en ;
     rdfs:comment "The class of node a form shape is the form for (sh:NodeShape, sh:PropertyShape, sh:PropertyGroup, ...). A tool picks the form for a node by its type and passes the form to select_widgets as shape_node. It is not sh:targetClass on purpose: a form shape with no sh:target* is not applied to anything, so loading it never changes what validates."@en .
@@ -454,18 +484,6 @@ sh:reifierShape sh:group stsh:ReificationGroup ;
 sh:uniqueLang sh:group stsh:StringGroup ;
     sh:order 6 ;
     stsh:formMaxCount 1 ;
-    stsh:propertyFormField true .
-
-shui:editor sh:group stsh:WidgetGroup ;
-    sh:order 1 ;
-    stsh:propertyFormField true .
-
-shui:propertyRole sh:group stsh:WidgetGroup ;
-    sh:order 3 ;
-    stsh:propertyFormField true .
-
-shui:viewer sh:group stsh:WidgetGroup ;
-    sh:order 2 ;
     stsh:propertyFormField true .
 
 stsh:NodeShapeForm_rdf_type a sh:PropertyShape ;
@@ -644,7 +662,7 @@ stsh:NodeShapeForm_sh_node a sh:PropertyShape ;
 
 stsh:NodeShapeForm_sh_nodeKind a sh:PropertyShape ;
     sh:group stsh:ValueTypeGroup ;
-    sh:in _:nf946a0a29aa348548a0101ba24c4f621b75 ;
+    sh:in _:n277f1699bf74401c9b1d7147fb201a96b75 ;
     sh:maxCount 1 ;
     sh:nodeKind sh:IRI ;
     sh:order 3 ;
@@ -987,7 +1005,7 @@ stsh:PropertyShapeForm_sh_node a sh:PropertyShape ;
 
 stsh:PropertyShapeForm_sh_nodeKind a sh:PropertyShape ;
     sh:group stsh:ValueTypeGroup ;
-    sh:in _:nf946a0a29aa348548a0101ba24c4f621b75 ;
+    sh:in _:n277f1699bf74401c9b1d7147fb201a96b75 ;
     sh:maxCount 1 ;
     sh:nodeKind sh:IRI ;
     sh:order 3 ;
@@ -1465,6 +1483,21 @@ sh:order sh:group stsh:MetadataGroup ;
     stsh:nodeFormField true ;
     stsh:propertyFormField true .
 
+shui:editor sh:group stsh:WidgetGroup ;
+    sh:nodeKind sh:IRI ;
+    sh:order 1 ;
+    stsh:propertyFormField true .
+
+shui:propertyRole sh:group stsh:WidgetGroup ;
+    sh:nodeKind sh:IRI ;
+    sh:order 3 ;
+    stsh:propertyFormField true .
+
+shui:viewer sh:group stsh:WidgetGroup ;
+    sh:nodeKind sh:IRI ;
+    sh:order 2 ;
+    stsh:propertyFormField true .
+
 stsh:CrossNodeGroup a sh:PropertyGroup ;
     sh:description "Constraints spanning multiple focus nodes (e.g. sh:uniqueValuesFor)."@en ;
     sh:name "Cross-Node"@en ;
@@ -1560,8 +1593,8 @@ stsh:WidgetGroup a sh:PropertyGroup ;
     sh:name "SHACL 1.2 UI Widgets"@en ;
     sh:order 16 .
 
-_:nf946a0a29aa348548a0101ba24c4f621b76 rdf:first sh:IRI ;
+_:n277f1699bf74401c9b1d7147fb201a96b76 rdf:first sh:IRI ;
     rdf:rest ( sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) .
 
-_:nf946a0a29aa348548a0101ba24c4f621b75 rdf:first sh:BlankNode ;
-    rdf:rest _:nf946a0a29aa348548a0101ba24c4f621b76 .
+_:n277f1699bf74401c9b1d7147fb201a96b75 rdf:first sh:BlankNode ;
+    rdf:rest _:n277f1699bf74401c9b1d7147fb201a96b76 .

@@ -66,8 +66,11 @@ def test_the_two_forms_exist_and_are_for_node_shapes_and_property_shapes(ui) -> 
     for name, kind, _flag in FORMS:
         form = STSH[name]
         assert (form, RDF.type, sh("NodeShape")) in ui and (form, STSH.formFor, kind) in ui
-    assert not list(ui.triples((None, sh("targetClass"), None))), "a form is applied to nothing, so loading it never changes what validates"
-    assert not list(ui.triples((None, sh("targetNode"), None)))
+    # the two well-formedness shapes moved here from shacl_shacl (GitHub issue #23) and do have targets; no form shape does
+    well_formedness = {STSH.ShuiPredicateShapes, STSH.WidgetScoreShape}
+    for target in ("targetClass", "targetNode", "targetSubjectsOf", "targetObjectsOf"):
+        applied = {s for s, _, _ in ui.triples((None, sh(target), None))} - well_formedness
+        assert not applied, f"a form is applied to nothing, so loading it never changes what validates: {applied}"
 
 
 def test_each_field_has_a_group_and_an_order_from_the_overlay(ui) -> None:

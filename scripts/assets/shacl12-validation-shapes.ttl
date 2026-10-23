@@ -585,51 +585,9 @@ stsh:SparqlPrefixesShapes
 # reads shui:WidgetAcceptMatcher's triples with no assumed cardinality for
 # exactly this reason.
 
-stsh:ShuiPredicateShapes
-	a sh:NodeShape ;
-	rdfs:label "Well-formedness rules for shui: predicates"@en ;
-	sh:targetSubjectsOf shui:editor, shui:viewer, shui:propertyRole ;
-
-	sh:property [
-		sh:path shui:editor ;
-		sh:nodeKind sh:IRI ;                     # editor-nodeKind: references a shui:Editor instance (built-in or custom), always an IRI
-	] ;
-	sh:property [
-		sh:path shui:viewer ;
-		sh:nodeKind sh:IRI ;                     # viewer-nodeKind: references a shui:Viewer instance, always an IRI
-	] ;
-	sh:property [
-		sh:path shui:propertyRole ;
-		sh:nodeKind sh:IRI ;                     # propertyRole-nodeKind: references a shui:PropertyRole instance (e.g. shui:LabelRole), always an IRI
-	] .
-
-stsh:WidgetScoreShape
-	a sh:NodeShape ;
-	rdfs:label "Well-formedness rules for shui:WidgetScore"@en ;
-	sh:targetClass shui:WidgetScore ;
-
-	sh:property [
-		sh:path shui:widget ;
-		sh:minCount 1 ;
-		sh:maxCount 1 ;
-		sh:nodeKind sh:BlankNodeOrIRI ;           # widget-nodeKind: the widget being scored, a named or anonymous widget instance
-	] ;
-	sh:property [
-		sh:path shui:score ;
-		sh:minCount 1 ;
-		sh:maxCount 1 ;
-		sh:or ( [ sh:datatype xsd:decimal ] [ sh:datatype xsd:integer ] ) ; # score-datatype: xsd:decimal or xsd:integer, per the upstream shape
-	] ;
-	sh:property [
-		sh:path shui:dataGraphShape ;
-		sh:maxCount 1 ;
-		sh:nodeKind sh:BlankNodeOrIRI ;           # dataGraphShape-nodeKind: optional, per the upstream shape
-	] ;
-	sh:property [
-		sh:path shui:shapesGraphShape ;
-		sh:maxCount 1 ;
-		sh:nodeKind sh:BlankNodeOrIRI ;           # shapesGraphShape-nodeKind: optional, per the upstream shape
-	] .
+# stsh:ShuiPredicateShapes and stsh:WidgetScoreShape (well-formedness of shui: predicates and shui:WidgetScore) moved to
+# shacl12-shacl-ui-overlay.ttl (registry entry shacl_shacl_ui) on 2026-10-23: they are about the UI, not about SHACL itself.
+# Pass the UI companion as extra_graphs= to meta_validate() to check them.
 
 #############################################################################
 # Predicate documentation content (full SHACL Core + SHACL 1.2 coverage)

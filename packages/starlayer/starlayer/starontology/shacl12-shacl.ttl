@@ -420,18 +420,6 @@ stsh:ShapeShapeOverrides a sh:NodeShape ;
         sh:lessThanOrEquals,
         sh:nodeKind .
 
-stsh:ShuiPredicateShapes a sh:NodeShape ;
-    rdfs:label "Well-formedness rules for shui: predicates"@en ;
-    sh:property [ sh:nodeKind sh:IRI ;
-            sh:path shui:editor ],
-        [ sh:nodeKind sh:IRI ;
-            sh:path shui:viewer ],
-        [ sh:nodeKind sh:IRI ;
-            sh:path shui:propertyRole ] ;
-    sh:targetSubjectsOf shui:editor,
-        shui:propertyRole,
-        shui:viewer .
-
 stsh:SparqlPrefixesShapes a sh:NodeShape ;
     rdfs:label "Well-formedness rules for sh:prefixes / sh:declare"@en ;
     sh:property [ sh:node [ a sh:NodeShape ;
@@ -439,24 +427,6 @@ stsh:SparqlPrefixesShapes a sh:NodeShape ;
                             sh:path sh:declare ] ] ;
             sh:path sh:prefixes ] ;
     sh:targetSubjectsOf sh:prefixes .
-
-stsh:WidgetScoreShape a sh:NodeShape ;
-    rdfs:label "Well-formedness rules for shui:WidgetScore"@en ;
-    sh:property [ sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:path shui:widget ],
-        [ sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:or ( [ sh:datatype xsd:decimal ] [ sh:datatype xsd:integer ] ) ;
-            sh:path shui:score ],
-        [ sh:maxCount 1 ;
-            sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:path shui:dataGraphShape ],
-        [ sh:maxCount 1 ;
-            sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:path shui:shapesGraphShape ] ;
-    sh:targetClass shui:WidgetScore .
 
 sh:deactivated rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
     skos:example "sh:deactivated true"@en ;
@@ -505,6 +475,22 @@ shui:DetailsEditor rdfs:comment "ignored by validation; read by starlayer.shacl.
     rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
     sh:description "An expandable/collapsible nested editor for a complex (typically shape-constrained) value."@en ;
     sh:name "details editor"@en ;
+    stsh:requiredEngine stsh:StarShacl .
+
+shui:editor rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
+    rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
+    rdfs:seeAlso shui:viewer ;
+    skos:example "sh:property [ sh:path ex:birthDate ; shui:editor shui:DatePickerEditor ]"@en ;
+    sh:description "Suggests which widget a form-generating UI should use to *edit* this property shape's values — one of the built-in editors below, or a custom one."@en ;
+    sh:name "editor widget"@en ;
+    stsh:requiredEngine stsh:StarShacl .
+
+shui:viewer rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
+    rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
+    rdfs:seeAlso shui:editor ;
+    skos:example "sh:property [ sh:path ex:homepage ; shui:viewer shui:HyperlinkViewer ]"@en ;
+    sh:description "Suggests which widget a UI should use to *display* (read-only) this property shape's values, as opposed to editing them."@en ;
+    sh:name "viewer widget"@en ;
     stsh:requiredEngine stsh:StarShacl .
 
 stsh:AskValidatorShape a sh:NodeShape ;
@@ -775,6 +761,13 @@ shsh:PropertyShapeShape a sh:NodeShape ;
             sh:path sh:path ] ;
     sh:targetObjectsOf sh:property .
 
+shui:propertyRole rdfs:comment "ignored by validation; not interpreted by starlayer.shacl (property roles are documented here but not implemented)"@en ;
+    rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
+    skos:example "sh:property [ sh:path ex:name ; shui:propertyRole shui:LabelRole ]"@en ;
+    sh:description "Marks a property shape as playing a special semantic role for UI purposes — currently just shui:LabelRole, marking \"this is the property whose value should be used as the resource's own display label.\""@en ;
+    sh:name "property role"@en ;
+    stsh:requiredEngine stsh:StarShacl .
+
 stsh:IRIOrListOfIRIsShape a sh:NodeShape ;
     rdfs:label "IRI or list of IRIs"@en ;
     rdfs:comment "SHACL 1.2 widened several single-IRI-valued parameters (sh:class, sh:datatype, sh:rootClass, sh:uniqueValuesFor) to also accept a well-formed SHACL list of IRIs, meaning a union of the listed values."@en ;
@@ -1018,22 +1011,6 @@ shsh:PathNodeShape sh:xone ( [ sh:nodeKind sh:IRI ] [ sh:memberShape shsh:PathSh
                         sh:minCount 1 ;
                         sh:path sh:zeroOrOnePath ] ] ) .
 
-shui:editor rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
-    rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-    rdfs:seeAlso shui:viewer ;
-    skos:example "sh:property [ sh:path ex:birthDate ; shui:editor shui:DatePickerEditor ]"@en ;
-    sh:description "Suggests which widget a form-generating UI should use to *edit* this property shape's values — one of the built-in editors below, or a custom one."@en ;
-    sh:name "editor widget"@en ;
-    stsh:requiredEngine stsh:StarShacl .
-
-shui:viewer rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
-    rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-    rdfs:seeAlso shui:editor ;
-    skos:example "sh:property [ sh:path ex:homepage ; shui:viewer shui:HyperlinkViewer ]"@en ;
-    sh:description "Suggests which widget a UI should use to *display* (read-only) this property shape's values, as opposed to editing them."@en ;
-    sh:name "viewer widget"@en ;
-    stsh:requiredEngine stsh:StarShacl .
-
 stsh:SelectValidatorShape a sh:NodeShape ;
     rdfs:label "Well-formed SELECT validator"@en ;
     rdfs:comment "The value of sh:nodeValidator/sh:propertyValidator on a custom sh:ConstraintComponent, and of sh:sparql's own SPARQLConstraint value - pySHACL requires exactly one sh:select (an xsd:string) (SelectConstraintValidator.__init__, SPARQLBasedConstraint.__init__)."@en ;
@@ -1158,13 +1135,6 @@ shsh:PathShape a sh:NodeShape ;
     sh:property [ sh:node shsh:PathNodeShape ;
             sh:path [ sh:zeroOrMorePath [ sh:alternativePath ( ( [ sh:zeroOrMorePath rdf:rest ] rdf:first ) ( sh:alternativePath [ sh:zeroOrMorePath rdf:rest ] rdf:first ) sh:inversePath sh:zeroOrMorePath sh:oneOrMorePath sh:zeroOrOnePath ) ] ] ] .
 
-shui:propertyRole rdfs:comment "ignored by validation; not interpreted by starlayer.shacl (property roles are documented here but not implemented)"@en ;
-    rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-    skos:example "sh:property [ sh:path ex:name ; shui:propertyRole shui:LabelRole ]"@en ;
-    sh:description "Marks a property shape as playing a special semantic role for UI purposes — currently just shui:LabelRole, marking \"this is the property whose value should be used as the resource's own display label.\""@en ;
-    sh:name "property role"@en ;
-    stsh:requiredEngine stsh:StarShacl .
-
 stsh:IRIOrPathShape a sh:NodeShape ;
     rdfs:label "IRI or SHACL property path"@en ;
     rdfs:comment "SHACL 1.2 widened sh:equals/sh:disjoint/sh:lessThan/sh:lessThanOrEquals from a single comparison-property IRI to a full SHACL property path expression. Reuses the Working Group's shsh:PathNodeShape (present once this file is merged with the Working Group's meta-shapes graph) rather than re-deriving SHACL's path grammar."@en ;
@@ -1286,9 +1256,9 @@ sh:lessThanOrEquals rdfs:comment "plain-IRI object only — the SHACL 1.2 path-v
 shsh:ShapeShape a sh:NodeShape ;
     rdfs:label "Shape shape"@en ;
     rdfs:comment "A shape that can be used to validate syntax rules for other shapes."@en ;
-    sh:or ( [ sh:not [ sh:class rdfs:Class ;
-                        sh:or ( [ sh:class sh:NodeShape ] [ sh:class sh:PropertyShape ] ) ] ] [ sh:nodeKind sh:IRI ] ),
-        ( shsh:NodeShapeShape shsh:PropertyShapeShape ) ;
+    sh:or ( shsh:NodeShapeShape shsh:PropertyShapeShape ),
+        ( [ sh:not [ sh:class rdfs:Class ;
+                        sh:or ( [ sh:class sh:NodeShape ] [ sh:class sh:PropertyShape ] ) ] ] [ sh:nodeKind sh:IRI ] ) ;
     sh:property [ sh:nodeKind sh:IRIOrLiteral ;
             sh:path sh:targetNode ],
         [ sh:nodeKind sh:IRI ;
