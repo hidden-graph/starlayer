@@ -1,0 +1,32 @@
+# SOURCE of what StarLayer adds to the W3C SHACL 1.2 vocabulary (scripts/assets/vendor/w3c-shacl.ttl, never edited).
+# HAND-EDITED. scripts/build_starontology.py writes the registered file starontology/shacl12-vocabulary.ttl (registry entry
+# shacl_vocabulary) from the vendored file plus this one.
+#
+# Contents: stsh:ShapesGraphHolds, a description of what a shapes graph holds, for tools that show shapes graphs. It is written as
+# SHACL shapes because a path says it best: the things a shapes graph DEFINES are at the end of the INVERSE of rdfs:isDefinedBy
+# (the entity says rdfs:isDefinedBy the graph, SHACL 1.2 Profiling "Indicating Element definition"), and the things it USES are
+# at the end of rdfs:member ("Indicating Element use"). The class lists say which of them a tool cares about; the Profiling
+# vocabulary itself does not restrict the types. The shapes describe, they do not validate: this graph is never loaded for
+# validation, and a shape in it is not a constraint on a user's file.
+#
+# baseURI: https://github.com/hidden-graph/starlayer/ns/shacl#
+
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sh:   <http://www.w3.org/ns/shacl#> .
+@prefix stsh: <https://github.com/hidden-graph/starlayer/ns/shacl#> .
+
+stsh:ShapesGraphHolds a sh:NodeShape ;
+    rdfs:label "What a shapes graph holds" ;
+    rdfs:comment "The kinds of entity a shapes graph defines (they say rdfs:isDefinedBy it) and the kinds it uses (it lists them with rdfs:member), in the order a tool lists them." ;
+    sh:targetClass sh:ShapesGraph ;
+    sh:property stsh:ShapesGraphDefines, stsh:ShapesGraphUses .
+
+stsh:ShapesGraphDefines a sh:PropertyShape ;
+    sh:name "defines" ;
+    sh:path [ sh:inversePath rdfs:isDefinedBy ] ;
+    sh:or ( [ sh:class sh:NodeShape ] [ sh:class sh:PropertyShape ] [ sh:class sh:PropertyGroup ] ) .
+
+stsh:ShapesGraphUses a sh:PropertyShape ;
+    sh:name "uses" ;
+    sh:path rdfs:member ;
+    sh:or ( [ sh:class sh:NodeShape ] [ sh:class sh:PropertyShape ] [ sh:class sh:PropertyGroup ] ) .

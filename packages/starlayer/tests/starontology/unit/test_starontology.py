@@ -527,6 +527,24 @@ class TestShaclVocabulary:
         assert (SH.NodeShape, RDFS.subClassOf, SH.Shape) in vocabulary
         assert (SH.ShapesGraph, None, None) in vocabulary, "a SHACL 1.2 class, which pySHACL's 1.0 copy lacks"
 
+    def test_the_overlay_says_what_a_shapes_graph_defines_and_uses_by_paths(self):
+        from rdflib import RDF, RDFS, Namespace
+        from rdflib.collection import Collection
+
+        SH = Namespace("http://www.w3.org/ns/shacl#")
+        STSH = Namespace("https://github.com/hidden-graph/starlayer/ns/shacl#")
+        vocabulary = starontology.get_ontology_graph("shacl_vocabulary")
+
+        def kinds(property_shape):
+            (items,) = vocabulary.objects(property_shape, SH["or"])
+            return [next(vocabulary.objects(item, SH["class"])) for item in Collection(vocabulary, items)]
+
+        (path,) = vocabulary.objects(STSH.ShapesGraphDefines, SH.path)
+        assert (path, SH.inversePath, RDFS.isDefinedBy) in vocabulary
+        assert kinds(STSH.ShapesGraphDefines) == [SH.NodeShape, SH.PropertyShape, SH.PropertyGroup]
+        assert (STSH.ShapesGraphUses, SH.path, RDFS.member) in vocabulary and kinds(STSH.ShapesGraphUses) == kinds(STSH.ShapesGraphDefines)
+        assert (STSH.ShapesGraphHolds, SH.targetClass, SH.ShapesGraph) in vocabulary and (STSH.ShapesGraphHolds, RDF.type, SH.NodeShape) in vocabulary
+
     def test_the_vendored_file_matches_its_record(self):
         import hashlib
         import re
