@@ -2463,7 +2463,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:NodeShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n5f694ad4618643f8ab57f59d5caad349b8 ;
+        sh:in _:n059fa8230ac5449ba9b04fe8ba087423b8 ;
         sh:maxCount 1 ;
         sh:order 3 ;
         sh:path sh:nodeKind .
@@ -2785,7 +2785,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:PropertyShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n5f694ad4618643f8ab57f59d5caad349b8 ;
+        sh:in _:n059fa8230ac5449ba9b04fe8ba087423b8 ;
         sh:maxCount 1 ;
         sh:order 3 ;
         sh:path sh:nodeKind .
@@ -3324,14 +3324,14 @@ starontology:shacl12-shacl-ui.ttl {
         sh:name "SHACL 1.2 UI Widgets"@en ;
         sh:order 16 .
 
-    _:n5f694ad4618643f8ab57f59d5caad349b10 rdf:first sh:Literal ;
+    _:n059fa8230ac5449ba9b04fe8ba087423b10 rdf:first sh:Literal ;
         rdf:rest ( sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) .
 
-    _:n5f694ad4618643f8ab57f59d5caad349b9 rdf:first sh:IRI ;
-        rdf:rest _:n5f694ad4618643f8ab57f59d5caad349b10 .
+    _:n059fa8230ac5449ba9b04fe8ba087423b9 rdf:first sh:IRI ;
+        rdf:rest _:n059fa8230ac5449ba9b04fe8ba087423b10 .
 
-    _:n5f694ad4618643f8ab57f59d5caad349b8 rdf:first sh:BlankNode ;
-        rdf:rest _:n5f694ad4618643f8ab57f59d5caad349b9 .
+    _:n059fa8230ac5449ba9b04fe8ba087423b8 rdf:first sh:BlankNode ;
+        rdf:rest _:n059fa8230ac5449ba9b04fe8ba087423b9 .
 }
 
 starontology:shacl12-shacl.ttl {
@@ -5948,10 +5948,22 @@ starontology:shacl12-vocabulary.ttl {
         rdfs:isDefinedBy sh: ;
         rdfs:range rdfs:Resource .
 
-    stsh:ShapesGraphHolds a sh:NodeShape ;
-        rdfs:label "What a shapes graph holds" ;
-        rdfs:comment "The kinds of entity a shapes graph defines (they say rdfs:isDefinedBy it) and the kinds it uses (it lists them with rdfs:member), in the order a tool lists them." ;
-        sh:property stsh:ShapesGraphDefines,
+    stsh:ShapesGraphShape a sh:NodeShape ;
+        rdfs:label "A shapes graph" ;
+        rdfs:comment "What a shapes graph defines (the entities that say rdfs:isDefinedBy it), one property shape per kind, in the order a tool lists them, and what it uses (it lists them with rdfs:member)." ;
+        sh:property stsh:ShapesGraphDefinesConstraintComponent,
+            stsh:ShapesGraphDefinesFunction,
+            stsh:ShapesGraphDefinesNodeShape,
+            stsh:ShapesGraphDefinesPrefixDeclaration,
+            stsh:ShapesGraphDefinesPropertyGroup,
+            stsh:ShapesGraphDefinesPropertyShape,
+            stsh:ShapesGraphDefinesSPARQLAskValidator,
+            stsh:ShapesGraphDefinesSPARQLFunction,
+            stsh:ShapesGraphDefinesSPARQLRule,
+            stsh:ShapesGraphDefinesSPARQLSelectValidator,
+            stsh:ShapesGraphDefinesTarget,
+            stsh:ShapesGraphDefinesTripleRule,
+            stsh:ShapesGraphDefinesWidgetScore,
             stsh:ShapesGraphUses ;
         sh:targetClass sh:ShapesGraph .
 
@@ -6529,14 +6541,87 @@ starontology:shacl12-vocabulary.ttl {
         rdfs:isDefinedBy sh: ;
         rdfs:range rdf:List .
 
-    stsh:ShapesGraphDefines a sh:PropertyShape ;
-        sh:name "defines" ;
-        sh:or ( [ sh:class sh:NodeShape ] [ sh:class sh:PropertyShape ] [ sh:class sh:PropertyGroup ] [ sh:class sh:ConstraintComponent ] [ sh:class sh:SPARQLAskValidator ] [ sh:class sh:SPARQLSelectValidator ] [ sh:class sh:TripleRule ] [ sh:class sh:SPARQLRule ] [ sh:class sh:Function ] [ sh:class sh:SPARQLFunction ] [ sh:class sh:Target ] [ sh:class sh:PrefixDeclaration ] [ sh:class shui:WidgetScore ] ) ;
+    stsh:ShapesGraphDefinesConstraintComponent a sh:PropertyShape ;
+        sh:class sh:ConstraintComponent ;
+        sh:name "constraint components" ;
+        sh:order 4 ;
+        sh:path [ sh:inversePath rdfs:isDefinedBy ] .
+
+    stsh:ShapesGraphDefinesFunction a sh:PropertyShape ;
+        sh:class sh:Function ;
+        sh:name "functions" ;
+        sh:order 9 ;
+        sh:path [ sh:inversePath rdfs:isDefinedBy ] .
+
+    stsh:ShapesGraphDefinesNodeShape a sh:PropertyShape ;
+        sh:class sh:NodeShape ;
+        sh:name "node shapes" ;
+        sh:order 1 ;
+        sh:path [ sh:inversePath rdfs:isDefinedBy ] .
+
+    stsh:ShapesGraphDefinesPrefixDeclaration a sh:PropertyShape ;
+        sh:class sh:PrefixDeclaration ;
+        sh:name "prefix declarations" ;
+        sh:order 12 ;
+        sh:path [ sh:inversePath rdfs:isDefinedBy ] .
+
+    stsh:ShapesGraphDefinesPropertyGroup a sh:PropertyShape ;
+        sh:class sh:PropertyGroup ;
+        sh:name "property groups" ;
+        sh:order 3 ;
+        sh:path [ sh:inversePath rdfs:isDefinedBy ] .
+
+    stsh:ShapesGraphDefinesPropertyShape a sh:PropertyShape ;
+        sh:class sh:PropertyShape ;
+        sh:name "property shapes" ;
+        sh:order 2 ;
+        sh:path [ sh:inversePath rdfs:isDefinedBy ] .
+
+    stsh:ShapesGraphDefinesSPARQLAskValidator a sh:PropertyShape ;
+        sh:class sh:SPARQLAskValidator ;
+        sh:name "SPARQL ASK validators" ;
+        sh:order 5 ;
+        sh:path [ sh:inversePath rdfs:isDefinedBy ] .
+
+    stsh:ShapesGraphDefinesSPARQLFunction a sh:PropertyShape ;
+        sh:class sh:SPARQLFunction ;
+        sh:name "SPARQL functions" ;
+        sh:order 10 ;
+        sh:path [ sh:inversePath rdfs:isDefinedBy ] .
+
+    stsh:ShapesGraphDefinesSPARQLRule a sh:PropertyShape ;
+        sh:class sh:SPARQLRule ;
+        sh:name "SPARQL rules" ;
+        sh:order 8 ;
+        sh:path [ sh:inversePath rdfs:isDefinedBy ] .
+
+    stsh:ShapesGraphDefinesSPARQLSelectValidator a sh:PropertyShape ;
+        sh:class sh:SPARQLSelectValidator ;
+        sh:name "SPARQL SELECT validators" ;
+        sh:order 6 ;
+        sh:path [ sh:inversePath rdfs:isDefinedBy ] .
+
+    stsh:ShapesGraphDefinesTarget a sh:PropertyShape ;
+        sh:class sh:Target ;
+        sh:name "targets" ;
+        sh:order 11 ;
+        sh:path [ sh:inversePath rdfs:isDefinedBy ] .
+
+    stsh:ShapesGraphDefinesTripleRule a sh:PropertyShape ;
+        sh:class sh:TripleRule ;
+        sh:name "triple rules" ;
+        sh:order 7 ;
+        sh:path [ sh:inversePath rdfs:isDefinedBy ] .
+
+    stsh:ShapesGraphDefinesWidgetScore a sh:PropertyShape ;
+        sh:class shui:WidgetScore ;
+        sh:name "widget scores" ;
+        sh:order 13 ;
         sh:path [ sh:inversePath rdfs:isDefinedBy ] .
 
     stsh:ShapesGraphUses a sh:PropertyShape ;
         sh:name "uses" ;
-        sh:or ( [ sh:class sh:NodeShape ] [ sh:class sh:PropertyShape ] [ sh:class sh:PropertyGroup ] [ sh:class sh:ConstraintComponent ] [ sh:class sh:SPARQLAskValidator ] [ sh:class sh:SPARQLSelectValidator ] [ sh:class sh:TripleRule ] [ sh:class sh:SPARQLRule ] [ sh:class sh:Function ] [ sh:class sh:SPARQLFunction ] [ sh:class sh:Target ] [ sh:class sh:PrefixDeclaration ] [ sh:class shui:WidgetScore ] ) ;
+        sh:order 100 ;
         sh:path rdfs:member .
 
     sh:conformanceDisallows a rdf:Property ;

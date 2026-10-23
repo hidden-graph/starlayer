@@ -442,8 +442,8 @@ _REGISTRY: dict[str, tuple[OntologyInfo, Callable[[], StarLayerGraph]]] = {
                 "The SHACL 1.2 vocabulary, the W3C Data Shapes WG's shacl.ttl: every sh: class and property with its "
                 "rdfs:domain, rdfs:range and rdfs:subClassOf. Reasoning over it (RDFS entailment) tells what type an "
                 "entity of a shapes graph has without being told, e.g. a value of sh:group is a sh:PropertyGroup. "
-                "Adds stsh:ShapesGraphHolds, which says by paths (the inverse of rdfs:isDefinedBy, and rdfs:member) what "
-                "kinds of entity a shapes graph defines and uses. Not a set of constraints: do not load it for validation."
+                "Adds stsh:ShapesGraphShape, one property shape per kind of entity a shapes graph defines, on the "
+                "inverse of rdfs:isDefinedBy. Not a set of constraints: do not load it for validation."
             ),
             type="owl",
         ),

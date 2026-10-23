@@ -527,24 +527,23 @@ class TestShaclVocabulary:
         assert (SH.NodeShape, RDFS.subClassOf, SH.Shape) in vocabulary
         assert (SH.ShapesGraph, None, None) in vocabulary, "a SHACL 1.2 class, which pySHACL's 1.0 copy lacks"
 
-    def test_the_overlay_says_what_a_shapes_graph_defines_and_uses_by_paths(self):
+    def test_the_overlay_says_what_a_shapes_graph_defines_one_property_shape_per_kind_on_the_inverse_of_is_defined_by(self):
         from rdflib import RDF, RDFS, Namespace
-        from rdflib.collection import Collection
 
         SH = Namespace("http://www.w3.org/ns/shacl#")
         STSH = Namespace("https://github.com/hidden-graph/starlayer/ns/shacl#")
         vocabulary = starontology.get_ontology_graph("shacl_vocabulary")
-
-        def kinds(property_shape):
-            (items,) = vocabulary.objects(property_shape, SH["or"])
-            return [next(vocabulary.objects(item, SH["class"])) for item in Collection(vocabulary, items)]
-
-        (path,) = vocabulary.objects(STSH.ShapesGraphDefines, SH.path)
-        assert (path, SH.inversePath, RDFS.isDefinedBy) in vocabulary
-        defined = kinds(STSH.ShapesGraphDefines)
-        assert defined[:3] == [SH.NodeShape, SH.PropertyShape, SH.PropertyGroup] and {SH.Function, SH.ConstraintComponent, SH.TripleRule, SH.Target} <= set(defined)
-        assert (STSH.ShapesGraphUses, SH.path, RDFS.member) in vocabulary and kinds(STSH.ShapesGraphUses) == kinds(STSH.ShapesGraphDefines)
-        assert (STSH.ShapesGraphHolds, SH.targetClass, SH.ShapesGraph) in vocabulary and (STSH.ShapesGraphHolds, RDF.type, SH.NodeShape) in vocabulary
+        assert (STSH.ShapesGraphShape, RDF.type, SH.NodeShape) in vocabulary and (STSH.ShapesGraphShape, SH.targetClass, SH.ShapesGraph) in vocabulary
+        defines = []
+        for prop in vocabulary.objects(STSH.ShapesGraphShape, SH.property):
+            (path,) = vocabulary.objects(prop, SH.path)
+            if (path, SH.inversePath, RDFS.isDefinedBy) in vocabulary:
+                (order,) = vocabulary.objects(prop, SH.order)
+                defines.append((int(order), next(vocabulary.objects(prop, SH["class"]))))
+        kinds = [kind for _order, kind in sorted(defines)]
+        assert kinds[:3] == [SH.NodeShape, SH.PropertyShape, SH.PropertyGroup] and len(kinds) == 13
+        assert {SH.Function, SH.ConstraintComponent, SH.TripleRule, SH.Target} <= set(kinds)
+        assert (STSH.ShapesGraphUses, SH.path, RDFS.member) in vocabulary
 
     def test_the_vendored_file_matches_its_record(self):
         import hashlib
