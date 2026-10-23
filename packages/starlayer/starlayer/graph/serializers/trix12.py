@@ -139,7 +139,7 @@ def serialize_trix12_dataset(ds) -> str:
     ET.register_namespace('xml', _XML_NS)
 
     root = ET.Element(f'{_T}trix')
-    for sg in ds.contexts():
+    for sg in ds._contexts_in_serialization_order():
         if len(sg) == 0:
             continue
         _append_graph(sg, root)

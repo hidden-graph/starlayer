@@ -223,6 +223,14 @@ class StarLayerDataset(Dataset):
         for ctx in super(Dataset, self).contexts(triple):
             yield self.get_context(ctx.identifier)
 
+    def _contexts_in_serialization_order(self) -> list[StarLayerGraph]:
+        """Named graphs in a fixed order: IRIs by text, then blank nodes by label.
+
+        contexts() follows the store's hash order, which changes with PYTHONHASHSEED, so the same data would serialize
+        its graphs in a different order from one process (or one parse) to the next.
+        """
+        return sorted(self.contexts(), key=lambda sg: (isinstance(sg.identifier, BNode), str(sg.identifier)))
+
     # ------------------------------------------------------------------
     # Quad iteration with TripleTerm restoration
     # ------------------------------------------------------------------
@@ -949,7 +957,7 @@ class StarLayerDataset(Dataset):
             has_tt = any(getattr(sg, '_tt_nodes', None) for sg in self.contexts())
             header = 'VERSION "1.2"\n' if has_tt else ''
             lines: list[str] = []
-            for sg in self.contexts():
+            for sg in self._contexts_in_serialization_order():
                 if len(sg) == 0:
                     continue
                 chunk = serialize_nquads12(sg, _include_header=False)
@@ -971,7 +979,7 @@ class StarLayerDataset(Dataset):
             has_version = False
             graph_entries: list[tuple] = []
 
-            for sg in self.contexts():
+            for sg in self._contexts_in_serialization_order():
                 if len(sg) == 0:
                     continue
                 turtle_text = serialize_turtle12(sg)
