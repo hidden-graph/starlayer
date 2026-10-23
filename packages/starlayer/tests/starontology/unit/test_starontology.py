@@ -38,7 +38,7 @@ class TestGetOntologyList:
             "sqe_owl", "sqe_shacl",
             "srl_owl", "srl_shacl",
             "spexpr_owl", "spexpr_shacl",
-            "shacl_shacl", "shacl_shacl_ui", "shacl_ui_baseline", "shacl_shacl_ui_scores",
+            "shacl_shacl", "shacl_vocabulary", "shacl_shacl_ui", "shacl_ui_baseline", "shacl_shacl_ui_scores",
         }
 
     def test_sorted_by_name(self):
@@ -512,3 +512,44 @@ class TestLocalLoader:
         assert set(merged) == set(skos_alone)
 
 
+
+
+class TestShaclVocabulary:
+    """shacl_vocabulary: the W3C WG's SHACL 1.2 vocabulary, vendored and unchanged."""
+
+    def test_it_declares_what_a_value_of_sh_group_is_and_the_1_2_classes(self):
+        from rdflib import RDFS, Namespace
+
+        SH = Namespace("http://www.w3.org/ns/shacl#")
+
+        vocabulary = starontology.get_ontology_graph("shacl_vocabulary")
+        assert (SH.group, RDFS.range, SH.PropertyGroup) in vocabulary
+        assert (SH.NodeShape, RDFS.subClassOf, SH.Shape) in vocabulary
+        assert (SH.ShapesGraph, None, None) in vocabulary, "a SHACL 1.2 class, which pySHACL's 1.0 copy lacks"
+
+    def test_the_overlay_says_what_a_shapes_graph_defines_one_property_shape_per_kind_on_the_inverse_of_is_defined_by(self):
+        from rdflib import RDF, RDFS, Namespace
+
+        SH = Namespace("http://www.w3.org/ns/shacl#")
+        STSH = Namespace("https://github.com/hidden-graph/starlayer/ns/shacl#")
+        vocabulary = starontology.get_ontology_graph("shacl_vocabulary")
+        assert (STSH.ShapesGraphShape, RDF.type, SH.NodeShape) in vocabulary and (STSH.ShapesGraphShape, SH.targetClass, SH.ShapesGraph) in vocabulary
+        defines = []
+        for prop in vocabulary.objects(STSH.ShapesGraphShape, SH.property):
+            (path,) = vocabulary.objects(prop, SH.path)
+            if (path, SH.inversePath, RDFS.isDefinedBy) in vocabulary:
+                (order,) = vocabulary.objects(prop, SH.order)
+                defines.append((int(order), next(vocabulary.objects(prop, SH["class"]))))
+        kinds = [kind for _order, kind in sorted(defines)]
+        assert kinds[:3] == [SH.NodeShape, SH.PropertyShape, SH.PropertyGroup] and len(kinds) == 13
+        assert {SH.Function, SH.ConstraintComponent, SH.TripleRule, SH.Target} <= set(kinds)
+        assert (STSH.ShapesGraphUses, SH.path, RDFS.member) in vocabulary
+
+    def test_the_vendored_file_matches_its_record(self):
+        import hashlib
+        import re
+        from pathlib import Path
+
+        assets = Path(__file__).resolve().parents[5] / "scripts" / "assets" / "vendor"
+        recorded = re.search(r"w3c-shacl\.ttl.*?SHA-256 of the file: `([0-9a-f]{64})`", (assets / "VENDORED_FROM.md").read_text(), re.S).group(1)
+        assert hashlib.sha256((assets / "w3c-shacl.ttl").read_bytes()).hexdigest() == recorded
