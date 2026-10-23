@@ -53,3 +53,15 @@ def test_graph_blocks_are_still_indented_outside_string_literals():
     text = dataset.serialize(format="trig12")
     assert "GRAPH <http://e/g1> {\n    " in text, "the statement itself is still indented"
     assert "\n    y" in text and "\n        y" not in text, "the string's own continuation line is left alone"
+
+
+@pytest.mark.parametrize("fmt", ["trig12", "nq12", "trix12"])
+def test_graphs_are_written_in_a_fixed_order_whatever_order_they_were_added_in(fmt):
+    # contexts() follows the store's hash order (PYTHONHASHSEED), so a round trip used to reorder the graphs.
+    forward, backward = StarLayerDataset(), StarLayerDataset()
+    for dataset, graphs in ((forward, (G1, G2)), (backward, (G2, G1))):
+        for g in graphs:
+            dataset.graph(g).add((A, P, Literal(str(g))))
+    text = forward.serialize(format=fmt)
+    assert text == backward.serialize(format=fmt)
+    assert text.index(str(G1)) < text.index(str(G2))
