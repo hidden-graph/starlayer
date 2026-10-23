@@ -316,6 +316,7 @@ stsh:PropertyShapeForm a sh:NodeShape ;
         stsh:PropertyShapeForm_sh_uniqueLang,
         stsh:PropertyShapeForm_sh_uniqueMembers,
         stsh:PropertyShapeForm_sh_uniqueValuesFor,
+        stsh:PropertyShapeForm_sh_values,
         stsh:PropertyShapeForm_sh_xone,
         stsh:PropertyShapeForm_shui_editor,
         stsh:PropertyShapeForm_shui_propertyRole,
@@ -483,6 +484,11 @@ sh:reifierShape sh:group stsh:ReificationGroup ;
 
 sh:uniqueLang sh:group stsh:StringGroup ;
     sh:order 6 ;
+    stsh:formMaxCount 1 ;
+    stsh:propertyFormField true .
+
+sh:values sh:group stsh:MetadataGroup ;
+    sh:order 11 ;
     stsh:formMaxCount 1 ;
     stsh:propertyFormField true .
 
@@ -662,7 +668,7 @@ stsh:NodeShapeForm_sh_node a sh:PropertyShape ;
 
 stsh:NodeShapeForm_sh_nodeKind a sh:PropertyShape ;
     sh:group stsh:ValueTypeGroup ;
-    sh:in _:n277f1699bf74401c9b1d7147fb201a96b75 ;
+    sh:in _:nc3ae872c404a469e8188fea815d197ffb75 ;
     sh:maxCount 1 ;
     sh:nodeKind sh:IRI ;
     sh:order 3 ;
@@ -1005,7 +1011,7 @@ stsh:PropertyShapeForm_sh_node a sh:PropertyShape ;
 
 stsh:PropertyShapeForm_sh_nodeKind a sh:PropertyShape ;
     sh:group stsh:ValueTypeGroup ;
-    sh:in _:n277f1699bf74401c9b1d7147fb201a96b75 ;
+    sh:in _:nc3ae872c404a469e8188fea815d197ffb75 ;
     sh:maxCount 1 ;
     sh:nodeKind sh:IRI ;
     sh:order 3 ;
@@ -1183,6 +1189,12 @@ stsh:PropertyShapeForm_sh_uniqueValuesFor a sh:PropertyShape ;
     sh:nodeKind sh:IRI ;
     sh:order 1 ;
     sh:path sh:uniqueValuesFor .
+
+stsh:PropertyShapeForm_sh_values a sh:PropertyShape ;
+    sh:group stsh:MetadataGroup ;
+    sh:maxCount 1 ;
+    sh:order 11 ;
+    sh:path sh:values .
 
 stsh:PropertyShapeForm_sh_xone a sh:PropertyShape ;
     sh:group stsh:CompositionGroup ;
@@ -1593,8 +1605,8 @@ stsh:WidgetGroup a sh:PropertyGroup ;
     sh:name "SHACL 1.2 UI Widgets"@en ;
     sh:order 16 .
 
-_:n277f1699bf74401c9b1d7147fb201a96b76 rdf:first sh:IRI ;
+_:nc3ae872c404a469e8188fea815d197ffb76 rdf:first sh:IRI ;
     rdf:rest ( sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) .
 
-_:n277f1699bf74401c9b1d7147fb201a96b75 rdf:first sh:BlankNode ;
-    rdf:rest _:n277f1699bf74401c9b1d7147fb201a96b76 .
+_:nc3ae872c404a469e8188fea815d197ffb75 rdf:first sh:BlankNode ;
+    rdf:rest _:nc3ae872c404a469e8188fea815d197ffb76 .

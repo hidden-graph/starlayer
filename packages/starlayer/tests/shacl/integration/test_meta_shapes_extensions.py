@@ -1572,3 +1572,31 @@ class TestSparqlQueryStructureValidation:
         StarShaclSchema(shacl_graph=shapes).validate(
             data_graph=data, meta_shacl=False
         )  # must not raise
+
+
+class TestShapesGraphFormCoverage:
+    """GitHub issues #21 and #22: property shapes for the predicates a shapes-graph form needs."""
+
+    _PREFIX = _RULES_PREFIX + "@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> . @prefix shnex: <http://www.w3.org/ns/shacl-node-expr#> . "
+
+    def _conforms(self, body: str) -> bool:
+        shapes = Graph()
+        shapes.parse(data=self._PREFIX + body, format="turtle")
+        try:
+            return meta_validate(shapes)[0]
+        except pyshacl.errors.ReportableRuntimeError:
+            return False
+
+    def test_is_defined_by_takes_an_iri_or_blank_node_not_a_literal(self) -> None:
+        assert self._conforms("ex:S a sh:NodeShape ; rdfs:isDefinedBy ex:G .")
+        assert not self._conforms('ex:S a sh:NodeShape ; rdfs:isDefinedBy "x" .')
+
+    def test_sh_property_takes_an_iri_or_blank_node(self) -> None:
+        assert not self._conforms('ex:S a sh:NodeShape ; sh:property "x" .')
+
+    def test_sh_values_must_be_a_node_expression(self) -> None:
+        assert self._conforms("ex:S a sh:NodeShape ; sh:property [ sh:path ex:p ; sh:values [ shnex:pathValues ex:q ] ] .")
+        assert not self._conforms("ex:S a sh:NodeShape ; sh:property [ sh:path ex:p ; sh:values [ ex:nonsense 1 ] ] .")
+
+    def test_a_shape_has_at_most_one_sh_path(self) -> None:
+        assert not self._conforms("ex:S a sh:NodeShape ; sh:property [ sh:path ex:p, ex:q ] .")

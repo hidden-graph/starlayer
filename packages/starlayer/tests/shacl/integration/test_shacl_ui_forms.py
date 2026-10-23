@@ -162,7 +162,7 @@ _PREFIXES = "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/
 # Fields whose values are structures (a list of shapes, a node expression, a property path) a single sample cannot stand for.
 # They are the fields not checked here, named so that adding one to a form is a visible decision.
 NOT_SAMPLED = {sh(x) for x in ("and", "or", "xone", "not", "node", "property", "qualifiedValueShape", "someValue", "memberShape",
-                              "reifierShape", "expression", "sparql", "rule", "ignoredProperties", "languageIn", "in", "path")}
+                              "reifierShape", "expression", "sparql", "rule", "ignoredProperties", "languageIn", "in", "path", "values")}
 
 # What a user would reasonably enter, for the fields whose own constraints do not say (shacl_shacl gives them no datatype or node kind).
 SAMPLES = {

@@ -1167,6 +1167,62 @@ stsh:PropertyGroupShape
 		sh:or ( [ sh:datatype xsd:decimal ] [ sh:datatype xsd:integer ] ) ;
 	] .
 
+# Coverage for the predicates a shapes-graph form needs and no shape described (GitHub issues #21 and #22). Each is a
+# plain property shape on the subjects of the predicate, so a tool that selects shapes by target finds them.
+
+stsh:IsDefinedByShape
+	a sh:NodeShape ;
+	rdfs:label "Well-formed rdfs:isDefinedBy on a shape"@en ;
+	rdfs:comment "SHACL 1.2 Profiling 2.4: a shape names the sh:ShapesGraph that defines it. How many values a shape may have is an open question (GitHub issue #18), so no limit is stated here."@en ;
+	sh:targetSubjectsOf rdfs:isDefinedBy ;
+	sh:property [
+		sh:path rdfs:isDefinedBy ;
+		sh:name "defined by"@en ;
+		sh:nodeKind sh:BlankNodeOrIRI ;
+		sh:message "rdfs:isDefinedBy must be an IRI or blank node naming the shapes graph that defines the shape"@en ;
+	] .
+
+stsh:PropertiesOfNodeShapeShape
+	a sh:NodeShape ;
+	rdfs:label "Well-formed sh:property on a shape"@en ;
+	sh:targetSubjectsOf sh:property ;
+	sh:property [
+		sh:path sh:property ;
+		sh:name "property shapes"@en ;
+		sh:nodeKind sh:BlankNodeOrIRI ;
+		sh:message "sh:property must name a property shape (an IRI or blank node)"@en ;
+	] .
+
+stsh:ValuesShape
+	a sh:NodeShape ;
+	rdfs:label "Well-formed sh:values"@en ;
+	rdfs:comment "SHACL 1.2 Node Expressions: sh:values on a property shape holds the node expression that computes its values."@en ;
+	sh:targetSubjectsOf sh:values ;
+	sh:property [
+		sh:path sh:values ;
+		sh:name "values"@en ;
+		sh:node stsh:NodeExpressionShape ;
+		sh:message "sh:values must be a well-formed node expression"@en ;
+	] .
+
+stsh:PathOfShapeShape
+	a sh:NodeShape ;
+	rdfs:label "A property shape's sh:path, as a plain property shape"@en ;
+	rdfs:comment "shsh:PropertyShapeShape requires sh:path (or sh:expression) inside an sh:or, which a form cannot read as a field. This is the same rule stated directly, with the cardinality and path grammar of the Working Group's file."@en ;
+	sh:targetSubjectsOf sh:path ;
+	sh:property [
+		sh:path sh:path ;
+		sh:name "path"@en ;
+		sh:maxCount 1 ;
+		sh:or ( shsh:PathShape [ sh:nodeKind sh:IRI ] ) ;
+		sh:message "sh:path must be an IRI or a well-formed property path, and a shape has at most one"@en ;
+	] .
+
+# Node expressions are found by target: the object of sh:values is one (GitHub issue #22). The nested blank nodes under a
+# function call and the RDF list nodes of its arguments are still not selected; that is the open part of #22.
+stsh:NodeExpressionShape
+	sh:targetObjectsOf sh:values .
+
 #############################################################################
 # Documentation-only (sh:name/sh:description/skos:example/rdfs:comment/
 # rdfs:seeAlso), same non-validating pattern as the SHACL Core section

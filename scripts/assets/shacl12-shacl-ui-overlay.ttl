@@ -132,6 +132,7 @@ sh:closed sh:group stsh:ClosedGroup ; sh:order 1 .
 sh:datatype sh:group stsh:ValueTypeGroup ; sh:order 2 .
 sh:deactivated sh:group stsh:MetadataGroup ; sh:order 3 .
 sh:defaultValue sh:group stsh:MetadataGroup ; sh:order 8 .
+sh:values sh:group stsh:MetadataGroup ; sh:order 11 .
 sh:description sh:group stsh:MetadataGroup ; sh:order 5 .
 sh:disjoint sh:group stsh:ComparisonGroup ; sh:order 2 .
 sh:equals sh:group stsh:ComparisonGroup ; sh:order 1 .
@@ -488,6 +489,7 @@ sh:hasValue stsh:nodeFormField true ;                       stsh:propertyFormFie
 
 # Default value — both
 sh:defaultValue stsh:propertyFormField true .
+sh:values stsh:propertyFormField true ; stsh:formMaxCount 1 .
 
 # Value comparison — PropertyShape only
 sh:equals           stsh:propertyFormField true .
