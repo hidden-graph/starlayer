@@ -1940,6 +1940,7 @@ class StarShaclSchema:
         data_graph: Any | None = None,
         scoring_graph: Any | None = None,
         shapes_graph_resource: Any | None = None,
+        per: str = "node",
     ) -> dict[Any, Any]:
         """Chooses a SHACL 1.2 UI widget for each property of the node
         shape ``shape_node``, using this instance's own bound
@@ -1968,10 +1969,16 @@ class StarShaclSchema:
             shapes_graph_resource: Selects a named ``sh:ShapesGraph``
                 module within the bound ``shacl_graph``, as for
                 :meth:`apply_rules`.
+            per: ``"node"`` (the default) or ``"shape"``. ``"shape"`` answers
+                once per property shape and returns a ``WidgetChoice`` for
+                each, to finish per node with ``choice.resolve(focus_node,
+                data_graph)``; see
+                :func:`starlayer.shacl.ui_widget_selection.select_widgets`.
 
         Returns:
             ``{property_shape: widget}``, with ``None`` for a property
-            that has no widget.
+            that has no widget (or ``{property_shape: WidgetChoice}`` for
+            ``per="shape"``).
 
         Raises:
             ValueError: If this schema has no ``shacl_graph``, or a
@@ -1993,6 +2000,7 @@ class StarShaclSchema:
             shapes_graph=shapes_graph,
             scoring_graph=scoring_graph,
             role=role,  # type: ignore[arg-type]
+            per=per,  # type: ignore[arg-type]
         )
 
     def close_shape(self, shape: Any, *, shapes_graph_resource: Any | None = None) -> Any:
