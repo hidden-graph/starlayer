@@ -6,11 +6,18 @@ The build is a build-time tool, not part of the library: it lives in scripts/, w
 
 import pytest
 from build_meta_shapes import build_meta_shapes_graph
-from build_shacl_ui import EXCLUDED, FORMS, STSH, build_shacl_ui_graph, form_fields, is_excluded, missing_fields, validated_predicates
+from build_shacl_ui import (
+    EXCLUDED,
+    FORMS,
+    STSH,
+    build_shacl_ui_graph,
+    form_fields,
+    is_excluded,
+    missing_fields,
+)
 from rdflib import RDF, Graph, Literal, URIRef
 from rdflib.compare import to_isomorphic
 from rdflib.namespace import XSD
-
 from starlayer import starontology
 from starlayer.shacl.ui_widget_selection import select_widgets
 
@@ -116,7 +123,6 @@ def test_select_widgets_gives_a_property_shape_form_its_widgets(ui) -> None:
 
 def test_the_forms_change_nothing_about_what_validates(ui, shacl_shacl) -> None:
     from pyshacl.errors import ReportableRuntimeError
-
     from starlayer.shacl.meta_shapes import meta_validate
 
     bad, good = Graph(), Graph()
@@ -225,7 +231,6 @@ def test_every_field_set_to_a_value_its_constraints_allow_still_validates(ui, fo
     """The honesty check: one field at a time, on a minimal valid shape of that kind. A field that makes the graph invalid is a
     predicate that should not be on that form (or a constraint the form is missing)."""
     from pyshacl.errors import ReportableRuntimeError
-
     from starlayer.shacl.meta_shapes import meta_validate
 
     checked, bad = 0, []
