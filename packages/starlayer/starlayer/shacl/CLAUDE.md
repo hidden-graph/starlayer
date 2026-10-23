@@ -18,6 +18,16 @@ Project-specific instructions for Claude Code sessions working in this repo. See
 
 ## Design history
 
+## `extract_subgraph()` is the shape fragment of the paper; the Conformance Theorem is its contract (2026-10-23, GitHub issue #11)
+
+Compared with Delva et al., *Shape Fragments* (arXiv 2112.11796) and its companion specification; write-up in `docs/shacl/shape-fragments-comparison.md`. Four of eleven test cases failed and the target triples were missing, so three changes were made (the user agreed to all three):
+
+- **Target triples are included by default** (`include_targets=True`; `False` returns only what the constraints read). A fragment without them passes validation vacuously, because its nodes are no longer targeted. `_close_shape` adds `sh:ignoredProperties` for `rdf:type` (and a target-subjects-of predicate) so a derived closed shape still accepts the fragment.
+- **`sh:class` keeps the value's type path** (`_type_paths`).
+- **`sh:not` is handled by returning a superset**: the negated shape's *full trace* (every triple it reads), not the paper's minimal witness. The Sufficiency Lemma allows returning more. The same `full_trace` flag is used for `sh:qualifiedMaxCount` (non-qualifying values), for the disjuncts of `sh:xone` that do not hold, and for every branch of `sh:or`; `qualifiedMinCount` narrows to qualifying values only when it is the only qualified constraint.
+
+**Oracle:** `tests/shacl/integration/test_shape_fragments_paper.py`. Keep the focus node as an explicit `sh:targetNode` when checking that the fragment still conforms, or the check is vacuous. It includes a Hypothesis test over generated shapes and graphs; mutation-checked (removing class evidence, or the `sh:not` branch, fails it).
+
 ## UI companions of `shacl_shacl`: `shacl_shacl_ui` and `shacl_ui_baseline` (2026-10-21)
 
 Two hand-edited files in `starontology/`, registered like the others (GitHub issues #12 and #10). Neither changes what validates.

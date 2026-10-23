@@ -1,6 +1,6 @@
 # Shape fragments and `extract_subgraph()`
 
-Written 2026-10-21 for GitHub issue #11 ("Shape Fragments"). Status: research and a test; no library change.
+Written 2026-10-21 for GitHub issue #11 ("Shape Fragments"). Status: research (2026-10-21); the gaps it found were fixed 2026-10-23, see "Outcome" at the end.
 
 ## Sources
 
@@ -21,27 +21,29 @@ Two results make it more than a convention:
 
 | Construct | Paper / specification | `extract_subgraph()` |
 |---|---|---|
-| Target triples (`v a :Person`) | included (`phi AND tau`; spec 5.2) | **left out** |
+| Target triples (`v a :Person`) | included (`phi AND tau`; spec 5.2) | included by default (`include_targets=True`) |
 | `sh:minCount`, `sh:maxCount`, `sh:node`, `sh:property`, `sh:and` | path triples to the value nodes, recursing | same |
 | `sh:or` | union of the neighborhoods of the disjuncts that hold | same (every passing disjunct) |
 | `sh:qualifiedMinCount` | only values that satisfy the qualified shape | same, when it is the only constraint on the property |
-| `sh:class`, `sh:datatype`, `sh:nodeKind` on a value | the triples that make the value satisfy it (spec 6.1), e.g. `(:Alice a :Student)` | **class evidence left out** |
-| `sh:not`, negated cardinality, not-disjoint, not-equals | defined (spec 7, Table 2) | **contributes nothing** (a documented gap) |
+| `sh:class`, `sh:datatype`, `sh:nodeKind` on a value | the triples that make the value satisfy it (spec 6.1), e.g. `(:Alice a :Student)` | included (the value's `rdf:type` path) |
+| `sh:not`, negated cardinality, not-disjoint, not-equals | defined (spec 7, Table 2) | the negated shape's full trace (a superset of the paper's neighborhood, allowed by the Sufficiency Lemma) |
 | `sh:equals` | the paths of both sides | same |
 | `sh:disjoint`, `sh:lessThan`, `sh:closed`, `sh:uniqueLang` | empty (they cannot be broken by removing triples) | includes the second path (larger, harmless) |
-| `sh:xone` | derived from `or` and `not`, so it carries the negated evidence | only the passing disjunct |
-| Stated guarantee | Conformance Theorem, Sufficiency Lemma | none |
+| `sh:xone` | derived from `or` and `not`, so it carries the negated evidence | the passing disjunct, plus the full trace of the others |
+| Stated guarantee | Conformance Theorem, Sufficiency Lemma | the Conformance Theorem, checked by `test_shape_fragments_paper.py` |
 
 Larger-than-necessary output is allowed by the Sufficiency Lemma. Missing evidence is not.
 
 ## Measured
 
-`tests/shacl/integration/test_shape_fragments_paper.py` runs the paper's own examples and one case per constructor, keeping the focus node as an explicit target and asking whether it still conforms inside the fragment. **4 of 11 fail** (the workshop shape, a plain `sh:class`, `HappyAtWork` with `sh:not`/`sh:disjoint`, and `sh:not` around `sh:maxCount`); the other seven, including the person/address shape and Example 3.8, pass. Each failure is a strict xfail naming the paper section. A fifth xfail records the target-triple difference. A first version of this check passed everything: without the target triples, the fragment's nodes are no longer targets, so validation holds vacuously. That is why the focus node is kept as a target.
+`tests/shacl/integration/test_shape_fragments_paper.py` runs the paper's own examples and one case per constructor, keeping the focus node as an explicit target and asking whether it still conforms inside the fragment. Before the fix, 4 of 11 failed (the workshop shape, a plain `sh:class`, `HappyAtWork` with `sh:not`/`sh:disjoint`, and `sh:not` around `sh:maxCount`) and the target triples were missing. A first version of this check passed everything: without the target triples, the fragment's nodes are no longer targets, so validation holds vacuously. That is why the focus node is kept as a target.
 
-## Recommendation (not done)
+## Outcome (2026-10-23)
 
-1. **Make the paper's Conformance Theorem the contract** and keep this test as its oracle; extend it to generated shapes.
-2. **Fix the two real gaps:** evidence for value-type constraints (`sh:class` at least), and negation (push `sh:not` down as the paper does).
-3. **Decide about the target triples** (an option, probably default on, since the paper and the specification include them).
-4. **Do not depend on `pySHACL-fragments`** (stale, covers less than we do on paths); use the paper's Table 2 and the specification as the definition instead.
-5. Naming: the whole-shapes-graph mode of `extract_subgraph()` is what the paper calls a *shape fragment*.
+The research recommended five things; the first three were done, the last two stand.
+
+1. The Conformance Theorem is the contract. The test file holds the paper's examples, one case per constructor, the combined Example 3.8 schema, target kinds, and a randomized check (Hypothesis) over generated shapes and graphs. Removing class evidence, or the `sh:not` branch, makes it fail.
+2. Class evidence and negation are fixed. Negation returns the negated shape's full trace, a superset of the paper's minimal neighborhood, which the Sufficiency Lemma allows.
+3. Target triples are on by default; `include_targets=False` switches them off.
+4. Do not depend on `pySHACL-fragments`; Table 2 and the specification are the definition.
+5. The whole-shapes-graph mode of `extract_subgraph()` is what the paper calls a *shape fragment*.

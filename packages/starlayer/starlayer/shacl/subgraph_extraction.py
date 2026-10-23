@@ -81,10 +81,26 @@ returned subgraph) - the two functions have a genuinely different
 relationship to "what counts as real" for their own stated purposes, not an
 inconsistency to resolve uniformly.
 
-Known, deliberate simplification for this first implementation: ``sh:not``
-contributes no additional triples (there is no well-defined "witness" of a
-shape *not* matching, unlike the other logical constraints). Flagged as a
-gap to revisit, not silently assumed correct - see the module memory note.
+**Shape Fragments (GitHub issue #11, 2026-10-23).** The result is the *shape
+fragment* of Delva, Dimou, Jakubowski and Van den Bussche (arXiv 2112.11796),
+and the paper's Conformance Theorem is the contract: if the data conforms to the
+shapes, the extracted subgraph conforms to them too (``tests/shacl/integration/
+test_shape_fragments_paper.py`` is the oracle, including a randomized check).
+Three things follow from that:
+
+- **Target triples are included** (``include_targets=True``, the default): the
+  ``rdf:type``/``rdfs:subClassOf`` chain of a class target, the triples with the
+  predicate of a ``sh:targetSubjectsOf``/``sh:targetObjectsOf``. Without them
+  the fragment's nodes are no longer targets and validation passes vacuously.
+  ``include_targets=False`` returns only what the constraints read.
+- **Value-type evidence**: ``sh:class`` keeps the value's ``rdf:type`` path to
+  the class, so a fragment still shows why the value qualifies.
+- **``sh:not`` is supported** by returning a superset of the paper's neighborhood
+  for the negated shape: its *full trace*, every triple it reads, rather than
+  the minimal witness of non-conformance. The paper's Sufficiency Lemma allows
+  returning more. A ``sh:qualifiedMaxCount`` keeps the non-qualifying values'
+  full trace for the same reason, and ``sh:xone`` keeps the full trace of the
+  disjuncts that do not hold.
 
 Built on top of pySHACL's own ``Shape``/path-resolution machinery (the
 project's existing `_shape_conforms` pattern in ``node_expressions.py``)
@@ -99,10 +115,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from rdflib import BNode, Literal
-from rdflib.namespace import RDF, SH
+from rdflib import BNode, Literal, URIRef
+from rdflib.namespace import RDF, RDFS, SH
 
 _Triple = tuple[Any, Any, Any]
+
+# a SHACL 1.2 term this rdflib's SH namespace does not define
+_SH_TARGET_WHERE = URIRef(str(SH) + "targetWhere")
 
 # Constraint components whose semantics require reading a *second* property
 # path from the same focus node (not the constrained path's own value nodes)
@@ -226,14 +245,83 @@ def _walk_path(data_graph: Any, focus: Any, path_val: Any, sg: Any) -> tuple[fro
     raise NotImplementedError(f"Unrecognized sh:path expression: {path_val!r}")
 
 
+def _type_paths(graph: Any, node: Any, cls: Any | None = None) -> set[_Triple]:
+    """The triples on the ``rdf:type / rdfs:subClassOf*`` paths from ``node``. With ``cls``, only those on a path that
+    ends at ``cls`` - the evidence that ``node`` is an instance of it (empty if it is not). Without, every triple of the
+    closure of ``node``'s types, which is what must stay in a subgraph for a *negated* class test to keep failing."""
+    typed: set[_Triple] = set()
+    edges: set[_Triple] = set()
+    stack = []
+    for type_ in graph.objects(node, RDF.type):
+        typed.add((node, RDF.type, type_))
+        stack.append(type_)
+    seen: set[Any] = set()
+    while stack:
+        current = stack.pop()
+        if current in seen:
+            continue
+        seen.add(current)
+        for parent in graph.objects(current, RDFS.subClassOf):
+            edges.add((current, RDFS.subClassOf, parent))
+            stack.append(parent)
+    if cls is None:
+        return typed | edges
+    reaches = {cls}
+    changed = True
+    while changed:
+        changed = False
+        for child, _, parent in edges:
+            if parent in reaches and child not in reaches:
+                reaches.add(child)
+                changed = True
+    return {t for t in typed if t[2] in reaches} | {t for t in edges if t[0] in reaches and t[2] in reaches}
+
+
+def _class_values(sg: Any, shape_node: Any) -> list[Any]:
+    """The classes named by ``sh:class`` on a shape: a single class or, in SHACL 1.2, a list of them."""
+    classes: list[Any] = []
+    for value in sg.graph.objects(shape_node, SH["class"]):
+        if value == RDF.nil or next(iter(sg.graph.objects(value, RDF.first)), None) is not None:
+            classes.extend(_rdf_list(sg, value))
+        else:
+            classes.append(value)
+    return classes
+
+
+def _target_triples(graph: Any, sg: Any, shape: Any, node: Any) -> set[_Triple]:
+    """The triples that make ``node`` a target of ``shape`` (Shape Fragments paper: the shape is conjoined with its
+    target; companion specification section 5.2). Empty for a node the shape does not target, and for
+    ``sh:targetNode`` (no triple makes a node a target). SPARQL-based targets contribute nothing."""
+    triples: set[_Triple] = set()
+    classes = list(shape.target_classes()) + list(shape.implicit_class_targets())
+    for cls in classes:
+        triples |= _type_paths(graph, node, cls)
+    for predicate in shape.target_subjects_of():
+        triples |= {(node, predicate, obj) for obj in graph.objects(node, predicate)}
+    for predicate in shape.target_objects_of():
+        triples |= {(subj, predicate, node) for subj in graph.subjects(predicate, node)}
+    for where_node in sg.graph.objects(shape.node, _SH_TARGET_WHERE):
+        if _shape_conforms(sg, where_node, graph, node):
+            triples |= _extract(graph, sg, sg.lookup_shape_from_node(where_node), node, frozenset())
+    return triples
+
+
 def _extract(
     data_graph: Any,
     sg: Any,
     shape: Any,
     focus_node: Any,
-    visiting: frozenset[tuple[Any, Any]],
+    visiting: frozenset[tuple[Any, Any, bool]],
+    full_trace: bool = False,
 ) -> set[_Triple]:
-    key = (shape.node, focus_node)
+    """The triples ``shape`` reads at ``focus_node``.
+
+    By default only the triples that *show* the shape holds (the minimal neighborhood of the Shape Fragments paper,
+    Table 2). ``full_trace=True`` returns every triple the evaluation reads, whether or not its branch holds. That is
+    what a negated shape needs: ``sh:not`` stays true in a subgraph only if the triples that make the inner shape fail
+    are still there, and removing evidence can flip a negation. It is a superset of the paper's negation
+    neighborhoods, which the Sufficiency Lemma allows (a processor may return more)."""
+    key = (shape.node, focus_node, full_trace)
     if key in visiting:
         return set()  # shape-level recursion guard (e.g. mutually-recursive shapes)
     visiting = visiting | {key}
@@ -245,7 +333,16 @@ def _extract(
         value_nodes, path_triples = _walk_path(data_graph, focus_node, path_val, sg)
 
         qshape_nodes = list(sg.graph.objects(shape.node, SH.qualifiedValueShape))
-        can_narrow = bool(qshape_nodes) and _qualified_value_shape_is_sole_constraint(sg, shape.node)
+        predicates = set(sg.graph.predicates(shape.node))
+        has_min = SH.qualifiedMinCount in predicates
+        has_max = SH.qualifiedMaxCount in predicates
+        can_narrow = (
+            bool(qshape_nodes)
+            and has_min
+            and not has_max
+            and not full_trace
+            and _qualified_value_shape_is_sole_constraint(sg, shape.node)
+        )
 
         if can_narrow:
             qualifying_values = {
@@ -270,7 +367,7 @@ def _extract(
                 # with sh:qualifiedValueShape - precisely pruning
                 # intermediate hops down to "only those leading to a
                 # qualifying final value" is a real graph-reachability
-                # problem this first implementation doesn't attempt. Falls
+                # problem this implementation doesn't attempt. Falls
                 # back to the safe, over-inclusive behavior rather than risk
                 # an incorrect exclusion. Known scoping boundary, not an
                 # oversight.
@@ -286,54 +383,72 @@ def _extract(
         for qshape_node in qshape_nodes:
             qshape = sg.lookup_shape_from_node(qshape_node)
             for v in value_nodes:
-                if _shape_conforms(sg, qshape_node, data_graph, v):
-                    triples |= _extract(data_graph, sg, qshape, v, visiting)
+                conforms = _shape_conforms(sg, qshape_node, data_graph, v)
+                if conforms or full_trace:
+                    triples |= _extract(data_graph, sg, qshape, v, visiting, full_trace)
+                if has_max and not conforms and not full_trace:
+                    # "at most n values satisfy the qualified shape" (the paper's <=n E.psi): a value that does not
+                    # satisfy it must keep failing in any subgraph that holds its edge, which another shape's
+                    # neighborhood may put there. So its evidence goes in too (paper Table 2, Example 3.8).
+                    triples |= _extract(data_graph, sg, qshape, v, visiting, True)
     else:
         value_nodes = frozenset({focus_node})
+
+    # sh:class: the triples that make each value an instance of the class (paper section 3.2, spec section 6.1).
+    # In a full trace, the whole type closure: a negated class test must keep failing.
+    for cls in _class_values(sg, shape.node):
+        for v in value_nodes:
+            triples |= _type_paths(data_graph, v, None if full_trace else cls)
 
     for nested_shape_node in sg.graph.objects(shape.node, SH.node):
         nested_shape = sg.lookup_shape_from_node(nested_shape_node)
         for v in value_nodes:
-            triples |= _extract(data_graph, sg, nested_shape, v, visiting)
+            triples |= _extract(data_graph, sg, nested_shape, v, visiting, full_trace)
 
     for prop_shape_node in sg.graph.objects(shape.node, SH.property):
         prop_shape = sg.lookup_shape_from_node(prop_shape_node)
         for v in value_nodes:
-            triples |= _extract(data_graph, sg, prop_shape, v, visiting)
+            triples |= _extract(data_graph, sg, prop_shape, v, visiting, full_trace)
 
     for and_list in sg.graph.objects(shape.node, SH["and"]):
         for member_node in _rdf_list(sg, and_list):
             member_shape = sg.lookup_shape_from_node(member_node)
             for v in value_nodes:
-                triples |= _extract(data_graph, sg, member_shape, v, visiting)
+                triples |= _extract(data_graph, sg, member_shape, v, visiting, full_trace)
 
     for or_list in sg.graph.objects(shape.node, SH["or"]):
         for v in value_nodes:
             # sh:or only requires *at least one* disjunct to pass, so more than
             # one may legitimately conform at once - include every passing
             # disjunct's triples, not just the first in list order (list order
-            # is an authoring artifact, not a semantic tie-break).
+            # is an authoring artifact, not a semantic tie-break). A disjunct
+            # that fails needs no evidence: it cannot make the shape fail.
             for member_node in _rdf_list(sg, or_list):
-                if _shape_conforms(sg, member_node, data_graph, v):
+                if full_trace or _shape_conforms(sg, member_node, data_graph, v):
                     member_shape = sg.lookup_shape_from_node(member_node)
-                    triples |= _extract(data_graph, sg, member_shape, v, visiting)
+                    triples |= _extract(data_graph, sg, member_shape, v, visiting, full_trace)
 
     for xone_list in sg.graph.objects(shape.node, SH.xone):
         for v in value_nodes:
-            # sh:xone requires *exactly one* disjunct to pass, so at most one
-            # can ever legitimately conform - include that one. This is not an
-            # arbitrary determinism choice: if data later changes so a second
-            # disjunct also starts passing, sh:xone itself is no longer
-            # satisfied, so _shape_conforms() for this shape+node turns False
-            # and extract_subgraph() reports conforms=False outright, rather
-            # than silently extracting a different subgraph.
+            # sh:xone is "this disjunct holds and every other one fails": the disjunct that holds contributes its
+            # neighborhood, and each of the others its full trace, so that it keeps failing (paper section 3.2: xone is
+            # a disjunction of phi_i AND not phi_j for the others).
+            holding_seen = False
             for member_node in _rdf_list(sg, xone_list):
-                if _shape_conforms(sg, member_node, data_graph, v):
-                    member_shape = sg.lookup_shape_from_node(member_node)
-                    triples |= _extract(data_graph, sg, member_shape, v, visiting)
-                    break
+                member_shape = sg.lookup_shape_from_node(member_node)
+                if full_trace:
+                    triples |= _extract(data_graph, sg, member_shape, v, visiting, True)
+                elif not holding_seen and _shape_conforms(sg, member_node, data_graph, v):
+                    holding_seen = True
+                    triples |= _extract(data_graph, sg, member_shape, v, visiting, False)
+                else:
+                    triples |= _extract(data_graph, sg, member_shape, v, visiting, True)
 
-    # sh:not: deliberately no additional triples - see module docstring.
+    for not_node in sg.graph.objects(shape.node, SH["not"]):
+        # sh:not: the triples the inner shape reads, so that it keeps failing (paper section 3.2: negation).
+        not_shape = sg.lookup_shape_from_node(not_node)
+        for v in value_nodes:
+            triples |= _extract(data_graph, sg, not_shape, v, visiting, True)
 
     return triples
 
@@ -346,6 +461,7 @@ def extract_subgraph(
     shape: Any | None = None,
     focus_node: Any | None = None,
     inference: Any | None = None,
+    include_targets: bool = True,
 ) -> Any:
     """Returns the subgraph covered by one shape+focus_node pair, or by
     every real entry point a whole shapes graph declares.
@@ -389,6 +505,12 @@ def extract_subgraph(
             resolves for each candidate shape (declared/implicit targets,
             including SPARQL-based ``sh:target``).
         inference: An ``ENTAILMENT.*`` regime IRI, or an iterable of them.
+        include_targets: Also return the triples that make each focus node a target of its shape
+            (``sh:targetClass``: its ``rdf:type`` and ``rdfs:subClassOf`` triples; ``sh:targetSubjectsOf`` /
+            ``sh:targetObjectsOf``: the triples with that predicate). The Shape Fragments paper includes them
+            (the shape is conjoined with its target), and without them the fragment no longer says why its
+            nodes were chosen: validating it against the same shapes treats those nodes as no longer targeted
+            and passes vacuously. ``sh:targetNode`` has no such triple. Default ``True``.
 
     Returns:
         A new graph - the union of every conforming ``(shape, focus_node)``
@@ -432,6 +554,8 @@ def extract_subgraph(
             if not _shape_conforms(sg, shape_obj.node, entailed_data_graph, node):
                 continue
             all_triples |= _extract(entailed_data_graph, sg, shape_obj, node, frozenset())
+            if include_targets:
+                all_triples |= _target_triples(entailed_data_graph, sg, shape_obj, node)
 
     all_triples &= base_triples
 
@@ -455,7 +579,9 @@ def _close_shape(shacl_graph: Any, shape: Any) -> Any:
     that describes a value node's *complete* property set (``sh:node``,
     ``sh:qualifiedValueShape``, and every ``sh:and``/``sh:or``/``sh:xone``
     member) - is closed (``sh:closed true``) with any ``sh:ignoredProperties``
-    removed.
+    removed, except that ``rdf:type`` (class targets, ``sh:class``) and the
+    predicates of ``sh:targetSubjectsOf`` stay allowed: ``extract_subgraph()``
+    includes those triples, so the strict form must accept them (and nothing else).
 
     Built for exactly one purpose: turning a shape's normal, everyday
     production form (which very often *does* need ``sh:ignoredProperties`` -
@@ -513,8 +639,27 @@ def _close_shape(shacl_graph: Any, shape: Any) -> Any:
             result.remove((shape_node, SH.ignoredProperties, ip_list))
             _remove_rdf_list(result, ip_list)
 
+    # extract_subgraph() adds the triples that make a node a target (rdf:type for a class target, the predicate of
+    # sh:targetSubjectsOf) and the rdf:type evidence for sh:class, so the strict form must let exactly those through and
+    # nothing else.
+    allowed: set[Any] = set()
+    for shape_node in visited:
+        if (
+            list(result.objects(shape_node, SH.targetClass))
+            or list(result.objects(shape_node, SH["class"]))
+            or any(t in (RDFS.Class, SH.ShapeClass) for t in result.objects(shape_node, RDF.type))
+        ):
+            allowed.add(RDF.type)
+        allowed |= set(result.objects(shape_node, SH.targetSubjectsOf))
+
     for shape_node in to_close:
         result.remove((shape_node, SH.closed, None))
         result.add((shape_node, SH.closed, Literal(True)))
+        if allowed:
+            from rdflib.collection import Collection
+
+            ignored = BNode()
+            Collection(result, ignored, sorted(allowed, key=str))
+            result.add((shape_node, SH.ignoredProperties, ignored))
 
     return result

@@ -8,8 +8,11 @@ include every satisfying candidate rather than picking an arbitrary one,
 and only real stored triples are ever included).
 """
 
+from rdflib import RDF
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema, extract_subgraph
+
+RDF_TYPE = RDF.type
 
 
 def _graph(data: str) -> StarLayerGraph:
@@ -50,7 +53,11 @@ class TestBasicExtractionAndAcceptanceTest:
           sh:property [ sh:path ex:account ; sh:minCount 1 ] .
     """
 
-    def _extract(self):
+    CLOSED_SHAPE_ALLOWING_TYPE = CLOSED_SHAPE.replace("sh:closed true ;", "sh:closed true ; sh:ignoredProperties ( rdf:type ) ;").replace(
+        "@prefix sh:", "@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n        @prefix sh:", 1
+    )
+
+    def _extract(self, **kwargs):
         from rdflib import Namespace
 
         EX = Namespace("http://example.org/")
@@ -59,6 +66,7 @@ class TestBasicExtractionAndAcceptanceTest:
             shacl_graph=_graph(self.SHAPE),
             shape=EX.JEShape,
             focus_node=EX.je1,
+            **kwargs,
         )
         return result
 
@@ -71,8 +79,19 @@ class TestBasicExtractionAndAcceptanceTest:
         assert "acct1" in serialized  # account
 
     def test_extracted_subgraph_passes_the_closed_shape_acceptance_test(self) -> None:
-        result = self._extract()
+        """Traversal alone (``include_targets=False``): nothing the shape does not mention, so the strict closed shape
+        accepts it as it stands."""
+        result = self._extract(include_targets=False)
         assert _closes(result, self.CLOSED_SHAPE) is True
+
+    def test_with_the_target_triples_only_rdf_type_is_added(self) -> None:
+        """By default the fragment also holds the triple that makes the node a target (``a ex:JournalEntry``), so the
+        closed shape must let ``rdf:type`` through, and nothing else."""
+        result = self._extract()
+        assert _closes(result, self.CLOSED_SHAPE) is False
+        assert _closes(result, self.CLOSED_SHAPE_ALLOWING_TYPE) is True
+        extra = set(self._extract()) - set(self._extract(include_targets=False))
+        assert {p for _, p, _ in extra} == {RDF_TYPE}
 
     def test_non_conforming_focus_node_gives_no_subgraph(self) -> None:
         from rdflib import Namespace
@@ -306,7 +325,7 @@ class TestCloseShape:
         ex:je1 a ex:JournalEntry ; ex:amount 100 ; ex:account ex:acct1 ; ex:note "reviewed by Bob" .
     """
 
-    def test_derived_shape_drops_ignored_properties_but_keeps_closed(self) -> None:
+    def test_derived_shape_keeps_closed_and_allows_only_what_extraction_adds(self) -> None:
         from rdflib import Namespace
         from rdflib.namespace import SH
 
@@ -316,7 +335,13 @@ class TestCloseShape:
 
         closed_values = list(strict_shapes.objects(EX.JEShape, SH.closed))
         assert len(closed_values) == 1 and bool(closed_values[0].toPython())
-        assert list(strict_shapes.objects(EX.JEShape, SH.ignoredProperties)) == []
+        # the production shape's own exemptions are gone; only rdf:type remains allowed, because the shape has a class target
+        # and extract_subgraph() includes the triple that makes a node a target
+        ignored = list(strict_shapes.objects(EX.JEShape, SH.ignoredProperties))
+        assert len(ignored) == 1
+        from rdflib.collection import Collection
+
+        assert list(Collection(strict_shapes, ignored[0])) == [RDF_TYPE]
 
     def test_original_shape_is_never_mutated(self) -> None:
         from rdflib import Namespace
@@ -347,8 +372,8 @@ class TestCloseShape:
         """The end-to-end workflow: production shape (open enough to tolerate
         rdf:type and free-form notes) -> extract_subgraph() -> close_shape()
         derives the strict version -> the extracted subgraph conforms to it
-        with no exemptions needed at all, since extraction already dropped
-        both rdf:type and the note."""
+        with no exemptions beyond rdf:type (the target triple extraction now
+        includes), since extraction already dropped the note."""
         from rdflib import Namespace
 
         EX = Namespace("http://example.org/")
