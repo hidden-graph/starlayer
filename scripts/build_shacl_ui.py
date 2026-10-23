@@ -12,7 +12,7 @@ The registered file is two things:
 2. the **form shapes** generated from it: ``stsh:NodeShapeForm`` and ``stsh:PropertyShapeForm``, each a node shape whose
    property shapes are the fields of that kind of shape. A field is one property shape per flagged predicate, named
    ``stsh:<Form>_<prefix>_<local>``, with the predicate's ``sh:group`` and ``sh:order``, a ``sh:maxCount`` where the form
-   allows one value, and the ``sh:datatype``, ``sh:nodeKind``, ``sh:class``, ``sh:in`` list, ``sh:minCount`` and ``sh:maxCount`` the predicate has in
+   allows one value, the ``sh:nodeKind`` the overlay states for the predicate (see below), and the ``sh:datatype``, ``sh:nodeKind``, ``sh:class``, ``sh:in`` list, ``sh:minCount`` and ``sh:maxCount`` the predicate has in
    ``shacl_shacl`` (so a
    number is stored as a number and an enumeration lists its values). A node shape form's field for a predicate flagged
    ``stsh:nodePrimary false`` gets ``stsh:secondary true`` (allowed, but not commonly expected there).
@@ -181,8 +181,8 @@ def build_shacl_ui_graph(overlay: Graph | None = None, shacl_shacl: Graph | None
                 out.add((field, STSH.secondary, Literal(True)))  # allowed, but not commonly expected on a node shape
             found = dict(_constraints_in_shacl_shacl(shacl_shacl, predicate, kind))
             for term in (SH.datatype, SH.nodeKind, SH["class"]):
-                if term not in found and list(overlay.objects(predicate, term)):
-                    found[term] = list(overlay.objects(predicate, term))  # a constraint the overlay gives where shacl_shacl has none
+                if list(overlay.objects(predicate, term)):
+                    found[term] = list(overlay.objects(predicate, term))  # a constraint the overlay gives: where shacl_shacl has none, or a stricter one (a form may be stricter than validation)
             for term, values in found.items():
                 for value in values:
                     out.add((field, term, value))

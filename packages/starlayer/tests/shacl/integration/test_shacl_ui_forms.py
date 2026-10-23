@@ -262,3 +262,31 @@ def test_rdf_type_is_a_simple_multi_valued_iri_field_of_both_forms_in_its_own_fi
         assert (field, sh("nodeKind"), sh("IRI")) in ui and not list(ui.objects(field, sh("maxCount"))), "an IRI, many allowed"
         assert (field, sh("group"), STSH.TypeGroup) in ui
     assert (STSH.TypeGroup, sh("order"), Literal(0)) in ui, "the type comes first"
+
+
+class TestWhatAFieldsValuesCanBe:
+    """The forms say, by sh:nodeKind, whether a field's values can be blank nodes: a tool shows those as branches of a tree and the rest in a panel."""
+
+    @staticmethod
+    def _node_kind(form, predicate):
+        from rdflib import Namespace
+
+        SH = Namespace("http://www.w3.org/ns/shacl#")
+        ui = starontology.get_ontology_graph("shacl_shacl_ui")
+        for field in ui.objects(form, SH.property):
+            if (field, SH.path, predicate) in ui:
+                return set(ui.objects(field, SH.nodeKind))
+        raise AssertionError(f"no field for {predicate}")
+
+    def test_shapes_and_rules_take_blank_nodes_and_classes_names_and_groups_do_not(self):
+        from rdflib import Namespace
+
+        SH = Namespace("http://www.w3.org/ns/shacl#")
+        STSH = Namespace("https://github.com/hidden-graph/starlayer/ns/shacl#")
+        for predicate in (SH.property, SH.node, SH["not"], SH.rule, SH.sparql, SH.qualifiedValueShape):
+            form = STSH.PropertyShapeForm if predicate in (SH.qualifiedValueShape,) else STSH.NodeShapeForm
+            assert self._node_kind(form, predicate) == {SH.BlankNodeOrIRI}, predicate
+        for predicate in (SH["class"], SH.datatype, SH.nodeKind, SH.targetClass):
+            assert SH.BlankNodeOrIRI not in self._node_kind(STSH.NodeShapeForm, predicate), predicate
+        assert self._node_kind(STSH.PropertyShapeForm, SH.group) == {SH.IRI}
+        assert self._node_kind(STSH.NodeShapeForm, SH.name) == {SH.Literal}

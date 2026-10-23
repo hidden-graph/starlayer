@@ -626,3 +626,45 @@ stsh:ShapesGraphForm a sh:NodeShape ;
     sh:property [ a sh:PropertyShape ; sh:path rdfs:label ; sh:order 1 ] ;
     sh:property [ a sh:PropertyShape ; sh:path rdfs:member ; sh:order 2 ] ;
     sh:property [ a sh:PropertyShape ; sh:path owl:imports ; sh:order 3 ] .
+
+# ---- What a field's values can be (sh:nodeKind), for a tool that shows a shape as a tree and a panel
+# The form shapes copy a predicate's datatype, node kind and class from shacl_shacl where it has one. These are the predicates where it
+# has none (its rule is an sh:or, a list, or nothing), so the form would not say what the values are. A tool decides from this whether
+# a property's values can be blank nodes: if they can, the property is a branch of a tree (sh:property, sh:node); if they cannot, it is a
+# field of the panel (an IRI as a link, a literal as text). A form may be stricter than validation: what is stated here wins.
+# Values that are lists (sh:in, sh:languageIn, sh:ignoredProperties; sh:and, sh:or, sh:xone) are not covered by a node kind: the head
+# of a list is a blank node, and a tool treats lists as the SHACL vocabulary defines them.
+
+# literals
+sh:name        sh:nodeKind sh:Literal .
+sh:description sh:nodeKind sh:Literal .
+sh:message     sh:nodeKind sh:Literal .
+sh:order       sh:nodeKind sh:Literal .
+sh:closed      sh:nodeKind sh:Literal .
+
+# IRIs only: a class, a datatype, a node kind, a group, the graph that defines a shape
+sh:class          sh:nodeKind sh:IRI .
+sh:datatype       sh:nodeKind sh:IRI .
+sh:nodeKind       sh:nodeKind sh:IRI .
+sh:rootClass      sh:nodeKind sh:IRI .
+sh:uniqueValuesFor sh:nodeKind sh:IRI .
+sh:group          sh:nodeKind sh:IRI .
+rdfs:isDefinedBy  sh:nodeKind sh:IRI .
+
+# an IRI or a literal, never a blank node
+sh:hasValue  sh:nodeKind sh:IRIOrLiteral .
+sh:someValue sh:nodeKind sh:IRIOrLiteral .
+sh:targetNode sh:nodeKind sh:IRIOrLiteral .
+
+# a shape or another node with fields of its own: a blank node or an IRI
+sh:property           sh:nodeKind sh:BlankNodeOrIRI .
+sh:node               sh:nodeKind sh:BlankNodeOrIRI .
+sh:not                sh:nodeKind sh:BlankNodeOrIRI .
+sh:qualifiedValueShape sh:nodeKind sh:BlankNodeOrIRI .
+sh:reifierShape       sh:nodeKind sh:BlankNodeOrIRI .
+sh:and                sh:nodeKind sh:BlankNodeOrIRI .
+sh:or                 sh:nodeKind sh:BlankNodeOrIRI .
+sh:xone               sh:nodeKind sh:BlankNodeOrIRI .
+sh:rule               sh:nodeKind sh:BlankNodeOrIRI .
+sh:sparql             sh:nodeKind sh:BlankNodeOrIRI .
+sh:expression         sh:nodeKind sh:BlankNodeOrIRI .
