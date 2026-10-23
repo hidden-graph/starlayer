@@ -1600,3 +1600,17 @@ class TestShapesGraphFormCoverage:
 
     def test_a_shape_has_at_most_one_sh_path(self) -> None:
         assert not self._conforms("ex:S a sh:NodeShape ; sh:property [ sh:path ex:p, ex:q ] .")
+
+    def test_two_defining_graphs_is_a_warning_not_a_failure(self) -> None:
+        """GitHub issue #18: advice only, so the shapes graph still validates, and the report names the problem."""
+        shapes = Graph()
+        shapes.parse(data=self._PREFIX + "ex:S a sh:NodeShape ; rdfs:isDefinedBy ex:G1, ex:G2 .", format="turtle")
+        conforms, report_graph, _text = meta_validate(shapes)
+        assert conforms is True
+        assert (None, URIRef("http://www.w3.org/ns/shacl#resultSeverity"), URIRef("http://www.w3.org/ns/shacl#Warning")) in report_graph
+
+    def test_one_defining_graph_gives_no_warning(self) -> None:
+        shapes = Graph()
+        shapes.parse(data=self._PREFIX + "ex:S a sh:NodeShape ; rdfs:isDefinedBy ex:G1 .", format="turtle")
+        _conforms, report_graph, _text = meta_validate(shapes)
+        assert (None, URIRef("http://www.w3.org/ns/shacl#resultSeverity"), None) not in report_graph

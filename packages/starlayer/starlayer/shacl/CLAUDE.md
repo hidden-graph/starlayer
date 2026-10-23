@@ -18,6 +18,10 @@ Project-specific instructions for Claude Code sessions working in this repo. See
 
 ## Design history
 
+## A shape has at most one `rdfs:isDefinedBy`, as a warning (2026-10-23, GitHub issue #18)
+
+Profiling 2.4/2.5 give a shape one definer (`rdfs:isDefinedBy`) and any number of users (`rdfs:member`) but state no limit, so `stsh:ShapeDefinedByOneGraphShape` (targets `sh:NodeShape` and `sh:PropertyShape` only; a validation report also uses the predicate, 5.4.1) puts `sh:maxCount 1` at **`sh:Warning`** on the property shape (severity on the node shape does not reach a nested property shape's results). **`meta_validate()` now defaults `allow_warnings=True`**, so a warning is in the report but does not make a shapes graph invalid; a form still sees the maximum of one.
+
 ## Layering of `shacl_shacl` decided (2026-10-23, GitHub issue #23)
 
 The user's decision: **the rules, node-expression, SPARQL and constraint-component shapes stay in `shacl_shacl`** (they describe SHACL itself); **the UI goes in the UI companion.** So `stsh:ShuiPredicateShapes` and `stsh:WidgetScoreShape` moved from `scripts/assets/shacl12-validation-shapes.ttl` to `scripts/assets/shacl12-shacl-ui-overlay.ttl` (registry entry `shacl_shacl_ui`). **Consequence:** they validate only when the UI graph is loaded beside `shacl_shacl` (`meta_validate(shapes, extra_graphs=[get_ontology_graph("shacl_shacl_ui")])`); plain `meta_validate()` no longer checks `shui:` terms. This is the one place the UI graph has `sh:target*`; the form shapes still have none. The three `shui:` fields kept their `sh:nodeKind sh:IRI` by stating it in the overlay. Splitting `shacl_shacl` further by domain is a separate investigation (a new issue).

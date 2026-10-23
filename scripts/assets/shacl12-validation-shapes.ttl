@@ -1182,6 +1182,18 @@ stsh:IsDefinedByShape
 		sh:message "rdfs:isDefinedBy must be an IRI or blank node naming the shapes graph that defines the shape"@en ;
 	] .
 
+stsh:ShapeDefinedByOneGraphShape
+	a sh:NodeShape ;
+	rdfs:label "A shape is defined by at most one shapes graph"@en ;
+	rdfs:comment "SHACL 1.2 Profiling 2.4 says a shape SHOULD name the graph that defines it, and 2.5 lists a graph that only uses it with rdfs:member, so a shape has one definer and many users. The draft states no limit, hence Warning severity: it does not make a shapes graph invalid, and it gives a form the maximum of one. Applies to shapes only; a validation report also uses rdfs:isDefinedBy (Profiling 5.4.1). GitHub issue #18."@en ;
+	sh:targetClass sh:NodeShape, sh:PropertyShape ;
+	sh:property [
+		sh:path rdfs:isDefinedBy ;
+		sh:maxCount 1 ;
+		sh:severity sh:Warning ;
+		sh:message "a shape should be defined by at most one shapes graph; use rdfs:member to list it in the others"@en ;
+	] .
+
 stsh:PropertiesOfNodeShapeShape
 	a sh:NodeShape ;
 	rdfs:label "Well-formed sh:property on a shape"@en ;

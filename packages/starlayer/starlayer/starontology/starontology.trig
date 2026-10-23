@@ -2502,7 +2502,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:NodeShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n06204c35b3f64bc9846c8d26310da354b19 ;
+        sh:in _:n62d29e815ac14c219310c027eba5323ab19 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 3 ;
@@ -2845,7 +2845,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:PropertyShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n06204c35b3f64bc9846c8d26310da354b19 ;
+        sh:in _:n62d29e815ac14c219310c027eba5323ab19 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 3 ;
@@ -3439,11 +3439,11 @@ starontology:shacl12-shacl-ui.ttl {
         sh:name "SHACL 1.2 UI Widgets"@en ;
         sh:order 16 .
 
-    _:n06204c35b3f64bc9846c8d26310da354b20 rdf:first sh:IRI ;
+    _:n62d29e815ac14c219310c027eba5323ab20 rdf:first sh:IRI ;
         rdf:rest ( sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) .
 
-    _:n06204c35b3f64bc9846c8d26310da354b19 rdf:first sh:BlankNode ;
-        rdf:rest _:n06204c35b3f64bc9846c8d26310da354b20 .
+    _:n62d29e815ac14c219310c027eba5323ab19 rdf:first sh:BlankNode ;
+        rdf:rest _:n62d29e815ac14c219310c027eba5323ab20 .
 }
 
 starontology:shacl12-shacl.ttl {
@@ -3847,6 +3847,16 @@ starontology:shacl12-shacl.ttl {
         sh:targetSubjectsOf sh:condition,
             sh:rule,
             sh:sparql .
+
+    stsh:ShapeDefinedByOneGraphShape a sh:NodeShape ;
+        rdfs:label "A shape is defined by at most one shapes graph"@en ;
+        rdfs:comment "SHACL 1.2 Profiling 2.4 says a shape SHOULD name the graph that defines it, and 2.5 lists a graph that only uses it with rdfs:member, so a shape has one definer and many users. The draft states no limit, hence Warning severity: it does not make a shapes graph invalid, and it gives a form the maximum of one. Applies to shapes only; a validation report also uses rdfs:isDefinedBy (Profiling 5.4.1). GitHub issue #18."@en ;
+        sh:property [ sh:maxCount 1 ;
+                sh:message "a shape should be defined by at most one shapes graph; use rdfs:member to list it in the others"@en ;
+                sh:path rdfs:isDefinedBy ;
+                sh:severity sh:Warning ] ;
+        sh:targetClass sh:NodeShape,
+            sh:PropertyShape .
 
     stsh:ShapeShapeOverrides a sh:NodeShape ;
         rdfs:label "SHACL 1.2 replacement rules for widened parameters the Working Group file still rejects"@en ;
@@ -4672,9 +4682,9 @@ starontology:shacl12-shacl.ttl {
     shsh:ShapeShape a sh:NodeShape ;
         rdfs:label "Shape shape"@en ;
         rdfs:comment "A shape that can be used to validate syntax rules for other shapes."@en ;
-        sh:or ( [ sh:not [ sh:class rdfs:Class ;
-                            sh:or ( [ sh:class sh:NodeShape ] [ sh:class sh:PropertyShape ] ) ] ] [ sh:nodeKind sh:IRI ] ),
-            ( shsh:NodeShapeShape shsh:PropertyShapeShape ) ;
+        sh:or ( shsh:NodeShapeShape shsh:PropertyShapeShape ),
+            ( [ sh:not [ sh:class rdfs:Class ;
+                            sh:or ( [ sh:class sh:NodeShape ] [ sh:class sh:PropertyShape ] ) ] ] [ sh:nodeKind sh:IRI ] ) ;
         sh:property [ sh:nodeKind sh:IRIOrLiteral ;
                 sh:path sh:targetNode ],
             [ sh:nodeKind sh:IRI ;

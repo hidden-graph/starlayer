@@ -425,6 +425,16 @@ stsh:RulesAndSparqlShapes a sh:NodeShape ;
         sh:rule,
         sh:sparql .
 
+stsh:ShapeDefinedByOneGraphShape a sh:NodeShape ;
+    rdfs:label "A shape is defined by at most one shapes graph"@en ;
+    rdfs:comment "SHACL 1.2 Profiling 2.4 says a shape SHOULD name the graph that defines it, and 2.5 lists a graph that only uses it with rdfs:member, so a shape has one definer and many users. The draft states no limit, hence Warning severity: it does not make a shapes graph invalid, and it gives a form the maximum of one. Applies to shapes only; a validation report also uses rdfs:isDefinedBy (Profiling 5.4.1). GitHub issue #18."@en ;
+    sh:property [ sh:maxCount 1 ;
+            sh:message "a shape should be defined by at most one shapes graph; use rdfs:member to list it in the others"@en ;
+            sh:path rdfs:isDefinedBy ;
+            sh:severity sh:Warning ] ;
+    sh:targetClass sh:NodeShape,
+        sh:PropertyShape .
+
 stsh:ShapeShapeOverrides a sh:NodeShape ;
     rdfs:label "SHACL 1.2 replacement rules for widened parameters the Working Group file still rejects"@en ;
     sh:property [ sh:maxCount 1 ;
@@ -1249,9 +1259,9 @@ sh:lessThanOrEquals rdfs:comment "plain-IRI object only — the SHACL 1.2 path-v
 shsh:ShapeShape a sh:NodeShape ;
     rdfs:label "Shape shape"@en ;
     rdfs:comment "A shape that can be used to validate syntax rules for other shapes."@en ;
-    sh:or ( [ sh:not [ sh:class rdfs:Class ;
-                        sh:or ( [ sh:class sh:NodeShape ] [ sh:class sh:PropertyShape ] ) ] ] [ sh:nodeKind sh:IRI ] ),
-        ( shsh:NodeShapeShape shsh:PropertyShapeShape ) ;
+    sh:or ( shsh:NodeShapeShape shsh:PropertyShapeShape ),
+        ( [ sh:not [ sh:class rdfs:Class ;
+                        sh:or ( [ sh:class sh:NodeShape ] [ sh:class sh:PropertyShape ] ) ] ] [ sh:nodeKind sh:IRI ] ) ;
     sh:property [ sh:nodeKind sh:IRIOrLiteral ;
             sh:path sh:targetNode ],
         [ sh:nodeKind sh:IRI ;
