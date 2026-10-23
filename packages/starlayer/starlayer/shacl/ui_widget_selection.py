@@ -27,6 +27,7 @@ reading without needing to change if/when that PR lands.
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from typing import Any, Literal
 
 from rdflib import RDF, BNode, Namespace, URIRef
@@ -152,6 +153,37 @@ def _find_matcher(widget: Any, scoring_graph: Any) -> Any | None:
     return None
 
 
+def _shape_condition_holds(
+    node: Any, *, shape_node: Any, shapes_graph: Any, scoring_graph: Any, batch: _ConformanceBatch | None = None
+) -> bool:
+    """The ``shui:shapesGraphShape`` of ``node`` (a score or a matcher): the shape node is validated in the *shapes
+    graph* against it, its definition read from the *scoring graph*. True if ``node`` has none. Independent of the
+    focus node, so the answer is the same for every node of the same shape."""
+    shapes_graph_shape = next(scoring_graph.objects(node, SHUI.shapesGraphShape), None)
+    if shapes_graph_shape is None:
+        return True
+    if batch is not None:
+        return batch.conforms(shape_node, shapes_graph_shape)
+    return _node_conforms(shape_node, shapes_graph_shape, base_graph=shapes_graph, shapes_graph=scoring_graph)
+
+
+def _data_condition_holds(
+    node: Any, *, focus_node: Any, data_graph: Any, shapes_graph: Any, scoring_graph: Any
+) -> bool:
+    """The ``shui:dataGraphShape`` of ``node``: the focus node is validated in the *data graph* against it. The spec
+    reads that shape from the shapes graph; the scoring graph is searched too, so a catalog that defines it beside the
+    score also works. True if ``node`` has none."""
+    data_graph_shape = next(scoring_graph.objects(node, SHUI.dataGraphShape), None)
+    if data_graph_shape is None:
+        return True
+    from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+
+    shape_definitions = StarLayerGraph()
+    shape_definitions += shapes_graph
+    shape_definitions += scoring_graph
+    return _node_conforms(focus_node, data_graph_shape, base_graph=data_graph, shapes_graph=shape_definitions)
+
+
 def _matcher_accepts(
     matcher: Any,
     *,
@@ -167,45 +199,42 @@ def _matcher_accepts(
     1. No focus node, a ``shui:dataGraphShape`` present and no
        ``shui:shapesGraphShape``: reject - the only condition cannot be checked.
     2. The shape node is validated in the *shapes graph* against the
-       matcher's ``shui:shapesGraphShape``, whose definition is read from the
-       *scoring graph*. Reject on failure.
+       matcher's ``shui:shapesGraphShape``. Reject on failure.
     3. No focus node: accept.
     4. The focus node is validated in the *data graph* against the
-       matcher's ``shui:dataGraphShape``. The spec reads that shape from the
-       shapes graph; the scoring graph is searched too, so a catalog that
-       defines it alongside the matcher also works.
+       matcher's ``shui:dataGraphShape``.
     """
-    shapes_graph_shape = next(scoring_graph.objects(matcher, SHUI.shapesGraphShape), None)
-    data_graph_shape = next(scoring_graph.objects(matcher, SHUI.dataGraphShape), None)
+    has_shape_condition = next(scoring_graph.objects(matcher, SHUI.shapesGraphShape), None) is not None
+    has_data_condition = next(scoring_graph.objects(matcher, SHUI.dataGraphShape), None) is not None
 
-    if focus_node is None and data_graph_shape is not None and shapes_graph_shape is None:
+    if focus_node is None and has_data_condition and not has_shape_condition:
         return False
-
-    if shapes_graph_shape is not None:
-        if batch is not None:
-            conforms = batch.conforms(shape_node, shapes_graph_shape)
-        else:
-            conforms = _node_conforms(
-                shape_node, shapes_graph_shape, base_graph=shapes_graph, shapes_graph=scoring_graph
-            )
-        if not conforms:
-            return False
-
+    if not _shape_condition_holds(
+        matcher, shape_node=shape_node, shapes_graph=shapes_graph, scoring_graph=scoring_graph, batch=batch
+    ):
+        return False
     if focus_node is None:
         return True
+    return _data_condition_holds(
+        matcher, focus_node=focus_node, data_graph=data_graph, shapes_graph=shapes_graph, scoring_graph=scoring_graph
+    )
 
-    if data_graph_shape is not None:
-        from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 
-        shape_definitions = StarLayerGraph()
-        shape_definitions += shapes_graph
-        shape_definitions += scoring_graph
-        if not _node_conforms(
-            focus_node, data_graph_shape, base_graph=data_graph, shapes_graph=shape_definitions
-        ):
-            return False
-
-    return True
+def _ranked_scores(shapes_graph: Any, scoring_graph: Any, role: str) -> list[tuple[float, Any, Any]]:
+    """Every ``shui:WidgetScore`` with a widget and a score whose widget can have this role, as ``(score, widget,
+    score node)``, highest score first and then by widget IRI codepoints (Section 3.5 step 2)."""
+    ranked: list[tuple[float, Any, Any]] = []
+    for score_node in scoring_graph.subjects(RDF.type, SHUI.WidgetScore):
+        widget = next(scoring_graph.objects(score_node, SHUI.widget), None)
+        score_value = next(scoring_graph.objects(score_node, SHUI.score), None)
+        if widget is None or score_value is None:
+            continue
+        roles = _widget_roles(widget, scoring_graph, shapes_graph)
+        if roles and role not in roles:
+            continue  # a widget known only as the other role is not a candidate (draft Sections 4.1 and 4.2)
+        ranked.append((float(score_value), widget, score_node))
+    ranked.sort(key=lambda entry: (-entry[0], str(entry[1])))
+    return ranked
 
 
 def select_widget(
@@ -282,18 +311,7 @@ def select_widget(
         ):
             return explicit_widget
 
-    ranked: list[tuple[float, Any, Any]] = []
-    for score_node in scoring_graph.subjects(RDF.type, SHUI.WidgetScore):
-        widget = next(scoring_graph.objects(score_node, SHUI.widget), None)
-        score_value = next(scoring_graph.objects(score_node, SHUI.score), None)
-        if widget is None or score_value is None:
-            continue
-        roles = _widget_roles(widget, scoring_graph, shapes_graph)
-        if roles and role not in roles:
-            continue  # a widget known only as the other role is not a candidate (draft Sections 4.1 and 4.2)
-        ranked.append((float(score_value), widget, score_node))
-    # highest score first, then by widget IRI codepoints (Section 3.5 step 2)
-    ranked.sort(key=lambda entry: (-entry[0], str(entry[1])))
+    ranked = _ranked_scores(shapes_graph, scoring_graph, role)
 
     common = {
         "shape_node": shape_node,
@@ -315,6 +333,120 @@ def select_widget(
     return None
 
 
+@dataclass(frozen=True)
+class WidgetCandidate:
+    """A widget that could be chosen for a property shape, found without looking at any node's data.
+
+    ``score`` is ``None`` when the shape names the widget itself (a preference). ``data_checks`` lists the conditions
+    that still need a focus node: ``(node, has_shape_condition)`` for each score or matcher that carries a
+    ``shui:dataGraphShape``. A candidate with none applies to every node."""
+
+    widget: URIRef
+    score: float | None
+    data_checks: tuple[tuple[Any, bool], ...] = ()
+
+    @property
+    def needs_data(self) -> bool:
+        return bool(self.data_checks)
+
+
+@dataclass(frozen=True)
+class WidgetChoice:
+    """The answer for one property shape, computed once and good for every node of that shape.
+
+    ``candidates`` are in rank order and end at the first one that needs no data (nothing below it can win), so the
+    list is short. The shape conditions (``shui:shapesGraphShape``) are already settled, which is the expensive part;
+    finishing the choice for one node (:func:`check_data_matchers`) validates only the conditions that read data.
+
+    ``needs_data`` False means the answer is the same for every node: keep ``widget_without_data`` and never look at
+    a node again."""
+
+    property_shape: Any
+    candidates: tuple[WidgetCandidate, ...]
+    _shapes_graph: Any = field(default=None, repr=False, compare=False)
+    _scoring_graph: Any = field(default=None, repr=False, compare=False)
+
+    @property
+    def needs_data(self) -> bool:
+        return any(candidate.needs_data for candidate in self.candidates)
+
+    @property
+    def widget_without_data(self) -> URIRef | None:
+        """What :func:`select_widget` gives with no focus node (Section 3.4 steps 1 and 3): a candidate whose data
+        conditions all sit beside a shape condition is accepted, one with a data condition alone is rejected."""
+        for candidate in self.candidates:
+            if all(has_shape_condition for _node, has_shape_condition in candidate.data_checks):
+                return candidate.widget
+        return None
+
+    def resolve(self, focus_node: Any, data_graph: Any) -> URIRef | None:
+        """The widget for one node: see :func:`check_data_matchers`."""
+        return check_data_matchers(self, focus_node=focus_node, data_graph=data_graph)
+
+
+def check_data_matchers(choice: WidgetChoice, *, focus_node: Any, data_graph: Any) -> URIRef | None:
+    """Finish a per-shape choice for one node: the first candidate whose data conditions hold for ``focus_node`` in
+    ``data_graph``. Gives the same widget as ``select_widget`` with that focus node, but validates only the few
+    conditions that read data (GitHub issue #14)."""
+    for candidate in choice.candidates:
+        if all(
+            _data_condition_holds(
+                node,
+                focus_node=focus_node,
+                data_graph=data_graph,
+                shapes_graph=choice._shapes_graph,
+                scoring_graph=choice._scoring_graph,
+            )
+            for node, _has_shape_condition in candidate.data_checks
+        ):
+            return candidate.widget
+    return None
+
+
+def _candidate(widget: Any, score: float | None, nodes: list[Any], *, shape_node: Any, shapes_graph: Any,
+               scoring_graph: Any, batch: _ConformanceBatch | None) -> WidgetCandidate | None:
+    """``None`` if a shape condition of any of ``nodes`` fails; otherwise the candidate with its data conditions left."""
+    checks = []
+    for node in nodes:
+        if not _shape_condition_holds(
+            node, shape_node=shape_node, shapes_graph=shapes_graph, scoring_graph=scoring_graph, batch=batch
+        ):
+            return None
+        if next(scoring_graph.objects(node, SHUI.dataGraphShape), None) is not None:
+            has_shape_condition = next(scoring_graph.objects(node, SHUI.shapesGraphShape), None) is not None
+            checks.append((node, has_shape_condition))
+    return WidgetCandidate(widget=widget, score=score, data_checks=tuple(checks))
+
+
+def _choice_for_property(
+    property_shape: Any, *, shapes_graph: Any, scoring_graph: Any, role: str, batch: _ConformanceBatch | None
+) -> WidgetChoice:
+    common = {"shape_node": property_shape, "shapes_graph": shapes_graph, "scoring_graph": scoring_graph, "batch": batch}
+    candidates: list[WidgetCandidate] = []
+    predicate = SHUI.editor if role == "editor" else SHUI.viewer
+    preferred = next(shapes_graph.objects(property_shape, predicate), None)
+    if preferred is not None:
+        matcher = _find_matcher(preferred, scoring_graph)
+        candidate = _candidate(preferred, None, [matcher] if matcher is not None else [], **common)
+        if candidate is not None:
+            candidates.append(candidate)
+    if not candidates or candidates[-1].needs_data:
+        for score, widget, score_node in _ranked_scores(shapes_graph, scoring_graph, role):
+            matcher = _find_matcher(widget, scoring_graph)
+            candidate = _candidate(widget, score, [score_node] + ([matcher] if matcher is not None else []), **common)
+            if candidate is None:
+                continue
+            candidates.append(candidate)
+            if not candidate.needs_data:
+                break
+    return WidgetChoice(
+        property_shape=property_shape,
+        candidates=tuple(candidates),
+        _shapes_graph=shapes_graph,
+        _scoring_graph=scoring_graph,
+    )
+
+
 def select_widgets(
     *,
     shape_node: Any,
@@ -323,7 +455,8 @@ def select_widgets(
     shapes_graph: Any,
     scoring_graph: Any | None = None,
     role: Role,
-) -> dict[Any, URIRef | None]:
+    per: Literal["node", "shape"] = "node",
+) -> dict[Any, Any]:
     """Batch sibling of :func:`select_widget` - walks ``shape_node``'s own
     ``sh:property`` list and runs :func:`select_widget` once per property,
     returning ``{property_shape: widget}`` for the given ``role``
@@ -339,14 +472,30 @@ def select_widgets(
 
     ``focus_node``, ``data_graph`` and ``scoring_graph`` are optional, as
     for :func:`select_widget`.
+
+    **``per="shape"``** (GitHub issue #14) answers once per property shape instead of once per node, for a UI that
+    shows many nodes of the same shape. It returns ``{property_shape: WidgetChoice}``; the expensive checks (a
+    condition's ``shui:shapesGraphShape``) are done once, and ``choice.resolve(focus_node, data_graph)`` finishes the
+    choice for one node by validating only the conditions that read its data. ``choice.needs_data`` False means one
+    answer (``choice.widget_without_data``) serves every node. The result of ``resolve`` is the same as
+    ``select_widget`` with that node. ``focus_node`` and ``data_graph`` are not accepted with ``per="shape"``.
     """
+    if per not in ("node", "shape"):
+        raise ValueError("per must be 'node' or 'shape'")
+    if per == "shape" and (focus_node is not None or data_graph is not None):
+        raise ValueError("per='shape' answers for the shape; pass the node to choice.resolve(focus_node, data_graph)")
     properties = list(shapes_graph.objects(shape_node, SH.property))
     if scoring_graph is None:
         from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 
         scoring_graph = StarLayerGraph()
     batch = _ConformanceBatch(properties, base_graph=shapes_graph, shapes_graph=scoring_graph)
-    result: dict[Any, URIRef | None] = {}
+    if per == "shape":
+        return {
+            prop: _choice_for_property(prop, shapes_graph=shapes_graph, scoring_graph=scoring_graph, role=role, batch=batch)
+            for prop in properties
+        }
+    result: dict[Any, Any] = {}
     for prop in properties:
         result[prop] = select_widget(
             shape_node=prop, focus_node=focus_node,
