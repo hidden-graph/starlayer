@@ -257,6 +257,8 @@ _FILENAME_BY_NAME: dict[str, str] = {
     # see get_conformance_profiles()'s docstring) - a generated .ttl at this
     # filename, loaded via the shared _load() like every other entry.
     "shacl_shacl": "shacl12-shacl.ttl",
+    # The SHACL 1.2 vocabulary (the W3C WG's shacl.ttl): what the sh: terms are, for reasoning about types. Generated.
+    "shacl_vocabulary": "shacl12-vocabulary.ttl",
     # Companions of shacl_shacl and the SHACL UI widget selection (GitHub issues #12 and #10). Hand-edited files.
     "shacl_shacl_ui": "shacl12-shacl-ui.ttl",
     "shacl_ui_baseline": "shacl-ui-baseline.ttl",
@@ -432,6 +434,19 @@ _REGISTRY: dict[str, tuple[OntologyInfo, Callable[[], StarLayerGraph]]] = {
             type="shacl",
         ),
         lambda: _load("shacl_shacl"),
+    ),
+    "shacl_vocabulary": (
+        OntologyInfo(
+            name="shacl_vocabulary",
+            description=(
+                "The SHACL 1.2 vocabulary, the W3C Data Shapes WG's shacl.ttl: every sh: class and property with its "
+                "rdfs:domain, rdfs:range and rdfs:subClassOf. Reasoning over it (RDFS entailment) tells what type an "
+                "entity of a shapes graph has without being told, e.g. a value of sh:group is a sh:PropertyGroup. "
+                "Not a set of constraints: loading it never changes what validates."
+            ),
+            type="owl",
+        ),
+        lambda: _load("shacl_vocabulary"),
     ),
     "shacl_shacl_ui": (
         OntologyInfo(
