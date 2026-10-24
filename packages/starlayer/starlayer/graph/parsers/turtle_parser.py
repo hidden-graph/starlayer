@@ -800,7 +800,7 @@ def _skolemize_encoding(g: Graph) -> Graph:
         bn_to_uri[bn] = BNode()
 
     # --- rebuild graph with substitutions, dropping sl: type triples ---
-    new_g = Graph()
+    new_g = Graph(bind_namespaces='none')
     for prefix, ns in g.namespaces():
         if str(ns) != SL_NS:
             new_g.bind(prefix, ns)
@@ -1126,7 +1126,7 @@ class StarLayerTurtleParser:
             expanded.append({'subject': subj, 'predicate': 'rdf:type', 'object': 'sl:Reification',
                               '_base_uri': base, '_line': line})
 
-        g = Graph()
+        g = Graph(bind_namespaces='none')  # only the file's own prefixes, not rdflib's defaults (GitHub issue #29)
         for prefix, iri in prefix_map.items():
             g.bind(prefix, iri)
         if current_base:
