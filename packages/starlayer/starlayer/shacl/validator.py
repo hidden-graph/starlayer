@@ -33,6 +33,7 @@ from starlayer.shacl.native_components import (
     register_native_components,
     shape_reference_nodes,
 )
+from starlayer.shacl.recursion import MAX_VALIDATION_DEPTH, reset_revisits, revisits  # noqa: E402
 from starlayer.shacl.results import (
     ExecutionDiagnostics,
     RulesResult,
@@ -40,8 +41,6 @@ from starlayer.shacl.results import (
 )
 from starlayer.shacl.types import ensure_graph_mutable
 from starlayer.shacl.validation_modes import ValidationMode, resolve_mode_options
-
-from starlayer.shacl.recursion import MAX_VALIDATION_DEPTH, reset_revisits, revisits  # noqa: E402
 
 SH = Namespace("http://www.w3.org/ns/shacl#")
 SHNEX = Namespace("http://www.w3.org/ns/shacl-node-expr#")

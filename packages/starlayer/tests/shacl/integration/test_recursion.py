@@ -15,7 +15,6 @@ from rdflib import Graph
 from starlayer import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl.native_components import register_native_components
-from starlayer.shacl.recursion import revisits
 
 PREFIXES = "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . "
 RECURSIVE = (
