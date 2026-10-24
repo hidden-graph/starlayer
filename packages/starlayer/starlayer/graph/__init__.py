@@ -22,6 +22,7 @@ from rdflib.namespace import RDF, RDFS, XSD
 # what a caller imports first. See starlayer.graph/query/custom_functions.py.
 import starlayer.graph.query.custom_functions as _custom_functions  # noqa: F401
 from starlayer.graph.graph.entailment_regimes import ENTAILMENT
+from starlayer.graph.graph.prefixes import used_prefixes
 from starlayer.graph.graph.starlayer_dataset import StarLayerDataset
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph, can_resolve_import
 from starlayer.graph.model.dirlangstring import DirLangString
@@ -221,6 +222,7 @@ __all__ = [
     "StarLayerGraph",
     "StarLayerDataset",
     "can_resolve_import",
+    "used_prefixes",
     # SPARQL 1.2-aware rdflib.plugins.sparql counterparts
     "parseQuery",
     "prepareQuery",

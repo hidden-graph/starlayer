@@ -2411,8 +2411,10 @@ class StarLayerGraph(Graph):
         # every time. The only post-processing step is _restore(), which
         # converts any tt:HASH URIRef that appears in a result row back into a
         # TripleTerm object.
-        raw = Graph(store=self.store, identifier=self.identifier)
-        for prefix, ns in self.namespaces():
+        # bind_namespaces="none": a Graph over the shared store would otherwise bind rdflib's defaults into it while we iterate
+        # the same store's namespaces, which raises when this graph was created with fewer defaults (GitHub issue #29).
+        raw = Graph(store=self.store, identifier=self.identifier, bind_namespaces='none')
+        for prefix, ns in list(self.namespaces()):
             raw.bind(prefix, ns)
         pending_recipes = None
         pending_filters = None
@@ -2586,8 +2588,8 @@ class StarLayerGraph(Graph):
                 )
             rdf_graph, root = update_to_rdf11(prepared_12)
             update_object = rdf11_update_to_sparql11_text(rdf_graph, root)
-        raw = Graph(store=self.store, identifier=self.identifier)
-        for prefix, ns in self.namespaces():
+        raw = Graph(store=self.store, identifier=self.identifier, bind_namespaces='none')  # see query(): GitHub issue #29
+        for prefix, ns in list(self.namespaces()):
             raw.bind(prefix, ns)
         raw.update(update_object, processor=processor,
                    initNs=initNs, initBindings=initBindings,
