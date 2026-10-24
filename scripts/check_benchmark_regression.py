@@ -2,8 +2,13 @@
 scripts/check_benchmark_regression.py
 
 Compares a fresh pytest-benchmark JSON result against a committed
-baseline, failing (non-zero exit) if any benchmark's mean time regressed
-beyond THRESHOLD. Used by .github/workflows/benchmark.yml - a failed
+baseline, failing (non-zero exit) if any benchmark's time regressed
+beyond THRESHOLD. The statistic compared is the minimum of each benchmark's rounds (far steadier than the mean on a
+shared runner; a real slowdown raises it, noise mostly does not). Each time is divided by the minimum of the calibration
+benchmark (test_calibration_reference) from the same run first, because
+GitHub's runners draw a different CPU from day to day, about 2x apart, so
+absolute milliseconds cannot be compared with a baseline recorded elsewhere
+(GitHub issue #33). Used by .github/workflows/benchmark.yml - a failed
 scheduled-workflow run is itself the "alert" (GitHub surfaces/emails
 failed scheduled runs on the default branch automatically).
 
@@ -20,13 +25,19 @@ regenerate it the same way the CI job produces a current run:
 import json
 import sys
 
-THRESHOLD = 0.20  # fail if a benchmark's mean time is >20% slower than baseline
+THRESHOLD = 0.20  # fail if a benchmark's minimum time, relative to the calibration, is >20% above baseline
+
+
+CALIBRATION = "test_calibration_reference"
 
 
 def _load(path):
+    """``(minimums, calibration)``: the minimum time of each benchmark by full name, and the calibration benchmark's (or None)."""
     with open(path) as f:
         data = json.load(f)
-    return {b["fullname"]: b["stats"]["mean"] for b in data["benchmarks"]}
+    means = {b["fullname"]: b["stats"]["min"] for b in data["benchmarks"]}
+    calibration = next((m for name, m in means.items() if name.endswith("::" + CALIBRATION)), None)
+    return means, calibration
 
 
 def main() -> int:
@@ -35,21 +46,27 @@ def main() -> int:
         return 2
 
     baseline_path, current_path = sys.argv[1], sys.argv[2]
-    baseline = _load(baseline_path)
-    current = _load(current_path)
+    baseline, base_cal = _load(baseline_path)
+    current, cur_cal = _load(current_path)
+    if base_cal is None or cur_cal is None:
+        which = " and ".join(n for n, c in (("baseline", base_cal), ("current run", cur_cal)) if c is None)
+        print(f"No {CALIBRATION} benchmark in the {which}: re-record the baseline (see the docstring).", file=sys.stderr)
+        return 2
+    print(f"calibration: baseline={base_cal * 1000:.3f}ms current={cur_cal * 1000:.3f}ms (this runner is {cur_cal / base_cal:.2f}x the baseline machine)\n")
 
     regressions = []
     missing = [name for name in baseline if name not in current]
 
     for name, base_mean in sorted(baseline.items()):
-        if name not in current:
+        if name not in current or name.endswith("::" + CALIBRATION):
             continue
         cur_mean = current[name]
-        change = (cur_mean - base_mean) / base_mean
+        # relative to each run's own calibration, so a slower or faster CPU cancels
+        change = (cur_mean / cur_cal - base_mean / base_cal) / (base_mean / base_cal)
         status = "REGRESSION" if change > THRESHOLD else "ok"
         print(
             f"{status:10} {name}: "
-            f"baseline={base_mean * 1000:.3f}ms current={cur_mean * 1000:.3f}ms ({change:+.1%})"
+            f"baseline={base_mean * 1000:.3f}ms current={cur_mean * 1000:.3f}ms (relative to calibration: {change:+.1%})"
         )
         if change > THRESHOLD:
             regressions.append((name, change))
