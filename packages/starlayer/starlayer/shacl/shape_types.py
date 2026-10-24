@@ -11,7 +11,9 @@ Two sources, both from the registry:
    ``rdfs:domain``/``rdfs:range`` types things that are not shapes (the value of ``sh:group`` is a ``sh:PropertyGroup``, the
    subject of ``sh:validator`` a ``sh:ConstraintComponent``). The vocabulary's domain for ``sh:name`` and ``sh:description``
    is ``sh:Shape``, but a property group has them too, so those two are left out of the entailment.
-2. **The rules** (``shacl_shacl_rules``): SHACL rules for what RDFS cannot say (a list walk, an absent ``sh:path``).
+2. **The rules** (``shacl_shacl_rules``): SHACL rules for what RDFS cannot say (a list walk, an absent ``sh:path``), and the node
+   expressions under ``sh:values``/``sh:defaultValue``/``sh:expression`` (typed ``sh:NodeExpression``, at any nesting depth, with the cells
+   of their argument lists typed ``rdf:List``) so that every node there has a shape that targets it (GitHub issue #22).
 
 The result holds only new ``rdf:type`` triples, in the ``sh:`` namespace; it never contains what the shapes graph already
 says, and the shapes graph is not changed.
