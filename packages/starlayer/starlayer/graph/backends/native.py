@@ -479,7 +479,7 @@ def blank_node_ids_are_stable(store, backend: str) -> bool:
     return stable
 
 
-def new_graph_like(store, backend: str):
+def new_graph_like(store, backend: str, **graph_kwargs):
     """A new, empty ``StarLayerGraph`` of the same kind as one backed by
     ``store`` - the "derived graphs are created like their source" rule.
 
@@ -488,14 +488,17 @@ def new_graph_like(store, backend: str):
     representation; anything else - the default in-memory store, a remote
     HTTP endpoint (a new remote database can't be minted from here), SQLAlchemy,
     etc. - gets an ordinary in-memory ``StarLayerGraph``, exactly as before.
+
+    ``graph_kwargs`` go to the new graph's constructor (``bind_namespaces="none"`` for a graph that should start without
+    rdflib's default prefixes).
     """
     from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 
     if _in_process(store):
         import pyoxigraph
         from oxrdflib import OxigraphStore
-        return StarLayerGraph(store=OxigraphStore(store=pyoxigraph.Store()), backend=backend)
-    return StarLayerGraph()
+        return StarLayerGraph(store=OxigraphStore(store=pyoxigraph.Store()), backend=backend, **graph_kwargs)
+    return StarLayerGraph(**graph_kwargs)
 
 
 def engine_aborts_on_dirlang_equality(store) -> bool:
