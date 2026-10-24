@@ -602,7 +602,8 @@ def serialize_turtle12(graph) -> str:
     for prefix, ns_uri in select_prefixes(sg.namespaces(), used_uris):
         prefix_lines.append(f'@prefix {prefix}: <{ns_uri}> .')
 
-    if _RDF_NS not in {str(ns) for _, ns in sg.namespaces()}:
+    # rdf: is declared when something in the output needs it and the graph has no binding for it; not when nothing uses it
+    if _RDF_NS not in {str(ns) for _, ns in sg.namespaces()} and any(u.startswith(_RDF_NS) for u in used_uris):
         prefix_lines.append(f'@prefix rdf: <{_RDF_NS}> .')
 
     prefix_lines.append('')
@@ -665,7 +666,8 @@ def serialize_longturtle12(graph) -> str:
     for prefix, ns_uri in select_prefixes(sg.namespaces(), used_uris):
         prefix_lines.append(f'@prefix {prefix}: <{ns_uri}> .')
 
-    if _RDF_NS not in {str(ns) for _, ns in sg.namespaces()}:
+    # rdf: is declared when something in the output needs it and the graph has no binding for it; not when nothing uses it
+    if _RDF_NS not in {str(ns) for _, ns in sg.namespaces()} and any(u.startswith(_RDF_NS) for u in used_uris):
         prefix_lines.append(f'@prefix rdf: <{_RDF_NS}> .')
 
     prefix_lines.append('')

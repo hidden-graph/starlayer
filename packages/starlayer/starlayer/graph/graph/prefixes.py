@@ -54,15 +54,44 @@ def select_prefixes(namespaces: Iterable[tuple[str, Any]], used_uris: Iterable[s
     return selected
 
 
-def used_prefixes(graph: Any) -> list[tuple[str, URIRef]]:
-    """The prefixes of ``graph`` that are in use, as ``(prefix, namespace)`` pairs sorted by prefix.
+def _is_dataset(graph: Any) -> bool:
+    return hasattr(graph, "contexts") and hasattr(graph, "default_context")
 
-    Use it for a graph that arrives with rdflib's default prefixes bound, to offer or write only the ones that matter. A prefix the
-    file declared but never used is not returned (the writers drop it as well). Triple terms are searched too."""
-    used: set[str] = set()
+
+def _collect_from_graph(graph: Any, used: set[str]) -> None:
     for s, p, o in graph.triples((None, None, None)):
         _collect(s, used)
         if p != RDF.type:  # written as "a", so it needs no prefix (as in the Turtle writers)
             _collect(p, used)
         _collect(o, used)
+
+
+def used_prefixes(graph: Any) -> list[tuple[str, URIRef]]:
+    """The prefixes of a graph or dataset that are in use, as ``(prefix, namespace)`` pairs sorted by prefix.
+
+    Use it for a graph that arrives with rdflib's default prefixes bound, to offer or write only the ones that matter. A prefix the
+    file declared but never used is not returned (the writers drop it as well). Triple terms are searched too. For a dataset the
+    triples of every graph count, and so do the names of the named graphs (TriG writes them), so the answer is the prefixes the
+    whole dataset needs."""
+    used: set[str] = set()
+    if _is_dataset(graph):
+        # StarLayerDataset.contexts() yields StarLayerGraphs (triple terms restored); a plain rdflib Dataset uses graphs()
+        contexts = graph.contexts() if hasattr(graph, "_sg_cache") or not hasattr(graph, "graphs") else graph.graphs()
+        for context in contexts:
+            _collect_from_graph(context, used)
+            if isinstance(context.identifier, URIRef):
+                used.add(str(context.identifier))
+    else:
+        _collect_from_graph(graph, used)
     return select_prefixes(graph.namespaces(), used)
+
+
+def prefixes_to_keep(graph: Any, keep: Iterable[str] = ()) -> list[tuple[str, URIRef]]:
+    """The bindings a reduced copy of ``graph`` should have: the ones in use, plus any of ``keep`` (prefix names) that ``graph``
+    has bound, whether used or not. Sorted by prefix."""
+    chosen = dict(used_prefixes(graph))
+    wanted = set(keep)
+    for prefix, namespace in graph.namespaces():
+        if prefix in wanted:
+            chosen.setdefault(prefix, URIRef(str(namespace)))
+    return sorted(chosen.items())

@@ -3159,6 +3159,42 @@ class StarLayerGraph(Graph):
             g.bind(prefix, ns)
         return g
 
+    def used_prefixes(self) -> list[tuple[str, URIRef]]:
+        """The namespace bindings of this graph that matter: ``(prefix, namespace)`` pairs, sorted by prefix, for the namespaces an
+        IRI of the graph is in (a subject, predicate or object, a literal's datatype, any part of a triple term). The ~29 default
+        prefixes rdflib binds to every graph, and prefixes the source declared but never used, are left out; ``rdf:type`` as a
+        predicate does not count, since Turtle writes it ``a``. This is the rule the Turtle writers use to decide which
+        ``@prefix`` lines to write.
+        """
+        from starlayer.graph.graph.prefixes import used_prefixes
+        return used_prefixes(self)
+
+    def reduce_prefixes(self, *, keep=()) -> StarLayerGraph:
+        """A copy of this graph whose namespace bindings are only the ones in use (see ``used_prefixes()``), plus any prefix named in
+        ``keep`` that this graph has bound.
+
+        A copy, not a change to this graph: rdflib has no way to remove a binding from a store, so the bindings of a graph can
+        only be reduced by building a new one. The copy is created like its source (see ``empty_like()``: an in-process Oxigraph
+        graph gives an in-process Oxigraph graph, anything else an in-memory one) and holds the same triples, triple terms
+        included.
+
+        Args:
+            keep: Prefix names to keep even if nothing uses them.
+        """
+        from starlayer.graph.backends.native import new_graph_like
+        from starlayer.graph.graph.prefixes import prefixes_to_keep
+
+        result = new_graph_like(self.store, self._backend, bind_namespaces='none')
+        for prefix, namespace in prefixes_to_keep(self, keep):
+            result.bind(prefix, namespace)
+        triples = list(self)
+        if result._is_native:
+            result._native_add_many(triples)
+        else:
+            for triple in triples:
+                result.add(triple)
+        return result
+
     def infer(self, entailment=ENTAILMENT.RDFS, *, mode: str = 'full', target_graph=None,
               engine: str = 'hermit', timeout=_OWL_DL_TIMEOUT_DEFAULT) -> StarLayerGraph:
         """Materialize an RDFS/OWL-RL entailment closure.

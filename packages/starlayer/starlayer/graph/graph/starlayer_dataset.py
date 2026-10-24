@@ -108,10 +108,15 @@ class StarLayerDataset(Dataset):
                                       named graph each one came from
     """
 
-    def __init__(self, *args, backend: str = 'rdf-1.1', **kwargs):
+    def __init__(self, *args, backend: str = 'rdf-1.1', bind_namespaces: str | None = None, **kwargs):
         if backend not in VALID_BACKENDS:
             raise ValueError(f"backend must be one of {sorted(VALID_BACKENDS)}, got {backend!r}")
         super().__init__(*args, **kwargs)
+        if bind_namespaces is not None:
+            # rdflib's Dataset has no such parameter, but it reads this attribute when the namespace manager is first created,
+            # which is in get_context() below. Like Graph(bind_namespaces=...): "none" starts with no prefixes, "core" with
+            # rdf, rdfs, owl, xsd and xml, the default "rdflib" with rdflib's ~29.
+            self._bind_namespaces = bind_namespaces
         self._backend = backend
         self._sg_cache: dict[str, StarLayerGraph] = {}
         self._raw_execution_graph: Dataset | None = None
@@ -696,6 +701,35 @@ class StarLayerDataset(Dataset):
     # result.serialize(format='trig12') shows all of them with their graph
     # boundaries intact, and two graphs matching via the same node simply
     # appear as two separate GRAPH blocks rather than being merged.
+
+    def used_prefixes(self) -> list[tuple[str, URIRef]]:
+        """The namespace bindings of this dataset that matter: ``(prefix, namespace)`` pairs, sorted by prefix, for the namespaces an
+        IRI in any graph of the dataset is in, or a named graph's own name (TriG writes it). The default prefixes rdflib binds and
+        prefixes nothing uses are left out - see ``StarLayerGraph.used_prefixes()``.
+        """
+        from starlayer.graph.graph.prefixes import used_prefixes
+        return used_prefixes(self)
+
+    def reduce_prefixes(self, *, keep=()) -> StarLayerDataset:
+        """A copy of this dataset whose namespace bindings are only the ones in use (see ``used_prefixes()``), plus any prefix named
+        in ``keep`` that this dataset has bound. Every graph keeps its triples and its name.
+
+        A copy, not a change to this dataset: rdflib cannot remove a binding from a store. The copy is an ordinary in-memory
+        ``StarLayerDataset``, like the other datasets derived from this one (``reifiers()`` and the rest).
+
+        Args:
+            keep: Prefix names to keep even if nothing uses them.
+        """
+        from starlayer.graph.graph.prefixes import prefixes_to_keep
+
+        result = StarLayerDataset(bind_namespaces='none')
+        for prefix, namespace in prefixes_to_keep(self, keep):
+            result.bind(prefix, namespace)
+        for sg in self.contexts():
+            out_g = result.graph(sg.identifier)
+            for triple in sg:
+                out_g.add(triple)
+        return result
 
     def reifiers(self, TT=None, predicate=None, object=None) -> StarLayerDataset:
         """Return a StarLayerDataset of every matching reifier's full triples,
