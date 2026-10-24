@@ -263,6 +263,8 @@ _FILENAME_BY_NAME: dict[str, str] = {
     "shacl_shacl_ui": "shacl12-shacl-ui.ttl",
     "shacl_ui_baseline": "shacl-ui-baseline.ttl",
     "shacl_shacl_ui_scores": "shacl12-shacl-ui-scores.ttl",
+    # What the structure of a shapes graph entails about it: rules that add the shape types (GitHub issues #24, #27, #28).
+    "shacl_shacl_rules": "shacl12-shacl-rules.ttl",
 }
 
 # The ontology-shapes profile mapping's own filename/named-graph identity -
@@ -488,6 +490,20 @@ _REGISTRY: dict[str, tuple[OntologyInfo, Callable[[], StarLayerGraph]]] = {
             type="scoring-catalog",
         ),
         lambda: _load("shacl_shacl_ui_scores"),
+    ),
+    "shacl_shacl_rules": (
+        OntologyInfo(
+            name="shacl_shacl_rules",
+            description=(
+                "SHACL rules for a shapes graph read as data: which nodes are shapes (a target, a constraint parameter, "
+                "the value of a shape-valued parameter, a member of an sh:and/sh:or/sh:xone list) and which kind (node "
+                "shape or property shape, by sh:path), per SHACL 1.2 Core 3.1-3.3. Run with "
+                "starlayer.shacl.shape_types.infer_types(). Applied to a shapes graph, never a data graph, so loading it "
+                "never changes what validates."
+            ),
+            type="shacl",
+        ),
+        lambda: _load("shacl_shacl_rules"),
     ),
 }
 

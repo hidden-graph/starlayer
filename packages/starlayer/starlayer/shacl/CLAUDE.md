@@ -18,6 +18,12 @@ Project-specific instructions for Claude Code sessions working in this repo. See
 
 ## Design history
 
+## Shape typing is a rule set: `shacl_shacl_rules` and `shape_types.infer_types()` (2026-10-24, GitHub issues #24, #27, #28)
+
+Core 3.1-3.3 leave a shape's type to the engine, and a shapes graph usually states none. The user's decision: express the inference as **SHACL rules** (what the structure of a shapes graph entails about it), not as application code. `starontology/shacl12-shacl-rules.ttl` (registry `shacl_shacl_rules`, hand-edited, a companion of `shacl_shacl`) holds them: **layer 0** says what is a `sh:Shape` (subject of a target or constraint parameter; value of a shape-valued parameter; member of a list that is the value of `sh:and`/`sh:or`/`sh:xone`, found by the path `( [ sh:zeroOrMorePath rdf:rest ] rdf:first )`), **layer 1** says which kind (`sh:path` makes a property shape, a `sh:not` of that a node shape) and combines `sh:Validator` with `sh:SPARQLAskExecutable`/`sh:SPARQLSelectExecutable`. Layers matter: a list member with no constraints of its own is typed in layer 0 and then gets its kind in layer 1.
+
+`starlayer.shacl.shape_types.infer_types(shapes_graph)` (qualified import, not in `__all__`) runs RDFS entailment over the shapes graph plus `shacl_vocabulary` (for non-shapes: `sh:PropertyGroup`, `sh:ConstraintComponent`, ...), then the rules, and returns only the new `rdf:type` triples in the `sh:` namespace. It removes the vocabulary's domain for `sh:name`/`sh:description`/`sh:order` first (a property group has them; the vocabulary says `sh:Shape`). **Drift guard:** a test fails if `shacl_shacl`'s `shsh:ShapeShape` targets a parameter the rules do not list. Needs the optional `owlrl`. Not done: dropping an inferred type when a more specific one is present (a display choice for the caller).
+
 ## A shape has at most one `rdfs:isDefinedBy`, as a warning (2026-10-23, GitHub issue #18)
 
 Profiling 2.4/2.5 give a shape one definer (`rdfs:isDefinedBy`) and any number of users (`rdfs:member`) but state no limit, so `stsh:ShapeDefinedByOneGraphShape` (targets `sh:NodeShape` and `sh:PropertyShape` only; a validation report also uses the predicate, 5.4.1) puts `sh:maxCount 1` at **`sh:Warning`** on the property shape (severity on the node shape does not reach a nested property shape's results). **`meta_validate()` now defaults `allow_warnings=True`**, so a warning is in the report but does not make a shapes graph invalid; a form still sees the maximum of one.

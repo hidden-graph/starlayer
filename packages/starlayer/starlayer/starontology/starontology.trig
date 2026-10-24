@@ -1741,6 +1741,145 @@ starontology:shacl-ui-baseline.ttl {
                 sh:path sh:datatype ] .
 }
 
+starontology:shacl12-shacl-rules.ttl {
+    # What the structure of a shapes graph entails about the shapes graph: SHACL rules that add the rdf:type triples SHACL 1.2 Core
+    # leaves to the engine (GitHub issues #24, #27, #28). Hand-edited. Registry entry shacl_shacl_rules, a companion of shacl_shacl.
+    #
+    # Core 3.1 says which nodes are shapes (a SHACL instance of sh:NodeShape or sh:PropertyShape; the subject of a target; the
+    # subject of a constraint parameter; the value of a shape-valued parameter; a member of a list that is the value of sh:and,
+    # sh:or or sh:xone). 3.2 and 3.3 split them: a shape that is the subject of sh:path is a property shape, any other a node shape.
+    # Declaring the type is only recommended, so most hand-written shapes graphs carry none.
+    #
+    # Run them with starlayer.shacl.shape_types.infer_types(), or directly: apply_rules(shapes_graph, shacl_graph=<this graph>);
+    # the inferred_graph of the result is the new triples only. They are rules for a shapes graph as data, never applied to a data
+    # graph: loading this graph beside shacl_shacl does not change what validates. Layer 0 decides what is a shape, layer 1 which kind.
+    #
+    # What these rules do not do: the types of things that are not shapes (a property group, a constraint component, a prefix
+    # declaration) come from the domains and ranges of the SHACL vocabulary (registry entry shacl_vocabulary), not from rules.
+    #
+    # baseURI: https://github.com/hidden-graph/starlayer/ns/shacl#
+
+    stsh:NodeShapeRule a sh:NodeShape ;
+        rdfs:label "A shape without sh:path is a node shape"@en ;
+        sh:rule [ a sh:TripleRule ;
+                sh:condition [ sh:not [ sh:property [ sh:minCount 1 ;
+                                        sh:path sh:path ] ] ] ;
+                sh:layer 1 ;
+                sh:object sh:NodeShape ;
+                sh:predicate rdf:type ;
+                sh:subject sh:this ] ;
+        sh:targetClass sh:Shape .
+
+    stsh:PropertyShapeRule a sh:NodeShape ;
+        rdfs:label "A shape with sh:path is a property shape"@en ;
+        sh:rule [ a sh:TripleRule ;
+                sh:condition [ sh:property [ sh:minCount 1 ;
+                                sh:path sh:path ] ] ;
+                sh:layer 1 ;
+                sh:object sh:PropertyShape ;
+                sh:predicate rdf:type ;
+                sh:subject sh:this ] ;
+        sh:targetClass sh:Shape .
+
+    stsh:SPARQLAskValidatorRule a sh:NodeShape ;
+        rdfs:label "A validator that is an ASK executable is an SPARQL ASK validator"@en ;
+        sh:rule [ a sh:TripleRule ;
+                sh:condition [ sh:class sh:Validator ] ;
+                sh:layer 1 ;
+                sh:object sh:SPARQLAskValidator ;
+                sh:predicate rdf:type ;
+                sh:subject sh:this ] ;
+        sh:targetClass sh:SPARQLAskExecutable .
+
+    stsh:SPARQLSelectValidatorRule a sh:NodeShape ;
+        rdfs:label "A validator that is a SELECT executable is an SPARQL SELECT validator"@en ;
+        sh:rule [ a sh:TripleRule ;
+                sh:condition [ sh:class sh:Validator ] ;
+                sh:layer 1 ;
+                sh:object sh:SPARQLSelectValidator ;
+                sh:predicate rdf:type ;
+                sh:subject sh:this ] ;
+        sh:targetClass sh:SPARQLSelectExecutable .
+
+    stsh:ShapeByListMemberRule a sh:NodeShape ;
+        rdfs:label "A member of the list that is the value of sh:and, sh:or or sh:xone is a shape"@en ;
+        sh:rule [ a sh:TripleRule ;
+                sh:layer 0 ;
+                sh:object sh:Shape ;
+                sh:predicate rdf:type ;
+                sh:subject [ sh:path ( [ sh:zeroOrMorePath rdf:rest ] rdf:first ) ] ] ;
+        sh:targetObjectsOf sh:and,
+            sh:or,
+            sh:xone .
+
+    stsh:ShapeBySubjectRule a sh:NodeShape ;
+        rdfs:label "A node with a target or a constraint parameter is a shape"@en ;
+        sh:rule [ a sh:TripleRule ;
+                sh:layer 0 ;
+                sh:object sh:Shape ;
+                sh:predicate rdf:type ;
+                sh:subject sh:this ] ;
+        sh:targetSubjectsOf sh:and,
+            sh:class,
+            sh:closed,
+            sh:datatype,
+            sh:disjoint,
+            sh:equals,
+            sh:flags,
+            sh:hasValue,
+            sh:ignoredProperties,
+            sh:in,
+            sh:languageIn,
+            sh:lessThan,
+            sh:lessThanOrEquals,
+            sh:maxCount,
+            sh:maxExclusive,
+            sh:maxInclusive,
+            sh:maxLength,
+            sh:maxListLength,
+            sh:memberShape,
+            sh:minCount,
+            sh:minExclusive,
+            sh:minInclusive,
+            sh:minLength,
+            sh:minListLength,
+            sh:node,
+            sh:nodeKind,
+            sh:not,
+            sh:or,
+            sh:path,
+            sh:pattern,
+            sh:property,
+            sh:qualifiedMaxCount,
+            sh:qualifiedMinCount,
+            sh:qualifiedValueShape,
+            sh:qualifiedValueShapesDisjoint,
+            sh:singleLine,
+            sh:targetClass,
+            sh:targetNode,
+            sh:targetObjectsOf,
+            sh:targetSubjectsOf,
+            sh:targetWhere,
+            sh:uniqueLang,
+            sh:uniqueMembers,
+            sh:xone .
+
+    stsh:ShapeByValueRule a sh:NodeShape ;
+        rdfs:label "The value of a shape-valued parameter is a shape"@en ;
+        sh:rule [ a sh:TripleRule ;
+                sh:layer 0 ;
+                sh:object sh:Shape ;
+                sh:predicate rdf:type ;
+                sh:subject sh:this ] ;
+        sh:targetObjectsOf sh:memberShape,
+            sh:node,
+            sh:not,
+            sh:property,
+            sh:qualifiedValueShape,
+            sh:reifierShape,
+            sh:someValue .
+}
+
 starontology:shacl12-shacl-ui-scores.ttl {
     # The scoring layer for editing SHACL (registry entry shacl_shacl_ui_scores): which widget edits which SHACL predicate in a form
     # built from shacl_shacl. It builds on the generic catalog (shacl_ui_baseline: tier 1 score 1, tier 2 score 2, tier 3 score 3)
@@ -2502,7 +2641,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:NodeShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n62d29e815ac14c219310c027eba5323ab19 ;
+        sh:in _:n7d817a97ab284ec4b0b246f52de5a0c4b19 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 3 ;
@@ -2845,7 +2984,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:PropertyShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n62d29e815ac14c219310c027eba5323ab19 ;
+        sh:in _:n7d817a97ab284ec4b0b246f52de5a0c4b19 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 3 ;
@@ -3439,11 +3578,11 @@ starontology:shacl12-shacl-ui.ttl {
         sh:name "SHACL 1.2 UI Widgets"@en ;
         sh:order 16 .
 
-    _:n62d29e815ac14c219310c027eba5323ab20 rdf:first sh:IRI ;
+    _:n7d817a97ab284ec4b0b246f52de5a0c4b20 rdf:first sh:IRI ;
         rdf:rest ( sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) .
 
-    _:n62d29e815ac14c219310c027eba5323ab19 rdf:first sh:BlankNode ;
-        rdf:rest _:n62d29e815ac14c219310c027eba5323ab20 .
+    _:n7d817a97ab284ec4b0b246f52de5a0c4b19 rdf:first sh:BlankNode ;
+        rdf:rest _:n7d817a97ab284ec4b0b246f52de5a0c4b20 .
 }
 
 starontology:shacl12-shacl.ttl {

@@ -38,7 +38,7 @@ class TestGetOntologyList:
             "sqe_owl", "sqe_shacl",
             "srl_owl", "srl_shacl",
             "spexpr_owl", "spexpr_shacl",
-            "shacl_shacl", "shacl_vocabulary", "shacl_shacl_ui", "shacl_ui_baseline", "shacl_shacl_ui_scores",
+            "shacl_shacl", "shacl_vocabulary", "shacl_shacl_ui", "shacl_ui_baseline", "shacl_shacl_ui_scores", "shacl_shacl_rules",
         }
 
     def test_sorted_by_name(self):
@@ -59,7 +59,7 @@ class TestGetOntologyList:
         shacl_names = {info.name for info in starontology.get_ontology_list() if info.type == "shacl"}
         assert shacl_names == {
             "manchester_shacl", "skos_shacl", "sqe_shacl", "srl_shacl",
-            "spexpr_shacl", "shacl_shacl", "shacl_shacl_ui",
+            "spexpr_shacl", "shacl_shacl", "shacl_shacl_ui", "shacl_shacl_rules",
         }
         # the scoring catalog is not a shapes graph
         assert {info.name for info in starontology.get_ontology_list() if info.type == "scoring-catalog"} == {
