@@ -1,0 +1,82 @@
+# What the structure of a shapes graph entails about the shapes graph: SHACL rules that add the rdf:type triples SHACL 1.2 Core
+# leaves to the engine (GitHub issues #24, #27, #28). Hand-edited. Registry entry shacl_shacl_rules, a companion of shacl_shacl.
+#
+# Core 3.1 says which nodes are shapes (a SHACL instance of sh:NodeShape or sh:PropertyShape; the subject of a target; the
+# subject of a constraint parameter; the value of a shape-valued parameter; a member of a list that is the value of sh:and,
+# sh:or or sh:xone). 3.2 and 3.3 split them: a shape that is the subject of sh:path is a property shape, any other a node shape.
+# Declaring the type is only recommended, so most hand-written shapes graphs carry none.
+#
+# Run them with starlayer.shacl.shape_types.infer_types(), or directly: apply_rules(shapes_graph, shacl_graph=<this graph>);
+# the inferred_graph of the result is the new triples only. They are rules for a shapes graph as data, never applied to a data
+# graph: loading this graph beside shacl_shacl does not change what validates. Layer 0 decides what is a shape, layer 1 which kind.
+#
+# What these rules do not do: the types of things that are not shapes (a property group, a constraint component, a prefix
+# declaration) come from the domains and ranges of the SHACL vocabulary (registry entry shacl_vocabulary), not from rules.
+#
+# baseURI: https://github.com/hidden-graph/starlayer/ns/shacl#
+
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sh:   <http://www.w3.org/ns/shacl#> .
+@prefix stsh: <https://github.com/hidden-graph/starlayer/ns/shacl#> .
+
+# Layer 0: a node that has a target, or a constraint parameter, is a shape.
+stsh:ShapeBySubjectRule a sh:NodeShape ;
+    rdfs:label "A node with a target or a constraint parameter is a shape"@en ;
+    sh:targetSubjectsOf
+        sh:targetClass, sh:targetNode, sh:targetObjectsOf, sh:targetSubjectsOf, sh:targetWhere,
+        sh:path, sh:and, sh:class, sh:closed, sh:datatype, sh:disjoint, sh:equals, sh:flags, sh:hasValue,
+        sh:ignoredProperties, sh:in, sh:languageIn, sh:lessThan, sh:lessThanOrEquals, sh:maxCount, sh:maxExclusive,
+        sh:maxInclusive, sh:maxLength, sh:maxListLength, sh:memberShape, sh:minCount, sh:minExclusive, sh:minInclusive,
+        sh:minLength, sh:minListLength, sh:node, sh:nodeKind, sh:not, sh:or, sh:pattern, sh:property,
+        sh:qualifiedMaxCount, sh:qualifiedMinCount, sh:qualifiedValueShape, sh:qualifiedValueShapesDisjoint, sh:singleLine,
+        sh:uniqueLang, sh:uniqueMembers, sh:xone ;
+    sh:rule [ a sh:TripleRule ; sh:layer 0 ;
+        sh:subject sh:this ; sh:predicate rdf:type ; sh:object sh:Shape ] .
+
+# Layer 0: the value of a parameter that expects a shape is a shape.
+stsh:ShapeByValueRule a sh:NodeShape ;
+    rdfs:label "The value of a shape-valued parameter is a shape"@en ;
+    sh:targetObjectsOf sh:memberShape, sh:node, sh:not, sh:property, sh:qualifiedValueShape, sh:reifierShape, sh:someValue ;
+    sh:rule [ a sh:TripleRule ; sh:layer 0 ;
+        sh:subject sh:this ; sh:predicate rdf:type ; sh:object sh:Shape ] .
+
+# Layer 0: a member of the list that is the value of sh:and, sh:or or sh:xone is a shape.
+stsh:ShapeByListMemberRule a sh:NodeShape ;
+    rdfs:label "A member of the list that is the value of sh:and, sh:or or sh:xone is a shape"@en ;
+    sh:targetObjectsOf sh:and, sh:or, sh:xone ;
+    sh:rule [ a sh:TripleRule ; sh:layer 0 ;
+        sh:subject [ sh:path ( [ sh:zeroOrMorePath rdf:rest ] rdf:first ) ] ;
+        sh:predicate rdf:type ; sh:object sh:Shape ] .
+
+# Layer 1: a shape that is the subject of sh:path is a property shape (Core 3.3).
+stsh:PropertyShapeRule a sh:NodeShape ;
+    rdfs:label "A shape with sh:path is a property shape"@en ;
+    sh:targetClass sh:Shape ;
+    sh:rule [ a sh:TripleRule ; sh:layer 1 ;
+        sh:condition [ sh:property [ sh:path sh:path ; sh:minCount 1 ] ] ;
+        sh:subject sh:this ; sh:predicate rdf:type ; sh:object sh:PropertyShape ] .
+
+# Layer 1: any other shape is a node shape (Core 3.2).
+stsh:NodeShapeRule a sh:NodeShape ;
+    rdfs:label "A shape without sh:path is a node shape"@en ;
+    sh:targetClass sh:Shape ;
+    sh:rule [ a sh:TripleRule ; sh:layer 1 ;
+        sh:condition [ sh:not [ sh:property [ sh:path sh:path ; sh:minCount 1 ] ] ] ;
+        sh:subject sh:this ; sh:predicate rdf:type ; sh:object sh:NodeShape ] .
+
+# Layer 1: the vocabulary types the subject of sh:ask as only an SPARQLAskExecutable and the value of sh:validator as only a
+# Validator; a node that is both is the class that has both.
+stsh:SPARQLAskValidatorRule a sh:NodeShape ;
+    rdfs:label "A validator that is an ASK executable is an SPARQL ASK validator"@en ;
+    sh:targetClass sh:SPARQLAskExecutable ;
+    sh:rule [ a sh:TripleRule ; sh:layer 1 ;
+        sh:condition [ sh:class sh:Validator ] ;
+        sh:subject sh:this ; sh:predicate rdf:type ; sh:object sh:SPARQLAskValidator ] .
+
+stsh:SPARQLSelectValidatorRule a sh:NodeShape ;
+    rdfs:label "A validator that is a SELECT executable is an SPARQL SELECT validator"@en ;
+    sh:targetClass sh:SPARQLSelectExecutable ;
+    sh:rule [ a sh:TripleRule ; sh:layer 1 ;
+        sh:condition [ sh:class sh:Validator ] ;
+        sh:subject sh:this ; sh:predicate rdf:type ; sh:object sh:SPARQLSelectValidator ] .
