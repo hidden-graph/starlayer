@@ -54,10 +54,6 @@ pip install -e ".[benchmark]"
 pytest benchmarks-graph/test_bench_graph.py --benchmark-only
 ```
 
-Run on a schedule (not every push/PR - timings are too noisy on shared CI runners to gate every commit on) by [`.github/workflows/benchmark.yml`](../../../.github/workflows/benchmark.yml), which compares a fresh run against the committed `baseline.json` via [`scripts/check_benchmark_regression.py`](../../../scripts/check_benchmark_regression.py) and fails the workflow (GitHub's own failed-scheduled-run notification is the alert) if any benchmark's mean time regresses more than 20%.
+Run on a schedule (not every push/PR - timings are too noisy on shared CI runners to gate every commit on) by [`.github/workflows/benchmark.yml`](../../../.github/workflows/benchmark.yml), which compares a fresh run against the committed `baseline.json` via [`scripts/check_benchmark_regression.py`](../../../scripts/check_benchmark_regression.py) and fails the workflow (GitHub's own failed-scheduled-run notification is the alert) if any benchmark's minimum time, relative to a calibration benchmark timed in the same run, regresses more than 30%. The calibration (`test_calibration_reference`, a fixed pure-Python workload) cancels the differences between the CPUs GitHub assigns, which are about 2x apart.
 
-To update `baseline.json` after an intentional, accepted performance change:
-
-```bash
-pytest benchmarks-graph/test_bench_graph.py --benchmark-only --benchmark-json=benchmarks-graph/baseline.json
-```
+To update `baseline.json` after an intentional, accepted performance change, record it from several runs on the CI runners (not from a laptop, and not from one run): trigger `benchmark.yml` four or more times with `gh workflow run`, download each run's `benchmark-results` artifact, and run `scripts/record_benchmark_baseline.py packages/starlayer/benchmarks-graph/baseline.json <the runs' bench-graph-result.json>`. Details are in that script's docstring.

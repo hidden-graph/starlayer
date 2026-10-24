@@ -15,17 +15,15 @@ failed scheduled runs on the default branch automatically).
 Run:
     python scripts/check_benchmark_regression.py <baseline.json> <current.json>
 
-To update a baseline after an intentional, accepted performance change,
-regenerate it the same way the CI job produces a current run:
-    pytest benchmarks-graph/test_bench_graph.py --benchmark-only \
-        --benchmark-json=benchmarks-graph/baseline.json
-(same pattern for benchmarks-shacl/) and commit the result.
+To update a baseline after an intentional, accepted performance change, record it from several runs on the CI runners (the
+runner CPU varies, so a baseline from one run, or from a laptop, does not compare): see the docstring of
+scripts/record_benchmark_baseline.py.
 """
 
 import json
 import sys
 
-THRESHOLD = 0.20  # fail if a benchmark's minimum time, relative to the calibration, is >20% above baseline
+THRESHOLD = 0.30  # fail if a benchmark, relative to the calibration, is >30% above baseline (CPU families differ by up to ~30% after normalizing)
 
 
 CALIBRATION = "test_calibration_reference"

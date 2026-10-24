@@ -53,3 +53,39 @@ def test_a_file_without_calibration_is_an_error_not_a_pass(tmp_path, monkeypatch
     baseline = _write(tmp_path / "b.json", **(without if missing == "baseline" else with_cal))
     current = _write(tmp_path / "c.json", **(without if missing == "current" else with_cal))
     assert _run(monkeypatch, baseline, current) == 2
+
+
+def _result(cal: float, **mins: float) -> dict:
+    benches = [{"name": "test_calibration_reference", "fullname": CAL, "stats": {"min": cal}}]
+    benches += [{"name": n, "fullname": f"benchmarks-x/test_b.py::{n}", "stats": {"min": m}} for n, m in mins.items()]
+    return {"benchmarks": benches, "machine_info": {"cpu": {"brand_raw": "cpu"}}}
+
+
+def test_the_recorded_baseline_is_the_median_ratio_to_the_calibration() -> None:
+    import record_benchmark_baseline as record
+
+    runs = [_result(0.010, test_a=0.010), _result(0.020, test_a=0.040), _result(0.040, test_a=0.200)]  # ratios 1, 2, 5
+    baseline = record.build_baseline(runs)
+    cal = next(b["stats"]["min"] for b in baseline["benchmarks"] if b["name"] == "test_calibration_reference")
+    a = next(b["stats"]["min"] for b in baseline["benchmarks"] if b["name"] == "test_a")
+    assert cal == 0.020  # the run with the median calibration is the template
+    assert a / cal == pytest.approx(2.0)  # the median of 1, 2 and 5
+    assert baseline["starlayer_baseline"]["runs"] == 3
+
+
+def test_a_baseline_needs_more_than_one_run() -> None:
+    import record_benchmark_baseline as record
+
+    with pytest.raises(ValueError, match="at least two"):
+        record.build_baseline([_result(0.010, test_a=0.010)])
+
+
+def test_a_run_passes_against_a_baseline_recorded_from_runs_on_other_cpus(tmp_path, monkeypatch) -> None:
+    import record_benchmark_baseline as record
+
+    runs = [_result(0.010, test_a=0.010), _result(0.020, test_a=0.021), _result(0.015, test_a=0.016)]
+    baseline = tmp_path / "base.json"
+    baseline.write_text(json.dumps(record.build_baseline(runs)))
+    fresh = tmp_path / "fresh.json"
+    fresh.write_text(json.dumps(_result(0.030, test_a=0.033)))  # a slower CPU again
+    assert _run(monkeypatch, str(baseline), str(fresh)) == 0
