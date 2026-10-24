@@ -10,6 +10,12 @@
 # the inferred_graph of the result is the new triples only. They are rules for a shapes graph as data, never applied to a data
 # graph: loading this graph beside shacl_shacl does not change what validates. Layer 0 decides what is a shape, layer 1 which kind.
 #
+# Layer 2 types the node expressions and the argument lists inside them (GitHub issue #22), so that a tool finds a shape for
+# every node under a sh:values: the value of sh:values, sh:defaultValue or sh:expression is a sh:NodeExpression, and so is every
+# blank-node argument inside one (directly, or as a member of an argument list, at any depth); the cells of those argument lists are
+# typed rdf:List. Arguments that are paths, shapes or classes (sh:path, shnex:pathValues, the filter and conformance shapes) are not
+# expressions and are left alone. shacl12-validation-shapes.ttl gives sh:NodeExpression and rdf:List a shape to apply.
+#
 # What these rules do not do: the types of things that are not shapes (a property group, a constraint component, a prefix
 # declaration) come from the domains and ranges of the SHACL vocabulary (registry entry shacl_vocabulary), not from rules.
 #
@@ -19,6 +25,8 @@
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix sh:   <http://www.w3.org/ns/shacl#> .
 @prefix stsh: <https://github.com/hidden-graph/starlayer/ns/shacl#> .
+@prefix shnex: <http://www.w3.org/ns/shacl-node-expr#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
 
 # Layer 0: a node that has a target, or a constraint parameter, is a shape.
 stsh:ShapeBySubjectRule a sh:NodeShape ;
@@ -80,3 +88,46 @@ stsh:SPARQLSelectValidatorRule a sh:NodeShape ;
     sh:rule [ a sh:TripleRule ; sh:layer 1 ;
         sh:condition [ sh:class sh:Validator ] ;
         sh:subject sh:this ; sh:predicate rdf:type ; sh:object sh:SPARQLSelectValidator ] .
+
+# Layer 2: the value of sh:values, sh:defaultValue or sh:expression is a node expression (the start of the nesting).
+stsh:NodeExpressionRootRule a sh:NodeShape ;
+    rdfs:label "The value of sh:values, sh:defaultValue or sh:expression is a node expression"@en ;
+    sh:targetSubjectsOf sh:values, sh:defaultValue, sh:expression ;
+    sh:rule [ a sh:TripleRule ; sh:layer 2 ;
+        sh:subject [ sh:path [ sh:alternativePath ( sh:values sh:defaultValue sh:expression ) ] ] ;
+        sh:predicate rdf:type ; sh:object sh:NodeExpression ] .
+
+stsh:NodeExpressionPrefixes sh:declare
+    [ sh:prefix "sh" ; sh:namespace "http://www.w3.org/ns/shacl#"^^xsd:anyURI ] ,
+    [ sh:prefix "rdf" ; sh:namespace "http://www.w3.org/1999/02/22-rdf-syntax-ns#"^^xsd:anyURI ] ,
+    [ sh:prefix "shnex" ; sh:namespace "http://www.w3.org/ns/shacl-node-expr#"^^xsd:anyURI ] .
+
+# Layer 2: a blank-node argument of a node expression is a node expression, directly or as a member of an argument list. Applied
+# to the expressions found so far until no new ones appear, so the nesting can be any depth. The predicates in the FILTER hold a
+# path, a shape or a class, not an expression.
+stsh:NodeExpressionArgumentRule a sh:NodeShape ;
+    rdfs:label "A blank-node argument of a node expression is a node expression"@en ;
+    sh:targetClass sh:NodeExpression ;
+    sh:rule [ a sh:SPARQLRule ; sh:layer 2 ; sh:prefixes stsh:NodeExpressionPrefixes ;
+        sh:construct """
+            CONSTRUCT { ?argument a sh:NodeExpression } WHERE {
+                $this ?p ?o .
+                FILTER (?p NOT IN (rdf:type, sh:path, shnex:pathValues, sh:filterShape, shnex:filterShape,
+                                   shnex:conformsToShape, shnex:instancesOf, shnex:nodesMatching, shnex:var))
+                { BIND (?o AS ?argument) FILTER (isBlank(?argument) && NOT EXISTS { ?argument rdf:first ?x }) }
+                UNION
+                { ?o rdf:rest*/rdf:first ?argument . FILTER (isBlank(?argument) && NOT EXISTS { ?argument rdf:first ?y }) }
+            }""" ] .
+
+# Layer 2: the cells of an argument list of a node expression are lists.
+stsh:ExpressionArgumentListRule a sh:NodeShape ;
+    rdfs:label "The cells of an argument list of a node expression are lists"@en ;
+    sh:targetClass sh:NodeExpression ;
+    sh:rule [ a sh:SPARQLRule ; sh:layer 2 ; sh:prefixes stsh:NodeExpressionPrefixes ;
+        sh:construct """
+            CONSTRUCT { ?cell a rdf:List } WHERE {
+                $this ?p ?head .
+                FILTER (?p NOT IN (rdf:type, sh:path, shnex:pathValues, sh:filterShape, shnex:filterShape,
+                                   shnex:conformsToShape, shnex:instancesOf, shnex:nodesMatching, shnex:var))
+                ?head rdf:rest* ?cell . ?cell rdf:first ?member . FILTER (isBlank(?cell))
+            }""" ] .

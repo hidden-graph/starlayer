@@ -390,6 +390,7 @@ stsh:NamedParameterFunctionCallShape
 
 stsh:NodeExpressionShape
 	a sh:NodeShape ;
+	sh:targetClass sh:NodeExpression ;     # typed by starlayer.shacl.shape_types.infer_types (shacl_shacl_rules), GitHub issue #22
 	rdfs:label "Well-formed SHACL node expression"@en ;
 	rdfs:comment "Accepts a constant (IRI/literal), sh:this, a blank node carrying a known sh:/shnex: node-expression defining predicate, a blank node structurally shaped like a SHACL Function call or a custom List Parameter Function call, or a call to a declared custom Named Parameter Expression Function. Deliberately shallow beyond that - see rdfs:comment on stsh:NodeExpressionFunctionCallShape and the section header above for the exact scope boundary."@en ;
 	sh:or (
@@ -429,6 +430,14 @@ stsh:NodeExpressionShape
 		  )
 		]
 	) .
+
+# The cells of an argument list inside a node expression are typed rdf:List by shacl_shacl_rules (GitHub issue #22); this gives them
+# the Working Group's list shape, so that a tool finds a shape for them.
+stsh:ExpressionArgumentListShape
+	a sh:NodeShape ;
+	rdfs:label "A list that is an argument of a node expression is a well-formed RDF list"@en ;
+	sh:targetClass rdf:List ;
+	sh:node shsh:ListShape .
 
 # SHACL 1.2 adjustments for sh:expression as an alternative to sh:path on
 # property shapes.  meta_shapes.py strips the originals from the base graph

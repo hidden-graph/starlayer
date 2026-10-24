@@ -286,6 +286,11 @@ stsh:DefaultValueShape a sh:NodeShape ;
             sh:path sh:defaultValue ] ;
     sh:targetSubjectsOf sh:defaultValue .
 
+stsh:ExpressionArgumentListShape a sh:NodeShape ;
+    rdfs:label "A list that is an argument of a node expression is a well-formed RDF list"@en ;
+    sh:node shsh:ListShape ;
+    sh:targetClass rdf:List .
+
 stsh:GroupShape a sh:NodeShape ;
     rdfs:label "Well-formed sh:group"@en ;
     sh:property [ sh:class sh:PropertyGroup ;
@@ -997,15 +1002,6 @@ sh:zeroOrOnePath rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
     sh:name "zero-or-one path"@en ;
     stsh:requiredEngine stsh:PySHACL .
 
-shsh:ListShape a sh:NodeShape ;
-    rdfs:label "List shape"@en ;
-    rdfs:comment "A shape describing well-formed RDF lists. Currently does not check for non-recursion (this could be expressed using SHACL-SPARQL)."@en ;
-    rdfs:seeAlso <https://www.w3.org/TR/shacl/#syntax-rule-SHACL-list> ;
-    sh:property [ rdfs:comment "Each list member (including this node) must have the shape shsh:ListNodeShape."@en ;
-            sh:hasValue () ;
-            sh:node shsh:ListNodeShape ;
-            sh:path [ sh:zeroOrMorePath rdf:rest ] ] .
-
 shsh:NodeShapeShape a sh:NodeShape ;
     sh:property [ sh:maxCount 0 ;
             sh:path sh:expression ],
@@ -1167,6 +1163,15 @@ sh:subject rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
     sh:description "The node expression producing the subject of the triple a sh:TripleRule derives — most commonly just sh:this, the rule's own focus node."@en ;
     sh:name "subject expression"@en ;
     stsh:requiredEngine stsh:PySHACL .
+
+shsh:ListShape a sh:NodeShape ;
+    rdfs:label "List shape"@en ;
+    rdfs:comment "A shape describing well-formed RDF lists. Currently does not check for non-recursion (this could be expressed using SHACL-SPARQL)."@en ;
+    rdfs:seeAlso <https://www.w3.org/TR/shacl/#syntax-rule-SHACL-list> ;
+    sh:property [ rdfs:comment "Each list member (including this node) must have the shape shsh:ListNodeShape."@en ;
+            sh:hasValue () ;
+            sh:node shsh:ListNodeShape ;
+            sh:path [ sh:zeroOrMorePath rdf:rest ] ] .
 
 stsh:IRIOrPathShape a sh:NodeShape ;
     rdfs:label "IRI or SHACL property path"@en ;
@@ -1474,6 +1479,7 @@ stsh:NodeExpressionShape a sh:NodeShape ;
                                     sh:path shnex:nodesMatching ] ] [ sh:property [ sh:minCount 1 ;
                                     sh:path shnex:conformsToShape ] ] [ sh:property [ sh:minCount 1 ;
                                     sh:path shnex:arg ] ] stsh:NodeExpressionFunctionCallShape stsh:NamedParameterFunctionCallShape ) ] ) ;
+    sh:targetClass sh:NodeExpression ;
     sh:targetObjectsOf sh:values .
 
 sh:in rdfs:comment "List membership is exact-value matching, including datatype — sh:in (1 2 3) (integers) will not match the string \"1\"."@en ;

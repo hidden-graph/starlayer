@@ -1754,10 +1754,57 @@ starontology:shacl12-shacl-rules.ttl {
     # the inferred_graph of the result is the new triples only. They are rules for a shapes graph as data, never applied to a data
     # graph: loading this graph beside shacl_shacl does not change what validates. Layer 0 decides what is a shape, layer 1 which kind.
     #
+    # Layer 2 types the node expressions and the argument lists inside them (GitHub issue #22), so that a tool finds a shape for
+    # every node under a sh:values: the value of sh:values, sh:defaultValue or sh:expression is a sh:NodeExpression, and so is every
+    # blank-node argument inside one (directly, or as a member of an argument list, at any depth); the cells of those argument lists are
+    # typed rdf:List. Arguments that are paths, shapes or classes (sh:path, shnex:pathValues, the filter and conformance shapes) are not
+    # expressions and are left alone. shacl12-validation-shapes.ttl gives sh:NodeExpression and rdf:List a shape to apply.
+    #
     # What these rules do not do: the types of things that are not shapes (a property group, a constraint component, a prefix
     # declaration) come from the domains and ranges of the SHACL vocabulary (registry entry shacl_vocabulary), not from rules.
     #
     # baseURI: https://github.com/hidden-graph/starlayer/ns/shacl#
+
+    stsh:ExpressionArgumentListRule a sh:NodeShape ;
+        rdfs:label "The cells of an argument list of a node expression are lists"@en ;
+        sh:rule [ a sh:SPARQLRule ;
+                sh:construct """
+            CONSTRUCT { ?cell a rdf:List } WHERE {
+                $this ?p ?head .
+                FILTER (?p NOT IN (rdf:type, sh:path, shnex:pathValues, sh:filterShape, shnex:filterShape,
+                                   shnex:conformsToShape, shnex:instancesOf, shnex:nodesMatching, shnex:var))
+                ?head rdf:rest* ?cell . ?cell rdf:first ?member . FILTER (isBlank(?cell))
+            }""" ;
+                sh:layer 2 ;
+                sh:prefixes stsh:NodeExpressionPrefixes ] ;
+        sh:targetClass sh:NodeExpression .
+
+    stsh:NodeExpressionArgumentRule a sh:NodeShape ;
+        rdfs:label "A blank-node argument of a node expression is a node expression"@en ;
+        sh:rule [ a sh:SPARQLRule ;
+                sh:construct """
+            CONSTRUCT { ?argument a sh:NodeExpression } WHERE {
+                $this ?p ?o .
+                FILTER (?p NOT IN (rdf:type, sh:path, shnex:pathValues, sh:filterShape, shnex:filterShape,
+                                   shnex:conformsToShape, shnex:instancesOf, shnex:nodesMatching, shnex:var))
+                { BIND (?o AS ?argument) FILTER (isBlank(?argument) && NOT EXISTS { ?argument rdf:first ?x }) }
+                UNION
+                { ?o rdf:rest*/rdf:first ?argument . FILTER (isBlank(?argument) && NOT EXISTS { ?argument rdf:first ?y }) }
+            }""" ;
+                sh:layer 2 ;
+                sh:prefixes stsh:NodeExpressionPrefixes ] ;
+        sh:targetClass sh:NodeExpression .
+
+    stsh:NodeExpressionRootRule a sh:NodeShape ;
+        rdfs:label "The value of sh:values, sh:defaultValue or sh:expression is a node expression"@en ;
+        sh:rule [ a sh:TripleRule ;
+                sh:layer 2 ;
+                sh:object sh:NodeExpression ;
+                sh:predicate rdf:type ;
+                sh:subject [ sh:path [ sh:alternativePath ( sh:values sh:defaultValue sh:expression ) ] ] ] ;
+        sh:targetSubjectsOf sh:defaultValue,
+            sh:expression,
+            sh:values .
 
     stsh:NodeShapeRule a sh:NodeShape ;
         rdfs:label "A shape without sh:path is a node shape"@en ;
@@ -1878,6 +1925,13 @@ starontology:shacl12-shacl-rules.ttl {
             sh:qualifiedValueShape,
             sh:reifierShape,
             sh:someValue .
+
+    stsh:NodeExpressionPrefixes sh:declare [ sh:namespace "http://www.w3.org/ns/shacl#"^^xsd:anyURI ;
+                sh:prefix "sh" ],
+            [ sh:namespace "http://www.w3.org/1999/02/22-rdf-syntax-ns#"^^xsd:anyURI ;
+                sh:prefix "rdf" ],
+            [ sh:namespace "http://www.w3.org/ns/shacl-node-expr#"^^xsd:anyURI ;
+                sh:prefix "shnex" ] .
 }
 
 starontology:shacl12-shacl-ui-scores.ttl {
@@ -2641,7 +2695,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:NodeShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n7d817a97ab284ec4b0b246f52de5a0c4b19 ;
+        sh:in _:n600312eadffa4ad7ab163d467555d2b6b19 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 3 ;
@@ -2984,7 +3038,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:PropertyShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n7d817a97ab284ec4b0b246f52de5a0c4b19 ;
+        sh:in _:n600312eadffa4ad7ab163d467555d2b6b19 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 3 ;
@@ -3578,11 +3632,11 @@ starontology:shacl12-shacl-ui.ttl {
         sh:name "SHACL 1.2 UI Widgets"@en ;
         sh:order 16 .
 
-    _:n7d817a97ab284ec4b0b246f52de5a0c4b20 rdf:first sh:IRI ;
+    _:n600312eadffa4ad7ab163d467555d2b6b20 rdf:first sh:IRI ;
         rdf:rest ( sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) .
 
-    _:n7d817a97ab284ec4b0b246f52de5a0c4b19 rdf:first sh:BlankNode ;
-        rdf:rest _:n7d817a97ab284ec4b0b246f52de5a0c4b20 .
+    _:n600312eadffa4ad7ab163d467555d2b6b19 rdf:first sh:BlankNode ;
+        rdf:rest _:n600312eadffa4ad7ab163d467555d2b6b20 .
 }
 
 starontology:shacl12-shacl.ttl {
@@ -3847,6 +3901,11 @@ starontology:shacl12-shacl.ttl {
                 sh:order 5 ;
                 sh:path sh:defaultValue ] ;
         sh:targetSubjectsOf sh:defaultValue .
+
+    stsh:ExpressionArgumentListShape a sh:NodeShape ;
+        rdfs:label "A list that is an argument of a node expression is a well-formed RDF list"@en ;
+        sh:node shsh:ListShape ;
+        sh:targetClass rdf:List .
 
     stsh:GroupShape a sh:NodeShape ;
         rdfs:label "Well-formed sh:group"@en ;
@@ -4559,15 +4618,6 @@ starontology:shacl12-shacl.ttl {
         sh:name "zero-or-one path"@en ;
         stsh:requiredEngine stsh:PySHACL .
 
-    shsh:ListShape a sh:NodeShape ;
-        rdfs:label "List shape"@en ;
-        rdfs:comment "A shape describing well-formed RDF lists. Currently does not check for non-recursion (this could be expressed using SHACL-SPARQL)."@en ;
-        rdfs:seeAlso <https://www.w3.org/TR/shacl/#syntax-rule-SHACL-list> ;
-        sh:property [ rdfs:comment "Each list member (including this node) must have the shape shsh:ListNodeShape."@en ;
-                sh:hasValue () ;
-                sh:node shsh:ListNodeShape ;
-                sh:path [ sh:zeroOrMorePath rdf:rest ] ] .
-
     shsh:NodeShapeShape a sh:NodeShape ;
         sh:property [ sh:maxCount 0 ;
                 sh:path sh:expression ],
@@ -4729,6 +4779,15 @@ starontology:shacl12-shacl.ttl {
         sh:description "The node expression producing the subject of the triple a sh:TripleRule derives — most commonly just sh:this, the rule's own focus node."@en ;
         sh:name "subject expression"@en ;
         stsh:requiredEngine stsh:PySHACL .
+
+    shsh:ListShape a sh:NodeShape ;
+        rdfs:label "List shape"@en ;
+        rdfs:comment "A shape describing well-formed RDF lists. Currently does not check for non-recursion (this could be expressed using SHACL-SPARQL)."@en ;
+        rdfs:seeAlso <https://www.w3.org/TR/shacl/#syntax-rule-SHACL-list> ;
+        sh:property [ rdfs:comment "Each list member (including this node) must have the shape shsh:ListNodeShape."@en ;
+                sh:hasValue () ;
+                sh:node shsh:ListNodeShape ;
+                sh:path [ sh:zeroOrMorePath rdf:rest ] ] .
 
     stsh:IRIOrPathShape a sh:NodeShape ;
         rdfs:label "IRI or SHACL property path"@en ;
@@ -5036,6 +5095,7 @@ starontology:shacl12-shacl.ttl {
                                         sh:path shnex:nodesMatching ] ] [ sh:property [ sh:minCount 1 ;
                                         sh:path shnex:conformsToShape ] ] [ sh:property [ sh:minCount 1 ;
                                         sh:path shnex:arg ] ] stsh:NodeExpressionFunctionCallShape stsh:NamedParameterFunctionCallShape ) ] ) ;
+        sh:targetClass sh:NodeExpression ;
         sh:targetObjectsOf sh:values .
 
     sh:in rdfs:comment "List membership is exact-value matching, including datatype — sh:in (1 2 3) (integers) will not match the string \"1\"."@en ;
