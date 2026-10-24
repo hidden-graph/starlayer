@@ -31,10 +31,12 @@ jobs:
         run: pytest benchmarks-shacl/test_bench_shacl.py --benchmark-only --benchmark-json=bench-shacl-result.json
 
       - name: Check for regressions - graph
+        if: always()
         working-directory: packages/starlayer
         run: python ../../scripts/check_benchmark_regression.py benchmarks-graph/baseline.json bench-graph-result.json
 
       - name: Check for regressions - shacl
+        if: always()
         working-directory: packages/starlayer
         run: python ../../scripts/check_benchmark_regression.py benchmarks-shacl/baseline.json bench-shacl-result.json
 
