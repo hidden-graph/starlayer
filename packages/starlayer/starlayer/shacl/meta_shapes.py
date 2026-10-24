@@ -32,6 +32,8 @@ from typing import Any
 from rdflib import RDF, Graph, Literal, Namespace, URIRef
 from rdflib.namespace import OWL
 
+from starlayer.shacl.recursion import MAX_VALIDATION_DEPTH
+
 SH = Namespace("http://www.w3.org/ns/shacl#")
 
 # meta_validate()'s own result cache, keyed by content (not object
@@ -168,7 +170,7 @@ def meta_validate(shapes_graph: Any, *, extra_graphs: Iterable[Any] = (), **kwar
     # zeroOrMore) needs depth ~20; 30 leaves headroom for future
     # meta-shape nesting without raising it near pySHACL's own internal
     # precedent of 999 (rule_expand_runner.py).
-    kwargs.setdefault("max_validation_depth", 30)
+    kwargs.setdefault("max_validation_depth", MAX_VALIDATION_DEPTH)
 
     # A warning-severity meta-shape (for example a shape with more than one rdfs:isDefinedBy, GitHub issue #18) is advice,
     # not a failure: it appears in the report but does not make the shapes graph invalid.

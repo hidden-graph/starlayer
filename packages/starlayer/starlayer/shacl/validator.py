@@ -41,6 +41,8 @@ from starlayer.shacl.results import (
 from starlayer.shacl.types import ensure_graph_mutable
 from starlayer.shacl.validation_modes import ValidationMode, resolve_mode_options
 
+from starlayer.shacl.recursion import MAX_VALIDATION_DEPTH, reset_revisits, revisits  # noqa: E402
+
 SH = Namespace("http://www.w3.org/ns/shacl#")
 SHNEX = Namespace("http://www.w3.org/ns/shacl-node-expr#")
 SPARQL_EXPR_NS = Namespace("http://www.w3.org/ns/sparql#")
@@ -849,6 +851,8 @@ class StarShaclSchema:
                     "see starlayer.shacl/validator.py::_patch_shape_focus_nodes_for_deactivated_expression."
                 )
             deactivated_token = _deactivated_expr_registry.set(deactivated_expr_registry)
+        options.setdefault("max_validation_depth", MAX_VALIDATION_DEPTH)  # cycles are caught exactly now (issue #26)
+        reset_revisits()
         try:
             conforms, report_graph, report_text = self.validate_fn(
                 data_graph=encoded_data,
@@ -924,6 +928,7 @@ class StarShaclSchema:
             encoded_data_triples=len(encoded_data),
             report_triples=len(report_graph),
             inplace_data_triples=len(out_data) if out_data is not None else 0,
+            recursion_revisits=revisits(),
         )
 
         return ValidationResult(
@@ -3523,6 +3528,8 @@ def validate(
                 "see starlayer.shacl/validator.py::_patch_shape_focus_nodes_for_deactivated_expression."
             )
         deactivated_token = _deactivated_expr_registry.set(deactivated_expr_registry)
+    options.setdefault("max_validation_depth", MAX_VALIDATION_DEPTH)  # cycles are caught exactly now (issue #26)
+    reset_revisits()
     try:
         conforms, report_graph, report_text = validate_fn(
             data_graph=encoded_data,
@@ -3587,6 +3594,7 @@ def validate(
         encoded_data_triples=len(encoded_data),
         report_triples=len(report_graph),
         inplace_data_triples=len(out_data) if out_data is not None else 0,
+        recursion_revisits=revisits(),
     )
 
     return ValidationResult(
