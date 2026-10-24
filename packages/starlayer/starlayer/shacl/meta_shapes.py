@@ -170,6 +170,10 @@ def meta_validate(shapes_graph: Any, *, extra_graphs: Iterable[Any] = (), **kwar
     # precedent of 999 (rule_expand_runner.py).
     kwargs.setdefault("max_validation_depth", 30)
 
+    # A warning-severity meta-shape (for example a shape with more than one rdfs:isDefinedBy, GitHub issue #18) is advice,
+    # not a failure: it appears in the report but does not make the shapes graph invalid.
+    kwargs.setdefault("allow_warnings", True)
+
     # Meta-shacl checks shapes_graph's own structural well-formedness
     # against the bundled meta-shapes - it never touches a data_graph, and
     # has no legitimate reason to need live remote-store behavior at all.
