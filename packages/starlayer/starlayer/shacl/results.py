@@ -21,6 +21,9 @@ class ExecutionDiagnostics:
     encoded_data_triples: int = 0
     report_triples: int = 0
     inplace_data_triples: int = 0
+    recursion_revisits: int = 0
+    """How many (shape, node) pairs were already being evaluated further up and were assumed to conform: the number of times a
+    recursive shape met a cycle in the data (see ``starlayer.shacl.recursion``). 0 for data with no cycle."""
 
 
 @dataclass(frozen=True)

@@ -2197,26 +2197,28 @@ def test_unique_values_for_via_property_node_conforms_with_zero_value_nodes() ->
     assert result.conforms is True
 
 
-def test_unique_values_for_via_node_self_reference_warns_instead_of_hanging() -> None:
+def test_unique_values_for_via_node_self_reference_terminates_and_still_finds_the_violation() -> None:
     """A shape that both declares sh:uniqueValuesFor (triggering the
     full-batch path) and references itself via sh:node - genuine shape
     recursion reached through the *new* full-batch mechanism, not the
-    logical operators. Must still raise ShapeRecursionWarning and stop
-    (matching pySHACL's own recursion handling), not hang or crash - and
-    the cross-node check itself must still be evaluated correctly despite
-    the self-reference short-circuiting.
+    logical operators. It refers back to the very same nodes, so it is a
+    cycle: it must stop (no hang, no RecursionError) and the cross-node check
+    itself must still be evaluated correctly. Since GitHub issue #26 the cut
+    is the exact one in ``starlayer.shacl.recursion`` (the same shape on the
+    same batch of nodes again is assumed to conform), so no
+    ShapeRecursionWarning is raised, and the revisit is counted.
     """
-    with pytest.warns(Warning, match="[Rr]ecursi"):
-        result = _validate(
-            _DUPLICATE_ID_DATA,
-            """
-            @prefix ex: <http://example.org/> .
-            @prefix sh: <http://www.w3.org/ns/shacl#> .
-            ex:Inner a sh:NodeShape ; sh:uniqueValuesFor ex:id ; sh:node ex:Inner .
-            ex:S a sh:NodeShape ; sh:targetClass ex:Record ; sh:node ex:Inner .
-            """,
-        )
+    result = _validate(
+        _DUPLICATE_ID_DATA,
+        """
+        @prefix ex: <http://example.org/> .
+        @prefix sh: <http://www.w3.org/ns/shacl#> .
+        ex:Inner a sh:NodeShape ; sh:uniqueValuesFor ex:id ; sh:node ex:Inner .
+        ex:S a sh:NodeShape ; sh:targetClass ex:Record ; sh:node ex:Inner .
+        """,
+    )
     assert result.conforms is False
+    assert result.diagnostics.recursion_revisits > 0
 
 
 def test_two_independent_cross_node_shapes_in_and_list_do_not_cross_contaminate() -> None:

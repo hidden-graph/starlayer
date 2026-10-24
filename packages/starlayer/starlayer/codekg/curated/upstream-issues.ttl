@@ -201,6 +201,14 @@ ui:pyshacl-6 a slkg:UpstreamIssue ;
     slkg:issueStatus "worked-around" ;
     slkg:workedAroundByIdentifier "starlayer.shacl.native_components._build_sparql_constraint_component" .
 
+ui:pyshacl-7 a slkg:UpstreamIssue ;
+    rdfs:label "A self-referencing shape is cut after two levels on acyclic data, so a violation 3+ steps down a chain is reported as conforming" ;
+    slkg:upstreamProject "pyshacl" ;
+    slkg:issueDocPath "docs/upstream-issues/pyshacl-upstream-issues.md" ;
+    slkg:issueNumber 7 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.shacl.native_components.register_native_components" .
+
 ui:fuseki-1 a slkg:UpstreamIssue ;
     rdfs:label "ARQ rejects an invalid triple-term predicate, but not an invalid triple-term subject" ;
     slkg:upstreamProject "fuseki" ;
