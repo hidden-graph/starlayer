@@ -154,6 +154,9 @@ def next_token(s):
     # core/path/path-complex-002.ttl, which has exactly this (no-space) form.
     i = 0
     while i < len(s) and not s[i].isspace() and s[i] not in _BARE_TOKEN_STOP_CHARS:
+        if s[i] == '\\' and i + 1 < len(s):
+            i += 2  # PN_LOCAL_ESC: a backslash makes the next character part of the name, whatever it is (GitHub issue #59)
+            continue
         i += 1
     if i == 0:
         # s[0] is itself one of _BARE_TOKEN_STOP_CHARS that has no dedicated

@@ -110,9 +110,13 @@ def _node_to_ttl(node, ns_mgr, compact=True):
             # the end of the content needs the same treatment for the same
             # reason: left bare, it would merge with the real closing
             # delimiter appended right after it into an unintended 3+ run.
+            # One pass over each maximal run of quotes (never a second pass over what the first already escaped, which
+            # turned a trailing \\"\\"\\" into an escaped backslash and a bare quote; GitHub issue #58): a run is escaped
+            # when it is 3 or more long, or when it ends the content (a bare quote there would merge with the closing delimiter).
             escaped = raw.replace('\\', '\\\\')
-            escaped = re.sub(r'"{3,}', lambda m: '\\"' * len(m.group()), escaped)
-            escaped = re.sub(r'"{1,2}$', lambda m: '\\"' * len(m.group()), escaped)
+            escaped = re.sub(
+                r'"+', lambda m: '\\"' * len(m.group()) if len(m.group()) >= 3 or m.end() == len(escaped) else m.group(), escaped
+            )
             quote = '"""'
         else:
             # longturtle12 (compact=False) deliberately never takes the
@@ -266,6 +270,74 @@ def _compute_list_heads(by_subj, obj_bn_count):
             list_cells.update(chain_cells)
 
     return set(list_items.keys()), list_items, list_cells
+
+
+def _demote_unreachable_inline(by_subj, inline_bns, list_heads, list_items, list_cells) -> None:
+    """Make sure every blank node written inline (``[ ... ]`` or ``( ... )``) is inside something that is written.
+
+    A blank node referenced as an object exactly once is written inside its parent, and its own subject block is skipped.
+    That is only safe if the parent is written. When the one reference comes from the node itself (a self-loop), from a cycle
+    of such nodes, or from a node only they point at, nothing at the top level reaches them and their triples were silently
+    lost (GitHub issue #55). Find what the named (top-level) subjects reach through inline nodes and lists, and for anything
+    left over, give one node of it (in label order, so the output is stable) its own labelled subject block; repeat until
+    everything is reached. The demoted node is then written ``_:label`` where it is referenced.
+
+    Mutates ``inline_bns``, ``list_heads``, ``list_items`` and ``list_cells`` in place.
+    """
+
+    def chain_from(head) -> list:
+        """The cells of the list that starts at ``head``, head first."""
+        cells, node = [], head
+        while isinstance(node, BNode) and node in list_cells and node not in cells:
+            cells.append(node)
+            node = by_subj.get(node, {}).get(_RDF_REST, [None])[0]
+        return cells
+
+    # every well-formed cell counts as a "head" of its own tail ( 2 ) in list_heads, but only a cell no other list contains is
+    # written as a list of its own; an interior cell is written as part of the list it is in
+    interior = {cell for head in list_heads for cell in chain_from(head)[1:]}
+
+    def reached_from_top_level() -> set:
+        reached: set = set()
+        stack = [s for s in by_subj if not (s in inline_bns or s in list_heads or s in list_cells)]
+        seen_subjects: set = set()
+        while stack:
+            subject = stack.pop()
+            if subject in seen_subjects:
+                continue
+            seen_subjects.add(subject)
+            for objs in by_subj.get(subject, {}).values():
+                for o in objs:
+                    if not isinstance(o, BNode):
+                        continue
+                    if o in list_heads:
+                        if o not in reached:
+                            reached.add(o)
+                            for item in list_items[o]:
+                                if isinstance(item, BNode):
+                                    stack.append(item)  # an item is itself a node that may be inline
+                                    if item in inline_bns or item in list_heads:
+                                        reached.add(item)
+                    elif o in inline_bns:
+                        if o not in reached:
+                            reached.add(o)
+                            stack.append(o)
+        return reached
+
+    while True:
+        reached = reached_from_top_level()
+        unreached = (inline_bns | (list_heads - interior)) - reached
+        if not unreached:
+            return
+        victim = min(unreached, key=str)
+        if victim in inline_bns:
+            inline_bns.discard(victim)
+        else:  # a list head: stop folding this list; its cells become ordinary subjects with rdf:first / rdf:rest
+            for cell in chain_from(victim):
+                list_cells.discard(cell)
+                list_heads.discard(cell)
+                list_items.pop(cell, None)
+                interior.discard(cell)
 
 
 def _graph_has_dirlangstring(sg) -> bool:
@@ -516,6 +588,7 @@ def serialize_turtle12(graph) -> str:
         bn for bn, cnt in obj_bn_count.items()
         if cnt == 1 and bn in by_subj and bn not in list_heads and bn not in list_cells
     }
+    _demote_unreachable_inline(by_subj, inline_bns, list_heads, list_items, list_cells)
 
     def _fmt_list(head, cur_indent, visiting=frozenset()):
         """Format a foldable RDF list head as Turtle '( a b c )' syntax."""

@@ -115,6 +115,10 @@ def _split_on_delimiter(text, delim):
             buf += ch
             i += 1
             continue
+        if ch == '\\' and i + 1 < n:
+            buf += text[i:i + 2]  # PN_LOCAL_ESC in a prefixed name: the next character is part of the name (GitHub issue #59)
+            i += 2
+            continue
         if ch in ('"', "'"):
             if text[i:i + 3] == ch * 3:
                 in_str, str_char, triple = True, ch, True
@@ -335,6 +339,10 @@ def _split_statements_impl(data):
             while i < len(data) and data[i] not in ('\n', '\r'):
                 i += 1
             continue
+        if c == '\\' and i + 1 < len(data) and depth['<'] == 0:
+            buf += data[i:i+2]  # PN_LOCAL_ESC in a prefixed name: the next character is part of the name, not syntax
+            i += 2
+            continue
         if c in ('"', "'"):
             if data[i:i+3] == c * 3:
                 in_string = True
@@ -388,6 +396,13 @@ def _split_statements_impl(data):
             # fixed together with this same bug).
             next_char = data[i+1] if i + 1 < len(data) else ''
             continues_token = next_char != '' and (next_char.isalnum() or next_char in '_-:%.')
+            # ...except that a '.' which STARTS a token cannot be part of a name: PN_LOCAL may not begin with '.', and the
+            # only token that can begin with '.' is a number (".5", always followed by a digit). So a '.' after whitespace
+            # or after something that has just ended (a string, an IRI, a bracket) is the statement's end even when a
+            # name follows it directly ("'x' .ex:b ex:p 'y' ." is two statements). GitHub issue #64.
+            prev_char = data[i-1] if i > 0 else ''
+            if continues_token and not next_char.isdigit() and (prev_char == '' or prev_char.isspace() or prev_char in '"\'>])'):
+                continues_token = False
             if not continues_token:
                 buf += c
                 stmts.append((buf.strip(), stmt_start))
@@ -610,12 +625,40 @@ def expand_triple_set(triple_set, blank_counter):
     """
     result = []
     needs_reexpand = False
+    subject_lists = {}
 
     for triple in triple_set:
         subj = triple['subject']
         pred = triple['predicate']
         obj = triple['object']
         obj_s = obj.strip() if isinstance(obj, str) else obj
+
+        # A collection as the SUBJECT ("( 1 2 ) :q 3 .") is valid Turtle; it names the list's first cell. Expand it to
+        # that blank node plus the list's own triples, which are expanded again below (GitHub issue #61: it used to
+        # become a made-up IRI of the collection's text).
+        if isinstance(subj, str) and subj.strip().startswith('(') and subj.strip().endswith(')'):
+            elements = _parse_collection_elements(subj.strip()[1:-1].strip())
+            if subj in subject_lists:
+                triple = {**triple, 'subject': subject_lists[subj]}  # same statement, same list ("( :x ) :q 1 ; :r 2 .")
+            elif not elements:
+                triple = {**triple, 'subject': 'rdf:nil'}
+            else:
+                cell = f'_:sl_{blank_counter[0]}'
+                blank_counter[0] += 1
+                triple = {**triple, 'subject': cell}
+                subject_lists[subj] = cell
+                current = cell
+                for idx, el in enumerate(elements):
+                    result.append({'subject': current, 'predicate': 'rdf:first', 'object': coerce_object(el.strip())})
+                    if idx < len(elements) - 1:
+                        next_cell = f'_:sl_{blank_counter[0]}'
+                        blank_counter[0] += 1
+                        result.append({'subject': current, 'predicate': 'rdf:rest', 'object': next_cell})
+                        current = next_cell
+                    else:
+                        result.append({'subject': current, 'predicate': 'rdf:rest', 'object': 'rdf:nil'})
+                needs_reexpand = True
+            subj = triple['subject']
 
         if isinstance(obj_s, str) and obj_s.startswith('[') and obj_s.endswith(']'):
             bnode = f'_:sl_{blank_counter[0]}'
@@ -683,7 +726,12 @@ def _parse_collection_elements(inside):
     depth = 0
     in_str = False
     str_char = ''
-    for c in inside:
+    skip = 0
+    for pos, c in enumerate(inside):
+        if skip:
+            skip -= 1
+            buf += c
+            continue
         if in_str:
             buf += c
             if c == str_char:
@@ -691,6 +739,17 @@ def _parse_collection_elements(inside):
             continue
         if c in ('"', "'"):
             in_str, str_char = True, c
+            buf += c
+            continue
+        # a reified triple "<<:s :p :o>>" is ONE element though it contains spaces; its << and >> count as brackets
+        if inside[pos:pos + 2] == '<<':
+            depth += 1
+            skip = 1
+            buf += c
+            continue
+        if inside[pos:pos + 2] == '>>':
+            depth -= 1
+            skip = 1
             buf += c
             continue
         if c in '[(':
