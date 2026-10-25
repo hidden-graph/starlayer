@@ -203,31 +203,32 @@ def _walk_path(data_graph: Any, focus: Any, path_val: Any, sg: Any) -> tuple[fro
         pred_key = SH.zeroOrMorePath if zero_allowed else SH.oneOrMorePath
         inner = next(iter(sg.graph.objects(path_val, pred_key)))
         reachable: set[Any] = {focus} if zero_allowed else set()
+        triples: set[_Triple] = set()
         frontier = {focus}
         seen = {focus}
         while frontier:
             next_frontier: set[Any] = set()
             for node in frontier:
-                for v in data_graph.objects(node, inner):
+                # One step of the repeated path from `node`. `inner` is any path, not only a predicate: a step over an inverse,
+                # alternative or sequence path is walked by this same function (GitHub issue #62: a repeated inverse path
+                # followed nothing at all).
+                values, step_triples = _walk_path(data_graph, node, inner, sg)
+                triples |= step_triples
+                for v in values:
                     reachable.add(v)
                     if v not in seen:
                         seen.add(v)
                         next_frontier.add(v)
             frontier = next_frontier
-        # Every real edge of `inner` between two nodes already known
-        # reachable (focus included) - not just a spanning tree - so the
-        # result is deterministic regardless of traversal order (decision 4's
-        # same "don't pick an arbitrary witness" spirit) and stays within
-        # the predicate the path itself already sanctions.
-        triples = {
-            (u, inner, v) for u in reachable for v in data_graph.objects(u, inner) if v in reachable
-        }
+        # Every edge of every step taken, from the focus node too: for sh:oneOrMorePath the focus is not one of the nodes the
+        # path reaches (unless a cycle returns to it), and the edges leaving it are the first ones the path walks (also #62).
+        # The result does not depend on traversal order: all edges out of every node reached are included, not a spanning tree.
         return frozenset(reachable), triples
 
     if SH.zeroOrOnePath in predicates:
         inner = next(iter(sg.graph.objects(path_val, SH.zeroOrOnePath)))
-        values = set(data_graph.objects(focus, inner))
-        return frozenset(values | {focus}), {(focus, inner, v) for v in values}
+        values, step_triples = _walk_path(data_graph, focus, inner, sg)
+        return frozenset(values | {focus}), step_triples
 
     if RDF.first in predicates:
         # A sequence path: an RDF list of paths, applied in order.

@@ -3184,7 +3184,10 @@ class StarLayerGraph(Graph):
         from starlayer.graph.backends.native import new_graph_like
         from starlayer.graph.graph.prefixes import prefixes_to_keep
 
-        result = new_graph_like(self.store, self._backend, bind_namespaces='none')
+        # A named graph keeps its name: it is the graph's identity (and what validation reports as the data graph); a blank-node
+        # identifier means nothing, so the copy gets its own (issue #63)
+        identity = {'identifier': self.identifier} if isinstance(self.identifier, URIRef) else {}
+        result = new_graph_like(self.store, self._backend, bind_namespaces='none', **identity)
         for prefix, namespace in prefixes_to_keep(self, keep):
             result.bind(prefix, namespace)
         triples = list(self)

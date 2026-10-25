@@ -78,6 +78,10 @@ Two hand-edited files in `starontology/`, registered like the others (GitHub iss
 
 Dated entries below record why things are the way they are. Read one when you work on that topic; the block above is what you need first.
 
+## Path repetition steps with the path walker; fragments keep the focus node's edges (2026-10-25, GitHub issue #62)
+
+`_walk_path` (`subgraph_extraction.py`, also behind the public `starlayer.shacl.paths.path_values`) had two bugs in `sh:zeroOrMorePath` / `sh:oneOrMorePath` / `sh:zeroOrOnePath`. (1) The edges returned for the fragment were only those between nodes the path REACHES; for `sh:oneOrMorePath` the focus node is not one of them (unless a cycle returns), so every edge leaving the focus was dropped and the fragment of `:n0 :p :n1` was empty and no longer conformed (the Conformance Theorem). (2) The repeated path was treated as a plain predicate, so a repetition over an inverse, alternative or sequence path (`( :p :q )+`, `(^:p)*`) followed nothing. Each repetition now takes one step with `_walk_path` itself, from every node reached, and keeps every edge it walked. `tests/shacl/integration/test_extract_subgraph_paths.py` has the Conformance Theorem over generated paths and `path_values()` against rdflib's SPARQL property paths. An inverse of a non-predicate is not generated (SHACL's inverse path takes an IRI; the walker assumes it).
+
 ## Small differences from pySHACL found by the hunt (2026-10-25, GitHub issues #50, #51, #52)
 
 Oracle for all three: plain pySHACL in a separate process (`tests/shacl/integration/test_pyshacl_parity_small_differences.py`); there is no deliberate difference among them.
