@@ -39,6 +39,7 @@ from starlayer.shacl.results import (
     RulesResult,
     ValidationResult,
 )
+from starlayer.shacl.triple_rule import install_triple_rule_patch
 from starlayer.shacl.types import ensure_graph_mutable
 from starlayer.shacl.validation_modes import ValidationMode, resolve_mode_options
 
@@ -62,6 +63,10 @@ _STRUCTURAL_COMPONENTS: dict[str, Any] = {
     "disjoint": SH.DisjointConstraintComponent,
 }
 
+
+# Must run before apply_rules() wraps TripleRule.apply for rule_set filtering and sh:sourceRule provenance: installing it later
+# (from register_native_components) replaced the wrapped function and silently turned both features off (GitHub issue #104).
+install_triple_rule_patch()
 
 class _RawGraphView:
     """Minimal ``sg``-shaped wrapper exposing just ``.graph``, so
