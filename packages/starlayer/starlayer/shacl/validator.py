@@ -7,7 +7,7 @@ from typing import Any
 
 from rdflib import BNode, Graph, Literal, Namespace, URIRef
 from rdflib.collection import Collection
-from rdflib.namespace import RDF, RDFS, NamespaceManager
+from rdflib.namespace import OWL, RDF, RDFS, NamespaceManager
 
 from starlayer.shacl.adapters import TripleTermAdapter, TripleTermGraph
 from starlayer.shacl.engine import (
@@ -1268,13 +1268,16 @@ class StarShaclSchema:
         if not candidates:
             return []
 
-        augmented = type(shacl_graph)()
-        for s, p, o in shacl_graph:
-            if s == shape_node and p == SH.targetWhere and o == where_shape:
-                continue
-            augmented.add((s, p, o))
-        for candidate in candidates:
-            augmented.add((where_shape, SH.targetNode, candidate))
+        closure = _where_shape_validation_graph(shacl_graph, where_shape)
+        if _has_property_shape_inside_property_shape(closure):
+            return [
+                c
+                for c in sorted(candidates, key=str)
+                if StarShaclSchema(shacl_graph=_with_where_targets(closure, where_shape, [c]))
+                .validate(data_graph=data_graph, meta_shacl=False)
+                .conforms
+            ]
+        augmented = _with_where_targets(closure, where_shape, candidates)
 
         fresh_validator = StarShaclSchema(shacl_graph=augmented)
         result = fresh_validator.validate(data_graph=data_graph, meta_shacl=False)
@@ -2410,6 +2413,66 @@ def _ensure_native_component_shapes_typed(shacl_graph: Any) -> Any:
     return augmented
 
 
+# What a shape refers to: following these (and any blank node) from the where-shape reaches everything its evaluation needs.
+_SHAPE_REFERENCING_PREDICATES = (SH.property, SH.node, SH["not"], SH.qualifiedValueShape, SH.someValue, SH.memberShape, SH.reifierShape, SH.prefixes)
+_SHAPE_LIST_PREDICATES = (SH["and"], SH["or"], SH.xone)
+_TARGET_PREDICATES = (SH.targetClass, SH.targetNode, SH.targetObjectsOf, SH.targetSubjectsOf, SH.targetWhere, SH.target)
+
+
+def _where_shape_validation_graph(shacl_graph: Any, where_shape: Any) -> Any:
+    """The shapes graph for ``sh:targetWhere``'s nested validation: ``where_shape`` and the shapes it refers to, and nothing else.
+
+    A node is a target of ``sh:targetWhere W`` when it conforms to ``W``, so the nested validation must report only ``W``'s own
+    verdict on each candidate. It used to run the WHOLE shapes graph, so any unrelated shape that failed on a candidate made
+    that candidate look non-conforming to ``W``, and it silently stopped being a target (GitHub issue #53). Two things keep
+    the verdict about ``W`` alone: only ``W`` and what it reaches (through ``sh:property``, ``sh:node``, ``sh:not``,
+    ``sh:and``/``sh:or``/``sh:xone`` lists, the qualified/some/member/reifier shapes, ``sh:prefixes`` and every blank node) is
+    copied, and the targets of every copied shape are removed (a shape ``W`` refers to failing on a node it targets itself
+    is not a failure of ``W``). A ``sh:entailment`` declaration is kept. Add the candidates with ``_with_where_targets``.
+    """
+    reached: set = set()
+    stack = [where_shape]
+    closure = type(shacl_graph)()
+    while stack:
+        node = stack.pop()
+        if node in reached:
+            continue
+        reached.add(node)
+        for predicate, obj in shacl_graph.predicate_objects(node):
+            closure.add((node, predicate, obj))
+            if predicate in _SHAPE_LIST_PREDICATES:
+                stack.extend(member for member in shacl_graph.items(obj) if isinstance(member, (URIRef, BNode)))
+                stack.append(obj)  # the list cells themselves (blank nodes)
+            elif isinstance(obj, BNode) or predicate in _SHAPE_REFERENCING_PREDICATES:
+                stack.append(obj)
+    for s, p, o in list(closure):
+        if p in _TARGET_PREDICATES or (p == RDF.type and o in (RDFS.Class, OWL.Class)):  # explicit targets, and implicit class targets
+            closure.remove((s, p, o))
+    for s, p, o in shacl_graph.triples((None, SH.entailment, None)):
+        closure.add((s, p, o))
+    return closure
+
+
+def _with_where_targets(closure: Any, where_shape: Any, candidates: Any) -> Any:
+    """A copy of ``closure`` (see ``_where_shape_validation_graph``) with each candidate a target of ``where_shape``."""
+    targeted = type(closure)()
+    for triple in closure:
+        targeted.add(triple)
+    for candidate in candidates:
+        targeted.add((where_shape, SH.targetNode, candidate))
+    return targeted
+
+
+def _has_property_shape_inside_property_shape(closure: Any) -> bool:
+    """Whether some property shape of the where-shape closure has its own ``sh:property``.
+
+    The nested property shape is evaluated with the VALUE nodes of the outer one as focus nodes, so its failures are reported on
+    those value nodes and not on the candidate that has them. One batched report then cannot say which candidate failed (it
+    would blame the value node and clear the candidate), so such a where-shape is decided one candidate at a time.
+    """
+    return any((s, SH.path, None) in closure for s, _, _ in closure.triples((None, SH.property, None)))
+
+
 def _nodes_conforming_to(
     data_graph: Any,
     shacl_graph: Any,
@@ -2447,13 +2510,14 @@ def _nodes_conforming_to(
     if not candidates:
         return []
 
-    augmented = type(shacl_graph)()
-    for s, p, o in shacl_graph:
-        if s == shape_node and p == SH.targetWhere and o == where_shape:
-            continue
-        augmented.add((s, p, o))
-    for candidate in candidates:
-        augmented.add((where_shape, SH.targetNode, candidate))
+    closure = _where_shape_validation_graph(shacl_graph, where_shape)
+    if _has_property_shape_inside_property_shape(closure):
+        return [
+            c
+            for c in sorted(candidates, key=str)
+            if validate(data_graph, _with_where_targets(closure, where_shape, [c]), meta_shacl=False).conforms
+        ]
+    augmented = _with_where_targets(closure, where_shape, candidates)
 
     result = validate(data_graph, augmented, meta_shacl=False)
 
