@@ -31,6 +31,7 @@ Entry point:  serialize_rdfxml12(graph) -> str
 
 from __future__ import annotations
 
+import re
 import xml.etree.ElementTree as ET
 from collections import defaultdict
 
@@ -57,12 +58,12 @@ def _split_iri(iri: str) -> tuple[str, str]:
     Tries '#' first, then '/'.  Raises ValueError if the local name cannot
     form a valid XML name start character.
     """
-    for sep in ('#', '/'):
-        if sep in iri:
-            idx = iri.rfind(sep)
-            ns, local = iri[:idx + 1], iri[idx + 1:]
-            if local and (local[0].isalpha() or local[0] == '_'):
-                return ns, local
+    idx = max(iri.rfind('#'), iri.rfind('/'))
+    if idx >= 0:
+        ns, local = iri[:idx + 1], iri[idx + 1:]
+        # the local part must be an XML NCName; an IRI ending in '#' or '/' has none
+        if re.fullmatch(r'[^\W\d][\w.\-]*', local):
+            return ns, local
     raise ValueError(f'Cannot express as a QName: {iri!r}')
 
 
@@ -82,7 +83,10 @@ def _register_ns(sg) -> None:
     ET.register_namespace('xml', _XML_NS)
     for prefix, ns_uri in sg.namespaces():
         if prefix and str(ns_uri) not in (_RDF_NS, _XML_NS):
-            ET.register_namespace(prefix, str(ns_uri))
+            try:
+                ET.register_namespace(prefix, str(ns_uri))
+            except ValueError:
+                pass  # ElementTree reserves the prefixes ns0, ns1, ...: it will number this one itself
 
 
 # ---------------------------------------------------------------------------
@@ -180,5 +184,5 @@ def serialize_rdfxml12(graph) -> str:
             _set_object(prop, obj)
 
     ET.indent(root, space='  ')
-    body = ET.tostring(root, encoding='unicode')
+    body = ET.tostring(root, encoding='unicode').replace('\r', '&#13;')  # a raw CR would read back as LF
     return f'<?xml version="1.0" encoding="UTF-8"?>\n{body}\n'
