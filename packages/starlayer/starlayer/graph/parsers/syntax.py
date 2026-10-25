@@ -145,6 +145,14 @@ def _split_on_delimiter(text, delim):
     return parts
 
 
+_SPARQL_DIRECTIVE_OPERAND = re.compile(
+    r"""(?:prefix[ \t]+[^\s:<>]*:[ \t]*<[^>]*>"""
+    r"""|base[ \t]*<[^>]*>"""
+    r"""|version[ \t]*(?:"[^"\\\r\n]*"|'[^'\\\r\n]*')(?!["']))""",  # not a long string: VERSION """1.2""" is malformed
+    re.IGNORECASE,
+)
+
+
 def _scan_directive_end(data, i):
     """From position i (the start of a directive keyword), find where this
     directive statement ends.
@@ -163,6 +171,15 @@ def _scan_directive_end(data, i):
     Returns the exclusive end offset (just past the '.' if found, otherwise
     at the line-terminating '\\n'/'\\r' or end of data).
     """
+    if data[i] != '@':
+        # SPARQL-style PREFIX/BASE/VERSION has no terminating '.': the directive is
+        # exactly its operand, so a triple that follows on the same line is its own
+        # statement (GitHub issue #73). A lenient trailing '.' is still accepted.
+        m = _SPARQL_DIRECTIVE_OPERAND.match(data, i)
+        if m:
+            end = m.end()
+            dot = re.compile(r'[ \t]*\.(?=[ \t\r\n]|$)').match(data, end)
+            return dot.end() if dot else end
     depth = {'[': 0, '(': 0, '{': 0, '<': 0}
     in_string = False
     string_char = ''
@@ -536,11 +553,11 @@ def extract_fields(stmt, typ, blank_counter=None):
             s, pos=0,
         )
     elif typ == 'prefix':
-        m = re.match(r'@?prefix\s+([\w-]*)\s*:\s*<([^>]+)>', s, re.IGNORECASE)
+        m = re.match(r'@?prefix\s+([\w-]*)\s*:\s*<([^>]*)>', s, re.IGNORECASE)
         if m:
             return {'prefix': m.group(1), 'iri': m.group(2)}
     elif typ == 'base':
-        m = re.match(r'@?base\s*<([^>]+)>', s, re.IGNORECASE)
+        m = re.match(r'@?base\s*<([^>]*)>', s, re.IGNORECASE)
         if m:
             return {'iri': m.group(1)}
     elif typ == 'triple':
