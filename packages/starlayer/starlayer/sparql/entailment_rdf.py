@@ -138,6 +138,14 @@ def rewrite_algebra_for_rdf(algebra: Any) -> Any:
     def _visit(node: Any) -> Any:
         if isinstance(node, CompValue) and node.name == "BGP":
             return _rewrite_bgp(node, fresh)
+        if isinstance(node, CompValue) and node.name in ("Builtin_EXISTS", "Builtin_NOTEXISTS"):
+            # See entailment_rdfs.py: an Expr holds its pattern as a dict item and as an instance attribute; the
+            # evaluator reads the attribute (GitHub issue #97).
+            inner = node.__dict__.get("graph", dict.get(node, "graph"))
+            if isinstance(inner, CompValue):
+                rewritten = rewrite_algebra_for_rdf(inner)
+                node["graph"] = rewritten
+                node.graph = rewritten
         return None
 
     return traverse(algebra, visitPost=_visit)

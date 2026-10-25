@@ -61,3 +61,26 @@ def test_infer_is_idempotent(regimes):
     once = g.infer(entailment=regimes, mode="full")
     twice = once.infer(entailment=regimes, mode="full")
     assert set(twice) == set(once)
+
+
+@pytest.mark.parametrize(
+    ("pattern", "expected_exists"),
+    [("?x a :Child", ["a", "c", "d"]), ("?x :hasParent ?z", ["a"])],
+)
+def test_filter_exists_sees_the_entailed_triples(pattern, expected_exists):
+    g = _graph()
+    base = "PREFIX : <http://e/> SELECT ?x { VALUES ?x { :a :b :c :d } FILTER %s { " + pattern + " } }"
+    assert _members(g.query(base % "EXISTS", entailment=ENTAILMENT.RDFS)) == expected_exists
+    absent = _members(g.query(base % "NOT EXISTS", entailment=ENTAILMENT.RDFS))
+    assert sorted(set(expected_exists) | set(absent)) == ["a", "b", "c", "d"]
+    assert not set(expected_exists) & set(absent)
+
+
+def test_filter_exists_sees_the_rdf_regime_too():
+    g = _graph("@prefix : <http://e/> . :a :p :b .")
+    rows = g.query(
+        "PREFIX : <http://e/> PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> "
+        "SELECT ?x { VALUES ?x { :p :q } FILTER EXISTS { ?x a rdf:Property } }",
+        entailment=ENTAILMENT.RDF,
+    )
+    assert _members(rows) == ["p"]

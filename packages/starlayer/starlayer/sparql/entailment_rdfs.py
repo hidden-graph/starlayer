@@ -200,6 +200,15 @@ def rewrite_algebra_for_rdfs(algebra: Any) -> Any:
     def _visit(node: Any) -> Any:
         if isinstance(node, CompValue) and node.name == "BGP":
             return _rewrite_bgp(node, fresh)
+        if isinstance(node, CompValue) and node.name in ("Builtin_EXISTS", "Builtin_NOTEXISTS"):
+            # An Expr keeps the pattern twice: as a dict item and, once rdflib's translateExists has run, as an instance
+            # attribute that shadows it. The evaluator reads the attribute, so that is the one to rewrite; both are set to
+            # the same result (GitHub issue #97).
+            inner = node.__dict__.get("graph", dict.get(node, "graph"))
+            if isinstance(inner, CompValue):
+                rewritten = rewrite_algebra_for_rdfs(inner)
+                node["graph"] = rewritten
+                node.graph = rewritten
         return None
 
     return traverse(algebra, visitPost=_visit)
