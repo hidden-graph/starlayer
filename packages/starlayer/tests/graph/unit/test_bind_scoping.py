@@ -7,9 +7,8 @@ engine, does not.
 """
 
 import pytest
-from rdflib import Graph
-
 import starlayer.graph  # noqa: F401  (installs the rdflib patches under test)
+from rdflib import Graph
 
 
 def _rows(query: str) -> list[dict[str, str]]:

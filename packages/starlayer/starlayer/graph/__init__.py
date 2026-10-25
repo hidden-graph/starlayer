@@ -87,73 +87,7 @@ from starlayer.graph.query.evaluate_patches import (
     patch_construct_skips_encoding_solutions as _patch_construct_skips_encoding_solutions,
 )
 
-# Confirmed rdflib bug,
-# reached through FILTER instead of BIND (evalFilter's own
-# `c.forget(ctx, _except=part._vars)`) - not covered by that patch, since
-# it only touches evalExtend. See
-# starlayer.graph/query/evaluate_patches.py::patch_evalfilter_forgotten_vars.
-from starlayer.graph.query.evaluate_patches import (
-    patch_evalfilter_forgotten_vars as _patch_evalfilter_forgotten_vars,
-)
-
-# Fix for a confirmed bug in plain rdflib's own evalInsertData (same
-# rdflib.plugins.sparql.update module as evalModify above, a distinct
-# function): `g = ctx.graph; g += u.triples` assumes `+=` accepts a plain
-# iterable of triples, which isn't true once ctx.graph is a genuine
-# Dataset/ConjunctiveGraph (StarLayerDataset's default graph) - its own
-# `__iadd__` override expects already-quad tuples, so a plain `INSERT DATA`
-# with no triple terms involved raises `ValueError: not enough values to
-# unpack`. Not symmetric with DELETE DATA (`evalDeleteData`'s `-=` doesn't
-# have the same quad-only override and already works correctly) - see
-# starlayer.graph/query/evaluate_patches.py::patch_evalinsertdata_quad_unpacking.
-from starlayer.graph.query.evaluate_patches import (
-    patch_evalinsertdata_quad_unpacking as _patch_evalinsertdata_quad_unpacking,
-)
-
-# Fix for a confirmed bug in plain rdflib's own evalModify (a different
-# module, rdflib.plugins.sparql.update, from the evalExtend/evalFilter
-# patches above): it writes DELETE/INSERT changes through
-# ctx.dataset.default_context instead of ctx.graph whenever ctx.graph isn't
-# exactly a bare Graph instance - silently failing to remove/insert a
-# triple-term-valued triple against this library's own in-memory backend,
-# even though the WHERE clause matches correctly. See
-# starlayer.graph/query/evaluate_patches.py::patch_evalmodify_default_graph_selection.
-from starlayer.graph.query.evaluate_patches import (
-    patch_evalmodify_default_graph_selection as _patch_evalmodify_default_graph_selection,
-)
-
-# Fix for a confirmed rdflib bug (a different phase from every patch above -
-# parse-tree-to-algebra *translation*, not evaluation): a parenthesized,
-# un-aliased computed GROUP BY key (`GROUP BY (?o+1)`, no `AS ?var`) - legal
-# per SPARQL 1.1's own grammar - produces an algebra shape that crashes
-# evalAggregateJoin outright, with zero RDF 1.2/starlayer.graph involvement. See
-# docs/upstream-issues/rdflib-upstream-issues.md Issue 9 and
-# starlayer.graph/query/evaluate_patches.py::patch_group_by_unaliased_expression_key.
-from starlayer.graph.query.evaluate_patches import (
-    patch_group_by_unaliased_expression_key as _patch_group_by_unaliased_expression_key,
-)
-
-# Fix for a starlayer.graph-side (not rdflib) gap: an *unconstrained* BGP match
-# (e.g. a bare `?s ?p ?o` inside a nested SELECT subquery, not just
-# CONSTRUCT - see patch_construct_skips_encoding_solutions above, which only
-# covers that one case) can incidentally match the in-memory backend's own
-# internal tt:HASH encoding triples. See
-# starlayer.graph/query/evaluate_patches.py::patch_bgp_skips_encoding_triples.
-from starlayer.graph.query.evaluate_patches import (
-    patch_bgp_skips_encoding_triples as _patch_bgp_skips_encoding_triples,
-)
-
-# Fix for a starlayer.graph-side (not rdflib) gap: CONSTRUCT has no equivalent of
-# SELECT's own encoding-triple row filtering, so an unconstrained WHERE
-# pattern (e.g. a bare `?s ?p ?o`) can leak internal rdf:subject/predicate/
-# object encoding triples into CONSTRUCT output. See
-# starlayer.graph/query/evaluate_patches.py's own docstring for the full
-# root-cause trace.
-from starlayer.graph.query.evaluate_patches import (
-    patch_construct_skips_encoding_solutions as _patch_construct_skips_encoding_solutions,
-)
-
-# Confirmed rdflib bug,
+# Same confirmed rdflib bug as the evalExtend patch immediately above,
 # reached through FILTER instead of BIND (evalFilter's own
 # `c.forget(ctx, _except=part._vars)`) - not covered by that patch, since
 # it only touches evalExtend. See

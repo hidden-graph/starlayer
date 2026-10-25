@@ -34,8 +34,6 @@ from rdflib import BNode, Literal, URIRef, Variable
 from rdflib.namespace import RDF
 from rdflib.plugins.sparql import evaluate
 from rdflib.plugins.sparql.parserutils import CompValue
-from rdflib.plugins.sparql.sparql import SPARQLError
-
 
 
 def _expr_free_vars(expr) -> set:
