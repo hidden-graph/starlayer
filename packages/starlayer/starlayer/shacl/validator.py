@@ -1385,10 +1385,10 @@ class StarShaclSchema:
         Core spec: the set of severities whose presence makes ``sh:conforms``
         false. pySHACL's own ``allow_warnings``/``allow_infos`` options
         already implement the underlying behavior for ``sh:Violation``/
-        ``sh:Warning``/``sh:Info`` (confirmed directly: a Warning- or
-        Info-only result already flips ``sh:conforms`` to false by default,
-        matching the spec's stated default disallow set of
-        Violation+Warning+Info) - annotating ``disallowed`` just makes that
+        ``sh:Warning``/``sh:Info`` (a Warning- or Info-only result flips
+        ``sh:conforms`` to false by default, matching the spec's stated
+        default disallow set of Violation+Warning+Info; allowing warnings
+        also allows infos) - annotating ``disallowed`` just makes that
         set explicit in the report.
 
         Also recomputes ``sh:conforms`` itself (returned, and fixed up in
@@ -1416,28 +1416,7 @@ class StarShaclSchema:
             ``report_graph``), or ``conforms`` unchanged if ``report_graph``
             has no ``sh:ValidationReport`` node at all.
         """
-        report_node = _find_genuine_report_node(report_graph)
-        if report_node is None:
-            return conforms
-
-        disallowed = {SH.Violation}
-        if not options.get("allow_warnings"):
-            disallowed.add(SH.Warning)
-        if not options.get("allow_infos"):
-            disallowed.add(SH.Info)
-
-        report_graph.remove((report_node, SH.conformanceDisallows, None))
-        for severity in disallowed:
-            report_graph.add((report_node, SH.conformanceDisallows, severity))
-
-        blocking = any(
-            set(report_graph.objects(result_node, SH.resultSeverity)) & disallowed
-            for _, _, result_node in report_graph.triples((report_node, SH.result, None))
-        )
-        new_conforms = not blocking
-        report_graph.remove((report_node, SH.conforms, None))
-        report_graph.add((report_node, SH.conforms, Literal(new_conforms)))
-        return new_conforms
+        return _annotate_conformance_disallows(report_graph, options, conforms)
 
     def _annotate_used_graphs_and_configuration(
         self,
@@ -2605,7 +2584,10 @@ def _annotate_conformance_disallows(report_graph: Any, options: dict[str, Any], 
     disallowed = {SH.Violation}
     if not options.get("allow_warnings"):
         disallowed.add(SH.Warning)
-    if not options.get("allow_infos"):
+    # pySHACL treats allowing warnings as allowing infos too (Info is below Warning): shape.py adds sh:Info to the allowed
+    # severities when allow_warnings is set. Only with neither flag does an Info result block conformance (the SHACL 1.2
+    # default disallow set is Violation, Warning and Info). GitHub issue #51.
+    if not options.get("allow_infos") and not options.get("allow_warnings"):
         disallowed.add(SH.Info)
 
     report_graph.remove((report_node, SH.conformanceDisallows, None))
