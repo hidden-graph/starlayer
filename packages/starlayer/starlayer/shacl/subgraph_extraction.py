@@ -116,7 +116,11 @@ from __future__ import annotations
 from typing import Any
 
 from rdflib import BNode, Literal, URIRef
-from rdflib.namespace import RDF, RDFS, SH
+from rdflib.namespace import RDF, RDFS
+from rdflib.namespace import Namespace as _Namespace
+
+# rdflib's SH has no SHACL 1.2 terms (sh:ShapeClass, ...): AttributeError on any use (GitHub issue #82)
+SH = _Namespace('http://www.w3.org/ns/shacl#')
 
 _Triple = tuple[Any, Any, Any]
 
@@ -172,6 +176,70 @@ def _rdf_list(sg: Any, list_node: Any) -> list:
     return list(sg.graph.items(list_node))
 
 
+def _walk_inverse(data_graph: Any, focus: Any, path_val: Any, sg: Any) -> tuple[frozenset[Any], set[_Triple]]:
+    """The value nodes v such that ``focus`` is reached from v by ``path_val`` (``^path``), with the data edges used.
+
+    SHACL Core 2.3.1 allows any property path inside ``sh:inversePath``; only an IRI used to be handled, so an inverse of a
+    sequence, alternative, repetition or another inverse followed nothing at all (GitHub issue #82).
+    """
+    if not isinstance(path_val, BNode):
+        values = set(data_graph.subjects(path_val, focus))
+        return frozenset(values), {(v, path_val, focus) for v in values}
+
+    predicates = set(sg.graph.predicates(path_val))
+
+    if SH.inversePath in predicates:  # ^(^X) = X
+        inner = next(iter(sg.graph.objects(path_val, SH.inversePath)))
+        return _walk_path(data_graph, focus, inner, sg)
+
+    if SH.alternativePath in predicates:  # ^(a|b) = ^a|^b
+        values: set[Any] = set()
+        triples: set[_Triple] = set()
+        for alt in _rdf_list(sg, next(iter(sg.graph.objects(path_val, SH.alternativePath)))):
+            v, t = _walk_inverse(data_graph, focus, alt, sg)
+            values |= v
+            triples |= t
+        return frozenset(values), triples
+
+    if SH.zeroOrMorePath in predicates or SH.oneOrMorePath in predicates:  # ^(X*) = (^X)*
+        zero_allowed = SH.zeroOrMorePath in predicates
+        inner = next(iter(sg.graph.objects(path_val, SH.zeroOrMorePath if zero_allowed else SH.oneOrMorePath)))
+        reachable: set[Any] = {focus} if zero_allowed else set()
+        triples = set()
+        frontier, seen = {focus}, {focus}
+        while frontier:
+            next_frontier: set[Any] = set()
+            for node in frontier:
+                step_values, step_triples = _walk_inverse(data_graph, node, inner, sg)
+                triples |= step_triples
+                for v in step_values:
+                    reachable.add(v)
+                    if v not in seen:
+                        seen.add(v)
+                        next_frontier.add(v)
+            frontier = next_frontier
+        return frozenset(reachable), triples
+
+    if SH.zeroOrOnePath in predicates:  # ^(X?) = (^X)?
+        inner = next(iter(sg.graph.objects(path_val, SH.zeroOrOnePath)))
+        values, triples = _walk_inverse(data_graph, focus, inner, sg)
+        return frozenset(values | {focus}), triples
+
+    if RDF.first in predicates:  # ^(a/b) = ^b/^a
+        current = {focus}
+        triples = set()
+        for element in reversed(_rdf_list(sg, path_val)):
+            next_current: set[Any] = set()
+            for node in current:
+                v, t = _walk_inverse(data_graph, node, element, sg)
+                next_current |= v
+                triples |= t
+            current = next_current
+        return frozenset(current), triples
+
+    raise NotImplementedError(f"Unrecognized sh:path expression: {path_val!r}")
+
+
 def _walk_path(data_graph: Any, focus: Any, path_val: Any, sg: Any) -> tuple[frozenset[Any], set[_Triple]]:
     """SHACL property-path algebra, returning both the value nodes reached
     and every triple traversed to reach them (decision 1) - the one thing
@@ -185,8 +253,7 @@ def _walk_path(data_graph: Any, focus: Any, path_val: Any, sg: Any) -> tuple[fro
 
     if SH.inversePath in predicates:
         inner = next(iter(sg.graph.objects(path_val, SH.inversePath)))
-        values = set(data_graph.subjects(inner, focus))
-        return frozenset(values), {(v, inner, focus) for v in values}
+        return _walk_inverse(data_graph, focus, inner, sg)
 
     if SH.alternativePath in predicates:
         alt_list = next(iter(sg.graph.objects(path_val, SH.alternativePath)))

@@ -101,6 +101,9 @@ def register_native_components() -> None:
     from starlayer.shacl.recursion import install_recursion_patch
 
     install_recursion_patch()  # exact cycle check instead of pySHACL's shape-only heuristic (GitHub issue #26)
+    from starlayer.shacl.triple_rule import install_triple_rule_patch
+
+    install_triple_rule_patch()  # sh:TripleRule defaults and well-formedness (GitHub issue #82)
     if _registered:
         return
 
@@ -1756,6 +1759,11 @@ def _build_node_kind_component() -> Any:
             elif value == SH.TripleTerm:
                 self.node_kinds = [value]
                 self.delegate = None
+            elif value in _UNION_NODE_KINDS:
+                # pySHACL's own component sees an encoded triple term as an IRI, so a single kind is matched here
+                # (a triple term is none of IRI, blank node or literal; GitHub issue #82)
+                self.node_kinds = _UNION_NODE_KINDS[value]
+                self.delegate = None
             else:
                 self.delegate = _OriginalNodeKindComponent(shape)
 
@@ -1800,6 +1808,16 @@ def _build_node_kind_component() -> Any:
             return (not non_conformant), reports
 
     return NodeKindConstraintComponent
+
+
+_UNION_NODE_KINDS: dict[Any, list[Any]] = {
+    SH.IRI: [SH.IRI],
+    SH.BlankNode: [SH.BlankNode],
+    SH.Literal: [SH.Literal],
+    SH.BlankNodeOrIRI: [SH.BlankNode, SH.IRI],
+    SH.BlankNodeOrLiteral: [SH.BlankNode, SH.Literal],
+    SH.IRIOrLiteral: [SH.IRI, SH.Literal],
+}
 
 
 def _matches_node_kind_encoded(value: Any, node_kind: Any, is_triple_term: bool) -> bool:
