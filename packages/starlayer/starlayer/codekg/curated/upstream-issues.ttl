@@ -25,22 +25,6 @@ ui:rdflib-2 a slkg:UpstreamIssue ;
     slkg:issueStatus "worked-around" ;
     slkg:workedAroundByIdentifier "starlayer.graph.query.algebra_translator_patches.patch_algebra_translator_bugs" .
 
-ui:rdflib-3 a slkg:UpstreamIssue ;
-    rdfs:label "A `BIND` read through an earlier `BIND`, inside `UNION`, gives wrong/duplicate rows" ;
-    slkg:upstreamProject "rdflib" ;
-    slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
-    slkg:issueNumber 3 ;
-    slkg:issueStatus "worked-around" ;
-    slkg:workedAroundByIdentifier "starlayer.graph.query.evaluate_patches.patch_evalextend_forgotten_bind_vars" .
-
-ui:rdflib-4 a slkg:UpstreamIssue ;
-    rdfs:label "A `BIND` inside one branch of a join can silently lose its value" ;
-    slkg:upstreamProject "rdflib" ;
-    slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
-    slkg:issueNumber 4 ;
-    slkg:issueStatus "worked-around" ;
-    slkg:workedAroundByIdentifier "starlayer.graph.query.evaluate_patches.patch_lazy_join_expr_dependency_order" .
-
 ui:rdflib-5 a slkg:UpstreamIssue ;
     rdfs:label "Un-aliased computed `GROUP BY` key crashes" ;
     slkg:upstreamProject "rdflib" ;
