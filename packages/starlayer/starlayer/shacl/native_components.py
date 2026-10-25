@@ -1548,6 +1548,13 @@ def _build_closed_component() -> Any:
         def constraint_name(cls) -> str:
             return "ClosedConstraintComponent"
 
+        def make_generic_messages(self, datagraph: Any, focus_node: Any, value_node: Any) -> list[Any]:
+            # the text pySHACL's own component gives (GitHub issue #52)
+            from pyshacl.rdfutil import stringify_node
+
+            text = f"Node {stringify_node(datagraph, focus_node)} is closed. It cannot have value: {stringify_node(datagraph, value_node)}"
+            return [Literal(text)]
+
         def evaluate(
             self,
             executor: Any,
@@ -1967,9 +1974,10 @@ def _effective_language_direction_key_encoded(value: Any) -> tuple[str, Any] | N
 
     decoded = _try_decode_dirlangstring(value)
     if decoded is not None:
-        return (decoded.language, decoded.direction)
+        return (decoded.language.lower(), decoded.direction)
     if isinstance(value, Literal) and value.language:
-        return (value.language, None)
+        # language tags compare case-insensitively (RDF Concepts 3.3): "en" and "EN" are the same tag. GitHub issue #50.
+        return (value.language.lower(), None)
     return None
 
 
@@ -2013,6 +2021,7 @@ def _build_language_in_component() -> Any:
                     f"found {len(values)} on '{shape.node}'."
                 )
             self.ranges = [str(r) for r in _shacl_list_members(shape.sg.graph, values[0])]
+            self.language_list = values[0]
 
         @classmethod
         def constraint_parameters(cls) -> list[Any]:
@@ -2021,6 +2030,12 @@ def _build_language_in_component() -> Any:
         @classmethod
         def constraint_name(cls) -> str:
             return "LanguageInConstraintComponent"
+
+        def make_generic_messages(self, datagraph: Any, focus_node: Any, value_node: Any) -> list[Any]:
+            # the text pySHACL's own component gives (GitHub issue #52)
+            from pyshacl.rdfutil import stringify_node
+
+            return [Literal(f"String language is not in {stringify_node(self.shape.sg.graph, self.language_list)}")]
 
         def evaluate(
             self,
@@ -2109,6 +2124,10 @@ def _build_unique_lang_component() -> Any:
         @classmethod
         def constraint_name(cls) -> str:
             return "UniqueLangConstraintComponent"
+
+        def make_generic_messages(self, datagraph: Any, focus_node: Any, value_node: Any) -> list[Any]:
+            # the text pySHACL's own component gives (GitHub issue #52)
+            return [Literal("More than one String shares the same Language")]
 
         def evaluate(
             self,
