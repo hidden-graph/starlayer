@@ -88,7 +88,9 @@ def _sort_triple(t: tuple) -> tuple:
 def _append_graph(g, root: ET.Element) -> None:
     """Append a <graph> element for *g* to *root*."""
     graph_elem = ET.SubElement(root, f'{_T}graph')
-    if isinstance(g.identifier, URIRef):
+    from rdflib.graph import DATASET_DEFAULT_GRAPH_ID
+
+    if isinstance(g.identifier, URIRef) and g.identifier != DATASET_DEFAULT_GRAPH_ID:  # the default graph is anonymous
         uri_elem = ET.SubElement(graph_elem, f'{_T}uri')
         uri_elem.text = str(g.identifier)
 
