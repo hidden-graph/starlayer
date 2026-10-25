@@ -34,6 +34,10 @@ Before relying on any specific claim in `owl_dl_rustdl.py`'s docstring or `docs/
 
 Dated entries below record why things are the way they are. Read one when you work on that topic; the block above is what you need first.
 
+## SPARQL Update graph management is patched to use the true default graph (2026-10-25, GitHub issue #78)
+
+rdflib's update code takes `ctx.graph` for "the default graph", which is the union of every graph when the dataset has `default_union` (the setting `StarLayerDataset` forwards so a `GRAPH`-less `WHERE` sees all data). So `CLEAR DEFAULT`, `COPY ... TO DEFAULT` and friends wiped the whole dataset, `ADD`/`COPY`/`MOVE` with `DEFAULT` crashed, `CREATE` always raised, `DELETE WHERE { GRAPH ?g ... }` deleted nothing and `USING` tried to fetch the IRI. `query/update_patches.py` replaces those six functions plus `DELETE WHERE`, and `QueryContext.load` now reads a graph already in the dataset instead of fetching it (an IRI that is not a graph of the dataset still goes through rdflib's loader). `WHERE` evaluation and the default-graph triples of `DELETE WHERE` keep using `ctx.graph` on purpose (the union rule above). Also fixed: `_build_raw_execution_graph()` only copied graphs already wrapped in `_sg_cache`, so a named graph created by an Update was invisible to the next `GRAPH` query. Tests: `tests/graph/unit/test_update_graph_management.py`.
+
 ## Parser and writer fixes from the second hunt (2026-10-25, GitHub issue #73)
 
 - **SPARQL-style `PREFIX`/`BASE`/`VERSION` ends with its operand**, not at the next `.`: `PREFIX : <http://e/> :a :p :z .` on one line used to drop the triple (`syntax._scan_directive_end`). A directive is still only recognised at the start of a line; one after a statement on the same line is not (known, left). An empty IRI (`PREFIX : <>`, `@base <>`) is a declaration.

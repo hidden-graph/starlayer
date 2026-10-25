@@ -2,6 +2,10 @@
 
 Written by `scripts/build_codekg.py` each time `codekg.trig` is regenerated: when, from which commit, and how big. It is not edited by hand. The same facts are in the graph itself (`python -m starlayer.codekg.queries status`); what changed in the extractor is in `git log`.
 
+## 2026-10-25 — regenerated (automatic entry)
+
+- Built from commit 0878e47 with uncommitted changes: 389 files, 104,065 triples.
+
 ## 2026-10-22 — regenerated (automatic entry)
 
 - Built from commit cda5dcb: 369 files, 97,923 triples.

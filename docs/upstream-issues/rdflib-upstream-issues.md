@@ -274,6 +274,24 @@ list(g.query("CONSTRUCT { ?n <http://x/p> ?n } WHERE { ?s <http://x/n> ?n }").gr
 
 Fix: `evaluate_patches.py::patch_construct_skips_encoding_solutions` (the CONSTRUCT patch) now filters them. Found by the Oxigraph differential tests.
 
+## 19. Update graph management acts on the union, not the default graph; `CREATE`, `DELETE WHERE GRAPH ?g` and `USING` are broken
+
+On a `Dataset` (rdflib's update code uses `ctx.graph`, which is the union of all graphs when `default_union` is set):
+
+```python
+from rdflib import Dataset
+d = Dataset(default_union=True)
+d.update("INSERT DATA { GRAPH <http://e/g> { <http://e/z> <http://e/p> <http://e/z> } }")
+d.update("CLEAR DEFAULT")      # also empties <http://e/g>
+d.update("CREATE GRAPH <http://e/n>")                       # Exception: Create not implemented!
+d.update("DELETE WHERE { GRAPH ?g { ?s ?p ?o } }")           # deletes nothing
+d.update("INSERT { ?s ?p ?o } USING <http://e/g> WHERE { ?s ?p ?o }")  # tries to fetch http://e/g
+```
+
+`ADD`/`COPY`/`MOVE` with `DEFAULT` raise `ValueError` or lose data. SPARQL 1.1 Update section 3.2 defines each on the true default graph; section 3.1.3 says `USING` names a graph of the dataset. Found by the second hunt (GitHub issue #78).
+
+Fix: `starlayer/graph/query/update_patches.py::patch_update_graph_management`.
+
 ## Withdrawn entries
 
 Items 3 and 4 of this list were withdrawn on 2026-10-25 (GitHub issue #54). Both claimed that a `BIND` should see a variable bound in a sibling or enclosing group, and StarLayer patched rdflib (`patch_evalextend_forgotten_bind_vars`, `patch_lazy_join_expr_dependency_order`) to make it so. SPARQL 1.1 section 18.2.2.6 evaluates each group on its own and joins the results, so a `BIND` cannot see such a variable and plain rdflib was right. For example `SELECT * { VALUES ?x {1 2} { BIND(?x+1 AS ?y) } }` returns `?x` only, and `{ BIND(:v1 AS ?t0) { { BIND(?t0 AS ?o) } UNION { BIND(:v2 AS ?o) } } ?s :p ?o }` returns every `?s :p ?o` row once per union branch (six rows, not two). Both patches were removed; `tests/graph/unit/test_bind_scoping.py` pins the spec behaviour. The numbers 3 and 4 are not reused. Items 8 and 16 (`FILTER`) are the same question for filters and have not been re-examined.
