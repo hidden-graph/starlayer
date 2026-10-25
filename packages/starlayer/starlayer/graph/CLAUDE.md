@@ -34,6 +34,10 @@ Before relying on any specific claim in `owl_dl_rustdl.py`'s docstring or `docs/
 
 Dated entries below record why things are the way they are. Read one when you work on that topic; the block above is what you need first.
 
+## A `BIND` sees only its own group; two rdflib "fixes" removed (2026-10-25, GitHub issue #54)
+
+SPARQL 1.1 section 18.2.2.6 evaluates each `{ }` group on its own and joins the results, so a `BIND` cannot read a variable bound in a sibling or enclosing group (`VALUES ?x {1 2} { BIND(?x+1 AS ?y) }` leaves `?y` unbound). StarLayer used to patch rdflib to make it work (`patch_evalextend_forgotten_bind_vars`, upstream-issues items 3 and 5-era trace, and `patch_lazy_join_expr_dependency_order`, item 4), on the strength of "expected" results in `docs/upstream-issues` that no spec section supports. Both patches are gone; plain rdflib is correct. `tests/graph/unit/test_bind_scoping.py` pins it. **Not re-examined:** `patch_evalfilter_forgotten_vars` (items 8 and 16) is the same question for `FILTER`; check it against section 18.2.2.6 before trusting it. The written "expected" in the upstream-issues docs has been wrong before: verify against the spec.
+
 ## A reduced copy behaves like its source (2026-10-25, GitHub issue #63)
 
 `reduce_prefixes()` returns a copy with fewer bindings and nothing else different. The dataset copy now keeps `default_union` (it was built with the default, so `SELECT * WHERE { ?s ?p ?o }` returned the source's rows on the source and none on the copy), and the copy of a named graph keeps its name (the graph's identity, and what validation reports as the data graph). A blank-node identifier means nothing, so such a copy gets its own.

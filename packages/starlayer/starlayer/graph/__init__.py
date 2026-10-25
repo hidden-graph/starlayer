@@ -87,18 +87,6 @@ from starlayer.graph.query.evaluate_patches import (
     patch_construct_skips_encoding_solutions as _patch_construct_skips_encoding_solutions,
 )
 
-# Compatibility shim for a confirmed bug in plain rdflib's own SPARQL
-# *evaluator* (evalExtend/BIND) - the most important of these patches,
-# since the bug it fixes silently produces wrong query results with no
-# error at all, rather than failing loudly. Applies to every query
-# evaluated through rdflib, including starlayer.graph's own (unlike the
-# algebra-translator patches above, this one *is* exercised by starlayer.graph's
-# own pipeline). See starlayer.graph/query/evaluate_patches.py and
-# docs/upstream-issues/rdflib-upstream-issues.md issue 5.
-from starlayer.graph.query.evaluate_patches import (
-    patch_evalextend_forgotten_bind_vars as _patch_evalextend_forgotten_bind_vars,
-)
-
 # Same confirmed rdflib bug as the evalExtend patch immediately above,
 # reached through FILTER instead of BIND (evalFilter's own
 # `c.forget(ctx, _except=part._vars)`) - not covered by that patch, since
@@ -145,16 +133,6 @@ from starlayer.graph.query.evaluate_patches import (
     patch_group_by_unaliased_expression_key as _patch_group_by_unaliased_expression_key,
 )
 
-# Compatibility shim for a second, distinct confirmed bug in plain rdflib's
-# own SPARQL evaluator (evalJoin/evalLazyJoin) - same root cause as the
-# evalExtend patch above (a BIND's own expression-only variables aren't
-# visible in _vars), but affects join *ordering* rather than evalExtend's
-# own variable-forgetting, and isn't covered by that fix. See
-# starlayer.graph/query/evaluate_patches.py::patch_lazy_join_expr_dependency_order.
-from starlayer.graph.query.evaluate_patches import (
-    patch_lazy_join_expr_dependency_order as _patch_lazy_join_expr_dependency_order,
-)
-
 # Fix for a starlayer.graph-side (not rdflib) gap: the in-memory backend's
 # tt:HASH encoding is opaque to stock rdflib's ORDER BY comparator, which
 # has no term-kind bucket for triple terms at all (rdflib predates RDF 1.2)
@@ -187,11 +165,9 @@ from starlayer.graph.query.result_patches import (
 
 _apply_all_operator_patches()
 _patch_algebra_translator_bugs()
-_patch_evalextend_forgotten_bind_vars()
 _patch_evalfilter_forgotten_vars()
 _patch_evalmodify_default_graph_selection()
 _patch_evalinsertdata_quad_unpacking()
-_patch_lazy_join_expr_dependency_order()
 _patch_construct_skips_encoding_solutions()
 _patch_aggregate_join_no_row()
 _patch_relational_expression_tt_hash_equality()

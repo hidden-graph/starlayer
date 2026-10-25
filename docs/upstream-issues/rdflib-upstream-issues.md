@@ -73,55 +73,6 @@ Also affects: two `UNION` branches each `BIND`ing the same variable name regener
 
 Fix: `starlayer/graph/query/algebra_translator_patches.py::patch_algebra_translator_bugs`.
 
-## 3. A `BIND` read through an earlier `BIND`, inside `UNION`, gives wrong/duplicate rows
-
-```python
-from rdflib import Graph
-g = Graph()
-g.parse(data="@prefix : <http://ex/> . :s0 :p :vX . :s1 :p :v1 . :s2 :p :v2 .", format="turtle")
-
-list(g.query("""PREFIX : <http://ex/>
-SELECT ?s WHERE {
-  BIND(:v1 AS ?t0) . BIND(:v2 AS ?t1) .
-  { { BIND(?t0 AS ?o) } UNION { BIND(?t1 AS ?o) } }
-  ?s :p ?o .
-}"""))
-# actual:   [(:s2,), (:s0,), (:s1,), (:s2,), (:s0,), (:s1,)]   - 6 rows, :s0 shouldn't match, duplicates
-# expected: [(:s1,), (:s2,)]
-
-# same query with :v1/:v2 written directly inside the UNION (no hoisted BIND):
-list(g.query("""PREFIX : <http://ex/>
-SELECT ?s WHERE {
-  { { BIND(:v1 AS ?o) } UNION { BIND(:v2 AS ?o) } }
-  ?s :p ?o .
-}"""))
-# -> [(:s1,), (:s2,)]  - correct
-```
-
-Fix: `starlayer/graph/query/evaluate_patches.py::patch_evalextend_forgotten_bind_vars`.
-
-## 4. A `BIND` inside one branch of a join can silently lose its value
-
-A `BIND` whose expression needs a variable from *another* branch of the same (implicit or explicit) join is evaluated before that other branch runs, so the variable it needs is unbound. rdflib treats an unbound-variable error inside a `BIND` the same way it treats any failed `BIND` (leave the target unbound, don't abort) - so this doesn't raise anywhere. It just silently produces a row missing that binding, which then fails any `FILTER` that depends on it, and the query returns nothing instead of a real match.
-
-```python
-from rdflib import Graph
-list(Graph().query("
-SELECT ?t {
-  FILTER(?a0 = 1)
-  {
-    BIND(?t + 0 AS ?a0)
-    {
-      BIND(1 AS ?t)
-    }
-  }
-}"))
-# actual:   []
-# expected: [(Literal(1, datatype=xsd:integer),)]
-```
-
-Fix: `starlayer/graph/query/evaluate_patches.py::patch_lazy_join_expr_dependency_order`.
-
 ## 5. Un-aliased computed `GROUP BY` key crashes
 
 SPARQL 1.1's grammar for `GroupCondition` makes the alias optional: `'(' Expression ( 'AS' Var )? ')'` ([§19.8 Grammar, production `GroupCondition`](https://www.w3.org/TR/sparql11-query/#rGroupCondition)) - `GROUP BY (?o+1)`, with no `AS ?var`, is legal syntax distinct from both `GROUP BY ?o` and the aliased `GROUP BY (?o+1 AS ?k)`. rdflib crashes on exactly this one form.
@@ -323,3 +274,6 @@ list(g.query("CONSTRUCT { ?n <http://x/p> ?n } WHERE { ?s <http://x/n> ?n }").gr
 
 Fix: `evaluate_patches.py::patch_construct_skips_encoding_solutions` (the CONSTRUCT patch) now filters them. Found by the Oxigraph differential tests.
 
+## Withdrawn entries
+
+Items 3 and 4 of this list were withdrawn on 2026-10-25 (GitHub issue #54). Both claimed that a `BIND` should see a variable bound in a sibling or enclosing group, and StarLayer patched rdflib (`patch_evalextend_forgotten_bind_vars`, `patch_lazy_join_expr_dependency_order`) to make it so. SPARQL 1.1 section 18.2.2.6 evaluates each group on its own and joins the results, so a `BIND` cannot see such a variable and plain rdflib was right. For example `SELECT * { VALUES ?x {1 2} { BIND(?x+1 AS ?y) } }` returns `?x` only, and `{ BIND(:v1 AS ?t0) { { BIND(?t0 AS ?o) } UNION { BIND(:v2 AS ?o) } } ?s :p ?o }` returns every `?s :p ?o` row once per union branch (six rows, not two). Both patches were removed; `tests/graph/unit/test_bind_scoping.py` pins the spec behaviour. The numbers 3 and 4 are not reused. Items 8 and 16 (`FILTER`) are the same question for filters and have not been re-examined.
