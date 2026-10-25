@@ -224,3 +224,11 @@ ui:oxigraph-literal-normalization a slkg:UpstreamIssue ;
     slkg:issueDocPath "docs/upstream-issues/oxigraph-upstream-issues.md" ;
     slkg:upstreamUrl "https://github.com/oxigraph/oxigraph/issues/526" ;
     slkg:issueStatus "documented-only" .
+
+ui:rdflib-19 a slkg:UpstreamIssue ;
+    rdfs:label "Update graph management acts on the union, not the default graph; CREATE, DELETE WHERE GRAPH ?g and USING are broken" ;
+    slkg:upstreamProject "rdflib" ;
+    slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
+    slkg:issueNumber 19 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.graph.query.update_patches.patch_update_graph_management" .

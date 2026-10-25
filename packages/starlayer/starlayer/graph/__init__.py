@@ -95,17 +95,6 @@ from starlayer.graph.query.evaluate_patches import (
 from starlayer.graph.query.evaluate_patches import (
     patch_evalfilter_forgotten_vars as _patch_evalfilter_forgotten_vars,
 )
-
-# Fix for a confirmed bug in plain rdflib's own evalInsertData (same
-# rdflib.plugins.sparql.update module as evalModify above, a distinct
-# function): `g = ctx.graph; g += u.triples` assumes `+=` accepts a plain
-# iterable of triples, which isn't true once ctx.graph is a genuine
-# Dataset/ConjunctiveGraph (StarLayerDataset's default graph) - its own
-# `__iadd__` override expects already-quad tuples, so a plain `INSERT DATA`
-# with no triple terms involved raises `ValueError: not enough values to
-# unpack`. Not symmetric with DELETE DATA (`evalDeleteData`'s `-=` doesn't
-# have the same quad-only override and already works correctly) - see
-# starlayer.graph/query/evaluate_patches.py::patch_evalinsertdata_quad_unpacking.
 from starlayer.graph.query.evaluate_patches import (
     patch_evalinsertdata_quad_unpacking as _patch_evalinsertdata_quad_unpacking,
 )
@@ -163,11 +152,26 @@ from starlayer.graph.query.result_patches import (
     patch_result_iter_empty_binding_row as _patch_result_iter_empty_binding_row,
 )
 
+# Fix for a confirmed bug in plain rdflib's own evalInsertData (same
+# rdflib.plugins.sparql.update module as evalModify above, a distinct
+# function): `g = ctx.graph; g += u.triples` assumes `+=` accepts a plain
+# iterable of triples, which isn't true once ctx.graph is a genuine
+# Dataset/ConjunctiveGraph (StarLayerDataset's default graph) - its own
+# `__iadd__` override expects already-quad tuples, so a plain `INSERT DATA`
+# with no triple terms involved raises `ValueError: not enough values to
+# unpack`. Not symmetric with DELETE DATA (`evalDeleteData`'s `-=` doesn't
+# have the same quad-only override and already works correctly) - see
+# starlayer.graph/query/evaluate_patches.py::patch_evalinsertdata_quad_unpacking.
+from starlayer.graph.query.update_patches import (
+    patch_update_graph_management as _patch_update_graph_management,
+)
+
 _apply_all_operator_patches()
 _patch_algebra_translator_bugs()
 _patch_evalfilter_forgotten_vars()
 _patch_evalmodify_default_graph_selection()
 _patch_evalinsertdata_quad_unpacking()
+_patch_update_graph_management()
 _patch_construct_skips_encoding_solutions()
 _patch_aggregate_join_no_row()
 _patch_relational_expression_tt_hash_equality()

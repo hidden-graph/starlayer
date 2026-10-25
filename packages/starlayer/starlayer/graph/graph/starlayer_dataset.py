@@ -649,6 +649,10 @@ class StarLayerDataset(Dataset):
         """
         if self._raw_execution_graph is not None:
             return self._raw_execution_graph
+        # A named graph created by a SPARQL Update (or by another handle on the same
+        # store) has no cached wrapper yet and would be left out of the copy below.
+        for _ in self.contexts():
+            pass
         raw = Dataset(default_union=self.default_union)
         for prefix, ns in self.namespaces():
             raw.bind(prefix, ns)
