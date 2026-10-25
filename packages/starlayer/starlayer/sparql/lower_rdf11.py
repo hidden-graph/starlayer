@@ -190,6 +190,7 @@ _patch_algebra_translator_bugs()
 # directly, below, for VALUES-row eager hashing.
 TT_NS = "https://github.com/hidden-graph/starlayergraph/ns/tt#"
 TT_HASH_FN = URIRef(TT_NS + "fn/hash")
+TT_IS_TRIPLE_TERM_FN = URIRef(TT_NS + "fn/isTripleTerm")
 _TT_ACCESSOR_FN = {
     "Builtin_SUBJECT": URIRef(TT_NS + "fn/subject"),
     "Builtin_PREDICATE": URIRef(TT_NS + "fn/predicate"),
@@ -298,12 +299,7 @@ def _is_triple_term_expr(arg) -> CompValue:
     whether such a value is a triple term always got `false`, even when
     it truly was one).
     """
-    str_call = CompValue("Builtin_STR", arg=arg)
-    return CompValue(
-        "ConditionalOrExpression",
-        expr=CompValue("Builtin_STRSTARTS", arg1=str_call, arg2=Literal(TT_NS)),
-        other=[CompValue("Builtin_STRSTARTS", arg1=str_call, arg2=Literal("<<"))],
-    )
+    return _make_function_call(TT_IS_TRIPLE_TERM_FN, [arg])
 
 
 def _dirlang_str_datatype(raw_arg, state: _LowerState) -> CompValue:

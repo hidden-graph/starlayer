@@ -232,3 +232,11 @@ ui:rdflib-19 a slkg:UpstreamIssue ;
     slkg:issueNumber 19 ;
     slkg:issueStatus "worked-around" ;
     slkg:workedAroundByIdentifier "starlayer.graph.query.update_patches.patch_update_graph_management" .
+
+ui:rdflib-20 a slkg:UpstreamIssue ;
+    rdfs:label "A negated property set matches the triple-term encoding; isIRI and STR accept a triple term" ;
+    slkg:upstreamProject "rdflib" ;
+    slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
+    slkg:issueNumber 20 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.graph.query.evaluate_patches.patch_negated_path_skips_encoding_triples", "starlayer.graph.query.operator_patches.patch_triple_terms_are_not_iris" .

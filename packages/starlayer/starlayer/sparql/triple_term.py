@@ -140,10 +140,24 @@ class TripleTermNode(CompValue):
             return self._sort_key() == other._sort_key()
         return NotImplemented
 
+    # A total order against every other term, a triple term after all of them: rdflib's reorderTriples sorts whole triples
+    # and falls back to comparing slot by slot when two tie, so a triple term and an IRI in the same slot were compared
+    # (GitHub issue #74: "TypeError: '<' not supported between instances of 'TripleTermNode' and 'URIRef'").
     def __lt__(self, other):
         if isinstance(other, TripleTermNode):
             return self._sort_key() < other._sort_key()
-        return NotImplemented
+        return False
+
+    def __gt__(self, other):
+        if isinstance(other, TripleTermNode):
+            return self._sort_key() > other._sort_key()
+        return True
+
+    def __le__(self, other):
+        return not self.__gt__(other)
+
+    def __ge__(self, other):
+        return not self.__lt__(other)
 
     def validate(self) -> TripleTermNode:
         """Raise ``InvalidTripleTermError`` if this node's own subject or
