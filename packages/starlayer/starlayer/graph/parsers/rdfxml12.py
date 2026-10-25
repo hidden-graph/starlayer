@@ -350,7 +350,8 @@ def parse_rdfxml12(text: str) -> list[tuple]:
     root = ET.fromstring(text)
     base = root.get(_X + 'base')
     _Preprocessor().process(root, base)
-    modified_text = ET.tostring(root, encoding='unicode')
+    # ElementTree writes a CR it read from &#13; as a raw CR, which the next XML parser turns into LF
+    modified_text = ET.tostring(root, encoding='unicode').replace('\r', '&#13;')
 
     raw = rdflib.Graph()
     raw.parse(data=modified_text, format='xml')

@@ -909,10 +909,13 @@ def _strip_blank_and_comment_lines(data):
     quoted string literal.
 
     Returns:
-        A (lines, line_map) pair: lines is the list of surviving physical
-        lines (terminators stripped, like str.splitlines()), and
+        A (lines, line_map, seps) triple: lines is the list of surviving
+        physical lines (terminators stripped, like str.splitlines()),
         line_map[k] is the 1-based line number in the original data of the
-        k-th surviving line.
+        k-th surviving line, and seps[k] is what follows line k when the
+        lines are joined: "\\n", except that a line break inside a string
+        literal keeps its original bytes ("\\r" or "\\r\\n"), because Turtle does
+        not normalise newlines in string content (GitHub issue #73).
 
     Mirrors syntax._split_statements_impl()'s own string-tracking exactly
     (including its triple-quote-awareness - a lone embedded quote character
@@ -931,6 +934,7 @@ def _strip_blank_and_comment_lines(data):
     """
     lines = []
     line_map = []
+    seps = []
     in_string = False
     string_char = ''
     triple = False
@@ -945,13 +949,15 @@ def _strip_blank_and_comment_lines(data):
             raw_line = ''.join(line_buf)
             stripped = raw_line.strip()
             keep = line_start_in_string or (stripped and not stripped.startswith('#'))
+            terminator = '\r\n' if data[i:i+2] == '\r\n' else c
             if keep:
                 lines.append(raw_line)
                 line_map.append(orig_lineno)
+                seps.append(terminator if in_string else '\n')
             line_buf = []
             orig_lineno += 1
             line_start_in_string = in_string
-            i += 2 if data[i:i+2] == '\r\n' else 1
+            i += len(terminator)
             continue
         if in_string and c == '\\' and i + 1 < n:
             # Skip an escaped character as one atomic pair, before the
@@ -995,8 +1001,9 @@ def _strip_blank_and_comment_lines(data):
     if keep:
         lines.append(raw_line)
         line_map.append(orig_lineno)
+        seps.append('\n')
 
-    return lines, line_map
+    return lines, line_map, seps
 
 
 class StarLayerTurtleParser:
@@ -1038,8 +1045,10 @@ class StarLayerTurtleParser:
         # k-th surviving line in data_clean, so a line number computed against
         # the blank/comment-stripped data_clean (by split_statements_with_lines
         # below) can be translated back to where the user would actually look.
-        lines, line_map = _strip_blank_and_comment_lines(data)
-        data_clean = '\n'.join(lines)
+        lines, line_map, seps = _strip_blank_and_comment_lines(data)
+        data_clean = ''.join(line + sep for line, sep in zip(lines, seps, strict=True))
+        if data_clean.endswith('\n'):
+            data_clean = data_clean[:-1]
 
         def _orig_line(cleaned_line: int) -> int:
             if not line_map:

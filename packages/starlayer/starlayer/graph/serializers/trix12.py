@@ -120,7 +120,7 @@ def serialize_trix12(g) -> str:
     _append_graph(g, root)
 
     ET.indent(root, space='  ')
-    body = ET.tostring(root, encoding='unicode')
+    body = ET.tostring(root, encoding='unicode').replace('\r', '&#13;')  # a raw CR would read back as LF
     return f'<?xml version="1.0" encoding="UTF-8"?>\n{body}\n'
 
 

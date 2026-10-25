@@ -40,6 +40,35 @@ _TURTLE_INTEGER_RE = re.compile(r'^[+-]?[0-9]+$')
 _TURTLE_DECIMAL_RE = re.compile(r'^[+-]?[0-9]*\.[0-9]+$')
 
 
+_PN_CHARS_BASE = (
+    'A-Za-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C-\u200D\u2070-\u218F'
+    '\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD\U00010000-\U000EFFFF'
+)
+_PN_CHARS_U = _PN_CHARS_BASE + '_'
+_PN_CHARS = _PN_CHARS_U + '\\-0-9\u00B7\u0300-\u036F\u203F-\u2040'
+# Turtle PN_LOCAL, without the backslash escapes (a name that needs one is written as a full <IRI>)
+_PN_LOCAL = re.compile(
+    rf'(?:[{_PN_CHARS_U}:0-9]|%[0-9A-Fa-f]{{2}})'
+    rf'(?:(?:[{_PN_CHARS}.:]|%[0-9A-Fa-f]{{2}})*(?:[{_PN_CHARS}:]|%[0-9A-Fa-f]{{2}}))?'
+)
+
+
+def _valid_qname(ns_mgr, iri):
+    """The prefixed name for iri, or None when it would not be valid Turtle.
+
+    rdflib's namespace manager will hand out a name whose local part ends in '.' or contains '#';
+    written as is, the file does not re-parse to the same IRI (GitHub issue #73).
+    """
+    try:
+        qn = ns_mgr.qname(iri)
+    except Exception:
+        return None
+    local = qn.split(':', 1)[1] if ':' in qn else qn
+    if local and not _PN_LOCAL.fullmatch(local):
+        return None
+    return qn
+
+
 def _node_to_ttl(node, ns_mgr, compact=True):
     """Format an rdflib node as a Turtle token using namespace prefixes.
 
@@ -58,14 +87,13 @@ def _node_to_ttl(node, ns_mgr, compact=True):
         return '()'
     if isinstance(node, URIRef):
         s = str(node)
-        try:
-            qn = ns_mgr.qname(s)
-            # rdflib returns bare local names for the empty prefix ('' → 'a' not ':a')
-            if ':' not in qn:
-                qn = ':' + qn
-            return qn
-        except Exception:
+        qn = _valid_qname(ns_mgr, s)
+        if qn is None:
             return f'<{node}>'
+        # rdflib returns bare local names for the empty prefix ('' → 'a' not ':a')
+        if ':' not in qn:
+            qn = ':' + qn
+        return qn
     if isinstance(node, BNode):
         return f'_:{node}'
     if isinstance(node, Literal):
@@ -149,10 +177,7 @@ def _node_to_ttl(node, ns_mgr, compact=True):
         if compact and dt == _XSD_DECIMAL and _TURTLE_DECIMAL_RE.match(escaped):
             return escaped
         if dt and dt != _XSD_STRING:
-            try:
-                dt_str = ns_mgr.qname(dt)
-            except Exception:
-                dt_str = f'<{dt}>'
+            dt_str = _valid_qname(ns_mgr, dt) or f'<{dt}>'
             return f'{quote}{escaped}{quote}^^{dt_str}'
         return f'{quote}{escaped}{quote}'
     return str(node)
@@ -270,6 +295,24 @@ def _compute_list_heads(by_subj, obj_bn_count):
             list_cells.update(chain_cells)
 
     return set(list_items.keys()), list_items, list_cells
+
+
+def _blank_nodes_in_triple_terms(sg) -> set:
+    """Every blank node that is a component of some triple term in the graph, at any depth."""
+    found: set = set()
+
+    def walk(term) -> None:
+        for part in (term.subject, term.predicate, term.object):
+            if isinstance(part, TripleTerm):
+                walk(part)
+            elif isinstance(part, BNode):
+                found.add(part)
+
+    for s, _p, o in sg.triples((None, None, None)):
+        for node in (s, o):
+            if isinstance(node, TripleTerm):
+                walk(node)
+    return found
 
 
 def _demote_unreachable_inline(by_subj, inline_bns, list_heads, list_items, list_cells) -> None:
@@ -588,6 +631,9 @@ def serialize_turtle12(graph) -> str:
         bn for bn, cnt in obj_bn_count.items()
         if cnt == 1 and bn in by_subj and bn not in list_heads and bn not in list_cells
     }
+    # A blank node that also sits inside a triple term keeps its label: <<( _:b ... )>> and [ ... ] would be read back as two
+    # different nodes (GitHub issue #73).
+    inline_bns -= _blank_nodes_in_triple_terms(sg)
     _demote_unreachable_inline(by_subj, inline_bns, list_heads, list_items, list_cells)
 
     def _fmt_list(head, cur_indent, visiting=frozenset()):

@@ -73,7 +73,10 @@ def _consume_nt_term(text: str, start: int) -> tuple[str | None, int]:
     # Blank node  _:local
     if text.startswith('_:', i):
         j = i + 2
-        while j < len(text) and not text[j].isspace() and text[j] not in '.,;':
+        while j < len(text) and not text[j].isspace() and text[j] not in ',;':
+            # a '.' is part of the label only between two label characters ("_:a.b"); the last one ends the triple
+            if text[j] == '.' and not (j + 1 < len(text) and (text[j + 1].isalnum() or text[j + 1] in '_-')):
+                break
             j += 1
         return text[i:j], j
 

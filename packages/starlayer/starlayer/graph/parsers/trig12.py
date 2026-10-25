@@ -33,13 +33,13 @@ from starlayer.graph.parsers.turtle_parser import (
 
 # Matches start of a GRAPH block; group(1) captures the graph identifier token
 _GRAPH_BLOCK_RE = _re.compile(
-    r'\bGRAPH\s+(<[^>]+>|[A-Za-z_]\w*:[A-Za-z_]\w*|:[A-Za-z_]\w*)\s*\{',
+    r'\bGRAPH\s+(<[^>]*>|[A-Za-z_]\w*:[A-Za-z_]\w*|:[A-Za-z_]\w*)\s*\{',
     _re.IGNORECASE,
 )
 
 # Regex to strip prefix declarations from a chunk (we'll re-add them ourselves)
 _PREFIX_RE = _re.compile(
-    r'(?:@prefix\s+[^\s<]*\s*<[^>]+>\s*\.|PREFIX\s+[^\s<]*\s*<[^>]+>)',
+    r'(?:@prefix\s+[^\s<]*\s*<[^>]*>\s*\.|PREFIX\s+[^\s<]*\s*<[^>]*>)',
     _re.IGNORECASE,
 )
 
@@ -171,7 +171,7 @@ def _extract_prefix_map(text: str) -> dict[str, str]:
     masked = _mask_string_literals(text)
     prefixes: dict[str, str] = {}
     for m in _re.finditer(
-        r'(?:@prefix\s+([^\s<]*?)\s*<([^>]+)>\s*\.|PREFIX\s+([^\s<]*?)\s*<([^>]+)>)',
+        r'(?:@prefix\s+([^\s<]*?)\s*<([^>]*)>\s*\.|PREFIX\s+([^\s<]*?)\s*<([^>]*)>)',
         masked, _re.IGNORECASE,
     ):
         if m.group(1) is not None:
