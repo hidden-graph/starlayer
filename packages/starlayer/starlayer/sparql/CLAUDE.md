@@ -114,6 +114,11 @@ A query/update list that only gets `query_to_rdf()`/`update_to_rdf()` + SHACL-sh
 
 Dated entries below record why things are the way they are. Read one when you work on that topic; the block above is what you need first.
 
+
+## Expressions are rendered by `expr_text.py`, not by rdflib's `translateAlgebra` (2026-10-25, GitHub issue #80)
+
+`ssyn_to_text._render_expr_text` (used by `srl.ruleset_to_text` and the SSYN text) wrapped an expression in a throwaway query and sliced it out of rdflib's `translateAlgebra` output. That dropped the parentheses of arithmetic (`(?y - 1) * 2` came back `?y - 1 * 2`), the flags argument of `REGEX`/`REPLACE`, and printed `{UnaryMinus}`, `{Function}`, `{Builtin_isTRIPLE}` for node kinds it does not know. `expr_text.render_expression` walks the tree itself (raw parse trees with their single-child wrapper chains, or simplified ones), puts parentheses only where precedence needs them, and raises `NotImplementedError` for `EXISTS` and aggregates, where the old path is still the fallback. Round trips of SRL text are checked by evaluating both rule sets (`tests/sparql/unit/test_srl_text_roundtrip.py`) and, structurally, by `test_srl_to_text.py`. The engine ignores `REPLACE` flags (rdflib item 10), so that flag is only checked in the text.
+
 ## `_grammar12.py`'s `install(force=True)` recovery hatch was quietly bloating rdflib's shared grammar objects forever (2026-10-12)
 
 Found via a real retrospective performance audit, not a targeted investigation: `tests/sparql/w3c_sparql12/test_w3c_sparql12.py` (221 tests, one pytest process) took 137s, with `--durations` showing a small number of individually catastrophic outliers (`order-1`/`order-2`: 18s *each*, several `test_syntax_negative` cases: 2-6s each) - yet the exact same test, run completely alone, took 0.36s. Bisected by running an increasing prefix of the file's own earlier tests followed by `order-1` alone: flat ~0.18s up to 100 preceding tests, then **explosive** growth - 1.34s at 125, 11.18s at 150. That range (~96-158) is exactly the file's `NegativeSyntaxTest`/`NegativeUpdateSyntaxTest` block - malformed SPARQL 1.2 text that's *supposed* to fail parsing.
