@@ -5604,7 +5604,8 @@ def _rule_set_members(shapes_graph: Any, rule_set: Any) -> frozenset:
     equivalent problem.
     """
     seen_rule_sets: set[Any] = set()
-    worklist = [rule_set]
+    # a single sh:RuleSet node, or an iterable of them (the documented parameter type)
+    worklist = [rule_set] if isinstance(rule_set, (str, bytes)) or not hasattr(rule_set, "__iter__") else list(rule_set)
     members: set[Any] = set()
     while worklist:
         rs = worklist.pop()
