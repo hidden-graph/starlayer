@@ -386,19 +386,49 @@ class StarLayerDataset(Dataset):
     # ------------------------------------------------------------------
 
     def add(self, triple) -> StarLayerDataset:
-        """Add a triple to the default graph, with TripleTerm-aware
-        encoding - see this section's own module-level comment for why
-        this override exists at all."""
+        """Add a triple to the default graph, or a quad ``(s, p, o, graph)`` to the graph it names, with
+        TripleTerm-aware encoding - see this section's own module-level comment for why this override exists at all."""
+        if len(triple) == 4:
+            s, p, o, c = triple
+            self.get_context(c.identifier if isinstance(c, Graph) else c).add((s, p, o))
+            return self
         default_graph = self.get_context(self.default_graph.identifier)
         default_graph.add(triple)
         return self
 
     def remove(self, triple) -> StarLayerDataset:
-        """Remove a triple from the default graph, with TripleTerm-aware
-        encoding - see this section's own module-level comment for why
-        this override exists at all."""
+        """Remove a triple, or a quad ``(s, p, o, graph)`` from the graph it names.
+
+        A bare triple is removed from the default graph, or from every graph when ``default_union`` is set, like
+        rdflib's own ``Dataset.remove()``; TripleTerm-aware encoding as above."""
+        if len(triple) == 4:
+            s, p, o, c = triple
+            self.get_context(c.identifier if isinstance(c, Graph) else c).remove((s, p, o))
+            return self
+        if self.default_union:
+            for sg in list(self.contexts()):
+                sg.remove(triple)
+            return self
         default_graph = self.get_context(self.default_graph.identifier)
         default_graph.remove(triple)
+        return self
+
+    def __contains__(self, item) -> bool:
+        """``(s, p, o) in dataset`` (scoped like ``triples()``) or ``(s, p, o, graph) in dataset``. rdflib's version
+        called ``triples(..., context=...)``, which this class's override does not take."""
+        if len(item) == 4:
+            s, p, o, c = item
+            sg = self._sg_cache.get(str(c.identifier if isinstance(c, Graph) else c))
+            return sg is not None and (s, p, o) in sg
+        return any(True for _ in self.triples(item))
+
+    def remove_graph(self, g) -> StarLayerDataset:
+        """Remove a named graph and forget everything cached about it: the cached execution graph queries read kept
+        returning the removed graph's triples (GitHub issue #99)."""
+        identifier = g.identifier if isinstance(g, Graph) else g
+        super().remove_graph(g)
+        self._sg_cache.pop(str(identifier), None)
+        self._raw_execution_graph = None
         return self
 
     def addN(self, quads) -> StarLayerDataset:
@@ -492,6 +522,11 @@ class StarLayerDataset(Dataset):
         # handles it directly, never reaching that per-context delegation at all.
         if format in ('n3', 'n3-12', 'text/n3'):
             format = 'turtle12'
+
+        # rdflib's names for the multi-graph formats go through this class's own parsers: rdflib's per-context
+        # delegation hands StarLayerGraph.parse() an already-wrapped source it cannot read (GitHub issue #99).
+        format = {'trig': 'trig12', 'nquads': 'nq12', 'nq': 'nq12', 'application/n-quads': 'nq12',
+                  'application/trig': 'trig12', 'trix': 'trix12'}.get(format, format)
 
         # turtle12 is Turtle-only (no GRAPH blocks); trig12 is a strict superset,
         # so routing turtle12 through the trig12 path is correct and safe.
@@ -678,7 +713,10 @@ class StarLayerDataset(Dataset):
             The total number of triples in the dataset.
         """
         if self._backend != 'rdf-1.2':
-            return super().__len__()
+            # the store also holds the triple-term encoding triples, which are not data: count what the graphs show
+            seen = {str(sg.identifier): sg for sg in self.contexts()}
+            seen.setdefault(str(self.default_graph.identifier), self.get_context(self.default_graph.identifier))
+            return sum(len(sg) for sg in seen.values())
         from rdflib.term import Variable
 
         from starlayer.graph.backends.native import execute_select
@@ -1053,7 +1091,7 @@ class StarLayerDataset(Dataset):
 
             indent = '    '
             for identifier, body in graph_entries:
-                if isinstance(identifier, BNode):
+                if isinstance(identifier, BNode) or identifier == DATASET_DEFAULT_GRAPH_ID:
                     blocks.append(body)
                 else:
                     indented = _indent_outside_long_strings(body, indent)

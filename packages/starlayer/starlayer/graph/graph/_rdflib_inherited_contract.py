@@ -253,11 +253,6 @@ INHERITED_METHOD_CONTRACTS: dict[str, InheritedMethodContract] = {
         signature="(self, context: '_ContextType') -> 'None'",
         returns="None",
     ),
-    "remove_graph": InheritedMethodContract(
-        owner="StarLayerDataset",
-        signature="(self: '_DatasetT', g: 'Optional[Union[_ContextIdentifierType, _ContextType, str]]') -> '_DatasetT'",
-        returns="self (same dataset)",
-    ),
     "resource": InheritedMethodContract(
         owner="StarLayerGraph",
         signature="(self, identifier: 'Union[Node, str]') -> 'Resource'",
