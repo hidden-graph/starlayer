@@ -98,6 +98,9 @@ def register_native_components() -> None:
     that cache, reassignment would not.
     """
     global _registered
+    from starlayer.shacl.recursion import install_recursion_patch
+
+    install_recursion_patch()  # exact cycle check instead of pySHACL's shape-only heuristic (GitHub issue #26)
     if _registered:
         return
 

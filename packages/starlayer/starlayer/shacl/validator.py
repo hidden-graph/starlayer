@@ -7,7 +7,7 @@ from typing import Any
 
 from rdflib import BNode, Graph, Literal, Namespace, URIRef
 from rdflib.collection import Collection
-from rdflib.namespace import OWL, RDF, RDFS, NamespaceManager
+from rdflib.namespace import RDF, RDFS, NamespaceManager
 
 from starlayer.shacl.adapters import TripleTermAdapter, TripleTermGraph
 from starlayer.shacl.engine import (
@@ -33,6 +33,7 @@ from starlayer.shacl.native_components import (
     register_native_components,
     shape_reference_nodes,
 )
+from starlayer.shacl.recursion import MAX_VALIDATION_DEPTH, reset_revisits, revisits  # noqa: E402
 from starlayer.shacl.results import (
     ExecutionDiagnostics,
     RulesResult,
@@ -849,6 +850,8 @@ class StarShaclSchema:
                     "see starlayer.shacl/validator.py::_patch_shape_focus_nodes_for_deactivated_expression."
                 )
             deactivated_token = _deactivated_expr_registry.set(deactivated_expr_registry)
+        options.setdefault("max_validation_depth", MAX_VALIDATION_DEPTH)  # cycles are caught exactly now (issue #26)
+        reset_revisits()
         try:
             conforms, report_graph, report_text = self.validate_fn(
                 data_graph=encoded_data,
@@ -924,6 +927,7 @@ class StarShaclSchema:
             encoded_data_triples=len(encoded_data),
             report_triples=len(report_graph),
             inplace_data_triples=len(out_data) if out_data is not None else 0,
+            recursion_revisits=revisits(),
         )
 
         return ValidationResult(
@@ -2140,40 +2144,21 @@ class StarShaclSchema:
                 "extract_shapes_graph() needs a bound shapes graph - construct with "
                 "StarShaclSchema(shacl_graph=...)."
             )
-        sg = self.shacl_graph
-        if (shapes_graph_iri, RDF.type, SH.ShapesGraph) not in sg:
-            return None
+        from starlayer.shacl.shapes_graphs import module_nodes, shapes_graph_members
 
-        shapes_graph_nodes = {shapes_graph_iri}
-        pending = [shapes_graph_iri]
-        while pending:
-            current = pending.pop()
-            for imported in sg.objects(current, OWL.imports):
-                if imported in shapes_graph_nodes:
-                    continue
-                if (imported, RDF.type, SH.ShapesGraph) not in sg:
-                    raise ValueError(
-                        f"{current!r} declares owl:imports {imported!r}, but {imported!r} "
-                        "is not typed `a sh:ShapesGraph` in this schema's own bound "
-                        "shacl_graph - either it has no triples describing it at all "
-                        "(call resolve_imports(loader=...) on shacl_graph first if it "
-                        "needs fetching from elsewhere), or it's present but isn't "
-                        "itself a packaging module."
-                    )
-                shapes_graph_nodes.add(imported)
-                pending.append(imported)
+        sg = self.shacl_graph
+        members = shapes_graph_members(sg, shapes_graph_iri)
+        if members is None:
+            return None
+        shapes_graph_nodes = module_nodes(sg, shapes_graph_iri)
 
         result = type(sg)()
         for prefix, ns in sg.namespaces():
             result.bind(prefix, ns)
 
-        members = set()
         for node in shapes_graph_nodes:
             for t in sg.cbd(node):
                 result.add(t)
-            members.update(sg.objects(node, RDFS.member))
-            members.update(sg.subjects(RDFS.isDefinedBy, node))
-
         for member in members:
             for t in sg.cbd(member):
                 result.add(t)
@@ -3523,6 +3508,8 @@ def validate(
                 "see starlayer.shacl/validator.py::_patch_shape_focus_nodes_for_deactivated_expression."
             )
         deactivated_token = _deactivated_expr_registry.set(deactivated_expr_registry)
+    options.setdefault("max_validation_depth", MAX_VALIDATION_DEPTH)  # cycles are caught exactly now (issue #26)
+    reset_revisits()
     try:
         conforms, report_graph, report_text = validate_fn(
             data_graph=encoded_data,
@@ -3587,6 +3574,7 @@ def validate(
         encoded_data_triples=len(encoded_data),
         report_triples=len(report_graph),
         inplace_data_triples=len(out_data) if out_data is not None else 0,
+        recursion_revisits=revisits(),
     )
 
     return ValidationResult(

@@ -1,6 +1,6 @@
 # pySHACL Upstream Issues
 
-*Last reviewed: 2026-07-27*
+*Last reviewed: 2026-10-24*
 
 Bugs found in `pyshacl` (https://github.com/RDFLib/pySHACL) while using it as a SHACL validation engine. Every reproduction below uses only plain `rdflib` and `pyshacl` - no third-party wrapper or extension is involved, so each is reproducible standalone against a stock pySHACL install. All 4 entries below were re-run on 2026-07-20 against pySHACL installed directly from the `RDFLib/pySHACL` GitHub repository's default branch tip (commit `9eeb9bf`) - at that time identical to the `v0.40.0` release tag (zero commits past it), so this confirms the bugs as of the latest available code, not just the last tagged release.
 
@@ -16,6 +16,7 @@ Bugs found in `pyshacl` (https://github.com/RDFLib/pySHACL) while using it as a 
 | 4 | `sh:filterShape` crashes | No - dead code, see below | Yes, fully (`_patch_shape_validate_for_filter_shape`) |
 | 5 | `RdfLibDataGraph.clone()` drops a caller `Graph` subclass's identity/state under `advanced=True` | **Yes** (not yet filed) | Yes, fully (`_patch_rdflib_data_graph_clone_preserves_tt_adapter`) |
 | 6 | `sh:sparql`'s own constraint node ignores its own `sh:severity` | Pending triage | Yes, fully (`_build_sparql_constraint_component`) |
+| 7 | A self-referencing shape is cut after two levels on data with no cycle: a violation three or more steps down a chain is reported as conforming | **Yes** (not yet filed; related, narrower open issue #154 is only about the warning) | Yes, fully (`starlayer.shacl.recursion`) |
 
 A fifth candidate (`sh:equals`/`sh:disjoint`/`sh:lessThan`/`sh:lessThanOrEquals` "not evaluating complex property paths") was investigated, retracted on 2026-07-20, then **un-retracted** the same day once the retraction itself turned out to be based on an incomplete check. The retraction tested plain, unmodified `pyshacl.validate(..., meta_shacl=True)` - which checks against pySHACL's own *stale, pre-1.2* bundled meta-shapes (`pyshacl/assets/shacl-shacl.ttl`), correctly declaring all four predicates `sh:nodeKind sh:IRI` per the *original* SHACL Core - and concluded the complex-path form was never valid input at all. But `starshacl`'s own corrected meta-shapes (`meta_validate()`) - which specifically exist to fix exactly this staleness for these 8 predicates, see `meta_shapes.py`'s own module docstring - accept the identical shape cleanly, confirming the SHACL 1.2 widening is real (corroborated externally too: W3C `data-shapes` issue #119, labeled "Core" for the SHACL 1.2 Core milestone, requests exactly this generalization). So the correct conclusion is closer to the original claim: plain pySHACL doesn't know about the SHACL 1.2 widening at all, both in its meta-shapes *and* in its runtime `EqualsConstraintComponent`/etc., which silently mistreat a valid path value as an empty comparison set. This entry needs to be rewritten as a real issue again (full `### Description`/`### Reproduction`/etc. write-up not yet redone) before deciding whether to add it to the reporting queue alongside Issue 1.
 
@@ -533,3 +534,70 @@ Subclass `SPARQLBasedConstraint`, override `_evaluate_sparql_constraint` to call
 ### Status
 
 Found 2026-07-31 via the W3C SHACL 1.2 test suite's `sparql-001` fixture, confirmed against pySHACL 0.40.1. Not yet added to the reporting queue (pending triage alongside Issue 5). Worked around in `starshacl` (`native_components.py::_build_sparql_constraint_component`, registered over pySHACL's own `SH.sparql` dispatch entry) in the meantime.
+
+## Issue 7 - A self-referencing shape is cut after two levels on acyclic data, so a violation three or more steps down is reported as conforming (found 2026-10-24)
+
+**pySHACL version:** 0.40.1 (`pyshacl/constraints/constraint_component.py::ConstraintComponent.recursion_triggers`, used by `shape_based_constraints.py` and `logical_constraints.py`). Last checked 2026-10-24.
+
+### Description
+
+For a shape that refers to itself (`sh:node` back to the same shape, directly or through `sh:property`), pySHACL decides that a recursive validation sequence has been entered from the sequence of shapes and constraint components it is evaluating alone: `recursion_triggers` returns the shapes that have "been seen before" on the evaluation path and the constraint then "backs out", with a `ShapeRecursionWarning`, without evaluating the nested shape. It never looks at which data node is being validated. So the cut happens at the first revisit of the shape even when the data is an acyclic chain, and any violation further down the chain is never found: the report says `conforms`. The warning is the only trace. (Existing issue #154 reports the warning for a valid use; it says the results look correct, which holds only when the nested nodes are also targets of the shape in their own right.)
+
+### Reproduction
+
+Plain `pyshacl` and `rdflib` only:
+
+```python
+import warnings
+import pyshacl
+from rdflib import Graph
+
+P = "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . "
+shapes = Graph().parse(data=P + """
+    ex:PersonShape a sh:NodeShape ; sh:targetClass ex:Person ;
+      sh:property [ sh:path ex:name ; sh:minCount 1 ] ,
+                  [ sh:path ex:friend ; sh:node ex:PersonShape ] .
+""", format="turtle")
+
+def chain(n):
+    """n0 (the only Person, so the only target) -> n1 -> ... -> n<n>; every node has a name except the last."""
+    text = "ex:n0 a ex:Person ; ex:name 'x' ; ex:friend ex:n1 . "
+    for i in range(1, n):
+        text += f"ex:n{i} ex:name 'x' ; ex:friend ex:n{i + 1} . "
+    return Graph().parse(data=P + text + f"ex:n{n} a ex:Thing .", format="turtle")
+
+for n in (1, 2, 3, 4, 10, 20):
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        conforms, _, _ = pyshacl.validate(chain(n), shacl_graph=shapes)
+    print(n, conforms, sum("Recursive" in str(w.message) for w in caught))
+```
+
+### Expected behavior
+
+`conforms` is `False` for every n: the last node has no `ex:name`, and `ex:PersonShape` applies to it through the chain of `sh:node` references. The same schema written out as distinct, non-recursive shapes (`ex:P1 ... sh:node ex:P2`, `ex:P2 ... sh:node ex:P3`, ...) gives `False`.
+
+### Actual behavior
+
+`False` for n = 1 and 2, then **`True` for n = 3 and every larger n**, with one `ShapeRecursionWarning` each time.
+
+### Suspected root cause
+
+`recursion_triggers(self, _evaluation_path, trigger_depth=3)` only inspects `_evaluation_path`, a list of shapes and constraint components, and returns the shapes that appear earlier on it with a constraint of the same kind. No focus node is involved, so the test cannot tell a cycle in the data from a chain.
+
+### Impact
+
+Silent false "conforms" for any schema with a self-referencing `sh:node` (a tree, a list, a part-of hierarchy, "a person's friends are persons") when the nested nodes are not also targets of the shape. The warning is the only sign.
+
+### Suggested fix
+
+Back out only when the same (shape, focus node) pair is already being evaluated further up the call chain, and treat that revisit as conforming (the usual greatest-fixpoint reading). That evaluates acyclic data in full and still terminates on cyclic data. The depth limit (`max_validation_depth`, default 15) then becomes a safety net; at the default it would need raising, because a chain of friends adds two levels per step.
+
+### Possible workaround
+
+Write the shape out as distinct copies to a fixed depth, or make every node that can be reached a target of the shape.
+
+### Status
+
+Found 2026-10-24 while investigating StarLayer issue #26. **Reporting upstream planned** (not yet filed): a correctness bug with a short standalone reproduction. Fixed in `starlayer.shacl.recursion` (`Shape.validate` wrapper plus `recursion_triggers` switched off); see the dated entry in `starlayer/shacl/CLAUDE.md`. StarLayer's own replacement `sh:node` component had a second, smaller problem on top of this (it compared the constraint component IRI with `is` against pySHACL's constant, so the lookback was never lengthened and the cut came one step earlier, at n = 2); that goes away with the same change.
+

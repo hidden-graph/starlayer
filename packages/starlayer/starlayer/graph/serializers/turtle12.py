@@ -17,13 +17,12 @@ from collections import defaultdict
 
 from rdflib import BNode, Literal, URIRef
 
+from starlayer.graph.graph.prefixes import select_prefixes
 from starlayer.graph.model.dirlangstring import DirLangString
-from starlayer.graph.model.encoding import TT_NS
 from starlayer.graph.model.triple import TripleTerm
 
 SL_NS = 'https://github.com/hidden-graph/starlayergraph/ns#'
 _RDF_NS = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#'
-_INTERNAL_NS = {SL_NS, TT_NS}
 
 _RDF_TYPE    = URIRef('http://www.w3.org/1999/02/22-rdf-syntax-ns#type')
 _XSD_BOOLEAN = 'http://www.w3.org/2001/XMLSchema#boolean'
@@ -600,14 +599,11 @@ def serialize_turtle12(graph) -> str:
     prefix_lines = []
     if _graph_has_triple_term(sg) or _graph_has_dirlangstring(sg):
         prefix_lines.append('@version "1.2" .')
-    for prefix, ns_uri in sorted(sg.namespaces(), key=lambda x: x[0]):
-        ns = str(ns_uri)
-        if ns in _INTERNAL_NS:
-            continue
-        if any(u.startswith(ns) for u in used_uris):
-            prefix_lines.append(f'@prefix {prefix}: <{ns_uri}> .')
+    for prefix, ns_uri in select_prefixes(sg.namespaces(), used_uris):
+        prefix_lines.append(f'@prefix {prefix}: <{ns_uri}> .')
 
-    if _RDF_NS not in {str(ns) for _, ns in sg.namespaces()}:
+    # rdf: is declared when something in the output needs it and the graph has no binding for it; not when nothing uses it
+    if _RDF_NS not in {str(ns) for _, ns in sg.namespaces()} and any(u.startswith(_RDF_NS) for u in used_uris):
         prefix_lines.append(f'@prefix rdf: <{_RDF_NS}> .')
 
     prefix_lines.append('')
@@ -667,14 +663,11 @@ def serialize_longturtle12(graph) -> str:
     prefix_lines = []
     if _graph_has_triple_term(sg) or _graph_has_dirlangstring(sg):
         prefix_lines.append('@version "1.2" .')
-    for prefix, ns_uri in sorted(sg.namespaces(), key=lambda x: x[0]):
-        ns = str(ns_uri)
-        if ns in _INTERNAL_NS:
-            continue
-        if any(u.startswith(ns) for u in used_uris):
-            prefix_lines.append(f'@prefix {prefix}: <{ns_uri}> .')
+    for prefix, ns_uri in select_prefixes(sg.namespaces(), used_uris):
+        prefix_lines.append(f'@prefix {prefix}: <{ns_uri}> .')
 
-    if _RDF_NS not in {str(ns) for _, ns in sg.namespaces()}:
+    # rdf: is declared when something in the output needs it and the graph has no binding for it; not when nothing uses it
+    if _RDF_NS not in {str(ns) for _, ns in sg.namespaces()} and any(u.startswith(_RDF_NS) for u in used_uris):
         prefix_lines.append(f'@prefix rdf: <{_RDF_NS}> .')
 
     prefix_lines.append('')

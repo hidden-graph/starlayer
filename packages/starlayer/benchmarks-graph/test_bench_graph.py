@@ -62,3 +62,23 @@ def test_sparql_tt_pattern(benchmark):
     }
     """
     benchmark(lambda: list(g.query(query)))
+
+
+# --- calibration -------------------------------------------------------------------------------------------------------
+# A fixed, pure-Python workload (no rdflib, no starlayer) timed in the same run. GitHub's runners draw a different CPU
+# from day to day (about 2x apart), so scripts/check_benchmark_regression.py compares each benchmark as a ratio to this
+# one, not as absolute milliseconds. Keep it identical in benchmarks-graph and benchmarks-shacl, and do not change it
+# without re-recording both baselines (GitHub issue #33).
+CALIBRATION_NAME = "test_calibration_reference"
+
+
+def _reference_workload():
+    rows = {f"http://example.org/node/{i}": (i, str(i * 7), i % 13) for i in range(20000)}
+    keys = sorted(rows, key=lambda k: (rows[k][2], k))
+    evens = {k for k in keys if rows[k][0] % 2 == 0}
+    threes = {k for k in keys if rows[k][0] % 3 == 0}
+    return len(evens & threes) + len(" ".join(keys[:2000]))
+
+
+def test_calibration_reference(benchmark):
+    benchmark(_reference_workload)
