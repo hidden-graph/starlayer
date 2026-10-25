@@ -147,11 +147,16 @@ BodyElement = TriplePattern | _FilterElement | _NegationElement | _AssignmentEle
 
 
 def _triple_term_has_variable(term: Any) -> bool:
-    """True if ``term`` is a triple term (at any depth) that contains a variable."""
+    """True if ``term`` is a triple term (at any depth) that contains a variable or a blank node.
+
+    A blank node inside a head triple term is a fresh node per solution, exactly like one in a head triple, so a rule
+    holding one is run-once too; without it the rule produced a new triple every pass and ``infer()`` never ended
+    (GitHub issue #96).
+    """
     if not isinstance(term, TripleTermNode):
         return False
     return any(
-        isinstance(part, Variable) or _triple_term_has_variable(part)
+        isinstance(part, (Variable, BNode)) or _triple_term_has_variable(part)
         for part in (term.get("subject"), term.get("predicate"), term.get("object"))
     )
 
@@ -427,7 +432,14 @@ class RuleSet:
         from starlayer.shacl import RulesResult, StarShaclSchema
 
         resolved_schema = schema if isinstance(schema, StarShaclSchema) else StarShaclSchema(shacl_graph=schema)
-        validation = resolved_schema.validate(data_graph=inferred)
+        # the evaluation graph (base plus inferred), as StarShaclSchema.apply_rules() validates: validating the inferred
+        # triples alone reported violations for constraints the base graph satisfies (GitHub issue #96)
+        evaluation = type(inferred)()
+        for triple in base_graph:
+            evaluation.add(triple)
+        for triple in inferred:
+            evaluation.add(triple)
+        validation = resolved_schema.validate(data_graph=evaluation)
         return RulesResult(inferred_graph=inferred, validation=validation)
 
     def query(
