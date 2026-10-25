@@ -183,6 +183,30 @@ def _register_tt_accessor_functions() -> None:
 
 _register_tt_accessor_functions()
 
+# The lowered form of isTRIPLE(x): a dedicated function, because the old STRSTARTS(STR(x), TT_NS) test cannot be used any
+# more now that a user-written STR(<triple term>) is an error (GitHub issue #74), and a function IRI survives the lowered
+# query's trip through RDF and text unchanged, which an extra flag on the STR node did not.
+TT_IS_TRIPLE_TERM_FN = f"<{TT_NS_PREFIX}fn/isTripleTerm>"
+
+
+def _register_tt_is_triple_term_function() -> None:
+    from rdflib import Literal, URIRef
+    from rdflib.plugins.sparql.operators import register_custom_function
+
+    from starlayer.graph.model.encoding import TT_NS
+    from starlayer.graph.model.triple import TripleTerm
+
+    def _is_triple_term(e, ctx):
+        term = e.expr[0]
+        return Literal(
+            isinstance(term, TripleTerm) or (isinstance(term, URIRef) and str(term).startswith(TT_NS))
+        )
+
+    register_custom_function(URIRef(TT_IS_TRIPLE_TERM_FN[1:-1]), _is_triple_term, override=True, raw=True)
+
+
+_register_tt_is_triple_term_function()
+
 # STRLANGDIR is a SPARQL-callable function (registered like TT_HASH_FN) rather
 # than a pure STRDT/IRI/CONCAT/LCASE expression: a plain expression can't
 # validate its direction argument at all - it would silently build a

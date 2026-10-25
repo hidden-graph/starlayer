@@ -926,6 +926,50 @@ def patch_order_by_tt_hash_term_kind() -> bool:
 _bgp_patch_status: bool | None = None
 
 
+_negated_path_patch_status: bool | None = None
+
+
+def patch_negated_path_skips_encoding_triples() -> bool:
+    """A negated property set (``?x !(:p) ?y``) matched every triple whose predicate is not listed, including the
+    rdf-1.1 backend's internal triple-term encoding triples, so the decomposition of a triple term showed up as data
+    (GitHub issue #74). Replaces ``NegatedPath.eval`` with one that skips those triples, as the BGP patch does for an
+    unconstrained predicate. Idempotent, like the other patches here."""
+    global _negated_path_patch_status
+    if _negated_path_patch_status is not None:
+        return _negated_path_patch_status
+    try:
+        from rdflib.paths import InvPath, NegatedPath
+
+        from starlayer.graph.model.encoding import ENCODING_PREDS, TT_CLASS
+
+        if getattr(NegatedPath.eval, "_starlayer_graph_negated_path_patch", False):
+            _negated_path_patch_status = True
+            return True
+
+        def _eval(self, graph, subj=None, obj=None):
+            for s, p, o in graph.triples((subj, None, obj)):
+                if p in ENCODING_PREDS or (p == RDF.type and o == TT_CLASS):
+                    continue
+                for a in self.args:
+                    if isinstance(a, URIRef):
+                        if p == a:
+                            break
+                    elif isinstance(a, InvPath):
+                        if (o, a.arg, s) in graph:
+                            break
+                    else:
+                        raise Exception(f"Invalid path in NegatedPath: {a}")
+                else:
+                    yield s, o
+
+        _eval._starlayer_graph_negated_path_patch = True  # type: ignore[attr-defined]
+        NegatedPath.eval = _eval
+        _negated_path_patch_status = True
+    except Exception:
+        _negated_path_patch_status = False
+    return _negated_path_patch_status
+
+
 def patch_bgp_skips_encoding_triples() -> bool:
     """Patch ``evalBGP`` (the core basic-graph-pattern matcher every SPARQL
     query goes through) so it never yields a solution derived from an

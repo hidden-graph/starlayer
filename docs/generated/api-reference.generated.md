@@ -2601,7 +2601,7 @@ is emitted as ``s p o .`` on its own line.  Prefix declarations and the
 
 **Returns:** `str` - The longturtle 1.2 serialization of graph.
 
-**Source:** [starlayer.graph.serializers.turtle12.serialize_longturtle12](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/serializers/turtle12.py#L687-L748)
+**Source:** [starlayer.graph.serializers.turtle12.serialize_longturtle12](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/serializers/turtle12.py#L733-L794)
 
 ---
 
@@ -2674,7 +2674,7 @@ never emits).
 
 **Returns:** `str` - The RDF/XML 1.2 serialization of graph.
 
-**Source:** [starlayer.graph.serializers.rdfxml12.serialize_rdfxml12](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/serializers/rdfxml12.py#L141-L184)
+**Source:** [starlayer.graph.serializers.rdfxml12.serialize_rdfxml12](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/serializers/rdfxml12.py#L145-L188)
 
 ---
 
@@ -2766,7 +2766,7 @@ Only namespace prefixes actually used in the graph are emitted.
 
 **Returns:** `str` - The Turtle 1.2 serialization of graph.
 
-**Source:** [starlayer.graph.serializers.turtle12.serialize_turtle12](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/serializers/turtle12.py#L497-L684)
+**Source:** [starlayer.graph.serializers.turtle12.serialize_turtle12](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/serializers/turtle12.py#L540-L730)
 
 ---
 
@@ -3993,7 +3993,7 @@ whether every focus node satisfied this constraint, and a
 
 **Returns:** `tuple[bool, list[Any]]`
 
-**Source:** [starlayer.shacl.native_components._build_and_component.AndConstraintComponent.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/native_components.py#L2357-L2389)
+**Source:** [starlayer.shacl.native_components._build_and_component.AndConstraintComponent.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/native_components.py#L2375-L2407)
 
 ---
 
@@ -4025,7 +4025,7 @@ whether every focus node satisfied this constraint, and a
 
 **Returns:** `tuple[bool, list[Any]]`
 
-**Source:** [starlayer.shacl.native_components._build_class_component.ClassConstraintComponent.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/native_components.py#L1668-L1710)
+**Source:** [starlayer.shacl.native_components._build_class_component.ClassConstraintComponent.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/native_components.py#L1671-L1713)
 
 ---
 
@@ -4057,7 +4057,7 @@ whether every focus node satisfied this constraint, and a
 
 **Returns:** `tuple[bool, list[Any]]`
 
-**Source:** [starlayer.shacl.native_components._build_closed_component.ClosedConstraintComponent.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/native_components.py#L1558-L1612)
+**Source:** [starlayer.shacl.native_components._build_closed_component.ClosedConstraintComponent.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/native_components.py#L1561-L1615)
 
 ---
 
@@ -4089,7 +4089,7 @@ whether every focus node satisfied this constraint, and a
 
 **Returns:** `tuple[bool, list[Any]]`
 
-**Source:** [starlayer.shacl.native_components._build_datatype_component.DatatypeConstraintComponent.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/native_components.py#L1908-L1956)
+**Source:** [starlayer.shacl.native_components._build_datatype_component.DatatypeConstraintComponent.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/native_components.py#L1926-L1974)
 
 ---
 
@@ -4121,7 +4121,7 @@ whether every focus node satisfied this constraint, and a
 
 **Returns:** `tuple[bool, list[Any]]`
 
-**Source:** [starlayer.shacl.native_components._build_language_in_component.LanguageInConstraintComponent.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/native_components.py#L2040-L2067)
+**Source:** [starlayer.shacl.native_components._build_language_in_component.LanguageInConstraintComponent.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/native_components.py#L2058-L2085)
 
 ---
 
@@ -4153,7 +4153,7 @@ whether every focus node satisfied this constraint, and a
 
 **Returns:** `tuple[bool, list[Any]]`
 
-**Source:** [starlayer.shacl.native_components._build_max_list_length_component.MaxListLengthConstraintComponent.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/native_components.py#L733-L765)
+**Source:** [starlayer.shacl.native_components._build_max_list_length_component.MaxListLengthConstraintComponent.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/native_components.py#L736-L768)
 
 ---
 
@@ -4185,7 +4185,7 @@ whether every focus node satisfied this constraint, and a
 
 **Returns:** `tuple[bool, list[Any]]`
 
-**Source:** [starlayer.shacl.native_components._build_member_shape_component.MemberShapeConstraintComponent.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/native_components.py#L582-L645)
+**Source:** [starlayer.shacl.native_components._build_member_shape_component.MemberShapeConstraintComponent.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/native_components.py#L585-L648)
 
 ---
 
@@ -4217,7 +4217,7 @@ whether every focus node satisfied this constraint, and a
 
 **Returns:** `tuple[bool, list[Any]]`
 
-**Source:** [starlayer.shacl.native_components._build_min_list_length_component.MinListLengthConstraintComponent.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/native_components.py#L673-L705)
+**Source:** [starlayer.shacl.native_components._build_min_list_length_component.MinListLengthConstraintComponent.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/native_components.py#L676-L708)
 
 ---
 
@@ -4249,7 +4249,7 @@ whether every focus node satisfied this constraint, and a
 
 **Returns:** `tuple[bool, list[Any]]`
 
-**Source:** [starlayer.shacl.native_components._build_node_by_expression_component.NodeByExpressionConstraintComponent.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/native_components.py#L1267-L1307)
+**Source:** [starlayer.shacl.native_components._build_node_by_expression_component.NodeByExpressionConstraintComponent.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/native_components.py#L1270-L1310)
 
 ---
 
@@ -4281,7 +4281,7 @@ whether every focus node satisfied this constraint, and a
 
 **Returns:** `tuple[bool, list[Any]]`
 
-**Source:** [starlayer.shacl.native_components._build_node_component.NodeConstraintComponent.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/native_components.py#L2899-L2946)
+**Source:** [starlayer.shacl.native_components._build_node_component.NodeConstraintComponent.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/native_components.py#L2917-L2964)
 
 ---
 
@@ -4313,7 +4313,7 @@ whether every focus node satisfied this constraint, and a
 
 **Returns:** `tuple[bool, list[Any]]`
 
-**Source:** [starlayer.shacl.native_components._build_node_kind_component.NodeKindConstraintComponent.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/native_components.py#L1770-L1800)
+**Source:** [starlayer.shacl.native_components._build_node_kind_component.NodeKindConstraintComponent.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/native_components.py#L1778-L1808)
 
 ---
 
@@ -4345,7 +4345,7 @@ whether every focus node satisfied this constraint, and a
 
 **Returns:** `tuple[bool, list[Any]]`
 
-**Source:** [starlayer.shacl.native_components._build_not_component.NotConstraintComponent.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/native_components.py#L2773-L2814)
+**Source:** [starlayer.shacl.native_components._build_not_component.NotConstraintComponent.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/native_components.py#L2791-L2832)
 
 ---
 
@@ -4377,7 +4377,7 @@ whether every focus node satisfied this constraint, and a
 
 **Returns:** `tuple[bool, list[Any]]`
 
-**Source:** [starlayer.shacl.native_components._build_or_component.OrConstraintComponent.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/native_components.py#L2492-L2524)
+**Source:** [starlayer.shacl.native_components._build_or_component.OrConstraintComponent.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/native_components.py#L2510-L2542)
 
 ---
 
@@ -4409,7 +4409,7 @@ whether every focus node satisfied this constraint, and a
 
 **Returns:** `tuple[bool, list[Any]]`
 
-**Source:** [starlayer.shacl.native_components._build_property_pair_component.PropertyPairConstraintComponent.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/native_components.py#L2246-L2302)
+**Source:** [starlayer.shacl.native_components._build_property_pair_component.PropertyPairConstraintComponent.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/native_components.py#L2264-L2320)
 
 ---
 
@@ -4441,7 +4441,7 @@ whether every focus node satisfied this constraint, and a
 
 **Returns:** `tuple[bool, list[Any]]`
 
-**Source:** [starlayer.shacl.native_components._build_qualified_value_shape_component.QualifiedValueShapeConstraintComponent.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/native_components.py#L3031-L3073)
+**Source:** [starlayer.shacl.native_components._build_qualified_value_shape_component.QualifiedValueShapeConstraintComponent.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/native_components.py#L3049-L3091)
 
 ---
 
@@ -4473,7 +4473,7 @@ whether every focus node satisfied this constraint, and a
 
 **Returns:** `tuple[bool, list[Any]]`
 
-**Source:** [starlayer.shacl.native_components._build_reifier_shape_component.ReifierShapeConstraintComponent.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/native_components.py#L1433-L1475)
+**Source:** [starlayer.shacl.native_components._build_reifier_shape_component.ReifierShapeConstraintComponent.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/native_components.py#L1436-L1478)
 
 ---
 
@@ -4505,7 +4505,7 @@ whether every focus node satisfied this constraint, and a
 
 **Returns:** `tuple[bool, list[Any]]`
 
-**Source:** [starlayer.shacl.native_components._build_root_class_component.RootClassConstraintComponent.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/native_components.py#L422-L450)
+**Source:** [starlayer.shacl.native_components._build_root_class_component.RootClassConstraintComponent.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/native_components.py#L425-L453)
 
 ---
 
@@ -4537,7 +4537,7 @@ whether every focus node satisfied this constraint, and a
 
 **Returns:** `tuple[bool, list[Any]]`
 
-**Source:** [starlayer.shacl.native_components._build_single_line_component.SingleLineConstraintComponent.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/native_components.py#L251-L279)
+**Source:** [starlayer.shacl.native_components._build_single_line_component.SingleLineConstraintComponent.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/native_components.py#L254-L282)
 
 ---
 
@@ -4569,7 +4569,7 @@ whether every focus node satisfied this constraint, and a
 
 **Returns:** `tuple[bool, list[Any]]`
 
-**Source:** [starlayer.shacl.native_components._build_some_value_component.SomeValueConstraintComponent.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/native_components.py#L160-L201)
+**Source:** [starlayer.shacl.native_components._build_some_value_component.SomeValueConstraintComponent.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/native_components.py#L163-L204)
 
 ---
 
@@ -4601,7 +4601,7 @@ whether every focus node satisfied this constraint, and a
 
 **Returns:** `tuple[bool, list[Any]]`
 
-**Source:** [starlayer.shacl.native_components._build_subset_of_component.SubsetOfConstraintComponent.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/native_components.py#L321-L359)
+**Source:** [starlayer.shacl.native_components._build_subset_of_component.SubsetOfConstraintComponent.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/native_components.py#L324-L362)
 
 ---
 
@@ -4633,7 +4633,7 @@ whether every focus node satisfied this constraint, and a
 
 **Returns:** `tuple[bool, list[Any]]`
 
-**Source:** [starlayer.shacl.native_components._build_unique_lang_component.UniqueLangConstraintComponent.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/native_components.py#L2132-L2166)
+**Source:** [starlayer.shacl.native_components._build_unique_lang_component.UniqueLangConstraintComponent.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/native_components.py#L2150-L2184)
 
 ---
 
@@ -4665,7 +4665,7 @@ whether every focus node satisfied this constraint, and a
 
 **Returns:** `tuple[bool, list[Any]]`
 
-**Source:** [starlayer.shacl.native_components._build_unique_members_component.UniqueMembersConstraintComponent.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/native_components.py#L811-L846)
+**Source:** [starlayer.shacl.native_components._build_unique_members_component.UniqueMembersConstraintComponent.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/native_components.py#L814-L849)
 
 ---
 
@@ -4697,7 +4697,7 @@ whether every focus node satisfied this constraint, and a
 
 **Returns:** `tuple[bool, list[Any]]`
 
-**Source:** [starlayer.shacl.native_components._build_unique_values_for_component.UniqueValuesForConstraintComponent.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/native_components.py#L513-L548)
+**Source:** [starlayer.shacl.native_components._build_unique_values_for_component.UniqueValuesForConstraintComponent.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/native_components.py#L516-L551)
 
 ---
 
@@ -4729,7 +4729,7 @@ whether every focus node satisfied this constraint, and a
 
 **Returns:** `tuple[bool, list[Any]]`
 
-**Source:** [starlayer.shacl.native_components._build_xone_component.XoneConstraintComponent.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/native_components.py#L2627-L2659)
+**Source:** [starlayer.shacl.native_components._build_xone_component.XoneConstraintComponent.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/native_components.py#L2645-L2677)
 
 ---
 
@@ -4883,7 +4883,7 @@ docstring's entailment section for the full design.
 
 **Returns:** `Any` - A new graph - the union of every conforming ``(shape, focus_node)`` pair's own extraction. Empty (never ``None``) if nothing conforms.
 
-**Source:** [starlayer.shacl.subgraph_extraction.extract_subgraph](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/subgraph_extraction.py#L457-L566)
+**Source:** [starlayer.shacl.subgraph_extraction.extract_subgraph](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/subgraph_extraction.py#L524-L633)
 
 ---
 
@@ -5032,7 +5032,7 @@ decode branch both do.
 
 **Returns:** `TripleTermNode` - self, so this can be chained directly onto a construction call.
 
-**Source:** [starlayer.sparql.triple_term.TripleTermNode.validate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/triple_term.py#L148-L165)
+**Source:** [starlayer.sparql.triple_term.TripleTermNode.validate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/triple_term.py#L162-L179)
 
 ---
 

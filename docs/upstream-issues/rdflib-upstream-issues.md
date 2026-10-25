@@ -292,6 +292,12 @@ d.update("INSERT { ?s ?p ?o } USING <http://e/g> WHERE { ?s ?p ?o }")  # tries t
 
 Fix: `starlayer/graph/query/update_patches.py::patch_update_graph_management`.
 
+## 20. A negated property set matches the triple-term encoding; `isIRI` and `STR` accept a triple term
+
+On the rdf-1.1 representation a triple term is a `tt:` IRI described by internal triples. rdflib knows nothing about that, so `?x !(:p) ?y` returns the internal `rdf:propositionFormSubject` / `Predicate` / `Object` triples as data, `isIRI(?t)` is true for a triple term and `STR(?t)` returns the internal IRI text. SPARQL 1.2 makes the term kinds disjoint (17.4.2.3): `isIRI` is false for a triple term and `STR` of one is a type error. Found by the second hunt (GitHub issue #74). Also fixed: a pattern holding a triple term and an IRI as objects of the same subject and predicate crashed in rdflib's `reorderTriples` (`TripleTermNode` had no ordering against a `URIRef`).
+
+Fix: `evaluate_patches.py::patch_negated_path_skips_encoding_triples`, `operator_patches.py::patch_triple_terms_are_not_iris`, `TripleTermNode.__lt__`/`__gt__` in `sparql/triple_term.py`.
+
 ## Withdrawn entries
 
 Items 3 and 4 of this list were withdrawn on 2026-10-25 (GitHub issue #54). Both claimed that a `BIND` should see a variable bound in a sibling or enclosing group, and StarLayer patched rdflib (`patch_evalextend_forgotten_bind_vars`, `patch_lazy_join_expr_dependency_order`) to make it so. SPARQL 1.1 section 18.2.2.6 evaluates each group on its own and joins the results, so a `BIND` cannot see such a variable and plain rdflib was right. For example `SELECT * { VALUES ?x {1 2} { BIND(?x+1 AS ?y) } }` returns `?x` only, and `{ BIND(:v1 AS ?t0) { { BIND(?t0 AS ?o) } UNION { BIND(:v2 AS ?o) } } ?s :p ?o }` returns every `?s :p ?o` row once per union branch (six rows, not two). Both patches were removed; `tests/graph/unit/test_bind_scoping.py` pins the spec behaviour. The numbers 3 and 4 are not reused. Items 8 and 16 (`FILTER`) are the same question for filters and have not been re-examined.
