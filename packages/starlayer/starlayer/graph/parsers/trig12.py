@@ -203,8 +203,16 @@ def _split_trig_blocks_with_ids(
     graph_id is None for the default graph, a URIRef for each named graph.
     Each chunk has the document's prefix declarations prepended.
     """
-    prefix_text = _extract_prefix_lines(text)
-    prefix_map  = _extract_prefix_map(text)
+    # The prefix declarations, in document order, with where each one starts: a declaration applies from there on, so a prefix
+    # declared again changes the meaning of what FOLLOWS it and leaves what came before alone (GitHub issue #56).
+    masked = _mask_string_literals(text)
+    declarations = [(m.start(), m.group(0)) for m in _PREFIX_RE.finditer(masked)]
+
+    def prefixes_before(pos: int) -> tuple[str, dict[str, str]]:
+        """The declarations written before ``pos``, as Turtle text to prepend and as a prefix map."""
+        before = [decl for start, decl in declarations if start < pos]
+        return ''.join(d + '\n' for d in before), _extract_prefix_map('\n'.join(before))
+
     # Search for GRAPH blocks against a string-literal-masked copy, not
     # text itself - otherwise literal text that merely *looks* like a
     # GRAPH block inside a string's own content (e.g. a docstring showing
@@ -215,10 +223,7 @@ def _split_trig_blocks_with_ids(
     # length. _consume_balanced() itself still runs against the original
     # text (never masked) - it already does its own, independent
     # triple-quote-aware string tracking to find the real matching '}'.
-    masked = _mask_string_literals(text)
-
     default_parts: list[str] = []
-    default_parts_masked: list[str] = []
     named_blocks:  list[tuple[URIRef, str]] = []
     i = 0
 
@@ -226,11 +231,10 @@ def _split_trig_blocks_with_ids(
         m = _GRAPH_BLOCK_RE.search(masked, i)
         if m is None:
             default_parts.append(text[i:])
-            default_parts_masked.append(masked[i:])
             break
 
         default_parts.append(text[i:m.start()])
-        default_parts_masked.append(masked[i:m.start()])
+        prefix_text, prefix_map = prefixes_before(m.start())
         graph_id = _resolve_graph_id(m.group(1), prefix_map)
         brace_pos = m.end() - 1
         block, j = _consume_balanced(text, brace_pos)
@@ -238,24 +242,12 @@ def _split_trig_blocks_with_ids(
         named_blocks.append((graph_id, prefix_text + inner))
         i = j
 
-    # Strip only *genuine* prefix declarations from the default-graph
-    # content - found by matching against the masked copy (so a
-    # string-literal-internal lookalike, e.g. a docstring quoting
-    # "@prefix : <http://example.org/> .", is never mistaken for one and
-    # stripped out of the real content it's part of) and removing the
-    # identical span from the real (unmasked) text, since positions align.
-    default_text = ''.join(default_parts)
-    default_masked = ''.join(default_parts_masked)
-    out_parts = []
-    pos = 0
-    for m in _PREFIX_RE.finditer(default_masked):
-        out_parts.append(default_text[pos:m.start()])
-        pos = m.end()
-    out_parts.append(default_text[pos:])
-    default_content = ''.join(out_parts)
+    # The default graph's content keeps its own declarations where they are written, in order: they are part of the
+    # statements around them. (They used to be removed and ALL of the document's declarations put in front of every block.)
+    default_content = ''.join(default_parts)
     result: list[tuple[URIRef | None, str]] = []
     if default_content.strip():
-        result.append((None, prefix_text + default_content))
+        result.append((None, default_content))
     result.extend(named_blocks)
     return result
 

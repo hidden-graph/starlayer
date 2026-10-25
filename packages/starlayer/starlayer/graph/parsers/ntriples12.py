@@ -160,9 +160,13 @@ def _token_to_node(token: str):
 
     # Literal
     if token.startswith('"'):
-        close = token.index('"', 1)
-        while close > 0 and token[close - 1] == '\\':
-            close = token.index('"', close + 1)
+        # Walk the literal, skipping each escape as a unit: a quote is the closing one unless an ODD number of backslashes
+        # precede it, which looking only at the previous character gets wrong for an escaped backslash ("x\\\\"). GitHub issue #57.
+        close = 1
+        while close < len(token) and token[close] != '"':
+            close += 2 if token[close] == '\\' else 1
+        if close >= len(token):
+            raise ValueError(f"Unterminated literal: {token!r}")
         value = _unescape_nt(token[1:close])
         suffix = token[close + 1:]
         if suffix.startswith('@'):
