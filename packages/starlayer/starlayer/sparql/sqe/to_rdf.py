@@ -275,6 +275,12 @@ def _query_to_sqe_rdf(
             f"starlayer.sparql.sqe: only SELECT/ASK/CONSTRUCT are modeled yet, got {query.name!r}"
         )
 
+    if dict.get(query, "datasetClause"):
+        raise NotImplementedError(
+            "starlayer.sparql.sqe: FROM / FROM NAMED are not modeled; refusing to drop them silently "
+            "(they change which graphs the query matches)"
+        )
+
     # Same two-pass resolution translateQuery itself does, just without the
     # rest of that function - see to_ssyn_rdf.py's module docstring for why
     # translatePath must run before any TriplesBlock grouping below.

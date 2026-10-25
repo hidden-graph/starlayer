@@ -266,10 +266,21 @@ def _term_text(value, prefixes: dict, graph: Graph | None = None) -> str:
     if isinstance(value, URIRef):
         return _abbreviate(str(value), prefixes)
     if isinstance(value, Literal):
-        return value.n3()
+        return _literal_text(value)
     if isinstance(value, BNode):
         return value.n3()
     raise NotImplementedError(f"starlayer.sparql.sqe: cannot render term {value!r} as text")
+
+
+def _literal_text(value: Literal) -> str:
+    """A literal as query text: a base-direction string back in ``"x"@en--ltr`` form (it is stored with an internal
+    datatype) and control characters escaped, as ``\\r`` and ``\\n`` already are."""
+    from ..serialize12 import _dirlang_n3
+
+    dirlang = _dirlang_n3(value)
+    if dirlang is not None:
+        return dirlang
+    return value.n3().replace("\t", "\\t")
 
 
 def _namespace_manager_for(prefixes: dict):
@@ -282,7 +293,12 @@ def _namespace_manager_for(prefixes: dict):
 
 
 def _abbreviate(iri: str, prefixes: dict) -> str:
+    from ...graph.serializers.turtle12 import _PN_LOCAL
+
     for label, namespace in prefixes.items():
         if iri.startswith(namespace) and iri != namespace:
-            return f"{label}:{iri[len(namespace):]}"
+            local = iri[len(namespace):]
+            # SPARQL's PN_LOCAL, like Turtle's, has no '/' or '#': such an IRI is written in full (GitHub issue #81)
+            if _PN_LOCAL.fullmatch(local):
+                return f"{label}:{local}"
     return f"<{iri}>"
