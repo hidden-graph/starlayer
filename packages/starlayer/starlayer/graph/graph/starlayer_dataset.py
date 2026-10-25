@@ -722,7 +722,8 @@ class StarLayerDataset(Dataset):
         """
         from starlayer.graph.graph.prefixes import prefixes_to_keep
 
-        result = StarLayerDataset(bind_namespaces='none')
+        # the same union setting as the source: a copy with another one answers the same query with different rows (issue #63)
+        result = StarLayerDataset(bind_namespaces='none', default_union=self.default_union)
         for prefix, namespace in prefixes_to_keep(self, keep):
             result.bind(prefix, namespace)
         for sg in self.contexts():
