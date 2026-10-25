@@ -37,7 +37,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from rdflib import BNode, Graph, Variable
+from rdflib import BNode, Graph, Literal, URIRef, Variable
 from rdflib.plugins.sparql import algebra
 from rdflib.plugins.sparql.evaluate import _ebv, evalBGP
 from rdflib.plugins.sparql.sparql import QueryContext, SPARQLError
@@ -583,9 +583,13 @@ def _eval_rule(rule: srl_ast._Rule, g: Graph, gd: Graph) -> set[tuple]:
         bnode_map: dict[BNode, BNode] = {}
         for template in rule.head:
             try:
-                out.add(_subst_head_triple(template, mu, bnode_map))
+                triple = _subst_head_triple(template, mu, bnode_map)
             except _InvalidInstance:
                 continue  # not valid RDF 1.2 (e.g. a literal as a triple term's subject): skipped
+            subject, predicate, _object = triple
+            if isinstance(subject, Literal) or not isinstance(predicate, URIRef):
+                continue  # a literal subject, or a predicate that is not an IRI, is not a triple: skipped like CONSTRUCT (#96)
+            out.add(triple)
     return out
 
 
