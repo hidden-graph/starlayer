@@ -276,6 +276,13 @@ stsh:DataGraphImportsShape a sh:NodeShape ;
     sh:severity sh:Info ;
     sh:targetClass sh:DataGraph .
 
+stsh:DeclareShapes a sh:NodeShape ;
+    rdfs:label "Well-formedness rules for the holder of sh:declare"@en ;
+    sh:property [ sh:node stsh:PrefixDeclarationShape ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:path sh:declare ] ;
+    sh:targetSubjectsOf sh:declare .
+
 stsh:DefaultValueShape a sh:NodeShape ;
     rdfs:label "Well-formed sh:defaultValue"@en ;
     sh:property [ sh:maxCount 1 ;
@@ -585,30 +592,16 @@ stsh:NodeExpressionFunctionCallShape a sh:NodeShape ;
 			}
 		""" ] .
 
-stsh:PrefixDeclarationShape a sh:NodeShape ;
-    rdfs:label "Well-formed sh:declare prefix declaration"@en ;
-    sh:property [ sh:datatype xsd:string ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:path sh:prefix ],
-        [ sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:or ( [ sh:datatype xsd:anyURI ] [ sh:datatype xsd:string ] ) ;
-            sh:path sh:namespace ] .
-
 stsh:RuleShape a sh:NodeShape ;
     rdfs:label "Well-formed sh:TripleRule or sh:SPARQLRule"@en ;
     sh:or ( [ sh:class sh:TripleRule ;
                 sh:property [ sh:maxCount 1 ;
-                        sh:minCount 1 ;
                         sh:node stsh:NodeExpressionShape ;
                         sh:path sh:subject ],
                     [ sh:maxCount 1 ;
-                        sh:minCount 1 ;
                         sh:node stsh:NodeExpressionShape ;
                         sh:path sh:predicate ],
                     [ sh:maxCount 1 ;
-                        sh:minCount 1 ;
                         sh:node stsh:NodeExpressionShape ;
                         sh:path sh:object ] ] [ sh:class sh:SPARQLRule ;
                 sh:property [ sh:datatype xsd:string ;
@@ -826,6 +819,17 @@ stsh:IRIOrListOfIRIsShape a sh:NodeShape ;
                 sh:property [ sh:path [ sh:zeroOrMorePath rdf:rest ] ;
                         sh:property [ sh:nodeKind sh:IRI ;
                                 sh:path rdf:first ] ] ] ) .
+
+stsh:PrefixDeclarationShape a sh:NodeShape ;
+    rdfs:label "Well-formed sh:declare prefix declaration"@en ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path sh:prefix ],
+        [ sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:or ( [ sh:datatype xsd:anyURI ] [ sh:datatype xsd:string ] ) ;
+            sh:path sh:namespace ] .
 
 sh:ConstraintComponent rdfs:comment "Requires at least one non-optional sh:parameter — a component with only optional parameters fails to load."@en ;
     rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,

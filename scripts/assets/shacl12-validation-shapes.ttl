@@ -465,9 +465,12 @@ stsh:RuleShape
 	rdfs:label "Well-formed sh:TripleRule or sh:SPARQLRule"@en ;
 	sh:or (
 		[ sh:class sh:TripleRule ;
-		  sh:property [ sh:path sh:subject ; sh:minCount 1 ; sh:maxCount 1 ; sh:node stsh:NodeExpressionShape ] ;      # SHACLRule.__init__: "No sh:subject"/"Too many sh:subject"
-		  sh:property [ sh:path sh:predicate ; sh:minCount 1 ; sh:maxCount 1 ; sh:node stsh:NodeExpressionShape ] ;    # ditto for sh:predicate
-		  sh:property [ sh:path sh:object ; sh:minCount 1 ; sh:maxCount 1 ; sh:node stsh:NodeExpressionShape ] ;       # ditto for sh:object
+		  # SHACL 1.2 Inference Rules 11.2: "Where sh:subject, sh:predicate, or sh:object are absent, use the list consisting of the current
+		  # focus node", so each is optional (at most one). starlayer.shacl.triple_rule implements the default (GitHub issues #82, #67);
+		  # pySHACL's own "No sh:subject" is replaced there.
+		  sh:property [ sh:path sh:subject ; sh:maxCount 1 ; sh:node stsh:NodeExpressionShape ] ;
+		  sh:property [ sh:path sh:predicate ; sh:maxCount 1 ; sh:node stsh:NodeExpressionShape ] ;
+		  sh:property [ sh:path sh:object ; sh:maxCount 1 ; sh:node stsh:NodeExpressionShape ] ;
 		]
 		[ sh:class sh:SPARQLRule ;
 		  sh:property [ sh:path sh:construct ; sh:datatype xsd:string ; sh:minCount 1 ] ;  # SPARQLRule.__init__: "No sh:construct on SPARQLRule"
@@ -569,6 +572,20 @@ stsh:SparqlPrefixesShapes
 				sh:node stsh:PrefixDeclarationShape ;
 			] ;
 		] ;
+	] .
+
+# sh:declare has no rdfs:domain (the vocabulary gives only rdfs:range sh:PrefixDeclaration), so any resource may hold prefix declarations:
+# a sh:ShapesGraph, an untyped ontology IRI, a plain rdfs:Resource (the W3C tests do all three). stsh:SparqlPrefixesShapes above reaches
+# a declaration only through an sh:prefixes that names its holder; this reaches every holder, so an entry nothing refers to yet is
+# checked too (GitHub issue #89).
+stsh:DeclareShapes
+	a sh:NodeShape ;
+	rdfs:label "Well-formedness rules for the holder of sh:declare"@en ;
+	sh:targetSubjectsOf sh:declare ;
+	sh:property [
+		sh:path sh:declare ;
+		sh:node stsh:PrefixDeclarationShape ;
+		sh:nodeKind sh:BlankNodeOrIRI ;
 	] .
 
 #############################################################################
