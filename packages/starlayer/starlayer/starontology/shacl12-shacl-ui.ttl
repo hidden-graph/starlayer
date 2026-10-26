@@ -447,6 +447,7 @@ sh:minCount sh:group stsh:CardinalityGroup ;
     stsh:propertyFormField true .
 
 sh:path sh:group stsh:PathGroup ;
+    sh:nodeKind sh:BlankNodeOrIRI ;
     sh:order 1 ;
     stsh:formMaxCount 1 ;
     stsh:propertyFormField true .
@@ -668,7 +669,7 @@ stsh:NodeShapeForm_sh_node a sh:PropertyShape ;
 
 stsh:NodeShapeForm_sh_nodeKind a sh:PropertyShape ;
     sh:group stsh:ValueTypeGroup ;
-    sh:in _:nc3ae872c404a469e8188fea815d197ffb75 ;
+    sh:in _:nfe29c9e5ab934f5fb36a458c9ab3d400b75 ;
     sh:maxCount 1 ;
     sh:nodeKind sh:IRI ;
     sh:order 3 ;
@@ -1011,7 +1012,7 @@ stsh:PropertyShapeForm_sh_node a sh:PropertyShape ;
 
 stsh:PropertyShapeForm_sh_nodeKind a sh:PropertyShape ;
     sh:group stsh:ValueTypeGroup ;
-    sh:in _:nc3ae872c404a469e8188fea815d197ffb75 ;
+    sh:in _:nfe29c9e5ab934f5fb36a458c9ab3d400b75 ;
     sh:maxCount 1 ;
     sh:nodeKind sh:IRI ;
     sh:order 3 ;
@@ -1040,7 +1041,7 @@ stsh:PropertyShapeForm_sh_path a sh:PropertyShape ;
     sh:group stsh:PathGroup ;
     sh:maxCount 1 ;
     sh:minCount 1 ;
-    sh:nodeKind sh:IRI ;
+    sh:nodeKind sh:BlankNodeOrIRI ;
     sh:order 1 ;
     sh:path sh:path .
 
@@ -1605,8 +1606,8 @@ stsh:WidgetGroup a sh:PropertyGroup ;
     sh:name "SHACL 1.2 UI Widgets"@en ;
     sh:order 16 .
 
-_:nc3ae872c404a469e8188fea815d197ffb76 rdf:first sh:IRI ;
+_:nfe29c9e5ab934f5fb36a458c9ab3d400b76 rdf:first sh:IRI ;
     rdf:rest ( sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) .
 
-_:nc3ae872c404a469e8188fea815d197ffb75 rdf:first sh:BlankNode ;
-    rdf:rest _:nc3ae872c404a469e8188fea815d197ffb76 .
+_:nfe29c9e5ab934f5fb36a458c9ab3d400b75 rdf:first sh:BlankNode ;
+    rdf:rest _:nfe29c9e5ab934f5fb36a458c9ab3d400b76 .

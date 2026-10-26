@@ -1955,7 +1955,8 @@ starontology:shacl12-shacl-ui-scores.ttl {
     #
     # Generated once from the preferences the overlay used to carry (66 predicates, 9 widgets) on 2026-10-21; hand-edited since:
     # sh:targetClass, sh:targetSubjectsOf and sh:targetObjectsOf (IRIs only, per SHACL) were moved from the text field to the IRI
-    # editor; sh:targetNode keeps the text field because its values may be literals.
+    # editor; sh:targetNode keeps the text field because its values may be literals. sh:languageIn (a list of language tags,
+    # strings) was moved from the IRI editor to the text field (2026-10-26, GitHub issue #130).
     #
     # baseURI: https://github.com/hidden-graph/starlayer/ns/shacl#
 
@@ -2020,7 +2021,7 @@ starontology:shacl12-shacl-ui-scores.ttl {
                 sh:path sh:path ] .
 
     stsh:PathsEditedWithIRIEditor a sh:NodeShape ;
-        sh:property [ sh:in ( sh:languageIn sh:targetClass sh:targetObjectsOf sh:targetSubjectsOf sh:uniqueValuesFor ) ;
+        sh:property [ sh:in ( sh:targetClass sh:targetObjectsOf sh:targetSubjectsOf sh:uniqueValuesFor ) ;
                 sh:minCount 1 ;
                 sh:path sh:path ] .
 
@@ -2040,7 +2041,7 @@ starontology:shacl12-shacl-ui-scores.ttl {
                 sh:path sh:path ] .
 
     stsh:PathsEditedWithTextFieldEditor a sh:NodeShape ;
-        sh:property [ sh:in ( sh:and sh:defaultValue sh:flags sh:function sh:node sh:not sh:or sh:pattern sh:property sh:targetNode sh:xone ) ;
+        sh:property [ sh:in ( sh:and sh:defaultValue sh:flags sh:function sh:languageIn sh:node sh:not sh:or sh:pattern sh:property sh:targetNode sh:xone ) ;
                 sh:minCount 1 ;
                 sh:path sh:path ] .
 
@@ -2474,6 +2475,7 @@ starontology:shacl12-shacl-ui.ttl {
         stsh:propertyFormField true .
 
     sh:path sh:group stsh:PathGroup ;
+        sh:nodeKind sh:BlankNodeOrIRI ;
         sh:order 1 ;
         stsh:formMaxCount 1 ;
         stsh:propertyFormField true .
@@ -2695,7 +2697,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:NodeShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:nf9f663d106034c40b510eaca0d0f7b7fb19 ;
+        sh:in _:ne8ae69bfee314a9ba02693c7e3b7d221b19 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 3 ;
@@ -3038,7 +3040,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:PropertyShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:nf9f663d106034c40b510eaca0d0f7b7fb19 ;
+        sh:in _:ne8ae69bfee314a9ba02693c7e3b7d221b19 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 3 ;
@@ -3067,7 +3069,7 @@ starontology:shacl12-shacl-ui.ttl {
         sh:group stsh:PathGroup ;
         sh:maxCount 1 ;
         sh:minCount 1 ;
-        sh:nodeKind sh:IRI ;
+        sh:nodeKind sh:BlankNodeOrIRI ;
         sh:order 1 ;
         sh:path sh:path .
 
@@ -3632,11 +3634,11 @@ starontology:shacl12-shacl-ui.ttl {
         sh:name "SHACL 1.2 UI Widgets"@en ;
         sh:order 16 .
 
-    _:nf9f663d106034c40b510eaca0d0f7b7fb20 rdf:first sh:IRI ;
+    _:ne8ae69bfee314a9ba02693c7e3b7d221b20 rdf:first sh:IRI ;
         rdf:rest ( sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) .
 
-    _:nf9f663d106034c40b510eaca0d0f7b7fb19 rdf:first sh:BlankNode ;
-        rdf:rest _:nf9f663d106034c40b510eaca0d0f7b7fb20 .
+    _:ne8ae69bfee314a9ba02693c7e3b7d221b19 rdf:first sh:BlankNode ;
+        rdf:rest _:ne8ae69bfee314a9ba02693c7e3b7d221b20 .
 }
 
 starontology:shacl12-shacl.ttl {
