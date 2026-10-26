@@ -586,6 +586,70 @@ def execute_construct(store, backend: str, sparql: str, default_union: bool = Fa
     return deskolemized
 
 
+def inject_init_bindings(sparql: str, init_bindings: dict) -> str:
+    """The query with ``init_bindings`` applied as ``VALUES (?a ?b) { (x y) }`` at the start of the outermost ``WHERE`` group.
+
+    A native store has no engine-level way to pre-bind a variable, and silently ignoring ``initBindings`` gave answers that
+    disagree with the bindings; SHACL's SPARQL constraints (``sh:sparql``, ``$this``) pass the focus node this way
+    (GitHub issue #98). ``VALUES`` at the head of the group joins to everything that follows, which is what a pre-binding
+    means. Strings, IRIs and comments are skipped when looking for the group.
+    """
+    import re
+
+    from rdflib import Variable
+
+    names, terms = [], []
+    for key, value in init_bindings.items():
+        names.append(str(key.n3() if isinstance(key, Variable) else '?' + str(key).lstrip('?$')))
+        terms.append(sparql_term(value))
+    values = f" VALUES ({' '.join(names)}) {{ ({' '.join(terms)}) }} "
+
+    iri = re.compile(r'<[^<>"{}|^`\\\s]*>')
+    n, i, depth = len(sparql), 0, 0
+    template_pending = False  # CONSTRUCT { template } WHERE { group }: the first brace is the template, not the group
+
+    def keyword_at(pos: int, word: str) -> bool:
+        return (
+            sparql[pos:pos + len(word)].upper() == word
+            and not (pos > 0 and (sparql[pos - 1].isalnum() or sparql[pos - 1] in '_?$:'))
+            and not sparql[pos + len(word):pos + len(word) + 1].isalnum()
+        )
+
+    while i < n:
+        c = sparql[i]
+        if c == '#':
+            while i < n and sparql[i] not in '\r\n':
+                i += 1
+            continue
+        if c in '"\'':
+            q = c * 3 if sparql.startswith(c * 3, i) else c
+            i += len(q)
+            while i < n and not sparql.startswith(q, i):
+                i += 2 if sparql[i] == '\\' else 1
+            i += len(q)
+            continue
+        if c == '<':
+            m = iri.match(sparql, i)
+            if m:
+                i = m.end()
+                continue
+        if depth == 0 and keyword_at(i, 'CONSTRUCT'):
+            rest = sparql[i + 9:].lstrip()
+            template_pending = not rest[:5].upper() == 'WHERE'
+            i += 9
+            continue
+        if c == '{':
+            if depth == 0 and not template_pending:
+                return sparql[:i + 1] + values + sparql[i + 1:]
+            depth += 1
+        elif c == '}':
+            depth -= 1
+            if depth == 0:
+                template_pending = False
+        i += 1
+    raise ValueError("initBindings: could not find the query's WHERE group")
+
+
 def native_query(store, backend: str, query_object: Any, processor: str = 'sparql',
                  result: str = 'sparql', initNs: dict | None = None,
                  initBindings: dict | None = None, use_store_provided: bool = True,
@@ -612,8 +676,9 @@ def native_query(store, backend: str, query_object: Any, processor: str = 'sparq
             with rdflib's own Graph.query().
         initNs: Unused by this function; accepted for interface parity
             with rdflib's own Graph.query().
-        initBindings: Not supported on a native store: a non-empty value
-            raises ``NotImplementedError``.
+        initBindings: Pre-bound variables, applied as a ``VALUES`` clause at
+            the start of the query's outermost group (see
+            ``inject_init_bindings``).
         use_store_provided: Unused by this function; accepted for
             interface parity with rdflib's own Graph.query().
         default_union: Treat the default graph as the union of all graphs
@@ -626,17 +691,14 @@ def native_query(store, backend: str, query_object: Any, processor: str = 'sparq
         (graph set, blank nodes deskolemized), or SELECT (vars/bindings
         set).
     """
-    if initBindings:
-        # Silently ignoring it returned rows that disagree with the bindings (GitHub issue #98); there is no
-        # engine-level way to pre-bind a variable here, so say so.
-        raise NotImplementedError(
-            "initBindings is not supported on a native (rdf-1.2) store: put the values in the query "
-            "(VALUES or a FILTER) instead"
-        )
     if isinstance(query_object, str):
         check_native_version_conformance(query_object)
 
     sparql = query_object
+    if initBindings:
+        if not isinstance(sparql, str):
+            raise NotImplementedError("initBindings on a native store needs the query as text")
+        sparql = inject_init_bindings(sparql, initBindings)
     if isinstance(sparql, str) and not blank_node_ids_are_stable(store, backend):
         # This engine's blank-node ids are not stable, so blank nodes were
         # stored as skolem IRIs - make isBLANK/isIRI/ORDER BY treat them as
