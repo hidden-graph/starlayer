@@ -85,11 +85,14 @@ ontology-IRI-based default is guessed).
 
 from __future__ import annotations
 
+import math
 import re
+import struct
 from urllib.parse import urljoin
 
 from rdflib import BNode, Literal, URIRef
 from rdflib.namespace import OWL, RDF, RDFS, XSD
+from rdflib.term import _is_valid_langtag
 
 from starlayer.graph.parsers.errors import ManchesterSyntaxError
 
@@ -196,8 +199,26 @@ def _numeric_literal(word):
         return Literal(word.lstrip('+'), datatype=XSD.decimal, normalize=False)
     m = _FLOAT_RE.match(word)
     if m:
-        return Literal(repr(float(m.group(1))), datatype=XSD.float, normalize=False)
+        return Literal(_float_lexical(m.group(1)), datatype=XSD.float, normalize=False)
     return None
+
+
+def _float_lexical(text):
+    """The xsd:float lexical form for a floating-point literal's digits.
+
+    A value too large for single precision is ``INF`` / ``-INF`` (the only spellings of infinity in the
+    xsd:float lexical space; Python's ``inf`` is not one of them).
+    """
+    value = float(text)
+    overflow = math.isinf(value)  # beyond double range already
+    if not overflow:
+        try:
+            struct.pack('>f', value)
+        except OverflowError:
+            overflow = True
+    if overflow:
+        return 'INF' if value > 0 else '-INF'
+    return repr(value)
 
 
 # ---------------------------------------------------------------------------
@@ -301,6 +322,10 @@ def _tokenize(text):
                 k = j + 1
                 while k < n and (text[k].isalnum() or text[k] == '-'):
                     k += 1
+                # The note's languageTag needs a non-empty BCP 47 tag after '@'.
+                if not _is_valid_langtag(text[j + 1:k]):
+                    err(f'{text[j + 1:k]!r} is not a valid language tag!' if k > j + 1
+                        else "expected a language tag after '@'", j)
                 tok['lang'] = text[j + 1:k]
                 j = k
             elif text[j:j + 2] == '^^':
@@ -532,13 +557,18 @@ class _Cursor:
             prefix, local = '', text
         return self.resolve_prefixed(prefix, local)
 
-    def read_literal_or_name(self):
+    def read_literal_or_name(self, prop=None, data=False):
         """Read a `value`-restriction/Facts: filler.
+
+        The note's ``literal`` has no boolean form, so a bare ``true``/``false`` is a simple IRI (an
+        individual) by the grammar. It reads as an xsd:boolean literal only where the document itself
+        says the value is data: ``data=True`` (inside a data range) or ``prop`` declared a
+        ``DataProperty:`` (the shorthand ``hasAirbags value true`` of the guides).
 
         Returns:
             A Literal if the next token is a quoted literal or a bare
-            numeric/boolean word, otherwise the resolved URIRef for an
-            individual name.
+            numeric word (or boolean word in a data position), otherwise the
+            resolved URIRef for an individual name.
         """
         tok = self.peek()
         if tok is not None and tok['kind'] == 'LITERAL':
@@ -556,7 +586,9 @@ class _Cursor:
             if number is not None:
                 self.advance()
                 return number
-            if word in ('true', 'false'):
+            if word in ('true', 'false') and (
+                data or (isinstance(prop, URIRef) and self.declared_kinds()[0].get(prop) == 'data')
+            ):
                 self.advance()
                 return Literal(word == 'true')
         return self.read_individual()
@@ -755,7 +787,7 @@ def _filler_is_data(cur):
     if tok['kind'] == 'PUNCT' and tok['text'] == '{':
         return nxt is not None and (
             nxt['kind'] == 'LITERAL'
-            or (nxt['kind'] == 'WORD' and (_numeric_literal(nxt['text']) is not None or nxt['text'] in ('true', 'false')))
+            or (nxt['kind'] == 'WORD' and _numeric_literal(nxt['text']) is not None)
         )
     if tok['kind'] == 'WORD' and tok['text'] in _SHORT_DATATYPES:
         return True
@@ -794,7 +826,7 @@ def _parse_restriction_tail(cur, prop_expr):
             return (only, prop_expr, filler)
         return ('And', [(some, prop_expr, filler), (only, prop_expr, filler)])
     if kw == 'value':
-        return ('Value', prop_expr, cur.read_literal_or_name())
+        return ('Value', prop_expr, cur.read_literal_or_name(prop_expr))
     if kw == 'Self':
         return ('SelfR', prop_expr)
     # min / max / exactly
@@ -963,7 +995,7 @@ def _parse_data_primary(cur):
 
 
 def _read_data_literal(cur):
-    val = cur.read_literal_or_name()
+    val = cur.read_literal_or_name(data=True)
     if not isinstance(val, Literal):
         cur.error('expected a literal here')
     return val
@@ -1095,7 +1127,7 @@ class _Annotation(tuple):
 def _parse_annotation_assertion(cur):
     nested = _parse_item_annotations(cur)
     prop = cur.read_name()
-    return _Annotation(prop, cur.read_literal_or_name(), nested)
+    return _Annotation(prop, cur.read_literal_or_name(prop), nested)
 
 
 def _annotation_triples(cur, node, annotations):
@@ -1382,7 +1414,7 @@ def _parse_fact(cur):
         cur.advance()
         negative = True
     prop = cur.read_name()
-    value = cur.read_literal_or_name()
+    value = cur.read_literal_or_name(prop)
     return negative, prop, value
 
 
@@ -1460,12 +1492,20 @@ def _parse_datatype_frame(cur):
     cur.record_frame_end()
 
 
+def _require_two(cur, keyword, items):
+    # The note's description2List / objectPropertyList2 / individual2List need at least two members; with
+    # one there is no axiom to build (EquivalentClasses: A made no triple at all).
+    if len(items) < 2:
+        cur.error(f'{keyword} needs at least two members, got {len(items)}')
+
+
 def _parse_misc(cur, keyword):
     # misc ::= 'EquivalentClasses:' annotations description2List | ... - one optional Annotations:
     # prefix for the whole axiom.
     annotations = _parse_item_annotations(cur)
     if keyword in ('EquivalentClasses:', 'DisjointClasses:'):
         exprs = _parse_comma_list(cur, _parse_description)
+        _require_two(cur, keyword, exprs)
         nodes = [_expr_node(cur, e) for e in exprs]
         if keyword == 'EquivalentClasses:':
             _pairwise_chain(cur, nodes, OWL.equivalentClass, annotations)
@@ -1476,6 +1516,7 @@ def _parse_misc(cur, keyword):
             cur.record_misc_annotations(annotations)
     elif keyword in ('EquivalentProperties:', 'DisjointProperties:'):
         prop_exprs = _parse_comma_list(cur, _parse_property_expr)
+        _require_two(cur, keyword, prop_exprs)
         nodes = [_prop_node(cur, e) for e in prop_exprs]
         if keyword == 'EquivalentProperties:':
             _pairwise_chain(cur, nodes, OWL.equivalentProperty, annotations)
@@ -1488,6 +1529,7 @@ def _parse_misc(cur, keyword):
             cur.record_misc_annotations(annotations)
     else:
         names = _parse_comma_list(cur, lambda c: c.read_individual())
+        _require_two(cur, keyword, names)
         if keyword == 'SameIndividual:':
             _pairwise_chain(cur, names, OWL.sameAs, annotations)
         else:
@@ -1508,6 +1550,7 @@ def _run_top_level(cur):
     (which drives it with a recording cursor), so a parsing fix is made once and cannot drift between
     the two entry points.
     """
+    saw_ontology = False
     while True:
         tok = cur.peek()
         if tok is None:
@@ -1529,6 +1572,11 @@ def _run_top_level(cur):
             cur.prefixes[prefix] = iri_tok['text']
             cur.record_prefix(prefix, iri_tok['text'])
         elif word == 'Ontology:':
+            if saw_ontology:
+                # ontologyDocument ::= { prefixDeclaration } ontology: one per document. A second header
+                # used to be kept by this parser but dropped by the syntax-tree layer.
+                cur.error('a document holds one Ontology: header; a second one was found')
+            saw_ontology = True
             cur.advance()
             tok = cur.peek()
             ontology_iri = None
@@ -1589,6 +1637,15 @@ def _run_top_level(cur):
             cur.error(f'expected a Prefix:/Ontology:/frame/Misc-axiom keyword, got {word!r}')
 
 
+def run_guarded(fn, *args):
+    """Run ``fn``, turning the RecursionError of a pathologically deep class expression into a
+    ManchesterSyntaxError (the grammar nests without limit; Python's stack does not)."""
+    try:
+        return fn(*args)
+    except RecursionError:
+        raise ManchesterSyntaxError('class expression nested too deeply to parse', '', pos=0) from None
+
+
 def parse_manchester(text: str, base: str = None) -> list:
     """Parse Manchester OWL Syntax text and return a list of (s, p, o)
     triples.
@@ -1604,5 +1661,5 @@ def parse_manchester(text: str, base: str = None) -> list:
         URIRef/BNode/Literal).
     """
     cur = _Cursor(_tokenize(text), base)
-    _run_top_level(cur)
+    run_guarded(_run_top_level, cur)
     return cur.triples
