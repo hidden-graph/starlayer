@@ -1023,16 +1023,11 @@ class StarShaclSchema:
         # treats *any* blank-node value as an opaque (bogus) target in its
         # own right, producing a nonsense "Focus Node" that's really just
         # the node expression's own blank node identity - a gap distinct
-        # from the sh:select case above. Evaluated with no starting focus
-        # node (matches the spec's own framing - "a node expression
-        # produces the list of target nodes of a shape", not "...relative
-        # to some other node"); every node expression the spec actually
-        # demonstrates for this position (shnex:instancesOf,
-        # shnex:nodesMatching, shnex:filterShape) is focus-node-independent
-        # by construction, so this only matters for a shapes graph that (in
-        # violation of the spec's own intent for this position) plugs in a
-        # focus-dependent expression like a bare shnex:pathValues - which
-        # then, correctly, produces no targets rather than a wrong guess.
+        # from the sh:select case above. Evaluated with the shape itself
+        # as the focus node and an empty scope, as SHACL 1.2 Core 3.1.3.1
+        # says (evalExpr(expr, data graph, s, {}), s the shape with the
+        # sh:targetNode): an expression that reads the focus node, such as
+        # a bare shnex:pathValues, starts from the shape (issue #124).
         # Needs a real (harvested) pyshacl.ShapesGraph for the shnex:
         # operators that check shape conformance (shnex:filterShape/
         # nodesMatching/matchAll/findFirst/conformsToShape call
@@ -1079,7 +1074,7 @@ class StarShaclSchema:
 
             for shape_node, target_value in target_expr_candidates:
                 try:
-                    computed = eval_expr(target_value, None, data_graph, throwaway_sg)
+                    computed = eval_expr(target_value, shape_node, data_graph, throwaway_sg)
                 except Exception:
                     continue
                 # Remove the original blank-node triple even when computed is
@@ -2284,7 +2279,7 @@ def _augment_shapes_with_new_target_types(data_graph: Any, shacl_graph: Any) -> 
 
         for shape_node, target_value in target_expr_candidates:
             try:
-                computed = eval_expr(target_value, None, data_graph, throwaway_sg)
+                computed = eval_expr(target_value, shape_node, data_graph, throwaway_sg)
             except Exception:
                 continue
             # Remove the original blank-node triple even when computed is
@@ -5486,6 +5481,7 @@ def _patch_expression_constraint_for_value_scope() -> bool:
         from rdflib import Literal as _Literal
 
         from starlayer.shacl.node_expressions import eval_expr
+        from starlayer.shacl.sparql_node_expressions import EvaluationFailure
 
         ExpressionConstraint = _advanced_mod.ExpressionConstraint
         original = ExpressionConstraint._evaluate_expression
@@ -5503,7 +5499,11 @@ def _patch_expression_constraint_for_value_scope() -> bool:
                 messages = None
             for f, value_nodes in f_v_dict.items():
                 for v in value_nodes:
-                    n_set = eval_expr(expr, f, data_graph, self.shape.sg, scope={"focusNode": f, "value": v})
+                    try:
+                        n_set = eval_expr(expr, f, data_graph, self.shape.sg, scope={"focusNode": f, "value": v})
+                    except EvaluationFailure:
+                        # Node Expressions 7.1: anything but exactly (true) is a violation, a failure included
+                        n_set = []
                     if (
                         isinstance(n_set, (list, set))
                         and len(n_set) == 1
