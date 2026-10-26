@@ -194,23 +194,62 @@ class StarShaclSchema:
             first rule) is unaffected either way - it never depended on
             ``specification_graph``.
         """
-        self.shacl_graph = (
-            normalize_to_starlayer_graph(shacl_graph, name="shacl_graph") if shacl_graph is not None else None
-        )
-        self.ont_graph = (
-            normalize_to_starlayer_graph(ont_graph, name="ont_graph", force_default_union=True)
-            if ont_graph is not None
-            else None
-        )
-        self.data_graph = (
-            normalize_to_starlayer_graph(data_graph, name="data_graph") if data_graph is not None else None
-        )
-        self.scoring_graph = (
-            normalize_to_starlayer_graph(scoring_graph, name="scoring_graph") if scoring_graph is not None else None
-        )
+        # Kept as given; each read below normalizes again (a no-op for a StarLayerGraph), so an edit made to a plain
+        # rdflib graph after construction is seen, as module-level validate() sees it (GitHub issue #131).
+        self._sources: dict[str, Any] = {
+            "shacl_graph": shacl_graph,
+            "ont_graph": ont_graph,
+            "data_graph": data_graph,
+            "scoring_graph": scoring_graph,
+        }
+        for bound_name in self._sources:  # a wrong type is reported here, not at the first call
+            self._bound(bound_name)
         self.inference = inference
         self.adapter = adapter or TripleTermAdapter()
         self.validate_fn = validate_fn or _default_validate
+
+    def _bound(self, name: str) -> Any | None:
+        source = self._sources[name]
+        if source is None:
+            return None
+        return normalize_to_starlayer_graph(source, name=name, force_default_union=name == "ont_graph")
+
+    @property
+    def shacl_graph(self) -> Any | None:
+        """The bound shapes graph, as a ``StarLayerGraph``: the caller's own object when it is one, otherwise a fresh
+        conversion of the current content of the graph passed in."""
+        return self._bound("shacl_graph")
+
+    @shacl_graph.setter
+    def shacl_graph(self, value: Any | None) -> None:
+        self._sources["shacl_graph"] = value
+
+    @property
+    def ont_graph(self) -> Any | None:
+        """The bound ontology graph (see :attr:`shacl_graph`)."""
+        return self._bound("ont_graph")
+
+    @ont_graph.setter
+    def ont_graph(self, value: Any | None) -> None:
+        self._sources["ont_graph"] = value
+
+    @property
+    def data_graph(self) -> Any | None:
+        """The bound default data graph (see :attr:`shacl_graph`)."""
+        return self._bound("data_graph")
+
+    @data_graph.setter
+    def data_graph(self, value: Any | None) -> None:
+        self._sources["data_graph"] = value
+
+    @property
+    def scoring_graph(self) -> Any | None:
+        """The bound widget scoring catalog (see :attr:`shacl_graph`)."""
+        return self._bound("scoring_graph")
+
+    @scoring_graph.setter
+    def scoring_graph(self, value: Any | None) -> None:
+        self._sources["scoring_graph"] = value
 
     def _resolve_data_graph(self, data_graph: Any | None) -> Any:
         """Resolve the effective data graph for a processing method call:
