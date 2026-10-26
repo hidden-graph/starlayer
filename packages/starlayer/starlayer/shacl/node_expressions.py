@@ -294,7 +294,9 @@ def _term_key(node: Any):
     verify it's treated as distinct).
     """
     if isinstance(node, Literal):
-        return ("LITERAL", str(node), str(node.datatype) if node.datatype else None, node.language)
+        # language tags are compared case-insensitively (RDF 1.2 Concepts)
+        language = node.language.lower() if node.language else node.language
+        return ("LITERAL", str(node), str(node.datatype) if node.datatype else None, language)
     return ("TERM", node)
 
 
@@ -309,14 +311,25 @@ def _numeric_sum(literals: list) -> Literal:
     sum-list-3-mixed/sum-totalRevenue, both summing xsd:decimal inputs and
     expecting an xsd:decimal result).
     """
-    total = 0
+    from decimal import Decimal
+
     datatypes = set()
+    values = []
     for n in literals:
         if not isinstance(n, Literal):
             continue
-        total += n.toPython()
+        value = n.toPython()
+        if isinstance(value, bool) or not isinstance(value, (int, float, Decimal)):
+            raise ValueError(f"shnex:sum: {n!r} is not a numeric literal")  # an evaluation failure, not a TypeError
+        values.append(value)
         if n.datatype:
             datatypes.add(n.datatype)
+    # Mixed decimal and double/float input crashed (Decimal + float); a float or double in the input makes the sum a float,
+    # as XPath numeric promotion does (GitHub issue #95).
+    if XSD.double in datatypes or XSD.float in datatypes:
+        total = sum(float(v) for v in values)
+    else:
+        total = sum((Decimal(v) if isinstance(v, int) else v for v in values), Decimal(0)) if XSD.decimal in datatypes else sum(values)
     if XSD.double in datatypes:
         result_type = XSD.double
     elif XSD.float in datatypes:
@@ -329,19 +342,40 @@ def _numeric_sum(literals: list) -> Literal:
 
 
 def _sort_key(node: Any):
-    """Best-effort SPARQL-ORDER-BY-compatible comparison key.
+    """A total-order key following SPARQL's ORDER BY: blank nodes, then IRIs, then literals.
 
-    RDFLib's own typed ``Literal`` ordering handles numeric/date/string
-    comparison correctly for the common cases; falls back to ``str()`` for
-    anything it can't compare directly (e.g. comparing across incompatible
-    datatypes), matching SPARQL's own permissive-fallback spirit rather than
-    raising on mixed input.
+    Literals sort by value within a family (numbers together, date/time together with a missing zone read as UTC, strings
+    by lexical form and language) and the families are ordered, so any two terms compare without a ``TypeError``
+    (``1`` against ``"a"``, a date against a dateTime, a zoned against a zone-less dateTime used to raise), and an IRI is
+    below every literal, as in SPARQL (GitHub issue #95).
     """
+    from datetime import date, datetime, timezone
+    from decimal import Decimal
+
+    if isinstance(node, BNode):
+        return (0, str(node))
     if isinstance(node, Literal):
         try:
-            return (0, node.toPython())
+            value = node.toPython()
         except Exception:
-            return (1, str(node))
+            value = node
+        if isinstance(value, bool):
+            return (2, 1, int(value))
+        if isinstance(value, (int, float, Decimal)) and not isinstance(value, Literal):
+            if isinstance(value, float) and value != value:
+                return (2, 0, 1, Decimal(0), "nan")  # NaN after every number
+            try:
+                return (2, 0, 0, Decimal(value), "")
+            except Exception:
+                return (2, 0, 1, Decimal(0), str(value))
+        if isinstance(value, (datetime, date)):
+            moment = value if isinstance(value, datetime) else datetime(value.year, value.month, value.day)
+            if moment.tzinfo is None:
+                moment = moment.replace(tzinfo=timezone.utc)
+            return (2, 2, moment.timestamp(), "")
+        if isinstance(value, str):
+            return (2, 3, str(node), node.language or "")
+        return (2, 4, str(node.datatype or ""), str(node))
     return (1, str(node))
 
 
@@ -627,11 +661,15 @@ def eval_expr(
     if pred == SHNEX.limit:
         limit_val = next(iter(sg.graph.objects(expr, SHNEX.limit)))
         n_list = _nodes_arg()
+        if int(limit_val) < 0:
+            raise ValueError("shnex:limit must not be negative")
         return n_list[: int(limit_val)]
 
     if pred == SHNEX.offset:
         offset_val = next(iter(sg.graph.objects(expr, SHNEX.offset)))
         n_list = _nodes_arg()
+        if int(offset_val) < 0:
+            raise ValueError("shnex:offset must not be negative")
         return n_list[int(offset_val) :]
 
     if pred == SHNEX.flatMap:
