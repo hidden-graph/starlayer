@@ -95,3 +95,32 @@ def prefixes_to_keep(graph: Any, keep: Iterable[str] = ()) -> list[tuple[str, UR
         if prefix in wanted:
             chosen.setdefault(prefix, URIRef(str(namespace)))
     return sorted(chosen.items())
+
+
+def unbind_prefix(graph: Any, prefix: str) -> bool:
+    """Take the binding of ``prefix`` away from ``graph``'s store; True if there was one.
+
+    rdflib's ``Graph`` and ``NamespaceManager`` have no such call (``bind`` only adds or replaces). The binding is removed from
+    the store's own tables for the stores that keep a prefix map this library can reach: rdflib's in-memory store and
+    ``oxrdflib``'s ``OxigraphStore``. Any other store (a SQL store, a remote endpoint) raises ``NotImplementedError`` rather
+    than pretending: copy the graph with ``reduce_prefixes()`` there. Graphs of one dataset share their store, so the prefix is
+    gone from all of them (GitHub issue #44).
+    """
+    manager = graph.namespace_manager
+    store = manager.store
+    namespace = store.namespace(prefix)
+    if namespace is None:
+        return False
+    if hasattr(store, "_Memory__namespace"):  # rdflib.plugins.stores.memory.Memory
+        store._Memory__namespace.pop(prefix, None)
+        if store._Memory__prefix.get(namespace) == prefix:
+            del store._Memory__prefix[namespace]
+    elif hasattr(store, "_delete_from_prefix"):  # oxrdflib.OxigraphStore: removes the binding in both directions
+        store._delete_from_prefix(prefix)
+    else:
+        raise NotImplementedError(
+            f"a {type(store).__name__} keeps its namespace bindings where unbind() cannot reach them; "
+            "build a copy without the prefix with reduce_prefixes(keep=...) instead"
+        )
+    manager.reset()  # the manager caches prefix lookups
+    return True
