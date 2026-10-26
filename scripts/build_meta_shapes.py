@@ -61,6 +61,7 @@ RELAXED_PATHS: tuple[URIRef, ...] = (
     SH.equals,
     SH.lessThan,
     SH.lessThanOrEquals,
+    SH.targetNode,  # sh:nodeKind sh:IRIOrLiteral rejects a node expression (GitHub issue #66)
 )
 
 

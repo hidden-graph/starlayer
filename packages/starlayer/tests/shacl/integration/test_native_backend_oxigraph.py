@@ -287,7 +287,9 @@ def test_meta_shacl_reports_a_genuine_blank_node_violation_without_crashing() ->
     """The other half of the report-stringification fix: a *real* violation
     whose focus node is a blank node must still be reportable (not just
     silently avoided) once meta-shacl no longer misfires on well-formed
-    shapes. A rule missing sh:predicate/sh:object is genuinely malformed -
+    shapes. A triple rule with two sh:subject values is genuinely malformed
+    (a missing sh:predicate/sh:object is accepted since the triple-rule
+    shape was relaxed) -
     the resulting error message must actually name the blank node's real
     content, not crash trying to.
     """
@@ -295,7 +297,7 @@ def test_meta_shacl_reports_a_genuine_blank_node_violation_without_crashing() ->
         """
         @prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> .
         ex:PersonRule a sh:NodeShape ; sh:targetClass ex:Person ;
-          sh:rule [ a sh:TripleRule ; sh:subject sh:this ] .
+          sh:rule [ a sh:TripleRule ; sh:subject sh:this ; sh:subject ex:a ] .
         """
     )
     data = _native_graph("@prefix ex: <http://example.org/> . ex:alice a ex:Person .")
