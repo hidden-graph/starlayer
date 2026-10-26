@@ -787,6 +787,8 @@ def native_update(store, backend: str, update_object: Any) -> None:
             from starlayer.sparql.parse12 import prepare_update_12
             stripped_text, declared_version = strip_version_directive(text)
             prepared_12 = prepare_update_12(stripped_text)
+            if not prepared_12.algebra:
+                return  # an empty request does nothing (GitHub issue #135)
             if declared_version is not None:
                 from starlayer.graph.model.conformance import (
                     SPARQL12ConformanceWarning,

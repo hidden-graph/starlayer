@@ -473,7 +473,9 @@ def parse_ruleset(text: str, base: str | None = None, *, validate: bool = True) 
             that does not conform to the ``srl:`` shapes.
     """
     try:
-        parsed = _RuleSetGrammar.parse_string(text, parse_all=True)
+        from starlayer.sparql.parse12 import parse_serialized
+
+        parsed = parse_serialized(lambda: _RuleSetGrammar.parse_string(text, parse_all=True))
     except Exception as exc:  # pyparsing.ParseException et al.
         raise SRLParseError(str(exc)) from exc
 
