@@ -189,10 +189,10 @@ def build(check: bool) -> int:
     if _write_ttl(_VOCABULARY_TTL, _VOCABULARY_NOTICE, _parse(_VOCABULARY_SOURCE) + _parse(_VOCABULARY_OVERLAY), check=check):
         stale.append(_VOCABULARY_TTL.name)
 
-    from build_shacl_ui import build_shacl_ui_graph, missing_fields
+    from build_shacl_ui import build_shacl_ui_graph, missing_fields, missing_vocabulary_fields
 
     ui = build_shacl_ui_graph()
-    absent = missing_fields(ui)
+    absent = missing_fields(ui) | missing_vocabulary_fields(ui, _parse(_VOCABULARY_SOURCE) + _parse(_VOCABULARY_OVERLAY))
     if absent:
         print("ABORT: shacl_shacl validates predicates no form shape has a field for (add a flag in "
               "assets/shacl12-shacl-ui-overlay.ttl, or an entry in build_shacl_ui.EXCLUDED with the reason): "
