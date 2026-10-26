@@ -41,7 +41,11 @@ from starlayer.shacl.results import (
 )
 from starlayer.shacl.triple_rule import install_triple_rule_patch
 from starlayer.shacl.types import ensure_graph_mutable
-from starlayer.shacl.validation_modes import ValidationMode, resolve_mode_options
+from starlayer.shacl.validation_modes import (
+    _MODE_OPTIONS,
+    ValidationMode,
+    resolve_mode_options,
+)
 
 SH = Namespace("http://www.w3.org/ns/shacl#")
 SHNEX = Namespace("http://www.w3.org/ns/shacl-node-expr#")
@@ -274,7 +278,7 @@ class StarShaclSchema:
                 f"{shapes_graph_resource!r} is not typed `a sh:ShapesGraph` in this "
                 "schema's own bound shacl_graph - extract_shapes_graph() returned None."
             )
-        return extracted
+        return _drop_nonmember_property_shape_refs(extracted)
 
     def _resolve_shapes_graph_and_provenance(self, shapes_graph_resource: Any | None) -> tuple[Any | None, Any | None]:
         """Resolve :meth:`validate`'s own dual-purpose
@@ -351,7 +355,7 @@ class StarShaclSchema:
         iri = shapes_graph_resource if isinstance(shapes_graph_resource, (URIRef, Literal)) else URIRef(str(shapes_graph_resource))
         extracted = self.extract_shapes_graph(iri)
         if extracted is not None:
-            return extracted, iri
+            return _drop_nonmember_property_shape_refs(extracted), iri
         return self.shacl_graph, iri
 
     def target_nodes(
@@ -535,6 +539,7 @@ class StarShaclSchema:
                 "second StarShaclSchema if you need a different regime."
             )
         data_graph = self._resolve_data_graph(data_graph)
+        _reject_unknown_validate_options(kwargs, self.validate_fn)
 
         self.adapter.reset_diagnostics()
 
@@ -1324,6 +1329,8 @@ class StarShaclSchema:
         node_shapes = tuple(s for s, _, _ in shapes.triples((None, RDF.type, SH.NodeShape)))
         if not node_shapes:
             return None
+        if not _native_fast_path_shapes_are_plain(shapes, node_shapes, _LITERAL_ONLY_COMPONENTS):
+            return None
 
         events: list[dict[str, Any]] = []
 
@@ -1584,6 +1591,8 @@ class StarShaclSchema:
 
         node_shapes = tuple(s for s, _, _ in shapes.triples((None, RDF.type, SH.NodeShape)))
         if not node_shapes:
+            return None
+        if not _native_fast_path_shapes_are_plain(shapes, node_shapes, _STRUCTURAL_COMPONENTS):
             return None
 
         events: list[dict[str, Any]] = []
@@ -1878,8 +1887,12 @@ class StarShaclSchema:
             values_node = next(iter(shacl_graph.objects(prop_shape, SH.values)), None)
             default_values = list(shacl_graph.objects(prop_shape, SH.defaultValue))
 
+            if _shape_is_deactivated(shacl_graph, prop_shape):
+                continue
             focus_nodes = set(_shape_target_nodes(data_graph, shacl_graph, prop_shape))
             for node_shape, _, _ in shacl_graph.triples((None, SH.property, prop_shape)):
+                if _shape_is_deactivated(shacl_graph, node_shape):
+                    continue
                 focus_nodes |= _shape_target_nodes(data_graph, shacl_graph, node_shape)
             if wanted_focus_nodes is not None:
                 focus_nodes &= wanted_focus_nodes
@@ -2523,6 +2536,47 @@ def _nodes_conforming_to(
     return [c for c in candidates if c not in violating]
 
 
+_FAST_PATH_ANNOTATION_PREDICATES = frozenset(
+    {RDFS.label, RDFS.comment, SH["name"], SH["description"], SH["order"]}
+)
+_FAST_PATH_NODE_SHAPE_PREDICATES = frozenset(
+    {RDF.type, SH["property"], SH["targetNode"], SH["targetClass"], SH["targetSubjectsOf"], SH["targetObjectsOf"]}
+) | _FAST_PATH_ANNOTATION_PREDICATES
+
+
+def _native_fast_path_shapes_are_plain(shapes: Any, node_shapes: Any, components: Any) -> bool:
+    """True only when the native fast paths may stand in for pySHACL.
+
+    The fast paths evaluate exactly one component per property shape and
+    nothing else, so they are only sound when the shapes graph contains
+    nothing else that matters: every node shape carries only targets,
+    ``sh:property`` and annotations; every property shape only ``sh:path``,
+    its one component and annotations; and no other shape (any subject
+    with a ``sh:`` predicate) exists. ``sh:minCount``, ``sh:deactivated``,
+    ``sh:severity``, ``sh:message``, further constraints and untyped or
+    property-only top-level shapes therefore all fall back to pySHACL
+    (GitHub issue #94).
+    """
+    sh_ns = str(SH)
+    props: set[Any] = set()
+    for node in node_shapes:
+        for _, p, o in shapes.triples((node, None, None)):
+            if p not in _FAST_PATH_NODE_SHAPE_PREDICATES:
+                return False
+            if p == SH["property"]:
+                props.add(o)
+    allowed_prop = {SH["path"], RDF.type} | {SH[name] for name in components} | _FAST_PATH_ANNOTATION_PREDICATES
+    for prop in props:
+        for _, p, _ in shapes.triples((prop, None, None)):
+            if p not in allowed_prop:
+                return False
+    examined = set(node_shapes) | props
+    for s, p, _ in shapes.triples((None, None, None)):
+        if str(p).startswith(sh_ns) and s not in examined:
+            return False
+    return True
+
+
 def _try_native_literal_only_validation(
     *,
     data_graph: Any,
@@ -2553,6 +2607,8 @@ def _try_native_literal_only_validation(
 
     node_shapes = tuple(s for s, _, _ in shapes.triples((None, RDF.type, SH.NodeShape)))
     if not node_shapes:
+        return None
+    if not _native_fast_path_shapes_are_plain(shapes, node_shapes, _LITERAL_ONLY_COMPONENTS):
         return None
 
     events: list[dict[str, Any]] = []
@@ -3116,6 +3172,8 @@ def _try_native_structural_property_validation(
     node_shapes = tuple(s for s, _, _ in shapes.triples((None, RDF.type, SH.NodeShape)))
     if not node_shapes:
         return None
+    if not _native_fast_path_shapes_are_plain(shapes, node_shapes, _STRUCTURAL_COMPONENTS):
+        return None
 
     events: list[dict[str, Any]] = []
 
@@ -3257,6 +3315,7 @@ def validate(
     ignore_imports: bool = False,
     meta_shapes_extra: Iterable[Any] = (),
     data_graph_iri: Any | None = None,
+    shapes_graph_resource: Any | None = None,
     shapes_graph_iri: Any | None = None,
     specification_graph: Any | None = None,
     include_used_configuration: bool = False,
@@ -3326,6 +3385,12 @@ def validate(
             Falls back to ``data_graph.identifier`` when that's a real
             ``URIRef`` (not an anonymous ``BNode``) and no explicit
             value was given.
+        shapes_graph_resource: A named ``sh:ShapesGraph`` module of
+            ``shacl_graph`` to validate against (its IRI becomes
+            ``sh:usedShapesGraph``), or an IRI that is not a module of it,
+            used only as the report's provenance tag. Raises
+            ``ValueError`` when ``shacl_graph`` is ``None``. Same meaning
+            as ``StarShaclSchema.validate()``.
         shapes_graph_iri: Recorded on the report as
             ``sh:usedShapesGraph``, with the same ``.identifier``
             fallback as ``data_graph_iri``.
@@ -3343,7 +3408,9 @@ def validate(
         **kwargs: Per-call overrides merged into ``mode``'s preset
             options (e.g. ``advanced``, ``inplace``, ``meta_shacl``,
             ``allow_warnings``, ``allow_infos``, ``inference``,
-            ``debug``), forwarded to ``validate_fn``.
+            ``debug``), forwarded to ``validate_fn``. With the default
+            ``validate_fn`` an option name pySHACL does not know raises
+            ``TypeError`` (pySHACL itself ignores it silently).
 
     Returns:
         A ``ValidationResult``: ``conforms`` (bool), ``report_graph``/
@@ -3355,6 +3422,7 @@ def validate(
     """
     adapter = adapter or TripleTermAdapter()
     validate_fn = validate_fn or _default_validate
+    _reject_unknown_validate_options(kwargs, validate_fn)
     adapter.reset_diagnostics()
 
     register_native_components()
@@ -3370,6 +3438,16 @@ def validate(
         shacl_graph,
         ont_graph,
     )
+
+    if shapes_graph_resource is not None:
+        # Same two meanings as StarShaclSchema.validate(): a named
+        # sh:ShapesGraph module of shacl_graph, or a report-provenance tag.
+        # Silently ignoring it checked every module (GitHub issue #94).
+        shacl_graph, resolved_iri = StarShaclSchema(
+            shacl_graph=shacl_graph, ont_graph=ont_graph
+        )._resolve_shapes_graph_and_provenance(shapes_graph_resource)
+        if shapes_graph_iri is None:
+            shapes_graph_iri = resolved_iri
 
     # data_graph_iri=/shapes_graph_iri= also fall back to the graph's own
     # .identifier (2026-10-09), when it's a real URIRef the caller
@@ -3778,8 +3856,14 @@ def evaluate(
         values_node = next(iter(shacl_graph.objects(prop_shape, SH.values)), None)
         default_values = list(shacl_graph.objects(prop_shape, SH.defaultValue))
 
+        # A deactivated property shape, or a deactivated node shape hosting it,
+        # contributes nothing (Core "Deactivating shapes"; GitHub issue #94).
+        if _shape_is_deactivated(shacl_graph, prop_shape):
+            continue
         focus_nodes = set(_shape_target_nodes(data_graph, shacl_graph, prop_shape))
         for node_shape, _, _ in shacl_graph.triples((None, SH.property, prop_shape)):
+            if _shape_is_deactivated(shacl_graph, node_shape):
+                continue
             focus_nodes |= _shape_target_nodes(data_graph, shacl_graph, node_shape)
         if wanted_focus_nodes is not None:
             focus_nodes &= wanted_focus_nodes
@@ -3809,6 +3893,13 @@ def evaluate(
                         merged.add((focus_node, predicate, value))
 
     return merged
+
+
+def _shape_is_deactivated(shapes_graph: Any, shape_node: Any) -> bool:
+    """True when ``shape_node`` carries a literal ``sh:deactivated true``."""
+    return any(
+        isinstance(v, Literal) and v.toPython() is True for v in shapes_graph.objects(shape_node, SH.deactivated)
+    )
 
 
 def apply_rules(
@@ -4457,6 +4548,12 @@ def _patch_rules_apply_for_layer_and_run_once() -> bool:
             return True
 
         def _patched_apply_rules(executor, shapes_rules, data_graph, focus_nodes=None):
+            # pySHACL runs the rules of a deactivated shape (only a rule's own
+            # sh:deactivated is honoured); Core says a deactivated shape is
+            # ignored (GitHub issue #94).
+            shapes_rules = {
+                shape: rules for shape, rules in shapes_rules.items() if not getattr(shape, "deactivated", False)
+            }
             temp_triples = _materialize_expected_predicates(shapes_rules, data_graph)
             needs_native = any(
                 list(rule.shape.sg.objects(rule.node, SH.layer))
@@ -5206,6 +5303,13 @@ def _patch_shape_value_nodes_for_sh_values() -> bool:
             original = original_value_nodes(self, target_graph, focus, sparql_mode=sparql_mode, debug=debug)
             if not self.is_property_shape:
                 return original
+            # A triple term has no outgoing properties; pySHACL would follow the
+            # adapter's rdf:subject/predicate/object support triples (GitHub issue #94).
+            from starlayer.shacl.native_components import _is_encoded_triple_term
+
+            original = {
+                f: (set() if _is_encoded_triple_term(target_graph, f) else vals) for f, vals in original.items()
+            }
             values_node = next(iter(self.sg.graph.objects(self.node, SH.values)), None)
             default_values = list(self.sg.graph.objects(self.node, SH.defaultValue))
             if values_node is None and not default_values:
@@ -5408,6 +5512,65 @@ def _patch_expression_constraint_for_value_scope() -> bool:
         _expression_constraint_scope_patch_status = False
 
     return _expression_constraint_scope_patch_status
+
+
+def _drop_nonmember_property_shape_refs(module_graph: Any) -> Any:
+    """Remove ``sh:property`` links from an extracted shapes-graph module to
+    a named property shape that is not itself a member.
+
+    ``extract_shapes_graph()`` deliberately leaves such a reference dangling
+    (the module is exactly its members). Handed to pySHACL as it is, the
+    dangling IRI has no ``sh:path`` and validation aborts with "exists but is
+    not a well-formed SHACL PropertyShape". A non-member's constraints are
+    not part of the module, so the link is dropped for validation only
+    (GitHub issue #94).
+    """
+    for s, o in list(module_graph.subject_objects(SH.property)):
+        if not isinstance(o, BNode) and not any(True for _ in module_graph.triples((o, SH.path, None))):
+            module_graph.remove((s, SH.property, o))
+    return module_graph
+
+
+_PYSHACL_KEYWORD_OPTIONS = frozenset(
+    {
+        "abort_on_error",
+        "check_dash_result",
+        "data_graph_format",
+        "debug",
+        "do_owl_imports",
+        "iterate_rules",
+        "js",
+        "meta_shacl",
+        "ont_graph_format",
+        "serialize_expanded_graph",
+        "serialize_expanded_graph_format",
+        "serialize_report_graph",
+        "shacl_graph_format",
+        "sparql_mode",
+    }
+)
+
+
+def _reject_unknown_validate_options(options: dict[str, Any], validate_fn: Any) -> None:
+    """Raise ``TypeError`` for a ``validate()`` keyword neither StarLayer nor
+    pySHACL knows: pySHACL swallows unknown options, so a typo (or a keyword
+    that only exists on another entry point) silently changed nothing
+    (GitHub issue #94). A custom ``validate_fn`` may take any option.
+    """
+    if validate_fn is not _default_validate or not options:
+        return
+    import inspect
+
+    from pyshacl import validate as pyshacl_validate
+
+    known = (
+        set(inspect.signature(pyshacl_validate).parameters)
+        | _PYSHACL_KEYWORD_OPTIONS
+        | {key for opts in _MODE_OPTIONS.values() for key in opts}
+    ) - {"args", "kwargs", "data_graph", "shacl_graph", "ont_graph"}
+    unknown = sorted(set(options) - known)
+    if unknown:
+        raise TypeError(f"validate() got unexpected keyword argument(s): {', '.join(unknown)}")
 
 
 def _default_validate(**kwargs: Any) -> tuple[bool, Graph, str]:
