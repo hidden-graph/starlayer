@@ -2507,29 +2507,32 @@ class StarLayerGraph(Graph):
                 pending_filters = filters
                 pending_pv = original_pv
 
-        init_bindings = self._encode_init_bindings(initBindings)
-        r = raw.query(query_object, processor=processor, result=result,
-                      initNs=initNs, initBindings=init_bindings,
-                      use_store_provided=use_store_provided, **kwargs)
-        if pending_recipes is not None:
-            from starlayer.graph.query.remote_decompose import (
-                evaluate_recipes_locally,
-                row_passes_filters,
-            )
-            new_bindings = []
-            for row in r.bindings:
-                merged = evaluate_recipes_locally(pending_recipes, row, raw)
-                if not row_passes_filters(pending_filters, merged, raw):
-                    continue
-                new_bindings.append({var: merged.get(var) for var in pending_pv})
-            r.bindings = new_bindings
-            r.vars = pending_pv
-        if r.type == 'SELECT':
-            restore_select_bindings(r, self._restore)
-        elif r.type == 'CONSTRUCT':
-            from starlayer.graph.model.encoding import inject_missing_tt_encoding
-            inject_missing_tt_encoding(r.graph, self._restore)
-            r.graph = StarLayerGraph.from_rdflib(r.graph)
+        from starlayer.graph.query.query_cache import EVALUATION_LOCK
+
+        with EVALUATION_LOCK:
+            init_bindings = self._encode_init_bindings(initBindings)
+            r = raw.query(query_object, processor=processor, result=result,
+                          initNs=initNs, initBindings=init_bindings,
+                          use_store_provided=use_store_provided, **kwargs)
+            if pending_recipes is not None:
+                from starlayer.graph.query.remote_decompose import (
+                    evaluate_recipes_locally,
+                    row_passes_filters,
+                )
+                new_bindings = []
+                for row in r.bindings:
+                    merged = evaluate_recipes_locally(pending_recipes, row, raw)
+                    if not row_passes_filters(pending_filters, merged, raw):
+                        continue
+                    new_bindings.append({var: merged.get(var) for var in pending_pv})
+                r.bindings = new_bindings
+                r.vars = pending_pv
+            if r.type == 'SELECT':
+                restore_select_bindings(r, self._restore)
+            elif r.type == 'CONSTRUCT':
+                from starlayer.graph.model.encoding import inject_missing_tt_encoding
+                inject_missing_tt_encoding(r.graph, self._restore)
+                r.graph = StarLayerGraph.from_rdflib(r.graph)
         return r
 
     def update(self, update_object, processor='sparql',
