@@ -179,7 +179,32 @@ def prepare_update_12(
         translateUpdate(parse_update_12(text), base, initNs)
     )
     _reject_triple_term_pattern_subjects(update.algebra)
+    _fresh_blank_nodes_in_insert_data(update)
     return update
+
+
+def _relabel(term, mapping):
+    """``term`` with every blank node (also inside a triple term) replaced through ``mapping``."""
+    if isinstance(term, BNode):
+        return mapping.setdefault(term, BNode())
+    if isinstance(term, TripleTermNode):
+        for part in ("subject", "predicate", "object"):
+            term[part] = _relabel(dict.get(term, part), mapping)
+    return term
+
+
+def _fresh_blank_nodes_in_insert_data(update: Update) -> None:
+    """A blank node label in ``INSERT DATA`` is scoped to its request (SPARQL 1.1 Update 3.1.1 / RDF Concepts: blank node
+    labels are local to a document): ``_:a`` in two requests are two nodes. rdflib keeps the label, so a second request
+    reused the first one's node (GitHub issue #98). Every blank node of each ``INSERT DATA`` is replaced by a fresh one, the
+    same label by the same fresh node within the request."""
+    mapping: dict = {}
+    for op in update.algebra:
+        if op.name != "InsertData":
+            continue
+        for triples in [op.triples, *op.quads.values()]:
+            for index, (s, p, o) in enumerate(list(triples)):
+                triples[index] = (_relabel(s, mapping), _relabel(p, mapping), _relabel(o, mapping))
 
 
 def _reject_blank_nodes_in_delete(update: Update) -> Update:
