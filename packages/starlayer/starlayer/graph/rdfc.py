@@ -54,7 +54,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
-from rdflib import BNode, Literal, URIRef
+from rdflib import BNode, Graph, Literal, URIRef
 from rdflib.namespace import XSD
 
 from starlayer.graph.compare import _decompose
@@ -126,7 +126,11 @@ def _normalize_input(graph: Any) -> list[_Quad]:
     is_quad_store = callable(quads_method) and default is not None
     if is_quad_store:
         default_id = default.identifier
-        return [(s, p, o, None if g == default_id else g) for s, p, o, g in quads_method()]
+        # StarLayerDataset.quads() yields a graph object in the fourth place, rdflib's Dataset an identifier
+        return [
+            (s, p, o, None if (g.identifier if isinstance(g, Graph) else g) == default_id else (g.identifier if isinstance(g, Graph) else g))
+            for s, p, o, g in quads_method()
+        ]
     return [(s, p, o, None) for s, p, o in _decompose(graph)]
 
 
@@ -169,6 +173,9 @@ class _CanonState:
     canonical_issuer: IdentifierIssuer = field(default_factory=IdentifierIssuer)
     hash_func: Callable[[str], str] = field(default_factory=lambda: _hash_func_for("sha256"))
     permutation_budget: int = _DEFAULT_PERMUTATION_BUDGET
+    # the quads the state was built from: to_canonical_nquads() must write these, not normalize the input a second time
+    # (decomposing a triple term mints fresh blank nodes each time, which had no canonical label: issue #103)
+    quads: list = field(default_factory=list)
 
 
 def _escape_literal_value(s: str) -> str:
@@ -327,7 +334,7 @@ def _canonicalize(
     """4.4.3 Algorithm, steps 1-6 (state-building; step 7's serialization is
     ``to_canonical_nquads()`` below, which reuses this state)."""
     quads = _normalize_input(graph)
-    state = _CanonState(hash_func=_hash_func_for(hash_algorithm), permutation_budget=permutation_budget)
+    state = _CanonState(hash_func=_hash_func_for(hash_algorithm), permutation_budget=permutation_budget, quads=quads)
 
     # Steps 1-2: blank node to quads map.
     for s, p, o, g in quads:
@@ -381,7 +388,7 @@ def to_canonical_nquads(
     module and ``starlayer.graph.compare`` docstrings.
     """
     state = _canonicalize(graph, hash_algorithm, permutation_budget)
-    quads = _normalize_input(graph)
+    quads = state.quads
 
     def component(t: Any) -> str:
         if isinstance(t, BNode):
