@@ -89,6 +89,20 @@ stsh:IRIOrPathShape
 		[ sh:node shsh:PathNodeShape ]
 	) .
 
+stsh:TargetNodeValueShape
+	a sh:NodeShape ;
+	rdfs:label "Value of sh:targetNode: an IRI, a literal, or a node expression"@en ;
+	rdfs:comment "SHACL 1.2 lets sh:targetNode take a node expression that computes the target nodes (Node Expressions, 'Getting Started'), and the validator also accepts a blank node carrying sh:select. The Working Group's rule gives sh:targetNode sh:nodeKind sh:IRIOrLiteral, which rejects both (GitHub issue #66). A blank node must be a well-formed node expression (stsh:NodeExpressionShape) or carry sh:select; a blank node with some other predicate is still rejected."@en ;
+	sh:or (
+		[ sh:nodeKind sh:IRIOrLiteral ]
+		[ sh:nodeKind sh:BlankNode ;
+		  sh:or (
+			stsh:NodeExpressionShape
+			[ sh:property [ sh:path sh:select ; sh:minCount 1 ] ]
+		  )
+		]
+	) .
+
 stsh:ShapeReferenceShape
 	a sh:NodeShape ;
 	rdfs:label "Well-formed shape reference"@en ;
@@ -106,7 +120,12 @@ stsh:ShapeReferenceShape
 stsh:ShapeShapeOverrides
 	a sh:NodeShape ;
 	rdfs:label "SHACL 1.2 replacement rules for widened parameters the Working Group file still rejects"@en ;
-	sh:targetSubjectsOf sh:nodeKind, sh:equals, sh:disjoint, sh:lessThan, sh:lessThanOrEquals ;
+	sh:targetSubjectsOf sh:nodeKind, sh:equals, sh:disjoint, sh:lessThan, sh:lessThanOrEquals, sh:targetNode ;
+
+	sh:property [
+		sh:path sh:targetNode ;
+		sh:node stsh:TargetNodeValueShape ;     # targetNode-nodeKind, replaces the Working Group's IRI-or-literal-only rule
+	] ;
 
 	sh:property [
 		sh:path sh:nodeKind ;
