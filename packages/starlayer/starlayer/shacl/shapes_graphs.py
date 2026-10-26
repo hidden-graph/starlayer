@@ -67,3 +67,40 @@ def shapes_graph_members(graph: Any, shapes_graph: Any) -> frozenset[Any] | None
         members.update(graph.objects(node, RDFS.member))
         members.update(graph.subjects(RDFS.isDefinedBy, node))
     return frozenset(members)
+
+
+# What a shape points at when it names another shape: a single shape, or a list of shapes
+_SHAPE_REFERENCES = ("node", "property", "not", "qualifiedValueShape", "reifierShape", "someValue", "memberShape")
+_SHAPE_LIST_REFERENCES = ("and", "or", "xone")
+
+
+def referenced_shapes(graph: Any, starting_points: Any) -> set[Any]:
+    """The named shapes that ``starting_points`` refer to, directly or through further shapes: what a self-contained
+    extract must also hold (GitHub issue #19).
+
+    Follows ``sh:node``, ``sh:property``, ``sh:not``, ``sh:qualifiedValueShape``, ``sh:reifierShape``, ``sh:someValue``,
+    ``sh:memberShape`` and the shapes in the lists of ``sh:and``, ``sh:or`` and ``sh:xone``. Blank nodes are walked through
+    but not returned (they come with a shape's concise bounded description); a starting point is not part of the result.
+    Cycles are fine.
+    """
+    from rdflib import BNode
+    from rdflib.namespace import Namespace
+
+    sh = Namespace("http://www.w3.org/ns/shacl#")
+    seen: set[Any] = set(starting_points)
+    result: set[Any] = set()
+    stack = list(starting_points)
+    while stack:
+        shape = stack.pop()
+        targets = [o for name in _SHAPE_REFERENCES for o in graph.objects(shape, sh[name])]
+        for name in _SHAPE_LIST_REFERENCES:
+            for head in graph.objects(shape, sh[name]):
+                targets.extend(graph.items(head))
+        for target in targets:
+            if target in seen:
+                continue
+            seen.add(target)
+            if not isinstance(target, BNode):
+                result.add(target)
+            stack.append(target)
+    return result

@@ -222,7 +222,7 @@ def _samples(ui: Graph, field) -> list[str]:
         return ['"x"']
     if datatype == XSD.decimal:
         return ["1.5"]
-    if node_kind in (sh("IRI"), sh("BlankNodeOrIRI")):
+    if node_kind in (sh("IRI"), sh("BlankNodeOrIRI"), sh("IRIOrLiteral")):
         return ["ex:x"]
     if node_kind == sh("Literal"):
         return ['"x"']

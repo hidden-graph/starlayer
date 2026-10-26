@@ -3214,6 +3214,14 @@ class StarLayerGraph(Graph):
             g.bind(prefix, ns)
         return g
 
+    def unbind(self, prefix: str) -> bool:
+        """Take the binding of ``prefix`` away; True if it was bound. rdflib has no such call: the binding is removed from the
+        store's own prefix map (in-memory and ``OxigraphStore`` stores; any other raises ``NotImplementedError``, copy with
+        ``reduce_prefixes()`` there). Graphs that share this store lose the prefix too (GitHub issue #44).
+        """
+        from starlayer.graph.graph.prefixes import unbind_prefix
+        return unbind_prefix(self, prefix)
+
     def used_prefixes(self) -> list[tuple[str, URIRef]]:
         """The namespace bindings of this graph that matter: ``(prefix, namespace)`` pairs, sorted by prefix, for the namespaces an
         IRI of the graph is in (a subject, predicate or object, a literal's datatype, any part of a triple term). The ~29 default
