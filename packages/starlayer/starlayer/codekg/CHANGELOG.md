@@ -4,7 +4,7 @@ Written by `scripts/build_codekg.py` each time `codekg.trig` is regenerated: whe
 
 ## 2026-10-26 — regenerated (automatic entry)
 
-- Built from commit 23942fa with uncommitted changes: 415 files, 115,229 triples.
+- Built from commit d0ef123: 416 files, 115,906 triples.
 
 ## 2026-10-25 — regenerated (automatic entry)
 
