@@ -316,19 +316,59 @@ def _read_source_text(source=None, file=None, location=None, data=None) -> str:
     """
     from pathlib import Path
     if data is not None:
-        return data
+        return _as_text(data)
     if file is not None:
-        return file.read() if hasattr(file, 'read') else Path(file).read_text()
+        return _as_text(file.read()) if hasattr(file, 'read') else Path(file).read_text(encoding='utf-8')
     if location is not None:
-        return Path(location).read_text()
+        return Path(location).read_text(encoding='utf-8')
     if source is not None:
+        if isinstance(source, (bytes, bytearray)):
+            return _as_text(source)
+        if hasattr(source, 'read'):  # an open text or binary stream
+            return _as_text(source.read())
+        for getter in ('getCharacterStream', 'getByteStream'):  # an rdflib InputSource
+            stream = getattr(source, getter, lambda: None)()
+            if stream is not None:
+                return _as_text(stream.read())
         p = Path(source) if isinstance(source, (str, Path)) else None
         if p and p.exists():
-            return p.read_text()
+            return p.read_text(encoding='utf-8')
         if isinstance(source, str):
             return source
         raise ValueError(f'Cannot read source: {source!r}')
     raise ValueError('No source data to parse')
+
+
+def _deliver_serialized(text: str, destination, encoding):
+    """Hand serialized text to the caller the way ``rdflib.Graph.serialize`` does: with no destination, the text (or bytes when
+    ``encoding`` is given); with a path or an open text or binary stream, written there and ``None`` returned (GitHub issue #133)."""
+    import io
+    if destination is None:
+        return text.encode(encoding) if encoding else text
+    if hasattr(destination, 'write'):
+        destination.write(text if isinstance(destination, io.TextIOBase) else text.encode(encoding or 'utf-8'))
+        return None
+    with open(destination, 'w', encoding=encoding or 'utf-8') as f:
+        f.write(text)
+    return None
+
+
+def _as_text(value) -> str:
+    """Parse input as text: bytes (``data=b'...'``, a binary stream) are UTF-8, as every RDF text syntax is, and a byte-order
+    mark is dropped (GitHub issue #133)."""
+    if isinstance(value, (bytes, bytearray, memoryview)):
+        return bytes(value).decode('utf-8-sig')
+    return value
+
+
+def _effective_base(publicID, location) -> str | None:
+    """The base IRI to resolve relative IRIs against: ``publicID``, else the IRI of ``location`` (rdflib's convention)."""
+    if publicID is not None:
+        return str(publicID)
+    if location is not None:
+        from pathlib import Path
+        return Path(location).resolve().as_uri()
+    return None
 
 
 def _check_single_graph(graph_ids, *, format: str) -> None:
@@ -988,6 +1028,14 @@ class StarLayerGraph(Graph):
                     tt = TripleTerm(*remembered)
             if tt is not None:
                 restored = TripleTerm(self._restore(tt.subject), tt.predicate, self._restore(tt.object))
+                restored._namespace_manager = self.namespace_manager
+                return restored
+        elif isinstance(node, TripleTerm):
+            # a triple term already held as an object (a nested one in the registry): its parts may still be encoded
+            # (a dirLangString at depth 2 stayed a bogus datatype literal; GitHub issue #133)
+            subject, obj = self._restore(node.subject), self._restore(node.object)
+            if subject is not node.subject or obj is not node.object:
+                restored = TripleTerm(subject, node.predicate, obj)
                 restored._namespace_manager = self.namespace_manager
                 return restored
         elif isinstance(node, Literal):
@@ -1937,7 +1985,8 @@ class StarLayerGraph(Graph):
                 raw = StarLayerTurtleParser().parse(text, base=effective_base)
                 processed = _skolemize_encoding(raw)
                 for prefix, ns in processed.namespaces():
-                    self.bind(prefix, ns)
+                    if str(ns) != str(TT_NS):  # the internal triple-term prefix is not the document's (GitHub issue #132)
+                        self.bind(prefix, ns)
                 if self._is_native:
                     # _skolemize_encoding's output is the rdf-1.1 backend's
                     # own tt:HASH on-disk encoding - correct to write
@@ -2014,7 +2063,7 @@ class StarLayerGraph(Graph):
                     extract_version_directive as _trig_version,
                 )
                 from starlayer.graph.parsers.trig12 import parse_trig12_named
-                named = parse_trig12_named(text)
+                named = parse_trig12_named(text, base=_effective_base(publicID, location))
                 # exclude prefix/VERSION-only chunks (no actual triples) -
                 # e.g. a leading chunk before the first GRAPH block that
                 # has only PREFIX/VERSION directives still shows up as a
@@ -2639,12 +2688,13 @@ class StarLayerGraph(Graph):
             format = 'turtle12'
         _RDF12_FORMATS = {'turtle12', 'longturtle12', 'nt12', 'nq12', 'trig12', 'trix12', 'rdfxml12', 'manchester', 'omn'}
         if format in _RDF12_FORMATS:
+            base = kwargs.get('base')
             if format == 'turtle12':
                 from starlayer.graph.serializers.turtle12 import serialize_turtle12
-                text = serialize_turtle12(self)
+                text = serialize_turtle12(self, base=base)
             elif format == 'longturtle12':
                 from starlayer.graph.serializers.turtle12 import serialize_longturtle12
-                text = serialize_longturtle12(self)
+                text = serialize_longturtle12(self, base=base)
             elif format == 'nt12':
                 from starlayer.graph.serializers.ntriples12 import serialize_ntriples12
                 text = serialize_ntriples12(self)
@@ -2653,7 +2703,7 @@ class StarLayerGraph(Graph):
                 text = serialize_nquads12(self)
             elif format == 'trig12':
                 from starlayer.graph.serializers.trig12 import serialize_trig12
-                text = serialize_trig12(self)
+                text = serialize_trig12(self, base=base)
             elif format == 'trix12':
                 from starlayer.graph.serializers.trix12 import serialize_trix12
                 text = serialize_trix12(self)
@@ -2663,13 +2713,9 @@ class StarLayerGraph(Graph):
             elif format in ('manchester', 'omn'):
                 from starlayer.graph.serializers.manchester import serialize_manchester
                 text = serialize_manchester(self)
-            if destination is not None:
-                with open(destination, 'w', encoding='utf-8') as f:
-                    f.write(text)
-                # Return self, not the destination path, matching rdflib's
-                # own Graph.serialize() contract.
-                return self
-            return text
+            delivered = _deliver_serialized(text, destination, kwargs.get('encoding'))
+            # Return self, not the destination path, matching rdflib's own Graph.serialize() contract.
+            return self if destination is not None else delivered
         # For 1.1 formats: de-skolemize internal URIRefs to blank nodes so
         # rdflib's serializer produces clean output without exposing tt:/rr: URIs.
         deskolemized = self._deskolemize_to_graph()

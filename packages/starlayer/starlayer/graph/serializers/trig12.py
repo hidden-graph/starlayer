@@ -37,14 +37,14 @@ def _split_prefix_and_body_lines(turtle_text: str) -> tuple[list[str], list[str]
     prefix_lines: list[str] = []
     body_lines: list[str] = []
     for line, in_string in iter_lines_outside_strings(turtle_text):
-        if not in_string and line.startswith('@prefix'):
+        if not in_string and line.startswith(('@prefix', '@base')):
             prefix_lines.append(line)
         else:
             body_lines.append(line)
     return prefix_lines, body_lines
 
 
-def serialize_trig12(g) -> str:
+def serialize_trig12(g, base=None) -> str:
     """Serialize *g* to TriG 1.2 text.
 
     Named graph identifier → ``GRAPH <uri> { ... }``
@@ -52,11 +52,12 @@ def serialize_trig12(g) -> str:
 
     Args:
         g: The graph to serialize.
+        base: A base IRI: written as ``@base``, IRIs under it are written relative to it.
 
     Returns:
         The TriG 1.2 serialization of g.
     """
-    turtle_text = serialize_turtle12(g)
+    turtle_text = serialize_turtle12(g, base=base)
 
     if isinstance(g.identifier, BNode):
         # Default graph — plain Turtle 1.2 is valid TriG

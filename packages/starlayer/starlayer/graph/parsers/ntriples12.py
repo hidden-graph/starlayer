@@ -113,6 +113,13 @@ def _consume_nt_term(text: str, start: int) -> tuple[str | None, int]:
 # Term token → rdflib node
 # ---------------------------------------------------------------------------
 
+def _lines(text: str) -> list[str]:
+    """The lines of an N-Triples/N-Quads document. Only CR and LF end a line (``EOL ::= [#xD#xA]+``);
+    ``str.splitlines()`` also splits at VT, FF, FS, GS, RS, NEL, LS and PS, which are legal inside a literal
+    (GitHub issue #133)."""
+    return _re.split(r'\r\n|\r|\n', text)
+
+
 def _unescape_nt(s: str) -> str:
     """Decode N-Triples string escape sequences."""
     out: list[str] = []
@@ -259,7 +266,7 @@ def extract_version_directive(text: str) -> str | None:
         The declared VERSION label (e.g. "1.2-basic"), or None if the
         document's first non-blank/comment line isn't a VERSION line.
     """
-    for line in text.splitlines():
+    for line in _lines(text):
         stripped = line.strip()
         if not stripped or stripped.startswith('#'):
             continue
@@ -284,7 +291,7 @@ def parse_ntriples12(text: str) -> list[tuple]:
         A list of (s, p, o) triples, one per non-blank/comment line.
     """
     triples = []
-    for lineno, line in enumerate(text.splitlines(), 1):
+    for lineno, line in enumerate(_lines(text), 1):
         result = _parse_nt_line(line, lineno, quads=False)
         if result is not None:
             triples.append(result)
@@ -304,7 +311,7 @@ def parse_nquads12(text: str) -> list[tuple]:
         is a URIRef for a named graph, None for the default graph.
     """
     quads = []
-    for lineno, line in enumerate(text.splitlines(), 1):
+    for lineno, line in enumerate(_lines(text), 1):
         result = _parse_nt_line(line, lineno, quads=True)
         if result is not None:
             quads.append(result)

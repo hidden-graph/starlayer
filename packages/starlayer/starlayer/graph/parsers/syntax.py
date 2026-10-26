@@ -153,6 +153,9 @@ _SPARQL_DIRECTIVE_OPERAND = re.compile(
 )
 
 
+_AT_PREFIX_OPERAND = re.compile(r"@prefix[ \t]+[^\s:<>]*:[ \t]*<[^>]*>", re.IGNORECASE)
+
+
 def _scan_directive_end(data, i):
     """From position i (the start of a directive keyword), find where this
     directive statement ends.
@@ -185,6 +188,10 @@ def _scan_directive_end(data, i):
     string_char = ''
     triple = False
     j = i
+    # A prefix name may contain '.' (PN_PREFIX: "a.b"), which is not the directive's end: scan on from after the IRI
+    m = _AT_PREFIX_OPERAND.match(data, i) if data[i] == '@' else None
+    if m:
+        j = m.end()
     while j < len(data):
         c = data[j]
         if in_string:
@@ -553,7 +560,7 @@ def extract_fields(stmt, typ, blank_counter=None):
             s, pos=0,
         )
     elif typ == 'prefix':
-        m = re.match(r'@?prefix\s+([\w-]*)\s*:\s*<([^>]*)>', s, re.IGNORECASE)
+        m = re.match(r'@?prefix\s+([^\s:<>]*)\s*:\s*<([^>]*)>', s, re.IGNORECASE)
         if m:
             return {'prefix': m.group(1), 'iri': m.group(2)}
     elif typ == 'base':

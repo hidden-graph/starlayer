@@ -40,6 +40,8 @@ from rdflib.term import Node
 from starlayer.graph.graph.starlayer_graph import (
     VALID_BACKENDS,
     StarLayerGraph,
+    _deliver_serialized,
+    _effective_base,
     _raw_triples,
     _read_source_text,
 )
@@ -64,7 +66,7 @@ def _indent_outside_long_strings(body: str, indent: str) -> str:
     """
     out = []
     inside = False
-    for line in body.splitlines():
+    for line in body.split('\n'):
         out.append(line if inside or not line.strip() else indent + line)
         if line.count('"' * 3) % 2:
             inside = not inside
@@ -476,6 +478,8 @@ class StarLayerDataset(Dataset):
             backend=self._backend,
         )
         for prefix, ns in namespaces:
+            if str(ns) == str(TT_NS):  # the internal triple-term prefix is not the document's (GitHub issue #132)
+                continue
             sg.bind(prefix, ns)
             self.bind(prefix, ns)
         return sg
@@ -558,7 +562,7 @@ class StarLayerDataset(Dataset):
                 extract_version_directive as _trig_version,
             )
             from starlayer.graph.parsers.trig12 import parse_trig12_named
-            for graph_id, triples, namespaces in parse_trig12_named(text):
+            for graph_id, triples, namespaces in parse_trig12_named(text, base=_effective_base(publicID, location)):
                 identifier = DATASET_DEFAULT_GRAPH_ID if graph_id is None else graph_id
                 sg = self._load_context(identifier, namespaces)
                 if sg._is_native:
@@ -1027,7 +1031,7 @@ class StarLayerDataset(Dataset):
         if format in ('n3', 'n3-12', 'text/n3'):
             format = 'turtle12'
         if format in self._SINGLE_GRAPH_RDF12_FORMATS:
-            text = self.to_graph().serialize(format=format)
+            text = self.to_graph().serialize(format=format, base=kwargs.get('base'))
 
         elif format not in ('trig12', 'nq12', 'trix12'):
             return super().serialize(destination=destination, format=format, **kwargs)
@@ -1062,7 +1066,7 @@ class StarLayerDataset(Dataset):
             for sg in self._contexts_in_serialization_order():
                 if len(sg) == 0:
                     continue
-                turtle_text = serialize_turtle12(sg)
+                turtle_text = serialize_turtle12(sg, base=kwargs.get('base'))
                 body_lines = []
                 # iter_lines_outside_strings(), not a blind
                 # ln.startswith('@prefix'/'@version') check: a line that
@@ -1076,7 +1080,7 @@ class StarLayerDataset(Dataset):
                 for ln, in_string in iter_lines_outside_strings(turtle_text):
                     if in_string:
                         body_lines.append(ln)
-                    elif ln.startswith('@prefix'):
+                    elif ln.startswith(('@prefix', '@base')):
                         all_prefix_lines.add(ln)
                     elif ln.startswith('@version'):
                         has_version = True
@@ -1102,11 +1106,7 @@ class StarLayerDataset(Dataset):
 
             text = '\n\n'.join(blocks) + '\n'
 
-        if destination is not None:
-            with open(destination, 'w', encoding='utf-8') as f:
-                f.write(text)
-            # Returns self when writing to a destination, matching both
-            # rdflib's own Graph.serialize() convention and
-            # StarLayerGraph.serialize()'s own RDF12-format branch.
-            return self
-        return text
+        delivered = _deliver_serialized(text, destination, kwargs.get('encoding'))
+        # Returns self when writing to a destination, matching both rdflib's own Graph.serialize() convention and
+        # StarLayerGraph.serialize()'s own RDF12-format branch.
+        return self if destination is not None else delivered
