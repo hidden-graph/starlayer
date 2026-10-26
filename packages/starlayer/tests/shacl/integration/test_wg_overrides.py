@@ -32,6 +32,7 @@ STILL_TOO_STRICT = {
     "equals": "ex:S a sh:NodeShape ; sh:property [ sh:path ex:p ; sh:equals ( ex:a ex:b ) ] .",
     "lessThan": "ex:S a sh:NodeShape ; sh:property [ sh:path ex:p ; sh:lessThan ( ex:a ex:b ) ] .",
     "lessThanOrEquals": "ex:S a sh:NodeShape ; sh:property [ sh:path ex:p ; sh:lessThanOrEquals ( ex:a ex:b ) ] .",
+    "targetNode": "ex:S a sh:NodeShape ; sh:targetNode [ shnex:instancesOf ex:T ] .",
 }
 # ... and ones the Working Group has already fixed, which its file must keep accepting.
 FIXED_UPSTREAM = {
