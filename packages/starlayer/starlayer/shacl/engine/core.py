@@ -148,13 +148,14 @@ def build_report(*, events: tuple[dict[str, Any], ...], graph_context: Any, opti
     report.remove((None, None, None))
 
     report_node = BNode()
-    report.add((report_node, SH.type, SH.ValidationReport))
+    report.add((report_node, RDF.type, SH.ValidationReport))
     report.add((report_node, SH.conforms, Literal(len(events) == 0)))
 
     for event in events:
         result_node = BNode()
         report.add((report_node, SH.result, result_node))
-        report.add((result_node, SH.type, SH.ValidationResult))
+        report.add((result_node, RDF.type, SH.ValidationResult))
+        report.add((result_node, SH.resultSeverity, SH.Violation))
 
         focus = event.get("focus_node")
         if focus is not None:
