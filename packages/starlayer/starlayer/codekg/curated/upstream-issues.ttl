@@ -320,3 +320,19 @@ ui:rdflib-21 a slkg:UpstreamIssue ;
     slkg:issueNumber 21 ;
     slkg:issueStatus "worked-around" ;
     slkg:workedAroundByIdentifier "starlayer.graph.query.path_patches.patch_negated_set_inverse_member", "starlayer.graph.query.path_patches.patch_repetition_paths_are_distinct" .
+
+ui:rdflib-31 a slkg:UpstreamIssue ;
+    rdfs:label "DELETE DATA, DELETE WHERE and DELETE { } delete from every graph; USING and USING NAMED are wrong; invalid template triples are inserted" ;
+    slkg:upstreamProject "rdflib" ;
+    slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
+    slkg:issueNumber 31 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.graph.query.update_patches.patch_update_graph_management" .
+
+ui:rdflib-32 a slkg:UpstreamIssue ;
+    rdfs:label "An empty update request crashes" ;
+    slkg:upstreamProject "rdflib" ;
+    slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
+    slkg:issueNumber 32 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.sparql.parse12.prepare_update_12" .

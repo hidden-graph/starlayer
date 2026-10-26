@@ -23,7 +23,7 @@ from rdflib import BNode, Variable
 from rdflib.plugins.sparql.algebra import translateQuery, translateUpdate
 from rdflib.plugins.sparql.parser import parseQuery, parseUpdate
 from rdflib.plugins.sparql.parserutils import ParseResults  # re-exported for callers
-from rdflib.plugins.sparql.sparql import Query, Update
+from rdflib.plugins.sparql.sparql import Prologue, Query, Update
 
 from . import _grammar12 as grammar12
 from ._syntax_checks import check_parse_tree, reject_surrogate_escapes
@@ -55,18 +55,30 @@ def _parse_with_recovery(parse_fn, text: str):
     invalid syntax, not a grammar-state artifact - propagates normally, no
     third attempt.
     """
-    with _PARSE_LOCK:
+    def attempt_parse():
         grammar12.install()
+        try:
+            return parse_fn(text)
+        except ParseBaseException:
+            grammar12.install(force=True)
+            return parse_fn(text)
+
+    return parse_serialized(attempt_parse)
+
+
+def parse_serialized(parse):
+    """Run ``parse()`` (any pyparsing parse over rdflib's or a sibling grammar) under the one parse lock, retrying when
+    pyparsing's argument-count discovery for a parse action fails (``missing N required positional argument``).
+
+    That discovery calls each parse action and catches the ``TypeError``; in a thread other than the one that built the
+    grammar it goes wrong (GitHub issue #100). Each attempt settles more actions, so retry. The SRL rule-set parser shares
+    those parse actions and raced the same way (GitHub issue #135), so it uses this too.
+    """
+    with _PARSE_LOCK:
         for attempt in range(_ARITY_RETRIES + 1):
             try:
-                return parse_fn(text)
-            except ParseBaseException:
-                grammar12.install(force=True)
-                return parse_fn(text)
+                return parse()
             except TypeError as exc:
-                # pyparsing learns how many arguments each parse action takes by calling it and catching a TypeError; that
-                # discovery goes wrong in a thread other than the one that built the grammar (GitHub issue #100). Each
-                # attempt settles more actions, so retry; _warm_up() below settles most of them at import.
                 if attempt == _ARITY_RETRIES or not _ARITY_ERROR.search(str(exc)):
                     raise
 
@@ -191,9 +203,13 @@ def prepare_update_12(
     Returns:
         The translated, executable-shaped ``Update``.
     """
-    update = _reject_blank_nodes_in_delete(
-        translateUpdate(parse_update_12(text), base, initNs)
-    )
+    update = translateUpdate(parse_update_12(text), base, initNs)
+    if not isinstance(update, Update):
+        # an empty request (only a prologue, or comments) is valid (Update ::= Prologue ( Update1 ( ';' Update )? )?);
+        # translateUpdate returns a bare [] for it
+        return Update(Prologue(), [])
+    _reject_blank_nodes_in_delete(update)
+    _reject_blank_nodes_shared_between_operations(update)
     _reject_triple_term_pattern_subjects(update.algebra)
     _fresh_blank_nodes_in_insert_data(update)
     return update
@@ -232,7 +248,7 @@ def _reject_blank_nodes_in_delete(update: Update) -> Update:
     can never identify one. Plain, unmodified rdflib doesn't enforce this
     syntactically either, so it's checked here, post-translate, against the
     two operation shapes that carry a delete template: ``DeleteData.triples``/
-    ``.quads`` directly, and ``Modify.delete.triples``/``.quads``
+    ``.quads`` directly, ``DeleteWhere`` (GitHub issue #135: it silently matched nothing), and ``Modify.delete.triples``/``.quads``
     (``Modify.delete`` is ``None`` for an INSERT-only Modify, per
     ``algebra.translateUpdate1``).
 
@@ -252,9 +268,44 @@ def _reject_blank_nodes_in_delete(update: Update) -> Update:
             _check_no_variables(op.triples, op.quads, "INSERT DATA" if op.name == "InsertData" else "DELETE DATA")
         if op.name == "DeleteData":
             _check_no_blank_nodes(op.triples, op.quads, "DELETE DATA")
+        elif op.name == "DeleteWhere":
+            _check_no_blank_nodes(op.triples, op.quads, "DELETE WHERE")
         elif op.name == "Modify" and op.delete is not None:
             _check_no_blank_nodes(op.delete.triples, op.delete.quads, "DELETE")
     return update
+
+
+def _blank_nodes_of(node, found: set) -> None:
+    """Collect every blank node under an algebra node (any depth, also inside triple terms)."""
+    if isinstance(node, BNode):
+        found.add(node)
+    elif isinstance(node, TripleTermNode):
+        for part in ("subject", "predicate", "object"):
+            _blank_nodes_of(dict.get(node, part), found)
+    elif isinstance(node, dict):
+        for key, value in node.items():
+            _blank_nodes_of(key, found)
+            _blank_nodes_of(value, found)
+    elif isinstance(node, (list, tuple, set)) or hasattr(node, "asList"):
+        for item in node:
+            _blank_nodes_of(item, found)
+
+
+def _reject_blank_nodes_shared_between_operations(update: Update) -> None:
+    """The same blank node label may not appear in two operations of one request (SPARQL 1.1 grammar note 7 and section
+    19.6); it was accepted and both operations then shared one node (GitHub issue #135). Anonymous ``[]`` nodes are all
+    distinct, so only a repeated label can trip this."""
+    seen: set = set()
+    for op in update.algebra:
+        here: set = set()
+        _blank_nodes_of(dict(op), here)
+        shared = seen & here
+        if shared:
+            raise ValueError(
+                f"starlayer.sparql: the blank node label _:{sorted(shared)[0]} is used in more than one operation of the "
+                "same update request"
+            )
+        seen |= here
 
 
 def _terms_inside(term):
