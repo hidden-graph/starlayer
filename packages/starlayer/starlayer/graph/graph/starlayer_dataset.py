@@ -879,7 +879,7 @@ class StarLayerDataset(Dataset):
             return native_query(
                 self.store, self._backend, query_object, processor=processor, result=result,
                 initNs=initNs, initBindings=initBindings,
-                use_store_provided=use_store_provided, **kwargs,
+                use_store_provided=use_store_provided, default_union=self.default_union, **kwargs,
             )
 
         if isinstance(query_object, str):

@@ -90,9 +90,17 @@ def _parse_ox_term(term):
     raise ValueError(f'Unknown pyoxigraph term type: {type(term).__name__!r}')
 
 
-def ox_select(store, sparql: str) -> tuple[list, list]:
+def _query(store, sparql: str, default_union: bool):
+    """Run a query; with ``default_union`` the default graph is the union of all graphs (pyoxigraph's flag), which is what
+    ``StarLayerDataset(default_union=True)`` promises and a native query ignored (GitHub issue #98)."""
+    if default_union:
+        return _engine(store).query(sparql, use_default_graph_as_union=True)
+    return _engine(store).query(sparql)
+
+
+def ox_select(store, sparql: str, default_union: bool = False) -> tuple[list, list]:
     """SELECT -> (vars, bindings), the same shape ``http_select()`` returns."""
-    solutions = _engine(store).query(sparql)
+    solutions = _query(store, sparql, default_union)
     native_vars = solutions.variables
     vars_ = [Variable(v.value) for v in native_vars]
     bindings = []
@@ -106,18 +114,18 @@ def ox_select(store, sparql: str) -> tuple[list, list]:
     return vars_, bindings
 
 
-def ox_ask(store, sparql: str) -> bool:
-    return bool(_engine(store).query(sparql))
+def ox_ask(store, sparql: str, default_union: bool = False) -> bool:
+    return bool(_query(store, sparql, default_union))
 
 
 def ox_update(store, sparql: str) -> None:
     _engine(store).update(sparql)
 
 
-def ox_construct(store, sparql: str):
+def ox_construct(store, sparql: str, default_union: bool = False):
     """CONSTRUCT/DESCRIBE -> already-deskolemized (s, p, o) triples, with no
     serialize/re-parse round trip."""
-    for t in _engine(store).query(sparql):
+    for t in _query(store, sparql, default_union):
         yield (
             deskolemize_bnode(_parse_ox_term(t.subject)),
             _parse_ox_term(t.predicate),

@@ -19,7 +19,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from pyparsing.exceptions import ParseBaseException
-from rdflib import BNode
+from rdflib import BNode, Variable
 from rdflib.plugins.sparql.algebra import translateQuery, translateUpdate
 from rdflib.plugins.sparql.parser import parseQuery, parseUpdate
 from rdflib.plugins.sparql.parserutils import ParseResults  # re-exported for callers
@@ -27,7 +27,7 @@ from rdflib.plugins.sparql.sparql import Query, Update
 
 from . import _grammar12 as grammar12
 from ._syntax_checks import check_parse_tree, reject_surrogate_escapes
-from .triple_term import _reject_triple_term_pattern_subjects
+from .triple_term import TripleTermNode, _reject_triple_term_pattern_subjects
 
 grammar12.install()
 
@@ -195,7 +195,32 @@ def prepare_update_12(
         translateUpdate(parse_update_12(text), base, initNs)
     )
     _reject_triple_term_pattern_subjects(update.algebra)
+    _fresh_blank_nodes_in_insert_data(update)
     return update
+
+
+def _relabel(term, mapping):
+    """``term`` with every blank node (also inside a triple term) replaced through ``mapping``."""
+    if isinstance(term, BNode):
+        return mapping.setdefault(term, BNode())
+    if isinstance(term, TripleTermNode):
+        for part in ("subject", "predicate", "object"):
+            term[part] = _relabel(dict.get(term, part), mapping)
+    return term
+
+
+def _fresh_blank_nodes_in_insert_data(update: Update) -> None:
+    """A blank node label in ``INSERT DATA`` is scoped to its request (SPARQL 1.1 Update 3.1.1 / RDF Concepts: blank node
+    labels are local to a document): ``_:a`` in two requests are two nodes. rdflib keeps the label, so a second request
+    reused the first one's node (GitHub issue #98). Every blank node of each ``INSERT DATA`` is replaced by a fresh one, the
+    same label by the same fresh node within the request."""
+    mapping: dict = {}
+    for op in update.algebra:
+        if op.name != "InsertData":
+            continue
+        for triples in [op.triples, *op.quads.values()]:
+            for index, (s, p, o) in enumerate(list(triples)):
+                triples[index] = (_relabel(s, mapping), _relabel(p, mapping), _relabel(o, mapping))
 
 
 def _reject_blank_nodes_in_delete(update: Update) -> Update:
@@ -223,6 +248,8 @@ def _reject_blank_nodes_in_delete(update: Update) -> Update:
             template.
     """
     for op in update.algebra:
+        if op.name in ("InsertData", "DeleteData"):
+            _check_no_variables(op.triples, op.quads, "INSERT DATA" if op.name == "InsertData" else "DELETE DATA")
         if op.name == "DeleteData":
             _check_no_blank_nodes(op.triples, op.quads, "DELETE DATA")
         elif op.name == "Modify" and op.delete is not None:
@@ -230,12 +257,32 @@ def _reject_blank_nodes_in_delete(update: Update) -> Update:
     return update
 
 
+def _terms_inside(term):
+    """The term itself and, for a triple term, every component at any depth."""
+    yield term
+    if isinstance(term, TripleTermNode):
+        for part in ("subject", "predicate", "object"):
+            yield from _terms_inside(term.get(part))
+
+
+def _check_no_variables(triples, quads, context: str) -> None:
+    """``INSERT DATA`` / ``DELETE DATA`` take ground data (SPARQL 1.1 Update 3.1.1: QuadData has no variables, also not
+    inside a triple term); the grammar accepted them and a Variable object was stored in the graph (GitHub issue #93)."""
+    all_triples = list(triples)
+    for graph_triples in quads.values():
+        all_triples.extend(graph_triples)
+    for triple in all_triples:
+        for position in triple:
+            if any(isinstance(t, Variable) for t in _terms_inside(position)):
+                raise ValueError(f"starlayer.sparql: a variable is not permitted in {context} data: {position!r}")
+
+
 def _check_no_blank_nodes(triples, quads, context: str) -> None:
     all_triples = list(triples)
     for graph_triples in quads.values():
         all_triples.extend(graph_triples)
     for s, p, o in all_triples:
-        if isinstance(s, BNode) or isinstance(p, BNode) or isinstance(o, BNode):
+        if any(isinstance(t, BNode) for position in (s, p, o) for t in _terms_inside(position)):
             raise ValueError(
                 f"starlayer.sparql: a blank node (possibly minted implicitly by an "
                 f"anonymous {{| ... |}} annotation reifier) is not permitted in a "
