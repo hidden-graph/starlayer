@@ -89,3 +89,27 @@ def test_a_run_passes_against_a_baseline_recorded_from_runs_on_other_cpus(tmp_pa
     fresh = tmp_path / "fresh.json"
     fresh.write_text(json.dumps(_result(0.030, test_a=0.033)))  # a slower CPU again
     assert _run(monkeypatch, str(baseline), str(fresh)) == 0
+
+
+def test_a_baseline_benchmark_missing_from_the_current_run_fails(tmp_path, monkeypatch, capsys) -> None:
+    baseline = _write(tmp_path / "b.json", **{CAL: 0.010, INSERT: 0.006, QUERY: 0.150})
+    current = _write(tmp_path / "c.json", **{CAL: 0.010, INSERT: 0.006})  # test_query was renamed or removed
+    assert _run(monkeypatch, baseline, current) == 1
+    assert QUERY in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("short_calibration", [0.010, 0.030])
+def test_recording_a_baseline_names_a_benchmark_missing_from_a_run(short_calibration) -> None:
+    import record_benchmark_baseline as record
+
+    short, full = _result(short_calibration, test_a=0.01), _result(0.020, test_a=0.02, test_b=0.03)
+    with pytest.raises(ValueError, match="test_b"):
+        record.build_baseline([short, full, _result(0.020, test_a=0.02, test_b=0.03)])
+
+
+def test_recording_a_baseline_from_a_run_without_calibration_is_a_clear_error() -> None:
+    import record_benchmark_baseline as record
+
+    no_cal = {"benchmarks": [{"name": "test_a", "fullname": "x::test_a", "stats": {"min": 1.0}}], "machine_info": {}}
+    with pytest.raises(ValueError, match="test_calibration_reference"):
+        record.build_baseline([no_cal, no_cal])

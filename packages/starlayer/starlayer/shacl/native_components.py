@@ -1291,8 +1291,10 @@ def _build_node_by_expression_component() -> Any:
             reports: list[Any] = []
             non_conformant = False
             for focus_node, value_nodes in focus_value_nodes.items():
-                shape_nodes = eval_expr(self.expr, focus_node, target_graph, self.shape.sg, scope={})
                 for value in value_nodes:
+                    # evaluated at each value node, which is the focus node of the expression (it was evaluated once at
+                    # the outer focus node: GitHub issue #95)
+                    shape_nodes = eval_expr(self.expr, value, target_graph, self.shape.sg, scope={})
                     for shape_node in shape_nodes:
                         found_shape = self.shape.get_other_shape(shape_node)
                         if found_shape is None:
