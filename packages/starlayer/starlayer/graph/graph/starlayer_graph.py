@@ -364,6 +364,25 @@ def _check_subject_and_predicate(s, p) -> None:
         raise ValueError(f"RDF: the predicate of a triple must be an IRI, got {p!r}.")
 
 
+_OWLRL_ERROR_NS = 'http://www.daml.org/2002/03/agents/agent-ont#'
+
+
+def _drop_repeated_error_messages(graph) -> None:
+    """Keep one ``err:ErrorMessage`` node per message text. Each owlrl pass mints a fresh blank node for the same
+    inconsistency, so the repeated passes of ``_infer_before_and_delta`` reported it up to eight times."""
+    message_class = URIRef(_OWLRL_ERROR_NS + 'ErrorMessage')
+    error = URIRef(_OWLRL_ERROR_NS + 'error')
+    seen = set()
+    for node in sorted(graph.subjects(RDF.type, message_class), key=str):
+        if not isinstance(node, BNode):
+            continue
+        key = tuple(sorted(str(o) for o in graph.objects(node, error)))
+        if key in seen:
+            graph.remove((node, None, None))
+        else:
+            seen.add(key)
+
+
 def legal_rdf_triples(triples) -> list:
     """The triples of ``triples`` that RDF allows (an IRI predicate, no literal subject). OWL RL and RDFS entailment also
     derive generalized triples such as ``"text" rdf:type rdfs:Literal``, which ``add`` refuses and no RDF syntax can write."""
@@ -3017,6 +3036,7 @@ class StarLayerGraph(Graph):
         for _ in range(8):
             size = len(expanded)
             owlrl.DeductiveClosure(semantics).expand(expanded)
+            _drop_repeated_error_messages(expanded)
             if len(expanded) == size:
                 break
         before_set = set(before)

@@ -215,3 +215,20 @@ def test_query_encoders_raise_type_errors():
         from_rdf.rdf_to_query(StarLayerGraph(), None)
     graph, root = to_rdf.query_to_rdf(prepareQuery("SELECT * { ?s ?p ?o }"))
     assert from_rdf.rdf_to_query(graph, root) is not None
+
+
+# --- OWL RL reports an inconsistency once ------------------------------------------------------------------
+
+
+def test_owl_rl_inconsistency_message_is_not_repeated_per_pass():
+    from starlayer.graph import ENTAILMENT
+
+    graph = StarLayerGraph()
+    graph.parse(
+        data="@prefix ex: <http://e/> . @prefix owl: <http://www.w3.org/2002/07/owl#> . "
+        "ex:Dog owl:disjointWith ex:Cat . ex:fido a ex:Dog, ex:Cat .",
+        format="turtle",
+    )
+    closed = graph.infer(entailment=ENTAILMENT["OWL-RDF-Based"])
+    messages = list(closed.triples((None, URIRef("http://www.daml.org/2002/03/agents/agent-ont#error"), None)))
+    assert len(messages) == 1
