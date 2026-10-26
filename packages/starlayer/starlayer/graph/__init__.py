@@ -52,10 +52,6 @@ from starlayer.graph.query import (
 from starlayer.graph.query.algebra_translator_patches import (
     patch_algebra_translator_bugs as _patch_algebra_translator_bugs,
 )
-
-# Compatibility shims for confirmed bugs in plain rdflib's own SPARQL
-# arithmetic evaluation - applied eagerly so every consumer gets
-# spec-correct results. See starlayer.graph/query/operator_patches.py.
 from starlayer.graph.query.builtin_error_patches import (
     apply_all_builtin_error_patches as _apply_all_builtin_error_patches,
 )
@@ -154,6 +150,16 @@ from starlayer.graph.query.evaluate_patches import (
 from starlayer.graph.query.operator_patches import (
     apply_all_operator_patches as _apply_all_operator_patches,
 )
+
+# Compatibility shims for confirmed bugs in plain rdflib's own SPARQL
+# arithmetic evaluation - applied eagerly so every consumer gets
+# spec-correct results. See starlayer.graph/query/operator_patches.py.
+from starlayer.graph.query.path_patches import (
+    patch_negated_set_inverse_member as _patch_negated_set_inverse_member,
+)
+from starlayer.graph.query.path_patches import (
+    patch_repetition_paths_are_distinct as _patch_repetition_paths_are_distinct,
+)
 from starlayer.graph.query.result_patches import (
     patch_result_iter_empty_binding_row as _patch_result_iter_empty_binding_row,
 )
@@ -174,6 +180,8 @@ from starlayer.graph.query.update_patches import (
 
 _apply_all_operator_patches()
 _apply_all_builtin_error_patches()
+_patch_negated_set_inverse_member()
+_patch_repetition_paths_are_distinct()
 _patch_algebra_translator_bugs()
 _patch_evalfilter_forgotten_vars()
 _patch_evalmodify_default_graph_selection()

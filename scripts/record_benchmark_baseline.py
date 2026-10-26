@@ -10,6 +10,9 @@ the baseline should be the *median ratio* over several runs on the runners, not 
         out/*/bench-graph-result.json
     (same for benchmarks-shacl/baseline.json and out/*/bench-shacl-result.json), then commit.
 
+Every run must contain the calibration benchmark and the same set of benchmarks; otherwise the script stops with an error
+naming what is missing (it does not build a baseline from the common subset).
+
 The output is a pytest-benchmark file in the shape the check reads: the run with the median calibration time is the template,
 and each benchmark's minimum is replaced by median(ratio to its own run's calibration) * the template's calibration.
 """
@@ -22,13 +25,24 @@ CALIBRATION = "test_calibration_reference"
 
 
 def _calibration(data):
-    return next(b["stats"]["min"] for b in data["benchmarks"] if b["name"] == CALIBRATION)
+    found = [b["stats"]["min"] for b in data["benchmarks"] if b["name"] == CALIBRATION]
+    if not found:
+        raise ValueError(f"a run has no {CALIBRATION} benchmark; every run must include it")
+    return found[0]
 
 
 def build_baseline(runs: list[dict]) -> dict:
     """The baseline for these pytest-benchmark result dicts (at least two, each with a calibration benchmark)."""
     if len(runs) < 2:
         raise ValueError("record a baseline from at least two runs, preferably four or more, on different days or CPUs")
+    # Safer than guessing: a benchmark missing from some run (or extra in one) stops the recording, so the baseline never
+    # silently loses a benchmark that the check would then no longer guard.
+    names = [{b["fullname"] for b in run["benchmarks"]} for run in runs]
+    everywhere = set.intersection(*names)
+    for index, present in enumerate(names):
+        if present != everywhere:
+            odd = sorted(set.union(*names) - everywhere)
+            raise ValueError(f"benchmarks are not the same in every run (run {index + 1} differs): {', '.join(odd)}")
     ordered = sorted(runs, key=_calibration)
     template = json.loads(json.dumps(ordered[len(ordered) // 2]))
     template_cal = _calibration(template)
@@ -55,7 +69,11 @@ def main() -> int:
     for path in paths:
         with open(path) as f:
             runs.append(json.load(f))
-    baseline = build_baseline(runs)
+    try:
+        baseline = build_baseline(runs)
+    except ValueError as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 2
     with open(out, "w") as f:
         json.dump(baseline, f, indent=2)
         f.write("\n")

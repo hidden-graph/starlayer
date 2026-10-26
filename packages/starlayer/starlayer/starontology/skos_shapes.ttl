@@ -255,11 +255,14 @@ skshp:LexicalLabelShape a sh:NodeShape ;
         sh:message "S13: skos:prefLabel/altLabel/hiddenLabel must be pairwise disjoint." ;
         sh:path skos:hiddenLabel
     ], [
-        sh:datatype rdf:langString ;
         sh:disjoint skos:altLabel, skos:hiddenLabel ;
         sh:message "S13: skos:prefLabel/altLabel/hiddenLabel must be pairwise disjoint. S14: no more than one skos:prefLabel per language tag." ;
         sh:path skos:prefLabel ;
         sh:uniqueLang true
+    ], [
+        sh:message "The value of skos:prefLabel is a plain literal, with or without a language tag." ;
+        sh:or ( [ sh:datatype xsd:string ] [ sh:datatype rdf:langString ] ) ;
+        sh:path skos:prefLabel
     ], [
         sh:disjoint skos:hiddenLabel, skos:prefLabel ;
         sh:message "S13: skos:prefLabel/altLabel/hiddenLabel must be pairwise disjoint." ;
@@ -268,11 +271,21 @@ skshp:LexicalLabelShape a sh:NodeShape ;
     sh:targetSubjectsOf skos:prefLabel, skos:hiddenLabel, skos:altLabel .
 
 skshp:MappingRelationDisjointnessShape a sh:NodeShape ;
-    sh:property [
-        sh:disjoint skos:relatedMatch, skos:narrowMatch, skos:broadMatch ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
         sh:message "S46: skos:exactMatch is disjoint with skos:broadMatch, skos:narrowMatch, and skos:relatedMatch." ;
-        sh:path skos:exactMatch
+        sh:select """
+            PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+            SELECT DISTINCT $this ?value
+            WHERE {
+                # exactMatch is symmetric and transitive (S44), so its undirected closure is the relation;
+                # broadMatch/narrowMatch are inverses and relatedMatch is symmetric, so either direction counts.
+                $this (skos:exactMatch|^skos:exactMatch)+ ?value .
+                $this (skos:broadMatch|^skos:broadMatch|skos:narrowMatch|^skos:narrowMatch|skos:relatedMatch|^skos:relatedMatch) ?value .
+            }
+        """
     ] ;
+    sh:targetObjectsOf skos:exactMatch ;
     sh:targetSubjectsOf skos:exactMatch .
 
 skshp:OrderedCollectionMemberListConsistencyShape a sh:NodeShape ;
@@ -284,7 +297,10 @@ skshp:OrderedCollectionMemberListConsistencyShape a sh:NodeShape ;
             PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
             SELECT DISTINCT $this
             WHERE {
+                # S36 makes every list item a skos:member, so a collection with only a memberList is
+                # consistent. Once skos:member is also written, the two must describe the same set.
                 $this skos:memberList ?list .
+                $this skos:member ?asserted .
                 {
                     ?list rdf:rest*/rdf:first ?item .
                     FILTER NOT EXISTS { $this skos:member ?item }
@@ -300,11 +316,21 @@ skshp:OrderedCollectionMemberListConsistencyShape a sh:NodeShape ;
     sh:targetClass skos:OrderedCollection .
 
 skshp:RelatedDisjointWithHierarchicalShape a sh:NodeShape ;
-    sh:property [
-        sh:disjoint skos:narrower, skos:broaderTransitive, skos:broader, skos:narrowerTransitive ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
         sh:message "S27: skos:related is disjoint with skos:broader(Transitive)/skos:narrower(Transitive)." ;
-        sh:path skos:related
+        sh:select """
+            PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+            SELECT DISTINCT $this ?value
+            WHERE {
+                # related is symmetric (S23); broaderTransitive is transitive and contains broader, and
+                # narrower(Transitive) are its inverses (S25, S26): a forward path from $this to ?value.
+                $this (skos:related|^skos:related) ?value .
+                $this (skos:broader|^skos:narrower|skos:broaderTransitive|^skos:narrowerTransitive)+ ?value .
+            }
+        """
     ] ;
+    sh:targetObjectsOf skos:related ;
     sh:targetSubjectsOf skos:related .
 
 skshp:SemanticRelationDomainRangeShape a sh:NodeShape ;

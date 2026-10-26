@@ -288,7 +288,10 @@ def _node_to_class_expr(ctx, node):
         return ('Not', _node_to_class_expr(ctx, comp))
     lst = g.value(node, OWL.oneOf)
     if lst is not None:
-        return ('OneOf', _read_list(g, lst))
+        members = _read_list(g, lst)
+        if members and all(isinstance(m, Literal) for m in members):
+            return ('DOneOf', members)  # an enumeration of literals is a data range, not of individuals
+        return ('OneOf', members)
 
     if (node, RDF.type, OWL.Restriction) in g:
         prop_node = g.value(node, OWL.onProperty)
@@ -298,10 +301,10 @@ def _node_to_class_expr(ctx, node):
 
         some = g.value(node, OWL.someValuesFrom)
         if some is not None:
-            return ('Some', prop, _node_to_class_expr(ctx, some))
+            return ('Some', prop, _node_to_filler(ctx, some))
         only = g.value(node, OWL.allValuesFrom)
         if only is not None:
-            return ('Only', prop, _node_to_class_expr(ctx, only))
+            return ('Only', prop, _node_to_filler(ctx, only))
         val = g.value(node, OWL.hasValue)
         if val is not None:
             return ('Value', prop, val)
@@ -320,7 +323,10 @@ def _node_to_class_expr(ctx, node):
             if n is not None:
                 on_class = g.value(node, OWL.onClass)
                 if on_class is None:
-                    raise ValueError(f'qualified cardinality {node!r} has no owl:onClass')
+                    on_range = g.value(node, OWL.onDataRange)
+                    if on_range is None:
+                        raise ValueError(f'qualified cardinality {node!r} has no owl:onClass or owl:onDataRange')
+                    return (tag, int(n), prop, _node_to_data_range(ctx, on_range))
                 return (tag, int(n), prop, _node_to_class_expr(ctx, on_class))
         raise ValueError(f'owl:Restriction {node!r} matched no known restriction shape')
 
@@ -333,6 +339,19 @@ def _node_to_class_expr(ctx, node):
 # ---------------------------------------------------------------------------
 # RDF -> data-range AST (the reverse of _data_range_node)
 # ---------------------------------------------------------------------------
+
+def _node_to_filler(ctx, node):
+    """A ``some``/``only`` filler: a class expression, or a data range when the node is one (a blank
+    node typed ``rdfs:Datatype`` or built from the data-range vocabulary)."""
+    g = ctx.graph
+    if isinstance(node, BNode) and (
+        (node, RDF.type, RDFS.Datatype) in g
+        or g.value(node, OWL.onDatatype) is not None
+        or g.value(node, OWL.datatypeComplementOf) is not None
+    ):
+        return _node_to_data_range(ctx, node)
+    return _node_to_class_expr(ctx, node)
+
 
 def _node_to_data_range(ctx, node):
     if isinstance(node, URIRef):
@@ -383,6 +402,8 @@ def _render_prop_expr(ctx, expr):
 
 
 def _render_class_expr(ctx, expr, context='or'):
+    if not isinstance(expr, URIRef) and expr[0].startswith('D'):
+        return _render_data_range(ctx, expr, context)  # a data-range filler of a data restriction
     text, tag = _render_class_expr_bare(ctx, expr)
     needs_parens = (context == 'and' and tag == 'Or') or (context == 'primary' and tag in ('And', 'Or'))
     return f'({text})' if needs_parens else text

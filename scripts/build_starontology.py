@@ -93,15 +93,24 @@ def _parse(path: Path) -> Graph:
     return graph
 
 
-def _turtle_body(graph: Graph) -> str:
-    """The graph as Turtle with the registry's prefixes bound and no @prefix lines."""
+def _turtle_parts(graph: Graph) -> tuple[str, str]:
+    """``(extra prefix lines, body)``: the graph as Turtle with the registry's prefixes bound.
+
+    The body has no @prefix lines. A namespace the registry does not know gets a prefix from rdflib (``ns1``); its
+    @prefix line is returned separately so the body never refers to an undeclared prefix.
+    """
     out = Graph()
     for prefix, namespace in starontology._PREFIXES.items():
         out.bind(prefix, namespace, replace=True)
     for triple in graph:
         out.add(triple)
-    text = out.serialize(format="turtle")
-    return "\n".join(line for line in text.splitlines() if not line.startswith("@prefix")).strip()
+    lines = out.serialize(format="turtle").splitlines()
+    extra = "".join(f"{line}\n" for line in lines if line.startswith("@prefix") and line.split()[1][:-1] not in starontology._PREFIXES)
+    return extra, "\n".join(line for line in lines if not line.startswith("@prefix")).strip()
+
+
+def _turtle_body(graph: Graph) -> str:
+    return _turtle_parts(graph)[1]
 
 
 def _prefix_lines() -> str:
@@ -114,7 +123,8 @@ def _write_ttl(path: Path, notice: str, graph: Graph, *, check: bool) -> bool:
     if path.exists() and isomorphic(_parse(path), graph):
         return False
     if not check:
-        path.write_text(notice + "\n" + _prefix_lines() + "\n" + _turtle_body(graph) + "\n", encoding="utf-8")
+        extra, body = _turtle_parts(graph)
+        path.write_text(notice + "\n" + _prefix_lines() + extra + "\n" + body + "\n", encoding="utf-8")
     return True
 
 
@@ -145,7 +155,8 @@ def _assemble_trig() -> str:
         graph = _parse(path)
         comment = "".join("    " + line + "\n" for line in _leading_comment(path))
         comment += "\n" if comment else ""
-        blocks.append(f"starontology:{filename} {{\n{comment}{_indent(_turtle_body(graph))}\n}}\n")
+        extra, body = _turtle_parts(graph)
+        blocks.append(f"{extra}starontology:{filename} {{\n{comment}{_indent(body)}\n}}\n")
     return _prefix_lines() + "\n" + "\n".join(blocks)
 
 
