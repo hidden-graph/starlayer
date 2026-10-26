@@ -320,7 +320,9 @@ Builtin_STRLANGDIR = Comp("Builtin_STRLANGDIR", Keyword("STRLANGDIR") + _StrLang
 def _langdir_literal_action(tokens):
     node = tokens[0]
     text = str(node["string"])
-    lang = str(node["lang"])
+    # Language tags compare ASCII case-insensitively (RDF 1.2 Concepts); data
+    # is stored lower-cased, so a pattern or FILTER constant must be too.
+    lang = str(node["lang"]).lower()
     direction = str(node["direction"])
     return [RDFTermLiteral(text, datatype=encode_dirlang_datatype(lang, direction))]
 

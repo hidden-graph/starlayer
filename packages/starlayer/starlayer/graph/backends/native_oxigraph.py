@@ -14,6 +14,8 @@ dependencies, never imported at module level elsewhere.
 """
 from __future__ import annotations
 
+from urllib.parse import unquote
+
 from rdflib import BNode, Literal, URIRef
 from rdflib.namespace import XSD
 from rdflib.term import Variable
@@ -49,7 +51,7 @@ def _parse_ox_term(term):
         value = term.value
         # Reverse skolemize_bnode() - see that function's docstring.
         if value.startswith(BN_NS):
-            return BNode(value[len(BN_NS):])
+            return BNode(unquote(value[len(BN_NS):]))
         return URIRef(value)
     if isinstance(term, ox.BlankNode):
         return BNode(term.value)

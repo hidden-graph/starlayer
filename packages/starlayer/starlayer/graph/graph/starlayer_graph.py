@@ -270,6 +270,20 @@ def _unfold_native_triple_terms(g) -> Graph:
     return out
 
 
+_SKOLEM_PLACEHOLDER = URIRef('urn:starlayer:skolem-placeholder')
+
+
+def _lowercase_language_tags(g: Graph) -> Graph:
+    """``g`` (a fresh unfolded graph, changed in place) with every language tag
+    lower-cased. Tags compare ASCII case-insensitively (RDF 1.2 Concepts), but
+    rdflib.compare hashes the n3 text, which keeps the case."""
+    for s, p, o in list(g):
+        if isinstance(o, Literal) and o.language and o.language != o.language.lower():
+            g.remove((s, p, o))
+            g.add((s, p, Literal(str(o), lang=o.language.lower())))
+    return g
+
+
 # Sentinel returned by _coerce_tt_read when a TripleTerm is not in the registry.
 # Distinct from None (which means wildcard) so callers can detect "no match".
 _TT_NOT_FOUND = object()
@@ -1314,9 +1328,45 @@ class StarLayerGraph(Graph):
                 s_n = skolemize_bnode(s_n)
             if isinstance(o_n, BNode):
                 o_n = skolemize_bnode(o_n)
+        candidates = set()
+        if self._tt_nodes:
+            for ts, _tp, to in _raw_triples(self, (s_n, p, o_n)):
+                candidates.update(n for n in (ts, to) if n in self._tt_nodes)
         super().remove((s_n, p, o_n))
+        if candidates:
+            self._discard_unreferenced_tt(candidates)
         self._on_mutated()
         return self
+
+    def _tt_is_referenced(self, uri) -> bool:
+        """True if a triple other than the node's own encoding uses ``uri``:
+        as an object (including the object of an outer term's encoding, for
+        a nested triple term) or as a subject with a non-encoding predicate."""
+        if any(s != uri for s, _p, _o in _raw_triples(self, (None, None, uri))):
+            return True
+        return any(p not in _ENCODING_PREDS and not (p == RDF.type and o == TT_CLASS)
+                   for _s, p, o in _raw_triples(self, (uri, None, None)))
+
+    def _discard_unreferenced_tt(self, candidates) -> None:
+        """Drop the encoding of each candidate triple-term node that no triple
+        uses any more, and then of any nested term only it used, so the raw
+        store, the registry, ``triple_terms()`` and ``isomorphic()`` all see
+        the same graph as the visible triples (rdf-1.1 backend only)."""
+        todo = list(candidates)
+        removed = set()
+        while todo:
+            uri = todo.pop()
+            if uri in removed or uri not in self._tt_nodes or self._tt_is_referenced(uri):
+                continue
+            removed.add(uri)
+            for triple in list(_raw_triples(self, (uri, None, None))):
+                super().remove(triple)
+                if triple[1] in (TT_SUBJECT, TT_OBJECT) and triple[2] in self._tt_nodes:
+                    todo.append(triple[2])
+        if removed:
+            for uri in removed:
+                del self._tt_nodes[uri]
+            self._tt_registry = {k: v for k, v in self._tt_registry.items() if v not in removed}
 
     def triples(self, triple) -> Generator[tuple, None, None]:
         """Iterate triples matching the pattern. Filters internal encoding triples.
@@ -2789,8 +2839,27 @@ class StarLayerGraph(Graph):
             )
         return super().cbd(resource, target_graph=target_graph, include_reifications=include_reifications)
 
+    def _process_skolem_tuples(self, target_graph, func) -> None:
+        """rdflib's hook behind skolemize()/de_skolemize(): ``func`` maps the
+        subject and object of one triple. Overridden to also apply it to the
+        subject and object inside every triple term (nested ones too), so a
+        blank node used both inside and outside a triple term stays one node."""
+        def map_triple(t):
+            s, p, o = t
+            s_tt, o_tt = isinstance(s, TripleTerm), isinstance(o, TripleTerm)
+            if s_tt:
+                s = TripleTerm(*map_triple((s.subject, s.predicate, s.object)))
+            if o_tt:
+                o = TripleTerm(*map_triple((o.subject, o.predicate, o.object)))
+            # func only looks at BNode/URIRef; a triple term goes through as a placeholder.
+            mapped = func((_SKOLEM_PLACEHOLDER if s_tt else s, p, _SKOLEM_PLACEHOLDER if o_tt else o))
+            return (s if s_tt else mapped[0], mapped[1], o if o_tt else mapped[2])
+
+        for triple in self.triples((None, None, None)):
+            target_graph.add(map_triple(triple))
+
     def skolemize(self, new_graph=None, bnode=None, authority=None, basepath=None) -> StarLayerGraph:
-        """Convert blank nodes to skolem IRIs.
+        """Convert blank nodes to skolem IRIs, including those inside triple terms.
 
         Overridden because rdflib's inherited skolemize() hardcodes a plain
         rdflib.Graph() as the default target - the same bug class as cbd()'s
@@ -2876,7 +2945,10 @@ class StarLayerGraph(Graph):
             True if the two graphs are isomorphic.
         """
         from rdflib.compare import isomorphic as _rdflib_isomorphic
-        return _rdflib_isomorphic(_unfold_tt_encoding(self), _unfold_tt_encoding(other))
+        return _rdflib_isomorphic(
+            _lowercase_language_tags(_unfold_tt_encoding(self)),
+            _lowercase_language_tags(_unfold_tt_encoding(other)),
+        )
 
     @staticmethod
     def _resolve_owlrl_semantics(regimes: frozenset):
@@ -3111,37 +3183,45 @@ class StarLayerGraph(Graph):
             ``_before, delta = self._before_and_delta_for(...)`` call site).
         """
         delta = Graph()
-
-        def _maybe_add_property_type(term) -> None:
-            candidate = (term, RDF.type, RDF.Property)
-            if candidate not in self:
-                delta.add(candidate)
-
-        seen_predicates: set = set()
-        all_terms: set = set()
-        for s, p, o in self:
-            all_terms.add(s)
-            all_terms.add(p)
-            all_terms.add(o)
-            if p not in seen_predicates:
-                seen_predicates.add(p)
-                _maybe_add_property_type(p)
-
-        for term in (
+        _rdf_ns = str(RDF)
+        axiomatic_terms = (
             RDF.type, RDF.subject, RDF.predicate, RDF.object, RDF_REIFIES,
             RDF.first, RDF.rest, RDF.value,
-        ):
-            if term in all_terms:
-                _maybe_add_property_type(term)
-        if RDF.nil in all_terms:
-            candidate = (RDF.nil, RDF.type, RDF.List)
-            if candidate not in self:
+        )
+        all_terms: set = set()
+        seen_predicates: set = set()
+        fresh: list = []   # delta triples not yet fed back through the rules
+
+        def _add(candidate) -> None:
+            if candidate not in self and candidate not in delta:
                 delta.add(candidate)
-        _rdf_ns = str(RDF)
-        for term in all_terms:
-            if isinstance(term, URIRef) and str(term).startswith(_rdf_ns + '_'):
-                if str(term)[len(_rdf_ns) + 1:].isdigit():
-                    _maybe_add_property_type(term)
+                fresh.append(candidate)
+
+        def _consider(triples) -> None:
+            new_terms: list = []
+            for s, p, o in triples:
+                for term in (s, p, o):
+                    if term not in all_terms:
+                        all_terms.add(term)
+                        new_terms.append(term)
+                if p not in seen_predicates:
+                    seen_predicates.add(p)
+                    _add((p, RDF.type, RDF.Property))
+            for term in new_terms:
+                if term in axiomatic_terms:
+                    _add((term, RDF.type, RDF.Property))
+                elif term == RDF.nil:
+                    _add((RDF.nil, RDF.type, RDF.List))
+                elif isinstance(term, URIRef) and str(term).startswith(_rdf_ns + '_'):
+                    if str(term)[len(_rdf_ns) + 1:].isdigit():
+                        _add((term, RDF.type, RDF.Property))
+
+        # The entailed triples are triples too (rdf:type as predicate, rdf:Property and
+        # rdf:List as terms), so the rules run again on them until nothing is new.
+        _consider(list(self))
+        while fresh:
+            batch, fresh[:] = list(fresh), []
+            _consider(batch)
 
         return self, delta
 
@@ -3610,7 +3690,9 @@ class StarLayerGraph(Graph):
             for t in imported_graph:
                 all_imported.add(t)
 
-            for _, _, next_iri in imported_graph.triples((canonical_id, OWL.imports, None)):
+            # Any subject, not only canonical_id: the document's own ontology
+            # IRI may differ from the IRI it was fetched under (§3.4).
+            for _, _, next_iri in imported_graph.triples((None, OWL.imports, None)):
                 if next_iri not in fetched:
                     pending.append(next_iri)
 

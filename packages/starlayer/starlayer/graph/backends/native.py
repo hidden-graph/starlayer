@@ -39,6 +39,7 @@ from __future__ import annotations
 
 import re
 from typing import Any
+from urllib.parse import quote, unquote
 
 import requests
 from rdflib import BNode, Literal, URIRef
@@ -53,6 +54,16 @@ from starlayer.graph.model.triple import TripleTerm
 # ---------------------------------------------------------------------------
 # Term serialization
 # ---------------------------------------------------------------------------
+
+_SAFE_BNODE_LABEL = re.compile(r'[A-Za-z0-9_]+')
+
+
+def _escape_string(value: str) -> str:
+    """``value`` as the body of a one-line SPARQL string literal: backslash,
+    double quote, LF and CR escaped (STRING_LITERAL2 forbids a raw LF or CR)."""
+    return (value.replace('\\', '\\\\').replace('"', '\\"')
+            .replace('\n', '\\n').replace('\r', '\\r'))
+
 
 def sparql_term(node, skolemize_bnodes: bool = True) -> str:
     """Serialize an RDF node to its SPARQL inline string.
@@ -111,22 +122,29 @@ def sparql_term(node, skolemize_bnodes: bool = True) -> str:
         s, p, o = (sparql_term(x, skolemize_bnodes) for x in node)
         return f'<<( {s} {p} {o} )>>'
     if isinstance(node, DirLangString):
-        escaped = node.value.replace('\\', '\\\\').replace('"', '\\"')
-        return f'"{escaped}"@{node.language}--{node.direction}'
+        return f'"{_escape_string(node.value)}"@{node.language}--{node.direction}'
     if isinstance(node, Literal) and node.datatype:
         decoded = decode_dirlang_datatype(node.datatype)
         if decoded is not None:
             language, direction = decoded
-            escaped = str(node).replace('\\', '\\\\').replace('"', '\\"')
-            return f'"{escaped}"@{language}--{direction}'
+            return f'"{_escape_string(str(node))}"@{language}--{direction}'
     if isinstance(node, BNode) and skolemize_bnodes:
         return skolemize_bnode(node).n3()
+    if isinstance(node, BNode) and not _SAFE_BNODE_LABEL.fullmatch(str(node)):
+        # A label such as "a b" is not valid after "_:"; the same label must
+        # still give the same blank node within one request.
+        return '_:x' + str(node).encode('utf-8').hex()
     return node.n3()
 
 
 # ---------------------------------------------------------------------------
 # Blank-node skolemization (native backend only)
 # ---------------------------------------------------------------------------
+
+# Characters kept as they are in a skolemized label; everything else (and '%')
+# is percent-encoded so any BNode label gives a valid IRI and decodes back.
+_BNODE_LABEL_SAFE = "!$&'()*+,;=:@/?-._~"
+
 
 def skolemize_bnode(node: BNode) -> URIRef:
     """Map a blank node to a stable URI for the wire, deterministically from
@@ -157,7 +175,7 @@ def skolemize_bnode(node: BNode) -> URIRef:
     Returns:
         A stable URIRef under BN_NS encoding node's label.
     """
-    return URIRef(BN_NS + str(node))
+    return URIRef(BN_NS + quote(str(node), safe=_BNODE_LABEL_SAFE))
 
 
 def deskolemize_bnode(node: Node | TripleTerm) -> Node | TripleTerm:
@@ -168,7 +186,7 @@ def deskolemize_bnode(node: Node | TripleTerm) -> Node | TripleTerm:
     if isinstance(node, TripleTerm):
         return TripleTerm(deskolemize_bnode(node.subject), node.predicate, deskolemize_bnode(node.object))
     if isinstance(node, URIRef) and str(node).startswith(BN_NS):
-        return BNode(str(node)[len(BN_NS):])
+        return BNode(unquote(str(node)[len(BN_NS):]))
     return node
 
 
@@ -185,7 +203,7 @@ def _parse_json_term(term_dict: dict):
         # own BN_NS URIs is a blank node we wrote, not a real URI - see
         # skolemize_bnode()'s docstring for why writes go out this way.
         if value.startswith(BN_NS):
-            return BNode(value[len(BN_NS):])
+            return BNode(unquote(value[len(BN_NS):]))
         return URIRef(value)
     if t == 'bnode':
         return BNode(term_dict['value'])
