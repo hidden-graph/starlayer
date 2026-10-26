@@ -2304,6 +2304,8 @@ class StarLayerGraph(Graph):
             The query Result, with any tt:HASH URIRef restored to its
             TripleTerm.
         """
+        if query_object is None:
+            raise TypeError('query_object must be SPARQL text or a prepared query, not None')
         if entailment not in VALID_ENTAILMENTS:
             raise NotImplementedError(
                 f"entailment must be one of {sorted(e for e in VALID_ENTAILMENTS if e)}, "
@@ -2609,6 +2611,8 @@ class StarLayerGraph(Graph):
         Returns:
             None.
         """
+        if update_object is None:
+            raise TypeError('update_object must be SPARQL text or a prepared update, not None')
         if self._is_native:
             from starlayer.graph.backends.native import native_update
             native_update(self.store, self._backend, update_object)
@@ -2626,6 +2630,8 @@ class StarLayerGraph(Graph):
             from starlayer.sparql.parse12 import prepare_update_12
             stripped_text, declared_version = strip_version_directive(update_object)
             prepared_12 = prepare_update_12(stripped_text, base=kwargs.get('base'), initNs=initNs)
+            if not prepared_12.algebra:
+                return None  # an empty request (only a prologue or comments) is valid and does nothing (GitHub issue #135)
             if declared_version is not None:
                 from starlayer.graph.model.conformance import (
                     SPARQL12ConformanceWarning,
@@ -2640,6 +2646,14 @@ class StarLayerGraph(Graph):
                 )
             rdf_graph, root = update_to_rdf11(prepared_12)
             update_object = rdf11_update_to_sparql11_text(rdf_graph, root)
+            if not getattr(self.store, 'update_endpoint', None):
+                # rdflib would re-parse this text on its own, outside the parse lock, and race other threads' first
+                # parses (GitHub issue #135). A remote store must get the text (see above).
+                from rdflib.plugins.sparql.processor import prepareUpdate
+
+                from starlayer.sparql.parse12 import parse_serialized
+                text = update_object
+                update_object = parse_serialized(lambda: prepareUpdate(text))
         raw = Graph(store=self.store, identifier=self.identifier, bind_namespaces='none')  # see query(): GitHub issue #29
         for prefix, ns in list(self.namespaces()):
             raw.bind(prefix, ns)
