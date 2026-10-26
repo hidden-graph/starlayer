@@ -894,16 +894,19 @@ class StarLayerDataset(Dataset):
             query_object = prepare_query_cached(
                 self._prepared_query_cache, query_object, effective_ns, kwargs.get('base')
             )
-        raw = self._build_raw_execution_graph()
-        r = raw.query(query_object, processor=processor, result=result,
-                      initNs=initNs, initBindings=initBindings,
-                      use_store_provided=use_store_provided, **kwargs)
-        if r.type == 'SELECT':
-            restore_select_bindings(r, self._restore_any)
-        elif r.type == 'CONSTRUCT':
-            from starlayer.graph.model.encoding import inject_missing_tt_encoding
-            inject_missing_tt_encoding(r.graph, self._restore_any)
-            r.graph = StarLayerGraph.from_rdflib(r.graph)
+        from starlayer.graph.query.query_cache import EVALUATION_LOCK
+
+        with EVALUATION_LOCK:
+            raw = self._build_raw_execution_graph()
+            r = raw.query(query_object, processor=processor, result=result,
+                          initNs=initNs, initBindings=initBindings,
+                          use_store_provided=use_store_provided, **kwargs)
+            if r.type == 'SELECT':
+                restore_select_bindings(r, self._restore_any)
+            elif r.type == 'CONSTRUCT':
+                from starlayer.graph.model.encoding import inject_missing_tt_encoding
+                inject_missing_tt_encoding(r.graph, self._restore_any)
+                r.graph = StarLayerGraph.from_rdflib(r.graph)
         return r
 
     def update(self, update_object, processor='sparql',
