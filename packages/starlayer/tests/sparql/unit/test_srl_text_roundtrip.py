@@ -34,7 +34,7 @@ def _inferred(ruleset):
         ("IF(?y > 3, 1, 2)", ["1"]),
         ("COALESCE(?y, 1)", ["5"]),
         ("!(?y > 1)", ["false"]),
-        ("?y > 1 && ?y < 9 || false", ["false", "true"]),
+        ("?y > 1 && ?y < 9 || false", ["true"]),
         ('REPLACE(STR(?y), "b", "x", "i")', ["5"]),  # the engine ignores REPLACE flags (rdflib item 10): only the text is compared
         ('REPLACE(STR(?y), "b", "x")', ["5", "ABC"]),
     ],

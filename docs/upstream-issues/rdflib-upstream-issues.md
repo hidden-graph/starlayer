@@ -298,7 +298,7 @@ On the rdf-1.1 representation a triple term is a `tt:` IRI described by internal
 
 Fix: `evaluate_patches.py::patch_negated_path_skips_encoding_triples`, `operator_patches.py::patch_triple_terms_are_not_iris`, `TripleTermNode.__lt__`/`__gt__` in `sparql/triple_term.py`.
 
-## 21. `SUBSTR` with a start below 1 returns the wrong string
+## 22. `SUBSTR` with a start below 1 returns the wrong string
 
 `SUBSTR` is defined as `fn:substring` (SPARQL 1.1 section 17.4.3.3): it keeps the characters at 1-based positions `p` with `start <= p < start + length`. rdflib slices with the raw index, so a start below 1 gives `""` or a Python negative-index slice. A non-integer start is a type error (the signature takes `xsd:integer`).
 
@@ -311,7 +311,7 @@ list(Graph().query('SELECT (SUBSTR("abc", 0, 2) AS ?x) (SUBSTR("abc", -1, 3) AS 
 
 Found by the second hunt (GitHub issue #76). Fix: `starlayer/graph/query/builtin_error_patches.py::patch_substr_xpath_semantics` (also replaces `operators.Builtin_SUBSTR`, which the directional-literal `SUBSTR` reuses).
 
-## 22. `TIMEZONE()` drops the minutes of a UTC offset
+## 23. `TIMEZONE()` drops the minutes of a UTC offset
 
 ```python
 from rdflib import Graph
@@ -322,7 +322,7 @@ list(Graph().query('SELECT (TIMEZONE("2020-01-02T03:04:05-05:30"^^<http://www.w3
 
 rdflib computes the minutes with Python 3 true division, so the value is a float and the `%dM` branch is never right. A zero offset should be `PT0S` (fn:timezone-from-dateTime); rdflib normalises the lexical form of a `dayTimeDuration` literal to `P0D` on construction, which is the same value and is left alone. Fix: `builtin_error_patches.py::patch_timezone_keeps_minutes`.
 
-## 23. `IN`, `NOT IN`, `&&`, ordering across types and directional-literal tag case
+## 24. `IN`, `NOT IN`, `&&`, ordering across types and directional-literal tag case
 
 Four separate errors in `RelationalExpression` / `ConditionalAndExpression` and `sameTerm`:
 
@@ -341,7 +341,7 @@ list(Graph().query('SELECT (1 IN (1.0, 2) AS ?a) (2 IN (1/0, 1) AS ?b) ("x" > 1 
 
 Found by the second hunt (GitHub issue #76). Fix: `builtin_error_patches.py::patch_relational_operators_follow_spec`; the `sameTerm` part is in `operator_patches.py::patch_sameterm_simple_literal_is_xsd_string`.
 
-## 24. `SUM` and `AVG` over non-numeric values abort the whole query
+## 25. `SUM` and `AVG` over non-numeric values abort the whole query
 
 An error while evaluating an aggregate leaves that one value unbound (SPARQL 1.1 sections 17.2 and 18.5); a `HAVING` condition over it then drops only that group. `SUM` and `AVG` are defined through `op:numeric-add`, which errors on a non-numeric operand. rdflib raises `SPARQLTypeError` / `TypeError` out of `query()` for `SUM`, so every row of the query is lost, and `AVG` silently skips the value.
 
@@ -355,7 +355,7 @@ list(g.query("SELECT (SUM(?o) AS ?s) (COUNT(*) AS ?n) { ?x <http://x/p> ?o }"))
 
 Found by the second hunt (GitHub issue #76). Fix: `builtin_error_patches.py::patch_sum_avg_errors_are_unbound`. `MIN`/`MAX` order any mix of types (section 18.5 uses the `ORDER BY` ordering) and are unchanged.
 
-## 25. An empty `VALUES` block crashes
+## 26. An empty `VALUES` block crashes
 
 `VALUES ?a { }` and `VALUES () { () }` are legal (grammar rules InlineDataOneVar and InlineDataFull): no rows give no solutions; `()` rows over no variables each give one empty solution. rdflib's `translateValues` returns a bare `[]` instead of a `Values` node, so evaluation fails with `AttributeError: 'list' object has no attribute 'name'`.
 
@@ -368,7 +368,7 @@ list(Graph().query("SELECT * WHERE { VALUES ?a { } }"))
 
 Fix: `builtin_error_patches.py::patch_empty_values_clause`, plus `sparql/from_rdf.py` (a no-variable row is an empty RDF list in the algebra encoding and decoded to `rdf:nil`).
 
-## 26. `STRDT` accepts a non-IRI datatype; `STRLANG` with an invalid tag raises `ValueError`
+## 27. `STRDT` accepts a non-IRI datatype; `STRLANG` with an invalid tag raises `ValueError`
 
 `STRDT("a", 1)` builds a literal with datatype `<1>`; `STRDT` takes a simple literal or `xsd:string` and an IRI (section 17.4.2.8). `STRLANG("a", "e n")` raises `ValueError: 'e n' is not a valid language tag!` out of the evaluator and aborts the query; a function error must make the value unbound. `STRLANGDIR("a"@en, ...)` (StarLayer's own function) also accepted a language-tagged lexical form.
 
@@ -381,7 +381,7 @@ list(Graph().query('SELECT (STRDT("a", 1) AS ?x) (COALESCE(STRLANG("a", "!!"), "
 
 Fix: `builtin_error_patches.py::patch_strdt_requires_string_and_iri`; the `STRLANG` part extends `operator_patches.py::patch_strlang_rejects_empty_language_tag`.
 
-## 27. Ill-typed literals: `RecursionError`, `isNumeric` true, and `AttributeError` in `DAY()`/`YEAR()`
+## 28. Ill-typed literals: `RecursionError`, `isNumeric` true, and `AttributeError` in `DAY()`/`YEAR()`
 
 rdflib's `numeric()` returns the `Literal` itself when its value cannot be parsed (`"abc"^^xsd:integer`), so `+` recurses until `RecursionError` and `isNumeric` answers true. `datetime()`/`date()` do the same, so `DAY("x"^^xsd:dateTime)` dies with `AttributeError: 'Literal' object has no attribute 'day'`. An ill-typed literal is a type error (section 17.3); the expression is unbound and `COALESCE` skips it.
 
@@ -394,13 +394,13 @@ list(Graph().query('SELECT ("abc"^^<http://www.w3.org/2001/XMLSchema#integer> + 
 
 Fix: `builtin_error_patches.py::patch_ill_typed_literals_are_errors`.
 
-## 28. `SELECT *` lists variables that occur only in a `FILTER`; `DESCRIBE *` crashes
+## 29. `SELECT *` lists variables that occur only in a `FILTER`; `DESCRIBE *` crashes
 
 The in-scope variables of a group pattern (section 18.2.1) come from its patterns. rdflib collects every variable in the `WHERE` tree, so `SELECT * { ?s :p ?o FILTER EXISTS { ?o :p ?zz } }` has an always-unbound `?zz` column. `DESCRIBE *` fails with `TypeError: 'NoneType' object is not iterable` because the parser leaves the variable list empty; it describes the resources bound to the in-scope variables.
 
 Fix: `builtin_error_patches.py::patch_select_star_scope_and_describe_star`.
 
-## 29. `xsd:double` division by zero is an error instead of INF
+## 30. `xsd:double` division by zero is an error instead of INF
 
 `op:numeric-divide` on `xsd:double`/`xsd:float` never raises: `1e0/0` is `INF`, `-1e0/0` is `-INF`, `0e0/0` is `NaN`. Only integer and decimal division by zero is an error. rdflib computes through `Decimal`, so it errors for all of them. The special values also need their XSD lexical forms (`INF`, `-INF`, `NaN`); rdflib writes `inf`, `nan`, and `canonicalize_query_result_value` had turned those into `inf.0` and `nan.0`.
 
