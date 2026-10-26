@@ -31,6 +31,7 @@ the cached prepared object directly, or serialize it back to text first
 
 from __future__ import annotations
 
+import threading
 from collections.abc import Mapping
 from typing import Any
 
@@ -44,6 +45,12 @@ from starlayer.sparql.parse12 import prepare_query_12
 # Query object. Both cover any remote HTTP SPARQL endpoint
 # (SPARQLUpdateStore subclasses SPARQLStore), not just one specific backend.
 _STRING_ONLY_STORE_TYPES: tuple[type, ...] = ()
+
+
+# A prepared query is cached and shared, and rdflib stores the evaluation context on the shared expression objects while it
+# evaluates (Expr.eval sets self.ctx): two threads evaluating the same query interleave and give wrong rows (GitHub issue #100).
+# Evaluation of an in-memory query, including reading its lazy result, therefore runs one at a time.
+EVALUATION_LOCK = threading.RLock()
 
 
 def _load_string_only_store_types() -> tuple[type, ...]:

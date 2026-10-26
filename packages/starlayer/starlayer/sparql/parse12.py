@@ -13,6 +13,8 @@ called on it immediately, completely unmodified.
 
 from __future__ import annotations
 
+import re
+import threading
 from collections.abc import Mapping
 from typing import Any
 
@@ -28,6 +30,12 @@ from ._syntax_checks import check_parse_tree, reject_surrogate_escapes
 from .triple_term import TripleTermNode, _reject_triple_term_pattern_subjects
 
 grammar12.install()
+
+
+# One parse at a time: the grammar objects are shared and pyparsing keeps per-element state while parsing.
+_PARSE_LOCK = threading.RLock()
+_ARITY_RETRIES = 6
+_ARITY_ERROR = re.compile(r"missing \d+ required positional argument|takes \d+ positional argument")
 
 
 def _parse_with_recovery(parse_fn, text: str):
@@ -47,12 +55,20 @@ def _parse_with_recovery(parse_fn, text: str):
     invalid syntax, not a grammar-state artifact - propagates normally, no
     third attempt.
     """
-    grammar12.install()
-    try:
-        return parse_fn(text)
-    except ParseBaseException:
-        grammar12.install(force=True)
-        return parse_fn(text)
+    with _PARSE_LOCK:
+        grammar12.install()
+        for attempt in range(_ARITY_RETRIES + 1):
+            try:
+                return parse_fn(text)
+            except ParseBaseException:
+                grammar12.install(force=True)
+                return parse_fn(text)
+            except TypeError as exc:
+                # pyparsing learns how many arguments each parse action takes by calling it and catching a TypeError; that
+                # discovery goes wrong in a thread other than the one that built the grammar (GitHub issue #100). Each
+                # attempt settles more actions, so retry; _warm_up() below settles most of them at import.
+                if attempt == _ARITY_RETRIES or not _ARITY_ERROR.search(str(exc)):
+                    raise
 
 
 def parse_query_12(text: str) -> ParseResults:

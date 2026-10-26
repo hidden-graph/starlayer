@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import re as _re
 
-from rdflib import URIRef
+from rdflib import BNode, URIRef
 
 from starlayer.graph.parsers.turtle_parser import (
     StarLayerTurtleParser,
@@ -34,6 +34,22 @@ from starlayer.graph.parsers.turtle_parser import (
 # Matches start of a GRAPH block; group(1) captures the graph identifier token
 _GRAPH_BLOCK_RE = _re.compile(
     r'\bGRAPH\s+(<[^>]*>|[A-Za-z_]\w*:[A-Za-z_]\w*|:[A-Za-z_]\w*)\s*\{',
+    _re.IGNORECASE,
+)
+
+# A graph block, in every form the TriG grammar allows (GitHub issue #47): ``GRAPH <iri> {``, ``<iri> {``, ``ex:name {``,
+# ``_:b {``, ``[] {`` and the bare ``{`` of the default graph. It is searched in a copy of the text with the strings and the
+# directives (whose IRI would look like a label) blanked, and a label or a bare ``{`` only counts at the start of a
+# statement. ``{|`` opens an annotation, not a graph.
+_BLOCK_RE = _re.compile(
+    r'(?P<kw>\bGRAPH\s+)?'
+    r'(?P<label><[^>\s]*>|_:[^\s{}]+|(?:[A-Za-z_][\w.\-]*)?:[^\s{}<>]*|\[\s*\])?'
+    r'\s*\{(?!\|)',
+    _re.IGNORECASE,
+)
+_DIRECTIVE_RE = _re.compile(
+    r'@prefix\s+[^\s<]*\s*<[^>]*>\s*\.|\bPREFIX\s+[^\s<]*\s*<[^>]*>'
+    r'|@base\s*<[^>]*>\s*\.|\bBASE\s*<[^>]*>|@version\b[^.]*\.|\bVERSION\b\s*\S+',
     _re.IGNORECASE,
 )
 
@@ -181,8 +197,12 @@ def _extract_prefix_map(text: str) -> dict[str, str]:
     return prefixes
 
 
-def _resolve_graph_id(token: str, prefix_map: dict[str, str]) -> URIRef:
-    """Resolve a GRAPH identifier token (<IRI> or prefix:local) to a URIRef."""
+def _resolve_graph_id(token: str, prefix_map: dict[str, str]) -> URIRef | BNode:
+    """Resolve a graph label token (<IRI>, prefix:local, _:label or []) to a URIRef or BNode."""
+    if token.startswith('_:'):
+        return BNode(token[2:])
+    if token.startswith('['):
+        return BNode()
     if token.startswith('<') and token.endswith('>'):
         return URIRef(token[1:-1])
     if ':' in token:
@@ -197,7 +217,7 @@ def _resolve_graph_id(token: str, prefix_map: dict[str, str]) -> URIRef:
 
 def _split_trig_blocks_with_ids(
     text: str,
-) -> list[tuple[URIRef | None, str]]:
+) -> list[tuple[URIRef | BNode | None, str]]:
     """Split a TriG document into (graph_id, turtle_chunk) pairs.
 
     graph_id is None for the default graph, a URIRef for each named graph.
@@ -224,22 +244,46 @@ def _split_trig_blocks_with_ids(
     # text (never masked) - it already does its own, independent
     # triple-quote-aware string tracking to find the real matching '}'.
     default_parts: list[str] = []
-    named_blocks:  list[tuple[URIRef, str]] = []
+    named_blocks:  list[tuple[URIRef | BNode, str]] = []
+    # directives and strings blanked: what is left is statements, so a label before a '{' is a graph label
+    scan = _DIRECTIVE_RE.sub(lambda m: ' ' * len(m.group(0)), masked)
     i = 0
 
+    def block_start(m) -> int:
+        """Where the block really starts: its GRAPH keyword or label, or the '{'. (``\\s*`` lets a match begin in the
+        blanks left by a directive, which are not part of it.)"""
+        if m.group('kw'):
+            return m.start('kw')
+        if m.group('label'):
+            return m.start('label')
+        return m.end() - 1
+
     while i < len(text):
-        m = _GRAPH_BLOCK_RE.search(masked, i)
+        m = _BLOCK_RE.search(scan, i)
+        while m is not None:
+            start = block_start(m)
+            before = scan[:start].rstrip()
+            at_statement_start = (not before) or before[-1] in '.}'
+            # 'GRAPH' with no label is not a block; a label without GRAPH, or a bare '{', only counts at the start of a statement
+            if (m.group('kw') and not m.group('label')) or not (m.group('kw') or at_statement_start):
+                m = _BLOCK_RE.search(scan, m.start() + 1)
+                continue
+            break
         if m is None:
             default_parts.append(text[i:])
             break
 
-        default_parts.append(text[i:m.start()])
-        prefix_text, prefix_map = prefixes_before(m.start())
-        graph_id = _resolve_graph_id(m.group(1), prefix_map)
+        start = block_start(m)
+        default_parts.append(text[i:start])
         brace_pos = m.end() - 1
         block, j = _consume_balanced(text, brace_pos)
         inner = block[1:-1]
-        named_blocks.append((graph_id, prefix_text + inner))
+        label = m.group('label')
+        if label is None:
+            default_parts.append(inner)  # a bare { ... } is the default graph
+        else:
+            prefix_text, prefix_map = prefixes_before(start)
+            named_blocks.append((_resolve_graph_id(label, prefix_map), prefix_text + inner))
         i = j
 
     # The default graph's content keeps its own declarations where they are written, in order: they are part of the
