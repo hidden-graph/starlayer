@@ -926,6 +926,51 @@ def patch_order_by_tt_hash_term_kind() -> bool:
 _bgp_patch_status: bool | None = None
 
 
+# ---------------------------------------------------------------------------
+# Join keeps duplicate solutions of its right side (multiset semantics).
+# ---------------------------------------------------------------------------
+
+_join_patch_status: bool | None = None
+
+
+def patch_join_keeps_duplicate_rows() -> bool:
+    """rdflib's non-lazy ``evalJoin`` builds its right operand as ``set(evalPart(ctx, join.p2))``, which drops duplicate
+    solutions. SPARQL 1.1 section 18.5 defines ``Join`` over multisets: two identical right-hand solutions each join
+    with every compatible left solution. A join is non-lazy when its right side holds a ``LIMIT``/``OFFSET`` slice or a
+    ``DISTINCT`` (rdflib's ``analyse``), so ``{ ?x :says ?t { SELECT ?t { ?q :says ?t } LIMIT 5 } }`` lost rows (GitHub
+    issue #134). The patched ``evalJoin`` materialises the right side as a list instead.
+
+    Returns:
+        True if the patch applied (or was already applied), False if rdflib's internals differ.
+    """
+    global _join_patch_status
+    if _join_patch_status is not None:
+        return _join_patch_status
+    try:
+        from rdflib.plugins.sparql.evalutils import _join
+
+        original = evaluate.evalJoin
+        if getattr(original, "_starlayer_graph_join_patch", False):
+            _join_patch_status = True
+            return True
+
+        evalPart = evaluate.evalPart
+
+        def _patched_eval_join(ctx, join):
+            if join.lazy:
+                return evaluate.evalLazyJoin(ctx, join)
+            a = evalPart(ctx, join.p1)
+            b = list(evalPart(ctx, join.p2))
+            return _join(a, b)
+
+        _patched_eval_join._starlayer_graph_join_patch = True  # type: ignore[attr-defined]
+        evaluate.evalJoin = _patched_eval_join
+        _join_patch_status = True
+    except Exception:
+        _join_patch_status = False
+    return _join_patch_status
+
+
 _negated_path_patch_status: bool | None = None
 
 

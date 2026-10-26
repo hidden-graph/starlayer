@@ -334,6 +334,101 @@ def patch_sum_avg_errors_are_unbound() -> bool:
     return _aggregate_patch_status
 
 
+_extremum_patch_status: bool | None = None
+
+
+def patch_min_max_group_concat_terms_and_errors() -> bool:
+    """``MIN``/``MAX`` wrapped their result in ``Literal(value)``, so the minimum of IRIs came back as a plain string
+    literal and the minimum of triple terms as a literal holding the internal ``tt:`` hash IRI; ``GROUP_CONCAT`` and
+    ``MIN``/``MAX`` also put the *error message* of a failed argument into the result (``GROUP_CONCAT(STR(?o))`` over a
+    triple term returned ``"... STR: a triple term has no string form"``, ``MAX(STR(?o))`` returned the message itself)
+    because ``_eval`` hands back a ``SPARQLError`` as a value. SPARQL 1.1 Query 18.5: ``Min``/``Max`` return a term of
+    the group (its own type), and an error in an aggregate argument makes the aggregate an error, so it is unbound
+    (GitHub issue #134). A triple term has no string form either, so ``GROUP_CONCAT(?o)`` over one is an error too.
+    A triple term sorts after every other kind of term (SPARQL 1.2 15.1 ORDER BY); the order among triple terms is not
+    defined by the spec and follows the content-addressed hash here.
+    """
+    global _extremum_patch_status
+    if _extremum_patch_status is not None:
+        return _extremum_patch_status
+    try:
+        from rdflib import URIRef
+        from rdflib.plugins.sparql import aggregates as agg
+        from rdflib.plugins.sparql.evalutils import _eval
+        from rdflib.term import Identifier
+
+        from starlayer.graph.model.encoding import TT_NS
+
+        if _is_marked(agg.Extremum.update):
+            _extremum_patch_status = True
+            return True
+
+        original_val = agg._val
+
+        def _is_tt(value) -> bool:
+            return isinstance(value, URIRef) and str(value).startswith(TT_NS)
+
+        def _val(value):
+            if _is_tt(value):
+                return (4, value)
+            return original_val(value)
+
+        def _extremum_update(self, row, aggregator):
+            if self._error:
+                return
+            try:
+                value = _eval(self.expr, row)
+                if isinstance(value, NotBoundError):
+                    return
+                if isinstance(value, SPARQLError):
+                    self._error = True
+                    return
+                self.value = value if self.value is None else self.compare(self.value, value)
+            except NotBoundError:
+                pass
+            except SPARQLError:
+                self._error = True
+
+        def _extremum_set_value(self, bindings):
+            if self._error or self.value is None:
+                return
+            bindings[self.var] = self.value if isinstance(self.value, Identifier) else Literal(self.value)
+
+        def _concat_update(self, row, aggregator):
+            if self._error:
+                return
+            try:
+                value = _eval(self.expr, row)
+                if isinstance(value, NotBoundError):
+                    return
+                if isinstance(value, SPARQLError) or _is_tt(value):
+                    self._error = True
+                    return
+                self.value.append(value)
+                if self.distinct:
+                    self.seen.add(value)
+            except NotBoundError:
+                pass
+            except SPARQLError:
+                self._error = True
+
+        def _concat_set_value(self, bindings):
+            if not self._error:
+                bindings[self.var] = self.get_value()
+
+        agg._val = _val
+        agg.Extremum._error = False
+        agg.Extremum.set_value = _extremum_set_value
+        agg.Extremum.update = _marked(_extremum_update)
+        agg.GroupConcat._error = False
+        agg.GroupConcat.set_value = _concat_set_value
+        agg.GroupConcat.update = _marked(_concat_update)
+        _extremum_patch_status = True
+    except Exception:
+        _extremum_patch_status = False
+    return _extremum_patch_status
+
+
 # ---------------------------------------------------------------------------
 # Relational operators: IN / NOT IN, ordering of mixed types, directional
 # literal equality; logical-and error handling
@@ -597,6 +692,7 @@ def apply_all_builtin_error_patches() -> None:
     patch_timezone_keeps_minutes()
     patch_strdt_requires_string_and_iri()
     patch_sum_avg_errors_are_unbound()
+    patch_min_max_group_concat_terms_and_errors()
     patch_relational_operators_follow_spec()
     patch_empty_values_clause()
     patch_select_star_scope_and_describe_star()

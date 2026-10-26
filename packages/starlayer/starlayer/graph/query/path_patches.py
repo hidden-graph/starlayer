@@ -36,11 +36,33 @@ def patch_negated_set_inverse_member() -> bool:
     return _status
 
 
+class _NodesWithoutEncoding:
+    """A read-only view of a graph whose ``subject_objects()`` leaves out the triple-term encoding triples (the
+    ``tt:`` node typed ``rdf:PropositionForm`` and its ``rdf:propositionForm*`` components), so the node set a
+    zero-length path enumerates is the subjects and objects of the real triples. Every other call is passed through."""
+
+    def __init__(self, graph) -> None:
+        self._graph = graph
+
+    def __getattr__(self, name):
+        return getattr(self._graph, name)
+
+    def subject_objects(self, predicate=None, unique=False):
+        from rdflib import RDF
+
+        from starlayer.graph.model.encoding import ENCODING_PREDS, TT_CLASS
+
+        for s, p, o in self._graph.triples((None, predicate, None)):
+            if p in ENCODING_PREDS or (p == RDF.type and o == TT_CLASS):
+                continue
+            yield s, o
+
+
 def patch_repetition_paths_are_distinct() -> bool:
     """``:a :p* ?y`` over a cycle returned the start node twice (the zero-length match and the cycle back to it) while
     ``:a :p+ ?y`` and ``?x :p* ?y FILTER(?x = :a)`` gave each node once. SPARQL 1.1 section 18.4 evaluates ``*``, ``+`` and
     ``?`` over the *set* of reachable nodes (ALP is a visited set), so the result of the outermost evaluation is made
-    distinct (GitHub issue #77). Wraps ``MulPath.eval``; the recursive calls inside rdflib are left alone."""
+    distinct (GitHub issue #77); and the nodes of a zero-length match exclude the encoding triples of triple terms (#134). Wraps ``MulPath.eval``; the recursive calls inside rdflib are left alone."""
     global _mulpath_status
     if _mulpath_status is not None:
         return _mulpath_status
@@ -56,6 +78,11 @@ def patch_repetition_paths_are_distinct() -> bool:
             if not first:
                 yield from original(self, graph, subj, obj, first)
                 return
+            if self.zero and not subj and not obj:
+                # Both ends unbound: the zero-length part ranges over every node of the graph, which rdflib collects
+                # from ``subject_objects()`` - and on the rdf-1.1 representation that includes the internal encoding
+                # triples of triple terms (GitHub issue #134).
+                graph = _NodesWithoutEncoding(graph)
             seen = set()
             for pair in original(self, graph, subj, obj, first):
                 if pair not in seen:

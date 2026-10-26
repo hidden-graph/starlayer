@@ -320,3 +320,19 @@ ui:rdflib-21 a slkg:UpstreamIssue ;
     slkg:issueNumber 21 ;
     slkg:issueStatus "worked-around" ;
     slkg:workedAroundByIdentifier "starlayer.graph.query.path_patches.patch_negated_set_inverse_member", "starlayer.graph.query.path_patches.patch_repetition_paths_are_distinct" .
+
+ui:rdflib-33 a slkg:UpstreamIssue ;
+    rdfs:label "A join with a non-lazy right side drops duplicate solutions (a subquery with LIMIT loses rows)" ;
+    slkg:upstreamProject "rdflib" ;
+    slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
+    slkg:issueNumber 33 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.graph.query.evaluate_patches.patch_join_keeps_duplicate_rows" .
+
+ui:rdflib-34 a slkg:UpstreamIssue ;
+    rdfs:label "MIN/MAX return a literal for any term; an error in an aggregate argument becomes the result" ;
+    slkg:upstreamProject "rdflib" ;
+    slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
+    slkg:issueNumber 34 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.graph.query.builtin_error_patches.patch_min_max_group_concat_terms_and_errors" .
