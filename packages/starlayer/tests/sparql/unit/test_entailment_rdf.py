@@ -130,4 +130,7 @@ class TestScopingBoundary:
         rewrite_algebra_for_rdf(q.algebra)
         rewrite_algebra_for_rdf(q.algebra)  # second pass, same tree
         rows = list(g.query(q))
-        assert [str(r.p) for r in rows] == [str(EX.worksAt)]
+        # A second pass nests the first pass's union once more, which is the same answer set. The row count used to be
+        # one only because rdflib's non-lazy join de-duplicated its right side (see upstream-issues 33), so compare
+        # the set of answers.
+        assert {str(r.p) for r in rows} == {str(EX.worksAt)}
