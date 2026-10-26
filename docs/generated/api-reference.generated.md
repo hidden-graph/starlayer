@@ -3950,7 +3950,7 @@ Builds a ``sh:ValidationReport`` graph from component ``events``.
 
 **Returns:** `Any`
 
-**Source:** [starlayer.shacl.engine.core.build_report](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/engine/core.py#L142-L180)
+**Source:** [starlayer.shacl.engine.core.build_report](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/engine/core.py#L176-L214)
 
 ---
 
@@ -4084,7 +4084,7 @@ Evaluates one native ``ConstraintComponent`` directly against
 
 **Returns:** `_ComponentEvaluationResult`
 
-**Source:** [starlayer.shacl.engine.core.evaluate_component](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/engine/core.py#L103-L139)
+**Source:** [starlayer.shacl.engine.core.evaluate_component](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/engine/core.py#L137-L173)
 
 ---
 
@@ -4214,13 +4214,13 @@ neither is declared nor passed (the common case).
 
 - `data_graph: Any` - The graph to resolve targets against.
 - `shacl_graph: Any | None = None` - The graph holding ``shape_node``'s own target declarations. Falls back to ``data_graph`` when ``None``.
-- `shape_node: Any` - The shape whose ``sh:targetNode``/``sh:targetClass``/ ``sh:targetSubjectsOf``/``sh:targetObjectsOf`` declarations to resolve.
+- `shape_node: Any` - The shape whose targets to resolve: ``sh:targetNode`` (an IRI, a literal, a ``sh:select`` or a node expression), ``sh:targetClass`` (subclasses included), ``sh:targetSubjectsOf``, ``sh:targetObjectsOf``, ``sh:targetWhere``, ``sh:target`` (SPARQLTarget, via pySHACL's advanced mode), data-graph ``sh:shape`` and implicit class targets. The nodes are the ones ``validate()`` reports on, because the dynamic forms are resolved by the validator's own code (GitHub issue #66).
 - `ont_graph: Any | None = None` - An optional ontology graph unioned in for entailment only (see above) - never copied into the result.
 - `inference: Any | None = None` - An optional ``ENTAILMENT.*`` IRI (or iterable of them) to apply alongside any regime(s) ``shacl_graph`` itself declares.
 
 **Returns:** `tuple[Any, ...]` - The resolved target nodes, in declaration order, deduplicated.
 
-**Source:** [starlayer.shacl.engine.core.target_nodes](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/engine/core.py#L26-L100)
+**Source:** [starlayer.shacl.engine.core.target_nodes](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/engine/core.py#L26-L134)
 
 ---
 
