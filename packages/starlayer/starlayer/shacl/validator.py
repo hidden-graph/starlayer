@@ -1226,6 +1226,8 @@ class StarShaclSchema:
         for predicate in SHAPE_EXPECTING_PREDICATES:
             for _, _, value in shacl_graph.triples((None, predicate, None)):
                 for shape_node in shape_reference_nodes(shacl_graph, value):
+                    if isinstance(shape_node, Literal):
+                        continue  # a malformed value ("not a shape"): leave it for the meta-shapes to report, it cannot be typed
                     addition = ensure_shape_typed(shacl_graph, shape_node)
                     if addition is not None:
                         additions.append(addition)

@@ -507,15 +507,9 @@ def _register_dirlang_string_functions() -> None:
         # instead, reusing stock Builtin_REGEX's own (correct) flag-mapping
         # approach via re.sub(..., flags=cFlag) as a keyword.
         lexical, language, direction = _classify(arg, "REPLACE")
-        pattern_str = str(_op.string(pattern))
-        replacement_str = str(_op.string(replacement))
-        replacement_str = re.sub(r"\$([0-9]*)", r"\\\1", replacement_str)
-        c_flags = 0
-        if flags:
-            flag_map = {"i": re.IGNORECASE, "s": re.DOTALL, "m": re.MULTILINE}
-            for f in str(flags):
-                c_flags |= flag_map.get(f, 0)
-        result = re.sub(pattern_str, replacement_str, lexical, flags=c_flags)
+        from starlayer.graph.query.builtin_error_patches import xpath_replace
+
+        result = xpath_replace(lexical, _op.string(pattern), _op.string(replacement), flags)
         return _same_kind(result, language, direction)
 
     def _encode_for_uri(arg):

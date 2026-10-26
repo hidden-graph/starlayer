@@ -354,9 +354,11 @@ _NUMERIC_DATATYPES = frozenset(
 def _ordering_class(term) -> str | None:
     """The comparison class of ``term`` for ``<``/``>``/``<=``/``>=`` (SPARQL
     1.1 17.3: numerics, simple literals / ``xsd:string``, ``xsd:boolean``,
-    ``xsd:dateTime``), or None for anything else (left to rdflib)."""
-    if not isinstance(term, Literal) or term.language:
+    ``xsd:dateTime``; a language-tagged string is its own class), or None for anything else (left to rdflib)."""
+    if not isinstance(term, Literal):
         return None
+    if term.language:
+        return "langString"  # no ordering operator is defined for it, so it never orders against another class
     datatype = term.datatype
     if datatype is None or datatype == XSD.string:
         return "string"
@@ -590,6 +592,167 @@ def patch_select_star_scope_and_describe_star() -> bool:
     return _select_star_patch_status
 
 
+# ---------------------------------------------------------------------------
+# REGEX, REPLACE, ROUND, FLOOR, CEIL (GitHub issue #140)
+# ---------------------------------------------------------------------------
+
+_regex_patch_status: bool | None = None
+_rounding_patch_status: bool | None = None
+
+_XPATH_FLAGS = frozenset("smixq")
+
+
+def _compile_xpath_regex(pattern, flags):
+    """The ``re`` object for an XPath ``fn:matches`` pattern and flags string. An invalid pattern or flag is an expression
+    error (``SPARQLError``), not a Python ``re.error`` that aborts the query. Python's ``re`` is not XPath's dialect: a
+    construct only XPath has, such as ``\\p{L}``, is reported as an invalid pattern."""
+    import re
+
+    flag_text = str(flags) if flags is not None else ""
+    if not set(flag_text) <= _XPATH_FLAGS:
+        raise SPARQLError(f"invalid regular expression flags {flag_text!r}")
+    bits = 0
+    for flag, bit in (("i", re.IGNORECASE), ("s", re.DOTALL), ("m", re.MULTILINE), ("x", re.VERBOSE)):
+        if flag in flag_text:
+            bits |= bit
+    text = re.escape(str(pattern)) if "q" in flag_text else str(pattern)
+    try:
+        return re.compile(text, bits)
+    except (re.error, RecursionError, OverflowError) as exc:
+        raise SPARQLError(f"invalid regular expression {str(pattern)!r}: {exc}") from exc
+
+
+def _regex_evalfn(expr, ctx):
+    from rdflib.plugins.sparql.operators import string
+
+    text = string(expr.text)
+    pattern = string(expr.pattern)
+    return Literal(bool(_compile_xpath_regex(pattern, expr.flags).search(text)))
+
+
+def _xpath_replacement(replacement: str, rx):
+    """A function giving the replacement text for one match, per fn:replace: ``$N`` is group N (the whole match for 0,
+    nothing for a group that does not exist or did not take part), ``\\$`` and ``\\\\`` are literal, anything else
+    after ``\\`` or ``$`` is an error."""
+    parts: list = []
+    i = 0
+    while i < len(replacement):
+        c = replacement[i]
+        if c == "\\":
+            if i + 1 >= len(replacement) or replacement[i + 1] not in "\\$":
+                raise SPARQLError(f"invalid replacement string {replacement!r}")
+            parts.append(replacement[i + 1])
+            i += 2
+        elif c == "$":
+            j = i + 1
+            if j >= len(replacement) or not replacement[j].isdigit():
+                raise SPARQLError(f"invalid replacement string {replacement!r}")
+            number = int(replacement[j])
+            j += 1
+            while j < len(replacement) and replacement[j].isdigit() and number * 10 + int(replacement[j]) <= rx.groups:
+                number = number * 10 + int(replacement[j])
+                j += 1
+            parts.append(number)
+            i = j
+        else:
+            parts.append(c)
+            i += 1
+
+    def _expand(match) -> str:
+        return "".join(
+            part if isinstance(part, str) else ((match.group(part) or "") if part <= rx.groups else "") for part in parts
+        )
+
+    return _expand
+
+
+def xpath_replace(text: str, pattern, replacement, flags=None) -> str:
+    """``fn:replace`` over a lexical form; raises ``SPARQLError`` for an invalid pattern, flags or replacement string, and
+    for a pattern that matches the zero-length string (also used by the directional-literal ``REPLACE``)."""
+    rx = _compile_xpath_regex(pattern, flags)
+    if rx.search(""):
+        raise SPARQLError(f"fn:replace: the pattern {str(pattern)!r} matches the zero-length string (FORX0003)")
+    return rx.sub(_xpath_replacement(str(replacement), rx), text)
+
+
+def _replace_evalfn(expr, ctx):
+    from rdflib.plugins.sparql.operators import string
+
+    text = string(expr.arg)
+    pattern = string(expr.pattern)
+    replacement = string(expr.replacement)
+    return Literal(xpath_replace(str(text), pattern, replacement, expr.flags), datatype=text.datatype, lang=text.language)
+
+
+def _make_rounding_evalfn(original, kind: str):
+    def _evalfn(expr, ctx):
+        import math
+
+        from rdflib.plugins.sparql.operators import numeric
+
+        arg = expr.arg
+        value = numeric(arg)
+        if isinstance(value, float) and (not math.isfinite(value) or abs(value) >= 2**52):
+            # NaN, +/-INF and doubles too large to have a fractional part are their own floor, ceiling and rounding.
+            return Literal(value, datatype=arg.datatype)
+        return original(expr, ctx)
+
+    _evalfn.__name__ = f"_{kind}_evalfn"
+    return _marked(_evalfn)
+
+
+def patch_regex_and_replace_follow_xpath() -> bool:
+    """``REGEX``/``REPLACE`` with an invalid pattern raised ``re.error`` and aborted the query; ``fn:matches`` and
+    ``fn:replace`` make it an error, which drops the row under ``FILTER`` and leaves a projection unbound. An invalid flag
+    (``REGEX(?x, "a", "z")``) was ignored. ``REPLACE`` also turned ``$0`` into a NUL character, accepted a pattern that
+    matches the zero-length string (error FORX0003), and passed its flags to ``re.sub`` as the ``count`` argument."""
+    global _regex_patch_status
+    if _regex_patch_status is not None:
+        return _regex_patch_status
+    try:
+        from rdflib.plugins.sparql import operators
+
+        regex_comp = _expression_comp("Builtin_REGEX")
+        if _is_marked(regex_comp.evalfn):
+            _regex_patch_status = True
+            return True
+        _marked(_regex_evalfn)
+        _marked(_replace_evalfn)
+        regex_comp.setEvalFn(_regex_evalfn)
+        _expression_comp("Builtin_REPLACE").setEvalFn(_replace_evalfn)
+        operators.Builtin_REGEX = _regex_evalfn
+        operators.Builtin_REPLACE = _replace_evalfn
+        _regex_patch_status = True
+    except Exception:
+        _regex_patch_status = False
+    return _regex_patch_status
+
+
+def patch_rounding_of_special_doubles() -> bool:
+    """``ROUND``/``FLOOR``/``CEIL`` converted the argument to a Python ``int``, which raised for ``NaN``, ``INF`` and
+    (``ROUND``) a very large double and aborted the query. fn:round, fn:floor and fn:ceiling give NaN and +/-INF back
+    unchanged, and a large double is already integral."""
+    global _rounding_patch_status
+    if _rounding_patch_status is not None:
+        return _rounding_patch_status
+    try:
+        from rdflib.plugins.sparql import operators
+
+        round_comp = _expression_comp("Builtin_ROUND")
+        if _is_marked(round_comp.evalfn):
+            _rounding_patch_status = True
+            return True
+        for name in ("ROUND", "FLOOR", "CEIL"):
+            comp = _expression_comp(f"Builtin_{name}")
+            wrapped = _make_rounding_evalfn(comp.evalfn, name.lower())
+            comp.setEvalFn(wrapped)
+            setattr(operators, f"Builtin_{name}", wrapped)
+        _rounding_patch_status = True
+    except Exception:
+        _rounding_patch_status = False
+    return _rounding_patch_status
+
+
 def apply_all_builtin_error_patches() -> None:
     """Apply every patch in this module (called from ``starlayer.graph``)."""
     patch_ill_typed_literals_are_errors()
@@ -600,3 +763,5 @@ def apply_all_builtin_error_patches() -> None:
     patch_relational_operators_follow_spec()
     patch_empty_values_clause()
     patch_select_star_scope_and_describe_star()
+    patch_regex_and_replace_follow_xpath()
+    patch_rounding_of_special_doubles()

@@ -9,7 +9,7 @@ entailment regime (see test_entailment.py's TestEntailmentOwlRl*/TestEntailmentO
 whose shapes this file's classes deliberately mirror).
 
 `owlready2`/`rustdl` are both optional extras of this package (`pip install
-starlayer.graph[hermit]`/`[rustdl]`) - the skip markers below are copied
+starlayer[hermit]`/`[rustdl]`) - the skip markers below are copied
 locally rather than imported from test_infer_owl_dl.py/test_infer_owl_dl_rustdl.py,
 matching those two files' own precedent of each keeping its own copy rather
 than sharing markers across files.
@@ -37,7 +37,7 @@ except ImportError:
 owl_dl_extra = pytest.mark.skipif(
     not _OWLREADY2_AVAILABLE,
     reason='owlready2 not importable - it is an optional extra of this package; '
-           'install with: pip install starlayer.graph[hermit]',
+           'install with: pip install starlayer[hermit]',
 )
 
 java_required = pytest.mark.skipif(
@@ -49,7 +49,7 @@ java_required = pytest.mark.skipif(
 rustdl_extra = pytest.mark.skipif(
     not _RUSTDL_AVAILABLE,
     reason='rustdl not importable - it is an optional extra of this package; '
-           'install with: pip install starlayer.graph[rustdl]',
+           'install with: pip install starlayer[rustdl]',
 )
 
 EX = Namespace("http://example.org/")
