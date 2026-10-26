@@ -101,7 +101,7 @@ def test_a_wrong_batch_answer_would_be_noticed(graphs, monkeypatch):
     """Mutation check: if every node were reported as conforming, the expected widgets above would not come out."""
     shapes, catalog = graphs
     monkeypatch.setattr(
-        ui_widget_selection._ConformanceBatch, "_check", lambda self, shape: frozenset(self._nodes)
+        ui_widget_selection, "_conforming_nodes", lambda nodes, shape, **_: frozenset(nodes)
     )
     wrong = select_widgets(shape_node=EX.S, shapes_graph=shapes, scoring_graph=catalog, role="editor")
     assert wrong != EXPECTED

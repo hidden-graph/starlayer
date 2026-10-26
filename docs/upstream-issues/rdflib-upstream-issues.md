@@ -426,6 +426,41 @@ The grammar writes the inverse member as `Comp("InversePath", "^" + iri)` with t
 
 Fix: `starlayer/graph/query/path_patches.py::patch_negated_set_inverse_member` and `patch_repetition_paths_are_distinct`, and `evaluate_patches.py::patch_negated_path_skips_encoding_triples` (the evaluation).
 
+## 31. `DELETE DATA`, `DELETE WHERE` and `DELETE { }` delete from every graph; `USING` and `USING NAMED` are wrong; invalid template triples are inserted
+
+On a `Dataset`, `evalDeleteData`, `evalDeleteWhere` and `evalModify` write through `ctx.graph`, which is the dataset itself, and `Dataset.remove((s, p, o))` removes the triple from every graph:
+
+```python
+from rdflib import Dataset
+d = Dataset()
+d.update("INSERT DATA { <http://e/a> <http://e/p> <http://e/b> . GRAPH <http://e/g> { <http://e/a> <http://e/p> <http://e/b> } }")
+d.update("DELETE DATA { <http://e/a> <http://e/p> <http://e/b> }")
+len(list(d.quads()))   # actual: 0; expected: 1 (the copy in <http://e/g> stays)
+```
+
+SPARQL 1.1 Update section 3.1.3 deletes from the graph the template names, the default graph without `GRAPH`. Related defects in the same functions:
+
+- `DELETE { ... } USING <g> WHERE { ... }` loads `g` into the graph the template then deletes from, so it deletes from `g`; `USING` only changes what `WHERE` reads.
+- `USING NAMED <g>` does nothing: `GRAPH ?g` still ranges over every graph, and with no `USING` the default graph is not empty. Section 3.1.3 makes the named graphs exactly the `USING NAMED` ones.
+- A template triple with a literal subject or a non-IRI predicate is inserted, and so is a `GRAPH ?z { }` quad whose name is unbound or a literal. Section 3.1.3: such a triple or quad is not instantiated.
+- `CLEAR`, `DROP`, `ADD`, `COPY` and `MOVE` of a graph that does not exist succeed; without `SILENT` the spec makes that an error (section 3.2). pyoxigraph raises.
+- All deletes of one request run before any insert (section 3.1.3); rdflib interleaves them per solution.
+
+Found by the third hunt (GitHub issue #135).
+
+Fix: `starlayer/graph/query/update_patches.py::patch_update_graph_management` (it now replaces `evalInsertData`, `evalDeleteData` and `evalModify` too, and supersedes `evaluate_patches.py::patch_evalmodify_default_graph_selection`).
+
+## 32. An empty update request crashes
+
+`Update ::= Prologue ( Update1 ( ';' Update )? )?` allows a request with no operation. rdflib's `translateUpdate` returns a bare `[]` for it instead of an `Update`, so the processor dies:
+
+```python
+from rdflib import Graph
+Graph().update("# nothing")   # AttributeError: 'list' object has no attribute 'algebra'
+```
+
+Fix: `starlayer/sparql/parse12.py::prepare_update_12` returns an `Update` with no operations, and `StarLayerGraph.update()`/`StarLayerDataset.update()` do nothing for it.
+
 ## Withdrawn entries
 
 Items 3 and 4 of this list were withdrawn on 2026-10-25 (GitHub issue #54). Both claimed that a `BIND` should see a variable bound in a sibling or enclosing group, and StarLayer patched rdflib (`patch_evalextend_forgotten_bind_vars`, `patch_lazy_join_expr_dependency_order`) to make it so. SPARQL 1.1 section 18.2.2.6 evaluates each group on its own and joins the results, so a `BIND` cannot see such a variable and plain rdflib was right. For example `SELECT * { VALUES ?x {1 2} { BIND(?x+1 AS ?y) } }` returns `?x` only, and `{ BIND(:v1 AS ?t0) { { BIND(?t0 AS ?o) } UNION { BIND(:v2 AS ?o) } } ?s :p ?o }` returns every `?s :p ?o` row once per union branch (six rows, not two). Both patches were removed; `tests/graph/unit/test_bind_scoping.py` pins the spec behaviour. The numbers 3 and 4 are not reused. Items 8 and 16 (`FILTER`) are the same question for filters and have not been re-examined.

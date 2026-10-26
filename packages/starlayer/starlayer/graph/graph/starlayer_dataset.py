@@ -40,6 +40,8 @@ from rdflib.term import Node
 from starlayer.graph.graph.starlayer_graph import (
     VALID_BACKENDS,
     StarLayerGraph,
+    _deliver_serialized,
+    _effective_base,
     _raw_triples,
     _read_source_text,
 )
@@ -64,7 +66,7 @@ def _indent_outside_long_strings(body: str, indent: str) -> str:
     """
     out = []
     inside = False
-    for line in body.splitlines():
+    for line in body.split('\n'):
         out.append(line if inside or not line.strip() else indent + line)
         if line.count('"' * 3) % 2:
             inside = not inside
@@ -476,6 +478,8 @@ class StarLayerDataset(Dataset):
             backend=self._backend,
         )
         for prefix, ns in namespaces:
+            if str(ns) == str(TT_NS):  # the internal triple-term prefix is not the document's (GitHub issue #132)
+                continue
             sg.bind(prefix, ns)
             self.bind(prefix, ns)
         return sg
@@ -558,7 +562,7 @@ class StarLayerDataset(Dataset):
                 extract_version_directive as _trig_version,
             )
             from starlayer.graph.parsers.trig12 import parse_trig12_named
-            for graph_id, triples, namespaces in parse_trig12_named(text):
+            for graph_id, triples, namespaces in parse_trig12_named(text, base=_effective_base(publicID, location)):
                 identifier = DATASET_DEFAULT_GRAPH_ID if graph_id is None else graph_id
                 sg = self._load_context(identifier, namespaces)
                 if sg._is_native:
@@ -882,6 +886,8 @@ class StarLayerDataset(Dataset):
         result parsing doesn't understand "type":"triple"; see
         starlayer.graph.backends.native's module docstring).
         """
+        if query_object is None:
+            raise TypeError('query_object must be SPARQL text or a prepared query, not None')
         if self._backend == 'rdf-1.2':
             from starlayer.graph.backends.native import native_query
             return native_query(
@@ -917,6 +923,34 @@ class StarLayerDataset(Dataset):
                 r.graph = StarLayerGraph.from_rdflib(r.graph)
         return r
 
+    def _update_needs_union_evaluation(self, update_object, initNs, base) -> bool:
+        """True when a native in-process Oxigraph update has to run through rdflib's evaluator instead: with
+        ``default_union=True`` a ``WHERE`` must see the union of all graphs, and ``pyoxigraph.Store.update`` has no
+        ``use_default_graph_as_union`` option (``query`` has; GitHub issues #98 and #135). rdflib's evaluator reads the
+        same store through ``oxrdflib``. A request with a triple term cannot take that route (it is lowered to the
+        ``tt:`` encoding), so it raises instead of silently reading only the default graph, unless there is no named
+        graph and the union is the default graph anyway."""
+        if not self.default_union or not isinstance(update_object, str):
+            return False
+        from starlayer.graph.backends.native_oxigraph import _engine
+        from starlayer.graph.query.version_directive import (
+            contains_triple_term,
+            strip_version_directive,
+        )
+        from starlayer.sparql.parse12 import prepare_update_12
+        prepared = prepare_update_12(strip_version_directive(update_object)[0], base=base, initNs=initNs)
+        if not any(op.name in ('Modify', 'DeleteWhere') for op in prepared.algebra):
+            return False
+        if not contains_triple_term(prepared.algebra):
+            return True
+        if any(True for _ in _engine(self.store).named_graphs()):
+            raise NotImplementedError(
+                'a native in-process Oxigraph dataset with default_union=True cannot run a DELETE/INSERT ... WHERE '
+                'that uses a triple term: pyoxigraph updates cannot read the default graph as the union of all graphs. '
+                'Query the union with query(), or use default_union=False.'
+            )
+        return False
+
     def update(self, update_object, processor='sparql',
                initNs=None, initBindings=None, use_store_provided=True, **kwargs) -> None:
         """Execute a SPARQL UPDATE across named graphs with SPARQL-star support.
@@ -941,10 +975,15 @@ class StarLayerDataset(Dataset):
         parsed and lowered to the tt:HASH encoding first (native_update
         itself, via starlayer.sparql).
         """
+        if update_object is None:
+            raise TypeError('update_object must be SPARQL text or a prepared update, not None')
         from starlayer.graph.backends.native import _in_process
         is_remote_http_store = bool(
             getattr(self.store, 'query_endpoint', None) and getattr(self.store, 'update_endpoint', None)
-        ) or (self._backend == 'rdf-1.2' and _in_process(self.store))
+        ) or (
+            self._backend == 'rdf-1.2' and _in_process(self.store)
+            and not self._update_needs_union_evaluation(update_object, initNs, kwargs.get('base'))
+        )
         if not is_remote_http_store:
             if isinstance(update_object, str):
                 from starlayer.graph.query.version_directive import (
@@ -958,6 +997,8 @@ class StarLayerDataset(Dataset):
                 from starlayer.sparql.parse12 import prepare_update_12
                 stripped_text, declared_version = strip_version_directive(update_object)
                 prepared_12 = prepare_update_12(stripped_text, base=kwargs.get('base'), initNs=initNs)
+                if not prepared_12.algebra:
+                    return None  # an empty request (only a prologue or comments) is valid and does nothing (GitHub issue #135)
                 if declared_version is not None:
                     from starlayer.graph.model.conformance import (
                         SPARQL12ConformanceWarning,
@@ -1035,7 +1076,7 @@ class StarLayerDataset(Dataset):
         if format in ('n3', 'n3-12', 'text/n3'):
             format = 'turtle12'
         if format in self._SINGLE_GRAPH_RDF12_FORMATS:
-            text = self.to_graph().serialize(format=format)
+            text = self.to_graph().serialize(format=format, base=kwargs.get('base'))
 
         elif format not in ('trig12', 'nq12', 'trix12'):
             return super().serialize(destination=destination, format=format, **kwargs)
@@ -1070,7 +1111,7 @@ class StarLayerDataset(Dataset):
             for sg in self._contexts_in_serialization_order():
                 if len(sg) == 0:
                     continue
-                turtle_text = serialize_turtle12(sg)
+                turtle_text = serialize_turtle12(sg, base=kwargs.get('base'))
                 body_lines = []
                 # iter_lines_outside_strings(), not a blind
                 # ln.startswith('@prefix'/'@version') check: a line that
@@ -1084,7 +1125,7 @@ class StarLayerDataset(Dataset):
                 for ln, in_string in iter_lines_outside_strings(turtle_text):
                     if in_string:
                         body_lines.append(ln)
-                    elif ln.startswith('@prefix'):
+                    elif ln.startswith(('@prefix', '@base')):
                         all_prefix_lines.add(ln)
                     elif ln.startswith('@version'):
                         has_version = True
@@ -1110,11 +1151,7 @@ class StarLayerDataset(Dataset):
 
             text = '\n\n'.join(blocks) + '\n'
 
-        if destination is not None:
-            with open(destination, 'w', encoding='utf-8') as f:
-                f.write(text)
-            # Returns self when writing to a destination, matching both
-            # rdflib's own Graph.serialize() convention and
-            # StarLayerGraph.serialize()'s own RDF12-format branch.
-            return self
-        return text
+        delivered = _deliver_serialized(text, destination, kwargs.get('encoding'))
+        # Returns self when writing to a destination, matching both rdflib's own Graph.serialize() convention and
+        # StarLayerGraph.serialize()'s own RDF12-format branch.
+        return self if destination is not None else delivered

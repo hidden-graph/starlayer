@@ -27,7 +27,9 @@ def test_a_declared_but_unused_prefix_is_not_returned() -> None:
 
 
 def test_a_literal_datatype_counts() -> None:
-    assert "xsd" in _names(_graph("@prefix ex: <http://e/> . ex:a ex:p 1 ."))
+    assert "xsd" in _names(_graph('@prefix ex: <http://e/> . ex:a ex:p "2020-01-01"^^<http://www.w3.org/2001/XMLSchema#date> .'))
+    # a bare 1 is written without a datatype, so it needs no xsd prefix (used_prefixes() is the writer's own answer; GitHub issue #132)
+    assert "xsd" not in _names(_graph("@prefix ex: <http://e/> . ex:a ex:p 1 ."))
 
 
 def test_the_namespace_comes_with_the_prefix_and_the_result_is_sorted() -> None:
