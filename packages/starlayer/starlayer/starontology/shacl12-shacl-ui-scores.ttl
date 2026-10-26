@@ -18,7 +18,8 @@
 #
 # Generated once from the preferences the overlay used to carry (66 predicates, 9 widgets) on 2026-10-21; hand-edited since:
 # sh:targetClass, sh:targetSubjectsOf and sh:targetObjectsOf (IRIs only, per SHACL) were moved from the text field to the IRI
-# editor; sh:targetNode keeps the text field because its values may be literals.
+# editor; sh:targetNode keeps the text field because its values may be literals. sh:languageIn (a list of language tags,
+# strings) was moved from the IRI editor to the text field (2026-10-26, GitHub issue #130).
 #
 # 2026-10-26 (GitHub issues #91, #105): the paths of the new fields and forms: nested shapes (sh:target, sh:targetWhere, sh:nodeByExpression, sh:prefixes,
 # sh:declare, sh:bodyExpression) get the details editor; rdfs:comment a text area; rdfs:label a text field with language. The rest
@@ -72,7 +73,7 @@ stsh:PathsEditedWithEnumSelectEditor a sh:NodeShape ;
 
 stsh:PathsEditedWithIRIEditor a sh:NodeShape ;
     sh:property [ sh:path sh:path ; sh:minCount 1 ;
-        sh:in ( sh:languageIn sh:targetClass sh:targetObjectsOf sh:targetSubjectsOf sh:uniqueValuesFor ) ] .
+        sh:in ( sh:targetClass sh:targetObjectsOf sh:targetSubjectsOf sh:uniqueValuesFor ) ] .
 
 stsh:PathsEditedWithInstancesSelectEditor a sh:NodeShape ;
     sh:property [ sh:path sh:path ; sh:minCount 1 ;
@@ -88,7 +89,7 @@ stsh:PathsEditedWithTextAreaEditor a sh:NodeShape ;
 
 stsh:PathsEditedWithTextFieldEditor a sh:NodeShape ;
     sh:property [ sh:path sh:path ; sh:minCount 1 ;
-        sh:in ( sh:and sh:defaultValue sh:flags sh:function sh:node sh:not sh:or sh:pattern sh:property sh:targetNode sh:xone ) ] .
+        sh:in ( sh:and sh:defaultValue sh:flags sh:function sh:languageIn sh:node sh:not sh:or sh:pattern sh:property sh:targetNode sh:xone ) ] .
 
 stsh:PathsEditedWithTextFieldWithLangEditor a sh:NodeShape ;
     sh:property [ sh:path sh:path ; sh:minCount 1 ;

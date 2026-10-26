@@ -819,6 +819,9 @@ rdfs:isDefinedBy  sh:nodeKind sh:IRI .
 sh:hasValue  sh:nodeKind sh:IRIOrLiteral .
 sh:targetNode sh:nodeKind sh:IRIOrLiteral .
 
+# a path is an IRI or, for a sequence, inverse, alternative or repeated path, a blank node (GitHub issue #130)
+sh:path sh:nodeKind sh:BlankNodeOrIRI .
+
 # a shape or another node with fields of its own: a blank node or an IRI
 sh:property           sh:nodeKind sh:BlankNodeOrIRI .
 sh:node               sh:nodeKind sh:BlankNodeOrIRI .

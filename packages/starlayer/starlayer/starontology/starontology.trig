@@ -1955,7 +1955,8 @@ starontology:shacl12-shacl-ui-scores.ttl {
     #
     # Generated once from the preferences the overlay used to carry (66 predicates, 9 widgets) on 2026-10-21; hand-edited since:
     # sh:targetClass, sh:targetSubjectsOf and sh:targetObjectsOf (IRIs only, per SHACL) were moved from the text field to the IRI
-    # editor; sh:targetNode keeps the text field because its values may be literals.
+    # editor; sh:targetNode keeps the text field because its values may be literals. sh:languageIn (a list of language tags,
+    # strings) was moved from the IRI editor to the text field (2026-10-26, GitHub issue #130).
     #
     # 2026-10-26 (GitHub issues #91, #105): the paths of the new fields and forms: nested shapes (sh:target, sh:targetWhere, sh:nodeByExpression, sh:prefixes,
     # sh:declare, sh:bodyExpression) get the details editor; rdfs:comment a text area; rdfs:label a text field with language. The rest
@@ -2024,7 +2025,7 @@ starontology:shacl12-shacl-ui-scores.ttl {
                 sh:path sh:path ] .
 
     stsh:PathsEditedWithIRIEditor a sh:NodeShape ;
-        sh:property [ sh:in ( sh:languageIn sh:targetClass sh:targetObjectsOf sh:targetSubjectsOf sh:uniqueValuesFor ) ;
+        sh:property [ sh:in ( sh:targetClass sh:targetObjectsOf sh:targetSubjectsOf sh:uniqueValuesFor ) ;
                 sh:minCount 1 ;
                 sh:path sh:path ] .
 
@@ -2044,7 +2045,7 @@ starontology:shacl12-shacl-ui-scores.ttl {
                 sh:path sh:path ] .
 
     stsh:PathsEditedWithTextFieldEditor a sh:NodeShape ;
-        sh:property [ sh:in ( sh:and sh:defaultValue sh:flags sh:function sh:node sh:not sh:or sh:pattern sh:property sh:targetNode sh:xone ) ;
+        sh:property [ sh:in ( sh:and sh:defaultValue sh:flags sh:function sh:languageIn sh:node sh:not sh:or sh:pattern sh:property sh:targetNode sh:xone ) ;
                 sh:minCount 1 ;
                 sh:path sh:path ] .
 
@@ -3019,7 +3020,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:NodeShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:nab316ac77c9a4c25b6b8e60ea5f47229b130 ;
+        sh:in _:na80e409513cc4b718be2eb5dbea341fcb130 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -3227,7 +3228,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:ParameterForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:nab316ac77c9a4c25b6b8e60ea5f47229b130 ;
+        sh:in _:na80e409513cc4b718be2eb5dbea341fcb130 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -3252,7 +3253,7 @@ starontology:shacl12-shacl-ui.ttl {
         sh:group stsh:PathGroup ;
         sh:maxCount 1 ;
         sh:minCount 1 ;
-        sh:nodeKind sh:IRI ;
+        sh:nodeKind sh:BlankNodeOrIRI ;
         sh:order 1 ;
         sh:path sh:path .
 
@@ -3580,7 +3581,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:PropertyShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:nab316ac77c9a4c25b6b8e60ea5f47229b130 ;
+        sh:in _:na80e409513cc4b718be2eb5dbea341fcb130 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -3609,7 +3610,7 @@ starontology:shacl12-shacl-ui.ttl {
         sh:group stsh:PathGroup ;
         sh:maxCount 1 ;
         sh:minCount 1 ;
-        sh:nodeKind sh:IRI ;
+        sh:nodeKind sh:BlankNodeOrIRI ;
         sh:order 1 ;
         sh:path sh:path .
 
@@ -4641,6 +4642,7 @@ starontology:shacl12-shacl-ui.ttl {
         stsh:propertyFormField true .
 
     sh:path sh:group stsh:PathGroup ;
+        sh:nodeKind sh:BlankNodeOrIRI ;
         sh:order 1 ;
         stsh:formMaxCount 1 ;
         stsh:propertyFormField true .
@@ -4851,11 +4853,11 @@ starontology:shacl12-shacl-ui.ttl {
         sh:name "Naming and messages"@en ;
         sh:order 1.5 .
 
-    _:nab316ac77c9a4c25b6b8e60ea5f47229b131 rdf:first sh:IRI ;
+    _:na80e409513cc4b718be2eb5dbea341fcb131 rdf:first sh:IRI ;
         rdf:rest ( sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) .
 
-    _:nab316ac77c9a4c25b6b8e60ea5f47229b130 rdf:first sh:BlankNode ;
-        rdf:rest _:nab316ac77c9a4c25b6b8e60ea5f47229b131 .
+    _:na80e409513cc4b718be2eb5dbea341fcb130 rdf:first sh:BlankNode ;
+        rdf:rest _:na80e409513cc4b718be2eb5dbea341fcb131 .
 }
 
 starontology:shacl12-shacl.ttl {

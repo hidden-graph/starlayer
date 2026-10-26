@@ -607,7 +607,10 @@ def extract_subgraph(
     entailed_data_graph = apply_entailment(data_graph, shacl_graph, ont_graph, inplace=False, inference=inference)
 
     if shape is not None:
-        candidate_shape_objs = [sg.lookup_shape_from_node(shape)]
+        try:
+            candidate_shape_objs = [sg.lookup_shape_from_node(shape)]
+        except KeyError:
+            raise ValueError(f"shape {shape!r} is not a shape in the shapes graph") from None
     else:
         candidate_shape_objs = [s for s in sg.shapes if not s.deactivated]
 
