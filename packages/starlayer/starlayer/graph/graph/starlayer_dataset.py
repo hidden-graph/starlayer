@@ -744,6 +744,14 @@ class StarLayerDataset(Dataset):
     # boundaries intact, and two graphs matching via the same node simply
     # appear as two separate GRAPH blocks rather than being merged.
 
+    def unbind(self, prefix: str) -> bool:
+        """Take the binding of ``prefix`` away; True if it was bound. rdflib has no such call: the binding is removed from the
+        store's own prefix map (in-memory and ``OxigraphStore`` stores; any other raises ``NotImplementedError``, copy with
+        ``reduce_prefixes()`` there). Graphs that share this store lose the prefix too (GitHub issue #44).
+        """
+        from starlayer.graph.graph.prefixes import unbind_prefix
+        return unbind_prefix(self, prefix)
+
     def used_prefixes(self) -> list[tuple[str, URIRef]]:
         """The namespace bindings of this dataset that matter: ``(prefix, namespace)`` pairs, sorted by prefix, for the namespaces an
         IRI in any graph of the dataset is in, or a named graph's own name (TriG writes it). The default prefixes rdflib binds and

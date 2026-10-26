@@ -40,6 +40,7 @@ Project-specific instructions for Claude Code sessions working in this repo. See
 - **`sh:nodeKind`** violations carry pySHACL's `sh:resultMessage` ("Value is not of Node Kind sh:IRI"); an invalid `sh:pattern` raises `ConstraintLoadError` naming the shape, not a raw `re.error`.
 - **Still open:** `sh:pattern` is Python `re`, not XPath (`\p{L}` is rejected as invalid); a path that goes through a triple term (`(ex:p rdf:object)`) and an `sh:sparql` constraint on a triple-term value still see the adapter's support triples; `sh:targetWhere` never targets literals; global `sh:SPARQLRule` swallows a bad CONSTRUCT and a SELECT in `sh:construct` yields ill-formed triples; `rule_set=` for `sh:TripleRule` was fixed in #107; the Turtle 1.2 parser rejects `([a b][c d])`; `sh:lessThan`, an empty `sh:or ()` and `sh:minLength 0` on blank nodes are still undecided (see the 2026-10-25 entry).
 
+<<<<<<< HEAD
 ## Forms for every kind of SHACL element; placement scheme; `sh:declare` (2026-10-26, GitHub issues #12, #89, #91, #92, #105, #67)
 
 Source files: `scripts/assets/shacl12-shacl-ui-overlay.ttl` (forms, groups, placement), `scripts/assets/shacl12-validation-shapes.ttl` (two rule changes), `scripts/build_shacl_ui.py`; `shacl12-shacl-ui-scores.ttl` is hand-edited. The repo owner authorised touching the starontology sources for this.
@@ -51,6 +52,11 @@ Source files: `scripts/assets/shacl12-shacl-ui-overlay.ttl` (forms, groups, plac
 - **#67.** Item 1: `sh:someValue` is `sh:BlankNodeOrIRI` in the forms. Item 2: `stsh:RuleShape` no longer requires `sh:subject`/`sh:predicate`/`sh:object` (at most one each; Inference Rules 11.2, `triple_rule.py`). Item 3 (rule-condition list) is another agent's.
 - **Scores.** `shacl12-shacl-ui-scores.ttl` adds the new nested-shape paths to the details editor, `rdfs:comment` to the text area, `rdfs:label` to the text field with language; booleans, numbers and IRIs come from the datatype and node kind of the field. Checked with `select_widgets` on every form.
 - **Still open.** Per-kind node expression forms (a form is found by class and node expressions have none: needs a design; `EXCLUDED` says so). `sh:expression` on a node shape: `shsh:NodeShapeShape` bans it deliberately (it keeps the node/property `sh:or` exclusive), so the node shape form has no field for it; the owner decides. #105 item 3 (shacl_shacl requiring a type per kind) not done: it would reject valid graphs that leave the type implicit. `sh:subject`/`predicate`/`object` fields do not state a node kind (an expression may be any term). Widgets for `sh:node`, `sh:not`, `sh:property` are still text fields (existing scores).
+=======
+## A self-contained shapes-graph extract is opt-in (2026-10-26, GitHub issue #19)
+
+`extract_shapes_graph(iri, include_referenced=True)` also copies the named shapes the members refer to, transitively (`shapes_graphs.referenced_shapes`: `sh:node`, `sh:property`, `sh:not`, `sh:qualifiedValueShape`, `sh:reifierShape`, `sh:someValue`, `sh:memberShape`, and the lists of `sh:and`/`sh:or`/`sh:xone`; blank nodes are walked through and come with a shape's CBD; cycles are fine), so the result validates on its own. **The default is unchanged** (off): the documented use of the narrow extract is injecting your own definition of a referenced shape, which a copied one would conflict with. The list of followed predicates is the shape-valued parameters of Core and the 1.2 additions; add a predicate there if a new one takes a shape.
+>>>>>>> origin/integration/issues
 
 ## `target_nodes()` covers every target form; `sh:targetNode` takes a node expression; list `sh:condition` pinned (2026-10-26, GitHub issues #66 and #67)
 
