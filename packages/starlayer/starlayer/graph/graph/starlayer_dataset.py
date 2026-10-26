@@ -921,7 +921,10 @@ class StarLayerDataset(Dataset):
         if not self.default_union or not isinstance(update_object, str):
             return False
         from starlayer.graph.backends.native_oxigraph import _engine
-        from starlayer.graph.query.version_directive import contains_triple_term, strip_version_directive
+        from starlayer.graph.query.version_directive import (
+            contains_triple_term,
+            strip_version_directive,
+        )
         from starlayer.sparql.parse12 import prepare_update_12
         prepared = prepare_update_12(strip_version_directive(update_object)[0], base=base, initNs=initNs)
         if not any(op.name in ('Modify', 'DeleteWhere') for op in prepared.algebra):
