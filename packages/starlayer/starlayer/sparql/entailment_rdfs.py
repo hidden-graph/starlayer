@@ -99,6 +99,11 @@ def _rewrite_bgp(bgp: CompValue, fresh: itertools.count) -> CompValue:
     simple_triples: list[tuple[Any, Any, Any]] = []
     unions: list[CompValue] = []
 
+    # A BGP this rewrite produced (it uses our fresh variables) is returned as is: the walk can meet it again, and its
+    # rdfs:domain / rdfs:range triples would otherwise be rewritten a second time (rdfs7), emptying the result.
+    if any(isinstance(t, Variable) and str(t).startswith(_FRESH_PREFIX) for triple in bgp.triples for t in triple):
+        return bgp
+
     for s, p, o in bgp.triples:
         if p == RDF.type:
             unions.append(_type_union(s, o, fresh))
@@ -145,16 +150,24 @@ def _type_union(s: Any, o: Any, fresh: itertools.count) -> CompValue:
     Returns:
         A nested Union algebra node of the three alternatives.
     """
-    subclass_branch = CompValue("BGP", triples=[(s, _SUBCLASS_TYPE_PATH, o)])
-
-    p1, o1, d1 = (Variable(f"{_FRESH_PREFIX}{next(fresh)}") for _ in range(3))
-    domain_branch = CompValue(
-        "BGP", triples=[(s, p1, o1), (p1, RDFS.domain, d1), (d1, _SUBCLASS_STAR, o)]
+    # rdfs7 composes with all three: the triple that types or has a domain/range may be asserted with a *sub*property
+    # (``Q rdfs:subPropertyOf* P``, zero steps included), also for rdf:type itself (GitHub issue #97).
+    q0, c0 = (Variable(f"{_FRESH_PREFIX}{next(fresh)}") for _ in range(2))
+    subclass_branch = CompValue(
+        "BGP",
+        triples=[(s, q0, c0), (q0, _SUBPROPERTY_STAR, RDF.type), (c0, _SUBCLASS_STAR, o)],
     )
 
-    s2, p2, d2 = (Variable(f"{_FRESH_PREFIX}{next(fresh)}") for _ in range(3))
+    p1, o1, pp1, d1 = (Variable(f"{_FRESH_PREFIX}{next(fresh)}") for _ in range(4))
+    domain_branch = CompValue(
+        "BGP",
+        triples=[(s, p1, o1), (p1, _SUBPROPERTY_STAR, pp1), (pp1, RDFS.domain, d1), (d1, _SUBCLASS_STAR, o)],
+    )
+
+    s2, p2, pp2, d2 = (Variable(f"{_FRESH_PREFIX}{next(fresh)}") for _ in range(4))
     range_branch = CompValue(
-        "BGP", triples=[(s2, p2, s), (p2, RDFS.range, d2), (d2, _SUBCLASS_STAR, o)]
+        "BGP",
+        triples=[(s2, p2, s), (p2, _SUBPROPERTY_STAR, pp2), (pp2, RDFS.range, d2), (d2, _SUBCLASS_STAR, o)],
     )
 
     return CompValue(
@@ -187,6 +200,15 @@ def rewrite_algebra_for_rdfs(algebra: Any) -> Any:
     def _visit(node: Any) -> Any:
         if isinstance(node, CompValue) and node.name == "BGP":
             return _rewrite_bgp(node, fresh)
+        if isinstance(node, CompValue) and node.name in ("Builtin_EXISTS", "Builtin_NOTEXISTS"):
+            # An Expr keeps the pattern twice: as a dict item and, once rdflib's translateExists has run, as an instance
+            # attribute that shadows it. The evaluator reads the attribute, so that is the one to rewrite; both are set to
+            # the same result (GitHub issue #97).
+            inner = node.__dict__.get("graph", dict.get(node, "graph"))
+            if isinstance(inner, CompValue):
+                rewritten = rewrite_algebra_for_rdfs(inner)
+                node["graph"] = rewritten
+                node.graph = rewritten
         return None
 
     return traverse(algebra, visitPost=_visit)

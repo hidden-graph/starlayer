@@ -2981,7 +2981,13 @@ class StarLayerGraph(Graph):
         expanded = Graph()
         for t in before:
             expanded.add(t)
-        owlrl.DeductiveClosure(semantics).expand(expanded)
+        # One owlrl pass is not a closure: the axiomatic triples it adds (rdfs:domain, rdf:type, ...) are not typed
+        # rdfs:Resource until the next pass, so the closure of the closure grew (GitHub issue #97). Repeat to a fixpoint.
+        for _ in range(8):
+            size = len(expanded)
+            owlrl.DeductiveClosure(semantics).expand(expanded)
+            if len(expanded) == size:
+                break
         before_set = set(before)
         delta = Graph()
         for t in expanded:
