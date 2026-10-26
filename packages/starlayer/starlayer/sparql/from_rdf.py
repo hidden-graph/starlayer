@@ -535,6 +535,11 @@ def _decode_comp_value(node, type_uri: URIRef, graph: Graph):
             value = _to_python_deep(value)
         kwargs[key] = value
 
+    if name == "values" and isinstance(kwargs.get("res"), list):
+        # A VALUES row with no variables (``VALUES () { () }``) is encoded as
+        # an empty RDF list, which decodes to rdf:nil; the row is ``{}``.
+        kwargs["res"] = [{} if row == RDF.nil else row for row in kwargs["res"]]
+
     if name == "TrueFilter":
         # The module-level singleton Expr rdflib's own algebra uses for a
         # filter-less OPTIONAL's LeftJoin.expr — see algebra.py's

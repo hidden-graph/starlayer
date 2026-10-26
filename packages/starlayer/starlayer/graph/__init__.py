@@ -53,6 +53,13 @@ from starlayer.graph.query.algebra_translator_patches import (
     patch_algebra_translator_bugs as _patch_algebra_translator_bugs,
 )
 
+# Compatibility shims for confirmed bugs in plain rdflib's own SPARQL
+# arithmetic evaluation - applied eagerly so every consumer gets
+# spec-correct results. See starlayer.graph/query/operator_patches.py.
+from starlayer.graph.query.builtin_error_patches import (
+    apply_all_builtin_error_patches as _apply_all_builtin_error_patches,
+)
+
 # Fix for a confirmed rdflib bug (a different module/phase again - result
 # *materialization*, rdflib.query.Result, not parsing/algebra/evaluation): a
 # SELECT row with zero variable bindings (SELECT * over a pattern with no
@@ -144,10 +151,6 @@ from starlayer.graph.query.evaluate_patches import (
 from starlayer.graph.query.evaluate_patches import (
     patch_relational_expression_tt_hash_equality as _patch_relational_expression_tt_hash_equality,
 )
-
-# Compatibility shims for confirmed bugs in plain rdflib's own SPARQL
-# arithmetic evaluation - applied eagerly so every consumer gets
-# spec-correct results. See starlayer.graph/query/operator_patches.py.
 from starlayer.graph.query.operator_patches import (
     apply_all_operator_patches as _apply_all_operator_patches,
 )
@@ -170,6 +173,7 @@ from starlayer.graph.query.update_patches import (
 )
 
 _apply_all_operator_patches()
+_apply_all_builtin_error_patches()
 _patch_algebra_translator_bugs()
 _patch_evalfilter_forgotten_vars()
 _patch_evalmodify_default_graph_selection()

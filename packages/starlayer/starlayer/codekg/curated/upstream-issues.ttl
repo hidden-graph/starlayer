@@ -240,3 +240,75 @@ ui:rdflib-20 a slkg:UpstreamIssue ;
     slkg:issueNumber 20 ;
     slkg:issueStatus "worked-around" ;
     slkg:workedAroundByIdentifier "starlayer.graph.query.evaluate_patches.patch_negated_path_skips_encoding_triples", "starlayer.graph.query.operator_patches.patch_triple_terms_are_not_iris" .
+
+ui:rdflib-21 a slkg:UpstreamIssue ;
+    rdfs:label "SUBSTR with a start position below 1 returns the wrong string" ;
+    slkg:upstreamProject "rdflib" ;
+    slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
+    slkg:issueNumber 21 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.graph.query.builtin_error_patches.patch_substr_xpath_semantics" .
+
+ui:rdflib-22 a slkg:UpstreamIssue ;
+    rdfs:label "TIMEZONE() drops the minutes of a UTC offset" ;
+    slkg:upstreamProject "rdflib" ;
+    slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
+    slkg:issueNumber 22 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.graph.query.builtin_error_patches.patch_timezone_keeps_minutes" .
+
+ui:rdflib-23 a slkg:UpstreamIssue ;
+    rdfs:label "IN and NOT IN use term equality and swallow errors; && with an error operand; ordering across types; directional-literal tag case" ;
+    slkg:upstreamProject "rdflib" ;
+    slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
+    slkg:issueNumber 23 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.graph.query.builtin_error_patches.patch_relational_operators_follow_spec", "starlayer.graph.query.operator_patches.patch_sameterm_simple_literal_is_xsd_string" .
+
+ui:rdflib-24 a slkg:UpstreamIssue ;
+    rdfs:label "SUM and AVG over non-numeric values abort the whole query" ;
+    slkg:upstreamProject "rdflib" ;
+    slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
+    slkg:issueNumber 24 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.graph.query.builtin_error_patches.patch_sum_avg_errors_are_unbound" .
+
+ui:rdflib-25 a slkg:UpstreamIssue ;
+    rdfs:label "An empty VALUES block crashes" ;
+    slkg:upstreamProject "rdflib" ;
+    slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
+    slkg:issueNumber 25 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.graph.query.builtin_error_patches.patch_empty_values_clause" .
+
+ui:rdflib-26 a slkg:UpstreamIssue ;
+    rdfs:label "STRDT accepts a non-IRI datatype; STRLANG with an invalid tag raises ValueError" ;
+    slkg:upstreamProject "rdflib" ;
+    slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
+    slkg:issueNumber 26 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.graph.query.builtin_error_patches.patch_strdt_requires_string_and_iri", "starlayer.graph.query.operator_patches.patch_strlang_rejects_empty_language_tag" .
+
+ui:rdflib-27 a slkg:UpstreamIssue ;
+    rdfs:label "Ill-typed literals: RecursionError, isNumeric true, AttributeError in DAY() and YEAR()" ;
+    slkg:upstreamProject "rdflib" ;
+    slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
+    slkg:issueNumber 27 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.graph.query.builtin_error_patches.patch_ill_typed_literals_are_errors" .
+
+ui:rdflib-28 a slkg:UpstreamIssue ;
+    rdfs:label "SELECT * lists variables that occur only in a FILTER; DESCRIBE * crashes" ;
+    slkg:upstreamProject "rdflib" ;
+    slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
+    slkg:issueNumber 28 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.graph.query.builtin_error_patches.patch_select_star_scope_and_describe_star" .
+
+ui:rdflib-29 a slkg:UpstreamIssue ;
+    rdfs:label "xsd:double division by zero is an error instead of INF" ;
+    slkg:upstreamProject "rdflib" ;
+    slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
+    slkg:issueNumber 29 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.graph.query.operator_patches.patch_multiplicative_expression_type_promotion" .

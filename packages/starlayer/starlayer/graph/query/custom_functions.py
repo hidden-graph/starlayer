@@ -235,7 +235,12 @@ def _register_dirlang_construct_function() -> None:
         # ...), an error per RDF 1.2 Query sec 17.4.2.17's own example
         # table) or a literal with some other, unrelated datatype. A bare
         # str(lex) coercion would silently accept any term here instead.
-        lexical = str(string(lex))
+        lexical_literal = string(lex)
+        # The lexicalForm parameter is xsd:string: a language-tagged literal
+        # ("a"@en) is not one, so it is an error (as it is for STRLANG).
+        if lexical_literal.language:
+            raise SPARQLError("STRLANGDIR: lexical form must not carry a language tag")
+        lexical = str(lexical_literal)
         # .lower() matches stock rdflib's own Builtin_STRLANG (the
         # non-direction-aware sibling function) exactly - its source does
         # the same "lang=str(expr.arg2).lower())" - kept unchanged here.

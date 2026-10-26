@@ -20,10 +20,16 @@ from decimal import ROUND_HALF_DOWN, ROUND_HALF_UP, Decimal, InvalidOperation
 
 from rdflib import Literal
 from rdflib.namespace import XSD
+from rdflib.plugins.sparql import operators as _rdflib_operators
 from rdflib.plugins.sparql.datatypes import type_promotion
-from rdflib.plugins.sparql.operators import numeric
 from rdflib.plugins.sparql.parserutils import Comp
 from rdflib.plugins.sparql.sparql import SPARQLError
+
+
+def numeric(expr):
+    """rdflib's ``operators.numeric`` looked up at call time, so the strict
+    version installed by ``builtin_error_patches`` is the one used here."""
+    return _rdflib_operators.numeric(expr)
 
 
 def _iter_subexpressions(pyparsing_element):
@@ -89,6 +95,23 @@ def _canonicalize_decimal_lexical_form(literal: Literal) -> Literal:
 _multiplicative_expression_patch_status: bool | None = None
 
 
+def _float_divide(a: float, b: float) -> float:
+    """IEEE 754 division, as XPath op:numeric-divide defines it for double and
+    float (Python raises ``ZeroDivisionError`` instead of returning INF/NaN)."""
+    if b == 0:
+        if a == 0 or math.isnan(a):
+            return math.nan
+        return math.copysign(math.inf, a) * math.copysign(1.0, b)
+    return a / b
+
+
+def _non_finite_lexical(value: float) -> str:
+    """The XSD lexical form of INF, -INF and NaN (rdflib writes ``inf``/``nan``)."""
+    if math.isnan(value):
+        return "NaN"
+    return "INF" if value > 0 else "-INF"
+
+
 def patch_multiplicative_expression_type_promotion() -> bool:
     """Fix a confirmed rdflib bug: ``MultiplicativeExpression`` (the ``*``/
     ``/`` operators) never applies SPARQL 1.1's numeric type-promotion rules
@@ -140,11 +163,18 @@ def patch_multiplicative_expression_type_promotion() -> bool:
                         res = res * n
                         dt = type_promotion(dt, f.datatype)
                     else:
-                        res = res / n
                         promoted = type_promotion(dt, f.datatype)
+                        if promoted in (XSD.double, XSD.float):
+                            # op:numeric-divide on doubles/floats never
+                            # raises: x/0 is INF, -INF or NaN.
+                            res = _float_divide(float(res), float(n))
+                        else:
+                            res = res / n
                         dt = XSD.decimal if promoted == XSD.integer else promoted
             except (InvalidOperation, ZeroDivisionError) as exc:
                 raise SPARQLError("divide by 0") from exc
+            if isinstance(res, float) and not math.isfinite(res):
+                return Literal(_non_finite_lexical(res), datatype=dt, normalize=False)
             return _canonicalize_decimal_lexical_form(Literal(res, datatype=dt))
 
         _patched_multiplicative_expression._starlayer_graph_multiplicative_type_promotion_patch = True  # type: ignore[attr-defined]
@@ -300,7 +330,13 @@ def patch_strlang_rejects_empty_language_tag() -> bool:
         def _patched_strlang(e, ctx):
             if str(e.arg2) == "":
                 raise SPARQLError("STRLANG: the language tag must not be empty")
-            return original_evalfn(e, ctx)
+            try:
+                return original_evalfn(e, ctx)
+            except ValueError as exc:
+                # rdflib raises ValueError for a tag that is not valid BCP 47
+                # ("!!", "e n", "en--ltr"); that must be a SPARQL error (the
+                # result is unbound), not an exception that aborts the query.
+                raise SPARQLError(f"STRLANG: invalid language tag: {exc}") from exc
 
         _patched_strlang._starlayer_graph_strlang_empty_tag_patch = True  # type: ignore[attr-defined]
         comp.setEvalFn(_patched_strlang)
@@ -324,7 +360,14 @@ def _string_identity_key(term):
         and term.datatype in (None, XSD.string)
     ):
         return ("string", str(term))
-    return term
+    # Language tags compare case-insensitively (RDF 1.2 Concepts); a
+    # directional literal keeps its tag inside a synthetic datatype IRI, so
+    # lower-case it here.
+    from starlayer.graph.query.builtin_error_patches import (
+        normalise_directional_language,
+    )
+
+    return normalise_directional_language(term)
 
 
 def patch_sameterm_simple_literal_is_xsd_string() -> bool:
