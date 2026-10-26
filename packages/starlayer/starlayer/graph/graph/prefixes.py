@@ -70,27 +70,37 @@ def used_prefixes(graph: Any) -> list[tuple[str, URIRef]]:
     """The prefixes of a graph or dataset that are in use, as ``(prefix, namespace)`` pairs sorted by prefix.
 
     Use it for a graph that arrives with rdflib's default prefixes bound, to offer or write only the ones that matter. A prefix the
-    file declared but never used is not returned (the writers drop it as well). Triple terms are searched too. For a dataset the
-    triples of every graph count, and so do the names of the named graphs (TriG writes them), so the answer is the prefixes the
-    whole dataset needs."""
-    used: set[str] = set()
+    file declared but never used is not returned (the writers drop it as well). This is what the Turtle 1.2 writer writes as
+    ``@prefix`` lines (it is the writer's own answer, so the two cannot disagree: ``rdf:reifies`` folded into ``{| |}`` or ``~``,
+    ``rdf:first`` / ``rdf:rest`` folded into ``( )`` and a bare ``1`` do not make ``rdf`` or ``xsd`` count; a prefix that is not a
+    valid ``PN_PREFIX`` is shown as the ``pfxN`` the writer renames it to). For a dataset the triples of every graph count, and so do
+    the names of the named graphs, so the answer is the prefixes the whole dataset needs."""
+    from starlayer.graph.serializers.turtle12 import render_turtle12
+
+    chosen: dict[str, URIRef] = {}
     if _is_dataset(graph):
         # StarLayerDataset.contexts() yields StarLayerGraphs (triple terms restored); a plain rdflib Dataset uses graphs()
         contexts = graph.contexts() if hasattr(graph, "_sg_cache") or not hasattr(graph, "graphs") else graph.graphs()
+        names: set[str] = set()
         for context in contexts:
-            _collect_from_graph(context, used)
+            for prefix, namespace in render_turtle12(context)[0]:
+                chosen[prefix] = URIRef(namespace)
             if isinstance(context.identifier, URIRef):
-                used.add(str(context.identifier))
+                names.add(str(context.identifier))
+        for prefix, namespace in select_prefixes(graph.namespaces(), names):
+            chosen.setdefault(prefix, namespace)
     else:
-        _collect_from_graph(graph, used)
-    return select_prefixes(graph.namespaces(), used)
+        for prefix, namespace in render_turtle12(graph)[0]:
+            chosen[prefix] = URIRef(namespace)
+    return sorted(chosen.items())
 
 
 def prefixes_to_keep(graph: Any, keep: Iterable[str] = ()) -> list[tuple[str, URIRef]]:
     """The bindings a reduced copy of ``graph`` should have: the ones in use, plus any of ``keep`` (prefix names) that ``graph``
     has bound, whether used or not. Sorted by prefix."""
     chosen = dict(used_prefixes(graph))
-    wanted = set(keep)
+    # one name given as a bare string is one name, not a set of characters; None means none
+    wanted = {keep} if isinstance(keep, str) else set(keep or ())
     for prefix, namespace in graph.namespaces():
         if prefix in wanted:
             chosen.setdefault(prefix, URIRef(str(namespace)))

@@ -79,10 +79,14 @@ def _clark(iri: str) -> str:
 
 def _register_ns(sg) -> None:
     """Register graph namespaces with ElementTree so prefixes are stable."""
+    from starlayer.graph.serializers._xml import is_ncname
+
+    ET._namespace_map.clear()  # (the caller restores the process-wide map: private_namespace_map)
     ET.register_namespace('rdf', _RDF_NS)
     ET.register_namespace('xml', _XML_NS)
     for prefix, ns_uri in sg.namespaces():
-        if prefix and str(ns_uri) not in (_RDF_NS, _XML_NS):
+        # only a prefix XML can carry: an NCName, not xml/xmlns (an unusable one is numbered ns0, ns1... by ElementTree)
+        if prefix and is_ncname(prefix) and str(ns_uri) not in (_RDF_NS, _XML_NS):
             try:
                 ET.register_namespace(prefix, str(ns_uri))
             except ValueError:
@@ -163,7 +167,17 @@ def serialize_rdfxml12(graph) -> str:
     from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 
     sg = graph if isinstance(graph, StarLayerGraph) else StarLayerGraph.from_rdflib(graph)
-    _register_ns(sg)
+    from starlayer.graph.serializers._xml import (
+        check_xml_characters,
+        private_namespace_map,
+    )
+
+    with private_namespace_map():
+        _register_ns(sg)
+        return _serialize(sg, check_xml_characters)
+
+
+def _serialize(sg, check_xml_characters) -> str:
 
     by_subj: dict = defaultdict(list)
     for s, p, o in sg.triples((None, None, None)):
@@ -183,6 +197,7 @@ def serialize_rdfxml12(graph) -> str:
             prop = ET.SubElement(desc, prop_tag)
             _set_object(prop, obj)
 
+    check_xml_characters(root)
     ET.indent(root, space='  ')
     body = ET.tostring(root, encoding='unicode').replace('\r', '&#13;')  # a raw CR would read back as LF
     return f'<?xml version="1.0" encoding="UTF-8"?>\n{body}\n'

@@ -53,6 +53,15 @@ _DIRECTIVE_RE = _re.compile(
     _re.IGNORECASE,
 )
 
+# A prefix or base declaration (what a graph block's chunk needs written in front of it, in document order)
+_DECLARATION_RE = _re.compile(
+    r'@prefix\s+[^\s<]*\s*<[^>]*>\s*\.|\bPREFIX\s+[^\s<]*\s*<[^>]*>'
+    r'|@base\s*<[^>]*>\s*\.|\bBASE\s*<[^>]*>',
+    _re.IGNORECASE,
+)
+_BASE_DECL_RE = _re.compile(r'(?:@base|BASE)\s*<([^>]*)>', _re.IGNORECASE)
+_PREFIX_DECL_RE = _re.compile(r'(?:@prefix|PREFIX)\s+([^\s<]*?)\s*<([^>]*)>', _re.IGNORECASE)
+
 # Regex to strip prefix declarations from a chunk (we'll re-add them ourselves)
 _PREFIX_RE = _re.compile(
     r'(?:@prefix\s+[^\s<]*\s*<[^>]*>\s*\.|PREFIX\s+[^\s<]*\s*<[^>]*>)',
@@ -197,14 +206,35 @@ def _extract_prefix_map(text: str) -> dict[str, str]:
     return prefixes
 
 
-def _resolve_graph_id(token: str, prefix_map: dict[str, str]) -> URIRef | BNode:
+def _resolution_state(declarations: list[str], base: str | None) -> tuple[str | None, dict[str, str]]:
+    """The base IRI and the prefix map in effect after ``declarations`` (the text of each, in order), starting from ``base``.
+    Relative IRIs resolve as in the Turtle parser, so a graph name and a relative ``@prefix p: <#>`` follow the document's
+    ``@base`` / ``BASE`` (GitHub issue #132)."""
+    from starlayer.graph.parsers.turtle_parser import _join
+
+    prefixes: dict[str, str] = {}
+    for decl in declarations:
+        m = _BASE_DECL_RE.match(decl)
+        if m:
+            base = _join(base, m.group(1)) if base else m.group(1)
+            continue
+        m = _PREFIX_DECL_RE.match(decl)
+        if m:
+            ns = m.group(2)
+            prefixes[m.group(1).rstrip(':')] = _join(base, ns) if base else ns
+    return base, prefixes
+
+
+def _resolve_graph_id(token: str, prefix_map: dict[str, str], base: str | None = None) -> URIRef | BNode:
     """Resolve a graph label token (<IRI>, prefix:local, _:label or []) to a URIRef or BNode."""
     if token.startswith('_:'):
         return BNode(token[2:])
     if token.startswith('['):
         return BNode()
     if token.startswith('<') and token.endswith('>'):
-        return URIRef(token[1:-1])
+        from starlayer.graph.parsers.turtle_parser import _resolve_iri_reference
+
+        return URIRef(_resolve_iri_reference(token[1:-1], base))
     if ':' in token:
         colon = token.index(':')
         prefix, local = token[:colon], token[colon + 1:]
@@ -217,6 +247,7 @@ def _resolve_graph_id(token: str, prefix_map: dict[str, str]) -> URIRef | BNode:
 
 def _split_trig_blocks_with_ids(
     text: str,
+    base: str | None = None,
 ) -> list[tuple[URIRef | BNode | None, str]]:
     """Split a TriG document into (graph_id, turtle_chunk) pairs.
 
@@ -226,12 +257,15 @@ def _split_trig_blocks_with_ids(
     # The prefix declarations, in document order, with where each one starts: a declaration applies from there on, so a prefix
     # declared again changes the meaning of what FOLLOWS it and leaves what came before alone (GitHub issue #56).
     masked = _mask_string_literals(text)
-    declarations = [(m.start(), m.group(0)) for m in _PREFIX_RE.finditer(masked)]
+    # (@base / BASE declarations are carried the same way, so a graph block resolves its relative IRIs against the base in
+    # effect where it is written, and ``base`` - the publicID - is the base before any of them; GitHub issue #132.)
+    declarations = [(m.start(), m.group(0)) for m in _DECLARATION_RE.finditer(masked)]
 
-    def prefixes_before(pos: int) -> tuple[str, dict[str, str]]:
-        """The declarations written before ``pos``, as Turtle text to prepend and as a prefix map."""
+    def prefixes_before(pos: int) -> tuple[str, dict[str, str], str | None]:
+        """The declarations written before ``pos``, as Turtle text to prepend, as a prefix map and as the base in effect."""
         before = [decl for start, decl in declarations if start < pos]
-        return ''.join(d + '\n' for d in before), _extract_prefix_map('\n'.join(before))
+        in_scope_base, prefix_map = _resolution_state(before, base)
+        return ''.join(d + '\n' for d in before), prefix_map, in_scope_base
 
     # Search for GRAPH blocks against a string-literal-masked copy, not
     # text itself - otherwise literal text that merely *looks* like a
@@ -282,8 +316,8 @@ def _split_trig_blocks_with_ids(
         if label is None:
             default_parts.append(inner)  # a bare { ... } is the default graph
         else:
-            prefix_text, prefix_map = prefixes_before(start)
-            named_blocks.append((_resolve_graph_id(label, prefix_map), prefix_text + inner))
+            prefix_text, prefix_map, in_scope_base = prefixes_before(start)
+            named_blocks.append((_resolve_graph_id(label, prefix_map, in_scope_base), prefix_text + inner))
         i = j
 
     # The default graph's content keeps its own declarations where they are written, in order: they are part of the
@@ -296,13 +330,13 @@ def _split_trig_blocks_with_ids(
     return result
 
 
-def _split_trig_blocks(text: str) -> list[str]:
+def _split_trig_blocks(text: str, base: str | None = None) -> list[str]:
     """Split a TriG document into Turtle 1.2 chunks (merges all graphs).
 
     Each chunk has the document's prefix declarations prepended so it can be
     parsed independently by StarLayerTurtleParser.
     """
-    return [chunk for _, chunk in _split_trig_blocks_with_ids(text)]
+    return [chunk for _, chunk in _split_trig_blocks_with_ids(text, base)]
 
 
 def extract_version_directive(text: str) -> str | None:
@@ -343,7 +377,7 @@ def extract_version_directive(text: str) -> str | None:
 # Public entry points
 # ---------------------------------------------------------------------------
 
-def parse_trig12(text: str) -> list[tuple]:
+def parse_trig12(text: str, base: str | None = None) -> list[tuple]:
     """Parse TriG 1.2 text; return list of (s, p, o) triples.
 
     All named graphs are merged.  Returns tt:-encoded triples ready for
@@ -362,10 +396,10 @@ def parse_trig12(text: str) -> list[tuple]:
         together with the default graph.
     """
     triples = []
-    for chunk in _split_trig_blocks(text):
+    for chunk in _split_trig_blocks(text, base):
         if not chunk.strip():
             continue
-        raw = StarLayerTurtleParser().parse(chunk)
+        raw = StarLayerTurtleParser().parse(chunk, base=base)
         processed = _skolemize_encoding(raw)
         for triple in processed:
             triples.append(triple)
@@ -374,6 +408,7 @@ def parse_trig12(text: str) -> list[tuple]:
 
 def parse_trig12_named(
     text: str,
+    base: str | None = None,
 ) -> list[tuple[URIRef | None, list[tuple], list[tuple]]]:
     """Parse TriG 1.2 text; return per-graph data preserving named-graph structure.
 
@@ -392,10 +427,10 @@ def parse_trig12_named(
         is a list of (prefix, namespace) pairs declared in that block.
     """
     result = []
-    for graph_id, chunk in _split_trig_blocks_with_ids(text):
+    for graph_id, chunk in _split_trig_blocks_with_ids(text, base):
         if not chunk.strip():
             continue
-        raw = StarLayerTurtleParser().parse(chunk)
+        raw = StarLayerTurtleParser().parse(chunk, base=base)
         processed = _skolemize_encoding(raw)
         triples = list(processed)
         namespaces = list(processed.namespaces())

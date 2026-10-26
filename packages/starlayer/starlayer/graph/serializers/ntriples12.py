@@ -71,7 +71,8 @@ def _escape_non_ascii(s: str) -> str:
         cp = ord(ch)
         if cp > 0xFFFF:
             out.append(f'\\U{cp:08X}')
-        elif cp > 0x7F:
+        elif cp > 0x7F or cp < 0x20 or cp == 0x7F:
+            # a control character is escaped too: written raw, VT/FF/FS... break the line for a reader that splits on them
             out.append(f'\\u{cp:04X}')
         else:
             out.append(ch)

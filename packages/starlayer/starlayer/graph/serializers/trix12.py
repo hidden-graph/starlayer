@@ -28,6 +28,7 @@ from rdflib import BNode, Literal, URIRef
 from starlayer.graph.model.dirlangstring import DirLangString
 from starlayer.graph.model.encoding import encode_dirlang_datatype
 from starlayer.graph.model.triple import TripleTerm
+from starlayer.graph.serializers._xml import check_xml_characters, private_namespace_map
 
 TRIX_NS = 'http://www.w3.org/2004/03/trix/trix-1/'
 _XML_NS = 'http://www.w3.org/XML/1998/namespace'
@@ -115,14 +116,17 @@ def serialize_trix12(g) -> str:
     Returns:
         The TriX 1.2 XML serialization of g.
     """
-    ET.register_namespace('', TRIX_NS)
-    ET.register_namespace('xml', _XML_NS)
+    with private_namespace_map():
+        ET._namespace_map.clear()
+        ET.register_namespace('', TRIX_NS)
+        ET.register_namespace('xml', _XML_NS)
 
-    root = ET.Element(f'{_T}trix')
-    _append_graph(g, root)
+        root = ET.Element(f'{_T}trix')
+        _append_graph(g, root)
 
-    ET.indent(root, space='  ')
-    body = ET.tostring(root, encoding='unicode').replace('\r', '&#13;')  # a raw CR would read back as LF
+        check_xml_characters(root)
+        ET.indent(root, space='  ')
+        body = ET.tostring(root, encoding='unicode').replace('\r', '&#13;')  # a raw CR would read back as LF
     return f'<?xml version="1.0" encoding="UTF-8"?>\n{body}\n'
 
 
@@ -137,15 +141,18 @@ def serialize_trix12_dataset(ds) -> str:
     Returns:
         The TriX 1.2 XML serialization of ds.
     """
-    ET.register_namespace('', TRIX_NS)
-    ET.register_namespace('xml', _XML_NS)
+    with private_namespace_map():
+        ET._namespace_map.clear()
+        ET.register_namespace('', TRIX_NS)
+        ET.register_namespace('xml', _XML_NS)
 
-    root = ET.Element(f'{_T}trix')
-    for sg in ds._contexts_in_serialization_order():
-        if len(sg) == 0:
-            continue
-        _append_graph(sg, root)
+        root = ET.Element(f'{_T}trix')
+        for sg in ds._contexts_in_serialization_order():
+            if len(sg) == 0:
+                continue
+            _append_graph(sg, root)
 
-    ET.indent(root, space='  ')
-    body = ET.tostring(root, encoding='unicode')
+        check_xml_characters(root)
+        ET.indent(root, space='  ')
+        body = ET.tostring(root, encoding='unicode')
     return f'<?xml version="1.0" encoding="UTF-8"?>\n{body}\n'
