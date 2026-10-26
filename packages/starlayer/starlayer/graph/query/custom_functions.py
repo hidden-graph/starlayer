@@ -307,7 +307,6 @@ _register_dirlang_construct_function()
 # in for its usual Expr, then re-wraps the bare string result in the
 # correct kind per that function's own spec-mandated propagation rule.
 def _register_dirlang_string_functions() -> None:
-    import re
     from types import SimpleNamespace
 
     from rdflib import Literal, URIRef

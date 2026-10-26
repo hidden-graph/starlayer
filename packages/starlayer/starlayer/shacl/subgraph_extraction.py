@@ -117,8 +117,8 @@ from typing import Any
 
 from rdflib import BNode, Literal, URIRef
 from rdflib.namespace import RDF, RDFS
-from rdflib.term import Node
 from rdflib.namespace import Namespace as _Namespace
+from rdflib.term import Node
 
 # rdflib's SH has no SHACL 1.2 terms (sh:ShapeClass, ...): AttributeError on any use (GitHub issue #82)
 SH = _Namespace('http://www.w3.org/ns/shacl#')

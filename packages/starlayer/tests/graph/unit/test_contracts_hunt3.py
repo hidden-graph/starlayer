@@ -85,10 +85,11 @@ def _names():
 @pytest.mark.parametrize("pattern", ["(", "[", r"\p{L}+", "*a"])
 def test_invalid_regex_drops_the_row_and_does_not_abort(pattern):
     graph = _names()
-    query = 'SELECT ?s WHERE { ?s <http://e/name> ?n FILTER(REGEX(?n, "%s")) }' % pattern.replace("\\", "\\\\")
-    assert list(graph.query(query)) == []
-    unbound = list(graph.query('SELECT (REPLACE(?n, "%s", "x") AS ?r) WHERE { ?s <http://e/name> ?n }' % pattern.replace("\\", "\\\\")))
-    assert [row[0] for row in unbound] == [None, None]
+    escaped = pattern.replace("\\", "\\\\")
+    filtered = f'SELECT ?s WHERE {{ ?s <http://e/name> ?n FILTER(REGEX(?n, "{escaped}")) }}'
+    assert list(graph.query(filtered)) == []
+    replaced = f'SELECT (REPLACE(?n, "{escaped}", "x") AS ?r) WHERE {{ ?s <http://e/name> ?n }}'
+    assert [row[0] for row in graph.query(replaced)] == [None, None]
 
 
 def test_invalid_regex_pattern_from_data_does_not_abort():
