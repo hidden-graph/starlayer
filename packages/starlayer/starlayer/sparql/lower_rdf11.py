@@ -798,7 +798,11 @@ def _add_single_constraint(value, accessor_expr, extra_constraints: list, alread
     the *sole* source of a value for — exactly the set `already_bound` is
     tracking the complement of.
     """
-    if isinstance(value, Variable):
+    # A blank node in a query pattern is an anonymous variable, also inside a triple term: it matches any value, it is not
+    # the fixed constant `_:label` (GitHub issue #93). rdflib keys its bindings by the BNode itself, so it is used as the
+    # variable as is: the reifier node a `<< >>` shorthand mints is the same node inside a triple term and in the
+    # `rdf:reifies` triple beside it, and must stay one variable.
+    if isinstance(value, (Variable, BNode)):
         if value in already_bound:
             extra_constraints.append(
                 ("filter", CompValue("RelationalExpression", expr=accessor_expr, op="=", other=value))
@@ -849,7 +853,7 @@ def _bgp_plain_vars(triples: list) -> set:
     Returns:
         The set of `Variable`s appearing in an ordinary term position.
     """
-    return {t for s, p, o in triples for t in (s, p, o) if isinstance(t, Variable)}
+    return {t for s, p, o in triples for t in (s, p, o) if isinstance(t, (Variable, BNode))}
 
 
 def _collect_mandatory_plain_vars(node) -> set:
