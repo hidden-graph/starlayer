@@ -522,23 +522,23 @@ def _guard_for_engine(store, sparql: str) -> str:
     return sparql
 
 
-def execute_select(store, backend: str, sparql: str) -> tuple[list, list]:
+def execute_select(store, backend: str, sparql: str, default_union: bool = False) -> tuple[list, list]:
     """Run a SPARQL SELECT against a native-backend store - remote HTTP or
     in-process Oxigraph - returning (vars, bindings) either way."""
     sparql = _guard_for_engine(store, sparql)
     if _in_process(store):
         from starlayer.graph.backends.native_oxigraph import ox_select
-        return ox_select(store, sparql)
+        return ox_select(store, sparql, default_union)
     q_url, _, hdrs = resolve_store_http(store, backend)
     return http_select(q_url, sparql, hdrs)
 
 
-def execute_ask(store, backend: str, sparql: str) -> bool:
+def execute_ask(store, backend: str, sparql: str, default_union: bool = False) -> bool:
     """Run a SPARQL ASK against a native-backend store (HTTP or in-process)."""
     sparql = _guard_for_engine(store, sparql)
     if _in_process(store):
         from starlayer.graph.backends.native_oxigraph import ox_ask
-        return ox_ask(store, sparql)
+        return ox_ask(store, sparql, default_union)
     q_url, _, hdrs = resolve_store_http(store, backend)
     return http_ask(q_url, sparql, hdrs)
 
@@ -554,7 +554,7 @@ def execute_update(store, backend: str, sparql: str) -> None:
     http_update(u_url, sparql, hdrs)
 
 
-def execute_construct(store, backend: str, sparql: str):
+def execute_construct(store, backend: str, sparql: str, default_union: bool = False):
     """Run a SPARQL CONSTRUCT/DESCRIBE against a native-backend store (HTTP or
     in-process), returning a deskolemized StarLayerGraph of the results."""
     from starlayer.graph.graph.starlayer_graph import StarLayerGraph
@@ -565,7 +565,7 @@ def execute_construct(store, backend: str, sparql: str):
         # Results are created like the source (in-process Oxigraph in, Oxigraph
         # out) and loaded in one batch, not one INSERT per triple.
         g = new_graph_like(store, backend)
-        triples = list(ox_construct(store, sparql))
+        triples = list(ox_construct(store, sparql, default_union))
         if g._is_native:
             g._native_add_many(triples)
         else:
@@ -589,7 +589,7 @@ def execute_construct(store, backend: str, sparql: str):
 def native_query(store, backend: str, query_object: Any, processor: str = 'sparql',
                  result: str = 'sparql', initNs: dict | None = None,
                  initBindings: dict | None = None, use_store_provided: bool = True,
-                 **kwargs):
+                 default_union: bool = False, **kwargs):
     """Execute a SPARQL query directly against a native-backend HTTP store.
 
     Shared by StarLayerGraph._native_query()-equivalent dispatch and
@@ -612,10 +612,12 @@ def native_query(store, backend: str, query_object: Any, processor: str = 'sparq
             with rdflib's own Graph.query().
         initNs: Unused by this function; accepted for interface parity
             with rdflib's own Graph.query().
-        initBindings: Unused by this function; accepted for interface
-            parity with rdflib's own Graph.query().
+        initBindings: Not supported on a native store: a non-empty value
+            raises ``NotImplementedError``.
         use_store_provided: Unused by this function; accepted for
             interface parity with rdflib's own Graph.query().
+        default_union: Treat the default graph as the union of all graphs
+            (in-process Oxigraph only).
         **kwargs: Unused; accepted for interface parity with rdflib's own
             Graph.query().
 
@@ -624,6 +626,13 @@ def native_query(store, backend: str, query_object: Any, processor: str = 'sparq
         (graph set, blank nodes deskolemized), or SELECT (vars/bindings
         set).
     """
+    if initBindings:
+        # Silently ignoring it returned rows that disagree with the bindings (GitHub issue #98); there is no
+        # engine-level way to pre-bind a variable here, so say so.
+        raise NotImplementedError(
+            "initBindings is not supported on a native (rdf-1.2) store: put the values in the query "
+            "(VALUES or a FILTER) instead"
+        )
     if isinstance(query_object, str):
         check_native_version_conformance(query_object)
 
@@ -643,18 +652,18 @@ def native_query(store, backend: str, query_object: Any, processor: str = 'sparq
     if query_type == 'ASK':
         from rdflib.query import Result as RDFResult
         r = RDFResult('ASK')
-        r.askAnswer = execute_ask(store, backend, sparql)
+        r.askAnswer = execute_ask(store, backend, sparql, default_union)
         return r
 
     if query_type in ('CONSTRUCT', 'DESCRIBE'):
         from rdflib.query import Result as RDFResult
 
-        deskolemized = execute_construct(store, backend, sparql)
+        deskolemized = execute_construct(store, backend, sparql, default_union)
         r = RDFResult('CONSTRUCT')
         r.graph = deskolemized
         return r
 
-    vars_, bindings = execute_select(store, backend, sparql)
+    vars_, bindings = execute_select(store, backend, sparql, default_union)
     return build_result(vars_, bindings)
 
 
