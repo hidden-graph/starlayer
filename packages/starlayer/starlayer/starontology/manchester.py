@@ -526,7 +526,10 @@ def _find_root(graph: Graph) -> BNode:
     produces (``manchester_parse_to_tree()`` always builds a fresh ``Graph()``, never
     merges into a caller-supplied one) holds exactly one, so callers never
     need to track it separately themselves."""
-    return next(graph.subjects(RDF.type, MANCH.Document))
+    root = next(graph.subjects(RDF.type, MANCH.Document), None)
+    if root is None:
+        raise ValueError('the graph holds no manch:Document node, so there is no Manchester syntax tree in it')
+    return root
 
 
 def manchester_parse_to_tree(text: str, base: str | None = None) -> Graph:
@@ -546,7 +549,11 @@ def manchester_parse_to_tree(text: str, base: str | None = None) -> Graph:
     Returns:
         A fresh ``Graph`` holding exactly one ``manch:Document`` tree.
     """
-    from starlayer.graph.parsers.manchester_parser import _Cursor, _tokenize
+    from starlayer.graph.parsers.manchester_parser import (
+        _Cursor,
+        _tokenize,
+        run_guarded,
+    )
 
     class _SyntaxTreeCursor(_Cursor):
         def __init__(self, tokens, base):
@@ -632,7 +639,7 @@ def manchester_parse_to_tree(text: str, base: str | None = None) -> Graph:
                 g.add((self._misc_nodes[-1], MANCH.annotations, ann_list))
 
     cur = _SyntaxTreeCursor(_tokenize(text), base)
-    _run_top_level(cur)
+    run_guarded(_run_top_level, cur)
 
     g = cur.syntax_tree_graph
     root = BNode()
@@ -1073,7 +1080,11 @@ def manchester_tree_to_text(graph: Graph) -> str:
     """Thin wrapper composing ``_tree_to_document`` + ``_document_to_text``
     for a caller who just wants text back."""
     root = _find_root(graph)
-    return _document_to_text(_tree_to_document(graph, root))
+    try:
+        return _document_to_text(_tree_to_document(graph, root))
+    except RecursionError:
+        from starlayer.graph.parsers.errors import ManchesterSyntaxError
+        raise ManchesterSyntaxError('class expression nested too deeply to render', '', pos=0) from None
 
 
 def manchester_tree_to_owl(graph: Graph) -> StarLayerGraph:
