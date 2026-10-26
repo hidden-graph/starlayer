@@ -1957,6 +1957,10 @@ starontology:shacl12-shacl-ui-scores.ttl {
     # sh:targetClass, sh:targetSubjectsOf and sh:targetObjectsOf (IRIs only, per SHACL) were moved from the text field to the IRI
     # editor; sh:targetNode keeps the text field because its values may be literals.
     #
+    # 2026-10-26 (GitHub issues #91, #105): the paths of the new fields and forms: nested shapes (sh:target, sh:targetWhere, sh:nodeByExpression, sh:prefixes,
+    # sh:declare, sh:bodyExpression) get the details editor; rdfs:comment a text area; rdfs:label a text field with language. The rest
+    # (booleans, sh:layer, IRIs such as rdfs:seeAlso) come out right from the datatype and node kind the form states, with the generic catalog.
+    #
     # baseURI: https://github.com/hidden-graph/starlayer/ns/shacl#
 
     stsh:score40BooleanEditor a shui:WidgetScore ;
@@ -2010,7 +2014,7 @@ starontology:shacl12-shacl-ui-scores.ttl {
                 sh:path sh:path ] .
 
     stsh:PathsEditedWithDetailsEditor a sh:NodeShape ;
-        sh:property [ sh:in ( sh:ConstraintComponent sh:SPARQLRule sh:TripleRule sh:condition sh:memberShape sh:nodeValidator sh:object sh:parameter sh:predicate sh:propertyValidator sh:qualifiedValueShape sh:reifierShape sh:rule sh:someValue sh:sparql sh:subject sh:validator ) ;
+        sh:property [ sh:in ( sh:ConstraintComponent sh:SPARQLRule sh:TripleRule sh:condition sh:memberShape sh:nodeValidator sh:object sh:parameter sh:predicate sh:propertyValidator sh:qualifiedValueShape sh:reifierShape sh:rule sh:someValue sh:sparql sh:subject sh:validator sh:target sh:targetWhere sh:nodeByExpression sh:prefixes sh:declare sh:bodyExpression ) ;
                 sh:minCount 1 ;
                 sh:path sh:path ] .
 
@@ -2035,7 +2039,7 @@ starontology:shacl12-shacl-ui-scores.ttl {
                 sh:path sh:path ] .
 
     stsh:PathsEditedWithTextAreaEditor a sh:NodeShape ;
-        sh:property [ sh:in ( sh:ask sh:comment sh:construct sh:select ) ;
+        sh:property [ sh:in ( sh:ask sh:comment rdfs:comment sh:construct sh:select ) ;
                 sh:minCount 1 ;
                 sh:path sh:path ] .
 
@@ -2045,7 +2049,7 @@ starontology:shacl12-shacl-ui-scores.ttl {
                 sh:path sh:path ] .
 
     stsh:PathsEditedWithTextFieldWithLangEditor a sh:NodeShape ;
-        sh:property [ sh:in ( sh:description sh:name ) ;
+        sh:property [ sh:in ( sh:description sh:name rdfs:label ) ;
                 sh:minCount 1 ;
                 sh:path sh:path ] .
 }
@@ -3015,7 +3019,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:NodeShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n1dd883736fa14a14b4d40589c1ba3acab130 ;
+        sh:in _:n1468600cf4e34b91b3f558a679da7778b130 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -3223,7 +3227,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:ParameterForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n1dd883736fa14a14b4d40589c1ba3acab130 ;
+        sh:in _:n1468600cf4e34b91b3f558a679da7778b130 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -3576,7 +3580,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:PropertyShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n1dd883736fa14a14b4d40589c1ba3acab130 ;
+        sh:in _:n1468600cf4e34b91b3f558a679da7778b130 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -4847,11 +4851,11 @@ starontology:shacl12-shacl-ui.ttl {
         sh:name "Naming and messages"@en ;
         sh:order 1.5 .
 
-    _:n1dd883736fa14a14b4d40589c1ba3acab131 rdf:first sh:IRI ;
+    _:n1468600cf4e34b91b3f558a679da7778b131 rdf:first sh:IRI ;
         rdf:rest ( sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) .
 
-    _:n1dd883736fa14a14b4d40589c1ba3acab130 rdf:first sh:BlankNode ;
-        rdf:rest _:n1dd883736fa14a14b4d40589c1ba3acab131 .
+    _:n1468600cf4e34b91b3f558a679da7778b130 rdf:first sh:BlankNode ;
+        rdf:rest _:n1468600cf4e34b91b3f558a679da7778b131 .
 }
 
 starontology:shacl12-shacl.ttl {

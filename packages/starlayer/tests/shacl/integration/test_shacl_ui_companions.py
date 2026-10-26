@@ -61,7 +61,7 @@ def test_loading_the_overlay_never_changes_what_validates(overlay) -> None:
 
 def test_the_overlay_defines_its_property_groups(overlay) -> None:
     groups = set(overlay.subjects(RDF.type, SH.PropertyGroup))
-    assert len(groups) == 19
+    assert len(groups) == 21
     for group in groups:
         assert list(overlay.objects(group, SH.name)) and len(list(overlay.objects(group, SH.order))) == 1
     used = set(overlay.objects(None, SH.group))

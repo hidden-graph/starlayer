@@ -284,7 +284,9 @@ def test_a_triple_rule_with_no_subject_runs_with_the_focus_node_as_subject() -> 
     from starlayer.shacl import apply_rules
 
     shapes = parse('ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:rule [ a sh:TripleRule ; sh:predicate ex:self ; sh:object sh:this ] .')
-    result = apply_rules(Graph(), shapes)
+    from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+
+    result = apply_rules(StarLayerGraph.from_rdflib(Graph()), shapes)
     assert (URIRef("http://example.org/a"), URIRef("http://example.org/self"), URIRef("http://example.org/a")) in result.inferred_graph
 
 
@@ -355,7 +357,7 @@ def test_each_field_set_alone_on_a_minimal_element_of_its_kind_still_validates(u
             if not accepted(f"{context} {subject} <{predicate}> {value} ."):
                 bad.append((predicate, value))
     assert not bad, bad
-    assert checked >= 2
+    assert checked >= 2 or name == "PrefixDeclarationForm"  # its fields are all structures or required
 
 
 def test_every_required_field_of_every_form_is_in_a_minimal_valid_element(ui) -> None:
