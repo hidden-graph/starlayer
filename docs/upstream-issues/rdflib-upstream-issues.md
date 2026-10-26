@@ -298,6 +298,19 @@ On the rdf-1.1 representation a triple term is a `tt:` IRI described by internal
 
 Fix: `evaluate_patches.py::patch_negated_path_skips_encoding_triples`, `operator_patches.py::patch_triple_terms_are_not_iris`, `TripleTermNode.__lt__`/`__gt__` in `sparql/triple_term.py`.
 
+## 21. A negated property set with an inverse member crashes or answers wrongly; `p*` returns a node twice on a cycle
+
+```python
+from rdflib import Graph
+g = Graph().parse(data="@prefix : <http://e/> . :a :p :b . :b :p :a .", format="turtle")
+list(g.query("PREFIX : <http://e/> SELECT ?o { ?s !(^:p) ?o }"))          # TypeError: 'NoneType' object is not callable
+list(g.query("PREFIX : <http://e/> SELECT ?y { :a :p* ?y }"))             # a appears twice: the zero-length match and the cycle
+```
+
+The grammar writes the inverse member as `Comp("InversePath", "^" + iri)` with the IRI not a named parameter, so the parsed node is empty and the IRI is lost. `NegatedPath.eval` also reads `^b` as "skip a forward edge whose reverse exists", where SPARQL 1.1 section 18.4 makes `!(a|^b)` the alternative `!(a) | ^(!(b))`. `MulPath.eval` yields a bag, but `*`, `+` and `?` are evaluated over the set of reachable nodes. Found by the second and third hunts (GitHub issue #77).
+
+Fix: `starlayer/graph/query/path_patches.py::patch_negated_set_inverse_member` and `patch_repetition_paths_are_distinct`, and `evaluate_patches.py::patch_negated_path_skips_encoding_triples` (the evaluation).
+
 ## Withdrawn entries
 
 Items 3 and 4 of this list were withdrawn on 2026-10-25 (GitHub issue #54). Both claimed that a `BIND` should see a variable bound in a sibling or enclosing group, and StarLayer patched rdflib (`patch_evalextend_forgotten_bind_vars`, `patch_lazy_join_expr_dependency_order`) to make it so. SPARQL 1.1 section 18.2.2.6 evaluates each group on its own and joins the results, so a `BIND` cannot see such a variable and plain rdflib was right. For example `SELECT * { VALUES ?x {1 2} { BIND(?x+1 AS ?y) } }` returns `?x` only, and `{ BIND(:v1 AS ?t0) { { BIND(?t0 AS ?o) } UNION { BIND(:v2 AS ?o) } } ?s :p ?o }` returns every `?s :p ?o` row once per union branch (six rows, not two). Both patches were removed; `tests/graph/unit/test_bind_scoping.py` pins the spec behaviour. The numbers 3 and 4 are not reused. Items 8 and 16 (`FILTER`) are the same question for filters and have not been re-examined.

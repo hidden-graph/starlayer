@@ -240,3 +240,11 @@ ui:rdflib-20 a slkg:UpstreamIssue ;
     slkg:issueNumber 20 ;
     slkg:issueStatus "worked-around" ;
     slkg:workedAroundByIdentifier "starlayer.graph.query.evaluate_patches.patch_negated_path_skips_encoding_triples", "starlayer.graph.query.operator_patches.patch_triple_terms_are_not_iris" .
+
+ui:rdflib-21 a slkg:UpstreamIssue ;
+    rdfs:label "A negated property set with an inverse member crashes or answers wrongly; p* returns a node twice on a cycle" ;
+    slkg:upstreamProject "rdflib" ;
+    slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
+    slkg:issueNumber 21 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.graph.query.path_patches.patch_negated_set_inverse_member", "starlayer.graph.query.path_patches.patch_repetition_paths_are_distinct" .

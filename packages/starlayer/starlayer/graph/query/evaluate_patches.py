@@ -947,20 +947,26 @@ def patch_negated_path_skips_encoding_triples() -> bool:
             return True
 
         def _eval(self, graph, subj=None, obj=None):
-            for s, p, o in graph.triples((subj, None, obj)):
-                if p in ENCODING_PREDS or (p == RDF.type and o == TT_CLASS):
-                    continue
-                for a in self.args:
-                    if isinstance(a, URIRef):
-                        if p == a:
-                            break
-                    elif isinstance(a, InvPath):
-                        if (o, a.arg, s) in graph:
-                            break
-                    else:
-                        raise Exception(f"Invalid path in NegatedPath: {a}")
-                else:
-                    yield s, o
+            # SPARQL 1.1 section 18.4: !(a|^b) is !(a) | ^(!(b)): a forward part only if a forward member is listed, an
+            # inverse part only if an inverse member is. rdflib instead treated ^b as "skip a forward edge whose reverse
+            # exists" (and crashed on the member); the encoding triples of the rdf-1.1 triple-term representation are
+            # skipped in both directions (GitHub issues #74, #77).
+            forward = [a for a in self.args if isinstance(a, URIRef)]
+            inverse = [a.arg for a in self.args if isinstance(a, InvPath)]
+            if len(forward) + len(inverse) != len(self.args):
+                raise Exception(f"Invalid path in NegatedPath: {self.args}")
+            if forward or not inverse:
+                for s, p, o in graph.triples((subj, None, obj)):
+                    if p in ENCODING_PREDS or (p == RDF.type and o == TT_CLASS):
+                        continue
+                    if p not in forward:
+                        yield s, o
+            if inverse:
+                for o2, p, s2 in graph.triples((obj, None, subj)):
+                    if p in ENCODING_PREDS or (p == RDF.type and s2 == TT_CLASS):
+                        continue
+                    if p not in inverse:
+                        yield s2, o2
 
         _eval._starlayer_graph_negated_path_patch = True  # type: ignore[attr-defined]
         NegatedPath.eval = _eval
