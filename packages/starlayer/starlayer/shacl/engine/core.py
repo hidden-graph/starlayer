@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from rdflib import BNode, Literal, Namespace
-from rdflib.namespace import RDF
+from rdflib.namespace import RDF, RDFS
 
 from starlayer.shacl.engine.contracts import ComponentRequest
 from starlayer.shacl.engine.normalization import (
@@ -52,9 +52,14 @@ def target_nodes(
         data_graph: The graph to resolve targets against.
         shacl_graph: The graph holding ``shape_node``'s own target
             declarations. Falls back to ``data_graph`` when ``None``.
-        shape_node: The shape whose ``sh:targetNode``/``sh:targetClass``/
-            ``sh:targetSubjectsOf``/``sh:targetObjectsOf`` declarations to
-            resolve.
+        shape_node: The shape whose targets to resolve: ``sh:targetNode``
+            (an IRI, a literal, a ``sh:select`` or a node expression),
+            ``sh:targetClass`` (subclasses included), ``sh:targetSubjectsOf``,
+            ``sh:targetObjectsOf``, ``sh:targetWhere``, ``sh:target``
+            (SPARQLTarget, via pySHACL's advanced mode), data-graph
+            ``sh:shape`` and implicit class targets. The nodes are the ones
+            ``validate()`` reports on, because the dynamic forms are resolved
+            by the validator's own code (GitHub issue #66).
         ont_graph: An optional ontology graph unioned in for entailment
             only (see above) - never copied into the result.
         inference: An optional ``ENTAILMENT.*`` IRI (or iterable of them)
@@ -72,30 +77,59 @@ def target_nodes(
 
     data = apply_entailment(data, graph, ont, inplace=False, inference=inference)
 
+    # Every target form the validator resolves (sh:targetNode as a SPARQL select or a node expression, sh:targetWhere, sh:shape in
+    # the data, implicit class targets) is turned into plain sh:targetNode triples by the validator's own code, on a copy of the
+    # shapes graph (GitHub issue #66). Other shapes' dynamic targets are dropped first so only this shape's are evaluated.
+    from starlayer.shacl.validator import _augment_shapes_with_new_target_types
+
+    scoped = type(graph)()
+    for s, p, o in graph:
+        if s != shape_node and p in (SH.targetNode, SH.targetWhere):
+            continue
+        scoped.add((s, p, o))
+    graph = _augment_shapes_with_new_target_types(data, scoped)
+
     targets: list[Any] = []
 
-    # Explicit target nodes from shape definitions.
-    for _, _, obj in graph.triples((shape_node, SH.targetNode, None)):
-        if obj not in targets:
-            targets.append(obj)
+    def add(node: Any) -> None:
+        if node not in targets:
+            targets.append(node)
 
-    # Targets by rdf:type class membership.
+    # Explicit target nodes from shape definitions, and the ones computed above.
+    for _, _, obj in graph.triples((shape_node, SH.targetNode, None)):
+        add(obj)
+
+    # Targets by rdf:type class membership, subclasses included (as validate() does).
     for _, _, cls in graph.triples((shape_node, SH.targetClass, None)):
-        for subject, _, _ in data.triples((None, RDF.type, cls)):
-            if subject not in targets:
-                targets.append(subject)
+        for sub in set(data.transitive_subjects(RDFS.subClassOf, cls)) | {cls}:
+            for subject, _, _ in data.triples((None, RDF.type, sub)):
+                add(subject)
 
     # Targets by predicate in subject position.
     for _, _, predicate in graph.triples((shape_node, SH.targetSubjectsOf, None)):
         for subject, _, _ in data.triples((None, predicate, None)):
-            if subject not in targets:
-                targets.append(subject)
+            add(subject)
 
     # Targets by predicate in object position.
     for _, _, predicate in graph.triples((shape_node, SH.targetObjectsOf, None)):
         for _, _, obj in data.triples((None, predicate, None)):
-            if obj not in targets:
-                targets.append(obj)
+            add(obj)
+
+    # sh:target [ a sh:SPARQLTarget ] and custom target types: pySHACL's advanced-mode machinery, as validate() uses.
+    if any(True for _ in graph.triples((shape_node, SH.target, None))):
+        from pyshacl.shapes_graph import ShapesGraph
+
+        from starlayer.shacl.native_components import ensure_shape_typed
+
+        addition = ensure_shape_typed(graph, shape_node)
+        if addition is not None:
+            graph.add(addition)
+        pyshacl_sg = ShapesGraph(graph)
+        pyshacl_sg.shapes  # noqa: B018 - property getter harvests the shape cache
+        pyshacl_shape = pyshacl_sg.lookup_shape_from_node(shape_node)
+        pyshacl_shape.set_advanced(True)
+        for node in sorted(pyshacl_shape.focus_nodes(data), key=str):
+            add(node)
 
     return tuple(targets)
 
