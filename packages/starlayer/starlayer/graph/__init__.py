@@ -52,6 +52,9 @@ from starlayer.graph.query import (
 from starlayer.graph.query.algebra_translator_patches import (
     patch_algebra_translator_bugs as _patch_algebra_translator_bugs,
 )
+from starlayer.graph.query.builtin_error_patches import (
+    apply_all_builtin_error_patches as _apply_all_builtin_error_patches,
+)
 
 # Fix for a confirmed rdflib bug (a different module/phase again - result
 # *materialization*, rdflib.query.Result, not parsing/algebra/evaluation): a
@@ -176,6 +179,7 @@ from starlayer.graph.query.update_patches import (
 )
 
 _apply_all_operator_patches()
+_apply_all_builtin_error_patches()
 _patch_negated_set_inverse_member()
 _patch_repetition_paths_are_distinct()
 _patch_algebra_translator_bugs()

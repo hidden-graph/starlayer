@@ -270,6 +270,13 @@ def _canonicalize_numeric_literal(literal: Literal) -> Literal:
             val = float(lex)
         except ValueError:
             return literal
+        if val != val or val in (float("inf"), float("-inf")):
+            # XSD lexical forms of the special values; repr() would give
+            # "inf"/"nan", which the ".0" rule below turned into "inf.0".
+            canonical = "NaN" if val != val else ("INF" if val > 0 else "-INF")
+            if canonical == lex:
+                return literal
+            return Literal(canonical, datatype=dt, normalize=False)
         canonical = repr(val)
         if "e" in canonical:
             canonical = canonical.replace("e", "E").replace("E+", "E")

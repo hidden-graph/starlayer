@@ -41,8 +41,18 @@ from __future__ import annotations
 
 import re
 
-_LEADING_WS_RE = re.compile(r'\s*', re.DOTALL)
-_VERSION_DECL_RE = re.compile(r'VERSION\s+([\'"])((?:(?!\1).)*)\1', re.IGNORECASE)
+# Whitespace and ``#`` comments (a comment runs to the end of the line; SPARQL
+# treats both as whitespace between tokens, so a header comment may precede
+# or sit between prologue declarations).
+_LEADING_WS_RE = re.compile(r'(?:\s|#[^\n\r]*)*')
+# VersionSpecifier ::= STRING_LITERAL1 | STRING_LITERAL2: one quote character
+# on each side, no raw newline, backslash escapes allowed inside. A
+# triple-quoted form is not a VersionSpecifier, so it is excluded here and left
+# for the parser to reject with its own error.
+_VERSION_DECL_RE = re.compile(
+    r"""VERSION\s+(?!\"\"\"|\'\'\')(?:"((?:[^"\\\n\r]|\\.)*)"|'((?:[^'\\\n\r]|\\.)*)')""",
+    re.IGNORECASE,
+)
 # BaseDecl/PrefixDecl recognized just well enough to skip over them intact -
 # not a full IRIREF/PN_PREFIX grammar (this module's own design note above:
 # a deliberately simple scanner). "BASE <iri>" and "PREFIX name: <iri>",
@@ -79,7 +89,8 @@ def strip_version_directive(query: str) -> tuple[str, str | None]:
         pos = _LEADING_WS_RE.match(query, pos).end()
         m = _VERSION_DECL_RE.match(query, pos)
         if m:
-            label = m.group(2)
+            raw = m.group(1) if m.group(1) is not None else m.group(2)
+            label = re.sub(r'\\(.)', r'\1', raw)
             pos = m.end()
             continue
         m = _BASE_DECL_RE.match(query, pos) or _PREFIX_DECL_RE.match(query, pos)

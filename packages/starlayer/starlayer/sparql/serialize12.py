@@ -59,6 +59,7 @@ from __future__ import annotations
 from rdflib.plugins.sparql.algebra import (
     ExpressionNotCoveredException,
     _AlgebraTranslator,
+    traverse,
 )
 from rdflib.plugins.sparql.parserutils import CompValue
 from rdflib.plugins.sparql.sparql import Query
@@ -242,6 +243,16 @@ class _AlgebraTranslator12(_AlgebraTranslator):
             #    would leave that placeholder as literal, unresolved text.
             self._replace("{TripleTerm}", _term_text(node))
             return node
+
+        if isinstance(node, CompValue) and node.name == "ServiceGraphPattern" and node.silent:
+            # Stock rdflib writes ``SERVICE <iri> {..}`` and drops SILENT, which changes what a
+            # failing endpoint does (an error instead of one empty solution).
+            self._replace(
+                "{ServiceGraphPattern}",
+                "SERVICE SILENT " + self.convert_node_arg(node.term) + "{" + node.graph.name + "}",
+            )
+            traverse(node.graph, visitPre=self.sparql_query_text)
+            return node.graph
 
         if isinstance(node, CompValue) and node.name in ("UnaryNot", "UnaryMinus", "UnaryPlus"):
             # Stock rdflib has no branch for UnaryMinus/UnaryPlus (the placeholder survived into the text),
