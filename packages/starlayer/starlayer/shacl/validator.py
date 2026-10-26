@@ -5312,8 +5312,38 @@ def _patch_shape_value_nodes_for_sh_values() -> bool:
             _value_nodes_patch_status = True
             return True
 
+        def _path_uses_support_predicate(self) -> bool:
+            """Whether the shape's ``sh:path`` names ``rdf:subject``,
+            ``rdf:predicate`` or ``rdf:object`` anywhere."""
+            sg = self.sg.graph
+            seen, todo = set(), list(sg.objects(self.node, SH.path))
+            while todo:
+                node = todo.pop()
+                if node in seen:
+                    continue
+                seen.add(node)
+                if node in (RDF.subject, RDF.predicate, RDF.object):
+                    return True
+                if isinstance(node, BNode):
+                    todo.extend(o for _p, o in sg.predicate_objects(node))
+                    if (node, RDF.first, None) in sg:
+                        todo.extend(sg.objects(node, RDF.rest))
+            return False
+
         def _patched_value_nodes(self, target_graph, focus, sparql_mode=False, debug=False):
-            original = original_value_nodes(self, target_graph, focus, sparql_mode=sparql_mode, debug=debug)
+            if self.is_property_shape and _path_uses_support_predicate(self):
+                # A path through a triple term (`(ex:p rdf:object)`) must not
+                # follow the adapter's rdf:subject/predicate/object support
+                # triples: evaluate it on a copy without them (issue #94).
+                from starlayer.shacl.native_components import _is_encoded_triple_term
+
+                plain = Graph()
+                for t in target_graph.triples((None, None, None)):
+                    if not (t[1] in (RDF.subject, RDF.predicate, RDF.object) and _is_encoded_triple_term(target_graph, t[0])):
+                        plain.add(t)
+                original = original_value_nodes(self, plain, focus, sparql_mode=sparql_mode, debug=debug)
+            else:
+                original = original_value_nodes(self, target_graph, focus, sparql_mode=sparql_mode, debug=debug)
             if not self.is_property_shape:
                 return original
             # A triple term has no outgoing properties; pySHACL would follow the
