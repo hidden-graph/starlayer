@@ -21,9 +21,14 @@
 # editor; sh:targetNode keeps the text field because its values may be literals. sh:languageIn (a list of language tags,
 # strings) was moved from the IRI editor to the text field (2026-10-26, GitHub issue #130).
 #
+# 2026-10-26 (GitHub issues #91, #105): the paths of the new fields and forms: nested shapes (sh:target, sh:targetWhere, sh:nodeByExpression, sh:prefixes,
+# sh:declare, sh:bodyExpression) get the details editor; rdfs:comment a text area; rdfs:label a text field with language. The rest
+# (booleans, sh:layer, IRIs such as rdfs:seeAlso) come out right from the datatype and node kind the form states, with the generic catalog.
+#
 # baseURI: https://github.com/hidden-graph/starlayer/ns/shacl#
 
 @prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix shui: <http://www.w3.org/ns/shacl-ui#> .
 @prefix stsh: <https://github.com/hidden-graph/starlayer/ns/shacl#> .
 
@@ -60,7 +65,7 @@ stsh:PathsEditedWithBooleanEditor a sh:NodeShape ;
 
 stsh:PathsEditedWithDetailsEditor a sh:NodeShape ;
     sh:property [ sh:path sh:path ; sh:minCount 1 ;
-        sh:in ( sh:ConstraintComponent sh:SPARQLRule sh:TripleRule sh:condition sh:memberShape sh:nodeValidator sh:object sh:parameter sh:predicate sh:propertyValidator sh:qualifiedValueShape sh:reifierShape sh:rule sh:someValue sh:sparql sh:subject sh:validator ) ] .
+        sh:in ( sh:ConstraintComponent sh:SPARQLRule sh:TripleRule sh:condition sh:memberShape sh:nodeValidator sh:object sh:parameter sh:predicate sh:propertyValidator sh:qualifiedValueShape sh:reifierShape sh:rule sh:someValue sh:sparql sh:subject sh:validator sh:target sh:targetWhere sh:nodeByExpression sh:prefixes sh:declare sh:bodyExpression ) ] .
 
 stsh:PathsEditedWithEnumSelectEditor a sh:NodeShape ;
     sh:property [ sh:path sh:path ; sh:minCount 1 ;
@@ -80,7 +85,7 @@ stsh:PathsEditedWithNumberFieldEditor a sh:NodeShape ;
 
 stsh:PathsEditedWithTextAreaEditor a sh:NodeShape ;
     sh:property [ sh:path sh:path ; sh:minCount 1 ;
-        sh:in ( sh:ask sh:comment sh:construct sh:select ) ] .
+        sh:in ( sh:ask sh:comment rdfs:comment sh:construct sh:select ) ] .
 
 stsh:PathsEditedWithTextFieldEditor a sh:NodeShape ;
     sh:property [ sh:path sh:path ; sh:minCount 1 ;
@@ -88,4 +93,4 @@ stsh:PathsEditedWithTextFieldEditor a sh:NodeShape ;
 
 stsh:PathsEditedWithTextFieldWithLangEditor a sh:NodeShape ;
     sh:property [ sh:path sh:path ; sh:minCount 1 ;
-        sh:in ( sh:description sh:name ) ] .
+        sh:in ( sh:description sh:name rdfs:label ) ] .

@@ -89,6 +89,20 @@ stsh:IRIOrPathShape
 		[ sh:node shsh:PathNodeShape ]
 	) .
 
+stsh:TargetNodeValueShape
+	a sh:NodeShape ;
+	rdfs:label "Value of sh:targetNode: an IRI, a literal, or a node expression"@en ;
+	rdfs:comment "SHACL 1.2 lets sh:targetNode take a node expression that computes the target nodes (Node Expressions, 'Getting Started'), and the validator also accepts a blank node carrying sh:select. The Working Group's rule gives sh:targetNode sh:nodeKind sh:IRIOrLiteral, which rejects both (GitHub issue #66). A blank node must be a well-formed node expression (stsh:NodeExpressionShape) or carry sh:select; a blank node with some other predicate is still rejected."@en ;
+	sh:or (
+		[ sh:nodeKind sh:IRIOrLiteral ]
+		[ sh:nodeKind sh:BlankNode ;
+		  sh:or (
+			stsh:NodeExpressionShape
+			[ sh:property [ sh:path sh:select ; sh:minCount 1 ] ]
+		  )
+		]
+	) .
+
 stsh:ShapeReferenceShape
 	a sh:NodeShape ;
 	rdfs:label "Well-formed shape reference"@en ;
@@ -106,7 +120,12 @@ stsh:ShapeReferenceShape
 stsh:ShapeShapeOverrides
 	a sh:NodeShape ;
 	rdfs:label "SHACL 1.2 replacement rules for widened parameters the Working Group file still rejects"@en ;
-	sh:targetSubjectsOf sh:nodeKind, sh:equals, sh:disjoint, sh:lessThan, sh:lessThanOrEquals ;
+	sh:targetSubjectsOf sh:nodeKind, sh:equals, sh:disjoint, sh:lessThan, sh:lessThanOrEquals, sh:targetNode ;
+
+	sh:property [
+		sh:path sh:targetNode ;
+		sh:node stsh:TargetNodeValueShape ;     # targetNode-nodeKind, replaces the Working Group's IRI-or-literal-only rule
+	] ;
 
 	sh:property [
 		sh:path sh:nodeKind ;
@@ -465,9 +484,12 @@ stsh:RuleShape
 	rdfs:label "Well-formed sh:TripleRule or sh:SPARQLRule"@en ;
 	sh:or (
 		[ sh:class sh:TripleRule ;
-		  sh:property [ sh:path sh:subject ; sh:minCount 1 ; sh:maxCount 1 ; sh:node stsh:NodeExpressionShape ] ;      # SHACLRule.__init__: "No sh:subject"/"Too many sh:subject"
-		  sh:property [ sh:path sh:predicate ; sh:minCount 1 ; sh:maxCount 1 ; sh:node stsh:NodeExpressionShape ] ;    # ditto for sh:predicate
-		  sh:property [ sh:path sh:object ; sh:minCount 1 ; sh:maxCount 1 ; sh:node stsh:NodeExpressionShape ] ;       # ditto for sh:object
+		  # SHACL 1.2 Inference Rules 11.2: "Where sh:subject, sh:predicate, or sh:object are absent, use the list consisting of the current
+		  # focus node", so each is optional (at most one). starlayer.shacl.triple_rule implements the default (GitHub issues #82, #67);
+		  # pySHACL's own "No sh:subject" is replaced there.
+		  sh:property [ sh:path sh:subject ; sh:maxCount 1 ; sh:node stsh:NodeExpressionShape ] ;
+		  sh:property [ sh:path sh:predicate ; sh:maxCount 1 ; sh:node stsh:NodeExpressionShape ] ;
+		  sh:property [ sh:path sh:object ; sh:maxCount 1 ; sh:node stsh:NodeExpressionShape ] ;
 		]
 		[ sh:class sh:SPARQLRule ;
 		  sh:property [ sh:path sh:construct ; sh:datatype xsd:string ; sh:minCount 1 ] ;  # SPARQLRule.__init__: "No sh:construct on SPARQLRule"
@@ -569,6 +591,20 @@ stsh:SparqlPrefixesShapes
 				sh:node stsh:PrefixDeclarationShape ;
 			] ;
 		] ;
+	] .
+
+# sh:declare has no rdfs:domain (the vocabulary gives only rdfs:range sh:PrefixDeclaration), so any resource may hold prefix declarations:
+# a sh:ShapesGraph, an untyped ontology IRI, a plain rdfs:Resource (the W3C tests do all three). stsh:SparqlPrefixesShapes above reaches
+# a declaration only through an sh:prefixes that names its holder; this reaches every holder, so an entry nothing refers to yet is
+# checked too (GitHub issue #89).
+stsh:DeclareShapes
+	a sh:NodeShape ;
+	rdfs:label "Well-formedness rules for the holder of sh:declare"@en ;
+	sh:targetSubjectsOf sh:declare ;
+	sh:property [
+		sh:path sh:declare ;
+		sh:node stsh:PrefixDeclarationShape ;
+		sh:nodeKind sh:BlankNodeOrIRI ;
 	] .
 
 #############################################################################

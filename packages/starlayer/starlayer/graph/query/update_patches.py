@@ -11,15 +11,23 @@ graph (SPARQL 1.1 Update 3.2), so ``CLEAR DEFAULT`` wiped the whole dataset,
 and ``USING``/``USING NAMED`` tried to fetch the graph over the network
 (GitHub issue #78). The bugs are in ``docs/upstream-issues/rdflib-upstream-issues.md``.
 
+The data operations are patched too (GitHub issue #135): ``DELETE DATA``,
+``DELETE WHERE`` and ``DELETE { }`` removed the triple from every graph of the
+dataset (``ctx.graph`` is the dataset, and ``Dataset.remove`` removes from all
+contexts), ``USING <g>`` made the delete template reach ``g``, ``USING NAMED``
+restricted nothing, template triples that are not valid RDF were inserted, and
+a missing graph was no error for ``CLEAR``/``DROP``/``ADD``/``COPY``/``MOVE``.
+
 Each patch is idempotent, with a sentinel attribute, like the others in this
 package.
 """
 
 from __future__ import annotations
 
-from rdflib.plugins.sparql.evaluate import evalBGP
+from rdflib import Dataset, Graph
+from rdflib.plugins.sparql.evaluate import evalBGP, evalPart
 from rdflib.plugins.sparql.evalutils import _fillTemplate, _join
-from rdflib.term import URIRef, Variable
+from rdflib.term import Literal, URIRef, Variable
 
 _SENTINEL = "_starlayer_graph_update_patch"
 _status: bool | None = None
@@ -37,7 +45,8 @@ def _default_graph(ctx):
     dataset = _dataset(ctx)
     if dataset is None:
         return ctx.graph
-    return getattr(dataset, "default_graph", None) or dataset.default_context
+    graph = getattr(dataset, "default_graph", None)  # not ``or``: an empty graph is falsy
+    return graph if graph is not None else dataset.default_context
 
 
 def _named_graphs(ctx) -> list:
@@ -61,11 +70,19 @@ def _graphs(ctx, which):
         return _named_graphs(ctx)
     if which == "ALL":
         return [_default_graph(ctx), *_named_graphs(ctx)]
+    _require_graph(ctx, which)
     return [ctx.dataset.get_context(which)]
 
 
 def _graph_exists(ctx, name) -> bool:
     return any(c.identifier == name for c in ctx.dataset.contexts())
+
+
+def _require_graph(ctx, name) -> None:
+    """SPARQL 1.1 Update 3.2: without SILENT it is an error to operate on a graph that does not exist (``evalUpdate``
+    swallows the error for SILENT)."""
+    if name != "DEFAULT" and not _graph_exists(ctx, name):
+        raise Exception(f"Graph {name} does not exist.")
 
 
 def _empty(ctx, graph) -> None:
@@ -108,6 +125,7 @@ def _copy_into(src, dst) -> None:
 
 def _eval_add(ctx, u):
     src, dst = u.graph
+    _require_graph(ctx, src)
     srcg, dstg = _graph_or_default(ctx, src), _graph_or_default(ctx, dst)
     if srcg.identifier == dstg.identifier:
         return
@@ -116,6 +134,7 @@ def _eval_add(ctx, u):
 
 def _eval_copy(ctx, u):
     src, dst = u.graph
+    _require_graph(ctx, src)
     srcg, dstg = _graph_or_default(ctx, src), _graph_or_default(ctx, dst)
     if srcg.identifier == dstg.identifier:
         return
@@ -128,6 +147,7 @@ def _eval_copy(ctx, u):
 
 def _eval_move(ctx, u):
     src, dst = u.graph
+    _require_graph(ctx, src)
     srcg, dstg = _graph_or_default(ctx, src), _graph_or_default(ctx, dst)
     if srcg.identifier == dstg.identifier:
         return
@@ -157,14 +177,129 @@ def _eval_delete_where(ctx, u):
     for graph_term, pattern in u.quads.items():
         solutions = list(_join(iter(solutions), _graph_solutions(ctx, pattern, graph_term)))
 
+    # the default-graph triples go through the true default graph: ``ctx.graph.__isub__`` removed them from every graph
+    target = _target_graph(ctx)
     for solution in solutions:
-        ctx.graph.__isub__(_fillTemplate(u.triples, solution))
+        for triple in _valid_triples(u.triples, solution):
+            target.remove(triple)
         for graph_term, pattern in u.quads.items():
-            name = solution.get(graph_term) if isinstance(graph_term, Variable) else graph_term
-            if name is None:
-                continue
-            cg = ctx.dataset.get_context(name)
-            cg -= _fillTemplate(pattern, solution)
+            name = _graph_name(graph_term, solution)
+            cg = _existing_graph(ctx, name) if name is not None else None
+            if cg is not None:
+                for triple in _valid_triples(pattern, solution):
+                    cg.remove(triple)
+
+
+def _is_valid_triple(triple) -> bool:
+    """A template triple that is not a valid RDF triple is skipped (SPARQL 1.1 Update 3.1.3): no literal subject, no
+    non-IRI predicate, no unbound term."""
+    s, p, o = triple
+    return (
+        s is not None
+        and not isinstance(s, (Literal, Variable))
+        and isinstance(p, URIRef)
+        and o is not None
+        and not isinstance(o, Variable)
+    )
+
+
+def _valid_triples(template, solution) -> list:
+    return [t for t in _fillTemplate(template, solution) if _is_valid_triple(t)]
+
+
+def _graph_name(term, solution):
+    """The IRI a ``GRAPH`` template names, or None when it is unbound or not an IRI (that quad is skipped)."""
+    name = solution.get(term) if isinstance(term, Variable) else term
+    return name if isinstance(name, URIRef) else None
+
+
+def _existing_graph(ctx, name):
+    """A graph to delete from; deleting from a graph that does not exist must not create it."""
+    return ctx.dataset.get_context(name) if _graph_exists(ctx, name) else None
+
+
+def _target_graph(ctx):
+    """The graph a template without ``GRAPH`` writes to: the true default graph, never the union view ``ctx.graph``."""
+    return _default_graph(ctx)
+
+
+def _eval_insert_data(ctx, u):
+    target = _target_graph(ctx)
+    for triple in u.triples:
+        target.add(triple)
+    for name, triples in u.quads.items():
+        cg = ctx.dataset.get_context(name)
+        for triple in triples:
+            cg.add(triple)
+
+
+def _eval_delete_data(ctx, u):
+    target = _target_graph(ctx)
+    for triple in u.triples:
+        target.remove(triple)
+    for name, triples in u.quads.items():
+        cg = _existing_graph(ctx, name)
+        if cg is not None:
+            for triple in triples:
+                cg.remove(triple)
+
+
+def _using_where_context(ctx, using):
+    """The context a ``USING``/``USING NAMED`` ``WHERE`` runs in (SPARQL 1.1 Update 3.1.3): the default graph is the
+    merge of the ``USING`` graphs (empty with only ``USING NAMED``), the named graphs are exactly the ``USING NAMED``
+    ones. Graphs are copied, so the template never writes through to a ``USING`` graph; one that is not in the dataset is
+    empty (never fetched)."""
+    dataset = ctx.dataset
+    merged = Graph()
+    where_dataset = Dataset()
+    for clause in using:
+        if clause.default:
+            if _graph_exists(ctx, clause.default):
+                for triple in dataset.get_context(clause.default).triples((None, None, None)):
+                    merged.add(triple)
+        elif clause.named and _graph_exists(ctx, clause.named):
+            named = where_dataset.get_context(clause.named)
+            for triple in dataset.get_context(clause.named).triples((None, None, None)):
+                named.add(triple)
+    where_ctx = ctx.clone()
+    where_ctx._dataset = where_dataset
+    where_ctx.graph = merged
+    return where_ctx
+
+
+def _eval_modify(ctx, u):
+    if u.using:
+        where_ctx = _using_where_context(ctx, u.using)
+    elif u.withClause:
+        where_ctx = ctx.pushGraph(ctx.dataset.get_context(u.withClause))
+    else:
+        where_ctx = ctx
+    solutions = list(evalPart(where_ctx, u.where))
+
+    # the template writes to WITH, else the true default graph: not to the USING graphs and not to the union view
+    target = ctx.dataset.get_context(u.withClause) if u.withClause else _target_graph(ctx)
+
+    # all deletes first, then all inserts (SPARQL 1.1 Update 3.1.3)
+    if u.delete:
+        for c in solutions:
+            for triple in _valid_triples(u.delete.triples, c):
+                target.remove(triple)
+            for term, template in u.delete.quads.items():
+                name = _graph_name(term, c)
+                cg = _existing_graph(ctx, name) if name is not None else None
+                if cg is not None:
+                    for triple in _valid_triples(template, c):
+                        cg.remove(triple)
+    if u.insert:
+        for c in solutions:
+            for triple in _valid_triples(u.insert.triples, c):
+                target.add(triple)
+            for term, template in u.insert.quads.items():
+                name = _graph_name(term, c)
+                if name is not None:
+                    cg = ctx.dataset.get_context(name)
+                    for triple in _valid_triples(template, c):
+                        cg.add(triple)
 
 
 def patch_update_graph_management() -> bool:
@@ -196,6 +331,9 @@ def patch_update_graph_management() -> bool:
             ("evalCopy", _eval_copy),
             ("evalMove", _eval_move),
             ("evalDeleteWhere", _eval_delete_where),
+            ("evalInsertData", _eval_insert_data),
+            ("evalDeleteData", _eval_delete_data),
+            ("evalModify", _eval_modify),
         ):
             setattr(fn, _SENTINEL, True)
             setattr(update_module, name, fn)

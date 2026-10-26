@@ -294,11 +294,20 @@ def _decode_uchar(text):
     return _UCHAR.sub(lambda m: chr(int(m.group(1) or m.group(2), 16)), text)
 
 
+def _join(base_uri, ref):
+    """RFC 3986 reference resolution. ``urllib.parse.urljoin`` drops an empty fragment (``urljoin("http://b/x", "#")`` is
+    ``http://b/x``), which turns a relative ``@prefix p: <#>`` into the wrong namespace (GitHub issue #132); it is put back."""
+    joined = urljoin(base_uri, ref)
+    if ref.endswith('#') and not joined.endswith('#'):
+        joined += '#'
+    return joined
+
+
 def _resolve_iri_reference(raw, base_uri):
     """An IRIREF's text as an absolute IRI: its escapes decoded, and resolved against the base in effect if it is relative."""
     inner = _decode_uchar(raw)
     if base_uri and not _ABSOLUTE_IRI.match(inner):
-        return urljoin(base_uri, inner)
+        return _join(base_uri, inner)
     return inner
 
 
@@ -399,7 +408,7 @@ def _to_node(val, prefix_map, base_uri):
         # sibling functions and Turtle12SyntaxError's own docstring); a bare
         # token that isn't a valid relative reference either will still
         # produce a URIRef, just possibly a syntactically invalid one.
-        return URIRef(urljoin(base_uri, val))
+        return URIRef(_join(base_uri, val))
 
     # No recognized term shape matched (not an IRI, prefixed name, blank
     # node, quoted literal, or "a") and there's no base_uri to attempt a
@@ -1098,7 +1107,7 @@ class StarLayerTurtleParser:
                 current_prefixes = {**current_prefixes, fields['prefix']: declared_iri}
             elif typ == 'base' and 'iri' in fields:
                 raw = fields['iri']
-                current_base = urljoin(current_base, raw) if current_base else raw
+                current_base = _join(current_base, raw) if current_base else raw
                 canonical['bases'].append({'iri': current_base})
             elif typ == 'triple' and 'triple_set' in fields:
                 try:
@@ -1168,8 +1177,10 @@ class StarLayerTurtleParser:
                               '_base_uri': base, '_prefix_map': prefix_maps_by_id[prefixes_id], '_line': line})
 
         g = Graph(bind_namespaces='none')  # only the file's own prefixes, not rdflib's defaults (GitHub issue #29)
+        declared = {p['prefix'] for p in canonical['prefixes']}
         for prefix, iri in prefix_map.items():
-            g.bind(prefix, iri)
+            if prefix in declared or prefix == 'sl':  # the parser's own rdf: is not the document's prefix (GitHub issue #132)
+                g.bind(prefix, iri)
         if current_base:
             g.base = current_base
 
