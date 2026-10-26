@@ -12,6 +12,9 @@ absolute milliseconds cannot be compared with a baseline recorded elsewhere
 scheduled-workflow run is itself the "alert" (GitHub surfaces/emails
 failed scheduled runs on the default branch automatically).
 
+Exit status: 0 all fine; 1 a regression, or a baseline benchmark missing from the current run (it can no longer be
+guarded); 2 bad usage or no calibration benchmark.
+
 Run:
     python scripts/check_benchmark_regression.py <baseline.json> <current.json>
 
@@ -76,6 +79,12 @@ def main() -> int:
         print(f"\n{len(regressions)} benchmark(s) regressed beyond {THRESHOLD:.0%}:")
         for name, change in regressions:
             print(f"  - {name}: {change:+.1%}")
+    if missing:
+        # A renamed, deleted or deselected benchmark can no longer be guarded: fail rather than pass silently.
+        print(f"\n{len(missing)} baseline benchmark(s) missing from the current run (renamed or removed? re-record the baseline):")
+        for name in missing:
+            print(f"  - {name}")
+    if regressions or missing:
         return 1
 
     print("\nNo regressions beyond threshold.")

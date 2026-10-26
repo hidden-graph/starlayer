@@ -50,6 +50,7 @@ class Step:
     args: list[str] = field(default_factory=list)
     outputs: list[str] = field(default_factory=list)  # repo-relative; compared in --check
     own_check: bool = False  # the script has its own --check (it handles its own comparison)
+    side_effects: list[str] = field(default_factory=list)  # also written by the step; --check restores them but does not compare them
 
 
 _STEPS: dict[str, Step] = {
@@ -58,6 +59,7 @@ _STEPS: dict[str, Step] = {
         "build_codekg.py",
         ["--paths", "packages/starlayer/starlayer", "packages/starlayer/tests"],
         ["packages/starlayer/starlayer/codekg/codekg.trig"],
+        side_effects=["packages/starlayer/starlayer/codekg/CHANGELOG.md"],  # the extractor appends its automatic entry
     ),
     "apidocs": Step(
         "generate_api_docs.py",
@@ -88,10 +90,13 @@ def _trig_isomorphic(a: bytes, b: bytes) -> bool:
     from rdflib.compare import isomorphic
     from starlayer.graph import StarLayerDataset
 
+    from starlayer.codekg import BUILD_GRAPH_IRI
+
     def graphs(data: bytes) -> dict:
         ds = StarLayerDataset()
         ds.parse(data=data.decode("utf-8"), format="trig12")
-        return {str(g.identifier): g for g in ds.graphs() if len(g)}
+        # The build stamp (time, commit) differs on every build by design; it is not part of what was extracted.
+        return {str(g.identifier): g for g in ds.graphs() if len(g) and g.identifier != BUILD_GRAPH_IRI}
 
     ga, gb = graphs(a), graphs(b)
     return ga.keys() == gb.keys() and all(isomorphic(ga[k], gb[k]) for k in ga)
@@ -137,7 +142,7 @@ def main() -> int:
     snapshots = {
         _ROOT / out: ((_ROOT / out).read_bytes() if (_ROOT / out).exists() else None)
         for name in names
-        for out in _STEPS[name].outputs
+        for out in [*_STEPS[name].outputs, *_STEPS[name].side_effects]
     }
     stale: list[str] = []
     try:

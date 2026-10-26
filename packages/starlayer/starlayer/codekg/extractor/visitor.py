@@ -77,6 +77,8 @@ class _ExtractionContext:
         "emitted_external_types",
         "emitted_external_modules",
         "symbol_index",
+        "class_nesting_paths",
+        "local_name_scopes",
     )
 
     def __init__(
@@ -100,6 +102,12 @@ class _ExtractionContext:
         self.emitted_external_types: set[str] = set()
         self.emitted_external_modules: set[str] = set()
         self.symbol_index = symbol_index
+        # Nesting paths of the classes visited so far (a class is always visited before its body): a class body is
+        # not an enclosing scope for the functions inside it, so a bare-name call never resolves to a class member.
+        self.class_nesting_paths: set[str] = set()
+        # One entry per function currently being visited, outermost first: the names bound locally in it
+        # (parameters, assignments...). A call through such a name is not a call to a same-named module function.
+        self.local_name_scopes: list[frozenset[str]] = []
 
 
 def _repo_relative_path(module_iri, path) -> str:
@@ -312,11 +320,15 @@ def _visit_body(
     ``class`` parent) further down. Each node is extracted inside its own
     ``try``/``except`` so one malformed definition doesn't take down
     extraction of the rest of the file (or the rest of this body)."""
+    canonical = _canonical_definitions(body)
     for node in body:
         try:
             if isinstance(node, ast.ClassDef):
                 _visit_class(node, enclosing_iri, nesting_prefix, ctx)
             elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                if canonical.get(node.name) is not node:
+                    _visit_further_definition(node, enclosing_iri, enclosing_kind, nesting_prefix, ctx)
+                    continue
                 _visit_function(node, enclosing_iri, enclosing_kind, nesting_prefix, ctx)
             elif nesting.namedtuple_definition(node) is not None:
                 _visit_namedtuple(node, enclosing_iri, nesting_prefix, ctx)
@@ -329,10 +341,74 @@ def _visit_body(
             )
 
 
+def _is_overload(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+    return any(
+        (isinstance(dec, ast.Name) and dec.id == "overload") or (isinstance(dec, ast.Attribute) and dec.attr == "overload")
+        for dec in node.decorator_list
+    )
+
+
+def _canonical_definitions(body: list[ast.stmt]) -> dict[str, ast.FunctionDef | ast.AsyncFunctionDef]:
+    """For each function name defined more than once directly in ``body``, the one definition that describes the entity.
+
+    A name has one IRI (``module#Class.name``), so a property's getter and its ``@x.setter``/``@x.deleter``, or an
+    ``@overload`` series and its implementation, would all write facts about the same node (several line numbers,
+    signatures and docstrings). The first definition of a property (the getter) and the implementation of an overload
+    series (the last definition that is not an ``@overload`` stub; the last stub when there is no implementation) win.
+    The others only contribute their calls: see ``_visit_further_definition()``.
+    """
+    groups: dict[str, list[ast.FunctionDef | ast.AsyncFunctionDef]] = {}
+    for node in body:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            groups.setdefault(node.name, []).append(node)
+    chosen = {}
+    for name, nodes in groups.items():
+        if len(nodes) == 1:
+            chosen[name] = nodes[0]
+        elif any(_is_accessor_of(n, name) for n in nodes):
+            chosen[name] = next((n for n in nodes if not _is_accessor_of(n, name)), nodes[0])
+        else:
+            implementations = [n for n in nodes if not _is_overload(n)]
+            chosen[name] = (implementations or nodes)[-1]
+    return chosen
+
+
+def _is_accessor_of(node: ast.FunctionDef | ast.AsyncFunctionDef, name: str) -> bool:
+    """Whether ``node`` is decorated ``@<name>.setter``, ``@<name>.getter`` or ``@<name>.deleter``."""
+    return any(
+        isinstance(dec, ast.Attribute)
+        and dec.attr in ("setter", "getter", "deleter")
+        and isinstance(dec.value, ast.Name)
+        and dec.value.id == name
+        for dec in node.decorator_list
+    )
+
+
+def _visit_further_definition(
+    node: ast.FunctionDef | ast.AsyncFunctionDef,
+    enclosing_iri: URIRef,
+    enclosing_kind: str,
+    nesting_prefix: str,
+    ctx: _ExtractionContext,
+) -> None:
+    """A second definition of a name (a property setter, an overload stub): no facts of its own, but what its body calls
+    is added to the one entity, and anything nested inside it is still extracted."""
+    dotted_nesting = _dotted_nesting(nesting_prefix, node.name)
+    fn_iri = URIRef(f"{ctx.module_iri}#{dotted_nesting}")
+    enclosing_class_dotted_path = f"{ctx.module_dotted_path}.{nesting_prefix}" if enclosing_kind == "class" else None
+    ctx.local_name_scopes.append(_local_names(node))
+    try:
+        _emit_calls(node, fn_iri, dotted_nesting, enclosing_class_dotted_path, ctx)
+        _visit_body(node.body, enclosing_iri=fn_iri, enclosing_kind="function", nesting_prefix=dotted_nesting, ctx=ctx)
+    finally:
+        ctx.local_name_scopes.pop()
+
+
 def _visit_class(node: ast.ClassDef, enclosing_iri: URIRef, nesting_prefix: str, ctx: _ExtractionContext) -> None:
     dotted_nesting = _dotted_nesting(nesting_prefix, node.name)
     class_iri = URIRef(f"{ctx.module_iri}#{dotted_nesting}")
 
+    ctx.class_nesting_paths.add(dotted_nesting)
     ctx.triples.append((class_iri, RDF.type, SLKG.Class))
     ctx.triples.append((class_iri, RDFS.label, Literal(node.name)))
     ctx.triples.append((class_iri, DCTERMS.identifier, Literal(f"{ctx.module_dotted_path}.{dotted_nesting}")))
@@ -442,9 +518,12 @@ def _visit_function(
 
     _emit_return_value(node, fn_iri, ctx, parsed.get("returns"))
 
-    _emit_calls(node.body, fn_iri, dotted_nesting, enclosing_class_dotted_path, ctx)
-
-    _visit_body(node.body, enclosing_iri=fn_iri, enclosing_kind="function", nesting_prefix=dotted_nesting, ctx=ctx)
+    ctx.local_name_scopes.append(_local_names(node))
+    try:
+        _emit_calls(node, fn_iri, dotted_nesting, enclosing_class_dotted_path, ctx)
+        _visit_body(node.body, enclosing_iri=fn_iri, enclosing_kind="function", nesting_prefix=dotted_nesting, ctx=ctx)
+    finally:
+        ctx.local_name_scopes.pop()
 
 
 # ---------------------------------------------------------------------------
@@ -793,29 +872,74 @@ def _emit_override_edge(method_name: str, method_iri: URIRef, enclosing_class_do
 # ---------------------------------------------------------------------------
 
 
+_DEF_NODES = (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+
+
 def _iter_nodes_stopping_at_nested_defs(node: ast.AST):
     """Every node reachable from ``node`` (``node`` itself included),
-    never descending into a nested ``FunctionDef``/``AsyncFunctionDef``/
-    ``ClassDef`` - that nested def gets its own, separate pass when
-    ``_visit_body()`` recurses into it as its own function/class (mirrors
-    ``_iter_module_level_import_nodes()``'s own "stop at a nested def
-    boundary" shape). Shared by both call-site collection
-    (``_iter_calls_in_function_body()``) and function-local lazy-import
-    collection (``_local_import_table()``) - the identical "this
-    function's own direct body, not anything nested deeper" scope applies
-    to both."""
+    never entering a nested ``FunctionDef``/``AsyncFunctionDef``/
+    ``ClassDef`` - not even when ``node`` itself is one - since that
+    nested def gets its own, separate pass when ``_visit_body()``
+    recurses into it as its own function/class. Shared by call-site
+    collection (``_iter_calls_in_function_body()``), function-local
+    lazy-import collection (``_local_import_table()``) and local-name
+    collection (``_local_names()``) - the identical "this function's own
+    direct body, not anything nested deeper" scope applies to all three.
+    What a nested def evaluates in *this* scope (its decorators, defaults
+    and class bases) is added by ``_iter_calls_in_function_body()``."""
+    if isinstance(node, _DEF_NODES):
+        return
     yield node
     for child in ast.iter_child_nodes(node):
-        if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-            continue
         yield from _iter_nodes_stopping_at_nested_defs(child)
+
+
+def _definition_time_expressions(node: ast.stmt) -> list[ast.expr]:
+    """What a ``def``/``class`` statement evaluates in the scope that contains it."""
+    if isinstance(node, ast.ClassDef):
+        return [*node.decorator_list, *node.bases, *(k.value for k in node.keywords)]
+    args = node.args
+    return [*node.decorator_list, *args.defaults, *(d for d in args.kw_defaults if d is not None)]
 
 
 def _iter_calls_in_function_body(body: list[ast.stmt]):
     for stmt in body:
-        for node in _iter_nodes_stopping_at_nested_defs(stmt):
-            if isinstance(node, ast.Call):
-                yield node
+        roots: list[ast.AST] = list(_definition_time_expressions(stmt)) if isinstance(stmt, _DEF_NODES) else [stmt]
+        for root in roots:
+            for node in _iter_nodes_stopping_at_nested_defs(root):
+                if isinstance(node, ast.Call):
+                    yield node
+            # An expression root can itself hold a nested def only through a lambda, which has no statements.
+
+
+def _local_names(function: ast.FunctionDef | ast.AsyncFunctionDef) -> frozenset[str]:
+    """Names bound inside ``function`` as variables: its parameters, assignment, ``for``, ``with`` and ``except``
+    targets, walrus and ``match`` captures. A call through one of these is not a call to a same-named module-level
+    function (Python scoping). Not included: names bound by a nested ``def``/``class`` or an import, which have their own
+    resolution, and names declared ``global``. Comprehension variables have a scope of their own and are left out."""
+    args = function.args
+    names = {a.arg for a in [*args.posonlyargs, *args.args, *args.kwonlyargs, *filter(None, [args.vararg, args.kwarg])]}
+    declared_global: set[str] = set()
+
+    def walk(node: ast.AST) -> None:
+        if isinstance(node, _DEF_NODES + (ast.Lambda, ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)):
+            return
+        if isinstance(node, ast.Name) and isinstance(node.ctx, (ast.Store, ast.Del)):
+            names.add(node.id)
+        elif isinstance(node, ast.ExceptHandler) and node.name:
+            names.add(node.name)
+        elif isinstance(node, ast.Global):
+            declared_global.update(node.names)
+        elif isinstance(node, (ast.MatchAs, ast.MatchStar)) and node.name:
+            names.add(node.name)
+        elif isinstance(node, ast.MatchMapping) and node.rest:
+            names.add(node.rest)
+        for child in ast.iter_child_nodes(node):
+            walk(child)
+
+    for stmt in function.body:
+        walk(stmt)
+    return frozenset(names - declared_global)
 
 
 def _local_import_table(body: list[ast.stmt], module_dotted_path: str) -> dict[str, str]:
@@ -836,18 +960,22 @@ def _local_import_table(body: list[ast.stmt], module_dotted_path: str) -> dict[s
     return table
 
 
-def _bare_name_call_candidates(module_dotted_path: str, calling_fn_nesting_path: str, name: str) -> list[str]:
+def _bare_name_call_candidates(
+    module_dotted_path: str, calling_fn_nesting_path: str, name: str, class_nesting_paths: frozenset[str] | set[str] = frozenset()
+) -> list[str]:
     """Candidate full dotted paths for a bare ``name()`` call, innermost
     scope outward: a helper nested directly inside the calling function
-    itself, then each progressively-shallower enclosing scope (e.g. a
-    sibling method on the same class), then the bare module level.
+    itself, then each progressively-shallower enclosing *function* scope
+    (a class scope is skipped, as in Python), then the bare module level.
     Approximates Python's own lexical scoping for the common cases - not a
     full closure-resolution implementation (see this module's own
     docstring and the plan this was built against)."""
     candidates = []
     prefix = calling_fn_nesting_path
     while prefix:
-        candidates.append(f"{module_dotted_path}.{prefix}.{name}")
+        # A class body is not an enclosing scope: inside a method, a bare name never means a sibling method.
+        if prefix not in class_nesting_paths:
+            candidates.append(f"{module_dotted_path}.{prefix}.{name}")
         prefix = prefix.rsplit(".", 1)[0] if "." in prefix else ""
     candidates.append(f"{module_dotted_path}.{name}")
     return candidates
@@ -905,7 +1033,9 @@ def _resolve_call_target(
         local_target = local_import_table.get(name)
         if local_target is not None:
             return _lookup_function_or_class(local_target, ctx.symbol_index)
-        for candidate in _bare_name_call_candidates(ctx.module_dotted_path, calling_fn_nesting_path, name):
+        if any(name in scope for scope in ctx.local_name_scopes):
+            return None  # a parameter or local variable: no type inference, never guess
+        for candidate in _bare_name_call_candidates(ctx.module_dotted_path, calling_fn_nesting_path, name, ctx.class_nesting_paths):
             found = _lookup_function_or_class(candidate, ctx.symbol_index)
             if found is not None:
                 return found
@@ -949,12 +1079,13 @@ def _resolve_call_target(
 
 
 def _emit_calls(
-    body: list[ast.stmt],
+    function: ast.FunctionDef | ast.AsyncFunctionDef,
     fn_iri: URIRef,
     calling_fn_nesting_path: str,
     enclosing_class_dotted_path: str | None,
     ctx: _ExtractionContext,
 ) -> None:
+    body = function.body
     try:
         local_import_table = _local_import_table(body, ctx.module_dotted_path)
     except Exception as exc:
