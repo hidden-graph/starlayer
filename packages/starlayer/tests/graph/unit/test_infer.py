@@ -33,6 +33,17 @@ EX = Namespace("http://example.org/")
 REIFIES = URIRef("http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies")
 
 
+
+def _expand_to_fixpoint(semantics, graph):
+    """owlrl to a fixpoint. One pass is not a closure (its axiomatic triples are typed rdfs:Resource only on the next
+    pass), and infer() repeats it until nothing changes (GitHub issue #97)."""
+    for _ in range(8):
+        size = len(graph)
+        owlrl.DeductiveClosure(semantics).expand(graph)
+        if len(graph) == size:
+            break
+
+
 def _rdfs_graph() -> StarLayerGraph:
     g = StarLayerGraph()
     g.bind("ex", EX)
@@ -51,7 +62,7 @@ class TestInferRdfs:
         oracle = Graph()
         for t in g:
             oracle.add(t)
-        owlrl.DeductiveClosure(owlrl.RDFS_Semantics).expand(oracle)
+        _expand_to_fixpoint(owlrl.RDFS_Semantics, oracle)
 
         assert set(closed) == set(oracle)
 
@@ -198,7 +209,7 @@ class TestInferOwlRl:
         oracle = Graph()
         for t in g:
             oracle.add(t)
-        owlrl.DeductiveClosure(owlrl.OWLRL_Semantics).expand(oracle)
+        _expand_to_fixpoint(owlrl.OWLRL_Semantics, oracle)
 
         assert set(closed) == set(oracle)
 
@@ -253,7 +264,7 @@ class TestInferDelta:
         oracle_after = Graph()
         for t in oracle_before:
             oracle_after.add(t)
-        owlrl.DeductiveClosure(owlrl.RDFS_Semantics).expand(oracle_after)
+        _expand_to_fixpoint(owlrl.RDFS_Semantics, oracle_after)
         oracle_before_set = set(oracle_before)
         oracle_delta = StarLayerGraph()
         for t in oracle_after:
@@ -320,7 +331,7 @@ class TestInferWithTripleTerms:
         oracle_after = Graph()
         for t in oracle_before:
             oracle_after.add(t)
-        owlrl.DeductiveClosure(owlrl.RDFS_Semantics).expand(oracle_after)
+        _expand_to_fixpoint(owlrl.RDFS_Semantics, oracle_after)
         oracle_before_set = set(oracle_before)
         oracle_delta = StarLayerGraph()
         for t in oracle_after:
@@ -380,7 +391,7 @@ class TestInferCombinedRegime:
         oracle = Graph()
         for t in g:
             oracle.add(t)
-        owlrl.DeductiveClosure(owlrl.RDFS_OWLRL_Semantics).expand(oracle)
+        _expand_to_fixpoint(owlrl.RDFS_OWLRL_Semantics, oracle)
 
         assert set(closed) == set(oracle)
 
