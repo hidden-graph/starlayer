@@ -55,8 +55,23 @@ def test_a_native_dataset_without_default_union_still_isolates_the_default_graph
     assert len(list(isolated.query("SELECT * WHERE { ?s ?p ?o }"))) == 0
 
 
-def test_init_bindings_are_refused_on_a_native_store_not_silently_ignored(oxigraph_store):
+def test_init_bindings_are_applied_on_a_native_store(oxigraph_store):
     graph = StarLayerGraph(store=oxigraph_store, backend="rdf-1.2")
     graph.add((E("a"), E("p"), E("b")))
-    with pytest.raises(NotImplementedError, match="initBindings"):
-        graph.query("select ?s ?o where { ?s <http://e/p> ?o }", initBindings={"s": E("a")})
+    graph.add((E("b"), E("p"), E("a")))
+    rows = list(graph.query("select ?s ?o where { ?s <http://e/p> ?o }", initBindings={"s": E("a")}))
+    assert [(str(r[0]), str(r[1])) for r in rows] == [("http://e/a", "http://e/b")]
+    rows = list(graph.query("select ?s ?o where { ?s <http://e/p> ?o }", initBindings={"o": E("a")}))
+    assert [(str(r[0]), str(r[1])) for r in rows] == [("http://e/b", "http://e/a")]
+
+
+def test_inject_init_bindings_skips_strings_comments_iris_and_a_construct_template():
+    from starlayer.graph.backends.native import inject_init_bindings
+
+    values = " VALUES (?s) { (<http://e/a>) } "
+    binding = {"s": E("a")}
+    assert inject_init_bindings("SELECT * { ?s ?p ?o }", binding) == "SELECT * {" + values + " ?s ?p ?o }"
+    construct = inject_init_bindings("CONSTRUCT { ?s <http://e/q> ?o } WHERE { ?s <http://e/p> ?o }", binding)
+    assert construct == "CONSTRUCT { ?s <http://e/q> ?o } WHERE {" + values + " ?s <http://e/p> ?o }"
+    tricky = inject_init_bindings('SELECT ?s { ?s <http://e/p#x> "a { WHERE {" . # WHERE {\n ?s ?q ?o }', binding)
+    assert tricky.startswith("SELECT ?s {" + values)
