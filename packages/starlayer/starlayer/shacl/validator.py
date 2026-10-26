@@ -2049,7 +2049,7 @@ class StarShaclSchema:
             raise ValueError("close_shape() needs a bound shapes graph - construct with StarShaclSchema(shacl_graph=...).")
         return _close_shape(shacl_graph_input, shape)
 
-    def extract_shapes_graph(self, shapes_graph_iri: Any) -> Any | None:
+    def extract_shapes_graph(self, shapes_graph_iri: Any, *, include_referenced: bool = False) -> Any | None:
         """Extracts the ``sh:ShapesGraph``-typed resource named by
         ``shapes_graph_iri`` as a standalone graph.
 
@@ -2122,9 +2122,16 @@ class StarShaclSchema:
         injecting one themselves after extraction) - this method won't
         infer it on their behalf.
 
+        With ``include_referenced=True`` the result is self-contained: the named shapes the members refer to (and the ones
+        those refer to, see ``shapes_graphs.referenced_shapes``) are copied too, whether or not another module defines
+        them, so the result validates on its own. It is off by default, which keeps the behaviour above: the use case
+        for the default is injecting your own definition of a referenced shape, and a copied definition would conflict with it
+        (GitHub issue #19).
+
         Args:
             shapes_graph_iri: The IRI of the ``sh:ShapesGraph``-typed
                 resource to extract.
+            include_referenced: Also copy the named shapes the members refer to, transitively.
 
         Returns:
             A standalone graph containing just that resource's module, or
@@ -2162,6 +2169,12 @@ class StarShaclSchema:
         for member in members:
             for t in sg.cbd(member):
                 result.add(t)
+        if include_referenced:
+            from starlayer.shacl.shapes_graphs import referenced_shapes
+
+            for shape in referenced_shapes(sg, members) - set(members):
+                for t in sg.cbd(shape):
+                    result.add(t)
         return result
 
 
