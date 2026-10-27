@@ -183,6 +183,30 @@ def _register_tt_accessor_functions() -> None:
 
 _register_tt_accessor_functions()
 
+# The lowered form of isTRIPLE(x): a dedicated function, because the old STRSTARTS(STR(x), TT_NS) test cannot be used any
+# more now that a user-written STR(<triple term>) is an error (GitHub issue #74), and a function IRI survives the lowered
+# query's trip through RDF and text unchanged, which an extra flag on the STR node did not.
+TT_IS_TRIPLE_TERM_FN = f"<{TT_NS_PREFIX}fn/isTripleTerm>"
+
+
+def _register_tt_is_triple_term_function() -> None:
+    from rdflib import Literal, URIRef
+    from rdflib.plugins.sparql.operators import register_custom_function
+
+    from starlayer.graph.model.encoding import TT_NS
+    from starlayer.graph.model.triple import TripleTerm
+
+    def _is_triple_term(e, ctx):
+        term = e.expr[0]
+        return Literal(
+            isinstance(term, TripleTerm) or (isinstance(term, URIRef) and str(term).startswith(TT_NS))
+        )
+
+    register_custom_function(URIRef(TT_IS_TRIPLE_TERM_FN[1:-1]), _is_triple_term, override=True, raw=True)
+
+
+_register_tt_is_triple_term_function()
+
 # STRLANGDIR is a SPARQL-callable function (registered like TT_HASH_FN) rather
 # than a pure STRDT/IRI/CONCAT/LCASE expression: a plain expression can't
 # validate its direction argument at all - it would silently build a
@@ -211,7 +235,12 @@ def _register_dirlang_construct_function() -> None:
         # ...), an error per RDF 1.2 Query sec 17.4.2.17's own example
         # table) or a literal with some other, unrelated datatype. A bare
         # str(lex) coercion would silently accept any term here instead.
-        lexical = str(string(lex))
+        lexical_literal = string(lex)
+        # The lexicalForm parameter is xsd:string: a language-tagged literal
+        # ("a"@en) is not one, so it is an error (as it is for STRLANG).
+        if lexical_literal.language:
+            raise SPARQLError("STRLANGDIR: lexical form must not carry a language tag")
+        lexical = str(lexical_literal)
         # .lower() matches stock rdflib's own Builtin_STRLANG (the
         # non-direction-aware sibling function) exactly - its source does
         # the same "lang=str(expr.arg2).lower())" - kept unchanged here.
@@ -278,7 +307,6 @@ _register_dirlang_construct_function()
 # in for its usual Expr, then re-wraps the bare string result in the
 # correct kind per that function's own spec-mandated propagation rule.
 def _register_dirlang_string_functions() -> None:
-    import re
     from types import SimpleNamespace
 
     from rdflib import Literal, URIRef
@@ -478,15 +506,9 @@ def _register_dirlang_string_functions() -> None:
         # instead, reusing stock Builtin_REGEX's own (correct) flag-mapping
         # approach via re.sub(..., flags=cFlag) as a keyword.
         lexical, language, direction = _classify(arg, "REPLACE")
-        pattern_str = str(_op.string(pattern))
-        replacement_str = str(_op.string(replacement))
-        replacement_str = re.sub(r"\$([0-9]*)", r"\\\1", replacement_str)
-        c_flags = 0
-        if flags:
-            flag_map = {"i": re.IGNORECASE, "s": re.DOTALL, "m": re.MULTILINE}
-            for f in str(flags):
-                c_flags |= flag_map.get(f, 0)
-        result = re.sub(pattern_str, replacement_str, lexical, flags=c_flags)
+        from starlayer.graph.query.builtin_error_patches import xpath_replace
+
+        result = xpath_replace(lexical, _op.string(pattern), _op.string(replacement), flags)
         return _same_kind(result, language, direction)
 
     def _encode_for_uri(arg):

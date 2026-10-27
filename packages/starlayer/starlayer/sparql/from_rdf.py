@@ -151,6 +151,8 @@ def rdf_to_query(graph: Graph, root: BNode) -> Query:
     Returns:
         A fully reconstructed, evaluator-ready ``Query``.
     """
+    if root is None or (root, None, None) not in graph:
+        raise ValueError(f"{root!r} is not an encoded query in this graph")
     algebra = _decode(root, graph)
 
     # Recompute the _vars/lazy bookkeeping to_rdf.py deliberately doesn't
@@ -195,7 +197,10 @@ def rdf_to_update(graph: Graph, root: BNode) -> Update:
     Returns:
         A fully reconstructed ``Update``.
     """
-    ops = _decode_list_field(graph.value(root, SALG.operations), graph)
+    operations = graph.value(root, SALG.operations) if root is not None else None
+    if operations is None:
+        raise ValueError(f"{root!r} is not an encoded update in this graph")
+    ops = _decode_list_field(operations, graph)
     prologue = _decode_prologue(root, graph)
     for op in ops:
         op.prologue = prologue
@@ -534,6 +539,11 @@ def _decode_comp_value(node, type_uri: URIRef, graph: Graph):
         if (name, key) in _PLAIN_VALUE_KEYS:
             value = _to_python_deep(value)
         kwargs[key] = value
+
+    if name == "values" and isinstance(kwargs.get("res"), list):
+        # A VALUES row with no variables (``VALUES () { () }``) is encoded as
+        # an empty RDF list, which decodes to rdf:nil; the row is ``{}``.
+        kwargs["res"] = [{} if row == RDF.nil else row for row in kwargs["res"]]
 
     if name == "TrueFilter":
         # The module-level singleton Expr rdflib's own algebra uses for a

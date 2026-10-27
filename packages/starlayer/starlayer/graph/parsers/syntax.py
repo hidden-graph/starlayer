@@ -115,6 +115,10 @@ def _split_on_delimiter(text, delim):
             buf += ch
             i += 1
             continue
+        if ch == '\\' and i + 1 < n:
+            buf += text[i:i + 2]  # PN_LOCAL_ESC in a prefixed name: the next character is part of the name (GitHub issue #59)
+            i += 2
+            continue
         if ch in ('"', "'"):
             if text[i:i + 3] == ch * 3:
                 in_str, str_char, triple = True, ch, True
@@ -141,6 +145,17 @@ def _split_on_delimiter(text, delim):
     return parts
 
 
+_SPARQL_DIRECTIVE_OPERAND = re.compile(
+    r"""(?:prefix[ \t]+[^\s:<>]*:[ \t]*<[^>]*>"""
+    r"""|base[ \t]*<[^>]*>"""
+    r"""|version[ \t]*(?:"[^"\\\r\n]*"|'[^'\\\r\n]*')(?!["']))""",  # not a long string: VERSION """1.2""" is malformed
+    re.IGNORECASE,
+)
+
+
+_AT_PREFIX_OPERAND = re.compile(r"@prefix[ \t]+[^\s:<>]*:[ \t]*<[^>]*>", re.IGNORECASE)
+
+
 def _scan_directive_end(data, i):
     """From position i (the start of a directive keyword), find where this
     directive statement ends.
@@ -159,11 +174,24 @@ def _scan_directive_end(data, i):
     Returns the exclusive end offset (just past the '.' if found, otherwise
     at the line-terminating '\\n'/'\\r' or end of data).
     """
+    if data[i] != '@':
+        # SPARQL-style PREFIX/BASE/VERSION has no terminating '.': the directive is
+        # exactly its operand, so a triple that follows on the same line is its own
+        # statement (GitHub issue #73). A lenient trailing '.' is still accepted.
+        m = _SPARQL_DIRECTIVE_OPERAND.match(data, i)
+        if m:
+            end = m.end()
+            dot = re.compile(r'[ \t]*\.(?=[ \t\r\n]|$)').match(data, end)
+            return dot.end() if dot else end
     depth = {'[': 0, '(': 0, '{': 0, '<': 0}
     in_string = False
     string_char = ''
     triple = False
     j = i
+    # A prefix name may contain '.' (PN_PREFIX: "a.b"), which is not the directive's end: scan on from after the IRI
+    m = _AT_PREFIX_OPERAND.match(data, i) if data[i] == '@' else None
+    if m:
+        j = m.end()
     while j < len(data):
         c = data[j]
         if in_string:
@@ -335,6 +363,10 @@ def _split_statements_impl(data):
             while i < len(data) and data[i] not in ('\n', '\r'):
                 i += 1
             continue
+        if c == '\\' and i + 1 < len(data) and depth['<'] == 0:
+            buf += data[i:i+2]  # PN_LOCAL_ESC in a prefixed name: the next character is part of the name, not syntax
+            i += 2
+            continue
         if c in ('"', "'"):
             if data[i:i+3] == c * 3:
                 in_string = True
@@ -388,6 +420,13 @@ def _split_statements_impl(data):
             # fixed together with this same bug).
             next_char = data[i+1] if i + 1 < len(data) else ''
             continues_token = next_char != '' and (next_char.isalnum() or next_char in '_-:%.')
+            # ...except that a '.' which STARTS a token cannot be part of a name: PN_LOCAL may not begin with '.', and the
+            # only token that can begin with '.' is a number (".5", always followed by a digit). So a '.' after whitespace
+            # or after something that has just ended (a string, an IRI, a bracket) is the statement's end even when a
+            # name follows it directly ("'x' .ex:b ex:p 'y' ." is two statements). GitHub issue #64.
+            prev_char = data[i-1] if i > 0 else ''
+            if continues_token and not next_char.isdigit() and (prev_char == '' or prev_char.isspace() or prev_char in '"\'>])'):
+                continues_token = False
             if not continues_token:
                 buf += c
                 stmts.append((buf.strip(), stmt_start))
@@ -451,10 +490,18 @@ def split_statements_with_lines(data):
         A list of (statement, line) pairs, line being the 1-based
         approximate source line number where that statement begins.
     """
-    return [
-        (stmt, data[:offset].count('\n') + 1)
-        for stmt, offset in _split_statements_impl(data)
-    ]
+    # Count newlines between consecutive offsets, not over the whole prefix each time (quadratic; GitHub issue #140).
+    out = []
+    prev_offset = 0
+    line = 1
+    for stmt, offset in _split_statements_impl(data):
+        if offset >= prev_offset:
+            line += data.count('\n', prev_offset, offset)
+        else:
+            line = data[:offset].count('\n') + 1
+        prev_offset = offset
+        out.append((stmt, line))
+    return out
 
 
 def classify_statement(stmt):
@@ -521,11 +568,11 @@ def extract_fields(stmt, typ, blank_counter=None):
             s, pos=0,
         )
     elif typ == 'prefix':
-        m = re.match(r'@?prefix\s+([\w-]*)\s*:\s*<([^>]+)>', s, re.IGNORECASE)
+        m = re.match(r'@?prefix\s+([^\s:<>]*)\s*:\s*<([^>]*)>', s, re.IGNORECASE)
         if m:
             return {'prefix': m.group(1), 'iri': m.group(2)}
     elif typ == 'base':
-        m = re.match(r'@?base\s*<([^>]+)>', s, re.IGNORECASE)
+        m = re.match(r'@?base\s*<([^>]*)>', s, re.IGNORECASE)
         if m:
             return {'iri': m.group(1)}
     elif typ == 'triple':
@@ -610,12 +657,40 @@ def expand_triple_set(triple_set, blank_counter):
     """
     result = []
     needs_reexpand = False
+    subject_lists = {}
 
     for triple in triple_set:
         subj = triple['subject']
         pred = triple['predicate']
         obj = triple['object']
         obj_s = obj.strip() if isinstance(obj, str) else obj
+
+        # A collection as the SUBJECT ("( 1 2 ) :q 3 .") is valid Turtle; it names the list's first cell. Expand it to
+        # that blank node plus the list's own triples, which are expanded again below (GitHub issue #61: it used to
+        # become a made-up IRI of the collection's text).
+        if isinstance(subj, str) and subj.strip().startswith('(') and subj.strip().endswith(')'):
+            elements = _parse_collection_elements(subj.strip()[1:-1].strip())
+            if subj in subject_lists:
+                triple = {**triple, 'subject': subject_lists[subj]}  # same statement, same list ("( :x ) :q 1 ; :r 2 .")
+            elif not elements:
+                triple = {**triple, 'subject': 'rdf:nil'}
+            else:
+                cell = f'_:sl_{blank_counter[0]}'
+                blank_counter[0] += 1
+                triple = {**triple, 'subject': cell}
+                subject_lists[subj] = cell
+                current = cell
+                for idx, el in enumerate(elements):
+                    result.append({'subject': current, 'predicate': 'rdf:first', 'object': coerce_object(el.strip())})
+                    if idx < len(elements) - 1:
+                        next_cell = f'_:sl_{blank_counter[0]}'
+                        blank_counter[0] += 1
+                        result.append({'subject': current, 'predicate': 'rdf:rest', 'object': next_cell})
+                        current = next_cell
+                    else:
+                        result.append({'subject': current, 'predicate': 'rdf:rest', 'object': 'rdf:nil'})
+                needs_reexpand = True
+            subj = triple['subject']
 
         if isinstance(obj_s, str) and obj_s.startswith('[') and obj_s.endswith(']'):
             bnode = f'_:sl_{blank_counter[0]}'
@@ -683,7 +758,12 @@ def _parse_collection_elements(inside):
     depth = 0
     in_str = False
     str_char = ''
-    for c in inside:
+    skip = 0
+    for pos, c in enumerate(inside):
+        if skip:
+            skip -= 1
+            buf += c
+            continue
         if in_str:
             buf += c
             if c == str_char:
@@ -693,10 +773,26 @@ def _parse_collection_elements(inside):
             in_str, str_char = True, c
             buf += c
             continue
+        # a reified triple "<<:s :p :o>>" is ONE element though it contains spaces; its << and >> count as brackets
+        if inside[pos:pos + 2] == '<<':
+            depth += 1
+            skip = 1
+            buf += c
+            continue
+        if inside[pos:pos + 2] == '>>':
+            depth -= 1
+            skip = 1
+            buf += c
+            continue
         if c in '[(':
             depth += 1
         elif c in '])':
             depth -= 1
+            if depth == 0 and not buf.strip().startswith('<<'):
+                # a bracketed element ends at its closing bracket: "([:a :b][:c :d])" has two elements, no space needed
+                elements.append((buf + c).strip())
+                buf = ''
+                continue
         if c.isspace() and depth == 0 and buf.strip():
             elements.append(buf.strip())
             buf = ''

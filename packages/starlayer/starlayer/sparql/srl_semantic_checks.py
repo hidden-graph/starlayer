@@ -84,14 +84,18 @@ def _expr_vars(expr) -> set[Variable]:
 
 
 def _has_aggregate(expr) -> bool:
-    """True if an ``Aggregate_*`` node (COUNT, SUM, ...) occurs anywhere in ``expr``.
+    """True if an ``Aggregate_*`` node (COUNT, SUM, ...) or an ``EXISTS`` / ``NOT EXISTS`` occurs anywhere in ``expr``.
     Aggregation is a separate rule element in SRL (still an open issue),
-    never a function inside ``FILTER`` or ``SET``."""
+    never a function inside ``FILTER`` or ``SET``; use a ``NOT { ... }`` negation element instead of ``NOT EXISTS``."""
     found = False
 
     def _visit(node):
         nonlocal found
-        if str(getattr(node, "name", "")).startswith("Aggregate_"):
+        if str(getattr(node, "name", "")).startswith("Aggregate_") or getattr(node, "name", "") in (
+            "Builtin_EXISTS",
+            "Builtin_NOTEXISTS",
+        ):
+            # EXISTS needs a graph pattern the rule evaluator does not run: reject it here rather than crash later (#96)
             found = True
         return None
 

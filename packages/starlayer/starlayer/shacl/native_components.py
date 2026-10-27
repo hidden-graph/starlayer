@@ -101,6 +101,12 @@ def register_native_components() -> None:
     from starlayer.shacl.recursion import install_recursion_patch
 
     install_recursion_patch()  # exact cycle check instead of pySHACL's shape-only heuristic (GitHub issue #26)
+    from starlayer.shacl.triple_rule import install_triple_rule_patch
+
+    install_triple_rule_patch()  # sh:TripleRule defaults and well-formedness (GitHub issue #82)
+    from starlayer.shacl.rule_conditions import install_rule_condition_patch
+
+    install_rule_condition_patch()  # class-shape condition superclasses, sh:order errors (GitHub issue #137)
     if _registered:
         return
 
@@ -1288,8 +1294,10 @@ def _build_node_by_expression_component() -> Any:
             reports: list[Any] = []
             non_conformant = False
             for focus_node, value_nodes in focus_value_nodes.items():
-                shape_nodes = eval_expr(self.expr, focus_node, target_graph, self.shape.sg, scope={})
                 for value in value_nodes:
+                    # evaluated at each value node, which is the focus node of the expression (it was evaluated once at
+                    # the outer focus node: GitHub issue #95)
+                    shape_nodes = eval_expr(self.expr, value, target_graph, self.shape.sg, scope={})
                     for shape_node in shape_nodes:
                         found_shape = self.shape.get_other_shape(shape_node)
                         if found_shape is None:
@@ -1394,9 +1402,14 @@ def _build_reifier_shape_component() -> Any:
             super().__init__(shape)
             path = shape.path()
             if not isinstance(path, URIRef):
-                raise NotImplementedError(
-                    "sh:reifierShape/sh:reificationRequired requires sh:path to be a simple IRI, "
-                    "per the SHACL 1.2 spec's own syntax rule for this constraint component"
+                from pyshacl.errors import ConstraintLoadError
+
+                # a shapes-graph error like the other malformed-shape cases, not "not implemented" (GitHub issue #136)
+                raise ConstraintLoadError(
+                    f"sh:reifierShape/sh:reificationRequired on '{shape.node}' requires sh:path to be a simple IRI "
+                    "(a property shape with a plain predicate), per the SHACL 1.2 spec's own syntax rule "
+                    "for this constraint component",
+                    "https://www.w3.org/TR/shacl12-core/#ReifierShapeConstraintComponent",
                 )
             self.path = path
             self.reifier_shape_node = next(iter(shape.sg.objects(shape.node, SH.reifierShape)), None)
@@ -1548,6 +1561,13 @@ def _build_closed_component() -> Any:
         def constraint_name(cls) -> str:
             return "ClosedConstraintComponent"
 
+        def make_generic_messages(self, datagraph: Any, focus_node: Any, value_node: Any) -> list[Any]:
+            # the text pySHACL's own component gives (GitHub issue #52)
+            from pyshacl.rdfutil import stringify_node
+
+            text = f"Node {stringify_node(datagraph, focus_node)} is closed. It cannot have value: {stringify_node(datagraph, value_node)}"
+            return [Literal(text)]
+
         def evaluate(
             self,
             executor: Any,
@@ -1575,6 +1595,8 @@ def _build_closed_component() -> Any:
             if self.by_types:
                 for focus_node, value_nodes in focus_value_nodes.items():
                     for value in value_nodes:
+                        if _is_encoded_triple_term(target_graph, value):
+                            continue  # a triple term has no properties; the adapter's support triples are not any
                         allowed: set = {RDF.type} | self.ignored_props
                         for value_type in set(o for _, _, o in target_graph.triples((value, RDF.type, None))):
                             allowed |= _collect_by_types_properties(self.shape.sg.graph, value_type, set())
@@ -1593,6 +1615,8 @@ def _build_closed_component() -> Any:
 
             for focus_node, value_nodes in focus_value_nodes.items():
                 for value in value_nodes:
+                    if _is_encoded_triple_term(target_graph, value):
+                        continue  # a triple term has no properties; the adapter's support triples are not any
                     for predicate, obj in target_graph.predicate_objects(value):
                         if (predicate, obj) in _ALWAYS_IGNORE:
                             continue
@@ -1742,12 +1766,18 @@ def _build_node_kind_component() -> Any:
                     f"found {len(values)} on '{shape.node}'."
                 )
             value = values[0]
+            self.nodekind_rule = value
             self.is_list_valued = _is_shacl_list(shape.sg.graph, value)
             if self.is_list_valued:
                 self.node_kinds = _shacl_list_members(shape.sg.graph, value)
                 self.delegate = None
             elif value == SH.TripleTerm:
                 self.node_kinds = [value]
+                self.delegate = None
+            elif value in _UNION_NODE_KINDS:
+                # pySHACL's own component sees an encoded triple term as an IRI, so a single kind is matched here
+                # (a triple term is none of IRI, blank node or literal; GitHub issue #82)
+                self.node_kinds = _UNION_NODE_KINDS[value]
                 self.delegate = None
             else:
                 self.delegate = _OriginalNodeKindComponent(shape)
@@ -1759,6 +1789,12 @@ def _build_node_kind_component() -> Any:
         @classmethod
         def constraint_name(cls) -> str:
             return "NodeKindConstraintComponent"
+
+        def make_generic_messages(self, datagraph: Any, focus_node: Any, value_node: Any) -> list[Any]:
+            # the text pySHACL's own component gives (GitHub issue #94; #52 missed this component)
+            from pyshacl.rdfutil import stringify_node
+
+            return [Literal(f"Value is not of Node Kind {stringify_node(self.shape.sg.graph, self.nodekind_rule)}")]
 
         def evaluate(
             self,
@@ -1795,6 +1831,16 @@ def _build_node_kind_component() -> Any:
     return NodeKindConstraintComponent
 
 
+_UNION_NODE_KINDS: dict[Any, list[Any]] = {
+    SH.IRI: [SH.IRI],
+    SH.BlankNode: [SH.BlankNode],
+    SH.Literal: [SH.Literal],
+    SH.BlankNodeOrIRI: [SH.BlankNode, SH.IRI],
+    SH.BlankNodeOrLiteral: [SH.BlankNode, SH.Literal],
+    SH.IRIOrLiteral: [SH.IRI, SH.Literal],
+}
+
+
 def _matches_node_kind_encoded(value: Any, node_kind: Any, is_triple_term: bool) -> bool:
     from rdflib import BNode
 
@@ -1829,7 +1875,9 @@ def _matches_any_datatype_encoded(value: Any, datatypes: list[Any]) -> bool:
     if _try_decode_dirlangstring(value) is not None:
         return RDF_DIR_LANG_STRING in datatypes
     effective = value.datatype if value.datatype is not None else (RDF.langString if value.language else XSD.string)
-    return effective in datatypes
+    # an ill-typed literal ("nope"^^xsd:date) is not a value of its datatype, as in the single-datatype form
+    # (pySHACL's _assert_actual_datatype); GitHub issue #94
+    return effective in datatypes and value.ill_typed is not True
 
 
 def _build_datatype_component() -> Any:
@@ -1967,9 +2015,10 @@ def _effective_language_direction_key_encoded(value: Any) -> tuple[str, Any] | N
 
     decoded = _try_decode_dirlangstring(value)
     if decoded is not None:
-        return (decoded.language, decoded.direction)
+        return (decoded.language.lower(), decoded.direction)
     if isinstance(value, Literal) and value.language:
-        return (value.language, None)
+        # language tags compare case-insensitively (RDF Concepts 3.3): "en" and "EN" are the same tag. GitHub issue #50.
+        return (value.language.lower(), None)
     return None
 
 
@@ -2013,6 +2062,7 @@ def _build_language_in_component() -> Any:
                     f"found {len(values)} on '{shape.node}'."
                 )
             self.ranges = [str(r) for r in _shacl_list_members(shape.sg.graph, values[0])]
+            self.language_list = values[0]
 
         @classmethod
         def constraint_parameters(cls) -> list[Any]:
@@ -2021,6 +2071,12 @@ def _build_language_in_component() -> Any:
         @classmethod
         def constraint_name(cls) -> str:
             return "LanguageInConstraintComponent"
+
+        def make_generic_messages(self, datagraph: Any, focus_node: Any, value_node: Any) -> list[Any]:
+            # the text pySHACL's own component gives (GitHub issue #52)
+            from pyshacl.rdfutil import stringify_node
+
+            return [Literal(f"String language is not in {stringify_node(self.shape.sg.graph, self.language_list)}")]
 
         def evaluate(
             self,
@@ -2109,6 +2165,10 @@ def _build_unique_lang_component() -> Any:
         @classmethod
         def constraint_name(cls) -> str:
             return "UniqueLangConstraintComponent"
+
+        def make_generic_messages(self, datagraph: Any, focus_node: Any, value_node: Any) -> list[Any]:
+            # the text pySHACL's own component gives (GitHub issue #52)
+            return [Literal("More than one String shares the same Language")]
 
         def evaluate(
             self,
@@ -3191,6 +3251,70 @@ def _build_all_property_pair_components() -> dict[Any, Any]:
     }
 
 
+def _triple_terms_have_no_string(component: Any, executor: Any, target_graph: Any, focus_value_nodes: dict, path: list) -> Any:
+    """Run a pySHACL string constraint with encoded triple terms taken out:
+    a triple term has no string representation, so it violates
+    ``sh:pattern``/``sh:minLength``/``sh:maxLength`` wherever the constraint
+    sits. pySHACL sees the adapter's ``urn:starlayer:tt:`` URI and measures
+    that, so a nested ``sh:node [ sh:minLength 1 ]`` passed (GitHub issue
+    #94).
+    """
+    plain: dict[Any, Any] = {}
+    reports: list[Any] = []
+    bad = False
+    for focus, values in focus_value_nodes.items():
+        kept = []
+        for value in values:
+            if _is_encoded_triple_term(target_graph, value):
+                bad = True
+                reports.append(component.make_v_result(target_graph, focus, value_node=value))
+            else:
+                kept.append(value)
+        plain[focus] = kept
+    ok, more = super(type(component), component).evaluate(executor, target_graph, plain, path)
+    return (ok and not bad), list(more) + reports
+
+
+def _build_string_component(predicate: Any) -> Any:
+    from pyshacl.constraints import CONSTRAINT_PARAMETERS_MAP
+    from pyshacl.errors import ConstraintLoadError
+
+    original = CONSTRAINT_PARAMETERS_MAP[predicate]
+
+    class StringConstraintComponent(original):  # type: ignore[misc, valid-type]
+        """Shadows a pySHACL string constraint (``sh:pattern``,
+        ``sh:minLength``, ``sh:maxLength``): an encoded triple term violates
+        it, and an invalid ``sh:pattern`` raises ``ConstraintLoadError`` naming
+        the shape instead of a raw ``re.error`` (GitHub issue #94).
+
+        Open: ``sh:pattern`` is SPARQL ``REGEX`` (XPath syntax), but this
+        still compiles with Python's ``re``, so XPath-only syntax such as
+        ``\\p{L}`` is rejected as invalid (pySHACL has the same limit).
+        """
+
+        def __init__(self, shape: Any) -> None:
+            import re
+
+            try:
+                super().__init__(shape)
+            except re.error as exc:
+                raise ConstraintLoadError(
+                    f"sh:pattern on '{shape.node}' is not a valid regular expression: {exc}",
+                    "https://www.w3.org/TR/shacl/#PatternConstraintComponent",
+                ) from exc
+
+        def evaluate(self, executor: Any, target_graph: Any, focus_value_nodes: dict, _evaluation_path: list) -> Any:
+            return _triple_terms_have_no_string(self, executor, target_graph, focus_value_nodes, _evaluation_path)
+
+    StringConstraintComponent.__name__ = original.__name__
+    StringConstraintComponent.__qualname__ = original.__qualname__
+    return StringConstraintComponent
+
+
+_PatternConstraintComponent = _build_string_component(SH.pattern)
+_MinLengthConstraintComponent = _build_string_component(SH.minLength)
+_MaxLengthConstraintComponent = _build_string_component(SH.maxLength)
+
 _PROPERTY_PAIR_COMPONENTS = _build_all_property_pair_components()
 
 _NATIVE_COMPONENTS: dict[Any, Any] = {
@@ -3212,6 +3336,9 @@ _NATIVE_COMPONENTS: dict[Any, Any] = {
     SH.ignoredProperties: _ClosedConstraintComponent,
     SH["class"]: _ClassConstraintComponent,
     SH.nodeKind: _NodeKindConstraintComponent,
+    SH.pattern: _PatternConstraintComponent,
+    SH.minLength: _MinLengthConstraintComponent,
+    SH.maxLength: _MaxLengthConstraintComponent,
     SH.datatype: _DatatypeConstraintComponent,
     SH.languageIn: _LanguageInConstraintComponent,
     SH.uniqueLang: _UniqueLangConstraintComponent,

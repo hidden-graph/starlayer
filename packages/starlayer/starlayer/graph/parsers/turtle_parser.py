@@ -106,6 +106,23 @@ def _is_bnode_list(val):
     return s.startswith('[') and s.endswith(']')
 
 
+def _next_object_token(s):
+    """Next term of ``s`` with its ``^^datatype`` or ``@lang`` suffix, plus
+    the rest. ``next_token`` alone stops right after ``^^`` when the
+    datatype is a ``<iri>``."""
+    tok, rest = _lexer.next_token(s)
+    rest = rest.strip()
+    while rest.startswith('^^') or (rest.startswith('@') and len(rest) > 1 and rest[1].isalpha()):
+        if rest.startswith('^^'):
+            dt_tok, rest = _lexer.next_token(rest[2:])
+            suffix = '^^' + dt_tok
+        else:
+            suffix, rest = _lexer.next_token(rest)
+        tok += suffix
+        rest = rest.strip()
+    return tok, rest
+
+
 def _has_reifier(val):
     """Check whether val is << s p o ~ r >> (inline reifier) syntax.
 
@@ -130,7 +147,7 @@ def _has_reifier(val):
         return False
     _, r1 = _lexer.next_token(inner)
     _, r2 = _lexer.next_token(r1)
-    _, r3 = _lexer.next_token(r2)
+    _, r3 = _next_object_token(r2)
     return r3.strip().startswith('~')
 
 
@@ -150,7 +167,7 @@ def _get_reifier_parts(val):
     inner = val.strip()[2:-2].strip()
     ts, r1 = _lexer.next_token(inner)
     tp, r2 = _lexer.next_token(r1)
-    to, r3 = _lexer.next_token(r2)
+    to, r3 = _next_object_token(r2)
     after_tilde = r3.strip()[1:].strip()
     return f'<<( {ts} {tp} {to} )>>', (after_tilde if after_tilde else None)
 
@@ -172,7 +189,13 @@ def _norm_qt(val):
     tp, r2 = _lexer.next_token(r1)
     to, r3 = _lexer.next_token(r2)
     while r3.startswith('^^') or (r3.startswith('@') and len(r3) > 1 and r3[1].isalpha()):
-        suffix, r3 = _lexer.next_token(r3)
+        if r3.startswith('^^'):
+            # tokenize the datatype separately: next_token stops right
+            # after '^^' when an <iri> follows
+            dt_tok, r3 = _lexer.next_token(r3[2:])
+            suffix = '^^' + dt_tok
+        else:
+            suffix, r3 = _lexer.next_token(r3)
         to += suffix
         r3 = r3.strip()
     if r3.strip():
@@ -284,6 +307,33 @@ def _split_literal(val):
     raise Turtle12SyntaxError(f'unterminated {q!r} string', val, pos=len(val))
 
 
+_UCHAR = re.compile(r'\\u([0-9A-Fa-f]{4})|\\U([0-9A-Fa-f]{8})')
+_PN_LOCAL_ESC = re.compile(r"\\([_~.\-!$&'()*+,;=/?#@%])")
+_ABSOLUTE_IRI = re.compile(r'^[a-zA-Z][a-zA-Z0-9+\-.]*:')
+
+
+def _decode_uchar(text):
+    """Replace the \\uXXXX and \\UXXXXXXXX escapes of an IRIREF with the characters they name (Turtle 1.2 sec 6.1)."""
+    return _UCHAR.sub(lambda m: chr(int(m.group(1) or m.group(2), 16)), text)
+
+
+def _join(base_uri, ref):
+    """RFC 3986 reference resolution. ``urllib.parse.urljoin`` drops an empty fragment (``urljoin("http://b/x", "#")`` is
+    ``http://b/x``), which turns a relative ``@prefix p: <#>`` into the wrong namespace (GitHub issue #132); it is put back."""
+    joined = urljoin(base_uri, ref)
+    if ref.endswith('#') and not joined.endswith('#'):
+        joined += '#'
+    return joined
+
+
+def _resolve_iri_reference(raw, base_uri):
+    """An IRIREF's text as an absolute IRI: its escapes decoded, and resolved against the base in effect if it is relative."""
+    inner = _decode_uchar(raw)
+    if base_uri and not _ABSOLUTE_IRI.match(inner):
+        return _join(base_uri, inner)
+    return inner
+
+
 def _to_node(val, prefix_map, base_uri):
     """Convert a string token or coerced Python value to an rdflib term.
 
@@ -320,10 +370,7 @@ def _to_node(val, prefix_map, base_uri):
         return BNode(val[2:])
 
     if val.startswith('<') and val.endswith('>'):
-        inner = val[1:-1]
-        if base_uri and not re.match(r'^[a-zA-Z][a-zA-Z0-9+\-.]*:', inner):
-            return URIRef(urljoin(base_uri, inner))
-        return URIRef(inner)
+        return URIRef(_resolve_iri_reference(val[1:-1], base_uri))
 
     if val.startswith(('"""', "'''", '"', "'")):
         content, suffix, kind = _split_literal(val)
@@ -372,10 +419,11 @@ def _to_node(val, prefix_map, base_uri):
     if ':' in val:
         pref, local = val.split(':', 1)
         if pref in prefix_map:
-            return URIRef(prefix_map[pref] + local)
-        if val.startswith('http'):
-            return URIRef(val)
-        return URIRef(val)
+            # PN_LOCAL_ESC: a backslash before one of the punctuation characters is dropped; a %XX sequence stays as written
+            return URIRef(prefix_map[pref] + _PN_LOCAL_ESC.sub(r'\1', local))
+        # Not a made-up IRI: a prefix that was never declared (or is declared further on) is a syntax error, as in every other
+        # Turtle parser. GitHub issue #61.
+        raise Turtle12SyntaxError(f'undeclared prefix {pref!r} in {val!r}', val, pos=0)
 
     if base_uri:
         # Best-effort relative-reference resolution only - full IRI-reference
@@ -383,7 +431,7 @@ def _to_node(val, prefix_map, base_uri):
         # sibling functions and Turtle12SyntaxError's own docstring); a bare
         # token that isn't a valid relative reference either will still
         # produce a URIRef, just possibly a syntactically invalid one.
-        return URIRef(urljoin(base_uri, val))
+        return URIRef(_join(base_uri, val))
 
     # No recognized term shape matched (not an IRI, prefixed name, blank
     # node, quoted literal, or "a") and there's no base_uri to attempt a
@@ -540,7 +588,11 @@ class _Expander:
         pred_str, rest2 = _lexer.next_token(rest)
         obj_str,  rest3 = _lexer.next_token(rest2)
         while rest3.startswith('^^') or (rest3.startswith('@') and len(rest3) > 1 and rest3[1].isalpha()):
-            suffix, rest3 = _lexer.next_token(rest3)
+            if rest3.startswith('^^'):
+                dt_tok, rest3 = _lexer.next_token(rest3[2:])
+                suffix = '^^' + dt_tok
+            else:
+                suffix, rest3 = _lexer.next_token(rest3)
             obj_str += suffix
             rest3 = rest3.strip()
 
@@ -893,10 +945,13 @@ def _strip_blank_and_comment_lines(data):
     quoted string literal.
 
     Returns:
-        A (lines, line_map) pair: lines is the list of surviving physical
-        lines (terminators stripped, like str.splitlines()), and
+        A (lines, line_map, seps) triple: lines is the list of surviving
+        physical lines (terminators stripped, like str.splitlines()),
         line_map[k] is the 1-based line number in the original data of the
-        k-th surviving line.
+        k-th surviving line, and seps[k] is what follows line k when the
+        lines are joined: "\\n", except that a line break inside a string
+        literal keeps its original bytes ("\\r" or "\\r\\n"), because Turtle does
+        not normalise newlines in string content (GitHub issue #73).
 
     Mirrors syntax._split_statements_impl()'s own string-tracking exactly
     (including its triple-quote-awareness - a lone embedded quote character
@@ -915,6 +970,7 @@ def _strip_blank_and_comment_lines(data):
     """
     lines = []
     line_map = []
+    seps = []
     in_string = False
     string_char = ''
     triple = False
@@ -929,13 +985,15 @@ def _strip_blank_and_comment_lines(data):
             raw_line = ''.join(line_buf)
             stripped = raw_line.strip()
             keep = line_start_in_string or (stripped and not stripped.startswith('#'))
+            terminator = '\r\n' if data[i:i+2] == '\r\n' else c
             if keep:
                 lines.append(raw_line)
                 line_map.append(orig_lineno)
+                seps.append(terminator if in_string else '\n')
             line_buf = []
             orig_lineno += 1
             line_start_in_string = in_string
-            i += 2 if data[i:i+2] == '\r\n' else 1
+            i += len(terminator)
             continue
         if in_string and c == '\\' and i + 1 < n:
             # Skip an escaped character as one atomic pair, before the
@@ -979,8 +1037,9 @@ def _strip_blank_and_comment_lines(data):
     if keep:
         lines.append(raw_line)
         line_map.append(orig_lineno)
+        seps.append('\n')
 
-    return lines, line_map
+    return lines, line_map, seps
 
 
 class StarLayerTurtleParser:
@@ -1022,8 +1081,10 @@ class StarLayerTurtleParser:
         # k-th surviving line in data_clean, so a line number computed against
         # the blank/comment-stripped data_clean (by split_statements_with_lines
         # below) can be translated back to where the user would actually look.
-        lines, line_map = _strip_blank_and_comment_lines(data)
-        data_clean = '\n'.join(lines)
+        lines, line_map, seps = _strip_blank_and_comment_lines(data)
+        data_clean = ''.join(line + sep for line, sep in zip(lines, seps, strict=True))
+        if data_clean.endswith('\n'):
+            data_clean = data_clean[:-1]
 
         def _orig_line(cleaned_line: int) -> int:
             if not line_map:
@@ -1047,6 +1108,10 @@ class StarLayerTurtleParser:
         canonical = {'prefixes': [], 'bases': [], 'triples': []}
         current_base = base
         declared_version = None
+        # The prefixes in effect, as they change down the document: a declaration applies from where it is written, so
+        # redefining a prefix changes what the NEXT statements mean, not the earlier ones (GitHub issue #56). rdf: and sl: are
+        # the parser's own (the expansion of triple terms and reifiers uses them) and a declaration in the document overrides them.
+        current_prefixes = {'rdf': 'http://www.w3.org/1999/02/22-rdf-syntax-ns#', 'sl': SL_NS}
 
         for stmt, cleaned_line in _syntax.split_statements_with_lines(data_clean):
             try:
@@ -1059,10 +1124,17 @@ class StarLayerTurtleParser:
                 if 'version' in fields:
                     declared_version = fields['version']
             elif typ == 'prefix' and 'prefix' in fields and 'iri' in fields:
-                canonical['prefixes'].append({'prefix': fields['prefix'], 'iri': fields['iri']})
+                # A relative IRI in a declaration is resolved against the base in effect right there (GitHub issue #60)
+                try:
+                    declared_iri = _resolve_iri_reference(fields['iri'], current_base)
+                except Turtle12SyntaxError as e:
+                    e.line = _orig_line(cleaned_line)
+                    raise
+                canonical['prefixes'].append({'prefix': fields['prefix'], 'iri': declared_iri})
+                current_prefixes = {**current_prefixes, fields['prefix']: declared_iri}
             elif typ == 'base' and 'iri' in fields:
                 raw = fields['iri']
-                current_base = urljoin(current_base, raw) if current_base else raw
+                current_base = _join(current_base, raw) if current_base else raw
                 canonical['bases'].append({'iri': current_base})
             elif typ == 'triple' and 'triple_set' in fields:
                 try:
@@ -1072,6 +1144,7 @@ class StarLayerTurtleParser:
                     raise
                 for t in triples:
                     t['_base_uri'] = current_base
+                    t['_prefix_map'] = current_prefixes
                     t['_line'] = _orig_line(cleaned_line)
                 canonical['triples'].extend(triples)
 
@@ -1084,15 +1157,17 @@ class StarLayerTurtleParser:
         for triple in canonical['triples']:
             s, p, o = triple['subject'], triple['predicate'], triple['object']
             t_base = triple.get('_base_uri')
+            t_prefixes = triple.get('_prefix_map')
             t_line = triple.get('_line')
             try:
                 s, p, o, extras = expander.expand_qt_in_triple(s, p, o)
             except Turtle12SyntaxError as e:
                 e.line = t_line
                 raise
-            expanded.append({'subject': s, 'predicate': p, 'object': o, '_base_uri': t_base, '_line': t_line})
+            expanded.append({'subject': s, 'predicate': p, 'object': o, '_base_uri': t_base, '_prefix_map': t_prefixes, '_line': t_line})
             for e in extras:
                 e['_base_uri'] = t_base
+                e['_prefix_map'] = t_prefixes
                 e['_line'] = t_line
             expanded.extend(extras)
             if triple.get('annotations'):
@@ -1104,6 +1179,7 @@ class StarLayerTurtleParser:
                     raise
                 for e in ann_extras:
                     e['_base_uri'] = t_base
+                    e['_prefix_map'] = t_prefixes
                     e['_line'] = t_line
                 expanded.extend(ann_extras)
 
@@ -1119,27 +1195,31 @@ class StarLayerTurtleParser:
         # Carry _base_uri/_line from the rdf:reifies triple so relative subjects
         # resolve correctly and any later error on this marker is still located.
         reif_subjects = {
-            (t['subject'], t.get('_base_uri'), t.get('_line'))
+            (t['subject'], t.get('_base_uri'), id(t.get('_prefix_map')), t.get('_line'))
             for t in expanded if t['predicate'] == 'rdf:reifies'
         }
-        for subj, base, line in reif_subjects:
+        prefix_maps_by_id = {id(t.get('_prefix_map')): t.get('_prefix_map') for t in expanded}
+        for subj, base, prefixes_id, line in reif_subjects:
             expanded.append({'subject': subj, 'predicate': 'rdf:type', 'object': 'sl:Reification',
-                              '_base_uri': base, '_line': line})
+                              '_base_uri': base, '_prefix_map': prefix_maps_by_id[prefixes_id], '_line': line})
 
         g = Graph(bind_namespaces='none')  # only the file's own prefixes, not rdflib's defaults (GitHub issue #29)
+        declared = {p['prefix'] for p in canonical['prefixes']}
         for prefix, iri in prefix_map.items():
-            g.bind(prefix, iri)
+            if prefix in declared or prefix == 'sl':  # the parser's own rdf: is not the document's prefix (GitHub issue #132)
+                g.bind(prefix, iri)
         if current_base:
             g.base = current_base
 
         for triple in expanded:
             t_base = triple.get('_base_uri')
             t_line = triple.get('_line')
+            t_prefixes = triple.get('_prefix_map') or prefix_map
             try:
-                s_node = _to_node(triple['subject'], prefix_map, t_base)
+                s_node = _to_node(triple['subject'], t_prefixes, t_base)
                 p_raw = triple['predicate']
-                p_node = RDF.type if p_raw == 'a' else _to_node(p_raw, prefix_map, t_base)
-                o_node = _to_node(triple['object'], prefix_map, t_base)
+                p_node = RDF.type if p_raw == 'a' else _to_node(p_raw, t_prefixes, t_base)
+                o_node = _to_node(triple['object'], t_prefixes, t_base)
             except Turtle12SyntaxError as e:
                 e.line = t_line
                 raise

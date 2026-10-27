@@ -61,7 +61,7 @@ def test_loading_the_overlay_never_changes_what_validates(overlay) -> None:
 
 def test_the_overlay_defines_its_property_groups(overlay) -> None:
     groups = set(overlay.subjects(RDF.type, SH.PropertyGroup))
-    assert len(groups) == 19
+    assert len(groups) == 21
     for group in groups:
         assert list(overlay.objects(group, SH.name)) and len(list(overlay.objects(group, SH.order))) == 1
     used = set(overlay.objects(None, SH.group))
@@ -128,7 +128,7 @@ def test_no_predicate_is_scored_by_two_widgets(scores) -> None:
     """Two scores of the same value for one predicate would tie, and a tie goes to the widget IRI."""
     by_widget = _paths_by_widget(scores)
     all_paths = [path for paths in by_widget.values() for path in paths]
-    assert len(all_paths) == 66 and len(set(all_paths)) == 66
+    assert len(all_paths) == 75 and len(set(all_paths)) == 75  # 66, plus the 8 paths of the new fields (issues #91, #105), plus sh:expression
 
 
 def test_the_layer_gives_a_form_for_editing_a_shape(shacl_shacl, baseline, stacked) -> None:

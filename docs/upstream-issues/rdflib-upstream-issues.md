@@ -73,55 +73,6 @@ Also affects: two `UNION` branches each `BIND`ing the same variable name regener
 
 Fix: `starlayer/graph/query/algebra_translator_patches.py::patch_algebra_translator_bugs`.
 
-## 3. A `BIND` read through an earlier `BIND`, inside `UNION`, gives wrong/duplicate rows
-
-```python
-from rdflib import Graph
-g = Graph()
-g.parse(data="@prefix : <http://ex/> . :s0 :p :vX . :s1 :p :v1 . :s2 :p :v2 .", format="turtle")
-
-list(g.query("""PREFIX : <http://ex/>
-SELECT ?s WHERE {
-  BIND(:v1 AS ?t0) . BIND(:v2 AS ?t1) .
-  { { BIND(?t0 AS ?o) } UNION { BIND(?t1 AS ?o) } }
-  ?s :p ?o .
-}"""))
-# actual:   [(:s2,), (:s0,), (:s1,), (:s2,), (:s0,), (:s1,)]   - 6 rows, :s0 shouldn't match, duplicates
-# expected: [(:s1,), (:s2,)]
-
-# same query with :v1/:v2 written directly inside the UNION (no hoisted BIND):
-list(g.query("""PREFIX : <http://ex/>
-SELECT ?s WHERE {
-  { { BIND(:v1 AS ?o) } UNION { BIND(:v2 AS ?o) } }
-  ?s :p ?o .
-}"""))
-# -> [(:s1,), (:s2,)]  - correct
-```
-
-Fix: `starlayer/graph/query/evaluate_patches.py::patch_evalextend_forgotten_bind_vars`.
-
-## 4. A `BIND` inside one branch of a join can silently lose its value
-
-A `BIND` whose expression needs a variable from *another* branch of the same (implicit or explicit) join is evaluated before that other branch runs, so the variable it needs is unbound. rdflib treats an unbound-variable error inside a `BIND` the same way it treats any failed `BIND` (leave the target unbound, don't abort) - so this doesn't raise anywhere. It just silently produces a row missing that binding, which then fails any `FILTER` that depends on it, and the query returns nothing instead of a real match.
-
-```python
-from rdflib import Graph
-list(Graph().query("
-SELECT ?t {
-  FILTER(?a0 = 1)
-  {
-    BIND(?t + 0 AS ?a0)
-    {
-      BIND(1 AS ?t)
-    }
-  }
-}"))
-# actual:   []
-# expected: [(Literal(1, datatype=xsd:integer),)]
-```
-
-Fix: `starlayer/graph/query/evaluate_patches.py::patch_lazy_join_expr_dependency_order`.
-
 ## 5. Un-aliased computed `GROUP BY` key crashes
 
 SPARQL 1.1's grammar for `GroupCondition` makes the alias optional: `'(' Expression ( 'AS' Var )? ')'` ([§19.8 Grammar, production `GroupCondition`](https://www.w3.org/TR/sparql11-query/#rGroupCondition)) - `GROUP BY (?o+1)`, with no `AS ?var`, is legal syntax distinct from both `GROUP BY ?o` and the aliased `GROUP BY (?o+1 AS ?k)`. rdflib crashes on exactly this one form.
@@ -323,3 +274,267 @@ list(g.query("CONSTRUCT { ?n <http://x/p> ?n } WHERE { ?s <http://x/n> ?n }").gr
 
 Fix: `evaluate_patches.py::patch_construct_skips_encoding_solutions` (the CONSTRUCT patch) now filters them. Found by the Oxigraph differential tests.
 
+## 19. Update graph management acts on the union, not the default graph; `CREATE`, `DELETE WHERE GRAPH ?g` and `USING` are broken
+
+On a `Dataset` (rdflib's update code uses `ctx.graph`, which is the union of all graphs when `default_union` is set):
+
+```python
+from rdflib import Dataset
+d = Dataset(default_union=True)
+d.update("INSERT DATA { GRAPH <http://e/g> { <http://e/z> <http://e/p> <http://e/z> } }")
+d.update("CLEAR DEFAULT")      # also empties <http://e/g>
+d.update("CREATE GRAPH <http://e/n>")                       # Exception: Create not implemented!
+d.update("DELETE WHERE { GRAPH ?g { ?s ?p ?o } }")           # deletes nothing
+d.update("INSERT { ?s ?p ?o } USING <http://e/g> WHERE { ?s ?p ?o }")  # tries to fetch http://e/g
+```
+
+`ADD`/`COPY`/`MOVE` with `DEFAULT` raise `ValueError` or lose data. SPARQL 1.1 Update section 3.2 defines each on the true default graph; section 3.1.3 says `USING` names a graph of the dataset. Found by the second hunt (GitHub issue #78).
+
+Fix: `starlayer/graph/query/update_patches.py::patch_update_graph_management`.
+
+## 20. A negated property set matches the triple-term encoding; `isIRI` and `STR` accept a triple term
+
+On the rdf-1.1 representation a triple term is a `tt:` IRI described by internal triples. rdflib knows nothing about that, so `?x !(:p) ?y` returns the internal `rdf:propositionFormSubject` / `Predicate` / `Object` triples as data, `isIRI(?t)` is true for a triple term and `STR(?t)` returns the internal IRI text. SPARQL 1.2 makes the term kinds disjoint (17.4.2.3): `isIRI` is false for a triple term and `STR` of one is a type error. Found by the second hunt (GitHub issue #74). Also fixed: a pattern holding a triple term and an IRI as objects of the same subject and predicate crashed in rdflib's `reorderTriples` (`TripleTermNode` had no ordering against a `URIRef`).
+
+Fix: `evaluate_patches.py::patch_negated_path_skips_encoding_triples`, `operator_patches.py::patch_triple_terms_are_not_iris`, `TripleTermNode.__lt__`/`__gt__` in `sparql/triple_term.py`.
+
+## 22. `SUBSTR` with a start below 1 returns the wrong string
+
+`SUBSTR` is defined as `fn:substring` (SPARQL 1.1 section 17.4.3.3): it keeps the characters at 1-based positions `p` with `start <= p < start + length`. rdflib slices with the raw index, so a start below 1 gives `""` or a Python negative-index slice. A non-integer start is a type error (the signature takes `xsd:integer`).
+
+```python
+from rdflib import Graph
+list(Graph().query('SELECT (SUBSTR("abc", 0, 2) AS ?x) (SUBSTR("abc", -1, 3) AS ?y) {}'))
+# actual:   ("", "")
+# expected: ("a", "a")
+```
+
+Found by the second hunt (GitHub issue #76). Fix: `starlayer/graph/query/builtin_error_patches.py::patch_substr_xpath_semantics` (also replaces `operators.Builtin_SUBSTR`, which the directional-literal `SUBSTR` reuses).
+
+## 23. `TIMEZONE()` drops the minutes of a UTC offset
+
+```python
+from rdflib import Graph
+list(Graph().query('SELECT (TIMEZONE("2020-01-02T03:04:05-05:30"^^<http://www.w3.org/2001/XMLSchema#dateTime>) AS ?x) {}'))
+# actual:   "-PT5H"^^xsd:dayTimeDuration
+# expected: "-PT5H30M"^^xsd:dayTimeDuration
+```
+
+rdflib computes the minutes with Python 3 true division, so the value is a float and the `%dM` branch is never right. A zero offset should be `PT0S` (fn:timezone-from-dateTime); rdflib normalises the lexical form of a `dayTimeDuration` literal to `P0D` on construction, which is the same value and is left alone. Fix: `builtin_error_patches.py::patch_timezone_keeps_minutes`.
+
+## 24. `IN`, `NOT IN`, `&&`, ordering across types and directional-literal tag case
+
+Four separate errors in `RelationalExpression` / `ConditionalAndExpression` and `sameTerm`:
+
+* `IN` and `NOT IN` compare terms: `1 IN (1.0, 2)` is false and `FILTER(?o NOT IN (1, 2))` keeps `1.0`. SPARQL 1.1 section 17.4.1.9 defines `IN` as a chain of `=` tests (value equality).
+* An error among the list members is swallowed: `2 IN (1/0, 1)` is false; with no match and one error it is an error.
+* `1/0 && false` is an error; the section 17.2 truth table gives false (error AND false = false).
+* `"x" > 1` is true (rdflib sorts across types). The operator mapping (section 17.3) has no `<`/`>` between a string and a number, so it is a type error: `BIND` leaves the target unbound, `FILTER` drops the row.
+* `sameTerm("a"@en--rtl, "a"@EN--rtl)` and `=` on the same are false; RDF 1.2 Concepts compares language tags case-insensitively. The directional literal keeps its tag inside a synthetic datatype IRI, so rdflib compares the case.
+
+```python
+from rdflib import Graph
+list(Graph().query('SELECT (1 IN (1.0, 2) AS ?a) (2 IN (1/0, 1) AS ?b) ("x" > 1 AS ?c) {}'))
+# actual:   (false, false, true)
+# expected: (true, error/unbound, error/unbound)
+```
+
+Found by the second hunt (GitHub issue #76). Fix: `builtin_error_patches.py::patch_relational_operators_follow_spec`; the `sameTerm` part is in `operator_patches.py::patch_sameterm_simple_literal_is_xsd_string`.
+
+## 25. `SUM` and `AVG` over non-numeric values abort the whole query
+
+An error while evaluating an aggregate leaves that one value unbound (SPARQL 1.1 sections 17.2 and 18.5); a `HAVING` condition over it then drops only that group. `SUM` and `AVG` are defined through `op:numeric-add`, which errors on a non-numeric operand. rdflib raises `SPARQLTypeError` / `TypeError` out of `query()` for `SUM`, so every row of the query is lost, and `AVG` silently skips the value.
+
+```python
+from rdflib import Graph
+g = Graph(); g.parse(data='<http://x/s> <http://x/p> 1, "a" .', format="turtle")
+list(g.query("SELECT (SUM(?o) AS ?s) (COUNT(*) AS ?n) { ?x <http://x/p> ?o }"))
+# actual:   SPARQLTypeError
+# expected: [(unbound, 2)]
+```
+
+Found by the second hunt (GitHub issue #76). Fix: `builtin_error_patches.py::patch_sum_avg_errors_are_unbound`. `MIN`/`MAX` order any mix of types (section 18.5 uses the `ORDER BY` ordering) and are unchanged.
+
+## 26. An empty `VALUES` block crashes
+
+`VALUES ?a { }` and `VALUES () { () }` are legal (grammar rules InlineDataOneVar and InlineDataFull): no rows give no solutions; `()` rows over no variables each give one empty solution. rdflib's `translateValues` returns a bare `[]` instead of a `Values` node, so evaluation fails with `AttributeError: 'list' object has no attribute 'name'`.
+
+```python
+from rdflib import Graph
+list(Graph().query("SELECT * WHERE { VALUES ?a { } }"))
+# actual:   AttributeError
+# expected: []
+```
+
+Fix: `builtin_error_patches.py::patch_empty_values_clause`, plus `sparql/from_rdf.py` (a no-variable row is an empty RDF list in the algebra encoding and decoded to `rdf:nil`).
+
+## 27. `STRDT` accepts a non-IRI datatype; `STRLANG` with an invalid tag raises `ValueError`
+
+`STRDT("a", 1)` builds a literal with datatype `<1>`; `STRDT` takes a simple literal or `xsd:string` and an IRI (section 17.4.2.8). `STRLANG("a", "e n")` raises `ValueError: 'e n' is not a valid language tag!` out of the evaluator and aborts the query; a function error must make the value unbound. `STRLANGDIR("a"@en, ...)` (StarLayer's own function) also accepted a language-tagged lexical form.
+
+```python
+from rdflib import Graph
+list(Graph().query('SELECT (STRDT("a", 1) AS ?x) (COALESCE(STRLANG("a", "!!"), "f") AS ?y) {}'))
+# actual:   a literal with datatype <1>, then ValueError
+# expected: (unbound, "f")
+```
+
+Fix: `builtin_error_patches.py::patch_strdt_requires_string_and_iri`; the `STRLANG` part extends `operator_patches.py::patch_strlang_rejects_empty_language_tag`.
+
+## 28. Ill-typed literals: `RecursionError`, `isNumeric` true, and `AttributeError` in `DAY()`/`YEAR()`
+
+rdflib's `numeric()` returns the `Literal` itself when its value cannot be parsed (`"abc"^^xsd:integer`), so `+` recurses until `RecursionError` and `isNumeric` answers true. `datetime()`/`date()` do the same, so `DAY("x"^^xsd:dateTime)` dies with `AttributeError: 'Literal' object has no attribute 'day'`. An ill-typed literal is a type error (section 17.3); the expression is unbound and `COALESCE` skips it.
+
+```python
+from rdflib import Graph
+list(Graph().query('SELECT ("abc"^^<http://www.w3.org/2001/XMLSchema#integer> + 1 AS ?x) {}'))
+# actual:   RecursionError
+# expected: unbound
+```
+
+Fix: `builtin_error_patches.py::patch_ill_typed_literals_are_errors`.
+
+## 29. `SELECT *` lists variables that occur only in a `FILTER`; `DESCRIBE *` crashes
+
+The in-scope variables of a group pattern (section 18.2.1) come from its patterns. rdflib collects every variable in the `WHERE` tree, so `SELECT * { ?s :p ?o FILTER EXISTS { ?o :p ?zz } }` has an always-unbound `?zz` column. `DESCRIBE *` fails with `TypeError: 'NoneType' object is not iterable` because the parser leaves the variable list empty; it describes the resources bound to the in-scope variables.
+
+Fix: `builtin_error_patches.py::patch_select_star_scope_and_describe_star`.
+
+## 30. `xsd:double` division by zero is an error instead of INF
+
+`op:numeric-divide` on `xsd:double`/`xsd:float` never raises: `1e0/0` is `INF`, `-1e0/0` is `-INF`, `0e0/0` is `NaN`. Only integer and decimal division by zero is an error. rdflib computes through `Decimal`, so it errors for all of them. The special values also need their XSD lexical forms (`INF`, `-INF`, `NaN`); rdflib writes `inf`, `nan`, and `canonicalize_query_result_value` had turned those into `inf.0` and `nan.0`.
+
+```python
+from rdflib import Graph
+list(Graph().query("SELECT (1e0/0 AS ?x) {}"))
+# actual:   unbound
+# expected: "INF"^^xsd:double
+```
+
+Fix: `operator_patches.py::patch_multiplicative_expression_type_promotion` (the division branch), `graph/model/encoding.py::_canonicalize_numeric_literal`.
+
+## 35. `REGEX`/`REPLACE`: an invalid pattern aborts the query; `REPLACE` mangles `$0`, flags and zero-length patterns
+
+`fn:matches` and `fn:replace` make an invalid pattern or flag an error (a `FILTER` drops the row, a projection stays unbound). rdflib lets Python's `re.error` escape and abort the whole query, and ignores an unknown flag. `REPLACE` also rewrites `$0` to the octal escape `\0` (a NUL character instead of the whole match), accepts a pattern that matches the zero-length string (`fn:replace` raises FORX0003), and passes its flags to `re.sub` as the `count` argument. Python's `re` is not XPath's dialect (`\p{L}` is an error there), which StarLayer reports as an invalid pattern rather than translating.
+
+```python
+from rdflib import Graph
+list(Graph().query("SELECT (REPLACE('abc', 'b', '<$0>') AS ?x) (REPLACE('abc', 'x*', '-') AS ?y) {}"))
+# actual:   'a<\x00>c', '-a-b-c-'
+# expected: 'a<b>c', unbound
+list(Graph().query('SELECT ?x { BIND("a" AS ?x) FILTER(REGEX(?x, "(")) }'))
+# actual:   re.error: missing ), unterminated subpattern
+# expected: no rows
+```
+
+Fix: `builtin_error_patches.py::patch_regex_and_replace_follow_xpath` (`custom_functions.py` calls the same `xpath_replace` for directional literals).
+
+## 36. `ROUND`, `FLOOR` and `CEIL` raise on NaN, INF and very large doubles
+
+`fn:round`, `fn:floor` and `fn:ceiling` return NaN for NaN and +/-INF for +/-INF, and a very large double is already integral. rdflib converts to a Python `int`, so `ROUND("NaN"^^xsd:double)` raises `ValueError`, `ROUND("INF"^^xsd:double)` and `ROUND(1e300)` raise `decimal.InvalidOperation`, and `FLOOR("INF"^^xsd:double)` raises `OverflowError`; one such value in a data column aborts the whole result set.
+
+```python
+from rdflib import Graph
+list(Graph().query("SELECT (ROUND('NaN'^^<http://www.w3.org/2001/XMLSchema#double>) AS ?x) {}"))
+# actual:   ValueError: cannot convert NaN to integer
+# expected: "NaN"^^xsd:double
+```
+
+Fix: `builtin_error_patches.py::patch_rounding_of_special_doubles`.
+
+## 37. A language-tagged string orders against a number
+
+The operator mapping of section 17.3 defines `<`, `>`, `<=` and `>=` for numerics, simple literals / `xsd:string`, `xsd:boolean` and `xsd:dateTime` only, so `"abc"@en > 1` is a type error and `FILTER` drops the row. rdflib answers true through its cross-type sort order for a language-tagged string (a plain `"x"` is already dropped).
+
+```python
+from rdflib import Graph
+g = Graph().parse(data='@prefix : <http://e/> . :a :r 1, 2.5, "abc"@en .', format="turtle")
+[str(r[0]) for r in g.query("SELECT ?o { <http://e/a> <http://e/r> ?o FILTER(?o > 1) }")]
+# actual:   ['2.5', 'abc']
+# expected: ['2.5']
+```
+
+Fix: `builtin_error_patches.py::patch_relational_operators_follow_spec` (`_ordering_class`).
+
+## 21. A negated property set with an inverse member crashes or answers wrongly; `p*` returns a node twice on a cycle
+
+```python
+from rdflib import Graph
+g = Graph().parse(data="@prefix : <http://e/> . :a :p :b . :b :p :a .", format="turtle")
+list(g.query("PREFIX : <http://e/> SELECT ?o { ?s !(^:p) ?o }"))          # TypeError: 'NoneType' object is not callable
+list(g.query("PREFIX : <http://e/> SELECT ?y { :a :p* ?y }"))             # a appears twice: the zero-length match and the cycle
+```
+
+The grammar writes the inverse member as `Comp("InversePath", "^" + iri)` with the IRI not a named parameter, so the parsed node is empty and the IRI is lost. `NegatedPath.eval` also reads `^b` as "skip a forward edge whose reverse exists", where SPARQL 1.1 section 18.4 makes `!(a|^b)` the alternative `!(a) | ^(!(b))`. `MulPath.eval` yields a bag, but `*`, `+` and `?` are evaluated over the set of reachable nodes. Found by the second and third hunts (GitHub issue #77).
+
+Fix: `starlayer/graph/query/path_patches.py::patch_negated_set_inverse_member` and `patch_repetition_paths_are_distinct`, and `evaluate_patches.py::patch_negated_path_skips_encoding_triples` (the evaluation).
+
+## 31. `DELETE DATA`, `DELETE WHERE` and `DELETE { }` delete from every graph; `USING` and `USING NAMED` are wrong; invalid template triples are inserted
+
+On a `Dataset`, `evalDeleteData`, `evalDeleteWhere` and `evalModify` write through `ctx.graph`, which is the dataset itself, and `Dataset.remove((s, p, o))` removes the triple from every graph:
+
+```python
+from rdflib import Dataset
+d = Dataset()
+d.update("INSERT DATA { <http://e/a> <http://e/p> <http://e/b> . GRAPH <http://e/g> { <http://e/a> <http://e/p> <http://e/b> } }")
+d.update("DELETE DATA { <http://e/a> <http://e/p> <http://e/b> }")
+len(list(d.quads()))   # actual: 0; expected: 1 (the copy in <http://e/g> stays)
+```
+
+SPARQL 1.1 Update section 3.1.3 deletes from the graph the template names, the default graph without `GRAPH`. Related defects in the same functions:
+
+- `DELETE { ... } USING <g> WHERE { ... }` loads `g` into the graph the template then deletes from, so it deletes from `g`; `USING` only changes what `WHERE` reads.
+- `USING NAMED <g>` does nothing: `GRAPH ?g` still ranges over every graph, and with no `USING` the default graph is not empty. Section 3.1.3 makes the named graphs exactly the `USING NAMED` ones.
+- A template triple with a literal subject or a non-IRI predicate is inserted, and so is a `GRAPH ?z { }` quad whose name is unbound or a literal. Section 3.1.3: such a triple or quad is not instantiated.
+- `CLEAR`, `DROP`, `ADD`, `COPY` and `MOVE` of a graph that does not exist succeed; without `SILENT` the spec makes that an error (section 3.2). pyoxigraph raises.
+- All deletes of one request run before any insert (section 3.1.3); rdflib interleaves them per solution.
+
+Found by the third hunt (GitHub issue #135).
+
+Fix: `starlayer/graph/query/update_patches.py::patch_update_graph_management` (it now replaces `evalInsertData`, `evalDeleteData` and `evalModify` too, and supersedes `evaluate_patches.py::patch_evalmodify_default_graph_selection`).
+
+## 32. An empty update request crashes
+
+`Update ::= Prologue ( Update1 ( ';' Update )? )?` allows a request with no operation. rdflib's `translateUpdate` returns a bare `[]` for it instead of an `Update`, so the processor dies:
+
+```python
+from rdflib import Graph
+Graph().update("# nothing")   # AttributeError: 'list' object has no attribute 'algebra'
+```
+
+Fix: `starlayer/sparql/parse12.py::prepare_update_12` returns an `Update` with no operations, and `StarLayerGraph.update()`/`StarLayerDataset.update()` do nothing for it.
+
+## 33. A join with a non-lazy right side drops duplicate solutions (a subquery with `LIMIT` loses rows)
+
+```python
+from rdflib import Graph
+g = Graph().parse(data="@prefix e: <http://e/> . e:s e:says e:b . e:s2 e:says e:b .", format="turtle")
+len(list(g.query("PREFIX e: <http://e/> SELECT * { ?x e:says ?t { SELECT ?t { ?q e:says ?t } LIMIT 5 } }")))
+# actual:   2
+# expected: 4  (the subquery yields two ?t = e:b rows, and each joins with both ?x)
+```
+
+`evalJoin` evaluates a join lazily only when neither side holds a `LIMIT`/`OFFSET` slice or `DISTINCT` (`analyse`). Otherwise it builds the right operand as `set(evalPart(ctx, join.p2))`, which de-duplicates it. SPARQL 1.1 section 18.5 defines `Join` over multisets, so every duplicate solution joins again. The same query without `LIMIT` returns 4. Found by the third hunt (GitHub issue #134).
+
+Fix: `evaluate_patches.py::patch_join_keeps_duplicate_rows` (the right side is a list).
+
+## 34. `MIN`/`MAX` return a literal for any term; an error in an aggregate argument becomes the result
+
+```python
+from rdflib import Graph
+g = Graph().parse(data="@prefix : <http://e/> . :a :p :b, :c .", format="turtle")
+list(g.query("PREFIX : <http://e/> SELECT (MIN(?o) AS ?m) { :a :p ?o }"))
+# actual:   "http://e/b" (a plain literal)
+# expected: <http://e/b>
+list(g.query("PREFIX : <http://e/> SELECT (GROUP_CONCAT(?o+1) AS ?g) { :a :p ?o }"))
+# actual:   a string containing "... is not a literal!" (the exception text)
+# expected: unbound
+```
+
+`Extremum.set_value` wraps the value in `Literal(...)`, so the minimum of IRIs is a string and the minimum of a triple term is a literal holding its internal `tt:` hash IRI. `_eval` hands back a `SPARQLError` as a value instead of raising, and `GroupConcat` and `Extremum` store it, so the message becomes part of the result (`MAX(STR(?o))` returns the message). SPARQL 1.1 section 18.5 makes `Min`/`Max` return a term of the group, and an error in an aggregate argument makes the aggregate an error (unbound). `GROUP_CONCAT` over a triple term, which has no string form, is also an error here (Oxigraph agrees). Found by the third hunt (GitHub issue #134).
+
+Fix: `builtin_error_patches.py::patch_min_max_group_concat_terms_and_errors`.
+
+## Withdrawn entries
+
+Items 3 and 4 of this list were withdrawn on 2026-10-25 (GitHub issue #54). Both claimed that a `BIND` should see a variable bound in a sibling or enclosing group, and StarLayer patched rdflib (`patch_evalextend_forgotten_bind_vars`, `patch_lazy_join_expr_dependency_order`) to make it so. SPARQL 1.1 section 18.2.2.6 evaluates each group on its own and joins the results, so a `BIND` cannot see such a variable and plain rdflib was right. For example `SELECT * { VALUES ?x {1 2} { BIND(?x+1 AS ?y) } }` returns `?x` only, and `{ BIND(:v1 AS ?t0) { { BIND(?t0 AS ?o) } UNION { BIND(:v2 AS ?o) } } ?s :p ?o }` returns every `?s :p ?o` row once per union branch (six rows, not two). Both patches were removed; `tests/graph/unit/test_bind_scoping.py` pins the spec behaviour. The numbers 3 and 4 are not reused. Items 8 and 16 (`FILTER`) are the same question for filters and have not been re-examined.

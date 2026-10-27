@@ -1,6 +1,7 @@
 from typing import Any
 
 import pytest
+from pyshacl.errors import ConstraintLoadError
 from rdflib import Graph, Literal, Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl.adapters import TripleTermAdapter, TripleTermGraph, TripleTermValue
@@ -531,7 +532,7 @@ def test_validator_build_report_delegates_to_native_core() -> None:
     assert any(o == (EX.bob, EX.knows, EX.carol) for _, _, o in report.triples((None, SH.value, None)))
 
 
-def test_validate_uses_integrated_literal_only_path_for_non_literal_values() -> None:
+def test_validate_reports_pattern_on_triple_term_values_through_pyshacl() -> None:
     data = StarLayerGraph()
     data.add((EX.alice, EX.value, (EX.a, EX.p, EX.b)))
 
@@ -551,10 +552,8 @@ def test_validate_uses_integrated_literal_only_path_for_non_literal_values() -> 
         format="turtle12",
     )
 
-    def fail_if_called(**_: Any):
-        raise AssertionError("validate_fn should not be called for integrated native literal-only path")
-
-    validator = StarShaclSchema(shacl_graph=shapes, adapter=TripleTermAdapter(), validate_fn=fail_if_called)
+    # the native fast paths are declined (issue #136): the full pySHACL report is produced
+    validator = StarShaclSchema(shacl_graph=shapes, adapter=TripleTermAdapter())
     result = validator.validate(data_graph=data)
 
     assert result.conforms is False
@@ -593,7 +592,7 @@ def test_validate_falls_back_when_integrated_literal_only_path_is_unsupported() 
     assert result.conforms is True
 
 
-def test_validate_uses_integrated_structural_property_path_for_has_value() -> None:
+def test_validate_has_value_on_a_triple_term_through_pyshacl() -> None:
     data = StarLayerGraph()
     data.add((EX.alice, EX.value, (EX.a, EX.p, EX.b)))
 
@@ -613,10 +612,8 @@ def test_validate_uses_integrated_structural_property_path_for_has_value() -> No
         format="turtle12",
     )
 
-    def fail_if_called(**_: Any):
-        raise AssertionError("validate_fn should not be called for integrated native structural path")
-
-    validator = StarShaclSchema(shacl_graph=shapes, adapter=TripleTermAdapter(), validate_fn=fail_if_called)
+    # the native fast paths are declined (issue #136): the full pySHACL report is produced
+    validator = StarShaclSchema(shacl_graph=shapes, adapter=TripleTermAdapter())
     result = validator.validate(data_graph=data)
 
     assert result.conforms is True
@@ -884,7 +881,7 @@ def test_validate_hard_fails_when_reification_path_is_not_simple_iri() -> None:
     )
 
     validator = StarShaclSchema(shacl_graph=shapes)
-    with pytest.raises(NotImplementedError, match="simple IRI"):
+    with pytest.raises(ConstraintLoadError, match="simple IRI"):
         _ = validator.validate(data_graph=data, meta_shacl=False)
 
 

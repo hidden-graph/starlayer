@@ -103,6 +103,54 @@ def first_paragraph(text: str) -> str:
     return " ".join(line.strip() for line in first_para.splitlines())
 
 
+def _module_name(rel_path: str) -> str:
+    parts = list(pathlib.PurePosixPath(rel_path).with_suffix("").parts)
+    if parts[-1] == "__init__":
+        parts.pop()
+    return ".".join(["starlayer", *parts])
+
+
+def _module_path(module: str) -> pathlib.Path | None:
+    rel = pathlib.Path(*module.split(".")[1:]) if module != "starlayer" else pathlib.Path()
+    candidates = [PKG_ROOT / rel / "__init__.py"] + ([PKG_ROOT / rel.with_suffix(".py")] if rel.parts else [])
+    return next((c for c in candidates if c.is_file()), None)
+
+
+def resolve_export(module: str, name: str, _depth: int = 0) -> str | None:
+    """The dotted path of the module-level definition that ``name`` in ``module`` stands for, or ``None``.
+
+    An ``__all__`` name is usually imported from a submodule, so this follows ``from x import name [as alias]``
+    statements until the module that defines it. Matching only the bare name would pick up every unrelated symbol that
+    shares it (every ``evaluate`` method, say).
+    """
+    path = _module_path(module)
+    if path is None or _depth > 8:
+        return None
+    is_package = path.name == "__init__.py"
+    tree = ast.parse(path.read_text())
+    for node in tree.body:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and node.name == name:
+            return f"{module}.{name}"
+        if isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == name for t in node.targets):
+            return f"{module}.{name}"
+    for node in tree.body:
+        if not isinstance(node, ast.ImportFrom):
+            continue
+        for alias in node.names:
+            if (alias.asname or alias.name) != name:
+                continue
+            if node.level:
+                base = module.split(".") if is_package else module.split(".")[:-1]
+                base = base[: len(base) - (node.level - 1)]
+                target = ".".join([*base, *([node.module] if node.module else [])])
+            else:
+                target = node.module or ""
+            if not target.startswith("starlayer"):
+                return None
+            return resolve_export(target, alias.name, _depth + 1)
+    return None
+
+
 def collect_public_entities(ds: Dataset) -> list[tuple[str, str]]:
     """Returns ``[(identifier, bucket), ...]`` for every PublicAccess
     entity, in the same order/definition ``/tmp/scope_headlines.py``
@@ -110,6 +158,7 @@ def collect_public_entities(ds: Dataset) -> list[tuple[str, str]]:
     """
     all_names_by_bucket: dict[str, set[str]] = defaultdict(set)
     for rel_path, bucket in _ALL_FILES:
+        module = _module_name(rel_path)
         tree = ast.parse((PKG_ROOT / rel_path).read_text())
         for node in ast.walk(tree):
             if isinstance(node, ast.Assign) and any(
@@ -118,19 +167,21 @@ def collect_public_entities(ds: Dataset) -> list[tuple[str, str]]:
                 if isinstance(node.value, (ast.List, ast.Tuple)):
                     for elt in node.value.elts:
                         if isinstance(elt, ast.Constant) and isinstance(elt.value, str):
-                            all_names_by_bucket[bucket].add(elt.value)
+                            defined = resolve_export(module, elt.value)
+                            if defined is not None:
+                                all_names_by_bucket[bucket].add(defined)
 
-    label_index: dict[str, list] = defaultdict(list)
-    for s, _p, o, _c in ds.quads((None, RDFS.label, None, None)):
-        label_index[str(o)].append(s)
+    identifier_index: dict[str, list] = defaultdict(list)
+    for s, _p, o, _c in ds.quads((None, DCTERMS.identifier, None, None)):
+        identifier_index[str(o)].append(s)
 
     entities: list[tuple[str, str]] = []
     seen: set[str] = set()
 
     for bucket in _BUCKET_ORDER:
-        for name in sorted(all_names_by_bucket.get(bucket, ())):
+        for name in sorted(all_names_by_bucket.get(bucket, ()), key=lambda dotted: (dotted.rsplit(".", 1)[-1], dotted)):
             # Sorted: the dataset's own iteration order is not stable across builds.
-            for ent in sorted(label_index.get(name, []), key=str):
+            for ent in sorted(identifier_index.get(name, []), key=str):
                 if _is_external_type(ds, ent):
                     continue
                 ident = _val(ds, ent, DCTERMS.identifier)

@@ -53,18 +53,14 @@ FORMS = (
     ("PropertyShapeForm", SH.PropertyShape, STSH.propertyFormField),
 )
 
-# Predicates shacl_shacl validates that are not a field of any shape's form, because they belong to another kind of node. A
-# predicate that belongs in a form of a node kind we have no form for yet (a constraint component, a widget score, a validation
-# report) is listed here with that kind, so adding such a form is a visible change.
+# Predicates shacl_shacl validates that are not a field of any form shape, because they belong to a kind of node that has no form. A
+# predicate that belongs in a form of a node kind we have no form for yet (a validation report, a node expression) is listed here
+# with that kind, so adding such a form is a visible change. (The SPARQL constraint, rule, constraint component, parameter, validator,
+# function, SPARQL target, prefix declaration and widget score forms of GitHub issue #105 took their predicates off this list.)
 EXCLUDED: dict[URIRef, str] = {
-    **{p: "a field of a shui:WidgetScore, not of a shape" for p in (SHUI.score, SHUI.widget, SHUI.shapesGraphShape, SHUI.dataGraphShape)},
-    **{p: "a field of a SPARQL constraint or a constraint component, not of a shape" for p in (SH.select, SH.ask, SH.validator, SH.nodeValidator, SH.propertyValidator, SH.parameter)},
-    SH.condition: "a field of a rule, not of a shape",
-    **{p: "a field of a prefix declaration or a SPARQL query, not of a shape" for p in (SH.prefixes, SH.declare, SH.prefix, SH.namespace)},
     **{p: "a field of a validation report, not of a shape" for p in (SH.usedDataGraph, SH.usedShapesGraph, SH.usedConfiguration)},
     **{p: "an operator of a property path (the value of sh:path), not a field of a shape" for p in (SH.alternativePath, SH.inversePath, SH.oneOrMorePath, SH.zeroOrMorePath, SH.zeroOrOnePath)},
-    **{p: "a field of a node expression (the value of sh:values and the like), not of a shape" for p in (SH.nodes, SH.union, SH.intersection, SH.filterShape)},
-    **{p: "a field of a rule (sh:TripleRule, sh:SPARQLRule), not of a shape" for p in (SH.subject, SH.predicate, SH.object, SH.construct)},
+    **{p: "a field of a node expression (the value of sh:values and the like), not of a shape; no form for node expressions yet (GitHub issue #67)" for p in (SH.nodes, SH.union, SH.intersection, SH.filterShape)},
     **{p: "RDF list structure, never a field of a form" for p in (RDF.first, RDF.rest)},
 }
 # Every term of the node expression vocabulary is a field of a node expression, not of a shape.
@@ -120,11 +116,11 @@ def _roots(graph: Graph, node) -> set[URIRef]:
 def _owners(shacl_shacl: Graph, predicate: URIRef, kind) -> list:
     """The property shapes of shacl_shacl for a predicate that apply to a kind of shape, in a stable order (blank node labels
     change between builds, so the order is by the named shape that holds them and by their own content)."""
-    other = _KIND_SPECIFIC[SH.PropertyShape if kind == SH.NodeShape else SH.NodeShape]
+    other = _KIND_SPECIFIC.get(SH.PropertyShape if kind == SH.NodeShape else SH.NodeShape) if kind in _KIND_SPECIFIC else None
     found = []
     for owner in shacl_shacl.subjects(SH.path, predicate):
         roots = _roots(shacl_shacl, owner)
-        if roots == {other}:
+        if other is not None and roots == {other}:
             continue  # a rule for the other kind of shape (NodeShapeShape forbids sh:path; PropertyShapeShape requires it)
         content = tuple(sorted((str(p), "_" if isinstance(v, BNode) else str(v)) for p, v in shacl_shacl.predicate_objects(owner)))
         found.append((sorted(map(str, roots)), content, owner))
@@ -135,7 +131,10 @@ def _constraints_in_shacl_shacl(shacl_shacl: Graph, predicate: URIRef, kind):
     """The datatype, node kind, class, sh:in list and cardinality of a predicate in shacl_shacl for a kind of shape: the first
     property shape that applies to it and has the term (a ``sh:maxCount 0`` is a ban, not a limit, and is skipped)."""
     owners = _owners(shacl_shacl, predicate, kind)
-    for term in (SH.datatype, SH.nodeKind, SH["class"], SH["in"], SH.minCount, SH.maxCount):
+    # A form of another kind of element (a SPARQL constraint, a prefix declaration) lists what it requires itself (stsh:formRequired): the
+    # same predicate is required in one kind and optional in another, so a minimum count of shacl_shacl is not copied there.
+    terms = (SH.datatype, SH.nodeKind, SH["class"], SH["in"], SH.minCount, SH.maxCount) if kind in _KIND_SPECIFIC else (SH.datatype, SH.nodeKind, SH["class"], SH["in"], SH.maxCount)
+    for term in terms:
         for owner in owners:
             values = [v for v in shacl_shacl.objects(owner, term) if not (term == SH.maxCount and v == Literal(0))]
             if values:
@@ -161,33 +160,50 @@ def build_shacl_ui_graph(overlay: Graph | None = None, shacl_shacl: Graph | None
     out = Graph()
     for triple in overlay:
         out.add(triple)
+
+    def add_field(form, form_name, predicate, kind, required=False):
+        field = _field_name(form_name, predicate, prefixes)
+        out.add((form, SH.property, field))
+        out.add((field, RDF.type, SH.PropertyShape))
+        out.add((field, SH.path, predicate))
+        for term in (SH.group, SH.order):
+            for value in overlay.objects(predicate, term):
+                out.add((field, term, value))
+        if not _max_count_in_shacl_shacl(shacl_shacl, predicate, kind):
+            for value in overlay.objects(predicate, STSH.formMaxCount):  # the form's own limit where shacl_shacl has none
+                out.add((field, SH.maxCount, value))
+        if required:
+            out.add((field, SH.minCount, Literal(1)))
+        if kind == SH.NodeShape and (predicate, STSH.nodePrimary, Literal(False)) in overlay:
+            out.add((field, STSH.secondary, Literal(True)))  # allowed, but not commonly expected on a node shape
+        found = dict(_constraints_in_shacl_shacl(shacl_shacl, predicate, kind))
+        for term in (SH.datatype, SH.nodeKind, SH["class"]):
+            if list(overlay.objects(predicate, term)):
+                found[term] = list(overlay.objects(predicate, term))  # a constraint the overlay gives: where shacl_shacl has none, or a stricter one (a form may be stricter than validation)
+        for term, values in found.items():
+            for value in values:
+                out.add((field, term, value))
+                if isinstance(value, BNode):
+                    _copy(shacl_shacl, value, out)
+
     for name, kind, flag in FORMS:
         form = STSH[name]
         out.add((form, RDF.type, SH.NodeShape))
         out.add((form, STSH.formFor, kind))
         out.add((form, RDFS.label, Literal(f"Form for a {str(kind).rsplit('#', 1)[-1]}", lang="en")))
         for predicate in sorted((s for s in set(overlay.subjects(flag, Literal(True))) if isinstance(s, URIRef)), key=str):
-            field = _field_name(name, predicate, prefixes)
-            out.add((form, SH.property, field))
-            out.add((field, RDF.type, SH.PropertyShape))
-            out.add((field, SH.path, predicate))
-            for term in (SH.group, SH.order):
-                for value in overlay.objects(predicate, term):
-                    out.add((field, term, value))
-            if not _max_count_in_shacl_shacl(shacl_shacl, predicate, kind):
-                for value in overlay.objects(predicate, STSH.formMaxCount):  # the form's own limit where shacl_shacl has none
-                    out.add((field, SH.maxCount, value))
-            if kind == SH.NodeShape and (predicate, STSH.nodePrimary, Literal(False)) in overlay:
-                out.add((field, STSH.secondary, Literal(True)))  # allowed, but not commonly expected on a node shape
-            found = dict(_constraints_in_shacl_shacl(shacl_shacl, predicate, kind))
-            for term in (SH.datatype, SH.nodeKind, SH["class"]):
-                if list(overlay.objects(predicate, term)):
-                    found[term] = list(overlay.objects(predicate, term))  # a constraint the overlay gives: where shacl_shacl has none, or a stricter one (a form may be stricter than validation)
-            for term, values in found.items():
-                for value in values:
-                    out.add((field, term, value))
-                    if isinstance(value, BNode):
-                        _copy(shacl_shacl, value, out)
+            add_field(form, name, predicate, kind)
+    # The forms of the other kinds of element: a form lists its fields (stsh:formFields) and what it requires (stsh:formRequired).
+    for form in sorted(overlay.subjects(STSH.formFields, None), key=str):
+        kind = overlay.value(form, STSH.formFor)
+        name = str(form).rsplit("#", 1)[-1]
+        out.add((form, RDF.type, SH.NodeShape))
+        if not list(overlay.objects(form, RDFS.label)):
+            out.add((form, RDFS.label, Literal(f"Form for a {str(kind).rsplit('#', 1)[-1].rsplit('/', 1)[-1]}", lang="en")))
+        required = {p for lst in overlay.objects(form, STSH.formRequired) for p in overlay.items(lst)}
+        for lst in overlay.objects(form, STSH.formFields):
+            for predicate in overlay.items(lst):
+                add_field(form, name, predicate, kind, required=predicate in required)
     return out
 
 
@@ -205,6 +221,23 @@ def form_fields(ui: Graph) -> set[URIRef]:
         for prop in ui.objects(form, SH.property):
             fields.update(p for p in ui.objects(prop, SH.path) if isinstance(p, URIRef))
     return fields
+
+
+def vocabulary_shape_predicates(vocabulary: Graph) -> set[URIRef]:
+    """The properties the SHACL vocabulary gives a shape: those with ``rdfs:domain`` sh:Shape, sh:NodeShape or sh:PropertyShape
+    (GitHub issue #91). shacl_shacl says nothing about some of them (sh:target, sh:targetWhere, sh:unit), but a form needs a field."""
+    return {p for kind in (SH.Shape, SH.NodeShape, SH.PropertyShape) for p in vocabulary.subjects(RDFS.domain, kind) if isinstance(p, URIRef)}
+
+
+def missing_vocabulary_fields(ui: Graph | None = None, vocabulary: Graph | None = None) -> set[URIRef]:
+    """Properties of the vocabulary with a shape as their domain that are not a field of a form and not excluded with a reason."""
+    from starlayer import starontology
+
+    if vocabulary is None:
+        vocabulary = starontology.get_ontology_graph("shacl_vocabulary")
+    if ui is None:
+        ui = build_shacl_ui_graph()
+    return {p for p in vocabulary_shape_predicates(vocabulary) - form_fields(ui) if not is_excluded(p)}
 
 
 def missing_fields(ui: Graph | None = None, shacl_shacl: Graph | None = None) -> set[URIRef]:

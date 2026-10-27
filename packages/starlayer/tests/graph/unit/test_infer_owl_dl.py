@@ -5,7 +5,7 @@ Coverage for StarLayerGraph.infer(entailment=ENTAILMENT['OWL-Direct'], engine="h
 OWL 2 Direct Semantics reasoning via owlready2 + Java HermiT, a genuinely
 different computational model (tableau DL reasoning) from every owlrl-backed
 entailment regime covered by test_infer.py. `owlready2` is an optional extra of this
-package (`pip install starlayer.graph[hermit]`), not a core dependency -
+package (`pip install starlayer[hermit]`), not a core dependency -
 the `owl_dl_extra` skip below is a real "not opted into this engine" skip,
 the same spirit as test_infer_owl_dl_rustdl.py's own skip for `[rustdl]`.
 A real Java runtime on PATH is a *further* prerequisite that genuinely
@@ -38,7 +38,7 @@ except ImportError:
 owl_dl_extra = pytest.mark.skipif(
     not _OWLREADY2_AVAILABLE,
     reason='owlready2 not importable - it is an optional extra of this package; '
-           'install with: pip install starlayer.graph[hermit]',
+           'install with: pip install starlayer[hermit]',
 )
 
 java_required = pytest.mark.skipif(
@@ -227,7 +227,7 @@ def test_missing_owlready2_raises_actionable_error(monkeypatch):
     from starlayer.graph.graph import owl_dl
 
     monkeypatch.setitem(sys.modules, "owlready2", None)
-    with pytest.raises(RuntimeError, match=r"starlayer.graph\[hermit\]"):
+    with pytest.raises(RuntimeError, match=r"starlayer\[hermit\]"):
         owl_dl._require_owlready2()
 
 

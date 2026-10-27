@@ -27,7 +27,9 @@ def test_a_declared_but_unused_prefix_is_not_returned() -> None:
 
 
 def test_a_literal_datatype_counts() -> None:
-    assert "xsd" in _names(_graph("@prefix ex: <http://e/> . ex:a ex:p 1 ."))
+    assert "xsd" in _names(_graph('@prefix ex: <http://e/> . ex:a ex:p "2020-01-01"^^<http://www.w3.org/2001/XMLSchema#date> .'))
+    # a bare 1 is written without a datatype, so it needs no xsd prefix (used_prefixes() is the writer's own answer; GitHub issue #132)
+    assert "xsd" not in _names(_graph("@prefix ex: <http://e/> . ex:a ex:p 1 ."))
 
 
 def test_the_namespace_comes_with_the_prefix_and_the_result_is_sorted() -> None:
@@ -168,3 +170,40 @@ def test_the_dataset_method_agrees_with_rdflib_on_a_dataset_it_did_not_build() -
 def test_trig_prefix_declarations_work_with_or_without_a_space_before_the_iri(declaration) -> None:
     d = _dataset(f"{declaration}\nGRAPH <http://graphs/one> {{ ex:a ex:p 1 }}")
     assert {str(s) for s, _, _, _ in d.quads()} == {"http://e/a"}
+
+
+# --- #63 a reduced copy behaves like its source: the same union setting, and a named graph keeps its name
+from rdflib import Namespace as _Namespace  # noqa: E402
+
+_EX = _Namespace("http://ex.org/")
+
+
+def test_a_reduced_dataset_copy_keeps_default_union_so_queries_return_the_same_rows() -> None:
+    d = StarLayerDataset(default_union=True)
+    d.bind("ex", _EX)
+    d.graph(_EX.g).add((_EX.a, _EX.p, _EX.b))
+    reduced = d.reduce_prefixes()
+    query = "SELECT * WHERE { ?s ?p ?o }"
+    assert reduced.default_union is True
+    assert len(list(reduced.query(query))) == len(list(d.query(query))) == 1
+
+
+def test_a_reduced_dataset_copy_without_default_union_stays_without_it() -> None:
+    d = StarLayerDataset()
+    d.graph(_EX.g).add((_EX.a, _EX.p, _EX.b))
+    reduced = d.reduce_prefixes()
+    assert reduced.default_union is False
+    assert len(list(reduced.query("SELECT * WHERE { ?s ?p ?o }"))) == 0
+
+
+def test_a_reduced_copy_of_a_named_graph_keeps_its_name() -> None:
+    d = StarLayerDataset()
+    named = d.graph(_EX.g)
+    named.add((_EX.a, _EX.p, _EX.b))
+    assert named.reduce_prefixes().identifier == _EX.g
+
+
+def test_a_reduced_copy_of_an_unnamed_graph_is_not_given_a_shared_identity() -> None:
+    g = StarLayerGraph()
+    g.add((_EX.a, _EX.p, _EX.b))
+    assert g.reduce_prefixes().identifier != g.identifier  # a blank-node identity means nothing; the copy gets its own

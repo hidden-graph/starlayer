@@ -73,7 +73,9 @@ def test_allow_warnings_removes_warning_from_disallowed_set_and_conforms() -> No
     )
 
     disallowed = {o for _, _, o in result.report_graph.triples((None, SH.conformanceDisallows, None))}
-    assert disallowed == {SH.Violation, SH.Info}
+    # pySHACL treats allowing warnings as allowing infos too (Info is below Warning), so only Violation still blocks
+    # conformance (GitHub issue #51; this used to expect {Violation, Info}, which was the difference being fixed)
+    assert disallowed == {SH.Violation}
     assert result.conforms is True
 
 

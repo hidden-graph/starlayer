@@ -73,7 +73,10 @@ def _consume_nt_term(text: str, start: int) -> tuple[str | None, int]:
     # Blank node  _:local
     if text.startswith('_:', i):
         j = i + 2
-        while j < len(text) and not text[j].isspace() and text[j] not in '.,;':
+        while j < len(text) and not text[j].isspace() and text[j] not in ',;':
+            # a '.' is part of the label only between two label characters ("_:a.b"); the last one ends the triple
+            if text[j] == '.' and not (j + 1 < len(text) and (text[j + 1].isalnum() or text[j + 1] in '_-')):
+                break
             j += 1
         return text[i:j], j
 
@@ -109,6 +112,13 @@ def _consume_nt_term(text: str, start: int) -> tuple[str | None, int]:
 # ---------------------------------------------------------------------------
 # Term token → rdflib node
 # ---------------------------------------------------------------------------
+
+def _lines(text: str) -> list[str]:
+    """The lines of an N-Triples/N-Quads document. Only CR and LF end a line (``EOL ::= [#xD#xA]+``);
+    ``str.splitlines()`` also splits at VT, FF, FS, GS, RS, NEL, LS and PS, which are legal inside a literal
+    (GitHub issue #133)."""
+    return _re.split(r'\r\n|\r|\n', text)
+
 
 def _unescape_nt(s: str) -> str:
     """Decode N-Triples string escape sequences."""
@@ -160,9 +170,13 @@ def _token_to_node(token: str):
 
     # Literal
     if token.startswith('"'):
-        close = token.index('"', 1)
-        while close > 0 and token[close - 1] == '\\':
-            close = token.index('"', close + 1)
+        # Walk the literal, skipping each escape as a unit: a quote is the closing one unless an ODD number of backslashes
+        # precede it, which looking only at the previous character gets wrong for an escaped backslash ("x\\\\"). GitHub issue #57.
+        close = 1
+        while close < len(token) and token[close] != '"':
+            close += 2 if token[close] == '\\' else 1
+        if close >= len(token):
+            raise ValueError(f"Unterminated literal: {token!r}")
         value = _unescape_nt(token[1:close])
         suffix = token[close + 1:]
         if suffix.startswith('@'):
@@ -252,7 +266,7 @@ def extract_version_directive(text: str) -> str | None:
         The declared VERSION label (e.g. "1.2-basic"), or None if the
         document's first non-blank/comment line isn't a VERSION line.
     """
-    for line in text.splitlines():
+    for line in _lines(text):
         stripped = line.strip()
         if not stripped or stripped.startswith('#'):
             continue
@@ -277,7 +291,7 @@ def parse_ntriples12(text: str) -> list[tuple]:
         A list of (s, p, o) triples, one per non-blank/comment line.
     """
     triples = []
-    for lineno, line in enumerate(text.splitlines(), 1):
+    for lineno, line in enumerate(_lines(text), 1):
         result = _parse_nt_line(line, lineno, quads=False)
         if result is not None:
             triples.append(result)
@@ -297,7 +311,7 @@ def parse_nquads12(text: str) -> list[tuple]:
         is a URIRef for a named graph, None for the default graph.
     """
     quads = []
-    for lineno, line in enumerate(text.splitlines(), 1):
+    for lineno, line in enumerate(_lines(text), 1):
         result = _parse_nt_line(line, lineno, quads=True)
         if result is not None:
             quads.append(result)

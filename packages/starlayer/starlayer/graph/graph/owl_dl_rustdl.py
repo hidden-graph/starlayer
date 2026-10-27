@@ -166,7 +166,7 @@ def _require_rustdl():
         raise RuntimeError(
             "StarLayerGraph.infer(entailment=ENTAILMENT['OWL-Direct'], engine='rustdl') "
             "requires the optional rustdl package - install it with "
-            "`pip install starlayer.graph[rustdl]` (or `pip install rustdl` "
+            "`pip install starlayer[rustdl]` (or `pip install rustdl` "
             "directly), then retry."
         ) from exc
     return rustdl

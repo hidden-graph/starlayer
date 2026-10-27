@@ -71,7 +71,8 @@ def _escape_non_ascii(s: str) -> str:
         cp = ord(ch)
         if cp > 0xFFFF:
             out.append(f'\\U{cp:08X}')
-        elif cp > 0x7F:
+        elif cp > 0x7F or cp < 0x20 or cp == 0x7F:
+            # a control character is escaped too: written raw, VT/FF/FS... break the line for a reader that splits on them
             out.append(f'\\u{cp:04X}')
         else:
             out.append(ch)
@@ -149,7 +150,10 @@ def serialize_nquads12(g, graph_uri=None, _include_header: bool = True) -> str:
     """
     if graph_uri is None:
         graph_uri = g.identifier
-    g_term = _node_to_nt(graph_uri) if not isinstance(graph_uri, BNode) else None
+    from rdflib.graph import DATASET_DEFAULT_GRAPH_ID
+
+    # the default graph of a dataset has no name of its own in N-Quads: no graph term
+    g_term = _node_to_nt(graph_uri) if not (isinstance(graph_uri, BNode) or graph_uri == DATASET_DEFAULT_GRAPH_ID) else None
 
     header = 'VERSION "1.2"\n' if (_include_header and _needs_version_header(g)) else ''
     lines = []

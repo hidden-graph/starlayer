@@ -270,6 +270,20 @@ def _unfold_native_triple_terms(g) -> Graph:
     return out
 
 
+_SKOLEM_PLACEHOLDER = URIRef('urn:starlayer:skolem-placeholder')
+
+
+def _lowercase_language_tags(g: Graph) -> Graph:
+    """``g`` (a fresh unfolded graph, changed in place) with every language tag
+    lower-cased. Tags compare ASCII case-insensitively (RDF 1.2 Concepts), but
+    rdflib.compare hashes the n3 text, which keeps the case."""
+    for s, p, o in list(g):
+        if isinstance(o, Literal) and o.language and o.language != o.language.lower():
+            g.remove((s, p, o))
+            g.add((s, p, Literal(str(o), lang=o.language.lower())))
+    return g
+
+
 # Sentinel returned by _coerce_tt_read when a TripleTerm is not in the registry.
 # Distinct from None (which means wildcard) so callers can detect "no match".
 _TT_NOT_FOUND = object()
@@ -316,19 +330,59 @@ def _read_source_text(source=None, file=None, location=None, data=None) -> str:
     """
     from pathlib import Path
     if data is not None:
-        return data
+        return _as_text(data)
     if file is not None:
-        return file.read() if hasattr(file, 'read') else Path(file).read_text()
+        return _as_text(file.read()) if hasattr(file, 'read') else Path(file).read_text(encoding='utf-8')
     if location is not None:
-        return Path(location).read_text()
+        return Path(location).read_text(encoding='utf-8')
     if source is not None:
+        if isinstance(source, (bytes, bytearray)):
+            return _as_text(source)
+        if hasattr(source, 'read'):  # an open text or binary stream
+            return _as_text(source.read())
+        for getter in ('getCharacterStream', 'getByteStream'):  # an rdflib InputSource
+            stream = getattr(source, getter, lambda: None)()
+            if stream is not None:
+                return _as_text(stream.read())
         p = Path(source) if isinstance(source, (str, Path)) else None
         if p and p.exists():
-            return p.read_text()
+            return p.read_text(encoding='utf-8')
         if isinstance(source, str):
             return source
         raise ValueError(f'Cannot read source: {source!r}')
     raise ValueError('No source data to parse')
+
+
+def _deliver_serialized(text: str, destination, encoding):
+    """Hand serialized text to the caller the way ``rdflib.Graph.serialize`` does: with no destination, the text (or bytes when
+    ``encoding`` is given); with a path or an open text or binary stream, written there and ``None`` returned (GitHub issue #133)."""
+    import io
+    if destination is None:
+        return text.encode(encoding) if encoding else text
+    if hasattr(destination, 'write'):
+        destination.write(text if isinstance(destination, io.TextIOBase) else text.encode(encoding or 'utf-8'))
+        return None
+    with open(destination, 'w', encoding=encoding or 'utf-8') as f:
+        f.write(text)
+    return None
+
+
+def _as_text(value) -> str:
+    """Parse input as text: bytes (``data=b'...'``, a binary stream) are UTF-8, as every RDF text syntax is, and a byte-order
+    mark is dropped (GitHub issue #133)."""
+    if isinstance(value, (bytes, bytearray, memoryview)):
+        return bytes(value).decode('utf-8-sig')
+    return value
+
+
+def _effective_base(publicID, location) -> str | None:
+    """The base IRI to resolve relative IRIs against: ``publicID``, else the IRI of ``location`` (rdflib's convention)."""
+    if publicID is not None:
+        return str(publicID)
+    if location is not None:
+        from pathlib import Path
+        return Path(location).resolve().as_uri()
+    return None
 
 
 def _check_single_graph(graph_ids, *, format: str) -> None:
@@ -351,6 +405,46 @@ def _check_single_graph(graph_ids, *, format: str) -> None:
     if len(graph_ids) > 1:
         from starlayer.graph.parsers.errors import MultipleGraphsError
         raise MultipleGraphsError(format, sorted(str(g) for g in graph_ids))
+
+
+def _check_subject_and_predicate(s, p) -> None:
+    """Refuse a term that RDF does not allow in subject or predicate position; such a triple could be written out but
+    never read back (GitHub issue #139)."""
+    if isinstance(s, (TripleTerm, tuple)):
+        raise ValueError("RDF 1.2: triple terms are not permitted in subject position of a triple.")
+    if isinstance(s, (Literal, DirLangString)):
+        raise ValueError(f"RDF: a literal is not permitted in subject position of a triple, got {s!r}.")
+    if not isinstance(p, URIRef):
+        raise ValueError(f"RDF: the predicate of a triple must be an IRI, got {p!r}.")
+
+
+_OWLRL_ERROR_NS = 'http://www.daml.org/2002/03/agents/agent-ont#'
+
+
+def _drop_repeated_error_messages(graph) -> None:
+    """Keep one ``err:ErrorMessage`` node per message text. Each owlrl pass mints a fresh blank node for the same
+    inconsistency, so the repeated passes of ``_infer_before_and_delta`` reported it up to eight times."""
+    message_class = URIRef(_OWLRL_ERROR_NS + 'ErrorMessage')
+    error = URIRef(_OWLRL_ERROR_NS + 'error')
+    seen = set()
+    for node in sorted(graph.subjects(RDF.type, message_class), key=str):
+        if not isinstance(node, BNode):
+            continue
+        key = tuple(sorted(str(o) for o in graph.objects(node, error)))
+        if key in seen:
+            graph.remove((node, None, None))
+        else:
+            seen.add(key)
+
+
+def legal_rdf_triples(triples) -> list:
+    """The triples of ``triples`` that RDF allows (an IRI predicate, no literal subject). OWL RL and RDFS entailment also
+    derive generalized triples such as ``"text" rdf:type rdfs:Literal``, which ``add`` refuses and no RDF syntax can write."""
+    return [t for t in triples if not isinstance(t[0], Literal) and isinstance(t[1], URIRef)]
+
+
+def _rebuild_graph(cls, backend, store, identifier):
+    return cls(store=store, identifier=identifier, backend=backend)
 
 
 class StarLayerGraph(Graph):
@@ -428,6 +522,17 @@ class StarLayerGraph(Graph):
         # engine choice instead of mutation.
         self._owl_dl_cache: dict[str, tuple[Graph, int]] = {}
         self._owl_dl_snapshot_cache: dict[str, Graph] = {}
+
+    def __reduce__(self):
+        """copy.copy, copy.deepcopy and pickle. rdflib's version rebuilds a plain ``Graph`` (no triple terms, the internal
+        encoding exposed, ``backend`` lost); this one rebuilds the same class and backend over the (copied) store
+        (GitHub issue #139)."""
+        state = {'_tt_registry': self._tt_registry, '_tt_nodes': self._tt_nodes}
+        return _rebuild_graph, (type(self), self._backend, self.store, self.identifier), state
+
+    def __setstate__(self, state) -> None:
+        self._tt_registry.update(state['_tt_registry'])
+        self._tt_nodes.update(state['_tt_nodes'])
 
     def _on_mutated(self) -> None:
         """Called from every place this graph's own triple content changes
@@ -990,6 +1095,14 @@ class StarLayerGraph(Graph):
                 restored = TripleTerm(self._restore(tt.subject), tt.predicate, self._restore(tt.object))
                 restored._namespace_manager = self.namespace_manager
                 return restored
+        elif isinstance(node, TripleTerm):
+            # a triple term already held as an object (a nested one in the registry): its parts may still be encoded
+            # (a dirLangString at depth 2 stayed a bogus datatype literal; GitHub issue #133)
+            subject, obj = self._restore(node.subject), self._restore(node.object)
+            if subject is not node.subject or obj is not node.object:
+                restored = TripleTerm(subject, node.predicate, obj)
+                restored._namespace_manager = self.namespace_manager
+                return restored
         elif isinstance(node, Literal):
             dls = decode_dirlangstring(node)
             if dls is not None:
@@ -1159,10 +1272,7 @@ class StarLayerGraph(Graph):
             raise ValueError(
                 "RDF 1.2: triple terms are not permitted in subject position of a triple."
             )
-        if isinstance(s, DirLangString):
-            raise ValueError(
-                "RDF 1.2: a literal (dirLangString) is not permitted in subject position of a triple."
-            )
+        _check_subject_and_predicate(s, p)
         if self._is_native:
             self._native_add(s, p, obj)
             self._on_mutated()
@@ -1199,6 +1309,8 @@ class StarLayerGraph(Graph):
                 (s, p, o) for s, p, o, c in quads
                 if isinstance(c, Graph) and c.identifier is self.identifier
             ]
+            for s, p, _o in own_triples:
+                _check_subject_and_predicate(s, p)
             self._native_add_many(own_triples)
             return self
 
@@ -1242,10 +1354,7 @@ class StarLayerGraph(Graph):
                 raise ValueError(
                     "RDF 1.2: triple terms are not permitted in subject position of a triple."
                 )
-            if isinstance(s, DirLangString):
-                raise ValueError(
-                    "RDF 1.2: a literal (dirLangString) is not permitted in subject position of a triple."
-                )
+            _check_subject_and_predicate(s, p)
             all_quads.append((_enc(s), p, _enc(o), self))
 
         self.store.addN(all_quads)
@@ -1314,9 +1423,45 @@ class StarLayerGraph(Graph):
                 s_n = skolemize_bnode(s_n)
             if isinstance(o_n, BNode):
                 o_n = skolemize_bnode(o_n)
+        candidates = set()
+        if self._tt_nodes:
+            for ts, _tp, to in _raw_triples(self, (s_n, p, o_n)):
+                candidates.update(n for n in (ts, to) if n in self._tt_nodes)
         super().remove((s_n, p, o_n))
+        if candidates:
+            self._discard_unreferenced_tt(candidates)
         self._on_mutated()
         return self
+
+    def _tt_is_referenced(self, uri) -> bool:
+        """True if a triple other than the node's own encoding uses ``uri``:
+        as an object (including the object of an outer term's encoding, for
+        a nested triple term) or as a subject with a non-encoding predicate."""
+        if any(s != uri for s, _p, _o in _raw_triples(self, (None, None, uri))):
+            return True
+        return any(p not in _ENCODING_PREDS and not (p == RDF.type and o == TT_CLASS)
+                   for _s, p, o in _raw_triples(self, (uri, None, None)))
+
+    def _discard_unreferenced_tt(self, candidates) -> None:
+        """Drop the encoding of each candidate triple-term node that no triple
+        uses any more, and then of any nested term only it used, so the raw
+        store, the registry, ``triple_terms()`` and ``isomorphic()`` all see
+        the same graph as the visible triples (rdf-1.1 backend only)."""
+        todo = list(candidates)
+        removed = set()
+        while todo:
+            uri = todo.pop()
+            if uri in removed or uri not in self._tt_nodes or self._tt_is_referenced(uri):
+                continue
+            removed.add(uri)
+            for triple in list(_raw_triples(self, (uri, None, None))):
+                super().remove(triple)
+                if triple[1] in (TT_SUBJECT, TT_OBJECT) and triple[2] in self._tt_nodes:
+                    todo.append(triple[2])
+        if removed:
+            for uri in removed:
+                del self._tt_nodes[uri]
+            self._tt_registry = {k: v for k, v in self._tt_registry.items() if v not in removed}
 
     def triples(self, triple) -> Generator[tuple, None, None]:
         """Iterate triples matching the pattern. Filters internal encoding triples.
@@ -1937,7 +2082,8 @@ class StarLayerGraph(Graph):
                 raw = StarLayerTurtleParser().parse(text, base=effective_base)
                 processed = _skolemize_encoding(raw)
                 for prefix, ns in processed.namespaces():
-                    self.bind(prefix, ns)
+                    if str(ns) != str(TT_NS):  # the internal triple-term prefix is not the document's (GitHub issue #132)
+                        self.bind(prefix, ns)
                 if self._is_native:
                     # _skolemize_encoding's output is the rdf-1.1 backend's
                     # own tt:HASH on-disk encoding - correct to write
@@ -2014,7 +2160,7 @@ class StarLayerGraph(Graph):
                     extract_version_directive as _trig_version,
                 )
                 from starlayer.graph.parsers.trig12 import parse_trig12_named
-                named = parse_trig12_named(text)
+                named = parse_trig12_named(text, base=_effective_base(publicID, location))
                 # exclude prefix/VERSION-only chunks (no actual triples) -
                 # e.g. a leading chunk before the first GRAPH block that
                 # has only PREFIX/VERSION directives still shows up as a
@@ -2255,6 +2401,8 @@ class StarLayerGraph(Graph):
             The query Result, with any tt:HASH URIRef restored to its
             TripleTerm.
         """
+        if query_object is None:
+            raise TypeError('query_object must be SPARQL text or a prepared query, not None')
         if entailment not in VALID_ENTAILMENTS:
             raise NotImplementedError(
                 f"entailment must be one of {sorted(e for e in VALID_ENTAILMENTS if e)}, "
@@ -2507,29 +2655,32 @@ class StarLayerGraph(Graph):
                 pending_filters = filters
                 pending_pv = original_pv
 
-        init_bindings = self._encode_init_bindings(initBindings)
-        r = raw.query(query_object, processor=processor, result=result,
-                      initNs=initNs, initBindings=init_bindings,
-                      use_store_provided=use_store_provided, **kwargs)
-        if pending_recipes is not None:
-            from starlayer.graph.query.remote_decompose import (
-                evaluate_recipes_locally,
-                row_passes_filters,
-            )
-            new_bindings = []
-            for row in r.bindings:
-                merged = evaluate_recipes_locally(pending_recipes, row, raw)
-                if not row_passes_filters(pending_filters, merged, raw):
-                    continue
-                new_bindings.append({var: merged.get(var) for var in pending_pv})
-            r.bindings = new_bindings
-            r.vars = pending_pv
-        if r.type == 'SELECT':
-            restore_select_bindings(r, self._restore)
-        elif r.type == 'CONSTRUCT':
-            from starlayer.graph.model.encoding import inject_missing_tt_encoding
-            inject_missing_tt_encoding(r.graph, self._restore)
-            r.graph = StarLayerGraph.from_rdflib(r.graph)
+        from starlayer.graph.query.query_cache import EVALUATION_LOCK
+
+        with EVALUATION_LOCK:
+            init_bindings = self._encode_init_bindings(initBindings)
+            r = raw.query(query_object, processor=processor, result=result,
+                          initNs=initNs, initBindings=init_bindings,
+                          use_store_provided=use_store_provided, **kwargs)
+            if pending_recipes is not None:
+                from starlayer.graph.query.remote_decompose import (
+                    evaluate_recipes_locally,
+                    row_passes_filters,
+                )
+                new_bindings = []
+                for row in r.bindings:
+                    merged = evaluate_recipes_locally(pending_recipes, row, raw)
+                    if not row_passes_filters(pending_filters, merged, raw):
+                        continue
+                    new_bindings.append({var: merged.get(var) for var in pending_pv})
+                r.bindings = new_bindings
+                r.vars = pending_pv
+            if r.type == 'SELECT':
+                restore_select_bindings(r, self._restore)
+            elif r.type == 'CONSTRUCT':
+                from starlayer.graph.model.encoding import inject_missing_tt_encoding
+                inject_missing_tt_encoding(r.graph, self._restore)
+                r.graph = StarLayerGraph.from_rdflib(r.graph)
         return r
 
     def update(self, update_object, processor='sparql',
@@ -2557,6 +2708,8 @@ class StarLayerGraph(Graph):
         Returns:
             None.
         """
+        if update_object is None:
+            raise TypeError('update_object must be SPARQL text or a prepared update, not None')
         if self._is_native:
             from starlayer.graph.backends.native import native_update
             native_update(self.store, self._backend, update_object)
@@ -2574,6 +2727,8 @@ class StarLayerGraph(Graph):
             from starlayer.sparql.parse12 import prepare_update_12
             stripped_text, declared_version = strip_version_directive(update_object)
             prepared_12 = prepare_update_12(stripped_text, base=kwargs.get('base'), initNs=initNs)
+            if not prepared_12.algebra:
+                return None  # an empty request (only a prologue or comments) is valid and does nothing (GitHub issue #135)
             if declared_version is not None:
                 from starlayer.graph.model.conformance import (
                     SPARQL12ConformanceWarning,
@@ -2588,6 +2743,14 @@ class StarLayerGraph(Graph):
                 )
             rdf_graph, root = update_to_rdf11(prepared_12)
             update_object = rdf11_update_to_sparql11_text(rdf_graph, root)
+            if not getattr(self.store, 'update_endpoint', None):
+                # rdflib would re-parse this text on its own, outside the parse lock, and race other threads' first
+                # parses (GitHub issue #135). A remote store must get the text (see above).
+                from rdflib.plugins.sparql.processor import prepareUpdate
+
+                from starlayer.sparql.parse12 import parse_serialized
+                text = update_object
+                update_object = parse_serialized(lambda: prepareUpdate(text))
         raw = Graph(store=self.store, identifier=self.identifier, bind_namespaces='none')  # see query(): GitHub issue #29
         for prefix, ns in list(self.namespaces()):
             raw.bind(prefix, ns)
@@ -2636,12 +2799,13 @@ class StarLayerGraph(Graph):
             format = 'turtle12'
         _RDF12_FORMATS = {'turtle12', 'longturtle12', 'nt12', 'nq12', 'trig12', 'trix12', 'rdfxml12', 'manchester', 'omn'}
         if format in _RDF12_FORMATS:
+            base = kwargs.get('base')
             if format == 'turtle12':
                 from starlayer.graph.serializers.turtle12 import serialize_turtle12
-                text = serialize_turtle12(self)
+                text = serialize_turtle12(self, base=base)
             elif format == 'longturtle12':
                 from starlayer.graph.serializers.turtle12 import serialize_longturtle12
-                text = serialize_longturtle12(self)
+                text = serialize_longturtle12(self, base=base)
             elif format == 'nt12':
                 from starlayer.graph.serializers.ntriples12 import serialize_ntriples12
                 text = serialize_ntriples12(self)
@@ -2650,7 +2814,7 @@ class StarLayerGraph(Graph):
                 text = serialize_nquads12(self)
             elif format == 'trig12':
                 from starlayer.graph.serializers.trig12 import serialize_trig12
-                text = serialize_trig12(self)
+                text = serialize_trig12(self, base=base)
             elif format == 'trix12':
                 from starlayer.graph.serializers.trix12 import serialize_trix12
                 text = serialize_trix12(self)
@@ -2660,13 +2824,9 @@ class StarLayerGraph(Graph):
             elif format in ('manchester', 'omn'):
                 from starlayer.graph.serializers.manchester import serialize_manchester
                 text = serialize_manchester(self)
-            if destination is not None:
-                with open(destination, 'w', encoding='utf-8') as f:
-                    f.write(text)
-                # Return self, not the destination path, matching rdflib's
-                # own Graph.serialize() contract.
-                return self
-            return text
+            delivered = _deliver_serialized(text, destination, kwargs.get('encoding'))
+            # Return self, not the destination path, matching rdflib's own Graph.serialize() contract.
+            return self if destination is not None else delivered
         # For 1.1 formats: de-skolemize internal URIRefs to blank nodes so
         # rdflib's serializer produces clean output without exposing tt:/rr: URIs.
         deskolemized = self._deskolemize_to_graph()
@@ -2786,8 +2946,27 @@ class StarLayerGraph(Graph):
             )
         return super().cbd(resource, target_graph=target_graph, include_reifications=include_reifications)
 
+    def _process_skolem_tuples(self, target_graph, func) -> None:
+        """rdflib's hook behind skolemize()/de_skolemize(): ``func`` maps the
+        subject and object of one triple. Overridden to also apply it to the
+        subject and object inside every triple term (nested ones too), so a
+        blank node used both inside and outside a triple term stays one node."""
+        def map_triple(t):
+            s, p, o = t
+            s_tt, o_tt = isinstance(s, TripleTerm), isinstance(o, TripleTerm)
+            if s_tt:
+                s = TripleTerm(*map_triple((s.subject, s.predicate, s.object)))
+            if o_tt:
+                o = TripleTerm(*map_triple((o.subject, o.predicate, o.object)))
+            # func only looks at BNode/URIRef; a triple term goes through as a placeholder.
+            mapped = func((_SKOLEM_PLACEHOLDER if s_tt else s, p, _SKOLEM_PLACEHOLDER if o_tt else o))
+            return (s if s_tt else mapped[0], mapped[1], o if o_tt else mapped[2])
+
+        for triple in self.triples((None, None, None)):
+            target_graph.add(map_triple(triple))
+
     def skolemize(self, new_graph=None, bnode=None, authority=None, basepath=None) -> StarLayerGraph:
-        """Convert blank nodes to skolem IRIs.
+        """Convert blank nodes to skolem IRIs, including those inside triple terms.
 
         Overridden because rdflib's inherited skolemize() hardcodes a plain
         rdflib.Graph() as the default target - the same bug class as cbd()'s
@@ -2872,8 +3051,9 @@ class StarLayerGraph(Graph):
         Returns:
             True if the two graphs are isomorphic.
         """
-        from rdflib.compare import isomorphic as _rdflib_isomorphic
-        return _rdflib_isomorphic(_unfold_tt_encoding(self), _unfold_tt_encoding(other))
+        from starlayer.graph.compare import isomorphic as _isomorphic
+
+        return _isomorphic(self, other)
 
     @staticmethod
     def _resolve_owlrl_semantics(regimes: frozenset):
@@ -2916,7 +3096,7 @@ class StarLayerGraph(Graph):
         except ImportError as exc:
             raise ImportError(
                 "StarLayerGraph.infer() requires the optional 'owlrl' dependency - "
-                "install via `pip install starlayer.graph[reasoning]` (or `pip install owlrl` directly)."
+                "install via `pip install starlayer[reasoning]` (or `pip install owlrl` directly)."
             ) from exc
 
         class _NoHiddenSameAsRDFSSemantics(owlrl.RDFSClosure.RDFS_Semantics):
@@ -2981,7 +3161,14 @@ class StarLayerGraph(Graph):
         expanded = Graph()
         for t in before:
             expanded.add(t)
-        owlrl.DeductiveClosure(semantics).expand(expanded)
+        # One owlrl pass is not a closure: the axiomatic triples it adds (rdfs:domain, rdf:type, ...) are not typed
+        # rdfs:Resource until the next pass, so the closure of the closure grew (GitHub issue #97). Repeat to a fixpoint.
+        for _ in range(8):
+            size = len(expanded)
+            owlrl.DeductiveClosure(semantics).expand(expanded)
+            _drop_repeated_error_messages(expanded)
+            if len(expanded) == size:
+                break
         before_set = set(before)
         delta = Graph()
         for t in expanded:
@@ -3102,37 +3289,45 @@ class StarLayerGraph(Graph):
             ``_before, delta = self._before_and_delta_for(...)`` call site).
         """
         delta = Graph()
-
-        def _maybe_add_property_type(term) -> None:
-            candidate = (term, RDF.type, RDF.Property)
-            if candidate not in self:
-                delta.add(candidate)
-
-        seen_predicates: set = set()
-        all_terms: set = set()
-        for s, p, o in self:
-            all_terms.add(s)
-            all_terms.add(p)
-            all_terms.add(o)
-            if p not in seen_predicates:
-                seen_predicates.add(p)
-                _maybe_add_property_type(p)
-
-        for term in (
+        _rdf_ns = str(RDF)
+        axiomatic_terms = (
             RDF.type, RDF.subject, RDF.predicate, RDF.object, RDF_REIFIES,
             RDF.first, RDF.rest, RDF.value,
-        ):
-            if term in all_terms:
-                _maybe_add_property_type(term)
-        if RDF.nil in all_terms:
-            candidate = (RDF.nil, RDF.type, RDF.List)
-            if candidate not in self:
+        )
+        all_terms: set = set()
+        seen_predicates: set = set()
+        fresh: list = []   # delta triples not yet fed back through the rules
+
+        def _add(candidate) -> None:
+            if candidate not in self and candidate not in delta:
                 delta.add(candidate)
-        _rdf_ns = str(RDF)
-        for term in all_terms:
-            if isinstance(term, URIRef) and str(term).startswith(_rdf_ns + '_'):
-                if str(term)[len(_rdf_ns) + 1:].isdigit():
-                    _maybe_add_property_type(term)
+                fresh.append(candidate)
+
+        def _consider(triples) -> None:
+            new_terms: list = []
+            for s, p, o in triples:
+                for term in (s, p, o):
+                    if term not in all_terms:
+                        all_terms.add(term)
+                        new_terms.append(term)
+                if p not in seen_predicates:
+                    seen_predicates.add(p)
+                    _add((p, RDF.type, RDF.Property))
+            for term in new_terms:
+                if term in axiomatic_terms:
+                    _add((term, RDF.type, RDF.Property))
+                elif term == RDF.nil:
+                    _add((RDF.nil, RDF.type, RDF.List))
+                elif isinstance(term, URIRef) and str(term).startswith(_rdf_ns + '_'):
+                    if str(term)[len(_rdf_ns) + 1:].isdigit():
+                        _add((term, RDF.type, RDF.Property))
+
+        # The entailed triples are triples too (rdf:type as predicate, rdf:Property and
+        # rdf:List as terms), so the rules run again on them until nothing is new.
+        _consider(list(self))
+        while fresh:
+            batch, fresh[:] = list(fresh), []
+            _consider(batch)
 
         return self, delta
 
@@ -3159,6 +3354,14 @@ class StarLayerGraph(Graph):
             g.bind(prefix, ns)
         return g
 
+    def unbind(self, prefix: str) -> bool:
+        """Take the binding of ``prefix`` away; True if it was bound. rdflib has no such call: the binding is removed from the
+        store's own prefix map (in-memory and ``OxigraphStore`` stores; any other raises ``NotImplementedError``, copy with
+        ``reduce_prefixes()`` there). Graphs that share this store lose the prefix too (GitHub issue #44).
+        """
+        from starlayer.graph.graph.prefixes import unbind_prefix
+        return unbind_prefix(self, prefix)
+
     def used_prefixes(self) -> list[tuple[str, URIRef]]:
         """The namespace bindings of this graph that matter: ``(prefix, namespace)`` pairs, sorted by prefix, for the namespaces an
         IRI of the graph is in (a subject, predicate or object, a literal's datatype, any part of a triple term). The ~29 default
@@ -3184,7 +3387,10 @@ class StarLayerGraph(Graph):
         from starlayer.graph.backends.native import new_graph_like
         from starlayer.graph.graph.prefixes import prefixes_to_keep
 
-        result = new_graph_like(self.store, self._backend, bind_namespaces='none')
+        # A named graph keeps its name: it is the graph's identity (and what validation reports as the data graph); a blank-node
+        # identifier means nothing, so the copy gets its own (issue #63)
+        identity = {'identifier': self.identifier} if isinstance(self.identifier, URIRef) else {}
+        result = new_graph_like(self.store, self._backend, bind_namespaces='none', **identity)
         for prefix, namespace in prefixes_to_keep(self, keep):
             result.bind(prefix, namespace)
         triples = list(self)
@@ -3202,7 +3408,7 @@ class StarLayerGraph(Graph):
         By default this returns a NEW graph, never mutating self
         (mode="in-place" is the deliberate exception - see below). Requires
         the optional ``owlrl`` dependency
-        (``pip install starlayer.graph[reasoning]``).
+        (``pip install starlayer[reasoning]``).
 
         Any triple term in self is decomposed into its synthetic
         blank-node reification form (the same one rdfc10_hash()/
@@ -3329,10 +3535,10 @@ class StarLayerGraph(Graph):
                 detail: "hermit" (default) is owlready2 + Java HermiT,
                 sound *and* complete for all of OWL 2 DL (SROIQ) - the
                 strongest guarantee either engine offers, but needs the
-                optional `starlayer.graph[hermit]` extra (`owlready2`) AND
+                optional `starlayer[hermit]` extra (`owlready2`) AND
                 a real Java runtime reachable on PATH. "rustdl" is a
                 pure-Rust reasoner (no JVM at all), needing only the
-                optional `starlayer.graph[rustdl]` extra - see
+                optional `starlayer[rustdl]` extra - see
                 ``owl_dl_rustdl.py``'s own module docstring for its full
                 completeness fragment, known gaps, and
                 `rustdl.UnsupportedAxiomError` cases; that file's docstring
@@ -3409,9 +3615,9 @@ class StarLayerGraph(Graph):
             # _native_add_many() below accept it unconditionally.
             _before, delta = self._before_and_delta_for(regimes, engine, timeout)
             if self._is_native:
-                self._native_add_many(list(delta))
+                self._native_add_many(legal_rdf_triples(delta))
             else:
-                for t in delta:
+                for t in legal_rdf_triples(delta):
                     self.add(t)
             self._on_mutated()
             return self
@@ -3434,9 +3640,9 @@ class StarLayerGraph(Graph):
             # triples()) - the decomposed form only still leaks through in
             # `delta`, for a newly-entailed fact that isn't itself
             # expressible with a real triple term (see below).
-            result_triples = list(self) + list(delta)
+            result_triples = list(self) + legal_rdf_triples(delta)
         else:
-            result_triples = list(delta)
+            result_triples = legal_rdf_triples(delta)
         if target_graph._is_native:
             # One batched write, not one INSERT per triple.
             target_graph._native_add_many(result_triples)
@@ -3590,7 +3796,9 @@ class StarLayerGraph(Graph):
             for t in imported_graph:
                 all_imported.add(t)
 
-            for _, _, next_iri in imported_graph.triples((canonical_id, OWL.imports, None)):
+            # Any subject, not only canonical_id: the document's own ontology
+            # IRI may differ from the IRI it was fetched under (§3.4).
+            for _, _, next_iri in imported_graph.triples((None, OWL.imports, None)):
                 if next_iri not in fetched:
                     pending.append(next_iri)
 

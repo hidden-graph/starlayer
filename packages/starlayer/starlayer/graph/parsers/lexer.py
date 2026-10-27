@@ -23,6 +23,37 @@ from starlayer.graph.parsers.errors import Turtle12SyntaxError
 _BARE_TOKEN_STOP_CHARS = ('<', '(', ')', '[', ']', '{', '}', '"', "'", ',', ';')
 
 
+def _bracket_end(s, open_char, close_char):
+    """Offset just past the bracket that closes the one s starts with, or -1.
+
+    Brackets inside a string (short or long, with backslash escapes) or an
+    <IRI> do not count (GitHub issue #73: an escaped quote used to end the
+    string early).
+    """
+    i, depth = 1, 1
+    n = len(s)
+    while i < n and depth > 0:
+        c = s[i]
+        if c in ('"', "'"):
+            q = c * 3 if s[i:i+3] == c * 3 else c
+            i += len(q)
+            while i < n and s[i:i+len(q)] != q:
+                i += 2 if s[i] == '\\' else 1
+            i += len(q)
+            continue
+        if c == '<' and s[i:i+2] != '<<':
+            end = s.find('>', i + 1)
+            if end != -1:
+                i = end + 1
+                continue
+        if c == open_char:
+            depth += 1
+        elif c == close_char:
+            depth -= 1
+        i += 1
+    return i if depth == 0 else -1
+
+
 def next_token(s):
     """Return the next atomic token in s.
 
@@ -112,38 +143,14 @@ def next_token(s):
         raise Turtle12SyntaxError(f'unterminated {q!r} string', s, pos=len(s))
 
     if s.startswith('['):
-        i, depth, in_str, str_char = 1, 1, False, ''
-        while i < len(s) and depth > 0:
-            c = s[i]
-            if in_str:
-                if c == str_char:
-                    in_str = False
-            elif c in ('"', "'"):
-                in_str, str_char = True, c
-            elif c == '[':
-                depth += 1
-            elif c == ']':
-                depth -= 1
-            i += 1
-        if depth > 0:
+        i = _bracket_end(s, '[', ']')
+        if i < 0:
             raise Turtle12SyntaxError("unclosed '[' blank node property list", s, pos=len(s))
         return s[:i], s[i:].lstrip()
 
     if s.startswith('('):
-        i, depth, in_str, str_char = 1, 1, False, ''
-        while i < len(s) and depth > 0:
-            c = s[i]
-            if in_str:
-                if c == str_char:
-                    in_str = False
-            elif c in ('"', "'"):
-                in_str, str_char = True, c
-            elif c == '(':
-                depth += 1
-            elif c == ')':
-                depth -= 1
-            i += 1
-        if depth > 0:
+        i = _bracket_end(s, '(', ')')
+        if i < 0:
             raise Turtle12SyntaxError("unclosed '(' collection", s, pos=len(s))
         return s[:i], s[i:].lstrip()
 
@@ -154,6 +161,9 @@ def next_token(s):
     # core/path/path-complex-002.ttl, which has exactly this (no-space) form.
     i = 0
     while i < len(s) and not s[i].isspace() and s[i] not in _BARE_TOKEN_STOP_CHARS:
+        if s[i] == '\\' and i + 1 < len(s):
+            i += 2  # PN_LOCAL_ESC: a backslash makes the next character part of the name, whatever it is (GitHub issue #59)
+            continue
         i += 1
     if i == 0:
         # s[0] is itself one of _BARE_TOKEN_STOP_CHARS that has no dedicated

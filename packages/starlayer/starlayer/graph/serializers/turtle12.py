@@ -14,6 +14,7 @@ triples to `[ ]`, losing their ID).
 
 import re
 from collections import defaultdict
+from urllib.parse import urljoin
 
 from rdflib import BNode, Literal, URIRef
 
@@ -40,6 +41,112 @@ _TURTLE_INTEGER_RE = re.compile(r'^[+-]?[0-9]+$')
 _TURTLE_DECIMAL_RE = re.compile(r'^[+-]?[0-9]*\.[0-9]+$')
 
 
+_PN_CHARS_BASE = (
+    'A-Za-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C-\u200D\u2070-\u218F'
+    '\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD\U00010000-\U000EFFFF'
+)
+_PN_CHARS_U = _PN_CHARS_BASE + '_'
+_PN_CHARS = _PN_CHARS_U + '\\-0-9\u00B7\u0300-\u036F\u203F-\u2040'
+# Turtle PN_LOCAL, without the backslash escapes (a name that needs one is written as a full <IRI>)
+_PN_LOCAL = re.compile(
+    rf'(?:[{_PN_CHARS_U}:0-9]|%[0-9A-Fa-f]{{2}})'
+    rf'(?:(?:[{_PN_CHARS}.:]|%[0-9A-Fa-f]{{2}})*(?:[{_PN_CHARS}:]|%[0-9A-Fa-f]{{2}}))?'
+)
+
+
+# Characters a literal must not carry raw: C0 controls (VT, FF, FS ... are line breaks to str.splitlines(), and several are not
+# even legal in XML), DEL, and NEL / LS / PS. TAB, LF and CR have their own handling.
+_CONTROL_CHARS = re.compile('[\x00-\x08\x0b\x0c\x0e-\x1f\x7f\x85\u2028\u2029]')
+
+# Turtle PN_PREFIX: PN_CHARS_BASE ((PN_CHARS | '.')* PN_CHARS)?  (the empty prefix is valid too)
+_PN_PREFIX = re.compile(rf'(?:[{_PN_CHARS_BASE}](?:[{_PN_CHARS}.]*[{_PN_CHARS}])?)?')
+
+
+class WriterNamespaces:
+    """The prefix bindings a Turtle/TriG writer may use, taken from a graph's namespace manager.
+
+    The writers used to ask the namespace manager for every name, which (a) hands out a prefix that is not a valid PN_PREFIX
+    (``a.``, ``a:b``, ``1x``, ``_``, which silently turns IRIs into blank nodes) and (b) answers from a cache that is not cleared
+    when a prefix is rebound, so a renamed prefix came out with its OLD name and no ``@prefix`` line (GitHub issues #132, #133).
+    Here a binding whose prefix is not valid is renamed ``pfxN`` (a free number; not ``nsN``, which rdflib itself hands out for
+    a namespace it has no prefix for), a name is found among the CURRENT bindings
+    (the longest namespace whose remainder is a valid local name), and only when none fits is the manager asked to make
+    a new prefix. ``base``, when given, makes ``iri_ref()`` write IRIs under it relative (and the writer emits ``@base``).
+    """
+
+    def __init__(self, ns_mgr, base=None):
+        self._mgr = ns_mgr
+        self.base = str(base) if base else None
+        self._rebuild()
+
+    def _rebuild(self):
+        taken = {p for p, _ in self._mgr.namespaces()}
+        bound = []
+        invalid = []
+        for prefix, ns in self._mgr.namespaces():
+            if _PN_PREFIX.fullmatch(prefix):
+                bound.append((prefix, str(ns)))
+            else:
+                invalid.append((prefix, str(ns)))
+        n = 0
+        for _prefix, ns in sorted(invalid, key=lambda pair: (pair[1], pair[0])):
+            n += 1
+            while f'pfx{n}' in taken:
+                n += 1
+            bound.append((f'pfx{n}', ns))
+            taken.add(f'pfx{n}')
+        self._pairs = sorted(bound)
+
+    def namespaces(self):
+        return [(prefix, URIRef(ns)) for prefix, ns in self._pairs]
+
+    def _lookup(self, iri):
+        best = None
+        for prefix, ns in self._pairs:
+            if len(ns) < len(iri) and iri.startswith(ns) and (best is None or len(ns) > len(best[1])):
+                local = iri[len(ns):]
+                if _PN_LOCAL.fullmatch(local):
+                    best = (prefix, ns, local)
+        return f'{best[0]}:{best[2]}' if best else None
+
+    def qname(self, iri):
+        """The prefixed name for ``iri``, or None when it has no valid one."""
+        found = self._lookup(iri)
+        if found is None:
+            try:
+                self._mgr.compute_qname(iri)  # may bind a new prefix (``ns1``) for the namespace
+            except Exception:
+                return None
+            self._rebuild()
+            found = self._lookup(iri)
+        return found
+
+    def iri_ref(self, iri):
+        """``<iri>``, relative to ``base`` when there is one and the relative form resolves back to ``iri``."""
+        iri = str(iri)
+        if self.base and iri.startswith(self.base) and len(iri) > len(self.base):
+            rest = iri[len(self.base):]
+            if not re.match(r'[A-Za-z][A-Za-z0-9+.\-]*:|[/#?]|\.\.?(?:/|$)', rest) and urljoin(self.base, rest) == iri:
+                return f'<{rest}>'
+        return f'<{iri}>'
+
+
+def _writer_namespaces(graph_or_mgr, base=None):
+    """A ``WriterNamespaces`` for a graph's namespace manager (or the manager itself)."""
+    if isinstance(graph_or_mgr, WriterNamespaces):
+        return graph_or_mgr
+    return WriterNamespaces(getattr(graph_or_mgr, 'namespace_manager', graph_or_mgr), base)
+
+
+def _valid_qname(ns_mgr, iri):
+    """The prefixed name for iri, or None when it would not be valid Turtle.
+
+    rdflib's namespace manager will hand out a name whose local part ends in '.' or contains '#';
+    written as is, the file does not re-parse to the same IRI (GitHub issue #73).
+    """
+    return _writer_namespaces(ns_mgr).qname(iri)
+
+
 def _node_to_ttl(node, ns_mgr, compact=True):
     """Format an rdflib node as a Turtle token using namespace prefixes.
 
@@ -53,19 +160,15 @@ def _node_to_ttl(node, ns_mgr, compact=True):
     out, regardless of what its lexical form would otherwise allow.
     """
     if isinstance(node, DirLangString):
-        return node.n3(ns_mgr)
+        text = _CONTROL_CHARS.sub(lambda m: f'\\u{ord(m.group()):04X}', Literal(node.value).n3())
+        return f'{text}@{node.language}--{node.direction}'
     if compact and node == _RDF_NIL:
         return '()'
     if isinstance(node, URIRef):
         s = str(node)
-        try:
-            qn = ns_mgr.qname(s)
-            # rdflib returns bare local names for the empty prefix ('' → 'a' not ':a')
-            if ':' not in qn:
-                qn = ':' + qn
-            return qn
-        except Exception:
-            return f'<{node}>'
+        ns = _writer_namespaces(ns_mgr)
+        qn = ns.qname(s)
+        return qn if qn is not None else ns.iri_ref(s)
     if isinstance(node, BNode):
         return f'_:{node}'
     if isinstance(node, Literal):
@@ -110,9 +213,13 @@ def _node_to_ttl(node, ns_mgr, compact=True):
             # the end of the content needs the same treatment for the same
             # reason: left bare, it would merge with the real closing
             # delimiter appended right after it into an unintended 3+ run.
+            # One pass over each maximal run of quotes (never a second pass over what the first already escaped, which
+            # turned a trailing \\"\\"\\" into an escaped backslash and a bare quote; GitHub issue #58): a run is escaped
+            # when it is 3 or more long, or when it ends the content (a bare quote there would merge with the closing delimiter).
             escaped = raw.replace('\\', '\\\\')
-            escaped = re.sub(r'"{3,}', lambda m: '\\"' * len(m.group()), escaped)
-            escaped = re.sub(r'"{1,2}$', lambda m: '\\"' * len(m.group()), escaped)
+            escaped = re.sub(
+                r'"+', lambda m: '\\"' * len(m.group()) if len(m.group()) >= 3 or m.end() == len(escaped) else m.group(), escaped
+            )
             quote = '"""'
         else:
             # longturtle12 (compact=False) deliberately never takes the
@@ -121,6 +228,7 @@ def _node_to_ttl(node, ns_mgr, compact=True):
             # a literal newline here must be escaped instead, not preserved.
             escaped = raw.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n').replace('\r', '\\r')
             quote = '"'
+        escaped = _CONTROL_CHARS.sub(lambda m: f'\\u{ord(m.group()):04X}', escaped)
         if node.language:
             return f'{quote}{escaped}{quote}@{node.language}'
         dt = str(node.datatype) if node.datatype else None
@@ -145,10 +253,8 @@ def _node_to_ttl(node, ns_mgr, compact=True):
         if compact and dt == _XSD_DECIMAL and _TURTLE_DECIMAL_RE.match(escaped):
             return escaped
         if dt and dt != _XSD_STRING:
-            try:
-                dt_str = ns_mgr.qname(dt)
-            except Exception:
-                dt_str = f'<{dt}>'
+            ns = _writer_namespaces(ns_mgr)
+            dt_str = ns.qname(dt) or ns.iri_ref(dt)
             return f'{quote}{escaped}{quote}^^{dt_str}'
         return f'{quote}{escaped}{quote}'
     return str(node)
@@ -268,6 +374,92 @@ def _compute_list_heads(by_subj, obj_bn_count):
     return set(list_items.keys()), list_items, list_cells
 
 
+def _blank_nodes_in_triple_terms(sg) -> set:
+    """Every blank node that is a component of some triple term in the graph, at any depth."""
+    found: set = set()
+
+    def walk(term) -> None:
+        for part in (term.subject, term.predicate, term.object):
+            if isinstance(part, TripleTerm):
+                walk(part)
+            elif isinstance(part, BNode):
+                found.add(part)
+
+    for s, _p, o in sg.triples((None, None, None)):
+        for node in (s, o):
+            if isinstance(node, TripleTerm):
+                walk(node)
+    return found
+
+
+def _demote_unreachable_inline(by_subj, inline_bns, list_heads, list_items, list_cells) -> None:
+    """Make sure every blank node written inline (``[ ... ]`` or ``( ... )``) is inside something that is written.
+
+    A blank node referenced as an object exactly once is written inside its parent, and its own subject block is skipped.
+    That is only safe if the parent is written. When the one reference comes from the node itself (a self-loop), from a cycle
+    of such nodes, or from a node only they point at, nothing at the top level reaches them and their triples were silently
+    lost (GitHub issue #55). Find what the named (top-level) subjects reach through inline nodes and lists, and for anything
+    left over, give one node of it (in label order, so the output is stable) its own labelled subject block; repeat until
+    everything is reached. The demoted node is then written ``_:label`` where it is referenced.
+
+    Mutates ``inline_bns``, ``list_heads``, ``list_items`` and ``list_cells`` in place.
+    """
+
+    def chain_from(head) -> list:
+        """The cells of the list that starts at ``head``, head first."""
+        cells, node = [], head
+        while isinstance(node, BNode) and node in list_cells and node not in cells:
+            cells.append(node)
+            node = by_subj.get(node, {}).get(_RDF_REST, [None])[0]
+        return cells
+
+    # every well-formed cell counts as a "head" of its own tail ( 2 ) in list_heads, but only a cell no other list contains is
+    # written as a list of its own; an interior cell is written as part of the list it is in
+    interior = {cell for head in list_heads for cell in chain_from(head)[1:]}
+
+    def reached_from_top_level() -> set:
+        reached: set = set()
+        stack = [s for s in by_subj if not (s in inline_bns or s in list_heads or s in list_cells)]
+        seen_subjects: set = set()
+        while stack:
+            subject = stack.pop()
+            if subject in seen_subjects:
+                continue
+            seen_subjects.add(subject)
+            for objs in by_subj.get(subject, {}).values():
+                for o in objs:
+                    if not isinstance(o, BNode):
+                        continue
+                    if o in list_heads:
+                        if o not in reached:
+                            reached.add(o)
+                            for item in list_items[o]:
+                                if isinstance(item, BNode):
+                                    stack.append(item)  # an item is itself a node that may be inline
+                                    if item in inline_bns or item in list_heads:
+                                        reached.add(item)
+                    elif o in inline_bns:
+                        if o not in reached:
+                            reached.add(o)
+                            stack.append(o)
+        return reached
+
+    while True:
+        reached = reached_from_top_level()
+        unreached = (inline_bns | (list_heads - interior)) - reached
+        if not unreached:
+            return
+        victim = min(unreached, key=str)
+        if victim in inline_bns:
+            inline_bns.discard(victim)
+        else:  # a list head: stop folding this list; its cells become ordinary subjects with rdf:first / rdf:rest
+            for cell in chain_from(victim):
+                list_cells.discard(cell)
+                list_heads.discard(cell)
+                list_items.pop(cell, None)
+                interior.discard(cell)
+
+
 def _graph_has_dirlangstring(sg) -> bool:
     return any(isinstance(o, DirLangString) for _, _, o in sg.triples((None, None, None)))
 
@@ -316,6 +508,8 @@ def _build_fold_map(sg):
 
     objects_elsewhere = {o for _, _, o in sg.triples((None, None, None))}
 
+    in_triple_terms = _blank_nodes_in_triple_terms(sg)  # a reifier also named inside a triple term keeps its label (GitHub issue #133)
+
     reifies_count: dict = defaultdict(int)
     for reifier, _, _ in sg.triples((None, _RDF_REIFIES, None)):
         reifies_count[reifier] += 1
@@ -325,7 +519,7 @@ def _build_fold_map(sg):
             continue
         if reifies_count[reifier] > 1:
             continue
-        if reifier in objects_elsewhere:
+        if reifier in objects_elsewhere or reifier in in_triple_terms:
             continue
 
         is_named = isinstance(reifier, URIRef)
@@ -383,7 +577,11 @@ def iter_lines_outside_strings(text):
     in_string = False
     string_char = ''
     triple = False
-    for line in text.splitlines():
+    # split at LF only: a character that str.splitlines() splits at (VT, FF, NEL, LS...) is not a line end in Turtle
+    lines = text.split('\n')
+    if lines and lines[-1] == '':
+        lines.pop()
+    for line in lines:
         yield line, in_string
         i = 0
         n = len(line)
@@ -422,7 +620,12 @@ def iter_lines_outside_strings(text):
             i += 1
 
 
-def serialize_turtle12(graph) -> str:
+def serialize_turtle12(graph, base=None) -> str:
+    """Serialize a StarLayerGraph or rdflib.Graph (with SL encoding) to Turtle 1.2 (see ``render_turtle12``)."""
+    return render_turtle12(graph, base)[1]
+
+
+def render_turtle12(graph, base=None) -> tuple[list, str]:
     """Serialize a StarLayerGraph or rdflib.Graph (with SL encoding) to Turtle 1.2.
 
     Triple terms are emitted as <<( s p o )>>. Internal encoding triples
@@ -434,14 +637,16 @@ def serialize_turtle12(graph) -> str:
     Args:
         graph: The graph to serialize - a StarLayerGraph, or a plain
             rdflib.Graph wrapped via StarLayerGraph.from_rdflib().
+        base: A base IRI: written as ``@base`` and IRIs under it are written relative to it.
 
     Returns:
-        The Turtle 1.2 serialization of graph.
+        ``(prefixes, text)``: the ``(prefix, namespace)`` pairs written as ``@prefix`` lines (bound ones only), and the
+        Turtle 1.2 serialization of graph.
     """
     from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 
     sg = graph if isinstance(graph, StarLayerGraph) else StarLayerGraph.from_rdflib(graph)
-    ns_mgr = sg.namespace_manager
+    ns_mgr = _writer_namespaces(sg, base)
 
     fold_map, folded_reifiers, tt_subj_map, tt_subj_reifiers = _build_fold_map(sg)
 
@@ -454,11 +659,12 @@ def serialize_turtle12(graph) -> str:
         if isinstance(node, TripleTerm):
             _collect_tt(node)
             return _tt_to_str(node, ns_mgr)
+        out = _node_to_ttl(node, ns_mgr)
         if isinstance(node, URIRef):
             used_uris.add(str(node))
-        elif isinstance(node, Literal) and node.datatype:
+        elif isinstance(node, Literal) and node.datatype and '^^' in out:  # a bare 1 / true needs no xsd prefix
             used_uris.add(str(node.datatype))
-        return _node_to_ttl(node, ns_mgr)
+        return out
 
     def _collect_tt(tt):
         for part in (tt.subject, tt.predicate, tt.object):
@@ -466,6 +672,8 @@ def serialize_turtle12(graph) -> str:
                 _collect_tt(part)
             elif isinstance(part, URIRef):
                 used_uris.add(str(part))
+            elif isinstance(part, Literal) and part.datatype:
+                used_uris.add(str(part.datatype))  # the datatype of a literal inside a triple term needs its prefix too
 
     suppressed = folded_reifiers | tt_subj_reifiers
     for s, p, o in sg.triples((None, None, None)):
@@ -516,6 +724,10 @@ def serialize_turtle12(graph) -> str:
         bn for bn, cnt in obj_bn_count.items()
         if cnt == 1 and bn in by_subj and bn not in list_heads and bn not in list_cells
     }
+    # A blank node that also sits inside a triple term keeps its label: <<( _:b ... )>> and [ ... ] would be read back as two
+    # different nodes (GitHub issue #73).
+    inline_bns -= _blank_nodes_in_triple_terms(sg)
+    _demote_unreachable_inline(by_subj, inline_bns, list_heads, list_items, list_cells)
 
     def _fmt_list(head, cur_indent, visiting=frozenset()):
         """Format a foldable RDF list head as Turtle '( a b c )' syntax."""
@@ -599,19 +811,22 @@ def serialize_turtle12(graph) -> str:
     prefix_lines = []
     if _graph_has_triple_term(sg) or _graph_has_dirlangstring(sg):
         prefix_lines.append('@version "1.2" .')
-    for prefix, ns_uri in select_prefixes(sg.namespaces(), used_uris):
+    if ns_mgr.base:  # (after VERSION, which must come first)
+        prefix_lines.append(f'@base <{ns_mgr.base}> .')
+    selected = select_prefixes(ns_mgr.namespaces(), used_uris)
+    for prefix, ns_uri in selected:
         prefix_lines.append(f'@prefix {prefix}: <{ns_uri}> .')
 
     # rdf: is declared when something in the output needs it and the graph has no binding for it; not when nothing uses it
-    if _RDF_NS not in {str(ns) for _, ns in sg.namespaces()} and any(u.startswith(_RDF_NS) for u in used_uris):
+    if _RDF_NS not in {str(ns) for _, ns in ns_mgr.namespaces()} and any(u.startswith(_RDF_NS) for u in used_uris):
         prefix_lines.append(f'@prefix rdf: <{_RDF_NS}> .')
 
     prefix_lines.append('')
 
-    return '\n'.join(prefix_lines + triple_lines)
+    return selected, '\n'.join(prefix_lines + triple_lines)
 
 
-def serialize_longturtle12(graph) -> str:
+def serialize_longturtle12(graph, base=None) -> str:
     """Serialize a StarLayerGraph to longturtle 1.2 — one triple per line.
 
     Identical to turtle12 but with no subject/predicate grouping: every triple
@@ -628,7 +843,7 @@ def serialize_longturtle12(graph) -> str:
     from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 
     sg = graph if isinstance(graph, StarLayerGraph) else StarLayerGraph.from_rdflib(graph)
-    ns_mgr = sg.namespace_manager
+    ns_mgr = _writer_namespaces(sg, base)
 
     used_uris: set = set()
 
@@ -638,6 +853,8 @@ def serialize_longturtle12(graph) -> str:
                 _collect_tt(part)
             elif isinstance(part, URIRef):
                 used_uris.add(str(part))
+            elif isinstance(part, Literal) and part.datatype:
+                used_uris.add(str(part.datatype))  # the datatype of a literal inside a triple term needs its prefix too
 
     def _fmt_collect(node):
         # compact=False throughout: longturtle12 is the fully-canonical
@@ -647,11 +864,12 @@ def serialize_longturtle12(graph) -> str:
         if isinstance(node, TripleTerm):
             _collect_tt(node)
             return _tt_to_str(node, ns_mgr, compact=False)
+        out = _node_to_ttl(node, ns_mgr, compact=False)
         if isinstance(node, URIRef):
             used_uris.add(str(node))
-        elif isinstance(node, Literal) and node.datatype:
+        elif isinstance(node, Literal) and node.datatype and '^^' in out:
             used_uris.add(str(node.datatype))
-        return _node_to_ttl(node, ns_mgr, compact=False)
+        return out
 
     triple_lines = []
     for s, p, o in sorted(sg.triples((None, None, None)), key=lambda t: (_sort_key(t[0]), str(t[1]), _sort_key(t[2]))):
@@ -663,11 +881,13 @@ def serialize_longturtle12(graph) -> str:
     prefix_lines = []
     if _graph_has_triple_term(sg) or _graph_has_dirlangstring(sg):
         prefix_lines.append('@version "1.2" .')
-    for prefix, ns_uri in select_prefixes(sg.namespaces(), used_uris):
+    if ns_mgr.base:  # (after VERSION, which must come first)
+        prefix_lines.append(f'@base <{ns_mgr.base}> .')
+    for prefix, ns_uri in select_prefixes(ns_mgr.namespaces(), used_uris):
         prefix_lines.append(f'@prefix {prefix}: <{ns_uri}> .')
 
     # rdf: is declared when something in the output needs it and the graph has no binding for it; not when nothing uses it
-    if _RDF_NS not in {str(ns) for _, ns in sg.namespaces()} and any(u.startswith(_RDF_NS) for u in used_uris):
+    if _RDF_NS not in {str(ns) for _, ns in ns_mgr.namespaces()} and any(u.startswith(_RDF_NS) for u in used_uris):
         prefix_lines.append(f'@prefix rdf: <{_RDF_NS}> .')
 
     prefix_lines.append('')

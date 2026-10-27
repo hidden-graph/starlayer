@@ -33,6 +33,7 @@ from rdflib.plugins.sparql.algebra import translateAlgebra
 from rdflib.plugins.sparql.parserutils import CompValue, Expr
 from rdflib.plugins.sparql.sparql import Prologue, Query
 
+from .expr_text import render_expression
 from .from_rdf import _decode as _decode_algebra
 from .ssyn_vocab import (
     BIND,
@@ -239,6 +240,10 @@ def _render_expr_text(expr) -> str:
         RuntimeError: If the wrapped-query text's parentheses don't
             balance (should not happen for a well-formed expression tree).
     """
+    try:
+        return render_expression(expr)
+    except NotImplementedError:
+        pass  # EXISTS, aggregates: fall back to rdflib's own translation below
     expr = _simplify_expr_immutable(expr)
     wrapper = CompValue(
         "SelectQuery",

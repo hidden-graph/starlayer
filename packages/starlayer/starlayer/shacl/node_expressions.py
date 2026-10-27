@@ -105,6 +105,7 @@ from rdflib import BNode, Literal, URIRef
 from rdflib.namespace import RDF, XSD, Namespace
 
 from starlayer.shacl.sparql_node_expressions import (
+    EvaluationFailure,
     eval_sparql_expr,
     is_sparql_expr,
     require_list_argument,
@@ -218,6 +219,7 @@ def _eval_custom_function_call(
     data_graph: Any,
     sg: Any,
     recurse_depth: int,
+    scope: dict[str, Any] | None = None,
 ) -> list[Any]:
     """Evaluate a call to a custom List/Named Parameter Expression Function.
 
@@ -253,14 +255,26 @@ def _eval_custom_function_call(
     body = next(iter(sg.graph.objects(fn, SH.bodyExpression)))
 
     def _eval_arg(sub_expr: Any) -> list[Any]:
-        return eval_expr(sub_expr, focus_node, data_graph, sg, recurse_depth=recurse_depth + 1)
+        # The arguments are part of the calling expression, so they are evaluated in the *caller's* scope (Node
+        # Expressions 6.1/6.2); only the body gets the fresh argScope (issue #95).
+        return eval_expr(sub_expr, focus_node, data_graph, sg, scope=scope, recurse_depth=recurse_depth + 1)
 
     arg_scope: dict[Any, Any] = {"focusNode": focus_node}
-    if (fn, RDF.type, SH.ListParameterExpressionFunction) in sg.graph:
+    is_list_function = (fn, RDF.type, SH.ListParameterExpressionFunction) in sg.graph
+    if is_list_function:
         (list_pred,) = call_predicates  # "subject of exactly one triple" per spec
         arg_list_node = next(iter(sg.graph.objects(expr, list_pred)))
+        any_empty = False
         for index, arg_expr in enumerate(sg.graph.items(arg_list_node)):
-            arg_scope[index] = _eval_arg(arg_expr)
+            nodes = _eval_arg(arg_expr)
+            if len(nodes) > 1:
+                raise EvaluationFailure(f"argument {index} of custom function call {expr} has more than one output node")
+            if not nodes:
+                any_empty = True  # keep evaluating: a failing argument takes precedence over an empty one
+            else:
+                arg_scope[index] = nodes[0]
+        if any_empty:
+            return []
     else:
         for param in sg.graph.objects(fn, SH.parameter):
             for path in sg.graph.objects(param, SH.path):
@@ -268,7 +282,10 @@ def _eval_custom_function_call(
                 if value_exprs:
                     arg_scope[path] = _eval_arg(value_exprs[0])
 
-    return eval_expr(body, focus_node, data_graph, sg, scope=arg_scope, recurse_depth=recurse_depth + 1)
+    out = eval_expr(body, focus_node, data_graph, sg, scope=arg_scope, recurse_depth=recurse_depth + 1)
+    if is_list_function and len(out) > 1:
+        raise EvaluationFailure(f"the body of custom list parameter function {fn} produced more than one output node")
+    return out
 
 
 def _shape_conforms(sg: Any, shape_node: Any, data_graph: Any, node: Any) -> bool:
@@ -294,7 +311,9 @@ def _term_key(node: Any):
     verify it's treated as distinct).
     """
     if isinstance(node, Literal):
-        return ("LITERAL", str(node), str(node.datatype) if node.datatype else None, node.language)
+        # language tags are compared case-insensitively (RDF 1.2 Concepts)
+        language = node.language.lower() if node.language else node.language
+        return ("LITERAL", str(node), str(node.datatype) if node.datatype else None, language)
     return ("TERM", node)
 
 
@@ -309,14 +328,25 @@ def _numeric_sum(literals: list) -> Literal:
     sum-list-3-mixed/sum-totalRevenue, both summing xsd:decimal inputs and
     expecting an xsd:decimal result).
     """
-    total = 0
+    from decimal import Decimal
+
     datatypes = set()
+    values = []
     for n in literals:
         if not isinstance(n, Literal):
             continue
-        total += n.toPython()
+        value = n.toPython()
+        if isinstance(value, bool) or not isinstance(value, (int, float, Decimal)):
+            raise ValueError(f"shnex:sum: {n!r} is not a numeric literal")  # an evaluation failure, not a TypeError
+        values.append(value)
         if n.datatype:
             datatypes.add(n.datatype)
+    # Mixed decimal and double/float input crashed (Decimal + float); a float or double in the input makes the sum a float,
+    # as XPath numeric promotion does (GitHub issue #95).
+    if XSD.double in datatypes or XSD.float in datatypes:
+        total = sum(float(v) for v in values)
+    else:
+        total = sum((Decimal(v) if isinstance(v, int) else v for v in values), Decimal(0)) if XSD.decimal in datatypes else sum(values)
     if XSD.double in datatypes:
         result_type = XSD.double
     elif XSD.float in datatypes:
@@ -329,19 +359,40 @@ def _numeric_sum(literals: list) -> Literal:
 
 
 def _sort_key(node: Any):
-    """Best-effort SPARQL-ORDER-BY-compatible comparison key.
+    """A total-order key following SPARQL's ORDER BY: blank nodes, then IRIs, then literals.
 
-    RDFLib's own typed ``Literal`` ordering handles numeric/date/string
-    comparison correctly for the common cases; falls back to ``str()`` for
-    anything it can't compare directly (e.g. comparing across incompatible
-    datatypes), matching SPARQL's own permissive-fallback spirit rather than
-    raising on mixed input.
+    Literals sort by value within a family (numbers together, date/time together with a missing zone read as UTC, strings
+    by lexical form and language) and the families are ordered, so any two terms compare without a ``TypeError``
+    (``1`` against ``"a"``, a date against a dateTime, a zoned against a zone-less dateTime used to raise), and an IRI is
+    below every literal, as in SPARQL (GitHub issue #95).
     """
+    from datetime import date, datetime, timezone
+    from decimal import Decimal
+
+    if isinstance(node, BNode):
+        return (0, str(node))
     if isinstance(node, Literal):
         try:
-            return (0, node.toPython())
+            value = node.toPython()
         except Exception:
-            return (1, str(node))
+            value = node
+        if isinstance(value, bool):
+            return (2, 1, int(value))
+        if isinstance(value, (int, float, Decimal)) and not isinstance(value, Literal):
+            if isinstance(value, float) and value != value:
+                return (2, 0, 1, Decimal(0), "nan")  # NaN after every number
+            try:
+                return (2, 0, 0, Decimal(value), "")
+            except Exception:
+                return (2, 0, 1, Decimal(0), str(value))
+        if isinstance(value, (datetime, date)):
+            moment = value if isinstance(value, datetime) else datetime(value.year, value.month, value.day)
+            if moment.tzinfo is None:
+                moment = moment.replace(tzinfo=timezone.utc)
+            return (2, 2, moment.timestamp(), "")
+        if isinstance(value, str):
+            return (2, 3, str(node), node.language or "")
+        return (2, 4, str(node.datatype or ""), str(node))
     return (1, str(node))
 
 
@@ -401,7 +452,9 @@ def eval_expr(
         raise ValueError("Node expression recursion depth too great - possible cycle.")
 
     if scope is None:
-        scope = {"focusNode": focus_node}
+        # No focus node (e.g. the ``sh:targetNode`` call sites before they passed the shape) means ``focusNode`` is
+        # unbound, so ``[ shnex:var "focusNode" ]`` gives no nodes rather than ``[None]`` (issue #124).
+        scope = {"focusNode": focus_node} if focus_node is not None else {}
 
     if is_dirlangstring_like(expr):
         # A DirLangString constant (e.g. "hello"@en--ltr) evaluates to
@@ -454,7 +507,7 @@ def eval_expr(
             call_predicates = set(sg.graph.predicates(expr)) & set(registry)
             if call_predicates:
                 return _eval_custom_function_call(
-                    expr, call_predicates, registry, focus_node, data_graph, sg, recurse_depth
+                    expr, call_predicates, registry, focus_node, data_graph, sg, recurse_depth, scope
                 )
 
     if not _is_shnex_expr(sg, expr):
@@ -517,6 +570,8 @@ def eval_expr(
             # an error).
             return []
         value = scope[name]
+        if value is None:
+            return []
         return list(value) if isinstance(value, (list, tuple, set)) else [value]
 
     if pred == SHNEX["arg"]:
@@ -627,11 +682,15 @@ def eval_expr(
     if pred == SHNEX.limit:
         limit_val = next(iter(sg.graph.objects(expr, SHNEX.limit)))
         n_list = _nodes_arg()
+        if int(limit_val) < 0:
+            raise ValueError("shnex:limit must not be negative")
         return n_list[: int(limit_val)]
 
     if pred == SHNEX.offset:
         offset_val = next(iter(sg.graph.objects(expr, SHNEX.offset)))
         n_list = _nodes_arg()
+        if int(offset_val) < 0:
+            raise ValueError("shnex:offset must not be negative")
         return n_list[int(offset_val) :]
 
     if pred == SHNEX.flatMap:
@@ -662,11 +721,16 @@ def eval_expr(
                 f"shnex:conformsToShape requires exactly 2 arguments (a node expression and a "
                 f"shape), got {len(args)}."
             )
-        node_expr, shape_node = args
+        node_expr, shape_expr = args
+        # Both arguments are node expressions with at most one output node each (4.5.3): a blank-node shape is read
+        # as an expression, not as a shape, and more than one output node is a failure.
         nodes = _sub(node_expr)
-        if not nodes:
+        shapes = _sub(shape_expr)
+        if len(nodes) > 1 or len(shapes) > 1:
+            raise EvaluationFailure("shnex:conformsToShape: an argument has more than one output node")
+        if not nodes or not shapes:
             return []
-        return [Literal(all(_shape_conforms(sg, shape_node, data_graph, n) for n in nodes))]
+        return [Literal(_shape_conforms(sg, shapes[0], data_graph, nodes[0]))]
 
     if pred == SHNEX["count"]:
         inner_expr = next(iter(sg.graph.objects(expr, SHNEX["count"])))
@@ -690,6 +754,8 @@ def eval_expr(
     if pred == SHNEX.instancesOf:
         type_expr = next(iter(sg.graph.objects(expr, SHNEX.instancesOf)))
         type_nodes = _sub(type_expr)
+        if any(not isinstance(t, URIRef) for t in type_nodes):
+            raise EvaluationFailure("shnex:instancesOf: every class must be an IRI (Node Expressions 4.5.1)")
         from starlayer.shacl.validator import _transitive_subclasses
 
         out: list[Any] = []

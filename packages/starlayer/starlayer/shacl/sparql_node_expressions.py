@@ -175,6 +175,54 @@ class NodeExpressionError(ValueError):
     but let this one through so a malformed shape is reported rather than quietly producing nothing."""
 
 
+class EvaluationFailure(ValueError):
+    """A node expression produces an *evaluation failure* (SHACL 1.2 Node Expressions 3.2, 3.3), as opposed to no
+    output nodes. It is a plain ``ValueError``: callers such as ``sh:values`` treat it as "no value", while an
+    enclosing ``sparql:`` function treats a failing argument as a SPARQL error (and ``sparql:coalesce``,
+    ``sparql:logical-or`` and ``sparql:logical-and`` can recover from it)."""
+
+
+_VALUE, _UNBOUND, _ERROR = "value", "unbound", "error"
+
+
+def _arg_state(eval_arg: EvalArg, arg: Any) -> tuple[str, Any]:
+    """Evaluate one argument of a ``sparql:`` function: ``(value, node)``, ``(unbound, None)`` for no output nodes, or
+    ``(error, None)`` for a failing argument or one with more than one output node (Node Expressions 3.2.2 and 5)."""
+    try:
+        result = eval_arg(arg)
+    except NodeExpressionError:
+        raise
+    except ValueError:
+        return (_ERROR, None)
+    if len(result) > 1:
+        return (_ERROR, None)
+    if not result:
+        return (_UNBOUND, None)
+    return (_VALUE, result[0])
+
+
+def _collect_args(eval_arg: EvalArg, args: list) -> list | None:
+    """Values of all arguments; ``None`` if one is unbound; raises :class:`EvaluationFailure` if one is an error.
+    An error takes precedence over an unbound argument, whatever their order (Node Expressions 5)."""
+    states = [_arg_state(eval_arg, a) for a in args]
+    if any(kind == _ERROR for kind, _ in states):
+        raise EvaluationFailure("an argument of a sparql: function expression failed or has more than one output node")
+    if any(kind == _UNBOUND for kind, _ in states):
+        return None
+    return [value for _, value in states]
+
+
+def _ebv(value: Any) -> bool | None:
+    """SPARQL effective boolean value, ``None`` for a type error."""
+    from rdflib.plugins.sparql.operators import EBV
+    from rdflib.plugins.sparql.sparql import SPARQLError
+
+    try:
+        return bool(EBV(value))
+    except SPARQLError:
+        return None
+
+
 def require_list_argument(sg: Any, expr: Any, label: str, arg: Any) -> None:
     """Raise :class:`NodeExpressionError` unless ``arg`` is an RDF list (``rdf:nil`` or a node with ``rdf:first``).
 
@@ -317,10 +365,10 @@ def _run_sparql_call(template: str, arg_values: list) -> list:
     query = f"SELECT ({template} AS ?result) WHERE {{}}"
     try:
         rows = list(scratch.query(query, initBindings=init_bindings))
-    except Exception:
-        return []
+    except Exception as exc:
+        raise EvaluationFailure(f"SPARQL error evaluating {template}: {exc}") from exc
     if not rows or rows[0][0] is None:
-        return []
+        raise EvaluationFailure(f"SPARQL error evaluating {template}")
     return [rows[0][0]]
 
 
@@ -333,30 +381,53 @@ def eval_sparql_expr(expr: Any, sg: Any, eval_arg: EvalArg) -> list:
 
     if pred == SPARQL.bound:
         (arg,) = arg_exprs
-        return [Literal(len(eval_arg(arg)) > 0)]
+        kind, _ = _arg_state(eval_arg, arg)
+        if kind == _ERROR:
+            raise EvaluationFailure("the argument of sparql:bound failed or has more than one output node")
+        return [Literal(kind == _VALUE)]
 
     if pred == SPARQL.coalesce:
+        # skips arguments that are unbound or in error (Node Expressions 5); all of them unbound is an error
         for arg in arg_exprs:
-            result = eval_arg(arg)
-            if result:
-                return [result[0]]
-        return []
+            kind, value = _arg_state(eval_arg, arg)
+            if kind == _VALUE:
+                return [value]
+        raise EvaluationFailure("every argument of sparql:coalesce is unbound or failed")
 
     if pred == SPARQL["if"]:
         cond_expr, then_expr, else_expr = arg_exprs
-        cond_result = eval_arg(cond_expr)
-        is_true = bool(cond_result) and bool(cond_result[0].toPython())
-        return eval_arg(then_expr if is_true else else_expr)
+        kind, cond = _arg_state(eval_arg, cond_expr)
+        is_true = _ebv(cond) if kind == _VALUE else None
+        if is_true is None:
+            raise EvaluationFailure("the condition of sparql:if is unbound, failed or has no boolean value")
+        # only the selected branch counts; an unbound selected branch is an error as in SPARQL
+        kind, value = _arg_state(eval_arg, then_expr if is_true else else_expr)
+        if kind != _VALUE:
+            raise EvaluationFailure("the selected branch of sparql:if is unbound or failed")
+        return [value]
+
+    if pred in (SPARQL["logical-or"], SPARQL["logical-and"]):
+        # SPARQL 17.3.1 truth tables: an unbound or error operand is an error, which true (||) or false (&&) absorbs
+        absorbing = pred == SPARQL["logical-or"]
+        errored = False
+        for arg in arg_exprs:
+            kind, value = _arg_state(eval_arg, arg)
+            truth = _ebv(value) if kind == _VALUE else None
+            if truth is None:
+                errored = True
+            elif truth == absorbing:
+                return [Literal(absorbing)]
+        if errored:
+            raise EvaluationFailure(f"an operand of {pred.rsplit('#', 1)[-1]} is unbound or failed")
+        return [Literal(not absorbing)]
 
     if pred in (SPARQL.hasLang, SPARQL.hasLangdir, SPARQL.langdir, SPARQL.strlangdir):
         return _eval_dirlang_form(pred, arg_exprs, eval_arg)
 
-    arg_values = []
-    for arg in arg_exprs:
-        result = eval_arg(arg)
-        if not result:
-            return []  # an unbound argument makes an ordinary function call unbound too
-        arg_values.append(_decode_triple_term(sg, result[0]))
+    collected = _collect_args(eval_arg, arg_exprs)
+    if collected is None:
+        return []  # an unbound argument makes an ordinary function call unbound too
+    arg_values = [_decode_triple_term(sg, v) for v in collected]
 
     if pred in _FUNCTION_CALLS:
         fn_name = _FUNCTION_CALLS[pred]
@@ -396,11 +467,10 @@ def _eval_dirlang_form(pred: URIRef, arg_exprs: list, eval_arg: EvalArg) -> list
         return _try_decode_dirlangstring(value)
 
     if pred == SPARQL.hasLang:
-        lit_expr, tag_expr = arg_exprs
-        lit_result, tag_result = eval_arg(lit_expr), eval_arg(tag_expr)
-        if not lit_result or not tag_result:
+        collected = _collect_args(eval_arg, arg_exprs)
+        if collected is None:
             return []
-        lit, tag = lit_result[0], str(tag_result[0])
+        lit, tag = collected[0], str(collected[1])
         language = lit.language if isinstance(lit, Literal) else None
         dirlang = _decode(lit)
         if dirlang is not None:
@@ -408,17 +478,15 @@ def _eval_dirlang_form(pred: URIRef, arg_exprs: list, eval_arg: EvalArg) -> list
         return [Literal(bool(language) and str(language).lower() == tag.lower())]
 
     if pred == SPARQL.strlangdir:
-        value_expr, lang_expr, dir_expr = arg_exprs
-        value_result, lang_result, dir_result = eval_arg(value_expr), eval_arg(lang_expr), eval_arg(dir_expr)
-        if not (value_result and lang_result and dir_result):
+        collected = _collect_args(eval_arg, arg_exprs)
+        if collected is None:
             return []
-        return [DirLangString(str(value_result[0]), str(lang_result[0]), str(dir_result[0]))]
+        return [DirLangString(str(collected[0]), str(collected[1]), str(collected[2]))]
 
-    (lit_expr,) = arg_exprs
-    lit_result = eval_arg(lit_expr)
-    if not lit_result:
+    collected = _collect_args(eval_arg, arg_exprs)
+    if collected is None:
         return []
-    dirlang = _decode(lit_result[0])
+    dirlang = _decode(collected[0])
 
     if pred == SPARQL.hasLangdir:
         return [Literal(dirlang is not None)]

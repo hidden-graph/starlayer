@@ -39,6 +39,7 @@ from __future__ import annotations
 
 import re
 from typing import Any
+from urllib.parse import quote, unquote
 
 import requests
 from rdflib import BNode, Literal, URIRef
@@ -53,6 +54,16 @@ from starlayer.graph.model.triple import TripleTerm
 # ---------------------------------------------------------------------------
 # Term serialization
 # ---------------------------------------------------------------------------
+
+_SAFE_BNODE_LABEL = re.compile(r'[A-Za-z0-9_]+')
+
+
+def _escape_string(value: str) -> str:
+    """``value`` as the body of a one-line SPARQL string literal: backslash,
+    double quote, LF and CR escaped (STRING_LITERAL2 forbids a raw LF or CR)."""
+    return (value.replace('\\', '\\\\').replace('"', '\\"')
+            .replace('\n', '\\n').replace('\r', '\\r'))
+
 
 def sparql_term(node, skolemize_bnodes: bool = True) -> str:
     """Serialize an RDF node to its SPARQL inline string.
@@ -111,22 +122,29 @@ def sparql_term(node, skolemize_bnodes: bool = True) -> str:
         s, p, o = (sparql_term(x, skolemize_bnodes) for x in node)
         return f'<<( {s} {p} {o} )>>'
     if isinstance(node, DirLangString):
-        escaped = node.value.replace('\\', '\\\\').replace('"', '\\"')
-        return f'"{escaped}"@{node.language}--{node.direction}'
+        return f'"{_escape_string(node.value)}"@{node.language}--{node.direction}'
     if isinstance(node, Literal) and node.datatype:
         decoded = decode_dirlang_datatype(node.datatype)
         if decoded is not None:
             language, direction = decoded
-            escaped = str(node).replace('\\', '\\\\').replace('"', '\\"')
-            return f'"{escaped}"@{language}--{direction}'
+            return f'"{_escape_string(str(node))}"@{language}--{direction}'
     if isinstance(node, BNode) and skolemize_bnodes:
         return skolemize_bnode(node).n3()
+    if isinstance(node, BNode) and not _SAFE_BNODE_LABEL.fullmatch(str(node)):
+        # A label such as "a b" is not valid after "_:"; the same label must
+        # still give the same blank node within one request.
+        return '_:x' + str(node).encode('utf-8').hex()
     return node.n3()
 
 
 # ---------------------------------------------------------------------------
 # Blank-node skolemization (native backend only)
 # ---------------------------------------------------------------------------
+
+# Characters kept as they are in a skolemized label; everything else (and '%')
+# is percent-encoded so any BNode label gives a valid IRI and decodes back.
+_BNODE_LABEL_SAFE = "!$&'()*+,;=:@/?-._~"
+
 
 def skolemize_bnode(node: BNode) -> URIRef:
     """Map a blank node to a stable URI for the wire, deterministically from
@@ -157,7 +175,7 @@ def skolemize_bnode(node: BNode) -> URIRef:
     Returns:
         A stable URIRef under BN_NS encoding node's label.
     """
-    return URIRef(BN_NS + str(node))
+    return URIRef(BN_NS + quote(str(node), safe=_BNODE_LABEL_SAFE))
 
 
 def deskolemize_bnode(node: Node | TripleTerm) -> Node | TripleTerm:
@@ -168,7 +186,7 @@ def deskolemize_bnode(node: Node | TripleTerm) -> Node | TripleTerm:
     if isinstance(node, TripleTerm):
         return TripleTerm(deskolemize_bnode(node.subject), node.predicate, deskolemize_bnode(node.object))
     if isinstance(node, URIRef) and str(node).startswith(BN_NS):
-        return BNode(str(node)[len(BN_NS):])
+        return BNode(unquote(str(node)[len(BN_NS):]))
     return node
 
 
@@ -185,7 +203,7 @@ def _parse_json_term(term_dict: dict):
         # own BN_NS URIs is a blank node we wrote, not a real URI - see
         # skolemize_bnode()'s docstring for why writes go out this way.
         if value.startswith(BN_NS):
-            return BNode(value[len(BN_NS):])
+            return BNode(unquote(value[len(BN_NS):]))
         return URIRef(value)
     if t == 'bnode':
         return BNode(term_dict['value'])
@@ -522,23 +540,23 @@ def _guard_for_engine(store, sparql: str) -> str:
     return sparql
 
 
-def execute_select(store, backend: str, sparql: str) -> tuple[list, list]:
+def execute_select(store, backend: str, sparql: str, default_union: bool = False) -> tuple[list, list]:
     """Run a SPARQL SELECT against a native-backend store - remote HTTP or
     in-process Oxigraph - returning (vars, bindings) either way."""
     sparql = _guard_for_engine(store, sparql)
     if _in_process(store):
         from starlayer.graph.backends.native_oxigraph import ox_select
-        return ox_select(store, sparql)
+        return ox_select(store, sparql, default_union)
     q_url, _, hdrs = resolve_store_http(store, backend)
     return http_select(q_url, sparql, hdrs)
 
 
-def execute_ask(store, backend: str, sparql: str) -> bool:
+def execute_ask(store, backend: str, sparql: str, default_union: bool = False) -> bool:
     """Run a SPARQL ASK against a native-backend store (HTTP or in-process)."""
     sparql = _guard_for_engine(store, sparql)
     if _in_process(store):
         from starlayer.graph.backends.native_oxigraph import ox_ask
-        return ox_ask(store, sparql)
+        return ox_ask(store, sparql, default_union)
     q_url, _, hdrs = resolve_store_http(store, backend)
     return http_ask(q_url, sparql, hdrs)
 
@@ -554,7 +572,7 @@ def execute_update(store, backend: str, sparql: str) -> None:
     http_update(u_url, sparql, hdrs)
 
 
-def execute_construct(store, backend: str, sparql: str):
+def execute_construct(store, backend: str, sparql: str, default_union: bool = False):
     """Run a SPARQL CONSTRUCT/DESCRIBE against a native-backend store (HTTP or
     in-process), returning a deskolemized StarLayerGraph of the results."""
     from starlayer.graph.graph.starlayer_graph import StarLayerGraph
@@ -565,7 +583,7 @@ def execute_construct(store, backend: str, sparql: str):
         # Results are created like the source (in-process Oxigraph in, Oxigraph
         # out) and loaded in one batch, not one INSERT per triple.
         g = new_graph_like(store, backend)
-        triples = list(ox_construct(store, sparql))
+        triples = list(ox_construct(store, sparql, default_union))
         if g._is_native:
             g._native_add_many(triples)
         else:
@@ -586,10 +604,74 @@ def execute_construct(store, backend: str, sparql: str):
     return deskolemized
 
 
+def inject_init_bindings(sparql: str, init_bindings: dict) -> str:
+    """The query with ``init_bindings`` applied as ``VALUES (?a ?b) { (x y) }`` at the start of the outermost ``WHERE`` group.
+
+    A native store has no engine-level way to pre-bind a variable, and silently ignoring ``initBindings`` gave answers that
+    disagree with the bindings; SHACL's SPARQL constraints (``sh:sparql``, ``$this``) pass the focus node this way
+    (GitHub issue #98). ``VALUES`` at the head of the group joins to everything that follows, which is what a pre-binding
+    means. Strings, IRIs and comments are skipped when looking for the group.
+    """
+    import re
+
+    from rdflib import Variable
+
+    names, terms = [], []
+    for key, value in init_bindings.items():
+        names.append(str(key.n3() if isinstance(key, Variable) else '?' + str(key).lstrip('?$')))
+        terms.append(sparql_term(value))
+    values = f" VALUES ({' '.join(names)}) {{ ({' '.join(terms)}) }} "
+
+    iri = re.compile(r'<[^<>"{}|^`\\\s]*>')
+    n, i, depth = len(sparql), 0, 0
+    template_pending = False  # CONSTRUCT { template } WHERE { group }: the first brace is the template, not the group
+
+    def keyword_at(pos: int, word: str) -> bool:
+        return (
+            sparql[pos:pos + len(word)].upper() == word
+            and not (pos > 0 and (sparql[pos - 1].isalnum() or sparql[pos - 1] in '_?$:'))
+            and not sparql[pos + len(word):pos + len(word) + 1].isalnum()
+        )
+
+    while i < n:
+        c = sparql[i]
+        if c == '#':
+            while i < n and sparql[i] not in '\r\n':
+                i += 1
+            continue
+        if c in '"\'':
+            q = c * 3 if sparql.startswith(c * 3, i) else c
+            i += len(q)
+            while i < n and not sparql.startswith(q, i):
+                i += 2 if sparql[i] == '\\' else 1
+            i += len(q)
+            continue
+        if c == '<':
+            m = iri.match(sparql, i)
+            if m:
+                i = m.end()
+                continue
+        if depth == 0 and keyword_at(i, 'CONSTRUCT'):
+            rest = sparql[i + 9:].lstrip()
+            template_pending = not rest[:5].upper() == 'WHERE'
+            i += 9
+            continue
+        if c == '{':
+            if depth == 0 and not template_pending:
+                return sparql[:i + 1] + values + sparql[i + 1:]
+            depth += 1
+        elif c == '}':
+            depth -= 1
+            if depth == 0:
+                template_pending = False
+        i += 1
+    raise ValueError("initBindings: could not find the query's WHERE group")
+
+
 def native_query(store, backend: str, query_object: Any, processor: str = 'sparql',
                  result: str = 'sparql', initNs: dict | None = None,
                  initBindings: dict | None = None, use_store_provided: bool = True,
-                 **kwargs):
+                 default_union: bool = False, **kwargs):
     """Execute a SPARQL query directly against a native-backend HTTP store.
 
     Shared by StarLayerGraph._native_query()-equivalent dispatch and
@@ -612,10 +694,13 @@ def native_query(store, backend: str, query_object: Any, processor: str = 'sparq
             with rdflib's own Graph.query().
         initNs: Unused by this function; accepted for interface parity
             with rdflib's own Graph.query().
-        initBindings: Unused by this function; accepted for interface
-            parity with rdflib's own Graph.query().
+        initBindings: Pre-bound variables, applied as a ``VALUES`` clause at
+            the start of the query's outermost group (see
+            ``inject_init_bindings``).
         use_store_provided: Unused by this function; accepted for
             interface parity with rdflib's own Graph.query().
+        default_union: Treat the default graph as the union of all graphs
+            (in-process Oxigraph only).
         **kwargs: Unused; accepted for interface parity with rdflib's own
             Graph.query().
 
@@ -628,6 +713,10 @@ def native_query(store, backend: str, query_object: Any, processor: str = 'sparq
         check_native_version_conformance(query_object)
 
     sparql = query_object
+    if initBindings:
+        if not isinstance(sparql, str):
+            raise NotImplementedError("initBindings on a native store needs the query as text")
+        sparql = inject_init_bindings(sparql, initBindings)
     if isinstance(sparql, str) and not blank_node_ids_are_stable(store, backend):
         # This engine's blank-node ids are not stable, so blank nodes were
         # stored as skolem IRIs - make isBLANK/isIRI/ORDER BY treat them as
@@ -643,18 +732,18 @@ def native_query(store, backend: str, query_object: Any, processor: str = 'sparq
     if query_type == 'ASK':
         from rdflib.query import Result as RDFResult
         r = RDFResult('ASK')
-        r.askAnswer = execute_ask(store, backend, sparql)
+        r.askAnswer = execute_ask(store, backend, sparql, default_union)
         return r
 
     if query_type in ('CONSTRUCT', 'DESCRIBE'):
         from rdflib.query import Result as RDFResult
 
-        deskolemized = execute_construct(store, backend, sparql)
+        deskolemized = execute_construct(store, backend, sparql, default_union)
         r = RDFResult('CONSTRUCT')
         r.graph = deskolemized
         return r
 
-    vars_, bindings = execute_select(store, backend, sparql)
+    vars_, bindings = execute_select(store, backend, sparql, default_union)
     return build_result(vars_, bindings)
 
 
@@ -716,6 +805,8 @@ def native_update(store, backend: str, update_object: Any) -> None:
             from starlayer.sparql.parse12 import prepare_update_12
             stripped_text, declared_version = strip_version_directive(text)
             prepared_12 = prepare_update_12(stripped_text)
+            if not prepared_12.algebra:
+                return  # an empty request does nothing (GitHub issue #135)
             if declared_version is not None:
                 from starlayer.graph.model.conformance import (
                     SPARQL12ConformanceWarning,

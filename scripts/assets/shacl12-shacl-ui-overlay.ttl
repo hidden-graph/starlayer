@@ -45,10 +45,20 @@ stsh:TypeGroup a sh:PropertyGroup ;
 	sh:order 0 ;
 	sh:description "What kind of thing this is — rdf:type, a simple multi-valued IRI. Allowed on any shape and expected on most (a shape need not be typed, SHACL 1.2 Core section 3.1, but a form should show and set the type)."@en .
 
+stsh:DefinitionGroup a sh:PropertyGroup ;
+	sh:name "Definition"@en ;
+	sh:order 0.5 ;
+	sh:description "What a kind of element is, as opposed to what it is called: the query of a SPARQL constraint, the subject, predicate and object of a triple rule, the prefix and namespace of a prefix declaration, the widget and score of a widget score, the members and imports of a shapes graph (GitHub issue #92)."@en .
+
 stsh:TargetGroup a sh:PropertyGroup ;
 	sh:name "Targeting"@en ;
 	sh:order 1 ;
 	sh:description "How a shape selects its focus nodes — sh:targetClass, sh:targetNode, and the rest of the targeting predicates."@en .
+
+stsh:NamingGroup a sh:PropertyGroup ;
+	sh:name "Naming and messages"@en ;
+	sh:order 1.5 ;
+	sh:description "What a shape is called and what it says when it fails: sh:name, sh:description, rdfs:label, rdfs:comment, sh:message, sh:severity, sh:deactivated. Directly after Targeting (GitHub issue #92)."@en .
 
 stsh:PathGroup a sh:PropertyGroup ;
 	sh:name "Property Paths"@en ;
@@ -129,15 +139,15 @@ sh:alternativePath sh:group stsh:PathGroup ; sh:order 3 .
 sh:and sh:group stsh:CompositionGroup ; sh:order 2 .
 sh:class sh:group stsh:ValueTypeGroup ; sh:order 1 .
 sh:closed sh:group stsh:ClosedGroup ; sh:order 1 .
-sh:datatype sh:group stsh:ValueTypeGroup ; sh:order 2 .
-sh:deactivated sh:group stsh:MetadataGroup ; sh:order 3 .
-sh:defaultValue sh:group stsh:MetadataGroup ; sh:order 8 .
-sh:values sh:group stsh:MetadataGroup ; sh:order 11 .
-sh:description sh:group stsh:MetadataGroup ; sh:order 5 .
+sh:datatype sh:group stsh:ValueTypeGroup ; sh:order 3 .
+sh:deactivated sh:group stsh:NamingGroup ; sh:order 7 .
+sh:defaultValue sh:group stsh:MetadataGroup ; sh:order 3 .
+sh:values sh:group stsh:MetadataGroup ; sh:order 4 .
+sh:description sh:group stsh:NamingGroup ; sh:order 2 .
 sh:disjoint sh:group stsh:ComparisonGroup ; sh:order 2 .
 sh:equals sh:group stsh:ComparisonGroup ; sh:order 1 .
 sh:flags sh:group stsh:StringGroup ; sh:order 4 .
-sh:group sh:group stsh:MetadataGroup ; sh:order 7 .
+sh:group sh:group stsh:MetadataGroup ; sh:order 2 .
 sh:hasValue sh:group stsh:ValueEnumerationGroup ; sh:order 2 .
 sh:ignoredProperties sh:group stsh:ClosedGroup ; sh:order 2 .
 sh:in sh:group stsh:ValueEnumerationGroup ; sh:order 1 .
@@ -151,19 +161,19 @@ sh:maxInclusive sh:group stsh:ValueRangeGroup ; sh:order 3 .
 sh:maxLength sh:group stsh:StringGroup ; sh:order 2 .
 sh:maxListLength sh:group stsh:ListGroup ; sh:order 2 .
 sh:memberShape sh:group stsh:CompositionGroup ; sh:order 8 .
-sh:message sh:group stsh:MetadataGroup ; sh:order 1 .
+sh:message sh:group stsh:NamingGroup ; sh:order 5 .
 sh:minCount sh:group stsh:CardinalityGroup ; sh:order 1 .
 sh:minExclusive sh:group stsh:ValueRangeGroup ; sh:order 2 .
 sh:minInclusive sh:group stsh:ValueRangeGroup ; sh:order 1 .
 sh:minLength sh:group stsh:StringGroup ; sh:order 1 .
 sh:minListLength sh:group stsh:ListGroup ; sh:order 1 .
-sh:name sh:group stsh:MetadataGroup ; sh:order 4 .
+sh:name sh:group stsh:NamingGroup ; sh:order 1 .
 sh:node sh:group stsh:CompositionGroup ; sh:order 5 .
-sh:nodeKind sh:group stsh:ValueTypeGroup ; sh:order 3 .
+sh:nodeKind sh:group stsh:ValueTypeGroup ; sh:order 4 .
 sh:not sh:group stsh:CompositionGroup ; sh:order 1 .
 sh:oneOrMorePath sh:group stsh:PathGroup ; sh:order 5 .
 sh:or sh:group stsh:CompositionGroup ; sh:order 3 .
-sh:order sh:group stsh:MetadataGroup ; sh:order 6 .
+sh:order sh:group stsh:MetadataGroup ; sh:order 1 .
 sh:path sh:group stsh:PathGroup ; sh:order 1 .
 sh:pattern sh:group stsh:StringGroup ; sh:order 3 .
 sh:property sh:group stsh:CompositionGroup ; sh:order 6 .
@@ -173,8 +183,8 @@ sh:qualifiedValueShape sh:group stsh:QualifiedGroup ; sh:order 1 .
 sh:qualifiedValueShapesDisjoint sh:group stsh:QualifiedGroup ; sh:order 4 .
 sh:reificationRequired sh:group stsh:ReificationGroup ; sh:order 2 .
 sh:reifierShape sh:group stsh:ReificationGroup ; sh:order 1 .
-sh:rootClass sh:group stsh:ValueTypeGroup ; sh:order 4 .
-sh:severity sh:group stsh:MetadataGroup ; sh:order 2 .
+sh:rootClass sh:group stsh:ValueTypeGroup ; sh:order 2 .
+sh:severity sh:group stsh:NamingGroup ; sh:order 6 .
 sh:singleLine sh:group stsh:StringGroup ; sh:order 7 .
 sh:someValue sh:group stsh:CompositionGroup ; sh:order 7 .
 sh:subsetOf sh:group stsh:ComparisonGroup ; sh:order 5 .
@@ -182,13 +192,16 @@ sh:targetClass sh:group stsh:TargetGroup ; sh:order 1 .
 sh:targetNode sh:group stsh:TargetGroup ; sh:order 2 .
 sh:targetObjectsOf sh:group stsh:TargetGroup ; sh:order 4 .
 sh:targetSubjectsOf sh:group stsh:TargetGroup ; sh:order 3 .
+sh:target sh:group stsh:TargetGroup ; sh:order 5 .        # a SPARQL target (sh:SPARQLTarget) or another target type (GitHub issue #91)
+sh:targetWhere sh:group stsh:TargetGroup ; sh:order 6 .   # SHACL 1.2: the nodes that conform to a shape (GitHub issue #91)
+sh:nodeByExpression sh:group stsh:CompositionGroup ; sh:order 9 .
 sh:uniqueLang sh:group stsh:StringGroup ; sh:order 6 .
 sh:uniqueMembers sh:group stsh:ListGroup ; sh:order 3 .
 sh:uniqueValuesFor sh:group stsh:CrossNodeGroup ; sh:order 1 .
 sh:xone sh:group stsh:CompositionGroup ; sh:order 4 .
 sh:zeroOrMorePath sh:group stsh:PathGroup ; sh:order 4 .
 sh:zeroOrOnePath sh:group stsh:PathGroup ; sh:order 6 .
-sh:expression sh:group stsh:PathGroup ; sh:order 7 .   # a property shape's value computed by a node expression, instead of a path
+sh:expression sh:group stsh:CompositionGroup ; sh:order 10 .   # Node Expressions 7.1: a condition any shape can carry, a node expression that must output exactly true
 
 
 #############################################################################
@@ -216,8 +229,6 @@ stsh:WidgetGroup a sh:PropertyGroup ;
 #############################################################################
 
 sh:sparql sh:group stsh:RulesGroup ; sh:order 1 .
-sh:select sh:group stsh:RulesGroup ; sh:order 2 .
-sh:ask sh:group stsh:RulesGroup ; sh:order 3 .
 sh:ConstraintComponent sh:group stsh:RulesGroup ; sh:order 4 .
 sh:parameter sh:group stsh:RulesGroup ; sh:order 5 .
 sh:validator sh:group stsh:RulesGroup ; sh:order 6 .
@@ -227,10 +238,35 @@ sh:rule sh:group stsh:RulesGroup ; sh:order 9 .
 sh:condition sh:group stsh:RulesGroup ; sh:order 10 .
 sh:TripleRule sh:group stsh:RulesGroup ; sh:order 11 .
 sh:SPARQLRule sh:group stsh:RulesGroup ; sh:order 12 .
-sh:construct sh:group stsh:RulesGroup ; sh:order 13 .
-sh:subject sh:group stsh:RulesGroup ; sh:order 14 .
-sh:predicate sh:group stsh:RulesGroup ; sh:order 15 .
-sh:object sh:group stsh:RulesGroup ; sh:order 16 .
+sh:prefixes sh:group stsh:RulesGroup ; sh:order 17 .
+sh:layer sh:group stsh:RulesGroup ; sh:order 18 .
+sh:runOnce sh:group stsh:RulesGroup ; sh:order 19 .
+sh:expectedPredicate sh:group stsh:RulesGroup ; sh:order 20 .
+sh:declare sh:group stsh:RulesGroup ; sh:order 21 .
+sh:labelTemplate sh:group stsh:RulesGroup ; sh:order 22 .
+
+# What a kind of element is (GitHub issues #92, #105): the first group after the type, for the forms of the kinds below
+sh:select sh:group stsh:DefinitionGroup ; sh:order 1 .
+sh:ask sh:group stsh:DefinitionGroup ; sh:order 2 .
+sh:construct sh:group stsh:DefinitionGroup ; sh:order 3 .
+sh:subject sh:group stsh:DefinitionGroup ; sh:order 4 .
+sh:predicate sh:group stsh:DefinitionGroup ; sh:order 5 .
+sh:object sh:group stsh:DefinitionGroup ; sh:order 6 .
+sh:returnType sh:group stsh:DefinitionGroup ; sh:order 7 .
+sh:bodyExpression sh:group stsh:DefinitionGroup ; sh:order 8 .
+sh:prefix sh:group stsh:DefinitionGroup ; sh:order 9 .
+sh:namespace sh:group stsh:DefinitionGroup ; sh:order 10 .
+shui:widget sh:group stsh:DefinitionGroup ; sh:order 11 .
+shui:score sh:group stsh:DefinitionGroup ; sh:order 12 .
+shui:shapesGraphShape sh:group stsh:DefinitionGroup ; sh:order 13 .
+shui:dataGraphShape sh:group stsh:DefinitionGroup ; sh:order 14 .
+rdfs:member sh:group stsh:DefinitionGroup ; sh:order 15 .
+owl:imports sh:group stsh:DefinitionGroup ; sh:order 16 .
+sh:entailment sh:group stsh:DefinitionGroup ; sh:order 17 .
+
+# A parameter's own fields sit in Cardinality, after sh:minCount and sh:maxCount
+sh:optional sh:group stsh:CardinalityGroup ; sh:order 3 .
+sh:keyParameter sh:group stsh:CardinalityGroup ; sh:order 4 .
 shui:editor sh:group stsh:WidgetGroup ; sh:order 1 .
 shui:viewer sh:group stsh:WidgetGroup ; sh:order 2 .
 shui:propertyRole sh:group stsh:WidgetGroup ; sh:order 3 .
@@ -430,11 +466,15 @@ stsh:formMaxCount a rdf:Property ;
 # rdfs:comment — not a SHACL predicate but commonly appears on shapes
 #############################################################################
 
-rdfs:comment
-    sh:group stsh:MetadataGroup ; sh:order 9 .
-    # stsh:nodeFormField / stsh:propertyFormField intentionally absent: sh:name and
-    # sh:description are the SHACL-native annotation predicates. rdfs:comment on a
-    # shape is treated as a Custom Property — visible only if the shape has it.
+# rdfs:label, rdfs:comment, rdfs:seeAlso and rdfs:subClassOf are not SHACL predicates but are on shapes all the time (GitHub issue #91);
+# sh:name and sh:description stay the SHACL-native annotations. rdfs:label and rdfs:comment sit with them in the naming group.
+rdfs:label        sh:group stsh:NamingGroup ; sh:order 3 ; sh:nodeKind sh:Literal .
+rdfs:comment      sh:group stsh:NamingGroup ; sh:order 4 ; sh:nodeKind sh:Literal ; stsh:multiline true .
+rdfs:seeAlso      sh:group stsh:MetadataGroup ; sh:order 6 ; sh:nodeKind sh:IRI .
+rdfs:subClassOf   sh:group stsh:MetadataGroup ; sh:order 7 ; sh:nodeKind sh:IRI .
+sh:unit           sh:group stsh:MetadataGroup ; sh:order 8 ; sh:nodeKind sh:IRIOrLiteral .
+sh:codeIdentifier sh:group stsh:MetadataGroup ; sh:order 9 ; sh:datatype xsd:string ; sh:nodeKind sh:Literal .
+sh:codeType       sh:group stsh:MetadataGroup ; sh:order 10 ; sh:nodeKind sh:IRI .
 
 
 #############################################################################
@@ -449,13 +489,28 @@ sh:severity      stsh:nodeFormField true ; stsh:formMaxCount 1 ; stsh:propertyFo
 sh:deactivated   stsh:nodeFormField true ; stsh:formMaxCount 1 ; stsh:propertyFormField true .
 sh:order         stsh:nodeFormField true ; stsh:formMaxCount 1 ; stsh:propertyFormField true .
 
+# Annotations that are not SHACL predicates, and the other shape-level properties of the vocabulary (domain sh:Shape): both shape types
+# (GitHub issue #91)
+rdfs:label        stsh:nodeFormField true ; stsh:propertyFormField true .
+rdfs:comment      stsh:nodeFormField true ; stsh:propertyFormField true .
+rdfs:seeAlso      stsh:nodeFormField true ; stsh:propertyFormField true .
+rdfs:subClassOf   stsh:nodeFormField true ; stsh:propertyFormField true .
+sh:unit           stsh:nodeFormField true ; stsh:propertyFormField true .
+sh:codeIdentifier stsh:nodeFormField true ; stsh:propertyFormField true ; stsh:formMaxCount 1 .
+sh:codeType       stsh:nodeFormField true ; stsh:propertyFormField true ; stsh:formMaxCount 1 .
+sh:target         stsh:nodeFormField true ; stsh:propertyFormField true .
+sh:targetWhere    stsh:nodeFormField true ; stsh:propertyFormField true .
+sh:nodeByExpression stsh:nodeFormField true ; stsh:propertyFormField true .
+
 # Closed-shape predicates — NodeShape only
 sh:closed            stsh:nodeFormField true ; stsh:formMaxCount 1 .
 sh:ignoredProperties stsh:nodeFormField true .
 
-# Property path / node expression — PropertyShape only
+# Property path — PropertyShape only
 sh:path       stsh:propertyFormField true ; stsh:formMaxCount 1 .
-sh:expression stsh:propertyFormField true ; stsh:formMaxCount 1 .
+
+# Expression constraint: any shape (Node Expressions 7.1), as many as you like
+sh:expression stsh:nodeFormField true ; stsh:propertyFormField true .
 
 # Cardinality — PropertyShape only
 sh:minCount stsh:propertyFormField true ; stsh:formMaxCount 1 .
@@ -491,9 +546,9 @@ sh:hasValue stsh:nodeFormField true ;                       stsh:propertyFormFie
 sh:defaultValue stsh:propertyFormField true .
 sh:values stsh:propertyFormField true ; stsh:formMaxCount 1 .
 
-# Value comparison — PropertyShape only
-sh:equals           stsh:propertyFormField true .
-sh:disjoint         stsh:propertyFormField true .
+# Value comparison — sh:equals and sh:disjoint on both (shacl_shacl bans only sh:lessThan and sh:lessThanOrEquals on a node shape)
+sh:equals           stsh:nodeFormField true ; stsh:propertyFormField true .   # valid on a node shape too (GitHub issue #91)
+sh:disjoint         stsh:nodeFormField true ; stsh:propertyFormField true .
 sh:lessThan         stsh:propertyFormField true .
 sh:lessThanOrEquals stsh:propertyFormField true .
 
@@ -594,7 +649,7 @@ stsh:formFor a rdf:Property ;
 
 # The link from a shape to the shapes graph that defines it (SHACL 1.2 Profiling section 2.4): a field of both forms.
 rdfs:isDefinedBy stsh:nodeFormField true ; stsh:propertyFormField true ; stsh:formMaxCount 1 ;
-    sh:group stsh:MetadataGroup ; sh:order 10 .
+    sh:group stsh:MetadataGroup ; sh:order 5 .
 
 # rdf:type: a simple multi-valued IRI, the first field of both forms. A UI-only node kind (shacl_shacl has no rule for it) lets the
 # scoring pick the IRI editor and the honesty check give it a sample.
@@ -614,21 +669,129 @@ stsh:secondary a rdf:Property ;
     rdfs:comment "True on a field of a form shape when the predicate is allowed but not commonly expected for that kind of node; a tool may show it in a collapsed section. Absent is treated as false. Generated from stsh:nodePrimary false for the node shape form."@en ;
     rdfs:range xsd:boolean .
 
-# A property group's form: its name (and SHACL Core's rdfs:label) and its order among the groups.
+# ---- Forms for the other kinds of element a shapes graph holds (GitHub issues #89, #105, #67)
+# Each form below is generated like the two above, from a list of the predicates that are its fields: the field takes its group, order,
+# maximum count, datatype and node kind from the predicate's own annotations in this file (so a predicate has one place whatever the
+# kind: GitHub issue #92) and what shacl_shacl says of it (but not its minimum count: a form lists what it requires in stsh:formRequired,
+# because the same predicate is required in one kind and optional in another: sh:select of a SPARQL function or a validator).
+# rdf:type is the first field of every form (GitHub issue #105): the type is what makes a node that kind of element.
+
+stsh:formFields a rdf:Property ;
+    rdfs:label "form fields"@en ;
+    rdfs:comment "The predicates that are the fields of a form shape generated from this source: a list. The build makes one property shape per predicate (named stsh:<Form>_<prefix>_<local>), with that predicate's group, order, maximum count, datatype and node kind. The list is documentation in the built file; the order of the fields is their sh:order."@en .
+
+stsh:formRequired a rdf:Property ;
+    rdfs:label "form required"@en ;
+    rdfs:comment "The predicates of stsh:formFields that a node of this kind must have: each field gets sh:minCount 1."@en .
+
+# A property group's form: its name (and SHACL Core's rdfs:label), its order among the groups, and the shapes graph that defines it.
 stsh:PropertyGroupForm a sh:NodeShape ;
     stsh:formFor sh:PropertyGroup ;
-    sh:property [ a sh:PropertyShape ; sh:path sh:name ; sh:order 1 ] ;
-    sh:property [ a sh:PropertyShape ; sh:path rdfs:label ; sh:order 2 ] ;
-    sh:property [ a sh:PropertyShape ; sh:path sh:description ; sh:order 3 ] ;
-    sh:property [ a sh:PropertyShape ; sh:path sh:order ; sh:order 4 ; sh:maxCount 1 ] .
+    stsh:formFields ( rdf:type sh:name sh:description rdfs:label rdfs:comment sh:order rdfs:isDefinedBy ) .
 
 # A shapes graph's form (SHACL 1.2 Profiling section 2): its label, the shapes it uses that another shapes graph defines
-# (rdfs:member), and the shapes graphs it depends on (owl:imports).
+# (rdfs:member), the shapes graphs it depends on (owl:imports), its entailment regime, and prefix declarations (sh:declare). The same
+# form serves an ontology node that holds prefix declarations (the W3C tests put sh:declare on an untyped ontology IRI too).
 stsh:ShapesGraphForm a sh:NodeShape ;
     stsh:formFor sh:ShapesGraph ;
-    sh:property [ a sh:PropertyShape ; sh:path rdfs:label ; sh:order 1 ] ;
-    sh:property [ a sh:PropertyShape ; sh:path rdfs:member ; sh:order 2 ] ;
-    sh:property [ a sh:PropertyShape ; sh:path owl:imports ; sh:order 3 ] .
+    stsh:formFields ( rdf:type rdfs:label rdfs:comment rdfs:member owl:imports sh:entailment sh:declare rdfs:isDefinedBy ) .
+
+# A prefix declaration, the value of sh:declare (SHACL 1.2 Core section 5.2): a small node with a prefix and a namespace.
+stsh:PrefixDeclarationForm a sh:NodeShape ;
+    stsh:formFor sh:PrefixDeclaration ;
+    stsh:formFields ( rdf:type sh:prefix sh:namespace ) ;
+    stsh:formRequired ( sh:prefix sh:namespace ) .
+
+# A SPARQL constraint, the value of sh:sparql.
+stsh:SPARQLConstraintForm a sh:NodeShape ;
+    stsh:formFor sh:SPARQLConstraint ;
+    stsh:formFields ( rdf:type sh:select sh:prefixes rdfs:label rdfs:comment sh:message sh:severity sh:deactivated ) ;
+    stsh:formRequired ( sh:select ) .
+
+# The two kinds of SPARQL rule: a SPARQL CONSTRUCT rule and a triple rule (SHACL 1.2 Inference Rules sections 11.1 and 11.2).
+# A triple rule's subject, predicate and object are all optional: an absent one is the focus node (section 11.2).
+stsh:SPARQLRuleForm a sh:NodeShape ;
+    stsh:formFor sh:SPARQLRule ;
+    stsh:formFields ( rdf:type sh:construct sh:prefixes sh:condition sh:layer sh:runOnce sh:expectedPredicate rdfs:label rdfs:comment sh:order sh:deactivated ) ;
+    stsh:formRequired ( sh:construct ) .
+
+stsh:TripleRuleForm a sh:NodeShape ;
+    stsh:formFor sh:TripleRule ;
+    stsh:formFields ( rdf:type sh:subject sh:predicate sh:object sh:condition sh:layer sh:runOnce sh:expectedPredicate rdfs:label rdfs:comment sh:order sh:deactivated ) .
+
+# A constraint component (SHACL-AF 6): its parameters and the validators that check them.
+stsh:ConstraintComponentForm a sh:NodeShape ;
+    stsh:formFor sh:ConstraintComponent ;
+    stsh:formFields ( rdf:type sh:parameter sh:validator sh:nodeValidator sh:propertyValidator sh:labelTemplate rdfs:label rdfs:comment ) ;
+    stsh:formRequired ( sh:parameter ) .
+
+# A parameter of a constraint component or a function: a property shape (sh:Parameter is a subclass of sh:PropertyShape), so it orders
+# its fields as a property shape does, plus whether it is optional and whether it is the key.
+stsh:ParameterForm a sh:NodeShape ;
+    stsh:formFor sh:Parameter ;
+    stsh:formFields ( rdf:type sh:path sh:name sh:description rdfs:label rdfs:comment sh:class sh:datatype sh:nodeKind sh:optional sh:keyParameter sh:defaultValue sh:order ) ;
+    stsh:formRequired ( sh:path ) .
+
+# The validators of a constraint component.
+stsh:AskValidatorForm a sh:NodeShape ;
+    stsh:formFor sh:SPARQLAskValidator ;
+    stsh:formFields ( rdf:type sh:ask sh:prefixes rdfs:label rdfs:comment sh:message ) ;
+    stsh:formRequired ( sh:ask ) .
+
+stsh:SelectValidatorForm a sh:NodeShape ;
+    stsh:formFor sh:SPARQLSelectValidator ;
+    stsh:formFields ( rdf:type sh:select sh:prefixes rdfs:label rdfs:comment sh:message ) ;
+    stsh:formRequired ( sh:select ) .
+
+# Functions: a function with a return type and parameters; a SPARQL function, whose body is a query.
+stsh:FunctionForm a sh:NodeShape ;
+    stsh:formFor sh:Function ;
+    stsh:formFields ( rdf:type sh:parameter sh:returnType rdfs:label rdfs:comment ) .
+
+stsh:SPARQLFunctionForm a sh:NodeShape ;
+    stsh:formFor sh:SPARQLFunction ;
+    stsh:formFields ( rdf:type sh:select sh:ask sh:prefixes sh:parameter sh:returnType rdfs:label rdfs:comment ) .
+
+# A SPARQL target, the value of sh:target.
+stsh:SPARQLTargetForm a sh:NodeShape ;
+    stsh:formFor sh:SPARQLTarget ;
+    stsh:formFields ( rdf:type sh:select sh:prefixes rdfs:label rdfs:comment ) ;
+    stsh:formRequired ( sh:select ) .
+
+# A widget score of SHACL UI (a scoring catalog entry).
+stsh:WidgetScoreForm a sh:NodeShape ;
+    stsh:formFor shui:WidgetScore ;
+    stsh:formFields ( rdf:type shui:widget shui:score shui:shapesGraphShape shui:dataGraphShape rdfs:label rdfs:comment ) ;
+    stsh:formRequired ( shui:widget shui:score ) .
+
+# What the predicates of those forms take (the rest of what a field says comes from shacl_shacl where it has a rule).
+sh:select sh:nodeKind sh:Literal ; stsh:formMaxCount 1 ; stsh:multiline true .
+sh:ask sh:nodeKind sh:Literal ; stsh:formMaxCount 1 ; stsh:multiline true .
+sh:construct sh:nodeKind sh:Literal ; stsh:formMaxCount 1 ; stsh:multiline true .
+sh:prefixes sh:nodeKind sh:BlankNodeOrIRI .       # a node that holds sh:declare values: a shapes graph, an ontology, any resource
+sh:declare sh:nodeKind sh:BlankNodeOrIRI .
+sh:prefix sh:nodeKind sh:Literal ; stsh:formMaxCount 1 .
+sh:namespace sh:nodeKind sh:IRIOrLiteral ; stsh:formMaxCount 1 .   # xsd:anyURI or xsd:string
+sh:condition sh:nodeKind sh:BlankNodeOrIRI .      # a shape, or a list of shapes
+sh:layer sh:nodeKind sh:Literal ; sh:datatype xsd:integer ; stsh:formMaxCount 1 .
+sh:runOnce sh:nodeKind sh:Literal ; sh:datatype xsd:boolean ; stsh:formMaxCount 1 .
+sh:expectedPredicate sh:nodeKind sh:IRI .
+sh:labelTemplate sh:nodeKind sh:Literal ; stsh:formMaxCount 1 .
+sh:parameter sh:nodeKind sh:BlankNodeOrIRI .
+sh:validator sh:nodeKind sh:BlankNodeOrIRI ; stsh:formMaxCount 1 .
+sh:nodeValidator sh:nodeKind sh:BlankNodeOrIRI ; stsh:formMaxCount 1 .
+sh:propertyValidator sh:nodeKind sh:BlankNodeOrIRI ; stsh:formMaxCount 1 .
+sh:returnType sh:nodeKind sh:IRI ; stsh:formMaxCount 1 .
+sh:bodyExpression sh:nodeKind sh:BlankNodeOrIRI ; stsh:formMaxCount 1 .
+sh:optional sh:nodeKind sh:Literal ; sh:datatype xsd:boolean ; stsh:formMaxCount 1 .
+sh:keyParameter sh:nodeKind sh:Literal ; sh:datatype xsd:boolean ; stsh:formMaxCount 1 .
+sh:entailment sh:nodeKind sh:IRI .
+rdfs:member sh:nodeKind sh:IRI .
+owl:imports sh:nodeKind sh:IRI .
+shui:widget sh:nodeKind sh:BlankNodeOrIRI ; stsh:formMaxCount 1 .
+shui:score sh:nodeKind sh:Literal ; stsh:formMaxCount 1 .
+shui:shapesGraphShape sh:nodeKind sh:BlankNodeOrIRI ; stsh:formMaxCount 1 .
+shui:dataGraphShape sh:nodeKind sh:BlankNodeOrIRI ; stsh:formMaxCount 1 .
 
 # ---- What a field's values can be (sh:nodeKind), for a tool that shows a shape as a tree and a panel
 # The form shapes copy a predicate's datatype, node kind and class from shacl_shacl where it has one. These are the predicates where it
@@ -656,8 +819,10 @@ rdfs:isDefinedBy  sh:nodeKind sh:IRI .
 
 # an IRI or a literal, never a blank node
 sh:hasValue  sh:nodeKind sh:IRIOrLiteral .
-sh:someValue sh:nodeKind sh:IRIOrLiteral .
 sh:targetNode sh:nodeKind sh:IRIOrLiteral .
+
+# a path is an IRI or, for a sequence, inverse, alternative or repeated path, a blank node (GitHub issue #130)
+sh:path sh:nodeKind sh:BlankNodeOrIRI .
 
 # a shape or another node with fields of its own: a blank node or an IRI
 sh:property           sh:nodeKind sh:BlankNodeOrIRI .
@@ -668,6 +833,10 @@ sh:reifierShape       sh:nodeKind sh:BlankNodeOrIRI .
 sh:and                sh:nodeKind sh:BlankNodeOrIRI .
 sh:or                 sh:nodeKind sh:BlankNodeOrIRI .
 sh:xone               sh:nodeKind sh:BlankNodeOrIRI .
+sh:someValue          sh:nodeKind sh:BlankNodeOrIRI .   # takes a shape (rdfs:range sh:Shape), not a plain value (GitHub issue #67)
+sh:target             sh:nodeKind sh:BlankNodeOrIRI .
+sh:targetWhere        sh:nodeKind sh:BlankNodeOrIRI .
+sh:nodeByExpression   sh:nodeKind sh:BlankNodeOrIRI .
 sh:rule               sh:nodeKind sh:BlankNodeOrIRI .
 sh:sparql             sh:nodeKind sh:BlankNodeOrIRI .
 sh:expression         sh:nodeKind sh:BlankNodeOrIRI .

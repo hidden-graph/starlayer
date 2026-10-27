@@ -786,13 +786,26 @@ class TestRuleWellFormedness:
         conforms, _report_graph, _report_text = meta_validate(shapes)
         assert conforms is True
 
-    def test_triple_rule_missing_object_is_rejected(self) -> None:
+    def test_triple_rule_missing_object_is_accepted_it_is_the_focus_node(self) -> None:
+        """SHACL 1.2 Inference Rules 11.2: an absent sh:subject, sh:predicate or sh:object is the focus node (GitHub issue #67)."""
         shapes = Graph()
         shapes.parse(
             data=_RULES_PREFIX
             + """
             ex:S a sh:NodeShape ; sh:targetClass ex:Person ;
               sh:rule [ a sh:TripleRule ; sh:subject sh:this ; sh:predicate ex:p ] .
+            """,
+            format="turtle",
+        )
+        assert meta_validate(shapes)[0] is True
+
+    def test_triple_rule_with_two_objects_is_rejected(self) -> None:
+        shapes = Graph()
+        shapes.parse(
+            data=_RULES_PREFIX
+            + """
+            ex:S a sh:NodeShape ; sh:targetClass ex:Person ;
+              sh:rule [ a sh:TripleRule ; sh:subject sh:this ; sh:predicate ex:p ; sh:object sh:this, ex:o ] .
             """,
             format="turtle",
         )

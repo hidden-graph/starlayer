@@ -52,6 +52,9 @@ from starlayer.graph.query import (
 from starlayer.graph.query.algebra_translator_patches import (
     patch_algebra_translator_bugs as _patch_algebra_translator_bugs,
 )
+from starlayer.graph.query.builtin_error_patches import (
+    apply_all_builtin_error_patches as _apply_all_builtin_error_patches,
+)
 
 # Fix for a confirmed rdflib bug (a different module/phase again - result
 # *materialization*, rdflib.query.Result, not parsing/algebra/evaluation): a
@@ -87,18 +90,6 @@ from starlayer.graph.query.evaluate_patches import (
     patch_construct_skips_encoding_solutions as _patch_construct_skips_encoding_solutions,
 )
 
-# Compatibility shim for a confirmed bug in plain rdflib's own SPARQL
-# *evaluator* (evalExtend/BIND) - the most important of these patches,
-# since the bug it fixes silently produces wrong query results with no
-# error at all, rather than failing loudly. Applies to every query
-# evaluated through rdflib, including starlayer.graph's own (unlike the
-# algebra-translator patches above, this one *is* exercised by starlayer.graph's
-# own pipeline). See starlayer.graph/query/evaluate_patches.py and
-# docs/upstream-issues/rdflib-upstream-issues.md issue 5.
-from starlayer.graph.query.evaluate_patches import (
-    patch_evalextend_forgotten_bind_vars as _patch_evalextend_forgotten_bind_vars,
-)
-
 # Same confirmed rdflib bug as the evalExtend patch immediately above,
 # reached through FILTER instead of BIND (evalFilter's own
 # `c.forget(ctx, _except=part._vars)`) - not covered by that patch, since
@@ -107,17 +98,6 @@ from starlayer.graph.query.evaluate_patches import (
 from starlayer.graph.query.evaluate_patches import (
     patch_evalfilter_forgotten_vars as _patch_evalfilter_forgotten_vars,
 )
-
-# Fix for a confirmed bug in plain rdflib's own evalInsertData (same
-# rdflib.plugins.sparql.update module as evalModify above, a distinct
-# function): `g = ctx.graph; g += u.triples` assumes `+=` accepts a plain
-# iterable of triples, which isn't true once ctx.graph is a genuine
-# Dataset/ConjunctiveGraph (StarLayerDataset's default graph) - its own
-# `__iadd__` override expects already-quad tuples, so a plain `INSERT DATA`
-# with no triple terms involved raises `ValueError: not enough values to
-# unpack`. Not symmetric with DELETE DATA (`evalDeleteData`'s `-=` doesn't
-# have the same quad-only override and already works correctly) - see
-# starlayer.graph/query/evaluate_patches.py::patch_evalinsertdata_quad_unpacking.
 from starlayer.graph.query.evaluate_patches import (
     patch_evalinsertdata_quad_unpacking as _patch_evalinsertdata_quad_unpacking,
 )
@@ -144,15 +124,11 @@ from starlayer.graph.query.evaluate_patches import (
 from starlayer.graph.query.evaluate_patches import (
     patch_group_by_unaliased_expression_key as _patch_group_by_unaliased_expression_key,
 )
-
-# Compatibility shim for a second, distinct confirmed bug in plain rdflib's
-# own SPARQL evaluator (evalJoin/evalLazyJoin) - same root cause as the
-# evalExtend patch above (a BIND's own expression-only variables aren't
-# visible in _vars), but affects join *ordering* rather than evalExtend's
-# own variable-forgetting, and isn't covered by that fix. See
-# starlayer.graph/query/evaluate_patches.py::patch_lazy_join_expr_dependency_order.
 from starlayer.graph.query.evaluate_patches import (
-    patch_lazy_join_expr_dependency_order as _patch_lazy_join_expr_dependency_order,
+    patch_join_keeps_duplicate_rows as _patch_join_keeps_duplicate_rows,
+)
+from starlayer.graph.query.evaluate_patches import (
+    patch_negated_path_skips_encoding_triples as _patch_negated_path_skips_encoding_triples,
 )
 
 # Fix for a starlayer.graph-side (not rdflib) gap: the in-memory backend's
@@ -174,29 +150,53 @@ from starlayer.graph.query.evaluate_patches import (
 from starlayer.graph.query.evaluate_patches import (
     patch_relational_expression_tt_hash_equality as _patch_relational_expression_tt_hash_equality,
 )
+from starlayer.graph.query.operator_patches import (
+    apply_all_operator_patches as _apply_all_operator_patches,
+)
 
 # Compatibility shims for confirmed bugs in plain rdflib's own SPARQL
 # arithmetic evaluation - applied eagerly so every consumer gets
 # spec-correct results. See starlayer.graph/query/operator_patches.py.
-from starlayer.graph.query.operator_patches import (
-    apply_all_operator_patches as _apply_all_operator_patches,
+from starlayer.graph.query.path_patches import (
+    patch_negated_set_inverse_member as _patch_negated_set_inverse_member,
+)
+from starlayer.graph.query.path_patches import (
+    patch_repetition_paths_are_distinct as _patch_repetition_paths_are_distinct,
 )
 from starlayer.graph.query.result_patches import (
     patch_result_iter_empty_binding_row as _patch_result_iter_empty_binding_row,
 )
 
+# Fix for a confirmed bug in plain rdflib's own evalInsertData (same
+# rdflib.plugins.sparql.update module as evalModify above, a distinct
+# function): `g = ctx.graph; g += u.triples` assumes `+=` accepts a plain
+# iterable of triples, which isn't true once ctx.graph is a genuine
+# Dataset/ConjunctiveGraph (StarLayerDataset's default graph) - its own
+# `__iadd__` override expects already-quad tuples, so a plain `INSERT DATA`
+# with no triple terms involved raises `ValueError: not enough values to
+# unpack`. Not symmetric with DELETE DATA (`evalDeleteData`'s `-=` doesn't
+# have the same quad-only override and already works correctly) - see
+# starlayer.graph/query/evaluate_patches.py::patch_evalinsertdata_quad_unpacking.
+from starlayer.graph.query.update_patches import (
+    patch_update_graph_management as _patch_update_graph_management,
+)
+
 _apply_all_operator_patches()
+_apply_all_builtin_error_patches()
+_patch_negated_set_inverse_member()
+_patch_repetition_paths_are_distinct()
 _patch_algebra_translator_bugs()
-_patch_evalextend_forgotten_bind_vars()
 _patch_evalfilter_forgotten_vars()
 _patch_evalmodify_default_graph_selection()
 _patch_evalinsertdata_quad_unpacking()
-_patch_lazy_join_expr_dependency_order()
+_patch_update_graph_management()
 _patch_construct_skips_encoding_solutions()
 _patch_aggregate_join_no_row()
 _patch_relational_expression_tt_hash_equality()
 _patch_order_by_tt_hash_term_kind()
 _patch_bgp_skips_encoding_triples()
+_patch_negated_path_skips_encoding_triples()
+_patch_join_keeps_duplicate_rows()
 _patch_group_by_unaliased_expression_key()
 _patch_result_iter_empty_binding_row()
 

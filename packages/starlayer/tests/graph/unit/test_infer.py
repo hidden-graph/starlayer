@@ -33,6 +33,17 @@ EX = Namespace("http://example.org/")
 REIFIES = URIRef("http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies")
 
 
+
+def _expand_to_fixpoint(semantics, graph):
+    """owlrl to a fixpoint. One pass is not a closure (its axiomatic triples are typed rdfs:Resource only on the next
+    pass), and infer() repeats it until nothing changes (GitHub issue #97)."""
+    for _ in range(8):
+        size = len(graph)
+        owlrl.DeductiveClosure(semantics).expand(graph)
+        if len(graph) == size:
+            break
+
+
 def _rdfs_graph() -> StarLayerGraph:
     g = StarLayerGraph()
     g.bind("ex", EX)
@@ -51,7 +62,7 @@ class TestInferRdfs:
         oracle = Graph()
         for t in g:
             oracle.add(t)
-        owlrl.DeductiveClosure(owlrl.RDFS_Semantics).expand(oracle)
+        _expand_to_fixpoint(owlrl.RDFS_Semantics, oracle)
 
         assert set(closed) == set(oracle)
 
@@ -141,6 +152,8 @@ class TestInferRdf:
             (RDF.rest, RDF.type, RDF.Property),
             (RDF.nil, RDF.type, RDF.List),
             (RDF._1, RDF.type, RDF.Property),
+            # The entailed triples use rdf:type as a predicate (closure, issue #83).
+            (RDF.type, RDF.type, RDF.Property),
         }
         # None of the OTHER fixed axiomatic terms (subject/predicate/
         # object/reifies/value) appear, since none of them were actually
@@ -198,7 +211,7 @@ class TestInferOwlRl:
         oracle = Graph()
         for t in g:
             oracle.add(t)
-        owlrl.DeductiveClosure(owlrl.OWLRL_Semantics).expand(oracle)
+        _expand_to_fixpoint(owlrl.OWLRL_Semantics, oracle)
 
         assert set(closed) == set(oracle)
 
@@ -253,7 +266,7 @@ class TestInferDelta:
         oracle_after = Graph()
         for t in oracle_before:
             oracle_after.add(t)
-        owlrl.DeductiveClosure(owlrl.RDFS_Semantics).expand(oracle_after)
+        _expand_to_fixpoint(owlrl.RDFS_Semantics, oracle_after)
         oracle_before_set = set(oracle_before)
         oracle_delta = StarLayerGraph()
         for t in oracle_after:
@@ -320,7 +333,7 @@ class TestInferWithTripleTerms:
         oracle_after = Graph()
         for t in oracle_before:
             oracle_after.add(t)
-        owlrl.DeductiveClosure(owlrl.RDFS_Semantics).expand(oracle_after)
+        _expand_to_fixpoint(owlrl.RDFS_Semantics, oracle_after)
         oracle_before_set = set(oracle_before)
         oracle_delta = StarLayerGraph()
         for t in oracle_after:
@@ -380,7 +393,7 @@ class TestInferCombinedRegime:
         oracle = Graph()
         for t in g:
             oracle.add(t)
-        owlrl.DeductiveClosure(owlrl.RDFS_OWLRL_Semantics).expand(oracle)
+        _expand_to_fixpoint(owlrl.RDFS_OWLRL_Semantics, oracle)
 
         assert set(closed) == set(oracle)
 
@@ -452,7 +465,8 @@ class TestInferCombinedWithRdf:
 
         delta = set(g.infer(entailment={ENTAILMENT.RDF}, mode="delta"))
 
-        assert delta == {(EX.knows, RDF.type, RDF.Property)}
+        # rdf:type, the predicate of the entailed triple, is typed too (closure, issue #83).
+        assert delta == {(EX.knows, RDF.type, RDF.Property), (RDF.type, RDF.type, RDF.Property)}
 
     def test_owl_direct_combined_with_rdf_still_raises(self) -> None:
         g = self._list_and_subclass_graph()

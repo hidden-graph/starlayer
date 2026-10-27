@@ -81,23 +81,52 @@ def _widget_roles(widget: Any, *graphs: Any) -> set[str]:
     return roles
 
 
-def _node_conforms(node: Any, shape: Any, *, base_graph: Any, shapes_graph: Any) -> bool:
-    """True iff ``node`` (a resource in ``base_graph``) conforms to
-    ``shape`` (a shape already defined somewhere in ``shapes_graph``) -
-    built by wrapping ``shape`` in a throwaway ``sh:targetNode``/``sh:node``
-    probe shape, rather than a private helper, so this stays on
-    ``starlayer.shacl``'s own public surface only.
-    """
-    from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+# Declarations that make a shape validate some nodes by itself. A probe copy of a shapes graph drops them: whether a
+# node conforms *to* a shape (sh:node) does not depend on what the shape targets, and a targeted shape elsewhere in the
+# graph is none of the probe's business (GitHub issue #130).
+_TARGET_PREDICATES = (
+    SH.targetNode, SH.targetClass, SH.targetSubjectsOf, SH.targetObjectsOf, SH.target, SH.targetWhere,
+)
 
+
+def _conforming_nodes(nodes: Any, shape: Any, *, base_graph: Any, shapes_graph: Any) -> frozenset:
+    """The members of ``nodes`` (resources in ``base_graph``) that conform to ``shape`` (defined in ``shapes_graph``).
+
+    One probe shape (``sh:targetNode`` each node, ``sh:node shape``) is validated, and a node fails only if the probe's
+    own ``sh:node`` check reports it. Nothing else in ``shapes_graph`` counts: its other shapes are not validated
+    (their targets are dropped from the copy, so they cost nothing and cannot crash) and any result of theirs is
+    ignored (the whole report's ``conforms`` is not used). ``owl:imports`` in ``shapes_graph`` is left unresolved
+    (it plays no part in the check). Built on ``starlayer.shacl``'s public ``validate()``.
+    """
+    from rdflib import OWL
+
+    from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+    from starlayer.shacl.validator import _find_genuine_report_node
+
+    nodes = tuple(nodes)
     probe_shapes = StarLayerGraph()
     probe_shapes += shapes_graph
+    for predicate in (*_TARGET_PREDICATES, OWL.imports):
+        probe_shapes.remove((None, predicate, None))
     wrapper = BNode()
     probe_shapes.add((wrapper, RDF.type, SH.NodeShape))
-    probe_shapes.add((wrapper, SH.targetNode, node))
     probe_shapes.add((wrapper, SH.node, shape))
-    result = validate(base_graph, probe_shapes, meta_shacl=False)
-    return result.conforms
+    for node in nodes:
+        probe_shapes.add((wrapper, SH.targetNode, node))
+    result = validate(base_graph, probe_shapes, meta_shacl=False, ignore_imports=True)
+    violating: set[Any] = set()
+    report_node = _find_genuine_report_node(result.report_graph)
+    if report_node is not None:
+        for result_node in result.report_graph.objects(report_node, SH.result):
+            if wrapper in set(result.report_graph.objects(result_node, SH.sourceShape)):
+                violating.update(result.report_graph.objects(result_node, SH.focusNode))
+    return frozenset(n for n in nodes if n not in violating)
+
+
+def _node_conforms(node: Any, shape: Any, *, base_graph: Any, shapes_graph: Any) -> bool:
+    """True iff ``node`` (a resource in ``base_graph``) conforms to ``shape`` (a shape already defined somewhere in
+    ``shapes_graph``). The same answer :class:`_ConformanceBatch` gives for it, see :func:`_conforming_nodes`."""
+    return node in _conforming_nodes((node,), shape, base_graph=base_graph, shapes_graph=shapes_graph)
 
 
 class _ConformanceBatch:
@@ -120,27 +149,10 @@ class _ConformanceBatch:
         if node not in self._nodes:
             return _node_conforms(node, shape, base_graph=self._base_graph, shapes_graph=self._shapes_graph)
         if shape not in self._conforming:
-            self._conforming[shape] = self._check(shape)
+            self._conforming[shape] = _conforming_nodes(
+                self._nodes, shape, base_graph=self._base_graph, shapes_graph=self._shapes_graph
+            )
         return node in self._conforming[shape]
-
-    def _check(self, shape: Any) -> frozenset:
-        from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-        from starlayer.shacl.validator import _find_genuine_report_node
-
-        probe_shapes = StarLayerGraph()
-        probe_shapes += self._shapes_graph
-        wrapper = BNode()
-        probe_shapes.add((wrapper, RDF.type, SH.NodeShape))
-        probe_shapes.add((wrapper, SH.node, shape))
-        for node in self._nodes:
-            probe_shapes.add((wrapper, SH.targetNode, node))
-        result = validate(self._base_graph, probe_shapes, meta_shacl=False)
-        violating: set[Any] = set()
-        report_node = _find_genuine_report_node(result.report_graph)
-        if report_node is not None:
-            for result_node in result.report_graph.objects(report_node, SH.result):
-                violating.update(result.report_graph.objects(result_node, SH.focusNode))
-        return frozenset(n for n in self._nodes if n not in violating)
 
 
 def _find_matcher(widget: Any, scoring_graph: Any) -> Any | None:
@@ -232,7 +244,11 @@ def _ranked_scores(shapes_graph: Any, scoring_graph: Any, role: str) -> list[tup
         roles = _widget_roles(widget, scoring_graph, shapes_graph)
         if roles and role not in roles:
             continue  # a widget known only as the other role is not a candidate (draft Sections 4.1 and 4.2)
-        ranked.append((float(score_value), widget, score_node))
+        try:
+            score = float(score_value)
+        except (TypeError, ValueError):
+            continue  # a score that is not a number is skipped, like a score node with no widget or no value
+        ranked.append((score, widget, score_node))
     ranked.sort(key=lambda entry: (-entry[0], str(entry[1])))
     return ranked
 
@@ -290,6 +306,8 @@ def select_widget(
     explicit ``shui:editor``/``shui:viewer`` is then accepted outright, and a
     property with none gets ``None``.
     """
+    if role not in ("editor", "viewer"):
+        raise ValueError(f"role must be 'editor' or 'viewer', got {role!r}")
     if focus_node is not None and data_graph is None:
         raise ValueError("focus_node needs a data_graph to check its shui:dataGraphShape against")
     if scoring_graph is None:
@@ -482,6 +500,10 @@ def select_widgets(
     """
     if per not in ("node", "shape"):
         raise ValueError("per must be 'node' or 'shape'")
+    if role not in ("editor", "viewer"):
+        raise ValueError(f"role must be 'editor' or 'viewer', got {role!r}")
+    if (shape_node, None, None) not in shapes_graph:
+        raise ValueError(f"shape_node {shape_node!r} is not a subject in the shapes graph")
     if per == "shape" and (focus_node is not None or data_graph is not None):
         raise ValueError("per='shape' answers for the shape; pass the node to choice.resolve(focus_node, data_graph)")
     properties = list(shapes_graph.objects(shape_node, SH.property))

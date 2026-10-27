@@ -150,6 +150,8 @@ def query_to_rdf(query: Query, graph: Graph | None = None) -> tuple[Graph, BNode
     Returns:
         ``(graph, root)``.
     """
+    if getattr(query, "algebra", None) is None:
+        raise TypeError(f"query must be a prepared rdflib Query (see prepareQuery), not {type(query).__name__}")
     if graph is None:
         graph = _new_starlayer_graph()
     root = _encode(query.algebra, graph)
@@ -181,6 +183,8 @@ def update_to_rdf(update: Update, graph: Graph | None = None) -> tuple[Graph, BN
     Returns:
         ``(graph, root)``.
     """
+    if getattr(update, "algebra", None) is None:
+        raise TypeError(f"update must be a prepared rdflib Update (see prepareUpdate), not {type(update).__name__}")
     if graph is None:
         graph = _new_starlayer_graph()
     op_nodes = []
@@ -218,6 +222,8 @@ def queries_to_collection(queries: list[Query], graph: Graph | None = None) -> t
         semantically meaningful for a collection, but is preserved anyway
         since ``rdf:List`` is ordered regardless).
     """
+    if isinstance(queries, (str, bytes)) or not hasattr(queries, "__iter__"):
+        raise TypeError(f"queries must be a list of prepared Query objects, not {type(queries).__name__}")
     if graph is None:
         graph = _new_starlayer_graph()
     query_nodes = [query_to_rdf(query, graph)[1] for query in queries]
