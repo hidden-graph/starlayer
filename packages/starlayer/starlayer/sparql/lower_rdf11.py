@@ -563,19 +563,6 @@ def _lower_expr(node, state: _LowerState):
                 return joined
         if name == "ConstructQuery":
             return _lower_construct_query(node, state)
-        if name == "Minus":
-            # MINUS evaluates its right side on its own (SPARQL 1.1 18.5): a
-            # variable the left side binds is not bound there, so it must not
-            # count as "already bound" when lowering the right side, or its
-            # triple-term constraint becomes a filter, the right side never
-            # binds the shared variable and MINUS removes nothing.
-            outer = state.global_plain_vars
-            try:
-                state.global_plain_vars = _collect_mandatory_plain_vars(node["p2"])
-                p2 = _lower_expr(node["p2"], state)
-            finally:
-                state.global_plain_vars = outer
-            return CompValue("Minus", p1=_lower_expr(node["p1"], state), p2=p2)
         if name == "values":
             return _lower_values(node, state)
         new_node = CompValue(name)
