@@ -44,11 +44,15 @@ jobs:
       - name: Check generated files are current
         run: python scripts/build.py --check --skip codekg
 
+  # One Python version only: this is an alpha project, and a four-version matrix
+  # (3.10-3.13) made every run about four times as long. pyproject.toml still
+  # declares >=3.10; to check another version, run the suite locally or
+  # temporarily widen this list.
   test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.12"]
 
     # Oxigraph's default image CMD is already `serve --location /data --bind
     # 0.0.0.0:7878` (confirmed via `docker inspect`), so no command override
