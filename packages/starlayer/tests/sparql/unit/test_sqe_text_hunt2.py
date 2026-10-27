@@ -55,3 +55,20 @@ def test_tab_in_a_string_literal_is_escaped_and_means_the_same():
 def test_dataset_clauses_are_refused_not_dropped(query):
     with pytest.raises(NotImplementedError, match="FROM"):
         sqe.sqe_parse_to_tree(query)
+
+
+@pytest.mark.parametrize(
+    "path",
+    ["(<urn:q>*)?", "(<urn:q>+)*", "(<urn:q>?)+", "(^<urn:q>)*", "^(<urn:q>*)", "(<urn:q>/<urn:r>)*",
+     "((<urn:q>|<urn:r>)*)+", "^(^<urn:q>)", "<urn:q>/(<urn:r>*)?", "!(<urn:q>|^<urn:r>)*"],
+)
+def test_nested_path_modifiers_round_trip_with_the_same_meaning(path):
+    """Issue #77: `p*?` and friends were written unparenthesised."""
+    query = f"SELECT * WHERE {{ ?s {path} ?o }}"
+    text = _text(query)
+    data = Graph()
+    q, r = URIRef("urn:q"), URIRef("urn:r")
+    for a, p, b in [("a", q, "b"), ("b", q, "c"), ("c", r, "a"), ("b", r, "d")]:
+        data.add((URIRef(f"urn:{a}"), p, URIRef(f"urn:{b}")))
+    expected = sorted(map(tuple, data.query(query)))
+    assert sorted(map(tuple, data.query(text))) == expected
