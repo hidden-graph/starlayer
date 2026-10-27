@@ -124,6 +124,21 @@ def test_select_widgets_gives_a_property_shape_form_its_widgets(ui) -> None:
     assert by_path[sh("name")] == "TextFieldWithLangEditor"
 
 
+def test_sh_expression_is_a_field_of_both_shape_forms_with_the_details_editor(ui) -> None:
+    """Node Expressions 7.1: expression constraints can be used in any shape, so the node shape form has the field too, and a
+    shape may carry several (no maximum)."""
+    scoring = Graph()
+    for name in ("shacl_ui_baseline", "shacl_shacl_ui_scores"):
+        for triple in starontology.get_ontology_graph(name):
+            scoring.add(triple)
+    for form in (STSH.NodeShapeForm, STSH.PropertyShapeForm):
+        field = fields_of(ui, form)[sh("expression")]
+        assert (field, sh("maxCount"), None) not in ui
+        assert (field, sh("group"), STSH.CompositionGroup) in ui
+        widgets = select_widgets(shape_node=form, shapes_graph=ui, scoring_graph=scoring, role="editor")
+        assert str(widgets[field]).rsplit("#", 1)[-1] == "DetailsEditor"
+
+
 def test_the_forms_change_nothing_about_what_validates(ui, shacl_shacl) -> None:
     from pyshacl.errors import ReportableRuntimeError
     from starlayer.shacl.meta_shapes import meta_validate

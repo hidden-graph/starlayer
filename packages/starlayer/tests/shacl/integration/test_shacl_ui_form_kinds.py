@@ -158,7 +158,8 @@ def test_target_and_target_where_are_in_the_targeting_group_and_are_branches_of_
 
 def test_what_shacl_shacl_forbids_stays_off_the_node_shape_form(ui) -> None:
     node = set(fields(ui, "NodeShapeForm"))
-    assert not ({SH.lessThan, SH.lessThanOrEquals, SH.path, SH.minCount, SH.maxCount, SH.qualifiedValueShape, SH.uniqueLang, SH.expression} & node)
+    assert not ({SH.lessThan, SH.lessThanOrEquals, SH.path, SH.minCount, SH.maxCount, SH.qualifiedValueShape, SH.uniqueLang} & node)  # sh:expression is allowed in any shape (Node Expressions 7.1)
+    assert SH.expression in node
 
 
 def test_the_completeness_check_covers_the_vocabulary_properties_of_a_shape(ui) -> None:

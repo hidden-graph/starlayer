@@ -22,13 +22,7 @@ dropped in and compared. The additions are:
    Working Group's own file says to customise it this way ("this graph should
    be supplemented with 'shsh:xoneSubjectsShape sh:deactivated true'"). The
    replacement rules are in (1).
-3. Expression-based property shapes (``sh:expression`` instead of ``sh:path``):
-   the Working Group's ``shsh:PropertyShapeShape`` requires ``sh:path``, so that
-   rule is deactivated (its replacement, "path or expression", is in (1)), and
-   ``shsh:NodeShapeShape`` is told a node shape carries no ``sh:expression``,
-   which keeps the Working Group's ``sh:xone`` between node shapes and property
-   shapes exclusive.
-4. The ``rdf:type`` the shape-valued predicates of the native components need
+3. The ``rdf:type`` the shape-valued predicates of the native components need
    (``sh:memberShape``), which starlayer otherwise adds at validation time.
 
 ``tests/shacl/integration/test_wg_overrides.py`` checks that each deactivation
@@ -42,7 +36,7 @@ import os
 from collections.abc import Iterable
 from typing import Any
 
-from rdflib import BNode, Graph, Literal, Namespace, URIRef
+from rdflib import Graph, Literal, Namespace, URIRef
 
 SH = Namespace("http://www.w3.org/ns/shacl#")
 SHSH = Namespace("http://www.w3.org/ns/shacl-shacl#")
@@ -85,16 +79,10 @@ def _property_shapes_of(graph: Graph, shape: URIRef, path: URIRef) -> list[Any]:
 
 
 def _add_overrides(graph: Graph) -> Graph:
-    """Add (never remove) the deactivations and the node-shape rule described in the module docstring."""
+    """Add (never remove) the deactivations described in the module docstring."""
     for path in RELAXED_PATHS:
         for property_shape in _property_shapes_of(graph, SHSH.ShapeShape, path):
             graph.add((property_shape, SH.deactivated, Literal(True)))
-    for property_shape in _property_shapes_of(graph, SHSH.PropertyShapeShape, SH.path):
-        graph.add((property_shape, SH.deactivated, Literal(True)))
-    no_expression = BNode()
-    graph.add((SHSH.NodeShapeShape, SH.property, no_expression))
-    graph.add((no_expression, SH.path, SH.expression))
-    graph.add((no_expression, SH.maxCount, Literal(0)))
     return graph
 
 
