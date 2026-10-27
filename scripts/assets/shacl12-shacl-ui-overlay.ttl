@@ -201,7 +201,7 @@ sh:uniqueValuesFor sh:group stsh:CrossNodeGroup ; sh:order 1 .
 sh:xone sh:group stsh:CompositionGroup ; sh:order 4 .
 sh:zeroOrMorePath sh:group stsh:PathGroup ; sh:order 4 .
 sh:zeroOrOnePath sh:group stsh:PathGroup ; sh:order 6 .
-sh:expression sh:group stsh:PathGroup ; sh:order 7 .   # a property shape's value computed by a node expression, instead of a path
+sh:expression sh:group stsh:CompositionGroup ; sh:order 10 .   # Node Expressions 7.1: a condition any shape can carry, a node expression that must output exactly true
 
 
 #############################################################################
@@ -506,9 +506,11 @@ sh:nodeByExpression stsh:nodeFormField true ; stsh:propertyFormField true .
 sh:closed            stsh:nodeFormField true ; stsh:formMaxCount 1 .
 sh:ignoredProperties stsh:nodeFormField true .
 
-# Property path / node expression — PropertyShape only
+# Property path — PropertyShape only
 sh:path       stsh:propertyFormField true ; stsh:formMaxCount 1 .
-sh:expression stsh:propertyFormField true ; stsh:formMaxCount 1 .
+
+# Expression constraint: any shape (Node Expressions 7.1), as many as you like
+sh:expression stsh:nodeFormField true ; stsh:propertyFormField true .
 
 # Cardinality — PropertyShape only
 sh:minCount stsh:propertyFormField true ; stsh:formMaxCount 1 .
