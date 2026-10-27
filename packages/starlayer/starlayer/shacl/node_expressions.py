@@ -527,12 +527,18 @@ def eval_expr(
         return []
 
     if isinstance(expr, BNode) and next(sg.graph.objects(expr, RDF.first), None) is not None:
-        results: list[Any] = []
-        for member in sg.graph.items(expr):
-            results.extend(
-                eval_expr(member, focus_node, data_graph, sg, scope=scope, recurse_depth=recurse_depth + 1)
-            )
-        return results
+        # Node Expressions, list expression: every member is a constant (a literal, an IRI or a triple term). A member
+        # that is an expression or a nested list is an error; shnex:concat is the way to combine expressions (#123).
+        members = list(sg.graph.items(expr))
+        for member in members:
+            if not (
+                isinstance(member, (URIRef, Literal)) or is_triple_term_like(member) or is_dirlangstring_like(member)
+            ):
+                raise ValueError(
+                    f"List expression {expr}: member {member!r} is not a constant (literal, IRI or triple term); "
+                    "use shnex:concat to combine node expressions."
+                )
+        return list(members)
 
     computed = _eval_sparql_text_expr(expr, focus_node, data_graph, sg)
     if computed is not None:
