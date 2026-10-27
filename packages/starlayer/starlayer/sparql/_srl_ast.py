@@ -421,6 +421,7 @@ class RuleSet:
         """
         from . import srl_eval
 
+        base_graph = srl_eval.flatten_dataset(base_graph)
         if inference is not None:
             base_graph = base_graph.infer(entailment=inference, mode="full")
 
@@ -469,6 +470,7 @@ class RuleSet:
         """
         from . import srl_eval
 
+        base_graph = srl_eval.flatten_dataset(base_graph)
         if inference is not None:
             base_graph = base_graph.infer(entailment=inference, mode="full")
 

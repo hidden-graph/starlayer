@@ -362,10 +362,44 @@ def _resolve_pnames(tree, prologue: Prologue):
     return algebra.traverse(tree, visitPost=partial(algebra.translatePName, prologue=prologue))
 
 
-def _build_prologue(decls: list[CompValue]) -> Prologue:
+_PASS_THROUGH_EXPRESSIONS = frozenset(
+    {
+        "ConditionalOrExpression",
+        "ConditionalAndExpression",
+        "RelationalExpression",
+        "AdditiveExpression",
+        "MultiplicativeExpression",
+        "UnaryPlus",
+    }
+)
+
+
+def _unwrap_pass_through(value):
+    """``TRIPLE(?s, :p, ?o)`` parses its three arguments as full expressions, so a plain term arrives wrapped in a
+    chain of single-operand expression nodes. Strip that chain so the triple term has the same shape as ``<<( ?s :p ?o )>>``."""
+    while isinstance(value, CompValue) and value.name in _PASS_THROUGH_EXPRESSIONS and "expr" in value:
+        if any(value.get(key) is not None and key != value.get(key) for key in ("other", "op")):
+            break
+        value = value["expr"]
+    return value
+
+
+def _simplify_triple_term_expressions(tree):
+    def visit(node):
+        if isinstance(node, TripleTermNode):
+            for key in ("subject", "predicate", "object"):
+                if key in node:
+                    node[key] = _unwrap_pass_through(node[key])
+        return None
+
+    return algebra.traverse(tree, visitPost=visit)
+
+
+def _build_prologue(decls: list[CompValue], base: str | None = None) -> Prologue:
     from rdflib.plugins.sparql.algebra import translatePrologue
 
-    return translatePrologue(decls, base=None)
+    # ``base`` is only the initial base; a BASE declaration in the document replaces it (SPARQL 1.1 section 4.1.1)
+    return translatePrologue(decls, base=base)
 
 
 def _build_negation_inner(items: list) -> list[srl_ast.NegationBodyElement]:
@@ -480,11 +514,14 @@ def parse_ruleset(text: str, base: str | None = None, *, validate: bool = True) 
         raise SRLParseError(str(exc)) from exc
 
     root: CompValue = parsed[0]
-    prologue = _build_prologue(_list_field(root, "prologue"))
-    if base:
-        prologue.base = base
-    resolved = _resolve_pnames(root, prologue)
-    ruleset = _build_ruleset(resolved)
+    prologue = _build_prologue(_list_field(root, "prologue"), base)
+    try:
+        resolved = _resolve_pnames(root, prologue)
+    except SRLError:
+        raise
+    except Exception as exc:  # rdflib raises a bare Exception for an undeclared prefix
+        raise SRLParseError(f"SRL: {exc}") from exc
+    ruleset = _build_ruleset(_simplify_triple_term_expressions(resolved))
 
     issues = _check_ruleset(ruleset)
     if issues:
