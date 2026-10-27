@@ -231,17 +231,17 @@ RDF_DIRLANGSTRING = URIRef(str(RDF) + "dirLangString")
 
 class _LowerState:
     """Per-query counter for fresh triple-term variables, plus
-    `global_plain_vars` — the whole (pre-lowering) tree's own
-    unconditionally-bound plain variables (see
-    `_collect_mandatory_plain_vars`), set once by whichever entry point
-    starts lowering a given query/Modify-operation, consulted by every
-    `_lower_bgp`/`_lower_flat_triples` call reached under it regardless of
-    which BGP a triple term's own component variable happens to sit in.
+    `shared_vars` — the variables the whole (pre-lowering) tree may bind
+    somewhere else (see `_collect_shared_vars`), set once by whichever entry
+    point starts lowering a given query/Modify-operation, consulted by every
+    triple-term component constraint reached under it.
     """
 
     def __init__(self) -> None:
         self._n = 0
-        self.global_plain_vars: set = set()
+        # Variables that something *else* in the query may bind, so a triple-term component variable of that name cannot
+        # assume it is unbound (see `_collect_shared_vars`).
+        self.shared_vars: set = set()
 
     def new_var(self) -> Variable:
         self._n += 1
@@ -280,8 +280,10 @@ def _hash_call(s, p, o, state: _LowerState) -> CompValue:
     # RDF 1.2 forbids a triple term's subject/predicate from itself being a
     # triple term (only object position permits nesting — TripleTermNode's
     # own grammar restricts predicate to Var|iri, subject similarly), so
-    # only `o` can ever need recursive expression-position lowering here.
-    return _make_function_call(TT_HASH_FN, [s, p, _lower_expr(o, state)])
+    # only `o` can ever be a nested triple term, but `TRIPLE(SUBJECT(?t), PREDICATE(?t), ...)` puts a *builtin call* in any
+    # of the three slots, and an unlowered `Builtin_SUBJECT` cannot be evaluated (GitHub issue #134), so all three are
+    # lowered. A plain term passes through `_lower_expr` unchanged.
+    return _make_function_call(TT_HASH_FN, [_lower_expr(s, state), _lower_expr(p, state), _lower_expr(o, state)])
 
 
 def _is_triple_term_expr(arg) -> CompValue:
@@ -772,17 +774,19 @@ def _add_component_constraints(
     extra_constraints.append(("filter", _is_triple_term_expr(base_expr)))
     s, p, o = term["subject"], term["predicate"], term["object"]
     s_expr = _make_function_call(_TT_ACCESSOR_FN["Builtin_SUBJECT"], [base_expr])
-    _add_single_constraint(s, s_expr, extra_constraints, already_bound)
+    _add_single_constraint(s, s_expr, extra_constraints, already_bound, state.shared_vars)
     p_expr = _make_function_call(_TT_ACCESSOR_FN["Builtin_PREDICATE"], [base_expr])
-    _add_single_constraint(p, p_expr, extra_constraints, already_bound)
+    _add_single_constraint(p, p_expr, extra_constraints, already_bound, state.shared_vars)
     o_expr = _make_function_call(_TT_ACCESSOR_FN["Builtin_OBJECT"], [base_expr])
     if isinstance(o, TripleTermNode):
         _add_component_constraints(o_expr, o, extra_constraints, already_bound, state)
     else:
-        _add_single_constraint(o, o_expr, extra_constraints, already_bound)
+        _add_single_constraint(o, o_expr, extra_constraints, already_bound, state.shared_vars)
 
 
-def _add_single_constraint(value, accessor_expr, extra_constraints: list, already_bound: set) -> None:
+def _add_single_constraint(
+    value, accessor_expr, extra_constraints: list, already_bound: set, shared_vars: frozenset | set = frozenset()
+) -> None:
     """`value` is either a plain ground term (→ equality `Filter`) or a
     `Variable`. A `Variable` needs `Filter`-equality too, not `Extend`,
     whenever it's already guaranteed bound some other way by the time this
@@ -807,6 +811,23 @@ def _add_single_constraint(value, accessor_expr, extra_constraints: list, alread
             extra_constraints.append(
                 ("filter", CompValue("RelationalExpression", expr=accessor_expr, op="=", other=value))
             )
+        elif value in shared_vars:
+            # Something else in the query may bind this variable (another BGP, a VALUES row that leaves it UNDEF, the
+            # left side of a MINUS, an aggregate's group key), and whether it is bound *here* depends on how the join
+            # is evaluated. `Filter(acc = ?v)` errors on an unbound ?v and drops the row; a plain `Extend` overwrites a
+            # bound ?v. So keep ?v when it is bound, take the accessor value when it is not, then compare: the
+            # comparison is trivially true for the second case and the real check for the first (GitHub issue #134).
+            keep = CompValue(
+                "Builtin_IF",
+                arg1=CompValue("Builtin_BOUND", arg=value),
+                arg2=value,
+                arg3=accessor_expr,
+            )
+            extra_constraints.append(("extend", value, keep))
+            extra_constraints.append(
+                ("filter", CompValue("RelationalExpression", expr=accessor_expr, op="=", other=value))
+            )
+            already_bound.add(value)
         else:
             extra_constraints.append(("extend", value, accessor_expr))
             already_bound.add(value)
@@ -856,37 +877,32 @@ def _bgp_plain_vars(triples: list) -> set:
     return {t for s, p, o in triples for t in (s, p, o) if isinstance(t, (Variable, BNode))}
 
 
-def _collect_mandatory_plain_vars(node) -> set:
-    """Every `Variable` unconditionally bound by an *ordinary* (non-
-    triple-term) term position somewhere in `node` — used to seed
-    `already_bound` (see `_add_single_constraint`'s docstring) with
-    variables bound by a *different part of the same query* than the
-    triple-term constraint being lowered, not just the same BGP.
+def _collect_shared_vars(node) -> set:
+    """Every variable that a triple-term component of that name might find already bound by *something else*: an ordinary
+    term position of any BGP (also under OPTIONAL, UNION and MINUS), a `VALUES` column, a `BIND` target, or a variable
+    that is a component of triple terms in two or more places. A component variable outside this set occurs in exactly
+    one triple term and nowhere else, so it is the sole source of its value and a plain `Extend` is exact.
 
-    Needed for a case `_bgp_plain_vars` alone can't see: e.g.
-    ``:s :p ?o .`` (one BGP) and ``GRAPH ?g { <<:s :p ?o>> ?q ?z }`` (a
-    sibling BGP, joined via `Join`, not the same BGP) share `?o` —
-    `_bgp_plain_vars`, scoped to one BGP's own triples, can't see that it's
-    already bound by the *other* one, so without this, `Extend` would
-    silently clobber `?o`'s already-joined value, exactly the hazard
-    `_add_single_constraint`'s docstring already documents for the
-    same-BGP case.
-
-    Deliberately conservative toward treating *more* variables as
-    "already bound" rather than fewer: does not descend into
-    `LeftJoin.p2` (OPTIONAL — not guaranteed to contribute a binding),
-    `Union`'s own children (only one branch is guaranteed per solution),
-    or `Minus.p2` (a negation test, never a binding source). Treating a
-    variable bound only in one of those as unconditionally bound would
-    risk *incorrectly rejecting* solutions (a `Filter` comparing against
-    something that turns out unbound for a given row raises, which
-    excludes the row) rather than merely picking a less-efficient
-    `Extend` — the failure mode this conservatism avoids is worse than
-    the one it risks. Everything else recurses structurally; never
-    descends into a `TripleTermNode` (its own nested variables are
-    exactly the ones this function must *not* count as plainly bound).
+    This replaces the older "mandatory plain vars" set, which treated a variable as certainly bound wherever it was bound
+    *anywhere* conditionally-or-not: a `Filter(acc = ?v)` against a ?v that the join had not bound (the right side of a
+    MINUS, a VALUES row with UNDEF, the inside of a GROUP BY whose key was re-bound by the projection) errors and drops
+    the row (GitHub issue #134). Scope-insensitive on purpose: a variable wrongly counted as shared only costs a slightly
+    larger (still correct) constraint.
     """
-    found: set = set()
+    shared: set = set()
+    tt_counts: dict = {}
+
+    def count_tt(t) -> None:
+        if isinstance(t, TripleTermNode):
+            for part in (t["subject"], t["predicate"], t["object"]):
+                count_tt(part)
+        elif isinstance(t, (Variable, BNode)):
+            tt_counts[t] = tt_counts.get(t, 0) + 1
+
+    def over_aggregate(n) -> bool:
+        while isinstance(n, CompValue) and n.name in ("Extend", "Filter"):
+            n = n["p"]
+        return isinstance(n, CompValue) and n.name == "AggregateJoin"
 
     def walk(n) -> None:
         if isinstance(n, TripleTermNode):
@@ -894,23 +910,18 @@ def _collect_mandatory_plain_vars(node) -> set:
         if isinstance(n, CompValue):
             name = n.name
             if name == "BGP":
-                found.update(_bgp_plain_vars(n["triples"]))
+                for triple in n["triples"]:
+                    for t in triple:
+                        if isinstance(t, TripleTermNode):
+                            count_tt(t)
+                        elif isinstance(t, (Variable, BNode)):
+                            shared.add(t)
                 return
-            if name == "LeftJoin":
-                walk(n["p1"])
-                return
-            if name == "Minus":
-                walk(n["p1"])
-                return
-            if name == "Union":
-                return
-            if name == "Extend":
-                walk(n["p"])
-                found.add(n["var"])
-                return
+            if name == "Extend" and not over_aggregate(n["p"]):
+                shared.add(n["var"])
             if name == "values":
                 for row in n["res"]:
-                    found.update(row.keys())
+                    shared.update(row.keys())
                 return
             for value in n.values():
                 walk(value)
@@ -920,7 +931,8 @@ def _collect_mandatory_plain_vars(node) -> set:
                 walk(item)
 
     walk(node)
-    return found
+    shared.update(v for v, c in tt_counts.items() if c > 1)
+    return shared
 
 
 def _lower_triples_for_pattern(triples: list, already_bound: set, state: _LowerState) -> tuple[list, list]:
@@ -964,7 +976,7 @@ def _lower_bgp(node: CompValue, state: _LowerState) -> CompValue:
     Returns:
         The lowered, constraint-wrapped `BGP`.
     """
-    already_bound = _bgp_plain_vars(node["triples"]) | state.global_plain_vars
+    already_bound = _bgp_plain_vars(node["triples"])
     new_triples, extra_constraints = _lower_triples_for_pattern(node["triples"], already_bound, state)
     bgp = CompValue("BGP", triples=new_triples)
     return _wrap_with_constraints(bgp, extra_constraints)
@@ -1398,7 +1410,7 @@ def _lower_delete_where(node: CompValue, state: _LowerState) -> CompValue:
 
     Each graph's own triples (default graph plus each `.quads` entry) gets
     its *own*, separately-scoped `already_bound` set, deliberately not
-    shared across them the way `_collect_mandatory_plain_vars` shares one
+    shared across them the way `_collect_shared_vars` shares one
     globally for an ordinary WHERE clause: the `Join`/`Graph` nodes built
     here are never marked `lazy=True` (`evalJoin` treats a missing/falsy
     `.lazy` as ordinary independent-branch-then-join evaluation, `_join`),
@@ -1489,7 +1501,7 @@ def _lower_modify(node: CompValue, state: _LowerState) -> CompValue:
 
     Args:
         node: The `Modify` `CompValue` to lower.
-        state: Shared lowering state - `global_plain_vars` is set here
+        state: Shared lowering state - `shared_vars` is set here
             (from `.where`) before `.delete`/`.insert` are lowered, so
             `_lower_pattern_term`'s constraint logic can see every
             variable `.where` guarantees bound, not just a single BGP's
@@ -1498,7 +1510,7 @@ def _lower_modify(node: CompValue, state: _LowerState) -> CompValue:
     Returns:
         The lowered `Modify`.
     """
-    state.global_plain_vars = _collect_mandatory_plain_vars(node["where"])
+    state.shared_vars = _collect_shared_vars(node["where"])
     where = _lower_expr(node["where"], state)
     pending_extends: list = []
     # Attribute access, not .get("delete")/.get("insert"): CompValue.get,
@@ -1751,7 +1763,7 @@ def lower_algebra_to_rdf11(algebra: CompValue) -> CompValue:
     docstring) into a plain SPARQL 1.1 algebra tree. Does not mutate `algebra`.
     """
     state = _LowerState()
-    state.global_plain_vars = _collect_mandatory_plain_vars(algebra)
+    state.shared_vars = _collect_shared_vars(algebra)
     return _restarlayergraph_dirlang_literals(_lower_expr(algebra, state))
 
 

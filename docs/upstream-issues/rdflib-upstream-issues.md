@@ -461,6 +461,37 @@ Graph().update("# nothing")   # AttributeError: 'list' object has no attribute '
 
 Fix: `starlayer/sparql/parse12.py::prepare_update_12` returns an `Update` with no operations, and `StarLayerGraph.update()`/`StarLayerDataset.update()` do nothing for it.
 
+## 33. A join with a non-lazy right side drops duplicate solutions (a subquery with `LIMIT` loses rows)
+
+```python
+from rdflib import Graph
+g = Graph().parse(data="@prefix e: <http://e/> . e:s e:says e:b . e:s2 e:says e:b .", format="turtle")
+len(list(g.query("PREFIX e: <http://e/> SELECT * { ?x e:says ?t { SELECT ?t { ?q e:says ?t } LIMIT 5 } }")))
+# actual:   2
+# expected: 4  (the subquery yields two ?t = e:b rows, and each joins with both ?x)
+```
+
+`evalJoin` evaluates a join lazily only when neither side holds a `LIMIT`/`OFFSET` slice or `DISTINCT` (`analyse`). Otherwise it builds the right operand as `set(evalPart(ctx, join.p2))`, which de-duplicates it. SPARQL 1.1 section 18.5 defines `Join` over multisets, so every duplicate solution joins again. The same query without `LIMIT` returns 4. Found by the third hunt (GitHub issue #134).
+
+Fix: `evaluate_patches.py::patch_join_keeps_duplicate_rows` (the right side is a list).
+
+## 34. `MIN`/`MAX` return a literal for any term; an error in an aggregate argument becomes the result
+
+```python
+from rdflib import Graph
+g = Graph().parse(data="@prefix : <http://e/> . :a :p :b, :c .", format="turtle")
+list(g.query("PREFIX : <http://e/> SELECT (MIN(?o) AS ?m) { :a :p ?o }"))
+# actual:   "http://e/b" (a plain literal)
+# expected: <http://e/b>
+list(g.query("PREFIX : <http://e/> SELECT (GROUP_CONCAT(?o+1) AS ?g) { :a :p ?o }"))
+# actual:   a string containing "... is not a literal!" (the exception text)
+# expected: unbound
+```
+
+`Extremum.set_value` wraps the value in `Literal(...)`, so the minimum of IRIs is a string and the minimum of a triple term is a literal holding its internal `tt:` hash IRI. `_eval` hands back a `SPARQLError` as a value instead of raising, and `GroupConcat` and `Extremum` store it, so the message becomes part of the result (`MAX(STR(?o))` returns the message). SPARQL 1.1 section 18.5 makes `Min`/`Max` return a term of the group, and an error in an aggregate argument makes the aggregate an error (unbound). `GROUP_CONCAT` over a triple term, which has no string form, is also an error here (Oxigraph agrees). Found by the third hunt (GitHub issue #134).
+
+Fix: `builtin_error_patches.py::patch_min_max_group_concat_terms_and_errors`.
+
 ## Withdrawn entries
 
 Items 3 and 4 of this list were withdrawn on 2026-10-25 (GitHub issue #54). Both claimed that a `BIND` should see a variable bound in a sibling or enclosing group, and StarLayer patched rdflib (`patch_evalextend_forgotten_bind_vars`, `patch_lazy_join_expr_dependency_order`) to make it so. SPARQL 1.1 section 18.2.2.6 evaluates each group on its own and joins the results, so a `BIND` cannot see such a variable and plain rdflib was right. For example `SELECT * { VALUES ?x {1 2} { BIND(?x+1 AS ?y) } }` returns `?x` only, and `{ BIND(:v1 AS ?t0) { { BIND(?t0 AS ?o) } UNION { BIND(:v2 AS ?o) } } ?s :p ?o }` returns every `?s :p ?o` row once per union branch (six rows, not two). Both patches were removed; `tests/graph/unit/test_bind_scoping.py` pins the spec behaviour. The numbers 3 and 4 are not reused. Items 8 and 16 (`FILTER`) are the same question for filters and have not been re-examined.

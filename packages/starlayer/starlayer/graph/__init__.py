@@ -125,6 +125,9 @@ from starlayer.graph.query.evaluate_patches import (
     patch_group_by_unaliased_expression_key as _patch_group_by_unaliased_expression_key,
 )
 from starlayer.graph.query.evaluate_patches import (
+    patch_join_keeps_duplicate_rows as _patch_join_keeps_duplicate_rows,
+)
+from starlayer.graph.query.evaluate_patches import (
     patch_negated_path_skips_encoding_triples as _patch_negated_path_skips_encoding_triples,
 )
 
@@ -193,6 +196,7 @@ _patch_relational_expression_tt_hash_equality()
 _patch_order_by_tt_hash_term_kind()
 _patch_bgp_skips_encoding_triples()
 _patch_negated_path_skips_encoding_triples()
+_patch_join_keeps_duplicate_rows()
 _patch_group_by_unaliased_expression_key()
 _patch_result_iter_empty_binding_row()
 
