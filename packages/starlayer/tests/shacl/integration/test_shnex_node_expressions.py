@@ -338,9 +338,9 @@ def test_conformstoshape_false_when_a_node_does_not_conform() -> None:
 
 
 def test_conformstoshape_over_expression_yielding_multiple_nodes() -> None:
-    # shnex:conformsToShape requires ALL results of the first argument's node
-    # expression to conform - bob conforms to PersonShape, carol does not, so
-    # concat(bob, carol) must be false even though bob alone would be true.
+    # Node Expressions 4.5.3: conformsToShape is a list parameter function, so an argument with more than one
+    # output node is an evaluation failure, which sh:expression (7.1) reports as a violation. (It used to require
+    # all of the nodes to conform; issue #95.)
     assert (
         _boolean_expr_conforms(
             "shnex:conformsToShape ( [ shnex:concat ( ex:bob ex:carol ) ] ex:PersonShape )"
@@ -630,7 +630,7 @@ SPARQL_FUNCTION_PIPELINE_CASES = [
     ("bound_true", "sparql:bound ( 1 )", "turtle"),
     (
         "bound_false_for_empty_coalesce",
-        "sparql:logical-not ( [ sparql:bound ( [ sparql:coalesce () ] ) ] )",
+        """sparql:logical-not ( [ sparql:bound ( [ shnex:var "unbound" ] ) ] )""",
         "turtle",
     ),
     (
