@@ -112,6 +112,9 @@ from starlayer.shacl.sparql_node_expressions import (
 )
 from starlayer.shacl.types import is_dirlangstring_like, is_triple_term_like
 
+SH_SELECT = URIRef("http://www.w3.org/ns/shacl#select")
+SH_SPARQL_EXPR = URIRef("http://www.w3.org/ns/shacl#sparqlExpr")
+
 SHNEX = Namespace("http://www.w3.org/ns/shacl-node-expr#")
 SH = Namespace("http://www.w3.org/ns/shacl#")
 SH_this = URIRef("http://www.w3.org/ns/shacl#this")
@@ -396,6 +399,42 @@ def _sort_key(node: Any):
     return (1, str(node))
 
 
+def _eval_sparql_text_expr(expr: Any, focus_node: Any, data_graph: Any, sg: Any) -> list[Any] | None:
+    """Evaluate a ``sh:select`` or ``sh:sparqlExpr`` node expression (GitHub issue #129).
+
+    The vocabulary defines ``sh:SelectExpression`` (a query whose first projected column gives the nodes) and
+    ``sh:SPARQLExprExpression`` (a single SPARQL expression, wrapped as ``SELECT (<expr> AS ?_computed) WHERE {}``).
+    ``$this`` is bound to ``focus_node`` when there is one, and ``sh:prefixes`` is honoured, through pySHACL's own query
+    helper as ``sh:sparql`` constraints and ``sh:values`` do. Returns ``None`` when ``expr`` is neither kind, so the
+    caller carries on; a query that fails to run raises, naming the expression (it used to be a bare ``StopIteration``).
+    """
+    if not isinstance(expr, BNode):
+        return None
+    select = next(sg.graph.objects(expr, SH_SELECT), None)
+    sparql_expr = next(sg.graph.objects(expr, SH_SPARQL_EXPR), None)
+    if select is None and sparql_expr is None:
+        return None
+    if select is not None and sparql_expr is not None:
+        raise ValueError(f"Node expression {expr} has both sh:select and sh:sparqlExpr - it may be only one.")
+    from types import SimpleNamespace
+
+    from pyshacl.helper import get_query_helper_cls
+
+    query_text = str(select) if select is not None else f"SELECT ({sparql_expr} AS ?_computed) WHERE {{}}"
+    helper = get_query_helper_cls()(SimpleNamespace(sg=sg, node=expr, path=lambda: None), expr, query_text)
+    helper.collect_prefixes()
+    init_binds, text = helper.pre_bind_variables(focus_node)
+    if focus_node is None:
+        init_binds.pop("this", None)
+    text = helper.apply_prefixes(text)
+    try:
+        rows = list(data_graph.query(text, initBindings=init_binds))
+    except Exception as exc:
+        kind = "sh:select" if select is not None else "sh:sparqlExpr"
+        raise ValueError(f"Node expression {expr}: the {kind} query could not be evaluated: {exc}") from exc
+    return [row[0] for row in rows if row[0] is not None]
+
+
 def eval_expr(
     expr: Any,
     focus_node: Any,
@@ -494,6 +533,10 @@ def eval_expr(
                 eval_expr(member, focus_node, data_graph, sg, scope=scope, recurse_depth=recurse_depth + 1)
             )
         return results
+
+    computed = _eval_sparql_text_expr(expr, focus_node, data_graph, sg)
+    if computed is not None:
+        return computed
 
     if is_sparql_expr(sg, expr):
         def _eval_arg(sub_expr: Any) -> list[Any]:
