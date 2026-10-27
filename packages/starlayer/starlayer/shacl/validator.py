@@ -5398,8 +5398,31 @@ def _patch_shape_value_nodes_for_sh_values() -> bool:
                         todo.extend(sg.objects(node, RDF.rest))
             return False
 
+        def _path_has_composite_inverse(self) -> bool:
+            """Whether the shape's ``sh:path`` holds an ``sh:inversePath`` whose value is not an IRI (a sequence,
+            alternative, repetition or another inverse), which pySHACL follows to nothing (issue #82)."""
+            sg = self.sg.graph
+            seen, todo = set(), list(sg.objects(self.node, SH.path))
+            while todo:
+                node = todo.pop()
+                if node in seen or not isinstance(node, BNode):
+                    continue
+                seen.add(node)
+                if any(isinstance(inner, BNode) for inner in sg.objects(node, SH.inversePath)):
+                    return True
+                todo.extend(o for _p, o in sg.predicate_objects(node))
+                if (node, RDF.first, None) in sg:
+                    todo.extend(sg.objects(node, RDF.rest))
+            return False
+
         def _patched_value_nodes(self, target_graph, focus, sparql_mode=False, debug=False):
-            if self.is_property_shape and _path_uses_support_predicate(self):
+            if self.is_property_shape and _path_has_composite_inverse(self):
+                from starlayer.shacl.subgraph_extraction import _walk_path
+
+                path = next(iter(self.sg.graph.objects(self.node, SH.path)))
+                focus_nodes = focus if isinstance(focus, (tuple, list, set, frozenset)) else [focus]
+                original = {f: set(_walk_path(target_graph, f, path, self.sg)[0]) for f in focus_nodes}
+            elif self.is_property_shape and _path_uses_support_predicate(self):
                 # A path through a triple term (`(ex:p rdf:object)`) must not
                 # follow the adapter's rdf:subject/predicate/object support
                 # triples: evaluate it on a copy without them (issue #94).
@@ -6008,6 +6031,26 @@ def _global_sparql_rules(shacl_graph: Any, allowed_rule_nodes: frozenset | None 
     return rule_nodes
 
 
+def _rule_declared_prefixes(shacl_graph: Any, rule_node: Any) -> dict[str, Any]:
+    """The prefixes a rule's ``sh:prefixes`` names: every ``sh:declare`` of each value and, transitively, of each
+    ``owl:imports`` of it (SPARQL Extensions, prefix declarations)."""
+    prefixes: dict[str, Any] = {}
+    seen: set[Any] = set()
+    pending = list(shacl_graph.objects(rule_node, SH.prefixes))
+    while pending:
+        node = pending.pop()
+        if node in seen:
+            continue
+        seen.add(node)
+        for declaration in shacl_graph.objects(node, SH.declare):
+            prefix_values = list(shacl_graph.objects(declaration, SH.prefix))
+            namespace_values = list(shacl_graph.objects(declaration, SH.namespace))
+            if len(prefix_values) == 1 and len(namespace_values) == 1:
+                prefixes[str(prefix_values[0])] = URIRef(str(namespace_values[0]))
+        pending.extend(shacl_graph.objects(node, OWL.imports))
+    return prefixes
+
+
 def _global_sparql_rule_triples(
     data_graph: Any, shacl_graph: Any, allowed_rule_nodes: frozenset | None = None
 ) -> list[tuple[tuple, Any]]:
@@ -6057,7 +6100,6 @@ def _global_sparql_rule_triples(
         return []
 
     ambient_prefixes = _ambient_shapes_graph_prefixes(shacl_graph)
-    prefix_text = "".join(f"PREFIX {p}: <{ns}>\n" for p, ns in ambient_prefixes.items())
 
     def _is_deactivated(rule_node: Any) -> bool:
         deactivated = next(iter(shacl_graph.objects(rule_node, SH.deactivated)), None)
@@ -6082,8 +6124,14 @@ def _global_sparql_rule_triples(
         construct_vals = list(shacl_graph.objects(rule_node, SH.construct))
         if not construct_vals:
             return []
+        # The rule's own sh:prefixes (via sh:declare, following owl:imports) win over the ambient sh:ShapesGraph
+        # declarations, so the rule no longer depends on the data graph binding the same prefixes (issue #82).
+        prefixes = {**ambient_prefixes, **_rule_declared_prefixes(shacl_graph, rule_node)}
+        prefix_text = "".join(f"PREFIX {p}: <{ns}>\n" for p, ns in prefixes.items())
         query_text = prefix_text + str(construct_vals[0])
         produced: list[tuple[tuple, Any]] = []
+        from pyshacl.errors import RuleLoadError
+
         try:
             # starlayer.graph.backends.native.native_query() sends a query's
             # text to the remote endpoint with no graph-scoping of its own
@@ -6112,11 +6160,24 @@ def _global_sparql_rule_triples(
                 for t in data_graph:
                     snapshot.add(t)
                 query_target = snapshot
-            for triple in query_target.query(query_text):
+            query_result = query_target.query(query_text)
+            if query_result.type != "CONSTRUCT":
+                raise RuleLoadError(
+                    f"Query executed by the sh:SPARQLRule {rule_node!r} must be a CONSTRUCT query, "
+                    f"not {query_result.type}.",
+                    "https://www.w3.org/TR/shacl12-sparql/#sparql-rules",
+                )
+            for triple in query_result:
                 if triple not in data_graph:
                     produced.append((triple, rule_node))
-        except Exception:
-            return []
+        except RuleLoadError:
+            raise
+        except Exception as error:
+            raise RuleLoadError(
+                f"The sh:construct query of the sh:SPARQLRule {rule_node!r} could not be run: "
+                f"{type(error).__name__}: {error}",
+                "https://www.w3.org/TR/shacl12-sparql/#sparql-rules",
+            ) from error
         for triple, _ in produced:
             data_graph.add(triple)
         return produced

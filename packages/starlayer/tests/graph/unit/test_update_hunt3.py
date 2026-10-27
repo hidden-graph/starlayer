@@ -232,3 +232,20 @@ def test_the_first_parse_in_a_thread_pool_does_not_fail(which):
     for _ in range(3):  # the race is in a fresh process's first parses
         done = subprocess.run([sys.executable, "-c", _RACE, which], capture_output=True, text=True, timeout=300)
         assert done.returncode == 0, done.stderr[-800:]
+
+
+@pytest.mark.parametrize("bad", [5, 1.5, b"ASK {}", ["ASK {}"], object()])
+@pytest.mark.parametrize("make", [StarLayerGraph, StarLayerDataset])
+def test_update_and_query_of_a_non_string_raise_type_error_naming_the_type(make, bad):
+    # Was AttributeError: object has no attribute algebra (issue #139).
+    obj = make()
+    with pytest.raises(TypeError, match=type(bad).__name__):
+        obj.update(bad)
+    with pytest.raises(TypeError, match=type(bad).__name__):
+        obj.query(bad)
+
+
+@pytest.mark.parametrize("make", [StarLayerGraph, StarLayerDataset])
+def test_a_prepared_query_is_still_accepted(make):
+    from rdflib.plugins.sparql import prepareQuery
+    assert make().query(prepareQuery("ASK { ?s ?p ?o }")).askAnswer is False

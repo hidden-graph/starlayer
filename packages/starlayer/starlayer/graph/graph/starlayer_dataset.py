@@ -886,8 +886,10 @@ class StarLayerDataset(Dataset):
         result parsing doesn't understand "type":"triple"; see
         starlayer.graph.backends.native's module docstring).
         """
-        if query_object is None:
-            raise TypeError('query_object must be SPARQL text or a prepared query, not None')
+        if not isinstance(query_object, str) and not hasattr(query_object, 'algebra'):
+            raise TypeError(
+                f'query_object must be SPARQL text or a prepared query, not {type(query_object).__name__}'
+            )
         if self._backend == 'rdf-1.2':
             from starlayer.graph.backends.native import native_query
             return native_query(
@@ -975,8 +977,10 @@ class StarLayerDataset(Dataset):
         parsed and lowered to the tt:HASH encoding first (native_update
         itself, via starlayer.sparql).
         """
-        if update_object is None:
-            raise TypeError('update_object must be SPARQL text or a prepared update, not None')
+        if not isinstance(update_object, str) and not hasattr(update_object, 'algebra'):
+            raise TypeError(
+                f'update_object must be SPARQL text or a prepared update, not {type(update_object).__name__}'
+            )
         from starlayer.graph.backends.native import _in_process
         is_remote_http_store = bool(
             getattr(self.store, 'query_endpoint', None) and getattr(self.store, 'update_endpoint', None)

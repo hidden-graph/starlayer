@@ -613,7 +613,8 @@ def extract_subgraph(
 
     if shape is not None:
         try:
-            candidate_shape_objs = [sg.lookup_shape_from_node(shape)]
+            # A deactivated shape contributes nothing, as it does when shape= is omitted.
+            candidate_shape_objs = [s for s in [sg.lookup_shape_from_node(shape)] if not s.deactivated]
         except KeyError:
             raise ValueError(f"shape {shape!r} is not a shape in the shapes graph") from None
     else:
@@ -647,6 +648,39 @@ def _remove_rdf_list(graph: Any, list_node: Any) -> None:
         for p, o in list(graph.predicate_objects(list_node)):
             graph.remove((list_node, p, o))
         list_node = next_node
+
+
+def _path_iris(graph: Any, path: Any, seen: set[Any] | None = None) -> set[Any]:
+    """Every IRI a SHACL property path mentions (forward or inverse: an over-approximation, which only makes a
+    closed form more permissive)."""
+    seen = set() if seen is None else seen
+    if path in seen:
+        return set()
+    seen.add(path)
+    if isinstance(path, URIRef):
+        return {path}
+    found: set[Any] = set()
+    for pred in (SH.inversePath, SH.zeroOrMorePath, SH.oneOrMorePath, SH.zeroOrOnePath):
+        for inner in graph.objects(path, pred):
+            found |= _path_iris(graph, inner, seen)
+    for inner_list in graph.objects(path, SH.alternativePath):
+        for member in graph.items(inner_list):
+            found |= _path_iris(graph, member, seen)
+    if (path, RDF.first, None) in graph:
+        for member in graph.items(path):
+            found |= _path_iris(graph, member, seen)
+    return found
+
+
+def _property_shape_predicates(graph: Any, prop: Any) -> set[Any]:
+    """The predicates a ``sh:property`` shape makes extract_subgraph() read at its focus node: the IRIs of its path
+    and the other property of ``sh:equals``/``sh:disjoint``/``sh:lessThan``/``sh:lessThanOrEquals``."""
+    found: set[Any] = set()
+    for path in graph.objects(prop, SH.path):
+        found |= _path_iris(graph, path)
+    for pred in (SH.equals, SH.disjoint, SH.lessThan, SH.lessThanOrEquals):
+        found |= {o for o in graph.objects(prop, pred) if isinstance(o, URIRef)}
+    return found
 
 
 def _close_shape(shacl_graph: Any, shape: Any) -> Any:
@@ -686,29 +720,37 @@ def _close_shape(shacl_graph: Any, shape: Any) -> Any:
 
     to_close: set[Any] = set()
     visited: set[Any] = set()
+    # A shape closed together with its sh:and/sh:or/sh:xone members describes ONE node's property set: a branch's
+    # property must not be rejected by the outer shape or by a sibling branch (extract_subgraph keeps the triples of
+    # every branch). Each such group shares one set of predicates its closed forms must let through.
+    group_of: dict[Any, set[Any]] = {}
 
-    def _walk(shape_node: Any, should_close: bool) -> None:
+    def _walk(shape_node: Any, should_close: bool, group: set[Any], is_property_shape: bool = False) -> None:
         if shape_node in visited:
             return
         visited.add(shape_node)
         if should_close:
             to_close.add(shape_node)
+            group_of[shape_node] = group
 
         for nested in result.objects(shape_node, SH.node):
-            _walk(nested, True)
+            _walk(nested, True, set())
         for prop in result.objects(shape_node, SH.property):
-            _walk(prop, False)
+            if not is_property_shape:
+                group |= _property_shape_predicates(result, prop)
+            _walk(prop, False, set(), True)
         for qshape in result.objects(shape_node, SH.qualifiedValueShape):
-            _walk(qshape, True)
+            _walk(qshape, True, set())
+        member_group = set() if is_property_shape else group
         for and_list in result.objects(shape_node, SH["and"]):
             for member in result.items(and_list):
-                _walk(member, True)
+                _walk(member, True, member_group)
         for pred in (SH["or"], SH.xone):
             for member_list in result.objects(shape_node, pred):
                 for member in result.items(member_list):
-                    _walk(member, True)
+                    _walk(member, True, member_group)
 
-    _walk(shape, True)
+    _walk(shape, True, set())
 
     for shape_node in visited:
         for ip_list in list(result.objects(shape_node, SH.ignoredProperties)):
@@ -731,11 +773,19 @@ def _close_shape(shacl_graph: Any, shape: Any) -> Any:
     for shape_node in to_close:
         result.remove((shape_node, SH.closed, None))
         result.add((shape_node, SH.closed, Literal(True)))
-        if allowed:
+        own = {
+            path
+            for prop in result.objects(shape_node, SH.property)
+            for path in result.objects(prop, SH.path)
+            if isinstance(path, URIRef)
+        }
+        # what sh:closed already allows (the shape's own property paths) needs no exemption
+        shape_allowed = allowed | (group_of[shape_node] - own)
+        if shape_allowed:
             from rdflib.collection import Collection
 
             ignored = BNode()
-            Collection(result, ignored, sorted(allowed, key=str))
+            Collection(result, ignored, sorted(shape_allowed, key=str))
             result.add((shape_node, SH.ignoredProperties, ignored))
 
     return result

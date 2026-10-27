@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from rdflib import RDF, RDFS, Namespace
+from rdflib import RDF, RDFS, Namespace, URIRef
 
 from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
@@ -34,6 +34,10 @@ SH = Namespace("http://www.w3.org/ns/shacl#")
 _PREDICATES_WITHOUT_VOCABULARY_DOMAIN = (SH.name, SH.description, SH.order)
 
 __all__ = ["infer_types"]
+
+
+def _is_vocabulary_term(node: Any) -> bool:
+    return isinstance(node, URIRef) and str(node).startswith(str(SH))
 
 
 def _copy(graph: Any) -> StarLayerGraph:
@@ -64,7 +68,8 @@ def infer_types(shapes_graph: Any) -> StarLayerGraph:
     combined = _copy(data)
     for triple in vocabulary:
         combined.add(triple)
-    nodes = set(data.subjects()) | set(data.objects())
+    # Not the vocabulary's own terms: an object such as sh:NodeShape (from an earlier pass's output) is a class, not a shape.
+    nodes = {n for n in set(data.subjects()) | set(data.objects()) if not _is_vocabulary_term(n)}
     entailed = StarLayerGraph()
     for s, p, o in combined.infer(ENTAILMENT.RDFS, mode="delta"):
         if p == RDF.type and s in nodes and str(o).startswith(str(SH)):
@@ -82,6 +87,6 @@ def infer_types(shapes_graph: Any) -> StarLayerGraph:
         result.bind(prefix, namespace)
     for graph in (entailed, ruled):
         for s, p, o in graph:
-            if p == RDF.type and (s, p, o) not in data:
+            if p == RDF.type and not _is_vocabulary_term(s) and (s, p, o) not in data:
                 result.add((s, p, o))
     return result
