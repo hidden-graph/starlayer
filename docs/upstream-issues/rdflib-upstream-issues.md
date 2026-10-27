@@ -413,7 +413,7 @@ list(Graph().query("SELECT (1e0/0 AS ?x) {}"))
 
 Fix: `operator_patches.py::patch_multiplicative_expression_type_promotion` (the division branch), `graph/model/encoding.py::_canonicalize_numeric_literal`.
 
-## 33. `REGEX`/`REPLACE`: an invalid pattern aborts the query; `REPLACE` mangles `$0`, flags and zero-length patterns
+## 35. `REGEX`/`REPLACE`: an invalid pattern aborts the query; `REPLACE` mangles `$0`, flags and zero-length patterns
 
 `fn:matches` and `fn:replace` make an invalid pattern or flag an error (a `FILTER` drops the row, a projection stays unbound). rdflib lets Python's `re.error` escape and abort the whole query, and ignores an unknown flag. `REPLACE` also rewrites `$0` to the octal escape `\0` (a NUL character instead of the whole match), accepts a pattern that matches the zero-length string (`fn:replace` raises FORX0003), and passes its flags to `re.sub` as the `count` argument. Python's `re` is not XPath's dialect (`\p{L}` is an error there), which StarLayer reports as an invalid pattern rather than translating.
 
@@ -429,7 +429,7 @@ list(Graph().query('SELECT ?x { BIND("a" AS ?x) FILTER(REGEX(?x, "(")) }'))
 
 Fix: `builtin_error_patches.py::patch_regex_and_replace_follow_xpath` (`custom_functions.py` calls the same `xpath_replace` for directional literals).
 
-## 34. `ROUND`, `FLOOR` and `CEIL` raise on NaN, INF and very large doubles
+## 36. `ROUND`, `FLOOR` and `CEIL` raise on NaN, INF and very large doubles
 
 `fn:round`, `fn:floor` and `fn:ceiling` return NaN for NaN and +/-INF for +/-INF, and a very large double is already integral. rdflib converts to a Python `int`, so `ROUND("NaN"^^xsd:double)` raises `ValueError`, `ROUND("INF"^^xsd:double)` and `ROUND(1e300)` raise `decimal.InvalidOperation`, and `FLOOR("INF"^^xsd:double)` raises `OverflowError`; one such value in a data column aborts the whole result set.
 
@@ -442,7 +442,7 @@ list(Graph().query("SELECT (ROUND('NaN'^^<http://www.w3.org/2001/XMLSchema#doubl
 
 Fix: `builtin_error_patches.py::patch_rounding_of_special_doubles`.
 
-## 35. A language-tagged string orders against a number
+## 37. A language-tagged string orders against a number
 
 The operator mapping of section 17.3 defines `<`, `>`, `<=` and `>=` for numerics, simple literals / `xsd:string`, `xsd:boolean` and `xsd:dateTime` only, so `"abc"@en > 1` is a type error and `FILTER` drops the row. rdflib answers true through its cross-type sort order for a language-tagged string (a plain `"x"` is already dropped).
 
