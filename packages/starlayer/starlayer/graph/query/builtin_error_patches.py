@@ -848,6 +848,21 @@ def patch_rounding_of_special_doubles() -> bool:
     return _rounding_patch_status
 
 
+def patch_sparql_parser_keeps_tabs() -> bool:
+    """pyparsing expands every TAB in the input to spaces before parsing unless the grammar asks to keep them
+    (``parseWithTabs``), so a raw TAB inside a string literal came back as up to eight spaces
+    (``"a<TAB>b"`` read as ``"a       b"``). Whitespace skipping still treats a TAB as whitespace. Plain rdflib has the same bug
+    (not filed upstream)."""
+    try:
+        from rdflib.plugins.sparql.parser import Query, UpdateUnit
+
+        Query.parseWithTabs()
+        UpdateUnit.parseWithTabs()
+        return True
+    except Exception:
+        return False
+
+
 def apply_all_builtin_error_patches() -> None:
     """Apply every patch in this module (called from ``starlayer.graph``)."""
     patch_ill_typed_literals_are_errors()
@@ -861,3 +876,4 @@ def apply_all_builtin_error_patches() -> None:
     patch_select_star_scope_and_describe_star()
     patch_regex_and_replace_follow_xpath()
     patch_rounding_of_special_doubles()
+    patch_sparql_parser_keeps_tabs()

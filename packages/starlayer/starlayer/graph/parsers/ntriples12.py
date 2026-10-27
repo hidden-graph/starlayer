@@ -63,6 +63,9 @@ def _consume_nt_term(text: str, start: int) -> tuple[str | None, int]:
                 j += 1
         raise ValueError(f"Unterminated triple term at position {start}: {text[start:start+60]!r}")
 
+    if text.startswith('<<', i):
+        raise ValueError(f"<< >> reified-triple syntax is not N-Triples (a triple term is written <<( s p o )>>): {text[i:i+40]!r}")
+
     # Full IRI  <...>
     if text[i] == '<':
         j = text.find('>', i + 1)
@@ -120,8 +123,20 @@ def _lines(text: str) -> list[str]:
     return _re.split(r'\r\n|\r|\n', text)
 
 
+_SIMPLE_ESCAPES = {'n': '\n', 'r': '\r', 't': '\t', 'b': '\b', 'f': '\f', '\\': '\\', '"': '"', "'": "'"}
+_HEX4 = _re.compile(r'[0-9A-Fa-f]{4}')
+_HEX8 = _re.compile(r'[0-9A-Fa-f]{8}')
+_LANG_DIR = _re.compile(r'[a-zA-Z]+(?:-[a-zA-Z0-9]+)*(?:--[a-zA-Z]+)?')
+_ABSOLUTE_IRI = _re.compile(r'[a-zA-Z][a-zA-Z0-9+\-.]*:')
+_IRI_FORBIDDEN = _re.compile(r'[\x00-\x20<>"{}|^`\\]')
+_BNODE_LABEL = _re.compile(r'_:[A-Za-z0-9_\u00C0-\U000EFFFF](?:[A-Za-z0-9_\-.\u00B7\u00C0-\U000EFFFF]*[A-Za-z0-9_\-\u00B7\u00C0-\U000EFFFF])?')
+_LANG_STRING_TYPES = ('http://www.w3.org/1999/02/22-rdf-syntax-ns#langString',
+                      'http://www.w3.org/1999/02/22-rdf-syntax-ns#dirLangString')
+
+
 def _unescape_nt(s: str) -> str:
-    """Decode N-Triples string escape sequences."""
+    """Decode N-Triples string escape sequences. Only ECHAR (``\\t \\b \\n \\r \\f \\" \\' \\\\``) and UCHAR
+    (``\\uXXXX``, ``\\UXXXXXXXX``, never a surrogate) are legal; anything else is a ValueError (GitHub issue #73)."""
     out: list[str] = []
     i = 0
     while i < len(s):
@@ -130,20 +145,33 @@ def _unescape_nt(s: str) -> str:
             i += 1
             continue
         esc = s[i + 1] if i + 1 < len(s) else ''
-        if   esc == 'n':  out.append('\n'); i += 2
-        elif esc == 'r':  out.append('\r'); i += 2
-        elif esc == 't':  out.append('\t'); i += 2
-        elif esc == 'b':  out.append('\b'); i += 2
-        elif esc == 'f':  out.append('\f'); i += 2
-        elif esc == '\\': out.append('\\'); i += 2
-        elif esc == '"':  out.append('"');  i += 2
-        elif esc == 'u' and i + 5 < len(s):
-            out.append(chr(int(s[i+2:i+6], 16))); i += 6
-        elif esc == 'U' and i + 9 < len(s):
-            out.append(chr(int(s[i+2:i+10], 16))); i += 10
+        if esc in _SIMPLE_ESCAPES:
+            out.append(_SIMPLE_ESCAPES[esc]); i += 2
+        elif esc in ('u', 'U'):
+            width, pattern = (4, _HEX4) if esc == 'u' else (8, _HEX8)
+            digits = s[i + 2:i + 2 + width]
+            if not pattern.fullmatch(digits) or int(digits, 16) > 0x10FFFF:
+                raise ValueError(f"bad \\{esc} escape {s[i:i + 2 + width]!r}")
+            cp = int(digits, 16)
+            if 0xD800 <= cp <= 0xDFFF:
+                raise ValueError(f"\\{esc}{digits} is a UTF-16 surrogate, not a Unicode code point")
+            out.append(chr(cp)); i += 2 + width
         else:
-            out.append(s[i]); i += 1
+            raise ValueError(f"invalid escape \\{esc} in a string or IRI")
     return ''.join(out)
+
+
+def _iri_node(body: str) -> URIRef:
+    """The IRI of an ``<...>`` token (without the brackets): absolute, with none of the characters IRIREF excludes."""
+    raw = _re.sub(r'\\u[0-9A-Fa-f]{4}|\\U[0-9A-Fa-f]{8}', '', body)
+    if _IRI_FORBIDDEN.search(raw):
+        raise ValueError(f"character not allowed in an IRI: <{body}>")
+    iri = _unescape_nt(body)
+    if _IRI_FORBIDDEN.search(iri):
+        raise ValueError(f"an escape in <{body}> names a character an IRI cannot hold")
+    if not _ABSOLUTE_IRI.match(iri):
+        raise ValueError(f"N-Triples IRIs must be absolute, got <{body}>")
+    return URIRef(iri)
 
 
 def _token_to_node(token: str):
@@ -155,17 +183,22 @@ def _token_to_node(token: str):
         inner = token[3:-3].strip()
         tok_s, i = _consume_nt_term(inner, 0)
         tok_p, i = _consume_nt_term(inner, i)
-        tok_o, _ = _consume_nt_term(inner, i)
-        if tok_s is None or tok_p is None or tok_o is None:
+        tok_o, i = _consume_nt_term(inner, i)
+        if tok_s is None or tok_p is None or tok_o is None or inner[i:].strip():
             raise ValueError(f"Triple term must have exactly 3 components: {token!r}")
-        return TripleTerm(_token_to_node(tok_s), _token_to_node(tok_p), _token_to_node(tok_o))
+        t_s, t_p, t_o = _token_to_node(tok_s), _token_to_node(tok_p), _token_to_node(tok_o)
+        if isinstance(t_s, Literal) or not isinstance(t_p, URIRef):
+            raise ValueError(f"a triple term needs an IRI or blank node subject and an IRI predicate: {token!r}")
+        return TripleTerm(t_s, t_p, t_o)
 
     # IRI
     if token.startswith('<') and token.endswith('>'):
-        return URIRef(_unescape_nt(token[1:-1]))
+        return _iri_node(token[1:-1])
 
     # Blank node
     if token.startswith('_:'):
+        if not _BNODE_LABEL.fullmatch(token):
+            raise ValueError(f"invalid blank node label: {token!r}")
         return BNode(token[2:])
 
     # Literal
@@ -181,11 +214,12 @@ def _token_to_node(token: str):
         suffix = token[close + 1:]
         if suffix.startswith('@'):
             lang_dir = suffix[1:]
+            if not _LANG_DIR.fullmatch(lang_dir):
+                raise ValueError(f"invalid language tag or base direction: @{lang_dir}")
             if '--' in lang_dir:
                 # RDF 1.2 "text"@lang--dir (rdf:dirLangString) — see
                 # starlayer.graph.parsers.turtle_parser._to_node for the same encoding.
                 language, _, direction = lang_dir.rpartition('--')
-                direction = direction.lower()
                 if direction not in ('ltr', 'rtl'):
                     raise ValueError(
                         f'RDF 1.2: base direction must be "ltr" or "rtl", got {direction!r} in @{lang_dir}'
@@ -193,7 +227,14 @@ def _token_to_node(token: str):
                 return Literal(value, datatype=encode_dirlang_datatype(language.lower(), direction))
             return Literal(value, lang=lang_dir)
         if suffix.startswith('^^<') and suffix.endswith('>'):
-            return Literal(value, datatype=URIRef(_unescape_nt(suffix[3:-1])))
+            datatype = _iri_node(suffix[3:-1])
+            if str(datatype) in _LANG_STRING_TYPES:
+                # rdf:langString / rdf:dirLangString literals carry a language tag (and direction); `"x"^^rdf:dirLangString` is
+                # not one (RDF 1.2 Concepts sec 3.3) (GitHub issue #73)
+                raise ValueError(f"a literal typed {datatype} needs a language tag, not ^^: {token!r}")
+            return Literal(value, datatype=datatype)
+        if suffix:
+            raise ValueError(f"unexpected text after a literal: {suffix!r}")
         return Literal(value)
 
     raise ValueError(f"Unknown N-Triples 1.2 term: {token!r}")
@@ -226,14 +267,28 @@ def _parse_nt_line(line: str, lineno: int, quads: bool = False) -> tuple | None:
         s = _token_to_node(tok_s)
         p = _token_to_node(tok_p)
         o = _token_to_node(tok_o)
+        if isinstance(s, Literal):
+            raise ValueError("a literal cannot be a subject")
+        if not isinstance(p, URIRef):
+            raise ValueError("a predicate must be an IRI")
 
-        if not quads:
-            return s, p, o
-
-        # N-Quads: optional graph name before '.'
-        tok_g, _ = _consume_nt_term(stripped, i)
-        g = _token_to_node(tok_g) if tok_g is not None else None
-        return s, p, o, g
+        g = None
+        if quads:
+            # N-Quads: optional graph label before '.': an IRI or a blank node, never a literal
+            tok_g, j = _consume_nt_term(stripped, i)
+            if tok_g is not None:
+                g = _token_to_node(tok_g)
+                if isinstance(g, (Literal, TripleTerm)):
+                    raise ValueError(f"a graph label must be an IRI or a blank node, got {tok_g!r}")
+                i = j
+        # exactly one '.', then nothing but whitespace or a comment
+        tail = stripped[i:].lstrip()
+        if not tail.startswith('.'):
+            raise ValueError("expected '.' at the end of the statement" if not tail else f"unexpected text {tail[:30]!r} (one statement per line, ended by '.')")
+        tail = tail[1:].strip()
+        if tail and not tail.startswith('#'):
+            raise ValueError(f"unexpected text after the final '.': {tail[:30]!r}")
+        return (s, p, o, g) if quads else (s, p, o)
 
     except Exception as exc:
         raise ValueError(f"Line {lineno}: {exc}\n  {line!r}") from exc

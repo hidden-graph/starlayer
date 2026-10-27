@@ -174,7 +174,8 @@ class TestTurtle12:
 
     def test_invalid_direction_raises(self):
         g = StarLayerGraph()
-        with pytest.raises(ValueError, match="ltr.*rtl"):
+        from starlayer.graph.parsers.errors import Turtle12SyntaxError
+        with pytest.raises(Turtle12SyntaxError, match="ltr.*rtl"):  # the parser's own error type (issue #73)
             g.parse(data=f'<{EX}s> <{EX}p> "hello"@en--sideways .', format='turtle12')
 
     def test_round_trip_turtle12(self):

@@ -24,6 +24,7 @@ from __future__ import annotations
 import xml.etree.ElementTree as ET
 
 from rdflib import BNode, Literal, URIRef
+from rdflib.graph import DATASET_DEFAULT_GRAPH_ID
 
 from starlayer.graph.model.dirlangstring import DirLangString
 from starlayer.graph.model.encoding import encode_dirlang_datatype
@@ -149,6 +150,10 @@ def serialize_trix12_dataset(ds) -> str:
         root = ET.Element(f'{_T}trix')
         for sg in ds._contexts_in_serialization_order():
             if len(sg) == 0:
+                if isinstance(sg.identifier, URIRef) and sg.identifier != DATASET_DEFAULT_GRAPH_ID:
+                    # an empty named graph is a graph of the dataset: <graph><uri>g</uri></graph> (GitHub issue #99)
+                    graph_el = ET.SubElement(root, f'{_T}graph')
+                    ET.SubElement(graph_el, f'{_T}uri').text = str(sg.identifier)
                 continue
             _append_graph(sg, root)
 
