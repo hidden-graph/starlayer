@@ -563,6 +563,19 @@ def _lower_expr(node, state: _LowerState):
                 return joined
         if name == "ConstructQuery":
             return _lower_construct_query(node, state)
+        if name == "Minus":
+            # MINUS evaluates its right side on its own (SPARQL 1.1 18.5): a
+            # variable the left side binds is not bound there, so it must not
+            # count as "already bound" when lowering the right side, or its
+            # triple-term constraint becomes a filter, the right side never
+            # binds the shared variable and MINUS removes nothing.
+            outer = state.global_plain_vars
+            try:
+                state.global_plain_vars = _collect_mandatory_plain_vars(node["p2"])
+                p2 = _lower_expr(node["p2"], state)
+            finally:
+                state.global_plain_vars = outer
+            return CompValue("Minus", p1=_lower_expr(node["p1"], state), p2=p2)
         if name == "values":
             return _lower_values(node, state)
         new_node = CompValue(name)
@@ -1825,7 +1838,12 @@ def rdf11_to_sparql11_text(graph: Graph, root) -> str:
     backend), not because execution needs it.
     """
     query = rdf_to_query(graph, root)
-    return _AlgebraTranslator11(query).translateAlgebra()
+    text = _AlgebraTranslator11(query).translateAlgebra()
+    if not text:
+        # rdflib's translator renders only SELECT and CONSTRUCT; ASK and DESCRIBE give ''.
+        kind = getattr(getattr(query, "algebra", None), "name", "this query form")
+        raise NotImplementedError(f"starlayer.sparql: SPARQL 1.1 text for {kind} is not implemented (only SELECT and CONSTRUCT)")
+    return text
 
 
 def _n3_quaddata(triples: list, quads: dict) -> str:

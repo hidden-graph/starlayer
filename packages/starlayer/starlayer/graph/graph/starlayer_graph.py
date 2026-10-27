@@ -3004,11 +3004,9 @@ class StarLayerGraph(Graph):
         Returns:
             True if the two graphs are isomorphic.
         """
-        from rdflib.compare import isomorphic as _rdflib_isomorphic
-        return _rdflib_isomorphic(
-            _lowercase_language_tags(_unfold_tt_encoding(self)),
-            _lowercase_language_tags(_unfold_tt_encoding(other)),
-        )
+        from starlayer.graph.compare import isomorphic as _isomorphic
+
+        return _isomorphic(self, other)
 
     @staticmethod
     def _resolve_owlrl_semantics(regimes: frozenset):

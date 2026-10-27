@@ -780,6 +780,11 @@ def _parse_collection_elements(inside):
             depth += 1
         elif c in '])':
             depth -= 1
+            if depth == 0 and not buf.strip().startswith('<<'):
+                # a bracketed element ends at its closing bracket: "([:a :b][:c :d])" has two elements, no space needed
+                elements.append((buf + c).strip())
+                buf = ''
+                continue
         if c.isspace() and depth == 0 and buf.strip():
             elements.append(buf.strip())
             buf = ''

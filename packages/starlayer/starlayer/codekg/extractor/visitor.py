@@ -902,14 +902,46 @@ def _definition_time_expressions(node: ast.stmt) -> list[ast.expr]:
     return [*node.decorator_list, *args.defaults, *(d for d in args.kw_defaults if d is not None)]
 
 
+_COMPREHENSIONS = (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)
+
+
+def _comprehension_names(node: ast.AST) -> frozenset[str]:
+    return frozenset(
+        n.id for gen in node.generators for n in ast.walk(gen.target) if isinstance(n, ast.Name)
+    )
+
+
+def _calls_with_scopes(node: ast.AST, shadowed: frozenset[str]):
+    """The calls under ``node`` in this function's own scope, leaving out a bare ``name()`` call when ``name`` is a
+    comprehension variable or lambda parameter around it (it is not the same-named module function). The first
+    iterable of a comprehension and a lambda's defaults are evaluated outside the inner scope."""
+    if isinstance(node, _DEF_NODES):
+        return
+    if isinstance(node, ast.Call) and not (isinstance(node.func, ast.Name) and node.func.id in shadowed):
+        yield node
+    if isinstance(node, _COMPREHENSIONS):
+        inner = shadowed | _comprehension_names(node)
+        first = node.generators[0].iter
+        yield from _calls_with_scopes(first, shadowed)
+        for child in ast.iter_child_nodes(node):
+            if child is not first:
+                yield from _calls_with_scopes(child, inner)
+    elif isinstance(node, ast.Lambda):
+        args = node.args
+        params = {a.arg for a in [*args.posonlyargs, *args.args, *args.kwonlyargs, *filter(None, [args.vararg, args.kwarg])]}
+        for default in [*args.defaults, *(d for d in args.kw_defaults if d is not None)]:
+            yield from _calls_with_scopes(default, shadowed)
+        yield from _calls_with_scopes(node.body, shadowed | params)
+    else:
+        for child in ast.iter_child_nodes(node):
+            yield from _calls_with_scopes(child, shadowed)
+
+
 def _iter_calls_in_function_body(body: list[ast.stmt]):
     for stmt in body:
         roots: list[ast.AST] = list(_definition_time_expressions(stmt)) if isinstance(stmt, _DEF_NODES) else [stmt]
         for root in roots:
-            for node in _iter_nodes_stopping_at_nested_defs(root):
-                if isinstance(node, ast.Call):
-                    yield node
-            # An expression root can itself hold a nested def only through a lambda, which has no statements.
+            yield from _calls_with_scopes(root, frozenset())
 
 
 def _local_names(function: ast.FunctionDef | ast.AsyncFunctionDef) -> frozenset[str]:

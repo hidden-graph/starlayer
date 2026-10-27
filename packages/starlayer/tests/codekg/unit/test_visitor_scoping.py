@@ -167,3 +167,18 @@ def test_a_series_of_only_overload_stubs_is_described_by_the_last_one(tmp_path) 
     iri, facts = _facts(_extract(tmp_path, source), "f")
     assert (SLKG.signature, Literal("def f(x: str) -> str")) in facts
     assert Counter(p for p, _ in set(facts))[SLKG.signature] == 1
+
+
+def test_a_comprehension_variable_shadows_a_module_function(tmp_path) -> None:
+    source = "def f(x):\n    pass\n\ndef use(fns):\n    return [f(1) for f in fns]\n"
+    assert _called(_run(tmp_path, source), "use") == set()
+
+
+def test_a_lambda_parameter_shadows_a_module_function(tmp_path) -> None:
+    source = "def f(x):\n    pass\n\ndef use():\n    return lambda f: f(1)\n"
+    assert _called(_run(tmp_path, source), "use") == set()
+
+
+def test_the_first_iterable_of_a_comprehension_and_other_calls_still_resolve(tmp_path) -> None:
+    source = "def f():\n    return []\n\ndef g(x):\n    pass\n\ndef use():\n    g(1)\n    return [g(i) for i in f()]\n"
+    assert _called(_run(tmp_path, source), "use") == {"f", "g"}

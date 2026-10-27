@@ -32,13 +32,13 @@ from pyparsing import (
     Forward,
     Group,
     Literal,
-    OneOrMore,
     Optional,
+    ParseResults,
     Regex,
     Suppress,
     ZeroOrMore,
 )
-from rdflib import BNode, URIRef
+from rdflib import BNode, URIRef, Variable
 from rdflib import Literal as RDFTermLiteral
 from rdflib.namespace import RDF
 from rdflib.plugins.sparql.parser import (
@@ -46,13 +46,14 @@ from rdflib.plugins.sparql.parser import (
     NIL,
     A,
     BlankNode,
+    BlankNodePropertyList,
+    BlankNodePropertyListPath,
     BuiltInCall,
     DataBlockValue,
     Expression,
     GraphNode,
     GraphNodePath,
     GraphTerm,
-    Path,
     PrimaryExpression,
     String,
     TriplesNode,
@@ -61,9 +62,12 @@ from rdflib.plugins.sparql.parser import (
     TriplesSameSubjectPath,
     Var,
     VarOrTerm,
+    Verb,
+    VerbPath,
+    VerbSimple,
     iri,
 )
-from rdflib.plugins.sparql.parserutils import Comp, Param
+from rdflib.plugins.sparql.parserutils import Comp, CompValue, Param
 
 from .triple_term import TripleTermNode
 from .vocab import encode_dirlang_datatype
@@ -376,209 +380,210 @@ LangDirLiteral.add_parse_action(_langdir_literal_action)
 # all still parse correctly either way, since these new productions simply
 # fail to match (no `~`/`{|`) and pyparsing falls through to the ordinary
 # alternative normally.
+# Annotations: `o ~ r`, `o {| p v ; ... |}`, `o ~ r {| ... |}` and any
+# repetition of those after ONE OBJECT of a property list (spec rules
+# Object ::= GraphNode Annotation, Annotation ::= (Reifier | AnnotationBlock)*,
+# and the Path twins). Redesigned 2026-10-26 (#93): the earlier production
+# matched one whole `s p o suffix` statement, so an annotation could not
+# be followed by `,` or `;`, could not follow `a`, a bracketed list, a
+# collection or another annotation block, and could not nest.
+#
+# Mechanism. rdflib's ObjectList/ObjectListPath alias the shared GraphNode
+# object, so they cannot be edited in place. install() instead replaces the
+# alternatives of the four consumers of a property list (TriplesSameSubject,
+# TriplesSameSubjectPath, BlankNodePropertyList, BlankNodePropertyListPath)
+# with copies built from `_ObjectAnn`, an object plus its annotation
+# suffixes. An annotated object is parsed to an `_Annotated` marker (not
+# a list, so rdflib's own bracket-list handling never sees it);
+# `_expand_triples12` is rdflib's expandTriples plus one branch: after the
+# object has been emitted, the marker adds `r rdf:reifies <<( s p o )>>` and
+# the annotation triples, where s and p are the subject and predicate of
+# the `;` / `,` list the object belongs to. A `{| |}` block is expanded by
+# the same function with the reifier as its subject, so blocks nest.
 _RDF_REIFIES = URIRef(str(RDF) + "reifies")
 
 
 def _make_triple_term(s, p, o) -> TripleTermNode:
-    """Build a real TripleTermNode for (s, p, o) - the canonical RDF 1.2
-    form of "the triple term s/p/o", not starlayer.graph's own internal on-disk
-    tt:HASH encoding (three flat rdf:subject/predicate/object triples on a
-    synthetic BNode), which this function replaced.
-
-    Why this matters: a plain CompValue('TripleTerm', ...) can't survive
-    rdflib's algebra pass unmodified (see triple_term.py's own module
-    docstring - unhashable/unorderable), so a TripleTermNode is the only
-    form of "this is really one triple term value" that both (a) an
-    enclosing rdf:reifies triple can hold in its object slot and (b) this
-    project's existing to_rdf.py/from_rdf.py/serialize12.py already know
-    how to round-trip - Phase 6 built that support for <<( s p o )>>/
-    TRIPLE() and it works unmodified for any TripleTermNode, this one
-    included, with zero new code needed here.
-
-    The three-flat-triple encoding this replaced was a real bug, not just
-    an inconsistency: it's starlayer.graph's own *internal*, private
-    on-disk convention, meaningful only when re-interpreted by
-    starlayer.graph's in-memory backend - a real, cross-engine-
-    interoperable RDF 1.2 engine (Oxigraph) has no idea `?tt rdf:subject
-    ?s` etc is supposed to mean anything beyond three perfectly ordinary
-    asserted triples about an arbitrary node, so the two representations
-    are not semantically interchangeable - an actual semantic
-    mistranslation, not a style choice. Explicitly not preserving the
-    shorthand *syntax* itself on regeneration (that's a separate, deferred
-    concern - see CLAUDE.md) - only the canonical rdf:reifies +
-    real-triple-term *meaning* needs to survive round-trip.
+    """Build the TripleTermNode for (s, p, o): the canonical RDF 1.2 triple
+    term (not starlayer.graph's internal ``tt:HASH`` encoding, which is
+    private to its in-memory backend and means nothing to another engine).
+    A plain CompValue would not survive rdflib's algebra pass (unhashable,
+    unorderable; see triple_term.py). Only the ``rdf:reifies`` meaning is
+    kept, not the shorthand syntax.
     """
     return TripleTermNode("TripleTerm", subject=s, predicate=p, object=o)
 
 
-def _expand_value(t):
-    """A term slot's raw parsed token is sometimes not a plain RDF term but
-    a *nested-expansion* list — the shape rdflib's own expandBNodeTriples
-    (BlankNodePropertyList's parse action, for `[ p1 o1 ; p2 o2 ]` syntax)
-    produces: a flat list whose first element is the value actually
-    occupying this position (a fresh blank node) and whose remainder is a
-    flat, 3-at-a-time-regroupable list of *additional* triples describing
-    that blank node's own properties, which must be spliced into the
-    enclosing triple list alongside this term's own reification triples.
-    Mirrors algebra.py's own expandTriples, which already handles exactly
-    this shape (`isinstance(t, list)`) the same way for ordinary
-    (non-annotation) triples — so an annotation value like
-    `{| :source [ :graph <...> ] |}` works the same way a plain triple's
-    object position already does.
+class _Annotated:
+    """An object together with its annotation suffixes, as parsed.
 
-    Args:
-        t: The raw parsed token for one term slot — either a plain RDF
-            term, or the nested-expansion list shape ``expandBNodeTriples``
-            produces.
-
-    Returns:
-        A ``(value, extra_triples)`` tuple — ``extra_triples`` is ``[]``
-        for a plain term.
+    ``suffixes`` is a list of ``(reifier_or_None, block_tokens_or_None)``.
     """
+
+    __slots__ = ("obj", "suffixes")
+
+    def __init__(self, obj, suffixes):
+        self.obj = obj
+        self.suffixes = suffixes
+
+
+def _simple_predicate(p):
+    """The IRI, ``a`` or variable a predicate token stands for.
+
+    A path-position predicate is wrapped in ``PathAlternative`` /
+    ``PathSequence`` / ``PathElt`` nodes even when it is a single IRI (the
+    prefixed name is not resolved yet at parse time), so unwrap the
+    one-child wrappers. An annotation reifies one triple, so a real
+    property path (``^:p``, ``:p/:q``, ``:p*``, ``!:p``) is rejected.
+    """
+    while isinstance(p, CompValue):
+        if p.name in ("PathAlternative", "PathSequence") and len(p.part) == 1:
+            p = p.part[0]
+        elif p.name == "PathElt" and not dict.get(p, "mod"):
+            p = p.part
+        elif p.name in ("pname", "iri", "Var"):
+            return p
+        else:
+            break
+    if isinstance(p, (URIRef, Variable)):
+        return p
+    raise ValueError(
+        "starlayer.sparql: a reifier or annotation needs a single IRI or variable as its predicate, not a property path"
+    )
+
+
+def _annotation_triples(s, p, o, suffixes) -> list:
+    tt = _make_triple_term(s, _simple_predicate(p), o)
+    out: list = []
+    for reifier, block in suffixes:
+        r = reifier if reifier is not None else BNode()
+        out += [r, _RDF_REIFIES, tt]
+        if block:
+            out += _expand_triples12([r] + block)
+    return out
+
+
+def _expand_triples12(terms) -> list:
+    """rdflib's ``expandTriples`` (``,`` / ``;`` / bracket-list expansion)
+    with annotated objects: see the comment above ``_Annotated``."""
+    last_subject, last_predicate = None, None
+    res: list = []
+    n = len(terms)
+    for i, t in enumerate(terms):
+        annotated = None
+        if isinstance(t, _Annotated):
+            annotated, t = t, t.obj
+            subj, pred = last_subject, last_predicate
+        if t == ",":
+            res.extend([last_subject, last_predicate])
+        elif t == ";":
+            if i + 1 == n or terms[i + 1] == ";" or terms[i + 1] == ".":
+                continue
+            res.append(last_subject)
+        elif isinstance(t, list):
+            if (len(res) % 3) == 2:
+                res.append(t[0])
+            if len(t) > 1:
+                res += t
+            if i + 1 < n and terms[i + 1] not in [".", ",", ";"]:
+                last_subject, last_predicate = t[0], None
+                res.append(t[0])
+        elif isinstance(t, ParseResults):
+            res += t.as_list()
+        elif t != ".":
+            res.append(t)
+            if (len(res) % 3) == 1:
+                last_subject = t
+            elif (len(res) % 3) == 2:
+                last_predicate = t
+        if annotated is not None:
+            obj = t[0] if isinstance(t, list) else t
+            res += _annotation_triples(subj, pred, obj, annotated.suffixes)
+    return res
+
+
+def _expand_bnode_triples12(terms) -> list:
+    return [_expand_triples12([BNode()] + terms.as_list()[0])]
+
+
+# Reifier ::= '~' VarOrReifierId?  (a literal or `()` is not allowed).
+_VarOrReifierId = Var | iri | BlankNode
+
+
+def _build_annotated_object(property_list_not_empty_for_block):
+    """One ``Object Annotation`` production; the argument is a Forward for
+    the matching property list (path or no path) used inside ``{| |}``."""
+    block = Suppress("{|") + Group(property_list_not_empty_for_block) + Suppress("|}")
+    tilde = Suppress("~") + Optional(_VarOrReifierId, default=None) + Optional(block, default=None)
+    tilde.add_parse_action(lambda t: [(t[0], t[1].as_list() if t[1] is not None else None)])
+    bare = block.copy()
+    bare.add_parse_action(lambda t: [(None, t[0].as_list())])
+    return tilde | bare
+
+
+def _annotated_object_action(tokens):
+    if len(tokens) == 1:
+        return None
+    return [_Annotated(tokens[0], list(tokens[1:]))]
+
+
+def _build_property_list(verb, node, object_ann):
+    object_list = object_ann + ZeroOrMore("," + object_ann)
+    return verb + object_list + ZeroOrMore(";" + Optional(verb + object_list))
+
+
+_PropertyListNotEmptyAnn = Forward()
+_PropertyListPathNotEmptyAnn = Forward()
+
+_ObjectAnn = GraphNode + ZeroOrMore(_build_annotated_object(_PropertyListNotEmptyAnn))
+_ObjectAnn.add_parse_action(_annotated_object_action)
+_ObjectPathAnn = GraphNodePath + ZeroOrMore(_build_annotated_object(_PropertyListPathNotEmptyAnn))
+_ObjectPathAnn.add_parse_action(_annotated_object_action)
+
+_PropertyListNotEmptyAnn <<= _build_property_list(Verb, GraphNode, _ObjectAnn)
+_PropertyListPathNotEmptyAnn <<= _build_property_list(VerbPath | VerbSimple, GraphNodePath, _ObjectPathAnn)
+
+# The consumers' alternatives, rebuilt (see the comment above _Annotated).
+_TSS_ALTERNATIVES = [
+    VarOrTerm + _PropertyListNotEmptyAnn,
+    TriplesNode + Optional(_PropertyListNotEmptyAnn),
+]
+_TSSP_ALTERNATIVES = [
+    VarOrTerm + _PropertyListPathNotEmptyAnn,
+    TriplesNodePath + Optional(_PropertyListPathNotEmptyAnn),
+]
+_BNPL_BODY = Suppress("[") + _PropertyListNotEmptyAnn + Suppress("]")
+_BNPLP_BODY = Suppress("[") + _PropertyListPathNotEmptyAnn + Suppress("]")
+
+
+def _install_annotated_objects() -> None:
+    """Point rdflib's four property-list consumers at the annotation-aware
+    productions above. Assignment, not append, so it is idempotent and does
+    not depend on whether pyparsing already streamlined the originals."""
+    TriplesSameSubject.exprs[:] = _TSS_ALTERNATIVES
+    TriplesSameSubject.set_parse_action(_expand_triples12)
+    TriplesSameSubject.streamlined = False
+    TriplesSameSubjectPath.exprs[:] = _TSSP_ALTERNATIVES
+    TriplesSameSubjectPath.set_parse_action(_expand_triples12)
+    TriplesSameSubjectPath.streamlined = False
+    BlankNodePropertyList.expr = _BNPL_BODY
+    BlankNodePropertyList.set_parse_action(_expand_bnode_triples12)
+    BlankNodePropertyList.streamlined = False
+    BlankNodePropertyListPath.expr = _BNPLP_BODY
+    BlankNodePropertyListPath.set_parse_action(_expand_bnode_triples12)
+    BlankNodePropertyListPath.streamlined = False
+
+
+def _expand_value(t):
+    """A reifier-term slot's token is a plain RDF term or the nested list
+    ``[value, *extra_triples]`` that ``expandBNodeTriples`` produces; return
+    ``(value, extra_triples)``."""
     if isinstance(t, list):
         return t[0], list(t)
     return t, []
 
 
-# s p o ~ r  /  s p o {| ap av ; ... |}  /  s p o ~ r {| ap av ; ... |}  /
-# s p o ~ r1 {| ... |} ~ r2 {| ... |}  — reifier-binding and inline
-# annotation-block shorthand, and any repeated combination of the two on
-# the SAME base triple. Always asserts the base triple s/p/o once,
-# regardless of how many suffix elements follow.
-#
-# Originally built as two entirely separate, mutually-exclusive
-# productions (`s p o ~ r` xor `s p o {| |}`) — too narrow: real W3C test
-# data requires both together on one statement (`annotation-reifier-01`:
-# `?s ?p ?o ~ :iri {| :r ?Z |} .`) and even *repeated* (the
-# `annotation-*-multiple-*` test family: `~ r1 {| |} ~ r2 {| |}`, each
-# suffix minting/using its own independent reifier for the SAME underlying
-# triple term). Rebuilt as one combined grammar matching the shape the
-# sibling `starlayer.graph` project's own Turtle-syntax annotation parser
-# already uses (`split_obj_and_annotations` in
-# `starlayer.graph/parsers/lexer.py`, which already handles this exact
-# combination for Turtle *data* — not ported from it, since that's
-# string-splitting against already-tokenized text rather than a pyparsing
-# grammar, but cross-checked against it as a working reference for the
-# semantics): each suffix is either `~ [reifier]` optionally followed
-# immediately by `{| ... |}` (both bound to the SAME reifier — the one
-# named after `~`, or a fresh one if `~` has no name), or a bare
-# `{| ... |}` (implicitly a fresh reifier) — and this can repeat one or
-# more times.
-#
-# Declared here (Forward, filled in far below once
-# _AnnotationReifierTermExplicit/Anon exist) rather than at its point of
-# use only, since AnnotationSuffixed's own subject/object slots need it
-# too — see AnnotationSuffixed's comment.
 _ReifierTermValue = Forward()
-
-def _annotation_suffixed_action(tokens):
-    s_raw, p, o_raw, suffixes = tokens[0], tokens[1], tokens[2], tokens[3]
-    s, s_extra = _expand_value(s_raw)
-    o, o_extra = _expand_value(o_raw)
-    tt = _make_triple_term(s, p, o)
-    result: list = []
-    for reifier, block in suffixes:
-        r = reifier if reifier is not None else BNode()
-        result += [r, _RDF_REIFIES, tt]
-        if block is not None:
-            pairs = list(block)
-            for i in range(0, len(pairs), 2):
-                ap = pairs[i]
-                av, extra = _expand_value(pairs[i + 1])
-                result += [r, ap, av] + extra
-    result += [s, p, o] + s_extra + o_extra
-    return result
-
-
-def _build_annotation_suffixed(value_grammar, predicate_grammar):
-    """Build one AnnotationSuffixed-shaped production, parameterized by the
-    grammar an annotation pair's *value* slot uses — GraphNode (no property
-    paths) or GraphNodePath (paths allowed). Needed as two separate
-    productions, not one shared one, for the same reason TripleTermExpr/
-    TripleTermExprValue are two separate objects: `AnnotationSuffixed` gets
-    installed into BOTH TriplesSameSubjectPath (ordinary WHERE-clause
-    context, paths legal) *and* TriplesSameSubject (CONSTRUCT-template
-    context, paths never legal per the SPARQL grammar — rdflib's own
-    `PropertyListPathNotEmpty`/`PropertyListNotEmpty` split exists for
-    exactly this reason). The distinction is real, not over-engineering:
-    the W3C positive test `annotation-anonreifier-07`
-    (`?s ?p ?o {| :r [ :p1|:p2 'ABC'] |} .` in an ordinary WHERE clause)
-    needs GraphNodePath's path-aware BlankNodePropertyListPath for the
-    annotation value's own internal `[ ... ]` — plain GraphNode
-    (BlankNodePropertyList, no paths) fails there.
-
-    Only the grammar differs between the two variants; both share the
-    exact same `_annotation_suffixed_action`, since the token shape it
-    consumes doesn't depend on which value grammar matched.
-    """
-    # predicate_grammar is `Path | Var` for the WHERE-clause variant, matching
-    # rdflib's own `VerbPath | VerbSimple` convention (`PropertyListPathNotEmpty`
-    # in rdflib's parser.py) — `Path` alone regresses the far more common
-    # plain-variable-predicate case (`{| ?Y ?Z |}`), since Path's own grammar
-    # has no Var alternative. `Path` itself is needed there for
-    # `annotation-anonreifier-06`/`annotation-reifier-06`
-    # (`{| :r/:q 'ABC' |}`) and `-07`/`update-reifier-07`.
-    #
-    # For the CONSTRUCT-template variant, predicate_grammar is plain VarOrTerm
-    # instead — NOT `Path | Var` — for a reason distinct from (and sharper
-    # than) "paths aren't legal in CONSTRUCT templates per the grammar" (true:
-    # plain rdflib itself raises a ParseException on
-    # `CONSTRUCT { ?s :r/:q ?o } WHERE {...}`, since ConstructTriples uses
-    # TriplesSameSubject, never TriplesSameSubjectPath). The sharper reason:
-    # even a *trivial*, single-IRI "path" like `:source` alone parses via
-    # Path's grammar as a nested `PathAlternative`/`PathSequence`/`PathElt`
-    # CompValue chain, not a bare URIRef — ordinary rdflib simplifies this
-    # away via `traverse(q.where, visitPost=translatePath)`, but
-    # `translateQuery`'s own source shows this walk is *never* run over
-    # `template = triples(q[1].template)` for CONSTRUCT specifically — it's
-    # built directly from the raw parse tree, bypassing that pass entirely.
-    # So even `{| :source ?g |}` (no `/`/`|` at all) inside a CONSTRUCT
-    # template left an un-simplified CompValue sitting in the template's
-    # predicate slot, and rdflib's own `reorderTriples`/`_knownTerms` (which
-    # *does* still run on `template`, via `triples()`) then crashed trying
-    # to hash it: `TypeError: cannot use CompValue as a set element` — on
-    # the W3C positive tests `annotation-anonreifier-08`/
-    # `annotation-reifier-08`. A `Path` object dropped directly into a
-    # plain WHERE-clause BGP triple's predicate slot is fine, by contrast —
-    # that *is* already how rdflib's own `PropertyListPathNotEmpty` works
-    # there, and the `translatePath` walk that WHERE clauses do get cleans
-    # up the trivial case correctly (`{| :source ?g |}` in an ordinary
-    # SELECT's WHERE clause comes out with a bare `URIRef` predicate after
-    # `prepare_query_12`, not a CompValue).
-    pair = predicate_grammar + value_grammar
-    block_body = Suppress("{|") + Group(pair + ZeroOrMore(Suppress(";") + pair)) + Suppress("|}")
-
-    def _suffix_tilde_action(tokens):
-        return [(tokens[0], tokens[1])]
-
-    suffix_tilde = Suppress("~") + Optional(VarOrTerm, default=None) + Optional(block_body, default=None)
-    suffix_tilde.add_parse_action(_suffix_tilde_action)
-
-    def _suffix_block_action(tokens):
-        return [(None, tokens[0])]
-
-    suffix_block = block_body.copy()
-    suffix_block.add_parse_action(_suffix_block_action)
-
-    suffix = suffix_tilde | suffix_block
-
-    # Subject/object use _ReifierTermValue (declared above, filled in below
-    # once _AnnotationReifierTermExplicit/Anon exist), not plain VarOrTerm —
-    # needed for `annotation-anonreifier-03`
-    # (`:s :p <<:a :b :c>> {| ?q ?z |}`, whose base triple's OBJECT is
-    # itself a bare reifier-shorthand term). Predicate stays plain
-    # VarOrTerm, unchanged — no test evidences a need to narrow it here.
-    prod = _ReifierTermValue + VarOrTerm + _ReifierTermValue + Group(OneOrMore(suffix))
-    prod.add_parse_action(_annotation_suffixed_action)
-    return prod
-
-
-# Same rationale as above - see the first `_ReifierTermValue = Forward()`
-# declaration (above `_build_annotation_suffixed`).
-_ReifierTermValue = Forward()
-
-AnnotationSuffixed = _build_annotation_suffixed(GraphNodePath, Path | Var)
-AnnotationSuffixedConstruct = _build_annotation_suffixed(GraphNode, VarOrTerm)
 
 # << s p o >>  /  << s p o ~ reifier >>  — reifier-reference TERMS, not
 # whole-statement productions. `<<s p o>>` denotes the (fresh or given)
@@ -654,7 +659,7 @@ AnnotationSuffixedConstruct = _build_annotation_suffixed(GraphNode, VarOrTerm)
 # knows how to unwrap either uniformly (see `_annotation_block_action`'s
 # use of it for the exact same contract), reused here rather than
 # inventing a second unwrapping convention.
-# (_ReifierTermValue itself is declared earlier, alongside AnnotationSuffixed
+# (_ReifierTermValue itself is declared earlier, above the annotation machinery
 # — also above this point — since that production needs it too; both fill
 # it in together, below, once these two productions exist.)
 
@@ -676,14 +681,14 @@ _AnnotationReifierTermExplicit = (
     + _TripleTermPredicate
     + _ReifierTermValue
     + Suppress("~")
-    + VarOrTerm
+    + Optional(_VarOrReifierId, default=None)
     + Suppress(">>")
 )
 
 
 def _annotation_reifier_term_explicit_action(tokens):
     s, p, o, r = tokens[0], tokens[1], tokens[2], tokens[3]
-    return [_annotation_reifier_term(s, p, o, r)]
+    return [_annotation_reifier_term(s, p, o, r if r is not None else BNode())]
 
 
 _AnnotationReifierTermExplicit.add_parse_action(_annotation_reifier_term_explicit_action)
@@ -868,24 +873,9 @@ def install(force: bool = False) -> None:
     _append_once(BuiltInCall, Builtin_hasLANG)
     _append_once(BuiltInCall, Builtin_STRLANGDIR)
 
-    # Annotation/reification-shorthand forms must be *inserted at the front*
-    # (tried first), not appended: the ordinary `VarOrTerm +
-    # PropertyListPathNotEmpty` alternative already in these two objects
-    # greedily matches just "s p o" and succeeds before ever trying a later
-    # alternative, which would otherwise leave a dangling `~ r`/`{| ... |}`
-    # suffix that fails at the statement level instead of being recognized
-    # here.
-    #
-    # TriplesSameSubjectPath (ordinary WHERE-clause context) gets
-    # AnnotationSuffixed (path-aware annotation values); TriplesSameSubject
-    # (CONSTRUCT-template context, where property paths are never legal)
-    # gets AnnotationSuffixedConstruct instead — see
-    # _build_annotation_suffixed's own comment for why these must be two
-    # different productions, not the same one installed into both.
-    _insert_once(TriplesSameSubjectPath, 0, AnnotationSuffixed)
-    TriplesSameSubjectPath._defaultName = None
-    _insert_once(TriplesSameSubject, 0, AnnotationSuffixedConstruct)
-    TriplesSameSubject._defaultName = None
+    # Annotations and reifiers after an object: replace the property-list
+    # alternatives of the four consumers (see the comment above `_Annotated`).
+    _install_annotated_objects()
 
     # `<<s p o>>`/`<<s p o ~ r>>` reifier-reference terms: appended (order
     # vs Collection/BlankNodePropertyList doesn't matter — disjoint leading
