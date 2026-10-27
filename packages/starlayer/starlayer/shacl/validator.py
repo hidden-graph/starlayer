@@ -9,7 +9,7 @@ from rdflib import BNode, Graph, Literal, Namespace, URIRef
 from rdflib.collection import Collection
 from rdflib.namespace import OWL, RDF, RDFS, NamespaceManager
 
-from starlayer.shacl.adapters import TripleTermAdapter, TripleTermGraph
+from starlayer.shacl.adapters import TripleTermAdapter, TripleTermGraph, TripleTermValue
 from starlayer.shacl.engine import (
     ComponentRequest,
     normalize_graph_inputs,
@@ -39,6 +39,7 @@ from starlayer.shacl.results import (
     RulesResult,
     ValidationResult,
 )
+from starlayer.shacl.rule_conditions import order_value  # noqa: E402
 from starlayer.shacl.triple_rule import install_triple_rule_patch
 from starlayer.shacl.types import ensure_graph_mutable
 from starlayer.shacl.validation_modes import (
@@ -1586,6 +1587,10 @@ class StarShaclSchema:
         shacl_graph: Any | None,
         decode_report: bool,
     ) -> ValidationResult | None:
+        # Declined always (GitHub issue #136): both fast paths build a degraded report (no sh:sourceShape,
+        # no sh:resultMessage, no sh:conformanceDisallows, placeholder report_text), so a triple term anywhere
+        # in the data changed the shape of the report. pySHACL (through the adapter) gives the full report.
+        return None
         literal_only = self._try_native_literal_only_validation(
             data_graph=data_graph,
             shacl_graph=shacl_graph,
@@ -3148,6 +3153,8 @@ def _try_native_core_validation(
         path, or ``None`` if neither applies - meaning the caller should
         fall back to full pySHACL validation.
     """
+    # Declined always (GitHub issue #136): see StarShaclSchema._try_native_core_validation.
+    return None
     literal_only = _try_native_literal_only_validation(
         data_graph=data_graph,
         shacl_graph=shacl_graph,
@@ -4229,7 +4236,9 @@ def apply_rules(
     inference_graph = type(out_data)()
     for prefix, ns in out_data.namespaces():
         inference_graph.bind(prefix, ns)
-    for t in frozenset(out_data) - base_triples - entailment_triples:
+    # pySHACL mixes ont_graph into the (inplace) data graph while validating, so its raw triples are in out_data too (#137)
+    ont_triples = frozenset(ont_graph) if ont_graph is not None else frozenset()
+    for t in frozenset(out_data) - base_triples - entailment_triples - ont_triples:
         inference_graph.add(t)
 
     return RulesResult(
@@ -4435,12 +4444,23 @@ def _patch_rule_apply_for_source_rule_provenance() -> bool:
                         target_graph_identifier=target_graph_identifier,
                     )
                     after = set(data_graph)
+                    from starlayer.shacl.native_components import _get_tt_adapter
+
+                    adapter = _get_tt_adapter(data_graph)
                     for item in after - before:
                         # `data_graph` may be a quad-based `rdflib.Dataset`
                         # under `advanced=True` (confirmed live - iterating
                         # one yields 4-tuples, not 3-tuples); keep only the
                         # triple portion regardless of which it is.
-                        buffer.append((tuple(item[:3]), self.node))
+                        triple = tuple(item[:3])
+                        node = self.node
+                        # Decode now, while the executing graph's own adapter still knows every urn:starlayer:tt:
+                        # URI it created: apply_rules() only has a fresh, empty adapter later, which left a
+                        # triple-term object encoded (GitHub issue #137).
+                        if adapter is not None:
+                            triple = tuple(_inline_triple_term(adapter.decode_term(t)) for t in triple)
+                            node = adapter.decode_term(node)
+                        buffer.append((triple, node))
                     return result
 
                 _patched_apply._starlayer_shacl_source_rule_patch = True  # type: ignore[attr-defined]
@@ -4452,6 +4472,18 @@ def _patch_rule_apply_for_source_rule_provenance() -> bool:
         _source_rule_patch_status = False
 
     return _source_rule_patch_status
+
+
+def _inline_triple_term(term: Any) -> Any:
+    """A decoded ``TripleTermValue`` (the adapter's fallback term, not an rdflib node) as the plain nested
+    ``(s, p, o)`` tuple that ``StarLayerGraph.add()`` takes as inline triple-term shorthand; any other term unchanged."""
+    if isinstance(term, TripleTermValue):
+        return (
+            _inline_triple_term(term.subject),
+            _inline_triple_term(term.predicate),
+            _inline_triple_term(term.object),
+        )
+    return term
 
 
 def _materialize_source_rule_provenance(
@@ -5826,6 +5858,8 @@ def _rule_set_members(shapes_graph: Any, rule_set: Any) -> frozenset:
     seen_rule_sets: set[Any] = set()
     # a single sh:RuleSet node, or an iterable of them (the documented parameter type)
     worklist = [rule_set] if isinstance(rule_set, (str, bytes)) or not hasattr(rule_set, "__iter__") else list(rule_set)
+    # a plain str IRI means the URIRef (it never matches a graph node otherwise, silently running no rules)
+    worklist = [URIRef(rs) if type(rs) is str else rs for rs in worklist]
     members: set[Any] = set()
     while worklist:
         rs = worklist.pop()
@@ -6007,7 +6041,7 @@ def _global_sparql_rule_triples(
 
     def _order_key(rule_node: Any) -> tuple[float, int]:
         values = list(shacl_graph.objects(rule_node, SH.order))
-        order = float(values[0]) if values else 0.0
+        order = float(order_value(values[0])) if values else 0.0
         return (order, rule_nodes.index(rule_node))
 
     def _apply_one(rule_node: Any) -> list[tuple[tuple, Any]]:

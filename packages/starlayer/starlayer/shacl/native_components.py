@@ -104,6 +104,9 @@ def register_native_components() -> None:
     from starlayer.shacl.triple_rule import install_triple_rule_patch
 
     install_triple_rule_patch()  # sh:TripleRule defaults and well-formedness (GitHub issue #82)
+    from starlayer.shacl.rule_conditions import install_rule_condition_patch
+
+    install_rule_condition_patch()  # class-shape condition superclasses, sh:order errors (GitHub issue #137)
     if _registered:
         return
 
@@ -1399,9 +1402,14 @@ def _build_reifier_shape_component() -> Any:
             super().__init__(shape)
             path = shape.path()
             if not isinstance(path, URIRef):
-                raise NotImplementedError(
-                    "sh:reifierShape/sh:reificationRequired requires sh:path to be a simple IRI, "
-                    "per the SHACL 1.2 spec's own syntax rule for this constraint component"
+                from pyshacl.errors import ConstraintLoadError
+
+                # a shapes-graph error like the other malformed-shape cases, not "not implemented" (GitHub issue #136)
+                raise ConstraintLoadError(
+                    f"sh:reifierShape/sh:reificationRequired on '{shape.node}' requires sh:path to be a simple IRI "
+                    "(a property shape with a plain predicate), per the SHACL 1.2 spec's own syntax rule "
+                    "for this constraint component",
+                    "https://www.w3.org/TR/shacl12-core/#ReifierShapeConstraintComponent",
                 )
             self.path = path
             self.reifier_shape_node = next(iter(shape.sg.objects(shape.node, SH.reifierShape)), None)
