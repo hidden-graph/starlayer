@@ -83,3 +83,27 @@ def test_a_broken_query_raises_a_named_error_not_stopiteration():
 def test_both_predicates_on_one_node_is_rejected():
     with pytest.raises(ValueError, match="may be only one"):
         _run('[ sh:select "SELECT ?x WHERE {}" ; sh:sparqlExpr "1" ]')
+
+
+# --- GitHub issue #123: a bare list expression ---
+# SHACL 1.2 Node Expressions says a list expression holds constants only (shnex:concat combines expressions).
+# StarLayer deliberately accepts more: a member that is an expression is evaluated and a nested list flattens.
+# These tests pin that, so a change is a decision and not an accident.
+
+
+def test_list_of_constants_is_the_spec_reading():
+    assert _run("( 1 2 3 )") == [Literal(1), Literal(2), Literal(3)]
+
+
+def test_list_member_that_is_an_expression_is_evaluated_extension():
+    out = _run('( [ sh:select "SELECT ?this WHERE { ?this a <http://example.org/Org> }" ] 7 )')
+    assert out == [EX.acme, Literal(7)]
+
+
+def test_nested_list_is_flattened_extension():
+    assert _run("( ( 1 2 ) 3 )") == [Literal(1), Literal(2), Literal(3)]
+
+
+def test_concat_is_the_spec_way_to_combine_expressions():
+    out = _run('[ shnex:concat ( [ sh:sparqlExpr "1 + 1" ] 5 ) ]')
+    assert out == [Literal(2), Literal(5)]
