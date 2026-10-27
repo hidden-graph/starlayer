@@ -106,6 +106,23 @@ def _is_bnode_list(val):
     return s.startswith('[') and s.endswith(']')
 
 
+def _next_object_token(s):
+    """Next term of ``s`` with its ``^^datatype`` or ``@lang`` suffix, plus
+    the rest. ``next_token`` alone stops right after ``^^`` when the
+    datatype is a ``<iri>``."""
+    tok, rest = _lexer.next_token(s)
+    rest = rest.strip()
+    while rest.startswith('^^') or (rest.startswith('@') and len(rest) > 1 and rest[1].isalpha()):
+        if rest.startswith('^^'):
+            dt_tok, rest = _lexer.next_token(rest[2:])
+            suffix = '^^' + dt_tok
+        else:
+            suffix, rest = _lexer.next_token(rest)
+        tok += suffix
+        rest = rest.strip()
+    return tok, rest
+
+
 def _has_reifier(val):
     """Check whether val is << s p o ~ r >> (inline reifier) syntax.
 
@@ -130,7 +147,7 @@ def _has_reifier(val):
         return False
     _, r1 = _lexer.next_token(inner)
     _, r2 = _lexer.next_token(r1)
-    _, r3 = _lexer.next_token(r2)
+    _, r3 = _next_object_token(r2)
     return r3.strip().startswith('~')
 
 
@@ -150,7 +167,7 @@ def _get_reifier_parts(val):
     inner = val.strip()[2:-2].strip()
     ts, r1 = _lexer.next_token(inner)
     tp, r2 = _lexer.next_token(r1)
-    to, r3 = _lexer.next_token(r2)
+    to, r3 = _next_object_token(r2)
     after_tilde = r3.strip()[1:].strip()
     return f'<<( {ts} {tp} {to} )>>', (after_tilde if after_tilde else None)
 
@@ -172,7 +189,13 @@ def _norm_qt(val):
     tp, r2 = _lexer.next_token(r1)
     to, r3 = _lexer.next_token(r2)
     while r3.startswith('^^') or (r3.startswith('@') and len(r3) > 1 and r3[1].isalpha()):
-        suffix, r3 = _lexer.next_token(r3)
+        if r3.startswith('^^'):
+            # tokenize the datatype separately: next_token stops right
+            # after '^^' when an <iri> follows
+            dt_tok, r3 = _lexer.next_token(r3[2:])
+            suffix = '^^' + dt_tok
+        else:
+            suffix, r3 = _lexer.next_token(r3)
         to += suffix
         r3 = r3.strip()
     if r3.strip():
@@ -565,7 +588,11 @@ class _Expander:
         pred_str, rest2 = _lexer.next_token(rest)
         obj_str,  rest3 = _lexer.next_token(rest2)
         while rest3.startswith('^^') or (rest3.startswith('@') and len(rest3) > 1 and rest3[1].isalpha()):
-            suffix, rest3 = _lexer.next_token(rest3)
+            if rest3.startswith('^^'):
+                dt_tok, rest3 = _lexer.next_token(rest3[2:])
+                suffix = '^^' + dt_tok
+            else:
+                suffix, rest3 = _lexer.next_token(rest3)
             obj_str += suffix
             rest3 = rest3.strip()
 

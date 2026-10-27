@@ -152,6 +152,8 @@ class TestInferRdf:
             (RDF.rest, RDF.type, RDF.Property),
             (RDF.nil, RDF.type, RDF.List),
             (RDF._1, RDF.type, RDF.Property),
+            # The entailed triples use rdf:type as a predicate (closure, issue #83).
+            (RDF.type, RDF.type, RDF.Property),
         }
         # None of the OTHER fixed axiomatic terms (subject/predicate/
         # object/reifies/value) appear, since none of them were actually
@@ -463,7 +465,8 @@ class TestInferCombinedWithRdf:
 
         delta = set(g.infer(entailment={ENTAILMENT.RDF}, mode="delta"))
 
-        assert delta == {(EX.knows, RDF.type, RDF.Property)}
+        # rdf:type, the predicate of the entailed triple, is typed too (closure, issue #83).
+        assert delta == {(EX.knows, RDF.type, RDF.Property), (RDF.type, RDF.type, RDF.Property)}
 
     def test_owl_direct_combined_with_rdf_still_raises(self) -> None:
         g = self._list_and_subclass_graph()

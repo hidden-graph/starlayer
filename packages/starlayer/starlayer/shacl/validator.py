@@ -1063,16 +1063,11 @@ class StarShaclSchema:
         # treats *any* blank-node value as an opaque (bogus) target in its
         # own right, producing a nonsense "Focus Node" that's really just
         # the node expression's own blank node identity - a gap distinct
-        # from the sh:select case above. Evaluated with no starting focus
-        # node (matches the spec's own framing - "a node expression
-        # produces the list of target nodes of a shape", not "...relative
-        # to some other node"); every node expression the spec actually
-        # demonstrates for this position (shnex:instancesOf,
-        # shnex:nodesMatching, shnex:filterShape) is focus-node-independent
-        # by construction, so this only matters for a shapes graph that (in
-        # violation of the spec's own intent for this position) plugs in a
-        # focus-dependent expression like a bare shnex:pathValues - which
-        # then, correctly, produces no targets rather than a wrong guess.
+        # from the sh:select case above. Evaluated with the shape itself
+        # as the focus node and an empty scope, as SHACL 1.2 Core 3.1.3.1
+        # says (evalExpr(expr, data graph, s, {}), s the shape with the
+        # sh:targetNode): an expression that reads the focus node, such as
+        # a bare shnex:pathValues, starts from the shape (issue #124).
         # Needs a real (harvested) pyshacl.ShapesGraph for the shnex:
         # operators that check shape conformance (shnex:filterShape/
         # nodesMatching/matchAll/findFirst/conformsToShape call
@@ -1119,7 +1114,7 @@ class StarShaclSchema:
 
             for shape_node, target_value in target_expr_candidates:
                 try:
-                    computed = eval_expr(target_value, None, data_graph, throwaway_sg)
+                    computed = eval_expr(target_value, shape_node, data_graph, throwaway_sg)
                 except Exception:
                     continue
                 # Remove the original blank-node triple even when computed is
@@ -1266,6 +1261,8 @@ class StarShaclSchema:
         for predicate in SHAPE_EXPECTING_PREDICATES:
             for _, _, value in shacl_graph.triples((None, predicate, None)):
                 for shape_node in shape_reference_nodes(shacl_graph, value):
+                    if isinstance(shape_node, Literal):
+                        continue  # a malformed value ("not a shape"): leave it for the meta-shapes to report, it cannot be typed
                     addition = ensure_shape_typed(shacl_graph, shape_node)
                     if addition is not None:
                         additions.append(addition)
@@ -2328,7 +2325,7 @@ def _augment_shapes_with_new_target_types(data_graph: Any, shacl_graph: Any) -> 
 
         for shape_node, target_value in target_expr_candidates:
             try:
-                computed = eval_expr(target_value, None, data_graph, throwaway_sg)
+                computed = eval_expr(target_value, shape_node, data_graph, throwaway_sg)
             except Exception:
                 continue
             # Remove the original blank-node triple even when computed is
@@ -5383,8 +5380,38 @@ def _patch_shape_value_nodes_for_sh_values() -> bool:
             _value_nodes_patch_status = True
             return True
 
+        def _path_uses_support_predicate(self) -> bool:
+            """Whether the shape's ``sh:path`` names ``rdf:subject``,
+            ``rdf:predicate`` or ``rdf:object`` anywhere."""
+            sg = self.sg.graph
+            seen, todo = set(), list(sg.objects(self.node, SH.path))
+            while todo:
+                node = todo.pop()
+                if node in seen:
+                    continue
+                seen.add(node)
+                if node in (RDF.subject, RDF.predicate, RDF.object):
+                    return True
+                if isinstance(node, BNode):
+                    todo.extend(o for _p, o in sg.predicate_objects(node))
+                    if (node, RDF.first, None) in sg:
+                        todo.extend(sg.objects(node, RDF.rest))
+            return False
+
         def _patched_value_nodes(self, target_graph, focus, sparql_mode=False, debug=False):
-            original = original_value_nodes(self, target_graph, focus, sparql_mode=sparql_mode, debug=debug)
+            if self.is_property_shape and _path_uses_support_predicate(self):
+                # A path through a triple term (`(ex:p rdf:object)`) must not
+                # follow the adapter's rdf:subject/predicate/object support
+                # triples: evaluate it on a copy without them (issue #94).
+                from starlayer.shacl.native_components import _is_encoded_triple_term
+
+                plain = Graph()
+                for t in target_graph.triples((None, None, None)):
+                    if not (t[1] in (RDF.subject, RDF.predicate, RDF.object) and _is_encoded_triple_term(target_graph, t[0])):
+                        plain.add(t)
+                original = original_value_nodes(self, plain, focus, sparql_mode=sparql_mode, debug=debug)
+            else:
+                original = original_value_nodes(self, target_graph, focus, sparql_mode=sparql_mode, debug=debug)
             if not self.is_property_shape:
                 return original
             # A triple term has no outgoing properties; pySHACL would follow the
@@ -5557,6 +5584,7 @@ def _patch_expression_constraint_for_value_scope() -> bool:
         from rdflib import Literal as _Literal
 
         from starlayer.shacl.node_expressions import eval_expr
+        from starlayer.shacl.sparql_node_expressions import EvaluationFailure
 
         ExpressionConstraint = _advanced_mod.ExpressionConstraint
         original = ExpressionConstraint._evaluate_expression
@@ -5574,7 +5602,11 @@ def _patch_expression_constraint_for_value_scope() -> bool:
                 messages = None
             for f, value_nodes in f_v_dict.items():
                 for v in value_nodes:
-                    n_set = eval_expr(expr, f, data_graph, self.shape.sg, scope={"focusNode": f, "value": v})
+                    try:
+                        n_set = eval_expr(expr, f, data_graph, self.shape.sg, scope={"focusNode": f, "value": v})
+                    except EvaluationFailure:
+                        # Node Expressions 7.1: anything but exactly (true) is a violation, a failure included
+                        n_set = []
                     if (
                         isinstance(n_set, (list, set))
                         and len(n_set) == 1

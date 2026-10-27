@@ -204,6 +204,7 @@ stsh:NodeShapeForm a sh:NodeShape ;
         stsh:NodeShapeForm_sh_description,
         stsh:NodeShapeForm_sh_disjoint,
         stsh:NodeShapeForm_sh_equals,
+        stsh:NodeShapeForm_sh_expression,
         stsh:NodeShapeForm_sh_flags,
         stsh:NodeShapeForm_sh_hasValue,
         stsh:NodeShapeForm_sh_ignoredProperties,
@@ -557,12 +558,6 @@ sh:closed sh:group stsh:ClosedGroup ;
     stsh:formMaxCount 1 ;
     stsh:nodeFormField true .
 
-sh:expression sh:group stsh:PathGroup ;
-    sh:nodeKind sh:BlankNodeOrIRI ;
-    sh:order 7 ;
-    stsh:formMaxCount 1 ;
-    stsh:propertyFormField true .
-
 sh:group sh:group stsh:MetadataGroup ;
     sh:nodeKind sh:IRI ;
     sh:order 2 ;
@@ -859,6 +854,12 @@ stsh:NodeShapeForm_sh_equals a sh:PropertyShape ;
     sh:order 1 ;
     sh:path sh:equals .
 
+stsh:NodeShapeForm_sh_expression a sh:PropertyShape ;
+    sh:group stsh:CompositionGroup ;
+    sh:nodeKind sh:BlankNodeOrIRI ;
+    sh:order 10 ;
+    sh:path sh:expression .
+
 stsh:NodeShapeForm_sh_flags a sh:PropertyShape ;
     sh:datatype xsd:string ;
     sh:group stsh:StringGroup ;
@@ -988,7 +989,7 @@ stsh:NodeShapeForm_sh_nodeByExpression a sh:PropertyShape ;
 
 stsh:NodeShapeForm_sh_nodeKind a sh:PropertyShape ;
     sh:group stsh:ValueTypeGroup ;
-    sh:in _:nedbd03b7ac7541838bda4a704db0b965b75 ;
+    sh:in _:nd34ff06c1500452db888d3ecef4fbfaab75 ;
     sh:maxCount 1 ;
     sh:nodeKind sh:IRI ;
     sh:order 4 ;
@@ -1196,7 +1197,7 @@ stsh:ParameterForm_sh_name a sh:PropertyShape ;
 
 stsh:ParameterForm_sh_nodeKind a sh:PropertyShape ;
     sh:group stsh:ValueTypeGroup ;
-    sh:in _:nedbd03b7ac7541838bda4a704db0b965b75 ;
+    sh:in _:nd34ff06c1500452db888d3ecef4fbfaab75 ;
     sh:maxCount 1 ;
     sh:nodeKind sh:IRI ;
     sh:order 4 ;
@@ -1395,11 +1396,9 @@ stsh:PropertyShapeForm_sh_equals a sh:PropertyShape ;
     sh:path sh:equals .
 
 stsh:PropertyShapeForm_sh_expression a sh:PropertyShape ;
-    sh:group stsh:PathGroup ;
-    sh:maxCount 1 ;
-    sh:minCount 1 ;
+    sh:group stsh:CompositionGroup ;
     sh:nodeKind sh:BlankNodeOrIRI ;
-    sh:order 7 ;
+    sh:order 10 ;
     sh:path sh:expression .
 
 stsh:PropertyShapeForm_sh_flags a sh:PropertyShape ;
@@ -1549,7 +1548,7 @@ stsh:PropertyShapeForm_sh_nodeByExpression a sh:PropertyShape ;
 
 stsh:PropertyShapeForm_sh_nodeKind a sh:PropertyShape ;
     sh:group stsh:ValueTypeGroup ;
-    sh:in _:nedbd03b7ac7541838bda4a704db0b965b75 ;
+    sh:in _:nd34ff06c1500452db888d3ecef4fbfaab75 ;
     sh:maxCount 1 ;
     sh:nodeKind sh:IRI ;
     sh:order 4 ;
@@ -2263,6 +2262,12 @@ sh:equals sh:group stsh:ComparisonGroup ;
     stsh:nodeFormField true ;
     stsh:propertyFormField true .
 
+sh:expression sh:group stsh:CompositionGroup ;
+    sh:nodeKind sh:BlankNodeOrIRI ;
+    sh:order 10 ;
+    stsh:nodeFormField true ;
+    stsh:propertyFormField true .
+
 sh:flags sh:group stsh:StringGroup ;
     sh:order 4 ;
     stsh:formMaxCount 1 ;
@@ -2710,6 +2715,11 @@ stsh:CardinalityGroup a sh:PropertyGroup ;
     sh:name "Cardinality"@en ;
     sh:order 3 .
 
+stsh:PathGroup a sh:PropertyGroup ;
+    sh:description "sh:path and its operators (inverse, alternative, repeated) that connect a focus node to its value nodes."@en ;
+    sh:name "Property Paths"@en ;
+    sh:order 2 .
+
 stsh:QualifiedGroup a sh:PropertyGroup ;
     sh:description "Counting how many values conform to a shape, rather than requiring all-or-none."@en ;
     sh:name "Qualified Value Shapes"@en ;
@@ -2726,11 +2736,6 @@ sh:order sh:group stsh:MetadataGroup ;
     stsh:formMaxCount 1 ;
     stsh:nodeFormField true ;
     stsh:propertyFormField true .
-
-stsh:PathGroup a sh:PropertyGroup ;
-    sh:description "sh:path and its operators (inverse, alternative, repeated) that connect a focus node to its value nodes."@en ;
-    sh:name "Property Paths"@en ;
-    sh:order 2 .
 
 sh:select sh:group stsh:DefinitionGroup ;
     sh:nodeKind sh:Literal ;
@@ -2772,11 +2777,6 @@ stsh:StringGroup a sh:PropertyGroup ;
     sh:name "String Constraints"@en ;
     sh:order 6 .
 
-stsh:CompositionGroup a sh:PropertyGroup ;
-    sh:description "Combining shapes logically or by nesting — sh:not/sh:and/sh:or/sh:xone/sh:node/sh:property."@en ;
-    sh:name "Shape Composition"@en ;
-    sh:order 9 .
-
 rdfs:comment sh:group stsh:NamingGroup ;
     sh:nodeKind sh:Literal ;
     sh:order 4 ;
@@ -2795,6 +2795,11 @@ rdf:type sh:group stsh:TypeGroup ;
     sh:order 1 ;
     stsh:nodeFormField true ;
     stsh:propertyFormField true .
+
+stsh:CompositionGroup a sh:PropertyGroup ;
+    sh:description "Combining shapes logically or by nesting — sh:not/sh:and/sh:or/sh:xone/sh:node/sh:property."@en ;
+    sh:name "Shape Composition"@en ;
+    sh:order 9 .
 
 stsh:WidgetGroup a sh:PropertyGroup ;
     sh:description "shui: vocabulary for form generation — widget/editor/viewer assignment and the built-in widget instances. Documents the vocabulary: validation ignores it; widget selection is implemented separately in starlayer.shacl.ui_widget_selection; property roles are not interpreted."@en ;
@@ -2821,8 +2826,8 @@ stsh:NamingGroup a sh:PropertyGroup ;
     sh:name "Naming and messages"@en ;
     sh:order 1.5 .
 
-_:nedbd03b7ac7541838bda4a704db0b965b76 rdf:first sh:IRI ;
+_:nd34ff06c1500452db888d3ecef4fbfaab76 rdf:first sh:IRI ;
     rdf:rest ( sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) .
 
-_:nedbd03b7ac7541838bda4a704db0b965b75 rdf:first sh:BlankNode ;
-    rdf:rest _:nedbd03b7ac7541838bda4a704db0b965b76 .
+_:nd34ff06c1500452db888d3ecef4fbfaab75 rdf:first sh:BlankNode ;
+    rdf:rest _:nd34ff06c1500452db888d3ecef4fbfaab76 .

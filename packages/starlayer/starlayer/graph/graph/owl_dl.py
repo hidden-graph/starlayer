@@ -19,7 +19,7 @@ can dispatch to - see starlayer.graph.graph.owl_dl_rustdl for the other
 (engine="rustdl": no JVM, but sound-not-provably-complete rather than
 sound-and-complete - a real, permanent gap against this module's own
 guarantee, not a bug in either). Both engines' Python packages are optional
-extras (`pip install starlayer.graph[hermit]` / `[rustdl]`), not core
+extras (`pip install starlayer[hermit]` / `[rustdl]`), not core
 dependencies - `owlready2` used to be core, moved to opt-in alongside
 `rustdl` for a consistent story across both rather than one being special.
 A real Java runtime on PATH is the one prerequisite `pip` alone still can't
@@ -63,7 +63,7 @@ def _require_owlready2():
         raise RuntimeError(
             "StarLayerGraph.infer(entailment=ENTAILMENT['OWL-Direct'], engine='hermit') "
             "requires the optional owlready2 package - install it with "
-            "`pip install starlayer.graph[hermit]` (or `pip install "
+            "`pip install starlayer[hermit]` (or `pip install "
             "owlready2` directly), then retry."
         ) from exc
     return owlready2

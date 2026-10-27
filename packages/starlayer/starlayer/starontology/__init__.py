@@ -68,9 +68,13 @@ resource IRI - not a public way to reach the data. To get an entry's
 content as Turtle text: ``get_ontology_graph(name).serialize(format=
 'turtle12')``.
 
-**What's here**: thirteen registered entries - an OWL/RDFS ontology and a
-SHACL shapes graph for each of six vocabularies, plus one further
-registered entry (``shacl_shacl``, see below) with no ontology counterpart.
+**What's here**: an OWL/RDFS ontology and a SHACL shapes graph for each of
+six vocabularies, plus further registered entries with no ontology
+counterpart: ``shacl_shacl`` (see below), and the SHACL vocabulary, UI and
+rules entries ``shacl_vocabulary``, ``shacl_shacl_rules``, ``shacl_shacl_ui``,
+``shacl_shacl_ui_scores`` and ``shacl_ui_baseline`` (each described in its
+registry entry). ``sorted(_REGISTRY)`` is the full list; the ``salg:`` pair
+is registered but left out of ``get_ontology_list()``.
 The filenames below are each entry's own identity (both as a dict key
 into the dataset described further below and as the ``.../<filename>``
 suffix of its ``get_resource_iri()`` IRI):
@@ -728,7 +732,7 @@ def get_raw_url(name: str) -> str | None:
     Accepts every name :func:`get_resource_iri` does, plus
     ``"starlayer_profiles"`` for the profiles document
     itself (:func:`get_conformance_profiles`'s own bundled default,
-    not one of the 13 registered ontology/shapes entries, so it has no
+    not one of the registered ontology/shapes entries, so it has no
     :func:`get_resource_iri` equivalent). Returns ``None`` for any other
     unrecognized name.
 

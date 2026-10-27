@@ -87,7 +87,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from rdflib import BNode, Graph, Literal, Namespace
+from rdflib import BNode, Graph, Literal, Namespace, URIRef
 from rdflib.compare import graph_diff as _rdflib_graph_diff
 from rdflib.compare import isomorphic as _rdflib_isomorphic
 from rdflib.compare import to_isomorphic as _rdflib_to_isomorphic
@@ -109,36 +109,103 @@ __all__ = ["isomorphic", "graph_diff", "to_isomorphic", "to_canonical_hash"]
 _TT = Namespace("urn:starlayer:canon-tt#")
 
 
+_TT_PREFIX = str(_TT)
+
+
+def _escape_predicate(p: Any) -> Any:
+    """Keep the decomposition injective: a source predicate in the internal
+    namespace is moved under ``..#escaped:`` so it can never be mistaken for
+    one of the three synthetic edges (``subject``/``predicate``/``object``)
+    that stand for a triple term."""
+    if isinstance(p, URIRef) and str(p).startswith(_TT_PREFIX):
+        return URIRef(_TT_PREFIX + "escaped:" + str(p)[len(_TT_PREFIX) :])
+    return p
+
+
+def _is_quad_store(graph: Any) -> bool:
+    """True for a dataset (``rdflib.Dataset``/``ConjunctiveGraph``,
+    ``StarLayerDataset``): something that yields quads, not triples."""
+    default = getattr(graph, "default_graph", None)
+    if default is None:
+        default = getattr(graph, "default_context", None)
+    return callable(getattr(graph, "quads", None)) and default is not None
+
+
+def _quads_of(graph: Any) -> list:
+    """Every quad of a dataset as ``(s, p, o, g)``, ``g`` an identifier or
+    ``None`` for the default graph (``StarLayerDataset.quads()`` yields a
+    graph object in the fourth place, rdflib's ``Dataset`` an identifier)."""
+    default = getattr(graph, "default_graph", None)
+    if default is None:
+        default = getattr(graph, "default_context", None)
+    default_id = default.identifier
+    out = []
+    for s, p, o, g in graph.quads():
+        gid = g.identifier if isinstance(g, Graph) else g
+        out.append((s, p, o, None if gid == default_id else gid))
+    return out
+
+
+def _decompose_quads(quads: Any) -> list:
+    """Quads with every triple term replaced by a synthetic reification
+    fragment placed in the same graph as the quad that held the term, see
+    the module docstring for why that suffices. Returns de-duplicated quads
+    (a set, as a graph would be); the decomposition is injective."""
+    out: dict = {}
+
+    def _term(node: Any, g: Any) -> Any:
+        """A triple term becomes a fresh blank node (recursing for a nested
+        triple term in object position); a DirLangString is re-encoded as
+        the same flat Literal form used at this codebase's own read/write
+        boundary; an explicit-xsd:string Literal is normalized down to the
+        simple-literal form (datatype=None) it's semantically sugar for, per
+        RDF 1.1 Concepts (see module docstring); a language tag is
+        lower-cased (tags compare case-insensitively); anything else
+        (already a plain rdflib term) passes through unchanged."""
+        if isinstance(node, TripleTerm):
+            tt_node = BNode()
+            out[(tt_node, _TT.subject, _term(node.subject, g), g)] = None
+            out[(tt_node, _TT.predicate, node.predicate, g)] = None
+            out[(tt_node, _TT.object, _term(node.object, g), g)] = None
+            return tt_node
+        if isinstance(node, DirLangString):
+            return Literal(node.value, datatype=encode_dirlang_datatype(node.language, node.direction))
+        if isinstance(node, Literal):
+            if node.datatype == XSD.string and node.language is None:
+                return Literal(str(node))
+            if node.language and node.language != node.language.lower():
+                return Literal(str(node), lang=node.language.lower())
+        return node
+
+    for s, p, o, g in quads:
+        out[(_term(s, g), _escape_predicate(p), _term(o, g), g)] = None
+    return list(out)
+
+
 def _decompose(graph: Any) -> Graph:
     """Return a plain ``rdflib.Graph`` with every triple term replaced by a
     synthetic reification fragment - see module docstring for why this is
     sufficient for correct isomorphism/canonicalization.
     """
     out = Graph()
-
-    def _term(node: Any) -> Any:
-        """A triple term becomes a fresh blank node (recursing for a nested
-        triple term in object position); a DirLangString is re-encoded as
-        the same flat Literal form used at this codebase's own read/write
-        boundary; an explicit-xsd:string Literal is normalized down to the
-        simple-literal form (datatype=None) it's semantically sugar for, per
-        RDF 1.1 Concepts (see module docstring); anything else (already a
-        plain rdflib term) passes through unchanged."""
-        if isinstance(node, TripleTerm):
-            tt_node = BNode()
-            out.add((tt_node, _TT.subject, _term(node.subject)))
-            out.add((tt_node, _TT.predicate, node.predicate))
-            out.add((tt_node, _TT.object, _term(node.object)))
-            return tt_node
-        if isinstance(node, DirLangString):
-            return Literal(node.value, datatype=encode_dirlang_datatype(node.language, node.direction))
-        if isinstance(node, Literal) and node.datatype == XSD.string and node.language is None:
-            return Literal(str(node))
-        return node
-
-    for s, p, o in graph:
-        out.add((_term(s), p, _term(o)))
+    for s, p, o, _g in _decompose_quads((s, p, o, None) for s, p, o in graph):
+        out.add((s, p, o))
     return out
+
+
+def _canonical_nquads_of(graph: Any) -> str:
+    from starlayer.graph.rdfc import to_canonical_nquads
+
+    return to_canonical_nquads(graph)
+
+
+def _reject_dataset(*graphs: Any) -> None:
+    for g in graphs:
+        if _is_quad_store(g):
+            raise TypeError(
+                f"{type(g).__name__} is a dataset: this function compares graphs. "
+                "Use compare.isomorphic() or rdfc.to_canonical_nquads() for datasets."
+            )
 
 
 def isomorphic(graph1: Any, graph2: Any) -> bool:
@@ -147,7 +214,14 @@ def isomorphic(graph1: Any, graph2: Any) -> bool:
     nodes), identical to the original for graphs that don't. Also RDF
     1.1-correct for simple-literal-vs-explicit-``xsd:string`` (see module
     docstring): a plain ``Literal("x")`` and ``Literal("x", datatype=XSD.string)``
-    compare equal here, unlike in plain ``rdflib.compare.isomorphic``."""
+    compare equal here, unlike in plain ``rdflib.compare.isomorphic``.
+
+    Datasets (``Dataset``, ``ConjunctiveGraph``, ``StarLayerDataset``) are
+    compared as datasets: equal canonical N-Quads (RDFC-1.0), so graph names
+    count. A dataset and a plain graph are compared as the dataset's quads
+    against the graph's triples (default graph only)."""
+    if _is_quad_store(graph1) or _is_quad_store(graph2):
+        return _canonical_nquads_of(graph1) == _canonical_nquads_of(graph2)
     return _rdflib_isomorphic(_decompose(graph1), _decompose(graph2))
 
 
@@ -159,7 +233,12 @@ def graph_diff(g1: Any, g2: Any):
     the synthetic reification fragments, not the original triple terms, so
     this is meant for programmatic use (e.g. ``len(in_first) == 0``), not for
     display back to a user.
+
+    Raises:
+        TypeError: for a dataset (a diff of named graphs is not defined
+            here; use ``isomorphic()`` or ``rdfc.to_canonical_nquads``).
     """
+    _reject_dataset(g1, g2)
     return _rdflib_graph_diff(_decompose(g1), _decompose(g2))
 
 
@@ -167,7 +246,11 @@ def to_isomorphic(graph: Any):
     """RDF-1.2-aware replacement for ``rdflib.compare.to_isomorphic`` -
     doesn't crash on a triple-term-valued term. Returns an
     ``IsomorphicGraph`` over the *decomposed* graph (see module docstring);
-    use ``to_canonical_hash()`` if you just want a single digest value."""
+    use ``to_canonical_hash()`` if you just want a single digest value.
+
+    Raises:
+        TypeError: for a dataset (use ``rdfc.to_canonical_nquads``)."""
+    _reject_dataset(graph)
     return _rdflib_to_isomorphic(_decompose(graph))
 
 
@@ -178,7 +261,12 @@ def to_canonical_hash(graph: Any) -> int:
     Not yet a spec-compliant RDFC-1.0 digest (see module docstring) - two
     graphs get equal digests here if and only if ``isomorphic()`` (this
     module's version) says they're isomorphic, which is the property this
-    is actually needed for today; a portable, standards-compliant canonical
-    N-Quads form is separate, larger, future work.
+    is actually needed for today; ``rdfc.rdfc10_hash`` is the portable,
+    standards-compliant digest. For a dataset the digest is the RDFC-1.0
+    hash read as an integer.
     """
+    if _is_quad_store(graph):
+        from starlayer.graph.rdfc import rdfc10_hash
+
+        return int(rdfc10_hash(graph), 16)
     return _rdflib_to_isomorphic(_decompose(graph)).graph_digest()

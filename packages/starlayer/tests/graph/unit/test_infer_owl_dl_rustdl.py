@@ -4,7 +4,7 @@ tests/unit/test_infer_owl_dl_rustdl.py
 Coverage for StarLayerGraph.infer(entailment=ENTAILMENT["OWL-Direct"], engine="rustdl") -
 OWL 2 DL reasoning via RustDL, the second engine alongside engine="hermit"
 (test_infer_owl_dl.py). `rustdl` is an optional extra of this package
-(`pip install starlayer.graph[rustdl]`), not a core dependency - the
+(`pip install starlayer[rustdl]`), not a core dependency - the
 `rustdl_extra` skip below is a real "not opted into this engine" skip,
 mirroring test_infer_owl_dl.py's own skip for `[hermit]`. No JVM/Java
 skip condition here (RustDL's entire appeal is not needing one) - that's
@@ -39,7 +39,7 @@ except ImportError:
 rustdl_extra = pytest.mark.skipif(
     not _RUSTDL_AVAILABLE,
     reason='rustdl not importable - it is an optional extra of this package; '
-           'install with: pip install starlayer.graph[rustdl]',
+           'install with: pip install starlayer[rustdl]',
 )
 
 EX = Namespace("http://example.org/")
@@ -282,5 +282,5 @@ def test_missing_rustdl_raises_actionable_error(monkeypatch):
     from starlayer.graph.graph import owl_dl_rustdl
 
     monkeypatch.setitem(sys.modules, "rustdl", None)
-    with pytest.raises(RuntimeError, match=r"starlayer.graph\[rustdl\]"):
+    with pytest.raises(RuntimeError, match=r"starlayer\[rustdl\]"):
         owl_dl_rustdl._require_rustdl()

@@ -48,16 +48,22 @@ cases well outside any realistic input this codebase produces.
 
 from __future__ import annotations
 
+import functools
 import hashlib
 import itertools
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
-from rdflib import BNode, Graph, Literal, URIRef
+from rdflib import BNode, Literal, URIRef
 from rdflib.namespace import XSD
 
-from starlayer.graph.compare import _decompose
+from starlayer.graph.compare import (
+    _decompose,
+    _decompose_quads,
+    _is_quad_store,
+    _quads_of,
+)
 
 __all__ = ["to_canonical_nquads", "rdfc10_hash", "CanonicalizationComplexityError"]
 
@@ -97,7 +103,12 @@ _HASH_CTORS: dict[str, Callable[[], Any]] = {
 
 
 def _hash_func_for(hash_algorithm: str) -> Callable[[str], str]:
-    ctor = _HASH_CTORS.get(hash_algorithm.lower()) or getattr(hashlib, hash_algorithm.lower(), None)
+    name = hash_algorithm.lower() if isinstance(hash_algorithm, str) else None
+    ctor = _HASH_CTORS.get(name) if name is not None else None
+    if ctor is None and name is not None and name in hashlib.algorithms_available and not name.startswith("shake"):
+        # not a bare attribute lookup on hashlib: that also accepts 'new', '__name__', ...
+        ctor = functools.partial(hashlib.new, name)
+
     if ctor is None:
         raise ValueError(f"Unsupported hash algorithm: {hash_algorithm!r}")
 
@@ -113,24 +124,8 @@ def _normalize_input(graph: Any) -> list[_Quad]:
     (``rdflib.Dataset``/``ConjunctiveGraph``, detected via ``.quads()``) is
     read directly; anything else is treated as triples-only and routed
     through ``_decompose()`` first (see module docstring)."""
-    quads_method = getattr(graph, "quads", None)
-    # `or` on a Graph is unsafe here - Graph.__bool__ reflects triple count,
-    # not "is this attribute present", so an empty-but-real default graph
-    # would wrongly fall through to the deprecated `default_context` alias.
-    # Explicit `is not None` avoids that (and the spurious deprecation
-    # warning that fell out of it - confirmed live in this module's own
-    # tests before this fix).
-    default = getattr(graph, "default_graph", None)
-    if default is None:
-        default = getattr(graph, "default_context", None)
-    is_quad_store = callable(quads_method) and default is not None
-    if is_quad_store:
-        default_id = default.identifier
-        # StarLayerDataset.quads() yields a graph object in the fourth place, rdflib's Dataset an identifier
-        return [
-            (s, p, o, None if (g.identifier if isinstance(g, Graph) else g) == default_id else (g.identifier if isinstance(g, Graph) else g))
-            for s, p, o, g in quads_method()
-        ]
+    if _is_quad_store(graph):
+        return _decompose_quads(_quads_of(graph))
     return [(s, p, o, None) for s, p, o in _decompose(graph)]
 
 
@@ -210,7 +205,7 @@ def _term_str(term: Any) -> str:
     if isinstance(term, Literal):
         value = _escape_literal_value(str(term))
         if term.language:
-            return f'"{value}"@{term.language}'
+            return f'"{value}"@{term.language.lower()}'
         if term.datatype is not None and str(term.datatype) != str(XSD.string):
             return f'"{value}"^^<{term.datatype}>'
         return f'"{value}"'

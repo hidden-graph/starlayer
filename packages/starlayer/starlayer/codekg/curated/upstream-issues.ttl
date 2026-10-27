@@ -313,6 +313,30 @@ ui:rdflib-30 a slkg:UpstreamIssue ;
     slkg:issueStatus "worked-around" ;
     slkg:workedAroundByIdentifier "starlayer.graph.query.operator_patches.patch_multiplicative_expression_type_promotion" .
 
+ui:rdflib-35 a slkg:UpstreamIssue ;
+    rdfs:label "REGEX and REPLACE: an invalid pattern aborts the query; REPLACE mangles $0, flags and zero-length patterns" ;
+    slkg:upstreamProject "rdflib" ;
+    slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
+    slkg:issueNumber 35 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.graph.query.builtin_error_patches.patch_regex_and_replace_follow_xpath" .
+
+ui:rdflib-36 a slkg:UpstreamIssue ;
+    rdfs:label "ROUND, FLOOR and CEIL raise on NaN, INF and very large doubles" ;
+    slkg:upstreamProject "rdflib" ;
+    slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
+    slkg:issueNumber 36 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.graph.query.builtin_error_patches.patch_rounding_of_special_doubles" .
+
+ui:rdflib-37 a slkg:UpstreamIssue ;
+    rdfs:label "A language-tagged string orders against a number" ;
+    slkg:upstreamProject "rdflib" ;
+    slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
+    slkg:issueNumber 37 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.graph.query.builtin_error_patches.patch_relational_operators_follow_spec" .
+
 ui:rdflib-21 a slkg:UpstreamIssue ;
     rdfs:label "A negated property set with an inverse member crashes or answers wrongly; p* returns a node twice on a cycle" ;
     slkg:upstreamProject "rdflib" ;
@@ -336,3 +360,19 @@ ui:rdflib-32 a slkg:UpstreamIssue ;
     slkg:issueNumber 32 ;
     slkg:issueStatus "worked-around" ;
     slkg:workedAroundByIdentifier "starlayer.sparql.parse12.prepare_update_12" .
+
+ui:rdflib-33 a slkg:UpstreamIssue ;
+    rdfs:label "A join with a non-lazy right side drops duplicate solutions (a subquery with LIMIT loses rows)" ;
+    slkg:upstreamProject "rdflib" ;
+    slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
+    slkg:issueNumber 33 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.graph.query.evaluate_patches.patch_join_keeps_duplicate_rows" .
+
+ui:rdflib-34 a slkg:UpstreamIssue ;
+    rdfs:label "MIN/MAX return a literal for any term; an error in an aggregate argument becomes the result" ;
+    slkg:upstreamProject "rdflib" ;
+    slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
+    slkg:issueNumber 34 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.graph.query.builtin_error_patches.patch_min_max_group_concat_terms_and_errors" .

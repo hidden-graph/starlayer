@@ -40,7 +40,6 @@ FIXED_UPSTREAM = {
     "datatype": "ex:S a sh:NodeShape ; sh:datatype ( xsd:string xsd:integer ) .",
     "closed ByTypes": "ex:S a sh:NodeShape ; sh:closed sh:ByTypes .",
 }
-EXPRESSION_ONLY_PROPERTY_SHAPE = "ex:S a sh:NodeShape ; sh:property [ sh:expression [ shnex:pathValues ex:p ] ] ."
 
 
 def _conforms(shapes_ttl: str, meta: Graph) -> bool:
@@ -88,12 +87,14 @@ def test_what_the_working_group_has_fixed_it_still_accepts(name, wg_alone, assem
     assert _conforms(FIXED_UPSTREAM[name], assembled)
 
 
-def test_the_working_group_file_still_rejects_an_expression_based_property_shape(wg_alone, assembled) -> None:
-    assert not _conforms(EXPRESSION_ONLY_PROPERTY_SHAPE, wg_alone), (
-        "the Working Group file now accepts a property shape with sh:expression and no sh:path: drop the "
-        "PropertyShapeShape/NodeShapeShape additions in _add_overrides"
-    )
-    assert _conforms(EXPRESSION_ONLY_PROPERTY_SHAPE, assembled)
+def test_the_working_group_file_accepts_sh_expression_on_a_node_shape_so_nothing_overrides_it(wg_alone, assembled) -> None:
+    """Node Expressions 7.1: expression constraints "can be used in any shape". A shape with sh:expression and no
+    sh:path is a node shape (Core), and the Working Group's file already accepts it, so there is no override for it
+    (there was one until 2026-10-26 that forbade sh:expression on a node shape; it is gone). If a later copy of the
+    file rejects it, an override is needed again."""
+    node_shape_with_expression = "ex:S a sh:NodeShape ; sh:targetClass ex:T ; sh:expression false ."
+    assert _conforms(node_shape_with_expression, wg_alone), "the Working Group file now rejects sh:expression on a node shape"
+    assert _conforms(node_shape_with_expression, assembled)
 
 
 def test_every_predicate_the_working_group_file_constrains_is_constrained_by_the_assembled_graph(wg_alone, assembled) -> None:
@@ -106,7 +107,7 @@ def test_every_predicate_the_working_group_file_constrains_is_constrained_by_the
 
 
 def test_the_assembled_graph_still_rejects_what_it_should(assembled) -> None:
-    assert not _conforms("ex:S a sh:NodeShape ; sh:property [ sh:minCount 1 ] .", assembled)  # no path, no expression
+    assert not _conforms("ex:S a sh:NodeShape ; sh:property [ sh:minCount 1 ] .", assembled)  # a sh:property value needs sh:path
     assert not _conforms('ex:S a sh:NodeShape ; sh:property [ sh:path ex:p ; sh:minCount "x" ] .', assembled)
 
 

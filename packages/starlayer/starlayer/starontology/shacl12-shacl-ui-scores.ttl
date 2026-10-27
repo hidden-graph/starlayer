@@ -25,6 +25,8 @@
 # sh:declare, sh:bodyExpression) get the details editor; rdfs:comment a text area; rdfs:label a text field with language. The rest
 # (booleans, sh:layer, IRIs such as rdfs:seeAlso) come out right from the datatype and node kind the form states, with the generic catalog.
 #
+# 2026-10-26: sh:expression (a field of both shape forms) gets the details editor, like sh:nodeByExpression: its value is a node expression, a nested blank node.
+#
 # baseURI: https://github.com/hidden-graph/starlayer/ns/shacl#
 
 @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -65,7 +67,7 @@ stsh:PathsEditedWithBooleanEditor a sh:NodeShape ;
 
 stsh:PathsEditedWithDetailsEditor a sh:NodeShape ;
     sh:property [ sh:path sh:path ; sh:minCount 1 ;
-        sh:in ( sh:ConstraintComponent sh:SPARQLRule sh:TripleRule sh:condition sh:memberShape sh:nodeValidator sh:object sh:parameter sh:predicate sh:propertyValidator sh:qualifiedValueShape sh:reifierShape sh:rule sh:someValue sh:sparql sh:subject sh:validator sh:target sh:targetWhere sh:nodeByExpression sh:prefixes sh:declare sh:bodyExpression ) ] .
+        sh:in ( sh:ConstraintComponent sh:SPARQLRule sh:TripleRule sh:condition sh:memberShape sh:nodeValidator sh:object sh:parameter sh:predicate sh:propertyValidator sh:qualifiedValueShape sh:reifierShape sh:rule sh:someValue sh:sparql sh:subject sh:validator sh:target sh:targetWhere sh:nodeByExpression sh:prefixes sh:declare sh:bodyExpression sh:expression ) ] .
 
 stsh:PathsEditedWithEnumSelectEditor a sh:NodeShape ;
     sh:property [ sh:path sh:path ; sh:minCount 1 ;

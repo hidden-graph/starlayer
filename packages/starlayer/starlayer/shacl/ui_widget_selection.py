@@ -306,6 +306,8 @@ def select_widget(
     explicit ``shui:editor``/``shui:viewer`` is then accepted outright, and a
     property with none gets ``None``.
     """
+    if role not in ("editor", "viewer"):
+        raise ValueError(f"role must be 'editor' or 'viewer', got {role!r}")
     if focus_node is not None and data_graph is None:
         raise ValueError("focus_node needs a data_graph to check its shui:dataGraphShape against")
     if scoring_graph is None:
@@ -498,6 +500,10 @@ def select_widgets(
     """
     if per not in ("node", "shape"):
         raise ValueError("per must be 'node' or 'shape'")
+    if role not in ("editor", "viewer"):
+        raise ValueError(f"role must be 'editor' or 'viewer', got {role!r}")
+    if (shape_node, None, None) not in shapes_graph:
+        raise ValueError(f"shape_node {shape_node!r} is not a subject in the shapes graph")
     if per == "shape" and (focus_node is not None or data_graph is not None):
         raise ValueError("per='shape' answers for the shape; pass the node to choice.resolve(focus_node, data_graph)")
     properties = list(shapes_graph.objects(shape_node, SH.property))
