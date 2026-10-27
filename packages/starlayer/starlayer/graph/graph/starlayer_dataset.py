@@ -120,7 +120,7 @@ class StarLayerDataset(Dataset):
             # rdf, rdfs, owl, xsd and xml, the default "rdflib" with rdflib's ~29.
             self._bind_namespaces = bind_namespaces
         self._backend = backend
-        self._sg_cache: dict[str, StarLayerGraph] = {}
+        self._sg_cache: dict[Node, StarLayerGraph] = {}
         self._raw_execution_graph: Dataset | None = None
         self._prepared_query_cache: dict = {}  # see starlayer.graph.query.query_cache.prepare_query_cached
 
@@ -203,7 +203,7 @@ class StarLayerDataset(Dataset):
                 ds._raw_execution_graph = None
 
         sg._invalidate_callback = _invalidate
-        self._sg_cache[str(sg.identifier)] = sg
+        self._sg_cache[sg.identifier] = sg
         return sg
 
     def get_context(self, identifier, quoted: bool = False, base=None) -> StarLayerGraph:
@@ -213,11 +213,12 @@ class StarLayerDataset(Dataset):
         already current.  If the context was added through other means, the
         registry is rebuilt on first access.
         """
-        key = str(identifier)
+        # keyed by the term, not its text: URIRef('x') and BNode('x') are two graphs (#99)
+        key = identifier if isinstance(identifier, Node) else URIRef(identifier)
         if key not in self._sg_cache:
             sg = StarLayerGraph(
                 store=self.store,
-                identifier=identifier,
+                identifier=key,
                 namespace_manager=self.namespace_manager,
                 backend=self._backend,
             )
@@ -230,13 +231,26 @@ class StarLayerDataset(Dataset):
         for ctx in super(Dataset, self).contexts(triple):
             yield self.get_context(ctx.identifier)
 
+    @property
+    def _is_native(self) -> bool:
+        return self._backend == 'rdf-1.2'
+
+    def _contexts_with_default(self) -> list[StarLayerGraph]:
+        """contexts() plus the default graph: a native store lists only its named graphs, so the default graph's triples
+        were missing from quads() and from the TriG / N-Quads / TriX output (GitHub issue #98)."""
+        found = list(self.contexts())
+        default_id = self.default_graph.identifier
+        if all(sg.identifier != default_id for sg in found):
+            found.append(self.get_context(default_id))
+        return found
+
     def _contexts_in_serialization_order(self) -> list[StarLayerGraph]:
         """Named graphs in a fixed order: IRIs by text, then blank nodes by label.
 
         contexts() follows the store's hash order, which changes with PYTHONHASHSEED, so the same data would serialize
         its graphs in a different order from one process (or one parse) to the next.
         """
-        return sorted(self.contexts(), key=lambda sg: (isinstance(sg.identifier, BNode), str(sg.identifier)))
+        return sorted(self._contexts_with_default(), key=lambda sg: (isinstance(sg.identifier, BNode), str(sg.identifier)))
 
     # ------------------------------------------------------------------
     # Quad iteration with TripleTerm restoration
@@ -252,6 +266,17 @@ class StarLayerDataset(Dataset):
         # Bypass Dataset.quads() (which yields bare URIRef graph identifiers)
         # and call the grandparent implementation directly so the 4th element
         # is a Graph object with .identifier.
+        if self._is_native:
+            # The store returns a triple term as a bare tuple (and its string literals as xsd:string-typed), so go
+            # through each graph's own read path, which builds TripleTerms (GitHub issue #98).
+            wanted = triple[3] if len(triple) == 4 else None  # rdflib accepts a (s, p, o, graph) pattern too
+            wanted = wanted.identifier if isinstance(wanted, Graph) else wanted
+            for sg in self._contexts_with_default():
+                if wanted is not None and sg.identifier != wanted:
+                    continue
+                for s, p, o in sg.triples(tuple(triple[:3])):
+                    yield s, p, o, sg
+            return
         for s_r, p_r, o_r, g in super(Dataset, self).quads(triple):
             if self._is_encoding_triple(s_r, p_r, o_r):
                 continue
@@ -264,13 +289,16 @@ class StarLayerDataset(Dataset):
         default_union=False (the default): only the default graph's own triples,
         matching this dataset's declared default-graph-isolation semantics.
         default_union=True: the union of every graph, default and named alike.
-        The same triple may appear more than once if it exists in multiple graphs.
+        A triple that is in several graphs is yielded once (the union is a set, as in rdflib's own Dataset).
 
         Encoding triples are filtered; TripleTerms are restored either way.
         """
         if self.default_union:
+            seen = set()
             for s, p, o, _g in self.quads(triple):
-                yield s, p, o
+                if (s, p, o) not in seen:
+                    seen.add((s, p, o))
+                    yield s, p, o
         else:
             default_graph = self.get_context(self.default_graph.identifier)
             yield from default_graph.triples(triple)
@@ -293,7 +321,8 @@ class StarLayerDataset(Dataset):
                 ``triples()``'s own semantics above. ``None`` with
                 ``default_union=True``: every graph, matching rdflib's own
                 ``ConjunctiveGraph.triples_choices()`` - the same triple
-                may appear more than once if it exists in multiple graphs.
+                may appear more than once if it exists in multiple graphs
+                (unlike ``triples()``, which yields each triple once).
                 Given explicitly: scoped to that one named graph only, via
                 the inherited ``_graph()`` helper (accepts an identifier, a
                 ``Graph``, or another dataset).
@@ -420,7 +449,7 @@ class StarLayerDataset(Dataset):
         called ``triples(..., context=...)``, which this class's override does not take."""
         if len(item) == 4:
             s, p, o, c = item
-            sg = self._sg_cache.get(str(c.identifier if isinstance(c, Graph) else c))
+            sg = self._sg_cache.get(c.identifier if isinstance(c, Graph) else (c if isinstance(c, Node) else URIRef(c)))
             return sg is not None and (s, p, o) in sg
         return any(True for _ in self.triples(item))
 
@@ -429,7 +458,7 @@ class StarLayerDataset(Dataset):
         returning the removed graph's triples (GitHub issue #99)."""
         identifier = g.identifier if isinstance(g, Graph) else g
         super().remove_graph(g)
-        self._sg_cache.pop(str(identifier), None)
+        self._sg_cache.pop(identifier if isinstance(identifier, Node) else URIRef(identifier), None)
         self._raw_execution_graph = None
         return self
 
@@ -718,8 +747,11 @@ class StarLayerDataset(Dataset):
         """
         if self._backend != 'rdf-1.2':
             # the store also holds the triple-term encoding triples, which are not data: count what the graphs show
-            seen = {str(sg.identifier): sg for sg in self.contexts()}
-            seen.setdefault(str(self.default_graph.identifier), self.get_context(self.default_graph.identifier))
+            seen = {sg.identifier: sg for sg in self.contexts()}
+            seen.setdefault(self.default_graph.identifier, self.get_context(self.default_graph.identifier))
+            if self.default_union:
+                # the union is a set: a triple in several graphs counts once (rdflib's Dataset(default_union=True) does too)
+                return len({t for sg in seen.values() for t in sg.triples((None, None, None))})
             return sum(len(sg) for sg in seen.values())
         from rdflib.term import Variable
 

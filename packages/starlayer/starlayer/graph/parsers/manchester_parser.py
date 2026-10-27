@@ -218,7 +218,14 @@ def _float_lexical(text):
             overflow = True
     if overflow:
         return 'INF' if value > 0 else '-INF'
-    return repr(value)
+    single = struct.unpack('>f', struct.pack('>f', value))[0]  # the value an xsd:float holds: 1e-50f is 0, not 1e-50
+    if single == value:
+        return repr(value)
+    for digits in range(1, 10):  # the shortest decimal that reads back as the same single-precision value
+        candidate = f'{single:.{digits}g}'
+        if struct.unpack('>f', struct.pack('>f', float(candidate)))[0] == single:
+            return candidate
+    return repr(single)
 
 
 # ---------------------------------------------------------------------------
