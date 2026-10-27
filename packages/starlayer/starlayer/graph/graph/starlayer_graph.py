@@ -2401,8 +2401,10 @@ class StarLayerGraph(Graph):
             The query Result, with any tt:HASH URIRef restored to its
             TripleTerm.
         """
-        if query_object is None:
-            raise TypeError('query_object must be SPARQL text or a prepared query, not None')
+        if not isinstance(query_object, str) and not hasattr(query_object, 'algebra'):
+            raise TypeError(
+                f'query_object must be SPARQL text or a prepared query, not {type(query_object).__name__}'
+            )
         if entailment not in VALID_ENTAILMENTS:
             raise NotImplementedError(
                 f"entailment must be one of {sorted(e for e in VALID_ENTAILMENTS if e)}, "
@@ -2708,8 +2710,10 @@ class StarLayerGraph(Graph):
         Returns:
             None.
         """
-        if update_object is None:
-            raise TypeError('update_object must be SPARQL text or a prepared update, not None')
+        if not isinstance(update_object, str) and not hasattr(update_object, 'algebra'):
+            raise TypeError(
+                f'update_object must be SPARQL text or a prepared update, not {type(update_object).__name__}'
+            )
         if self._is_native:
             from starlayer.graph.backends.native import native_update
             native_update(self.store, self._backend, update_object)
