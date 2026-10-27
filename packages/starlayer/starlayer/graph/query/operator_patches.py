@@ -18,7 +18,7 @@ from __future__ import annotations
 import math
 from decimal import ROUND_HALF_DOWN, ROUND_HALF_UP, Decimal, InvalidOperation
 
-from rdflib import Literal
+from rdflib import BNode, Literal
 from rdflib.namespace import XSD
 from rdflib.plugins.sparql import operators as _rdflib_operators
 from rdflib.plugins.sparql.datatypes import type_promotion
@@ -421,7 +421,8 @@ def patch_triple_terms_are_not_iris() -> bool:
     """Fix a leak of the internal triple-term encoding: on the rdf-1.1 backend a triple term is a ``tt:`` IRI, so
     ``isIRI(?t)`` was true and ``STR(?t)`` returned the internal IRI text. The term kinds are disjoint in SPARQL 1.2
     (17.4.2.3: ``isIRI`` is true only for an IRI) and ``STR`` applies to IRIs and literals only, so ``isIRI`` is false and
-    ``STR`` an error for a triple term, as in Oxigraph (GitHub issue #74).
+    ``STR`` an error for a triple term, as in Oxigraph (GitHub issue #74). ``STR`` of a blank node is an error too (rdflib
+    returns the label; the native backends already give an error; GitHub issue #75).
 
     Wraps rdflib's ``Builtin_isIRI`` and ``Builtin_STR`` evaluation functions; idempotent and defensive like the others here.
     """
@@ -447,6 +448,9 @@ def patch_triple_terms_are_not_iris() -> bool:
         def _patched_str(e, ctx):
             if _is_encoded_triple_term(e.arg):
                 raise SPARQLError("STR: a triple term has no string form")
+            if isinstance(e.arg, BNode):
+                # SPARQL 1.1 17.4.2.5: STR is defined for IRIs and literals only; rdflib returns the label (GitHub issue #75)
+                raise SPARQLError("STR: a blank node has no string form")
             return original_str(e, ctx)
 
         _patched_is_iri._starlayer_graph_tt_not_iri_patch = True  # type: ignore[attr-defined]
