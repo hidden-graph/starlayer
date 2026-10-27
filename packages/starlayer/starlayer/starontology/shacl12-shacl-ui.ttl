@@ -989,7 +989,7 @@ stsh:NodeShapeForm_sh_nodeByExpression a sh:PropertyShape ;
 
 stsh:NodeShapeForm_sh_nodeKind a sh:PropertyShape ;
     sh:group stsh:ValueTypeGroup ;
-    sh:in _:n52def813f1a84286b092a1459de6b3e7b75 ;
+    sh:in _:nd34ff06c1500452db888d3ecef4fbfaab75 ;
     sh:maxCount 1 ;
     sh:nodeKind sh:IRI ;
     sh:order 4 ;
@@ -1197,7 +1197,7 @@ stsh:ParameterForm_sh_name a sh:PropertyShape ;
 
 stsh:ParameterForm_sh_nodeKind a sh:PropertyShape ;
     sh:group stsh:ValueTypeGroup ;
-    sh:in _:n52def813f1a84286b092a1459de6b3e7b75 ;
+    sh:in _:nd34ff06c1500452db888d3ecef4fbfaab75 ;
     sh:maxCount 1 ;
     sh:nodeKind sh:IRI ;
     sh:order 4 ;
@@ -1222,7 +1222,7 @@ stsh:ParameterForm_sh_path a sh:PropertyShape ;
     sh:group stsh:PathGroup ;
     sh:maxCount 1 ;
     sh:minCount 1 ;
-    sh:nodeKind sh:IRI ;
+    sh:nodeKind sh:BlankNodeOrIRI ;
     sh:order 1 ;
     sh:path sh:path .
 
@@ -1548,7 +1548,7 @@ stsh:PropertyShapeForm_sh_nodeByExpression a sh:PropertyShape ;
 
 stsh:PropertyShapeForm_sh_nodeKind a sh:PropertyShape ;
     sh:group stsh:ValueTypeGroup ;
-    sh:in _:n52def813f1a84286b092a1459de6b3e7b75 ;
+    sh:in _:nd34ff06c1500452db888d3ecef4fbfaab75 ;
     sh:maxCount 1 ;
     sh:nodeKind sh:IRI ;
     sh:order 4 ;
@@ -1577,7 +1577,7 @@ stsh:PropertyShapeForm_sh_path a sh:PropertyShape ;
     sh:group stsh:PathGroup ;
     sh:maxCount 1 ;
     sh:minCount 1 ;
-    sh:nodeKind sh:IRI ;
+    sh:nodeKind sh:BlankNodeOrIRI ;
     sh:order 1 ;
     sh:path sh:path .
 
@@ -2615,6 +2615,7 @@ sh:nodeKind sh:group stsh:ValueTypeGroup ;
     stsh:propertyFormField true .
 
 sh:path sh:group stsh:PathGroup ;
+    sh:nodeKind sh:BlankNodeOrIRI ;
     sh:order 1 ;
     stsh:formMaxCount 1 ;
     stsh:propertyFormField true .
@@ -2825,8 +2826,8 @@ stsh:NamingGroup a sh:PropertyGroup ;
     sh:name "Naming and messages"@en ;
     sh:order 1.5 .
 
-_:n52def813f1a84286b092a1459de6b3e7b76 rdf:first sh:IRI ;
+_:nd34ff06c1500452db888d3ecef4fbfaab76 rdf:first sh:IRI ;
     rdf:rest ( sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) .
 
-_:n52def813f1a84286b092a1459de6b3e7b75 rdf:first sh:BlankNode ;
-    rdf:rest _:n52def813f1a84286b092a1459de6b3e7b76 .
+_:nd34ff06c1500452db888d3ecef4fbfaab75 rdf:first sh:BlankNode ;
+    rdf:rest _:nd34ff06c1500452db888d3ecef4fbfaab76 .
