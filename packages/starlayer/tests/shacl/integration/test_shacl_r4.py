@@ -189,7 +189,8 @@ def test_sh_pattern_accepts_xpath_only_syntax(pattern, value, expected):
 
 def test_plain_pyshacl_has_the_same_limit_so_it_is_not_a_starlayer_variance():
     shapes = _PATTERN_SHAPES.format(pattern=r"^\\p{L}+$")
-    assert _plain_pyshacl(shapes, P + 'ex:n ex:p "é" .') == "error"  # re.error: bad escape \p
+    # re.error: bad escape \p (the class is named PatternError from Python 3.13)
+    assert _plain_pyshacl(shapes, P + 'ex:n ex:p "é" .') in {"error", "PatternError"}
 
 
 @pytest.mark.parametrize("pattern", [r"^\p{Foo}$", r"^\p{IsFoo}$", "("])
