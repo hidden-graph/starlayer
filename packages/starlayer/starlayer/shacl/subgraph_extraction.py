@@ -118,6 +118,7 @@ from typing import Any
 from rdflib import BNode, Literal, URIRef
 from rdflib.namespace import RDF, RDFS
 from rdflib.namespace import Namespace as _Namespace
+from rdflib.term import Node
 
 # rdflib's SH has no SHACL 1.2 terms (sh:ShapeClass, ...): AttributeError on any use (GitHub issue #82)
 SH = _Namespace('http://www.w3.org/ns/shacl#')
@@ -584,6 +585,10 @@ def extract_subgraph(
         A new graph - the union of every conforming ``(shape, focus_node)``
         pair's own extraction. Empty (never ``None``) if nothing conforms.
     """
+    for argument, value in (("shape", shape), ("focus_node", focus_node)):
+        if value is not None and not isinstance(value, Node):
+            # A str is not a term: a str shape was a bare KeyError and a str focus node silently matched nothing.
+            raise TypeError(f"{argument} must be an rdflib term such as URIRef, not {type(value).__name__}: {value!r}")
     if shacl_graph is None:
         shacl_graph = data_graph
 

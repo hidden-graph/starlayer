@@ -407,6 +407,46 @@ def _check_single_graph(graph_ids, *, format: str) -> None:
         raise MultipleGraphsError(format, sorted(str(g) for g in graph_ids))
 
 
+def _check_subject_and_predicate(s, p) -> None:
+    """Refuse a term that RDF does not allow in subject or predicate position; such a triple could be written out but
+    never read back (GitHub issue #139)."""
+    if isinstance(s, (TripleTerm, tuple)):
+        raise ValueError("RDF 1.2: triple terms are not permitted in subject position of a triple.")
+    if isinstance(s, (Literal, DirLangString)):
+        raise ValueError(f"RDF: a literal is not permitted in subject position of a triple, got {s!r}.")
+    if not isinstance(p, URIRef):
+        raise ValueError(f"RDF: the predicate of a triple must be an IRI, got {p!r}.")
+
+
+_OWLRL_ERROR_NS = 'http://www.daml.org/2002/03/agents/agent-ont#'
+
+
+def _drop_repeated_error_messages(graph) -> None:
+    """Keep one ``err:ErrorMessage`` node per message text. Each owlrl pass mints a fresh blank node for the same
+    inconsistency, so the repeated passes of ``_infer_before_and_delta`` reported it up to eight times."""
+    message_class = URIRef(_OWLRL_ERROR_NS + 'ErrorMessage')
+    error = URIRef(_OWLRL_ERROR_NS + 'error')
+    seen = set()
+    for node in sorted(graph.subjects(RDF.type, message_class), key=str):
+        if not isinstance(node, BNode):
+            continue
+        key = tuple(sorted(str(o) for o in graph.objects(node, error)))
+        if key in seen:
+            graph.remove((node, None, None))
+        else:
+            seen.add(key)
+
+
+def legal_rdf_triples(triples) -> list:
+    """The triples of ``triples`` that RDF allows (an IRI predicate, no literal subject). OWL RL and RDFS entailment also
+    derive generalized triples such as ``"text" rdf:type rdfs:Literal``, which ``add`` refuses and no RDF syntax can write."""
+    return [t for t in triples if not isinstance(t[0], Literal) and isinstance(t[1], URIRef)]
+
+
+def _rebuild_graph(cls, backend, store, identifier):
+    return cls(store=store, identifier=identifier, backend=backend)
+
+
 class StarLayerGraph(Graph):
     """rdflib.Graph extended with RDF 1.2 triple-term support.
 
@@ -482,6 +522,17 @@ class StarLayerGraph(Graph):
         # engine choice instead of mutation.
         self._owl_dl_cache: dict[str, tuple[Graph, int]] = {}
         self._owl_dl_snapshot_cache: dict[str, Graph] = {}
+
+    def __reduce__(self):
+        """copy.copy, copy.deepcopy and pickle. rdflib's version rebuilds a plain ``Graph`` (no triple terms, the internal
+        encoding exposed, ``backend`` lost); this one rebuilds the same class and backend over the (copied) store
+        (GitHub issue #139)."""
+        state = {'_tt_registry': self._tt_registry, '_tt_nodes': self._tt_nodes}
+        return _rebuild_graph, (type(self), self._backend, self.store, self.identifier), state
+
+    def __setstate__(self, state) -> None:
+        self._tt_registry.update(state['_tt_registry'])
+        self._tt_nodes.update(state['_tt_nodes'])
 
     def _on_mutated(self) -> None:
         """Called from every place this graph's own triple content changes
@@ -1221,10 +1272,7 @@ class StarLayerGraph(Graph):
             raise ValueError(
                 "RDF 1.2: triple terms are not permitted in subject position of a triple."
             )
-        if isinstance(s, DirLangString):
-            raise ValueError(
-                "RDF 1.2: a literal (dirLangString) is not permitted in subject position of a triple."
-            )
+        _check_subject_and_predicate(s, p)
         if self._is_native:
             self._native_add(s, p, obj)
             self._on_mutated()
@@ -1261,6 +1309,8 @@ class StarLayerGraph(Graph):
                 (s, p, o) for s, p, o, c in quads
                 if isinstance(c, Graph) and c.identifier is self.identifier
             ]
+            for s, p, _o in own_triples:
+                _check_subject_and_predicate(s, p)
             self._native_add_many(own_triples)
             return self
 
@@ -1304,10 +1354,7 @@ class StarLayerGraph(Graph):
                 raise ValueError(
                     "RDF 1.2: triple terms are not permitted in subject position of a triple."
                 )
-            if isinstance(s, DirLangString):
-                raise ValueError(
-                    "RDF 1.2: a literal (dirLangString) is not permitted in subject position of a triple."
-                )
+            _check_subject_and_predicate(s, p)
             all_quads.append((_enc(s), p, _enc(o), self))
 
         self.store.addN(all_quads)
@@ -3049,7 +3096,7 @@ class StarLayerGraph(Graph):
         except ImportError as exc:
             raise ImportError(
                 "StarLayerGraph.infer() requires the optional 'owlrl' dependency - "
-                "install via `pip install starlayer.graph[reasoning]` (or `pip install owlrl` directly)."
+                "install via `pip install starlayer[reasoning]` (or `pip install owlrl` directly)."
             ) from exc
 
         class _NoHiddenSameAsRDFSSemantics(owlrl.RDFSClosure.RDFS_Semantics):
@@ -3119,6 +3166,7 @@ class StarLayerGraph(Graph):
         for _ in range(8):
             size = len(expanded)
             owlrl.DeductiveClosure(semantics).expand(expanded)
+            _drop_repeated_error_messages(expanded)
             if len(expanded) == size:
                 break
         before_set = set(before)
@@ -3360,7 +3408,7 @@ class StarLayerGraph(Graph):
         By default this returns a NEW graph, never mutating self
         (mode="in-place" is the deliberate exception - see below). Requires
         the optional ``owlrl`` dependency
-        (``pip install starlayer.graph[reasoning]``).
+        (``pip install starlayer[reasoning]``).
 
         Any triple term in self is decomposed into its synthetic
         blank-node reification form (the same one rdfc10_hash()/
@@ -3487,10 +3535,10 @@ class StarLayerGraph(Graph):
                 detail: "hermit" (default) is owlready2 + Java HermiT,
                 sound *and* complete for all of OWL 2 DL (SROIQ) - the
                 strongest guarantee either engine offers, but needs the
-                optional `starlayer.graph[hermit]` extra (`owlready2`) AND
+                optional `starlayer[hermit]` extra (`owlready2`) AND
                 a real Java runtime reachable on PATH. "rustdl" is a
                 pure-Rust reasoner (no JVM at all), needing only the
-                optional `starlayer.graph[rustdl]` extra - see
+                optional `starlayer[rustdl]` extra - see
                 ``owl_dl_rustdl.py``'s own module docstring for its full
                 completeness fragment, known gaps, and
                 `rustdl.UnsupportedAxiomError` cases; that file's docstring
@@ -3567,9 +3615,9 @@ class StarLayerGraph(Graph):
             # _native_add_many() below accept it unconditionally.
             _before, delta = self._before_and_delta_for(regimes, engine, timeout)
             if self._is_native:
-                self._native_add_many(list(delta))
+                self._native_add_many(legal_rdf_triples(delta))
             else:
-                for t in delta:
+                for t in legal_rdf_triples(delta):
                     self.add(t)
             self._on_mutated()
             return self
@@ -3592,9 +3640,9 @@ class StarLayerGraph(Graph):
             # triples()) - the decomposed form only still leaks through in
             # `delta`, for a newly-entailed fact that isn't itself
             # expressible with a real triple term (see below).
-            result_triples = list(self) + list(delta)
+            result_triples = list(self) + legal_rdf_triples(delta)
         else:
-            result_triples = list(delta)
+            result_triples = legal_rdf_triples(delta)
         if target_graph._is_native:
             # One batched write, not one INSERT per triple.
             target_graph._native_add_many(result_triples)

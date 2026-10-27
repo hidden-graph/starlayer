@@ -44,7 +44,7 @@ Public API additions vs Dataset:
                                   matching triples, still scoped to the
                                   named graph each one came from
 
-**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L74-L1157)
+**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L74-L1120)
 
 ---
 
@@ -382,7 +382,7 @@ starlayer.graph.backends.native's module docstring).
 
 **Returns:** `Result`
 
-**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.query](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L861-L920)
+**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.query](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L861-L918)
 
 ---
 
@@ -574,7 +574,7 @@ All other formats delegate to rdflib.
 
 **Returns:** `str | StarLayerDataset`
 
-**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.serialize](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L1057-L1157)
+**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.serialize](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L1020-L1120)
 
 ---
 
@@ -620,7 +620,7 @@ isomorphism, hash it, etc. - rather than a serialized string.
 
 **Returns:** `StarLayerGraph`
 
-**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.to_graph](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L1042-L1055)
+**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.to_graph](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L1005-L1018)
 
 ---
 
@@ -738,7 +738,7 @@ itself, via starlayer.sparql).
 
 **Returns:** `None`
 
-**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.update](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L950-L1028)
+**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.update](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L920-L991)
 
 ---
 
@@ -771,7 +771,7 @@ the rdflib store; that encoding is completely hidden from callers.
 All unoverridden rdflib.Graph methods (namespace management, SPARQL,
 serialization, etc.) are inherited and work without modification.
 
-**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L356-L3776)
+**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L396-L3809)
 
 ---
 
@@ -797,7 +797,7 @@ matching rdflib's own Graph.add() and enabling method chaining
 
 **Returns:** `StarLayerGraph`
 
-**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.add](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L1147-L1179)
+**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.add](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L1198-L1227)
 
 ---
 
@@ -823,7 +823,7 @@ three per triple term, which is significantly faster for bulk loads.
 
 **Returns:** `StarLayerGraph` - self, enabling method chaining.
 
-**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.addN](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L1181-L1253)
+**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.addN](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L1229-L1300)
 
 ---
 
@@ -844,7 +844,7 @@ reifier.
 
 **Returns:** `StarLayerGraph` - This graph, matching every other mutating method on this class (add()/remove()/addN()/etc), so calls can be chained.
 
-**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.add_reification](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L1611-L1638)
+**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.add_reification](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L1658-L1685)
 
 ---
 
@@ -876,7 +876,7 @@ The node is not yet a reifier until add_reification() is called::
 
 **Returns:** `IdentifiedNode` - The reifier node - a ``URIRef`` if ``name`` was given, otherwise a fresh ``BNode`` - ready to pass into ``add_reification()``.
 
-**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.add_reifier_annotation](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L1582-L1609)
+**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.add_reifier_annotation](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L1629-L1656)
 
 ---
 
@@ -897,7 +897,7 @@ Concise Bounded Description.
 
 **Returns:** `StarLayerGraph` - target_graph, populated with the CBD.
 
-**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.cbd](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L2781-L2804)
+**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.cbd](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L2814-L2837)
 
 ---
 
@@ -916,7 +916,7 @@ Close the underlying store, optionally committing pending writes.
 
 **Returns:** `None`
 
-**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.close](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L1139-L1141)
+**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.close](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L1190-L1192)
 
 ---
 
@@ -939,7 +939,7 @@ skolemize() above - see its docstring.
 
 **Returns:** `StarLayerGraph` - new_graph, populated with the de-skolemized triples.
 
-**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.de_skolemize](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L2838-L2863)
+**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.de_skolemize](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L2871-L2896)
 
 ---
 
@@ -972,7 +972,7 @@ RDF 1.2 content (triple terms) that only starlayer.shacl understands.
 
 **Returns:** `StarLayerGraph` - A StarLayerGraph (a real, standalone shapes graph) - wrapped via ``from_rdflib()`` for consistency with every other graph-returning method on this class, even though a derived shapes graph has no triple-term content of its own today.
 
-**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.derive_shape](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L3663-L3726)
+**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.derive_shape](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L3696-L3759)
 
 ---
 
@@ -998,7 +998,7 @@ are unaffected.
 
 **Returns:** `StarLayerGraph` - A new empty StarLayerGraph.
 
-**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.empty_like](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L3163-L3184)
+**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.empty_like](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L3196-L3217)
 
 ---
 
@@ -1034,7 +1034,7 @@ that deprecation warning on every dataset-to-graph conversion.
 
 **Returns:** `StarLayerGraph` - A new StarLayerGraph wrapping source_graph's content.
 
-**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.from_rdflib](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L3729-L3776)
+**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.from_rdflib](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L3762-L3809)
 
 ---
 
@@ -1064,7 +1064,7 @@ locally-satisfied import never reaches the loader at all.
 
 **Returns:** `bool` - True if ``iri`` already has at least one triple as subject in this graph.
 
-**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.has_import_locally](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L3506-L3527)
+**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.has_import_locally](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L3539-L3560)
 
 ---
 
@@ -1085,7 +1085,7 @@ Return True if a TripleTerm with these exact components exists in the graph.
 
 **Returns:** `bool` - True if a matching TripleTerm exists in the graph.
 
-**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.has_triple_term](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L1807-L1822)
+**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.has_triple_term](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L1854-L1869)
 
 ---
 
@@ -1101,7 +1101,7 @@ Materialize an RDFS/OWL-RL entailment closure.
 By default this returns a NEW graph, never mutating self
 (mode="in-place" is the deliberate exception - see below). Requires
 the optional ``owlrl`` dependency
-(``pip install starlayer.graph[reasoning]``).
+(``pip install starlayer[reasoning]``).
 
 Any triple term in self is decomposed into its synthetic
 blank-node reification form (the same one rdfc10_hash()/
@@ -1156,12 +1156,12 @@ graph with no data yet, not a footgun.
 - `entailment: None = ENTAILMENT.RDFS` - One real entailment regime IRI (``ENTAILMENT.RDF``, ``ENTAILMENT.RDFS``, ``ENTAILMENT["OWL-RDF-Based"]``, ``ENTAILMENT["OWL-Direct"]``), or an iterable of more than one to combine them into a single pass. ``ENTAILMENT.RDF`` combines freely with ``ENTAILMENT.RDFS``/ ``ENTAILMENT["OWL-RDF-Based"]``, in any subset including all three at once - the native RDF delta (see below) is unioned with whatever the other regime(s) entail, sound either way, though in practice RDFS/OWL-RL's own rules already produce everything RDF alone would (confirmed empirically) - the combination is supported for completeness/consistency, not because it adds coverage a caller would otherwise be missing. ``{ENTAILMENT.RDFS, ENTAILMENT["OWL-RDF-Based"]}`` is genuinely more than ``ENTAILMENT["OWL-RDF-Based"]`` alone: e.g. universal rdfs:Resource typing and several rdfs:Datatype-related entailments are only present when RDFS's own rules run alongside OWL-RL's - see ``_resolve_owlrl_semantics()``. See ``starlayer.graph.graph.entailment_regimes``'s own module docstring for what each IRI means and which combinations are actually supported. ``ENTAILMENT["OWL-Direct"]`` alone selects full OWL 2 DL reasoning - a genuinely different computational model, tableau-based rather than forward-chaining rules, so it can derive disjunctive entailments owlrl structurally cannot, e.g. C subClassOf (A or B), not-A(x) |= B(x). Raises ``owl_dl.InconsistentOntologyError``, not a silent triple, if self's data is logically inconsistent - unlike the owlrl-backed regimes, whose consistency checking is partial and never raises. See `engine` below for which actual reasoner runs this. ``ENTAILMENT["OWL-Direct"]`` is never combinable with any other regime (raises ``ValueError``). ``ENTAILMENT.RDF`` is implemented natively (no ``owlrl`` dependency, no reasoner at all for its own portion of the work) - just rdfD2 (every predicate used is entailed ``rdf:type rdf:Property``) plus the small fixed set of RDF axiomatic triples actually relevant to self's data. Datatype literal value-space well-typing (rdfD1/rdfD1a) is a deliberate v1 scope reduction, not built - see ``_infer_rdf_before_and_delta()``'s own docstring.
 - `mode: str = 'full'` - All three ultimately reach the same closure (self's own data plus everything entailed from it) - this chooses where that ends up and how much of it comes back as a distinct value. "full" (default) returns a NEW graph with the original triples plus everything newly entailed. "delta" returns a NEW graph with only the newly-entailed triples, none of the originals - the smaller artifact query()'s entailment=ENTAILMENT["OWL-RDF-Based"] caches and queries as a live union with self, rather than caching a full closure copy. "in-place" adds just the newly-entailed triples into self directly (self already has the originals) and returns self - works for any self, including native and triple-term-bearing ones (see the triple-term-fidelity paragraph above for the one narrow caveat it still doesn't avoid). target_graph must not be given together with it (raises ValueError - mutating self has no separate destination). See VALID_INFER_RETURN_MODES.
 - `target_graph: None = None` - Only meaningful for mode="full"/"delta"; defaults to a new StarLayerGraph, or if given, entailed triples are added to it (never cleared first) - must be a StarLayerGraph, not a plain rdflib.Graph, same restriction as cbd() and for the same reason: consistency with the rest of this class's API.
-- `engine: str = 'hermit'` - Only meaningful for entailment=ENTAILMENT["OWL-Direct"] (any other entailment regime combined with a non-default engine raises ValueError - fail loudly rather than let a caller believe it silently did something for an owlrl-backed regime). Picks which of two genuinely different reasoners runs the tableau reasoning above - neither is a strict replacement for the other, so this is a real tradeoff to make per call, not an implementation detail: "hermit" (default) is owlready2 + Java HermiT, sound *and* complete for all of OWL 2 DL (SROIQ) - the strongest guarantee either engine offers, but needs the optional `starlayer.graph[hermit]` extra (`owlready2`) AND a real Java runtime reachable on PATH. "rustdl" is a pure-Rust reasoner (no JVM at all), needing only the optional `starlayer.graph[rustdl]` extra - see ``owl_dl_rustdl.py``'s own module docstring for its full completeness fragment, known gaps, and `rustdl.UnsupportedAxiomError` cases; that file's docstring is the authoritative, current account, not restated here.
+- `engine: str = 'hermit'` - Only meaningful for entailment=ENTAILMENT["OWL-Direct"] (any other entailment regime combined with a non-default engine raises ValueError - fail loudly rather than let a caller believe it silently did something for an owlrl-backed regime). Picks which of two genuinely different reasoners runs the tableau reasoning above - neither is a strict replacement for the other, so this is a real tradeoff to make per call, not an implementation detail: "hermit" (default) is owlready2 + Java HermiT, sound *and* complete for all of OWL 2 DL (SROIQ) - the strongest guarantee either engine offers, but needs the optional `starlayer[hermit]` extra (`owlready2`) AND a real Java runtime reachable on PATH. "rustdl" is a pure-Rust reasoner (no JVM at all), needing only the optional `starlayer[rustdl]` extra - see ``owl_dl_rustdl.py``'s own module docstring for its full completeness fragment, known gaps, and `rustdl.UnsupportedAxiomError` cases; that file's docstring is the authoritative, current account, not restated here.
 - `timeout: None = _OWL_DL_TIMEOUT_DEFAULT` - Only meaningful for entailment=ENTAILMENT["OWL-Direct"] (same ValueError contract as engine= above for any other entailment regime). Wall-clock budget in seconds for the actual reasoner call, shared by both engines - defense-in- depth against a hang neither engine has a known, structurally-detectable pattern for (RustDL's one *known* hang pattern is already caught separately, fast and pre-flight - see `engine=` above; this timeout is the backstop for everything else). Default `_timeout.DEFAULT_TIMEOUT_SECONDS` (120s); pass `None` to disable entirely (wait indefinitely). Implemented as a real subprocess/process-group kill, not a cooperative cancellation - see `starlayer.graph/graph/_timeout.py`'s own module docstring for why that's the only mechanism that reliably works against an opaque, uninterruptible reasoner call (a JVM subprocess for "hermit", an in-process native PyO3 call for "rustdl") - a raised `_timeout.ReasoningTimeoutError` is guaranteed to leave no orphaned JVM/native process still running behind it.
 
 **Returns:** `StarLayerGraph` - A StarLayerGraph: `target_graph` for mode="full"/"delta", or self for mode="in-place".
 
-**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.infer](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L3233-L3481)
+**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.infer](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L3266-L3514)
 
 ---
 
@@ -1195,7 +1195,7 @@ rather than baked into an opaque tt:HASH URIRef.
 
 **Returns:** `bool` - True if the two graphs are isomorphic.
 
-**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.isomorphic](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L2865-L2894)
+**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.isomorphic](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L2898-L2926)
 
 ---
 
@@ -1229,7 +1229,7 @@ Example::
 
 **Returns:** `StarLayerGraph`
 
-**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.open](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L1117-L1137)
+**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.open](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L1168-L1188)
 
 ---
 
@@ -1258,7 +1258,7 @@ then actually resolve/merge (``resolve_imports()`` below).
 
 **Returns:** `tuple[Any, ...]` - The declared ``owl:imports`` targets, deduplicated, in first-seen order.
 
-**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.owl_imports](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L3483-L3504)
+**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.owl_imports](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L3516-L3537)
 
 ---
 
@@ -1317,7 +1317,7 @@ any named graph appears at all, even just one).
 
 **Returns:** `StarLayerGraph` - This graph, with the parsed triples added.
 
-**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.parse](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L1865-L2119)
+**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.parse](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L1912-L2166)
 
 ---
 
@@ -1337,7 +1337,7 @@ Print the graph to stdout (or `out`).
 
 **Returns:** `None`
 
-**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.print](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L2770-L2779)
+**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.print](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L2803-L2812)
 
 ---
 
@@ -1363,7 +1363,7 @@ does the right thing either way without an isinstance check.
 
 **Returns:** `str` - The term's prefixed N3 form.
 
-**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.qname_term](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L1824-L1840)
+**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.qname_term](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L1871-L1887)
 
 ---
 
@@ -1411,7 +1411,7 @@ with a small cached delta (never a full copy of ``self``) for
 
 **Returns:** `Result` - The query Result, with any tt:HASH URIRef restored to its TripleTerm.
 
-**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.query](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L2121-L2538)
+**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.query](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L2168-L2583)
 
 ---
 
@@ -1436,7 +1436,7 @@ included.
 
 **Returns:** `StarLayerGraph`
 
-**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.reduce_prefixes](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L3204-L3231)
+**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.reduce_prefixes](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L3237-L3264)
 
 ---
 
@@ -1460,7 +1460,7 @@ Yield TripleTerms that have at least one reifier and match the s/p/o pattern.
 
 **Returns:** `Generator[TripleTerm, None, None]`
 
-**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.reifications](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L1688-L1720)
+**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.reifications](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L1735-L1767)
 
 ---
 
@@ -1479,7 +1479,7 @@ Yield the TripleTerms reified by the given reifier node.
 
 **Returns:** `Generator[TripleTerm, None, None]`
 
-**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.reified_triples](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L1747-L1766)
+**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.reified_triples](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L1794-L1813)
 
 ---
 
@@ -1500,7 +1500,7 @@ Excludes the rdf:reifies triple itself.
 
 **Returns:** `Generator[tuple, None, None]`
 
-**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.reifier_annotations](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L1722-L1745)
+**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.reifier_annotations](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L1769-L1792)
 
 ---
 
@@ -1524,7 +1524,7 @@ reifiers that reify t AND have (reifier, p, o) in the graph.
 
 **Returns:** `Generator[IdentifiedNode, None, None]`
 
-**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.reifiers](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L1640-L1686)
+**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.reifiers](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L1687-L1733)
 
 ---
 
@@ -1545,7 +1545,7 @@ pattern is not registered, in which case this is a no-op.
 
 **Returns:** `StarLayerGraph`
 
-**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.remove](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L1299-L1319)
+**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.remove](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L1346-L1366)
 
 ---
 
@@ -1574,7 +1574,7 @@ this graph is a safe no-op, same as remove() everywhere else.
 
 **Returns:** `StarLayerGraph` - This graph, matching every other mutating method on this class, so calls can be chained.
 
-**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.remove_reification](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L1842-L1863)
+**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.remove_reification](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L1889-L1910)
 
 ---
 
@@ -1610,7 +1610,7 @@ This mirrors ``_resolve_shapes_graph_imports()``'s own
 
 **Returns:** `StarLayerGraph` - A StarLayerGraph: a new graph for mode="full"/"delta", or self for mode="in-place".
 
-**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.resolve_imports](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L3529-L3661)
+**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.resolve_imports](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L3562-L3694)
 
 ---
 
@@ -1631,7 +1631,7 @@ Serialize the graph.
 
 **Returns:** `str | bytes | StarLayerGraph` - The serialized text (or bytes, for a format that produces them) when ``destination`` is None; otherwise ``self``, matching rdflib's own ``Graph.serialize()`` contract.
 
-**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.serialize](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L2618-L2712)
+**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.serialize](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L2651-L2745)
 
 ---
 
@@ -1659,7 +1659,7 @@ rejects it as "not an rdflib term".
 
 **Returns:** `StarLayerGraph` - new_graph, populated with the skolemized triples.
 
-**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.skolemize](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L2806-L2836)
+**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.skolemize](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L2839-L2869)
 
 ---
 
@@ -1685,7 +1685,7 @@ Any combination of subject, predicate, object narrows the results:
 
 **Returns:** `Generator[TripleTerm, None, None]`
 
-**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.triple_terms](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L1768-L1805)
+**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.triple_terms](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L1815-L1852)
 
 ---
 
@@ -1713,7 +1713,7 @@ triple terms that match the pattern.
 
 **Returns:** `Generator[tuple, None, None]` - A generator of matching (subject, predicate, object) triples.
 
-**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.triples](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L1321-L1377)
+**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.triples](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L1368-L1424)
 
 ---
 
@@ -1737,7 +1737,7 @@ an unregistered single TripleTerm causes the method to yield nothing.
 
 **Returns:** `Generator[tuple, None, None]` - A generator of matching (subject, predicate, object) triples.
 
-**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.triples_choices](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L1461-L1485)
+**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.triples_choices](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L1508-L1532)
 
 ---
 
@@ -1758,7 +1758,7 @@ store's own prefix map (in-memory and ``OxigraphStore`` stores; any other raises
 
 **Returns:** `bool`
 
-**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.unbind](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L3186-L3192)
+**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.unbind](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L3219-L3225)
 
 ---
 
@@ -1800,7 +1800,7 @@ in-memory store's generic processor accepts either.
 
 **Returns:** `None` - None.
 
-**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.update](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L2540-L2616)
+**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.update](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L2585-L2649)
 
 ---
 
@@ -1819,7 +1819,7 @@ predicate does not count, since Turtle writes it ``a``. This is the rule the Tur
 
 **Returns:** `list[tuple[str, URIRef]]`
 
-**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.used_prefixes](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L3194-L3202)
+**Source:** [starlayer.graph.graph.starlayer_graph.StarLayerGraph.used_prefixes](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_graph.py#L3227-L3235)
 
 ---
 
@@ -1885,7 +1885,7 @@ see its own docstring, and the subgraph-extraction guide, for why.
 Adds RDF 1.2/triple-term adaptation around pySHACL, which understands
 neither triple terms nor SHACL 1.2's own predicates natively.
 
-**Source:** [starlayer.shacl.validator.StarShaclSchema](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L91-L2178)
+**Source:** [starlayer.shacl.validator.StarShaclSchema](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L91-L2180)
 
 ---
 
@@ -1914,7 +1914,7 @@ avoid repeating ``shacl_graph``/``ont_graph`` on every call.
 
 **Returns:** `RulesResult` - The ``RulesResult`` produced by the module-level :func:`apply_rules` call.
 
-**Source:** [starlayer.shacl.validator.StarShaclSchema.apply_rules](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L1698-L1750)
+**Source:** [starlayer.shacl.validator.StarShaclSchema.apply_rules](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L1700-L1752)
 
 ---
 
@@ -1973,7 +1973,7 @@ bound ``shacl_graph`` itself.
 
 **Returns:** `Any` - A closed copy of the relevant ``shacl_graph`` (or module).
 
-**Source:** [starlayer.shacl.validator.StarShaclSchema.close_shape](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L2010-L2050)
+**Source:** [starlayer.shacl.validator.StarShaclSchema.close_shape](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L2012-L2052)
 
 ---
 
@@ -2051,7 +2051,7 @@ own "data graph doubles as shapes graph" allowance.
 
 **Returns:** `Any` - A plain graph: the real, stored values of every property shape with a simple ``sh:path``, for its own target focus nodes, with any ``sh:values``/``sh:defaultValue``-computed values unioned in.
 
-**Source:** [starlayer.shacl.validator.StarShaclSchema.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L1752-L1936)
+**Source:** [starlayer.shacl.validator.StarShaclSchema.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L1754-L1938)
 
 ---
 
@@ -2170,7 +2170,7 @@ for the default is injecting your own definition of a referenced shape, and a co
 
 **Returns:** `Any | None` - A standalone graph containing just that resource's module, or ``None`` if ``shapes_graph_iri`` isn't actually typed ``a sh:ShapesGraph`` in ``shacl_graph`` at all - not every graph bothers with this optional packaging metadata, and a typo'd IRI shouldn't silently return an empty-but-valid-looking graph.
 
-**Source:** [starlayer.shacl.validator.StarShaclSchema.extract_shapes_graph](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L2052-L2178)
+**Source:** [starlayer.shacl.validator.StarShaclSchema.extract_shapes_graph](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L2054-L2180)
 
 ---
 
@@ -2204,7 +2204,7 @@ none of them is repeated per call. Each can be overridden per call.
 
 **Returns:** `dict[Any, Any]` - ``{property_shape: widget}``, with ``None`` for a property that has no widget (or ``{property_shape: WidgetChoice}`` for ``per="shape"``).
 
-**Source:** [starlayer.shacl.validator.StarShaclSchema.select_widgets](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L1938-L2008)
+**Source:** [starlayer.shacl.validator.StarShaclSchema.select_widgets](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L1940-L2010)
 
 ---
 
@@ -2316,7 +2316,7 @@ terminating early." Confirmed live that without this, the official
 test suite's own poisoning fixture (test074, a 10-node blank-node
 clique) hangs indefinitely rather than raising anything.
 
-**Source:** [starlayer.graph.rdfc.CanonicalizationComplexityError](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/rdfc.py#L82-L91)
+**Source:** [starlayer.graph.rdfc.CanonicalizationComplexityError](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/rdfc.py#L76-L85)
 
 ---
 
@@ -2447,16 +2447,12 @@ the synthetic reification fragments, not the original triple terms, so
 this is meant for programmatic use (e.g. ``len(in_first) == 0``), not for
 display back to a user.
 
-Raises:
-    TypeError: for a dataset (a diff of named graphs is not defined
-        here; use ``isomorphic()`` or ``rdfc.to_canonical_nquads``).
-
 **Parameters:**
 
 - `g1: Any`
 - `g2: Any`
 
-**Source:** [starlayer.graph.compare.graph_diff](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/compare.py#L228-L242)
+**Source:** [starlayer.graph.compare.graph_diff](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/compare.py#L154-L163)
 
 ---
 
@@ -2474,11 +2470,6 @@ nodes), identical to the original for graphs that don't. Also RDF
 docstring): a plain ``Literal("x")`` and ``Literal("x", datatype=XSD.string)``
 compare equal here, unlike in plain ``rdflib.compare.isomorphic``.
 
-Datasets (``Dataset``, ``ConjunctiveGraph``, ``StarLayerDataset``) are
-compared as datasets: equal canonical N-Quads (RDFC-1.0), so graph names
-count. A dataset and a plain graph are compared as the dataset's quads
-against the graph's triples (default graph only).
-
 **Parameters:**
 
 - `graph1: Any`
@@ -2486,7 +2477,7 @@ against the graph's triples (default graph only).
 
 **Returns:** `bool`
 
-**Source:** [starlayer.graph.compare.isomorphic](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/compare.py#L211-L225)
+**Source:** [starlayer.graph.compare.isomorphic](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/compare.py#L144-L151)
 
 ---
 
@@ -2656,7 +2647,7 @@ not a hex string).
 
 **Returns:** `str`
 
-**Source:** [starlayer.graph.rdfc.rdfc10_hash](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/rdfc.py#L401-L410)
+**Source:** [starlayer.graph.rdfc.rdfc10_hash](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/rdfc.py#L406-L415)
 
 ---
 
@@ -2861,9 +2852,8 @@ relabeling and correct for triple terms (including nested blank nodes).
 Not yet a spec-compliant RDFC-1.0 digest (see module docstring) - two
 graphs get equal digests here if and only if ``isomorphic()`` (this
 module's version) says they're isomorphic, which is the property this
-is actually needed for today; ``rdfc.rdfc10_hash`` is the portable,
-standards-compliant digest. For a dataset the digest is the RDFC-1.0
-hash read as an integer.
+is actually needed for today; a portable, standards-compliant canonical
+N-Quads form is separate, larger, future work.
 
 **Parameters:**
 
@@ -2871,7 +2861,7 @@ hash read as an integer.
 
 **Returns:** `int`
 
-**Source:** [starlayer.graph.compare.to_canonical_hash](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/compare.py#L257-L272)
+**Source:** [starlayer.graph.compare.to_canonical_hash](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/compare.py#L174-L184)
 
 ---
 
@@ -2897,7 +2887,7 @@ module and ``starlayer.graph.compare`` docstrings.
 
 **Returns:** `str`
 
-**Source:** [starlayer.graph.rdfc.to_canonical_nquads](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/rdfc.py#L375-L398)
+**Source:** [starlayer.graph.rdfc.to_canonical_nquads](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/rdfc.py#L380-L403)
 
 ---
 
@@ -2913,14 +2903,11 @@ doesn't crash on a triple-term-valued term. Returns an
 ``IsomorphicGraph`` over the *decomposed* graph (see module docstring);
 use ``to_canonical_hash()`` if you just want a single digest value.
 
-Raises:
-    TypeError: for a dataset (use ``rdfc.to_canonical_nquads``).
-
 **Parameters:**
 
 - `graph: Any`
 
-**Source:** [starlayer.graph.compare.to_isomorphic](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/compare.py#L245-L254)
+**Source:** [starlayer.graph.compare.to_isomorphic](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/compare.py#L166-L171)
 
 ---
 
@@ -2982,7 +2969,7 @@ applied in a loop afterward).
 
 **Returns:** `Query` - The translated, executable-shaped ``Query``, with ``CONSTRUCT WHERE`` shorthand canonicalized and triple-term pattern-subject use rejected.
 
-**Source:** [starlayer.sparql.parse12.prepare_query_12](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/parse12.py#L153-L187)
+**Source:** [starlayer.sparql.parse12.prepare_query_12](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/parse12.py#L141-L175)
 
 ---
 
@@ -3004,7 +2991,7 @@ def prepare_update_12(text: str, base: str | None=None, initNs: Mapping[str, Any
 
 **Returns:** `Update` - The translated, executable-shaped ``Update``.
 
-**Source:** [starlayer.sparql.parse12.prepare_update_12](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/parse12.py#L190-L215)
+**Source:** [starlayer.sparql.parse12.prepare_update_12](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/parse12.py#L178-L199)
 
 ---
 
@@ -3032,7 +3019,7 @@ is needed here for that.
 
 **Returns:** `tuple[Graph, BNode]` - ``(graph, root)`` — ``root`` is a dedicated container node holding ``salg:queries`` (an ``rdf:List`` of the member queries' own ``salg:Query``-typed roots, in the order given — order isn't semantically meaningful for a collection, but is preserved anyway since ``rdf:List`` is ordered regardless).
 
-**Source:** [starlayer.sparql.to_rdf.queries_to_collection](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/to_rdf.py#L198-L227)
+**Source:** [starlayer.sparql.to_rdf.queries_to_collection](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/to_rdf.py#L202-L233)
 
 ---
 
@@ -3058,7 +3045,7 @@ form.
 
 **Returns:** `tuple[Graph, BNode]` - ``(graph, root)``.
 
-**Source:** [starlayer.sparql.to_rdf.query_to_rdf](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/to_rdf.py#L136-L158)
+**Source:** [starlayer.sparql.to_rdf.query_to_rdf](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/to_rdf.py#L136-L160)
 
 ---
 
@@ -3089,7 +3076,7 @@ itself goes through the generic walker there).
 
 **Returns:** `list[Query]` - The member queries, in the order they were encoded.
 
-**Source:** [starlayer.sparql.from_rdf.rdf_to_collection](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/from_rdf.py#L210-L233)
+**Source:** [starlayer.sparql.from_rdf.rdf_to_collection](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/from_rdf.py#L215-L238)
 
 ---
 
@@ -3118,7 +3105,7 @@ so its output stays full-IRI-only regardless.
 
 **Returns:** `Query` - A fully reconstructed, evaluator-ready ``Query``.
 
-**Source:** [starlayer.sparql.from_rdf.rdf_to_query](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/from_rdf.py#L135-L172)
+**Source:** [starlayer.sparql.from_rdf.rdf_to_query](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/from_rdf.py#L135-L174)
 
 ---
 
@@ -3150,7 +3137,7 @@ of them in a real ``prepareUpdate`` result too.
 
 **Returns:** `Update` - A fully reconstructed ``Update``.
 
-**Source:** [starlayer.sparql.from_rdf.rdf_to_update](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/from_rdf.py#L175-L207)
+**Source:** [starlayer.sparql.from_rdf.rdf_to_update](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/from_rdf.py#L177-L212)
 
 ---
 
@@ -3234,7 +3221,7 @@ is additionally typed ``salg:UpdateOperation`` (see
 
 **Returns:** `tuple[Graph, BNode]` - ``(graph, root)``.
 
-**Source:** [starlayer.sparql.to_rdf.update_to_rdf](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/to_rdf.py#L161-L195)
+**Source:** [starlayer.sparql.to_rdf.update_to_rdf](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/to_rdf.py#L163-L199)
 
 ---
 
@@ -3942,7 +3929,7 @@ run), whose conformance result is what's actually returned.
 
 **Returns:** `RulesResult` - A ``RulesResult`` with two fields: ``inferred_graph`` - strictly the triples rule execution itself produced (shape-attached and global rules, plus any ``sh:sourceRule`` provenance reifiers); neither the original base triples nor anything any entailment regime added are included, since entailment is purely a computational device here, never persisted. ``validation`` - the full ``ValidationResult`` from the final re-validation pass, whose ``conforms``/ ``report_graph``/``report_text`` reflect the complete evaluation graph (base ∪ rules ∪ entailment); its own ``data_graph`` field is always ``None`` in this context (the internal call uses the ``"validation"`` mode's own ``inplace=False`` default).
 
-**Source:** [starlayer.shacl.validator.apply_rules](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L3918-L4199)
+**Source:** [starlayer.shacl.validator.apply_rules](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L3920-L4201)
 
 ---
 
@@ -4077,7 +4064,7 @@ shapes graph.
 
 **Returns:** `Any` - A plain graph object (the same type as ``data_graph``) containing the shape-driven subgraph described above.
 
-**Source:** [starlayer.shacl.validator.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L3760-L3908)
+**Source:** [starlayer.shacl.validator.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L3762-L3910)
 
 ---
 
@@ -4149,7 +4136,7 @@ docstring's entailment section for the full design.
 
 **Returns:** `Any` - A new graph - the union of every conforming ``(shape, focus_node)`` pair's own extraction. Empty (never ``None``) if nothing conforms.
 
-**Source:** [starlayer.shacl.subgraph_extraction.extract_subgraph](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/subgraph_extraction.py#L524-L633)
+**Source:** [starlayer.shacl.subgraph_extraction.extract_subgraph](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/subgraph_extraction.py#L525-L638)
 
 ---
 
@@ -4275,7 +4262,7 @@ own, separate copy of this body for now rather than delegating here
 
 **Returns:** `ValidationResult` - A ``ValidationResult``: ``conforms`` (bool), ``report_graph``/ ``report_text`` (the validation report, decoded unless ``decode_report=False``), ``data_graph`` (the mutated original when the resolved options include ``inplace=True``, otherwise ``None``), and ``diagnostics`` (an ``ExecutionDiagnostics`` snapshot of adapter encode/decode activity for this call).
 
-**Source:** [starlayer.shacl.validator.validate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L3317-L3728)
+**Source:** [starlayer.shacl.validator.validate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L3319-L3730)
 
 ---
 
@@ -4301,6 +4288,6 @@ this body for now (see ``validate()``'s own docstring).
 
 **Returns:** `dict[int, ValidationResult]` - A ``dict`` mapping each item's index in ``data_graphs`` (via ``enumerate``) to its own ``ValidationResult``.
 
-**Source:** [starlayer.shacl.validator.validate_each](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L3731-L3757)
+**Source:** [starlayer.shacl.validator.validate_each](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L3733-L3759)
 
 ---

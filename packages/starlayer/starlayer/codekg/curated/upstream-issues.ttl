@@ -313,6 +313,30 @@ ui:rdflib-30 a slkg:UpstreamIssue ;
     slkg:issueStatus "worked-around" ;
     slkg:workedAroundByIdentifier "starlayer.graph.query.operator_patches.patch_multiplicative_expression_type_promotion" .
 
+ui:rdflib-33 a slkg:UpstreamIssue ;
+    rdfs:label "REGEX and REPLACE: an invalid pattern aborts the query; REPLACE mangles $0, flags and zero-length patterns" ;
+    slkg:upstreamProject "rdflib" ;
+    slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
+    slkg:issueNumber 33 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.graph.query.builtin_error_patches.patch_regex_and_replace_follow_xpath" .
+
+ui:rdflib-34 a slkg:UpstreamIssue ;
+    rdfs:label "ROUND, FLOOR and CEIL raise on NaN, INF and very large doubles" ;
+    slkg:upstreamProject "rdflib" ;
+    slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
+    slkg:issueNumber 34 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.graph.query.builtin_error_patches.patch_rounding_of_special_doubles" .
+
+ui:rdflib-35 a slkg:UpstreamIssue ;
+    rdfs:label "A language-tagged string orders against a number" ;
+    slkg:upstreamProject "rdflib" ;
+    slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
+    slkg:issueNumber 35 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.graph.query.builtin_error_patches.patch_relational_operators_follow_spec" .
+
 ui:rdflib-21 a slkg:UpstreamIssue ;
     rdfs:label "A negated property set with an inverse member crashes or answers wrongly; p* returns a node twice on a cycle" ;
     slkg:upstreamProject "rdflib" ;

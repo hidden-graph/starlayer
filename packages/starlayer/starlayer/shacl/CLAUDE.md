@@ -45,6 +45,10 @@ Source: Node Expressions 3.2.2, 4.5.1, 4.5.3, 5, 6.2 and Core 3.1.3.1 (fetched, 
 - **Not changed, decisions left on the issues:** whether `eval_expr` evaluates `sh:select`/`sh:sparqlExpr` expressions (#129; it raises `StopIteration` from pySHACL) and whether a list expression may hold non-constant members (#123; the lenient reading is kept).
 - Tests: `tests/shacl/unit/test_node_expression_failures.py`.
 
+## Contract checks in widget selection and subgraph extraction (2026-10-26, GitHub issues #138 and #139)
+
+`select_widget`/`select_widgets` raise `ValueError` for a `role` other than `editor`/`viewer` and (`select_widgets`) for a `shape_node` that is not a subject in the shapes graph (both used to look like "no widget"). `extract_subgraph` raises `TypeError` when `shape` or `focus_node` is not an rdflib term (a `str` shape was a `KeyError`, a `str` focus node silently matched nothing); it does not coerce a `str` to `URIRef`, on purpose. Tests: `tests/shacl/integration/test_hunt3_contracts.py`.
+
 ## Fixes from the third hunt: native fast path, deactivated shapes, triple-term value nodes (2026-10-26, GitHub issues #94 and #104)
 
 - **The native fast paths for graphs holding a triple term** (`_try_native_literal_only_validation`, `_try_native_structural_property_validation`, module functions and `StarShaclSchema` copies) checked one component per property shape and silently dropped everything else (`sh:minCount`, a second constraint, `sh:deactivated`, `sh:severity`, `sh:message`, other shapes). They now run only when `_native_fast_path_shapes_are_plain` says the shapes graph holds nothing else (node shapes with targets/`sh:property`/annotations, property shapes with `sh:path` plus the one component, and no other subject with a `sh:` predicate); otherwise pySHACL validates. `engine/core.build_report` wrote `sh:type` instead of `rdf:type` and no `sh:resultSeverity`; fixed.

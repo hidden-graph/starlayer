@@ -120,8 +120,10 @@ def _apply_entailment_regimes(data_graph: Any, regimes: frozenset, ont_graph: An
         combined.add(t)
     delta = combined.infer(entailment=regimes, mode="delta")
 
+    from starlayer.graph.graph.starlayer_graph import legal_rdf_triples
+
     if inplace:
-        for t in delta:
+        for t in legal_rdf_triples(delta):
             data_graph.add(t)
         return data_graph
 
@@ -130,7 +132,7 @@ def _apply_entailment_regimes(data_graph: Any, regimes: frozenset, ont_graph: An
         result.bind(prefix, ns)
     for t in data_graph:
         result.add(t)
-    for t in delta:
+    for t in legal_rdf_triples(delta):
         result.add(t)
     return result
 

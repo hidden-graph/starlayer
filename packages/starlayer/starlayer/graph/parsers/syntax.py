@@ -490,10 +490,18 @@ def split_statements_with_lines(data):
         A list of (statement, line) pairs, line being the 1-based
         approximate source line number where that statement begins.
     """
-    return [
-        (stmt, data[:offset].count('\n') + 1)
-        for stmt, offset in _split_statements_impl(data)
-    ]
+    # Count newlines between consecutive offsets, not over the whole prefix each time (quadratic; GitHub issue #140).
+    out = []
+    prev_offset = 0
+    line = 1
+    for stmt, offset in _split_statements_impl(data):
+        if offset >= prev_offset:
+            line += data.count('\n', prev_offset, offset)
+        else:
+            line = data[:offset].count('\n') + 1
+        prev_offset = offset
+        out.append((stmt, line))
+    return out
 
 
 def classify_statement(stmt):

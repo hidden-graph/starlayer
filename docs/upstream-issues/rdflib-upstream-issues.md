@@ -413,6 +413,49 @@ list(Graph().query("SELECT (1e0/0 AS ?x) {}"))
 
 Fix: `operator_patches.py::patch_multiplicative_expression_type_promotion` (the division branch), `graph/model/encoding.py::_canonicalize_numeric_literal`.
 
+## 33. `REGEX`/`REPLACE`: an invalid pattern aborts the query; `REPLACE` mangles `$0`, flags and zero-length patterns
+
+`fn:matches` and `fn:replace` make an invalid pattern or flag an error (a `FILTER` drops the row, a projection stays unbound). rdflib lets Python's `re.error` escape and abort the whole query, and ignores an unknown flag. `REPLACE` also rewrites `$0` to the octal escape `\0` (a NUL character instead of the whole match), accepts a pattern that matches the zero-length string (`fn:replace` raises FORX0003), and passes its flags to `re.sub` as the `count` argument. Python's `re` is not XPath's dialect (`\p{L}` is an error there), which StarLayer reports as an invalid pattern rather than translating.
+
+```python
+from rdflib import Graph
+list(Graph().query("SELECT (REPLACE('abc', 'b', '<$0>') AS ?x) (REPLACE('abc', 'x*', '-') AS ?y) {}"))
+# actual:   'a<\x00>c', '-a-b-c-'
+# expected: 'a<b>c', unbound
+list(Graph().query('SELECT ?x { BIND("a" AS ?x) FILTER(REGEX(?x, "(")) }'))
+# actual:   re.error: missing ), unterminated subpattern
+# expected: no rows
+```
+
+Fix: `builtin_error_patches.py::patch_regex_and_replace_follow_xpath` (`custom_functions.py` calls the same `xpath_replace` for directional literals).
+
+## 34. `ROUND`, `FLOOR` and `CEIL` raise on NaN, INF and very large doubles
+
+`fn:round`, `fn:floor` and `fn:ceiling` return NaN for NaN and +/-INF for +/-INF, and a very large double is already integral. rdflib converts to a Python `int`, so `ROUND("NaN"^^xsd:double)` raises `ValueError`, `ROUND("INF"^^xsd:double)` and `ROUND(1e300)` raise `decimal.InvalidOperation`, and `FLOOR("INF"^^xsd:double)` raises `OverflowError`; one such value in a data column aborts the whole result set.
+
+```python
+from rdflib import Graph
+list(Graph().query("SELECT (ROUND('NaN'^^<http://www.w3.org/2001/XMLSchema#double>) AS ?x) {}"))
+# actual:   ValueError: cannot convert NaN to integer
+# expected: "NaN"^^xsd:double
+```
+
+Fix: `builtin_error_patches.py::patch_rounding_of_special_doubles`.
+
+## 35. A language-tagged string orders against a number
+
+The operator mapping of section 17.3 defines `<`, `>`, `<=` and `>=` for numerics, simple literals / `xsd:string`, `xsd:boolean` and `xsd:dateTime` only, so `"abc"@en > 1` is a type error and `FILTER` drops the row. rdflib answers true through its cross-type sort order for a language-tagged string (a plain `"x"` is already dropped).
+
+```python
+from rdflib import Graph
+g = Graph().parse(data='@prefix : <http://e/> . :a :r 1, 2.5, "abc"@en .', format="turtle")
+[str(r[0]) for r in g.query("SELECT ?o { <http://e/a> <http://e/r> ?o FILTER(?o > 1) }")]
+# actual:   ['2.5', 'abc']
+# expected: ['2.5']
+```
+
+Fix: `builtin_error_patches.py::patch_relational_operators_follow_spec` (`_ordering_class`).
+
 ## 21. A negated property set with an inverse member crashes or answers wrongly; `p*` returns a node twice on a cycle
 
 ```python
