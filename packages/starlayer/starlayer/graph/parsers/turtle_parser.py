@@ -169,6 +169,8 @@ def _get_reifier_parts(val):
     tp, r2 = _lexer.next_token(r1)
     to, r3 = _next_object_token(r2)
     after_tilde = r3.strip()[1:].strip()
+    if _lexer._ANON_RE.fullmatch(after_tilde):
+        after_tilde = ''  # '~ []': ANON is a BlankNode, so a fresh one, as for a bare '~' (GitHub issue #93)
     return f'<<( {ts} {tp} {to} )>>', (after_tilde if after_tilde else None)
 
 
@@ -210,6 +212,10 @@ def _norm_qt(val):
     return f'<<( {ts} {tp} {to} )>>'
 
 
+_HEX4 = re.compile(r'[0-9A-Fa-f]{4}')
+_HEX8 = re.compile(r'[0-9A-Fa-f]{8}')
+
+
 def _unescape(s):
     """Expand Turtle string escape sequences including \\uXXXX and \\UXXXXXXXX.
 
@@ -233,8 +239,10 @@ def _unescape(s):
             elif c == '"':  result.append('"');  i += 2
             elif c == "'":  result.append("'");  i += 2
             elif c == '\\': result.append('\\'); i += 2
-            elif c == 'u' and i + 5 <= len(s):
+            elif c == 'u':
                 hex4 = s[i+2:i+6]
+                if not _HEX4.fullmatch(hex4):
+                    raise Turtle12SyntaxError('bad \\u escape (four hex digits required): ' + repr(s[i:i+6]), s, pos=i)
                 cp = int(hex4, 16)
                 if 0xD800 <= cp <= 0xDFFF:
                     # Turtle's UCHAR directly encodes a Unicode codepoint;
@@ -251,8 +259,10 @@ def _unescape(s):
                         s, pos=i,
                     )
                 result.append(chr(cp)); i += 6
-            elif c == 'U' and i + 9 <= len(s):
+            elif c == 'U':
                 hex8 = s[i+2:i+10]
+                if not _HEX8.fullmatch(hex8) or int(hex8, 16) > 0x10FFFF:
+                    raise Turtle12SyntaxError('bad \\U escape (eight hex digits, at most 10FFFF): ' + repr(s[i:i+10]), s, pos=i)
                 cp = int(hex8, 16)
                 if 0xD800 <= cp <= 0xDFFF:
                     raise Turtle12SyntaxError(
@@ -262,7 +272,8 @@ def _unescape(s):
                     )
                 result.append(chr(cp)); i += 10
             else:
-                result.append('\\'); result.append(c); i += 2
+                # ECHAR ::= '\\' [tbnrf"'\\] and the UCHARs are the only escapes a string has (GitHub issue #73)
+                raise Turtle12SyntaxError(f'invalid escape \\{c} in a string', s, pos=i)
         else:
             result.append(s[i]); i += 1
     return ''.join(result)
@@ -307,6 +318,11 @@ def _split_literal(val):
     raise Turtle12SyntaxError(f'unterminated {q!r} string', val, pos=len(val))
 
 
+_LANG_STRING_TYPES = ('http://www.w3.org/1999/02/22-rdf-syntax-ns#langString',
+                      'http://www.w3.org/1999/02/22-rdf-syntax-ns#dirLangString')
+_LANGTAG = re.compile(r'[a-zA-Z]+(?:-[a-zA-Z0-9]+)*')
+_IRI_FORBIDDEN = re.compile(r'[\x00-\x20<>"{}|^`\\]')
+_BAD_PERCENT = re.compile(r'(?<!\\)%(?![0-9A-Fa-f]{2})')
 _UCHAR = re.compile(r'\\u([0-9A-Fa-f]{4})|\\U([0-9A-Fa-f]{8})')
 _PN_LOCAL_ESC = re.compile(r"\\([_~.\-!$&'()*+,;=/?#@%])")
 _ABSOLUTE_IRI = re.compile(r'^[a-zA-Z][a-zA-Z0-9+\-.]*:')
@@ -328,7 +344,12 @@ def _join(base_uri, ref):
 
 def _resolve_iri_reference(raw, base_uri):
     """An IRIREF's text as an absolute IRI: its escapes decoded, and resolved against the base in effect if it is relative."""
+    if _IRI_FORBIDDEN.search(_UCHAR.sub('', raw)):
+        # IRIREF excludes controls, space and < > " { } | ^ ` \ (a backslash only as the start of a UCHAR) (issue #73)
+        raise Turtle12SyntaxError(f'character not allowed in an IRI reference: <{raw}>', raw, pos=0)
     inner = _decode_uchar(raw)
+    if _IRI_FORBIDDEN.search(inner):
+        raise Turtle12SyntaxError(f'an escape in <{raw}> names a character an IRI cannot hold', raw, pos=0)
     if base_uri and not _ABSOLUTE_IRI.match(inner):
         return _join(base_uri, inner)
     return inner
@@ -374,6 +395,8 @@ def _to_node(val, prefix_map, base_uri):
 
     if val.startswith(('"""', "'''", '"', "'")):
         content, suffix, kind = _split_literal(val)
+        if not val.startswith(('"""', "'''")) and ('\n' in content or '\r' in content):
+            raise Turtle12SyntaxError('a raw line break inside a short string (use \\n, or a long string)', val, pos=0)
         text = _unescape(content)
         if kind == '^^':
             # normalize=False preserves the exact lexical form the source
@@ -389,7 +412,11 @@ def _to_node(val, prefix_map, base_uri):
             # SHACL 1.2 Node Expressions test suite (distinct-termEquality,
             # remove-list-from-list), which construct exactly this
             # value-equal/lexically-different case deliberately.
-            return Literal(text, datatype=_to_node(suffix, prefix_map, base_uri), normalize=False)
+            datatype = _to_node(suffix, prefix_map, base_uri)
+            if str(datatype) in _LANG_STRING_TYPES:
+                # a literal of these types carries a language tag (and direction); "x"^^rdf:dirLangString is not one (issue #73)
+                raise Turtle12SyntaxError(f'a literal typed {datatype} needs a language tag, not ^^', val, pos=0)
+            return Literal(text, datatype=datatype, normalize=False)
         if kind == '@':
             if '--' in suffix:
                 # RDF 1.2 "text"@lang--dir (rdf:dirLangString). rdflib's Literal
@@ -406,10 +433,14 @@ def _to_node(val, prefix_map, base_uri):
                 # "Hello"@en--LTR - see tests/w3c_turtle12/): must be rejected, not
                 # silently lowercased and accepted.
                 if direction not in ('ltr', 'rtl'):
-                    raise ValueError(
-                        f'RDF 1.2: base direction must be "ltr" or "rtl", got {direction!r} in @{suffix}'
+                    raise Turtle12SyntaxError(
+                        f'RDF 1.2: base direction must be "ltr" or "rtl", got {direction!r} in @{suffix}', val, pos=0,
                     )
+                if not _LANGTAG.fullmatch(language):
+                    raise Turtle12SyntaxError(f'invalid language tag {language!r} in @{suffix}', val, pos=0)
                 return Literal(text, datatype=encode_dirlang_datatype(language.lower(), direction))
+            if not _LANGTAG.fullmatch(suffix):
+                raise Turtle12SyntaxError(f'invalid language tag {suffix!r}', val, pos=0)
             return Literal(text, lang=suffix)
         return Literal(text)
 
@@ -419,6 +450,8 @@ def _to_node(val, prefix_map, base_uri):
     if ':' in val:
         pref, local = val.split(':', 1)
         if pref in prefix_map:
+            if '%' in local and _BAD_PERCENT.search(local):
+                raise Turtle12SyntaxError(f'invalid percent escape in the prefixed name {val!r}', val, pos=0)
             # PN_LOCAL_ESC: a backslash before one of the punctuation characters is dropped; a %XX sequence stays as written
             return URIRef(prefix_map[pref] + _PN_LOCAL_ESC.sub(r'\1', local))
         # Not a made-up IRI: a prefix that was never declared (or is declared further on) is a syntax error, as in every other
@@ -1044,7 +1077,7 @@ def _strip_blank_and_comment_lines(data):
 
 class StarLayerTurtleParser:
 
-    def parse(self, data: str, debug: bool = False, base: str = None) -> Graph:
+    def parse(self, data: str, debug: bool = False, base: str = None, require_final_dot: bool = True) -> Graph:
         """Parse Turtle 1.2 text and return an rdflib.Graph.
 
         The graph uses the starlayer.graph internal blank-node encoding for RDF 1.2
@@ -1069,6 +1102,9 @@ class StarLayerTurtleParser:
             base: The base IRI to seed relative-IRI resolution with before
                 parsing begins; an in-document @base/BASE directive still
                 overrides it from that point on.
+            require_final_dot: Whether the last statement must end with '.'
+                (Turtle: yes; a TriG graph block's last triple may omit it,
+                and trig12 passes False for its chunks).
 
         Returns:
             An rdflib.Graph using the starlayer.graph internal blank-node
@@ -1113,9 +1149,12 @@ class StarLayerTurtleParser:
         # the parser's own (the expansion of triple terms and reifiers uses them) and a declaration in the document overrides them.
         current_prefixes = {'rdf': 'http://www.w3.org/1999/02/22-rdf-syntax-ns#', 'sl': SL_NS}
 
-        for stmt, cleaned_line in _syntax.split_statements_with_lines(data_clean):
+        for stmt, cleaned_line in _syntax.split_statements_with_lines(data_clean, require_final_dot):
             try:
                 typ = _syntax.classify_statement(stmt)
+                if typ != 'triple' and stmt.startswith('@') and not stmt.rstrip().endswith('.'):
+                    # the @-forms are statements and end with '.'; only the SPARQL-style forms do without it (issue #73)
+                    raise Turtle12SyntaxError(f"the {stmt.split()[0]} directive must end with '.'", stmt, pos=len(stmt))
                 fields = _syntax.extract_fields(stmt, typ, blank_counter)
             except Turtle12SyntaxError as e:
                 e.line = _orig_line(cleaned_line)
@@ -1155,10 +1194,23 @@ class StarLayerTurtleParser:
         expander = _Expander(blank_counter)
         expanded = []
         for triple in canonical['triples']:
-            s, p, o = triple['subject'], triple['predicate'], triple['object']
             t_base = triple.get('_base_uri')
             t_prefixes = triple.get('_prefix_map')
             t_line = triple.get('_line')
+            if triple.get('standalone'):
+                # `<< s p o >> .` on its own: only the reifying triple (and the triple term's encoding) is written
+                try:
+                    _, extras = expander._resolve_qt_slot(triple['subject'], allow_ground_term=False, role='subject')
+                except Turtle12SyntaxError as e:
+                    e.line = t_line
+                    raise
+                for e in extras:
+                    e['_base_uri'] = t_base
+                    e['_prefix_map'] = t_prefixes
+                    e['_line'] = t_line
+                expanded.extend(extras)
+                continue
+            s, p, o = triple['subject'], triple['predicate'], triple['object']
             try:
                 s, p, o, extras = expander.expand_qt_in_triple(s, p, o)
             except Turtle12SyntaxError as e:
@@ -1220,6 +1272,10 @@ class StarLayerTurtleParser:
                 p_raw = triple['predicate']
                 p_node = RDF.type if p_raw == 'a' else _to_node(p_raw, t_prefixes, t_base)
                 o_node = _to_node(triple['object'], t_prefixes, t_base)
+                if isinstance(s_node, Literal):
+                    raise Turtle12SyntaxError('a literal cannot be a subject', str(triple['subject']), pos=0)
+                if not isinstance(p_node, URIRef):
+                    raise Turtle12SyntaxError('a predicate must be an IRI', str(p_raw), pos=0)
             except Turtle12SyntaxError as e:
                 e.line = t_line
                 raise

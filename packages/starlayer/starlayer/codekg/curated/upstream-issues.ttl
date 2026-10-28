@@ -376,3 +376,11 @@ ui:rdflib-34 a slkg:UpstreamIssue ;
     slkg:issueNumber 34 ;
     slkg:issueStatus "worked-around" ;
     slkg:workedAroundByIdentifier "starlayer.graph.query.builtin_error_patches.patch_min_max_group_concat_terms_and_errors" .
+
+ui:rdflib-38 a slkg:UpstreamIssue ;
+    rdfs:label "A raw TAB inside a SPARQL string literal is turned into spaces" ;
+    slkg:upstreamProject "rdflib" ;
+    slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
+    slkg:issueNumber 38 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.graph.query.builtin_error_patches.patch_sparql_parser_keeps_tabs" .

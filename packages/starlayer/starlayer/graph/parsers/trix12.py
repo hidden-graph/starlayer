@@ -152,7 +152,7 @@ def parse_trix12_named(text: str) -> list[tuple[URIRef | None, list[tuple]]]:
 
     Returns:
         A list of (graph_id, triples) pairs, one per graph with at least
-        one triple - graph_id is None for an anonymous/default graph, a
+        one triple, and per empty named graph - graph_id is None for an anonymous/default graph, a
         URIRef for a named graph.
     """
-    return [(gid, triples) for gid, triples in _iter_graphs(text) if triples]
+    return [(gid, triples) for gid, triples in _iter_graphs(text) if triples or gid is not None]

@@ -567,6 +567,7 @@ class StarLayerDataset(Dataset):
 
         # turtle12 is Turtle-only (no GRAPH blocks); trig12 is a strict superset,
         # so routing turtle12 through the trig12 path is correct and safe.
+        strict_turtle = format == 'turtle12'
         if format == 'turtle12':
             format = 'trig12'
 
@@ -595,9 +596,11 @@ class StarLayerDataset(Dataset):
                 extract_version_directive as _trig_version,
             )
             from starlayer.graph.parsers.trig12 import parse_trig12_named
-            for graph_id, triples, namespaces in parse_trig12_named(text, base=_effective_base(publicID, location)):
+            for graph_id, triples, namespaces in parse_trig12_named(text, base=_effective_base(publicID, location), require_final_dot=strict_turtle):
                 identifier = DATASET_DEFAULT_GRAPH_ID if graph_id is None else graph_id
                 sg = self._load_context(identifier, namespaces)
+                if not triples and graph_id is not None:
+                    self.store.add_graph(sg)  # an empty named block is still a graph of the dataset (GitHub issue #99)
                 if sg._is_native:
                     # parse_trig12_named() returns the rdf-1.1 backend's own
                     # tt:HASH encoding (same as parse_trig12(), see
@@ -643,6 +646,8 @@ class StarLayerDataset(Dataset):
             for graph_id, triples in parse_trix12_named(text):
                 identifier = DATASET_DEFAULT_GRAPH_ID if graph_id is None else graph_id
                 sg = self._load_context(identifier)
+                if not triples and graph_id is not None:
+                    self.store.add_graph(sg)
                 for triple in triples:
                     sg.add(triple)
                 self._register_sg(sg)
@@ -1119,6 +1124,19 @@ class StarLayerDataset(Dataset):
             text = self.to_graph().serialize(format=format, base=kwargs.get('base'))
 
         elif format not in ('trig12', 'nq12', 'trix12'):
+            if any(sg._is_native or sg._tt_registry for sg in self.contexts()):
+                # rdflib's writers would see the internal triple-term encoding (or, for a native store, a term they cannot
+                # write: JSON-LD gave `null`). Hand them a plain dataset in which each graph holds the RDF 1.2 Interoperability
+                # basic encoding instead, as StarLayerGraph.serialize() does (GitHub issue #99).
+                plain = Dataset()
+                for prefix, ns in self.namespaces():
+                    plain.bind(prefix, ns)
+                for sg in self.contexts():
+                    target = plain.graph(sg.identifier)
+                    for triple in sg._deskolemize_to_graph():
+                        target.add(triple)
+                result = plain.serialize(destination=destination, format=format, **kwargs)
+                return self if destination is not None else result
             return super().serialize(destination=destination, format=format, **kwargs)
 
         elif format == 'nq12':
@@ -1150,6 +1168,8 @@ class StarLayerDataset(Dataset):
 
             for sg in self._contexts_in_serialization_order():
                 if len(sg) == 0:
+                    if isinstance(sg.identifier, URIRef) and sg.identifier != DATASET_DEFAULT_GRAPH_ID:
+                        graph_entries.append((sg.identifier, ''))  # an empty named graph is still a graph (GitHub issue #99)
                     continue
                 turtle_text = serialize_turtle12(sg, base=kwargs.get('base'))
                 body_lines = []
@@ -1187,7 +1207,7 @@ class StarLayerDataset(Dataset):
                     blocks.append(body)
                 else:
                     indented = _indent_outside_long_strings(body, indent)
-                    blocks.append(f'GRAPH <{identifier}> {{\n{indented}\n}}')
+                    blocks.append(f'GRAPH <{identifier}> {{\n{indented}\n}}' if body else f'GRAPH <{identifier}> {{ }}')
 
             text = '\n\n'.join(blocks) + '\n'
 

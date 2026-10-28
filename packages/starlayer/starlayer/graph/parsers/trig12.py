@@ -405,7 +405,7 @@ def parse_trig12(text: str, base: str | None = None) -> list[tuple]:
     for chunk in _split_trig_blocks(text, base):
         if not chunk.strip():
             continue
-        raw = StarLayerTurtleParser().parse(chunk, base=base)
+        raw = StarLayerTurtleParser().parse(chunk, base=base, require_final_dot=False)
         processed = _skolemize_encoding(raw)
         for triple in processed:
             triples.append(triple)
@@ -415,6 +415,7 @@ def parse_trig12(text: str, base: str | None = None) -> list[tuple]:
 def parse_trig12_named(
     text: str,
     base: str | None = None,
+    require_final_dot: bool = False,
 ) -> list[tuple[URIRef | None, list[tuple], list[tuple]]]:
     """Parse TriG 1.2 text; return per-graph data preserving named-graph structure.
 
@@ -424,6 +425,9 @@ def parse_trig12_named(
 
     Args:
         text: The TriG 1.2 document text to parse.
+        base: The base IRI.
+        require_final_dot: A last triple without its '.' is an error (right for a
+            Turtle document read through this path; a TriG graph block may omit it).
 
     Returns:
         A list of (graph_id, triples, namespaces) entries, one per graph
@@ -434,9 +438,10 @@ def parse_trig12_named(
     """
     result = []
     for graph_id, chunk in _split_trig_blocks_with_ids(text, base):
-        if not chunk.strip():
+        if not chunk.strip() and graph_id is None:
             continue
-        raw = StarLayerTurtleParser().parse(chunk, base=base)
+        # an empty named block (`GRAPH <g> { }`) is still a graph of the dataset (GitHub issue #99)
+        raw = StarLayerTurtleParser().parse(chunk, base=base, require_final_dot=require_final_dot)
         processed = _skolemize_encoding(raw)
         triples = list(processed)
         namespaces = list(processed.namespaces())
