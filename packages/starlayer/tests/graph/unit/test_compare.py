@@ -177,3 +177,47 @@ class TestSimpleLiteralVsExplicitXsdStringIsomorphism:
             'ex:a ex:p "high"^^xsd:string .'
         )
         assert to_canonical_hash(g1) == to_canonical_hash(g2)
+
+
+# --- many similar blank nodes (slow parts hunt): graph isomorphism is decided by canonical N-Quads, not rdflib's refinement ---
+
+
+def _people(n, city_suffix=""):
+    from starlayer.graph import StarLayerGraph
+
+    lines = ["@prefix ex: <http://example.org/> ."]
+    for i in range(n):
+        lines.append(f'ex:p{i} ex:name "Person {i}" ; ex:addr [ ex:city "City {i % 7}{city_suffix}" ; ex:zip "{10000 + i % 90}" ] .')
+    g = StarLayerGraph()
+    g.parse(data="\n".join(lines), format="turtle12")
+    return g
+
+
+def test_isomorphic_does_not_need_rdflibs_refinement_for_many_similar_blank_nodes(monkeypatch):
+    import starlayer.graph.compare as compare
+
+    def refuse(*_args, **_kwargs):
+        raise AssertionError("rdflib's isomorphism routine was reached")
+
+    monkeypatch.setattr(compare, "_rdflib_isomorphic", refuse)
+    assert compare.isomorphic(_people(300), _people(300))
+    assert not compare.isomorphic(_people(300), _people(300, city_suffix="!"))
+
+
+def test_isomorphic_is_false_when_the_graphs_differ_in_size():
+    from starlayer.graph.compare import isomorphic
+
+    assert not isomorphic(_people(5), _people(6))
+
+
+def test_isomorphic_still_treats_a_simple_literal_and_xsd_string_as_equal():
+    from starlayer.graph import StarLayerGraph
+    from starlayer.graph.compare import isomorphic
+
+    a, b = StarLayerGraph(), StarLayerGraph()
+    a.parse(data='@prefix ex: <http://e/> . ex:a ex:p "x" .', format="turtle12")
+    b.parse(
+        data='@prefix ex: <http://e/> . @prefix xsd: <http://www.w3.org/2001/XMLSchema#> . ex:a ex:p "x"^^xsd:string .',
+        format="turtle12",
+    )
+    assert isomorphic(a, b)
