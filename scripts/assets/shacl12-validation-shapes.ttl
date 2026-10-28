@@ -418,6 +418,18 @@ stsh:CustomFunctionShape
 	sh:message "A custom function is an IRI, not a blank node."@en ;
 	sh:property [ sh:path sh:bodyExpression ; sh:minCount 1 ; sh:maxCount 1 ; sh:node stsh:NodeExpressionShape ] .
 
+# A list parameter function documents its arguments by position (Node Expressions 6.2: "the values of sh:path are the values shnex:arg0, shnex:arg1 etc."), so a parameter
+# it declares has one of those as its sh:path. Documenting is optional (MAY); what is documented follows the convention.
+stsh:ListFunctionParametersShape
+	a sh:NodeShape ;
+	rdfs:label "Parameters of a list parameter function are shnex:arg0, shnex:arg1, ..."@en ;
+	sh:targetClass sh:ListParameterExpressionFunction ;
+	sh:property [
+		sh:path ( sh:parameter sh:path ) ;
+		sh:pattern "^http://www\\.w3\\.org/ns/shacl-node-expr#arg[0-9]+$" ;
+		sh:message "A parameter of a list parameter function documents an argument: its sh:path is shnex:arg0, shnex:arg1, ..."@en ;
+	] .
+
 stsh:LabelTemplateShape
 	a sh:NodeShape ;
 	rdfs:label "Well-formedness rules for sh:labelTemplate"@en ;

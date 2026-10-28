@@ -1853,3 +1853,10 @@ def test_malformed_rule_settings_target_where_and_code_hints_are_caught(ttl) -> 
 def test_a_target_where_shape_that_is_not_well_formed_is_refused() -> None:
     with pytest.raises(Exception):  # (the engine reports the bad sh:minCount itself, or the meta-shapes do)
         _validate(_TRIVIAL_DATA, _PREFIXES + "ex:S a sh:NodeShape ; sh:targetWhere [ sh:path ex:p ; sh:minCount 'x' ] .")
+
+
+def test_a_list_parameter_function_documents_its_arguments_as_arg0_arg1() -> None:
+    _validate(_TRIVIAL_DATA, _PREFIXES + "ex:L a sh:ListParameterExpressionFunction ; sh:parameter [ sh:path shnex:arg0 ], [ sh:path shnex:arg12 ] ; sh:bodyExpression [ shnex:var 'x' ] .")
+    with pytest.raises(Exception) as exc_info:
+        _validate(_TRIVIAL_DATA, _PREFIXES + "ex:L a sh:ListParameterExpressionFunction ; sh:parameter [ sh:path ex:first ] ; sh:bodyExpression [ shnex:var 'x' ] .")
+    assert "metashacl" in str(exc_info.value).lower()

@@ -3426,7 +3426,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:NodeShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n01392b968ab94118aea3be7b16e2a4e8b213 ;
+        sh:in _:n6e8402602ef84d0eab26f66198b4033eb213 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -3826,7 +3826,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:ParameterForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n01392b968ab94118aea3be7b16e2a4e8b213 ;
+        sh:in _:n6e8402602ef84d0eab26f66198b4033eb213 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -4329,7 +4329,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:PropertyShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n01392b968ab94118aea3be7b16e2a4e8b213 ;
+        sh:in _:n6e8402602ef84d0eab26f66198b4033eb213 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -5896,11 +5896,11 @@ starontology:shacl12-shacl-ui.ttl {
         sh:name "Definition"@en ;
         sh:order 0.5 .
 
-    _:n01392b968ab94118aea3be7b16e2a4e8b214 rdf:first sh:IRI ;
+    _:n6e8402602ef84d0eab26f66198b4033eb214 rdf:first sh:IRI ;
         rdf:rest ( sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) .
 
-    _:n01392b968ab94118aea3be7b16e2a4e8b213 rdf:first sh:BlankNode ;
-        rdf:rest _:n01392b968ab94118aea3be7b16e2a4e8b214 .
+    _:n6e8402602ef84d0eab26f66198b4033eb213 rdf:first sh:BlankNode ;
+        rdf:rest _:n6e8402602ef84d0eab26f66198b4033eb214 .
 }
 
 starontology:shacl12-shacl.ttl {
@@ -6267,6 +6267,13 @@ starontology:shacl12-shacl.ttl {
                 sh:or ( [ sh:datatype xsd:string ] [ sh:datatype rdf:langString ] [ sh:datatype rdf:dirLangString ] ) ;
                 sh:path sh:labelTemplate ] ;
         sh:targetSubjectsOf sh:labelTemplate .
+
+    stsh:ListFunctionParametersShape a sh:NodeShape ;
+        rdfs:label "Parameters of a list parameter function are shnex:arg0, shnex:arg1, ..."@en ;
+        sh:property [ sh:message "A parameter of a list parameter function documents an argument: its sh:path is shnex:arg0, shnex:arg1, ..."@en ;
+                sh:path ( sh:parameter sh:path ) ;
+                sh:pattern "^http://www\\.w3\\.org/ns/shacl-node-expr#arg[0-9]+$" ] ;
+        sh:targetClass sh:ListParameterExpressionFunction .
 
     stsh:NameAndDescriptionShape a sh:NodeShape ;
         rdfs:label "Well-formed sh:name and sh:description"@en ;
@@ -7143,14 +7150,6 @@ starontology:shacl12-shacl.ttl {
         sh:name "or"@en ;
         stsh:requiredEngine stsh:PySHACL .
 
-    sh:parameter rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
-            <https://www.w3.org/TR/shacl12-sparql/> ;
-        rdfs:seeAlso sh:ConstraintComponent ;
-        skos:example "sh:parameter [ sh:path ex:minScore ; sh:optional false ]"@en ;
-        sh:description "Declares one input parameter of a custom sh:ConstraintComponent — the parameter's own sh:path becomes the predicate a shape uses to supply that argument's value (e.g. ex:minScore in the example above)."@en ;
-        sh:name "parameter"@en ;
-        stsh:requiredEngine stsh:PySHACL .
-
     sh:predicate rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
             <https://www.w3.org/TR/shacl12-rules/> ;
         rdfs:seeAlso sh:TripleRule,
@@ -7248,6 +7247,14 @@ starontology:shacl12-shacl.ttl {
         skos:example "sh:path ex:homepage ; sh:nodeKind sh:IRI — the value must be a real IRI, not a literal string."@en ;
         sh:description "Restricts what *kind* of RDF term a value node may be, independent of class or datatype: sh:IRI, sh:BlankNode, sh:Literal, or one of the three compound kinds (sh:BlankNodeOrIRI, sh:BlankNodeOrLiteral, sh:IRIOrLiteral). SHACL 1.2 widens this to also accept a list of node kinds."@en ;
         sh:name "node kind"@en ;
+        stsh:requiredEngine stsh:PySHACL .
+
+    sh:parameter rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
+            <https://www.w3.org/TR/shacl12-sparql/> ;
+        rdfs:seeAlso sh:ConstraintComponent ;
+        skos:example "sh:parameter [ sh:path ex:minScore ; sh:optional false ]"@en ;
+        sh:description "Declares one input parameter of a custom sh:ConstraintComponent — the parameter's own sh:path becomes the predicate a shape uses to supply that argument's value (e.g. ex:minScore in the example above)."@en ;
+        sh:name "parameter"@en ;
         stsh:requiredEngine stsh:PySHACL .
 
     sh:property rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
@@ -7488,14 +7495,6 @@ starontology:shacl12-shacl.ttl {
         sh:name "SELECT query"@en ;
         stsh:requiredEngine stsh:PySHACL .
 
-    sh:path rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-        rdfs:seeAlso sh:alternativePath,
-            sh:inversePath ;
-        skos:example "sh:path ex:email — the simple case, a single predicate."@en ;
-        sh:description "Required on every property shape. Names the property more complex path expression that connects a focus node to its value nodes. The simplest form is a single IRI; SHACL also supports sequence, alternative, inverse, and repeated (*/+/?) paths."@en ;
-        sh:name "path"@en ;
-        stsh:requiredEngine stsh:PySHACL .
-
     sh:xone rdfs:comment "If two shapes in the list overlap (a value could satisfy both), a value that matches both fails sh:xone even though it would pass sh:or — easy to trip over when shapes aren't as mutually exclusive as intended."@en ;
         rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
         skos:example "sh:xone ( ex:IndividualShape ex:OrganizationShape ) — a party is one or the other, never both."@en ;
@@ -7539,6 +7538,14 @@ starontology:shacl12-shacl.ttl {
                                         sh:path shnex:arg ] ] stsh:NodeExpressionFunctionCallShape stsh:NamedParameterFunctionCallShape ) ] ) ;
         sh:targetClass sh:NodeExpression ;
         sh:targetObjectsOf sh:values .
+
+    sh:path rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
+        rdfs:seeAlso sh:alternativePath,
+            sh:inversePath ;
+        skos:example "sh:path ex:email — the simple case, a single predicate."@en ;
+        sh:description "Required on every property shape. Names the property more complex path expression that connects a focus node to its value nodes. The simplest form is a single IRI; SHACL also supports sequence, alternative, inverse, and repeated (*/+/?) paths."@en ;
+        sh:name "path"@en ;
+        stsh:requiredEngine stsh:PySHACL .
 }
 
 starontology:shacl12-vocabulary.ttl {
