@@ -1,13 +1,10 @@
-"""starlayer.codekg.extractor.build - the wholesale-replace orchestration.
+"""starlayer.codekg.extractor.build - builds ``codekg.trig`` from scratch.
 
-One public function, ``refresh()``: parse the existing ``codekg.trig`` (if
-any), drop every per-module named graph (leaving the ontology's own graph
-and the reserved curated graph untouched, and replacing the build-stamp graph - neither is ever file-backed by
-this extractor), re-extract each target path fresh via ``visitor.py``, and
-re-serialize. "Wholesale replace" per module: a module that's no longer in
-``target_paths`` simply stays dropped (its old graph was removed and never
-rebuilt) - this function only ever adds back exactly the graphs it's told
-to extract.
+One public function, ``refresh()``: extract each target path with ``visitor.py``, add the build stamp and serialize the
+result. The file holds only what this extractor produces (one named graph per module, plus the build stamp), so the
+previous file is not read: nothing in it is carried over. (It used to be parsed first, to keep an ontology graph and a
+curated graph that the file never contained; the ontology and curated layers are assembled from their own ``.ttl``
+files by ``scripts/build_kg.py``.)
 
 Before any single file's own triples are extracted, a whole-project
 ``symbol_index.build_symbol_index()`` pass runs once across every target
@@ -20,18 +17,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from starlayer.codekg import (
-    BLOB_BASE,
-    CODEKG_TRIG_PATH,
-    CURATED_GRAPH_IRI,
-    ONTOLOGY_GRAPH_IRI,
-    TESTS_BLOB_BASE,
-)
+from starlayer.codekg import CODEKG_TRIG_PATH
 
 
-def refresh(target_paths: list[Path], repo_root: Path, *, trig_path: Path | None = None) -> None:
-    """Re-extract every path in ``target_paths`` and wholesale-replace
-    their named graphs in ``codekg.trig``.
+def refresh(target_paths: list[Path], repo_root: Path, *, trig_path: Path | None = None):
+    """Extract every path in ``target_paths`` and write ``codekg.trig`` from scratch. Returns the dataset that was written.
 
     Args:
         target_paths: The ``.py`` files to extract (already resolved to
@@ -44,10 +34,8 @@ def refresh(target_paths: list[Path], repo_root: Path, *, trig_path: Path | None
             known roots (``packages/starlayer/starlayer/`` or
             ``packages/starlayer/tests/`` - see
             ``symbol_index.resolve_root()``).
-        trig_path: Override for where ``codekg.trig`` is read from/written
-            to - defaults to the real ``CODEKG_TRIG_PATH`` module constant.
-            Exists for testability (so a test never touches the real,
-            checked-in file).
+        trig_path: Override for where ``codekg.trig`` is written - defaults to the real ``CODEKG_TRIG_PATH`` module
+            constant. Exists for testability (so a test never touches the real, checked-in file).
     """
     from starlayer.graph.graph.starlayer_dataset import StarLayerDataset
 
@@ -56,17 +44,6 @@ def refresh(target_paths: list[Path], repo_root: Path, *, trig_path: Path | None
     path = trig_path if trig_path is not None else CODEKG_TRIG_PATH
 
     ds = StarLayerDataset()
-    if path.exists():
-        ds.parse(str(path), format="trig12")
-
-    for ctx in list(ds.contexts()):
-        iri = str(ctx.identifier)
-        if (iri.startswith(BLOB_BASE) or iri.startswith(TESTS_BLOB_BASE)) and iri not in (
-            str(CURATED_GRAPH_IRI),
-            str(ONTOLOGY_GRAPH_IRI),
-        ):
-            ds.remove_graph(ctx)
-
     index = symbol_index.build_symbol_index(target_paths, repo_root)
 
     for target_path in target_paths:
@@ -79,3 +56,4 @@ def refresh(target_paths: list[Path], repo_root: Path, *, trig_path: Path | None
 
     path.parent.mkdir(parents=True, exist_ok=True)
     ds.serialize(destination=str(path), format="trig12")
+    return ds

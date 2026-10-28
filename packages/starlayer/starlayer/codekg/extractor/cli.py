@@ -58,11 +58,7 @@ def main(argv: list[str] | None = None) -> int:
 
     from starlayer.codekg.extractor import build
 
-    build.refresh(target_paths, repo_root)
-
-    from starlayer.codekg import get_codekg_dataset
-
-    dataset = get_codekg_dataset()
+    dataset = build.refresh(target_paths, repo_root)
     total_triples = len(dataset)
 
     from starlayer.codekg.extractor import stamp
