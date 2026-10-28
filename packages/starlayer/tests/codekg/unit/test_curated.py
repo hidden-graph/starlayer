@@ -16,12 +16,14 @@ from starlayer.codekg import (
 
 def test_the_curated_graph_is_left_out_unless_asked_for(monkeypatch, tmp_path):
     """The extractor reads and rewrites the dataset it gets, so the default must never carry curated triples."""
+    monkeypatch.setattr(codekg, "TESTSKG_TRIG_PATH", tmp_path / "absent-tests.trig")
     monkeypatch.setattr(codekg, "CODEKG_TRIG_PATH", tmp_path / "absent.trig")  # skip the 15 s parse of the real file
     assert len(get_codekg_dataset().get_context(CURATED_GRAPH_IRI)) == 0
     assert len(get_codekg_dataset(include_curated=True).get_context(CURATED_GRAPH_IRI)) > 0
 
 
 def test_the_curated_graph_holds_every_curated_file(monkeypatch, tmp_path):
+    monkeypatch.setattr(codekg, "TESTSKG_TRIG_PATH", tmp_path / "absent-tests.trig")
     monkeypatch.setattr(codekg, "CODEKG_TRIG_PATH", tmp_path / "absent.trig")  # the curated files do not need the 15 s parse
     curated = get_codekg_dataset(include_curated=True).get_context(CURATED_GRAPH_IRI)
     assert next(curated.subjects(RDF.type, CODEKG_NS.Capability), None) is not None

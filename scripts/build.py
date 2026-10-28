@@ -3,7 +3,7 @@
 Runs the individual build scripts in dependency order:
 
 1. ``build_starontology.py``  - ``starontology`` generated ``.ttl`` files and ``starontology.trig``
-2. ``build_codekg.py``        - ``codekg/codekg.trig`` from the source and tests
+2. ``build_codekg.py``        - ``codekg/codekg.trig`` from the source and ``codekg/testskg.trig`` from the tests
 3. ``generate_api_docs.py``   - ``docs/generated/api-*.generated.md`` from the code KG
 4. ``generate_functionality_overview.py`` - ``docs/generated/functionality-overview.generated.md``
    from the curated functionality graph
@@ -58,7 +58,7 @@ _STEPS: dict[str, Step] = {
     "codekg": Step(
         "build_codekg.py",
         ["--paths", "packages/starlayer/starlayer", "packages/starlayer/tests"],
-        ["packages/starlayer/starlayer/codekg/codekg.trig"],
+        ["packages/starlayer/starlayer/codekg/codekg.trig", "packages/starlayer/starlayer/codekg/testskg.trig"],
         side_effects=["packages/starlayer/starlayer/codekg/CHANGELOG.md"],  # the extractor appends its automatic entry
     ),
     "apidocs": Step(

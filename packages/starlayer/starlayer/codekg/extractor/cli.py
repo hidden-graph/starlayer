@@ -58,15 +58,17 @@ def main(argv: list[str] | None = None) -> int:
 
     from starlayer.codekg.extractor import build
 
-    dataset = build.refresh(target_paths, repo_root)
-    total_triples = len(dataset)
+    dataset, tests_dataset = build.refresh(target_paths, repo_root)
+    total_triples = len(dataset) + len(tests_dataset)
 
     from starlayer.codekg.extractor import stamp
 
     stamp.append_changelog_entry(Path(__file__).resolve().parents[1] / "CHANGELOG.md", repo_root, len(target_paths), total_triples)
 
     print(f"Extracted {len(target_paths)} file(s).")
-    print(f"codekg.trig now contains {total_triples} triple(s) across {len(list(dataset.contexts()))} named graph(s).")
+    print(f"codekg.trig now contains {len(dataset)} triple(s) across {len(list(dataset.contexts()))} named graph(s).")
+    if len(tests_dataset):
+        print(f"testskg.trig now contains {len(tests_dataset)} triple(s) across {len(list(tests_dataset.contexts()))} named graph(s).")
 
     return 0
 

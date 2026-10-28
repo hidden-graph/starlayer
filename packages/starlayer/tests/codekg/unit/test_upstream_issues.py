@@ -108,6 +108,7 @@ def test_every_patch_function_is_recorded_as_a_workaround_or_explained(graph):
 
 
 def test_the_curated_graph_carries_the_issues(monkeypatch, tmp_path):
+    monkeypatch.setattr(codekg, "TESTSKG_TRIG_PATH", tmp_path / "absent-tests.trig")
     monkeypatch.setattr(codekg, "CODEKG_TRIG_PATH", tmp_path / "absent.trig")  # the curated files do not need the 15 s parse
     curated = get_codekg_dataset(include_curated=True).get_context(CURATED_GRAPH_IRI)
     assert next(curated.subjects(RDF.type, CODEKG_NS.UpstreamIssue), None) is not None
