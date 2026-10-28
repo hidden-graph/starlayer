@@ -95,9 +95,11 @@ jobs:
           echo "Oxigraph did not become ready in time" >&2
           exit 1
 
+      # The `deferred` tests (checks of committed data: the code-KG tests, the stored-file-matches-build tests) run in
+      # committed-data.yml, only when something they depend on changes and on every promotion to main.
       - name: Unit and W3C tests
         working-directory: packages/starlayer
-        run: pytest tests/ -m "not integration" --deferred -v
+        run: pytest tests/ -m "not integration" -v
 
       - name: Integration tests (Oxigraph + SQLite; Fuseki-only tests self-skip)
         working-directory: packages/starlayer
