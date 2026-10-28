@@ -509,6 +509,10 @@ class StarLayerDataset(Dataset):
         for prefix, ns in namespaces:
             if str(ns) == str(TT_NS):  # the internal triple-term prefix is not the document's (GitHub issue #132)
                 continue
+            # Every block of a TriG document repeats the document's prefixes, and rdflib's bind() rebuilds its lookup trie each
+            # time; binding a pair that is already bound changes nothing, so skip it.
+            if self.namespace_manager.store.namespace(prefix) == URIRef(str(ns)):
+                continue
             sg.bind(prefix, ns)
             self.bind(prefix, ns)
         return sg

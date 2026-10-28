@@ -296,8 +296,10 @@ def _split_trig_blocks_with_ids(
         m = _BLOCK_RE.search(scan, i)
         while m is not None:
             start = block_start(m)
-            before = scan[:start].rstrip()
-            at_statement_start = (not before) or before[-1] in '.}'
+            k = start - 1
+            while k >= 0 and scan[k].isspace():
+                k -= 1
+            at_statement_start = k < 0 or scan[k] in '.}'
             # 'GRAPH' with no label is not a block; a label without GRAPH, or a bare '{', only counts at the start of a statement
             if (m.group('kw') and not m.group('label')) or not (m.group('kw') or at_statement_start):
                 m = _BLOCK_RE.search(scan, m.start() + 1)
@@ -367,7 +369,11 @@ def extract_version_directive(text: str) -> str | None:
         extract_fields,
         split_statements,
     )
-    stmts = split_statements(text)
+    # Only the first statement matters, and a VERSION directive precedes every graph block, so the text before the first
+    # '{' is enough. (Splitting the whole document buffered each GRAPH block as one statement, which was quadratic.)
+    brace = text.find('{')
+    head = text if brace < 0 else text[:brace]
+    stmts = split_statements(head)
     if not stmts or classify_statement(stmts[0]) != 'version':
         return None
     return extract_fields(stmts[0], 'version').get('version')
