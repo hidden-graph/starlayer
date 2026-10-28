@@ -51,11 +51,11 @@ def test_the_comparison_treats_renamed_blank_nodes_as_the_same():
 
 
 # ---------------------------------------------------------------------------
-# the committed file
+# the built file (not committed; built on first use)
 
 
 @pytest.fixture(scope="module")
-def kg() -> StarLayerDataset:
+def kg(built_kg_files) -> StarLayerDataset:
     """Loaded the way an agent would: into memory, with the graphs seen as one."""
     dataset = StarLayerDataset(default_union=True)
     dataset.parse(str(KG_TRIG_PATH), format="trig12")

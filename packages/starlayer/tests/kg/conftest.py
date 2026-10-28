@@ -4,11 +4,31 @@ copy: the dataset fixture, the merged graph behind ``run_query`` and ``run_sparq
 
 from __future__ import annotations
 
+import subprocess
+import sys
+from pathlib import Path
+
 import pytest
+
+_ROOT = Path(__file__).resolve().parents[4]
 
 
 @pytest.fixture(scope="session")
-def codekg_dataset():
+def built_kg_files():
+    """The generated graphs exist: ``codekg.trig`` and ``testskg.trig`` (extractor) and ``starlayer-kg.trig`` (combined).
+
+    They are not committed, so a fresh checkout builds them here (about 30 seconds, then 75 more for the combined file);
+    an existing build is used as it is.
+    """
+    from codekg import KG_TRIG_PATH, ensure_built
+
+    ensure_built()
+    if not KG_TRIG_PATH.exists():
+        subprocess.run([sys.executable, str(_ROOT / "scripts" / "build_kg.py")], check=True, cwd=_ROOT)
+
+
+@pytest.fixture(scope="session")
+def codekg_dataset(built_kg_files):
     """The code KG (source modules, test modules, curated layer) as a dataset, parsed once per run. Read it; never change it."""
     from codekg import queries
 

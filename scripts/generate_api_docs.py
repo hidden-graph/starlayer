@@ -17,15 +17,15 @@ non-underscore-prefixed method declared directly by any class among
 those names. See ``/tmp/scope_headlines.py`` (this session's own
 scratch script) for where that definition was first worked out.
 
-Run: ``python3 scripts/generate_api_docs.py`` (rebuild
-``codekg.trig`` first via ``scripts/build_codekg.py`` if source
-docstrings have changed since the last build).
+Run: ``python3 scripts/generate_api_docs.py``. The code graph is built first if missing; rebuild it with
+``scripts/build_codekg.py`` if source docstrings have changed since the last build.
 """
 
 from __future__ import annotations
 
 import ast
 import pathlib
+import sys
 from collections import defaultdict
 
 from rdflib import RDF, RDFS, Dataset, Namespace
@@ -66,6 +66,11 @@ _BUCKET_ORDER = ["starlayer", "starlayer.graph", "starlayer.sparql", "starlayer.
 
 
 def _load_dataset() -> Dataset:
+    # The graph is not committed; build it if this checkout has none.
+    sys.path[:0] = [str(REPO_ROOT / "packages/starlayer"), str(REPO_ROOT / "tools/kg")]
+    from codekg import ensure_built
+
+    ensure_built()
     ds = Dataset()
     ds.parse(CODEKG_PATH, format="trig")
     return ds

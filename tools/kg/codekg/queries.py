@@ -34,7 +34,7 @@ from pathlib import Path
 
 from rdflib import RDF, RDFS, Literal, URIRef, Variable
 
-from . import CODEKG_NS, get_codekg_dataset
+from . import CODEKG_NS, ensure_built, get_codekg_dataset
 
 _HERE = Path(__file__).parent
 LIBRARY_TTL = _HERE / "curated" / "query-library.ttl"
@@ -162,6 +162,7 @@ def _library():
 @functools.lru_cache(maxsize=1)
 def _dataset():
     """The code KG as a dataset (source modules, test modules and the curated layer), parsed once per process. Read only."""
+    ensure_built()
     return get_codekg_dataset(include_curated=True)
 
 

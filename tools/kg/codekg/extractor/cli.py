@@ -11,7 +11,8 @@ from pathlib import Path
 # Four parents up from this file (tools/kg/codekg/extractor/cli.py): extractor -> codekg -> kg -> tools -> <repo root>.
 _REPO_ROOT = Path(__file__).resolve().parents[4]
 
-_DEFAULT_TARGET = Path("packages/starlayer/starlayer/graph/model")
+# What `python scripts/build_codekg.py` (no --paths) and `codekg.ensure_built()` extract: the library and its tests.
+_DEFAULT_TARGETS = ["packages/starlayer/starlayer", "packages/starlayer/tests"]
 
 
 def _collect_py_files(raw_paths: list[str], repo_root: Path) -> list[Path]:
@@ -42,24 +43,19 @@ def main(argv: list[str] | None = None) -> int:
         help=(
             "One or more file/directory paths to extract (relative paths are "
             "resolved against the repo root). A directory is extracted "
-            "recursively (**/*.py). Defaults to "
-            "packages/starlayer/starlayer/graph/model/ if omitted."
+            "recursively (**/*.py). Defaults to the library "
+            "and its tests (packages/starlayer/starlayer and packages/starlayer/tests)."
         ),
     )
     args = parser.parse_args(argv)
 
     repo_root = _REPO_ROOT
-    raw_paths = args.paths if args.paths is not None else [str(_DEFAULT_TARGET)]
+    raw_paths = args.paths if args.paths is not None else _DEFAULT_TARGETS
     target_paths = _collect_py_files(raw_paths, repo_root)
 
     from codekg.extractor import build
 
     dataset, tests_dataset = build.refresh(target_paths, repo_root)
-    total_triples = len(dataset) + len(tests_dataset)
-
-    from codekg.extractor import stamp
-
-    stamp.append_changelog_entry(Path(__file__).resolve().parents[1] / "CHANGELOG.md", repo_root, len(target_paths), total_triples)
 
     print(f"Extracted {len(target_paths)} file(s).")
     print(f"codekg.trig now contains {len(dataset)} triple(s) across {len(list(dataset.contexts()))} named graph(s).")

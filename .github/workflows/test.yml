@@ -26,9 +26,9 @@ jobs:
   # Generated files are committed: the generated starontology .ttl files and
   # starontology.trig, and the generated API docs. This fails if any no longer
   # matches what its build produces (e.g. after a pySHACL upgrade, an edited
-  # .ttl, or a changed generator). The code knowledge graph (codekg.trig) is
-  # repo tooling and is not checked here; the API docs are checked against the
-  # committed copy. Fix with `python scripts/build.py` and commit the result.
+  # .ttl, or a changed generator). The code knowledge graph is not committed;
+  # the API docs are checked against a graph built from the source here (about
+  # 30 seconds). Fix with `python scripts/build.py` and commit the result.
   generated-files:
     runs-on: ubuntu-latest
     steps:
@@ -42,7 +42,7 @@ jobs:
         run: pip install -e ".[test]"
 
       - name: Check generated files are current
-        run: python scripts/build.py --check --skip codekg
+        run: python scripts/build.py --check
 
   # One Python version only: this is an alpha project, and a four-version matrix
   # (3.10-3.13) made every run about four times as long. pyproject.toml still

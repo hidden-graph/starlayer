@@ -2,14 +2,13 @@
 
 ``write_stamp()`` records one ``slkg:KGBuild`` node (time, git commit, whether the working tree had uncommitted Python
 changes, file count) in its own named graph of ``codekg.trig``. ``freshness()`` compares a stamp with the repository
-as it is now. ``append_changelog_entry()`` adds an automatic line to ``codekg/CHANGELOG.md``.
+as it is now.
 
 All the git calls are best effort: no git, no repository or a shallow clone just leaves the commit out.
 """
 
 from __future__ import annotations
 
-import re
 import subprocess
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -96,24 +95,3 @@ def freshness(graph, repo_root: Path) -> Freshness | None:
         since = int(counted) if counted and counted.isdigit() else None
         uncommitted = uncommitted_python_changes(repo_root)
     return Freshness(built_at, commit, since, uncommitted)
-
-
-_AUTO = "(automatic entry)"
-
-
-def append_changelog_entry(changelog: Path, repo_root: Path, file_count: int, triple_count: int, today: datetime | None = None) -> None:
-    """Add (or replace, for the same day) the automatic entry at the top of ``CHANGELOG.md``.
-
-    Hand-written entries are left alone. The automatic one says only what the stamp says; what the extractor learned
-    to extract is still written by hand.
-    """
-    day = (today or datetime.now(timezone.utc)).strftime("%Y-%m-%d")
-    commit = head_commit(repo_root)
-    changes = uncommitted_python_changes(repo_root)
-    where = "no git commit" if not commit else f"commit {commit[:7]}" + (" with uncommitted changes" if changes else "")
-    entry = f"## {day} \u2014 regenerated {_AUTO}\n\n- Built from {where}: {file_count} files, {triple_count:,} triples.\n\n"
-    text = changelog.read_text(encoding="utf-8")
-    text = re.sub(rf"## {day} \u2014 regenerated {re.escape(_AUTO)}\n.*?(?=\n## |\Z)", "", text, flags=re.S).replace("\n\n\n", "\n\n")
-    first = re.search(r"^## ", text, re.M)
-    text = text[: first.start()] + entry + text[first.start() :] if first else text.rstrip("\n") + "\n\n" + entry
-    changelog.write_text(text, encoding="utf-8")

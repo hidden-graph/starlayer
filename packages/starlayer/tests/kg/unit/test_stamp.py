@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import subprocess
-from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -98,21 +97,9 @@ def test_a_build_from_a_dirty_tree_says_so(repo, tmp_path):
     assert graph.value(node, CODEKG_NS.hadUncommittedChanges).toPython() is True
 
 
-def test_the_changelog_gets_one_automatic_entry_per_day_and_keeps_the_hand_written_ones(tmp_path):
-    changelog = tmp_path / "CHANGELOG.md"
-    changelog.write_text("# Changelog\n\nIntro.\n\n## 2026-10-14 — regenerated (hand written)\n\n- Extractor now does X.\n", encoding="utf-8")
-    day = datetime(2026, 10, 19, tzinfo=timezone.utc)
-    stamp.append_changelog_entry(changelog, tmp_path, 10, 1234, day)
-    stamp.append_changelog_entry(changelog, tmp_path, 12, 2345, day)  # same day: replaced, not repeated
-    text = changelog.read_text(encoding="utf-8")
-    assert text.count("(automatic entry)") == 1 and "12 files, 2,345 triples" in text and "1234" not in text
-    assert text.index("2026-10-19") < text.index("2026-10-14") and "Extractor now does X." in text and "Intro." in text
-    stamp.append_changelog_entry(changelog, tmp_path, 12, 2345, datetime(2026, 10, 20, tzinfo=timezone.utc))
-    assert text.count("(automatic entry)") == 1 and changelog.read_text(encoding="utf-8").count("(automatic entry)") == 2
-
-
-def test_the_committed_graph_carries_a_stamp():
-    """After ``python scripts/build.py --only codekg``: the stamp is in the checked-in graph, not only in fresh builds."""
+@pytest.mark.deferred
+def test_the_built_graph_carries_a_stamp(built_kg_files):
+    """The stamp is in the graph file the extractor writes, not only in fresh builds."""
     from codekg import CODEKG_TRIG_PATH
 
     text = CODEKG_TRIG_PATH.read_text(encoding="utf-8")
