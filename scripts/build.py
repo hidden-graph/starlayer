@@ -58,8 +58,8 @@ _STEPS: dict[str, Step] = {
     "codekg": Step(
         "build_codekg.py",
         ["--paths", "packages/starlayer/starlayer", "packages/starlayer/tests"],
-        ["packages/starlayer/starlayer/codekg/codekg.trig", "packages/starlayer/starlayer/codekg/testskg.trig"],
-        side_effects=["packages/starlayer/starlayer/codekg/CHANGELOG.md"],  # the extractor appends its automatic entry
+        ["tools/kg/codekg/codekg.trig", "tools/kg/codekg/testskg.trig"],
+        side_effects=["tools/kg/codekg/CHANGELOG.md"],  # the extractor appends its automatic entry
     ),
     "apidocs": Step(
         "generate_api_docs.py",
@@ -90,7 +90,7 @@ def _trig_isomorphic(a: bytes, b: bytes) -> bool:
     from rdflib.compare import isomorphic
     from starlayer.graph import StarLayerDataset
 
-    from starlayer.codekg import BUILD_GRAPH_IRI
+    from codekg import BUILD_GRAPH_IRI
 
     def graphs(data: bytes) -> dict:
         ds = StarLayerDataset()

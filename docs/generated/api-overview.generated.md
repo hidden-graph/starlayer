@@ -1,6 +1,6 @@
 # StarLayer API Overview (generated)
 
-Generated directly from `packages/starlayer/starlayer/codekg/codekg.trig` - every PublicAccess entity's own headline sentence(s), nothing hand-curated. Each name links to its full entry in [api-reference.generated.md](api-reference.generated.md).
+Generated directly from `tools/kg/codekg/codekg.trig` - every PublicAccess entity's own headline sentence(s), nothing hand-curated. Each name links to its full entry in [api-reference.generated.md](api-reference.generated.md).
 
 ## `starlayer`
 

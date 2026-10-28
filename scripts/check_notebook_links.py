@@ -2,7 +2,7 @@
 
 ``codekg/curated/notebook-links.ttl`` links guide cells (by notebook and cell id) to the code they demonstrate, with a
 hash of each cell from when a person last reviewed the link. This reports each link as unchanged, edited, moved or
-broken (see ``starlayer.codekg.notebook_links``) and exits 1 unless every link is unchanged.
+broken (see ``codekg.notebook_links``) and exits 1 unless every link is unchanged.
 
     python scripts/check_notebook_links.py                 # check; exit 1 and list what needs review
     python scripts/check_notebook_links.py --show NAME     # a review packet: the link, the cell's text, the symbols
@@ -21,7 +21,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 def _show(name: str) -> int:
-    from starlayer.codekg import notebook_links as nl
+    from codekg import notebook_links as nl
 
     link = next((entry for entry in nl.load_links() if entry.name == name), None)
     if link is None:
@@ -49,7 +49,8 @@ def main() -> int:
     args = parser.parse_args()
 
     sys.path.insert(0, str(ROOT / "packages/starlayer"))
-    from starlayer.codekg import notebook_links as nl
+    sys.path.insert(0, str(ROOT / "tools/kg"))
+    from codekg import notebook_links as nl
 
     if args.show:
         return _show(args.show)

@@ -21,7 +21,7 @@ jobs:
         run: pip install ruff
 
       - name: ruff check
-        run: ruff check packages/
+        run: ruff check packages/ tools/
 
   # Generated files are committed: the generated starontology .ttl files and
   # starontology.trig, and the generated API docs. This fails if any no longer
