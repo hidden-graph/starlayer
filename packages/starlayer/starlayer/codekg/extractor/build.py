@@ -1,4 +1,4 @@
-"""starlayer.codekg.extractor.build - builds ``codekg.trig`` from scratch.
+"""starlayer.codekg.extractor.build - builds ``codekg.trig`` and ``testskg.trig`` from scratch.
 
 One public function, ``refresh()``: extract each target path with ``visitor.py``, add the build stamp and serialize the
 result. The file holds only what this extractor produces (one named graph per module, plus the build stamp), so the
@@ -17,11 +17,15 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from starlayer.codekg import CODEKG_TRIG_PATH
+from starlayer.codekg import CODEKG_TRIG_PATH, TESTS_BLOB_BASE, TESTSKG_TRIG_PATH
 
 
-def refresh(target_paths: list[Path], repo_root: Path, *, trig_path: Path | None = None):
-    """Extract every path in ``target_paths`` and write ``codekg.trig`` from scratch. Returns the dataset that was written.
+def refresh(target_paths: list[Path], repo_root: Path, *, trig_path: Path | None = None, tests_trig_path: Path | None = None):
+    """Extract every path in ``target_paths`` and write ``codekg.trig`` (the source modules and the build stamp) and
+    ``testskg.trig`` (the test modules) from scratch. Returns ``(codekg_dataset, testskg_dataset)``, what was written.
+
+    The symbol index spans every target, so a call from a test to a source function resolves although the two live in
+    different files. ``testskg.trig`` is written only when some target is a test module.
 
     Args:
         target_paths: The ``.py`` files to extract (already resolved to
@@ -36,24 +40,30 @@ def refresh(target_paths: list[Path], repo_root: Path, *, trig_path: Path | None
             ``symbol_index.resolve_root()``).
         trig_path: Override for where ``codekg.trig`` is written - defaults to the real ``CODEKG_TRIG_PATH`` module
             constant. Exists for testability (so a test never touches the real, checked-in file).
+        tests_trig_path: Override for ``testskg.trig``; with ``trig_path`` given it defaults to ``testskg.trig`` beside it.
     """
     from starlayer.graph.graph.starlayer_dataset import StarLayerDataset
 
     from . import stamp, symbol_index, visitor
 
     path = trig_path if trig_path is not None else CODEKG_TRIG_PATH
+    if tests_trig_path is None:
+        tests_trig_path = TESTSKG_TRIG_PATH if trig_path is None else trig_path.with_name("testskg.trig")
 
     ds = StarLayerDataset()
+    tests_ds = StarLayerDataset()
     index = symbol_index.build_symbol_index(target_paths, repo_root)
 
     for target_path in target_paths:
         module_iri, module_dotted_path = symbol_index.module_identity(target_path, repo_root)
         triples = visitor.extract_module(target_path, module_iri, module_dotted_path, index)
-        fresh_ctx = ds.graph(module_iri)
-        ds.addN((s, p, o, fresh_ctx) for (s, p, o) in triples)
+        target = tests_ds if str(module_iri).startswith(TESTS_BLOB_BASE) else ds
+        target.addN((s, p, o, target.graph(module_iri)) for (s, p, o) in triples)
 
     stamp.write_stamp(ds, repo_root, len(target_paths))
 
     path.parent.mkdir(parents=True, exist_ok=True)
     ds.serialize(destination=str(path), format="trig12")
-    return ds
+    if len(list(tests_ds.contexts())) > 0:
+        tests_ds.serialize(destination=str(tests_trig_path), format="trig12")
+    return ds, tests_ds

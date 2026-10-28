@@ -160,12 +160,18 @@ def _library():
 
 
 @functools.lru_cache(maxsize=1)
+def _dataset():
+    """The code KG as a dataset (source modules, test modules and the curated layer), parsed once per process. Read only."""
+    return get_codekg_dataset(include_curated=True)
+
+
+@functools.lru_cache(maxsize=1)
 def _kg():
     """All the code KG's module graphs merged into one graph, plus the curated layer (capabilities and the query library)."""
     from starlayer.graph import StarLayerGraph
 
     graph = StarLayerGraph()
-    for s, p, o, _g in get_codekg_dataset(include_curated=True).quads((None, None, None, None)):
+    for s, p, o, _g in _dataset().quads((None, None, None, None)):
         graph.add((s, p, o))
     return graph
 
