@@ -550,6 +550,20 @@ The SPARQL parser is built on pyparsing, and `ParserElement.parseString` expands
 
 Fix: `builtin_error_patches.py::patch_sparql_parser_keeps_tabs` calls `parseWithTabs()` on rdflib's `Query` and `UpdateUnit`.
 
+## 39. `p+` and `p*` over a long chain raise `RecursionError`
+
+```python
+from rdflib import Graph, URIRef
+g = Graph()
+for i in range(2000):
+    g.add((URIRef(f"http://e/n{i}"), URIRef("http://e/next"), URIRef(f"http://e/n{i + 1}")))
+list(g.query("SELECT ?x { <http://e/n0> <http://e/next>+ ?x }"))     # RecursionError: maximum recursion depth exceeded
+```
+
+`MulPath.eval` walks the chain with recursive generators (`_fwd`, `_bwd`): one nested generator frame per hop, so a chain of about a thousand hops overflows Python's stack, and every result is passed up through every frame. A graph where one node reaches thousands of others through `p+` (an organisation chart, a long `skos:broader` or `rdfs:subClassOf` chain, a linked list) fails with `RecursionError`. Found by the slow parts hunt, while timing a `knows+` query on growing graphs. Not filed upstream.
+
+Fix: `starlayer/graph/query/path_patches.py::patch_repetition_paths_are_distinct` evaluates the repetition itself (`_repetition_pairs`) with a breadth-first search and a visited set: the same set of pairs (checked against rdflib's own code on 14,400 random evaluations), no recursion. A 5,000-hop chain takes 0.34 s.
+
 ## Withdrawn entries
 
 Items 3 and 4 of this list were withdrawn on 2026-10-25 (GitHub issue #54). Both claimed that a `BIND` should see a variable bound in a sibling or enclosing group, and StarLayer patched rdflib (`patch_evalextend_forgotten_bind_vars`, `patch_lazy_join_expr_dependency_order`) to make it so. SPARQL 1.1 section 18.2.2.6 evaluates each group on its own and joins the results, so a `BIND` cannot see such a variable and plain rdflib was right. For example `SELECT * { VALUES ?x {1 2} { BIND(?x+1 AS ?y) } }` returns `?x` only, and `{ BIND(:v1 AS ?t0) { { BIND(?t0 AS ?o) } UNION { BIND(:v2 AS ?o) } } ?s :p ?o }` returns every `?s :p ?o` row once per union branch (six rows, not two). Both patches were removed; `tests/graph/unit/test_bind_scoping.py` pins the spec behaviour. The numbers 3 and 4 are not reused. Items 8 and 16 (`FILTER`) are the same question for filters and have not been re-examined.

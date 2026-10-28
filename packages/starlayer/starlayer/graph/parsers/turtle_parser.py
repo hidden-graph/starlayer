@@ -972,6 +972,11 @@ def decode_tt_encoded_triples(g: Graph):
         yield (s_out, p, o_out)
 
 
+# the characters _strip_blank_and_comment_lines has to look at one by one; everything between them is copied in a slice
+_STRIP_OUT_OF_STRING = re.compile(r'[\n\r"\']')
+_STRIP_IN_STRING = {'"': re.compile(r'[\n\r\\"]'), "'": re.compile(r"[\n\r\\']")}
+
+
 def _strip_blank_and_comment_lines(data):
     """Drop blank and whole-line-comment lines from data, tracking string
     state so a line is only dropped when it's genuinely outside any open
@@ -1008,11 +1013,20 @@ def _strip_blank_and_comment_lines(data):
     string_char = ''
     triple = False
     orig_lineno = 1
-    line_buf = []
+    line_buf = []  # pieces of the current line; runs of ordinary characters are taken in one slice
     line_start_in_string = False
     i = 0
     n = len(data)
     while i < n:
+        m = (_STRIP_IN_STRING[string_char] if in_string else _STRIP_OUT_OF_STRING).search(data, i)
+        if m is None:
+            line_buf.append(data[i:])
+            i = n
+            break
+        j = m.start()
+        if j > i:
+            line_buf.append(data[i:j])
+        i = j
         c = data[i]
         if c in ('\n', '\r'):
             raw_line = ''.join(line_buf)
@@ -1029,12 +1043,10 @@ def _strip_blank_and_comment_lines(data):
             i += len(terminator)
             continue
         if in_string and c == '\\' and i + 1 < n:
-            # Skip an escaped character as one atomic pair, before the
-            # string_char check below ever sees it - otherwise an escaped
-            # quote sitting directly against the real closing delimiter
-            # (e.g. a docstring ending "...the word \"profile.\"\"\"\"")
-            # is misread as itself starting the close, one character
-            # early. Mirrors syntax._split_statements_impl's matching fix.
+            # Skip an escaped character as one atomic pair, before the string_char check below ever sees it - otherwise
+            # an escaped quote sitting directly against the real closing delimiter (e.g. a docstring ending
+            # "...the word \"profile.\"\"\"\"") is misread as itself starting the close, one character early.
+            # Mirrors syntax._split_statements_impl's matching fix.
             line_buf.append(c)
             line_buf.append(data[i + 1])
             i += 2

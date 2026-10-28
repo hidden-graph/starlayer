@@ -108,7 +108,10 @@ def register_native_components() -> None:
     from starlayer.shacl.rule_conditions import install_rule_condition_patch
 
     install_rule_condition_patch()  # class-shape condition superclasses, sh:order errors (GitHub issue #137)
+    from starlayer.shacl.component_cache import install_component_cache_patch
+
     if _registered:
+        install_component_cache_patch()  # a component registered since the last call is wrapped too
         return
 
     from pyshacl.constraints import (
@@ -136,6 +139,7 @@ def register_native_components() -> None:
             ALL_CONSTRAINT_COMPONENTS.append(component_cls)
 
     _registered = True
+    install_component_cache_patch()  # one construction per shape, not per focus node
 
 
 def _build_some_value_component() -> Any:

@@ -47,6 +47,21 @@ _BLOCK_RE = _re.compile(
     r'\s*\{(?!\|)',
     _re.IGNORECASE,
 )
+_NON_SPACE_RE = _re.compile(r'\S')
+
+
+def _search_block(scan: str, pos: int):
+    """``_BLOCK_RE.search(scan, pos)``, starting at the first non-space character. A match that begins in white space can only
+    be a bare ``{`` (a label or a ``GRAPH`` keyword starts with a visible character), and ``_BLOCK_RE`` re-reads the rest of
+    the white space for every start, so a long blank run (the prefix lines that were blanked before this scan, 16 KB in the
+    code graph) cost time proportional to its square: a second to find the first block. Starting at the first visible
+    character finds the same blocks."""
+    visible = _NON_SPACE_RE.search(scan, pos)
+    if visible is None:
+        return None
+    return _BLOCK_RE.search(scan, visible.start())
+
+
 _DIRECTIVE_RE = _re.compile(
     r'@prefix\s+[^\s<]*\s*<[^>]*>\s*\.|\bPREFIX\s+[^\s<]*\s*<[^>]*>'
     r'|@base\s*<[^>]*>\s*\.|\bBASE\s*<[^>]*>|@version\b[^.]*\.|\bVERSION\b\s*\S+',
@@ -69,21 +84,36 @@ _PREFIX_RE = _re.compile(
 )
 
 
+# the characters _consume_balanced has to look at one by one; everything between them is skipped in one step
+_BALANCE_SPECIALS = _re.compile(r"[{}<\"'#]")
+
+
 def _consume_balanced(text: str, start: int) -> tuple[str, int]:
     """Consume from text[start] (must be '{') to the matching '}', return (block, end)."""
     assert text[start] == '{'
     depth = 1
     i = start + 1
-    while i < len(text) and depth > 0:
-        if text[i] == '{':
+    n = len(text)
+    while i < n and depth > 0:
+        m = _BALANCE_SPECIALS.search(text, i)
+        if m is None:
+            i = n
+            break
+        i = m.start()
+        c = text[i]
+        if c == '{':
             depth += 1
-        elif text[i] == '}':
+        elif c == '}':
             depth -= 1
-        elif text[i] == '<' and not text.startswith('<<(', i):
-            i = text.find('>', i + 1) + 1
+        elif c == '<' and not text.startswith('<<(', i):
+            end = text.find('>', i + 1)
+            if end == -1:  # an unterminated IRI: the rest of the text. (find() + 1 was 0 here, which sent the caller back to the start, forever)
+                i = n
+                break
+            i = end + 1
             continue
-        elif text.startswith('<<(', i):
-            # Triple term — skip to matching )>>
+        elif c == '<':
+            # Triple term - skip to matching )>>
             d2 = 1
             i += 3
             while i < len(text) and d2 > 0:
@@ -91,29 +121,22 @@ def _consume_balanced(text: str, start: int) -> tuple[str, int]:
                 elif text.startswith(')>>', i): d2 -= 1; i += 3
                 else: i += 1
             continue
-        elif text[i] in '"\'':
-            # String literal — skip to end. A long ('"""'/"'''"-delimited)
-            # string needs the real closing run of 3 matching quote
-            # chars, not just the next single matching one - otherwise a
-            # lone embedded quote character (legal Turtle content, e.g. a
-            # docstring quoting a short phrase like this very module's own
-            # module-level docstring, which quotes GRAPH-block syntax)
-            # closes the "string" after only 2 characters, scrambling this
-            # function's own brace-depth tracking for everything that
-            # follows - confirmed via this project's own code-KG extractor
-            # feeding this project's own trig12.py back through itself.
-            # Mirrors syntax._split_statements_impl's matching fix.
-            q = text[i]
+        elif c in '"\'':
+            # String literal - skip to its end. A long ('"""'/"\'\'\'"-delimited) string needs the real closing run of 3
+            # matching quote chars, not just the next single matching one - otherwise a lone embedded quote character
+            # (legal Turtle content, e.g. a docstring quoting a short phrase like this very module's own module-level
+            # docstring, which quotes GRAPH-block syntax) closes the "string" after only 2 characters, scrambling this
+            # function's own brace-depth tracking for everything that follows - confirmed via this project's own code-KG
+            # extractor feeding this project's own trig12.py back through itself. Mirrors syntax._split_statements_impl's
+            # matching fix.
+            q = c
             if text.startswith(q * 3, i):
                 i += 3
                 while i < len(text) and not text.startswith(q * 3, i):
-                    # Skip an escaped character as one atomic pair, same
-                    # fix as the short-string branch just below and
-                    # syntax._split_statements_impl's matching one -
-                    # otherwise an escaped quote sitting directly against
-                    # the real closing delimiter (e.g. a docstring ending
-                    # "...the word \"profile.\"\"\"\"") is misread as
-                    # itself starting the close, one character early.
+                    # Skip an escaped character as one atomic pair, same fix as the short-string branch just below and
+                    # syntax._split_statements_impl's matching one - otherwise an escaped quote sitting directly against
+                    # the real closing delimiter (e.g. a docstring ending "...the word \"profile.\"\"\"\"") is misread
+                    # as itself starting the close, one character early.
                     i += 2 if text[i] == '\\' else 1
                 i = min(i + 3, len(text))
             else:
@@ -123,10 +146,12 @@ def _consume_balanced(text: str, start: int) -> tuple[str, int]:
                     elif text[i] == q: i += 1; break
                     else: i += 1
             continue
-        elif text[i] == '#':
-            i = text.find('\n', i) + 1
-            if i == 0:
+        elif c == '#':
+            end = text.find('\n', i)
+            if end == -1:  # a comment on the last line of an unterminated block: the rest of the text (i was 0 here, and the caller started over, forever)
+                i = n
                 break
+            i = end + 1
             continue
         i += 1
     return text[start:i], i
@@ -293,7 +318,7 @@ def _split_trig_blocks_with_ids(
         return m.end() - 1
 
     while i < len(text):
-        m = _BLOCK_RE.search(scan, i)
+        m = _search_block(scan, i)
         while m is not None:
             start = block_start(m)
             k = start - 1
@@ -302,7 +327,7 @@ def _split_trig_blocks_with_ids(
             at_statement_start = k < 0 or scan[k] in '.}'
             # 'GRAPH' with no label is not a block; a label without GRAPH, or a bare '{', only counts at the start of a statement
             if (m.group('kw') and not m.group('label')) or not (m.group('kw') or at_statement_start):
-                m = _BLOCK_RE.search(scan, m.start() + 1)
+                m = _search_block(scan, m.start() + 1)
                 continue
             break
         if m is None:
