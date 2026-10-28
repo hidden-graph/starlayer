@@ -38,6 +38,14 @@ FORMS = {
     "SPARQLFunctionForm": SH.SPARQLFunction,
     "SPARQLTargetForm": SH.SPARQLTarget,
     "WidgetScoreForm": SHUI.WidgetScore,
+    "ResultAnnotationForm": SH.ResultAnnotation,
+    "RuleSetForm": SH.RuleSet,
+    "WidgetForm": SHUI.Widget,
+    "WidgetAcceptMatcherForm": SHUI.WidgetAcceptMatcher,
+    "ConfigurationForm": SHUI.Configuration,
+    "GraphForm": SH.Graph,
+    "NamedParameterExpressionFunctionForm": SH.NamedParameterExpressionFunction,
+    "ListParameterExpressionFunctionForm": SH.ListParameterExpressionFunction,
 }
 
 
@@ -132,7 +140,7 @@ def test_the_group_and_shapes_graph_forms_state_what_a_field_takes(ui) -> None:
             if predicate in (SH.subject, SH.predicate, SH.object, SH.path, SH.equals, SH.disjoint, SH.hasValue, SH["in"], SH.defaultValue):
                 continue  # a node expression, a path, or a value of any kind: the form cannot say
             if predicate in (SH["and"], SH["or"], SH.xone, SH.ignoredProperties, SH.languageIn, SH.values, SH.expression,
-                             SH.lessThan, SH.lessThanOrEquals, SH.memberShape, SH.closed):
+                             SH.lessThan, SH.lessThanOrEquals, SH.memberShape, SH.closed, SH.bodyExpression, SHUI.languagePreference, SHUI.labelPreference):
                 continue
             assert list(ui.objects(field, SH.nodeKind)) or list(ui.objects(field, SH.datatype)), (name, predicate, "states neither a node kind nor a datatype")
 
@@ -336,13 +344,15 @@ _CONTEXT = {
     "AskValidatorForm": ('ex:C a sh:ConstraintComponent ; sh:parameter [ sh:path ex:p ] ; sh:validator ex:K . ex:K a sh:SPARQLAskValidator ; sh:ask "ASK {}" .', "ex:K"),
     "SelectValidatorForm": ('ex:C a sh:ConstraintComponent ; sh:parameter [ sh:path ex:p ] ; sh:nodeValidator ex:K . ex:K a sh:SPARQLSelectValidator ; sh:select "SELECT $this WHERE {}" .', "ex:K"),
     "ConstraintComponentForm": ('ex:K a sh:ConstraintComponent ; sh:parameter [ sh:path ex:p ] ; sh:nodeValidator [ sh:select "SELECT $this WHERE {}" ] .', "ex:K"),
+    "RuleSetForm": ('ex:K a sh:RuleSet .', "ex:K"),
+    "ResultAnnotationForm": ('ex:S a sh:NodeShape ; sh:sparql [ sh:select "SELECT $this WHERE {}" ; sh:resultAnnotation ex:K ] . ex:K a sh:ResultAnnotation ; sh:annotationProperty ex:time .', "ex:K"),
 }
 # structures a single sample cannot stand for: nodes with fields of their own, node expressions, queries, lists of shapes
 _NOT_SAMPLED = {SH.parameter, SH.validator, SH.nodeValidator, SH.propertyValidator, SH.condition, SH.prefixes, SH.declare, SH.subject, SH.predicate,
-                SH.object, SH.select, SH.ask, SH.construct, SH.prefix, SH.namespace, RDF.type}
+                SH.object, SH.select, SH.ask, SH.construct, SH.prefix, SH.namespace, RDF.type, SH.resultAnnotation, SH.annotationProperty, SH.hasRule}  # (a result annotation is a node with fields of its own; its property is required, exactly one)
 _SAMPLES = {SH.layer: ["1"], SH.runOnce: ["true"], SH.expectedPredicate: ["ex:p"], SH.labelTemplate: ['"x"'], SH.order: ["1"], SH.name: ['"x"'],
             SH.description: ['"x"'], SH.message: ['"x"'], SH.severity: ["sh:Warning"], SH.deactivated: ["true"], RDFS.label: ['"x"'], RDFS.comment: ['"x"'],
-            RDFS.member: ["ex:m"], OWL.imports: ["ex:g"], SH.entailment: ["ex:r"], RDFS.isDefinedBy: ["ex:g"]}
+            RDFS.member: ["ex:m"], OWL.imports: ["ex:g"], SH.entailment: ["ex:r"], RDFS.isDefinedBy: ["ex:g"], SH.annotationVarName: ['"x"'], SH.annotationValue: ["1", '"x"'], SH.includesRuleSet: ["ex:other"]}
 
 
 @pytest.mark.parametrize("name", sorted(_CONTEXT))
@@ -366,3 +376,22 @@ def test_every_required_field_of_every_form_is_in_a_minimal_valid_element(ui) ->
     assert not accepted('ex:S a sh:NodeShape ; sh:sparql [ sh:prefixes ex:SG ] .')
     assert not accepted('ex:S a sh:NodeShape ; sh:rule [ a sh:SPARQLRule ] .')
     assert not accepted('ex:C a sh:ConstraintComponent .')
+
+
+def test_a_parameter_form_has_the_fields_of_a_property_shape_less_what_has_no_meaning_for_a_parameter(ui) -> None:
+    """SPARQL Extensions 4.2.1: sh:Parameter is a subclass of sh:PropertyShape and all properties applicable to property shapes may be used. Nothing is validated against
+    data for a parameter, so targets, rules and what a result carries are left out; sh:optional and sh:keyParameter are added, each for one kind of holder."""
+    parameter, shape = set(fields(ui, "ParameterForm")), set(fields(ui, "PropertyShapeForm"))
+    gone = {SH.targetClass, SH.targetNode, SH.targetSubjectsOf, SH.targetObjectsOf, SH.target, SH.targetWhere, SH.rule, SH.message, SH.severity, SH.deactivated, SH.values}
+    assert parameter == (shape - gone) | {SH.optional, SH.keyParameter}
+    assert not parameter & gone
+    assert {SH["class"], SH.datatype, SH.minCount, SH.pattern, SH.group, SH.defaultValue, SH.codeIdentifier} <= parameter
+    assert (fields(ui, "ParameterForm")[SH.path], SH.minCount, Literal(1)) in ui, "exactly one sh:path (4.2.1)"
+
+
+def test_optional_is_for_the_parameters_of_a_constraint_component_and_key_parameter_for_those_of_a_named_parameter_function(ui) -> None:
+    STSH = Namespace("https://github.com/hidden-graph/starlayer/ns/shacl#")
+    form = fields(ui, "ParameterForm")
+    assert list(ui.objects(form[SH.optional], STSH.formHeldBy)) == [SH.ConstraintComponent]
+    assert list(ui.objects(form[SH.keyParameter], STSH.formHeldBy)) == [SH.NamedParameterExpressionFunction]
+    assert not list(ui.objects(form[SH.path], STSH.formHeldBy)), "the rest are for every parameter"

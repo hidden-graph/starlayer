@@ -541,8 +541,21 @@ class TestShaclVocabulary:
                 (order,) = vocabulary.objects(prop, SH.order)
                 defines.append((int(order), next(vocabulary.objects(prop, SH["class"]))))
         kinds = [kind for _order, kind in sorted(defines)]
-        assert kinds[:3] == [SH.NodeShape, SH.PropertyShape, SH.PropertyGroup] and len(kinds) == 13
-        assert {SH.Function, SH.ConstraintComponent, SH.TripleRule, SH.Target} <= set(kinds)
+        assert kinds[:3] == [SH.PrefixDeclaration, SH.NodeShape, SH.PropertyShape] and len(kinds) == 19, "one property shape and one class per kind"
+        assert {SH.SPARQLConstraint, SH.Parameter, SH.ResultAnnotation, SH.RuleSet, SH.ConstraintComponent, SH.TripleRule} <= set(kinds)
+        assert not {SH.Function, SH.SPARQLFunction, SH.Target} & set(kinds), "SHACL-AF kinds that SHACL 1.2 no longer defines"
+        # each kind is in a group, and the groups and the kinds are ordered together
+        groups = {}
+        for prop in vocabulary.objects(STSH.ShapesGraphShape, SH.property):
+            (path,) = vocabulary.objects(prop, SH.path)
+            if (path, SH.inversePath, RDFS.isDefinedBy) in vocabulary:
+                (group,) = vocabulary.objects(prop, SH.group)
+                (group_order,) = vocabulary.objects(group, SH.order)
+                (order,) = vocabulary.objects(prop, SH.order)
+                groups.setdefault(int(group_order), []).append(int(order))
+        assert sorted(groups) == [1, 2, 3, 4, 5]
+        flat = [o for g in sorted(groups) for o in sorted(groups[g])]
+        assert flat == sorted(flat), "a kind's order never goes back across a group"
         assert (STSH.ShapesGraphUses, SH.path, RDFS.member) in vocabulary
 
     def test_the_vendored_file_matches_its_record(self):

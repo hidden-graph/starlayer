@@ -1627,3 +1627,229 @@ class TestShapesGraphFormCoverage:
         shapes.parse(data=self._PREFIX + "ex:S a sh:NodeShape ; rdfs:isDefinedBy ex:G1 .", format="turtle")
         _conforms, report_graph, _text = meta_validate(shapes)
         assert (None, URIRef("http://www.w3.org/ns/shacl#resultSeverity"), None) not in report_graph
+
+
+# ---------------------------------------------------------------------------
+# Result annotations (SHACL SPARQL Extensions, Section 5)
+# ---------------------------------------------------------------------------
+
+_ANNOTATED = """
+    @prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+    ex:S a sh:NodeShape ; sh:targetClass ex:Record ;
+      sh:sparql [ sh:select "SELECT $this WHERE { }" ; sh:message "m" ; sh:resultAnnotation %s ] .
+"""
+
+
+def test_a_well_formed_result_annotation_passes() -> None:
+    _validate(_TRIVIAL_DATA, _ANNOTATED % "[ sh:annotationProperty ex:time ; sh:annotationVarName \"when\" ; sh:annotationValue 1, \"x\" ]")
+
+
+@pytest.mark.parametrize(
+    "annotation",
+    [
+        '[ sh:annotationVarName "when" ]',  # no property
+        "[ sh:annotationProperty ex:time, ex:other ]",  # two properties
+        '[ sh:annotationProperty "time" ]',  # a literal, not an IRI
+        "[ sh:annotationProperty ex:time ; sh:annotationVarName 7 ]",  # a variable name that is not a string
+        '[ sh:annotationProperty ex:time ; sh:annotationVarName "a", "b" ]',  # two variable names
+        '"not an annotation"',  # a literal, not an IRI or a blank node
+    ],
+)
+def test_a_malformed_result_annotation_is_caught(annotation) -> None:
+    with pytest.raises(Exception) as exc_info:
+        _validate(_TRIVIAL_DATA, _ANNOTATED % annotation)
+    assert "metashacl" in str(exc_info.value).lower()
+
+
+# ---------------------------------------------------------------------------
+# Parameter declarations (SHACL SPARQL Extensions 4.2.1, Node Expressions 6.1)
+# ---------------------------------------------------------------------------
+
+_PREFIXES = "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix shnex: <http://www.w3.org/ns/shacl-node-expr#> . "
+
+
+def _component(parameters: str) -> str:
+    return _PREFIXES + f"ex:C a sh:ConstraintComponent ; sh:validator [ a sh:SPARQLAskValidator ; sh:ask 'ASK {{ }}' ] ; sh:parameter {parameters} ."
+
+
+@pytest.mark.parametrize(
+    "shapes",
+    [
+        _component("[ sh:path ex:minScore ]"),
+        _component("[ sh:path ex:minScore ], [ sh:path ex:flags ; sh:optional true ]"),
+        _component("[ sh:path <http://example.org/a_1> ; sh:optional false ]"),
+        _PREFIXES + "ex:F a sh:NamedParameterExpressionFunction ; sh:parameter [ sh:path ex:x ; sh:keyParameter true ], [ sh:path ex:y ] ; sh:bodyExpression [ shnex:var 'x' ] .",
+        _PREFIXES + "ex:L a sh:ListParameterExpressionFunction ; sh:parameter [ sh:path shnex:arg0 ], [ sh:path shnex:arg1 ] ; sh:bodyExpression [ shnex:var 'x' ] .",
+    ],
+)
+def test_well_formed_parameters_pass(shapes) -> None:
+    _validate(_TRIVIAL_DATA, shapes)
+
+
+@pytest.mark.parametrize(
+    "shapes",
+    [
+        _component("[ sh:path <http://example.org/a-b> ]"),  # not a valid variable name
+        _component("[ sh:path ex:this ]"),  # a reserved name
+        _component("[ sh:path ex:value ]"),
+        _component("[ sh:path ex:p ], [ sh:path <http://other.example/p> ]"),  # two parameters with the same name
+        _component("[ sh:path ex:p ; sh:optional true ]"),  # nothing non-optional
+        _component("[ sh:path ex:p ; sh:optional 'yes' ]"),  # not a boolean
+        _component("[ sh:path ex:p ; sh:optional true, false ]"),  # two values
+        _PREFIXES + "ex:F a sh:NamedParameterExpressionFunction ; sh:parameter [ sh:path ex:x ] ; sh:bodyExpression [ shnex:var 'x' ] .",  # no key parameter
+        _PREFIXES + "ex:F a sh:NamedParameterExpressionFunction ; sh:parameter [ sh:path ex:x ; sh:keyParameter 1 ] ; sh:bodyExpression [ shnex:var 'x' ] .",
+    ],
+)
+def test_malformed_parameters_are_caught(shapes) -> None:
+    with pytest.raises(Exception) as exc_info:
+        _validate(_TRIVIAL_DATA, shapes)
+    assert "metashacl" in str(exc_info.value).lower()
+
+
+# ---------------------------------------------------------------------------
+# Rule sets (SHACL Inference Rules, "Rule Sets")
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "shapes",
+    [
+        _PREFIXES + "ex:RS a sh:RuleSet ; sh:hasRule ex:R1, [ a sh:SPARQLRule ; sh:construct 'CONSTRUCT { } WHERE { }' ] ; sh:includesRuleSet ex:RS2 . ex:R1 a sh:TripleRule . ex:RS2 a sh:RuleSet .",
+        _PREFIXES + "ex:RS a sh:RuleSet ; sh:includesRuleSet ex:RS .",  # a cycle is fine
+        _PREFIXES + "ex:RS a sh:RuleSet .",
+    ],
+)
+def test_well_formed_rule_sets_pass(shapes) -> None:
+    _validate(_TRIVIAL_DATA, shapes)
+
+
+@pytest.mark.parametrize(
+    "shapes",
+    [
+        _PREFIXES + "[ a sh:RuleSet ; sh:includesRuleSet ex:RS2 ] .",  # a blank node rule set
+        _PREFIXES + "ex:RS a sh:RuleSet ; sh:includesRuleSet [ a sh:RuleSet ] .",  # a blank node included
+        _PREFIXES + "ex:RS a sh:RuleSet ; sh:includesRuleSet 'ex:RS2' .",  # a literal
+        _PREFIXES + "ex:RS sh:hasRule ex:R1 . ex:R1 a ex:NotARule .",  # a rule of no kind
+        _PREFIXES + "ex:RS a sh:RuleSet ; sh:hasRule 'a rule' .",  # a literal
+    ],
+)
+def test_malformed_rule_sets_are_caught(shapes) -> None:
+    with pytest.raises(Exception) as exc_info:
+        _validate(_TRIVIAL_DATA, shapes)
+    assert "metashacl" in str(exc_info.value).lower()
+
+
+# ---------------------------------------------------------------------------
+# Custom node expression functions and label templates
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "shapes",
+    [
+        _PREFIXES + "ex:F a sh:NamedParameterExpressionFunction ; sh:parameter [ sh:path ex:x ; sh:keyParameter true ] ; sh:bodyExpression [ shnex:var 'x' ] .",
+        _PREFIXES + "ex:L a sh:ListParameterExpressionFunction ; sh:bodyExpression [ shnex:concat ( [ shnex:arg 0 ] ) ] .",
+        _component("[ sh:path ex:p ]").replace(" .", " ; sh:labelTemplate 'p is {?p}', 'p ist {?p}'@de .", 1) if False else _component("[ sh:path ex:p ]") + " ex:C sh:labelTemplate 'p is {?p}', 'p ist {?p}'@de .",
+    ],
+)
+def test_well_formed_custom_functions_and_label_templates_pass(shapes) -> None:
+    _validate(_TRIVIAL_DATA, shapes)
+
+
+@pytest.mark.parametrize(
+    "shapes",
+    [
+        _PREFIXES + "ex:F a sh:NamedParameterExpressionFunction ; sh:parameter [ sh:path ex:x ; sh:keyParameter true ] .",  # no body
+        _PREFIXES + "ex:F a sh:NamedParameterExpressionFunction ; sh:parameter [ sh:path ex:x ; sh:keyParameter true ] ; sh:bodyExpression [ shnex:var 'x' ], [ shnex:var 'y' ] .",  # two bodies
+        _PREFIXES + "[ a sh:NamedParameterExpressionFunction ; sh:parameter [ sh:path ex:x ; sh:keyParameter true ] ; sh:bodyExpression [ shnex:var 'x' ] ] .",  # a blank node function
+        _component("[ sh:path ex:p ]") + " ex:C sh:labelTemplate 7 .",  # not a string
+        _component("[ sh:path ex:p ]") + " ex:C sh:labelTemplate ex:T .",  # an IRI
+    ],
+)
+def test_malformed_custom_functions_and_label_templates_are_caught(shapes) -> None:
+    with pytest.raises(Exception) as exc_info:
+        _validate(_TRIVIAL_DATA, shapes)
+    assert "metashacl" in str(exc_info.value).lower()
+
+
+# ---------------------------------------------------------------------------
+# The settings of a shui:Configuration and the links from a data graph (SHACL UI 3.4; the vocabulary's sh:DataGraph)
+# ---------------------------------------------------------------------------
+
+_UI = "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix shui: <http://www.w3.org/ns/shacl-ui#> . @prefix xsd: <http://www.w3.org/2001/XMLSchema#> . "
+
+
+def _ui_check(ttl: str):
+    shapes = Graph()
+    shapes.parse(data=_UI + ttl, format="turtle")
+    return meta_validate(shapes, extra_graphs=[_shui_ui_graph()])
+
+
+@pytest.mark.parametrize(
+    "ttl",
+    [
+        "ex:G a sh:Graph ; shui:defaultNamespace 'http://example.org/' ; shui:languagePreference ( 'en' '' ) ; shui:timeZone 'Europe/Paris' ; shui:defaultOrder 5 ; shui:defaultWidgetScore 40.5 .",
+        "ex:G a sh:DataGraph ; sh:shapesGraph ex:S1, ex:S2 ; sh:suggestedShapesGraph ex:S3 .",
+        "ex:G shui:labelPreference ( ex:label ( ex:a ex:b ) ) .",
+    ],
+)
+def test_well_formed_configuration_and_data_graph_links_pass(ttl) -> None:
+    conforms, _report, _text = _ui_check(ttl)
+    assert conforms is True
+
+
+@pytest.mark.parametrize(
+    "ttl",
+    [
+        "ex:G shui:defaultNamespace 'a', 'b' .",  # two
+        "ex:G shui:defaultNamespace ex:NotALiteral .",
+        "ex:G shui:timeZone 7 .",  # not a string
+        "ex:G shui:defaultOrder 'first' .",  # not a number
+        "ex:G shui:defaultWidgetScore 1, 2 .",
+        "ex:G shui:languagePreference ( 'en' 7 ) .",  # a list member that is not a string
+        "ex:G shui:languagePreference 'en' .",  # not a list
+        "ex:G sh:shapesGraph 'ex:S' .",  # a literal
+        "ex:G sh:suggestedShapesGraph [ ] .",  # a blank node
+    ],
+)
+def test_malformed_configuration_and_data_graph_links_are_caught(ttl) -> None:
+    with pytest.raises(pyshacl.errors.ReportableRuntimeError):
+        _ui_check(ttl)
+
+
+# ---------------------------------------------------------------------------
+# sh:layer, sh:runOnce, sh:expectedPredicate, sh:targetWhere, sh:codeIdentifier, sh:codeType
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "ttl",
+    [
+        "ex:S a sh:NodeShape ; sh:rule [ a sh:TripleRule ; sh:layer 2 ; sh:runOnce true ; sh:expectedPredicate ex:p, ex:q ] .",
+        "ex:S a sh:NodeShape ; sh:targetWhere ex:T . ex:T a sh:NodeShape ; sh:class ex:C .",
+        "ex:S a sh:NodeShape ; sh:property [ sh:path ex:p ; sh:codeIdentifier 'age' ; sh:codeType xsd:integer ] .",
+    ],
+)
+def test_well_formed_rule_settings_target_where_and_code_hints_pass(ttl) -> None:
+    _validate(_TRIVIAL_DATA, "@prefix xsd: <http://www.w3.org/2001/XMLSchema#> . " + _PREFIXES + ttl)
+
+
+@pytest.mark.parametrize(
+    "ttl",
+    [
+        "ex:S a sh:NodeShape ; sh:rule [ a sh:TripleRule ; sh:layer 'first' ] .",
+        "ex:S a sh:NodeShape ; sh:rule [ a sh:TripleRule ; sh:runOnce 'yes' ] .",
+        "ex:S a sh:NodeShape ; sh:rule [ a sh:TripleRule ; sh:expectedPredicate 'p' ] .",
+        "ex:S a sh:NodeShape ; sh:property [ sh:path ex:p ; sh:codeIdentifier 5 ] .",
+        "ex:S a sh:NodeShape ; sh:property [ sh:path ex:p ; sh:codeType 'integer' ] .",
+    ],
+)
+def test_malformed_rule_settings_target_where_and_code_hints_are_caught(ttl) -> None:
+    with pytest.raises(Exception) as exc_info:
+        _validate(_TRIVIAL_DATA, "@prefix xsd: <http://www.w3.org/2001/XMLSchema#> . " + _PREFIXES + ttl)
+    assert "metashacl" in str(exc_info.value).lower()
+
+
+def test_a_target_where_shape_that_is_not_well_formed_is_refused() -> None:
+    with pytest.raises(Exception):  # (the engine reports the bad sh:minCount itself, or the meta-shapes do)
+        _validate(_TRIVIAL_DATA, _PREFIXES + "ex:S a sh:NodeShape ; sh:targetWhere [ sh:path ex:p ; sh:minCount 'x' ] .")

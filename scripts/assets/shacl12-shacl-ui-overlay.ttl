@@ -260,6 +260,21 @@ shui:widget sh:group stsh:DefinitionGroup ; sh:order 11 .
 shui:score sh:group stsh:DefinitionGroup ; sh:order 12 .
 shui:shapesGraphShape sh:group stsh:DefinitionGroup ; sh:order 13 .
 shui:dataGraphShape sh:group stsh:DefinitionGroup ; sh:order 14 .
+sh:annotationProperty sh:group stsh:DefinitionGroup ; sh:order 15 .
+sh:annotationVarName sh:group stsh:DefinitionGroup ; sh:order 16 .
+sh:annotationValue sh:group stsh:DefinitionGroup ; sh:order 17 .
+sh:resultAnnotation sh:group stsh:DefinitionGroup ; sh:order 18 .
+sh:hasRule sh:group stsh:DefinitionGroup ; sh:order 19 .
+sh:includesRuleSet sh:group stsh:DefinitionGroup ; sh:order 20 .
+shui:defaultNamespace sh:group stsh:DefinitionGroup ; sh:order 21 .
+shui:languagePreference sh:group stsh:DefinitionGroup ; sh:order 22 .
+shui:labelPreference sh:group stsh:DefinitionGroup ; sh:order 23 .
+shui:timeZone sh:group stsh:DefinitionGroup ; sh:order 24 .
+shui:defaultOrder sh:group stsh:DefinitionGroup ; sh:order 25 .
+shui:defaultWidgetScore sh:group stsh:DefinitionGroup ; sh:order 26 .
+sh:shapesGraph sh:group stsh:DefinitionGroup ; sh:order 27 .
+sh:suggestedShapesGraph sh:group stsh:DefinitionGroup ; sh:order 28 .
+sh:conformsToShapesGraph sh:group stsh:DefinitionGroup ; sh:order 29 .
 rdfs:member sh:group stsh:DefinitionGroup ; sh:order 15 .
 owl:imports sh:group stsh:DefinitionGroup ; sh:order 16 .
 sh:entailment sh:group stsh:DefinitionGroup ; sh:order 17 .
@@ -705,8 +720,64 @@ stsh:PrefixDeclarationForm a sh:NodeShape ;
 # A SPARQL constraint, the value of sh:sparql.
 stsh:SPARQLConstraintForm a sh:NodeShape ;
     stsh:formFor sh:SPARQLConstraint ;
-    stsh:formFields ( rdf:type sh:select sh:prefixes rdfs:label rdfs:comment sh:message sh:severity sh:deactivated ) ;
+    stsh:formFields ( rdf:type sh:select sh:prefixes sh:resultAnnotation rdfs:label rdfs:comment sh:message sh:severity sh:deactivated ) ;
     stsh:formRequired ( sh:select ) .
+
+# The two kinds of custom node expression function (SHACL 1.2 Node Expressions 6.1 and 6.2): an IRI with a single body expression and parameters. A named parameter function has a
+# sh:keyParameter among its parameters and may have a label template (it is a Parameterizable); a list parameter function documents its parameters as shnex:arg0, shnex:arg1.
+stsh:NamedParameterExpressionFunctionForm a sh:NodeShape ;
+    stsh:formFor sh:NamedParameterExpressionFunction ;
+    stsh:formFields ( rdf:type sh:parameter sh:bodyExpression sh:returnType sh:labelTemplate rdfs:label rdfs:comment ) ;
+    stsh:formRequired ( sh:bodyExpression ) .
+
+stsh:ListParameterExpressionFunctionForm a sh:NodeShape ;
+    stsh:formFor sh:ListParameterExpressionFunction ;
+    stsh:formFields ( rdf:type sh:parameter sh:bodyExpression sh:returnType rdfs:label rdfs:comment ) ;
+    stsh:formRequired ( sh:bodyExpression ) .
+
+# The kinds of the SHACL UI vocabulary a user declares (SHACL UI 3 and 4). A widget is a shui:Widget (an editor or a viewer, single or multiple: the type says which; the
+# vocabulary gives it no properties of its own); a widget accept matcher says whether a widget applies at all (the same fields as a widget score, and no score); a
+# configuration holds the global settings for a user interface built from a shapes graph. sh:Graph is a shui:Configuration (the vocabulary says so).
+stsh:WidgetForm a sh:NodeShape ;
+    stsh:formFor shui:Widget ;
+    stsh:formForSubclasses true ;
+    stsh:formFields ( rdf:type rdfs:label rdfs:comment ) .
+
+stsh:WidgetAcceptMatcherForm a sh:NodeShape ;
+    stsh:formFor shui:WidgetAcceptMatcher ;
+    stsh:formFields ( rdf:type shui:widget shui:shapesGraphShape shui:dataGraphShape rdfs:label rdfs:comment ) ;
+    stsh:formRequired ( shui:widget ) .
+
+stsh:ConfigurationForm a sh:NodeShape ;
+    stsh:formFor shui:Configuration ;
+    stsh:formFields ( rdf:type shui:defaultNamespace shui:languagePreference shui:labelPreference shui:timeZone shui:defaultOrder shui:defaultWidgetScore rdfs:label rdfs:comment ) .
+
+# A graph (the vocabulary: sh:Graph, with the roles sh:ShapesGraph, sh:DataGraph and sh:RulesGraph under it; a graph can play several). What every graph has, the
+# settings of a configuration, what only a shapes graph or a rules graph has (sh:entailment), and what only a data graph has (stsh:formOnlyFor). A shapes graph also has the ShapesGraphForm.
+stsh:GraphForm a sh:NodeShape ;
+    stsh:formFor sh:Graph ;
+    stsh:formForSubclasses true ;
+    stsh:formFields ( rdf:type rdfs:label rdfs:comment rdfs:member owl:imports sh:declare sh:entailment shui:defaultNamespace shui:languagePreference shui:labelPreference shui:timeZone shui:defaultOrder shui:defaultWidgetScore sh:shapesGraph sh:suggestedShapesGraph sh:conformsToShapesGraph ) .
+
+stsh:formForSubclasses a rdf:Property ;
+    rdfs:label "form for subclasses"@en ;
+    rdfs:comment "On a form: it is also the form of a node whose type is a subclass of the class it is for (a data graph, a single editor), besides the forms of the subclass itself."@en .
+
+stsh:formOnlyFor a rdf:Property ;
+    rdfs:label "form only for"@en ;
+    rdfs:comment "On a predicate: the field is for a node of this class (a graph that is a sh:DataGraph). A tool shows it only then."@en .
+
+# A rule set (SHACL 1.2 Inference Rules, "Rule Sets"): an IRI that lists the rules it has (sh:hasRule) and the rule sets it includes (sh:includesRuleSet).
+stsh:RuleSetForm a sh:NodeShape ;
+    stsh:formFor sh:RuleSet ;
+    stsh:formFields ( rdf:type sh:hasRule sh:includesRuleSet rdfs:label rdfs:comment ) .
+
+# A result annotation, a value of sh:resultAnnotation (SHACL 1.2 SPARQL Extensions section 5): it copies a variable of the query's solution into the validation result as a value of a
+# property. It is an IRI or a blank node with no required type; the property is required (exactly one IRI), the variable name optional (at most one string).
+stsh:ResultAnnotationForm a sh:NodeShape ;
+    stsh:formFor sh:ResultAnnotation ;
+    stsh:formFields ( rdf:type sh:annotationProperty sh:annotationVarName sh:annotationValue rdfs:label rdfs:comment ) ;
+    stsh:formRequired ( sh:annotationProperty ) .
 
 # The two kinds of SPARQL rule: a SPARQL CONSTRUCT rule and a triple rule (SHACL 1.2 Inference Rules sections 11.1 and 11.2).
 # A triple rule's subject, predicate and object are all optional: an absent one is the focus node (section 11.2).
@@ -727,20 +798,40 @@ stsh:ConstraintComponentForm a sh:NodeShape ;
 
 # A parameter of a constraint component or a function: a property shape (sh:Parameter is a subclass of sh:PropertyShape), so it orders
 # its fields as a property shape does, plus whether it is optional and whether it is the key.
+# A parameter declaration, the value of sh:parameter. SPARQL Extensions 4.2.1: "sh:Parameter is defined as a SHACL subclass of sh:PropertyShape" and "all properties that are
+# applicable to property shapes may also be used for parameters", so its fields are those of a property shape, except what has no meaning where nothing is validated against
+# data (a parameter's constraints say what a well-formed argument is: a shape that does not conform is ill-formed, there is no result): targets, rules, and what a result
+# carries (message, severity), and sh:deactivated and sh:values. sh:optional is for the parameters of a constraint component, sh:keyParameter for those of a named parameter
+# function (stsh:formHeldBy, below). A value the file has that the form leaves out is still the file's: a tool shows it as another property.
 stsh:ParameterForm a sh:NodeShape ;
     stsh:formFor sh:Parameter ;
-    stsh:formFields ( rdf:type sh:path sh:name sh:description rdfs:label rdfs:comment sh:class sh:datatype sh:nodeKind sh:optional sh:keyParameter sh:defaultValue sh:order ) ;
+    stsh:formFieldsOf sh:PropertyShape ;
+    stsh:formFieldsExcept ( sh:targetClass sh:targetNode sh:targetSubjectsOf sh:targetObjectsOf sh:target sh:targetWhere sh:rule sh:message sh:severity sh:deactivated sh:values ) ;
+    stsh:formFields ( sh:optional sh:keyParameter ) ;
     stsh:formRequired ( sh:path ) .
+
+stsh:formFieldsOf a rdf:Property ;
+    rdfs:label "form fields of"@en ;
+    rdfs:comment "A form that has the fields of the form of this class (node shape or property shape), besides its own stsh:formFields, less stsh:formFieldsExcept."@en .
+stsh:formFieldsExcept a rdf:Property ;
+    rdfs:label "form fields except"@en ;
+    rdfs:comment "The predicates of the form named by stsh:formFieldsOf that this form leaves out."@en .
+stsh:formHeldBy a rdf:Property ;
+    rdfs:label "form held by"@en ;
+    rdfs:comment "On a predicate: the field is for a node that is the value of sh:parameter of a node of this class (sh:optional: sh:ConstraintComponent; sh:keyParameter: sh:NamedParameterExpressionFunction). A tool shows the field only then, or when it does not know what holds the node."@en .
+
+sh:optional stsh:formHeldBy sh:ConstraintComponent .
+sh:keyParameter stsh:formHeldBy sh:NamedParameterExpressionFunction .
 
 # The validators of a constraint component.
 stsh:AskValidatorForm a sh:NodeShape ;
     stsh:formFor sh:SPARQLAskValidator ;
-    stsh:formFields ( rdf:type sh:ask sh:prefixes rdfs:label rdfs:comment sh:message ) ;
+    stsh:formFields ( rdf:type sh:ask sh:prefixes sh:resultAnnotation rdfs:label rdfs:comment sh:message ) ;
     stsh:formRequired ( sh:ask ) .
 
 stsh:SelectValidatorForm a sh:NodeShape ;
     stsh:formFor sh:SPARQLSelectValidator ;
-    stsh:formFields ( rdf:type sh:select sh:prefixes rdfs:label rdfs:comment sh:message ) ;
+    stsh:formFields ( rdf:type sh:select sh:prefixes sh:resultAnnotation rdfs:label rdfs:comment sh:message ) ;
     stsh:formRequired ( sh:select ) .
 
 # Functions: a function with a return type and parameters; a SPARQL function, whose body is a query.
@@ -782,10 +873,26 @@ sh:validator sh:nodeKind sh:BlankNodeOrIRI ; stsh:formMaxCount 1 .
 sh:nodeValidator sh:nodeKind sh:BlankNodeOrIRI ; stsh:formMaxCount 1 .
 sh:propertyValidator sh:nodeKind sh:BlankNodeOrIRI ; stsh:formMaxCount 1 .
 sh:returnType sh:nodeKind sh:IRI ; stsh:formMaxCount 1 .
-sh:bodyExpression sh:nodeKind sh:BlankNodeOrIRI ; stsh:formMaxCount 1 .
+sh:bodyExpression stsh:formMaxCount 1 .   # a node expression: a blank node, or a constant IRI or literal; the editor is the expression builder
 sh:optional sh:nodeKind sh:Literal ; sh:datatype xsd:boolean ; stsh:formMaxCount 1 .
 sh:keyParameter sh:nodeKind sh:Literal ; sh:datatype xsd:boolean ; stsh:formMaxCount 1 .
 sh:entailment sh:nodeKind sh:IRI .
+sh:annotationProperty sh:nodeKind sh:IRI ; stsh:formMaxCount 1 .   # SPARQL Extensions 5: exactly one IRI
+sh:annotationVarName sh:nodeKind sh:Literal ; sh:datatype xsd:string ; stsh:formMaxCount 1 .   # at most one xsd:string
+sh:annotationValue sh:nodeKind sh:IRIOrLiteral .   # constants: IRIs and literals (as sh:hasValue)
+sh:resultAnnotation sh:nodeKind sh:BlankNodeOrIRI .   # an IRI or a blank node
+sh:hasRule sh:nodeKind sh:BlankNodeOrIRI .   # a rule: an IRI or a blank node
+sh:includesRuleSet sh:nodeKind sh:IRI .   # a rule set is identified by an IRI
+shui:defaultNamespace sh:nodeKind sh:Literal ; stsh:formMaxCount 1 .   # a literal holding a valid IRI (SHACL UI 3.4)
+shui:languagePreference stsh:formMaxCount 1 .   # a list of language tags, most preferred first (a list: no node kind, as sh:languageIn)
+shui:labelPreference stsh:formMaxCount 1 .   # a list of SHACL property paths, most preferred first
+shui:timeZone sh:nodeKind sh:Literal ; sh:datatype xsd:string ; stsh:formMaxCount 1 .   # an IANA time zone identifier
+shui:defaultOrder sh:nodeKind sh:Literal ; stsh:formMaxCount 1 .   # xsd:decimal or xsd:integer
+shui:defaultWidgetScore sh:nodeKind sh:Literal ; stsh:formMaxCount 1 .   # xsd:decimal or xsd:integer; 40 when absent
+sh:entailment stsh:formOnlyFor sh:ShapesGraph, sh:RulesGraph .   # the regime or rule set a shapes graph (or a rules graph) asks for
+sh:shapesGraph sh:nodeKind sh:IRI ; stsh:formOnlyFor sh:DataGraph .   # the shapes graphs to validate a data graph with
+sh:suggestedShapesGraph sh:nodeKind sh:IRI ; stsh:formOnlyFor sh:DataGraph .
+sh:conformsToShapesGraph sh:nodeKind sh:IRI ; stsh:formOnlyFor sh:DataGraph .
 rdfs:member sh:nodeKind sh:IRI .
 owl:imports sh:nodeKind sh:IRI .
 shui:widget sh:nodeKind sh:BlankNodeOrIRI ; stsh:formMaxCount 1 .
@@ -892,3 +999,26 @@ stsh:WidgetScoreShape
 		sh:maxCount 1 ;
 		sh:nodeKind sh:BlankNodeOrIRI ;           # shapesGraphShape-nodeKind: optional, per the upstream shape
 	] .
+
+# (shui:WidgetAcceptMatcher has no well-formedness shape on purpose: the upstream draft has none and the matcher is contested; see starlayer.shacl.ui_widget_selection.)
+
+# A configuration (SHACL UI 3.4): global settings, each at most once. The two preferences are lists (language tags; SHACL property paths).
+stsh:ConfigurationShape
+	a sh:NodeShape ;
+	rdfs:label "Well-formedness rules for the settings of a shui:Configuration"@en ;
+	sh:targetSubjectsOf shui:defaultNamespace, shui:languagePreference, shui:labelPreference, shui:timeZone, shui:defaultOrder, shui:defaultWidgetScore ;
+	sh:property [ sh:path shui:defaultNamespace ; sh:maxCount 1 ; sh:nodeKind sh:Literal ] ;
+	sh:property [ sh:path shui:languagePreference ; sh:maxCount 1 ; sh:nodeKind sh:BlankNodeOrIRI ; sh:memberShape [ a sh:NodeShape ; sh:datatype xsd:string ] ] ;
+	sh:property [ sh:path shui:labelPreference ; sh:maxCount 1 ; sh:nodeKind sh:BlankNodeOrIRI ] ;
+	sh:property [ sh:path shui:timeZone ; sh:maxCount 1 ; sh:datatype xsd:string ] ;
+	sh:property [ sh:path shui:defaultOrder ; sh:maxCount 1 ; sh:or ( [ sh:datatype xsd:decimal ] [ sh:datatype xsd:integer ] ) ] ;
+	sh:property [ sh:path shui:defaultWidgetScore ; sh:maxCount 1 ; sh:or ( [ sh:datatype xsd:decimal ] [ sh:datatype xsd:integer ] ) ] .
+
+# The links from a data graph to shapes graphs (the vocabulary: sh:DataGraph, range sh:ShapesGraph): IRIs.
+stsh:DataGraphLinksShape
+	a sh:NodeShape ;
+	rdfs:label "Well-formedness rules for the shapes graphs a data graph names"@en ;
+	sh:targetSubjectsOf sh:shapesGraph, sh:suggestedShapesGraph, sh:conformsToShapesGraph ;
+	sh:property [ sh:path sh:shapesGraph ; sh:nodeKind sh:IRI ] ;
+	sh:property [ sh:path sh:suggestedShapesGraph ; sh:nodeKind sh:IRI ] ;
+	sh:property [ sh:path sh:conformsToShapesGraph ; sh:nodeKind sh:IRI ] .
