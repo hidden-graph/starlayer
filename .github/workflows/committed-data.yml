@@ -1,0 +1,45 @@
+name: Committed data
+
+# The tests that check committed data against its source: the code-KG tests (they load the 8 MB code graph and run the
+# whole query library against it, about 25 minutes) and the stored-file-matches-build tests. They are marked
+# `deferred` (see packages/starlayer/tests/conftest.py), and the main Tests workflow leaves them out. They run
+#   - here, on a pull request into any branch that changes a file they read or the code that builds one, and on a push to main;
+#   - in committed-data-promotion.yml, on every pull request into main whatever it changed.
+# Run them locally with `pytest -m deferred` (from packages/starlayer).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - "packages/starlayer/starlayer/codekg/**"
+      - "packages/starlayer/starlayer/starontology/**"
+      - "packages/starlayer/starlayer/graph/query/**"    # the upstream-issue guard reads the patch functions
+      - "packages/starlayer/tests/codekg/**"
+      - "packages/starlayer/tests/starontology/**"
+      - "packages/starlayer/tests/shacl/integration/test_meta_shapes_extensions.py"
+      - "packages/starlayer/tests/shacl/integration/test_shacl_ui_forms.py"
+      - "packages/starlayer/tests/conftest.py"
+      - "scripts/**"
+      - "docs/upstream-issues/**"
+      - "pyproject.toml"
+      - ".github/workflows/committed-data*.yml"
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  committed-data:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install starlayer
+        run: pip install -e ".[test]"
+
+      - name: Committed-data tests
+        working-directory: packages/starlayer
+        run: pytest tests/ -m deferred -v
