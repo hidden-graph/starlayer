@@ -1,5 +1,5 @@
 """Generates two cross-linked markdown documents straight from
-``packages/starlayer/starlayer/codekg/codekg.trig`` - no hand-maintained
+``tools/kg/codekg/codekg.trig`` - no hand-maintained
 curated content involved, unlike ``docs/working/archive/api-reference.md``/
 ``docs/working/archive/functionality-overview.md``.
 
@@ -17,21 +17,21 @@ non-underscore-prefixed method declared directly by any class among
 those names. See ``/tmp/scope_headlines.py`` (this session's own
 scratch script) for where that definition was first worked out.
 
-Run: ``python3 scripts/generate_api_docs.py`` (rebuild
-``codekg.trig`` first via ``scripts/build_codekg.py`` if source
-docstrings have changed since the last build).
+Run: ``python3 scripts/generate_api_docs.py``. The code graph is built first if missing; rebuild it with
+``scripts/build_codekg.py`` if source docstrings have changed since the last build.
 """
 
 from __future__ import annotations
 
 import ast
 import pathlib
+import sys
 from collections import defaultdict
 
 from rdflib import RDF, RDFS, Dataset, Namespace
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
-CODEKG_PATH = REPO_ROOT / "packages/starlayer/starlayer/codekg/codekg.trig"
+CODEKG_PATH = REPO_ROOT / "tools/kg/codekg/codekg.trig"
 OUT_DIR = REPO_ROOT / "docs/generated"
 OVERVIEW_PATH = OUT_DIR / "api-overview.generated.md"
 REFERENCE_PATH = OUT_DIR / "api-reference.generated.md"
@@ -66,6 +66,11 @@ _BUCKET_ORDER = ["starlayer", "starlayer.graph", "starlayer.sparql", "starlayer.
 
 
 def _load_dataset() -> Dataset:
+    # The graph is not committed; build it if this checkout has none.
+    sys.path[:0] = [str(REPO_ROOT / "packages/starlayer"), str(REPO_ROOT / "tools/kg")]
+    from codekg import ensure_built
+
+    ensure_built()
     ds = Dataset()
     ds.parse(CODEKG_PATH, format="trig")
     return ds
@@ -243,7 +248,7 @@ def render_overview(ds: Dataset, entities: list[tuple[str, dict]]) -> str:
     lines = [
         "# StarLayer API Overview (generated)",
         "",
-        "Generated directly from `packages/starlayer/starlayer/codekg/codekg.trig` - "
+        "Generated directly from `tools/kg/codekg/codekg.trig` - "
         "every PublicAccess entity's own headline sentence(s), nothing hand-curated. "
         "Each name links to its full entry in "
         "[api-reference.generated.md](api-reference.generated.md).",
@@ -275,7 +280,7 @@ def render_reference(ds: Dataset, entities: list[tuple[str, dict]]) -> str:
     lines = [
         "# StarLayer API Reference (generated)",
         "",
-        "Generated directly from `packages/starlayer/starlayer/codekg/codekg.trig` - "
+        "Generated directly from `tools/kg/codekg/codekg.trig` - "
         "every PublicAccess entity's own full signature and docstring, nothing "
         "hand-curated. See [api-overview.generated.md](api-overview.generated.md) "
         "for the headline-only index this expands on.",

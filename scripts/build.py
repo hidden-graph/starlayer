@@ -3,7 +3,7 @@
 Runs the individual build scripts in dependency order:
 
 1. ``build_starontology.py``  - ``starontology`` generated ``.ttl`` files and ``starontology.trig``
-2. ``build_codekg.py``        - ``codekg/codekg.trig`` from the source and ``codekg/testskg.trig`` from the tests
+2. ``build_codekg.py``        - ``codekg.trig`` from the source and ``testskg.trig`` from the tests (not committed)
 3. ``generate_api_docs.py``   - ``docs/generated/api-*.generated.md`` from the code KG
 4. ``generate_functionality_overview.py`` - ``docs/generated/functionality-overview.generated.md``
    from the curated functionality graph
@@ -11,25 +11,21 @@ Runs the individual build scripts in dependency order:
    queries, as sqe trees) and writes ``docs/generated/query-library.generated.md`` from it
 6. ``check_docs.py``          - checks links, anchors and the guide index (changes nothing)
 7. ``check_notebook_links.py`` - checks the hand-made notebook-to-code links against the notebooks (changes nothing)
-8. ``build_kg.py``           - ``codekg/starlayer-kg.trig``: the code graph, vocabulary, curated layer and every named
-   query's SPARQL text in one plain-TriG file (checked by isomorphism, per named graph)
+8. ``build_kg.py``           - ``starlayer-kg.trig``: the code graph, vocabulary, curated layer and every named
+   query's SPARQL text in one plain-TriG file (not committed)
 
 Build-time only: nothing in the library runs or imports this. Each script can
 still be run on its own.
 
-``--check`` treats every step the same way: it runs the step, compares what it
-wrote with what is committed, then puts the committed files back. Nothing is left
-changed, and the exit status is 1 if any output was stale. Outputs are compared by
-graph isomorphism for the ``.trig`` files (rdflib labels blank nodes randomly, so
-two correct builds differ byte for byte) and byte for byte for the markdown. The
-steps run in order, so the API docs are checked against the freshly built code KG;
-with ``--skip codekg`` (what CI does) they are checked against the committed one.
+``--check`` runs each step, compares what it wrote with what is committed, then puts the committed files back.
+Nothing is left changed, and the exit status is 1 if any output was stale. The graphs of steps 2 and 8 are build
+products, not committed (``.gitignore``), so ``--check`` leaves those steps out; the API docs check builds the code
+graph first if it is missing (``codekg.ensure_built()``, about 30 seconds).
 
 Run:
     python scripts/build.py                    # everything
     python scripts/build.py --only codekg apidocs
     python scripts/build.py --check            # change nothing; exit 1 if anything is stale
-    python scripts/build.py --check --skip codekg   # what CI runs
 """
 
 from __future__ import annotations
@@ -50,16 +46,14 @@ class Step:
     args: list[str] = field(default_factory=list)
     outputs: list[str] = field(default_factory=list)  # repo-relative; compared in --check
     own_check: bool = False  # the script has its own --check (it handles its own comparison)
-    side_effects: list[str] = field(default_factory=list)  # also written by the step; --check restores them but does not compare them
+    uncommitted: bool = False  # the outputs are gitignored build products: --check leaves the step out (nothing to compare)
 
 
 _STEPS: dict[str, Step] = {
     "starontology": Step("build_starontology.py", own_check=True),
     "codekg": Step(
         "build_codekg.py",
-        ["--paths", "packages/starlayer/starlayer", "packages/starlayer/tests"],
-        ["packages/starlayer/starlayer/codekg/codekg.trig", "packages/starlayer/starlayer/codekg/testskg.trig"],
-        side_effects=["packages/starlayer/starlayer/codekg/CHANGELOG.md"],  # the extractor appends its automatic entry
+        uncommitted=True,  # codekg.trig and testskg.trig; the extractor's default targets are the library and its tests
     ),
     "apidocs": Step(
         "generate_api_docs.py",
@@ -70,7 +64,7 @@ _STEPS: dict[str, Step] = {
         outputs=["docs/generated/functionality-overview.generated.md"],
     ),
     "queries": Step("build_query_catalogue.py", own_check=True),
-    "kg": Step("build_kg.py", own_check=True),
+    "kg": Step("build_kg.py", uncommitted=True),  # starlayer-kg.trig
     "docs": Step("check_docs.py", own_check=True),
     "notebooks": Step("check_notebook_links.py", own_check=True),
 }
@@ -90,7 +84,7 @@ def _trig_isomorphic(a: bytes, b: bytes) -> bool:
     from rdflib.compare import isomorphic
     from starlayer.graph import StarLayerDataset
 
-    from starlayer.codekg import BUILD_GRAPH_IRI
+    from codekg import BUILD_GRAPH_IRI
 
     def graphs(data: bytes) -> dict:
         ds = StarLayerDataset()
@@ -130,6 +124,8 @@ def main() -> int:
     parser.add_argument("--check", action="store_true", help="change nothing; exit 1 if anything is stale")
     args = parser.parse_args()
     names = [n for n in (args.only or list(_STEPS)) if n not in args.skip]
+    if args.check:
+        names = [n for n in names if not _STEPS[n].uncommitted]
 
     if not args.check:
         for name in names:
@@ -142,7 +138,7 @@ def main() -> int:
     snapshots = {
         _ROOT / out: ((_ROOT / out).read_bytes() if (_ROOT / out).exists() else None)
         for name in names
-        for out in [*_STEPS[name].outputs, *_STEPS[name].side_effects]
+        for out in _STEPS[name].outputs
     }
     stale: list[str] = []
     try:

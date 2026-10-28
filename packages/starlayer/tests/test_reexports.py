@@ -43,8 +43,8 @@ def test_all_matches_actual_module_exports() -> None:
     (e.g. ``test_conformance.py``) is what binds it. ``codekg`` joins the
     list for the identical reason (2026-10-13): nothing in
     ``starlayer/__init__.py`` imports it, but the code-KG extractor's own
-    tests (``tests/codekg/``) import ``starlayer.codekg``/
-    ``starlayer.codekg.extractor.*`` directly, so whether it's bound here
+    tests (``tests/kg/``) import ``codekg``/
+    ``codekg.extractor.*`` directly, so whether it's bound here
     depends purely on whether one of those test modules already ran in
     the same session. All six (``sparql`` included, even though it's now
     unconditionally present - keeping it in this subtraction set is
@@ -55,7 +55,7 @@ def test_all_matches_actual_module_exports() -> None:
     *curated* re-export is genuinely present, not that nothing else is
     ever visible."""
     exported = {name for name in dir(starlayer) if not name.startswith("_")}
-    submodule_attrs = {"graph", "sparql", "shacl", "starontology", "conformance", "codekg"}
+    submodule_attrs = {"graph", "sparql", "shacl", "starontology", "conformance"}
     assert exported - submodule_attrs == set(starlayer.__all__)
 
 

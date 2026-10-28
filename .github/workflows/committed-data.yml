@@ -12,10 +12,10 @@ on:
     branches: [main]
   pull_request:
     paths:
-      - "packages/starlayer/starlayer/codekg/**"
+      - "tools/kg/codekg/**"
       - "packages/starlayer/starlayer/starontology/**"
       - "packages/starlayer/starlayer/graph/query/**"    # the upstream-issue guard reads the patch functions
-      - "packages/starlayer/tests/codekg/**"
+      - "packages/starlayer/tests/kg/**"
       - "packages/starlayer/tests/starontology/**"
       - "packages/starlayer/tests/shacl/integration/test_meta_shapes_extensions.py"
       - "packages/starlayer/tests/shacl/integration/test_shacl_ui_forms.py"

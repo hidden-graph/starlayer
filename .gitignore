@@ -13,3 +13,8 @@ venv/
 *.log
 build/
 dist/
+
+# The code knowledge graph is built on demand (python scripts/build.py --only codekg kg), not committed.
+tools/kg/codekg/codekg.trig
+tools/kg/codekg/testskg.trig
+tools/kg/codekg/starlayer-kg.trig

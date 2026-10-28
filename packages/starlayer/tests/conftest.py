@@ -91,7 +91,7 @@ def _requested(config, marker: str) -> bool:
     return marker in expr and f"not {marker}" not in expr
 
 
-AREAS = ("graph", "shacl", "sparql", "starontology", "codekg")
+AREAS = ("graph", "shacl", "sparql", "starontology", "kg")
 
 
 def pytest_collection_modifyitems(config, items):
