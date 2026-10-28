@@ -311,7 +311,8 @@ def _split_statements_impl(data, require_final_dot=False):
     while i < len(data):
         # A directive may start any statement, also one that follows another statement or directive on the same line
         # (`PREFIX a: <urn:a:> PREFIX b: <urn:b:> a:x b:p a:o .`, GitHub issue #73)
-        at_statement_start = not in_string and not buf.strip() and not data[i].isspace() and data[i] != '#'
+        # (`not buf or buf.isspace()` is `not buf.strip()` without copying the whole statement for every character)
+        at_statement_start = not in_string and (not buf or buf.isspace()) and not data[i].isspace() and data[i] != '#'
         if at_statement_start:
             # Directives (dotted @prefix/@base/@version, or bare SPARQL-style prefix/base/version) end at their own '.'
             # if they have one (see _scan_directive_end()). The `not in_string` guard matters: a line inside an open
