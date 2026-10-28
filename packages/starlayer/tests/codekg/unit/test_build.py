@@ -165,25 +165,44 @@ def test_refresh_handles_docstring_resembling_a_prefix_directive(tmp_path):
     assert '@version "1.2" directive' in str(comment)
 
 
-def test_refresh_preserves_ontology_and_curated_graphs(tmp_path):
-    from starlayer.codekg import CURATED_GRAPH_IRI, ONTOLOGY_GRAPH_IRI
+def test_refresh_writes_the_file_from_scratch_and_does_not_read_the_old_one(tmp_path):
+    from starlayer.codekg import ONTOLOGY_GRAPH_IRI
 
     repo_root = _make_repo_root(tmp_path)
     mod_path = repo_root / "packages" / "starlayer" / "starlayer" / "widgets" / "thing.py"
     mod_path.write_text("def f():\n    pass\n", encoding="utf-8")
     trig_path = tmp_path / "codekg.trig"
-
-    # Seed the trig file with a pre-existing ontology graph and a curated
-    # graph - refresh() must never touch either, even though they share
-    # the module graphs' same dataset file.
+    # anything already in the file is replaced: the file holds only what the extractor produces
     seed_ds = StarLayerDataset()
     seed_ds.graph(ONTOLOGY_GRAPH_IRI).add((ONTOLOGY_GRAPH_IRI, RDF.type, SLKG.Module))
-    seed_ds.graph(CURATED_GRAPH_IRI).add((CURATED_GRAPH_IRI, RDF.type, SLKG.Module))
     seed_ds.serialize(destination=str(trig_path), format="trig12")
 
-    refresh([mod_path], repo_root, trig_path=trig_path)
+    written, _ = refresh([mod_path], repo_root, trig_path=trig_path)
 
     ds = StarLayerDataset()
     ds.parse(str(trig_path), format="trig12")
-    assert len(ds.get_context(ONTOLOGY_GRAPH_IRI)) > 0
-    assert len(ds.get_context(CURATED_GRAPH_IRI)) > 0
+    assert len(ds.get_context(ONTOLOGY_GRAPH_IRI)) == 0
+    assert len(ds) == len(written)
+
+
+def test_refresh_writes_test_modules_to_their_own_file(tmp_path):
+    from starlayer.codekg import TESTS_BLOB_BASE
+
+    repo_root = _make_repo_root(tmp_path)
+    src = repo_root / "packages" / "starlayer" / "starlayer" / "widgets" / "thing.py"
+    src.write_text("def f():\n    pass\n", encoding="utf-8")
+    tests_dir = repo_root / "packages" / "starlayer" / "tests" / "widgets"
+    tests_dir.mkdir(parents=True)
+    test_file = tests_dir / "test_thing.py"
+    test_file.write_text("from starlayer.widgets.thing import f\n\n\ndef test_f():\n    f()\n", encoding="utf-8")
+    trig_path = tmp_path / "codekg.trig"
+
+    refresh([src, test_file], repo_root, trig_path=trig_path)
+
+    source_ds, tests_ds = StarLayerDataset(), StarLayerDataset()
+    source_ds.parse(str(trig_path), format="trig12")
+    tests_ds.parse(str(tmp_path / "testskg.trig"), format="trig12")
+    source_graphs = {str(c.identifier) for c in source_ds.contexts()}
+    tests_graphs = {str(c.identifier) for c in tests_ds.contexts()}
+    assert tests_graphs and all(g.startswith(TESTS_BLOB_BASE) for g in tests_graphs)
+    assert not any(g.startswith(TESTS_BLOB_BASE) for g in source_graphs)

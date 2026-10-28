@@ -254,8 +254,43 @@ def _predicate_text(node, graph: Graph, prefixes: dict) -> str:
 
     decoded = _decode(node, graph)
     if isinstance(decoded, Path):
-        return decoded.n3(_namespace_manager_for(prefixes))
+        return _path_text(decoded, _namespace_manager_for(prefixes))
     return _term_text(node, prefixes)
+
+
+def _is_multi(path) -> bool:
+    from rdflib.paths import AlternativePath, SequencePath
+
+    return isinstance(path, (SequencePath, AlternativePath)) and len(path.args) > 1
+
+
+def _path_text(path, nm) -> str:
+    """`Path.n3()` with the parentheses SPARQL needs: a path element takes
+    one modifier (grammar [91]), so a modified or inverse path under a
+    modifier, and an inverse under an inverse, is parenthesised (rdflib
+    writes ``p*?`` and ``^^p``, which do not parse or mean something else)."""
+    from rdflib.paths import AlternativePath, InvPath, MulPath, SequencePath
+
+    if isinstance(path, MulPath):
+        inner = _path_text(path.path, nm)
+        if isinstance(path.path, (MulPath, InvPath)) or _is_multi(path.path):
+            inner = f"({inner})"
+        return f"{inner}{path.mod}"
+    if isinstance(path, InvPath):
+        inner = _path_text(path.arg, nm)
+        if isinstance(path.arg, InvPath) or _is_multi(path.arg):
+            inner = f"({inner})"
+        return f"^{inner}"
+    if isinstance(path, (SequencePath, AlternativePath)):
+        sep = "/" if isinstance(path, SequencePath) else "|"
+        parts = []
+        for arg in path.args:
+            text = _path_text(arg, nm)
+            if _is_multi(arg):
+                text = f"({text})"
+            parts.append(text)
+        return sep.join(parts)
+    return path.n3(nm)
 
 
 def _term_text(value, prefixes: dict, graph: Graph | None = None) -> str:

@@ -44,11 +44,15 @@ jobs:
       - name: Check generated files are current
         run: python scripts/build.py --check --skip codekg
 
+  # One Python version only: this is an alpha project, and a four-version matrix
+  # (3.10-3.13) made every run about four times as long. pyproject.toml still
+  # declares >=3.10; to check another version, run the suite locally or
+  # temporarily widen this list.
   test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.12"]
 
     # Oxigraph's default image CMD is already `serve --location /data --bind
     # 0.0.0.0:7878` (confirmed via `docker inspect`), so no command override
@@ -91,9 +95,11 @@ jobs:
           echo "Oxigraph did not become ready in time" >&2
           exit 1
 
+      # The `deferred` tests (checks of committed data: the code-KG tests, the stored-file-matches-build tests) run in
+      # committed-data.yml, only when something they depend on changes and on every promotion to main.
       - name: Unit and W3C tests
         working-directory: packages/starlayer
-        run: pytest tests/ -m "not integration" --deferred -v
+        run: pytest tests/ -m "not integration" -v
 
       - name: Integration tests (Oxigraph + SQLite; Fuseki-only tests self-skip)
         working-directory: packages/starlayer

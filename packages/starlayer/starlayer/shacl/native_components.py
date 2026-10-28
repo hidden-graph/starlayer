@@ -28,6 +28,7 @@ target types (``StarShaclSchema._augment_shapes_with_new_target_types``).
 from __future__ import annotations
 
 import re as _re
+import threading
 import weakref as _weakref
 from typing import Any
 
@@ -1438,6 +1439,13 @@ def _build_reifier_shape_component() -> Any:
         @classmethod
         def constraint_name(cls) -> str:
             return "ReifierShapeConstraintComponent"
+
+        def make_generic_messages(self, datagraph: Any, focus_node: Any, value_node: Any) -> list[Any]:
+            # a result with no sh:resultMessage was the gap in issue #136
+            from pyshacl.rdfutil import stringify_node
+
+            subject, value = stringify_node(datagraph, focus_node), stringify_node(datagraph, value_node)
+            return [Literal(f"The triple ({subject} {self.path} {value}) has no reifier, or a reifier that does not conform to the reifier shape")]
 
         def _encode_key(self, target_graph: Any, triple_term: tuple[Any, Any, Any]) -> Any:
             adapter = _get_tt_adapter(target_graph)
@@ -3275,6 +3283,33 @@ def _triple_terms_have_no_string(component: Any, executor: Any, target_graph: An
     return (ok and not bad), list(more) + reports
 
 
+_PATTERN_COMPILE_LOCK = threading.Lock()
+
+
+def _init_with_translated_patterns(init: Any, shape: Any, re_module: Any, translate: Any) -> None:
+    """Run pySHACL's ``PatternConstraintComponent.__init__`` with ``re.compile`` translating XPath regular-expression syntax.
+
+    pySHACL compiles the pattern inside ``__init__`` through the ``re`` name of its own module, so that name is swapped for a
+    shim for the length of the call (under a lock; nothing else is touched)."""
+    import pyshacl.constraints.core.string_based_constraints as module
+
+    class _Re:
+        def __getattr__(self, name: str) -> Any:
+            return getattr(re_module, name)
+
+        @staticmethod
+        def compile(pattern: Any, flags: int = 0) -> Any:
+            return re_module.compile(translate(pattern), flags)
+
+    with _PATTERN_COMPILE_LOCK:
+        original = module.re
+        module.re = _Re()
+        try:
+            init(shape)
+        finally:
+            module.re = original
+
+
 def _build_string_component(predicate: Any) -> Any:
     from pyshacl.constraints import CONSTRAINT_PARAMETERS_MAP
     from pyshacl.errors import ConstraintLoadError
@@ -3287,21 +3322,32 @@ def _build_string_component(predicate: Any) -> Any:
         it, and an invalid ``sh:pattern`` raises ``ConstraintLoadError`` naming
         the shape instead of a raw ``re.error`` (GitHub issue #94).
 
-        Open: ``sh:pattern`` is SPARQL ``REGEX`` (XPath syntax), but this
-        still compiles with Python's ``re``, so XPath-only syntax such as
-        ``\\p{L}`` is rejected as invalid (pySHACL has the same limit).
+        ``sh:pattern`` is SPARQL ``REGEX`` (XPath syntax). pySHACL compiles it with Python's ``re``, which rejects ``\\p{L}``,
+        ``\\i``/``\\c`` and reads ``[a-z-[aeiou]]`` as a different class; ``xpath_regex`` translates those (a pattern without
+        them is compiled untouched), and a pattern it cannot translate raises ``ConstraintLoadError`` naming the feature.
         """
 
         def __init__(self, shape: Any) -> None:
             import re
 
+            from starlayer.shacl.xpath_regex import (
+                needs_translation,
+                xpath_regex_to_python,
+            )
+
+            patterns = [str(p) for p in shape.objects(SH.pattern)] if predicate == SH.pattern else []
+            link = "https://www.w3.org/TR/shacl/#PatternConstraintComponent"
             try:
-                super().__init__(shape)
+                if any(needs_translation(p) for p in patterns):
+                    _init_with_translated_patterns(super().__init__, shape, re, xpath_regex_to_python)
+                else:
+                    super().__init__(shape)
             except re.error as exc:
                 raise ConstraintLoadError(
-                    f"sh:pattern on '{shape.node}' is not a valid regular expression: {exc}",
-                    "https://www.w3.org/TR/shacl/#PatternConstraintComponent",
+                    f"sh:pattern on '{shape.node}' is not a valid regular expression: {exc}", link
                 ) from exc
+            except ValueError as exc:
+                raise ConstraintLoadError(f"sh:pattern on '{shape.node}' cannot be used: {exc}", link) from exc
 
         def evaluate(self, executor: Any, target_graph: Any, focus_value_nodes: dict, _evaluation_path: list) -> Any:
             return _triple_terms_have_no_string(self, executor, target_graph, focus_value_nodes, _evaluation_path)

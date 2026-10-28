@@ -68,7 +68,7 @@ def coerce_object(s):
     return s
 
 
-def _split_on_delimiter(text, delim):
+def _split_on_delimiter(text, delim, keep_empty=False):
     """Split text on delim at bracket-depth 0, respecting strings.
 
     Triple-quoted (``\"\"\"``/``'''``) strings are tracked as one atomic
@@ -119,6 +119,16 @@ def _split_on_delimiter(text, delim):
             buf += text[i:i + 2]  # PN_LOCAL_ESC in a prefixed name: the next character is part of the name (GitHub issue #59)
             i += 2
             continue
+        if text[i:i + 2] == '<<':
+            buf += '<<'  # a reified triple: its own IRIs are read below
+            i += 2
+            continue
+        if ch == '<':
+            end = text.find('>', i)
+            if end != -1:
+                buf += text[i:end + 1]  # an IRIREF may contain ',' and ';'
+                i = end + 1
+                continue
         if ch in ('"', "'"):
             if text[i:i + 3] == ch * 3:
                 in_str, str_char, triple = True, ch, True
@@ -134,15 +144,22 @@ def _split_on_delimiter(text, delim):
         elif ch in '])}':
             depth -= 1
         if ch == delim and depth == 0:
-            if buf.strip():
+            if buf.strip() or keep_empty:
                 parts.append(buf.strip())
             buf = ''
         else:
             buf += ch
         i += 1
-    if buf.strip():
+    if buf.strip() or (keep_empty and parts):
         parts.append(buf.strip())
     return parts
+
+
+# A directive keyword must be a whole word: "base:x a :C ." starts with the characters "base" but is a triple (a prefixed name)
+_DIRECTIVE_KEYWORD = re.compile(
+    r'@(?:prefix|base|version)(?=[\s<"\'])|(?:prefix(?=\s)|base(?=[\s<])|version(?=[\s"\']))',
+    re.IGNORECASE,
+)
 
 
 _SPARQL_DIRECTIVE_OPERAND = re.compile(
@@ -247,7 +264,7 @@ def _scan_directive_end(data, i):
     return len(data)
 
 
-def _split_statements_impl(data):
+def _split_statements_impl(data, require_final_dot=False):
     """Split Turtle text into (statement, start_offset) pairs, start_offset
     being the 0-based character offset in *data* where that statement's
     buffering began - statement-start granularity, not byte-exact (newlines
@@ -268,44 +285,26 @@ def _split_statements_impl(data):
     triple = False
     i = 0
     while i < len(data):
-        at_line_start = (i == 0 or data[i-1] in ('\n', '\r'))
-        if at_line_start and not in_string:
-            # Directives (dotted @prefix/@base/@version, or bare SPARQL-style
-            # prefix/base/version) end at their own '.' if they have one, or
-            # at end-of-line if they don't (both spellings are accepted
-            # without a trailing '.' - existing, intentional leniency).
-            # Previously this always read to end-of-line regardless, which
-            # silently swallowed any further content on the *same* physical
-            # line as a dotted directive into the directive's own statement
-            # text and dropped it (extract_fields()'s prefix regex only
-            # matches its own leading portion and ignores the rest) - see
-            # _scan_directive_end().
-            #
-            # The `and not in_string` guard matters: without it, a line that
-            # merely *starts with* one of these keywords while still inside
-            # an open triple-quoted string literal (e.g. a multi-line
-            # docstring whose prose begins a line with "version ..." or
-            # "based on ...") was misdetected as a real directive and split
-            # the statement apart mid-string - confirmed via this project's
-            # own code-KG extractor feeding its own docstrings back through
-            # this parser.
-            found_directive = False
-            for kw in ('@version', '@prefix', 'prefix', '@base', 'base', 'version'):
-                if data[i:i+len(kw)].lower() == kw:
-                    end = _scan_directive_end(data, i)
-                    stmt = data[i:end].strip()
-                    if stmt:
-                        if buf.strip():
-                            stmts.append((buf.strip(), stmt_start))
-                            buf = ''
-                        stmts.append((stmt, i))
-                    i = end
-                    while i < len(data) and data[i] in ('\n', '\r'):
-                        i += 1
-                    stmt_start = i
-                    found_directive = True
-                    break
-            if found_directive:
+        # A directive may start any statement, also one that follows another statement or directive on the same line
+        # (`PREFIX a: <urn:a:> PREFIX b: <urn:b:> a:x b:p a:o .`, GitHub issue #73)
+        at_statement_start = not in_string and not buf.strip() and not data[i].isspace() and data[i] != '#'
+        if at_statement_start:
+            # Directives (dotted @prefix/@base/@version, or bare SPARQL-style prefix/base/version) end at their own '.'
+            # if they have one (see _scan_directive_end()). The `not in_string` guard matters: a line inside an open
+            # triple-quoted string that merely starts with "version ..." is not a directive.
+            m_kw = _DIRECTIVE_KEYWORD.match(data, i)
+            if m_kw:
+                end = _scan_directive_end(data, i)
+                stmt = data[i:end].strip()
+                if stmt:
+                    if buf.strip():
+                        stmts.append((buf.strip(), stmt_start))
+                        buf = ''
+                    stmts.append((stmt, i))
+                i = end
+                while i < len(data) and data[i] in ('\n', '\r'):
+                    i += 1
+                stmt_start = i
                 continue
         c = data[i]
         if in_string:
@@ -456,6 +455,10 @@ def _split_statements_impl(data):
         raise Turtle12SyntaxError(why, buf or data[stmt_start:], pos=len(buf or data[stmt_start:]), line=line)
 
     if buf.strip():
+        if require_final_dot:
+            # statement ::= directive | triples '.' - the final statement needs its '.' too (GitHub issue #73)
+            line = data[:stmt_start].count('\n') + 1
+            raise Turtle12SyntaxError("missing '.' at the end of the last statement", buf.strip(), pos=len(buf.strip()), line=line)
         stmts.append((buf.strip(), stmt_start))
     return stmts
 
@@ -476,7 +479,7 @@ def split_statements(data):
     return [stmt for stmt, _offset in _split_statements_impl(data)]
 
 
-def split_statements_with_lines(data):
+def split_statements_with_lines(data, require_final_dot=False):
     """Split Turtle text into a list of (statement, line) pairs, line being
     the 1-based line number in *data* where that statement approximately
     begins (statement-start granularity - see _split_statements_impl).
@@ -494,7 +497,7 @@ def split_statements_with_lines(data):
     out = []
     prev_offset = 0
     line = 1
-    for stmt, offset in _split_statements_impl(data):
+    for stmt, offset in (_split_statements_impl(data, True) if require_final_dot else _split_statements_impl(data)):
         if offset >= prev_offset:
             line += data.count('\n', prev_offset, offset)
         else:
@@ -514,13 +517,10 @@ def classify_statement(stmt):
         'version', 'prefix', or 'base' for a directive statement, 'triple'
         for anything else.
     """
-    s = stmt.strip().lower()
-    if s.startswith('@version') or s.startswith('version'):
-        return 'version'
-    if s.startswith('@prefix') or s.startswith('prefix'):
-        return 'prefix'
-    if s.startswith('@base') or s.startswith('base'):
-        return 'base'
+    m = _DIRECTIVE_KEYWORD.match(stmt.strip())
+    if m:
+        word = m.group(0).lstrip('@').lower()
+        return word
     return 'triple'
 
 
@@ -569,15 +569,21 @@ def extract_fields(stmt, typ, blank_counter=None):
         )
     elif typ == 'prefix':
         m = re.match(r'@?prefix\s+([^\s:<>]*)\s*:\s*<([^>]*)>', s, re.IGNORECASE)
-        if m:
+        if m and not s[m.end():].strip().rstrip('.').strip():
             return {'prefix': m.group(1), 'iri': m.group(2)}
+        raise Turtle12SyntaxError('malformed prefix directive - expected  prefix: <iri>', s, pos=0)
     elif typ == 'base':
         m = re.match(r'@?base\s*<([^>]*)>', s, re.IGNORECASE)
-        if m:
+        if m and not s[m.end():].strip().rstrip('.').strip():
             return {'iri': m.group(1)}
+        raise Turtle12SyntaxError('malformed base directive - expected  <iri>', s, pos=0)
     elif typ == 'triple':
         body = s.rstrip('.')
+        if not body.strip():
+            raise Turtle12SyntaxError("empty statement ('.' with no triple before it)", s, pos=0)
         subj, rest = next_token(body.strip())
+        if subj == '~' or (subj and subj[0] in '~;,.'):
+            raise Turtle12SyntaxError(f'unexpected {subj!r} where a subject is expected', s, pos=0)
         inner_triples = []
         if subj == '[]' and blank_counter is not None:
             subj = f'_:sl_{blank_counter[0]}'
@@ -618,11 +624,17 @@ def extract_fields(stmt, typ, blank_counter=None):
             subj = bnode
         if subj and rest:
             triple_set = []
+            if rest.lstrip().startswith(';'):
+                raise Turtle12SyntaxError("a ';' directly after the subject (a predicate comes first)", s, pos=0)
             for group in _split_on_delimiter(rest, ';'):
                 pred, obj_str = next_token(group)
                 if not pred or not obj_str:
-                    continue
-                for obj in _split_on_delimiter(obj_str, ','):
+                    # predicateObjectList ::= verb objectList (';' (verb objectList)?)*: a predicate needs an object
+                    raise Turtle12SyntaxError(f'predicate {pred!r} has no object', s, pos=0)
+                objects = _split_on_delimiter(obj_str, ',', keep_empty=True)
+                if not all(objects):
+                    raise Turtle12SyntaxError("empty object in an object list (a ',' with nothing before or after it)", s, pos=0)
+                for obj in objects:
                     obj_tok, annotations = split_obj_and_annotations(obj)
                     entry = {
                         'subject': subj,
@@ -636,6 +648,10 @@ def extract_fields(stmt, typ, blank_counter=None):
             return {'triple_set': inner_triples + triple_set}
         if inner_triples:
             return {'triple_set': inner_triples}
+        if isinstance(subj, str) and subj.startswith('<<') and not subj.startswith('<<('):
+            # triples ::= reifiedTriple predicateObjectList? - the statement is the reifying triple alone
+            return {'triple_set': [{'subject': subj, 'standalone': True}]}
+        raise Turtle12SyntaxError(f'subject {subj!r} is not followed by a predicate and object', s, pos=0)
     return {}
 
 
@@ -660,6 +676,9 @@ def expand_triple_set(triple_set, blank_counter):
     subject_lists = {}
 
     for triple in triple_set:
+        if triple.get('standalone'):
+            result.append(triple)
+            continue
         subj = triple['subject']
         pred = triple['predicate']
         obj = triple['object']

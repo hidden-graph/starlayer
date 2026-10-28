@@ -35,6 +35,8 @@ node-per-solution head instantiation (§6.4).
 
 from __future__ import annotations
 
+import datetime
+from contextvars import ContextVar
 from dataclasses import dataclass
 
 from rdflib import BNode, Graph, Literal, URIRef, Variable
@@ -278,6 +280,8 @@ def _ruleset_uses_triple_terms(ruleset: srl_ast.RuleSet) -> bool:
             return _triple_uses_triple_terms(e)
         if isinstance(e, srl_ast._NegationElement):
             return any(_element(x) for x in e.inner)
+        if isinstance(e, (srl_ast._FilterElement, srl_ast._AssignmentElement)):
+            return _mentions_triple_terms(e.expr)  # a SET or FILTER may build or test a triple term
         return False
 
     return any(
@@ -446,7 +450,7 @@ def _eval_triple_run(run: list[srl_ast.TriplePattern], seq: list[dict], g: Graph
     run_vars = {term for t in run for term in (t.subject, t.predicate, t.object) if isinstance(term, Variable)}
     out: list[dict] = []
     for mu in seq:
-        ctx = QueryContext(graph=g, initBindings=mu)
+        ctx = _context(g, mu)
         for binding in evalBGP(ctx, bgp):
             merged = dict(mu)
             for v in run_vars:
@@ -455,9 +459,71 @@ def _eval_triple_run(run: list[srl_ast.TriplePattern], seq: list[dict], g: Graph
     return out
 
 
+_TRIPLE_TERM_BUILTINS = frozenset({"Builtin_isTRIPLE", "Builtin_SUBJECT", "Builtin_PREDICATE", "Builtin_OBJECT"})
+_lowered_expressions: dict[int, tuple] = {}
+
+
+def _mentions_triple_terms(node) -> bool:
+    if isinstance(node, TripleTermNode):
+        return True
+    if isinstance(node, algebra.CompValue):
+        if node.name in _TRIPLE_TERM_BUILTINS:
+            return True
+        return any(_mentions_triple_terms(v) for _, v in node.items())
+    if isinstance(node, (list, tuple)):
+        return any(_mentions_triple_terms(v) for v in node)
+    return False
+
+
+def _evaluable(node):
+    """A lowered expression tree (plain ``CompValue``s) as ``Expr`` nodes rdflib can evaluate."""
+    from rdflib.plugins.sparql.parserutils import Expr
+
+    from .from_rdf import _EXPR_EVALFNS
+
+    if isinstance(node, algebra.CompValue):
+        evalfn = _EXPR_EVALFNS.get(node.name)
+        if evalfn is None:
+            return node
+        result = Expr(node.name, evalfn)
+        for key, value in node.items():
+            result[key] = _evaluable(value)
+        return result
+    if isinstance(node, list):
+        return [_evaluable(item) for item in node]
+    return node
+
+
+def _runnable(expr):
+    """``expr`` as rdflib can evaluate it. An expression with a triple term (``<<( )>>``, ``TRIPLE()``) or a
+    triple-term builtin is lowered to the ``tt:`` function calls the SPARQL pipeline uses; others are unchanged."""
+    cached = _lowered_expressions.get(id(expr))
+    if cached is not None and cached[0] is expr:
+        return cached[1]
+    lowered = expr
+    if _mentions_triple_terms(expr):
+        from .lower_rdf11 import _lower_expr, _LowerState
+
+        lowered = _evaluable(_lower_expr(expr, _LowerState()))
+    _lowered_expressions[id(expr)] = (expr, lowered)
+    return lowered
+
+
+def _as_triple_term(value):
+    """A ``tt:`` hash URI that ``TRIPLE()`` computed, as the ``TripleTerm`` it names (nested ones included)."""
+    from starlayer.graph.model.encoding import TT_NS, lookup_tt_hash
+    from starlayer.graph.model.triple import TripleTerm
+
+    if isinstance(value, URIRef) and str(value).startswith(TT_NS):
+        parts = lookup_tt_hash(value)
+        if parts is not None:
+            return TripleTerm(*(_as_triple_term(part) for part in parts))
+    return value
+
+
 def _eval_ebv(expr, mu: dict, g: Graph) -> bool:
-    ctx = QueryContext(graph=g, initBindings=mu)
-    return _ebv(expr, ctx)
+    ctx = _context(g, mu)
+    return _ebv(_runnable(expr), ctx)
 
 
 def _eval_expr(expr, mu: dict, g: Graph):
@@ -474,11 +540,11 @@ def _eval_expr(expr, mu: dict, g: Graph):
     Returns:
         The evaluated value, or ``None`` if evaluation errored.
     """
-    ctx = QueryContext(graph=g, initBindings=mu)
-    val = expr.eval(ctx)
+    ctx = _context(g, mu)
+    val = _runnable(expr).eval(ctx)
     if isinstance(val, SPARQLError):
         return None
-    return val
+    return _as_triple_term(val)
 
 
 def _eval_rule_elements(elements: list[srl_ast.BodyElement], seq: list[dict], g: Graph, gd: Graph) -> list[dict]:
@@ -617,6 +683,33 @@ def _add_all(dst, src) -> None:
         dst.add(triple)
 
 
+def flatten_dataset(graph):
+    """A dataset (iterating it gives quads) as one graph: its default graph, or the union of all graphs when the
+    dataset is a union (``default_union`` / ``ConjunctiveGraph``). Any other graph is returned unchanged."""
+    from rdflib import ConjunctiveGraph, Dataset
+
+    if not isinstance(graph, (Dataset, ConjunctiveGraph)):
+        return graph
+    from starlayer.graph import StarLayerDataset
+
+    flat = _new_graph(isinstance(graph, StarLayerDataset))
+    for triple in graph.triples((None, None, None)):
+        flat.add(triple)
+    return flat
+
+
+_NOW: ContextVar = ContextVar("srl_now", default=None)
+
+
+def _context(g: Graph, mu: dict | None = None) -> QueryContext:
+    """A ``QueryContext`` whose ``NOW()`` is the one instant of the rule-set evaluation in progress."""
+    ctx = QueryContext(graph=g, initBindings=mu)
+    now = _NOW.get()
+    if now is not None:
+        ctx._now = now
+    return ctx
+
+
 def _as_graph_kind(graph, use_starlayer: bool):
     """``graph`` itself, or a ``StarLayerGraph`` copy of it if one is needed and it is not one."""
     if use_starlayer and not _is_starlayer_graph(graph):
@@ -650,6 +743,15 @@ def _evaluate_ruleset(base_graph: Graph, ruleset: srl_ast.RuleSet) -> Graph:
     Raises:
         SRLImportsNotSupportedError: If ``ruleset.imports`` is non-empty.
     """
+    token = _NOW.set(_NOW.get() or datetime.datetime.now(datetime.timezone.utc))
+    try:
+        return _evaluate_ruleset_at_one_instant(base_graph, ruleset)
+    finally:
+        _NOW.reset(token)
+
+
+def _evaluate_ruleset_at_one_instant(base_graph: Graph, ruleset: srl_ast.RuleSet) -> Graph:
+    base_graph = flatten_dataset(base_graph)
     if ruleset.imports:
         raise SRLImportsNotSupportedError(
             "SRL: this implementation does not support IMPORTS - per §4.5, "
@@ -740,6 +842,7 @@ def _srl_query(base_graph: Graph, ruleset: srl_ast.RuleSet, goal_pattern: srl_as
     Returns:
         One ``dict[Variable, term]`` solution per match.
     """
+    base_graph = flatten_dataset(base_graph)
     gi = _evaluate_ruleset(base_graph, ruleset)
     use_starlayer = _is_starlayer_graph(gi) or _triple_uses_triple_terms(goal_pattern)
     combined = _new_graph(use_starlayer)

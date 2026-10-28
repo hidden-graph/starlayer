@@ -1,0 +1,12 @@
+name: Committed data (promotion)
+
+# A pull request into main runs the committed-data tests whatever it changed, so a change to the query engine or
+# anything else outside the path list in committed-data.yml is still checked before it reaches main.
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  committed-data:
+    uses: ./.github/workflows/committed-data.yml

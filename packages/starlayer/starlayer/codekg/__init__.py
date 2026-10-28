@@ -76,6 +76,10 @@ _ONTOLOGY_TTL_PATH = _HERE / "ontology.ttl"
 # needs to work both before and after the extractor's first run.
 CODEKG_TRIG_PATH = _HERE / "codekg.trig"
 
+# The same extractor run's graphs for the test modules (BLOB_BASE graphs are in codekg.trig, TESTS_BLOB_BASE ones here).
+# Kept apart so the source graph stays small and a caller that does not need test callers can leave them out.
+TESTSKG_TRIG_PATH = _HERE / "testskg.trig"
+
 # The hand-edited curated files, all loaded into CURATED_GRAPH_IRI on request.
 CURATED_DIR = _HERE / "curated"
 
@@ -97,10 +101,10 @@ def get_ontology_graph() -> StarLayerGraph:
     return graph
 
 
-def get_codekg_dataset(include_curated: bool = False) -> StarLayerDataset:
-    """A fresh ``StarLayerDataset`` with ``codekg.trig`` parsed into it, or
-    an empty dataset (no module graphs) if the extractor hasn't produced
-    that file yet. With ``include_curated=True`` the ``curated/*.ttl`` files
+def get_codekg_dataset(include_curated: bool = False, include_tests: bool = True) -> StarLayerDataset:
+    """A fresh ``StarLayerDataset`` with ``codekg.trig`` (the source modules) and, unless ``include_tests=False``,
+    ``testskg.trig`` (the test modules) parsed into it, or an empty dataset (no module graphs) if the extractor hasn't
+    produced those files yet. With ``include_curated=True`` the ``curated/*.ttl`` files
     are also parsed into the ``CURATED_GRAPH_IRI`` graph (the default leaves
     it out, so the extractor's read-modify-write of the dataset can never
     write curated triples into ``codekg.trig``). Never cached/shared - the extractor mutates a dataset
@@ -111,6 +115,8 @@ def get_codekg_dataset(include_curated: bool = False) -> StarLayerDataset:
     dataset = StarLayerDataset()
     if CODEKG_TRIG_PATH.exists():
         dataset.parse(str(CODEKG_TRIG_PATH), format="trig12")
+    if include_tests and TESTSKG_TRIG_PATH.exists():
+        dataset.parse(str(TESTSKG_TRIG_PATH), format="trig12")
     if include_curated:
         curated = dataset.get_context(CURATED_GRAPH_IRI)
         for path in sorted(CURATED_DIR.glob("*.ttl")):

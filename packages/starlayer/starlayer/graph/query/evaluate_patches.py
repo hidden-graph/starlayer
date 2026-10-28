@@ -671,8 +671,20 @@ def _decode_tt_hash(graph, node):
     p = graph.value(node, TT_PREDICATE)
     o = graph.value(node, TT_OBJECT)
     if s is None or p is None or o is None:
-        return None
+        # A ground TRIPLE()/<<( )>> built inside the query was never written
+        # to the graph; the process-wide memo still knows what it means.
+        from starlayer.graph.model.encoding import lookup_tt_hash
+
+        return lookup_tt_hash(node)
     return (s, p, o)
+
+
+def _components_of_triple_term(node):
+    from starlayer.graph.model.triple import TripleTerm
+
+    if isinstance(node, TripleTerm):
+        return (node.subject, node.predicate, node.object)
+    return None
 
 
 def _tt_aware_eq(graph, a, b) -> bool:
@@ -700,8 +712,8 @@ def _tt_aware_eq(graph, a, b) -> bool:
     Returns:
         True if a and b are RDF-1.2-value-equal.
     """
-    da = _decode_tt_hash(graph, a)
-    db = _decode_tt_hash(graph, b)
+    da = _decode_tt_hash(graph, a) or _components_of_triple_term(a)
+    db = _decode_tt_hash(graph, b) or _components_of_triple_term(b)
     if da is None and db is None:
         return a.eq(b)
     if da is None or db is None:
@@ -776,6 +788,12 @@ def patch_relational_expression_tt_hash_equality() -> bool:
                     if graph is not None:
                         result = _tt_aware_eq(graph, expr_val, other_val)
                         return Literal(result if e.op == "=" else not result)
+            elif e.op in ("IN", "NOT IN") and isinstance(e.other, list):
+                if _looks_like_tt_hash(e.expr) or any(_looks_like_tt_hash(x) for x in e.other):
+                    graph = getattr(ctx, "graph", None) or getattr(getattr(ctx, "ctx", None), "graph", None)
+                    if graph is not None:
+                        found = any(_tt_aware_eq(graph, e.expr, x) for x in e.other)
+                        return Literal(found if e.op == "IN" else not found)
             return original_evalfn(e, ctx)
 
         _patched_relational_expression._starlayer_graph_tt_hash_equality_patch = True  # type: ignore[attr-defined]

@@ -535,6 +535,21 @@ list(g.query("PREFIX : <http://e/> SELECT (GROUP_CONCAT(?o+1) AS ?g) { :a :p ?o 
 
 Fix: `builtin_error_patches.py::patch_min_max_group_concat_terms_and_errors`.
 
+## 38. A raw TAB inside a SPARQL string literal is turned into spaces
+
+```python
+from rdflib import Graph
+g = Graph()
+g.update('INSERT DATA { <http://e/s> <http://e/p> "a\tb" }')   # Python turns \t into a real TAB in the update text
+repr(next(iter(g))[2])
+# actual:   Literal('a       b')   (the TAB became spaces)
+# expected: Literal('a\tb')
+```
+
+The SPARQL parser is built on pyparsing, and `ParserElement.parseString` expands every TAB in the input to spaces unless the grammar was told to keep them (`parseWithTabs()`). rdflib never calls it, so a TAB inside a string literal in a query or update is changed before the grammar sees it. The SPARQL grammar allows a TAB in a literal (`STRING_LITERAL1`/`2` take any character except the quote, backslash and line breaks), and a TAB is also whitespace between tokens, so keeping tabs does not change how the rest of the text parses. The escape `\t` was never affected. Found by the parsers/serializers hunt (GitHub issue #157). Not filed upstream.
+
+Fix: `builtin_error_patches.py::patch_sparql_parser_keeps_tabs` calls `parseWithTabs()` on rdflib's `Query` and `UpdateUnit`.
+
 ## Withdrawn entries
 
 Items 3 and 4 of this list were withdrawn on 2026-10-25 (GitHub issue #54). Both claimed that a `BIND` should see a variable bound in a sibling or enclosing group, and StarLayer patched rdflib (`patch_evalextend_forgotten_bind_vars`, `patch_lazy_join_expr_dependency_order`) to make it so. SPARQL 1.1 section 18.2.2.6 evaluates each group on its own and joins the results, so a `BIND` cannot see such a variable and plain rdflib was right. For example `SELECT * { VALUES ?x {1 2} { BIND(?x+1 AS ?y) } }` returns `?x` only, and `{ BIND(:v1 AS ?t0) { { BIND(?t0 AS ?o) } UNION { BIND(:v2 AS ?o) } } ?s :p ?o }` returns every `?s :p ?o` row once per union branch (six rows, not two). Both patches were removed; `tests/graph/unit/test_bind_scoping.py` pins the spec behaviour. The numbers 3 and 4 are not reused. Items 8 and 16 (`FILTER`) are the same question for filters and have not been re-examined.

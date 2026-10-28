@@ -120,7 +120,7 @@ class StarLayerDataset(Dataset):
             # rdf, rdfs, owl, xsd and xml, the default "rdflib" with rdflib's ~29.
             self._bind_namespaces = bind_namespaces
         self._backend = backend
-        self._sg_cache: dict[str, StarLayerGraph] = {}
+        self._sg_cache: dict[Node, StarLayerGraph] = {}
         self._raw_execution_graph: Dataset | None = None
         self._prepared_query_cache: dict = {}  # see starlayer.graph.query.query_cache.prepare_query_cached
 
@@ -203,7 +203,7 @@ class StarLayerDataset(Dataset):
                 ds._raw_execution_graph = None
 
         sg._invalidate_callback = _invalidate
-        self._sg_cache[str(sg.identifier)] = sg
+        self._sg_cache[sg.identifier] = sg
         return sg
 
     def get_context(self, identifier, quoted: bool = False, base=None) -> StarLayerGraph:
@@ -213,11 +213,12 @@ class StarLayerDataset(Dataset):
         already current.  If the context was added through other means, the
         registry is rebuilt on first access.
         """
-        key = str(identifier)
+        # keyed by the term, not its text: URIRef('x') and BNode('x') are two graphs (#99)
+        key = identifier if isinstance(identifier, Node) else URIRef(identifier)
         if key not in self._sg_cache:
             sg = StarLayerGraph(
                 store=self.store,
-                identifier=identifier,
+                identifier=key,
                 namespace_manager=self.namespace_manager,
                 backend=self._backend,
             )
@@ -230,13 +231,26 @@ class StarLayerDataset(Dataset):
         for ctx in super(Dataset, self).contexts(triple):
             yield self.get_context(ctx.identifier)
 
+    @property
+    def _is_native(self) -> bool:
+        return self._backend == 'rdf-1.2'
+
+    def _contexts_with_default(self) -> list[StarLayerGraph]:
+        """contexts() plus the default graph: a native store lists only its named graphs, so the default graph's triples
+        were missing from quads() and from the TriG / N-Quads / TriX output (GitHub issue #98)."""
+        found = list(self.contexts())
+        default_id = self.default_graph.identifier
+        if all(sg.identifier != default_id for sg in found):
+            found.append(self.get_context(default_id))
+        return found
+
     def _contexts_in_serialization_order(self) -> list[StarLayerGraph]:
         """Named graphs in a fixed order: IRIs by text, then blank nodes by label.
 
         contexts() follows the store's hash order, which changes with PYTHONHASHSEED, so the same data would serialize
         its graphs in a different order from one process (or one parse) to the next.
         """
-        return sorted(self.contexts(), key=lambda sg: (isinstance(sg.identifier, BNode), str(sg.identifier)))
+        return sorted(self._contexts_with_default(), key=lambda sg: (isinstance(sg.identifier, BNode), str(sg.identifier)))
 
     # ------------------------------------------------------------------
     # Quad iteration with TripleTerm restoration
@@ -252,6 +266,17 @@ class StarLayerDataset(Dataset):
         # Bypass Dataset.quads() (which yields bare URIRef graph identifiers)
         # and call the grandparent implementation directly so the 4th element
         # is a Graph object with .identifier.
+        if self._is_native:
+            # The store returns a triple term as a bare tuple (and its string literals as xsd:string-typed), so go
+            # through each graph's own read path, which builds TripleTerms (GitHub issue #98).
+            wanted = triple[3] if len(triple) == 4 else None  # rdflib accepts a (s, p, o, graph) pattern too
+            wanted = wanted.identifier if isinstance(wanted, Graph) else wanted
+            for sg in self._contexts_with_default():
+                if wanted is not None and sg.identifier != wanted:
+                    continue
+                for s, p, o in sg.triples(tuple(triple[:3])):
+                    yield s, p, o, sg
+            return
         for s_r, p_r, o_r, g in super(Dataset, self).quads(triple):
             if self._is_encoding_triple(s_r, p_r, o_r):
                 continue
@@ -264,13 +289,16 @@ class StarLayerDataset(Dataset):
         default_union=False (the default): only the default graph's own triples,
         matching this dataset's declared default-graph-isolation semantics.
         default_union=True: the union of every graph, default and named alike.
-        The same triple may appear more than once if it exists in multiple graphs.
+        A triple that is in several graphs is yielded once (the union is a set, as in rdflib's own Dataset).
 
         Encoding triples are filtered; TripleTerms are restored either way.
         """
         if self.default_union:
+            seen = set()
             for s, p, o, _g in self.quads(triple):
-                yield s, p, o
+                if (s, p, o) not in seen:
+                    seen.add((s, p, o))
+                    yield s, p, o
         else:
             default_graph = self.get_context(self.default_graph.identifier)
             yield from default_graph.triples(triple)
@@ -293,7 +321,8 @@ class StarLayerDataset(Dataset):
                 ``triples()``'s own semantics above. ``None`` with
                 ``default_union=True``: every graph, matching rdflib's own
                 ``ConjunctiveGraph.triples_choices()`` - the same triple
-                may appear more than once if it exists in multiple graphs.
+                may appear more than once if it exists in multiple graphs
+                (unlike ``triples()``, which yields each triple once).
                 Given explicitly: scoped to that one named graph only, via
                 the inherited ``_graph()`` helper (accepts an identifier, a
                 ``Graph``, or another dataset).
@@ -420,7 +449,7 @@ class StarLayerDataset(Dataset):
         called ``triples(..., context=...)``, which this class's override does not take."""
         if len(item) == 4:
             s, p, o, c = item
-            sg = self._sg_cache.get(str(c.identifier if isinstance(c, Graph) else c))
+            sg = self._sg_cache.get(c.identifier if isinstance(c, Graph) else (c if isinstance(c, Node) else URIRef(c)))
             return sg is not None and (s, p, o) in sg
         return any(True for _ in self.triples(item))
 
@@ -429,7 +458,7 @@ class StarLayerDataset(Dataset):
         returning the removed graph's triples (GitHub issue #99)."""
         identifier = g.identifier if isinstance(g, Graph) else g
         super().remove_graph(g)
-        self._sg_cache.pop(str(identifier), None)
+        self._sg_cache.pop(identifier if isinstance(identifier, Node) else URIRef(identifier), None)
         self._raw_execution_graph = None
         return self
 
@@ -479,6 +508,10 @@ class StarLayerDataset(Dataset):
         )
         for prefix, ns in namespaces:
             if str(ns) == str(TT_NS):  # the internal triple-term prefix is not the document's (GitHub issue #132)
+                continue
+            # Every block of a TriG document repeats the document's prefixes, and rdflib's bind() rebuilds its lookup trie each
+            # time; binding a pair that is already bound changes nothing, so skip it.
+            if self.namespace_manager.store.namespace(prefix) == URIRef(str(ns)):
                 continue
             sg.bind(prefix, ns)
             self.bind(prefix, ns)
@@ -534,6 +567,7 @@ class StarLayerDataset(Dataset):
 
         # turtle12 is Turtle-only (no GRAPH blocks); trig12 is a strict superset,
         # so routing turtle12 through the trig12 path is correct and safe.
+        strict_turtle = format == 'turtle12'
         if format == 'turtle12':
             format = 'trig12'
 
@@ -562,9 +596,11 @@ class StarLayerDataset(Dataset):
                 extract_version_directive as _trig_version,
             )
             from starlayer.graph.parsers.trig12 import parse_trig12_named
-            for graph_id, triples, namespaces in parse_trig12_named(text, base=_effective_base(publicID, location)):
+            for graph_id, triples, namespaces in parse_trig12_named(text, base=_effective_base(publicID, location), require_final_dot=strict_turtle):
                 identifier = DATASET_DEFAULT_GRAPH_ID if graph_id is None else graph_id
                 sg = self._load_context(identifier, namespaces)
+                if not triples and graph_id is not None:
+                    self.store.add_graph(sg)  # an empty named block is still a graph of the dataset (GitHub issue #99)
                 if sg._is_native:
                     # parse_trig12_named() returns the rdf-1.1 backend's own
                     # tt:HASH encoding (same as parse_trig12(), see
@@ -610,6 +646,8 @@ class StarLayerDataset(Dataset):
             for graph_id, triples in parse_trix12_named(text):
                 identifier = DATASET_DEFAULT_GRAPH_ID if graph_id is None else graph_id
                 sg = self._load_context(identifier)
+                if not triples and graph_id is not None:
+                    self.store.add_graph(sg)
                 for triple in triples:
                     sg.add(triple)
                 self._register_sg(sg)
@@ -718,8 +756,11 @@ class StarLayerDataset(Dataset):
         """
         if self._backend != 'rdf-1.2':
             # the store also holds the triple-term encoding triples, which are not data: count what the graphs show
-            seen = {str(sg.identifier): sg for sg in self.contexts()}
-            seen.setdefault(str(self.default_graph.identifier), self.get_context(self.default_graph.identifier))
+            seen = {sg.identifier: sg for sg in self.contexts()}
+            seen.setdefault(self.default_graph.identifier, self.get_context(self.default_graph.identifier))
+            if self.default_union:
+                # the union is a set: a triple in several graphs counts once (rdflib's Dataset(default_union=True) does too)
+                return len({t for sg in seen.values() for t in sg.triples((None, None, None))})
             return sum(len(sg) for sg in seen.values())
         from rdflib.term import Variable
 
@@ -886,8 +927,10 @@ class StarLayerDataset(Dataset):
         result parsing doesn't understand "type":"triple"; see
         starlayer.graph.backends.native's module docstring).
         """
-        if query_object is None:
-            raise TypeError('query_object must be SPARQL text or a prepared query, not None')
+        if not isinstance(query_object, str) and not hasattr(query_object, 'algebra'):
+            raise TypeError(
+                f'query_object must be SPARQL text or a prepared query, not {type(query_object).__name__}'
+            )
         if self._backend == 'rdf-1.2':
             from starlayer.graph.backends.native import native_query
             return native_query(
@@ -975,8 +1018,10 @@ class StarLayerDataset(Dataset):
         parsed and lowered to the tt:HASH encoding first (native_update
         itself, via starlayer.sparql).
         """
-        if update_object is None:
-            raise TypeError('update_object must be SPARQL text or a prepared update, not None')
+        if not isinstance(update_object, str) and not hasattr(update_object, 'algebra'):
+            raise TypeError(
+                f'update_object must be SPARQL text or a prepared update, not {type(update_object).__name__}'
+            )
         from starlayer.graph.backends.native import _in_process
         is_remote_http_store = bool(
             getattr(self.store, 'query_endpoint', None) and getattr(self.store, 'update_endpoint', None)
@@ -1079,6 +1124,19 @@ class StarLayerDataset(Dataset):
             text = self.to_graph().serialize(format=format, base=kwargs.get('base'))
 
         elif format not in ('trig12', 'nq12', 'trix12'):
+            if any(sg._is_native or sg._tt_registry for sg in self.contexts()):
+                # rdflib's writers would see the internal triple-term encoding (or, for a native store, a term they cannot
+                # write: JSON-LD gave `null`). Hand them a plain dataset in which each graph holds the RDF 1.2 Interoperability
+                # basic encoding instead, as StarLayerGraph.serialize() does (GitHub issue #99).
+                plain = Dataset()
+                for prefix, ns in self.namespaces():
+                    plain.bind(prefix, ns)
+                for sg in self.contexts():
+                    target = plain.graph(sg.identifier)
+                    for triple in sg._deskolemize_to_graph():
+                        target.add(triple)
+                result = plain.serialize(destination=destination, format=format, **kwargs)
+                return self if destination is not None else result
             return super().serialize(destination=destination, format=format, **kwargs)
 
         elif format == 'nq12':
@@ -1110,6 +1168,8 @@ class StarLayerDataset(Dataset):
 
             for sg in self._contexts_in_serialization_order():
                 if len(sg) == 0:
+                    if isinstance(sg.identifier, URIRef) and sg.identifier != DATASET_DEFAULT_GRAPH_ID:
+                        graph_entries.append((sg.identifier, ''))  # an empty named graph is still a graph (GitHub issue #99)
                     continue
                 turtle_text = serialize_turtle12(sg, base=kwargs.get('base'))
                 body_lines = []
@@ -1147,7 +1207,7 @@ class StarLayerDataset(Dataset):
                     blocks.append(body)
                 else:
                     indented = _indent_outside_long_strings(body, indent)
-                    blocks.append(f'GRAPH <{identifier}> {{\n{indented}\n}}')
+                    blocks.append(f'GRAPH <{identifier}> {{\n{indented}\n}}' if body else f'GRAPH <{identifier}> {{ }}')
 
             text = '\n\n'.join(blocks) + '\n'
 

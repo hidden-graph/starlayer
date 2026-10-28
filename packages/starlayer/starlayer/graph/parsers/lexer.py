@@ -14,6 +14,8 @@ statement-level Turtle12SyntaxError.line is filled in by the caller
 already-extracted, single-statement text with no document-level line info.
 """
 
+import re
+
 from starlayer.graph.parsers.errors import Turtle12SyntaxError
 
 # A bare token (PrefixedName, IRI-without-brackets, "a", boolean/numeric
@@ -52,6 +54,9 @@ def _bracket_end(s, open_char, close_char):
             depth -= 1
         i += 1
     return i if depth == 0 else -1
+
+
+_ANON_RE = re.compile(r'\[[ \t\r\n]*\]')
 
 
 def next_token(s):
@@ -258,6 +263,11 @@ def split_obj_and_annotations(s):
     while rest:
         if rest.startswith('~'):
             rest = rest[1:].lstrip()
+            if not rest:
+                # a bare '~' ending the object: reifier ::= '~' (iri | BlankNode)? with the name omitted, so a fresh blank-node
+                # reifier (GitHub issue #93; it used to be dropped without a reifies triple)
+                annotations.append((None, None))
+                break
             if rest.startswith('{|'):
                 # reifier ::= '~' (iri|BlankNode)? - the name is optional.
                 # A bare '~' directly followed by an annotation block is an
@@ -272,6 +282,8 @@ def split_obj_and_annotations(s):
                 rest = rest.strip()
                 if not reifier:
                     break
+                if _ANON_RE.fullmatch(reifier):
+                    reifier = None  # '~ []': ANON is a BlankNode, so a fresh blank node (GitHub issue #93)
             if rest.startswith('{|'):
                 body, rest = consume_annotation_block(rest)
                 annotations.append((reifier, body))

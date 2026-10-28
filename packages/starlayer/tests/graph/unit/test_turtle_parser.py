@@ -495,7 +495,7 @@ class TestDirLangStringCaseSensitivity:
         assert len(g) == 1
 
     def test_uppercase_direction_rejected(self, parser):
-        with pytest.raises(ValueError):
+        with pytest.raises(Turtle12SyntaxError):  # the parser's own error type, not a bare ValueError (issue #73)
             parser.parse('PREFIX ex: <http://example.org/>\nex:a ex:b "hi"@en--LTR .\n')
 
 

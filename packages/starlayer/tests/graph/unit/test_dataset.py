@@ -920,8 +920,8 @@ class TestDatasetStoreLifecycle:
         ds.parse(data=TRIG_TWO_GRAPHS, format='trig12')
         ds._sg_cache.clear()
         ds.open('')
-        assert str(G1) in ds._sg_cache
-        assert str(G2) in ds._sg_cache
+        assert URIRef(str(G1)) in ds._sg_cache
+        assert URIRef(str(G2)) in ds._sg_cache
 
     def test_open_rebuilds_tt_registries(self):
         """open() restores TripleTerm registries in each context."""
