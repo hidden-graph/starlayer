@@ -58,11 +58,73 @@ class _NodesWithoutEncoding:
             yield s, o
 
 
+def _repetition_pairs(path, graph, subj, obj):
+    """The ``(start, end)`` pairs of ``path*``, ``path+`` or ``path?`` as rdflib's ``MulPath.eval`` yields them, found by a
+    breadth-first search with a visited set instead of rdflib's recursive generators. A chain of a thousand hops overflowed
+    Python's stack (``RecursionError``), and every result was passed up through one generator frame per hop. Same set of
+    pairs; the order is breadth-first, which SPARQL leaves open."""
+    from rdflib.paths import eval_path
+
+    step = path.path
+
+    def reachable(start, forward):
+        """Nodes one or more steps from ``start`` (``?`` takes one step only), each once."""
+        found = set()
+        expanded = {start}
+        queue = [start]
+        while queue:
+            node = queue.pop()
+            pattern = (node, step, None) if forward else (None, step, node)
+            for s, o in eval_path(graph, pattern):
+                nxt = o if forward else s
+                if nxt not in found:
+                    found.add(nxt)
+                    yield nxt
+                if path.more and nxt not in expanded:
+                    expanded.add(nxt)
+                    queue.append(nxt)
+            if not path.more:
+                return
+
+    if path.zero:
+        if subj and obj:
+            if subj == obj:
+                yield subj, obj
+        elif subj:
+            yield subj, subj
+        elif obj:
+            yield obj, obj
+    if subj:
+        for o in reachable(subj, True):
+            if not obj or o == obj:
+                yield subj, o
+    elif obj:
+        for s in reachable(obj, False):
+            yield s, obj
+    else:
+        if path.zero:
+            seen_nodes = set()
+            for s, o in graph.subject_objects(None):
+                for node in (s, o):
+                    if node not in seen_nodes:
+                        seen_nodes.add(node)
+                        yield node, node
+        starts = set()
+        for s, _o in eval_path(graph, (None, step, None)):
+            if s not in starts:
+                starts.add(s)
+                for o in reachable(s, True):
+                    yield s, o
+
+
 def patch_repetition_paths_are_distinct() -> bool:
     """``:a :p* ?y`` over a cycle returned the start node twice (the zero-length match and the cycle back to it) while
     ``:a :p+ ?y`` and ``?x :p* ?y FILTER(?x = :a)`` gave each node once. SPARQL 1.1 section 18.4 evaluates ``*``, ``+`` and
     ``?`` over the *set* of reachable nodes (ALP is a visited set), so the result of the outermost evaluation is made
-    distinct (GitHub issue #77); and the nodes of a zero-length match exclude the encoding triples of triple terms (#134). Wraps ``MulPath.eval``; the recursive calls inside rdflib are left alone."""
+    distinct (GitHub issue #77); and the nodes of a zero-length match exclude the encoding triples of triple terms (#134).
+    Wraps ``MulPath.eval``, and evaluates the repetition itself with a visited-set search (``_repetition_pairs``) because
+    rdflib's recursive generators raise ``RecursionError`` on a chain of about a thousand hops; a call with ``first=False``
+    still goes to rdflib's own code."""
     global _mulpath_status
     if _mulpath_status is not None:
         return _mulpath_status
@@ -84,7 +146,7 @@ def patch_repetition_paths_are_distinct() -> bool:
                 # triples of triple terms (GitHub issue #134).
                 graph = _NodesWithoutEncoding(graph)
             seen = set()
-            for pair in original(self, graph, subj, obj, first):
+            for pair in _repetition_pairs(self, graph, subj, obj):
                 if pair not in seen:
                     seen.add(pair)
                     yield pair
