@@ -117,6 +117,47 @@ def _meta_validate_cache_key(shapes_graph_for_meta: Any, kwargs: dict) -> tuple 
         return None
     return (content_hash, kwarg_items)
 
+def parameter_value_shapes(shapes_graph: Any) -> Graph:
+    """Shapes that check what a shapes graph gives for the parameters of its constraint components.
+
+    SPARQL Extensions 4.2.1: "Shapes that do not conform with the constraints declared for the parameters are ill-formed." A parameter
+    of a ``sh:ConstraintComponent`` is a property shape (``sh:datatype``, ``sh:nodeKind``, ``sh:class``, ``sh:in``, ...) for the values a
+    shape gives that property. This returns a graph holding each such parameter as a property shape that targets the subjects of its
+    ``sh:path``, so validating ``shapes_graph`` against it (alone or added to the meta-shapes) reports a shape whose value for the property
+    breaks the parameter's own constraints, for example text given for an ``xsd:integer`` parameter. The engine does not check this: a
+    query comparing text with a number silently finds nothing.
+
+    Only a parameter whose path is an IRI is used; the parameter's own triples (and what hangs from its blank nodes) are copied, so the
+    returned graph shares no blank node with ``shapes_graph`` beyond the parameter's own label.
+    """
+    from rdflib import BNode, URIRef
+    from rdflib.namespace import RDF
+
+    sh = Namespace("http://www.w3.org/ns/shacl#")
+    result = Graph()
+    components = set(shapes_graph.subjects(RDF.type, sh.ConstraintComponent))
+    for component in components:
+        for parameter in shapes_graph.objects(component, sh.parameter):
+            paths = [p for p in shapes_graph.objects(parameter, sh.path) if isinstance(p, URIRef)]
+            if len(paths) != 1:
+                continue
+            pending, seen = [parameter], set()
+            while pending:
+                node = pending.pop()
+                if node in seen:
+                    continue
+                seen.add(node)
+                for s_, p_, o_ in shapes_graph.triples((node, None, None)):
+                    if p_ in (sh.optional, sh.keyParameter, sh.name, sh.description, sh.order, sh.group):
+                        continue  # (what a parameter says about itself, not a constraint on its values)
+                    result.add((s_, p_, o_))
+                    if isinstance(o_, BNode):
+                        pending.append(o_)
+            result.add((parameter, RDF.type, sh.PropertyShape))
+            result.add((parameter, sh.targetSubjectsOf, paths[0]))
+    return result
+
+
 def load_meta_shapes_graph(extra_graphs: Iterable[Any] = ()) -> Graph:
     """The meta-shapes graph ``meta_validate()`` checks against, read from
     the stored ``shacl12-shacl.ttl`` (``starontology``'s ``"shacl_shacl"``
@@ -226,6 +267,7 @@ def meta_validate(shapes_graph: Any, *, extra_graphs: Iterable[Any] = (), **kwar
         report_graph += cached_report_graph
     else:
         meta_shapes = load_meta_shapes_graph(extra_graphs)
+        meta_shapes += parameter_value_shapes(shapes_graph_for_meta)  # a shape's values for a component's parameters must satisfy the parameter (SPARQL Extensions 4.2.1)
         # The Working Group's meta-shapes are recursive by design (a shape's members are shapes), and pySHACL warns
         # each time it backs out of that recursion; that is expected here, so do not show it to the caller.
         with warnings.catch_warnings():

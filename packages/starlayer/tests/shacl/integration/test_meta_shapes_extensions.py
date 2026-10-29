@@ -1856,7 +1856,185 @@ def test_a_target_where_shape_that_is_not_well_formed_is_refused() -> None:
 
 
 def test_a_list_parameter_function_documents_its_arguments_as_arg0_arg1() -> None:
-    _validate(_TRIVIAL_DATA, _PREFIXES + "ex:L a sh:ListParameterExpressionFunction ; sh:parameter [ sh:path shnex:arg0 ], [ sh:path shnex:arg12 ] ; sh:bodyExpression [ shnex:var 'x' ] .")
+    _validate(_TRIVIAL_DATA, _PREFIXES + "ex:L a sh:ListParameterExpressionFunction ; sh:parameter [ sh:path shnex:arg0 ], [ sh:path shnex:arg1 ] ; sh:bodyExpression [ shnex:var 'x' ] .")
+    assert len(_warnings("ex:L a sh:ListParameterExpressionFunction ; sh:parameter [ sh:path shnex:arg0 ], [ sh:path shnex:arg12 ] ; sh:bodyExpression [ shnex:var 'x' ] .")) == 1, "a multi-digit position is valid; skipping to it is only advice"
     with pytest.raises(Exception) as exc_info:
         _validate(_TRIVIAL_DATA, _PREFIXES + "ex:L a sh:ListParameterExpressionFunction ; sh:parameter [ sh:path ex:first ] ; sh:bodyExpression [ shnex:var 'x' ] .")
     assert "metashacl" in str(exc_info.value).lower()
+
+
+def _function(name: str, key: str) -> str:
+    return f"{name} a sh:NamedParameterExpressionFunction ; sh:parameter [ sh:path {key} ; sh:keyParameter true ] ; sh:bodyExpression [ shnex:var 'x' ] ."
+
+
+def test_key_parameters_that_are_disjoint_pass() -> None:
+    _validate(_TRIVIAL_DATA, _PREFIXES + _function("ex:F", "ex:x") + _function("ex:G", "ex:y") + " ex:G sh:parameter [ sh:path ex:x ] .")  # (a non-key parameter may share a name)
+
+
+@pytest.mark.parametrize(
+    "shapes",
+    [
+        _PREFIXES + _function("ex:F", "ex:x") + _function("ex:G", "ex:x"),  # the same key parameter on two functions
+        _PREFIXES + _function("ex:F", "shnex:count"),  # a built-in function predicate
+        _PREFIXES + _function("ex:F", "<http://www.w3.org/ns/sparql#concat>"),  # in the sparql: namespace
+    ],
+)
+def test_key_parameters_that_are_not_disjoint_are_caught(shapes) -> None:
+    with pytest.raises(Exception) as exc_info:
+        _validate(_TRIVIAL_DATA, shapes)
+    assert "metashacl" in str(exc_info.value).lower()
+
+
+def _select_of(text: str) -> str:
+    return _PREFIXES + f'ex:S a sh:NodeShape ; sh:targetClass ex:C ; sh:sparql [ sh:select """{text}""" ; sh:message "m" ] .'
+
+
+@pytest.mark.parametrize("text", ["SELECT $this WHERE { }", "select $this where { }", "PREFIX ex: <http://example.org/>\nSELECT $this WHERE { $this a ex:C }", "BASE <http://example.org/> SELECT $this WHERE { }"])
+def test_the_text_of_sh_select_is_a_select_query(text) -> None:
+    _validate(_TRIVIAL_DATA, _select_of(text))
+
+
+@pytest.mark.parametrize("text", ["", "   ", "ASK { }", "CONSTRUCT { } WHERE { }", "this is not SPARQL"])
+def test_empty_or_other_text_is_not_a_sh_select(text) -> None:
+    with pytest.raises(Exception) as exc_info:
+        _validate(_TRIVIAL_DATA, _select_of(text))
+    assert "metashacl" in str(exc_info.value).lower()
+
+
+def test_a_named_sparql_constraint_or_rule_needs_its_query_wherever_it_is_held() -> None:
+    _validate(_TRIVIAL_DATA, _PREFIXES + 'ex:C a sh:SPARQLConstraint ; sh:select "SELECT $this WHERE { }" . ex:R a sh:SPARQLRule ; sh:construct "CONSTRUCT { } WHERE { }" .')
+    for bare in ("ex:C a sh:SPARQLConstraint .", "ex:R a sh:SPARQLRule ."):
+        with pytest.raises(Exception) as exc_info:
+            _validate(_TRIVIAL_DATA, _PREFIXES + bare)
+        assert "metashacl" in str(exc_info.value).lower(), bare
+
+
+_COMPONENT = (
+    "ex:C a sh:ConstraintComponent ; sh:parameter [ sh:path ex:low ], [ sh:path ex:high ] ; sh:validator [ a sh:SPARQLAskValidator ; sh:ask 'ASK { }' ] . "
+    "ex:One a sh:ConstraintComponent ; sh:parameter [ sh:path ex:min ] ; sh:validator [ a sh:SPARQLAskValidator ; sh:ask 'ASK { }' ] . "
+    "ex:Pat a sh:ConstraintComponent ; sh:parameter [ sh:path ex:pat ], [ sh:path ex:flags ; sh:optional true ] ; sh:validator [ a sh:SPARQLAskValidator ; sh:ask 'ASK { }' ] . "
+)
+
+
+@pytest.mark.parametrize("shape", [
+    "ex:S a sh:NodeShape ; ex:low 1 ; ex:high 2 .",  # one value of each
+    "ex:S a sh:NodeShape ; ex:min 1, 2 .",  # a component with one parameter takes several
+    "ex:S a sh:NodeShape ; ex:low 1, 2 .",  # ex:high is missing, so ex:C does not apply to the shape
+])
+def test_a_component_with_several_required_parameters_accepts_a_shape_with_one_value_of_each(shape) -> None:
+    _validate(_TRIVIAL_DATA, _PREFIXES + _COMPONENT + shape)
+
+
+@pytest.mark.parametrize("shape", [
+    "ex:S a sh:NodeShape ; ex:low 1, 2 ; ex:high 3 .",
+    "ex:S a sh:NodeShape ; ex:pat 'a' ; ex:flags 'i', 's' .",  # an optional parameter counts: the component declares more than one (sh:pattern with sh:flags)
+])
+def test_a_shape_with_two_values_for_a_parameter_of_a_component_with_several_is_ill_formed(shape) -> None:
+    with pytest.raises(Exception) as exc_info:
+        _validate(_TRIVIAL_DATA, _PREFIXES + _COMPONENT + shape)
+    assert "metashacl" in str(exc_info.value).lower()
+
+
+_TYPED_PARAMETER = (
+    "ex:Min a sh:ConstraintComponent ; sh:parameter [ sh:path ex:min ; sh:datatype xsd:integer ] ; sh:validator [ a sh:SPARQLAskValidator ; sh:ask 'ASK { }' ] . "
+)
+_XSD = "@prefix xsd: <http://www.w3.org/2001/XMLSchema#> . "
+
+
+def test_a_value_for_a_component_parameter_must_satisfy_the_parameter() -> None:
+    _validate(_TRIVIAL_DATA, _XSD + _PREFIXES + _TYPED_PARAMETER + "ex:S a sh:NodeShape ; ex:min 5 .")  # an integer
+    _validate(_TRIVIAL_DATA, _XSD + _PREFIXES + _TYPED_PARAMETER + "ex:S a sh:NodeShape .")  # no value for the parameter: the component does not apply
+    for bad in ('"abc"', '"5"', "5.5"):
+        with pytest.raises(Exception) as exc_info:
+            _validate(_TRIVIAL_DATA, _XSD + _PREFIXES + _TYPED_PARAMETER + f"ex:S a sh:NodeShape ; ex:min {bad} .")
+        assert "metashacl" in str(exc_info.value).lower(), bad
+
+
+def test_every_constraint_the_parameter_declares_applies_to_its_values() -> None:
+    component = "ex:Kind a sh:ConstraintComponent ; sh:parameter [ sh:path ex:kind ; sh:nodeKind sh:IRI ] ; sh:validator [ a sh:SPARQLAskValidator ; sh:ask 'ASK { }' ] . "
+    _validate(_TRIVIAL_DATA, _PREFIXES + component + "ex:S a sh:NodeShape ; ex:kind ex:Thing .")
+    with pytest.raises(Exception) as exc_info:
+        _validate(_TRIVIAL_DATA, _PREFIXES + component + 'ex:S a sh:NodeShape ; ex:kind "text" .')
+    assert "metashacl" in str(exc_info.value).lower()
+
+
+def test_a_parameter_of_a_function_is_not_checked_this_way() -> None:
+    """Only a constraint component's parameters constrain what shapes give; the parameters of a function are its arguments."""
+    function = "ex:F a sh:NamedParameterExpressionFunction ; sh:parameter [ sh:path ex:amount ; sh:keyParameter true ; sh:datatype xsd:integer ] ; sh:bodyExpression 0 . "
+    _validate(_TRIVIAL_DATA, _XSD + _PREFIXES + function + 'ex:S a sh:NodeShape ; ex:amount "text" .')
+
+
+_PATH_QUERY = 'SELECT $this ?value WHERE { $this $PATH ?value }'
+
+
+def _path_shapes(body: str) -> str:
+    return _PREFIXES + body
+
+
+@pytest.mark.parametrize("body", [
+    'ex:S a sh:NodeShape ; sh:property [ sh:path ex:p ; sh:sparql [ sh:select """%s""" ; sh:message "m" ] ] .' % _PATH_QUERY,  # a property shape has a path
+    'ex:S a sh:NodeShape ; sh:sparql [ sh:select """SELECT $this WHERE { $this <http://example.org/p> ?v }""" ; sh:message "m" ] .',  # a node shape, a query that names its property
+    'ex:C a sh:ConstraintComponent ; sh:parameter [ sh:path ex:q ] ; sh:propertyValidator [ a sh:SPARQLSelectValidator ; sh:select """%s""" ] .' % _PATH_QUERY,
+    'ex:C a sh:ConstraintComponent ; sh:parameter [ sh:path ex:q ] ; sh:validator [ a sh:SPARQLAskValidator ; sh:ask """ASK { $this $PATH $value }""" ] .',  # sh:validator serves both kinds of shape
+    'ex:C a sh:ConstraintComponent ; sh:parameter [ sh:path ex:q ] ; sh:nodeValidator [ a sh:SPARQLSelectValidator ; sh:select """SELECT $this WHERE { $this <http://example.org/PATHS> ?v }""" ] .',  # a name that only starts with PATH
+])
+def test_path_may_be_used_where_a_path_is_known(body) -> None:
+    _validate(_TRIVIAL_DATA, _path_shapes(body))
+
+
+@pytest.mark.parametrize("body", [
+    'ex:S a sh:NodeShape ; sh:sparql [ sh:select """%s""" ; sh:message "m" ] .' % _PATH_QUERY,
+    'ex:S a sh:NodeShape ; sh:sparql [ sh:select """SELECT $this WHERE { $this ?PATH ?v }""" ; sh:message "m" ] .',
+    'ex:C a sh:ConstraintComponent ; sh:parameter [ sh:path ex:q ] ; sh:nodeValidator [ a sh:SPARQLSelectValidator ; sh:select """%s""" ] .' % _PATH_QUERY,
+])
+def test_path_is_not_allowed_in_a_query_of_a_node_shape(body) -> None:
+    with pytest.raises(Exception) as exc_info:
+        _validate(_TRIVIAL_DATA, _path_shapes(body))
+    assert "metashacl" in str(exc_info.value).lower() and "PATH" in str(exc_info.value)
+
+
+_LIST_FN = "ex:f a sh:ListParameterExpressionFunction ; %s sh:bodyExpression %s ."
+
+
+def _warnings(body: str) -> list[str]:
+    shapes = Graph()
+    shapes.parse(data="@prefix sparql: <http://www.w3.org/ns/sparql#> . " + _PREFIXES + body, format="turtle")
+    conforms, report_graph, _text = meta_validate(shapes)
+    assert conforms is True, "a Warning does not make a shapes graph invalid"
+    warning = URIRef("http://www.w3.org/ns/shacl#Warning")
+    return [str(m) for r in report_graph.subjects(URIRef("http://www.w3.org/ns/shacl#resultSeverity"), warning) for m in report_graph.objects(r, URIRef("http://www.w3.org/ns/shacl#resultMessage"))]
+
+
+@pytest.mark.parametrize("key", ["0", "3", "ex:parameter"])
+def test_the_key_of_shnex_arg_is_a_position_or_an_iri(key) -> None:
+    _validate(_TRIVIAL_DATA, _PREFIXES + _LIST_FN % ("", f"[ shnex:arg {key} ]"))
+
+
+@pytest.mark.parametrize("key", ['"zero"', "-1", "1.5", "true"])
+def test_the_key_of_shnex_arg_that_is_not_a_position_or_an_iri_is_rejected(key) -> None:
+    with pytest.raises(Exception) as exc_info:
+        _validate(_TRIVIAL_DATA, _PREFIXES + _LIST_FN % ("", f"[ shnex:arg {key} ]"))
+    assert "metashacl" in str(exc_info.value).lower()
+
+
+def test_a_body_that_reads_an_argument_the_function_does_not_document_is_a_warning() -> None:
+    documented = "sh:parameter [ sh:path shnex:arg0 ] , [ sh:path shnex:arg1 ] ;"
+    assert _warnings(_LIST_FN % (documented, "[ sparql:concat ( [ shnex:arg 0 ] [ shnex:arg 1 ] ) ]")) == [], "both documented"
+    assert _warnings(_LIST_FN % ("", "[ sparql:concat ( [ shnex:arg 0 ] [ shnex:arg 5 ] ) ]")) == [], "documenting is optional: nothing documented, nothing to disagree with"
+    found = _warnings(_LIST_FN % (documented, "[ sparql:concat ( [ shnex:arg 0 ] [ sparql:concat ( [ shnex:arg 3 ] ) ] ) ]"))
+    assert len(found) == 1 and "argument 3" in found[0], "a position read anywhere in the body, nested"
+
+
+def test_documented_positions_that_skip_a_number_are_a_warning() -> None:
+    assert _warnings(_LIST_FN % ("sh:parameter [ sh:path shnex:arg0 ] , [ sh:path shnex:arg1 ] ;", "[ shnex:arg 0 ]")) == []
+    found = _warnings(_LIST_FN % ("sh:parameter [ sh:path shnex:arg0 ] , [ sh:path shnex:arg2 ] ;", "[ shnex:arg 0 ]"))
+    assert len(found) == 1 and "arg2" in found[0]
+
+
+def test_an_argument_parameter_with_a_cardinality_above_one_is_a_warning() -> None:
+    fine = "sh:parameter [ sh:path shnex:arg0 ; sh:maxCount 1 ] ;"
+    assert _warnings(_LIST_FN % (fine, "[ shnex:arg 0 ]")) == []
+    assert _warnings(_LIST_FN % ("sh:parameter [ sh:path shnex:arg0 ] ;", "[ shnex:arg 0 ]")) == [], "no cardinality said: fine"
+    for card in ("sh:maxCount 2", "sh:minCount 3"):
+        found = _warnings(_LIST_FN % (f"sh:parameter [ sh:path shnex:arg0 ; {card} ] ;", "[ shnex:arg 0 ]"))
+        assert len(found) == 1 and "single node" in found[0], card

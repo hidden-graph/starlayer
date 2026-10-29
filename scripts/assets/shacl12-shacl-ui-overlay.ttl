@@ -727,12 +727,12 @@ stsh:SPARQLConstraintForm a sh:NodeShape ;
 # sh:keyParameter among its parameters and may have a label template (it is a Parameterizable); a list parameter function documents its parameters as shnex:arg0, shnex:arg1.
 stsh:NamedParameterExpressionFunctionForm a sh:NodeShape ;
     stsh:formFor sh:NamedParameterExpressionFunction ;
-    stsh:formFields ( rdf:type sh:parameter sh:bodyExpression sh:returnType sh:labelTemplate rdfs:label rdfs:comment ) ;
+    stsh:formFields ( rdf:type sh:parameter sh:bodyExpression sh:labelTemplate rdfs:label rdfs:comment ) ;
     stsh:formRequired ( sh:bodyExpression ) .
 
 stsh:ListParameterExpressionFunctionForm a sh:NodeShape ;
     stsh:formFor sh:ListParameterExpressionFunction ;
-    stsh:formFields ( rdf:type sh:parameter sh:bodyExpression sh:returnType rdfs:label rdfs:comment ) ;
+    stsh:formFields ( rdf:type sh:parameter sh:bodyExpression rdfs:label rdfs:comment ) ;
     stsh:formRequired ( sh:bodyExpression ) .
 
 # The kinds of the SHACL UI vocabulary a user declares (SHACL UI 3 and 4). A widget is a shui:Widget (an editor or a viewer, single or multiple: the type says which; the

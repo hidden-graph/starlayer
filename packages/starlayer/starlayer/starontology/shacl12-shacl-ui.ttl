@@ -265,9 +265,8 @@ stsh:ListParameterExpressionFunctionForm a sh:NodeShape ;
         stsh:ListParameterExpressionFunctionForm_rdfs_comment,
         stsh:ListParameterExpressionFunctionForm_rdfs_label,
         stsh:ListParameterExpressionFunctionForm_sh_bodyExpression,
-        stsh:ListParameterExpressionFunctionForm_sh_parameter,
-        stsh:ListParameterExpressionFunctionForm_sh_returnType ;
-    stsh:formFields ( rdf:type sh:parameter sh:bodyExpression sh:returnType rdfs:label rdfs:comment ) ;
+        stsh:ListParameterExpressionFunctionForm_sh_parameter ;
+    stsh:formFields ( rdf:type sh:parameter sh:bodyExpression rdfs:label rdfs:comment ) ;
     stsh:formFor sh:ListParameterExpressionFunction ;
     stsh:formRequired ( sh:bodyExpression ) .
 
@@ -278,9 +277,8 @@ stsh:NamedParameterExpressionFunctionForm a sh:NodeShape ;
         stsh:NamedParameterExpressionFunctionForm_rdfs_label,
         stsh:NamedParameterExpressionFunctionForm_sh_bodyExpression,
         stsh:NamedParameterExpressionFunctionForm_sh_labelTemplate,
-        stsh:NamedParameterExpressionFunctionForm_sh_parameter,
-        stsh:NamedParameterExpressionFunctionForm_sh_returnType ;
-    stsh:formFields ( rdf:type sh:parameter sh:bodyExpression sh:returnType sh:labelTemplate rdfs:label rdfs:comment ) ;
+        stsh:NamedParameterExpressionFunctionForm_sh_parameter ;
+    stsh:formFields ( rdf:type sh:parameter sh:bodyExpression sh:labelTemplate rdfs:label rdfs:comment ) ;
     stsh:formFor sh:NamedParameterExpressionFunction ;
     stsh:formRequired ( sh:bodyExpression ) .
 
@@ -1101,13 +1099,6 @@ stsh:ListParameterExpressionFunctionForm_sh_parameter a sh:PropertyShape ;
     sh:order 5 ;
     sh:path sh:parameter .
 
-stsh:ListParameterExpressionFunctionForm_sh_returnType a sh:PropertyShape ;
-    sh:group stsh:DefinitionGroup ;
-    sh:maxCount 1 ;
-    sh:nodeKind sh:IRI ;
-    sh:order 7 ;
-    sh:path sh:returnType .
-
 stsh:NamedParameterExpressionFunctionForm_rdf_type a sh:PropertyShape ;
     sh:group stsh:TypeGroup ;
     sh:nodeKind sh:IRI ;
@@ -1145,13 +1136,6 @@ stsh:NamedParameterExpressionFunctionForm_sh_parameter a sh:PropertyShape ;
     sh:nodeKind sh:BlankNodeOrIRI ;
     sh:order 5 ;
     sh:path sh:parameter .
-
-stsh:NamedParameterExpressionFunctionForm_sh_returnType a sh:PropertyShape ;
-    sh:group stsh:DefinitionGroup ;
-    sh:maxCount 1 ;
-    sh:nodeKind sh:IRI ;
-    sh:order 7 ;
-    sh:path sh:returnType .
 
 stsh:NodeShapeForm_rdf_type a sh:PropertyShape ;
     sh:group stsh:TypeGroup ;
@@ -1392,7 +1376,7 @@ stsh:NodeShapeForm_sh_nodeByExpression a sh:PropertyShape ;
 
 stsh:NodeShapeForm_sh_nodeKind a sh:PropertyShape ;
     sh:group stsh:ValueTypeGroup ;
-    sh:in _:nfad99b4518b342ebbe581eb597bb25d0b75 ;
+    sh:in _:nb86494a6ead94b0b8f19355911af0db0b75 ;
     sh:maxCount 1 ;
     sh:nodeKind sh:IRI ;
     sh:order 4 ;
@@ -1792,7 +1776,7 @@ stsh:ParameterForm_sh_nodeByExpression a sh:PropertyShape ;
 
 stsh:ParameterForm_sh_nodeKind a sh:PropertyShape ;
     sh:group stsh:ValueTypeGroup ;
-    sh:in _:nfad99b4518b342ebbe581eb597bb25d0b75 ;
+    sh:in _:nb86494a6ead94b0b8f19355911af0db0b75 ;
     sh:maxCount 1 ;
     sh:nodeKind sh:IRI ;
     sh:order 4 ;
@@ -2295,7 +2279,7 @@ stsh:PropertyShapeForm_sh_nodeByExpression a sh:PropertyShape ;
 
 stsh:PropertyShapeForm_sh_nodeKind a sh:PropertyShape ;
     sh:group stsh:ValueTypeGroup ;
-    sh:in _:nfad99b4518b342ebbe581eb597bb25d0b75 ;
+    sh:in _:nb86494a6ead94b0b8f19355911af0db0b75 ;
     sh:maxCount 1 ;
     sh:nodeKind sh:IRI ;
     sh:order 4 ;
@@ -3579,6 +3563,11 @@ sh:layer sh:datatype xsd:integer ;
     sh:order 18 ;
     stsh:formMaxCount 1 .
 
+sh:returnType sh:group stsh:DefinitionGroup ;
+    sh:nodeKind sh:IRI ;
+    sh:order 7 ;
+    stsh:formMaxCount 1 .
+
 sh:runOnce sh:datatype xsd:boolean ;
     sh:group stsh:RulesGroup ;
     sh:nodeKind sh:Literal ;
@@ -3719,11 +3708,6 @@ stsh:NodeExpressionGroup a sh:PropertyGroup ;
     sh:name "Node Expression"@en ;
     sh:order 1 .
 
-sh:returnType sh:group stsh:DefinitionGroup ;
-    sh:nodeKind sh:IRI ;
-    sh:order 7 ;
-    stsh:formMaxCount 1 .
-
 stsh:PathGroup a sh:PropertyGroup ;
     sh:description "sh:path and its operators (inverse, alternative, repeated) that connect a focus node to its value nodes."@en ;
     sh:name "Property Paths"@en ;
@@ -3862,8 +3846,8 @@ stsh:DefinitionGroup a sh:PropertyGroup ;
     sh:name "Definition"@en ;
     sh:order 0.5 .
 
-_:nfad99b4518b342ebbe581eb597bb25d0b76 rdf:first sh:IRI ;
+_:nb86494a6ead94b0b8f19355911af0db0b76 rdf:first sh:IRI ;
     rdf:rest ( sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) .
 
-_:nfad99b4518b342ebbe581eb597bb25d0b75 rdf:first sh:BlankNode ;
-    rdf:rest _:nfad99b4518b342ebbe581eb597bb25d0b76 .
+_:nb86494a6ead94b0b8f19355911af0db0b75 rdf:first sh:BlankNode ;
+    rdf:rest _:nb86494a6ead94b0b8f19355911af0db0b76 .

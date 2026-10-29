@@ -2299,9 +2299,8 @@ starontology:shacl12-shacl-ui.ttl {
             stsh:ListParameterExpressionFunctionForm_rdfs_comment,
             stsh:ListParameterExpressionFunctionForm_rdfs_label,
             stsh:ListParameterExpressionFunctionForm_sh_bodyExpression,
-            stsh:ListParameterExpressionFunctionForm_sh_parameter,
-            stsh:ListParameterExpressionFunctionForm_sh_returnType ;
-        stsh:formFields ( rdf:type sh:parameter sh:bodyExpression sh:returnType rdfs:label rdfs:comment ) ;
+            stsh:ListParameterExpressionFunctionForm_sh_parameter ;
+        stsh:formFields ( rdf:type sh:parameter sh:bodyExpression rdfs:label rdfs:comment ) ;
         stsh:formFor sh:ListParameterExpressionFunction ;
         stsh:formRequired ( sh:bodyExpression ) .
 
@@ -2312,9 +2311,8 @@ starontology:shacl12-shacl-ui.ttl {
             stsh:NamedParameterExpressionFunctionForm_rdfs_label,
             stsh:NamedParameterExpressionFunctionForm_sh_bodyExpression,
             stsh:NamedParameterExpressionFunctionForm_sh_labelTemplate,
-            stsh:NamedParameterExpressionFunctionForm_sh_parameter,
-            stsh:NamedParameterExpressionFunctionForm_sh_returnType ;
-        stsh:formFields ( rdf:type sh:parameter sh:bodyExpression sh:returnType sh:labelTemplate rdfs:label rdfs:comment ) ;
+            stsh:NamedParameterExpressionFunctionForm_sh_parameter ;
+        stsh:formFields ( rdf:type sh:parameter sh:bodyExpression sh:labelTemplate rdfs:label rdfs:comment ) ;
         stsh:formFor sh:NamedParameterExpressionFunction ;
         stsh:formRequired ( sh:bodyExpression ) .
 
@@ -3135,13 +3133,6 @@ starontology:shacl12-shacl-ui.ttl {
         sh:order 5 ;
         sh:path sh:parameter .
 
-    stsh:ListParameterExpressionFunctionForm_sh_returnType a sh:PropertyShape ;
-        sh:group stsh:DefinitionGroup ;
-        sh:maxCount 1 ;
-        sh:nodeKind sh:IRI ;
-        sh:order 7 ;
-        sh:path sh:returnType .
-
     stsh:NamedParameterExpressionFunctionForm_rdf_type a sh:PropertyShape ;
         sh:group stsh:TypeGroup ;
         sh:nodeKind sh:IRI ;
@@ -3179,13 +3170,6 @@ starontology:shacl12-shacl-ui.ttl {
         sh:nodeKind sh:BlankNodeOrIRI ;
         sh:order 5 ;
         sh:path sh:parameter .
-
-    stsh:NamedParameterExpressionFunctionForm_sh_returnType a sh:PropertyShape ;
-        sh:group stsh:DefinitionGroup ;
-        sh:maxCount 1 ;
-        sh:nodeKind sh:IRI ;
-        sh:order 7 ;
-        sh:path sh:returnType .
 
     stsh:NodeShapeForm_rdf_type a sh:PropertyShape ;
         sh:group stsh:TypeGroup ;
@@ -3426,7 +3410,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:NodeShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n6e8402602ef84d0eab26f66198b4033eb213 ;
+        sh:in _:nb0652a68d1c0407b9c3f950e721f7d85b211 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -3826,7 +3810,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:ParameterForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n6e8402602ef84d0eab26f66198b4033eb213 ;
+        sh:in _:nb0652a68d1c0407b9c3f950e721f7d85b211 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -4329,7 +4313,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:PropertyShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n6e8402602ef84d0eab26f66198b4033eb213 ;
+        sh:in _:nb0652a68d1c0407b9c3f950e721f7d85b211 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -5613,6 +5597,11 @@ starontology:shacl12-shacl-ui.ttl {
         sh:order 18 ;
         stsh:formMaxCount 1 .
 
+    sh:returnType sh:group stsh:DefinitionGroup ;
+        sh:nodeKind sh:IRI ;
+        sh:order 7 ;
+        stsh:formMaxCount 1 .
+
     sh:runOnce sh:datatype xsd:boolean ;
         sh:group stsh:RulesGroup ;
         sh:nodeKind sh:Literal ;
@@ -5753,11 +5742,6 @@ starontology:shacl12-shacl-ui.ttl {
         sh:name "Node Expression"@en ;
         sh:order 1 .
 
-    sh:returnType sh:group stsh:DefinitionGroup ;
-        sh:nodeKind sh:IRI ;
-        sh:order 7 ;
-        stsh:formMaxCount 1 .
-
     stsh:PathGroup a sh:PropertyGroup ;
         sh:description "sh:path and its operators (inverse, alternative, repeated) that connect a focus node to its value nodes."@en ;
         sh:name "Property Paths"@en ;
@@ -5896,11 +5880,11 @@ starontology:shacl12-shacl-ui.ttl {
         sh:name "Definition"@en ;
         sh:order 0.5 .
 
-    _:n6e8402602ef84d0eab26f66198b4033eb214 rdf:first sh:IRI ;
+    _:nb0652a68d1c0407b9c3f950e721f7d85b212 rdf:first sh:IRI ;
         rdf:rest ( sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) .
 
-    _:n6e8402602ef84d0eab26f66198b4033eb213 rdf:first sh:BlankNode ;
-        rdf:rest _:n6e8402602ef84d0eab26f66198b4033eb214 .
+    _:nb0652a68d1c0407b9c3f950e721f7d85b211 rdf:first sh:BlankNode ;
+        rdf:rest _:nb0652a68d1c0407b9c3f950e721f7d85b212 .
 }
 
 starontology:shacl12-shacl.ttl {
@@ -6125,6 +6109,15 @@ starontology:shacl12-shacl.ttl {
     stsh: rdfs:label "starShacl SHACL 1.2 Meta-Shapes"@en ;
         rdfs:comment "Supplementary SHACL 1.2 Core well-formedness rules and UI/presentation metadata, meant to be merged with pySHACL's own bundled shacl-shacl.ttl. See shacl12-validation-shapes.ttl (this file) for validation rules and shacl12-presentation-shapes.ttl for UI-specific metadata."@en .
 
+    stsh:ArgExpressionKeyShape a sh:NodeShape ;
+        rdfs:label "The key of shnex:arg is a position (0, 1, ...) or an IRI"@en ;
+        sh:property [ sh:maxCount 1 ;
+                sh:message "The key of shnex:arg is the position of an argument, a whole number from 0 (the first argument is 0), or the IRI of a parameter."@en ;
+                sh:or ( [ sh:nodeKind sh:IRI ] [ sh:datatype xsd:integer ;
+                            sh:minInclusive 0 ] ) ;
+                sh:path shnex:arg ] ;
+        sh:targetSubjectsOf shnex:arg .
+
     stsh:CodeHintsShape a sh:NodeShape ;
         rdfs:label "Well-formedness rules for sh:codeIdentifier and sh:codeType"@en ;
         sh:property [ sh:datatype xsd:string ;
@@ -6143,6 +6136,24 @@ starontology:shacl12-shacl.ttl {
 			WHERE {
 				FILTER EXISTS { $this sh:parameter ?any }
 				FILTER NOT EXISTS { $this sh:parameter ?p . FILTER NOT EXISTS { ?p sh:optional true } }
+			}
+		""" ] ;
+        sh:targetClass sh:ConstraintComponent .
+
+    stsh:ComponentParameterValuesShape a sh:NodeShape ;
+        rdfs:label "A component with several parameters takes one value of each"@en ;
+        sh:sparql [ sh:message "{?shape} has more than one value for {?path}, but this component has more than one parameter and takes one value of each (the shape is ill-formed)."@en ;
+                sh:select """
+			PREFIX sh: <http://www.w3.org/ns/shacl#>
+			SELECT DISTINCT $this ?shape ?path
+			WHERE {
+				$this sh:parameter ?param . ?param sh:path ?path .
+				?shape ?path ?v1 , ?v2 . FILTER (?v1 != ?v2)
+				FILTER EXISTS { $this sh:parameter ?r1 , ?r2 . FILTER (?r1 != ?r2) }
+				FILTER NOT EXISTS {
+					$this sh:parameter ?r . ?r sh:path ?rp . FILTER NOT EXISTS { ?r sh:optional true }
+					FILTER NOT EXISTS { ?shape ?rp ?any }
+				}
 			}
 		""" ] ;
         sh:targetClass sh:ConstraintComponent .
@@ -6260,6 +6271,25 @@ starontology:shacl12-shacl.ttl {
                 sh:path rdfs:isDefinedBy ] ;
         sh:targetSubjectsOf rdfs:isDefinedBy .
 
+    stsh:KeyParametersDisjointShape a sh:NodeShape ;
+        rdfs:label "The key parameters of all node expression functions are disjoint"@en ;
+        sh:sparql [ sh:message "The key parameter {?path} is also a key parameter of another function, a built-in function, or in the sparql: namespace: the key parameters of all node expression functions are disjoint."@en ;
+                sh:select """
+			PREFIX sh: <http://www.w3.org/ns/shacl#>
+			PREFIX shnex: <http://www.w3.org/ns/shacl-node-expr#>
+			SELECT DISTINCT $this ?path
+			WHERE {
+				$this sh:parameter ?p .
+				?p sh:keyParameter true ; sh:path ?path .
+				FILTER (
+					?path IN (shnex:pathValues, shnex:filterShape, shnex:var, shnex:if, shnex:exists, shnex:distinct, shnex:remove, shnex:intersection, shnex:concat, shnex:orderBy, shnex:limit, shnex:offset, shnex:flatMap, shnex:findFirst, shnex:matchAll, shnex:count, shnex:min, shnex:max, shnex:sum, shnex:instancesOf, shnex:nodesMatching, shnex:conformsToShape, shnex:arg)
+					|| STRSTARTS(STR(?path), "http://www.w3.org/ns/sparql#")
+					|| EXISTS { ?other a sh:NamedParameterExpressionFunction ; sh:parameter ?q . ?q sh:keyParameter true ; sh:path ?path . FILTER (?other != $this) }
+				)
+			}
+		""" ] ;
+        sh:targetClass sh:NamedParameterExpressionFunction .
+
     stsh:LabelTemplateShape a sh:NodeShape ;
         rdfs:label "Well-formedness rules for sh:labelTemplate"@en ;
         sh:property [ sh:message "A label template is a literal of datatype xsd:string, rdf:langString or rdf:dirLangString."@en ;
@@ -6267,6 +6297,53 @@ starontology:shacl12-shacl.ttl {
                 sh:or ( [ sh:datatype xsd:string ] [ sh:datatype rdf:langString ] [ sh:datatype rdf:dirLangString ] ) ;
                 sh:path sh:labelTemplate ] ;
         sh:targetSubjectsOf sh:labelTemplate .
+
+    stsh:ListFunctionArgumentsShape a sh:NodeShape ;
+        rdfs:label "A list parameter function's documented arguments and the positions its body reads agree"@en ;
+        sh:severity sh:Warning ;
+        sh:sparql [ sh:message "The body reads argument {?index}, which the function does not document (its parameters are shnex:arg0, shnex:arg1, ...)."@en ;
+                sh:select """
+			PREFIX sh: <http://www.w3.org/ns/shacl#>
+			PREFIX shnex: <http://www.w3.org/ns/shacl-node-expr#>
+			PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+			SELECT DISTINCT $this ?index
+			WHERE {
+				$this sh:parameter ?documented .
+				$this sh:bodyExpression ?body .
+				?body (!<urn:starlayer:none>)* ?node .
+				?node shnex:arg ?index .
+				FILTER (isLiteral(?index) && datatype(?index) = xsd:integer)
+				FILTER NOT EXISTS { $this sh:parameter ?q . ?q sh:path ?path . FILTER (STR(?path) = CONCAT(STR(shnex:arg), STR(?index))) }
+			}
+		""" ],
+            [ sh:message "The function documents {?path} but not the argument before it: documented positions run 0, 1, 2, ... with none skipped."@en ;
+                sh:select """
+			PREFIX sh: <http://www.w3.org/ns/shacl#>
+			PREFIX shnex: <http://www.w3.org/ns/shacl-node-expr#>
+			PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+			SELECT DISTINCT $this ?path
+			WHERE {
+				$this sh:parameter ?p .
+				?p sh:path ?path .
+				FILTER (STRSTARTS(STR(?path), STR(shnex:arg)) && REGEX(STR(?path), "arg[1-9][0-9]*$"))
+				BIND (xsd:integer(SUBSTR(STR(?path), STRLEN(STR(shnex:arg)) + 1)) AS ?n)
+				FILTER NOT EXISTS { $this sh:parameter ?q . ?q sh:path ?before . FILTER (STR(?before) = CONCAT(STR(shnex:arg), STR(?n - 1))) }
+			}
+		""" ],
+            [ sh:message "{?path} documents an argument, and an argument is a single node (Node Expressions 3.2.2: an argument that gives more than one node is a failure): its sh:minCount and sh:maxCount cannot be more than 1."@en ;
+                sh:select """
+			PREFIX sh: <http://www.w3.org/ns/shacl#>
+			PREFIX shnex: <http://www.w3.org/ns/shacl-node-expr#>
+			SELECT DISTINCT $this ?path
+			WHERE {
+				$this sh:parameter ?p .
+				?p sh:path ?path .
+				FILTER STRSTARTS(STR(?path), STR(shnex:arg))
+				?p ?cardinality ?n .
+				FILTER (?cardinality IN (sh:minCount, sh:maxCount) && isLiteral(?n) && ?n > 1)
+			}
+		""" ] ;
+        sh:targetClass sh:ListParameterExpressionFunction .
 
     stsh:ListFunctionParametersShape a sh:NodeShape ;
         rdfs:label "Parameters of a list parameter function are shnex:arg0, shnex:arg1, ..."@en ;
@@ -6330,6 +6407,36 @@ starontology:shacl12-shacl.ttl {
             sh:someValue,
             sh:subsetOf,
             sh:uniqueValuesFor .
+
+    stsh:NodeShapeQueryPathShape a sh:NodeShape ;
+        rdfs:label "A SPARQL constraint of a node shape does not use $PATH"@en ;
+        sh:sparql [ sh:message "{?constraint} is held by a node shape, which has no path, but its query uses $PATH. Hold it by a property shape, or take $PATH out of the query."@en ;
+                sh:select """
+			PREFIX sh: <http://www.w3.org/ns/shacl#>
+			SELECT DISTINCT $this ?constraint
+			WHERE {
+				$this sh:sparql ?constraint .
+				FILTER NOT EXISTS { $this sh:path ?path }
+				FILTER NOT EXISTS { $this a sh:PropertyShape }
+				?constraint ?query ?text .
+				FILTER (?query IN (sh:select, sh:ask, sh:construct) && REGEX(STR(?text), "[$?]PATH([^A-Za-z0-9_]|$)"))
+			}
+		""" ] ;
+        sh:targetSubjectsOf sh:sparql .
+
+    stsh:NodeValidatorQueryPathShape a sh:NodeShape ;
+        rdfs:label "A node validator does not use $PATH"@en ;
+        sh:sparql [ sh:message "{?validator} is a validator for node shapes, which have no path, but its query uses $PATH. Hold it through sh:propertyValidator (or sh:validator), or take $PATH out of the query."@en ;
+                sh:select """
+			PREFIX sh: <http://www.w3.org/ns/shacl#>
+			SELECT DISTINCT $this ?validator
+			WHERE {
+				$this sh:nodeValidator ?validator .
+				?validator ?query ?text .
+				FILTER (?query IN (sh:select, sh:ask) && REGEX(STR(?text), "[$?]PATH([^A-Za-z0-9_]|$)"))
+			}
+		""" ] ;
+        sh:targetSubjectsOf sh:nodeValidator .
 
     stsh:OrderShape a sh:NodeShape ;
         rdfs:label "Well-formed sh:order"@en ;
@@ -6440,6 +6547,15 @@ starontology:shacl12-shacl.ttl {
         sh:targetSubjectsOf sh:condition,
             sh:rule,
             sh:sparql .
+
+    stsh:SelectQueryTextShape a sh:NodeShape ;
+        rdfs:label "Text of a sh:select is a SELECT query"@en ;
+        rdfs:comment "SPARQL Extensions 3: the value of sh:select is a SELECT query. The text must be one: optional PREFIX and BASE lines, then SELECT. An empty string, or text that begins with anything else, is rejected here; the engine otherwise fails with a parse error only when the shapes are run (pySHACL parses it when the shape is loaded). SHACL cannot check the rest of the grammar, so a query that begins correctly but is malformed is still the engine's to report. Applies wherever sh:select is used: a SPARQL constraint, a SELECT validator, a SPARQL target, a node expression written in place."@en ;
+        sh:property [ sh:flags "is" ;
+                sh:message "The text of sh:select must be a SELECT query (optional PREFIX and BASE lines, then SELECT)."@en ;
+                sh:path sh:select ;
+                sh:pattern "^\\s*((PREFIX\\s+[^\\s:]*:\\s*<[^>]*>|BASE\\s+<[^>]*>)\\s*)*SELECT\\b" ] ;
+        sh:targetSubjectsOf sh:select .
 
     stsh:ShapeDefinedByOneGraphShape a sh:NodeShape ;
         rdfs:label "A shape is defined by at most one shapes graph"@en ;
@@ -6878,7 +6994,9 @@ starontology:shacl12-shacl.ttl {
                             sh:path sh:object ] ] [ sh:class sh:SPARQLRule ;
                     sh:property [ sh:datatype xsd:string ;
                             sh:minCount 1 ;
-                            sh:path sh:construct ] ] ) .
+                            sh:path sh:construct ] ] ) ;
+        sh:targetClass sh:SPARQLRule,
+            sh:TripleRule .
 
     sh:alternativePath rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
         skos:example "sh:path [ sh:alternativePath ( schema:name rdfs:label ) ]"@en ;
@@ -6982,16 +7100,6 @@ starontology:shacl12-shacl.ttl {
         sh:name "reification required"@en ;
         stsh:requiredEngine stsh:StarShacl .
 
-    sh:sparql rdfs:comment "The query must project $this (or ?this); MINUS and VALUES against pre-bound variables are disallowed per spec."@en ;
-        rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
-            <https://www.w3.org/TR/shacl12-sparql/> ;
-        rdfs:seeAlso sh:ConstraintComponent,
-            sh:select ;
-        skos:example "sh:sparql [ sh:select \"SELECT $this WHERE { FILTER NOT EXISTS { $this ex:email ?e } }\" ]"@en ;
-        sh:description "Attaches a SPARQL-based constraint to a shape — the query is evaluated once per focus node, and any result row it returns is treated as a violation."@en ;
-        sh:name "SPARQL constraint"@en ;
-        stsh:requiredEngine stsh:PySHACL .
-
     sh:targetObjectsOf rdfs:comment "Easy to mix up with sh:targetSubjectsOf — subjects-of targets the thing *with* the property, objects-of targets the thing *pointed to*."@en ;
         rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
         rdfs:seeAlso sh:targetSubjectsOf ;
@@ -7061,26 +7169,8 @@ starontology:shacl12-shacl.ttl {
         sh:property [ sh:datatype xsd:string ;
                 sh:maxCount 1 ;
                 sh:minCount 1 ;
-                sh:path sh:select ] .
-
-    sh:ConstraintComponent rdfs:comment "Requires at least one non-optional sh:parameter — a component with only optional parameters fails to load."@en ;
-        rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
-            <https://www.w3.org/TR/shacl12-sparql/> ;
-        rdfs:seeAlso sh:parameter,
-            sh:validator ;
-        skos:example "ex:MinScoreConstraintComponent a sh:ConstraintComponent ; sh:parameter [ sh:path ex:minScore ] ; sh:validator [ a sh:SPARQLAskValidator ; sh:ask \"...\" ]"@en ;
-        sh:description "Declares a reusable, user-defined SHACL constraint type, similar to a built-in one like sh:minCount. Combines one or more sh:parameter declarations with a sh:validator (or sh:nodeValidator/sh:propertyValidator) that implements the check."@en ;
-        sh:name "constraint component"@en ;
-        stsh:requiredEngine stsh:PySHACL .
-
-    sh:SPARQLRule rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
-            <https://www.w3.org/TR/shacl12-rules/> ;
-        rdfs:seeAlso sh:TripleRule,
-            sh:construct ;
-        skos:example "[ a sh:SPARQLRule ; sh:construct \"CONSTRUCT { $this ex:ancestor ?a } WHERE { $this ex:parent+ ?a }\" ]"@en ;
-        sh:description "A rule type that derives new triples via an arbitrary SPARQL CONSTRUCT query (sh:construct), for derivations too complex for a single sh:TripleRule."@en ;
-        sh:name "SPARQL rule"@en ;
-        stsh:requiredEngine stsh:PySHACL .
+                sh:path sh:select ] ;
+        sh:targetClass sh:SPARQLConstraint .
 
     sh:ask rdfs:comment "Unlike sh:select, false means *violation* here — the query must return true for conformance, the opposite polarity from a SELECT constraint's \"any row is a violation.\""@en ;
         rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
@@ -7125,14 +7215,6 @@ starontology:shacl12-shacl.ttl {
         skos:example "sh:path ex:address ; sh:node ex:AddressShape"@en ;
         sh:description "Every value node must conform to the given (node) shape. The main way to nest shapes — validating the *shape* of a related resource, not just a scalar constraint on it."@en ;
         sh:name "node"@en ;
-        stsh:requiredEngine stsh:PySHACL .
-
-    sh:nodeValidator rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
-            <https://www.w3.org/TR/shacl12-sparql/> ;
-        rdfs:seeAlso sh:propertyValidator,
-            sh:select ;
-        sh:description "A SELECT-based validator for a custom sh:ConstraintComponent, used specifically when the component is applied via a node shape."@en ;
-        sh:name "node validator"@en ;
         stsh:requiredEngine stsh:PySHACL .
 
     sh:object rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
@@ -7182,6 +7264,16 @@ starontology:shacl12-shacl.ttl {
         sh:name "root class"@en ;
         stsh:requiredEngine stsh:StarShacl .
 
+    sh:sparql rdfs:comment "The query must project $this (or ?this); MINUS and VALUES against pre-bound variables are disallowed per spec."@en ;
+        rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
+            <https://www.w3.org/TR/shacl12-sparql/> ;
+        rdfs:seeAlso sh:ConstraintComponent,
+            sh:select ;
+        skos:example "sh:sparql [ sh:select \"SELECT $this WHERE { FILTER NOT EXISTS { $this ex:email ?e } }\" ]"@en ;
+        sh:description "Attaches a SPARQL-based constraint to a shape — the query is evaluated once per focus node, and any result row it returns is treated as a violation."@en ;
+        sh:name "SPARQL constraint"@en ;
+        stsh:requiredEngine stsh:PySHACL .
+
     sh:subject rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
             <https://www.w3.org/TR/shacl12-rules/> ;
         rdfs:seeAlso sh:TripleRule,
@@ -7211,6 +7303,25 @@ starontology:shacl12-shacl.ttl {
         rdfs:label "IRI or SHACL property path"@en ;
         rdfs:comment "SHACL 1.2 widened sh:equals/sh:disjoint/sh:lessThan/sh:lessThanOrEquals from a single comparison-property IRI to a full SHACL property path expression. Reuses the Working Group's shsh:PathNodeShape (present once this file is merged with the Working Group's meta-shapes graph) rather than re-deriving SHACL's path grammar."@en ;
         sh:or ( [ sh:nodeKind sh:IRI ] [ sh:node shsh:PathNodeShape ] ) .
+
+    sh:ConstraintComponent rdfs:comment "Requires at least one non-optional sh:parameter — a component with only optional parameters fails to load."@en ;
+        rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
+            <https://www.w3.org/TR/shacl12-sparql/> ;
+        rdfs:seeAlso sh:parameter,
+            sh:validator ;
+        skos:example "ex:MinScoreConstraintComponent a sh:ConstraintComponent ; sh:parameter [ sh:path ex:minScore ] ; sh:validator [ a sh:SPARQLAskValidator ; sh:ask \"...\" ]"@en ;
+        sh:description "Declares a reusable, user-defined SHACL constraint type, similar to a built-in one like sh:minCount. Combines one or more sh:parameter declarations with a sh:validator (or sh:nodeValidator/sh:propertyValidator) that implements the check."@en ;
+        sh:name "constraint component"@en ;
+        stsh:requiredEngine stsh:PySHACL .
+
+    sh:SPARQLRule rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
+            <https://www.w3.org/TR/shacl12-rules/> ;
+        rdfs:seeAlso sh:TripleRule,
+            sh:construct ;
+        skos:example "[ a sh:SPARQLRule ; sh:construct \"CONSTRUCT { $this ex:ancestor ?a } WHERE { $this ex:parent+ ?a }\" ]"@en ;
+        sh:description "A rule type that derives new triples via an arbitrary SPARQL CONSTRUCT query (sh:construct), for derivations too complex for a single sh:TripleRule."@en ;
+        sh:name "SPARQL rule"@en ;
+        stsh:requiredEngine stsh:PySHACL .
 
     sh:equals rdfs:comment "plain-IRI object only — the SHACL 1.2 path-valued form requires stsh:StarShacl"@en ;
         rdfs:isDefinedBy <https://www.w3.org/TR/shacl/>,
@@ -7249,6 +7360,14 @@ starontology:shacl12-shacl.ttl {
         sh:name "node kind"@en ;
         stsh:requiredEngine stsh:PySHACL .
 
+    sh:nodeValidator rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
+            <https://www.w3.org/TR/shacl12-sparql/> ;
+        rdfs:seeAlso sh:propertyValidator,
+            sh:select ;
+        sh:description "A SELECT-based validator for a custom sh:ConstraintComponent, used specifically when the component is applied via a node shape."@en ;
+        sh:name "node validator"@en ;
+        stsh:requiredEngine stsh:PySHACL .
+
     sh:parameter rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
             <https://www.w3.org/TR/shacl12-sparql/> ;
         rdfs:seeAlso sh:ConstraintComponent ;
@@ -7275,17 +7394,6 @@ starontology:shacl12-shacl.ttl {
         rdfs:comment "Used for SHACL 1.2 predicates whose value must itself be a well-formed shape (sh:someValue, sh:memberShape, sh:reifierShape). sh:node's semantics evaluate the referenced shape's own constraint components regardless of that shape's own targets, so referencing shsh:ShapeShape here checks full shape well-formedness, not just the node/property-shape distinction. sh:nodeKind is added on top because the Working Group's shsh:ShapeShape doesn't itself enforce blank-node-or-IRI - a bare literal vacuously satisfies shsh:NodeShapeShape's xone branch (every one of its checks is a maxCount 0 'must not have' rule, trivially true for a literal with no outgoing properties at all), so without this a literal value would incorrectly pass as 'a well-formed shape'."@en ;
         sh:node shsh:ShapeShape ;
         sh:nodeKind sh:BlankNodeOrIRI .
-
-    sh:TripleRule rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
-            <https://www.w3.org/TR/shacl12-rules/> ;
-        rdfs:seeAlso sh:SPARQLRule,
-            sh:object,
-            sh:predicate,
-            sh:subject ;
-        skos:example "[ a sh:TripleRule ; sh:subject sh:this ; sh:predicate ex:ancestor ; sh:object [ sh:path ex:parent ] ]"@en ;
-        sh:description "A rule type that derives one new triple per matching focus node from three independently-evaluated node expressions — sh:subject/sh:predicate/sh:object — without needing any SPARQL."@en ;
-        sh:name "triple rule"@en ;
-        stsh:requiredEngine stsh:PySHACL .
 
     sh:lessThanOrEquals rdfs:comment "plain-IRI object only — the SHACL 1.2 path-valued form requires stsh:StarShacl"@en ;
         rdfs:isDefinedBy <https://www.w3.org/TR/shacl/>,
@@ -7478,21 +7586,23 @@ starontology:shacl12-shacl.ttl {
             sh:xone ;
         sh:xone ( shsh:NodeShapeShape shsh:PropertyShapeShape ) .
 
+    sh:TripleRule rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
+            <https://www.w3.org/TR/shacl12-rules/> ;
+        rdfs:seeAlso sh:SPARQLRule,
+            sh:object,
+            sh:predicate,
+            sh:subject ;
+        skos:example "[ a sh:TripleRule ; sh:subject sh:this ; sh:predicate ex:ancestor ; sh:object [ sh:path ex:parent ] ]"@en ;
+        sh:description "A rule type that derives one new triple per matching focus node from three independently-evaluated node expressions — sh:subject/sh:predicate/sh:object — without needing any SPARQL."@en ;
+        sh:name "triple rule"@en ;
+        stsh:requiredEngine stsh:PySHACL .
+
     sh:in rdfs:comment "List membership is exact-value matching, including datatype — sh:in (1 2 3) (integers) will not match the string \"1\"."@en ;
         rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
         rdfs:seeAlso sh:hasValue ;
         skos:example "sh:path ex:status ; sh:in ( \"active\" \"inactive\" \"pending\" )"@en ;
         sh:description "Every value node must be exactly one of the members of this list — an enumeration/allow-list constraint."@en ;
         sh:name "in"@en ;
-        stsh:requiredEngine stsh:PySHACL .
-
-    sh:select rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
-            <https://www.w3.org/TR/shacl12-sparql/> ;
-        rdfs:seeAlso sh:ask,
-            sh:sparql ;
-        skos:example "sh:select \"SELECT $this ?value WHERE { ?value ex:score ?s . FILTER (?s < 0) }\""@en ;
-        sh:description "The SPARQL SELECT query text for a sh:sparql constraint or a custom sh:ConstraintComponent's sh:nodeValidator/sh:propertyValidator. Any row returned counts as a violation; bindings for ?value/?path/?this in the result customize the reported focus/value/path."@en ;
-        sh:name "SELECT query"@en ;
         stsh:requiredEngine stsh:PySHACL .
 
     sh:xone rdfs:comment "If two shapes in the list overlap (a value could satisfy both), a value that matches both fails sh:xone even though it would pass sh:or — easy to trip over when shapes aren't as mutually exclusive as intended."@en ;
@@ -7545,6 +7655,15 @@ starontology:shacl12-shacl.ttl {
         skos:example "sh:path ex:email — the simple case, a single predicate."@en ;
         sh:description "Required on every property shape. Names the property more complex path expression that connects a focus node to its value nodes. The simplest form is a single IRI; SHACL also supports sequence, alternative, inverse, and repeated (*/+/?) paths."@en ;
         sh:name "path"@en ;
+        stsh:requiredEngine stsh:PySHACL .
+
+    sh:select rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
+            <https://www.w3.org/TR/shacl12-sparql/> ;
+        rdfs:seeAlso sh:ask,
+            sh:sparql ;
+        skos:example "sh:select \"SELECT $this ?value WHERE { ?value ex:score ?s . FILTER (?s < 0) }\""@en ;
+        sh:description "The SPARQL SELECT query text for a sh:sparql constraint or a custom sh:ConstraintComponent's sh:nodeValidator/sh:propertyValidator. Any row returned counts as a violation; bindings for ?value/?path/?this in the result customize the reported focus/value/path."@en ;
+        sh:name "SELECT query"@en ;
         stsh:requiredEngine stsh:PySHACL .
 }
 
@@ -8724,11 +8843,10 @@ starontology:shacl12-vocabulary.ttl {
             stsh:ShapesGraphDefinesPropertyShape,
             stsh:ShapesGraphDefinesResultAnnotation,
             stsh:ShapesGraphDefinesRuleSet,
-            stsh:ShapesGraphDefinesSPARQLAskValidator,
             stsh:ShapesGraphDefinesSPARQLConstraint,
             stsh:ShapesGraphDefinesSPARQLRule,
-            stsh:ShapesGraphDefinesSPARQLSelectValidator,
             stsh:ShapesGraphDefinesTripleRule,
+            stsh:ShapesGraphDefinesValidator,
             stsh:ShapesGraphDefinesWidget,
             stsh:ShapesGraphDefinesWidgetAcceptMatcher,
             stsh:ShapesGraphDefinesWidgetScore,
@@ -9313,47 +9431,47 @@ starontology:shacl12-vocabulary.ttl {
         sh:class shui:Configuration ;
         sh:group stsh:KindGroupUI ;
         sh:name "UI configurations" ;
-        sh:order 18 ;
+        sh:order 17 ;
         sh:path [ sh:inversePath rdfs:isDefinedBy ] .
 
     stsh:ShapesGraphDefinesConstraintComponent a sh:PropertyShape ;
         sh:class sh:ConstraintComponent ;
         sh:group stsh:KindGroupConstraints ;
         sh:name "constraint components" ;
-        sh:order 5 ;
+        sh:order 6 ;
         sh:path [ sh:inversePath rdfs:isDefinedBy ] .
 
     stsh:ShapesGraphDefinesListParameterExpressionFunction a sh:PropertyShape ;
         sh:class sh:ListParameterExpressionFunction ;
         sh:group stsh:KindGroupFunctions ;
         sh:name "functions with list parameters" ;
-        sh:order 11 ;
+        sh:order 10 ;
         sh:path [ sh:inversePath rdfs:isDefinedBy ] .
 
     stsh:ShapesGraphDefinesNamedParameterExpressionFunction a sh:PropertyShape ;
         sh:class sh:NamedParameterExpressionFunction ;
         sh:group stsh:KindGroupFunctions ;
         sh:name "functions with named parameters" ;
-        sh:order 10 ;
+        sh:order 9 ;
         sh:path [ sh:inversePath rdfs:isDefinedBy ] .
 
     stsh:ShapesGraphDefinesNodeShape a sh:PropertyShape ;
         sh:class sh:NodeShape ;
         sh:group stsh:KindGroupShapes ;
         sh:name "node shapes" ;
-        sh:order 2 ;
+        sh:order 3 ;
         sh:path [ sh:inversePath rdfs:isDefinedBy ] .
 
     stsh:ShapesGraphDefinesParameter a sh:PropertyShape ;
         sh:class sh:Parameter ;
-        sh:group stsh:KindGroupConstraints ;
+        sh:group stsh:KindGroupShared ;
         sh:name "parameters" ;
-        sh:order 6 ;
+        sh:order 2 ;
         sh:path [ sh:inversePath rdfs:isDefinedBy ] .
 
     stsh:ShapesGraphDefinesPrefixDeclaration a sh:PropertyShape ;
         sh:class sh:PrefixDeclaration ;
-        sh:group stsh:KindGroupShapes ;
+        sh:group stsh:KindGroupShared ;
         sh:name "prefix declarations" ;
         sh:order 1 ;
         sh:path [ sh:inversePath rdfs:isDefinedBy ] .
@@ -9362,84 +9480,77 @@ starontology:shacl12-vocabulary.ttl {
         sh:class sh:PropertyGroup ;
         sh:group stsh:KindGroupUI ;
         sh:name "property groups" ;
-        sh:order 15 ;
+        sh:order 14 ;
         sh:path [ sh:inversePath rdfs:isDefinedBy ] .
 
     stsh:ShapesGraphDefinesPropertyShape a sh:PropertyShape ;
         sh:class sh:PropertyShape ;
         sh:group stsh:KindGroupShapes ;
         sh:name "property shapes" ;
-        sh:order 3 ;
+        sh:order 4 ;
         sh:path [ sh:inversePath rdfs:isDefinedBy ] .
 
     stsh:ShapesGraphDefinesResultAnnotation a sh:PropertyShape ;
         sh:class sh:ResultAnnotation ;
         sh:group stsh:KindGroupConstraints ;
         sh:name "result annotations" ;
-        sh:order 9 ;
+        sh:order 8 ;
         sh:path [ sh:inversePath rdfs:isDefinedBy ] .
 
     stsh:ShapesGraphDefinesRuleSet a sh:PropertyShape ;
         sh:class sh:RuleSet ;
         sh:group stsh:KindGroupRules ;
         sh:name "rule sets" ;
-        sh:order 12 ;
-        sh:path [ sh:inversePath rdfs:isDefinedBy ] .
-
-    stsh:ShapesGraphDefinesSPARQLAskValidator a sh:PropertyShape ;
-        sh:class sh:SPARQLAskValidator ;
-        sh:group stsh:KindGroupConstraints ;
-        sh:name "SPARQL ASK validators" ;
-        sh:order 7 ;
+        sh:order 11 ;
         sh:path [ sh:inversePath rdfs:isDefinedBy ] .
 
     stsh:ShapesGraphDefinesSPARQLConstraint a sh:PropertyShape ;
         sh:class sh:SPARQLConstraint ;
         sh:group stsh:KindGroupConstraints ;
         sh:name "SPARQL constraints" ;
-        sh:order 4 ;
+        sh:order 5 ;
         sh:path [ sh:inversePath rdfs:isDefinedBy ] .
 
     stsh:ShapesGraphDefinesSPARQLRule a sh:PropertyShape ;
         sh:class sh:SPARQLRule ;
         sh:group stsh:KindGroupRules ;
         sh:name "SPARQL rules" ;
-        sh:order 14 ;
-        sh:path [ sh:inversePath rdfs:isDefinedBy ] .
-
-    stsh:ShapesGraphDefinesSPARQLSelectValidator a sh:PropertyShape ;
-        sh:class sh:SPARQLSelectValidator ;
-        sh:group stsh:KindGroupConstraints ;
-        sh:name "SPARQL SELECT validators" ;
-        sh:order 8 ;
+        sh:order 13 ;
         sh:path [ sh:inversePath rdfs:isDefinedBy ] .
 
     stsh:ShapesGraphDefinesTripleRule a sh:PropertyShape ;
         sh:class sh:TripleRule ;
         sh:group stsh:KindGroupRules ;
         sh:name "triple rules" ;
-        sh:order 13 ;
+        sh:order 12 ;
+        sh:path [ sh:inversePath rdfs:isDefinedBy ] .
+
+    stsh:ShapesGraphDefinesValidator a sh:PropertyShape ;
+        sh:class sh:Validator ;
+        sh:group stsh:KindGroupConstraints ;
+        sh:name "validators" ;
+        sh:order 7 ;
         sh:path [ sh:inversePath rdfs:isDefinedBy ] .
 
     stsh:ShapesGraphDefinesWidget a sh:PropertyShape ;
         sh:class shui:Widget ;
         sh:group stsh:KindGroupUI ;
         sh:name "widgets" ;
-        sh:order 19 ;
+        sh:order 18 ;
         sh:path [ sh:inversePath rdfs:isDefinedBy ] .
 
     stsh:ShapesGraphDefinesWidgetAcceptMatcher a sh:PropertyShape ;
         sh:class shui:WidgetAcceptMatcher ;
         sh:group stsh:KindGroupUI ;
         sh:name "widget accept matchers" ;
-        sh:order 17 ;
+        sh:order 16 ;
         sh:path [ sh:inversePath rdfs:isDefinedBy ] .
 
     stsh:ShapesGraphDefinesWidgetScore a sh:PropertyShape ;
         sh:class shui:WidgetScore ;
         sh:group stsh:KindGroupUI ;
         sh:name "widget scores" ;
-        sh:order 16 ;
+        sh:order 15 ;
         sh:path [ sh:inversePath rdfs:isDefinedBy ] .
 
     stsh:ShapesGraphUses a sh:PropertyShape ;
@@ -9478,15 +9589,23 @@ starontology:shacl12-vocabulary.ttl {
 
     stsh:KindGroupFunctions a sh:PropertyGroup ;
         rdfs:label "Functions for node expressions" ;
-        sh:order 3 .
-
-    stsh:KindGroupRules a sh:PropertyGroup ;
-        rdfs:label "Inference rules" ;
         sh:order 4 .
 
     stsh:KindGroupShapes a sh:PropertyGroup ;
-        rdfs:label "Prefixes and shapes" ;
+        rdfs:label "Shapes" ;
+        sh:order 2 .
+
+    stsh:KindGroupShared a sh:PropertyGroup ;
+        rdfs:label "Prefixes and Parameters" ;
         sh:order 1 .
+
+    stsh:KindGroupRules a sh:PropertyGroup ;
+        rdfs:label "Inference rules" ;
+        sh:order 5 .
+
+    stsh:KindGroupConstraints a sh:PropertyGroup ;
+        rdfs:label "SPARQL, constraints and components" ;
+        sh:order 3 .
 
     sh:Literal a sh:NodeKind ;
         rdfs:label "Literal"@en ;
@@ -9495,11 +9614,7 @@ starontology:shacl12-vocabulary.ttl {
 
     stsh:KindGroupUI a sh:PropertyGroup ;
         rdfs:label "User interface" ;
-        sh:order 5 .
-
-    stsh:KindGroupConstraints a sh:PropertyGroup ;
-        rdfs:label "Constraints, components and SPARQL" ;
-        sh:order 2 .
+        sh:order 6 .
 
     sh:BlankNodeOrIRI a sh:NodeKind ;
         rdfs:label "Blank node or IRI"@en ;

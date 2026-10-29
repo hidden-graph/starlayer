@@ -294,6 +294,7 @@ stsh:AskValidatorShape
 stsh:SelectValidatorShape
 	a sh:NodeShape ;
 	rdfs:label "Well-formed SELECT validator"@en ;
+	sh:targetClass sh:SPARQLConstraint ;     # a SPARQL constraint named in the file (not only one reached through sh:sparql) has its sh:select too
 	rdfs:comment "The value of sh:nodeValidator/sh:propertyValidator on a custom sh:ConstraintComponent, and of sh:sparql's own SPARQLConstraint value - pySHACL requires exactly one sh:select (an xsd:string) (SelectConstraintValidator.__init__, SPARQLBasedConstraint.__init__)."@en ;
 	sh:property [
 		sh:path sh:select ;
@@ -418,6 +419,162 @@ stsh:CustomFunctionShape
 	sh:message "A custom function is an IRI, not a blank node."@en ;
 	sh:property [ sh:path sh:bodyExpression ; sh:minCount 1 ; sh:maxCount 1 ; sh:node stsh:NodeExpressionShape ] .
 
+# The key parameters of all node expression functions are disjoint (Node Expressions 6.1: "including the built-in shnex: functions"): a custom named parameter function's key
+# parameter is selected by its sh:path, so the same IRI on another function, a built-in function predicate (the list is the one stsh:NodeExpressionShape knows) or any term of
+# the sparql: function namespace would make a call ambiguous. This looks across the whole graph, so two shapes graphs loaded together can each be fine alone.
+stsh:KeyParametersDisjointShape
+	a sh:NodeShape ;
+	rdfs:label "The key parameters of all node expression functions are disjoint"@en ;
+	sh:targetClass sh:NamedParameterExpressionFunction ;
+	sh:sparql [
+		sh:message "The key parameter {?path} is also a key parameter of another function, a built-in function, or in the sparql: namespace: the key parameters of all node expression functions are disjoint."@en ;
+		sh:select """
+			PREFIX sh: <http://www.w3.org/ns/shacl#>
+			PREFIX shnex: <http://www.w3.org/ns/shacl-node-expr#>
+			SELECT DISTINCT $this ?path
+			WHERE {
+				$this sh:parameter ?p .
+				?p sh:keyParameter true ; sh:path ?path .
+				FILTER (
+					?path IN (shnex:pathValues, shnex:filterShape, shnex:var, shnex:if, shnex:exists, shnex:distinct, shnex:remove, shnex:intersection, shnex:concat, shnex:orderBy, shnex:limit, shnex:offset, shnex:flatMap, shnex:findFirst, shnex:matchAll, shnex:count, shnex:min, shnex:max, shnex:sum, shnex:instancesOf, shnex:nodesMatching, shnex:conformsToShape, shnex:arg)
+					|| STRSTARTS(STR(?path), "http://www.w3.org/ns/sparql#")
+					|| EXISTS { ?other a sh:NamedParameterExpressionFunction ; sh:parameter ?q . ?q sh:keyParameter true ; sh:path ?path . FILTER (?other != $this) }
+				)
+			}
+		""" ;
+	] .
+
+# A shape that a constraint component applies to (it has a value for every required parameter) is ill-formed when the component declares more than one parameter, required or
+# optional (sh:pattern with sh:flags is the Core's example), and the shape has more than one value for any of them (SHACL Core 2.1.1; 3.1.1 in the 1.2 draft). A component with
+# one parameter takes any number of values, each an individual constraint. This is the whole graph's view: the component and the shape may be in different shapes graphs.
+stsh:ComponentParameterValuesShape
+	a sh:NodeShape ;
+	rdfs:label "A component with several parameters takes one value of each"@en ;
+	sh:targetClass sh:ConstraintComponent ;
+	sh:sparql [
+		sh:message "{?shape} has more than one value for {?path}, but this component has more than one parameter and takes one value of each (the shape is ill-formed)."@en ;
+		sh:select """
+			PREFIX sh: <http://www.w3.org/ns/shacl#>
+			SELECT DISTINCT $this ?shape ?path
+			WHERE {
+				$this sh:parameter ?param . ?param sh:path ?path .
+				?shape ?path ?v1 , ?v2 . FILTER (?v1 != ?v2)
+				FILTER EXISTS { $this sh:parameter ?r1 , ?r2 . FILTER (?r1 != ?r2) }
+				FILTER NOT EXISTS {
+					$this sh:parameter ?r . ?r sh:path ?rp . FILTER NOT EXISTS { ?r sh:optional true }
+					FILTER NOT EXISTS { ?shape ?rp ?any }
+				}
+			}
+		""" ;
+	] .
+
+# $PATH is the path of a property shape (SPARQL Extensions 3.2, 4.3). A node shape has none, so a query it holds that uses $PATH cannot be run: pySHACL stops with "SPARQL Constraint
+# text has $PATH in it, but no path is known on this Shape". The same goes for a validator held through sh:nodeValidator (a validator for node shapes only). A query held through
+# sh:propertyValidator, or through sh:validator (which serves both), may use it. The check reads the query text, so a $PATH in a comment counts too.
+stsh:NodeShapeQueryPathShape
+	a sh:NodeShape ;
+	rdfs:label "A SPARQL constraint of a node shape does not use $PATH"@en ;
+	sh:targetSubjectsOf sh:sparql ;
+	sh:sparql [
+		sh:message "{?constraint} is held by a node shape, which has no path, but its query uses $PATH. Hold it by a property shape, or take $PATH out of the query."@en ;
+		sh:select """
+			PREFIX sh: <http://www.w3.org/ns/shacl#>
+			SELECT DISTINCT $this ?constraint
+			WHERE {
+				$this sh:sparql ?constraint .
+				FILTER NOT EXISTS { $this sh:path ?path }
+				FILTER NOT EXISTS { $this a sh:PropertyShape }
+				?constraint ?query ?text .
+				FILTER (?query IN (sh:select, sh:ask, sh:construct) && REGEX(STR(?text), "[$?]PATH([^A-Za-z0-9_]|$)"))
+			}
+		""" ;
+	] .
+
+stsh:NodeValidatorQueryPathShape
+	a sh:NodeShape ;
+	rdfs:label "A node validator does not use $PATH"@en ;
+	sh:targetSubjectsOf sh:nodeValidator ;
+	sh:sparql [
+		sh:message "{?validator} is a validator for node shapes, which have no path, but its query uses $PATH. Hold it through sh:propertyValidator (or sh:validator), or take $PATH out of the query."@en ;
+		sh:select """
+			PREFIX sh: <http://www.w3.org/ns/shacl#>
+			SELECT DISTINCT $this ?validator
+			WHERE {
+				$this sh:nodeValidator ?validator .
+				?validator ?query ?text .
+				FILTER (?query IN (sh:select, sh:ask) && REGEX(STR(?text), "[$?]PATH([^A-Za-z0-9_]|$)"))
+			}
+		""" ;
+	] .
+
+# [ shnex:arg n ] (Node Expressions 6.3) reads the nth argument of a call, counting from 0, or, in the body of a named parameter function, a parameter by its IRI.
+stsh:ArgExpressionKeyShape
+	a sh:NodeShape ;
+	rdfs:label "The key of shnex:arg is a position (0, 1, ...) or an IRI"@en ;
+	sh:targetSubjectsOf shnex:arg ;
+	sh:property [
+		sh:path shnex:arg ;
+		sh:maxCount 1 ;
+		sh:or ( [ sh:nodeKind sh:IRI ] [ sh:datatype xsd:integer ; sh:minInclusive 0 ] ) ;
+		sh:message "The key of shnex:arg is the position of an argument, a whole number from 0 (the first argument is 0), or the IRI of a parameter."@en ;
+	] .
+
+# A list parameter function MAY document its arguments (6.2). When it does, a body that reads a position it does not document, or documented positions that skip a number, is
+# most likely a slip: advice (a Warning), since documenting is optional and a call with too few arguments is valid.
+stsh:ListFunctionArgumentsShape
+	a sh:NodeShape ;
+	rdfs:label "A list parameter function's documented arguments and the positions its body reads agree"@en ;
+	sh:targetClass sh:ListParameterExpressionFunction ;
+	sh:severity sh:Warning ;     # (on the shape: the severity of a constraint node inside sh:sparql is not read)
+	sh:sparql [
+		sh:message "The body reads argument {?index}, which the function does not document (its parameters are shnex:arg0, shnex:arg1, ...)."@en ;
+		sh:select """
+			PREFIX sh: <http://www.w3.org/ns/shacl#>
+			PREFIX shnex: <http://www.w3.org/ns/shacl-node-expr#>
+			PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+			SELECT DISTINCT $this ?index
+			WHERE {
+				$this sh:parameter ?documented .
+				$this sh:bodyExpression ?body .
+				?body (!<urn:starlayer:none>)* ?node .
+				?node shnex:arg ?index .
+				FILTER (isLiteral(?index) && datatype(?index) = xsd:integer)
+				FILTER NOT EXISTS { $this sh:parameter ?q . ?q sh:path ?path . FILTER (STR(?path) = CONCAT(STR(shnex:arg), STR(?index))) }
+			}
+		""" ;
+	] ;
+	sh:sparql [
+		sh:message "The function documents {?path} but not the argument before it: documented positions run 0, 1, 2, ... with none skipped."@en ;
+		sh:select """
+			PREFIX sh: <http://www.w3.org/ns/shacl#>
+			PREFIX shnex: <http://www.w3.org/ns/shacl-node-expr#>
+			PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+			SELECT DISTINCT $this ?path
+			WHERE {
+				$this sh:parameter ?p .
+				?p sh:path ?path .
+				FILTER (STRSTARTS(STR(?path), STR(shnex:arg)) && REGEX(STR(?path), "arg[1-9][0-9]*$"))
+				BIND (xsd:integer(SUBSTR(STR(?path), STRLEN(STR(shnex:arg)) + 1)) AS ?n)
+				FILTER NOT EXISTS { $this sh:parameter ?q . ?q sh:path ?before . FILTER (STR(?before) = CONCAT(STR(shnex:arg), STR(?n - 1))) }
+			}
+		""" ;
+	] ;
+	sh:sparql [
+		sh:message "{?path} documents an argument, and an argument is a single node (Node Expressions 3.2.2: an argument that gives more than one node is a failure): its sh:minCount and sh:maxCount cannot be more than 1."@en ;
+		sh:select """
+			PREFIX sh: <http://www.w3.org/ns/shacl#>
+			PREFIX shnex: <http://www.w3.org/ns/shacl-node-expr#>
+			SELECT DISTINCT $this ?path
+			WHERE {
+				$this sh:parameter ?p .
+				?p sh:path ?path .
+				FILTER STRSTARTS(STR(?path), STR(shnex:arg))
+				?p ?cardinality ?n .
+				FILTER (?cardinality IN (sh:minCount, sh:maxCount) && isLiteral(?n) && ?n > 1)
+			}
+		""" ;
+	] .
+
 # A list parameter function documents its arguments by position (Node Expressions 6.2: "the values of sh:path are the values shnex:arg0, shnex:arg1 etc."), so a parameter
 # it declares has one of those as its sh:path. Documenting is optional (MAY); what is documented follows the convention.
 stsh:ListFunctionParametersShape
@@ -439,6 +596,18 @@ stsh:LabelTemplateShape
 		sh:nodeKind sh:Literal ;
 		sh:or ( [ sh:datatype xsd:string ] [ sh:datatype rdf:langString ] [ sh:datatype rdf:dirLangString ] ) ;
 		sh:message "A label template is a literal of datatype xsd:string, rdf:langString or rdf:dirLangString."@en ;
+	] .
+
+stsh:SelectQueryTextShape
+	a sh:NodeShape ;
+	rdfs:label "Text of a sh:select is a SELECT query"@en ;
+	rdfs:comment "SPARQL Extensions 3: the value of sh:select is a SELECT query. The text must be one: optional PREFIX and BASE lines, then SELECT. An empty string, or text that begins with anything else, is rejected here; the engine otherwise fails with a parse error only when the shapes are run (pySHACL parses it when the shape is loaded). SHACL cannot check the rest of the grammar, so a query that begins correctly but is malformed is still the engine's to report. Applies wherever sh:select is used: a SPARQL constraint, a SELECT validator, a SPARQL target, a node expression written in place."@en ;
+	sh:targetSubjectsOf sh:select ;
+	sh:property [
+		sh:path sh:select ;
+		sh:pattern "^\\s*((PREFIX\\s+[^\\s:]*:\\s*<[^>]*>|BASE\\s+<[^>]*>)\\s*)*SELECT\\b" ;
+		sh:flags "is" ;
+		sh:message "The text of sh:select must be a SELECT query (optional PREFIX and BASE lines, then SELECT)."@en ;
 	] .
 
 stsh:NodeExpressionShape
@@ -511,6 +680,7 @@ stsh:ExpressionConstraintShape
 stsh:RuleShape
 	a sh:NodeShape ;
 	rdfs:label "Well-formed sh:TripleRule or sh:SPARQLRule"@en ;
+	sh:targetClass sh:TripleRule, sh:SPARQLRule ;     # a rule named in the file (not only one reached through sh:rule or sh:hasRule) is checked too
 	sh:or (
 		[ sh:class sh:TripleRule ;
 		  # SHACL 1.2 Inference Rules 11.2: "Where sh:subject, sh:predicate, or sh:object are absent, use the list consisting of the current
