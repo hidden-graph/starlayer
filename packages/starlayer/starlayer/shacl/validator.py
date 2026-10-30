@@ -1284,8 +1284,8 @@ class StarShaclSchema:
         shape_node: Any,
         where_shape: Any,
     ) -> list[Any]:
-        """Every non-literal node in ``data_graph`` that conforms to
-        ``where_shape``, for ``sh:targetWhere``.
+        """Every node in ``data_graph`` (subjects, and objects including
+        literals) that conforms to ``where_shape``, for ``sh:targetWhere``.
 
         Runs one batched nested ``validate()`` call (candidates as
         ``sh:targetNode`` on ``where_shape``) rather than one call per
@@ -1302,14 +1302,13 @@ class StarShaclSchema:
             where_shape: The shape every candidate must conform to.
 
         Returns:
-            Every non-literal node in ``data_graph`` that conforms to
-            ``where_shape``.
+            Every node in ``data_graph`` that conforms to ``where_shape``.
         """
         candidates: set[Any] = set()
         for s, _, o in data_graph:
             if isinstance(s, (URIRef, BNode)):
                 candidates.add(s)
-            if isinstance(o, (URIRef, BNode)):
+            if isinstance(o, (URIRef, BNode, Literal)):
                 candidates.add(o)
 
         if not candidates:
@@ -2530,8 +2529,8 @@ def _nodes_conforming_to(
     shape_node: Any,
     where_shape: Any,
 ) -> list[Any]:
-    """Every non-literal node in ``data_graph`` that conforms to
-    ``where_shape``, for ``sh:targetWhere``. Runs one batched nested
+    """Every node in ``data_graph`` (subjects, and objects including
+    literals) that conforms to ``where_shape``, for ``sh:targetWhere``. Runs one batched nested
     ``validate()`` call (candidates as ``sh:targetNode`` on ``where_shape``)
     rather than one call per candidate. Excludes the triggering
     ``(shape_node, sh:targetWhere, where_shape)`` triple from the copy
@@ -2539,8 +2538,8 @@ def _nodes_conforming_to(
     itself forever.
 
     Args:
-        data_graph: The data graph to scan for non-literal candidate
-            nodes (every subject/object that is a ``URIRef`` or ``BNode``).
+        data_graph: The data graph to scan for candidate nodes (every
+            subject, and every object including literals).
         shacl_graph: The shapes graph ``where_shape`` is defined in.
         shape_node: The shape declaring ``sh:targetWhere where_shape``.
         where_shape: The shape every returned node must conform to.
@@ -2555,7 +2554,7 @@ def _nodes_conforming_to(
     for s, _, o in data_graph:
         if isinstance(s, (URIRef, BNode)):
             candidates.add(s)
-        if isinstance(o, (URIRef, BNode)):
+        if isinstance(o, (URIRef, BNode, Literal)):
             candidates.add(o)
 
     if not candidates:
