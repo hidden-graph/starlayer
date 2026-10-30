@@ -101,8 +101,25 @@ def _write(record: dict[str, Any]) -> None:
 
 
 def _snapshot(graph: Any) -> Any:
+    """Copy a graph for the engine run, preserving literal lexical forms.
+
+    copy.deepcopy rebuilds each Literal through its constructor, which
+    rewrites "1"^^xsd:boolean to "true" (rdflib normalization), so the engine
+    would see a different term than the old validator did. Copy the triples
+    term-for-term into a graph of the same class instead.
+    """
     if graph is None:
         return None
+    try:
+        clone = type(graph)()
+        for prefix, ns in graph.namespaces():
+            clone.bind(prefix, ns, override=True)
+        for triple in graph.triples((None, None, None)):
+            clone.add(triple)
+        if len(clone) == len(graph):
+            return clone
+    except Exception:
+        pass
     try:
         return copy.deepcopy(graph)
     except Exception:

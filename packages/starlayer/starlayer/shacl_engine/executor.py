@@ -76,7 +76,11 @@ class Context:
         """The shape's focus nodes, cached (cross-node components such as sh:uniqueValuesFor need the whole set)."""
         if shape.node not in self._focus_cache:
             self._focus_cache[shape.node] = focus_nodes(
-                self.data, self.plan.shapes_graph, shape.targets, self.conforms, self.target_expression
+                self.data,
+                self.plan.shapes_graph,
+                shape.targets,
+                self.conforms,
+                lambda expr, shape_node=shape.node: self.target_expression(expr, shape_node),
             )
         return self._focus_cache[shape.node]
 
@@ -101,9 +105,10 @@ class Context:
                 pass
         return out
 
-    def target_expression(self, expr: Term) -> list[Term]:
-        """Focus nodes of a node-expression target (``sh:targetNode [ shnex:... ]``): evaluated without a focus node."""
-        return self._expression_values((expr,), None)
+    def target_expression(self, expr: Term, shape_node: Term) -> list[Term]:
+        """Focus nodes of a node-expression target (``sh:targetNode [ shnex:... ]``). Core 3.1.3.1: "the output nodes of
+        evalExpr(expr, data graph, s, {}) are targets", so the focus node during evaluation is the shape ``s``."""
+        return self._expression_values((expr,), shape_node)
 
 
 def _deactivated(shape: Shape, pred: Term, value: Term) -> bool:

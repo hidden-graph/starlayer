@@ -190,3 +190,27 @@ Takes about 22 minutes (pyshacl dominates). The summary line is printed on stder
 the non-agreeing tests, pass their node ids to pytest with the same plugin. The checked-in results come from one full run
 plus a rerun of the 200 differ / engine_error / old_error tests after two harness fixes (triple-term fingerprint, retry with a
 triple-term-capable report graph; `old_error` records also run the engine).
+
+## Run 2 (2026-10-30, after the options round) and triage
+`DIFF_OUT=docs/working/differential/results2.jsonl`, same command. 3,126 calls: agree 2,924 (run 1: 2,806 of 3,136),
+differ 34 (36), engine_error 6 (12), skipped 25 (145), old_error 137 (137). Skipped now: validate_fn 16, inplace 7,
+decode_report=False 4, iterate_rules 3, rdfs_subclass_reasoning_includes_shapes_graph 2.
+
+Remaining differences and their disposition (after the round-2 fixes the affected test files were re-run):
+- **Decided, follows the draft, old tests encode a project extension (about 15):** `sh:uniqueValuesFor` in nested shapes
+  without targets (Core 7.9.5: peers are the shape's own targets). Revisit these tests at cut-over.
+- **DROP-LEGACY (about 8):** SPARQL queries relying on ambient `@prefix` with no `sh:declare` (3 errors); `sh:SPARQLTarget`
+  (1); shapes-graph-only `rdfs:subClassOf` for implicit class targets (1); legacy `sh:`-namespaced expression forms (1);
+  malformed `sh:uniqueValuesFor` accepted under meta_shacl=False (1).
+- **Fixed in round 2:** the three alternate-boolean-lexical-form differs were a harness artifact (`copy.deepcopy` of a
+  StarLayerGraph normalised `"1"^^xsd:boolean` to `"true"`; the plugin snapshot now copies term for term). A `sh:targetNode`
+  expression is evaluated with the shape as focus (Core 3.1.3.1); the engine now does this. List-parameter functions are
+  callable by IRI from `sh:select`/`sh:ask` queries (SPARQL 7.3).
+- **Old-validator deviations (engine follows the draft):** ASK validators pre-bind `$this` and `$value`, so `sh:value` is the
+  value node (old reports none); SELECT validators pre-bind `$this` and parameters only (old also pre-binds `?value`);
+  `shnex:conformsToShape` with an argument of several output nodes is a failure (Node Expressions 4.5.3; old reports a
+  violation); the old report copies a blank-node focus/value description truncated at depth, the engine copies the full
+  closure (the draft is silent); the old `validate` applies `sh:rule` first, the engine only with `rules=True` or `sh:entailment`.
+- **Ported:** `salg:NoUnboundProjectedVariablesConstraintComponent`, via a lazy trampoline
+  (`shacl_engine/components/extensions.py` -> `sparql/salg/engine_components.py`), so sqe/srl/spexpr gain no dependency on salg.
+Existing salg-related test files (12) still pass: 539 passed.

@@ -11,7 +11,8 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Iterator, Mapping
+from contextlib import contextmanager
 from functools import lru_cache
 from typing import Any
 
@@ -153,16 +154,66 @@ def run_query(graph: Any, text: str, init_bindings: Mapping[str, Term] | None = 
     return starlayer_sparql_query(graph, text, init_bindings)
 
 
+@contextmanager
+def _shacl_functions(ctx: Any) -> Iterator[None]:
+    """Make the shapes graph's ``sh:ListParameterExpressionFunction`` instances callable by IRI from the query being run
+    (SPARQL Extensions 7.3: "SHOULD register a function"). The call's arguments become the scope ``0, 1, ...`` of the
+    body expression, which must have exactly one output node, else the call is a SPARQL error. Only for graphs queried
+    through rdflib's evaluator (a native backend has no such registry)."""
+    from rdflib.plugins.sparql.operators import (
+        register_custom_function,
+        unregister_custom_function,
+    )
+    from rdflib.plugins.sparql.sparql import SPARQLError
+
+    from starlayer.shacl_engine.expressions import EvaluationFailure
+
+    shapes = ctx.shapes
+    active = ctx.plan.sparql_cache
+    if getattr(ctx.data, "sparql_query", None) is not None or active.get(("shacl-functions-active",)):
+        yield  # a native backend, or already registered by an enclosing query (a body that itself runs SPARQL)
+        return
+    registered: list[tuple[URIRef, Any]] = []
+
+    def make(fn: Term, body: Term) -> Any:
+        def call(*args: Term) -> Term:
+            try:
+                out = eval_node_expression(ctx, body, None, {i: [a] for i, a in enumerate(args)})
+            except (EvaluationFailure, ShapeError) as exc:
+                raise SPARQLError(str(exc)) from exc
+            if len(out) != 1:
+                raise SPARQLError(f"{fn}: the body must have exactly one output node, found {len(out)}")
+            return out[0]
+
+        return call
+
+    active[("shacl-functions-active",)] = True
+    try:
+        for fn in shapes.subjects(RDF.type, SH.ListParameterExpressionFunction):
+            body = next(iter(shapes.objects(fn, SH.bodyExpression)), None)
+            if isinstance(fn, URIRef) and body is not None:
+                func = make(fn, body)
+                register_custom_function(fn, func, override=True)
+                registered.append((fn, func))
+        yield
+    finally:
+        active[("shacl-functions-active",)] = False
+        for fn, func in registered:
+            unregister_custom_function(fn, func)
+
+
 def run_select(ctx: Any, text: str, bindings: Mapping[str, Term], *, require_this: bool = True) -> Solutions:
     projected = check_query(ctx.plan, text, bindings)
     if require_this and "this" not in projected:
         raise ShapeError("a SHACL SPARQL SELECT query must project ?this")
-    return run_query(ctx.data, text, bindings)
+    with _shacl_functions(ctx):
+        return run_query(ctx.data, text, bindings)
 
 
 def run_ask(ctx: Any, text: str, bindings: Mapping[str, Term]) -> bool:
     check_query(ctx.plan, text, bindings, ask=True)
-    return bool(run_query(ctx.data, text, bindings).boolean)
+    with _shacl_functions(ctx):
+        return bool(run_query(ctx.data, text, bindings).boolean)
 
 
 # --------------------------------------------------------------------------------------------------------------------
@@ -322,4 +373,6 @@ def eval_node_expression(ctx: Any, expr: Term, focus: Term | None, scope: Mappin
         var = "result"
     else:
         raise ShapeError(f"{expr!r}: not a SPARQL node expression")
-    return [row[var] for row in run_query(ctx.data, text, bindings).rows if var in row]
+    with _shacl_functions(ctx):
+        rows = run_query(ctx.data, text, bindings).rows
+    return [row[var] for row in rows if var in row]
