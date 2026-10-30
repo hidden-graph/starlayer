@@ -22,3 +22,6 @@ tools/kg/codekg/starlayer-kg.trig
 # Written into the starlayer-kg package by scripts/publish_kg.py just before its wheel is built.
 packages/starlayer-kg/starlayer_kg/starlayer-kg.trig
 packages/starlayer-kg/starlayer_kg/BUILD.json
+
+# Differential comparison output (docs/working/shacl-engine-differential.md)
+docs/working/differential/results.jsonl
