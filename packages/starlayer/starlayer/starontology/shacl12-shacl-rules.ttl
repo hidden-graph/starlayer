@@ -42,6 +42,13 @@ stsh:ShapeBySubjectRule a sh:NodeShape ;
     sh:rule [ a sh:TripleRule ; sh:layer 0 ;
         sh:subject sh:this ; sh:predicate rdf:type ; sh:object sh:Shape ] .
 
+# Layer 0: a node that holds prefix declarations is a prefix set (a type for a tool to list it under; SHACL 1.2 gives the holder no class).
+stsh:PrefixSetRule a sh:NodeShape ;
+    rdfs:label "A node that holds prefix declarations is a prefix set"@en ;
+    sh:targetSubjectsOf sh:declare ;
+    sh:rule [ a sh:TripleRule ; sh:layer 0 ;
+        sh:subject sh:this ; sh:predicate rdf:type ; sh:object stsh:PrefixSet ] .
+
 # Layer 0: the value of a parameter that expects a shape is a shape.
 stsh:ShapeByValueRule a sh:NodeShape ;
     rdfs:label "The value of a shape-valued parameter is a shape"@en ;

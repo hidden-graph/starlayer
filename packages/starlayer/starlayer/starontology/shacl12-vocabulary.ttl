@@ -337,6 +337,11 @@ sh:Validator a rdfs:Class ;
     rdfs:isDefinedBy sh: ;
     rdfs:subClassOf rdfs:Resource .
 
+stsh:PrefixSet a rdfs:Class ;
+    rdfs:label "prefix set" ;
+    rdfs:comment "A resource that holds namespace prefix declarations (sh:declare), such as the value of sh:prefixes. SHACL 1.2 gives it no class: this one is inferred from sh:declare."@en ;
+    sh:group stsh:KindGroupShared .
+
 sh:AndConstraintComponent a sh:ConstraintComponent ;
     rdfs:label "And constraint component"@en ;
     rdfs:comment "A constraint component that can be used to test whether a value node conforms to all members of a provided list of shapes."@en ;

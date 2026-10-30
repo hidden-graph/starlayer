@@ -1817,6 +1817,15 @@ starontology:shacl12-shacl-rules.ttl {
                 sh:subject sh:this ] ;
         sh:targetClass sh:Shape .
 
+    stsh:PrefixSetRule a sh:NodeShape ;
+        rdfs:label "A node that holds prefix declarations is a prefix set"@en ;
+        sh:rule [ a sh:TripleRule ;
+                sh:layer 0 ;
+                sh:object stsh:PrefixSet ;
+                sh:predicate rdf:type ;
+                sh:subject sh:this ] ;
+        sh:targetSubjectsOf sh:declare .
+
     stsh:PropertyShapeRule a sh:NodeShape ;
         rdfs:label "A shape with sh:path is a property shape"@en ;
         sh:rule [ a sh:TripleRule ;
@@ -2661,12 +2670,11 @@ starontology:shacl12-shacl-ui.ttl {
         sh:property stsh:ShapesGraphForm_owl_imports,
             stsh:ShapesGraphForm_rdf_type,
             stsh:ShapesGraphForm_rdfs_comment,
-            stsh:ShapesGraphForm_rdfs_isDefinedBy,
             stsh:ShapesGraphForm_rdfs_label,
             stsh:ShapesGraphForm_rdfs_member,
             stsh:ShapesGraphForm_sh_declare,
             stsh:ShapesGraphForm_sh_entailment ;
-        stsh:formFields ( rdf:type rdfs:label rdfs:comment rdfs:member owl:imports sh:entailment sh:declare rdfs:isDefinedBy ) ;
+        stsh:formFields ( rdf:type rdfs:label rdfs:comment rdfs:member owl:imports sh:entailment sh:declare ) ;
         stsh:formFor sh:ShapesGraph .
 
     stsh:ShuiPredicateShapes a sh:NodeShape ;
@@ -3426,7 +3434,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:NodeShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:nab4c87a178624acc969839a3835fe0a6b222 ;
+        sh:in _:n02581ae1f9bb49a68ccae2d7999780cab221 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -3826,7 +3834,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:ParameterForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:nab4c87a178624acc969839a3835fe0a6b222 ;
+        sh:in _:n02581ae1f9bb49a68ccae2d7999780cab221 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -4329,7 +4337,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:PropertyShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:nab4c87a178624acc969839a3835fe0a6b222 ;
+        sh:in _:n02581ae1f9bb49a68ccae2d7999780cab221 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -4964,13 +4972,6 @@ starontology:shacl12-shacl-ui.ttl {
         sh:nodeKind sh:Literal ;
         sh:order 4 ;
         sh:path rdfs:comment .
-
-    stsh:ShapesGraphForm_rdfs_isDefinedBy a sh:PropertyShape ;
-        sh:group stsh:MetadataGroup ;
-        sh:maxCount 1 ;
-        sh:nodeKind sh:IRI ;
-        sh:order 5 ;
-        sh:path rdfs:isDefinedBy .
 
     stsh:ShapesGraphForm_rdfs_label a sh:PropertyShape ;
         sh:group stsh:NamingGroup ;
@@ -5714,6 +5715,13 @@ starontology:shacl12-shacl-ui.ttl {
         sh:name "Cross-Node"@en ;
         sh:order 13 .
 
+    rdfs:isDefinedBy sh:group stsh:MetadataGroup ;
+        sh:nodeKind sh:IRI ;
+        sh:order 5 ;
+        stsh:formMaxCount 1 ;
+        stsh:nodeFormField true ;
+        stsh:propertyFormField true .
+
     rdfs:subClassOf sh:group stsh:MetadataGroup ;
         sh:nodeKind sh:IRI ;
         sh:order 7 ;
@@ -5806,13 +5814,6 @@ starontology:shacl12-shacl-ui.ttl {
         sh:description "RDF 1.2 triple-term reification constraints (sh:reifierShape, sh:reificationRequired)."@en ;
         sh:name "Reification"@en ;
         sh:order 14 .
-
-    rdfs:isDefinedBy sh:group stsh:MetadataGroup ;
-        sh:nodeKind sh:IRI ;
-        sh:order 5 ;
-        stsh:formMaxCount 1 ;
-        stsh:nodeFormField true ;
-        stsh:propertyFormField true .
 
     shui:widget sh:group stsh:DefinitionGroup ;
         sh:nodeKind sh:BlankNodeOrIRI ;
@@ -5962,11 +5963,11 @@ starontology:shacl12-shacl-ui.ttl {
         sh:name "Definition"@en ;
         sh:order 0.5 .
 
-    _:nab4c87a178624acc969839a3835fe0a6b223 rdf:first sh:IRI ;
+    _:n02581ae1f9bb49a68ccae2d7999780cab222 rdf:first sh:IRI ;
         rdf:rest ( sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) .
 
-    _:nab4c87a178624acc969839a3835fe0a6b222 rdf:first sh:BlankNode ;
-        rdf:rest _:nab4c87a178624acc969839a3835fe0a6b223 .
+    _:n02581ae1f9bb49a68ccae2d7999780cab221 rdf:first sh:BlankNode ;
+        rdf:rest _:n02581ae1f9bb49a68ccae2d7999780cab222 .
 }
 
 starontology:shacl12-shacl.ttl {
@@ -6298,6 +6299,14 @@ starontology:shacl12-shacl.ttl {
                 sh:order 5 ;
                 sh:path sh:defaultValue ] ;
         sh:targetSubjectsOf sh:defaultValue .
+
+    stsh:EntailmentSupportedShape a sh:NodeShape ;
+        rdfs:label "StarLayer provides the entailment a shapes graph asks for"@en ;
+        sh:property [ sh:message "StarLayer provides no such entailment regime, and the shapes graph has no such rule set, so validating with it fails (an entailment regime, sh:RulesEntailment or a rule set)."@en ;
+                sh:or ( [ sh:in ( <http://www.w3.org/ns/entailment/RDF> <http://www.w3.org/ns/entailment/RDFS> <http://www.w3.org/ns/entailment/OWL-RDF-Based> <http://www.w3.org/ns/entailment/OWL-Direct> sh:RulesEntailment ) ] [ sh:class sh:RuleSet ] ) ;
+                sh:path sh:entailment ;
+                sh:severity sh:Warning ] ;
+        sh:targetSubjectsOf sh:entailment .
 
     stsh:ExpressionArgumentListShape a sh:NodeShape ;
         rdfs:label "A list that is an argument of a node expression is a well-formed RDF list"@en ;
@@ -8182,6 +8191,11 @@ starontology:shacl12-vocabulary.ttl {
         rdfs:comment "The class of validators, which provide instructions on how to process a constraint definition. This class serves as base class for the SPARQL-based validators and other possible implementations."@en ;
         rdfs:isDefinedBy sh: ;
         rdfs:subClassOf rdfs:Resource .
+
+    stsh:PrefixSet a rdfs:Class ;
+        rdfs:label "prefix set" ;
+        rdfs:comment "A resource that holds namespace prefix declarations (sh:declare), such as the value of sh:prefixes. SHACL 1.2 gives it no class: this one is inferred from sh:declare."@en ;
+        sh:group stsh:KindGroupShared .
 
     sh:AndConstraintComponent a sh:ConstraintComponent ;
         rdfs:label "And constraint component"@en ;

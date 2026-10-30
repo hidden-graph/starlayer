@@ -838,6 +838,22 @@ stsh:RuleOfOneTemplateShape
 		""" ;
 	] .
 
+# Core 1.4 and Inference Rules 6: a value of sh:entailment is an entailment regime, sh:RulesEntailment, or a rule set. StarLayer provides the regimes of
+# entailment_regimes.SUPPORTED_REGIMES (a test keeps this list in step); validating with another one raises, so a warning says so before anyone runs it.
+stsh:EntailmentSupportedShape
+	a sh:NodeShape ;
+	rdfs:label "StarLayer provides the entailment a shapes graph asks for"@en ;
+	sh:targetSubjectsOf sh:entailment ;
+	sh:property [
+		sh:path sh:entailment ;
+		sh:or (
+			[ sh:in ( <http://www.w3.org/ns/entailment/RDF> <http://www.w3.org/ns/entailment/RDFS> <http://www.w3.org/ns/entailment/OWL-RDF-Based> <http://www.w3.org/ns/entailment/OWL-Direct> sh:RulesEntailment ) ]
+			[ sh:class sh:RuleSet ]
+		) ;
+		sh:severity sh:Warning ;
+		sh:message "StarLayer provides no such entailment regime, and the shapes graph has no such rule set, so validating with it fails (an entailment regime, sh:RulesEntailment or a rule set)."@en ;
+	] .
+
 # Inference Rules 9: "The values of sh:sourceRule SHOULD be IRIs", so a blank node or a literal is a warning.
 stsh:SourceRuleShape
 	a sh:NodeShape ;

@@ -51,6 +51,13 @@ stsh:KindGroupUI a sh:PropertyGroup ;
     rdfs:label "User interface" ;
     sh:order 6 .
 
+# The holder of prefix declarations (sh:declare), which SHACL 1.2 leaves without a class: shacl_shacl_rules types it with this one (an inferred type, never
+# written to a file), so a tool lists a node that only holds prefixes as a prefix set. sh:group says which group of kinds it is listed under.
+stsh:PrefixSet a rdfs:Class ;
+    rdfs:label "prefix set" ;
+    rdfs:comment "A resource that holds namespace prefix declarations (sh:declare), such as the value of sh:prefixes. SHACL 1.2 gives it no class: this one is inferred from sh:declare."@en ;
+    sh:group stsh:KindGroupShared .
+
 stsh:ShapesGraphShape a sh:NodeShape ;
     rdfs:label "A shapes graph" ;
     rdfs:comment "What a shapes graph defines (the entities that say rdfs:isDefinedBy it), one property shape per kind, in groups and in the order a tool lists them, and what it uses (it lists them with rdfs:member)." ;

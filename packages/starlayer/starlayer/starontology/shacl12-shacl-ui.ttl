@@ -627,12 +627,11 @@ stsh:ShapesGraphForm a sh:NodeShape ;
     sh:property stsh:ShapesGraphForm_owl_imports,
         stsh:ShapesGraphForm_rdf_type,
         stsh:ShapesGraphForm_rdfs_comment,
-        stsh:ShapesGraphForm_rdfs_isDefinedBy,
         stsh:ShapesGraphForm_rdfs_label,
         stsh:ShapesGraphForm_rdfs_member,
         stsh:ShapesGraphForm_sh_declare,
         stsh:ShapesGraphForm_sh_entailment ;
-    stsh:formFields ( rdf:type rdfs:label rdfs:comment rdfs:member owl:imports sh:entailment sh:declare rdfs:isDefinedBy ) ;
+    stsh:formFields ( rdf:type rdfs:label rdfs:comment rdfs:member owl:imports sh:entailment sh:declare ) ;
     stsh:formFor sh:ShapesGraph .
 
 stsh:ShuiPredicateShapes a sh:NodeShape ;
@@ -1392,7 +1391,7 @@ stsh:NodeShapeForm_sh_nodeByExpression a sh:PropertyShape ;
 
 stsh:NodeShapeForm_sh_nodeKind a sh:PropertyShape ;
     sh:group stsh:ValueTypeGroup ;
-    sh:in _:n5e7bda58db2b46dc9c56aad7c3d05fe0b75 ;
+    sh:in _:n98e0ac382c334b60a7d303af043490b7b75 ;
     sh:maxCount 1 ;
     sh:nodeKind sh:IRI ;
     sh:order 4 ;
@@ -1792,7 +1791,7 @@ stsh:ParameterForm_sh_nodeByExpression a sh:PropertyShape ;
 
 stsh:ParameterForm_sh_nodeKind a sh:PropertyShape ;
     sh:group stsh:ValueTypeGroup ;
-    sh:in _:n5e7bda58db2b46dc9c56aad7c3d05fe0b75 ;
+    sh:in _:n98e0ac382c334b60a7d303af043490b7b75 ;
     sh:maxCount 1 ;
     sh:nodeKind sh:IRI ;
     sh:order 4 ;
@@ -2295,7 +2294,7 @@ stsh:PropertyShapeForm_sh_nodeByExpression a sh:PropertyShape ;
 
 stsh:PropertyShapeForm_sh_nodeKind a sh:PropertyShape ;
     sh:group stsh:ValueTypeGroup ;
-    sh:in _:n5e7bda58db2b46dc9c56aad7c3d05fe0b75 ;
+    sh:in _:n98e0ac382c334b60a7d303af043490b7b75 ;
     sh:maxCount 1 ;
     sh:nodeKind sh:IRI ;
     sh:order 4 ;
@@ -2930,13 +2929,6 @@ stsh:ShapesGraphForm_rdfs_comment a sh:PropertyShape ;
     sh:nodeKind sh:Literal ;
     sh:order 4 ;
     sh:path rdfs:comment .
-
-stsh:ShapesGraphForm_rdfs_isDefinedBy a sh:PropertyShape ;
-    sh:group stsh:MetadataGroup ;
-    sh:maxCount 1 ;
-    sh:nodeKind sh:IRI ;
-    sh:order 5 ;
-    sh:path rdfs:isDefinedBy .
 
 stsh:ShapesGraphForm_rdfs_label a sh:PropertyShape ;
     sh:group stsh:NamingGroup ;
@@ -3680,6 +3672,13 @@ stsh:CrossNodeGroup a sh:PropertyGroup ;
     sh:name "Cross-Node"@en ;
     sh:order 13 .
 
+rdfs:isDefinedBy sh:group stsh:MetadataGroup ;
+    sh:nodeKind sh:IRI ;
+    sh:order 5 ;
+    stsh:formMaxCount 1 ;
+    stsh:nodeFormField true ;
+    stsh:propertyFormField true .
+
 rdfs:subClassOf sh:group stsh:MetadataGroup ;
     sh:nodeKind sh:IRI ;
     sh:order 7 ;
@@ -3772,13 +3771,6 @@ stsh:ReificationGroup a sh:PropertyGroup ;
     sh:description "RDF 1.2 triple-term reification constraints (sh:reifierShape, sh:reificationRequired)."@en ;
     sh:name "Reification"@en ;
     sh:order 14 .
-
-rdfs:isDefinedBy sh:group stsh:MetadataGroup ;
-    sh:nodeKind sh:IRI ;
-    sh:order 5 ;
-    stsh:formMaxCount 1 ;
-    stsh:nodeFormField true ;
-    stsh:propertyFormField true .
 
 shui:widget sh:group stsh:DefinitionGroup ;
     sh:nodeKind sh:BlankNodeOrIRI ;
@@ -3928,8 +3920,8 @@ stsh:DefinitionGroup a sh:PropertyGroup ;
     sh:name "Definition"@en ;
     sh:order 0.5 .
 
-_:n5e7bda58db2b46dc9c56aad7c3d05fe0b76 rdf:first sh:IRI ;
+_:n98e0ac382c334b60a7d303af043490b7b76 rdf:first sh:IRI ;
     rdf:rest ( sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) .
 
-_:n5e7bda58db2b46dc9c56aad7c3d05fe0b75 rdf:first sh:BlankNode ;
-    rdf:rest _:n5e7bda58db2b46dc9c56aad7c3d05fe0b76 .
+_:n98e0ac382c334b60a7d303af043490b7b75 rdf:first sh:BlankNode ;
+    rdf:rest _:n98e0ac382c334b60a7d303af043490b7b76 .

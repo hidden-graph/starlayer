@@ -353,6 +353,14 @@ stsh:DefaultValueShape a sh:NodeShape ;
             sh:path sh:defaultValue ] ;
     sh:targetSubjectsOf sh:defaultValue .
 
+stsh:EntailmentSupportedShape a sh:NodeShape ;
+    rdfs:label "StarLayer provides the entailment a shapes graph asks for"@en ;
+    sh:property [ sh:message "StarLayer provides no such entailment regime, and the shapes graph has no such rule set, so validating with it fails (an entailment regime, sh:RulesEntailment or a rule set)."@en ;
+            sh:or ( [ sh:in ( <http://www.w3.org/ns/entailment/RDF> <http://www.w3.org/ns/entailment/RDFS> <http://www.w3.org/ns/entailment/OWL-RDF-Based> <http://www.w3.org/ns/entailment/OWL-Direct> sh:RulesEntailment ) ] [ sh:class sh:RuleSet ] ) ;
+            sh:path sh:entailment ;
+            sh:severity sh:Warning ] ;
+    sh:targetSubjectsOf sh:entailment .
+
 stsh:ExpressionArgumentListShape a sh:NodeShape ;
     rdfs:label "A list that is an argument of a node expression is a well-formed RDF list"@en ;
     sh:node shsh:ListShape ;

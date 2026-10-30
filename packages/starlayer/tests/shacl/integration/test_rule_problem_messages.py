@@ -79,3 +79,27 @@ def test_check_sparql_query_text_still_raises_the_first_problem():
     shapes = Graph().parse(data=PRE + 'ex:R a sh:SPARQLRule ; sh:construct "SELECT * WHERE { ?s ?p ?o }" .', format="turtle")
     with pytest.raises(ConstraintLoadError, match="must hold a CONSTRUCT query"):
         meta_shapes.check_sparql_query_text(shapes)
+
+
+def test_a_node_that_holds_prefix_declarations_is_inferred_to_be_a_prefix_set():
+    from rdflib import RDF
+
+    from starlayer.shacl.shape_types import infer_types
+
+    shapes = Graph().parse(data=PRE + 'ex:Prefixes sh:declare [ sh:prefix "ex" ; sh:namespace "http://example.org/" ] .', format="turtle")
+    inferred = infer_types(shapes)
+    assert (URIRef("http://example.org/Prefixes"), RDF.type, URIRef("https://github.com/hidden-graph/starlayer/ns/shacl#PrefixSet")) in inferred
+    assert (URIRef("http://example.org/Prefixes"), RDF.type, URIRef("https://github.com/hidden-graph/starlayer/ns/shacl#PrefixSet")) not in shapes, "inferred, not written"
+
+
+def test_an_entailment_nothing_provides_is_a_warning_and_the_regimes_it_provides_are_not():
+    from starlayer.graph.graph.entailment_regimes import SUPPORTED_REGIMES
+
+    def about_entailment(turtle):
+        return [m for m in messages(turtle) if "entailment" in m]
+
+    assert about_entailment("ex:G a sh:ShapesGraph ; sh:entailment <http://www.w3.org/ns/entailment/D> .")
+    for regime in SUPPORTED_REGIMES:
+        assert about_entailment(f"ex:G a sh:ShapesGraph ; sh:entailment <{regime}> .") == [], regime
+    assert about_entailment("ex:G a sh:ShapesGraph ; sh:entailment sh:RulesEntailment .") == []
+    assert about_entailment("ex:Set a sh:RuleSet .\nex:G a sh:ShapesGraph ; sh:entailment ex:Set .") == []
