@@ -350,7 +350,7 @@ _CONTEXT = {
 # structures a single sample cannot stand for: nodes with fields of their own, node expressions, queries, lists of shapes
 _NOT_SAMPLED = {SH.parameter, SH.validator, SH.nodeValidator, SH.propertyValidator, SH.condition, SH.prefixes, SH.declare, SH.subject, SH.predicate,
                 SH.object, SH.select, SH.ask, SH.construct, SH.prefix, SH.namespace, RDF.type, SH.resultAnnotation, SH.annotationProperty, SH.hasRule}  # (a result annotation is a node with fields of its own; its property is required, exactly one)
-_SAMPLES = {SH.layer: ["1"], SH.runOnce: ["true"], SH.expectedPredicate: ["ex:p"], SH.labelTemplate: ['"x"'], SH.order: ["1"], SH.name: ['"x"'],
+_SAMPLES = {SH.layer: ["1"], SH.ruleProcessor: ["ex:Engine"], SH.runOnce: ["true"], SH.expectedPredicate: ["ex:p"], SH.labelTemplate: ['"x"'], SH.order: ["1"], SH.name: ['"x"'],
             SH.description: ['"x"'], SH.message: ['"x"'], SH.severity: ["sh:Warning"], SH.deactivated: ["true"], RDFS.label: ['"x"'], RDFS.comment: ['"x"'],
             RDFS.member: ["ex:m"], OWL.imports: ["ex:g"], SH.entailment: ["ex:r"], RDFS.isDefinedBy: ["ex:g"], SH.annotationVarName: ['"x"'], SH.annotationValue: ["1", '"x"'], SH.includesRuleSet: ["ex:other"]}
 

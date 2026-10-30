@@ -1,16 +1,15 @@
-"""``sh:sourceRule`` (SHACL 1.2 SPARQL Extensions section 8.7): opt-in
+"""``sh:sourceRule`` (SHACL 1.2 Inference Rules section 9): opt-in
 provenance tracking linking each rule-inferred triple back to the rule that
 produced it, via a reifier (``_:id rdf:reifies <<( s p o )>> . _:id
 sh:sourceRule <rule> .``). Off by default - the spec says a rule engine MAY
 generate these triples, and they add nothing but noise to a caller who
 didn't ask for them.
 
-Covers both rule-execution paths this codebase has: shape-attached
-``sh:rule``s (executed internally by pySHACL, intercepted via
-``_patch_rule_apply_for_source_rule_provenance``) and standalone/global
-``sh:SPARQLRule``s with no ``sh:rule`` edge (``_global_sparql_rule_triples``,
-native starlayer.shacl code) - see ``tests/integration/test_global_sparql_rules.py``
-for the base behavior these build on.
+Covers both kinds of rule the rule engine runs (``starlayer.shacl.rule_engine``,
+which tells ``_record_source_rule`` what each rule inferred): shape-attached
+``sh:rule``s and standalone/global ``sh:SPARQLRule``s with no ``sh:rule`` edge -
+see ``tests/integration/test_global_sparql_rules.py`` for the base behavior
+these build on.
 """
 
 import pytest
@@ -147,7 +146,7 @@ def test_source_rule_provenance_covers_global_sparql_rules_too() -> None:
 
 
 def test_source_rule_provenance_not_visible_to_executing_rules() -> None:
-    """SHACL 1.2 SPARQL Extensions section 8.7: "the [provenance] triples
+    """SHACL 1.2 Inference Rules section 9: "the [provenance] triples
     MUST NOT be visible to executing rules." A second rule's own WHERE
     clause here specifically looks for any sh:sourceRule triple - if
     provenance were added mid-execution rather than deferred to the very

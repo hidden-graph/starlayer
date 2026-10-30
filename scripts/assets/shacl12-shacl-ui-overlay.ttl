@@ -242,6 +242,7 @@ sh:prefixes sh:group stsh:RulesGroup ; sh:order 17 .
 sh:layer sh:group stsh:RulesGroup ; sh:order 18 .
 sh:runOnce sh:group stsh:RulesGroup ; sh:order 19 .
 sh:expectedPredicate sh:group stsh:RulesGroup ; sh:order 20 .
+sh:ruleProcessor sh:group stsh:RulesGroup ; sh:order 21 .
 sh:declare sh:group stsh:RulesGroup ; sh:order 21 .
 sh:labelTemplate sh:group stsh:RulesGroup ; sh:order 22 .
 
@@ -783,12 +784,12 @@ stsh:ResultAnnotationForm a sh:NodeShape ;
 # A triple rule's subject, predicate and object are all optional: an absent one is the focus node (section 11.2).
 stsh:SPARQLRuleForm a sh:NodeShape ;
     stsh:formFor sh:SPARQLRule ;
-    stsh:formFields ( rdf:type sh:construct sh:prefixes sh:condition sh:layer sh:runOnce sh:expectedPredicate rdfs:label rdfs:comment sh:order sh:deactivated ) ;
+    stsh:formFields ( rdf:type sh:construct sh:prefixes sh:condition sh:layer sh:runOnce sh:expectedPredicate sh:ruleProcessor rdfs:label rdfs:comment sh:order sh:deactivated ) ;
     stsh:formRequired ( sh:construct ) .
 
 stsh:TripleRuleForm a sh:NodeShape ;
     stsh:formFor sh:TripleRule ;
-    stsh:formFields ( rdf:type sh:subject sh:predicate sh:object sh:condition sh:layer sh:runOnce sh:expectedPredicate rdfs:label rdfs:comment sh:order sh:deactivated ) .
+    stsh:formFields ( rdf:type sh:subject sh:predicate sh:object sh:condition sh:layer sh:runOnce sh:expectedPredicate sh:ruleProcessor rdfs:label rdfs:comment sh:order sh:deactivated ) .
 
 # A constraint component (SHACL-AF 6): its parameters and the validators that check them.
 stsh:ConstraintComponentForm a sh:NodeShape ;
@@ -867,6 +868,7 @@ sh:condition sh:nodeKind sh:BlankNodeOrIRI .      # a shape, or a list of shapes
 sh:layer sh:nodeKind sh:Literal ; sh:datatype xsd:integer ; stsh:formMaxCount 1 .
 sh:runOnce sh:nodeKind sh:Literal ; sh:datatype xsd:boolean ; stsh:formMaxCount 1 .
 sh:expectedPredicate sh:nodeKind sh:IRI .
+sh:ruleProcessor sh:nodeKind sh:IRIOrLiteral .
 sh:labelTemplate sh:nodeKind sh:Literal ; stsh:formMaxCount 1 .
 sh:parameter sh:nodeKind sh:BlankNodeOrIRI .
 sh:validator sh:nodeKind sh:BlankNodeOrIRI ; stsh:formMaxCount 1 .

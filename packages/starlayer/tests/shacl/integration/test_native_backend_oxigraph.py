@@ -185,7 +185,7 @@ def test_reifier_shape_violates_when_reifier_missing_on_native_backend() -> None
 
 def test_global_sparql_rule_produces_triples_on_native_backend() -> None:
     """Found via direct testing against a real Oxigraph/Fuseki instance:
-    ``_global_sparql_rule_triples``'s ``_apply_one`` ran its CONSTRUCT query
+    the old global-rule pass ran its CONSTRUCT query
     via ``data_graph.query(...)`` with no graph-scoping of its own -
     ``starlayer.graph.backends.native.native_query()`` sends a query's text
     to the remote endpoint completely unscoped (see that function's own

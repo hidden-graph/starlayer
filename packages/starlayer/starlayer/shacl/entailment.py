@@ -42,7 +42,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from rdflib import Namespace
+from rdflib import RDF, Namespace
 
 from starlayer.graph.graph.entailment_regimes import SUPPORTED_REGIMES
 
@@ -64,6 +64,18 @@ def declared_entailment_regimes(shacl_graph: Any) -> frozenset:
         type" closure, which needs no declaration whatsoever).
     """
     return frozenset(shacl_graph.objects(None, SH.entailment))
+
+
+RULES_ENTAILMENT = SH.RulesEntailment
+
+
+def rules_entailment_selection(shacl_graph: Any) -> tuple[bool, frozenset]:
+    """What ``shacl_graph``'s ``sh:entailment`` asks of the rules (Inference Rules section 6): whether ``sh:RulesEntailment``
+    is declared (run every rule), and the declared rule set IRIs (an IRI typed ``sh:RuleSet`` in the shapes graph). Several
+    values run together as one rule set, so every rule when ``sh:RulesEntailment`` is among them."""
+    declared = declared_entailment_regimes(shacl_graph)
+    rule_sets = frozenset(d for d in declared if d not in SUPPORTED_REGIMES and (d, RDF.type, SH.RuleSet) in shacl_graph)
+    return RULES_ENTAILMENT in declared, rule_sets
 
 
 def _apply_entailment_regimes(data_graph: Any, regimes: frozenset, ont_graph: Any | None = None, *, inplace: bool) -> Any:
@@ -198,7 +210,11 @@ def apply_entailment(
             failure" requirement for an entailment regime it can't
             provide.
     """
-    regimes = declared_entailment_regimes(shacl_graph) if shacl_graph is not None else frozenset()
+    regimes = frozenset()
+    if shacl_graph is not None:
+        # sh:RulesEntailment and the rule sets are not entailment regimes: validate() runs those rules (Inference Rules 6)
+        _, rule_sets = rules_entailment_selection(shacl_graph)
+        regimes = declared_entailment_regimes(shacl_graph) - {RULES_ENTAILMENT} - rule_sets
     if inference is not None:
         extra = frozenset(inference) if isinstance(inference, (frozenset, set, tuple, list)) else frozenset({inference})
         regimes = regimes | extra

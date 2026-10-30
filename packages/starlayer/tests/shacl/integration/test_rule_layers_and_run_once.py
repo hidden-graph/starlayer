@@ -1,13 +1,12 @@
-"""sh:layer / sh:runOnce (SHACL 1.2 SPARQL Extensions section 8.2.4/8.2.6).
+"""sh:layer / sh:runOnce (SHACL 1.2 Inference Rules sections 3.5 and 3.7).
 
 pySHACL's own rule loop (``pyshacl.rules.apply_rules``) processes shapes
 *sequentially* - one shape's rules reach their own independent fixpoint,
 then the next shape's rules run, in ``shape.order`` order. The spec's layer
 model is a *global* fixpoint across every rule in a layer regardless of
 which shape it's attached to, which that per-shape loop cannot express.
-``starlayer.shacl/validator.py::_patch_rules_apply_for_layer_and_run_once``
-replaces the loop, but only when a shapes graph actually declares
-``sh:layer``/``sh:runOnce`` - see that function's docstring.
+``starlayer.shacl.rule_engine`` replaces the loop (installed by
+``validator.py::_patch_rules_for_native_engine``) - see that module's docstring.
 """
 
 import pytest

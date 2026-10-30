@@ -691,8 +691,10 @@ stsh:RuleShape
 		  sh:property [ sh:path sh:object ; sh:maxCount 1 ; sh:node stsh:NodeExpressionShape ] ;
 		]
 		[ sh:class sh:SPARQLRule ;
-		  sh:property [ sh:path sh:construct ; sh:datatype xsd:string ; sh:minCount 1 ] ;  # SPARQLRule.__init__: "No sh:construct on SPARQLRule"
+		  # Inference Rules 11.1 (construct-count, construct-datatype): exactly one sh:construct, an xsd:string
+		  sh:property [ sh:path sh:construct ; sh:datatype xsd:string ; sh:minCount 1 ; sh:maxCount 1 ] ;  # SPARQLRule.__init__: "No sh:construct on SPARQLRule"
 		]
+		[ sh:class sh:Rule ]       # an instance of a rule template (Inference Rules 12): a subclass of sh:Rule, checked by its template
 	) .
 
 stsh:RulesAndSparqlShapes
@@ -725,6 +727,72 @@ stsh:RuleSetShape
 	sh:message "A rule set is identified by an IRI, not a blank node."@en ;
 	sh:property [ sh:path sh:hasRule ; sh:nodeKind sh:BlankNodeOrIRI ; sh:node stsh:RuleShape ] ;
 	sh:property [ sh:path sh:includesRuleSet ; sh:nodeKind sh:IRI ] .
+
+# Inference Rules, Appendix A, the syntax rules about rules that stsh:RuleShape and stsh:RuleSetShape above do not state:
+# rule-type, rule (the subject of sh:rule is an IRI), the single-valued deactivated/layer/runOnce (layer and runOnce are in
+# stsh:RuleSettingsShape below), ruleProcessor, and the rule template rules; and section 9, where sh:sourceRule values SHOULD be IRIs.
+stsh:RuleTypeShape
+	a sh:NodeShape ;
+	rdfs:label "A rule has an rdf:type that is an IRI"@en ;
+	rdfs:comment "SHACL 1.2 Inference Rules, Appendix A (rule-type): each rule has at least one rdf:type which is an IRI."@en ;
+	sh:targetObjectsOf sh:rule, sh:hasRule ;
+	sh:property [
+		sh:path rdf:type ;
+		sh:qualifiedValueShape [ sh:nodeKind sh:IRI ] ;
+		sh:qualifiedMinCount 1 ;
+		sh:message "A rule has at least one rdf:type that is an IRI."@en ;
+	] .
+
+stsh:RuleSubjectShape
+	a sh:NodeShape ;
+	rdfs:label "The subject of sh:rule is an IRI"@en ;
+	rdfs:comment "SHACL 1.2 Inference Rules 3.2 and Appendix A (rule): the subjects of sh:rule triples are IRIs."@en ;
+	sh:targetSubjectsOf sh:rule ;
+	sh:nodeKind sh:IRI ;
+	sh:message "A shape that links to a rule with sh:rule is an IRI."@en .
+
+stsh:RuleDeactivatedShape
+	a sh:NodeShape ;
+	rdfs:label "Well-formed sh:deactivated on a rule"@en ;
+	rdfs:comment "SHACL 1.2 Inference Rules 3.4 and Appendix A (deactivated-maxCount, deactivated-in): at most one value, the boolean true or false."@en ;
+	sh:targetClass sh:TripleRule, sh:SPARQLRule, sh:SPARQLRuleTemplate ;
+	sh:targetObjectsOf sh:rule, sh:hasRule ;
+	sh:property [ sh:path sh:deactivated ; sh:maxCount 1 ; sh:datatype xsd:boolean ; sh:message "A rule has at most one sh:deactivated, an xsd:boolean."@en ] .
+
+stsh:RuleProcessorShape
+	a sh:NodeShape ;
+	rdfs:label "Well-formed sh:ruleProcessor"@en ;
+	rdfs:comment "SHACL 1.2 Inference Rules 10 and Appendix A (ruleProcessor): the values are IRIs or xsd:string literals."@en ;
+	sh:targetSubjectsOf sh:ruleProcessor ;
+	sh:property [
+		sh:path sh:ruleProcessor ;
+		sh:or ( [ sh:nodeKind sh:IRI ] [ sh:datatype xsd:string ] ) ;
+		sh:message "sh:ruleProcessor is an IRI or an xsd:string."@en ;
+	] .
+
+# Rule templates (Inference Rules 12): "Each SPARQL rule template is an IRI", it declares parameters like a SPARQL-based constraint
+# component, has exactly one sh:construct (an xsd:string), and may use sh:prefixes (checked for every holder by stsh:PrefixesShape).
+stsh:SPARQLRuleTemplateShape
+	a sh:NodeShape ;
+	rdfs:label "Well-formedness rules for sh:SPARQLRuleTemplate"@en ;
+	sh:targetClass sh:SPARQLRuleTemplate ;
+	sh:nodeKind sh:IRI ;
+	sh:message "A SPARQL rule template is an IRI."@en ;
+	sh:property [ sh:path sh:construct ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:message "A SPARQL rule template has exactly one sh:construct, an xsd:string."@en ] ;
+	sh:property [
+		sh:path sh:parameter ;
+		sh:node [
+			a sh:NodeShape ;
+			sh:property [ sh:path sh:path ; sh:nodeKind sh:IRI ; sh:minCount 1 ; sh:maxCount 1 ] ;
+		] ;
+	] .
+
+# Inference Rules 9: "The values of sh:sourceRule SHOULD be IRIs", so a blank node or a literal is a warning.
+stsh:SourceRuleShape
+	a sh:NodeShape ;
+	rdfs:label "sh:sourceRule values should be IRIs"@en ;
+	sh:targetSubjectsOf sh:sourceRule ;
+	sh:property [ sh:path sh:sourceRule ; sh:nodeKind sh:IRI ; sh:severity sh:Warning ; sh:message "The values of sh:sourceRule should be IRIs."@en ] .
 
 stsh:ConstraintComponentShape
 	a sh:NodeShape ;
@@ -767,8 +835,8 @@ stsh:RuleSettingsShape
 	a sh:NodeShape ;
 	rdfs:label "Well-formedness rules for sh:layer, sh:runOnce and sh:expectedPredicate"@en ;
 	sh:targetSubjectsOf sh:layer, sh:runOnce, sh:expectedPredicate ;
-	sh:property [ sh:path sh:layer ; sh:nodeKind sh:Literal ; sh:or ( [ sh:datatype xsd:decimal ] [ sh:datatype xsd:integer ] ) ; sh:message "sh:layer is a number."@en ] ;
-	sh:property [ sh:path sh:runOnce ; sh:datatype xsd:boolean ; sh:message "sh:runOnce is an xsd:boolean."@en ] ;
+	sh:property [ sh:path sh:layer ; sh:maxCount 1 ; sh:nodeKind sh:Literal ; sh:or ( [ sh:datatype xsd:decimal ] [ sh:datatype xsd:integer ] ) ; sh:message "sh:layer is a single number."@en ] ;
+	sh:property [ sh:path sh:runOnce ; sh:maxCount 1 ; sh:datatype xsd:boolean ; sh:message "sh:runOnce is a single xsd:boolean."@en ] ;
 	sh:property [ sh:path sh:expectedPredicate ; sh:nodeKind sh:IRI ] .
 
 stsh:TargetWhereShape

@@ -1,4 +1,4 @@
-"""sh:expectedPredicate (SHACL 1.2 SPARQL Extensions section 8.2.7,
+"""sh:expectedPredicate (SHACL 1.2 Inference Rules section 3.8,
 "Expected Derived Triples") - both the sh:defaultValue and sh:values halves.
 
 A rule declaring sh:expectedPredicate ex:p expects the *derived* triples for
@@ -21,11 +21,8 @@ plausible but incorrect reading of the spec prose alone - corrected once
 concrete fixture evidence was available.
 
 starlayer.shacl/validator.py::_materialize_expected_predicates is the
-implementation, hooked into the same always-applied
-_patch_rules_apply_for_layer_and_run_once wrap item #3 (sh:layer/
-sh:runOnce) already installs - see that function's own docstring for why
-this lives there rather than as a third wrap of TripleRule.apply/
-SPARQLRule.apply.
+implementation; the rule engine (starlayer.shacl.rule_engine) calls it once
+per layer and removes the triples again when the layer ends.
 """
 
 import pytest

@@ -2038,3 +2038,71 @@ def test_an_argument_parameter_with_a_cardinality_above_one_is_a_warning() -> No
     for card in ("sh:maxCount 2", "sh:minCount 3"):
         found = _warnings(_LIST_FN % (f"sh:parameter [ sh:path shnex:arg0 ; {card} ] ;", "[ shnex:arg 0 ]"))
         assert len(found) == 1 and "single node" in found[0], card
+
+
+# ---------------------------------------------------------------------------
+# Inference Rules, Appendix A: the syntax rules about rules
+# ---------------------------------------------------------------------------
+
+_APPENDIX_A_PREFIXES = "@prefix xsd: <http://www.w3.org/2001/XMLSchema#> . @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> . " + _PREFIXES
+
+
+@pytest.mark.parametrize(
+    "ttl",
+    [
+        "ex:S a sh:NodeShape ; sh:rule ex:R . ex:R a sh:SPARQLRule ; sh:construct 'CONSTRUCT { } WHERE { }' ; sh:deactivated true ; sh:layer 1.5 ; sh:order 2 ; sh:runOnce false .",
+        "ex:R a sh:TripleRule ; sh:ruleProcessor ex:Engine, 'SRL 1.2' .",
+        "ex:T a sh:SPARQLRuleTemplate ; sh:construct 'CONSTRUCT { } WHERE { }' ; sh:parameter [ sh:path ex:p ] .",
+        "ex:T rdfs:subClassOf sh:Rule . ex:Inst a ex:T . ex:RS a sh:RuleSet ; sh:hasRule ex:Inst . ex:T a sh:SPARQLRuleTemplate ; sh:construct 'CONSTRUCT { } WHERE { }' .",
+        "ex:S a sh:NodeShape ; sh:rule [ a ex:Custom, sh:TripleRule ] .",  # one of several types is enough
+    ],
+)
+def test_well_formed_rules_by_appendix_a_pass(ttl) -> None:
+    _validate(_TRIVIAL_DATA, _APPENDIX_A_PREFIXES + ttl)
+
+
+@pytest.mark.parametrize(
+    "ttl",
+    [
+        "[] a sh:NodeShape ; sh:rule ex:R . ex:R a sh:TripleRule .",  # rule: the subject of sh:rule is an IRI
+        "ex:S a sh:NodeShape ; sh:rule [ ] .",  # rule-type: no rdf:type
+        "ex:S a sh:NodeShape ; sh:rule [ a [ ] ] .",  # rule-type: the only type is a blank node
+        "ex:R a sh:TripleRule ; sh:deactivated true, false .",  # deactivated-maxCount
+        "ex:R a sh:TripleRule ; sh:deactivated 'yes' .",  # deactivated-in
+        "ex:R a sh:TripleRule ; sh:layer 1, 2 .",  # rule-layer-maxCount
+        "ex:R a sh:TripleRule ; sh:order 1, 2 .",  # rule-order-maxCount
+        "ex:R a sh:TripleRule ; sh:order 'first' .",  # rule-order-datatype
+        "ex:R a sh:TripleRule ; sh:runOnce true, false .",  # run-once-maxCount
+        "ex:R a sh:SPARQLRule ; sh:construct 'CONSTRUCT { } WHERE { }', 'CONSTRUCT { } WHERE { ?a ?b ?c }' .",  # construct-count
+        "ex:R a sh:SPARQLRule ; sh:construct 5 .",  # construct-datatype
+        "ex:R a sh:TripleRule ; sh:ruleProcessor 5 .",  # ruleProcessor
+        "ex:R a sh:TripleRule ; sh:ruleProcessor [ ] .",  # ruleProcessor
+        "[] a sh:SPARQLRuleTemplate ; sh:construct 'CONSTRUCT { } WHERE { }' .",  # SPARQLRuleTemplate-nodeKind
+        "ex:T a sh:SPARQLRuleTemplate .",  # SPARQLRuleTemplate-construct: none
+        "ex:T a sh:SPARQLRuleTemplate ; sh:construct 'CONSTRUCT { } WHERE { }', 'CONSTRUCT { } WHERE { ?a ?b ?c }' .",  # exactly one
+        "ex:T a sh:SPARQLRuleTemplate ; sh:construct 7 .",  # a string
+        "ex:T a sh:SPARQLRuleTemplate ; sh:construct 'CONSTRUCT { } WHERE { }' ; sh:parameter [ ] .",  # SPARQLRuleTemplate-parameter
+        "ex:RS a sh:RuleSet ; sh:hasRule ex:NotRule . ex:NotRule a ex:Other .",  # hasRule: a rule
+    ],
+)
+def test_malformed_rules_by_appendix_a_are_caught(ttl) -> None:
+    with pytest.raises(Exception) as exc_info:
+        _validate(_TRIVIAL_DATA, _APPENDIX_A_PREFIXES + ttl)
+    assert "metashacl" in str(exc_info.value).lower()
+
+
+def test_a_source_rule_that_is_not_an_iri_is_a_warning_not_an_error() -> None:
+    """Inference Rules 9: the values of sh:sourceRule SHOULD be IRIs."""
+    shapes = Graph()
+    shapes.parse(data=_APPENDIX_A_PREFIXES + "_:r sh:sourceRule [ ] . _:s sh:sourceRule ex:Rule .", format="turtle")
+
+    conforms, report, _text = meta_validate(shapes)
+
+    assert conforms is True
+    from rdflib import RDF, Namespace
+
+    sh = Namespace("http://www.w3.org/ns/shacl#")
+    assert len(list(report.subjects(RDF.type, sh.ValidationResult))) == 1
+    assert (None, sh.resultSeverity, sh.Warning) in report
+    with pytest.raises(Exception):
+        meta_validate(shapes, allow_warnings=False)

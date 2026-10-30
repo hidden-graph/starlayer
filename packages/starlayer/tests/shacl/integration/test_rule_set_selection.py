@@ -1,18 +1,15 @@
-"""sh:RuleSet / sh:hasRule / sh:includesRuleSet (SHACL 1.2 SPARQL Extensions
-section 8.2.1, added upstream 2026-08-21, re-verified live 2026-08-26):
+"""sh:RuleSet / sh:hasRule / sh:includesRuleSet (SHACL 1.2 Inference Rules
+section 4; first in SPARQL Extensions section 8.2.1, moved when the rules got their own document):
 StarShaclSchema.apply_rules(..., rule_set=<IRI>) restricts execution to
 a named, caller-selected subset of a shapes graph's rules. The spec's own
 default rule set ("the set of all rules in the graph") is exactly
 apply_rules()'s pre-existing no-`rule_set` behavior, so that case is a pure
 regression guard here, not new functionality.
 
-Covers both rule-execution paths, since each needed its own hook:
-- global (shape-independent) sh:SPARQLRule, filtered in
-  validator.py::_global_sparql_rules directly (starlayer.shacl's own code).
-- shape-attached sh:rule (sh:TripleRule/sh:SPARQLRule), filtered via
-  _patch_rule_apply_for_rule_set_filtering wrapping TripleRule.apply/
-  SPARQLRule.apply - the same style, and independent of,
-  _patch_rule_apply_for_source_rule_provenance.
+Covers both kinds of rule the rule engine runs: global (shape-independent)
+rules, left out when gathered (validator.py::_global_engine_rules), and
+shape-attached sh:rule (sh:TripleRule/sh:SPARQLRule), left out by the engine's
+apply_rules hook (validator.py::_patch_rules_for_native_engine).
 """
 
 import pytest
