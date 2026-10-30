@@ -71,8 +71,8 @@ listed `sh:TripleRule`, `sh:SPARQLFunction`, `sh:SPARQLTarget` and `sh:TargetTyp
 1.2 vocabulary (`scripts/assets/vendor/w3c-shacl.ttl`, "under development by the Data-Shapes (SHACL 1.2) WG"), alongside
 `sh:SPARQLRule`, `sh:SPARQLTargetType`, `sh:SPARQLRuleTemplate`, `sh:rule`, `sh:condition`, `sh:order`, `sh:values`,
 `sh:defaultValue`, `sh:expression` and the `sh:NodeExpression` family. `docs/shacl/shacl12-gap-matrix.md` records that
-`sh:TripleRule`'s formal definition was merged into SHACL 1.2 SPARQL Extensions (section 8.10) and that the rules
-vocabulary now lives in the SHACL 1.2 Inference Rules editor's draft (the former "SHACL 1.2 Rules" document became
+`sh:TripleRule` is defined in the SHACL 1.2 Inference Rules draft ("Triple Rules"; the matrix's "SPARQL Extensions
+section 8.10" is stale: the 22 Oct 2026 SPARQL draft has no section 8). The rules vocabulary lives in the SHACL 1.2 Inference Rules editor's draft (the former "SHACL 1.2 Rules" document became
 SPARQL 1.2 Rules, SRL). Test-suite coverage is not a scope test; the vocabulary and the spec text are.
 
 ### Audit method: code against the 1.2 vocabulary
@@ -95,3 +95,11 @@ name, not a term). So at the term level the code is already 1.2-shaped; the lega
    `_global_engine_rules`): not legacy 1.2, but replaced wholesale by the new engine.
 Not legacy: `sh:TripleRule`, `sh:SPARQLRule`, `sh:SPARQLFunction`, `sh:SPARQLTarget`, `sh:TargetType`, rule ordering,
 conditions, `sh:resultAnnotation`: all in the 1.2 vocabulary, so the new engine implements them.
+
+## Spec reading (partial), 2026-10-30
+Node Expressions WD 28 Oct 2026, read verbatim to part of 4.2.5: no `sh:union`/`sh:intersection`/`sh:minus`/
+`sh:filterShape`/`sh:path` as expressions; the `shnex:` keys are used. The 2017 SHACL-AF note section 6 defines the old
+`sh:` forms (6.3, 6.6, 6.7). Supports candidate 1. Unread: Node Expressions sections 5-8, SPARQL Features section 6 and
+Appendix F, Inference Rules section numbers. The Inference Rules draft adds `sh:layer`, `sh:runOnce`,
+`sh:expectedPredicate`, rule sets, `sh:ruleProcessor`, `sh:tempTriple`, `sh:sourceRule` and rule templates; the engine
+must cover them.
