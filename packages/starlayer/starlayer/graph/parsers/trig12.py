@@ -22,6 +22,7 @@ import re as _re
 
 from rdflib import BNode, URIRef
 
+from starlayer.graph.parsers.bnode_scope import labelled_bnode, per_document
 from starlayer.graph.parsers.turtle_parser import (
     StarLayerTurtleParser,
     _skolemize_encoding,
@@ -253,7 +254,7 @@ def _resolution_state(declarations: list[str], base: str | None) -> tuple[str | 
 def _resolve_graph_id(token: str, prefix_map: dict[str, str], base: str | None = None) -> URIRef | BNode:
     """Resolve a graph label token (<IRI>, prefix:local, _:label or []) to a URIRef or BNode."""
     if token.startswith('_:'):
-        return BNode(token[2:])
+        return labelled_bnode(token[2:])
     if token.startswith('['):
         return BNode()
     if token.startswith('<') and token.endswith('>'):
@@ -408,6 +409,7 @@ def extract_version_directive(text: str) -> str | None:
 # Public entry points
 # ---------------------------------------------------------------------------
 
+@per_document
 def parse_trig12(text: str, base: str | None = None) -> list[tuple]:
     """Parse TriG 1.2 text; return list of (s, p, o) triples.
 
@@ -437,6 +439,7 @@ def parse_trig12(text: str, base: str | None = None) -> list[tuple]:
     return triples
 
 
+@per_document
 def parse_trig12_named(
     text: str,
     base: str | None = None,

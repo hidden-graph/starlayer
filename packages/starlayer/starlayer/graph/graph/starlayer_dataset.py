@@ -283,8 +283,9 @@ class StarLayerDataset(Dataset):
             sg = self.get_context(g.identifier)
             yield sg._restore(s_r), p_r, sg._restore(o_r), sg
 
-    def triples(self, triple=(None, None, None)) -> Generator[tuple, None, None]:
-        """Yield (s, p, o), scoped by ``self.default_union`` like rdflib's own Dataset.
+    def triples(self, triple=(None, None, None), context=None) -> Generator[tuple, None, None]:
+        """Yield (s, p, o), scoped by ``self.default_union`` like rdflib's own Dataset. ``context`` (a graph or its identifier)
+        restricts the answer to that one graph, as rdflib's ``ConjunctiveGraph.triples`` does; ``(s, p, o) in dataset`` passes it.
 
         default_union=False (the default): only the default graph's own triples,
         matching this dataset's declared default-graph-isolation semantics.
@@ -293,6 +294,9 @@ class StarLayerDataset(Dataset):
 
         Encoding triples are filtered; TripleTerms are restored either way.
         """
+        if context is not None:
+            yield from self.get_context(getattr(context, "identifier", context)).triples(triple)
+            return
         if self.default_union:
             seen = set()
             for s, p, o, _g in self.quads(triple):
@@ -581,13 +585,18 @@ class StarLayerDataset(Dataset):
                 source=source, publicID=publicID, format=format,
                 location=location, file=file, data=data, **kwargs,
             )
+            self._raw_execution_graph = None
             return self
 
         if format not in ('trig12', 'nq12', 'trix12'):
-            return super().parse(
-                source=source, publicID=publicID, format=format,
-                location=location, file=file, data=data, **kwargs,
-            )
+            # a query must see what rdflib's own parse added (GitHub issue #99)
+            try:
+                return super().parse(
+                    source=source, publicID=publicID, format=format,
+                    location=location, file=file, data=data, **kwargs,
+                )
+            finally:
+                self._raw_execution_graph = None
 
         text = self._read_source(source, publicID, location, file, data)
 

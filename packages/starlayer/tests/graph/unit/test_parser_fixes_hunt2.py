@@ -95,10 +95,13 @@ def test_escaped_quote_in_a_blank_node_list_round_trips():
 
 
 def test_blank_node_label_with_an_inner_dot_in_ntriples():
-    g = StarLayerGraph().parse(data=f"_:a.b <{E}p> _:c .\n", format="nt12")
-    assert {str(s) for s in g.subjects()} == {"a.b"}
+    # a label is scoped to its document and not kept as the node's identifier, so "a.b" read whole is seen by comparing nodes
+    g = StarLayerGraph().parse(data=f"_:a.b <{E}p> _:a.b .\n_:a <{E}p> _:a.b .\n", format="nt12")
+    assert len(set(g.subjects())) == 2
+    assert len(set(g.objects())) == 1
     g = StarLayerGraph().parse(data=f"<{E}s> <{E}p> _:c.\n", format="nt12")
-    assert {str(o) for o in g.objects()} == {"c"}
+    assert len(g) == 1
+    assert all(isinstance(o, BNode) for o in g.objects())
 
 
 def test_blank_node_inside_a_triple_term_keeps_its_label_in_the_writer():
