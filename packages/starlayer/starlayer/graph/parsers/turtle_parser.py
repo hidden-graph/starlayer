@@ -30,6 +30,7 @@ from starlayer.graph.model.encoding import (
 )
 from starlayer.graph.parsers import lexer as _lexer
 from starlayer.graph.parsers import syntax as _syntax
+from starlayer.graph.parsers.bnode_scope import labelled_bnode, per_document
 from starlayer.graph.parsers.errors import Turtle12SyntaxError
 
 # Legacy sl: constants — kept for the intermediate build phase only;
@@ -388,7 +389,7 @@ def _to_node(val, prefix_map, base_uri):
     val = val.strip()
 
     if val.startswith('_:'):
-        return BNode(val[2:])
+        return labelled_bnode(val[2:])
 
     if val.startswith('<') and val.endswith('>'):
         return URIRef(_resolve_iri_reference(val[1:-1], base_uri))
@@ -1089,6 +1090,7 @@ def _strip_blank_and_comment_lines(data):
 
 class StarLayerTurtleParser:
 
+    @per_document
     def parse(self, data: str, debug: bool = False, base: str = None, require_final_dot: bool = True) -> Graph:
         """Parse Turtle 1.2 text and return an rdflib.Graph.
 
