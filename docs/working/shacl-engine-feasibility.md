@@ -60,3 +60,17 @@ UI/extraction 198; conformance helpers 193.
 The Core evaluation loop (shape, focus and value nodes, 28 core components, paths, SPARQL constraints) lives in
 pyshacl and is what a fresh engine writes. native_components.py (3,416 lines) holds our 1.2 components, which
 survive with a different base class.
+
+## Scope decision: all of SHACL 1.2, no backward compatibility with SHACL-AF
+The engine implements everything the SHACL 1.2 drafts define (Core, SPARQL, node expressions, rules, `sh:targetWhere`,
+values and defaults, and so on) and nothing that exists only in the 2017 SHACL-AF note. Rules are therefore in scope for
+the new engine, not left on the old path.
+
+Evidence from the vendored W3C SHACL 1.2 test suite (`tests/shacl/vendor/shacl12-test-suite`), file counts: present are
+`sh:SPARQLRule` 12, `sh:rule` 9, `shnex:` 105, `sh:values` 3, `sh:condition` 2, `sh:defaultValue` 2, `sh:expression` 1,
+`sh:targetWhere` 1. Absent (0): `sh:TripleRule`, `sh:SPARQLFunction`, `sh:SPARQLTarget`, `sh:JSFunction`, `sh:TargetType`.
+Absence from the suite is not proof the drafts omit them; confirm each against the spec text before dropping.
+
+Candidate AF-only features to drop, with where the current code uses them: `sh:TripleRule` (10 source files, 27 test
+files), `sh:SPARQLFunction` (4 source, 2 tests), `sh:SPARQLTarget`/custom target types (6 source, 5 tests), JS
+(`sh:JSFunction` etc., 1 source file), pyshacl's own rule classes and `pyshacl.rules` imports.
