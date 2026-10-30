@@ -27,7 +27,6 @@ from starlayer.shacl.engine import (
 from starlayer.shacl.native_components import (
     _RDF_REIFIES,
     SHAPE_EXPECTING_PREDICATES,
-    _ambient_shapes_graph_prefixes,
     _get_tt_adapter,
     ensure_shape_typed,
     register_native_components,
@@ -39,7 +38,6 @@ from starlayer.shacl.results import (
     RulesResult,
     ValidationResult,
 )
-from starlayer.shacl.rule_conditions import order_value  # noqa: E402
 from starlayer.shacl.triple_rule import install_triple_rule_patch
 from starlayer.shacl.types import ensure_graph_mutable
 from starlayer.shacl.validation_modes import (
