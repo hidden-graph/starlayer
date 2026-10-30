@@ -135,26 +135,58 @@ def parameter_value_shapes(shapes_graph: Any) -> Graph:
 
     sh = Namespace("http://www.w3.org/ns/shacl#")
     result = Graph()
+
+    def copy_constraints(parameter: Any) -> None:
+        pending, seen = [parameter], set()
+        while pending:
+            node = pending.pop()
+            if node in seen:
+                continue
+            seen.add(node)
+            for s_, p_, o_ in shapes_graph.triples((node, None, None)):
+                if p_ in (sh.optional, sh.keyParameter, sh.name, sh.description, sh.order, sh.group):
+                    continue  # (what a parameter says about itself, not a constraint on its values)
+                result.add((s_, p_, o_))
+                if isinstance(o_, BNode):
+                    pending.append(o_)
+        result.add((parameter, RDF.type, sh.PropertyShape))
+
     components = set(shapes_graph.subjects(RDF.type, sh.ConstraintComponent))
     for component in components:
         for parameter in shapes_graph.objects(component, sh.parameter):
             paths = [p for p in shapes_graph.objects(parameter, sh.path) if isinstance(p, URIRef)]
             if len(paths) != 1:
                 continue
-            pending, seen = [parameter], set()
-            while pending:
-                node = pending.pop()
-                if node in seen:
-                    continue
-                seen.add(node)
-                for s_, p_, o_ in shapes_graph.triples((node, None, None)):
-                    if p_ in (sh.optional, sh.keyParameter, sh.name, sh.description, sh.order, sh.group):
-                        continue  # (what a parameter says about itself, not a constraint on its values)
-                    result.add((s_, p_, o_))
-                    if isinstance(o_, BNode):
-                        pending.append(o_)
-            result.add((parameter, RDF.type, sh.PropertyShape))
+            copy_constraints(parameter)
             result.add((parameter, sh.targetSubjectsOf, paths[0]))
+
+    # A rule template (Inference Rules 12): its instances give each parameter as a property. The values must satisfy the parameter's own
+    # constraints (a violation); an instance takes one value of each (a violation) and needs one of each required parameter (a warning: an
+    # instance is typed before its values are given, so a missing value must not refuse the edit that is half way there).
+    from rdflib import Literal
+
+    for template in set(shapes_graph.subjects(RDF.type, sh.SPARQLRuleTemplate)):
+        instance_shape = BNode()
+        result.add((instance_shape, RDF.type, sh.NodeShape))
+        result.add((instance_shape, sh.targetClass, template))
+        for parameter in shapes_graph.objects(template, sh.parameter):
+            paths = [p for p in shapes_graph.objects(parameter, sh.path) if isinstance(p, URIRef)]
+            if len(paths) != 1:
+                continue
+            copy_constraints(parameter)
+            result.add((instance_shape, sh.property, parameter))
+            at_most = BNode()
+            result.add((instance_shape, sh.property, at_most))
+            result.add((at_most, sh.path, paths[0]))
+            result.add((at_most, sh.maxCount, Literal(1)))
+            result.add((at_most, sh.message, Literal(f"An instance of {template} takes one value of {paths[0]}.", lang="en")))
+            if not any(isinstance(v, Literal) and bool(v.value) for v in shapes_graph.objects(parameter, sh.optional)):
+                required = BNode()
+                result.add((instance_shape, sh.property, required))
+                result.add((required, sh.path, paths[0]))
+                result.add((required, sh.minCount, Literal(1)))
+                result.add((required, sh.severity, sh.Warning))
+                result.add((required, sh.message, Literal(f"An instance of {template} needs a value of {paths[0]}.", lang="en")))
     return result
 
 

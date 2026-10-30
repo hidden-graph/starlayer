@@ -770,22 +770,29 @@ stsh:RuleProcessorShape
 		sh:message "sh:ruleProcessor is an IRI or an xsd:string."@en ;
 	] .
 
+# StarLayer runs the algorithm of Inference Rules section 8 only, so a rule or rule set that asks for a processor is refused when it runs
+# (section 10: an engine that cannot handle the value must report a failure). A warning here says so before anyone runs it.
+stsh:RuleProcessorUnsupportedShape
+	a sh:NodeShape ;
+	rdfs:label "StarLayer provides no rule processor"@en ;
+	sh:targetSubjectsOf sh:ruleProcessor ;
+	sh:property [
+		sh:path sh:ruleProcessor ;
+		sh:maxCount 0 ;
+		sh:severity sh:Warning ;
+		sh:message "StarLayer provides no rule processor, so running this rule or rule set fails (Inference Rules section 10)."@en ;
+	] .
+
 # Rule templates (Inference Rules 12): "Each SPARQL rule template is an IRI", it declares parameters like a SPARQL-based constraint
-# component, has exactly one sh:construct (an xsd:string), and may use sh:prefixes (checked for every holder by stsh:PrefixesShape).
+# component (stsh:ParameterShape), has exactly one sh:construct (an xsd:string), and may use sh:prefixes (checked for every holder by stsh:PrefixesShape).
 stsh:SPARQLRuleTemplateShape
 	a sh:NodeShape ;
 	rdfs:label "Well-formedness rules for sh:SPARQLRuleTemplate"@en ;
 	sh:targetClass sh:SPARQLRuleTemplate ;
 	sh:nodeKind sh:IRI ;
 	sh:message "A SPARQL rule template is an IRI."@en ;
-	sh:property [ sh:path sh:construct ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:message "A SPARQL rule template has exactly one sh:construct, an xsd:string."@en ] ;
-	sh:property [
-		sh:path sh:parameter ;
-		sh:node [
-			a sh:NodeShape ;
-			sh:property [ sh:path sh:path ; sh:nodeKind sh:IRI ; sh:minCount 1 ; sh:maxCount 1 ] ;
-		] ;
-	] .
+	sh:property [ sh:path sh:construct ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:message "A SPARQL rule template has exactly one sh:construct, an xsd:string."@en ] .
+	# (its parameters are checked by stsh:ParameterShape, like those of a constraint component)
 
 # Inference Rules 9: "The values of sh:sourceRule SHOULD be IRIs", so a blank node or a literal is a warning.
 stsh:SourceRuleShape

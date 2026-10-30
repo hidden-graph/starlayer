@@ -768,7 +768,10 @@ class StarShaclSchema:
         # target nodes and inject them as ordinary sh:targetNode triples -
         # pySHACL already fully supports those, so every other constraint on
         # an affected shape validates correctly through the normal path too.
+        shapes_before_targets = shacl_graph
         shacl_graph = self._augment_shapes_with_new_target_types(data_graph, shacl_graph)
+        # When the shapes use such targets, the rule engine resolves them again as the rules add triples (GitHub issue #182).
+        dynamic_targets = shapes_before_targets if _has_extended_targets(shapes_before_targets, data_graph) else None
 
         # sh:deactivated [ shnex:.../sparql:... ]: a node expression computing
         # whether a shape is deactivated, rather than a plain boolean literal.
@@ -905,6 +908,7 @@ class StarShaclSchema:
             deactivated_token = _deactivated_expr_registry.set(deactivated_expr_registry)
         options.setdefault("max_validation_depth", MAX_VALIDATION_DEPTH)  # cycles are caught exactly now (issue #26)
         reset_revisits()
+        targets_token = _dynamic_targets_ctx.set(dynamic_targets)
         try:
             conforms, report_graph, report_text = self.validate_fn(
                 data_graph=encoded_data,
@@ -913,6 +917,7 @@ class StarShaclSchema:
                 **options,
             )
         finally:
+            _dynamic_targets_ctx.reset(targets_token)
             if deactivated_token is not None:
                 _deactivated_expr_registry.reset(deactivated_token)
 
@@ -1800,6 +1805,7 @@ class StarShaclSchema:
         shapes_graph_resource: Any | None = None,
         focus_nodes: Any | None = None,
         properties: Any | None = None,
+        rules_entailment: bool = False,
     ) -> Any:
         """Computes every ``sh:values``-declared virtual property across
         ``shacl_graph`` and returns the result as a shape-driven subgraph.
@@ -1879,6 +1885,14 @@ class StarShaclSchema:
             properties: Restrict evaluation to property shapes whose ``sh:path`` is
                 one of these predicates (an iterable of IRIs). ``None`` evaluates
                 every property shape.
+            rules_entailment: Also run the rules the shapes graph names in
+                ``sh:entailment`` (``sh:RulesEntailment`` or a rule set, Inference
+                Rules section 6) before evaluating, as ``validate()`` does, so
+                targets and values that depend on an inferred triple see it.
+                Off by default: evaluating is not validating, and running the rules
+                costs a full ``apply_rules`` pass. The inferred triples are used
+                for the evaluation only and are not in the result unless a
+                property shape reads them.
 
         Returns:
             A plain graph: the real, stored values of every property shape
@@ -1895,6 +1909,8 @@ class StarShaclSchema:
         from starlayer.shacl.entailment import apply_entailment
 
         data_graph = apply_entailment(data_graph, shacl_graph, ont_graph, inplace=False, inference=self.inference)
+        if rules_entailment:
+            data_graph = _apply_rules_entailment(data_graph, shacl_graph, ont_graph, inplace=False, inference=self.inference)
 
         shacl_graph = self._augment_shapes_with_new_target_types(data_graph, shacl_graph)
 
@@ -3631,7 +3647,9 @@ def validate(
     # SHACL 1.2's new target types are unknown to pySHACL - pre-compute
     # the extra target nodes and inject them as ordinary sh:targetNode
     # triples, which pySHACL already fully supports.
+    shapes_before_targets = shacl_graph
     shacl_graph = _augment_shapes_with_new_target_types(data_graph, shacl_graph)
+    dynamic_targets = shapes_before_targets if _has_extended_targets(shapes_before_targets, data_graph) else None  # (GitHub issue #182)
 
     # sh:deactivated [ shnex:.../sparql:... ]: see
     # _strip_deactivated_node_expressions's own docstring.
@@ -3701,6 +3719,7 @@ def validate(
         deactivated_token = _deactivated_expr_registry.set(deactivated_expr_registry)
     options.setdefault("max_validation_depth", MAX_VALIDATION_DEPTH)  # cycles are caught exactly now (issue #26)
     reset_revisits()
+    targets_token = _dynamic_targets_ctx.set(dynamic_targets)
     try:
         conforms, report_graph, report_text = validate_fn(
             data_graph=encoded_data,
@@ -3709,6 +3728,7 @@ def validate(
             **options,
         )
     finally:
+        _dynamic_targets_ctx.reset(targets_token)
         if deactivated_token is not None:
             _deactivated_expr_registry.reset(deactivated_token)
 
@@ -3814,6 +3834,7 @@ def evaluate(
     inference: Any | None = None,
     focus_nodes: Any | None = None,
     properties: Any | None = None,
+    rules_entailment: bool = False,
 ) -> Any:
     """Computes every ``sh:values``/``sh:defaultValue``-declared virtual
     property across ``shacl_graph`` and returns the result as a
@@ -3873,6 +3894,11 @@ def evaluate(
         properties: Restrict evaluation to property shapes whose ``sh:path`` is
             one of these predicates (an iterable of IRIs). ``None`` evaluates
             every property shape.
+        rules_entailment: Also run the rules ``shacl_graph`` names in
+            ``sh:entailment`` (``sh:RulesEntailment`` or a rule set, Inference
+            Rules section 6) before evaluating, as ``validate()`` does. Off by
+            default: evaluating is not validating, and the rules cost a full
+            ``apply_rules`` pass.
 
     Returns:
         A plain graph object (the same type as ``data_graph``)
@@ -3885,6 +3911,8 @@ def evaluate(
     from starlayer.shacl.entailment import apply_entailment
 
     data_graph = apply_entailment(data_graph, shacl_graph, ont_graph, inplace=False, inference=inference)
+    if rules_entailment:
+        data_graph = _apply_rules_entailment(data_graph, shacl_graph, ont_graph, inplace=False, inference=inference)
 
     shacl_graph = _augment_shapes_with_new_target_types(data_graph, shacl_graph)
 
@@ -4509,6 +4537,50 @@ _global_rules_ctx: contextvars.ContextVar[bool] = contextvars.ContextVar("_globa
 
 _rule_engine_patch_status: bool | None = None
 
+# The shapes graph as it was before ``_augment_shapes_with_new_target_types`` turned its extra targets (implicit class targets,
+# sh:targetWhere, sh:targetNode expressions and selects, sh:shape) into plain sh:targetNode triples, while a validation that did so
+# runs; None when there were no such targets. The rule engine reads the targets again from it as the rules add triples (issue #182).
+_dynamic_targets_ctx: contextvars.ContextVar[Any] = contextvars.ContextVar("_dynamic_targets_ctx", default=None)
+
+
+def _has_extended_targets(shapes: Any, data: Any) -> bool:
+    """Whether ``shapes`` use targets pySHACL does not know and ``_augment_shapes_with_new_target_types`` resolves: ``sh:targetWhere``, a node
+    expression or select as ``sh:targetNode``, an implicit class target, or ``sh:shape`` in the data. Checked on the shapes themselves, not
+    on whether the first resolution found anything: the nodes may only appear once rules have run."""
+    if shapes is None:
+        return False
+    if any(True for _ in shapes.triples((None, SH.targetWhere, None))):
+        return True
+    if any(isinstance(target, BNode) for _, _, target in shapes.triples((None, SH.targetNode, None))):
+        return True
+    if any(True for _ in data.triples((None, SH.shape, None))):
+        return True
+    candidates = {s for s, _, _ in shapes.triples((None, RDF.type, SH.ShapeClass))} | {s for s, _, _ in shapes.triples((None, RDF.type, RDFS.Class))}
+    return any(_is_implicit_class_shape(shapes, candidate) for candidate in candidates)
+
+
+def _dynamic_target_resolver(original_shapes: Any):
+    """``targets(graph) -> {shape node: {nodes}}``: the targets of every shape in ``original_shapes`` against ``graph`` as it is now, for
+    ``rule_engine.run``. ``graph`` is the adapter-encoded graph the rules run on, so it is decoded for the query and the nodes encoded
+    again. Cached while the graph does not change."""
+    cache: dict[str, Any] = {}
+
+    def targets(graph: Any) -> dict[Any, set]:
+        key = (getattr(graph, "_mutation_version", None), len(graph))
+        if cache.get("key") == key:
+            return cache["value"]
+        adapter = _get_tt_adapter(graph)
+        triples = [tuple(t[:3]) for t in graph]  # (a dataset gives quads)
+        decoded = adapter.decode_graph(triples) if adapter is not None else graph
+        augmented = _augment_shapes_with_new_target_types(decoded, original_shapes)
+        found: dict[Any, set] = {}
+        for shape, _, node in augmented.triples((None, SH.targetNode, None)):
+            found.setdefault(shape, set()).add(adapter.encode_term(node) if adapter is not None else node)
+        cache["key"], cache["value"] = key, found
+        return found
+
+    return targets
+
 
 class _GlobalShape:
     """Stands in for the shape of a rule no shape refers to: it only carries pySHACL's shapes graph."""
@@ -4628,7 +4700,7 @@ def _check_rule_processors(shapes: Any, rule_set: Any, allowed_rule_nodes: froze
         if runs or node in selected:
             value = next(iter(shapes.objects(node, SH.ruleProcessor)))
             raise RuleLoadError(
-                f"{node!r} asks for the rule processor {value!r}, which this engine does not provide: it runs the algorithm of "
+                f"{node.n3()} asks for the rule processor {value.n3()}, which this engine does not provide: it runs the algorithm of "
                 "Inference Rules section 8 only.",
                 "https://www.w3.org/TR/shacl12-inference-rules/#custom-rule-processors",
             )
@@ -4719,6 +4791,7 @@ def _patch_rules_for_native_engine() -> bool:
                     focus_nodes=focus_nodes,
                     derive=lambda layer_rules, graph: _materialize_expected_predicates({0: layer_rules}, graph),
                     record=_record_source_rule if _source_rule_buffer.get() is not None else None,
+                    targets=_dynamic_target_resolver(_dynamic_targets_ctx.get()) if _dynamic_targets_ctx.get() is not None else None,
                 )
             finally:
                 # sh:tempTriple: visible to the rules, gone when they have all run.

@@ -199,3 +199,61 @@ def _focus_nodes(result):
     g = result.report_graph
     SH = Namespace("http://www.w3.org/ns/shacl#")
     return sorted(g.objects(None, SH.focusNode))
+
+
+class TestListParameterFunctionWithSparqlBody:
+    """GitHub issues #175 and #176: a body written in SPARQL reads its arguments as ``$arg0``, ``$arg1`` (SPARQL Extensions 6.1, 7.2), and
+    the function can be called by its IRI from SPARQL text (7.3)."""
+
+    SHAPES = """
+        @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix ex: <http://example.org/> .
+        ex:spaced a sh:ListParameterExpressionFunction ; sh:bodyExpression [ sh:sparqlExpr "CONCAT($arg0, ' ', $arg1)" ] .
+        ex:viaSelect a sh:ListParameterExpressionFunction ;
+          sh:bodyExpression [ sh:select "SELECT ?v WHERE { BIND (CONCAT($arg0, '-', $arg1) AS ?v) }" ] .
+        ex:call1 ex:p [ ex:spaced ( "John" "Doe" ) ] .
+        ex:call2 ex:p [ ex:viaSelect ( "John" "Doe" ) ] .
+    """
+
+    @staticmethod
+    def _value(shapes, call):
+        from pyshacl.shapes_graph import ShapesGraph
+        from rdflib import Namespace
+        from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+        from starlayer.shacl.node_expressions import eval_expr
+
+        ex = Namespace("http://example.org/")
+        expr = next(iter(shapes.objects(ex[call], ex.p)))
+        return [str(n) for n in eval_expr(expr, None, StarLayerGraph(), ShapesGraph(shapes))]
+
+    def _shapes(self):
+        from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+
+        shapes = StarLayerGraph()
+        shapes.parse(data=self.SHAPES, format="turtle12")
+        return shapes
+
+    def test_a_sparql_expression_body_reads_its_arguments_as_variables(self) -> None:
+        assert self._value(self._shapes(), "call1") == ["John Doe"]
+
+    def test_a_select_body_reads_its_arguments_as_variables(self) -> None:
+        assert self._value(self._shapes(), "call2") == ["John-Doe"]
+
+    def test_the_function_can_be_called_by_its_iri_from_a_constraint_query(self) -> None:
+        from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+        from starlayer.shacl import validate
+
+        shapes = StarLayerGraph()
+        shapes.parse(
+            data=self.SHAPES
+            + """
+            ex:S a sh:NodeShape ; sh:targetNode ex:n ;
+              sh:sparql [ sh:select "SELECT $this ?value WHERE { FILTER (ex:spaced('John', 'Doe') = 'John Doe') }" ;
+                          sh:prefixes ex:P ; sh:message "called" ] .
+            ex:P sh:declare [ sh:prefix "ex" ; sh:namespace "http://example.org/"^^<http://www.w3.org/2001/XMLSchema#anyURI> ] .
+            """,
+            format="turtle12",
+        )
+        data = StarLayerGraph()
+        data.parse(data="@prefix ex: <http://example.org/> . ex:n ex:q 1 .", format="turtle12")
+
+        assert validate(data, shapes).conforms is False

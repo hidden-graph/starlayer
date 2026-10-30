@@ -29,7 +29,7 @@ FORMS = {
     "PrefixDeclarationForm": SH.PrefixDeclaration,
     "SPARQLConstraintForm": SH.SPARQLConstraint,
     "SPARQLRuleForm": SH.SPARQLRule,
-    "TripleRuleForm": SH.TripleRule,
+    "SPARQLRuleTemplateForm": SH.SPARQLRuleTemplate,    "TripleRuleForm": SH.TripleRule,
     "ConstraintComponentForm": SH.ConstraintComponent,
     "ParameterForm": SH.Parameter,
     "AskValidatorForm": SH.SPARQLAskValidator,

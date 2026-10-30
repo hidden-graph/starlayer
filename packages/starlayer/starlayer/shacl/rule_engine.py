@@ -78,14 +78,14 @@ def number(sg: Any, node: Any, predicate: Any, name: str) -> Decimal:
     value = values[0].value if isinstance(values[0], Literal) else None
     if isinstance(value, bool) or not isinstance(value, (int, float, Decimal)):
         raise RuleLoadError(
-            f"A SHACL Rule's {name} must be an xsd:decimal or xsd:integer literal, got {values[0]!r}.",
+            f"A SHACL Rule's {name} must be an xsd:decimal or xsd:integer literal, got {values[0].n3()}.",
             "https://www.w3.org/TR/shacl12-inference-rules/",
         )
     try:
         return Decimal(str(value)) if isinstance(value, float) else Decimal(value)
     except (InvalidOperation, ValueError) as error:  # NaN, infinity
         raise RuleLoadError(
-            f"A SHACL Rule's {name} must be a finite number, got {values[0]!r}.",
+            f"A SHACL Rule's {name} must be a finite number, got {values[0].n3()}.",
             "https://www.w3.org/TR/shacl12-inference-rules/",
         ) from error
 
@@ -124,7 +124,7 @@ def template_of(graph: Any, node: Any) -> Any | None:
     }
     if len(templates) > 1:
         raise RuleLoadError(
-            f"The rule {node!r} is an instance of more than one SPARQL rule template.",
+            f"The rule {node.n3()} is an instance of more than one SPARQL rule template.",
             "https://www.w3.org/TR/shacl12-inference-rules/#sparql-rule-templates",
         )
     return next(iter(templates)) if templates else None
@@ -137,7 +137,7 @@ def template_construct(graph: Any, template: Any) -> str:
     values = list(graph.objects(template, SH.construct))
     if len(values) != 1 or not isinstance(values[0], Literal):
         raise RuleLoadError(
-            f"The SPARQL rule template {template!r} must have exactly one sh:construct, a string.",
+            f"The SPARQL rule template {template.n3()} must have exactly one sh:construct, a string.",
             "https://www.w3.org/TR/shacl12-inference-rules/#sparql-rule-templates",
         )
     return str(values[0])
@@ -155,17 +155,17 @@ def template_bindings(graph: Any, node: Any, template: Any) -> dict[str, Any]:
     for parameter in graph.objects(template, SH.parameter):
         paths = list(graph.objects(parameter, SH.path))
         if len(paths) != 1 or not isinstance(paths[0], URIRef):
-            raise RuleLoadError(f"A parameter of the SPARQL rule template {template!r} needs exactly one IRI sh:path.", where)
+            raise RuleLoadError(f"A parameter of the SPARQL rule template {template.n3()} needs exactly one IRI sh:path.", where)
         values = list(graph.objects(node, paths[0]))
         optional = flag(graph, parameter, SH.optional)
         if not values:
             if not optional:
                 raise RuleLoadError(
-                    f"The rule {node!r} has no value for the required parameter {paths[0]!r} of its template {template!r}.", where
+                    f"The rule {node.n3()} has no value for the required parameter {paths[0].n3()} of its template {template.n3()}.", where
                 )
             continue
         if len(values) > 1:
-            raise RuleLoadError(f"The rule {node!r} has several values for the parameter {paths[0]!r}; it takes one.", where)
+            raise RuleLoadError(f"The rule {node.n3()} has several values for the parameter {paths[0].n3()}; it takes one.", where)
         bindings[_local_name(paths[0])] = values[0]
     return bindings
 
@@ -203,11 +203,18 @@ def target_graph(graph: Any) -> Any:
     return graph.default_graph if isinstance(graph, rdflib.Dataset) else graph
 
 
-def _focus_nodes(rule: EngineRule, graph: Any, executor: Any, focus_nodes: Any, done: set) -> list:
+def _focus_nodes(rule: EngineRule, graph: Any, executor: Any, focus_nodes: Any, done: set, targets: Any = None) -> list:
     """The focus nodes a shape rule runs for now (pySHACL's rules: the shape's targets, narrowed by the executor and the
-    rule's conditions). A run-once rule skips a node it already ran for, even through another shape."""
+    rule's conditions). A run-once rule skips a node it already ran for, even through another shape.
+
+    ``targets(graph)`` gives the targets that pySHACL does not know (implicit class targets, ``sh:targetWhere``, node expressions)
+    against the graph as it is now: pySHACL reads them from triples written before any rule ran, so a rule that adds the instances
+    of a class would otherwise never reach the shape that targets it (GitHub issue #182)."""
     prule = rule.source
     focus_list = list(focus_nodes) if focus_nodes is not None else list(prule.shape.focus_nodes(graph))
+    if focus_nodes is None and targets is not None:
+        known = set(focus_list)
+        focus_list += [n for n in sorted(targets(graph).get(prule.shape.node, ()), key=str) if n not in known]
     if executor.focus_nodes is not None and len(executor.focus_nodes) > 0:
         focus_list = [f for f in focus_list if isinstance(f, URIRef) and f in executor.focus_nodes]
     if rule.run_once:
@@ -233,6 +240,19 @@ def _triple_candidates(rule: EngineRule, graph: Any, focus_list: Iterable[Any]) 
     return candidates
 
 
+_TT_PREFIX = "urn:starlayer:tt:"
+_SUPPORT_PREDICATES = {rdflib.RDF.subject, rdflib.RDF.predicate, rdflib.RDF.object}
+
+
+def _without_support_triples(triples: Iterable[tuple]) -> list[tuple]:
+    """A CONSTRUCT result on an adapter-encoded graph comes back re-encoded with the support triples of the triple terms the adapter knows
+    (``tt:HASH rdf:subject ...``), whether or not the query built any. They belong to the encoding, not to what a rule infers: dropped here,
+    they would otherwise be counted as inferred and credited to the rule (GitHub issue #167)."""
+    return [
+        t for t in triples if not (t[1] in _SUPPORT_PREDICATES and isinstance(t[0], URIRef) and str(t[0]).startswith(_TT_PREFIX))
+    ]
+
+
 def _sparql_candidates(rule: EngineRule, graph: Any, focus_list: Iterable[Any]) -> list[tuple]:
     from pyshacl.errors import ReportableRuntimeError
     from pyshacl.helper import get_query_helper_cls
@@ -249,7 +269,7 @@ def _sparql_candidates(rule: EngineRule, graph: Any, focus_list: Iterable[Any]) 
                 raise ReportableRuntimeError("Query executed by a SHACL SPARQLRule must be CONSTRUCT query.")
             if results.graph is None:
                 raise ReportableRuntimeError("Query executed by a SHACL SPARQLRule did not return a Graph.")
-            candidates.extend(tuple(t) for t in results.graph)
+            candidates.extend(_without_support_triples(tuple(t) for t in results.graph))
     return candidates
 
 
@@ -261,20 +281,20 @@ def _global_sparql_candidates(rule: EngineRule, graph: Any) -> list[tuple]:
         result = graph.query(rule.query, initBindings=rule.bindings or None)
         if result.type != "CONSTRUCT":
             raise RuleLoadError(
-                f"Query executed by the sh:SPARQLRule {rule.node!r} must be a CONSTRUCT query, not {result.type}.", where
+                f"Query executed by the sh:SPARQLRule {rule.node.n3()} must be a CONSTRUCT query, not {result.type}.", where
             )
-        return [tuple(t) for t in result]
+        return _without_support_triples(tuple(t) for t in result)
     except RuleLoadError:
         raise
     except Exception as error:
         raise RuleLoadError(
-            f"The sh:construct query of the sh:SPARQLRule {rule.node!r} could not be run: "
+            f"The sh:construct query of the sh:SPARQLRule {rule.node.n3()} could not be run: "
             f"{type(error).__name__}: {error}",
             where,
         ) from error
 
 
-def candidates(rule: EngineRule, graph: Any, executor: Any, focus_nodes: Any, done: set) -> list[tuple]:
+def candidates(rule: EngineRule, graph: Any, executor: Any, focus_nodes: Any, done: set, targets: Any = None) -> list[tuple]:
     """The triples ``rule`` produces from ``graph`` as it is now. Nothing is added."""
     from pyshacl.errors import RuleLoadError
     from pyshacl.rules.sparql import SPARQLRule
@@ -284,7 +304,7 @@ def candidates(rule: EngineRule, graph: Any, executor: Any, focus_nodes: Any, do
         if rule.kind == SPARQL_RULE:
             return _global_sparql_candidates(rule, graph)
         return _triple_candidates(rule, graph, [None])
-    focus_list = _focus_nodes(rule, graph, executor, focus_nodes, done)
+    focus_list = _focus_nodes(rule, graph, executor, focus_nodes, done, targets)
     if not focus_list:
         return []
     if isinstance(rule.source, TripleRule):
@@ -292,7 +312,7 @@ def candidates(rule: EngineRule, graph: Any, executor: Any, focus_nodes: Any, do
     if isinstance(rule.source, SPARQLRule):
         return _sparql_candidates(rule, graph, focus_list)
     raise RuleLoadError(
-        f"The rule {rule.node!r} is of a type this engine does not run; only sh:TripleRule and sh:SPARQLRule are supported.",
+        f"The rule {rule.node.n3()} is of a type this engine does not run; only sh:TripleRule and sh:SPARQLRule are supported.",
         "https://www.w3.org/TR/shacl12-inference-rules/#execution",
     )
 
@@ -303,6 +323,7 @@ class _Layer:
     executor: Any
     focus_nodes: Any
     record: Callable[[Any, tuple, Any], None] | None
+    targets: Any = None
     derived: set = field(default_factory=set)
     kept: set = field(default_factory=set)  # derived triples a rule inferred as well
     done: set = field(default_factory=set)
@@ -313,7 +334,7 @@ class _Layer:
         for _order, group in itertools.groupby(sorted(rules, key=lambda r: (r.order, r.index)), key=lambda r: r.order):
             fresh: dict[tuple, list[EngineRule]] = {}
             for rule in list(group):
-                for triple in dict.fromkeys(candidates(rule, self.graph, self.executor, self.focus_nodes, self.done)):
+                for triple in dict.fromkeys(candidates(rule, self.graph, self.executor, self.focus_nodes, self.done, self.targets)):
                     if triple in self.derived:
                         self.kept.add(triple)
                     if triple not in self.graph:
@@ -336,11 +357,13 @@ def run(
     focus_nodes: Any = None,
     derive: Callable[[list[EngineRule], Any], Iterable[tuple]] | None = None,
     record: Callable[[Any, tuple, Any], None] | None = None,
+    targets: Callable[[Any], dict] | None = None,
 ) -> int:
     """Run ``rules`` against ``graph`` and add what they infer. Returns the number of triples added.
 
     ``derive(layer_rules, graph)`` adds the expected derived triples of a layer and returns them; ``record(graph, triple,
-    rule_node)`` is told which rule inferred each triple that was new."""
+    rule_node)`` is told which rule inferred each triple that was new. ``targets(graph)`` resolves the targets pySHACL does not know (see
+    ``_focus_nodes``)."""
     from pyshacl.errors import ReportableRuntimeError
     from pyshacl.rules import RULES_ITERATE_LIMIT
 
@@ -352,7 +375,7 @@ def run(
     total = 0
     for layer_number in sorted(layers):
         in_layer = layers[layer_number]
-        layer = _Layer(graph, executor, focus_nodes, record, done=done)
+        layer = _Layer(graph, executor, focus_nodes, record, targets=targets, done=done)
         if derive is not None:
             layer.derived = set(derive(in_layer, graph))
         try:

@@ -665,6 +665,14 @@ stsh:RuleProcessorShape a sh:NodeShape ;
             sh:path sh:ruleProcessor ] ;
     sh:targetSubjectsOf sh:ruleProcessor .
 
+stsh:RuleProcessorUnsupportedShape a sh:NodeShape ;
+    rdfs:label "StarLayer provides no rule processor"@en ;
+    sh:property [ sh:maxCount 0 ;
+            sh:message "StarLayer provides no rule processor, so running this rule or rule set fails (Inference Rules section 10)."@en ;
+            sh:path sh:ruleProcessor ;
+            sh:severity sh:Warning ] ;
+    sh:targetSubjectsOf sh:ruleProcessor .
+
 stsh:RuleSetShape a sh:NodeShape ;
     rdfs:label "Well-formedness rules for sh:RuleSet"@en ;
     sh:message "A rule set is identified by an IRI, not a blank node."@en ;
@@ -732,13 +740,7 @@ stsh:SPARQLRuleTemplateShape a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:message "A SPARQL rule template has exactly one sh:construct, an xsd:string."@en ;
             sh:minCount 1 ;
-            sh:path sh:construct ],
-        [ sh:node [ a sh:NodeShape ;
-                    sh:property [ sh:maxCount 1 ;
-                            sh:minCount 1 ;
-                            sh:nodeKind sh:IRI ;
-                            sh:path sh:path ] ] ;
-            sh:path sh:parameter ] ;
+            sh:path sh:construct ] ;
     sh:targetClass sh:SPARQLRuleTemplate .
 
 stsh:SelectQueryTextShape a sh:NodeShape ;
@@ -1551,6 +1553,14 @@ sh:nodeValidator rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
     sh:name "node validator"@en ;
     stsh:requiredEngine stsh:PySHACL .
 
+sh:parameter rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
+        <https://www.w3.org/TR/shacl12-sparql/> ;
+    rdfs:seeAlso sh:ConstraintComponent ;
+    skos:example "sh:parameter [ sh:path ex:minScore ; sh:optional false ]"@en ;
+    sh:description "Declares one input parameter of a custom sh:ConstraintComponent — the parameter's own sh:path becomes the predicate a shape uses to supply that argument's value (e.g. ex:minScore in the example above)."@en ;
+    sh:name "parameter"@en ;
+    stsh:requiredEngine stsh:PySHACL .
+
 sh:property rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
     skos:example "ex:PersonShape sh:property [ sh:path ex:email ; sh:minCount 1 ]"@en ;
     sh:description "Attaches a property shape to a node shape. Nearly every real-world shape uses this — it's how a node shape says \"and also, here's a constraint on one of my properties.\""@en ;
@@ -1594,14 +1604,6 @@ sh:lessThanOrEquals rdfs:comment "plain-IRI object only — the SHACL 1.2 path-v
         <https://www.w3.org/TR/shacl12-core/> ;
     sh:description "Same as sh:lessThan, but allows equality. SHACL 1.2 widens the object to any property path."@en ;
     sh:name "less than or equal to"@en ;
-    stsh:requiredEngine stsh:PySHACL .
-
-sh:parameter rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
-        <https://www.w3.org/TR/shacl12-sparql/> ;
-    rdfs:seeAlso sh:ConstraintComponent ;
-    skos:example "sh:parameter [ sh:path ex:minScore ; sh:optional false ]"@en ;
-    sh:description "Declares one input parameter of a custom sh:ConstraintComponent — the parameter's own sh:path becomes the predicate a shape uses to supply that argument's value (e.g. ex:minScore in the example above)."@en ;
-    sh:name "parameter"@en ;
     stsh:requiredEngine stsh:PySHACL .
 
 shsh:ShapeShape a sh:NodeShape ;
@@ -1851,6 +1853,14 @@ stsh:NodeExpressionShape a sh:NodeShape ;
     sh:targetClass sh:NodeExpression ;
     sh:targetObjectsOf sh:values .
 
+sh:path rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
+    rdfs:seeAlso sh:alternativePath,
+        sh:inversePath ;
+    skos:example "sh:path ex:email — the simple case, a single predicate."@en ;
+    sh:description "Required on every property shape. Names the property more complex path expression that connects a focus node to its value nodes. The simplest form is a single IRI; SHACL also supports sequence, alternative, inverse, and repeated (*/+/?) paths."@en ;
+    sh:name "path"@en ;
+    stsh:requiredEngine stsh:PySHACL .
+
 sh:select rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
         <https://www.w3.org/TR/shacl12-sparql/> ;
     rdfs:seeAlso sh:ask,
@@ -1858,12 +1868,4 @@ sh:select rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
     skos:example "sh:select \"SELECT $this ?value WHERE { ?value ex:score ?s . FILTER (?s < 0) }\""@en ;
     sh:description "The SPARQL SELECT query text for a sh:sparql constraint or a custom sh:ConstraintComponent's sh:nodeValidator/sh:propertyValidator. Any row returned counts as a violation; bindings for ?value/?path/?this in the result customize the reported focus/value/path."@en ;
     sh:name "SELECT query"@en ;
-    stsh:requiredEngine stsh:PySHACL .
-
-sh:path rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-    rdfs:seeAlso sh:alternativePath,
-        sh:inversePath ;
-    skos:example "sh:path ex:email — the simple case, a single predicate."@en ;
-    sh:description "Required on every property shape. Names the property more complex path expression that connects a focus node to its value nodes. The simplest form is a single IRI; SHACL also supports sequence, alternative, inverse, and repeated (*/+/?) paths."@en ;
-    sh:name "path"@en ;
     stsh:requiredEngine stsh:PySHACL .

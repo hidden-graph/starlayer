@@ -107,6 +107,25 @@ def _expected_triples(entry: ManifestEntry) -> set[tuple]:
     return triples
 
 
+def _same_triples(added: set[tuple], expected: set[tuple]) -> bool:
+    """Equal as sets of triples; when either side has a blank node (a fixture such as ``run-once-example``, whose reifiers are ``_:b1``,
+    ``_:b2``, ...), equal up to the naming of blank nodes, as RDF graphs are."""
+    if added == expected:
+        return True
+    from rdflib import BNode
+
+    if not any(isinstance(term, BNode) for triple in (*added, *expected) for term in triple):
+        return False
+    from starlayer.graph.compare import isomorphic
+
+    left, right = StarLayerGraph(), StarLayerGraph()
+    for triple in added:
+        left.add(triple)
+    for triple in expected:
+        right.add(triple)
+    return isomorphic(left, right)
+
+
 def _check_infer(entry: ManifestEntry, new_graph, known_failures) -> None:
     entry_key = portable_id(entry, VENDOR_ROOT)
     if entry_key in known_failures:
@@ -124,7 +143,7 @@ def _check_infer(entry: ManifestEntry, new_graph, known_failures) -> None:
     after = set(result.inferred_graph.triples((None, None, None)))
     added = after - before
 
-    assert added == expected, (
+    assert _same_triples(added, expected), (
         f"inferred-triple set mismatch\nexpected added: {expected}\nactual added: {added}"
     )
 

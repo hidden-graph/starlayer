@@ -108,6 +108,9 @@ def register_native_components() -> None:
     from starlayer.shacl.rule_conditions import install_rule_condition_patch
 
     install_rule_condition_patch()  # class-shape condition superclasses, sh:order errors (GitHub issue #137)
+    from starlayer.shacl.list_functions import install_list_function_patch
+
+    install_list_function_patch()  # list parameter functions callable from SPARQL (GitHub issue #176)
     if _registered:
         return
 

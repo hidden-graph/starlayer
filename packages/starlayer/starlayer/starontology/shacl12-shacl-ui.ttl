@@ -534,8 +534,9 @@ stsh:RuleSetForm a sh:NodeShape ;
         stsh:RuleSetForm_rdfs_comment,
         stsh:RuleSetForm_rdfs_label,
         stsh:RuleSetForm_sh_hasRule,
-        stsh:RuleSetForm_sh_includesRuleSet ;
-    stsh:formFields ( rdf:type sh:hasRule sh:includesRuleSet rdfs:label rdfs:comment ) ;
+        stsh:RuleSetForm_sh_includesRuleSet,
+        stsh:RuleSetForm_sh_ruleProcessor ;
+    stsh:formFields ( rdf:type sh:hasRule sh:includesRuleSet sh:ruleProcessor rdfs:label rdfs:comment ) ;
     stsh:formFor sh:RuleSet .
 
 stsh:SPARQLConstraintForm a sh:NodeShape ;
@@ -582,6 +583,19 @@ stsh:SPARQLRuleForm a sh:NodeShape ;
         stsh:SPARQLRuleForm_sh_runOnce ;
     stsh:formFields ( rdf:type sh:construct sh:prefixes sh:condition sh:layer sh:runOnce sh:expectedPredicate sh:ruleProcessor rdfs:label rdfs:comment sh:order sh:deactivated ) ;
     stsh:formFor sh:SPARQLRule ;
+    stsh:formRequired ( sh:construct ) .
+
+stsh:SPARQLRuleTemplateForm a sh:NodeShape ;
+    rdfs:label "Form for a SPARQLRuleTemplate"@en ;
+    sh:property stsh:SPARQLRuleTemplateForm_rdf_type,
+        stsh:SPARQLRuleTemplateForm_rdfs_comment,
+        stsh:SPARQLRuleTemplateForm_rdfs_label,
+        stsh:SPARQLRuleTemplateForm_rdfs_subClassOf,
+        stsh:SPARQLRuleTemplateForm_sh_construct,
+        stsh:SPARQLRuleTemplateForm_sh_parameter,
+        stsh:SPARQLRuleTemplateForm_sh_prefixes ;
+    stsh:formFields ( rdf:type rdfs:subClassOf sh:construct sh:prefixes sh:parameter rdfs:label rdfs:comment ) ;
+    stsh:formFor sh:SPARQLRuleTemplate ;
     stsh:formRequired ( sh:construct ) .
 
 stsh:SPARQLTargetForm a sh:NodeShape ;
@@ -1378,7 +1392,7 @@ stsh:NodeShapeForm_sh_nodeByExpression a sh:PropertyShape ;
 
 stsh:NodeShapeForm_sh_nodeKind a sh:PropertyShape ;
     sh:group stsh:ValueTypeGroup ;
-    sh:in _:n75f63c920a504b11b80fbd60cd5c87ffb75 ;
+    sh:in _:n79f1061861704af7817c022f5f131d8ab75 ;
     sh:maxCount 1 ;
     sh:nodeKind sh:IRI ;
     sh:order 4 ;
@@ -1778,7 +1792,7 @@ stsh:ParameterForm_sh_nodeByExpression a sh:PropertyShape ;
 
 stsh:ParameterForm_sh_nodeKind a sh:PropertyShape ;
     sh:group stsh:ValueTypeGroup ;
-    sh:in _:n75f63c920a504b11b80fbd60cd5c87ffb75 ;
+    sh:in _:n79f1061861704af7817c022f5f131d8ab75 ;
     sh:maxCount 1 ;
     sh:nodeKind sh:IRI ;
     sh:order 4 ;
@@ -2281,7 +2295,7 @@ stsh:PropertyShapeForm_sh_nodeByExpression a sh:PropertyShape ;
 
 stsh:PropertyShapeForm_sh_nodeKind a sh:PropertyShape ;
     sh:group stsh:ValueTypeGroup ;
-    sh:in _:n75f63c920a504b11b80fbd60cd5c87ffb75 ;
+    sh:in _:n79f1061861704af7817c022f5f131d8ab75 ;
     sh:maxCount 1 ;
     sh:nodeKind sh:IRI ;
     sh:order 4 ;
@@ -2578,6 +2592,12 @@ stsh:RuleSetForm_sh_includesRuleSet a sh:PropertyShape ;
     sh:order 20 ;
     sh:path sh:includesRuleSet .
 
+stsh:RuleSetForm_sh_ruleProcessor a sh:PropertyShape ;
+    sh:group stsh:RulesGroup ;
+    sh:nodeKind sh:IRIOrLiteral ;
+    sh:order 21 ;
+    sh:path sh:ruleProcessor .
+
 stsh:SPARQLConstraintForm_rdf_type a sh:PropertyShape ;
     sh:group stsh:TypeGroup ;
     sh:nodeKind sh:IRI ;
@@ -2737,7 +2757,6 @@ stsh:SPARQLRuleForm_sh_expectedPredicate a sh:PropertyShape ;
     sh:path sh:expectedPredicate .
 
 stsh:SPARQLRuleForm_sh_layer a sh:PropertyShape ;
-    sh:datatype xsd:integer ;
     sh:group stsh:RulesGroup ;
     sh:maxCount 1 ;
     sh:nodeKind sh:Literal ;
@@ -2770,6 +2789,51 @@ stsh:SPARQLRuleForm_sh_runOnce a sh:PropertyShape ;
     sh:nodeKind sh:Literal ;
     sh:order 19 ;
     sh:path sh:runOnce .
+
+stsh:SPARQLRuleTemplateForm_rdf_type a sh:PropertyShape ;
+    sh:group stsh:TypeGroup ;
+    sh:nodeKind sh:IRI ;
+    sh:order 1 ;
+    sh:path rdf:type .
+
+stsh:SPARQLRuleTemplateForm_rdfs_comment a sh:PropertyShape ;
+    sh:group stsh:NamingGroup ;
+    sh:nodeKind sh:Literal ;
+    sh:order 4 ;
+    sh:path rdfs:comment .
+
+stsh:SPARQLRuleTemplateForm_rdfs_label a sh:PropertyShape ;
+    sh:group stsh:NamingGroup ;
+    sh:nodeKind sh:Literal ;
+    sh:order 3 ;
+    sh:path rdfs:label .
+
+stsh:SPARQLRuleTemplateForm_rdfs_subClassOf a sh:PropertyShape ;
+    sh:group stsh:MetadataGroup ;
+    sh:nodeKind sh:IRI ;
+    sh:order 7 ;
+    sh:path rdfs:subClassOf .
+
+stsh:SPARQLRuleTemplateForm_sh_construct a sh:PropertyShape ;
+    sh:datatype xsd:string ;
+    sh:group stsh:DefinitionGroup ;
+    sh:maxCount 1 ;
+    sh:minCount 1 ;
+    sh:nodeKind sh:Literal ;
+    sh:order 3 ;
+    sh:path sh:construct .
+
+stsh:SPARQLRuleTemplateForm_sh_parameter a sh:PropertyShape ;
+    sh:group stsh:RulesGroup ;
+    sh:nodeKind sh:BlankNodeOrIRI ;
+    sh:order 5 ;
+    sh:path sh:parameter .
+
+stsh:SPARQLRuleTemplateForm_sh_prefixes a sh:PropertyShape ;
+    sh:group stsh:RulesGroup ;
+    sh:nodeKind sh:BlankNodeOrIRI ;
+    sh:order 17 ;
+    sh:path sh:prefixes .
 
 stsh:SPARQLTargetForm_rdf_type a sh:PropertyShape ;
     sh:group stsh:TypeGroup ;
@@ -2938,7 +3002,6 @@ stsh:TripleRuleForm_sh_expectedPredicate a sh:PropertyShape ;
     sh:path sh:expectedPredicate .
 
 stsh:TripleRuleForm_sh_layer a sh:PropertyShape ;
-    sh:datatype xsd:integer ;
     sh:group stsh:RulesGroup ;
     sh:maxCount 1 ;
     sh:nodeKind sh:Literal ;
@@ -3221,12 +3284,6 @@ rdfs:seeAlso sh:group stsh:MetadataGroup ;
     stsh:nodeFormField true ;
     stsh:propertyFormField true .
 
-rdfs:subClassOf sh:group stsh:MetadataGroup ;
-    sh:nodeKind sh:IRI ;
-    sh:order 7 ;
-    stsh:nodeFormField true ;
-    stsh:propertyFormField true .
-
 sh:ConstraintComponent sh:group stsh:RulesGroup ;
     sh:order 4 .
 
@@ -3261,12 +3318,6 @@ sh:codeType sh:group stsh:MetadataGroup ;
     stsh:formMaxCount 1 ;
     stsh:nodeFormField true ;
     stsh:propertyFormField true .
-
-sh:construct sh:group stsh:DefinitionGroup ;
-    sh:nodeKind sh:Literal ;
-    sh:order 3 ;
-    stsh:formMaxCount 1 ;
-    stsh:multiline true .
 
 sh:datatype sh:group stsh:ValueTypeGroup ;
     sh:nodeKind sh:IRI ;
@@ -3571,8 +3622,7 @@ sh:labelTemplate sh:group stsh:RulesGroup ;
     sh:order 22 ;
     stsh:formMaxCount 1 .
 
-sh:layer sh:datatype xsd:integer ;
-    sh:group stsh:RulesGroup ;
+sh:layer sh:group stsh:RulesGroup ;
     sh:nodeKind sh:Literal ;
     sh:order 18 ;
     stsh:formMaxCount 1 .
@@ -3581,10 +3631,6 @@ sh:returnType sh:group stsh:DefinitionGroup ;
     sh:nodeKind sh:IRI ;
     sh:order 7 ;
     stsh:formMaxCount 1 .
-
-sh:ruleProcessor sh:group stsh:RulesGroup ;
-    sh:nodeKind sh:IRIOrLiteral ;
-    sh:order 21 .
 
 sh:runOnce sh:datatype xsd:boolean ;
     sh:group stsh:RulesGroup ;
@@ -3632,6 +3678,12 @@ stsh:CrossNodeGroup a sh:PropertyGroup ;
     sh:name "Cross-Node"@en ;
     sh:order 13 .
 
+rdfs:subClassOf sh:group stsh:MetadataGroup ;
+    sh:nodeKind sh:IRI ;
+    sh:order 7 ;
+    stsh:nodeFormField true ;
+    stsh:propertyFormField true .
+
 sh:ask sh:group stsh:DefinitionGroup ;
     sh:nodeKind sh:Literal ;
     sh:order 2 ;
@@ -3671,9 +3723,19 @@ sh:bodyExpression sh:group stsh:DefinitionGroup ;
     sh:order 8 ;
     stsh:formMaxCount 1 .
 
+sh:construct sh:group stsh:DefinitionGroup ;
+    sh:nodeKind sh:Literal ;
+    sh:order 3 ;
+    stsh:formMaxCount 1 ;
+    stsh:multiline true .
+
 sh:resultAnnotation sh:group stsh:DefinitionGroup ;
     sh:nodeKind sh:BlankNodeOrIRI ;
     sh:order 18 .
+
+sh:ruleProcessor sh:group stsh:RulesGroup ;
+    sh:nodeKind sh:IRIOrLiteral ;
+    sh:order 21 .
 
 shui:defaultNamespace sh:group stsh:DefinitionGroup ;
     sh:nodeKind sh:Literal ;
@@ -3761,19 +3823,11 @@ stsh:CardinalityGroup a sh:PropertyGroup ;
     sh:name "Cardinality"@en ;
     sh:order 3 .
 
-sh:parameter sh:group stsh:RulesGroup ;
-    sh:nodeKind sh:BlankNodeOrIRI ;
-    sh:order 5 .
-
 sh:select sh:group stsh:DefinitionGroup ;
     sh:nodeKind sh:Literal ;
     sh:order 1 ;
     stsh:formMaxCount 1 ;
     stsh:multiline true .
-
-sh:prefixes sh:group stsh:RulesGroup ;
-    sh:nodeKind sh:BlankNodeOrIRI ;
-    sh:order 17 .
 
 stsh:ListGroup a sh:PropertyGroup ;
     sh:description "Well-formedness and length/uniqueness rules for SHACL-list-valued properties."@en ;
@@ -3784,6 +3838,14 @@ stsh:QualifiedGroup a sh:PropertyGroup ;
     sh:description "Counting how many values conform to a shape, rather than requiring all-or-none."@en ;
     sh:name "Qualified Value Shapes"@en ;
     sh:order 10 .
+
+sh:parameter sh:group stsh:RulesGroup ;
+    sh:nodeKind sh:BlankNodeOrIRI ;
+    sh:order 5 .
+
+sh:prefixes sh:group stsh:RulesGroup ;
+    sh:nodeKind sh:BlankNodeOrIRI ;
+    sh:order 17 .
 
 stsh:ValueRangeGroup a sh:PropertyGroup ;
     sh:description "Numeric/ordinal bounds on a value — sh:minInclusive and its siblings."@en ;
@@ -3864,8 +3926,8 @@ stsh:DefinitionGroup a sh:PropertyGroup ;
     sh:name "Definition"@en ;
     sh:order 0.5 .
 
-_:n75f63c920a504b11b80fbd60cd5c87ffb76 rdf:first sh:IRI ;
+_:n79f1061861704af7817c022f5f131d8ab76 rdf:first sh:IRI ;
     rdf:rest ( sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) .
 
-_:n75f63c920a504b11b80fbd60cd5c87ffb75 rdf:first sh:BlankNode ;
-    rdf:rest _:n75f63c920a504b11b80fbd60cd5c87ffb76 .
+_:n79f1061861704af7817c022f5f131d8ab75 rdf:first sh:BlankNode ;
+    rdf:rest _:n79f1061861704af7817c022f5f131d8ab76 .

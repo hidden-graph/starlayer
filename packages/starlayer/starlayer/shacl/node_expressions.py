@@ -399,7 +399,31 @@ def _sort_key(node: Any):
     return (1, str(node))
 
 
-def _eval_sparql_text_expr(expr: Any, focus_node: Any, data_graph: Any, sg: Any) -> list[Any] | None:
+def scope_variables(scope: dict[Any, Any] | None) -> dict[str, Any]:
+    """The variables a SPARQL-based node expression is pre-bound with from the scope it is evaluated in (SPARQL Extensions 6.1: "The
+    value of each scope variable is pre-bound as a SPARQL variable with the same name and value"; a name that is not a string is "arg" +
+    its number, so the arguments of a list parameter function are ``$arg0``, ``$arg1``, ...). The path of a named function's parameter
+    is named by its local name (4.2.1). Only a variable with exactly one value is bound; ``focusNode`` is ``$this`` already."""
+    bound: dict[str, Any] = {}
+    for name, value in (scope or {}).items():
+        if isinstance(name, int):
+            variable = f"arg{name}"
+        elif isinstance(name, URIRef):
+            text = str(name)
+            variable = text[max(text.rfind("#"), text.rfind("/")) + 1 :]
+        else:
+            variable = str(name)
+        if variable == "focusNode":
+            continue
+        nodes = value if isinstance(value, list) else [value]
+        if len(nodes) == 1 and nodes[0] is not None:
+            bound[variable] = nodes[0]
+    return bound
+
+
+def _eval_sparql_text_expr(
+    expr: Any, focus_node: Any, data_graph: Any, sg: Any, scope: dict[Any, Any] | None = None
+) -> list[Any] | None:
     """Evaluate a ``sh:select`` or ``sh:sparqlExpr`` node expression (GitHub issue #129).
 
     The vocabulary defines ``sh:SelectExpression`` (a query whose first projected column gives the nodes) and
@@ -426,6 +450,8 @@ def _eval_sparql_text_expr(expr: Any, focus_node: Any, data_graph: Any, sg: Any)
     init_binds, text = helper.pre_bind_variables(focus_node)
     if focus_node is None:
         init_binds.pop("this", None)
+    for variable, value in scope_variables(scope).items():  # (GitHub issue #175)
+        init_binds.setdefault(variable, value)
     text = helper.apply_prefixes(text)
     try:
         rows = list(data_graph.query(text, initBindings=init_binds))
@@ -540,7 +566,7 @@ def eval_expr(
                 )
         return list(members)
 
-    computed = _eval_sparql_text_expr(expr, focus_node, data_graph, sg)
+    computed = _eval_sparql_text_expr(expr, focus_node, data_graph, sg, scope)
     if computed is not None:
         return computed
 

@@ -7,7 +7,7 @@ triples of a layer are removed when the layer ends. Each test below fails with p
 """
 
 import pytest
-from rdflib import Literal, Namespace, URIRef
+from rdflib import RDF, Literal, Namespace, URIRef
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 
@@ -227,3 +227,50 @@ def test_a_rule_that_is_neither_a_triple_rule_nor_a_sparql_rule_is_a_failure() -
 
     with pytest.raises(RuleLoadError):
         _apply(shapes)
+
+
+def test_provenance_of_rules_run_over_a_graph_with_no_triple_terms_does_not_credit_the_encodings_support_triples() -> None:
+    """GitHub issue #167: a SPARQL rule's CONSTRUCT came back with the adapter's support triples (``tt:HASH rdf:subject ...``), which were
+    counted as inferred and then broke the reifier built for them ("the subject of a triple term must be an IRI or blank node")."""
+    from starlayer import starontology
+    from starlayer.shacl import apply_rules
+
+    data = _graph("ex:P sh:values _:b . ex:Q sh:maxCount 1 .")
+    rules = starontology.get_ontology_graph("shacl_shacl_rules")
+
+    plain = apply_rules(data, shacl_graph=rules)
+    traced = apply_rules(data, shacl_graph=rules, include_source_rule_provenance=True)
+
+    assert len(plain.inferred_graph) == 3
+    inferred = {t for t in traced.inferred_graph if t[1] == RDF.type}
+    assert inferred == set(plain.inferred_graph)
+    assert not [t for t in traced.inferred_graph if str(t[0]).startswith("urn:starlayer:tt:")]
+
+
+class TestTargetsThatDependOnInferredTriples:
+    """GitHub issue #182: implicit class targets and ``sh:targetWhere`` are read from the graph as the rules add triples, not once before."""
+
+    MAKE = 'ex:Make a sh:SPARQLRule ; sh:runOnce true ; sh:construct "PREFIX ex: <http://example.org/> CONSTRUCT { ex:n a ex:C } WHERE { }" .'
+    USE = 'ex:Use a sh:SPARQLRule ; sh:construct "PREFIX ex: <http://example.org/> CONSTRUCT { $this ex:done true } WHERE { }" .'
+
+    def test_a_shape_class_reaches_the_instances_a_rule_adds(self) -> None:
+        shapes = self.MAKE + " ex:C a sh:ShapeClass ; sh:rule ex:Use . " + self.USE
+
+        result = _apply(shapes, data="ex:other ex:marker true .")
+
+        assert (EX.n, EX.done, Literal(True)) in result.inferred_graph
+
+    def test_a_target_where_shape_reaches_the_nodes_a_rule_makes_conform(self) -> None:
+        shapes = self.MAKE + " ex:S a sh:NodeShape ; sh:targetWhere [ sh:class ex:C ] ; sh:rule ex:Use . " + self.USE
+
+        result = _apply(shapes, data="ex:other ex:marker true .")
+
+        assert (EX.n, EX.done, Literal(True)) in result.inferred_graph
+
+    def test_nothing_is_resolved_again_when_the_shapes_have_no_such_targets(self) -> None:
+        """No extra cost for the ordinary shapes graph: the engine is given no resolver."""
+        shapes = "ex:S a sh:NodeShape ; sh:targetNode ex:n ; sh:rule ex:Use . " + self.USE
+
+        result = _apply(shapes)
+
+        assert (EX.n, EX.done, Literal(True)) in result.inferred_graph

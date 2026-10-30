@@ -2568,8 +2568,9 @@ starontology:shacl12-shacl-ui.ttl {
             stsh:RuleSetForm_rdfs_comment,
             stsh:RuleSetForm_rdfs_label,
             stsh:RuleSetForm_sh_hasRule,
-            stsh:RuleSetForm_sh_includesRuleSet ;
-        stsh:formFields ( rdf:type sh:hasRule sh:includesRuleSet rdfs:label rdfs:comment ) ;
+            stsh:RuleSetForm_sh_includesRuleSet,
+            stsh:RuleSetForm_sh_ruleProcessor ;
+        stsh:formFields ( rdf:type sh:hasRule sh:includesRuleSet sh:ruleProcessor rdfs:label rdfs:comment ) ;
         stsh:formFor sh:RuleSet .
 
     stsh:SPARQLConstraintForm a sh:NodeShape ;
@@ -2616,6 +2617,19 @@ starontology:shacl12-shacl-ui.ttl {
             stsh:SPARQLRuleForm_sh_runOnce ;
         stsh:formFields ( rdf:type sh:construct sh:prefixes sh:condition sh:layer sh:runOnce sh:expectedPredicate sh:ruleProcessor rdfs:label rdfs:comment sh:order sh:deactivated ) ;
         stsh:formFor sh:SPARQLRule ;
+        stsh:formRequired ( sh:construct ) .
+
+    stsh:SPARQLRuleTemplateForm a sh:NodeShape ;
+        rdfs:label "Form for a SPARQLRuleTemplate"@en ;
+        sh:property stsh:SPARQLRuleTemplateForm_rdf_type,
+            stsh:SPARQLRuleTemplateForm_rdfs_comment,
+            stsh:SPARQLRuleTemplateForm_rdfs_label,
+            stsh:SPARQLRuleTemplateForm_rdfs_subClassOf,
+            stsh:SPARQLRuleTemplateForm_sh_construct,
+            stsh:SPARQLRuleTemplateForm_sh_parameter,
+            stsh:SPARQLRuleTemplateForm_sh_prefixes ;
+        stsh:formFields ( rdf:type rdfs:subClassOf sh:construct sh:prefixes sh:parameter rdfs:label rdfs:comment ) ;
+        stsh:formFor sh:SPARQLRuleTemplate ;
         stsh:formRequired ( sh:construct ) .
 
     stsh:SPARQLTargetForm a sh:NodeShape ;
@@ -3412,7 +3426,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:NodeShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n73fbf46ff16143659611bb042804c60cb213 ;
+        sh:in _:n13771e24fc5242818e6516c979e8d13db222 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -3812,7 +3826,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:ParameterForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n73fbf46ff16143659611bb042804c60cb213 ;
+        sh:in _:n13771e24fc5242818e6516c979e8d13db222 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -4315,7 +4329,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:PropertyShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n73fbf46ff16143659611bb042804c60cb213 ;
+        sh:in _:n13771e24fc5242818e6516c979e8d13db222 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -4612,6 +4626,12 @@ starontology:shacl12-shacl-ui.ttl {
         sh:order 20 ;
         sh:path sh:includesRuleSet .
 
+    stsh:RuleSetForm_sh_ruleProcessor a sh:PropertyShape ;
+        sh:group stsh:RulesGroup ;
+        sh:nodeKind sh:IRIOrLiteral ;
+        sh:order 21 ;
+        sh:path sh:ruleProcessor .
+
     stsh:SPARQLConstraintForm_rdf_type a sh:PropertyShape ;
         sh:group stsh:TypeGroup ;
         sh:nodeKind sh:IRI ;
@@ -4771,7 +4791,6 @@ starontology:shacl12-shacl-ui.ttl {
         sh:path sh:expectedPredicate .
 
     stsh:SPARQLRuleForm_sh_layer a sh:PropertyShape ;
-        sh:datatype xsd:integer ;
         sh:group stsh:RulesGroup ;
         sh:maxCount 1 ;
         sh:nodeKind sh:Literal ;
@@ -4804,6 +4823,51 @@ starontology:shacl12-shacl-ui.ttl {
         sh:nodeKind sh:Literal ;
         sh:order 19 ;
         sh:path sh:runOnce .
+
+    stsh:SPARQLRuleTemplateForm_rdf_type a sh:PropertyShape ;
+        sh:group stsh:TypeGroup ;
+        sh:nodeKind sh:IRI ;
+        sh:order 1 ;
+        sh:path rdf:type .
+
+    stsh:SPARQLRuleTemplateForm_rdfs_comment a sh:PropertyShape ;
+        sh:group stsh:NamingGroup ;
+        sh:nodeKind sh:Literal ;
+        sh:order 4 ;
+        sh:path rdfs:comment .
+
+    stsh:SPARQLRuleTemplateForm_rdfs_label a sh:PropertyShape ;
+        sh:group stsh:NamingGroup ;
+        sh:nodeKind sh:Literal ;
+        sh:order 3 ;
+        sh:path rdfs:label .
+
+    stsh:SPARQLRuleTemplateForm_rdfs_subClassOf a sh:PropertyShape ;
+        sh:group stsh:MetadataGroup ;
+        sh:nodeKind sh:IRI ;
+        sh:order 7 ;
+        sh:path rdfs:subClassOf .
+
+    stsh:SPARQLRuleTemplateForm_sh_construct a sh:PropertyShape ;
+        sh:datatype xsd:string ;
+        sh:group stsh:DefinitionGroup ;
+        sh:maxCount 1 ;
+        sh:minCount 1 ;
+        sh:nodeKind sh:Literal ;
+        sh:order 3 ;
+        sh:path sh:construct .
+
+    stsh:SPARQLRuleTemplateForm_sh_parameter a sh:PropertyShape ;
+        sh:group stsh:RulesGroup ;
+        sh:nodeKind sh:BlankNodeOrIRI ;
+        sh:order 5 ;
+        sh:path sh:parameter .
+
+    stsh:SPARQLRuleTemplateForm_sh_prefixes a sh:PropertyShape ;
+        sh:group stsh:RulesGroup ;
+        sh:nodeKind sh:BlankNodeOrIRI ;
+        sh:order 17 ;
+        sh:path sh:prefixes .
 
     stsh:SPARQLTargetForm_rdf_type a sh:PropertyShape ;
         sh:group stsh:TypeGroup ;
@@ -4972,7 +5036,6 @@ starontology:shacl12-shacl-ui.ttl {
         sh:path sh:expectedPredicate .
 
     stsh:TripleRuleForm_sh_layer a sh:PropertyShape ;
-        sh:datatype xsd:integer ;
         sh:group stsh:RulesGroup ;
         sh:maxCount 1 ;
         sh:nodeKind sh:Literal ;
@@ -5255,12 +5318,6 @@ starontology:shacl12-shacl-ui.ttl {
         stsh:nodeFormField true ;
         stsh:propertyFormField true .
 
-    rdfs:subClassOf sh:group stsh:MetadataGroup ;
-        sh:nodeKind sh:IRI ;
-        sh:order 7 ;
-        stsh:nodeFormField true ;
-        stsh:propertyFormField true .
-
     sh:ConstraintComponent sh:group stsh:RulesGroup ;
         sh:order 4 .
 
@@ -5295,12 +5352,6 @@ starontology:shacl12-shacl-ui.ttl {
         stsh:formMaxCount 1 ;
         stsh:nodeFormField true ;
         stsh:propertyFormField true .
-
-    sh:construct sh:group stsh:DefinitionGroup ;
-        sh:nodeKind sh:Literal ;
-        sh:order 3 ;
-        stsh:formMaxCount 1 ;
-        stsh:multiline true .
 
     sh:datatype sh:group stsh:ValueTypeGroup ;
         sh:nodeKind sh:IRI ;
@@ -5605,8 +5656,7 @@ starontology:shacl12-shacl-ui.ttl {
         sh:order 22 ;
         stsh:formMaxCount 1 .
 
-    sh:layer sh:datatype xsd:integer ;
-        sh:group stsh:RulesGroup ;
+    sh:layer sh:group stsh:RulesGroup ;
         sh:nodeKind sh:Literal ;
         sh:order 18 ;
         stsh:formMaxCount 1 .
@@ -5615,10 +5665,6 @@ starontology:shacl12-shacl-ui.ttl {
         sh:nodeKind sh:IRI ;
         sh:order 7 ;
         stsh:formMaxCount 1 .
-
-    sh:ruleProcessor sh:group stsh:RulesGroup ;
-        sh:nodeKind sh:IRIOrLiteral ;
-        sh:order 21 .
 
     sh:runOnce sh:datatype xsd:boolean ;
         sh:group stsh:RulesGroup ;
@@ -5666,6 +5712,12 @@ starontology:shacl12-shacl-ui.ttl {
         sh:name "Cross-Node"@en ;
         sh:order 13 .
 
+    rdfs:subClassOf sh:group stsh:MetadataGroup ;
+        sh:nodeKind sh:IRI ;
+        sh:order 7 ;
+        stsh:nodeFormField true ;
+        stsh:propertyFormField true .
+
     sh:ask sh:group stsh:DefinitionGroup ;
         sh:nodeKind sh:Literal ;
         sh:order 2 ;
@@ -5705,9 +5757,19 @@ starontology:shacl12-shacl-ui.ttl {
         sh:order 8 ;
         stsh:formMaxCount 1 .
 
+    sh:construct sh:group stsh:DefinitionGroup ;
+        sh:nodeKind sh:Literal ;
+        sh:order 3 ;
+        stsh:formMaxCount 1 ;
+        stsh:multiline true .
+
     sh:resultAnnotation sh:group stsh:DefinitionGroup ;
         sh:nodeKind sh:BlankNodeOrIRI ;
         sh:order 18 .
+
+    sh:ruleProcessor sh:group stsh:RulesGroup ;
+        sh:nodeKind sh:IRIOrLiteral ;
+        sh:order 21 .
 
     shui:defaultNamespace sh:group stsh:DefinitionGroup ;
         sh:nodeKind sh:Literal ;
@@ -5795,19 +5857,11 @@ starontology:shacl12-shacl-ui.ttl {
         sh:name "Cardinality"@en ;
         sh:order 3 .
 
-    sh:parameter sh:group stsh:RulesGroup ;
-        sh:nodeKind sh:BlankNodeOrIRI ;
-        sh:order 5 .
-
     sh:select sh:group stsh:DefinitionGroup ;
         sh:nodeKind sh:Literal ;
         sh:order 1 ;
         stsh:formMaxCount 1 ;
         stsh:multiline true .
-
-    sh:prefixes sh:group stsh:RulesGroup ;
-        sh:nodeKind sh:BlankNodeOrIRI ;
-        sh:order 17 .
 
     stsh:ListGroup a sh:PropertyGroup ;
         sh:description "Well-formedness and length/uniqueness rules for SHACL-list-valued properties."@en ;
@@ -5818,6 +5872,14 @@ starontology:shacl12-shacl-ui.ttl {
         sh:description "Counting how many values conform to a shape, rather than requiring all-or-none."@en ;
         sh:name "Qualified Value Shapes"@en ;
         sh:order 10 .
+
+    sh:parameter sh:group stsh:RulesGroup ;
+        sh:nodeKind sh:BlankNodeOrIRI ;
+        sh:order 5 .
+
+    sh:prefixes sh:group stsh:RulesGroup ;
+        sh:nodeKind sh:BlankNodeOrIRI ;
+        sh:order 17 .
 
     stsh:ValueRangeGroup a sh:PropertyGroup ;
         sh:description "Numeric/ordinal bounds on a value — sh:minInclusive and its siblings."@en ;
@@ -5898,11 +5960,11 @@ starontology:shacl12-shacl-ui.ttl {
         sh:name "Definition"@en ;
         sh:order 0.5 .
 
-    _:n73fbf46ff16143659611bb042804c60cb214 rdf:first sh:IRI ;
+    _:n13771e24fc5242818e6516c979e8d13db223 rdf:first sh:IRI ;
         rdf:rest ( sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) .
 
-    _:n73fbf46ff16143659611bb042804c60cb213 rdf:first sh:BlankNode ;
-        rdf:rest _:n73fbf46ff16143659611bb042804c60cb214 .
+    _:n13771e24fc5242818e6516c979e8d13db222 rdf:first sh:BlankNode ;
+        rdf:rest _:n13771e24fc5242818e6516c979e8d13db223 .
 }
 
 starontology:shacl12-shacl.ttl {
@@ -6547,6 +6609,14 @@ starontology:shacl12-shacl.ttl {
                 sh:path sh:ruleProcessor ] ;
         sh:targetSubjectsOf sh:ruleProcessor .
 
+    stsh:RuleProcessorUnsupportedShape a sh:NodeShape ;
+        rdfs:label "StarLayer provides no rule processor"@en ;
+        sh:property [ sh:maxCount 0 ;
+                sh:message "StarLayer provides no rule processor, so running this rule or rule set fails (Inference Rules section 10)."@en ;
+                sh:path sh:ruleProcessor ;
+                sh:severity sh:Warning ] ;
+        sh:targetSubjectsOf sh:ruleProcessor .
+
     stsh:RuleSetShape a sh:NodeShape ;
         rdfs:label "Well-formedness rules for sh:RuleSet"@en ;
         sh:message "A rule set is identified by an IRI, not a blank node."@en ;
@@ -6614,13 +6684,7 @@ starontology:shacl12-shacl.ttl {
                 sh:maxCount 1 ;
                 sh:message "A SPARQL rule template has exactly one sh:construct, an xsd:string."@en ;
                 sh:minCount 1 ;
-                sh:path sh:construct ],
-            [ sh:node [ a sh:NodeShape ;
-                        sh:property [ sh:maxCount 1 ;
-                                sh:minCount 1 ;
-                                sh:nodeKind sh:IRI ;
-                                sh:path sh:path ] ] ;
-                sh:path sh:parameter ] ;
+                sh:path sh:construct ] ;
         sh:targetClass sh:SPARQLRuleTemplate .
 
     stsh:SelectQueryTextShape a sh:NodeShape ;
@@ -7433,6 +7497,14 @@ starontology:shacl12-shacl.ttl {
         sh:name "node validator"@en ;
         stsh:requiredEngine stsh:PySHACL .
 
+    sh:parameter rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
+            <https://www.w3.org/TR/shacl12-sparql/> ;
+        rdfs:seeAlso sh:ConstraintComponent ;
+        skos:example "sh:parameter [ sh:path ex:minScore ; sh:optional false ]"@en ;
+        sh:description "Declares one input parameter of a custom sh:ConstraintComponent — the parameter's own sh:path becomes the predicate a shape uses to supply that argument's value (e.g. ex:minScore in the example above)."@en ;
+        sh:name "parameter"@en ;
+        stsh:requiredEngine stsh:PySHACL .
+
     sh:property rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
         skos:example "ex:PersonShape sh:property [ sh:path ex:email ; sh:minCount 1 ]"@en ;
         sh:description "Attaches a property shape to a node shape. Nearly every real-world shape uses this — it's how a node shape says \"and also, here's a constraint on one of my properties.\""@en ;
@@ -7476,14 +7548,6 @@ starontology:shacl12-shacl.ttl {
             <https://www.w3.org/TR/shacl12-core/> ;
         sh:description "Same as sh:lessThan, but allows equality. SHACL 1.2 widens the object to any property path."@en ;
         sh:name "less than or equal to"@en ;
-        stsh:requiredEngine stsh:PySHACL .
-
-    sh:parameter rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
-            <https://www.w3.org/TR/shacl12-sparql/> ;
-        rdfs:seeAlso sh:ConstraintComponent ;
-        skos:example "sh:parameter [ sh:path ex:minScore ; sh:optional false ]"@en ;
-        sh:description "Declares one input parameter of a custom sh:ConstraintComponent — the parameter's own sh:path becomes the predicate a shape uses to supply that argument's value (e.g. ex:minScore in the example above)."@en ;
-        sh:name "parameter"@en ;
         stsh:requiredEngine stsh:PySHACL .
 
     shsh:ShapeShape a sh:NodeShape ;
@@ -7733,6 +7797,14 @@ starontology:shacl12-shacl.ttl {
         sh:targetClass sh:NodeExpression ;
         sh:targetObjectsOf sh:values .
 
+    sh:path rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
+        rdfs:seeAlso sh:alternativePath,
+            sh:inversePath ;
+        skos:example "sh:path ex:email — the simple case, a single predicate."@en ;
+        sh:description "Required on every property shape. Names the property more complex path expression that connects a focus node to its value nodes. The simplest form is a single IRI; SHACL also supports sequence, alternative, inverse, and repeated (*/+/?) paths."@en ;
+        sh:name "path"@en ;
+        stsh:requiredEngine stsh:PySHACL .
+
     sh:select rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
             <https://www.w3.org/TR/shacl12-sparql/> ;
         rdfs:seeAlso sh:ask,
@@ -7740,14 +7812,6 @@ starontology:shacl12-shacl.ttl {
         skos:example "sh:select \"SELECT $this ?value WHERE { ?value ex:score ?s . FILTER (?s < 0) }\""@en ;
         sh:description "The SPARQL SELECT query text for a sh:sparql constraint or a custom sh:ConstraintComponent's sh:nodeValidator/sh:propertyValidator. Any row returned counts as a violation; bindings for ?value/?path/?this in the result customize the reported focus/value/path."@en ;
         sh:name "SELECT query"@en ;
-        stsh:requiredEngine stsh:PySHACL .
-
-    sh:path rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-        rdfs:seeAlso sh:alternativePath,
-            sh:inversePath ;
-        skos:example "sh:path ex:email — the simple case, a single predicate."@en ;
-        sh:description "Required on every property shape. Names the property more complex path expression that connects a focus node to its value nodes. The simplest form is a single IRI; SHACL also supports sequence, alternative, inverse, and repeated (*/+/?) paths."@en ;
-        sh:name "path"@en ;
         stsh:requiredEngine stsh:PySHACL .
 }
 

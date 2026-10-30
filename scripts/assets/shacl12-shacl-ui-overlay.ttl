@@ -771,7 +771,7 @@ stsh:formOnlyFor a rdf:Property ;
 # A rule set (SHACL 1.2 Inference Rules, "Rule Sets"): an IRI that lists the rules it has (sh:hasRule) and the rule sets it includes (sh:includesRuleSet).
 stsh:RuleSetForm a sh:NodeShape ;
     stsh:formFor sh:RuleSet ;
-    stsh:formFields ( rdf:type sh:hasRule sh:includesRuleSet rdfs:label rdfs:comment ) .
+    stsh:formFields ( rdf:type sh:hasRule sh:includesRuleSet sh:ruleProcessor rdfs:label rdfs:comment ) .
 
 # A result annotation, a value of sh:resultAnnotation (SHACL 1.2 SPARQL Extensions section 5): it copies a variable of the query's solution into the validation result as a value of a
 # property. It is an IRI or a blank node with no required type; the property is required (exactly one IRI), the variable name optional (at most one string).
@@ -790,6 +790,13 @@ stsh:SPARQLRuleForm a sh:NodeShape ;
 stsh:TripleRuleForm a sh:NodeShape ;
     stsh:formFor sh:TripleRule ;
     stsh:formFields ( rdf:type sh:subject sh:predicate sh:object sh:condition sh:layer sh:runOnce sh:expectedPredicate sh:ruleProcessor rdfs:label rdfs:comment sh:order sh:deactivated ) .
+
+# A SPARQL rule template (Inference Rules section 12): a class whose instances are rules. Its parameters are declared like those of a
+# constraint component, and an instance gives each one as a property.
+stsh:SPARQLRuleTemplateForm a sh:NodeShape ;
+    stsh:formFor sh:SPARQLRuleTemplate ;
+    stsh:formFields ( rdf:type rdfs:subClassOf sh:construct sh:prefixes sh:parameter rdfs:label rdfs:comment ) ;
+    stsh:formRequired ( sh:construct ) .
 
 # A constraint component (SHACL-AF 6): its parameters and the validators that check them.
 stsh:ConstraintComponentForm a sh:NodeShape ;
@@ -865,7 +872,7 @@ sh:declare sh:nodeKind sh:BlankNodeOrIRI .
 sh:prefix sh:nodeKind sh:Literal ; stsh:formMaxCount 1 .
 sh:namespace sh:nodeKind sh:IRIOrLiteral ; stsh:formMaxCount 1 .   # xsd:anyURI or xsd:string
 sh:condition sh:nodeKind sh:BlankNodeOrIRI .      # a shape, or a list of shapes
-sh:layer sh:nodeKind sh:Literal ; sh:datatype xsd:integer ; stsh:formMaxCount 1 .
+sh:layer sh:nodeKind sh:Literal ; stsh:formMaxCount 1 .   # a number: Inference Rules 3.5 allows xsd:integer and xsd:decimal
 sh:runOnce sh:nodeKind sh:Literal ; sh:datatype xsd:boolean ; stsh:formMaxCount 1 .
 sh:expectedPredicate sh:nodeKind sh:IRI .
 sh:ruleProcessor sh:nodeKind sh:IRIOrLiteral .

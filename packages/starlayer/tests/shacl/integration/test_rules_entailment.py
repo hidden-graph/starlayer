@@ -107,3 +107,53 @@ def test_apply_rules_on_such_a_shapes_graph_does_not_run_the_rules_twice_over() 
 
     assert (EX.n, EX.p, EX.a) in result.inferred_graph
     assert result.validation.conforms
+
+
+class TestEvaluateWithRulesEntailment:
+    """GitHub issue #177: ``evaluate(rules_entailment=True)`` runs the rules ``sh:entailment`` names first; off by default."""
+
+    @staticmethod
+    def _evaluate(**kwargs):
+        from starlayer.shacl import evaluate
+
+        shapes = StarLayerGraph()
+        shapes.parse(
+            data=PREFIXES
+            + """
+            @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+            ex:Shapes a sh:ShapesGraph ; sh:entailment sh:RulesEntailment .
+            ex:Needs a sh:NodeShape ; sh:targetClass ex:Special ; sh:property [ sh:path ex:name ] .
+            ex:Mark a sh:TripleRule ; sh:subject ex:n ; sh:predicate rdf:type ; sh:object ex:Special .
+            """,
+            format="turtle",
+        )
+        data = StarLayerGraph()
+        data.parse(data=PREFIXES + 'ex:n ex:name "Nina" .', format="turtle")
+        return evaluate(data, shapes, **kwargs)
+
+    def test_off_by_default_the_rules_are_not_run(self) -> None:
+        assert not list(self._evaluate().triples((EX.n, EX.name, None)))
+
+    def test_with_the_flag_a_target_that_depends_on_an_inferred_triple_is_seen(self) -> None:
+        result = self._evaluate(rules_entailment=True)
+
+        assert [str(o) for o in result.objects(EX.n, EX.name)] == ["Nina"]
+
+    def test_the_schema_method_takes_the_flag_too(self) -> None:
+        shapes = StarLayerGraph()
+        shapes.parse(
+            data=PREFIXES
+            + """
+            @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+            ex:Shapes a sh:ShapesGraph ; sh:entailment sh:RulesEntailment .
+            ex:Needs a sh:NodeShape ; sh:targetClass ex:Special ; sh:property [ sh:path ex:name ] .
+            ex:Mark a sh:TripleRule ; sh:subject ex:n ; sh:predicate rdf:type ; sh:object ex:Special .
+            """,
+            format="turtle",
+        )
+        data = StarLayerGraph()
+        data.parse(data=PREFIXES + 'ex:n ex:name "Nina" .', format="turtle")
+        schema = StarShaclSchema(shacl_graph=shapes, data_graph=data)
+
+        assert not list(schema.evaluate().triples((EX.n, EX.name, None)))
+        assert list(schema.evaluate(rules_entailment=True).triples((EX.n, EX.name, None)))

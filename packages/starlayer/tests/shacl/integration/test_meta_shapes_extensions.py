@@ -2051,7 +2051,6 @@ _APPENDIX_A_PREFIXES = "@prefix xsd: <http://www.w3.org/2001/XMLSchema#> . @pref
     "ttl",
     [
         "ex:S a sh:NodeShape ; sh:rule ex:R . ex:R a sh:SPARQLRule ; sh:construct 'CONSTRUCT { } WHERE { }' ; sh:deactivated true ; sh:layer 1.5 ; sh:order 2 ; sh:runOnce false .",
-        "ex:R a sh:TripleRule ; sh:ruleProcessor ex:Engine, 'SRL 1.2' .",
         "ex:T a sh:SPARQLRuleTemplate ; sh:construct 'CONSTRUCT { } WHERE { }' ; sh:parameter [ sh:path ex:p ] .",
         "ex:T rdfs:subClassOf sh:Rule . ex:Inst a ex:T . ex:RS a sh:RuleSet ; sh:hasRule ex:Inst . ex:T a sh:SPARQLRuleTemplate ; sh:construct 'CONSTRUCT { } WHERE { }' .",
         "ex:S a sh:NodeShape ; sh:rule [ a ex:Custom, sh:TripleRule ] .",  # one of several types is enough
@@ -2106,3 +2105,71 @@ def test_a_source_rule_that_is_not_an_iri_is_a_warning_not_an_error() -> None:
     assert (None, sh.resultSeverity, sh.Warning) in report
     with pytest.raises(Exception):
         meta_validate(shapes, allow_warnings=False)
+
+
+def test_a_rule_that_names_a_rule_processor_is_a_warning_because_this_engine_provides_none() -> None:
+    """Inference Rules 10: an engine that cannot handle the value must fail when it runs the rule; the warning says so beforehand."""
+    from rdflib import RDF, Namespace
+
+    sh = Namespace("http://www.w3.org/ns/shacl#")
+    shapes = Graph()
+    shapes.parse(data=_APPENDIX_A_PREFIXES + "ex:R a sh:TripleRule ; sh:ruleProcessor 'SRL 1.2' .", format="turtle")
+
+    conforms, report, _text = meta_validate(shapes)
+
+    assert conforms is True
+    assert len(list(report.subjects(RDF.type, sh.ValidationResult))) == 1
+    assert (None, sh.resultSeverity, sh.Warning) in report
+
+
+# ---------------------------------------------------------------------------
+# Instances of a rule template: the values of its parameters (Inference Rules 12)
+# ---------------------------------------------------------------------------
+
+_TEMPLATE = (
+    _APPENDIX_A_PREFIXES
+    + """
+    ex:Scale a sh:SPARQLRuleTemplate ; rdfs:subClassOf sh:Rule ;
+      sh:parameter [ sh:path ex:factor ; sh:datatype xsd:integer ] , [ sh:path ex:note ; sh:optional true ] ;
+      sh:construct "CONSTRUCT { } WHERE { }" .
+    """
+)
+
+
+def _template_results(instances: str):
+    """``(conforms, severities)``; meta_validate() raises with the report in its message when there is a violation."""
+    import re
+
+    from rdflib import RDF, Namespace
+
+    sh = Namespace("http://www.w3.org/ns/shacl#")
+    shapes = Graph()
+    shapes.parse(data=_TEMPLATE + instances, format="turtle")
+    try:
+        conforms, report, _text = meta_validate(shapes)
+    except pyshacl.errors.ReportableRuntimeError as error:
+        return False, re.findall(r"Severity: sh:(\w+)", str(error))
+    return conforms, [str(report.value(r, sh.resultSeverity)).rsplit("#", 1)[-1] for r in report.subjects(RDF.type, sh.ValidationResult)]
+
+
+def test_an_instance_with_its_parameters_is_well_formed() -> None:
+    assert _template_results("ex:R a ex:Scale ; ex:factor 3 . ex:Sub rdfs:subClassOf ex:Scale . ex:S a ex:Sub ; ex:factor 2 ; ex:note 'x' .") == (True, [])
+
+
+def test_an_instance_without_a_required_parameter_is_a_warning() -> None:
+    """A warning, not an error: an instance is typed before its values are given, and the edit half way there must not be refused."""
+    assert _template_results("ex:R a ex:Scale .") == (True, ["Warning"])
+
+
+def test_an_optional_parameter_may_be_left_out() -> None:
+    assert _template_results("ex:R a ex:Scale ; ex:factor 3 .") == (True, [])
+
+
+def test_a_value_that_breaks_the_parameters_own_constraint_is_an_error() -> None:
+    conforms, severities = _template_results("ex:R a ex:Scale ; ex:factor 'three' .")
+    assert conforms is False and severities == ["Violation"]
+
+
+def test_two_values_of_a_parameter_are_an_error() -> None:
+    conforms, severities = _template_results("ex:R a ex:Scale ; ex:factor 3, 4 .")
+    assert conforms is False and "Violation" in severities
