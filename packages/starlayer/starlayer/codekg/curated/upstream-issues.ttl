@@ -384,3 +384,11 @@ ui:rdflib-38 a slkg:UpstreamIssue ;
     slkg:issueNumber 38 ;
     slkg:issueStatus "worked-around" ;
     slkg:workedAroundByIdentifier "starlayer.graph.query.builtin_error_patches.patch_sparql_parser_keeps_tabs" .
+
+ui:rdflib-39 a slkg:UpstreamIssue ;
+    rdfs:label "p+ and p* over a long chain raise RecursionError" ;
+    slkg:upstreamProject "rdflib" ;
+    slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
+    slkg:issueNumber 39 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.graph.query.path_patches.patch_repetition_paths_are_distinct" .

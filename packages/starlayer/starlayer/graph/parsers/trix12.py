@@ -26,9 +26,10 @@ from __future__ import annotations
 
 import xml.etree.ElementTree as ET
 
-from rdflib import BNode, Literal, URIRef
+from rdflib import Literal, URIRef
 
 from starlayer.graph.model.triple import TripleTerm
+from starlayer.graph.parsers.bnode_scope import labelled_bnode, per_document
 
 TRIX_NS  = 'http://www.w3.org/2004/03/trix/trix-1/'
 _XML_NS  = 'http://www.w3.org/XML/1998/namespace'
@@ -52,7 +53,7 @@ def _parse_term(elem: ET.Element):
         return URIRef((elem.text or '').strip())
 
     if tag == _TAG_ID:
-        return BNode((elem.text or '').strip())
+        return labelled_bnode((elem.text or '').strip())
 
     if tag == _TAG_PLAIN:
         lang = elem.get(f'{{{_XML_NS}}}lang')
@@ -124,6 +125,7 @@ def _iter_graphs(text: str):
             yield _parse_graph(child)
 
 
+@per_document
 def parse_trix12(text: str) -> list[tuple]:
     """Parse TriX 1.2 text; return list of (s, p, o) triples.
 
@@ -142,6 +144,7 @@ def parse_trix12(text: str) -> list[tuple]:
     return triples
 
 
+@per_document
 def parse_trix12_named(text: str) -> list[tuple[URIRef | None, list[tuple]]]:
     """Parse TriX 1.2 text; return list of (graph_id, triples).
 

@@ -111,7 +111,10 @@ def register_native_components() -> None:
     from starlayer.shacl.list_functions import install_list_function_patch
 
     install_list_function_patch()  # list parameter functions callable from SPARQL (GitHub issue #176)
+    from starlayer.shacl.component_cache import install_component_cache_patch
+
     if _registered:
+        install_component_cache_patch()  # a component registered since the last call is wrapped too
         return
 
     from pyshacl.constraints import (
@@ -139,6 +142,7 @@ def register_native_components() -> None:
             ALL_CONSTRAINT_COMPONENTS.append(component_cls)
 
     _registered = True
+    install_component_cache_patch()  # one construction per shape, not per focus node
 
 
 def _build_some_value_component() -> Any:
@@ -1301,7 +1305,7 @@ def _build_node_by_expression_component() -> Any:
                 for value in value_nodes:
                     # evaluated at each value node, which is the focus node of the expression (it was evaluated once at
                     # the outer focus node: GitHub issue #95)
-                    shape_nodes = eval_expr(self.expr, value, target_graph, self.shape.sg, scope={})
+                    shape_nodes = eval_expr(self.expr, value, target_graph, self.shape.sg)
                     for shape_node in shape_nodes:
                         found_shape = self.shape.get_other_shape(shape_node)
                         if found_shape is None:

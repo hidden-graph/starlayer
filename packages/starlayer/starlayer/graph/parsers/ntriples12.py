@@ -16,10 +16,11 @@ from __future__ import annotations
 
 import re as _re
 
-from rdflib import BNode, Literal, URIRef
+from rdflib import Literal, URIRef
 
 from starlayer.graph.model.encoding import encode_dirlang_datatype
 from starlayer.graph.model.triple import TripleTerm
+from starlayer.graph.parsers.bnode_scope import labelled_bnode, per_document
 
 # ---------------------------------------------------------------------------
 # Low-level term consumer
@@ -199,7 +200,7 @@ def _token_to_node(token: str):
     if token.startswith('_:'):
         if not _BNODE_LABEL.fullmatch(token):
             raise ValueError(f"invalid blank node label: {token!r}")
-        return BNode(token[2:])
+        return labelled_bnode(token[2:])
 
     # Literal
     if token.startswith('"'):
@@ -334,6 +335,7 @@ def extract_version_directive(text: str) -> str | None:
 # Public entry points
 # ---------------------------------------------------------------------------
 
+@per_document
 def parse_ntriples12(text: str) -> list[tuple]:
     """Parse N-Triples 1.2 text; return list of (s, p, o) triples.
 
@@ -353,6 +355,7 @@ def parse_ntriples12(text: str) -> list[tuple]:
     return triples
 
 
+@per_document
 def parse_nquads12(text: str) -> list[tuple]:
     """Parse N-Quads 1.2 text; return list of (s, p, o, g) quads.
 

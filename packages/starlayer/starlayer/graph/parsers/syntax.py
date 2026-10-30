@@ -68,6 +68,11 @@ def coerce_object(s):
     return s
 
 
+# the characters _split_on_delimiter has to look at one by one (per delimiter); everything else is copied in a slice
+_DELIMITER_SPECIALS = {}
+_STRING_STOPS = {'"': re.compile(r'[\\"]'), "'": re.compile(r"[\\']")}
+
+
 def _split_on_delimiter(text, delim, keep_empty=False):
     """Split text on delim at bracket-depth 0, respecting strings.
 
@@ -91,8 +96,11 @@ def _split_on_delimiter(text, delim, keep_empty=False):
     comment in this project's fixtures to combine a triple-quoted
     serialization with an embedded, quoted short phrase.
     """
+    special = _DELIMITER_SPECIALS.get(delim)
+    if special is None:
+        special = _DELIMITER_SPECIALS[delim] = re.compile('[\\\\<"\'\\[\\](){}' + re.escape(delim) + ']')
     parts = []
-    buf = ''
+    buf = []  # pieces of the current part; runs of ordinary characters are taken in one slice, not one character at a time
     depth = 0
     in_str = False
     str_char = ''
@@ -100,43 +108,57 @@ def _split_on_delimiter(text, delim, keep_empty=False):
     i = 0
     n = len(text)
     while i < n:
-        ch = text[i]
         if in_str:
-            if ch == '\\' and i + 1 < n:
-                buf += text[i:i + 2]
-                i += 2
-                continue
-            if ch == str_char and (not triple or text[i:i + 3] == str_char * 3):
+            m = _STRING_STOPS[str_char].search(text, i)
+            if m is None:
+                buf.append(text[i:])
+                break
+            j = m.start()
+            if j > i:
+                buf.append(text[i:j])
+            ch = text[j]
+            if ch == '\\' and j + 1 < n:
+                buf.append(text[j:j + 2])
+                i = j + 2
+            elif ch == str_char and (not triple or text[j:j + 3] == str_char * 3):
                 width = 3 if triple else 1
-                buf += text[i:i + width]
-                i += width
+                buf.append(text[j:j + width])
+                i = j + width
                 in_str = False
-                continue
-            buf += ch
-            i += 1
+            else:
+                buf.append(ch)
+                i = j + 1
             continue
+        m = special.search(text, i)
+        if m is None:
+            buf.append(text[i:])
+            break
+        i = m.start()
+        if i > m.pos:
+            buf.append(text[m.pos:i])
+        ch = text[i]
         if ch == '\\' and i + 1 < n:
-            buf += text[i:i + 2]  # PN_LOCAL_ESC in a prefixed name: the next character is part of the name (GitHub issue #59)
+            buf.append(text[i:i + 2])  # PN_LOCAL_ESC in a prefixed name: the next character is part of the name (GitHub issue #59)
             i += 2
             continue
         if text[i:i + 2] == '<<':
-            buf += '<<'  # a reified triple: its own IRIs are read below
+            buf.append('<<')  # a reified triple: its own IRIs are read below
             i += 2
             continue
         if ch == '<':
             end = text.find('>', i)
             if end != -1:
-                buf += text[i:end + 1]  # an IRIREF may contain ',' and ';'
+                buf.append(text[i:end + 1])  # an IRIREF may contain ',' and ';'
                 i = end + 1
                 continue
         if ch in ('"', "'"):
             if text[i:i + 3] == ch * 3:
                 in_str, str_char, triple = True, ch, True
-                buf += ch * 3
+                buf.append(ch * 3)
                 i += 3
             else:
                 in_str, str_char, triple = True, ch, False
-                buf += ch
+                buf.append(ch)
                 i += 1
             continue
         if ch in '[({':
@@ -144,14 +166,16 @@ def _split_on_delimiter(text, delim, keep_empty=False):
         elif ch in '])}':
             depth -= 1
         if ch == delim and depth == 0:
-            if buf.strip() or keep_empty:
-                parts.append(buf.strip())
-            buf = ''
+            part = ''.join(buf).strip()
+            if part or keep_empty:
+                parts.append(part)
+            buf = []
         else:
-            buf += ch
+            buf.append(ch)
         i += 1
-    if buf.strip() or (keep_empty and parts):
-        parts.append(buf.strip())
+    last = ''.join(buf).strip()
+    if last or (keep_empty and parts):
+        parts.append(last)
     return parts
 
 
@@ -287,7 +311,8 @@ def _split_statements_impl(data, require_final_dot=False):
     while i < len(data):
         # A directive may start any statement, also one that follows another statement or directive on the same line
         # (`PREFIX a: <urn:a:> PREFIX b: <urn:b:> a:x b:p a:o .`, GitHub issue #73)
-        at_statement_start = not in_string and not buf.strip() and not data[i].isspace() and data[i] != '#'
+        # (`not buf or buf.isspace()` is `not buf.strip()` without copying the whole statement for every character)
+        at_statement_start = not in_string and (not buf or buf.isspace()) and not data[i].isspace() and data[i] != '#'
         if at_statement_start:
             # Directives (dotted @prefix/@base/@version, or bare SPARQL-style prefix/base/version) end at their own '.'
             # if they have one (see _scan_directive_end()). The `not in_string` guard matters: a line inside an open
