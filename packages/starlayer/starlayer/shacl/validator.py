@@ -1179,6 +1179,7 @@ class StarShaclSchema:
         # sh:targetWhere: the target set is every data-graph node that
         # conforms to the given (usually inline) shape.
         for shape_node, _, where_shape in shacl_graph.triples((None, SH.targetWhere, None)):
+            _require_where_shape(shape_node, where_shape)
             for node in self._nodes_conforming_to(data_graph, shacl_graph, shape_node, where_shape):
                 additions.append((shape_node, SH.targetNode, node))
 
@@ -2375,6 +2376,7 @@ def _augment_shapes_with_new_target_types(data_graph: Any, shacl_graph: Any) -> 
     # sh:targetWhere: the target set is every data-graph node that
     # conforms to the given (usually inline) shape.
     for shape_node, _, where_shape in shacl_graph.triples((None, SH.targetWhere, None)):
+        _require_where_shape(shape_node, where_shape)
         for node in _nodes_conforming_to(data_graph, shacl_graph, shape_node, where_shape):
             additions.append((shape_node, SH.targetNode, node))
 
@@ -2467,6 +2469,18 @@ def _ensure_native_component_shapes_typed(shacl_graph: Any) -> Any:
 _SHAPE_REFERENCING_PREDICATES = (SH.property, SH.node, SH["not"], SH.qualifiedValueShape, SH.someValue, SH.memberShape, SH.reifierShape, SH.prefixes)
 _SHAPE_LIST_PREDICATES = (SH["and"], SH["or"], SH.xone)
 _TARGET_PREDICATES = (SH.targetClass, SH.targetNode, SH.targetObjectsOf, SH.targetSubjectsOf, SH.targetWhere, SH.target)
+
+
+def _require_where_shape(shape_node: Any, where_shape: Any) -> None:
+    """Refuse a literal as the value of ``sh:targetWhere`` (its range is ``sh:Shape``): the nested validation would otherwise fail
+    deep in the graph layer with a bare ``ValueError`` (GitHub issue #172)."""
+    if isinstance(where_shape, Literal):
+        from pyshacl.errors import ShapeLoadError
+
+        raise ShapeLoadError(
+            f"{shape_node!r} has sh:targetWhere {where_shape!r}, a literal: the value must be a shape.",
+            "https://www.w3.org/TR/shacl12-core/#targetWhere",
+        )
 
 
 def _where_shape_validation_graph(shacl_graph: Any, where_shape: Any) -> Any:
