@@ -10,7 +10,7 @@ Per this project's own testing discipline (this package's own CLAUDE.md:
 "any new query/update shape needs an execution-comparison test, not just a
 structural one"), most tests compare rewritten-query results directly
 against owlrl.RDFS_Semantics run on the same data - owlrl is the oracle.
-Two known, deliberate divergences from raw owlrl output are documented and
+Known, deliberate divergences from raw owlrl output are documented and
 tested explicitly rather than papered over (see the module docstring in
 entailment_rdfs.py): this rewrite's subClassOf*/subPropertyOf* reflexivity
 is unconditional (a superset of owlrl's stricter "only if explicitly typed
@@ -201,11 +201,125 @@ class TestDeliberateExclusions:
         rows = _query(g, "SELECT ?x WHERE { ?x a rdfs:Resource }")
         assert list(rows) == []
 
-    def test_does_not_entail_rdf_property_typing_for_used_predicates(self):
+    def test_does_not_entail_the_rdf_axiomatic_property_triples(self):
+        # rdf:type is an rdf:Property by axiom; it is entailed only where the data uses it as a predicate (rdfD2)
         g = Graph()
         g.add((EX.alice, EX.knows, EX.bob))
         rows = _query(g, "SELECT ?x WHERE { ?x a rdf:Property }")
-        assert list(rows) == []
+        assert {str(r.x) for r in rows} == {str(EX.knows)}
+
+
+class TestPropertyTyping:
+    """A predicate is an rdf:Property (rdfD2), which RDFS entailment includes (GitHub issue #97)."""
+
+    def test_a_used_predicate_is_a_property(self):
+        g = Graph()
+        g.add((EX.alice, EX.knows, EX.bob))
+        assert {str(r.x) for r in _query(g, "SELECT ?x WHERE { ?x a rdf:Property }")} == {str(EX.knows)}
+
+    def test_a_super_property_is_a_property_though_never_used(self):
+        g = Graph()
+        g.add((EX.knows, RDFS.subPropertyOf, EX.relatesTo))
+        got = {str(r.x) for r in _query(g, "SELECT ?x WHERE { ?x a rdf:Property }")}
+        assert {str(EX.knows), str(EX.relatesTo)} <= got
+
+    def test_a_property_is_of_every_superclass_of_rdf_property(self):
+        g = Graph()
+        g.add((RDF.Property, RDFS.subClassOf, EX.Thing))
+        g.add((EX.alice, EX.knows, EX.bob))
+        assert str(EX.knows) in {str(r.x) for r in _query(g, "SELECT ?x WHERE { ?x a ex:Thing }")}
+
+    def test_a_term_never_used_as_a_property_is_not_one(self):
+        g = Graph()
+        g.add((EX.alice, EX.knows, EX.bob))
+        assert not _query(g, "ASK { ex:alice a rdf:Property }").askAnswer
+
+
+class TestVariablePredicate:
+    """``?p`` ranges over the entailed triples, as in the owlrl closure (GitHub issue #97)."""
+
+    def _graph(self):
+        g = Graph()
+        g.add((EX.q, RDFS.subPropertyOf, EX.p))
+        g.add((EX.a, EX.q, EX.b))
+        return g
+
+    def test_the_asserted_predicate_and_its_super_properties(self):
+        rows = _query(self._graph(), "SELECT ?p WHERE { ex:a ?p ex:b }")
+        assert {str(r.p) for r in rows} == {str(EX.q), str(EX.p)}
+
+    def test_a_filter_on_a_super_property_finds_the_subproperty_triple(self):
+        rows = _query(self._graph(), "SELECT ?x WHERE { ?x ?p ?y FILTER(?p = ex:p) }")
+        assert {str(r.x) for r in rows} == {str(EX.a)}
+
+    def test_an_entailed_type_binds_p_to_rdf_type(self):
+        g = Graph()
+        g.add((EX.C, RDFS.subClassOf, EX.D))
+        g.add((EX.x, RDF.type, EX.C))
+        rows = _query(g, "SELECT ?o WHERE { ex:x ?p ?o FILTER(?p = rdf:type) }")
+        assert {str(r.o) for r in rows} == {str(EX.C), str(EX.D)}
+
+    def test_a_literal_object_is_matched_without_the_type_branch(self):
+        g = self._graph()
+        g.add((EX.a, EX.q, __import__("rdflib").Literal("x")))
+        rows = _query(g, 'SELECT ?p WHERE { ex:a ?p "x" }')
+        assert {str(r.p) for r in rows} == {str(EX.q), str(EX.p)}
+
+    def test_p_shared_with_another_pattern_joins(self):
+        g = self._graph()
+        g.add((EX.p, EX.label, __import__("rdflib").Literal("P")))
+        rows = _query(g, "SELECT ?l WHERE { ex:a ?p ex:b . ?p ex:label ?l }")
+        assert [str(r.l) for r in rows] == ["P"]
+
+
+_GRAPHS = {
+    "sub-property with domain and range": [
+        (EX.q, RDFS.subPropertyOf, EX.p), (EX.p, RDFS.domain, EX.D), (EX.p, RDFS.range, EX.R),
+        (EX.D, RDFS.subClassOf, EX.E), (EX.a, EX.q, EX.b),
+    ],
+    "sub-property of rdf:type": [(EX.t, RDFS.subPropertyOf, RDF.type), (EX.a, EX.t, EX.D), (EX.D, RDFS.subClassOf, EX.E)],
+    "class chain": [(EX.C, RDFS.subClassOf, EX.D), (EX.D, RDFS.subClassOf, EX.E), (EX.x, RDF.type, EX.C), (EX.x, EX.r, EX.y)],
+    "property class chain": [(RDF.Property, RDFS.subClassOf, EX.Thing), (EX.a, EX.p, EX.b), (EX.p, RDFS.subPropertyOf, EX.top)],
+}
+_QUERIES = [
+    "SELECT ?x WHERE { ?x a rdf:Property }",
+    "SELECT ?x WHERE { ?x a ex:Thing }",
+    "SELECT ?x WHERE { ?x ?p ?y FILTER(?p = ex:p) }",
+    "SELECT ?x WHERE { ?x ?p ?y FILTER(?p = ex:top) }",
+    "SELECT ?p WHERE { ex:a ?p ex:b }",
+    "SELECT ?p WHERE { ex:a ?p ?o }",
+    "SELECT ?o WHERE { ex:a ?p ?o }",
+    "SELECT ?c WHERE { ex:a a ?c }",
+    "SELECT ?c WHERE { ex:x a ?c }",
+    "SELECT ?x WHERE { ?x a ex:D }",
+    "SELECT ?x WHERE { ?x a ex:R }",
+]
+# the rules the rewrite leaves out on purpose (module docstring): rdfs4a/4b (everything is an rdfs:Resource) and the axiomatic
+# triples about the RDF, RDFS and OWL vocabularies. They are dropped from the closure's answers before comparing.
+_VOCAB = ("http://www.w3.org/1999/02/22-rdf-syntax-ns#", "http://www.w3.org/2000/01/rdf-schema#", "http://www.w3.org/2002/07/owl#")
+
+
+def _answers(rows) -> set[tuple]:
+    return {tuple(str(v) for v in row) for row in rows if not any(str(v).startswith(_VOCAB) for v in row)}
+
+
+@owlrl_extra
+class TestAgreesWithTheOwlrlClosure:
+    """Query-time RDFS entailment gives the answers of an owlrl closure loaded into rdflib, for patterns with a variable
+    predicate and for rdf:Property typing (GitHub issue #97), apart from the vocabulary-level rules left out on purpose."""
+
+    @pytest.mark.parametrize("name", list(_GRAPHS))
+    @pytest.mark.parametrize("text", _QUERIES)
+    def test_same_answers(self, name, text):
+        triples = _GRAPHS[name]
+        plain = Graph()
+        for triple in triples:
+            plain.add(triple)
+        closure = _materialize(*triples)
+        init = {"ex": EX, "rdfs": RDFS, "rdf": RDF}
+        rewritten = _answers(_query(plain, text))
+        expected = _answers(closure.query(prepareQuery(text, initNs=init)))
+        assert rewritten == expected
 
 
 class TestMixedQuery:
