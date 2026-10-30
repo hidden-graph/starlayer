@@ -4,22 +4,20 @@ from __future__ import annotations
 
 from typing import Any
 
-from rdflib import BNode, Graph, Literal, URIRef
+from rdflib import BNode, Graph, Literal
 from rdflib.namespace import RDF, XSD
 
 from starlayer.shacl_engine.executor import Result
 from starlayer.shacl_engine.plan import SH
 
-_ORDER = {SH.Info: 1, SH.Warning: 2, SH.Violation: 3}
+_ORDER = {SH.Trace: 0, SH.Debug: 1, SH.Info: 2, SH.Warning: 3, SH.Violation: 4}
 
 
 def conforms(results: list[Result], conformance_disallows: Any = None) -> bool:
     """No result blocks conformance. ``conformance_disallows`` (SHACL 1.2): the lowest severity that blocks; ``None``
-    means any result blocks."""
-    if conformance_disallows is None:
-        return not results
-    floor = _ORDER.get(conformance_disallows, 1)
-    return not any(_ORDER.get(r.severity, 3) >= floor for r in results)
+    means Info and above block (Debug and Trace do not); an unknown severity blocks."""
+    floor = _ORDER[SH.Info] if conformance_disallows is None else _ORDER.get(conformance_disallows, _ORDER[SH.Info])
+    return not any(_ORDER.get(r.severity, _ORDER[SH.Violation]) >= floor for r in results)
 
 
 def _copy_closure(src: Any, dst: Graph, node: Any, seen: set) -> None:

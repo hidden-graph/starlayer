@@ -103,3 +103,21 @@ Node Expressions WD 28 Oct 2026, read verbatim to part of 4.2.5: no `sh:union`/`
 Appendix F, Inference Rules section numbers. The Inference Rules draft adds `sh:layer`, `sh:runOnce`,
 `sh:expectedPredicate`, rule sets, `sh:ruleProcessor`, `sh:tempTriple`, `sh:sourceRule` and rule templates; the engine
 must cover them.
+
+## Spike result (shacl_engine, 2026-10-30)
+New package `starlayer/shacl_engine/` (plan, builder, executor, report, paths, targets, four component modules; about
+1,560 lines) with no pyshacl and no rdflib object model in the core. Vendored W3C SHACL 1.2 `tests/core`: 137 of 138
+Validate entries pass; the one failure is `nodeByExpression-001` (node expressions, design step 5). 118 new unit tests
+pass. Built in about an hour with four parallel agents on separate files over a skeleton.
+
+Open points the build surfaced (decide before cut-over):
+- `ctx.conforms` treats a recursive re-entry as conforming; that is wrong under `sh:not`. Recursion semantics need a
+  decision (the draft's rules, or stratification).
+- `sh:class`, `sh:datatype`, `sh:nodeKind` accept an rdf:list as a union because two fixtures need it; confirm in the
+  Core text.
+- `shape_targets` adds a pseudo-target for `ex:x sh:shape ex:S` (fixture shape-001); consider moving it to the executor.
+- `sh:targetWhere` candidates are all subjects and objects of the data graph; triple-term components are not enumerated.
+- `sh:nodeKind` and triple terms: only `sh:TripleTerm` matches one; unverified against the text.
+- Subclass triples for class targets and `sh:rootClass` come from the data graph only.
+- `sh:detail` results for the list components are not emitted (the comparison ignores them).
+- `uniqueValuesFor`: a focus node with no value for any listed property is not compared (fixture 004).

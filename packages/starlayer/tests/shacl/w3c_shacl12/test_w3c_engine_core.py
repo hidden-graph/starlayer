@@ -13,7 +13,13 @@ from starlayer.shacl_engine import validate
 from .closure import node_closure
 from .comparison import conforms_of, find_report_node, result_multiset
 from .ids import portable_id
-from .manifest import ManifestEntry, clone_graph, iter_manifest_entries, load_document, uri_to_path
+from .manifest import (
+    ManifestEntry,
+    clone_graph,
+    iter_manifest_entries,
+    load_document,
+    uri_to_path,
+)
 from .namespaces import MF, SH, SHT
 from .test_w3c_validate import TOP_MANIFEST, VENDOR_ROOT
 
