@@ -1887,7 +1887,7 @@ see its own docstring, and the subgraph-extraction guide, for why.
 Adds RDF 1.2/triple-term adaptation around pySHACL, which understands
 neither triple terms nor SHACL 1.2's own predicates natively.
 
-**Source:** [starlayer.shacl.validator.StarShaclSchema](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L92-L2238)
+**Source:** [starlayer.shacl.validator.StarShaclSchema](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L90-L2236)
 
 ---
 
@@ -1916,7 +1916,7 @@ avoid repeating ``shacl_graph``/``ont_graph`` on every call.
 
 **Returns:** `RulesResult` - The ``RulesResult`` produced by the module-level :func:`apply_rules` call.
 
-**Source:** [starlayer.shacl.validator.StarShaclSchema.apply_rules](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L1747-L1799)
+**Source:** [starlayer.shacl.validator.StarShaclSchema.apply_rules](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L1745-L1797)
 
 ---
 
@@ -1937,7 +1937,7 @@ Builds a ``sh:ValidationReport`` graph from component ``events``.
 
 **Returns:** `Any`
 
-**Source:** [starlayer.shacl.validator.StarShaclSchema.build_report](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L457-L465)
+**Source:** [starlayer.shacl.validator.StarShaclSchema.build_report](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L455-L463)
 
 ---
 
@@ -1975,7 +1975,7 @@ bound ``shacl_graph`` itself.
 
 **Returns:** `Any` - A closed copy of the relevant ``shacl_graph`` (or module).
 
-**Source:** [starlayer.shacl.validator.StarShaclSchema.close_shape](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L2070-L2110)
+**Source:** [starlayer.shacl.validator.StarShaclSchema.close_shape](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L2068-L2108)
 
 ---
 
@@ -1990,7 +1990,7 @@ The bound default data graph (see :attr:`shacl_graph`).
 
 **Returns:** `Any | None`
 
-**Source:** [starlayer.shacl.validator.StarShaclSchema.data_graph](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L238-L240)
+**Source:** [starlayer.shacl.validator.StarShaclSchema.data_graph](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L236-L238)
 
 ---
 
@@ -2069,7 +2069,7 @@ own "data graph doubles as shapes graph" allowance.
 
 **Returns:** `Any` - A plain graph: the real, stored values of every property shape with a simple ``sh:path``, for its own target focus nodes, with any ``sh:values``/``sh:defaultValue``-computed values unioned in.
 
-**Source:** [starlayer.shacl.validator.StarShaclSchema.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L1801-L1996)
+**Source:** [starlayer.shacl.validator.StarShaclSchema.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L1799-L1994)
 
 ---
 
@@ -2092,7 +2092,7 @@ Evaluates one native ``ConstraintComponent`` directly against
 
 **Returns:** `Any`
 
-**Source:** [starlayer.shacl.validator.StarShaclSchema.evaluate_component](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L438-L455)
+**Source:** [starlayer.shacl.validator.StarShaclSchema.evaluate_component](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L436-L453)
 
 ---
 
@@ -2188,7 +2188,7 @@ for the default is injecting your own definition of a referenced shape, and a co
 
 **Returns:** `Any | None` - A standalone graph containing just that resource's module, or ``None`` if ``shapes_graph_iri`` isn't actually typed ``a sh:ShapesGraph`` in ``shacl_graph`` at all - not every graph bothers with this optional packaging metadata, and a typo'd IRI shouldn't silently return an empty-but-valid-looking graph.
 
-**Source:** [starlayer.shacl.validator.StarShaclSchema.extract_shapes_graph](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L2112-L2238)
+**Source:** [starlayer.shacl.validator.StarShaclSchema.extract_shapes_graph](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L2110-L2236)
 
 ---
 
@@ -2203,7 +2203,7 @@ The bound ontology graph (see :attr:`shacl_graph`).
 
 **Returns:** `Any | None`
 
-**Source:** [starlayer.shacl.validator.StarShaclSchema.ont_graph](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L229-L231)
+**Source:** [starlayer.shacl.validator.StarShaclSchema.ont_graph](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L227-L229)
 
 ---
 
@@ -2218,7 +2218,7 @@ The bound widget scoring catalog (see :attr:`shacl_graph`).
 
 **Returns:** `Any | None`
 
-**Source:** [starlayer.shacl.validator.StarShaclSchema.scoring_graph](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L247-L249)
+**Source:** [starlayer.shacl.validator.StarShaclSchema.scoring_graph](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L245-L247)
 
 ---
 
@@ -2252,7 +2252,7 @@ none of them is repeated per call. Each can be overridden per call.
 
 **Returns:** `dict[Any, Any]` - ``{property_shape: widget}``, with ``None`` for a property that has no widget (or ``{property_shape: WidgetChoice}`` for ``per="shape"``).
 
-**Source:** [starlayer.shacl.validator.StarShaclSchema.select_widgets](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L1998-L2068)
+**Source:** [starlayer.shacl.validator.StarShaclSchema.select_widgets](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L1996-L2066)
 
 ---
 
@@ -2268,7 +2268,7 @@ conversion of the current content of the graph passed in.
 
 **Returns:** `Any | None`
 
-**Source:** [starlayer.shacl.validator.StarShaclSchema.shacl_graph](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L219-L222)
+**Source:** [starlayer.shacl.validator.StarShaclSchema.shacl_graph](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L217-L220)
 
 ---
 
@@ -2297,7 +2297,7 @@ full entailment design.
 
 **Returns:** `tuple[Any, ...]` - The tuple of target nodes.
 
-**Source:** [starlayer.shacl.validator.StarShaclSchema.target_nodes](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L401-L436)
+**Source:** [starlayer.shacl.validator.StarShaclSchema.target_nodes](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L399-L434)
 
 ---
 
@@ -2329,7 +2329,7 @@ module applies around pySHACL.
 
 **Returns:** `ValidationResult` - A ``ValidationResult`` with ``conforms``, ``report_graph``, ``report_text``, ``data_graph`` (the mutated data graph when ``inplace`` is enabled in the resolved options, else ``None``), and ``diagnostics``.
 
-**Source:** [starlayer.shacl.validator.StarShaclSchema.validate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L467-L997)
+**Source:** [starlayer.shacl.validator.StarShaclSchema.validate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L465-L995)
 
 ---
 
@@ -2359,7 +2359,7 @@ class otherwise always goes through.
 
 **Returns:** `dict[int, ValidationResult]` - A dict mapping each data graph's index in ``data_graphs`` to its own :class:`ValidationResult` - this project's own richer result type, not pyshacl's bare ``dict[int, (conforms, report_graph, report_text)]`` tuple, the same "wrap the tuple" convention :meth:`validate` itself already follows.
 
-**Source:** [starlayer.shacl.validator.StarShaclSchema.validate_each](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L999-L1033)
+**Source:** [starlayer.shacl.validator.StarShaclSchema.validate_each](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L997-L1031)
 
 ---
 
@@ -4005,7 +4005,7 @@ run), whose conformance result is what's actually returned.
 
 **Returns:** `RulesResult` - A ``RulesResult`` with two fields: ``inferred_graph`` - strictly the triples rule execution itself produced (shape-attached and global rules, plus any ``sh:sourceRule`` provenance reifiers); neither the original base triples nor anything any entailment regime added are included, since entailment is purely a computational device here, never persisted. ``validation`` - the full ``ValidationResult`` from the final re-validation pass, whose ``conforms``/ ``report_graph``/``report_text`` reflect the complete evaluation graph (base ∪ rules ∪ entailment); its own ``data_graph`` field is always ``None`` in this context (the internal call uses the ``"validation"`` mode's own ``inplace=False`` default).
 
-**Source:** [starlayer.shacl.validator.apply_rules](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L4041-L4129)
+**Source:** [starlayer.shacl.validator.apply_rules](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L4039-L4127)
 
 ---
 
@@ -4141,7 +4141,7 @@ shapes graph.
 
 **Returns:** `Any` - A plain graph object (the same type as ``data_graph``) containing the shape-driven subgraph described above.
 
-**Source:** [starlayer.shacl.validator.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L3842-L3998)
+**Source:** [starlayer.shacl.validator.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L3840-L3996)
 
 ---
 
@@ -4339,7 +4339,7 @@ own, separate copy of this body for now rather than delegating here
 
 **Returns:** `ValidationResult` - A ``ValidationResult``: ``conforms`` (bool), ``report_graph``/ ``report_text`` (the validation report, decoded unless ``decode_report=False``), ``data_graph`` (the mutated original when the resolved options include ``inplace=True``, otherwise ``None``), and ``diagnostics`` (an ``ExecutionDiagnostics`` snapshot of adapter encode/decode activity for this call).
 
-**Source:** [starlayer.shacl.validator.validate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L3392-L3810)
+**Source:** [starlayer.shacl.validator.validate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L3390-L3808)
 
 ---
 
@@ -4365,6 +4365,6 @@ this body for now (see ``validate()``'s own docstring).
 
 **Returns:** `dict[int, ValidationResult]` - A ``dict`` mapping each item's index in ``data_graphs`` (via ``enumerate``) to its own ``ValidationResult``.
 
-**Source:** [starlayer.shacl.validator.validate_each](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L3813-L3839)
+**Source:** [starlayer.shacl.validator.validate_each](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L3811-L3837)
 
 ---
