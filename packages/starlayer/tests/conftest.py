@@ -69,6 +69,11 @@ OPT_IN_GROUPS = {
         "STARLAYER_DEFERRED",
         "also run the checks of committed data that CI runs anyway (code-KG tests that load codekg.trig, stored-file-matches-build tests; ~1 min)",
     ),
+    "srl_conformance": (
+        "--srl-conformance",
+        "STARLAYER_SRL_CONFORMANCE",
+        "also run the SRL (SPARQL Rules) completeness suite (tests/sparql/srl_conformance, ~10 min)",
+    ),
     "sqe_coverage": (
         "--sqe-coverage",
         "STARLAYER_SQE_COVERAGE",
@@ -102,11 +107,12 @@ def pytest_collection_modifyitems(config, items):
             area = parts[parts.index("tests") + 1 : parts.index("tests") + 2]
             if area and area[0] in AREAS:
                 item.add_marker(area[0])
-    # every test in the Manchester conformance directory belongs to that opt-in group, whether or not it
-    # carries the marker itself
+    # every test in a conformance suite's directory belongs to that opt-in group, whether or not it carries
+    # the marker itself
     for item in items:
-        if "manchester_conformance" in item.nodeid and not item.get_closest_marker("manchester_conformance"):
-            item.add_marker("manchester_conformance")
+        for suite in ("manchester_conformance", "srl_conformance"):
+            if suite in item.nodeid and not item.get_closest_marker(suite):
+                item.add_marker(suite)
     left_out = [marker for marker in OPT_IN_GROUPS if not _requested(config, marker)]
     if not left_out:
         return
