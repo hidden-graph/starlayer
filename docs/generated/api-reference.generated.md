@@ -1,6 +1,6 @@
 # StarLayer API Reference (generated)
 
-Generated directly from `packages/starlayer/starlayer/codekg/codekg.trig` - every PublicAccess entity's own full signature and docstring, nothing hand-curated. See [api-overview.generated.md](api-overview.generated.md) for the headline-only index this expands on.
+Generated directly from `tools/kg/codekg/codekg.trig` - every PublicAccess entity's own full signature and docstring, nothing hand-curated. See [api-overview.generated.md](api-overview.generated.md) for the headline-only index this expands on.
 
 ## `starlayer`
 
