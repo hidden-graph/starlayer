@@ -38,6 +38,7 @@ class Context:
     _negations: int = 0  # sh:not crossings on the current evaluation stack
     _depth: int = 0
     _focus_cache: dict = field(default_factory=dict)
+    cache: dict = field(default_factory=dict)  # per-run memo for components (keyed by the component's own tuple)
 
     @property
     def shapes(self) -> Any:
@@ -129,9 +130,14 @@ def validate_shape_at(ctx: Context, shape: Shape, focus: Term) -> list[Result]:
         ctx._depth -= 1
 
 
-def _validate_shape_at(ctx: Context, shape: Shape, focus: Term) -> list[Result]:
-    values = ctx.value_nodes(shape, focus)
-    out: list[Result] = []
+def _shape_components(ctx: Context, shape: Shape) -> list:
+    """The (component spec, present parameters, severity) triples that apply to ``shape``: independent of the focus node,
+    so computed once per shape per run."""
+    key = ("components", shape.node)
+    cached = ctx.cache.get(key)
+    if cached is not None:
+        return cached
+    out = []
     for spec in ctx.plan.components():
         present = {
             p: kept
@@ -144,6 +150,15 @@ def _validate_shape_at(ctx: Context, shape: Shape, focus: Term) -> list[Result]:
             (a["severity"] for p, vs in present.items() for v in vs if (a := shape.annotations.get((p, v))) and a["severity"]),
             shape.severity,
         )
+        out.append((spec, present, severity))
+    ctx.cache[key] = out
+    return out
+
+
+def _validate_shape_at(ctx: Context, shape: Shape, focus: Term) -> list[Result]:
+    values = ctx.value_nodes(shape, focus)
+    out: list[Result] = []
+    for spec, present, severity in _shape_components(ctx, shape):
         for v in spec.fn(ctx, shape, present, focus, tuple(values)) or ():
             out.append(
                 Result(

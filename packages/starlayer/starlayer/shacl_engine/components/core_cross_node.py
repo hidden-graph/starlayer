@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections import Counter
+
 from rdflib import RDF, URIRef
 
 from starlayer.shacl_engine.components.registry import Violation, component
@@ -39,8 +41,11 @@ def unique_values_for(ctx, shape, params, focus, values):
             sets = [frozenset(ctx.data.objects(node, p)) for p in props]
             return None if any(not s for s in sets) else tuple(sets)
 
+        # Group the shape's focus nodes by key once per (shape, parameter value); a node violates when its key is shared.
+        memo = ctx.cache.get(("uniqueValuesFor", shape.node, spec))
+        if memo is None:
+            memo = Counter(k for k in map(key, ctx.shape_focus(shape)) if k is not None)
+            ctx.cache[("uniqueValuesFor", shape.node, spec)] = memo
         mine = key(focus)
-        if mine is None:
-            continue
-        if any(other != focus and key(other) == mine for other in ctx.shape_focus(shape)):
+        if mine is not None and memo[mine] > 1:
             yield Violation(value=None)

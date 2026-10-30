@@ -167,6 +167,43 @@ class OxigraphGraph:
         return sum(1 for _ in self.triples((None, None, None)))
 
     # ---- SPARQL -------------------------------------------------------------------------------------------------
+    def sparql_query(self, text: str, init_bindings: dict[str, Any] | None = None) -> Any:
+        """The ``SparqlCapable`` hook (see ``interface.py``): SELECT/ASK with pre-bound variables, run natively.
+        Oxigraph requires a substituted variable to be projected; when it is not, the query is run through
+        StarLayer's query layer on a StarLayerGraph copy instead (slower, same answer)."""
+        from starlayer.shacl_engine.interface import Solutions
+
+        subs = {ox.Variable(str(k).lstrip("?$")): to_ox(v) for k, v in (init_bindings or {}).items()} or None
+        kwargs: dict[str, Any] = {"substitutions": subs}
+        if self._graph is None:
+            kwargs["use_default_graph_as_union"] = True
+        else:
+            kwargs["default_graph"] = self._graph
+        try:
+            result = self.store.query(text, **kwargs)
+        except RuntimeError:
+            from starlayer.shacl_engine.sparql_support import starlayer_sparql_query
+
+            return starlayer_sparql_query(self.to_starlayer_graph(), text, init_bindings)
+        if isinstance(result, ox.QueryBoolean):
+            return Solutions(boolean=bool(result))
+        names = tuple(v.value for v in result.variables)
+        rows = tuple({n: from_ox(sol[n]) for n in names if sol[n] is not None} for sol in result)
+        return Solutions(variables=names, rows=rows)
+
+    def to_starlayer_graph(self) -> Any:
+        """A StarLayerGraph copy of this view (cached until the store changes size)."""
+        cached = getattr(self, "_sl_copy", None)
+        if cached is not None and cached[0] == len(self):
+            return cached[1]
+        from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+
+        g = StarLayerGraph()
+        for s, p, o in self.triples((None, None, None)):
+            g.add((s, p, o))
+        self._sl_copy = (len(self), g)
+        return g
+
     def query(self, text: str, init_bindings: dict[str, Any] | None = None, *, base_iri: str | None = None) -> Any:
         """Run SPARQL natively. SELECT -> ``list[dict[str, term]]`` (unbound variables absent); ASK -> ``bool``;
         CONSTRUCT/DESCRIBE -> ``list[(s, p, o)]``. ``init_bindings`` maps variable names (with or without ``?``/``$``)
