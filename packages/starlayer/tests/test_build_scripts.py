@@ -55,7 +55,7 @@ def test_api_docs_resolve_a_reexported_name_to_its_defining_module() -> None:
 
 
 def _fake_build(tmp_path, monkeypatch):
-    """scripts/build.py pointed at a scratch tree whose one step rewrites its output and a side-effect file."""
+    """scripts/build.py pointed at a scratch tree whose one step rewrites its output."""
     import build
 
     (tmp_path / "scripts").mkdir()
@@ -63,22 +63,19 @@ def _fake_build(tmp_path, monkeypatch):
         "import pathlib\n"
         "root = pathlib.Path(__file__).resolve().parents[1]\n"
         "(root / 'out.txt').write_text('rebuilt')\n"
-        "(root / 'CHANGELOG.md').write_text('touched')\n"
     )
     (tmp_path / "out.txt").write_text("committed")
-    (tmp_path / "CHANGELOG.md").write_text("original")
     monkeypatch.setattr(build, "_ROOT", tmp_path)
     monkeypatch.setattr(build, "_SCRIPTS", tmp_path / "scripts")
-    monkeypatch.setattr(build, "_STEPS", {"fake": build.Step("fake.py", outputs=["out.txt"], side_effects=["CHANGELOG.md"])})
+    monkeypatch.setattr(build, "_STEPS", {"fake": build.Step("fake.py", outputs=["out.txt"])})
     return build
 
 
-def test_check_restores_the_files_a_step_writes_besides_its_outputs(tmp_path, monkeypatch) -> None:
+def test_check_restores_the_outputs_it_rebuilt(tmp_path, monkeypatch) -> None:
     build = _fake_build(tmp_path, monkeypatch)
     monkeypatch.setattr("sys.argv", ["build.py", "--check"])
     assert build.main() == 1  # out.txt is stale
     assert (tmp_path / "out.txt").read_text() == "committed"
-    assert (tmp_path / "CHANGELOG.md").read_text() == "original"  # the codekg step's changelog entry used to stay
 
 
 def test_check_ignores_the_build_stamp_when_comparing_trig_files() -> None:

@@ -1,0 +1,54 @@
+[
+ {
+  "block": 4,
+  "text": "RULE { ?x :dependsOn ?y } WHERE { ?x :callsService ?y }\nRULE { ?x :dependsOn ?y } WHERE { ?x :queriesDatabase ?y }"
+ },
+ {
+  "block": 7,
+  "text": "RULE { ?x :dependsOn ?y } WHERE { ?x :callsService ?y }\nRULE { ?x :dependsOn ?y } WHERE { ?x :queriesDatabase ?y }\nRULE { ?x :exposedTo ?v } WHERE { ?x :dependsOn ?y . ?y :hasVulnerability ?v }"
+ },
+ {
+  "block": 10,
+  "text": "RULE { ?x :dependsOn ?y } WHERE { ?x :callsService ?y }\nRULE { ?x :dependsOn ?y } WHERE { ?x :queriesDatabase ?y }\nRULE { ?x :exposedTo ?v } WHERE { ?x :hasVulnerability ?v }\nRULE { ?x :exposedTo ?v } WHERE { ?x :dependsOn ?y . ?y :exposedTo ?v }"
+ },
+ {
+  "block": 13,
+  "text": "RULE { ?x :status :criticallyExposed }\nWHERE {\n    ?x :exposedTo ?v .\n    ?v :severity ?s .\n    FILTER(?s >= 9.0)\n}"
+ },
+ {
+  "block": 16,
+  "text": "RULE { ?x :status :safeToDeploy }\nWHERE {\n    ?x rdf:type :Component .\n    NOT { ?x :status :criticallyExposed }\n}"
+ },
+ {
+  "block": 18,
+  "text": "RULE { ?v :riskScore ?r }\nWHERE {\n    ?v :severity ?s .\n    ?v :exploitLikelihood ?p .\n    SET ( ?r := ?s * ?p )\n}"
+ },
+ {
+  "block": 19,
+  "text": "RULE { [] rdf:type :Notification ; :concerns ?x }\nWHERE { ?x :status :criticallyExposed }"
+ },
+ {
+  "block": 20,
+  "text": "DATA {\n    # Versions 2.0.0 and earlier suffer a known vulnerability\n    # and are assumed critically exposed.\n    :appV2 rdf:type :Component ;\n           :version \"2.0.0\" ;\n           :status :criticallyExposed .\n}"
+ },
+ {
+  "block": 22,
+  "text": "RULE  { ?x :distanceKilometers ?kilometers }\nWHERE {\n    ?x :distanceMiles ?miles .\n    NOT DATA { ?x :distanceKilometers ?km }\n    SET ( ?kilometers := xsd:integer(?miles *  1.60934))\n}"
+ },
+ {
+  "block": 24,
+  "text": "RULE  { ?x :distanceKilometers ?kilometers }\nWHERE DATA {\n    ?x :distanceMiles ?miles .\n    NOT { ?x :distanceKilometers ?km }\n    SET ( ?kilometers := xsd:integer(?miles *  1.60934))\n}"
+ },
+ {
+  "block": 25,
+  "text": "RULE { ?x :exposedTo ?v } WHERE { ?x :dependsOn ?y . ?y :hasVulnerability ?v }\nRULE { ?x :dependsOn ?y } WHERE { ?x :callsService ?y }"
+ },
+ {
+  "block": 26,
+  "text": "RULE { ?x :status :safeToDeploy }\nWHERE { ?x rdf:type :Component . NOT { ?x :status :criticallyExposed } }\n\nRULE { ?x :status :criticallyExposed } WHERE { ?x :exposedTo ?v }"
+ },
+ {
+  "block": 39,
+  "text": "# R1\nRULE { ?x :exposedTo ?v } WHERE { ?x :hasVulnerability ?v }\n\n# R2\nRULE { ?x :exposedTo ?v } WHERE { ?x :dependsOn ?y . ?y :exposedTo ?v }\n\n# R3\nRULE { ?x :status :criticallyExposed }\nWHERE { ?x :exposedTo ?v . ?v :severity ?s . FILTER(?s >= 9.0) }\n\n# R4\nRULE { ?x :status :safeToDeploy }\nWHERE { ?x rdf:type :Component . NOT { ?x :status :criticallyExposed } }\n\n# R5\nRULE { [] rdf:type :Notification ; :concerns ?x }\nWHERE { ?x :status :criticallyExposed }"
+ }
+]

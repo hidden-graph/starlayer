@@ -64,12 +64,12 @@ class TestOrderGroups:
         assert (EX.n, EX.q, EX.x) in result.inferred_graph
 
     def test_both_rules_are_credited_with_a_triple_they_inferred_in_the_same_iteration(self) -> None:
-        shapes = f"""
+        shapes = """
             ex:S a sh:NodeShape ; sh:targetNode ex:n ; sh:rule ex:A, ex:B .
             ex:A a sh:SPARQLRule ; sh:runOnce true ;
-              sh:construct "PREFIX ex: <http://example.org/> CONSTRUCT {{ $this ex:p ex:x . }} WHERE {{ }}" .
+              sh:construct "PREFIX ex: <http://example.org/> CONSTRUCT { $this ex:p ex:x . } WHERE { }" .
             ex:B a sh:SPARQLRule ; sh:runOnce true ;
-              sh:construct "PREFIX ex: <http://example.org/> CONSTRUCT {{ $this ex:p ex:x . }} WHERE {{ }}" .
+              sh:construct "PREFIX ex: <http://example.org/> CONSTRUCT { $this ex:p ex:x . } WHERE { }" .
         """
         result = _apply(shapes, include_source_rule_provenance=True)
 
