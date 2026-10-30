@@ -52,6 +52,8 @@ def build_report(results: list[Result], shapes: Any, data: Any, conformance_disa
             _copy_closure(data, g, r.value, seen)
         g.add((node, SH.sourceConstraintComponent, r.component))
         g.add((node, SH.sourceShape, r.shape))
+        if r.source_constraint is not None:
+            g.add((node, SH.sourceConstraint, r.source_constraint))
         g.add((node, SH.resultSeverity, r.severity))
         for m in r.messages:
             g.add((node, SH.resultMessage, m if not isinstance(m, str) else Literal(m)))

@@ -27,6 +27,9 @@ class Violation:
     path: Any = None  # a Path overriding the shape's own (used e.g. by closed, which reports the offending predicate)
     component: URIRef | None = None  # override when one function serves several components
     value_set: bool = True  # False: report no sh:value even if value is None-like
+    source_constraint: Term = None  # sh:sourceConstraint (SPARQL-based constraints: the sh:sparql node)
+    severity: Term = None  # overrides the shape's severity for this result (sh:severity on a sh:sparql node)
+    messages: tuple[Any, ...] = ()  # RDF literals; take precedence over the shape's sh:message
 
 
 @dataclass(frozen=True)
@@ -34,6 +37,8 @@ class ComponentSpec:
     iri: URIRef
     predicates: tuple[URIRef, ...]
     fn: Callable[..., Iterable[Violation]]
+    required: tuple[URIRef, ...] = ()  # when set, the component applies only if the shape has all of these (SPARQL-based
+    # components: the non-optional parameters)
 
 
 REGISTRY: dict[URIRef, ComponentSpec] = {}
@@ -45,6 +50,11 @@ def component(iri: URIRef, *predicates: URIRef):
         return fn
 
     return deco
+
+
+def static_specs() -> list[ComponentSpec]:
+    """The built-in components. A plan adds the SPARQL-based ones declared in its shapes graph (``Plan.components``)."""
+    return list(REGISTRY.values())
 
 
 def all_param_predicates() -> set[URIRef]:

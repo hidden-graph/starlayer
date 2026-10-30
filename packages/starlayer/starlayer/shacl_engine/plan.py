@@ -44,6 +44,7 @@ class Shape:
     severity: Term
     deactivated: bool
     messages: tuple[Term, ...]
+    values: tuple[Term, ...] = ()  # sh:values node expressions (extra value nodes of a property shape)
     # (parameter predicate, value) -> {'deactivated': bool, 'severity': Term|None}, read from RDF 1.2 reifiers of the
     # shape's own triples (`sh:datatype xsd:boolean {| sh:deactivated true |}`); sh:property uses the same key shape.
     annotations: dict[tuple[Term, Term], dict[str, Any]] = field(default_factory=dict)
@@ -53,12 +54,26 @@ class Shape:
 class Plan:
     shapes_graph: Any
     _cache: dict[Term, Shape] = field(default_factory=dict)
+    _components: list | None = None
+    sparql_cache: dict = field(default_factory=dict)  # prefix declarations and checked queries, keyed by their inputs
+
+    def components(self) -> list:
+        """Built-in components plus the SPARQL-based constraint components declared in the shapes graph (built once)."""
+        if self._components is None:
+            from starlayer.shacl_engine.components.registry import static_specs
+            from starlayer.shacl_engine.components.sparql_components import (
+                declared_components,
+            )
+
+            self._components = static_specs() + declared_components(self)
+        return self._components
 
     def shape(self, node: Term) -> Shape:
         if node not in self._cache:
             from starlayer.shacl_engine.builder import build_shape
 
-            self._cache[node] = build_shape(self.shapes_graph, node)
+            extra = {p for spec in self.components() for p in spec.predicates}
+            self._cache[node] = build_shape(self.shapes_graph, node, extra)
         return self._cache[node]
 
     def all_shape_nodes(self) -> list[Term]:

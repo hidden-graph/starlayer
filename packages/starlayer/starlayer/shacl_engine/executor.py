@@ -5,7 +5,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from starlayer.shacl_engine.components import registry
 from starlayer.shacl_engine.paths import eval_path
 from starlayer.shacl_engine.plan import SH, Path, Plan, Shape, Term
 from starlayer.shacl_engine.targets import focus_nodes
@@ -21,6 +20,7 @@ class Result:
     shape: Term
     severity: Term
     messages: tuple[Any, ...] = ()
+    source_constraint: Term = None
 
 
 @dataclass
@@ -54,11 +54,27 @@ class Context:
     def shape_focus(self, shape: Shape) -> list[Term]:
         """The shape's focus nodes, cached (cross-node components such as sh:uniqueValuesFor need the whole set)."""
         if shape.node not in self._focus_cache:
-            self._focus_cache[shape.node] = focus_nodes(self.data, self.plan.shapes_graph, shape.targets, self.conforms)
+            self._focus_cache[shape.node] = focus_nodes(
+                self.data, self.plan.shapes_graph, shape.targets, self.conforms, self.target_expression
+            )
         return self._focus_cache[shape.node]
 
     def value_nodes(self, shape: Shape, focus: Term) -> list[Term]:
-        return eval_path(self.data, shape.path, focus) if shape.path is not None else [focus]
+        if shape.path is None:
+            return [focus]
+        nodes = eval_path(self.data, shape.path, focus)
+        if shape.values:
+            from starlayer.shacl_engine.sparql_support import eval_node_expression
+
+            extra = [n for expr in shape.values for n in eval_node_expression(self, expr, focus)]
+            nodes = list(dict.fromkeys([*nodes, *extra]))
+        return nodes
+
+    def target_expression(self, expr: Term) -> list[Term]:
+        """Focus nodes of a node-expression target (``sh:targetNode [ sh:select ... ]``): evaluated without a focus."""
+        from starlayer.shacl_engine.sparql_support import eval_node_expression
+
+        return eval_node_expression(self, expr, None)
 
 
 def _deactivated(shape: Shape, pred: Term, value: Term) -> bool:
@@ -71,13 +87,13 @@ def validate_shape_at(ctx: Context, shape: Shape, focus: Term) -> list[Result]:
         return []
     values = ctx.value_nodes(shape, focus)
     out: list[Result] = []
-    for spec in registry.REGISTRY.values():
+    for spec in ctx.plan.components():
         present = {
             p: kept
             for p in spec.predicates
             if p in shape.params and (kept := tuple(v for v in shape.params[p] if not _deactivated(shape, p, v)))
         }
-        if not present:
+        if not present or not all(r in present for r in spec.required):
             continue
         severity = next(
             (a["severity"] for p, vs in present.items() for v in vs if (a := shape.annotations.get((p, v))) and a["severity"]),
@@ -92,8 +108,9 @@ def validate_shape_at(ctx: Context, shape: Shape, focus: Term) -> list[Result]:
                     has_value=v.value is not None,
                     component=v.component or spec.iri,
                     shape=shape.node,
-                    severity=severity,
-                    messages=shape.messages or ((v.message,) if v.message else ()),
+                    severity=v.severity or severity,
+                    messages=v.messages or shape.messages or ((v.message,) if v.message else ()),
+                    source_constraint=v.source_constraint,
                 )
             )
     for ps in shape.property_shapes:

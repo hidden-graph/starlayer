@@ -36,13 +36,13 @@ def _annotations(graph: Any, node: Term, params: dict, property_shapes: tuple) -
     return out
 
 
-def build_shape(graph: Any, node: Term) -> Shape:
+def build_shape(graph: Any, node: Term, extra_predicates: Any = ()) -> Shape:
     path_values = list(graph.objects(node, SH.path))
     if len(path_values) > 1:
         raise ShapeError(f"{node}: more than one sh:path")
     path = build_path(graph, path_values[0]) if path_values else None
     params: dict[URIRef, tuple[Term, ...]] = {}
-    for pred in all_param_predicates():
+    for pred in set(all_param_predicates()) | set(extra_predicates):
         values = tuple(graph.objects(node, pred))
         if values:
             params[pred] = values
@@ -59,5 +59,6 @@ def build_shape(graph: Any, node: Term) -> Shape:
         severity=severities[0] if severities else SH.Violation,
         deactivated=any(str(v) in ("true", "1") for v in deact),
         messages=tuple(graph.objects(node, SH.message)),
+        values=tuple(graph.objects(node, SH["values"])),
         annotations=_annotations(graph, node, params, tuple(graph.objects(node, SH.property))),
     )

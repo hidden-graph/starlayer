@@ -121,3 +121,28 @@ Open points the build surfaced (decide before cut-over):
 - Subclass triples for class targets and `sh:rootClass` come from the data graph only.
 - `sh:detail` results for the list components are not emitted (the comparison ignores them).
 - `uniqueValuesFor`: a focus node with no value for any listed property is not compared (fixture 004).
+
+## Round 2 (2026-10-30): SHACL-SPARQL through starlayer query, and a native Oxigraph view
+- `sparql_support.py`, `components/sparql_constraints.py`, `components/sparql_components.py`: `sh:sparql`, SPARQL-based
+  constraint components (ASK and SELECT validators, optional parameters), pre-binding, prefixes, message templates,
+  `sh:select` / `sh:sparqlExpr` expressions. All queries run through starlayer's own query layer
+  (`prepareQuery` + `graph.query(..., initBindings=...)`). W3C `tests/sparql`: 22 of 23 entries pass.
+- Not implemented: `sh:SPARQLTarget`, `sh:SPARQLTargetType`, `$currentShape`, `$shapesGraph`. The agent reports that
+  Appendix F of the current SPARQL draft says they were removed in 1.2 in favour of node-expression targets; verify
+  against Appendix F, then add to the #185 list if confirmed. `sh:labelTemplate` is unused (no fixture). `VALUES` is
+  rejected wholesale because fixture unsupported-sparql-002 expects it, though the spec text forbids only `VALUES`
+  that mention a pre-bound variable.
+- **Query-layer bug found:** `FILTER(false)` in a group is dropped, so `SELECT * { ?s ?p ?o FILTER(false) }` returns
+  rows (plain rdflib does the same). Fails W3C pre-binding-002 and breaks any ASK validator written as
+  `ASK { FILTER(false) }`. Fix belongs in `starlayer/graph/query/algebra_translator_patches.py`. Not yet filed.
+- `oxigraph_view.py`: `OxigraphGraph` is a native GraphView over a `pyoxigraph.Store`; term conversion both ways
+  including triple terms and base-direction literals; native `query()` with pyoxigraph substitutions. Contract tests run
+  on StarLayerGraph and OxigraphGraph. W3C core over Oxigraph: 132 of 138, with 5 strict xfails for literal
+  normalization (oxigraph#526: `"4.0"^^xsd:decimal` stored as `"4"`, `"300"^^xsd:byte` re-typed, `"none"^^xsd:boolean`
+  rewritten, `"1"^^xsd:boolean` -> true, which wrongly activates `sh:uniqueLang`) plus the shared nodeByExpression-001.
+  The literal issue is parked by decision. Timing is equal on the core suite (parse dominates); no large-data benchmark yet.
+- Oxigraph conversion edge cases: patterns with a literal subject or non-IRI predicate raise `TypeError` in pyoxigraph
+  (the view returns empty, as rdflib does); `"x"` and `"x"^^xsd:string` are one term; blank-node ids must be valid
+  Oxigraph ids; a substituted variable must be projected.
+- Totals: shacl_engine about 2,300 lines; 472 passed, 6 xfailed, 2 failed (nodeByExpression-001: step 5;
+  pre-binding-002: the FILTER(false) bug).
