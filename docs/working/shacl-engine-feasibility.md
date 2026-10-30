@@ -41,7 +41,22 @@ work, build the engine, add Oxigraph as a second implementation of the interface
 - Line-by-line split of validator.py and native_components.py into pyshacl glue and our logic.
 - rudof SHACL Core spike (needs a Rust toolchain).
 
+## Parked
+The literal-normalization issue (Oxigraph rewrites lexical forms on storage) is parked by decision; revisit when the graph interface is designed.
+
 ## Implication for the interface
 Two requirements from the findings: the interface must expose original lexical forms and ill-formed literals, and it
 must not assume a store can supply them. A store that normalizes literals can only be a source for data whose lexical
 form does not matter, or must be paired with a side table of original forms.
+
+## validator.py is a pipeline around pyshacl, not an engine (6,110 lines)
+Flow: normalize graphs, entailment, new target types, node expressions, native component registration, encode triple
+terms to RDF 1.1, call `pyshacl.validate` through `_default_validate`, decode the report. `StarShaclSchema.validate` and
+module-level `validate` are two parallel copies of the same body (the "two-step flip" note), and likewise `evaluate`,
+`apply_rules` and target augmentation, so the unique logic is well under the line count.
+Rough split by function name (heuristic, 5,730 of 6,110 lines): rules/evaluate 1,228; validate pipeline 1,068;
+other 769; patches to pyshacl 679; native fast paths 642; report text/provenance 521; target augmentation 432;
+UI/extraction 198; conformance helpers 193.
+The Core evaluation loop (shape, focus and value nodes, 28 core components, paths, SPARQL constraints) lives in
+pyshacl and is what a fresh engine writes. native_components.py (3,416 lines) holds our 1.2 components, which
+survive with a different base class.
