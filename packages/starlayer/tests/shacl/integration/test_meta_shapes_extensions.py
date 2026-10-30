@@ -22,6 +22,7 @@ from build_meta_shapes import (
     build_meta_shapes_graph,
     load_wg_shapes,
 )
+from pyshacl.errors import ReportableRuntimeError
 from rdflib import Graph, Literal, Namespace, URIRef
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl.meta_shapes import (
@@ -1851,7 +1852,7 @@ def test_malformed_rule_settings_target_where_and_code_hints_are_caught(ttl) -> 
 
 
 def test_a_target_where_shape_that_is_not_well_formed_is_refused() -> None:
-    with pytest.raises(Exception):  # (the engine reports the bad sh:minCount itself, or the meta-shapes do)
+    with pytest.raises(ReportableRuntimeError):  # (the engine reports the bad sh:minCount itself, or the meta-shapes do)
         _validate(_TRIVIAL_DATA, _PREFIXES + "ex:S a sh:NodeShape ; sh:targetWhere [ sh:path ex:p ; sh:minCount 'x' ] .")
 
 
@@ -1972,9 +1973,9 @@ def _path_shapes(body: str) -> str:
 
 
 @pytest.mark.parametrize("body", [
-    'ex:S a sh:NodeShape ; sh:property [ sh:path ex:p ; sh:sparql [ sh:select """%s""" ; sh:message "m" ] ] .' % _PATH_QUERY,  # a property shape has a path
+    'ex:S a sh:NodeShape ; sh:property [ sh:path ex:p ; sh:sparql [ sh:select """' + _PATH_QUERY + '""" ; sh:message "m" ] ] .',  # a property shape has a path
     'ex:S a sh:NodeShape ; sh:sparql [ sh:select """SELECT $this WHERE { $this <http://example.org/p> ?v }""" ; sh:message "m" ] .',  # a node shape, a query that names its property
-    'ex:C a sh:ConstraintComponent ; sh:parameter [ sh:path ex:q ] ; sh:propertyValidator [ a sh:SPARQLSelectValidator ; sh:select """%s""" ] .' % _PATH_QUERY,
+    'ex:C a sh:ConstraintComponent ; sh:parameter [ sh:path ex:q ] ; sh:propertyValidator [ a sh:SPARQLSelectValidator ; sh:select """' + _PATH_QUERY + '""" ] .',
     'ex:C a sh:ConstraintComponent ; sh:parameter [ sh:path ex:q ] ; sh:validator [ a sh:SPARQLAskValidator ; sh:ask """ASK { $this $PATH $value }""" ] .',  # sh:validator serves both kinds of shape
     'ex:C a sh:ConstraintComponent ; sh:parameter [ sh:path ex:q ] ; sh:nodeValidator [ a sh:SPARQLSelectValidator ; sh:select """SELECT $this WHERE { $this <http://example.org/PATHS> ?v }""" ] .',  # a name that only starts with PATH
 ])
@@ -1983,9 +1984,9 @@ def test_path_may_be_used_where_a_path_is_known(body) -> None:
 
 
 @pytest.mark.parametrize("body", [
-    'ex:S a sh:NodeShape ; sh:sparql [ sh:select """%s""" ; sh:message "m" ] .' % _PATH_QUERY,
+    'ex:S a sh:NodeShape ; sh:sparql [ sh:select """' + _PATH_QUERY + '""" ; sh:message "m" ] .',
     'ex:S a sh:NodeShape ; sh:sparql [ sh:select """SELECT $this WHERE { $this ?PATH ?v }""" ; sh:message "m" ] .',
-    'ex:C a sh:ConstraintComponent ; sh:parameter [ sh:path ex:q ] ; sh:nodeValidator [ a sh:SPARQLSelectValidator ; sh:select """%s""" ] .' % _PATH_QUERY,
+    'ex:C a sh:ConstraintComponent ; sh:parameter [ sh:path ex:q ] ; sh:nodeValidator [ a sh:SPARQLSelectValidator ; sh:select """' + _PATH_QUERY + '""" ] .',
 ])
 def test_path_is_not_allowed_in_a_query_of_a_node_shape(body) -> None:
     with pytest.raises(Exception) as exc_info:
@@ -2103,7 +2104,7 @@ def test_a_source_rule_that_is_not_an_iri_is_a_warning_not_an_error() -> None:
     sh = Namespace("http://www.w3.org/ns/shacl#")
     assert len(list(report.subjects(RDF.type, sh.ValidationResult))) == 1
     assert (None, sh.resultSeverity, sh.Warning) in report
-    with pytest.raises(Exception):
+    with pytest.raises(ReportableRuntimeError):
         meta_validate(shapes, allow_warnings=False)
 
 
