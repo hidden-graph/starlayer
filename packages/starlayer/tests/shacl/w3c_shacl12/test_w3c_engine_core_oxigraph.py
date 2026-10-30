@@ -28,8 +28,6 @@ KNOWN_FAILURES: dict[str, str] = {
     "tests/core/property/datatype-ill-formed::datatype-ill-formed": '"300"^^xsd:byte (out of range) is rewritten to "300"^^xsd:integer',
     "tests/core/property/or-datatypes-001::or-datatypes-001": '"none"^^xsd:boolean (ill-formed) is rewritten to "false"',
     "tests/core/property/uniqueLang-002::uniqueLang-002": '"1"^^xsd:boolean becomes "true", so sh:uniqueLang is wrongly activated',
-    # Not Oxigraph: the same entry fails with rdflib/StarLayerGraph in test_w3c_engine_core.py (engine to-do).
-    "tests/core/node/nodeByExpression-001::nodeByExpression-001": "engine failure shared with the rdflib path",
 }
 
 

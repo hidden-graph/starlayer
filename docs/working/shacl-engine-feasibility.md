@@ -146,3 +146,20 @@ Open points the build surfaced (decide before cut-over):
   Oxigraph ids; a substituted variable must be projected.
 - Totals: shacl_engine about 2,300 lines; 472 passed, 6 xfailed, 2 failed (nodeByExpression-001: step 5;
   pre-binding-002: the FILTER(false) bug).
+
+## Round 3 (2026-10-30): node expressions and inference rules
+- `expressions.py` (operator table keyed by IRI), `components/expression_components.py`: all `shnex:` operators and the
+  `sparql:` function set in the draft's list; `sh:expression`, `sh:nodeByExpression`, `sh:values`, `sh:defaultValue`.
+  W3C `tests/node-expr`: 144 of 145; the failure is `shnex-sparql/seconds::seconds-example`, a fixture defect (expects
+  `"00"^^xsd:decimal`, SECONDS() yields `"0.0"`), already documented for the old engine. Legacy `sh:union`/`sh:minus`/
+  `sh:filterShape`/`sh:path` expressions are rejected with `ShapeError` (issue #185 policy). Not implemented: custom
+  expression functions (`sh:NamedParameterExpressionFunction`, `shnex:arg`), "dynamic SHACL" parameters, `sh:values`
+  chaining across shapes. The agent read the spec through a summarizer and did not see the `sh:values`/`sh:defaultValue`
+  text, so that behaviour follows `validator.py`; re-check against the draft.
+- `rules.py`: `apply_rules`, `InferredView` overlay (never writes to the caller's graph), SPARQLRule, TripleRule,
+  rule templates, conditions, order, layers, runOnce, expectedPredicate, rule sets, tempTriple. W3C `tests/sparql/rules`:
+  16 of 16. `validate(..., rules=None|True|False)` runs rules when the shapes graph declares `sh:entailment`.
+  Not covered: `tests/rules/` (SRL text syntax, a non-goal); `sh:ruleProcessor` fails; `sh:sourceRule` unimplemented;
+  overlay SPARQL materialises a StarLayerGraph (native overlay query is a follow-up).
+- Totals: shacl_engine about 3,500 lines. Engine suites together: 668 passed, 5 xfailed (Oxigraph literal
+  normalization, parked), 2 failed (pre-binding-002: issue #186; seconds-example: fixture defect).

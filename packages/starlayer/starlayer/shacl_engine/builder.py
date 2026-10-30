@@ -60,5 +60,6 @@ def build_shape(graph: Any, node: Term, extra_predicates: Any = ()) -> Shape:
         deactivated=any(str(v) in ("true", "1") for v in deact),
         messages=tuple(graph.objects(node, SH.message)),
         values=tuple(graph.objects(node, SH["values"])),
+        default_values=tuple(graph.objects(node, SH.defaultValue)),
         annotations=_annotations(graph, node, params, tuple(graph.objects(node, SH.property))),
     )

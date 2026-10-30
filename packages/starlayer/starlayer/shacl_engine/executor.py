@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from starlayer.shacl_engine.expressions import EvaluationFailure, evaluate_expression
 from starlayer.shacl_engine.paths import eval_path
 from starlayer.shacl_engine.plan import SH, Path, Plan, Shape, Term
 from starlayer.shacl_engine.targets import focus_nodes
@@ -60,21 +61,29 @@ class Context:
         return self._focus_cache[shape.node]
 
     def value_nodes(self, shape: Shape, focus: Term) -> list[Term]:
+        """Path values, plus ``sh:values`` outputs, plus (only if that is still empty) ``sh:defaultValue`` outputs. An
+        expression that fails on this focus node contributes no values."""
         if shape.path is None:
             return [focus]
         nodes = eval_path(self.data, shape.path, focus)
         if shape.values:
-            from starlayer.shacl_engine.sparql_support import eval_node_expression
-
-            extra = [n for expr in shape.values for n in eval_node_expression(self, expr, focus)]
-            nodes = list(dict.fromkeys([*nodes, *extra]))
+            nodes = list(dict.fromkeys([*nodes, *self._expression_values(shape.values, focus)]))
+        if not nodes and shape.default_values:
+            nodes = list(dict.fromkeys(self._expression_values(shape.default_values, focus)))
         return nodes
 
-    def target_expression(self, expr: Term) -> list[Term]:
-        """Focus nodes of a node-expression target (``sh:targetNode [ sh:select ... ]``): evaluated without a focus."""
-        from starlayer.shacl_engine.sparql_support import eval_node_expression
+    def _expression_values(self, exprs: tuple, focus: Term | None) -> list[Term]:
+        out: list[Term] = []
+        for expr in exprs:
+            try:
+                out.extend(evaluate_expression(self, expr, focus))
+            except EvaluationFailure:
+                pass
+        return out
 
-        return eval_node_expression(self, expr, None)
+    def target_expression(self, expr: Term) -> list[Term]:
+        """Focus nodes of a node-expression target (``sh:targetNode [ shnex:... ]``): evaluated without a focus node."""
+        return self._expression_values((expr,), None)
 
 
 def _deactivated(shape: Shape, pred: Term, value: Term) -> bool:

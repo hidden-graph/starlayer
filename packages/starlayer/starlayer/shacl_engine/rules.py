@@ -1,0 +1,570 @@
+"""SHACL 1.2 Inference Rules (editor's draft ``shacl12-inference-rules``), native engine.
+
+``apply_rules(data_graph, shapes_graph, ...)`` runs the rules of the shapes graph over the data graph and returns a
+``RuleResult``: the inferred triples and an ``InferredView`` (the data graph plus the inferred triples as an overlay).
+The caller's data graph is never modified.
+
+Supported (SHACL 1.2 forms only; no SHACL-AF 2017 behaviour, no JS rules, no pySHACL classes):
+
+* ``sh:SPARQLRule`` (``sh:construct``, ``sh:prefixes``, ``$this`` pre-bound for shape rules, no binding for global
+  rules) and instances of ``sh:SPARQLRuleTemplate`` (parameters pre-bound by local name);
+* ``sh:TripleRule`` (``sh:subject`` / ``sh:predicate`` / ``sh:object`` node expressions, evaluated by
+  ``starlayer.shacl_engine.expressions.evaluate_expression``, imported lazily);
+* ``sh:rule`` (shape rules), rules with no shape (global rules), ``sh:condition`` (with the ``NodeShape`` + ``rdfs:Class``
+  superclass extension), ``sh:deactivated``, ``sh:layer``, ``sh:order`` (order groups), ``sh:runOnce`` (once per focus
+  node), ``sh:expectedPredicate`` (derived ``sh:defaultValue`` / ``sh:values`` triples, removed at layer end),
+  ``sh:tempTriple`` (removed at the end), ``sh:RuleSet`` / ``sh:hasRule`` / ``sh:includesRuleSet``, ``sh:entailment``
+  (``sh:RulesEntailment`` or rule-set IRIs), ``sh:ruleProcessor`` (any value: an unsupported processor is a failure).
+
+The algorithm is the draft's pseudocode: layers ascending; per layer one pass over run-once rules (by order group), then
+the iterating rules (by order group) repeated until nothing new is inferred.
+
+Performance note: SPARQL runs on a materialised ``StarLayerGraph`` (base copy plus inferred), built once per
+``InferredView`` and kept in step incrementally. A native overlay query (union dataset, or the backend's own
+``sparql_query``) is the follow-up.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Iterable, Iterator, Mapping
+from dataclasses import dataclass, field
+from typing import Any
+
+from rdflib import RDF, RDFS, BNode, Literal, URIRef
+
+from starlayer.shacl_engine.executor import Context
+from starlayer.shacl_engine.interface import Solutions, Term
+from starlayer.shacl_engine.plan import SH, Plan, ShapeError
+from starlayer.shacl_engine.sparql_support import (
+    _prepare,
+    is_true,
+    starlayer_sparql_query,
+    with_prefixes,
+)
+
+Triple = tuple[Term, Term, Term]
+_REIFIES = URIRef("http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies")
+
+
+class RuleError(Exception):
+    """A rule failed, or the rules graph is ill-formed or needs something unsupported (the rule set fails as a whole)."""
+
+
+# --------------------------------------------------------------------------------------------------------------------
+# The overlay view
+
+
+class InferredView:
+    """A data graph plus inferred triples, as a ``GraphView`` (and ``SparqlCapable``). ``base`` is never modified."""
+
+    def __init__(self, base: Any) -> None:
+        self.base = base
+        self._inferred: set[Triple] = set()
+        self._index: tuple[dict, dict, dict] = ({}, {}, {})
+        self._mat: Any = None
+
+    # -- writes (inferred triples only)
+    def add(self, triple: Triple) -> bool:
+        """Add an inferred triple; True if it is new to the view (absent from base and from the inferred set)."""
+        if triple in self._inferred or triple in self.base:
+            return False
+        self._inferred.add(triple)
+        for idx, term in zip(self._index, triple, strict=True):
+            idx.setdefault(term, set()).add(triple)
+        if self._mat is not None:
+            self._mat.add(triple)
+        return True
+
+    def remove(self, triple: Triple) -> None:
+        """Remove an inferred triple (a triple of the base cannot be removed)."""
+        if triple not in self._inferred:
+            return
+        self._inferred.discard(triple)
+        for idx, term in zip(self._index, triple, strict=True):
+            idx[term].discard(triple)
+        self._mat = None  # rebuilt lazily on the next query
+
+    @property
+    def inferred(self) -> frozenset[Triple]:
+        return frozenset(self._inferred)
+
+    # -- GraphView
+    def _inferred_matching(self, s: Term | None, p: Term | None, o: Term | None) -> Iterator[Triple]:
+        bound = [(idx, t) for idx, t in zip(self._index, (s, p, o), strict=True) if t is not None]
+        if not bound:
+            yield from list(self._inferred)
+            return
+        candidates = min((idx.get(t, set()) for idx, t in bound), key=len)
+        for tr in list(candidates):
+            if (s is None or tr[0] == s) and (p is None or tr[1] == p) and (o is None or tr[2] == o):
+                yield tr
+
+    def triples(self, pattern: tuple[Term | None, Term | None, Term | None]) -> Iterator[Triple]:
+        s, p, o = pattern
+        yield from self.base.triples((s, p, o))
+        yield from self._inferred_matching(s, p, o)  # inferred triples are never in base (see add)
+
+    def objects(self, subject: Term | None = None, predicate: Term | None = None) -> Iterator[Term]:
+        seen: set = set()
+        for _s, _p, o in self.triples((subject, predicate, None)):
+            if o not in seen:
+                seen.add(o)
+                yield o
+
+    def subjects(self, predicate: Term | None = None, object: Term | None = None) -> Iterator[Term]:  # noqa: A002
+        seen: set = set()
+        for s, _p, _o in self.triples((None, predicate, object)):
+            if s not in seen:
+                seen.add(s)
+                yield s
+
+    def predicate_objects(self, subject: Term | None = None) -> Iterator[tuple[Term, Term]]:
+        for _s, p, o in self.triples((subject, None, None)):
+            yield p, o
+
+    def __contains__(self, triple: Triple) -> bool:
+        return triple in self._inferred or triple in self.base
+
+    # -- SPARQL: through the materialised union
+    def materialised(self) -> Any:
+        if self._mat is None:
+            from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+
+            mat = StarLayerGraph()
+            for tr in self.base.triples((None, None, None)):
+                mat.add(tr)
+            for tr in self._inferred:
+                mat.add(tr)
+            self._mat = mat
+        return self._mat
+
+    def sparql_query(self, text: str, init_bindings: Mapping[str, Term] | None = None) -> Solutions:
+        return starlayer_sparql_query(self.materialised(), text, init_bindings)
+
+    def construct(self, text: str, init_bindings: Mapping[str, Term] | None) -> list[Triple]:
+        result = self.materialised().query(_prepare(text), initBindings=dict(init_bindings or {}) or None)
+        if result.type != "CONSTRUCT":
+            raise RuleError("sh:construct must be a CONSTRUCT query")
+        return [tuple(t) for t in result]
+
+
+# --------------------------------------------------------------------------------------------------------------------
+# Rules read from the shapes graph
+
+
+@dataclass
+class Rule:
+    node: Term
+    types: tuple[Term, ...]
+    layer: float
+    order: float
+    run_once: bool
+    shapes: tuple[Term, ...]  # shapes that link the rule with sh:rule (empty: a global rule)
+    conditions: tuple[Term, ...]
+    expected_predicates: tuple[Term, ...]
+
+
+@dataclass
+class RuleResult:
+    """``inferred``: the inferred triples that remain (temporary triples removed). ``view``: data graph + ``inferred``.
+    ``failures``: the messages of failed rules (empty on success). ``iterations``: iterating passes taken."""
+
+    inferred: frozenset[Triple]
+    view: InferredView
+    failures: list[str] = field(default_factory=list)
+    iterations: int = 0
+
+    @property
+    def ok(self) -> bool:
+        return not self.failures
+
+
+def _number(graph: Any, node: Term, pred: Term, default: float = 0) -> float:
+    values = list(graph.objects(node, pred))
+    if len(values) > 1:
+        raise RuleError(f"{node!r}: more than one {pred}")
+    if not values:
+        return default
+    v = values[0]
+    if not isinstance(v, Literal) or not isinstance(v.toPython(), (int, float)) or isinstance(v.toPython(), bool):
+        try:
+            return float(str(v))
+        except ValueError as exc:
+            raise RuleError(f"{node!r}: {pred} must be numeric") from exc
+    return float(v.toPython())
+
+
+def _boolean(graph: Any, node: Term, pred: Term) -> bool:
+    values = list(graph.objects(node, pred))
+    if len(values) > 1:
+        raise RuleError(f"{node!r}: more than one {pred}")
+    return bool(values) and is_true(values[0])
+
+
+def _closure(graph: Any, start: Iterable[Term], step) -> list[Term]:
+    seen: dict = {}
+    queue = list(start)
+    while queue:
+        n = queue.pop()
+        if n in seen:
+            continue
+        seen[n] = None
+        queue.extend(step(n))
+    return list(seen)
+
+
+def _rule_classes(graph: Any) -> set[Term]:
+    """``sh:Rule`` and everything below it by ``rdfs:subClassOf`` (SPARQLRule, TripleRule, templates, ...)."""
+    return set(
+        _closure(graph, [SH.Rule, SH.SPARQLRule, SH.TripleRule], lambda c: graph.subjects(RDFS.subClassOf, c))
+    )
+
+
+def all_rule_nodes(graph: Any) -> list[Term]:
+    """Every rule of the graph (the default rule set): linked by ``sh:rule`` / ``sh:hasRule`` or an instance of a rule
+    class; deterministic order of first discovery."""
+    classes = _rule_classes(graph)
+    found: dict = {}
+    for _s, r in ((s, o) for s, _p, o in graph.triples((None, SH.rule, None))):
+        found.setdefault(r, None)
+    for _s, _p, r in graph.triples((None, SH.hasRule, None)):
+        found.setdefault(r, None)
+    for c in classes:
+        for r in graph.subjects(RDF.type, c):
+            found.setdefault(r, None)
+    return list(found)
+
+
+def rule_set_members(graph: Any, rule_sets: Iterable[Term]) -> list[Term]:
+    """Rules of the given rule sets and the sets they include (transitively)."""
+    sets = _closure(graph, rule_sets, lambda s: graph.objects(s, SH.includesRuleSet))
+    members: dict = {}
+    for s in sets:
+        for r in graph.objects(s, SH.hasRule):
+            members.setdefault(r, None)
+    return list(members)
+
+
+def entailment_selection(shapes: Any) -> tuple[bool, list[Term]]:
+    """What ``sh:entailment`` on the shapes graph asks of the rules engine: ``(active, rule_sets)``. ``active`` is False
+    when no ``sh:RulesEntailment`` nor rule-set IRI is declared. ``sh:RulesEntailment`` means the default rule set (all
+    rules); rule-set IRIs select those sets, unless ``sh:RulesEntailment`` is also present (then all run together)."""
+    values = [o for _s, _p, o in shapes.triples((None, SH.entailment, None))]
+    sets = [v for v in values if (v, RDF.type, SH.RuleSet) in shapes]
+    wants_all = SH.RulesEntailment in values
+    return bool(wants_all or sets), ([] if wants_all else sets)
+
+
+def read_rule(graph: Any, node: Term) -> Rule:
+    classes = _rule_classes(graph)
+    types = tuple(t for t in graph.objects(node, RDF.type) if t in classes)
+    if not types:
+        raise RuleError(f"{node!r}: a rule needs an rdf:type that is a subclass of sh:Rule")
+    for holder in (node, *types):
+        if (holder, SH.ruleProcessor, None) in graph:
+            raise RuleError(f"{holder!r}: sh:ruleProcessor is declared and no custom rule processor is available")
+    return Rule(
+        node=node,
+        types=types,
+        layer=_number(graph, node, SH.layer),
+        order=_number(graph, node, SH.order),
+        run_once=_boolean(graph, node, SH.runOnce),
+        shapes=tuple(dict.fromkeys(graph.subjects(SH.rule, node))),
+        conditions=tuple(graph.objects(node, SH.condition)),
+        expected_predicates=tuple(graph.objects(node, SH.expectedPredicate)),
+    )
+
+
+# --------------------------------------------------------------------------------------------------------------------
+# Execution
+
+
+def _well_formed(t: Triple) -> bool:
+    s, p, o = t
+    return isinstance(s, (URIRef, BNode)) and isinstance(p, URIRef) and o is not None
+
+
+class _Run:
+    def __init__(self, view: InferredView, plan: Plan, max_iterations: int, max_triples: int | None) -> None:
+        self.view = view
+        self.plan = plan
+        self.shapes = plan.shapes_graph
+        self.max_iterations = max_iterations
+        self.max_triples = max_triples
+        self.done_once: set = set()  # (rule, focus) of run-once rules already executed
+        self.derived: set[Triple] = set()  # sh:defaultValue / sh:values triples of the current layer
+        self.iterations = 0
+
+    # -- focus nodes
+    def _conditions(self, rule: Rule) -> list[Term]:
+        out: list[Term] = []
+        for cond in rule.conditions:
+            if self._deactivated(cond):
+                continue
+            out.append(cond)
+            if self._is_node_shape_class(cond):
+                for sup in _closure(
+                    self.shapes, self.shapes.objects(cond, RDFS.subClassOf), lambda c: self.shapes.objects(c, RDFS.subClassOf)
+                ):
+                    if sup != cond and self._is_node_shape_class(sup) and not self._deactivated(sup):
+                        out.append(sup)
+        return list(dict.fromkeys(out))
+
+    def _deactivated(self, node: Term) -> bool:
+        return _boolean(self.shapes, node, SH.deactivated)
+
+    def _is_node_shape_class(self, node: Term) -> bool:
+        types = set(self.shapes.objects(node, RDF.type))
+        return SH.NodeShape in types and bool(types & {RDFS.Class, SH.ShapeClass})
+
+    def focus_nodes(self, ctx: Context, rule: Rule) -> list[Term]:
+        if not rule.shapes:
+            return []
+        out: dict = {}
+        conditions = self._conditions(rule)
+        for shape_node in rule.shapes:
+            if self._deactivated(shape_node):
+                continue
+            for n in ctx.shape_focus(ctx.shape(shape_node)):
+                if n in out:
+                    continue
+                try:
+                    if all(ctx.conforms(c, n) for c in conditions):
+                        out[n] = None
+                except ShapeError as exc:
+                    raise RuleError(f"{rule.node!r}: sh:condition check failed: {exc}") from exc
+        return list(out)
+
+    # -- executing one rule: returns the triples it infers (not yet filtered against the view)
+    def execute(self, ctx: Context, rule: Rule) -> list[Triple]:
+        focus = self.focus_nodes(ctx, rule)
+        if rule.run_once:
+            if rule.shapes:
+                focus = [f for f in focus if (rule.node, f) not in self.done_once]
+                self.done_once.update((rule.node, f) for f in focus)
+            else:
+                if (rule.node, None) in self.done_once:
+                    return []
+                self.done_once.add((rule.node, None))
+        runs: list[Term | None] = focus if rule.shapes else [None]
+        out: list[Triple] = []
+        for f in runs:
+            if SH.TripleRule in rule.types:
+                out.extend(self._triple_rule(ctx, rule, f))
+            else:
+                out.extend(self._sparql_rule(rule, f))
+        return [t for t in out if _well_formed(t)]
+
+    def _sparql_rule(self, rule: Rule, focus: Term | None) -> list[Triple]:
+        g = self.shapes
+        template = next((t for t in rule.types if t not in (SH.SPARQLRule, SH.TripleRule, SH.Rule)), None)
+        holder = rule.node
+        bindings: dict[str, Term] = {} if focus is None else {"this": focus}
+        constructs = list(g.objects(rule.node, SH.construct))
+        if template is not None and (template, SH.construct, None) in g:
+            holder = template
+            constructs = list(g.objects(template, SH.construct))
+            bindings.update(self._template_bindings(rule, template))
+        if SH.SPARQLRule not in rule.types and template is None:
+            raise RuleError(f"{rule.node!r}: unsupported rule type {rule.types}")
+        if len(constructs) != 1 or not isinstance(constructs[0], Literal):
+            raise RuleError(f"{rule.node!r}: exactly one string sh:construct is required")
+        prefix_holder = holder if (holder, SH.prefixes, None) in g else rule.node
+        text = with_prefixes(self.plan, prefix_holder, str(constructs[0]))
+        try:
+            return self.view.construct(text, bindings)
+        except RuleError:
+            raise
+        except Exception as exc:  # noqa: BLE001  (a query that does not parse or evaluate fails the rule)
+            raise RuleError(f"{rule.node!r}: SPARQL rule failed: {exc}") from exc
+
+    def _template_bindings(self, rule: Rule, template: Term) -> dict[str, Term]:
+        from starlayer.shacl_engine.components.sparql_components import _parameters
+
+        out: dict[str, Term] = {}
+        for pred, name, optional in _parameters(self.shapes, template):
+            values = list(self.shapes.objects(rule.node, pred))
+            if len(values) > 1:
+                raise RuleError(f"{rule.node!r}: more than one value for template parameter {pred}")
+            if values:
+                out[name] = values[0]
+            elif not optional:
+                raise RuleError(f"{rule.node!r}: missing value for template parameter {pred}")
+        return out
+
+    def _triple_rule(self, ctx: Context, rule: Rule, focus: Term | None) -> list[Triple]:
+        evaluate = _evaluator()
+        parts: list[list[Term]] = []
+        for pred in (SH.subject, SH.predicate, SH.object):
+            exprs = list(self.shapes.objects(rule.node, pred))
+            if len(exprs) > 1:
+                raise RuleError(f"{rule.node!r}: more than one {pred}")
+            if exprs:
+                try:
+                    parts.append(list(evaluate(ctx, exprs[0], focus, None)))
+                except Exception as exc:  # noqa: BLE001
+                    raise RuleError(f"{rule.node!r}: node expression for {pred} failed: {exc}") from exc
+            else:
+                parts.append([] if focus is None else [focus])
+        return [(s, p, o) for s in parts[0] for p in parts[1] for o in parts[2]]
+
+    # -- sh:expectedPredicate: derived sh:defaultValue / sh:values triples
+    def compute_derived(self, ctx: Context, predicates: set[Term]) -> None:
+        g = self.shapes
+        evaluate = None
+        for ps in dict.fromkeys(s for p in predicates for s in g.subjects(SH.path, p)):
+            if self._deactivated(ps):
+                continue
+            pred = next(g.objects(ps, SH.path))
+            if not isinstance(pred, URIRef):
+                continue
+            shape = ctx.shape(ps)
+            parents = [s for s in g.subjects(SH.property, ps) if not self._deactivated(s)]
+            focus: dict = {}
+            for owner in (*parents, ps):
+                if owner != ps or shape.targets:
+                    for n in ctx.shape_focus(ctx.shape(owner)):
+                        focus.setdefault(n, None)
+            exprs = list(g.objects(ps, SH["values"]))
+            defaults = list(g.objects(ps, SH.defaultValue))
+            for n in focus:
+                values: list[Term] = []
+                for expr in exprs:
+                    if isinstance(expr, BNode):
+                        evaluate = evaluate or _evaluator()
+                        try:
+                            values.extend(evaluate(ctx, expr, n, None))
+                        except Exception:  # noqa: BLE001  (a failing expression derives no value)
+                            continue
+                    else:
+                        values.append(expr)
+                if not values and not any(True for _ in self.view.objects(n, pred)):
+                    values = defaults
+                for v in values:
+                    t = (n, pred, v)
+                    if self.view.add(t):
+                        self.derived.add(t)
+
+    def end_layer(self) -> None:
+        for t in self.derived:
+            self.view.remove(t)
+        self.derived = set()
+
+    def add_inferred(self, triples: Iterable[Triple]) -> bool:
+        changed = False
+        for t in triples:
+            if t in self.derived:  # also inferred by a rule: kept (and the rule's own triple counts as new once)
+                self.derived.discard(t)
+                changed = True
+            elif self.view.add(t):
+                changed = True
+        if self.max_triples is not None and len(self.view.inferred) > self.max_triples:
+            raise RuleError(f"more than {self.max_triples} triples inferred")
+        return changed
+
+    def delete_temp_triples(self) -> None:
+        v = self.view
+        reifiers = [s for s, _p, o in v.triples((None, SH.tempTriple, None)) if is_true(o)]
+        for r in reifiers:
+            for _s, _p, tt in list(v.triples((r, _REIFIES, None))):
+                v.remove((tt.subject, tt.predicate, tt.object) if hasattr(tt, "subject") else tt)
+            for tr in list(v.triples((r, None, None))):
+                v.remove(tr)
+
+
+def _evaluator():
+    try:
+        from starlayer.shacl_engine.expressions import evaluate_expression
+    except ImportError as exc:
+        raise RuleError("sh:TripleRule and node-expression values need starlayer.shacl_engine.expressions") from exc
+    return evaluate_expression
+
+
+def _groups(rules: list[Rule]) -> list[list[Rule]]:
+    by: dict[float, list[Rule]] = {}
+    for r in rules:
+        by.setdefault(r.order, []).append(r)
+    return [by[o] for o in sorted(by)]
+
+
+def apply_rules(
+    data_graph: Any,
+    shapes_graph: Any = None,
+    *,
+    rule_sets: Iterable[Term] | None = None,
+    max_iterations: int = 1000,
+    max_triples: int | None = None,
+    raise_on_failure: bool = True,
+) -> RuleResult:
+    """Run the rules of ``shapes_graph`` (default: ``data_graph`` itself) over ``data_graph``.
+
+    ``rule_sets``: IRIs of ``sh:RuleSet`` instances to run (with the sets they include); ``None`` runs the default rule set,
+    every rule of the shapes graph. A failing rule fails the whole rule set: ``RuleError`` is raised, or with
+    ``raise_on_failure=False`` returned in ``RuleResult.failures`` (``inferred`` is then what was derived so far)."""
+    shapes = shapes_graph if shapes_graph is not None else data_graph
+    view = InferredView(data_graph)
+    plan = Plan(shapes_graph=shapes)
+    run = _Run(view, plan, max_iterations, max_triples)
+    failures: list[str] = []
+    try:
+        nodes = all_rule_nodes(shapes) if rule_sets is None else rule_set_members(shapes, rule_sets)
+        rules = [r for n in nodes if not _boolean(shapes, n, SH.deactivated) for r in [read_rule(shapes, n)]]
+        for layer in sorted({r.layer for r in rules}):
+            in_layer = [r for r in rules if r.layer == layer]
+            once = [r for r in in_layer if r.run_once]
+            iterating = [r for r in in_layer if not r.run_once]
+            expected = {p for r in in_layer for p in r.expected_predicates}
+            if expected:
+                run.compute_derived(Context(data=view, plan=plan), expected)
+            for group in _groups(once):
+                ctx = Context(data=view, plan=plan)
+                run.add_inferred([t for r in group for t in run.execute(ctx, r)])
+            changed = bool(iterating)
+            while changed:
+                run.iterations += 1
+                if run.iterations > max_iterations:
+                    raise RuleError(f"rules did not reach a fixpoint within {max_iterations} iterations")
+                changed = False
+                for group in _groups(iterating):
+                    ctx = Context(data=view, plan=plan)
+                    if run.add_inferred([t for r in group for t in run.execute(ctx, r)]):
+                        changed = True
+            run.end_layer()
+        run.delete_temp_triples()
+    except (RuleError, ShapeError) as exc:
+        if raise_on_failure:
+            raise exc if isinstance(exc, RuleError) else RuleError(str(exc)) from exc
+        failures.append(str(exc))
+    return RuleResult(inferred=view.inferred, view=view, failures=failures, iterations=run.iterations)
+
+
+def validate_with_rules(data_graph: Any, shapes_graph: Any = None, *, rules: bool | None = None, **options: Any) -> Any:
+    """``validate()`` on the evaluation graph (data plus inferred triples). ``rules=None``: run rules when the shapes graph
+    declares ``sh:entailment`` (``sh:RulesEntailment`` or rule-set IRIs); ``True`` runs the default rule set; ``False``
+    skips. Returns ``(outcome, rule_result_or_None)``; the data graph is not modified."""
+    from starlayer.shacl_engine.api import validate
+
+    shapes = shapes_graph if shapes_graph is not None else data_graph
+    sets: list[Term] | None = None
+    active = bool(rules)
+    if rules is None:
+        active, sets = entailment_selection(shapes)
+        sets = sets or None
+    if not active:
+        return validate(data_graph, shapes, rules=False), None
+    result = apply_rules(data_graph, shapes, rule_sets=sets, **options)
+    return validate(result.view, shapes, rules=False), result
+
+
+__all__ = [
+    "InferredView",
+    "Rule",
+    "RuleError",
+    "RuleResult",
+    "all_rule_nodes",
+    "apply_rules",
+    "entailment_selection",
+    "read_rule",
+    "rule_set_members",
+    "validate_with_rules",
+]

@@ -45,6 +45,7 @@ class Shape:
     deactivated: bool
     messages: tuple[Term, ...]
     values: tuple[Term, ...] = ()  # sh:values node expressions (extra value nodes of a property shape)
+    default_values: tuple[Term, ...] = ()  # sh:defaultValue node expressions (used only if there are no other value nodes)
     # (parameter predicate, value) -> {'deactivated': bool, 'severity': Term|None}, read from RDF 1.2 reifiers of the
     # shape's own triples (`sh:datatype xsd:boolean {| sh:deactivated true |}`); sh:property uses the same key shape.
     annotations: dict[tuple[Term, Term], dict[str, Any]] = field(default_factory=dict)

@@ -5,7 +5,7 @@
 * Running a query on the data graph with pre-bound variables: through the graph's own ``sparql_query`` if it has one
   (``interface.SparqlCapable``), else through StarLayer's query layer (``starlayer_sparql_query``).
 * Mapping solutions to validation results, message templates, the ``$PATH`` substitution, and the two SPARQL node
-  expressions (``sh:select``, ``sh:sparqlExpr``) that the SPARQL fixtures use for ``sh:values`` and targets.
+  expressions (``sh:select``, ``sh:sparqlExpr``); ``expressions.py`` dispatches to them.
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ from collections.abc import Iterable, Mapping
 from functools import lru_cache
 from typing import Any
 
-from rdflib import OWL, RDF, BNode, Literal, URIRef
+from rdflib import OWL, RDF, Literal, URIRef
 from rdflib.plugins.sparql.parserutils import CompValue
 
 from starlayer.shacl_engine.components.registry import Violation
@@ -253,15 +253,15 @@ def _single_string(graph: Any, node: Term, pred: Term) -> str:
     return str(values[0])
 
 
-def eval_node_expression(ctx: Any, expr: Term, focus: Term | None) -> list[Term]:
-    """Output nodes of a node expression. Only the SPARQL ones are supported here: a constant (IRI or literal), a
-    ``sh:select`` expression (the bindings of its single projected variable) and a ``sh:sparqlExpr`` expression. ``this`` is
-    pre-bound to ``focus`` when there is one."""
+def eval_node_expression(ctx: Any, expr: Term, focus: Term | None, scope: Mapping[str, list] | None = None) -> list[Term]:
+    """Output nodes of a ``sh:select`` or ``sh:sparqlExpr`` expression (called by ``expressions.py`` for those two
+    operators; every other kind is evaluated there). ``this`` is pre-bound to ``focus`` when there is one, and every
+    scope variable with exactly one value is pre-bound under its name (``sh:expression`` binds ``value``)."""
     plan = ctx.plan
     graph = plan.shapes_graph
-    if not isinstance(expr, BNode):
-        return [expr]
-    bindings = {} if focus is None else {"this": focus}
+    bindings = {k: v[0] for k, v in (scope or {}).items() if len(v) == 1}
+    if focus is not None:
+        bindings["this"] = focus
     if (expr, SH.select, None) in graph:
         text = with_prefixes(plan, expr, _single_string(graph, expr, SH.select))
         projected = check_query(plan, text, bindings)
@@ -274,5 +274,5 @@ def eval_node_expression(ctx: Any, expr: Term, focus: Term | None) -> list[Term]
         check_query(plan, text, bindings)
         var = "result"
     else:
-        raise ShapeError(f"{expr!r}: unsupported node expression")
+        raise ShapeError(f"{expr!r}: not a SPARQL node expression")
     return [row[var] for row in run_query(ctx.data, text, bindings).rows if var in row]

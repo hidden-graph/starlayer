@@ -11,7 +11,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from rdflib import OWL, RDF, RDFS, BNode, URIRef
+from rdflib import OWL, RDF, RDFS, URIRef
 
 from starlayer.shacl_engine.plan import SH, Term
 
@@ -52,8 +52,10 @@ def declared_shape_nodes(graph: Any) -> list[Term]:
     return list(nodes)
 
 
-def _is_sparql_expression(shapes: Any, node: Term) -> bool:
-    return isinstance(node, BNode) and ((node, SH.select, None) in shapes or (node, SH.sparqlExpr, None) in shapes)
+def _is_expression(shapes: Any, node: Term) -> bool:
+    from starlayer.shacl_engine.expressions import is_expression
+
+    return is_expression(shapes, node)
 
 
 def _class_closure(data: Any, cls: Term) -> list[Term]:
@@ -86,11 +88,11 @@ def focus_nodes(
 ) -> list[Term]:
     """Focus nodes of the given targets, each once, in target order. ``conforms`` is only needed for
     ``sh:targetWhere`` (without it, targetWhere contributes nothing). ``expression`` evaluates a node-expression target
-    (SPARQL Related Features: a ``sh:targetNode`` whose value is a blank node with ``sh:select`` / ``sh:sparqlExpr``)."""
+    (a ``sh:targetNode`` whose value is a blank-node node expression)."""
     out: dict = {}
     for pred, value in targets:
         if pred == SH.targetNode:
-            if expression is not None and _is_sparql_expression(shapes, value):
+            if expression is not None and _is_expression(shapes, value):
                 for n in expression(value):
                     out.setdefault(n, None)
             else:
