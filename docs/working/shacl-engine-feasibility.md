@@ -66,11 +66,32 @@ The engine implements everything the SHACL 1.2 drafts define (Core, SPARQL, node
 values and defaults, and so on) and nothing that exists only in the 2017 SHACL-AF note. Rules are therefore in scope for
 the new engine, not left on the old path.
 
-Evidence from the vendored W3C SHACL 1.2 test suite (`tests/shacl/vendor/shacl12-test-suite`), file counts: present are
-`sh:SPARQLRule` 12, `sh:rule` 9, `shnex:` 105, `sh:values` 3, `sh:condition` 2, `sh:defaultValue` 2, `sh:expression` 1,
-`sh:targetWhere` 1. Absent (0): `sh:TripleRule`, `sh:SPARQLFunction`, `sh:SPARQLTarget`, `sh:JSFunction`, `sh:TargetType`.
-Absence from the suite is not proof the drafts omit them; confirm each against the spec text before dropping.
+Correction (earlier version of this section was wrong). I inferred "AF-only" from absence in the W3C test suite and
+listed `sh:TripleRule`, `sh:SPARQLFunction`, `sh:SPARQLTarget` and `sh:TargetType` as drop candidates. They are in the
+1.2 vocabulary (`scripts/assets/vendor/w3c-shacl.ttl`, "under development by the Data-Shapes (SHACL 1.2) WG"), alongside
+`sh:SPARQLRule`, `sh:SPARQLTargetType`, `sh:SPARQLRuleTemplate`, `sh:rule`, `sh:condition`, `sh:order`, `sh:values`,
+`sh:defaultValue`, `sh:expression` and the `sh:NodeExpression` family. `docs/shacl/shacl12-gap-matrix.md` records that
+`sh:TripleRule`'s formal definition was merged into SHACL 1.2 SPARQL Extensions (section 8.10) and that the rules
+vocabulary now lives in the SHACL 1.2 Inference Rules editor's draft (the former "SHACL 1.2 Rules" document became
+SPARQL 1.2 Rules, SRL). Test-suite coverage is not a scope test; the vocabulary and the spec text are.
 
-Candidate AF-only features to drop, with where the current code uses them: `sh:TripleRule` (10 source files, 27 test
-files), `sh:SPARQLFunction` (4 source, 2 tests), `sh:SPARQLTarget`/custom target types (6 source, 5 tests), JS
-(`sh:JSFunction` etc., 1 source file), pyshacl's own rule classes and `pyshacl.rules` imports.
+### Audit method: code against the 1.2 vocabulary
+Every `sh:` term the code uses (`SH.x`, `SH["x"]`, `"sh:x"`) was compared with the vendored vocabulary (246 terms).
+190 distinct terms are used; 186 are in the vocabulary. The four that are not: `conformsTo` and `validationReport`
+(shacl/profiling.py; check against the Profiling draft), `usedConfiguration` (ours, validator.py) and `or_` (a Python
+name, not a term). So at the term level the code is already 1.2-shaped; the legacy lives in forms and fallbacks.
+
+### Candidates for removal as legacy / earlier-draft (to confirm against the spec text, then remove from main too)
+1. **pySHACL's own old `sh:`-namespaced node-expression forms** (`sh:union`, `sh:intersection`, `sh:filterShape`,
+   `sh:path` as expressions), kept alongside the current `shnex:` namespace (21 operators). node_expressions.py line 16
+   says "old and new coexist". The vocabulary still lists some of these names, so confirm each against the Node
+   Expressions draft before removal.
+2. **The `sh:filterShape` compatibility shim** (validator.py about lines 652-683 and 3588) and **pySHACL's legacy
+   node-expression fallback** (about line 1094), which exist only to handle form 1.
+3. **A legacy `sh:path`-bearing-blank-node fallback** (validator.py about line 2270).
+4. **Citations of the 2017 SHACL-AF note** in rule_conditions.py (`shacl-af/#rules-order`, `#condition`): re-point to
+   the Inference Rules draft or confirm the rule still matches it.
+5. Code that exists to bridge pyshacl's rule classes (`adapters.py`, `_patch_rules_for_native_engine`,
+   `_global_engine_rules`): not legacy 1.2, but replaced wholesale by the new engine.
+Not legacy: `sh:TripleRule`, `sh:SPARQLRule`, `sh:SPARQLFunction`, `sh:SPARQLTarget`, `sh:TargetType`, rule ordering,
+conditions, `sh:resultAnnotation`: all in the 1.2 vocabulary, so the new engine implements them.
