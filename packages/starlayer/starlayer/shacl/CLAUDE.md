@@ -18,6 +18,10 @@ Project-specific instructions for Claude Code sessions working in this repo. See
 
 ## Design history
 
+## A widget a shape names is scored, not accepted outright; `shui:defaultWidgetScore` is read (2026-10-30)
+
+`ui_widget_selection` followed an older step of the SHACL UI draft: a shape's own `shui:editor`/`shui:viewer` was accepted before any score was looked at. The draft's 4.3 (Scoring Graph Preparation; checked against the text on 2026-10-30) instead gives each widget a shape names a score `D`, and ranks it with the catalog's: `D` is the `shui:defaultWidgetScore` of the global configuration (a node of the shapes graph; several: the first by IRI), else 40. **Only a widget the scoring graph does not score at all gets it** ("a widget the scoring graph already scores is left untouched", even when its scores do not cover this shape), so a layer that scores `shui:TextAreaEditor` for some paths stops a shape from pinning it on another. `default_widget_score(shapes_graph)` and `_ranked_with_declared()` do this; `select_widget` and `select_widgets(per="shape")` use it, and `WidgetCandidate.score` is now always a number. A named widget a catalog does not score still comes first (40 beats the baseline's tiers); a negative default ranks it below the rest. Tests: `test_select_widgets_per_shape.py`; `test_shacl_ui_companions.py` pins a widget no catalog scores. The guide `04d-shacl-ui.ipynb` still describes a preference that wins outright and needs rewriting (not edited: notebooks need a go-ahead).
+
 ## Rule execution follows Inference Rules section 8: `rule_engine.py` (2026-10-29, branch `rules-work`)
 
 Compared the Working Draft of 28 October 2026 with the code (`SHACL 1.2 Inference Rules`, section numbers below are that document's). pySHACL ran each rule to its own fixpoint, shape after shape, adding a rule's triples before the next rule looked; the layer patch only fixed the order of layers. `starlayer/shacl/rule_engine.py` now runs the algorithm of section 8 and **replaces pySHACL's rule loop always, not only when `sh:layer`/`sh:runOnce` are used**:

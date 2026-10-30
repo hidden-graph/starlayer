@@ -253,6 +253,34 @@ def _ranked_scores(shapes_graph: Any, scoring_graph: Any, role: str) -> list[tup
     return ranked
 
 
+DEFAULT_WIDGET_SCORE = 40.0   # SHACL UI 4.3: the score D of a widget a shape names and the scoring graph does not score, when the configuration gives none
+
+
+def default_widget_score(shapes_graph: Any) -> float:
+    """The score D of a widget a shape names with ``shui:editor`` or ``shui:viewer`` that the scoring graph does not score (SHACL UI 4.3): the
+    ``shui:defaultWidgetScore`` of the global configuration (a node of ``shapes_graph``; with several, the first by IRI), else 40."""
+    for _node, value in sorted(shapes_graph.subject_objects(SHUI.defaultWidgetScore), key=lambda pair: (str(pair[0]), str(pair[1]))):
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            continue
+    return DEFAULT_WIDGET_SCORE
+
+
+def _ranked_with_declared(shape_node: Any, shapes_graph: Any, scoring_graph: Any, role: str) -> list[tuple[float, Any, Any]]:
+    """The scoring graph's scores and, for each widget ``shape_node`` names itself that the scoring graph does not score, a score of ``default_widget_score``
+    (SHACL UI 4.3, the preparation of the scoring graph; it has no score node, and its condition, that the shape names the widget, holds for this shape).
+    Highest score first, then by widget IRI."""
+    ranked = _ranked_scores(shapes_graph, scoring_graph, role)
+    predicate = SHUI.editor if role == "editor" else SHUI.viewer
+    scored = {widget for widget in scoring_graph.objects(None, SHUI.widget)}
+    declared = [w for w in shapes_graph.objects(shape_node, predicate) if isinstance(w, URIRef) and w not in scored]
+    if declared:
+        d = default_widget_score(shapes_graph)
+        ranked = sorted([*ranked, *((d, widget, None) for widget in declared)], key=lambda entry: (-entry[0], str(entry[1])))
+    return ranked
+
+
 def select_widget(
     *,
     shape_node: Any,
@@ -267,17 +295,15 @@ def select_widget(
     should use for ``focus_node``, per the spec's own Section 3.2 "Select
     Function" procedure:
 
-    1. If ``shape_node`` already has an explicit ``shui:editor``/
-       ``shui:viewer`` (per ``role``), look up its ``shui:WidgetAcceptMatcher``
-       - no matcher found means accept unconditionally; a matcher that
-       accepts also means accept; a matcher that rejects falls through to
-       step 2 rather than failing outright.
-    2. Otherwise (or on fallthrough), collect every ``shui:WidgetScore`` in
-       ``scoring_graph`` with both a ``shui:widget`` and a ``shui:score``,
-       ranked highest-score-first.
+    1. Prepare the scores (SHACL UI 4.3): for each widget ``shape_node`` names with ``shui:editor``/``shui:viewer`` that no
+       ``shui:WidgetScore`` of ``scoring_graph`` is for, add a score of ``default_widget_score`` (the ``shui:defaultWidgetScore`` of the
+       configuration in ``shapes_graph``, else 40). A widget the scoring graph scores at all keeps only its own scores, whether or not they
+       cover this shape (the draft says so).
+    2. Collect every ``shui:WidgetScore`` in ``scoring_graph`` with both a ``shui:widget`` and a ``shui:score``, with those added,
+       ranked highest-score-first and then by widget IRI.
     3. Walk that ranked list and return the first entry whose conditions hold: the
        ``shui:shapesGraphShape`` / ``shui:dataGraphShape`` written on the score itself (none means it applies
-       to everything), and then, if its widget has a ``shui:WidgetAcceptMatcher``, that matcher too.
+       to everything, as an added score does for this shape), and then, if its widget has a ``shui:WidgetAcceptMatcher``, that matcher too.
        Conditions on a score are local to it, so a catalog layered on top can add a score for a widget another
        layer conditioned without having to remove anything; a per-widget matcher is shared by every layer.
 
@@ -314,22 +340,7 @@ def select_widget(
         from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 
         scoring_graph = StarLayerGraph()
-    predicate = SHUI.editor if role == "editor" else SHUI.viewer
-    explicit_widget = next(shapes_graph.objects(shape_node, predicate), None)
-    if explicit_widget is not None:
-        matcher = _find_matcher(explicit_widget, scoring_graph)
-        if matcher is None or _matcher_accepts(
-            matcher,
-            shape_node=shape_node,
-            focus_node=focus_node,
-            data_graph=data_graph,
-            shapes_graph=shapes_graph,
-            scoring_graph=scoring_graph,
-            batch=_batch,
-        ):
-            return explicit_widget
-
-    ranked = _ranked_scores(shapes_graph, scoring_graph, role)
+    ranked = _ranked_with_declared(shape_node, shapes_graph, scoring_graph, role)
 
     common = {
         "shape_node": shape_node,
@@ -342,7 +353,7 @@ def select_widget(
     for _score, widget, score_node in ranked:
         # A condition written on the score itself (shui:shapesGraphShape / shui:dataGraphShape, as the Working
         # Group's own widget files do) applies to that score only. A score without one applies to everything.
-        if not _matcher_accepts(score_node, **common):
+        if score_node is not None and not _matcher_accepts(score_node, **common):
             continue
         matcher = _find_matcher(widget, scoring_graph)
         if matcher is None or _matcher_accepts(matcher, **common):
@@ -355,12 +366,12 @@ def select_widget(
 class WidgetCandidate:
     """A widget that could be chosen for a property shape, found without looking at any node's data.
 
-    ``score`` is ``None`` when the shape names the widget itself (a preference). ``data_checks`` lists the conditions
+    ``score`` is the score the widget ranks with (``default_widget_score`` for a widget the shape names and the scoring graph does not score). ``data_checks`` lists the conditions
     that still need a focus node: ``(node, has_shape_condition)`` for each score or matcher that carries a
     ``shui:dataGraphShape``. A candidate with none applies to every node."""
 
     widget: URIRef
-    score: float | None
+    score: float
     data_checks: tuple[tuple[Any, bool], ...] = ()
 
     @property
@@ -441,22 +452,14 @@ def _choice_for_property(
 ) -> WidgetChoice:
     common = {"shape_node": property_shape, "shapes_graph": shapes_graph, "scoring_graph": scoring_graph, "batch": batch}
     candidates: list[WidgetCandidate] = []
-    predicate = SHUI.editor if role == "editor" else SHUI.viewer
-    preferred = next(shapes_graph.objects(property_shape, predicate), None)
-    if preferred is not None:
-        matcher = _find_matcher(preferred, scoring_graph)
-        candidate = _candidate(preferred, None, [matcher] if matcher is not None else [], **common)
-        if candidate is not None:
-            candidates.append(candidate)
-    if not candidates or candidates[-1].needs_data:
-        for score, widget, score_node in _ranked_scores(shapes_graph, scoring_graph, role):
-            matcher = _find_matcher(widget, scoring_graph)
-            candidate = _candidate(widget, score, [score_node] + ([matcher] if matcher is not None else []), **common)
-            if candidate is None:
-                continue
-            candidates.append(candidate)
-            if not candidate.needs_data:
-                break
+    for score, widget, score_node in _ranked_with_declared(property_shape, shapes_graph, scoring_graph, role):
+        matcher = _find_matcher(widget, scoring_graph)
+        candidate = _candidate(widget, score, ([score_node] if score_node is not None else []) + ([matcher] if matcher is not None else []), **common)
+        if candidate is None:
+            continue
+        candidates.append(candidate)
+        if not candidate.needs_data:
+            break
     return WidgetChoice(
         property_shape=property_shape,
         candidates=tuple(candidates),
