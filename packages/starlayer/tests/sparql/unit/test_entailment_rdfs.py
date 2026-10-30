@@ -259,6 +259,23 @@ class TestVariablePredicate:
         rows = _query(g, "SELECT ?o WHERE { ex:x ?p ?o FILTER(?p = rdf:type) }")
         assert {str(r.o) for r in rows} == {str(EX.C), str(EX.D)}
 
+    def test_a_bare_pattern_keeps_every_asserted_triple(self):
+        # a predicate that is neither a subject nor an object anywhere (ex:knows, rdfs:subClassOf) must still be matched
+        g = Graph()
+        g.add((EX.alice, EX.knows, EX.bob))
+        g.add((EX.C, RDFS.subClassOf, EX.D))
+        rows = _query(g, "SELECT ?s ?p ?o WHERE { ?s ?p ?o }")
+        got = {(str(r.s), str(r.p), str(r.o)) for r in rows}
+        assert (str(EX.alice), str(EX.knows), str(EX.bob)) in got
+        assert (str(EX.C), str(RDFS.subClassOf), str(EX.D)) in got
+
+    def test_a_second_rewrite_does_not_expand_the_asserted_pattern_again(self):
+        g = self._graph()
+        q = prepareQuery("SELECT ?p WHERE { ex:a ?p ex:b }", initNs={"ex": EX})
+        rewrite_algebra_for_rdfs(q.algebra)
+        rewrite_algebra_for_rdfs(q.algebra)
+        assert sorted(str(r.p) for r in g.query(q)) == sorted([str(EX.q), str(EX.p)])
+
     def test_a_literal_object_is_matched_without_the_type_branch(self):
         g = self._graph()
         g.add((EX.a, EX.q, __import__("rdflib").Literal("x")))
@@ -279,6 +296,7 @@ _GRAPHS = {
     ],
     "sub-property of rdf:type": [(EX.t, RDFS.subPropertyOf, RDF.type), (EX.a, EX.t, EX.D), (EX.D, RDFS.subClassOf, EX.E)],
     "class chain": [(EX.C, RDFS.subClassOf, EX.D), (EX.D, RDFS.subClassOf, EX.E), (EX.x, RDF.type, EX.C), (EX.x, EX.r, EX.y)],
+    "predicate that is no node": [(EX.a, EX.knows, EX.b), (EX.C, RDFS.subClassOf, EX.D), (EX.a, RDF.type, EX.C)],
     "property class chain": [(RDF.Property, RDFS.subClassOf, EX.Thing), (EX.a, EX.p, EX.b), (EX.p, RDFS.subPropertyOf, EX.top)],
 }
 _QUERIES = [
@@ -291,6 +309,7 @@ _QUERIES = [
     "SELECT ?o WHERE { ex:a ?p ?o }",
     "SELECT ?c WHERE { ex:a a ?c }",
     "SELECT ?c WHERE { ex:x a ?c }",
+    "SELECT ?s ?p ?o WHERE { ?s ?p ?o }",
     "SELECT ?x WHERE { ?x a ex:D }",
     "SELECT ?x WHERE { ?x a ex:R }",
 ]
@@ -300,7 +319,14 @@ _VOCAB = ("http://www.w3.org/1999/02/22-rdf-syntax-ns#", "http://www.w3.org/2000
 
 
 def _answers(rows) -> set[tuple]:
-    return {tuple(str(v) for v in row) for row in rows if not any(str(v).startswith(_VOCAB) for v in row)}
+    # a row of three is (?s, ?p, ?o): the predicate is compared too, only the subject and object are checked for vocabulary.
+    # Reflexive subclass / subproperty rows (rdfs6, rdfs10) are dropped as well: a bare ?p scan does not add one per term.
+    return {
+        tuple(str(v) for v in row)
+        for row in rows
+        if not any(str(v).startswith(_VOCAB) for i, v in enumerate(row) if len(row) != 3 or i != 1)
+        and not (len(row) == 3 and str(row[1]) in (str(RDFS.subClassOf), str(RDFS.subPropertyOf)) and row[0] == row[2])
+    }
 
 
 @owlrl_extra
