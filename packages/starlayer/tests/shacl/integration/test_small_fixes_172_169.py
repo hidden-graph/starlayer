@@ -5,7 +5,11 @@ from pyshacl.errors import ShapeLoadError
 from rdflib import Namespace
 from starlayer import StarLayerGraph
 from starlayer.shacl import StarShaclSchema, validate
-from starlayer.shacl.shapes_graphs import graph_nodes, shapes_graph_members, shapes_graphs
+from starlayer.shacl.shapes_graphs import (
+    graph_nodes,
+    shapes_graph_members,
+    shapes_graphs,
+)
 
 EX = Namespace("http://e/")
 PREFIXES = (
