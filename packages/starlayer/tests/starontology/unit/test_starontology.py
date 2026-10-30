@@ -541,8 +541,8 @@ class TestShaclVocabulary:
                 (order,) = vocabulary.objects(prop, SH.order)
                 defines.append((int(order), next(vocabulary.objects(prop, SH["class"]))))
         kinds = [kind for _order, kind in sorted(defines)]
-        assert kinds[:4] == [SH.PrefixDeclaration, SH.Parameter, SH.NodeShape, SH.PropertyShape] and len(kinds) == 18, "one property shape and one class per kind"
-        assert {SH.SPARQLConstraint, SH.Parameter, SH.ResultAnnotation, SH.RuleSet, SH.ConstraintComponent, SH.TripleRule} <= set(kinds)
+        assert kinds[:4] == [SH.PrefixDeclaration, SH.Parameter, SH.NodeShape, SH.PropertyShape] and len(kinds) == 19, "one property shape and one class per kind"
+        assert {SH.SPARQLConstraint, SH.Parameter, SH.ResultAnnotation, SH.RuleSet, SH.ConstraintComponent, SH.TripleRule, SH.SPARQLRuleTemplate} <= set(kinds)
         assert not {SH.Function, SH.SPARQLFunction, SH.Target} & set(kinds), "SHACL-AF kinds that SHACL 1.2 no longer defines"
         # each kind is in a group, and the groups and the kinds are ordered together
         groups = {}

@@ -1392,7 +1392,7 @@ stsh:NodeShapeForm_sh_nodeByExpression a sh:PropertyShape ;
 
 stsh:NodeShapeForm_sh_nodeKind a sh:PropertyShape ;
     sh:group stsh:ValueTypeGroup ;
-    sh:in _:n79f1061861704af7817c022f5f131d8ab75 ;
+    sh:in _:n5e7bda58db2b46dc9c56aad7c3d05fe0b75 ;
     sh:maxCount 1 ;
     sh:nodeKind sh:IRI ;
     sh:order 4 ;
@@ -1792,7 +1792,7 @@ stsh:ParameterForm_sh_nodeByExpression a sh:PropertyShape ;
 
 stsh:ParameterForm_sh_nodeKind a sh:PropertyShape ;
     sh:group stsh:ValueTypeGroup ;
-    sh:in _:n79f1061861704af7817c022f5f131d8ab75 ;
+    sh:in _:n5e7bda58db2b46dc9c56aad7c3d05fe0b75 ;
     sh:maxCount 1 ;
     sh:nodeKind sh:IRI ;
     sh:order 4 ;
@@ -2295,7 +2295,7 @@ stsh:PropertyShapeForm_sh_nodeByExpression a sh:PropertyShape ;
 
 stsh:PropertyShapeForm_sh_nodeKind a sh:PropertyShape ;
     sh:group stsh:ValueTypeGroup ;
-    sh:in _:n79f1061861704af7817c022f5f131d8ab75 ;
+    sh:in _:n5e7bda58db2b46dc9c56aad7c3d05fe0b75 ;
     sh:maxCount 1 ;
     sh:nodeKind sh:IRI ;
     sh:order 4 ;
@@ -3024,6 +3024,7 @@ stsh:TripleRuleForm_sh_order a sh:PropertyShape ;
 stsh:TripleRuleForm_sh_predicate a sh:PropertyShape ;
     sh:group stsh:DefinitionGroup ;
     sh:maxCount 1 ;
+    sh:nodeKind sh:BlankNodeOrIRI ;
     sh:order 5 ;
     sh:path sh:predicate .
 
@@ -3044,6 +3045,7 @@ stsh:TripleRuleForm_sh_runOnce a sh:PropertyShape ;
 stsh:TripleRuleForm_sh_subject a sh:PropertyShape ;
     sh:group stsh:DefinitionGroup ;
     sh:maxCount 1 ;
+    sh:nodeKind sh:BlankNodeOrIRI ;
     sh:order 4 ;
     sh:path sh:subject .
 
@@ -3926,8 +3928,8 @@ stsh:DefinitionGroup a sh:PropertyGroup ;
     sh:name "Definition"@en ;
     sh:order 0.5 .
 
-_:n79f1061861704af7817c022f5f131d8ab76 rdf:first sh:IRI ;
+_:n5e7bda58db2b46dc9c56aad7c3d05fe0b76 rdf:first sh:IRI ;
     rdf:rest ( sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) .
 
-_:n79f1061861704af7817c022f5f131d8ab75 rdf:first sh:BlankNode ;
-    rdf:rest _:n79f1061861704af7817c022f5f131d8ab76 .
+_:n5e7bda58db2b46dc9c56aad7c3d05fe0b75 rdf:first sh:BlankNode ;
+    rdf:rest _:n5e7bda58db2b46dc9c56aad7c3d05fe0b76 .

@@ -1201,6 +1201,7 @@ stsh:ShapesGraphShape a sh:NodeShape ;
         stsh:ShapesGraphDefinesRuleSet,
         stsh:ShapesGraphDefinesSPARQLConstraint,
         stsh:ShapesGraphDefinesSPARQLRule,
+        stsh:ShapesGraphDefinesSPARQLRuleTemplate,
         stsh:ShapesGraphDefinesTripleRule,
         stsh:ShapesGraphDefinesValidator,
         stsh:ShapesGraphDefinesWidget,
@@ -1787,7 +1788,7 @@ stsh:ShapesGraphDefinesConfiguration a sh:PropertyShape ;
     sh:class shui:Configuration ;
     sh:group stsh:KindGroupUI ;
     sh:name "UI configurations" ;
-    sh:order 17 ;
+    sh:order 18 ;
     sh:path [ sh:inversePath rdfs:isDefinedBy ] .
 
 stsh:ShapesGraphDefinesConstraintComponent a sh:PropertyShape ;
@@ -1836,7 +1837,7 @@ stsh:ShapesGraphDefinesPropertyGroup a sh:PropertyShape ;
     sh:class sh:PropertyGroup ;
     sh:group stsh:KindGroupUI ;
     sh:name "property groups" ;
-    sh:order 14 ;
+    sh:order 15 ;
     sh:path [ sh:inversePath rdfs:isDefinedBy ] .
 
 stsh:ShapesGraphDefinesPropertyShape a sh:PropertyShape ;
@@ -1874,6 +1875,14 @@ stsh:ShapesGraphDefinesSPARQLRule a sh:PropertyShape ;
     sh:order 13 ;
     sh:path [ sh:inversePath rdfs:isDefinedBy ] .
 
+stsh:ShapesGraphDefinesSPARQLRuleTemplate a sh:PropertyShape ;
+    sh:class sh:SPARQLRuleTemplate ;
+    sh:group stsh:KindGroupRules ;
+    sh:name "SPARQL rule templates" ;
+    sh:order 14 ;
+    sh:path [ sh:inversePath rdfs:isDefinedBy ] ;
+    stsh:groupsInstances true .
+
 stsh:ShapesGraphDefinesTripleRule a sh:PropertyShape ;
     sh:class sh:TripleRule ;
     sh:group stsh:KindGroupRules ;
@@ -1892,21 +1901,21 @@ stsh:ShapesGraphDefinesWidget a sh:PropertyShape ;
     sh:class shui:Widget ;
     sh:group stsh:KindGroupUI ;
     sh:name "widgets" ;
-    sh:order 18 ;
+    sh:order 19 ;
     sh:path [ sh:inversePath rdfs:isDefinedBy ] .
 
 stsh:ShapesGraphDefinesWidgetAcceptMatcher a sh:PropertyShape ;
     sh:class shui:WidgetAcceptMatcher ;
     sh:group stsh:KindGroupUI ;
     sh:name "widget accept matchers" ;
-    sh:order 16 ;
+    sh:order 17 ;
     sh:path [ sh:inversePath rdfs:isDefinedBy ] .
 
 stsh:ShapesGraphDefinesWidgetScore a sh:PropertyShape ;
     sh:class shui:WidgetScore ;
     sh:group stsh:KindGroupUI ;
     sh:name "widget scores" ;
-    sh:order 15 ;
+    sh:order 16 ;
     sh:path [ sh:inversePath rdfs:isDefinedBy ] .
 
 stsh:ShapesGraphUses a sh:PropertyShape ;
@@ -1955,13 +1964,13 @@ stsh:KindGroupShared a sh:PropertyGroup ;
     rdfs:label "Prefixes and Parameters" ;
     sh:order 1 .
 
-stsh:KindGroupRules a sh:PropertyGroup ;
-    rdfs:label "Inference rules" ;
-    sh:order 5 .
-
 stsh:KindGroupConstraints a sh:PropertyGroup ;
     rdfs:label "SPARQL, constraints and components" ;
     sh:order 3 .
+
+stsh:KindGroupRules a sh:PropertyGroup ;
+    rdfs:label "Inference rules" ;
+    sh:order 5 .
 
 sh:Literal a sh:NodeKind ;
     rdfs:label "Literal"@en ;
