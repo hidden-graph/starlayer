@@ -69,7 +69,7 @@ def _lists(ctx: Any, terms: tuple, what: str) -> Iterator[list[Any]]:
 def not_(ctx, shape, params, focus, values):
     for s in _shape_refs(params[SH["not"]], "sh:not"):
         for v in values:
-            if ctx.conforms(s, v):
+            if ctx.conforms(s, v, negated=True):
                 yield Violation(value=v)
 
 

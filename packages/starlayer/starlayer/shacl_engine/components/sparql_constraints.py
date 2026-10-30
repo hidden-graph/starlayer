@@ -40,6 +40,8 @@ def sparql_constraint(ctx, shape, params, focus, values):
                 messages=graph.objects(constraint, SH.message),
                 source_constraint=constraint,
                 severity=severities[0] if severities else None,
+                graph=graph,
+                annotation_source=constraint,
             )
         )
     return out

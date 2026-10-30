@@ -33,6 +33,23 @@ ENGINE_TIMEOUT_S = 20
 MAX_SNIPPET_TRIPLES = 40
 
 # validate() kwargs that do not change what the validation computes (or that the comparison handles itself).
+# Options the engine's validate() accepts, passed through by _run_engine.
+_ENGINE_OPTIONS = (
+    "ont_graph",
+    "inference",
+    "meta_shacl",
+    "meta_shapes_extra",
+    "shapes_graph_loader",
+    "ignore_imports",
+    "shapes_graph_resource",
+    "max_validation_depth",
+    "abort_on_first",
+    "data_graph_iri",
+    "shapes_graph_iri",
+    "specification_graph",
+    "include_used_configuration",
+)
+
 _IGNORED = {
     "ignore_imports",
     "data_graph_iri",
@@ -107,27 +124,16 @@ def _skip_options(
     options: dict[str, Any], ont_graph: Any, validate_fn_custom: bool, resource: Any
 ) -> list[str]:
     skip: list[str] = []
-    if ont_graph is not None:
-        skip.append("ont_graph")
     if validate_fn_custom:
         skip.append("validate_fn")
-    if resource is not None:
-        skip.append("shapes_graph_resource")
-    inference = options.get("inference")
-    if inference not in (None, "none", "None", False):
-        skip.append("inference")
-    if options.get("meta_shacl"):
-        skip.append("meta_shacl")
+    # inference, ont_graph, meta_shacl, meta_shapes_extra, shapes_graph_loader, shapes_graph_resource,
+    # max_validation_depth, abort_on_first and the provenance options are passed to the engine (see _run_engine).
     if options.get("inplace"):
         skip.append("inplace")
     if options.get("iterate_rules"):
         skip.append("iterate_rules")
     if options.get("decode_report") is False:
         skip.append("decode_report=False")
-    if options.get("shapes_graph_loader") is not None:
-        skip.append("shapes_graph_loader")
-    if options.get("meta_shapes_extra"):
-        skip.append("meta_shapes_extra")
     if options.get("adapter") is not None:
         skip.append("adapter")
     if options.get("rdfs_subclass_reasoning_includes_shapes_graph"):
@@ -142,10 +148,9 @@ def _skip_options(
         if name not in _IGNORED and name not in {
             "validate_fn",
             "adapter",
-            "shapes_graph_loader",
             "iterate_rules",
             "rdfs_subclass_reasoning_includes_shapes_graph",
-            "shapes_graph_resource",
+            *_ENGINE_OPTIONS,
         }:
             skip.append(f"kwarg:{name}")
     return skip
@@ -265,6 +270,9 @@ def _run_engine(data: Any, shapes: Any, options: dict[str, Any]) -> Any:
     from starlayer.shacl_engine.api import validate as new_validate
 
     rules = None if options.get("advanced", True) else False
+    passed = {k: options[k] for k in _ENGINE_OPTIONS if options.get(k) not in (None, False, ())}
+    if options.get("inference") in ("none", "None"):
+        passed.pop("inference", None)
 
     def on_alarm(signum: int, frame: Any) -> None:
         raise _Timeout
@@ -279,7 +287,7 @@ def _run_engine(data: Any, shapes: Any, options: dict[str, Any]) -> Any:
     try:
         try:
             return new_validate(
-                data, shapes, conformance_disallows=_disallows(options), rules=rules
+                data, shapes, conformance_disallows=_disallows(options), rules=rules, **passed
             )
         except AssertionError as exc:
             if "must be an rdflib term" not in str(exc):
@@ -293,7 +301,7 @@ def _run_engine(data: Any, shapes: Any, options: dict[str, Any]) -> Any:
             engine_report.Graph = StarLayerGraph
             try:
                 outcome = new_validate(
-                    data, shapes, conformance_disallows=_disallows(options), rules=rules
+                    data, shapes, conformance_disallows=_disallows(options), rules=rules, **passed
                 )
             finally:
                 engine_report.Graph = saved
@@ -465,6 +473,8 @@ def _wrap_module_validate(original: Any) -> Any:
             ont = arguments.pop("ont_graph", None)
             custom_fn = arguments.get("validate_fn") is not None
             options = {**arguments, **extra}
+            if ont is not None:
+                options["ont_graph"] = ont
             skip = _skip_options(
                 options, ont, custom_fn, options.get("shapes_graph_resource")
             )
@@ -498,6 +508,8 @@ def _wrap_schema_validate(original: Any, default_validate_fn: Any) -> Any:
             if self.inference is not None and options.get("inference") is None:
                 options["inference"] = self.inference
             custom_fn = self.validate_fn is not default_validate_fn
+            if sources.get("ont_graph") is not None:
+                options["ont_graph"] = sources["ont_graph"]
             skip = _skip_options(
                 options,
                 sources.get("ont_graph"),

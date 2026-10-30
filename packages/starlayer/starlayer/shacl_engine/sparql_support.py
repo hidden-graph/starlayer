@@ -222,6 +222,8 @@ def violations_from_solutions(
     messages: Iterable[Term],
     source_constraint: Term = None,
     severity: Term = None,
+    graph: Any = None,
+    annotation_source: Term = None,
 ) -> list[Violation]:
     """One violation per solution: ``?this`` -> focus (the pre-bound node), ``?path`` (an IRI) -> sh:resultPath else the
     property shape's path, ``?value`` -> sh:value else (node shapes) the focus node, ``?message`` -> message else the
@@ -240,12 +242,41 @@ def violations_from_solutions(
         else:
             known = {**bindings, **row}
             msgs = tuple(fill_template(m, known) for m in messages)
+        annotations = (
+            result_annotations(graph, annotation_source, row) if graph is not None and annotation_source is not None else ()
+        )
         out.append(
             Violation(
-                value=value, path=path, messages=msgs, source_constraint=source_constraint, severity=severity
+                value=value,
+                path=path,
+                messages=msgs,
+                source_constraint=source_constraint,
+                severity=severity,
+                annotations=annotations,
             )
         )
     return out
+
+
+def result_annotations(graph: Any, source: Term, row: Mapping[str, Term]) -> tuple[tuple[Term, Term], ...]:
+    """``sh:resultAnnotation`` of a ``sh:sparql`` constraint or a SELECT validator (SHACL 1.2 SPARQL-Related Features):
+    each annotation has one ``sh:annotationProperty`` and either ``sh:annotationVarName`` (the variable's value in the
+    solution row; no triple if it is unbound) or ``sh:annotationValue`` (every value). Entries without exactly one
+    property are ignored, as the old validator does."""
+    out: list[tuple[Term, Term]] = []
+    for ann in graph.objects(source, SH.resultAnnotation):
+        props = list(graph.objects(ann, SH.annotationProperty))
+        if len(props) != 1:
+            continue
+        names = list(graph.objects(ann, SH.annotationVarName))
+        if names:
+            value = row.get(str(names[0]))
+            if value is not None:
+                out.append((props[0], value))
+            continue
+        for value in graph.objects(ann, SH.annotationValue):
+            out.append((props[0], value))
+    return tuple(out)
 
 
 # --------------------------------------------------------------------------------------------------------------------

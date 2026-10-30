@@ -8,7 +8,7 @@ from typing import Any
 from starlayer.shacl_engine.deactivation import deactivated_at
 from starlayer.shacl_engine.expressions import EvaluationFailure, evaluate_expression
 from starlayer.shacl_engine.paths import eval_path
-from starlayer.shacl_engine.plan import SH, Path, Plan, Shape, Term
+from starlayer.shacl_engine.plan import SH, Path, Plan, Shape, ShapeError, Term
 from starlayer.shacl_engine.targets import focus_nodes
 
 
@@ -23,6 +23,7 @@ class Result:
     severity: Term
     messages: tuple[Any, ...] = ()
     source_constraint: Term = None
+    annotations: tuple[tuple[Any, Any], ...] = ()  # (property, value) pairs: sh:resultAnnotation
 
 
 @dataclass
@@ -31,7 +32,11 @@ class Context:
 
     data: Any
     plan: Plan
-    _active: set = field(default_factory=set)
+    abort_on_first: bool = False  # stop at the first shape that produces a result (and the first component within it)
+    max_validation_depth: int | None = None  # bound on shape nesting; exceeding it raises ShapeError (failure)
+    _active: dict = field(default_factory=dict)  # (shape, node) pairs being evaluated -> sh:not crossings at entry
+    _negations: int = 0  # sh:not crossings on the current evaluation stack
+    _depth: int = 0
     _focus_cache: dict = field(default_factory=dict)
 
     @property
@@ -41,17 +46,31 @@ class Context:
     def shape(self, node: Term) -> Shape:
         return self.plan.shape(node)
 
-    def conforms(self, shape_node: Term, node: Term) -> bool:
-        """True if ``node`` has no validation result against the shape. A recursive re-entry on the same
-        (shape, node) pair counts as conforming (the recursion semantics are an open design question)."""
+    def conforms(self, shape_node: Term, node: Term, *, negated: bool = False) -> bool:
+        """True if ``node`` has no validation result against the shape.
+
+        SHACL 1.2 Core 6.7.3: "The validation with recursive shapes is not defined in SHACL and is left to SHACL
+        processor implementations." Choice made here: a re-entry on the same (shape, node) pair is assumed to conform
+        (the greatest-fixpoint reading, as ``starlayer.shacl.recursion``), except when the cycle passes through ``sh:not``
+        (``negated=True`` callers). Such a cycle is not stratified: it has no fixpoint (odd number of negations) or
+        several (even number: ``ex:N sh:not [ sh:not [ ... sh:node ex:N ] ]`` is consistent both as conforming and as
+        violating), so the answer would depend on evaluation order. It raises ``ShapeError`` (a validation failure).
+        A cycle that meets the data only at positive links (sh:node, sh:property, sh:and, sh:or) keeps 'conforms'.
+        """
         key = (shape_node, node)
         if key in self._active:
+            if self._negations != self._active[key]:
+                raise ShapeError(f"recursive shape {shape_node!r} reaches itself on {node!r} through sh:not")
             return True
-        self._active.add(key)
+        self._active[key] = self._negations
+        if negated:
+            self._negations += 1
         try:
             return not validate_shape_at(self, self.shape(shape_node), node)
         finally:
-            self._active.discard(key)
+            if negated:
+                self._negations -= 1
+            del self._active[key]
 
     def shape_focus(self, shape: Shape) -> list[Term]:
         """The shape's focus nodes, cached (cross-node components such as sh:uniqueValuesFor need the whole set)."""
@@ -95,6 +114,17 @@ def _deactivated(shape: Shape, pred: Term, value: Term) -> bool:
 def validate_shape_at(ctx: Context, shape: Shape, focus: Term) -> list[Result]:
     if shape.deactivated or deactivated_at(ctx, shape, focus):
         return []
+    limit = ctx.max_validation_depth
+    if limit is not None and ctx._depth >= limit:
+        raise ShapeError(f"Validation path too deep: more than {limit} nested shapes at {shape.node!r}")
+    ctx._depth += 1
+    try:
+        return _validate_shape_at(ctx, shape, focus)
+    finally:
+        ctx._depth -= 1
+
+
+def _validate_shape_at(ctx: Context, shape: Shape, focus: Term) -> list[Result]:
     values = ctx.value_nodes(shape, focus)
     out: list[Result] = []
     for spec in ctx.plan.components():
@@ -121,9 +151,14 @@ def validate_shape_at(ctx: Context, shape: Shape, focus: Term) -> list[Result]:
                     severity=v.severity or severity,
                     messages=v.messages or shape.messages or ((v.message,) if v.message else ()),
                     source_constraint=v.source_constraint,
+                    annotations=v.annotations,
                 )
             )
+        if out and ctx.abort_on_first:
+            return out
     for ps in shape.property_shapes:
+        if out and ctx.abort_on_first:
+            break
         if _deactivated(shape, SH.property, ps):
             continue
         pshape = ctx.shape(ps)
@@ -132,8 +167,8 @@ def validate_shape_at(ctx: Context, shape: Shape, focus: Term) -> list[Result]:
     return out
 
 
-def run(plan: Plan, data: Any) -> list[Result]:
-    ctx = Context(data=data, plan=plan)
+def run(plan: Plan, data: Any, *, abort_on_first: bool = False, max_validation_depth: int | None = None) -> list[Result]:
+    ctx = Context(data=data, plan=plan, abort_on_first=abort_on_first, max_validation_depth=max_validation_depth)
     results: list[Result] = []
     for node in plan.all_shape_nodes():
         shape = plan.shape(node)
@@ -141,4 +176,6 @@ def run(plan: Plan, data: Any) -> list[Result]:
             continue
         for focus in ctx.shape_focus(shape):
             results.extend(validate_shape_at(ctx, shape, focus))
+            if results and abort_on_first:
+                return results
     return results

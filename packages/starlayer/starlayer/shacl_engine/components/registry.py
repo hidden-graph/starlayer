@@ -30,6 +30,7 @@ class Violation:
     source_constraint: Term = None  # sh:sourceConstraint (SPARQL-based constraints: the sh:sparql node)
     severity: Term = None  # overrides the shape's severity for this result (sh:severity on a sh:sparql node)
     messages: tuple[Any, ...] = ()  # RDF literals; take precedence over the shape's sh:message
+    annotations: tuple[tuple[Any, Any], ...] = ()  # (property, value) pairs added to the result (sh:resultAnnotation)
 
 
 @dataclass(frozen=True)

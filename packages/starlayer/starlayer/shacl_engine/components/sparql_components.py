@@ -121,7 +121,13 @@ def _run_validator(ctx, comp: Term, validator: Term, shape: Shape, focus: Term, 
     text = substitute_path(with_prefixes(ctx.plan, validator, str(selects[0])), shape)
     bindings = {"this": focus, **params}
     return violations_from_solutions(
-        run_select(ctx, text, bindings), shape=shape, focus=focus, bindings=bindings, messages=messages
+        run_select(ctx, text, bindings),
+        shape=shape,
+        focus=focus,
+        bindings=bindings,
+        messages=messages,
+        graph=graph,
+        annotation_source=validator,
     )
 
 
