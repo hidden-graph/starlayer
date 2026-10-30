@@ -63,9 +63,15 @@ def prefixes_for(plan: Plan, holder: Term) -> dict[str, str]:
         explicit = list(graph.objects(holder, SH.prefixes))
         if explicit:
             holders = _import_closure(graph, explicit)
-        else:  # no sh:prefixes: the declarations of the ontology-like nodes of the shapes graph
-            holders = [s for t in _PREFIX_HOLDER_TYPES for s in graph.subjects(RDF.type, t)]
-        plan.sparql_cache[key] = _declarations(graph, holders)
+            decls = _declarations(graph, holders)
+        else:
+            # no sh:prefixes: the declarations of the sh:ShapesGraph-like nodes win; an owl:Ontology declare only adds
+            # prefixes they do not already bind (the W3C prefixes-002 case has a distractor with the same prefix).
+            primary = [s for t in _PREFIX_HOLDER_TYPES[1:] for s in graph.subjects(RDF.type, t)]
+            decls = _declarations(graph, primary)
+            for p, ns in _declarations(graph, list(graph.subjects(RDF.type, OWL.Ontology))).items():
+                decls.setdefault(p, ns)
+        plan.sparql_cache[key] = decls
     return plan.sparql_cache[key]
 
 
@@ -253,13 +259,23 @@ def _single_string(graph: Any, node: Term, pred: Term) -> str:
     return str(values[0])
 
 
+def _scope_variable(name: Any) -> str:
+    """SPARQL variable for a scope entry: a string as is; an integer n is ``arg<n>``; a parameter path IRI its local name."""
+    if isinstance(name, int):
+        return f"arg{name}"
+    if isinstance(name, URIRef):
+        text = str(name)
+        return text[max(text.rfind("#"), text.rfind("/")) + 1 :]
+    return str(name)
+
+
 def eval_node_expression(ctx: Any, expr: Term, focus: Term | None, scope: Mapping[str, list] | None = None) -> list[Term]:
     """Output nodes of a ``sh:select`` or ``sh:sparqlExpr`` expression (called by ``expressions.py`` for those two
     operators; every other kind is evaluated there). ``this`` is pre-bound to ``focus`` when there is one, and every
     scope variable with exactly one value is pre-bound under its name (``sh:expression`` binds ``value``)."""
     plan = ctx.plan
     graph = plan.shapes_graph
-    bindings = {k: v[0] for k, v in (scope or {}).items() if len(v) == 1}
+    bindings = {_scope_variable(k): v[0] for k, v in (scope or {}).items() if len(v) == 1}
     if focus is not None:
         bindings["this"] = focus
     if (expr, SH.select, None) in graph:

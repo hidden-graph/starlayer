@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from rdflib import RDF, URIRef
+from rdflib import RDF, XSD, Literal, URIRef
 
 from starlayer.graph.model.triple import TripleTerm
 from starlayer.shacl_engine.components.registry import all_param_predicates
@@ -21,6 +21,11 @@ def build_path(graph: Any, node: Term) -> Path:
 _REIFIES = URIRef("http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies")
 
 
+def _is_true(term: Term) -> bool:
+    """Only the literal ``"true"^^xsd:boolean`` deactivates (``"1"`` does not, as for sh:uniqueLang)."""
+    return isinstance(term, Literal) and term.datatype == XSD.boolean and str(term) == "true"
+
+
 def _annotations(graph: Any, node: Term, params: dict, property_shapes: tuple) -> dict:
     """Per-triple ``sh:deactivated`` / ``sh:severity`` from the reifiers of ``<<( node pred value )>>``."""
     out: dict = {}
@@ -28,7 +33,7 @@ def _annotations(graph: Any, node: Term, params: dict, property_shapes: tuple) -
     for pred, value in pairs:
         for reifier in graph.subjects(_REIFIES, TripleTerm(node, pred, value)):
             info = out.setdefault((pred, value), {"deactivated": False, "severity": None})
-            if any(str(d) in ("true", "1") for d in graph.objects(reifier, SH.deactivated)):
+            if any(_is_true(d) for d in graph.objects(reifier, SH.deactivated)):
                 info["deactivated"] = True
             sev = next(iter(graph.objects(reifier, SH.severity)), None)
             if sev is not None:
@@ -57,7 +62,8 @@ def build_shape(graph: Any, node: Term, extra_predicates: Any = ()) -> Shape:
         params=params,
         property_shapes=tuple(graph.objects(node, SH.property)),
         severity=severities[0] if severities else SH.Violation,
-        deactivated=any(str(v) in ("true", "1") for v in deact),
+        deactivated=any(_is_true(v) for v in deact),
+        deactivated_exprs=tuple(v for v in deact if not isinstance(v, Literal)),
         messages=tuple(graph.objects(node, SH.message)),
         values=tuple(graph.objects(node, SH["values"])),
         default_values=tuple(graph.objects(node, SH.defaultValue)),

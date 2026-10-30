@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from starlayer.shacl_engine.deactivation import deactivated_at
 from starlayer.shacl_engine.expressions import EvaluationFailure, evaluate_expression
 from starlayer.shacl_engine.paths import eval_path
 from starlayer.shacl_engine.plan import SH, Path, Plan, Shape, Term
@@ -92,7 +93,7 @@ def _deactivated(shape: Shape, pred: Term, value: Term) -> bool:
 
 
 def validate_shape_at(ctx: Context, shape: Shape, focus: Term) -> list[Result]:
-    if shape.deactivated:
+    if shape.deactivated or deactivated_at(ctx, shape, focus):
         return []
     values = ctx.value_nodes(shape, focus)
     out: list[Result] = []

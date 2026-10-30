@@ -40,6 +40,11 @@ def _boolean(term: Any, what: str) -> bool:
     raise ShapeError(f"{what} must be an xsd:boolean literal, got {term!r}")
 
 
+def _only_true(term: Any, what: str) -> bool:
+    """Like ``_boolean`` but only the lexical form ``"true"`` activates (``"1"`` is a valid but inactive boolean)."""
+    return _boolean(term, what) and str(term) == "true"
+
+
 def _count(term: Any, what: str) -> int:
     if isinstance(term, Literal) and term.datatype == XSD.integer and str(term).lstrip("+-").isdigit():
         return int(str(term))
@@ -199,7 +204,7 @@ def closed(ctx, shape, params, focus, values):
 def reifier_shape(ctx, shape, params, focus, values):
     if shape.path is None or shape.path.kind != "pred":
         raise ShapeError(f"{shape.node}: sh:reifierShape/sh:reificationRequired need a property shape with an IRI path")
-    required = any(_boolean(r, "sh:reificationRequired") for r in params.get(SH.reificationRequired, ()))
+    required = any(_only_true(r, "sh:reificationRequired") for r in params.get(SH.reificationRequired, ()))
     rshapes = _shape_refs(params.get(SH.reifierShape, ()), "sh:reifierShape")
     for v in values:
         reifiers = list(ctx.data.subjects(_RDF_REIFIES, TripleTerm(focus, shape.path.iri, v)))

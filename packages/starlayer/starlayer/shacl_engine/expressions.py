@@ -94,11 +94,87 @@ def _eval(ctx: Any, expr: Term, focus: Term | None, scope: Scope) -> list[Term]:
     if RDF.first in preds:
         return list(shacl_list(g, expr))  # list expression: its members
     keys = [p for p in preds if p in OPERATORS]
+    if not keys:  # a call of a custom function declared in the shapes graph
+        custom = _custom_functions(ctx)
+        called = [p for p in preds if p in custom]
+        if len(called) == 1 and len({custom[p] for p in called}) == 1:
+            return _call_custom(ctx, expr, custom[called[0]], called[0], focus, scope)
+        if len(called) > 1:
+            raise ShapeError(f"{expr!r}: a node expression may call only one custom function, found {sorted(map(str, called))}")
     if len(keys) != 1:
         raise ShapeError(
             f"{expr!r}: a node expression needs exactly one operator predicate, found {sorted(map(str, keys))}"
         )
     return OPERATORS[keys[0]](ctx, expr, focus, scope)
+
+
+# --------------------------------------------------------------------------------------------------------------------
+# Custom functions (Node Expressions, "Custom Node Expressions"): sh:ListParameterExpressionFunction (called by its own IRI
+# with a list of argument expressions, read in the body as [ shnex:arg 0 ]) and sh:NamedParameterExpressionFunction (called by
+# the sh:path of one of its sh:keyParameter parameters, read in the body as [ shnex:arg <path> ]).
+
+
+def _custom_functions(ctx: Any) -> dict[URIRef, Term]:
+    """Call predicate -> function node, for the functions the shapes graph declares (built-in operators win)."""
+    key = ("custom-functions",)
+    cache = ctx.plan.sparql_cache
+    if key not in cache:
+        g = ctx.shapes
+        reg: dict[URIRef, Term] = {}
+        for fn in g.subjects(RDF.type, SH.ListParameterExpressionFunction):
+            if isinstance(fn, URIRef) and fn not in OPERATORS:
+                reg[fn] = fn
+        for fn in g.subjects(RDF.type, SH.NamedParameterExpressionFunction):
+            for param in g.objects(fn, SH.parameter):
+                if (param, SH.keyParameter, TRUE) not in g:
+                    continue
+                for path in g.objects(param, SH.path):
+                    if isinstance(path, URIRef) and path not in OPERATORS:
+                        reg[path] = fn
+        cache[key] = reg
+    return cache[key]
+
+
+def _call_custom(ctx: Any, expr: Term, fn: Term, pred: URIRef, focus: Term | None, scope: Scope) -> list:
+    g = ctx.shapes
+    body = next(iter(g.objects(fn, SH.bodyExpression)), None)
+    if body is None:
+        raise ShapeError(f"{fn!r}: a custom node expression function needs an sh:bodyExpression")
+    arg_scope: dict = {}
+    if (fn, RDF.type, SH.ListParameterExpressionFunction) in g:
+        head = _one(ctx, expr, pred)
+        any_empty = False
+        for i, arg in enumerate(shacl_list(g, head)):
+            nodes = _eval(ctx, arg, focus, scope)  # arguments are evaluated in the caller's scope
+            if len(nodes) > 1:
+                raise EvaluationFailure(f"argument {i} of a call of {fn} has more than one output node")
+            if nodes:
+                arg_scope[i] = nodes
+            else:
+                any_empty = True
+        if any_empty:
+            return []
+        out = _eval(ctx, body, focus, arg_scope)
+        if len(out) > 1:
+            raise EvaluationFailure(f"the body of the list parameter function {fn} has more than one output node")
+        return out
+    for param in g.objects(fn, SH.parameter):  # every declared parameter, not only the key ones
+        for path in g.objects(param, SH.path):
+            exprs = list(g.objects(expr, path))
+            if exprs:
+                arg_scope[path] = _eval(ctx, exprs[0], focus, scope)
+    return _eval(ctx, body, focus, arg_scope)
+
+
+@operator(SHNEX + "arg")
+def _arg(ctx, expr, focus, scope):
+    key = _one(ctx, expr, _n("arg"))
+    if isinstance(key, Literal):
+        try:
+            key = int(str(key))
+        except ValueError:
+            raise ShapeError(f"{expr!r}: shnex:arg must be an integer or a parameter path IRI") from None
+    return list(scope.get(key, []))
 
 
 def _values(ctx: Any, expr: Term, pred: URIRef) -> list:

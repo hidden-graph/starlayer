@@ -49,6 +49,7 @@ class Shape:
     # (parameter predicate, value) -> {'deactivated': bool, 'severity': Term|None}, read from RDF 1.2 reifiers of the
     # shape's own triples (`sh:datatype xsd:boolean {| sh:deactivated true |}`); sh:property uses the same key shape.
     annotations: dict[tuple[Term, Term], dict[str, Any]] = field(default_factory=dict)
+    deactivated_exprs: tuple[Term, ...] = ()  # sh:deactivated values that are node expressions, evaluated per focus node
 
 
 @dataclass

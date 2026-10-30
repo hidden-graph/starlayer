@@ -163,3 +163,29 @@ Open points the build surfaced (decide before cut-over):
   overlay SPARQL materialises a StarLayerGraph (native overlay query is a follow-up).
 - Totals: shacl_engine about 3,500 lines. Engine suites together: 668 passed, 5 xfailed (Oxigraph literal
   normalization, parked), 2 failed (pre-binding-002: issue #186; seconds-example: fixture defect).
+
+## Spec checks (2026-10-30), from the Core (30 Oct), SPARQL (22 Oct), Node Expressions (28 Oct) drafts and the Inference Rules editor's draft
+Read verbatim except where marked; Node Expressions 4-8, SPARQL 4-7/G and Core 6.9.3+ were not.
+- **sh:uniqueValuesFor (Core 7.9.5):** "Let $targetNodes be the target nodes of S. These are determined from the targets of S
+  even if the focus node has been provided directly, for example because S is a value of sh:node." A shape with no targets
+  has an empty peer set, so nothing is reported. The engine follows this. The old validator and 15 of the project's tests
+  (nested `sh:and`/`sh:or`/`sh:not`/qualified shapes with no targets) instead use the outer shape's focus nodes as peers: a
+  project extension, not the draft. Decision: follow the draft; those tests need revisiting at cut-over. "No values for any
+  of the properties" is ambiguous (missing one vs missing all); the engine skips a node missing any.
+- **Targets removed (SPARQL Appendix F, non-normative):** `sh:SPARQLTarget`, `sh:SPARQLTargetType` and `sh:target` with
+  SPARQL are "no longer defined" (covered by node expressions at `sh:targetNode`); the pre-bound variables `shapesGraph`
+  and `currentShape` are removed (Issue 426); `sh:SPARQLFunction` is replaced by node-expression-based functions. DROP.
+  Also: VALUES is only disallowed when it mentions pre-bound variables and the sub-SELECT restriction is gone (Issue 159);
+  SERVICE is conditionally permitted (Issue 374). The vendored fixture unsupported-sparql-002 (`VALUES ?any {true}` must
+  fail) disagrees with the draft's looser VALUES rule; the engine follows the fixture. Report to the test-suite issues list.
+- **sh:values / sh:defaultValue (Core 3.3, 6.10.2):** value nodes = path values, plus output of sh:values, plus output of
+  sh:defaultValue only if the set is still empty. `sh:deactivated` is a node expression whose only output must be true or
+  false (constants only in Core). What the engine does matches. Failure handling for these is not stated verbatim.
+- **Prefixes (SPARQL section 2):** `sh:prefixes/(^owl:versionIRI)?/(owl:imports/(^owl:versionIRI)?)*/sh:declare`; only when
+  there is no `sh:prefixes`, fall back to `sh:declare` on instances of owl:Ontology, sh:DataGraph, sh:ShapesGraph or
+  sh:RulesGraph. Ambient `@prefix` is not used. Conflicting namespaces for one prefix: ill-formed.
+- **Booleans (Core 7.4.4, 7.4.6, 7.5.4, 7.8.5, 7.9.1):** tested against the term `true` = `"true"^^xsd:boolean`;
+  `"1"^^xsd:boolean` is a different term (inference; the draft does not say). `sh:closed` also accepts `sh:ByTypes`.
+- **Reports (Core 6.9.2):** triple terms as `sh:value`/`sh:focusNode` are not excluded; only `sh:resultPath` is deep-copied
+  when it is a blank node; the draft says nothing about copying a blank-node value's triples (the engine copies them,
+  matching the old validator; 4 benign differences).

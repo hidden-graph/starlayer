@@ -20,15 +20,28 @@ class Outcome:
 
 
 def validate(
-    data_graph: Any, shapes_graph: Any = None, *, conformance_disallows: Any = None, rules: bool | None = None
+    data_graph: Any,
+    shapes_graph: Any = None,
+    *,
+    conformance_disallows: Any = None,
+    rules: bool | None = None,
+    inference: Any = None,
+    ont_graph: Any = None,
 ) -> Outcome:
     """Validate ``data_graph`` against ``shapes_graph`` (default: the data graph itself).
 
     ``rules``: ``None`` runs the inference rules first when the shapes graph declares ``sh:entailment``; ``True`` runs the
     default rule set; ``False`` never. Rules never modify ``data_graph``; validation then runs on data plus inferred
     triples, and the ``RuleResult`` is on ``Outcome.rule_result``.
+
+    ``inference`` (an entailment regime such as ``"rdfs"`` or ``"owlrl"``) and ``sh:entailment`` declared in the shapes
+    graph run the entailment closure first (see ``entailment.py``); ``ont_graph`` supplies axioms visible to entailment
+    only. Neither modifies ``data_graph``.
     """
+    from starlayer.shacl_engine.entailment import resolve_data_view
+
     shapes = shapes_graph if shapes_graph is not None else data_graph
+    data_graph = resolve_data_view(data_graph, shapes, inference=inference, ont_graph=ont_graph)
     rule_result = None
     if rules is not False:
         from starlayer.shacl_engine.rules import apply_rules, entailment_selection

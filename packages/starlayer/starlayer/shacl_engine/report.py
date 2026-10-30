@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from rdflib import BNode, Graph, Literal
+from rdflib import BNode, Literal
 from rdflib.namespace import RDF, XSD
 
 from starlayer.shacl_engine.executor import Result
@@ -20,7 +20,7 @@ def conforms(results: list[Result], conformance_disallows: Any = None) -> bool:
     return not any(_ORDER.get(r.severity, _ORDER[SH.Violation]) >= floor for r in results)
 
 
-def _copy_closure(src: Any, dst: Graph, node: Any, seen: set) -> None:
+def _copy_closure(src: Any, dst: Any, node: Any, seen: set) -> None:
     if not isinstance(node, BNode) or node in seen:
         return
     seen.add(node)
@@ -29,8 +29,11 @@ def _copy_closure(src: Any, dst: Graph, node: Any, seen: set) -> None:
         _copy_closure(src, dst, o, seen)
 
 
-def build_report(results: list[Result], shapes: Any, data: Any, conformance_disallows: Any = None) -> Graph:
-    g = Graph()
+def build_report(results: list[Result], shapes: Any, data: Any, conformance_disallows: Any = None) -> Any:
+    # a StarLayerGraph, not an rdflib Graph: only it can hold RDF 1.2 triple terms and directional literals
+    from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+
+    g = StarLayerGraph()
     g.bind("sh", SH)
     report = BNode()
     g.add((report, RDF.type, SH.ValidationReport))
