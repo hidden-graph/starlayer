@@ -22,16 +22,16 @@ PREFIXES = """
 
 def run(shapes: str, data: str = ""):
     s, d = StarLayerGraph(), StarLayerGraph()
-    s.parse(data=PREFIXES + shapes, format="turtle")
+    s.parse(data=PREFIXES + shapes, format="turtle12")  # keeps "1"^^xsd:boolean lexical
     d.parse(data=PREFIXES + data, format="turtle")
     return validate(d, s)
 
 
 def test_report_holds_a_triple_term_value():
-    out = run(
-        "ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:property [ sh:path ex:p ; sh:nodeKind sh:IRI ] .",
-        "ex:a ex:p <<( ex:x ex:y ex:z )>> .",
-    )
+    s, d = StarLayerGraph(), StarLayerGraph()
+    s.parse(data=PREFIXES + "ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:property [ sh:path ex:p ; sh:nodeKind sh:IRI ] .", format="turtle")
+    d.add((EX.a, EX.p, TripleTerm(EX.x, EX.y, EX.z)))
+    out = validate(d, s)
     assert not out.conforms
     values = list(out.report_graph.objects(None, SH.value))
     assert values == [TripleTerm(EX.x, EX.y, EX.z)]
@@ -107,11 +107,14 @@ def test_deactivated_literal_only_true_deactivates():
     assert not run(shapes % "false").conforms
 
 
-def test_sparql_tz():
-    out = run(
-        'ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:expression [ sparql:equals ( [ sparql:tz ( "2024-01-15T10:20:30Z"^^xsd:dateTime ) ] "Z" ) ] .'
-    )
-    assert out.conforms
+@pytest.mark.parametrize(
+    ("lexical", "expected"),
+    [("2024-01-15T10:20:30Z", "Z"), ("2024-01-15T10:20:30+00:00", "Z"), ("2024-01-15T10:20:30-05:00", "-05:00"), ("2024-01-15T10:20:30", "")],
+)
+def test_sparql_tz(lexical, expected):
+    shapes = f'ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:expression [ sparql:equals ( [ sparql:tz ( "{lexical}"^^xsd:dateTime ) ] "{expected}" ) ] .'
+    assert run(shapes).conforms
+    assert not run(shapes.replace(f'"{expected}" )', '"nope" )')).conforms
 
 
 def test_prefixes_shapes_graph_declare_beats_ontology_distractor():
@@ -119,7 +122,7 @@ def test_prefixes_shapes_graph_declare_beats_ontology_distractor():
     ex:Distractor a owl:Ontology ; sh:declare [ sh:prefix "t" ; sh:namespace "http://wrong.example/"^^xsd:anyURI ] .
     ex:G a sh:ShapesGraph ; sh:declare [ sh:prefix "t" ; sh:namespace "http://right.example/"^^xsd:anyURI ] .
     ex:S a sh:NodeShape ; sh:targetNode ex:a ;
-      sh:sparql [ sh:select "SELECT $this ?value WHERE { $this ex:p ?value . FILTER (?value = t:Bad) }" ] .
+      sh:sparql [ sh:select "SELECT $this ?value WHERE { $this <http://example.com/p> ?value . FILTER (?value = t:Bad) }" ] .
     """
     out = run(shapes, "ex:a ex:p <http://right.example/Bad> .")
     assert [r.focus for r in out.results] == [EX.a]

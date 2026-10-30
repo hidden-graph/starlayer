@@ -598,6 +598,11 @@ def _register_sparql() -> None:
                 f"{name.upper() if name.islower() else name}({args_of(n)})"
             ),
         )
+    # sparql:tz: the timezone of the *value*; rdflib's Turtle parser rewrites "...Z" as "...+00:00", and UTC is "Z"
+    simple(
+        URIRef(SPARQL_NS + "tz"),
+        lambda _n_: 'IF(TZ(?a0) IN ("+00:00", "-00:00"), "Z", TZ(?a0))',
+    )
     for name, sql in _RENAMED.items():
         simple(URIRef(SPARQL_NS + name), lambda n, sql=sql: f"{sql}({args_of(n)})")
     for name, op in _INFIX.items():
