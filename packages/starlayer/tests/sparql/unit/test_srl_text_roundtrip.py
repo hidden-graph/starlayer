@@ -32,7 +32,7 @@ def _inferred(ruleset):
         ("?y - -1", ["6"]),
         ("xsd:integer(?y)", ["5"]),
         ("IF(?y > 3, 1, 2)", ["1"]),
-        ("COALESCE(?y, 1)", ["5"]),
+        ("ABS(?y)", ["5"]),  # BOUND and COALESCE are not in SRL's BuiltInCall (SPARQL 1.2 Rules, production 118)
         ("!(?y > 1)", ["false"]),
         ("?y > 1 && ?y < 9 || false", ["true"]),
         ('REPLACE(STR(?y), "b", "x", "i")', ["5"]),  # the engine ignores REPLACE flags (rdflib item 10): only the text is compared
@@ -61,7 +61,7 @@ def test_regex_flags_are_kept():
     assert len(parse_ruleset(rendered).infer(_data())) == 1  # "ABC" matches only with the flag
 
 
-@pytest.mark.parametrize("expr", ["-?y < 0", "BOUND(?y)", 'STRLEN(STR(?y)) > 1', "isTRIPLE(?y)", "BNODE() = BNODE()"])
+@pytest.mark.parametrize("expr", ["-?y < 0", "CEIL(?y) > 1", 'STRLEN(STR(?y)) > 1', "isTRIPLE(?y)", "BNODE() = BNODE()"])
 def test_filter_text_has_no_placeholders_and_re_parses(expr):
     ruleset = parse_ruleset(f"{PREFIXES}RULE {{ ?x :s ?y }} WHERE {{ ?x :p ?y FILTER({expr}) }}")
     text = ruleset_to_text(ruleset)

@@ -7,6 +7,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[3]
 PACKAGE = ROOT / "packages" / "starlayer" / "starlayer"
 MAX_LINES = 120
+# build products, not committed (.gitignore): they exist only after the first query or KG test has built them
+BUILT = ("codekg.trig", "testskg.trig", "starlayer-kg.trig")
 
 _NOT_PATHS = ("from ", "pip ", "pytest", "python ", "ruff ", "cd ", "STARLAYER_", "--", "slkg:", "http")
 
@@ -30,8 +32,9 @@ def test_claude_md_only_points_to_agents_md():
 
 
 def test_every_path_in_agents_md_exists():
-    # Paths are written relative to the repo root, the package directory
-    # (packages/starlayer/starlayer/), or the tests directory.
-    bases = [ROOT, PACKAGE, ROOT / "packages" / "starlayer"]
-    missing = [p for p in _paths((ROOT / "AGENTS.md").read_text()) if not any((b / p).exists() for b in bases)]
+    # Paths are written relative to the repo root, the package directory (packages/starlayer/starlayer/), the tests
+    # directory, or the code-KG tooling (tools/kg/).
+    bases = [ROOT, PACKAGE, ROOT / "packages" / "starlayer", ROOT / "tools" / "kg"]
+    paths = [p for p in _paths((ROOT / "AGENTS.md").read_text()) if p.rsplit("/", 1)[-1] not in BUILT]
+    missing = [p for p in paths if not any((b / p).exists() for b in bases)]
     assert not missing, f"AGENTS.md names paths that do not exist: {missing}"

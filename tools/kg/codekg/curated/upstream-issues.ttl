@@ -392,3 +392,27 @@ ui:rdflib-39 a slkg:UpstreamIssue ;
     slkg:issueNumber 39 ;
     slkg:issueStatus "worked-around" ;
     slkg:workedAroundByIdentifier "starlayer.graph.query.path_patches.patch_repetition_paths_are_distinct" .
+
+ui:rdflib-40 a slkg:UpstreamIssue ;
+    rdfs:label "A negative decimal literal is a parse error" ;
+    slkg:upstreamProject "rdflib" ;
+    slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
+    slkg:issueNumber 40 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.sparql._grammar12._fix_rdflib_lexical_gaps" .
+
+ui:rdflib-41 a slkg:UpstreamIssue ;
+    rdfs:label "An escaped single quote is rejected in a double-quoted string, and an escaped double quote in a single-quoted one" ;
+    slkg:upstreamProject "rdflib" ;
+    slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
+    slkg:issueNumber 41 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.sparql._grammar12._fix_rdflib_lexical_gaps" .
+
+ui:rdflib-42 a slkg:UpstreamIssue ;
+    rdfs:label "`PN_LOCAL_ESC` keeps its backslash" ;
+    slkg:upstreamProject "rdflib" ;
+    slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
+    slkg:issueNumber 42 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.sparql._grammar12._fix_rdflib_lexical_gaps" .
