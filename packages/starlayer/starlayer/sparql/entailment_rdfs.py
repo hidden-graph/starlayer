@@ -26,6 +26,12 @@ Rules covered (RDF Semantics' own numbering):
              the same zero-or-more path - see the reflexivity note below)
     rdfs5  - subPropertyOf transitivity (+ rdfs6 reflexivity, likewise)
     rdfs7  - Q rdfs:subPropertyOf P, x Q y     => x P y
+    rdfD2  - x P y                              => P rdf:type rdf:Property (RDFS entailment includes RDF entailment); also
+             the subject of rdfs:subPropertyOf / rdfs:domain / rdfs:range and the object of rdfs:subPropertyOf, which are
+             those properties' domains and ranges, at every class rdf:Property is a subclass of
+
+A triple pattern with a *variable predicate* ``?p`` ranges over the entailed triples: the asserted predicate and every
+property above it (rdfs7), and ``rdf:type`` (and its super-properties) for the entailed types of the subject.
 
 Deliberately out of scope (all "vocabulary-level" facts, not about the
 data being queried - matching them would mean rewriting e.g. `?x a
@@ -34,7 +40,9 @@ different and far less useful query shape than what the rules above
 produce): rdfs4a/rdfs4b (every term used anywhere is rdf:type
 rdfs:Resource), rdfs8 (every rdfs:Class is rdfs:subClassOf rdfs:Resource),
 rdfs12/rdfs13 (container-membership-property/datatype axioms), and the
-~30 fixed RDFS axiomatic triples (e.g. rdf:type rdfs:domain rdfs:Resource).
+~30 fixed RDFS axiomatic triples (e.g. rdf:type rdfs:domain rdfs:Resource,
+rdf:type rdf:type rdf:Property: rdf:type is an rdf:Property here only where the
+data uses it as a predicate).
 These account for most of the triple growth on a real closure -
 StarLayerGraph.infer(entailment=ENTAILMENT.RDFS) still produces all of it
 for a caller who wants byte-for-byte RDFS completeness; this rewrite
@@ -57,8 +65,8 @@ from __future__ import annotations
 import itertools
 from typing import Any
 
-from rdflib import RDF, RDFS, URIRef, Variable
-from rdflib.paths import MulPath, SequencePath
+from rdflib import RDF, RDFS, Literal, URIRef, Variable
+from rdflib.paths import AlternativePath, MulPath, SequencePath
 from rdflib.plugins.sparql.algebra import traverse
 from rdflib.plugins.sparql.parserutils import CompValue
 
@@ -69,6 +77,8 @@ __all__ = ["rewrite_algebra_for_rdfs"]
 _SUBCLASS_TYPE_PATH = SequencePath(RDF.type, MulPath(RDFS.subClassOf, "*"))
 _SUBCLASS_STAR = MulPath(RDFS.subClassOf, "*")
 _SUBPROPERTY_STAR = MulPath(RDFS.subPropertyOf, "*")
+# a subject of one of these is an rdf:Property (the domains of rdfs:subPropertyOf, rdfs:domain and rdfs:range are rdf:Property)
+_PROPERTY_SUBJECT_PATH = AlternativePath(RDFS.subPropertyOf, RDFS.domain, RDFS.range)
 
 # Fresh variables introduced by this rewrite all share this prefix -
 # "__rdfs9" is not a legal SPARQL surface-syntax variable name character
@@ -120,8 +130,10 @@ def _rewrite_bgp(bgp: CompValue, fresh: itertools.count) -> CompValue:
             q = Variable(f"{_FRESH_PREFIX}{next(fresh)}")
             simple_triples.append((s, q, o))
             simple_triples.append((q, _SUBPROPERTY_STAR, p))
+        elif isinstance(p, Variable):
+            unions.append(_variable_predicate_union(s, p, o, fresh))
         else:
-            # a Variable predicate, or already a Path object (either a
+            # already a Path object (either a
             # literal property-path query, or this rewrite's own output
             # from an earlier pass - idempotent, left untouched either way)
             simple_triples.append((s, p, o))
@@ -170,11 +182,52 @@ def _type_union(s: Any, o: Any, fresh: itertools.count) -> CompValue:
         triples=[(s2, p2, s), (p2, _SUBPROPERTY_STAR, pp2), (pp2, RDFS.range, d2), (d2, _SUBCLASS_STAR, o)],
     )
 
+    # rdfD2 (RDFS entails everything RDF does): a term used as a predicate is an rdf:Property, and so is the subject of
+    # rdfs:subPropertyOf / rdfs:domain / rdfs:range and the object of rdfs:subPropertyOf (those properties' domains and ranges),
+    # at any class that rdf:Property is a subclass of. The subclass triple comes first so a type test that rdf:Property can
+    # never satisfy fails before the scan (GitHub issue #97).
+    pf, po, ps, pr = (Variable(f"{_FRESH_PREFIX}{next(fresh)}") for _ in range(4))
+    property_branches = [
+        CompValue("BGP", triples=[(RDF.Property, _SUBCLASS_STAR, o), (pf, s, po)]),
+        CompValue("BGP", triples=[(RDF.Property, _SUBCLASS_STAR, o), (s, _PROPERTY_SUBJECT_PATH, ps)]),
+        CompValue("BGP", triples=[(RDF.Property, _SUBCLASS_STAR, o), (pr, RDFS.subPropertyOf, s)]),
+    ]
+    property_branch = property_branches[0]
+    for branch in property_branches[1:]:
+        property_branch = CompValue("Union", p1=property_branch, p2=branch)
+
     return CompValue(
         "Union",
         p1=subclass_branch,
-        p2=CompValue("Union", p1=domain_branch, p2=range_branch),
+        p2=CompValue("Union", p1=domain_branch, p2=CompValue("Union", p1=range_branch, p2=property_branch)),
     )
+
+
+def _variable_predicate_union(s: Any, p: Variable, o: Any, fresh: itertools.count) -> CompValue:
+    """A triple pattern with a variable predicate, ``(s, ?p, o)``, matched against the entailed triples: ``?p`` ranges over the
+    asserted predicate and every property above it (rdfs7, ``Q rdfs:subPropertyOf* ?p``), and over ``rdf:type`` and its
+    super-properties for the entailed types of ``s`` (``_type_union``). A literal ``o`` can be no type, so it gets the first
+    alternative only (GitHub issue #97).
+
+    Args:
+        s: The triple pattern's subject term.
+        p: The pattern's predicate variable.
+        o: The triple pattern's object term.
+        fresh: Shared counter supplying fresh variable suffixes across the whole rewrite pass.
+
+    Returns:
+        A Union algebra node of the alternatives, or the single BGP when ``o`` is a literal.
+    """
+    q = Variable(f"{_FRESH_PREFIX}{next(fresh)}")
+    asserted = CompValue("BGP", triples=[(s, q, o), (q, _SUBPROPERTY_STAR, p)])
+    if isinstance(o, Literal):
+        return asserted
+    typed = CompValue(
+        "Join",
+        p1=_type_union(s, o, fresh),
+        p2=CompValue("BGP", triples=[(RDF.type, _SUBPROPERTY_STAR, p)]),
+    )
+    return CompValue("Union", p1=asserted, p2=typed)
 
 
 def rewrite_algebra_for_rdfs(algebra: Any) -> Any:
