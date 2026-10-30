@@ -174,6 +174,10 @@ def build_shacl_ui_graph(overlay: Graph | None = None, shacl_shacl: Graph | None
                 out.add((field, SH.maxCount, value))
         if required:
             out.add((field, SH.minCount, Literal(1)))
+        for holder in overlay.objects(predicate, STSH.formHeldBy):
+            out.add((field, STSH.formHeldBy, holder))  # (the field is for a node held by a node of this class)
+        for kind_of in overlay.objects(predicate, STSH.formOnlyFor):
+            out.add((field, STSH.formOnlyFor, kind_of))  # (the field is for a node of this class)
         if kind == SH.NodeShape and (predicate, STSH.nodePrimary, Literal(False)) in overlay:
             out.add((field, STSH.secondary, Literal(True)))  # allowed, but not commonly expected on a node shape
         found = dict(_constraints_in_shacl_shacl(shacl_shacl, predicate, kind))
@@ -201,8 +205,16 @@ def build_shacl_ui_graph(overlay: Graph | None = None, shacl_shacl: Graph | None
         if not list(overlay.objects(form, RDFS.label)):
             out.add((form, RDFS.label, Literal(f"Form for a {str(kind).rsplit('#', 1)[-1].rsplit('/', 1)[-1]}", lang="en")))
         required = {p for lst in overlay.objects(form, STSH.formRequired) for p in overlay.items(lst)}
-        for lst in overlay.objects(form, STSH.formFields):
-            for predicate in overlay.items(lst):
+        listed = [predicate for lst in overlay.objects(form, STSH.formFields) for predicate in overlay.items(lst)]
+        inherited: list = []
+        for base in overlay.objects(form, STSH.formFieldsOf):  # the fields of another kind's form (a parameter is a property shape), less the ones left out
+            flag = next(flag for _name, base_kind, flag in FORMS if base_kind == base)
+            left_out = {p for lst in overlay.objects(form, STSH.formFieldsExcept) for p in overlay.items(lst)}
+            inherited += [(p, base) for p in sorted((s for s in set(overlay.subjects(flag, Literal(True))) if isinstance(s, URIRef)), key=str) if p not in left_out]
+        for predicate, base in inherited:
+            add_field(form, name, predicate, base, required=predicate in required)
+        for predicate in listed:
+            if predicate not in {p for p, _base in inherited}:
                 add_field(form, name, predicate, kind, required=predicate in required)
     return out
 

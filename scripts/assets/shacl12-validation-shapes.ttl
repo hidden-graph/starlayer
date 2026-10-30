@@ -407,6 +407,28 @@ stsh:NamedParameterFunctionCallShape
 		""" ;
 	] .
 
+# Custom node expression functions (SHACL 1.2 Node Expressions, 6.1 and 6.2): the function is an IRI in a shapes graph (for a list parameter function, the IRI is its
+# property) with a single sh:bodyExpression that is a well-formed node expression. sh:labelTemplate (a Parameterizable: a constraint component or a named parameter
+# function) has literals of datatype xsd:string, rdf:langString or rdf:dirLangString (SPARQL Extensions 4.2.2).
+stsh:CustomFunctionShape
+	a sh:NodeShape ;
+	rdfs:label "Well-formedness rules for a custom node expression function"@en ;
+	sh:targetClass sh:NamedParameterExpressionFunction, sh:ListParameterExpressionFunction ;
+	sh:nodeKind sh:IRI ;
+	sh:message "A custom function is an IRI, not a blank node."@en ;
+	sh:property [ sh:path sh:bodyExpression ; sh:minCount 1 ; sh:maxCount 1 ; sh:node stsh:NodeExpressionShape ] .
+
+stsh:LabelTemplateShape
+	a sh:NodeShape ;
+	rdfs:label "Well-formedness rules for sh:labelTemplate"@en ;
+	sh:targetSubjectsOf sh:labelTemplate ;
+	sh:property [
+		sh:path sh:labelTemplate ;
+		sh:nodeKind sh:Literal ;
+		sh:or ( [ sh:datatype xsd:string ] [ sh:datatype rdf:langString ] [ sh:datatype rdf:dirLangString ] ) ;
+		sh:message "A label template is a literal of datatype xsd:string, rdf:langString or rdf:dirLangString."@en ;
+	] .
+
 stsh:NodeExpressionShape
 	a sh:NodeShape ;
 	sh:targetClass sh:NodeExpression ;     # typed by starlayer.shacl.shape_types.infer_types (shacl_shacl_rules), GitHub issue #22
@@ -509,6 +531,19 @@ stsh:RulesAndSparqlShapes
 		sh:node stsh:ShapeOrListOfShapesShape ;  # condition-node
 	] .
 
+# Rule sets (SHACL 1.2 Inference Rules, "Rule Sets"): "Instances of this class must be identified by an IRI, not a blank node" (the vocabulary's own comment on sh:RuleSet).
+# sh:hasRule adds a rule (a sh:TripleRule or a sh:SPARQLRule: an IRI or a blank node), sh:includesRuleSet includes another rule set (an IRI; inclusion is transitive and a
+# cycle is fine). A node that has either property is a rule set, so it is checked even without the type.
+stsh:RuleSetShape
+	a sh:NodeShape ;
+	rdfs:label "Well-formedness rules for sh:RuleSet"@en ;
+	sh:targetClass sh:RuleSet ;
+	sh:targetSubjectsOf sh:hasRule, sh:includesRuleSet ;
+	sh:nodeKind sh:IRI ;
+	sh:message "A rule set is identified by an IRI, not a blank node."@en ;
+	sh:property [ sh:path sh:hasRule ; sh:nodeKind sh:BlankNodeOrIRI ; sh:node stsh:RuleShape ] ;
+	sh:property [ sh:path sh:includesRuleSet ; sh:nodeKind sh:IRI ] .
+
 stsh:ConstraintComponentShape
 	a sh:NodeShape ;
 	rdfs:label "Well-formedness rules for sh:ConstraintComponent"@en ;
@@ -539,6 +574,109 @@ stsh:ConstraintComponentShape
 		[ sh:property [ sh:path sh:nodeValidator ; sh:minCount 1 ] ]
 		[ sh:property [ sh:path sh:propertyValidator ; sh:minCount 1 ] ]
 	) .                                           # at-least-one-validator-form, make_validator_for_shape: "Cannot select a validator to use" if none of the three are present
+
+#############################################################################
+# Rule settings, where targets, and code hints
+#############################################################################
+# From the SHACL vocabulary's own ranges. sh:layer is numeric (Inference Rules: "numeric layer", default 0), sh:runOnce an xsd:boolean, sh:expectedPredicate an IRI (a property);
+# sh:targetWhere links a shape to a shape that is well formed (Core: "Where Targets"); sh:codeIdentifier is an xsd:string and sh:codeType a datatype IRI (rdfs:Datatype), both
+# hints for code generators. SHACL-AF's sh:target is not checked: SPARQL Extensions, Appendix F says SPARQL-based targets are no longer defined.
+stsh:RuleSettingsShape
+	a sh:NodeShape ;
+	rdfs:label "Well-formedness rules for sh:layer, sh:runOnce and sh:expectedPredicate"@en ;
+	sh:targetSubjectsOf sh:layer, sh:runOnce, sh:expectedPredicate ;
+	sh:property [ sh:path sh:layer ; sh:nodeKind sh:Literal ; sh:or ( [ sh:datatype xsd:decimal ] [ sh:datatype xsd:integer ] ) ; sh:message "sh:layer is a number."@en ] ;
+	sh:property [ sh:path sh:runOnce ; sh:datatype xsd:boolean ; sh:message "sh:runOnce is an xsd:boolean."@en ] ;
+	sh:property [ sh:path sh:expectedPredicate ; sh:nodeKind sh:IRI ] .
+
+stsh:TargetWhereShape
+	a sh:NodeShape ;
+	rdfs:label "Well-formedness rules for sh:targetWhere"@en ;
+	sh:targetSubjectsOf sh:targetWhere ;
+	sh:property [ sh:path sh:targetWhere ; sh:node stsh:ShapeReferenceShape ] .
+
+stsh:CodeHintsShape
+	a sh:NodeShape ;
+	rdfs:label "Well-formedness rules for sh:codeIdentifier and sh:codeType"@en ;
+	sh:targetSubjectsOf sh:codeIdentifier, sh:codeType ;
+	sh:property [ sh:path sh:codeIdentifier ; sh:datatype xsd:string ] ;
+	sh:property [ sh:path sh:codeType ; sh:nodeKind sh:IRI ] .
+
+#############################################################################
+# Parameter declarations (SHACL 1.2 SPARQL Extensions 4.2.1 and Node Expressions 6.1)
+#############################################################################
+# The values of sh:parameter, whether of a constraint component or of a custom function. The parameter name is the local name of the IRI that is its sh:path;
+# every name is a valid SPARQL VARNAME and is not one of this, path, PATH, value, message, failure; two parameters of one holder do not have the same name;
+# sh:optional (constraint components) and sh:keyParameter (named parameter functions) have at most one value, an xsd:boolean. A constraint component has at least
+# one non-optional parameter; a named parameter function has at least one parameter with sh:keyParameter true. Several shapes graphs together can make a holder
+# fail these (a parameter declared in one, the holder in another), so they are errors, not warnings: the combination is what is ill-formed.
+stsh:ParameterShape
+	a sh:NodeShape ;
+	rdfs:label "Well-formed parameter declaration (a value of sh:parameter)"@en ;
+	sh:property [
+		sh:path sh:path ;
+		sh:nodeKind sh:IRI ;
+		sh:minCount 1 ;
+		sh:maxCount 1 ;
+		sh:pattern "[#/][\\p{L}_0-9][\\p{L}_0-9\\u00B7\\u0300-\\u036F\\u203F\\u2040]*$" ;    # the parameter name is a valid SPARQL VARNAME
+		sh:message "The local name of the sh:path of a parameter must be a valid SPARQL variable name."@en ;
+	] ;
+	sh:property [
+		sh:path sh:path ;
+		sh:not [ sh:pattern "[#/](this|path|PATH|value|message|failure)$" ] ;
+		sh:message "A parameter name must not be this, path, PATH, value, message or failure."@en ;
+	] ;
+	sh:property [ sh:path sh:optional ; sh:datatype xsd:boolean ; sh:maxCount 1 ] ;
+	sh:property [ sh:path sh:keyParameter ; sh:datatype xsd:boolean ; sh:maxCount 1 ] .
+
+stsh:ParameterHolderShapes
+	a sh:NodeShape ;
+	rdfs:label "Well-formedness rules for the holder of sh:parameter"@en ;
+	sh:targetSubjectsOf sh:parameter ;
+	sh:property [ sh:path sh:parameter ; sh:node stsh:ParameterShape ] ;
+	sh:sparql [
+		sh:message "Two parameters have the same name (the local name of their sh:path)."@en ;
+		sh:select """
+			PREFIX sh: <http://www.w3.org/ns/shacl#>
+			SELECT DISTINCT $this
+			WHERE {
+				$this sh:parameter ?a , ?b .
+				?a sh:path ?pa . ?b sh:path ?pb .
+				FILTER (?a != ?b && REPLACE(STR(?pa), "^.*[#/]", "") = REPLACE(STR(?pb), "^.*[#/]", ""))
+			}
+		""" ;
+	] .
+
+stsh:ComponentNeedsANonOptionalParameterShape
+	a sh:NodeShape ;
+	rdfs:label "A constraint component has at least one non-optional parameter"@en ;
+	sh:targetClass sh:ConstraintComponent ;
+	sh:sparql [
+		sh:message "Every constraint component has at least one non-optional parameter."@en ;
+		sh:select """
+			PREFIX sh: <http://www.w3.org/ns/shacl#>
+			SELECT $this
+			WHERE {
+				FILTER EXISTS { $this sh:parameter ?any }
+				FILTER NOT EXISTS { $this sh:parameter ?p . FILTER NOT EXISTS { ?p sh:optional true } }
+			}
+		""" ;
+	] .
+
+stsh:NamedParameterFunctionNeedsAKeyParameterShape
+	a sh:NodeShape ;
+	rdfs:label "A named parameter function has at least one key parameter"@en ;
+	sh:targetClass sh:NamedParameterExpressionFunction ;
+	sh:sparql [
+		sh:message "A custom named parameter function declares at least one parameter with sh:keyParameter true."@en ;
+		sh:select """
+			PREFIX sh: <http://www.w3.org/ns/shacl#>
+			SELECT $this
+			WHERE {
+				FILTER NOT EXISTS { $this sh:parameter ?p . ?p sh:keyParameter true }
+			}
+		""" ;
+	] .
 
 #############################################################################
 # Well-formedness rules for sh:prefixes / sh:declare (explicit prefix sets)
@@ -601,6 +739,36 @@ stsh:DeclareShapes
 		sh:node stsh:PrefixDeclarationShape ;
 		sh:nodeKind sh:BlankNodeOrIRI ;
 	] .
+
+# Result annotations (SHACL 1.2 SPARQL Extensions, Section 5). A value of sh:resultAnnotation is an IRI or a blank node, with no required type; sh:annotationProperty has exactly
+# one value, an IRI; sh:annotationVarName at most one, an xsd:string; sh:annotationValue is any number of constants and is not restricted. The Working Group's file has no rule for any of
+# these. The annotations are "declared at the subject of the sh:select or sh:ask triple": a holder with neither is reported as a Warning, since the section calls the support optional.
+stsh:ResultAnnotationShape
+	a sh:NodeShape ;
+	rdfs:label "Well-formed result annotation (a value of sh:resultAnnotation)"@en ;
+	sh:property [
+		sh:path sh:annotationProperty ;
+		sh:nodeKind sh:IRI ;
+		sh:minCount 1 ;
+		sh:maxCount 1 ;
+	] ;
+	sh:property [
+		sh:path sh:annotationVarName ;
+		sh:datatype xsd:string ;
+		sh:maxCount 1 ;
+	] .
+
+stsh:ResultAnnotationHolderShapes
+	a sh:NodeShape ;
+	rdfs:label "Well-formedness rules for the holder of sh:resultAnnotation"@en ;
+	sh:targetSubjectsOf sh:resultAnnotation ;
+	sh:property [
+		sh:path sh:resultAnnotation ;
+		sh:nodeKind sh:BlankNodeOrIRI ;
+		sh:node stsh:ResultAnnotationShape ;
+	] ;
+	sh:or ( [ sh:path sh:select ; sh:minCount 1 ] [ sh:path sh:ask ; sh:minCount 1 ] ) ;
+	sh:severity sh:Warning .
 
 #############################################################################
 # Well-formedness rules for SHACL 1.2 UI (shui:) predicates

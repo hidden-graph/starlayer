@@ -67,7 +67,7 @@ def test_the_two_forms_exist_and_are_for_node_shapes_and_property_shapes(ui) -> 
         form = STSH[name]
         assert (form, RDF.type, sh("NodeShape")) in ui and (form, STSH.formFor, kind) in ui
     # the two well-formedness shapes moved here from shacl_shacl (GitHub issue #23) and do have targets; no form shape does
-    well_formedness = {STSH.ShuiPredicateShapes, STSH.WidgetScoreShape}
+    well_formedness = {STSH.ShuiPredicateShapes, STSH.WidgetScoreShape, STSH.ConfigurationShape, STSH.DataGraphLinksShape}
     for target in ("targetClass", "targetNode", "targetSubjectsOf", "targetObjectsOf"):
         applied = {s for s, _, _ in ui.triples((None, sh(target), None))} - well_formedness
         assert not applied, f"a form is applied to nothing, so loading it never changes what validates: {applied}"

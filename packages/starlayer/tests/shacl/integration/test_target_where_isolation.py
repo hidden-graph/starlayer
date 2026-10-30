@@ -95,6 +95,7 @@ def test_the_where_shape_with_and_or_not_and_lists(method) -> None:
 
 # --- which node failed, when the report cannot say: a property shape inside a property shape reports on the VALUE node
 def _targets_for(where: str, data: str, method: bool) -> set[str]:
+    # a literal in the data is a node too (#104): it conforms to these where-shapes vacuously, so it is a target of S and has no ex:name
     shapes = (
         f"ex:S a sh:NodeShape ; sh:targetWhere {where} ; sh:property [ sh:path ex:name ; sh:minCount 1 ; sh:message 'S needs a name' ] . "
         "ex:N a sh:NodeShape ; sh:class ex:C ."
@@ -106,22 +107,22 @@ def _targets_for(where: str, data: str, method: bool) -> set[str]:
 def test_a_node_that_fails_only_through_a_nested_property_shape_is_not_a_target(method) -> None:
     """ex:A has the value ex:B and ex:B lacks ex:q, so ex:A fails; the report names ex:B, which has no ex:p and conforms."""
     where = "[ sh:property [ sh:path ex:p ; sh:property [ sh:path ex:q ; sh:minCount 1 ] ] ]"
-    assert _targets_for(where, "ex:A ex:p ex:B . ex:B ex:other 1 .", method) == {"B"}
+    assert _targets_for(where, "ex:A ex:p ex:B . ex:B ex:other 1 .", method) == {"B", "1"}
 
 
 @BOTH
 def test_a_nested_property_shape_where_every_candidate_conforms(method) -> None:
     where = "[ sh:property [ sh:path ex:p ; sh:property [ sh:path ex:q ; sh:minCount 1 ] ] ]"
-    assert _targets_for(where, "ex:A ex:p ex:B . ex:B ex:q 1 .", method) == {"A", "B"}
+    assert _targets_for(where, "ex:A ex:p ex:B . ex:B ex:q 1 .", method) == {"A", "B", "1"}
 
 
 @BOTH
 def test_a_value_node_of_a_failing_node_conforms_by_itself(method) -> None:
     where = "[ sh:property [ sh:path ex:friend ; sh:node ex:N ] ]"
-    assert _targets_for(where, "ex:A ex:friend ex:B . ex:B ex:other 1 .", method) == {"B"}
+    assert _targets_for(where, "ex:A ex:friend ex:B . ex:B ex:other 1 .", method) == {"B", "1"}
 
 
 @BOTH
 def test_a_value_class_violation_is_the_candidates_not_the_value_nodes(method) -> None:
     where = "[ sh:property [ sh:path ex:friend ; sh:class ex:C ] ]"
-    assert _targets_for(where, "ex:A ex:friend ex:B . ex:B ex:other 1 .", method) == {"B"}
+    assert _targets_for(where, "ex:A ex:friend ex:B . ex:B ex:other 1 .", method) == {"B", "1"}
