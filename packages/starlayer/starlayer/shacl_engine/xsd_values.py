@@ -254,7 +254,9 @@ def _parse_timeline(lex: str, kind: str, datatype: str) -> Value | None:
         day = 1
     seconds = Decimal(0)
     if g.get("eod"):
-        seconds = Decimal(86400)
+        # 24:00:00 is the next day's midnight for dateTime / date-bearing kinds; for xsd:time the value is the time of
+        # day 00:00:00 (XSD 1.1 3.3.14: hour 24 is normalised to 0 and the day part is dropped)
+        seconds = Decimal(0) if kind == TIME else Decimal(86400)
     elif g.get("h") is not None:
         seconds = Decimal(int(g["h"]) * 3600 + int(g["mi"]) * 60) + Decimal(g["s"])
     total = Decimal(_days_from_civil(year, month, day) * 86400) + seconds
@@ -263,7 +265,7 @@ def _parse_timeline(lex: str, kind: str, datatype: str) -> Value | None:
 
 _DUR_RE = re.compile(
     r"(?P<neg>-)?P(?:(?P<Y>[0-9]+)Y)?(?:(?P<M>[0-9]+)M)?(?:(?P<D>[0-9]+)D)?"
-    r"(?P<T>T(?:(?P<H>[0-9]+)H)?(?:(?P<Mi>[0-9]+)M)?(?:(?P<S>[0-9]+(?:\.[0-9]+)?)S)?)?\Z"
+    r"(?P<T>T(?:(?P<H>[0-9]+)H)?(?:(?P<Mi>[0-9]+)M)?(?:(?P<S>[0-9]+(?:\.[0-9]*)?|\.[0-9]+)S)?)?\Z"
 )
 
 
@@ -425,6 +427,34 @@ def _compare_duration(a: Value, b: Value) -> int | None:
     return results.pop() if len(results) == 1 else None
 
 
+_NUMERIC_DATATYPES = frozenset({XSD + n for n in (*_INTEGER_RANGES, "decimal", "float", "double")})
+_NUMERIC_RANK = {XSD + "float": 2, XSD + "double": 3}
+
+
+def _promote(a: Value, b: Value) -> tuple[Any, Any]:
+    """XPath F&O 3.1 6.2 / SPARQL 17.3 (op:numeric-equal, -less-than): operands of different numeric types are promoted
+    to the higher of integer < decimal < float < double before comparing, so ``9007199254740993`` and
+    ``9007199254740992e0`` are equal and ``0.1`` (decimal) equals ``0.1e0`` (double). Integer and decimal compare exactly."""
+    ra, rb = _NUMERIC_RANK.get(a.datatype, 0), _NUMERIC_RANK.get(b.datatype, 0)
+    top = max(ra, rb)
+    if top == 0 or ra == rb:
+        return a.value, b.value
+    return _to_float(a.value, top == 2), _to_float(b.value, top == 2)
+
+
+def _to_float(x: Any, single: bool) -> float:
+    try:
+        f = float(x)
+    except OverflowError:
+        f = float("inf") if x > 0 else float("-inf")
+    if single and f == f and f not in (float("inf"), float("-inf")):
+        try:
+            f = struct.unpack("f", struct.pack("f", f))[0]
+        except OverflowError:
+            f = float("inf") if f > 0 else float("-inf")
+    return f
+
+
 def compare(a: ox.Literal, b: ox.Literal) -> int | None:
     """Value ordering of two literals as SPARQL 1.1 17.3 (``<`` and ``=`` operator mapping) and XSD 1.1 define it.
 
@@ -439,21 +469,25 @@ def compare(a: ox.Literal, b: ox.Literal) -> int | None:
     if va is None or vb is None or va.kind != vb.kind:
         return None
     kind = va.kind
-    if kind in (NUMERIC, STRING, BOOLEAN):
+    if kind == NUMERIC:
+        return _cmp(*_promote(va, vb))
+    if kind in (STRING, BOOLEAN):
         return _cmp(va.value, vb.value)
     if kind in _TIMELINE_KINDS:
         return _compare_timeline(va, vb)
     if kind == DURATION:
         return _compare_duration(va, vb)
     if kind in _UNORDERED_KINDS:
-        return 0 if va.value == vb.value else None
+        # SPARQL 1.2 17.3: `=` on these is RDFterm-equal (same term or a type error), so only the same lexical form
+        # (after whitespace collapse) is equal; "0A" and "0a" are the same hexBinary value but not the same term.
+        return 0 if (a.datatype == b.datatype and _collapse(a.value) == _collapse(b.value)) else None
     return None  # pragma: no cover
 
 
 def ebv(literal: ox.Literal) -> bool | None:
     """SPARQL 1.1 17.2.2 effective boolean value of a literal; ``None`` is the type error: an xsd:boolean is its value, a
-    simple/xsd:string literal is true iff non-empty, a numeric is true iff not zero and not NaN, anything else (and any
-    ill-formed boolean or numeric) is an error. Language-tagged strings are errors."""
+    simple/xsd:string literal is true iff non-empty, a numeric is true iff not zero and not NaN, an ill-formed boolean or
+    numeric is false (17.2.2), anything else is an error. Language-tagged strings are errors."""
     if literal.language is not None:
         return None
     dt = literal.datatype.value
@@ -461,7 +495,9 @@ def ebv(literal: ox.Literal) -> bool | None:
         return len(literal.value) > 0
     v = _parse_cached(literal.value, dt)
     if v is None:
-        return None
+        # SPARQL 1.1 17.2.2: "The EBV of any literal whose type is xsd:boolean or numeric is false if the lexical form
+        # is not valid for that datatype"; any other datatype is a type error
+        return False if (dt == XSD + "boolean" or dt in _NUMERIC_DATATYPES) else None
     if v.kind == BOOLEAN:
         return bool(v.value)
     if v.kind == NUMERIC:

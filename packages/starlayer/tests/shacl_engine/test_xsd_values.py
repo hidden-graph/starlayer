@@ -80,7 +80,8 @@ def test_numeric_comparison_across_types():
     c = xv.compare
     assert c(lit("1", "integer"), lit("1.0", "decimal")) == 0
     assert c(lit("1", "int"), lit("2", "double")) == -1
-    assert c(lit("0.1", "decimal"), lit("0.1", "double")) == -1  # 0.1 double is slightly above 0.1
+    # F&O 6.2 / SPARQL 17.3: the decimal is promoted to double, so they are equal (found by the Oxigraph cross-check)
+    assert c(lit("0.1", "decimal"), lit("0.1", "double")) == 0
     assert c(lit("3", "byte"), lit("2", "unsignedLong")) == 1
     assert c(lit("300", "byte"), lit("1", "integer")) is None  # ill-formed
     assert c(lit("1", "integer"), lit("1")) is None
