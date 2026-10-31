@@ -458,7 +458,7 @@ class StarLayerGraph(Graph):
     serialization, etc.) are inherited and work without modification.
     """
 
-    def __init__(self, *args, backend: str = 'rdf-1.1', **kwargs):
+    def __init__(self, *args, backend: str = 'rdf-1.1', direct_query: bool | None = None, **kwargs):
         if backend not in VALID_BACKENDS:
             raise ValueError(f"backend must be one of {sorted(VALID_BACKENDS)}, got {backend!r}")
         if backend == 'rdf-1.2' and len(args) < 2 and kwargs.get('identifier') is None:
@@ -486,6 +486,7 @@ class StarLayerGraph(Graph):
             kwargs['identifier'] = DATASET_DEFAULT_GRAPH_ID
         super().__init__(*args, **kwargs)
         self._backend = backend
+        self._direct_query = direct_query  # opt-in spike: query/update text straight to in-process Oxigraph (query/direct.py)
         self._tt_registry: dict = {}   # canonical (s_key, p, o_key) -> URIRef (rdf-1.1 only)
         self._tt_nodes: dict = {}      # URIRef -> TripleTerm (rdf-1.1 only)
         self._invalidate_callback = None  # set by StarLayerDataset to clear raw query cache
@@ -2545,7 +2546,13 @@ class StarLayerGraph(Graph):
                     "entailment=ENTAILMENT['OWL-RDF-Based'] for a materialized closure "
                     "instead, which works regardless of backend."
                 )
-            from starlayer.graph.backends.native import native_query
+            from starlayer.graph.backends.native import _in_process, native_query
+            if isinstance(query_object, str) and _in_process(self.store):
+                from starlayer.graph.query.direct import direct_enabled, run_direct
+                if direct_enabled(getattr(self, '_direct_query', None)):
+                    return run_direct(self.store, query_object, init_ns=initNs or dict(self.namespaces()),
+                                      init_bindings=initBindings,
+                                      base=kwargs.get('base'), default_union=False)
             return native_query(
                 self.store, self._backend, query_object, processor=processor, result=result,
                 initNs=initNs, initBindings=initBindings,
@@ -2715,8 +2722,13 @@ class StarLayerGraph(Graph):
                 f'update_object must be SPARQL text or a prepared update, not {type(update_object).__name__}'
             )
         if self._is_native:
-            from starlayer.graph.backends.native import native_update
-            native_update(self.store, self._backend, update_object)
+            from starlayer.graph.backends.native import _in_process, native_update
+            from starlayer.graph.query.direct import direct_enabled, run_direct_update
+            if isinstance(update_object, str) and _in_process(self.store) and direct_enabled(
+                    getattr(self, '_direct_query', None)):
+                run_direct_update(self.store, update_object, init_ns=initNs, base=kwargs.get('base'))
+            else:
+                native_update(self.store, self._backend, update_object)
             self._on_mutated()
             return None
         if isinstance(update_object, str):
