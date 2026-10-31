@@ -120,20 +120,51 @@ The wrapper costs 1.1 to 1.5 times the bare store on queries and about 2x on loa
 (transactional, so a syntax error leaves the graph unchanged) against `Store.load` (the bulk path); `add` and iteration pay for building
 a `Quad` / tuple in Python. Not tuned further.
 
+## StarLayer helpers (branch `mig-helpers`)
+
+Code in `oxgraph/helpers/` (`entailment.py`, `shapes.py`, `imports.py`, `rewrite.py`, `qnames.py`); `core.py` has one-line delegating
+methods on `OxGraph` and `OxDataset`. Tests: `tests/graph/oxgraph/test_helpers_conformance.py` (198 cases, old `StarLayerGraph` against
+`OxGraph`, triple sets compared up to blank-node isomorphism with `rdfc_native.isomorphic`, inputs taken from `test_infer.py`,
+`test_resolve_imports.py`, `test_shape_derivation.py`, `test_dataset.py`, `test_leftovers_72_75_83.py`).
+
+| Capability | How | Conformance |
+|---|---|---|
+| `infer(entailment, mode, target_graph, engine, timeout)` | RDF regime native on pyoxigraph terms; RDFS, OWL-RL and RDFS+OWL-RL through owlrl on an rdflib copy (`_rdflib_bridge.py`, the one module that converts), run to a fixpoint as before, delta converted back, generalized triples dropped. `ENTAILMENT` constants as `NamedNode`s (`str` and `NamedNode` accepted as regimes). OWL-Direct calls the old `owl_dl.classify_owl_dl` / `owl_dl_rustdl.classify_owl_dl_rustdl` on the rdflib copy: same optional-dependency errors and the same subprocess timeout wrapper | 9 data sets x 6 regime sets x full/delta, in-place, 8 error cases, constants, default timeout: all agree |
+| `derive_shape` | stage-1 bridge: data and template copied to a `StarLayerGraph`, the old `shape_derivation.derive_shape` runs, the shapes graph is copied into a new `OxGraph` | 6 fresh, 5 template, ignored-property options: all agree |
+| `owl_imports`, `has_import_locally`, `resolve_imports`, `can_resolve_import` | native; the loader may return a wrapper or an old graph | 7 registries x 3 modes (same loader calls in the same order), error cases: all agree |
+| `skolemize`, `de_skolemize` | native, rdflib's skolem IRI scheme, triple terms rewritten consistently | exact equality of triple sets with same blank-node ids (with and without triple terms), `bnode=`, `authority=`, `basepath=`, round trip |
+| `cbd` | native, rdflib's algorithm (statements, blank-node closure, `rdf:subject`-style reifications); dataset honours `default_union` | 5 resources x with/without reifications, triple term, target graph, dataset union |
+| `empty_like` | new empty in-memory graph (dataset: dataset with same `default_union`), prefixes copied | agree |
+| `qname`, `compute_qname`, `expand_curie` | over the graph's prefix dict, longest namespace wins, `ns1`... generated | agree on the cases rdflib accepts |
+
+Differences found and verdicts:
+
+| # | Difference | Verdict |
+|---|---|---|
+| H1 | `infer` on an inconsistent graph with owlrl: the old class itself gives 127 or 128 triples depending on the hash seed (number of `err:ErrorMessage` nodes). The test compares the blank-node-free triples and requires an error message on both sides | owlrl nondeterminism, not a wrapper difference |
+| H2 | `de_skolemize(uriref=...)`: old restores nothing (rdflib compares a `Genid` with a plain `URIRef` as unequal); new restores just that IRI | accepted; old behaviour was a quirk |
+| H3 | `de_skolemize` of a foreign `/.well-known/genid/` IRI: old memoises the fresh blank node in a process-global dict, new once per call | accepted give-up (no global state) |
+| H4 | `target_graph` / `new_graph` must be an `OxGraph` / `OxDataset` (`TypeError` otherwise) | by design |
+| H5 | `empty_like()` has no identifier link to the source and is always in-memory (old: "like its source"; native Oxigraph, SQLAlchemy and remote stores were the cases) | accepted give-up |
+| H6 | `cbd` / `skolemize` / `de_skolemize` on an `OxDataset` return an `OxGraph` (as old); `infer` / `resolve_imports(mode="delta")` on a dataset return a dataset (old datasets had no `infer`) | by design |
+| H7 | `qname` is regex-based, not rdflib's `split_uri`; a local name containing `/` is a `ValueError`, rdflib raises as well | accepted |
+
+No difference ended as a bug. Not exercised because the packages are absent on the development machine: HermiT (`owlready2`, Java) and
+`rustdl`. The tests check the identical `RuntimeError` text when missing and that the timeout is passed through to the old classifier
+(monkeypatched); a run with both installed compares the closures isomorphically (`test_owl_direct_hermit_same_outcome_as_old`,
+`test_owl_direct_rustdl_same_outcome_as_old`), untested here.
+
 ## NOT built (follow-ups, with where the old code lives)
 
 | Feature | Old code | Notes |
 |---|---|---|
-| `infer()` (owlrl, RDFS / OWL-RL, OWL-DL via HermiT / rustdl) | `graph/graph/starlayer_graph.py` `infer` (line ~3420), `graph/graph/entailment_regimes.py`, `owl_dl.py`, `owl_dl_rustdl.py` | works on rdflib graphs; needs a copy-in / copy-out adapter or a native port |
-| `derive_shape` | `starlayer_graph.py` `derive_shape` (~3852), `graph/graph/shape_derivation.py:564` | reads through `triples` / `objects`, so a thin port should work |
-| `resolve_imports` | `starlayer_graph.py` `resolve_imports` (~3716), `can_resolve_import` | needs HTTP / file loading into the wrapper (`parse` exists) |
-| `skolemize` / `de_skolemize` | `starlayer_graph.py` (~2984), `starlayer_dataset.py` (~384), `backends/native.py` `skolemize_bnode` | Oxigraph has `rename_blank_nodes`; skolemising is a rewrite of terms |
-| `cbd` (concise bounded description) | `starlayer_graph.py` (~2940), `starlayer_dataset.py` (~343) | easy over `triples`; also the `DESCRIBE` of Oxigraph is not CBD |
+| Native `derive_shape` | `graph/graph/shape_derivation.py` | today a bridge to rdflib terms; a native port over pyoxigraph terms replaces `helpers/shapes.py` only |
+| Native OWL-RL / RDFS rules | owlrl | today owlrl on an rdflib copy; the OWL-DL engines are the old modules, reused |
 | Entailment-aware `query(entailment=...)` | `sparql/entailment_rdfs.py`, rewriting the rdflib algebra; `query` here raises `NotImplementedError` | waits for the sqe-tree port (plan stage 2) |
 | Manchester syntax | `parsers/manchester_parser.py`, `serializers/manchester.py` | independent of the store; add `format="manchester"` that parses to a temp graph |
-| Pretty Turtle (nested `[ ]`, `( )`, grouped subjects) | `serializers/turtle12.py` | decided "keep, rebuilt over Oxigraph terms"; today `turtle` is Oxigraph's flat streaming writer |
+| Pretty Turtle (nested `[ ]`, `( )`, grouped subjects) | `serializers/turtle12.py` | another agent (`oxgraph/pretty.py`) |
 | RDF 1.1 export | the other agent's `graph/interop.py` | hook in place (`core._to_rdf11`); contract assumed |
-| Others | `isomorphic()` / `compare.py`, `rdfc.py` (RDFC), `triple_terms()`, `Collection`, `transitive_*`, `qname` / `compute_qname` / `expand_curie`, `namespaces()`, `dump`-style helpers, `Result.serialize` to JSON/CSV, custom functions per call, `LOAD` in UPDATE, remote HTTP engines (`backends/native.py`) | `Dataset.canonicalize` exists in pyoxigraph for RDFC |
+| Others | `isomorphic()` / `compare.py`, `rdfc.py` (RDFC), `triple_terms()`, `Collection`, `transitive_*`, `qname_term`, `namespaces()`, `dump`-style helpers, `Result.serialize` to JSON/CSV, custom functions per call, `LOAD` in UPDATE, remote HTTP engines (`backends/native.py`) | `Dataset.canonicalize` exists in pyoxigraph for RDFC |
 
 ## Open points
 
