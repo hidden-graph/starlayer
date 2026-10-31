@@ -299,3 +299,47 @@ all positive queries, about 16,000 mutants, three seeds, not committed) found on
 * **sqe_parse_to_tree** (the old path) still reads through rdflib and still raises on DESCRIBE, FROM and SERVICE; switching it to `parse_sparql` (and `sqe_tree_to_query` for the new terms, if execution through rdflib is still wanted) is a separate, behaviour-changing step. Execution does not need it: text goes to Oxigraph.
 * **Editor-grade fidelity**: shorthand expansion (`;`, `[ ]`, collections, annotations), prefixed-name spelling, VERSION order and multiplicity, comments and layout are still lost; a concrete layer would be needed.
 * **Draft drift**: the matrix and the grammar follow the 25 October 2026 Working Draft; refresh `vendor/sparql12-query-productions.json` when the draft changes.
+
+## Part 7. Editor fidelity: what a SPARQL editor needs to round-trip (proposal, branch `mig-switch`)
+
+Design note only; nothing here is implemented. It answers: if an editor drives the `sqe:` tree, what does it lose between "text in" and "text out" today, and what is the least we can add to stop losing it?
+
+### What the tree keeps and loses today
+
+| Aspect | Today | Consequence for an editor |
+|---|---|---|
+| `PREFIX` / `BASE` declarations | **Kept**: `sqe:prologuePrefix` -> `sqe:PrefixBinding` (`sqe:prefixLabel`, `sqe:prefixNamespace`), `sqe:base`, `sqe:version`. Their order is **not** kept (blank-node bindings have no order; the renderer sorts them by label). | Prefixes survive, so the renderer can abbreviate IRIs again. |
+| Spelling of an IRI (`ex:p` vs `<http://example.org/p>`, which prefix when two bind the same namespace) | **Lost**: the tree stores the resolved IRI. The renderer picks a bound prefix that fits (the tree has no record of which one the user wrote). | A user who wrote `<...>` gets `ex:p` back (or the reverse); two prefixes for one namespace swap. Semantically harmless, visibly surprising. |
+| `a` for `rdf:type` | **Lost**: stored as `rdf:type`, rendered as `a` or the IRI by a fixed rule. | |
+| `;` and `,` lists, `[ ... ]` property lists, `( ... )` collections, `<< >>` / `{| |}` shorthand | **Lost**: expanded into separate `sqe:TriplePattern` nodes (fresh blank nodes for `[ ]` and list cells). Rendered one triple per line. | A grouped, hand-formatted pattern comes back exploded; a collection comes back as `rdf:first`/`rdf:rest` triples. |
+| Literal spelling (`1`, `+1`, `1.0`, `"1"^^xsd:integer`, `'x'` vs `"x"`, long strings, escapes) | Numbers, booleans, `LIMIT`/`OFFSET` keep their lexical form (parser). Quote style, escape style and `xsd:` prefix spelling are lost. | Minor. |
+| Keyword case, white space, line breaks, indentation, comments | **Lost** (the renderer lays out the query itself; comments are dropped). | Comments are the one real loss: users annotate queries. |
+| Order of elements | Kept (where-list, projection and group lists are `rdf:List`). `VERSION` multiplicity is not. | Fine. |
+
+### What the editor needs, in priority order
+
+1. **Comments** (and a place to hang them). Without them a save destroys annotation.
+2. **IRI and term spelling** (`ex:p` vs `<...>`, `a`), so a rename of a prefix or an untouched line is stable.
+3. **Triple grouping** (`;`, `,`) and blank-node/collection shorthand, so one line stays one line.
+4. **Layout hints** (blank lines between elements, one-line vs multi-line group), the least important and the most expensive to carry.
+5. **Stable node identity** across re-parses (`root=` is already supported; per-element IRIs would let the editor keep selection and undo).
+
+### Smallest additive vocabulary (proposal)
+
+Principle: the semantic tree stays the single source of truth and the renderer ignores every new term it does not understand, so existing trees, shapes and the 548-case agreement are untouched. Each hint is optional and subordinate: if the semantic content changes (the user edits a triple), the hint is dropped or recomputed, never trusted over the tree.
+
+* `sqe:spelling` on any term occurrence, but terms are shared RDF nodes, not per-occurrence nodes, so spelling attaches to the **pattern node** instead: `sqe:subjectSpelling`, `sqe:predicateSpelling`, `sqe:objectSpelling` (plain literal: `"ex:p"`, `"<http://example.org/p>"`, `"a"`). Only written when the spelling differs from what the renderer would choose. The same property on expression nodes covers IRI arguments in function calls.
+* `sqe:group` on a `sqe:TriplePattern`: a blank node (or small integer) shared by the patterns that came from one `subject ; p o , o` block, plus `sqe:groupIndex` for order inside it. The renderer writes `;` and `,` when it sees a run of patterns with the same group and subject. A `[ ]` or `( )` is the same mechanism with `sqe:groupKind "anon" | "collection"` on the group node, so the renderer can fold the expanded triples back.
+* `sqe:comment` (string) with `sqe:commentPosition` (`"before"` | `"trailing"`) on any where-list element, projection item, modifier or the root. Comments inside an expression attach to the nearest enclosing element.
+* `sqe:blankLineBefore` (boolean) and `sqe:inline` (boolean, a group written on one line) as the only layout terms. Indentation and keyword case stay renderer policy (a formatter setting, not data).
+* `sqe:prefixOrder` (integer) on `sqe:PrefixBinding` so declaration order is stable.
+
+All of these are properties with no `rdfs:domain` constraint beyond what is stated, added to the ontology with optional (`sh:minCount 0`) shapes. That is roughly ten terms and as many shape lines.
+
+### Parser side
+
+`parse_sparql` already tokenizes with positions (every token has `pos`; `Node.pos` is set on the nodes the static checks report). To emit the hints it needs (a) the tokenizer to keep comment tokens instead of discarding them as white space and attach each to the following or preceding AST node, (b) `triples_same_subject` to record the group id and the spelling of each term as it expands, and (c) a `fidelity=True` flag on `sparql_to_tree`/`sqe_parse_to_tree` (default off, so the default trees do not grow). About 150 lines in the parser and 100 in `to_text.py` (which would read the hints), plus a round-trip test that `text -> tree -> text` equals the input modulo white space on a corpus of hand-formatted queries (the W3C syntax files are a ready corpus).
+
+### What not to do
+
+Do not store a concrete syntax tree (every token) beside the semantic one: it doubles the model, and the two drift as soon as the editor edits the semantic side. If byte-exact round-trip of untouched regions is ever required, keep the source text and the token spans of each element (`sqe:sourceStart`/`sqe:sourceEnd`) and re-emit the original slice for any element whose subtree was not edited; that is the smaller of the two heavy options and can be added later without changing the terms above.
