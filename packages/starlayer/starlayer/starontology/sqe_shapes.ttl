@@ -26,7 +26,7 @@ sqe:AlternativesListShape a sh:NodeShape ;
                         ?alt rdf:rest*/rdf:first ?item .
                         FILTER NOT EXISTS {
                             ?item a ?t .
-                            FILTER ( ?t IN ( sqe:TriplePattern, sqe:Optional, sqe:Union, sqe:Filter, sqe:Bind, sqe:Minus, sqe:Graph, sqe:Values, sqe:SubSelect ) )
+                            FILTER ( ?t IN ( sqe:TriplePattern, sqe:Optional, sqe:Union, sqe:Filter, sqe:Bind, sqe:Minus, sqe:Graph, sqe:Service, sqe:Values, sqe:SubSelect ) )
                         }
                     }
                 }
@@ -83,6 +83,9 @@ sqe:AskQueryShape a sh:NodeShape ;
                     } UNION {
                         ?node2 a sqe:Graph ;
                             sqe:graph ?var .
+                    } UNION {
+                        ?node2 a sqe:Service;
+                            <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#service> ?var .
                     } UNION {
                         ?node2 a sqe:SubSelect ;
                             sqe:projection/rdf:rest*/rdf:first ?var .
@@ -156,6 +159,9 @@ sqe:ConstructQueryShape a sh:NodeShape ;
                         ?node a sqe:Graph ;
                             sqe:graph ?var .
                     } UNION {
+                        ?node a sqe:Service;
+                            <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#service> ?var .
+                    } UNION {
                         ?node a sqe:SubSelect ;
                             sqe:projection/rdf:rest*/rdf:first ?var .
                     } UNION {
@@ -208,6 +214,9 @@ sqe:ConstructQueryShape a sh:NodeShape ;
                     } UNION {
                         ?node2 a sqe:Graph ;
                             sqe:graph ?var .
+                    } UNION {
+                        ?node2 a sqe:Service;
+                            <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#service> ?var .
                     } UNION {
                         ?node2 a sqe:SubSelect ;
                             sqe:projection/rdf:rest*/rdf:first ?var .
@@ -316,6 +325,9 @@ sqe:SelectQueryShape a sh:NodeShape ;
                         ?node a sqe:Graph ;
                             sqe:graph ?var .
                     } UNION {
+                        ?node a sqe:Service;
+                            <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#service> ?var .
+                    } UNION {
                         ?node a sqe:SubSelect ;
                             sqe:projection/rdf:rest*/rdf:first ?var .
                     } UNION {
@@ -368,6 +380,9 @@ sqe:SelectQueryShape a sh:NodeShape ;
                     } UNION {
                         ?node2 a sqe:Graph ;
                             sqe:graph ?var .
+                    } UNION {
+                        ?node2 a sqe:Service;
+                            <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#service> ?var .
                     } UNION {
                         ?node2 a sqe:SubSelect ;
                             sqe:projection/rdf:rest*/rdf:first ?var .
@@ -455,7 +470,7 @@ sqe:SolutionModifierShape a sh:NodeShape ;
         sh:minInclusive 0 ;
         sh:path sqe:offset
     ] ;
-    sh:targetClass sqe:ConstructQuery, sqe:SelectQuery .
+    sh:targetClass sqe:AskQuery, sqe:ConstructQuery, sqe:DescribeQuery, sqe:SelectQuery .
 
 sqe:OrderByListShape a sh:NodeShape ;
     sh:sparql [
@@ -497,7 +512,7 @@ sqe:OrderConditionShape a sh:NodeShape ;
 sqe:TripleTermShape a sh:NodeShape ;
     sh:property [
         sh:maxCount 1 ;
-        sh:message "sqe:TripleTerm must have exactly one sqe:subject (an IRI, blank node or variable - never a triple term)" ;
+        sh:message "sqe:TripleTerm must have exactly one sqe:subject (an IRI, blank node, variable, triple term or literal)" ;
         sh:minCount 1 ;
         sh:node sqe:SubjectOrVariableShape ;
         sh:path sqe:subject
@@ -724,7 +739,7 @@ sqe:PrologueShape a sh:NodeShape ;
     sh:targetClass sqe:Query .
 
 sqe:ShapesGraph a sh:ShapesGraph ;
-    rdfs:member sqe:FilterShape, sqe:AskQueryShape, sqe:BindShape, sqe:ObjectOrVariableShape, sqe:ConstructQueryShape, sqe:OptionalShape, sqe:SubjectOrVariableShape, sqe:WhereListShape, sqe:UnionShape, sqe:SelectQueryShape, sqe:AlternativesListShape, sqe:PrefixBindingShape, sqe:TemplateListShape, sqe:TriplePatternShape, sqe:PredicateOrVariableOrPathShape, sqe:SelectModifierShape, sqe:SolutionModifierShape, sqe:OrderByListShape, sqe:OrderConditionShape, sqe:TripleTermShape, sqe:ExistsShape, sqe:AliasShape, sqe:MinusShape, sqe:GraphShape, sqe:ValuesShape, sqe:ProjectionListShape, sqe:GroupByListShape, sqe:HavingListShape, sqe:VariableListShape, sqe:RowsListShape, sqe:QueryValuesShape, sqe:PrologueShape ;
+    rdfs:member sqe:FilterShape, sqe:AskQueryShape, sqe:BindShape, sqe:ObjectOrVariableShape, sqe:ConstructQueryShape, sqe:OptionalShape, sqe:SubjectOrVariableShape, sqe:WhereListShape, sqe:UnionShape, sqe:SelectQueryShape, sqe:AlternativesListShape, sqe:PrefixBindingShape, sqe:TemplateListShape, sqe:TriplePatternShape, sqe:PredicateOrVariableOrPathShape, sqe:SelectModifierShape, sqe:SolutionModifierShape, sqe:OrderByListShape, sqe:OrderConditionShape, sqe:TripleTermShape, sqe:ExistsShape, sqe:AliasShape, sqe:MinusShape, sqe:GraphShape, sqe:ValuesShape, sqe:ProjectionListShape, sqe:GroupByListShape, sqe:HavingListShape, sqe:VariableListShape, sqe:RowsListShape, sqe:QueryValuesShape, sqe:PrologueShape, sqe:ServiceShape, sqe:DescribeQueryShape, sqe:DatasetClauseShape, sqe:DatasetListShape, sqe:GroupingModifierShape, sqe:DatasetShape, sqe:VariableOrIriListShape ;
     owl:imports spexpr:ShapesGraph .
 
 sqe:SubjectOrVariableShape a sh:NodeShape ;
@@ -732,7 +747,11 @@ sqe:SubjectOrVariableShape a sh:NodeShape ;
         sh:nodeKind sh:IRI
     ] [
         sh:nodeKind sh:BlankNode
-    ] spexpr:VariableShape ) .
+    ] spexpr:VariableShape [
+        sh:class sqe:TripleTerm
+    ] [
+        sh:nodeKind sh:Literal
+    ] ) .
 
 sqe:TemplateListShape a sh:NodeShape ;
     sh:sparql [
@@ -789,7 +808,7 @@ sqe:UnionShape a sh:NodeShape ;
 sqe:WhereListShape a sh:NodeShape ;
     sh:sparql [
         a sh:SPARQLConstraint ;
-        sh:message "expected a well-formed rdf:List of sqe:TriplePattern/Optional/Union/Filter/Bind/Minus/Graph/Values/SubSelect" ;
+        sh:message "expected a well-formed rdf:List of sqe:TriplePattern/Optional/Union/Filter/Bind/Minus/Graph/Service/Values/SubSelect" ;
         sh:select """
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
             PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
@@ -802,9 +821,160 @@ sqe:WhereListShape a sh:NodeShape ;
                     $this rdf:rest*/rdf:first ?item .
                     FILTER NOT EXISTS {
                         ?item a ?t .
-                        FILTER ( ?t IN ( sqe:TriplePattern, sqe:Optional, sqe:Union, sqe:Filter, sqe:Bind, sqe:Minus, sqe:Graph, sqe:Values, sqe:SubSelect ) )
+                        FILTER ( ?t IN ( sqe:TriplePattern, sqe:Optional, sqe:Union, sqe:Filter, sqe:Bind, sqe:Minus, sqe:Graph, sqe:Service, sqe:Values, sqe:SubSelect ) )
                     }
                 }
             }
         """
     ] .
+
+sqe:ServiceShape a sh:NodeShape ;
+    sh:property [
+        sh:maxCount 1 ;
+        sh:message "sqe:Service must have exactly one sqe:where, a well-formed pattern list" ;
+        sh:minCount 1 ;
+        sh:node sqe:WhereListShape ;
+        sh:path sqe:where
+    ], [
+        sh:maxCount 1 ;
+        sh:message "sqe:Service must have exactly one sqe:service, an IRI or variable" ;
+        sh:minCount 1 ;
+        sh:or ( [
+            sh:nodeKind sh:IRI
+        ] spexpr:VariableShape ) ;
+        sh:path sqe:service
+    ], [
+        sh:datatype xsd:boolean ;
+        sh:maxCount 1 ;
+        sh:message "sqe:silent must be a single xsd:boolean" ;
+        sh:path sqe:silent
+    ] ;
+    sh:targetClass sqe:Service .
+
+sqe:DescribeQueryShape a sh:NodeShape ;
+    sh:property [
+        sh:maxCount 1 ;
+        sh:message "sqe:DescribeQuery may have one sqe:where, a well-formed pattern list" ;
+        sh:node sqe:WhereListShape ;
+        sh:path sqe:where
+    ], [
+        sh:maxCount 1 ;
+        sh:message "sqe:describe must be a single, non-empty rdf:List of IRIs and variables" ;
+        sh:node sqe:VariableOrIriListShape ;
+        sh:path sqe:describe
+    ], [
+        sh:datatype xsd:boolean ;
+        sh:maxCount 1 ;
+        sh:message "sqe:describeAll must be a single xsd:boolean" ;
+        sh:path sqe:describeAll
+    ] ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "A sqe:DescribeQuery needs exactly one of sqe:describe (a list of targets) or sqe:describeAll (DESCRIBE *)." ;
+        sh:select """
+            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
+            SELECT $this
+            WHERE {
+                {
+                    FILTER NOT EXISTS { $this sqe:describe ?p }
+                    FILTER NOT EXISTS { $this sqe:describeAll ?a }
+                } UNION {
+                    $this sqe:describe ?p ; sqe:describeAll ?a .
+                }
+            }
+        """
+    ], [
+        a sh:SPARQLConstraint ;
+        sh:message "DESCRIBE * needs a sqe:where pattern (it describes the variables of the pattern)." ;
+        sh:select """
+            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
+            SELECT $this
+            WHERE {
+                $this sqe:describeAll ?a .
+                FILTER NOT EXISTS { $this sqe:where ?w }
+            }
+        """
+    ] ;
+    sh:targetClass sqe:DescribeQuery .
+
+sqe:VariableOrIriListShape a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "expected a non-empty rdf:List of IRIs and variables" ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
+            SELECT $this
+            WHERE {
+                {
+                    FILTER ( $this = rdf:nil )
+                } UNION {
+                    FILTER ( $this != rdf:nil )
+                    FILTER NOT EXISTS { $this rdf:first ?head }
+                } UNION {
+                    $this rdf:rest*/rdf:first ?item .
+                    FILTER ( !isIRI(?item) && !( isLiteral(?item) && datatype(?item) = spexpr:Variable ) )
+                }
+            }
+        """
+    ] .
+
+sqe:DatasetClauseShape a sh:NodeShape ;
+    sh:property [
+        sh:maxCount 1 ;
+        sh:message "sqe:DatasetClause must have exactly one sqe:source, a graph IRI" ;
+        sh:minCount 1 ;
+        sh:nodeKind sh:IRI ;
+        sh:path sqe:source
+    ], [
+        sh:datatype xsd:boolean ;
+        sh:maxCount 1 ;
+        sh:message "sqe:named must be a single xsd:boolean" ;
+        sh:path sqe:named
+    ] ;
+    sh:targetClass sqe:DatasetClause .
+
+sqe:DatasetListShape a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "sqe:dataset must be a non-empty, well-formed rdf:List of sqe:DatasetClause" ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
+            SELECT $this
+            WHERE {
+                {
+                    FILTER ( $this = rdf:nil )
+                } UNION {
+                    FILTER ( $this != rdf:nil )
+                    FILTER NOT EXISTS { $this rdf:first ?head }
+                } UNION {
+                    $this rdf:rest*/rdf:first ?item .
+                    FILTER NOT EXISTS { ?item a sqe:DatasetClause }
+                }
+            }
+        """
+    ] .
+
+sqe:GroupingModifierShape a sh:NodeShape ;
+    sh:property [
+        sh:maxCount 1 ;
+        sh:message "sqe:groupBy must be a single, non-empty rdf:List of variables, expressions or sqe:Alias" ;
+        sh:node sqe:GroupByListShape ;
+        sh:path sqe:groupBy
+    ], [
+        sh:maxCount 1 ;
+        sh:message "sqe:having must be a single, non-empty rdf:List of expressions" ;
+        sh:node sqe:HavingListShape ;
+        sh:path sqe:having
+    ] ;
+    sh:targetClass sqe:AskQuery, sqe:ConstructQuery, sqe:DescribeQuery .
+
+sqe:DatasetShape a sh:NodeShape ;
+    sh:property [
+        sh:maxCount 1 ;
+        sh:message "sqe:dataset must be a single rdf:List of sqe:DatasetClause (the FROM / FROM NAMED clauses)" ;
+        sh:node sqe:DatasetListShape ;
+        sh:path sqe:dataset
+    ] ;
+    sh:targetClass sqe:AskQuery, sqe:ConstructQuery, sqe:DescribeQuery, sqe:SelectQuery .

@@ -9,6 +9,10 @@ sqe:AskQuery rdfs:comment "An ASK query's root. sqe:where -> the flat pattern li
 sqe:Bind a rdfs:Class ;
     rdfs:comment "A BIND(... AS ?var) element - sqe:expr -> an expression tree (spexpr:); sqe:var -> the bound variable." .
 
+sqe:DescribeQuery a rdfs:Class ;
+    rdfs:subClassOf sqe:Query ;
+    rdfs:comment "A DESCRIBE query's root. sqe:describe -> rdf:List of IRIs and variables, or sqe:describeAll true for DESCRIBE *; an optional sqe:where; optionally sqe:dataset, sqe:groupBy, sqe:having, sqe:orderBy, sqe:limit, sqe:offset and a trailing sqe:values." .
+
 sqe:ConstructQuery rdfs:comment "A CONSTRUCT query's root. sqe:template -> rdf:List of sqe:TriplePattern; sqe:where -> the flat pattern list." ;
     rdfs:subClassOf sqe:Query .
 
@@ -60,7 +64,7 @@ sqe:var a rdf:Property ;
     rdfs:comment "Shared by several node types (sqe:Bind, Alias); deliberately no rdfs:domain, which would give each of them the wrong extra type under RDFS inference." .
 
 sqe:where a rdf:Property ;
-    rdfs:comment "A flat, ordered rdf:List of sibling pattern elements (sqe:TriplePattern/Optional/Union/Minus/Graph/Filter/Bind/Values/SubSelect) - mirrors the raw parse tree's own already-flat GroupGraphPatternSub.part shape, not the salg: algebra's nested LeftJoin/Filter wrapping." .
+    rdfs:comment "A flat, ordered rdf:List of sibling pattern elements (sqe:TriplePattern/Optional/Union/Minus/Graph/Service/Filter/Bind/Values/SubSelect) - mirrors the raw parse tree's own already-flat GroupGraphPatternSub.part shape, not the salg: algebra's nested LeftJoin/Filter wrapping." .
 
 sqe:selectAll a rdf:Property ;
     rdfs:domain sqe:SelectQuery ;
@@ -99,10 +103,10 @@ sqe:Alias a rdfs:Class ;
     rdfs:comment "(expr AS ?var) in a projection or GROUP BY - sqe:expr the expression, sqe:var the variable it binds." .
 
 sqe:groupBy a rdf:Property ;
-    rdfs:domain sqe:SelectQuery .
+    rdfs:comment "GROUP BY on a SELECT, ASK, CONSTRUCT or DESCRIBE root (no rdfs:domain: a domain would type the other forms as SELECT)." .
 
 sqe:having a rdf:Property ;
-    rdfs:domain sqe:SelectQuery .
+    rdfs:comment "HAVING on a SELECT, ASK, CONSTRUCT or DESCRIBE root (no rdfs:domain: a domain would type the other forms as SELECT)." .
 
 sqe:Minus a rdfs:Class ;
     rdfs:comment "A MINUS { ... } block - sqe:where -> its own flat pattern list." .
@@ -128,3 +132,35 @@ sqe:rows a rdf:Property ;
 
 sqe:values a rdf:Property ;
     rdfs:comment "A query's trailing VALUES clause (a sqe:Values)." .
+
+sqe:describe a rdf:Property ;
+    rdfs:domain sqe:DescribeQuery ;
+    rdfs:comment "DESCRIBE targets: an rdf:List of IRIs and variables." .
+
+sqe:describeAll a rdf:Property ;
+    rdfs:domain sqe:DescribeQuery ;
+    rdfs:comment "true for DESCRIBE *; replaces sqe:describe." .
+
+sqe:DatasetClause a rdfs:Class ;
+    rdfs:comment "One FROM <iri> or FROM NAMED <iri> clause - sqe:source the graph IRI, sqe:named true for FROM NAMED." .
+
+sqe:dataset a rdf:Property ;
+    rdfs:comment "A query's FROM / FROM NAMED clauses: an rdf:List of sqe:DatasetClause in source order, on a SELECT, ASK, CONSTRUCT or DESCRIBE root." .
+
+sqe:source a rdf:Property ;
+    rdfs:domain sqe:DatasetClause .
+
+sqe:named a rdf:Property ;
+    rdfs:domain sqe:DatasetClause .
+
+sqe:Service a rdfs:Class ;
+    rdfs:comment "A SERVICE [SILENT] <iri-or-variable> { ... } block - sqe:service the endpoint, sqe:silent true for SILENT, sqe:where the flat pattern list." .
+
+sqe:service a rdf:Property ;
+    rdfs:domain sqe:Service .
+
+sqe:silent a rdf:Property ;
+    rdfs:domain sqe:Service .
+
+sqe:version a rdf:Property ;
+    rdfs:comment "A VERSION \"x\" declaration of the query prologue (a plain string) on a query root; may repeat." .

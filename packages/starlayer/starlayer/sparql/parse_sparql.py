@@ -356,15 +356,15 @@ class _Parser:
         sign = ""
         if signed and self.at_p("+", "-") and self.signed_number_ahead():
             sign = self.next().text
-            sign = "-" if sign == "-" else ""
             t = self.peek()
         if t.kind in ("INT", "DEC", "DBL"):
             self.i += 1
             dt = {"INT": XSD.integer, "DEC": XSD.decimal, "DBL": XSD.double}[t.kind]
-            return Literal(sign + t.text, datatype=dt)
+            # normalize=False: "007", "+5" and "1E0" keep the lexical form written (rdflib would rewrite them)
+            return Literal(sign + t.text, datatype=dt, normalize=False)
         if t.kind == "W" and t.text in ("true", "false"):
             self.i += 1
-            return Literal(t.text == "true")
+            return Literal(t.text, datatype=XSD.boolean, normalize=False)
         self.err("expected a literal")
 
     def signed_number_ahead(self) -> bool:
@@ -603,7 +603,7 @@ class _Parser:
         if t.kind != "INT":
             self.err("expected an integer")
         self.i += 1
-        return Literal(t.text, datatype=XSD.integer)
+        return Literal(t.text, datatype=XSD.integer, normalize=False)
 
     def values_clause(self, q: Node):
         q.f["values"] = self.inline_data() if self.at_kw("VALUES") else None
@@ -1558,6 +1558,12 @@ class _Encoder:
         if k in ("Optional", "Minus"):
             g.add((b, RDF.type, v.OPTIONAL if k == "Optional" else v.MINUS))
             g.add((b, v.WHERE, self.where(el.f["where"])))
+        elif k == "Service":
+            g.add((b, RDF.type, v.SERVICE))
+            g.add((b, v.SERVICE_TERM, self.term(el.f["term"])))
+            if el.f["silent"]:
+                g.add((b, v.SERVICE_SILENT, Literal(True)))
+            g.add((b, v.WHERE, self.where(el.f["where"])))
         elif k == "Filter":
             g.add((b, RDF.type, v.FILTER))
             g.add((b, v.EXPR, self.term(el.f["expr"])))
@@ -1628,9 +1634,23 @@ class _Encoder:
             if self.triple_order is not None:
                 template = self.triple_order(template)
             g.add((root, v.TEMPLATE, _list(g, [self.triple(t) for t in template])))
-        g.add((root, v.WHERE, self.where(q.f["where"])))
-        if kind == "AskQuery":
-            return
+        elif kind == "DescribeQuery":
+            if q.f["targets"] is None:
+                g.add((root, v.DESCRIBE_ALL, Literal(True)))
+            else:
+                g.add((root, v.DESCRIBE, _list(g, [self.term(t) for t in q.f["targets"]])))
+        if q.f.get("datasets"):
+            clauses = []
+            for named, iri in q.f["datasets"]:
+                c = BNode()
+                g.add((c, RDF.type, v.DATASET_CLAUSE))
+                g.add((c, v.DATASET_SOURCE, iri))
+                if named:
+                    g.add((c, v.DATASET_NAMED, Literal(True)))
+                clauses.append(c)
+            g.add((root, v.DATASET, _list(g, clauses)))
+        if q.f["where"] is not None:
+            g.add((root, v.WHERE, self.where(q.f["where"])))
         if q.f["group_by"]:
             items = [
                 self.alias(c.f["expr"], c.f["var"]) if isinstance(c, Node) and c.kind == "GroupAs" else self.term(c)
@@ -1658,9 +1678,12 @@ class _Encoder:
 
     def query(self, q: Node, root):
         v, g = self.v, self.g
-        if q.f["datasets"]:
-            raise NotImplementedError("starlayer.sparql.sqe: FROM / FROM NAMED are not modeled; refusing to drop them")
-        root_type = {"SelectQuery": v.SELECT_QUERY, "AskQuery": v.ASK_QUERY, "ConstructQuery": v.CONSTRUCT_QUERY}[q.kind]
+        root_type = {
+            "SelectQuery": v.SELECT_QUERY,
+            "AskQuery": v.ASK_QUERY,
+            "ConstructQuery": v.CONSTRUCT_QUERY,
+            "DescribeQuery": v.DESCRIBE_QUERY,
+        }[q.kind]
         g.add((root, RDF.type, root_type))
         g.add((root, RDF.type, v.QUERY))
         self.body(q, root, q.kind)
@@ -1673,7 +1696,8 @@ class _Encoder:
                 g.add((b, v.PREFIX_LABEL, Literal(decl[1], datatype=self.PY)))
                 g.add((b, v.PREFIX_NAMESPACE, URIRef(decl[2])))
                 g.add((root, v.PROLOGUE_PREFIX, b))
-            # VERSION has no sqe: term: a vocabulary gap, the label is dropped.
+            elif decl[0] == "version":
+                g.add((root, v.VERSION, Literal(decl[1])))
 
 
 def ast_to_tree(q: Node, graph: Graph | None = None, root=None, *, triple_order=None) -> tuple[Graph, object]:

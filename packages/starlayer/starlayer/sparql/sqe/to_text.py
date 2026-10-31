@@ -35,6 +35,12 @@ from .vocab import (
     BIND,
     BIND_VAR,
     CONSTRUCT_QUERY,
+    DATASET,
+    DATASET_NAMED,
+    DATASET_SOURCE,
+    DESCRIBE,
+    DESCRIBE_ALL,
+    DESCRIBE_QUERY,
     DISTINCT,
     EXPR,
     FILTER,
@@ -57,6 +63,9 @@ from .vocab import (
     REDUCED,
     SELECT_ALL,
     SELECT_QUERY,
+    SERVICE,
+    SERVICE_SILENT,
+    SERVICE_TERM,
     SUB_SELECT,
     TEMPLATE,
     TRIPLE_PATTERN,
@@ -70,6 +79,7 @@ from .vocab import (
     VALUES_ROWS,
     VALUES_UNDEF,
     VALUES_VARS,
+    VERSION,
     WHERE,
 )
 
@@ -77,6 +87,7 @@ _KEYWORD_BY_ROOT_TYPE = {
     SELECT_QUERY: "SELECT",
     ASK_QUERY: "ASK",
     CONSTRUCT_QUERY: "CONSTRUCT",
+    DESCRIBE_QUERY: "DESCRIBE",
 }
 
 
@@ -93,7 +104,8 @@ def sqe_tree_to_text(graph: Graph, root) -> str:
         The rendered SPARQL query text.
     """
     prefixes = _prefix_map(graph, root)
-    lines = [f"PREFIX {label}: <{ns}>" for label, ns in sorted(prefixes.items())]
+    lines = [f'VERSION "{_escape_string(str(v))}"' for v in sorted(graph.objects(root, VERSION), key=str)]
+    lines += [f"PREFIX {label}: <{ns}>" for label, ns in sorted(prefixes.items())]
 
     base = graph.value(root, PROLOGUE_BASE)
     if base is not None:
@@ -124,10 +136,24 @@ def _query_lines(graph: Graph, root, prefixes: dict) -> list:
         template_nodes = list(Collection(graph, template_list)) if template_list is not None else []
         template_text = " . ".join(_triple_pattern_text(n, graph, prefixes) for n in template_nodes)
         lines.append(f"CONSTRUCT {{ {template_text} }}")
+    elif keyword == "DESCRIBE":
+        if graph.value(root, DESCRIBE_ALL) is not None:
+            lines.append("DESCRIBE *")
+        else:
+            targets = [_term_text(t, prefixes) for t in Collection(graph, graph.value(root, DESCRIBE))]
+            lines.append("DESCRIBE " + " ".join(targets))
     else:  # ASK
         lines.append("ASK")
 
-    lines.append(f"WHERE {_where_group_text(graph.value(root, WHERE), graph, prefixes)}")
+    dataset = graph.value(root, DATASET)
+    if dataset is not None:
+        for clause in Collection(graph, dataset):
+            named = "NAMED " if graph.value(clause, DATASET_NAMED) is not None else ""
+            lines.append(f"FROM {named}{_term_text(graph.value(clause, DATASET_SOURCE), prefixes)}")
+
+    where = graph.value(root, WHERE)
+    if where is not None or keyword != "DESCRIBE":
+        lines.append(f"WHERE {_where_group_text(where, graph, prefixes)}")
     lines.extend(_solution_modifier_lines(graph, root, prefixes))
     values_node = graph.value(root, QUERY_VALUES)
     if values_node is not None:
@@ -182,6 +208,10 @@ def _solution_modifier_lines(graph: Graph, root, prefixes: dict) -> list:
     return lines
 
 
+def _escape_string(text: str) -> str:
+    return text.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n").replace("\r", "\\r")
+
+
 def _keyword_for_root(graph: Graph, root) -> str:
     for root_type, keyword in _KEYWORD_BY_ROOT_TYPE.items():
         if (root, RDF.type, root_type) in graph:
@@ -215,6 +245,10 @@ def _where_element_text(node, graph: Graph, prefixes: dict) -> str:
     if (node, RDF.type, BIND) in graph:
         var = str(graph.value(node, BIND_VAR))
         return f"BIND({expr_text(graph.value(node, EXPR), graph, prefixes)} AS ?{var})"
+    if (node, RDF.type, SERVICE) in graph:
+        silent = "SILENT " if graph.value(node, SERVICE_SILENT) is not None else ""
+        term = _term_text(graph.value(node, SERVICE_TERM), prefixes)
+        return f"SERVICE {silent}{term} {_where_group_text(graph.value(node, WHERE), graph, prefixes)}"
     if (node, RDF.type, MINUS) in graph:
         return f"MINUS {_where_group_text(graph.value(node, WHERE), graph, prefixes)}"
     if (node, RDF.type, GRAPH_PATTERN) in graph:

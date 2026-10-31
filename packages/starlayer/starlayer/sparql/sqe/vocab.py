@@ -114,6 +114,7 @@ QUERY = SQE.Query
 SELECT_QUERY = SQE.SelectQuery
 ASK_QUERY = SQE.AskQuery
 CONSTRUCT_QUERY = SQE.ConstructQuery
+DESCRIBE_QUERY = SQE.DescribeQuery  # added with the owned parser: DESCRIBE (targets or *), optional WHERE
 
 PROJECTION = SQE.projection  # SelectQuery only - rdf:List of sqe:Variable-tagged Literals
 TEMPLATE = SQE.template  # ConstructQuery only - flat rdf:List of TriplePattern nodes
@@ -154,6 +155,18 @@ QUERY_VALUES = SQE.values  # a query's trailing VALUES clause -> sqe:Values
 MINUS = SQE.Minus  # MINUS { ... } - .where
 GRAPH_PATTERN = SQE.Graph  # GRAPH ?g { ... } - .graph, .where
 GRAPH_TERM = SQE.graph
+
+# --- Added with the StarLayer-owned parser (parse_sparql.py): additive, existing trees are unchanged ------------
+DESCRIBE = SQE.describe  # DescribeQuery: rdf:List of IRIs / variables
+DESCRIBE_ALL = SQE.describeAll  # DescribeQuery: boolean true for DESCRIBE *
+DATASET = SQE.dataset  # any query form: rdf:List of sqe:DatasetClause, in source order (FROM / FROM NAMED)
+DATASET_CLAUSE = SQE.DatasetClause  # .source the graph IRI, optional .named true for FROM NAMED
+DATASET_SOURCE = SQE.source
+DATASET_NAMED = SQE.named
+SERVICE = SQE.Service  # SERVICE [SILENT] <iri>|?v { ... } - .service the endpoint, optional .silent true, .where
+SERVICE_TERM = SQE.service
+SERVICE_SILENT = SQE.silent
+VERSION = SQE.version  # a VERSION "x" declaration on the query root (a plain string; may repeat)
 
 TRIPLE_TERM = SQE.TripleTerm  # <<( s p o )>> - .subject/.predicate/.object, recursively
 
