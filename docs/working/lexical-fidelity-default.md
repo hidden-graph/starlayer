@@ -52,7 +52,7 @@ branch after. The baseline was taken from a `git archive` of the commit before t
 | --- | --- | --- |
 | graph | 2556 passed, 1 failed (`test_timeout.py::test_grandchild_process_does_not_survive_the_timeout_kill`, a timing test that fails under machine load; passes in the after run), 159 skipped | 2555 passed, 2 failed (below, fixed afterwards), 159 skipped |
 | sparql | 1501 passed, 171 skipped, 11 xfailed | 1501 passed, 171 skipped, 11 xfailed |
-| shacl | SHACL_BASE | SHACL_AFTER |
+| shacl | 2517 passed, 1 failed (the known seconds-example fixture defect), 1 skipped, 5 xfailed | identical |
 
 Tests that depended on the old behaviour:
 
