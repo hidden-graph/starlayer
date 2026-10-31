@@ -171,6 +171,11 @@ def _show(term: Any) -> str:
     return repr(term)
 
 
+class StarLayerFidelityWarning(UserWarning):
+    """The data graph does not preserve literal lexical forms and the shapes use constraints that depend on them (see
+    ``fidelity.py``). Filter it with ``warnings.simplefilter("ignore", StarLayerFidelityWarning)``. StarLayer issue #190."""
+
+
 class TermError(ValueError):
     """A term that is not an RDF 1.2 term (and so cannot be an engine term): a relative or invalid IRI, a blank node id
     Oxigraph rejects, a malformed language tag.

@@ -62,8 +62,8 @@ Each stage has a gate that must pass before the next starts. Work stays on branc
 - 0.2 *(moved to the final stage by the owner's decision: salg is retired at the end.)* Salg retirement steps 1 to 3. Gate: sqe parity
   tests cover the checks the salg shapes performed; the 12 salg-using test files pass or are rewritten.
 - 0.3 Retire the SPARQL `=` guard for dirLangString (`backends/dirlang_equality.py`, 296 lines): the abort is fixed in pyoxigraph
-  0.5.13. Gate: the 16 guarded shapes pass with the guard off.
-- 0.4 Decide the default for lexical fidelity in parsing (see section 5, item 6), and add the `preserves_lexical_forms` warning.
+  0.5.13. Gate: the 16 guarded shapes pass with the guard off. **DONE on branch `mig-stage0` (2026-10-31):** the guard now applies only below pyoxigraph 0.5.13 or to a remote Oxigraph of unknown version; the file retires with the version pin.
+- 0.4 Decide the default for lexical fidelity in parsing (see section 5, item 6), and add the `preserves_lexical_forms` warning. **DONE on branch `mig-stage0` (2026-10-31):** see `docs/working/lexical-fidelity-default.md` and `StarLayerFidelityWarning` (`shacl_engine/fidelity.py`).
 - 0.5 Fetch the SPARQL 1.1 syntax suite (only 1.2 is vendored).
 
 **Stage 1: the parser.** (Decided 2026-10-31: SRL moves onto the new parser, **last** in this stage: a `parse_srl` entry point that reuses the new parser's tokenizer and

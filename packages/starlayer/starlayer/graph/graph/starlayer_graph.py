@@ -353,6 +353,44 @@ def _read_source_text(source=None, file=None, location=None, data=None) -> str:
     raise ValueError('No source data to parse')
 
 
+# StarLayer's format names for the syntaxes it parses itself and faithfully (the lexical form of every literal is kept exactly as
+# written). The plain names - 'turtle', 'nt', 'nquads', 'trig' - mean the RDF 1.2 syntax, not rdflib's normalising 1.1 parsers.
+_FAITHFUL_PARSE_FORMATS = {
+    'turtle': 'turtle12', 'ttl': 'turtle12', 'text/turtle': 'turtle12', 'application/x-turtle': 'turtle12',
+    'nt': 'nt12', 'ntriples': 'nt12', 'nt11': 'nt12', 'application/n-triples': 'nt12',
+    'nquads': 'nq12', 'nq': 'nq12', 'application/n-quads': 'nq12',
+    'trig': 'trig12', 'application/trig': 'trig12',
+}
+_RDFXML_FORMATS = ('xml', 'application/rdf+xml')
+
+
+def _is_remote_source(source, location, file, data) -> bool:
+    """Whether the parse input is a URL that only rdflib's own fetcher can read."""
+    import re
+    if data is not None or file is not None:
+        return False
+    for candidate in (location, source):
+        if isinstance(candidate, str) and re.match(r'^[A-Za-z][A-Za-z0-9+.-]*://', candidate):
+            return True
+    return False
+
+
+def _faithful_parse_format(format, source=None, location=None, file=None, data=None):
+    """``format`` with a plain name (or a name guessed from a file extension) routed to the faithful StarLayer parser
+    that keeps lexical forms as written. A URL source is left to rdflib's fetcher (not faithful)."""
+    if _is_remote_source(source, location, file, data):
+        return format
+    if format is None:
+        from pathlib import Path as _P
+        candidate = location if location is not None else source
+        if data is None and file is None and isinstance(candidate, (str, _P)) and _P(candidate).exists():
+            from rdflib.util import guess_format
+            format = guess_format(str(candidate))
+        if format is None:
+            return None
+    return _FAITHFUL_PARSE_FORMATS.get(format, format)
+
+
 def _deliver_serialized(text: str, destination, encoding):
     """Hand serialized text to the caller the way ``rdflib.Graph.serialize`` does: with no destination, the text (or bytes when
     ``encoding`` is given); with a path or an open text or binary stream, written there and ``None`` returned (GitHub issue #133)."""
@@ -2013,6 +2051,11 @@ class StarLayerGraph(Graph):
         """Parse RDF data into the graph.
 
         format='turtle12'  — Turtle 1.2 with <<( )>>, {| |}, ~ reifier syntax
+        'turtle'/'ttl', 'nt'/'ntriples', 'nquads', 'trig' (and their MIME types, and a format guessed from a file extension) —
+                             the same parsers as turtle12/nt12/nq12/trig12: the plain name means the RDF 1.2
+                             syntax and keeps every literal's lexical form exactly as written ("04"^^xsd:integer
+                             stays "04"). A URL source is left to rdflib's fetcher, which normalises. 'xml' is
+                             rdflib's RDF/XML parser with lexical forms kept as written.
         format='nt12'      — N-Triples 1.2 with <<( )>> triple terms
         format='nq12'      — N-Quads 1.2
         format='trig12'    — TriG 1.2
@@ -2062,6 +2105,8 @@ class StarLayerGraph(Graph):
         """
         if format in ('n3', 'n3-12', 'text/n3'):
             format = 'turtle12'
+        requested_format = format
+        format = _faithful_parse_format(format, source, location, file, data)
         if format in ('turtle12', 'longturtle12', 'nt12', 'nq12', 'trig12', 'trix12', 'rdfxml12', 'manchester', 'omn'):
             text = _read_source_text(source=source, file=file, location=location, data=data)
 
@@ -2240,6 +2285,10 @@ class StarLayerGraph(Graph):
                     for triple in triples:
                         self.add(triple)
 
+            if format != requested_format and format in ('turtle12', 'nt12'):
+                # a plain rdflib name (turtle, nt) used to go through rdflib's parser and then adopt a basic-encoding
+                # document (rdf:reifies / rdf:PropositionForm) as real triple terms; it still does
+                self._adopt_basic_encoding()
             return self
         if format in ('nquads', 'trig', 'trix'):
             # Plain rdflib delegation (what every other format below still
@@ -2260,6 +2309,14 @@ class StarLayerGraph(Graph):
                 for triple in ctx:
                     self.add(triple)
             return self
+        if format in _RDFXML_FORMATS:
+            # rdflib's RDF/XML parser, with each literal's lexical form kept as written
+            from starlayer.graph.parsers.faithful import faithful_rdfxml_literals
+            with faithful_rdfxml_literals():
+                result = super().parse(source=source, publicID=publicID, format=format,
+                                       location=location, file=file, data=data, **kwargs)
+            self._adopt_basic_encoding()
+            return result
         result = super().parse(source=source, publicID=publicID, format=format,
                                location=location, file=file, data=data, **kwargs)
         self._adopt_basic_encoding()

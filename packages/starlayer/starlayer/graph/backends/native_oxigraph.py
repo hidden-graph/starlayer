@@ -67,7 +67,7 @@ def _parse_ox_term(term):
         # plain Literal to match _parse_json_term()'s behavior.
         if dtype_iri == str(XSD.string):
             return Literal(term.value)
-        literal = Literal(term.value, datatype=URIRef(dtype_iri))
+        literal = Literal(term.value, datatype=URIRef(dtype_iri), normalize=False)  # the engine's form, as given
         if dtype_iri == str(XSD.decimal):
             # Same engine-side whole-number xsd:decimal canonicalization
             # defect _parse_json_term() already works around for HTTP.

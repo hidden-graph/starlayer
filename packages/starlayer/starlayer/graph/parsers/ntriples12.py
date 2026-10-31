@@ -233,7 +233,7 @@ def _token_to_node(token: str):
                 # rdf:langString / rdf:dirLangString literals carry a language tag (and direction); `"x"^^rdf:dirLangString` is
                 # not one (RDF 1.2 Concepts sec 3.3) (GitHub issue #73)
                 raise ValueError(f"a literal typed {datatype} needs a language tag, not ^^: {token!r}")
-            return Literal(value, datatype=datatype)
+            return Literal(value, datatype=datatype, normalize=False)  # keep the lexical form as written
         if suffix:
             raise ValueError(f"unexpected text after a literal: {suffix!r}")
         return Literal(value)

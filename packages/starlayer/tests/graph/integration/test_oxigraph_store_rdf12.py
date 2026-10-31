@@ -344,10 +344,44 @@ print(json.dumps(out))
 # them deliberately (before filing/updating the upstream report, or to check
 # whether a new Oxigraph release fixed it):
 #     STARLAYER_RUN_ENGINE_ABORT_TESTS=1 pytest tests/graph/integration/test_oxigraph_store_rdf12.py
+def _pyoxigraph_fixed() -> bool:
+    import pyoxigraph
+    return tuple(int(x) for x in pyoxigraph.__version__.split('.')[:3]) >= (0, 5, 13)
+
+
+# The abort is fixed in pyoxigraph 0.5.13 (verified 2026-10-31), so these only
+# make sense, and only run, against an older pyoxigraph.
 _engine_abort = pytest.mark.skipif(
-    not os.environ.get('STARLAYER_RUN_ENGINE_ABORT_TESTS'),
-    reason='opt-in: aborts a subprocess (crash report on macOS) - set STARLAYER_RUN_ENGINE_ABORT_TESTS=1',
+    _pyoxigraph_fixed() or not os.environ.get('STARLAYER_RUN_ENGINE_ABORT_TESTS'),
+    reason='opt-in, and only for pyoxigraph < 0.5.13 (fixed there): aborts a subprocess - set STARLAYER_RUN_ENGINE_ABORT_TESTS=1',
 )
+
+_SHAPES_T = '<http://example.org/title>'
+_SHAPES_P = f'?s {_SHAPES_T} ?t'
+# The 16 shapes that used to abort (oxigraph#1982), run on raw pyoxigraph, each in its own subprocess.
+_FIXED_SHAPES = {
+    'self_eq': f'SELECT ?s WHERE {{ {_SHAPES_P} . FILTER(?t = ?t) }}',
+    'two_stored': f'SELECT ?a WHERE {{ ?a {_SHAPES_T} ?x . ?b {_SHAPES_T} ?y . FILTER(?x = ?y) }}',
+    'strlangdir_both': 'SELECT * WHERE { FILTER(STRLANGDIR("a","en","ltr") = STRLANGDIR("a","en","ltr")) }',
+    'stored_vs_strlangdir': f'SELECT ?s WHERE {{ {_SHAPES_P} . FILTER(?t = STRLANGDIR("hi","en","ltr")) }}',
+    'stored_vs_literal': f'SELECT ?s WHERE {{ {_SHAPES_P} . FILTER(?t = "hi"@en--ltr) }}',
+    'neq': f'SELECT ?s WHERE {{ {_SHAPES_P} . FILTER(?t != "hi"@en--rtl) }}',
+    'in': f'SELECT ?s WHERE {{ {_SHAPES_P} . FILTER(?t IN ("hi"@en--ltr, "x"@en--ltr)) }}',
+    'notin': f'SELECT ?s WHERE {{ {_SHAPES_P} . FILTER(?t NOT IN ("hi"@en--ltr)) }}',
+    'lt': f'SELECT ?s WHERE {{ {_SHAPES_P} . FILTER(?t < "zz"@en--ltr) }}',
+    'join': f'SELECT ?a WHERE {{ ?a {_SHAPES_T} ?t . ?b {_SHAPES_T} ?t }}',
+    'distinct': f'SELECT DISTINCT ?t WHERE {{ {_SHAPES_P} }}',
+    'groupby': f'SELECT ?t (COUNT(*) AS ?n) WHERE {{ {_SHAPES_P} }} GROUP BY ?t',
+    'orderby': f'SELECT ?t WHERE {{ {_SHAPES_P} }} ORDER BY ?t',
+    'min': f'SELECT (MIN(?t) AS ?m) WHERE {{ {_SHAPES_P} }}',
+    'minus': f'SELECT ?s WHERE {{ {_SHAPES_P} MINUS {{ ?s2 {_SHAPES_T} ?t }} }}',
+    'values_join': f'SELECT ?s WHERE {{ {_SHAPES_P} VALUES ?t {{ "hi"@en--ltr "hi"@en--rtl }} }}',
+}
+_FIXED_EXPECTED_ROWS = {
+    'self_eq': 3, 'two_stored': 5, 'strlangdir_both': 1, 'stored_vs_strlangdir': 2, 'stored_vs_literal': 2,
+    'neq': 2, 'in': 2, 'notin': 1, 'lt': 2, 'join': 5, 'distinct': 2, 'groupby': 2, 'orderby': 3, 'min': 1,
+    'minus': 0, 'values_join': 3,
+}
 
 
 class TestDirLangStringEquality:
@@ -385,6 +419,29 @@ class TestDirLangStringEquality:
             )
         assert proc.returncode != 0
         assert 'unreachable' in proc.stderr or 'panicked' in proc.stderr or 'Abort' in proc.stderr
+
+
+@pytest.mark.skipif(not _pyoxigraph_fixed(), reason='the abort is fixed in pyoxigraph >= 0.5.13')
+class TestDirLangStringEqualityFixedUpstream:
+    """oxigraph#1982 is fixed in pyoxigraph 0.5.13: all 16 shapes that used to abort
+    run to completion on the raw engine (no StarLayer guard), each in its own
+    subprocess, and give the right row counts."""
+
+    @pytest.mark.parametrize('name', sorted(_FIXED_SHAPES))
+    def test_shape_runs_unguarded(self, name):
+        import subprocess
+        import sys
+        code = (
+            'import pyoxigraph as ox\n'
+            's = ox.Store()\n'
+            's.update(\'INSERT DATA { <http://example.org/a> <http://example.org/title> "hi"@en--ltr . '
+            '<http://example.org/b> <http://example.org/title> "hi"@en--ltr . '
+            '<http://example.org/c> <http://example.org/title> "hi"@en--rtl }\')\n'
+            f'print(len(list(s.query({_FIXED_SHAPES[name]!r}))))\n'
+        )
+        proc = subprocess.run([sys.executable, '-c', code], capture_output=True, text=True, timeout=120)
+        assert proc.returncode == 0, proc.stderr[-500:]
+        assert int(proc.stdout.strip()) == _FIXED_EXPECTED_ROWS[name]
 
 
 class TestDirLangStringEqualityGuard:
@@ -432,8 +489,18 @@ class TestDirLangStringEqualityGuard:
         """Only an Oxigraph engine needs the guard: the default store's SPARQL is
         passed through untouched."""
         from starlayer.graph.backends.native import engine_aborts_on_dirlang_equality
-        assert engine_aborts_on_dirlang_equality(embedded_oxigraph_store()) is True
+        assert engine_aborts_on_dirlang_equality(embedded_oxigraph_store()) is (not _pyoxigraph_fixed())
         assert engine_aborts_on_dirlang_equality(object()) is False
+
+    def test_an_in_process_store_is_guarded_below_the_fixed_version(self, monkeypatch):
+        from starlayer.graph.backends import native
+        store = embedded_oxigraph_store()
+        monkeypatch.setattr(native, '_pyoxigraph_version', lambda: (0, 5, 12))
+        assert native.engine_aborts_on_dirlang_equality(store) is True
+        monkeypatch.setattr(native, '_pyoxigraph_version', lambda: (0, 5, 13))
+        assert native.engine_aborts_on_dirlang_equality(store) is False
+        monkeypatch.setattr(native, '_pyoxigraph_version', lambda: None)
+        assert native.engine_aborts_on_dirlang_equality(store) is True
 
     def test_a_remote_endpoint_is_guarded_only_when_it_is_declared_to_be_oxigraph(self):
         from types import SimpleNamespace
@@ -442,6 +509,13 @@ class TestDirLangStringEqualityGuard:
         assert engine_aborts_on_dirlang_equality(SimpleNamespace()) is False
         assert engine_aborts_on_dirlang_equality(SimpleNamespace(starlayer_engine='fuseki')) is False
         assert engine_aborts_on_dirlang_equality(SimpleNamespace(starlayer_engine='oxigraph')) is True
+        # a declared server version >= 0.5.13 turns the guard off; an older or unreadable one keeps it
+        assert engine_aborts_on_dirlang_equality(
+            SimpleNamespace(starlayer_engine='oxigraph', starlayer_engine_version='0.5.13')) is False
+        assert engine_aborts_on_dirlang_equality(
+            SimpleNamespace(starlayer_engine='oxigraph', starlayer_engine_version='0.5.9')) is True
+        assert engine_aborts_on_dirlang_equality(
+            SimpleNamespace(starlayer_engine='oxigraph', starlayer_engine_version='junk')) is True
 
 
 # ---------------------------------------------------------------------------

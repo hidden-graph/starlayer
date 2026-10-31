@@ -75,6 +75,11 @@ class InferredView:
 
     engine_terms = True
 
+    @property
+    def preserves_lexical_forms(self) -> bool:
+        """The base's: inferred triples are held as terms, so the view is as faithful as its data."""
+        return getattr(self.base, "preserves_lexical_forms", True)
+
     def __init__(self, base: Any) -> None:
         self.base = base
         self._inferred: set[Triple] = set()

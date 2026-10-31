@@ -57,6 +57,7 @@ from rdflib.namespace import RDF
 
 from starlayer.graph.model.encoding import encode_dirlang_datatype
 from starlayer.graph.model.triple import TripleTerm
+from starlayer.graph.parsers.faithful import faithful_rdfxml_literals
 
 _RDF_NS          = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#'
 _XML_NS          = 'http://www.w3.org/XML/1998/namespace'
@@ -225,7 +226,7 @@ class _Preprocessor:
             if lang:
                 return Literal(text, lang=lang)
             if datatype:
-                return Literal(text, datatype=URIRef(datatype))
+                return Literal(text, datatype=URIRef(datatype), normalize=False)  # keep the lexical form as written
             return Literal(text)
         raise NotImplementedError(
             f'Unsupported RDF/XML 1.2 shape for <{elem.tag}> combined with '
@@ -354,5 +355,6 @@ def parse_rdfxml12(text: str) -> list[tuple]:
     modified_text = ET.tostring(root, encoding='unicode').replace('\r', '&#13;')
 
     raw = rdflib.Graph()
-    raw.parse(data=modified_text, format='xml')
+    with faithful_rdfxml_literals():
+        raw.parse(data=modified_text, format='xml')
     return _convert_bnodes(raw)
