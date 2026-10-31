@@ -189,3 +189,15 @@ Read verbatim except where marked; Node Expressions 4-8, SPARQL 4-7/G and Core 6
 - **Reports (Core 6.9.2):** triple terms as `sh:value`/`sh:focusNode` are not excluded; only `sh:resultPath` is deep-copied
   when it is a blank node; the draft says nothing about copying a blank-node value's triples (the engine copies them,
   matching the old validator; 4 benign differences).
+
+## Deliberate deviations from pySHACL and the vendored W3C fixtures (decision 2026-10-30)
+pySHACL implements an older specification, so where the SHACL 1.2 drafts differ the engine follows the draft and the
+test result differs on purpose. Such entries are not skipped or xfailed: the harness asserts the engine's own outcome
+(`DEVIATIONS` in `tests/shacl/w3c_shacl12/test_w3c_engine_sparql.py`).
+- **VALUES in SHACL SPARQL queries.** Draft (SPARQL Appendix A, normative): "SPARQL queries MUST not contain a VALUES clause
+  that mentions any potentially pre-bound variable." pySHACL and fixture `unsupported-sparql-002` forbid every VALUES.
+  The engine rejects a VALUES only when it mentions `this`, `value` (ASK), a parameter or a scope variable
+  (`sparql_support.check_query`); `VALUES ?any { true }` now runs and yields a violation. MINUS stays forbidden (MUST NOT,
+  unconditional). SERVICE is SHOULD NOT with a MUST-fail for processors that do not permit it, so rejecting it conforms.
+- **sh:uniqueValuesFor** peers are the shape's own targets (Core 7.9.5), not the outer shape's focus nodes.
+- **sh:SPARQLTarget / SPARQLTargetType, $currentShape, $shapesGraph** are not implemented (Appendix F items 1 and 10).

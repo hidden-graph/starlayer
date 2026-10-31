@@ -1,7 +1,7 @@
 """SHACL 1.2 SPARQL-Related Features, the parts every SPARQL-based construct shares.
 
 * Prefix declarations (``sh:prefixes`` / ``sh:declare`` / ``owl:imports``, with the ontology fallback).
-* Query checking: the queries the spec forbids (MINUS, VALUES, SERVICE, ``AS ?prebound``) raise ``ShapeError``.
+* Query checking: the queries the spec forbids (MINUS, VALUES over a pre-bound variable, SERVICE, ``AS ?prebound``) raise ``ShapeError``.
 * Running a query on the data graph with pre-bound variables: through the graph's own ``sparql_query`` if it has one
   (``interface.SparqlCapable``), else through StarLayer's query layer (``starlayer_sparql_query``).
 * Mapping solutions to validation results, message templates, the ``$PATH`` substitution, and the two SPARQL node
@@ -105,9 +105,10 @@ def _walk(node: Any) -> Iterable[CompValue]:
 def check_query(plan: Plan, text: str, prebound: Iterable[str], *, ask: bool = False) -> tuple[str, ...]:
     """Parse ``text`` with StarLayer's parser and reject what the spec forbids; return the projected variable names.
 
-    Rejected: unparseable text; a SELECT where an ASK is required and vice versa; MINUS; SERVICE; any VALUES block (the
-    spec only forbids those that mention a pre-bound variable, the W3C fixture ``unsupported-sparql-002`` expects a
-    failure for ``VALUES ?any {...}`` as well); ``AS`` (BIND, or a SELECT expression) of a pre-bound variable."""
+    Rejected: unparseable text; a SELECT where an ASK is required and vice versa; MINUS; SERVICE; a VALUES block that
+    mentions a pre-bound variable (the draft's rule, SPARQL Appendix A; a VALUES over other variables is allowed, which
+    is a DELIBERATE DEVIATION from the vendored W3C fixture ``unsupported-sparql-002`` and from pySHACL, both of which
+    follow the older rule that forbids every VALUES); ``AS`` (BIND, or a SELECT expression) of a pre-bound variable."""
     prebound = frozenset(prebound)
     key = ("checked", text, prebound, ask)
     if key in plan.sparql_cache:
@@ -125,7 +126,12 @@ def check_query(plan: Plan, text: str, prebound: Iterable[str], *, ask: bool = F
         if part.name == "ServiceGraphPattern":
             raise ShapeError("SERVICE is not allowed in a SHACL SPARQL query")
         if part.name == "values":
-            raise ShapeError("VALUES is not allowed in a SHACL SPARQL query")
+            # SHACL 1.2 SPARQL Appendix A: "SPARQL queries MUST not contain a VALUES clause that mentions any potentially
+            # pre-bound variable". A VALUES that mentions only other variables is allowed.
+            mentioned = {str(v) for v in part.get("_vars", ()) or ()} | {str(k) for row in part.get("res", ()) or () for k in row}
+            clash = sorted(mentioned & prebound)
+            if clash:
+                raise ShapeError(f"VALUES must not mention the pre-bound variable ?{clash[0]} in a SHACL SPARQL query")
         if part.name == "Extend" and str(part.get("var")) in prebound:
             raise ShapeError(f"a SHACL SPARQL query must not assign the pre-bound variable ?{part.get('var')}")
     projected = tuple(str(v) for v in query.algebra.get("PV", ()) or ())
