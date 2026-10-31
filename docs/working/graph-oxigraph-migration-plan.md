@@ -59,8 +59,8 @@ Each stage has a gate that must pass before the next starts. Work stays on branc
 **Stage 0: independent groundwork (no ordering constraints).**
 - 0.1 Adopt the term-model work into `shacl-engine`, after the three conditions: define what `to_engine` does with invalid IRIs,
   blank-node ids and language tags; ban `str(term)` inside the engine; cross-check `xsd_values` against a second implementation.
-- 0.2 Salg retirement steps 1 to 3. Gate: sqe parity tests cover the checks the salg shapes performed; the 12 salg-using test
-  files pass or are rewritten.
+- 0.2 *(moved to the final stage by the owner's decision: salg is retired at the end.)* Salg retirement steps 1 to 3. Gate: sqe parity
+  tests cover the checks the salg shapes performed; the 12 salg-using test files pass or are rewritten.
 - 0.3 Retire the SPARQL `=` guard for dirLangString (`backends/dirlang_equality.py`, 296 lines): the abort is fixed in pyoxigraph
   0.5.13. Gate: the 16 guarded shapes pass with the guard off.
 - 0.4 Decide the default for lexical fidelity in parsing (see section 5, item 6), and add the `preserves_lexical_forms` warning.
@@ -111,18 +111,30 @@ From `graph-functionality-comparison.md`, plus what the spikes added.
 
 ## 5. Sign-offs and open questions
 
-1. Adopt the term-model port into `shacl-engine`, and the three conditions.
-2. The three give-ups assumed accepted (browser, language-tag case, `LOAD <file://>`).
-3. **`starontology/`** is touched by salg retirement (delete `salg-ontology.ttl` and `sparql_shapes.ttl`, regenerate
-   `starontology.trig`, edit the registry in `__init__.py`; cosmetic salg mentions in six more files). Your rule: work in a copy,
-   never merge into it unprompted. How do you want this step handled?
-4. How long the rdf-1.1 backend stays behind a flag.
-5. Whether the wrapper subclasses rdflib's `Graph` during the transition (Stage 4) or is standalone from Stage 2.
-6. **Lexical fidelity in parsing:** the default `turtle` format normalises. Options: make `turtle12` the default, or set
-   `normalize=False` in the default parse path. Either changes behaviour for existing users.
-7. Prefix library: a shared read-only library applied per call, or none. (Speed is not a factor: graph creation costs about 11 µs.)
-8. TriX and graph set operators: keep or drop.
-9. `ssyn`/`sast` (946 lines, 6 files, imported by nothing in `starlayer/`, four test files): drop?
+Answers recorded 2026-10-31.
+
+1. **Adopt the term-model port into `shacl-engine`, with its three conditions: yes.** In progress.
+2. **The three give-ups** (browser/Pyodide, language-tag case, `LOAD <file://>`): explained to the owner, who did not follow them;
+   awaiting a yes or no after the explanation (see the reply to this section).
+3. **`starontology/`: changes on this branch are fine** (nothing reaches `main` until the end). **Salg is retired at the end**, not
+   in Stage 0: Stage 0.2 moves to the final stage. Memory updated accordingly.
+4. **The `rdf-1.1` backend does not survive.** The owner's direction: handle RDF 1.1 *output* with the RDF 1.2 Interoperability
+   approach (the basic encoding) at export time, instead of keeping a separate storage backend. So Stage 2 makes the Oxigraph
+   backend the only backend and adds an export mode (`serialize(..., rdf_version="1.1")` or similar) that rewrites triple terms
+   with `to_basic()`. To confirm the details with the owner (the draft's basic encoding targets RDF 1.2 Basic, which is also valid RDF 1.1
+   syntax; its semantics differ).
+5. **Wrapper and rdflib `Graph`:** "whatever works"; nothing will be used until the final form, so build it standalone and add
+   compatibility only where a test or user needs it.
+6. **Parsing and the name `turtle`:** the owner assumes Oxigraph's `turtle` is Turtle 1.2. Confirmed: pyoxigraph's `RdfFormat.TURTLE`
+   parses RDF 1.2 Turtle (triple terms, annotations, reifiers, `VERSION`, base direction), and keeps lexical forms on parse.
+   Decision: `turtle` means Turtle 1.2 and is the faithful parser; `turtle12` stays as an alias. RDF 1.1 output goes through the
+   approach in item 4.
+7. **Prefixes:** a global setting (default empty, like Oxigraph) that populates each graph's prefix map when the graph is built;
+   the graph's map is a plain dictionary used at serialize and query time (Oxigraph has no store-level prefixes). Whether a graph
+   copies the global at build time (isolated from later changes) or references it is a detail to settle; copying is cheap.
+8. **TriX and graph set operators:** the owner did not know what these are; explained in the reply. Recommendation: keep TriX (324
+   lines, already written, independent of the store); do not carry the operators (add `union`/`difference` methods if anyone asks).
+9. **`ssyn`/`sast`: dropped (done, branch `shacl-engine`).** Six modules (946 lines) and two test files removed; 808 SPARQL unit tests pass.
 
 ## 6. Risks
 

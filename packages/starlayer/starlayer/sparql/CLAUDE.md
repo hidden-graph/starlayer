@@ -156,6 +156,7 @@ Direct follow-up to the retrospective-review plan's own flagged-but-deferred ite
 - `starsparql/ns/srl#` (`srl:`, `srl.py`) → `starlayer/ns/sparql/srl#`
 - `starsparql/ns/ast#` (`sast:`, `ast_vocab.py`) → `starlayer/ns/sparql/ast#`
 - `starsparql/ns/readable-syntax#` (`ssyn:`, `ssyn_vocab.py`) → `starlayer/ns/sparql/readable-syntax#`
+  - **Removed 2026-10-31 (branch `shacl-engine`):** the `sast:` and `ssyn:` prototypes (`ast_vocab.py`, `to_ast_rdf.py`, `from_ast_rdf.py`, `ssyn_vocab.py`, `to_ssyn_rdf.py`, `ssyn_to_text.py`, 946 lines) and their two test files (`test_ast_ontology.py`, `test_ssyn_ontology.py`). Nothing in the library imported them; sqe superseded them. The namespace notes above are history.
 - `starsparql/ns/query-edit#` (`sqe:`, `sqe/vocab.py`) → `starlayer/ns/sparql/query-edit#`
 
 New scheme matches the precedent `starlayer/conformance.py`'s own `CONFORMANCE = Namespace("https://github.com/hidden-graph/starlayer/ns/conformance#")` had already established (one unified `starlayer/ns/<subpackage>/<name>#` tree) - not invented fresh for this rename.

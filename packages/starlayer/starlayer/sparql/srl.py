@@ -14,7 +14,7 @@ SPARQL triple patterns/filter expressions, run *against* a graph. That's a
 SPARQL-adjacent artifact, and it can't cleanly separate from
 ``starlayer.sparql``'s shared internals the way Manchester's syntax-tree
 module could: ``_encode``/``_decode``/``_new_starlayer_graph`` (``to_rdf.py``/
-``from_rdf.py``) and ``_render_expr_text`` (``ssyn_to_text.py``) are reused
+``from_rdf.py``) are reused
 directly below, not reimplemented - moving this module out of
 ``starlayer.sparql`` would mean forking that machinery. Staying here means
 every cross-reference below is an ordinary same-package import, not a
