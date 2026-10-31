@@ -23,7 +23,12 @@ from typing import Any
 
 import pyoxigraph as ox
 
-from starlayer.shacl_engine.terms import from_engine, from_engine_triple, to_engine
+from starlayer.shacl_engine.terms import (
+    check_graphs,
+    from_engine,
+    from_engine_triple,
+    to_engine,
+)
 
 UNION = object()
 DEFAULT = object()
@@ -75,7 +80,11 @@ class OxigraphGraph:
 
     @classmethod
     def from_graph(cls, graph: Any, *, graph_name: Any = UNION) -> OxigraphGraph:
-        """Copy the triples of an rdflib / StarLayerGraph (anything with ``.triples((None, None, None))``) in."""
+        """Copy the triples of an rdflib / StarLayerGraph (anything with ``.triples((None, None, None))``) in. A term that is
+        not an RDF term (relative IRI ...) raises ``TermError`` naming every offender (or, under ``term_policy("lenient")``,
+        is stored as the opaque stand-in ``from_engine`` maps back); a store cannot hold it. ``add`` and pattern lookups
+        raise ``TermError`` for such a term too."""
+        check_graphs((graph, "graph"))
         store = ox.Store()
         target = ox.DefaultGraph() if graph_name in (UNION, DEFAULT) else to_ox(graph_name)
         store.bulk_extend(

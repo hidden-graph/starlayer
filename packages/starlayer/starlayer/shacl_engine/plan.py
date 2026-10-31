@@ -59,7 +59,7 @@ class Plan:
     sparql_cache: dict = field(default_factory=dict)  # prefix declarations and checked queries, keyed by their inputs
 
     def __post_init__(self) -> None:
-        self.shapes_graph = engine_view(self.shapes_graph)  # the seam: rdflib / StarLayer graphs get an engine-term view
+        self.shapes_graph = engine_view(self.shapes_graph, "shapes graph")  # the seam: rdflib / StarLayer graphs get an engine-term view
 
     def components(self) -> list:
         """Built-in components plus the SPARQL-based constraint components declared in the shapes graph (built once)."""

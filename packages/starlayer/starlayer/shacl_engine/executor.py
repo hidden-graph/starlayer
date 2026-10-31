@@ -47,7 +47,7 @@ class Context:
     _assumed: int = 0  # how many times a re-entry assumed 'conforms' (the greatest-fixpoint reading) so far
 
     def __post_init__(self) -> None:
-        self.data = engine_view(self.data)
+        self.data = engine_view(self.data, "data graph")
 
     @property
     def shapes(self) -> Any:

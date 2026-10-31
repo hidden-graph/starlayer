@@ -13,7 +13,13 @@ from starlayer.shacl_engine.overlay_oxigraph import (
     term_is_safe,
 )
 from starlayer.shacl_engine.rules import InferredView, apply_rules
-from starlayer.shacl_engine.terms import RDF, XSD, engine_view, from_engine, to_engine_triple
+from starlayer.shacl_engine.terms import (
+    RDF,
+    XSD,
+    engine_view,
+    from_engine,
+    to_engine_triple,
+)
 
 Literal, URIRef = ox.Literal, ox.NamedNode
 

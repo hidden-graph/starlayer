@@ -24,7 +24,6 @@ import pyoxigraph as ox
 from starlayer.shacl_engine.rules import InferredView, Triple
 from starlayer.shacl_engine.terms import from_engine_triple
 
-
 _SCRATCH = ox.Store()
 _SAFE: dict[tuple, bool] = {}
 _S, _P = ox.NamedNode("http://example.org/scratch#s"), ox.NamedNode("http://example.org/scratch#p")

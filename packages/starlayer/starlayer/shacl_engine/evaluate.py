@@ -21,7 +21,13 @@ from starlayer.shacl_engine import components  # noqa: F401  (registers the cons
 from starlayer.shacl_engine.deactivation import deactivated_at
 from starlayer.shacl_engine.executor import Context
 from starlayer.shacl_engine.plan import SH, Plan
-from starlayer.shacl_engine.terms import engine_view, from_engine_triple, to_engine
+from starlayer.shacl_engine.terms import (
+    check_graphs,
+    engine_view,
+    from_engine_triple,
+    to_engine,
+    with_term_policy,
+)
 
 
 def _new_graph(like: Any) -> Any:
@@ -33,6 +39,7 @@ def _new_graph(like: Any) -> Any:
         return StarLayerGraph()
 
 
+@with_term_policy
 def evaluate(
     data_graph: Any,
     shapes_graph: Any = None,
@@ -54,7 +61,8 @@ def evaluate(
     """
     from starlayer.shacl_engine.entailment import resolve_data_view
 
-    shapes = engine_view(shapes_graph if shapes_graph is not None else data_graph)
+    check_graphs((data_graph, "data graph"), (shapes_graph, "shapes graph"), (ont_graph, "ontology graph"))
+    shapes = engine_view(shapes_graph if shapes_graph is not None else data_graph, "shapes graph")
     view = resolve_data_view(data_graph, shapes, inference=inference, ont_graph=ont_graph)
     if rules_entailment:
         from starlayer.shacl_engine.rules import apply_rules, entailment_selection

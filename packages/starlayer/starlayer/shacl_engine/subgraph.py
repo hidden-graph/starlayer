@@ -34,10 +34,12 @@ from starlayer.shacl_engine.plan import SH, Path, Plan, Shape, ShapeError, Term
 from starlayer.shacl_engine.terms import (
     RDF,
     RDFS,
+    check_graphs,
     engine_view,
     from_engine_triple,
     text,
     to_engine,
+    with_term_policy,
 )
 
 _Triple = tuple[Any, Any, Any]
@@ -324,6 +326,7 @@ def _is_target_of(extractor: _Extractor, shape: Shape, node: Term) -> bool:
     return node in extractor.ctx.shape_focus(shape)
 
 
+@with_term_policy
 def extract_subgraph(
     data_graph: Any,
     shacl_graph: Any | None = None,
@@ -347,7 +350,8 @@ def extract_subgraph(
     for argument, value in (("shape", shape), ("focus_node", focus_node)):
         if value is not None and not isinstance(value, Node):
             raise TypeError(f"{argument} must be an rdflib term such as URIRef, not {type(value).__name__}: {value!r}")
-    shapes = engine_view(shacl_graph if shacl_graph is not None else data_graph)
+    check_graphs((data_graph, "data graph"), (shacl_graph, "shapes graph"), (ont_graph, "ontology graph"))
+    shapes = engine_view(shacl_graph if shacl_graph is not None else data_graph, "shapes graph")
     shape, focus_node = to_engine(shape), to_engine(focus_node)
     plan = Plan(shapes_graph=shapes)
     view = resolve_data_view(data_graph, shapes, inference=inference, ont_graph=ont_graph)

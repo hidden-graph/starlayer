@@ -67,6 +67,11 @@ _PYSHACL_ONLY_SWITCHES = (
 )
 
 
+def _ill_formed_reason(exc: Exception) -> str:
+    """The recorded fallback reason for a graph the engine rejects with ``TermError``."""
+    return f"ill-formed RDF term (the engine validates RDF graphs; pySHACL path used): {str(exc)[:300]}"
+
+
 class NativeUnsupported(Exception):
     """An option of an old entry point has no native equivalent; the call falls back to pySHACL. ``str(self)`` is the reason."""
 
@@ -302,21 +307,29 @@ def validate(
         engine_kwargs = translate_validate_options(resolved, explicit_iterate_rules="iterate_rules" in kwargs)
     except NativeUnsupported as exc:
         return _run_old(old, old_args, old_opts, str(exc))
-    return _validate_native(
-        data_graph,
-        shacl_graph,
-        ont_graph,
-        engine_kwargs,
-        inference=inference,
-        shapes_graph_loader=shapes_graph_loader,
-        ignore_imports=ignore_imports,
-        meta_shapes_extra=meta_shapes_extra,
-        data_graph_iri=data_graph_iri,
-        shapes_graph_iri=shapes_graph_iri,
-        shapes_graph_resource=shapes_graph_resource,
-        specification_graph=specification_graph,
-        include_used_configuration=include_used_configuration,
-    )
+    from starlayer.shacl_engine.terms import TermError
+
+    try:
+        return _validate_native(
+            data_graph,
+            shacl_graph,
+            ont_graph,
+            engine_kwargs,
+            inference=inference,
+            shapes_graph_loader=shapes_graph_loader,
+            ignore_imports=ignore_imports,
+            meta_shapes_extra=meta_shapes_extra,
+            data_graph_iri=data_graph_iri,
+            shapes_graph_iri=shapes_graph_iri,
+            shapes_graph_resource=shapes_graph_resource,
+            specification_graph=specification_graph,
+            include_used_configuration=include_used_configuration,
+        )
+    except TermError as exc:
+        # A graph with a term that is not an RDF term (relative IRI ...) is outside SHACL 1.2's domain, so the engine rejects
+        # it up front, before it writes anything. The old API accepted such graphs and pySHACL defines their result, so the
+        # call falls back there (the reason is on ``ValidationResult.engine_fallback_reason``).
+        return _run_old(old, old_args, old_opts, _ill_formed_reason(exc))
 
 
 def _validate_unsupported(
@@ -480,38 +493,43 @@ def apply_rules(
     except NativeUnsupported as exc:
         return _run_old(old, old_args, old_opts, str(exc))
     del mode
-    engine_kwargs.pop("inplace", None)
-    engine_kwargs["rules"] = False  # the rules have run: the final pass validates the evaluation graph only
-    inference = kwargs.get("inference")
-    data, shapes, ont = _normalise(data_graph, shacl_graph if shacl_graph is not None else data_graph, ont_graph)
-    # "before rules" entailment pass: the rules see the entailed graph (kept as an overlay; entailed triples are not inferred)
-    base = resolve_data_view(data, shapes, inference=inference, ont_graph=ont)
-    result = rules.apply_rules(base, shapes, rule_sets=_rule_set_iris(rule_set))
-    _check_imports(shapes, passthrough.get("shapes_graph_loader"), bool(passthrough.get("ignore_imports")))
-    outcome = api.validate(
-        result.view,
-        shapes,
-        inference=inference,
-        ont_graph=ont,
-        **{"meta_shapes_extra": (), **passthrough},
-        **engine_kwargs,
-    )
-    from starlayer.shacl.results import ValidationResult
+    from starlayer.shacl_engine.terms import TermError
 
-    _annotate_conformance_disallows(outcome.report_graph, engine_kwargs.get("conformance_disallows"))
-    validation = ValidationResult(
-        conforms=outcome.conforms,
-        report_graph=outcome.report_graph,
-        report_text=outcome.report_text,
-        data_graph=None,
-        diagnostics=outcome.diagnostics,
-        engine=NATIVE,
-    )
-    inferred = type(data)()
-    for prefix, ns in data.namespaces():
-        inferred.bind(prefix, ns)
-    for t in result.inferred:
-        inferred.add(t)
+    try:
+        engine_kwargs.pop("inplace", None)
+        engine_kwargs["rules"] = False  # the rules have run: the final pass validates the evaluation graph only
+        inference = kwargs.get("inference")
+        data, shapes, ont = _normalise(data_graph, shacl_graph if shacl_graph is not None else data_graph, ont_graph)
+        # "before rules" entailment pass: the rules see the entailed graph (kept as an overlay; entailed triples are not inferred)
+        base = resolve_data_view(data, shapes, inference=inference, ont_graph=ont)
+        result = rules.apply_rules(base, shapes, rule_sets=_rule_set_iris(rule_set))
+        _check_imports(shapes, passthrough.get("shapes_graph_loader"), bool(passthrough.get("ignore_imports")))
+        outcome = api.validate(
+            result.view,
+            shapes,
+            inference=inference,
+            ont_graph=ont,
+            **{"meta_shapes_extra": (), **passthrough},
+            **engine_kwargs,
+        )
+        from starlayer.shacl.results import ValidationResult
+
+        _annotate_conformance_disallows(outcome.report_graph, engine_kwargs.get("conformance_disallows"))
+        validation = ValidationResult(
+            conforms=outcome.conforms,
+            report_graph=outcome.report_graph,
+            report_text=outcome.report_text,
+            data_graph=None,
+            diagnostics=outcome.diagnostics,
+            engine=NATIVE,
+        )
+        inferred = type(data)()
+        for prefix, ns in data.namespaces():
+            inferred.bind(prefix, ns)
+        for t in result.inferred:
+            inferred.add(t)
+    except TermError as exc:  # see validate(): the engine rejects non-RDF terms up front; the old path takes the call
+        return _run_old(old, old_args, old_opts, _ill_formed_reason(exc))
     _record(NATIVE, None)
     return RulesResult(inferred_graph=inferred, validation=validation, engine=NATIVE)
 
