@@ -94,10 +94,12 @@ Added with the StarLayer-owned parser (``parse_sparql.py``), additively:
 modifiers on ``ASK``/``CONSTRUCT``/``DESCRIBE`` (the 1.2 grammar allows them).
 Trees of queries that use none of these are unchanged.
 
-**Not covered:** SPARQL Update. Anything the tree cannot represent raises
-``NotImplementedError`` instead of being silently dropped. (The legacy path,
-``sqe_parse_to_tree``, still reads queries through rdflib's parser and so
-still lacks DESCRIBE, FROM and SERVICE; ``parse_sparql.sparql_to_tree`` has them.)
+**Not covered:** SPARQL Update (``sqe_parse_to_tree`` raises ``NotImplementedError``
+for Update text). Anything the tree cannot represent raises
+``NotImplementedError`` instead of being silently dropped. ``sqe_parse_to_tree``
+reads queries with the StarLayer-owned parser by default (``parser="owned"``);
+``parser="rdflib"`` keeps the legacy route, which lacks DESCRIBE, FROM and
+SERVICE, until salg is retired.
 
 **Running a decoded 1.2 query:** a ``Query`` from ``sqe_tree_to_query`` for a
 query that uses SPARQL 1.2 syntax cannot be executed directly by starlayer (a

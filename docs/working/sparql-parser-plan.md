@@ -296,7 +296,7 @@ all positive queries, about 16,000 mutants, three seeds, not committed) found on
 
 * **Update**: the grammar (productions 3 and 31-53, `.ru` tests: 54 + 1 positive and 13 negative in the vendored 1.1 `syntax-update-*`, 21 in 1.2), the `sqe:` update vocabulary, blank-node and variable rules for DELETE/INSERT DATA, and an Oxigraph differential for updates (`Store().update`).
 * **SRL on the parser**: `srl.py` still splices pyparsing onto rdflib's grammar; port it to a subclass of `_Parser` (the 929-test SRL suite is the gate). `_grammar12.py`, `parse12.py`, `_syntax_checks.py` can go only after that.
-* **sqe_parse_to_tree** (the old path) still reads through rdflib and still raises on DESCRIBE, FROM and SERVICE; switching it to `parse_sparql` (and `sqe_tree_to_query` for the new terms, if execution through rdflib is still wanted) is a separate, behaviour-changing step. Execution does not need it: text goes to Oxigraph.
+* **sqe_parse_to_tree** (done in Part 7's branch `mig-switch`: it now defaults to the owned parser; the text below describes the state before) still reads through rdflib and still raises on DESCRIBE, FROM and SERVICE; switching it to `parse_sparql` (and `sqe_tree_to_query` for the new terms, if execution through rdflib is still wanted) is a separate, behaviour-changing step. Execution does not need it: text goes to Oxigraph.
 * **Editor-grade fidelity**: shorthand expansion (`;`, `[ ]`, collections, annotations), prefixed-name spelling, VERSION order and multiplicity, comments and layout are still lost; a concrete layer would be needed.
 * **Draft drift**: the matrix and the grammar follow the 25 October 2026 Working Draft; refresh `vendor/sparql12-query-productions.json` when the draft changes.
 
