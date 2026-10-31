@@ -17,7 +17,7 @@ SH = Namespace("http://www.w3.org/ns/shacl#")
 Term = Any
 
 
-class ShapeError(Exception):
+class ShapeError(ValueError):
     """The shapes graph is malformed (the W3C suite's ``sht:Failure`` cases)."""
 
 

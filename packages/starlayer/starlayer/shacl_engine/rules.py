@@ -46,7 +46,7 @@ Triple = tuple[Term, Term, Term]
 _REIFIES = URIRef("http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies")
 
 
-class RuleError(Exception):
+class RuleError(ValueError):
     """A rule failed, or the rules graph is ill-formed or needs something unsupported (the rule set fails as a whole)."""
 
 
@@ -111,12 +111,40 @@ class InferredView:
                 seen.add(o)
                 yield o
 
+    def predicates(self, subject: Term | None = None, object: Term | None = None) -> Iterator[Term]:  # noqa: A002
+        seen: set = set()
+        for _s, p, _o in self.triples((subject, None, object)):
+            if p not in seen:
+                seen.add(p)
+                yield p
+
     def subjects(self, predicate: Term | None = None, object: Term | None = None) -> Iterator[Term]:  # noqa: A002
         seen: set = set()
         for s, _p, _o in self.triples((None, predicate, object)):
             if s not in seen:
                 seen.add(s)
                 yield s
+
+    @property
+    def namespace_manager(self) -> Any:
+        """The base graph's prefixes (report text and report graphs print prefixed names)."""
+        return self.base.namespace_manager
+
+    def namespaces(self) -> Iterator[tuple[str, Any]]:
+        return iter(self.base.namespaces())
+
+    def items(self, head: Term) -> Iterator[Term]:
+        """The members of the RDF list at ``head`` (as ``rdflib.Graph.items``)."""
+        from rdflib.namespace import RDF
+
+        seen: set = set()
+        while head is not None and head != RDF.nil and head not in seen:
+            seen.add(head)
+            first = next(self.objects(head, RDF.first), None)
+            if first is None:
+                return
+            yield first
+            head = next(self.objects(head, RDF.rest), None)
 
     def predicate_objects(self, subject: Term | None = None) -> Iterator[tuple[Term, Term]]:
         for _s, p, o in self.triples((subject, None, None)):

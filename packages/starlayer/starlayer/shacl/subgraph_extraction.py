@@ -531,6 +531,7 @@ def extract_subgraph(
     focus_node: Any | None = None,
     inference: Any | None = None,
     include_targets: bool = True,
+    engine: str | None = None,
 ) -> Any:
     """Returns the subgraph covered by one shape+focus_node pair, or by
     every real entry point a whole shapes graph declares.
@@ -574,6 +575,9 @@ def extract_subgraph(
             resolves for each candidate shape (declared/implicit targets,
             including SPARQL-based ``sh:target``).
         inference: An ``ENTAILMENT.*`` regime IRI, or an iterable of them.
+        engine: ``"native"`` runs ``starlayer.shacl_engine.extract_subgraph`` (see
+            ``starlayer.shacl.native_adapter``), ``"pyshacl"`` the old path; ``None`` defers to
+            ``STARLAYER_SHACL_ENGINE``, then ``"pyshacl"``.
         include_targets: Also return the triples that make each focus node a target of its shape
             (``sh:targetClass``: its ``rdf:type`` and ``rdfs:subClassOf`` triples; ``sh:targetSubjectsOf`` /
             ``sh:targetObjectsOf``: the triples with that predicate). The Shape Fragments paper includes them
@@ -589,6 +593,18 @@ def extract_subgraph(
         if value is not None and not isinstance(value, Node):
             # A str is not a term: a str shape was a bare KeyError and a str focus node silently matched nothing.
             raise TypeError(f"{argument} must be an rdflib term such as URIRef, not {type(value).__name__}: {value!r}")
+    from starlayer.shacl import native_adapter
+
+    if native_adapter.selected(engine) == "native":
+        return native_adapter.extract_subgraph(
+            data_graph,
+            shacl_graph,
+            ont_graph,
+            shape=shape,
+            focus_node=focus_node,
+            inference=inference,
+            include_targets=include_targets,
+        )
     if shacl_graph is None:
         shacl_graph = data_graph
 

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from rdflib import OWL, RDF, RDFS, BNode, URIRef
+from rdflib import OWL, RDF, RDFS, BNode, Literal, URIRef
 
 from starlayer.shacl_engine.plan import SH, ShapeError
 
@@ -93,6 +93,6 @@ def resolve_shapes_resource(shapes: Any, resource: Any) -> tuple[Any, Any]:
     identity; any other IRI is only a provenance tag and the whole graph is used. Same two meanings as the old validator."""
     if shapes is None:
         raise ValueError("shapes_graph_resource= needs a shapes graph to check against")
-    iri = resource if not isinstance(resource, str) else URIRef(resource)
+    iri = resource if isinstance(resource, (URIRef, Literal)) or not isinstance(resource, str) else URIRef(resource)
     extracted = extract_module(shapes, iri)
     return (extracted, iri) if extracted is not None else (shapes, iri)

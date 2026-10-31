@@ -32,6 +32,13 @@ Every test also carries a marker for its area, taken from its directory (``tests
 ``sparql``, ``starontology`` or ``codekg``. So one area runs alone with ``pytest -m shacl`` (or
 ``pytest tests/shacl``), and ``pytest -m "graph or sparql"`` runs two.
 
+SHACL engine (not an opt-in group, a mode of the whole run): ``starlayer.shacl`` runs on pySHACL unless asked. To run
+the SHACL tiers (``tests/shacl`` and everything else that calls ``starlayer.shacl``) on the native engine through the
+compatibility adapter (``starlayer.shacl.native_adapter``), use the flag or the environment variable it reads:
+
+    pytest --shacl-engine native tests/shacl
+    STARLAYER_SHACL_ENGINE=native pytest tests/shacl
+
 Done at collection time rather than with a default ``-m`` in ``addopts``
 because a ``-m`` given on the command line (``-m "not integration"`` is the
 repo's usual fast tier) would replace an ``addopts`` one and silently bring
@@ -83,6 +90,13 @@ OPT_IN_GROUPS = {
 
 
 def pytest_addoption(parser):
+    parser.addoption(
+        "--shacl-engine",
+        action="store",
+        default=None,
+        choices=("native", "pyshacl"),
+        help="engine behind starlayer.shacl for this run (sets STARLAYER_SHACL_ENGINE; default: the variable, else pyshacl)",
+    )
     for _marker, (flag, _env, help_text) in OPT_IN_GROUPS.items():
         parser.addoption(flag, action="store_true", default=False, help=help_text)
 
@@ -94,6 +108,12 @@ def _requested(config, marker: str) -> bool:
     expr = config.getoption("markexpr", default="") or ""
     # an explicit `-m <marker>` (not `-m "not <marker>"`) means "run them"
     return marker in expr and f"not {marker}" not in expr
+
+
+def pytest_configure(config):
+    engine = config.getoption("--shacl-engine")
+    if engine:
+        os.environ["STARLAYER_SHACL_ENGINE"] = engine
 
 
 AREAS = ("graph", "shacl", "sparql", "starontology", "kg")

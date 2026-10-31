@@ -43,6 +43,12 @@ class ValidationResult:
     report_text: str
     data_graph: Any | None = None
     diagnostics: ExecutionDiagnostics | None = None
+    engine: str = "pyshacl"
+    """Which engine produced this result: ``"pyshacl"`` (the old pySHACL-backed path) or ``"native"``
+    (``starlayer.shacl_engine``). See ``starlayer.shacl.native_adapter``."""
+    engine_fallback_reason: str | None = None
+    """Why a call that selected the native engine ran on pySHACL instead (an option with no native equivalent);
+    ``None`` when no fallback happened."""
 
 
 @dataclass(frozen=True)
@@ -75,6 +81,9 @@ class RulesResult:
 
     inferred_graph: Any
     validation: ValidationResult
+    engine: str = "pyshacl"
+    """Which engine ran the rules: ``"pyshacl"`` or ``"native"`` (see ``ValidationResult.engine``)."""
+    engine_fallback_reason: str | None = None
 
 
 # EvaluationResult/SubgraphExtractionResult were removed - evaluate()/

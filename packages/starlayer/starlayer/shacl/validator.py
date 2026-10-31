@@ -9,6 +9,7 @@ from rdflib import BNode, Graph, Literal, Namespace, URIRef
 from rdflib.collection import Collection
 from rdflib.namespace import OWL, RDF, RDFS, NamespaceManager
 
+from starlayer.shacl import native_adapter as _native_adapter
 from starlayer.shacl.adapters import TripleTermAdapter, TripleTermGraph, TripleTermValue
 from starlayer.shacl.engine import (
     ComponentRequest,
@@ -123,6 +124,7 @@ class StarShaclSchema:
         inference: Any | None = None,
         adapter: TripleTermAdapter | None = None,
         validate_fn: Callable[..., tuple[bool, Graph, str]] | None = None,
+        engine: str | None = None,
     ) -> None:
         """Bind a shapes graph (plus optional ontology/data graphs and an
         entailment regime) once, so every processing method
@@ -177,6 +179,12 @@ class StarShaclSchema:
                 report_graph, report_text)`` callable ``validate()``
                 dispatches to. Defaults to pySHACL's own ``validate()``.
 
+            engine: The default engine for this schema's methods: ``"native"``
+                (``starlayer.shacl_engine``, through ``starlayer.shacl.native_adapter``)
+                or ``"pyshacl"``. ``None`` (the default) defers to the
+                ``STARLAYER_SHACL_ENGINE`` environment variable, then ``"pyshacl"``.
+                A method's own ``engine=`` keyword overrides it.
+
         Note:
             There is deliberately no ``specification_graph=`` constructor
             parameter, unlike ``shacl_graph``/``ont_graph``/``inference``.
@@ -206,6 +214,8 @@ class StarShaclSchema:
         self.inference = inference
         self.adapter = adapter or TripleTermAdapter()
         self.validate_fn = validate_fn or _default_validate
+        self.engine = _native_adapter.normalise_engine(engine)
+        self._custom_adapter = adapter is not None
 
     def _bound(self, name: str) -> Any | None:
         source = self._sources[name]
@@ -475,6 +485,7 @@ class StarShaclSchema:
         data_graph_iri: Any | None = None,
         shapes_graph_resource: Any | None = None,
         include_used_configuration: bool = False,
+        engine: str | None = None,
         **kwargs: Any,
     ) -> ValidationResult:
         """Validate ``data_graph`` against this schema's bound
@@ -555,6 +566,11 @@ class StarShaclSchema:
                 resolved validator options (``mode``,
                 ``rdfs_subclass_reasoning_includes_shapes_graph``, etc.)
                 on the report.
+            engine: ``"native"`` runs the call on ``starlayer.shacl_engine`` (see
+                ``starlayer.shacl.native_adapter``; an option it cannot translate falls back to
+                pySHACL and says why in ``ValidationResult.engine_fallback_reason``), ``"pyshacl"`` on
+                the old path. ``None``: the schema's own ``engine=``, then ``STARLAYER_SHACL_ENGINE``,
+                then ``"pyshacl"``.
             **kwargs: Forwarded into ``resolve_mode_options(mode,
                 overrides=kwargs)`` as option overrides on top of
                 whatever ``mode`` preset resolves to (e.g. ``advanced``,
@@ -575,6 +591,40 @@ class StarShaclSchema:
                 "validate() no longer accepts inference= directly - it's bound once at "
                 "construction instead (StarShaclSchema(inference=...)). Construct a "
                 "second StarShaclSchema if you need a different regime."
+            )
+        if _native_adapter.selected(engine, self.engine) == "native":
+            data_graph = self._resolve_data_graph(data_graph)
+            return _native_adapter.validate(
+                self.validate,
+                (data_graph,),
+                dict(
+                    mode=mode,
+                    decode_report=decode_report,
+                    rdfs_subclass_reasoning_includes_shapes_graph=rdfs_subclass_reasoning_includes_shapes_graph,
+                    shapes_graph_loader=shapes_graph_loader,
+                    ignore_imports=ignore_imports,
+                    meta_shapes_extra=meta_shapes_extra,
+                    data_graph_iri=data_graph_iri,
+                    shapes_graph_resource=shapes_graph_resource,
+                    include_used_configuration=include_used_configuration,
+                    **kwargs,
+                ),
+                data_graph=data_graph,
+                shacl_graph=self.shacl_graph,
+                ont_graph=self.ont_graph,
+                inference=self.inference,
+                mode=mode,
+                kwargs=kwargs,
+                decode_report=decode_report,
+                rdfs_subclass_reasoning_includes_shapes_graph=rdfs_subclass_reasoning_includes_shapes_graph,
+                custom_validate_fn=self.validate_fn is not _default_validate,
+                custom_adapter=self._custom_adapter,
+                shapes_graph_loader=shapes_graph_loader,
+                ignore_imports=ignore_imports,
+                meta_shapes_extra=meta_shapes_extra,
+                data_graph_iri=data_graph_iri,
+                shapes_graph_resource=shapes_graph_resource,
+                include_used_configuration=include_used_configuration,
             )
         data_graph = self._resolve_data_graph(data_graph)
         _reject_unknown_validate_options(kwargs, self.validate_fn)
@@ -1748,6 +1798,7 @@ class StarShaclSchema:
         include_source_rule_provenance: bool = False,
         rule_set: Any | None = None,
         shapes_graph_resource: Any | None = None,
+        engine: str | None = None,
         **kwargs: Any,
     ) -> RulesResult:
         """Executes SHACL rules against ``data_graph``, using this
@@ -1774,6 +1825,8 @@ class StarShaclSchema:
                 contain it as a module - is used purely as
                 report-provenance metadata. See
                 :meth:`_resolve_shacl_graph`.
+            engine: ``"native"`` / ``"pyshacl"``; ``None`` takes the schema's own default (see
+                ``__init__``) and then ``STARLAYER_SHACL_ENGINE``.
             **kwargs: Forwarded to the module-level :func:`apply_rules`.
                 ``inference`` may not be passed here - it is always
                 taken from ``self.inference``, bound at construction;
@@ -1793,6 +1846,7 @@ class StarShaclSchema:
             include_source_rule_provenance=include_source_rule_provenance,
             rule_set=rule_set,
             inference=self.inference,
+            engine=_native_adapter.selected(engine, self.engine),
             **kwargs,
         )
 
@@ -1804,6 +1858,7 @@ class StarShaclSchema:
         focus_nodes: Any | None = None,
         properties: Any | None = None,
         rules_entailment: bool = False,
+        engine: str | None = None,
     ) -> Any:
         """Computes every ``sh:values``-declared virtual property across
         ``shacl_graph`` and returns the result as a shape-driven subgraph.
@@ -1900,6 +1955,16 @@ class StarShaclSchema:
         """
         data_graph = self._resolve_data_graph(data_graph)
         shacl_graph_input = self._resolve_shacl_graph(shapes_graph_resource)
+        if _native_adapter.selected(engine, self.engine) == "native":
+            return _native_adapter.evaluate(
+                data_graph,
+                shacl_graph_input,
+                self.ont_graph,
+                inference=self.inference,
+                focus_nodes=focus_nodes,
+                properties=properties,
+                rules_entailment=rules_entailment,
+            )
         data_graph, shacl_graph, ont_graph = normalize_graph_inputs(
             data_graph, shacl_graph_input if shacl_graph_input is not None else data_graph, self.ont_graph
         )
@@ -2065,7 +2130,7 @@ class StarShaclSchema:
             per=per,  # type: ignore[arg-type]
         )
 
-    def close_shape(self, shape: Any, *, shapes_graph_resource: Any | None = None) -> Any:
+    def close_shape(self, shape: Any, *, shapes_graph_resource: Any | None = None, engine: str | None = None) -> Any:
         """Returns a closed copy of ``shacl_graph``, closing ``shape`` and
         every shape it recursively references.
 
@@ -2105,9 +2170,13 @@ class StarShaclSchema:
         shacl_graph_input = self._resolve_shacl_graph(shapes_graph_resource)
         if shacl_graph_input is None:
             raise ValueError("close_shape() needs a bound shapes graph - construct with StarShaclSchema(shacl_graph=...).")
+        if _native_adapter.selected(engine, self.engine) == "native":
+            return _native_adapter.close_shape(shacl_graph_input, shape)
         return _close_shape(shacl_graph_input, shape)
 
-    def extract_shapes_graph(self, shapes_graph_iri: Any, *, include_referenced: bool = False) -> Any | None:
+    def extract_shapes_graph(
+        self, shapes_graph_iri: Any, *, include_referenced: bool = False, engine: str | None = None
+    ) -> Any | None:
         """Extracts the ``sh:ShapesGraph``-typed resource named by
         ``shapes_graph_iri`` as a standalone graph.
 
@@ -2208,6 +2277,10 @@ class StarShaclSchema:
             raise ValueError(
                 "extract_shapes_graph() needs a bound shapes graph - construct with "
                 "StarShaclSchema(shacl_graph=...)."
+            )
+        if _native_adapter.selected(engine, self.engine) == "native":
+            return _native_adapter.extract_shapes_graph(
+                self.shacl_graph, shapes_graph_iri, include_referenced=include_referenced
             )
         from starlayer.shacl.shapes_graphs import module_nodes, shapes_graph_members
 
@@ -3405,6 +3478,7 @@ def validate(
     shapes_graph_iri: Any | None = None,
     specification_graph: Any | None = None,
     include_used_configuration: bool = False,
+    engine: str | None = None,
     **kwargs: Any,
 ) -> ValidationResult:
     """Validates ``data_graph`` against ``shacl_graph`` per SHACL 1.2
@@ -3491,6 +3565,10 @@ def validate(
             ``_annotate_used_graphs_and_configuration()`` also records
             which validation options were in effect, alongside
             ``sh:usedDataGraph``/``sh:usedShapesGraph``.
+        engine: ``"native"`` runs the call on ``starlayer.shacl_engine`` through
+            ``starlayer.shacl.native_adapter`` (an option it cannot translate falls back to pySHACL and
+            says why in ``ValidationResult.engine_fallback_reason``); ``"pyshacl"`` runs the old path.
+            ``None`` defers to the ``STARLAYER_SHACL_ENGINE`` environment variable, then ``"pyshacl"``.
         **kwargs: Per-call overrides merged into ``mode``'s preset
             options (e.g. ``advanced``, ``inplace``, ``meta_shacl``,
             ``allow_warnings``, ``allow_infos``, ``inference``,
@@ -3506,6 +3584,45 @@ def validate(
         ``None``), and ``diagnostics`` (an ``ExecutionDiagnostics``
         snapshot of adapter encode/decode activity for this call).
     """
+    if _native_adapter.selected(engine) == "native":
+        return _native_adapter.validate(
+            validate,
+            (data_graph, shacl_graph, ont_graph),
+            dict(
+                adapter=adapter,
+                validate_fn=validate_fn,
+                mode=mode,
+                decode_report=decode_report,
+                rdfs_subclass_reasoning_includes_shapes_graph=rdfs_subclass_reasoning_includes_shapes_graph,
+                shapes_graph_loader=shapes_graph_loader,
+                ignore_imports=ignore_imports,
+                meta_shapes_extra=meta_shapes_extra,
+                data_graph_iri=data_graph_iri,
+                shapes_graph_resource=shapes_graph_resource,
+                shapes_graph_iri=shapes_graph_iri,
+                specification_graph=specification_graph,
+                include_used_configuration=include_used_configuration,
+                **kwargs,
+            ),
+            data_graph=data_graph,
+            shacl_graph=shacl_graph,
+            ont_graph=ont_graph,
+            inference=kwargs.get("inference"),
+            mode=mode,
+            kwargs=kwargs,
+            decode_report=decode_report,
+            rdfs_subclass_reasoning_includes_shapes_graph=rdfs_subclass_reasoning_includes_shapes_graph,
+            custom_validate_fn=validate_fn is not None and validate_fn is not _default_validate,
+            custom_adapter=adapter is not None,
+            shapes_graph_loader=shapes_graph_loader,
+            ignore_imports=ignore_imports,
+            meta_shapes_extra=meta_shapes_extra,
+            data_graph_iri=data_graph_iri,
+            shapes_graph_iri=shapes_graph_iri,
+            shapes_graph_resource=shapes_graph_resource,
+            specification_graph=specification_graph,
+            include_used_configuration=include_used_configuration,
+        )
     adapter = adapter or TripleTermAdapter()
     validate_fn = validate_fn or _default_validate
     _reject_unknown_validate_options(kwargs, validate_fn)
@@ -3846,6 +3963,7 @@ def evaluate(
     focus_nodes: Any | None = None,
     properties: Any | None = None,
     rules_entailment: bool = False,
+    engine: str | None = None,
 ) -> Any:
     """Computes every ``sh:values``/``sh:defaultValue``-declared virtual
     property across ``shacl_graph`` and returns the result as a
@@ -3915,6 +4033,16 @@ def evaluate(
         A plain graph object (the same type as ``data_graph``)
         containing the shape-driven subgraph described above.
     """
+    if _native_adapter.selected(engine) == "native":
+        return _native_adapter.evaluate(
+            data_graph,
+            shacl_graph,
+            ont_graph,
+            inference=inference,
+            focus_nodes=focus_nodes,
+            properties=properties,
+            rules_entailment=rules_entailment,
+        )
     data_graph, shacl_graph, ont_graph = normalize_graph_inputs(
         data_graph, shacl_graph if shacl_graph is not None else data_graph, ont_graph
     )
@@ -4042,6 +4170,8 @@ def apply_rules(
     ont_graph: Any | None = None,
     include_source_rule_provenance: bool = False,
     rule_set: Any | None = None,
+    *,
+    engine: str | None = None,
     **kwargs: Any,
 ) -> RulesResult:
     """Executes SHACL rules against a private working copy of
@@ -4111,6 +4241,18 @@ def apply_rules(
         internal call uses the ``"validation"`` mode's own
         ``inplace=False`` default).
     """
+    if _native_adapter.selected(engine) == "native":
+        return _native_adapter.apply_rules(
+            apply_rules,
+            (data_graph, shacl_graph, ont_graph),
+            dict(include_source_rule_provenance=include_source_rule_provenance, rule_set=rule_set, **kwargs),
+            data_graph=data_graph,
+            shacl_graph=shacl_graph,
+            ont_graph=ont_graph,
+            include_source_rule_provenance=include_source_rule_provenance,
+            rule_set=rule_set,
+            kwargs=kwargs,
+        )
     # An sh:entailment of sh:RulesEntailment (or of a rule set) in the shapes graph makes validate() call this function; the
     # validations inside it must not do that again.
     token = _rules_entailment_active.set(True)
