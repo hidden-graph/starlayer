@@ -223,7 +223,7 @@ def _parse_json_term(term_dict: dict):
         if lang:
             return Literal(term_dict['value'], lang=lang)
         if dtype:
-            literal = Literal(term_dict['value'], datatype=URIRef(dtype))
+            literal = Literal(term_dict['value'], datatype=URIRef(dtype), normalize=False)  # the engine's form, as given
             if dtype == str(XSD.decimal):
                 # Corrects a canonicalization defect in Oxigraph's own
                 # decimal output: a whole-number xsd:decimal result (from
