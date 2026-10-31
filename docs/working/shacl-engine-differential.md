@@ -214,3 +214,17 @@ Remaining differences and their disposition (after the round-2 fixes the affecte
 - **Ported:** `salg:NoUnboundProjectedVariablesConstraintComponent`, via a lazy trampoline
   (`shacl_engine/components/extensions.py` -> `sparql/salg/engine_components.py`), so sqe/srl/spexpr gain no dependency on salg.
 Existing salg-related test files (12) still pass: 539 passed.
+
+## Run 3 (2026-10-30, commit 566f507): the gate baseline
+`DIFF_OUT=docs/working/differential/results3.jsonl`. 3,046 calls (the project tests on this branch, which still carry the old
+nested-`uniqueValuesFor` tests): agree 2,849, differ 29, engine_error 6, skipped 25, old_error 137.
+Every remaining difference is in a category already decided above; nothing new appeared after the API and performance rounds:
+- nested `sh:uniqueValuesFor` without targets (about 15): the draft (Core 7.9.5) wins; on `main` these tests are rewritten in
+  branch `fix-unique-values-for-peers`;
+- DROP-LEGACY (about 8): ambient-`@prefix` queries (3), `sh:SPARQLTarget` (2, `target_nodes` comparison), shapes-graph-only
+  subclass for implicit class targets (1), legacy `sh:` expression form (1), malformed uniqueValuesFor under meta_shacl=False (1);
+- old-validator deviations where the engine follows the draft (ASK/SELECT custom validators 3, conformsToShape with several
+  output nodes 1, rules applied before validation 2);
+- report-structure artifacts (3 SalG, 3 nested SHACL-SHACL): result sets agree, the blank-node focus description differs.
+The skipped 25 have no native equivalent or no need: validate_fn 16, inplace 7 (supported, not comparable by the harness),
+iterate_rules 3, decode_report=False 4, rdfs_subclass_reasoning_includes_shapes_graph 2.
