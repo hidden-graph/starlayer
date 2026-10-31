@@ -135,3 +135,22 @@ operators and the SQLAlchemy store (2.2, 2.3, 2.9); JSON-LD and N3 conformance b
   Interoperability draft's basic encoding and then runs RDFC-1.0, so it rests on a documented rewriting and an actual standard;
   state in the API that the form is defined by that draft and may change with it. Test both against our current `rdfc.py`
   (410 lines) on its corpus before retiring it.
+
+### Decisions recorded, second round (2026-10-31)
+
+- **Triple-term interchange form: "basic encoding" for now.** Already built: `graph/model/encoding.py` uses exactly the RDF 1.2
+  Interoperability draft's vocabulary (`rdf:PropositionForm`, `rdf:propositionFormSubject/Predicate/Object`). The only difference
+  from the draft is the node name: a deterministic content-hash IRI under `tt:` instead of a fresh blank node; `to_basic()` and
+  `from_basic()` convert. With Oxigraph's native triple terms the encoding is no longer needed for *storage*, so keep it as an
+  interchange function (and as the input to canonicalisation, where the draft's blank-node form is the one to use), not as the
+  internal representation. Check that `to_basic()` can emit blank nodes.
+- **Prefixes.** A shared, read-only prefix library (loaded once, never copied per graph, applied at serialize/query time via
+  Oxigraph's per-call `prefixes=`) is under consideration. Creating a graph costs about 11 µs for `StarLayerGraph()` against
+  2 µs for `ox.Store()`, so the benefit is consistency, not speed. Graphs themselves hold no prefix state.
+- **`StarLayerGraph` cannot subclass the Oxigraph objects.** `pyoxigraph.Store`, `Dataset`, `Quad`, `Literal` and `NamedNode` are
+  sealed ("not an acceptable base type"). The wrapper must use composition: it holds a `pyoxigraph.Store` and delegates.
+  Functions that take "an Oxigraph directly" accept `Store | StarLayerGraph` through a small `as_store()` helper.
+- **sqe stays.** It is the ontology that will drive the SPARQL editor. Its rendering path (`sqe/to_text.py`, `expr_text.py`) works
+  from the RDF and already has an Oxigraph differential test, so sqe tree -> SPARQL text -> Oxigraph needs no rdflib evaluator.
+  What it keeps from rdflib is the parse direction (`sqe_parse_to_tree`, for importing existing queries), so rdflib stays as the
+  SPARQL parser/algebra library (option a in `sparql-layers-exploration.md`).
