@@ -155,3 +155,83 @@ Conditions before merging this into `shacl-engine`:
 What remains (not done, deliberately): `shapes_graphs`, `modules`, `imports`, `meta` and `text.py` still work in rdflib terms on the
 caller's graphs (no reason to move them until the Rust port); the SPARQL query layer still returns rdflib terms (four conversion points);
 `xsd_values` has no cross-check for gMonth/gDay/duration beyond its own tests; no value-heavy benchmark was run.
+
+## Adoption outcome (branch `shacl-engine-terms-merge`, 2026-10-31)
+
+The owner approved adoption. `shacl-engine-terms` was merged into a branch from `shacl-engine` (merge commit, no rebase). Conflicts were
+only in `rules.py` and `entailment.py`, where `shacl-engine` had added `new_overlay` (the opt-in Oxigraph overlay) and the term branch had
+added the `engine_view` / `to_engine` boundary; both survive. The overlay prototype was ported to engine terms and got simpler: engine
+terms are store terms, so `overlay_oxigraph.py` no longer converts anything (its fidelity guard shrank: `"x"^^xsd:string` and
+lower-cased language tags are now identical at the engine level, so only lexical-form and derived-datatype rewrites remain). It stays
+opt-in (`STARLAYER_SHACL_OVERLAY=oxigraph`); not the default, as measured. Porting it exposed one bug the old tests missed (a materialised
+union fed rdflib-incompatible terms); `test_add_after_materialise_keeps_the_materialised_union_in_step` pins it.
+
+### Condition 1: the ill-formed-term policy
+pyoxigraph rejects terms rdflib accepts: relative or empty IRIs, IRIs with spaces or `<>{}|`, blank node ids with spaces or empty, language
+tags such as `e` or `en-abcdefghi`, and an invalid datatype IRI. **One policy**, `terms.TermError` (a `ValueError`):
+- *Why an error.* SHACL 1.2 validates RDF graphs, in which an IRI is an absolute IRI and a language tag is BCP47. A graph with such a term
+  is not an RDF graph, so the specification defines no report for it: it is not a `sh:nodeKind` question (what kind is a non-term?) and not
+  a validation result (there is no focus node or value node to report). The engine's other rules agree: the shapes graph is also parsed
+  strictly (a malformed list or a non-integer `sh:minCount` is a `ShapeError`, not a result). So the default fails, early and once.
+- *Where.* Every entry point (`validate`, `validate_each`, `evaluate`, `extract_subgraph`, `apply_rules`) scans the data, shapes and ontology
+  graphs before doing anything (`terms.check_graphs`; a graph is scanned once per size) and raises one aggregate `TermError` listing every
+  offender (first 100) with its graph (`data graph` / `shapes graph`), position (subject / predicate / object / datatype of the object) and
+  first triple. `OxigraphGraph.from_graph`, `add` and pattern lookups raise too. `RdflibTermView` no longer swallows `ValueError`.
+- *Lenient opt-in.* `invalid_terms="lenient"` on the entry points (or `with terms.term_policy("lenient")`) maps each offender to an opaque,
+  reversible stand-in: `urn:starlayer:invalid-iri:<percent-encoded text>` (also as a literal datatype), a blank node
+  `starlayer-invalid-bnode-<hex>`, and for a bad language tag a literal of datatype `urn:starlayer:invalid-lang:<tag>`. Every result and the
+  report graph map back to the original rdflib term; the offenders are listed on `Outcome.invalid_terms`. An ill-formed IRI is still an IRI
+  for `sh:nodeKind` (as rdflib says) but text constraints see the stand-in text; a bad-tag literal is not `rdf:langString`. Stand-ins are not
+  cached in the strict conversion cache, and a lenient view stays lenient when read after the block (lazy `report_text`).
+- *Native adapter* (`starlayer/shacl/native_adapter.py`): the old API accepted these graphs and pySHACL defines their result, so
+  `validate` and `apply_rules` **fall back to the pySHACL path** with `engine_fallback_reason = "ill-formed RDF term (...)"`. `evaluate`,
+  `extract_subgraph`, `close_shape` and `extract_shapes_graph` have no inline fallback; they surface the clear `TermError`.
+- *Differential harness* (`tests/shacl/differential_plugin.py`): a `TermError` from the engine is recorded as `skipped` with
+  `skip_options: ["ill_formed_term"]` and the message.
+- Tests: `tests/shacl_engine/test_ill_formed_terms.py` (61: ten term kinds through `to_engine`, round trip, strict and lenient `validate`
+  on `Graph` and `StarLayerGraph`, every entry point, the views, `OxigraphGraph`, adapter fallback, harness skip).
+
+### Condition 2: no `str(term)` in `shacl_engine`
+`terms.py` gained `lexical`, `iri_text`, `n3` (the one sanctioned `str()` of a term, for an N-Triples rendering) next to `text`.
+`tests/shacl_engine/test_no_str_of_terms.py` walks the AST of every module and fails on `str(x)`, an f-string field, `%` formatting,
+`.format()` and `key=str` / `map(str, ...)` whose argument is not provably plain (literals, f-strings, `.value`, `len`/`int`, the text
+helpers, string methods, constants, names with plain suffixes). `!r` is allowed (explicit repr). Reviewed lines carry
+`# str-ok: <reason>`; `text.py`, `meta.py`, `shapes_graphs.py` carry `# str-ok-file:` because they hold only rdflib terms, and a second test
+holds those files to it (no pyoxigraph, no engine term constants). The checker itself is tested on 15 flagged and 12 accepted snippets.
+It found real silent bugs: `builder.py` (`f"{node}"` printed `<iri>`), `sh:hasValue` ("Missing required value <iri>"), parameter names in
+five `ShapeError`/`RuleError` messages, `entailment.py` (`sorted(map(str, ...))`), the rule-type message. 46 candidates at first run,
+all fixed or marked.
+
+### Condition 3: cross-check against Oxigraph (`oxsdatatypes`)
+`tests/shacl_engine/test_xsd_values_vs_oxigraph.py` (corpus in `xsd_oracle_corpus.py`, about 1,500 lexical forms over 16 datatypes
+plus all 13 integer types at and beyond their bounds, 14 pairwise value families, 200 EBV cases). Oracle: Oxigraph's casts
+(`xsd:T("lex")` bound or not), `<` `=` `>` (SHACL asks only whether a comparison is true, so SPARQL error and false are the same), and
+`IF(?x, ...)` for EBV. Derived integer types have no Oxigraph cast; their oracle is the XSD 1.1 facet table. Result: 59 well-formedness,
+1,196 comparison and 163 EBV disagreements at first run, reduced to the decisions below. The test fails on any unexplained disagreement and
+on any documented one that stops occurring.
+
+**xsd_values was wrong (fixed):**
+1. Cross-type numeric comparison was exact; SPARQL 17.3 maps `=` / `<` to `op:numeric-*`, which promote integer < decimal < float < double
+   (F&O 3.1 6.2): `0.1` decimal = `0.1e0` double, `9007199254740993` = `9007199254740992e0`. Now promoted (SHACL range checks use `<`).
+2. `xsd:time` `24:00:00` was the end of day (> `00:00:00`); XSD 1.1 3.3.14 normalises hour 24 to 0 for `time` (equal). dateTime keeps next-day.
+3. EBV of an ill-formed boolean or numeric was an error; SPARQL 1.1 17.2.2: false. Other ill-typed datatypes remain errors.
+4. Duration seconds `PT.5S`, `PT1.S` are valid (`unsignedDecimalPtNumeral`); were rejected.
+5. `hexBinary` / `anyURI` ordering `=` was value equality; SPARQL `=` is RDFterm-equal there (the same term), so `"0A"` and `"0a"` are not
+   equal (`compare` gives `None`). Boolean `<` stays supported (17.3 `op:boolean-less-than`).
+
+**Oxigraph is wrong or narrower (documented, asserted, in the test as rules):**
+- `whitespace-collapse`: `" 12 "^^xsd:integer` etc. are valid (XSD 1.1 4.3.6); Oxigraph rejects (11 cases).
+- `arbitrary-precision`: integers, decimals, seconds with 19+ digits are valid (XSD requires only 18); Oxigraph's types are fixed width. Its
+  comparisons with such operands are errors (1,188 pairs).
+- `float-special-spellings`: Oxigraph accepts `inf`, `Infinity`, `nan`, `-NaN`, `+inf` (Rust `f64`); XSD 1.1 allows only `INF`, `+INF`, `-INF`, `NaN`.
+- `duration-empty-time-part`: Oxigraph accepts `P1DT`, `P1YT` (XSD 1.1 duTimeFrag needs a component).
+- `gMonthDay-feb-29`: Oxigraph rejects `--02-29`; XSD 1.1 accepts it (leap-year reference).
+- `boolean-less-than`: Oxigraph errors on `false < true`; SPARQL 17.3 defines it.
+- `ebv-of-unrepresentable-literal`, `derived-integer-range-facets`: Oxigraph errors on an ill-formed or too-wide numeric's EBV (spec:
+  false) and has no range facets for `xsd:byte` etc. (`"128"^^xsd:byte` is true there).
+Agreement elsewhere includes the XSD 1.1 timezone partial order (with/without timezone more than 14h apart decided, else incomparable),
+the four-reference-date duration order, NaN, signed zeros, leading zeros, exponent forms, `INF`, leap years, `24:00:00` dateTime.
+
+### Verification
+Engine suites: 1768 passed, 1 skipped, 4 xfailed, 1 failed (the known `seconds-example` fixture defect). Default SHACL tier: 1738 passed, 12 skipped (baseline).
+Native-mode tier: 1586 passed, 152 failed (baseline, same categories).
