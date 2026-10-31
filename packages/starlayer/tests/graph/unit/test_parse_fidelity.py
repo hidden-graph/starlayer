@@ -9,10 +9,11 @@ from starlayer.graph.graph import StarLayerDataset, StarLayerGraph
 
 X = "http://www.w3.org/2001/XMLSchema#"
 CASES = [("04", "integer"), ("1", "boolean"), ("none", "boolean"), ("4.0", "decimal"), ("+1.50", "double"), ("2020-01-01T00:00:00Z", "dateTime")]
-TTL = "@prefix x: <%s> . <http://e/s> <http://e/p> %s ." % (X, ", ".join(f'"{v}"^^x:{t}' for v, t in CASES))
+_OBJECTS = ", ".join(f'"{v}"^^x:{t}' for v, t in CASES)
+TTL = f"@prefix x: <{X}> . <http://e/s> <http://e/p> {_OBJECTS} ."
 NT = "".join(f'<http://e/s> <http://e/p> "{v}"^^<{X}{t}> .\n' for v, t in CASES)
 NQ = NT.replace(" .\n", " <http://e/g> .\n")
-TRIG = "@prefix x: <%s> . <http://e/g> { <http://e/s> <http://e/p> %s }" % (X, ", ".join(f'"{v}"^^x:{t}' for v, t in CASES))
+TRIG = f"@prefix x: <{X}> . <http://e/g> {{ <http://e/s> <http://e/p> {_OBJECTS} }}"
 XML = (
     '<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:x="http://e/"><rdf:Description rdf:about="http://e/s">'
     + "".join(f'<x:p rdf:datatype="{X}{t}">{v}</x:p>' for v, t in CASES)
