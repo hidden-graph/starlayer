@@ -66,7 +66,9 @@ Each stage has a gate that must pass before the next starts. Work stays on branc
 - 0.4 Decide the default for lexical fidelity in parsing (see section 5, item 6), and add the `preserves_lexical_forms` warning.
 - 0.5 Fetch the SPARQL 1.1 syntax suite (only 1.2 is vendored).
 
-**Stage 1: the parser.** Finish the query parser with its gates (W3C 1.1 and 1.2 syntax, sqe agreement, a production coverage
+**Stage 1: the parser.** (Decided 2026-10-31: SRL moves onto the new parser, **last** in this stage: a `parse_srl` entry point that reuses the new parser's tokenizer and
+shared productions and produces the same `_srl_ast` tree; gate: SRL's existing suite of 929 tests passes unchanged. Only then do rdflib's grammar and
+`_grammar12.py` go.) Finish the query parser with its gates (W3C 1.1 and 1.2 syntax, sqe agreement, a production coverage
 matrix in the style of the SRL suite), then Update and DESCRIBE, then port SRL onto it. Decide how `FROM`, `SERVICE`, `DESCRIBE`
 and Update are modelled in sqe (they have no terms today). Gate: every query the repo's tests parse is accepted by the new parser
 and agrees; no W3C negative test passes. Behaviour change to record: triple order follows the source, not rdflib's
@@ -140,6 +142,8 @@ Answers recorded 2026-10-31.
    family and for pyoxigraph `Store`/`Dataset` with one set of semantics (blank nodes by label, quads with their graph name, inputs
    never modified, streaming membership tests); 24 tests. To wire to `+ - & ^` on the Oxigraph-backed `StarLayerGraph` wrapper in Stage 2.
 9. **`ssyn`/`sast`: dropped (done, branch `shacl-engine`).** Six modules (946 lines) and two test files removed; 808 SPARQL unit tests pass.
+
+10. **SRL parsing: option 2 (decided).** SRL gets its own entry point on the new parser, done last; rdflib's grammar is retired afterwards.
 
 ## 6. Risks
 
