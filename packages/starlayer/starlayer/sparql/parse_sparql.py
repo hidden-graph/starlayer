@@ -1,19 +1,22 @@
 """starlayer.sparql.parse_sparql
 
-PROTOTYPE: a hand-written SPARQL 1.2 query parser, in the style of
+A hand-written SPARQL 1.2 query parser, in the style of
 ``starlayer.graph.parsers.manchester_parser``: a position-carrying regex
 tokenizer, then a recursive-descent parser with one method per grammar
 production, building a small in-memory AST (:class:`Node`). No rdflib parser,
 no pyparsing, and nothing from ``salg``.
 
-Scope of this first cut: the query prologue (``BASE``, ``PREFIX``,
-``VERSION``), ``SELECT``/``ASK``/``CONSTRUCT``, every ``WHERE`` element
-(triple patterns with ``;`` ``,`` ``[ ]`` ``( )``, RDF 1.2 triple terms,
-reified triples, reifiers, annotations, property paths, ``OPTIONAL``,
-``UNION``, ``MINUS``, ``GRAPH``, ``FILTER``, ``BIND``, ``VALUES``,
-sub-selects, ``SERVICE``), expressions with the full built-in list and the
-aggregates, and the solution modifiers. ``DESCRIBE`` and SPARQL Update are
-not parsed (``sqe`` does not model them either).
+Covers the whole SPARQL 1.2 Query grammar (section 19.7): the prologue
+(``BASE``, ``PREFIX``, ``VERSION``), ``SELECT``/``ASK``/``CONSTRUCT``/
+``DESCRIBE`` with ``FROM``/``FROM NAMED``, every ``WHERE`` element (triple
+patterns with ``;`` ``,`` ``[ ]`` ``( )``, RDF 1.2 triple terms, reified
+triples, reifiers, annotations, property paths with negated sets,
+``OPTIONAL``, ``UNION``, ``MINUS``, ``GRAPH``, ``SERVICE [SILENT]``,
+``FILTER``, ``BIND``, ``VALUES``, sub-selects), expressions with the full
+built-in list and the aggregates, and the solution modifiers. The static
+rules the grammar leaves to prose (section 19.7 notes and 18.3.1 scope) are
+enforced by :class:`_Checker` and the parser itself (blank node labels per
+basic graph pattern). SPARQL Update is not parsed (the next piece of work).
 
 The AST is one generic class, :class:`Node` (``kind`` plus an ordered ``f``
 dict), because the ``sqe:``/``spexpr:`` vocabulary is itself generic: an

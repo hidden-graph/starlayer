@@ -117,8 +117,26 @@ def _agreement_corpus() -> dict[str, str]:
     return corpus
 
 
-# Queries on which the two paths are known to differ (name -> why); each is a strict xfail.
-KNOWN_DIFFERENCES: dict[str, str] = {}
+# Queries on which the two paths differ, name -> why. The new parser is right in each case, and the test asserts the
+# difference explicitly (it does not skip): the trees must agree once the difference is neutralised, and the new tree
+# must carry the right thing.
+LEXICAL_FORMS: dict[str, tuple[str, ...]] = {
+    # rdflib's parser rewrites numeric lexical forms to canonical ones (1e3 -> 1000.0); the new parser keeps them as written.
+    "feature/literal forms": ("1", "2.5", "1e3"),
+}
+# VERSION declarations: the old path strips them before parsing (the vocabulary had no term); the new tree keeps them as
+# sqe:version. Compared without those triples, and the declared versions are asserted.
+
+
+def _normalize_numbers(g):
+    from rdflib import Graph
+
+    out = Graph()
+    for s, p, o in g:
+        if isinstance(o, Literal) and o.datatype in (XSD.integer, XSD.decimal, XSD.double):
+            o = Literal(str(o), datatype=o.datatype)  # rdflib's default normalization
+        out.add((s, p, o))
+    return out
 
 
 def _agreement_params():
@@ -126,24 +144,32 @@ def _agreement_params():
         corpus = _agreement_corpus()
     except ImportError:  # pragma: no cover
         return []
-    return [
-        pytest.param(
-            text,
-            id=name,
-            marks=[pytest.mark.xfail(strict=True, reason=KNOWN_DIFFERENCES[name])] if name in KNOWN_DIFFERENCES else [],
-        )
-        for name, text in corpus.items()
-    ]
+    return [pytest.param(name, text, id=name) for name, text in corpus.items()]
 
 
 @pytest.mark.sqe_coverage
-@pytest.mark.parametrize("text", _agreement_params())
-def test_new_parser_agrees_with_current_path(text):
+@pytest.mark.parametrize("name,text", _agreement_params())
+def test_new_parser_agrees_with_current_path(name, text):
+    import re
+
+    from starlayer.sparql.sqe import SQE
+
     try:
         old = current_tree(text)
     except Exception:  # noqa: BLE001 - the current parser rejects it (an inherited rdflib gap): nothing to compare
         pytest.skip("the current path rejects this query")
-    assert same_tree(sparql_to_tree(text), old)
+    new = sparql_to_tree(text)
+    declared = re.findall(r'(?im)^\s*VERSION\s+["\']([^"\']*)["\']', text)
+    if declared:
+        assert sorted(str(o) for o in new[0].objects(new[1], SQE.version)) == sorted(set(declared))
+        for triple in list(new[0].triples((new[1], SQE.version, None))):
+            new[0].remove(triple)
+    if name in LEXICAL_FORMS:
+        lexical = {str(o) for o in new[0].objects(None, None) if isinstance(o, Literal)}
+        assert set(LEXICAL_FORMS[name]) <= lexical, "the new tree must keep the lexical forms as written"
+        assert same_tree((_normalize_numbers(new[0]), new[1]), (_normalize_numbers(old[0]), old[1]))
+    else:
+        assert same_tree(new, old)
 
 
 # ---------------------------------------------------------------------------
@@ -296,6 +322,9 @@ def test_dataset_clauses_describe_service_and_version_are_in_the_tree():
         "ASK FROM NAMED <g> { ?s ?p ?o } ORDER BY ?s LIMIT 1",
         "CONSTRUCT { ?s ?p ?o } FROM <g> WHERE { ?s ?p ?o } GROUP BY ?s ?p ?o",
         "SELECT * FROM <g> FROM NAMED <h> FROM <i> { SERVICE <http://s> { ?s ?p ?o } }",
+        # negated property sets, including inverse members and the empty set (the old path drops the IRI after '^', issue #81)
+        "PREFIX : <http://e/> SELECT * { ?x !(^:p) ?y }",
+        "PREFIX : <http://e/> SELECT * { ?x !(:p|^:q|a|^a) ?y . ?x !() ?y . ?x (!:p)* ?y . ?x !a/^(:p|:q)+ ?y }",
     ],
 )
 def test_new_forms_round_trip_and_validate(text):
