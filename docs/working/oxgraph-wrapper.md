@@ -131,7 +131,7 @@ well-formed list, only used prefixes, `{| |}` / `~` / `<< s p o >>` for reifiers
 when the lexical form is exactly the Turtle token, blank nodes ordered by a structural signature so the text never depends on labels or input order.
 
 Gates (`tests/graph/oxgraph/test_pretty.py`; the fixtures and goldens are in `tests/graph/oxgraph/fixtures/pretty`): over the vendored W3C Turtle 1.2
-inputs, the RDFC-1.0 N-Quads inputs (`test074`, the poison graph, left out), the SHACL suite Turtle and the fixtures (639 documents, 2 styles) and 6,000
+inputs, the RDFC-1.0 N-Quads inputs (`test074`, the poison graph, left out), the SHACL suite Turtle and the fixtures (581 parseable documents, 2 styles) and 6,000
 seeded random datasets: the output re-parses isomorphic (`rdfc_native.isomorphic`), every literal keeps its lexical form, language and direction, and a
 second pass over the re-parse gives the same text. 100,000 triples (blank-node trees, lists, numbers; Python 3.10, one run): `pretty_turtle` 2.6 s,
 `longturtle` 4.3 s, the old `serialize_turtle12` 12.9 s (plus 17 s to parse into it), Oxigraph's flat writer 0.12 s.
