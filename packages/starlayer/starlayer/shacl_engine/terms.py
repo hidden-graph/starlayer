@@ -26,6 +26,10 @@ from urllib.parse import quote, unquote
 
 import pyoxigraph as ox
 
+from starlayer.graph.backends._versions import require_supported_pyoxigraph
+
+require_supported_pyoxigraph()
+
 NamedNode, BlankNode, Literal, Triple = ox.NamedNode, ox.BlankNode, ox.Literal, ox.Triple
 
 _DIRECTIONS = {"ltr": ox.BaseDirection.LTR, "rtl": ox.BaseDirection.RTL}

@@ -3,7 +3,7 @@
 ``substitutions=`` with the documented ``VALUES`` fallback when the variable is not projected.
 
 ``direct.run_direct`` itself returns rdflib terms and an rdflib ``Result``, and cannot select a default graph, so this module
-reuses its helpers (``_prefix_dict``, ``_guard``) and ``backends.native`` (``check_native_version_conformance``,
+reuses its helpers (``_prefix_dict``) and ``backends.native`` (``check_native_version_conformance``,
 ``inject_init_bindings``) and builds the wrapper's ``Result`` over pyoxigraph terms. They are imported lazily.
 """
 
@@ -44,12 +44,11 @@ def query(store: ox.Store, text: str, *, prefixes: Mapping[str, str] | None, ini
         check_native_version_conformance,
         inject_init_bindings,
     )
-    from starlayer.graph.query.direct import _guard
 
     if not isinstance(text, str):
         raise NotImplementedError("the wrapper runs query text, not a prepared Query object")
     check_native_version_conformance(text)
-    sent = _guard(text)
+    sent = text
     kwargs: dict[str, Any] = {}
     pfx = merge_prefixes(prefixes, init_ns)
     if pfx:
@@ -76,7 +75,6 @@ def query(store: ox.Store, text: str, *, prefixes: Mapping[str, str] | None, ini
 def update(store: ox.Store, text: str, *, prefixes: Mapping[str, str] | None, init_ns: Any = None,
            base: str | None = None) -> None:
     from starlayer.graph.backends.native import check_native_version_conformance
-    from starlayer.graph.query.direct import _guard
 
     if not isinstance(text, str):
         raise NotImplementedError("the wrapper runs update text, not a prepared Update object")
@@ -87,4 +85,4 @@ def update(store: ox.Store, text: str, *, prefixes: Mapping[str, str] | None, in
         kwargs["prefixes"] = pfx
     if base:
         kwargs["base_iri"] = base
-    store.update(_guard(text), **kwargs)
+    store.update(text, **kwargs)

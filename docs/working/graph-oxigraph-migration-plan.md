@@ -61,9 +61,10 @@ Each stage has a gate that must pass before the next starts. Work stays on branc
   blank-node ids and language tags; ban `str(term)` inside the engine; cross-check `xsd_values` against a second implementation.
 - 0.2 *(moved to the final stage by the owner's decision: salg is retired at the end.)* Salg retirement steps 1 to 3. Gate: sqe parity
   tests cover the checks the salg shapes performed; the 12 salg-using test files pass or are rewritten.
-- 0.3 **(done, merge 1758e11)** Retire the SPARQL `=` guard for dirLangString: the abort is fixed in pyoxigraph 0.5.13. The 16 shapes were re-run on raw
-  pyoxigraph, each in its own subprocess. The guard now applies only below 0.5.13 or when the version is unknown; a remote engine stays guarded unless
-  `store.starlayer_engine_version` says 0.5.13 or later. `dirlang_equality.py` stays for remote servers. **DONE on branch `mig-stage0` (2026-10-31):** the guard now applies only below pyoxigraph 0.5.13 or to a remote Oxigraph of unknown version; the file retires with the version pin.
+- 0.3 **(done)** Retire the SPARQL `=` guard for dirLangString: the abort is fixed in pyoxigraph 0.5.13 and the 16 shapes were re-run on raw
+  pyoxigraph, each in its own subprocess. **Revised 2026-10-31 (owner's decision):** the guard is removed entirely, not made conditional. `dirlang_equality.py`,
+  `engine_aborts_on_dirlang_equality`, `_guard_for_engine` and `store.starlayer_engine_version` are gone, and 0.5.13 is the minimum supported Oxigraph version
+  (in-process: enforced at import by `graph/backends/_versions.py`; remote server: not checkable, documented). The 16 shapes remain as plain regression tests.
 - 0.4 **(done)** `turtle`/`ttl`, `nt`, `nquads`, `trig` (and MIME types) now route to the faithful parsers in the existing classes; `xml` keeps lexical forms through a
   thread-local switch; rdflib's global `NORMALIZE_LITERALS` is untouched. Not yet faithful: `trix`, `json-ld`, `hext`, `rdfa`, and a URL source (rdflib's fetcher).
   `StarLayerFidelityWarning` (one per `validate()` call) plus `Outcome.warnings` when a normalising store meets form-dependent constraints. **DONE on branch `mig-stage0` (2026-10-31):** see `docs/working/lexical-fidelity-default.md` and `StarLayerFidelityWarning` (`shacl_engine/fidelity.py`).

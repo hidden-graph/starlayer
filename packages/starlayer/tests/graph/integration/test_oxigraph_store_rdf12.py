@@ -12,7 +12,6 @@ no pytest.mark.integration.
 Requires: pip install oxrdflib pyoxigraph
 """
 
-import os
 
 import pytest
 from rdflib import RDF, RDFS, Literal, Namespace, URIRef
@@ -285,36 +284,21 @@ class TestInferIsCreatedLikeTheSource:
 
 
 # ---------------------------------------------------------------------------
-# Known Oxigraph engine bug: SPARQL `=` panics on any dirLangString term
-# (docs/upstream-issues/oxigraph-upstream-issues.md, Issue 1; reported upstream as
-# oxigraph/oxigraph#1982)
+# SPARQL `=` over a dirLangString on the supported Oxigraph (>= 0.5.13)
+# (docs/upstream-issues/oxigraph-upstream-issues.md, Issue 1; oxigraph/oxigraph#1982)
 # ---------------------------------------------------------------------------
 #
-# Why this lives here: the dirLangString coverage elsewhere against Oxigraph
-# (cross-backend parity's write/read and function scenarios, the W3C
-# lang-basedir fixtures) never compares two dirLangString values with `=`, the
-# one operation that aborts the whole process. So the engine's weak spot sat
-# in a gap between tests that all passed. It was first noticed only because a
-# since-removed diagnostic redirected the default-store test
-# tests/graph/unit/test_dirlangstring.py::TestSparqlFunctions::
-# test_strlangdir_constructs_matching_value onto Oxigraph.
+# Older Oxigraph aborted the whole process on `=` over any dirLangString term.
+# It is fixed in 0.5.13, StarLayer's minimum supported version, and the project
+# no longer guards against it. The tests below pin that the minimum really is
+# safe: the same shapes run to completion on the raw engine and through
+# StarLayerGraph. Each runs in its own subprocess so a regression on an engine
+# that still aborts fails the test instead of killing the test run.
 
 _TITLE = 'http://example.org/title'
 
-_ABORT_REPRO = '''
-import pyoxigraph
-
-store = pyoxigraph.Store()
-store.update('INSERT DATA {{ <http://example.org/s> <{title}> "HTML page"@en--ltr }}')
-list(store.query({query!r}))
-print('SURVIVED')
-'''
-
-# The same data and queries, but through StarLayerGraph: the equality guard
-# (starlayer.graph.backends.dirlang_equality) must make every one of them work.
-# Run in a subprocess because, if the guard ever regressed, the engine would abort
-# the whole process.
-_GUARDED_REPRO = '''
+# The equality and comparison queries through StarLayerGraph, with no rewriting in between.
+_STARLAYER_REPRO = '''
 import json, warnings
 warnings.simplefilter("ignore")
 import pyoxigraph
@@ -338,28 +322,10 @@ print(json.dumps(out))
 '''
 
 
-# Opt-in: these two tests make a subprocess genuinely abort (SIGABRT), and on
-# macOS every abort files a system crash report and can pop a "Python quit
-# unexpectedly" dialog - not something every ordinary test run should do. Run
-# them deliberately (before filing/updating the upstream report, or to check
-# whether a new Oxigraph release fixed it):
-#     STARLAYER_RUN_ENGINE_ABORT_TESTS=1 pytest tests/graph/integration/test_oxigraph_store_rdf12.py
-def _pyoxigraph_fixed() -> bool:
-    import pyoxigraph
-    return tuple(int(x) for x in pyoxigraph.__version__.split('.')[:3]) >= (0, 5, 13)
-
-
-# The abort is fixed in pyoxigraph 0.5.13 (verified 2026-10-31), so these only
-# make sense, and only run, against an older pyoxigraph.
-_engine_abort = pytest.mark.skipif(
-    _pyoxigraph_fixed() or not os.environ.get('STARLAYER_RUN_ENGINE_ABORT_TESTS'),
-    reason='opt-in, and only for pyoxigraph < 0.5.13 (fixed there): aborts a subprocess - set STARLAYER_RUN_ENGINE_ABORT_TESTS=1',
-)
-
 _SHAPES_T = '<http://example.org/title>'
 _SHAPES_P = f'?s {_SHAPES_T} ?t'
-# The 16 shapes that used to abort (oxigraph#1982), run on raw pyoxigraph, each in its own subprocess.
-_FIXED_SHAPES = {
+# The 16 shapes that aborted on Oxigraph < 0.5.13 (oxigraph#1982), run on raw pyoxigraph, each in its own subprocess.
+_SHAPES = {
     'self_eq': f'SELECT ?s WHERE {{ {_SHAPES_P} . FILTER(?t = ?t) }}',
     'two_stored': f'SELECT ?a WHERE {{ ?a {_SHAPES_T} ?x . ?b {_SHAPES_T} ?y . FILTER(?x = ?y) }}',
     'strlangdir_both': 'SELECT * WHERE { FILTER(STRLANGDIR("a","en","ltr") = STRLANGDIR("a","en","ltr")) }',
@@ -377,7 +343,7 @@ _FIXED_SHAPES = {
     'minus': f'SELECT ?s WHERE {{ {_SHAPES_P} MINUS {{ ?s2 {_SHAPES_T} ?t }} }}',
     'values_join': f'SELECT ?s WHERE {{ {_SHAPES_P} VALUES ?t {{ "hi"@en--ltr "hi"@en--rtl }} }}',
 }
-_FIXED_EXPECTED_ROWS = {
+_EXPECTED_ROWS = {
     'self_eq': 3, 'two_stored': 5, 'strlangdir_both': 1, 'stored_vs_strlangdir': 2, 'stored_vs_literal': 2,
     'neq': 2, 'in': 2, 'notin': 1, 'lt': 2, 'join': 5, 'distinct': 2, 'groupby': 2, 'orderby': 3, 'min': 1,
     'minus': 0, 'values_join': 3,
@@ -393,42 +359,14 @@ class TestDirLangStringEquality:
         rows = list(g.query(f'SELECT ?s WHERE {{ ?s <{_TITLE}> ?t . FILTER(sameTerm(?t, ?t)) }}'))
         assert len(rows) == 1
 
-    @_engine_abort
-    @pytest.mark.parametrize('query', [
-        f'SELECT ?s WHERE {{ ?s <{_TITLE}> ?t . FILTER(?t = ?t) }}',
-        f'SELECT ?s WHERE {{ ?s <{_TITLE}> ?t . FILTER(?t = STRLANGDIR("HTML page", "en", "ltr")) }}',
-    ], ids=['self_equality', 'strlangdir_comparison'])
-    def test_value_equality_aborts_the_process_known_engine_bug(self, query):
-        """Documents the engine bug by running raw pyoxigraph (no StarLayer
-        guard in between) in a subprocess - a panic is a hard process abort,
-        not a catchable exception. Opt-in - see _engine_abort above for why and
-        how to run it. If this starts PASSING the query - Oxigraph fixed it
-        upstream - update docs/upstream-issues/oxigraph-upstream-issues.md and
-        retire the equality guard (starlayer/graph/backends/dirlang_equality.py)."""
-        import subprocess
-        import sys
-        proc = subprocess.run(
-            [sys.executable, '-c', _ABORT_REPRO.format(title=_TITLE, query=query)],
-            capture_output=True, text=True, timeout=120,
-        )
-        if proc.returncode == 0 and 'SURVIVED' in proc.stdout:
-            pytest.fail(
-                "Oxigraph no longer aborts on `=` over a dirLangString - the upstream bug "
-                "appears fixed. Update docs/upstream-issues/oxigraph-upstream-issues.md "
-                "(Issue 1) and turn this into a normal equality test."
-            )
-        assert proc.returncode != 0
-        assert 'unreachable' in proc.stderr or 'panicked' in proc.stderr or 'Abort' in proc.stderr
 
-
-@pytest.mark.skipif(not _pyoxigraph_fixed(), reason='the abort is fixed in pyoxigraph >= 0.5.13')
-class TestDirLangStringEqualityFixedUpstream:
-    """oxigraph#1982 is fixed in pyoxigraph 0.5.13: all 16 shapes that used to abort
-    run to completion on the raw engine (no StarLayer guard), each in its own
+class TestDirLangStringEqualityOnSupportedEngine:
+    """oxigraph#1982 is fixed in pyoxigraph 0.5.13, the minimum supported version: all 16
+    shapes that used to abort run to completion on the raw engine, each in its own
     subprocess, and give the right row counts."""
 
-    @pytest.mark.parametrize('name', sorted(_FIXED_SHAPES))
-    def test_shape_runs_unguarded(self, name):
+    @pytest.mark.parametrize('name', sorted(_SHAPES))
+    def test_shape_runs_on_the_raw_engine(self, name):
         import subprocess
         import sys
         code = (
@@ -437,17 +375,17 @@ class TestDirLangStringEqualityFixedUpstream:
             's.update(\'INSERT DATA { <http://example.org/a> <http://example.org/title> "hi"@en--ltr . '
             '<http://example.org/b> <http://example.org/title> "hi"@en--ltr . '
             '<http://example.org/c> <http://example.org/title> "hi"@en--rtl }\')\n'
-            f'print(len(list(s.query({_FIXED_SHAPES[name]!r}))))\n'
+            f'print(len(list(s.query({_SHAPES[name]!r}))))\n'
         )
         proc = subprocess.run([sys.executable, '-c', code], capture_output=True, text=True, timeout=120)
         assert proc.returncode == 0, proc.stderr[-500:]
-        assert int(proc.stdout.strip()) == _FIXED_EXPECTED_ROWS[name]
+        assert int(proc.stdout.strip()) == _EXPECTED_ROWS[name]
 
 
-class TestDirLangStringEqualityGuard:
-    """``=`` over a dirLangString no longer aborts through StarLayerGraph: the query
-    is rewritten before it reaches the engine. Each test runs in a subprocess so a
-    regression would fail the test instead of killing the test run."""
+class TestDirLangStringEqualityThroughStarLayerGraph:
+    """``=`` over a dirLangString works through StarLayerGraph on the supported engine,
+    with the query passed through unchanged. Runs in a subprocess so a regression
+    fails the test instead of killing the test run."""
 
     _QUERIES = {
         'self_equality': f'SELECT ?s WHERE {{ ?s <{_TITLE}> ?t . FILTER(?t = ?t) }}',
@@ -470,7 +408,7 @@ class TestDirLangStringEqualityGuard:
         import subprocess
         import sys
         proc = subprocess.run(
-            [sys.executable, '-c', _GUARDED_REPRO.format(queries=TestDirLangStringEqualityGuard._QUERIES)],
+            [sys.executable, '-c', _STARLAYER_REPRO.format(queries=TestDirLangStringEqualityThroughStarLayerGraph._QUERIES)],
             capture_output=True, text=True, timeout=180,
         )
         assert proc.returncode == 0, proc.stderr[-500:]
@@ -484,38 +422,6 @@ class TestDirLangStringEqualityGuard:
         assert r['not_equal'] == ['c', 'd']  # different text (c) or direction (d)
         assert r['in_list'] == ['c']
         assert r['two_stored_values'] == ['a', 'b']  # a and b hold equal values, in either order
-
-    def test_a_default_store_graph_is_not_rewritten(self):
-        """Only an Oxigraph engine needs the guard: the default store's SPARQL is
-        passed through untouched."""
-        from starlayer.graph.backends.native import engine_aborts_on_dirlang_equality
-        assert engine_aborts_on_dirlang_equality(embedded_oxigraph_store()) is (not _pyoxigraph_fixed())
-        assert engine_aborts_on_dirlang_equality(object()) is False
-
-    def test_an_in_process_store_is_guarded_below_the_fixed_version(self, monkeypatch):
-        from starlayer.graph.backends import native
-        store = embedded_oxigraph_store()
-        monkeypatch.setattr(native, '_pyoxigraph_version', lambda: (0, 5, 12))
-        assert native.engine_aborts_on_dirlang_equality(store) is True
-        monkeypatch.setattr(native, '_pyoxigraph_version', lambda: (0, 5, 13))
-        assert native.engine_aborts_on_dirlang_equality(store) is False
-        monkeypatch.setattr(native, '_pyoxigraph_version', lambda: None)
-        assert native.engine_aborts_on_dirlang_equality(store) is True
-
-    def test_a_remote_endpoint_is_guarded_only_when_it_is_declared_to_be_oxigraph(self):
-        from types import SimpleNamespace
-
-        from starlayer.graph.backends.native import engine_aborts_on_dirlang_equality
-        assert engine_aborts_on_dirlang_equality(SimpleNamespace()) is False
-        assert engine_aborts_on_dirlang_equality(SimpleNamespace(starlayer_engine='fuseki')) is False
-        assert engine_aborts_on_dirlang_equality(SimpleNamespace(starlayer_engine='oxigraph')) is True
-        # a declared server version >= 0.5.13 turns the guard off; an older or unreadable one keeps it
-        assert engine_aborts_on_dirlang_equality(
-            SimpleNamespace(starlayer_engine='oxigraph', starlayer_engine_version='0.5.13')) is False
-        assert engine_aborts_on_dirlang_equality(
-            SimpleNamespace(starlayer_engine='oxigraph', starlayer_engine_version='0.5.9')) is True
-        assert engine_aborts_on_dirlang_equality(
-            SimpleNamespace(starlayer_engine='oxigraph', starlayer_engine_version='junk')) is True
 
 
 # ---------------------------------------------------------------------------

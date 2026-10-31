@@ -34,6 +34,8 @@ def direct_enabled(explicit: bool | None = None) -> bool:
 
 def _engine(store):
     """The ``pyoxigraph.Store`` behind an ``oxrdflib.OxigraphStore`` (or the store itself)."""
+    from starlayer.graph.backends._versions import require_supported_pyoxigraph
+    require_supported_pyoxigraph()
     return getattr(store, '_inner', store)
 
 
@@ -70,19 +72,6 @@ def _prefix_dict(init_ns) -> dict[str, str] | None:
     return {str(k): str(v) for k, v in items}
 
 
-def _guard(sparql: str) -> str:
-    """The dirLangString-equality rewrite, only for engines older than 0.5.13 (which abort the process)."""
-    import pyoxigraph as ox
-    try:
-        parts = tuple(int(p) for p in ox.__version__.split('.')[:3])
-    except ValueError:
-        parts = (0, 0, 0)
-    if parts >= (0, 5, 13):
-        return sparql
-    from starlayer.graph.backends.dirlang_equality import guard
-    return guard(sparql)
-
-
 def _call_query(engine, text, *, prefixes, base, default_union, substitutions):
     kwargs: dict = {}
     if prefixes:
@@ -111,7 +100,6 @@ def run_direct(store, text: str, *, init_ns=None, init_bindings=None, base=None,
         raise NotImplementedError('direct execution needs the query as text, not a prepared Query object')
     check_native_version_conformance(text)
     engine = _engine(store)
-    text = _guard(text)
     prefixes = _prefix_dict(init_ns)
 
     substitutions = None
@@ -180,5 +168,5 @@ def run_direct_update(store, text: str, *, init_ns=None, base=None) -> None:
         kwargs['prefixes'] = prefixes
     if base:
         kwargs['base_iri'] = base
-    _engine(store).update(_guard(text), **kwargs)
+    _engine(store).update(text, **kwargs)
 

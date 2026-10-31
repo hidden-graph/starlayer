@@ -73,7 +73,7 @@ Caveats on the split:
 | `graph/query/sparql_api.py` | 220 | C | `parseQuery/parseUpdate/prepareQuery/prepareUpdate/processUpdate` with rdflib return types |
 | `graph/query/version_directive.py` | 133 | A | SPARQL 1.2 `VERSION` prologue |
 | `graph/query/__init__.py` | 23 | C | re-exports `CompValue` |
-| `graph/backends/native.py` | 824 | E (native transport) | HTTP SPARQL JSON client; `engine_aborts_on_dirlang_equality`, `new_graph_like` |
+| `graph/backends/native.py` | 824 | E (native transport) | HTTP SPARQL JSON client; `new_graph_like` |
 | `graph/backends/dirlang_equality.py` | 296 | E (Oxigraph) | rewrites `=` over dirLangString (oxigraph#1982 abort) |
 | `graph/backends/native_oxigraph.py` | 135 | E (Oxigraph) | in-process transport through `oxrdflib.OxigraphStore._inner` |
 | `graph/backends/skolem_semantics.py` | 166 | E (Fuseki) | skolem-IRI rewrite so blank nodes behave across queries |

@@ -12,8 +12,11 @@ from typing import Any
 
 import pyoxigraph as ox
 
+from starlayer.graph.backends._versions import require_supported_pyoxigraph
 from starlayer.graph.oxgraph import config, formats, run, terms
 from starlayer.graph.oxgraph.result import Result
+
+require_supported_pyoxigraph()
 
 _TURTLE_LIKE = (ox.RdfFormat.TURTLE, ox.RdfFormat.TRIG)
 

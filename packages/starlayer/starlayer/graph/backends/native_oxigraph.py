@@ -35,6 +35,8 @@ def is_oxigraph_store(store) -> bool:
 
 def _engine(store):
     """The wrapped ``pyoxigraph.Store`` of an ``OxigraphStore``."""
+    from starlayer.graph.backends._versions import require_supported_pyoxigraph
+    require_supported_pyoxigraph()
     return store._inner
 
 

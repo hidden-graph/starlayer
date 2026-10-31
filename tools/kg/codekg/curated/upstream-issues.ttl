@@ -215,8 +215,7 @@ ui:oxigraph-1 a slkg:UpstreamIssue ;
     slkg:issueDocPath "docs/upstream-issues/oxigraph-upstream-issues.md" ;
     slkg:issueNumber 1 ;
     slkg:upstreamUrl "https://github.com/oxigraph/oxigraph/issues/1982" ;
-    slkg:issueStatus "worked-around" ;
-    slkg:workedAroundByIdentifier "starlayer.graph.backends.dirlang_equality.guard" .
+    slkg:issueStatus "fixed-upstream" .
 
 ui:oxigraph-literal-normalization a slkg:UpstreamIssue ;
     rdfs:label "Literals are normalized when stored, so exact lexical forms are not preserved" ;

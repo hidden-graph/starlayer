@@ -20,6 +20,11 @@ dependencies = [
     # pySHACL bugs are defensive but correctness against other versions
     # hasn't been separately confirmed.
     "pyshacl>=0.40.1",
+    # pyoxigraph is core: starlayer.shacl_engine and starlayer.graph.oxgraph import it at
+    # module level. 0.5.13 is the minimum supported Oxigraph: older versions abort the
+    # process on SPARQL `=` over rdf:dirLangString (oxigraph#1982), see
+    # docs/upstream-issues/oxigraph-upstream-issues.md and graph/backends/_versions.py.
+    "pyoxigraph>=0.5.13",
 ]
 keywords = ["rdf", "rdf12", "sparql", "sparql12", "shacl", "pyshacl", "knowledge-graph", "semantic-web", "linked-data", "turtle", "reification", "triple-terms", "rdf-star", "algebra"]
 classifiers = [
@@ -47,7 +52,7 @@ reasoning = ["owlrl>=6"]
 # usable in rdf-1.2 native mode via StarLayerGraph(store=OxigraphStore(...),
 # backend='rdf-1.2') - real triple terms + SPARQL 1.2, in-process, no HTTP.
 # See starlayer/graph/backends/native_oxigraph.py. Opt-in, never a default.
-oxigraph = ["oxrdflib>=0.4", "pyoxigraph>=0.5"]
+oxigraph = ["oxrdflib>=0.4", "pyoxigraph>=0.5.13"]
 # The two engines StarLayerGraph.infer(entailment=ENTAILMENT["OWL-Direct"], engine=...) can
 # dispatch to - see starlayer/graph/graph/owl_dl.py and owl_dl_rustdl.py.
 # Neither is core: "hermit" also needs a real JVM on PATH that pip alone

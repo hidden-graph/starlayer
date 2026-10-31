@@ -519,59 +519,9 @@ def new_graph_like(store, backend: str, **graph_kwargs):
     return StarLayerGraph(**graph_kwargs)
 
 
-_DIRLANG_FIX_VERSION = (0, 5, 13)
-
-
-def _version_tuple(text) -> tuple[int, ...] | None:
-    """``'0.5.13'`` or ``'0.5.13-rc1'`` as ``(0, 5, 13)``; ``None`` if unparseable."""
-    import re
-    m = re.match(r'\s*v?(\d+)\.(\d+)\.(\d+)', str(text))
-    return tuple(int(x) for x in m.groups()) if m else None
-
-
-def _pyoxigraph_version() -> tuple[int, ...] | None:
-    try:
-        import pyoxigraph
-        return _version_tuple(pyoxigraph.__version__)
-    except Exception:
-        return None
-
-
-def engine_aborts_on_dirlang_equality(store) -> bool:
-    """Whether this store's engine could still abort the whole process on SPARQL ``=``
-    over a ``rdf:dirLangString`` (oxigraph/oxigraph#1982, fixed in 0.5.13).
-
-    An in-process Oxigraph is judged by the installed ``pyoxigraph`` version
-    (guarded below 0.5.13, or when the version cannot be read). A remote endpoint
-    is just a SPARQL endpoint and cannot be probed (the probe is the abort), so a
-    caller who knows it is ``oxigraph serve`` says so on the store:
-    ``store.starlayer_engine = 'oxigraph'``, and may add
-    ``store.starlayer_engine_version = '0.5.13'`` to say the server is fixed.
-    Without a declared version the remote engine's version is unknown and stays
-    guarded. See ``dirlang_equality.py``.
-    """
-    if _in_process(store):
-        version = _pyoxigraph_version()
-        return version is None or version < _DIRLANG_FIX_VERSION
-    if getattr(store, 'starlayer_engine', None) != 'oxigraph':
-        return False
-    version = _version_tuple(getattr(store, 'starlayer_engine_version', None))
-    return version is None or version < _DIRLANG_FIX_VERSION
-
-
-def _guard_for_engine(store, sparql: str) -> str:
-    """``sparql`` with equality over a possible ``dirLangString`` made safe, for
-    an engine that aborts on it; otherwise unchanged."""
-    if engine_aborts_on_dirlang_equality(store):
-        from starlayer.graph.backends.dirlang_equality import guard
-        return guard(sparql)
-    return sparql
-
-
 def execute_select(store, backend: str, sparql: str, default_union: bool = False) -> tuple[list, list]:
     """Run a SPARQL SELECT against a native-backend store - remote HTTP or
     in-process Oxigraph - returning (vars, bindings) either way."""
-    sparql = _guard_for_engine(store, sparql)
     if _in_process(store):
         from starlayer.graph.backends.native_oxigraph import ox_select
         return ox_select(store, sparql, default_union)
@@ -581,7 +531,6 @@ def execute_select(store, backend: str, sparql: str, default_union: bool = False
 
 def execute_ask(store, backend: str, sparql: str, default_union: bool = False) -> bool:
     """Run a SPARQL ASK against a native-backend store (HTTP or in-process)."""
-    sparql = _guard_for_engine(store, sparql)
     if _in_process(store):
         from starlayer.graph.backends.native_oxigraph import ox_ask
         return ox_ask(store, sparql, default_union)
@@ -591,7 +540,6 @@ def execute_ask(store, backend: str, sparql: str, default_union: bool = False) -
 
 def execute_update(store, backend: str, sparql: str) -> None:
     """Run a SPARQL UPDATE against a native-backend store (HTTP or in-process)."""
-    sparql = _guard_for_engine(store, sparql)
     if _in_process(store):
         from starlayer.graph.backends.native_oxigraph import ox_update
         ox_update(store, sparql)
@@ -605,7 +553,6 @@ def execute_construct(store, backend: str, sparql: str, default_union: bool = Fa
     in-process), returning a deskolemized StarLayerGraph of the results."""
     from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 
-    sparql = _guard_for_engine(store, sparql)
     if _in_process(store):
         from starlayer.graph.backends.native_oxigraph import ox_construct
         # Results are created like the source (in-process Oxigraph in, Oxigraph
