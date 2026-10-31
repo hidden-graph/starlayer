@@ -195,12 +195,17 @@ def _shacl_functions(ctx: Any) -> Iterator[None]:
 
     active[("shacl-functions-active",)] = True
     try:
-        for fn in shapes.subjects(RDF.type, SH.ListParameterExpressionFunction):
-            body = next(iter(shapes.objects(fn, SH.bodyExpression)), None)
-            if isinstance(fn, URIRef) and body is not None:
-                func = make(fn, body)
-                register_custom_function(fn, func, override=True)
-                registered.append((fn, func))
+        declared = active.get(("shacl-function-decls",))
+        if declared is None:  # read once per plan: the shapes graph does not change during a run
+            declared = active[("shacl-function-decls",)] = [
+                (fn, body)
+                for fn in shapes.subjects(RDF.type, SH.ListParameterExpressionFunction)
+                if isinstance(fn, URIRef) and (body := next(iter(shapes.objects(fn, SH.bodyExpression)), None)) is not None
+            ]
+        for fn, body in declared:
+            func = make(fn, body)
+            register_custom_function(fn, func, override=True)
+            registered.append((fn, func))
         yield
     finally:
         active[("shacl-functions-active",)] = False

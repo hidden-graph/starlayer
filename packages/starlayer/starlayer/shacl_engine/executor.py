@@ -38,7 +38,11 @@ class Context:
     _negations: int = 0  # sh:not crossings on the current evaluation stack
     _depth: int = 0
     _focus_cache: dict = field(default_factory=dict)
+    recursion_revisits: int = 0  # times conforms() re-entered a (shape, node) pair already being evaluated
     cache: dict = field(default_factory=dict)  # per-run memo for components (keyed by the component's own tuple)
+    _conforms_memo: dict = field(default_factory=dict)  # (shape, node) -> (bool, nesting height), assumption-free only
+    _peak: int = 0  # deepest ``_depth`` at which a shape was entered since the enclosing conforms() started
+    _assumed: int = 0  # how many times a re-entry assumed 'conforms' (the greatest-fixpoint reading) so far
 
     @property
     def shapes(self) -> Any:
@@ -59,19 +63,40 @@ class Context:
         A cycle that meets the data only at positive links (sh:node, sh:property, sh:and, sh:or) keeps 'conforms'.
         """
         key = (shape_node, node)
+        memo = self._conforms_memo.get(key)
+        if memo is not None:
+            limit = self.max_validation_depth
+            # The evaluation entered shapes up to ``height`` levels below its start; replayed here it must not cross the
+            # depth limit, else fall through and evaluate (which raises exactly as it would have without the memo).
+            if limit is None or self._depth + memo[1] < limit:
+                self._peak = max(self._peak, self._depth + memo[1])
+                return memo[0]
         if key in self._active:
+            self.recursion_revisits += 1
             if self._negations != self._active[key]:
                 raise ShapeError(f"recursive shape {shape_node!r} reaches itself on {node!r} through sh:not")
+            self._assumed += 1
             return True
         self._active[key] = self._negations
         if negated:
             self._negations += 1
+        assumed_before = self._assumed
+        start = self._depth
+        outer_peak = self._peak
+        self._peak = start
         try:
-            return not validate_shape_at(self, self.shape(shape_node), node)
+            answer = not validate_shape_at(self, self.shape(shape_node), node)
+            height = self._peak - start
         finally:
+            self._peak = max(outer_peak, self._peak)
             if negated:
                 self._negations -= 1
             del self._active[key]
+        # Memoise only an answer that did not lean on a recursion assumption, so it does not depend on which (shape, node)
+        # pairs happened to be active. Its nesting height is kept so max_validation_depth is still enforced on replay.
+        if self._assumed == assumed_before:
+            self._conforms_memo[key] = (answer, height)
+        return answer
 
     def shape_focus(self, shape: Shape) -> list[Term]:
         """The shape's focus nodes, cached (cross-node components such as sh:uniqueValuesFor need the whole set)."""
@@ -123,6 +148,8 @@ def validate_shape_at(ctx: Context, shape: Shape, focus: Term) -> list[Result]:
     limit = ctx.max_validation_depth
     if limit is not None and ctx._depth >= limit:
         raise ShapeError(f"Validation path too deep: more than {limit} nested shapes at {shape.node!r}")
+    if ctx._depth > ctx._peak:
+        ctx._peak = ctx._depth
     ctx._depth += 1
     try:
         return _validate_shape_at(ctx, shape, focus)
@@ -187,15 +214,27 @@ def _validate_shape_at(ctx: Context, shape: Shape, focus: Term) -> list[Result]:
     return out
 
 
-def run(plan: Plan, data: Any, *, abort_on_first: bool = False, max_validation_depth: int | None = None) -> list[Result]:
+def run(
+    plan: Plan,
+    data: Any,
+    *,
+    abort_on_first: bool = False,
+    max_validation_depth: int | None = None,
+    stats: dict | None = None,
+) -> list[Result]:
+    """Validate every declared shape. ``stats`` (optional) receives ``recursion_revisits`` for the run's diagnostics."""
     ctx = Context(data=data, plan=plan, abort_on_first=abort_on_first, max_validation_depth=max_validation_depth)
     results: list[Result] = []
-    for node in plan.all_shape_nodes():
-        shape = plan.shape(node)
-        if shape.deactivated:
-            continue
-        for focus in ctx.shape_focus(shape):
-            results.extend(validate_shape_at(ctx, shape, focus))
-            if results and abort_on_first:
-                return results
-    return results
+    try:
+        for node in plan.all_shape_nodes():
+            shape = plan.shape(node)
+            if shape.deactivated:
+                continue
+            for focus in ctx.shape_focus(shape):
+                results.extend(validate_shape_at(ctx, shape, focus))
+                if results and abort_on_first:
+                    return results
+        return results
+    finally:
+        if stats is not None:
+            stats["recursion_revisits"] = ctx.recursion_revisits

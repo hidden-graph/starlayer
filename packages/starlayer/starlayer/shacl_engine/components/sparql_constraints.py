@@ -18,18 +18,35 @@ from starlayer.shacl_engine.sparql_support import (
 )
 
 
-@component(SH.SPARQLConstraintComponent, SH.sparql)
-def sparql_constraint(ctx, shape, params, focus, values):
+def _prepared(ctx, shape, constraint):
+    """What a ``sh:sparql`` constraint needs per focus node, read once per (shape, constraint) per run: ``None`` if it is
+    deactivated, else ``(query text, severity, messages, annotation-free shapes-graph reads)``."""
+    key = ("sparql-constraint", shape.node, constraint)
+    if key in ctx.cache:
+        return ctx.cache[key]
     graph = ctx.shapes
-    out: list[Violation] = []
-    for constraint in params[SH.sparql]:
-        if any(is_true(d) for d in graph.objects(constraint, SH.deactivated)):
-            continue
+    if any(is_true(d) for d in graph.objects(constraint, SH.deactivated)):
+        prepared = None
+    else:
         selects = list(graph.objects(constraint, SH.select))
         if len(selects) != 1:
             raise ShapeError(f"{constraint!r}: a sh:sparql constraint needs exactly one sh:select")
         severities = list(graph.objects(constraint, SH.severity))
         text = substitute_path(with_prefixes(ctx.plan, constraint, str(selects[0])), shape)
+        prepared = (text, severities[0] if severities else None, tuple(graph.objects(constraint, SH.message)))
+    ctx.cache[key] = prepared
+    return prepared
+
+
+@component(SH.SPARQLConstraintComponent, SH.sparql)
+def sparql_constraint(ctx, shape, params, focus, values):
+    graph = ctx.shapes
+    out: list[Violation] = []
+    for constraint in params[SH.sparql]:
+        prepared = _prepared(ctx, shape, constraint)
+        if prepared is None:
+            continue
+        text, severity, messages = prepared
         bindings = {"this": focus}
         out.extend(
             violations_from_solutions(
@@ -37,9 +54,9 @@ def sparql_constraint(ctx, shape, params, focus, values):
                 shape=shape,
                 focus=focus,
                 bindings=bindings,
-                messages=graph.objects(constraint, SH.message),
+                messages=messages,
                 source_constraint=constraint,
-                severity=severities[0] if severities else None,
+                severity=severity,
                 graph=graph,
                 annotation_source=constraint,
             )

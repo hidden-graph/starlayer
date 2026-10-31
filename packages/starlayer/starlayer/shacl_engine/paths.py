@@ -72,6 +72,9 @@ def parse_path(graph: Any, node: Term, _stack: tuple = ()) -> Path:
 
 
 def _dedupe(items: Any) -> list[Term]:
+    items = items if isinstance(items, list) else list(items)
+    if len(items) < 2:  # nothing to de-duplicate (the common case: functional properties, missing values)
+        return items
     return list(dict.fromkeys(items))
 
 

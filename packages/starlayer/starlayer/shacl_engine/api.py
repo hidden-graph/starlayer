@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Iterable
+from dataclasses import dataclass, field
 from typing import Any
 
 from rdflib import URIRef
@@ -22,6 +23,27 @@ class Outcome:
     results: list[Result]
     rule_result: Any = None
     data_graph: Any = None  # the caller's data graph with the inferred triples added, when ``inplace=True``
+    recursion_revisits: int = 0  # recursive (shape, node) re-entries during the run (diagnostics)
+    _text_inputs: Any = field(default=None, repr=False, compare=False)  # (shapes, data view, data_graph_iri) for report_text
+    _report_text: str | None = field(default=None, repr=False, compare=False)
+
+    @property
+    def report_text(self) -> str:
+        """The human-readable report (the old ``ValidationResult.report_text`` layout; see ``text.py``), built on first use."""
+        if self._report_text is None:
+            from starlayer.shacl_engine.text import report_text
+
+            shapes, data, data_iri = self._text_inputs if self._text_inputs is not None else (None, None, None)
+            self._report_text = report_text(self.results, self.conforms, shapes, data, self.report_graph, data_iri)
+        return self._report_text
+
+    @property
+    def diagnostics(self) -> Any:
+        """``ExecutionDiagnostics`` for this run. The engine never encodes triple terms, so the encode/decode counters are 0;
+        ``report_triples`` is the size of the report graph. ``recursion_revisits`` counts recursive re-entries."""
+        from starlayer.shacl.results import ExecutionDiagnostics
+
+        return ExecutionDiagnostics(report_triples=len(self.report_graph), recursion_revisits=self.recursion_revisits, inplace_data_triples=len(self.data_graph) if self.data_graph is not None else 0)
 
 
 def _identity_of(graph: Any) -> Any:
@@ -51,6 +73,7 @@ def validate(
     shapes_graph_loader: Any = None,
     ignore_imports: bool = False,
     meta_shapes_extra: Any = (),
+    plan: Plan | None = None,
 ) -> Outcome:
     """Validate ``data_graph`` against ``shapes_graph`` (default: the data graph itself).
 
@@ -76,6 +99,9 @@ def validate(
 
     ``meta_shacl``, ``shapes_graph_loader``, ``ignore_imports`` and ``meta_shapes_extra`` are the seam for
     ``shacl_engine.meta`` and ``shacl_engine.imports`` (see the TODO below).
+
+    ``plan``: a ``Plan`` already built over ``shapes_graph`` (used by ``validate_each`` to parse the shapes once); it
+    must belong to the shapes graph actually validated against.
 
     Not offered: the old validator's ``decode_report`` (it undoes the triple-term encoding it applies for pySHACL; this
     engine handles triple terms natively and never encodes, so there is nothing to decode) and ``iterate_rules``.
@@ -125,7 +151,14 @@ def validate(
         if active:
             rule_result = apply_rules(data_graph, shapes, rule_sets=sets or None)
             data_graph = rule_result.view
-    results = run(Plan(shapes_graph=shapes), data_graph, abort_on_first=abort_on_first, max_validation_depth=max_validation_depth)
+    stats: dict = {}
+    results = run(
+        plan if plan is not None else Plan(shapes_graph=shapes),
+        data_graph,
+        abort_on_first=abort_on_first,
+        max_validation_depth=max_validation_depth,
+        stats=stats,
+    )
     report = build_report(results, shapes, data_graph, conformance_disallows)
     annotate_provenance(
         report,
@@ -151,4 +184,48 @@ def validate(
         results=results,
         rule_result=rule_result,
         data_graph=original_data if inplace else None,
+        recursion_revisits=stats.get("recursion_revisits", 0),
+        _text_inputs=(shapes, data_graph, data_graph_iri),
     )
+
+
+def validate_each(
+    data_graphs: Iterable[Any],
+    shapes_graph: Any = None,
+    ont_graph: Any = None,
+    **kwargs: Any,
+) -> dict[int, Outcome]:
+    """Validate each of ``data_graphs`` independently against the same shapes graph; returns ``{index: Outcome}``.
+
+    ``kwargs`` are those of :func:`validate`. With an explicit ``shapes_graph`` the imports, the meta-SHACL preflight, the
+    ``shapes_graph_resource`` selection and the shape parsing happen once and are shared by every graph. Without one, each
+    data graph doubles as its own shapes graph, as in :func:`validate`.
+    """
+    graphs = list(data_graphs)
+    if shapes_graph is None or not graphs:
+        return {i: validate(g, None, ont_graph=ont_graph, **kwargs) for i, g in enumerate(graphs)}
+    shapes = shapes_graph
+    shapes_iri = kwargs.pop("shapes_graph_iri", None)
+    loader, ignore_imports = kwargs.pop("shapes_graph_loader", None), kwargs.pop("ignore_imports", False)
+    meta_shacl, extra = kwargs.pop("meta_shacl", None), kwargs.pop("meta_shapes_extra", ())
+    resource = kwargs.pop("shapes_graph_resource", None)
+    if loader is not None:
+        from starlayer.shacl_engine.imports import resolve_imports
+
+        shapes = resolve_imports(shapes, shapes_graph_loader=loader, ignore_imports=ignore_imports)
+    if meta_shacl:
+        from starlayer.shacl_engine.meta import meta_validate
+
+        meta_validate(shapes, meta_shacl=meta_shacl, meta_shapes_extra=extra).raise_if_invalid()
+    if resource is not None:
+        from starlayer.shacl_engine.modules import resolve_shapes_resource
+
+        shapes, resolved = resolve_shapes_resource(shapes, resource)
+        shapes_iri = shapes_iri if shapes_iri is not None else resolved
+    elif shapes_iri is None:
+        shapes_iri = _identity_of(shapes)
+    shared = Plan(shapes_graph=shapes)
+    return {
+        i: validate(g, shapes, ont_graph=ont_graph, shapes_graph_iri=shapes_iri, plan=shared, **kwargs)
+        for i, g in enumerate(graphs)
+    }

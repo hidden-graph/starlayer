@@ -36,10 +36,27 @@ _XSD_STRING = str(XSD.string)
 _DIRECTIONS = {"ltr": ox.BaseDirection.LTR, "rtl": ox.BaseDirection.RTL}
 
 
+# Term conversion caches. The same IRIs and blank nodes are converted millions of times in a run; both term kinds are
+# immutable and compare by (type, lexical value), so sharing one converted object is behaviour-identical. Literals are
+# not cached on the to_ox side (rdflib Literal equality/hash is value-based across datatypes, so it is not a safe key).
+# Bounded: a cache that grows past _CACHE_MAX entries is cleared (a plain, cheap eviction; the working set refills).
+_CACHE_MAX = 200_000
+_TO_OX: dict = {}
+_FROM_OX: dict = {}
+
+
 def to_ox(term: Any) -> Any:
     """Engine term -> pyoxigraph term. ``None`` stays ``None`` (a wildcard)."""
     if term is None:
         return None
+    cls = type(term)
+    if cls is URIRef or cls is BNode:
+        out = _TO_OX.get(term)
+        if out is None:
+            if len(_TO_OX) >= _CACHE_MAX:
+                _TO_OX.clear()
+            out = _TO_OX[term] = ox.NamedNode(str(term)) if cls is URIRef else ox.BlankNode(str(term))
+        return out
     if isinstance(term, URIRef):
         return ox.NamedNode(str(term))
     if isinstance(term, BNode):
@@ -60,9 +77,21 @@ def to_ox(term: Any) -> Any:
 
 
 def from_ox(term: Any) -> Any:
-    """pyoxigraph term -> engine term."""
+    """pyoxigraph term -> engine term (IRIs, blank nodes and literals are cached; triple terms are rebuilt)."""
     if term is None:
         return None
+    if isinstance(term, ox.Triple):
+        return TripleTerm(from_ox(term.subject), from_ox(term.predicate), from_ox(term.object))
+    out = _FROM_OX.get(term)
+    if out is None:
+        out = _from_ox(term)
+        if len(_FROM_OX) >= _CACHE_MAX:
+            _FROM_OX.clear()
+        _FROM_OX[term] = out
+    return out
+
+
+def _from_ox(term: Any) -> Any:
     if isinstance(term, ox.NamedNode):
         return URIRef(term.value)
     if isinstance(term, ox.BlankNode):
@@ -148,12 +177,33 @@ class OxigraphGraph:
             yield from_ox(q.subject), from_ox(q.predicate), from_ox(q.object)
 
     def objects(self, subject: Any = None, predicate: Any = None) -> Iterator[Any]:
-        for _s, _p, o in self.triples((subject, predicate, None)):
-            yield o
+        # Only the object is converted; with subject and predicate fixed the union de-duplicates on the object alone.
+        if subject is None or predicate is None:
+            for _s, _p, o in self.triples((subject, predicate, None)):
+                yield o
+            return
+        seen: set | None = set() if self._graph is None else None
+        for q in self._quads(subject, predicate, None):
+            o = q.object
+            if seen is not None:
+                if o in seen:
+                    continue
+                seen.add(o)
+            yield from_ox(o)
 
     def subjects(self, predicate: Any = None, object: Any = None) -> Iterator[Any]:
-        for s, _p, _o in self.triples((None, predicate, object)):
-            yield s
+        if predicate is None or object is None:
+            for s, _p, _o in self.triples((None, predicate, object)):
+                yield s
+            return
+        seen: set | None = set() if self._graph is None else None
+        for q in self._quads(None, predicate, object):
+            s = q.subject
+            if seen is not None:
+                if s in seen:
+                    continue
+                seen.add(s)
+            yield from_ox(s)
 
     def predicate_objects(self, subject: Any = None) -> Iterator[tuple[Any, Any]]:
         for _s, p, o in self.triples((subject, None, None)):

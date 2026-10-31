@@ -76,6 +76,16 @@ def build_report(results: list[Result], shapes: Any, data: Any, conformance_disa
 
     g = StarLayerGraph()
     g.bind("sh", SH)
+    # The old validator binds the data and shapes graphs' prefixes on the report so IRIs print as prefixed names.
+    for source in (shapes, data):
+        namespaces = getattr(source, "namespaces", None)
+        if namespaces is not None:
+            try:
+                for prefix, namespace in namespaces():
+                    if prefix and not any(p == prefix for p, _ in g.namespaces()):
+                        g.bind(prefix, namespace, override=False)
+            except Exception:  # noqa: BLE001  (a view without namespace support just keeps the default prefixes)
+                pass
     report = BNode()
     g.add((report, RDF.type, SH.ValidationReport))
     g.add((report, SH.conforms, Literal(conforms(results, conformance_disallows), datatype=XSD.boolean)))

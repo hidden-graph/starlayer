@@ -106,3 +106,51 @@ identical to old (35 and 130):
 
 Before the fix at 18.6k: new 33.9 s and 42.1 s. Still open from the hot-spot list: `sh:sparql` runs one query per focus
 node (batch per shape), `Context.conforms` and `eval_path` dedupe, and term conversion on the Oxigraph path.
+
+## Round 2 (2026-10-30)
+
+Same machine, same script (`--sizes 5000,20000 --repeat-max 5000`, best of 3, full shapes set), results identical to old
+(35 and 130). Before = the run just before these changes; after = the same command after them.
+
+| triples | config | before s | after s | change |
+|---|---|---|---|---|
+| 4.7k | new-slg | 0.67 | 0.51 | 1.3x faster |
+| 4.7k | new-ox | 0.42 | 0.26 | 1.6x faster |
+| 18.6k | new-slg | 2.87 | 2.19 | 1.3x faster |
+| 18.6k | new-ox | 1.80 | 1.17 | 1.5x faster |
+
+Old validator in the same runs: 1.15 s and 4.94 s, so the engine is now 2.3x (slg) and 4.2x (ox) faster than old at 18.6k.
+Profiled run (10k triples, profiler-inflated): new-slg 2.95 s -> 2.31 s, new-ox 1.50 s -> 0.93 s.
+
+What changed:
+- `Context.conforms` memoises `(shape, node)` answers. Only an answer computed without leaning on a recursion assumption is
+  stored (a counter is bumped whenever a re-entry assumes "conforms"), so it cannot depend on which pairs were active and the
+  `negated` / `sh:not` cycle error is untouched (a cycle never reaches the memo). Each entry keeps its nesting height, so
+  `max_validation_depth` (default 500 in `api.validate`) is still enforced on a replay. Evaluations of `sh:and`/`sh:node`/
+  `sh:class` over shared nodes drop from one per reference to one per node (a hub referenced by 5 focus nodes is visited once).
+- `eval_path` de-duplication returns lists of 0 or 1 values untouched instead of building a dict.
+- `OxigraphGraph`: `from_ox` caches IRIs, blank nodes and literals, `to_ox` caches IRIs and blank nodes (bounded, cleared at
+  200k entries; literals are not cached on the `to_ox` side because rdflib literal equality is value-based); `objects()` and
+  `subjects()` convert only the term they return and de-duplicate across graphs on that term alone.
+- `sh:sparql`: the constraint's text, severity and messages are read from the shapes graph once per (shape, constraint) per
+  run instead of once per focus node; the `sh:ListParameterExpressionFunction` declarations are read once per plan.
+
+**Not done: batching `sh:sparql` per shape.** Appendix A pre-binding is a rewrite of the query algebra (join the one-row table
+into every BGP, path and GRAPH pattern). Through starlayer's query layer the query text goes to rdflib's evaluator with
+`initBindings`, and there is no hook to hand it a rewritten algebra with a multi-row table; on Oxigraph, `substitutions` takes
+one binding. The only text-level alternative (run the query unbound and group rows by `?this`) is exact only for a narrow class
+(plain BGP plus FILTER, `?this` in a triple pattern) and still differs in two ways I could not make exact: the order of rows within one focus
+node (rdflib orders joins by how many variables are bound, so an unbound run walks the store in a different order), and cost (an
+unbound run scans the whole predicate even when the shape has few focus nodes, which can be far slower than N indexed
+lookups). Since the task required exactness, per-node evaluation stays the reference and I added no batch path or differential test.
+The per-call overhead that remains is inside `StarLayerGraph.query` (`starlayer_graph.py`, outside the files this round owns): it
+builds a `Graph` and re-binds every namespace on each call (about 29 `Graph.bind` calls and trie rebuilds per query, 20.7k per
+run), still about 20% of the slg run. That is the next thing to fix, in `StarLayerGraph.query` (cache the namespace-bound view).
+
+New top hot spots (profile, 10k triples):
+- new-slg: `sparql_constraint` -> `StarLayerGraph.query` 55% of the run (was 54%; the share did not drop because the rest got
+  faster), of which `Graph.bind`/`insert_trie` about 25%; `StarLayerGraph.triples` + rdflib `Graph.objects` about 22%;
+  rdflib `URIRef.__new__`/`_is_valid_uri` for results of those reads about 8%.
+- new-ox: `and_` (`sh:and` of node shapes) 49% cumulative, mostly graph reads: `OxigraphGraph.objects` 19% and rdflib
+  `Namespace.__getattr__`/`URIRef` construction in the component code about 10%; `Store.query` itself 6%; `from_ox` fell from 14% to under 5%.
+- The per-visit dispatch in `_validate_shape_at` is no longer a leading cost on either graph.
