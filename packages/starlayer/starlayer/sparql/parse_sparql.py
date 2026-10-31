@@ -330,7 +330,9 @@ class _Parser:
                 return Literal(s, lang=tag)
             if nx.kind == "P" and nx.text == "^^":
                 self.i += 1
-                return Literal(s, datatype=self.iri())
+                # normalize=False: rdflib's Literal rewrites some lexical forms by default ("...Z"^^xsd:dateTime becomes
+                # "...+00:00"); a query's literal is kept exactly as written, as the current path does.
+                return Literal(s, datatype=self.iri(), normalize=False)
             return Literal(s)
         sign = ""
         if signed and self.at_p("+", "-") and self.peek(1).kind in ("INT", "DEC", "DBL"):
