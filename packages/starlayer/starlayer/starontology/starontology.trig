@@ -2469,6 +2469,15 @@ starontology:shacl12-shacl-ui.ttl {
         stsh:formFor sh:PrefixDeclaration ;
         stsh:formRequired ( sh:prefix sh:namespace ) .
 
+    stsh:PrefixSetForm a sh:NodeShape ;
+        rdfs:label "Form for a PrefixSet"@en ;
+        sh:property stsh:PrefixSetForm_rdf_type,
+            stsh:PrefixSetForm_rdfs_comment,
+            stsh:PrefixSetForm_rdfs_label,
+            stsh:PrefixSetForm_sh_declare ;
+        stsh:formFields ( rdf:type rdfs:label rdfs:comment sh:declare ) ;
+        stsh:formFor stsh:PrefixSet .
+
     stsh:PropertyGroupForm a sh:NodeShape ;
         rdfs:label "Form for a PropertyGroup"@en ;
         sh:property stsh:PropertyGroupForm_rdf_type,
@@ -3434,7 +3443,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:NodeShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n02581ae1f9bb49a68ccae2d7999780cab221 ;
+        sh:in _:n7b0a69c21c8544679275a09ca3d2eb56b225 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -3834,7 +3843,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:ParameterForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n02581ae1f9bb49a68ccae2d7999780cab221 ;
+        sh:in _:n7b0a69c21c8544679275a09ca3d2eb56b225 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -4037,6 +4046,30 @@ starontology:shacl12-shacl-ui.ttl {
         sh:nodeKind sh:Literal ;
         sh:order 9 ;
         sh:path sh:prefix .
+
+    stsh:PrefixSetForm_rdf_type a sh:PropertyShape ;
+        sh:group stsh:TypeGroup ;
+        sh:nodeKind sh:IRI ;
+        sh:order 1 ;
+        sh:path rdf:type .
+
+    stsh:PrefixSetForm_rdfs_comment a sh:PropertyShape ;
+        sh:group stsh:NamingGroup ;
+        sh:nodeKind sh:Literal ;
+        sh:order 4 ;
+        sh:path rdfs:comment .
+
+    stsh:PrefixSetForm_rdfs_label a sh:PropertyShape ;
+        sh:group stsh:NamingGroup ;
+        sh:nodeKind sh:Literal ;
+        sh:order 3 ;
+        sh:path rdfs:label .
+
+    stsh:PrefixSetForm_sh_declare a sh:PropertyShape ;
+        sh:group stsh:RulesGroup ;
+        sh:nodeKind sh:BlankNodeOrIRI ;
+        sh:order 21 ;
+        sh:path sh:declare .
 
     stsh:PropertyGroupForm_rdf_type a sh:PropertyShape ;
         sh:group stsh:TypeGroup ;
@@ -4337,7 +4370,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:PropertyShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n02581ae1f9bb49a68ccae2d7999780cab221 ;
+        sh:in _:n7b0a69c21c8544679275a09ca3d2eb56b225 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -5640,10 +5673,6 @@ starontology:shacl12-shacl-ui.ttl {
         sh:order 29 ;
         stsh:formOnlyFor sh:DataGraph .
 
-    sh:declare sh:group stsh:RulesGroup ;
-        sh:nodeKind sh:BlankNodeOrIRI ;
-        sh:order 21 .
-
     sh:entailment sh:group stsh:DefinitionGroup ;
         sh:nodeKind sh:IRI ;
         sh:order 17 ;
@@ -5772,6 +5801,10 @@ starontology:shacl12-shacl-ui.ttl {
         sh:order 3 ;
         stsh:formMaxCount 1 ;
         stsh:multiline true .
+
+    sh:declare sh:group stsh:RulesGroup ;
+        sh:nodeKind sh:BlankNodeOrIRI ;
+        sh:order 21 .
 
     sh:resultAnnotation sh:group stsh:DefinitionGroup ;
         sh:nodeKind sh:BlankNodeOrIRI ;
@@ -5904,15 +5937,15 @@ starontology:shacl12-shacl-ui.ttl {
         sh:name "Targeting"@en ;
         sh:order 1 .
 
-    stsh:TypeGroup a sh:PropertyGroup ;
-        sh:description "What kind of thing this is — rdf:type, a simple multi-valued IRI. Allowed on any shape and expected on most (a shape need not be typed, SHACL 1.2 Core section 3.1, but a form should show and set the type)."@en ;
-        sh:name "Type"@en ;
-        sh:order 0 .
-
     stsh:StringGroup a sh:PropertyGroup ;
         sh:description "Constraints on a value's string form — length, pattern, language."@en ;
         sh:name "String Constraints"@en ;
         sh:order 6 .
+
+    stsh:TypeGroup a sh:PropertyGroup ;
+        sh:description "What kind of thing this is — rdf:type, a simple multi-valued IRI. Allowed on any shape and expected on most (a shape need not be typed, SHACL 1.2 Core section 3.1, but a form should show and set the type)."@en ;
+        sh:name "Type"@en ;
+        sh:order 0 .
 
     stsh:WidgetGroup a sh:PropertyGroup ;
         sh:description "shui: vocabulary for form generation — widget/editor/viewer assignment and the built-in widget instances. Documents the vocabulary: validation ignores it; widget selection is implemented separately in starlayer.shacl.ui_widget_selection; property roles are not interpreted."@en ;
@@ -5963,11 +5996,11 @@ starontology:shacl12-shacl-ui.ttl {
         sh:name "Definition"@en ;
         sh:order 0.5 .
 
-    _:n02581ae1f9bb49a68ccae2d7999780cab222 rdf:first sh:IRI ;
+    _:n7b0a69c21c8544679275a09ca3d2eb56b226 rdf:first sh:IRI ;
         rdf:rest ( sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) .
 
-    _:n02581ae1f9bb49a68ccae2d7999780cab221 rdf:first sh:BlankNode ;
-        rdf:rest _:n02581ae1f9bb49a68ccae2d7999780cab222 .
+    _:n7b0a69c21c8544679275a09ca3d2eb56b225 rdf:first sh:BlankNode ;
+        rdf:rest _:n7b0a69c21c8544679275a09ca3d2eb56b226 .
 }
 
 starontology:shacl12-shacl.ttl {

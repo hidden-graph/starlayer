@@ -27,6 +27,7 @@ FORMS = {
     "PropertyGroupForm": SH.PropertyGroup,
     "ShapesGraphForm": SH.ShapesGraph,
     "PrefixDeclarationForm": SH.PrefixDeclaration,
+    "PrefixSetForm": STSH.PrefixSet,
     "SPARQLConstraintForm": SH.SPARQLConstraint,
     "SPARQLRuleForm": SH.SPARQLRule,
     "SPARQLRuleTemplateForm": SH.SPARQLRuleTemplate,    "TripleRuleForm": SH.TripleRule,
