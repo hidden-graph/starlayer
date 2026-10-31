@@ -3,8 +3,9 @@ paired with its own SHACL shapes to drive a UI editor. See ``vocab.py``'s
 module docstring for the full design and its coverage: SELECT, ASK and
 CONSTRUCT with every WHERE-clause element, aggregates, solution modifiers,
 subqueries, VALUES, property paths and the SPARQL 1.2 additions (triple
-terms, reifiers, annotations, base-direction strings). DESCRIBE and SPARQL
-Update are not covered, and anything else raises rather than being dropped.
+terms, reifiers, annotations, base-direction strings), plus DESCRIBE, FROM /
+FROM NAMED, SERVICE and VERSION for trees from ``parse_sparql.sparql_to_tree``.
+SPARQL Update is not covered, and anything else raises rather than being dropped.
 
 Not flattened into the top-level ``starlayer.sparql`` namespace - same
 precedent ``salg``/``srl`` already follow: ``from starlayer.sparql import

@@ -1,19 +1,22 @@
 """starlayer.sparql.parse_sparql
 
-PROTOTYPE: a hand-written SPARQL 1.2 query parser, in the style of
+A hand-written SPARQL 1.2 query parser, in the style of
 ``starlayer.graph.parsers.manchester_parser``: a position-carrying regex
 tokenizer, then a recursive-descent parser with one method per grammar
 production, building a small in-memory AST (:class:`Node`). No rdflib parser,
 no pyparsing, and nothing from ``salg``.
 
-Scope of this first cut: the query prologue (``BASE``, ``PREFIX``,
-``VERSION``), ``SELECT``/``ASK``/``CONSTRUCT``, every ``WHERE`` element
-(triple patterns with ``;`` ``,`` ``[ ]`` ``( )``, RDF 1.2 triple terms,
-reified triples, reifiers, annotations, property paths, ``OPTIONAL``,
-``UNION``, ``MINUS``, ``GRAPH``, ``FILTER``, ``BIND``, ``VALUES``,
-sub-selects, ``SERVICE``), expressions with the full built-in list and the
-aggregates, and the solution modifiers. ``DESCRIBE`` and SPARQL Update are
-not parsed (``sqe`` does not model them either).
+Covers the whole SPARQL 1.2 Query grammar (section 19.7): the prologue
+(``BASE``, ``PREFIX``, ``VERSION``), ``SELECT``/``ASK``/``CONSTRUCT``/
+``DESCRIBE`` with ``FROM``/``FROM NAMED``, every ``WHERE`` element (triple
+patterns with ``;`` ``,`` ``[ ]`` ``( )``, RDF 1.2 triple terms, reified
+triples, reifiers, annotations, property paths with negated sets,
+``OPTIONAL``, ``UNION``, ``MINUS``, ``GRAPH``, ``SERVICE [SILENT]``,
+``FILTER``, ``BIND``, ``VALUES``, sub-selects), expressions with the full
+built-in list and the aggregates, and the solution modifiers. The static
+rules the grammar leaves to prose (section 19.7 notes and 18.3.1 scope) are
+enforced by :class:`_Checker` and the parser itself (blank node labels per
+basic graph pattern). SPARQL Update is not parsed (the next piece of work).
 
 The AST is one generic class, :class:`Node` (``kind`` plus an ordered ``f``
 dict), because the ``sqe:``/``spexpr:`` vocabulary is itself generic: an
@@ -119,6 +122,26 @@ def _decode_uchars(raw: str) -> str:
     return _UCHAR.sub(sub, raw)
 
 
+def _split_keywords(word: str) -> list[str] | None:
+    """Longest-match tokenization of a run of letters that is no keyword itself (``FILTERSTR`` -> FILTER, STR).
+
+    The grammar has no terminal for such a run, so its terminals are matched longest first, one after the other
+    (section 19.7: "the longest match is chosen"). Returns None unless the whole run splits into keywords.
+    """
+    if not word.isalpha() or len(word) > 40:
+        return None
+    parts, rest = [], word
+    while rest:
+        for k in range(len(rest), 1, -1):
+            if rest[:k].upper() in _KEYWORDS or rest[:k] in _CASE_SENSITIVE_WORDS:
+                parts.append(rest[:k])
+                rest = rest[k:]
+                break
+        else:
+            return None
+    return parts
+
+
 def tokenize(text: str) -> list[Tok]:
     out: list[Tok] = []
     pos, n = 0, len(text)
@@ -127,6 +150,15 @@ def tokenize(text: str) -> list[Tok]:
         if m is None:
             raise SparqlSyntaxError(f"unexpected character {text[pos]!r}", text, pos)
         kind = m.lastgroup
+        if kind == "W" and m.group().upper() not in _KEYWORDS and m.group() not in _CASE_SENSITIVE_WORDS:
+            parts = _split_keywords(m.group())
+            if parts:
+                at = pos
+                for part in parts:
+                    out.append(Tok("W", part, at))
+                    at += len(part)
+                pos = m.end()
+                continue
         if kind != "ws":
             out.append(Tok("P" if kind in ("P2", "P1") else kind, m.group(), pos))
         pos = m.end()
@@ -158,11 +190,12 @@ def _unquote(raw: str) -> str:
 class Node:
     """An AST node: ``kind`` plus ordered fields. Terms (IRI, literal, variable) are rdflib terms, not Nodes."""
 
-    __slots__ = ("kind", "f")
+    __slots__ = ("kind", "f", "pos")
 
     def __init__(self, kind: str, **f):
         self.kind = kind
         self.f = f
+        self.pos = 0  # source offset, set by the parser on the nodes the static checks report on
 
     def __getitem__(self, key):
         return self.f.get(key)
@@ -183,6 +216,19 @@ _TWO = "LANGMATCHES CONTAINS STRSTARTS STRENDS STRBEFORE STRAFTER STRLANG STRDT 
 _BUILTIN_BY_UPPER = {n.upper(): n for n in (*_ZERO, *_ONE, *_TWO, "BOUND", "BNODE", "IF", "CONCAT", "COALESCE")}
 _AGGS = {"COUNT", "SUM", "MIN", "MAX", "AVG", "SAMPLE", "GROUP_CONCAT"}
 
+_CASE_SENSITIVE_WORDS = {"a", "true", "false", "isIRI", "isURI", "isBLANK", "isLITERAL", "isNUMERIC", "isTRIPLE", "hasLANG",
+                         "hasLANGDIR", "sameTerm"}  # fmt: skip
+_KEYWORDS = (
+    {w.upper() for w in _CASE_SENSITIVE_WORDS - {"a", "true", "false"}}
+    | set(_BUILTIN_BY_UPPER)
+    | _AGGS
+    | set(
+        "BASE PREFIX VERSION SELECT DISTINCT REDUCED CONSTRUCT DESCRIBE ASK FROM NAMED WHERE GROUP BY HAVING ORDER ASC DESC "
+        "LIMIT OFFSET VALUES UNDEF OPTIONAL GRAPH SERVICE SILENT BIND AS MINUS UNION FILTER NOT IN EXISTS SEPARATOR REGEX "
+        "SUBSTR REPLACE STRLANGDIR TRIPLE".split()
+    )
+)
+
 _RESERVED_AFTER_TRIPLES = {
     "OPTIONAL", "MINUS", "GRAPH", "FILTER", "BIND", "VALUES", "SERVICE", "UNION", "SELECT",
 }  # fmt: skip
@@ -201,8 +247,23 @@ class _Parser:
         self.base = base
         self.prefixes: dict[str, str] = {}
         self.prologue: list[tuple] = []
+        # Blank node labels may not be shared by two basic graph patterns (grammar note, section 19.6): every
+        # group opens a fresh BGP id and every element other than FILTER (OPTIONAL, UNION, BIND, ...) ends the BGP.
+        self._bgp_next = 0
+        self._bgp = 0
+        self._label_bgp: dict[tuple[bool, str], int] = {}
+        self._in_template = False  # a CONSTRUCT template is not a basic graph pattern: its labels are a separate space
+
+    def _fresh_bgp(self) -> int:
+        self._bgp_next += 1
+        return self._bgp_next
 
     # -- token helpers ------------------------------------------------------
+
+    @staticmethod
+    def _at(node: Node, pos: int) -> Node:
+        node.pos = pos
+        return node
 
     def peek(self, k: int = 0) -> Tok:
         return self.toks[min(self.i + k, len(self.toks) - 1)]
@@ -293,7 +354,10 @@ class _Parser:
         t = self.peek()
         if t.kind == "BNODE":
             self.i += 1
-            return BNode(t.text[2:])
+            label = t.text[2:]
+            if self._label_bgp.setdefault((self._in_template, label), self._bgp) != self._bgp:
+                self.err(f"blank node label {t.text} is used in two different basic graph patterns", t)
+            return BNode(label)
         if self.at_p("[") and self.at_p("]", k=1):
             self.i += 2
             return BNode()
@@ -335,18 +399,23 @@ class _Parser:
                 return Literal(s, datatype=self.iri(), normalize=False)
             return Literal(s)
         sign = ""
-        if signed and self.at_p("+", "-") and self.peek(1).kind in ("INT", "DEC", "DBL"):
+        if signed and self.at_p("+", "-") and self.signed_number_ahead():
             sign = self.next().text
-            sign = "-" if sign == "-" else ""
             t = self.peek()
         if t.kind in ("INT", "DEC", "DBL"):
             self.i += 1
             dt = {"INT": XSD.integer, "DEC": XSD.decimal, "DBL": XSD.double}[t.kind]
-            return Literal(sign + t.text, datatype=dt)
+            # normalize=False: "007", "+5" and "1E0" keep the lexical form written (rdflib would rewrite them)
+            return Literal(sign + t.text, datatype=dt, normalize=False)
         if t.kind == "W" and t.text in ("true", "false"):
             self.i += 1
-            return Literal(t.text == "true")
+            return Literal(t.text, datatype=XSD.boolean, normalize=False)
         self.err("expected a literal")
+
+    def signed_number_ahead(self) -> bool:
+        """A sign immediately followed by a number token: INTEGER_POSITIVE... (no white space between, grammar note)."""
+        nx = self.peek(1)
+        return nx.kind in ("INT", "DEC", "DBL") and nx.pos == self.peek().pos + 1
 
     def verb_simple(self):
         """Verb ::= VarOrIri | 'a'"""
@@ -370,7 +439,7 @@ class _Parser:
                 self.prologue.append(("base", t.text[1:-1]))
             elif self.accept_kw("PREFIX"):
                 t = self.peek()
-                if t.kind != "PNAME" or not t.text.endswith(":"):
+                if t.kind != "PNAME" or t.text.count(":") != 1 or not t.text.endswith(":"):
                     self.err("expected a prefix label ending in ':'")
                 self.i += 1
                 iri = self.peek()
@@ -400,18 +469,18 @@ class _Parser:
             ds = self.dataset_clauses()
             where = self.where_clause()
             q = Node("AskQuery", datasets=ds, where=where)
-            self.solution_modifier(q, allowed=False)
+            self.solution_modifier(q)
             self.values_clause(q)
         elif self.at_kw("CONSTRUCT"):
             q = self.construct_query()
         elif self.at_kw("DESCRIBE"):
-            self.err("DESCRIBE is not implemented in this prototype")
+            q = self.describe_query()
         else:
             self.err("expected SELECT, ASK, CONSTRUCT or DESCRIBE")
         if self.peek().kind != "EOF":
             self.err("unexpected text after the query")
         q.f["prologue"] = self.prologue
-        _check_query(q)
+        _check_query(q, self.text)
         return q
 
     def select_clause(self, q: Node):
@@ -423,25 +492,46 @@ class _Parser:
             return
         while True:
             if self.peek().kind == "VAR":
-                proj.append(Node("ProjectVar", var=self.var()))
+                at = self.peek().pos
+                proj.append(self._at(Node("ProjectVar", var=self.var()), at))
             elif self.at_p("("):
-                self.i += 1
+                at = self.next().pos
                 e = self.expression()
                 self.expect_kw("AS")
                 v = self.var()
                 self.expect_p(")")
-                proj.append(Node("ProjectExpr", expr=e, var=v))
+                proj.append(self._at(Node("ProjectExpr", expr=e, var=v), at))
             else:
                 break
         if not proj:
             self.err("expected '*' or a projection")
         q.f["projection"] = proj
 
-    def select_query(self) -> Node:
+    def select_query(self, sub: bool = False) -> Node:
+        """SelectQuery, or (``sub``) SubSelect: the same without DatasetClause."""
         q = Node("SelectQuery")
         self.select_clause(q)
-        q.f["datasets"] = self.dataset_clauses()
+        q.f["datasets"] = [] if sub else self.dataset_clauses()
         q.f["where"] = self.where_clause()
+        self.solution_modifier(q)
+        self.values_clause(q)
+        return q
+
+    def describe_query(self) -> Node:
+        """DescribeQuery ::= 'DESCRIBE' ( VarOrIri+ | '*' ) DatasetClause* WhereClause? SolutionModifier"""
+        self.expect_kw("DESCRIBE")
+        q = Node("DescribeQuery")
+        if self.accept_p("*"):
+            q.f["targets"] = None
+        else:
+            targets = []
+            while self.peek().kind == "VAR" or self.at_iri():
+                targets.append(self.var() if self.peek().kind == "VAR" else self.iri())
+            if not targets:
+                self.err("expected '*' or a variable or IRI after DESCRIBE")
+            q.f["targets"] = targets
+        q.f["datasets"] = self.dataset_clauses()
+        q.f["where"] = self.where_clause() if self.at_kw("WHERE") or self.at_p("{") else None
         self.solution_modifier(q)
         self.values_clause(q)
         return q
@@ -483,10 +573,14 @@ class _Parser:
 
     def triples_template(self, out: list):
         """TriplesTemplate: no property paths."""
-        while self.starts_triples():
-            self.triples_same_subject(out, path=False)
-            if not self.accept_p("."):
-                break
+        self._in_template = True
+        try:
+            while self.starts_triples():
+                self.triples_same_subject(out, path=False)
+                if not self.accept_p("."):
+                    break
+        finally:
+            self._in_template = False
 
     # -- solution modifiers ---------------------------------------------------
 
@@ -501,10 +595,10 @@ class _Parser:
                 if self.peek().kind == "VAR":
                     conds.append(self.var())
                 elif self.at_p("("):
-                    self.i += 1
+                    at = self.next().pos
                     e = self.expression()
                     if self.accept_kw("AS"):
-                        conds.append(Node("GroupAs", expr=e, var=self.var()))
+                        conds.append(self._at(Node("GroupAs", expr=e, var=self.var()), at))
                     else:
                         conds.append(e)
                     self.expect_p(")")
@@ -554,7 +648,7 @@ class _Parser:
         if t.kind != "INT":
             self.err("expected an integer")
         self.i += 1
-        return Literal(t.text, datatype=XSD.integer)
+        return Literal(t.text, datatype=XSD.integer, normalize=False)
 
     def values_clause(self, q: Node):
         q.f["values"] = self.inline_data() if self.at_kw("VALUES") else None
@@ -573,8 +667,15 @@ class _Parser:
 
     def group_graph_pattern(self) -> list:
         self.expect_p("{")
+        outer, self._bgp = self._bgp, self._fresh_bgp()
+        try:
+            return self._group_body()
+        finally:
+            self._bgp = outer
+
+    def _group_body(self) -> list:
         if self.at_kw("SELECT"):
-            sub = self.select_query()
+            sub = self.select_query(sub=True)
             sub.kind = "SubSelect"
             self.expect_p("}")
             return [sub]
@@ -588,7 +689,10 @@ class _Parser:
                     if self.starts_triples():
                         self.err("expected '.' between triple patterns")
                 continue
-            parts.append(self.graph_pattern_not_triples())
+            el = self.graph_pattern_not_triples()
+            parts.append(el)
+            if el.kind != "Filter":
+                self._bgp = self._fresh_bgp()
             self.accept_p(".")
         self.expect_p("}")
         return parts
@@ -607,13 +711,14 @@ class _Parser:
             return Node("Service", silent=silent, term=term, where=self.group_graph_pattern())
         if self.accept_kw("FILTER"):
             return Node("Filter", expr=self.constraint())
-        if self.accept_kw("BIND"):
+        if self.at_kw("BIND"):
+            at = self.next().pos
             self.expect_p("(")
             e = self.expression()
             self.expect_kw("AS")
             v = self.var()
             self.expect_p(")")
-            return Node("Bind", expr=e, var=v)
+            return self._at(Node("Bind", expr=e, var=v), at)
         if self.at_kw("VALUES"):
             return self.inline_data()
         if self.at_p("{"):
@@ -804,6 +909,8 @@ class _Parser:
             s = self.iri()
         elif self.at_bnode():
             s = self.bnode()
+        elif self.at_literal() or self.at_p("+", "-"):
+            s = self.literal()  # the grammar allows any term; a literal subject matches nothing
         else:
             self.err("expected a subject in a reified triple")
         p = self.verb_simple()
@@ -843,6 +950,8 @@ class _Parser:
             s = self.bnode()
         elif not data and self.at_p("<<("):
             s = self.triple_term()  # allowed in patterns (W3C positive tests); not in VALUES or expressions
+        elif not data and (self.at_literal() or self.at_p("+", "-")):
+            s = self.literal()  # TripleTermSubject allows any term; a literal subject matches nothing
         else:
             self.err("expected a subject in a triple term")
         p = self.verb_simple() if not data else (RDF.type if self.accept_a() else self.iri())
@@ -1000,12 +1109,12 @@ class _Parser:
         if self.at_p("!"):
             self.i += 1
             return Node("UnaryNot", expr=self.unary())
-        if self.at_p("+"):
-            self.i += 1
-            return Node("UnaryPlus", expr=self.unary())
-        if self.at_p("-"):
-            self.i += 1
-            return Node("UnaryMinus", expr=self.unary())
+        if self.at_p("+", "-"):
+            kind = "UnaryPlus" if self.next().text == "+" else "UnaryMinus"
+            # UnaryExpression ::= '+' PrimaryExpression | '-' PrimaryExpression (so not '--x', and not '-!x')
+            if self.at_p("+", "-") and self.signed_number_ahead():
+                return Node(kind, expr=self.literal())
+            return Node(kind, expr=self.primary())
         return self.primary()
 
     def primary(self):
@@ -1035,8 +1144,6 @@ class _Parser:
             s = self.var()
         elif self.at_iri():
             s = self.iri()
-        elif self.peek().kind == "BNODE":
-            s = self.bnode()
         else:
             self.err("expected a subject in a triple term")
         p = self.verb_simple()
@@ -1046,8 +1153,6 @@ class _Parser:
             o = self.var()
         elif self.at_iri():
             o = self.iri()
-        elif self.peek().kind == "BNODE":
-            o = self.bnode()
         elif self.at_literal() or self.at_p("+", "-"):
             o = self.literal()
         else:
@@ -1174,6 +1279,7 @@ class _Parser:
         return Node(f"Builtin_{name}", arg=a)
 
     def aggregate(self) -> Node:
+        at = self.peek().pos
         name = self.next().text.upper()
         kind = "Aggregate_" + {"GROUP_CONCAT": "GroupConcat"}.get(name, name.capitalize())
         self.expect_p("(")
@@ -1188,7 +1294,7 @@ class _Parser:
             self.expect_p("=")
             f["separator"] = self.string()
         self.expect_p(")")
-        return Node(kind, **f)
+        return self._at(Node(kind, **f), at)
 
 
 def _flatten(kind: str, parts: list):
@@ -1201,31 +1307,35 @@ def _flatten(kind: str, parts: list):
 
 
 # ---------------------------------------------------------------------------
-# Static checks the grammar leaves to prose (a subset: scope and aggregates)
+# Static semantic rules the grammar leaves to prose (section 19.7 notes, 18.3.1 scope, 11 aggregates)
 # ---------------------------------------------------------------------------
 
 
-def _pattern_vars(where: list) -> set:
+def _term_vars(t, vs: set) -> None:
+    if isinstance(t, Variable):
+        vs.add(t)
+    elif isinstance(t, Node) and t.kind == "TripleTerm":
+        for k in ("subject", "predicate", "object"):
+            _term_vars(t.f[k], vs)
+
+
+def _pattern_vars(where: list | None) -> set:
+    """The variables in scope after a group graph pattern (section 18.3.1): FILTER, MINUS and EXISTS add none."""
     vs: set = set()
-
-    def term(t):
-        if isinstance(t, Variable):
-            vs.add(t)
-        elif isinstance(t, Node) and t.kind == "TripleTerm":
-            for k in ("subject", "predicate", "object"):
-                term(t.f[k])
-
-    for el in where:
+    for el in where or []:
         k = el.kind
         if k == "TriplePattern":
-            term(el.f["s"])
-            term(el.f["o"])
+            _term_vars(el.f["s"], vs)
+            _term_vars(el.f["o"], vs)
             if isinstance(el.f["p"], Variable):
                 vs.add(el.f["p"])
-        elif k in ("Optional", "Service"):
+        elif k == "Optional":
+            vs |= _pattern_vars(el.f["where"])
+        elif k == "Service":
+            _term_vars(el.f["term"], vs)
             vs |= _pattern_vars(el.f["where"])
         elif k == "Graph":
-            term(el.f["term"])
+            _term_vars(el.f["term"], vs)
             vs |= _pattern_vars(el.f["where"])
         elif k == "Union":
             for alt in el.f["alts"]:
@@ -1239,10 +1349,16 @@ def _pattern_vars(where: list) -> set:
     return vs
 
 
+def _values_vars(q: Node) -> set:
+    values = q.f.get("values")
+    return set(values.f["vars"]) if values is not None else set()
+
+
 def _projected(q: Node) -> set:
+    """The variables a sub-select exposes: its projection (all in-scope variables for ``*``) plus its trailing VALUES."""
     if q.f["projection"] is None:
-        return _pattern_vars(q.f["where"])
-    return {p.f["var"] for p in q.f["projection"]}
+        return _pattern_vars(q.f["where"]) | _values_vars(q)
+    return {p.f["var"] for p in q.f["projection"]} | _values_vars(q)
 
 
 def _has_aggregate(e) -> bool:
@@ -1257,85 +1373,125 @@ def _has_aggregate(e) -> bool:
     return False
 
 
-def _nested_aggregate(e, inside=False) -> bool:
-    if isinstance(e, Node):
-        agg = e.kind.startswith("Aggregate_")
-        if agg and inside:
-            return True
-        return any(_nested_aggregate(v, inside or agg) for v in e.f.values())
-    if isinstance(e, list):
-        return any(_nested_aggregate(v, inside) for v in e)
-    return False
-
-
-def _expr_vars(e, out: set, skip_aggregates: bool = True):
+def _expr_vars(e, out: set) -> None:
+    """Variables an expression reads outside aggregates and EXISTS patterns."""
     if isinstance(e, Variable):
         out.add(e)
     elif isinstance(e, Node):
-        if skip_aggregates and e.kind.startswith("Aggregate_"):
-            return
-        if e.kind in ("Builtin_EXISTS", "Builtin_NOTEXISTS"):
+        if e.kind.startswith("Aggregate_") or e.kind in ("Builtin_EXISTS", "Builtin_NOTEXISTS"):
             return
         for v in e.f.values():
-            _expr_vars(v, out, skip_aggregates)
+            _expr_vars(v, out)
     elif isinstance(e, list):
         for v in e:
-            _expr_vars(v, out, skip_aggregates)
+            _expr_vars(v, out)
 
 
-def _check_query(q: Node, top: bool = True) -> None:
-    def fail(msg):
-        raise SparqlSyntaxError(msg, "", 0)
+class _Checker:
+    """Walks a parsed query and raises :class:`SparqlSyntaxError` (at the offending node) for what the grammar cannot say."""
 
-    where = q.f["where"] or []
-    for el in where:
-        if el.kind == "SubSelect":
-            _check_query(el, top=False)
-    seen_scope: set = set()
-    for el in where:  # BIND may not rebind a variable already in scope
-        if el.kind == "Bind" and el.f["var"] in seen_scope:
-            fail(f"BIND target {el.f['var'].n3()} is already in scope")
-        seen_scope |= _pattern_vars([el])
-    proj = q.f.get("projection")
-    exprs = [p.f["expr"] for p in proj or [] if p.kind == "ProjectExpr"]
-    exprs += list(q.f.get("having") or []) + [c.f["expr"] for c in q.f.get("order_by") or []]
-    if any(_nested_aggregate(e) for e in exprs):
-        fail("aggregate functions cannot be nested")
-    aggregated = bool(q.f.get("group_by")) or any(_has_aggregate(e) for e in exprs)
-    if q.f.get("group_by") and proj is None:
-        fail("SELECT * cannot be used with GROUP BY")
-    if proj is not None:
-        names = [p.f["var"] for p in proj]
-        if len(set(names)) != len(names):
-            fail("a variable is projected twice")
-        in_scope = _pattern_vars(where)
-        if q.f.get("group_by"):
-            in_scope = {c for c in q.f["group_by"] if isinstance(c, Variable)} | {
-                c.f["var"] for c in q.f["group_by"] if isinstance(c, Node) and c.kind == "GroupAs"
-            }
-        for p in proj:
-            if p.kind == "ProjectExpr" and p.f["var"] in in_scope:
-                fail(f"{p.f['var'].n3()} is already in scope in the WHERE clause")
-    if aggregated:
-        grouped: set = set()
-        for c in q.f.get("group_by") or []:
-            if isinstance(c, Variable):
-                grouped.add(c)
-            elif isinstance(c, Node) and c.kind == "GroupAs":
-                grouped.add(c.f["var"])
+    def __init__(self, text: str):
+        self.text = text
+
+    def fail(self, msg: str, node=None):
+        raise SparqlSyntaxError(msg, self.text, getattr(node, "pos", 0) or 0)
+
+    # expressions: aggregate placement and nesting, plus the groups inside EXISTS ----------------
+    def expr(self, e, aggregates_ok: bool, inside_aggregate: bool = False):
+        if isinstance(e, Node):
+            if e.kind.startswith("Aggregate_"):
+                if not aggregates_ok:
+                    self.fail("aggregate functions may only be used in SELECT, HAVING and ORDER BY", e)
+                if inside_aggregate:
+                    self.fail("aggregate functions cannot be nested", e)
+                inside_aggregate = True
+            elif e.kind in ("Builtin_EXISTS", "Builtin_NOTEXISTS"):
+                self.group(e.f["graph"])
+                return
+            for v in e.f.values():
+                self.expr(v, aggregates_ok, inside_aggregate)
+        elif isinstance(e, list):
+            for v in e:
+                self.expr(v, aggregates_ok, inside_aggregate)
+
+    # group graph patterns ---------------------------------------------------------------------
+    def group(self, where: list | None):
+        seen: set = set()
+        for el in where or []:
+            k = el.kind
+            if k == "Bind":
+                if el.f["var"] in seen:
+                    self.fail(f"BIND target {el.f['var'].n3()} is already in scope in the group", el)
+                self.expr(el.f["expr"], False)
+            elif k == "Filter":
+                self.expr(el.f["expr"], False)
+            elif k in ("Optional", "Minus", "Graph", "Service"):
+                self.group(el.f["where"])
+            elif k == "Union":
+                for alt in el.f["alts"]:
+                    self.group(alt)
+            elif k == "SubSelect":
+                self.query(el)
+            seen |= _pattern_vars([el])
+
+    # whole queries and sub-selects ---------------------------------------------------------
+    def query(self, q: Node):
+        where = q.f.get("where")
+        self.group(where)
+        proj = q.f.get("projection")  # None for SELECT * and for the other query forms
+        is_select = q.kind in ("SelectQuery", "SubSelect")
+        group_by = q.f.get("group_by") or []
+        having = q.f.get("having") or []
+        order_by = [c.f["expr"] for c in q.f.get("order_by") or []]
+        proj_exprs = [p.f["expr"] for p in proj or [] if p.kind == "ProjectExpr"]
+        for c in group_by:
+            self.expr(c.f["expr"] if isinstance(c, Node) and c.kind == "GroupAs" else c, False)
+        for e in (*proj_exprs, *having, *order_by):
+            self.expr(e, True)
+        aggregated = bool(group_by) or any(_has_aggregate(e) for e in (*proj_exprs, *having, *order_by))
+        if is_select and proj is None and (group_by or any(_has_aggregate(e) for e in (*having, *order_by))):
+            self.fail("SELECT * cannot be used with GROUP BY or aggregates")
+        # What `(expr AS ?v)` may not reuse. After grouping (explicit, or implicit when the projection aggregates) only the
+        # group variables are in scope (section 18.3.1: "GROUP BY ... v"), so `SELECT (COUNT(*) AS ?o) { ?s ?p ?o }` is valid.
+        clash_scope = set() if aggregated else _pattern_vars(where)
+        group_vars: set = set()
+        if group_by:
+            for c in group_by:
+                if isinstance(c, Variable):
+                    group_vars.add(c)
+                elif isinstance(c, Node) and c.kind == "GroupAs":
+                    v = c.f["var"]
+                    if v in _pattern_vars(where) or v in group_vars:
+                        self.fail(f"{v.n3()} is already in scope at GROUP BY (... AS {v.n3()})", c)
+                    group_vars.add(v)
+            clash_scope = set(group_vars)
+        # the trailing VALUES is joined in before the SELECT expressions run: its variables are in scope and "grouped"
+        clash_scope |= _values_vars(q)
+        in_scope = (group_vars | _values_vars(q)) if aggregated else clash_scope
         if proj is not None:
-            for k, p in enumerate(proj):
-                if p.kind == "ProjectVar" and p.f["var"] not in grouped:
-                    fail(f"{p.f['var'].n3()} is projected but not grouped")
+            projected: set = set()
+            for p in proj:
+                v = p.f["var"]
+                if p.kind == "ProjectExpr" and (v in clash_scope or v in projected):
+                    self.fail(f"{v.n3()} is already in scope at SELECT (... AS {v.n3()})", p)
+                if v in projected:
+                    self.fail(f"{v.n3()} is projected twice", p)
+                projected.add(v)
+        if aggregated and proj is not None:
+            earlier: set = set()
+            for p in proj:
+                if p.kind == "ProjectVar" and p.f["var"] not in in_scope:
+                    self.fail(f"{p.f['var'].n3()} is projected but not grouped", p)
                 if p.kind == "ProjectExpr":
                     used: set = set()
                     _expr_vars(p.f["expr"], used)
-                    earlier = {x.f["var"] for x in proj[:k] if x.kind == "ProjectExpr"}
-                    if used - grouped - earlier:
-                        fail("a projected expression uses an ungrouped variable")
-        for c in q.f.get("group_by") or []:
-            if isinstance(c, Node) and c.kind == "GroupAs" and c.f["var"] in _pattern_vars(where):
-                fail(f"{c.f['var'].n3()} is already in scope in the WHERE clause")
+                    if used - in_scope - earlier:
+                        self.fail("a projected expression uses a variable that is not grouped", p)
+                    earlier.add(p.f["var"])
+
+
+def _check_query(q: Node, text: str = "") -> None:
+    _Checker(text).query(q)
 
 
 # ---------------------------------------------------------------------------
@@ -1449,6 +1605,12 @@ class _Encoder:
         if k in ("Optional", "Minus"):
             g.add((b, RDF.type, v.OPTIONAL if k == "Optional" else v.MINUS))
             g.add((b, v.WHERE, self.where(el.f["where"])))
+        elif k == "Service":
+            g.add((b, RDF.type, v.SERVICE))
+            g.add((b, v.SERVICE_TERM, self.term(el.f["term"])))
+            if el.f["silent"]:
+                g.add((b, v.SERVICE_SILENT, Literal(True)))
+            g.add((b, v.WHERE, self.where(el.f["where"])))
         elif k == "Filter":
             g.add((b, RDF.type, v.FILTER))
             g.add((b, v.EXPR, self.term(el.f["expr"])))
@@ -1519,9 +1681,23 @@ class _Encoder:
             if self.triple_order is not None:
                 template = self.triple_order(template)
             g.add((root, v.TEMPLATE, _list(g, [self.triple(t) for t in template])))
-        g.add((root, v.WHERE, self.where(q.f["where"])))
-        if kind == "AskQuery":
-            return
+        elif kind == "DescribeQuery":
+            if q.f["targets"] is None:
+                g.add((root, v.DESCRIBE_ALL, Literal(True)))
+            else:
+                g.add((root, v.DESCRIBE, _list(g, [self.term(t) for t in q.f["targets"]])))
+        if q.f.get("datasets"):
+            clauses = []
+            for named, iri in q.f["datasets"]:
+                c = BNode()
+                g.add((c, RDF.type, v.DATASET_CLAUSE))
+                g.add((c, v.DATASET_SOURCE, iri))
+                if named:
+                    g.add((c, v.DATASET_NAMED, Literal(True)))
+                clauses.append(c)
+            g.add((root, v.DATASET, _list(g, clauses)))
+        if q.f["where"] is not None:
+            g.add((root, v.WHERE, self.where(q.f["where"])))
         if q.f["group_by"]:
             items = [
                 self.alias(c.f["expr"], c.f["var"]) if isinstance(c, Node) and c.kind == "GroupAs" else self.term(c)
@@ -1549,9 +1725,12 @@ class _Encoder:
 
     def query(self, q: Node, root):
         v, g = self.v, self.g
-        if q.f["datasets"]:
-            raise NotImplementedError("starlayer.sparql.sqe: FROM / FROM NAMED are not modeled; refusing to drop them")
-        root_type = {"SelectQuery": v.SELECT_QUERY, "AskQuery": v.ASK_QUERY, "ConstructQuery": v.CONSTRUCT_QUERY}[q.kind]
+        root_type = {
+            "SelectQuery": v.SELECT_QUERY,
+            "AskQuery": v.ASK_QUERY,
+            "ConstructQuery": v.CONSTRUCT_QUERY,
+            "DescribeQuery": v.DESCRIBE_QUERY,
+        }[q.kind]
         g.add((root, RDF.type, root_type))
         g.add((root, RDF.type, v.QUERY))
         self.body(q, root, q.kind)
@@ -1564,7 +1743,8 @@ class _Encoder:
                 g.add((b, v.PREFIX_LABEL, Literal(decl[1], datatype=self.PY)))
                 g.add((b, v.PREFIX_NAMESPACE, URIRef(decl[2])))
                 g.add((root, v.PROLOGUE_PREFIX, b))
-            # VERSION has no sqe: term: a vocabulary gap, the label is dropped.
+            elif decl[0] == "version":
+                g.add((root, v.VERSION, Literal(decl[1])))
 
 
 def ast_to_tree(q: Node, graph: Graph | None = None, root=None, *, triple_order=None) -> tuple[Graph, object]:

@@ -86,11 +86,18 @@ annotations, base-direction strings and their functions). Reified-triple and
 annotation shorthand is stored in its expanded form (a ``rdf:reifies`` triple
 plus ordinary triples), so it renders back expanded.
 
-**Not covered:** ``DESCRIBE`` and SPARQL Update. Anything the tree cannot
-represent raises ``NotImplementedError`` instead of being silently dropped.
-Six W3C fixtures do not round-trip, none because of sqe: three are rejected by
-the project's own parser (``!!``, codepoint escapes) and three are suite
-errors (a triple term as a subject).
+Added with the StarLayer-owned parser (``parse_sparql.py``), additively:
+``DESCRIBE`` (``sqe:DescribeQuery``, ``sqe:describe``/``sqe:describeAll``),
+``FROM``/``FROM NAMED`` (``sqe:dataset`` -> ``sqe:DatasetClause`` with
+``sqe:source``/``sqe:named``), ``SERVICE [SILENT]`` (``sqe:Service``,
+``sqe:service``, ``sqe:silent``), ``VERSION`` (``sqe:version``), and solution
+modifiers on ``ASK``/``CONSTRUCT``/``DESCRIBE`` (the 1.2 grammar allows them).
+Trees of queries that use none of these are unchanged.
+
+**Not covered:** SPARQL Update. Anything the tree cannot represent raises
+``NotImplementedError`` instead of being silently dropped. (The legacy path,
+``sqe_parse_to_tree``, still reads queries through rdflib's parser and so
+still lacks DESCRIBE, FROM and SERVICE; ``parse_sparql.sparql_to_tree`` has them.)
 
 **Running a decoded 1.2 query:** a ``Query`` from ``sqe_tree_to_query`` for a
 query that uses SPARQL 1.2 syntax cannot be executed directly by starlayer (a
@@ -114,6 +121,7 @@ QUERY = SQE.Query
 SELECT_QUERY = SQE.SelectQuery
 ASK_QUERY = SQE.AskQuery
 CONSTRUCT_QUERY = SQE.ConstructQuery
+DESCRIBE_QUERY = SQE.DescribeQuery  # added with the owned parser: DESCRIBE (targets or *), optional WHERE
 
 PROJECTION = SQE.projection  # SelectQuery only - rdf:List of sqe:Variable-tagged Literals
 TEMPLATE = SQE.template  # ConstructQuery only - flat rdf:List of TriplePattern nodes
@@ -154,6 +162,18 @@ QUERY_VALUES = SQE.values  # a query's trailing VALUES clause -> sqe:Values
 MINUS = SQE.Minus  # MINUS { ... } - .where
 GRAPH_PATTERN = SQE.Graph  # GRAPH ?g { ... } - .graph, .where
 GRAPH_TERM = SQE.graph
+
+# --- Added with the StarLayer-owned parser (parse_sparql.py): additive, existing trees are unchanged ------------
+DESCRIBE = SQE.describe  # DescribeQuery: rdf:List of IRIs / variables
+DESCRIBE_ALL = SQE.describeAll  # DescribeQuery: boolean true for DESCRIBE *
+DATASET = SQE.dataset  # any query form: rdf:List of sqe:DatasetClause, in source order (FROM / FROM NAMED)
+DATASET_CLAUSE = SQE.DatasetClause  # .source the graph IRI, optional .named true for FROM NAMED
+DATASET_SOURCE = SQE.source
+DATASET_NAMED = SQE.named
+SERVICE = SQE.Service  # SERVICE [SILENT] <iri>|?v { ... } - .service the endpoint, optional .silent true, .where
+SERVICE_TERM = SQE.service
+SERVICE_SILENT = SQE.silent
+VERSION = SQE.version  # a VERSION "x" declaration on the query root (a plain string; may repeat)
 
 TRIPLE_TERM = SQE.TripleTerm  # <<( s p o )>> - .subject/.predicate/.object, recursively
 
