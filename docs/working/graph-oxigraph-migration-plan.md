@@ -114,21 +114,21 @@ From `graph-functionality-comparison.md`, plus what the spikes added.
 Answers recorded 2026-10-31.
 
 1. **Adopt the term-model port into `shacl-engine`, with its three conditions: yes.** In progress.
-2. **The three give-ups** (browser/Pyodide, language-tag case, `LOAD <file://>`): explained to the owner, who did not follow them;
-   awaiting a yes or no after the explanation (see the reply to this section).
+2. **The three give-ups:** `LOAD <file://…>` in UPDATE **accepted** (use `Store.load(path=…)`). Browser/Pyodide deployment and
+   language-tag case (Oxigraph lowercases `EN-us`) were explained; **awaiting a yes or no on those two**.
 3. **`starontology/`: changes on this branch are fine** (nothing reaches `main` until the end). **Salg is retired at the end**, not
    in Stage 0: Stage 0.2 moves to the final stage. Memory updated accordingly.
 4. **The `rdf-1.1` backend does not survive.** The owner's direction: handle RDF 1.1 *output* with the RDF 1.2 Interoperability
    approach (the basic encoding) at export time, instead of keeping a separate storage backend. So Stage 2 makes the Oxigraph
    backend the only backend and adds an export mode (`serialize(..., rdf_version="1.1")` or similar) that rewrites triple terms
-   with `to_basic()`. To confirm the details with the owner (the draft's basic encoding targets RDF 1.2 Basic, which is also valid RDF 1.1
-   syntax; its semantics differ).
+   with `to_basic()`. **Agreed by the owner (2026-10-31).** The basic-encoding document is valid RDF 1.1 syntax but, as the draft says,
+   not semantically equivalent to the input.
 5. **Wrapper and rdflib `Graph`:** "whatever works"; nothing will be used until the final form, so build it standalone and add
    compatibility only where a test or user needs it.
 6. **Parsing and the name `turtle`:** the owner assumes Oxigraph's `turtle` is Turtle 1.2. Confirmed: pyoxigraph's `RdfFormat.TURTLE`
    parses RDF 1.2 Turtle (triple terms, annotations, reifiers, `VERSION`, base direction), and keeps lexical forms on parse.
-   Decision: `turtle` means Turtle 1.2 and is the faithful parser; `turtle12` stays as an alias. RDF 1.1 output goes through the
-   approach in item 4.
+   Decision (agreed): `turtle` means Turtle 1.2 and is the faithful parser; `turtle12` stays as an alias, and both are accepted for now
+   (the alias can be dropped later). RDF 1.1 output goes through the approach in item 4.
 7. **Prefixes:** a global setting (default empty, like Oxigraph) that populates each graph's prefix map when the graph is built;
    the graph's map is a plain dictionary used at serialize and query time (Oxigraph has no store-level prefixes). Whether a graph
    copies the global at build time (isolated from later changes) or references it is a detail to settle; copying is cheap.
