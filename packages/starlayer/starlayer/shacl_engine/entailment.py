@@ -19,7 +19,7 @@ from typing import Any
 from rdflib import RDF, Namespace, URIRef
 
 from starlayer.graph.graph.entailment_regimes import ENTAILMENT, SUPPORTED_REGIMES
-from starlayer.shacl_engine.rules import InferredView
+from starlayer.shacl_engine.rules import new_overlay
 
 SH = Namespace("http://www.w3.org/ns/shacl#")
 
@@ -76,7 +76,7 @@ def entailed_view(data_graph: Any, regime: Any = "rdfs", ont_graph: Any = None) 
         for t in ont_graph.triples((None, None, None)) if hasattr(ont_graph, "triples") else ont_graph:
             combined.add(t)
     delta = combined.infer(entailment=regimes, mode="delta")
-    view = InferredView(data_graph)
+    view = new_overlay(data_graph)
     for t in legal_rdf_triples(delta):
         view.add(tuple(t))
     return view

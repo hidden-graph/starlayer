@@ -26,6 +26,7 @@ Performance note: SPARQL runs on a materialised ``StarLayerGraph`` (base copy pl
 
 from __future__ import annotations
 
+import os
 from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import dataclass, field
 from typing import Any
@@ -174,6 +175,26 @@ class InferredView:
         if result.type != "CONSTRUCT":
             raise RuleError("sh:construct must be a CONSTRUCT query")
         return [tuple(t) for t in result]
+
+
+_OXIGRAPH_OVERLAY = os.environ.get("STARLAYER_SHACL_OVERLAY", "").strip().lower() == "oxigraph"
+
+
+def use_oxigraph_overlay(enabled: bool = True) -> None:
+    """Opt in (or out) of the Oxigraph-backed overlay (``overlay_oxigraph.OxigraphOverlay``) for inferred triples. The
+    default is the Python ``InferredView``; the environment variable ``STARLAYER_SHACL_OVERLAY=oxigraph`` selects the
+    Oxigraph one at import time. Experimental: see docs/working/shacl-engine-overlay-oxigraph.md."""
+    global _OXIGRAPH_OVERLAY
+    _OXIGRAPH_OVERLAY = bool(enabled)
+
+
+def new_overlay(base: Any) -> InferredView:
+    """A fresh overlay over ``base`` (the selected implementation)."""
+    if _OXIGRAPH_OVERLAY:
+        from starlayer.shacl_engine.overlay_oxigraph import OxigraphOverlay
+
+        return OxigraphOverlay(base)
+    return InferredView(base)
 
 
 # --------------------------------------------------------------------------------------------------------------------
@@ -530,7 +551,7 @@ def apply_rules(
     every rule of the shapes graph. A failing rule fails the whole rule set: ``RuleError`` is raised, or with
     ``raise_on_failure=False`` returned in ``RuleResult.failures`` (``inferred`` is then what was derived so far)."""
     shapes = shapes_graph if shapes_graph is not None else data_graph
-    view = InferredView(data_graph)
+    view = new_overlay(data_graph)
     plan = Plan(shapes_graph=shapes)
     run = _Run(view, plan, max_iterations, max_triples)
     failures: list[str] = []
@@ -591,8 +612,10 @@ __all__ = [
     "RuleResult",
     "all_rule_nodes",
     "apply_rules",
+    "new_overlay",
     "entailment_selection",
     "read_rule",
     "rule_set_members",
+    "use_oxigraph_overlay",
     "validate_with_rules",
 ]
