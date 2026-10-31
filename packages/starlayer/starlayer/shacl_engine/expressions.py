@@ -20,21 +20,29 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 from decimal import Decimal
+from functools import cmp_to_key
 from typing import Any
 
-from rdflib import BNode, Literal, URIRef
-from rdflib.namespace import RDF, XSD
-
-from starlayer.graph.model import TripleTerm
+from starlayer.shacl_engine import xsd_values as xv
 from starlayer.shacl_engine.components.core_shape_based import shacl_list
 from starlayer.shacl_engine.paths import eval_path, parse_path
 from starlayer.shacl_engine.plan import SH, ShapeError, Term
 from starlayer.shacl_engine.targets import _all_nodes, _class_closure
+from starlayer.shacl_engine.terms import (
+    FALSE,
+    RDF,
+    TRUE,
+    XSD,
+    Literal,
+    Triple,
+    from_engine,
+    text,
+)
+from starlayer.shacl_engine.terms import BlankNode as BNode
+from starlayer.shacl_engine.terms import NamedNode as URIRef
 
 SHNEX = "http://www.w3.org/ns/shacl-node-expr#"
 SPARQL_NS = "http://www.w3.org/ns/sparql#"
-
-TRUE, FALSE = Literal(True), Literal(False)
 
 
 class EvaluationFailure(Exception):
@@ -100,10 +108,10 @@ def _eval(ctx: Any, expr: Term, focus: Term | None, scope: Scope) -> list[Term]:
         if len(called) == 1 and len({custom[p] for p in called}) == 1:
             return _call_custom(ctx, expr, custom[called[0]], called[0], focus, scope)
         if len(called) > 1:
-            raise ShapeError(f"{expr!r}: a node expression may call only one custom function, found {sorted(map(str, called))}")
+            raise ShapeError(f"{expr!r}: a node expression may call only one custom function, found {sorted(text(c) for c in called)}")
     if len(keys) != 1:
         raise ShapeError(
-            f"{expr!r}: a node expression needs exactly one operator predicate, found {sorted(map(str, keys))}"
+            f"{expr!r}: a node expression needs exactly one operator predicate, found {sorted(text(k) for k in keys)}"
         )
     return OPERATORS[keys[0]](ctx, expr, focus, scope)
 
@@ -147,7 +155,7 @@ def _call_custom(ctx: Any, expr: Term, fn: Term, pred: URIRef, focus: Term | Non
         for i, arg in enumerate(shacl_list(g, head)):
             nodes = _eval(ctx, arg, focus, scope)  # arguments are evaluated in the caller's scope
             if len(nodes) > 1:
-                raise EvaluationFailure(f"argument {i} of a call of {fn} has more than one output node")
+                raise EvaluationFailure(f"argument {i} of a call of {text(fn)} has more than one output node")
             if nodes:
                 arg_scope[i] = nodes
             else:
@@ -156,7 +164,7 @@ def _call_custom(ctx: Any, expr: Term, fn: Term, pred: URIRef, focus: Term | Non
             return []
         out = _eval(ctx, body, focus, arg_scope)
         if len(out) > 1:
-            raise EvaluationFailure(f"the body of the list parameter function {fn} has more than one output node")
+            raise EvaluationFailure(f"the body of the list parameter function {text(fn)} has more than one output node")
         return out
     for param in g.objects(fn, SH.parameter):  # every declared parameter, not only the key ones
         for path in g.objects(param, SH.path):
@@ -171,7 +179,7 @@ def _arg(ctx, expr, focus, scope):
     key = _one(ctx, expr, _n("arg"))
     if isinstance(key, Literal):
         try:
-            key = int(str(key))
+            key = int(key.value)
         except ValueError:
             raise ShapeError(f"{expr!r}: shnex:arg must be an integer or a parameter path IRI") from None
     return list(scope.get(key, []))
@@ -184,7 +192,7 @@ def _values(ctx: Any, expr: Term, pred: URIRef) -> list:
 def _one(ctx: Any, expr: Term, pred: URIRef, *, required: bool = True) -> Term | None:
     vs = _values(ctx, expr, pred)
     if len(vs) > 1 or (required and not vs):
-        raise ShapeError(f"{expr!r}: exactly one {pred} is required")
+        raise ShapeError(f"{expr!r}: exactly one {text(pred)} is required")
     return vs[0] if vs else None
 
 
@@ -211,7 +219,7 @@ def _args(ctx: Any, expr: Term, pred: URIRef) -> list[Term]:
         head != RDF.nil
         and next(iter(ctx.shapes.objects(head, RDF.first)), None) is None
     ):
-        raise ShapeError(f"{expr!r}: the argument of {pred} must be an RDF list")
+        raise ShapeError(f"{expr!r}: the argument of {text(pred)} must be an RDF list")
     return shacl_list(ctx.shapes, head)
 
 
@@ -219,9 +227,9 @@ def _integer(term: Term, what: str) -> int:
     if (
         isinstance(term, Literal)
         and term.datatype == XSD.integer
-        and str(term).lstrip("+-").isdigit()
+        and term.value.lstrip("+-").isdigit()
     ):
-        n = int(str(term))
+        n = int(term.value)
         if n >= 0:
             return n
     raise ShapeError(f"{what} must be a non-negative xsd:integer, got {term!r}")
@@ -232,7 +240,7 @@ def _bool(value: bool) -> list:
 
 
 def _integer_literal(n: int) -> Literal:
-    return Literal(n, datatype=XSD.integer)
+    return Literal(str(n), datatype=XSD.integer)  # str-ok: n is an int
 
 
 # --------------------------------------------------------------------------------------------------------------------
@@ -241,7 +249,7 @@ def _integer_literal(n: int) -> Literal:
 
 @operator(SHNEX + "var")
 def _var(ctx, expr, focus, scope):
-    name = str(_one(ctx, expr, _n("var")))
+    name = text(_one(ctx, expr, _n("var")))
     if name == "focusNode":
         return [] if focus is None else [focus]
     return list(scope.get(name, []))
@@ -323,17 +331,27 @@ def _offset(ctx, expr, focus, scope):
     ]
 
 
-def _order_key(term: Term | None) -> tuple:
-    """SPARQL ORDER BY order: unbound < blank node < IRI < literal; literals by value where comparable."""
-    if term is None:
-        return (0, "")
-    if isinstance(term, BNode):
-        return (1, str(term))
-    if isinstance(term, URIRef):
-        return (2, str(term))
-    if isinstance(term, Literal):
-        return (3, term)
-    return (4, str(term))
+def _order_cmp(a: Term | None, b: Term | None) -> int:
+    """SPARQL ORDER BY order: unbound < blank node < IRI < literal; literals by value where comparable, else by
+    (datatype, lexical form, language) so the order is total and stable."""
+
+    def rank(t: Term | None) -> int:
+        return 0 if t is None else 1 if isinstance(t, BNode) else 2 if isinstance(t, URIRef) else 3 if isinstance(t, Literal) else 4
+
+    ra, rb = rank(a), rank(b)
+    if ra != rb:
+        return -1 if ra < rb else 1
+    if ra == 3:
+        c = xv.compare(a, b)
+        if c is not None:
+            return c
+        ka, kb = (a.datatype.value, a.value, a.language or ""), (b.datatype.value, b.value, b.language or "")
+        return (ka > kb) - (ka < kb)
+    ta, tb = ("" if a is None else text(a)), ("" if b is None else text(b))
+    return (ta > tb) - (ta < tb)
+
+
+_order_key = cmp_to_key(_order_cmp)
 
 
 @operator(SHNEX + "orderBy")
@@ -347,7 +365,7 @@ def _order_by(ctx, expr, focus, scope):
         return _order_key(out[0] if out else None)
 
     return sorted(
-        nodes, key=key, reverse=desc is not None and str(desc) in ("true", "1")
+        nodes, key=key, reverse=desc is not None and text(desc) in ("true", "1")
     )
 
 
@@ -421,25 +439,27 @@ def _sum(ctx, expr, focus, scope):
     values: list = []
     rank = 0
     for n in _eval(ctx, _one(ctx, expr, _n("sum")), focus, scope):
-        v = n.toPython() if isinstance(n, Literal) else None
-        if isinstance(v, bool) or not isinstance(v, (int, float, Decimal)):
-            raise EvaluationFailure(f"shnex:sum: {n!r} is not a number")
+        parsed = xv.parse(n) if isinstance(n, Literal) else None
+        v = parsed.value if parsed is not None and parsed.kind == xv.NUMERIC else None
+        if v is None:
+            raise EvaluationFailure(f"shnex:sum: {text(n)!r} is not a number")
         rank = max(rank, _NUMERIC_RANK.get(n.datatype, 0 if isinstance(v, int) else 1))
         values.append(v)
     if rank == 0:
-        return [Literal(sum(values), datatype=XSD.integer)]
+        return [Literal(str(sum(values)), datatype=XSD.integer)]
     if rank == 1:
-        return [
-            Literal(
-                sum((Decimal(str(v)) for v in values), Decimal(0)), datatype=XSD.decimal
-            )
-        ]
-    return [
-        Literal(
-            float(sum(float(v) for v in values)),
-            datatype=XSD.float if rank == 2 else XSD.double,
-        )
-    ]
+        total = sum((Decimal(str(v)) for v in values), Decimal(0))  # str-ok: v is a python int / Decimal
+        return [Literal(format(total, "f"), datatype=XSD.decimal)]
+    return [Literal(_float_lexical(float(sum(float(v) for v in values))), datatype=XSD.float if rank == 2 else XSD.double)]
+
+
+def _float_lexical(x: float) -> str:
+    """xsd:float / xsd:double lexical form: INF, -INF, NaN, else Python's shortest repr."""
+    if x != x:
+        return "NaN"
+    if x in (float("inf"), float("-inf")):
+        return "INF" if x > 0 else "-INF"
+    return repr(x)
 
 
 # --- graph-wide ---------------------------------------------------------------------------------------------------
@@ -450,7 +470,7 @@ def _instances_of(ctx, expr, focus, scope):
     out: dict = {}
     for cls in _eval(ctx, _one(ctx, expr, _n("instancesOf")), focus, scope):
         if not isinstance(cls, URIRef):
-            raise EvaluationFailure(f"shnex:instancesOf: {cls!r} is not an IRI")
+            raise EvaluationFailure(f"shnex:instancesOf: {text(cls)!r} is not an IRI")
         for c in _class_closure(ctx.data, cls):
             for inst in ctx.data.subjects(RDF.type, c):
                 out.setdefault(inst, None)
@@ -480,7 +500,7 @@ def _conforms_to_shape(ctx, expr, focus, scope):
     node, shape = outs[0][0], outs[1][0]
     if not isinstance(shape, URIRef):
         raise EvaluationFailure(
-            f"shnex:conformsToShape: the shape {shape!r} is not an IRI"
+            f"shnex:conformsToShape: the shape {text(shape)!r} is not an IRI"
         )
     return _bool(ctx.conforms(shape, node))
 
@@ -488,7 +508,7 @@ def _conforms_to_shape(ctx, expr, focus, scope):
 # --- SPARQL-Related Features: sh:select, sh:sparqlExpr (query machinery lives in sparql_support) -----------------------
 
 
-@operator(str(SH.select), str(SH.sparqlExpr))
+@operator(SH.select.value, SH.sparqlExpr.value)
 def _sparql_query_expression(ctx, expr, focus, scope):
     from starlayer.shacl_engine.sparql_support import eval_node_expression
 
@@ -517,6 +537,9 @@ _scratch: Any = None
 
 
 def _run_call(template: str, values: list) -> list:
+    from rdflib import BNode as RBNode
+    from rdflib.namespace import RDF as RRDF
+
     from starlayer.graph.graph.starlayer_graph import StarLayerGraph
     from starlayer.shacl_engine.sparql_support import starlayer_sparql_query
 
@@ -524,23 +547,23 @@ def _run_call(template: str, values: list) -> list:
     if _scratch is None:
         _scratch = StarLayerGraph()
     graph = (
-        StarLayerGraph() if any(isinstance(v, TripleTerm) for v in values) else _scratch
+        StarLayerGraph() if any(isinstance(v, Triple) for v in values) else _scratch
     )
     for (
         v
     ) in values:  # the query layer resolves a triple term only if its graph has seen it
-        if isinstance(v, TripleTerm):
-            graph.add((BNode(), RDF.value, v))
+        if isinstance(v, Triple):
+            graph.add((RBNode(), RRDF.value, from_engine(v)))
     try:
-        rows = starlayer_sparql_query(
+        rows = starlayer_sparql_query(  # engine terms in and out; converted inside (the query-layer boundary)
             graph,
-            f"SELECT ({template} AS ?result) WHERE {{}}",
+            f"SELECT ({template} AS ?result) WHERE {{}}",  # str-ok: template is the SPARQL text
             {f"a{i}": v for i, v in enumerate(values)},
         ).rows
     except Exception as exc:  # noqa: BLE001  (a SPARQL evaluation error is an evaluation failure)
-        raise EvaluationFailure(f"SPARQL error in {template}: {exc}") from exc
+        raise EvaluationFailure(f"SPARQL error in {template}: {exc}") from exc  # str-ok: SPARQL text
     if not rows or "result" not in rows[0]:
-        raise EvaluationFailure(f"SPARQL error in {template}")
+        raise EvaluationFailure(f"SPARQL error in {template}")  # str-ok: SPARQL text
     return [rows[0]["result"]]
 
 
@@ -571,13 +594,8 @@ def _bound_values(states: list) -> list | None:
 
 
 def _ebv(term: Term | None) -> bool | None:
-    from rdflib.plugins.sparql.operators import EBV
-    from rdflib.plugins.sparql.sparql import SPARQLError
-
-    try:
-        return bool(EBV(term))
-    except SPARQLError:
-        return None
+    """SPARQL 17.2.2 effective boolean value; ``None`` for a type error."""
+    return xv.ebv(term) if isinstance(term, Literal) else None
 
 
 def _register_sparql() -> None:
@@ -604,7 +622,7 @@ def _register_sparql() -> None:
         lambda _n_: 'IF(TZ(?a0) IN ("+00:00", "-00:00"), "Z", TZ(?a0))',
     )
     for name, sql in _RENAMED.items():
-        simple(URIRef(SPARQL_NS + name), lambda n, sql=sql: f"{sql}({args_of(n)})")
+        simple(URIRef(SPARQL_NS + name), lambda n, sql=sql: f"{sql}({args_of(n)})")  # str-ok: SPARQL function name
     for name, op in _INFIX.items():
         simple(URIRef(SPARQL_NS + name), lambda _n_, op=op: f"(?a0 {op} ?a1)")
     for name, op in _PREFIX.items():
@@ -682,6 +700,7 @@ def _sp_has_lang(ctx, expr, focus, scope):
         return _run_call("hasLANG(?a0)", values)
     lit, tag = values
     return _bool(
-        bool(getattr(lit, "language", None))
-        and str(lit.language).lower() == str(tag).lower()
+        isinstance(lit, Literal)
+        and bool(lit.language)
+        and lit.language.lower() == text(tag).lower()
     )

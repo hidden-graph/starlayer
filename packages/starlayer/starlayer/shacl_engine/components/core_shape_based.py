@@ -5,14 +5,20 @@ from __future__ import annotations
 from collections.abc import Iterator
 from typing import Any
 
-from rdflib import RDF, RDFS, BNode, Literal, URIRef
-from rdflib.namespace import XSD
-
-from starlayer.graph.model import TripleTerm
 from starlayer.shacl_engine.components.registry import Violation, component
 from starlayer.shacl_engine.plan import SH, Path, ShapeError
+from starlayer.shacl_engine.terms import (
+    RDF,
+    RDFS,
+    XSD,
+    BlankNode,
+    Literal,
+    NamedNode,
+    Triple,
+    text,
+)
 
-_RDF_REIFIES = RDF.reifies if hasattr(RDF, "reifies") else URIRef(str(RDF) + "reifies")
+_RDF_REIFIES = RDF.reifies
 
 
 def shacl_list(graph: Any, head: Any) -> list[Any]:
@@ -21,33 +27,33 @@ def shacl_list(graph: Any, head: Any) -> list[Any]:
     seen: set = set()
     cell = head
     while cell != RDF.nil:
-        if cell in seen or not isinstance(cell, URIRef | BNode):
-            raise ShapeError(f"malformed list at {head}")
+        if cell in seen or not isinstance(cell, NamedNode | BlankNode):
+            raise ShapeError(f"malformed list at {text(head)}")
         seen.add(cell)
         firsts, rests = list(graph.objects(cell, RDF.first)), list(graph.objects(cell, RDF.rest))
         if len(firsts) != 1 or len(rests) != 1:
-            raise ShapeError(f"malformed list at {head}")
+            raise ShapeError(f"malformed list at {text(head)}")
         members.append(firsts[0])
         cell = rests[0]
     if any(True for _ in graph.objects(RDF.nil, RDF.first)) or any(True for _ in graph.objects(RDF.nil, RDF.rest)):
-        raise ShapeError(f"malformed list at {head}")
+        raise ShapeError(f"malformed list at {text(head)}")
     return members
 
 
 def _boolean(term: Any, what: str) -> bool:
-    if isinstance(term, Literal) and term.datatype == XSD.boolean and str(term) in ("true", "false", "1", "0"):
-        return str(term) in ("true", "1")
+    if isinstance(term, Literal) and term.datatype == XSD.boolean and term.value in ("true", "false", "1", "0"):
+        return term.value in ("true", "1")
     raise ShapeError(f"{what} must be an xsd:boolean literal, got {term!r}")
 
 
 def _only_true(term: Any, what: str) -> bool:
     """Like ``_boolean`` but only the lexical form ``"true"`` activates (``"1"`` is a valid but inactive boolean)."""
-    return _boolean(term, what) and str(term) == "true"
+    return _boolean(term, what) and term.value == "true"
 
 
 def _count(term: Any, what: str) -> int:
-    if isinstance(term, Literal) and term.datatype == XSD.integer and str(term).lstrip("+-").isdigit():
-        return int(str(term))
+    if isinstance(term, Literal) and term.datatype == XSD.integer and term.value.lstrip("+-").isdigit():
+        return int(term.value)
     raise ShapeError(f"{what} must be an xsd:integer literal, got {term!r}")
 
 
@@ -154,9 +160,9 @@ def _collect_properties(shapes: Any, node_: Any, visited: set) -> set:
     if node_ in visited:
         return set()
     visited.add(node_)
-    props = {p for ps in shapes.objects(node_, SH.property) for p in shapes.objects(ps, SH.path) if isinstance(p, URIRef)}
+    props = {p for ps in shapes.objects(node_, SH.property) for p in shapes.objects(ps, SH.path) if isinstance(p, NamedNode)}
     types = set(shapes.objects(node_, RDF.type))
-    if isinstance(node_, URIRef) and (RDFS.Class in types or SH.ShapeClass in types):
+    if isinstance(node_, NamedNode) and (RDFS.Class in types or SH.ShapeClass in types):
         for sup in shapes.objects(node_, RDFS.subClassOf):
             props |= _collect_properties(shapes, sup, visited)
         for other in shapes.subjects(SH.targetClass, node_):
@@ -171,23 +177,23 @@ def _collect_properties(shapes: Any, node_: Any, visited: set) -> set:
 def closed(ctx, shape, params, focus, values):
     closed_vals = params.get(SH.closed, ())
     if len(closed_vals) != 1:
-        raise ShapeError(f"{shape.node}: sh:ignoredProperties without exactly one sh:closed")
+        raise ShapeError(f"{text(shape.node)}: sh:ignoredProperties without exactly one sh:closed")
     mode = closed_vals[0]
     by_types = mode == SH.ByTypes
     if not by_types and not _boolean(mode, "sh:closed"):
         return
     ignored: set = set()
     for members in _lists(ctx, params.get(SH.ignoredProperties, ()), "sh:ignoredProperties"):
-        if not all(isinstance(m, URIRef) for m in members):
+        if not all(isinstance(m, NamedNode) for m in members):
             raise ShapeError("sh:ignoredProperties members must be IRIs")
         ignored.update(members)
     declared: set = set()
     for ps in shape.property_shapes:
         for p in ctx.shapes.objects(ps, SH.path):
-            if isinstance(p, URIRef):
+            if isinstance(p, NamedNode):
                 declared.add(p)
     for v in values:
-        if isinstance(v, Literal | TripleTerm):
+        if isinstance(v, Literal | Triple):
             continue
         if by_types:
             allowed = {RDF.type} | ignored
@@ -203,11 +209,15 @@ def closed(ctx, shape, params, focus, values):
 @component(SH.ReifierShapeConstraintComponent, SH.reifierShape, SH.reificationRequired)
 def reifier_shape(ctx, shape, params, focus, values):
     if shape.path is None or shape.path.kind != "pred":
-        raise ShapeError(f"{shape.node}: sh:reifierShape/sh:reificationRequired need a property shape with an IRI path")
+        raise ShapeError(f"{text(shape.node)}: sh:reifierShape/sh:reificationRequired need a property shape with an IRI path")
     required = any(_only_true(r, "sh:reificationRequired") for r in params.get(SH.reificationRequired, ()))
     rshapes = _shape_refs(params.get(SH.reifierShape, ()), "sh:reifierShape")
     for v in values:
-        reifiers = list(ctx.data.subjects(_RDF_REIFIES, TripleTerm(focus, shape.path.iri, v)))
+        reifiers = (
+            list(ctx.data.subjects(_RDF_REIFIES, Triple(focus, shape.path.iri, v)))
+            if not isinstance(focus, Literal | Triple)
+            else []
+        )
         if required and not reifiers:
             yield Violation(value=v)
         for s in rshapes:
@@ -220,7 +230,7 @@ def reifier_shape(ctx, shape, params, focus, values):
 def root_class(ctx, shape, params, focus, values):
     roots = params[SH.rootClass]
     for r in roots:
-        if not isinstance(r, URIRef | BNode):
+        if not isinstance(r, NamedNode | BlankNode):
             raise ShapeError(f"sh:rootClass must be an IRI or blank node, got {r!r}")
     for v in values:
         seen, stack = set(), [v]

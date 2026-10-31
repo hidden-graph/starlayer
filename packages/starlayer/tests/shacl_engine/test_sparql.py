@@ -15,6 +15,7 @@ from starlayer.shacl_engine.sparql_support import (
     path_to_sparql,
     starlayer_sparql_query,
 )
+from starlayer.shacl_engine.terms import to_engine
 
 EX = Namespace("http://example.com/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
@@ -182,16 +183,16 @@ def test_data_graph_native_sparql_query_takes_precedence():
 def test_starlayer_sparql_query_solutions():
     g = StarLayerGraph()
     g.parse(data=PREFIXES + "ex:a ex:p 1 .", format="turtle")
-    sel = starlayer_sparql_query(g, "SELECT ?o WHERE { $this ex:p ?o }".replace("ex:p", "<http://example.com/p>"), {"this": EX.a})
-    assert sel == Solutions(variables=("o",), rows=({"o": Literal(1)},))
-    ask = starlayer_sparql_query(g, "ASK { $this <http://example.com/p> 1 }", {"this": EX.a})
+    sel = starlayer_sparql_query(g, "SELECT ?o WHERE { $this ex:p ?o }".replace("ex:p", "<http://example.com/p>"), {"this": to_engine(EX.a)})
+    assert sel == Solutions(variables=("o",), rows=({"o": to_engine(Literal(1))},))  # engine terms in and out
+    ask = starlayer_sparql_query(g, "ASK { $this <http://example.com/p> 1 }", {"this": to_engine(EX.a)})
     assert ask.boolean is True
 
 
 def test_path_to_sparql_and_fill_template():
-    p = Path(kind="pred", iri=EX.p)
+    p = Path(kind="pred", iri=to_engine(EX.p))
     q = Path(kind="inverse", args=(p,))
     assert path_to_sparql(Path(kind="seq", args=(p, q))) == f"(<{EX.p}>/^(<{EX.p}>))"
     assert path_to_sparql(Path(kind="zero_or_more", args=(p,))) == f"(<{EX.p}>)*"
-    t = fill_template(Literal("a {?x} {$y} {?z}", lang="en"), {"x": Literal("1"), "y": EX.b})
-    assert str(t) == f"a 1 {EX.b} {{?z}}" and t.language == "en"
+    t = fill_template(to_engine(Literal("a {?x} {$y} {?z}", lang="en")), {"x": to_engine(Literal("1")), "y": to_engine(EX.b)})
+    assert t.value == f"a 1 {EX.b} {{?z}}" and t.language == "en"

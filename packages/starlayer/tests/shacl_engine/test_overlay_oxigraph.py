@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
+import pyoxigraph as ox
 import pytest
-from rdflib import RDF, Literal, URIRef
-from rdflib.namespace import XSD
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl_engine import rules
 from starlayer.shacl_engine.entailment import entailed_view
@@ -14,6 +13,15 @@ from starlayer.shacl_engine.overlay_oxigraph import (
     term_is_safe,
 )
 from starlayer.shacl_engine.rules import InferredView, apply_rules
+from starlayer.shacl_engine.terms import (
+    RDF,
+    XSD,
+    engine_view,
+    from_engine,
+    to_engine_triple,
+)
+
+Literal, URIRef = ox.Literal, ox.NamedNode
 
 EX = "http://example.com/ns#"
 PRE = """
@@ -24,8 +32,8 @@ PRE = """
 ex: a sh:ShapesGraph ; sh:declare [ sh:prefix "ex" ; sh:namespace "http://example.com/ns#" ] .
 """
 def lit(lexical: str, datatype: URIRef) -> Literal:
-    """A literal that keeps its lexical form (rdflib would otherwise normalise "04"^^xsd:integer to "4")."""
-    return Literal(lexical, datatype=datatype, normalize=False)
+    """An engine literal keeps exactly the lexical form it is built with ("04"^^xsd:integer stays "04")."""
+    return Literal(lexical, datatype=datatype)
 
 
 # Literals the store would rewrite (lexical form, datatype, or language case) next to ones it keeps.
@@ -34,11 +42,14 @@ REWRITTEN = [
     lit("1", XSD.boolean),
     lit("5", XSD.unsignedByte),
     lit("4.0", XSD.decimal),
-    Literal("x", datatype=XSD.string),
-    Literal("hi", lang="en-US"),
 ]
 SOURCE = REWRITTEN[:4]
-KEPT = [Literal("4", datatype=XSD.integer), Literal("true", datatype=XSD.boolean), Literal("plain"), Literal("hi", lang="en")]
+# In the engine term model, "x"^^xsd:string is the simple literal and a language tag is lower-cased at construction, so
+# those two no longer differ between the engine and the store: they are safe.
+KEPT = [
+    Literal("x", datatype=XSD.string),
+    Literal("hi", language="en-US"),
+Literal("4", datatype=XSD.integer), Literal("true", datatype=XSD.boolean), Literal("plain"), Literal("hi", language="en")]
 
 
 def ex(name: str) -> URIRef:
@@ -60,7 +71,7 @@ def overlay_kind(request):
 
 
 def exact(term: Literal) -> tuple:
-    return (str(term), term.datatype, term.language, type(term))
+    return (term.value, term.datatype, term.language, term.direction, type(term))
 
 
 def test_guard_classifies_literals() -> None:
@@ -70,7 +81,7 @@ def test_guard_classifies_literals() -> None:
 
 
 def test_unsafe_literals_stay_python_side_and_come_back_exact() -> None:
-    view = OxigraphOverlay(StarLayerGraph())
+    view = OxigraphOverlay(engine_view(StarLayerGraph()))
     for i, term in enumerate([*REWRITTEN, *KEPT]):
         assert view.add((ex("s"), ex(f"p{i}"), term)) is True
         assert view.add((ex("s"), ex(f"p{i}"), term)) is False
@@ -87,7 +98,7 @@ def test_unsafe_literals_stay_python_side_and_come_back_exact() -> None:
 
 
 def test_remove_both_sides() -> None:
-    view = OxigraphOverlay(StarLayerGraph())
+    view = OxigraphOverlay(engine_view(StarLayerGraph()))
     a, b = (ex("s"), ex("p"), lit("04", XSD.integer)), (ex("s"), ex("p"), Literal("4", datatype=XSD.integer))
     view.add(a)
     view.add(b)
@@ -103,14 +114,14 @@ def test_subproperty_entailment_keeps_source_literals(overlay_kind) -> None:
         """
     )
     for o in SOURCE:
-        data.add((ex("s"), ex("p"), o))
+        data.add(tuple(from_engine(t) for t in (ex("s"), ex("p"), o)))
     view = entailed_view(data, "rdfs")
     assert isinstance(view, OxigraphOverlay if overlay_kind == "oxigraph" else InferredView)
     got = {exact(o) for o in view.objects(ex("s"), ex("q"))}
-    want = {exact(o) for o in data.objects(ex("s"), ex("p"))}
+    want = {exact(o) for o in engine_view(data).objects(ex("s"), ex("p"))}
     assert got == want and len(got) == 4
-    assert ("04", XSD.integer, None, Literal) in got and ("1", XSD.boolean, None, Literal) in got
-    assert ("5", XSD.unsignedByte, None, Literal) in got
+    assert ("04", XSD.integer, None, None, Literal) in got and ("1", XSD.boolean, None, None, Literal) in got
+    assert ("5", XSD.unsignedByte, None, None, Literal) in got
 
 
 def test_copying_rule_keeps_source_literals(overlay_kind) -> None:
@@ -124,14 +135,14 @@ def test_copying_rule_keeps_source_literals(overlay_kind) -> None:
         """
     )
     for o in SOURCE[:3]:
-        data.add((ex("s"), ex("p"), o))
+        data.add(tuple(from_engine(t) for t in (ex("s"), ex("p"), o)))
     res = apply_rules(data)
     for pred in ("copy", "copy2"):
         got = {exact(o) for o in res.view.objects(ex("s"), ex(pred))}
-        assert got == {exact(o) for o in data.objects(ex("s"), ex("p"))}
-        assert ("04", XSD.integer, None, Literal) in got and ("5", XSD.unsignedByte, None, Literal) in got
-    assert {(s, p, exact(o)) for s, p, o in res.inferred if isinstance(o, Literal)} == {
-        (ex("s"), ex(p), exact(o)) for p in ("copy", "copy2") for o in data.objects(ex("s"), ex("p"))
+        assert got == {exact(o) for o in engine_view(data).objects(ex("s"), ex("p"))}
+        assert ("04", XSD.integer, None, None, Literal) in got and ("5", XSD.unsignedByte, None, None, Literal) in got
+    assert {(s, p, exact(o)) for s, p, o in map(to_engine_triple, res.inferred) if isinstance(o, Literal)} == {
+        (ex("s"), ex(p), exact(o)) for p in ("copy", "copy2") for o in engine_view(data).objects(ex("s"), ex("p"))
     }
 
 
@@ -142,7 +153,7 @@ def test_same_answers_as_inferred_view() -> None:
         ex:a a ex:A ; ex:p ex:b, "x" . ex:b a ex:B .
         """
     )
-    data.add((ex("a"), ex("p"), lit("04", XSD.integer)))
+    data.add(tuple(from_engine(t) for t in (ex("a"), ex("p"), lit("04", XSD.integer))))
     previous = rules._OXIGRAPH_OVERLAY
     try:
         rules.use_oxigraph_overlay(False)
@@ -159,3 +170,11 @@ def test_same_answers_as_inferred_view() -> None:
     assert set(plain.objects(ex("a"), ex("q"))) == set(oxi.objects(ex("a"), ex("q")))
     assert set(plain.predicate_objects(ex("a"))) == set(oxi.predicate_objects(ex("a")))
     assert oxi.construct("CONSTRUCT { ?s <http://x/y> ?o } WHERE { ?s <http://example.com/ns#q> ?o }", None)
+
+
+def test_add_after_materialise_keeps_the_materialised_union_in_step() -> None:
+    view = OxigraphOverlay(engine_view(StarLayerGraph()))
+    view.materialised()
+    view.add((ex("s"), ex("p"), Literal("4", datatype=XSD.integer)))  # store side
+    view.add((ex("s"), ex("p"), lit("04", XSD.integer)))  # python side
+    assert len(view.materialised()) == 2

@@ -49,6 +49,9 @@ def no_unbound_projected_variables(ctx, shape, params, focus, values) -> Iterato
 
 
 def register() -> None:
+    from starlayer.shacl_engine.components.extensions import legacy_adapter
+
+    # the engine's terms are pyoxigraph terms; this module speaks rdflib terms, so register it behind the adapter
     component(SALG.NoUnboundProjectedVariablesConstraintComponent, SALG.noUnboundProjectedVariables)(
-        no_unbound_projected_variables
+        legacy_adapter(lambda: no_unbound_projected_variables)
     )

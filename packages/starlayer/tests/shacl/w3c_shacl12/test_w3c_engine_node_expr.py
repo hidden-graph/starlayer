@@ -14,6 +14,7 @@ from starlayer.shacl_engine import validate
 from starlayer.shacl_engine.executor import Context
 from starlayer.shacl_engine.expressions import evaluate_expression
 from starlayer.shacl_engine.plan import Plan
+from starlayer.shacl_engine.terms import from_engine, to_engine
 
 from .closure import node_closure
 from .comparison import conforms_of, find_report_node, result_multiset
@@ -63,9 +64,15 @@ def _eval(entry: ManifestEntry) -> None:
         if str(p).startswith(prefix)
     }
     expected = list(entry.graph.items(next(entry.graph.objects(entry.iri, MF.result))))
-    actual = evaluate_expression(
-        Context(data=graph, plan=Plan(shapes_graph=graph)), expr, focus, scope
-    )
+    actual = [  # the engine speaks pyoxigraph terms: convert in and out
+        from_engine(t)
+        for t in evaluate_expression(
+            Context(data=graph, plan=Plan(shapes_graph=graph)),
+            to_engine(expr),
+            to_engine(focus),
+            {k: [to_engine(o) for o in v] for k, v in scope.items()},
+        )
+    ]
     if ignore is not None and ignore.toPython():
         assert Counter(actual) == Counter(expected)
     else:

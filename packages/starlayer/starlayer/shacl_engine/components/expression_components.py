@@ -4,8 +4,9 @@
 from __future__ import annotations
 
 from starlayer.shacl_engine.components.registry import Violation, component
-from starlayer.shacl_engine.expressions import TRUE, evaluate_expression
+from starlayer.shacl_engine.expressions import evaluate_expression
 from starlayer.shacl_engine.plan import SH
+from starlayer.shacl_engine.terms import TRUE
 
 
 @component(SH.ExpressionConstraintComponent, SH.expression)

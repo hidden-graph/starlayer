@@ -56,7 +56,7 @@ ex:Common a sh:NodeShape ; sh:property [ sh:path ex:p ; sh:minCount 1 ] .
 def test_conforms_is_evaluated_once_per_shape_and_node(count_evaluations):
     data = "ex:hub ex:q 1 . " + " ".join(f"ex:n{i} a ex:T ; ex:link ex:hub ." for i in range(5))
     out = validate(g(data), g(HUB))
-    hub_visits = [c for c in count_evaluations if str(c[0]).endswith("Common") and str(c[1]).endswith("hub")]
+    hub_visits = [c for c in count_evaluations if c[0].value.endswith("Common") and c[1].value.endswith("hub")]
     assert len(hub_visits) == 1  # five focus nodes reach the hub; it is evaluated once
     assert len(out.results) == 5
 
@@ -141,9 +141,9 @@ def test_ox_objects_and_subjects_dedupe_across_graphs():
         store.add(ox.Quad(a, p, ox.Literal("v"), graph))
     view = OxigraphGraph(store)
     A, P, OBJ = URIRef("http://example.org/a"), URIRef("http://example.org/p"), URIRef("http://example.org/o")
-    assert sorted(map(str, view.objects(A, P))) == ["http://example.org/o", "v"]
-    assert list(view.subjects(P, OBJ)) == [A]
-    assert sorted(map(str, view.objects(A, None))) == ["http://example.org/o", "v"]
+    assert sorted(t.value for t in view.objects(A, P)) == ["http://example.org/o", "v"]
+    assert [from_ox(s) for s in view.subjects(P, OBJ)] == [A]
+    assert sorted(t.value for t in view.objects(A, None)) == ["http://example.org/o", "v"]
     named = OxigraphGraph(store, URIRef("http://example.org/g1"))
     assert len(list(named.objects(A, P))) == 2
 

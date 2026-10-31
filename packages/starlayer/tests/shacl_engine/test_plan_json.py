@@ -7,6 +7,7 @@ import json
 import re
 from pathlib import Path
 
+import pyoxigraph as ox
 import pytest
 from rdflib import BNode, Literal, URIRef
 from rdflib.namespace import XSD
@@ -26,6 +27,7 @@ from starlayer.shacl_engine.plan_json import (
     term_from_json,
     term_to_json,
 )
+from starlayer.shacl_engine.terms import to_engine
 from tests.shacl.w3c_shacl12.comparison import find_report_node, result_multiset
 from tests.shacl.w3c_shacl12.manifest import (
     clone_graph,
@@ -76,18 +78,19 @@ def _plan_of(path: Path) -> Plan | None:
     ],
 )
 def test_term_round_trip(term):
+    term = to_engine(term)  # the plan holds engine (pyoxigraph) terms
     obj = json.loads(json.dumps(term_to_json(term)))
     back = term_from_json(obj)
     assert back == term
     assert type(back) is type(term)
-    if isinstance(term, Literal):
-        assert str(back) == str(term) and back.datatype == term.datatype and back.language == term.language
+    if isinstance(term, ox.Literal):
+        assert back.value == term.value and back.datatype == term.datatype and back.language == term.language
 
 
 def test_term_tags_are_explicit():
-    assert term_to_json(URIRef("http://e/a")) == {"t": "iri", "v": "http://e/a"}
-    assert term_to_json(Literal("a", lang="en")) == {"t": "lit", "v": "a", "dt": None, "lang": "en", "dir": None}
-    assert term_to_json(DirLangString("a", "en", "ltr"))["dir"] == "ltr"
+    assert term_to_json(to_engine(URIRef("http://e/a"))) == {"t": "iri", "v": "http://e/a"}
+    assert term_to_json(to_engine(Literal("a", lang="en"))) == {"t": "lit", "v": "a", "dt": None, "lang": "en", "dir": None}
+    assert term_to_json(to_engine(DirLangString("a", "en", "ltr")))["dir"] == "ltr"
 
 
 # --------------------------------------------------------------------------------------------------------------------
@@ -234,7 +237,7 @@ def test_malformed_shape_is_a_recorded_plan_error():
     from starlayer.shacl_engine.plan import ShapeError
 
     with pytest.raises(ShapeError):
-        plan_from_json(json.loads(json.dumps(obj))).shape(URIRef("http://e/S"))
+        plan_from_json(json.loads(json.dumps(obj))).shape(to_engine(URIRef("http://e/S")))
 
 
 def test_cli(tmp_path, capsys):
@@ -251,12 +254,12 @@ def test_cli(tmp_path, capsys):
 
 def test_every_registered_component_is_in_the_table_and_annotated():
     rows = {r["component"]: r for r in component_table()["components"]}
-    assert set(rows) == {str(k) for k in REGISTRY}
+    assert set(rows) == {k.value for k in REGISTRY}
     unannotated = [k for k, r in rows.items() if not r["annotated"]]
     assert not unannotated, f"add them to _COMPONENT_META in component_table.py: {unannotated}"
     for iri, spec in REGISTRY.items():
-        row = rows[str(iri)]
-        assert set(row["parameters"]) == {str(p) for p in spec.predicates}
+        row = rows[iri.value]
+        assert set(row["parameters"]) == {p.value for p in spec.predicates}
         assert set(row["required"]) | set(row["optional"]) <= set(row["parameters"])
         assert row["scope"] in ("value_node", "focus_node")
         assert row["needs"]["graph"] is True
@@ -264,7 +267,7 @@ def test_every_registered_component_is_in_the_table_and_annotated():
 
 def test_every_registered_operator_is_in_the_table_and_annotated():
     rows = {r["operator"]: r for r in component_table()["operators"]}
-    assert set(rows) == {str(k) for k in OPERATORS}
+    assert set(rows) == {k.value for k in OPERATORS}
     unannotated = [k for k, r in rows.items() if not r["annotated"]]
     assert not unannotated, f"add them to _OPERATOR_META / _SPARQL_FN_ARITY in component_table.py: {unannotated}"
 

@@ -9,17 +9,20 @@ adds when a shape has no ``sh:message``) is only present when the engine compone
 component names itself ``ConstraintComponent`` in pySHACL and by its own IRI local name here.
 """
 
+# str-ok-file: renders the boundary results: every term in this module is an rdflib / StarLayer term (from_engine output)
+
 from __future__ import annotations
 
 from typing import Any
 
-from rdflib import BNode, Literal, URIRef
+from rdflib import BNode, Literal, Namespace, URIRef
 from rdflib.namespace import DCTERMS, RDF
 
 from starlayer.graph.model.triple import TripleTerm
 from starlayer.shacl_engine.executor import Result
-from starlayer.shacl_engine.plan import SH, Path
+from starlayer.shacl_engine.plan import Path
 
+SH = Namespace("http://www.w3.org/ns/shacl#")  # rdflib terms: the text is rendered from the boundary results
 _MAX_DEPTH = 12
 
 

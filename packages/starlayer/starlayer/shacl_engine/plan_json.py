@@ -33,10 +33,6 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Any
 
-from rdflib import OWL, RDF, RDFS, BNode, Literal, URIRef
-
-from starlayer.graph.model import TripleTerm
-from starlayer.graph.model.dirlangstring import DirLangString
 from starlayer.shacl_engine.plan import (
     SH,
     Path,
@@ -46,6 +42,18 @@ from starlayer.shacl_engine.plan import (
     Term,
     is_shape_type,
 )
+from starlayer.shacl_engine.terms import (
+    OWL,
+    RDF,
+    RDFS,
+    BlankNode,
+    Literal,
+    NamedNode,
+    Triple,
+    from_engine_triple,
+)
+from starlayer.shacl_engine.terms import BlankNode as BNode
+from starlayer.shacl_engine.terms import NamedNode as URIRef
 
 FORMAT_VERSION = 1
 SHNEX = "http://www.w3.org/ns/shacl-node-expr#"
@@ -57,21 +65,19 @@ _SHAPE_REF_KEYS = {SHNEX + "filterShape", SHNEX + "findFirst", SHNEX + "matchAll
 
 
 def term_to_json(term: Term) -> dict:
-    if isinstance(term, URIRef):
-        return {"t": "iri", "v": str(term)}
-    if isinstance(term, BNode):
-        return {"t": "bnode", "v": str(term)}
-    if isinstance(term, DirLangString):
-        return {"t": "lit", "v": term.value, "dt": None, "lang": term.language, "dir": term.direction}
+    if isinstance(term, NamedNode):
+        return {"t": "iri", "v": term.value}
+    if isinstance(term, BlankNode):
+        return {"t": "bnode", "v": term.value}
     if isinstance(term, Literal):
         return {
             "t": "lit",
-            "v": str(term),
-            "dt": str(term.datatype) if term.datatype is not None else None,
+            "v": term.value,
+            "dt": term.datatype.value if not term.language else None,
             "lang": term.language,
-            "dir": None,
+            "dir": str(term.direction) if term.direction is not None else None,
         }
-    if isinstance(term, TripleTerm):
+    if isinstance(term, Triple):
         return {
             "t": "triple",
             "s": term_to_json(term.subject),
@@ -84,18 +90,19 @@ def term_to_json(term: Term) -> dict:
 def term_from_json(obj: dict) -> Term:
     kind = obj["t"]
     if kind == "iri":
-        return URIRef(obj["v"])
+        return NamedNode(obj["v"])
     if kind == "bnode":
-        return BNode(obj["v"])
+        return BlankNode(obj["v"])
     if kind == "lit":
-        if obj.get("dir"):
-            return DirLangString(obj["v"], obj["lang"], obj["dir"])
         if obj.get("lang"):
-            return Literal(obj["v"], lang=obj["lang"])
+            from pyoxigraph import BaseDirection
+
+            direction = {"ltr": BaseDirection.LTR, "rtl": BaseDirection.RTL}[obj["dir"]] if obj.get("dir") else None
+            return Literal(obj["v"], language=obj["lang"], direction=direction)
         dt = obj.get("dt")
-        return Literal(obj["v"], datatype=URIRef(dt) if dt else None, normalize=False)
+        return Literal(obj["v"], datatype=NamedNode(dt)) if dt else Literal(obj["v"])
     if kind == "triple":
-        return TripleTerm(term_from_json(obj["s"]), term_from_json(obj["p"]), term_from_json(obj["o"]))
+        return Triple(term_from_json(obj["s"]), term_from_json(obj["p"]), term_from_json(obj["o"]))
     raise ValueError(f"unknown term tag {kind!r}")
 
 
@@ -139,8 +146,8 @@ def shape_to_json(shape: Shape) -> dict:
         "node": term_to_json(shape.node),
         "is_property": shape.is_property,
         "path": path_to_json(shape.path),
-        "targets": [[str(p), term_to_json(v)] for p, v in shape.targets],
-        "params": {str(p): _terms(vs) for p, vs in shape.params.items()},
+        "targets": [[p.value, term_to_json(v)] for p, v in shape.targets],
+        "params": {p.value: _terms(vs) for p, vs in shape.params.items()},
         "property_shapes": _terms(shape.property_shapes),
         "severity": term_to_json(shape.severity),
         "deactivated": shape.deactivated,
@@ -211,7 +218,7 @@ def _expression_refs(graph: Any, exprs: Iterable[Term]) -> list[Term]:
     seen: set = set()
     for expr in exprs:
         for _s, p, o in _walk_bnodes(graph, expr, seen):
-            if str(p) in _SHAPE_REF_KEYS and not isinstance(o, Literal):
+            if p.value in _SHAPE_REF_KEYS and not isinstance(o, Literal):
                 out.append(o)
             elif isinstance(o, URIRef) and is_shape_type(graph, o):
                 out.append(o)
@@ -320,7 +327,7 @@ def _follow_iris(plan: Plan, graph: Any, rule_nodes: list[Term]) -> set:
 
 
 def _terms_in(term: Term) -> list[Term]:
-    if isinstance(term, TripleTerm):
+    if isinstance(term, Triple):
         return [x for part in (term.subject, term.predicate, term.object) for x in _terms_in(part)]
     return [term]
 
@@ -467,7 +474,7 @@ def plan_from_json(obj: dict, shapes_graph: Any = None) -> Plan:
 
         shapes_graph = StarLayerGraph()
         for s, p, o in obj["graph"]:
-            shapes_graph.add((term_from_json(s), term_from_json(p), term_from_json(o)))
+            shapes_graph.add(from_engine_triple((term_from_json(s), term_from_json(p), term_from_json(o))))
     plan = SerializedPlan(
         shapes_graph=shapes_graph,
         declared=[term_from_json(t) for t in obj["declared"]],

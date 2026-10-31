@@ -10,10 +10,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from rdflib import OWL, RDF, RDFS, BNode, Literal, URIRef
+from rdflib import OWL, RDF, RDFS, BNode, Literal, Namespace, URIRef
 
-from starlayer.shacl_engine.plan import SH, ShapeError
+from starlayer.shacl_engine.plan import ShapeError
 
+SH = Namespace("http://www.w3.org/ns/shacl#")  # rdflib terms: this module works on the caller's graphs
 _GRAPH_TYPES = (SH.Graph, SH.ShapesGraph, SH.DataGraph, SH.RulesGraph)
 
 

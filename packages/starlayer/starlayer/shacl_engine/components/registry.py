@@ -15,9 +15,9 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import Any
 
-from rdflib import URIRef
-
 from starlayer.shacl_engine.plan import Term
+from starlayer.shacl_engine.terms import NamedNode as URIRef
+from starlayer.shacl_engine.terms import to_engine
 
 
 @dataclass(frozen=True)
@@ -47,8 +47,12 @@ REGISTRY: dict[URIRef, ComponentSpec] = {}
 
 
 def component(iri: URIRef, *predicates: URIRef):
+    """Register ``fn`` under a component IRI. rdflib IRIs are accepted and converted (``to_engine``); ``fn`` itself then
+    receives engine terms unless it was wrapped with ``extensions.legacy_adapter``."""
+
     def deco(fn):
-        REGISTRY[iri] = ComponentSpec(iri, tuple(predicates), fn)
+        iri_ = to_engine(iri)
+        REGISTRY[iri_] = ComponentSpec(iri_, tuple(to_engine(p) for p in predicates), fn)
         return fn
 
     return deco

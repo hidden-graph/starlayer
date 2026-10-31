@@ -11,9 +11,9 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from rdflib import OWL, RDF, RDFS, URIRef
-
 from starlayer.shacl_engine.plan import SH, Term
+from starlayer.shacl_engine.terms import OWL, RDF, RDFS
+from starlayer.shacl_engine.terms import NamedNode as URIRef
 
 _TARGET_PREDICATES = (SH.targetNode, SH.targetClass, SH.targetSubjectsOf, SH.targetObjectsOf, SH.targetWhere)
 _SHAPE_TYPES = (SH.NodeShape, SH.PropertyShape, SH.Shape, SH.ShapeClass)

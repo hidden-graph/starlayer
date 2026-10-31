@@ -10,10 +10,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from rdflib import RDF, URIRef
-from rdflib.namespace import Namespace
+from starlayer.shacl_engine.terms import RDF, SH, NamedNode, engine_view
 
-SH = Namespace("http://www.w3.org/ns/shacl#")
+URIRef = NamedNode  # type alias kept for the annotations below
 Term = Any
 
 
@@ -58,6 +57,9 @@ class Plan:
     _cache: dict[Term, Shape] = field(default_factory=dict)
     _components: list | None = None
     sparql_cache: dict = field(default_factory=dict)  # prefix declarations and checked queries, keyed by their inputs
+
+    def __post_init__(self) -> None:
+        self.shapes_graph = engine_view(self.shapes_graph, "shapes graph")  # the seam: rdflib / StarLayer graphs get an engine-term view
 
     def components(self) -> list:
         """Built-in components plus the SPARQL-based constraint components declared in the shapes graph (built once)."""

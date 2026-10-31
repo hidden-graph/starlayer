@@ -162,8 +162,8 @@ _OPERATOR_META: dict[str, dict[str, Any]] = {
     SHNEX + "instancesOf": _o("instancesOf", graph=True, note="subclass closure from the data graph"),
     SHNEX + "nodesMatching": _o("nodesMatching", arity="shape", graph=True, conforms=True, note="candidates: every subject and object of the data graph"),
     SHNEX + "conformsToShape": _o("conformsToShape", arity="list:2", conforms=True, note="(node, shape IRI)"),
-    str(SH.select): _o("select", arity="const", sparql="engine", graph=True, clause="SPARQL-Related Features (node expression)", note="a SELECT projecting one variable; this and scope variables pre-bound"),
-    str(SH.sparqlExpr): _o("sparqlExpr", arity="const", sparql="engine", graph=True, clause="SPARQL-Related Features (node expression)", note="a SPARQL expression, run as SELECT (expr AS ?result) {}"),
+    SH.select.value: _o("select", arity="const", sparql="engine", graph=True, clause="SPARQL-Related Features (node expression)", note="a SELECT projecting one variable; this and scope variables pre-bound"),
+    SH.sparqlExpr.value: _o("sparqlExpr", arity="const", sparql="engine", graph=True, clause="SPARQL-Related Features (node expression)", note="a SPARQL expression, run as SELECT (expr AS ?result) {}"),
 }
 
 # sparql: functions (SPARQL_NS). name -> (min arity, max arity or None for variadic); evaluated by a SPARQL function library.
@@ -210,19 +210,19 @@ def _operator_meta(iri: str) -> dict[str, Any] | None:
 def component_rows() -> list[dict[str, Any]]:
     rows = []
     for iri, spec in REGISTRY.items():
-        meta = _COMPONENT_META.get(str(iri)) or _COMPONENT_META.get(_local(str(iri)))
-        preds = [str(p) for p in spec.predicates]
+        meta = _COMPONENT_META.get(iri.value) or _COMPONENT_META.get(_local(iri.value))
+        preds = [p.value for p in spec.predicates]
         by_local = {_local(p): p for p in preds}
         if meta is None:
             rows.append(
-                {"component": str(iri), "annotated": False, "parameters": preds, "required": [], "optional": preds,
+                {"component": iri.value, "annotated": False, "parameters": preds, "required": [], "optional": preds,
                  "scope": UNVERIFIED, "needs": {}, "clause": UNVERIFIED, "note": "", "implementation": spec.fn.__module__ + "." + spec.fn.__name__}
             )  # fmt: skip
             continue
         unknown = [p for p in (*meta["required"], *meta["optional"]) if p not in by_local]
         rows.append(
             {
-                "component": str(iri),
+                "component": iri.value,
                 "annotated": not unknown and set(by_local) == {*meta["required"], *meta["optional"]},
                 "parameters": preds,
                 "required": [by_local[p] for p in meta["required"] if p in by_local],
@@ -240,7 +240,7 @@ def component_rows() -> list[dict[str, Any]]:
 def operator_rows() -> list[dict[str, Any]]:
     rows = []
     for iri in OPERATORS:
-        iri = str(iri)
+        iri = iri.value
         meta = _operator_meta(iri)
         ns = "shnex" if iri.startswith(SHNEX) else "sparql" if iri.startswith(SPARQL_NS) else "sh"
         if meta is None:

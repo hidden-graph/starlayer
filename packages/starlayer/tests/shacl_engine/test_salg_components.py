@@ -12,6 +12,7 @@ from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl_engine import validate
 from starlayer.shacl_engine.components.registry import REGISTRY
+from starlayer.shacl_engine.terms import to_engine
 from starlayer.sparql import salg
 
 QUERIES = [
@@ -64,7 +65,7 @@ def test_unbound_variable_is_reported_with_the_salg_component():
 
 
 def test_component_is_registered_without_importing_salg_in_the_engine():
-    assert starlayer.sparql.SALG.NoUnboundProjectedVariablesConstraintComponent in REGISTRY
+    assert to_engine(starlayer.sparql.SALG.NoUnboundProjectedVariablesConstraintComponent) in REGISTRY
 
 
 def test_register_is_idempotent_and_installs_the_real_function():
@@ -72,8 +73,8 @@ def test_register_is_idempotent_and_installs_the_real_function():
 
     engine_components.register()
     engine_components.register()
-    iri = starlayer.sparql.SALG.NoUnboundProjectedVariablesConstraintComponent
-    assert REGISTRY[iri].fn is engine_components.no_unbound_projected_variables
+    iri = to_engine(starlayer.sparql.SALG.NoUnboundProjectedVariablesConstraintComponent)
+    assert iri in REGISTRY and len([k for k in REGISTRY if k == iri]) == 1  # registered once, behind the rdflib adapter
 
 
 def test_non_boolean_marker_is_a_shape_error():

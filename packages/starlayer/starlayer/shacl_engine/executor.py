@@ -10,6 +10,7 @@ from starlayer.shacl_engine.expressions import EvaluationFailure, evaluate_expre
 from starlayer.shacl_engine.paths import eval_path
 from starlayer.shacl_engine.plan import SH, Path, Plan, Shape, ShapeError, Term
 from starlayer.shacl_engine.targets import focus_nodes
+from starlayer.shacl_engine.terms import engine_view
 
 
 @dataclass(frozen=True)
@@ -44,6 +45,9 @@ class Context:
     _conforms_memo: dict = field(default_factory=dict)  # (shape, node) -> (bool, nesting height), assumption-free only
     _peak: int = 0  # deepest ``_depth`` at which a shape was entered since the enclosing conforms() started
     _assumed: int = 0  # how many times a re-entry assumed 'conforms' (the greatest-fixpoint reading) so far
+
+    def __post_init__(self) -> None:
+        self.data = engine_view(self.data, "data graph")
 
     @property
     def shapes(self) -> Any:

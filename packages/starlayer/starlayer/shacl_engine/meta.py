@@ -9,19 +9,22 @@ old preflight (``allow_warnings=True``).
 The engine's ``validate`` is imported lazily (``api`` may import this module).
 """
 
+# str-ok-file: formats boundary results (legacy_result): rdflib terms only
+
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from typing import Any
 
-from starlayer.shacl_engine.plan import SH
+from rdflib import Namespace
 
 try:  # same exception type as the old preflight, so callers that catch it keep working
     from pyshacl.errors import ReportableRuntimeError as _Base
 except ImportError:  # pragma: no cover
     _Base = RuntimeError
 
+SH = Namespace("http://www.w3.org/ns/shacl#")  # rdflib terms: this module works on the caller's graphs
 META_ERROR_PREFIX = "SHACL File does not validate against the SHACL Shapes SHACL (MetaSHACL) file."
 
 

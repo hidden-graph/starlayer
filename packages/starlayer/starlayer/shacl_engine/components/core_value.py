@@ -8,47 +8,35 @@ from __future__ import annotations
 
 import operator
 from collections.abc import Iterator
-from decimal import Decimal
 from typing import Any
 
-from rdflib import BNode, Literal, URIRef
-from rdflib.namespace import RDF, RDFS, XSD
-
-from starlayer.graph.model import TripleTerm
-from starlayer.graph.model.dirlangstring import DirLangString
+from starlayer.shacl_engine import xsd_values as xv
 from starlayer.shacl_engine.components.registry import Violation, component
 from starlayer.shacl_engine.plan import SH, ShapeError
-
-RDF_DIR_LANG_STRING = URIRef(str(RDF) + "dirLangString")
-
-_NUMERIC = {
-    XSD.integer, XSD.decimal, XSD.float, XSD.double, XSD.int, XSD.long, XSD.short, XSD.byte,
-    XSD.nonNegativeInteger, XSD.positiveInteger, XSD.nonPositiveInteger, XSD.negativeInteger,
-    XSD.unsignedInt, XSD.unsignedLong, XSD.unsignedShort, XSD.unsignedByte,
-}  # fmt: skip
-_ORDERED = {XSD.string, XSD.boolean, XSD.date, XSD.dateTime, XSD.time, XSD.gYear, XSD.gYearMonth}
-
+from starlayer.shacl_engine.terms import (
+    RDF,
+    RDFS,
+    BlankNode,
+    Literal,
+    NamedNode,
+    Triple,
+    text,
+)
 
 # --- term helpers -----------------------------------------------------------------------------------------------
 
 
 def is_literal(t: Any) -> bool:
-    return isinstance(t, (Literal, DirLangString))
+    return isinstance(t, Literal)
 
 
 def is_triple_term(t: Any) -> bool:
-    return isinstance(t, TripleTerm)
+    return isinstance(t, Triple)
 
 
-def literal_datatype(t: Any) -> URIRef | None:
+def literal_datatype(t: Any) -> NamedNode | None:
     """The RDF datatype IRI of a literal (``rdf:langString`` / ``rdf:dirLangString`` for tagged strings)."""
-    if isinstance(t, DirLangString):
-        return RDF_DIR_LANG_STRING
-    if isinstance(t, Literal):
-        if t.datatype is not None:
-            return t.datatype
-        return RDF.langString if t.language else XSD.string
-    return None
+    return t.datatype if isinstance(t, Literal) else None
 
 
 def rdf_list(graph: Any, head: Any) -> list[Any] | None:
@@ -68,7 +56,7 @@ def rdf_list(graph: Any, head: Any) -> list[Any] | None:
 
 def alternatives(graph: Any, term: Any, what: str) -> list[Any]:
     """A parameter value that is either a single term or an rdf:list of terms (a union, SHACL 1.2)."""
-    if isinstance(term, BNode) and (term, RDF.first, None) in graph:
+    if isinstance(term, BlankNode) and (term, RDF.first, None) in graph:
         members = rdf_list(graph, term)
         if not members:
             raise ShapeError(f"{what}: malformed list {term!r}")
@@ -76,11 +64,11 @@ def alternatives(graph: Any, term: Any, what: str) -> list[Any]:
     return [term]
 
 
-def _single_int(params: dict, pred: URIRef) -> int:
+def _single_int(params: dict, pred: NamedNode) -> int:
     (v,) = params[pred] if len(params[pred]) == 1 else (None,)
-    value = v.value if isinstance(v, Literal) and v.datatype in _NUMERIC else None
+    value = xv.numeric(v)
     if not isinstance(value, int) or isinstance(value, bool) or value < 0:
-        raise ShapeError(f"{pred} needs exactly one non-negative xsd:integer, got {list(params[pred])!r}")
+        raise ShapeError(f"{text(pred)} needs exactly one non-negative xsd:integer, got {[text(x) for x in params[pred]]!r}")
     return value
 
 
@@ -110,7 +98,7 @@ def class_(ctx, shape, params, focus, values) -> Iterator[Violation]:
             raise ShapeError(f"sh:class needs IRIs or blank nodes, got {param!r}")
         for v in values:
             if not any(_is_instance(ctx.data, v, c) for c in classes):
-                yield Violation(value=v, message=f"Value {v} is not an instance of {param}")
+                yield Violation(value=v, message=f"Value {text(v)} is not an instance of {text(param)}")
 
 
 # --- sh:datatype ------------------------------------------------------------------------------------------------
@@ -121,18 +109,18 @@ def _has_datatype(v: Any, datatypes: list[Any]) -> bool:
         return False
     if literal_datatype(v) not in datatypes:
         return False
-    return not (isinstance(v, Literal) and v.ill_typed is True)  # well-formed per the datatype's lexical space
+    return xv.well_formed(v)  # well-formed per the datatype's lexical space (value logic: xsd_values)
 
 
 @component(SH.DatatypeConstraintComponent, SH.datatype)
 def datatype(ctx, shape, params, focus, values) -> Iterator[Violation]:
     for dt in params[SH.datatype]:
         allowed = alternatives(ctx.shapes, dt, "sh:datatype")  # a list of datatype IRIs is a union
-        if not all(isinstance(a, URIRef) for a in allowed):
+        if not all(isinstance(a, NamedNode) for a in allowed):
             raise ShapeError(f"sh:datatype needs an IRI or a list of IRIs, got {dt!r}")
         for v in values:
             if not _has_datatype(v, allowed):
-                yield Violation(value=v, message=f"Value {v} does not have datatype {dt}")
+                yield Violation(value=v, message=f"Value {text(v)} does not have datatype {text(dt)}")
 
 
 # --- sh:nodeKind ------------------------------------------------------------------------------------------------
@@ -149,9 +137,9 @@ _KINDS = {
 
 
 def _kind(t: Any) -> str:
-    if isinstance(t, URIRef):
+    if isinstance(t, NamedNode):
         return "iri"
-    if isinstance(t, BNode):
+    if isinstance(t, BlankNode):
         return "bnode"
     if is_triple_term(t):
         return "triple"
@@ -167,7 +155,7 @@ def node_kind(ctx, shape, params, focus, values) -> Iterator[Violation]:
         allowed = set().union(*(_KINDS[k] for k in kinds))
         for v in values:
             if _kind(v) not in allowed:
-                yield Violation(value=v, message=f"Value {v} does not have node kind {nk}")
+                yield Violation(value=v, message=f"Value {text(v)} does not have node kind {text(nk)}")
 
 
 # --- sh:minCount / sh:maxCount ----------------------------------------------------------------------------------
@@ -177,52 +165,33 @@ def node_kind(ctx, shape, params, focus, values) -> Iterator[Violation]:
 def min_count(ctx, shape, params, focus, values) -> Iterator[Violation]:
     n = _single_int(params, SH.minCount)
     if len(values) < n:
-        yield Violation(message=f"Expected at least {n} value(s), found {len(values)}")
+        yield Violation(message=f"Expected at least {n} value(s), found {len(values)}")  # str-ok: n is an int
 
 
 @component(SH.MaxCountConstraintComponent, SH.maxCount)
 def max_count(ctx, shape, params, focus, values) -> Iterator[Violation]:
     n = _single_int(params, SH.maxCount)
     if len(values) > n:
-        yield Violation(message=f"Expected at most {n} value(s), found {len(values)}")
+        yield Violation(message=f"Expected at most {n} value(s), found {len(values)}")  # str-ok: n is an int
 
 
 # --- value ranges -----------------------------------------------------------------------------------------------
 
 
-def _ordered_value(t: Any) -> tuple[str, Any] | None:
-    """(comparison family, python value) for a literal that has a defined order, else None."""
-    if not isinstance(t, Literal) or t.language or t.ill_typed is True:
-        return None
-    dt = literal_datatype(t)
-    value = t.value
-    if value is None:
-        return None
-    if dt in _NUMERIC:
-        return ("number", value) if isinstance(value, (int, float, Decimal)) else None
-    if dt in _ORDERED:
-        return (str(dt), value)
-    return None
-
-
 def _compare(op, value: Any, bound: Any) -> bool:
-    a, b = _ordered_value(value), _ordered_value(bound)
-    if a is None or b is None or a[0] != b[0]:
-        return False
-    try:
-        return bool(op(a[1], b[1]))
-    except TypeError:  # e.g. timezone-aware vs naive
-        return False
+    """``op(value, bound)`` on the SPARQL/XSD value order; incomparable (or ill-formed) is False."""
+    c = xv.compare(value, bound)
+    return c is not None and bool(op(c, 0))
 
 
-def _range_component(pred: URIRef, op):
+def _range_component(pred: NamedNode, op):
     def check(ctx, shape, params, focus, values) -> Iterator[Violation]:
         for bound in params[pred]:
             if not isinstance(bound, Literal):
-                raise ShapeError(f"{pred} needs a literal, got {bound!r}")
+                raise ShapeError(f"{text(pred)} needs a literal, got {bound!r}")
             for v in values:
                 if not _compare(op, v, bound):
-                    yield Violation(value=v, message=f"Value {v} fails {pred.split('#')[-1]} {bound}")
+                    yield Violation(value=v, message=f"Value {text(v)} fails {pred.value.split('#')[-1]} {text(bound)}")
 
     return check
 
@@ -243,7 +212,7 @@ for _iri, _pred, _op in (
 def has_value(ctx, shape, params, focus, values) -> Iterator[Violation]:
     for want in params[SH.hasValue]:
         if want not in values:
-            yield Violation(message=f"Missing required value {want}")
+            yield Violation(message=f"Missing required value {text(want)}")
 
 
 @component(SH.InConstraintComponent, SH["in"])
@@ -254,4 +223,4 @@ def in_(ctx, shape, params, focus, values) -> Iterator[Violation]:
             raise ShapeError(f"sh:in needs an rdf:list, got {head!r}")
         for v in values:
             if v not in members:
-                yield Violation(value=v, message=f"Value {v} is not in the allowed list")
+                yield Violation(value=v, message=f"Value {text(v)} is not in the allowed list")

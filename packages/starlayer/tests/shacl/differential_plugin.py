@@ -174,7 +174,7 @@ def _skip_options(
 
 
 def _disallows(options: dict[str, Any]) -> Any:
-    from starlayer.shacl_engine.plan import SH
+    from tests.shacl.w3c_shacl12.namespaces import SH
 
     if options.get("allow_warnings"):
         return SH.Violation
@@ -397,6 +397,13 @@ def _compare(
             )
             return old
         except Exception as exc:
+            from starlayer.shacl_engine.terms import TermError
+
+            if isinstance(exc, TermError):
+                # a term that is not an RDF term (relative IRI ...): outside SHACL 1.2's domain, by policy the engine
+                # rejects the graph up front; there is nothing to compare against
+                _write({**base, "outcome": "skipped", "skip_options": ["ill_formed_term"], "reason": str(exc)[:300]})
+                return old
             tb = traceback.extract_tb(exc.__traceback__)[-1]
             _write(
                 {

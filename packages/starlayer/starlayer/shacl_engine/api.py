@@ -10,8 +10,17 @@ from rdflib import URIRef
 
 from starlayer.shacl_engine import components  # noqa: F401  (registers the constraint components)
 from starlayer.shacl_engine.executor import Result, run
-from starlayer.shacl_engine.plan import Plan
+from starlayer.shacl_engine.plan import Path, Plan
 from starlayer.shacl_engine.report import annotate_provenance, build_report, conforms
+from starlayer.shacl_engine.terms import (
+    LegacyTermView,
+    check_graphs,
+    engine_view,
+    from_engine,
+    from_engine_triple,
+    to_engine,
+    with_term_policy,
+)
 
 DEFAULT_MAX_VALIDATION_DEPTH = 500  # the old validator's default (starlayer.shacl.recursion.MAX_VALIDATION_DEPTH)
 
@@ -23,6 +32,7 @@ class Outcome:
     results: list[Result]
     rule_result: Any = None
     data_graph: Any = None  # the caller's data graph with the inferred triples added, when ``inplace=True``
+    invalid_terms: tuple = ()  # ill-formed terms processed as opaque stand-ins (``invalid_terms="lenient"``); else empty
     recursion_revisits: int = 0  # recursive (shape, node) re-entries during the run (diagnostics)
     _text_inputs: Any = field(default=None, repr=False, compare=False)  # (shapes, data view, data_graph_iri) for report_text
     _report_text: str | None = field(default=None, repr=False, compare=False)
@@ -46,6 +56,30 @@ class Outcome:
         return ExecutionDiagnostics(report_triples=len(self.report_graph), recursion_revisits=self.recursion_revisits, inplace_data_triples=len(self.data_graph) if self.data_graph is not None else 0)
 
 
+def legacy_path(p: Path | None) -> Path | None:
+    """A ``Path`` with rdflib terms (the public ``Outcome.results`` speak the caller's term model)."""
+    if p is None:
+        return None
+    return Path(kind=p.kind, iri=from_engine(p.iri), args=tuple(legacy_path(a) for a in p.args), node=from_engine(p.node))
+
+
+def legacy_result(r: Result) -> Result:
+    """A ``Result`` with rdflib / StarLayer terms: the term-model boundary of ``Outcome.results``."""
+    return Result(
+        focus=from_engine(r.focus),
+        path=legacy_path(r.path),
+        value=from_engine(r.value),
+        has_value=r.has_value,
+        component=from_engine(r.component),
+        shape=from_engine(r.shape),
+        severity=from_engine(r.severity),
+        messages=tuple(from_engine(m) for m in r.messages),
+        source_constraint=from_engine(r.source_constraint),
+        annotations=tuple((from_engine(p), from_engine(v)) for p, v in r.annotations),
+        details=tuple(legacy_result(d) for d in r.details),
+    )
+
+
 def _identity_of(graph: Any) -> Any:
     """A graph's own IRI (``graph.identifier``) when it has a real one; the anonymous blank node every rdflib graph
     gets carries no identity worth reporting."""
@@ -53,6 +87,7 @@ def _identity_of(graph: Any) -> Any:
     return ident if isinstance(ident, URIRef) else None
 
 
+@with_term_policy
 def validate(
     data_graph: Any,
     shapes_graph: Any = None,
@@ -108,11 +143,18 @@ def validate(
     ``shapes_graph`` is stored under ``(id(shapes_graph), shapes_graph_resource)`` and reused by later calls with the same
     shapes graph object (the caller must keep that object alive and unchanged).
 
+    ``invalid_terms``: what to do with terms that are not RDF terms (a relative IRI, a blank node id or language tag
+    Oxigraph rejects): ``"error"`` (default) raises ``terms.TermError`` before validating; ``"lenient"`` processes them as
+    opaque terms and lists them on ``Outcome.invalid_terms``. See ``terms.TermError`` for the policy and its reasoning.
+
     Not offered: the old validator's ``decode_report`` (it undoes the triple-term encoding it applies for pySHACL; this
     engine handles triple terms natively and never encodes, so there is nothing to decode) and ``iterate_rules``.
     """
     from starlayer.shacl_engine.entailment import resolve_data_view
 
+    # One up-front check of the caller's graphs for terms that are not RDF terms (``terms.TermError``): raises, or under
+    # ``invalid_terms="lenient"`` lists them on ``Outcome.invalid_terms``.
+    invalid = check_graphs((data_graph, "data graph"), (shapes_graph, "shapes graph"), (ont_graph, "ontology graph"))
     shapes = shapes_graph
     cache_key = (id(shapes_graph), shapes_graph_resource) if plan_cache is not None and shapes_graph is not None else None
     if plan is None and cache_key is not None:
@@ -149,7 +191,8 @@ def validate(
     elif shapes_graph_iri is None and shapes is not None:
         shapes_graph_iri = _identity_of(shapes)
     original_data = data_graph
-    shapes = shapes if shapes is not None else data_graph
+    shapes = engine_view(shapes if shapes is not None else data_graph, "shapes graph")  # the term-model boundary: engine terms inside
+    conformance_disallows = to_engine(conformance_disallows)
     data_graph = resolve_data_view(data_graph, shapes, inference=inference, ont_graph=ont_graph)
     rule_result = None
     if rules is not False:
@@ -188,19 +231,22 @@ def validate(
     )
     if inplace and data_graph is not original_data:
         for triple in list(data_graph.triples((None, None, None))):
+            triple = from_engine_triple(triple)
             if triple not in original_data:
                 original_data.add(triple)
     return Outcome(
         conforms=conforms(results, conformance_disallows),
         report_graph=report,
-        results=results,
+        results=[legacy_result(r) for r in results],
         rule_result=rule_result,
+        invalid_terms=invalid,
         data_graph=original_data if inplace else None,
         recursion_revisits=stats.get("recursion_revisits", 0),
-        _text_inputs=(shapes, data_graph, data_graph_iri),
+        _text_inputs=(LegacyTermView(shapes), LegacyTermView(data_graph), data_graph_iri),
     )
 
 
+@with_term_policy
 def validate_each(
     data_graphs: Iterable[Any],
     shapes_graph: Any = None,
@@ -236,7 +282,7 @@ def validate_each(
         shapes_iri = shapes_iri if shapes_iri is not None else resolved
     elif shapes_iri is None:
         shapes_iri = _identity_of(shapes)
-    shared = Plan(shapes_graph=shapes)
+    shared = Plan(shapes_graph=engine_view(shapes, "shapes graph"))
     return {
         i: validate(g, shapes, ont_graph=ont_graph, shapes_graph_iri=shapes_iri, plan=shared, **kwargs)
         for i, g in enumerate(graphs)
