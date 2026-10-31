@@ -2105,6 +2105,7 @@ class StarLayerGraph(Graph):
         """
         if format in ('n3', 'n3-12', 'text/n3'):
             format = 'turtle12'
+        requested_format = format
         format = _faithful_parse_format(format, source, location, file, data)
         if format in ('turtle12', 'longturtle12', 'nt12', 'nq12', 'trig12', 'trix12', 'rdfxml12', 'manchester', 'omn'):
             text = _read_source_text(source=source, file=file, location=location, data=data)
@@ -2284,6 +2285,10 @@ class StarLayerGraph(Graph):
                     for triple in triples:
                         self.add(triple)
 
+            if format != requested_format and format in ('turtle12', 'nt12'):
+                # a plain rdflib name (turtle, nt) used to go through rdflib's parser and then adopt a basic-encoding
+                # document (rdf:reifies / rdf:PropositionForm) as real triple terms; it still does
+                self._adopt_basic_encoding()
             return self
         if format in ('nquads', 'trig', 'trix'):
             # Plain rdflib delegation (what every other format below still
