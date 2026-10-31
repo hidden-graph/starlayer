@@ -57,7 +57,7 @@ decisions you recorded), `sparql-layers-exploration.md`, `salg-retirement-analys
 Each stage has a gate that must pass before the next starts. Work stays on branches until you decide otherwise.
 
 **Stage 0: independent groundwork (no ordering constraints).**
-- 0.1 Adopt the term-model work into `shacl-engine`, after the three conditions: define what `to_engine` does with invalid IRIs,
+- 0.1 **(done)** Adopt the term-model work into `shacl-engine`, after the three conditions: define what `to_engine` does with invalid IRIs,
   blank-node ids and language tags; ban `str(term)` inside the engine; cross-check `xsd_values` against a second implementation.
 - 0.2 *(moved to the final stage by the owner's decision: salg is retired at the end.)* Salg retirement steps 1 to 3. Gate: sqe parity
   tests cover the checks the salg shapes performed; the 12 salg-using test files pass or are rewritten.
@@ -113,7 +113,10 @@ From `graph-functionality-comparison.md`, plus what the spikes added.
 
 Answers recorded 2026-10-31.
 
-1. **Adopt the term-model port into `shacl-engine`, with its three conditions: yes.** In progress.
+1. **Adopt the term-model port into `shacl-engine`, with its three conditions: yes. DONE (merge d0a7699, 2026-10-31).** The conditions: ill-formed
+   terms raise a `TermError` up front (lenient opt-in with reversible stand-ins); `str(term)` is banned in the engine by an AST test;
+   `xsd_values` was cross-checked against Oxigraph's engine (five bugs in `xsd_values` fixed; Oxigraph's own differences documented and
+   asserted). Engine suites 1,792 passed, 4 expected failures, 1 known fixture defect; default SHACL tier 1,738 passed; native-mode tier unchanged.
 2. **The three give-ups: all accepted (2026-10-31).** `LOAD <file://…>` in UPDATE (use `Store.load(path=…)`); browser/Pyodide
    deployment ("ok for now": revisit if a serverless in-browser workbench is wanted); language-tag case (Oxigraph lowercases `EN-us`).
 3. **`starontology/`: changes on this branch are fine** (nothing reaches `main` until the end). **Salg is retired at the end**, not
