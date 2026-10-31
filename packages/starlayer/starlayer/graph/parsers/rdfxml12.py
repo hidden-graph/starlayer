@@ -56,8 +56,8 @@ from rdflib import BNode, Literal, URIRef
 from rdflib.namespace import RDF
 
 from starlayer.graph.model.encoding import encode_dirlang_datatype
-from starlayer.graph.parsers.faithful import faithful_rdfxml_literals
 from starlayer.graph.model.triple import TripleTerm
+from starlayer.graph.parsers.faithful import faithful_rdfxml_literals
 
 _RDF_NS          = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#'
 _XML_NS          = 'http://www.w3.org/XML/1998/namespace'

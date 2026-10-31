@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Any
@@ -10,10 +11,12 @@ from rdflib import URIRef
 
 from starlayer.shacl_engine import components  # noqa: F401  (registers the constraint components)
 from starlayer.shacl_engine.executor import Result, run
+from starlayer.shacl_engine.fidelity import check_lexical_fidelity
 from starlayer.shacl_engine.plan import Path, Plan
 from starlayer.shacl_engine.report import annotate_provenance, build_report, conforms
 from starlayer.shacl_engine.terms import (
     LegacyTermView,
+    StarLayerFidelityWarning,
     check_graphs,
     engine_view,
     from_engine,
@@ -34,6 +37,7 @@ class Outcome:
     data_graph: Any = None  # the caller's data graph with the inferred triples added, when ``inplace=True``
     invalid_terms: tuple = ()  # ill-formed terms processed as opaque stand-ins (``invalid_terms="lenient"``); else empty
     recursion_revisits: int = 0  # recursive (shape, node) re-entries during the run (diagnostics)
+    warnings: tuple[str, ...] = ()  # diagnostics of this run, e.g. the lexical-fidelity warning (``fidelity.py``)
     _text_inputs: Any = field(default=None, repr=False, compare=False)  # (shapes, data view, data_graph_iri) for report_text
     _report_text: str | None = field(default=None, repr=False, compare=False)
 
@@ -214,6 +218,11 @@ def validate(
         max_validation_depth=max_validation_depth,
         stats=stats,
     )
+    run_warnings: list[str] = []
+    fidelity = check_lexical_fidelity(plan, data_graph)
+    if fidelity is not None:
+        run_warnings.append(fidelity)
+        warnings.warn(fidelity, StarLayerFidelityWarning, stacklevel=3)
     report = build_report(results, shapes, data_graph, conformance_disallows)
     annotate_provenance(
         report,
@@ -240,6 +249,7 @@ def validate(
         results=[legacy_result(r) for r in results],
         rule_result=rule_result,
         invalid_terms=invalid,
+        warnings=tuple(run_warnings),
         data_graph=original_data if inplace else None,
         recursion_revisits=stats.get("recursion_revisits", 0),
         _text_inputs=(LegacyTermView(shapes), LegacyTermView(data_graph), data_graph_iri),
