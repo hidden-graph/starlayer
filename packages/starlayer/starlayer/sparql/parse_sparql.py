@@ -119,6 +119,26 @@ def _decode_uchars(raw: str) -> str:
     return _UCHAR.sub(sub, raw)
 
 
+def _split_keywords(word: str) -> list[str] | None:
+    """Longest-match tokenization of a run of letters that is no keyword itself (``FILTERSTR`` -> FILTER, STR).
+
+    The grammar has no terminal for such a run, so its terminals are matched longest first, one after the other
+    (section 19.7: "the longest match is chosen"). Returns None unless the whole run splits into keywords.
+    """
+    if not word.isalpha() or len(word) > 40:
+        return None
+    parts, rest = [], word
+    while rest:
+        for k in range(len(rest), 1, -1):
+            if rest[:k].upper() in _KEYWORDS or rest[:k] in _CASE_SENSITIVE_WORDS:
+                parts.append(rest[:k])
+                rest = rest[k:]
+                break
+        else:
+            return None
+    return parts
+
+
 def tokenize(text: str) -> list[Tok]:
     out: list[Tok] = []
     pos, n = 0, len(text)
@@ -127,6 +147,15 @@ def tokenize(text: str) -> list[Tok]:
         if m is None:
             raise SparqlSyntaxError(f"unexpected character {text[pos]!r}", text, pos)
         kind = m.lastgroup
+        if kind == "W" and m.group().upper() not in _KEYWORDS and m.group() not in _CASE_SENSITIVE_WORDS:
+            parts = _split_keywords(m.group())
+            if parts:
+                at = pos
+                for part in parts:
+                    out.append(Tok("W", part, at))
+                    at += len(part)
+                pos = m.end()
+                continue
         if kind != "ws":
             out.append(Tok("P" if kind in ("P2", "P1") else kind, m.group(), pos))
         pos = m.end()
@@ -183,6 +212,19 @@ _ONE = (
 _TWO = "LANGMATCHES CONTAINS STRSTARTS STRENDS STRBEFORE STRAFTER STRLANG STRDT sameTerm".split()
 _BUILTIN_BY_UPPER = {n.upper(): n for n in (*_ZERO, *_ONE, *_TWO, "BOUND", "BNODE", "IF", "CONCAT", "COALESCE")}
 _AGGS = {"COUNT", "SUM", "MIN", "MAX", "AVG", "SAMPLE", "GROUP_CONCAT"}
+
+_CASE_SENSITIVE_WORDS = {"a", "true", "false", "isIRI", "isURI", "isBLANK", "isLITERAL", "isNUMERIC", "isTRIPLE", "hasLANG",
+                         "hasLANGDIR", "sameTerm"}  # fmt: skip
+_KEYWORDS = (
+    {w.upper() for w in _CASE_SENSITIVE_WORDS - {"a", "true", "false"}}
+    | set(_BUILTIN_BY_UPPER)
+    | _AGGS
+    | set(
+        "BASE PREFIX VERSION SELECT DISTINCT REDUCED CONSTRUCT DESCRIBE ASK FROM NAMED WHERE GROUP BY HAVING ORDER ASC DESC "
+        "LIMIT OFFSET VALUES UNDEF OPTIONAL GRAPH SERVICE SILENT BIND AS MINUS UNION FILTER NOT IN EXISTS SEPARATOR REGEX "
+        "SUBSTR REPLACE STRLANGDIR TRIPLE".split()
+    )
+)
 
 _RESERVED_AFTER_TRIPLES = {
     "OPTIONAL", "MINUS", "GRAPH", "FILTER", "BIND", "VALUES", "SERVICE", "UNION", "SELECT",

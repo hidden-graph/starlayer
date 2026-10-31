@@ -349,3 +349,21 @@ def test_typed_and_boolean_literals_keep_their_lexical_form():
     assert [str(t["o"]) for t in q["where"]] == ["2001-01-01T00:00:00Z", "01", "true"]
     q = parse_sparql("SELECT * { ?s ?p ?o } LIMIT 010 OFFSET 00")
     assert (str(q["limit"]), str(q["offset"])) == ("010", "00")
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "ASK { ?s ?p ?o FILTERSTR(?o) }",
+        "ASK { ?s ?p ?o FILTERisTriple(?o) }",
+        "SELECTDISTINCT?x{?x ?p ?o}",
+        "SELECT * { ?s ?p ?o FILTERNOTEXISTS { ?o ?q ?r } }",
+    ],
+)
+def test_adjacent_keywords_are_matched_longest_first(text):
+    parse_sparql(text)
+
+
+def test_a_word_that_is_not_made_of_keywords_is_still_an_error():
+    with pytest.raises(SparqlSyntaxError):
+        parse_sparql("ASK { ?s ?p ?o FILTERxyz(?o) }")

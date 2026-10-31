@@ -14,7 +14,11 @@ list can only shrink as Oxigraph improves.
 from __future__ import annotations
 
 import pytest
-from starlayer.sparql.parse_sparql import SparqlSyntaxError, parse_sparql, sparql_to_tree
+from starlayer.sparql.parse_sparql import (
+    SparqlSyntaxError,
+    parse_sparql,
+    sparql_to_tree,
+)
 from starlayer.sparql.sqe import sqe_tree_to_text
 
 from .parse_sparql_conformance.corpus import CASES
