@@ -7,7 +7,8 @@ from rdflib import Graph, Literal, URIRef
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema, validate_each
 from starlayer.shacl_engine import api
-from starlayer.shacl_engine.plan import SH, Plan
+from starlayer.shacl_engine.plan import Plan
+from tests.shacl.w3c_shacl12.namespaces import SH
 
 PFX = "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . "
 

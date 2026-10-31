@@ -4,12 +4,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from rdflib import RDF, XSD, Literal, URIRef
-
-from starlayer.graph.model.triple import TripleTerm
 from starlayer.shacl_engine.components.registry import all_param_predicates
 from starlayer.shacl_engine.plan import SH, Path, Shape, ShapeError, Term
 from starlayer.shacl_engine.targets import declared_shape_nodes, shape_targets  # noqa: F401  (re-exported)
+from starlayer.shacl_engine.terms import RDF, XSD, Literal, NamedNode, Triple
 
 
 def build_path(graph: Any, node: Term) -> Path:
@@ -18,12 +16,12 @@ def build_path(graph: Any, node: Term) -> Path:
     return parse_path(graph, node)
 
 
-_REIFIES = URIRef("http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies")
+_REIFIES = RDF.reifies
 
 
 def _is_true(term: Term) -> bool:
     """Only the literal ``"true"^^xsd:boolean`` deactivates (``"1"`` does not, as for sh:uniqueLang)."""
-    return isinstance(term, Literal) and term.datatype == XSD.boolean and str(term) == "true"
+    return isinstance(term, Literal) and term.datatype == XSD.boolean and term.value == "true"
 
 
 def _annotations(graph: Any, node: Term, params: dict, property_shapes: tuple) -> dict:
@@ -31,7 +29,7 @@ def _annotations(graph: Any, node: Term, params: dict, property_shapes: tuple) -
     out: dict = {}
     pairs = [(p, v) for p, vs in params.items() for v in vs] + [(SH.property, v) for v in property_shapes]
     for pred, value in pairs:
-        for reifier in graph.subjects(_REIFIES, TripleTerm(node, pred, value)):
+        for reifier in graph.subjects(_REIFIES, Triple(node, pred, value)):
             info = out.setdefault((pred, value), {"deactivated": False, "severity": None})
             if any(_is_true(d) for d in graph.objects(reifier, SH.deactivated)):
                 info["deactivated"] = True
@@ -46,7 +44,7 @@ def build_shape(graph: Any, node: Term, extra_predicates: Any = ()) -> Shape:
     if len(path_values) > 1:
         raise ShapeError(f"{node}: more than one sh:path")
     path = build_path(graph, path_values[0]) if path_values else None
-    params: dict[URIRef, tuple[Term, ...]] = {}
+    params: dict[NamedNode, tuple[Term, ...]] = {}
     for pred in set(all_param_predicates()) | set(extra_predicates):
         values = tuple(graph.objects(node, pred))
         if values:

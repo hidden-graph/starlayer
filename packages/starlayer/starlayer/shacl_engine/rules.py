@@ -30,8 +30,7 @@ from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
-from rdflib import RDF, RDFS, BNode, Literal, URIRef
-
+from starlayer.shacl_engine import xsd_values as xv
 from starlayer.shacl_engine.executor import Context
 from starlayer.shacl_engine.interface import Solutions, Term
 from starlayer.shacl_engine.plan import SH, Plan, ShapeError
@@ -41,9 +40,21 @@ from starlayer.shacl_engine.sparql_support import (
     starlayer_sparql_query,
     with_prefixes,
 )
+from starlayer.shacl_engine.terms import (
+    RDF,
+    RDFS,
+    Literal,
+    engine_view,
+    from_engine,
+    from_engine_triple,
+    to_engine,
+    to_engine_triple,
+)
+from starlayer.shacl_engine.terms import BlankNode as BNode
+from starlayer.shacl_engine.terms import NamedNode as URIRef
 
 Triple = tuple[Term, Term, Term]
-_REIFIES = URIRef("http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies")
+_REIFIES = RDF.reifies
 
 
 class RuleError(ValueError):
@@ -55,7 +66,10 @@ class RuleError(ValueError):
 
 
 class InferredView:
-    """A data graph plus inferred triples, as a ``GraphView`` (and ``SparqlCapable``). ``base`` is never modified."""
+    """A data graph plus inferred triples, as a ``GraphView`` (and ``SparqlCapable``). ``base`` is never modified. Engine
+    terms in and out; ``base`` must be an engine-term view."""
+
+    engine_terms = True
 
     def __init__(self, base: Any) -> None:
         self.base = base
@@ -72,7 +86,7 @@ class InferredView:
         for idx, term in zip(self._index, triple, strict=True):
             idx.setdefault(term, set()).add(triple)
         if self._mat is not None:
-            self._mat.add(triple)
+            self._mat.add(from_engine_triple(triple))
         return True
 
     def remove(self, triple: Triple) -> None:
@@ -160,9 +174,9 @@ class InferredView:
 
             mat = StarLayerGraph()
             for tr in self.base.triples((None, None, None)):
-                mat.add(tr)
+                mat.add(from_engine_triple(tr))
             for tr in self._inferred:
-                mat.add(tr)
+                mat.add(from_engine_triple(tr))
             self._mat = mat
         return self._mat
 
@@ -170,10 +184,11 @@ class InferredView:
         return starlayer_sparql_query(self.materialised(), text, init_bindings)
 
     def construct(self, text: str, init_bindings: Mapping[str, Term] | None) -> list[Triple]:
-        result = self.materialised().query(_prepare(text), initBindings=dict(init_bindings or {}) or None)
+        bindings = {k: from_engine(v) for k, v in (init_bindings or {}).items()}
+        result = self.materialised().query(_prepare(text), initBindings=bindings or None)
         if result.type != "CONSTRUCT":
             raise RuleError("sh:construct must be a CONSTRUCT query")
-        return [tuple(t) for t in result]
+        return [to_engine_triple(tuple(t)) for t in result]  # query-layer terms -> engine terms
 
 
 # --------------------------------------------------------------------------------------------------------------------
@@ -214,12 +229,13 @@ def _number(graph: Any, node: Term, pred: Term, default: float = 0) -> float:
     if not values:
         return default
     v = values[0]
-    if not isinstance(v, Literal) or not isinstance(v.toPython(), (int, float)) or isinstance(v.toPython(), bool):
+    n = xv.numeric(v)
+    if n is None:
         try:
-            return float(str(v))
-        except ValueError as exc:
+            return float(v.value)
+        except (ValueError, AttributeError) as exc:
             raise RuleError(f"{node!r}: {pred} must be numeric") from exc
-    return float(v.toPython())
+    return float(n)
 
 
 def _boolean(graph: Any, node: Term, pred: Term) -> bool:
@@ -398,7 +414,7 @@ class _Run:
         if len(constructs) != 1 or not isinstance(constructs[0], Literal):
             raise RuleError(f"{rule.node!r}: exactly one string sh:construct is required")
         prefix_holder = holder if (holder, SH.prefixes, None) in g else rule.node
-        text = with_prefixes(self.plan, prefix_holder, str(constructs[0]))
+        text = with_prefixes(self.plan, prefix_holder, constructs[0].value)
         try:
             return self.view.construct(text, bindings)
         except RuleError:
@@ -529,7 +545,9 @@ def apply_rules(
     ``rule_sets``: IRIs of ``sh:RuleSet`` instances to run (with the sets they include); ``None`` runs the default rule set,
     every rule of the shapes graph. A failing rule fails the whole rule set: ``RuleError`` is raised, or with
     ``raise_on_failure=False`` returned in ``RuleResult.failures`` (``inferred`` is then what was derived so far)."""
-    shapes = shapes_graph if shapes_graph is not None else data_graph
+    data_graph = engine_view(data_graph)  # the term-model boundary: rdflib / StarLayer graphs in, engine terms inside
+    shapes = engine_view(shapes_graph) if shapes_graph is not None else data_graph
+    rule_sets = None if rule_sets is None else [to_engine(s) for s in rule_sets]
     view = InferredView(data_graph)
     plan = Plan(shapes_graph=shapes)
     run = _Run(view, plan, max_iterations, max_triples)
@@ -563,7 +581,7 @@ def apply_rules(
         if raise_on_failure:
             raise exc if isinstance(exc, RuleError) else RuleError(str(exc)) from exc
         failures.append(str(exc))
-    return RuleResult(inferred=view.inferred, view=view, failures=failures, iterations=run.iterations)
+    return RuleResult(inferred=frozenset(from_engine_triple(t) for t in view.inferred), view=view, failures=failures, iterations=run.iterations)
 
 
 def validate_with_rules(data_graph: Any, shapes_graph: Any = None, *, rules: bool | None = None, **options: Any) -> Any:

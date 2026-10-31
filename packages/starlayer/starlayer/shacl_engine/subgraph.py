@@ -24,7 +24,6 @@ from __future__ import annotations
 import warnings
 from typing import Any
 
-from rdflib import RDF, RDFS
 from rdflib.term import Node
 
 from starlayer.shacl_engine import components  # noqa: F401  (registers the constraint components)
@@ -32,6 +31,14 @@ from starlayer.shacl_engine.entailment import resolve_data_view
 from starlayer.shacl_engine.executor import Context
 from starlayer.shacl_engine.paths import parse_path
 from starlayer.shacl_engine.plan import SH, Path, Plan, Shape, ShapeError, Term
+from starlayer.shacl_engine.terms import (
+    RDF,
+    RDFS,
+    engine_view,
+    from_engine_triple,
+    text,
+    to_engine,
+)
 
 _Triple = tuple[Any, Any, Any]
 
@@ -340,14 +347,15 @@ def extract_subgraph(
     for argument, value in (("shape", shape), ("focus_node", focus_node)):
         if value is not None and not isinstance(value, Node):
             raise TypeError(f"{argument} must be an rdflib term such as URIRef, not {type(value).__name__}: {value!r}")
-    shapes = shacl_graph if shacl_graph is not None else data_graph
+    shapes = engine_view(shacl_graph if shacl_graph is not None else data_graph)
+    shape, focus_node = to_engine(shape), to_engine(focus_node)
     plan = Plan(shapes_graph=shapes)
     view = resolve_data_view(data_graph, shapes, inference=inference, ont_graph=ont_graph)
     ex = _Extractor(view, plan)
 
     if shape is not None:
         if next(iter(shapes.predicate_objects(shape)), None) is None:
-            raise ValueError(f"shape {shape!r} is not a shape in the shapes graph")
+            raise ValueError(f"shape {text(shape)!r} is not a shape in the shapes graph")
         candidates = [shape]
     else:
         candidates = plan.all_shape_nodes()
@@ -359,7 +367,7 @@ def extract_subgraph(
             continue
         if (node, _SH_TARGET, None) in shapes:
             warnings.warn(
-                f"sh:target on shape {node} is ignored: SPARQL-based targets are not part of SHACL 1.2",
+                f"sh:target on shape {text(node)} is ignored: SPARQL-based targets are not part of SHACL 1.2",
                 UserWarning,
                 stacklevel=2,
             )
@@ -380,8 +388,9 @@ def extract_subgraph(
 
     out = StarLayerGraph()
     for t in found:
-        if t in data_graph:
-            out.add(t)
+        rt = from_engine_triple(t)  # engine terms -> the caller's term model
+        if rt in data_graph:
+            out.add(rt)
     return out
 
 

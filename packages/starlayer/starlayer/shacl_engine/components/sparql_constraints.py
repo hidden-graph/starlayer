@@ -32,7 +32,7 @@ def _prepared(ctx, shape, constraint):
         if len(selects) != 1:
             raise ShapeError(f"{constraint!r}: a sh:sparql constraint needs exactly one sh:select")
         severities = list(graph.objects(constraint, SH.severity))
-        text = substitute_path(with_prefixes(ctx.plan, constraint, str(selects[0])), shape)
+        text = substitute_path(with_prefixes(ctx.plan, constraint, selects[0].value), shape)
         prepared = (text, severities[0] if severities else None, tuple(graph.objects(constraint, SH.message)))
     ctx.cache[key] = prepared
     return prepared

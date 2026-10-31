@@ -15,9 +15,8 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import Any
 
-from rdflib import URIRef
-
 from starlayer.shacl_engine.plan import Term
+from starlayer.shacl_engine.terms import NamedNode as URIRef
 
 
 @dataclass(frozen=True)

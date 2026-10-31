@@ -1,7 +1,7 @@
 """SHACL 1.2 Core constraint components: string, property pair and list.
 
-Term values are rdflib terms plus ``starlayer.graph.model.dirlangstring.DirLangString`` (a language-tagged string with
-base direction). Lexical forms are never normalized. Parameters that are paths (``sh:equals`` etc.) are evaluated from
+Terms are pyoxigraph terms (a language-tagged string with a base direction is an ``ox.Literal`` with ``direction``).
+Lexical forms are never normalized. Parameters that are paths (``sh:equals`` etc.) are evaluated from
 the focus node.
 """
 
@@ -10,16 +10,16 @@ from __future__ import annotations
 import re
 from collections import Counter
 from collections.abc import Iterator
-from decimal import Decimal
 from typing import Any
 
-from rdflib import RDF, XSD, BNode, Literal, URIRef
-
-from starlayer.graph.model.dirlangstring import DirLangString
 from starlayer.shacl.xpath_regex import xpath_regex_to_python
+from starlayer.shacl_engine import xsd_values as xv
 from starlayer.shacl_engine.components.registry import Violation, component
 from starlayer.shacl_engine.executor import Result
 from starlayer.shacl_engine.plan import SH, ShapeError
+from starlayer.shacl_engine.terms import RDF, XSD, BlankNode, Literal, NamedNode
+from starlayer.shacl_engine.terms import NamedNode as URIRef
+from starlayer.shacl_engine.terms import text as term_text
 
 _LINE_BREAK = re.compile(r"[\f\r\n\v]")
 
@@ -29,41 +29,37 @@ _LINE_BREAK = re.compile(r"[\f\r\n\v]")
 
 def _lexical(term: Any) -> str | None:
     """The string a string constraint looks at: IRI text or literal lexical form; None for blank and triple terms."""
-    if isinstance(term, DirLangString):
+    if isinstance(term, NamedNode | Literal):
         return term.value
-    if isinstance(term, (URIRef, Literal)):
-        return str(term)
     return None
 
 
 def _lang_key(term: Any) -> tuple[str, str] | None:
     """(lowercased language, direction or '') of a language-tagged literal, else None."""
-    if isinstance(term, DirLangString):
-        return term.language.lower(), term.direction
     if isinstance(term, Literal) and term.language:
-        return term.language.lower(), ""
+        return term.language.lower(), str(term.direction) if term.direction is not None else ""
     return None
 
 
 def _int_param(shape: Any, pred: URIRef, term: Any) -> int:
     if isinstance(term, Literal) and term.datatype in (XSD.integer, XSD.int, XSD.long, XSD.nonNegativeInteger):
         try:
-            return int(str(term))
+            return int(term.value)
         except ValueError:
             pass
-    raise ShapeError(f"{shape.node}: {pred} must be an xsd:integer literal, got {term!r}")
+    raise ShapeError(f"{term_text(shape.node)}: {pred} must be an xsd:integer literal, got {term!r}")
 
 
 def _bool_param(shape: Any, pred: URIRef, term: Any) -> bool:
-    if isinstance(term, Literal) and term.datatype == XSD.boolean and str(term) in ("true", "false", "1", "0"):
-        return str(term) == "true"  # only the lexical form "true" activates (W3C uniqueLang-002)
-    raise ShapeError(f"{shape.node}: {pred} must be an xsd:boolean literal, got {term!r}")
+    if isinstance(term, Literal) and term.datatype == XSD.boolean and term.value in ("true", "false", "1", "0"):
+        return term.value == "true"  # only the lexical form "true" activates (W3C uniqueLang-002)
+    raise ShapeError(f"{term_text(shape.node)}: {pred} must be an xsd:boolean literal, got {term!r}")
 
 
 def _string_param(shape: Any, pred: URIRef, term: Any) -> str:
-    if isinstance(term, Literal) and (term.datatype in (None, XSD.string)) and not term.language:
-        return str(term)
-    raise ShapeError(f"{shape.node}: {pred} must be a string literal, got {term!r}")
+    if isinstance(term, Literal) and term.datatype == XSD.string:
+        return term.value
+    raise ShapeError(f"{term_text(shape.node)}: {pred} must be a string literal, got {term!r}")
 
 
 def _members_or_none(graph: Any, head: Any) -> list[Any] | None:
@@ -72,7 +68,7 @@ def _members_or_none(graph: Any, head: Any) -> list[Any] | None:
     seen: set[Any] = set()
     node = head
     while node != RDF.nil:
-        if node in seen or not isinstance(node, (URIRef, BNode)):
+        if node in seen or not isinstance(node, NamedNode | BlankNode):
             return None
         seen.add(node)
         firsts = list(graph.objects(node, RDF.first))
@@ -89,7 +85,7 @@ def _members_or_none(graph: Any, head: Any) -> list[Any] | None:
 def _list_items(graph: Any, head: Any, what: str) -> list[Any]:
     items = _members_or_none(graph, head)
     if items is None:
-        raise ShapeError(f"{what}: {head!r} is not a well-formed rdf:List")
+        raise ShapeError(f"{what}: {term_text(head)!r} is not a well-formed rdf:List")
     return items
 
 
@@ -124,7 +120,7 @@ def max_length(ctx, shape, params, focus, values) -> Iterator[Violation]:
 
 def _compile(shape: Any, pattern: str, flags: str) -> re.Pattern:
     if set(flags) - set("smixq"):
-        raise ShapeError(f"{shape.node}: invalid sh:flags {flags!r}")
+        raise ShapeError(f"{term_text(shape.node)}: invalid sh:flags {flags!r}")
     py_flags = 0
     for ch, flag in (("s", re.DOTALL), ("m", re.MULTILINE), ("i", re.IGNORECASE)):
         if ch in flags:
@@ -138,7 +134,7 @@ def _compile(shape: Any, pattern: str, flags: str) -> re.Pattern:
                 text = _strip_free_space(text)
         return re.compile(text, py_flags)
     except (re.error, ValueError) as exc:
-        raise ShapeError(f"{shape.node}: invalid sh:pattern {pattern!r}: {exc}") from exc
+        raise ShapeError(f"{term_text(shape.node)}: invalid sh:pattern {pattern!r}: {exc}") from exc
 
 
 def _strip_free_space(pattern: str) -> str:
@@ -168,7 +164,7 @@ def pattern(ctx, shape, params, focus, values) -> Iterator[Violation]:
         return
     flag_values = params.get(SH.flags, ())
     if len(flag_values) > 1:
-        raise ShapeError(f"{shape.node}: more than one sh:flags")
+        raise ShapeError(f"{term_text(shape.node)}: more than one sh:flags")
     flags = _string_param(shape, SH.flags, flag_values[0]) if flag_values else ""
     for param in params[SH.pattern]:
         regex = _compile(shape, _string_param(shape, SH.pattern, param), flags)
@@ -187,7 +183,7 @@ def _range_matches(rng: str, tag: str) -> bool:
 @component(SH.LanguageInConstraintComponent, SH.languageIn)
 def language_in(ctx, shape, params, focus, values) -> Iterator[Violation]:
     for head in params[SH.languageIn]:
-        what = f"{shape.node} sh:languageIn"
+        what = f"{term_text(shape.node)} sh:languageIn"
         ranges = [_string_param(shape, SH.languageIn, r) for r in _list_items(ctx.shapes, head, what)]
         for v in values:
             key = _lang_key(v)
@@ -217,7 +213,7 @@ def single_line(ctx, shape, params, focus, values) -> Iterator[Violation]:
         if not _bool_param(shape, SH.singleLine, param):
             continue
         for v in values:
-            if isinstance(v, (Literal, DirLangString)) and _LINE_BREAK.search(_lexical(v)):
+            if isinstance(v, Literal) and _LINE_BREAK.search(_lexical(v)):
                 yield Violation(value=v)
 
 
@@ -247,36 +243,10 @@ def disjoint(ctx, shape, params, focus, values) -> Iterator[Violation]:
                 yield Violation(value=v)
 
 
-def _comparable(term: Any) -> tuple[str, Any] | None:
-    """(comparison class, value) for SPARQL ``<``: numerics, plain/xsd strings, booleans, dateTimes, dates, times."""
-    if not isinstance(term, Literal) or term.language:
-        return None
-    dt, val = term.datatype, term.value
-    if dt in (XSD.string, None):
-        return "string", str(term)
-    if val is None:
-        return None
-    if isinstance(val, bool):
-        return "boolean", val
-    if isinstance(val, (int, float, Decimal)):
-        return "numeric", val
-    for cls, kind in (("datetime", "dateTime"), ("date", "date"), ("time", "time")):
-        if type(val).__name__ == cls:
-            return kind, val
-    return None
-
-
 def _less(a: Any, b: Any, or_equal: bool) -> bool:
-    ka, kb = _comparable(a), _comparable(b)
-    if ka is None or kb is None or ka[0] != kb[0]:
-        return False
-    x, y = ka[1], kb[1]
-    try:
-        if isinstance(x, (float, Decimal)) and isinstance(y, (float, Decimal)) and type(x) is not type(y):
-            x, y = float(x), float(y)
-        return x <= y if or_equal else x < y
-    except TypeError:  # offset-aware vs offset-naive date/times are incomparable
-        return False
+    """SPARQL ``<`` / ``<=`` on the XSD value order (``xsd_values.compare``); incomparable pairs are False."""
+    c = xv.compare(a, b)
+    return c is not None and (c <= 0 if or_equal else c < 0)
 
 
 def _pair_order(pred: URIRef, params: dict, ctx: Any, focus: Any, values: tuple, or_equal: bool):

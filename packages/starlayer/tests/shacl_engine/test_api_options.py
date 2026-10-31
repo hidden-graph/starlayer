@@ -7,7 +7,8 @@ from rdflib import RDF, Literal, URIRef
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import validate as old_validate
 from starlayer.shacl_engine.api import validate as new_validate
-from starlayer.shacl_engine.plan import SH, ShapeError
+from starlayer.shacl_engine.plan import ShapeError
+from tests.shacl.w3c_shacl12.namespaces import SH
 
 PFX = "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> . "
 EX = "http://example.org/"

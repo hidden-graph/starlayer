@@ -5,12 +5,13 @@ from __future__ import annotations
 import pytest
 from rdflib import Graph, Literal, Namespace
 from starlayer.shacl_engine.paths import eval_path, parse_path
-from starlayer.shacl_engine.plan import SH, ShapeError
+from starlayer.shacl_engine.plan import ShapeError
 from starlayer.shacl_engine.targets import (
     declared_shape_nodes,
     focus_nodes,
     shape_targets,
 )
+from tests.shacl.w3c_shacl12.namespaces import SH
 
 EX = Namespace("http://example.com/ns#")
 PFX = """@prefix ex: <http://example.com/ns#> . @prefix sh: <http://www.w3.org/ns/shacl#> .

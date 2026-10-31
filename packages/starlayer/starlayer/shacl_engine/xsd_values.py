@@ -450,6 +450,25 @@ def compare(a: ox.Literal, b: ox.Literal) -> int | None:
     return None  # pragma: no cover
 
 
+def ebv(literal: ox.Literal) -> bool | None:
+    """SPARQL 1.1 17.2.2 effective boolean value of a literal; ``None`` is the type error: an xsd:boolean is its value, a
+    simple/xsd:string literal is true iff non-empty, a numeric is true iff not zero and not NaN, anything else (and any
+    ill-formed boolean or numeric) is an error. Language-tagged strings are errors."""
+    if literal.language is not None:
+        return None
+    dt = literal.datatype.value
+    if dt == XSD + "string":
+        return len(literal.value) > 0
+    v = _parse_cached(literal.value, dt)
+    if v is None:
+        return None
+    if v.kind == BOOLEAN:
+        return bool(v.value)
+    if v.kind == NUMERIC:
+        return not (v.value != v.value or v.value == 0)
+    return None
+
+
 def value_equal(a: ox.Literal, b: ox.Literal) -> bool:
     """SPARQL ``=`` on literals of known datatype (17.4.1.7 RDFterm-equal falls back to term equality otherwise):
     value-equal iff ``compare`` gives 0. Not used by SHACL's term-based comparisons, but by SPARQL-style functions."""

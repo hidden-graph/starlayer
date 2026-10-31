@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from collections import Counter
 
-from rdflib import RDF, URIRef
-
 from starlayer.shacl_engine.components.registry import Violation, component
 from starlayer.shacl_engine.plan import SH, ShapeError
+from starlayer.shacl_engine.terms import RDF
+from starlayer.shacl_engine.terms import NamedNode as URIRef
 
 
 def _properties(shapes, value) -> list[URIRef]:

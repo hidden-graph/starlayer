@@ -23,7 +23,7 @@ from starlayer.shacl.native_adapter import (
     translate_validate_options,
 )
 from starlayer.shacl.validation_modes import resolve_mode_options
-from starlayer.shacl_engine.plan import SH
+from tests.shacl.w3c_shacl12.namespaces import SH
 
 PFX = "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> . "
 EX = "http://example.org/"

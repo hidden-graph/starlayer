@@ -20,11 +20,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from rdflib import OWL, RDF, RDFS, BNode, Literal, URIRef
+from rdflib import OWL, RDF, RDFS, BNode, Literal, Namespace, URIRef
 from rdflib.collection import Collection
 
-from starlayer.shacl_engine.plan import SH
-
+SH = Namespace("http://www.w3.org/ns/shacl#")  # rdflib terms: this module reads and writes the caller's graphs
 _GRAPH_TYPES = (SH.Graph, SH.ShapesGraph, SH.DataGraph, SH.RulesGraph)
 _SHAPE_REFERENCES = ("node", "property", "not", "qualifiedValueShape", "reifierShape", "someValue", "memberShape")
 _SHAPE_LIST_REFERENCES = ("and", "or", "xone")

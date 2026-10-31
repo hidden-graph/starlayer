@@ -13,13 +13,14 @@ from __future__ import annotations
 
 from typing import Any
 
-from rdflib import BNode, Literal, URIRef
+from rdflib import BNode, Literal, Namespace, URIRef
 from rdflib.namespace import DCTERMS, RDF
 
 from starlayer.graph.model.triple import TripleTerm
 from starlayer.shacl_engine.executor import Result
-from starlayer.shacl_engine.plan import SH, Path
+from starlayer.shacl_engine.plan import Path
 
+SH = Namespace("http://www.w3.org/ns/shacl#")  # rdflib terms: the text is rendered from the boundary results
 _MAX_DEPTH = 12
 
 
