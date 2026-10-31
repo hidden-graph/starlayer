@@ -39,8 +39,8 @@ from rdflib import BNode, Graph, Literal, URIRef, Variable
 from rdflib.collection import Collection
 from rdflib.namespace import RDF, XSD
 
-from starlayer.graph.model.encoding import encode_dirlang_datatype
 from starlayer.graph.parsers.turtle_parser import _join
+from starlayer.sparql.vocab import encode_dirlang_datatype
 
 # ---------------------------------------------------------------------------
 # Errors
@@ -1119,7 +1119,7 @@ class _Parser:
             self.expect_p(",")
             f["lang"] = self.expression()
             self.expect_p(",")
-            f["dir"] = self.expression()
+            f["direction"] = self.expression()
             self.expect_p(")")
             return Node("Builtin_STRLANGDIR", **f)
         if up == "TRIPLE":

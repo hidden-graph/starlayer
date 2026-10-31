@@ -10,7 +10,6 @@ from starlayer.graph.model.dirlangstring import DirLangString, encode_dirlangstr
 from starlayer.graph.query.version_directive import strip_version_directive
 from starlayer.sparql.sqe import sqe_parse_to_tree
 from starlayer.sparql.sqe.vocab import TRIPLE_PATTERN
-
 from tests.sparql.w3c_sparql12.harness import load_index
 
 
