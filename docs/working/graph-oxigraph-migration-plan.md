@@ -85,7 +85,7 @@ engine suites pass on the new default; the nested `FILTER EXISTS` slowdown is un
   them (`serialize12.py` is also used by `sqe/to_text` and `expr_text`);
 - the hand-written parsers and serializers that Oxigraph replaces (about 5,600 lines, not Manchester, pretty Turtle or TriX),
   gated on the W3C RDF 1.2 syntax suites passing against Oxigraph's parsers (not yet run);
-- the salg encoder and the salg files (about 2,300 lines), the rdflib stores, `Resource`, the prefix manager;
+- the salg encoder and the salg files (about 2,300 lines), TriX (324 lines), the rdflib stores, `Resource`, the prefix manager;
 - `compare.py` and `rdfc.py` once the Oxigraph canonicalisation plus the basic encoding match them on their corpus.
 
 **Stage 4: the facade.** `StarLayerGraph(Graph)` survives for a transition period as a compatibility class, then goes. Only then
@@ -105,7 +105,7 @@ From `graph-functionality-comparison.md`, plus what the spikes added.
 - **rdflib stores** (SQLAlchemy and others), **`Resource`**, the **prefix manager and 29 default bindings**, graph set operators
   (unless kept).
 - **Third-party code that expects an rdflib `Graph`**, once the facade is retired.
-- **TriX** and the Manchester-adjacent exotica: kept for now, to be reviewed.
+- **TriX**: dropped (decided).
 - Gains: 10 to 1,000 times faster loads and queries, parallel queries, RocksDB persistence, `CREATE GRAPH`, custom aggregates, native
   RDFC-1.0, and no lowering or `tt:` encoding to maintain.
 
@@ -114,8 +114,8 @@ From `graph-functionality-comparison.md`, plus what the spikes added.
 Answers recorded 2026-10-31.
 
 1. **Adopt the term-model port into `shacl-engine`, with its three conditions: yes.** In progress.
-2. **The three give-ups:** `LOAD <file://…>` in UPDATE **accepted** (use `Store.load(path=…)`). Browser/Pyodide deployment and
-   language-tag case (Oxigraph lowercases `EN-us`) were explained; **awaiting a yes or no on those two**.
+2. **The three give-ups: all accepted (2026-10-31).** `LOAD <file://…>` in UPDATE (use `Store.load(path=…)`); browser/Pyodide
+   deployment ("ok for now": revisit if a serverless in-browser workbench is wanted); language-tag case (Oxigraph lowercases `EN-us`).
 3. **`starontology/`: changes on this branch are fine** (nothing reaches `main` until the end). **Salg is retired at the end**, not
    in Stage 0: Stage 0.2 moves to the final stage. Memory updated accordingly.
 4. **The `rdf-1.1` backend does not survive.** The owner's direction: handle RDF 1.1 *output* with the RDF 1.2 Interoperability
@@ -132,8 +132,10 @@ Answers recorded 2026-10-31.
 7. **Prefixes:** a global setting (default empty, like Oxigraph) that populates each graph's prefix map when the graph is built;
    the graph's map is a plain dictionary used at serialize and query time (Oxigraph has no store-level prefixes). Whether a graph
    copies the global at build time (isolated from later changes) or references it is a detail to settle; copying is cheap.
-8. **TriX and graph set operators:** the owner did not know what these are; explained in the reply. Recommendation: keep TriX (324
-   lines, already written, independent of the store); do not carry the operators (add `union`/`difference` methods if anyone asks).
+8. **TriX: dropped** (decided 2026-10-31; `parsers/trix12.py` 161 and `serializers/trix12.py` 163 lines retire in Stage 3).
+   **Set operations: built.** `graph/setops.py` provides `union`, `intersection`, `difference` and `symmetric_difference` for the rdflib
+   family and for pyoxigraph `Store`/`Dataset` with one set of semantics (blank nodes by label, quads with their graph name, inputs
+   never modified, streaming membership tests); 24 tests. To wire to `+ - & ^` on the Oxigraph-backed `StarLayerGraph` wrapper in Stage 2.
 9. **`ssyn`/`sast`: dropped (done, branch `shacl-engine`).** Six modules (946 lines) and two test files removed; 808 SPARQL unit tests pass.
 
 ## 6. Risks
