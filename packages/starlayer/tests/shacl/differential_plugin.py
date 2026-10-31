@@ -174,7 +174,7 @@ def _skip_options(
 
 
 def _disallows(options: dict[str, Any]) -> Any:
-    from starlayer.shacl_engine.plan import SH
+    from tests.shacl.w3c_shacl12.namespaces import SH
 
     if options.get("allow_warnings"):
         return SH.Violation

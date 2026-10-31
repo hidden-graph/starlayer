@@ -13,6 +13,7 @@ import importlib.util
 import pytest
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl_engine.rules import apply_rules
+from starlayer.shacl_engine.terms import LegacyTermView
 
 from .ids import portable_id
 from .manifest import (
@@ -60,6 +61,6 @@ def test_engine_rules(entry: ManifestEntry) -> None:
     before = set(data.triples((None, None, None)))
     result = apply_rules(data, shapes)
     assert set(data.triples((None, None, None))) == before, "the caller's data graph was modified"
-    added = set(result.view.triples((None, None, None))) - before
+    added = set(LegacyTermView(result.view).triples((None, None, None))) - before
     assert added == set(result.inferred)
     assert _same_triples(added, expected), f"expected added: {expected}\nactual added: {added}"

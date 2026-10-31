@@ -6,7 +6,8 @@ import pytest
 from rdflib import Graph, URIRef
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl_engine import validate
-from starlayer.shacl_engine.plan import SH, ShapeError
+from starlayer.shacl_engine.plan import ShapeError
+from tests.shacl.w3c_shacl12.namespaces import SH
 
 PRE = """@prefix ex: <http://example.com/> . @prefix sh: <http://www.w3.org/ns/shacl#> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> . @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .

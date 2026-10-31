@@ -20,57 +20,49 @@ from collections.abc import Iterator
 from typing import Any
 
 import pyoxigraph as ox
-from rdflib import Literal, URIRef
-from rdflib.namespace import XSD
 
-from starlayer.graph.model.dirlangstring import DirLangString
-from starlayer.graph.model.triple import TripleTerm
-from starlayer.shacl_engine.oxigraph_view import from_ox, to_ox
 from starlayer.shacl_engine.rules import InferredView, Triple
+from starlayer.shacl_engine.terms import from_engine_triple
+
 
 _SCRATCH = ox.Store()
 _SAFE: dict[tuple, bool] = {}
 _S, _P = ox.NamedNode("http://example.org/scratch#s"), ox.NamedNode("http://example.org/scratch#p")
 
 
-def literal_survives_store(term: Any) -> bool:
+def literal_survives_store(term: ox.Literal) -> bool:
     """True if ``term`` (a literal) comes back from a pyoxigraph store exactly as given. Cached per
     (lexical form, datatype, language, direction)."""
-    if isinstance(term, DirLangString):
-        key: tuple = (term.value, None, term.language, term.direction)
-    else:
-        key = (str(term), None if term.datatype is None else str(term.datatype), term.language, None)
+    key = (term.value, term.datatype.value, term.language, None if term.direction is None else str(term.direction))
     ok = _SAFE.get(key)
     if ok is None:
         ok = _SAFE[key] = _round_trip_ok(term)
     return ok
 
 
-def _round_trip_ok(term: Any) -> bool:
-    if not isinstance(term, DirLangString) and term.datatype == XSD.string:
-        return False  # pyoxigraph: "x"^^xsd:string is the simple literal "x"; the engine term would come back different
+def _round_trip_ok(term: ox.Literal) -> bool:
     try:
-        ox_term = to_ox(term)
         _SCRATCH.clear()
-        _SCRATCH.add(ox.Quad(_S, _P, ox_term, ox.DefaultGraph()))
+        _SCRATCH.add(ox.Quad(_S, _P, term, ox.DefaultGraph()))
         back = next(iter(_SCRATCH)).object
         _SCRATCH.clear()
     except (TypeError, ValueError, RuntimeError):
         return False
-    if back != ox_term:
-        return False
-    got = from_ox(back)  # exact comparison: rdflib's == ignores the case of a language tag
-    return type(got) is type(term) and got == term and (str(got), got.datatype, got.language) == (str(term), term.datatype, term.language)
+    # exact comparison of the parts: Literal equality alone could hide a rewritten language-tag case
+    return (back.value, back.datatype, back.language, back.direction) == (
+        term.value,
+        term.datatype,
+        term.language,
+        term.direction,
+    )
 
 
 def term_is_safe(term: Any) -> bool:
     """Can the store hold ``term`` and return it exactly? Triple terms are safe when their parts are."""
-    if isinstance(term, (Literal, DirLangString)):
+    if isinstance(term, ox.Literal):
         return literal_survives_store(term)
-    if isinstance(term, TripleTerm):
+    if isinstance(term, ox.Triple):
         return term_is_safe(term.subject) and term_is_safe(term.predicate) and term_is_safe(term.object)
-    if isinstance(term, tuple) and len(term) == 3:
-        return all(term_is_safe(t) for t in term)
     return True
 
 
@@ -85,15 +77,15 @@ class OxigraphOverlay(InferredView):
 
     # -- helpers
     def _in_store(self, s: Any, p: Any, o: Any) -> bool:
-        return next(iter(self._store.quads_for_pattern(to_ox(s), to_ox(p), to_ox(o), ox.DefaultGraph())), None) is not None
+        return next(iter(self._store.quads_for_pattern(s, p, o, ox.DefaultGraph())), None) is not None
 
     def _store_quads(self, s: Any, p: Any, o: Any) -> Iterator[Any]:
         # Oxigraph raises on a literal / triple-term subject or a non-IRI predicate; RDF graphs simply have no match there.
-        if isinstance(s, (Literal, DirLangString, TripleTerm)) or (p is not None and not isinstance(p, URIRef)):
+        if isinstance(s, (ox.Literal, ox.Triple)) or (p is not None and not isinstance(p, ox.NamedNode)):
             return iter(())
         if (o is not None and not term_is_safe(o)) or (s is not None and not term_is_safe(s)):
             return iter(())  # an unsafe term is never in the store (and a lookup by it would match its normalised twin)
-        return self._store.quads_for_pattern(to_ox(s), to_ox(p), to_ox(o), ox.DefaultGraph())
+        return self._store.quads_for_pattern(s, p, o, ox.DefaultGraph())
 
     # -- writes
     def add(self, triple: Triple) -> bool:
@@ -104,12 +96,12 @@ class OxigraphOverlay(InferredView):
             try:
                 if self._in_store(s, p, o):
                     return False
-                self._store.add(ox.Quad(to_ox(s), to_ox(p), to_ox(o), ox.DefaultGraph()))
+                self._store.add(ox.Quad(s, p, o, ox.DefaultGraph()))
                 self._stored += 1
             except (TypeError, ValueError):
                 return super().add(triple)  # a term pyoxigraph cannot hold: keep it on the Python side
             if self._mat is not None:
-                self._mat.add(triple)
+                self._mat.add(from_engine_triple(triple))
             return True
         return super().add(triple)
 
@@ -122,7 +114,7 @@ class OxigraphOverlay(InferredView):
             return
         try:
             if self._in_store(s, p, o):
-                self._store.remove(ox.Quad(to_ox(s), to_ox(p), to_ox(o), ox.DefaultGraph()))
+                self._store.remove(ox.Quad(s, p, o, ox.DefaultGraph()))
                 self._stored -= 1
                 self._mat = None
         except (TypeError, ValueError):
@@ -132,7 +124,7 @@ class OxigraphOverlay(InferredView):
     def inferred(self) -> frozenset[Triple]:
         out = set(self._inferred)
         for q in self._store:
-            out.add((from_ox(q.subject), from_ox(q.predicate), from_ox(q.object)))
+            out.add((q.subject, q.predicate, q.object))
         return frozenset(out)
 
     def __len__(self) -> int:
@@ -143,7 +135,7 @@ class OxigraphOverlay(InferredView):
         s, p, o = pattern
         yield from self.base.triples((s, p, o))
         for q in self._store_quads(s, p, o):
-            yield from_ox(q.subject), from_ox(q.predicate), from_ox(q.object)
+            yield q.subject, q.predicate, q.object
         yield from self._inferred_matching(s, p, o)
 
     def objects(self, subject: Any = None, predicate: Any = None) -> Iterator[Any]:
@@ -153,7 +145,7 @@ class OxigraphOverlay(InferredView):
                 seen.add(o)
                 yield o
         for q in self._store_quads(subject, predicate, None):
-            o = from_ox(q.object)
+            o = q.object
             if o not in seen:
                 seen.add(o)
                 yield o
@@ -169,7 +161,7 @@ class OxigraphOverlay(InferredView):
                 seen.add(s)
                 yield s
         for q in self._store_quads(None, predicate, object):
-            s = from_ox(q.subject)
+            s = q.subject
             if s not in seen:
                 seen.add(s)
                 yield s
@@ -195,9 +187,9 @@ class OxigraphOverlay(InferredView):
 
             mat = StarLayerGraph()
             for tr in self.base.triples((None, None, None)):
-                mat.add(tr)
+                mat.add(from_engine_triple(tr))
             for tr in self.inferred:
-                mat.add(tr)
+                mat.add(from_engine_triple(tr))
             self._mat = mat
         return self._mat
 

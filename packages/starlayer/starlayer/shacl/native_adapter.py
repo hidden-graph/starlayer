@@ -34,7 +34,9 @@ import os
 from collections.abc import Callable, Iterator
 from typing import Any
 
-from rdflib import URIRef
+from rdflib import Namespace, URIRef
+
+SH = Namespace("http://www.w3.org/ns/shacl#")  # rdflib terms: the adapter speaks the caller's term model
 
 ENV_VAR = "STARLAYER_SHACL_ENGINE"
 NATIVE = "native"
@@ -151,7 +153,6 @@ def conformance_disallows_for(allow_warnings: Any, allow_infos: Any) -> URIRef |
     """The engine's ``conformance_disallows`` (the lowest severity that blocks conformance) for the old
     ``allow_warnings`` / ``allow_infos``: allowing warnings also allows infos (only violations block); allowing infos alone
     lets Info through (Warning and Violation block); neither: ``None`` (Info and above block, the draft's default)."""
-    from starlayer.shacl_engine.plan import SH
 
     if allow_warnings:
         return SH.Violation
@@ -222,7 +223,6 @@ def _meta_preflight(shapes: Any, meta_shapes_extra: Any, floor: Any) -> None:
     text check of the old preflight follows it."""
     from starlayer.shacl.meta_shapes import check_sparql_query_text
     from starlayer.shacl_engine.meta import meta_validate
-    from starlayer.shacl_engine.plan import SH
 
     meta_validate(
         shapes,
@@ -240,7 +240,6 @@ def _annotate_conformance_disallows(report: Any, floor: Any) -> None:
     property only for a non-default floor."""
     from rdflib.namespace import RDF
 
-    from starlayer.shacl_engine.plan import SH
 
     node = next(report.subjects(RDF.type, SH.ValidationReport), None)
     if node is None:

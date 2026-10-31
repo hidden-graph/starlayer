@@ -16,12 +16,14 @@ from contextlib import contextmanager
 from functools import lru_cache
 from typing import Any
 
-from rdflib import OWL, RDF, Literal, URIRef
 from rdflib.plugins.sparql.parserutils import CompValue
 
 from starlayer.shacl_engine.components.registry import Violation
 from starlayer.shacl_engine.interface import Solutions
 from starlayer.shacl_engine.plan import SH, Path, Plan, Shape, ShapeError, Term
+from starlayer.shacl_engine.terms import OWL, RDF, Literal, from_engine, to_engine
+from starlayer.shacl_engine.terms import NamedNode as URIRef
+from starlayer.shacl_engine.terms import text as text_of
 
 # --------------------------------------------------------------------------------------------------------------------
 # Prefix declarations
@@ -33,8 +35,8 @@ def _declarations(graph: Any, holders: Iterable[Term]) -> dict[str, str]:
     found: dict[str, str] = {}
     for holder in holders:
         for decl in graph.objects(holder, SH.declare):
-            prefixes = [str(p) for p in graph.objects(decl, SH.prefix)]
-            namespaces = [str(n) for n in graph.objects(decl, SH.namespace)]
+            prefixes = [text_of(p) for p in graph.objects(decl, SH.prefix)]
+            namespaces = [text_of(n) for n in graph.objects(decl, SH.namespace)]
             if len(prefixes) != 1 or len(namespaces) != 1:
                 raise ShapeError(f"{decl!r}: a prefix declaration needs exactly one sh:prefix and one sh:namespace")
             if found.setdefault(prefixes[0], namespaces[0]) != namespaces[0]:
@@ -146,10 +148,11 @@ def check_query(plan: Plan, text: str, prebound: Iterable[str], *, ask: bool = F
 def starlayer_sparql_query(graph: Any, text: str, init_bindings: Mapping[str, Term] | None = None) -> Solutions:
     """Run ``text`` through StarLayer's query layer: its own SPARQL 1.2 parse (``prepareQuery``) and the graph's
     ``.query()``. Works for a ``StarLayerGraph`` / ``StarLayerDataset`` (and any rdflib-style graph)."""
-    result = graph.query(_prepare(text), initBindings=dict(init_bindings or {}) or None)
+    bindings = {k: from_engine(v) for k, v in (init_bindings or {}).items()}  # engine terms -> query-layer terms
+    result = graph.query(_prepare(text), initBindings=bindings or None)
     if result.type == "ASK":
         return Solutions(boolean=bool(result.askAnswer))
-    rows = tuple({str(k): v for k, v in b.items() if v is not None} for b in result.bindings)
+    rows = tuple({str(k): to_engine(v) for k, v in b.items() if v is not None} for b in result.bindings)
     return Solutions(variables=tuple(str(v) for v in result.vars), rows=rows)
 
 
@@ -157,7 +160,7 @@ def run_query(graph: Any, text: str, init_bindings: Mapping[str, Term] | None = 
     native = getattr(graph, "sparql_query", None)
     if native is not None:
         return native(text, init_bindings)
-    return starlayer_sparql_query(graph, text, init_bindings)
+    return starlayer_sparql_query(getattr(graph, "graph", graph), text, init_bindings)  # RdflibTermView -> its rdflib graph
 
 
 @contextmanager
@@ -179,17 +182,17 @@ def _shacl_functions(ctx: Any) -> Iterator[None]:
     if getattr(ctx.data, "sparql_query", None) is not None or active.get(("shacl-functions-active",)):
         yield  # a native backend, or already registered by an enclosing query (a body that itself runs SPARQL)
         return
-    registered: list[tuple[URIRef, Any]] = []
+    registered: list[tuple[Any, Any]] = []
 
     def make(fn: Term, body: Term) -> Any:
         def call(*args: Term) -> Term:
             try:
-                out = eval_node_expression(ctx, body, None, {i: [a] for i, a in enumerate(args)})
+                out = eval_node_expression(ctx, body, None, {i: [to_engine(a)] for i, a in enumerate(args)})
             except (EvaluationFailure, ShapeError) as exc:
                 raise SPARQLError(str(exc)) from exc
             if len(out) != 1:
-                raise SPARQLError(f"{fn}: the body must have exactly one output node, found {len(out)}")
-            return out[0]
+                raise SPARQLError(f"{text_of(fn)}: the body must have exactly one output node, found {len(out)}")
+            return from_engine(out[0])
 
         return call
 
@@ -204,8 +207,8 @@ def _shacl_functions(ctx: Any) -> Iterator[None]:
             ]
         for fn, body in declared:
             func = make(fn, body)
-            register_custom_function(fn, func, override=True)
-            registered.append((fn, func))
+            register_custom_function(from_engine(fn), func, override=True)
+            registered.append((from_engine(fn), func))
         yield
     finally:
         active[("shacl-functions-active",)] = False
@@ -233,7 +236,7 @@ def run_ask(ctx: Any, text: str, bindings: Mapping[str, Term]) -> bool:
 
 def path_to_sparql(path: Path) -> str:
     if path.kind == "pred":
-        return f"<{path.iri}>"
+        return f"<{path.iri.value}>"
     args = [path_to_sparql(a) for a in path.args]
     if path.kind == "inverse":
         return f"^({args[0]})"
@@ -265,14 +268,14 @@ def fill_template(message: Term, values: Mapping[str, Term]) -> Term:
 
     def one(m: re.Match) -> str:
         v = values.get(m.group(1))
-        return m.group(0) if v is None else str(v)
+        return m.group(0) if v is None else text_of(v)
 
-    text = _TEMPLATE.sub(one, str(message))
-    return Literal(text, lang=message.language, datatype=None if message.language else message.datatype)
+    filled = _TEMPLATE.sub(one, message.value)
+    return Literal(filled, language=message.language) if message.language else Literal(filled, datatype=message.datatype)
 
 
 def is_true(value: Term) -> bool:
-    return str(value).lower() in ("true", "1")
+    return text_of(value).lower() in ("true", "1")
 
 
 def violations_from_solutions(
@@ -332,7 +335,7 @@ def result_annotations(graph: Any, source: Term, row: Mapping[str, Term]) -> tup
             continue
         names = list(graph.objects(ann, SH.annotationVarName))
         if names:
-            value = row.get(str(names[0]))
+            value = row.get(text_of(names[0]))
             if value is not None:
                 out.append((props[0], value))
             continue
@@ -349,7 +352,7 @@ def _single_string(graph: Any, node: Term, pred: Term) -> str:
     values = list(graph.objects(node, pred))
     if len(values) != 1 or not isinstance(values[0], Literal):
         raise ShapeError(f"{node!r}: exactly one string literal {pred} is required")
-    return str(values[0])
+    return values[0].value
 
 
 def _scope_variable(name: Any) -> str:
@@ -357,8 +360,8 @@ def _scope_variable(name: Any) -> str:
     if isinstance(name, int):
         return f"arg{name}"
     if isinstance(name, URIRef):
-        text = str(name)
-        return text[max(text.rfind("#"), text.rfind("/")) + 1 :]
+        iri = name.value
+        return iri[max(iri.rfind("#"), iri.rfind("/")) + 1 :]
     return str(name)
 
 

@@ -9,9 +9,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from rdflib import RDF, BNode, Literal, URIRef
-
 from starlayer.shacl_engine.plan import SH, Path, ShapeError, Term
+from starlayer.shacl_engine.terms import RDF, BlankNode, Literal, NamedNode
 
 _UNARY = {
     SH.inversePath: "inverse",
@@ -40,9 +39,9 @@ def _read_list(graph: Any, head: Term, what: str) -> list[Term]:
 
 
 def parse_path(graph: Any, node: Term, _stack: tuple = ()) -> Path:
-    if isinstance(node, URIRef):
+    if isinstance(node, NamedNode):
         return Path(kind="pred", iri=node, node=node)
-    if isinstance(node, Literal) or not isinstance(node, BNode):
+    if isinstance(node, Literal) or not isinstance(node, BlankNode):
         raise ShapeError(f"a property path must be an IRI or blank node, got {node!r}")
     if node in _stack:
         raise ShapeError(f"cyclic property path at {node!r}")

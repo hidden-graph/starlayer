@@ -18,8 +18,6 @@ import itertools
 import re
 from typing import Any
 
-from rdflib import RDF, RDFS, URIRef
-
 from starlayer.shacl_engine.components.registry import (
     REGISTRY,
     ComponentSpec,
@@ -35,6 +33,8 @@ from starlayer.shacl_engine.sparql_support import (
     violations_from_solutions,
     with_prefixes,
 )
+from starlayer.shacl_engine.terms import RDF, RDFS
+from starlayer.shacl_engine.terms import NamedNode as URIRef
 
 _RESERVED = {"this", "path", "PATH", "value", "message", "failure"}
 _VARNAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
@@ -52,7 +52,7 @@ def _subclass_closure(graph: Any, root: Term) -> list[Term]:
 
 
 def _local_name(iri: Term) -> str:
-    return re.split(r"[#/]", str(iri))[-1]
+    return re.split(r"[#/]", iri.value)[-1]
 
 
 def _parameters(graph: Any, comp: Term) -> list[tuple[URIRef, str, bool]]:
@@ -109,7 +109,7 @@ def _run_validator(ctx, comp: Term, validator: Term, shape: Shape, focus: Term, 
     if len(asks) + len(selects) != 1:
         raise ShapeError(f"{validator!r}: a validator needs exactly one sh:ask or sh:select")
     if asks:
-        text = with_prefixes(ctx.plan, validator, str(asks[0]))
+        text = with_prefixes(ctx.plan, validator, asks[0].value)
         out = []
         for value in values:
             bindings = {"this": focus, "value": value, **params}
@@ -118,7 +118,7 @@ def _run_validator(ctx, comp: Term, validator: Term, shape: Shape, focus: Term, 
                     Violation(value=value, messages=tuple(fill_template(m, bindings) for m in messages))
                 )
         return out
-    text = substitute_path(with_prefixes(ctx.plan, validator, str(selects[0])), shape)
+    text = substitute_path(with_prefixes(ctx.plan, validator, selects[0].value), shape)
     bindings = {"this": focus, **params}
     return violations_from_solutions(
         run_select(ctx, text, bindings),

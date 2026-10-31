@@ -7,11 +7,11 @@ from __future__ import annotations
 from typing import Any
 
 from starlayer.shacl_engine.expressions import (
-    TRUE,
     EvaluationFailure,
     evaluate_expression,
 )
 from starlayer.shacl_engine.plan import Shape, Term
+from starlayer.shacl_engine.terms import TRUE
 
 
 def deactivated_at(ctx: Any, shape: Shape, focus: Term) -> bool:

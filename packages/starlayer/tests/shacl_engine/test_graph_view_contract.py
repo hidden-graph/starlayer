@@ -19,6 +19,7 @@ from starlayer.shacl_engine.oxigraph_view import (
     from_ox,
     to_ox,
 )
+from starlayer.shacl_engine.terms import LegacyTermView, RdflibTermView
 
 EX = Namespace("http://example.com/ns#")
 REIFIES = URIRef("http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies")
@@ -53,13 +54,19 @@ def _starlayer(triples):
     return g
 
 
+# The views yield engine (pyoxigraph) terms; the contract is stated in rdflib / StarLayer terms, so each implementation is
+# wrapped in ``LegacyTermView`` (engine terms in and out of the wrapped view, rdflib terms for the test).
+def _rdflib_view(triples):
+    return LegacyTermView(RdflibTermView(_starlayer(triples)))
+
+
 def _oxigraph(triples):
-    return OxigraphGraph.from_graph(_starlayer(triples))
+    return LegacyTermView(OxigraphGraph.from_graph(_starlayer(triples)))
 
 
 @pytest.fixture(params=["StarLayerGraph", "OxigraphGraph"])
 def view(request):
-    return (_starlayer if request.param == "StarLayerGraph" else _oxigraph)(TRIPLES)
+    return (_rdflib_view if request.param == "StarLayerGraph" else _oxigraph)(TRIPLES)
 
 
 def test_satisfies_protocol(view):
@@ -155,28 +162,28 @@ G1, G2 = URIRef("http://example.com/g1"), URIRef("http://example.com/g2")
 
 
 @pytest.fixture
-def dataset() -> OxigraphGraph:
-    return OxigraphGraph.from_text(
+def dataset() -> LegacyTermView:
+    return LegacyTermView(OxigraphGraph.from_text(
         """@prefix ex: <http://example.com/ns#> .
         ex:d ex:p ex:default .
         ex:both ex:p ex:x .
         <http://example.com/g1> { ex:s1 ex:p ex:o1 . ex:both ex:p ex:x . }
         <http://example.com/g2> { ex:s2 ex:p ex:o2 . ex:both ex:p ex:x . }""",
         format="trig",
-    )
+    ))
 
 
 def test_union_default_and_named_graphs(dataset):
     store = dataset.store
-    union = OxigraphGraph(store)
+    union = LegacyTermView(OxigraphGraph(store))
     assert set(union.subjects(EX.p, None)) == {EX.d, EX.both, EX.s1, EX.s2}
     # the same triple in three graphs is reported once in the union
     assert len(list(union.triples((EX.both, EX.p, EX.x)))) == 1
-    default = OxigraphGraph(store, DEFAULT)
+    default = LegacyTermView(OxigraphGraph(store, DEFAULT))
     assert set(default.subjects(EX.p, None)) == {EX.d, EX.both}
-    g1 = OxigraphGraph(store, G1)
+    g1 = LegacyTermView(OxigraphGraph(store, G1))
     assert set(g1.subjects(EX.p, None)) == {EX.s1, EX.both}
-    assert (EX.s2, EX.p, EX.o2) not in g1 and (EX.s2, EX.p, EX.o2) in OxigraphGraph(store, G2) and (EX.s2, EX.p, EX.o2) in union
+    assert (EX.s2, EX.p, EX.o2) not in g1 and (EX.s2, EX.p, EX.o2) in LegacyTermView(OxigraphGraph(store, G2)) and (EX.s2, EX.p, EX.o2) in union
     assert len(list(union.triples((None, None, None)))) == 4
 
 
@@ -217,12 +224,12 @@ def test_conversion_wildcard_and_errors():
 def test_from_file_trig_and_turtle(tmp_path):
     f = tmp_path / "d.ttl"
     f.write_text("@prefix ex: <http://example.com/ns#> . ex:a ex:p <<( ex:x ex:y 1 )>> .")
-    g = OxigraphGraph.from_file(f)
+    g = LegacyTermView(OxigraphGraph.from_file(f))
     (tt,) = g.objects(EX.a, EX.p)
     assert tt == TripleTerm(EX.x, EX.y, Literal(1))
     t = tmp_path / "d.trig"
     t.write_text("@prefix ex: <http://example.com/ns#> . ex:g { ex:a ex:p ex:b }")
-    assert (EX.a, EX.p, EX.b) in OxigraphGraph.from_file(t)
+    assert (EX.a, EX.p, EX.b) in LegacyTermView(OxigraphGraph.from_file(t))
 
 
 def test_query_select_ask_construct_and_bindings(dataset):
@@ -235,7 +242,7 @@ def test_query_select_ask_construct_and_bindings(dataset):
     built = dataset.query("CONSTRUCT { ?s <http://example.com/ns#q> ?o } WHERE { ?s <http://example.com/ns#p> ?o }")
     assert (EX.s1, EX.q, EX.o1) in built
     # a named-graph view queries only that graph
-    only = OxigraphGraph(dataset.store, G1).query("SELECT ?s WHERE { ?s <http://example.com/ns#p> ?o }")
+    only = LegacyTermView(OxigraphGraph(dataset.store, G1)).query("SELECT ?s WHERE { ?s <http://example.com/ns#p> ?o }")
     assert {r["s"] for r in only} == {EX.s1, EX.both}
     # triple terms and directional literals bind and come back
     tt = TripleTerm(EX.x, EX.y, DLS)

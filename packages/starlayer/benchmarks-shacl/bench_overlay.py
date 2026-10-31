@@ -86,10 +86,12 @@ def entailed_split(data):
     t1 = time.perf_counter()
     delta = combined.infer(entailment=frozenset({ENTAILMENT.RDFS}), mode="delta")
     t2 = time.perf_counter()
-    view = new_overlay(data)
+    from starlayer.shacl_engine.terms import engine_view, to_engine_triple
+
+    view = new_overlay(engine_view(data))
     n = 0
     for t in legal_rdf_triples(delta):
-        view.add(tuple(t))
+        view.add(to_engine_triple(tuple(t)))
         n += 1
     t3 = time.perf_counter()
     return {"copy": t1 - t0, "owlrl": t2 - t1, "fill": t3 - t2, "delta": n}
@@ -97,9 +99,10 @@ def entailed_split(data):
 
 def lookups(view, data, calls: int = 20000):
     """Mixed read workload typical of the engine: s-p-? objects, ?-p-o subjects, s-?-? scan, membership."""
-    from rdflib import RDF, Namespace
+    from starlayer.shacl_engine.terms import NS, RDF, engine_view
 
-    ex = Namespace("http://example.org/")
+    ex = NS("http://example.org/")
+    data = engine_view(data)  # the overlay speaks engine (pyoxigraph) terms
     rnd = random.Random(1)
     n = max(1, len(list(data.subjects(RDF.type, ex.Manager))) * 10)
     people = [ex[f"p{rnd.randrange(n)}"] for _ in range(calls)]
