@@ -1347,7 +1347,10 @@ def parse_sparql(text: str, base: str | None = None) -> Node:
     Raises:
         SparqlSyntaxError: For anything outside the grammar (with line and column).
     """
-    return _Parser(text, base).parse_query()
+    try:
+        return _Parser(text, base).parse_query()
+    except RecursionError:  # the grammar nests without limit, Python's stack does not (as in manchester_parser.run_guarded)
+        raise SparqlSyntaxError("expression or pattern nested too deeply to parse", text, 0) from None
 
 
 # ---------------------------------------------------------------------------

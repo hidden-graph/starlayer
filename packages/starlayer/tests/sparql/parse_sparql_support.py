@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from rdflib import BNode, Graph
+from rdflib import BNode, Graph, URIRef
 from rdflib.collection import Collection
 from rdflib.compare import isomorphic
 from rdflib.namespace import RDF
@@ -21,19 +21,17 @@ def entry_key(entry) -> str:
     return entry.category + "/" + entry.test_iri.rsplit("#", 1)[-1]
 
 
-def _sig(node, g: Graph) -> str:
-    """A label-free signature of a term or sub-tree (blank nodes without properties are all '_')."""
-    if not isinstance(node, BNode):
-        return node.n3()
-    props = sorted((str(p), _sig(o, g)) for p, o in g.predicate_objects(node))
-    return "_" if not props else "{" + ",".join(f"{p}={o}" for p, o in props) + "}"
+_RUN = URIRef("urn:test:run")
+_MEMBER = URIRef("urn:test:member")
 
 
 def canonical_graph(g: Graph) -> Graph:
-    """Copy of ``g`` with each run of adjacent triple patterns in any list sorted by signature.
+    """Copy of ``g`` in which each run of adjacent triple patterns in a list becomes one unordered set.
 
-    The current path orders patterns with rdflib's selectivity heuristic (``reorderTriples``), which also
-    breaks ties on random blank-node ids; the new parser keeps the order written. Only that order differs.
+    The current path orders the patterns of a block with rdflib's selectivity heuristic (``reorderTriples``),
+    breaking ties on random blank-node ids; the new parser keeps the order written. Only that order differs,
+    so each run is replaced by a node with one ``urn:test:member`` edge per pattern (graph isomorphism then
+    treats the run as a set but still follows the blank nodes the patterns share).
     """
     out = Graph()
     for t in g:
@@ -48,17 +46,21 @@ def canonical_graph(g: Graph) -> Graph:
             if item is not None and (item, RDF.type, TRIPLE_PATTERN) in g:
                 run.append(item)
                 continue
-            new += sorted(run, key=lambda n: _sig(n, g))
-            run = []
+            if run:
+                node = BNode()
+                out.add((node, RDF.type, _RUN))
+                for member in run:
+                    out.add((node, _MEMBER, member))
+                new.append(node)
+                run = []
             if item is not None:
                 new.append(item)
-        if new != items:
-            node = head
-            while node != RDF.nil:  # unlink the old chain, then lay the new one on the same head
-                nxt = out.value(node, RDF.rest)
-                out.remove((node, None, None))
-                node = nxt
-            Collection(out, head, new)
+        node = head
+        while node != RDF.nil:  # unlink the old chain, then lay the new one on the same head
+            nxt = out.value(node, RDF.rest)
+            out.remove((node, None, None))
+            node = nxt
+        Collection(out, head, new)
     return out
 
 
