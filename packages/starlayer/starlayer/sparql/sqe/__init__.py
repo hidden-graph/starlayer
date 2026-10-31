@@ -5,7 +5,8 @@ CONSTRUCT with every WHERE-clause element, aggregates, solution modifiers,
 subqueries, VALUES, property paths and the SPARQL 1.2 additions (triple
 terms, reifiers, annotations, base-direction strings), plus DESCRIBE, FROM /
 FROM NAMED, SERVICE and VERSION for trees from ``parse_sparql.sparql_to_tree``.
-SPARQL Update is not covered, and anything else raises rather than being dropped.
+SPARQL Update trees (``sqe:UpdateRequest``, from ``parse_sparql.sparql_update_to_tree``) are validated and rendered by
+``sqe_validate`` and ``sqe_tree_to_text``; anything else raises rather than being dropped.
 
 Not flattened into the top-level ``starlayer.sparql`` namespace - same
 precedent ``salg``/``srl`` already follow: ``from starlayer.sparql import

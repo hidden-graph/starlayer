@@ -30,27 +30,51 @@ from ..from_rdf import _decode
 from ..vocab import VARIABLE_DATATYPE
 from .expr_text import expr_text
 from .vocab import (
+    ADD,
     ALIAS,
+    ALL_GRAPHS,
     ASK_QUERY,
     BIND,
     BIND_VAR,
+    CLEAR,
     CONSTRUCT_QUERY,
+    COPY,
+    CREATE,
     DATASET,
     DATASET_NAMED,
     DATASET_SOURCE,
+    DEFAULT_GRAPH,
+    DELETE_DATA,
+    DELETE_WHERE,
     DESCRIBE,
     DESCRIBE_ALL,
     DESCRIBE_QUERY,
     DISTINCT,
+    DROP,
     EXPR,
     FILTER,
     GRAPH_PATTERN,
+    GRAPH_REF,
+    GRAPH_REF_IRI,
+    GRAPH_TARGET,
     GRAPH_TERM,
     GROUP_BY,
     HAVING,
+    INSERT_DATA,
     LIMIT,
+    LOAD,
+    LOAD_FROM,
+    LOAD_INTO,
     MINUS,
+    MODIFY,
+    MODIFY_DELETE,
+    MODIFY_INSERT,
+    MODIFY_USING,
+    MODIFY_WITH,
+    MOVE,
+    NAMED_GRAPHS,
     OFFSET,
+    OPERATIONS,
     OPTIONAL,
     ORDER_BY,
     ORDER_DESCENDING,
@@ -59,6 +83,10 @@ from .vocab import (
     PROJECTION,
     PROLOGUE_BASE,
     PROLOGUE_PREFIX,
+    QUAD_GRAPH,
+    QUAD_GRAPH_NAME,
+    QUAD_TRIPLES,
+    QUADS,
     QUERY_VALUES,
     REDUCED,
     SELECT_ALL,
@@ -75,6 +103,9 @@ from .vocab import (
     TRIPLE_TERM,
     UNION,
     UNION_ALTERNATIVES,
+    UPDATE_FROM,
+    UPDATE_REQUEST,
+    UPDATE_TO,
     VALUES,
     VALUES_ROWS,
     VALUES_UNDEF,
@@ -103,6 +134,8 @@ def sqe_tree_to_text(graph: Graph, root) -> str:
     Returns:
         The rendered SPARQL query text.
     """
+    if (root, RDF.type, UPDATE_REQUEST) in graph:
+        return _update_text(graph, root)
     prefixes = _prefix_map(graph, root)
     lines = [f'VERSION "{_escape_string(str(v))}"' for v in sorted(graph.objects(root, VERSION), key=str)]
     lines += [f"PREFIX {label}: <{ns}>" for label, ns in sorted(prefixes.items())]
@@ -113,6 +146,93 @@ def sqe_tree_to_text(graph: Graph, root) -> str:
 
     lines.extend(_query_lines(graph, root, prefixes))
     return "\n".join(lines)
+
+
+def _prologue_lines(graph: Graph, node, prefixes: dict) -> list:
+    """The ``VERSION``, ``PREFIX`` and ``BASE`` declarations stored on ``node`` (``prefixes``: the ones it declares)."""
+    lines = [f'VERSION "{_escape_string(str(v))}"' for v in sorted(graph.objects(node, VERSION), key=str)]
+    lines += [f"PREFIX {label}: <{ns}>" for label, ns in sorted(prefixes.items())]
+    base = graph.value(node, PROLOGUE_BASE)
+    if base is not None:
+        lines.append(f"BASE <{base}>")
+    return lines
+
+
+def _update_text(graph: Graph, root) -> str:
+    """Render an ``sqe:UpdateRequest``: the operations in order, separated by `` ;``. Each operation writes the prologue
+    it carries; the prefixes declared by earlier operations stay in force for the terms of later ones."""
+    in_force: dict = {}
+    chunks: list = []
+    for op in Collection(graph, graph.value(root, OPERATIONS)):
+        own = _prefix_map(graph, op)
+        in_force.update(own)
+        chunks.append("\n".join([*_prologue_lines(graph, op, own), _operation_text(graph, op, in_force)]))
+    own = _prefix_map(graph, root)
+    trailing = _prologue_lines(graph, root, own)
+    text = " ;\n".join(chunks)
+    if trailing:
+        text += (" ;\n" if chunks else "") + "\n".join(trailing)
+    return text
+
+
+def _graph_ref_text(node, graph: Graph, prefixes: dict) -> str:
+    if (node, RDF.type, GRAPH_REF) in graph:
+        return "GRAPH " + _term_text(graph.value(node, GRAPH_REF_IRI), prefixes)
+    for kind, word in ((DEFAULT_GRAPH, "DEFAULT"), (NAMED_GRAPHS, "NAMED"), (ALL_GRAPHS, "ALL")):
+        if (node, RDF.type, kind) in graph:
+            return word
+    raise NotImplementedError(f"starlayer.sparql.sqe: {node!r} is not a recognized graph reference")
+
+
+def _quads_text(list_node, graph: Graph, prefixes: dict) -> str:
+    parts = []
+    for item in Collection(graph, list_node) if list_node is not None else []:
+        if (item, RDF.type, QUAD_GRAPH) in graph:
+            name = _term_text(graph.value(item, QUAD_GRAPH_NAME), prefixes)
+            triples = [_triple_pattern_text(t, graph, prefixes) + " ." for t in Collection(graph, graph.value(item, QUAD_TRIPLES))]
+            parts.append(f"GRAPH {name} {{ {' '.join(triples)} }}" if triples else f"GRAPH {name} {{ }}")
+        else:
+            parts.append(_triple_pattern_text(item, graph, prefixes) + " .")
+    return "{ " + " ".join(parts) + " }" if parts else "{ }"
+
+
+def _operation_text(graph: Graph, op, prefixes: dict) -> str:
+    silent = " SILENT" if graph.value(op, SERVICE_SILENT) is not None else ""
+    ref = lambda p: _graph_ref_text(graph.value(op, p), graph, prefixes)  # noqa: E731
+    if (op, RDF.type, INSERT_DATA) in graph:
+        return "INSERT DATA " + _quads_text(graph.value(op, QUADS), graph, prefixes)
+    if (op, RDF.type, DELETE_DATA) in graph:
+        return "DELETE DATA " + _quads_text(graph.value(op, QUADS), graph, prefixes)
+    if (op, RDF.type, DELETE_WHERE) in graph:
+        return "DELETE WHERE " + _quads_text(graph.value(op, QUADS), graph, prefixes)
+    if (op, RDF.type, MODIFY) in graph:
+        lines = []
+        with_ = graph.value(op, MODIFY_WITH)
+        if with_ is not None:
+            lines.append("WITH " + _term_text(with_, prefixes))
+        for pred, word in ((MODIFY_DELETE, "DELETE"), (MODIFY_INSERT, "INSERT")):
+            if (op, pred, None) in graph:
+                lines.append(f"{word} " + _quads_text(graph.value(op, pred), graph, prefixes))
+        using = graph.value(op, MODIFY_USING)
+        for clause in Collection(graph, using) if using is not None else []:
+            named = "NAMED " if graph.value(clause, DATASET_NAMED) is not None else ""
+            lines.append(f"USING {named}{_term_text(graph.value(clause, DATASET_SOURCE), prefixes)}")
+        lines.append(f"WHERE {_where_group_text(graph.value(op, WHERE), graph, prefixes)}")
+        return "\n".join(lines)
+    if (op, RDF.type, LOAD) in graph:
+        into = graph.value(op, LOAD_INTO)
+        tail = f" INTO {_graph_ref_text(into, graph, prefixes)}" if into is not None else ""
+        return f"LOAD{silent} {_term_text(graph.value(op, LOAD_FROM), prefixes)}{tail}"
+    if (op, RDF.type, CLEAR) in graph:
+        return f"CLEAR{silent} {ref(GRAPH_TARGET)}"
+    if (op, RDF.type, DROP) in graph:
+        return f"DROP{silent} {ref(GRAPH_TARGET)}"
+    if (op, RDF.type, CREATE) in graph:
+        return f"CREATE{silent} {ref(GRAPH_TARGET)}"
+    for kind, word in ((ADD, "ADD"), (MOVE, "MOVE"), (COPY, "COPY")):
+        if (op, RDF.type, kind) in graph:
+            return f"{word}{silent} {ref(UPDATE_FROM)} TO {ref(UPDATE_TO)}"
+    raise NotImplementedError(f"starlayer.sparql.sqe: {op!r} is not a recognized update operation")
 
 
 def _query_lines(graph: Graph, root, prefixes: dict) -> list:

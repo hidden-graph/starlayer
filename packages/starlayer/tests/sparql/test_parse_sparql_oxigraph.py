@@ -123,8 +123,9 @@ def _strip_prefix(text: str) -> str:
 
 
 _RULE_TEXT = {_strip_prefix(r.text): r for r in RULES}
-_CASE_TEXT = {_strip_prefix(c.text): c for c in CASES}
-_ALL = {**{_strip_prefix(r.text): r.ok for r in RULES}, **{_strip_prefix(c.text): c.ok for c in CASES}}
+_QUERY_CASES = [c for c in CASES if not c.update]  # the Update cases are compared in test_parse_sparql_update_oxigraph.py
+_CASE_TEXT = {_strip_prefix(c.text): c for c in _QUERY_CASES}
+_ALL = {**{_strip_prefix(r.text): r.ok for r in RULES}, **{_strip_prefix(c.text): c.ok for c in _QUERY_CASES}}
 
 
 @pytest.mark.parametrize("key,text", POSITIVE, ids=[k for k, _ in POSITIVE])

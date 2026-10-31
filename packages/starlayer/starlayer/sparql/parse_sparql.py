@@ -16,7 +16,14 @@ triples, reifiers, annotations, property paths with negated sets,
 built-in list and the aggregates, and the solution modifiers. The static
 rules the grammar leaves to prose (section 19.7 notes and 18.3.1 scope) are
 enforced by :class:`_Checker` and the parser itself (blank node labels per
-basic graph pattern). SPARQL Update is not parsed (the next piece of work).
+basic graph pattern).
+
+``parse_sparql_update`` covers the Update grammar ([3], [31]-[53]): ``LOAD``, ``CLEAR``, ``DROP``, ``CREATE``, ``ADD``,
+``MOVE``, ``COPY``, ``INSERT DATA``, ``DELETE DATA``, ``DELETE WHERE`` and ``[WITH] DELETE/INSERT ... [USING [NAMED]]
+WHERE``, a prologue in front of every operation, ``GRAPH`` blocks in quad data and templates, and the static rules: no
+variables in ``INSERT DATA`` / ``DELETE DATA``; no blank nodes (labels, ``[]``, collections, annotations, reified triples
+without a reifier, an empty ``~``) in ``DELETE DATA``, ``DELETE WHERE`` and ``DELETE`` templates; a blank node label
+written in one ``INSERT DATA`` cannot be reused in another operation; WHERE patterns follow the query rules. SPARQL Update is parsed by :func:`parse_sparql_update` (see below).
 
 The AST is one generic class, :class:`Node` (``kind`` plus an ordered ``f``
 dict), because the ``sqe:``/``spexpr:`` vocabulary is itself generic: an
@@ -29,6 +36,8 @@ Entry points::
 
     parse_sparql(text, base=None) -> Node
     sparql_to_tree(text, base=None, graph=None, root=None) -> (Graph, root)
+    parse_sparql_update(text, base=None) -> Node                # an UpdateRequest
+    sparql_update_to_tree(text, base=None, graph=None, root=None) -> (Graph, root)
 
 Errors are :class:`SparqlSyntaxError` with ``line``/``col``/``pos``.
 """
@@ -225,7 +234,8 @@ _KEYWORDS = (
     | set(
         "BASE PREFIX VERSION SELECT DISTINCT REDUCED CONSTRUCT DESCRIBE ASK FROM NAMED WHERE GROUP BY HAVING ORDER ASC DESC "
         "LIMIT OFFSET VALUES UNDEF OPTIONAL GRAPH SERVICE SILENT BIND AS MINUS UNION FILTER NOT IN EXISTS SEPARATOR REGEX "
-        "SUBSTR REPLACE STRLANGDIR TRIPLE".split()
+        "SUBSTR REPLACE STRLANGDIR TRIPLE "
+        "LOAD INTO CLEAR DROP CREATE ADD MOVE COPY TO DEFAULT ALL DATA INSERT DELETE WITH USING".split()
     )
 )
 
@@ -252,6 +262,11 @@ class _Parser:
         self._bgp_next = 0
         self._bgp = 0
         self._label_bgp: dict[tuple[bool, str], int] = {}
+        # Update: a blank node label written in the data of one INSERT DATA may not be reused in another operation
+        # (W3C syntax-update-54); labels of templates and patterns are per operation, and so is each solution's node.
+        self._op = 0  # index of the operation being parsed
+        self._data_op: int | None = None  # set while the QuadData of an INSERT DATA is parsed
+        self._data_labels: dict[str, int] = {}
         self._in_template = False  # a CONSTRUCT template is not a basic graph pattern: its labels are a separate space
 
     def _fresh_bgp(self) -> int:
@@ -355,6 +370,8 @@ class _Parser:
         if t.kind == "BNODE":
             self.i += 1
             label = t.text[2:]
+            if self._data_op is not None and self._data_labels.setdefault(label, self._data_op) != self._data_op:
+                self.err(f"blank node label {t.text} is already used in an INSERT DATA of another operation", t)
             if self._label_bgp.setdefault((self._in_template, label), self._bgp) != self._bgp:
                 self.err(f"blank node label {t.text} is used in two different basic graph patterns", t)
             return BNode(label)
@@ -483,6 +500,171 @@ class _Parser:
         _check_query(q, self.text)
         return q
 
+    # -- update -------------------------------------------------------------
+
+    def parse_update(self) -> Node:
+        """Update ::= Prologue ( Update1 ( ';' Update )? )?   (UpdateUnit ::= Update)"""
+        ops: list[Node] = []
+        trailing: list = []
+        while True:
+            self.prologue = []  # the declarations written in front of this operation (prefixes and BASE stay in force)
+            self.parse_prologue()
+            if self.peek().kind == "EOF":
+                trailing = self.prologue
+                break
+            decls = self.prologue
+            # labels are scoped to one operation: the same label in two operations is two blank nodes (W3C
+            # syntax-update-54, basic-update/insert-data-same-bnode), and basic graph patterns do not span operations
+            self._label_bgp = {}
+            self._op = len(ops)
+            op = self.update1()
+            op.f["prologue"] = decls
+            ops.append(op)
+            if self.peek().kind == "EOF":
+                break
+            if not self.accept_p(";"):
+                self.err("expected ';' or the end of the update request")
+        return Node("UpdateRequest", operations=ops, prologue=trailing)
+
+    def update1(self) -> Node:
+        t = self.peek()
+        if t.kind != "W":
+            self.err("expected an update operation")
+        kw = t.text.upper()
+        if kw == "LOAD":
+            self.i += 1
+            silent = self.accept_kw("SILENT")
+            source = self.iri()
+            into = self.graph_ref() if self.accept_kw("INTO") else None
+            return self._at(Node("Load", silent=silent, source=source, into=into), t.pos)
+        if kw in ("CLEAR", "DROP"):
+            self.i += 1
+            silent = self.accept_kw("SILENT")
+            return self._at(Node(kw.capitalize(), silent=silent, target=self.graph_ref_all()), t.pos)
+        if kw == "CREATE":
+            self.i += 1
+            silent = self.accept_kw("SILENT")
+            return self._at(Node("Create", silent=silent, graph=self.graph_ref()), t.pos)
+        if kw in ("ADD", "MOVE", "COPY"):
+            self.i += 1
+            silent = self.accept_kw("SILENT")
+            src = self.graph_or_default()
+            self.expect_kw("TO")
+            return self._at(Node(kw.capitalize(), silent=silent, source=src, dest=self.graph_or_default()), t.pos)
+        if kw == "INSERT" and self.at_kw("DATA", k=1):
+            self.i += 2
+            return self._at(Node("InsertData", quads=self.quad_block("INSERT DATA", variables=False, data=True)), t.pos)
+        if kw == "DELETE" and self.at_kw("DATA", k=1):
+            self.i += 2
+            return self._at(
+                Node("DeleteData", quads=self.quad_block("DELETE DATA", variables=False, bnodes=False)), t.pos
+            )
+        if kw == "DELETE" and self.at_kw("WHERE", k=1):
+            self.i += 2
+            return self._at(Node("DeleteWhere", quads=self.quad_block("DELETE WHERE", bnodes=False)), t.pos)
+        if kw in ("WITH", "DELETE", "INSERT"):
+            return self.modify()
+        self.err("expected an update operation")
+
+    def modify(self) -> Node:
+        """Modify ::= ( 'WITH' iri )? ( DeleteClause InsertClause? | InsertClause ) UsingClause* 'WHERE' GroupGraphPattern"""
+        at = self.peek().pos
+        with_ = self.iri() if self.accept_kw("WITH") else None
+        delete = insert = None
+        if self.accept_kw("DELETE"):
+            delete = self.quad_block("a DELETE template", bnodes=False)
+            if self.accept_kw("INSERT"):
+                insert = self.quad_block("an INSERT template")
+        elif self.accept_kw("INSERT"):
+            insert = self.quad_block("an INSERT template")
+        else:
+            self.err("expected DELETE or INSERT")
+        using = []
+        while self.accept_kw("USING"):
+            named = self.accept_kw("NAMED")
+            using.append((named, self.iri()))
+        self.expect_kw("WHERE")
+        where = self.group_graph_pattern()
+        _Checker(self.text).group(where)
+        return self._at(Node("Modify", with_=with_, delete=delete, insert=insert, using=using, where=where), at)
+
+    def graph_ref(self) -> Node:
+        """GraphRef ::= 'GRAPH' iri"""
+        self.expect_kw("GRAPH")
+        return Node("GraphRef", iri=self.iri())
+
+    def graph_ref_all(self) -> Node:
+        """GraphRefAll ::= GraphRef | 'DEFAULT' | 'NAMED' | 'ALL'"""
+        for kw, kind in (("DEFAULT", "DefaultGraph"), ("NAMED", "NamedGraphs"), ("ALL", "AllGraphs")):
+            if self.accept_kw(kw):
+                return Node(kind)
+        if self.at_kw("GRAPH"):
+            return self.graph_ref()
+        self.err("expected GRAPH, DEFAULT, NAMED or ALL")
+
+    def graph_or_default(self) -> Node:
+        """GraphOrDefault ::= 'DEFAULT' | 'GRAPH'? iri"""
+        if self.accept_kw("DEFAULT"):
+            return Node("DefaultGraph")
+        self.accept_kw("GRAPH")
+        return Node("GraphRef", iri=self.iri())
+
+    def quad_block(self, what: str, variables: bool = True, bnodes: bool = True, data: bool = False) -> list:
+        """QuadPattern / QuadData ::= '{' Quads '}' with Quads ::= TriplesTemplate? ( QuadsNotTriples '.'? TriplesTemplate? )*
+
+        The result is the written order of ``TriplePattern`` (default graph) and ``QuadGraph`` nodes. ``variables`` /
+        ``bnodes`` say whether this clause may contain them (the static rules of the Update grammar: no variables in
+        INSERT DATA and DELETE DATA, no blank nodes in DELETE DATA, DELETE WHERE and DELETE templates).
+        """
+        start = self.peek()
+        self.expect_p("{")
+        outer = self._bgp, self._in_template
+        self._bgp, self._in_template = self._fresh_bgp(), True  # a template's labels are their own space
+        self._data_op = self._op if data else None
+        items: list = []
+        try:
+            while True:
+                if self.starts_triples():
+                    self._quad_triples(items)
+                elif self.at_kw("GRAPH"):
+                    items.append(self.quads_not_triples())
+                    self.accept_p(".")
+                else:
+                    break
+            self.expect_p("}")
+        finally:
+            self._bgp, self._in_template = outer
+            self._data_op = None
+        for term in _quad_terms(items):
+            if not variables and isinstance(term, Variable):
+                self.err(f"variables are not allowed in {what}", start)
+            if not bnodes and isinstance(term, BNode):
+                self.err(
+                    f"blank nodes (labels, [], collections, annotations and reified triples without an explicit "
+                    f"reifier) are not allowed in {what}",
+                    start,
+                )
+        return items
+
+    def quads_not_triples(self) -> Node:
+        """QuadsNotTriples ::= 'GRAPH' VarOrIri '{' TriplesTemplate? '}'"""
+        at = self.next().pos
+        term = self.var() if self.peek().kind == "VAR" else self.iri()
+        self.expect_p("{")
+        triples: list = []
+        self._quad_triples(triples)
+        self.expect_p("}")
+        return self._at(Node("QuadGraph", term=term, triples=triples), at)
+
+    def _quad_triples(self, out: list):
+        """TriplesTemplate, with the '.' between triples required."""
+        while self.starts_triples():
+            self.triples_same_subject(out, path=False)
+            if not self.accept_p("."):
+                if self.starts_triples():
+                    self.err("expected '.' between triples")
+                return
+
     def select_clause(self, q: Node):
         self.expect_kw("SELECT")
         q.f["modifier"] = "DISTINCT" if self.accept_kw("DISTINCT") else "REDUCED" if self.accept_kw("REDUCED") else None
@@ -573,14 +755,14 @@ class _Parser:
 
     def triples_template(self, out: list):
         """TriplesTemplate: no property paths."""
-        self._in_template = True
+        outer, self._in_template = self._in_template, True
         try:
             while self.starts_triples():
                 self.triples_same_subject(out, path=False)
                 if not self.accept_p("."):
                     break
         finally:
-            self._in_template = False
+            self._in_template = outer
 
     # -- solution modifiers ---------------------------------------------------
 
@@ -1297,6 +1479,25 @@ class _Parser:
         return self._at(Node(kind, **f), at)
 
 
+def _quad_terms(items: list):
+    """Every term of a quad list (graph names, subjects, predicates, objects), looking inside triple terms."""
+
+    def walk(t):
+        if isinstance(t, Node) and t.kind == "TripleTerm":
+            for k in ("subject", "predicate", "object"):
+                yield from walk(t.f[k])
+        else:
+            yield t
+
+    for item in items:
+        if item.kind == "QuadGraph":
+            yield item.f["term"]
+            yield from _quad_terms(item.f["triples"])
+        else:
+            for k in ("s", "p", "o"):
+                yield from walk(item.f[k])
+
+
 def _flatten(kind: str, parts: list):
     if len(parts) == 1:
         return parts[0]
@@ -1508,6 +1709,22 @@ def parse_sparql(text: str, base: str | None = None) -> Node:
     try:
         return _Parser(text, base).parse_query()
     except RecursionError:  # the grammar nests without limit, Python's stack does not (as in manchester_parser.run_guarded)
+        raise SparqlSyntaxError("expression or pattern nested too deeply to parse", text, 0) from None
+
+
+def parse_sparql_update(text: str, base: str | None = None) -> Node:
+    """Parse a SPARQL 1.2 Update request (``UpdateUnit``) to an AST: a ``UpdateRequest`` node whose ``operations`` are
+    ``Load``, ``Clear``, ``Drop``, ``Create``, ``Add``, ``Move``, ``Copy``, ``InsertData``, ``DeleteData``,
+    ``DeleteWhere`` and ``Modify`` nodes. Each carries the prologue written in front of it; the prefixes and ``BASE``
+    of earlier operations stay in force for later ones.
+
+    Raises:
+        SparqlSyntaxError: For anything outside the grammar or the static rules (variables in INSERT/DELETE DATA,
+            blank nodes in DELETE DATA / DELETE WHERE / DELETE templates, a blank node label shared by two basic graph patterns or by the INSERT DATA of two operations).
+    """
+    try:
+        return _Parser(text, base).parse_update()
+    except RecursionError:
         raise SparqlSyntaxError("expression or pattern nested too deeply to parse", text, 0) from None
 
 
@@ -1734,7 +1951,11 @@ class _Encoder:
         g.add((root, RDF.type, root_type))
         g.add((root, RDF.type, v.QUERY))
         self.body(q, root, q.kind)
-        for decl in q.f["prologue"]:
+        self.prologue(root, q.f["prologue"])
+
+    def prologue(self, root, decls: list):
+        v, g = self.v, self.g
+        for decl in decls:
             if decl[0] == "base":
                 g.add((root, v.PROLOGUE_BASE, URIRef(decl[1])))
             elif decl[0] == "prefix":
@@ -1746,6 +1967,82 @@ class _Encoder:
             elif decl[0] == "version":
                 g.add((root, v.VERSION, Literal(decl[1])))
 
+    # SPARQL Update -------------------------------------------------------------
+    def update(self, u: Node, root):
+        v, g = self.v, self.g
+        g.add((root, RDF.type, v.UPDATE_REQUEST))
+        g.add((root, v.OPERATIONS, _list(g, [self.operation(o) for o in u.f["operations"]])))
+        self.prologue(root, u.f["prologue"])
+
+    def graph_ref(self, n: Node):
+        v, g = self.v, self.g
+        b = BNode()
+        if n.kind == "GraphRef":
+            g.add((b, RDF.type, v.GRAPH_REF))
+            g.add((b, v.GRAPH_REF_IRI, n.f["iri"]))
+        else:
+            g.add((b, RDF.type, {"DefaultGraph": v.DEFAULT_GRAPH, "NamedGraphs": v.NAMED_GRAPHS, "AllGraphs": v.ALL_GRAPHS}[n.kind]))
+        return b
+
+    def quads(self, items: list):
+        v, g = self.v, self.g
+        out = []
+        for item in items:
+            if item.kind == "QuadGraph":
+                b = BNode()
+                g.add((b, RDF.type, v.QUAD_GRAPH))
+                g.add((b, v.QUAD_GRAPH_NAME, self.term(item.f["term"])))
+                g.add((b, v.QUAD_TRIPLES, _list(g, [self.triple(t) for t in item.f["triples"]])))
+                out.append(b)
+            else:
+                out.append(self.triple(item))
+        return _list(g, out)
+
+    def operation(self, o: Node):
+        v, g = self.v, self.g
+        b = BNode()
+        k = o.kind
+        g.add((b, RDF.type, {
+            "InsertData": v.INSERT_DATA, "DeleteData": v.DELETE_DATA, "DeleteWhere": v.DELETE_WHERE, "Modify": v.MODIFY,
+            "Load": v.LOAD, "Clear": v.CLEAR, "Drop": v.DROP, "Create": v.CREATE, "Add": v.ADD, "Move": v.MOVE,
+            "Copy": v.COPY,
+        }[k]))  # fmt: skip
+        if o.f.get("silent"):
+            g.add((b, v.SERVICE_SILENT, Literal(True)))
+        if k in ("InsertData", "DeleteData", "DeleteWhere"):
+            g.add((b, v.QUADS, self.quads(o.f["quads"])))
+        elif k == "Modify":
+            if o.f["with_"] is not None:
+                g.add((b, v.MODIFY_WITH, o.f["with_"]))
+            if o.f["delete"] is not None:
+                g.add((b, v.MODIFY_DELETE, self.quads(o.f["delete"])))
+            if o.f["insert"] is not None:
+                g.add((b, v.MODIFY_INSERT, self.quads(o.f["insert"])))
+            if o.f["using"]:
+                clauses = []
+                for named, iri in o.f["using"]:
+                    c = BNode()
+                    g.add((c, RDF.type, v.DATASET_CLAUSE))
+                    g.add((c, v.DATASET_SOURCE, iri))
+                    if named:
+                        g.add((c, v.DATASET_NAMED, Literal(True)))
+                    clauses.append(c)
+                g.add((b, v.MODIFY_USING, _list(g, clauses)))
+            g.add((b, v.WHERE, self.where(o.f["where"])))
+        elif k == "Load":
+            g.add((b, v.LOAD_FROM, o.f["source"]))
+            if o.f["into"] is not None:
+                g.add((b, v.LOAD_INTO, self.graph_ref(o.f["into"])))
+        elif k in ("Clear", "Drop"):
+            g.add((b, v.GRAPH_TARGET, self.graph_ref(o.f["target"])))
+        elif k == "Create":
+            g.add((b, v.GRAPH_TARGET, self.graph_ref(o.f["graph"])))
+        else:  # Add, Move, Copy
+            g.add((b, v.UPDATE_FROM, self.graph_ref(o.f["source"])))
+            g.add((b, v.UPDATE_TO, self.graph_ref(o.f["dest"])))
+        self.prologue(b, o.f["prologue"])
+        return b
+
 
 def ast_to_tree(q: Node, graph: Graph | None = None, root=None, *, triple_order=None) -> tuple[Graph, object]:
     """Encode a parsed query as ``sqe:`` RDF (``triple_order``: an optional callback that reorders a run of
@@ -1754,7 +2051,11 @@ def ast_to_tree(q: Node, graph: Graph | None = None, root=None, *, triple_order=
 
     graph = graph if graph is not None else _new_starlayer_graph()
     root = root if root is not None else BNode()
-    _Encoder(graph, triple_order).query(q, root)
+    enc = _Encoder(graph, triple_order)
+    if q.kind == "UpdateRequest":
+        enc.update(q, root)
+    else:
+        enc.query(q, root)
     return graph, root
 
 
@@ -1766,6 +2067,21 @@ def sparql_to_tree(
     With ``validate=True`` the tree is also checked against the ``sqe:`` SHACL shapes (about 100 ms).
     """
     g, r = ast_to_tree(parse_sparql(text, base), graph, root)
+    if validate:
+        from .sqe.shapes import sqe_validate
+        from .sqe.to_rdf import SQEValidationError
+
+        ok, report_graph, report_text = sqe_validate(g)
+        if not ok:
+            raise SQEValidationError(report_text, report_graph)
+    return g, r
+
+
+def sparql_update_to_tree(
+    text: str, base: str | None = None, graph: Graph | None = None, root=None, *, validate: bool = False
+) -> tuple[Graph, object]:
+    """SPARQL 1.2 Update text to ``sqe:`` tree-RDF (root typed ``sqe:UpdateRequest``); ``validate=True`` checks the SHACL shapes."""
+    g, r = ast_to_tree(parse_sparql_update(text, base), graph, root)
     if validate:
         from .sqe.shapes import sqe_validate
         from .sqe.to_rdf import SQEValidationError

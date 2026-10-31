@@ -1,7 +1,8 @@
 # A StarLayer-owned SPARQL 1.2 parser: study, prototype and estimate
 
 Branch `sparql-parser` (a copy of `shacl-engine`) built the prototype; branch `mig-parser` (from `shacl-engine`) completed
-the **query** half: see **Part 6** for the final coverage, gate numbers, vocabulary additions and what remains. Parts 1-5 are
+the **query** half: see **Part 6** for the final coverage, gate numbers, vocabulary additions and what remains (Part 6 ends with the
+**Update** half, built on branch `mig-update`). Parts 1-5 are
 the original study and prototype report (1,591 lines then; `parse_sparql.py` is now about 1,800) and are kept as written, except
 where Part 6 says a statement is out of date. Parser: `packages/starlayer/starlayer/sparql/parse_sparql.py`, tests under
 `packages/starlayer/tests/sparql/` (`test_parse_sparql*.py`, `parse_sparql_conformance/`, `w3c_sparql11/`).
@@ -257,7 +258,7 @@ that contains the text `sqe:Service ` (its SERVICE regex), so the constraints sp
 | Oxigraph, positive | **487 / 489** rendered texts accepted; the other 2 are queries Oxigraph rejects itself, original and rendering (registered) |
 | Oxigraph, negative | **122 / 122** rejected by the new parser; Oxigraph also rejects 119, accepts 3 (registered) |
 | Oxigraph, rule table and corpus | 238 cases (175 rules, 63 corpus): 220 agree, 18 registered differences, all with a verdict below |
-| Coverage matrix | **170 / 170** Query productions have a case (24 Update-only rows excluded by name); 70 productions with a dedicated parser method are checked by tracing |
+| Coverage matrix | **170 / 170** Query productions have a case (the 24 Update rows were excluded by name at this point; the Update half below adds them); 70 productions with a dedicated parser method are checked by tracing |
 | Whole new test set (not opt-in) | 2,307 passed in 2 minutes (`test_parse_sparql.py`, `_semantics`, `_oxigraph`, `parse_sparql_conformance`) |
 | Other suites touched by the shape/ontology edits | `tests/sparql/unit` + `tests/starontology`: 889 passed, 2 xfailed |
 | Lint | `ruff check packages/ tools/`: 85 errors, all pre-existing (none in the files touched here) |
@@ -294,8 +295,49 @@ all positive queries, about 16,000 mutants, three seeds, not committed) found on
 
 ### What remains
 
-* **Update**: the grammar (productions 3 and 31-53, `.ru` tests: 54 + 1 positive and 13 negative in the vendored 1.1 `syntax-update-*`, 21 in 1.2), the `sqe:` update vocabulary, blank-node and variable rules for DELETE/INSERT DATA, and an Oxigraph differential for updates (`Store().update`).
+* **Update**: done on `mig-update`, see "The Update half" below.
 * **SRL on the parser**: `srl.py` still splices pyparsing onto rdflib's grammar; port it to a subclass of `_Parser` (the 929-test SRL suite is the gate). `_grammar12.py`, `parse12.py`, `_syntax_checks.py` can go only after that.
 * **sqe_parse_to_tree** (the old path) still reads through rdflib and still raises on DESCRIBE, FROM and SERVICE; switching it to `parse_sparql` (and `sqe_tree_to_query` for the new terms, if execution through rdflib is still wanted) is a separate, behaviour-changing step. Execution does not need it: text goes to Oxigraph.
 * **Editor-grade fidelity**: shorthand expansion (`;`, `[ ]`, collections, annotations), prefixed-name spelling, VERSION order and multiplicity, comments and layout are still lost; a concrete layer would be needed.
 * **Draft drift**: the matrix and the grammar follow the 25 October 2026 Working Draft; refresh `vendor/sparql12-query-productions.json` when the draft changes.
+
+
+### The Update half (branch `mig-update`, from `shacl-engine`)
+
+`parse_sparql_update(text, base=None)` returns an `UpdateRequest` node; `sparql_update_to_tree(text, ..., validate=False)` encodes it as
+`sqe:` RDF (root typed `sqe:UpdateRequest`); `sqe_tree_to_text` renders it (it dispatches on the root type, so the query entry points and
+query trees are untouched). `parse_sparql` is still query-only.
+
+| Area | Result |
+|---|---|
+| Grammar | All 24 Update productions ([3], [31]-[53]): LOAD [SILENT] ... [INTO GRAPH], CLEAR / DROP (GRAPH, DEFAULT, NAMED, ALL), CREATE, ADD / MOVE / COPY (GraphOrDefault), INSERT DATA, DELETE DATA, DELETE WHERE, `[WITH] DELETE/INSERT ... USING [NAMED] ... WHERE`, QuadPattern / QuadData / Quads / QuadsNotTriples (`GRAPH VarOrIri { ... }`, no nesting), operations separated by `;` (a trailing `;` and a trailing prologue are valid, `;;` is not), a prologue (PREFIX / BASE / VERSION) in front of every operation; prefixes and BASE of earlier operations stay in force. RDF 1.2 triple terms, `<< >>`, `~` reifiers and `{| |}` annotations work in quad data and templates. |
+| Static rules | no variables in INSERT DATA / DELETE DATA (graph names and triple terms included); no blank nodes in DELETE DATA, DELETE WHERE and DELETE templates, where "blank node" includes `[]`, collections, `{| |}`, `<< >>` and `~` without an explicit reifier (W3C `syntax-update-anonreifier-01/02`); a blank node label written in one INSERT DATA cannot be reused in another operation (W3C `syntax-update-54`); the labels of templates and patterns are per operation (W3C `basic-update/insert-where-same-bnode` needs this, so the rule is *not* "no reuse across operations" for templates); the WHERE of a Modify follows the query rules (BIND scope, aggregate placement, labels per BGP). |
+| Vocabulary (sqe, additive) | `sqe:UpdateRequest` (`sqe:operations`), `sqe:UpdateOperation` and its subclasses `InsertData`, `DeleteData`, `DeleteWhere` (`sqe:quads`), `Modify` (`sqe:with`, `sqe:delete`, `sqe:insert`, `sqe:using` as `sqe:DatasetClause`s, `sqe:where`), `Load` (`sqe:loadFrom`, `sqe:into`), `Clear`, `Drop`, `Create` (`sqe:target`), `Add`, `Move`, `Copy` (`sqe:from`, `sqe:to`); quad lists hold `sqe:TriplePattern` and `sqe:QuadGraph` (`sqe:graphName`, `sqe:triples`); graph references `sqe:GraphRef` (`sqe:graphIri`), `sqe:DefaultGraph`, `sqe:NamedGraphs`, `sqe:AllGraphs`; `sqe:silent` is reused (its `rdfs:domain sqe:Service` was dropped: RDFS inference would have typed every SILENT operation as a Service). Each operation carries its own `sqe:base` / `sqe:prologuePrefix` / `sqe:version`; a prologue after the last operation sits on the root. 32 new ontology terms, 20 new shapes (list shapes, one per operation, graph-reference shapes, SPARQL constraints for "no variables" / "no blank nodes"). `starontology.trig` regenerated. |
+| Renderer | `sqe/to_text.py`: `_update_text` writes the operations in order, joined by ` ;`, each with its own prologue; abbreviation uses the prefixes in force. |
+
+Gates (Update):
+
+| Gate | Result |
+|---|---|
+| W3C positive update requests (1.1 `syntax-update-1/2` positive, every update-evaluation request, 1.2 positive syntax and evaluation) | **157 / 157** parse |
+| W3C negative update requests (1.1 `syntax-update-bad-*`, the `NegativeSyntaxTest` `.ru` files of `delete-insert`, `syntax-update-54`; 1.2 `syntax-update-anonreifier-01/02`) | **23 / 23** rejected |
+| Text fixpoint (tree -> text -> tree) and sqe shape validation | **157 / 157** and **157 / 157** |
+| Rule table | 36 valid and 60 invalid requests, each invalid one checked for its message; shape-mutation tests (variable in INSERT DATA, blank node in DELETE, missing target, wrong graph reference, ...) |
+| Coverage matrix | **194 / 194** productions have a case (170 Query + 24 Update, 34 new Update cases, 11 of them negative); the 24 Update rows are checked by tracing too (`parse_update`, `update1`, `modify`, `quad_block`, `quads_not_triples`, `graph_ref`, `graph_ref_all`, `graph_or_default`) |
+| Oxigraph, positive | **157 / 157** originals and **157 / 157** renderings parse in `Store().update` (14 of them fail at run time on the empty store: LOAD of a remote IRI, DROP / MOVE of a missing graph; those are `OSError` / `RuntimeError`, not `SyntaxError`, and count as accepted) |
+| Oxigraph, negative | **23 / 23** rejected by both |
+| Oxigraph, rule table and corpus | all agree except the 5 registered below |
+
+Oxigraph disagreements (`tests/sparql/test_parse_sparql_update_oxigraph.py`, `DIFFERENCES`):
+
+| Request | Oxigraph | New parser | Verdict |
+|---|---|---|---|
+| `INSERT DATA {..} ; PREFIX x: <..> INSERT DATA {..}` (a prologue in front of a later operation), `PREFIX a: <1> .. ; PREFIX a: <2> ..`, and `INSERT DATA {..} ; PREFIX x: <..>` (trailing prologue) | rejects ("expected one of CREATE, DELETE, INSERT") | accepts | new right: `Update ::= Prologue ( Update1 ( ';' Update )? )?`. **Consequence for execution**: text rendered from a tree whose later operations carry their own prologue is not accepted by Oxigraph; hoist the declarations to the front before executing such a tree (the renderer is faithful to the tree and does not do that). No W3C test needs it. |
+| `;` alone | accepts | rejects | new right (Update1 is required before `;`) |
+| `INSERT DATA { <s> <p> <o> <s2> <p> <o> }` (no `.` between triples) | accepts | rejects | new right (`TriplesTemplate ::= TriplesSameSubject ( '.' TriplesTemplate? )?`) |
+
+No case was found where Oxigraph is right and the new parser is wrong.
+
+What remains for Update: executing an update from a tree through rdflib (`sqe_tree_to_query` is query-only; execution sends the rendered
+text to Oxigraph); a concrete layer for comments / layout / `;` placement (the tree drops a trailing `;` and the order of declarations);
+a blank node shared by two operations of a hand-built tree renders as one label and is then rejected on re-parse (no shape checks it).
