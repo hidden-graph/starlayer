@@ -124,6 +124,9 @@ LEXICAL_FORMS: dict[str, tuple[str, ...]] = {
     # rdflib's parser rewrites numeric lexical forms to canonical ones (1e3 -> 1000.0); the new parser keeps them as written.
     "feature/literal forms": ("1", "2.5", "1e3"),
 }
+# `VALUES () { }` (no variables, no rows) joins with an empty table, so the query has no solutions; rdflib's parser drops the
+# clause, which silently changes the meaning. The new tree keeps it: asserted, then compared without it.
+EMPTY_TRAILING_VALUES = {"w3c11/11/syntax-query/test_35a", "w3c11/11/bindings/values-no-vars-no-rows"}
 # VERSION declarations: the old path strips them before parsing (the vocabulary had no term); the new tree keeps them as
 # sqe:version. Compared without those triples, and the declared versions are asserted.
 
@@ -164,12 +167,38 @@ def test_new_parser_agrees_with_current_path(name, text):
         assert sorted(str(o) for o in new[0].objects(new[1], SQE.version)) == sorted(set(declared))
         for triple in list(new[0].triples((new[1], SQE.version, None))):
             new[0].remove(triple)
+    if name in EMPTY_TRAILING_VALUES:
+        from rdflib.collection import Collection
+
+        values = new[0].value(new[1], SQE.values)
+        assert values is not None
+        assert list(Collection(new[0], new[0].value(values, SQE.vars))) == []
+        assert list(Collection(new[0], new[0].value(values, SQE.rows))) == []
+        new[0].remove((new[1], SQE.values, values))
+        new[0].remove((values, None, None))
     if name in LEXICAL_FORMS:
         lexical = {str(o) for o in new[0].objects(None, None) if isinstance(o, Literal)}
         assert set(LEXICAL_FORMS[name]) <= lexical, "the new tree must keep the lexical forms as written"
         assert same_tree((_normalize_numbers(new[0]), new[1]), (_normalize_numbers(old[0]), old[1]))
     else:
         assert same_tree(new, old)
+
+
+@pytest.mark.sqe_coverage
+@pytest.mark.parametrize(
+    "key,text",
+    [(entry_key(e), e.read(e.query_file)) for e in _POSITIVE] + [(e.key, e.read()) for e in _POSITIVE11],
+    ids=lambda v: v if isinstance(v, str) and len(v) < 80 else "",
+)
+def test_every_positive_tree_validates_against_the_sqe_shapes(key, text):
+    """Valid SPARQL may use a variable no pattern binds (``SELECT ?x {}``); the sqe shapes lint that as an editor
+    warning ("never bound"). Apart from that lint, every tree - DESCRIBE, FROM, SERVICE included - conforms."""
+    import re
+
+    ok, _, report = sqe_validate(sparql_to_tree(text)[0])
+    if not ok:
+        messages = re.findall(r"Message: (.*)", report)
+        assert messages and all("never bound" in m for m in messages), report
 
 
 # ---------------------------------------------------------------------------

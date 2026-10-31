@@ -246,7 +246,27 @@ that contains the text `sqe:Service ` (its SERVICE regex), so the constraints sp
 
 ### Gates (queries only)
 
-<<GATES>>
+| Gate | Result |
+|---|---|
+| W3C 1.2 query positive syntax + evaluation queries | **167 / 167** parse (102 + 65) |
+| W3C 1.2 query negative syntax | **81 / 81** rejected |
+| W3C 1.1 query positive syntax + evaluation queries (28 categories) | **322 / 322** parse (68 + 254) |
+| W3C 1.1 query negative syntax | **41 / 41** rejected (`syntax-query`, `aggregates`, `grouping`, `construct`, `syntax-fed`) |
+| Text fixpoint (tree -> text -> tree) | **167 / 167** (1.2) and **322 / 322** (1.1) |
+| sqe shapes | 469 / 489 positive trees conform; the other 20 are valid SPARQL that uses a variable no pattern binds (`SELECT ?x {}`), which the shapes lint as "never bound" (existing behaviour; asserted as the only message) |
+| Agreement with the current path (`pytest tests/sparql/test_parse_sparql.py --sqe-coverage -k agrees`) | **548 passed, 42 skipped, 0 failed** of 590 (sqe features, modifiers, 167 1.2 and 322 1.1 W3C queries). Skipped = the old path rejects the query: 20 SHACL "never bound" lint, 8 SERVICE, 5 FROM, 2 `VALUES` with a bare IRI, 2 recursion errors in rdflib (37 of the 1.1 queries), plus the 5 skipped before this work. Three differences are asserted, not skipped: the new tree keeps `VERSION` (6 queries: the old path strips it), keeps `1e3` as written (1: rdflib says `1000.0`) and keeps an empty trailing `VALUES () { }` (2: rdflib drops it, which turns a no-solution query into a full one) |
+| Oxigraph, positive | **487 / 489** rendered texts accepted; the other 2 are queries Oxigraph rejects itself, original and rendering (registered) |
+| Oxigraph, negative | **122 / 122** rejected by the new parser; Oxigraph also rejects 119, accepts 3 (registered) |
+| Oxigraph, rule table and corpus | 238 cases (175 rules, 63 corpus): 220 agree, 18 registered differences, all with a verdict below |
+| Coverage matrix | **170 / 170** Query productions have a case (24 Update-only rows excluded by name); 70 productions with a dedicated parser method are checked by tracing |
+| Whole new test set (not opt-in) | 2,307 passed in 2 minutes (`test_parse_sparql.py`, `_semantics`, `_oxigraph`, `parse_sparql_conformance`) |
+| Other suites touched by the shape/ontology edits | `tests/sparql/unit` + `tests/starontology`: 889 passed, 2 xfailed |
+| Lint | `ruff check packages/ tools/`: 85 errors, all pre-existing (none in the files touched here) |
+
+The `sqe_coverage` directory run with `--sqe-coverage` is reported in the build log; its first test, `test_oxigraph_differential` (old path against Oxigraph),
+fails on `REGEX(REPLACE('x','',''), '^n')` where rdflib and Oxigraph evaluate differently. That test never ran before (pyoxigraph was not installed) and does not touch
+the new parser.
+
 
 ### Oxigraph differential: where they disagree, and who is right
 
