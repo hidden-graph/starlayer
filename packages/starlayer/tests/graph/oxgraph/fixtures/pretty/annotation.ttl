@@ -1,0 +1,5 @@
+@version "1.2" .
+@prefix ex: <http://example/> .
+ex:s ex:p ex:o {| ex:ann ex:val |} .
+ex:s2 ex:p ex:o2 {| ex:ann1 ex:val1 ; ex:ann2 ex:val2 |} .
+ex:s3 ex:p ex:o3 ~ ex:i {| ex:ann ex:val |} .

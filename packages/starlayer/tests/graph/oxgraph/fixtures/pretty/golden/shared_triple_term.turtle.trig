@@ -1,0 +1,8 @@
+@version "1.2" .
+@prefix ex: <http://example/> .
+
+<< ex:a ex:b ex:c >> ex:p ex:o .
+
+<< ex:a ex:b ex:c >> ex:funny true .
+
+<< ex:a ex:b ex:c >> ex:p1 ex:o1 .

@@ -1,0 +1,4 @@
+@version "1.2" .
+@prefix ex: <http://example/> .
+ex:s ex:p <<( ex:a ex:b ex:c )>> ;
+    ex:q <<( ex:a ex:b <<( ex:c ex:d "lit"@en )>> )>> .

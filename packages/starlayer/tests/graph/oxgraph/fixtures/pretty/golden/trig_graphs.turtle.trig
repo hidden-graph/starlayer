@@ -1,0 +1,21 @@
+@version "1.2" .
+@prefix ex: <http://example/> .
+
+ex:default ex:p [
+        ex:q 1
+    ] .
+
+GRAPH ex:g1 {
+    ex:s ex:p ( 1 2 ) ;
+        ex:r ex:o {| ex:c 0.9 |} .
+}
+
+GRAPH ex:g2 {
+    ex:s ex:p ex:o .
+
+    _:b0 ex:p ex:o .
+}
+
+GRAPH ex:g3 {
+    _:b0 ex:q ex:o2 .
+}

@@ -1,0 +1,26 @@
+@version "1.2" .
+@prefix ex: <http://example/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+ex:default ex:p _:b0 .
+_:b0 ex:q "1"^^xsd:integer .
+GRAPH ex:g1 {
+    ex:s ex:p _:b1 .
+    ex:s ex:r ex:o .
+    _:b2 rdf:first "2"^^xsd:integer .
+    _:b2 rdf:rest rdf:nil .
+    _:b3 ex:c "0.9"^^xsd:decimal .
+    _:b3 rdf:reifies <<( ex:s ex:r ex:o )>> .
+    _:b1 rdf:first "1"^^xsd:integer .
+    _:b1 rdf:rest _:b2 .
+}
+
+GRAPH ex:g2 {
+    ex:s ex:p ex:o .
+    _:b4 ex:p ex:o .
+}
+
+GRAPH ex:g3 {
+    _:b4 ex:q ex:o2 .
+}

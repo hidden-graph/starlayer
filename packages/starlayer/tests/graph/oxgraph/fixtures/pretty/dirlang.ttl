@@ -1,0 +1,3 @@
+@version "1.2" .
+@prefix ex: <http://example/> .
+ex:s ex:label "مرحبا"@ar--rtl, "hello"@en--ltr, "plain"@en .
