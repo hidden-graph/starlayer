@@ -256,20 +256,21 @@ class _Base:
         kw, hint = _read_input(data, source, file)
         guessed = formats.format_from_path(hint) if hint else None
         fmt = formats.to_format(format, default=guessed or ox.RdfFormat.TURTLE)
-        parser = ox.parse(format=fmt, base_iri=base or publicID, rename_blank_nodes=rename_blank_nodes, **kw)
-        target = self._add_graph()
-        retarget = self._retarget(target)
-
-        def quads() -> Iterator[ox.Quad]:
-            for q in parser:
-                yield retarget(q)
-
-        self.store.extend(quads())
+        direct = isinstance(self._add_graph(), ox.DefaultGraph)  # quads can go to the store untouched (the fast path)
+        extra = {"without_named_graphs": True} if (direct and not isinstance(self, OxDataset)) else {}
+        parser = ox.parse(format=fmt, base_iri=base or publicID, rename_blank_nodes=rename_blank_nodes, **extra, **kw)
+        try:
+            if direct:
+                self.store.extend(parser)
+            else:
+                move = self._retarget(self._add_graph())
+                self.store.extend(move(q) for q in parser)
+        except SyntaxError as e:
+            if "named graph" in str(e).lower():
+                raise ValueError("the document has named graphs; parse it into an OxDataset") from e
+            raise
         self.prefixes.update(parser.prefixes or {})
         return self
-
-    def _retarget(self, target: Any) -> Any:
-        return lambda q: q
 
     def serialize(self, destination: Any = None, format: str | ox.RdfFormat = "turtle", base: str | None = None,  # noqa: A002
                   prefixes: Mapping[str, str] | None = None, *, only_used: bool = False, rdf_version: str | None = None,
@@ -463,13 +464,6 @@ class OxGraph(_Base):
         return self._quads(s, p, o)
 
     def _retarget(self, target: Any) -> Any:
-        if isinstance(target, ox.DefaultGraph):
-            def keep(q: ox.Quad) -> ox.Quad:
-                if not isinstance(q.graph_name, ox.DefaultGraph):
-                    raise ValueError("the document has named graphs; parse it into an OxDataset")
-                return q
-            return keep
-
         def move(q: ox.Quad) -> ox.Quad:
             if not isinstance(q.graph_name, ox.DefaultGraph):
                 raise ValueError("the document has named graphs; parse it into an OxDataset")
