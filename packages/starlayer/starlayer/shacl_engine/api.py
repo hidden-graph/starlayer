@@ -74,6 +74,7 @@ def validate(
     ignore_imports: bool = False,
     meta_shapes_extra: Any = (),
     plan: Plan | None = None,
+    plan_cache: dict | None = None,
 ) -> Outcome:
     """Validate ``data_graph`` against ``shapes_graph`` (default: the data graph itself).
 
@@ -103,12 +104,19 @@ def validate(
     ``plan``: a ``Plan`` already built over ``shapes_graph`` (used by ``validate_each`` to parse the shapes once); it
     must belong to the shapes graph actually validated against.
 
+    ``plan_cache``: a dict a caller keeps across calls (the adapter's ``validate_each``); the Plan built over an explicit
+    ``shapes_graph`` is stored under ``(id(shapes_graph), shapes_graph_resource)`` and reused by later calls with the same
+    shapes graph object (the caller must keep that object alive and unchanged).
+
     Not offered: the old validator's ``decode_report`` (it undoes the triple-term encoding it applies for pySHACL; this
     engine handles triple terms natively and never encodes, so there is nothing to decode) and ``iterate_rules``.
     """
     from starlayer.shacl_engine.entailment import resolve_data_view
 
     shapes = shapes_graph
+    cache_key = (id(shapes_graph), shapes_graph_resource) if plan_cache is not None and shapes_graph is not None else None
+    if plan is None and cache_key is not None:
+        plan = plan_cache.get(cache_key)
     # TODO(wiring): the seam for ``imports.resolve_imports`` and ``meta.meta_validate`` (separate modules). Lazy and
     # guarded by ImportError. Imports are resolved only when a loader is given: calling it with none would make the
     # default raise on any unresolved owl:imports, which the lead decides when wiring the old validator's default
@@ -152,8 +160,12 @@ def validate(
             rule_result = apply_rules(data_graph, shapes, rule_sets=sets or None)
             data_graph = rule_result.view
     stats: dict = {}
+    if plan is None:
+        plan = Plan(shapes_graph=shapes)
+        if cache_key is not None:
+            plan_cache[cache_key] = plan
     results = run(
-        plan if plan is not None else Plan(shapes_graph=shapes),
+        plan,
         data_graph,
         abort_on_first=abort_on_first,
         max_validation_depth=max_validation_depth,

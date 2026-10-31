@@ -24,6 +24,7 @@ class Result:
     messages: tuple[Any, ...] = ()
     source_constraint: Term = None
     annotations: tuple[tuple[Any, Any], ...] = ()  # (property, value) pairs: sh:resultAnnotation
+    details: tuple[Result, ...] = ()  # nested results reported as sh:detail (SHACL 1.2 Core 6.9.2.6); never block conformance
 
 
 @dataclass
@@ -97,6 +98,18 @@ class Context:
         if self._assumed == assumed_before:
             self._conforms_memo[key] = (answer, height)
         return answer
+
+    def detail_results(self, shape_node: Term, node: Term) -> tuple[Result, ...]:
+        """The results of validating ``node`` against ``shape_node``, for use as ``sh:detail`` of an enclosing result. A
+        (shape, node) pair already being evaluated yields none (the recursion assumption of ``conforms`` applies)."""
+        key = (shape_node, node)
+        if key in self._active:
+            return ()
+        self._active[key] = self._negations
+        try:
+            return tuple(validate_shape_at(self, self.shape(shape_node), node))
+        finally:
+            del self._active[key]
 
     def shape_focus(self, shape: Shape) -> list[Term]:
         """The shape's focus nodes, cached (cross-node components such as sh:uniqueValuesFor need the whole set)."""
@@ -199,6 +212,7 @@ def _validate_shape_at(ctx: Context, shape: Shape, focus: Term) -> list[Result]:
                     messages=v.messages or shape.messages or ((v.message,) if v.message else ()),
                     source_constraint=v.source_constraint,
                     annotations=v.annotations,
+                    details=v.details,
                 )
             )
         if out and ctx.abort_on_first:

@@ -92,9 +92,9 @@ def build_report(results: list[Result], shapes: Any, data: Any, conformance_disa
     if conformance_disallows is not None:
         g.add((report, SH.conformanceDisallows, conformance_disallows))
     seen: set = set()
-    for r in results:
+
+    def add_result(r: Result) -> BNode:
         node = BNode()
-        g.add((report, SH.result, node))
         g.add((node, RDF.type, SH.ValidationResult))
         g.add((node, SH.focusNode, r.focus))
         _copy_closure(data, g, r.focus, seen)
@@ -115,4 +115,10 @@ def build_report(results: list[Result], shapes: Any, data: Any, conformance_disa
             _copy_closure(shapes, g, value, seen)
         for m in r.messages:
             g.add((node, SH.resultMessage, m if not isinstance(m, str) else Literal(m)))
+        for d in r.details:  # SHACL 1.2 Core 6.9.2.6: nested results linked by sh:detail, not by sh:result
+            g.add((node, SH.detail, add_result(d)))
+        return node
+
+    for r in results:
+        g.add((report, SH.result, add_result(r)))
     return g

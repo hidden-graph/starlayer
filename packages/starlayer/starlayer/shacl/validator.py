@@ -1078,7 +1078,8 @@ class StarShaclSchema:
         """
         if data_graphs is None:
             data_graphs = (self.data_graph,)
-        return {i: self.validate(data_graph, **kwargs) for i, data_graph in enumerate(data_graphs)}
+        with _native_adapter.shared_plans():  # engine mode: parse the shapes graph once for the whole batch
+            return {i: self.validate(data_graph, **kwargs) for i, data_graph in enumerate(data_graphs)}
 
     def _augment_shapes_with_new_target_types(self, data_graph: Any, shacl_graph: Any) -> Any:
         """Inject ``sh:targetNode`` triples for SHACL 1.2's new target types
@@ -3951,7 +3952,8 @@ def validate_each(
         A ``dict`` mapping each item's index in ``data_graphs`` (via
         ``enumerate``) to its own ``ValidationResult``.
     """
-    return {i: validate(data_graph, shacl_graph, ont_graph, **kwargs) for i, data_graph in enumerate(data_graphs)}
+    with _native_adapter.shared_plans():  # engine mode: parse the shapes graph once for the whole batch
+        return {i: validate(data_graph, shacl_graph, ont_graph, **kwargs) for i, data_graph in enumerate(data_graphs)}
 
 
 def evaluate(

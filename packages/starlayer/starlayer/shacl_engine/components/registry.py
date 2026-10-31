@@ -31,6 +31,7 @@ class Violation:
     severity: Term = None  # overrides the shape's severity for this result (sh:severity on a sh:sparql node)
     messages: tuple[Any, ...] = ()  # RDF literals; take precedence over the shape's sh:message
     annotations: tuple[tuple[Any, Any], ...] = ()  # (property, value) pairs added to the result (sh:resultAnnotation)
+    details: tuple[Any, ...] = ()  # nested ``executor.Result`` records, reported as sh:detail of this result
 
 
 @dataclass(frozen=True)

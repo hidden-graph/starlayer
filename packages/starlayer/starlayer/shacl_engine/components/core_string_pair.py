@@ -8,6 +8,7 @@ the focus node.
 from __future__ import annotations
 
 import re
+from collections import Counter
 from collections.abc import Iterator
 from decimal import Decimal
 from typing import Any
@@ -17,6 +18,7 @@ from rdflib import RDF, XSD, BNode, Literal, URIRef
 from starlayer.graph.model.dirlangstring import DirLangString
 from starlayer.shacl.xpath_regex import xpath_regex_to_python
 from starlayer.shacl_engine.components.registry import Violation, component
+from starlayer.shacl_engine.executor import Result
 from starlayer.shacl_engine.plan import SH, ShapeError
 
 _LINE_BREAK = re.compile(r"[\f\r\n\v]")
@@ -335,8 +337,27 @@ def unique_members(ctx, shape, params, focus, values) -> Iterator[Violation]:
             continue
         for v in values:
             members = _members_or_none(ctx.data, v)
-            if members is None or len(set(members)) != len(members):
+            if members is None:
                 yield Violation(value=v)
+            elif len(set(members)) != len(members):
+                # Core 7.5.4: "Each duplicate member m of a list v should be reported as a separate sh:detail"
+                dups = [m for m, n in Counter(members).items() if n > 1]
+                yield Violation(
+                    value=v,
+                    details=tuple(
+                        Result(
+                            focus=focus,
+                            path=shape.path,
+                            value=m,
+                            has_value=True,
+                            component=SH.UniqueMembersConstraintComponent,
+                            shape=shape.node,
+                            severity=shape.severity,
+                            messages=shape.messages,
+                        )
+                        for m in dups
+                    ),
+                )
 
 
 @component(SH.MemberShapeConstraintComponent, SH.memberShape)
@@ -344,8 +365,15 @@ def member_shape(ctx, shape, params, focus, values) -> Iterator[Violation]:
     for member_shape_node in params[SH.memberShape]:
         for v in values:
             members = _members_or_none(ctx.data, v)
-            if members is None or not all(ctx.conforms(member_shape_node, m) for m in members):
+            if members is None:
                 yield Violation(value=v)
+                continue
+            failing = [m for m in members if not ctx.conforms(member_shape_node, m)]
+            if failing:
+                # Core 7.5.1: "Each member m of a value node v that does not conform to the $memberShape should be reported
+                # as a separate sh:detail in the validation result for v." The details are the member shape's own results.
+                details = tuple(r for m in dict.fromkeys(failing) for r in ctx.detail_results(member_shape_node, m))
+                yield Violation(value=v, details=details)
 
 
 @component(SH.SomeValueConstraintComponent, SH.someValue)

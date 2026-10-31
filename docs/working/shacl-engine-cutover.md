@@ -302,10 +302,8 @@ DROP-LEGACY (removed, no replacement, issue #185):
 | `iterate_rules` (pyshacl iteration to fixpoint; engine rules run layer/runOnce/iterating per the draft pseudocode) | not offered | 30 lines if the draft's iteration is the same; otherwise drop the option | decide; 3 calls |
 | `decode_report` | not offered; nothing to decode | 0 (ignore option) | no |
 | `validate_fn` | not offered | 0 in engine; adapter hook ~20 lines or drop | no (16 calls, 1 file) |
-| `StarShaclSchema` caches / reuse of a `Plan` across calls | `Plan` rebuilt each call | 20 lines (`plan=`) + invalidation tests | yes for the performance gate |
 | `evaluate`, `extract_subgraph`, `extract_shapes_graph`, `close_shape` on `Plan` | missing (section 1.4) | 500-700 lines | yes (public API) |
 | `report_text` formatter, `ExecutionDiagnostics` | `meta._report_text` only | 60-100 lines | yes |
-| `validate_each` | missing | 40-80 lines | yes (public API) |
 | RDFS (and other) entailment regimes declared by `sh:entailment` | rules-based only; `inference=` is handled (`entailment.py`) | 60-120 lines | yes (3 differs) |
 | `sh:uniqueValuesFor` nested semantics; `"1"^^xsd:boolean`; `sparql:tz`; `pre-binding-002` double row | open or recently fixed (round 2) | 20-80 lines each | yes |
 | Triple term as `sh:value` in `report.build_report` (plain `Graph` asserts; plugin retries with `StarLayerGraph`) | worked around by the plugin only | 10 lines (build report in a triple-term-capable graph) | yes (22 calls) |
@@ -313,6 +311,8 @@ DROP-LEGACY (removed, no replacement, issue #185):
 | Meta/imports wiring: `api.validate` marks `meta.py`/`imports.py` as "TODO(wiring)" with try/except ImportError, and only resolves imports when a loader is given | seams only | 40 lines (remove ImportError guards; raise on unresolved `owl:imports` unless `ignore_imports`, as old default) | yes |
 | `MetaShaclError` base class pyshacl import | `meta.py:21` | 10 lines | by stage d |
 | Oxigraph-normalised literals (oxigraph#526) | store limitation, 7 xfails | n/a | no, document |
+
+Done since: `sh:detail` for `sh:memberShape` / `sh:uniqueMembers` (nested `Result.details`), and one shared `Plan` per `validate_each` batch in engine mode (adapter and `api.validate_each`). Not done: `sh:detail` for `sh:node`, `sh:and`/`sh:or`/`sh:xone`/`sh:not`, qualified value shapes (the draft only says "may" for `sh:node`).
 
 Rough total before b: 1,300 to 2,000 lines of engine and adapter code plus test rewrites.
 

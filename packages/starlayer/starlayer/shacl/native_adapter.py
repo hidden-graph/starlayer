@@ -27,10 +27,11 @@ adapter does not try to reproduce the old behaviour.
 
 from __future__ import annotations
 
+import contextlib
 import contextvars
 import dataclasses
 import os
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from typing import Any
 
 from rdflib import URIRef
@@ -66,6 +67,21 @@ _PYSHACL_ONLY_SWITCHES = (
 
 class NativeUnsupported(Exception):
     """An option of an old entry point has no native equivalent; the call falls back to pySHACL. ``str(self)`` is the reason."""
+
+
+_PLAN_CACHE: contextvars.ContextVar[dict | None] = contextvars.ContextVar("starlayer_shacl_plan_cache", default=None)
+
+
+@contextlib.contextmanager
+def shared_plans() -> Iterator[dict]:
+    """While active, native validations over the same explicit shapes graph object share one parsed ``Plan`` (used by the
+    ``validate_each`` entry points: the shapes are parsed once for the whole batch, not once per data graph)."""
+    cache: dict = {}
+    token = _PLAN_CACHE.set(cache)
+    try:
+        yield cache
+    finally:
+        _PLAN_CACHE.reset(token)
 
 
 def normalise_engine(engine: Any, *, source: str = "engine") -> str | None:
@@ -343,6 +359,11 @@ def _validate_native(
 
     original = data_graph
     data, shapes, ont = _normalise(data_graph, shacl_graph, ont_graph)
+    cache = _PLAN_CACHE.get()
+    if cache is not None and shacl_graph is not None:
+        # keep the caller's shapes object alive next to its normalised form, so the (id-keyed) Plan cache stays valid and
+        # every item of the batch sees the same shapes object
+        shapes = cache.setdefault(("shapes", id(shacl_graph)), (shacl_graph, shapes))[1]
     if shapes_graph_resource is not None and shapes is None:
         raise ValueError(
             "shapes_graph_resource= needs a bound shapes graph to check against - "
@@ -368,6 +389,7 @@ def _validate_native(
         shapes_graph_loader=shapes_graph_loader,
         ignore_imports=ignore_imports,
         meta_shapes_extra=meta_shapes_extra,
+        plan_cache=_PLAN_CACHE.get(),
         **engine_kwargs,
     )
     _annotate_conformance_disallows(outcome.report_graph, engine_kwargs.get("conformance_disallows"))

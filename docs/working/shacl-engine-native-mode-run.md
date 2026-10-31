@@ -19,9 +19,10 @@ on `RulesResult`; `native_adapter.last_run()` for calls that return a bare graph
 | default (no variable), baseline | 1738 | 0 | 12 |
 | native, first run (adapter as first written) | 1562 | 176 | 12 |
 | native, final | 1584 | 154 | 12 |
+| native, after `sh:detail` (memberShape, uniqueMembers) | 1586 | 152 | 12 |
 
-Engine suite (4 W3C engine files + `tests/shacl_engine`, now with `test_native_adapter.py`): 1316 passed, 2 failed
-(`pre-binding-002`, `seconds-example`, as before), 5 xfailed, 1 skipped.
+Engine suite (4 W3C engine files + `tests/shacl_engine`, now with `test_native_adapter.py` and `test_detail_and_shared_plan.py`):
+1344 passed, 1 failed (`seconds-example`, fixture defect), 5 xfailed, 1 skipped.
 
 ## What was fixed between the first and the final run (176 to 154)
 
@@ -43,9 +44,9 @@ ENGINE-BUG (fixed, small):
 - `ShapeError` and `RuleError` now derive from `ValueError`, as the old validator's malformed-shapes errors did (callers that
   catch `ValueError` keep working).
 
-## The 154 remaining native-mode failures, by cause
+## The 152 remaining native-mode failures (154 in the final run; the 2 `sh:memberShape` `sh:detail` tests now pass), by cause
 
-Every one is in a named disposition below, or is the one open ENGINE-GAP. The tests in the exception-class group assert `pytest.raises(pyshacl.errors.X)`, the old `NodeExpressionError`, or a message regex; the
+Every one is in a named disposition below, (there is no open ENGINE-GAP left). The tests in the exception-class group assert `pytest.raises(pyshacl.errors.X)`, the old `NodeExpressionError`, or a message regex; the
 engine raises its own `ShapeError` / `RuleError` (now `ValueError` subclasses) or, being more lenient, none.
 
 
@@ -148,11 +149,6 @@ engine raises its own `ShapeError` / `RuleError` (now `ValueError` subclasses) o
 
 - `integration/test_new_target_types.py::test_shape_class_implicit_target_follows_rdfs_subclassof_and_needs_no_separate_nodeshape_typing`
 
-### ENGINE-GAP: sh:detail not produced for sh:memberShape (2)
-
-- `integration/test_native_component_composition.py::test_member_shape_one_result_per_list_with_detail_per_bad_member`
-- `integration/test_native_component_composition.py::test_member_shape_severity_warning_conforms_when_allowed`
-
 ### TEST-ASSERTS-PYSHACL: exception class or message of the old/pySHACL error (engine raises ShapeError/RuleError, or is more lenient: differential cat. 11) (41)
 
 - `integration/test_evaluate_virtual_values.py::TestFunctionArgumentMustBeAList::test_bare_node_is_reported_not_silently_empty[[ sparql:year [ shnex:pathValues ex:birthDate ] ]]`
@@ -242,6 +238,6 @@ engine raises its own `ShapeError` / `RuleError` (now `ValueError` subclasses) o
 `iterate_rules`, pySHACL-only switches (`js`, `sparql_mode`, `do_owl_imports`, `focus_nodes`, `use_shapes`, `*_format`,
 `serialize_*`), `include_source_rule_provenance`, `apply_rules` on a graph that is not a `StarLayerGraph` (the old call raises
 `TypeError`; the fallback reproduces it). Unknown option names reach the old `TypeError` unchanged.
-Not translated: the engine has no `sh:sourceRule` reifiers, no `sh:detail` (open ENGINE-GAP above), no pySHACL-style generic
-result messages (`Less than 1 values on ex:a->ex:p`), and `validate_each` does not share one `Plan` across graphs in native mode
-(each item calls `validate` once).
+Not translated: the engine has no `sh:sourceRule` reifiers, no pySHACL-style generic
+result messages (`Less than 1 values on ex:a->ex:p`). `sh:detail` is produced for `sh:memberShape` and `sh:uniqueMembers`
+(Core 7.5.1, 7.5.4); `validate_each` shares one `Plan` per batch in native mode (`native_adapter.shared_plans`).
