@@ -154,3 +154,16 @@ operators and the SQLAlchemy store (2.2, 2.3, 2.9); JSON-LD and N3 conformance b
   from the RDF and already has an Oxigraph differential test, so sqe tree -> SPARQL text -> Oxigraph needs no rdflib evaluator.
   What it keeps from rdflib is the parse direction (`sqe_parse_to_tree`, for importing existing queries), so rdflib stays as the
   SPARQL parser/algebra library (option a in `sparql-layers-exploration.md`).
+
+### Decisions recorded, third round (2026-10-31): the SPARQL front end
+
+- **salg export need not be preserved.** The RDF encoding of an rdflib algebra under the `salg:` vocabulary (`sparql/to_rdf.py`,
+  `from_rdf.py`, the `salg/` vocabulary and shapes) is not a feature to keep. What depended on it must be moved or retired:
+  sqe's use of the shared encoder (`sqe/to_rdf.py` imports `_encode`, `from_rdf.py` imports `_decode`), the SalG semantic checks
+  (`NoUnboundProjectedVariablesConstraintComponent`, the engine's `engine_components.py`), the `shacl/meta_shapes.py` use, the
+  query lowering on the `StarLayerGraph` query path, and the 12 test files that use salg.
+- **Execution: send SPARQL 1.2 text straight to Oxigraph** (spike authorised: `sparql-direct` branch).
+- **rdflib does not stay as the SPARQL parser.** Patching rdflib's 1.1 parser for 1.2 and then converting its output into an
+  sqe tree is too much. Explore a StarLayer-owned parser that follows the Manchester and SRL parsers' model (own grammar, text to
+  a tree). Exploration and prototype on the `sparql-parser` branch. sqe stays, as the ontology that drives the SPARQL editor.
+- **The three give-ups** (browser/Pyodide, language-tag case, `LOAD <file://>`): treated as accepted for planning, to be signed off.
