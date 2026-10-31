@@ -61,10 +61,18 @@ Each stage has a gate that must pass before the next starts. Work stays on branc
   blank-node ids and language tags; ban `str(term)` inside the engine; cross-check `xsd_values` against a second implementation.
 - 0.2 *(moved to the final stage by the owner's decision: salg is retired at the end.)* Salg retirement steps 1 to 3. Gate: sqe parity
   tests cover the checks the salg shapes performed; the 12 salg-using test files pass or are rewritten.
-- 0.3 Retire the SPARQL `=` guard for dirLangString (`backends/dirlang_equality.py`, 296 lines): the abort is fixed in pyoxigraph
-  0.5.13. Gate: the 16 guarded shapes pass with the guard off. **DONE on branch `mig-stage0` (2026-10-31):** the guard now applies only below pyoxigraph 0.5.13 or to a remote Oxigraph of unknown version; the file retires with the version pin.
-- 0.4 Decide the default for lexical fidelity in parsing (see section 5, item 6), and add the `preserves_lexical_forms` warning. **DONE on branch `mig-stage0` (2026-10-31):** see `docs/working/lexical-fidelity-default.md` and `StarLayerFidelityWarning` (`shacl_engine/fidelity.py`).
+- 0.3 **(done, merge 1758e11)** Retire the SPARQL `=` guard for dirLangString: the abort is fixed in pyoxigraph 0.5.13. The 16 shapes were re-run on raw
+  pyoxigraph, each in its own subprocess. The guard now applies only below 0.5.13 or when the version is unknown; a remote engine stays guarded unless
+  `store.starlayer_engine_version` says 0.5.13 or later. `dirlang_equality.py` stays for remote servers. **DONE on branch `mig-stage0` (2026-10-31):** the guard now applies only below pyoxigraph 0.5.13 or to a remote Oxigraph of unknown version; the file retires with the version pin.
+- 0.4 **(done)** `turtle`/`ttl`, `nt`, `nquads`, `trig` (and MIME types) now route to the faithful parsers in the existing classes; `xml` keeps lexical forms through a
+  thread-local switch; rdflib's global `NORMALIZE_LITERALS` is untouched. Not yet faithful: `trix`, `json-ld`, `hext`, `rdfa`, and a URL source (rdflib's fetcher).
+  `StarLayerFidelityWarning` (one per `validate()` call) plus `Outcome.warnings` when a normalising store meets form-dependent constraints. **DONE on branch `mig-stage0` (2026-10-31):** see `docs/working/lexical-fidelity-default.md` and `StarLayerFidelityWarning` (`shacl_engine/fidelity.py`).
 - 0.5 Fetch the SPARQL 1.1 syntax suite (only 1.2 is vendored).
+
+*Built on branches and merged into `shacl-engine` (2026-10-31): the Oxigraph-backed wrapper `OxGraph`/`OxDataset` (`graph/oxgraph/`, see `oxgraph-wrapper.md`),
+interop and native RDFC (`graph/interop.py`, `graph/rdfc_native.py`, see `interop-and-rdfc.md`), set operations (`graph/setops.py`), direct execution
+(`graph/query/direct.py`). The Stage 2 wrapper therefore exists in first form; what remains of Stage 2 is making it the default, entailment, and the helpers
+listed in `oxgraph-wrapper.md`.*
 
 **Stage 1: the parser.** (Decided 2026-10-31: SRL moves onto the new parser, **last** in this stage: a `parse_srl` entry point that reuses the new parser's tokenizer and
 shared productions and produces the same `_srl_ast` tree; gate: SRL's existing suite of 929 tests passes unchanged. Only then do rdflib's grammar and
