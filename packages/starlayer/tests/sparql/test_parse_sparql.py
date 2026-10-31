@@ -2,8 +2,9 @@
 
 Three gates:
 
-1. the W3C SPARQL 1.2 syntax fixtures vendored under ``tests/sparql/w3c_sparql12/data``: every positive query
-   must parse, every negative query must be rejected (update fixtures are out of scope for the prototype);
+1. the W3C SPARQL 1.2 syntax fixtures vendored under ``tests/sparql/w3c_sparql12/data`` and the SPARQL 1.1 syntax and
+   query fixtures under ``tests/sparql/w3c_sparql11/data``: every positive query must parse, every negative query
+   must be rejected (update fixtures are out of scope here: SPARQL Update is the next piece of work);
 2. the sqe fixpoint: text -> new tree -> ``sqe_tree_to_text`` -> new tree is the same tree;
 3. agreement with the current rdflib-based path (``sqe_parse_to_tree``) on the sqe feature queries, the sqe
    modifier queries and the W3C queries. The current path costs about a second per query (it validates every
@@ -13,7 +14,7 @@ Three gates:
 from __future__ import annotations
 
 import pytest
-from rdflib import RDF, Literal, URIRef, Variable
+from rdflib import RDF, XSD, Literal, URIRef, Variable
 from starlayer.sparql.parse_sparql import (
     Node,
     SparqlSyntaxError,
@@ -27,11 +28,16 @@ from tests.sparql.parse_sparql_support import (
     current_tree,
     entry_key,
     same_tree,
+    w3c11_entries,
     w3c_entries,
 )
 
 _POSITIVE = [e for e in w3c_entries("PositiveSyntaxTest", "QueryEvaluationTest") if e.query_file.endswith(".rq")]
 _NEGATIVE = [e for e in w3c_entries("NegativeSyntaxTest") if e.query_file.endswith(".rq")]
+# SPARQL 1.1: the syntax-query suite, the query-evaluation queries of every category (extra positive material), the negative
+# syntax tests of aggregates/grouping/construct (and the syntax-fed SERVICE ones).
+_POSITIVE11 = w3c11_entries("PositiveSyntaxTest", "QueryEvaluationTest", ext=".rq")
+_NEGATIVE11 = w3c11_entries("NegativeSyntaxTest", ext=".rq")
 
 
 # ---------------------------------------------------------------------------
@@ -52,6 +58,24 @@ def test_w3c_negative_syntax_is_rejected(entry):
         parse_sparql(entry.read(entry.query_file))
 
 
+@pytest.mark.skipif(not _POSITIVE11, reason="W3C SPARQL 1.1 test data not fetched")
+@pytest.mark.parametrize("entry", _POSITIVE11, ids=lambda e: e.key)
+def test_w3c11_positive_syntax_parses(entry):
+    parse_sparql(entry.read())
+
+
+@pytest.mark.skipif(not _NEGATIVE11, reason="W3C SPARQL 1.1 test data not fetched")
+@pytest.mark.parametrize("entry", _NEGATIVE11, ids=lambda e: e.key)
+def test_w3c11_negative_syntax_is_rejected(entry):
+    with pytest.raises(SparqlSyntaxError):
+        parse_sparql(entry.read())
+
+
+def test_w3c_suites_are_not_empty():
+    assert len(_POSITIVE) >= 160 and len(_NEGATIVE) >= 80
+    assert len(_POSITIVE11) >= 320 and len(_NEGATIVE11) >= 35
+
+
 # ---------------------------------------------------------------------------
 # Gate 2: the tree renders to text that parses back to the same tree
 # ---------------------------------------------------------------------------
@@ -63,6 +87,16 @@ def test_tree_text_fixpoint(entry):
     from rdflib.compare import isomorphic
 
     tree = sparql_to_tree(entry.read(entry.query_file))
+    again = sparql_to_tree(sqe_tree_to_text(*tree))
+    assert isomorphic(canonical_graph(tree[0]), canonical_graph(again[0]))
+
+
+@pytest.mark.skipif(not _POSITIVE11, reason="W3C SPARQL 1.1 test data not fetched")
+@pytest.mark.parametrize("entry", _POSITIVE11, ids=lambda e: e.key)
+def test_w3c11_tree_text_fixpoint(entry):
+    from rdflib.compare import isomorphic
+
+    tree = sparql_to_tree(entry.read())
     again = sparql_to_tree(sqe_tree_to_text(*tree))
     assert isomorphic(canonical_graph(tree[0]), canonical_graph(again[0]))
 
@@ -79,6 +113,7 @@ def _agreement_corpus() -> dict[str, str]:
     corpus = {"feature/" + k: P + v for k, v in FEATURES.items()}
     corpus.update({"modifier/" + k: v for k, v in QUERIES.items()})
     corpus.update({"w3c/" + entry_key(e): e.read(e.query_file) for e in _POSITIVE})
+    corpus.update({"w3c11/" + e.key: e.read() for e in _POSITIVE11})
     return corpus
 
 
@@ -221,10 +256,96 @@ def test_new_tree_validates_against_the_sqe_shapes():
     assert sqe_validate(graph)[0]
 
 
-def test_unsupported_constructs_raise_not_drop():
-    with pytest.raises(NotImplementedError):
-        sparql_to_tree("SELECT * FROM <http://g> { ?s ?p ?o }")
-    with pytest.raises(NotImplementedError):
-        sparql_to_tree("SELECT * { SERVICE <http://s> { ?s ?p ?o } }")
-    with pytest.raises(SparqlSyntaxError):
-        parse_sparql("DESCRIBE <http://x>")
+def _round_trip(text: str) -> str:
+    tree = sparql_to_tree(text)
+    assert sqe_validate(tree[0])[0]
+    rendered = sqe_tree_to_text(*tree)
+    from rdflib.compare import isomorphic
+
+    again = sparql_to_tree(rendered)
+    assert isomorphic(canonical_graph(tree[0]), canonical_graph(again[0]))
+    return rendered
+
+
+def test_dataset_clauses_describe_service_and_version_are_in_the_tree():
+    text = (
+        'VERSION "1.2" DESCRIBE ?x <http://a> FROM <http://g1> FROM NAMED <http://g2> '
+        "WHERE { ?x ?p ?o SERVICE SILENT <http://s> { ?x ?q ?z } SERVICE ?e { ?z ?r ?w } } LIMIT 3"
+    )
+    rendered = _round_trip(text)
+    assert rendered.splitlines()[:5] == [
+        'VERSION "1.2"',
+        "DESCRIBE ?x <http://a>",
+        "FROM <http://g1>",
+        "FROM NAMED <http://g2>",
+        "WHERE { ?x ?p ?o . SERVICE SILENT <http://s> { ?x ?q ?z . } SERVICE ?e { ?z ?r ?w . } }",
+    ]
+    g, root = sparql_to_tree(text)
+    from starlayer.sparql.sqe import SQE
+
+    assert (root, RDF.type, SQE.DescribeQuery) in g and (root, RDF.type, SQE.Query) in g
+    assert [str(o) for o in g.objects(root, SQE.version)] == ["1.2"]
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "DESCRIBE <http://x>",
+        "DESCRIBE * { ?s ?p ?o }",
+        "DESCRIBE ?x <http://y> FROM <g> { ?x ?p ?o } GROUP BY ?x ORDER BY ?x LIMIT 2",
+        "ASK FROM NAMED <g> { ?s ?p ?o } ORDER BY ?s LIMIT 1",
+        "CONSTRUCT { ?s ?p ?o } FROM <g> WHERE { ?s ?p ?o } GROUP BY ?s ?p ?o",
+        "SELECT * FROM <g> FROM NAMED <h> FROM <i> { SERVICE <http://s> { ?s ?p ?o } }",
+    ],
+)
+def test_new_forms_round_trip_and_validate(text):
+    _round_trip(text)
+
+
+def test_describe_star_without_where_is_a_shape_violation():
+    g, root = sparql_to_tree("DESCRIBE * { ?s ?p ?o }")
+    from starlayer.sparql.sqe import SQE
+
+    g.remove((root, SQE.where, None))
+    assert not sqe_validate(g)[0]
+
+
+def test_existing_trees_are_unchanged_by_the_vocabulary_additions():
+    """A query without the new constructs encodes with none of the new terms."""
+    from starlayer.sparql.sqe import SQE
+
+    new_terms = {SQE[n] for n in ("DescribeQuery", "DatasetClause", "Service", "describe", "describeAll", "dataset",
+                                   "source", "named", "service", "silent", "version")}  # fmt: skip
+    g, _ = sparql_to_tree("SELECT ?s (COUNT(*) AS ?c) { ?s ?p ?o OPTIONAL { ?o ?q ?z } } GROUP BY ?s ORDER BY ?s LIMIT 1")
+    used = {t for triple in g for t in triple}
+    assert not (used & new_terms)
+
+
+@pytest.mark.parametrize(
+    "literal, lexical, datatype",
+    [
+        ("007", "007", XSD.integer),
+        ("+5", "+5", XSD.integer),
+        ("-0", "-0", XSD.integer),
+        ("1.50", "1.50", XSD.decimal),
+        ("+.5", "+.5", XSD.decimal),
+        ("1E0", "1E0", XSD.double),
+        ("1.0e+3", "1.0e+3", XSD.double),
+        ("-.5E-02", "-.5E-02", XSD.double),
+    ],
+)
+def test_numeric_literals_keep_their_lexical_form(literal, lexical, datatype):
+    q = parse_sparql(f"SELECT * {{ ?s ?p {literal} }}")
+    o = q["where"][0]["o"]
+    assert str(o) == lexical and o.datatype == datatype
+    rendered = sqe_tree_to_text(*sparql_to_tree(f"SELECT * {{ ?s ?p {literal} }}"))
+    assert lexical in rendered
+
+
+def test_typed_and_boolean_literals_keep_their_lexical_form():
+    q = parse_sparql(
+        'SELECT * { ?s ?p "2001-01-01T00:00:00Z"^^<http://www.w3.org/2001/XMLSchema#dateTime> , "01"^^<http://www.w3.org/2001/XMLSchema#integer> , true }'
+    )
+    assert [str(t["o"]) for t in q["where"]] == ["2001-01-01T00:00:00Z", "01", "true"]
+    q = parse_sparql("SELECT * { ?s ?p ?o } LIMIT 010 OFFSET 00")
+    assert (str(q["limit"]), str(q["offset"])) == ("010", "00")

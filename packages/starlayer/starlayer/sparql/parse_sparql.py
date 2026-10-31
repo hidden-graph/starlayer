@@ -1406,7 +1406,9 @@ class _Checker:
         aggregated = bool(group_by) or any(_has_aggregate(e) for e in (*proj_exprs, *having, *order_by))
         if is_select and proj is None and (group_by or any(_has_aggregate(e) for e in (*having, *order_by))):
             self.fail("SELECT * cannot be used with GROUP BY or aggregates")
-        clash_scope = _pattern_vars(where)  # what `(expr AS ?v)` may not reuse (after GROUP BY: only the group variables)
+        # What `(expr AS ?v)` may not reuse. After grouping (explicit, or implicit when the projection aggregates) only the
+        # group variables are in scope (section 18.3.1: "GROUP BY ... v"), so `SELECT (COUNT(*) AS ?o) { ?s ?p ?o }` is valid.
+        clash_scope = set() if aggregated else _pattern_vars(where)
         group_vars: set = set()
         if group_by:
             for c in group_by:
@@ -1414,7 +1416,7 @@ class _Checker:
                     group_vars.add(c)
                 elif isinstance(c, Node) and c.kind == "GroupAs":
                     v = c.f["var"]
-                    if v in clash_scope or v in group_vars:
+                    if v in _pattern_vars(where) or v in group_vars:
                         self.fail(f"{v.n3()} is already in scope at GROUP BY (... AS {v.n3()})", c)
                     group_vars.add(v)
             clash_scope = set(group_vars)
