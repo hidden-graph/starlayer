@@ -3426,7 +3426,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:NodeShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n7d62238efe9949c5a89edac82d9e6957b222 ;
+        sh:in _:n46d40bc0aae04392b6a547bceff53708b222 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -3826,7 +3826,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:ParameterForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n7d62238efe9949c5a89edac82d9e6957b222 ;
+        sh:in _:n46d40bc0aae04392b6a547bceff53708b222 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -4329,7 +4329,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:PropertyShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n7d62238efe9949c5a89edac82d9e6957b222 ;
+        sh:in _:n46d40bc0aae04392b6a547bceff53708b222 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -5960,11 +5960,11 @@ starontology:shacl12-shacl-ui.ttl {
         sh:name "Definition"@en ;
         sh:order 0.5 .
 
-    _:n7d62238efe9949c5a89edac82d9e6957b223 rdf:first sh:IRI ;
+    _:n46d40bc0aae04392b6a547bceff53708b223 rdf:first sh:IRI ;
         rdf:rest ( sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) .
 
-    _:n7d62238efe9949c5a89edac82d9e6957b222 rdf:first sh:BlankNode ;
-        rdf:rest _:n7d62238efe9949c5a89edac82d9e6957b223 .
+    _:n46d40bc0aae04392b6a547bceff53708b222 rdf:first sh:BlankNode ;
+        rdf:rest _:n46d40bc0aae04392b6a547bceff53708b223 .
 }
 
 starontology:shacl12-shacl.ttl {
@@ -12672,7 +12672,7 @@ starontology:sqe_shapes.ttl {
 
     sqe:TripleTermShape a sh:NodeShape ;
         sh:property [ sh:maxCount 1 ;
-                sh:message "sqe:TripleTerm must have exactly one sqe:subject (an IRI, blank node, variable, triple term or literal)" ;
+                sh:message "sqe:TripleTerm must have exactly one sqe:subject (an IRI, blank node, variable or triple term - never a literal)" ;
                 sh:minCount 1 ;
                 sh:node sqe:SubjectOrVariableShape ;
                 sh:path sqe:subject ],
@@ -12919,7 +12919,7 @@ starontology:sqe_shapes.ttl {
         sh:or ( [ sh:nodeKind sh:IRI ] [ sh:nodeKind sh:BlankNode ] [ sh:nodeKind sh:Literal ] [ sh:class sqe:TripleTerm ] spexpr:VariableShape ) .
 
     sqe:SubjectOrVariableShape a sh:NodeShape ;
-        sh:or ( [ sh:nodeKind sh:IRI ] [ sh:nodeKind sh:BlankNode ] spexpr:VariableShape [ sh:class sqe:TripleTerm ] [ sh:nodeKind sh:Literal ] ) .
+        sh:or ( [ sh:nodeKind sh:IRI ] [ sh:nodeKind sh:BlankNode ] spexpr:VariableShape [ sh:class sqe:TripleTerm ] ) .
 
     sqe:WhereListShape a sh:NodeShape ;
         sh:sparql [ a sh:SPARQLConstraint ;

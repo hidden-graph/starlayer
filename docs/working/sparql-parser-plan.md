@@ -238,8 +238,7 @@ Everything the first four tasks of the build asked for, for **queries** (Update 
 `sqe:Service` (`sqe:service`, `sqe:silent`, `sqe:where`), `sqe:version` on the root. Shapes: `ServiceShape`, `DescribeQueryShape`,
 `DatasetClauseShape`, `DatasetListShape`, `DatasetShape`, `GroupingModifierShape` (groupBy/having on ASK, CONSTRUCT, DESCRIBE),
 `VariableOrIriListShape`; `SolutionModifierShape` now also targets ASK and DESCRIBE; `SERVICE` is a legal where-list element and its
-term counts as a binding for the unbound-variable constraint; subjects of patterns may be literals or triple terms (the grammar allows
-both, and W3C `basic-tripleterm-01` has one). `sqe:groupBy`/`sqe:having` lost their `rdfs:domain sqe:SelectQuery` (RDFS inference typed a
+term counts as a binding for the unbound-variable constraint; a pattern or triple term subject may be a triple term (W3C `basic-tripleterm-01`). A literal subject, which the draft's grammar allows (it matches nothing), still fails the shapes: allowing it would make the shape-mutation audit accept a junk subject, so the parser accepts it and `sparql_to_tree(validate=True)` does not. `sqe:groupBy`/`sqe:having` lost their `rdfs:domain sqe:SelectQuery` (RDFS inference typed a
 CONSTRUCT with GROUP BY as a SELECT). The renderer (`sqe/to_text.py`) writes `VERSION`, DESCRIBE, `FROM`, `SERVICE`. pyshacl refuses a SPARQL constraint
 that contains the text `sqe:Service ` (its SERVICE regex), so the constraints spell that term without a following space. The built
 `starontology.trig` was regenerated (`scripts/build.py --only starontology`).
@@ -263,10 +262,11 @@ that contains the text `sqe:Service ` (its SERVICE regex), so the constraints sp
 | Other suites touched by the shape/ontology edits | `tests/sparql/unit` + `tests/starontology`: 889 passed, 2 xfailed |
 | Lint | `ruff check packages/ tools/`: 85 errors, all pre-existing (none in the files touched here) |
 
-The `sqe_coverage` directory run with `--sqe-coverage` is reported in the build log; its first test, `test_oxigraph_differential` (old path against Oxigraph),
-fails on `REGEX(REPLACE('x','',''), '^n')` where rdflib and Oxigraph evaluate differently. That test never ran before (pyoxigraph was not installed) and does not touch
-the new parser.
-
+The rest of `tests/sparql/sqe_coverage` (old path, opt-in, about an hour for the whole directory) was run in part: the 106 feature and modifier tests and
+the 294 shape-mutation tests pass after the shape edits (the first run failed two mutation tests because literal subjects had been allowed; that relaxation was
+reverted). `test_w3c_through_sqe.py` (334, old path) was not re-run end to end. `test_oxigraph_differential::test_generated_queries_agree_with_oxigraph`
+(old path against Oxigraph) fails on `REGEX(REPLACE('x','',''), '^n')`, where rdflib and Oxigraph evaluate differently; that test never ran before
+(pyoxigraph was not installed) and does not touch the new parser.
 
 ### Oxigraph differential: where they disagree, and who is right
 

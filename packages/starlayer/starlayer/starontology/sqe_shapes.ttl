@@ -512,7 +512,7 @@ sqe:OrderConditionShape a sh:NodeShape ;
 sqe:TripleTermShape a sh:NodeShape ;
     sh:property [
         sh:maxCount 1 ;
-        sh:message "sqe:TripleTerm must have exactly one sqe:subject (an IRI, blank node, variable, triple term or literal)" ;
+        sh:message "sqe:TripleTerm must have exactly one sqe:subject (an IRI, blank node, variable or triple term - never a literal)" ;
         sh:minCount 1 ;
         sh:node sqe:SubjectOrVariableShape ;
         sh:path sqe:subject
@@ -749,8 +749,6 @@ sqe:SubjectOrVariableShape a sh:NodeShape ;
         sh:nodeKind sh:BlankNode
     ] spexpr:VariableShape [
         sh:class sqe:TripleTerm
-    ] [
-        sh:nodeKind sh:Literal
     ] ) .
 
 sqe:TemplateListShape a sh:NodeShape ;
