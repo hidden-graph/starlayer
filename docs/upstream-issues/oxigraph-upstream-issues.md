@@ -13,7 +13,7 @@ Same overall conventions as `rdflib-upstream-issues.md`.
 
 | # | Issue | Where the defect is | Reported upstream? |
 | --- | --- | --- | --- |
-| 1 | SPARQL `=` panics the whole engine on any `rdf:dirLangString` term | Oxigraph core (`spareval` crate) - affects both `pyoxigraph` and `oxigraph serve` | **Yes** - [oxigraph/oxigraph#1982](https://github.com/oxigraph/oxigraph/issues/1982), filed 2026-10-17, open, labelled `bug` |
+| 1 | SPARQL `=` panics the whole engine on any `rdf:dirLangString` term | Oxigraph core (`spareval` crate) - affects both `pyoxigraph` and `oxigraph serve` | **Yes** - [oxigraph/oxigraph#1982](https://github.com/oxigraph/oxigraph/issues/1982), filed 2026-10-17; **fixed in pyoxigraph 0.5.13 (verified 2026-10-31)** |
 | - | Literals are normalized on storage, so exact lexical forms are not preserved | Oxigraph storage layer - by design | **No report needed** - already tracked upstream as [oxigraph/oxigraph#526](https://github.com/oxigraph/oxigraph/issues/526) |
 
 ---
@@ -140,7 +140,7 @@ The two abort tests are **opt-in** (`STARLAYER_RUN_ENGINE_ABORT_TESTS=1`), becau
 
 #### Status
 
-Reported upstream as [oxigraph/oxigraph#1982](https://github.com/oxigraph/oxigraph/issues/1982) (filed 2026-10-17; open and labelled `bug` by a maintainer, no comments yet at the time of writing). When it is fixed and released, the opt-in abort tests below start reporting that the engine no longer aborts - run them (`STARLAYER_RUN_ENGINE_ABORT_TESTS=1`) after upgrading `pyoxigraph`, then turn them into plain equality tests.
+**FIXED in pyoxigraph 0.5.13 (verified 2026-10-31).** Reported upstream as [oxigraph/oxigraph#1982](https://github.com/oxigraph/oxigraph/issues/1982) (filed 2026-10-17). On 0.5.13 all 16 shapes (`=` self and two stored values, `STRLANGDIR` on both sides, stored vs literal, `!=`, `IN`, `NOT IN`, `<`, join, DISTINCT, GROUP BY, ORDER BY, MIN, MINUS, VALUES join) run to completion on raw `pyoxigraph`, each in its own subprocess, with correct row counts (`tests/graph/integration/test_oxigraph_store_rdf12.py::TestDirLangStringEqualityFixedUpstream`). The text above describes 0.5.11 and server 0.5.9. The project guard is now applied only below 0.5.13 (see the last section); the opt-in abort tests are skipped on 0.5.13 or newer. Server versions older than 0.5.13 remain affected.
 
 ---
 

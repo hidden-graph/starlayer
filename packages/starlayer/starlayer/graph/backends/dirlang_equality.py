@@ -7,6 +7,10 @@ oxigraph-upstream-issues.md``. ``sameTerm()`` is not affected. Because the abort
 cannot be caught, the only safe place to deal with it is before the query
 reaches the engine.
 
+Fixed upstream in pyoxigraph 0.5.13 (verified 2026-10-31): ``native.
+engine_aborts_on_dirlang_equality`` now applies this guard only to an older
+in-process pyoxigraph or to a remote Oxigraph not known to be >= 0.5.13.
+
 ``guard()`` rewrites each equality ``L = R`` (and ``!=``, ``IN``, ``NOT IN``)
 whose operands could both be a ``dirLangString`` into
 

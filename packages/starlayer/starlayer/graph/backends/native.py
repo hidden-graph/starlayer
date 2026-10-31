@@ -519,16 +519,44 @@ def new_graph_like(store, backend: str, **graph_kwargs):
     return StarLayerGraph(**graph_kwargs)
 
 
-def engine_aborts_on_dirlang_equality(store) -> bool:
-    """Whether this store's engine is Oxigraph, whose SPARQL ``=`` aborts the whole
-    process on a ``rdf:dirLangString`` (oxigraph/oxigraph#1982).
+_DIRLANG_FIX_VERSION = (0, 5, 13)
 
-    Always true for an in-process Oxigraph. A remote endpoint is just a SPARQL
-    endpoint, and the engine behind it cannot be probed (the probe is the abort),
-    so a caller who knows it is ``oxigraph serve`` says so on the store:
-    ``store.starlayer_engine = 'oxigraph'``. See ``dirlang_equality.py``.
+
+def _version_tuple(text) -> tuple[int, ...] | None:
+    """``'0.5.13'`` or ``'0.5.13-rc1'`` as ``(0, 5, 13)``; ``None`` if unparseable."""
+    import re
+    m = re.match(r'\s*v?(\d+)\.(\d+)\.(\d+)', str(text))
+    return tuple(int(x) for x in m.groups()) if m else None
+
+
+def _pyoxigraph_version() -> tuple[int, ...] | None:
+    try:
+        import pyoxigraph
+        return _version_tuple(pyoxigraph.__version__)
+    except Exception:
+        return None
+
+
+def engine_aborts_on_dirlang_equality(store) -> bool:
+    """Whether this store's engine could still abort the whole process on SPARQL ``=``
+    over a ``rdf:dirLangString`` (oxigraph/oxigraph#1982, fixed in 0.5.13).
+
+    An in-process Oxigraph is judged by the installed ``pyoxigraph`` version
+    (guarded below 0.5.13, or when the version cannot be read). A remote endpoint
+    is just a SPARQL endpoint and cannot be probed (the probe is the abort), so a
+    caller who knows it is ``oxigraph serve`` says so on the store:
+    ``store.starlayer_engine = 'oxigraph'``, and may add
+    ``store.starlayer_engine_version = '0.5.13'`` to say the server is fixed.
+    Without a declared version the remote engine's version is unknown and stays
+    guarded. See ``dirlang_equality.py``.
     """
-    return _in_process(store) or getattr(store, 'starlayer_engine', None) == 'oxigraph'
+    if _in_process(store):
+        version = _pyoxigraph_version()
+        return version is None or version < _DIRLANG_FIX_VERSION
+    if getattr(store, 'starlayer_engine', None) != 'oxigraph':
+        return False
+    version = _version_tuple(getattr(store, 'starlayer_engine_version', None))
+    return version is None or version < _DIRLANG_FIX_VERSION
 
 
 def _guard_for_engine(store, sparql: str) -> str:
