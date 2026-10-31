@@ -415,3 +415,11 @@ ui:rdflib-42 a slkg:UpstreamIssue ;
     slkg:issueNumber 42 ;
     slkg:issueStatus "worked-around" ;
     slkg:workedAroundByIdentifier "starlayer.sparql._grammar12._fix_rdflib_lexical_gaps" .
+
+ui:rdflib-43 a slkg:UpstreamIssue ;
+    rdfs:label "`FILTER(false)` in a group is dropped" ;
+    slkg:upstreamProject "rdflib" ;
+    slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
+    slkg:issueNumber 43 ;
+    slkg:issueStatus "worked-around" ;
+    slkg:workedAroundByIdentifier "starlayer.graph.query.algebra_translator_patches.patch_group_filter_falsy_literal" .
