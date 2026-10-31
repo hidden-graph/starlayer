@@ -79,7 +79,7 @@ def test_property_shape_path_substitution_with_sequence_path():
     "select",
     [
         "SELECT $this WHERE { $this ?p ?o MINUS { $this ex:p ?o } }",
-        "SELECT $this WHERE { VALUES ?x { 1 } }",
+        "SELECT $this WHERE { VALUES $this { 1 } }",  # VALUES over a pre-bound variable (a VALUES over others is allowed)
         "SELECT $this WHERE { SERVICE <http://example.org/> { ?s ?p ?o } }",
         "SELECT $this WHERE { BIND (1 AS $this) }",
         "SELECT ?x WHERE { ?x ?p ?o }",  # does not project ?this
