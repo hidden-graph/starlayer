@@ -12,6 +12,7 @@ from starlayer.shacl_engine.rules import (
     entailment_selection,
     validate_with_rules,
 )
+from starlayer.shacl_engine.terms import LegacyTermView
 
 EX = "http://example.com/ns#"
 PRE = """
@@ -50,8 +51,9 @@ def test_base_graph_untouched_and_overlay_has_inferred() -> None:
     before = snapshot(data)
     res = apply_rules(data)
     assert snapshot(data) == before
-    assert (ex("a"), ex("p"), Literal(1)) in res.view
-    assert res.inferred == {t for t in snapshot(res.view) if t not in before}
+    legacy = LegacyTermView(res.view)  # the overlay speaks engine terms
+    assert (ex("a"), ex("p"), Literal(1)) in legacy
+    assert res.inferred == {t for t in snapshot(legacy) if t not in before}
     assert isinstance(res.view, InferredView) and res.ok
 
 

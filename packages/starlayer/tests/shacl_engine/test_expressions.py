@@ -15,6 +15,7 @@ from starlayer.shacl_engine.expressions import (
     evaluate_expression,
 )
 from starlayer.shacl_engine.plan import Plan, ShapeError
+from starlayer.shacl_engine.terms import from_engine, to_engine
 
 EX = Namespace("http://example.com/")
 PREFIXES = """
@@ -33,13 +34,16 @@ def ev(ttl_expr: str, data: str = "", focus=None, bindings=None):
     """Evaluate the blank-node expression ``ttl_expr`` (Turtle for a ``[ ... ]`` or a constant)."""
     g = graph(f"ex:root ex:expr {ttl_expr} . {data}")
     expr = next(g.objects(EX.root, EX.expr))
-    return evaluate_expression(
-        Context(data=g, plan=Plan(shapes_graph=g)), expr, focus, bindings
+    # the engine speaks pyoxigraph terms: convert in and out
+    bindings = {k: [to_engine(t) for t in (v if isinstance(v, list) else [v])] for k, v in (bindings or {}).items()}
+    out = evaluate_expression(
+        Context(data=g, plan=Plan(shapes_graph=g)), to_engine(expr), to_engine(focus), bindings
     )
+    return [from_engine(t) for t in out]
 
 
 def test_registry_is_a_table_of_shnex_and_sparql_iris():
-    names = {str(k).rsplit("#", 1)[-1] for k in OPERATORS}
+    names = {k.value.rsplit("#", 1)[-1] for k in OPERATORS}
     assert {
         "pathValues",
         "flatMap",

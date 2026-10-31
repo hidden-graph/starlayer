@@ -293,6 +293,7 @@ def entailment_selection(shapes: Any) -> tuple[bool, list[Term]]:
     """What ``sh:entailment`` on the shapes graph asks of the rules engine: ``(active, rule_sets)``. ``active`` is False
     when no ``sh:RulesEntailment`` nor rule-set IRI is declared. ``sh:RulesEntailment`` means the default rule set (all
     rules); rule-set IRIs select those sets, unless ``sh:RulesEntailment`` is also present (then all run together)."""
+    shapes = engine_view(shapes)
     values = [o for _s, _p, o in shapes.triples((None, SH.entailment, None))]
     sets = [v for v in values if (v, RDF.type, SH.RuleSet) in shapes]
     wants_all = SH.RulesEntailment in values

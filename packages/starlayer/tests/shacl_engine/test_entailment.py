@@ -7,8 +7,22 @@ from rdflib import RDF, RDFS, Graph, Namespace
 from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl.validator import validate as old_validate
+from starlayer.shacl_engine import entailment as _entailment
 from starlayer.shacl_engine.api import validate as engine_validate
-from starlayer.shacl_engine.entailment import entailed_view, resolve_data_view
+from starlayer.shacl_engine.terms import LegacyTermView, RdflibTermView
+
+
+def _legacy(view):
+    """The engine returns an engine-term view; these tests read it in rdflib terms (a plain wrap is the graph itself)."""
+    return view.graph if isinstance(view, RdflibTermView) else LegacyTermView(view)
+
+
+def entailed_view(*a, **k):
+    return _legacy(_entailment.entailed_view(*a, **k))
+
+
+def resolve_data_view(*a, **k):
+    return _legacy(_entailment.resolve_data_view(*a, **k))
 
 pytest.importorskip("owlrl")
 

@@ -71,6 +71,7 @@ def entailed_view(data_graph: Any, regime: Any = "rdfs", ont_graph: Any = None) 
     """``data_graph`` closed under ``regime``, as an overlay; with no regime, ``data_graph`` itself. Never mutates
     ``data_graph`` or ``ont_graph``."""
     regimes = normalise_regimes(regime)
+    data_graph = engine_view(data_graph)
     if not regimes:
         return data_graph
     from starlayer.graph.graph.starlayer_graph import StarLayerGraph, legal_rdf_triples

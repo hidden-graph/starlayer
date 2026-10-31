@@ -250,7 +250,15 @@ class RdflibTermView:
     def __getattr__(self, name: str) -> Any:
         if name in ("namespaces", "namespace_manager", "identifier"):
             return getattr(self.graph, name)
+        if name == "sparql_query" and hasattr(self.graph, "sparql_query"):
+            return self._sparql_query  # a graph with its own SPARQL (``SparqlCapable``) keeps precedence
         raise AttributeError(name)
+
+    def _sparql_query(self, text: str, init_bindings: Any = None) -> Any:
+        from dataclasses import replace
+
+        out = self.graph.sparql_query(text, {k: from_engine(v) for k, v in (init_bindings or {}).items()} or None)
+        return replace(out, rows=tuple({k: to_engine(v) for k, v in row.items()} for row in out.rows))
 
 
 def engine_view(graph: Any) -> Any:
@@ -309,7 +317,21 @@ class LegacyTermView:
             yield first
             head = next(self.objects(head, rdf_rest), None)
 
+    def query(self, text: str, init_bindings: dict[str, Any] | None = None, **kwargs: Any) -> Any:
+        """``OxigraphGraph.query`` with rdflib terms in and out (SELECT rows, ASK bool, CONSTRUCT triples)."""
+        out = self.view.query(text, {k: to_engine(v) for k, v in (init_bindings or {}).items()} or None, **kwargs)
+        if isinstance(out, list):
+            return [
+                {k: from_engine(v) for k, v in row.items()} if isinstance(row, dict) else from_engine_triple(row)
+                for row in out
+            ]
+        return out
+
+    @property
+    def inferred(self) -> frozenset:
+        return frozenset(from_engine_triple(t) for t in self.view.inferred)
+
     def __getattr__(self, name: str) -> Any:
-        if name in ("namespaces", "namespace_manager", "identifier"):
+        if name in ("namespaces", "namespace_manager", "identifier", "store"):
             return getattr(self.view, name)
         raise AttributeError(name)

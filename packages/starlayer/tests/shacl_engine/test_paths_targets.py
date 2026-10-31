@@ -4,14 +4,39 @@ from __future__ import annotations
 
 import pytest
 from rdflib import Graph, Literal, Namespace
-from starlayer.shacl_engine.paths import eval_path, parse_path
+from starlayer.shacl_engine import paths as _paths
+from starlayer.shacl_engine import targets as _targets
 from starlayer.shacl_engine.plan import ShapeError
-from starlayer.shacl_engine.targets import (
-    declared_shape_nodes,
-    focus_nodes,
-    shape_targets,
-)
+from starlayer.shacl_engine.terms import engine_view, from_engine, to_engine
 from tests.shacl.w3c_shacl12.namespaces import SH
+
+
+# The engine speaks pyoxigraph terms; these tests are written with rdflib graphs and terms, so each engine function is
+# wrapped: graphs through ``engine_view``, terms through ``to_engine`` / ``from_engine``.
+def _out(x):
+    return [(_out(v) if isinstance(v, tuple) else from_engine(v)) for v in x] if isinstance(x, (list, tuple)) else from_engine(x)
+
+
+def parse_path(graph, node):
+    return _paths.parse_path(engine_view(graph), to_engine(node))
+
+
+def eval_path(data, path, focus):
+    return _out(_paths.eval_path(engine_view(data), path, to_engine(focus)))
+
+
+def declared_shape_nodes(graph):
+    return _out(_targets.declared_shape_nodes(engine_view(graph)))
+
+
+def shape_targets(graph, node):
+    return [tuple(_out(t)) for t in _targets.shape_targets(engine_view(graph), to_engine(node))]
+
+
+def focus_nodes(data, shapes, targets, conforms=None):
+    targets = tuple((to_engine(p), to_engine(v)) for p, v in targets)
+    wrapped = None if conforms is None else (lambda shape, n: conforms(from_engine(shape), from_engine(n)))
+    return _out(_targets.focus_nodes(engine_view(data), engine_view(shapes), targets, wrapped))
 
 EX = Namespace("http://example.com/ns#")
 PFX = """@prefix ex: <http://example.com/ns#> . @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -66,7 +91,7 @@ def test_node_is_original_term():
     s = g("ex:s sh:path [ sh:inversePath ex:p ] .")
     node = next(s.objects(EX.s, SH.path))
     p = parse_path(s, node)
-    assert p.node == node and p.args[0].node == EX.p
+    assert p.node == to_engine(node) and p.args[0].node == to_engine(EX.p)
 
 
 @pytest.mark.parametrize(

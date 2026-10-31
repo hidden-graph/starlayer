@@ -22,9 +22,11 @@ from starlayer.shacl_engine.terms import NamedNode as URIRef
 _SALG = "https://github.com/hidden-graph/starlayer/ns/sparql/algebra#"
 
 
-def _lazy(module: str, name: str):
+def legacy_adapter(get_fn):
+    """Wrap a component function written against rdflib terms (``get_fn()`` returns it) as an engine component."""
+
     def call(ctx, shape, params, focus, values):
-        fn = getattr(import_module(module), name)
+        fn = get_fn()
         legacy_ctx = SimpleNamespace(
             data=LegacyTermView(ctx.data), shapes=LegacyTermView(ctx.shapes), plan=ctx.plan, cache=ctx.cache
         )
@@ -34,6 +36,10 @@ def _lazy(module: str, name: str):
             yield replace(v, value=to_engine(v.value)) if isinstance(v, Violation) else v
 
     return call
+
+
+def _lazy(module: str, name: str):
+    return legacy_adapter(lambda: getattr(import_module(module), name))
 
 
 component(URIRef(_SALG + "NoUnboundProjectedVariablesConstraintComponent"), URIRef(_SALG + "noUnboundProjectedVariables"))(
