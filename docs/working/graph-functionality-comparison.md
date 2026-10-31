@@ -96,3 +96,42 @@ lowering.
 
 W3C RDF 1.2 syntax tests against Oxigraph's parsers (1.3); RDFC-1.0 with triple terms (1.7); who uses `Resource`, graph set
 operators and the SQLAlchemy store (2.2, 2.3, 2.9); JSON-LD and N3 conformance beyond one example each.
+
+---
+
+## Decisions recorded (2026-10-31)
+
+| Row | Decision |
+|---|---|
+| 1.7 RDFC-1.0 with triple terms | **Maintain.** See "RDFC with triple terms" below for what the specs say and the plan. |
+| 2.1 Prefix map | **Drop the prefix manager and the 29 default bindings** (reverses the earlier decision to keep rdflib's defaults). Oxigraph ships with no prefixes: `Store` has no prefix API, `dump()` without prefixes writes full IRIs, SPARQL with an undeclared prefix is a syntax error. Prefixes are passed per call. The parser reports the prefixes a document declared (`parser.prefixes`, filled once the parse has run), so a document's own prefixes can be captured for round trips if wanted. Consequence to handle: serialized output in notebooks and golden files that relied on the default bindings will change. |
+| 2.2 `Resource` | **Drop.** Not used by any code, test, notebook or tool (only a doc mention, our capability-check script, and one recorded inherited method). |
+| 2.6 Pretty Turtle | **Keep.** `serializers/turtle12.py`, rebuilt over Oxigraph terms. |
+| 2.9 rdflib stores (SQLAlchemy) | **Drop.** Remove the `sqlalchemy` extra and its tests at cut-over. |
+| 2.10 HTTP engines | **Keep** (`native.py`, `skolem_semantics.py`, 990 lines). |
+| 2.4 `StarLayerGraph` | **Keep, as a wrapper over pyoxigraph.** StarLayer capabilities are built on the object. Other functions may consume an Oxigraph store or dataset directly (the engine's graph view already does). Open sub-question: whether the wrapper subclasses rdflib's `Graph` during a transition or is a standalone class from the start. |
+| 3.2 `sqe`, `spexpr`, `salg`, `srl` | Under exploration: `sparql-layers-exploration.md`. Working hypothesis from the owner: salg is ours and independent of rdflib; sqe and spexpr are what tie into rdflib's algebra and may be given up. To be tested. |
+| Still open | TriX (2.7, kept for now: already written, independent of the store); graph set operators (2.3, drop unless used); the three give-ups: browser/Pyodide (2.11), language-tag case (2.12), `LOAD <file://>` (2.13). |
+
+### RDFC with triple terms: what the specs say (read 2026-10-31)
+
+- RDFC-1.0 (W3C Recommendation, 21 May 2024) does not mention triple terms or RDF 1.2. Its input is an RDF 1.1 dataset, and it says
+  a future update will replace the RDF 1.1 references. No W3C text, erratum or working-group issue found specifies the
+  canonicalisation of triple terms. (The editor's draft and sections 4.4.3 to 9 were only summarised, not read verbatim.)
+- The only W3C-hosted rewriting is the **RDF 1.2 Interoperability** draft's "basic encoding" (non-normative; the page as fetched
+  has no status line or date), not RDF 1.2 Concepts: for each triple term `tt`, mint a fresh blank node `b`, add
+  `b rdf:type rdf:PropositionForm`, `b rdf:propositionFormSubject s`, `b rdf:propositionFormPredicate p`,
+  `b rdf:propositionFormObject o`, and replace `tt` with `b`. It targets "RDF 1.2 Basic" (no triple terms), not RDF 1.1, it
+  deliberately does not reuse `rdf:Statement/subject/predicate/object`, and it warns the output is not semantically equivalent to
+  the input. For datasets, the fresh blank node must not appear in any graph of the dataset.
+- Rewritings to a true RDF 1.1 form (`rdf:subject/predicate/object` "unstarring", or an `rdf:TripleTerm` with
+  `rdf:tripleTermSubject/...`) exist only as proposals in w3c/rdf-star-wg issue #152 (open; consensus 2025-03-07 was to put it in the
+  Primer or elsewhere). They are not spec text.
+- **pyoxigraph's native RDFC-1.0** (tested 2026-10-31): canonicalising a dataset with a triple term ran; two isomorphic datasets that
+  differ only in blank-node labels, including a blank node *inside* a triple term, gave identical canonical quads; a dataset
+  differing in one literal gave a different result. So it is sound for isomorphism checks. No spec defines the canonical labels it
+  assigns to triple terms, so its output cannot be assumed to match another implementation.
+- **Plan (to confirm):** `isomorphic()` uses Oxigraph's native canonicalisation. A published canonical form or hash applies the
+  Interoperability draft's basic encoding and then runs RDFC-1.0, so it rests on a documented rewriting and an actual standard;
+  state in the API that the form is defined by that draft and may change with it. Test both against our current `rdfc.py`
+  (410 lines) on its corpus before retiring it.
