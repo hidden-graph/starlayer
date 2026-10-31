@@ -172,7 +172,7 @@ def check_query(plan: Plan, text: str, prebound: Iterable[str], *, ask: bool = F
             if clash:
                 raise ShapeError(f"VALUES must not mention the pre-bound variable ?{clash[0]} in a SHACL SPARQL query")  # str-ok: a variable name
         if construct[0] == "assign" and construct[1] in prebound:
-            raise ShapeError(f"a SHACL SPARQL query must not assign the pre-bound variable ?{construct[1]}")
+            raise ShapeError(f"a SHACL SPARQL query must not assign the pre-bound variable ?{construct[1]}")  # str-ok: a variable name
     plan.sparql_cache[key] = projected
     return projected
 
