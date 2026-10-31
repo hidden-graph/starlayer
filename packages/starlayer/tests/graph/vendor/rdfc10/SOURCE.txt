@@ -1,0 +1,1 @@
+Vendored from https://github.com/w3c/rdf-canon tests/ at commit 15619df2fda7a4ca88308733789b6774517f9638 (W3C Test Suite License and W3C 3-clause BSD License; see LICENCE.md).
