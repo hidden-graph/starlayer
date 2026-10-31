@@ -25,13 +25,13 @@ Never push this branch's changes to `main` as part of a sync.
 After a sync, update `Last synced` below and add a row per change.
 
 ## Log
-Last synced: `7583cb9` (the baseline tag `shacl-engine-baseline`; `main` has not moved since).
+Last synced: `7583cb9` (the baseline tag `shacl-engine-baseline`; `main` has not moved since). The three branches off `main` are all reflected here.
 
 | main change | kind | engine action | status |
 |---|---|---|---|
 | branch `fix-unique-values-for-peers` (383c417, not merged): `sh:uniqueValuesFor` peers are the shape's own targets (Core 7.9.5) | SHACL behaviour | engine already follows the draft | done; the 15 old tests it rewrites stop showing as differences once it lands |
 | branch `remove-sparql-targets` (bcfe221, not merged): `sh:target` SPARQL targets removed, ignored with a warning | SHACL behaviour | engine implements none; `extract_subgraph` mirrors the warning | done |
-| issue #186: `FILTER(false)` in a group is dropped (query layer) | query-layer bug | fix on `main` (or here), then it clears the last W3C engine failure | open |
+| branch `fix-filter-false` (99adca9, not merged): `FILTER(false)` in a group is dropped (issue #186, query layer) | query-layer bug | cherry-picked here as bc33993; clears W3C `pre-binding-002` | done |
 | issue #185: legacy SHACL-AF candidates to remove from `main` | cleanup | engine never had them; nothing to port | open (needs Node Expressions 5-8 read) |
 
 ## Next sync
