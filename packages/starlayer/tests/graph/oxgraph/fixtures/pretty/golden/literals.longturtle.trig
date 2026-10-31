@@ -1,0 +1,20 @@
+@prefix ex: <http://example/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+ex:s ex:bad "not-a-number"^^xsd:integer .
+ex:s ex:d "1.5"^^xsd:decimal .
+ex:s ex:d5 "5"^^xsd:decimal .
+ex:s ex:d6 "5."^^xsd:decimal .
+ex:s ex:date "2024-01-01"^^xsd:date .
+ex:s ex:dbl "1.5e3"^^xsd:double .
+ex:s ex:dbl2 "1E5"^^xsd:double .
+ex:s ex:dbl3 "1.e5"^^xsd:double .
+ex:s ex:esc "tab	here \"quoted\" back\\slash" .
+ex:s ex:f "false"^^xsd:boolean .
+ex:s ex:i "42"^^xsd:integer .
+ex:s ex:lang "chat"@fr .
+ex:s ex:multi "line one\nline \"two\" " .
+ex:s ex:neg "-5"^^xsd:integer .
+ex:s ex:one "1"^^xsd:boolean .
+ex:s ex:plus "+7"^^xsd:integer .
+ex:s ex:t "true"^^xsd:boolean .

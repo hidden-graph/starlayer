@@ -1,0 +1,14 @@
+@version "1.2" .
+@prefix ex: <http://example/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+
+ex:i ex:ann ex:val .
+ex:i rdf:reifies <<( ex:s3 ex:p ex:o3 )>> .
+ex:s ex:p ex:o .
+ex:s2 ex:p ex:o2 .
+ex:s3 ex:p ex:o3 .
+_:b0 ex:ann ex:val .
+_:b0 rdf:reifies <<( ex:s ex:p ex:o )>> .
+_:b1 ex:ann1 ex:val1 .
+_:b1 ex:ann2 ex:val2 .
+_:b1 rdf:reifies <<( ex:s2 ex:p ex:o2 )>> .

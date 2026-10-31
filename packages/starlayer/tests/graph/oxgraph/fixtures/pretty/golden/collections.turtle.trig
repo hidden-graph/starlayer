@@ -1,0 +1,13 @@
+@prefix ex: <http://example/> .
+
+ex:s ex:empty () ;
+    ex:nested ( ex:a ( ex:b ex:c ) ) ;
+    ex:or (
+        [
+            ex:path ex:email
+        ]
+        [
+            ex:path ex:orcid
+        ]
+    ) ;
+    ex:p ( ex:a ex:b ex:c ) .

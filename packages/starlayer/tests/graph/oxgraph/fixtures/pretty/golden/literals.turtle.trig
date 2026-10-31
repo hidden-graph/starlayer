@@ -1,0 +1,21 @@
+@prefix ex: <http://example/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+ex:s ex:bad "not-a-number"^^xsd:integer ;
+    ex:d 1.5 ;
+    ex:d5 "5"^^xsd:decimal ;
+    ex:d6 "5."^^xsd:decimal ;
+    ex:date "2024-01-01"^^xsd:date ;
+    ex:dbl 1.5e3 ;
+    ex:dbl2 1E5 ;
+    ex:dbl3 1.e5 ;
+    ex:esc "tab	here \"quoted\" back\\slash" ;
+    ex:f false ;
+    ex:i 42 ;
+    ex:lang "chat"@fr ;
+    ex:multi """line one
+line "two" """ ;
+    ex:neg -5 ;
+    ex:one "1"^^xsd:boolean ;
+    ex:plus +7 ;
+    ex:t true .

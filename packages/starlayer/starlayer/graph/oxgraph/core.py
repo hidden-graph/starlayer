@@ -326,17 +326,22 @@ class _Base:
 
     def serialize(self, destination: Any = None, format: str | ox.RdfFormat = "turtle", base: str | None = None,  # noqa: A002
                   prefixes: Mapping[str, str] | None = None, *, only_used: bool = False, rdf_version: str | None = None,
-                  encoding: str = "utf-8") -> str | None:
+                  encoding: str = "utf-8", pretty: bool | str = False) -> str | None:
         """Write the graph. ``destination`` None returns a ``str``; a path or file object is written and ``None`` returned.
         Prefixes are the graph's dict plus ``prefixes`` (the per-call override); ``only_used=True`` declares only those the
         output uses (Turtle, TriG). ``rdf_version="1.1"`` exports through ``starlayer.graph.interop`` (the basic encoding of
-        triple terms), so the output contains no triple term."""
+        triple terms), so the output contains no triple term. ``pretty=True`` (or ``"longturtle"``) lays Turtle / TriG out with
+        ``oxgraph.pretty`` (nested blank nodes, lists, annotations; see that module)."""
         fmt = formats.to_format(format)
         if rdf_version not in (None, "1.1", "rdf-1.1", "1.2", "rdf-1.2"):
             raise ValueError(f"unknown rdf_version {rdf_version!r}")
         pfx = {**self.prefixes, **{str(k): str(v) for k, v in (prefixes or {}).items()}}
         items = self._serial_items(fmt)
-        if rdf_version in ("1.1", "rdf-1.1"):
+        if pretty:  # pretty Turtle / TriG (RDF 1.2): oxgraph/pretty.py
+            from starlayer.graph.oxgraph.pretty import serialize_pretty
+
+            raw = serialize_pretty(self, fmt, pfx or None, base, only_used, pretty).encode("utf-8")
+        elif rdf_version in ("1.1", "rdf-1.1"):
             # Triple terms by the Interoperability draft's basic encoding, base-direction literals by the interop
             # policy (a datatype IRI form by default); the result contains neither.
             from starlayer.graph import interop

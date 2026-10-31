@@ -1,0 +1,11 @@
+@prefix ex: <http://example/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+ex:alice ex:age "42"^^xsd:integer .
+ex:alice ex:knows ex:bob .
+ex:alice ex:knows ex:carol .
+ex:alice ex:name "Alice" .
+ex:alice rdf:type ex:Agent .
+ex:alice rdf:type ex:Person .
+ex:bob ex:name "Bob" .

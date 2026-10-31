@@ -1,0 +1,3 @@
+@prefix ex: <http://example/> .
+ex:s ex:p [ a ex:T ; ex:q [ ex:r "deep" ] ; ex:z "z" ] ;
+    ex:other [] .

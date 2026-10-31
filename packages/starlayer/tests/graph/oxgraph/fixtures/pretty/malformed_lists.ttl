@@ -1,0 +1,10 @@
+@prefix ex: <http://example/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+ex:s ex:p _:b0 .
+_:b0 rdf:first ex:a ; rdf:rest rdf:nil ; ex:extra "not part of the list" .
+ex:s1 ex:p _:b1 .
+ex:s2 ex:q _:b1 .
+_:b1 rdf:first ex:a ; rdf:rest rdf:nil .
+ex:s3 ex:p _:c1 .
+_:c1 rdf:first ex:a ; rdf:rest _:c2 .
+_:c2 rdf:first ex:b .

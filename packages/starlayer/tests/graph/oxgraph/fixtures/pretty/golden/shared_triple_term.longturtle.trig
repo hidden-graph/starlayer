@@ -1,0 +1,11 @@
+@version "1.2" .
+@prefix ex: <http://example/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+_:b0 ex:p ex:o .
+_:b0 rdf:reifies <<( ex:a ex:b ex:c )>> .
+_:b1 ex:funny "true"^^xsd:boolean .
+_:b1 rdf:reifies <<( ex:a ex:b ex:c )>> .
+_:b2 ex:p1 ex:o1 .
+_:b2 rdf:reifies <<( ex:a ex:b ex:c )>> .

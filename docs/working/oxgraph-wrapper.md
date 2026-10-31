@@ -37,7 +37,7 @@ reuses `graph/query/direct.py` (`_guard`) and `graph/backends/native.py` (`check
 ### Decisions made while building
 
 - **Formats.** `turtle` is Turtle 1.2 and keeps lexical forms as the parser read them; `turtle12`, `ttl` are aliases. Also `trig`, `nt`,
-  `nq`, `xml` / `rdf-xml`, `json-ld` (works for plain RDF), and `n3` (read and written as Turtle). `trix` and `longturtle` raise
+  `nq`, `xml` / `rdf-xml`, `json-ld` (works for plain RDF), and `n3` (read and written as Turtle). `trix` and the `longturtle` format name raise
   `ValueError`. MIME types and `nt12`, `trig12`, `nq12` are accepted.
 - **Blank nodes** are renamed per parse (`rename_blank_nodes=True`), so two parses of one document give two sets of nodes, as the old
   class does. `rename_blank_nodes=False` merges them.
@@ -154,6 +154,34 @@ No difference ended as a bug. Not exercised because the packages are absent on t
 (monkeypatched); a run with both installed compares the closures isomorphically (`test_owl_direct_hermit_same_outcome_as_old`,
 `test_owl_direct_rustdl_same_outcome_as_old`), untested here.
 
+## Pretty Turtle
+
+Oxigraph's `turtle` / `trig` writers stream flat statements. `graph/oxgraph/pretty.py` is the pretty writer, rebuilt over pyoxigraph terms (no rdflib)
+from `serializers/turtle12.py` / `trig12.py`: `pretty_turtle(data, *, prefixes, base_iri, only_used_prefixes=True, style="turtle"|"longturtle",
+width=100, keep_bnode_labels=False, graph=...)` and `pretty_trig(...)`. `data` is a `Store`, `Dataset`, `OxGraph`, `OxDataset` or an iterable of
+`Quad` / `Triple` / tuples. `OxGraph.serialize(format="turtle"|"trig", pretty=True | "longturtle")` is the one hook in `core.py`.
+The module docstring is the layout reference; in short: grouped subjects (`;` `,`), `a`, `[ ]` for a blank node referenced once, `( )` for a
+well-formed list, only used prefixes, `{| |}` / `~` / `<< s p o >>` for reifiers, `<<( )>>` for triple terms, directional literals, bare numbers only
+when the lexical form is exactly the Turtle token, blank nodes ordered by a structural signature so the text never depends on labels or input order.
+
+Gates (`tests/graph/oxgraph/test_pretty.py`; the fixtures and goldens are in `tests/graph/oxgraph/fixtures/pretty`): over the vendored W3C Turtle 1.2
+inputs, the RDFC-1.0 N-Quads inputs (`test074`, the poison graph, left out), the SHACL suite Turtle and the fixtures (581 parseable documents, 2 styles) and 6,000
+seeded random datasets: the output re-parses isomorphic (`rdfc_native.isomorphic`), every literal keeps its lexical form, language and direction, and a
+second pass over the re-parse gives the same text. 100,000 triples (blank-node trees, lists, numbers; Python 3.10, one run): `pretty_turtle` 2.6 s,
+`longturtle` 4.3 s, the old `serialize_turtle12` 12.9 s (plus 17 s to parse into it), Oxigraph's flat writer 0.12 s.
+
+Differences from the old writer (11 fixture cases compared byte for byte; 3 identical, 8 differ, all accepted):
+
+- `rdf:type` is written first as `a` (the old one sorted it by IRI among the predicates); objects of a predicate are sorted by term, not by insertion order.
+- Doubles are bare when the lexical form is a Turtle DOUBLE (`1.5e3`); the old writer always wrote `"1.5e3"^^xsd:double`.
+- A blank node with no triples referenced once is `[]` (old: a `_:N...` label); labels are `_:b0, _:b1, ...` in output order (old: the input's).
+- Two reifiers of one unasserted triple stay two (`<< s p o >>` once each); the old writer merged them into one block, which is not isomorphic.
+- A cycle of blank nodes is labelled throughout (the old one demoted a single node of the cycle and kept `[ ]` for the other).
+- A named or shared reifier folds too (`~ :r {| |}`, `~ _:b`); `rdf:nil` is `()` only where the grammar allows a collection (the old writer wrote `()` as a predicate or inside a triple term, which does not parse).
+- A list or annotation block with a nested `[ ]` breaks over lines; `width` wraps long object lists and `( )` (the old one never wrapped; `width=None` is its behaviour).
+- A long string inside a triple term is written in the short quoted form: Oxigraph's parser rejects `"""` there (an Oxigraph limitation).
+- `longturtle` keeps the old `longturtle12` meaning (one `s p o .` per line, nothing folded), not rdflib's grouped long layout.
+
 ## NOT built (follow-ups, with where the old code lives)
 
 | Feature | Old code | Notes |
@@ -162,8 +190,7 @@ No difference ended as a bug. Not exercised because the packages are absent on t
 | Native OWL-RL / RDFS rules | owlrl | today owlrl on an rdflib copy; the OWL-DL engines are the old modules, reused |
 | Entailment-aware `query(entailment=...)` | `sparql/entailment_rdfs.py`, rewriting the rdflib algebra; `query` here raises `NotImplementedError` | waits for the sqe-tree port (plan stage 2) |
 | Manchester syntax | `parsers/manchester_parser.py`, `serializers/manchester.py` | independent of the store; add `format="manchester"` that parses to a temp graph |
-| Pretty Turtle (nested `[ ]`, `( )`, grouped subjects) | `serializers/turtle12.py` | another agent (`oxgraph/pretty.py`) |
-| RDF 1.1 export | the other agent's `graph/interop.py` | hook in place (`core._to_rdf11`); contract assumed |
+| RDF 1.1 export | `graph/interop.py` | **done**: `serialize(rdf_version="1.1")` goes through `interop.export_rdf11` |
 | Others | `isomorphic()` / `compare.py`, `rdfc.py` (RDFC), `triple_terms()`, `Collection`, `transitive_*`, `qname_term`, `namespaces()`, `dump`-style helpers, `Result.serialize` to JSON/CSV, custom functions per call, `LOAD` in UPDATE, remote HTTP engines (`backends/native.py`) | `Dataset.canonicalize` exists in pyoxigraph for RDFC |
 
 ## Open points
