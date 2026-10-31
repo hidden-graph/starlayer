@@ -278,16 +278,20 @@ class _Base:
         """Write the graph. ``destination`` None returns a ``str``; a path or file object is written and ``None`` returned.
         Prefixes are the graph's dict plus ``prefixes`` (the per-call override); ``only_used=True`` declares only those the
         output uses (Turtle, TriG). ``rdf_version="1.1"`` exports through ``starlayer.graph.interop`` (the basic encoding of
-        triple terms) when that module exists."""
+        triple terms), so the output contains no triple term."""
         fmt = formats.to_format(format)
-        src: Any = self
-        if rdf_version in ("1.1", "rdf-1.1"):
-            src = _to_rdf11(self)
-        elif rdf_version not in (None, "1.2", "rdf-1.2"):
+        if rdf_version not in (None, "1.1", "rdf-1.1", "1.2", "rdf-1.2"):
             raise ValueError(f"unknown rdf_version {rdf_version!r}")
         pfx = {**self.prefixes, **{str(k): str(v) for k, v in (prefixes or {}).items()}}
-        items = src._serial_items(fmt)
-        raw = ox.serialize(items, None, fmt, prefixes=pfx or None, base_iri=base)
+        items = self._serial_items(fmt)
+        if rdf_version in ("1.1", "rdf-1.1"):
+            # Triple terms by the Interoperability draft's basic encoding, base-direction literals by the interop
+            # policy (a datatype IRI form by default); the result contains neither.
+            from starlayer.graph import interop
+
+            raw = interop.export_rdf11(items, fmt, None, pfx or None, base)
+        else:
+            raw = ox.serialize(items, None, fmt, prefixes=pfx or None, base_iri=base)
         if only_used and fmt in _TURTLE_LIKE and pfx:
             raw = _strip_unused_prefixes(raw.decode("utf-8")).encode("utf-8")
         if destination is None:
@@ -423,18 +427,6 @@ class _Base:
 
     def __eq__(self, other: Any) -> bool:
         return self is other
-
-
-def _to_rdf11(graph: Any) -> Any:
-    try:
-        from starlayer.graph import interop
-    except ImportError:
-        raise NotImplementedError("RDF 1.1 export needs starlayer.graph.interop, which is not present yet") from None
-    fn = getattr(interop, "to_rdf11", None)
-    if fn is None:
-        raise NotImplementedError("starlayer.graph.interop has no to_rdf11(graph_or_store) -> store")
-    out = fn(graph)
-    return out if isinstance(out, _Base) else (OxDataset(store=out) if isinstance(graph, OxDataset) else OxGraph(store=out))
 
 
 class OxGraph(_Base):
