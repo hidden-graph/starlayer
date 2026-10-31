@@ -97,6 +97,55 @@ class _Base:
     def as_store(self) -> ox.Store:
         return self.store
 
+    # ---- StarLayer helpers (thin delegates; the code lives in oxgraph/helpers/) -------------------------------------
+    def infer(self, entailment: Any = None, **kw: Any) -> Any:
+        from starlayer.graph.oxgraph.helpers import entailment as m
+        return m.infer(self, m.ENTAILMENT.RDFS if entailment is None else entailment, **kw)
+
+    def derive_shape(self, *a: Any, **kw: Any) -> Any:
+        from starlayer.graph.oxgraph.helpers import shapes
+        return shapes.derive_shape(self, *a, **kw)
+
+    def owl_imports(self) -> tuple[Any, ...]:
+        from starlayer.graph.oxgraph.helpers import imports
+        return imports.owl_imports(self)
+
+    def has_import_locally(self, iri: Any) -> bool:
+        from starlayer.graph.oxgraph.helpers import imports
+        return imports.has_import_locally(self, iri)
+
+    def resolve_imports(self, **kw: Any) -> Any:
+        from starlayer.graph.oxgraph.helpers import imports
+        return imports.resolve_imports(self, **kw)
+
+    def skolemize(self, *a: Any, **kw: Any) -> Any:
+        from starlayer.graph.oxgraph.helpers import rewrite
+        return rewrite.skolemize(self, *a, **kw)
+
+    def de_skolemize(self, *a: Any, **kw: Any) -> Any:
+        from starlayer.graph.oxgraph.helpers import rewrite
+        return rewrite.de_skolemize(self, *a, **kw)
+
+    def cbd(self, resource: Any, **kw: Any) -> Any:
+        from starlayer.graph.oxgraph.helpers import rewrite
+        return rewrite.cbd(self, resource, **kw)
+
+    def empty_like(self) -> Any:
+        from starlayer.graph.oxgraph.helpers import rewrite
+        return rewrite.empty_like(self)
+
+    def qname(self, uri: Any) -> str:
+        from starlayer.graph.oxgraph.helpers import qnames
+        return qnames.qname(self.prefixes, uri)
+
+    def compute_qname(self, uri: Any, generate: bool = True) -> tuple[str, str, str]:
+        from starlayer.graph.oxgraph.helpers import qnames
+        return qnames.compute_qname(self.prefixes, uri, generate)
+
+    def expand_curie(self, curie: str) -> Any:
+        from starlayer.graph.oxgraph.helpers import qnames
+        return qnames.expand_curie(self.prefixes, curie)
+
     # ---- subclass hooks ----------------------------------------------------------------------------------------
     def _pattern_graph(self) -> Any: ...
     def _add_graph(self) -> Any: ...
