@@ -132,6 +132,9 @@ known-third-party = ["codekg"]
 # E701/E702 (multiple statements per line): these parser files deliberately
 # use column-aligned one-line `if ...: continue` filter chains and escape-
 # dispatch tables - reviewed 2026-08-16, more readable as-is than reformatted.
+# Capability-check script: each check is a one-line closure handed straight to `trying()`, which calls it immediately, so
+# defining them in a loop is safe (B023) and the compact `a; b` lines keep each check on one screen row (E702).
+"packages/starlayer/benchmarks-graph/oxigraph_capability_checks.py" = ["E702", "B023"]
 "packages/starlayer/starlayer/graph/graph/starlayer_graph.py" = ["E701", "E702"]
 "packages/starlayer/starlayer/graph/parsers/ntriples12.py" = ["E701", "E702"]
 "packages/starlayer/starlayer/graph/parsers/syntax.py" = ["E701", "E702"]

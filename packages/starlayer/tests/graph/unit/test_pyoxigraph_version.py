@@ -1,8 +1,10 @@
 """The minimum-pyoxigraph check (``starlayer.graph.backends._versions``). No engine needed."""
 import pytest
-
 from starlayer.graph.backends import _versions
-from starlayer.graph.backends._versions import check_pyoxigraph_version, require_supported_pyoxigraph
+from starlayer.graph.backends._versions import (
+    check_pyoxigraph_version,
+    require_supported_pyoxigraph,
+)
 
 
 @pytest.mark.parametrize('version', ['0.5.13', '0.5.14', '0.6.0', '1.0.0', 'v0.5.13', '0.5.13-rc1', '0.5.13.dev0'])

@@ -20,7 +20,6 @@ Run:
 """
 from __future__ import annotations
 
-import io
 import json
 import os
 import subprocess
@@ -291,7 +290,7 @@ def data_model():
     out.append(R('ox:BlankNode(id)-stored-as-given', next(iter(_store_with(ox.Quad(bn, ox.NamedNode('http://e/p'), ox.Literal('x'))))).subject.value == 'myid', ''))
     # direction literal
     out.append(trying('rdflib:dirLangString-literal', lambda: (Literal('hi', lang='en--ltr').language == 'en--ltr' and False, 'Literal(lang="en--ltr") accepted? ' + repr(Literal('hi', lang='en--ltr').language))))
-    out.append(trying('ox:dirLangString-literal', lambda: ((l := ox.Literal('hi', language='en', direction=ox.BaseDirection.LTR)).datatype.value.endswith('dirLangString'), f'datatype={l.datatype.value} dir={l.direction}')))
+    out.append(trying('ox:dirLangString-literal', lambda: ((lit := ox.Literal('hi', language='en', direction=ox.BaseDirection.LTR)).datatype.value.endswith('dirLangString'), f'datatype={lit.datatype.value} dir={lit.direction}')))
     # language tag case
     out.append(R('rdflib:langtag-case-kept', Literal('x', lang='EN-us').language == 'EN-us' or False,
                  f'rdflib keeps "{Literal("x", lang="EN-us").language}"; eq to en-US: {Literal("x", lang="EN-us") == Literal("x", lang="en-US")}'))
@@ -511,7 +510,7 @@ def sparql_core():
              'CONTAINS("abc","b")', 'UUID() != UUID()', 'LCASE("ÀB")', 'STRAFTER("a-b","-")', 'xsd:integer("07")', 'xsd:dateTime("2020-01-01")',
              'str(1e0)', '"x"^^xsd:string = "x"', '"a" < "b"', '1 = 1.0', '"1"^^xsd:integer = "01"^^xsd:integer', '"abc"^^xsd:integer = "abc"^^xsd:integer',
              'sameTerm("1"^^xsd:integer, "01"^^xsd:integer)']
-    diffs, errs = [], []
+    diffs = []
     for e in exprs:
         q = 'PREFIX xsd: <http://www.w3.org/2001/XMLSchema#> SELECT ?r WHERE { BIND(' + e + ' AS ?r) }'
         try:
@@ -537,7 +536,6 @@ def sparql_features():
     out = []
     s = ox.Store()
     s.update('INSERT DATA { <http://e/a> <http://e/p> "hi"@en--ltr , "plain"@fr , 5 , <<( <http://e/x> <http://e/y> <http://e/z> )>> }')
-    q = lambda text, **kw: list(s.query(text, **kw))  # noqa: E731
     cases = {
         'VERSION-declaration': 'VERSION "1.2" SELECT * WHERE { ?s ?p 5 }',
         'isTRIPLE': 'SELECT ?o WHERE { ?s ?p ?o FILTER(isTRIPLE(?o)) }',
@@ -668,7 +666,6 @@ def sparql_update_ops():
     q = f'SELECT ?x WHERE {{ SERVICE <http://127.0.0.1:{p2}/sparql> {{ ?s ?p ?x }} }}'
     out.append(trying('ox:SERVICE-http', lambda: ([r['x'].value for r in ox.Store().query(q)] == ['remote'], '')))
     out.append(trying('rdflib:SERVICE-http', lambda: ([str(r[0]) for r in Graph().query(q)] == ['remote'], '')))
-    qs = f'SELECT ?x WHERE {{ SERVICE SILENT <http://127.0.0.1:{p2 + 0}/sparql> {{ ?s ?p ?x }} }}'
     out.append(trying('ox:SERVICE-disabled-by-default?', lambda: (True, 'works without opt-in (see ox:SERVICE-http); no no-network switch seen in Python API')))
     srv.shutdown(); srv2.shutdown()
     return out
@@ -820,7 +817,6 @@ def python_api():
         out.append(R('oxrdflib:namespace-manager', False, str(e)))
     from rdflib.collection import Collection
     from rdflib.resource import Resource
-    from rdflib import RDF
     head = BNode()
     Collection(g, head, [Literal(1), Literal(2)])
     out.append(R('rdflib:Collection-helper', list(Collection(g, head)) == [Literal(1), Literal(2)], 'rdflib.collection.Collection'))
