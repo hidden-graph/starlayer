@@ -2550,7 +2550,8 @@ class StarLayerGraph(Graph):
             if isinstance(query_object, str) and _in_process(self.store):
                 from starlayer.graph.query.direct import direct_enabled, run_direct
                 if direct_enabled(getattr(self, '_direct_query', None)):
-                    return run_direct(self.store, query_object, init_ns=initNs, init_bindings=initBindings,
+                    return run_direct(self.store, query_object, init_ns=initNs or dict(self.namespaces()),
+                                      init_bindings=initBindings,
                                       base=kwargs.get('base'), default_union=False)
             return native_query(
                 self.store, self._backend, query_object, processor=processor, result=result,

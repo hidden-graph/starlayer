@@ -941,7 +941,12 @@ class StarLayerDataset(Dataset):
                 f'query_object must be SPARQL text or a prepared query, not {type(query_object).__name__}'
             )
         if self._backend == 'rdf-1.2':
-            from starlayer.graph.backends.native import native_query
+            from starlayer.graph.backends.native import _in_process, native_query
+            if isinstance(query_object, str) and _in_process(self.store):
+                from starlayer.graph.query.direct import direct_enabled, run_direct
+                if direct_enabled():  # opt-in spike: STARLAYER_QUERY_DIRECT=1
+                    return run_direct(self.store, query_object, init_ns=initNs, init_bindings=initBindings,
+                                      base=kwargs.get('base'), default_union=self.default_union)
             return native_query(
                 self.store, self._backend, query_object, processor=processor, result=result,
                 initNs=initNs, initBindings=initBindings,
@@ -1078,8 +1083,12 @@ class StarLayerDataset(Dataset):
                        initNs=initNs, initBindings=initBindings,
                        use_store_provided=use_store_provided, **kwargs)
         else:
-            from starlayer.graph.backends.native import native_update
-            native_update(self.store, self._backend, update_object)
+            from starlayer.graph.backends.native import _in_process, native_update
+            from starlayer.graph.query.direct import direct_enabled, run_direct_update
+            if isinstance(update_object, str) and _in_process(self.store) and direct_enabled():
+                run_direct_update(self.store, update_object, init_ns=initNs, base=kwargs.get('base'))
+            else:
+                native_update(self.store, self._backend, update_object)
         for sg in self._sg_cache.values():
             sg._build_registry_from_store()
         self._raw_execution_graph = None

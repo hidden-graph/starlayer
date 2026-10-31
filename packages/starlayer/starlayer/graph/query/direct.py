@@ -18,7 +18,6 @@ Not here, because they need a parsed tree: ``entailment=`` rewriting, the prepar
 from __future__ import annotations
 
 from rdflib import BNode, Literal, URIRef, Variable
-from rdflib.namespace import XSD
 from rdflib.query import Result
 
 from starlayer.graph.model.dirlangstring import DirLangString
