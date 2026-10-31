@@ -19,6 +19,7 @@ Bugs in rdflib 7.6.0 found while building SPARQL 1.2 support here. Every example
 | 13 | Invalid queries the parser accepts (nested aggregate, repeated `VALUES` variable, `GROUP BY` scope clash) | no syntax error | `sparql/_syntax_checks` (nested aggregate, `VALUES`, `GROUP BY`) |
 | 14 | Codepoint and surrogate escapes accepted anywhere | no syntax error | `sparql/_syntax_checks` (surrogates only) |
 | 15 | Simple literal differs from its `^^xsd:string` form | unequal terms | `operator_patches` (`sameTerm()` only) |
+| 43 | `FILTER(false)` (any falsy literal filter) in a group is dropped | the group matches as if unfiltered | `algebra_translator_patches` |
 
 ## 1. `MultiplicativeExpression` doesn't apply numeric type promotion for `*`
 
@@ -600,6 +601,29 @@ prepareQuery("PREFIX : <http://e/> SELECT * WHERE { :a\\-b ?p ?o }")
 ```
 
 Fix: same function, strips the backslash in a parse action on `PN_LOCAL`. Found by the SRL conformance suite.
+
+## 43. `FILTER(false)` in a group is dropped
+
+`translateGroupGraphPattern` collects the group's filters with `collectAndRemoveFilters`, then tests `if filters:`. A filter
+whose expression is the literal `false` (or `0`, `""`) is a falsy `Literal`, so the whole filter is skipped and the group
+matches as if it had none. Reproduction on rdflib 7.6.0:
+
+```python
+from rdflib import Graph
+g = Graph().parse(data="<http://e/a> <http://e/p> <http://e/b> .", format="turtle")
+len(list(g.query("SELECT * { ?s ?p ?o FILTER(false) }")))                 # 1, expected 0
+len(list(g.query("SELECT * { { FILTER(false) } UNION { ?s ?p ?o } }")))   # 2, expected 1
+g.query("ASK { FILTER(false) }").askAnswer                                  # True, expected False
+```
+
+Impact: SHACL-SPARQL ASK validators written as `ASK { FILTER(false) }`, and the W3C SHACL 1.2 test
+`tests/sparql/pre-binding/pre-binding-002`. Fix: `starlayer/graph/query/algebra_translator_patches.py::patch_group_filter_falsy_literal`
+wraps `collectAndRemoveFilters` and returns a truthy `Literal` subclass for a falsy literal (same lexical form, datatype and
+language, so evaluation is unchanged). GitHub issue #186.
+
+Separate, pre-existing limitation seen while testing this: `translateAlgebra` raises `ExpressionNotCoveredException` for any
+`Filter` whose expression is a plain literal (`FILTER(true)` as well as `FILTER(false)`), because it only handles `CompValue`
+expressions. Not fixed here.
 
 ## Withdrawn entries
 

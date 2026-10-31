@@ -52,6 +52,9 @@ from starlayer.graph.query import (
 from starlayer.graph.query.algebra_translator_patches import (
     patch_algebra_translator_bugs as _patch_algebra_translator_bugs,
 )
+from starlayer.graph.query.algebra_translator_patches import (
+    patch_group_filter_falsy_literal as _patch_group_filter_falsy_literal,
+)
 from starlayer.graph.query.builtin_error_patches import (
     apply_all_builtin_error_patches as _apply_all_builtin_error_patches,
 )
@@ -186,6 +189,7 @@ _apply_all_builtin_error_patches()
 _patch_negated_set_inverse_member()
 _patch_repetition_paths_are_distinct()
 _patch_algebra_translator_bugs()
+_patch_group_filter_falsy_literal()
 _patch_evalfilter_forgotten_vars()
 _patch_evalmodify_default_graph_selection()
 _patch_evalinsertdata_quad_unpacking()

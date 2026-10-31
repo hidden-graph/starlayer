@@ -38,7 +38,7 @@ from __future__ import annotations
 
 import re
 
-from rdflib import Variable
+from rdflib import Literal, Variable
 from rdflib.plugins.sparql.algebra import _AlgebraTranslator
 from rdflib.plugins.sparql.parserutils import CompValue
 
@@ -291,3 +291,54 @@ def patch_algebra_translator_bugs() -> bool:
         _algebra_translator_patch_status = False
 
     return _algebra_translator_patch_status
+
+
+# --------------------------------------------------------------------------------------------------------------------
+# Issue 43: a group FILTER whose expression is a falsy literal is dropped
+
+_group_filter_patch_status: bool | None = None
+
+
+class _TruthyLiteral(Literal):
+    """A ``Literal`` that is truthy whatever its value: ``Literal(False)`` (and ``0``, ``""``, ``0.0``) are falsy in
+    Python, and rdflib's ``translateGroupGraphPattern`` tests ``if filters:``, so a group whose only filter is
+    ``FILTER(false)`` loses it. The lexical form, datatype and language are unchanged, so the algebra serialises and
+    evaluates exactly as the plain literal would."""
+
+    def __bool__(self) -> bool:
+        return True
+
+
+def _truthy(expr: object) -> object:
+    if isinstance(expr, Literal) and not isinstance(expr, _TruthyLiteral) and not bool(expr):
+        return _TruthyLiteral(str(expr), lang=expr.language, datatype=expr.datatype, normalize=False)
+    return expr
+
+
+def patch_group_filter_falsy_literal() -> bool:
+    """Make ``FILTER(false)`` (any filter whose expression is a falsy literal) survive group translation.
+
+    Wraps ``rdflib.plugins.sparql.algebra.collectAndRemoveFilters``, which ``translateGroupGraphPattern`` calls and whose
+    result it then tests for truthiness: the combined expression is returned through ``_truthy`` so a falsy literal is
+    kept. Idempotent; see Issue 43 in docs/upstream-issues/rdflib-upstream-issues.md.
+    """
+    global _group_filter_patch_status
+    if _group_filter_patch_status is not None:
+        return _group_filter_patch_status
+    try:
+        from rdflib.plugins.sparql import algebra
+
+        original = algebra.collectAndRemoveFilters
+        if getattr(original, "_starlayer_graph_group_filter_patch", False):
+            _group_filter_patch_status = True
+            return True
+
+        def _patched_collect_and_remove_filters(parts):  # type: ignore[no-untyped-def]
+            return _truthy(original(parts))
+
+        _patched_collect_and_remove_filters._starlayer_graph_group_filter_patch = True  # type: ignore[attr-defined]
+        algebra.collectAndRemoveFilters = _patched_collect_and_remove_filters
+        _group_filter_patch_status = True
+    except Exception:
+        _group_filter_patch_status = False
+    return _group_filter_patch_status
