@@ -9,6 +9,8 @@ adds when a shape has no ``sh:message``) is only present when the engine compone
 component names itself ``ConstraintComponent`` in pySHACL and by its own IRI local name here.
 """
 
+# str-ok-file: renders the boundary results: every term in this module is an rdflib / StarLayer term (from_engine output)
+
 from __future__ import annotations
 
 from typing import Any

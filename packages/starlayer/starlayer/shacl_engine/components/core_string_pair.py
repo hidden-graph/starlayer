@@ -47,19 +47,19 @@ def _int_param(shape: Any, pred: URIRef, term: Any) -> int:
             return int(term.value)
         except ValueError:
             pass
-    raise ShapeError(f"{term_text(shape.node)}: {pred} must be an xsd:integer literal, got {term!r}")
+    raise ShapeError(f"{term_text(shape.node)}: {term_text(pred)} must be an xsd:integer literal, got {term!r}")
 
 
 def _bool_param(shape: Any, pred: URIRef, term: Any) -> bool:
     if isinstance(term, Literal) and term.datatype == XSD.boolean and term.value in ("true", "false", "1", "0"):
         return term.value == "true"  # only the lexical form "true" activates (W3C uniqueLang-002)
-    raise ShapeError(f"{term_text(shape.node)}: {pred} must be an xsd:boolean literal, got {term!r}")
+    raise ShapeError(f"{term_text(shape.node)}: {term_text(pred)} must be an xsd:boolean literal, got {term!r}")
 
 
 def _string_param(shape: Any, pred: URIRef, term: Any) -> str:
     if isinstance(term, Literal) and term.datatype == XSD.string:
         return term.value
-    raise ShapeError(f"{term_text(shape.node)}: {pred} must be a string literal, got {term!r}")
+    raise ShapeError(f"{term_text(shape.node)}: {term_text(pred)} must be a string literal, got {term!r}")
 
 
 def _members_or_none(graph: Any, head: Any) -> list[Any] | None:
@@ -203,8 +203,8 @@ def unique_lang(ctx, shape, params, focus, values) -> Iterator[Violation]:
                 counts[key] = counts.get(key, 0) + 1
         for (lang, direction), n in counts.items():
             if n > 1:
-                tag = f"{lang}--{direction}" if direction else lang
-                yield Violation(message=f"Language tag {tag!r} is used by {n} value nodes")
+                tag = f"{lang}--{direction}" if direction else lang  # str-ok: a BaseDirection prints ltr / rtl
+                yield Violation(message=f"Language tag {tag!r} is used by {n} value nodes")  # str-ok: n is a count
 
 
 @component(SH.SingleLineConstraintComponent, SH.singleLine)

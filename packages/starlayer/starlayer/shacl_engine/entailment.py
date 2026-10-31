@@ -26,6 +26,7 @@ from starlayer.shacl_engine.terms import (
     engine_view,
     from_engine,
     from_engine_triple,
+    text,
     to_engine_triple,
 )
 
@@ -63,7 +64,7 @@ def normalise_regimes(regime: Any) -> frozenset:
             out.add(item)
     unsupported = {r for r in out if r not in _NATIVE}
     if unsupported:
-        raise ValueError(f"Unsupported entailment regime(s) {sorted(map(str, unsupported))!r}")
+        raise ValueError(f"Unsupported entailment regime(s) {sorted(text(r) for r in unsupported)!r}")
     return frozenset(out)
 
 
@@ -101,7 +102,7 @@ def declared_regimes(shapes: Any) -> frozenset:
             continue
         regime = from_engine(o)
         if regime not in SUPPORTED_REGIMES:
-            raise ValueError(f"Unsupported entailment regime {str(regime)!r}")
+            raise ValueError(f"Unsupported entailment regime {text(o)!r}")
         out.add(regime)
     return frozenset(out)
 

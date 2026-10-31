@@ -155,7 +155,7 @@ def _call_custom(ctx: Any, expr: Term, fn: Term, pred: URIRef, focus: Term | Non
         for i, arg in enumerate(shacl_list(g, head)):
             nodes = _eval(ctx, arg, focus, scope)  # arguments are evaluated in the caller's scope
             if len(nodes) > 1:
-                raise EvaluationFailure(f"argument {i} of a call of {fn} has more than one output node")
+                raise EvaluationFailure(f"argument {i} of a call of {text(fn)} has more than one output node")
             if nodes:
                 arg_scope[i] = nodes
             else:
@@ -164,7 +164,7 @@ def _call_custom(ctx: Any, expr: Term, fn: Term, pred: URIRef, focus: Term | Non
             return []
         out = _eval(ctx, body, focus, arg_scope)
         if len(out) > 1:
-            raise EvaluationFailure(f"the body of the list parameter function {fn} has more than one output node")
+            raise EvaluationFailure(f"the body of the list parameter function {text(fn)} has more than one output node")
         return out
     for param in g.objects(fn, SH.parameter):  # every declared parameter, not only the key ones
         for path in g.objects(param, SH.path):
@@ -192,7 +192,7 @@ def _values(ctx: Any, expr: Term, pred: URIRef) -> list:
 def _one(ctx: Any, expr: Term, pred: URIRef, *, required: bool = True) -> Term | None:
     vs = _values(ctx, expr, pred)
     if len(vs) > 1 or (required and not vs):
-        raise ShapeError(f"{expr!r}: exactly one {pred} is required")
+        raise ShapeError(f"{expr!r}: exactly one {text(pred)} is required")
     return vs[0] if vs else None
 
 
@@ -219,7 +219,7 @@ def _args(ctx: Any, expr: Term, pred: URIRef) -> list[Term]:
         head != RDF.nil
         and next(iter(ctx.shapes.objects(head, RDF.first)), None) is None
     ):
-        raise ShapeError(f"{expr!r}: the argument of {pred} must be an RDF list")
+        raise ShapeError(f"{expr!r}: the argument of {text(pred)} must be an RDF list")
     return shacl_list(ctx.shapes, head)
 
 
@@ -240,7 +240,7 @@ def _bool(value: bool) -> list:
 
 
 def _integer_literal(n: int) -> Literal:
-    return Literal(str(n), datatype=XSD.integer)
+    return Literal(str(n), datatype=XSD.integer)  # str-ok: n is an int
 
 
 # --------------------------------------------------------------------------------------------------------------------
@@ -448,7 +448,7 @@ def _sum(ctx, expr, focus, scope):
     if rank == 0:
         return [Literal(str(sum(values)), datatype=XSD.integer)]
     if rank == 1:
-        total = sum((Decimal(str(v)) for v in values), Decimal(0))
+        total = sum((Decimal(str(v)) for v in values), Decimal(0))  # str-ok: v is a python int / Decimal
         return [Literal(format(total, "f"), datatype=XSD.decimal)]
     return [Literal(_float_lexical(float(sum(float(v) for v in values))), datatype=XSD.float if rank == 2 else XSD.double)]
 
@@ -557,13 +557,13 @@ def _run_call(template: str, values: list) -> list:
     try:
         rows = starlayer_sparql_query(  # engine terms in and out; converted inside (the query-layer boundary)
             graph,
-            f"SELECT ({template} AS ?result) WHERE {{}}",
+            f"SELECT ({template} AS ?result) WHERE {{}}",  # str-ok: template is the SPARQL text
             {f"a{i}": v for i, v in enumerate(values)},
         ).rows
     except Exception as exc:  # noqa: BLE001  (a SPARQL evaluation error is an evaluation failure)
-        raise EvaluationFailure(f"SPARQL error in {template}: {exc}") from exc
+        raise EvaluationFailure(f"SPARQL error in {template}: {exc}") from exc  # str-ok: SPARQL text
     if not rows or "result" not in rows[0]:
-        raise EvaluationFailure(f"SPARQL error in {template}")
+        raise EvaluationFailure(f"SPARQL error in {template}")  # str-ok: SPARQL text
     return [rows[0]["result"]]
 
 
@@ -622,7 +622,7 @@ def _register_sparql() -> None:
         lambda _n_: 'IF(TZ(?a0) IN ("+00:00", "-00:00"), "Z", TZ(?a0))',
     )
     for name, sql in _RENAMED.items():
-        simple(URIRef(SPARQL_NS + name), lambda n, sql=sql: f"{sql}({args_of(n)})")
+        simple(URIRef(SPARQL_NS + name), lambda n, sql=sql: f"{sql}({args_of(n)})")  # str-ok: SPARQL function name
     for name, op in _INFIX.items():
         simple(URIRef(SPARQL_NS + name), lambda _n_, op=op: f"(?a0 {op} ?a1)")
     for name, op in _PREFIX.items():

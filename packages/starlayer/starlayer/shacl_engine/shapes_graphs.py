@@ -16,6 +16,8 @@ includes those triples. It turns a production shape into the strict form a fragm
 project extension; SHACL has no such operation.
 """
 
+# str-ok-file: works on the caller's rdflib graphs (rdflib terms only; no engine terms)
+
 from __future__ import annotations
 
 from typing import Any

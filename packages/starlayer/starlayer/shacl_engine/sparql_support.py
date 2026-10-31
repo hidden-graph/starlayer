@@ -79,7 +79,7 @@ def prefixes_for(plan: Plan, holder: Term) -> dict[str, str]:
 
 
 def with_prefixes(plan: Plan, holder: Term, text: str) -> str:
-    header = "".join(f"PREFIX {p}: <{ns}>\n" for p, ns in prefixes_for(plan, holder).items())
+    header = "".join(f"PREFIX {p}: <{ns}>\n" for p, ns in prefixes_for(plan, holder).items())  # str-ok: prefix and namespace strings
     return header + text
 
 
@@ -121,7 +121,7 @@ def check_query(plan: Plan, text: str, prebound: Iterable[str], *, ask: bool = F
         raise ShapeError(f"SPARQL query does not parse: {exc}") from exc
     want = "AskQuery" if ask else "SelectQuery"
     if query.algebra.name != want:
-        raise ShapeError(f"expected a {want}, got {query.algebra.name}")
+        raise ShapeError(f"expected a {want}, got {query.algebra.name}")  # str-ok: want is the query form name
     for part in _walk(query.algebra):
         if part.name == "Minus":
             raise ShapeError("MINUS is not allowed in a SHACL SPARQL query")
@@ -130,19 +130,24 @@ def check_query(plan: Plan, text: str, prebound: Iterable[str], *, ask: bool = F
         if part.name == "values":
             # SHACL 1.2 SPARQL Appendix A: "SPARQL queries MUST not contain a VALUES clause that mentions any potentially
             # pre-bound variable". A VALUES that mentions only other variables is allowed.
-            mentioned = {str(v) for v in part.get("_vars", ()) or ()} | {str(k) for row in part.get("res", ()) or () for k in row}
+            mentioned = {_var_name(v) for v in part.get("_vars", ()) or ()} | {_var_name(k) for row in part.get("res", ()) or () for k in row}
             clash = sorted(mentioned & prebound)
             if clash:
-                raise ShapeError(f"VALUES must not mention the pre-bound variable ?{clash[0]} in a SHACL SPARQL query")
-        if part.name == "Extend" and str(part.get("var")) in prebound:
-            raise ShapeError(f"a SHACL SPARQL query must not assign the pre-bound variable ?{part.get('var')}")
-    projected = tuple(str(v) for v in query.algebra.get("PV", ()) or ())
+                raise ShapeError(f"VALUES must not mention the pre-bound variable ?{clash[0]} in a SHACL SPARQL query")  # str-ok: a variable name
+        if part.name == "Extend" and _var_name(part.get("var")) in prebound:
+            raise ShapeError(f"a SHACL SPARQL query must not assign the pre-bound variable ?{_var_name(part.get('var'))}")
+    projected = tuple(_var_name(v) for v in query.algebra.get("PV", ()) or ())
     plan.sparql_cache[key] = projected
     return projected
 
 
 # --------------------------------------------------------------------------------------------------------------------
 # Running queries
+
+
+def _var_name(variable: Any) -> str:
+    """The name of a query-layer variable (an rdflib ``Variable`` is a ``str``)."""
+    return str(variable)  # str-ok: an rdflib Variable (a str subclass), never an engine term
 
 
 def starlayer_sparql_query(graph: Any, text: str, init_bindings: Mapping[str, Term] | None = None) -> Solutions:
@@ -152,8 +157,8 @@ def starlayer_sparql_query(graph: Any, text: str, init_bindings: Mapping[str, Te
     result = graph.query(_prepare(text), initBindings=bindings or None)
     if result.type == "ASK":
         return Solutions(boolean=bool(result.askAnswer))
-    rows = tuple({str(k): to_engine(v) for k, v in b.items() if v is not None} for b in result.bindings)
-    return Solutions(variables=tuple(str(v) for v in result.vars), rows=rows)
+    rows = tuple({_var_name(k): to_engine(v) for k, v in b.items() if v is not None} for b in result.bindings)
+    return Solutions(variables=tuple(_var_name(v) for v in result.vars), rows=rows)
 
 
 def run_query(graph: Any, text: str, init_bindings: Mapping[str, Term] | None = None) -> Solutions:
@@ -239,13 +244,13 @@ def path_to_sparql(path: Path) -> str:
         return f"<{path.iri.value}>"
     args = [path_to_sparql(a) for a in path.args]
     if path.kind == "inverse":
-        return f"^({args[0]})"
+        return f"^({args[0]})"  # str-ok: args are SPARQL path strings
     if path.kind == "seq":
         return "(" + "/".join(args) + ")"
     if path.kind == "alt":
         return "(" + "|".join(args) + ")"
     suffix = {"zero_or_more": "*", "one_or_more": "+", "zero_or_one": "?"}[path.kind]
-    return f"({args[0]}){suffix}"
+    return f"({args[0]}){suffix}"  # str-ok: args are SPARQL path strings
 
 
 _PATH_VAR = re.compile(r"[$?]PATH\b")
@@ -351,7 +356,7 @@ def result_annotations(graph: Any, source: Term, row: Mapping[str, Term]) -> tup
 def _single_string(graph: Any, node: Term, pred: Term) -> str:
     values = list(graph.objects(node, pred))
     if len(values) != 1 or not isinstance(values[0], Literal):
-        raise ShapeError(f"{node!r}: exactly one string literal {pred} is required")
+        raise ShapeError(f"{node!r}: exactly one string literal {text_of(pred)} is required")
     return values[0].value
 
 

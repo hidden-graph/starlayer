@@ -49,6 +49,7 @@ from starlayer.shacl_engine.terms import (
     engine_view,
     from_engine,
     from_engine_triple,
+    text,
     to_engine,
     to_engine_triple,
     with_term_policy,
@@ -248,7 +249,7 @@ class RuleResult:
 def _number(graph: Any, node: Term, pred: Term, default: float = 0) -> float:
     values = list(graph.objects(node, pred))
     if len(values) > 1:
-        raise RuleError(f"{node!r}: more than one {pred}")
+        raise RuleError(f"{node!r}: more than one {text(pred)}")
     if not values:
         return default
     v = values[0]
@@ -257,14 +258,14 @@ def _number(graph: Any, node: Term, pred: Term, default: float = 0) -> float:
         try:
             return float(v.value)
         except (ValueError, AttributeError) as exc:
-            raise RuleError(f"{node!r}: {pred} must be numeric") from exc
+            raise RuleError(f"{node!r}: {text(pred)} must be numeric") from exc
     return float(n)
 
 
 def _boolean(graph: Any, node: Term, pred: Term) -> bool:
     values = list(graph.objects(node, pred))
     if len(values) > 1:
-        raise RuleError(f"{node!r}: more than one {pred}")
+        raise RuleError(f"{node!r}: more than one {text(pred)}")
     return bool(values) and is_true(values[0])
 
 
@@ -434,7 +435,7 @@ class _Run:
             constructs = list(g.objects(template, SH.construct))
             bindings.update(self._template_bindings(rule, template))
         if SH.SPARQLRule not in rule.types and template is None:
-            raise RuleError(f"{rule.node!r}: unsupported rule type {rule.types}")
+            raise RuleError(f"{rule.node!r}: unsupported rule type {sorted(text(t) for t in rule.types)}")
         if len(constructs) != 1 or not isinstance(constructs[0], Literal):
             raise RuleError(f"{rule.node!r}: exactly one string sh:construct is required")
         prefix_holder = holder if (holder, SH.prefixes, None) in g else rule.node
@@ -453,11 +454,11 @@ class _Run:
         for pred, name, optional in _parameters(self.shapes, template):
             values = list(self.shapes.objects(rule.node, pred))
             if len(values) > 1:
-                raise RuleError(f"{rule.node!r}: more than one value for template parameter {pred}")
+                raise RuleError(f"{rule.node!r}: more than one value for template parameter {text(pred)}")
             if values:
                 out[name] = values[0]
             elif not optional:
-                raise RuleError(f"{rule.node!r}: missing value for template parameter {pred}")
+                raise RuleError(f"{rule.node!r}: missing value for template parameter {text(pred)}")
         return out
 
     def _triple_rule(self, ctx: Context, rule: Rule, focus: Term | None) -> list[Triple]:
@@ -466,12 +467,12 @@ class _Run:
         for pred in (SH.subject, SH.predicate, SH.object):
             exprs = list(self.shapes.objects(rule.node, pred))
             if len(exprs) > 1:
-                raise RuleError(f"{rule.node!r}: more than one {pred}")
+                raise RuleError(f"{rule.node!r}: more than one {text(pred)}")
             if exprs:
                 try:
                     parts.append(list(evaluate(ctx, exprs[0], focus, None)))
                 except Exception as exc:  # noqa: BLE001
-                    raise RuleError(f"{rule.node!r}: node expression for {pred} failed: {exc}") from exc
+                    raise RuleError(f"{rule.node!r}: node expression for {text(pred)} failed: {exc}") from exc
             else:
                 parts.append([] if focus is None else [focus])
         return [(s, p, o) for s in parts[0] for p in parts[1] for o in parts[2]]

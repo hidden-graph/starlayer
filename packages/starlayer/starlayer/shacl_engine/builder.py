@@ -7,7 +7,7 @@ from typing import Any
 from starlayer.shacl_engine.components.registry import all_param_predicates
 from starlayer.shacl_engine.plan import SH, Path, Shape, ShapeError, Term
 from starlayer.shacl_engine.targets import declared_shape_nodes, shape_targets  # noqa: F401  (re-exported)
-from starlayer.shacl_engine.terms import RDF, XSD, Literal, NamedNode, Triple
+from starlayer.shacl_engine.terms import RDF, XSD, Literal, NamedNode, Triple, text
 
 
 def build_path(graph: Any, node: Term) -> Path:
@@ -42,7 +42,7 @@ def _annotations(graph: Any, node: Term, params: dict, property_shapes: tuple) -
 def build_shape(graph: Any, node: Term, extra_predicates: Any = ()) -> Shape:
     path_values = list(graph.objects(node, SH.path))
     if len(path_values) > 1:
-        raise ShapeError(f"{node}: more than one sh:path")
+        raise ShapeError(f"{text(node)}: more than one sh:path")
     path = build_path(graph, path_values[0]) if path_values else None
     params: dict[NamedNode, tuple[Term, ...]] = {}
     for pred in set(all_param_predicates()) | set(extra_predicates):

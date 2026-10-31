@@ -127,7 +127,7 @@ def boolean(value: bool) -> ox.Literal:
 
 
 def integer(value: int) -> ox.Literal:
-    return ox.Literal(str(value), datatype=XSD.integer)
+    return ox.Literal(str(value), datatype=XSD.integer)  # str-ok: value is a python int
 
 
 TRUE = boolean(True)
@@ -149,18 +149,23 @@ TERM_POLICIES = ("error", "lenient")
 _POLICY: contextvars.ContextVar[str] = contextvars.ContextVar("starlayer_shacl_term_policy", default="error")
 
 
+def _rdflib_text(term: Any) -> str:
+    """``str()`` of an rdflib / StarLayer term (IRI text, lexical form, blank node id): the one place the boundary reads one."""
+    return str(term)  # str-ok: an rdflib term, whose str() is its lexical value
+
+
 def _show(term: Any) -> str:
     """A short, never-raising rendering of an rdflib term for messages (``URIRef.n3()`` refuses an invalid IRI)."""
     from rdflib import BNode, URIRef
     from rdflib import Literal as RLiteral
 
     if isinstance(term, URIRef):
-        return f"<{term}>"
+        return f"<{_rdflib_text(term)}>"
     if isinstance(term, BNode):
-        return f"_:{term}"
+        return f"_:{_rdflib_text(term)}"
     if isinstance(term, RLiteral):
-        suffix = f"@{term.language}" if term.language else (f"^^<{term.datatype}>" if term.datatype else "")
-        return f"{str(term)!r}{suffix}"  # str-ok: rdflib literal, its lexical form
+        suffix = f"@{term.language}" if term.language else (f"^^<{_rdflib_text(term.datatype)}>" if term.datatype else "")
+        return f"{_rdflib_text(term)!r}{suffix}"
     if isinstance(term, tuple):
         return "(" + " ".join(_show(t) for t in term) + ")"
     return repr(term)
@@ -284,7 +289,7 @@ def to_engine(term: Any) -> Any:
     if cls is URIRef or cls is BNode:
         out = _TO_ENGINE.get(term)
         if out is None:
-            out = _iri_or_stand_in(str(term), term) if cls is URIRef else _bnode_or_stand_in(str(term), term)
+            out = _iri_or_stand_in(_rdflib_text(term), term) if cls is URIRef else _bnode_or_stand_in(_rdflib_text(term), term)
             if out.value.startswith((_INVALID_IRI_PREFIX, _INVALID_BNODE_PREFIX)) and _POLICY.get() == "lenient":
                 return out  # a stand-in is not cached: the strict policy must still reject the original
             if len(_TO_ENGINE) >= _CACHE_MAX:
@@ -294,19 +299,19 @@ def to_engine(term: Any) -> Any:
     if isinstance(term, (ox.NamedNode, ox.BlankNode, ox.Literal, ox.Triple)):
         return term
     if isinstance(term, URIRef):
-        return _iri_or_stand_in(str(term), term)
+        return _iri_or_stand_in(_rdflib_text(term), term)
     if isinstance(term, BNode):
-        return _bnode_or_stand_in(str(term), term)
+        return _bnode_or_stand_in(_rdflib_text(term), term)
     if isinstance(term, DirLangString):
         return _lang_literal_or_stand_in(term.value, term.language, term, _DIRECTIONS[term.direction])
     if isinstance(term, RLiteral):
         if term.language:
-            return _lang_literal_or_stand_in(str(term), term.language, term)
+            return _lang_literal_or_stand_in(_rdflib_text(term), term.language, term)
         if term.datatype is not None:
-            return ox.Literal(str(term), datatype=_iri_or_stand_in(str(term.datatype), term.datatype))
-        return ox.Literal(str(term))
+            return ox.Literal(_rdflib_text(term), datatype=_iri_or_stand_in(_rdflib_text(term.datatype), term.datatype))
+        return ox.Literal(_rdflib_text(term))
     if isinstance(term, Variable):  # SPARQL-algebra graphs (salg) store query variables as terms: no oxrdf equivalent
-        return ox.NamedNode(_VARIABLE_PREFIX + str(term))
+        return ox.NamedNode(_VARIABLE_PREFIX + _rdflib_text(term))
     if isinstance(term, TripleTerm):
         return ox.Triple(to_engine(term.subject), to_engine(term.predicate), to_engine(term.object))
     if isinstance(term, tuple) and len(term) == 3:

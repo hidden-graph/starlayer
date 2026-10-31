@@ -17,6 +17,7 @@ several graphs; ``graph_name=DEFAULT`` reads the default graph; an IRI/blank nod
 
 from __future__ import annotations
 
+import os
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -65,7 +66,7 @@ class OxigraphGraph:
         fmt = ox.RdfFormat.from_extension(path.suffix.lstrip(".")) or ox.RdfFormat.TURTLE
         target = graph_name if graph_name not in (UNION, DEFAULT) else None
         store = ox.Store()
-        store.load(path=str(path), format=fmt, base_iri=base_iri, to_graph=to_ox(target))
+        store.load(path=os.fspath(path), format=fmt, base_iri=base_iri, to_graph=to_ox(target))
         return cls(store, graph_name)
 
     @classmethod

@@ -39,7 +39,7 @@ def _copy_closure(src: Any, dst: Any, node: Any, seen: set) -> None:
 def _identity(value: Any) -> Any:
     """A graph identity as a term: IRIs and literals (a version IRI may be a literal) as they are, anything else as an IRI."""
     value = T.from_engine(value)
-    return value if isinstance(value, (URIRef, Literal)) else URIRef(str(value))
+    return value if isinstance(value, (URIRef, Literal)) else URIRef(str(value))  # str-ok: value is the rdflib term from_engine returned
 
 
 def annotate_provenance(

@@ -9,6 +9,8 @@ old preflight (``allow_warnings=True``).
 The engine's ``validate`` is imported lazily (``api`` may import this module).
 """
 
+# str-ok-file: formats boundary results (legacy_result): rdflib terms only
+
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable

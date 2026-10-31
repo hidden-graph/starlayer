@@ -68,7 +68,7 @@ def _single_int(params: dict, pred: NamedNode) -> int:
     (v,) = params[pred] if len(params[pred]) == 1 else (None,)
     value = xv.numeric(v)
     if not isinstance(value, int) or isinstance(value, bool) or value < 0:
-        raise ShapeError(f"{pred} needs exactly one non-negative xsd:integer, got {[text(x) for x in params[pred]]!r}")
+        raise ShapeError(f"{text(pred)} needs exactly one non-negative xsd:integer, got {[text(x) for x in params[pred]]!r}")
     return value
 
 
@@ -165,14 +165,14 @@ def node_kind(ctx, shape, params, focus, values) -> Iterator[Violation]:
 def min_count(ctx, shape, params, focus, values) -> Iterator[Violation]:
     n = _single_int(params, SH.minCount)
     if len(values) < n:
-        yield Violation(message=f"Expected at least {n} value(s), found {len(values)}")
+        yield Violation(message=f"Expected at least {n} value(s), found {len(values)}")  # str-ok: n is an int
 
 
 @component(SH.MaxCountConstraintComponent, SH.maxCount)
 def max_count(ctx, shape, params, focus, values) -> Iterator[Violation]:
     n = _single_int(params, SH.maxCount)
     if len(values) > n:
-        yield Violation(message=f"Expected at most {n} value(s), found {len(values)}")
+        yield Violation(message=f"Expected at most {n} value(s), found {len(values)}")  # str-ok: n is an int
 
 
 # --- value ranges -----------------------------------------------------------------------------------------------
@@ -188,7 +188,7 @@ def _range_component(pred: NamedNode, op):
     def check(ctx, shape, params, focus, values) -> Iterator[Violation]:
         for bound in params[pred]:
             if not isinstance(bound, Literal):
-                raise ShapeError(f"{pred} needs a literal, got {bound!r}")
+                raise ShapeError(f"{text(pred)} needs a literal, got {bound!r}")
             for v in values:
                 if not _compare(op, v, bound):
                     yield Violation(value=v, message=f"Value {text(v)} fails {pred.value.split('#')[-1]} {text(bound)}")
@@ -212,7 +212,7 @@ for _iri, _pred, _op in (
 def has_value(ctx, shape, params, focus, values) -> Iterator[Violation]:
     for want in params[SH.hasValue]:
         if want not in values:
-            yield Violation(message=f"Missing required value {want}")
+            yield Violation(message=f"Missing required value {text(want)}")
 
 
 @component(SH.InConstraintComponent, SH["in"])
