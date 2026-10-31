@@ -70,8 +70,8 @@ emits triples cannot be checked, rewritten, scope-validated or unit-tested witho
 triples, but it has no editing tree, whereas SPARQL needs the scope checks (`_check_query`) on a tree. The
 encoder is 230 lines (`_Encoder`), the AST 40.
 
-Measured: the encoded tree of the new parser equals `sqe_parse_to_tree`'s on 263 of 263 queries both can read
-(Part 3), validates against the `sqe:` shapes, and renders through the unchanged `sqe_tree_to_text`.
+Measured: the encoded tree of the new parser equals `sqe_parse_to_tree`'s on 636 of 636 queries both can read
+(263 fixed + 373 generated; Part 4), validates against the `sqe:` shapes, and renders through the unchanged `sqe_tree_to_text`.
 
 ### Node kinds and the vocabulary they map to
 
@@ -155,7 +155,7 @@ opt-in agreement gate):
 | ... sqe modifiers | **12 / 12** |
 | ... W3C queries both can read | **162 / 162** |
 | W3C queries the *current* parser rejects and the new one accepts | 5 (`not-not` `!!`; codepoint-esc-08, 09; `compound-tripleterm-subject`, `nested-tripleterm-02`) |
-| Generated (hypothesis) queries | HYPOTHESIS_PLACEHOLDER |
+| Generated (hypothesis) queries | **373 / 373** distinct generated SELECT/ASK/CONSTRUCT queries (400 hypothesis examples from the sqe `_QUERIES` strategy) isomorphic |
 | Speed (162 W3C queries) | parse only 0.9 ms/query against 18.7 ms for `parse_query_12`; parse + encode 3.4 ms against 28.0 ms |
 
 Findings while building it:
