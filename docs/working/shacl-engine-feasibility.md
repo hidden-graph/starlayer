@@ -201,3 +201,12 @@ test result differs on purpose. Such entries are not skipped or xfailed: the har
   unconditional). SERVICE is SHOULD NOT with a MUST-fail for processors that do not permit it, so rejecting it conforms.
 - **sh:uniqueValuesFor** peers are the shape's own targets (Core 7.9.5), not the outer shape's focus nodes.
 - **sh:SPARQLTarget / SPARQLTargetType, $currentShape, $shapesGraph** are not implemented (Appendix F items 1 and 10).
+
+## Oxigraph literal normalization: status (2026-10-31)
+Tracked as starlayer issue #190. Upstream: oxigraph#526 (open), #1989 (open, derived datatypes), PR #2010 (open, stores literals as
+written when the value encoding would rewrite them). Decision: wait for a pyoxigraph release that contains the fix (option 2);
+the 4 remaining Oxigraph-view failures in `test_w3c_engine_core_oxigraph.py` stay as strict xfails until then.
+Correction: `or-datatypes-001` was our own bug (`from_ox` built rdflib literals with normalization on, turning the ill-formed
+`"none"^^xsd:boolean` into `"false"`); fixed with `normalize=False`. Oxigraph itself keeps ill-formed values as written.
+Consequence for using Oxigraph as the engine's internal store: not for caller data until the fix ships (copying a StarLayerGraph
+into a store normalizes it); fine for engine-made intermediates (entailment overlay, rule output, scratch graphs).

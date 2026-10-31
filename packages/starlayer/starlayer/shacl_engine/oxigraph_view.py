@@ -102,7 +102,9 @@ def _from_ox(term: Any) -> Any:
                 return DirLangString(term.value, term.language, str(term.direction))
             return Literal(term.value, lang=term.language)
         dt = term.datatype.value
-        return Literal(term.value) if dt == _XSD_STRING else Literal(term.value, datatype=URIRef(dt))
+        # normalize=False: rdflib's Literal rewrites some lexical forms by default ("none"^^xsd:boolean becomes "false"),
+        # and Oxigraph stores exactly what it is given for ill-formed values.
+        return Literal(term.value) if dt == _XSD_STRING else Literal(term.value, datatype=URIRef(dt), normalize=False)
     if isinstance(term, ox.Triple):
         return TripleTerm(from_ox(term.subject), from_ox(term.predicate), from_ox(term.object))
     raise TypeError(f"unknown pyoxigraph term {term!r}")

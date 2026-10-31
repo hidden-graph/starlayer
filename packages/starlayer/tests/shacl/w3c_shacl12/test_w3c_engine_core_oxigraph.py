@@ -3,8 +3,10 @@ Oxigraph: data and shapes graphs are loaded into separate in-memory ``pyoxigraph
 ``validate()`` as ``OxigraphGraph`` views (``preserves_lexical_forms = False``; the rdflib/StarLayerGraph path in
 ``test_w3c_engine_core.py`` has it True).
 
-``KNOWN_FAILURES`` lists entries that fail only because Oxigraph normalizes literals on storage (oxigraph/oxigraph#526,
-parked). They are strict xfails; any other failure is a real to-do.
+``KNOWN_FAILURES`` lists entries that fail only because Oxigraph rewrites literals when it stores them (upstream:
+oxigraph/oxigraph#526, #1989 and the open PR #2010; tracked here as starlayer issue #190). They are STRICT xfails: when a
+pyoxigraph release with the fix is installed they will XPASS and fail, which is the signal to delete the entries (issue
+#190 lists the steps). Any other failure is a real to-do.
 """
 
 from __future__ import annotations
@@ -21,12 +23,11 @@ from .namespaces import MF, SH, SHT
 from .test_w3c_engine_core import _ENTRIES, _graph
 from .test_w3c_validate import VENDOR_ROOT
 
-# portable entry id -> literal that changes and why. All are Oxigraph literal normalization (oxigraph/oxigraph#526).
+# portable entry id -> literal that changes and why. All are Oxigraph literal normalization on storage (starlayer #190).
 KNOWN_FAILURES: dict[str, str] = {
     "tests/core/node/maxExclusive-001::maxExclusive-001": '"4.0"^^xsd:decimal is stored as "4"; the report echoes the value',
     "tests/core/node/minExclusive-001::minExclusive-001": '"4.0"^^xsd:decimal is stored as "4"; the report echoes the value',
     "tests/core/property/datatype-ill-formed::datatype-ill-formed": '"300"^^xsd:byte (out of range) is rewritten to "300"^^xsd:integer',
-    "tests/core/property/or-datatypes-001::or-datatypes-001": '"none"^^xsd:boolean (ill-formed) is rewritten to "false"',
     "tests/core/property/uniqueLang-002::uniqueLang-002": '"1"^^xsd:boolean becomes "true", so sh:uniqueLang is wrongly activated',
 }
 
