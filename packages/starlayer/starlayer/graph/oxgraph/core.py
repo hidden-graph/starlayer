@@ -7,6 +7,7 @@ on the way in (see ``terms.term``). Names are working names, to become ``StarLay
 from __future__ import annotations
 
 import os
+import re
 from collections.abc import Iterable, Iterator, Mapping
 from pathlib import Path
 from typing import Any
@@ -19,6 +20,7 @@ from starlayer.graph.oxgraph.result import Result
 
 require_supported_pyoxigraph()
 
+_ABSOLUTE_IRI = re.compile(r"[A-Za-z][A-Za-z0-9+.\-]*:")
 _TURTLE_LIKE = (ox.RdfFormat.TURTLE, ox.RdfFormat.TRIG)
 
 
@@ -32,16 +34,27 @@ def as_store(x: Any) -> ox.Store:
     raise TypeError(f"expected an OxGraph, OxDataset or pyoxigraph.Store, not {type(x).__name__}")
 
 
+_IRI_OR_STRING = re.compile(
+    r'"""(?:[^"\\]|\\.|"(?!""))*"""'  # long strings first
+    r"|'''(?:[^'\\]|\\.|'(?!''))*'''"
+    r'|"(?:[^"\\\n]|\\.)*"'
+    r"|'(?:[^'\\\n]|\\.)*'"
+    r'|<[^<>\s"{}|^`\\]*>',  # an IRI reference
+    re.S,
+)
+
+
 def _strip_unused_prefixes(text: str) -> str:
     """Drop the ``@prefix`` header lines Oxigraph wrote for prefixes the body does not use (it declares every prefix it is given)."""
-    import re
-
     lines = text.split("\n")
     n = 0
     decl = re.compile(r"@prefix ([^\s:]*): <[^>]*> \.$")
     while n < len(lines) and (lines[n].startswith("@base ") or decl.match(lines[n])):
         n += 1
     head, body = lines[:n], "\n".join(lines[n:])
+    # Look for prefixed names only outside IRIs and strings, but everywhere else: after ``^^`` (a datatype), inside ``<<( )>>``,
+    # ``<< >>``, ``{| |}`` and after ``~``. (A lookbehind on ``^^`` here used to hide a prefix used only as a datatype.)
+    names = _IRI_OR_STRING.sub(" ", body)
     keep = []
     for line in head:
         m = decl.match(line)
@@ -49,7 +62,7 @@ def _strip_unused_prefixes(text: str) -> str:
             keep.append(line)
             continue
         p = m.group(1)
-        used = re.search(r"(?<![\w.\-:<#/])" + re.escape(p) + r":(?!//)", body) if p else re.search(r"(?<![\w.\-:<#/\"])(?<!\^\^):[\w\-.%\\]*", body)
+        used = re.search(r"(?<![\w.\-:%])" + re.escape(p) + r":", names)
         if used:
             keep.append(line)
     return "\n".join([*keep, body])
@@ -71,6 +84,8 @@ def _read_input(data: Any, source: Any, file: Any) -> tuple[dict[str, Any], str 
         raise ValueError("parse() needs exactly one of data=, source= or file=")
     obj = given[0]
     if data is not None:
+        if not isinstance(obj, (str, bytes, bytearray)) and not hasattr(obj, "read"):
+            raise TypeError(f"data= must be str or bytes, not {type(obj).__name__}")
         return {"input": obj}, None
     if hasattr(obj, "read"):
         return {"input": obj}, getattr(obj, "name", None)
@@ -210,8 +225,8 @@ class _Base:
     def __contains__(self, item: Any) -> bool:
         if isinstance(item, (ox.Triple, ox.Quad)):
             item = tuple(item)
-        if len(item) == 4:
-            return next(self._quads(*item[:3], terms.graph_name(item[3])), None) is not None
+        if len(item) == 4:  # a graph view contains nothing of another graph (``_quads_in`` is empty for a foreign graph)
+            return next(self._quads_in(*item[:3], terms.graph_name(item[3])), None) is not None
         return next(self._quads(*item), None) is not None
 
     def objects(self, subject: Any = None, predicate: Any = None, unique: bool = False) -> Iterator[Any]:
@@ -253,10 +268,10 @@ class _Base:
         for s, p, _o in self.triples((None, None, object)):
             yield s, p
 
-    def value(self, subject: Any = None, predicate: Any = terms.RDF_TYPE, object: Any = None, default: Any = None,
+    def value(self, subject: Any = None, predicate: Any = terms.RDF_VALUE, object: Any = None, default: Any = None,
               any: bool = True) -> Any:  # noqa: A002
         """The one term completing ``(subject, predicate, object)`` (exactly one of the three is None; ``predicate`` defaults to
-        ``rdf:type`` as in rdflib). ``default`` when nothing matches; with ``any=False`` more than one match raises ``ValueError``."""
+        ``rdf:value`` as in rdflib). ``default`` when nothing matches; with ``any=False`` more than one match raises ``ValueError``."""
         if (subject is None) + (predicate is None) + (object is None) != 1:
             raise ValueError("value() needs exactly one of subject, predicate, object to be None")
         slot = 0 if subject is None else 1 if predicate is None else 2
@@ -285,13 +300,19 @@ class _Base:
             head = rests[0]
 
     # ---- writing ------------------------------------------------------------------------------------------------
-    def _quad(self, triple: Any, g: Any) -> ox.Quad:
+    def _quad(self, triple: Any, g: Any, strict: bool = True) -> ox.Quad:
+        """The quad for a triple (into graph ``g``) or a quad. With ``strict`` a quad that is not in this graph (a view of
+        another graph) raises ``ValueError``: a view never writes outside itself."""
         if isinstance(triple, ox.Quad):
-            return triple
-        if len(triple) == 4:
-            return ox.Quad(*(terms.term(t) for t in triple[:3]), terms.graph_name(triple[3]))
-        s, p, o = triple
-        return ox.Quad(terms.term(s), terms.term(p), terms.term(o), g)
+            q = triple
+        elif len(triple) == 4:
+            q = ox.Quad(*(terms.term(t) for t in triple[:3]), terms.graph_name(triple[3]))
+        else:
+            s, p, o = triple
+            return ox.Quad(terms.term(s), terms.term(p), terms.term(o), g)
+        if strict and not self._accepts(q):
+            raise ValueError(f"this is a view of graph {self._add_graph()}; it cannot add a quad of graph {q.graph_name}")
+        return q
 
     def add(self, triple: Any) -> Any:
         self.store.add(self._quad(triple, self._add_graph()))
@@ -305,15 +326,16 @@ class _Base:
 
     def addN(self, quads: Iterable[Any]) -> Any:  # noqa: N802
         """rdflib's name: add ``(s, p, o, graph)`` quads. On a graph view only quads for this graph are added."""
-        self.store.extend(q for q in (self._quad(q, self._add_graph()) for q in quads) if self._accepts(q))
+        self.store.extend(q for q in (self._quad(q, self._add_graph(), False) for q in quads) if self._accepts(q))
         return self
 
     def _accepts(self, quad: ox.Quad) -> bool:
         return True
 
     def remove(self, pattern: tuple[Any, Any, Any]) -> Any:
-        """Remove every statement matching the pattern (``None`` is a wildcard), as rdflib's ``remove`` does."""
-        doomed = list(self._quads(*pattern[:3], terms.graph_name(pattern[3]) if len(pattern) > 3 and pattern[3] is not None else ...))
+        """Remove every statement matching the pattern (``None`` is a wildcard), as rdflib's ``remove`` does. On a graph view a
+        pattern naming another graph matches nothing and removes nothing (it never reaches into the other graph)."""
+        doomed = list(self._quads_in(*pattern[:3], terms.graph_name(pattern[3]) if len(pattern) > 3 and pattern[3] is not None else ...))
         for q in doomed:
             self.store.remove(q)
         return self
@@ -385,7 +407,12 @@ class _Base:
         if pretty:  # pretty Turtle / TriG (RDF 1.2): oxgraph/pretty.py
             from starlayer.graph.oxgraph.pretty import serialize_pretty
 
-            raw = serialize_pretty(self._pretty_source(fmt), fmt, pfx or None, base, only_used, pretty).encode("utf-8")
+            source = self._pretty_source(fmt)
+            if rdf_version in ("1.1", "rdf-1.1"):  # pretty-print the basic encoding, so the output has no triple term either
+                from starlayer.graph import interop
+
+                source = interop.encode_directions(interop.to_basic(self._serial_items(fmt)))
+            raw = serialize_pretty(source, fmt, pfx or None, base, only_used, pretty).encode("utf-8")
         elif rdf_version in ("1.1", "rdf-1.1"):
             # Triple terms by the Interoperability draft's basic encoding, base-direction literals by the interop
             # policy (a datatype IRI form by default); the result contains neither.
@@ -420,9 +447,19 @@ class _Base:
 
     # ---- prefixes -----------------------------------------------------------------------------------------------
     def bind(self, prefix: str, namespace: Any, override: bool = True) -> None:
+        """Bind ``prefix`` to ``namespace``. The prefix must be a valid Turtle PN_PREFIX (``''`` is the empty prefix) and the
+        namespace an absolute IRI (a ``str`` or a ``NamedNode``); anything else raises ``ValueError`` here, so a bad binding
+        cannot make later ``query()`` / ``update()`` / ``serialize()`` calls fail."""
+        from starlayer.graph.oxgraph.pretty import _IRI_BAD, _PN_PREFIX
+
+        if not isinstance(prefix, str) or not _PN_PREFIX.fullmatch(prefix):
+            raise ValueError(f"{prefix!r} is not a valid prefix name")
+        ns = namespace.value if isinstance(namespace, ox.NamedNode) else namespace
+        if not isinstance(ns, str) or not _ABSOLUTE_IRI.match(ns) or _IRI_BAD.search(ns):
+            raise ValueError(f"{namespace!r} is not an absolute IRI, so it cannot be a namespace")
         if not override and prefix in self.prefixes:
             return
-        self.prefixes[str(prefix)] = str(namespace)
+        self.prefixes[prefix] = str(ns)
 
     def unbind(self, prefix: str) -> bool:
         return self.prefixes.pop(prefix, None) is not None
@@ -455,8 +492,10 @@ class _Base:
 
     def update(self, text: str, initNs: Mapping[str, str] | None = None, base: str | None = None) -> None:  # noqa: N803
         """Run SPARQL Update ``text`` on the store. It acts on the whole store, also from a named-graph view (use ``WITH <g>``
-        or ``GRAPH`` in the text to aim it)."""
-        run.update(self.store, text, prefixes=self.prefixes, init_ns=initNs, base=base)
+        or ``GRAPH`` in the text to aim it). On a ``default_union`` dataset the ``WHERE`` of an ``INSERT`` / ``DELETE`` operation
+        reads the union of all graphs, as ``query()`` does (done by adding ``USING`` clauses; see
+        ``run.union_update_text`` for how, and its limits)."""
+        run.update(self.store, text, prefixes=self.prefixes, init_ns=initNs, base=base, union=self._union)
 
     # ---- RDF 1.2 reifiers (thin functions in reification.py) -----------------------------------------------------
     def add_reification(self, reifier: Any, triple_term: Any) -> Any:
@@ -762,6 +801,8 @@ class OxDataset(_Base):
     def copy(self) -> OxDataset:
         d = OxDataset(default_union=self._union)
         d.store.extend(self.store)
+        for name in self.store.named_graphs():  # empty named graphs have no quad to carry them
+            d.store.add_graph(name)
         d.prefixes.clear()
         d.prefixes.update(self.prefixes)
         return d

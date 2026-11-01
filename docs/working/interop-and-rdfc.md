@@ -83,7 +83,7 @@ repository errors are elsewhere).
 - **Isomorphism verdicts**, three methods plus a brute-force oracle (all blank-node bijections), 2,500 random datasets
   (default and named graphs, blank-node graph names, triple terms nested two deep, directional literals, 35 percent relabelled,
   45 percent one-quad mutations, 20 percent unrelated; 932 truly isomorphic): native, native-after-basic-encoding and
-  old `compare.isomorphic`: **0 disagreements with the oracle, none among themselves.** Symmetric cases (4-cycle versus two
+  old `compare.isomorphic`: **0 disagreements with the oracle, none among themselves.** *(Correction, 2026-11-01: this holds for the generated data, which had no blank-node cycle whose edges are triple terms. On such a cycle the native canonicaliser is nondeterministic: `_:b0 <p> <<( _:b1 <p> _:b2 )>> . _:b1 <p> <<( _:b2 <p> _:b0 )>> . _:b2 <p> <<( _:b0 <p> _:b1 )>> .` gave two different labellings in 30 runs, so `isomorphic(g, g)` was false about 40 percent of the time. `rdfc_native` now sends any data with a blank node inside a triple term through the basic encoding, which is stable; see `oxigraph-upstream-issues.md`.)* Symmetric cases (4-cycle versus two
   2-cycles, with and without triple-term wrapping): all three correct. Hypothesis reruns this in the test suite.
 - **Properties** (150 Hypothesis examples each): `from_basic(to_basic(x)) == x`; canonical form invariant under relabelling
   and quad order; two datasets differing only in the identity of a triple term's blank node (or the encoding's fresh node)

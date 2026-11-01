@@ -1,5 +1,4 @@
-"""Bug hunt on the Oxigraph wrapper (OxGraph / OxDataset). Each test is a minimal reproducer of a confirmed bug and is
-``xfail(strict=True)``: when the bug is fixed the test starts to pass and strict mode flags it, so remove the marker then."""
+"""Bug hunt on the Oxigraph wrapper (OxGraph / OxDataset): minimal reproducers of confirmed bugs, kept as regression tests."""
 
 from __future__ import annotations
 
@@ -20,7 +19,6 @@ def _ds_with_g1():
     return ds
 
 
-@pytest.mark.xfail(strict=True, reason="BUG: (s, p, o, g) in view tests graph g, not the view's graph: a triple of another graph is 'contained'")
 def test_contains_quad_of_another_graph_on_a_view():
     ds = _ds_with_g1()
     view = ds.graph(G2)
@@ -28,14 +26,12 @@ def test_contains_quad_of_another_graph_on_a_view():
     assert (A, P, B, G1) not in view  # True today; quads() on the same view returns nothing for graph G1
 
 
-@pytest.mark.xfail(strict=True, reason="BUG: view.remove((s, p, o, g)) deletes from graph g although the view is another graph (data loss)")
 def test_remove_with_graph_element_does_not_leave_the_view():
     ds = _ds_with_g1()
     ds.graph(G2).remove((A, P, B, G1))
     assert len(ds.graph(G1)) == 1
 
 
-@pytest.mark.xfail(strict=True, reason="BUG: view.add(Quad in another graph) writes outside the view")
 def test_view_add_of_foreign_quad_stays_in_view_or_raises():
     ds = _ds_with_g1()
     ds.graph(G1).clear()
@@ -47,7 +43,6 @@ def test_view_add_of_foreign_quad_stays_in_view_or_raises():
     assert len(ds.graph(G1)) == 0
 
 
-@pytest.mark.xfail(strict=True, reason="BUG: serialize(only_used=True) drops '@prefix :' when the empty prefix is used only as a datatype (^^:dt): output is not parseable")
 def test_only_used_keeps_empty_prefix_used_by_datatype():
     g = OxGraph()
     g.bind("", EX)
@@ -59,7 +54,6 @@ def test_only_used_keeps_empty_prefix_used_by_datatype():
     assert len(back) == 1
 
 
-@pytest.mark.xfail(strict=True, reason="BUG: used_prefixes() omits the empty prefix when it is used only as a datatype")
 def test_used_prefixes_includes_empty_prefix_used_by_datatype():
     g = OxGraph()
     g.bind("", EX)
@@ -67,7 +61,6 @@ def test_used_prefixes_includes_empty_prefix_used_by_datatype():
     assert ("", EX) in g.used_prefixes()
 
 
-@pytest.mark.xfail(strict=True, reason="BUG: initBindings with a blank node for a variable that is not projected raises SyntaxError (VALUES fallback); old class answers")
 def test_init_bindings_blank_node_unprojected_variable():
     g = OxGraph()
     bn = ox.BlankNode("q")
@@ -76,7 +69,6 @@ def test_init_bindings_blank_node_unprojected_variable():
     assert rows == [{"s": A}]
 
 
-@pytest.mark.xfail(strict=True, reason="BUG: initBindings with a triple term for a variable that is not projected raises SyntaxError (VALUES fallback)")
 def test_init_bindings_triple_term_unprojected_variable():
     g = OxGraph()
     tt = ox.Triple(A, P, B)
@@ -85,7 +77,6 @@ def test_init_bindings_triple_term_unprojected_variable():
     assert rows == [{"s": A}]
 
 
-@pytest.mark.xfail(strict=True, reason="BUG: Result.type of a CONSTRUCT is 'DESCRIBE' when a prefix is named 'describe' (keyword regex runs on the prologue)")
 def test_result_type_construct_with_prefix_named_describe():
     g = OxGraph()
     g.add((A, P, B))
@@ -93,7 +84,6 @@ def test_result_type_construct_with_prefix_named_describe():
     assert r.type == "CONSTRUCT"
 
 
-@pytest.mark.xfail(strict=True, reason="BUG: value(subject) defaults predicate to rdf:type; rdflib and the old class default to rdf:value (the docstring says 'as in rdflib')")
 def test_value_default_predicate_is_rdf_value():
     rdf = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
     g = OxGraph()
@@ -102,14 +92,12 @@ def test_value_default_predicate_is_rdf_value():
     assert g.value(A) == B
 
 
-@pytest.mark.xfail(strict=True, reason="BUG: qname() raises ValueError for a non-ASCII local name (valid in Turtle PN_LOCAL; rdflib abbreviates it)")
 def test_qname_non_ascii_local_name():
     g = OxGraph()
     g.bind("e", EX)
     assert g.qname(N(EX + "\u00e9")) == "e:\u00e9"
 
 
-@pytest.mark.xfail(strict=True, reason="BUG: bind() accepts a non-absolute namespace; every later query()/update()/serialize() then raises ValueError")
 def test_bind_relative_namespace_does_not_poison_the_graph():
     g = OxGraph()
     g.add((A, P, B))
@@ -120,7 +108,6 @@ def test_bind_relative_namespace_does_not_poison_the_graph():
     assert len(g.query("SELECT * { ?s ?p ?o }").bindings) == 1
 
 
-@pytest.mark.xfail(strict=True, reason="BUG: bind() of an invalid prefix name ('bad prefix') makes serialize() write unparseable Turtle (old class raises on spaces)")
 def test_bind_invalid_prefix_name_still_serializes_parseable_turtle():
     g = OxGraph()
     g.add((A, P, B))
@@ -133,7 +120,6 @@ def test_bind_invalid_prefix_name_still_serializes_parseable_turtle():
     assert len(back) == 1
 
 
-@pytest.mark.xfail(strict=True, reason="BUG: update() WHERE ignores default_union=True: query() sees the union of graphs, INSERT/DELETE WHERE does not (old class sees it)")
 def test_update_where_sees_union_like_query():
     ds = OxDataset(default_union=True)
     ds.graph(G1).add((A, P, B))
@@ -142,7 +128,6 @@ def test_update_where_sees_union_like_query():
     assert len(ds.graph(N(EX + "out"))) == 1
 
 
-@pytest.mark.xfail(strict=True, reason="BUG: OxDataset.copy() drops empty named graphs (copy.copy of the old StarLayerDataset keeps them)")
 def test_dataset_copy_keeps_empty_named_graph():
     ds = OxDataset()
     ds.graph(G1)
@@ -150,7 +135,6 @@ def test_dataset_copy_keeps_empty_named_graph():
     assert ds.copy().has_graph(G1)
 
 
-@pytest.mark.xfail(strict=True, reason="BUG: parse(data=<non-str/bytes>) raises AttributeError ('int' has no attribute 'read') instead of TypeError")
 def test_parse_data_wrong_type_is_a_type_error():
     with pytest.raises(TypeError):
         OxGraph().parse(data=5, format="nt")

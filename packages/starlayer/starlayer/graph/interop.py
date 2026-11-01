@@ -133,21 +133,27 @@ def to_basic(quads: Iterable, *, bnode_prefix: str | None = None) -> list[ox.Qua
         return b
 
     out: list[ox.Quad] = []
-    memo: dict[tuple, ox.BlankNode] = {}  # (graph, triple term) -> blank node: the draft's M_i
+    # (graph, subject, predicate, encoded object) -> blank node: the draft's M_i. Keyed by the flat description, not by the
+    # (possibly deeply nested) triple term, so a lookup does not hash the whole nesting (that made a depth-d term cost d**2).
+    memo: dict[tuple, ox.BlankNode] = {}
 
     def encode(t: ox.Triple, g, extra: list) -> ox.BlankNode:
-        key = (g, t)
-        if key in memo:
-            return memo[key]
-        o = t.object
-        if isinstance(o, ox.Triple):
-            o = encode(o, g, extra)  # inner term first
-        b = fresh()
-        memo[key] = b
-        extra.append(ox.Quad(b, RDF_TYPE, RDF_PROPOSITION_FORM, g))
-        extra.append(ox.Quad(b, PF_SUBJECT, t.subject, g))
-        extra.append(ox.Quad(b, PF_PREDICATE, t.predicate, g))
-        extra.append(ox.Quad(b, PF_OBJECT, o, g))
+        # Iterative: a term nested a thousand deep must not overflow the Python stack. Walk down the object chain, then
+        # encode from the innermost term outwards (the inner term first, as the draft's algorithm does).
+        chain = [t]
+        while isinstance(chain[-1].object, ox.Triple):
+            chain.append(chain[-1].object)
+        b = None
+        for term in reversed(chain):
+            o = b if isinstance(term.object, ox.Triple) else term.object
+            key = (g, term.subject, term.predicate, o)
+            b = memo.get(key)
+            if b is None:
+                b = memo[key] = fresh()
+                extra.append(ox.Quad(b, RDF_TYPE, RDF_PROPOSITION_FORM, g))
+                extra.append(ox.Quad(b, PF_SUBJECT, term.subject, g))
+                extra.append(ox.Quad(b, PF_PREDICATE, term.predicate, g))
+                extra.append(ox.Quad(b, PF_OBJECT, o, g))
         return b
 
     for q in quads:
@@ -162,13 +168,16 @@ def to_basic(quads: Iterable, *, bnode_prefix: str | None = None) -> list[ox.Qua
 
 
 def _collect_bnodes(term, used: set) -> None:
-    """Add the labels of the blank nodes inside a triple term."""
-    if isinstance(term, ox.Triple):
-        for part in (term.subject, term.object):
-            if isinstance(part, ox.BlankNode):
-                used.add(part.value)
-            else:
-                _collect_bnodes(part, used)
+    """Add the labels of the blank nodes inside a triple term (iteratively: the nesting can be very deep)."""
+    stack = [term]
+    while stack:
+        t = stack.pop()
+        if isinstance(t, ox.Triple):
+            for part in (t.subject, t.object):
+                if isinstance(part, ox.BlankNode):
+                    used.add(part.value)
+                else:
+                    stack.append(part)
 
 
 # --------------------------------------------------------------------------------------------- from_basic
@@ -232,26 +241,37 @@ def _decode_graph(g, qs, graph_names, accept_iri) -> list[ox.Quad]:
             raise BasicEncodingError(f"proposition form {n} is also used as a graph name")
 
     memo: dict = {}
-    stack: list = []
 
-    def resolve(n) -> ox.Triple:
-        if n in memo:
-            return memo[n]
-        if n in stack:
-            raise BasicEncodingError(f"cyclic proposition form at {n}")
-        stack.append(n)
+    def check(n):
         d = desc[n]
-        s, p, o = d[PF_SUBJECT][0], d[PF_PREDICATE][0], d[PF_OBJECT][0]
+        s, p = d[PF_SUBJECT][0], d[PF_PREDICATE][0]
         if s in typed:
             raise BasicEncodingError(f"proposition form {n} has a triple term as subject ({s})")
-        if o in typed:
-            o = resolve(o)
         if not isinstance(s, (ox.NamedNode, ox.BlankNode)):
             raise BasicEncodingError(f"proposition form {n}: subject {s} cannot be a triple subject")
         if not isinstance(p, ox.NamedNode):
             raise BasicEncodingError(f"proposition form {n}: predicate {p} is not an IRI")
-        stack.pop()
-        memo[n] = ox.Triple(s, p, o)
+
+    def resolve(n) -> ox.Triple:
+        # Iterative (a chain of nested forms can be thousands deep): follow the object links to the first resolved or
+        # plain object, then build the triple terms from the inside out. The path is a set as well as a list (cycle test).
+        if n in memo:
+            return memo[n]
+        path = [n]
+        on_path = {n}
+        while True:
+            o = desc[path[-1]][PF_OBJECT][0]
+            if o not in typed or o in memo:
+                break
+            if o in on_path:
+                raise BasicEncodingError(f"cyclic proposition form at {o}")
+            path.append(o)
+            on_path.add(o)
+        for m in reversed(path):
+            check(m)
+            d = desc[m]
+            o = d[PF_OBJECT][0]
+            memo[m] = ox.Triple(d[PF_SUBJECT][0], d[PF_PREDICATE][0], memo[o] if o in typed else o)
         return memo[n]
 
     for n in typed:
@@ -295,7 +315,14 @@ def _map_terms(quads: list[ox.Quad], f) -> list[ox.Quad]:
             return ox.Triple(t.subject, t.predicate, term(t.object))
         return f(t)
 
-    return [ox.Quad(q.subject, q.predicate, term(q.object), q.graph_name) for q in quads]
+    # A quad is rebuilt only when its object changes: constructing a pyoxigraph Quad costs tens of microseconds, and most
+    # quads of a large dataset carry no directional literal.
+    out = []
+    for q in quads:
+        o = q.object
+        n = term(o) if isinstance(o, ox.Triple) else f(o)
+        out.append(q if n is o else ox.Quad(q.subject, q.predicate, n, q.graph_name))
+    return out
 
 
 def encode_directions(quads: Iterable, policy: _Lit["datatype", "error", "drop"] = "datatype") -> list[ox.Quad]:
