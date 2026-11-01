@@ -369,7 +369,8 @@ def test_resolve_imports_matches_old(name, mode):
 def test_resolve_imports_without_loader_and_owl_imports():
     text = "ex:a owl:imports ex:b , ex:c . ex:z owl:imports ex:b ."
     o, n = old(text), new(text)
-    assert [str(x) for x in o.owl_imports()] == [x.value for x in n.owl_imports()]
+    # the order is that of a set (it follows the hash seed), so compare sorted
+    assert sorted(str(x) for x in o.owl_imports()) == sorted(x.value for x in n.owl_imports())
     assert same(o.resolve_imports(), n.resolve_imports())
     assert same(o.resolve_imports(mode="delta"), n.resolve_imports(mode="delta")) and len(n.resolve_imports(mode="delta")) == 0
 
