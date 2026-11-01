@@ -6,6 +6,8 @@ TriX, HexTuples and ``longturtle`` are not available (the first was dropped; see
 
 from __future__ import annotations
 
+from typing import Any
+
 import pyoxigraph as ox
 
 _F = ox.RdfFormat
@@ -15,7 +17,7 @@ for _names, _fmt in (
     (("trig", "trig12", "application/trig"), _F.TRIG),
     (("nt", "nt12", "ntriples", "n-triples", "application/n-triples", "nt11"), _F.N_TRIPLES),
     (("nq", "nq12", "nquads", "n-quads", "application/n-quads"), _F.N_QUADS),
-    (("xml", "rdf-xml", "rdfxml", "rdf/xml", "pretty-xml", "application/rdf+xml"), _F.RDF_XML),
+    (("xml", "rdf-xml", "rdfxml", "rdfxml12", "rdf/xml", "pretty-xml", "application/rdf+xml"), _F.RDF_XML),
     (("json-ld", "jsonld", "application/ld+json"), _F.JSON_LD),
 ):
     for _n in _names:
@@ -26,6 +28,11 @@ QUAD_FORMATS = (_F.TRIG, _F.N_QUADS)
 #: how a format is reached when given a file extension
 _EXT = {"ttl": _F.TURTLE, "n3": _F.TURTLE, "trig": _F.TRIG, "nt": _F.N_TRIPLES, "nq": _F.N_QUADS, "rdf": _F.RDF_XML,
         "xml": _F.RDF_XML, "owl": _F.RDF_XML, "jsonld": _F.JSON_LD, "json": _F.JSON_LD}
+
+
+def is_manchester(name: Any) -> bool:
+    """OWL 2 Manchester Syntax is not an Oxigraph format: the wrapper reads and writes it with its own parser/serializer."""
+    return isinstance(name, str) and name.lower() in ("manchester", "omn")
 
 
 def to_format(name: str | ox.RdfFormat | None, *, default: ox.RdfFormat = _F.TURTLE) -> ox.RdfFormat:

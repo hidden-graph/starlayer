@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Iterable, Iterator, Mapping
+from pathlib import Path
 from typing import Any
 
 import pyoxigraph as ox
@@ -326,6 +327,8 @@ class _Base:
         document declares are copied into ``self.prefixes``. A triple format loads into the default graph of a dataset or into
         this graph; a quad format loads each quad into its graph, and into a single graph view only if it has no named graphs."""
         kw, hint = _read_input(data, source, file)
+        if formats.is_manchester(format) or (format is None and hint and str(hint).lower().endswith((".omn", ".manchester"))):
+            return self._parse_manchester(kw, hint, base or publicID)
         guessed = formats.format_from_path(hint) if hint else None
         fmt = formats.to_format(format, default=guessed or ox.RdfFormat.TURTLE)
         direct = isinstance(self._add_graph(), ox.DefaultGraph)  # quads can go to the store untouched (the fast path)
@@ -346,6 +349,21 @@ class _Base:
 
     _default_format = "turtle"
 
+    def _parse_manchester(self, kw: dict[str, Any], hint: str | None, base: str | None) -> Any:
+        """OWL 2 Manchester Syntax: the parser (``parsers/manchester_parser.py``) is independent of the store and builds the
+        triples, which are added here. It has no named graphs, so a dataset gets them in its default graph."""
+        from starlayer.graph.parsers.manchester_parser import parse_manchester
+
+        if "path" in kw:
+            with open(kw["path"], encoding="utf-8") as fh:
+                text = fh.read()
+            base = base or Path(kw["path"]).resolve().as_uri()
+        else:
+            raw = kw["input"].read() if hasattr(kw["input"], "read") else kw["input"]
+            text = raw.decode("utf-8") if isinstance(raw, bytes) else raw
+        self.extend(list(parse_manchester(text, base=base)))
+        return self
+
     def serialize(self, destination: Any = None, format: str | ox.RdfFormat | None = None, base: str | None = None,  # noqa: A002
                   prefixes: Mapping[str, str] | None = None, *, only_used: bool = False, rdf_version: str | None = None,
                   encoding: str = "utf-8", pretty: bool | str = False) -> str | None:
@@ -354,6 +372,11 @@ class _Base:
         output uses (Turtle, TriG). ``rdf_version="1.1"`` exports through ``starlayer.graph.interop`` (the basic encoding of
         triple terms), so the output contains no triple term. ``pretty=True`` lays Turtle / TriG out with
         ``oxgraph.pretty`` (nested blank nodes, lists, annotations; see that module)."""
+        if formats.is_manchester(format):
+            from starlayer.graph.oxgraph import _rdflib_bridge
+            from starlayer.graph.serializers.manchester import serialize_manchester
+
+            return self._write(serialize_manchester(_rdflib_bridge.to_starlayer_graph(self)).encode("utf-8"), destination, encoding)
         fmt = formats.to_format(format or self._default_format)
         if rdf_version not in (None, "1.1", "rdf-1.1", "1.2", "rdf-1.2"):
             raise ValueError(f"unknown rdf_version {rdf_version!r}")
@@ -373,6 +396,10 @@ class _Base:
             raw = ox.serialize(items, None, fmt, prefixes=pfx or None, base_iri=base)
         if only_used and fmt in _TURTLE_LIKE and pfx:
             raw = _strip_unused_prefixes(raw.decode("utf-8")).encode("utf-8")
+        return self._write(raw, destination, encoding)
+
+    @staticmethod
+    def _write(raw: bytes, destination: Any, encoding: str) -> str | None:
         if destination is None:
             return raw.decode("utf-8")
         if isinstance(destination, (str, os.PathLike)):
