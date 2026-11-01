@@ -121,7 +121,7 @@ def pytest_configure(config):
         os.environ["STARLAYER_SHACL_ENGINE"] = engine
 
 
-AREAS = ("graph", "shacl", "sparql", "starontology", "kg")
+AREAS = ("graph", "shacl", "shacl_engine", "sparql", "starontology", "kg", "notebooks")
 
 
 def pytest_collection_modifyitems(config, items):

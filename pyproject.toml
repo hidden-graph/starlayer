@@ -100,6 +100,7 @@ markers = [
     "deferred: checks of committed data that CI runs anyway (code-KG tests that load codekg.trig, stored-file-matches-build tests) - opt-in: pytest --deferred (or STARLAYER_DEFERRED=1, or -m deferred). CI always runs them. See tests/conftest.py.",
     "graph: tests of the graph area (tests/graph); applied automatically from the directory, so `pytest -m graph` runs the area alone.",
     "shacl: tests of the SHACL area (tests/shacl); applied automatically from the directory.",
+    "shacl_engine: tests of the native SHACL 1.2 engine (tests/shacl_engine); applied automatically from the directory.",
     "sparql: tests of the SPARQL area, including SRL and sqe (tests/sparql); applied automatically from the directory.",
     "starontology: tests of the bundled ontologies and shapes (tests/starontology); applied automatically from the directory.",
     "kg: tests of the code knowledge graph tooling (tools/kg), kept in tests/kg; applied automatically from the directory.",
