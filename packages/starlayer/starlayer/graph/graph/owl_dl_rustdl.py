@@ -99,6 +99,7 @@ from starlayer.graph.graph import _timeout
 from starlayer.graph.graph.owl_dl import (
     InconsistentOntologyError,
     _complete_type_closure,
+    _drop_temp_ontology,
 )
 
 # See this module's own docstring, point 4, for the full account of what
@@ -325,6 +326,7 @@ def classify_owl_dl_rustdl(graph, timeout: float | None = _timeout.DEFAULT_TIMEO
     # Same closure-completion pass engine="hermit" needs - reused rather
     # than duplicated, and harmless if RustDL's own class-assertion output
     # already includes every ancestor (purely additive, idempotent).
+    _drop_temp_ontology(expanded)
     _complete_type_closure(expanded)
 
     before_set = set(before)

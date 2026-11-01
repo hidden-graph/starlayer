@@ -594,3 +594,13 @@ def test_compute_qname_expand_curie_and_no_generate():
     assert n.qname(ox.NamedNode("http://nowhere.org/ns#name")).endswith(":name")
     assert "ns1" in n.prefixes
     assert qnames.expand_curie({"a": "http://a/"}, "a:b").value == "http://a/b"
+
+
+def test_owl_direct_closure_has_no_temporary_file_ontology():
+    """HermiT names the ontology after its temporary input file when the input has none; that path must not leak."""
+    if _owl_direct_available():
+        pytest.skip(_owl_direct_available())
+    for make, regs in ((old, _old_regimes([R["OWL-Direct"]])), (new, R["OWL-Direct"])):
+        g = make(DATA["rdfs_basic"])
+        out = g.infer(entailment=regs, timeout=60) if make is old else g.infer(regs, timeout=60)
+        assert not any("graph.owl" in str(getattr(t, "value", t)) for tr in out for t in tr)

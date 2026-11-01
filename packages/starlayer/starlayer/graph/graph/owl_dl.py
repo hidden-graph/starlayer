@@ -189,6 +189,7 @@ def classify_owl_dl(graph, timeout: float | None = _timeout.DEFAULT_TIMEOUT_SECO
         expanded = Graph()
         expanded.parse(str(result_path), format='xml')
 
+    _drop_temp_ontology(expanded)
     _complete_type_closure(expanded)
 
     before_set = set(before)
@@ -197,6 +198,17 @@ def classify_owl_dl(graph, timeout: float | None = _timeout.DEFAULT_TIMEOUT_SECO
         if t not in before_set:
             delta.add(t)
     return before, delta
+
+
+def _drop_temp_ontology(expanded: Graph) -> None:
+    """The reasoners read the graph from a temporary ``.../graph.owl`` file, and when the input declares no ontology IRI they
+    name the ontology after that file, so the result carries ``<file:///tmp/.../graph.owl> a owl:Ontology``: a random path
+    that is no part of the user's data and made two runs of the same input differ. Removes that declaration."""
+    from rdflib import OWL, RDF, URIRef
+
+    for s in {s for s in expanded.subjects(RDF.type, OWL.Ontology)
+              if isinstance(s, URIRef) and str(s).startswith("file:///") and str(s).endswith("/graph.owl")}:
+        expanded.remove((s, None, None))
 
 
 def _complete_type_closure(expanded: Graph) -> None:
