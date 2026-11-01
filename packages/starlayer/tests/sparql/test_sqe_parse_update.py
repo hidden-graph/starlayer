@@ -11,7 +11,8 @@ SQE = "https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#"
 UPDATES = [
     "PREFIX ex: <http://e/> INSERT DATA { ex:a ex:p 1 }",
     "DELETE { ?s ?p ?o } INSERT { ?s ?p 2 } WHERE { ?s ?p ?o }",
-    "WITH <http://e/g> DELETE WHERE { ?s ?p ?o }",
+    "WITH <http://e/g> DELETE { ?s ?p ?o } WHERE { ?s ?p ?o }",
+    "DELETE WHERE { ?s ?p ?o }",
     "DROP SILENT GRAPH <http://e/g> ; CLEAR ALL",
     "LOAD SILENT <http://e/data.ttl> INTO GRAPH <http://e/g>",
     "COPY DEFAULT TO <http://e/g>",
