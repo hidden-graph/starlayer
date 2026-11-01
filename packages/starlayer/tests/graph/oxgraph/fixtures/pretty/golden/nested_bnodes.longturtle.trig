@@ -1,9 +1,0 @@
-@prefix ex: <http://example/> .
-@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
-
-ex:s ex:other _:b0 .
-ex:s ex:p _:b1 .
-_:b1 ex:q _:b2 .
-_:b1 ex:z "z" .
-_:b1 rdf:type ex:T .
-_:b2 ex:r "deep" .

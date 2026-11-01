@@ -157,9 +157,9 @@ No difference ended as a bug. Not exercised because the packages are absent on t
 ## Pretty Turtle
 
 Oxigraph's `turtle` / `trig` writers stream flat statements. `graph/oxgraph/pretty.py` is the pretty writer, rebuilt over pyoxigraph terms (no rdflib)
-from `serializers/turtle12.py` / `trig12.py`: `pretty_turtle(data, *, prefixes, base_iri, only_used_prefixes=True, style="turtle"|"longturtle",
+from `serializers/turtle12.py` / `trig12.py`: `pretty_turtle(data, *, prefixes, base_iri, only_used_prefixes=True, 
 width=100, keep_bnode_labels=False, graph=...)` and `pretty_trig(...)`. `data` is a `Store`, `Dataset`, `OxGraph`, `OxDataset` or an iterable of
-`Quad` / `Triple` / tuples. `OxGraph.serialize(format="turtle"|"trig", pretty=True | "longturtle")` is the one hook in `core.py`.
+`Quad` / `Triple` / tuples. `OxGraph.serialize(format="turtle"|"trig", pretty=True)` is the one hook in `core.py`.
 The module docstring is the layout reference; in short: grouped subjects (`;` `,`), `a`, `[ ]` for a blank node referenced once, `( )` for a
 well-formed list, only used prefixes, `{| |}` / `~` / `<< s p o >>` for reifiers, `<<( )>>` for triple terms, directional literals, bare numbers only
 when the lexical form is exactly the Turtle token, blank nodes ordered by a structural signature so the text never depends on labels or input order.
@@ -168,7 +168,7 @@ Gates (`tests/graph/oxgraph/test_pretty.py`; the fixtures and goldens are in `te
 inputs, the RDFC-1.0 N-Quads inputs (`test074`, the poison graph, left out), the SHACL suite Turtle and the fixtures (581 parseable documents, 2 styles) and 6,000
 seeded random datasets: the output re-parses isomorphic (`rdfc_native.isomorphic`), every literal keeps its lexical form, language and direction, and a
 second pass over the re-parse gives the same text. 100,000 triples (blank-node trees, lists, numbers; Python 3.10, one run): `pretty_turtle` 2.6 s,
-`longturtle` 4.3 s, the old `serialize_turtle12` 12.9 s (plus 17 s to parse into it), Oxigraph's flat writer 0.12 s.
+the old `serialize_turtle12` 12.9 s (plus 17 s to parse into it), Oxigraph's flat writer 0.12 s.
 
 Differences from the old writer (11 fixture cases compared byte for byte; 3 identical, 8 differ, all accepted):
 
@@ -180,7 +180,6 @@ Differences from the old writer (11 fixture cases compared byte for byte; 3 iden
 - A named or shared reifier folds too (`~ :r {| |}`, `~ _:b`); `rdf:nil` is `()` only where the grammar allows a collection (the old writer wrote `()` as a predicate or inside a triple term, which does not parse).
 - A list or annotation block with a nested `[ ]` breaks over lines; `width` wraps long object lists and `( )` (the old one never wrapped; `width=None` is its behaviour).
 - A long string inside a triple term is written in the short quoted form: Oxigraph's parser rejects `"""` there (an Oxigraph limitation).
-- `longturtle` keeps the old `longturtle12` meaning (one `s p o .` per line, nothing folded), not rdflib's grouped long layout.
 
 ## NOT built (follow-ups, with where the old code lives)
 
@@ -198,3 +197,6 @@ Differences from the old writer (11 fixture cases compared byte for byte; 3 iden
 - The `interop` hook name and signature.
 - `parse(source=URL)` uses `urllib` without content negotiation beyond an `Accept` header; format is guessed from the URL extension.
 - Query-time `FILTER EXISTS` slowness (plan section 2.2) applies to this wrapper unchanged.
+
+
+**`longturtle` (decided 2026-10-31):** not offered by the wrapper. It is an rdflib name (Nicholas Car, 2023: `PREFIX`/`BASE`, a newline at `a`, one object per line in object lists), and the old `longturtle12` meant a flat one-triple-per-line layout, which Oxigraph's own writer already produces (`serialize(format="turtle")`). A new output format is easy to add if one is needed later.

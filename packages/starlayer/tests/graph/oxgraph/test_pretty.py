@@ -127,8 +127,7 @@ def _corpus() -> list[tuple[str, ox.RdfFormat]]:
     return found
 
 
-@pytest.mark.parametrize("style", ["turtle", "longturtle"])
-def test_vendored_corpus_roundtrips(style: str) -> None:
+def test_vendored_corpus_roundtrips() -> None:
     ok = 0
     for path, fmt in _corpus():
         try:
@@ -136,7 +135,7 @@ def test_vendored_corpus_roundtrips(style: str) -> None:
                 quads = list(ox.parse(fh.read(), format=fmt, base_iri="http://example/base/"))
         except (SyntaxError, ValueError):
             continue  # the negative syntax tests do not parse
-        check_gates(quads, style=style)
+        check_gates(quads)
         ok += 1
     assert ok > 500
 
@@ -144,8 +143,7 @@ def test_vendored_corpus_roundtrips(style: str) -> None:
 @pytest.mark.parametrize("seed", range(300))
 def test_random_datasets_roundtrip(seed: int) -> None:
     quads = gen(seed)
-    for style in ("turtle", "longturtle"):
-        check_gates(quads, style=style, width=60 if seed % 2 else 100)
+    check_gates(quads, width=60 if seed % 2 else 100)
 
 
 def test_random_datasets_use_the_shorthand() -> None:
@@ -176,14 +174,13 @@ def test_output_does_not_depend_on_blank_node_labels_or_order() -> None:
 CASES = sorted(os.path.basename(f).rsplit(".", 1)[0] for f in glob.glob(f"{FIX}/*.ttl") + glob.glob(f"{FIX}/*.trig"))
 
 
-@pytest.mark.parametrize("style", ["turtle", "longturtle"])
 @pytest.mark.parametrize("case", CASES)
-def test_golden(case: str, style: str) -> None:
+def test_golden(case: str) -> None:
     path = next(p for p in (f"{FIX}/{case}.ttl", f"{FIX}/{case}.trig") if os.path.exists(p))
     text = open(path).read()
     prefixes = dict(re.findall(r"@prefix (\w*): <([^>]*)>", text))
-    out = pretty_trig(parse(text, FMT[path.rsplit(".", 1)[1]]), prefixes=prefixes, style=style)
-    assert out == open(f"{FIX}/golden/{case}.{style}.trig").read()
+    out = pretty_trig(parse(text, FMT[path.rsplit(".", 1)[1]]), prefixes=prefixes)
+    assert out == open(f"{FIX}/golden/{case}.turtle.trig").read()
 
 
 # ---- layout rules (the old writer's tests, ported) ----------------------------------------------------------------------
@@ -274,14 +271,6 @@ def test_shorthand_only_when_the_lexical_form_is_exact() -> None:
     assert lexical(parse(pt('ex:s ex:p "1e0"^^xsd:double .'))) == lexical(parse('<http://x/s> <http://x/p> 1e0 .'))
 
 
-def test_longturtle_has_no_shorthand() -> None:
-    out = pt("ex:s a ex:C ; ex:p 1, true, ( 1 2 ), [ ex:q 1 ] .", style="longturtle")
-    lines = [ln for ln in out.splitlines() if ln and not ln.startswith("@")]
-    assert all(ln.endswith(" .") for ln in lines) and ";" not in out and "[" not in out and "( " not in out
-    assert '"1"^^xsd:integer' in out and "rdf:type" in out
-    assert out.count("\n") > 8
-
-
 def test_literals_strings_and_directions() -> None:
     out = pt('ex:s ex:p """a\nb""", "q\\"x", "tab\there"@en, "ar"@ar--rtl, "\\u0001" .')
     assert '"""a\nb"""' in out and '"q\\"x"' in out and "@ar--rtl" in out and "\\u0001" in out
@@ -342,11 +331,12 @@ def test_serialize_hook() -> None:
     g = OxGraph(prefixes=EX)
     g.parse(data="@prefix ex: <http://example/> . ex:s ex:p ( 1 2 ) .", format="turtle")
     assert g.serialize(format="turtle", pretty=True).endswith("ex:s ex:p ( 1 2 ) .\n")
-    assert "ex:s ex:p" in g.serialize(format="turtle", pretty="longturtle") and "(" not in g.serialize(format="turtle", pretty="longturtle")
+    with pytest.raises(ValueError):
+        g.serialize(format="turtle", pretty="longturtle")  # the flat layout is Oxigraph's own writer: not offered here
     d = OxDataset(prefixes=EX)
     d.parse(data="@prefix ex: <http://example/> . ex:g { ex:s ex:p 1 }", format="trig")
     assert "GRAPH ex:g {" in d.serialize(format="trig", pretty=True)
     with pytest.raises(ValueError):
         g.serialize(format="nt", pretty=True)
-    with pytest.raises(ValueError):
-        pretty_turtle([], style="wide")
+    with pytest.raises(TypeError):
+        pretty_turtle([], style="wide")  # there is one layout: `style` was removed with `longturtle`

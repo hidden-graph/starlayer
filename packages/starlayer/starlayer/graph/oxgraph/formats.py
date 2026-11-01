@@ -1,7 +1,7 @@
 """Format names to ``pyoxigraph.RdfFormat``.
 
 ``turtle`` means Turtle 1.2 and keeps lexical forms as written; ``turtle12`` is an alias. ``n3`` is read and written as Turtle.
-TriX, HexTuples and the pretty ``longturtle`` are not available (the first was dropped; see docs/working/oxgraph-wrapper.md).
+TriX, HexTuples and ``longturtle`` are not available (the first was dropped; see docs/working/oxgraph-wrapper.md).
 """
 
 from __future__ import annotations

@@ -1,8 +1,0 @@
-@prefix ex: <http://example/> .
-
-ex:s ex:p _:b0 .
-ex:t ex:p _:b0 .
-_:b1 ex:p _:b1 .
-_:b2 ex:p _:b3 .
-_:b3 ex:p _:b2 .
-_:b0 ex:q ex:o .

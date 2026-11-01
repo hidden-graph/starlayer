@@ -29,9 +29,6 @@ Layout, ``style="turtle"`` (the default)
     * ``width`` (default 100; ``None`` never wraps) breaks an object list or an ``( ... )`` list that is too long, one item
       per line.
 
-``style="longturtle"``: the old ``longturtle12`` layout, one ``s p o .`` per line, sorted, no shorthand of any kind (no
-``a``, ``[ ]``, ``( )``, bare numbers, ``{| |}``), every blank node labelled.
-
 TriG: the default graph's statements first (unwrapped), then ``GRAPH <name> { ... }`` blocks, sorted by name. A blank node
 that is shared between graphs, or is a graph name, is labelled.
 
@@ -205,10 +202,9 @@ def _walk_tt(t: Any) -> Iterable[Any]:
 
 
 class _Writer:
-    def __init__(self, quads: list[tuple[Any, Any, Any, Any]], names: _Names, *, style: str, width: int | None,
+    def __init__(self, quads: list[tuple[Any, Any, Any, Any]], names: _Names, *, width: int | None,
                  keep_labels: bool, trig: bool) -> None:
         self.names = names
-        self.compact = style == "turtle"
         self.width = width
         self.keep_labels = keep_labels
         self.trig = trig
@@ -320,9 +316,6 @@ class _Writer:
         self.fold_kind: dict[tuple, str] = {}  # (g, r) -> "annot" | "subj" | "obj"
         self.fold_tt: dict[tuple, Any] = {}
 
-        if not self.compact:
-            return
-
         # --- lists
         cand: dict[Any, tuple[Any, Any]] = {}
         for g, subs in by_sg.items():
@@ -417,7 +410,7 @@ class _Writer:
         hit = self._inline_cache.get(b)
         if hit is None:
             hit = False
-            if (self.compact and isinstance(b, _BN) and self.objrefs.get(b) == 1 and b not in self.ttref and b not in self.gref
+            if (isinstance(b, _BN) and self.objrefs.get(b) == 1 and b not in self.ttref and b not in self.gref
                     and b not in self.noinline and b not in self.list_cells and b not in self.list_heads):
                 g = self.ref_of[b][2]
                 hit = self.subj_graphs.get(b, {g}) <= {g}
@@ -441,19 +434,18 @@ class _Writer:
         if t.language is not None:
             suffix = "@" + t.language + (f"--{t.direction}" if t.direction is not None else "")
             return self._quoted(v, short) + suffix
-        if self.compact:
-            if dt == _XSD + "boolean" and v in ("true", "false"):
-                return v
-            if (dt == _XSD + "integer" and _INTEGER_RE.fullmatch(v)) or (dt == _XSD + "decimal" and _DECIMAL_RE.fullmatch(v)) \
-                    or (dt == _XSD + "double" and _DOUBLE_RE.fullmatch(v)):
-                return v
+        if dt == _XSD + "boolean" and v in ("true", "false"):
+            return v
+        if (dt == _XSD + "integer" and _INTEGER_RE.fullmatch(v)) or (dt == _XSD + "decimal" and _DECIMAL_RE.fullmatch(v)) \
+                or (dt == _XSD + "double" and _DOUBLE_RE.fullmatch(v)):
+            return v
         if dt == _XSD_STRING:
             return self._quoted(v, short)
         return f"{self._quoted(v, short)}^^{self.names.iri(dt)}"
 
     def _quoted(self, v: str, short: bool = False) -> str:
         # (inside a triple term the short form is always used: Oxigraph's parser rejects a long string there)
-        if self.compact and not short and ("\n" in v or "\r" in v):
+        if not short and ("\n" in v or "\r" in v):
             e = v.replace("\\", "\\\\").replace("\r", "\\r")
             # a run of 3+ quotes, or any run at the end, would meet the closing delimiter: escape those runs
             e = re.sub(r'"+', lambda m: '\\"' * len(m.group()) if len(m.group()) >= 3 or m.end() == len(e) else m.group(), e)
@@ -464,7 +456,7 @@ class _Writer:
     def flat(self, t: Any, *, nil_ok: bool = False, short: bool = False) -> str:
         """A term with no layout: IRI, label, literal, or a triple term ``<<( s p o )>>``."""
         if isinstance(t, _NN):
-            if nil_ok and self.compact and t.value == _NIL:
+            if nil_ok and t.value == _NIL:
                 return "()"
             return self.names.iri(t.value)
         if isinstance(t, _BN):
@@ -479,7 +471,7 @@ class _Writer:
         return f"<< {self.flat(tt.subject)} {self.flat(tt.predicate)} {self.flat(tt.object, short=True)}{tail} >>"
 
     def pred(self, p: Any) -> str:
-        if self.compact and p.value == _TYPE:
+        if p.value == _TYPE:
             return "a"
         return self.flat(p)
 
@@ -515,7 +507,7 @@ class _Writer:
     def prop_items(self, g: Any, s: Any, ind: str, *, skip_reifies: bool = False) -> list[str]:
         """``["pred obj, obj", ...]`` for subject ``s`` in graph ``g``; nested layouts are indented from ``ind``."""
         preds = self.by_sg[g][s]
-        order = sorted(preds, key=lambda p: (0 if self.compact and p.value == _TYPE else 1, p.value))
+        order = sorted(preds, key=lambda p: (0 if p.value == _TYPE else 1, p.value))
         out = []
         for p in order:
             objs = preds[p]
@@ -566,8 +558,6 @@ class _Writer:
     # ---- statements ----------------------------------------------------------------------------------------------------
     def statements(self, g: Any, bi: str) -> list[str]:
         subs = self.by_sg.get(g, {})
-        if not self.compact:
-            return self._flat_statements(g, bi)
         roots: list[tuple[tuple, Any, Any]] = []
         for s in subs:
             if (g, s) in self.fold_kind and self.fold_kind[(g, s)] != "subj":
@@ -597,15 +587,6 @@ class _Writer:
             out.append(" ;\n".join([first, *rest]) + " .")
             out.append("")
         return out
-
-    def _flat_statements(self, g: Any, bi: str) -> list[str]:
-        rows = []
-        for s, preds in self.by_sg.get(g, {}).items():
-            for p, objs in preds.items():
-                for o in objs:
-                    rows.append((self.key(s), self.key(p), self.key(o), s, p, o))
-        rows.sort(key=lambda r: r[:3])
-        return [f"{bi}{self.flat(s)} {self.flat(p)} {self.flat(o)} ." for *_k, s, p, o in rows]
 
     # ---- document ------------------------------------------------------------------------------------------------------
     def unreached(self) -> bool:
@@ -652,7 +633,7 @@ class _Writer:
                     body.extend(inner)
                     body.append("}")
                     body.append("")
-            if not self.compact or not self.unreached():
+            if not self.unreached():
                 return "\n".join(body), True
         raise AssertionError("pretty writer did not converge")  # pragma: no cover
 
@@ -672,20 +653,18 @@ def _header(w: _Writer, only_used: bool) -> list[str]:
     return lines
 
 
-def _render(data: Any, *, prefixes: Mapping[str, Any] | None, base_iri: str | None, only_used: bool, style: str, width: int | None,
+def _render(data: Any, *, prefixes: Mapping[str, Any] | None, base_iri: str | None, only_used: bool, width: int | None,
             keep_bnode_labels: bool, graph: Any, trig: bool) -> str:
-    if style not in ("turtle", "longturtle"):
-        raise ValueError(f"unknown style {style!r}: 'turtle' or 'longturtle'")
     gc_was = gc.isenabled()
     gc.disable()  # millions of short-lived objects: the cyclic collector only slows the run down (about 25%)
     try:
-        return _render_inner(data, prefixes, base_iri, only_used, style, width, keep_bnode_labels, graph, trig)
+        return _render_inner(data, prefixes, base_iri, only_used, width, keep_bnode_labels, graph, trig)
     finally:
         if gc_was:
             gc.enable()
 
 
-def _render_inner(data: Any, prefixes: Mapping[str, Any] | None, base_iri: str | None, only_used: bool, style: str, width: int | None,
+def _render_inner(data: Any, prefixes: Mapping[str, Any] | None, base_iri: str | None, only_used: bool, width: int | None,
                   keep_bnode_labels: bool, graph: Any, trig: bool) -> str:
     quads, carried = _collect(data, graph)
     if not trig:
@@ -695,7 +674,7 @@ def _render_inner(data: Any, prefixes: Mapping[str, Any] | None, base_iri: str |
         else:  # the one selected graph, as a plain graph
             quads = [(_DEFAULT, *q[1:]) for q in quads]
     names = _Names(carried if prefixes is None else prefixes, base_iri)
-    w = _Writer(quads, names, style=style, width=width, keep_labels=keep_bnode_labels, trig=trig)
+    w = _Writer(quads, names, width=width, keep_labels=keep_bnode_labels, trig=trig)
     body, _ = w.render()
     head = _header(w, only_used)
     text = "\n".join(head) + ("\n\n" if head else "") + body
@@ -703,26 +682,27 @@ def _render_inner(data: Any, prefixes: Mapping[str, Any] | None, base_iri: str |
 
 
 def pretty_turtle(data: Any, *, prefixes: Mapping[str, Any] | None = None, base_iri: str | None = None, only_used_prefixes: bool = True,
-                  style: str = "turtle", width: int | None = 100, keep_bnode_labels: bool = False, graph: Any = ...) -> str:
+                  width: int | None = 100, keep_bnode_labels: bool = False, graph: Any = ...) -> str:
     """Pretty Turtle 1.2 for a graph. ``data`` is a Store / Dataset / OxGraph / OxDataset or an iterable of Quad / Triple;
     ``prefixes`` defaults to the ones ``data`` carries (an OxGraph's); ``graph`` picks one graph (None: the default graph) of data
     that has several, otherwise named graphs raise ``ValueError``. See the module docstring for the layout."""
-    return _render(data, prefixes=prefixes, base_iri=base_iri, only_used=only_used_prefixes, style=style, width=width,
+    return _render(data, prefixes=prefixes, base_iri=base_iri, only_used=only_used_prefixes, width=width,
                    keep_bnode_labels=keep_bnode_labels, graph=graph, trig=False)
 
 
 def pretty_trig(data: Any, *, prefixes: Mapping[str, Any] | None = None, base_iri: str | None = None, only_used_prefixes: bool = True,
-                style: str = "turtle", width: int | None = 100, keep_bnode_labels: bool = False) -> str:
+                width: int | None = 100, keep_bnode_labels: bool = False) -> str:
     """Pretty TriG 1.2 for a dataset: the default graph unwrapped, each named graph in a ``GRAPH name { ... }`` block."""
-    return _render(data, prefixes=prefixes, base_iri=base_iri, only_used=only_used_prefixes, style=style, width=width,
+    return _render(data, prefixes=prefixes, base_iri=base_iri, only_used=only_used_prefixes, width=width,
                    keep_bnode_labels=keep_bnode_labels, graph=..., trig=True)
 
 
 def serialize_pretty(data: Any, fmt: ox.RdfFormat, prefixes: Mapping[str, Any] | None, base: str | None, only_used: bool,
                      pretty: Any) -> str:
-    """The hook ``OxGraph.serialize(pretty=...)`` calls: ``pretty`` is True / "turtle" or "longturtle"."""
-    style = "longturtle" if pretty == "longturtle" else "turtle"
+    """The hook ``OxGraph.serialize(pretty=...)`` calls: ``pretty`` is True or "turtle"."""
+    if pretty not in (True, "turtle"):
+        raise ValueError(f"unknown pretty style {pretty!r}: use True")
     fn = pretty_trig if fmt == ox.RdfFormat.TRIG else pretty_turtle
     if fmt not in (ox.RdfFormat.TURTLE, ox.RdfFormat.TRIG):
         raise ValueError("pretty output is Turtle or TriG only")
-    return fn(data, prefixes=prefixes, base_iri=base, only_used_prefixes=only_used, style=style)
+    return fn(data, prefixes=prefixes, base_iri=base, only_used_prefixes=only_used)

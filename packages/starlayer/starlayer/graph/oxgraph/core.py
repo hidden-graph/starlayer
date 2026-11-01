@@ -330,7 +330,7 @@ class _Base:
         """Write the graph. ``destination`` None returns a ``str``; a path or file object is written and ``None`` returned.
         Prefixes are the graph's dict plus ``prefixes`` (the per-call override); ``only_used=True`` declares only those the
         output uses (Turtle, TriG). ``rdf_version="1.1"`` exports through ``starlayer.graph.interop`` (the basic encoding of
-        triple terms), so the output contains no triple term. ``pretty=True`` (or ``"longturtle"``) lays Turtle / TriG out with
+        triple terms), so the output contains no triple term. ``pretty=True`` lays Turtle / TriG out with
         ``oxgraph.pretty`` (nested blank nodes, lists, annotations; see that module)."""
         fmt = formats.to_format(format)
         if rdf_version not in (None, "1.1", "rdf-1.1", "1.2", "rdf-1.2"):
