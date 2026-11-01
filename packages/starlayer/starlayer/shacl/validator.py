@@ -400,7 +400,7 @@ class StarShaclSchema:
         # coercion). A Literal can never be a real sh:ShapesGraph module
         # (nothing it could equal as a triple subject), so it falls
         # through to the tag-only path below naturally either way.
-        iri = shapes_graph_resource if isinstance(shapes_graph_resource, (URIRef, Literal)) else URIRef(str(shapes_graph_resource))
+        iri = shapes_graph_resource if isinstance(shapes_graph_resource, (URIRef, Literal)) else _iri_of(shapes_graph_resource)
         extracted = self.extract_shapes_graph(iri)
         if extracted is not None:
             return _drop_nonmember_property_shape_refs(extracted), iri
@@ -1580,13 +1580,13 @@ class StarShaclSchema:
             return
 
         if data_graph_iri is not None:
-            value = data_graph_iri if isinstance(data_graph_iri, (URIRef, Literal)) else URIRef(str(data_graph_iri))
+            value = data_graph_iri if isinstance(data_graph_iri, (URIRef, Literal)) else _iri_of(data_graph_iri)
             report_graph.add((report_node, SH.usedDataGraph, value))
         if shapes_graph_iri is not None:
             value = (
                 shapes_graph_iri
                 if isinstance(shapes_graph_iri, (URIRef, Literal))
-                else URIRef(str(shapes_graph_iri))
+                else _iri_of(shapes_graph_iri)
             )
             report_graph.add((report_node, SH.usedShapesGraph, value))
         if include_used_configuration:
@@ -2166,8 +2166,10 @@ class StarShaclSchema:
         Raises:
             ValueError: If no shapes graph is bound at construction.
         """
+        from starlayer.graph.oxgraph._rdflib_bridge import from_engine_if_ox
         from starlayer.shacl.subgraph_extraction import _close_shape
 
+        shape = from_engine_if_ox(shape)
         shacl_graph_input = self._resolve_shacl_graph(shapes_graph_resource)
         if shacl_graph_input is None:
             raise ValueError("close_shape() needs a bound shapes graph - construct with StarShaclSchema(shacl_graph=...).")
@@ -3119,7 +3121,7 @@ def _append_provenance_to_report_text(report_text: str, report_graph: Any, data_
     data_graph_subject = None
     if data_graph_iri is not None:
         data_graph_subject = (
-            data_graph_iri if isinstance(data_graph_iri, (URIRef, Literal)) else URIRef(str(data_graph_iri))
+            data_graph_iri if isinstance(data_graph_iri, (URIRef, Literal)) else _iri_of(data_graph_iri)
         )
 
     conforms_to_triples: list = []
@@ -3178,13 +3180,13 @@ def _annotate_used_graphs_and_configuration(
         return
 
     if data_graph_iri is not None:
-        value = data_graph_iri if isinstance(data_graph_iri, (URIRef, Literal)) else URIRef(str(data_graph_iri))
+        value = data_graph_iri if isinstance(data_graph_iri, (URIRef, Literal)) else _iri_of(data_graph_iri)
         report_graph.add((report_node, SH.usedDataGraph, value))
     if shapes_graph_iri is not None:
         value = (
             shapes_graph_iri
             if isinstance(shapes_graph_iri, (URIRef, Literal))
-            else URIRef(str(shapes_graph_iri))
+            else _iri_of(shapes_graph_iri)
         )
         report_graph.add((report_node, SH.usedShapesGraph, value))
     if include_used_configuration:
@@ -4280,6 +4282,9 @@ def _apply_rules(
     **kwargs: Any,
 ) -> RulesResult:
     """The body of ``apply_rules``, which sets the guard against ``sh:RulesEntailment`` recursing."""
+    data_graph = _oxigraph_to_starlayer(data_graph)
+    shacl_graph = _oxigraph_to_starlayer(shacl_graph)
+    ont_graph = _oxigraph_to_starlayer(ont_graph)
     if not _is_starlayer_graph(data_graph):
         raise TypeError(
             "apply_rules() requires data_graph to be a StarLayerGraph, since rule "
@@ -5915,6 +5920,26 @@ def _default_validate(**kwargs: Any) -> tuple[bool, Graph, str]:
     from pyshacl import validate
 
     return validate(**kwargs)
+
+
+def _iri_of(value: Any) -> URIRef:
+    """``value`` as an rdflib ``URIRef``: a pyoxigraph ``NamedNode`` by its IRI (not its ``<...>`` text), anything else by ``str``."""
+    iri = getattr(value, "value", None)
+    if type(value).__module__.startswith("pyoxigraph") and isinstance(iri, str):
+        return URIRef(iri)
+    return URIRef(str(value))
+
+
+def _oxigraph_to_starlayer(value: Any) -> Any:
+    """An ``OxGraph`` / ``OxDataset`` / bare ``pyoxigraph.Store`` as a snapshot ``StarLayerGraph``; anything else unchanged."""
+    if value is None:
+        return None
+    from starlayer.graph.oxgraph._rdflib_bridge import (
+        is_oxigraph_input,
+        to_starlayer_graph,
+    )
+
+    return to_starlayer_graph(value) if is_oxigraph_input(value) else value
 
 
 def _is_starlayer_graph(value: Any) -> bool:

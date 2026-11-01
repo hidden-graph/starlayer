@@ -125,6 +125,13 @@ def _escape_predicate(p: Any) -> Any:
 def _is_quad_store(graph: Any) -> bool:
     """True for a dataset (``rdflib.Dataset``/``ConjunctiveGraph``,
     ``StarLayerDataset``): something that yields quads, not triples."""
+    from starlayer.graph.oxgraph._rdflib_bridge import (
+        is_oxigraph_dataset,
+        is_oxigraph_input,
+    )
+
+    if is_oxigraph_input(graph):
+        return is_oxigraph_dataset(graph)
     default = getattr(graph, "default_graph", None)
     if default is None:
         default = getattr(graph, "default_context", None)
@@ -135,6 +142,10 @@ def _quads_of(graph: Any) -> list:
     """Every quad of a dataset as ``(s, p, o, g)``, ``g`` an identifier or
     ``None`` for the default graph (``StarLayerDataset.quads()`` yields a
     graph object in the fourth place, rdflib's ``Dataset`` an identifier)."""
+    from starlayer.graph.oxgraph._rdflib_bridge import is_oxigraph_input, rdflib_quads
+
+    if is_oxigraph_input(graph):
+        return rdflib_quads(graph)
     default = getattr(graph, "default_graph", None)
     if default is None:
         default = getattr(graph, "default_context", None)
@@ -187,6 +198,13 @@ def _decompose(graph: Any) -> Graph:
     synthetic reification fragment - see module docstring for why this is
     sufficient for correct isomorphism/canonicalization.
     """
+    from starlayer.graph.oxgraph._rdflib_bridge import (
+        is_oxigraph_input,
+        to_rdflib_triples,
+    )
+
+    if is_oxigraph_input(graph):
+        graph = to_rdflib_triples(iter(graph))
     out = Graph()
     for s, p, o, _g in _decompose_quads((s, p, o, None) for s, p, o in graph):
         out.add((s, p, o))

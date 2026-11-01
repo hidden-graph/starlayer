@@ -253,6 +253,34 @@ def _ranked_scores(shapes_graph: Any, scoring_graph: Any, role: str) -> list[tup
     return ranked
 
 
+def _via_rdflib(fn: Any, kwargs: dict[str, Any]) -> tuple[bool, Any]:
+    """If any graph argument is an ``OxGraph`` / ``OxDataset`` / ``Store``, run ``fn`` on snapshot ``StarLayerGraph`` copies (a
+    graph passed twice is copied once) and return ``(True, result)``; else ``(False, None)``. When ``shape_node`` or
+    ``focus_node`` is a pyoxigraph term, the answer's IRIs come back as pyoxigraph terms, otherwise as rdflib terms."""
+    from starlayer.graph.oxgraph import _rdflib_bridge as ox
+
+    graph_args = ("data_graph", "shapes_graph", "scoring_graph")
+    if not any(ox.is_oxigraph_input(kwargs.get(name)) for name in graph_args):
+        return False, None
+    copies: dict[int, Any] = {}
+    converted = dict(kwargs)
+    for name in graph_args:
+        value = kwargs.get(name)
+        if ox.is_oxigraph_input(value):
+            converted[name] = copies.setdefault(id(value), ox.to_starlayer_graph(value))
+    want_ox = any(
+        isinstance(kwargs.get(name), (ox.ox.NamedNode, ox.ox.BlankNode)) for name in ("shape_node", "focus_node")
+    )
+    for name in ("shape_node", "focus_node"):
+        converted[name] = ox.from_engine_if_ox(kwargs.get(name))
+    result = fn(**converted)
+    if not want_ox:
+        return True, result
+    if isinstance(result, dict):
+        return True, {ox.to_engine_if_rdflib(k): ox.to_engine_if_rdflib(v) for k, v in result.items()}
+    return True, ox.to_engine_if_rdflib(result)
+
+
 def select_widget(
     *,
     shape_node: Any,
@@ -306,6 +334,14 @@ def select_widget(
     explicit ``shui:editor``/``shui:viewer`` is then accepted outright, and a
     property with none gets ``None``.
     """
+    if _batch is None:
+        handled, answer = _via_rdflib(
+            select_widget,
+            dict(shape_node=shape_node, focus_node=focus_node, data_graph=data_graph, shapes_graph=shapes_graph,
+                 scoring_graph=scoring_graph, role=role),
+        )
+        if handled:
+            return answer
     if role not in ("editor", "viewer"):
         raise ValueError(f"role must be 'editor' or 'viewer', got {role!r}")
     if focus_node is not None and data_graph is None:
@@ -406,6 +442,11 @@ def check_data_matchers(choice: WidgetChoice, *, focus_node: Any, data_graph: An
     """Finish a per-shape choice for one node: the first candidate whose data conditions hold for ``focus_node`` in
     ``data_graph``. Gives the same widget as ``select_widget`` with that focus node, but validates only the few
     conditions that read data (GitHub issue #14)."""
+    from starlayer.graph.oxgraph import _rdflib_bridge as _ox
+
+    if _ox.is_oxigraph_input(data_graph):
+        data_graph = _ox.to_starlayer_graph(data_graph)
+    focus_node = _ox.from_engine_if_ox(focus_node)
     for candidate in choice.candidates:
         if all(
             _data_condition_holds(
@@ -498,6 +539,13 @@ def select_widgets(
     answer (``choice.widget_without_data``) serves every node. The result of ``resolve`` is the same as
     ``select_widget`` with that node. ``focus_node`` and ``data_graph`` are not accepted with ``per="shape"``.
     """
+    handled, answer = _via_rdflib(
+        lambda **kw: select_widgets(per=per, **kw),
+        dict(shape_node=shape_node, focus_node=focus_node, data_graph=data_graph, shapes_graph=shapes_graph,
+             scoring_graph=scoring_graph, role=role),
+    )
+    if handled:
+        return answer
     if per not in ("node", "shape"):
         raise ValueError("per must be 'node' or 'shape'")
     if role not in ("editor", "viewer"):

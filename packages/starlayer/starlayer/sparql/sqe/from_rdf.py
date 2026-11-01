@@ -114,6 +114,9 @@ def sqe_tree_to_query(graph: Graph, root) -> Query:
     Returns:
         A real, executable rdflib ``Query``.
     """
+    from starlayer.graph.oxgraph import _rdflib_bridge as _ox
+
+    graph, root = _ox.read_boundary(graph, root)  # an OxGraph is read as a snapshot of rdflib terms
     query_name = _query_name_for_root(graph, root)
     query = _decode_query_cv(graph, root, query_name)
     return translateQuery([[], query])

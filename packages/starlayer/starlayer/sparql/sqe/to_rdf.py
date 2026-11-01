@@ -246,6 +246,11 @@ def sqe_parse_to_tree(
     """
     if parser not in ("owned", "rdflib"):
         raise ValueError(f"parser must be 'owned' or 'rdflib', not {parser!r}")
+    if graph is not None:
+        from starlayer.graph.oxgraph import _rdflib_bridge as _ox
+
+        if _ox.is_oxigraph_input(graph):  # an OxGraph target: encode on rdflib terms, then add them to it
+            return _ox.write_boundary(graph, lambda g, r: sqe_parse_to_tree(text, g, r, parser=parser), root)
     if parser == "owned":
         from ..parse_sparql import SparqlSyntaxError, ast_to_tree, parse_sparql
         from .shapes import sqe_validate

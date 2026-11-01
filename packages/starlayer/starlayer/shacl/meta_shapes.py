@@ -210,7 +210,9 @@ def load_meta_shapes_graph(extra_graphs: Iterable[Any] = ()) -> Graph:
     from starlayer import starontology
 
     graph = Graph()
-    graph += starontology.get_ontology_graph("shacl_shacl")
+    from starlayer.graph.oxgraph._rdflib_bridge import merge_into
+
+    merge_into(graph, starontology.get_ontology_graph("shacl_shacl"))
     for extra in extra_graphs:
         for triple in extra:
             graph.add(triple)
@@ -296,7 +298,9 @@ def meta_validate(shapes_graph: Any, *, extra_graphs: Iterable[Any] = (), **kwar
         # merging derived triples into it) and have that mutation leak
         # into every future cache hit for the same key.
         report_graph = Graph()
-        report_graph += cached_report_graph
+        from starlayer.graph.oxgraph._rdflib_bridge import merge_into
+
+        merge_into(report_graph, cached_report_graph)
     else:
         meta_shapes = load_meta_shapes_graph(extra_graphs)
         meta_shapes += parameter_value_shapes(shapes_graph_for_meta)  # a shape's values for a component's parameters must satisfy the parameter (SPARQL Extensions 4.2.1)

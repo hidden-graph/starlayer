@@ -450,12 +450,15 @@ def apply_rules(
 ) -> Any:
     """``apply_rules()`` on the native engine (``RulesResult``), or the old path when it cannot."""
     from starlayer.shacl.results import RulesResult
-    from starlayer.shacl.validator import _is_starlayer_graph
+    from starlayer.shacl.validator import _is_starlayer_graph, _oxigraph_to_starlayer
     from starlayer.shacl_engine import api, rules
     from starlayer.shacl_engine.entailment import resolve_data_view
 
     if include_source_rule_provenance:
         return _run_old(old, old_args, old_opts, "include_source_rule_provenance (no sh:sourceRule reifiers in the engine)")
+    data_graph = _oxigraph_to_starlayer(data_graph)
+    shacl_graph = _oxigraph_to_starlayer(shacl_graph)
+    ont_graph = _oxigraph_to_starlayer(ont_graph)
     if not _is_starlayer_graph(data_graph):
         return _run_old(old, old_args, old_opts, "data_graph is not a StarLayerGraph (the old call raises TypeError)")
     from starlayer.shacl.validation_modes import resolve_mode_options

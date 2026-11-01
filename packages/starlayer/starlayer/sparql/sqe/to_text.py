@@ -134,6 +134,9 @@ def sqe_tree_to_text(graph: Graph, root) -> str:
     Returns:
         The rendered SPARQL query text.
     """
+    from starlayer.graph.oxgraph import _rdflib_bridge as _ox
+
+    graph, root = _ox.read_boundary(graph, root)  # an OxGraph is read as a snapshot of rdflib terms
     if (root, RDF.type, UPDATE_REQUEST) in graph:
         return _update_text(graph, root)
     prefixes = _prefix_map(graph, root)

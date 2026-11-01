@@ -224,6 +224,13 @@ _SameSubjectData = _SameSubject
 _SameSubjectPattern = Comp("SameSubject", Param("terms", Group(TriplesSameSubjectPath)))
 
 
+def _merge_into(dst, src):
+    """``dst += src`` for graphs of either kind (the ontology loaders return whatever class ``StarLayerGraph`` is)."""
+    from starlayer.graph.oxgraph._rdflib_bridge import merge_into
+
+    merge_into(dst, src)
+
+
 def _expand_path(subject, predicate, obj) -> list[srl_ast.TriplePattern]:
     """Expand a property path into the triple patterns it stands for (§5: "Property
     path syntax only covers paths with / and ^. These can be expanded into triple
@@ -610,6 +617,11 @@ def ruleset_to_tree(ruleset: srl_ast.RuleSet, graph: Graph | None = None) -> tup
     Returns:
         A ``(graph, root)`` tuple, ``root`` the ``srl:RuleSet``-typed node.
     """
+    if graph is not None:
+        from starlayer.graph.oxgraph import _rdflib_bridge as _ox
+
+        if _ox.is_oxigraph_input(graph):  # an OxGraph target: encode on rdflib terms, then add them to it
+            return _ox.write_boundary(graph, lambda g: ruleset_to_tree(ruleset, g))
     if graph is None:
         graph = _new_starlayer_graph()
     root = BNode()
@@ -762,6 +774,9 @@ def tree_to_ruleset(graph: Graph, root) -> srl_ast.RuleSet:
     """Decode the ``srl:RuleSet`` node ``root`` in ``graph`` (as returned by
     ``srl_parse_to_tree``/``ruleset_to_tree``, or an LLM-authored ``srl:`` graph
     not yet decoded) back into a real ``srl_ast.RuleSet``."""
+    from starlayer.graph.oxgraph import _rdflib_bridge as _ox
+
+    graph, root = _ox.read_boundary(graph, root)  # an OxGraph is read as a snapshot of rdflib terms
     rules = [_decode_rule(n, graph) for n in _read_rdf_list(graph.value(root, _RULES), graph)]
     data = [_decode_data(n, graph) for n in _read_rdf_list(graph.value(root, _DATA), graph)]
     imports = list(_read_rdf_list(graph.value(root, _IMPORTS), graph))
@@ -785,17 +800,37 @@ def ruleset_to_text(ruleset: srl_ast.RuleSet, namespace_manager: NamespaceManage
 
     Args:
         ruleset: The RuleSet to render.
-        namespace_manager: If given, render prefixed names instead of full
+        namespace_manager: If given (an rdflib ``NamespaceManager``, a prefix -> namespace ``dict`` or an ``OxGraph``), render
+            prefixed names instead of full
             ``<...>`` IRIs wherever a match exists - purely cosmetic, the
             resulting text still parses identically either way.
 
     Returns:
         The rendered SRL text.
     """
+    namespace_manager = _namespace_manager_of(namespace_manager)
     lines = [f"IMPORTS {_term_text(iri_, namespace_manager)}" for iri_ in ruleset.imports]
     lines += [_data_text(block, namespace_manager) for block in ruleset.data]
     lines += [_rule_text(rule, namespace_manager) for rule in ruleset.rules]
     return "\n".join(lines)
+
+
+def _namespace_manager_of(source):
+    """``source`` as an rdflib ``NamespaceManager`` (or ``None``): a prefix -> namespace mapping, or an ``OxGraph`` (its
+    ``prefixes``), is turned into one; a ``NamespaceManager`` passes through."""
+    if source is None:
+        return None
+    from starlayer.graph.oxgraph._rdflib_bridge import is_oxigraph_input
+
+    prefixes = getattr(source, "prefixes", None) if is_oxigraph_input(source) else source if isinstance(source, dict) else None
+    if prefixes is None:
+        return source
+    from rdflib import Graph as _Graph
+
+    graph = _Graph(bind_namespaces="none")
+    for prefix, namespace in prefixes.items():
+        graph.bind(prefix, str(namespace))
+    return graph.namespace_manager
 
 
 def _term_text(term, namespace_manager: NamespaceManager | None) -> str:
@@ -993,8 +1028,8 @@ def _ontology_graph() -> Graph:
     from .expr_validation import ontology_graph as spexpr_ontology_graph
 
     g = spexpr_ontology_graph()
-    g += starontology.get_ontology_graph("srl_owl")
-    g += starontology.get_ontology_graph("sqe_owl")
+    _merge_into(g, starontology.get_ontology_graph("srl_owl"))
+    _merge_into(g, starontology.get_ontology_graph("sqe_owl"))
     return g
 
 
@@ -1006,8 +1041,8 @@ def _shapes_graph() -> Graph:
     from .expr_validation import shapes_graph as spexpr_shapes_graph
 
     g = spexpr_shapes_graph()
-    g += starontology.get_ontology_graph("srl_shacl")
-    g += starontology.get_ontology_graph("sqe_shacl")
+    _merge_into(g, starontology.get_ontology_graph("srl_shacl"))
+    _merge_into(g, starontology.get_ontology_graph("sqe_shacl"))
     return g
 
 
