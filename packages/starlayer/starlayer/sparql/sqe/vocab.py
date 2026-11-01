@@ -102,10 +102,9 @@ order), ``sqe:Modify`` (``sqe:with``, ``sqe:delete``, ``sqe:insert``, ``sqe:usin
 ``sqe:NamedGraphs``, ``sqe:AllGraphs``). Each operation carries the prologue written in front of it.
 
 **Not covered:** executing an update through rdflib (``sqe_tree_to_query`` is for queries; run the text from
-``sqe_tree_to_text``). Anything the tree cannot represent raises
-``NotImplementedError`` instead of being silently dropped. (The legacy path,
-``sqe_parse_to_tree``, still reads queries through rdflib's parser and so
-still lacks DESCRIBE, FROM and SERVICE; ``parse_sparql.sparql_to_tree`` has them.)
+``sqe_tree_to_text``). Anything the tree cannot represent raises ``NotImplementedError`` instead of being silently
+dropped. ``sqe_parse_to_tree`` reads queries and updates with the StarLayer-owned parser by default (``parser="owned"``);
+``parser="rdflib"`` keeps the legacy route, which lacks DESCRIBE, FROM, SERVICE and Update, until salg is retired.
 
 **Running a decoded 1.2 query:** a ``Query`` from ``sqe_tree_to_query`` for a
 query that uses SPARQL 1.2 syntax cannot be executed directly by starlayer (a

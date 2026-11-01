@@ -70,7 +70,7 @@ def same_tree(new: tuple, old: tuple) -> bool:
 
 def current_tree(text: str):
     text, _ = strip_version_directive(text)
-    return sqe_parse_to_tree(text)
+    return sqe_parse_to_tree(text, parser="rdflib")
 
 
 # ---------------------------------------------------------------------------

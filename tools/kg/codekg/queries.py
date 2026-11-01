@@ -178,6 +178,16 @@ def _kg():
 
 
 @functools.lru_cache(maxsize=1)
+def _ox_kg():
+    """The same merged graph in Oxigraph (an ``OxGraph``): named queries are sent to it as SPARQL text."""
+    from starlayer.graph.oxgraph import OxGraph
+
+    graph = OxGraph()
+    graph.extend(_kg())
+    return graph
+
+
+@functools.lru_cache(maxsize=1)
 def kg_status() -> str:
     """One sentence on how old the code KG is: when it was built, from which commit, and what changed in the source since.
 
@@ -363,6 +373,11 @@ def _root(name: str):
 def _term_text(term) -> str:
     if term is None:
         return ""
+    if hasattr(term, "value") and not isinstance(term, (URIRef, Literal)):  # a pyoxigraph term (NamedNode, Literal)
+        if type(term).__name__ == "NamedNode":
+            term = URIRef(term.value)
+        else:
+            return str(term.value)
     if isinstance(term, URIRef):
         text = str(term)
         return text.split("/blob/main/", 1)[1] if "/blob/main/" in text else text.replace(str(CODEKG_NS), "slkg:")
@@ -376,7 +391,7 @@ def _bounded(query_name: str, result, limit: int, offset: int, warnings: list[st
         raise ValueError("offset must not be negative")
     if result.type == "ASK":
         return QueryResult(query_name, ["answer"], [(str(bool(result.askAnswer)).lower(),)], 1, 0, limit, warnings)
-    columns = [str(v) for v in result.vars]
+    columns = [str(getattr(v, "value", v)) for v in result.vars]
     rows = [tuple(_term_text(t) for t in row) for row in result]
     return QueryResult(query_name, columns, rows[offset : offset + limit], len(rows), offset, limit, warnings, kg_status())
 
@@ -394,8 +409,6 @@ def run_query(name: str, *, limit: int = DEFAULT_LIMIT, offset: int = 0, **param
         KeyError: For an unknown query name.
         ValueError: For a missing required parameter or an unknown one.
     """
-    from starlayer.sparql.sqe import sqe_tree_to_query
-
     described = get_query(name)
     declared = {p.name: p for p in described.parameters}
     unknown = sorted(set(params) - set(declared))
@@ -405,8 +418,8 @@ def run_query(name: str, *, limit: int = DEFAULT_LIMIT, offset: int = 0, **param
     if missing:
         raise ValueError(f"{name}: missing required parameter(s) {missing}. Example: {described.usage()}")
     bindings = {Variable(k): Literal(v) for k, v in params.items() if v is not None}
-    query = sqe_tree_to_query(_library(), _root(name))
-    return _bounded(name, _kg().query(query, initBindings=bindings), limit, offset, [])
+    # the stored sqe tree is rendered to SPARQL text and the text goes to Oxigraph (no rdflib parse or algebra)
+    return _bounded(name, _ox_kg().query(query_text(name), initBindings=bindings), limit, offset, [])
 
 
 def run_sparql(text: str, *, limit: int = DEFAULT_LIMIT, offset: int = 0) -> QueryResult:

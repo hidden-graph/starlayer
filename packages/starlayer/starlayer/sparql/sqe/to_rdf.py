@@ -40,6 +40,7 @@ default set.
 from __future__ import annotations
 
 import functools
+import re
 
 from rdflib import BNode, Graph, Literal, URIRef, Variable
 from rdflib.collection import Collection
@@ -183,8 +184,18 @@ class SQEValidationError(SQEError):
         self.report_graph = report_graph
 
 
+_UPDATE_START = re.compile(
+    r"(?is)\A(?:\s+|#[^\n]*|(?:PREFIX\s+[^\s:]*:\s*<[^>]*>)|(?:BASE\s*<[^>]*>)|(?:VERSION\s+(?:'[^']*'|\"[^\"]*\")))*"
+    r"(INSERT|DELETE|LOAD|CLEAR|DROP|CREATE|ADD|MOVE|COPY|WITH)\b"
+)
+
+
 def sqe_parse_to_tree(
-    text: str, graph: Graph | None = None, root: IdentifiedNode | None = None
+    text: str,
+    graph: Graph | None = None,
+    root: IdentifiedNode | None = None,
+    *,
+    parser: str = "owned",
 ) -> tuple[Graph, IdentifiedNode]:
     """Encode SPARQL ``SELECT``/``ASK``/``CONSTRUCT`` query text as
     ``sqe:`` RDF, and validate the result. The one public encoding entry
@@ -214,16 +225,45 @@ def sqe_parse_to_tree(
             where a bare `?s a sqe:Query` lookup can no longer tell them
             apart on its own.
 
+        parser: ``"owned"`` (default) reads the text with StarLayer's own
+            SPARQL 1.2 parser (``sparql.parse_sparql``), which also covers
+            DESCRIBE, FROM / FROM NAMED, SERVICE and ``VERSION``.
+            ``"rdflib"`` keeps the old route through rdflib's grammar and the
+            shared salg-era encoder (no DESCRIBE, FROM or SERVICE), so the
+            two can be compared; it goes when salg is retired.
+
     Returns:
         A ``(graph, root)`` tuple.
 
     Raises:
-        NotImplementedError: For ``DESCRIBE`` or a WHERE-clause element the
-            tree does not model, rather than silently mis-encoding - see
-            ``vocab.py``'s module docstring for what is covered.
+        SparqlSyntaxError: (owned parser) For text outside the SPARQL 1.2 query
+            grammar; it is a ``ValueError`` with ``line``/``col``.
+        NotImplementedError: With ``parser="rdflib"`` for a construct the old
+            path does not model (it has no Update, DESCRIBE, FROM or SERVICE).
+        ValueError: For an unknown ``parser``.
         SQEValidationError: If the text parses fine but the encoded tree
             fails ``sqe:``'s own SHACL shapes.
     """
+    if parser not in ("owned", "rdflib"):
+        raise ValueError(f"parser must be 'owned' or 'rdflib', not {parser!r}")
+    if parser == "owned":
+        from ..parse_sparql import SparqlSyntaxError, ast_to_tree, parse_sparql
+        from .shapes import sqe_validate
+
+        try:
+            ast = parse_sparql(text)
+        except SparqlSyntaxError:
+            if not _UPDATE_START.match(text):
+                raise
+            from ..parse_sparql import parse_sparql_update
+
+            ast = parse_sparql_update(text)  # Update text: the same encoder, a tree rooted at sqe:UpdateRequest
+        encoded_graph, encoded_root = ast_to_tree(ast, graph, root)
+        conforms, report_graph, report_text = sqe_validate(encoded_graph)
+        if not conforms:
+            raise SQEValidationError(report_text, report_graph)
+        return encoded_graph, encoded_root
+
     from ..parse12 import parse_query_12
 
     # Lazy: sqe_validate() needs pyshacl, which the rest of this module

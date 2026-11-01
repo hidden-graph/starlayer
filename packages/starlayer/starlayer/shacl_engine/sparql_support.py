@@ -16,8 +16,6 @@ from contextlib import contextmanager
 from functools import lru_cache
 from typing import Any
 
-from rdflib.plugins.sparql.parserutils import CompValue
-
 from starlayer.shacl_engine.components.registry import Violation
 from starlayer.shacl_engine.interface import Solutions
 from starlayer.shacl_engine.plan import SH, Path, Plan, Shape, ShapeError, Term
@@ -89,54 +87,92 @@ def with_prefixes(plan: Plan, holder: Term, text: str) -> str:
 
 @lru_cache(maxsize=512)
 def _prepare(text: str) -> Any:
+    """The prepared query (rdflib algebra) for EXECUTION through the query layer; the checks use ``_analyse``."""
     from starlayer.graph.query.sparql_api import prepareQuery
 
     return prepareQuery(text)
 
 
-def _walk(node: Any) -> Iterable[CompValue]:
-    if isinstance(node, CompValue):
-        yield node
-        for v in node.values():
-            yield from _walk(v)
-    elif isinstance(node, (list, tuple, set)):
-        for v in node:
-            yield from _walk(v)
+@lru_cache(maxsize=512)
+def _analyse(text: str) -> tuple[str, tuple[str, ...], tuple]:
+    """Parse ``text`` with StarLayer's own SPARQL parser and collect what the checks need.
+
+    Returns ``(query form, projected variable names, constructs)``, ``constructs`` being, in document order,
+    ``("minus",)``, ``("service",)``, ``("values", {names})`` and ``("assign", name)`` (a BIND, a SELECT expression or a
+    GROUP BY alias target) found anywhere in the query, sub-selects and EXISTS patterns included."""
+    from starlayer.sparql.parse_sparql import (
+        Node,
+        _pattern_vars,
+        _values_vars,
+        parse_sparql,
+    )
+
+    ast = parse_sparql(text)
+    found: list[tuple] = []
+
+    def walk(item: Any) -> None:
+        if isinstance(item, Node):
+            if item.kind == "Minus":
+                found.append(("minus",))
+            elif item.kind == "Service":
+                found.append(("service",))
+            elif item.kind == "Values":
+                found.append(("values", frozenset(_var_name(v) for v in item.f["vars"])))
+            elif item.kind in ("Bind", "ProjectExpr", "GroupAs"):
+                found.append(("assign", _var_name(item.f["var"])))
+            for value in item.f.values():
+                walk(value)
+        elif isinstance(item, (list, tuple)):
+            for value in item:
+                walk(value)
+
+    walk(ast.f.get("where"))
+    walk(ast.f.get("projection"))
+    walk(ast.f.get("group_by"))
+    walk(ast.f.get("values"))  # the trailing VALUES clause
+    projection = ast.f.get("projection")
+    if ast.kind != "SelectQuery":
+        projected: tuple[str, ...] = ()
+    elif projection is None:  # SELECT *: every variable in scope
+        projected = tuple(sorted(_var_name(v) for v in _pattern_vars(ast.f.get("where")) | _values_vars(ast)))
+    else:
+        projected = tuple(_var_name(p.f["var"]) for p in projection)
+    return ast.kind, projected, tuple(found)
 
 
 def check_query(plan: Plan, text: str, prebound: Iterable[str], *, ask: bool = False) -> tuple[str, ...]:
-    """Parse ``text`` with StarLayer's parser and reject what the spec forbids; return the projected variable names.
+    """Parse ``text`` with StarLayer's own SPARQL parser and reject what the spec forbids; return the projected variable names.
 
     Rejected: unparseable text; a SELECT where an ASK is required and vice versa; MINUS; SERVICE; a VALUES block that
     mentions a pre-bound variable (the draft's rule, SPARQL Appendix A; a VALUES over other variables is allowed, which
     is a DELIBERATE DEVIATION from the vendored W3C fixture ``unsupported-sparql-002`` and from pySHACL, both of which
-    follow the older rule that forbids every VALUES); ``AS`` (BIND, or a SELECT expression) of a pre-bound variable."""
+    follow the older rule that forbids every VALUES); ``AS`` (BIND, or a SELECT expression) of a pre-bound variable.
+
+    The checks read the parser's AST; no rdflib parse is involved (running the query is a separate step)."""
     prebound = frozenset(prebound)
     key = ("checked", text, prebound, ask)
     if key in plan.sparql_cache:
         return plan.sparql_cache[key]
     try:
-        query = _prepare(text)
+        form, projected, constructs = _analyse(text)
     except Exception as exc:  # noqa: BLE001  (any parser failure means the shapes graph is ill-formed)
         raise ShapeError(f"SPARQL query does not parse: {exc}") from exc
     want = "AskQuery" if ask else "SelectQuery"
-    if query.algebra.name != want:
-        raise ShapeError(f"expected a {want}, got {query.algebra.name}")  # str-ok: want is the query form name
-    for part in _walk(query.algebra):
-        if part.name == "Minus":
+    if form != want:
+        raise ShapeError(f"expected a {want}, got {form}")  # str-ok: want is the query form name
+    for construct in constructs:
+        if construct[0] == "minus":
             raise ShapeError("MINUS is not allowed in a SHACL SPARQL query")
-        if part.name == "ServiceGraphPattern":
+        if construct[0] == "service":
             raise ShapeError("SERVICE is not allowed in a SHACL SPARQL query")
-        if part.name == "values":
+        if construct[0] == "values":
             # SHACL 1.2 SPARQL Appendix A: "SPARQL queries MUST not contain a VALUES clause that mentions any potentially
             # pre-bound variable". A VALUES that mentions only other variables is allowed.
-            mentioned = {_var_name(v) for v in part.get("_vars", ()) or ()} | {_var_name(k) for row in part.get("res", ()) or () for k in row}
-            clash = sorted(mentioned & prebound)
+            clash = sorted(construct[1] & prebound)
             if clash:
                 raise ShapeError(f"VALUES must not mention the pre-bound variable ?{clash[0]} in a SHACL SPARQL query")  # str-ok: a variable name
-        if part.name == "Extend" and _var_name(part.get("var")) in prebound:
-            raise ShapeError(f"a SHACL SPARQL query must not assign the pre-bound variable ?{_var_name(part.get('var'))}")
-    projected = tuple(_var_name(v) for v in query.algebra.get("PV", ()) or ())
+        if construct[0] == "assign" and construct[1] in prebound:
+            raise ShapeError(f"a SHACL SPARQL query must not assign the pre-bound variable ?{construct[1]}")  # str-ok: a variable name
     plan.sparql_cache[key] = projected
     return projected
 
