@@ -33,7 +33,10 @@ TriG: the default graph's statements first (unwrapped), then ``GRAPH <name> { ..
 that is shared between graphs, or is a graph name, is labelled.
 
 Determinism: the output depends only on the graph's structure, not on blank-node labels or input order (blank nodes are ordered
-by a structural signature), so ``pretty(parse(pretty(x))) == pretty(x)``.
+by a structural signature: their colour after colour refinement to a fixpoint, ``_Writer._refine``), so
+``pretty(parse(pretty(x))) == pretty(x)``. Limits: blank nodes that colour refinement cannot tell apart (symmetric ones, whose
+order does not show in the output, and rare regular structures) are ordered as they came in, and a blank-node chain longer than
+64 steps is told apart only as far as 64 rounds reach.
 """
 
 from __future__ import annotations
@@ -84,7 +87,10 @@ _BNODE_LABEL = re.compile(rf"[{_PN_CHARS_U}0-9](?:[{_PN_CHARS}.]*[{_PN_CHARS}])?
 # characters a string must not carry raw: C0 controls (but TAB, LF, CR have their own handling), DEL, NEL, LS, PS
 _CONTROL = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\x7f\x85\u2028\u2029]")
 _IRI_BAD = re.compile("[\x00-\x20<>\"{}|^`\\\\\x7f]")
-_REL_UNSAFE = re.compile(r"[A-Za-z][A-Za-z0-9+.\-]*:|[/#?]|\.\.?(?:/|$)")
+# A relative reference is written only if it re-resolves to the IRI. Not one whose first segment holds a colon (RFC 3986 section
+# 4.2: ``a_b:c`` or ``:a`` would be read as having a scheme or as absolute; any colon before the first ``/ ? #`` counts, not only
+# a letter-led scheme), nor one starting with ``/`` ``#`` ``?``, nor a dot segment.
+_REL_UNSAFE = re.compile(r"[^/?#]*:|[/#?]|\.\.?(?:/|$)")
 
 _INDENT = "    "
 
@@ -245,49 +251,70 @@ class _Writer:
         self.v12 = v12
 
     def _signatures(self) -> None:
-        self._adj: tuple | None = None
-        self._sig_memo: dict[tuple[Any, int], str] = {}
+        self._colors: dict[Any, str] | None = None
 
-    def _adjacency(self) -> tuple[dict, dict]:
+    #: most refinement rounds; a blank-node chain longer than this is told apart only as far as it reaches (see ``_refine``)
+    _MAX_ROUNDS = 64
+
+    def _refine(self) -> dict[Any, str]:
+        """Colour every blank node by its structure, by colour refinement (1-dimensional Weisfeiler-Leman): a node's colour is
+        a hash of its own colour and of the sorted ``(direction, predicate, neighbour colour)`` list of its edges (blank nodes
+        in triple terms and as graph names included). Rounds repeat until the partition stops getting finer, so two blank
+        nodes differ in colour whenever their neighbourhoods differ at any distance (a fixed depth of 3 told apart only
+        chains that differ within 3 steps, and ties were then broken by input order). Labels never enter, so the colours, and
+        the ordering made from them, depend on structure only. Each round is linear in the number of edges and the number of
+        rounds is the longest distance that still separates two nodes, capped at ``_MAX_ROUNDS``; nodes still tied at the end
+        are interchangeable for 1-WL (automorphic nodes, whose order cannot change the output; only regular non-automorphic
+        structures or chains longer than the cap could still tie, and then the order falls back to the input order)."""
         out: dict[Any, list[tuple[Any, Any]]] = defaultdict(list)
         inc: dict[Any, list[tuple[str, Any, Any]]] = defaultdict(list)
+        nodes: set = set()
         for g, s, p, o in self.quads:
             if isinstance(s, _BN):
                 out[s].append((p, o))
+                nodes.add(s)
             if isinstance(o, _BN):
                 inc[o].append(("i", p, s))
+                nodes.add(o)
             elif isinstance(o, _TRIPLE):
                 for part in _walk_tt(o):
                     if isinstance(part, _BN):
                         inc[part].append(("t", p, s))
+                        nodes.add(part)
             if isinstance(g, _BN):
                 inc[g].append(("g", g, g))
-        self._adj = (out, inc)
-        return self._adj
+                nodes.add(g)
+        color = dict.fromkeys(nodes, "0")
 
-    def _sig(self, b: Any, depth: int = 3) -> str:
-        """A label-independent signature of blank node ``b`` (its neighbourhood to ``depth`` steps, hashed), computed on demand
-        for the blank nodes the writer has to order, so ordering never depends on labels."""
-        hit = self._sig_memo.get((b, depth))
-        if hit is not None:
-            return hit
-        out, inc = self._adj or self._adjacency()
-
-        def rep(t: Any) -> str:
+        def rep(t: Any, me: Any) -> str:
             if isinstance(t, _NN):
                 return "N" + t.value
             if isinstance(t, _BN):
-                return "self" if t == b else ("B" if depth <= 1 else "B" + self._sig(t, depth - 1))
+                return "self" if t == me else "B" + color[t]
             if isinstance(t, _LIT):
                 return f"L{t.value}\x00{t.datatype.value}\x00{t.language}\x00{t.direction}"
-            return f"T({rep(t.subject)} {rep(t.predicate)} {rep(t.object)})"
+            return f"T({rep(t.subject, me)} {rep(t.predicate, me)} {rep(t.object, me)})"
 
-        parts = [f"o {rep(p)} {rep(o)}" for p, o in out.get(b, ())]
-        parts += [f"{k} {rep(p)} {rep(s)}" for k, p, s in inc.get(b, ())]
-        parts.sort()
-        hit = hashlib.sha1("\n".join(parts).encode("utf-8", "surrogatepass")).hexdigest()[:16]
-        self._sig_memo[(b, depth)] = hit
-        return hit
+        classes = 1 if nodes else 0
+        for _ in range(self._MAX_ROUNDS):
+            new: dict[Any, str] = {}
+            for b in nodes:
+                parts = [f"o {rep(p, b)} {rep(o, b)}" for p, o in out.get(b, ())]
+                parts += [f"{k} {rep(p, b)} {rep(s, b)}" for k, p, s in inc.get(b, ())]
+                parts.sort()
+                new[b] = hashlib.sha1((color[b] + "\n" + "\n".join(parts)).encode("utf-8", "surrogatepass")).hexdigest()[:16]
+            n_classes = len(set(new.values()))
+            color = new
+            if n_classes <= classes:
+                break
+            classes = n_classes
+        self._colors = color
+        return color
+
+    def _sig(self, b: Any) -> str:
+        """A label-independent signature of blank node ``b`` (its refined colour, see ``_refine``)."""
+        colors = self._colors if self._colors is not None else self._refine()
+        return colors.get(b, "0")
 
     def key(self, t: Any) -> tuple:
         k = self._keys.get(t)

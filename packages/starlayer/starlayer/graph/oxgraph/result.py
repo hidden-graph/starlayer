@@ -58,17 +58,38 @@ class Row(tuple):
         return {n: v for n, v in zip(self._names, self, strict=True) if v is not None}
 
 
+class HiddenColumns:
+    """A one-shot SELECT result with some columns left out (variables that were added to the projection only so that a
+    pre-binding could be applied; see ``run._query_widening``)."""
+
+    def __init__(self, raw: Any, hide: set[str]) -> None:
+        self._raw = raw
+        self.variables = [v for v in raw.variables if v.value not in hide]
+
+    def __iter__(self) -> Iterator[Any]:
+        return iter(self._raw)
+
+
 _KEYWORD = re.compile(r"\b(SELECT|ASK|CONSTRUCT|DESCRIBE)\b", re.I)
+# One prologue declaration, after IRIs and strings were blanked to ``<>`` / ``""`` (a prefix may be *named* ``describe``)
+_PROLOGUE = re.compile(r"\s*(?:BASE\s*<>|PREFIX\s+[^\s:<>]*:\s*<>|VERSION\s*\"\")", re.I)
 
 
 def _query_type(text: str, raw: Any) -> str:
     if isinstance(raw, ox.QueryBoolean):
         return "ASK"
-    if isinstance(raw, ox.QuerySolutions):
+    if isinstance(raw, (ox.QuerySolutions, HiddenColumns)):
         return "SELECT"
-    stripped = re.sub(r"(?m)#[^\n]*$|<[^<>\s]*>|\"(?:[^\"\\\n]|\\.)*\"", " ", text)
-    m = _KEYWORD.search(stripped)
-    return m.group(1).upper() if m and m.group(1).upper() == "DESCRIBE" else "CONSTRUCT"
+    # blank comments, then IRIs and strings (so a keyword inside one does not count), then skip the prologue: the query form is
+    # the first keyword after it
+    stripped = re.sub(r"(?m)#[^\n]*$", " ", text)
+    stripped = re.sub(r"<[^<>\s]*>", "<>", stripped)
+    stripped = re.sub(r"\"(?:[^\"\\\n]|\\.)*\"|'(?:[^'\\\n]|\\.)*'", '""', stripped)
+    pos = 0
+    while (m := _PROLOGUE.match(stripped, pos)) is not None:
+        pos = m.end()
+    m = _KEYWORD.search(stripped, pos)
+    return "DESCRIBE" if m and m.group(1).upper() == "DESCRIBE" else "CONSTRUCT"
 
 
 class Result:

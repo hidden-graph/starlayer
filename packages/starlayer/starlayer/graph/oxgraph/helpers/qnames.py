@@ -12,7 +12,10 @@ from typing import Any
 
 import pyoxigraph as ox
 
-_LOCAL = re.compile(r"^[A-Za-z0-9_](?:[A-Za-z0-9_\-.]*[A-Za-z0-9_\-])?$|^$")
+from starlayer.graph.oxgraph.pretty import _PN_LOCAL
+
+# Turtle 1.2 PN_LOCAL (the grammar's own character classes, no backslash escapes: an IRI that needs one has no qname) or empty
+_LOCAL = re.compile(rf"(?:{_PN_LOCAL.pattern})?")
 _SPLIT = re.compile(r"^(.*[/#:])([^/#:]*)$")
 
 
@@ -31,12 +34,12 @@ def compute_qname(prefixes: dict[str, str], uri: Any, generate: bool = True) -> 
     best: tuple[str, str] | None = None
     for prefix, ns in prefixes.items():
         ns = str(ns)
-        if ns and iri.startswith(ns) and _LOCAL.match(iri[len(ns) :]) and (best is None or len(ns) > len(best[1])):
+        if ns and iri.startswith(ns) and _LOCAL.fullmatch(iri[len(ns) :]) and (best is None or len(ns) > len(best[1])):
             best = (prefix, ns)
     if best is not None:
         return best[0], best[1], iri[len(best[1]) :]
     m = _SPLIT.match(iri)
-    if m is None or not _LOCAL.match(m.group(2)) or not m.group(2):
+    if m is None or not _LOCAL.fullmatch(m.group(2)) or not m.group(2):
         raise ValueError(f"cannot split {iri!r} into a namespace and a local name")
     ns, local = m.groups()
     if not generate:

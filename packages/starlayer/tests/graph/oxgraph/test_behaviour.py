@@ -123,10 +123,11 @@ def test_convenience_readers(g):
 
 def test_value():
     g = OxGraph()
-    g.add((A, N(RDF + "type"), B))
+    g.add((A, N(RDF + "value"), B))
+    g.add((A, N(RDF + "type"), D))
     g.add((A, P, C))
     g.add((A, P, D))
-    assert g.value(A) == B  # predicate defaults to rdf:type
+    assert g.value(A) == B  # predicate defaults to rdf:value, as in rdflib
     assert g.value(A, P, None) in (C, D)
     assert g.value(None, P, C) == A
     assert g.value(B, P, None, default="none") == "none"

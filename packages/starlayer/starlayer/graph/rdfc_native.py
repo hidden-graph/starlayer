@@ -54,6 +54,23 @@ def _algorithm(algorithm) -> tuple[str, ox.CanonicalizationAlgorithm]:
     raise ValueError(f"not an RDFC-1.0 algorithm: {algorithm!r}")
 
 
+def _bnode_in_triple_term(quads: list[ox.Quad]) -> bool:
+    """Does any quad hold a triple term that contains a blank node, at any depth?"""
+    for q in quads:
+        o = q.object
+        if not isinstance(o, ox.Triple):
+            continue
+        stack = [o]
+        while stack:
+            t = stack.pop()
+            for part in (t.subject, t.object):
+                if isinstance(part, ox.BlankNode):
+                    return True
+                if isinstance(part, ox.Triple):
+                    stack.append(part)
+    return False
+
+
 def _canonicalize(quads: list[ox.Quad], algorithm) -> list[ox.Quad]:
     _, alg = _algorithm(algorithm)
     ds = ox.Dataset(quads)  # a copy: the caller's store or dataset is never relabelled
@@ -67,6 +84,11 @@ def isomorphic(a, b, *, basic: bool = False) -> bool:
     algorithm. ``basic=True`` applies the basic encoding first (then triple terms are compared as their
     PropositionForm structure, which is also isomorphism-preserving)."""
     qa, qb = _quads(a), _quads(b)
+    # pyoxigraph's native canonicalisation is not deterministic when blank nodes sit inside triple terms (it labelled the
+    # blank-node cycle `_:b0 <p> <<( _:b1 <p> _:b2 )>> . _:b1 <p> <<( _:b2 <p> _:b0 )>> . _:b2 <p> <<( _:b0 <p> _:b1 )>>` with
+    # two different labellings in 30 runs, so a graph was not isomorphic to itself about 40 percent of the time; see
+    # docs/working/interop-and-rdfc.md). Such data goes through the basic encoding, whose RDFC-1.0 input has no triple term.
+    basic = basic or _bnode_in_triple_term(qa) or _bnode_in_triple_term(qb)
     if basic:
         qa, qb = to_basic(qa), to_basic(qb)
     if len(set(qa)) != len(set(qb)):
@@ -76,8 +98,10 @@ def isomorphic(a, b, *, basic: bool = False) -> bool:
 
 def canonical_quads(dataset, *, algorithm="sha256", basic: bool = True) -> list[ox.Quad]:
     """The canonical quads, sorted by their N-Quads line. With ``basic=True`` (default) the basic encoding
-    is applied first, so no triple term appears in the result."""
+    is applied first, so no triple term appears in the result. With ``basic=False`` the encoding is still applied when a
+    triple term contains a blank node (the native labelling of that case is not deterministic)."""
     qs = _quads(dataset)
+    basic = basic or _bnode_in_triple_term(qs)  # see isomorphic(): the native labelling of such data is not stable
     if basic:
         qs = to_basic(qs)
     return sorted(_canonicalize(qs, algorithm), key=_line)

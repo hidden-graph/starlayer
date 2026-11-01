@@ -15,6 +15,7 @@ Same overall conventions as `rdflib-upstream-issues.md`.
 | --- | --- | --- | --- |
 | 1 | SPARQL `=` panics the whole engine on any `rdf:dirLangString` term | Oxigraph core (`spareval` crate) - affects both `pyoxigraph` and `oxigraph serve` | **Yes** - [oxigraph/oxigraph#1982](https://github.com/oxigraph/oxigraph/issues/1982), filed 2026-10-17; **fixed in pyoxigraph 0.5.13 (verified 2026-10-31); project guard removed 2026-10-31, 0.5.13 is the minimum supported version** |
 | - | Literals are normalized on storage, so exact lexical forms are not preserved | Oxigraph storage layer - by design | **No report needed** - already tracked upstream as [oxigraph/oxigraph#526](https://github.com/oxigraph/oxigraph/issues/526) |
+| - | `Dataset.canonicalize` (RDFC-1.0) labels the blank nodes of a cycle through triple terms differently from call to call | Oxigraph / `pyoxigraph` canonicalisation | **Not reported yet** - found 2026-11-01 (see the last section) |
 
 ---
 
@@ -168,3 +169,20 @@ Not unique to Oxigraph: running the same W3C SHACL fixtures through Apache Jena 
 ### In this project
 
 Not worked around, and nothing to fix here: it is a property of the engines. It matters wherever exact lexical forms are significant, which is most visibly the W3C SHACL 1.2 suites, where six fixtures depend on it (`"01"` and `"04"` in the node-expression lists; ill-formed values in the `datatype` / `or-datatypes` / `uniqueLang` fixtures). Those six pass on the default in-memory store and are recorded as known failures for the Oxigraph stores (in-process, on-disk and server) in `tests/shacl/w3c_shacl12/known_failures.py` (`KNOWN_FAILURES_OXIGRAPH_STORE`), each checked against its own data; Fuseki's three are in `KNOWN_FAILURES_FUSEKI_HTTP`. Re-check them when #526 lands.
+
+
+## Not yet reported - native canonicalisation is not deterministic when blank nodes sit inside triple terms
+
+`pyoxigraph.Dataset.canonicalize(RDFC_1_0)` (pyoxigraph 0.5.x) returned two different labellings of the same input across 30 calls for
+
+```
+_:b0 <p> <<( _:b1 <p> _:b2 )>> .
+_:b1 <p> <<( _:b2 <p> _:b0 )>> .
+_:b2 <p> <<( _:b0 <p> _:b1 )>> .
+```
+
+so a graph was not isomorphic to itself about 40 percent of the time when compared through it. RDFC-1.0 itself defines no triple-term rule, so the result is implementation-defined, but a labelling must still be a function of the input. Data with no blank node inside a triple term canonicalised stably in every check made.
+
+### In this project
+
+Worked around in `starlayer/graph/rdfc_native.py`: data in which a triple term contains a blank node is canonicalised through the basic encoding (`interop.to_basic`), whose RDFC-1.0 input has no triple term, even with `basic=False`. Regression tests: `tests/graph/unit/hunt/test_hunt_interop.py`. To report upstream: minimise the case (it is already three quads) and file it; then add the issue number here and in `curated/upstream-issues.ttl`.
