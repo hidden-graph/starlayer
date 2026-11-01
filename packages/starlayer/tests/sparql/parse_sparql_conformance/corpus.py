@@ -17,10 +17,15 @@ class Case(NamedTuple):
     text: str
     covers: tuple[str, ...]
     ok: bool = True
+    update: bool = False  # parsed with parse_sparql_update (an UpdateUnit), not parse_sparql
 
 
 def _c(id: str, text: str, covers: str, ok: bool = True) -> Case:
     return Case(id, text, tuple(covers.split()), ok)
+
+
+def _u(id: str, text: str, covers: str, ok: bool = True) -> Case:
+    return Case(id, text, tuple(covers.split()), ok, True)
 
 
 CASES: list[Case] = [
@@ -120,6 +125,46 @@ CASES: list[Case] = [
     _c("iri-uchar", P + "SELECT * { <http://e/\\u0061> :p <http://e/\\U00000062> }", "UCHAR IRIREF"),
     _c("pname-ns-only", P + "SELECT * { : : : }", "PNAME_NS PrefixedName iri"),
     _c("prefixed-and-iriref", P + "SELECT * { <http://a> :p <b> }", "PrefixedName iri IRIREF"),
+    # -- SPARQL Update (productions [3] and [31]-[53]) ---------------------------------------------------------
+    _u("u-empty", "", "UpdateUnit Update"),
+    _u("u-prologue-only", P + "BASE <http://b/> VERSION '1.2'", "UpdateUnit Update Prologue BaseDecl PrefixDecl VersionDecl"),
+    _u("u-sequence", P + "INSERT DATA { :a :p :o } ; PREFIX q: <http://q/> DELETE DATA { q:a :p :o } ;",
+       "Update Update1 InsertData DeleteData Prologue"),
+    _u("u-load", "LOAD <http://x/y>", "Load Update1"),
+    _u("u-load-silent-into", "LOAD SILENT <http://x/y> INTO GRAPH <http://g>", "Load GraphRef"),
+    _u("u-clear", "CLEAR GRAPH <g> ; CLEAR SILENT DEFAULT ; CLEAR NAMED ; CLEAR ALL", "Clear GraphRefAll GraphRef"),
+    _u("u-drop", "DROP GRAPH <g> ; DROP SILENT DEFAULT ; DROP NAMED ; DROP ALL", "Drop GraphRefAll"),
+    _u("u-create", "CREATE GRAPH <g> ; CREATE SILENT GRAPH <h>", "Create GraphRef"),
+    _u("u-add", "ADD <a> TO <b> ; ADD SILENT DEFAULT TO GRAPH <b>", "Add GraphOrDefault"),
+    _u("u-move", "MOVE <a> TO DEFAULT ; MOVE SILENT GRAPH <a> TO <b>", "Move GraphOrDefault"),
+    _u("u-copy", "COPY DEFAULT TO <b> ; COPY SILENT <a> TO DEFAULT", "Copy GraphOrDefault"),
+    _u("u-insert-data", P + "INSERT DATA { :a :p 1 . _:b :q [ :r :s ] . GRAPH :g { :a :p 2 } :c :p 3 }",
+       "InsertData QuadData Quads QuadsNotTriples TriplesTemplate"),
+    _u("u-insert-data-triple-terms",
+       P + "INSERT DATA { << :a :b :c >> :p :o . :s :p :o {| :y :z |} . :s :p <<( :a :b :c )>> }", "InsertData QuadData"),
+    _u("u-delete-data", P + "DELETE DATA { :a :p 1 . GRAPH :g { :a :p 2 . } }", "DeleteData QuadData QuadsNotTriples"),
+    _u("u-delete-data-named-reifier", P + "DELETE DATA { :s :p :o ~ :r {| :a 1 |} }", "DeleteData"),
+    _u("u-delete-where", P + "DELETE WHERE { ?s :p ?o . GRAPH ?g { ?s :q ?o } }", "DeleteWhere QuadPattern Quads"),
+    _u("u-modify-delete-insert", P + "DELETE { ?s :p ?o } INSERT { ?s :q ?o } WHERE { ?s :p ?o }",
+       "Modify DeleteClause InsertClause QuadPattern"),
+    _u("u-modify-delete-only", P + "DELETE { GRAPH ?g { ?s :p ?o } } WHERE { GRAPH ?g { ?s :p ?o } }", "Modify DeleteClause"),
+    _u("u-modify-insert-only", P + "INSERT { [] :p ?o } WHERE { ?s :q ?o }", "Modify InsertClause"),
+    _u("u-modify-with-using", P + "WITH :g DELETE { ?s :p ?o } USING :u USING NAMED :n WHERE { ?s :p ?o }",
+       "Modify UsingClause"),
+    _u("u-modify-empty-templates", "DELETE { } INSERT { } WHERE { }", "Modify QuadPattern Quads"),
+    _u("u-modify-annotations", P + "INSERT { ?s :r ?o {| :added 1 |} } WHERE { ?s :p ?o }", "Modify InsertClause"),
+    _u("u-bad-no-separator", "CREATE GRAPH <g> LOAD <r>", "Update", False),
+    _u("u-bad-two-separators", "CREATE GRAPH <g> ;; LOAD <r>", "Update", False),
+    _u("u-bad-variable-in-data", "INSERT DATA { ?s <p> <o> }", "InsertData", False),
+    _u("u-bad-bnode-in-delete-data", "DELETE DATA { _:a <p> <o> }", "DeleteData", False),
+    _u("u-bad-bnode-in-delete-where", "DELETE WHERE { [] <p> <o> }", "DeleteWhere", False),
+    _u("u-bad-bnode-in-delete-template", "DELETE { <s> <p> _:b } WHERE { ?x <p> <o> }", "DeleteClause", False),
+    _u("u-bad-nested-graph", "INSERT DATA { GRAPH <a> { GRAPH <b> { <s> <p> <o> } } }", "QuadsNotTriples", False),
+    _u("u-bad-modify-without-where", "DELETE { <s> <p> <o> }", "Modify", False),
+    _u("u-bad-insert-where", "INSERT WHERE { ?s ?p ?o }", "Modify", False),
+    _u("u-bad-label-in-two-patterns", "INSERT { ?s <p> ?o } WHERE { _:a <p> ?s OPTIONAL { _:a <q> ?o } }", "Modify", False),
+    _u("u-bad-label-in-two-insert-data", "INSERT DATA { _:a <p> <o> } ; INSERT DATA { _:a <p> <o2> }", "Update", False),
+    _u("u-template-labels-are-per-operation", "INSERT { _:a <p> <o> } WHERE { } ; INSERT { _:a <p> <o2> } WHERE { }", "Update"),
 ]
 
 # One row of the grammar is exercised by several cases above; the rows with a dedicated parser method are also

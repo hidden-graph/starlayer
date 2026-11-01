@@ -1,4 +1,5 @@
-"""Production coverage matrix for the SPARQL 1.2 Query grammar (the hand-written parser ``parse_sparql``).
+"""Production coverage matrix for the SPARQL 1.2 grammar (the hand-written parser ``parse_sparql``): the 170 Query rows and
+the 24 Update rows ([3], [31]-[53]).
 
 Mirrors ``tests/sparql/srl_conformance/test_sr_coverage_matrix.py``: the spine is the W3C grammar table
 (``vendor/sparql12-query-productions.json``, 194 productions); each production must be claimed by at least one case
@@ -11,7 +12,11 @@ from __future__ import annotations
 import sys
 
 import pytest
-from starlayer.sparql.parse_sparql import SparqlSyntaxError, parse_sparql
+from starlayer.sparql.parse_sparql import (
+    SparqlSyntaxError,
+    parse_sparql,
+    parse_sparql_update,
+)
 from starlayer.sparql.sqe import sqe_tree_to_text
 
 from .corpus import BUILTINS, CASES, P
@@ -45,6 +50,14 @@ METHODS: dict[str, tuple[str, ...]] = {
     "BrackettedExpression": ("bracketted",), "BuiltInCall": ("builtin",), "Aggregate": ("aggregate",),
     "RDFLiteral": ("literal",), "NumericLiteral": ("literal",), "BooleanLiteral": ("literal",),
     "String": ("string", "literal"), "iri": ("iri",), "BlankNode": ("bnode",), "Var": ("var",),
+    # SPARQL Update
+    "UpdateUnit": ("parse_update",), "Update": ("parse_update",), "Update1": ("update1",), "Load": ("update1",),
+    "Clear": ("update1",), "Drop": ("update1",), "Create": ("update1",), "Add": ("update1",), "Move": ("update1",),
+    "Copy": ("update1",), "InsertData": ("update1",), "DeleteData": ("update1",), "DeleteWhere": ("update1",),
+    "Modify": ("modify",), "DeleteClause": ("modify",), "InsertClause": ("modify",), "UsingClause": ("modify",),
+    "GraphOrDefault": ("graph_or_default",), "GraphRef": ("graph_ref",), "GraphRefAll": ("graph_ref_all",),
+    "QuadPattern": ("quad_block",), "QuadData": ("quad_block",), "Quads": ("quad_block",),
+    "QuadsNotTriples": ("quads_not_triples",),
 }  # fmt: skip
 
 
@@ -68,13 +81,16 @@ def test_every_covers_name_is_a_real_production():
     assert not bad, f"cases name productions that are not in the grammar table: {sorted(bad)}"
 
 
-def test_every_query_production_has_a_case():
-    missing = [n for n in ALL_ROWS if n not in _covered() and n not in UPDATE_ONLY]
+def test_every_production_has_a_case():
+    missing = [n for n in ALL_ROWS if n not in _covered()]
     assert not missing, f"productions with no case (add one to corpus.py): {missing}"
 
 
-def test_update_only_rows_are_not_claimed():
-    assert not (_covered() & UPDATE_ONLY), "an Update production is claimed by a Query case"
+def test_update_rows_are_claimed_by_update_cases_only():
+    """A Query case may not claim an Update row (the Prologue rows are shared, so Update cases may claim those)."""
+    wrong = [(c.id, n) for c in CASES if not c.update for n in c.covers if n in UPDATE_ONLY]
+    assert not wrong, wrong
+    assert UPDATE_ONLY <= {n for c in CASES if c.update for n in c.covers}
 
 
 def test_every_method_mapping_names_a_real_production_and_method():
@@ -88,14 +104,15 @@ def test_every_method_mapping_names_a_real_production_and_method():
 
 @pytest.mark.parametrize("case", CASES, ids=lambda c: c.id)
 def test_case_parses_or_is_rejected(case):
+    parse = parse_sparql_update if case.update else parse_sparql
     if case.ok:
-        parse_sparql(case.text)
+        parse(case.text)
     else:
         with pytest.raises(SparqlSyntaxError):
-            parse_sparql(case.text)
+            parse(case.text)
 
 
-def _methods_run(text: str) -> set[str]:
+def _methods_run(text: str, update: bool = False) -> set[str]:
     seen: set[str] = set()
     path = sys.modules["starlayer.sparql.parse_sparql"].__file__
 
@@ -106,7 +123,7 @@ def _methods_run(text: str) -> set[str]:
     sys.setprofile(prof)
     try:
         try:
-            parse_sparql(text)
+            (parse_sparql_update if update else parse_sparql)(text)
         except SparqlSyntaxError:
             pass
     finally:
@@ -116,7 +133,7 @@ def _methods_run(text: str) -> set[str]:
 
 def test_claims_are_backed_by_the_parser_running_the_production():
     """A positive case that claims a production with a dedicated method must make that method run."""
-    ran: dict[str, set[str]] = {c.id: _methods_run(c.text) for c in CASES}
+    ran: dict[str, set[str]] = {c.id: _methods_run(c.text, c.update) for c in CASES}
     unbacked: list[tuple[str, str]] = []
     for prod, methods in METHODS.items():
         claimants = [c for c in CASES if prod in c.covers]

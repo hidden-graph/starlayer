@@ -3426,7 +3426,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:NodeShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n46d40bc0aae04392b6a547bceff53708b222 ;
+        sh:in _:na57546791ea94d988173b64510ffcebdb222 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -3826,7 +3826,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:ParameterForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n46d40bc0aae04392b6a547bceff53708b222 ;
+        sh:in _:na57546791ea94d988173b64510ffcebdb222 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -4329,7 +4329,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:PropertyShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n46d40bc0aae04392b6a547bceff53708b222 ;
+        sh:in _:na57546791ea94d988173b64510ffcebdb222 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -5960,11 +5960,11 @@ starontology:shacl12-shacl-ui.ttl {
         sh:name "Definition"@en ;
         sh:order 0.5 .
 
-    _:n46d40bc0aae04392b6a547bceff53708b223 rdf:first sh:IRI ;
+    _:na57546791ea94d988173b64510ffcebdb223 rdf:first sh:IRI ;
         rdf:rest ( sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) .
 
-    _:n46d40bc0aae04392b6a547bceff53708b222 rdf:first sh:BlankNode ;
-        rdf:rest _:n46d40bc0aae04392b6a547bceff53708b223 .
+    _:na57546791ea94d988173b64510ffcebdb222 rdf:first sh:BlankNode ;
+        rdf:rest _:na57546791ea94d988173b64510ffcebdb223 .
 }
 
 starontology:shacl12-shacl.ttl {
@@ -11894,18 +11894,52 @@ starontology:spexpr_shapes.ttl {
 }
 
 starontology:sqe-ontology.ttl {
+    sqe:Add a rdfs:Class ;
+        rdfs:comment "ADD [SILENT] from TO to - sqe:from and sqe:to, each a sqe:GraphRef or sqe:DefaultGraph." ;
+        rdfs:subClassOf sqe:UpdateOperation .
+
     sqe:Alias a rdfs:Class ;
         rdfs:comment "(expr AS ?var) in a projection or GROUP BY - sqe:expr the expression, sqe:var the variable it binds." .
+
+    sqe:AllGraphs a rdfs:Class ;
+        rdfs:comment "The graph reference ALL (the default graph and all named graphs)." .
 
     sqe:Bind a rdfs:Class ;
         rdfs:comment "A BIND(... AS ?var) element - sqe:expr -> an expression tree (spexpr:); sqe:var -> the bound variable." .
 
+    sqe:Clear a rdfs:Class ;
+        rdfs:comment "CLEAR [SILENT] (GRAPH iri | DEFAULT | NAMED | ALL) - sqe:target a graph reference." ;
+        rdfs:subClassOf sqe:UpdateOperation .
+
+    sqe:Copy a rdfs:Class ;
+        rdfs:comment "COPY [SILENT] from TO to - sqe:from and sqe:to, each a sqe:GraphRef or sqe:DefaultGraph." ;
+        rdfs:subClassOf sqe:UpdateOperation .
+
+    sqe:Create a rdfs:Class ;
+        rdfs:comment "CREATE [SILENT] GRAPH iri - sqe:target a sqe:GraphRef." ;
+        rdfs:subClassOf sqe:UpdateOperation .
+
     sqe:DatasetClause a rdfs:Class ;
         rdfs:comment "One FROM <iri> or FROM NAMED <iri> clause - sqe:source the graph IRI, sqe:named true for FROM NAMED." .
+
+    sqe:DefaultGraph a rdfs:Class ;
+        rdfs:comment "The graph reference DEFAULT (the default graph)." .
+
+    sqe:DeleteData a rdfs:Class ;
+        rdfs:comment "DELETE DATA { ... } - sqe:quads the data. No variables and no blank nodes." ;
+        rdfs:subClassOf sqe:UpdateOperation .
+
+    sqe:DeleteWhere a rdfs:Class ;
+        rdfs:comment "DELETE WHERE { ... } - sqe:quads the pattern (also the template). No blank nodes." ;
+        rdfs:subClassOf sqe:UpdateOperation .
 
     sqe:DescribeQuery a rdfs:Class ;
         rdfs:comment "A DESCRIBE query's root. sqe:describe -> rdf:List of IRIs and variables, or sqe:describeAll true for DESCRIBE *; an optional sqe:where; optionally sqe:dataset, sqe:groupBy, sqe:having, sqe:orderBy, sqe:limit, sqe:offset and a trailing sqe:values." ;
         rdfs:subClassOf sqe:Query .
+
+    sqe:Drop a rdfs:Class ;
+        rdfs:comment "DROP [SILENT] (GRAPH iri | DEFAULT | NAMED | ALL) - sqe:target a graph reference." ;
+        rdfs:subClassOf sqe:UpdateOperation .
 
     sqe:Exists a rdfs:Class ;
         rdfs:comment "EXISTS { ... } (or NOT EXISTS when sqe:negated is true) inside an expression - sqe:where -> its own flat pattern list." ;
@@ -11917,14 +11951,39 @@ starontology:sqe-ontology.ttl {
     sqe:Graph a rdfs:Class ;
         rdfs:comment "A GRAPH ?g { ... } block - sqe:graph the graph IRI or variable, sqe:where the flat pattern list." .
 
+    sqe:GraphRef a rdfs:Class ;
+        rdfs:comment "GRAPH iri as a graph reference of an update operation - sqe:graphIri." .
+
+    sqe:InsertData a rdfs:Class ;
+        rdfs:comment "INSERT DATA { ... } - sqe:quads the data. No variables." ;
+        rdfs:subClassOf sqe:UpdateOperation .
+
+    sqe:Load a rdfs:Class ;
+        rdfs:comment "LOAD [SILENT] iri [INTO GRAPH iri] - sqe:loadFrom, optional sqe:into (a sqe:GraphRef; absent: the default graph), optional sqe:silent." ;
+        rdfs:subClassOf sqe:UpdateOperation .
+
     sqe:Minus a rdfs:Class ;
         rdfs:comment "A MINUS { ... } block - sqe:where -> its own flat pattern list." .
+
+    sqe:Modify a rdfs:Class ;
+        rdfs:comment "[WITH iri] ( DELETE {..} [INSERT {..}] | INSERT {..} ) [USING [NAMED] iri]* WHERE {..} - sqe:with, sqe:delete (no blank nodes), sqe:insert, sqe:using (rdf:List of sqe:DatasetClause), sqe:where." ;
+        rdfs:subClassOf sqe:UpdateOperation .
+
+    sqe:Move a rdfs:Class ;
+        rdfs:comment "MOVE [SILENT] from TO to - sqe:from and sqe:to, each a sqe:GraphRef or sqe:DefaultGraph." ;
+        rdfs:subClassOf sqe:UpdateOperation .
+
+    sqe:NamedGraphs a rdfs:Class ;
+        rdfs:comment "The graph reference NAMED (all named graphs)." .
 
     sqe:Optional a rdfs:Class ;
         rdfs:comment "An OPTIONAL { ... } block - sqe:where -> its own nested flat pattern list." .
 
     sqe:OrderCondition a rdfs:Class ;
         rdfs:comment "One ORDER BY condition - sqe:expr -> a variable or expression; sqe:descending true for DESC(...), absent for ascending." .
+
+    sqe:QuadGraph a rdfs:Class ;
+        rdfs:comment "GRAPH iri-or-variable { triples } inside a quad list - sqe:graphName, sqe:triples (an rdf:List of sqe:TriplePattern, may be empty)." .
 
     sqe:Service a rdfs:Class ;
         rdfs:comment "A SERVICE [SILENT] <iri-or-variable> { ... } block - sqe:service the endpoint, sqe:silent true for SILENT, sqe:where the flat pattern list." .
@@ -11943,6 +12002,12 @@ starontology:sqe-ontology.ttl {
     sqe:Union a rdfs:Class ;
         rdfs:comment "A { ... } UNION { ... } [UNION { ... }]* block - sqe:alternatives -> rdf:List of nested flat pattern lists, one per alternative." .
 
+    sqe:UpdateOperation a rdfs:Class ;
+        rdfs:comment "One operation of an update request. Carries the prologue (sqe:base, sqe:prologuePrefix, sqe:version) written in front of it; the prefixes of earlier operations stay in force for later ones." .
+
+    sqe:UpdateRequest a rdfs:Class ;
+        rdfs:comment "The root of an encoded SPARQL Update request. sqe:operations -> the rdf:List of operations in source order (empty for an empty request); a prologue written after the last operation is stored on the root (sqe:base, sqe:prologuePrefix, sqe:version)." .
+
     sqe:Values a rdfs:Class ;
         rdfs:comment "A VALUES block, as a pattern or as a query's trailing sqe:values - sqe:vars the variables, sqe:rows an rdf:List of rows (rdf:List of terms, or sqe:undef)." .
 
@@ -11954,6 +12019,10 @@ starontology:sqe-ontology.ttl {
 
     sqe:dataset a rdf:Property ;
         rdfs:comment "A query's FROM / FROM NAMED clauses: an rdf:List of sqe:DatasetClause in source order, on a SELECT, ASK, CONSTRUCT or DESCRIBE root." .
+
+    sqe:delete a rdf:Property ;
+        rdfs:comment "The DELETE template of a Modify: an rdf:List of sqe:TriplePattern and sqe:QuadGraph (may be empty)." ;
+        rdfs:domain sqe:Modify .
 
     sqe:descending a rdf:Property ;
         rdfs:domain sqe:OrderCondition .
@@ -11973,8 +12042,17 @@ starontology:sqe-ontology.ttl {
     sqe:expr a rdf:Property ;
         rdfs:comment "Shared by several node types (sqe:Filter, Bind, Alias, OrderCondition); deliberately no rdfs:domain, which would give each of them the wrong extra type under RDFS inference." .
 
+    sqe:from a rdf:Property ;
+        rdfs:comment "The source graph reference of ADD, MOVE and COPY. Shared, so no rdfs:domain." .
+
     sqe:graph a rdf:Property ;
         rdfs:domain sqe:Graph .
+
+    sqe:graphIri a rdf:Property ;
+        rdfs:domain sqe:GraphRef .
+
+    sqe:graphName a rdf:Property ;
+        rdfs:domain sqe:QuadGraph .
 
     sqe:groupBy a rdf:Property ;
         rdfs:comment "GROUP BY on a SELECT, ASK, CONSTRUCT or DESCRIBE root (no rdfs:domain: a domain would type the other forms as SELECT)." .
@@ -11982,8 +12060,20 @@ starontology:sqe-ontology.ttl {
     sqe:having a rdf:Property ;
         rdfs:comment "HAVING on a SELECT, ASK, CONSTRUCT or DESCRIBE root (no rdfs:domain: a domain would type the other forms as SELECT)." .
 
+    sqe:insert a rdf:Property ;
+        rdfs:comment "The INSERT template of a Modify: an rdf:List of sqe:TriplePattern and sqe:QuadGraph (may be empty)." ;
+        rdfs:domain sqe:Modify .
+
+    sqe:into a rdf:Property ;
+        rdfs:comment "The graph a LOAD writes to: a sqe:GraphRef." ;
+        rdfs:domain sqe:Load .
+
     sqe:limit a rdf:Property ;
         rdfs:comment "LIMIT n (xsd:integer), on a SELECT or CONSTRUCT root." .
+
+    sqe:loadFrom a rdf:Property ;
+        rdfs:comment "The IRI a LOAD reads." ;
+        rdfs:domain sqe:Load .
 
     sqe:named a rdf:Property ;
         rdfs:domain sqe:DatasetClause .
@@ -11997,6 +12087,9 @@ starontology:sqe-ontology.ttl {
     sqe:offset a rdf:Property ;
         rdfs:comment "OFFSET n (xsd:integer), on a SELECT or CONSTRUCT root." .
 
+    sqe:operations a rdf:Property ;
+        rdfs:domain sqe:UpdateRequest .
+
     sqe:orderBy a rdf:Property ;
         rdfs:comment "ORDER BY: a flat rdf:List of sqe:OrderCondition, on a SELECT or CONSTRUCT root." .
 
@@ -12005,6 +12098,9 @@ starontology:sqe-ontology.ttl {
 
     sqe:projection a rdf:Property ;
         rdfs:domain sqe:SelectQuery .
+
+    sqe:quads a rdf:Property ;
+        rdfs:comment "An rdf:List of sqe:TriplePattern (default graph) and sqe:QuadGraph, in written order: the quads of INSERT DATA, DELETE DATA and DELETE WHERE. Shared by three classes, so no rdfs:domain." .
 
     sqe:reduced a rdf:Property ;
         rdfs:comment "true for SELECT REDUCED." ;
@@ -12021,7 +12117,7 @@ starontology:sqe-ontology.ttl {
         rdfs:domain sqe:Service .
 
     sqe:silent a rdf:Property ;
-        rdfs:domain sqe:Service .
+        rdfs:comment "true for SILENT, on a sqe:Service and on the update operations that take it (Load, Clear, Drop, Create, Add, Move, Copy); deliberately no rdfs:domain, which would give an update operation the wrong extra type under RDFS inference." .
 
     sqe:source a rdf:Property ;
         rdfs:domain sqe:DatasetClause .
@@ -12029,8 +12125,21 @@ starontology:sqe-ontology.ttl {
     sqe:subject a rdf:Property ;
         rdfs:comment "Shared by several node types (sqe:TriplePattern, TripleTerm); deliberately no rdfs:domain, which would give each of them the wrong extra type under RDFS inference." .
 
+    sqe:target a rdf:Property ;
+        rdfs:comment "The graph reference of CLEAR, DROP and CREATE. Shared, so no rdfs:domain." .
+
     sqe:template a rdf:Property ;
         rdfs:domain sqe:ConstructQuery .
+
+    sqe:to a rdf:Property ;
+        rdfs:comment "The destination graph reference of ADD, MOVE and COPY. Shared, so no rdfs:domain." .
+
+    sqe:triples a rdf:Property ;
+        rdfs:domain sqe:QuadGraph .
+
+    sqe:using a rdf:Property ;
+        rdfs:comment "The USING / USING NAMED clauses of a Modify: an rdf:List of sqe:DatasetClause." ;
+        rdfs:domain sqe:Modify .
 
     sqe:values a rdf:Property ;
         rdfs:comment "A query's trailing VALUES clause (a sqe:Values)." .
@@ -12047,6 +12156,10 @@ starontology:sqe-ontology.ttl {
     sqe:where a rdf:Property ;
         rdfs:comment "A flat, ordered rdf:List of sibling pattern elements (sqe:TriplePattern/Optional/Union/Minus/Graph/Service/Filter/Bind/Values/SubSelect) - mirrors the raw parse tree's own already-flat GroupGraphPatternSub.part shape, not the salg: algebra's nested LeftJoin/Filter wrapping." .
 
+    sqe:with a rdf:Property ;
+        rdfs:comment "WITH iri of a Modify." ;
+        rdfs:domain sqe:Modify .
+
     sqe:ConstructQuery rdfs:comment "A CONSTRUCT query's root. sqe:template -> rdf:List of sqe:TriplePattern; sqe:where -> the flat pattern list." ;
         rdfs:subClassOf sqe:Query .
 
@@ -12058,22 +12171,36 @@ starontology:sqe-ontology.ttl {
 
 starontology:sqe_shapes.ttl {
     sqe:ShapesGraph a sh:ShapesGraph ;
-        rdfs:member sqe:AliasShape,
+        rdfs:member sqe:AddShape,
+            sqe:AliasShape,
             sqe:AlternativesListShape,
+            sqe:AnyGraphRefShape,
             sqe:AskQueryShape,
             sqe:BindShape,
+            sqe:ClearShape,
             sqe:ConstructQueryShape,
+            sqe:CopyShape,
+            sqe:CreateShape,
             sqe:DatasetClauseShape,
             sqe:DatasetListShape,
             sqe:DatasetShape,
+            sqe:DeleteDataShape,
+            sqe:DeleteWhereShape,
             sqe:DescribeQueryShape,
+            sqe:DropShape,
             sqe:ExistsShape,
             sqe:FilterShape,
+            sqe:GraphOrDefaultShape,
+            sqe:GraphRefShape,
             sqe:GraphShape,
             sqe:GroupByListShape,
             sqe:GroupingModifierShape,
             sqe:HavingListShape,
+            sqe:InsertDataShape,
+            sqe:LoadShape,
             sqe:MinusShape,
+            sqe:ModifyShape,
+            sqe:MoveShape,
             sqe:ObjectOrVariableShape,
             sqe:OptionalShape,
             sqe:OrderByListShape,
@@ -12082,6 +12209,9 @@ starontology:sqe_shapes.ttl {
             sqe:PrefixBindingShape,
             sqe:ProjectionListShape,
             sqe:PrologueShape,
+            sqe:QuadGraphShape,
+            sqe:QuadListShape,
+            sqe:QuadTriplesListShape,
             sqe:QueryValuesShape,
             sqe:RowsListShape,
             sqe:SelectModifierShape,
@@ -12093,11 +12223,27 @@ starontology:sqe_shapes.ttl {
             sqe:TriplePatternShape,
             sqe:TripleTermShape,
             sqe:UnionShape,
+            sqe:UpdateOperationListShape,
+            sqe:UpdateOperationShape,
+            sqe:UpdateRequestShape,
             sqe:ValuesShape,
             sqe:VariableListShape,
             sqe:VariableOrIriListShape,
             sqe:WhereListShape ;
         owl:imports spexpr:ShapesGraph .
+
+    sqe:AddShape a sh:NodeShape ;
+        sh:property [ sh:maxCount 1 ;
+                sh:message "sqe:Add must have exactly one sqe:from, a sqe:GraphRef or sqe:DefaultGraph" ;
+                sh:minCount 1 ;
+                sh:node sqe:GraphOrDefaultShape ;
+                sh:path sqe:from ],
+            [ sh:maxCount 1 ;
+                sh:message "sqe:Add must have exactly one sqe:to, a sqe:GraphRef or sqe:DefaultGraph" ;
+                sh:minCount 1 ;
+                sh:node sqe:GraphOrDefaultShape ;
+                sh:path sqe:to ] ;
+        sh:targetClass sqe:Add .
 
     sqe:AliasShape a sh:NodeShape ;
         sh:property [ sh:maxCount 1 ;
@@ -12187,6 +12333,14 @@ starontology:sqe_shapes.ttl {
                 sh:node spexpr:VariableShape ;
                 sh:path sqe:var ] ;
         sh:targetClass sqe:Bind .
+
+    sqe:ClearShape a sh:NodeShape ;
+        sh:property [ sh:maxCount 1 ;
+                sh:message "sqe:Clear must have exactly one sqe:target, a graph reference" ;
+                sh:minCount 1 ;
+                sh:node sqe:AnyGraphRefShape ;
+                sh:path sqe:target ] ;
+        sh:targetClass sqe:Clear .
 
     sqe:ConstructQueryShape a sh:NodeShape ;
         sh:property [ sh:maxCount 1 ;
@@ -12297,6 +12451,27 @@ starontology:sqe_shapes.ttl {
         """ ] ;
         sh:targetClass sqe:ConstructQuery .
 
+    sqe:CopyShape a sh:NodeShape ;
+        sh:property [ sh:maxCount 1 ;
+                sh:message "sqe:Copy must have exactly one sqe:from, a sqe:GraphRef or sqe:DefaultGraph" ;
+                sh:minCount 1 ;
+                sh:node sqe:GraphOrDefaultShape ;
+                sh:path sqe:from ],
+            [ sh:maxCount 1 ;
+                sh:message "sqe:Copy must have exactly one sqe:to, a sqe:GraphRef or sqe:DefaultGraph" ;
+                sh:minCount 1 ;
+                sh:node sqe:GraphOrDefaultShape ;
+                sh:path sqe:to ] ;
+        sh:targetClass sqe:Copy .
+
+    sqe:CreateShape a sh:NodeShape ;
+        sh:property [ sh:class sqe:GraphRef ;
+                sh:maxCount 1 ;
+                sh:message "sqe:Create must have exactly one sqe:target, a sqe:GraphRef" ;
+                sh:minCount 1 ;
+                sh:path sqe:target ] ;
+        sh:targetClass sqe:Create .
+
     sqe:DatasetClauseShape a sh:NodeShape ;
         sh:property [ sh:maxCount 1 ;
                 sh:message "sqe:DatasetClause must have exactly one sqe:source, a graph IRI" ;
@@ -12318,6 +12493,63 @@ starontology:sqe_shapes.ttl {
             sqe:ConstructQuery,
             sqe:DescribeQuery,
             sqe:SelectQuery .
+
+    sqe:DeleteDataShape a sh:NodeShape ;
+        sh:property [ sh:maxCount 1 ;
+                sh:message "sqe:DeleteData must have exactly one sqe:quads, a well-formed quad list" ;
+                sh:minCount 1 ;
+                sh:node sqe:QuadListShape ;
+                sh:path sqe:quads ] ;
+        sh:sparql [ a sh:SPARQLConstraint ;
+                sh:message "Variables are not allowed in DELETE DATA." ;
+                sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
+            PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
+            SELECT $this
+            WHERE {
+                $this sqe:quads/(rdf:rest|rdf:first|sqe:triples|sqe:subject|sqe:predicate|sqe:object|sqe:graphName)* ?x .
+                ?x (sqe:subject|sqe:predicate|sqe:object|sqe:graphName) ?v .
+                FILTER ( isLiteral(?v) && datatype(?v) = spexpr:Variable )
+            }
+        """ ],
+            [ a sh:SPARQLConstraint ;
+                sh:message "Blank nodes are not allowed in DELETE DATA." ;
+                sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
+            PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
+            SELECT $this
+            WHERE {
+                $this sqe:quads/(rdf:rest|rdf:first|sqe:triples|sqe:subject|sqe:predicate|sqe:object)* ?x .
+                ?x (sqe:subject|sqe:predicate|sqe:object) ?v .
+                FILTER ( isBlank(?v) )
+                FILTER NOT EXISTS { ?v a sqe:TripleTerm }
+            }
+        """ ] ;
+        sh:targetClass sqe:DeleteData .
+
+    sqe:DeleteWhereShape a sh:NodeShape ;
+        sh:property [ sh:maxCount 1 ;
+                sh:message "sqe:DeleteWhere must have exactly one sqe:quads, a well-formed quad list" ;
+                sh:minCount 1 ;
+                sh:node sqe:QuadListShape ;
+                sh:path sqe:quads ] ;
+        sh:sparql [ a sh:SPARQLConstraint ;
+                sh:message "Blank nodes are not allowed in DELETE WHERE." ;
+                sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
+            PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
+            SELECT $this
+            WHERE {
+                $this sqe:quads/(rdf:rest|rdf:first|sqe:triples|sqe:subject|sqe:predicate|sqe:object)* ?x .
+                ?x (sqe:subject|sqe:predicate|sqe:object) ?v .
+                FILTER ( isBlank(?v) )
+                FILTER NOT EXISTS { ?v a sqe:TripleTerm }
+            }
+        """ ] ;
+        sh:targetClass sqe:DeleteWhere .
 
     sqe:DescribeQueryShape a sh:NodeShape ;
         sh:property [ sh:maxCount 1 ;
@@ -12358,6 +12590,14 @@ starontology:sqe_shapes.ttl {
         """ ] ;
         sh:targetClass sqe:DescribeQuery .
 
+    sqe:DropShape a sh:NodeShape ;
+        sh:property [ sh:maxCount 1 ;
+                sh:message "sqe:Drop must have exactly one sqe:target, a graph reference" ;
+                sh:minCount 1 ;
+                sh:node sqe:AnyGraphRefShape ;
+                sh:path sqe:target ] ;
+        sh:targetClass sqe:Drop .
+
     sqe:ExistsShape a sh:NodeShape ;
         sh:property [ sh:maxCount 1 ;
                 sh:message "sqe:Exists must have exactly one sqe:where, a well-formed pattern list" ;
@@ -12377,6 +12617,14 @@ starontology:sqe_shapes.ttl {
                 sh:node spexpr:ExpressionShape ;
                 sh:path sqe:expr ] ;
         sh:targetClass sqe:Filter .
+
+    sqe:GraphRefShape a sh:NodeShape ;
+        sh:property [ sh:maxCount 1 ;
+                sh:message "sqe:GraphRef must have exactly one sqe:graphIri, an IRI" ;
+                sh:minCount 1 ;
+                sh:nodeKind sh:IRI ;
+                sh:path sqe:graphIri ] ;
+        sh:targetClass sqe:GraphRef .
 
     sqe:GraphShape a sh:NodeShape ;
         sh:property [ sh:maxCount 1 ;
@@ -12404,6 +12652,39 @@ starontology:sqe_shapes.ttl {
             sqe:ConstructQuery,
             sqe:DescribeQuery .
 
+    sqe:InsertDataShape a sh:NodeShape ;
+        sh:property [ sh:maxCount 1 ;
+                sh:message "sqe:InsertData must have exactly one sqe:quads, a well-formed quad list" ;
+                sh:minCount 1 ;
+                sh:node sqe:QuadListShape ;
+                sh:path sqe:quads ] ;
+        sh:sparql [ a sh:SPARQLConstraint ;
+                sh:message "Variables are not allowed in INSERT DATA." ;
+                sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
+            PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
+            SELECT $this
+            WHERE {
+                $this sqe:quads/(rdf:rest|rdf:first|sqe:triples|sqe:subject|sqe:predicate|sqe:object|sqe:graphName)* ?x .
+                ?x (sqe:subject|sqe:predicate|sqe:object|sqe:graphName) ?v .
+                FILTER ( isLiteral(?v) && datatype(?v) = spexpr:Variable )
+            }
+        """ ] ;
+        sh:targetClass sqe:InsertData .
+
+    sqe:LoadShape a sh:NodeShape ;
+        sh:property [ sh:maxCount 1 ;
+                sh:message "sqe:Load must have exactly one sqe:loadFrom, an IRI" ;
+                sh:minCount 1 ;
+                sh:nodeKind sh:IRI ;
+                sh:path sqe:loadFrom ],
+            [ sh:class sqe:GraphRef ;
+                sh:maxCount 1 ;
+                sh:message "sqe:into must be a single sqe:GraphRef" ;
+                sh:path sqe:into ] ;
+        sh:targetClass sqe:Load .
+
     sqe:MinusShape a sh:NodeShape ;
         sh:property [ sh:maxCount 1 ;
                 sh:message "sqe:Minus must have exactly one sqe:where, a well-formed pattern list" ;
@@ -12411,6 +12692,70 @@ starontology:sqe_shapes.ttl {
                 sh:node sqe:WhereListShape ;
                 sh:path sqe:where ] ;
         sh:targetClass sqe:Minus .
+
+    sqe:ModifyShape a sh:NodeShape ;
+        sh:property [ sh:maxCount 1 ;
+                sh:message "sqe:with must be a single IRI" ;
+                sh:nodeKind sh:IRI ;
+                sh:path sqe:with ],
+            [ sh:maxCount 1 ;
+                sh:message "sqe:delete must be a single, well-formed quad list" ;
+                sh:node sqe:QuadListShape ;
+                sh:path sqe:delete ],
+            [ sh:maxCount 1 ;
+                sh:message "sqe:insert must be a single, well-formed quad list" ;
+                sh:node sqe:QuadListShape ;
+                sh:path sqe:insert ],
+            [ sh:maxCount 1 ;
+                sh:message "sqe:using must be a single, non-empty rdf:List of sqe:DatasetClause" ;
+                sh:node sqe:DatasetListShape ;
+                sh:path sqe:using ],
+            [ sh:maxCount 1 ;
+                sh:message "sqe:Modify must have exactly one sqe:where, a well-formed pattern list" ;
+                sh:minCount 1 ;
+                sh:node sqe:WhereListShape ;
+                sh:path sqe:where ] ;
+        sh:sparql [ a sh:SPARQLConstraint ;
+                sh:message "Blank nodes are not allowed in a DELETE template." ;
+                sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
+            PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
+            SELECT $this
+            WHERE {
+                $this sqe:delete/(rdf:rest|rdf:first|sqe:triples|sqe:subject|sqe:predicate|sqe:object)* ?x .
+                ?x (sqe:subject|sqe:predicate|sqe:object) ?v .
+                FILTER ( isBlank(?v) )
+                FILTER NOT EXISTS { ?v a sqe:TripleTerm }
+            }
+        """ ],
+            [ a sh:SPARQLConstraint ;
+                sh:message "A sqe:Modify needs a sqe:delete or a sqe:insert template." ;
+                sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
+            PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
+            SELECT $this
+            WHERE {
+                $this a sqe:Modify .
+                FILTER NOT EXISTS { $this sqe:delete ?d }
+                FILTER NOT EXISTS { $this sqe:insert ?i }
+            }
+        """ ] ;
+        sh:targetClass sqe:Modify .
+
+    sqe:MoveShape a sh:NodeShape ;
+        sh:property [ sh:maxCount 1 ;
+                sh:message "sqe:Move must have exactly one sqe:from, a sqe:GraphRef or sqe:DefaultGraph" ;
+                sh:minCount 1 ;
+                sh:node sqe:GraphOrDefaultShape ;
+                sh:path sqe:from ],
+            [ sh:maxCount 1 ;
+                sh:message "sqe:Move must have exactly one sqe:to, a sqe:GraphRef or sqe:DefaultGraph" ;
+                sh:minCount 1 ;
+                sh:node sqe:GraphOrDefaultShape ;
+                sh:path sqe:to ] ;
+        sh:targetClass sqe:Move .
 
     sqe:OptionalShape a sh:NodeShape ;
         sh:property [ sh:maxCount 1 ;
@@ -12455,6 +12800,19 @@ starontology:sqe_shapes.ttl {
                 sh:nodeKind sh:IRI ;
                 sh:path sqe:base ] ;
         sh:targetClass sqe:Query .
+
+    sqe:QuadGraphShape a sh:NodeShape ;
+        sh:property [ sh:maxCount 1 ;
+                sh:message "sqe:QuadGraph must have exactly one sqe:graphName, an IRI or variable" ;
+                sh:minCount 1 ;
+                sh:or ( [ sh:nodeKind sh:IRI ] spexpr:VariableShape ) ;
+                sh:path sqe:graphName ],
+            [ sh:maxCount 1 ;
+                sh:message "sqe:QuadGraph must have exactly one sqe:triples, a list of sqe:TriplePattern" ;
+                sh:minCount 1 ;
+                sh:node sqe:QuadTriplesListShape ;
+                sh:path sqe:triples ] ;
+        sh:targetClass sqe:QuadGraph .
 
     sqe:QueryValuesShape a sh:NodeShape ;
         sh:property [ sh:class sqe:Values ;
@@ -12696,6 +13054,35 @@ starontology:sqe_shapes.ttl {
                 sh:path sqe:alternatives ] ;
         sh:targetClass sqe:Union .
 
+    sqe:UpdateOperationShape a sh:NodeShape ;
+        sh:property [ sh:class sqe:PrefixBinding ;
+                sh:message "sqe:prologuePrefix must be a sqe:PrefixBinding node" ;
+                sh:path sqe:prologuePrefix ],
+            [ sh:maxCount 1 ;
+                sh:message "sqe:base must be a single IRI" ;
+                sh:nodeKind sh:IRI ;
+                sh:path sqe:base ],
+            [ sh:datatype xsd:boolean ;
+                sh:maxCount 1 ;
+                sh:message "sqe:silent must be a single xsd:boolean" ;
+                sh:path sqe:silent ] ;
+        sh:targetClass sqe:UpdateOperation .
+
+    sqe:UpdateRequestShape a sh:NodeShape ;
+        sh:property [ sh:maxCount 1 ;
+                sh:message "sqe:UpdateRequest must have exactly one sqe:operations, a well-formed rdf:List of update operations (rdf:nil for an empty request)" ;
+                sh:minCount 1 ;
+                sh:node sqe:UpdateOperationListShape ;
+                sh:path sqe:operations ],
+            [ sh:class sqe:PrefixBinding ;
+                sh:message "sqe:prologuePrefix must be a sqe:PrefixBinding node" ;
+                sh:path sqe:prologuePrefix ],
+            [ sh:maxCount 1 ;
+                sh:message "sqe:base must be a single IRI" ;
+                sh:nodeKind sh:IRI ;
+                sh:path sqe:base ] ;
+        sh:targetClass sqe:UpdateRequest .
+
     sqe:ValuesShape a sh:NodeShape ;
         sh:property [ sh:maxCount 1 ;
                 sh:message "sqe:Values must have exactly one sqe:vars, an rdf:List of variables" ;
@@ -12732,26 +13119,6 @@ starontology:sqe_shapes.ttl {
                             FILTER ( ?t IN ( sqe:TriplePattern, sqe:Optional, sqe:Union, sqe:Filter, sqe:Bind, sqe:Minus, sqe:Graph, sqe:Service, sqe:Values, sqe:SubSelect ) )
                         }
                     }
-                }
-            }
-        """ ] .
-
-    sqe:DatasetListShape a sh:NodeShape ;
-        sh:sparql [ a sh:SPARQLConstraint ;
-                sh:message "sqe:dataset must be a non-empty, well-formed rdf:List of sqe:DatasetClause" ;
-                sh:select """
-            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
-            SELECT $this
-            WHERE {
-                {
-                    FILTER ( $this = rdf:nil )
-                } UNION {
-                    FILTER ( $this != rdf:nil )
-                    FILTER NOT EXISTS { $this rdf:first ?head }
-                } UNION {
-                    $this rdf:rest*/rdf:first ?item .
-                    FILTER NOT EXISTS { ?item a sqe:DatasetClause }
                 }
             }
         """ ] .
@@ -12801,6 +13168,28 @@ starontology:sqe_shapes.ttl {
             }
         """ ] .
 
+    sqe:QuadTriplesListShape a sh:NodeShape ;
+        sh:sparql [ a sh:SPARQLConstraint ;
+                sh:message "expected a well-formed rdf:List of sqe:TriplePattern (rdf:nil for none)" ;
+                sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
+            PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
+            SELECT $this
+            WHERE {
+                {
+                    FILTER ( $this != rdf:nil )
+                    FILTER NOT EXISTS { $this rdf:first ?head }
+                } UNION {
+                    $this rdf:rest*/rdf:first ?item .
+                    FILTER NOT EXISTS {
+                        ?item a ?t .
+                        FILTER ( ?t IN ( sqe:TriplePattern ) )
+                    }
+                }
+            }
+        """ ] .
+
     sqe:RowsListShape a sh:NodeShape ;
         sh:sparql [ a sh:SPARQLConstraint ;
                 sh:message "sqe:rows must be a well-formed rdf:List of rdf:List rows" ;
@@ -12833,6 +13222,28 @@ starontology:sqe_shapes.ttl {
                 } UNION {
                     $this rdf:rest*/rdf:first ?item .
                     FILTER NOT EXISTS { ?item a sqe:TriplePattern }
+                }
+            }
+        """ ] .
+
+    sqe:UpdateOperationListShape a sh:NodeShape ;
+        sh:sparql [ a sh:SPARQLConstraint ;
+                sh:message "expected a well-formed rdf:List of update operations (rdf:nil for none)" ;
+                sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
+            PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
+            SELECT $this
+            WHERE {
+                {
+                    FILTER ( $this != rdf:nil )
+                    FILTER NOT EXISTS { $this rdf:first ?head }
+                } UNION {
+                    $this rdf:rest*/rdf:first ?item .
+                    FILTER NOT EXISTS {
+                        ?item a ?t .
+                        FILTER ( ?t IN ( sqe:InsertData, sqe:DeleteData, sqe:DeleteWhere, sqe:Modify, sqe:Load, sqe:Clear, sqe:Drop, sqe:Create, sqe:Add, sqe:Move, sqe:Copy ) )
+                    }
                 }
             }
         """ ] .
@@ -12872,6 +13283,29 @@ starontology:sqe_shapes.ttl {
                 } UNION {
                     $this rdf:rest*/rdf:first ?item .
                     FILTER ( !isIRI(?item) && !( isLiteral(?item) && datatype(?item) = spexpr:Variable ) )
+                }
+            }
+        """ ] .
+
+    sqe:AnyGraphRefShape a sh:NodeShape ;
+        sh:or ( [ sh:class sqe:GraphRef ] [ sh:class sqe:DefaultGraph ] [ sh:class sqe:NamedGraphs ] [ sh:class sqe:AllGraphs ] ) .
+
+    sqe:DatasetListShape a sh:NodeShape ;
+        sh:sparql [ a sh:SPARQLConstraint ;
+                sh:message "sqe:dataset must be a non-empty, well-formed rdf:List of sqe:DatasetClause" ;
+                sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
+            SELECT $this
+            WHERE {
+                {
+                    FILTER ( $this = rdf:nil )
+                } UNION {
+                    FILTER ( $this != rdf:nil )
+                    FILTER NOT EXISTS { $this rdf:first ?head }
+                } UNION {
+                    $this rdf:rest*/rdf:first ?item .
+                    FILTER NOT EXISTS { ?item a sqe:DatasetClause }
                 }
             }
         """ ] .
@@ -12920,6 +13354,31 @@ starontology:sqe_shapes.ttl {
 
     sqe:SubjectOrVariableShape a sh:NodeShape ;
         sh:or ( [ sh:nodeKind sh:IRI ] [ sh:nodeKind sh:BlankNode ] spexpr:VariableShape [ sh:class sqe:TripleTerm ] ) .
+
+    sqe:QuadListShape a sh:NodeShape ;
+        sh:sparql [ a sh:SPARQLConstraint ;
+                sh:message "expected a well-formed rdf:List of sqe:TriplePattern and sqe:QuadGraph (rdf:nil for none)" ;
+                sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
+            PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
+            SELECT $this
+            WHERE {
+                {
+                    FILTER ( $this != rdf:nil )
+                    FILTER NOT EXISTS { $this rdf:first ?head }
+                } UNION {
+                    $this rdf:rest*/rdf:first ?item .
+                    FILTER NOT EXISTS {
+                        ?item a ?t .
+                        FILTER ( ?t IN ( sqe:TriplePattern, sqe:QuadGraph ) )
+                    }
+                }
+            }
+        """ ] .
+
+    sqe:GraphOrDefaultShape a sh:NodeShape ;
+        sh:or ( [ sh:class sqe:GraphRef ] [ sh:class sqe:DefaultGraph ] ) .
 
     sqe:WhereListShape a sh:NodeShape ;
         sh:sparql [ a sh:SPARQLConstraint ;

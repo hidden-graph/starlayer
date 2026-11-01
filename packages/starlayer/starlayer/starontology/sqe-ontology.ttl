@@ -160,7 +160,120 @@ sqe:service a rdf:Property ;
     rdfs:domain sqe:Service .
 
 sqe:silent a rdf:Property ;
-    rdfs:domain sqe:Service .
+    rdfs:comment "true for SILENT, on a sqe:Service and on the update operations that take it (Load, Clear, Drop, Create, Add, Move, Copy); deliberately no rdfs:domain, which would give an update operation the wrong extra type under RDFS inference." .
 
 sqe:version a rdf:Property ;
     rdfs:comment "A VERSION \"x\" declaration of the query prologue (a plain string) on a query root; may repeat." .
+
+sqe:UpdateRequest a rdfs:Class ;
+    rdfs:comment "The root of an encoded SPARQL Update request. sqe:operations -> the rdf:List of operations in source order (empty for an empty request); a prologue written after the last operation is stored on the root (sqe:base, sqe:prologuePrefix, sqe:version)." .
+
+sqe:UpdateOperation a rdfs:Class ;
+    rdfs:comment "One operation of an update request. Carries the prologue (sqe:base, sqe:prologuePrefix, sqe:version) written in front of it; the prefixes of earlier operations stay in force for later ones." .
+
+sqe:operations a rdf:Property ;
+    rdfs:domain sqe:UpdateRequest .
+
+sqe:InsertData a rdfs:Class ;
+    rdfs:subClassOf sqe:UpdateOperation ;
+    rdfs:comment "INSERT DATA { ... } - sqe:quads the data. No variables." .
+
+sqe:DeleteData a rdfs:Class ;
+    rdfs:subClassOf sqe:UpdateOperation ;
+    rdfs:comment "DELETE DATA { ... } - sqe:quads the data. No variables and no blank nodes." .
+
+sqe:DeleteWhere a rdfs:Class ;
+    rdfs:subClassOf sqe:UpdateOperation ;
+    rdfs:comment "DELETE WHERE { ... } - sqe:quads the pattern (also the template). No blank nodes." .
+
+sqe:Modify a rdfs:Class ;
+    rdfs:subClassOf sqe:UpdateOperation ;
+    rdfs:comment "[WITH iri] ( DELETE {..} [INSERT {..}] | INSERT {..} ) [USING [NAMED] iri]* WHERE {..} - sqe:with, sqe:delete (no blank nodes), sqe:insert, sqe:using (rdf:List of sqe:DatasetClause), sqe:where." .
+
+sqe:Load a rdfs:Class ;
+    rdfs:subClassOf sqe:UpdateOperation ;
+    rdfs:comment "LOAD [SILENT] iri [INTO GRAPH iri] - sqe:loadFrom, optional sqe:into (a sqe:GraphRef; absent: the default graph), optional sqe:silent." .
+
+sqe:Clear a rdfs:Class ;
+    rdfs:subClassOf sqe:UpdateOperation ;
+    rdfs:comment "CLEAR [SILENT] (GRAPH iri | DEFAULT | NAMED | ALL) - sqe:target a graph reference." .
+
+sqe:Drop a rdfs:Class ;
+    rdfs:subClassOf sqe:UpdateOperation ;
+    rdfs:comment "DROP [SILENT] (GRAPH iri | DEFAULT | NAMED | ALL) - sqe:target a graph reference." .
+
+sqe:Create a rdfs:Class ;
+    rdfs:subClassOf sqe:UpdateOperation ;
+    rdfs:comment "CREATE [SILENT] GRAPH iri - sqe:target a sqe:GraphRef." .
+
+sqe:Add a rdfs:Class ;
+    rdfs:subClassOf sqe:UpdateOperation ;
+    rdfs:comment "ADD [SILENT] from TO to - sqe:from and sqe:to, each a sqe:GraphRef or sqe:DefaultGraph." .
+
+sqe:Move a rdfs:Class ;
+    rdfs:subClassOf sqe:UpdateOperation ;
+    rdfs:comment "MOVE [SILENT] from TO to - sqe:from and sqe:to, each a sqe:GraphRef or sqe:DefaultGraph." .
+
+sqe:Copy a rdfs:Class ;
+    rdfs:subClassOf sqe:UpdateOperation ;
+    rdfs:comment "COPY [SILENT] from TO to - sqe:from and sqe:to, each a sqe:GraphRef or sqe:DefaultGraph." .
+
+sqe:quads a rdf:Property ;
+    rdfs:comment "An rdf:List of sqe:TriplePattern (default graph) and sqe:QuadGraph, in written order: the quads of INSERT DATA, DELETE DATA and DELETE WHERE. Shared by three classes, so no rdfs:domain." .
+
+sqe:delete a rdf:Property ;
+    rdfs:domain sqe:Modify ;
+    rdfs:comment "The DELETE template of a Modify: an rdf:List of sqe:TriplePattern and sqe:QuadGraph (may be empty)." .
+
+sqe:insert a rdf:Property ;
+    rdfs:domain sqe:Modify ;
+    rdfs:comment "The INSERT template of a Modify: an rdf:List of sqe:TriplePattern and sqe:QuadGraph (may be empty)." .
+
+sqe:with a rdf:Property ;
+    rdfs:domain sqe:Modify ;
+    rdfs:comment "WITH iri of a Modify." .
+
+sqe:using a rdf:Property ;
+    rdfs:domain sqe:Modify ;
+    rdfs:comment "The USING / USING NAMED clauses of a Modify: an rdf:List of sqe:DatasetClause." .
+
+sqe:QuadGraph a rdfs:Class ;
+    rdfs:comment "GRAPH iri-or-variable { triples } inside a quad list - sqe:graphName, sqe:triples (an rdf:List of sqe:TriplePattern, may be empty)." .
+
+sqe:graphName a rdf:Property ;
+    rdfs:domain sqe:QuadGraph .
+
+sqe:triples a rdf:Property ;
+    rdfs:domain sqe:QuadGraph .
+
+sqe:loadFrom a rdf:Property ;
+    rdfs:domain sqe:Load ;
+    rdfs:comment "The IRI a LOAD reads." .
+
+sqe:into a rdf:Property ;
+    rdfs:domain sqe:Load ;
+    rdfs:comment "The graph a LOAD writes to: a sqe:GraphRef." .
+
+sqe:target a rdf:Property ;
+    rdfs:comment "The graph reference of CLEAR, DROP and CREATE. Shared, so no rdfs:domain." .
+
+sqe:from a rdf:Property ;
+    rdfs:comment "The source graph reference of ADD, MOVE and COPY. Shared, so no rdfs:domain." .
+
+sqe:to a rdf:Property ;
+    rdfs:comment "The destination graph reference of ADD, MOVE and COPY. Shared, so no rdfs:domain." .
+
+sqe:GraphRef a rdfs:Class ;
+    rdfs:comment "GRAPH iri as a graph reference of an update operation - sqe:graphIri." .
+
+sqe:graphIri a rdf:Property ;
+    rdfs:domain sqe:GraphRef .
+
+sqe:DefaultGraph a rdfs:Class ;
+    rdfs:comment "The graph reference DEFAULT (the default graph)." .
+
+sqe:NamedGraphs a rdfs:Class ;
+    rdfs:comment "The graph reference NAMED (all named graphs)." .
+
+sqe:AllGraphs a rdfs:Class ;
+    rdfs:comment "The graph reference ALL (the default graph and all named graphs)." .

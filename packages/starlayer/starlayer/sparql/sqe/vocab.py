@@ -94,7 +94,15 @@ Added with the StarLayer-owned parser (``parse_sparql.py``), additively:
 modifiers on ``ASK``/``CONSTRUCT``/``DESCRIBE`` (the 1.2 grammar allows them).
 Trees of queries that use none of these are unchanged.
 
-**Not covered:** SPARQL Update. Anything the tree cannot represent raises
+Update (``parse_sparql.parse_sparql_update``), additively: ``sqe:UpdateRequest`` (``sqe:operations``, an ordered list of
+``sqe:InsertData``/``DeleteData``/``DeleteWhere`` (``sqe:quads``: ``sqe:TriplePattern`` and ``sqe:QuadGraph`` in written
+order), ``sqe:Modify`` (``sqe:with``, ``sqe:delete``, ``sqe:insert``, ``sqe:using``, ``sqe:where``), ``sqe:Load``
+(``sqe:loadFrom``, ``sqe:into``), ``sqe:Clear``/``Drop``/``Create`` (``sqe:target``), ``sqe:Add``/``Move``/``Copy``
+(``sqe:from``, ``sqe:to``), ``sqe:silent``; graph references ``sqe:GraphRef`` (``sqe:graphIri``), ``sqe:DefaultGraph``,
+``sqe:NamedGraphs``, ``sqe:AllGraphs``). Each operation carries the prologue written in front of it.
+
+**Not covered:** executing an update through rdflib (``sqe_tree_to_query`` is for queries; run the text from
+``sqe_tree_to_text``). Anything the tree cannot represent raises
 ``NotImplementedError`` instead of being silently dropped. (The legacy path,
 ``sqe_parse_to_tree``, still reads queries through rdflib's parser and so
 still lacks DESCRIBE, FROM and SERVICE; ``parse_sparql.sparql_to_tree`` has them.)
@@ -196,3 +204,38 @@ PROLOGUE_PREFIX = SQE.prologuePrefix
 PREFIX_BINDING = SQE.PrefixBinding
 PREFIX_LABEL = SQE.prefixLabel
 PREFIX_NAMESPACE = SQE.namespace
+
+# --- SPARQL Update (parse_sparql.parse_sparql_update): additive; no query tree changes ------------------------
+UPDATE_REQUEST = SQE.UpdateRequest  # root of an update request: .operations, plus any trailing prologue
+UPDATE_OPERATION = SQE.UpdateOperation  # superclass of the operation classes below
+OPERATIONS = SQE.operations  # rdf:List of operations, in source order (the ';'-separated sequence)
+INSERT_DATA = SQE.InsertData  # INSERT DATA { quads }
+DELETE_DATA = SQE.DeleteData  # DELETE DATA { quads }
+DELETE_WHERE = SQE.DeleteWhere  # DELETE WHERE { quads }
+MODIFY = SQE.Modify  # [WITH iri] [DELETE {..}] [INSERT {..}] [USING ..]* WHERE {..}
+LOAD = SQE.Load  # LOAD [SILENT] <iri> [INTO GRAPH <iri>]
+CLEAR = SQE.Clear
+DROP = SQE.Drop
+CREATE = SQE.Create
+ADD = SQE.Add
+MOVE = SQE.Move
+COPY = SQE.Copy
+QUADS = SQE.quads  # rdf:List of sqe:TriplePattern (default graph) and sqe:QuadGraph, in written order
+QUAD_GRAPH = SQE.QuadGraph  # GRAPH <iri>|?v { triples } inside a quad list
+QUAD_GRAPH_NAME = SQE.graphName
+QUAD_TRIPLES = SQE.triples  # rdf:List of sqe:TriplePattern (may be empty)
+MODIFY_WITH = SQE["with"]  # the WITH graph IRI of a Modify
+MODIFY_DELETE = SQE.delete  # rdf:List of quads (a DELETE template); may be empty
+MODIFY_INSERT = SQE.insert  # rdf:List of quads (an INSERT template); may be empty
+MODIFY_USING = SQE.using  # rdf:List of sqe:DatasetClause (USING / USING NAMED)
+LOAD_FROM = SQE.loadFrom  # the IRI a LOAD reads
+LOAD_INTO = SQE.into  # the sqe:GraphRef a LOAD writes to (absent: the default graph)
+GRAPH_TARGET = SQE.target  # CLEAR / DROP / CREATE: a graph reference
+UPDATE_FROM = SQE["from"]  # ADD / MOVE / COPY source
+UPDATE_TO = SQE.to  # ADD / MOVE / COPY destination
+GRAPH_REF = SQE.GraphRef  # GRAPH <iri>: .graphIri
+GRAPH_REF_IRI = SQE.graphIri
+DEFAULT_GRAPH = SQE.DefaultGraph  # DEFAULT
+NAMED_GRAPHS = SQE.NamedGraphs  # NAMED (every named graph)
+ALL_GRAPHS = SQE.AllGraphs  # ALL
+# SILENT reuses SERVICE_SILENT (sqe:silent), NAMED in USING NAMED reuses DATASET_NAMED
