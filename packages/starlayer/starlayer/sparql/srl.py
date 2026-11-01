@@ -584,6 +584,9 @@ def parse_ruleset(text: str, base: str | None = None, *, validate: bool = True) 
     except Exception as exc:  # rdflib raises a bare Exception for an undeclared prefix
         raise SRLParseError(f"SRL: {exc}") from exc
     ruleset = _build_ruleset(_simplify_triple_term_expressions(resolved))
+    ruleset.prefixes.update(
+        {str(getattr(d, "prefix", None) or ""): str(prologue.absolutize(d["iri"])) for d in _list_field(root, "prologue") if d.name == "PrefixDecl"}
+    )
 
     issues = _check_ruleset(ruleset)
     if issues:
@@ -1005,7 +1008,7 @@ def resolve_imports(ruleset: srl_ast.RuleSet, loader, *, location: str | None = 
         return rules, data
 
     rules, data = _merge(ruleset, renamed=False)
-    return srl_ast.RuleSet(rules=rules, data=data, imports=[])
+    return srl_ast.RuleSet(rules=rules, data=data, imports=[], prefixes=dict(ruleset.prefixes))
 
 
 # ---------------------------------------------------------------------------
