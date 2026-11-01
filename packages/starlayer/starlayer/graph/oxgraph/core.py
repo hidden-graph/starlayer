@@ -454,7 +454,8 @@ class _Base:
 
         if not isinstance(prefix, str) or not _PN_PREFIX.fullmatch(prefix):
             raise ValueError(f"{prefix!r} is not a valid prefix name")
-        ns = namespace.value if isinstance(namespace, ox.NamedNode) else namespace
+        # rdflib's namespace classes (``OWL``, ``Namespace(...)``) are not all ``str`` but print as their IRI
+        ns = namespace.value if isinstance(namespace, ox.NamedNode) else (None if namespace is None else str(namespace))
         if not isinstance(ns, str) or not _ABSOLUTE_IRI.match(ns) or _IRI_BAD.search(ns):
             raise ValueError(f"{namespace!r} is not an absolute IRI, so it cannot be a namespace")
         if not override and prefix in self.prefixes:

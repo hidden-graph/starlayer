@@ -285,3 +285,15 @@ def test_encode_directions_only_rebuilds_quads_that_change():
     ltr = ox.Quad(A, P, ox.Literal("x", language="en", direction=ox.BaseDirection.LTR), D)
     out = interop.encode_directions([plain, ltr])
     assert out[0] is plain and out[1] != ltr and out[1].object.direction is None
+
+
+def test_bind_accepts_rdflib_namespace_classes():
+    from rdflib import OWL, Namespace
+
+    g = OxGraph()
+    for ns in (OWL, Namespace("http://example.org/"), Namespace(OWL)):
+        g.bind("x", ns)
+        assert g.prefixes["x"] == str(ns)
+    for bad in (None, "", "relative/ns"):
+        with pytest.raises(ValueError):
+            g.bind("x", bad)
