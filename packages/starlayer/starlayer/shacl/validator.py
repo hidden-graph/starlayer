@@ -9,6 +9,7 @@ from rdflib import BNode, Graph, Literal, Namespace, URIRef
 from rdflib.collection import Collection
 from rdflib.namespace import OWL, RDF, RDFS, NamespaceManager
 
+from starlayer._ox_out import ox_out
 from starlayer.shacl import native_adapter as _native_adapter
 from starlayer.shacl.adapters import TripleTermAdapter, TripleTermGraph, TripleTermValue
 from starlayer.shacl.engine import (
@@ -71,6 +72,7 @@ _STRUCTURAL_COMPONENTS: dict[str, Any] = {
 # Must run before apply_rules() wraps TripleRule.apply for rule_set filtering and sh:sourceRule provenance: installing it later
 # (from register_native_components) replaced the wrapped function and silently turned both features off (GitHub issue #104).
 install_triple_rule_patch()
+
 
 class _RawGraphView:
     """Minimal ``sg``-shaped wrapper exposing just ``.graph``, so
@@ -472,6 +474,7 @@ class StarShaclSchema:
         """Builds a ``sh:ValidationReport`` graph from component ``events``."""
         return native_build_report(events=events, graph_context=graph_context, options=options)
 
+    @ox_out("data_graph", "shacl_graph", "ont_graph", "data_graphs", owner_sources="_sources")
     def validate(
         self,
         data_graph: Any | None = None,
@@ -1044,6 +1047,7 @@ class StarShaclSchema:
             diagnostics=diagnostics,
         )
 
+    @ox_out("data_graph", "shacl_graph", "ont_graph", "data_graphs", owner_sources="_sources")
     def validate_each(
         self,
         data_graphs: Iterable[Any] | None = None,
@@ -1793,6 +1797,7 @@ class StarShaclSchema:
             return None
         return "disjoint", {"other_path": disjoint_values[0]}
 
+    @ox_out("data_graph", "shacl_graph", "ont_graph", "data_graphs", owner_sources="_sources")
     def apply_rules(
         self,
         data_graph: Any | None = None,
@@ -1851,6 +1856,7 @@ class StarShaclSchema:
             **kwargs,
         )
 
+    @ox_out("data_graph", "shacl_graph", "ont_graph", "data_graphs", owner_sources="_sources")
     def evaluate(
         self,
         data_graph: Any | None = None,
@@ -2131,6 +2137,7 @@ class StarShaclSchema:
             per=per,  # type: ignore[arg-type]
         )
 
+    @ox_out("data_graph", "shacl_graph", "ont_graph", "data_graphs", owner_sources="_sources")
     def close_shape(self, shape: Any, *, shapes_graph_resource: Any | None = None, engine: str | None = None) -> Any:
         """Returns a closed copy of ``shacl_graph``, closing ``shape`` and
         every shape it recursively references.
@@ -2177,6 +2184,7 @@ class StarShaclSchema:
             return _native_adapter.close_shape(shacl_graph_input, shape)
         return _close_shape(shacl_graph_input, shape)
 
+    @ox_out("data_graph", "shacl_graph", "ont_graph", "data_graphs", owner_sources="_sources")
     def extract_shapes_graph(
         self, shapes_graph_iri: Any, *, include_referenced: bool = False, engine: str | None = None
     ) -> Any | None:
@@ -3463,6 +3471,7 @@ def _resolve_structural_component_definition(shapes: Any, prop: Any) -> tuple[st
     return "disjoint", {"other_path": disjoint_values[0]}
 
 
+@ox_out("data_graph", "shacl_graph", "ont_graph", "data_graphs")
 def validate(
     data_graph: Any,
     shacl_graph: Any | None = None,
@@ -3928,6 +3937,7 @@ def validate(
     )
 
 
+@ox_out("data_graph", "shacl_graph", "ont_graph", "data_graphs")
 def validate_each(
     data_graphs: Iterable[Any],
     shacl_graph: Any | None = None,
@@ -3958,6 +3968,7 @@ def validate_each(
         return {i: validate(data_graph, shacl_graph, ont_graph, **kwargs) for i, data_graph in enumerate(data_graphs)}
 
 
+@ox_out("data_graph", "shacl_graph", "ont_graph", "data_graphs")
 def evaluate(
     data_graph: Any,
     shacl_graph: Any | None = None,
@@ -4168,6 +4179,7 @@ def _apply_rules_entailment(data_graph: Any, shacl_graph: Any, ont_graph: Any | 
     return target
 
 
+@ox_out("data_graph", "shacl_graph", "ont_graph", "data_graphs")
 def apply_rules(
     data_graph: Any,
     shacl_graph: Any | None = None,
@@ -4287,9 +4299,9 @@ def _apply_rules(
     ont_graph = _oxigraph_to_starlayer(ont_graph)
     if not _is_starlayer_graph(data_graph):
         raise TypeError(
-            "apply_rules() requires data_graph to be a StarLayerGraph, since rule "
-            f"execution needs RDF-1.2 triple-term support - got {type(data_graph).__name__}. "
-            "Convert first, e.g. StarLayerGraph.from_rdflib(data_graph)."
+            "apply_rules() requires data_graph to be an OxGraph / OxDataset / pyoxigraph Store or a StarLayerGraph, since "
+            f"rule execution needs RDF-1.2 triple-term support - got {type(data_graph).__name__}. "
+            "Convert first, e.g. OxGraph() filled with the triples, or StarLayerGraph.from_rdflib(data_graph)."
         )
     options = resolve_mode_options("rules", overrides=kwargs)
 

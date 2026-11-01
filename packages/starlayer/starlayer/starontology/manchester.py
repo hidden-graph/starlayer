@@ -105,11 +105,13 @@ from __future__ import annotations
 
 import warnings
 from collections import namedtuple
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from rdflib import BNode, Graph, Literal, Namespace, URIRef
 from rdflib.collection import Collection
 from rdflib.namespace import RDF, XSD
+
+from starlayer._ox_out import ox_out
 
 from . import get_ontology_graph
 
@@ -532,7 +534,7 @@ def _find_root(graph: Graph) -> BNode:
     return root
 
 
-def manchester_parse_to_tree(text: str, base: str | None = None) -> Graph:
+def manchester_parse_to_tree(text: str, base: str | None = None, graph: Any = None) -> Graph:
     """Parse Manchester Syntax text straight to its ``manch:``-encoded
     syntax tree.
 
@@ -545,10 +547,20 @@ def manchester_parse_to_tree(text: str, base: str | None = None) -> Graph:
     Args:
         text: The Manchester Syntax document text to parse.
         base: Base IRI for resolving relative IRIs, if any.
+        graph: Write the tree into this graph instead of a fresh one - an ``OxGraph`` (or ``OxDataset`` / ``pyoxigraph.Store``)
+            gets pyoxigraph terms and the ``manch:`` prefix; an rdflib graph gets rdflib terms. ``None`` (the default) builds
+            a fresh rdflib ``Graph``.
 
     Returns:
-        A fresh ``Graph`` holding exactly one ``manch:Document`` tree.
+        ``graph`` if given, otherwise a fresh ``Graph``, holding exactly one ``manch:Document`` tree.
     """
+    if graph is not None:
+        tree = manchester_parse_to_tree(text, base)
+        from starlayer.graph.oxgraph import _rdflib_bridge as _ox
+
+        graph.bind("manch", str(MANCH) if _ox.is_oxigraph_input(graph) else MANCH)
+        _ox.merge_into(graph, tree)
+        return graph
     from starlayer.graph.parsers.manchester_parser import (
         _Cursor,
         _tokenize,
@@ -1078,7 +1090,10 @@ def _document_to_text(document: Document) -> str:
 
 def manchester_tree_to_text(graph: Graph) -> str:
     """Thin wrapper composing ``_tree_to_document`` + ``_document_to_text``
-    for a caller who just wants text back."""
+    for a caller who just wants text back. ``graph`` may be an ``OxGraph`` (read as a snapshot)."""
+    from starlayer.graph.oxgraph import _rdflib_bridge as _ox
+
+    (graph,) = _ox.read_boundary(graph)
     root = _find_root(graph)
     try:
         return _document_to_text(_tree_to_document(graph, root))
@@ -1087,6 +1102,7 @@ def manchester_tree_to_text(graph: Graph) -> str:
         raise ManchesterSyntaxError('class expression nested too deeply to render', '', pos=0) from None
 
 
+@ox_out("graph")
 def manchester_tree_to_owl(graph: Graph) -> StarLayerGraph:
     """The tree's compiled OWL triples, as a real ``StarLayerGraph`` -
     renders the tree to Manchester text via ``manchester_tree_to_text()``,
@@ -1190,6 +1206,7 @@ def _known_classes() -> frozenset:
     )
 
 
+@ox_out("data_graph")
 def manchester_validate(data_graph: Graph) -> tuple[bool, Graph, str]:
     """Validate ``data_graph`` against the shapes in
     ``manchester_shapes.ttl``. Which shapes to check against is this
@@ -1232,7 +1249,9 @@ def manchester_validate(data_graph: Graph) -> tuple[bool, Graph, str]:
 
     import starlayer.shacl  # lazy: avoids a circular-import deadlock at module load time
     from starlayer.graph.graph.entailment_regimes import ENTAILMENT
+    from starlayer.graph.oxgraph import _rdflib_bridge as _ox
 
+    (data_graph,) = _ox.read_boundary(data_graph)  # an OxGraph is validated as a snapshot; the report comes back as an OxGraph
     problems = _preflight(data_graph)
     if any("cycle" in message for _, message in problems):
         # pySHACL cannot even load a graph with a cyclic list, so report without running it.

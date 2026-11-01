@@ -32,6 +32,7 @@ from typing import Any
 from rdflib import RDF, Graph, Literal, Namespace, URIRef
 from rdflib.namespace import OWL
 
+from starlayer._ox_out import ox_out
 from starlayer.shacl.recursion import MAX_VALIDATION_DEPTH
 
 SH = Namespace("http://www.w3.org/ns/shacl#")
@@ -219,6 +220,7 @@ def load_meta_shapes_graph(extra_graphs: Iterable[Any] = ()) -> Graph:
     return graph
 
 
+@ox_out("shapes_graph")
 def meta_validate(shapes_graph: Any, *, extra_graphs: Iterable[Any] = (), **kwargs: Any) -> tuple[bool, Any, str]:
     """Validate ``shapes_graph`` against the assembled meta-shapes graph
     (see ``load_meta_shapes_graph``), replacing starShacl's previous
@@ -230,7 +232,10 @@ def meta_validate(shapes_graph: Any, *, extra_graphs: Iterable[Any] = (), **kwar
     import pyshacl
     from pyshacl.errors import ReportableRuntimeError, ShapeRecursionWarning
 
+    from starlayer.graph.oxgraph._rdflib_bridge import read_boundary
     from starlayer.shacl.native_components import register_native_components
+
+    (shapes_graph,) = read_boundary(shapes_graph)  # an OxGraph is validated as a snapshot; the report comes back as an OxGraph
 
     # The Working Group's meta-shapes use SHACL 1.2 components (sh:memberShape) that pySHACL only knows once starlayer
     # has registered its native components. validate() does that on its first call; meta_validate() can be the first.

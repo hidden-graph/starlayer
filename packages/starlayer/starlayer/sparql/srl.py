@@ -134,6 +134,8 @@ from rdflib.plugins.sparql.parserutils import Comp, CompValue, Param
 from rdflib.plugins.sparql.pyparsing_compat import rest_of_line
 from rdflib.plugins.sparql.sparql import Prologue
 
+from starlayer._ox_out import ox_out
+
 from . import _srl_ast as srl_ast
 from ._srl_ast import (  # noqa: F401 - re-exported, see module docstring
     PlanEdge,
@@ -905,10 +907,11 @@ def _rule_text(rule: srl_ast._Rule, namespace_manager: NamespaceManager | None) 
 # srl_parse_to_tree()/srl_tree_to_text() naming.
 # ---------------------------------------------------------------------------
 
-def srl_parse_to_tree(text: str, base: str | None = None) -> tuple[Graph, BNode]:
+def srl_parse_to_tree(text: str, base: str | None = None, graph: Graph | None = None) -> tuple[Graph, BNode]:
     """SRL text straight to its ``srl:``-encoded tree-RDF. Composes
-    ``parse_ruleset`` + ``ruleset_to_tree``. Returns ``(graph, root)``."""
-    return ruleset_to_tree(parse_ruleset(text, base))
+    ``parse_ruleset`` + ``ruleset_to_tree``. Returns ``(graph, root)``; ``graph`` (an ``OxGraph``, which gives pyoxigraph terms,
+    or an rdflib graph) is where the tree is written, a fresh ``StarLayerGraph`` when omitted."""
+    return ruleset_to_tree(parse_ruleset(text, base), graph)
 
 
 def srl_tree_to_text(graph: Graph, root) -> str:
@@ -1072,6 +1075,7 @@ def _check_against_shapes(ruleset: srl_ast.RuleSet) -> None:
     raise SRLParseError(f"SRL: rule set does not conform to the srl: shapes: {detail}")
 
 
+@ox_out("data_graph")
 def srl_validate(data_graph: Graph) -> tuple[bool, Graph, str]:
     """Validate ``data_graph`` (e.g. straight out of ``srl_parse_to_tree()``,
     or an LLM-authored ``srl:`` graph not yet decoded) against the ``srl:``

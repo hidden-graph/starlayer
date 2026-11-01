@@ -138,6 +138,123 @@ def ox_graph_from(graph: Any) -> Any:
     return out
 
 
+def _used_namespace_prefixes(graph: Any, bound: dict[str, str]) -> dict[str, str]:
+    """The ``graph``'s (an rdflib graph's) prefixes whose namespace some IRI of its triples (subject, predicate, object or
+    literal datatype) lives in, and that are not already in ``bound`` by name or by namespace."""
+    candidates = {}
+    taken = set(bound.values())
+    for prefix, ns in graph.namespaces():
+        ns = str(ns)
+        if prefix and prefix not in bound and ns not in taken:
+            candidates.setdefault(ns, str(prefix))
+    if not candidates:
+        return {}
+    used: dict[str, str] = {}
+    seen: set[str] = set()
+
+    def visit(term: Any) -> None:
+        value = getattr(term, "datatype", None) if hasattr(term, "language") else term
+        text = str(value) if value is not None and type(value).__name__ in ("URIRef", "NamedNode") else None
+        if text is None or text in seen:
+            return
+        seen.add(text)
+        cut = max(text.rfind("#"), text.rfind("/")) + 1
+        ns = text[:cut]
+        if ns in candidates:
+            used[candidates[ns]] = ns
+
+    for s, p, o in graph:
+        visit(s)
+        visit(p)
+        visit(o)
+    return used
+
+
+def ox_result(graph: Any, *sources: Any) -> Any:
+    """An ``OxGraph`` holding the triples of ``graph`` (rdflib terms -> pyoxigraph terms): the result of a library function that
+    ran on rdflib code for an Oxigraph input. Its prefixes are those of the Oxigraph graphs in ``sources`` (the inputs) plus the
+    prefixes of ``graph`` that its IRIs actually use, never the 29 defaults an old-style ``StarLayerGraph`` binds. An ``OxGraph``
+    passes through unchanged."""
+    from starlayer.graph.oxgraph.core import OxGraph
+
+    if isinstance(graph, OxGraph):
+        return graph
+    prefixes: dict[str, str] = {}
+    for src in sources:
+        if is_oxigraph_input(src):
+            for prefix, ns in dict(getattr(src, "prefixes", {})).items():
+                prefixes.setdefault(prefix, ns)
+    prefixes.update(_used_namespace_prefixes(graph, prefixes))
+    out = OxGraph(prefixes=prefixes)
+    ident = getattr(graph, "identifier", None)
+    from rdflib import URIRef
+
+    if isinstance(ident, URIRef):
+        out = OxGraph(prefixes=prefixes, identifier=from_rdflib_term(ident))
+    copy_into(out, graph)
+    return out
+
+
+def convert_result(value: Any, *sources: Any) -> Any:
+    """``value`` (a graph, a result dataclass such as ``ValidationResult`` / ``RulesResult``, or a tuple / list / dict of those)
+    with every old-style graph in it replaced by an ``OxGraph`` (see ``ox_result``). Anything else is returned unchanged."""
+    import dataclasses
+
+    if isinstance(value, ox_types()):
+        return value
+    if hasattr(value, "namespaces") and hasattr(value, "triples") and hasattr(value, "add"):
+        return ox_result(value, *sources)
+    if dataclasses.is_dataclass(value) and not isinstance(value, type):
+        changes = {}
+        for f in dataclasses.fields(value):
+            if f.name == "data_graph":  # the caller's own object (inplace=True), never a copy
+                continue
+            old = getattr(value, f.name)
+            new = convert_result(old, *sources)
+            if new is not old:
+                changes[f.name] = new
+        return dataclasses.replace(value, **changes) if changes else value
+    if isinstance(value, dict):
+        return {k: convert_result(v, *sources) for k, v in value.items()}
+    if isinstance(value, tuple) and not hasattr(value, "_fields"):
+        return tuple(convert_result(v, *sources) for v in value)
+    return value
+
+
+def ox_types() -> tuple[type, ...]:
+    from starlayer.graph.oxgraph.core import OxDataset, OxGraph
+
+    return (OxGraph, OxDataset)
+
+
+def ox_in_ox_out(*graph_params: str, owner_sources: str | None = None) -> Any:
+    """Decorator: when any of the named graph parameters (or, for a method, any value of ``self.<owner_sources>``) is an
+    Oxigraph graph / dataset / store, the graphs in the result are returned as ``OxGraph`` (see ``convert_result``). With old-style
+    or rdflib inputs the result is untouched."""
+    import functools
+    import inspect
+
+    def decorate(fn: Any) -> Any:
+        sig = inspect.signature(fn)
+
+        @functools.wraps(fn)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            result = fn(*args, **kwargs)
+            bound = sig.bind_partial(*args, **kwargs).arguments
+            given = [bound.get(n) for n in graph_params]
+            if owner_sources and "self" in bound:
+                given += list(getattr(bound["self"], owner_sources).values())
+            flat: list[Any] = []
+            for g in given:
+                flat.extend(g if isinstance(g, (list, tuple)) else [g])
+            sources = [g for g in flat if g is not None and is_oxigraph_input(g)]
+            return convert_result(result, *sources) if sources else result
+
+        return wrapper
+
+    return decorate
+
+
 def copy_into(target: Any, triples: Iterable[tuple[Any, Any, Any]]) -> None:
     """Add rdflib-term triples to an ``OxGraph`` (its ``add`` converts lazily); one call, one transaction."""
     target.extend(list(triples))
