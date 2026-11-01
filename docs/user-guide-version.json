@@ -13,6 +13,7 @@
       "docs/guides/02a-graphs-datasets.ipynb",
       "docs/guides/02b-graphs-inferencing.ipynb",
       "docs/guides/02c-owl-dl-reasoning.ipynb",
+      "docs/guides/02d-oxigraph-wrapper.ipynb",
       "docs/guides/03-sparql.ipynb",
       "docs/guides/03a-sparql-entailment.ipynb",
       "docs/guides/03b-srl-sparql-rules.ipynb",

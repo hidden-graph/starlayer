@@ -81,6 +81,11 @@ OPT_IN_GROUPS = {
         "STARLAYER_SRL_CONFORMANCE",
         "also run the SRL (SPARQL Rules) completeness suite (tests/sparql/srl_conformance, ~10 min)",
     ),
+    "notebooks": (
+        "--notebooks",
+        "STARLAYER_NOTEBOOKS",
+        "also execute every guide notebook in docs/guides (needs nbclient and ipykernel; ~2 min)",
+    ),
     "sqe_coverage": (
         "--sqe-coverage",
         "STARLAYER_SQE_COVERAGE",

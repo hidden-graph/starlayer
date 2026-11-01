@@ -61,6 +61,8 @@ oxigraph = ["oxrdflib>=0.4", "pyoxigraph>=0.5.13"]
 hermit = ["owlready2>=0.51"]
 rustdl = ["rustdl>=0.4"]
 test = ["pytest>=8.0", "hypothesis>=6"]
+# Executes the guide notebooks (tests/notebooks, opt-in: pytest --notebooks).
+notebooks = ["nbclient>=0.10", "nbformat>=5", "ipykernel>=6"]
 # pytest-benchmark for benchmarks-graph/benchmarks-shacl's own test_bench_*.py
 # regression guards (outside `testpaths`, so a bare `pytest` never collects
 # them - see .github/workflows/benchmark.yml and each dir's own README).
@@ -104,6 +106,7 @@ markers = [
     "sqe_coverage: the sqe query-coverage set (each SPARQL feature round-tripped through sqe and compared with plain rdflib) - opt-in: pytest --sqe-coverage (or STARLAYER_SQE_COVERAGE=1, or -m sqe_coverage). See tests/conftest.py.",
     "codekg_queries: the code-KG query library run against the real code knowledge graph - opt-in: pytest --codekg-queries (or STARLAYER_CODEKG_QUERIES=1, or -m codekg_queries). See tests/conftest.py.",
     "manchester_conformance: completeness suite for the Manchester Syntax parser and manch: tree (tests/starontology/manchester_conformance). Opt-in: pytest --manchester-conformance (or STARLAYER_MANCHESTER_CONFORMANCE=1, or -m manchester_conformance). Runs from committed OWL API goldens; no JVM needed. See tests/conftest.py.",
+    "notebooks: executes every guide notebook in docs/guides and fails on any cell error except a missing optional package - opt-in: pytest --notebooks (or STARLAYER_NOTEBOOKS=1, or -m notebooks). Needs the `notebooks` extra. See tests/conftest.py and tests/notebooks.",
     "srl_conformance: completeness suite for the SRL (SPARQL Rules) parser, srl: tree and evaluator (tests/sparql/srl_conformance). Opt-in: pytest --srl-conformance (or STARLAYER_SRL_CONFORMANCE=1, or -m srl_conformance). About 10 minutes; no external tools. See tests/conftest.py.",
 ]
 
