@@ -47,9 +47,12 @@ import warnings
 
 from rdflib import Graph
 
+from starlayer._ox_out import ox_out
+
 from . import get_ontology_graph
 
 
+@ox_out("data_graph")
 def skos_validate(data_graph: Graph) -> tuple[bool, Graph, str]:
     """Validate ``data_graph`` against the shapes in ``skos_shapes.ttl``.
 

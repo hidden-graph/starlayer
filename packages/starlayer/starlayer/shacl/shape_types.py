@@ -52,8 +52,13 @@ def _copy(graph: Any) -> StarLayerGraph:
 def infer_types(shapes_graph: Any) -> StarLayerGraph:
     """The ``rdf:type`` triples ``shapes_graph``'s structure entails and it does not already state.
 
-    ``shapes_graph`` is read as data and left unchanged. Needs the optional ``owlrl`` dependency (for the RDFS step).
+    ``shapes_graph`` is read as data and left unchanged. Needs the optional ``owlrl`` dependency (for the RDFS step). An
+    ``OxGraph`` / ``OxDataset`` / ``pyoxigraph.Store`` in gives an ``OxGraph`` out; any other graph gives a ``StarLayerGraph``.
     """
+    from starlayer.graph.oxgraph import _rdflib_bridge as _ox
+
+    if _ox.is_oxigraph_input(shapes_graph):
+        return _ox.ox_result(infer_types(_ox.to_starlayer_graph(shapes_graph)), shapes_graph)
     from starlayer import starontology
     from starlayer.shacl.validator import apply_rules
 

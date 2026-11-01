@@ -51,16 +51,21 @@ def expression_shapes_turtle() -> str:
     )
 
 
-def shapes_graph() -> Graph:
+def shapes_graph(*, as_oxigraph: bool = False) -> Graph:
     """A fresh graph of the ``spexpr:`` shapes: the stored ``spexpr_shacl`` plus the generated per-builtin
-    shapes. Callers get their own copy, because pyshacl mutates a shapes graph while validating."""
+    shapes. Callers get their own copy, because pyshacl mutates a shapes graph while validating. ``as_oxigraph=True`` gives an
+    ``OxGraph`` (pyoxigraph terms) instead of an rdflib graph."""
     graph = Graph()
     graph.parse(data=expression_shapes_turtle(), format="turtle")
     _merge_into(graph, starontology.get_ontology_graph("spexpr_shacl"))
+    if as_oxigraph:
+        from starlayer.graph.oxgraph._rdflib_bridge import ox_result
+
+        return ox_result(graph)
     return graph
 
 
-def ontology_graph() -> Graph:
+def ontology_graph(*, as_oxigraph: bool = False) -> Graph:
     """A fresh graph of the ``spexpr:`` RDFS ontology (the subclass axioms behind ``sh:class spexpr:Expression``
-    and the variable and path classes)."""
-    return starontology.get_ontology_graph("spexpr_owl")
+    and the variable and path classes). ``as_oxigraph=True`` gives an ``OxGraph`` instead."""
+    return starontology.get_ontology_graph("spexpr_owl", as_oxigraph=as_oxigraph)

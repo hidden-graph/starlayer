@@ -608,7 +608,7 @@ def extract_subgraph(
             include_targets=include_targets,
             engine=engine,
         )
-        return _ox.ox_graph_from(extracted)
+        return _ox.ox_result(extracted, data_graph, shacl_graph, ont_graph)
     shape, focus_node = _ox.from_engine_if_ox(shape), _ox.from_engine_if_ox(focus_node)
     for argument, value in (("shape", shape), ("focus_node", focus_node)):
         if value is not None and not isinstance(value, Node):

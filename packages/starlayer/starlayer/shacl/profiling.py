@@ -100,7 +100,7 @@ WHERE {
 """
 
 
-def declared_conformance_profile() -> StarLayerGraph:
+def declared_conformance_profile(*, as_oxigraph: bool = False) -> StarLayerGraph:
     """A fresh copy of starlayer.shacl's self-declared SHACL 1.2
     conformance statement (S3) - the starlayer.shacl resource in the
     library's one conformance file. Parses the bundled asset fresh on every
@@ -114,7 +114,7 @@ def declared_conformance_profile() -> StarLayerGraph:
 
     Returns:
         A fresh StarLayerGraph containing the bundled conformance
-        statement.
+        statement; an ``OxGraph`` with ``as_oxigraph=True``.
     """
     from starlayer import starontology
     from starlayer.graph import (
@@ -127,6 +127,10 @@ def declared_conformance_profile() -> StarLayerGraph:
         graph.bind(prefix, namespace)
     for triple in whole.triples((_SHACL_SUBJECT, None, None)):
         graph.add(triple)
+    if as_oxigraph:
+        from starlayer.graph.oxgraph._rdflib_bridge import ox_result
+
+        return ox_result(graph)
     return graph
 
 
@@ -271,19 +275,19 @@ def derive_conforms_to(
         as_rdflib_graph,
         is_oxigraph_input,
         merge_into,
-        ox_graph_from,
+        ox_result,
     )
 
     # an OxGraph / OxDataset / Store argument is read as a snapshot of rdflib terms, and the result comes back as an OxGraph
     from_oxigraph = is_oxigraph_input(report_graph)
     if from_oxigraph:
-        return ox_graph_from(derive_conforms_to(
+        return ox_result(derive_conforms_to(
             as_rdflib_graph(report_graph),
             data_graph=_iri_text(data_graph),
             shapes_graph=_iri_text(shapes_graph),
             specification_graph=as_rdflib_graph(specification_graph) if specification_graph is not None else None,
             conforms_only=conforms_only,
-        ))
+        ), report_graph, specification_graph)
     if specification_graph is not None:
         specification_graph = as_rdflib_graph(specification_graph)
     report_graph = as_rdflib_graph(report_graph)

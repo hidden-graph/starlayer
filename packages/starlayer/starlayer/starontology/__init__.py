@@ -60,6 +60,12 @@ depending on `starlayer.graph`; that import stays lazy (deferred inside
 each loader function, not at module top level), matching every other
 cross-subpackage import in this stack.
 
+**Getting an `OxGraph` instead.** The getters take no graph, so they cannot follow
+the rule "an `OxGraph` in, an `OxGraph` out". ``get_ontology_graph(name, as_oxigraph=True)``
+and ``get_conformance_profiles(as_oxigraph=True)`` return a fresh `OxGraph` (pyoxigraph
+terms; only the prefixes the graph's IRIs use) instead; the default stays the
+`StarLayerGraph` described above.
+
 **Registry API.** One small registry: ``get_ontology_list()`` returns
 every entry's metadata, ``get_ontology_graph(name)`` loads one by name.
 Each entry's filename (``_FILENAME_BY_NAME``) is private internal
@@ -186,7 +192,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from rdflib import Graph, Namespace, URIRef
 
@@ -615,8 +621,17 @@ def get_ontology_list() -> tuple[OntologyInfo, ...]:
     )
 
 
-def get_ontology_graph(name: str) -> StarLayerGraph:
-    """A fresh ``StarLayerGraph`` of the named ontology/shapes file.
+def _as_oxigraph(graph: StarLayerGraph) -> Any:
+    """``graph`` as an ``OxGraph`` (pyoxigraph terms): only the prefixes its IRIs use, its identifier kept."""
+    from starlayer.graph.oxgraph._rdflib_bridge import ox_result
+
+    return ox_result(graph)
+
+
+def get_ontology_graph(name: str, *, as_oxigraph: bool = False) -> StarLayerGraph:
+    """A fresh ``StarLayerGraph`` of the named ontology/shapes file, or, with ``as_oxigraph=True``, a fresh ``OxGraph``
+    (pyoxigraph terms; only the prefixes the graph's IRIs use). The getters take no graph, so the caller says which class it
+    wants; the default stays the ``StarLayerGraph`` it has always been.
 
     Raises ``KeyError`` (naming every valid choice) for an unknown name,
     rather than returning ``None`` - a typo'd name should fail loudly at
@@ -627,7 +642,8 @@ def get_ontology_graph(name: str) -> StarLayerGraph:
         _info, loader = _REGISTRY[name]
     except KeyError:
         raise KeyError(f"{name!r} is not a registered ontology - choices are {sorted(_REGISTRY)}") from None
-    return loader()
+    graph = loader()
+    return _as_oxigraph(graph) if as_oxigraph else graph
 
 
 # Every registered shapes entry that has a paired ontology/syntax-tree entry it
@@ -747,7 +763,7 @@ def get_raw_url(name: str) -> str | None:
     return _GITHUB_RAW_BASE + filename
 
 
-def get_conformance_profiles(url: str | None = None) -> StarLayerGraph:
+def get_conformance_profiles(url: str | None = None, *, as_oxigraph: bool = False) -> StarLayerGraph:
     """StarLayer's profiles and its conformance declaration, as one real
     persisted document (``starlayer-profiles.ttl``) - not synthesized from this module's own
     registry on the fly.
@@ -786,6 +802,8 @@ def get_conformance_profiles(url: str | None = None) -> StarLayerGraph:
     mutable graph object across callers" convention (see
     ``starlayer.shacl.profiling.declared_conformance_profile()``).
 
+    ``as_oxigraph=True`` returns an ``OxGraph`` (pyoxigraph terms, only the prefixes its IRIs use) instead.
+
     Returns a ``StarLayerGraph``, matching this module's own
     ``get_ontology_graph()``/``_load()`` convention. This matters because
     ``.serialize(format="turtle12")`` is handled by
@@ -801,12 +819,12 @@ def get_conformance_profiles(url: str | None = None) -> StarLayerGraph:
     if url is not None:
         graph = StarLayerGraph()
         graph.parse(url, format="turtle")
-        return graph
+        return _as_oxigraph(graph) if as_oxigraph else graph
     g = StarLayerGraph()
     _bind_dataset_namespaces(g)
     for triple in _named_graph(URIRef(_GITHUB_BLOB_BASE + _PROFILES_FILENAME)):
         g.add(triple)
-    return g
+    return _as_oxigraph(g) if as_oxigraph else g
 
 
 # get_profile_graph() (a per-entry filter over get_conformance_profiles())

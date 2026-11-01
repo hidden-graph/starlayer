@@ -152,6 +152,10 @@ def query_to_rdf(query: Query, graph: Graph | None = None) -> tuple[Graph, BNode
     """
     if getattr(query, "algebra", None) is None:
         raise TypeError(f"query must be a prepared rdflib Query (see prepareQuery), not {type(query).__name__}")
+    from starlayer.graph.oxgraph import _rdflib_bridge as _ox
+
+    if graph is not None and _ox.is_oxigraph_input(graph):  # an OxGraph target: encode on rdflib terms, then add them to it
+        return _ox.write_boundary(graph, lambda g: query_to_rdf(query, g))
     if graph is None:
         graph = _new_starlayer_graph()
     root = _encode(query.algebra, graph)
@@ -185,6 +189,10 @@ def update_to_rdf(update: Update, graph: Graph | None = None) -> tuple[Graph, BN
     """
     if getattr(update, "algebra", None) is None:
         raise TypeError(f"update must be a prepared rdflib Update (see prepareUpdate), not {type(update).__name__}")
+    from starlayer.graph.oxgraph import _rdflib_bridge as _ox
+
+    if graph is not None and _ox.is_oxigraph_input(graph):  # an OxGraph target: encode on rdflib terms, then add them to it
+        return _ox.write_boundary(graph, lambda g: update_to_rdf(update, g))
     if graph is None:
         graph = _new_starlayer_graph()
     op_nodes = []

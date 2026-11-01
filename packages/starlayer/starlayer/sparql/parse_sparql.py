@@ -2083,6 +2083,11 @@ def ast_to_tree(q: Node, graph: Graph | None = None, root=None, *, triple_order=
     Raises:
         SparqlSyntaxError: The query is nested too deeply to encode within the Python stack.
     """
+    if graph is not None:
+        from starlayer.graph.oxgraph import _rdflib_bridge as _ox
+
+        if _ox.is_oxigraph_input(graph):  # an OxGraph target: encode on rdflib terms, then add them to it; root is pyoxigraph
+            return _ox.write_boundary(graph, lambda g, r: ast_to_tree(q, g, r, triple_order=triple_order), root)
     if graph is None and root is None:  # a retry must start from a fresh graph, so only then is one safe
         try:
             return run_with_deeper_stack(_ast_to_tree, q, graph, root, triple_order)

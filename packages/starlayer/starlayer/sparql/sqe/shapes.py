@@ -21,6 +21,7 @@ import warnings
 from rdflib import Graph
 
 from starlayer import starontology
+from starlayer._ox_out import ox_out
 
 SHAPES_TURTLE = starontology.get_ontology_graph("sqe_shacl").serialize(format="turtle12")
 
@@ -53,6 +54,7 @@ def _ontology_graph() -> Graph:
     return g
 
 
+@ox_out("data_graph")
 def sqe_validate(data_graph: Graph) -> tuple[bool, Graph, str]:
     """Validate ``data_graph`` (e.g. from ``to_rdf.sqe_parse_to_tree``, or
     an LLM-/UI-authored ``sqe:`` graph not yet decoded) against the shapes
