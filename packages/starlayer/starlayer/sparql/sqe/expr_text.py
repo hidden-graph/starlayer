@@ -15,6 +15,9 @@ from rdflib.namespace import RDF
 from ..serialize12 import _dirlang_n3
 from ..vocab import PY_STR_DATATYPE, VARIABLE_DATATYPE
 from .vocab import NEGATED, TRIPLE_TERM, WHERE
+from .vocab import TRIPLE_PATTERN_OBJECT as SQE_OBJECT
+from .vocab import TRIPLE_PATTERN_PREDICATE as SQE_PREDICATE
+from .vocab import TRIPLE_PATTERN_SUBJECT as SQE_SUBJECT
 
 _COMPOUND = {
     "ConditionalOrExpression",
@@ -79,6 +82,24 @@ def _abbreviate(iri: str, prefixes: dict) -> str:
     return f"<{iri}>"
 
 
+def _is_literal_triple_term(node, graph) -> bool:
+    """True when the triple-term node can be written as ``<<( s p o )>>`` in an expression: the subject a variable or
+    IRI, the predicate a variable or IRI, the object a variable, IRI, literal or (recursively) such a triple term."""
+
+    def simple(term) -> bool:
+        return isinstance(term, URIRef) or (isinstance(term, Literal) and term.datatype == VARIABLE_DATATYPE)
+
+    def ok(n) -> bool:
+        s, p, o = (graph.value(n, v) for v in (SQE_SUBJECT, SQE_PREDICATE, SQE_OBJECT))
+        if not (simple(s) and simple(p)):
+            return False
+        if isinstance(o, Literal) or isinstance(o, URIRef):
+            return True
+        return isinstance(o, BNode) and (o, RDF.type, TRIPLE_TERM) in graph and ok(o)
+
+    return ok(node)
+
+
 def term_text(node, graph, prefixes: dict) -> str:
     """A pattern/expression term: variable, IRI, literal, blank node or triple term."""
     return expr_text(node, graph, prefixes)
@@ -131,11 +152,11 @@ def expr_text(node, graph, prefixes: dict | None = None) -> str:
 
     if (node, RDF.type, TRIPLE_TERM) in graph:
         parts = [expr_text(props[k], graph, prefixes) for k in ("subject", "predicate", "object")]
-        computed = any(
-            isinstance(props[k], BNode) and _type_names(props[k], graph) - {"Resource", "TripleTerm"}
-            for k in ("subject", "predicate", "object")
-        )
-        if computed:  # a component is an expression, so this is the TRIPLE() function, not a literal term
+        computed = not _is_literal_triple_term(node, graph)
+        # TRIPLE() takes arbitrary expressions; the tree node is the same as for a literal term, so the renderer picks
+        # the literal form only when every component is writable in it (ExprTripleTerm: no literal subject or
+        # predicate, no nested triple term as subject)
+        if computed:
             return "TRIPLE(" + ", ".join(parts) + ")"
         return "<<( " + " ".join(parts) + " )>>"
 
@@ -167,7 +188,15 @@ def expr_text(node, graph, prefixes: dict | None = None) -> str:
             text += f" {op} {_wrapped(other, graph, prefixes)}"
         return text
     if "UnaryNot" in names:
-        return "!" + sub("expr")
+        # '!' takes a UnaryExpression, so a chain '!!!x' needs no parentheses (they would double the nesting depth);
+        # the chain is walked in a loop so its length costs no stack
+        bangs, operand = "!", props["expr"]
+        while isinstance(operand, BNode) and "UnaryNot" in _type_names(operand, graph):
+            bangs += "!"
+            operand = _props(operand, graph)["expr"]
+        if isinstance(operand, BNode) and _type_names(operand, graph) & {"UnaryMinus", "UnaryPlus"}:
+            return bangs + expr_text(operand, graph, prefixes)
+        return bangs + _wrapped(operand, graph, prefixes)
     if "UnaryMinus" in names:
         return "-" + sub("expr")
     if "UnaryPlus" in names:
