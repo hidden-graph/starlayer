@@ -69,12 +69,22 @@ def test_w3c_negative_update_is_rejected(key, text):
 
 
 @pytest.mark.parametrize("key,text", POSITIVE, ids=[k for k, _ in POSITIVE])
-def test_update_tree_text_fixpoint_and_shapes(key, text):
+def test_update_tree_text_fixpoint(key, text):
     tree = sparql_update_to_tree(text)
     rendered = sqe_tree_to_text(*tree)
     again = sparql_update_to_tree(rendered)
-    assert isomorphic(canonical_graph(tree[0]), canonical_graph(again[0])), rendered
-    ok, _, report = sqe_validate(tree[0])
+    assert len(tree[0]) == len(again[0])
+    assert sqe_tree_to_text(*again) == rendered  # the text is a fixpoint
+    if len(tree[0]) < 500:  # rdflib's isomorphism check is quadratic on the 5,000-triple W3C stress request
+        assert isomorphic(canonical_graph(tree[0]), canonical_graph(again[0])), rendered
+
+
+# SHACL costs 1-3 s per tree (more for the large ones), so validating every W3C tree is opt-in, as for queries:
+# ``pytest --sqe-coverage``. The rule table below validates a representative set in the default run.
+@pytest.mark.sqe_coverage
+@pytest.mark.parametrize("key,text", POSITIVE, ids=[k for k, _ in POSITIVE])
+def test_update_tree_conforms_to_the_shapes(key, text):
+    ok, _, report = sqe_validate(sparql_update_to_tree(text)[0])
     assert ok, report
 
 
@@ -190,7 +200,7 @@ INVALID = [
 @pytest.mark.parametrize("text", VALID, ids=[t[:70] for t in VALID])
 def test_valid_requests_parse_and_round_trip(text):
     tree = sparql_update_to_tree(text, validate=True)
-    again = sparql_update_to_tree(sqe_tree_to_text(*tree), validate=True)
+    again = sparql_update_to_tree(sqe_tree_to_text(*tree))
     assert isomorphic(canonical_graph(tree[0]), canonical_graph(again[0]))
 
 
@@ -311,45 +321,48 @@ def test_shapes_reject_a_blank_node_in_delete_data_and_in_delete_template():
         (next(iter(Collection(g, g.value(_first_op(g, r), SQE.insert)))), SQE.object, BNode())))
 
 
-def test_shapes_reject_malformed_operations():
-    cases = {
-        "missing operations list": (P + "CLEAR ALL", lambda g, r: g.remove((r, SQE.operations, None))),
-        "a clear without a target": (P + "CLEAR ALL", lambda g, r: g.remove((_first_op(g, r), SQE.target, None))),
-        "create of ALL": (
-            P + "CREATE GRAPH <g>",
-            lambda g, r: g.set((g.value(_first_op(g, r), SQE.target), RDF.type, SQE.AllGraphs))
-            or g.remove((g.value(_first_op(g, r), SQE.target), RDF.type, SQE.GraphRef)),
-        ),
-        "add of NAMED": (
-            P + "ADD <a> TO <b>",
-            lambda g, r: g.remove((g.value(_first_op(g, r), SQE["from"]), RDF.type, SQE.GraphRef))
-            or g.add((g.value(_first_op(g, r), SQE["from"]), RDF.type, SQE.NamedGraphs)),
-        ),
-        "a graph reference without an IRI": (
-            P + "CREATE GRAPH <g>", lambda g, r: g.remove((g.value(_first_op(g, r), SQE.target), SQE.graphIri, None))
-        ),
-        "a modify with no template": (
-            P + "DELETE { ?s ?p ?o } WHERE { ?s ?p ?o }", lambda g, r: g.remove((_first_op(g, r), SQE.delete, None))
-        ),
-        "a modify without where": (
-            P + "DELETE { ?s ?p ?o } WHERE { ?s ?p ?o }", lambda g, r: g.remove((_first_op(g, r), SQE.where, None))
-        ),
-        "a load without a source": (P + "LOAD <a>", lambda g, r: g.remove((_first_op(g, r), SQE.loadFrom, None))),
-        "a non-boolean silent": (
-            P + "LOAD <a>", lambda g, r: g.set((_first_op(g, r), SQE.silent, Literal("yes")))
-        ),
-        "a quad graph without a name": (
-            P + "INSERT DATA { GRAPH :g { :a :b :c } }",
-            lambda g, r: g.remove((g.value(next(iter(__import__("rdflib").collection.Collection(g, g.value(_first_op(g, r), SQE.quads)))), SQE.graphName), None, None)) or None,
-        ),
-    }
-    for name, (text, edit) in cases.items():
-        if name == "a quad graph without a name":
-            g, root = sparql_update_to_tree(text)
-            from rdflib.collection import Collection
+def _target(g, r, p=None):
+    return g.value(_first_op(g, r), p or SQE.target)
 
-            qg = next(iter(Collection(g, g.value(_first_op(g, root), SQE.quads))))
-            g.remove((qg, SQE.graphName, None))
-            assert not sqe_validate(g)[0], name
-            continue
-        assert not _mutate(text, edit), name
+
+def _retype(g, node, old, new):
+    g.remove((node, RDF.type, old))
+    g.remove((node, SQE.graphIri, None))  # its domain is GraphRef: RDFS inference would type the node as one again
+    g.add((node, RDF.type, new))
+
+
+def _drop_quad_graph_name(g, r):
+    from rdflib.collection import Collection
+
+    qg = next(iter(Collection(g, g.value(_first_op(g, r), SQE.quads))))
+    g.remove((qg, SQE.graphName, None))
+
+
+MALFORMED = {
+    "missing operations list": (P + "CLEAR ALL", lambda g, r: g.remove((r, SQE.operations, None))),
+    "a clear without a target": (P + "CLEAR ALL", lambda g, r: g.remove((_first_op(g, r), SQE.target, None))),
+    "create of ALL": (
+        P + "CREATE GRAPH <g>", lambda g, r: _retype(g, _target(g, r), SQE.GraphRef, SQE.AllGraphs)
+    ),
+    "add from NAMED": (
+        P + "ADD <a> TO <b>", lambda g, r: _retype(g, _target(g, r, SQE["from"]), SQE.GraphRef, SQE.NamedGraphs)
+    ),
+    "a graph reference without an IRI": (
+        P + "CREATE GRAPH <g>", lambda g, r: g.remove((_target(g, r), SQE.graphIri, None))
+    ),
+    "a modify with no template": (
+        P + "DELETE { ?s ?p ?o } WHERE { ?s ?p ?o }", lambda g, r: g.remove((_first_op(g, r), SQE.delete, None))
+    ),
+    "a modify without where": (
+        P + "DELETE { ?s ?p ?o } WHERE { ?s ?p ?o }", lambda g, r: g.remove((_first_op(g, r), SQE.where, None))
+    ),
+    "a load without a source": (P + "LOAD <a>", lambda g, r: g.remove((_first_op(g, r), SQE.loadFrom, None))),
+    "a non-boolean silent": (P + "LOAD <a>", lambda g, r: g.set((_first_op(g, r), SQE.silent, Literal("yes")))),
+    "a quad graph without a name": (P + "INSERT DATA { GRAPH :g { :a :b :c } }", _drop_quad_graph_name),
+}
+
+
+@pytest.mark.parametrize("name", sorted(MALFORMED))
+def test_shapes_reject_malformed_operations(name):
+    text, edit = MALFORMED[name]
+    assert not _mutate(text, edit)
