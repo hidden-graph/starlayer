@@ -8,7 +8,7 @@ from rdflib import Dataset, Graph
 def normalize_to_starlayer_graph(value: Any, *, name: str, force_default_union: bool = False) -> Any:
     """Normalize input graph to StarLayerGraph.
 
-    A plain rdflib.Graph is always converted. Existing StarLayerGraph
+    A plain rdflib.Graph, an OxGraph / OxDataset or a bare pyoxigraph Store is always converted (to a snapshot copy). Existing StarLayerGraph
     instances are returned as-is.
 
     Args:
@@ -45,6 +45,15 @@ def normalize_to_starlayer_graph(value: Any, *, name: str, force_default_union: 
 
     if isinstance(value, StarLayerGraph):
         return value
+
+    from starlayer.graph.oxgraph._rdflib_bridge import (
+        is_oxigraph_input,
+        to_starlayer_graph,
+    )
+
+    if is_oxigraph_input(value):
+        # an OxGraph / OxDataset / pyoxigraph Store: the rdflib-based machinery runs on a snapshot copy
+        return to_starlayer_graph(value)
 
     if isinstance(value, Graph):
         if force_default_union and isinstance(value, Dataset):

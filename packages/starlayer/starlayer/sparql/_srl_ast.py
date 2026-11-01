@@ -419,8 +419,11 @@ class RuleSet:
             triples plus a validation of them), reused rather than
             duplicated.
         """
+        from starlayer.graph.oxgraph import _rdflib_bridge as _ox
+
         from . import srl_eval
 
+        from_oxigraph = _ox.is_oxigraph_input(base_graph)  # evaluated on a snapshot of rdflib terms; the result comes back as an OxGraph
         base_graph = srl_eval.flatten_dataset(base_graph)
         if inference is not None:
             base_graph = base_graph.infer(entailment=inference, mode="full")
@@ -428,7 +431,7 @@ class RuleSet:
         inferred = srl_eval._srl_infer(base_graph, self._with_imports_resolved(imports_loader))
 
         if schema is None:
-            return inferred
+            return _ox.ox_graph_from(inferred) if from_oxigraph else inferred
 
         from starlayer.shacl import RulesResult, StarShaclSchema
 
@@ -441,7 +444,7 @@ class RuleSet:
         for triple in inferred:
             evaluation.add(triple)
         validation = resolved_schema.validate(data_graph=evaluation)
-        return RulesResult(inferred_graph=inferred, validation=validation)
+        return RulesResult(inferred_graph=_ox.ox_graph_from(inferred) if from_oxigraph else inferred, validation=validation)
 
     def query(
         self,
@@ -468,10 +471,16 @@ class RuleSet:
         Returns:
             One ``dict[Variable, term]`` solution per match.
         """
+        from starlayer.graph.oxgraph import _rdflib_bridge as _ox
+
         from . import srl_eval
 
+        from_oxigraph = _ox.is_oxigraph_input(base_graph)
         base_graph = srl_eval.flatten_dataset(base_graph)
         if inference is not None:
             base_graph = base_graph.infer(entailment=inference, mode="full")
 
-        return srl_eval._srl_query(base_graph, self._with_imports_resolved(imports_loader), goal_pattern)
+        rows = srl_eval._srl_query(base_graph, self._with_imports_resolved(imports_loader), goal_pattern)
+        if from_oxigraph:  # the solutions hold pyoxigraph terms, as the wrapper's own query results do
+            rows = [{var: _ox.from_rdflib_term(value) for var, value in row.items()} for row in rows]
+        return rows

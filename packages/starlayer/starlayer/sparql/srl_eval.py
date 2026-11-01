@@ -664,15 +664,18 @@ def _eval_rule(rule: srl_ast._Rule, g: Graph, gd: Graph) -> set[tuple]:
 # ---------------------------------------------------------------------------
 
 
+# SRL evaluates with rdflib's SPARQL engine, so it needs the rdflib-based graph class (the only one that holds triple terms
+# there), named by its module and not by ``starlayer.graph.StarLayerGraph``, which is to become the Oxigraph wrapper. An
+# OxGraph / OxDataset argument is converted at the boundary (``flatten_dataset``).
 def _is_starlayer_graph(graph) -> bool:
-    from starlayer.graph import StarLayerGraph
+    from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 
     return isinstance(graph, StarLayerGraph)
 
 
 def _new_graph(use_starlayer: bool):
     if use_starlayer:
-        from starlayer.graph import StarLayerGraph
+        from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 
         return StarLayerGraph()
     return Graph()
@@ -688,9 +691,13 @@ def flatten_dataset(graph):
     dataset is a union (``default_union`` / ``ConjunctiveGraph``). Any other graph is returned unchanged."""
     from rdflib import ConjunctiveGraph, Dataset
 
+    from starlayer.graph.oxgraph import _rdflib_bridge as _ox
+
+    if _ox.is_oxigraph_input(graph):  # an OxGraph / OxDataset / Store: evaluate on a snapshot of rdflib terms
+        return _ox.to_starlayer_graph(graph)
     if not isinstance(graph, (Dataset, ConjunctiveGraph)):
         return graph
-    from starlayer.graph import StarLayerDataset
+    from starlayer.graph.graph.starlayer_dataset import StarLayerDataset
 
     flat = _new_graph(isinstance(graph, StarLayerDataset))
     for triple in graph.triples((None, None, None)):

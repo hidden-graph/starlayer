@@ -21,6 +21,13 @@ from starlayer import starontology
 from .expr_families import _EXPR_NODE_FAMILY
 
 
+def _merge_into(dst, src):
+    """``dst += src`` for graphs of either kind (the ontology loaders return whatever class ``StarLayerGraph`` is)."""
+    from starlayer.graph.oxgraph._rdflib_bridge import merge_into
+
+    merge_into(dst, src)
+
+
 def expression_shapes_turtle() -> str:
     """The short per-expression-node-name declarations (one per real builtin), each pointing at its family's
     reusable body shape (``spexpr:_<Family>ExprBodyShape``) with ``sh:node``.
@@ -49,7 +56,7 @@ def shapes_graph() -> Graph:
     shapes. Callers get their own copy, because pyshacl mutates a shapes graph while validating."""
     graph = Graph()
     graph.parse(data=expression_shapes_turtle(), format="turtle")
-    graph += starontology.get_ontology_graph("spexpr_shacl")
+    _merge_into(graph, starontology.get_ontology_graph("spexpr_shacl"))
     return graph
 
 

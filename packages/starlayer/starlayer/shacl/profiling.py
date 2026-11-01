@@ -156,6 +156,19 @@ def _bind_derived_namespaces(graph: Any, *sources: Any) -> None:
     from rdflib import Namespace
     from rdflib.namespace import NamespaceManager
 
+    from starlayer.graph.oxgraph._rdflib_bridge import is_oxigraph_input
+
+    if is_oxigraph_input(graph):  # an OxGraph keeps its prefixes in a plain dict (first bound wins)
+        for prefix, namespace in (("sh", _SH), ("prof", "http://www.w3.org/ns/dx/prof/"), ("dcterms", "http://purl.org/dc/terms/")):
+            graph.prefixes[prefix] = str(namespace)
+        for source in sources:
+            if source is None:
+                continue
+            source_nm = getattr(source, "namespace_manager", None)  # the sources were read as rdflib graphs
+            for prefix, namespace in source_nm.namespaces() if source_nm is not None else ():
+                graph.prefixes.setdefault(prefix, str(namespace))
+        return
+
     nm = NamespaceManager(graph, bind_namespaces="core")
     nm.bind("sh", Namespace(_SH))
     nm.bind("prof", Namespace("http://www.w3.org/ns/dx/prof/"))
@@ -171,6 +184,13 @@ def _bind_derived_namespaces(graph: Any, *sources: Any) -> None:
         for prefix, namespace in source_nm.namespaces():
             if nm.store.namespace(prefix) is None:
                 nm.bind(prefix, namespace)
+
+
+def _iri_text(value: Any) -> Any:
+    """A pyoxigraph ``NamedNode`` as its rdflib ``URIRef``; anything else unchanged."""
+    from starlayer.graph.oxgraph._rdflib_bridge import from_engine_if_ox
+
+    return from_engine_if_ox(value)
 
 
 def derive_conforms_to(
@@ -247,6 +267,26 @@ def derive_conforms_to(
             node, or if a graph identity (``data_graph``/``shapes_graph``)
             is neither supplied nor recoverable from the report.
     """
+    from starlayer.graph.oxgraph._rdflib_bridge import (
+        as_rdflib_graph,
+        is_oxigraph_input,
+        merge_into,
+        ox_graph_from,
+    )
+
+    # an OxGraph / OxDataset / Store argument is read as a snapshot of rdflib terms, and the result comes back as an OxGraph
+    from_oxigraph = is_oxigraph_input(report_graph)
+    if from_oxigraph:
+        return ox_graph_from(derive_conforms_to(
+            as_rdflib_graph(report_graph),
+            data_graph=_iri_text(data_graph),
+            shapes_graph=_iri_text(shapes_graph),
+            specification_graph=as_rdflib_graph(specification_graph) if specification_graph is not None else None,
+            conforms_only=conforms_only,
+        ))
+    if specification_graph is not None:
+        specification_graph = as_rdflib_graph(specification_graph)
+    report_graph = as_rdflib_graph(report_graph)
     report_node = _find_report_node(report_graph)
     if report_node is None:
         raise ValueError("report_graph has no sh:ValidationReport node - nothing to derive sh:conformsTo from.")
@@ -273,13 +313,14 @@ def derive_conforms_to(
     # to the caller - a plain Graph is fine here on purpose; only
     # `derived` (the actual return value) needs to be a StarLayerGraph.
     scratch = Graph()
-    scratch += report_graph
+    merge_into(scratch, report_graph)
     scratch.add((data_graph_iri, _SH_validationReport, report_node))
     scratch.add((report_node, _SH_usedShapesGraph, shapes_graph_iri))
     if specification_graph is not None:
-        scratch += specification_graph
+        merge_into(scratch, specification_graph)
 
-    from starlayer.graph import (
+    # the result is the same kind of graph as ``report_graph`` (an rdflib-based one here; an OxGraph input returned above)
+    from starlayer.graph.graph.starlayer_graph import (
         StarLayerGraph,  # lazy: avoids a circular-import deadlock
     )
 
@@ -295,7 +336,7 @@ def derive_conforms_to(
         new_triples.add(triple)
 
     if specification_graph is not None:
-        scratch += new_triples
+        merge_into(scratch, new_triples)
         for triple in scratch.query(_CONFORMS_TO_SPECIFICATION_RULE):
             new_triples.add(triple)
 
@@ -315,8 +356,8 @@ def derive_conforms_to(
                 result.add(triple)
     else:
         result = StarLayerGraph()
-        result += report_graph
-        result += new_triples
+        merge_into(result, report_graph)
+        merge_into(result, new_triples)
 
     # specification_graph first (the caller's own most deliberately-
     # chosen vocabulary - e.g. a business-policy namespace), then

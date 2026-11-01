@@ -589,6 +589,27 @@ def extract_subgraph(
         A new graph - the union of every conforming ``(shape, focus_node)``
         pair's own extraction. Empty (never ``None``) if nothing conforms.
     """
+    from starlayer.graph.oxgraph import _rdflib_bridge as _ox
+
+    if any(_ox.is_oxigraph_input(g) for g in (data_graph, shacl_graph, ont_graph)):
+        # an OxGraph / OxDataset / Store: extract from snapshot copies, return an OxGraph
+        copies: dict[int, Any] = {}
+
+        def _snapshot(g: Any) -> Any:
+            return copies.setdefault(id(g), _ox.as_rdflib_graph(g)) if g is not None else None
+
+        extracted = extract_subgraph(
+            _snapshot(data_graph),
+            _snapshot(shacl_graph),
+            _snapshot(ont_graph),
+            shape=_ox.from_engine_if_ox(shape),
+            focus_node=_ox.from_engine_if_ox(focus_node),
+            inference=inference,
+            include_targets=include_targets,
+            engine=engine,
+        )
+        return _ox.ox_graph_from(extracted)
+    shape, focus_node = _ox.from_engine_if_ox(shape), _ox.from_engine_if_ox(focus_node)
     for argument, value in (("shape", shape), ("focus_node", focus_node)):
         if value is not None and not isinstance(value, Node):
             # A str is not a term: a str shape was a bare KeyError and a str focus node silently matched nothing.

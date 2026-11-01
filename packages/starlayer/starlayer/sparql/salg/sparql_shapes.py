@@ -119,6 +119,13 @@ SHAPES_TURTLE = starontology.get_ontology_graph("sparql_shacl").serialize(format
 _generate_expression_shapes_turtle = expression_shapes_turtle
 
 
+def _merge_into(dst, src):
+    """``dst += src`` for graphs of either kind (the ontology loaders return whatever class ``StarLayerGraph`` is)."""
+    from starlayer.graph.oxgraph._rdflib_bridge import merge_into
+
+    merge_into(dst, src)
+
+
 def shapes_graph() -> Graph:
     """Build a fresh ``rdflib.Graph`` of the shapes above, merged with
     ``spexpr_shacl``.
@@ -140,7 +147,7 @@ def shapes_graph() -> Graph:
     turtle = SHAPES_TURTLE + "\n" + _generate_expression_shapes_turtle()
     g = Graph()
     g.parse(data=turtle, format="turtle")
-    g += starontology.get_ontology_graph("spexpr_shacl")
+    _merge_into(g, starontology.get_ontology_graph("spexpr_shacl"))
     return g
 
 

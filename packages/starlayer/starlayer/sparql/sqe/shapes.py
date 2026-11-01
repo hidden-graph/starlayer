@@ -25,6 +25,13 @@ from starlayer import starontology
 SHAPES_TURTLE = starontology.get_ontology_graph("sqe_shacl").serialize(format="turtle12")
 
 
+def _merge_into(dst, src):
+    """``dst += src`` for graphs of either kind (the ontology loaders return whatever class ``StarLayerGraph`` is)."""
+    from starlayer.graph.oxgraph._rdflib_bridge import merge_into
+
+    merge_into(dst, src)
+
+
 def _shapes_graph() -> Graph:
     """A fresh ``rdflib.Graph`` combining ``sqe:``'s own shapes with the shared expression shapes
     (``spexpr:``; see ``..expr_validation``). SHACL graphs are mutated by pyshacl during validation, so callers
@@ -42,7 +49,7 @@ def _ontology_graph() -> Graph:
     from ..expr_validation import ontology_graph as spexpr_ontology_graph
 
     g = spexpr_ontology_graph()
-    g += starontology.get_ontology_graph("sqe_owl")
+    _merge_into(g, starontology.get_ontology_graph("sqe_owl"))
     return g
 
 
@@ -64,6 +71,9 @@ def sqe_validate(data_graph: Graph) -> tuple[bool, Graph, str]:
     """
     from pyshacl.errors import ShapeRecursionWarning
 
+    from starlayer.graph.oxgraph import _rdflib_bridge as _ox
+
+    (data_graph,) = _ox.read_boundary(data_graph)  # an OxGraph is validated as a snapshot
     import starlayer.shacl  # lazy: avoids a circular-import deadlock at module load time
     from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 
