@@ -122,6 +122,10 @@ _KEYWORD_BY_ROOT_TYPE = {
 }
 
 
+class SqeTextTooDeepError(ValueError):
+    """The tree is nested more deeply than the renderer can follow within Python's stack."""
+
+
 def sqe_tree_to_text(graph: Graph, root) -> str:
     """Render ``root`` (as produced by ``to_rdf.sqe_parse_to_tree``) back
     into SPARQL query text, re-abbreviating terms using the ``PREFIX``
@@ -133,7 +137,19 @@ def sqe_tree_to_text(graph: Graph, root) -> str:
 
     Returns:
         The rendered SPARQL query text.
+
+    Raises:
+        SqeTextTooDeepError: the tree nests too deeply to render within the Python stack.
     """
+    from ..parse_sparql import run_with_deeper_stack
+
+    try:
+        return run_with_deeper_stack(_tree_to_text, graph, root)
+    except RecursionError:
+        raise SqeTextTooDeepError("the sqe tree is nested too deeply to render as SPARQL text") from None
+
+
+def _tree_to_text(graph: Graph, root) -> str:
     from starlayer.graph.oxgraph import _rdflib_bridge as _ox
 
     graph, root = _ox.read_boundary(graph, root)  # an OxGraph is read as a snapshot of rdflib terms

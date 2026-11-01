@@ -131,23 +131,29 @@ def _decode_uchars(raw: str) -> str:
     return _UCHAR.sub(sub, raw)
 
 
-def _split_keywords(word: str) -> list[str] | None:
-    """Longest-match tokenization of a run of letters that is no keyword itself (``FILTERSTR`` -> FILTER, STR).
+def _split_keywords(word: str) -> list[tuple[str, str]] | None:
+    """Longest-match tokenization of a run of letters and digits that is no keyword itself, as (kind, text) pairs
+    (``FILTERSTR`` -> FILTER, STR; ``LIMIT1`` -> LIMIT, INTEGER 1).
 
     The grammar has no terminal for such a run, so its terminals are matched longest first, one after the other
-    (section 19.7: "the longest match is chosen"). Returns None unless the whole run splits into keywords.
+    (section 19.7: "the longest match is chosen"). Returns None unless every letter run splits into keywords.
     """
-    if not word.isalpha() or len(word) > 40:
+    if not word.isalnum() or not word.isascii() or not word[0].isalpha() or len(word) > 40:
         return None
-    parts, rest = [], word
-    while rest:
-        for k in range(len(rest), 1, -1):
-            if rest[:k].upper() in _KEYWORDS or rest[:k] in _CASE_SENSITIVE_WORDS:
-                parts.append(rest[:k])
-                rest = rest[k:]
-                break
-        else:
-            return None
+    parts: list[tuple[str, str]] = []
+    for run in re.findall(r"[0-9]+|[A-Za-z]+", word):
+        if run[0].isdigit():
+            parts.append(("INT", run))
+            continue
+        rest = run
+        while rest:
+            for k in range(len(rest), 1, -1):
+                if rest[:k].upper() in _KEYWORDS or rest[:k] in _CASE_SENSITIVE_WORDS:
+                    parts.append(("W", rest[:k]))
+                    rest = rest[k:]
+                    break
+            else:
+                return None
     return parts
 
 
@@ -163,8 +169,8 @@ def tokenize(text: str) -> list[Tok]:
             parts = _split_keywords(m.group())
             if parts:
                 at = pos
-                for part in parts:
-                    out.append(Tok("W", part, at))
+                for part_kind, part in parts:
+                    out.append(Tok(part_kind, part, at))
                     at += len(part)
                 pos = m.end()
                 continue
@@ -2044,9 +2050,48 @@ class _Encoder:
         return b
 
 
+_DEPTH_RETRY_FACTOR = 8  # the encoder and the renderer need more frames per nesting level than the parser does
+
+
+def run_with_deeper_stack(fn, *args, **kwargs):
+    """Call ``fn``; on a RecursionError retry once with a larger recursion limit (main thread only, where the C stack
+    is large enough). Raises RecursionError if that does not suffice or the retry is not safe.
+
+    The grammar nests without limit, Python's stack does not: text the parser accepted may still be deeper than the
+    encoder or the text renderer can follow within the default limit.
+    """
+    import sys
+    import threading
+
+    try:
+        return fn(*args, **kwargs)
+    except RecursionError:
+        if threading.current_thread() is not threading.main_thread():
+            raise
+    limit = sys.getrecursionlimit()
+    sys.setrecursionlimit(limit * _DEPTH_RETRY_FACTOR)
+    try:
+        return fn(*args, **kwargs)
+    finally:
+        sys.setrecursionlimit(limit)
+
+
 def ast_to_tree(q: Node, graph: Graph | None = None, root=None, *, triple_order=None) -> tuple[Graph, object]:
     """Encode a parsed query as ``sqe:`` RDF (``triple_order``: an optional callback that reorders a run of
-    patterns, used by the differential tests to mimic rdflib's ``reorderTriples``)."""
+    patterns, used by the differential tests to mimic rdflib's ``reorderTriples``).
+
+    Raises:
+        SparqlSyntaxError: The query is nested too deeply to encode within the Python stack.
+    """
+    if graph is None and root is None:  # a retry must start from a fresh graph, so only then is one safe
+        try:
+            return run_with_deeper_stack(_ast_to_tree, q, graph, root, triple_order)
+        except RecursionError:
+            raise SparqlSyntaxError("expression or pattern nested too deeply to encode") from None
+    return _ast_to_tree(q, graph, root, triple_order)
+
+
+def _ast_to_tree(q: Node, graph, root, triple_order) -> tuple[Graph, object]:
     from .to_rdf import _new_starlayer_graph
 
     graph = graph if graph is not None else _new_starlayer_graph()
