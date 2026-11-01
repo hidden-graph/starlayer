@@ -66,3 +66,31 @@ def expand_curie(prefixes: dict[str, str], curie: str) -> ox.NamedNode:
     if sep:
         return ox.NamedNode(curie)
     raise ValueError(f"{curie!r} is not a CURIE")
+
+
+_XSD_STRING = "http://www.w3.org/2001/XMLSchema#string"
+
+
+def n3(prefixes: dict[str, str], term: Any) -> str:
+    """The N3 / Turtle form of any term with IRIs abbreviated by the bound prefixes (``ex:alice``, ``"5"^^xsd:integer``,
+    ``_:b0``, ``<<( ex:s ex:p ex:o )>>``). An IRI no bound namespace fits stays ``<iri>``; the dict is never changed.
+    ``str(term)`` is the unabbreviated form."""
+    if isinstance(term, ox.NamedNode):
+        try:
+            prefix, _ns, local = compute_qname(prefixes, term, generate=False)
+        except (KeyError, ValueError):
+            return f"<{term.value}>"
+        return f"{prefix}:{local}"
+    if isinstance(term, ox.Literal):
+        text = str(term)
+        dt = term.datatype
+        if term.language is None and dt.value != _XSD_STRING and text.endswith(f"^^<{dt.value}>"):
+            return text[: -len(f"<{dt.value}>")] + n3(prefixes, dt)
+        return text
+    if isinstance(term, ox.Triple):
+        return f"<<( {n3(prefixes, term.subject)} {n3(prefixes, term.predicate)} {n3(prefixes, term.object)} )>>"
+    if isinstance(term, ox.BlankNode):
+        return str(term)
+    if isinstance(term, tuple) and len(term) == 3:
+        return n3(prefixes, ox.Triple(*term))
+    raise TypeError(f"not an RDF term: {type(term).__name__}")

@@ -76,3 +76,30 @@ def reified_triples(graph: Any, reifier: Any) -> Iterator[ox.Triple]:
     for _s, _p, o in _view(graph).triples((terms.term(reifier), RDF_REIFIES, None)):
         if isinstance(o, ox.Triple):
             yield o
+
+
+def remove_reification(graph: Any, reifier: Any, triple_term: Any = None) -> Any:
+    """Remove ``reifier rdf:reifies triple_term`` (every ``rdf:reifies`` link of the reifier when ``triple_term`` is None);
+    its annotation triples and its other links stay. Returns ``graph``."""
+    _view(graph).remove((terms.term(reifier), RDF_REIFIES, _tt(triple_term) if triple_term is not None else None))
+    return graph
+
+
+def triple_terms(graph: Any, subject: Any = None, predicate: Any = None, object: Any = None) -> Iterator[ox.Triple]:  # noqa: A002
+    """Distinct triple terms that occur as the object of a triple in ``graph`` (reified or not) and match the pattern."""
+    g = _view(graph)
+    s, p, o = terms.term(subject), terms.term(predicate), terms.term(object)
+    seen: set = set()
+    for _s, _p, tt in g.triples((None, None, None)):
+        if not isinstance(tt, ox.Triple) or tt in seen:
+            continue
+        if (s is not None and tt.subject != s) or (p is not None and tt.predicate != p) or (o is not None and tt.object != o):
+            continue
+        seen.add(tt)
+        yield tt
+
+
+def has_triple_term(graph: Any, subject: Any, predicate: Any, object: Any) -> bool:  # noqa: A002
+    """True if ``<<( subject predicate object )>>`` is the object of some triple in ``graph``."""
+    tt = ox.Triple(terms.term(subject), terms.term(predicate), terms.term(object))
+    return next(_view(graph).triples((None, None, tt)), None) is not None

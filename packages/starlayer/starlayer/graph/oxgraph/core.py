@@ -54,6 +54,15 @@ def _strip_unused_prefixes(text: str) -> str:
     return "\n".join([*keep, body])
 
 
+def _no_backend(backend: Any) -> None:
+    if backend is not None:
+        raise TypeError(
+            f"backend={backend!r} is not an option of the Oxigraph wrapper: it is always an Oxigraph store speaking RDF 1.2. "
+            "Choose the storage with store= (a pyoxigraph.Store) or path= (an on-disk store); for a remote SPARQL endpoint use "
+            "the HTTP functions of starlayer.graph.backends.native (http_select, http_update, ...)"
+        )
+
+
 def _read_input(data: Any, source: Any, file: Any) -> tuple[dict[str, Any], str | None]:
     """The ``ox.parse`` keyword for the input, and a path hint for format guessing."""
     given = [x for x in (data, source, file) if x is not None]
@@ -145,6 +154,17 @@ class _Base:
     def expand_curie(self, curie: str) -> Any:
         from starlayer.graph.oxgraph.helpers import qnames
         return qnames.expand_curie(self.prefixes, curie)
+
+    def qname_term(self, term: Any) -> str:
+        """The prefixed N3 form of any term (IRI, blank node, literal, triple term) using this graph's prefixes; an IRI with no
+        fitting prefix is ``<iri>``. pyoxigraph terms have no ``n3()``: this replaces ``term.n3(namespace_manager)``, and
+        ``str(term)`` replaces ``term.n3()``."""
+        from starlayer.graph.oxgraph.helpers import qnames
+        return qnames.n3(self.prefixes, term)
+
+    def namespaces(self) -> Iterator[tuple[str, str]]:
+        """``(prefix, namespace)`` pairs of the bound prefixes; the namespace is a plain ``str`` (the ``prefixes`` dict's value)."""
+        return iter(list(self.prefixes.items()))
 
     # ---- subclass hooks ----------------------------------------------------------------------------------------
     def _pattern_graph(self) -> Any: ...
@@ -432,6 +452,21 @@ class _Base:
 
         return reification.reified_triples(self, reifier)
 
+    def remove_reification(self, reifier: Any, triple_term: Any = None) -> Any:
+        from starlayer.graph.oxgraph import reification
+
+        return reification.remove_reification(self, reifier, triple_term)
+
+    def triple_terms(self, subject: Any = None, predicate: Any = None, object: Any = None) -> Iterator[ox.Triple]:  # noqa: A002
+        from starlayer.graph.oxgraph import reification
+
+        return reification.triple_terms(self, subject, predicate, object)
+
+    def has_triple_term(self, subject: Any, predicate: Any, object: Any) -> bool:  # noqa: A002
+        from starlayer.graph.oxgraph import reification
+
+        return reification.has_triple_term(self, subject, predicate, object)
+
     # ---- the shacl_engine's graph view -------------------------------------------------------------------------
     def engine_view(self) -> Any:
         from starlayer.shacl_engine.oxigraph_view import DEFAULT, UNION, OxigraphGraph
@@ -490,7 +525,9 @@ class OxGraph(_Base):
     """One graph of a store: the default graph (``identifier=None``) or the named graph ``identifier`` (a ``NamedNode``,
     ``BlankNode``, or an IRI string)."""
 
-    def __init__(self, store: Any = None, path: Any = None, identifier: Any = None, *, prefixes: dict[str, str] | None = None) -> None:
+    def __init__(self, store: Any = None, path: Any = None, identifier: Any = None, *, prefixes: dict[str, str] | None = None,
+                 backend: str | None = None) -> None:
+        _no_backend(backend)
         self._init_store(store, path, prefixes)
         self._g = terms.graph_name(identifier)
 
@@ -556,7 +593,9 @@ class OxDataset(_Base):
     """The whole store. ``default_union`` (default True) makes ``triples`` / ``len`` / ``iter`` / SPARQL's default graph the
     union of all graphs, as the engine's graph view does; False restricts them to the default graph (rdflib's ``Dataset``)."""
 
-    def __init__(self, store: Any = None, path: Any = None, default_union: bool = True, *, prefixes: dict[str, str] | None = None) -> None:
+    def __init__(self, store: Any = None, path: Any = None, default_union: bool = True, *, prefixes: dict[str, str] | None = None,
+                 backend: str | None = None) -> None:
+        _no_backend(backend)
         self._init_store(store, path, prefixes)
         self._union = default_union
 
@@ -593,6 +632,45 @@ class OxDataset(_Base):
         for q in list(self._quads(s, p, o, g)):
             self.store.remove(q)
         return self
+
+    @property
+    def default_graph(self) -> OxGraph:
+        """A view of the dataset's default graph (re-made on each access; it shares this dataset's ``prefixes``)."""
+        return OxGraph(self.store, prefixes=self.prefixes)
+
+    def to_graph(self) -> OxGraph:
+        """Every triple of every graph merged into one new in-memory ``OxGraph`` (provenance by graph is lost; equal triples
+        collapse). It is a copy: it can be queried or compared on its own."""
+        g = OxGraph(prefixes=dict(self.prefixes))
+        g.extend(ox.Triple(q.subject, q.predicate, q.object) for q in self.store)
+        return g
+
+    # The four plural reifier methods keep provenance: each returns an OxDataset whose graphs hold the matching
+    # reifier triples, as the old StarLayerDataset did (the ``reification.*`` functions on a dataset yield the flat terms).
+    def _reifier_dataset(self, pick: Any) -> OxDataset:
+        result = OxDataset(default_union=self._union, prefixes=dict(self.prefixes))
+        for g in self.graphs():
+            triples = list(pick(g))
+            if triples:
+                result.graph(g.identifier).extend(triples)
+        return result
+
+    def reifiers(self, TT: Any = None, predicate: Any = None, object: Any = None) -> OxDataset:  # noqa: N803, A002
+        """A dataset of every matching reifier's triples (its ``rdf:reifies`` links and annotations), each kept in the graph it
+        came from. ``list(reification.reifiers(ds))`` gives the reifier nodes alone."""
+        return self._reifier_dataset(lambda g: (t for r in g.reifiers(TT, predicate, object) for t in g.triples((r, None, None))))
+
+    def reifications(self, s: Any = None, p: Any = None, o: Any = None) -> OxDataset:
+        """A dataset of the ``rdf:reifies`` triples of every reified triple term matching ``s p o``, per graph."""
+        return self._reifier_dataset(lambda g: ((r, terms.RDF_REIFIES, tt) for tt in g.reifications(s, p, o) for r in g.reifiers(tt)))
+
+    def reifier_annotations(self, TT: Any) -> OxDataset:  # noqa: N803
+        """A dataset of the annotation triples ``(reifier, predicate, value)`` of every reifier of ``TT``, per graph."""
+        return self._reifier_dataset(lambda g: g.reifier_annotations(TT))
+
+    def reified_triples(self, reifier: Any) -> OxDataset:
+        """A dataset of the ``reifier rdf:reifies <triple term>`` triples of ``reifier``, per graph."""
+        return self._reifier_dataset(lambda g: ((terms.term(reifier), terms.RDF_REIFIES, tt) for tt in g.reified_triples(reifier)))
 
     # ---- graph management ---------------------------------------------------------------------------------------
     def graph(self, identifier: Any = None) -> OxGraph:
