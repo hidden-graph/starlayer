@@ -321,7 +321,9 @@ Gates (Update):
 |---|---|
 | W3C positive update requests (1.1 `syntax-update-1/2` positive, every update-evaluation request, 1.2 positive syntax and evaluation) | **157 / 157** parse |
 | W3C negative update requests (1.1 `syntax-update-bad-*`, the `NegativeSyntaxTest` `.ru` files of `delete-insert`, `syntax-update-54`; 1.2 `syntax-update-anonreifier-01/02`) | **23 / 23** rejected |
-| Text fixpoint (tree -> text -> tree) and sqe shape validation | **157 / 157** and **157 / 157** |
+| Text fixpoint (tree -> text -> tree; text -> tree -> text is also identical) | **157 / 157** |
+| sqe shape validation of every positive tree (opt-in, `pytest --sqe-coverage -k conforms`, 1-3 s per tree, 33 s for the 5,000-triple stress request) | **157 / 157** conform |
+| Default run | the new Update tests, the Oxigraph tests, the matrix and the query tests (`test_parse_sparql*.py`, `parse_sparql_conformance/`): 3,090 passed; `tests/sparql/unit` + `tests/starontology`: 889 passed, 2 xfailed |
 | Rule table | 36 valid and 60 invalid requests, each invalid one checked for its message; shape-mutation tests (variable in INSERT DATA, blank node in DELETE, missing target, wrong graph reference, ...) |
 | Coverage matrix | **194 / 194** productions have a case (170 Query + 24 Update, 34 new Update cases, 11 of them negative); the 24 Update rows are checked by tracing too (`parse_update`, `update1`, `modify`, `quad_block`, `quads_not_triples`, `graph_ref`, `graph_ref_all`, `graph_or_default`) |
 | Oxigraph, positive | **157 / 157** originals and **157 / 157** renderings parse in `Store().update` (14 of them fail at run time on the empty store: LOAD of a remote IRI, DROP / MOVE of a missing graph; those are `OSError` / `RuntimeError`, not `SyntaxError`, and count as accepted) |
