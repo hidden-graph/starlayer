@@ -344,7 +344,9 @@ class _Base:
         self.prefixes.update(parser.prefixes or {})
         return self
 
-    def serialize(self, destination: Any = None, format: str | ox.RdfFormat = "turtle", base: str | None = None,  # noqa: A002
+    _default_format = "turtle"
+
+    def serialize(self, destination: Any = None, format: str | ox.RdfFormat | None = None, base: str | None = None,  # noqa: A002
                   prefixes: Mapping[str, str] | None = None, *, only_used: bool = False, rdf_version: str | None = None,
                   encoding: str = "utf-8", pretty: bool | str = False) -> str | None:
         """Write the graph. ``destination`` None returns a ``str``; a path or file object is written and ``None`` returned.
@@ -352,7 +354,7 @@ class _Base:
         output uses (Turtle, TriG). ``rdf_version="1.1"`` exports through ``starlayer.graph.interop`` (the basic encoding of
         triple terms), so the output contains no triple term. ``pretty=True`` lays Turtle / TriG out with
         ``oxgraph.pretty`` (nested blank nodes, lists, annotations; see that module)."""
-        fmt = formats.to_format(format)
+        fmt = formats.to_format(format or self._default_format)
         if rdf_version not in (None, "1.1", "rdf-1.1", "1.2", "rdf-1.2"):
             raise ValueError(f"unknown rdf_version {rdf_version!r}")
         pfx = {**self.prefixes, **{str(k): str(v) for k, v in (prefixes or {}).items()}}
@@ -360,7 +362,7 @@ class _Base:
         if pretty:  # pretty Turtle / TriG (RDF 1.2): oxgraph/pretty.py
             from starlayer.graph.oxgraph.pretty import serialize_pretty
 
-            raw = serialize_pretty(self, fmt, pfx or None, base, only_used, pretty).encode("utf-8")
+            raw = serialize_pretty(self._pretty_source(fmt), fmt, pfx or None, base, only_used, pretty).encode("utf-8")
         elif rdf_version in ("1.1", "rdf-1.1"):
             # Triple terms by the Interoperability draft's basic encoding, base-direction literals by the interop
             # policy (a datatype IRI form by default); the result contains neither.
@@ -382,6 +384,9 @@ class _Base:
             except TypeError:
                 destination.write(raw.decode(encoding))
         return None
+
+    def _pretty_source(self, fmt: ox.RdfFormat) -> Any:
+        return self
 
     def _serial_items(self, fmt: ox.RdfFormat) -> Iterable[Any]:
         raise NotImplementedError
@@ -593,6 +598,8 @@ class OxDataset(_Base):
     """The whole store. ``default_union`` (default True) makes ``triples`` / ``len`` / ``iter`` / SPARQL's default graph the
     union of all graphs, as the engine's graph view does; False restricts them to the default graph (rdflib's ``Dataset``)."""
 
+    _default_format = "trig"  # a dataset writes its graphs unless asked for a triple format
+
     def __init__(self, store: Any = None, path: Any = None, default_union: bool = True, *, prefixes: dict[str, str] | None = None,
                  backend: str | None = None) -> None:
         _no_backend(backend)
@@ -624,7 +631,19 @@ class OxDataset(_Base):
         if next(self.store.quads_for_pattern(None, None, None, ox.DefaultGraph()), None) is not None and not any(True for _ in self.store.named_graphs()) \
                 or len(self.store) == 0:
             return (ox.Triple(q.subject, q.predicate, q.object) for q in self.store)  # only the default graph has content
-        raise ValueError("a dataset with named graphs: serialize it as trig or nquads, or serialize one graph(...) as a triple format")
+        # No multi-graph syntax in a triple format: flatten every graph into one, as the old class did. Which graph a triple
+        # came from is not kept; a triple in several graphs is written once. Use trig or nquads to keep the graphs.
+        seen: set[ox.Triple] = set()
+        flat = []
+        for q in self.store:
+            t = ox.Triple(q.subject, q.predicate, q.object)
+            if t not in seen:
+                seen.add(t)
+                flat.append(t)
+        return flat
+
+    def _pretty_source(self, fmt: ox.RdfFormat) -> Any:
+        return self if fmt in formats.QUAD_FORMATS else list(self._serial_items(fmt))
 
     def remove(self, pattern: tuple) -> OxDataset:
         s, p, o = pattern[:3]

@@ -50,7 +50,7 @@ reuses `graph/query/direct.py` (`_guard`) and `graph/backends/native.py` (`check
   every prefix it is given); `used_prefixes()` is read back from Oxigraph's own writer, so it cannot disagree with the output.
 - **`OxDataset` is a union by default.** `triples`, `len`, `iter` and SPARQL's default graph are the union of all graphs (matching the
   engine's `OxigraphGraph` view); `default_union=False` gives rdflib's `Dataset` behaviour. A graph view queries its own graph as the
-  default graph. `quads()` always shows graph names. `serialize` of a dataset with named graphs needs `trig` / `nq`.
+  default graph. `quads()` always shows graph names. `serialize` of a dataset defaults to TriG; to a triples-only format (Turtle, N-Triples, RDF/XML, `pretty=True`) it flattens every graph into one, writing each distinct triple once, as the old class did (the source graph is not kept; use `trig` / `nq` for that).
 - **`update` acts on the whole store**, also from a named-graph view; aim it with `WITH` / `GRAPH` in the text.
 - **`Result`**: SELECT rows are `Row` tuples readable by name (`row["x"]`, `row.x`, `row.get`), `.vars` are `pyoxigraph.Variable`,
   `.bindings` are `{name: term}` dicts with `str` keys (rdflib uses `Variable` keys), `.askAnswer`, `.type`, CONSTRUCT / DESCRIBE iterate

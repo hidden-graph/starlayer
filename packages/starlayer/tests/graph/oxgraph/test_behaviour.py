@@ -348,14 +348,17 @@ def test_serialize_base_and_base_free(g):
     assert "@base" in g.serialize(base=EX)
 
 
-def test_serialize_dataset_needs_a_quad_format_when_it_has_named_graphs():
+def test_serialize_dataset_to_a_triple_format_flattens_named_graphs():
     ds = OxDataset()
     ds.add((A, P, B))
     assert "example.org" in ds.serialize(format="turtle")  # only the default graph has content
-    ds.graph(C).add((A, P, B))
-    with pytest.raises(ValueError, match="named graphs"):
-        ds.serialize(format="turtle")
-    assert "GRAPH" in ds.serialize(format="trig") or "{" in ds.serialize(format="trig")
+    ds.graph(C).add((A, P, B))  # the same triple in a second graph is written once
+    ds.graph(C).add((B, P, A))
+    for kw in ({}, {"pretty": True}):
+        flat = OxGraph().parse(data=ds.serialize(format="turtle", **kw), format="turtle")
+        assert len(flat) == 2, kw
+    assert len(OxGraph().parse(data=ds.serialize(format="nt"), format="nt")) == 2
+    assert "GRAPH" in ds.serialize(format="trig") or "{" in ds.serialize(format="trig")  # a quad format keeps the graphs
 
 
 def test_serialize_rdf11_without_interop_says_so(g):
@@ -587,3 +590,12 @@ def test_result_one_shot_note(g):
     assert isinstance(r.raw, ox.QuerySolutions)
     r2 = g.query("SELECT * WHERE { ?s ?p ?o }")
     assert len(list(r2)) == len(list(r2)) == 4  # materialized once, iterable repeatedly
+
+
+def test_dataset_serializes_to_trig_by_default_and_a_graph_to_turtle():
+    ds = OxDataset()
+    ds.graph(C).add((A, P, B))
+    assert "GRAPH" in ds.serialize() or "{" in ds.serialize()
+    g = OxGraph()
+    g.add((A, P, B))
+    assert "{" not in g.serialize()
