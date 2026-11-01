@@ -300,6 +300,13 @@ all positive queries, about 16,000 mutants, three seeds, not committed) found on
 * **Editor-grade fidelity**: shorthand expansion (`;`, `[ ]`, collections, annotations), prefixed-name spelling, VERSION order and multiplicity, comments and layout are still lost; a concrete layer would be needed.
 * **Draft drift**: the matrix and the grammar follow the 25 October 2026 Working Draft; refresh `vendor/sparql12-query-productions.json` when the draft changes.
 
+## Part 6b. The switch (branch `mig-switch`)
+
+* `sqe_parse_to_tree(text, parser="owned"|"rdflib")`: default is the owned parser (`parse_sparql` + its encoder + `sqe_validate`); `"rdflib"` keeps the old route. DESCRIBE, FROM / FROM NAMED, SERVICE and VERSION now parse. Update text raises `NotImplementedError` (clear message) until the Update parser lands.
+* `sqe_tree_to_query` (rdflib `Query`) is kept for the rdflib backend and the guide notebooks; its callers are the sqe_coverage tests, `tests/sparql/unit/test_sqe_ontology.py`, the notebooks `05b` and `appendix-b1`. The code KG no longer uses it: `codekg.queries.run_query` renders the stored tree with `sqe_tree_to_text` and sends the text to an Oxigraph copy of the KG (`OxGraph`).
+* `shacl_engine/sparql_support.check_query` reads the owned parser's AST (form, projection, MINUS / SERVICE, VALUES variables, AS targets); running a SHACL-SPARQL query still goes through `starlayer_sparql_query` (rdflib evaluator) for the compatibility path and through text on the Oxigraph view.
+* Differences found: `sqe_known_gaps.txt` lost three entries (`expression/not-not`, `codepoint-esc-08/-09`: rdflib's grammar rejected `!!` and codepoint escapes in some positions; the spec allows both, owned is right). The FROM refusal test now asserts the rdflib route refuses and the owned route renders it. `SELECT REDUCED *` in the Oxigraph differential differs by duplicate elimination, which the spec leaves open (not a parser difference). 
+
 ## Part 7. Editor fidelity: what a SPARQL editor needs to round-trip (proposal, branch `mig-switch`)
 
 Design note only; nothing here is implemented. It answers: if an editor drives the `sqe:` tree, what does it lose between "text in" and "text out" today, and what is the least we can add to stop losing it?
