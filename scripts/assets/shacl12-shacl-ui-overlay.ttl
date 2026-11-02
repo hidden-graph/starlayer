@@ -482,11 +482,10 @@ stsh:formMaxCount a rdf:Property ;
 # rdfs:comment — not a SHACL predicate but commonly appears on shapes
 #############################################################################
 
-# rdfs:label, rdfs:comment, rdfs:seeAlso and rdfs:subClassOf are not SHACL predicates but are on shapes all the time (GitHub issue #91);
+# rdfs:label, rdfs:comment and rdfs:subClassOf are not SHACL predicates but are on shapes all the time (GitHub issue #91); rdfs:seeAlso is not on a form (no SHACL specification names it: it shows as an other property when a node has it, 2026-11-02);
 # sh:name and sh:description stay the SHACL-native annotations. rdfs:label and rdfs:comment sit with them in the naming group.
 rdfs:label        sh:group stsh:NamingGroup ; sh:order 3 ; sh:nodeKind sh:Literal .
 rdfs:comment      sh:group stsh:NamingGroup ; sh:order 4 ; sh:nodeKind sh:Literal ; stsh:multiline true .
-rdfs:seeAlso      sh:group stsh:MetadataGroup ; sh:order 6 ; sh:nodeKind sh:IRI .
 rdfs:subClassOf   sh:group stsh:MetadataGroup ; sh:order 7 ; sh:nodeKind sh:IRI .
 sh:unit           sh:group stsh:MetadataGroup ; sh:order 8 ; sh:nodeKind sh:IRIOrLiteral .
 sh:codeIdentifier sh:group stsh:MetadataGroup ; sh:order 9 ; sh:datatype xsd:string ; sh:nodeKind sh:Literal .
@@ -509,7 +508,6 @@ sh:order         stsh:nodeFormField true ; stsh:formMaxCount 1 ; stsh:propertyFo
 # (GitHub issue #91)
 rdfs:label        stsh:nodeFormField true ; stsh:propertyFormField true .
 rdfs:comment      stsh:nodeFormField true ; stsh:propertyFormField true .
-rdfs:seeAlso      stsh:nodeFormField true ; stsh:propertyFormField true .
 rdfs:subClassOf   stsh:nodeFormField true ; stsh:propertyFormField true .
 sh:unit           stsh:nodeFormField true ; stsh:propertyFormField true .
 sh:codeIdentifier stsh:nodeFormField true ; stsh:propertyFormField true ; stsh:formMaxCount 1 .
@@ -1037,3 +1035,8 @@ stsh:DataGraphLinksShape
 	sh:property [ sh:path sh:shapesGraph ; sh:nodeKind sh:IRI ] ;
 	sh:property [ sh:path sh:suggestedShapesGraph ; sh:nodeKind sh:IRI ] ;
 	sh:property [ sh:path sh:conformsToShapesGraph ; sh:nodeKind sh:IRI ] .
+
+# Allowed on a node shape but not what it is for (2026-11-02): the values of a property (an enumeration, a comparison with another path, a root class, a unit or a code type), and an
+# order among its siblings. They are the main fields of a property shape.
+sh:in stsh:nodePrimary false . sh:hasValue stsh:nodePrimary false . sh:equals stsh:nodePrimary false . sh:disjoint stsh:nodePrimary false . sh:subsetOf stsh:nodePrimary false .
+sh:rootClass stsh:nodePrimary false . sh:order stsh:nodePrimary false . sh:unit stsh:nodePrimary false . sh:codeType stsh:nodePrimary false .

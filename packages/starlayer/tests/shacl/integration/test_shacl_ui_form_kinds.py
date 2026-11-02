@@ -152,9 +152,10 @@ def test_the_group_and_shapes_graph_forms_state_what_a_field_takes(ui) -> None:
 
 
 def test_both_shape_forms_have_a_field_for_each_property_a_shape_can_have(ui) -> None:
-    wanted = {SH.target, SH.targetWhere, SH.nodeByExpression, RDFS.label, RDFS.comment, RDFS.seeAlso, RDFS.subClassOf, SH.equals, SH.disjoint}
+    wanted = {SH.target, SH.targetWhere, SH.nodeByExpression, RDFS.label, RDFS.comment, RDFS.subClassOf, SH.equals, SH.disjoint}
     for name in ("NodeShapeForm", "PropertyShapeForm"):
         assert wanted <= set(fields(ui, name)), (name, wanted - set(fields(ui, name)))
+        assert RDFS.seeAlso not in fields(ui, name), "no SHACL specification names rdfs:seeAlso: it shows as an other property when a node has it"
 
 
 def test_target_and_target_where_are_in_the_targeting_group_and_are_branches_of_the_tree(ui) -> None:
