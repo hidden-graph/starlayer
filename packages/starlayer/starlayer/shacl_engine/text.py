@@ -164,6 +164,21 @@ def generic_message(r: Result, shapes: Any, data: Any) -> str | None:
     return None
 
 
+def result_messages(r: Result, shapes: Any, data: Any) -> list:
+    """The messages of a result (boundary terms): the shape's own ``sh:message`` as is; otherwise the old (pySHACL) generic
+    wording where it is known, else what the engine component wrote."""
+    own = set(shapes.objects(r.shape, SH.message))
+    messages = list(r.messages)
+    if not own.intersection(messages):
+        try:
+            generic = generic_message(r, shapes, data)
+        except Exception:  # noqa: BLE001  (a message is never worth failing a validation for)
+            generic = None
+        if generic is not None:
+            return [Literal(generic)]
+    return messages
+
+
 def _result_block(r: Result, shapes: Any, data: Any) -> str:
     name = str(r.component).rsplit("#", 1)[-1].rsplit("/", 1)[-1]
     kind = "Constraint Violation" if r.severity == SH.Violation else "Validation Result"
@@ -178,16 +193,7 @@ def _result_block(r: Result, shapes: Any, data: Any) -> str:
         text += f"\tResult Path: {stringify_node(shapes, path.node)}\n"
     if r.source_constraint is not None:
         text += f"\tSource Constraint: {stringify_node(shapes, r.source_constraint)}\n"
-    own = set(shapes.objects(r.shape, SH.message))
-    messages = list(r.messages)
-    if not own.intersection(messages):  # the engine's own generic message: write the old (pySHACL) wording where known
-        try:
-            generic = generic_message(r, shapes, data)
-        except Exception:
-            generic = None
-        if generic is not None:
-            messages = [Literal(generic)]
-    for m in sorted(messages, key=str):
+    for m in sorted(result_messages(r, shapes, data), key=str):
         text += f"\tMessage: {m.value if isinstance(m, Literal) else m}\n"
     return text
 

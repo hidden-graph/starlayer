@@ -14,6 +14,7 @@ from starlayer.shacl_engine.executor import Result, run
 from starlayer.shacl_engine.fidelity import check_lexical_fidelity
 from starlayer.shacl_engine.plan import Path, Plan
 from starlayer.shacl_engine.report import annotate_provenance, build_report, conforms
+from starlayer.shacl_engine.text import result_messages
 from starlayer.shacl_engine.terms import (
     LegacyTermView,
     StarLayerFidelityWarning,
@@ -223,7 +224,10 @@ def validate(
     if fidelity is not None:
         run_warnings.append(fidelity)
         warnings.warn(fidelity, StarLayerFidelityWarning, stacklevel=3)
-    report = build_report(results, shapes, data_graph, conformance_disallows)
+    shapes_view, data_view = LegacyTermView(shapes), LegacyTermView(data_graph)
+    report = build_report(
+        results, shapes, data_graph, conformance_disallows, messages_for=lambda r: result_messages(legacy_result(r), shapes_view, data_view)
+    )
     annotate_provenance(
         report,
         data_graph_iri=data_graph_iri,
@@ -252,7 +256,7 @@ def validate(
         warnings=tuple(run_warnings),
         data_graph=original_data if inplace else None,
         recursion_revisits=stats.get("recursion_revisits", 0),
-        _text_inputs=(LegacyTermView(shapes), LegacyTermView(data_graph), data_graph_iri),
+        _text_inputs=(shapes_view, data_view, data_graph_iri),
     )
 
 

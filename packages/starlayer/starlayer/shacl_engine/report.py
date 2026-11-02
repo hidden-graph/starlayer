@@ -77,7 +77,10 @@ def annotate_provenance(
         report += derive_conforms_to(report, specification_graph=specification_graph)
 
 
-def build_report(results: list[Result], shapes: Any, data: Any, conformance_disallows: Any = None) -> Any:
+def build_report(
+    results: list[Result], shapes: Any, data: Any, conformance_disallows: Any = None, messages_for: Any = None
+) -> Any:
+    """``messages_for(result)``, when given, supplies the ``sh:resultMessage`` values of a result (boundary terms) in place of its own."""
     # a StarLayerGraph, not an rdflib Graph: only it can hold RDF 1.2 triple terms and directional literals
     from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 
@@ -121,8 +124,8 @@ def build_report(results: list[Result], shapes: Any, data: Any, conformance_disa
         for prop, value in r.annotations:
             g.add((node, fe(prop), fe(value)))
             _copy_closure(shapes, g, value, seen)
-        for m in r.messages:
-            g.add((node, RSH.resultMessage, Literal(m) if isinstance(m, str) else fe(m)))
+        for m in r.messages if messages_for is None else messages_for(r):
+            g.add((node, RSH.resultMessage, Literal(m) if isinstance(m, str) else m if messages_for is not None else fe(m)))
         for d in r.details:  # SHACL 1.2 Core 6.9.2.6: nested results linked by sh:detail, not by sh:result
             g.add((node, RSH.detail, add_result(d)))
         return node
