@@ -11,7 +11,7 @@ Selection (:func:`selected`), strongest first:
 2. while a fallback is running, ``"pyshacl"`` (so the old code's own internal ``validate`` calls stay on one engine);
 3. the ``engine=`` default bound on a ``StarShaclSchema``;
 4. the ``STARLAYER_SHACL_ENGINE`` environment variable;
-5. ``"pyshacl"``.
+5. ``"native"`` (the default since the cut-over; ``"pyshacl"`` stays only as a rollback switch until the old code is deleted).
 
 An option with no native equivalent (``validate_fn``, ``adapter``, ``decode_report=False``, ``iterate_rules``,
 ``rdfs_subclass_reasoning_includes_shapes_graph``, ``include_source_rule_provenance``, pySHACL-only switches such as
@@ -45,7 +45,7 @@ ENGINES = (NATIVE, PYSHACL)
 
 _FORCE_OLD: contextvars.ContextVar[bool] = contextvars.ContextVar("starlayer_shacl_force_pyshacl", default=False)
 _LAST_RUN: contextvars.ContextVar[tuple[str, str | None]] = contextvars.ContextVar(
-    "starlayer_shacl_last_run", default=(PYSHACL, None)
+    "starlayer_shacl_last_run", default=(NATIVE, None)
 )
 
 # pySHACL-only switches (``pyshacl.validate`` options plus the ``**kwargs`` it ignores): off/None is harmless, anything else
@@ -115,7 +115,7 @@ def selected(engine: str | None = None, schema_default: str | None = None) -> st
     bound = normalise_engine(schema_default)
     if bound is not None:
         return bound
-    return normalise_engine(os.environ.get(ENV_VAR), source=ENV_VAR) or PYSHACL
+    return normalise_engine(os.environ.get(ENV_VAR), source=ENV_VAR) or NATIVE
 
 
 def last_run() -> tuple[str, str | None]:
@@ -432,8 +432,10 @@ def _rule_set_iris(rule_set: Any) -> list[Any] | None:
     if rule_set is None:
         return None
     if isinstance(rule_set, (str, URIRef)) or not hasattr(rule_set, "__iter__"):
-        return [rule_set]
-    return list(rule_set)
+        members = [rule_set]
+    else:
+        members = list(rule_set)
+    return [URIRef(m) if type(m) is str else m for m in members]  # a plain string is an IRI, as it was for the old validator
 
 
 def apply_rules(

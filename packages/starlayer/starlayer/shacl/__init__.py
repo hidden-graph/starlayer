@@ -4,6 +4,7 @@ from starlayer.shacl.engine import (
     normalize_to_starlayer_graph,
     target_nodes,
 )
+from starlayer.shacl.errors import EvaluationFailure, MetaShaclError, RuleError, ShapeError
 from starlayer.shacl.meta_shapes import parameter_value_shapes, sparql_query_problems
 from starlayer.shacl.node_expression_api import (
     evaluate_expression,
@@ -70,4 +71,8 @@ __all__ = [
     "parameter_value_shapes",
     "select_widget",
     "select_widgets",
+    "ShapeError",
+    "RuleError",
+    "EvaluationFailure",
+    "MetaShaclError",
 ]
