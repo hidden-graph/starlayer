@@ -53,7 +53,6 @@ PREFIXES = {
 
 def build_dataset():
     """The combined dataset: the code graph, curated layer and build stamp, plus the vocabulary and derived query text."""
-    from starlayer import StarLayerDataset
     from codekg import (
         CODEKG_NS,
         CURATED_GRAPH_IRI,
@@ -63,6 +62,7 @@ def build_dataset():
         get_ontology_graph,
         queries,
     )
+    from starlayer import StarLayerDataset
     from starlayer.graph import RDF, Literal
 
     out: StarLayerDataset = get_codekg_dataset(include_curated=True)

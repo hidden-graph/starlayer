@@ -2,10 +2,13 @@
 (GitHub: the workbench audit of rule validation)."""
 
 import pytest
-from rdflib import Graph, Literal, URIRef
-
+from rdflib import Graph, URIRef
 from starlayer.shacl import meta_shapes
-from starlayer.shacl.meta_shapes import load_meta_shapes_graph, parameter_value_shapes, sparql_query_problems
+from starlayer.shacl.meta_shapes import (
+    load_meta_shapes_graph,
+    parameter_value_shapes,
+    sparql_query_problems,
+)
 
 PRE = """@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 ex:S a sh:NodeShape ; sh:targetClass ex:Person ; sh:rule ex:R .
@@ -16,7 +19,6 @@ TEMPLATE = 'ex:T a sh:SPARQLRuleTemplate ; rdfs:subClassOf sh:Rule ; sh:paramete
 def messages(turtle: str) -> list[str]:
     """The messages of every result of the shapes about shapes (with the template and parameter shapes) over ``turtle``."""
     import pyshacl
-
     from starlayer.shacl.native_components import register_native_components
 
     register_native_components()  # (the patterns of the parameter shape use \p{L}, which StarLayer's pattern component reads)
@@ -83,7 +85,6 @@ def test_check_sparql_query_text_still_raises_the_first_problem():
 
 def test_a_node_that_holds_prefix_declarations_is_inferred_to_be_a_prefix_set():
     from rdflib import RDF
-
     from starlayer.shacl.shape_types import infer_types
 
     shapes = Graph().parse(data=PRE + 'ex:Prefixes sh:declare [ sh:prefix "ex" ; sh:namespace "http://example.org/" ] .', format="turtle")

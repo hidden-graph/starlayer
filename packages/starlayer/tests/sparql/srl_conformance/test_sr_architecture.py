@@ -19,7 +19,6 @@ ontology (290 terms) and shapes (617), and expressions were encoded and rendered
 
 from __future__ import annotations
 
-from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 import re
 import subprocess
 import sys

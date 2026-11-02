@@ -14,7 +14,6 @@ from starlayer.shacl_engine.executor import Result, run
 from starlayer.shacl_engine.fidelity import check_lexical_fidelity
 from starlayer.shacl_engine.plan import Path, Plan
 from starlayer.shacl_engine.report import annotate_provenance, build_report, conforms
-from starlayer.shacl_engine.text import result_messages
 from starlayer.shacl_engine.terms import (
     LegacyTermView,
     StarLayerFidelityWarning,
@@ -25,6 +24,7 @@ from starlayer.shacl_engine.terms import (
     to_engine,
     with_term_policy,
 )
+from starlayer.shacl_engine.text import result_messages
 
 DEFAULT_MAX_VALIDATION_DEPTH = 500  # the old validator's default (starlayer.shacl.recursion.MAX_VALIDATION_DEPTH)
 

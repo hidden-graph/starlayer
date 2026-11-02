@@ -189,7 +189,11 @@ def build(check: bool) -> int:
     if _write_ttl(_VOCABULARY_TTL, _VOCABULARY_NOTICE, _parse(_VOCABULARY_SOURCE) + _parse(_VOCABULARY_OVERLAY), check=check):
         stale.append(_VOCABULARY_TTL.name)
 
-    from build_shacl_ui import build_shacl_ui_graph, missing_fields, missing_vocabulary_fields
+    from build_shacl_ui import (
+        build_shacl_ui_graph,
+        missing_fields,
+        missing_vocabulary_fields,
+    )
 
     ui = build_shacl_ui_graph()
     absent = missing_fields(ui) | missing_vocabulary_fields(ui, _parse(_VOCABULARY_SOURCE) + _parse(_VOCABULARY_OVERLAY))

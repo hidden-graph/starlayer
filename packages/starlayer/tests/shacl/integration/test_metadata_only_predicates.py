@@ -1,4 +1,3 @@
-import pytest
 from rdflib import Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema

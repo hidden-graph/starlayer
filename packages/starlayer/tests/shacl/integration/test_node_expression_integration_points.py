@@ -34,7 +34,6 @@ found to already work correctly - not re-tested exhaustively here (see
 test_shnex_node_expressions.py and test_node_by_expression.py).
 """
 
-import pytest
 from rdflib import Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema

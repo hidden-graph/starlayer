@@ -24,8 +24,8 @@ updating the pinned copy changes nothing here until that build is re-run.
 
 from __future__ import annotations
 
-import warnings
 import re
+import warnings
 from collections import OrderedDict
 from collections.abc import Iterable, Iterator
 from typing import Any

@@ -5,7 +5,7 @@ import warnings
 import pytest
 from rdflib import Namespace
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import StarShaclSchema, validate
+from starlayer.shacl import ShapeError, StarShaclSchema, validate
 from starlayer.shacl.shapes_graphs import referenced_shapes
 
 warnings.simplefilter("ignore")
@@ -66,13 +66,15 @@ def test_the_extract_validates_on_its_own():
     assert result.conforms is False  # acme has no ex:name: the referenced Company shape applied
 
 
-def test_the_extract_without_the_option_silently_loses_the_referenced_constraints():
-    """A dangling shape reference is not an error in the engine: the referenced shape is just empty, so the bare extract is more lenient."""
+def test_the_extract_without_the_option_leaves_a_dangling_property_shape_reference():
+    """Without ``include_referenced`` the extract keeps ``sh:property`` references whose property shape it left behind: an
+    ill-formed shapes graph (a property shape has a ``sh:path``), which the engine refuses."""
     data = StarLayerGraph()
     data.parse(data="@prefix ex: <http://example.org/> . ex:alice a ex:Person .", format="turtle12")
     bare = _schema().extract_shapes_graph(EX.ModuleA)
     closed = _schema().extract_shapes_graph(EX.ModuleA, include_referenced=True)
-    assert validate(data, bare, meta_shacl=False).conforms is True
+    with pytest.raises(ShapeError, match="no sh:path"):
+        validate(data, bare, meta_shacl=False)
     assert validate(data, closed, meta_shacl=False).conforms is False  # ex:worksFor minCount 1, from the referenced shape
 
 

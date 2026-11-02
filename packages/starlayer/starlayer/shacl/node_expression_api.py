@@ -28,13 +28,18 @@ def evaluate_expression(
 
     ``shapes_graph`` holds the expression and what it refers to (shapes, declared functions). ``scope`` binds variables
     (``shnex:var "name"``) by name to a term or a list of terms, and the arguments of a function call by position (``0``, ``1``,
-    ...); ``focusNode`` is the focus node unless given. An expression that has an evaluation failure raises ``ValueError``
-    (SHACL 1.2 Node Expressions 3.2). A ``sh:targetNode`` expression is evaluated with the shape as the focus node
+    ...); ``focusNode`` is the focus node unless given. An expression that has an evaluation failure raises
+    ``EvaluationFailure`` (SHACL 1.2 Node Expressions 3.2). A ``sh:targetNode`` expression is evaluated with the shape as the focus node
     (Core 3.1.3.1): pass the shape."""
     from starlayer.shacl_engine import expressions
     from starlayer.shacl_engine.executor import Context
     from starlayer.shacl_engine.plan import Plan
-    from starlayer.shacl_engine.terms import check_graphs, engine_view, from_engine, to_engine
+    from starlayer.shacl_engine.terms import (
+        check_graphs,
+        engine_view,
+        from_engine,
+        to_engine,
+    )
 
     check_graphs((data_graph, "data graph"), (shapes_graph, "shapes graph"))
     plan = Plan(shapes_graph=engine_view(shapes_graph, "shapes graph"))

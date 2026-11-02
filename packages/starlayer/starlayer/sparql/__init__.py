@@ -8,9 +8,9 @@
 # per its own docstring, so forcing it first here is safe regardless of
 # whether a caller also imports parse12 directly later.
 from . import parse12 as _parse12  # noqa: F401
+from .check import check_query
 from .from_rdf import rdf_to_collection, rdf_to_query, rdf_to_update
 from .parse12 import prepare_query_12, prepare_update_12
-from .check import check_query
 from .star_query import StarQuery
 from .to_rdf import queries_to_collection, query_to_rdf, update_to_rdf
 from .vocab import SALG

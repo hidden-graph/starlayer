@@ -11,7 +11,14 @@ import pytest
 from rdflib import Namespace, URIRef
 from rdflib.namespace import SH
 from starlayer import StarLayerGraph
-from starlayer.shacl import RuleError, ShapeError, StarShaclSchema, apply_rules, extract_subgraph, validate
+from starlayer.shacl import (
+    RuleError,
+    ShapeError,
+    StarShaclSchema,
+    apply_rules,
+    extract_subgraph,
+    validate,
+)
 from starlayer.shacl.shape_types import infer_types
 from starlayer.shacl.xpath_regex import needs_translation, xpath_regex_to_python
 

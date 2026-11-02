@@ -81,10 +81,9 @@ def _same(path: Path, before: bytes | None) -> bool:
 
 
 def _trig_isomorphic(a: bytes, b: bytes) -> bool:
+    from codekg import BUILD_GRAPH_IRI
     from rdflib.compare import isomorphic
     from starlayer.graph import StarLayerDataset
-
-    from codekg import BUILD_GRAPH_IRI
 
     def graphs(data: bytes) -> dict:
         ds = StarLayerDataset()
