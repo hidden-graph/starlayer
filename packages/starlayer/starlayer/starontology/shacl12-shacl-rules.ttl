@@ -40,28 +40,28 @@ stsh:ShapeBySubjectRule a sh:NodeShape ;
         sh:qualifiedMaxCount, sh:qualifiedMinCount, sh:qualifiedValueShape, sh:qualifiedValueShapesDisjoint, sh:singleLine,
         sh:uniqueLang, sh:uniqueMembers, sh:xone ;
     sh:rule [ a sh:TripleRule ; sh:layer 0 ;
-        sh:subject sh:this ; sh:predicate rdf:type ; sh:object sh:Shape ] .
+        sh:subject [ shnex:var "focusNode" ] ; sh:predicate rdf:type ; sh:object sh:Shape ] .
 
 # Layer 0: a node that holds prefix declarations is a prefix set (a type for a tool to list it under; SHACL 1.2 gives the holder no class).
 stsh:PrefixSetRule a sh:NodeShape ;
     rdfs:label "A node that holds prefix declarations is a prefix set"@en ;
     sh:targetSubjectsOf sh:declare ;
     sh:rule [ a sh:TripleRule ; sh:layer 0 ;
-        sh:subject sh:this ; sh:predicate rdf:type ; sh:object stsh:PrefixSet ] .
+        sh:subject [ shnex:var "focusNode" ] ; sh:predicate rdf:type ; sh:object stsh:PrefixSet ] .
 
 # Layer 0: the value of a parameter that expects a shape is a shape.
 stsh:ShapeByValueRule a sh:NodeShape ;
     rdfs:label "The value of a shape-valued parameter is a shape"@en ;
     sh:targetObjectsOf sh:memberShape, sh:node, sh:not, sh:property, sh:qualifiedValueShape, sh:reifierShape, sh:someValue ;
     sh:rule [ a sh:TripleRule ; sh:layer 0 ;
-        sh:subject sh:this ; sh:predicate rdf:type ; sh:object sh:Shape ] .
+        sh:subject [ shnex:var "focusNode" ] ; sh:predicate rdf:type ; sh:object sh:Shape ] .
 
 # Layer 0: a member of the list that is the value of sh:and, sh:or or sh:xone is a shape.
 stsh:ShapeByListMemberRule a sh:NodeShape ;
     rdfs:label "A member of the list that is the value of sh:and, sh:or or sh:xone is a shape"@en ;
     sh:targetObjectsOf sh:and, sh:or, sh:xone ;
     sh:rule [ a sh:TripleRule ; sh:layer 0 ;
-        sh:subject [ sh:path ( [ sh:zeroOrMorePath rdf:rest ] rdf:first ) ] ;
+        sh:subject [ shnex:pathValues ( [ sh:zeroOrMorePath rdf:rest ] rdf:first ) ] ;
         sh:predicate rdf:type ; sh:object sh:Shape ] .
 
 # Layer 1: a shape that is the subject of sh:path is a property shape (Core 3.3).
@@ -70,7 +70,7 @@ stsh:PropertyShapeRule a sh:NodeShape ;
     sh:targetClass sh:Shape ;
     sh:rule [ a sh:TripleRule ; sh:layer 1 ;
         sh:condition [ sh:property [ sh:path sh:path ; sh:minCount 1 ] ] ;
-        sh:subject sh:this ; sh:predicate rdf:type ; sh:object sh:PropertyShape ] .
+        sh:subject [ shnex:var "focusNode" ] ; sh:predicate rdf:type ; sh:object sh:PropertyShape ] .
 
 # Layer 1: any other shape is a node shape (Core 3.2).
 stsh:NodeShapeRule a sh:NodeShape ;
@@ -78,7 +78,7 @@ stsh:NodeShapeRule a sh:NodeShape ;
     sh:targetClass sh:Shape ;
     sh:rule [ a sh:TripleRule ; sh:layer 1 ;
         sh:condition [ sh:not [ sh:property [ sh:path sh:path ; sh:minCount 1 ] ] ] ;
-        sh:subject sh:this ; sh:predicate rdf:type ; sh:object sh:NodeShape ] .
+        sh:subject [ shnex:var "focusNode" ] ; sh:predicate rdf:type ; sh:object sh:NodeShape ] .
 
 # Layer 1: the vocabulary types the subject of sh:ask as only an SPARQLAskExecutable and the value of sh:validator as only a
 # Validator; a node that is both is the class that has both.
@@ -87,21 +87,21 @@ stsh:SPARQLAskValidatorRule a sh:NodeShape ;
     sh:targetClass sh:SPARQLAskExecutable ;
     sh:rule [ a sh:TripleRule ; sh:layer 1 ;
         sh:condition [ sh:class sh:Validator ] ;
-        sh:subject sh:this ; sh:predicate rdf:type ; sh:object sh:SPARQLAskValidator ] .
+        sh:subject [ shnex:var "focusNode" ] ; sh:predicate rdf:type ; sh:object sh:SPARQLAskValidator ] .
 
 stsh:SPARQLSelectValidatorRule a sh:NodeShape ;
     rdfs:label "A validator that is a SELECT executable is an SPARQL SELECT validator"@en ;
     sh:targetClass sh:SPARQLSelectExecutable ;
     sh:rule [ a sh:TripleRule ; sh:layer 1 ;
         sh:condition [ sh:class sh:Validator ] ;
-        sh:subject sh:this ; sh:predicate rdf:type ; sh:object sh:SPARQLSelectValidator ] .
+        sh:subject [ shnex:var "focusNode" ] ; sh:predicate rdf:type ; sh:object sh:SPARQLSelectValidator ] .
 
 # Layer 2: the value of sh:values, sh:defaultValue or sh:expression is a node expression (the start of the nesting).
 stsh:NodeExpressionRootRule a sh:NodeShape ;
     rdfs:label "The value of sh:values, sh:defaultValue or sh:expression is a node expression"@en ;
     sh:targetSubjectsOf sh:values, sh:defaultValue, sh:expression ;
     sh:rule [ a sh:TripleRule ; sh:layer 2 ;
-        sh:subject [ sh:path [ sh:alternativePath ( sh:values sh:defaultValue sh:expression ) ] ] ;
+        sh:subject [ shnex:pathValues [ sh:alternativePath ( sh:values sh:defaultValue sh:expression ) ] ] ;
         sh:predicate rdf:type ; sh:object sh:NodeExpression ] .
 
 stsh:NodeExpressionPrefixes sh:declare

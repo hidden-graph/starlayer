@@ -1801,7 +1801,7 @@ starontology:shacl12-shacl-rules.ttl {
                 sh:layer 2 ;
                 sh:object sh:NodeExpression ;
                 sh:predicate rdf:type ;
-                sh:subject [ sh:path [ sh:alternativePath ( sh:values sh:defaultValue sh:expression ) ] ] ] ;
+                sh:subject [ shnex:pathValues [ sh:alternativePath ( sh:values sh:defaultValue sh:expression ) ] ] ] ;
         sh:targetSubjectsOf sh:defaultValue,
             sh:expression,
             sh:values .
@@ -1814,7 +1814,7 @@ starontology:shacl12-shacl-rules.ttl {
                 sh:layer 1 ;
                 sh:object sh:NodeShape ;
                 sh:predicate rdf:type ;
-                sh:subject sh:this ] ;
+                sh:subject [ shnex:var "focusNode" ] ] ;
         sh:targetClass sh:Shape .
 
     stsh:PrefixSetRule a sh:NodeShape ;
@@ -1823,7 +1823,7 @@ starontology:shacl12-shacl-rules.ttl {
                 sh:layer 0 ;
                 sh:object stsh:PrefixSet ;
                 sh:predicate rdf:type ;
-                sh:subject sh:this ] ;
+                sh:subject [ shnex:var "focusNode" ] ] ;
         sh:targetSubjectsOf sh:declare .
 
     stsh:PropertyShapeRule a sh:NodeShape ;
@@ -1834,7 +1834,7 @@ starontology:shacl12-shacl-rules.ttl {
                 sh:layer 1 ;
                 sh:object sh:PropertyShape ;
                 sh:predicate rdf:type ;
-                sh:subject sh:this ] ;
+                sh:subject [ shnex:var "focusNode" ] ] ;
         sh:targetClass sh:Shape .
 
     stsh:SPARQLAskValidatorRule a sh:NodeShape ;
@@ -1844,7 +1844,7 @@ starontology:shacl12-shacl-rules.ttl {
                 sh:layer 1 ;
                 sh:object sh:SPARQLAskValidator ;
                 sh:predicate rdf:type ;
-                sh:subject sh:this ] ;
+                sh:subject [ shnex:var "focusNode" ] ] ;
         sh:targetClass sh:SPARQLAskExecutable .
 
     stsh:SPARQLSelectValidatorRule a sh:NodeShape ;
@@ -1854,7 +1854,7 @@ starontology:shacl12-shacl-rules.ttl {
                 sh:layer 1 ;
                 sh:object sh:SPARQLSelectValidator ;
                 sh:predicate rdf:type ;
-                sh:subject sh:this ] ;
+                sh:subject [ shnex:var "focusNode" ] ] ;
         sh:targetClass sh:SPARQLSelectExecutable .
 
     stsh:ShapeByListMemberRule a sh:NodeShape ;
@@ -1863,7 +1863,7 @@ starontology:shacl12-shacl-rules.ttl {
                 sh:layer 0 ;
                 sh:object sh:Shape ;
                 sh:predicate rdf:type ;
-                sh:subject [ sh:path ( [ sh:zeroOrMorePath rdf:rest ] rdf:first ) ] ] ;
+                sh:subject [ shnex:pathValues ( [ sh:zeroOrMorePath rdf:rest ] rdf:first ) ] ] ;
         sh:targetObjectsOf sh:and,
             sh:or,
             sh:xone .
@@ -1874,7 +1874,7 @@ starontology:shacl12-shacl-rules.ttl {
                 sh:layer 0 ;
                 sh:object sh:Shape ;
                 sh:predicate rdf:type ;
-                sh:subject sh:this ] ;
+                sh:subject [ shnex:var "focusNode" ] ] ;
         sh:targetSubjectsOf sh:and,
             sh:class,
             sh:closed,
@@ -1926,7 +1926,7 @@ starontology:shacl12-shacl-rules.ttl {
                 sh:layer 0 ;
                 sh:object sh:Shape ;
                 sh:predicate rdf:type ;
-                sh:subject sh:this ] ;
+                sh:subject [ shnex:var "focusNode" ] ] ;
         sh:targetObjectsOf sh:memberShape,
             sh:node,
             sh:not,
@@ -3443,7 +3443,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:NodeShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n7b0a69c21c8544679275a09ca3d2eb56b225 ;
+        sh:in _:n055197cd16d84a68bc39ad9d9ede5098b225 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -3843,7 +3843,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:ParameterForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n7b0a69c21c8544679275a09ca3d2eb56b225 ;
+        sh:in _:n055197cd16d84a68bc39ad9d9ede5098b225 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -4370,7 +4370,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:PropertyShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n7b0a69c21c8544679275a09ca3d2eb56b225 ;
+        sh:in _:n055197cd16d84a68bc39ad9d9ede5098b225 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -5996,11 +5996,11 @@ starontology:shacl12-shacl-ui.ttl {
         sh:name "Definition"@en ;
         sh:order 0.5 .
 
-    _:n7b0a69c21c8544679275a09ca3d2eb56b226 rdf:first sh:IRI ;
+    _:n055197cd16d84a68bc39ad9d9ede5098b226 rdf:first sh:IRI ;
         rdf:rest ( sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) .
 
-    _:n7b0a69c21c8544679275a09ca3d2eb56b225 rdf:first sh:BlankNode ;
-        rdf:rest _:n7b0a69c21c8544679275a09ca3d2eb56b226 .
+    _:n055197cd16d84a68bc39ad9d9ede5098b225 rdf:first sh:BlankNode ;
+        rdf:rest _:n055197cd16d84a68bc39ad9d9ede5098b226 .
 }
 
 starontology:shacl12-shacl.ttl {

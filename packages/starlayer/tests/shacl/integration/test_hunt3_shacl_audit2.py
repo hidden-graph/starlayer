@@ -7,6 +7,7 @@ from pyshacl.errors import ConstraintLoadError, RuleLoadError
 from rdflib import Namespace, URIRef
 from starlayer import StarLayerGraph
 from starlayer.shacl import apply_rules, validate
+from starlayer.shacl_engine.plan import ShapeError
 
 pytestmark = pytest.mark.shacl
 
@@ -54,7 +55,7 @@ def test_passing_report_with_triple_term_has_conformance_disallows():
     ],
 )
 def test_reification_on_a_non_iri_path_is_a_shapes_graph_error(shapes):
-    with pytest.raises(ConstraintLoadError):
+    with pytest.raises((ConstraintLoadError, ShapeError)):  # pySHACL's error, or the native engine's
         validate(g("ex:a ex:p ex:b . ex:b ex:q 1 ."), g(shapes))
 
 

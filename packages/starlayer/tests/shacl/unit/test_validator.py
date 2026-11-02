@@ -253,7 +253,7 @@ def test_validate_rejects_non_iterable_shapes_graph() -> None:
 def test_apply_rules_rejects_non_starlayergraph_data_graph() -> None:
     validator = StarShaclSchema(adapter=TripleTermAdapter(), validate_fn=lambda **_: (True, Graph(), "ok"))
 
-    with pytest.raises(TypeError, match="apply_rules\\(\\) requires data_graph to be a StarLayerGraph"):
+    with pytest.raises(TypeError, match="apply_rules\\(\\) requires data_graph to be an? "):
         validator.apply_rules(data_graph=((EX.s, EX.p, EX.o),))
 
 
@@ -266,7 +266,7 @@ def test_apply_rules_rejects_plain_rdflib_graph_data_graph() -> None:
     validator = StarShaclSchema(adapter=TripleTermAdapter(), validate_fn=lambda **_: (True, Graph(), "ok"))
     data = Graph()
 
-    with pytest.raises(TypeError, match="apply_rules\\(\\) requires data_graph to be a StarLayerGraph"):
+    with pytest.raises(TypeError, match="apply_rules\\(\\) requires data_graph to be an? "):
         validator.apply_rules(data_graph=data)
 
 

@@ -190,7 +190,11 @@ def starlayer_sparql_query(graph: Any, text: str, init_bindings: Mapping[str, Te
     """Run ``text`` through StarLayer's query layer: its own SPARQL 1.2 parse (``prepareQuery``) and the graph's
     ``.query()``. Works for a ``StarLayerGraph`` / ``StarLayerDataset`` (and any rdflib-style graph)."""
     bindings = {k: from_engine(v) for k, v in (init_bindings or {}).items()}  # engine terms -> query-layer terms
-    result = graph.query(_prepare(text), initBindings=bindings or None)
+    try:
+        result = graph.query(_prepare(text), initBindings=bindings or None)
+    except NotImplementedError:
+        # A native (store-backed) graph applies pre-bound variables by injecting them into the query text, so it cannot take a prepared query.
+        result = graph.query(text, initBindings=bindings or None)
     if result.type == "ASK":
         return Solutions(boolean=bool(result.askAnswer))
     rows = tuple({_var_name(k): to_engine(v) for k, v in b.items() if v is not None} for b in result.bindings)
