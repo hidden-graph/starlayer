@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pyoxigraph as ox
 import pytest
+from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl_engine import rules
 from starlayer.shacl_engine.entailment import entailed_view
@@ -115,7 +116,7 @@ def test_subproperty_entailment_keeps_source_literals(overlay_kind) -> None:
     )
     for o in SOURCE:
         data.add(tuple(from_engine(t) for t in (ex("s"), ex("p"), o)))
-    view = entailed_view(data, "rdfs")
+    view = entailed_view(data, ENTAILMENT.RDFS)
     assert isinstance(view, OxigraphOverlay if overlay_kind == "oxigraph" else InferredView)
     got = {exact(o) for o in view.objects(ex("s"), ex("q"))}
     want = {exact(o) for o in engine_view(data).objects(ex("s"), ex("p"))}
@@ -157,9 +158,9 @@ def test_same_answers_as_inferred_view() -> None:
     previous = rules._OXIGRAPH_OVERLAY
     try:
         rules.use_oxigraph_overlay(False)
-        plain = entailed_view(data, "rdfs")
+        plain = entailed_view(data, ENTAILMENT.RDFS)
         rules.use_oxigraph_overlay(True)
-        oxi = entailed_view(data, "rdfs")
+        oxi = entailed_view(data, ENTAILMENT.RDFS)
     finally:
         rules.use_oxigraph_overlay(previous)
     assert set(plain.triples((None, None, None))) == set(oxi.triples((None, None, None)))
