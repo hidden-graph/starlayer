@@ -60,7 +60,6 @@ _ALL_FILES = [
     ("graph/query/__init__.py", "starlayer.graph"),
     ("shacl/__init__.py", "starlayer.shacl"),
     ("shacl/shacl_profiling.py", "starlayer.shacl"),
-    ("shacl/engine/__init__.py", "starlayer.shacl"),
 ]
 _BUCKET_ORDER = ["starlayer", "starlayer.graph", "starlayer.sparql", "starlayer.sparql.salg", "starlayer.sparql.sqe", "starlayer.shacl"]
 
