@@ -1,11 +1,12 @@
 @prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix shnex: <http://www.w3.org/ns/shacl-node-expr#> .
 @prefix ex: <http://example.org/> .
 
 ex:InferShape a sh:NodeShape ;
   sh:targetClass ex:Person ;
   sh:rule [
     a sh:TripleRule ;
-    sh:subject sh:this ;
+    sh:subject [ shnex:var "focusNode" ] ;
     sh:predicate ex:inferred ;
     sh:object ex:yes ;
   ] .

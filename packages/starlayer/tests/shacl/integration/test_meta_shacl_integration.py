@@ -1,15 +1,9 @@
 import pytest
 from rdflib import Literal, Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.shacl import StarShaclSchema
+from starlayer.shacl import MetaShaclError, ShapeError, StarShaclSchema
 
 EX = Namespace("http://example.org/")
-
-
-try:
-    import pyshacl as _pyshacl  # noqa: F401
-except Exception as exc:  # pragma: no cover - environment dependent
-    pytest.skip(f"pyshacl import unavailable: {exc}", allow_module_level=True)
 
 
 def _ill_formed_case() -> tuple[StarLayerGraph, StarLayerGraph]:
@@ -50,13 +44,12 @@ def test_meta_shacl_rejects_ill_formed_shapes_graph() -> None:
 
 
 def test_meta_shacl_override_false_skips_preflight_but_still_errors_on_bad_shape_load() -> None:
+    """Without the preflight the engine's own plan step still rejects the shape, as a ShapeError rather than MetaShaclError."""
     data, shapes = _ill_formed_case()
 
     validator = StarShaclSchema(shacl_graph=shapes)
 
-    with pytest.raises(Exception) as exc_info:
+    with pytest.raises(ShapeError) as exc_info:
         validator.validate(data_graph=data, meta_shacl=False)
 
-    message = str(exc_info.value)
-    assert "well-formed shacl propertyshape" in message.lower()
-    assert "metashacl" not in message.lower()
+    assert not isinstance(exc_info.value, MetaShaclError)

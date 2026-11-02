@@ -550,6 +550,9 @@ def test_root_class_severity_warning_conforms_when_allowed() -> None:
 
 # ex:r1 and ex:r2 both have ex:id "dup": sh:uniqueValuesFor(ex:id) directly
 # VIOLATES for both, when both are targeted together.
+# SHACL 1.2 Core 7.9.5: the peer set of sh:uniqueValuesFor is the declaring
+# shape's own targets, so every nested shape below that declares it also carries
+# its own sh:targetClass/sh:targetNode giving the intended peer set.
 _DUPLICATE_ID_DATA = """
     @prefix ex: <http://example.org/> .
     ex:r1 a ex:Record ; ex:id "dup" .
@@ -613,7 +616,7 @@ def test_unique_values_for_inside_and_correctly_detects_duplicate() -> None:
         """
         @prefix ex: <http://example.org/> .
         @prefix sh: <http://www.w3.org/ns/shacl#> .
-        ex:Inner a sh:NodeShape ; sh:uniqueValuesFor ex:id .
+        ex:Inner a sh:NodeShape ; sh:targetClass ex:Record ; sh:uniqueValuesFor ex:id .
         ex:S a sh:NodeShape ; sh:targetClass ex:Record ;
           sh:and ( ex:Inner ) .
         """,
@@ -655,12 +658,15 @@ def test_unique_values_for_inside_not_conforms_via_double_negative() -> None:
         """
         @prefix ex: <http://example.org/> .
         @prefix sh: <http://www.w3.org/ns/shacl#> .
-        ex:Inner a sh:NodeShape ; sh:uniqueValuesFor ex:id .
+        ex:Inner a sh:NodeShape ; sh:targetClass ex:Record ; sh:uniqueValuesFor ex:id .
         ex:S a sh:NodeShape ; sh:targetNode ex:r1, ex:r2 ;
           sh:not ex:Inner .
         """,
     )
-    assert result.conforms is True
+    # The nested shape carries its own targets, so it is also validated directly
+    # (its duplicates are reported against ex:Inner); sh:not on ex:S conforms.
+    assert result.conforms is False
+    assert {o for _, _, o in result.report_graph.triples((None, SH.sourceShape, None))} == {EX.Inner}
 
 
 def test_unique_values_for_inside_not_violates_when_no_duplicate() -> None:
@@ -700,7 +706,7 @@ def test_unique_values_for_inside_and_blank_node_inner_shape() -> None:
         @prefix ex: <http://example.org/> .
         @prefix sh: <http://www.w3.org/ns/shacl#> .
         ex:S a sh:NodeShape ; sh:targetClass ex:Record ;
-          sh:and ( [ sh:uniqueValuesFor ex:id ] ) .
+          sh:and ( [ sh:targetClass ex:Record ; sh:uniqueValuesFor ex:id ] ) .
         """,
     )
     assert result.conforms is False
@@ -721,8 +727,8 @@ def test_unique_values_for_inside_and_two_properties_one_duplicated() -> None:
         """
         @prefix ex: <http://example.org/> .
         @prefix sh: <http://www.w3.org/ns/shacl#> .
-        ex:Inner1 a sh:NodeShape ; sh:uniqueValuesFor ex:id1 .
-        ex:Inner2 a sh:NodeShape ; sh:uniqueValuesFor ex:id2 .
+        ex:Inner1 a sh:NodeShape ; sh:targetClass ex:Record ; sh:uniqueValuesFor ex:id1 .
+        ex:Inner2 a sh:NodeShape ; sh:targetClass ex:Record ; sh:uniqueValuesFor ex:id2 .
         ex:S a sh:NodeShape ; sh:targetClass ex:Record ;
           sh:and ( ex:Inner1 ex:Inner2 ) .
         """,
@@ -768,7 +774,7 @@ def test_unique_values_for_inside_xone_correctly_detects_duplicate() -> None:
         @prefix ex: <http://example.org/> .
         @prefix sh: <http://www.w3.org/ns/shacl#> .
         ex:AlwaysFails a sh:NodeShape ; sh:property [ sh:path ex:nonexistent ; sh:minCount 1 ] .
-        ex:Inner a sh:NodeShape ; sh:uniqueValuesFor ex:id .
+        ex:Inner a sh:NodeShape ; sh:targetClass ex:Record ; sh:uniqueValuesFor ex:id .
         ex:S a sh:NodeShape ; sh:targetClass ex:Record ;
           sh:xone ( ex:Inner ex:AlwaysFails ) .
         """,
@@ -812,7 +818,7 @@ def test_unique_values_for_inside_nested_and_two_levels_deep() -> None:
         """
         @prefix ex: <http://example.org/> .
         @prefix sh: <http://www.w3.org/ns/shacl#> .
-        ex:Inner a sh:NodeShape ; sh:uniqueValuesFor ex:id .
+        ex:Inner a sh:NodeShape ; sh:targetClass ex:Record ; sh:uniqueValuesFor ex:id .
         ex:Middle a sh:NodeShape ; sh:and ( ex:Inner ) .
         ex:S a sh:NodeShape ; sh:targetClass ex:Record ;
           sh:and ( ex:Middle ) .
@@ -833,7 +839,7 @@ def test_unique_values_for_inside_nested_and_two_levels_deep_no_duplicate() -> N
         """
         @prefix ex: <http://example.org/> .
         @prefix sh: <http://www.w3.org/ns/shacl#> .
-        ex:Inner a sh:NodeShape ; sh:uniqueValuesFor ex:id .
+        ex:Inner a sh:NodeShape ; sh:targetClass ex:Record ; sh:uniqueValuesFor ex:id .
         ex:Middle a sh:NodeShape ; sh:and ( ex:Inner ) .
         ex:S a sh:NodeShape ; sh:targetClass ex:Record ;
           sh:and ( ex:Middle ) .
@@ -853,7 +859,7 @@ def test_unique_values_for_inside_direct_node_correctly_detects_duplicate() -> N
         """
         @prefix ex: <http://example.org/> .
         @prefix sh: <http://www.w3.org/ns/shacl#> .
-        ex:Inner a sh:NodeShape ; sh:uniqueValuesFor ex:id .
+        ex:Inner a sh:NodeShape ; sh:targetClass ex:Record ; sh:uniqueValuesFor ex:id .
         ex:S a sh:NodeShape ; sh:targetClass ex:Record ; sh:node ex:Inner .
         """,
     )
@@ -895,7 +901,7 @@ def test_unique_values_for_via_property_path_then_node_correctly_detects_duplica
         """
         @prefix ex: <http://example.org/> .
         @prefix sh: <http://www.w3.org/ns/shacl#> .
-        ex:PetShape a sh:NodeShape ; sh:uniqueValuesFor ex:petId .
+        ex:PetShape a sh:NodeShape ; sh:targetNode ex:pet1, ex:pet2 ; sh:uniqueValuesFor ex:petId .
         ex:OwnerShapePet a sh:PropertyShape ; sh:path ex:pet ; sh:node ex:PetShape .
         ex:OwnerShape a sh:NodeShape ; sh:targetClass ex:Owner ; sh:property ex:OwnerShapePet .
         """,
@@ -914,7 +920,7 @@ def test_unique_values_for_via_property_path_then_node_conforms_when_no_duplicat
         """
         @prefix ex: <http://example.org/> .
         @prefix sh: <http://www.w3.org/ns/shacl#> .
-        ex:PetShape a sh:NodeShape ; sh:uniqueValuesFor ex:petId .
+        ex:PetShape a sh:NodeShape ; sh:targetNode ex:pet1, ex:pet2 ; sh:uniqueValuesFor ex:petId .
         ex:OwnerShapePet a sh:PropertyShape ; sh:path ex:pet ; sh:node ex:PetShape .
         ex:OwnerShape a sh:NodeShape ; sh:targetClass ex:Owner ; sh:property ex:OwnerShapePet .
         """,
@@ -940,7 +946,7 @@ def test_unique_values_for_inside_qualified_value_shape_correctly_detects_duplic
         """
         @prefix ex: <http://example.org/> .
         @prefix sh: <http://www.w3.org/ns/shacl#> .
-        ex:Inner a sh:NodeShape ; sh:uniqueValuesFor ex:petId .
+        ex:Inner a sh:NodeShape ; sh:targetNode ex:pet1, ex:pet2 ; sh:uniqueValuesFor ex:petId .
         ex:OwnerShape a sh:NodeShape ; sh:targetClass ex:Owner ;
           sh:property [ sh:path ex:pet ; sh:qualifiedValueShape ex:Inner ; sh:qualifiedMinCount 2 ] .
         """,
@@ -979,7 +985,7 @@ def test_unique_values_for_inside_and_via_node_mixed_mechanism_nesting() -> None
         """
         @prefix ex: <http://example.org/> .
         @prefix sh: <http://www.w3.org/ns/shacl#> .
-        ex:Inner a sh:NodeShape ; sh:uniqueValuesFor ex:id .
+        ex:Inner a sh:NodeShape ; sh:targetClass ex:Record ; sh:uniqueValuesFor ex:id .
         ex:ViaNode a sh:NodeShape ; sh:node ex:Inner .
         ex:S a sh:NodeShape ; sh:targetClass ex:Record ;
           sh:and ( ex:ViaNode ) .
@@ -2131,12 +2137,15 @@ def test_qualified_max_count_with_cross_node_value_shape_conforms_via_vacuous_ex
         """
         @prefix ex: <http://example.org/> .
         @prefix sh: <http://www.w3.org/ns/shacl#> .
-        ex:Inner a sh:NodeShape ; sh:uniqueValuesFor ex:petId .
+        ex:Inner a sh:NodeShape ; sh:targetNode ex:pet1, ex:pet2 ; sh:uniqueValuesFor ex:petId .
         ex:OwnerShape a sh:NodeShape ; sh:targetClass ex:Owner ;
           sh:property [ sh:path ex:pet ; sh:qualifiedValueShape ex:Inner ; sh:qualifiedMaxCount 1 ] .
         """,
     )
-    assert result.conforms is True
+    # ex:Inner also targets the pets directly, so it reports its own duplicates;
+    # the owner's qualified-count property shape must not be violated.
+    assert result.conforms is False
+    assert {o for _, _, o in result.report_graph.triples((None, SH.sourceShape, None))} == {EX.Inner}
 
 
 def test_qualified_max_count_with_cross_node_value_shape_violates_when_both_conform() -> None:
@@ -2189,7 +2198,7 @@ def test_unique_values_for_via_property_node_conforms_with_zero_value_nodes() ->
         """
         @prefix ex: <http://example.org/> .
         @prefix sh: <http://www.w3.org/ns/shacl#> .
-        ex:PetShape a sh:NodeShape ; sh:uniqueValuesFor ex:petId .
+        ex:PetShape a sh:NodeShape ; sh:targetNode ex:pet1, ex:pet2 ; sh:uniqueValuesFor ex:petId .
         ex:OwnerShapePet a sh:PropertyShape ; sh:path ex:pet ; sh:node ex:PetShape .
         ex:OwnerShape a sh:NodeShape ; sh:targetClass ex:Owner ; sh:property ex:OwnerShapePet .
         """,
@@ -2213,7 +2222,7 @@ def test_unique_values_for_via_node_self_reference_terminates_and_still_finds_th
         """
         @prefix ex: <http://example.org/> .
         @prefix sh: <http://www.w3.org/ns/shacl#> .
-        ex:Inner a sh:NodeShape ; sh:uniqueValuesFor ex:id ; sh:node ex:Inner .
+        ex:Inner a sh:NodeShape ; sh:targetClass ex:Record ; sh:uniqueValuesFor ex:id ; sh:node ex:Inner .
         ex:S a sh:NodeShape ; sh:targetClass ex:Record ; sh:node ex:Inner .
         """,
     )
@@ -2239,8 +2248,8 @@ def test_two_independent_cross_node_shapes_in_and_list_do_not_cross_contaminate(
         """
         @prefix ex: <http://example.org/> .
         @prefix sh: <http://www.w3.org/ns/shacl#> .
-        ex:InnerA a sh:NodeShape ; sh:uniqueValuesFor ex:id .
-        ex:InnerB a sh:NodeShape ; sh:uniqueValuesFor ex:code .
+        ex:InnerA a sh:NodeShape ; sh:targetClass ex:Record ; sh:uniqueValuesFor ex:id .
+        ex:InnerB a sh:NodeShape ; sh:targetClass ex:Record ; sh:uniqueValuesFor ex:code .
         ex:S a sh:NodeShape ; sh:targetClass ex:Record ; sh:and ( ex:InnerA ex:InnerB ) .
         """,
     )
@@ -2269,8 +2278,8 @@ def test_multi_valued_node_two_independent_cross_node_shapes_do_not_cross_contam
         """
         @prefix ex: <http://example.org/> .
         @prefix sh: <http://www.w3.org/ns/shacl#> .
-        ex:InnerA a sh:NodeShape ; sh:uniqueValuesFor ex:id .
-        ex:InnerB a sh:NodeShape ; sh:uniqueValuesFor ex:code .
+        ex:InnerA a sh:NodeShape ; sh:targetClass ex:Record ; sh:uniqueValuesFor ex:id .
+        ex:InnerB a sh:NodeShape ; sh:targetClass ex:Record ; sh:uniqueValuesFor ex:code .
         ex:S a sh:NodeShape ; sh:targetClass ex:Record ; sh:node ex:InnerA ; sh:node ex:InnerB .
         """,
     )
@@ -2328,7 +2337,7 @@ def test_qualified_value_shapes_disjoint_with_cross_node_sibling_conforms_via_du
         @prefix ex: <http://example.org/> .
         @prefix sh: <http://www.w3.org/ns/shacl#> .
         ex:Adult a sh:NodeShape ; sh:property [ sh:path ex:age ; sh:minInclusive 1 ] .
-        ex:UniqueAlt a sh:NodeShape ; sh:uniqueValuesFor ex:altId .
+        ex:UniqueAlt a sh:NodeShape ; sh:targetNode ex:pet1, ex:pet2 ; sh:uniqueValuesFor ex:altId .
         ex:OwnerShape a sh:NodeShape ; sh:targetClass ex:Owner ;
           sh:property [
             sh:path ex:pet ;
@@ -2339,7 +2348,10 @@ def test_qualified_value_shapes_disjoint_with_cross_node_sibling_conforms_via_du
           sh:property [ sh:path ex:pet ; sh:qualifiedValueShape ex:UniqueAlt ; sh:qualifiedMinCount 0 ] .
         """,
     )
-    assert result.conforms is True
+    # ex:UniqueAlt also targets the pets directly, so it reports its own
+    # duplicates; the owner's qualified-count property shapes must not be violated.
+    assert result.conforms is False
+    assert {o for _, _, o in result.report_graph.triples((None, SH.sourceShape, None))} == {EX.UniqueAlt}
 
 
 def test_qualified_value_shapes_disjoint_with_cross_node_sibling_violates_when_excluded() -> None:

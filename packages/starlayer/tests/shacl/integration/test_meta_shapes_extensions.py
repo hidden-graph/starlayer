@@ -24,7 +24,7 @@ from build_meta_shapes import (
 )
 from pyshacl.errors import ReportableRuntimeError
 from rdflib import Graph, Literal, Namespace, URIRef
-from starlayer.shacl import StarShaclSchema
+from starlayer.shacl import MetaShaclError, ShapeError, StarShaclSchema
 from starlayer.shacl.meta_shapes import (
     check_sparql_query_text,
     load_meta_shapes_graph,
@@ -49,6 +49,26 @@ def _validate(data_ttl: str, shapes_ttl: str, **kwargs):
 
 
 _TRIVIAL_DATA = "@prefix ex: <http://example.org/> . ex:r1 a ex:Record ."
+
+# A custom list-parameter function called from a rule's node expression, in SHACL 1.2 forms.
+_FUNCTION_CALL_SHAPES = """
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix shnex: <http://www.w3.org/ns/shacl-node-expr#> .
+@prefix ex: <http://example.org/> .
+
+ex:identity a sh:ListParameterExpressionFunction ;
+  sh:bodyExpression [ shnex:arg 0 ] ;
+  sh:parameter [ a sh:Parameter ; sh:path shnex:arg0 ; sh:name "value" ] .
+
+ex:FunctionExprShape a sh:NodeShape ;
+  sh:targetNode ex:alice ;
+  sh:rule [
+    a sh:TripleRule ;
+    sh:subject [ shnex:var "focusNode" ] ;
+    sh:predicate ex:derivedFn ;
+    sh:object [ ex:identity ( [ shnex:pathValues ex:says ] ) ] ;
+  ] .
+"""
 
 
 # ---------------------------------------------------------------------------
@@ -573,15 +593,17 @@ def test_genuinely_malformed_shacl_11_shape_still_caught() -> None:
 
 
 def test_meta_shacl_false_still_skips_preflight_entirely() -> None:
-    result = _validate(
-        _TRIVIAL_DATA,
-        """
-        @prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> .
-        ex:S a sh:NodeShape ; sh:targetClass ex:Record ; sh:uniqueValuesFor "not a property" .
-        """,
-        meta_shacl=False,
-    )
-    assert result.conforms is True
+    """With meta_shacl=False the preflight does not run (no MetaShaclError); the engine's own plan step still rejects the shape."""
+    with pytest.raises(ShapeError) as exc_info:
+        _validate(
+            _TRIVIAL_DATA,
+            """
+            @prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> .
+            ex:S a sh:NodeShape ; sh:targetClass ex:Record ; sh:uniqueValuesFor "not a property" .
+            """,
+            meta_shacl=False,
+        )
+    assert not isinstance(exc_info.value, MetaShaclError)
 
 
 def test_allow_infos_on_validate_relaxes_info_severity_meta_shacl_check() -> None:
@@ -943,19 +965,17 @@ class TestNodeExpressionWellFormedness:
             meta_validate(shapes)
 
     def test_real_function_call_fixture_still_works_end_to_end(self) -> None:
-        # Not just meta-validation - the actual fixture already relied on by
-        # tests/integration/test_shnex_node_expressions.py, run through the
+        # Not just meta-validation - a function-call shape (modelled on
+        # rdf12_node_expression_function.ttl, in SHACL 1.2 forms), run through the
         # full apply_rules() pipeline with meta_shacl=True, confirming the
         # new well-formedness rule doesn't reject real, working shapes.
         from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-
-        from ._shape_loader import load_shape
 
         data = StarLayerGraph()
         data.parse(data="@prefix ex: <http://example.org/> . ex:alice ex:says \"hello\" .", format="turtle")
 
         shapes = StarLayerGraph()
-        shapes.parse(data=load_shape("rdf12_node_expression_function.ttl"), format="turtle12")
+        shapes.parse(data=_FUNCTION_CALL_SHAPES, format="turtle12")
 
         result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=True)
         assert result.validation.conforms is True
@@ -1852,7 +1872,7 @@ def test_malformed_rule_settings_target_where_and_code_hints_are_caught(ttl) -> 
 
 
 def test_a_target_where_shape_that_is_not_well_formed_is_refused() -> None:
-    with pytest.raises(ReportableRuntimeError):  # (the engine reports the bad sh:minCount itself, or the meta-shapes do)
+    with pytest.raises((ShapeError, MetaShaclError)):  # (the engine reports the bad sh:minCount itself, or the meta-shapes do)
         _validate(_TRIVIAL_DATA, _PREFIXES + "ex:S a sh:NodeShape ; sh:targetWhere [ sh:path ex:p ; sh:minCount 'x' ] .")
 
 

@@ -1,32 +1,17 @@
 import pytest
 from rdflib import Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.shacl import StarShaclSchema
+from starlayer.shacl import ShapeError, StarShaclSchema
 
 EX = Namespace("http://example.org/")
 
-pyshacl = pytest.importorskip("pyshacl")
-
-# User-defined, reusable SPARQL-based sh:ConstraintComponent (SHACL Core /
-# SHACL 1.2 SPARQL Extensions - https://www.w3.org/TR/shacl12-sparql/):
-# a shapes graph can declare its own `a sh:ConstraintComponent` with
-# sh:parameter/sh:validator (or sh:nodeValidator/sh:propertyValidator), and
-# pySHACL's own CustomConstraintComponent/SPARQLConstraintComponent
-# machinery (pyshacl/constraints/sparql/sparql_based_constraint_components.py)
-# already implements this - but nothing in starShacl had ever exercised it,
-# so it was unconfirmed whether it worked at all, and unconfirmed whether it
-# interacted correctly with RDF-1.2 triple-term data through the
-# TripleTermAdapter encode/decode layer. Both are confirmed working here.
-#
-# Constructing the SELECT-based case surfaced a real pySHACL bug: a
-# malformed custom-validator SPARQL SELECT query that raises
-# pyshacl.errors.ValidationFailure crashed starShacl's own report decoding
-# with an unrelated-looking TypeError, because pySHACL's validate() returns
-# the ValidationFailure object itself as report_graph rather than raising it
-# or producing a real Graph - see docs/upstream-issues/pyshacl-upstream-issues.md's
-# 2026-07-19 entry. Fixed with a defensive re-raise in
-# starlayer.shacl/validator.py::validate(). test_malformed_custom_validator_raises_cleanly
-# below locks in that fix.
+# User-defined, reusable SPARQL-based sh:ConstraintComponent (SHACL 1.2 SPARQL
+# Extensions - https://www.w3.org/TR/shacl12-sparql/): a shapes graph can
+# declare its own `a sh:ConstraintComponent` with sh:parameter/sh:validator
+# (or sh:nodeValidator/sh:propertyValidator). ASK validators pre-bind $this and
+# $value; SELECT validators pre-bind $this and the parameters only (Appendix A).
+# A SELECT that assigns a pre-bound variable is an ill-formed shapes graph and
+# raises ShapeError.
 
 
 def test_ask_based_custom_component_flags_violations() -> None:
@@ -75,7 +60,7 @@ def test_select_based_custom_component_flags_violations() -> None:
           sh:parameter [ sh:path ex:minScore ] ;
           sh:propertyValidator [
             a sh:SPARQLSelectValidator ;
-            sh:select "SELECT $this ?value WHERE { FILTER (?value < ?minScore) }" ;
+            sh:select "SELECT $this ?value WHERE { $this $PATH ?value . FILTER (?value < $minScore) }" ;
           ] .
         ex:ScoreShape a sh:NodeShape ;
           sh:targetSubjectsOf ex:score ;
@@ -140,5 +125,5 @@ def test_malformed_custom_validator_raises_cleanly_not_a_confusing_typeerror() -
           sh:property [ sh:path ex:score ; ex:minScore 50 ] .
     """, format="turtle")
 
-    with pytest.raises(pyshacl.errors.ValidationFailure, match="pre-bound"):
+    with pytest.raises(ShapeError, match="pre-bound"):
         StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)

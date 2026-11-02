@@ -1,11 +1,9 @@
-import pytest
 from rdflib import Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 
 EX = Namespace("http://example.org/")
 
-pyshacl = pytest.importorskip("pyshacl")
 
 # SHACL 1.2 User Interfaces (https://www.w3.org/TR/shacl12-ui/, shui: =
 # http://www.w3.org/ns/shacl-ui#) defines a widget/editor/viewer vocabulary
@@ -88,12 +86,13 @@ def test_shui_annotations_do_not_interfere_with_rule_application() -> None:
         @prefix ex: <http://example.org/> .
         @prefix sh: <http://www.w3.org/ns/shacl#> .
         @prefix shui: <http://www.w3.org/ns/shacl-ui#> .
+        @prefix shnex: <http://www.w3.org/ns/shacl-node-expr#> .
         ex:R a sh:NodeShape ;
           sh:targetSubjectsOf ex:parent ;
           sh:property [ sh:path ex:parent ; shui:editor shui:InstancesSelectEditor ] ;
           sh:rule [
             a sh:TripleRule ;
-            sh:subject sh:this ; sh:predicate ex:hasParent ; sh:object [ sh:path ex:parent ] ;
+            sh:subject [ shnex:var "focusNode" ] ; sh:predicate ex:hasParent ; sh:object [ shnex:pathValues ex:parent ] ;
           ] .
     """, format="turtle")
 

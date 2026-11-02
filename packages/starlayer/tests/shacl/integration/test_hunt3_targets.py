@@ -39,10 +39,6 @@ FORMS = {
     "targetSubjectsOf": "ex:S a sh:NodeShape ; sh:targetSubjectsOf ex:p ; sh:class ex:Never .",
     "targetObjectsOf": "ex:S a sh:NodeShape ; sh:targetObjectsOf ex:q ; sh:class ex:Never .",
     "targetWhere": "ex:S a sh:NodeShape ; sh:targetWhere [ sh:property [ sh:path ex:p ; sh:minCount 1 ] ] ; sh:class ex:Never .",
-    "sparql_target": (
-        "ex:S a sh:NodeShape ; sh:target [ a sh:SPARQLTarget ; "
-        "sh:select 'SELECT ?this WHERE { ?this <http://e/p> ?v }' ] ; sh:class ex:Never ."
-    ),
     "targetNode_expression": "ex:S a sh:NodeShape ; sh:targetNode [ shnex:instancesOf ex:T ] ; sh:class ex:Never .",
     "targetNode_select": (
         "ex:S a sh:NodeShape ; sh:targetNode [ sh:select 'SELECT ?x WHERE { ?x <http://e/p> ?v }' ] ; sh:class ex:Never ."
@@ -111,7 +107,7 @@ COND_SHAPES = """
 ex:HasP a sh:NodeShape ; sh:property [ sh:path ex:p ; sh:minCount 1 ] .
 ex:HasQ a sh:NodeShape ; sh:property [ sh:path ex:q ; sh:minCount 1 ] .
 ex:S a sh:NodeShape ; sh:targetClass ex:T ; sh:rule ex:R .
-ex:R a sh:TripleRule ; sh:condition COND ; sh:subject sh:this ; sh:predicate ex:derived ; sh:object ex:o .
+ex:R a sh:TripleRule ; sh:condition COND ; sh:subject [ shnex:var 'focusNode' ] ; sh:predicate ex:derived ; sh:object ex:o .
 """
 COND_DATA = """
 ex:both a ex:T ; ex:p 1 ; ex:q 1 .
@@ -126,16 +122,13 @@ def _derived(cond: str) -> set:
     return {s for s, p, _ in result.inferred_graph if p == EX.derived}
 
 
-class TestRuleConditionList:
-    def test_list_means_conforms_to_all_listed_shapes(self) -> None:
-        assert _derived("( ex:HasP ex:HasQ )") == {EX.both}
+class TestRuleConditions:
+    def test_several_conditions_mean_conforms_to_all_of_them(self) -> None:
+        assert _derived("ex:HasP, ex:HasQ") == {EX.both}
 
     def test_single_shape_condition_unchanged(self) -> None:
         assert _derived("ex:HasP") == {EX.both, EX.onlyP}
 
-    def test_one_element_list_equals_single(self) -> None:
-        assert _derived("( ex:HasP )") == _derived("ex:HasP")
-
-    def test_validate_over_a_list_condition_reports(self) -> None:
-        result = validate(g(COND_DATA), g(COND_SHAPES.replace("COND", "( ex:HasP ex:HasQ )")))
+    def test_validate_over_several_conditions_reports(self) -> None:
+        result = validate(g(COND_DATA), g(COND_SHAPES.replace("COND", "ex:HasP, ex:HasQ")))
         assert result.conforms is True

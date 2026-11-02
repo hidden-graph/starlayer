@@ -9,13 +9,12 @@ triples of a layer are removed when the layer ends. Each test below fails with p
 import pytest
 from rdflib import RDF, Literal, Namespace, URIRef
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.shacl import StarShaclSchema
+from starlayer.shacl import RuleError, StarShaclSchema
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
 REIFIES = URIRef("http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies")
 
-pyshacl = pytest.importorskip("pyshacl")
 
 PREFIXES = """
 @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -221,11 +220,9 @@ class TestRunOnceAcrossShapes:
 
 
 def test_a_rule_that_is_neither_a_triple_rule_nor_a_sparql_rule_is_a_failure() -> None:
-    from pyshacl.errors import RuleLoadError
-
     shapes = "ex:S a sh:NodeShape ; sh:targetNode ex:n ; sh:rule ex:Weird . ex:Weird a ex:Other ."
 
-    with pytest.raises(RuleLoadError):
+    with pytest.raises(RuleError):
         _apply(shapes)
 
 

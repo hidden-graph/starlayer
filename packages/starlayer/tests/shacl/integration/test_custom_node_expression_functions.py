@@ -1,7 +1,7 @@
 import pytest
 from rdflib import Graph, Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.shacl import StarShaclSchema
+from starlayer.shacl import ShapeError, StarShaclSchema
 from starlayer.shacl.meta_shapes import meta_validate
 
 EX = Namespace("http://example.org/")
@@ -116,7 +116,7 @@ class TestCustomListParameterFunction:
             + SPACED_CONCAT_FUNCTION
             + """
             ex:R a sh:NodeShape ; sh:targetNode ex:alice ;
-              sh:rule [ a sh:TripleRule ; sh:subject sh:this ; sh:predicate ex:greeting ;
+              sh:rule [ a sh:TripleRule ; sh:subject [ shnex:var "focusNode" ] ; sh:predicate ex:greeting ;
                         sh:object [ ex:spacedConcat ( "hello" "world" ) ] ] .
             """,
             format="turtle",
@@ -208,7 +208,7 @@ class TestCustomNamedParameterFunction:
             + function
             + """
             ex:R a sh:NodeShape ; sh:targetNode ex:alice ;
-              sh:rule [ a sh:TripleRule ; sh:subject sh:this ; sh:predicate ex:same ;
+              sh:rule [ a sh:TripleRule ; sh:subject [ shnex:var "focusNode" ] ; sh:predicate ex:same ;
                         sh:object [ ex:value 42 ] ] .
             """,
             format="turtle",
@@ -376,5 +376,5 @@ class TestCustomFunctionAmbiguity:
             """,
             format="turtle",
         )
-        with pytest.raises(ValueError, match="more than one custom"):
+        with pytest.raises(ShapeError, match="only one custom function"):
             StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False, advanced=True)

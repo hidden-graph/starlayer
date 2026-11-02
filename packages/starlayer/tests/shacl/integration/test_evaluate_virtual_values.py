@@ -22,11 +22,9 @@ result is documented as not meant to be persisted.
 import pytest
 from rdflib import Literal, Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.shacl import StarShaclSchema
+from starlayer.shacl import ShapeError, StarShaclSchema
 
 EX = Namespace("http://example.org/")
-
-pyshacl = pytest.importorskip("pyshacl")
 
 PREFIXES = """
     @prefix ex: <http://example.org/> .
@@ -329,7 +327,7 @@ class TestIsolationFromApplyRules:
             ex:S a sh:NodeShape ; sh:targetNode ex:alice ;
               sh:property [ sh:path ex:friendCount ; sh:values [ shnex:count [ shnex:pathValues ex:friend ] ] ] .
             ex:R a sh:NodeShape ; sh:targetNode ex:alice ;
-              sh:rule [ a sh:TripleRule ; sh:subject sh:this ; sh:predicate ex:echoedCount ;
+              sh:rule [ a sh:TripleRule ; sh:subject [ shnex:var "focusNode" ] ; sh:predicate ex:echoedCount ;
                         sh:object [ shnex:pathValues ex:friendCount ] ] .
             """,
             format="turtle",
@@ -346,7 +344,7 @@ class TestIsolationFromApplyRules:
             data=PREFIXES
             + """
             ex:R a sh:NodeShape ; sh:targetNode ex:alice ;
-              sh:rule [ a sh:TripleRule ; sh:subject sh:this ; sh:predicate ex:friendCount ;
+              sh:rule [ a sh:TripleRule ; sh:subject [ shnex:var "focusNode" ] ; sh:predicate ex:friendCount ;
                         sh:object [ shnex:count [ shnex:pathValues ex:friend ] ] ] .
             """,
             format="turtle",
@@ -370,7 +368,7 @@ class TestIsolationFromApplyRules:
             ex:S a sh:NodeShape ; sh:targetNode ex:alice ;
               sh:property [ sh:path ex:friendCount ; sh:values [ shnex:count [ shnex:pathValues ex:friend ] ] ] .
             ex:R a sh:NodeShape ; sh:targetNode ex:alice ;
-              sh:rule [ a sh:TripleRule ; sh:subject sh:this ; sh:predicate ex:greeting ; sh:object "hi" ] .
+              sh:rule [ a sh:TripleRule ; sh:subject [ shnex:var "focusNode" ] ; sh:predicate ex:greeting ; sh:object "hi" ] .
             """,
             format="turtle",
         )
@@ -612,16 +610,12 @@ class TestFunctionArgumentMustBeAList:
         ],
     )
     def test_bare_node_is_reported_not_silently_empty(self, values):
-        from starlayer.shacl.sparql_node_expressions import NodeExpressionError
-
-        with pytest.raises(NodeExpressionError, match="must be an RDF list"):
+        with pytest.raises(ShapeError, match="must be an RDF list"):
             self._evaluate(values)
 
     def test_a_bare_node_nested_in_coalesce_no_longer_falls_back_quietly(self):
-        from starlayer.shacl.sparql_node_expressions import NodeExpressionError
-
         nested = "[ sparql:coalesce ( [ sparql:year [ shnex:pathValues ex:birthDate ] ] [ shnex:pathValues ex:name ] ) ]"
-        with pytest.raises(NodeExpressionError):
+        with pytest.raises(ShapeError):
             self._evaluate(nested)
 
     def test_shnex_count_still_takes_a_single_expression(self):

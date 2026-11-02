@@ -142,16 +142,18 @@ def test_shape_class_implicit_target_follows_rdfs_subclassof_and_needs_no_separa
             @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
             ex:SuperClass a sh:ShapeClass ;
               sh:in ( ex:ValidInstance ) .
-            ex:SubClass a rdfs:Class ;
-              rdfs:subClassOf ex:SuperClass .
         """,
         format="turtle",
     )
 
+    # SHACL "instance of" reads rdfs:subClassOf in the DATA graph (Core 3.1), so
+    # the class hierarchy lives there, not in the shapes graph.
     data = StarLayerGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
+            @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+            ex:SubClass rdfs:subClassOf ex:SuperClass .
             ex:ValidInstance a ex:SubClass .
             ex:InvalidInstance a ex:SubClass .
         """,

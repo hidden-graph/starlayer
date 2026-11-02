@@ -16,12 +16,10 @@ coincidentally both named sh:values but serve entirely different purposes.
 import pytest
 from rdflib import Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.shacl import StarShaclSchema
+from starlayer.shacl import RuleError, StarShaclSchema
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
-
-pyshacl = pytest.importorskip("pyshacl")
 
 
 def test_values_select_computes_the_checked_value_set() -> None:
@@ -35,10 +33,12 @@ def test_values_select_computes_the_checked_value_set() -> None:
               sh:targetClass ex:Person ;
               sh:path ex:fullName ;
               sh:values [
-                sh:select "SELECT ?fullName WHERE { $this ex:firstName ?first ; ex:lastName ?last . BIND (CONCAT(?first, \\" \\", ?last) AS ?fullName) . }"
+                sh:select "SELECT ?fullName WHERE { $this ex:firstName ?first ; ex:lastName ?last . BIND (CONCAT(?first, \\" \\", ?last) AS ?fullName) . }" ;
+                sh:prefixes ex:Prefixes
               ] ;
               sh:datatype xsd:string ;
               sh:hasValue "John Muir" .
+            ex:Prefixes sh:declare [ sh:prefix "ex" ; sh:namespace "http://example.org/"^^xsd:anyURI ] .
         """,
         format="turtle",
     )
@@ -62,13 +62,16 @@ def test_values_select_violates_when_computed_value_does_not_match() -> None:
         data="""
             @prefix ex: <http://example.org/> .
             @prefix sh: <http://www.w3.org/ns/shacl#> .
+            @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
             ex:Person-fullName a sh:PropertyShape ;
               sh:targetClass ex:Person ;
               sh:path ex:fullName ;
               sh:values [
-                sh:select "SELECT ?fullName WHERE { $this ex:firstName ?first ; ex:lastName ?last . BIND (CONCAT(?first, \\" \\", ?last) AS ?fullName) . }"
+                sh:select "SELECT ?fullName WHERE { $this ex:firstName ?first ; ex:lastName ?last . BIND (CONCAT(?first, \\" \\", ?last) AS ?fullName) . }" ;
+                sh:prefixes ex:Prefixes
               ] ;
               sh:hasValue "John Muir" .
+            ex:Prefixes sh:declare [ sh:prefix "ex" ; sh:namespace "http://example.org/"^^xsd:anyURI ] .
         """,
         format="turtle",
     )
@@ -300,8 +303,6 @@ def test_property_rule_sh_values_remains_a_separate_unimplemented_mechanism() ->
     own, unrelated sh:values mechanism (still correctly unimplemented - see
     tests/integration/test_rule_condition.py's own dedicated test).
     """
-    from pyshacl.errors import RuleLoadError
-
     shapes = StarLayerGraph()
     shapes.parse(
         data="""
@@ -315,5 +316,5 @@ def test_property_rule_sh_values_remains_a_separate_unimplemented_mechanism() ->
     data = StarLayerGraph()
     data.add((EX.alice, EX.dummy, EX.dummy))
 
-    with pytest.raises(RuleLoadError):
+    with pytest.raises(RuleError):
         StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)

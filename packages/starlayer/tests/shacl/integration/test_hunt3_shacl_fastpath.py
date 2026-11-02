@@ -8,7 +8,7 @@ from __future__ import annotations
 import pytest
 from rdflib import RDF, Namespace
 from starlayer import StarLayerGraph
-from starlayer.shacl import StarShaclSchema, apply_rules, evaluate, validate
+from starlayer.shacl import ShapeError, StarShaclSchema, apply_rules, evaluate, validate
 
 pytestmark = pytest.mark.shacl
 
@@ -211,10 +211,8 @@ class TestNodeKindMessage:
 
 class TestInvalidPattern:
     def test_an_invalid_regex_is_a_clean_error_naming_the_pattern(self) -> None:
-        from pyshacl.errors import ConstraintLoadError
-
         shapes = 'ex:S a sh:NodeShape ; sh:targetNode ex:n ; sh:property [ sh:path ex:p ; sh:pattern "(" ] .'
-        with pytest.raises(ConstraintLoadError, match="not a valid regular expression"):
+        with pytest.raises(ShapeError, match="invalid sh:pattern .\\(."):
             validate(g("ex:n ex:p 'a' ."), g(shapes))
 
     def test_a_valid_pattern_still_works(self) -> None:

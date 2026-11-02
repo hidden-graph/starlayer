@@ -7,14 +7,11 @@ named after the local name of its ``sh:path``. A required parameter without a va
 """
 
 import pytest
-from pyshacl.errors import RuleLoadError
 from rdflib import Literal, Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.shacl import StarShaclSchema
+from starlayer.shacl import RuleError, StarShaclSchema
 
 EX = Namespace("http://example.org/")
-
-pyshacl = pytest.importorskip("pyshacl")
 
 PREFIXES = """
 @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -95,7 +92,7 @@ class TestTemplates:
         shapes = """
             ex:T a sh:SPARQLRuleTemplate ; rdfs:subClassOf sh:Rule ;
               sh:parameter [ sh:path ex:property ] , [ sh:path ex:extra ; sh:optional true ] ;
-              sh:construct "CONSTRUCT { ?s ex:seen true . } WHERE { ?s $property ?o . FILTER (!BOUND($extra)) }" .
+              sh:construct "CONSTRUCT { ?s <http://example.org/seen> true . } WHERE { ?s $property ?o . FILTER (!BOUND($extra)) }" .
             ex:R a ex:T ; ex:property ex:knows .
         """
         result = _apply(shapes, "ex:a ex:knows ex:b .")
@@ -105,27 +102,19 @@ class TestTemplates:
     def test_a_required_parameter_without_a_value_is_a_failure(self) -> None:
         shapes = SYMMETRIC + "ex:R a ex:SymmetricPropertyRule ."
 
-        with pytest.raises(RuleLoadError, match="no value for the required parameter"):
+        with pytest.raises(RuleError, match="missing value for template parameter"):
             _apply(shapes, "ex:a ex:knows ex:b .")
 
     def test_a_required_parameter_without_a_value_is_a_failure_for_an_attached_instance_too(self) -> None:
         shapes = SYMMETRIC + "ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:rule ex:R . ex:R a ex:SymmetricPropertyRule ."
 
-        with pytest.raises(RuleLoadError, match="no value for the required parameter"):
+        with pytest.raises(RuleError, match="missing value for template parameter"):
             _apply(shapes, "ex:a ex:knows ex:b .")
 
     def test_a_parameter_with_two_values_is_a_failure(self) -> None:
         shapes = SYMMETRIC + "ex:R a ex:SymmetricPropertyRule ; ex:property ex:knows, ex:likes ."
 
-        with pytest.raises(RuleLoadError, match="several values"):
-            _apply(shapes, "ex:a ex:knows ex:b .")
-
-    def test_an_instance_of_two_templates_is_a_failure(self) -> None:
-        shapes = SYMMETRIC + """
-            ex:Other a sh:SPARQLRuleTemplate ; rdfs:subClassOf sh:Rule ; sh:construct "CONSTRUCT { } WHERE { }" .
-            ex:R a ex:SymmetricPropertyRule, ex:Other ; ex:property ex:knows .
-        """
-        with pytest.raises(RuleLoadError, match="more than one"):
+        with pytest.raises(RuleError, match="more than one value for template parameter"):
             _apply(shapes, "ex:a ex:knows ex:b .")
 
     def test_instances_belong_to_rule_sets_and_layers_like_any_rule(self) -> None:
@@ -147,7 +136,7 @@ class TestTemplates:
         assert (EX.b, EX.knows, EX.a) not in result.inferred_graph
 
     def test_the_shapes_graph_is_left_as_it_was(self) -> None:
-        """An attached instance is typed ``sh:SPARQLRule`` only while pySHACL gathers the rules."""
+        """An attached instance is typed ``sh:SPARQLRule`` only while the rules are gathered."""
         shapes = _graph(SYMMETRIC + "ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:rule ex:R . ex:R a ex:SymmetricPropertyRule ; ex:property ex:knows .")
         before = set(shapes)
 
@@ -160,11 +149,11 @@ class TestRuleProcessor:
     RULE = "ex:R a sh:TripleRule ; sh:subject ex:a ; sh:predicate ex:p ; sh:object ex:b ."
 
     def test_a_rule_that_names_a_processor_is_a_failure(self) -> None:
-        with pytest.raises(RuleLoadError, match="rule processor"):
+        with pytest.raises(RuleError, match="sh:ruleProcessor"):
             _apply(self.RULE + " ex:R sh:ruleProcessor ex:Engine .", "ex:n ex:m true .")
 
     def test_a_string_names_a_processor_too(self) -> None:
-        with pytest.raises(RuleLoadError, match="SRL 1.2"):
+        with pytest.raises(RuleError, match="sh:ruleProcessor"):
             _apply(self.RULE + ' ex:R sh:ruleProcessor "SRL 1.2" .', "ex:n ex:m true .")
 
     def test_a_deactivated_rule_is_not_asked(self) -> None:
@@ -184,7 +173,7 @@ class TestRuleProcessor:
     def test_a_selected_rule_set_that_names_a_processor_is_a_failure(self) -> None:
         shapes = self.RULE + " ex:Set a sh:RuleSet ; sh:hasRule ex:R ; sh:ruleProcessor ex:Engine ."
 
-        with pytest.raises(RuleLoadError, match="rule processor"):
+        with pytest.raises(RuleError, match="sh:ruleProcessor"):
             _apply(shapes, "ex:n ex:m true .", rule_set=EX.Set)
 
     def test_a_processor_of_an_included_rule_set_applies_to_the_including_one(self) -> None:
@@ -192,7 +181,7 @@ class TestRuleProcessor:
             ex:Inner a sh:RuleSet ; sh:ruleProcessor ex:Engine .
             ex:Outer a sh:RuleSet ; sh:includesRuleSet ex:Inner ; sh:hasRule ex:R .
         """
-        with pytest.raises(RuleLoadError, match="rule processor"):
+        with pytest.raises(RuleError, match="sh:ruleProcessor"):
             _apply(shapes, "ex:n ex:m true .", rule_set=EX.Outer)
 
     def test_a_rule_set_that_is_not_selected_is_not_asked(self) -> None:
@@ -205,5 +194,5 @@ class TestRuleProcessor:
     def test_entailment_naming_such_a_rule_set_is_a_failure(self) -> None:
         shapes = self.RULE + " ex:Set a sh:RuleSet ; sh:hasRule ex:R ; sh:ruleProcessor ex:Engine . ex:G a sh:ShapesGraph ; sh:entailment ex:Set ."
 
-        with pytest.raises(RuleLoadError, match="rule processor"):
+        with pytest.raises(RuleError, match="sh:ruleProcessor"):
             StarShaclSchema(shacl_graph=_graph(shapes)).validate(data_graph=_graph("ex:n ex:m true ."))

@@ -1,4 +1,3 @@
-import pytest
 from rdflib import Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
@@ -6,9 +5,6 @@ from starlayer.shacl import StarShaclSchema
 from ._shape_loader import load_shape
 
 EX = Namespace("http://example.org/")
-
-
-pyshacl = pytest.importorskip("pyshacl")
 
 
 def test_apply_rules_adds_inferred_triple() -> None:

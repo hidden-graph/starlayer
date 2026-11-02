@@ -1,9 +1,9 @@
 from typing import Any
 
 import pytest
-from pyshacl.errors import ConstraintLoadError
 from rdflib import Graph, Literal, Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+from starlayer.shacl import ShapeError
 from starlayer.shacl.adapters import TripleTermAdapter, TripleTermGraph, TripleTermValue
 from starlayer.shacl.validator import StarShaclSchema, evaluate, validate, validate_each
 
@@ -172,42 +172,6 @@ def test_module_level_validate_each_matches_starlayershacl_method() -> None:
     assert results[1].conforms is False
 
 
-def test_apply_rules_requests_inplace_advanced_mode(monkeypatch: pytest.MonkeyPatch) -> None:
-    # apply_rules() (both the module-level function and the method that
-    # delegates to it) always goes through the module-level validate() ->
-    # a fresh StarShaclSchema's own default validate_fn - a constructor-level
-    # validate_fn= override on a *different* instance can no longer reach it
-    # (2026-10-07: apply_rules()'s real implementation moved to module level,
-    # mirroring pyshacl's own shacl_rules() entry point, and no longer routes
-    # through self.validate()/self.adapter). Patch the shared default instead.
-    #
-    # apply_rules() now calls validate() twice (2026-10-07: once for rule
-    # execution, once more at the end to re-validate the complete result
-    # including global-rule/entailment output - see validator.py's own
-    # comment at that second call site) - captured as a list, one dict per
-    # call, so this test can assert on the FIRST call's own options
-    # specifically (the rules-execution phase this test is actually about),
-    # not whichever call happened to run last.
-    captured: list[dict] = []
-
-    def fake_validate(**kwargs):
-        captured.append(dict(kwargs))
-        report = Graph()
-        return True, report, "rules"
-
-    monkeypatch.setattr("starlayer.shacl.validator._default_validate", fake_validate)
-
-    data = StarLayerGraph()
-    shapes = StarLayerGraph()
-
-    validator = StarShaclSchema(shacl_graph=shapes)
-    _ = validator.apply_rules(data_graph=data)
-
-    assert captured[0]["advanced"] is True
-    assert captured[0]["iterate_rules"] is True
-    assert captured[0]["inplace"] is True
-
-
 def test_validate_inplace_decodes_back_into_input_graph() -> None:
     def fake_validate(**kwargs):
         encoded_data = kwargs["data_graph"]
@@ -360,22 +324,6 @@ def test_validate_populates_diagnostics() -> None:
     assert result.diagnostics.generated_support_triples >= 3
 
 
-def test_apply_rules_carries_diagnostics() -> None:
-    def fake_validate(**kwargs):
-        report = Graph()
-        return True, report, "ok"
-
-    data = StarLayerGraph()
-    data.add((EX.s, EX.p, (EX.a, EX.p, EX.b)))
-    shapes = StarLayerGraph()
-
-    validator = StarShaclSchema(shacl_graph=shapes, adapter=TripleTermAdapter(), validate_fn=fake_validate)
-    result = validator.apply_rules(data_graph=data)
-
-    assert result.validation.diagnostics is not None
-    assert result.validation.diagnostics.encode_graph_calls >= 2
-
-
 def test_validate_diagnostics_reset_between_runs() -> None:
     def fake_validate(**kwargs):
         report = Graph()
@@ -438,37 +386,6 @@ def test_validate_profile_allows_overrides() -> None:
     _ = validator.validate(data_graph=data, mode="validation", advanced=True)
 
     assert captured["advanced"] is True
-
-
-def test_apply_rules_uses_rules_profile_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
-    # See test_apply_rules_requests_inplace_advanced_mode's comment: apply_rules()
-    # no longer routes through this instance's own validate_fn, so patch the
-    # shared default instead. Also see that test's comment on why captured
-    # is a list (apply_rules() now calls validate() twice) - this test
-    # asserts on the first call's (rules-execution) own options.
-    captured: list[dict] = []
-
-    def fake_validate(**kwargs):
-        captured.append(dict(kwargs))
-        report = Graph()
-        return True, report, "ok"
-
-    monkeypatch.setattr("starlayer.shacl.validator._default_validate", fake_validate)
-
-    data = StarLayerGraph()
-    data.add((EX.s, EX.p, (EX.a, EX.p, EX.b)))
-    shapes = StarLayerGraph()
-
-    validator = StarShaclSchema(shacl_graph=shapes)
-    _ = validator.apply_rules(data_graph=data)
-
-    assert captured[0]["advanced"] is True
-    assert captured[0]["iterate_rules"] is True
-    assert captured[0]["inplace"] is True
-    # meta_shacl is consumed by starShacl's own preflight (starlayer.shacl.meta_shapes)
-    # rather than forwarded to pySHACL's own (unextended) meta_shacl mechanism -
-    # see validator.py::validate() - so it's intentionally absent here, not True.
-    assert "meta_shacl" not in captured[0]
 
 
 def test_validator_target_nodes_delegates_to_native_core() -> None:
@@ -881,17 +798,13 @@ def test_validate_hard_fails_when_reification_path_is_not_simple_iri() -> None:
     )
 
     validator = StarShaclSchema(shacl_graph=shapes)
-    with pytest.raises(ConstraintLoadError, match="simple IRI"):
+    with pytest.raises(ShapeError, match="IRI path"):
         _ = validator.validate(data_graph=data, meta_shacl=False)
 
 
-def test_validate_applies_filter_shape_compatibility_patch_correctly() -> None:
-    # sh:filterShape crashes pySHACL outright (AttributeError, not just
-    # "untested" per its own source comment) - confirmed directly with plain
-    # RDF 1.1 data. starShacl applies a small, backward-compatible
-    # compatibility shim (_patch_shape_validate_for_filter_shape) so this
-    # now actually works: only ex:bob (a genuine ex:Adult) should be
-    # filtered in, excluding ex:carol.
+def test_apply_rules_evaluates_shnex_filter_shape_in_a_rule() -> None:
+    # shnex:filterShape keeps only the nodes that conform to the shape: only ex:bob
+    # (a genuine ex:Adult) is filtered in, excluding ex:carol.
     data = StarLayerGraph()
     data.parse(
         data="""
@@ -907,6 +820,7 @@ def test_validate_applies_filter_shape_compatibility_patch_correctly() -> None:
         data="""
             @prefix sh: <http://www.w3.org/ns/shacl#> .
             @prefix ex: <http://example.org/> .
+            @prefix shnex: <http://www.w3.org/ns/shacl-node-expr#> .
 
             ex:AdultShape a sh:NodeShape ; sh:class ex:Adult .
 
@@ -914,9 +828,9 @@ def test_validate_applies_filter_shape_compatibility_patch_correctly() -> None:
               sh:targetNode ex:alice ;
               sh:rule [
                 a sh:TripleRule ;
-                sh:subject sh:this ;
+                sh:subject [ shnex:var "focusNode" ] ;
                 sh:predicate ex:derivedAdultFriends ;
-                sh:object [ sh:filterShape ex:AdultShape ; sh:nodes [ sh:path ex:knows ] ] ;
+                sh:object [ shnex:filterShape ex:AdultShape ; shnex:nodes [ shnex:pathValues ex:knows ] ] ;
               ] .
         """,
         format="turtle",
@@ -927,50 +841,6 @@ def test_validate_applies_filter_shape_compatibility_patch_correctly() -> None:
 
     derived = {o for _, _, o in result.inferred_graph.triples((EX.alice, EX.derivedAdultFriends, None))}
     assert derived == {EX.bob}
-
-
-def test_validate_hard_fails_on_sh_filter_shape_when_patch_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
-    # Defensive fallback: if the compatibility shim can't be applied (e.g.
-    # pySHACL's internals no longer match what it expects), starShacl still
-    # fails clearly rather than silently no-op-ing or crashing confusingly.
-    import starlayer.shacl.validator as validator_module
-
-    monkeypatch.setattr(validator_module, "_filter_shape_patch_status", None)
-    monkeypatch.setattr(validator_module, "_patch_shape_validate_for_filter_shape", lambda: False)
-
-    data = StarLayerGraph()
-    data.parse(
-        data="""
-            @prefix ex: <http://example.org/> .
-            ex:alice ex:knows ex:bob .
-            ex:bob a ex:Adult .
-        """,
-        format="turtle",
-    )
-
-    shapes = StarLayerGraph()
-    shapes.parse(
-        data="""
-            @prefix sh: <http://www.w3.org/ns/shacl#> .
-            @prefix ex: <http://example.org/> .
-
-            ex:AdultShape a sh:NodeShape ; sh:class ex:Adult .
-
-            ex:FilterExprShape a sh:NodeShape ;
-              sh:targetNode ex:alice ;
-              sh:rule [
-                a sh:TripleRule ;
-                sh:subject sh:this ;
-                sh:predicate ex:derivedAdultFriends ;
-                sh:object [ sh:filterShape ex:AdultShape ; sh:nodes [ sh:path ex:knows ] ] ;
-              ] .
-        """,
-        format="turtle",
-    )
-
-    validator = StarShaclSchema(shacl_graph=shapes)
-    with pytest.raises(NotImplementedError, match="sh:filterShape"):
-        _ = validator.apply_rules(data_graph=data, meta_shacl=False)
 
 
 def test_validate_does_not_hard_fail_without_reification_constraints() -> None:

@@ -1213,7 +1213,7 @@ def manchester_validate(data_graph: Graph) -> tuple[bool, Graph, str]:
     module's own, fixed concern, not a parameter.
 
     Runs with RDFS reasoning enabled (``ont_graph=get_ontology_graph(
-    "manchester_owl")``, ``inference="rdfs"``) - this is what lets the
+    "manchester_owl")``, ``inference=ENTAILMENT.RDFS``) - this is what lets the
     dispatch shapes (``ClassExpressionShape``/``PropertyExpressionShape``/
     ``DataRangeShape``/``FrameShape``/``ClauseShape``/``MiscAxiomShape``) be
     a single ``sh:class`` check against an abstract superclass instead of

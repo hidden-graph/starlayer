@@ -8,8 +8,6 @@ from ._shape_loader import load_shape
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
 
-pyshacl = pytest.importorskip("pyshacl")
-
 # pySHACL 0.40 outright crashes (AssertionError) given sh:closed sh:ByTypes -
 # it only accepts a boolean literal - so these confirm both that the crash is
 # avoided and that the by-types property collection algorithm is correct,
@@ -128,7 +126,7 @@ class TestClosedMalformedValueRejectedCleanly:
         data = StarLayerGraph()
         data.parse(data=self._data(), format="turtle")
 
-        with pytest.raises(ValueError, match="xsd:boolean literal or sh:ByTypes"):
+        with pytest.raises(ValueError, match="sh:closed must be an xsd:boolean"):
             StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
 
     def test_iri_value_is_still_rejected_cleanly(self) -> None:
@@ -137,7 +135,7 @@ class TestClosedMalformedValueRejectedCleanly:
         data = StarLayerGraph()
         data.parse(data=self._data(), format="turtle")
 
-        with pytest.raises(ValueError, match="xsd:boolean literal or sh:ByTypes"):
+        with pytest.raises(ValueError, match="sh:closed must be an xsd:boolean"):
             StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
 
     def test_real_boolean_true_still_works(self) -> None:

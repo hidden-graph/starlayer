@@ -30,45 +30,25 @@ from starlayer.shacl_engine.terms import (
     to_engine_triple,
 )
 
-_ALIASES = {
-    "none": None,
-    "rdf": ENTAILMENT.RDF,
-    "rdfs": ENTAILMENT.RDFS,
-    "owlrl": ENTAILMENT["OWL-RDF-Based"],
-    "both": None,  # expanded below
-}
 _NATIVE = {ENTAILMENT.RDF, ENTAILMENT.RDFS, ENTAILMENT["OWL-RDF-Based"]}
 
 
 def normalise_regimes(regime: Any) -> frozenset:
-    """Regime IRIs for ``regime``: ``None`` / ``'none'`` (no entailment), a regime IRI, one of ``'rdf'``, ``'rdfs'``,
-    ``'owlrl'``, ``'both'`` (rdfs + owlrl), or an iterable of these. An unsupported regime raises ``ValueError``."""
+    """The entailment regime IRIs of ``regime``: ``None`` (no entailment), a regime IRI (the W3C entailment regime
+    IRIs ``sh:entailment`` uses, e.g. ``ENTAILMENT.RDFS``), or an iterable of them. A plain string must itself be such an IRI;
+    names such as ``'rdfs'`` or ``'owlrl'`` are not accepted. An unsupported regime raises ``ValueError``."""
     if regime is None:
         return frozenset()
-    if isinstance(regime, (str, URIRef)):
-        items: Iterable = [regime]
-    else:
-        items = regime
-    out: set = set()
-    for item in items:
-        if isinstance(item, str) and not isinstance(item, URIRef):
-            key = item.lower()
-            if key == "both":
-                out |= {ENTAILMENT.RDFS, ENTAILMENT["OWL-RDF-Based"]}
-                continue
-            if key not in _ALIASES:
-                raise ValueError(f"Unsupported entailment regime {item!r}")
-            if _ALIASES[key] is not None:
-                out.add(_ALIASES[key])
-        else:
-            out.add(item)
+    items: Iterable = [regime] if isinstance(regime, (str, URIRef)) else regime
+    out = {URIRef(item) if type(item) is str else item for item in items}
     unsupported = {r for r in out if r not in _NATIVE}
     if unsupported:
-        raise ValueError(f"Unsupported entailment regime(s) {sorted(text(r) for r in unsupported)!r}")
+        supported = sorted(str(r) for r in _NATIVE)  # str-ok: entailment regime IRIs are plain rdflib URIRefs
+        raise ValueError(f"Unsupported entailment regime(s) {sorted(str(r) for r in unsupported)!r}; use one of {supported!r}")  # str-ok: as above
     return frozenset(out)
 
 
-def entailed_view(data_graph: Any, regime: Any = "rdfs", ont_graph: Any = None) -> Any:
+def entailed_view(data_graph: Any, regime: Any = ENTAILMENT.RDFS, ont_graph: Any = None) -> Any:
     """``data_graph`` closed under ``regime``, as an overlay; with no regime, ``data_graph`` itself. Never mutates
     ``data_graph`` or ``ont_graph``."""
     regimes = normalise_regimes(regime)

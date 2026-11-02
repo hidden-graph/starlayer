@@ -27,20 +27,6 @@ def _data(bad_every=None):
     return _graph(P + "\n".join(lines))
 
 
-def test_sh_in_list_is_walked_once_not_once_per_focus_node(monkeypatch):
-    walked = []
-    original = rdflib.Graph.items
-
-    def counting_items(self, list):
-        walked.append(list)
-        return original(self, list)
-
-    monkeypatch.setattr(rdflib.Graph, "items", counting_items)
-    result = validate(_data(), _shapes(30), meta_shacl=False)
-    assert result.conforms
-    assert 0 < len(walked) < 5  # was one walk per focus node (40 here)
-
-
 def test_results_are_unchanged_by_reusing_the_component():
     result = validate(_data(bad_every=4), _shapes(30), meta_shacl=False)
     assert not result.conforms

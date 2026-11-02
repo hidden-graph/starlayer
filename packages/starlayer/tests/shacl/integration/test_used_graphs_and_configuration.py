@@ -117,11 +117,12 @@ def test_used_data_graph_and_shapes_graph_work_through_apply_rules() -> None:
         data="""
             @prefix ex: <http://example.org/> .
             @prefix sh: <http://www.w3.org/ns/shacl#> .
+            @prefix shnex: <http://www.w3.org/ns/shacl-node-expr#> .
             ex:R a sh:NodeShape ;
               sh:targetSubjectsOf ex:parent ;
               sh:rule [
                 a sh:TripleRule ;
-                sh:subject sh:this ; sh:predicate ex:hasParent ; sh:object [ sh:path ex:parent ] ;
+                sh:subject [ shnex:var "focusNode" ] ; sh:predicate ex:hasParent ; sh:object [ shnex:pathValues ex:parent ] ;
               ] .
         """,
         format="turtle",

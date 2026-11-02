@@ -1,10 +1,9 @@
-"""A literal sh:targetWhere is a ShapeLoadError (GitHub issue #172); packaging graphs of any sh:Graph role (GitHub issue #169)."""
+"""A literal sh:targetWhere is a ShapeError (GitHub issue #172); packaging graphs of any sh:Graph role (GitHub issue #169)."""
 
 import pytest
-from pyshacl.errors import ShapeLoadError
 from rdflib import Namespace
 from starlayer import StarLayerGraph
-from starlayer.shacl import StarShaclSchema, validate
+from starlayer.shacl import ShapeError, StarShaclSchema, validate
 from starlayer.shacl.shapes_graphs import (
     graph_nodes,
     shapes_graph_members,
@@ -28,13 +27,13 @@ LITERAL_WHERE = "ex:S a sh:NodeShape ; sh:targetWhere 'x' ."
 DATA = "ex:r1 a ex:Record ."
 
 
-def test_a_literal_target_where_raises_shape_load_error_with_the_function() -> None:
-    with pytest.raises(ShapeLoadError, match="targetWhere"):
+def test_a_literal_target_where_raises_shape_error_with_the_function() -> None:
+    with pytest.raises(ShapeError, match="targetWhere"):
         validate(_graph(DATA), _graph(LITERAL_WHERE), meta_shacl=False)
 
 
-def test_a_literal_target_where_raises_shape_load_error_with_the_method() -> None:
-    with pytest.raises(ShapeLoadError, match="targetWhere"):
+def test_a_literal_target_where_raises_shape_error_with_the_method() -> None:
+    with pytest.raises(ShapeError, match="targetWhere"):
         StarShaclSchema(shacl_graph=_graph(LITERAL_WHERE)).validate(data_graph=_graph(DATA), meta_shacl=False)
 
 

@@ -5,7 +5,7 @@ shapes graph (shape-level SPARQLRule, two global copying SPARQLRules, a TripleRu
 
 * ``entailed_view`` (rdfs): split into combined copy / owlrl closure (``StarLayerGraph.infer``) / overlay fill;
 * ``apply_rules`` over the entailed view;
-* ``validate`` on the finished overlay (``rules=False``), and the whole ``validate(..., inference='rdfs', rules=True)``;
+* ``validate`` on the finished overlay (``rules=False``), and the whole ``validate(..., inference=ENTAILMENT.RDFS, rules=True)``;
 * a lookup micro-benchmark: triples/objects/subjects/__contains__ on the finished overlay.
 
     PYTHONPATH=packages/starlayer python3 benchmarks-shacl/bench_overlay.py --sizes 5000,20000 --overlay python
@@ -29,6 +29,7 @@ for p in (str(ROOT), str(Path(__file__).resolve().parent)):
         sys.path.insert(0, p)
 
 import bench_engine_vs_old as base_bench  # noqa: E402
+from starlayer.graph.graph.entailment_regimes import ENTAILMENT  # noqa: E402
 
 RULES_TTL = """
 @prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -143,7 +144,7 @@ def stages(triples: int, reps: int):
     row["apply_rules"], res = timed(lambda: apply_rules(view, shapes), reps)
     row["inferred_by_rules"] = len(res.inferred)
     row["validate_on_overlay"], out = timed(lambda: validate(res.view, shapes, rules=False), reps)
-    row["validate_full"], out2 = timed(lambda: validate(data, shapes, inference="rdfs", rules=True), reps)
+    row["validate_full"], out2 = timed(lambda: validate(data, shapes, inference=ENTAILMENT.RDFS, rules=True), reps)
     row["results"] = (len(out.results), len(out2.results))
     row["lookups_us"] = lookups(res.view, data)
     return row
@@ -155,7 +156,7 @@ def profile_full(triples: int, top: int):
     data, shapes = make_inputs(triples)
     pr = cProfile.Profile()
     pr.enable()
-    validate(data, shapes, inference="rdfs", rules=True)
+    validate(data, shapes, inference=ENTAILMENT.RDFS, rules=True)
     pr.disable()
     st = pstats.Stats(pr)
     print(f"\n=== profile validate(rdfs + rules), {len(data)} triples: {st.total_tt:.2f}s profiler-inflated; top {top} by tottime ===")

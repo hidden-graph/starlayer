@@ -108,11 +108,12 @@ class TestApplyRulesSeesEntailmentBeforeRulesRun:
             data="""
                 @prefix ex: <http://example.org/> .
                 @prefix sh: <http://www.w3.org/ns/shacl#> .
+                @prefix shnex: <http://www.w3.org/ns/shacl-node-expr#> .
                 ex:EmployeeRuleShape a sh:NodeShape ;
                     sh:targetClass ex:Employee ;
                     sh:rule [
                         a sh:TripleRule ;
-                        sh:subject sh:this ;
+                        sh:subject [ shnex:var 'focusNode' ] ;
                         sh:predicate ex:flagged ;
                         sh:object true ;
                     ] ;

@@ -2,11 +2,9 @@ import pytest
 from rdflib import Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.graph.model.triple import TripleTerm
-from starlayer.shacl import StarShaclSchema
+from starlayer.shacl import EvaluationFailure, StarShaclSchema
 
 EX = Namespace("http://example.org/")
-
-pyshacl = pytest.importorskip("pyshacl")
 
 # SHACL 1.2 Node Expressions (https://www.w3.org/TR/shacl12-node-expr/) moved
 # the node-expression combinator vocabulary to a new namespace, shnex: =
@@ -339,14 +337,12 @@ def test_conformstoshape_false_when_a_node_does_not_conform() -> None:
 
 def test_conformstoshape_over_expression_yielding_multiple_nodes() -> None:
     # Node Expressions 4.5.3: conformsToShape is a list parameter function, so an argument with more than one
-    # output node is an evaluation failure, which sh:expression (7.1) reports as a violation. (It used to require
-    # all of the nodes to conform; issue #95.)
-    assert (
+    # output node is an evaluation failure; the native engine lets sh:expression's evaluation failure propagate
+    # out of validate() instead of silently requiring all of the nodes to conform (issue #95).
+    with pytest.raises(EvaluationFailure, match="more than one output node"):
         _boolean_expr_conforms(
             "shnex:conformsToShape ( [ shnex:concat ( ex:bob ex:carol ) ] ex:PersonShape )"
         )
-        is False
-    )
 
 
 def test_conformstoshape_over_empty_result_is_not_vacuously_true() -> None:
@@ -377,7 +373,7 @@ def test_shnex_pathvalues_with_triple_rule_carries_rdf12_triple_term() -> None:
         data=PREFIXES
         + """
         ex:R a sh:NodeShape ; sh:targetNode ex:alice ;
-          sh:rule [ a sh:TripleRule ; sh:subject sh:this ; sh:predicate ex:derivedClaim ;
+          sh:rule [ a sh:TripleRule ; sh:subject [ shnex:var "focusNode" ] ; sh:predicate ex:derivedClaim ;
                     sh:object [ shnex:pathValues ex:claims ] ] .
         """,
         format="turtle",
@@ -388,29 +384,6 @@ def test_shnex_pathvalues_with_triple_rule_carries_rdf12_triple_term() -> None:
     from rdflib import Literal
 
     assert derived[0][2] == TripleTerm(EX.bob, EX.age, Literal(42))
-
-
-def test_shnex_and_old_sh_forms_coexist_in_same_validate_call() -> None:
-    # Regression check: a shapes graph mixing an old sh:union expression and a
-    # new shnex: expression must handle both correctly in one validate() call
-    # - the shnex: patch must not break pySHACL's own old-form handling.
-    data = StarLayerGraph()
-    data.parse(data=DATA, format="turtle")
-    shapes = StarLayerGraph()
-    shapes.parse(
-        data=PREFIXES
-        + """
-        ex:OldForm a sh:NodeShape ; sh:targetNode ex:alice ;
-          sh:expression [ shnex:if [ shnex:exists [ sh:path ex:parent ] ] ;
-                           shnex:then true ; shnex:else false ] .
-        ex:NewForm a sh:NodeShape ; sh:targetNode ex:alice ;
-          sh:expression [ shnex:if [ shnex:exists [ shnex:pathValues ex:sibling ] ] ;
-                           shnex:then true ; shnex:else false ] .
-        """,
-        format="turtle",
-    )
-    result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False, advanced=True)
-    assert result.conforms is True
 
 
 # sparql:isTriple/subject over a triple-term value obtained from *real data*

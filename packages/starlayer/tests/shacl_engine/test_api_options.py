@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 from rdflib import RDF, Literal, URIRef
+from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import validate as old_validate
 from starlayer.shacl_engine.api import validate as new_validate
@@ -225,8 +226,8 @@ def test_negation_in_a_chain_that_never_returns_is_evaluated() -> None:
 def test_inplace_adds_entailed_triples_to_the_data_graph() -> None:
     data = g("ex:T rdfs:subClassOf ex:U . " + GOOD)
     before = len(data)
-    plain = new_validate(data, g(SHAPES), inference="rdfs")
+    plain = new_validate(data, g(SHAPES), inference=ENTAILMENT.RDFS)
     assert plain.data_graph is None and len(data) == before
-    out = new_validate(data, g(SHAPES), inference="rdfs", inplace=True)
+    out = new_validate(data, g(SHAPES), inference=ENTAILMENT.RDFS, inplace=True)
     assert out.data_graph is data
     assert (URIRef(EX + "a"), RDF.type, URIRef(EX + "U")) in data

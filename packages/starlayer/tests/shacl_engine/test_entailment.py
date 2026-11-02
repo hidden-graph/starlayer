@@ -104,7 +104,7 @@ def test_ont_graph_axiom_is_seen_but_not_copied() -> None:
     ont = PFX + "ex:worksAt rdfs:domain ex:Employee ."
     old, new = _both(data, SHAPES, inference=ENTAILMENT.RDFS, ont_ttl=ont)
     assert old == new and old[0] is False
-    view = entailed_view(_g(data), "rdfs", _g(ont))
+    view = entailed_view(_g(data), ENTAILMENT.RDFS, _g(ont))
     assert (EX.worksAt, RDFS.domain, EX.Employee) not in view
     assert (EX.alice, RDF.type, EX.Employee) in view
 
@@ -123,12 +123,19 @@ def test_subclass_class_targets() -> None:
     assert old == new and old[0] is False  # SHACL's own subclass reasoning, no regime needed
 
 
-def test_string_aliases_and_none() -> None:
+def test_regime_iris_and_no_regime() -> None:
     g = _g(DOMAIN)
-    assert entailed_view(g, "none") is g
-    assert (EX.alice, RDF.type, EX.Employee) in entailed_view(g, "rdfs")
-    assert (EX.alice, RDF.type, EX.Employee) in resolve_data_view(g, _g(SHAPES), inference="rdfs")
+    assert entailed_view(g, None) is g
+    assert (EX.alice, RDF.type, EX.Employee) in entailed_view(g, ENTAILMENT.RDFS)
+    assert (EX.alice, RDF.type, EX.Employee) in resolve_data_view(g, _g(SHAPES), inference=ENTAILMENT.RDFS)
     assert resolve_data_view(g, _g(SHAPES)) is g
+
+
+@pytest.mark.parametrize("name", ["rdfs", "owlrl", "both", "none"])
+def test_pyshacl_style_names_are_not_regimes(name) -> None:
+    """``inference=`` takes the W3C entailment regime IRIs (the vocabulary of ``sh:entailment``), not pySHACL's own names."""
+    with pytest.raises(ValueError, match="Unsupported entailment"):
+        entailed_view(_g(DOMAIN), name)
 
 
 def test_unsupported_regime_raises() -> None:
@@ -148,7 +155,7 @@ def test_rules_entailment_and_rule_sets_are_not_regimes() -> None:
 def test_plain_rdflib_graph_input() -> None:
     g = Graph()
     g.parse(data=DOMAIN, format="turtle")
-    assert (EX.alice, RDF.type, EX.Employee) in entailed_view(g, "rdfs")
+    assert (EX.alice, RDF.type, EX.Employee) in entailed_view(g, ENTAILMENT.RDFS)
 
 
 def test_closure_performance_5k_triples() -> None:
@@ -157,7 +164,7 @@ def test_closure_performance_5k_triples() -> None:
     g = _g("\n".join(lines))
     assert len(g) >= 4000
     t = time.perf_counter()
-    view = entailed_view(g, "rdfs")
+    view = entailed_view(g, ENTAILMENT.RDFS)
     elapsed = time.perf_counter() - t
     print(f"5k-triple RDFS closure: {elapsed:.2f}s, {len(view.inferred)} inferred")
     assert (EX.p5, RDF.type, EX.Employee) in view

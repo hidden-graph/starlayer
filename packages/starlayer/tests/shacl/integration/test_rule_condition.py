@@ -2,29 +2,17 @@ import pytest
 from rdflib import Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.graph.model.triple import TripleTerm
-from starlayer.shacl import StarShaclSchema
+from starlayer.shacl import RuleError, StarShaclSchema
 
 EX = Namespace("http://example.org/")
 
-pyshacl = pytest.importorskip("pyshacl")
-
-# sh:condition (SHACL 1.2 SPARQL Extensions / SHACL-AF rules) restricts which
-# focus nodes a sh:rule applies to: pyshacl.rules.shacl_rule.SHACLRule.
-# filter_conditions() only lets a focus node through if it conforms to every
-# condition shape, checked via the (correctly-formed) SHACLExecutor calling
-# convention - this was previously untested anywhere in starShacl, so it was
-# unconfirmed whether it worked at all. Live reproduction (this session)
-# confirmed it works correctly out of the box, no starShacl-side patch
-# needed - these tests lock that in as regression coverage.
+# sh:condition (SHACL 1.2 Inference Rules) restricts which focus nodes a rule
+# applies to: a focus node only passes if it conforms to every condition shape.
 #
-# The first reproduction attempt used a condition shape with only
-# sh:targetClass and no actual constraint - a real SHACL semantics gotcha
-# (the same class of mistake as the sh:filterShape investigation elsewhere
-# this session): sh:targetClass selects who gets validated when running
-# validate() directly, but has no effect on ad-hoc shape.validate(focus=x)
-# conformance checks, so a target-only shape trivially "conforms" for any
-# node regardless of type. The shapes below use a real constraint
-# (sh:class / sh:property) so the condition actually discriminates.
+# A condition shape needs a real constraint (sh:class / sh:property) to
+# discriminate: sh:targetClass only selects who gets validated by validate()
+# and has no effect on a conformance check of one given focus node, so a
+# target-only shape trivially conforms for any node regardless of type.
 
 
 def test_condition_admits_conforming_focus_node_only() -> None:
@@ -39,12 +27,13 @@ def test_condition_admits_conforming_focus_node_only() -> None:
     shapes.parse(data="""
         @prefix ex: <http://example.org/> .
         @prefix sh: <http://www.w3.org/ns/shacl#> .
+        @prefix shnex: <http://www.w3.org/ns/shacl-node-expr#> .
         ex:R a sh:NodeShape ;
           sh:targetSubjectsOf ex:name ;
           sh:rule [
             a sh:TripleRule ;
             sh:condition ex:AdultShape ;
-            sh:subject sh:this ; sh:predicate ex:eligibleForVoting ; sh:object true ;
+            sh:subject [ shnex:var "focusNode" ] ; sh:predicate ex:eligibleForVoting ; sh:object true ;
           ] .
         ex:AdultShape a sh:NodeShape ; sh:class ex:Adult .
     """, format="turtle")
@@ -66,11 +55,12 @@ def test_condition_over_rdf12_triple_term_valued_property() -> None:
     shapes.parse(data="""
         @prefix ex: <http://example.org/> .
         @prefix sh: <http://www.w3.org/ns/shacl#> .
+        @prefix shnex: <http://www.w3.org/ns/shacl-node-expr#> .
         ex:R a sh:NodeShape ; sh:targetSubjectsOf ex:claims, ex:name ;
           sh:rule [
             a sh:TripleRule ;
             sh:condition ex:HasClaimShape ;
-            sh:subject sh:this ; sh:predicate ex:flagged ; sh:object true ;
+            sh:subject [ shnex:var "focusNode" ] ; sh:predicate ex:flagged ; sh:object true ;
           ] .
         ex:HasClaimShape a sh:NodeShape ; sh:property [ sh:path ex:claims ; sh:minCount 1 ] .
     """, format="turtle")
@@ -90,16 +80,9 @@ def test_condition_over_rdf12_triple_term_valued_property() -> None:
 
 
 def test_condition_shape_does_not_need_explicit_typing() -> None:
-    """sh:condition's value initially needed explicit `a sh:NodeShape`/
-    `a sh:PropertyShape` typing or pySHACL's own lookup_shape_from_node
-    crashed with RuleLoadError at rule-execution time (confirmed live) -
-    unlike sh:someValue/sh:memberShape/sh:reifierShape, which starShacl
-    already auto-types via native_components.SHAPE_EXPECTING_PREDICATES/
-    ensure_shape_typed before pySHACL ever runs. sh:condition is now in
-    that same list (StarShaclSchema._ensure_native_component_shapes_typed),
-    so an untyped condition shape works transparently too - one consistent
-    fix strategy, not a special case. Covers both the single-reference and
-    SHACL-list forms sh:condition accepts.
+    """A sh:condition shape needs no explicit `a sh:NodeShape`/`a sh:PropertyShape` typing.
+
+    Covers a single sh:condition value and several (the focus node must conform to all of them).
     """
     data = StarLayerGraph()
     data.parse(data="""
@@ -113,11 +96,12 @@ def test_condition_shape_does_not_need_explicit_typing() -> None:
     shapes.parse(data="""
         @prefix ex: <http://example.org/> .
         @prefix sh: <http://www.w3.org/ns/shacl#> .
+        @prefix shnex: <http://www.w3.org/ns/shacl-node-expr#> .
         ex:R a sh:NodeShape ; sh:targetSubjectsOf ex:name ;
           sh:rule [
             a sh:TripleRule ;
             sh:condition ex:AdultShape ;
-            sh:subject sh:this ; sh:predicate ex:eligibleForVoting ; sh:object true ;
+            sh:subject [ shnex:var "focusNode" ] ; sh:predicate ex:eligibleForVoting ; sh:object true ;
           ] .
         ex:AdultShape sh:class ex:Adult .
     """, format="turtle")
@@ -126,16 +110,17 @@ def test_condition_shape_does_not_need_explicit_typing() -> None:
     derived = {s for s, _, _ in result.inferred_graph.triples((None, EX.eligibleForVoting, None))}
     assert derived == {EX.alice}
 
-    # SHACL-list form, both members deliberately untyped.
+    # Several sh:condition values: the focus node must conform to all of them; both deliberately untyped.
     list_shapes = StarLayerGraph()
     list_shapes.parse(data="""
         @prefix ex: <http://example.org/> .
         @prefix sh: <http://www.w3.org/ns/shacl#> .
+        @prefix shnex: <http://www.w3.org/ns/shacl-node-expr#> .
         ex:R a sh:NodeShape ; sh:targetSubjectsOf ex:name ;
           sh:rule [
             a sh:TripleRule ;
-            sh:condition ( ex:AdultShape ex:ActiveShape ) ;
-            sh:subject sh:this ; sh:predicate ex:eligibleForVoting ; sh:object true ;
+            sh:condition ex:AdultShape, ex:ActiveShape ;
+            sh:subject [ shnex:var "focusNode" ] ; sh:predicate ex:eligibleForVoting ; sh:object true ;
           ] .
         ex:AdultShape sh:class ex:Adult .
         ex:ActiveShape sh:class ex:Active .
@@ -157,11 +142,12 @@ def test_condition_excludes_all_focus_nodes_when_none_conform() -> None:
     shapes.parse(data="""
         @prefix ex: <http://example.org/> .
         @prefix sh: <http://www.w3.org/ns/shacl#> .
+        @prefix shnex: <http://www.w3.org/ns/shacl-node-expr#> .
         ex:R a sh:NodeShape ; sh:targetSubjectsOf ex:name ;
           sh:rule [
             a sh:TripleRule ;
             sh:condition ex:AdultShape ;
-            sh:subject sh:this ; sh:predicate ex:eligibleForVoting ; sh:object true ;
+            sh:subject [ shnex:var "focusNode" ] ; sh:predicate ex:eligibleForVoting ; sh:object true ;
           ] .
         ex:AdultShape a sh:NodeShape ; sh:class ex:Adult .
     """, format="turtle")
@@ -172,30 +158,12 @@ def test_condition_excludes_all_focus_nodes_when_none_conform() -> None:
 
 
 def test_property_rule_sh_values_is_not_implemented() -> None:
-    """``sh:PropertyRule`` has no implementation anywhere - not in pySHACL
-    0.40.0 (``pyshacl.rules.shacl_rule`` only dispatches ``sh:TripleRule``/
-    ``sh:SPARQLRule``; there is no ``PropertyRule`` module) and not in
-    starShacl's own code.
+    """``sh:PropertyRule`` is not a SHACL 1.2 rule type: an unrecognized rule type is a RuleError.
 
-    **Note (2026-09-28): the spec construct this test was originally written
-    against no longer exists.** `sh:PropertyRule` was previously described in
-    `docs/shacl12-gap-matrix.md` as a `sh:rule` shorthand (SHACL 1.2 Core
-    changelog's "new sh:values") - re-fetching both `shacl12-inference-rules`
-    and `shacl12-core` directly and searching for "PropertyRule" found zero
-    occurrences in either current document; `shacl12-inference-rules`'s
-    "Built-in Rule Types" section defines exactly `sh:SPARQLRule` and
-    `sh:TripleRule`, and Core's own `sh:values` is now defined purely as a
-    validation-time/computed-property feature with no connection to
-    `sh:rule` at all (see `docs/shacl12-gap-matrix.md`'s "Not Covered /
-    Deferred" table for the full account). This test still exercises real,
-    useful coverage regardless - an unrecognized rule type correctly raises
-    `RuleLoadError` rather than silently no-opping - so it's kept, just no
-    longer citing a real spec gap as its reason. Update or remove it if the
-    WG reintroduces a similar construct and this project decides to support
-    it.
+    SHACL 1.2 Inference Rules defines exactly ``sh:SPARQLRule`` and ``sh:TripleRule``; a rule
+    whose type is not a subclass of ``sh:Rule`` must not silently no-op. Update or remove this
+    test if the WG reintroduces a similar construct and this project decides to support it.
     """
-    from pyshacl.errors import RuleLoadError
-
     data = StarLayerGraph()
     data.parse(data="""
         @prefix ex: <http://example.org/> .
@@ -206,6 +174,7 @@ def test_property_rule_sh_values_is_not_implemented() -> None:
     shapes.parse(data="""
         @prefix ex: <http://example.org/> .
         @prefix sh: <http://www.w3.org/ns/shacl#> .
+        @prefix shnex: <http://www.w3.org/ns/shacl-node-expr#> .
         ex:PersonShape a sh:NodeShape ; sh:targetClass ex:Person ;
           sh:rule [
             a sh:PropertyRule ;
@@ -214,5 +183,5 @@ def test_property_rule_sh_values_is_not_implemented() -> None:
           ] .
     """, format="turtle")
 
-    with pytest.raises(RuleLoadError):
+    with pytest.raises(RuleError):
         StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)

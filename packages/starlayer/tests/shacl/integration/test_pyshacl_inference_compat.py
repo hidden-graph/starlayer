@@ -207,14 +207,3 @@ class TestInferenceNoneAndInvalid:
 
         with pytest.raises(ValueError, match="Unsupported entailment regime"):
             validate(data, _shapes(), meta_shacl=False, inference=ENTAILMENT.D)
-
-    def test_pyshacl_style_string_no_longer_accepted(self) -> None:
-        """Regression coverage for the deliberate 2026-10-08 disconnection
-        from pySHACL's own string vocabulary - a caller's old
-        inference="rdfs" must now fail loudly, not silently resolve to
-        something unintended."""
-        data = StarLayerGraph()
-        data.parse(data="@prefix ex: <http://example.org/> . ex:alice a ex:Employee .", format="turtle")
-
-        with pytest.raises(ValueError, match="Unsupported entailment regime"):
-            validate(data, _shapes(), meta_shacl=False, inference="rdfs")

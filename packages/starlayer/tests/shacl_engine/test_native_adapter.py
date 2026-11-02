@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 from rdflib import RDF, Graph, URIRef
+from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import (
     RulesResult,
@@ -54,10 +55,11 @@ def _no_ambient_engine(monkeypatch):
 
 
 class TestSelection:
-    def test_default_is_pyshacl(self):
-        assert selected() == "pyshacl"
+    def test_default_is_native(self, monkeypatch):
+        monkeypatch.delenv(ENV_VAR, raising=False)
+        assert selected() == "native"
         result = validate(g(BAD), g(SHAPES))
-        assert (result.engine, result.engine_fallback_reason) == ("pyshacl", None)
+        assert (result.engine, result.engine_fallback_reason) == ("native", None)
 
     def test_env_var_selects_native(self, monkeypatch):
         monkeypatch.setenv(ENV_VAR, "native")
@@ -97,7 +99,7 @@ class TestSelection:
 
     def test_empty_env_value_means_default(self, monkeypatch):
         monkeypatch.setenv(ENV_VAR, "")
-        assert selected() == "pyshacl"
+        assert selected() == "native"
 
     def test_validate_each_forwards_engine(self):
         results = validate_each([g(BAD), g(GOOD)], g(SHAPES), engine="native")
@@ -266,7 +268,7 @@ class TestTranslation:
         data = g("ex:a a ex:Sub .")
         ont = g("ex:Sub rdfs:subClassOf ex:Super .")
         assert validate(data, shapes, ont, engine="native").conforms is True
-        result = validate(data, shapes, ont, engine="native", inference="rdfs")
+        result = validate(data, shapes, ont, engine="native", inference=ENTAILMENT.RDFS)
         assert result.conforms is False
         assert len(ont) == 1 and (URIRef(EX + "a"), RDF.type, URIRef(EX + "Super")) not in data
 
@@ -350,7 +352,7 @@ class TestFallback:
 
     def test_schema_inference_keyword_is_still_the_old_type_error(self):
         with pytest.raises(TypeError, match="inference"):
-            StarShaclSchema(g(SHAPES), engine="native").validate(g(BAD), inference="rdfs")
+            StarShaclSchema(g(SHAPES), engine="native").validate(g(BAD), inference=ENTAILMENT.RDFS)
 
     def test_source_rule_provenance_falls_back_and_stamps_both_levels(self):
         result = apply_rules(g(BAD), g(RULES), engine="native", include_source_rule_provenance=True)

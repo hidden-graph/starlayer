@@ -11,8 +11,8 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from starlayer.shacl_engine.plan import SH, Term
-from starlayer.shacl_engine.terms import OWL, RDF, RDFS
+from starlayer.shacl_engine.plan import SH, ShapeError, Term
+from starlayer.shacl_engine.terms import OWL, RDF, RDFS, Literal, text
 from starlayer.shacl_engine.terms import NamedNode as URIRef
 
 _TARGET_PREDICATES = (SH.targetNode, SH.targetClass, SH.targetSubjectsOf, SH.targetObjectsOf, SH.targetWhere)
@@ -33,6 +33,8 @@ def shape_targets(graph: Any, node: Term) -> list[tuple[URIRef, Term]]:
     out: list[tuple[URIRef, Term]] = []
     for pred in _TARGET_PREDICATES:
         for v in graph.objects(node, pred):
+            if pred == SH.targetWhere and isinstance(v, Literal):
+                raise ShapeError(f"{text(node)}: the value of sh:targetWhere must be a shape, not a literal")
             out.append((pred, v))
     if _is_implicit_class_target(graph, node) and (SH.targetClass, node) not in out:
         out.append((SH.targetClass, node))

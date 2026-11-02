@@ -41,8 +41,6 @@ from starlayer.shacl import StarShaclSchema
 
 EX = Namespace("http://example.org/")
 
-pyshacl = pytest.importorskip("pyshacl")
-
 PREFIXES = """
     @prefix ex: <http://example.org/> .
     @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -127,24 +125,6 @@ class TestTargetNodeExpression:
         )
         result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
         assert result.conforms is True
-
-    def test_select_based_target_node_still_works(self) -> None:
-        # Regression guard: the sh:select form (found/fixed in an earlier
-        # pass) must keep working unaffected by this new shnex:/sparql: form.
-        data = StarLayerGraph()
-        data.parse(data="@prefix ex: <http://example.org/> . ex:alice a ex:Thing .", format="turtle")
-        shapes = StarLayerGraph()
-        shapes.parse(
-            data=PREFIXES
-            + """
-            ex:S a sh:NodeShape ;
-              sh:targetNode [ sh:select "SELECT ?this WHERE { ?this a <http://example.org/Thing> }" ] ;
-              sh:class ex:Nobody .
-            """,
-            format="turtle",
-        )
-        result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
-        assert result.conforms is False
 
     def test_targetwhere_still_works_unaffected(self) -> None:
         # Regression guard for the exact bug found while building this fix:

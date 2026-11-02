@@ -88,20 +88,12 @@ def test_sparql_constraint_own_severity_overrides_shape_severity() -> None:
     assert severities == {SH.Warning}
 
 
-def test_sparql_constraint_resolves_prefix_via_ambient_shapes_graph_declare() -> None:
-    """Found 2026-07-31 via the W3C SHACL 1.2 test suite's prefixes-002
-    fixture: with no explicit sh:prefixes reference on the sh:sparql
-    constraint at all, prefix resolution should still fall back to any
-    sh:ShapesGraph-typed node's own sh:declare, found anywhere in the
-    shapes graph (SHACL 1.2 Core). pySHACL's own
-    SPARQLQueryHelper.collect_prefixes() only ever consults such ambient
-    declares as an *addition* to an explicit sh:prefixes reference - if
-    that reference is absent, it returns immediately, never falling back to
-    ambient discovery at all. Deliberately does not also honor an
-    owl:Ontology-declared prefix the way the already-covered
-    explicit-sh:prefixes-reference case does - the fixture's own
-    owl:Ontology declares the same prefix letter mapped to a *different*,
-    wrong namespace as a deliberate distractor.
+def test_sparql_constraint_resolves_prefix_via_its_sh_prefixes_declare() -> None:
+    """SHACL 1.2 SPARQL: prefixes used in a sh:sparql query come only from the
+    sh:declare entries of the nodes its sh:prefixes names - there is no ambient
+    lookup (a sh:declare elsewhere in the shapes graph does not apply). Here
+    the distractor owl:Ontology maps the same prefix letter to a wrong
+    namespace but is not referenced by sh:prefixes, so it must be ignored.
     """
     shapes = StarLayerGraph()
     shapes.parse(
@@ -115,10 +107,12 @@ def test_sparql_constraint_resolves_prefix_via_ambient_shapes_graph_declare() ->
               sh:declare [ sh:namespace "http://wrong.example.org/ns#"^^xsd:anyURI ; sh:prefix "test" ] .
 
             ex:SomeShapesGraph a sh:ShapesGraph ;
-              sh:declare [ sh:namespace "http://test.example.org/ns#"^^xsd:anyURI ; sh:prefix "test" ] .
+              sh:declare [ sh:namespace "http://test.example.org/ns#"^^xsd:anyURI ; sh:prefix "test" ] ,
+                         [ sh:namespace "http://example.org/"^^xsd:anyURI ; sh:prefix "ex" ] .
 
             ex:S a sh:NodeShape ; sh:targetNode ex:alice ;
               sh:sparql [
+                sh:prefixes ex:SomeShapesGraph ;
                 sh:select "SELECT $this ?value WHERE { $this ex:flagged ?value . FILTER (?value = test:Bad) . }"
               ] .
         """,

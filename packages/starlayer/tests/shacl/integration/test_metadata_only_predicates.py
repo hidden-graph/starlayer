@@ -5,8 +5,6 @@ from starlayer.shacl import StarShaclSchema
 
 EX = Namespace("http://example.org/")
 
-pyshacl = pytest.importorskip("pyshacl")
-
 # docs/shacl12-gap-matrix.md marks sh:agentInstruction/sh:intent/sh:unit/
 # sh:order as "n/a - metadata-only, no validation effect" - but that status
 # was never backed by a regression test confirming they're actually inert
@@ -118,6 +116,7 @@ def test_metadata_only_predicates_do_not_interfere_with_rule_application() -> No
     shapes.parse(data="""
         @prefix ex: <http://example.org/> .
         @prefix sh: <http://www.w3.org/ns/shacl#> .
+        @prefix shnex: <http://www.w3.org/ns/shacl-node-expr#> .
         ex:R a sh:NodeShape ;
           sh:targetSubjectsOf ex:parent ;
           sh:property [
@@ -128,7 +127,7 @@ def test_metadata_only_predicates_do_not_interfere_with_rule_application() -> No
           ] ;
           sh:rule [
             a sh:TripleRule ;
-            sh:subject sh:this ; sh:predicate ex:hasParent ; sh:object [ sh:path ex:parent ] ;
+            sh:subject [ shnex:var 'focusNode' ] ; sh:predicate ex:hasParent ; sh:object [ shnex:pathValues ex:parent ] ;
           ] .
     """, format="turtle")
 

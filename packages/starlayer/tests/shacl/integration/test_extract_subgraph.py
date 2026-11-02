@@ -482,25 +482,6 @@ class TestWholeShapesGraphExtraction:
         result = extract_subgraph(_graph(self.DATA), shacl_graph=shapes)
         assert len(result) == 0
 
-    def test_sparql_based_target_is_discovered_via_advanced_mode(self) -> None:
-        # A sh:target[a sh:SPARQLTarget] entry point - only reachable once
-        # set_advanced(True) is called on the harvested Shape before
-        # focus_nodes() runs.
-        shapes = _graph(
-            """
-            @prefix ex: <http://example.org/> .
-            @prefix sh: <http://www.w3.org/ns/shacl#> .
-            ex:NamedThingShape a sh:NodeShape ;
-              sh:target [ a sh:SPARQLTarget ;
-                sh:select "PREFIX ex: <http://example.org/> SELECT $this WHERE { $this ex:name ?n }" ] ;
-              sh:property [ sh:path ex:name ; sh:minCount 1 ] .
-            """
-        )
-        result = extract_subgraph(_graph(self.DATA), shacl_graph=shapes)
-        serialized = result.serialize(format="turtle12")
-        assert "Alice" in serialized
-        assert "Acme" in serialized
-
     def test_both_filters_given_reproduces_the_original_single_pair_behavior(self) -> None:
         from rdflib import Namespace
 

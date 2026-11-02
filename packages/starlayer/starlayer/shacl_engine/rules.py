@@ -260,10 +260,7 @@ def _number(graph: Any, node: Term, pred: Term, default: float = 0) -> float:
     v = values[0]
     n = xv.numeric(v)
     if n is None:
-        try:
-            return float(v.value)
-        except (ValueError, AttributeError) as exc:
-            raise RuleError(f"{node!r}: {text(pred)} must be numeric") from exc
+        raise RuleError(f"{node!r}: {text(pred)} must be a numeric literal")
     return float(n)
 
 
@@ -313,6 +310,8 @@ def rule_set_members(graph: Any, rule_sets: Iterable[Term]) -> list[Term]:
     sets = _closure(graph, rule_sets, lambda s: graph.objects(s, SH.includesRuleSet))
     members: dict = {}
     for s in sets:
+        if (s, SH.ruleProcessor, None) in graph:  # a rule set that names a processor needs it, and none is available
+            raise RuleError(f"{s!r}: sh:ruleProcessor is declared and no custom rule processor is available")
         for r in graph.objects(s, SH.hasRule):
             members.setdefault(r, None)
     return list(members)
@@ -431,7 +430,7 @@ class _Run:
 
     def _sparql_rule(self, rule: Rule, focus: Term | None) -> list[Triple]:
         g = self.shapes
-        template = next((t for t in rule.types if t not in (SH.SPARQLRule, SH.TripleRule, SH.Rule)), None)
+        template = self._template_of(rule)
         holder = rule.node
         bindings: dict[str, Term] = {} if focus is None else {"this": focus}
         constructs = list(g.objects(rule.node, SH.construct))
@@ -451,6 +450,17 @@ class _Run:
             raise
         except Exception as exc:  # noqa: BLE001  (a query that does not parse or evaluate fails the rule)
             raise RuleError(f"{rule.node!r}: SPARQL rule failed: {exc}") from exc
+
+    def _template_of(self, rule: Rule) -> Term | None:
+        """The rule template ``rule`` instantiates: its type, or the nearest superclass of that type (``rdfs:subClassOf``)
+        that carries the ``sh:construct``; the first type that is not a built-in rule class when none does."""
+        g = self.shapes
+        custom = [t for t in rule.types if t not in (SH.SPARQLRule, SH.TripleRule, SH.Rule)]
+        for t in custom:
+            for c in _closure(g, [t], lambda c: g.objects(c, RDFS.subClassOf)):
+                if (c, SH.construct, None) in g:
+                    return c
+        return custom[0] if custom else None
 
     def _template_bindings(self, rule: Rule, template: Term) -> dict[str, Term]:
         from starlayer.shacl_engine.components.sparql_components import _parameters

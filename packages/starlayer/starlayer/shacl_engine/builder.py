@@ -51,6 +51,9 @@ def build_shape(graph: Any, node: Term, extra_predicates: Any = ()) -> Shape:
         values = tuple(graph.objects(node, pred))
         if values:
             params[pred] = values
+    for prop in graph.objects(node, SH.property):
+        if (prop, SH.path, None) not in graph:
+            raise ShapeError(f"{text(node)}: the sh:property value {text(prop)} has no sh:path")  # Core 3.3: a property shape has one sh:path
     severities = list(graph.objects(node, SH.severity))
     deact = [v for v in graph.objects(node, SH.deactivated)]
     is_prop = path is not None or (node, RDF.type, SH.PropertyShape) in graph

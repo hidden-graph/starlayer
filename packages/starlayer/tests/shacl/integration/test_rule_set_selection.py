@@ -7,19 +7,14 @@ apply_rules()'s pre-existing no-`rule_set` behavior, so that case is a pure
 regression guard here, not new functionality.
 
 Covers both kinds of rule the rule engine runs: global (shape-independent)
-rules, left out when gathered (validator.py::_global_engine_rules), and
-shape-attached sh:rule (sh:TripleRule/sh:SPARQLRule), left out by the engine's
-apply_rules hook (validator.py::_patch_rules_for_native_engine).
+rules, and shape-attached sh:rule (sh:TripleRule/sh:SPARQLRule).
 """
 
-import pytest
 from rdflib import RDF, Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 
 EX = Namespace("http://example.org/")
-
-pyshacl = pytest.importorskip("pyshacl")
 
 _GLOBAL_RULE_SHAPES = """
     @prefix ex: <http://example.org/> .
@@ -119,6 +114,7 @@ class TestShapeAttachedRulesPath:
     _SHAPES = """
         @prefix ex: <http://example.org/> .
         @prefix sh: <http://www.w3.org/ns/shacl#> .
+        @prefix shnex: <http://www.w3.org/ns/shacl-node-expr#> .
 
         ex:RuleSetA a sh:RuleSet ; sh:hasRule ex:TripleRuleA .
 
@@ -126,9 +122,9 @@ class TestShapeAttachedRulesPath:
           sh:rule ex:TripleRuleA , ex:TripleRuleB .
 
         ex:TripleRuleA a sh:TripleRule ;
-          sh:subject sh:this ; sh:predicate ex:taggedByA ; sh:object true .
+          sh:subject [ shnex:var "focusNode" ] ; sh:predicate ex:taggedByA ; sh:object true .
         ex:TripleRuleB a sh:TripleRule ;
-          sh:subject sh:this ; sh:predicate ex:taggedByB ; sh:object true .
+          sh:subject [ shnex:var "focusNode" ] ; sh:predicate ex:taggedByB ; sh:object true .
     """
 
     def _data_person(self) -> StarLayerGraph:
@@ -153,10 +149,7 @@ class TestShapeAttachedRulesPath:
         assert (EX.alice, EX.taggedByB, None) not in result.inferred_graph
 
     def test_rule_set_and_source_rule_provenance_compose(self) -> None:
-        # The two contextvar-gated patches (this one, and the pre-existing
-        # sh:sourceRule provenance one) wrap the same two classes
-        # independently - confirm they compose correctly rather than one
-        # silently overriding the other.
+        # Rule-set selection and sh:sourceRule provenance must compose: one must not silently override the other.
         shapes = StarLayerGraph()
         shapes.parse(data=self._SHAPES, format="turtle")
         result = StarShaclSchema(shacl_graph=shapes).apply_rules(
@@ -167,9 +160,7 @@ class TestShapeAttachedRulesPath:
         )
         assert (EX.alice, EX.taggedByA, None) in result.inferred_graph
         assert (EX.alice, EX.taggedByB, None) not in result.inferred_graph
-        # Only RuleA actually ran, so only RuleA should have provenance -
-        # RuleB was filtered out before pySHACL's real apply() ever ran,
-        # so there's nothing for the provenance diff to have observed.
+        # Only RuleA actually ran, so only RuleA should have provenance.
         from rdflib import Namespace as _NS
 
         SH = _NS("http://www.w3.org/ns/shacl#")

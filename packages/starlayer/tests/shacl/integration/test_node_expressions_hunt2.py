@@ -5,7 +5,7 @@ import warnings
 import pytest
 from rdflib import XSD, Literal, Namespace
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import evaluate
+from starlayer.shacl import ShapeError, evaluate
 
 warnings.simplefilter("ignore")
 EX = Namespace("http://ex/")
@@ -110,5 +110,7 @@ def test_distinct_treats_language_tags_that_differ_in_case_as_one():
 
 
 @pytest.mark.parametrize("modifier", ["limit", "offset"])
-def test_negative_limit_and_offset_are_not_python_slices(modifier):
-    assert _values(f"[ shnex:{modifier} -1 ; shnex:nodes ( 1 2 3 ) ]") == []
+def test_negative_limit_and_offset_are_rejected_not_python_slices(modifier):
+    # SHACL 1.2 requires shnex:limit / shnex:offset to be a non-negative xsd:integer
+    with pytest.raises(ShapeError, match="non-negative"):
+        _values(f"[ shnex:{modifier} -1 ; shnex:nodes ( 1 2 3 ) ]")

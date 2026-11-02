@@ -8,7 +8,6 @@ from starlayer.graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema, validate
 from starlayer.shacl.shapes_graphs import referenced_shapes
 
-pytest.importorskip("pyshacl")
 warnings.simplefilter("ignore")
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
@@ -67,12 +66,14 @@ def test_the_extract_validates_on_its_own():
     assert result.conforms is False  # acme has no ex:name: the referenced Company shape applied
 
 
-def test_the_extract_without_the_option_cannot_be_validated_standalone():
-    extract = _schema().extract_shapes_graph(EX.ModuleA)
+def test_the_extract_without_the_option_silently_loses_the_referenced_constraints():
+    """A dangling shape reference is not an error in the engine: the referenced shape is just empty, so the bare extract is more lenient."""
     data = StarLayerGraph()
     data.parse(data="@prefix ex: <http://example.org/> . ex:alice a ex:Person .", format="turtle12")
-    with pytest.raises(Exception, match="well-formed"):
-        validate(data, extract, meta_shacl=False)
+    bare = _schema().extract_shapes_graph(EX.ModuleA)
+    closed = _schema().extract_shapes_graph(EX.ModuleA, include_referenced=True)
+    assert validate(data, bare, meta_shacl=False).conforms is True
+    assert validate(data, closed, meta_shacl=False).conforms is False  # ex:worksFor minCount 1, from the referenced shape
 
 
 def test_referenced_shapes_function_ignores_blank_nodes_and_the_starting_points():

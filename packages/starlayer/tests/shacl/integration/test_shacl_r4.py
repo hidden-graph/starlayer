@@ -11,7 +11,7 @@ import pytest
 from rdflib import Namespace, URIRef
 from rdflib.namespace import SH
 from starlayer import StarLayerGraph
-from starlayer.shacl import StarShaclSchema, apply_rules, extract_subgraph, validate
+from starlayer.shacl import RuleError, ShapeError, StarShaclSchema, apply_rules, extract_subgraph, validate
 from starlayer.shacl.shape_types import infer_types
 from starlayer.shacl.xpath_regex import needs_translation, xpath_regex_to_python
 
@@ -119,19 +119,15 @@ def test_global_sparql_rule_resolves_its_own_sh_prefixes_not_the_data_graphs_bin
     ["CONSTRUCT { ?s <http://ex/p> ?o WHERE { ?s ?p ?o }", "CONSTRUCT { ?s zz:p ?o } WHERE { ?s ?p ?o }"],
 )
 def test_global_sparql_rule_with_a_bad_construct_raises(construct):
-    from pyshacl.errors import RuleLoadError
-
     shapes = _graph(P + f'<http://ex/R> a sh:SPARQLRule ; sh:construct "{construct}" .')
-    with pytest.raises(RuleLoadError, match="could not be run"):
+    with pytest.raises(RuleError, match="SPARQL rule failed"):
         apply_rules(_graph(_NO_BINDING_DATA), shacl_graph=shapes)
 
 
 @pytest.mark.parametrize("form", ["SELECT * WHERE { ?s ?p ?o }", "ASK { ?s ?p ?o }"])
 def test_global_sparql_rule_with_a_non_construct_query_raises_a_clear_error(form):
-    from pyshacl.errors import RuleLoadError
-
     shapes = _graph(P + f'<http://ex/R> a sh:SPARQLRule ; sh:construct "{form}" .')
-    with pytest.raises(RuleLoadError, match="must be a CONSTRUCT query"):
+    with pytest.raises(RuleError, match="must be a CONSTRUCT query"):
         apply_rules(_graph(_NO_BINDING_DATA), shacl_graph=shapes)
 
 
@@ -195,9 +191,7 @@ def test_plain_pyshacl_has_the_same_limit_so_it_is_not_a_starlayer_variance():
 
 @pytest.mark.parametrize("pattern", [r"^\p{Foo}$", r"^\p{IsFoo}$", "("])
 def test_sh_pattern_that_cannot_be_translated_raises_a_clear_error(pattern):
-    from pyshacl.errors import ConstraintLoadError
-
-    with pytest.raises(ConstraintLoadError, match="sh:pattern"):
+    with pytest.raises(ShapeError, match="invalid sh:pattern"):
         _pattern_conforms(pattern, "a")
 
 
@@ -221,12 +215,13 @@ def test_sh_sparql_on_a_triple_term_value_does_not_see_the_support_triples():
 # --- reifier results -----------------------------------------------------------------------------------------------------
 
 
-def test_reifier_shape_violation_carries_a_result_message():
+def test_reifier_shape_violation_reports_the_reifier_shape_component():
     shapes = _graph(
         P
         + "ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:property [ sh:path ex:p ; sh:reificationRequired true ] ."
     )
     result = validate(_graph(P + "ex:a ex:p ex:o ."), shapes)
     assert not result.conforms
-    messages = [str(m) for m in result.report_graph.objects(None, SH.resultMessage)]
-    assert messages and "reifier" in messages[0]
+    # SHACL 1.2 Core leaves sh:resultMessage to the processor; the component IRI is what the draft fixes.
+    components = set(result.report_graph.objects(None, SH.sourceConstraintComponent))
+    assert components == {URIRef(str(SH) + "ReifierShapeConstraintComponent")}
