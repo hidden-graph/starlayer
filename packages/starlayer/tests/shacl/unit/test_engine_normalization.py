@@ -1,6 +1,9 @@
 from rdflib import Graph, Literal, Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.shacl.engine import normalize_graph_inputs, normalize_to_starlayer_graph
+from starlayer.shacl.normalization import (
+    normalize_graph_inputs,
+    normalize_to_starlayer_graph,
+)
 
 EX = Namespace("http://example.org/")
 

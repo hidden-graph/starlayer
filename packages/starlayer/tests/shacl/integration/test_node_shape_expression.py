@@ -5,9 +5,9 @@ sh:path). The meta-shapes used to forbid sh:expression on a node shape; the W3C 
 node-expr/constraints/expression-001 uses `sh:expression false` on a node shape."""
 
 import pytest
-from pyshacl.errors import ReportableRuntimeError
 from rdflib import Graph, Namespace
 from starlayer import starontology
+from starlayer.shacl import MetaShaclError as ReportableRuntimeError
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl.meta_shapes import meta_validate
 

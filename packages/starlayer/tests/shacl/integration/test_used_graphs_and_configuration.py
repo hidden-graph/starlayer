@@ -6,9 +6,6 @@ from starlayer.shacl import StarShaclSchema
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
-
-pyshacl = pytest.importorskip("pyshacl")
-
 # SHACL 1.2 Core sections 6.7.1.5-6.7.1.8 (added to the published spec
 # 2026-08-03, found via a spec-drift audit - see docs/shacl12-gap-matrix.md)
 # add sh:usedDataGraph/sh:usedShapesGraph/sh:usedConfiguration/

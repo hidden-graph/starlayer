@@ -16,16 +16,11 @@ case where both answers agree wouldn't catch a regression back to the old
 merge-after behavior.
 """
 
-import pytest
 from rdflib import Graph, Literal, Namespace
 from starlayer.shacl import StarShaclSchema
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
-
-pyshacl = pytest.importorskip("pyshacl")
-
-
 def _violation_components(result) -> set:
     return {o for _, _, o in result.report_graph.triples((None, SH.sourceConstraintComponent, None))}
 
@@ -2015,109 +2010,6 @@ def test_path_valued_less_than_or_equals_direct_violates() -> None:
 # QualifiedValueShapeConstraintComponent (_resolve_sibling_shapes/
 # _needs_full_batch_for in starlayer.shacl/native_components.py).
 # ---------------------------------------------------------------------------
-
-
-def test_cross_node_reachability_terminates_on_pure_composition_cycle() -> None:
-    """A<->B cycle in the composition graph with no cross-node predicate
-    anywhere - the transitive-reachability DFS (_cross_node_reachable_shapes)
-    must terminate via its own cycle guard rather than hang or recurse
-    forever, independent of pySHACL's own separate shape-recursion guard.
-    """
-    from starlayer.shacl.native_components import _cross_node_reachable_shapes
-
-    g = Graph()
-    g.parse(
-        data="""
-        @prefix ex: <http://example.org/> .
-        @prefix sh: <http://www.w3.org/ns/shacl#> .
-        ex:A a sh:NodeShape ; sh:and ( ex:B ) .
-        ex:B a sh:NodeShape ; sh:and ( ex:A ) .
-        """,
-        format="turtle",
-    )
-    assert _cross_node_reachable_shapes(g) == frozenset()
-
-
-def test_cross_node_reachability_correct_through_a_cycle() -> None:
-    """Same cyclic shape graph as above, but C (reachable from the cycle)
-    genuinely declares a cross-node predicate - confirms the cycle guard
-    stops infinite recursion without also suppressing real reachability
-    through the cyclic part of the graph.
-    """
-    from starlayer.shacl.native_components import _cross_node_reachable_shapes
-
-    g = Graph()
-    g.parse(
-        data="""
-        @prefix ex: <http://example.org/> .
-        @prefix sh: <http://www.w3.org/ns/shacl#> .
-        ex:C a sh:NodeShape ; sh:uniqueValuesFor ex:id .
-        ex:A a sh:NodeShape ; sh:and ( ex:B ex:C ) .
-        ex:B a sh:NodeShape ; sh:and ( ex:A ) .
-        """,
-        format="turtle",
-    )
-    reachable = _cross_node_reachable_shapes(g)
-    assert EX.A in reachable
-    assert EX.B in reachable
-    assert EX.C in reachable
-
-
-def test_cross_node_reachability_correct_through_a_cycle_regardless_of_hash_seed() -> None:
-    """The bug the test above was written to catch turned out to only
-    manifest under specific ``PYTHONHASHSEED`` values (a DFS+memo
-    implementation memoized a node's answer using its cycle guard's early
-    ``False`` return, which is unsound and order-dependent - fixed by
-    replacing it with fixed-point/worklist propagation, which is order-
-    independent by construction). A single in-process run can't exercise
-    more than one hash seed, so this drives the same check across several
-    fixed seeds in subprocesses - the actual regression-catching test for
-    this bug, not just the single-seed case above.
-    """
-    import os
-    import subprocess
-    import sys
-
-    script = (
-        "from rdflib import Graph, Namespace\n"
-        "from starlayer.shacl.native_components import _cross_node_reachable_shapes\n"
-        "EX = Namespace('http://example.org/')\n"
-        "g = Graph()\n"
-        "g.parse(data='''\n"
-        "    @prefix ex: <http://example.org/> .\n"
-        "    @prefix sh: <http://www.w3.org/ns/shacl#> .\n"
-        "    ex:C a sh:NodeShape ; sh:uniqueValuesFor ex:id .\n"
-        "    ex:A a sh:NodeShape ; sh:and ( ex:B ex:C ) .\n"
-        "    ex:B a sh:NodeShape ; sh:and ( ex:A ) .\n"
-        "''', format='turtle')\n"
-        "result = _cross_node_reachable_shapes(g)\n"
-        "assert {EX.A, EX.B, EX.C} == result, result\n"
-    )
-    for seed in ("0", "1", "6", "13", "42", "1000"):
-        env = dict(os.environ, PYTHONHASHSEED=seed)
-        proc = subprocess.run(
-            [sys.executable, "-c", script],
-            env=env,
-            check=False,
-            capture_output=True,
-            text=True,
-        )
-        assert proc.returncode == 0, f"seed={seed}: {proc.stderr}"
-
-
-def test_cross_node_reachability_terminates_on_self_cycle() -> None:
-    from starlayer.shacl.native_components import _cross_node_reachable_shapes
-
-    g = Graph()
-    g.parse(
-        data="""
-        @prefix ex: <http://example.org/> .
-        @prefix sh: <http://www.w3.org/ns/shacl#> .
-        ex:Z a sh:NodeShape ; sh:and ( ex:Z ) .
-        """,
-        format="turtle",
-    )
-    assert _cross_node_reachable_shapes(g) == frozenset()
 
 
 def test_qualified_max_count_with_cross_node_value_shape_conforms_via_vacuous_exclusion() -> None:

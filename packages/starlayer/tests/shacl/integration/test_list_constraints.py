@@ -7,9 +7,6 @@ from ._shape_loader import load_shape
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
-
-pyshacl = pytest.importorskip("pyshacl")
-
 # Mirrors the SHACL 1.2 Core spec's own examples for sh:memberShape,
 # sh:minListLength, sh:maxListLength, and sh:uniqueMembers.
 

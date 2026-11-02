@@ -3,8 +3,6 @@ from rdflib import Namespace
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl.ui_widget_selection import select_widget, select_widgets
 
-pyshacl = pytest.importorskip("pyshacl")
-
 EX = Namespace("http://example.org/")
 SHUI = Namespace("http://www.w3.org/ns/shacl-ui#")
 

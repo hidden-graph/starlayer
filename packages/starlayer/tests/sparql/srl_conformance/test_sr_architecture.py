@@ -97,7 +97,9 @@ def test_srl_source_loads_no_salg_module_or_graph():
 @pytest.mark.srl_conformance
 def test_published_shapes_validate_srl_trees_without_starlayer(tmp_path):
     """The publishing check: a separate process with only rdflib and pyshacl, the published .ttl files, and trees
-    serialized by SRL, must find every tree conformant. It asserts starlayer was never imported."""
+    serialized by SRL, must find every tree conformant. It asserts starlayer was never imported. An interoperability check against a
+    third-party SHACL engine: skipped when pySHACL is not installed (it is not a dependency of starlayer)."""
+    pytest.importorskip("pyshacl", reason="interoperability check against pySHACL, which starlayer does not depend on")
     tree_files = []
     for case in TREE_CASES:
         graph, _ = srl_parse_to_tree(case.text)
@@ -128,7 +130,7 @@ def test_published_shapes_validate_srl_trees_without_starlayer(tmp_path):
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 conforms, _, text = pyshacl.validate(data, shacl_graph=shapes, ont_graph=ont,
-                                                     inference=ENTAILMENT.RDFS, advanced=True, max_validation_depth=100)
+                                                     inference="rdfs", advanced=True, max_validation_depth=100)
             if not conforms:
                 failed.append(name)
         assert "starlayer" not in sys.modules, "starlayer was imported"

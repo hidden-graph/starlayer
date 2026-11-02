@@ -5,17 +5,12 @@ pySHACL for every constraint). Found via the W3C SHACL 1.2 test suite's
 severity-003/deactivated-003 fixtures.
 """
 
-import pytest
 from rdflib import Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
-
-pyshacl = pytest.importorskip("pyshacl")
-
-
 def test_datatype_annotation_severity_overrides_shape_default() -> None:
     shapes = StarLayerGraph()
     shapes.parse(

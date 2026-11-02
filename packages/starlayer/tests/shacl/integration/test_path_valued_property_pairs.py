@@ -1,4 +1,3 @@
-import pytest
 from rdflib import Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
@@ -7,9 +6,6 @@ from ._shape_loader import load_shape
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
-
-pyshacl = pytest.importorskip("pyshacl")
-
 # SHACL 1.2 generalizes sh:equals/sh:disjoint/sh:lessThan/sh:lessThanOrEquals
 # to accept a full property path, not just a simple predicate IRI. pySHACL
 # 0.40 doesn't evaluate a complex path here at all - it silently treats it as

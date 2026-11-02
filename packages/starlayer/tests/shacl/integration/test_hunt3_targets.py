@@ -84,12 +84,12 @@ def test_one_shapes_dynamic_targets_do_not_leak_into_another() -> None:
 
 class TestMetaShapesAcceptTargetNodeExpression:
     def _meta_errors(self, shapes_text: str) -> bool:
-        from pyshacl.errors import ReportableRuntimeError
+        from starlayer.shacl import MetaShaclError
         from starlayer.shacl.meta_shapes import meta_validate
 
         try:
             meta_validate(g(shapes_text))
-        except ReportableRuntimeError:
+        except MetaShaclError:
             return False
         return True
 

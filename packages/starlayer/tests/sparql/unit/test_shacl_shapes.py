@@ -485,11 +485,9 @@ def test_expression_family_queries_conform(query_text):
 def test_no_shape_recursion_warnings():
     """Positively verifies the sh:class fix, not just "conforms == True by
     absence of a signal" - before the fix, most of these queries produced
-    dozens of ShapeRecursionWarnings and pyshacl silently treated the
+    dozens of recursion warnings and the validator silently treated the
     unchecked branch as conformant rather than actually checking it."""
     import warnings
-
-    from pyshacl.errors import ShapeRecursionWarning
 
     for query_text in EXPRESSION_FAMILY_QUERIES:
         prepared = prepareQuery("PREFIX : <http://example.org/> " + query_text)
@@ -497,8 +495,8 @@ def test_no_shape_recursion_warnings():
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
             validate_query(graph)
-        recursion_warnings = [w for w in caught if issubclass(w.category, ShapeRecursionWarning)]
-        assert not recursion_warnings, f"{query_text!r} triggered {len(recursion_warnings)} ShapeRecursionWarning(s)"
+        recursion_warnings = [w for w in caught if "recursion" in str(w.message).lower()]
+        assert not recursion_warnings, f"{query_text!r} triggered {len(recursion_warnings)} recursion warning(s)"
 
 
 def test_one_arg_builtin_missing_arg_fails():

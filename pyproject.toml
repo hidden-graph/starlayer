@@ -13,20 +13,16 @@ requires-python = ">=3.10"
 dependencies = [
     "rdflib>=7.0",
     "requests>=2.28",
-    # pySHACL is a core dependency, not test-only: starlayer.shacl needs it
-    # unconditionally to function (it wraps pyshacl.validate() as its
-    # validation engine) - see packages/starlayer/docs/shacl/compatibility.md.
-    # Verified against pySHACL 0.40.0 specifically; workarounds for known
-    # pySHACL bugs are defensive but correctness against other versions
-    # hasn't been separately confirmed.
-    "pyshacl>=0.40.1",
+    # owlrl computes the RDFS and OWL 2 RL closures behind entailment (inference=, sh:entailment): the native SHACL engine
+    # needs it whenever a regime is asked for, so it is core, not an extra.
+    "owlrl>=6",
     # pyoxigraph is core: starlayer.shacl_engine and starlayer.graph.oxgraph import it at
     # module level. 0.5.13 is the minimum supported Oxigraph: older versions abort the
     # process on SPARQL `=` over rdf:dirLangString (oxigraph#1982), see
     # docs/upstream-issues/oxigraph-upstream-issues.md and graph/backends/_versions.py.
     "pyoxigraph>=0.5.13",
 ]
-keywords = ["rdf", "rdf12", "sparql", "sparql12", "shacl", "pyshacl", "knowledge-graph", "semantic-web", "linked-data", "turtle", "reification", "triple-terms", "rdf-star", "algebra"]
+keywords = ["rdf", "rdf12", "sparql", "sparql12", "shacl", "knowledge-graph", "semantic-web", "linked-data", "turtle", "reification", "triple-terms", "rdf-star", "algebra"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -47,6 +43,7 @@ classifiers = [
 # load (setuptools>=81 removed it) - remove once rdflib-sqlalchemy drops the
 # pkg_resources import upstream.
 sqlalchemy = ["rdflib-sqlalchemy>=0.5", "setuptools<81"]
+# owlrl is a core dependency now; the extra stays so `pip install starlayer[reasoning]` (named in messages and docs) keeps working.
 reasoning = ["owlrl>=6"]
 # Oxigraph as an rdflib Store (oxrdflib's OxigraphStore, wrapping pyoxigraph),
 # usable in rdf-1.2 native mode via StarLayerGraph(store=OxigraphStore(...),

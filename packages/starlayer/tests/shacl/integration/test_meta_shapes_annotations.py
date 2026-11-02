@@ -3,8 +3,8 @@
 at most one value, a decimal; sh:group names an sh:PropertyGroup. SHACL 1.2: at most one sh:defaultValue, a node expression."""
 
 import pytest
-from pyshacl.errors import ReportableRuntimeError
 from rdflib import Graph
+from starlayer.shacl import MetaShaclError as ReportableRuntimeError
 from starlayer.shacl.meta_shapes import meta_validate
 
 P = (

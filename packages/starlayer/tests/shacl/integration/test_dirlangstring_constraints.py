@@ -5,9 +5,6 @@ from starlayer.shacl import StarShaclSchema
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
-
-pyshacl = pytest.importorskip("pyshacl")
-
 # RDF 1.2's rdf:dirLangString (direction-tagged language strings, added to
 # starlayer.graph this session via StarLayerGraph's DirLangString) exposed a
 # hard crash and three real correctness bugs once wired into starShacl:
@@ -87,21 +84,6 @@ def test_datatype_dirlangstring_violates_for_plain_string() -> None:
     result = _validator(shapes).validate(data_graph=data, meta_shacl=False)
     assert result.conforms is False
     assert SH.DatatypeConstraintComponent in _violation_components(result)
-
-
-def test_datatype_dirlangstring_decode_report_false_does_not_crash() -> None:
-    data = _data('@prefix ex: <http://example.org/> .\nex:Alice a ex:Person ; ex:greeting "hello" .')
-    shapes = _shapes(
-        """
-        @prefix ex: <http://example.org/> .
-        @prefix sh: <http://www.w3.org/ns/shacl#> .
-        @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
-        ex:S a sh:NodeShape ; sh:targetClass ex:Person ;
-          sh:property [ sh:path ex:greeting ; sh:datatype rdf:dirLangString ] .
-        """
-    )
-    result = _validator(shapes).validate(data_graph=data, meta_shacl=False, decode_report=False)
-    assert result.conforms is False
 
 
 # --- sh:languageIn -----------------------------------------------------------

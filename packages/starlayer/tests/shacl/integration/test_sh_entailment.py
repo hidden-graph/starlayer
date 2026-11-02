@@ -17,12 +17,10 @@ from rdflib import Namespace
 from rdflib.namespace import RDF
 from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.shacl import StarShaclSchema
+from starlayer.shacl import StarShaclSchema, target_nodes
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
-
-pyshacl = pytest.importorskip("pyshacl")
 
 SHAPES = """
     @prefix ex: <http://example.org/> .
@@ -183,22 +181,16 @@ class TestTargetNodesRespectsEntailment:
     this."""
 
     def test_without_entailment_alice_is_not_a_target(self) -> None:
-        from starlayer.shacl.engine import target_nodes
-
         nodes = target_nodes(data_graph=_data(), shacl_graph=_shapes(), shape_node=EX.EmployeeShape)
         assert nodes == ()
 
     def test_inference_keyword_makes_alice_a_target(self) -> None:
-        from starlayer.shacl.engine import target_nodes
-
         nodes = target_nodes(
             data_graph=_data(), shacl_graph=_shapes(), shape_node=EX.EmployeeShape, inference=ENTAILMENT.RDFS
         )
         assert nodes == (EX.alice,)
 
     def test_declared_sh_entailment_makes_alice_a_target_with_no_keyword(self) -> None:
-        from starlayer.shacl.engine import target_nodes
-
         shapes = _shapes()
         shapes.add((EX.EmployeeShape, SH.entailment, ENTAILMENT.RDFS))
 
@@ -206,8 +198,6 @@ class TestTargetNodesRespectsEntailment:
         assert nodes == (EX.alice,)
 
     def test_neither_data_graph_nor_ont_graph_is_mutated(self) -> None:
-        from starlayer.shacl.engine import target_nodes
-
         data = _data()
         ont = StarLayerGraph()
         before_data, before_ont = set(data), set(ont)

@@ -9,9 +9,6 @@ from pathlib import Path
 
 import pytest
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-
-pyshacl = pytest.importorskip("pyshacl")
-
 from starlayer.shacl import StarShaclSchema  # noqa: E402
 
 from .closure import node_closure  # noqa: E402

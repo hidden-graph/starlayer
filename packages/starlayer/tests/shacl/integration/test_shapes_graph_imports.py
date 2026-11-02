@@ -5,9 +5,6 @@ from starlayer.shacl import StarShaclSchema
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
-
-pyshacl = pytest.importorskip("pyshacl")
-
 # SHACL 1.2 Core: a shapes graph can cross-reference reusable modules via
 # owl:imports, optionally redirected through owl:versionIRI so a versioned
 # module can declare its own canonical (unversioned) IRI for the purpose of

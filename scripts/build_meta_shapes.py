@@ -36,7 +36,7 @@ import os
 from collections.abc import Iterable
 from typing import Any
 
-from rdflib import Graph, Literal, Namespace, URIRef
+from rdflib import RDF, Graph, Literal, Namespace, URIRef
 
 SH = Namespace("http://www.w3.org/ns/shacl#")
 SHSH = Namespace("http://www.w3.org/ns/shacl-shacl#")
@@ -86,21 +86,31 @@ def _add_overrides(graph: Graph) -> Graph:
     return graph
 
 
-def _type_shape_values(graph: Graph) -> Graph:
-    """Add the ``rdf:type`` triples starlayer adds before handing a shapes graph to pySHACL (the Working Group's
-    file uses ``sh:memberShape``, which pySHACL does not know). Only adds."""
-    from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-    from starlayer.shacl.validator import _ensure_native_component_shapes_typed
+# The predicates whose values are shapes the Working Group's file does not type (``sh:someValue``, ``sh:memberShape``,
+# ``sh:reifierShape``, ``sh:condition``).
+_SHAPE_EXPECTING_PREDICATES = (SH.someValue, SH.memberShape, SH.reifierShape, SH.condition)
 
-    working = StarLayerGraph()
-    for triple in graph:
-        working.add(triple)
-    typed = _ensure_native_component_shapes_typed(working)
+
+def _type_shape_values(graph: Graph) -> Graph:
+    """Add an ``rdf:type`` (``sh:PropertyShape`` for a node with ``sh:path``, else ``sh:NodeShape``) to every shape that a
+    shape-expecting predicate refers to and that has no explicit shape type, so the stored meta-shapes file states them. A
+    ``sh:condition`` value may be a SHACL list, whose members are the references. Only adds; the output is byte-for-byte what the
+    earlier validator's loader needed."""
     result = Graph()
     for prefix, namespace in graph.namespaces():
         result.bind(prefix, namespace)
-    for triple in typed:
+    for triple in graph:
         result.add(triple)
+    for predicate in _SHAPE_EXPECTING_PREDICATES:
+        for _s, _p, value in graph.triples((None, predicate, None)):
+            references = list(graph.items(value)) if (value, RDF.first, None) in graph else [value]
+            for node in references:
+                if isinstance(node, Literal):
+                    continue  # a malformed value: left for the meta-shapes to report
+                if {SH.NodeShape, SH.PropertyShape} & set(graph.objects(node, RDF.type)):
+                    continue
+                kind = SH.PropertyShape if (node, SH.path, None) in graph else SH.NodeShape
+                result.add((node, RDF.type, kind))
     return result
 
 

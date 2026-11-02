@@ -57,11 +57,10 @@ def assert_ox(graph, *, max_prefixes=8):
 
 
 @pytest.mark.parametrize("cls", [OxGraph, OxDataset])
-@pytest.mark.parametrize("engine", [None, "native"])
-def test_validate_report_graph(cls, engine):
+def test_validate_report_graph(cls):
     from starlayer.shacl import validate
 
-    result = validate(_ox(DATA, cls), shacl_graph=_ox(SHAPES), engine=engine)
+    result = validate(_ox(DATA, cls), shacl_graph=_ox(SHAPES))
     assert result.conforms is False
     assert_ox(result.report_graph)
     assert "sh" in result.report_graph.prefixes and "ex" in result.report_graph.prefixes
@@ -87,7 +86,7 @@ def test_validate_inplace_keeps_the_callers_graph():
     from starlayer.shacl import validate
 
     data = _ox(DATA)
-    result = validate(data, shacl_graph=_ox(SHAPES), inplace=True, engine="native")
+    result = validate(data, shacl_graph=_ox(SHAPES), inplace=True)
     assert result.data_graph is data
     assert_ox(result.report_graph)
 
@@ -148,14 +147,13 @@ def test_evaluate_and_close_shape():
     assert isinstance(evaluate(_old(DATA), _old(SHAPES)), StarLayerGraph)
 
 
-@pytest.mark.parametrize("engine", [None, "native"])
-def test_extract_subgraph(engine):
+def test_extract_subgraph():
     from starlayer.shacl import extract_subgraph
 
-    got = extract_subgraph(_ox(DATA), _ox(SHAPES), engine=engine)
+    got = extract_subgraph(_ox(DATA), _ox(SHAPES))
     assert_ox(got)
     assert len(got) > 0
-    assert isinstance(extract_subgraph(_old(DATA), _old(SHAPES), engine=engine), StarLayerGraph)
+    assert isinstance(extract_subgraph(_old(DATA), _old(SHAPES)), StarLayerGraph)
 
 
 def test_derive_conforms_to():

@@ -9,8 +9,6 @@ import pytest
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl import validate
 
-pyshacl = pytest.importorskip("pyshacl")
-
 _SHAPES = """
     @prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> .
     ex:S a sh:NodeShape ; sh:targetClass ex:P ; sh:property [ sh:path ex:n ; sh:minCount 1 ] .

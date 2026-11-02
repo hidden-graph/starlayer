@@ -1,4 +1,3 @@
-import pytest
 from rdflib import Literal, Namespace, URIRef
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.graph.model.triple import TripleTerm
@@ -9,10 +8,6 @@ from ._shape_loader import load_shape
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
 RDF_REIFIES = URIRef("http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies")
-
-pyshacl = pytest.importorskip("pyshacl")
-
-
 def test_sparql_constraint_conforms_when_triple_term_present() -> None:
     data = StarLayerGraph()
     data.add((EX.alice, EX.says, (EX.bob, EX.knows, EX.carol)))

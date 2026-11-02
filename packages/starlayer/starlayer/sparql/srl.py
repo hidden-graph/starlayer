@@ -108,7 +108,6 @@ sibling files:
 
 from __future__ import annotations
 
-import warnings
 from functools import partial
 
 from pyparsing import CaselessKeyword as Keyword
@@ -1097,19 +1096,16 @@ def srl_validate(data_graph: Graph) -> tuple[bool, Graph, str]:
         A ``(conforms, report_graph, report_text)`` tuple, unpacked from
         ``starlayer.shacl``'s own ``ValidationResult``.
     """
-    from pyshacl.errors import ShapeRecursionWarning
 
     import starlayer.shacl  # lazy: avoids a circular-import deadlock at module load time
     from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", category=ShapeRecursionWarning)
-        result = starlayer.shacl.validate(
-            data_graph,
-            shacl_graph=_validation_graphs()[0],
-            ont_graph=_validation_graphs()[1],
-            inference=ENTAILMENT.RDFS,
-            advanced=True,
-            max_validation_depth=100,
-        )
+    result = starlayer.shacl.validate(
+        data_graph,
+        shacl_graph=_validation_graphs()[0],
+        ont_graph=_validation_graphs()[1],
+        inference=ENTAILMENT.RDFS,
+        advanced=True,
+        max_validation_depth=100,
+    )
     return result.conforms, result.report_graph, result.report_text

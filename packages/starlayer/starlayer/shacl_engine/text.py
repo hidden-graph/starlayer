@@ -195,6 +195,9 @@ def _result_block(r: Result, shapes: Any, data: Any) -> str:
         text += f"\tSource Constraint: {stringify_node(shapes, r.source_constraint)}\n"
     for m in sorted(result_messages(r, shapes, data), key=str):
         text += f"\tMessage: {m.value if isinstance(m, Literal) else m}\n"
+    for detail in r.details:  # sh:detail: the nested result, indented under the result it explains
+        nested = _result_block(detail, shapes, data)
+        text += "\tDetail:\n" + "".join(f"\t\t{line}\n" for line in nested.splitlines())
     return text
 
 

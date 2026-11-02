@@ -6,12 +6,9 @@ from typing import Any
 
 @dataclass(frozen=True)
 class ExecutionDiagnostics:
-    """Internal adapter bookkeeping for the RDF 1.2 triple-term adaptation
-    layer - not general-purpose validation statistics.
-
-    The type of ``ValidationResult.diagnostics``. Not a type you'd
-    construct directly.
-    """
+    """Counters of one validation run: the type of ``ValidationResult.diagnostics``. The engine handles RDF 1.2 triple terms
+    natively, so the encode/decode counters stay 0 (kept so code that reads them keeps working). Not a type you'd construct
+    directly."""
 
     encode_graph_calls: int = 0
     decode_graph_calls: int = 0
@@ -23,19 +20,17 @@ class ExecutionDiagnostics:
     inplace_data_triples: int = 0
     recursion_revisits: int = 0
     """How many (shape, node) pairs were already being evaluated further up and were assumed to conform: the number of times a
-    recursive shape met a cycle in the data (see ``starlayer.shacl.recursion``). 0 for data with no cycle."""
+    recursive shape met a cycle in the data (a (shape, node) pair already being evaluated further up is assumed to conform). 0 for data with no cycle."""
 
 
 @dataclass(frozen=True)
 class ValidationResult:
-    """Result of ``validate()`` - a richer replacement for pyshacl's own
-    bare ``(conforms, report_graph, report_text)`` tuple.
+    """Result of ``validate()``: whether the data conforms, the validation report as a graph and as text.
 
     ``data_graph`` is only populated when the call used ``inplace=True``
     (the ``"rules"`` mode's own default) - the caller's own data graph,
     mutated with any in-place changes decoded back; ``None`` otherwise,
-    not an error. ``diagnostics`` is internal adapter bookkeeping (see
-    ``ExecutionDiagnostics``), not general-purpose validation statistics.
+    not an error. ``diagnostics`` is an ``ExecutionDiagnostics``.
     """
 
     conforms: bool
@@ -43,12 +38,6 @@ class ValidationResult:
     report_text: str
     data_graph: Any | None = None
     diagnostics: ExecutionDiagnostics | None = None
-    engine: str = "pyshacl"
-    """Which engine produced this result: ``"pyshacl"`` (the old pySHACL-backed path) or ``"native"``
-    (``starlayer.shacl_engine``). See ``starlayer.shacl.native_adapter``."""
-    engine_fallback_reason: str | None = None
-    """Why a call that selected the native engine ran on pySHACL instead (an option with no native equivalent);
-    ``None`` when no fallback happened."""
 
 
 @dataclass(frozen=True)
@@ -81,9 +70,6 @@ class RulesResult:
 
     inferred_graph: Any
     validation: ValidationResult
-    engine: str = "pyshacl"
-    """Which engine ran the rules: ``"pyshacl"`` or ``"native"`` (see ``ValidationResult.engine``)."""
-    engine_fallback_reason: str | None = None
 
 
 # EvaluationResult/SubgraphExtractionResult were removed - evaluate()/

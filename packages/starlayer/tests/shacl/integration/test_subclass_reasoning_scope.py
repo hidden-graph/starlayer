@@ -1,21 +1,14 @@
-import pytest
-from rdflib import Namespace
+from rdflib import RDFS, Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
 
-pyshacl = pytest.importorskip("pyshacl")
-
-# SHACL 1.2 Core's "SHACL Type" definition (Issue 185, changelog: "Added
-# parameter to look up rdfs:subClassOf triples in the union of the shapes
-# graph and the data graph") notes implementations MAY be parameterized to
-# also read rdfs:subClassOf from the shapes graph, not just the data graph.
-# starlayer.shacl exposes this as an opt-in validate() keyword,
-# rdfs_subclass_reasoning_includes_shapes_graph, consulted by the native
-# sh:rootClass and list-valued sh:class passes (both use
-# _is_subclass_of_or_self).
+# The SHACL 1.2 draft reads rdfs:subClassOf from the DATA graph only. A
+# subclass assertion in the shapes graph is ignored (the old opt-in option
+# rdfs_subclass_reasoning_includes_shapes_graph no longer exists), and the
+# same assertion in the data graph is honored.
 
 
 def _shapes_with_root_class_and_shapes_graph_subclass_assertion() -> StarLayerGraph:
@@ -63,13 +56,11 @@ def test_root_class_ignores_shapes_graph_subclass_assertion_by_default() -> None
     assert result.conforms is False
 
 
-def test_root_class_honors_shapes_graph_subclass_assertion_when_opted_in() -> None:
+def test_root_class_honors_data_graph_subclass_assertion() -> None:
     validator = StarShaclSchema(shacl_graph=_shapes_with_root_class_and_shapes_graph_subclass_assertion())
-    result = validator.validate(
-        data_graph=_data_zoo_holds_lion(),
-        meta_shacl=False,
-        rdfs_subclass_reasoning_includes_shapes_graph=True,
-    )
+    data = _data_zoo_holds_lion()
+    data.add((EX.Lion, RDFS.subClassOf, EX.Animal))
+    result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is True
 
@@ -120,12 +111,10 @@ def test_list_valued_class_ignores_shapes_graph_subclass_assertion_by_default() 
     assert result.conforms is False
 
 
-def test_list_valued_class_honors_shapes_graph_subclass_assertion_when_opted_in() -> None:
+def test_list_valued_class_honors_data_graph_subclass_assertion() -> None:
     validator = StarShaclSchema(shacl_graph=_shapes_with_list_valued_class_and_shapes_graph_subclass_assertion())
-    result = validator.validate(
-        data_graph=_data_alice_has_tiger(),
-        meta_shacl=False,
-        rdfs_subclass_reasoning_includes_shapes_graph=True,
-    )
+    data = _data_alice_has_tiger()
+    data.add((EX.Tiger, RDFS.subClassOf, EX.Cat))
+    result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is True

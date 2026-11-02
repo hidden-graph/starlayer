@@ -3,9 +3,6 @@
 Where plain pySHACL is the oracle it is run in a separate interpreter (``python -I``) so StarLayer's process-global patches
 cannot colour the answer."""
 
-import subprocess
-import sys
-import textwrap
 
 import pytest
 from rdflib import Namespace, URIRef
@@ -30,23 +27,6 @@ def _graph(ttl: str) -> StarLayerGraph:
     graph = StarLayerGraph()
     graph.parse(data=ttl, format="turtle12")
     return graph
-
-
-def _plain_pyshacl(shapes: str, data: str) -> str:
-    """'True'/'False' (conforms) or the exception class name, from plain pySHACL in a fresh interpreter."""
-    code = textwrap.dedent(
-        """
-        import sys, pyshacl
-        from rdflib import Graph
-        shapes, data = sys.argv[1], sys.argv[2]
-        try:
-            print(pyshacl.validate(Graph().parse(data=data, format="turtle"), shacl_graph=Graph().parse(data=shapes, format="turtle"))[0])
-        except Exception as exc:
-            print(type(exc).__name__)
-        """
-    )
-    out = subprocess.run([sys.executable, "-I", "-c", code, shapes, data], capture_output=True, text=True, timeout=120)
-    return out.stdout.strip().splitlines()[-1]
 
 
 # --- close_shape / extract_subgraph ------------------------------------------------------------------------------------
@@ -152,8 +132,6 @@ def test_validate_follows_an_inverse_of_a_sequence_path():
         _graph(_INVERSE_PREFIX + _INVERSE_DATA), _graph(_INVERSE_PREFIX + _INVERSE_SHAPES), meta_shacl=False
     ).conforms
     assert conforms
-    # plain pySHACL follows nothing for this path: the answer comes from our patch, not from pySHACL
-    assert _plain_pyshacl(_INVERSE_PREFIX + _INVERSE_SHAPES, _INVERSE_PREFIX + _INVERSE_DATA) == "False"
 
 
 def test_validate_inverse_of_a_sequence_still_reports_a_missing_value():
@@ -188,12 +166,6 @@ def _pattern_conforms(pattern: str, value: str) -> bool:
 )
 def test_sh_pattern_accepts_xpath_only_syntax(pattern, value, expected):
     assert _pattern_conforms(pattern, value) is expected
-
-
-def test_plain_pyshacl_has_the_same_limit_so_it_is_not_a_starlayer_variance():
-    shapes = _PATTERN_SHAPES.format(pattern=r"^\\p{L}+$")
-    # re.error: bad escape \p (the class is named PatternError from Python 3.13)
-    assert _plain_pyshacl(shapes, P + 'ex:n ex:p "é" .') in {"error", "PatternError"}
 
 
 @pytest.mark.parametrize("pattern", [r"^\p{Foo}$", r"^\p{IsFoo}$", "("])

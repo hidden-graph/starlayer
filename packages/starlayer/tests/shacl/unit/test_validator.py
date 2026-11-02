@@ -1,10 +1,8 @@
-from typing import Any
 
 import pytest
 from rdflib import Graph, Literal, Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import ShapeError
-from starlayer.shacl.adapters import TripleTermAdapter, TripleTermGraph, TripleTermValue
 from starlayer.shacl.validator import StarShaclSchema, evaluate, validate, validate_each
 
 EX = Namespace("http://example.org/")
@@ -103,46 +101,8 @@ class TestBareFunctionsWorkWithoutStarShaclSchema:
         assert (EX.carol, EX.friendCount, Literal(2)) not in data
 
 
-def test_validate_uses_encoded_graphs() -> None:
-    captured = {}
-
-    def fake_validate(**kwargs):
-        captured.update(kwargs)
-        report = Graph()
-        report.add((EX.r, EX.status, EX.ok))
-        return True, report, "ok"
-
-    data = StarLayerGraph()
-    data.add((EX.s, EX.p, (EX.a, EX.p, EX.b)))
-
-    validator = StarShaclSchema(adapter=TripleTermAdapter(), validate_fn=fake_validate)
-    result = validator.validate(data_graph=data)
-
-    assert result.conforms is True
-    assert "data_graph" in captured
-    assert captured["data_graph"] is not data
 
 
-def test_validate_each_runs_once_per_data_graph_against_shared_shapes() -> None:
-    calls: list[Any] = []
-
-    def fake_validate(**kwargs):
-        calls.append(kwargs["data_graph"])
-        conforms = (EX.ok, EX.p, EX.v) in kwargs["data_graph"]
-        return conforms, Graph(), "ok" if conforms else "fail"
-
-    data_a = StarLayerGraph()
-    data_a.add((EX.ok, EX.p, EX.v))
-    data_b = StarLayerGraph()
-    data_b.add((EX.other, EX.p, EX.v))
-
-    validator = StarShaclSchema(adapter=TripleTermAdapter(), validate_fn=fake_validate)
-    results = validator.validate_each([data_a, data_b])
-
-    assert len(calls) == 2
-    assert set(results) == {0, 1}
-    assert results[0].conforms is True
-    assert results[1].conforms is False
 
 
 def test_module_level_validate_each_matches_starlayershacl_method() -> None:
@@ -172,395 +132,48 @@ def test_module_level_validate_each_matches_starlayershacl_method() -> None:
     assert results[1].conforms is False
 
 
-def test_validate_inplace_decodes_back_into_input_graph() -> None:
-    def fake_validate(**kwargs):
-        encoded_data = kwargs["data_graph"]
-        encoded_data.add((EX.s2, EX.p2, EX.o2))
-        report = Graph()
-        return True, report, "ok"
 
-    from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 
-    data = StarLayerGraph()
-    data.add((EX.s, EX.p, (EX.a, EX.p, EX.b)))
 
-    validator = StarShaclSchema(adapter=TripleTermAdapter(), validate_fn=fake_validate)
-    result = validator.validate(data_graph=data, inplace=True)
 
-    assert result.data_graph is data
-    assert (EX.s2, EX.p2, EX.o2) in data
 
 
-def test_validate_rejects_non_iterable_data_graph() -> None:
-    validator = StarShaclSchema(adapter=TripleTermAdapter(), validate_fn=lambda **_: (True, Graph(), "ok"))
 
-    class NotAGraph:
-        pass
 
-    with pytest.raises(TypeError, match="data_graph must be a StarLayerGraph or rdflib.Graph"):
-        validator.validate(data_graph=NotAGraph())
 
 
-def test_validate_rejects_non_starlayergraph_data_graph() -> None:
-    validator = StarShaclSchema(adapter=TripleTermAdapter(), validate_fn=lambda **_: (True, Graph(), "ok"))
-    data = TripleTermGraph()
 
-    with pytest.raises(TypeError, match="data_graph must be a StarLayerGraph or rdflib.Graph"):
-        validator.validate(data_graph=data)
 
 
-def test_validate_rejects_non_iterable_shapes_graph() -> None:
-    with pytest.raises(TypeError, match="shacl_graph must be a StarLayerGraph or rdflib.Graph"):
-        StarShaclSchema(shacl_graph=42, adapter=TripleTermAdapter(), validate_fn=lambda **_: (True, Graph(), "ok"))
 
 
-def test_apply_rules_rejects_non_starlayergraph_data_graph() -> None:
-    validator = StarShaclSchema(adapter=TripleTermAdapter(), validate_fn=lambda **_: (True, Graph(), "ok"))
 
-    with pytest.raises(TypeError, match="apply_rules\\(\\) requires data_graph to be an? "):
-        validator.apply_rules(data_graph=((EX.s, EX.p, EX.o),))
 
 
-def test_apply_rules_rejects_plain_rdflib_graph_data_graph() -> None:
-    """A plain rdflib.Graph used to be silently accepted, normalized into a
-    *new*, disconnected StarLayerGraph - so apply_rules()'s in-place
-    mutation guarantee (result.data_graph is the object you passed in)
-    silently didn't hold for this input type. Reject it instead of letting
-    that divergence pass quietly."""
-    validator = StarShaclSchema(adapter=TripleTermAdapter(), validate_fn=lambda **_: (True, Graph(), "ok"))
-    data = Graph()
 
-    with pytest.raises(TypeError, match="apply_rules\\(\\) requires data_graph to be an? "):
-        validator.apply_rules(data_graph=data)
 
 
-def test_validate_normalizes_rdflib_data_graph_for_inplace_updates() -> None:
-    def fake_validate(**kwargs):
-        encoded_data = kwargs["data_graph"]
-        encoded_data.add((EX.s2, EX.p2, EX.o2))
-        return True, Graph(), "ok"
 
-    data = Graph()
-    data.add((EX.s, EX.p, EX.o))
 
-    validator = StarShaclSchema(adapter=TripleTermAdapter(), validate_fn=fake_validate)
-    result = validator.validate(data_graph=data, inplace=True)
 
-    assert isinstance(result.data_graph, StarLayerGraph)
-    assert (EX.s2, EX.p2, EX.o2) in result.data_graph
 
 
-def test_validate_inplace_keeps_encoded_triples_on_starlayer_graph() -> None:
-    adapter = TripleTermAdapter()
 
-    def fake_validate(**kwargs):
-        encoded_data = kwargs["data_graph"]
-        encoded_tt = adapter.encode_term(TripleTermValue(EX.a, EX.p, EX.b))
-        encoded_data.add((EX.s2, EX.p2, encoded_tt))
-        report = Graph()
-        return True, report, "ok"
 
-    data = StarLayerGraph()
-    data.add((EX.s, EX.p, (EX.x, EX.p, EX.y)))
 
-    validator = StarShaclSchema(adapter=adapter, validate_fn=fake_validate)
-    result = validator.validate(data_graph=data, inplace=True)
 
-    assert result.data_graph is data
-    assert (EX.s2, EX.p2, (EX.a, EX.p, EX.b)) in data
 
 
-def test_validate_decodes_report_value_nodes() -> None:
-    adapter = TripleTermAdapter()
-    encoded_tt = adapter.encode_term(TripleTermValue(EX.a, EX.p, EX.b))
 
-    def fake_validate(**kwargs):
-        report = Graph()
-        report.add((EX.result, EX.value, encoded_tt))
-        return True, report, "ok"
 
-    data = StarLayerGraph()
-    data.add((EX.s, EX.p, (EX.a, EX.p, EX.b)))
 
-    validator = StarShaclSchema(adapter=adapter, validate_fn=fake_validate)
-    result = validator.validate(data_graph=data)
 
-    assert (EX.result, EX.value, (EX.a, EX.p, EX.b)) in result.report_graph
 
 
-def test_validate_can_skip_report_decoding() -> None:
-    adapter = TripleTermAdapter()
-    encoded_tt = adapter.encode_term(TripleTermValue(EX.a, EX.p, EX.b))
 
-    def fake_validate(**kwargs):
-        report = Graph()
-        report.add((EX.result, EX.value, encoded_tt))
-        return True, report, "ok"
 
-    data = StarLayerGraph()
-    data.add((EX.s, EX.p, (EX.a, EX.p, EX.b)))
 
-    validator = StarShaclSchema(adapter=adapter, validate_fn=fake_validate)
-    result = validator.validate(data_graph=data, decode_report=False)
 
-    assert any(str(o).startswith("urn:starlayer:tt:") for _, _, o in result.report_graph)
-
-
-def test_validate_populates_diagnostics() -> None:
-    def fake_validate(**kwargs):
-        report = Graph()
-        report.add((EX.r, EX.status, EX.ok))
-        return True, report, "ok"
-
-    data = StarLayerGraph()
-    data.add((EX.s, EX.p, (EX.a, EX.p, EX.b)))
-
-    validator = StarShaclSchema(adapter=TripleTermAdapter(), validate_fn=fake_validate)
-    result = validator.validate(data_graph=data)
-
-    assert result.diagnostics is not None
-    assert result.diagnostics.encode_graph_calls >= 1
-    assert result.diagnostics.encoded_triple_terms >= 1
-    assert result.diagnostics.generated_support_triples >= 3
-
-
-def test_validate_diagnostics_reset_between_runs() -> None:
-    def fake_validate(**kwargs):
-        report = Graph()
-        return True, report, "ok"
-
-    data = StarLayerGraph()
-    data.add((EX.s, EX.p, (EX.a, EX.p, EX.b)))
-
-    validator = StarShaclSchema(adapter=TripleTermAdapter(), validate_fn=fake_validate)
-    first = validator.validate(data_graph=data)
-    second = validator.validate(data_graph=data)
-
-    assert first.diagnostics is not None
-    assert second.diagnostics is not None
-    assert first.diagnostics.encode_graph_calls == second.diagnostics.encode_graph_calls
-    assert first.diagnostics.encoded_triple_terms == second.diagnostics.encoded_triple_terms
-
-
-def test_validate_uses_profile_defaults() -> None:
-    captured = {}
-
-    def fake_validate(**kwargs):
-        captured.update(kwargs)
-        report = Graph()
-        return True, report, "ok"
-
-    data = StarLayerGraph()
-    data.add((EX.s, EX.p, (EX.a, EX.p, EX.b)))
-
-    validator = StarShaclSchema(adapter=TripleTermAdapter(), validate_fn=fake_validate)
-    _ = validator.validate(data_graph=data, mode="validation")
-
-    # advanced=True is the "validation" profile's own deliberate default
-    # (2026-09-06) - this project treats sh:expression/sh:rule/custom
-    # targets/custom functions as ordinary SHACL 1.2 functionality, not an
-    # opt-in "SHACL-AF" extra, so callers shouldn't need to pass this
-    # explicitly. See docs/shacl12-gap-matrix.md's Follow-up item 8 for the
-    # investigation (two real pySHACL/starlayer.graph interaction bugs) that
-    # had to be fixed before this default could be flipped safely.
-    assert captured["advanced"] is True
-    assert captured["inplace"] is False
-    # meta_shacl is consumed by starShacl's own preflight (starlayer.shacl.meta_shapes)
-    # rather than forwarded to pySHACL's own (unextended) meta_shacl mechanism -
-    # see validator.py::validate() - so it's intentionally absent here, not True.
-    assert "meta_shacl" not in captured
-
-
-def test_validate_profile_allows_overrides() -> None:
-    captured = {}
-
-    def fake_validate(**kwargs):
-        captured.update(kwargs)
-        report = Graph()
-        return True, report, "ok"
-
-    data = StarLayerGraph()
-    data.add((EX.s, EX.p, (EX.a, EX.p, EX.b)))
-
-    validator = StarShaclSchema(adapter=TripleTermAdapter(), validate_fn=fake_validate)
-    _ = validator.validate(data_graph=data, mode="validation", advanced=True)
-
-    assert captured["advanced"] is True
-
-
-def test_validator_target_nodes_delegates_to_native_core() -> None:
-    data = StarLayerGraph()
-    shapes = StarLayerGraph()
-    shape = EX.Shape
-
-    data.add((EX.alice, EX.kind, EX.Person))
-    shapes.add((shape, SH.targetNode, EX.alice))
-
-    validator = StarShaclSchema(shacl_graph=shapes, adapter=TripleTermAdapter(), validate_fn=lambda **_: (True, Graph(), "ok"))
-    nodes = validator.target_nodes(data_graph=data, shape_node=shape)
-
-    assert nodes == (EX.alice,)
-
-
-def test_target_nodes_falls_back_to_data_graph_when_shacl_graph_is_none() -> None:
-    """2026-10-08: shacl_graph=None (whether via a StarShaclSchema()
-    constructed with no shapes graph, or the bare engine.target_nodes()
-    function directly) falls back to data_graph itself as the shapes
-    source - matching validate()'s own "data graph doubles as shapes
-    graph" allowance."""
-    from starlayer.shacl.engine import target_nodes as native_target_nodes
-
-    data_and_shapes = StarLayerGraph()
-    shape = EX.Shape
-    data_and_shapes.add((EX.alice, EX.kind, EX.Person))
-    data_and_shapes.add((shape, SH.targetNode, EX.alice))
-
-    validator = StarShaclSchema(adapter=TripleTermAdapter(), validate_fn=lambda **_: (True, Graph(), "ok"))
-    assert validator.target_nodes(data_graph=data_and_shapes, shape_node=shape) == (EX.alice,)
-
-    assert native_target_nodes(data_graph=data_and_shapes, shacl_graph=None, shape_node=shape) == (EX.alice,)
-
-
-def test_validator_evaluate_component_delegates_to_native_core() -> None:
-    validator = StarShaclSchema(adapter=TripleTermAdapter(), validate_fn=lambda **_: (True, Graph(), "ok"))
-    result = validator.evaluate_component(
-        component={"name": "https://github.com/hidden-graph/starlayer/ns/shacl#TripleTermNodeKind"},
-        focus_node=EX.focus,
-        value_nodes=((EX.s, EX.p, EX.o), EX.not_tt),
-    )
-
-    assert result.conforms is False
-    assert result.violations == (EX.not_tt,)
-
-
-def test_validator_build_report_delegates_to_native_core() -> None:
-    validator = StarShaclSchema(adapter=TripleTermAdapter(), validate_fn=lambda **_: (True, Graph(), "ok"))
-    report_context = StarLayerGraph()
-    events = (
-        {
-            "focus_node": EX.alice,
-            "result_path": EX.says,
-            "value": (EX.bob, EX.knows, EX.carol),
-            "source_constraint_component": EX.SomeComponent,
-        },
-    )
-
-    report = validator.build_report(events=events, graph_context=report_context)
-    assert any(o == (EX.bob, EX.knows, EX.carol) for _, _, o in report.triples((None, SH.value, None)))
-
-
-def test_validate_reports_pattern_on_triple_term_values_through_pyshacl() -> None:
-    data = StarLayerGraph()
-    data.add((EX.alice, EX.value, (EX.a, EX.p, EX.b)))
-
-    shapes = StarLayerGraph()
-    shapes.parse(
-        data="""
-            @prefix sh: <http://www.w3.org/ns/shacl#> .
-            @prefix ex: <http://example.org/> .
-
-            ex:PatternShape a sh:NodeShape ;
-              sh:targetNode ex:alice ;
-              sh:property [
-                sh:path ex:value ;
-                sh:pattern "^A" ;
-              ] .
-        """,
-        format="turtle12",
-    )
-
-    # the native fast paths are declined (issue #136): the full pySHACL report is produced
-    validator = StarShaclSchema(shacl_graph=shapes, adapter=TripleTermAdapter())
-    result = validator.validate(data_graph=data)
-
-    assert result.conforms is False
-    assert any(
-        o == SH.PatternConstraintComponent
-        for _, _, o in result.report_graph.triples((None, SH.sourceConstraintComponent, None))
-    )
-
-
-def test_validate_falls_back_when_integrated_literal_only_path_is_unsupported() -> None:
-    data = StarLayerGraph()
-    data.add((EX.alice, EX.value, Literal("A")))
-
-    shapes = StarLayerGraph()
-    shapes.parse(
-        data="""
-            @prefix sh: <http://www.w3.org/ns/shacl#> .
-            @prefix ex: <http://example.org/> .
-
-            ex:PatternShape a sh:NodeShape ;
-              sh:targetNode ex:alice ;
-              sh:property [
-                sh:path ex:value ;
-                sh:pattern "^A" ;
-              ] .
-        """,
-        format="turtle12",
-    )
-
-    def fake_validate(**_: Any):
-        return True, Graph(), "ok"
-
-    validator = StarShaclSchema(shacl_graph=shapes, adapter=TripleTermAdapter(), validate_fn=fake_validate)
-    result = validator.validate(data_graph=data)
-
-    assert result.conforms is True
-
-
-def test_validate_has_value_on_a_triple_term_through_pyshacl() -> None:
-    data = StarLayerGraph()
-    data.add((EX.alice, EX.value, (EX.a, EX.p, EX.b)))
-
-    shapes = StarLayerGraph()
-    shapes.parse(
-        data="""
-            @prefix sh: <http://www.w3.org/ns/shacl#> .
-            @prefix ex: <http://example.org/> .
-
-            ex:HasValueShape a sh:NodeShape ;
-              sh:targetNode ex:alice ;
-              sh:property [
-                sh:path ex:value ;
-                                sh:hasValue <<( ex:a ex:p ex:b )>> ;
-              ] .
-        """,
-        format="turtle12",
-    )
-
-    # the native fast paths are declined (issue #136): the full pySHACL report is produced
-    validator = StarShaclSchema(shacl_graph=shapes, adapter=TripleTermAdapter())
-    result = validator.validate(data_graph=data)
-
-    assert result.conforms is True
-    assert not any(True for _ in result.report_graph.triples((None, SH.sourceConstraintComponent, None)))
-
-
-def test_validate_falls_back_when_integrated_structural_property_is_unsupported() -> None:
-    data = StarLayerGraph()
-    data.add((EX.alice, EX.value, Literal("A")))
-
-    shapes = StarLayerGraph()
-    shapes.parse(
-        data="""
-            @prefix sh: <http://www.w3.org/ns/shacl#> .
-            @prefix ex: <http://example.org/> .
-
-            ex:UnsupportedShape a sh:NodeShape ;
-              sh:targetNode ex:alice ;
-              sh:property [
-                sh:path ex:value ;
-                sh:minCount 1 ;
-              ] .
-        """,
-        format="turtle",
-    )
-
-    validator = StarShaclSchema(shacl_graph=shapes, adapter=TripleTermAdapter(), validate_fn=lambda **_: (True, Graph(), "ok"))
-    result = validator.validate(data_graph=data)
-
-    assert result.conforms is True
 
 
 def test_validate_reification_required_violation_when_no_reifier_exists() -> None:
@@ -843,30 +456,6 @@ def test_apply_rules_evaluates_shnex_filter_shape_in_a_rule() -> None:
     assert derived == {EX.bob}
 
 
-def test_validate_does_not_hard_fail_without_reification_constraints() -> None:
-    data = StarLayerGraph()
-    data.add((EX.alice, EX.value, Literal("A")))
-
-    shapes = StarLayerGraph()
-    shapes.parse(
-        data="""
-            @prefix sh: <http://www.w3.org/ns/shacl#> .
-            @prefix ex: <http://example.org/> .
-
-            ex:PlainShape a sh:NodeShape ;
-              sh:targetNode ex:alice ;
-              sh:property [
-                sh:path ex:value ;
-                sh:minCount 1 ;
-              ] .
-        """,
-        format="turtle",
-    )
-
-    validator = StarShaclSchema(shacl_graph=shapes, adapter=TripleTermAdapter(), validate_fn=lambda **_: (True, Graph(), "ok"))
-    result = validator.validate(data_graph=data)
-
-    assert result.conforms is True
 
 
 class TestBoundDataGraphAndInference:
@@ -962,3 +551,69 @@ class TestBoundDataGraphAndInference:
         assert results[0].conforms is True
 
 
+
+
+class TestInputsAndHelpers:
+    """Behaviour of the public entry points that does not depend on the engine's internals."""
+
+    SHAPES = (
+        "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . "
+        "ex:S a sh:NodeShape ; sh:targetClass ex:Person ; sh:property [ sh:path ex:name ; sh:minCount 1 ] ."
+    )
+
+    def _graph(self, ttl: str) -> StarLayerGraph:
+        g = StarLayerGraph()
+        g.parse(data=ttl, format="turtle12")
+        return g
+
+    def test_apply_rules_rejects_a_data_graph_that_is_not_a_starlayer_graph(self) -> None:
+        from starlayer.shacl import apply_rules
+
+        with pytest.raises(TypeError, match=r"apply_rules\(\) requires data_graph to be an? "):
+            apply_rules(((EX.s, EX.p, EX.o),))
+
+    def test_apply_rules_rejects_a_plain_rdflib_graph(self) -> None:
+        from starlayer.shacl import apply_rules
+
+        with pytest.raises(TypeError, match=r"apply_rules\(\) requires data_graph to be an? .*got Graph"):
+            apply_rules(Graph())
+
+    def test_the_schema_rejects_inference_per_call(self) -> None:
+        schema = StarShaclSchema(shacl_graph=self._graph(self.SHAPES))
+        with pytest.raises(TypeError, match="no longer accepts inference"):
+            schema.validate(data_graph=self._graph("@prefix ex: <http://example.org/> ."), inference="x")
+
+    def test_target_nodes_reads_the_shapes_from_the_data_graph_when_there_are_none(self) -> None:
+        from starlayer.shacl import target_nodes
+
+        both = self._graph(self.SHAPES + " ex:alice a ex:Person .")
+        assert target_nodes(data_graph=both, shape_node=EX.S) == (EX.alice,)
+
+    def test_the_schema_resolves_target_nodes_over_its_bound_shapes(self) -> None:
+        schema = StarShaclSchema(shacl_graph=self._graph(self.SHAPES))
+        data = self._graph("@prefix ex: <http://example.org/> . ex:alice a ex:Person . ex:bob a ex:Person .")
+        assert set(schema.target_nodes(data_graph=data, shape_node=EX.S)) == {EX.alice, EX.bob}
+
+    def test_inplace_adds_the_inferred_triples_to_the_callers_graph(self) -> None:
+        shapes = self._graph(
+            "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . "
+            "ex:S a sh:NodeShape ; sh:targetClass ex:Person ; sh:rule ex:R . "
+            "ex:R a sh:SPARQLRule ; sh:construct 'CONSTRUCT { $this <http://example.org/seen> true } WHERE { }' ."
+        )
+        data = self._graph("@prefix ex: <http://example.org/> . ex:alice a ex:Person .")
+        result = validate(data, shapes, mode="rules", meta_shacl=False)
+        assert result.data_graph is data
+        assert (EX.alice, EX.seen, Literal(True)) in data
+
+    def test_apply_rules_stops_a_runaway_rule_at_max_iterations(self) -> None:
+        from starlayer.shacl import RuleError, apply_rules
+
+        shapes = self._graph(
+            "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . "
+            "ex:S a sh:NodeShape ; sh:targetSubjectsOf ex:next ; sh:rule ex:R . "
+            "ex:R a sh:SPARQLRule ; sh:construct 'CONSTRUCT { ?o <http://example.org/next> <http://example.org/z> } "
+            "WHERE { $this <http://example.org/next> ?o }' ."
+        )
+        data = self._graph("@prefix ex: <http://example.org/> . ex:a ex:next ex:b . ex:b ex:next ex:c . ex:c ex:next ex:d .")
+        with pytest.raises(RuleError, match="fixpoint"):
+            apply_rules(data, shapes, max_iterations=1)

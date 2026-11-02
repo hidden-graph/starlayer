@@ -1,4 +1,3 @@
-import pytest
 from rdflib import Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
@@ -7,9 +6,6 @@ from ._shape_loader import load_shape
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
-
-pyshacl = pytest.importorskip("pyshacl")
-
 # Mirrors the SHACL 1.2 Core spec's own examples for the two new target
 # types (sh:shape, sh:targetWhere) and implicit class targets/sh:ShapeClass.
 #

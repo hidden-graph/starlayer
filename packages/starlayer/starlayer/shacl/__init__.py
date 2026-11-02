@@ -1,9 +1,3 @@
-from starlayer.shacl.adapters import TripleTermAdapter, TripleTermGraph, TripleTermValue
-from starlayer.shacl.engine import (
-    normalize_graph_inputs,
-    normalize_to_starlayer_graph,
-    target_nodes,
-)
 from starlayer.shacl.errors import (
     EvaluationFailure,
     MetaShaclError,
@@ -15,6 +9,10 @@ from starlayer.shacl.node_expression_api import (
     evaluate_expression,
     node_expression_functions,
     node_expression_operators,
+)
+from starlayer.shacl.normalization import (
+    normalize_graph_inputs,
+    normalize_to_starlayer_graph,
 )
 from starlayer.shacl.paths import is_inverse, path_values
 from starlayer.shacl.results import (
@@ -31,6 +29,7 @@ from starlayer.shacl.validator import (
     StarShaclSchema,
     apply_rules,
     evaluate,
+    target_nodes,
     validate,
     validate_each,
 )
@@ -40,7 +39,7 @@ from starlayer.shacl.validator import (
 # result classes (ValidationResult / RulesResult / ExecutionDiagnostics), StarShaclSchema and target_nodes. Shapes graph
 # introspection: infer_types, shapes_graph_members, path_values, is_inverse, sparql_query_problems, parameter_value_shapes.
 # Node expressions: evaluate_expression, node_expression_functions, node_expression_operators. SHACL UI: select_widget(s).
-# The RDF 1.2 / triple-term infrastructure: TripleTermAdapter / Graph / Value, normalize_to_starlayer_graph /
+# Graph normalisation: normalize_to_starlayer_graph /
 # normalize_graph_inputs, StarLayerGraphProtocol / MutableStarLayerGraphProtocol.
 #
 # Still reached only through a submodule: `shacl_profiling` (Profiling's declared_conformance_profile() /
@@ -54,9 +53,6 @@ __all__ = [
     "apply_rules",
     "evaluate",
     "extract_subgraph",
-    "TripleTermAdapter",
-    "TripleTermGraph",
-    "TripleTermValue",
     "normalize_to_starlayer_graph",
     "normalize_graph_inputs",
     "ExecutionDiagnostics",

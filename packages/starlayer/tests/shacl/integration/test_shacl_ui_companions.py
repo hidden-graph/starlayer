@@ -4,11 +4,11 @@
 import warnings
 
 import pytest
-from pyshacl.errors import ReportableRuntimeError
 from rdflib import RDF, Graph, Namespace, URIRef
 from rdflib.collection import Collection
 from starlayer import starontology
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+from starlayer.shacl import MetaShaclError as ReportableRuntimeError
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl import ui_widget_selection as uws
 from starlayer.shacl.meta_shapes import meta_validate

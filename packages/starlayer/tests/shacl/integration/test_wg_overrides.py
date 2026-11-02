@@ -7,17 +7,16 @@ build_meta_shapes.py and rebuild. Run ``python scripts/check_wg_shacl_shacl.py``
 
 import re
 
-import pyshacl
 import pytest
 from build_meta_shapes import (
     RELAXED_PATHS,
     WG_VENDORED_FROM_PATH,
-    _type_shape_values,
     build_meta_shapes_graph,
     load_wg_shapes,
     wg_file_sha256,
 )
 from rdflib import Graph, URIRef
+from starlayer.shacl import validate
 
 SH = "http://www.w3.org/ns/shacl#"
 _PREFIXES = (
@@ -45,13 +44,12 @@ FIXED_UPSTREAM = {
 def _conforms(shapes_ttl: str, meta: Graph) -> bool:
     shapes = Graph()
     shapes.parse(data=_PREFIXES + shapes_ttl, format="turtle")
-    conforms, _, _ = pyshacl.validate(shapes, shacl_graph=meta, max_validation_depth=30)
-    return conforms
+    return validate(shapes, meta, ignore_imports=True, max_validation_depth=30).conforms
 
 
 @pytest.fixture(scope="module")
 def wg_alone() -> Graph:
-    return _type_shape_values(load_wg_shapes())
+    return load_wg_shapes()
 
 
 @pytest.fixture(scope="module")

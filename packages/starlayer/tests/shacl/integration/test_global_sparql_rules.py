@@ -7,16 +7,11 @@ some shape's sh:rule, so a standalone rule node is invisible to it and
 silently never executes.
 """
 
-import pytest
 from rdflib import Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 
 EX = Namespace("http://example.org/")
-
-pyshacl = pytest.importorskip("pyshacl")
-
-
 def test_global_rule_runs_once_against_whole_graph() -> None:
     shapes = StarLayerGraph()
     shapes.parse(

@@ -3,7 +3,6 @@ from rdflib import Dataset, Literal, Namespace
 from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 from starlayer.shacl import StarShaclSchema
 
-pytest.importorskip("pyshacl")
 StarLayerDataset = pytest.importorskip(
     "starlayer.graph.graph.starlayer_dataset"
 ).StarLayerDataset

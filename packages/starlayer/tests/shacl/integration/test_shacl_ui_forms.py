@@ -140,7 +140,7 @@ def test_sh_expression_is_a_field_of_both_shape_forms_with_the_details_editor(ui
 
 
 def test_the_forms_change_nothing_about_what_validates(ui, shacl_shacl) -> None:
-    from pyshacl.errors import ReportableRuntimeError
+    from starlayer.shacl import MetaShaclError as ReportableRuntimeError
     from starlayer.shacl.meta_shapes import meta_validate
 
     bad, good = Graph(), Graph()
@@ -248,7 +248,7 @@ def _samples(ui: Graph, field) -> list[str]:
 def test_every_field_set_to_a_value_its_constraints_allow_still_validates(ui, form, base, subject) -> None:
     """The honesty check: one field at a time, on a minimal valid shape of that kind. A field that makes the graph invalid is a
     predicate that should not be on that form (or a constraint the form is missing)."""
-    from pyshacl.errors import ReportableRuntimeError
+    from starlayer.shacl import MetaShaclError as ReportableRuntimeError
     from starlayer.shacl.meta_shapes import meta_validate
 
     checked, bad = 0, []

@@ -7,9 +7,6 @@ from ._shape_loader import load_shape
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
-
-pyshacl = pytest.importorskip("pyshacl")
-
 # Mirrors the SHACL 1.2 Core spec's own worked example for
 # sh:reifierShape / sh:reificationRequired (both used together on one
 # property shape): an ex:Person's ex:age must be reified with a reifier

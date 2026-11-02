@@ -14,10 +14,6 @@ from starlayer.shacl import StarShaclSchema, extract_subgraph
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
 RDFS = Namespace("http://www.w3.org/2000/01/rdf-schema#")
-
-pyshacl = pytest.importorskip("pyshacl")
-
-
 def _two_module_graph() -> StarLayerGraph:
     g = StarLayerGraph()
     g.parse(

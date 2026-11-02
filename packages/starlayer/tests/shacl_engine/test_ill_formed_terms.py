@@ -1,8 +1,7 @@
 """The ill-formed-term policy (``terms.TermError``): terms pyoxigraph rejects and rdflib accepts.
 
 Strict (default): one up-front ``TermError`` naming every offender and where it is. Lenient: opaque stand-ins that map back to
-the original rdflib term in every result, listed on ``Outcome.invalid_terms``. Adapter: ``engine="native"`` falls back to the
-pySHACL path and records why. Differential harness: classified as skipped (``ill_formed``)."""
+the original rdflib term in every result, listed on ``Outcome.invalid_terms``. The public entry points raise that error."""
 
 from __future__ import annotations
 
@@ -11,7 +10,6 @@ import warnings
 import pytest
 from rdflib import BNode, Graph, Literal, URIRef
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.shacl import validate as old_validate
 from starlayer.shacl_engine import evaluate, extract_subgraph, validate, validate_each
 from starlayer.shacl_engine.oxigraph_view import OxigraphGraph
 from starlayer.shacl_engine.rules import apply_rules
@@ -269,42 +267,12 @@ def _pairs():
     return data, shapes
 
 
-def test_native_validate_falls_back_to_pyshacl_with_a_reason():
-    data, shapes = _pairs()
-    result = old_validate(data, shapes, engine="native")
-    assert result.engine == "pyshacl"
-    assert "ill-formed RDF term" in result.engine_fallback_reason and "<a>" in result.engine_fallback_reason
-    assert result.conforms == old_validate(data, shapes, engine="pyshacl").conforms
-
-
-def test_native_apply_rules_falls_back_with_a_reason():
-    from starlayer.shacl import apply_rules as old_apply_rules
-
-    data, shapes = _pairs()
-    result = old_apply_rules(data, shapes, engine="native")
-    assert result.engine == "pyshacl" and "ill-formed RDF term" in result.engine_fallback_reason
-
-
-def test_native_evaluate_surfaces_a_clear_error():
-    """``evaluate`` / ``extract_subgraph`` / ``close_shape`` have no inline fallback: the engine's TermError reaches the caller."""
-    from starlayer.shacl import evaluate as old_evaluate
+@pytest.mark.parametrize("entry", ["validate", "apply_rules", "evaluate"])
+def test_the_public_entry_points_reject_a_graph_with_an_ill_formed_term(entry):
+    """A graph with a term that is not an RDF term (a relative IRI) is outside SHACL 1.2's domain: the engine rejects it up front,
+    and the error reaches the caller of every entry point."""
+    import starlayer.shacl as shacl
 
     data, shapes = _pairs()
     with pytest.raises(TermError, match="ill-formed"):
-        old_evaluate(data, shapes, engine="native")
-
-
-# ---- the differential harness ---------------------------------------------------------------------------------------------
-
-
-def test_differential_plugin_skips_ill_formed_terms(monkeypatch):
-    from tests.shacl import differential_plugin as dp
-
-    written = []
-    monkeypatch.setattr(dp, "_write", written.append)
-    data, shapes = _pairs()
-    sentinel = object()
-    result = dp._compare("validate", lambda: sentinel, data, shapes, {"advanced": False}, [])
-    assert result is sentinel
-    assert [(r["outcome"], r["skip_options"]) for r in written] == [("skipped", ["ill_formed_term"])]
-    assert "ill-formed" in written[0]["reason"]
+        getattr(shacl, entry)(data, shapes)

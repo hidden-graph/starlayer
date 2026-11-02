@@ -31,9 +31,6 @@ from rdflib import Graph, Literal, Namespace, URIRef
 from starlayer.shacl import StarShaclSchema
 
 SH = Namespace("http://www.w3.org/ns/shacl#")
-
-pyshacl = pytest.importorskip("pyshacl")
-
 try:
     from rdflib.plugins.stores.sparqlstore import SPARQLUpdateStore
     from starlayer.graph.graph.starlayer_graph import StarLayerGraph

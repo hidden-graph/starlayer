@@ -76,22 +76,12 @@ check to a SPARQL-based constraint the same way the list shape was.
 
 from __future__ import annotations
 
-import warnings
-
 from rdflib import Graph
 
 from starlayer import starontology
 
 from ..expr_validation import expression_shapes_turtle
 from .sparql_ontology import ontology_graph
-
-try:
-    from pyshacl.errors import ShapeRecursionWarning
-except ImportError as exc:  # pragma: no cover - exercised only when pyshacl isn't installed
-    raise ImportError(
-        "starlayer.sparql.salg.sparql_shapes requires pyshacl - install with "
-        "`pip install -e '.[test]'` or `pip install pyshacl`"
-    ) from exc
 
 # The hand-authored shapes below used to be a giant inline Python string
 # (SHAPES_TURTLE = """...""", ~1700 lines) - moved to a standalone
@@ -189,46 +179,32 @@ def validate_query(data_graph: Graph) -> tuple[bool, Graph, str]:
     """
     import starlayer.shacl  # lazy: avoids a circular-import deadlock at module load time
     from starlayer.graph.graph.entailment_regimes import ENTAILMENT
-    from starlayer.sparql.salg.native_components import register_salg_native_components
 
-    # salg:noUnboundProjectedVariables (the cross-referential check
-    # salg:ProjectShape activates) - registered separately from
-    # starlayer.shacl.validate()'s own register_native_components() call below,
-    # since it's salg:-specific and starlayer.shacl has no knowledge of that
-    # vocabulary. See native_components.py's own module docstring.
-    register_salg_native_components()
-
-    # No shape in this file's dispatch shapes (GraphPatternShape/
-    # ExpressionShape/SubSelectShape) references another shape by name
-    # anymore (sh:class, not sh:node/sh:or-of-shapes - see each one's own
-    # comment in SHAPES_TURTLE), so pyshacl's shape-recursion guard
-    # shouldn't have anything left to trip on. Kept as a defensive
-    # suppression, not because it's expected to fire.
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", category=ShapeRecursionWarning)
-        result = starlayer.shacl.validate(
-            data_graph,
-            shacl_graph=shapes_graph(),
-            ont_graph=ontology_graph(),
-            inference=ENTAILMENT.RDFS,
-            advanced=True,
-            max_validation_depth=100,
-            # meta_shacl is off by default in starlayer.shacl.validate() (as of
-            # 2026-10-17); it is also kept off here explicitly because
-            # it must never run here. shapes_graph() merges in
-            # starontology's own spexpr_shacl graph, which genuinely
-            # contains its own sh:select literals (ExpressionShape's
-            # supporting shapes) - meta_shacl's own preflight now includes
-            # a real SALG structural check for every sh:select/ask/
-            # construct it finds (check_sparql_query_text(), see
-            # starlayer.shacl/meta_shapes.py), which calls back into this
-            # very function. Turning meta_shacl on here would
-            # recurse infinitely (confirmed live: "maximum recursion depth
-            # exceeded") the moment that check was added - this project's
-            # own bundled shapes/ontology are already vetted by this
-            # module's own test suite, not arbitrary caller content, so
-            # there's nothing to gain from re-running that preflight on
-            # every single validate_query() call anyway.
-            meta_shacl=False,
-        )
+    # No shape in this file's dispatch shapes references another shape by name (sh:class, not sh:node / sh:or of shapes; see each
+    # one's own comment in the shapes file), so nothing here is recursive.
+    result = starlayer.shacl.validate(
+        data_graph,
+        shacl_graph=shapes_graph(),
+        ont_graph=ontology_graph(),
+        inference=ENTAILMENT.RDFS,
+        advanced=True,
+        max_validation_depth=100,
+        # meta_shacl is off by default in starlayer.shacl.validate() (as of
+        # 2026-10-17); it is also kept off here explicitly because
+        # it must never run here. shapes_graph() merges in
+        # starontology's own spexpr_shacl graph, which genuinely
+        # contains its own sh:select literals (ExpressionShape's
+        # supporting shapes) - meta_shacl's own preflight now includes
+        # a real SALG structural check for every sh:select/ask/
+        # construct it finds (check_sparql_query_text(), see
+        # starlayer.shacl/meta_shapes.py), which calls back into this
+        # very function. Turning meta_shacl on here would
+        # recurse infinitely (confirmed live: "maximum recursion depth
+        # exceeded") the moment that check was added - this project's
+        # own bundled shapes/ontology are already vetted by this
+        # module's own test suite, not arbitrary caller content, so
+        # there's nothing to gain from re-running that preflight on
+        # every single validate_query() call anyway.
+        meta_shacl=False,
+    )
     return result.conforms, result.report_graph, result.report_text

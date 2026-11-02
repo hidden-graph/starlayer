@@ -1,31 +1,22 @@
-"""starShacl's own meta-shacl preflight, replacing reliance on pySHACL's
-``meta_shacl`` kwarg.
+"""The meta-SHACL preflight: a shapes graph checked against SHACL-for-SHACL before it is used (``meta_shacl=True``).
 
-pySHACL's own ``meta_shacl=True`` always validates a shapes graph against its
-bundled ``shacl-shacl.ttl``, with no way to add or replace rules, and that graph
-predates SHACL 1.2 (it has no rule for the new predicates and rejects the ones
-whose value space SHACL 1.2 widened, e.g. ``sh:class ( ex:A ex:B )``).
-``meta_validate`` instead checks a shapes graph against starShacl's own
-meta-shapes graph, run directly through ``pyshacl.validate()``, so this
-preflight fully replaces pySHACL's rather than running both.
+The meta-shapes graph is not assembled at run time. It is stored as ``starontology``'s ``shacl12-shacl.ttl`` (registry entry
+``shacl_shacl``) and read by ``load_meta_shapes_graph``; ``starlayer.shacl_engine.meta`` runs the check. The build that produces
+the stored graph lives in ``scripts/build_meta_shapes.py`` and is run by ``scripts/build_starontology.py``. It starts from the W3C
+Data Shapes Working Group's own SHACL-for-SHACL (a pinned copy, ``scripts/assets/vendor/w3c-shacl-shacl.ttl``) and only adds to
+it: ``shacl12-validation-shapes.ttl`` plus ``sh:deactivated`` on the few Working Group rules that are still stricter than
+SHACL 1.2. A test fails if the stored file drifts from a fresh build, and ``test_wg_overrides.py`` fails when the Working Group
+fixes something we override. Editing the validation shapes or updating the pinned copy changes nothing here until that build is
+re-run.
 
-That graph is not assembled at run time. It is stored as ``starontology``'s
-``shacl12-shacl.ttl`` (registry entry ``shacl_shacl``) and read by
-``load_meta_shapes_graph``. The build that produces it lives in
-``scripts/build_meta_shapes.py`` and is run by ``scripts/build_starontology.py``.
-It starts from the W3C Data Shapes Working Group's own SHACL-for-SHACL (a pinned
-copy, ``scripts/assets/vendor/w3c-shacl-shacl.ttl``) and only adds to it:
-``shacl12-validation-shapes.ttl`` plus ``sh:deactivated`` on the few Working
-Group rules that are still stricter than SHACL 1.2. A test fails if the stored
-file drifts from a fresh build, and ``test_wg_overrides.py`` fails when the
-Working Group fixes something we override. Editing the validation shapes or
-updating the pinned copy changes nothing here until that build is re-run.
+This module also holds what the preflight needs besides the shapes: the per-parameter value shapes of SPARQL-based constraint
+components (``parameter_value_shapes``) and the checks of the SPARQL text a shapes graph embeds (``check_sparql_query_text``,
+``sparql_query_problems``).
 """
 
 from __future__ import annotations
 
 import re
-import warnings
 from collections import OrderedDict
 from collections.abc import Iterable, Iterator
 from typing import Any
@@ -34,16 +25,8 @@ from rdflib import RDF, Graph, Literal, Namespace, URIRef
 from rdflib.namespace import OWL
 
 from starlayer._ox_out import ox_out
-from starlayer.shacl.recursion import MAX_VALIDATION_DEPTH
 
 SH = Namespace("http://www.w3.org/ns/shacl#")
-
-# meta_validate()'s own result cache, keyed by content (not object
-# identity - see _meta_validate_cache_key's own docstring for why that
-# distinction matters here specifically). Bounded LRU, same pattern as
-# starlayer.graph.model.encoding's _TT_HASH_MEMO.
-_META_VALIDATE_CACHE_MAXSIZE = 256
-_META_VALIDATE_CACHE: OrderedDict[tuple, tuple] = OrderedDict()
 
 # check_sparql_query_text()'s own SALG structural-validation result cache -
 # salg.validate_query() is a real pySHACL validation pass (shapes/ontology
@@ -60,64 +43,6 @@ _SPARQL_STRUCTURE_CACHE_MAXSIZE = 256
 _SPARQL_STRUCTURE_CACHE: OrderedDict[tuple, tuple] = OrderedDict()
 
 
-def _meta_validate_cache_key(shapes_graph_for_meta: Any, kwargs: dict) -> tuple | None:
-    """Content-based cache key for one ``meta_validate()`` outcome.
-
-    ``meta_validate()`` is a pure function of (the shapes graph's own
-    *content*, the assembled meta-shapes graph's content, the kwargs
-    forwarded to ``pyshacl.validate()``) - never of any object's
-    identity. That distinction is load-bearing, not academic: a typical
-    caller (e.g. ``starontology``'s own ``shapes_graph()``) reparses
-    fresh Turtle text into a brand-new ``Graph`` object on every single
-    call, so an identity-keyed cache would never hit at all, even for
-    byte-for-byte identical content.
-
-    Uses ``starlayer.graph.rdfc.rdfc10_hash`` - the project's existing
-    canonical-hashing tool for exactly this "same content, different
-    object, possibly different blank node labels" problem - rather than
-    hashing a raw serialization, which would spuriously miss whenever
-    rdflib mints fresh, arbitrary blank node labels on a re-parse of the
-    same source text: two independent reparses of identical shapes
-    Turtle produce different N-Triples text but the identical
-    ``rdfc10_hash``.
-
-    The assembled meta-shapes graph itself is deliberately *not* hashed
-    here - when ``extra_graphs`` is empty (this cache's only scope, see
-    ``meta_validate()``'s own gating), ``load_meta_shapes_graph(())``'s
-    output is itself always identical within one process, so it
-    contributes nothing distinguishing to the key and hashing it too
-    would just be another ~20ms paid for free on every call.
-
-    Args:
-        shapes_graph_for_meta: The shapes graph being meta-validated.
-        kwargs: The keyword arguments that will be forwarded to
-            ``pyshacl.validate()``.
-
-    Returns:
-        A ``(content_hash, kwarg_items)`` tuple to use as the cache
-        key, or ``None`` if ``rdfc10_hash`` itself raises - not
-        cacheable; the caller must compute fresh, exactly as if this
-        cache didn't exist. ``rdfc10_hash`` has a known pre-existing
-        edge case in its canonicalization algorithm (an
-        ``AssertionError`` - "blank node ... was never assigned a
-        canonical identifier") that a real shapes graph can hit,
-        unrelated to this cache. A caching *optimization* must never
-        be able to turn a graph that validates correctly into one that
-        raises - correctness always wins over the cache hit.
-    """
-    from starlayer.graph.rdfc import rdfc10_hash
-
-    def _hashable(v: Any) -> Any:
-        if isinstance(v, (list, set, frozenset, tuple)):
-            return tuple(sorted(str(x) for x in v))
-        return v
-
-    kwarg_items = tuple(sorted((k, _hashable(v)) for k, v in kwargs.items()))
-    try:
-        content_hash = rdfc10_hash(shapes_graph_for_meta)
-    except Exception:
-        return None
-    return (content_hash, kwarg_items)
 
 def parameter_value_shapes(shapes_graph: Any) -> Graph:
     """Shapes that check what a shapes graph gives for the parameters of its constraint components.
@@ -258,111 +183,31 @@ def load_meta_shapes_graph(extra_graphs: Iterable[Any] = ()) -> Graph:
     return graph
 
 
+
+
 @ox_out("shapes_graph")
 def meta_validate(shapes_graph: Any, *, extra_graphs: Iterable[Any] = (), **kwargs: Any) -> tuple[bool, Any, str]:
-    """Validate ``shapes_graph`` against the assembled meta-shapes graph
-    (see ``load_meta_shapes_graph``), replacing starShacl's previous
-    reliance on pySHACL's own ``meta_shacl`` kwarg. Raises
-    ``pyshacl.errors.ReportableRuntimeError`` with the same message prefix
-    pySHACL's own mechanism used, for compatibility with existing callers
-    that check for that text.
-    """
-    import pyshacl
-    from pyshacl.errors import ReportableRuntimeError, ShapeRecursionWarning
+    """Validate ``shapes_graph`` against the meta-shapes graph (see ``load_meta_shapes_graph``) with the engine.
 
+    Returns ``(conforms, report_graph, report_text)`` and raises ``MetaShaclError`` (message starting "SHACL File does not validate
+    against the SHACL Shapes SHACL (MetaSHACL) file.") when the shapes graph does not conform. A warning-severity meta-shape is
+    advice: it appears in the report but does not make the graph invalid (``allow_warnings=True``; pass ``allow_warnings=False`` to
+    count warnings, ``allow_infos=True`` to tolerate infos only). ``extra_graphs`` are added to the meta-shapes. An ``OxGraph`` is
+    validated as a snapshot and the report comes back as an ``OxGraph``."""
     from starlayer.graph.oxgraph._rdflib_bridge import read_boundary
-    from starlayer.shacl.native_components import register_native_components
+    from starlayer.shacl_engine.meta import meta_validate as engine_meta_validate
 
-    (shapes_graph,) = read_boundary(shapes_graph)  # an OxGraph is validated as a snapshot; the report comes back as an OxGraph
-
-    # The Working Group's meta-shapes use SHACL 1.2 components (sh:memberShape) that pySHACL only knows once starlayer
-    # has registered its native components. validate() does that on its first call; meta_validate() can be the first.
-    register_native_components()
-
-    # pySHACL's default max_validation_depth (15, pyshacl/pytypes.py) is sized
-    # for ordinary data validation. Meta-validation nests shapes-about-shapes
-    # much more deeply (e.g. stsh:RuleShape -> stsh:NodeExpressionShape ->
-    # shsh:PathNodeShape's own recursive path grammar) and trips pySHACL's
-    # "Validation path too deep!" guard (pyshacl/shape.py) well before any
-    # real recursion/cycle exists. A compound sh:path (sequence + inverse +
-    # zeroOrMore) needs depth ~20; 30 leaves headroom for future
-    # meta-shape nesting without raising it near pySHACL's own internal
-    # precedent of 999 (rule_expand_runner.py).
-    kwargs.setdefault("max_validation_depth", MAX_VALIDATION_DEPTH)
-
-    # A warning-severity meta-shape (for example a shape with more than one rdfs:isDefinedBy, GitHub issue #18) is advice,
-    # not a failure: it appears in the report but does not make the shapes graph invalid.
-    kwargs.setdefault("allow_warnings", True)
-
-    # Meta-shacl checks shapes_graph's own structural well-formedness
-    # against the bundled meta-shapes - it never touches a data_graph, and
-    # has no legitimate reason to need live remote-store behavior at all.
-    # Snapshotting into a plain in-memory copy first sidesteps an entire
-    # category of pySHACL-internal incompatibilities with a
-    # SPARQLUpdateStore-backed graph (rdflib's SPARQLStore refuses to
-    # serialize a bound blank node into query text at all - which breaks
-    # at least three separate pySHACL-internal code paths this way: a
-    # class-membership check, report-stringification for a blank-node
-    # focus node, and a query(initBindings=...) call in its own
-    # sh:sparql-based constraint evaluator - rather than one fixable root
-    # cause). A snapshot is correct here specifically because meta-shacl is
-    # a one-time structural preflight on shapes_graph as it stood at this
-    # call, not a live, ongoing session against it.
-    from starlayer.graph.graph.starlayer_graph import StarLayerGraph as _StarLayerGraph
-
-    if isinstance(shapes_graph, _StarLayerGraph) and getattr(shapes_graph, "_needs_bnode_skolemization", False):
-        snapshot = _StarLayerGraph()
-        for prefix, ns in shapes_graph.namespaces():
-            snapshot.bind(prefix, ns)
-        for triple in shapes_graph:
-            snapshot.add(triple)
-        shapes_graph_for_meta = snapshot
-    else:
-        shapes_graph_for_meta = shapes_graph
-
-    # Cache keyed on content, scoped to the common extra_graphs=() case
-    # (see _meta_validate_cache_key's own docstring for why identity
-    # can't be the key, and why meta_shapes itself doesn't need hashing
-    # here). Without this cache, every call pays an uncached ~30ms graph
-    # (re)build, immediately followed by a full, uncached
-    # pyshacl.validate() pass against a deliberately deep
-    # (max_validation_depth=30) meta-shapes structure. A real repeated
-    # caller (e.g. starontology's own validate_query(), called once per
-    # test case against the identical bundled shapes/ontology content
-    # every time) pays that full cost on every single call with no
-    # caching anywhere.
-    cache_key = _meta_validate_cache_key(shapes_graph_for_meta, kwargs) if not extra_graphs else None
-    cached = _META_VALIDATE_CACHE.get(cache_key) if cache_key is not None else None
-    if cached is not None:
-        _META_VALIDATE_CACHE.move_to_end(cache_key)
-        conforms, cached_report_graph, report_text = cached
-        # A fresh copy, not the cached object itself - a cache hit must
-        # never hand out a graph a caller could go on to mutate (e.g. by
-        # merging derived triples into it) and have that mutation leak
-        # into every future cache hit for the same key.
-        report_graph = Graph()
-        from starlayer.graph.oxgraph._rdflib_bridge import merge_into
-
-        merge_into(report_graph, cached_report_graph)
-    else:
-        meta_shapes = load_meta_shapes_graph(extra_graphs)
-        meta_shapes += parameter_value_shapes(shapes_graph_for_meta)  # a shape's values for a component's parameters must satisfy the parameter (SPARQL Extensions 4.2.1)
-        # The Working Group's meta-shapes are recursive by design (a shape's members are shapes), and pySHACL warns
-        # each time it backs out of that recursion; that is expected here, so do not show it to the caller.
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", category=ShapeRecursionWarning)
-            conforms, report_graph, report_text = pyshacl.validate(
-                shapes_graph_for_meta, shacl_graph=meta_shapes, **kwargs
-            )
-        if cache_key is not None:
-            _META_VALIDATE_CACHE[cache_key] = (conforms, report_graph, report_text)
-            _META_VALIDATE_CACHE.move_to_end(cache_key)
-            if len(_META_VALIDATE_CACHE) > _META_VALIDATE_CACHE_MAXSIZE:
-                _META_VALIDATE_CACHE.popitem(last=False)
-    if not conforms:
-        msg = f"SHACL File does not validate against the SHACL Shapes SHACL (MetaSHACL) file.\n{report_text}"
-        raise ReportableRuntimeError(msg)
-    return conforms, report_graph, report_text
+    (shapes_graph,) = read_boundary(shapes_graph)
+    result = engine_meta_validate(
+        shapes_graph,
+        extra=extra_graphs,
+        allow_warnings=kwargs.pop("allow_warnings", True),
+        allow_infos=kwargs.pop("allow_infos", None),
+    )
+    if kwargs:
+        raise TypeError(f"unknown option(s) {', '.join(sorted(kwargs))}")
+    result.raise_if_invalid()
+    return result.conforms, result.report_graph, result.report_text
 
 
 def _collect_query_prefixes(shapes_graph: Any, query_node: Any) -> dict[str, Any]:
@@ -374,13 +219,8 @@ def _collect_query_prefixes(shapes_graph: Any, query_node: Any) -> dict[str, Any
     ``pyshacl.ShapesGraph`` wrapper (unnecessary overhead for a read-only prefix
     lookup - ``shape.sg.graph`` is just the same graph passed in here).
 
-    Falls back to starShacl's own ambient ``sh:ShapesGraph`` discovery
-    (``_ambient_shapes_graph_prefixes``) when ``query_node`` has no
-    explicit ``sh:prefixes`` reference at all - pySHACL's own mechanism
-    never does this on its own (see that function's docstring for why).
+    Only ``sh:prefixes`` / ``sh:declare`` declare prefixes (SHACL SPARQL Extensions); there is no ambient lookup.
     """
-    from starlayer.shacl.native_components import _ambient_shapes_graph_prefixes
-
     prefixes: dict[str, Any] = {
         "rdf": URIRef("http://www.w3.org/1999/02/22-rdf-syntax-ns#"),
         "rdfs": URIRef("http://www.w3.org/2000/01/rdf-schema#"),
@@ -389,7 +229,6 @@ def _collect_query_prefixes(shapes_graph: Any, query_node: Any) -> dict[str, Any
 
     prefixes_vals = set(shapes_graph.objects(query_node, SH.prefixes))
     if not prefixes_vals:
-        prefixes.update(_ambient_shapes_graph_prefixes(shapes_graph))
         return prefixes
 
     g_name = shapes_graph.identifier
@@ -536,15 +375,12 @@ def check_sparql_query_text(shapes_graph: Any) -> None:
     Args:
         shapes_graph: The shapes graph to scan.
 
-    Raises ``pyshacl.errors.ConstraintLoadError`` (the same exception type
-    pySHACL itself raises for other malformed ``sh:sparql`` declarations)
-    naming the offending predicate and the underlying parse error, or the
-    SALG structural-validation report.
+    Raises ``ShapeError`` naming the offending predicate and the underlying parse error, or the SALG structural-validation report.
     """
-    from pyshacl.errors import ConstraintLoadError
+    from starlayer.shacl.errors import ShapeError
 
     for _node, _predicate, message in sparql_query_problems(shapes_graph):
-        raise ConstraintLoadError(message, "https://www.w3.org/TR/shacl12-sparql/")
+        raise ShapeError(message)
 
 
 _QUERY_FORMS = {SH.select: ("SelectQuery", "SELECT"), SH.ask: ("AskQuery", "ASK"), SH.construct: ("ConstructQuery", "CONSTRUCT")}

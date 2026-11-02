@@ -89,16 +89,15 @@ def _batch():
     return [g("ex:a a ex:T ."), g("ex:a a ex:T ; ex:p 1 ."), g("ex:b a ex:T .")]
 
 
-def test_module_validate_each_builds_one_plan_in_engine_mode(plan_builds) -> None:
+def test_module_validate_each_builds_one_plan(plan_builds) -> None:
     shapes = g(SHAPES)
-    out = validate_each(_batch(), shapes, engine="native")
+    out = validate_each(_batch(), shapes)
     assert [out[i].conforms for i in range(3)] == [False, True, False]
-    assert all(r.engine == "native" for r in out.values())
     assert len(plan_builds) == 1
 
 
-def test_schema_validate_each_builds_one_plan_in_engine_mode(plan_builds) -> None:
-    schema = StarShaclSchema(shacl_graph=g(SHAPES), engine="native")
+def test_schema_validate_each_builds_one_plan(plan_builds) -> None:
+    schema = StarShaclSchema(shacl_graph=g(SHAPES))
     out = schema.validate_each(_batch())
     assert [out[i].conforms for i in range(3)] == [False, True, False]
     assert len(plan_builds) == 1
@@ -107,7 +106,7 @@ def test_schema_validate_each_builds_one_plan_in_engine_mode(plan_builds) -> Non
 def test_plain_rdflib_shapes_graph_is_shared_too(plan_builds) -> None:
     shapes = Graph()
     shapes.parse(data=PFX + SHAPES, format="turtle")
-    validate_each(_batch(), shapes, engine="native")
+    validate_each(_batch(), shapes)
     assert len(plan_builds) == 1
 
 
@@ -115,6 +114,6 @@ def test_separate_validate_calls_still_build_their_own_plan(plan_builds) -> None
     shapes = g(SHAPES)
     from starlayer.shacl import validate
 
-    validate(g("ex:a a ex:T ."), shapes, engine="native")
-    validate(g("ex:a a ex:T ."), shapes, engine="native")
+    validate(g("ex:a a ex:T ."), shapes)
+    validate(g("ex:a a ex:T ."), shapes)
     assert len(plan_builds) == 2

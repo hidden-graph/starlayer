@@ -108,7 +108,8 @@ def node(ctx, shape, params, focus, values):
     for s in _shape_refs(params[SH.node], "sh:node"):
         for v in values:
             if not ctx.conforms(s, v):
-                yield Violation(value=v)
+                # Core 6.9.2.6: the node shape's own results for the value node may be reported as sh:detail
+                yield Violation(value=v, details=tuple(ctx.detail_results(s, v)))
 
 
 def _siblings(ctx: Any, shape: Any, qvs: Any) -> list[Any]:

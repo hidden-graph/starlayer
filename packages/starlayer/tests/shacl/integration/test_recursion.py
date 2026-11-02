@@ -1,20 +1,17 @@
 """Recursive shapes are cut where the data cycles, not where the shapes repeat (GitHub issue #26).
 
-pySHACL 0.40.1 backs out of a self-referencing shape from the sequence of shapes alone, so a chain of three or more nodes with a
-violation at the end was reported as conforming. The oracle here is the same schema written out as many distinct copies of the
+An engine that backed out of a self-referencing shape from the sequence of shapes alone would report a chain of three or more nodes with a
+violation at the end as conforming. The oracle here is the same schema written out as many distinct copies of the
 shape (no recursion at all): on data without a cycle the recursive shape must give the same answer.
 """
 
 import warnings
 
-import pyshacl
 import pytest
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
-from rdflib import Graph
 from starlayer import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
-from starlayer.shacl.native_components import register_native_components
 
 PREFIXES = "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . "
 RECURSIVE = (
@@ -56,14 +53,6 @@ def test_a_valid_chain_conforms_and_meets_no_cycle(length) -> None:
     result = _validate(RECURSIVE, _chain(length, last_has_name=True))
     assert result.conforms
     assert result.diagnostics.recursion_revisits == 0
-
-
-def test_plain_pyshacl_in_the_same_process_is_correct_too() -> None:
-    """The regression that began this: once StarLayer had registered its components, plain pySHACL cut a chain of 2 as well."""
-    register_native_components()
-    shapes = Graph().parse(data=PREFIXES + RECURSIVE, format="turtle")
-    data = Graph().parse(data=PREFIXES + _chain(5, last_has_name=False), format="turtle")
-    assert not pyshacl.validate(data, shacl_graph=shapes)[0]
 
 
 @pytest.mark.parametrize("length", [1, 2, 5])

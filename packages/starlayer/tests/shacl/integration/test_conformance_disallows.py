@@ -5,9 +5,6 @@ from starlayer.shacl import StarShaclSchema
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
-
-pyshacl = pytest.importorskip("pyshacl")
-
 # SHACL 1.2 Core adds sh:conformanceDisallows to the validation report: the
 # set of severities whose presence makes sh:conforms false, defaulting to
 # {sh:Violation, sh:Warning, sh:Info} if the report doesn't state one.

@@ -3,7 +3,7 @@
 import pytest
 from rdflib import Namespace
 from starlayer import StarLayerGraph
-from starlayer.shacl import StarShaclSchema
+from starlayer.shacl import ShapeError, StarShaclSchema
 from starlayer.shacl.paths import is_inverse, path_values
 from starlayer.shacl.shapes_graphs import shapes_graph_members, shapes_graphs
 
@@ -63,7 +63,7 @@ def test_a_repetition_path_stops_on_a_cycle() -> None:
 def test_an_unrecognized_blank_node_path_raises() -> None:
     shapes = _graph("ex:S sh:path [ ex:nonsense ex:p ] .")
     root = shapes.value(EX.S, SH_PATH)
-    with pytest.raises(NotImplementedError):
+    with pytest.raises(ShapeError):
         path_values(DATA, EX.a, root, shapes)
 
 

@@ -1,12 +1,10 @@
 import pytest
 from rdflib import Graph, Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.shacl import ShapeError, StarShaclSchema
+from starlayer.shacl import MetaShaclError, ShapeError, StarShaclSchema
 from starlayer.shacl.meta_shapes import meta_validate
 
 EX = Namespace("http://example.org/")
-
-pyshacl = pytest.importorskip("pyshacl")
 
 # SHACL 1.2 Node Expressions' "Custom Node Expressions" section
 # (https://w3c.github.io/data-shapes/shacl12-node-expr/#custom-node-expressions),
@@ -347,7 +345,7 @@ class TestCustomFunctionMetaShaclWellFormedness:
             """,
             format="turtle",
         )
-        with pytest.raises(pyshacl.errors.ReportableRuntimeError):
+        with pytest.raises(MetaShaclError):
             meta_validate(shapes)
 
 

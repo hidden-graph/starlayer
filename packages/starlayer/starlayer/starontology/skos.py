@@ -43,8 +43,6 @@ logic the way ``srl.srl_validate()`` does for ``srl:``+``salg:``.
 
 from __future__ import annotations
 
-import warnings
-
 from rdflib import Graph
 
 from starlayer._ox_out import ox_out
@@ -82,17 +80,14 @@ def skos_validate(data_graph: Graph) -> tuple[bool, Graph, str]:
         ``(conforms, results_graph, results_text)``, unpacked from
         ``starlayer.shacl``'s own ``ValidationResult``.
     """
-    from pyshacl.errors import ShapeRecursionWarning
 
     import starlayer.shacl  # lazy: avoids a circular-import deadlock at module load time
 
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", category=ShapeRecursionWarning)
-        result = starlayer.shacl.validate(
-            data_graph,
-            shacl_graph=get_ontology_graph("skos_shacl"),
-            advanced=True,
-            max_validation_depth=100,
-            allow_infos=True,
-        )
+    result = starlayer.shacl.validate(
+        data_graph,
+        shacl_graph=get_ontology_graph("skos_shacl"),
+        advanced=True,
+        max_validation_depth=100,
+        allow_infos=True,
+    )
     return result.conforms, result.report_graph, result.report_text

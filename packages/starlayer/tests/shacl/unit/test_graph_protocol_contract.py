@@ -1,10 +1,5 @@
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.shacl.types import (
-    MutableStarLayerGraphProtocol,
-    StarLayerGraphProtocol,
-    is_mutable_starlayer_graph_like,
-    is_starlayer_graph_like,
-)
+from starlayer.shacl.types import MutableStarLayerGraphProtocol, StarLayerGraphProtocol
 
 
 def test_starlayer_graph_matches_protocol() -> None:
@@ -12,12 +7,10 @@ def test_starlayer_graph_matches_protocol() -> None:
 
     assert isinstance(graph, StarLayerGraphProtocol)
     assert isinstance(graph, MutableStarLayerGraphProtocol)
-    assert is_starlayer_graph_like(graph) is True
-    assert is_mutable_starlayer_graph_like(graph) is True
 
 
 def test_plain_container_does_not_match_protocol() -> None:
     graph = object()
 
-    assert is_starlayer_graph_like(graph) is False
-    assert is_mutable_starlayer_graph_like(graph) is False
+    assert not isinstance(graph, StarLayerGraphProtocol)
+    assert not isinstance(graph, MutableStarLayerGraphProtocol)

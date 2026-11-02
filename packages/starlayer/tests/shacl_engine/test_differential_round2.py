@@ -4,7 +4,6 @@ list parameter functions called from SPARQL, SPARQL-based custom components, con
 from __future__ import annotations
 
 import pytest
-from rdflib import Graph
 from rdflib.namespace import Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl_engine import validate
@@ -117,18 +116,3 @@ def test_boolean_parameter_lexical_form_decides_activity(form):
     s.parse(data=PREFIXES + shapes, format="turtle12")
     d.parse(data=PREFIXES + 'ex:t ex:title """a\nb""" .', format="turtle")
     assert validate(d, s).conforms is (form == "1")
-
-
-def test_harness_snapshot_preserves_boolean_lexical_form():
-    import copy
-    import sys
-    from pathlib import Path
-
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "shacl"))
-    from differential_plugin import _snapshot
-
-    g = StarLayerGraph()
-    g.parse(data=PREFIXES + 'ex:a ex:p "1"^^xsd:boolean .', format="turtle12")
-    assert [str(o) for o in _snapshot(g).objects()] == ["1"]
-    assert [str(o) for o in copy.deepcopy(g).objects()] == ["true"]  # why deepcopy was replaced
-    assert isinstance(_snapshot(Graph()), Graph)

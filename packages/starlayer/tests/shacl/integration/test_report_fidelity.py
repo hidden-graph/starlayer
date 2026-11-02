@@ -1,4 +1,3 @@
-import pytest
 from rdflib import Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
@@ -7,11 +6,6 @@ from ._shape_loader import load_shape
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
-
-
-pyshacl = pytest.importorskip("pyshacl")
-
-
 def test_report_decodes_triple_term_value_node() -> None:
     data = StarLayerGraph()
     data.add((EX.alice, EX.says, (EX.bob, EX.knows, EX.carol)))
@@ -26,24 +20,6 @@ def test_report_decodes_triple_term_value_node() -> None:
     assert (EX.alice, EX.says, (EX.bob, EX.knows, EX.carol)) in data
     assert any(o == EX.alice for _, _, o in result.report_graph.triples((None, SH.focusNode, None)))
     assert any(o == (EX.bob, EX.knows, EX.carol) for _, _, o in result.report_graph.triples((None, SH.value, None)))
-
-
-def test_report_can_return_encoded_values_when_decode_disabled() -> None:
-    data = StarLayerGraph()
-    data.add((EX.alice, EX.says, (EX.bob, EX.knows, EX.carol)))
-
-    shapes = StarLayerGraph()
-    shapes.parse(data=load_shape("report_says_nodekind_literal.ttl"), format="turtle")
-
-    validator = StarShaclSchema(shacl_graph=shapes)
-    result = validator.validate(data_graph=data, decode_report=False)
-
-    assert result.conforms is False
-    assert any(o == EX.alice for _, _, o in result.report_graph.triples((None, SH.focusNode, None)))
-    assert any(
-        str(o).startswith("urn:starlayer:tt:")
-        for _, _, o in result.report_graph.triples((None, SH.value, None))
-    )
 
 
 def test_report_preserves_path_and_constraint_component() -> None:
@@ -100,37 +76,6 @@ def test_report_text_humanizes_triple_term_value_node() -> None:
     assert result.conforms is False
     assert "urn:starlayer:tt:" not in result.report_text
     assert "<<( <http://example.org/bob> <http://example.org/likes> <http://example.org/dave> )>>" in result.report_text
-
-
-def test_report_text_stays_encoded_when_decode_disabled() -> None:
-    data = StarLayerGraph()
-    data.add((EX.alice, EX.says, (EX.bob, EX.likes, EX.dave)))
-
-    shapes = StarLayerGraph()
-    shapes.parse(
-        data="""
-            @prefix ex: <http://example.org/> .
-            @prefix sh: <http://www.w3.org/ns/shacl#> .
-
-            ex:AlwaysFailsShape a sh:NodeShape ;
-              sh:targetNode ex:alice ;
-              sh:sparql [
-                a sh:SPARQLConstraint ;
-                sh:message "always fails" ;
-                sh:select \"\"\"
-                    PREFIX ex: <http://example.org/>
-                    SELECT $this $value WHERE { $this ex:says $value }
-                \"\"\" ;
-              ] .
-        """,
-        format="turtle12",
-    )
-
-    validator = StarShaclSchema(shacl_graph=shapes)
-    result = validator.validate(data_graph=data, meta_shacl=False, decode_report=False)
-
-    assert result.conforms is False
-    assert "urn:starlayer:tt:" in result.report_text
 
 
 def test_report_decodes_result_node_for_nodekind_constraint() -> None:

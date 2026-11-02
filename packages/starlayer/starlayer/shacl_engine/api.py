@@ -10,7 +10,7 @@ from typing import Any
 from rdflib import URIRef
 
 from starlayer.shacl_engine import components  # noqa: F401  (registers the constraint components)
-from starlayer.shacl_engine.executor import Result, run
+from starlayer.shacl_engine.executor import Context, Result, run
 from starlayer.shacl_engine.fidelity import check_lexical_fidelity
 from starlayer.shacl_engine.plan import Path, Plan
 from starlayer.shacl_engine.report import annotate_provenance, build_report, conforms
@@ -301,3 +301,20 @@ def validate_each(
         i: validate(g, shapes, ont_graph=ont_graph, shapes_graph_iri=shapes_iri, plan=shared, **kwargs)
         for i, g in enumerate(graphs)
     }
+
+
+@with_term_policy
+def target_nodes(
+    data_graph: Any, shapes_graph: Any, shape_node: Any, *, ont_graph: Any = None, inference: Any = None
+) -> list:
+    """The focus nodes ``shape_node`` targets in ``data_graph`` (the nodes ``validate`` reports on for that shape), in target
+    order and without duplicates. ``shapes_graph=None`` reads the shapes from ``data_graph``. The entailment of ``inference`` and
+    of the shapes graph's own ``sh:entailment`` is applied first, over the data and ``ont_graph``, without changing either."""
+    from starlayer.shacl_engine.entailment import resolve_data_view
+
+    check_graphs((data_graph, "data graph"), (shapes_graph, "shapes graph"), (ont_graph, "ontology graph"))
+    shapes = engine_view(shapes_graph if shapes_graph is not None else data_graph, "shapes graph")
+    data = resolve_data_view(data_graph, shapes, inference=inference, ont_graph=ont_graph)
+    plan = Plan(shapes_graph=shapes)
+    context = Context(data=data, plan=plan)
+    return [from_engine(node) for node in context.shape_focus(plan.shape(to_engine(shape_node)))]

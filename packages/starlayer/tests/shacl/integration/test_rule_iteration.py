@@ -9,9 +9,6 @@ from ._shape_loader import load_shape
 EX = Namespace("http://example.org/")
 
 
-pyshacl = pytest.importorskip("pyshacl")
-
-
 def _build_reach_graph() -> StarLayerGraph:
     g = StarLayerGraph()
     g.add((EX.a, EX.reach, EX.b))
@@ -31,23 +28,11 @@ def test_rule_iteration_reaches_fixed_point() -> None:
 
     validator = StarShaclSchema(shacl_graph=shapes)
 
-    data_single_pass = _build_reach_graph()
-    _ = validator.validate(
-        data_graph=data_single_pass,
-        advanced=True,
-        inplace=True,
-        iterate_rules=False,
-    )
-
+    # The draft's rule iteration runs the rules to a fixpoint: a -> d needs a
+    # second round (a-b-c, b-c-d first give a-c and b-d, then a-d).
     data_iterative = _build_reach_graph()
-    _ = validator.validate(
-        data_graph=data_iterative,
-        advanced=True,
-        inplace=True,
-        iterate_rules=True,
-    )
+    _ = validator.validate(data_graph=data_iterative, mode="rules")
 
-    assert (EX.a, EX.reach, EX.d) not in data_single_pass
     assert (EX.a, EX.reach, EX.d) in data_iterative
 
 
@@ -68,7 +53,7 @@ def test_rule_iteration_converges_with_cyclic_triple_term_identity() -> None:
     shapes.parse(data=load_shape("rules_reach_witness_triple_term.ttl"), format="turtle")
 
     validator = StarShaclSchema(shacl_graph=shapes)
-    result = validator.apply_rules(data_graph=data, meta_shacl=False, iterate_rules=True)
+    result = validator.apply_rules(data_graph=data, meta_shacl=False)
 
     assert result.validation.conforms is True
 
@@ -97,7 +82,7 @@ def test_rule_iteration_converges_on_non_cyclic_multi_branch_diamond() -> None:
 
     validator = StarShaclSchema(shacl_graph=shapes)
     _ = validator.validate(
-        data_graph=data, advanced=True, inplace=True, iterate_rules=True, meta_shacl=False
+        data_graph=data, mode="rules", meta_shacl=False
     )
 
     a_reaches = {o for _, _, o in data.triples((EX.a, EX.reach, None))}
@@ -114,59 +99,27 @@ def _build_linear_chain(length: int) -> StarLayerGraph:
 
 
 # rules_reach_linear_sparql.ttl's immutable-base-relation join grows ex:reach
-# by exactly one hop per rule iteration (unlike rules_reach_sparql.ttl's
-# self-referential join, which roughly doubles distance per iteration and so
-# never approaches pySHACL's iteration cap at any practical chain length -
-# confirmed empirically). That makes "iterations needed" == "chain length",
-# but pySHACL's real default cap is 100 (pyshacl.rules.RULES_ITERATE_LIMIT /
-# pyshacl.rules.sparql.SPARQL_RULE_ITERATE_LIMIT) - actually running a chain
-# that long through starShacl's full validate() pipeline takes well over a
-# minute (confirmed: ~8s at length 40, scaling worse than quadratically), far
-# too slow for a unit test. Patching pySHACL's own module-level constants
-# down to a small number exercises the exact same boundary-enforcement code
-# path pySHACL uses at its real default, just at a scale that runs in
-# milliseconds instead of minutes.
-def _lower_iteration_limit(monkeypatch: pytest.MonkeyPatch, limit: int) -> None:
-    import pyshacl.rules
-    import pyshacl.rules.sparql
+# by exactly one hop per rule iteration, so "iterations needed" == "chain
+# length". The iteration cap (max_iterations, default 1000) is not an option of
+# validate(); the tests use the engine's apply_rules directly with a small cap.
+def _linear_rules(data, max_iterations):
+    from starlayer.shacl_engine.rules import apply_rules
 
-    monkeypatch.setattr(pyshacl.rules, "RULES_ITERATE_LIMIT", limit)
-    monkeypatch.setattr(pyshacl.rules.sparql, "SPARQL_RULE_ITERATE_LIMIT", limit)
+    shapes = StarLayerGraph()
+    shapes.parse(data=load_shape("rules_reach_linear_sparql.ttl"), format="turtle")
+    return apply_rules(data, shapes, max_iterations=max_iterations)
 
 
-def test_rule_iteration_converges_within_iteration_limit(monkeypatch: pytest.MonkeyPatch) -> None:
-    _lower_iteration_limit(monkeypatch, 3)
-
+def test_rule_iteration_converges_within_iteration_limit() -> None:
     length = 3
     data = _build_linear_chain(length)
-
-    shapes = StarLayerGraph()
-    shapes.parse(data=load_shape("rules_reach_linear_sparql.ttl"), format="turtle")
-
-    validator = StarShaclSchema(shacl_graph=shapes)
-    _ = validator.validate(
-        data_graph=data, advanced=True, inplace=True, iterate_rules=True, meta_shacl=False
-    )
-
-    assert (EX.n0, EX.reach, EX[f"n{length}"]) in data
+    result = _linear_rules(data, max_iterations=length + 2)
+    assert (EX.n0, EX.reach, EX[f"n{length}"]) in result.inferred
 
 
-def test_rule_iteration_raises_when_exceeding_iteration_limit(monkeypatch: pytest.MonkeyPatch) -> None:
-    # A chain longer than the (lowered) cap can't fully propagate - confirms
-    # starShacl propagates pySHACL's own ReportableRuntimeError unchanged
-    # rather than hanging, silently truncating results, or masking it with
-    # a different error.
-    from pyshacl.errors import ReportableRuntimeError
-
-    _lower_iteration_limit(monkeypatch, 3)
+def test_rule_iteration_raises_when_exceeding_iteration_limit() -> None:
+    from starlayer.shacl import RuleError
 
     data = _build_linear_chain(10)
-
-    shapes = StarLayerGraph()
-    shapes.parse(data=load_shape("rules_reach_linear_sparql.ttl"), format="turtle")
-
-    validator = StarShaclSchema(shacl_graph=shapes)
-    with pytest.raises(ReportableRuntimeError, match="iteration limit"):
-        validator.validate(
-            data_graph=data, advanced=True, inplace=True, iterate_rules=True, meta_shacl=False
-        )
+    with pytest.raises(RuleError, match="fixpoint"):
+        _linear_rules(data, max_iterations=3)

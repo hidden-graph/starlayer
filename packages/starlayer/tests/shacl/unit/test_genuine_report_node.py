@@ -5,17 +5,14 @@ A fixture whose data graph already contains a sh:ValidationReport (the W3C
 suite's expected-result blocks) gets that block copied into the output report
 when a violation's value/focus node is it. Post-processing must then act on the
 genuine report - not on whichever typed node comes first, which used to make
-sh:targetWhere flaky: _relabel_validation_report_node renamed the incidental
-copy to "report", rewriting a data node's identity inside the results.
+sh:targetWhere flaky: a post-processing step relabelled the incidental
+copy, rewriting a data node's identity inside the results.
 """
 
 import pytest
 from rdflib import RDF, BNode, Graph, Literal, URIRef
 from rdflib.namespace import XSD
-from starlayer.shacl.validator import (
-    _find_genuine_report_node,
-    _relabel_validation_report_node,
-)
+from starlayer.shacl.validator import _find_genuine_report_node
 
 SH = "http://www.w3.org/ns/shacl#"
 EX = "http://example.org/"
@@ -49,19 +46,6 @@ def _report(order: str):
 def test_genuine_report_is_chosen_whatever_the_insertion_order(order):
     g, genuine, _ = _report(order)
     assert _find_genuine_report_node(g) == genuine
-
-
-@pytest.mark.parametrize("order", ["incidental-first", "genuine-first"])
-def test_relabel_renames_the_genuine_report_and_leaves_the_data_node_alone(order):
-    g, genuine, incidental = _report(order)
-    _relabel_validation_report_node(g)
-    # the result still names the original data node as its focus node and value
-    focus = set(g.objects(None, URIRef(SH + "focusNode")))
-    value = set(g.objects(None, URIRef(SH + "value")))
-    assert focus == {incidental} and value == {incidental}
-    # and it is the genuine report that was renamed
-    assert (BNode("report"), RDF.type, URIRef(SH + "ValidationReport")) in g
-    assert (genuine, RDF.type, URIRef(SH + "ValidationReport")) not in g
 
 
 def test_the_librarys_own_report_link_does_not_hide_the_genuine_report():

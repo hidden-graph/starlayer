@@ -3,9 +3,9 @@
 
 import pytest
 from rdflib import Graph, URIRef
-from starlayer.shacl import meta_shapes
+from starlayer.shacl import MetaShaclError, ShapeError, meta_shapes
 from starlayer.shacl.meta_shapes import (
-    load_meta_shapes_graph,
+    meta_validate,
     parameter_value_shapes,
     sparql_query_problems,
 )
@@ -18,15 +18,12 @@ TEMPLATE = 'ex:T a sh:SPARQLRuleTemplate ; rdfs:subClassOf sh:Rule ; sh:paramete
 
 def messages(turtle: str) -> list[str]:
     """The messages of every result of the shapes about shapes (with the template and parameter shapes) over ``turtle``."""
-    import pyshacl
-    from starlayer.shacl.native_components import register_native_components
-
-    register_native_components()  # (the patterns of the parameter shape use \p{L}, which StarLayer's pattern component reads)
     shapes = Graph().parse(data=PRE + turtle, format="turtle")
-    meta = load_meta_shapes_graph()
-    meta += parameter_value_shapes(shapes)
-    _conforms, report, _text = pyshacl.validate(shapes, shacl_graph=meta, advanced=True, allow_warnings=True)
-    return sorted(str(m) for m in report.objects(None, URIRef("http://www.w3.org/ns/shacl#resultMessage")))
+    try:
+        _conforms, _report, text = meta_validate(shapes, extra_graphs=[parameter_value_shapes(shapes)])
+    except MetaShaclError as exc:  # a violation makes the shapes graph invalid; the report is in the message
+        text = str(exc)
+    return sorted(line.split("Message:", 1)[1].strip() for line in text.splitlines() if "Message:" in line)
 
 
 @pytest.mark.parametrize("turtle, expected", [
@@ -76,10 +73,8 @@ def test_a_prefix_the_file_binds_is_known_to_its_queries_but_an_unknown_one_is_n
 
 
 def test_check_sparql_query_text_still_raises_the_first_problem():
-    from pyshacl.errors import ConstraintLoadError
-
     shapes = Graph().parse(data=PRE + 'ex:R a sh:SPARQLRule ; sh:construct "SELECT * WHERE { ?s ?p ?o }" .', format="turtle")
-    with pytest.raises(ConstraintLoadError, match="must hold a CONSTRUCT query"):
+    with pytest.raises(ShapeError, match="must hold a CONSTRUCT query"):
         meta_shapes.check_sparql_query_text(shapes)
 
 

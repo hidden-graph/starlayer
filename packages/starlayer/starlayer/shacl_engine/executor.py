@@ -42,6 +42,7 @@ class Context:
     _focus_cache: dict = field(default_factory=dict)
     recursion_revisits: int = 0  # times conforms() re-entered a (shape, node) pair already being evaluated
     cache: dict = field(default_factory=dict)  # per-run memo for components (keyed by the component's own tuple)
+    _detail_memo: dict = field(default_factory=dict)  # (shape, node) -> the results reported as sh:detail (assumption-free only)
     _conforms_memo: dict = field(default_factory=dict)  # (shape, node) -> (bool, nesting height), assumption-free only
     _peak: int = 0  # deepest ``_depth`` at which a shape was entered since the enclosing conforms() started
     _assumed: int = 0  # how many times a re-entry assumed 'conforms' (the greatest-fixpoint reading) so far
@@ -109,11 +110,17 @@ class Context:
         key = (shape_node, node)
         if key in self._active:
             return ()
+        memoise = self._negations == 0 and not self._active  # only an answer that leaned on no recursion assumption is reusable
+        if memoise and key in self._detail_memo:
+            return self._detail_memo[key]
         self._active[key] = self._negations
         try:
-            return tuple(validate_shape_at(self, self.shape(shape_node), node))
+            results = tuple(validate_shape_at(self, self.shape(shape_node), node))
         finally:
             del self._active[key]
+        if memoise:
+            self._detail_memo[key] = results
+        return results
 
     def shape_focus(self, shape: Shape) -> list[Term]:
         """The shape's focus nodes, cached (cross-node components such as sh:uniqueValuesFor need the whole set)."""

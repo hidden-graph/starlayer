@@ -9,9 +9,6 @@ adversarially, not just by existence.
 import pytest
 from rdflib import RDF, Graph, Literal, Namespace, URIRef
 from rdflib.collection import Collection
-
-pyshacl = pytest.importorskip("pyshacl")
-
 from starlayer.sparql.srl import (  # noqa: E402
     parse_ruleset,
     ruleset_to_tree,
@@ -190,14 +187,14 @@ def test_validating_does_not_change_the_cached_shapes_graphs():
 
 def test_validating_a_rule_set_does_not_validate_the_shapes_file_against_the_meta_shapes(monkeypatch):
     """The shipped shapes are checked once, by their own tests; every parse must not re-check them
-    (pySHACL's ``meta_shacl`` and starlayer's own meta-shape layer are both off for ``srl_validate``)."""
-    import pyshacl.entrypoints as entrypoints
+    (the engine's ``meta_shacl`` preflight and starlayer's own meta-shape layer are both off for ``srl_validate``)."""
     from starlayer.shacl import meta_shapes
+    from starlayer.shacl_engine import meta as engine_meta
     from starlayer.sparql.srl import srl_parse_to_tree, srl_validate
 
     called = []
-    monkeypatch.setattr(entrypoints, "meta_validate", lambda *a, **k: called.append("pyshacl"))
-    for name in ("check_sparql_query_text",):
+    monkeypatch.setattr(engine_meta, "meta_validate", lambda *a, **k: called.append("meta_validate"))
+    for name in ("check_sparql_query_text", "meta_validate"):
         if hasattr(meta_shapes, name):
             monkeypatch.setattr(meta_shapes, name, lambda *a, _n=name, **k: called.append(_n))
 

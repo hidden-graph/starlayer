@@ -12,7 +12,6 @@ see ``tests/integration/test_global_sparql_rules.py`` for the base behavior
 these build on.
 """
 
-import pytest
 from rdflib import Literal, Namespace, URIRef
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.graph.model.triple import TripleTerm
@@ -21,10 +20,6 @@ from starlayer.shacl import StarShaclSchema
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
 REIFIES = URIRef("http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies")
-
-pyshacl = pytest.importorskip("pyshacl")
-
-
 def _source_rule_for(graph, triple_term) -> set:
     """Every ``sh:sourceRule`` value linked to ``triple_term`` via a reifier
     in ``graph`` - empty if none."""

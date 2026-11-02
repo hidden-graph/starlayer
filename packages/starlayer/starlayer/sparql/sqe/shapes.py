@@ -16,8 +16,6 @@ privately below.
 
 from __future__ import annotations
 
-import warnings
-
 from rdflib import Graph
 
 from starlayer import starontology
@@ -71,7 +69,6 @@ def sqe_validate(data_graph: Graph) -> tuple[bool, Graph, str]:
     Returns:
         A ``(conforms, report_graph, report_text)`` tuple.
     """
-    from pyshacl.errors import ShapeRecursionWarning
 
     from starlayer.graph.oxgraph import _rdflib_bridge as _ox
 
@@ -79,14 +76,12 @@ def sqe_validate(data_graph: Graph) -> tuple[bool, Graph, str]:
     import starlayer.shacl  # lazy: avoids a circular-import deadlock at module load time
     from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", category=ShapeRecursionWarning)
-        result = starlayer.shacl.validate(
-            data_graph,
-            shacl_graph=_shapes_graph(),
-            ont_graph=_ontology_graph(),
-            inference=ENTAILMENT.RDFS,
-            advanced=True,
-            max_validation_depth=100,
-        )
+    result = starlayer.shacl.validate(
+        data_graph,
+        shacl_graph=_shapes_graph(),
+        ont_graph=_ontology_graph(),
+        inference=ENTAILMENT.RDFS,
+        advanced=True,
+        max_validation_depth=100,
+    )
     return result.conforms, result.report_graph, result.report_text

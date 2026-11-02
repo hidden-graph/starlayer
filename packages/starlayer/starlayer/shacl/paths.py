@@ -7,7 +7,6 @@ graph) and *followed* through another (the data graph); pass the same graph twic
 
 from __future__ import annotations
 
-from types import SimpleNamespace
 from typing import Any
 
 from rdflib import BNode
@@ -20,12 +19,14 @@ def path_values(data_graph: Any, focus: Any, path: Any, shapes_graph: Any | None
     """The value nodes at the end of ``path``, followed from ``focus`` through ``data_graph``.
 
     ``path`` is a predicate IRI or the root of a path expression written in ``shapes_graph`` (default: ``data_graph``).
-    Repetition paths stop on a cycle. Raises ``NotImplementedError`` for a blank node that is not one of the path forms."""
-    from starlayer.shacl.subgraph_extraction import _walk_path
+    Repetition paths stop on a cycle. Raises ``ShapeError`` for a path expression that is malformed."""
+    from starlayer.shacl_engine.paths import eval_path, parse_path
+    from starlayer.shacl_engine.terms import engine_view, from_engine, to_engine
 
-    shapes = SimpleNamespace(graph=data_graph if shapes_graph is None else shapes_graph)
-    values, _traversed = _walk_path(data_graph, focus, path, shapes)
-    return values
+    data = engine_view(data_graph, "data graph")
+    shapes = engine_view(data_graph if shapes_graph is None else shapes_graph, "shapes graph")
+    reached = eval_path(data, parse_path(shapes, to_engine(path)), to_engine(focus))
+    return frozenset(from_engine(node) for node in reached)
 
 
 def is_inverse(shapes_graph: Any, path: Any) -> bool:

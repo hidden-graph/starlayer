@@ -103,7 +103,6 @@ this module ever sees them), the same bar ``salg:`` itself holds for SPARQL
 
 from __future__ import annotations
 
-import warnings
 from collections import namedtuple
 from typing import TYPE_CHECKING, Any
 
@@ -1245,7 +1244,6 @@ def manchester_validate(data_graph: Graph) -> tuple[bool, Graph, str]:
         ``(conforms, results_graph, results_text)``, unpacked from
         ``starlayer.shacl``'s own ``ValidationResult``.
     """
-    from pyshacl.errors import ShapeRecursionWarning
 
     import starlayer.shacl  # lazy: avoids a circular-import deadlock at module load time
     from starlayer.graph.graph.entailment_regimes import ENTAILMENT
@@ -1257,16 +1255,14 @@ def manchester_validate(data_graph: Graph) -> tuple[bool, Graph, str]:
         # pySHACL cannot even load a graph with a cyclic list, so report without running it.
         return False, _preflight_report(problems, None), _preflight_text(problems, "")
 
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", category=ShapeRecursionWarning)
-        result = starlayer.shacl.validate(
-            data_graph,
-            shacl_graph=get_ontology_graph("manchester_shacl"),
-            ont_graph=get_ontology_graph("manchester_owl"),
-            inference=ENTAILMENT.RDFS,
-            advanced=True,
-            max_validation_depth=100,
-        )
+    result = starlayer.shacl.validate(
+        data_graph,
+        shacl_graph=get_ontology_graph("manchester_shacl"),
+        ont_graph=get_ontology_graph("manchester_owl"),
+        inference=ENTAILMENT.RDFS,
+        advanced=True,
+        max_validation_depth=100,
+    )
     if not problems:
         return result.conforms, result.report_graph, result.report_text
 

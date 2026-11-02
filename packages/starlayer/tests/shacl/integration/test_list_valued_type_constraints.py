@@ -7,9 +7,6 @@ from ._shape_loader import load_shape
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
-
-pyshacl = pytest.importorskip("pyshacl")
-
 # SHACL 1.2 generalizes sh:class/sh:datatype/sh:nodeKind to accept a SHACL
 # list (union of choices), not just a single IRI. pySHACL 0.40 mishandles the
 # list form the same way it mishandles path-valued property pairs: it treats

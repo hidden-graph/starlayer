@@ -70,7 +70,7 @@ def parse(text: str) -> Graph:
 
 
 def accepted(text: str) -> bool:
-    from pyshacl.errors import ReportableRuntimeError
+    from starlayer.shacl import MetaShaclError as ReportableRuntimeError
 
     try:
         return bool(meta_validate(parse(text))[0])

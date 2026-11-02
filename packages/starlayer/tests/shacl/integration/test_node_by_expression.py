@@ -5,17 +5,12 @@ fixtures (at both node-shape and property-shape level) - pySHACL has no
 notion of this predicate at all.
 """
 
-import pytest
 from rdflib import Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
-
-pyshacl = pytest.importorskip("pyshacl")
-
-
 def test_node_by_expression_at_node_shape_violates_when_value_does_not_conform() -> None:
     shapes = StarLayerGraph()
     shapes.parse(

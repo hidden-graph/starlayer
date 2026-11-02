@@ -58,15 +58,14 @@ def kind(request):
 # SHACL
 
 
-@pytest.mark.parametrize("engine", [None, "native", "pyshacl"])
-def test_validate_takes_oxigraph_graphs(kind, engine):
+def test_validate_takes_oxigraph_graphs(kind):
     from starlayer.shacl import validate
 
-    bad = validate(kind(DATA), shacl_graph=_ox(OxGraph, SHAPES), engine=engine)
-    good = validate(kind(FIXED_DATA), shacl_graph=_ox(OxGraph, SHAPES), engine=engine)
+    bad = validate(kind(DATA), shacl_graph=_ox(OxGraph, SHAPES))
+    good = validate(kind(FIXED_DATA), shacl_graph=_ox(OxGraph, SHAPES))
     assert bad.conforms is False
     assert good.conforms is True
-    assert bad.conforms == validate(_old(DATA), shacl_graph=_old(SHAPES), engine=engine).conforms
+    assert bad.conforms == validate(_old(DATA), shacl_graph=_old(SHAPES)).conforms
 
 
 def test_validate_takes_oxigraph_shapes_and_ontology(kind):
@@ -84,7 +83,7 @@ def test_validate_inplace_writes_back_to_the_oxigraph_graph():
     data = _ox(OxGraph, DATA.replace("ex:bob a ex:Person", "ex:bob a ex:Student"))
     onto = _ox(OxGraph, "@prefix ex: <http://example.org/> . @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> . ex:Student rdfs:subClassOf ex:Person .")
     before = len(data)
-    result = validate(data, shacl_graph=_ox(OxGraph, SHAPES), ont_graph=onto, inference=ENTAILMENT.RDFS, inplace=True, engine="native")
+    result = validate(data, shacl_graph=_ox(OxGraph, SHAPES), ont_graph=onto, inference=ENTAILMENT.RDFS, inplace=True)
     assert result.data_graph is data
     assert len(data) > before
 
@@ -110,8 +109,9 @@ def test_apply_rules_takes_oxigraph_graphs(kind):
 
     rules = """
     @prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> .
+    @prefix shnex: <http://www.w3.org/ns/shacl-node-expr#> .
     ex:R a sh:NodeShape ; sh:targetClass ex:Person ;
-        sh:rule [ a sh:TripleRule ; sh:subject sh:this ; sh:predicate ex:kind ; sh:object ex:Human ] .
+        sh:rule [ a sh:TripleRule ; sh:subject [ shnex:var "focusNode" ] ; sh:predicate ex:kind ; sh:object ex:Human ] .
     """
     result = apply_rules(kind(DATA), shacl_graph=_ox(OxGraph, rules))
     assert len(result.inferred_graph) >= 2
@@ -124,12 +124,11 @@ def test_validate_each_takes_oxigraph_graphs():
     assert {k: r.conforms for k, r in results.items()} == {0: False, 1: True}
 
 
-@pytest.mark.parametrize("engine", [None, "native"])
-def test_extract_subgraph_takes_oxigraph_graphs(kind, engine):
+def test_extract_subgraph_takes_oxigraph_graphs(kind):
     from starlayer.shacl import extract_subgraph
 
-    got = extract_subgraph(kind(FIXED_DATA), kind(SHAPES), engine=engine)
-    want = extract_subgraph(_old(FIXED_DATA), _old(SHAPES), engine=engine)
+    got = extract_subgraph(kind(FIXED_DATA), kind(SHAPES))
+    want = extract_subgraph(_old(FIXED_DATA), _old(SHAPES))
     assert len(got) == len(want) > 0
 
 
@@ -141,7 +140,6 @@ def test_extract_subgraph_with_pyoxigraph_shape_and_focus_node():
         _ox(OxGraph, SHAPES),
         shape=ox.NamedNode(EX + "PersonShape"),
         focus_node=ox.NamedNode(EX + "alice"),
-        engine="pyshacl",
     )
     assert isinstance(got, OxGraph)
     assert (ox.NamedNode(EX + "alice"), ox.NamedNode(EX + "name"), ox.Literal("Alice")) in got

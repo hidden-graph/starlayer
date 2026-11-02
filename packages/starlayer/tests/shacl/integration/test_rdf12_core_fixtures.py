@@ -1,6 +1,5 @@
 import pytest
 from rdflib import Namespace
-from rdflib.collection import Collection
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 
@@ -8,9 +7,6 @@ from ._shape_loader import load_shape
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
-
-
-pyshacl = pytest.importorskip("pyshacl")
 
 
 def test_rdf12_fixture_target_resolution_for_triple_term_target_node() -> None:
@@ -55,21 +51,18 @@ def test_rdf12_fixture_triple_term_node_kind_component_evaluation() -> None:
     data.add((EX.focus, EX.says, EX.not_tt))
 
     shapes = StarLayerGraph()
-    shapes.parse(data=load_shape("rdf12_triple_term_node_kind.ttl"), format="turtle12")
-
-    property_shape = next(shapes.objects(EX.TripleTermNodeKindShape, SH.property))
-    component_name = str(next(shapes.objects(property_shape, SH.nodeKind)))
-    values = tuple(o for _, _, o in data.triples((EX.focus, EX.says, None)))
-
-    validator = StarShaclSchema()
-    result = validator.evaluate_component(
-        component={"name": component_name},
-        focus_node=EX.focus,
-        value_nodes=values,
+    # The fixture's stsh:TripleTermNodeKind was a starlayer extension; the
+    # draft's own node kind is sh:TripleTerm.
+    shapes.parse(
+        data=load_shape("rdf12_triple_term_node_kind.ttl").replace("stsh:TripleTermNodeKind", "sh:TripleTerm"),
+        format="turtle12",
     )
 
+    result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
+
     assert result.conforms is False
-    assert EX.not_tt in result.violations
+    values = {o for _, _, o in result.report_graph.triples((None, SH.value, None))}
+    assert values == {EX.not_tt}
 
 
 @pytest.mark.parametrize(
@@ -116,55 +109,14 @@ def test_rdf12_fixture_structural_component_behaviors(
     shapes = StarLayerGraph()
     shapes.parse(data=load_shape(shape_file), format="turtle12")
 
-    property_shape = next(shapes.objects(shape_iri, SH.property))
-    path = next(shapes.objects(property_shape, SH.path))
-    values = tuple(o for _, _, o in data.triples((EX.focus, path, None)))
-
-    component: dict[str, object]
-    has_value = next(shapes.objects(property_shape, SH.hasValue), None)
-    in_list = next(shapes.objects(property_shape, SH["in"]), None)
-    equals_path = next(shapes.objects(property_shape, SH.equals), None)
-    disjoint_path = next(shapes.objects(property_shape, SH.disjoint), None)
-
-    if has_value is not None:
-        component = {"name": "hasValue", "value": has_value}
-    elif in_list is not None:
-        component = {"name": "in", "allowed": tuple(Collection(shapes, in_list))}
-    elif equals_path is not None:
-        component = {
-            "name": "equals",
-            "other_values": tuple(o for _, _, o in data.triples((EX.focus, equals_path, None))),
-        }
-    elif disjoint_path is not None:
-        component = {
-            "name": "disjoint",
-            "other_values": tuple(o for _, _, o in data.triples((EX.focus, disjoint_path, None))),
-        }
-    else:
-        raise AssertionError("fixture must declare one structural component constraint")
-
-    validator = StarShaclSchema()
-    result = validator.evaluate_component(
-        component=component,
-        focus_node=EX.focus,
-        value_nodes=values,
-    )
+    result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is expected_conforms
     if not expected_conforms:
-        assert len(result.violations) >= 1
+        assert len(list(result.report_graph.triples((None, SH.focusNode, EX.focus)))) >= 1
 
 
-# The tests above exercise starShacl's own native structural-component
-# evaluator directly (evaluate_component) for the four families it natively
-# supports (sh:hasValue/sh:in/sh:equals/sh:disjoint). sh:minCount/sh:maxCount
-# and sh:not/sh:and/sh:or aren't part of that native evaluator's component
-# set - they run through the generic pySHACL-encoded fallback path instead
-# (validator.validate(), not evaluate_component()). These confirm that
-# fallback path also correctly handles triple-term values for additional
-# constraint families beyond the four already covered, per the gap matrix's
-# "broader lifecycle orchestration" note - not a claim that these have been
-# promoted into the native fast-path evaluator.
+# sh:minCount/sh:maxCount and sh:not with triple-term values.
 
 
 def test_rdf12_min_max_count_with_triple_term_values() -> None:

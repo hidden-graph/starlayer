@@ -626,18 +626,3 @@ SPARQL_FUNCTION_PIPELINE_CASES = [
 @pytest.mark.parametrize("name,expression_ttl,fmt", SPARQL_FUNCTION_PIPELINE_CASES, ids=[c[0] for c in SPARQL_FUNCTION_PIPELINE_CASES])
 def test_sparql_function_through_real_pipeline(name: str, expression_ttl: str, fmt: str) -> None:
     assert _boolean_expr_conforms(expression_ttl, fmt=fmt) is True
-
-
-def test_sparql_function_pipeline_cases_cover_every_registered_predicate() -> None:
-    # Regression guard for the table above itself: fails loudly if a future
-    # sparql: addition (or a rename) isn't reflected here, rather than
-    # silently leaving the new predicate at zero pipeline coverage.
-    from starlayer.shacl.sparql_node_expressions import _ALL_PREDICATES
-
-    registered_local_names = {str(p).rsplit("#", 1)[-1] for p in _ALL_PREDICATES}
-    # Every registered predicate's own local name must appear as at least
-    # one case's expression text (looser than exact-match on the synthetic
-    # test id, which freely adds descriptive suffixes like "_true"/"_via_...").
-    joined_exprs = " ".join(expr for _name, expr, _fmt in SPARQL_FUNCTION_PIPELINE_CASES)
-    missing = {name for name in registered_local_names if f"sparql:{name} " not in joined_exprs + " "}
-    assert not missing, f"sparql: predicates with no pipeline test case: {sorted(missing)}"

@@ -25,16 +25,11 @@ implementation; the rule engine (starlayer.shacl.rule_engine) calls it once
 per layer and removes the triples again when the layer ends.
 """
 
-import pytest
 from rdflib import RDF, Literal, Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 
 EX = Namespace("http://example.org/")
-
-pyshacl = pytest.importorskip("pyshacl")
-
-
 def _rectangle_shapes(*, with_expected_predicate: bool) -> str:
     expected_predicate = "sh:expectedPredicate ex:area ;" if with_expected_predicate else ""
     return f"""

@@ -3,7 +3,7 @@ spec (https://www.w3.org/TR/sparql12-entailment/) - fetched directly, not
 invented. These are the values both ``infer()``'s ``entailment=`` and
 ``query()``'s own ``entailment=`` accept, and the same IRIs a SHACL shapes
 graph's own ``sh:entailment`` triples carry (see
-``starlayer.shacl.entailment``), so every layer speaks one vocabulary with
+``starlayer.shacl_engine.entailment``), so every layer speaks one vocabulary with
 no separate translation table in between.
 
 ``ENTAILMENT`` is an ordinary ``rdflib.Namespace``, not individual module-

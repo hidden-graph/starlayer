@@ -9,7 +9,6 @@ which shape it's attached to, which that per-shape loop cannot express.
 ``validator.py::_patch_rules_for_native_engine``) - see that module's docstring.
 """
 
-import pytest
 from rdflib import RDF, Literal, Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
@@ -17,10 +16,6 @@ from starlayer.shacl import StarShaclSchema
 from ._shape_loader import load_shape
 
 EX = Namespace("http://example.org/")
-
-pyshacl = pytest.importorskip("pyshacl")
-
-
 def test_cross_shape_layering_orders_by_layer_not_by_shape_order() -> None:
     """ShapeA's rule (layer 0) must produce ex:stage1 before ShapeB's rule
     (layer 1) can produce ex:stage2 from it. ShapeA is deliberately given a
