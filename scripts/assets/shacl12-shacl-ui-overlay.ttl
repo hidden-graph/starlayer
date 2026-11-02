@@ -811,15 +811,13 @@ stsh:ConstraintComponentForm a sh:NodeShape ;
 # A parameter of a constraint component or a function: a property shape (sh:Parameter is a subclass of sh:PropertyShape), so it orders
 # its fields as a property shape does, plus whether it is optional and whether it is the key.
 # A parameter declaration, the value of sh:parameter. SPARQL Extensions 4.2.1: "sh:Parameter is defined as a SHACL subclass of sh:PropertyShape" and "all properties that are
-# applicable to property shapes may also be used for parameters", so its fields are those of a property shape, except what has no meaning where nothing is validated against
-# data (a parameter's constraints say what a well-formed argument is: a shape that does not conform is ill-formed, there is no result): targets, rules, and what a result
-# carries (message, severity), and sh:deactivated and sh:values. sh:optional is for the parameters of a constraint component, sh:keyParameter for those of a named parameter
-# function (stsh:formHeldBy, below). A value the file has that the form leaves out is still the file's: a tool shows it as another property.
+# applicable to property shapes may also be used for parameters", but a parameter is not a property shape in use: its form lists what a parameter is for (its type, its name and description,
+# its property, whether it is optional, whether it is the key, its default, and the class, datatype and node kind its value has, and where it sits among the others). A value of any other
+# property shape property that a parameter has is still the file's: a tool shows it as another property (2026-11-02). sh:optional is for the parameters of a constraint component,
+# sh:keyParameter for those of a named parameter function (stsh:formHeldBy, below).
 stsh:ParameterForm a sh:NodeShape ;
     stsh:formFor sh:Parameter ;
-    stsh:formFieldsOf sh:PropertyShape ;
-    stsh:formFieldsExcept ( sh:targetClass sh:targetNode sh:targetSubjectsOf sh:targetObjectsOf sh:target sh:targetWhere sh:rule sh:message sh:severity sh:deactivated sh:values ) ;
-    stsh:formFields ( sh:optional sh:keyParameter ) ;
+    stsh:formFields ( rdf:type sh:name sh:description sh:path sh:optional sh:keyParameter sh:defaultValue sh:class sh:datatype sh:nodeKind sh:order sh:group ) ;
     stsh:formRequired ( sh:path ) .
 
 stsh:formFieldsOf a rdf:Property ;
