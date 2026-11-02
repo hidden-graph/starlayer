@@ -1,0 +1,531 @@
+@prefix slkg: <https://github.com/hidden-graph/starlayer/ns/codekg#> .
+@prefix externaltype: <https://github.com/hidden-graph/starlayer/ns/codekg/externaltype#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix schema: <http://schema.org/> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# StarLayer Code Knowledge Graph Ontology (slkg:)
+#
+# Hand-maintained, permanent vocabulary definition for the auto-generated
+# code knowledge graph extracted from this project's own Python source
+# (see codekg.extractor). This file is never touched by the
+# extractor - it only ever writes codekg.trig, a separate, wholesale-
+# replaced dataset of per-module named graphs that use these terms.
+#
+# externaltype: is a separate identity space (not a sibling vocabulary of
+# classes/properties, just a URI prefix) used to mint nodes for third-party
+# and stdlib types encountered in annotations, e.g.
+# externaltype:builtins.str, externaltype:rdflib.term.URIRef.
+
+slkg: a owl:Ontology ;
+    rdfs:label "StarLayer Code Knowledge Graph Ontology" .
+
+#################################################################
+# Classes
+#################################################################
+
+slkg:Repository a owl:Class ;
+    rdfs:subClassOf prov:Entity, schema:SoftwareSourceCode ;
+    rdfs:label "Repository" ;
+    rdfs:comment "A git repository whose Python source has been extracted into this graph." .
+
+slkg:Package a owl:Class ;
+    rdfs:subClassOf prov:Entity, schema:SoftwareSourceCode ;
+    rdfs:label "Package" ;
+    rdfs:comment "A Python package (a directory with an __init__.py) declared by a Repository." .
+
+slkg:Module a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Module" ;
+    rdfs:comment "A single Python source file (.py module) declared by a Package." .
+
+slkg:Type a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Type" ;
+    rdfs:comment "Abstract umbrella over every kind of type a parameter or return value can resolve to (this project's own slkg:Class instances and externally-defined slkg:ExternalType instances alike). Never instantiated directly - every real node is one of its subclasses." .
+
+slkg:Class a owl:Class ;
+    rdfs:subClassOf prov:Entity, slkg:Type ;
+    rdfs:label "Class" ;
+    rdfs:comment "A Python class defined in this project's own source. Also a slkg:Type, so it can be used directly as a parameter/return slkg:hasType target alongside external types." .
+
+slkg:Function a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Function" ;
+    rdfs:comment "A Python function or method definition (def/async def)." .
+
+slkg:Method a owl:Class ;
+    rdfs:subClassOf slkg:Function ;
+    rdfs:label "Method" ;
+    rdfs:comment "A Function whose immediately enclosing scope is a Class." .
+
+slkg:Parameter a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Parameter" ;
+    rdfs:comment "One formal parameter of a Function, including its position, kind, default, and resolved type(s)." .
+
+slkg:Attribute a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Attribute" ;
+    rdfs:comment "A class-body-level typed attribute declaration (an ast.AnnAssign that is a direct child of a ClassDef's own body, e.g. a @dataclass field) - identical in shape to slkg:Parameter (type, default, position), so it reuses slkg:hasType/slkg:annotationText/slkg:defaultValue/slkg:position rather than inventing Attribute-specific duplicates. Never emitted for an assignment inside a method body - only a direct ClassDef.body child." .
+
+slkg:ReturnValue a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Return value" ;
+    rdfs:comment "A Function's return annotation and/or documented return description, as its own node so it can carry a resolved type and a description independent of any parameter." .
+
+slkg:Decorator a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Decorator" ;
+    rdfs:comment "A decorator applied to a Function or Class definition, recorded as written (slkg:decoratorText)." .
+
+slkg:ExternalType a owl:Class ;
+    rdfs:subClassOf slkg:Type, prov:Entity ;
+    rdfs:label "External type" ;
+    rdfs:comment "A type resolved outside this project's own source (stdlib or third-party), identified by its canonical dotted path under the externaltype: namespace, e.g. externaltype:builtins.str." .
+
+slkg:ExternalModule a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "External module" ;
+    rdfs:comment "A module imported from outside this project (stdlib or third-party), as the target of an slkg:importsModule edge when the imported module isn't itself one of this project's own slkg:Module instances." .
+
+slkg:NotebookExample a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Notebook example" ;
+    rdfs:comment "A guide notebook cell that demonstrates some entities' usage, reviewed by a person. Hand-curated in curated/notebook-links.ttl (never by the extractor): the cell is named by slkg:notebookPath and slkg:cellId, the code by slkg:demonstratesIdentifier, and slkg:cellHash records the cell as it was when slkg:reviewedOn." .
+
+slkg:CapabilityArea a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Capability area" ;
+    rdfs:comment "A hand-curated grouped heading over a set of Capabilities, e.g. a functionality-overview.md section like \"RDF graph\" or a roadmap group like \"Cross-cutting\". Populated only by hand-curated graphs (see codekg's curated/ directory) - never by the AST extractor." .
+
+slkg:Capability a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Capability" ;
+    rdfs:comment "A single hand-curated capability statement (a documented feature, or a planned/roadmap item) belonging to one CapabilityArea. Populated only by hand-curated graphs - never by the AST extractor, same as CapabilityArea." .
+
+#################################################################
+# Object properties
+#################################################################
+
+slkg:declares a owl:ObjectProperty ;
+    rdfs:domain prov:Entity ;
+    rdfs:range prov:Entity ;
+    rdfs:label "declares" ;
+    rdfs:comment "Lexical-nesting containment, used uniformly for every level: Repository->Package, Package->Module, Module->Class|Function, Class->Method|nested Class|nested Function, Function->nested Class|nested Function. slkg:declares+ (the transitive closure) gives every entity lexically nested inside another, at any depth." .
+
+slkg:hasParameter a owl:ObjectProperty ;
+    rdfs:domain slkg:Function ;
+    rdfs:range slkg:Parameter ;
+    rdfs:label "has parameter" ;
+    rdfs:comment "Relates a Function to one of its formal parameters." .
+
+slkg:hasAttribute a owl:ObjectProperty ;
+    rdfs:domain slkg:Class ;
+    rdfs:range slkg:Attribute ;
+    rdfs:label "has attribute" ;
+    rdfs:comment "Relates a Class to one of its class-body-level typed attribute declarations." .
+
+slkg:hasReturnValue a owl:ObjectProperty ;
+    rdfs:domain slkg:Function ;
+    rdfs:range slkg:ReturnValue ;
+    rdfs:label "has return value" ;
+    rdfs:comment "Relates a Function to its ReturnValue node." .
+
+slkg:hasType a owl:ObjectProperty ;
+    rdfs:range slkg:Type ;
+    rdfs:label "has type" ;
+    rdfs:comment "Relates a Parameter or ReturnValue to a resolved Type (a project-local slkg:Class or an slkg:ExternalType). Domain is the union of slkg:Parameter and slkg:ReturnValue, left informal here (no owl:unionOf) rather than formally declared." .
+
+slkg:hasDecorator a owl:ObjectProperty ;
+    rdfs:range slkg:Decorator ;
+    rdfs:label "has decorator" ;
+    rdfs:comment "Relates a Function or Class to a Decorator applied to its definition. Domain is the union of slkg:Function and slkg:Class, left informal here (no owl:unionOf) rather than formally declared." .
+
+slkg:importsModule a owl:ObjectProperty ;
+    rdfs:domain slkg:Module ;
+    rdfs:label "imports module" ;
+    rdfs:comment "Relates a Module to another Module it imports (if this project's own) or an ExternalModule (if not) - range is slkg:Module or slkg:ExternalModule, left informal here (no owl:unionOf) rather than formally declared." .
+
+slkg:dependsOnPackage a owl:ObjectProperty ;
+    rdfs:domain slkg:Package ;
+    rdfs:range slkg:Package ;
+    rdfs:label "depends on package" ;
+    rdfs:comment "Relates a Package to another Package it depends on, distinct from slkg:declares (containment) and slkg:importsModule (per-module import edges)." .
+
+slkg:demonstratedBy a owl:ObjectProperty ;
+    rdfs:domain prov:Entity ;
+    rdfs:range slkg:NotebookExample ;
+    rdfs:label "demonstrated by" ;
+    rdfs:comment "Relates any entity to a NotebookExample that demonstrates its usage. Not asserted in any file: it is derived when the curated graph is loaded (get_codekg_dataset(include_curated=True)), by matching each slkg:demonstratesIdentifier to an entity's dcterms:identifier." .
+
+slkg:calls a owl:ObjectProperty ;
+    rdfs:domain slkg:Function ;
+    rdfs:range slkg:Function ;
+    rdfs:label "calls" ;
+    rdfs:comment "A function/method's body contains a call site resolved, with confidence, to this target function/method - including across files (see codekg.extractor.symbol_index). Absence of an edge means the extractor couldn't resolve the call with confidence (a call through a plain local variable, a dynamic/computed call, an external library/stdlib call) or deliberately didn't try (no type inference) - it does not mean 'confirmed never calls'. Domain/range are both slkg:Function, which slkg:Method already subclasses, so this covers Method->Method, Function->Function, and Method->Function/Function->Method alike without a separate declaration." .
+
+slkg:overrides a owl:ObjectProperty ;
+    rdfs:domain slkg:Method ;
+    rdfs:range slkg:Method ;
+    rdfs:label "overrides" ;
+    rdfs:comment "This method shares a name with, and shadows, a method already declared on one of its class's base classes - resolved project-wide, across files, via the same symbol-index base-chain walk (codekg.extractor.symbol_index.SymbolIndex.resolve_method_in_chain) already used for self/cls call resolution. Absence of an edge means no same-named method was found anywhere in the resolvable base chain - an unresolvable/external base (e.g. a stdlib or third-party class) stops the walk at that point, same caveat as slkg:calls." .
+
+slkg:inCapabilityArea a owl:ObjectProperty ;
+    rdfs:domain slkg:Capability ;
+    rdfs:range slkg:CapabilityArea ;
+    rdfs:label "in capability area" ;
+    rdfs:comment "Relates a hand-curated Capability to the CapabilityArea it's grouped under. Hand-curated-graph-only, like both classes it relates." .
+
+slkg:instantiates a owl:ObjectProperty ;
+    rdfs:domain slkg:Function ;
+    rdfs:range slkg:Class ;
+    rdfs:label "instantiates" ;
+    rdfs:comment "A function/method's body contains a call site resolved, with confidence, to a class's own constructor (a bare or import/module-alias-qualified reference to the class name, called directly) - this function creates an instance of that class. Deliberately a separate property from slkg:calls rather than widening that one's range to also admit a Class - 'calls a function' and 'constructs an instance' are different relationships. Same resolution-confidence caveats as slkg:calls: a constructor call through a plain local variable, or any other unresolvable expression, gets no edge." .
+
+slkg:isPrivate a owl:DatatypeProperty ;
+    rdfs:range xsd:boolean ;
+    rdfs:label "is private" ;
+    rdfs:comment "True when a Class/Function/Method's name starts with a leading underscore and isn't a dunder (slkg:isDunder) - this project's own naming convention for 'not part of the public API', not a Python language-enforced restriction. Only ever asserted true, mirroring slkg:isAsync's own convention. Domain is the union of slkg:Class and slkg:Function, left informal here (no owl:unionOf) rather than formally declared, matching slkg:hasDecorator's own precedent." .
+
+slkg:isDunder a owl:DatatypeProperty ;
+    rdfs:range xsd:boolean ;
+    rdfs:label "is dunder" ;
+    rdfs:comment "True when a Class/Function/Method's name both starts and ends with a double underscore (e.g. __init__, __eq__) - Python's own operator-protocol naming convention, deliberately kept separate from slkg:isPrivate rather than folded into it: a dunder method is part of a real, if implicit, protocol surface, not hidden the way an ordinary leading-underscore name is. Only ever asserted true. Domain is the union of slkg:Class and slkg:Function, left informal here, matching slkg:isPrivate's own convention." .
+
+# Note on rdfs:subClassOf usage: rdfs:subClassOf is a standard RDFS
+# predicate, reused directly rather than redeclared anywhere in this file.
+# This ontology uses it for TWO distinct purposes, both valid RDFS usage
+# of the same predicate: (1) the schema-level class axioms above (e.g.
+# slkg:Method rdfs:subClassOf slkg:Function), and (2) real Python
+# inheritance edges asserted directly between extracted slkg:Class
+# instances later (e.g. a project class that subclasses another project
+# class), letting rdfs:subClassOf* give "all ancestors of X" for both
+# schema and instance data with the same property path.
+
+#################################################################
+# Datatype properties
+#################################################################
+
+# dcterms:identifier, rdfs:label, and rdfs:comment are reused directly
+# from their own vocabularies, not redeclared here. dcterms:identifier
+# (xsd:string) holds each entity's canonical dotted path (e.g.
+# "starlayer.graph.model.encoding.term_key"); rdfs:label holds its short
+# name; rdfs:comment holds its summary/description text (cleaned
+# docstring prose, or parsed Args:/Returns: text).
+
+slkg:filePath a owl:DatatypeProperty ;
+    rdfs:range xsd:string ;
+    rdfs:label "file path" ;
+    rdfs:comment "Repository-relative source file path of the entity this is attached to." .
+
+slkg:lineStart a owl:DatatypeProperty ;
+    rdfs:range xsd:integer ;
+    rdfs:label "line start" ;
+    rdfs:comment "1-based source line number where this entity's definition begins." .
+
+slkg:lineEnd a owl:DatatypeProperty ;
+    rdfs:range xsd:integer ;
+    rdfs:label "line end" ;
+    rdfs:comment "1-based source line number where this entity's definition ends." .
+
+slkg:signature a owl:DatatypeProperty ;
+    rdfs:range xsd:string ;
+    rdfs:label "signature" ;
+    rdfs:comment "The entity's signature as written in source (e.g. a function's full parameter list and return annotation)." .
+
+slkg:annotationText a owl:DatatypeProperty ;
+    rdfs:range xsd:string ;
+    rdfs:label "annotation text" ;
+    rdfs:comment "The raw, unresolved type annotation text as written in source, kept alongside any resolved slkg:hasType edge(s)." .
+
+slkg:decoratorText a owl:DatatypeProperty ;
+    rdfs:range xsd:string ;
+    rdfs:label "decorator text" ;
+    rdfs:comment "A Decorator's source text as written (e.g. \"@dataclass(frozen=True)\")." .
+
+slkg:position a owl:DatatypeProperty ;
+    rdfs:range xsd:integer ;
+    rdfs:label "position" ;
+    rdfs:comment "0-based positional index of a Parameter within its Function's parameter list." .
+
+slkg:parameterKind a owl:DatatypeProperty ;
+    rdfs:range xsd:string ;
+    rdfs:label "parameter kind" ;
+    rdfs:comment "The parameter's kind as Python's own parameter model distinguishes it, e.g. \"positional\", \"keyword-only\", \"*args\", \"**kwargs\"." .
+
+slkg:defaultValue a owl:DatatypeProperty ;
+    rdfs:range xsd:string ;
+    rdfs:label "default value" ;
+    rdfs:comment "A Parameter's default value, rendered as source text, if one is given." .
+
+slkg:optional a owl:DatatypeProperty ;
+    rdfs:range xsd:boolean ;
+    rdfs:label "optional" ;
+    rdfs:comment "True when a Parameter's or ReturnValue's annotation is a union that includes a bare None." .
+
+slkg:isAsync a owl:DatatypeProperty ;
+    rdfs:range xsd:boolean ;
+    rdfs:label "is async" ;
+    rdfs:comment "True when a Function is defined with async def." .
+
+# Note on isProperty/isClassmethod/isStaticmethod scope: only the BARE
+# decorator name (@property, @classmethod, @staticmethod) is recognized.
+# A qualified form (@functools.property) or an aliased import is not
+# detected and leaves the corresponding flag unasserted - every real
+# instance in this codebase uses the bare form, so this is not a current
+# limitation in practice, just an undemonstrated edge case.
+
+slkg:isProperty a owl:DatatypeProperty ;
+    rdfs:range xsd:boolean ;
+    rdfs:label "is property" ;
+    rdfs:comment "True when a Method is decorated with the bare @property decorator. Only ever asserted true, mirroring slkg:isAsync's own convention." .
+
+slkg:isClassmethod a owl:DatatypeProperty ;
+    rdfs:range xsd:boolean ;
+    rdfs:label "is classmethod" ;
+    rdfs:comment "True when a Method is decorated with the bare @classmethod decorator." .
+
+slkg:isStaticmethod a owl:DatatypeProperty ;
+    rdfs:range xsd:boolean ;
+    rdfs:label "is staticmethod" ;
+    rdfs:comment "True when a Method is decorated with the bare @staticmethod decorator." .
+
+# Note on property scope not yet covered: a setter/deleter-paired property
+# (the @x.setter/@x.deleter forms following an @property getter) and a
+# dataclass field whose default is field(default_factory=...) are both
+# accepted but undemonstrated future extensions - zero real examples exist
+# anywhere in this codebase yet to validate a design against. A
+# default_factory=... call is still captured as literal text in
+# slkg:defaultValue like any other default expression, just with no
+# special boolean semantics attached to it.
+
+slkg:notebookPath a owl:DatatypeProperty ;
+    rdfs:domain slkg:NotebookExample ;
+    rdfs:range xsd:string ;
+    rdfs:label "notebook path" ;
+    rdfs:comment "Repository-relative path of the notebook a NotebookExample's cell belongs to." .
+
+slkg:cellId a owl:DatatypeProperty ;
+    rdfs:domain slkg:NotebookExample ;
+    rdfs:range xsd:string ;
+    rdfs:label "cell id" ;
+    rdfs:comment "The nbformat cell id of a NotebookExample's cell. Unique within a notebook, and it stays with the cell when the cell moves, unlike its position, so it is the reference. Ids are not unique across notebooks: always pair with slkg:notebookPath." .
+
+slkg:cellHash a owl:DatatypeProperty ;
+    rdfs:domain slkg:NotebookExample ;
+    rdfs:range xsd:string ;
+    rdfs:label "cell hash" ;
+    rdfs:comment "The first 16 hex digits of the SHA-256 of the cell's source (trailing whitespace and surrounding blank lines removed) when the link was last reviewed. A different hash now means the cell was edited and the link needs review. See codekg.notebook_links." .
+
+slkg:reviewedOn a owl:DatatypeProperty ;
+    rdfs:domain slkg:NotebookExample ;
+    rdfs:range xsd:date ;
+    rdfs:label "reviewed on" ;
+    rdfs:comment "The date a person last confirmed that the cell still demonstrates the symbols, and recorded slkg:cellHash." .
+
+slkg:demonstratesIdentifier a owl:DatatypeProperty ;
+    rdfs:domain slkg:NotebookExample ;
+    rdfs:range xsd:string ;
+    rdfs:label "demonstrates identifier" ;
+    rdfs:comment "The dotted path (a dcterms:identifier in codekg.trig) of a symbol the cell demonstrates, by the same convention as slkg:implementedByIdentifier. At least one." .
+
+#################################################################
+# Hand-curated-graph properties (CapabilityArea / Capability)
+#
+# These three, plus slkg:position above (reused as-is for doc order), are
+# only ever asserted in hand-curated graphs (see codekg's
+# curated/ directory) - never by the AST extractor.
+#################################################################
+
+slkg:hasStatus a owl:DatatypeProperty ;
+    rdfs:domain slkg:Capability ;
+    rdfs:range xsd:string ;
+    rdfs:label "has status" ;
+    rdfs:comment "A Capability's curation status: \"implemented\" (documented as already working) or \"roadmap\" (documented as planned/deferred/paused). Deliberately just these two values, matching functionality-overview.md's own two top-level sections - the doc text doesn't consistently distinguish planned from deferred, so this doesn't invent that split." .
+
+slkg:appRole a owl:DatatypeProperty ;
+    rdfs:domain slkg:Capability ;
+    rdfs:range xsd:string ;
+    rdfs:label "app role" ;
+    rdfs:comment "What a Capability is for when building an application, so someone who knows the job (\"I need a form editor\") can find the capabilities for it. One or more of: \"storage\" (hold and manage RDF data), \"interchange\" (read, write, compare, canonicalize), \"query\" (SPARQL and extraction), \"validate\" (SHACL checking), \"infer\" (rules and reasoning), \"ui-generate\" (build forms and editors from shapes and vocabularies) or \"reference\" (bundled vocabularies and registries)." .
+
+slkg:implementsSpecification a owl:ObjectProperty ;
+    rdfs:domain slkg:Capability ;
+    rdfs:label "implements specification" ;
+    rdfs:comment "The specification (a W3C Technical Report IRI such as https://www.w3.org/TR/shacl12-core/) that a Capability implements. Wholly or in part: starlayer-profiles.ttl and the specification's gap analysis say what is and is not claimed. Absent where the capability is StarLayer's own design rather than a standard." .
+
+slkg:seeAlsoPath a owl:DatatypeProperty ;
+    rdfs:range xsd:string ;
+    rdfs:label "see also path" ;
+    rdfs:comment "A repository-relative path to another hand-maintained doc a CapabilityArea (typically a roadmap group) points readers at for more detail, e.g. \"packages/starlayer/docs/future_enhancements.md\" - a plain path string, not a dereferenceable URI, so rdfs:seeAlso (which expects a resource) isn't reused here; mirrors slkg:filePath's own plain-string convention instead." .
+
+slkg:implementedByIdentifier a owl:DatatypeProperty ;
+    rdfs:range xsd:string ;
+    rdfs:label "implemented by identifier" ;
+    rdfs:comment "Links a Capability or CapabilityArea to the real code that implements it, named by the same dotted Python path string already used as every extracted entity's own dcterms:identifier (e.g. \"starlayer.shacl.subgraph_extraction.extract_subgraph\") - resolved by matching that identifier at query time, not by hand-minting the auto-generated graph's own blob-URL URIRef (which would be fragile across refactors). Asserted only where a bullet clearly maps to specific real code; left off otherwise (most roadmap bullets have nothing to link to yet). Domain is the union of slkg:Capability and slkg:CapabilityArea, left informal here, matching slkg:hasType/slkg:hasDecorator's own precedent for informal unions." .
+
+#################################################################
+# Query-library classes and properties
+#
+# Hand-curated, like the capability terms above: asserted only in
+# curated/query-library.ttl (the source, edited directly; checked by
+# scripts/build_query_catalogue.py), never by the AST extractor. A NamedQuery
+# stores its query as an sqe: tree (see starlayer.sparql.sqe), not as text.
+#################################################################
+
+slkg:Topic a owl:Class ;
+    rdfs:label "Topic" ;
+    rdfs:comment "A subject area of questions about the code (call graph, inheritance, API surface, ...). Groups CompetencyQuestions and NamedQueries." .
+
+slkg:CompetencyQuestion a owl:Class ;
+    rdfs:label "Competency question" ;
+    rdfs:comment "A question the code knowledge graph should be able to answer, kept in curated/query-library.ttl. slkg:cqStatus says whether it is answerable now." .
+
+slkg:NamedQuery a owl:Class ;
+    rdfs:label "Named query" ;
+    rdfs:comment "A reusable, parameterised query over the code knowledge graph, stored as an sqe: tree (slkg:queryRoot). Run it with codekg.queries.run_query." .
+
+slkg:QueryParameter a owl:Class ;
+    rdfs:label "Query parameter" ;
+    rdfs:comment "A value a NamedQuery needs from its caller. It is bound to the query variable of the same name (slkg:paramName) when the query runs." .
+
+slkg:aboutTopic a owl:ObjectProperty ;
+    rdfs:range slkg:Topic ;
+    rdfs:label "about topic" ;
+    rdfs:comment "Places a NamedQuery or CompetencyQuestion under a Topic." .
+
+slkg:answersCompetencyQuestion a owl:ObjectProperty ;
+    rdfs:domain slkg:NamedQuery ;
+    rdfs:range slkg:CompetencyQuestion ;
+    rdfs:label "answers competency question" ;
+    rdfs:comment "A NamedQuery that answers a CompetencyQuestion." .
+
+slkg:queryRoot a owl:ObjectProperty ;
+    rdfs:domain slkg:NamedQuery ;
+    rdfs:label "query root" ;
+    rdfs:comment "The root node of the sqe: tree that holds the query (an sqe:SelectQuery, sqe:AskQuery or sqe:ConstructQuery)." .
+
+slkg:queryParameter a owl:ObjectProperty ;
+    rdfs:domain slkg:NamedQuery ;
+    rdfs:range slkg:QueryParameter ;
+    rdfs:label "query parameter" ;
+    rdfs:comment "A parameter of a NamedQuery." .
+
+slkg:paramName a owl:DatatypeProperty ;
+    rdfs:domain slkg:QueryParameter ;
+    rdfs:range xsd:string ;
+    rdfs:label "parameter name" ;
+    rdfs:comment "The name of the query variable (without the question mark) this parameter is bound to." .
+
+slkg:paramExample a owl:DatatypeProperty ;
+    rdfs:domain slkg:QueryParameter ;
+    rdfs:range xsd:string ;
+    rdfs:label "parameter example" ;
+    rdfs:comment "An example value that works against the committed code knowledge graph. The tests run every NamedQuery with its examples." .
+
+slkg:paramRequired a owl:DatatypeProperty ;
+    rdfs:domain slkg:QueryParameter ;
+    rdfs:range xsd:boolean ;
+    rdfs:label "parameter required" ;
+    rdfs:comment "True when the query cannot run without this parameter." .
+
+slkg:cqStatus a owl:DatatypeProperty ;
+    rdfs:domain slkg:CompetencyQuestion ;
+    rdfs:range xsd:string ;
+    rdfs:label "competency question status" ;
+    rdfs:comment "\"answerable\" (the graph can answer it now), \"roadmap\" (not built yet), \"curated\" (needs a hand-maintained layer) or \"out-of-scope\" (deliberately excluded). The catalogue marks them ✅ 🔜 🗂️ ⛔." .
+
+#################################################################
+# Build stamp
+#
+# One slkg:KGBuild node, in its own named graph of codekg.trig, written by
+# the extractor (codekg.extractor.stamp) each time it runs. It
+# lets a reader see how old the generated graph is.
+#################################################################
+
+slkg:KGBuild a owl:Class ;
+    rdfs:label "Code KG build" ;
+    rdfs:comment "The record of one run of the extractor: when it ran, from which git commit, and how much it extracted. Exactly one exists in codekg.trig, replaced on every run." .
+
+slkg:builtAt a owl:DatatypeProperty ;
+    rdfs:domain slkg:KGBuild ;
+    rdfs:range xsd:dateTime ;
+    rdfs:label "built at" ;
+    rdfs:comment "When the extractor ran (UTC)." .
+
+slkg:builtFromCommit a owl:DatatypeProperty ;
+    rdfs:domain slkg:KGBuild ;
+    rdfs:range xsd:string ;
+    rdfs:label "built from commit" ;
+    rdfs:comment "The full git commit hash that was checked out when the extractor ran. Absent when git was not available. The extractor reads the working tree, so see slkg:hadUncommittedChanges as well." .
+
+slkg:hadUncommittedChanges a owl:DatatypeProperty ;
+    rdfs:domain slkg:KGBuild ;
+    rdfs:range xsd:boolean ;
+    rdfs:label "had uncommitted changes" ;
+    rdfs:comment "True if a Python file in the extracted source or tests differed from that commit when the extractor ran, so the graph describes more than the commit." .
+
+slkg:sourceFileCount a owl:DatatypeProperty ;
+    rdfs:domain slkg:KGBuild ;
+    rdfs:range xsd:integer ;
+    rdfs:label "source file count" ;
+    rdfs:comment "How many Python files the run extracted." .
+
+#################################################################
+# Upstream issues
+#
+# Hand-curated in curated/upstream-issues.ttl, never by the extractor: the bugs
+# in rdflib, pySHACL, Fuseki and Oxigraph that StarLayer documents in
+# docs/upstream-issues/, and the code that works around each.
+#################################################################
+
+slkg:UpstreamIssue a owl:Class ;
+    rdfs:label "Upstream issue" ;
+    rdfs:comment "A defect or limitation in a library StarLayer builds on, written up in docs/upstream-issues/. Says which code, if any, exists because of it." .
+
+slkg:upstreamProject a owl:DatatypeProperty ;
+    rdfs:domain slkg:UpstreamIssue ;
+    rdfs:range xsd:string ;
+    rdfs:label "upstream project" ;
+    rdfs:comment "The library with the defect: \"rdflib\", \"pyshacl\", \"fuseki\" or \"oxigraph\"." .
+
+slkg:issueDocPath a owl:DatatypeProperty ;
+    rdfs:domain slkg:UpstreamIssue ;
+    rdfs:range xsd:string ;
+    rdfs:label "issue document path" ;
+    rdfs:comment "Repository-relative path of the write-up in docs/upstream-issues/." .
+
+slkg:issueNumber a owl:DatatypeProperty ;
+    rdfs:domain slkg:UpstreamIssue ;
+    rdfs:range xsd:integer ;
+    rdfs:label "issue number" ;
+    rdfs:comment "The entry's number in that write-up. Absent for an entry that is a note rather than a numbered issue." .
+
+slkg:upstreamUrl a owl:DatatypeProperty ;
+    rdfs:domain slkg:UpstreamIssue ;
+    rdfs:range xsd:string ;
+    rdfs:label "upstream URL" ;
+    rdfs:comment "Where the issue was reported or is tracked upstream, if it was." .
+
+slkg:issueStatus a owl:DatatypeProperty ;
+    rdfs:domain slkg:UpstreamIssue ;
+    rdfs:range xsd:string ;
+    rdfs:label "issue status" ;
+    rdfs:comment "\"worked-around\" (code in this repository exists for it), \"fixed-upstream\" (fixed in the library; the write-up stays as history) or \"documented-only\" (known, and no code here deals with it)." .
+
+slkg:workedAroundByIdentifier a owl:DatatypeProperty ;
+    rdfs:domain slkg:UpstreamIssue ;
+    rdfs:range xsd:string ;
+    rdfs:label "worked around by identifier" ;
+    rdfs:comment "The dotted path (a dcterms:identifier in codekg.trig) of code that exists as a workaround for the issue, by the same convention as slkg:implementedByIdentifier." .
+
+slkg:queryText a owl:DatatypeProperty ;
+    rdfs:domain slkg:NamedQuery ;
+    rdfs:range xsd:string ;
+    rdfs:label "query text" ;
+    rdfs:comment "The SPARQL text of a NamedQuery, rendered from its sqe: tree. Derived: it exists only in starlayer-kg.trig (named graph .../codekg/derived), so a reader with only an RDF library can run the query. A parameter is a variable of the same name as its slkg:paramName: bind it (initBindings) or substitute it." .
+

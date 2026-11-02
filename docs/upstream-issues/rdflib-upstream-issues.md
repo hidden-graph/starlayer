@@ -564,6 +564,43 @@ list(g.query("SELECT ?x { <http://e/n0> <http://e/next>+ ?x }"))     # Recursion
 
 Fix: `starlayer/graph/query/path_patches.py::patch_repetition_paths_are_distinct` evaluates the repetition itself (`_repetition_pairs`) with a breadth-first search and a visited set: the same set of pairs (checked against rdflib's own code on 14,400 random evaluations), no recursion. A 5,000-hop chain takes 0.34 s.
 
+## 40. A negative decimal literal is a parse error
+
+`-1.5` (`DECIMAL_NEGATIVE`, SPARQL 1.1 grammar [153]) raises "Not a number"; `-1` and `-1e3` work. The parse action negates with `Literal(-literal, datatype=...)`.
+
+```python
+from rdflib.plugins.sparql import prepareQuery
+prepareQuery("SELECT * WHERE { ?s ?p -1.5 }")
+# actual:   Exception: Not a number; Literal('1.5', datatype=xsd:decimal)
+# expected: parses, the object is "-1.5"^^xsd:decimal
+```
+
+Fix: `starlayer/sparql/_grammar12.py::_fix_rdflib_lexical_gaps` replaces the parse action. Found by the SRL conformance suite (rdflib 7.6.0).
+
+## 41. `\'` is rejected in a double-quoted string, and `\"` in a single-quoted one
+
+ECHAR (grammar [160]) is `\` followed by one of `t b n r f " ' \`, in every string form. rdflib's `STRING_LITERAL1`/`STRING_LITERAL2` regexes allow only `\'` in the first and `\"` in the second.
+
+```python
+prepareQuery("""SELECT * WHERE { ?s ?p "a\\'b" }""")
+# actual:   ParseException: Expected SelectQuery
+# expected: parses, the object is "a'b"
+```
+
+Fix: same function, widens both regexes. Found by the SRL conformance suite.
+
+## 42. `PN_LOCAL_ESC` keeps its backslash
+
+In a prefixed name, `\-`, `\.` and the other `PN_LOCAL_ESC` escapes (grammar [173]) stand for the escaped character. rdflib leaves the backslash in the local name, giving the IRI `http://e/a\-b`, which it then warns "does not look like a valid URI".
+
+```python
+prepareQuery("PREFIX : <http://e/> SELECT * WHERE { :a\\-b ?p ?o }")
+# actual:   subject <http://e/a\-b>
+# expected: <http://e/a-b>
+```
+
+Fix: same function, strips the backslash in a parse action on `PN_LOCAL`. Found by the SRL conformance suite.
+
 ## Withdrawn entries
 
 Items 3 and 4 of this list were withdrawn on 2026-10-25 (GitHub issue #54). Both claimed that a `BIND` should see a variable bound in a sibling or enclosing group, and StarLayer patched rdflib (`patch_evalextend_forgotten_bind_vars`, `patch_lazy_join_expr_dependency_order`) to make it so. SPARQL 1.1 section 18.2.2.6 evaluates each group on its own and joins the results, so a `BIND` cannot see such a variable and plain rdflib was right. For example `SELECT * { VALUES ?x {1 2} { BIND(?x+1 AS ?y) } }` returns `?x` only, and `{ BIND(:v1 AS ?t0) { { BIND(?t0 AS ?o) } UNION { BIND(:v2 AS ?o) } } ?s :p ?o }` returns every `?s :p ?o` row once per union branch (six rows, not two). Both patches were removed; `tests/graph/unit/test_bind_scoping.py` pins the spec behaviour. The numbers 3 and 4 are not reused. Items 8 and 16 (`FILTER`) are the same question for filters and have not been re-examined.

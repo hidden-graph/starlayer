@@ -1,6 +1,6 @@
 """First-pass generator for docs/generated/functionality-overview.generated.md,
 built from the hand-curated functionality graph
-(packages/starlayer/starlayer/codekg/curated/functionality.ttl).
+(tools/kg/codekg/curated/functionality.ttl).
 
 Prose only: it does not render code or source links. A roadmap item's
 slkg:seeAlsoPath becomes a link to that file on GitHub.
@@ -16,7 +16,7 @@ from rdflib import RDF, RDFS, Graph, Namespace
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 PKG_ROOT = REPO_ROOT / "packages/starlayer/starlayer"
-CURATED_PATH = PKG_ROOT / "codekg/curated/functionality.ttl"
+CURATED_PATH = REPO_ROOT / "tools/kg/codekg/curated/functionality.ttl"
 OUT_PATH = REPO_ROOT / "docs/generated/functionality-overview.generated.md"
 
 SLKG = Namespace("https://github.com/hidden-graph/starlayer/ns/codekg#")

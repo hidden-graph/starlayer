@@ -86,7 +86,7 @@ def _split_on_delimiter(text, delim, keep_empty=False):
     single-quoted string - one that then terminated early at the real
     string's own first embedded quote (e.g. a multi-line docstring
     quoting a short phrase, as this project's own cleaned-up docstring
-    convention - see starlayer.codekg.extractor - routinely produces).
+    convention - see codekg.extractor - routinely produces).
     Any ``;``/``,`` between that false terminator and the literal's real
     closing ``\"\"\"`` was then silently swallowed into the wrong group
     instead of splitting there, corrupting every predicate/object pair
@@ -424,7 +424,7 @@ def _split_statements_impl(data, require_final_dot=False):
             # character, e.g. a prefixed name like "ns1:thing.py" or
             # "ns4:builtins.str" - the GitHub-blob-URL-derived filenames
             # and dotted identifiers this project's own code-KG extractor
-            # mints as subjects, see starlayer.codekg.extractor.visitor).
+            # mints as subjects, see codekg.extractor.visitor).
             # A real statement-terminating '.' is never immediately
             # followed by a character that could extend the token just
             # scanned - only whitespace, EOF, '#' (comment), or another

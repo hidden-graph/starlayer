@@ -78,12 +78,11 @@ def test_rules_entailment_combines_with_an_entailment_regime() -> None:
     shapes.parse(
         data=PREFIXES
         + """
-        ex:Shapes a sh:ShapesGraph ; sh:entailment sh:RulesEntailment, <%s> .
+        ex:Shapes a sh:ShapesGraph ; sh:entailment sh:RulesEntailment, <{entailment}> .
         ex:Needs a sh:NodeShape ; sh:targetClass ex:Animal ; sh:property [ sh:path ex:p ; sh:minCount 1 ] .
         ex:Give a sh:SPARQLRule ;
           sh:construct "PREFIX ex: <http://example.org/> CONSTRUCT { ?s ex:p ex:a . } WHERE { ?s a ex:Animal . }" .
-        """
-        % ENTAILMENT.RDFS,
+        """.replace("{entailment}", str(ENTAILMENT.RDFS)),
         format="turtle",
     )
     data = StarLayerGraph()

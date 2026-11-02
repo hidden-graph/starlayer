@@ -11,8 +11,11 @@ from pathlib import Path
 _PACKAGES_STARLAYER = Path(__file__).resolve().parents[1] / "packages" / "starlayer"
 if str(_PACKAGES_STARLAYER) not in sys.path:
     sys.path.insert(0, str(_PACKAGES_STARLAYER))
+_TOOLS_KG = str(Path(__file__).resolve().parents[1] / "tools" / "kg")
+if _TOOLS_KG not in sys.path:
+    sys.path.insert(0, _TOOLS_KG)
 
-from starlayer.codekg.extractor.cli import main  # noqa: E402
+from codekg.extractor.cli import main  # noqa: E402
 
 if __name__ == "__main__":
     sys.exit(main())

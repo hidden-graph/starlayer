@@ -30,8 +30,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "packages/starlayer"))
+sys.path.insert(0, str(ROOT / "tools/kg"))
 
-OUTPUT_REL = "packages/starlayer/starlayer/codekg/starlayer-kg.trig"
+OUTPUT_REL = "tools/kg/codekg/starlayer-kg.trig"
 
 PREFIXES = {
     "slkg": "https://github.com/hidden-graph/starlayer/ns/codekg#",
@@ -53,7 +54,7 @@ PREFIXES = {
 def build_dataset():
     """The combined dataset: the code graph, curated layer and build stamp, plus the vocabulary and derived query text."""
     from starlayer import StarLayerDataset
-    from starlayer.codekg import (
+    from codekg import (
         CODEKG_NS,
         CURATED_GRAPH_IRI,
         DERIVED_GRAPH_IRI,

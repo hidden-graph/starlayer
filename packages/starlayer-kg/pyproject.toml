@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "starlayer-kg"
+# Kept equal to starlayer's version by scripts/publish_kg.py, which refuses to build when they differ.
+version = "0.1.0"
+description = "The StarLayer code knowledge graph as installable data: code graph, vocabulary, curated layer and named queries in one TriG file"
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [{ name = "John Clements", email = "clements.john.j@gmail.com" }]
+requires-python = ">=3.10"
+# Loading needs starlayer (the trig12 parser); the data itself is plain TriG that any RDF library can read.
+dependencies = ["starlayer>=0.1"]
+
+[project.urls]
+Source = "https://github.com/hidden-graph/starlayer"
+
+[tool.setuptools]
+include-package-data = false
+
+[tool.setuptools.packages.find]
+include = ["starlayer_kg*"]
+
+[tool.setuptools.package-data]
+# Both files are written by scripts/publish_kg.py just before the wheel is built; neither is committed.
+starlayer_kg = ["starlayer-kg.trig", "BUILD.json"]

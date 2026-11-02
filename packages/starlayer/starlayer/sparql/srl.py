@@ -129,6 +129,7 @@ from rdflib.plugins.sparql.parser import (
     Var,
     iri,
 )
+from rdflib.plugins.sparql.parser import expandUnicodeEscapes as _expand_unicode_escapes
 from rdflib.plugins.sparql.parserutils import Comp, CompValue, Param
 from rdflib.plugins.sparql.pyparsing_compat import rest_of_line
 from rdflib.plugins.sparql.sparql import Prologue
@@ -143,9 +144,11 @@ from ._srl_ast import (  # noqa: F401 - re-exported, see module docstring
     TriplePattern,
 )
 from .from_rdf import _decode
+from .sqe.expr_text import expr_text as _sqe_expr_text
+from .sqe.to_rdf import _encode_expr
+from .sqe.vocab import SQE as _SQE
 from .srl_semantic_checks import _check_ruleset
-from .ssyn_to_text import _render_expr_text
-from .to_rdf import _encode, _new_starlayer_graph
+from .to_rdf import _NS_OVERRIDES, _encode, _new_starlayer_graph
 from .triple_term import TripleTermNode
 
 SRL = Namespace("https://github.com/hidden-graph/starlayer/ns/sparql/srl#")
@@ -252,10 +255,19 @@ def _expand_same_subject(cv: CompValue) -> list[srl_ast.TriplePattern]:
     return [t for i in range(0, len(terms), 3) for t in _expand_path(terms[i], terms[i + 1], terms[i + 2])]
 
 
-_DataTriplesBlock = ZeroOrMore(Param("subjects", _SameSubjectData, isList=True) + Optional(_Period))
+def _group_end(production):
+    """What may follow a triple group: a ``.``, or anything that is not another triple group.
+
+    The grammar's ``TriplesBlock ::= TriplesSameSubject ( '.' TriplesBlock? )?`` needs the ``.`` between two
+    groups; reading it as optional made ``?x :a ?y ?y :b ?z`` parse as two triples.
+    """
+    return _Period | ~production
+
+
+_DataTriplesBlock = ZeroOrMore(Param("subjects", _SameSubjectData, isList=True) + _group_end(_SameSubjectData))
 _SRLData = Comp("Data", Keyword("DATA") + Suppress("{") + _DataTriplesBlock + Suppress("}"))
 
-_HeadTemplateBlock = ZeroOrMore(Param("subjects", _SameSubject, isList=True) + Optional(_Period))
+_HeadTemplateBlock = ZeroOrMore(Param("subjects", _SameSubject, isList=True) + _group_end(_SameSubject))
 _HeadTemplate = Comp("HeadTemplate", Suppress("{") + _HeadTemplateBlock + Suppress("}"))
 
 _Filter = Comp("Filter", Keyword("FILTER") + Param("expr", Constraint))
@@ -268,7 +280,7 @@ _Assignment = Comp(
 # Negation bodies are grammatically restricted to triple patterns + filters
 # only (no nested negation/assignment) - enforced structurally: this
 # alternation has no Negation/Assignment branch.
-_NegationBodyItem = (Param("inner", _SameSubjectPattern, isList=True) + Optional(_Period)) | (
+_NegationBodyItem = (Param("inner", _SameSubjectPattern, isList=True) + _group_end(_SameSubjectPattern)) | (
     Param("inner", _Filter, isList=True) + Optional(_Period)
 )
 _Negation = Comp(
@@ -276,7 +288,7 @@ _Negation = Comp(
     Keyword("NOT") + Param("data", _BoolFlag("DATA")) + Suppress("{") + ZeroOrMore(_NegationBodyItem) + Suppress("}"),
 )
 
-_BodyItem = (Param("body", _SameSubjectPattern, isList=True) + Optional(_Period)) | (
+_BodyItem = (Param("body", _SameSubjectPattern, isList=True) + _group_end(_SameSubjectPattern)) | (
     Param("body", _Filter | _Negation | _Assignment, isList=True) + Optional(_Period)
 )
 _BodyPattern = Comp("BodyPattern", Suppress("{") + ZeroOrMore(_BodyItem) + Suppress("}"))
@@ -302,6 +314,8 @@ _RuleSetGrammar = Comp(
     ZeroOrMore(Param("prologue", _Prologue1Decl, isList=True) | Param("body", _RuleOrData, isList=True)),
 )
 _RuleSetGrammar.ignore("#" + rest_of_line)
+# pyparsing expands tabs to spaces before parsing unless told not to, which silently changed a tab inside a string literal.
+_RuleSetGrammar.parse_with_tabs()
 
 
 class SRLError(ValueError):
@@ -358,6 +372,32 @@ def _opt_field(cv: CompValue, key: str):
     return cv[key] if key in cv else None
 
 
+# SPARQL built-ins that rdflib's shared expression grammar accepts but SRL's BuiltInCall (spec [118]) does not
+# list. RAND is non-deterministic, which a fixpoint evaluation cannot allow, and EXISTS has no defined meaning
+# in a rule; the rest are simply outside the draft's function set.
+_NOT_IN_SRL = {
+    "Builtin_BOUND": "BOUND",
+    "Builtin_COALESCE": "COALESCE",
+    "Builtin_RAND": "RAND",
+    "Builtin_MD5": "MD5",
+    "Builtin_SHA1": "SHA1",
+    "Builtin_SHA256": "SHA256",
+    "Builtin_SHA384": "SHA384",
+    "Builtin_SHA512": "SHA512",
+    "Builtin_EXISTS": "EXISTS",
+    "Builtin_NOTEXISTS": "NOT EXISTS",
+}
+
+
+def _reject_non_srl_builtins(tree) -> None:
+    def visit(node):
+        name = getattr(node, "name", None)
+        if name in _NOT_IN_SRL:
+            raise SRLParseError(f"SRL: {_NOT_IN_SRL[name]} is not part of SRL's built-in function set (spec BuiltInCall)")
+
+    algebra.traverse(tree, visitPost=visit)
+
+
 def _resolve_pnames(tree, prologue: Prologue):
     return algebra.traverse(tree, visitPost=partial(algebra.translatePName, prologue=prologue))
 
@@ -402,13 +442,25 @@ def _build_prologue(decls: list[CompValue], base: str | None = None) -> Prologue
     return translatePrologue(decls, base=base)
 
 
+def _canonical(expr):
+    """The expression in canonical (minimal) form.
+
+    rdflib's parser wraps every operand in the full precedence chain (``ConditionalOr`` > ``ConditionalAnd`` > ...
+    > ``Multiplicative``), so the literal ``1`` arrives as five nested single-child nodes. ``simplifyFilters``
+    collapses them, and it is what rdflib itself applies before evaluating a query. The AST keeps the collapsed
+    form so that it equals what the ``srl:`` tree (which stores the same form) decodes back to, and the same
+    expression always has the same tree.
+    """
+    return algebra.simplifyFilters(expr)
+
+
 def _build_negation_inner(items: list) -> list[srl_ast.NegationBodyElement]:
     out: list[srl_ast.NegationBodyElement] = []
     for item in items:
         if item.name == "SameSubject":
             out.extend(_expand_same_subject(item))
         elif item.name == "Filter":
-            out.append(srl_ast._FilterElement(expr=item["expr"]))
+            out.append(srl_ast._FilterElement(expr=_canonical(item["expr"])))
         else:  # pragma: no cover - grammar structurally forbids anything else
             raise SRLParseError(f"illegal negation body element: {item!r}")
     return out
@@ -420,9 +472,9 @@ def _build_body_elements(items: list) -> list[srl_ast.BodyElement]:
         if cv.name == "SameSubject":
             out.extend(_expand_same_subject(cv))
         elif cv.name == "Filter":
-            out.append(srl_ast._FilterElement(expr=cv["expr"]))
+            out.append(srl_ast._FilterElement(expr=_canonical(cv["expr"])))
         elif cv.name == "Assignment":
-            out.append(srl_ast._AssignmentElement(var=cv["var"], expr=cv["expr"]))
+            out.append(srl_ast._AssignmentElement(var=cv["var"], expr=_canonical(cv["expr"])))
         elif cv.name == "Negation":
             out.append(srl_ast._NegationElement(inner=_build_negation_inner(_list_field(cv, "inner")), evaldata=not bool(cv["data"])))
         else:
@@ -509,11 +561,12 @@ def parse_ruleset(text: str, base: str | None = None, *, validate: bool = True) 
     try:
         from starlayer.sparql.parse12 import parse_serialized
 
-        parsed = parse_serialized(lambda: _RuleSetGrammar.parse_string(text, parse_all=True))
+        parsed = parse_serialized(lambda: _RuleSetGrammar.parse_string(_expand_unicode_escapes(text), parse_all=True))
     except Exception as exc:  # pyparsing.ParseException et al.
         raise SRLParseError(str(exc)) from exc
 
     root: CompValue = parsed[0]
+    _reject_non_srl_builtins(root)
     prologue = _build_prologue(_list_field(root, "prologue"), base)
     try:
         resolved = _resolve_pnames(root, prologue)
@@ -575,12 +628,30 @@ def _rdf_list(graph: Graph, items: list) -> BNode | URIRef:
     return list_node
 
 
+def _encode_node(value, graph: Graph):
+    """Encode one leaf of the tree: an expression, a triple term, or a plain term/flag.
+
+    Expressions and triple terms are encoded exactly as ``sqe:`` encodes them (``sqe.to_rdf._encode_expr``):
+    after ``simplifyFilters`` collapses rdflib's precedence chains to their minimal form, with triple terms
+    typed ``sqe:TripleTerm`` and aggregates ``spexpr:``, so the tree contains no ``salg:`` term and validates
+    against the ``spexpr:``/``sqe:`` shapes alone. Anything else (an IRI, variable, literal, blank node, a
+    boolean flag) goes through the shared term encoder, with triple terms inside it typed the same way.
+    """
+    if isinstance(value, CompValue):
+        return _encode_expr(algebra.simplifyFilters(value), graph)
+    token = _NS_OVERRIDES.set({"TripleTerm": _SQE})
+    try:
+        return _encode(value, graph)
+    finally:
+        _NS_OVERRIDES.reset(token)
+
+
 def _triple_to_rdf(triple: srl_ast.TriplePattern, graph: Graph) -> BNode:
     node = BNode()
     graph.add((node, RDF.type, _TRIPLE_PATTERN))
-    graph.add((node, _TRIPLE_SUBJECT, _encode(triple.subject, graph)))
-    graph.add((node, _TRIPLE_PREDICATE, _encode(triple.predicate, graph)))
-    graph.add((node, _TRIPLE_OBJECT, _encode(triple.object, graph)))
+    graph.add((node, _TRIPLE_SUBJECT, _encode_node(triple.subject, graph)))
+    graph.add((node, _TRIPLE_PREDICATE, _encode_node(triple.predicate, graph)))
+    graph.add((node, _TRIPLE_OBJECT, _encode_node(triple.object, graph)))
     return node
 
 
@@ -590,20 +661,20 @@ def _body_element_to_rdf(element: srl_ast.BodyElement, graph: Graph) -> BNode:
     if isinstance(element, srl_ast._FilterElement):
         node = BNode()
         graph.add((node, RDF.type, _FILTER_ELEMENT))
-        graph.add((node, _EXPR, _encode(element.expr, graph)))
+        graph.add((node, _EXPR, _encode_node(element.expr, graph)))
         return node
     if isinstance(element, srl_ast._AssignmentElement):
         node = BNode()
         graph.add((node, RDF.type, _ASSIGNMENT_ELEMENT))
-        graph.add((node, _VAR, _encode(element.var, graph)))
-        graph.add((node, _EXPR, _encode(element.expr, graph)))
+        graph.add((node, _VAR, _encode_node(element.var, graph)))
+        graph.add((node, _EXPR, _encode_node(element.expr, graph)))
         return node
     if isinstance(element, srl_ast._NegationElement):
         node = BNode()
         graph.add((node, RDF.type, _NEGATION_ELEMENT))
         inner_nodes = [_body_element_to_rdf(e, graph) for e in element.inner]
         graph.add((node, _INNER, _rdf_list(graph, inner_nodes)))
-        graph.add((node, _NEGATION_EVALDATA_FLAG, _encode(element.evaldata, graph)))
+        graph.add((node, _NEGATION_EVALDATA_FLAG, _encode_node(element.evaldata, graph)))
         return node
     raise NotImplementedError(f"starlayer.sparql.srl: no encoding for body element {element!r}")  # pragma: no cover
 
@@ -615,7 +686,7 @@ def _rule_to_rdf(rule: srl_ast._Rule, graph: Graph) -> BNode:
     graph.add((node, _HEAD, _rdf_list(graph, head_nodes)))
     body_nodes = [_body_element_to_rdf(e, graph) for e in rule.body]
     graph.add((node, _BODY, _rdf_list(graph, body_nodes)))
-    graph.add((node, _RULE_EVALDATA_FLAG, _encode(rule.evaldata, graph)))
+    graph.add((node, _RULE_EVALDATA_FLAG, _encode_node(rule.evaldata, graph)))
     if rule.id is not None:
         graph.add((node, _RULE_ID, rule.id))
     return node
@@ -754,14 +825,27 @@ def _block_text(triples: list[srl_ast.TriplePattern], namespace_manager: Namespa
     return " ".join(_triple_text(t, namespace_manager) for t in triples)
 
 
+def _expr_text(expr, namespace_manager: NamespaceManager | None) -> str:
+    """An expression as SPARQL text, rendered by ``sqe:``'s renderer from the same tree the encoder builds.
+
+    (The older route, rdflib's ``translateAlgebra`` placeholder renderer, printed ``{Function}``,
+    ``{UnaryMinus}`` and ``{TripleTerm}`` for calls, unary operators and triple terms, and dropped the
+    parentheses that make ``(?y + 1) * 2`` mean what it says.)
+    """
+    graph = Graph()
+    node = _encode_expr(algebra.simplifyFilters(expr), graph)
+    prefixes = {prefix: str(namespace) for prefix, namespace in namespace_manager.namespaces()} if namespace_manager is not None else {}
+    return _sqe_expr_text(node, graph, prefixes)
+
+
 def _body_element_text(element: srl_ast.BodyElement, namespace_manager: NamespaceManager | None) -> str:
     if isinstance(element, srl_ast.TriplePattern):
         return _triple_text(element, namespace_manager)
     if isinstance(element, srl_ast._FilterElement):
-        return f"FILTER({_render_expr_text(element.expr)})"
+        return f"FILTER({_expr_text(element.expr, namespace_manager)})"
     if isinstance(element, srl_ast._AssignmentElement):
         var = _term_text(element.var, namespace_manager)
-        return f"SET ({var} := {_render_expr_text(element.expr)})"
+        return f"SET ({var} := {_expr_text(element.expr, namespace_manager)})"
     if isinstance(element, srl_ast._NegationElement):
         inner = " ".join(_body_element_text(e, namespace_manager) for e in element.inner)
         data = "" if element.evaldata else "DATA "
@@ -893,36 +977,37 @@ def resolve_imports(ruleset: srl_ast.RuleSet, loader, *, location: str | None = 
 # ---------------------------------------------------------------------------
 
 def _ontology_graph() -> Graph:
-    """The ``srl:`` RDFS ontology, combined with ``salg:``'s and
-    ``spexpr:``'s - private: see module docstring for why this isn't
-    exposed publicly.
+    """The ``srl:`` RDFS ontology, combined with the shared ``spexpr:`` expression ontology and ``sqe:``'s
+    (which supplies ``sqe:TripleTerm``) - private: see module docstring for why this isn't exposed publicly.
 
-    All three must be loaded together: this module's own SHACL shapes use
-    ``sh:class spexpr:Expression``/``spexpr:Variable``, and the RDFS
-    subclass entailment those checks depend on only resolves correctly
-    when ``srl_owl``, ``sparql_owl``, and ``spexpr_owl`` are all present in
-    the same graph.
+    All three must be loaded together: this module's own SHACL shapes use ``sh:class spexpr:Expression`` and
+    ``spexpr:Variable``, and the RDFS subclass entailment those checks depend on only resolves correctly when
+    the ontologies are in the same graph. Nothing here comes from ``salg:``: SRL is published with ``spexpr:``
+    and ``sqe:``, not with the algebra-tree encoding.
 
     Returns:
         A fresh combined ontology graph.
     """
     from starlayer import starontology
 
-    g = starontology.get_ontology_graph("srl_owl")
-    g += starontology.get_ontology_graph("sparql_owl")
-    g += starontology.get_ontology_graph("spexpr_owl")
+    from .expr_validation import ontology_graph as spexpr_ontology_graph
+
+    g = spexpr_ontology_graph()
+    g += starontology.get_ontology_graph("srl_owl")
+    g += starontology.get_ontology_graph("sqe_owl")
     return g
 
 
 def _shapes_graph() -> Graph:
-    """A fresh graph of the ``srl:`` shapes, combined with ``salg:``'s and
-    ``spexpr:``'s - private, same reasoning as ``_ontology_graph()``
-    above."""
+    """A fresh graph of the ``srl:`` shapes, combined with the shared ``spexpr:`` expression shapes and
+    ``sqe:``'s (the triple-term shapes) - private, same reasoning as ``_ontology_graph()`` above. No ``salg:``."""
     from starlayer import starontology
 
-    g = starontology.get_ontology_graph("srl_shacl")
-    g += starontology.get_ontology_graph("sparql_shacl")
-    g += starontology.get_ontology_graph("spexpr_shacl")
+    from .expr_validation import shapes_graph as spexpr_shapes_graph
+
+    g = spexpr_shapes_graph()
+    g += starontology.get_ontology_graph("srl_shacl")
+    g += starontology.get_ontology_graph("sqe_shacl")
     return g
 
 

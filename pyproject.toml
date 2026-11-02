@@ -74,20 +74,17 @@ include-package-data = false
 [tool.setuptools.packages.find]
 where = ["packages/starlayer"]
 include = ["starlayer*"]
-# starlayer.codekg is repo tooling (the code knowledge graph extractor); nothing in
-# the library imports it, so it is not shipped. Scripts and tests use it from the repo.
-exclude = ["starlayer.codekg*"]
 
 [tool.setuptools.package-data]
 # Only what the library reads at run time. Not shipped: starontology.trig (a
-# generated copy of the .ttl files) and skos.rdf (build input). The codekg
-# subpackage is excluded above.
+# generated copy of the .ttl files) and skos.rdf (build input). The code knowledge
+# graph tooling lives in tools/kg, outside the package.
 starlayer = ["py.typed", "starontology/*.ttl"]
 
 [tool.pytest.ini_options]
 testpaths = ["packages/starlayer/tests"]
-# Lets tests import the build-time modules in scripts/ (build_meta_shapes.py) directly.
-pythonpath = ["scripts"]
+# Lets tests import the build-time modules in scripts/ (build_meta_shapes.py) and the code-KG tooling in tools/kg (the `codekg` package) directly.
+pythonpath = ["scripts", "tools/kg"]
 markers = [
     "integration: tests requiring a running Fuseki/Oxigraph server or a real backend store (e.g. SQLite via rdflib-sqlalchemy) - the 'full testing' tier.",
     "w3c_sparql12: W3C SPARQL 1.2 test suite cross-checks.",
@@ -98,10 +95,11 @@ markers = [
     "shacl: tests of the SHACL area (tests/shacl); applied automatically from the directory.",
     "sparql: tests of the SPARQL area, including SRL and sqe (tests/sparql); applied automatically from the directory.",
     "starontology: tests of the bundled ontologies and shapes (tests/starontology); applied automatically from the directory.",
-    "codekg: tests of the code knowledge graph tooling (tests/codekg); applied automatically from the directory.",
+    "kg: tests of the code knowledge graph tooling (tools/kg), kept in tests/kg; applied automatically from the directory.",
     "sqe_coverage: the sqe query-coverage set (each SPARQL feature round-tripped through sqe and compared with plain rdflib) - opt-in: pytest --sqe-coverage (or STARLAYER_SQE_COVERAGE=1, or -m sqe_coverage). See tests/conftest.py.",
     "codekg_queries: the code-KG query library run against the real code knowledge graph - opt-in: pytest --codekg-queries (or STARLAYER_CODEKG_QUERIES=1, or -m codekg_queries). See tests/conftest.py.",
     "manchester_conformance: completeness suite for the Manchester Syntax parser and manch: tree (tests/starontology/manchester_conformance). Opt-in: pytest --manchester-conformance (or STARLAYER_MANCHESTER_CONFORMANCE=1, or -m manchester_conformance). Runs from committed OWL API goldens; no JVM needed. See tests/conftest.py.",
+    "srl_conformance: completeness suite for the SRL (SPARQL Rules) parser, srl: tree and evaluator (tests/sparql/srl_conformance). Opt-in: pytest --srl-conformance (or STARLAYER_SRL_CONFORMANCE=1, or -m srl_conformance). About 10 minutes; no external tools. See tests/conftest.py.",
 ]
 
 [tool.ruff]
@@ -120,6 +118,10 @@ select = [
     "UP",              # pyupgrade: modernize to target-version syntax
     "B",               # flake8-bugbear: common bug-prone patterns
 ]
+
+[tool.ruff.lint.isort]
+# the code-KG tooling (tools/kg) is imported like the library: not first-party
+known-third-party = ["codekg"]
 
 [tool.ruff.lint.per-file-ignores]
 # E701/E702 (multiple statements per line): these parser files deliberately

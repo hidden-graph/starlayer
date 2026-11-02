@@ -27,6 +27,8 @@ package on disk.
 
 from __future__ import annotations
 
+import re
+
 from pyparsing import CaselessKeyword as Keyword
 from pyparsing import (
     Forward,
@@ -688,6 +690,7 @@ _AnnotationReifierTermExplicit = (
 
 def _annotation_reifier_term_explicit_action(tokens):
     s, p, o, r = tokens[0], tokens[1], tokens[2], tokens[3]
+    # a bare `~` (Reifier ::= '~' VarOrReifierId?) names a fresh reifier, like the unmarked form
     return [_annotation_reifier_term(s, p, o, r if r is not None else BNode())]
 
 
@@ -750,6 +753,39 @@ _ANNOTATION_TERM_FORMS = (
     _AnnotationReifierTermExplicit,
     _AnnotationReifierTermAnon,
 )
+
+def _fix_rdflib_lexical_gaps() -> None:
+    """Repair three lexical defects in rdflib's own SPARQL terminals, in place and idempotently.
+
+    All three reproduce against plain ``rdflib.plugins.sparql.prepareQuery`` with no starlayer involved
+    (see ``docs/upstream-issues/rdflib-upstream-issues.md`` items 19 to 21):
+
+    * ``-1.5``: ``DECIMAL_NEGATIVE`` negates through ``Literal(-literal, ...)``, which raises "Not a number".
+    * ``"a\\'b"`` / ``'a\\"b'``: ECHAR (spec [160]) allows ``\\"`` and ``\\'`` in either quote style; the
+      string regexes allowed only the one matching the quote.
+    * ``:a\\-b``: ``PN_LOCAL_ESC`` (spec [173]) keeps its backslash in the local name, giving an invalid IRI.
+    """
+    from rdflib.plugins.sparql import parser as sparql_parser
+
+    if getattr(sparql_parser.DECIMAL_NEGATIVE, "_starlayer_lexical_fix", False):
+        return
+
+    sparql_parser.DECIMAL_NEGATIVE.set_parse_action(
+        lambda x: RDFTermLiteral("-" + str(x[0]), datatype=x[0].datatype)
+    )
+    sparql_parser.DECIMAL_NEGATIVE._starlayer_lexical_fix = True
+
+    for terminal, quote_escape in ((sparql_parser.STRING_LITERAL1, "['ntbrf\\\\]"), (sparql_parser.STRING_LITERAL2, '["ntbrf\\\\]')):
+        widened = terminal.pattern.replace(quote_escape, "[tbnrf\"'\\\\]")
+        if widened != terminal.pattern:
+            terminal.pattern = widened
+            terminal.re = re.compile(widened, re.U)
+            terminal.re_match = terminal.re.match
+
+    sparql_parser.PN_LOCAL.add_parse_action(
+        lambda t: re.sub(r"\\([_~.\-!$&\"'()*+,;=/?#@%])", r"\1", t[0])
+    )
+
 
 def _already_installed() -> bool:
     """State-based idempotency check - is TripleTermCallValue actually
@@ -830,6 +866,7 @@ def install(force: bool = False) -> None:
     had already run in the same process (see ``graph/CLAUDE.md`` for the
     measured before/after numbers).
     """
+    _fix_rdflib_lexical_gaps()
     if not force and _already_installed():
         return
     for rule in (GraphTerm, VarOrTerm, GraphNode, GraphNodePath):

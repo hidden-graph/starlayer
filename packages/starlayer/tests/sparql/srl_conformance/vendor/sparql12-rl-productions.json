@@ -1,0 +1,773 @@
+{
+ "source": "https://www.w3.org/TR/sparql12-rl/",
+ "document": "W3C Working Draft 14 October 2026",
+ "retrieved": "2026-10-18",
+ "sha256_of_html": "5105266fe567a3b1658e2faa804192251dd84d199506c61a9c06185730690950",
+ "productions": [
+  {
+   "n": 1,
+   "name": "RuleSet",
+   "rhs": "RuleOrDataBlock"
+  },
+  {
+   "n": 2,
+   "name": "RuleOrDataBlock",
+   "rhs": "Prologue ( RuleOrData+ ( Prologue1 RuleOrData* )* )?"
+  },
+  {
+   "n": 3,
+   "name": "RuleOrData",
+   "rhs": "Rule | Data"
+  },
+  {
+   "n": 4,
+   "name": "Prologue",
+   "rhs": "Prologue1*"
+  },
+  {
+   "n": 5,
+   "name": "Prologue1",
+   "rhs": "BaseDecl | PrefixDecl | VersionDecl | ImportsDecl"
+  },
+  {
+   "n": 6,
+   "name": "BaseDecl",
+   "rhs": "'BASE' IRIREF"
+  },
+  {
+   "n": 7,
+   "name": "PrefixDecl",
+   "rhs": "'PREFIX' PNAME_NS IRIREF"
+  },
+  {
+   "n": 8,
+   "name": "VersionDecl",
+   "rhs": "'VERSION' VersionSpecifier"
+  },
+  {
+   "n": 9,
+   "name": "VersionSpecifier",
+   "rhs": "STRING_LITERAL1 | STRING_LITERAL2"
+  },
+  {
+   "n": 10,
+   "name": "ImportsDecl",
+   "rhs": "'IMPORTS' iri"
+  },
+  {
+   "n": 11,
+   "name": "Rule",
+   "rhs": "'RULE' iri? HeadTemplate 'WHERE' 'DATA'? BodyPattern"
+  },
+  {
+   "n": 12,
+   "name": "Data",
+   "rhs": "'DATA' '{' DataTriplesBlock? '}'"
+  },
+  {
+   "n": 13,
+   "name": "HeadTemplate",
+   "rhs": "'{' HeadTemplateBlock? '}'"
+  },
+  {
+   "n": 14,
+   "name": "BodyPattern",
+   "rhs": "'{' BodyTriplesBlock? ( BodyNotTriples '.'? BodyTriplesBlock? )* '}'"
+  },
+  {
+   "n": 15,
+   "name": "BodyNotTriples",
+   "rhs": "Filter | Negation | Assignment"
+  },
+  {
+   "n": 16,
+   "name": "Filter",
+   "rhs": "'FILTER' Constraint"
+  },
+  {
+   "n": 17,
+   "name": "Constraint",
+   "rhs": "BrackettedExpression | BuiltInCall | FunctionCall"
+  },
+  {
+   "n": 18,
+   "name": "FunctionCall",
+   "rhs": "iri ArgList"
+  },
+  {
+   "n": 19,
+   "name": "ArgList",
+   "rhs": "NIL | '(' Expression ( ',' Expression )* ')'"
+  },
+  {
+   "n": 20,
+   "name": "ExpressionList",
+   "rhs": "NIL | '(' Expression ( ',' Expression )* ')'"
+  },
+  {
+   "n": 21,
+   "name": "Negation",
+   "rhs": "'NOT' 'DATA'? '{' BodyBasic '}'"
+  },
+  {
+   "n": 22,
+   "name": "BodyBasic",
+   "rhs": "BodyTriplesBlock? ( BodyBasicNotTriples '.'? BodyTriplesBlock? )*"
+  },
+  {
+   "n": 23,
+   "name": "BodyBasicNotTriples",
+   "rhs": "Filter"
+  },
+  {
+   "n": 24,
+   "name": "Assignment",
+   "rhs": "'SET' '(' Var ':=' Expression ')'"
+  },
+  {
+   "n": 25,
+   "name": "DataTriplesBlock",
+   "rhs": "TriplesSameSubjectData ( '.' DataTriplesBlock? )?"
+  },
+  {
+   "n": 26,
+   "name": "TriplesSameSubjectData",
+   "rhs": "RDFTermData PropertyListNotEmptyData | TriplesNodeData PropertyListData | ReifiedTripleBlockData"
+  },
+  {
+   "n": 27,
+   "name": "PropertyListData",
+   "rhs": "PropertyListNotEmptyData?"
+  },
+  {
+   "n": 28,
+   "name": "PropertyListNotEmptyData",
+   "rhs": "VerbData ObjectListData ( ';' ( VerbData ObjectListData )? )*"
+  },
+  {
+   "n": 29,
+   "name": "VerbData",
+   "rhs": "iri | 'a'"
+  },
+  {
+   "n": 30,
+   "name": "ObjectListData",
+   "rhs": "ObjectData ( ',' ObjectData )*"
+  },
+  {
+   "n": 31,
+   "name": "ObjectData",
+   "rhs": "GraphNodeData AnnotationData"
+  },
+  {
+   "n": 32,
+   "name": "GraphNodeData",
+   "rhs": "RDFTermData | TriplesNodeData | ReifiedTripleData"
+  },
+  {
+   "n": 33,
+   "name": "TriplesNodeData",
+   "rhs": "CollectionData | BlankNodePropertyListData"
+  },
+  {
+   "n": 34,
+   "name": "BlankNodePropertyListData",
+   "rhs": "'[' PropertyListNotEmptyData ']'"
+  },
+  {
+   "n": 35,
+   "name": "CollectionData",
+   "rhs": "'(' GraphNodeData+ ')'"
+  },
+  {
+   "n": 36,
+   "name": "AnnotationData",
+   "rhs": "( ReifierData | AnnotationBlockData )*"
+  },
+  {
+   "n": 37,
+   "name": "AnnotationBlockData",
+   "rhs": "'{|' PropertyListNotEmptyData '|}'"
+  },
+  {
+   "n": 38,
+   "name": "ReifierData",
+   "rhs": "'~' ReifierIdData?"
+  },
+  {
+   "n": 39,
+   "name": "ReifierIdData",
+   "rhs": "iri | BlankNode"
+  },
+  {
+   "n": 40,
+   "name": "ReifiedTripleBlockData",
+   "rhs": "ReifiedTripleData PropertyListData"
+  },
+  {
+   "n": 41,
+   "name": "ReifiedTripleData",
+   "rhs": "'<<' ReifiedTripleSubjectData VerbData ReifiedTripleObjectData ReifierData? '>>'"
+  },
+  {
+   "n": 42,
+   "name": "ReifiedTripleSubjectData",
+   "rhs": "iri | RDFLiteral | NumericLiteral | BooleanLiteral | BlankNode | ReifiedTripleData | TripleTermData"
+  },
+  {
+   "n": 43,
+   "name": "ReifiedTripleObjectData",
+   "rhs": "iri | RDFLiteral | NumericLiteral | BooleanLiteral | BlankNode | ReifiedTripleData | TripleTermData"
+  },
+  {
+   "n": 44,
+   "name": "TripleTermData",
+   "rhs": "'<<(' TripleTermSubjectData VerbData TripleTermObjectData ')>>'"
+  },
+  {
+   "n": 45,
+   "name": "TripleTermSubjectData",
+   "rhs": "iri | RDFLiteral | NumericLiteral | BooleanLiteral | BlankNode | TripleTermData"
+  },
+  {
+   "n": 46,
+   "name": "TripleTermObjectData",
+   "rhs": "iri | RDFLiteral | NumericLiteral | BooleanLiteral | BlankNode | TripleTermData"
+  },
+  {
+   "n": 47,
+   "name": "HeadTemplateBlock",
+   "rhs": "TriplesBlockTemplate"
+  },
+  {
+   "n": 48,
+   "name": "TriplesBlockTemplate",
+   "rhs": "TriplesSameSubjectTemplate ( '.' TriplesBlockTemplate? )?"
+  },
+  {
+   "n": 49,
+   "name": "TriplesSameSubjectTemplate",
+   "rhs": "VarOrRDFTerm PropertyListNotEmptyTemplate | TriplesNodeTemplate PropertyListTemplate | ReifiedTripleBlockTemplate"
+  },
+  {
+   "n": 50,
+   "name": "PropertyListTemplate",
+   "rhs": "PropertyListNotEmptyTemplate?"
+  },
+  {
+   "n": 51,
+   "name": "PropertyListNotEmptyTemplate",
+   "rhs": "Verb ObjectListTemplate ( ';' ( Verb ObjectListTemplate )? )*"
+  },
+  {
+   "n": 52,
+   "name": "ObjectListTemplate",
+   "rhs": "ObjectTemplate ( ',' ObjectTemplate )*"
+  },
+  {
+   "n": 53,
+   "name": "ObjectTemplate",
+   "rhs": "GraphNodeTemplate AnnotationTemplate"
+  },
+  {
+   "n": 54,
+   "name": "GraphNodeTemplate",
+   "rhs": "VarOrRDFTerm | TriplesNodeTemplate | ReifiedTriple"
+  },
+  {
+   "n": 55,
+   "name": "TriplesNodeTemplate",
+   "rhs": "CollectionTemplate | BlankNodePropertyListTemplate"
+  },
+  {
+   "n": 56,
+   "name": "BlankNodePropertyListTemplate",
+   "rhs": "'[' PropertyListNotEmptyTemplate ']'"
+  },
+  {
+   "n": 57,
+   "name": "CollectionTemplate",
+   "rhs": "'(' GraphNodeTemplate+ ')'"
+  },
+  {
+   "n": 58,
+   "name": "AnnotationTemplate",
+   "rhs": "( Reifier | AnnotationBlockTemplate )*"
+  },
+  {
+   "n": 59,
+   "name": "AnnotationBlockTemplate",
+   "rhs": "'{|' PropertyListNotEmptyTemplate '|}'"
+  },
+  {
+   "n": 60,
+   "name": "ReifiedTripleBlockTemplate",
+   "rhs": "ReifiedTriple PropertyListTemplate"
+  },
+  {
+   "n": 61,
+   "name": "BodyTriplesBlock",
+   "rhs": "TriplesBlockPattern"
+  },
+  {
+   "n": 62,
+   "name": "TriplesBlockPattern",
+   "rhs": "TriplesSameSubjectPattern ( '.' TriplesBlockPattern? )?"
+  },
+  {
+   "n": 63,
+   "name": "ReifiedTripleBlockPattern",
+   "rhs": "ReifiedTriple PropertyListPattern"
+  },
+  {
+   "n": 64,
+   "name": "TriplesSameSubjectPattern",
+   "rhs": "VarOrRDFTerm PropertyListNotEmptyPattern | TriplesNodePattern PropertyListPattern | ReifiedTripleBlockPattern"
+  },
+  {
+   "n": 65,
+   "name": "PropertyListPattern",
+   "rhs": "PropertyListNotEmptyPattern?"
+  },
+  {
+   "n": 66,
+   "name": "PropertyListNotEmptyPattern",
+   "rhs": "( VerbPath | Var ) ObjectListPattern ( ';' ( ( VerbPath | Var ) ObjectListPattern )? )*"
+  },
+  {
+   "n": 67,
+   "name": "ObjectListPattern",
+   "rhs": "ObjectPattern ( ',' ObjectPattern )*"
+  },
+  {
+   "n": 68,
+   "name": "ObjectPattern",
+   "rhs": "GraphNodePattern AnnotationPattern"
+  },
+  {
+   "n": 69,
+   "name": "TriplesNodePattern",
+   "rhs": "CollectionPattern | BlankNodePropertyListPattern"
+  },
+  {
+   "n": 70,
+   "name": "BlankNodePropertyListPattern",
+   "rhs": "'[' PropertyListNotEmptyPattern ']'"
+  },
+  {
+   "n": 71,
+   "name": "CollectionPattern",
+   "rhs": "'(' GraphNodePattern+ ')'"
+  },
+  {
+   "n": 72,
+   "name": "AnnotationPattern",
+   "rhs": "( Reifier | AnnotationBlockPattern )*"
+  },
+  {
+   "n": 73,
+   "name": "AnnotationBlockPattern",
+   "rhs": "'{|' PropertyListNotEmptyPattern '|}'"
+  },
+  {
+   "n": 74,
+   "name": "GraphNodePattern",
+   "rhs": "VarOrRDFTerm | TriplesNodePattern | ReifiedTriple"
+  },
+  {
+   "n": 75,
+   "name": "Reifier",
+   "rhs": "'~' ReifierId?"
+  },
+  {
+   "n": 76,
+   "name": "ReifierId",
+   "rhs": "Var | iri | BlankNode"
+  },
+  {
+   "n": 77,
+   "name": "ReifiedTriple",
+   "rhs": "'<<' ReifiedTripleSubject Verb ReifiedTripleObject Reifier? '>>'"
+  },
+  {
+   "n": 78,
+   "name": "ReifiedTripleSubject",
+   "rhs": "Var | iri | RDFLiteral | NumericLiteral | BooleanLiteral | BlankNode | ReifiedTriple | TripleTerm"
+  },
+  {
+   "n": 79,
+   "name": "ReifiedTripleObject",
+   "rhs": "Var | iri | RDFLiteral | NumericLiteral | BooleanLiteral | BlankNode | ReifiedTriple | TripleTerm"
+  },
+  {
+   "n": 80,
+   "name": "TripleTerm",
+   "rhs": "'<<(' TripleTermSubject Verb TripleTermObject ')>>'"
+  },
+  {
+   "n": 81,
+   "name": "TripleTermSubject",
+   "rhs": "Var | iri | RDFLiteral | NumericLiteral | BooleanLiteral | BlankNode | TripleTerm"
+  },
+  {
+   "n": 82,
+   "name": "TripleTermObject",
+   "rhs": "Var | iri | RDFLiteral | NumericLiteral | BooleanLiteral | BlankNode | TripleTerm"
+  },
+  {
+   "n": 83,
+   "name": "Verb",
+   "rhs": "VarOrIri | 'a'"
+  },
+  {
+   "n": 84,
+   "name": "VerbPath",
+   "rhs": "Path"
+  },
+  {
+   "n": 85,
+   "name": "Path",
+   "rhs": "PathSequence"
+  },
+  {
+   "n": 86,
+   "name": "PathSequence",
+   "rhs": "PathEltOrInverse ( '/' PathEltOrInverse )*"
+  },
+  {
+   "n": 87,
+   "name": "PathEltOrInverse",
+   "rhs": "PathElt | '^' PathElt"
+  },
+  {
+   "n": 88,
+   "name": "PathElt",
+   "rhs": "( iri | 'a' | '(' Path ')' )"
+  },
+  {
+   "n": 89,
+   "name": "RDFTermData",
+   "rhs": "iri | RDFLiteral | NumericLiteral | BooleanLiteral | BlankNode | NIL | TripleTermData"
+  },
+  {
+   "n": 90,
+   "name": "VarOrRDFTerm",
+   "rhs": "Var | iri | RDFLiteral | NumericLiteral | BooleanLiteral | BlankNode | NIL | TripleTerm"
+  },
+  {
+   "n": 91,
+   "name": "VarOrIri",
+   "rhs": "Var | iri"
+  },
+  {
+   "n": 92,
+   "name": "Var",
+   "rhs": "VAR1 | VAR2"
+  },
+  {
+   "n": 93,
+   "name": "RDFLiteral",
+   "rhs": "String ( LANG_DIR | '^^' iri )?"
+  },
+  {
+   "n": 94,
+   "name": "NumericLiteral",
+   "rhs": "NumericLiteralUnsigned | NumericLiteralPositive | NumericLiteralNegative"
+  },
+  {
+   "n": 95,
+   "name": "NumericLiteralUnsigned",
+   "rhs": "INTEGER | DECIMAL | DOUBLE"
+  },
+  {
+   "n": 96,
+   "name": "NumericLiteralPositive",
+   "rhs": "INTEGER_POSITIVE | DECIMAL_POSITIVE | DOUBLE_POSITIVE"
+  },
+  {
+   "n": 97,
+   "name": "NumericLiteralNegative",
+   "rhs": "INTEGER_NEGATIVE | DECIMAL_NEGATIVE | DOUBLE_NEGATIVE"
+  },
+  {
+   "n": 98,
+   "name": "BooleanLiteral",
+   "rhs": "'true' | 'false'"
+  },
+  {
+   "n": 99,
+   "name": "String",
+   "rhs": "STRING_LITERAL1 | STRING_LITERAL2 | STRING_LITERAL_LONG1 | STRING_LITERAL_LONG2"
+  },
+  {
+   "n": 100,
+   "name": "iri",
+   "rhs": "IRIREF | PrefixedName"
+  },
+  {
+   "n": 101,
+   "name": "PrefixedName",
+   "rhs": "PNAME_LN | PNAME_NS"
+  },
+  {
+   "n": 102,
+   "name": "BlankNode",
+   "rhs": "BLANK_NODE_LABEL | ANON"
+  },
+  {
+   "n": 103,
+   "name": "Expression",
+   "rhs": "ConditionalOrExpression"
+  },
+  {
+   "n": 104,
+   "name": "ConditionalOrExpression",
+   "rhs": "ConditionalAndExpression ( '||' ConditionalAndExpression )*"
+  },
+  {
+   "n": 105,
+   "name": "ConditionalAndExpression",
+   "rhs": "ValueLogical ( '&&' ValueLogical )*"
+  },
+  {
+   "n": 106,
+   "name": "ValueLogical",
+   "rhs": "RelationalExpression"
+  },
+  {
+   "n": 107,
+   "name": "RelationalExpression",
+   "rhs": "NumericExpression ( '=' NumericExpression | '!=' NumericExpression | '<' NumericExpression | '>' NumericExpression | '<=' NumericExpression | '>=' NumericExpression | 'IN' ExpressionList | 'NOT' 'IN' ExpressionList )?"
+  },
+  {
+   "n": 108,
+   "name": "NumericExpression",
+   "rhs": "AdditiveExpression"
+  },
+  {
+   "n": 109,
+   "name": "AdditiveExpression",
+   "rhs": "MultiplicativeExpression ( '+' MultiplicativeExpression | '-' MultiplicativeExpression | ( NumericLiteralPositive | NumericLiteralNegative ) ( ( '*' UnaryExpression ) | ( '/' UnaryExpression ) )* )*"
+  },
+  {
+   "n": 110,
+   "name": "MultiplicativeExpression",
+   "rhs": "UnaryExpression ( '*' UnaryExpression | '/' UnaryExpression )*"
+  },
+  {
+   "n": 111,
+   "name": "UnaryExpression",
+   "rhs": "'!' PrimaryExpression | '+' PrimaryExpression | '-' PrimaryExpression | PrimaryExpression"
+  },
+  {
+   "n": 112,
+   "name": "PrimaryExpression",
+   "rhs": "BrackettedExpression | BuiltInCall | iriOrFunction | RDFLiteral | NumericLiteral | BooleanLiteral | Var | ExprTripleTerm"
+  },
+  {
+   "n": 113,
+   "name": "iriOrFunction",
+   "rhs": "iri ArgList?"
+  },
+  {
+   "n": 114,
+   "name": "ExprTripleTerm",
+   "rhs": "'<<(' ExprTripleTermSubject Verb ExprTripleTermObject ')>>'"
+  },
+  {
+   "n": 115,
+   "name": "ExprTripleTermSubject",
+   "rhs": "iri | RDFLiteral | NumericLiteral | BooleanLiteral | Var"
+  },
+  {
+   "n": 116,
+   "name": "ExprTripleTermObject",
+   "rhs": "iri | RDFLiteral | NumericLiteral | BooleanLiteral | Var | ExprTripleTerm"
+  },
+  {
+   "n": 117,
+   "name": "BrackettedExpression",
+   "rhs": "'(' Expression ')'"
+  },
+  {
+   "n": 118,
+   "name": "BuiltInCall",
+   "rhs": "'STR' '(' Expression ')' | 'LANG' '(' Expression ')' | 'LANGMATCHES' '(' Expression ',' Expression ')' | 'LANGDIR' '(' Expression ')' | 'DATATYPE' '(' Expression ')' | 'IRI' '(' Expression ')' | 'URI' '(' Expression ')' | 'BNODE' ( '(' Expression ')' | NIL ) | 'ABS' '(' Expression ')' | 'CEIL' '(' Expression ')' | 'FLOOR' '(' Expression ')' | 'ROUND' '(' Expression ')' | 'CONCAT' ExpressionList | 'SUBSTR' '(' Expression ',' Expression ( ',' Expression )? ')' | 'STRLEN' '(' Expression ')' | 'REPLACE' '(' Expression ',' Expression ',' Expression ( ',' Expression )? ')' | 'UCASE' '(' Expression ')' | 'LCASE' '(' Expression ')' | 'ENCODE_FOR_URI' '(' Expression ')' | 'CONTAINS' '(' Expression ',' Expression ')' | 'STRSTARTS' '(' Expression ',' Expression ')' | 'STRENDS' '(' Expression ',' Expression ')' | 'STRBEFORE' '(' Expression ',' Expression ')' | 'STRAFTER' '(' Expression ',' Expression ')' | 'YEAR' '(' Expression ')' | 'MONTH' '(' Expression ')' | 'DAY' '(' Expression ')' | 'HOURS' '(' Expression ')' | 'MINUTES' '(' Expression ')' | 'SECONDS' '(' Expression ')' | 'TIMEZONE' '(' Expression ')' | 'TZ' '(' Expression ')' | 'NOW' NIL | 'UUID' NIL | 'STRUUID' NIL | 'IF' '(' Expression ',' Expression ',' Expression ')' | 'STRLANG' '(' Expression ',' Expression ')' | 'STRLANGDIR' '(' Expression ',' Expression ',' Expression ')' | 'STRDT' '(' Expression ',' Expression ')' | 'sameTerm' '(' Expression ',' Expression ')' | 'isIRI' '(' Expression ')' | 'isURI' '(' Expression ')' | 'isBLANK' '(' Expression ')' | 'isLITERAL' '(' Expression ')' | 'isNUMERIC' '(' Expression ')' | 'hasLANG' '(' Expression ')' | 'hasLANGDIR' '(' Expression ')' | 'REGEX' '(' Expression ',' Expression ( ',' Expression )? ')' | 'isTRIPLE' '(' Expression ')' | 'TRIPLE' '(' Expression ',' Expression ',' Expression ')' | 'SUBJECT' '(' Expression ')' | 'PREDICATE' '(' Expression ')' | 'OBJECT' '(' Expression ')'"
+  },
+  {
+   "n": 119,
+   "name": "IRIREF",
+   "rhs": "'<' ([^<>\"{}|^`\\]-[#x00-#x20] | UCHAR )* '>'"
+  },
+  {
+   "n": 120,
+   "name": "PNAME_NS",
+   "rhs": "PN_PREFIX? ':'"
+  },
+  {
+   "n": 121,
+   "name": "PNAME_LN",
+   "rhs": "PNAME_NS PN_LOCAL"
+  },
+  {
+   "n": 122,
+   "name": "BLANK_NODE_LABEL",
+   "rhs": "'_:' ( PN_CHARS_U | [0-9] ) ((PN_CHARS|'.')* PN_CHARS)?"
+  },
+  {
+   "n": 123,
+   "name": "VAR1",
+   "rhs": "'?' VARNAME"
+  },
+  {
+   "n": 124,
+   "name": "VAR2",
+   "rhs": "'$' VARNAME"
+  },
+  {
+   "n": 125,
+   "name": "LANG_DIR",
+   "rhs": "'@' [a-zA-Z]+ ('-' [a-zA-Z0-9]+)* ('--' [a-zA-Z]+)?"
+  },
+  {
+   "n": 126,
+   "name": "INTEGER",
+   "rhs": "[0-9]+"
+  },
+  {
+   "n": 127,
+   "name": "DECIMAL",
+   "rhs": "[0-9]* '.' [0-9]+"
+  },
+  {
+   "n": 128,
+   "name": "DOUBLE",
+   "rhs": "( ([0-9]+ ('.'[0-9]*)? ) | ( '.' ([0-9])+ ) ) [eE][+-]?[0-9]+"
+  },
+  {
+   "n": 129,
+   "name": "INTEGER_POSITIVE",
+   "rhs": "'+' INTEGER"
+  },
+  {
+   "n": 130,
+   "name": "DECIMAL_POSITIVE",
+   "rhs": "'+' DECIMAL"
+  },
+  {
+   "n": 131,
+   "name": "DOUBLE_POSITIVE",
+   "rhs": "'+' DOUBLE"
+  },
+  {
+   "n": 132,
+   "name": "INTEGER_NEGATIVE",
+   "rhs": "'-' INTEGER"
+  },
+  {
+   "n": 133,
+   "name": "DECIMAL_NEGATIVE",
+   "rhs": "'-' DECIMAL"
+  },
+  {
+   "n": 134,
+   "name": "DOUBLE_NEGATIVE",
+   "rhs": "'-' DOUBLE"
+  },
+  {
+   "n": 135,
+   "name": "STRING_LITERAL1",
+   "rhs": "\"'\" ( ([^#x27#x5C#xA#xD]) | ECHAR | UCHAR )* \"'\""
+  },
+  {
+   "n": 136,
+   "name": "STRING_LITERAL2",
+   "rhs": "'\"' ( ([^#x22#x5C#xA#xD]) | ECHAR | UCHAR )* '\"'"
+  },
+  {
+   "n": 137,
+   "name": "STRING_LITERAL_LONG1",
+   "rhs": "\"'''\" ( ( \"'\" | \"''\" )? ( [^'\\] | ECHAR | UCHAR ) )* \"'''\""
+  },
+  {
+   "n": 138,
+   "name": "STRING_LITERAL_LONG2",
+   "rhs": "'\"\"\"' ( ( '\"' | '\"\"' )? ( [^\"\\] | ECHAR | UCHAR ) )* '\"\"\"'"
+  },
+  {
+   "n": 139,
+   "name": "ECHAR",
+   "rhs": "'\\' [tbnrf\\\"']"
+  },
+  {
+   "n": 140,
+   "name": "UCHAR",
+   "rhs": "('\\u' HEX HEX HEX HEX) | ('\\U' HEX HEX HEX HEX HEX HEX HEX HEX)"
+  },
+  {
+   "n": 141,
+   "name": "NIL",
+   "rhs": "'(' WS* ')'"
+  },
+  {
+   "n": 142,
+   "name": "WS",
+   "rhs": "#x20 | #x9 | #xD | #xA"
+  },
+  {
+   "n": 143,
+   "name": "ANON",
+   "rhs": "'[' WS* ']'"
+  },
+  {
+   "n": 144,
+   "name": "PN_CHARS_BASE",
+   "rhs": "[A-Z] | [a-z] | [#x00C0-#x00D6] | [#x00D8-#x00F6] | [#x00F8-#x02FF] | [#x0370-#x037D] | [#x037F-#x1FFF] | [#x200C-#x200D] | [#x2070-#x218F] | [#x2C00-#x2FEF] | [#x3001-#xD7FF] | [#xF900-#xFDCF] | [#xFDF0-#xFFFD] | [#x10000-#xEFFFF]"
+  },
+  {
+   "n": 145,
+   "name": "PN_CHARS_U",
+   "rhs": "PN_CHARS_BASE | '_'"
+  },
+  {
+   "n": 146,
+   "name": "VARNAME",
+   "rhs": "( PN_CHARS_U | [0-9] ) ( PN_CHARS_U | [0-9] | #x00B7 | [#x0300-#x036F] | [#x203F-#x2040] )*"
+  },
+  {
+   "n": 147,
+   "name": "PN_CHARS",
+   "rhs": "PN_CHARS_U | '-' | [0-9] | #x00B7 | [#x0300-#x036F] | [#x203F-#x2040]"
+  },
+  {
+   "n": 148,
+   "name": "PN_PREFIX",
+   "rhs": "PN_CHARS_BASE ((PN_CHARS|'.')* PN_CHARS)?"
+  },
+  {
+   "n": 149,
+   "name": "PN_LOCAL",
+   "rhs": "(PN_CHARS_U | ':' | [0-9] | PLX ) ((PN_CHARS | '.' | ':' | PLX)* (PN_CHARS | ':' | PLX) )?"
+  },
+  {
+   "n": 150,
+   "name": "PLX",
+   "rhs": "PERCENT | PN_LOCAL_ESC"
+  },
+  {
+   "n": 151,
+   "name": "PERCENT",
+   "rhs": "'%' HEX HEX"
+  },
+  {
+   "n": 152,
+   "name": "HEX",
+   "rhs": "[0-9] | [A-F] | [a-f]"
+  },
+  {
+   "n": 153,
+   "name": "PN_LOCAL_ESC",
+   "rhs": "'\\' ( '_' | '~' | '.' | '-' | '!' | '$' | '&' | \"'\" | '(' | ')' | '*' | '+' | ',' | ';' | '=' | '/' | '?' | '#' | '@' | '%' )"
+  }
+ ]
+}
