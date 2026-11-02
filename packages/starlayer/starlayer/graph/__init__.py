@@ -21,6 +21,7 @@ from rdflib.namespace import RDF, RDFS, XSD
 # effect of some other import) so registration always happens regardless of
 # what a caller imports first. See starlayer.graph/query/custom_functions.py.
 import starlayer.graph.query.custom_functions as _custom_functions  # noqa: F401
+from starlayer.graph.compare import isomorphic
 from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 from starlayer.graph.graph.prefixes import used_prefixes
 from starlayer.graph.graph.starlayer_dataset import StarLayerDataset
@@ -205,6 +206,7 @@ _patch_group_by_unaliased_expression_key()
 _patch_result_iter_empty_binding_row()
 
 __all__ = [
+    "isomorphic",
     # rdflib primitives
     "BNode",
     "Literal",

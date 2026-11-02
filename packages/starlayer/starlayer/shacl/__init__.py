@@ -4,13 +4,23 @@ from starlayer.shacl.engine import (
     normalize_to_starlayer_graph,
     target_nodes,
 )
+from starlayer.shacl.meta_shapes import parameter_value_shapes, sparql_query_problems
+from starlayer.shacl.node_expression_api import (
+    evaluate_expression,
+    node_expression_functions,
+    node_expression_operators,
+)
+from starlayer.shacl.paths import is_inverse, path_values
 from starlayer.shacl.results import (
     ExecutionDiagnostics,
     RulesResult,
     ValidationResult,
 )
+from starlayer.shacl.shape_types import infer_types
+from starlayer.shacl.shapes_graphs import shapes_graph_members
 from starlayer.shacl.subgraph_extraction import extract_subgraph
 from starlayer.shacl.types import MutableStarLayerGraphProtocol, StarLayerGraphProtocol
+from starlayer.shacl.ui_widget_selection import select_widget, select_widgets
 from starlayer.shacl.validator import (
     StarShaclSchema,
     apply_rules,
@@ -19,34 +29,17 @@ from starlayer.shacl.validator import (
     validate_each,
 )
 
-# Flat here: the five processing-mode functions (validate/validate_each/
-# apply_rules/evaluate/extract_subgraph), the result classes that still
-# carry real information (ValidationResult/RulesResult/
-# ExecutionDiagnostics - EvaluationResult/SubgraphExtractionResult no
-# longer exist; evaluate()/extract_subgraph() return a plain graph or None
-# directly instead), StarShaclSchema, target_nodes (a standalone
-# introspection question - "which nodes would this shape target?" - useful
-# without running a full validate() pass), and the cross-cutting RDF 1.2/
-# triple-term infrastructure every module depends on (TripleTermAdapter/
-# Graph/Value, normalize_to_starlayer_graph/normalize_graph_inputs,
-# StarLayerGraphProtocol/MutableStarLayerGraphProtocol).
+# Everything an application needs is importable from here: apps do not reach into submodules (a need to is a missing
+# public component). Processing modes: validate / validate_each / apply_rules / evaluate / extract_subgraph, with the
+# result classes (ValidationResult / RulesResult / ExecutionDiagnostics), StarShaclSchema and target_nodes. Shapes graph
+# introspection: infer_types, shapes_graph_members, path_values, is_inverse, sparql_query_problems, parameter_value_shapes.
+# Node expressions: evaluate_expression, node_expression_functions, node_expression_operators. SHACL UI: select_widget(s).
+# The RDF 1.2 / triple-term infrastructure: TripleTermAdapter / Graph / Value, normalize_to_starlayer_graph /
+# normalize_graph_inputs, StarLayerGraphProtocol / MutableStarLayerGraphProtocol.
 #
-# Reached only via an explicit submodule import: `shacl_profiling`
-# (SHACL 1.2 Profiling's declared_conformance_profile()/
-# derive_conforms_to() - self-declaration/report-annotation utilities, not
-# a processing mode); `node_expressions.eval_expr` (a lower-level, one-
-# expression-at-a-time primitive); `engine` (evaluate_component()/
-# build_report()/ComponentRequest/STSH - evaluate_component() is a
-# hardcoded dispatcher with no extension mechanism and no standalone use
-# case, build_report() only pairs with its own output shape, STSH is only
-# needed to define a new native component); `starontology.get_raw_url(name)`
-# (where to fetch a registered SHACL/ontology file as a real GitHub URL -
-# a niche accessor, not a processing mode); and
-# `StarShaclSchema.close_shape(shape)`, a method, not a bare function;
-# `ui_widget_selection.select_widget(...)` (SHACL 1.2 User Interfaces'
-# widget-selection algorithm, shui:WidgetScore/shui:WidgetAcceptMatcher -
-# new, additive, no standalone use case for most callers outside a UI
-# rendering context, so qualified-only like the others here).
+# Still reached only through a submodule: `shacl_profiling` (Profiling's declared_conformance_profile() /
+# derive_conforms_to()); `engine` (evaluate_component() and friends, deprecated); `starontology.get_raw_url(name)`;
+# `StarShaclSchema.close_shape(shape)`, a method.
 
 __all__ = [
     "StarShaclSchema",
@@ -66,4 +59,15 @@ __all__ = [
     "target_nodes",
     "StarLayerGraphProtocol",
     "MutableStarLayerGraphProtocol",
+    "evaluate_expression",
+    "node_expression_functions",
+    "node_expression_operators",
+    "infer_types",
+    "shapes_graph_members",
+    "path_values",
+    "is_inverse",
+    "sparql_query_problems",
+    "parameter_value_shapes",
+    "select_widget",
+    "select_widgets",
 ]
