@@ -28,3 +28,23 @@ Public today: `starlayer.shacl.__all__` (`StarShaclSchema`, `validate`, `validat
 - Items 1 to 3 are the ones the cut-over breaks. The others only move or get a public name.
 - Item 7 may disappear into the engine's meta-SHACL preflight; decide when the reports of `meta_shacl=True` carry the same information.
 - None of the proposed names is final; they follow the existing `starlayer.shacl` style (plain functions on graphs).
+
+## Trial results (2026-11-02): the workbench on the pure engine
+
+Workbench branch `shacl-engine-trial` (its changes are discarded; the integration is redone later), pyshacl uninstalled, the library
+imports only through the public names above. Light suite: 345 passed, 333 skipped (shapes-tab and browser tests), 4 failed, of which:
+
+| Failure | Cause | Where it is fixed |
+|---|---|---|
+| `test_demos::test_a_sparql_text_expression_is_evaluated_and_a_list_holds_constants_only` | engine gap: a node expression as a list member must be an error (Node Expressions 4.1.3) | engine (fixed, regression test) |
+| `test_nodeexprmodel::test_the_kinds_are_the_defining_predicates_starlayer_evaluates` | the workbench *test* imports the deleted `starlayer.shacl.node_expressions` | workbench: use `node_expression_operators()` / `node_expression_functions()` |
+| `test_paths::test_a_path_written_in_one_graph_can_be_followed_through_another` | `path_values` raises `ShapeError` for a malformed path (it was `NotImplementedError`) | workbench: expect `ShapeError` |
+| `test_import_report::test_the_committed_report_is_current` | the committed import report lists the old import names | workbench: regenerate with `tools/import_report.py --write` |
+
+Earlier in the trial the engine fixed, from workbench runs: result messages in the report graph (prefixed names, "Less than 1 values
+on ..."), a `sh:NodeShape` with `sh:path` is ill-formed, and `include_source_rule_provenance` (the earlier native run had passed only
+because that option fell back to the old code).
+
+API differences the workbench integration must expect: `ValidationResult` / `RulesResult` have no `engine` fields; `evaluate_component`,
+`TripleTermAdapter` and the keywords `validate_fn`, `adapter`, `decode_report`, `iterate_rules`, `engine=` are gone; `inference=` takes
+entailment regime IRIs; a graph with a term that is not an RDF term (a relative IRI) raises `TermError` unless `invalid_terms="lenient"`.

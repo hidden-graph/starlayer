@@ -100,7 +100,11 @@ def _eval(ctx: Any, expr: Term, focus: Term | None, scope: Scope) -> list[Term]:
     if not preds:
         return []  # the empty expression
     if RDF.first in preds:
-        return list(shacl_list(g, expr))  # list expression: its members
+        members = list(shacl_list(g, expr))  # list expression: its members, which are constants (Node Expressions 4.1.3)
+        for member in members:
+            if isinstance(member, BNode) and is_expression(g, member):
+                raise ShapeError(f"{member!r}: a member of a list expression is not a constant, it is a node expression")
+        return members
     keys = [p for p in preds if p in OPERATORS]
     if not keys:  # a call of a custom function declared in the shapes graph
         custom = _custom_functions(ctx)

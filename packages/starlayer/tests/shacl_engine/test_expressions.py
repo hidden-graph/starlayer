@@ -194,3 +194,12 @@ def test_failing_values_expression_gives_no_values():
     shapes = """ex:S a sh:NodeShape ; sh:targetNode ex:a ;
         sh:property [ sh:path ex:p ; sh:values [ sparql:abs ( ( 1 2 ) ) ] ; sh:minCount 1 ] ."""
     assert not validate(graph("ex:a ex:o 1 ."), graph(shapes)).conforms
+
+
+def test_a_list_member_that_is_a_node_expression_is_not_a_constant():
+    """Node Expressions 4.1.3: a list expression's members are constants. The workbench shows this error to the user."""
+    from starlayer.shacl_engine.plan import ShapeError
+
+    assert ev("( 1 2 )") == [Literal(1), Literal(2)]
+    with pytest.raises(ShapeError, match="not a constant"):
+        ev("( ex:a [ shnex:instancesOf ex:Person ] )")
