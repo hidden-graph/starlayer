@@ -126,3 +126,19 @@ def test_prefixes_shapes_graph_declare_beats_ontology_distractor():
     """
     out = run(shapes, "ex:a ex:p <http://right.example/Bad> .")
     assert [r.focus for r in out.results] == [EX.a]
+
+
+def test_a_node_shape_with_sh_path_is_an_ill_formed_shapes_graph():
+    """Found by running the graph workbench on the engine: it refuses an edit that makes a property shape also a sh:NodeShape (Core 3.2)."""
+    with pytest.raises(ShapeError, match="NodeShape cannot be the subject of sh:path"):
+        run("ex:S a sh:NodeShape ; sh:path ex:p ; sh:minCount 1 ; sh:targetNode ex:a .", "ex:a ex:p 1 .")
+
+
+def test_result_messages_use_prefixed_names_and_the_generic_wording():
+    """Found by running the graph workbench on the engine: the report graph says what the old validator said."""
+    result = run(
+        "ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:property [ sh:path ex:p ; sh:minCount 1 ; sh:datatype xsd:integer ] .",
+        'ex:a ex:q 1 . ex:b ex:p "x" .',
+    )
+    messages = {str(m) for m in result.report_graph.objects(None, SH.resultMessage)}
+    assert any(m.startswith("Less than 1 values on") for m in messages), messages

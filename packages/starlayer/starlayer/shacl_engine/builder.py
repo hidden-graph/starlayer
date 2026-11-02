@@ -44,6 +44,8 @@ def build_shape(graph: Any, node: Term, extra_predicates: Any = ()) -> Shape:
     if len(path_values) > 1:
         raise ShapeError(f"{text(node)}: more than one sh:path")
     path = build_path(graph, path_values[0]) if path_values else None
+    if path is not None and (node, RDF.type, SH.NodeShape) in graph:
+        raise ShapeError(f"{text(node)}: a sh:NodeShape cannot be the subject of sh:path")  # Core 3.2: a node shape is not the subject of sh:path
     params: dict[NamedNode, tuple[Term, ...]] = {}
     for pred in set(all_param_predicates()) | set(extra_predicates):
         values = tuple(graph.objects(node, pred))
