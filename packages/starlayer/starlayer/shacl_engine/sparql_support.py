@@ -220,7 +220,7 @@ def _shacl_functions(ctx: Any) -> Iterator[None]:
     )
     from rdflib.plugins.sparql.sparql import SPARQLError
 
-    from starlayer.shacl_engine.expressions import EvaluationFailure
+    from starlayer.shacl_engine.expressions import EvaluationFailure, evaluate_expression
 
     shapes = ctx.shapes
     active = ctx.plan.sparql_cache
@@ -232,7 +232,7 @@ def _shacl_functions(ctx: Any) -> Iterator[None]:
     def make(fn: Term, body: Term) -> Any:
         def call(*args: Term) -> Term:
             try:
-                out = eval_node_expression(ctx, body, None, {i: [to_engine(a)] for i, a in enumerate(args)})
+                out = evaluate_expression(ctx, body, None, {i: [to_engine(a)] for i, a in enumerate(args)})
             except (EvaluationFailure, ShapeError) as exc:
                 raise SPARQLError(str(exc)) from exc
             if len(out) != 1:

@@ -187,6 +187,7 @@ def validate_query(data_graph: Graph) -> tuple[bool, Graph, str]:
         shacl_graph=shapes_graph(),
         ont_graph=ontology_graph(),
         inference=ENTAILMENT.RDFS,
+        invalid_terms="lenient",  # query / ontology trees hold relative IRIs: opaque terms to the shapes
         advanced=True,
         max_validation_depth=100,
         # meta_shacl is off by default in starlayer.shacl.validate() (as of

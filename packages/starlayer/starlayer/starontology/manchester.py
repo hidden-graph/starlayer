@@ -1260,6 +1260,7 @@ def manchester_validate(data_graph: Graph) -> tuple[bool, Graph, str]:
         shacl_graph=get_ontology_graph("manchester_shacl"),
         ont_graph=get_ontology_graph("manchester_owl"),
         inference=ENTAILMENT.RDFS,
+        invalid_terms="lenient",  # query / ontology trees hold relative IRIs: opaque terms to the shapes
         advanced=True,
         max_validation_depth=100,
     )

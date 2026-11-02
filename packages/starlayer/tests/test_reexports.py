@@ -25,7 +25,7 @@ def test_all_matches_actual_module_exports() -> None:
     ``shacl``/``starontology``/``conformance`` - Python always binds an
     imported submodule as an attribute of its parent package as a side
     effect of the import (not something any of this project's own code
-    opts into). ``graph``/``shacl``/``sparql`` are always present -
+    opts into). ``graph``/``shacl``/``shacl_engine``/``sparql`` are always present (``starlayer.shacl`` imports the engine for its errors) -
     ``starlayer/__init__.py`` imports all three directly and
     unconditionally (``sparql`` joined 2026-10-14, for `StarQuery` -
     see that same date's entry in ``starlayer/sparql/CLAUDE.md``).
@@ -55,7 +55,7 @@ def test_all_matches_actual_module_exports() -> None:
     *curated* re-export is genuinely present, not that nothing else is
     ever visible."""
     exported = {name for name in dir(starlayer) if not name.startswith("_")}
-    submodule_attrs = {"graph", "sparql", "shacl", "starontology", "conformance"}
+    submodule_attrs = {"graph", "sparql", "shacl", "shacl_engine", "starontology", "conformance"}
     assert exported - submodule_attrs == set(starlayer.__all__)
 
 

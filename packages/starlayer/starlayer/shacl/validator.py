@@ -60,7 +60,8 @@ def validate(
         include_used_configuration: Also record the options in effect on the report.
         **kwargs: Option overrides: ``inference`` (an entailment regime IRI such as ``ENTAILMENT.RDFS``, or an iterable of them),
             ``inplace``, ``meta_shacl``, ``advanced`` (False: do not run rules), ``allow_warnings``, ``allow_infos``,
-            ``abort_on_first``, ``max_validation_depth``. An unknown option is a ``TypeError``.
+            ``abort_on_first``, ``max_validation_depth``, ``invalid_terms`` (``"lenient"``: process terms that are not RDF terms, such as a
+            relative IRI, as opaque stand-ins instead of raising ``TermError``). An unknown option is a ``TypeError``.
 
     Returns:
         A ``ValidationResult``: ``conforms``, ``report_graph`` and ``report_text``, ``data_graph`` (the caller's graph when

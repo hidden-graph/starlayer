@@ -18,7 +18,9 @@ SH = Namespace("http://www.w3.org/ns/shacl#")  # rdflib terms: the adapter speak
 _RDF_REIFIES = URIRef("http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies")
 
 # The keywords ``validate()`` (and so ``apply_rules()``) take besides its named parameters: the option presets of
-# ``validation_modes`` and their per-call overrides. ``advanced=False`` turns rule execution off; ``debug`` is accepted and ignored.
+# ``validation_modes`` and their per-call overrides. ``advanced=False`` turns rule execution off; ``debug`` is accepted and ignored;
+# ``invalid_terms`` is ``"error"`` (the default: a graph holding a term that is not an RDF term, such as a relative IRI, raises
+# ``TermError``) or ``"lenient"`` (such terms are processed as opaque stand-ins).
 VALIDATE_OPTIONS = frozenset(
     {
         "advanced",
@@ -31,6 +33,7 @@ VALIDATE_OPTIONS = frozenset(
         "abort_on_error",
         "max_validation_depth",
         "inference",
+        "invalid_terms",
     }
 )
 
@@ -78,6 +81,8 @@ def translate_validate_options(options: dict[str, Any]) -> dict[str, Any]:
     meta = options.get("meta_shacl")
     if meta:
         out["meta_shacl"] = meta
+    if options.get("invalid_terms") is not None:
+        out["invalid_terms"] = options["invalid_terms"]
     if options.get("advanced") is False:
         out["rules"] = False
     elif options.get("iterate_rules"):

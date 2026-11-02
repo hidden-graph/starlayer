@@ -89,5 +89,6 @@ def skos_validate(data_graph: Graph) -> tuple[bool, Graph, str]:
         advanced=True,
         max_validation_depth=100,
         allow_infos=True,
+        invalid_terms="lenient",  # ontology data may hold relative IRIs: opaque terms to the shapes
     )
     return result.conforms, result.report_graph, result.report_text

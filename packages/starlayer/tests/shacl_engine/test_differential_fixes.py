@@ -142,3 +142,20 @@ def test_result_messages_use_prefixed_names_and_the_generic_wording():
     )
     messages = {str(m) for m in result.report_graph.objects(None, SH.resultMessage)}
     assert any(m.startswith("Less than 1 values on") for m in messages), messages
+
+
+def test_a_function_called_from_sparql_may_have_any_node_expression_as_its_body():
+    """Found by the W3C ``instanceCount-example`` fixture: only ``sh:select`` / ``sh:sparqlExpr`` bodies worked when the function was
+    called from a SPARQL query; a body such as ``shnex:count`` gave an unbound result."""
+    result = run(
+        """
+        ex:count a sh:ListParameterExpressionFunction ;
+          sh:bodyExpression [ shnex:count [ shnex:instancesOf [ shnex:arg 0 ] ] ] ;
+          sh:parameter [ a sh:Parameter ; sh:path shnex:arg0 ] .
+        ex:S a sh:NodeShape ; sh:targetNode ex:t ; sh:sparql ex:Q .
+        ex:Q sh:select "PREFIX ex: <http://example.com/> SELECT $this ?value WHERE { BIND (ex:count(ex:C) AS ?value) }" .
+        """,
+        "ex:a a ex:C . ex:b a ex:C .",
+    )
+    values = [o for o in result.report_graph.objects(None, SH.value)]
+    assert [int(v) for v in values] == [2]

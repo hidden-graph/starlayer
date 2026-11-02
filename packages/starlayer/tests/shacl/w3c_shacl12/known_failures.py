@@ -53,6 +53,12 @@ from __future__ import annotations
 # deliberately (see its own entry below for why).
 
 KNOWN_FAILURES: dict[str, str] = {
+    "tests/sparql/pre-binding/unsupported-sparql-002::unsupported-sparql-002": (
+        "The fixture expects a failure for `VALUES ?any { true }`. SHACL 1.2 SPARQL Appendix A: \"SPARQL queries MUST not contain a "
+        "VALUES clause that mentions any potentially pre-bound variable\"; ?any is not pre-bound, so the query is allowed and the "
+        "engine runs it (Appendix F item 8, Issue 159, records the relaxation). The fixture keeps the older rule that forbids every "
+        "VALUES. test_w3c_engine_sparql.py asserts the engine's own outcome for this entry (DEVIATIONS)."
+    ),
     "tests/node-expr/shnex-sparql/seconds::seconds-example": (
         "confirmed to be a fixture-formatting expectation with no basis in "
         "SECONDS()'s own specification, not a canonical-form bug: "
