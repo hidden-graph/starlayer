@@ -276,9 +276,8 @@ stsh:NamedParameterExpressionFunctionForm a sh:NodeShape ;
         stsh:NamedParameterExpressionFunctionForm_rdfs_comment,
         stsh:NamedParameterExpressionFunctionForm_rdfs_label,
         stsh:NamedParameterExpressionFunctionForm_sh_bodyExpression,
-        stsh:NamedParameterExpressionFunctionForm_sh_labelTemplate,
         stsh:NamedParameterExpressionFunctionForm_sh_parameter ;
-    stsh:formFields ( rdf:type sh:parameter sh:bodyExpression sh:labelTemplate rdfs:label rdfs:comment ) ;
+    stsh:formFields ( rdf:type sh:parameter sh:bodyExpression rdfs:label rdfs:comment ) ;
     stsh:formFor sh:NamedParameterExpressionFunction ;
     stsh:formRequired ( sh:bodyExpression ) .
 
@@ -420,9 +419,11 @@ stsh:ParameterForm a sh:NodeShape ;
 stsh:PrefixDeclarationForm a sh:NodeShape ;
     rdfs:label "Form for a PrefixDeclaration"@en ;
     sh:property stsh:PrefixDeclarationForm_rdf_type,
+        stsh:PrefixDeclarationForm_rdfs_comment,
+        stsh:PrefixDeclarationForm_rdfs_label,
         stsh:PrefixDeclarationForm_sh_namespace,
         stsh:PrefixDeclarationForm_sh_prefix ;
-    stsh:formFields ( rdf:type sh:prefix sh:namespace ) ;
+    stsh:formFields ( rdf:type rdfs:label rdfs:comment sh:prefix sh:namespace ) ;
     stsh:formFor sh:PrefixDeclaration ;
     stsh:formRequired ( sh:prefix sh:namespace ) .
 
@@ -1148,13 +1149,6 @@ stsh:NamedParameterExpressionFunctionForm_sh_bodyExpression a sh:PropertyShape ;
     sh:order 8 ;
     sh:path sh:bodyExpression .
 
-stsh:NamedParameterExpressionFunctionForm_sh_labelTemplate a sh:PropertyShape ;
-    sh:group stsh:RulesGroup ;
-    sh:maxCount 1 ;
-    sh:nodeKind sh:Literal ;
-    sh:order 22 ;
-    sh:path sh:labelTemplate .
-
 stsh:NamedParameterExpressionFunctionForm_sh_parameter a sh:PropertyShape ;
     sh:group stsh:RulesGroup ;
     sh:nodeKind sh:BlankNodeOrIRI ;
@@ -1400,7 +1394,7 @@ stsh:NodeShapeForm_sh_nodeByExpression a sh:PropertyShape ;
 
 stsh:NodeShapeForm_sh_nodeKind a sh:PropertyShape ;
     sh:group stsh:ValueTypeGroup ;
-    sh:in _:n7a5df8fb388742f19b64e897e1e8daf7b75 ;
+    sh:in _:n1207753b319043e594f7561136a13fa2b75 ;
     sh:maxCount 1 ;
     sh:nodeKind sh:IRI ;
     sh:order 4 ;
@@ -1800,7 +1794,7 @@ stsh:ParameterForm_sh_nodeByExpression a sh:PropertyShape ;
 
 stsh:ParameterForm_sh_nodeKind a sh:PropertyShape ;
     sh:group stsh:ValueTypeGroup ;
-    sh:in _:n7a5df8fb388742f19b64e897e1e8daf7b75 ;
+    sh:in _:n1207753b319043e594f7561136a13fa2b75 ;
     sh:maxCount 1 ;
     sh:nodeKind sh:IRI ;
     sh:order 4 ;
@@ -1986,6 +1980,18 @@ stsh:PrefixDeclarationForm_rdf_type a sh:PropertyShape ;
     sh:nodeKind sh:IRI ;
     sh:order 1 ;
     sh:path rdf:type .
+
+stsh:PrefixDeclarationForm_rdfs_comment a sh:PropertyShape ;
+    sh:group stsh:NamingGroup ;
+    sh:nodeKind sh:Literal ;
+    sh:order 4 ;
+    sh:path rdfs:comment .
+
+stsh:PrefixDeclarationForm_rdfs_label a sh:PropertyShape ;
+    sh:group stsh:NamingGroup ;
+    sh:nodeKind sh:Literal ;
+    sh:order 3 ;
+    sh:path rdfs:label .
 
 stsh:PrefixDeclarationForm_sh_namespace a sh:PropertyShape ;
     sh:group stsh:DefinitionGroup ;
@@ -2327,7 +2333,7 @@ stsh:PropertyShapeForm_sh_nodeByExpression a sh:PropertyShape ;
 
 stsh:PropertyShapeForm_sh_nodeKind a sh:PropertyShape ;
     sh:group stsh:ValueTypeGroup ;
-    sh:in _:n7a5df8fb388742f19b64e897e1e8daf7b75 ;
+    sh:in _:n1207753b319043e594f7561136a13fa2b75 ;
     sh:maxCount 1 ;
     sh:nodeKind sh:IRI ;
     sh:order 4 ;
@@ -3215,6 +3221,11 @@ sh:keyParameter sh:datatype xsd:boolean ;
     stsh:formHeldBy sh:NamedParameterExpressionFunction ;
     stsh:formMaxCount 1 .
 
+sh:labelTemplate sh:group stsh:RulesGroup ;
+    sh:nodeKind sh:Literal ;
+    sh:order 22 ;
+    stsh:formMaxCount 1 .
+
 sh:lessThan sh:group stsh:ComparisonGroup ;
     sh:order 3 ;
     stsh:propertyFormField true .
@@ -3640,11 +3651,6 @@ sh:expectedPredicate sh:group stsh:RulesGroup ;
     sh:nodeKind sh:IRI ;
     sh:order 20 .
 
-sh:labelTemplate sh:group stsh:RulesGroup ;
-    sh:nodeKind sh:Literal ;
-    sh:order 22 ;
-    stsh:formMaxCount 1 .
-
 sh:layer sh:group stsh:RulesGroup ;
     sh:nodeKind sh:Literal ;
     sh:order 18 ;
@@ -3919,6 +3925,12 @@ stsh:MetadataGroup a sh:PropertyGroup ;
     sh:name "Non-Validating Metadata"@en ;
     sh:order 15 .
 
+rdf:type sh:group stsh:TypeGroup ;
+    sh:nodeKind sh:IRI ;
+    sh:order 1 ;
+    stsh:nodeFormField true ;
+    stsh:propertyFormField true .
+
 rdfs:comment sh:group stsh:NamingGroup ;
     sh:nodeKind sh:Literal ;
     sh:order 4 ;
@@ -3929,12 +3941,6 @@ rdfs:comment sh:group stsh:NamingGroup ;
 rdfs:label sh:group stsh:NamingGroup ;
     sh:nodeKind sh:Literal ;
     sh:order 3 ;
-    stsh:nodeFormField true ;
-    stsh:propertyFormField true .
-
-rdf:type sh:group stsh:TypeGroup ;
-    sh:nodeKind sh:IRI ;
-    sh:order 1 ;
     stsh:nodeFormField true ;
     stsh:propertyFormField true .
 
@@ -3953,8 +3959,8 @@ stsh:DefinitionGroup a sh:PropertyGroup ;
     sh:name "Definition"@en ;
     sh:order 0.5 .
 
-_:n7a5df8fb388742f19b64e897e1e8daf7b76 rdf:first sh:IRI ;
+_:n1207753b319043e594f7561136a13fa2b76 rdf:first sh:IRI ;
     rdf:rest ( sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) .
 
-_:n7a5df8fb388742f19b64e897e1e8daf7b75 rdf:first sh:BlankNode ;
-    rdf:rest _:n7a5df8fb388742f19b64e897e1e8daf7b76 .
+_:n1207753b319043e594f7561136a13fa2b75 rdf:first sh:BlankNode ;
+    rdf:rest _:n1207753b319043e594f7561136a13fa2b76 .

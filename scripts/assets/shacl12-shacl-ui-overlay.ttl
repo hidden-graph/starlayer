@@ -720,7 +720,7 @@ stsh:PrefixSetForm a sh:NodeShape ;
 # A prefix declaration, the value of sh:declare (SHACL 1.2 Core section 5.2): a small node with a prefix and a namespace.
 stsh:PrefixDeclarationForm a sh:NodeShape ;
     stsh:formFor sh:PrefixDeclaration ;
-    stsh:formFields ( rdf:type sh:prefix sh:namespace ) ;
+    stsh:formFields ( rdf:type rdfs:label rdfs:comment sh:prefix sh:namespace ) ;
     stsh:formRequired ( sh:prefix sh:namespace ) .
 
 # A SPARQL constraint, the value of sh:sparql.
@@ -730,10 +730,11 @@ stsh:SPARQLConstraintForm a sh:NodeShape ;
     stsh:formRequired ( sh:select ) .
 
 # The two kinds of custom node expression function (SHACL 1.2 Node Expressions 6.1 and 6.2): an IRI with a single body expression and parameters. A named parameter function has a
-# sh:keyParameter among its parameters and may have a label template (it is a Parameterizable); a list parameter function documents its parameters as shnex:arg0, shnex:arg1.
+# sh:keyParameter among its parameters; a list parameter function documents its parameters as shnex:arg0, shnex:arg1. Neither has a label template: the Node Expressions specification does not use
+# sh:labelTemplate on a function (2026-11-02, GitHub issue #193).
 stsh:NamedParameterExpressionFunctionForm a sh:NodeShape ;
     stsh:formFor sh:NamedParameterExpressionFunction ;
-    stsh:formFields ( rdf:type sh:parameter sh:bodyExpression sh:labelTemplate rdfs:label rdfs:comment ) ;
+    stsh:formFields ( rdf:type sh:parameter sh:bodyExpression rdfs:label rdfs:comment ) ;
     stsh:formRequired ( sh:bodyExpression ) .
 
 stsh:ListParameterExpressionFunctionForm a sh:NodeShape ;
