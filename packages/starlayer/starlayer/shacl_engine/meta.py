@@ -19,16 +19,11 @@ from typing import Any
 
 from rdflib import Namespace
 
-try:  # same exception type as the old preflight, so callers that catch it keep working
-    from pyshacl.errors import ReportableRuntimeError as _Base
-except ImportError:  # pragma: no cover
-    _Base = RuntimeError
-
 SH = Namespace("http://www.w3.org/ns/shacl#")  # rdflib terms: this module works on the caller's graphs
 META_ERROR_PREFIX = "SHACL File does not validate against the SHACL Shapes SHACL (MetaSHACL) file."
 
 
-class MetaShaclError(_Base):
+class MetaShaclError(ValueError):
     """The shapes graph does not validate against the meta-shapes; the message starts with the old preflight's text."""
 
 
