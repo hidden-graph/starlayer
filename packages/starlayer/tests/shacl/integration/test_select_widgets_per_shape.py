@@ -114,12 +114,29 @@ def test_the_candidates_stop_at_the_first_one_that_needs_no_data(shapes) -> None
     assert choice.needs_data
 
 
-def test_a_preference_is_the_first_candidate(shapes, data) -> None:
+def test_a_widget_the_shape_names_and_the_catalog_scores_ranks_by_the_catalogs_score(shapes, data) -> None:
+    """SHACL UI 4.3: only a widget the scoring graph does not score gets the default score; one it scores keeps its own."""
     catalog = _graph(CATALOGS["a data condition on a score"])
     choice = select_widgets(shape_node=EX.S, shapes_graph=shapes, scoring_graph=catalog, role="editor", per="shape")[EX.Pinned]
-    assert choice.candidates[0].widget == SHUI.TextAreaEditor and choice.candidates[0].score is None
-    assert not choice.needs_data
-    assert choice.resolve(EX.c, data) == SHUI.TextAreaEditor
+    assert choice.candidates[0].widget == SHUI.TextAreaEditor and choice.candidates[0].score == 5.0
+    assert choice.resolve(EX.b, data) == SHUI.TextFieldEditor, "its condition (a long note) does not hold for ex:b"
+
+
+def test_a_widget_the_shape_names_and_the_catalog_does_not_score_ranks_at_the_default_score(shapes, data) -> None:
+    catalog = _graph(PREFIXES + "[] a shui:WidgetScore ; shui:widget shui:TextFieldEditor ; shui:score 1 .")
+    choice = select_widgets(shape_node=EX.S, shapes_graph=shapes, scoring_graph=catalog, role="editor", per="shape")[EX.Pinned]
+    assert choice.candidates[0].widget == SHUI.TextAreaEditor and choice.candidates[0].score == 40.0 and not choice.needs_data
+    assert select_widget(shape_node=EX.Pinned, shapes_graph=shapes, scoring_graph=catalog, role="editor") == SHUI.TextAreaEditor
+
+
+def test_the_default_score_is_the_configured_one_and_a_higher_catalog_score_then_wins(shapes) -> None:
+    catalog = _graph(PREFIXES + "[] a shui:WidgetScore ; shui:widget shui:TextFieldEditor ; shui:score 50 . [] a shui:WidgetScore ; shui:widget shui:NumberFieldEditor ; shui:score 5 .")
+    assert select_widget(shape_node=EX.Pinned, shapes_graph=shapes, scoring_graph=catalog, role="editor") == SHUI.TextFieldEditor, "50 beats the default 40"
+    configured = _graph(SHAPES + "\nex:config a shui:Configuration ; shui:defaultWidgetScore 60 .")
+    assert uws.default_widget_score(configured) == 60.0 and uws.default_widget_score(shapes) == 40.0
+    assert select_widget(shape_node=EX.Pinned, shapes_graph=configured, scoring_graph=catalog, role="editor") == SHUI.TextAreaEditor, "60 beats 50"
+    negative = _graph(SHAPES + "\nex:config a shui:Configuration ; shui:defaultWidgetScore -1 .")
+    assert select_widget(shape_node=EX.Pinned, shapes_graph=negative, scoring_graph=catalog, role="editor") == SHUI.TextFieldEditor, "a negative score ranks below the rest"
 
 
 def test_the_shape_conditions_are_checked_once_however_many_nodes_follow(shapes, data, monkeypatch) -> None:

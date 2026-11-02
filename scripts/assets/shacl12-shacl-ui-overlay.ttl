@@ -710,7 +710,12 @@ stsh:PropertyGroupForm a sh:NodeShape ;
 # form serves an ontology node that holds prefix declarations (the W3C tests put sh:declare on an untyped ontology IRI too).
 stsh:ShapesGraphForm a sh:NodeShape ;
     stsh:formFor sh:ShapesGraph ;
-    stsh:formFields ( rdf:type rdfs:label rdfs:comment rdfs:member owl:imports sh:entailment sh:declare rdfs:isDefinedBy ) .
+    stsh:formFields ( rdf:type rdfs:label rdfs:comment rdfs:member owl:imports sh:entailment sh:declare ) .
+
+# A node that holds prefix declarations (the value of sh:prefixes, or an untyped ontology IRI): stsh:PrefixSet, a type shacl_shacl_rules infers from sh:declare.
+stsh:PrefixSetForm a sh:NodeShape ;
+    stsh:formFor stsh:PrefixSet ;
+    stsh:formFields ( rdf:type rdfs:label rdfs:comment sh:declare ) .
 
 # A prefix declaration, the value of sh:declare (SHACL 1.2 Core section 5.2): a small node with a prefix and a namespace.
 stsh:PrefixDeclarationForm a sh:NodeShape ;

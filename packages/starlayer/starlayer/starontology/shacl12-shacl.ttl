@@ -353,6 +353,14 @@ stsh:DefaultValueShape a sh:NodeShape ;
             sh:path sh:defaultValue ] ;
     sh:targetSubjectsOf sh:defaultValue .
 
+stsh:EntailmentSupportedShape a sh:NodeShape ;
+    rdfs:label "StarLayer provides the entailment a shapes graph asks for"@en ;
+    sh:property [ sh:message "StarLayer provides no such entailment regime, and the shapes graph has no such rule set, so validating with it fails (an entailment regime, sh:RulesEntailment or a rule set)."@en ;
+            sh:or ( [ sh:in ( <http://www.w3.org/ns/entailment/RDF> <http://www.w3.org/ns/entailment/RDFS> <http://www.w3.org/ns/entailment/OWL-RDF-Based> <http://www.w3.org/ns/entailment/OWL-Direct> sh:RulesEntailment ) ] [ sh:class sh:RuleSet ] ) ;
+            sh:path sh:entailment ;
+            sh:severity sh:Warning ] ;
+    sh:targetSubjectsOf sh:entailment .
+
 stsh:ExpressionArgumentListShape a sh:NodeShape ;
     rdfs:label "A list that is an argument of a node expression is a well-formed RDF list"@en ;
     sh:node shsh:ListShape ;
@@ -586,7 +594,8 @@ stsh:OrderShape a sh:NodeShape ;
 
 stsh:ParameterHolderShapes a sh:NodeShape ;
     rdfs:label "Well-formedness rules for the holder of sh:parameter"@en ;
-    sh:property [ sh:node stsh:ParameterShape ;
+    sh:property [ sh:message "A parameter is ill-formed: what is wrong is listed on the parameter."@en ;
+            sh:node stsh:ParameterShape ;
             sh:path sh:parameter ] ;
     sh:sparql [ sh:message "Two parameters have the same name (the local name of their sh:path)."@en ;
             sh:select """
@@ -657,6 +666,21 @@ stsh:RuleDeactivatedShape a sh:NodeShape ;
     sh:targetObjectsOf sh:hasRule,
         sh:rule .
 
+stsh:RuleOfOneTemplateShape a sh:NodeShape ;
+    rdfs:label "A rule is an instance of one rule template"@en ;
+    sh:sparql [ sh:message "A rule is an instance of one rule template, and this one is an instance of more than one."@en ;
+            sh:select """
+			PREFIX sh: <http://www.w3.org/ns/shacl#>
+			SELECT DISTINCT $this
+			WHERE {
+				$this a ?first , ?second .
+				?first a sh:SPARQLRuleTemplate .
+				?second a sh:SPARQLRuleTemplate .
+				FILTER (?first != ?second)
+			}
+		""" ] ;
+    sh:targetSubjectsOf rdf:type .
+
 stsh:RuleProcessorShape a sh:NodeShape ;
     rdfs:label "Well-formed sh:ruleProcessor"@en ;
     rdfs:comment "SHACL 1.2 Inference Rules 10 and Appendix A (ruleProcessor): the values are IRIs or xsd:string literals."@en ;
@@ -677,7 +701,8 @@ stsh:RuleSetShape a sh:NodeShape ;
     rdfs:label "Well-formedness rules for sh:RuleSet"@en ;
     sh:message "A rule set is identified by an IRI, not a blank node."@en ;
     sh:nodeKind sh:IRI ;
-    sh:property [ sh:node stsh:RuleShape ;
+    sh:property [ sh:message "A value of sh:hasRule is a rule: a triple rule, a SPARQL rule or an instance of a rule template."@en ;
+            sh:node stsh:RuleShape ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:path sh:hasRule ],
         [ sh:nodeKind sh:IRI ;
@@ -731,6 +756,15 @@ stsh:RulesAndSparqlShapes a sh:NodeShape ;
     sh:targetSubjectsOf sh:condition,
         sh:rule,
         sh:sparql .
+
+stsh:SPARQLRuleConstructShape a sh:NodeShape ;
+    rdfs:label "A SPARQL rule has exactly one sh:construct"@en ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:message "A SPARQL rule has exactly one sh:construct, an xsd:string (a CONSTRUCT query)."@en ;
+            sh:minCount 1 ;
+            sh:path sh:construct ] ;
+    sh:targetClass sh:SPARQLRule .
 
 stsh:SPARQLRuleTemplateShape a sh:NodeShape ;
     rdfs:label "Well-formedness rules for sh:SPARQLRuleTemplate"@en ;
@@ -808,6 +842,31 @@ stsh:TargetWhereShape a sh:NodeShape ;
     sh:property [ sh:node stsh:ShapeReferenceShape ;
             sh:path sh:targetWhere ] ;
     sh:targetSubjectsOf sh:targetWhere .
+
+stsh:TripleRuleOnePerTermShape a sh:NodeShape ;
+    rdfs:label "A triple rule has at most one sh:subject, sh:predicate and sh:object"@en ;
+    sh:property [ sh:maxCount 1 ;
+            sh:message "A triple rule has at most one sh:subject."@en ;
+            sh:path sh:subject ],
+        [ sh:maxCount 1 ;
+            sh:message "A triple rule has at most one sh:predicate."@en ;
+            sh:path sh:predicate ],
+        [ sh:maxCount 1 ;
+            sh:message "A triple rule has at most one sh:object."@en ;
+            sh:path sh:object ] ;
+    sh:targetClass sh:TripleRule .
+
+stsh:TripleRuleTermsShape a sh:NodeShape ;
+    rdfs:label "A triple rule gives a subject and a predicate that can be part of a triple"@en ;
+    sh:property [ sh:message "A triple whose subject is a literal is skipped when the rule runs (Inference Rules 11.2), so this rule infers nothing."@en ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:path sh:subject ;
+            sh:severity sh:Warning ],
+        [ sh:message "A triple whose predicate is a literal is skipped when the rule runs (Inference Rules 11.2), so this rule infers nothing."@en ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:path sh:predicate ;
+            sh:severity sh:Warning ] ;
+    sh:targetClass sh:TripleRule .
 
 stsh:ValuesShape a sh:NodeShape ;
     rdfs:label "Well-formed sh:values"@en ;
@@ -1167,6 +1226,7 @@ stsh:PrefixDeclarationShape a sh:NodeShape ;
 
 stsh:RuleShape a sh:NodeShape ;
     rdfs:label "Well-formed sh:TripleRule or sh:SPARQLRule"@en ;
+    sh:message "A rule is a triple rule, a SPARQL rule or an instance of a rule template, with the properties of its kind (what is wrong with them is listed on the rule)."@en ;
     sh:or ( [ sh:class sh:TripleRule ;
                 sh:property [ sh:maxCount 1 ;
                         sh:node stsh:NodeExpressionShape ;
@@ -1215,14 +1275,6 @@ sh:condition rdfs:comment "The condition shape needs a real constraint to be dis
     skos:example "sh:rule [ a sh:TripleRule ; sh:condition ex:AdultShape ; ... ]"@en ;
     sh:description "Restricts which focus nodes a rule actually applies to — only nodes conforming to the given shape have the rule run for them; every other focus node is skipped entirely for that rule."@en ;
     sh:name "condition"@en ;
-    stsh:requiredEngine stsh:PySHACL .
-
-sh:construct rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
-        <https://www.w3.org/TR/shacl12-rules/> ;
-    rdfs:seeAlso sh:SPARQLRule ;
-    skos:example "sh:construct \"PREFIX ex: <http://example.org/> CONSTRUCT { $this ex:ancestor ?a } WHERE { $this ex:parent ?a }\""@en ;
-    sh:description "The SPARQL CONSTRUCT query text for a sh:SPARQLRule — its WHERE clause is evaluated once per matching focus node (bound to $this), and every triple in its result is added to the data graph."@en ;
-    sh:name "CONSTRUCT query"@en ;
     stsh:requiredEngine stsh:PySHACL .
 
 sh:datatype rdfs:comment "plain single-value form only — the SHACL 1.2 list-valued form requires stsh:StarShacl"@en,
@@ -1375,6 +1427,14 @@ sh:ask rdfs:comment "Unlike sh:select, false means *violation* here — the quer
     sh:name "ASK query"@en ;
     stsh:requiredEngine stsh:PySHACL .
 
+sh:construct rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
+        <https://www.w3.org/TR/shacl12-rules/> ;
+    rdfs:seeAlso sh:SPARQLRule ;
+    skos:example "sh:construct \"PREFIX ex: <http://example.org/> CONSTRUCT { $this ex:ancestor ?a } WHERE { $this ex:parent ?a }\""@en ;
+    sh:description "The SPARQL CONSTRUCT query text for a sh:SPARQLRule — its WHERE clause is evaluated once per matching focus node (bound to $this), and every triple in its result is added to the data graph."@en ;
+    sh:name "CONSTRUCT query"@en ;
+    stsh:requiredEngine stsh:PySHACL .
+
 sh:disjoint rdfs:comment "plain-IRI object only — the SHACL 1.2 path-valued form requires stsh:StarShacl"@en ;
     rdfs:isDefinedBy <https://www.w3.org/TR/shacl/>,
         <https://www.w3.org/TR/shacl12-core/> ;
@@ -1411,28 +1471,10 @@ sh:node rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
     sh:name "node"@en ;
     stsh:requiredEngine stsh:PySHACL .
 
-sh:object rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
-        <https://www.w3.org/TR/shacl12-rules/> ;
-    rdfs:seeAlso sh:TripleRule,
-        sh:predicate,
-        sh:subject ;
-    sh:description "The node expression producing the object of the triple a sh:TripleRule derives — often a shnex:pathValues/sh:path expression pulling a value from elsewhere in the data."@en ;
-    sh:name "object expression"@en ;
-    stsh:requiredEngine stsh:PySHACL .
-
 sh:or rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
     skos:example "sh:or ( [ sh:datatype xsd:string ] [ sh:datatype xsd:integer ] )"@en ;
     sh:description "A value node must conform to at least one shape in this list — logical disjunction. Commonly used to allow a value to be one of several alternative shapes (e.g. either an IRI reference or an inline literal)."@en ;
     sh:name "or"@en ;
-    stsh:requiredEngine stsh:PySHACL .
-
-sh:predicate rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
-        <https://www.w3.org/TR/shacl12-rules/> ;
-    rdfs:seeAlso sh:TripleRule,
-        sh:object,
-        sh:subject ;
-    sh:description "The node expression producing the predicate of the triple a sh:TripleRule derives — typically a constant IRI naming the derived property."@en ;
-    sh:name "predicate expression"@en ;
     stsh:requiredEngine stsh:PySHACL .
 
 sh:propertyValidator rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
@@ -1466,15 +1508,6 @@ sh:sparql rdfs:comment "The query must project $this (or ?this); MINUS and VALUE
     skos:example "sh:sparql [ sh:select \"SELECT $this WHERE { FILTER NOT EXISTS { $this ex:email ?e } }\" ]"@en ;
     sh:description "Attaches a SPARQL-based constraint to a shape — the query is evaluated once per focus node, and any result row it returns is treated as a violation."@en ;
     sh:name "SPARQL constraint"@en ;
-    stsh:requiredEngine stsh:PySHACL .
-
-sh:subject rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
-        <https://www.w3.org/TR/shacl12-rules/> ;
-    rdfs:seeAlso sh:TripleRule,
-        sh:object,
-        sh:predicate ;
-    sh:description "The node expression producing the subject of the triple a sh:TripleRule derives — most commonly just sh:this, the rule's own focus node."@en ;
-    sh:name "subject expression"@en ;
     stsh:requiredEngine stsh:PySHACL .
 
 shsh:ListShape a sh:NodeShape ;
@@ -1553,6 +1586,15 @@ sh:nodeValidator rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
     sh:name "node validator"@en ;
     stsh:requiredEngine stsh:PySHACL .
 
+sh:object rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
+        <https://www.w3.org/TR/shacl12-rules/> ;
+    rdfs:seeAlso sh:TripleRule,
+        sh:predicate,
+        sh:subject ;
+    sh:description "The node expression producing the object of the triple a sh:TripleRule derives — often a shnex:pathValues/sh:path expression pulling a value from elsewhere in the data."@en ;
+    sh:name "object expression"@en ;
+    stsh:requiredEngine stsh:PySHACL .
+
 sh:parameter rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
         <https://www.w3.org/TR/shacl12-sparql/> ;
     rdfs:seeAlso sh:ConstraintComponent ;
@@ -1590,20 +1632,29 @@ stsh:ShapeReferenceShape a sh:NodeShape ;
     sh:node shsh:ShapeShape ;
     sh:nodeKind sh:BlankNodeOrIRI .
 
-sh:SPARQLRule rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
-        <https://www.w3.org/TR/shacl12-rules/> ;
-    rdfs:seeAlso sh:TripleRule,
-        sh:construct ;
-    skos:example "[ a sh:SPARQLRule ; sh:construct \"CONSTRUCT { $this ex:ancestor ?a } WHERE { $this ex:parent+ ?a }\" ]"@en ;
-    sh:description "A rule type that derives new triples via an arbitrary SPARQL CONSTRUCT query (sh:construct), for derivations too complex for a single sh:TripleRule."@en ;
-    sh:name "SPARQL rule"@en ;
-    stsh:requiredEngine stsh:PySHACL .
-
 sh:lessThanOrEquals rdfs:comment "plain-IRI object only — the SHACL 1.2 path-valued form requires stsh:StarShacl"@en ;
     rdfs:isDefinedBy <https://www.w3.org/TR/shacl/>,
         <https://www.w3.org/TR/shacl12-core/> ;
     sh:description "Same as sh:lessThan, but allows equality. SHACL 1.2 widens the object to any property path."@en ;
     sh:name "less than or equal to"@en ;
+    stsh:requiredEngine stsh:PySHACL .
+
+sh:predicate rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
+        <https://www.w3.org/TR/shacl12-rules/> ;
+    rdfs:seeAlso sh:TripleRule,
+        sh:object,
+        sh:subject ;
+    sh:description "The node expression producing the predicate of the triple a sh:TripleRule derives — typically a constant IRI naming the derived property."@en ;
+    sh:name "predicate expression"@en ;
+    stsh:requiredEngine stsh:PySHACL .
+
+sh:subject rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
+        <https://www.w3.org/TR/shacl12-rules/> ;
+    rdfs:seeAlso sh:TripleRule,
+        sh:object,
+        sh:predicate ;
+    sh:description "The node expression producing the subject of the triple a sh:TripleRule derives — most commonly just sh:this, the rule's own focus node."@en ;
+    sh:name "subject expression"@en ;
     stsh:requiredEngine stsh:PySHACL .
 
 shsh:ShapeShape a sh:NodeShape ;
@@ -1790,23 +1841,21 @@ shsh:ShapeShape a sh:NodeShape ;
         sh:xone ;
     sh:xone ( shsh:NodeShapeShape shsh:PropertyShapeShape ) .
 
+sh:SPARQLRule rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
+        <https://www.w3.org/TR/shacl12-rules/> ;
+    rdfs:seeAlso sh:TripleRule,
+        sh:construct ;
+    skos:example "[ a sh:SPARQLRule ; sh:construct \"CONSTRUCT { $this ex:ancestor ?a } WHERE { $this ex:parent+ ?a }\" ]"@en ;
+    sh:description "A rule type that derives new triples via an arbitrary SPARQL CONSTRUCT query (sh:construct), for derivations too complex for a single sh:TripleRule."@en ;
+    sh:name "SPARQL rule"@en ;
+    stsh:requiredEngine stsh:PySHACL .
+
 sh:in rdfs:comment "List membership is exact-value matching, including datatype — sh:in (1 2 3) (integers) will not match the string \"1\"."@en ;
     rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
     rdfs:seeAlso sh:hasValue ;
     skos:example "sh:path ex:status ; sh:in ( \"active\" \"inactive\" \"pending\" )"@en ;
     sh:description "Every value node must be exactly one of the members of this list — an enumeration/allow-list constraint."@en ;
     sh:name "in"@en ;
-    stsh:requiredEngine stsh:PySHACL .
-
-sh:TripleRule rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
-        <https://www.w3.org/TR/shacl12-rules/> ;
-    rdfs:seeAlso sh:SPARQLRule,
-        sh:object,
-        sh:predicate,
-        sh:subject ;
-    skos:example "[ a sh:TripleRule ; sh:subject sh:this ; sh:predicate ex:ancestor ; sh:object [ sh:path ex:parent ] ]"@en ;
-    sh:description "A rule type that derives one new triple per matching focus node from three independently-evaluated node expressions — sh:subject/sh:predicate/sh:object — without needing any SPARQL."@en ;
-    sh:name "triple rule"@en ;
     stsh:requiredEngine stsh:PySHACL .
 
 sh:xone rdfs:comment "If two shapes in the list overlap (a value could satisfy both), a value that matches both fails sh:xone even though it would pass sh:or — easy to trip over when shapes aren't as mutually exclusive as intended."@en ;
@@ -1868,4 +1917,15 @@ sh:select rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
     skos:example "sh:select \"SELECT $this ?value WHERE { ?value ex:score ?s . FILTER (?s < 0) }\""@en ;
     sh:description "The SPARQL SELECT query text for a sh:sparql constraint or a custom sh:ConstraintComponent's sh:nodeValidator/sh:propertyValidator. Any row returned counts as a violation; bindings for ?value/?path/?this in the result customize the reported focus/value/path."@en ;
     sh:name "SELECT query"@en ;
+    stsh:requiredEngine stsh:PySHACL .
+
+sh:TripleRule rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
+        <https://www.w3.org/TR/shacl12-rules/> ;
+    rdfs:seeAlso sh:SPARQLRule,
+        sh:object,
+        sh:predicate,
+        sh:subject ;
+    skos:example "[ a sh:TripleRule ; sh:subject sh:this ; sh:predicate ex:ancestor ; sh:object [ sh:path ex:parent ] ]"@en ;
+    sh:description "A rule type that derives one new triple per matching focus node from three independently-evaluated node expressions — sh:subject/sh:predicate/sh:object — without needing any SPARQL."@en ;
+    sh:name "triple rule"@en ;
     stsh:requiredEngine stsh:PySHACL .

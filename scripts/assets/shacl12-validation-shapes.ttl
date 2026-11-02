@@ -681,6 +681,7 @@ stsh:RuleShape
 	a sh:NodeShape ;
 	rdfs:label "Well-formed sh:TripleRule or sh:SPARQLRule"@en ;
 	sh:targetClass sh:TripleRule, sh:SPARQLRule ;     # a rule named in the file (not only one reached through sh:rule or sh:hasRule) is checked too
+	sh:message "A rule is a triple rule, a SPARQL rule or an instance of a rule template, with the properties of its kind (what is wrong with them is listed on the rule)."@en ;
 	sh:or (
 		[ sh:class sh:TripleRule ;
 		  # SHACL 1.2 Inference Rules 11.2: "Where sh:subject, sh:predicate, or sh:object are absent, use the list consisting of the current
@@ -696,6 +697,30 @@ stsh:RuleShape
 		]
 		[ sh:class sh:Rule ]       # an instance of a rule template (Inference Rules 12): a subclass of sh:Rule, checked by its template
 	) .
+
+# Inference Rules 11.2: a triple whose subject is a literal, or whose predicate is not an IRI, is skipped when the rule runs ("Skip ill-formed triples"),
+# so a triple rule that gives one by a constant never infers anything. A node expression (a blank node) may produce any term, so it is not judged here.
+stsh:TripleRuleTermsShape
+	a sh:NodeShape ;
+	rdfs:label "A triple rule gives a subject and a predicate that can be part of a triple"@en ;
+	sh:targetClass sh:TripleRule ;
+	sh:property [ sh:path sh:subject ; sh:nodeKind sh:BlankNodeOrIRI ; sh:severity sh:Warning ; sh:message "A triple whose subject is a literal is skipped when the rule runs (Inference Rules 11.2), so this rule infers nothing."@en ] ;
+	sh:property [ sh:path sh:predicate ; sh:nodeKind sh:BlankNodeOrIRI ; sh:severity sh:Warning ; sh:message "A triple whose predicate is a literal is skipped when the rule runs (Inference Rules 11.2), so this rule infers nothing."@en ] .
+
+# The same rules, one by one, so that a tool can say which one a rule breaks (stsh:RuleShape above says only that one does).
+stsh:SPARQLRuleConstructShape
+	a sh:NodeShape ;
+	rdfs:label "A SPARQL rule has exactly one sh:construct"@en ;
+	sh:targetClass sh:SPARQLRule ;
+	sh:property [ sh:path sh:construct ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:message "A SPARQL rule has exactly one sh:construct, an xsd:string (a CONSTRUCT query)."@en ] .
+
+stsh:TripleRuleOnePerTermShape
+	a sh:NodeShape ;
+	rdfs:label "A triple rule has at most one sh:subject, sh:predicate and sh:object"@en ;
+	sh:targetClass sh:TripleRule ;
+	sh:property [ sh:path sh:subject ; sh:maxCount 1 ; sh:message "A triple rule has at most one sh:subject."@en ] ;
+	sh:property [ sh:path sh:predicate ; sh:maxCount 1 ; sh:message "A triple rule has at most one sh:predicate."@en ] ;
+	sh:property [ sh:path sh:object ; sh:maxCount 1 ; sh:message "A triple rule has at most one sh:object."@en ] .
 
 stsh:RulesAndSparqlShapes
 	a sh:NodeShape ;
@@ -725,7 +750,7 @@ stsh:RuleSetShape
 	sh:targetSubjectsOf sh:hasRule, sh:includesRuleSet ;
 	sh:nodeKind sh:IRI ;
 	sh:message "A rule set is identified by an IRI, not a blank node."@en ;
-	sh:property [ sh:path sh:hasRule ; sh:nodeKind sh:BlankNodeOrIRI ; sh:node stsh:RuleShape ] ;
+	sh:property [ sh:path sh:hasRule ; sh:nodeKind sh:BlankNodeOrIRI ; sh:node stsh:RuleShape ; sh:message "A value of sh:hasRule is a rule: a triple rule, a SPARQL rule or an instance of a rule template."@en ] ;
 	sh:property [ sh:path sh:includesRuleSet ; sh:nodeKind sh:IRI ] .
 
 # Inference Rules, Appendix A, the syntax rules about rules that stsh:RuleShape and stsh:RuleSetShape above do not state:
@@ -793,6 +818,41 @@ stsh:SPARQLRuleTemplateShape
 	sh:message "A SPARQL rule template is an IRI."@en ;
 	sh:property [ sh:path sh:construct ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:message "A SPARQL rule template has exactly one sh:construct, an xsd:string."@en ] .
 	# (its parameters are checked by stsh:ParameterShape, like those of a constraint component)
+
+# Inference Rules 12: a rule is an instance of one rule template; the engine refuses one that is an instance of two.
+stsh:RuleOfOneTemplateShape
+	a sh:NodeShape ;
+	rdfs:label "A rule is an instance of one rule template"@en ;
+	sh:targetSubjectsOf rdf:type ;
+	sh:sparql [
+		sh:message "A rule is an instance of one rule template, and this one is an instance of more than one."@en ;
+		sh:select """
+			PREFIX sh: <http://www.w3.org/ns/shacl#>
+			SELECT DISTINCT $this
+			WHERE {
+				$this a ?first , ?second .
+				?first a sh:SPARQLRuleTemplate .
+				?second a sh:SPARQLRuleTemplate .
+				FILTER (?first != ?second)
+			}
+		""" ;
+	] .
+
+# Core 1.4 and Inference Rules 6: a value of sh:entailment is an entailment regime, sh:RulesEntailment, or a rule set. StarLayer provides the regimes of
+# entailment_regimes.SUPPORTED_REGIMES (a test keeps this list in step); validating with another one raises, so a warning says so before anyone runs it.
+stsh:EntailmentSupportedShape
+	a sh:NodeShape ;
+	rdfs:label "StarLayer provides the entailment a shapes graph asks for"@en ;
+	sh:targetSubjectsOf sh:entailment ;
+	sh:property [
+		sh:path sh:entailment ;
+		sh:or (
+			[ sh:in ( <http://www.w3.org/ns/entailment/RDF> <http://www.w3.org/ns/entailment/RDFS> <http://www.w3.org/ns/entailment/OWL-RDF-Based> <http://www.w3.org/ns/entailment/OWL-Direct> sh:RulesEntailment ) ]
+			[ sh:class sh:RuleSet ]
+		) ;
+		sh:severity sh:Warning ;
+		sh:message "StarLayer provides no such entailment regime, and the shapes graph has no such rule set, so validating with it fails (an entailment regime, sh:RulesEntailment or a rule set)."@en ;
+	] .
 
 # Inference Rules 9: "The values of sh:sourceRule SHOULD be IRIs", so a blank node or a literal is a warning.
 stsh:SourceRuleShape
@@ -890,7 +950,7 @@ stsh:ParameterHolderShapes
 	a sh:NodeShape ;
 	rdfs:label "Well-formedness rules for the holder of sh:parameter"@en ;
 	sh:targetSubjectsOf sh:parameter ;
-	sh:property [ sh:path sh:parameter ; sh:node stsh:ParameterShape ] ;
+	sh:property [ sh:path sh:parameter ; sh:node stsh:ParameterShape ; sh:message "A parameter is ill-formed: what is wrong is listed on the parameter."@en ] ;
 	sh:sparql [
 		sh:message "Two parameters have the same name (the local name of their sh:path)."@en ;
 		sh:select """

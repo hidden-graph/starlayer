@@ -1817,6 +1817,15 @@ starontology:shacl12-shacl-rules.ttl {
                 sh:subject sh:this ] ;
         sh:targetClass sh:Shape .
 
+    stsh:PrefixSetRule a sh:NodeShape ;
+        rdfs:label "A node that holds prefix declarations is a prefix set"@en ;
+        sh:rule [ a sh:TripleRule ;
+                sh:layer 0 ;
+                sh:object stsh:PrefixSet ;
+                sh:predicate rdf:type ;
+                sh:subject sh:this ] ;
+        sh:targetSubjectsOf sh:declare .
+
     stsh:PropertyShapeRule a sh:NodeShape ;
         rdfs:label "A shape with sh:path is a property shape"@en ;
         sh:rule [ a sh:TripleRule ;
@@ -2460,6 +2469,15 @@ starontology:shacl12-shacl-ui.ttl {
         stsh:formFor sh:PrefixDeclaration ;
         stsh:formRequired ( sh:prefix sh:namespace ) .
 
+    stsh:PrefixSetForm a sh:NodeShape ;
+        rdfs:label "Form for a PrefixSet"@en ;
+        sh:property stsh:PrefixSetForm_rdf_type,
+            stsh:PrefixSetForm_rdfs_comment,
+            stsh:PrefixSetForm_rdfs_label,
+            stsh:PrefixSetForm_sh_declare ;
+        stsh:formFields ( rdf:type rdfs:label rdfs:comment sh:declare ) ;
+        stsh:formFor stsh:PrefixSet .
+
     stsh:PropertyGroupForm a sh:NodeShape ;
         rdfs:label "Form for a PropertyGroup"@en ;
         sh:property stsh:PropertyGroupForm_rdf_type,
@@ -2661,12 +2679,11 @@ starontology:shacl12-shacl-ui.ttl {
         sh:property stsh:ShapesGraphForm_owl_imports,
             stsh:ShapesGraphForm_rdf_type,
             stsh:ShapesGraphForm_rdfs_comment,
-            stsh:ShapesGraphForm_rdfs_isDefinedBy,
             stsh:ShapesGraphForm_rdfs_label,
             stsh:ShapesGraphForm_rdfs_member,
             stsh:ShapesGraphForm_sh_declare,
             stsh:ShapesGraphForm_sh_entailment ;
-        stsh:formFields ( rdf:type rdfs:label rdfs:comment rdfs:member owl:imports sh:entailment sh:declare rdfs:isDefinedBy ) ;
+        stsh:formFields ( rdf:type rdfs:label rdfs:comment rdfs:member owl:imports sh:entailment sh:declare ) ;
         stsh:formFor sh:ShapesGraph .
 
     stsh:ShuiPredicateShapes a sh:NodeShape ;
@@ -3426,7 +3443,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:NodeShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:na57546791ea94d988173b64510ffcebdb222 ;
+        sh:in _:n7b0a69c21c8544679275a09ca3d2eb56b225 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -3826,7 +3843,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:ParameterForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:na57546791ea94d988173b64510ffcebdb222 ;
+        sh:in _:n7b0a69c21c8544679275a09ca3d2eb56b225 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -4029,6 +4046,30 @@ starontology:shacl12-shacl-ui.ttl {
         sh:nodeKind sh:Literal ;
         sh:order 9 ;
         sh:path sh:prefix .
+
+    stsh:PrefixSetForm_rdf_type a sh:PropertyShape ;
+        sh:group stsh:TypeGroup ;
+        sh:nodeKind sh:IRI ;
+        sh:order 1 ;
+        sh:path rdf:type .
+
+    stsh:PrefixSetForm_rdfs_comment a sh:PropertyShape ;
+        sh:group stsh:NamingGroup ;
+        sh:nodeKind sh:Literal ;
+        sh:order 4 ;
+        sh:path rdfs:comment .
+
+    stsh:PrefixSetForm_rdfs_label a sh:PropertyShape ;
+        sh:group stsh:NamingGroup ;
+        sh:nodeKind sh:Literal ;
+        sh:order 3 ;
+        sh:path rdfs:label .
+
+    stsh:PrefixSetForm_sh_declare a sh:PropertyShape ;
+        sh:group stsh:RulesGroup ;
+        sh:nodeKind sh:BlankNodeOrIRI ;
+        sh:order 21 ;
+        sh:path sh:declare .
 
     stsh:PropertyGroupForm_rdf_type a sh:PropertyShape ;
         sh:group stsh:TypeGroup ;
@@ -4329,7 +4370,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:PropertyShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:na57546791ea94d988173b64510ffcebdb222 ;
+        sh:in _:n7b0a69c21c8544679275a09ca3d2eb56b225 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -4965,13 +5006,6 @@ starontology:shacl12-shacl-ui.ttl {
         sh:order 4 ;
         sh:path rdfs:comment .
 
-    stsh:ShapesGraphForm_rdfs_isDefinedBy a sh:PropertyShape ;
-        sh:group stsh:MetadataGroup ;
-        sh:maxCount 1 ;
-        sh:nodeKind sh:IRI ;
-        sh:order 5 ;
-        sh:path rdfs:isDefinedBy .
-
     stsh:ShapesGraphForm_rdfs_label a sh:PropertyShape ;
         sh:group stsh:NamingGroup ;
         sh:nodeKind sh:Literal ;
@@ -5058,6 +5092,7 @@ starontology:shacl12-shacl-ui.ttl {
     stsh:TripleRuleForm_sh_predicate a sh:PropertyShape ;
         sh:group stsh:DefinitionGroup ;
         sh:maxCount 1 ;
+        sh:nodeKind sh:BlankNodeOrIRI ;
         sh:order 5 ;
         sh:path sh:predicate .
 
@@ -5078,6 +5113,7 @@ starontology:shacl12-shacl-ui.ttl {
     stsh:TripleRuleForm_sh_subject a sh:PropertyShape ;
         sh:group stsh:DefinitionGroup ;
         sh:maxCount 1 ;
+        sh:nodeKind sh:BlankNodeOrIRI ;
         sh:order 4 ;
         sh:path sh:subject .
 
@@ -5637,10 +5673,6 @@ starontology:shacl12-shacl-ui.ttl {
         sh:order 29 ;
         stsh:formOnlyFor sh:DataGraph .
 
-    sh:declare sh:group stsh:RulesGroup ;
-        sh:nodeKind sh:BlankNodeOrIRI ;
-        sh:order 21 .
-
     sh:entailment sh:group stsh:DefinitionGroup ;
         sh:nodeKind sh:IRI ;
         sh:order 17 ;
@@ -5712,6 +5744,13 @@ starontology:shacl12-shacl-ui.ttl {
         sh:name "Cross-Node"@en ;
         sh:order 13 .
 
+    rdfs:isDefinedBy sh:group stsh:MetadataGroup ;
+        sh:nodeKind sh:IRI ;
+        sh:order 5 ;
+        stsh:formMaxCount 1 ;
+        stsh:nodeFormField true ;
+        stsh:propertyFormField true .
+
     rdfs:subClassOf sh:group stsh:MetadataGroup ;
         sh:nodeKind sh:IRI ;
         sh:order 7 ;
@@ -5763,6 +5802,10 @@ starontology:shacl12-shacl-ui.ttl {
         stsh:formMaxCount 1 ;
         stsh:multiline true .
 
+    sh:declare sh:group stsh:RulesGroup ;
+        sh:nodeKind sh:BlankNodeOrIRI ;
+        sh:order 21 .
+
     sh:resultAnnotation sh:group stsh:DefinitionGroup ;
         sh:nodeKind sh:BlankNodeOrIRI ;
         sh:order 18 .
@@ -5804,13 +5847,6 @@ starontology:shacl12-shacl-ui.ttl {
         sh:description "RDF 1.2 triple-term reification constraints (sh:reifierShape, sh:reificationRequired)."@en ;
         sh:name "Reification"@en ;
         sh:order 14 .
-
-    rdfs:isDefinedBy sh:group stsh:MetadataGroup ;
-        sh:nodeKind sh:IRI ;
-        sh:order 5 ;
-        stsh:formMaxCount 1 ;
-        stsh:nodeFormField true ;
-        stsh:propertyFormField true .
 
     shui:widget sh:group stsh:DefinitionGroup ;
         sh:nodeKind sh:BlankNodeOrIRI ;
@@ -5901,15 +5937,15 @@ starontology:shacl12-shacl-ui.ttl {
         sh:name "Targeting"@en ;
         sh:order 1 .
 
-    stsh:TypeGroup a sh:PropertyGroup ;
-        sh:description "What kind of thing this is — rdf:type, a simple multi-valued IRI. Allowed on any shape and expected on most (a shape need not be typed, SHACL 1.2 Core section 3.1, but a form should show and set the type)."@en ;
-        sh:name "Type"@en ;
-        sh:order 0 .
-
     stsh:StringGroup a sh:PropertyGroup ;
         sh:description "Constraints on a value's string form — length, pattern, language."@en ;
         sh:name "String Constraints"@en ;
         sh:order 6 .
+
+    stsh:TypeGroup a sh:PropertyGroup ;
+        sh:description "What kind of thing this is — rdf:type, a simple multi-valued IRI. Allowed on any shape and expected on most (a shape need not be typed, SHACL 1.2 Core section 3.1, but a form should show and set the type)."@en ;
+        sh:name "Type"@en ;
+        sh:order 0 .
 
     stsh:WidgetGroup a sh:PropertyGroup ;
         sh:description "shui: vocabulary for form generation — widget/editor/viewer assignment and the built-in widget instances. Documents the vocabulary: validation ignores it; widget selection is implemented separately in starlayer.shacl.ui_widget_selection; property roles are not interpreted."@en ;
@@ -5960,11 +5996,11 @@ starontology:shacl12-shacl-ui.ttl {
         sh:name "Definition"@en ;
         sh:order 0.5 .
 
-    _:na57546791ea94d988173b64510ffcebdb223 rdf:first sh:IRI ;
+    _:n7b0a69c21c8544679275a09ca3d2eb56b226 rdf:first sh:IRI ;
         rdf:rest ( sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) .
 
-    _:na57546791ea94d988173b64510ffcebdb222 rdf:first sh:BlankNode ;
-        rdf:rest _:na57546791ea94d988173b64510ffcebdb223 .
+    _:n7b0a69c21c8544679275a09ca3d2eb56b225 rdf:first sh:BlankNode ;
+        rdf:rest _:n7b0a69c21c8544679275a09ca3d2eb56b226 .
 }
 
 starontology:shacl12-shacl.ttl {
@@ -6297,6 +6333,14 @@ starontology:shacl12-shacl.ttl {
                 sh:path sh:defaultValue ] ;
         sh:targetSubjectsOf sh:defaultValue .
 
+    stsh:EntailmentSupportedShape a sh:NodeShape ;
+        rdfs:label "StarLayer provides the entailment a shapes graph asks for"@en ;
+        sh:property [ sh:message "StarLayer provides no such entailment regime, and the shapes graph has no such rule set, so validating with it fails (an entailment regime, sh:RulesEntailment or a rule set)."@en ;
+                sh:or ( [ sh:in ( <http://www.w3.org/ns/entailment/RDF> <http://www.w3.org/ns/entailment/RDFS> <http://www.w3.org/ns/entailment/OWL-RDF-Based> <http://www.w3.org/ns/entailment/OWL-Direct> sh:RulesEntailment ) ] [ sh:class sh:RuleSet ] ) ;
+                sh:path sh:entailment ;
+                sh:severity sh:Warning ] ;
+        sh:targetSubjectsOf sh:entailment .
+
     stsh:ExpressionArgumentListShape a sh:NodeShape ;
         rdfs:label "A list that is an argument of a node expression is a well-formed RDF list"@en ;
         sh:node shsh:ListShape ;
@@ -6530,7 +6574,8 @@ starontology:shacl12-shacl.ttl {
 
     stsh:ParameterHolderShapes a sh:NodeShape ;
         rdfs:label "Well-formedness rules for the holder of sh:parameter"@en ;
-        sh:property [ sh:node stsh:ParameterShape ;
+        sh:property [ sh:message "A parameter is ill-formed: what is wrong is listed on the parameter."@en ;
+                sh:node stsh:ParameterShape ;
                 sh:path sh:parameter ] ;
         sh:sparql [ sh:message "Two parameters have the same name (the local name of their sh:path)."@en ;
                 sh:select """
@@ -6601,6 +6646,21 @@ starontology:shacl12-shacl.ttl {
         sh:targetObjectsOf sh:hasRule,
             sh:rule .
 
+    stsh:RuleOfOneTemplateShape a sh:NodeShape ;
+        rdfs:label "A rule is an instance of one rule template"@en ;
+        sh:sparql [ sh:message "A rule is an instance of one rule template, and this one is an instance of more than one."@en ;
+                sh:select """
+			PREFIX sh: <http://www.w3.org/ns/shacl#>
+			SELECT DISTINCT $this
+			WHERE {
+				$this a ?first , ?second .
+				?first a sh:SPARQLRuleTemplate .
+				?second a sh:SPARQLRuleTemplate .
+				FILTER (?first != ?second)
+			}
+		""" ] ;
+        sh:targetSubjectsOf rdf:type .
+
     stsh:RuleProcessorShape a sh:NodeShape ;
         rdfs:label "Well-formed sh:ruleProcessor"@en ;
         rdfs:comment "SHACL 1.2 Inference Rules 10 and Appendix A (ruleProcessor): the values are IRIs or xsd:string literals."@en ;
@@ -6621,7 +6681,8 @@ starontology:shacl12-shacl.ttl {
         rdfs:label "Well-formedness rules for sh:RuleSet"@en ;
         sh:message "A rule set is identified by an IRI, not a blank node."@en ;
         sh:nodeKind sh:IRI ;
-        sh:property [ sh:node stsh:RuleShape ;
+        sh:property [ sh:message "A value of sh:hasRule is a rule: a triple rule, a SPARQL rule or an instance of a rule template."@en ;
+                sh:node stsh:RuleShape ;
                 sh:nodeKind sh:BlankNodeOrIRI ;
                 sh:path sh:hasRule ],
             [ sh:nodeKind sh:IRI ;
@@ -6675,6 +6736,15 @@ starontology:shacl12-shacl.ttl {
         sh:targetSubjectsOf sh:condition,
             sh:rule,
             sh:sparql .
+
+    stsh:SPARQLRuleConstructShape a sh:NodeShape ;
+        rdfs:label "A SPARQL rule has exactly one sh:construct"@en ;
+        sh:property [ sh:datatype xsd:string ;
+                sh:maxCount 1 ;
+                sh:message "A SPARQL rule has exactly one sh:construct, an xsd:string (a CONSTRUCT query)."@en ;
+                sh:minCount 1 ;
+                sh:path sh:construct ] ;
+        sh:targetClass sh:SPARQLRule .
 
     stsh:SPARQLRuleTemplateShape a sh:NodeShape ;
         rdfs:label "Well-formedness rules for sh:SPARQLRuleTemplate"@en ;
@@ -6752,6 +6822,31 @@ starontology:shacl12-shacl.ttl {
         sh:property [ sh:node stsh:ShapeReferenceShape ;
                 sh:path sh:targetWhere ] ;
         sh:targetSubjectsOf sh:targetWhere .
+
+    stsh:TripleRuleOnePerTermShape a sh:NodeShape ;
+        rdfs:label "A triple rule has at most one sh:subject, sh:predicate and sh:object"@en ;
+        sh:property [ sh:maxCount 1 ;
+                sh:message "A triple rule has at most one sh:subject."@en ;
+                sh:path sh:subject ],
+            [ sh:maxCount 1 ;
+                sh:message "A triple rule has at most one sh:predicate."@en ;
+                sh:path sh:predicate ],
+            [ sh:maxCount 1 ;
+                sh:message "A triple rule has at most one sh:object."@en ;
+                sh:path sh:object ] ;
+        sh:targetClass sh:TripleRule .
+
+    stsh:TripleRuleTermsShape a sh:NodeShape ;
+        rdfs:label "A triple rule gives a subject and a predicate that can be part of a triple"@en ;
+        sh:property [ sh:message "A triple whose subject is a literal is skipped when the rule runs (Inference Rules 11.2), so this rule infers nothing."@en ;
+                sh:nodeKind sh:BlankNodeOrIRI ;
+                sh:path sh:subject ;
+                sh:severity sh:Warning ],
+            [ sh:message "A triple whose predicate is a literal is skipped when the rule runs (Inference Rules 11.2), so this rule infers nothing."@en ;
+                sh:nodeKind sh:BlankNodeOrIRI ;
+                sh:path sh:predicate ;
+                sh:severity sh:Warning ] ;
+        sh:targetClass sh:TripleRule .
 
     stsh:ValuesShape a sh:NodeShape ;
         rdfs:label "Well-formed sh:values"@en ;
@@ -7111,6 +7206,7 @@ starontology:shacl12-shacl.ttl {
 
     stsh:RuleShape a sh:NodeShape ;
         rdfs:label "Well-formed sh:TripleRule or sh:SPARQLRule"@en ;
+        sh:message "A rule is a triple rule, a SPARQL rule or an instance of a rule template, with the properties of its kind (what is wrong with them is listed on the rule)."@en ;
         sh:or ( [ sh:class sh:TripleRule ;
                     sh:property [ sh:maxCount 1 ;
                             sh:node stsh:NodeExpressionShape ;
@@ -7159,14 +7255,6 @@ starontology:shacl12-shacl.ttl {
         skos:example "sh:rule [ a sh:TripleRule ; sh:condition ex:AdultShape ; ... ]"@en ;
         sh:description "Restricts which focus nodes a rule actually applies to — only nodes conforming to the given shape have the rule run for them; every other focus node is skipped entirely for that rule."@en ;
         sh:name "condition"@en ;
-        stsh:requiredEngine stsh:PySHACL .
-
-    sh:construct rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
-            <https://www.w3.org/TR/shacl12-rules/> ;
-        rdfs:seeAlso sh:SPARQLRule ;
-        skos:example "sh:construct \"PREFIX ex: <http://example.org/> CONSTRUCT { $this ex:ancestor ?a } WHERE { $this ex:parent ?a }\""@en ;
-        sh:description "The SPARQL CONSTRUCT query text for a sh:SPARQLRule — its WHERE clause is evaluated once per matching focus node (bound to $this), and every triple in its result is added to the data graph."@en ;
-        sh:name "CONSTRUCT query"@en ;
         stsh:requiredEngine stsh:PySHACL .
 
     sh:datatype rdfs:comment "plain single-value form only — the SHACL 1.2 list-valued form requires stsh:StarShacl"@en,
@@ -7319,6 +7407,14 @@ starontology:shacl12-shacl.ttl {
         sh:name "ASK query"@en ;
         stsh:requiredEngine stsh:PySHACL .
 
+    sh:construct rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
+            <https://www.w3.org/TR/shacl12-rules/> ;
+        rdfs:seeAlso sh:SPARQLRule ;
+        skos:example "sh:construct \"PREFIX ex: <http://example.org/> CONSTRUCT { $this ex:ancestor ?a } WHERE { $this ex:parent ?a }\""@en ;
+        sh:description "The SPARQL CONSTRUCT query text for a sh:SPARQLRule — its WHERE clause is evaluated once per matching focus node (bound to $this), and every triple in its result is added to the data graph."@en ;
+        sh:name "CONSTRUCT query"@en ;
+        stsh:requiredEngine stsh:PySHACL .
+
     sh:disjoint rdfs:comment "plain-IRI object only — the SHACL 1.2 path-valued form requires stsh:StarShacl"@en ;
         rdfs:isDefinedBy <https://www.w3.org/TR/shacl/>,
             <https://www.w3.org/TR/shacl12-core/> ;
@@ -7355,28 +7451,10 @@ starontology:shacl12-shacl.ttl {
         sh:name "node"@en ;
         stsh:requiredEngine stsh:PySHACL .
 
-    sh:object rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
-            <https://www.w3.org/TR/shacl12-rules/> ;
-        rdfs:seeAlso sh:TripleRule,
-            sh:predicate,
-            sh:subject ;
-        sh:description "The node expression producing the object of the triple a sh:TripleRule derives — often a shnex:pathValues/sh:path expression pulling a value from elsewhere in the data."@en ;
-        sh:name "object expression"@en ;
-        stsh:requiredEngine stsh:PySHACL .
-
     sh:or rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
         skos:example "sh:or ( [ sh:datatype xsd:string ] [ sh:datatype xsd:integer ] )"@en ;
         sh:description "A value node must conform to at least one shape in this list — logical disjunction. Commonly used to allow a value to be one of several alternative shapes (e.g. either an IRI reference or an inline literal)."@en ;
         sh:name "or"@en ;
-        stsh:requiredEngine stsh:PySHACL .
-
-    sh:predicate rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
-            <https://www.w3.org/TR/shacl12-rules/> ;
-        rdfs:seeAlso sh:TripleRule,
-            sh:object,
-            sh:subject ;
-        sh:description "The node expression producing the predicate of the triple a sh:TripleRule derives — typically a constant IRI naming the derived property."@en ;
-        sh:name "predicate expression"@en ;
         stsh:requiredEngine stsh:PySHACL .
 
     sh:propertyValidator rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
@@ -7410,15 +7488,6 @@ starontology:shacl12-shacl.ttl {
         skos:example "sh:sparql [ sh:select \"SELECT $this WHERE { FILTER NOT EXISTS { $this ex:email ?e } }\" ]"@en ;
         sh:description "Attaches a SPARQL-based constraint to a shape — the query is evaluated once per focus node, and any result row it returns is treated as a violation."@en ;
         sh:name "SPARQL constraint"@en ;
-        stsh:requiredEngine stsh:PySHACL .
-
-    sh:subject rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
-            <https://www.w3.org/TR/shacl12-rules/> ;
-        rdfs:seeAlso sh:TripleRule,
-            sh:object,
-            sh:predicate ;
-        sh:description "The node expression producing the subject of the triple a sh:TripleRule derives — most commonly just sh:this, the rule's own focus node."@en ;
-        sh:name "subject expression"@en ;
         stsh:requiredEngine stsh:PySHACL .
 
     shsh:ListShape a sh:NodeShape ;
@@ -7497,6 +7566,15 @@ starontology:shacl12-shacl.ttl {
         sh:name "node validator"@en ;
         stsh:requiredEngine stsh:PySHACL .
 
+    sh:object rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
+            <https://www.w3.org/TR/shacl12-rules/> ;
+        rdfs:seeAlso sh:TripleRule,
+            sh:predicate,
+            sh:subject ;
+        sh:description "The node expression producing the object of the triple a sh:TripleRule derives — often a shnex:pathValues/sh:path expression pulling a value from elsewhere in the data."@en ;
+        sh:name "object expression"@en ;
+        stsh:requiredEngine stsh:PySHACL .
+
     sh:parameter rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
             <https://www.w3.org/TR/shacl12-sparql/> ;
         rdfs:seeAlso sh:ConstraintComponent ;
@@ -7534,20 +7612,29 @@ starontology:shacl12-shacl.ttl {
         sh:node shsh:ShapeShape ;
         sh:nodeKind sh:BlankNodeOrIRI .
 
-    sh:SPARQLRule rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
-            <https://www.w3.org/TR/shacl12-rules/> ;
-        rdfs:seeAlso sh:TripleRule,
-            sh:construct ;
-        skos:example "[ a sh:SPARQLRule ; sh:construct \"CONSTRUCT { $this ex:ancestor ?a } WHERE { $this ex:parent+ ?a }\" ]"@en ;
-        sh:description "A rule type that derives new triples via an arbitrary SPARQL CONSTRUCT query (sh:construct), for derivations too complex for a single sh:TripleRule."@en ;
-        sh:name "SPARQL rule"@en ;
-        stsh:requiredEngine stsh:PySHACL .
-
     sh:lessThanOrEquals rdfs:comment "plain-IRI object only — the SHACL 1.2 path-valued form requires stsh:StarShacl"@en ;
         rdfs:isDefinedBy <https://www.w3.org/TR/shacl/>,
             <https://www.w3.org/TR/shacl12-core/> ;
         sh:description "Same as sh:lessThan, but allows equality. SHACL 1.2 widens the object to any property path."@en ;
         sh:name "less than or equal to"@en ;
+        stsh:requiredEngine stsh:PySHACL .
+
+    sh:predicate rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
+            <https://www.w3.org/TR/shacl12-rules/> ;
+        rdfs:seeAlso sh:TripleRule,
+            sh:object,
+            sh:subject ;
+        sh:description "The node expression producing the predicate of the triple a sh:TripleRule derives — typically a constant IRI naming the derived property."@en ;
+        sh:name "predicate expression"@en ;
+        stsh:requiredEngine stsh:PySHACL .
+
+    sh:subject rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
+            <https://www.w3.org/TR/shacl12-rules/> ;
+        rdfs:seeAlso sh:TripleRule,
+            sh:object,
+            sh:predicate ;
+        sh:description "The node expression producing the subject of the triple a sh:TripleRule derives — most commonly just sh:this, the rule's own focus node."@en ;
+        sh:name "subject expression"@en ;
         stsh:requiredEngine stsh:PySHACL .
 
     shsh:ShapeShape a sh:NodeShape ;
@@ -7734,23 +7821,21 @@ starontology:shacl12-shacl.ttl {
             sh:xone ;
         sh:xone ( shsh:NodeShapeShape shsh:PropertyShapeShape ) .
 
+    sh:SPARQLRule rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
+            <https://www.w3.org/TR/shacl12-rules/> ;
+        rdfs:seeAlso sh:TripleRule,
+            sh:construct ;
+        skos:example "[ a sh:SPARQLRule ; sh:construct \"CONSTRUCT { $this ex:ancestor ?a } WHERE { $this ex:parent+ ?a }\" ]"@en ;
+        sh:description "A rule type that derives new triples via an arbitrary SPARQL CONSTRUCT query (sh:construct), for derivations too complex for a single sh:TripleRule."@en ;
+        sh:name "SPARQL rule"@en ;
+        stsh:requiredEngine stsh:PySHACL .
+
     sh:in rdfs:comment "List membership is exact-value matching, including datatype — sh:in (1 2 3) (integers) will not match the string \"1\"."@en ;
         rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
         rdfs:seeAlso sh:hasValue ;
         skos:example "sh:path ex:status ; sh:in ( \"active\" \"inactive\" \"pending\" )"@en ;
         sh:description "Every value node must be exactly one of the members of this list — an enumeration/allow-list constraint."@en ;
         sh:name "in"@en ;
-        stsh:requiredEngine stsh:PySHACL .
-
-    sh:TripleRule rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
-            <https://www.w3.org/TR/shacl12-rules/> ;
-        rdfs:seeAlso sh:SPARQLRule,
-            sh:object,
-            sh:predicate,
-            sh:subject ;
-        skos:example "[ a sh:TripleRule ; sh:subject sh:this ; sh:predicate ex:ancestor ; sh:object [ sh:path ex:parent ] ]"@en ;
-        sh:description "A rule type that derives one new triple per matching focus node from three independently-evaluated node expressions — sh:subject/sh:predicate/sh:object — without needing any SPARQL."@en ;
-        sh:name "triple rule"@en ;
         stsh:requiredEngine stsh:PySHACL .
 
     sh:xone rdfs:comment "If two shapes in the list overlap (a value could satisfy both), a value that matches both fails sh:xone even though it would pass sh:or — easy to trip over when shapes aren't as mutually exclusive as intended."@en ;
@@ -7812,6 +7897,17 @@ starontology:shacl12-shacl.ttl {
         skos:example "sh:select \"SELECT $this ?value WHERE { ?value ex:score ?s . FILTER (?s < 0) }\""@en ;
         sh:description "The SPARQL SELECT query text for a sh:sparql constraint or a custom sh:ConstraintComponent's sh:nodeValidator/sh:propertyValidator. Any row returned counts as a violation; bindings for ?value/?path/?this in the result customize the reported focus/value/path."@en ;
         sh:name "SELECT query"@en ;
+        stsh:requiredEngine stsh:PySHACL .
+
+    sh:TripleRule rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
+            <https://www.w3.org/TR/shacl12-rules/> ;
+        rdfs:seeAlso sh:SPARQLRule,
+            sh:object,
+            sh:predicate,
+            sh:subject ;
+        skos:example "[ a sh:TripleRule ; sh:subject sh:this ; sh:predicate ex:ancestor ; sh:object [ sh:path ex:parent ] ]"@en ;
+        sh:description "A rule type that derives one new triple per matching focus node from three independently-evaluated node expressions — sh:subject/sh:predicate/sh:object — without needing any SPARQL."@en ;
+        sh:name "triple rule"@en ;
         stsh:requiredEngine stsh:PySHACL .
 }
 
@@ -8128,6 +8224,11 @@ starontology:shacl12-vocabulary.ttl {
         rdfs:comment "The class of validators, which provide instructions on how to process a constraint definition. This class serves as base class for the SPARQL-based validators and other possible implementations."@en ;
         rdfs:isDefinedBy sh: ;
         rdfs:subClassOf rdfs:Resource .
+
+    stsh:PrefixSet a rdfs:Class ;
+        rdfs:label "prefix set" ;
+        rdfs:comment "A resource that holds namespace prefix declarations (sh:declare), such as the value of sh:prefixes. SHACL 1.2 gives it no class: this one is inferred from sh:declare."@en ;
+        sh:group stsh:KindGroupShared .
 
     sh:AndConstraintComponent a sh:ConstraintComponent ;
         rdfs:label "And constraint component"@en ;
@@ -8993,6 +9094,7 @@ starontology:shacl12-vocabulary.ttl {
             stsh:ShapesGraphDefinesRuleSet,
             stsh:ShapesGraphDefinesSPARQLConstraint,
             stsh:ShapesGraphDefinesSPARQLRule,
+            stsh:ShapesGraphDefinesSPARQLRuleTemplate,
             stsh:ShapesGraphDefinesTripleRule,
             stsh:ShapesGraphDefinesValidator,
             stsh:ShapesGraphDefinesWidget,
@@ -9579,7 +9681,7 @@ starontology:shacl12-vocabulary.ttl {
         sh:class shui:Configuration ;
         sh:group stsh:KindGroupUI ;
         sh:name "UI configurations" ;
-        sh:order 17 ;
+        sh:order 18 ;
         sh:path [ sh:inversePath rdfs:isDefinedBy ] .
 
     stsh:ShapesGraphDefinesConstraintComponent a sh:PropertyShape ;
@@ -9628,7 +9730,7 @@ starontology:shacl12-vocabulary.ttl {
         sh:class sh:PropertyGroup ;
         sh:group stsh:KindGroupUI ;
         sh:name "property groups" ;
-        sh:order 14 ;
+        sh:order 15 ;
         sh:path [ sh:inversePath rdfs:isDefinedBy ] .
 
     stsh:ShapesGraphDefinesPropertyShape a sh:PropertyShape ;
@@ -9666,6 +9768,14 @@ starontology:shacl12-vocabulary.ttl {
         sh:order 13 ;
         sh:path [ sh:inversePath rdfs:isDefinedBy ] .
 
+    stsh:ShapesGraphDefinesSPARQLRuleTemplate a sh:PropertyShape ;
+        sh:class sh:SPARQLRuleTemplate ;
+        sh:group stsh:KindGroupRules ;
+        sh:name "SPARQL rule templates" ;
+        sh:order 14 ;
+        sh:path [ sh:inversePath rdfs:isDefinedBy ] ;
+        stsh:groupsInstances true .
+
     stsh:ShapesGraphDefinesTripleRule a sh:PropertyShape ;
         sh:class sh:TripleRule ;
         sh:group stsh:KindGroupRules ;
@@ -9684,21 +9794,21 @@ starontology:shacl12-vocabulary.ttl {
         sh:class shui:Widget ;
         sh:group stsh:KindGroupUI ;
         sh:name "widgets" ;
-        sh:order 18 ;
+        sh:order 19 ;
         sh:path [ sh:inversePath rdfs:isDefinedBy ] .
 
     stsh:ShapesGraphDefinesWidgetAcceptMatcher a sh:PropertyShape ;
         sh:class shui:WidgetAcceptMatcher ;
         sh:group stsh:KindGroupUI ;
         sh:name "widget accept matchers" ;
-        sh:order 16 ;
+        sh:order 17 ;
         sh:path [ sh:inversePath rdfs:isDefinedBy ] .
 
     stsh:ShapesGraphDefinesWidgetScore a sh:PropertyShape ;
         sh:class shui:WidgetScore ;
         sh:group stsh:KindGroupUI ;
         sh:name "widget scores" ;
-        sh:order 15 ;
+        sh:order 16 ;
         sh:path [ sh:inversePath rdfs:isDefinedBy ] .
 
     stsh:ShapesGraphUses a sh:PropertyShape ;
@@ -9747,13 +9857,13 @@ starontology:shacl12-vocabulary.ttl {
         rdfs:label "Prefixes and Parameters" ;
         sh:order 1 .
 
-    stsh:KindGroupRules a sh:PropertyGroup ;
-        rdfs:label "Inference rules" ;
-        sh:order 5 .
-
     stsh:KindGroupConstraints a sh:PropertyGroup ;
         rdfs:label "SPARQL, constraints and components" ;
         sh:order 3 .
+
+    stsh:KindGroupRules a sh:PropertyGroup ;
+        rdfs:label "Inference rules" ;
+        sh:order 5 .
 
     sh:Literal a sh:NodeKind ;
         rdfs:label "Literal"@en ;

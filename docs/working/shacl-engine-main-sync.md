@@ -25,7 +25,7 @@ Never push this branch's changes to `main` as part of a sync.
 After a sync, update `Last synced` below and add a row per change.
 
 ## Log
-Last synced: `7583cb9` (the baseline tag `shacl-engine-baseline`; `main` has not moved since). The three branches off `main` are all reflected here.
+Last synced: `68349c8` (2026-11-02, merged with `git merge origin/main`). Earlier: `7583cb9`, the baseline tag `shacl-engine-baseline`. The three branches off `main` listed first are all reflected here.
 
 | main change | kind | engine action | status |
 |---|---|---|---|
@@ -33,6 +33,7 @@ Last synced: `7583cb9` (the baseline tag `shacl-engine-baseline`; `main` has not
 | branch `remove-sparql-targets` (bcfe221, not merged): `sh:target` SPARQL targets removed, ignored with a warning | SHACL behaviour | engine implements none; `extract_subgraph` mirrors the warning | done |
 | branch `fix-filter-false` (99adca9, not merged): `FILTER(false)` in a group is dropped (issue #186, query layer) | query-layer bug | cherry-picked here as bc33993; clears W3C `pre-binding-002` | done |
 | issue #185: legacy SHACL-AF candidates to remove from `main` | cleanup | engine never had them; nothing to port | open (needs Node Expressions 5-8 read) |
+| `main` 7583cb9..68349c8 (workbench work): widget selection follows SHACL UI 4.3 (`shui:defaultWidgetScore`), prefix sets are inferred and `sh:entailment` values checked, clearer rule-validation messages, starontology data regenerated | UI / old-code SHACL / data | merged as is: the changes sit in `shacl/` (UI and meta shapes, which the engine does not replace) and `starontology/`; conflicts were `ui_widget_selection.py` (kept both sides: this branch's `_via_rdflib`, main's `default_widget_score`) and generated blank-node labels in `starontology.trig` (main's) | done; 231 tests in the changed areas pass |
 
 ## Next sync
 Check when any of these happens: a PR merges to `main`; before a differential run used as a gate; before any cut-over step.

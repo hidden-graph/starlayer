@@ -27,6 +27,7 @@ FORMS = {
     "PropertyGroupForm": SH.PropertyGroup,
     "ShapesGraphForm": SH.ShapesGraph,
     "PrefixDeclarationForm": SH.PrefixDeclaration,
+    "PrefixSetForm": STSH.PrefixSet,
     "SPARQLConstraintForm": SH.SPARQLConstraint,
     "SPARQLRuleForm": SH.SPARQLRule,
     "SPARQLRuleTemplateForm": SH.SPARQLRuleTemplate,    "TripleRuleForm": SH.TripleRule,
@@ -124,9 +125,11 @@ def test_the_kind_specific_definition_fields_are_there(ui) -> None:
 
 def test_the_group_and_shapes_graph_forms_have_a_type_a_comment_and_what_defines_them(ui) -> None:
     """GitHub issue #91's second update: a group is defined by a shapes graph too, and both forms miss rdfs:comment and rdf:type."""
-    for name in ("PropertyGroupForm", "ShapesGraphForm"):
-        assert {RDF.type, RDFS.comment, RDFS.isDefinedBy, RDFS.label} <= set(fields(ui, name)), name
-        assert (fields(ui, name)[RDFS.isDefinedBy], SH.maxCount, Literal(1)) in ui
+    assert {RDF.type, RDFS.comment, RDFS.isDefinedBy, RDFS.label} <= set(fields(ui, "PropertyGroupForm"))
+    assert (fields(ui, "PropertyGroupForm")[RDFS.isDefinedBy], SH.maxCount, Literal(1)) in ui
+    # A shapes graph is not a SHACL element (Profiling 2.4: an element says which graph defines it), so its form has no rdfs:isDefinedBy.
+    assert {RDF.type, RDFS.comment, RDFS.label} <= set(fields(ui, "ShapesGraphForm"))
+    assert RDFS.isDefinedBy not in fields(ui, "ShapesGraphForm")
 
 
 def test_the_group_and_shapes_graph_forms_state_what_a_field_takes(ui) -> None:

@@ -203,14 +203,14 @@ ex:kind sh:path ex:kind ; sh:datatype xsd:string ; sh:in ( "a" "b" ) .
 ex:boss sh:path ex:boss ; sh:class ex:Person . ex:home sh:path ex:home ; sh:nodeKind sh:IRI .
 ex:both sh:path ex:both ; sh:nodeKind sh:IRI ; sh:class ex:Person .
 ex:note sh:path ex:note . ex:title sh:path ex:title ; sh:datatype rdf:langString .
-ex:pinned sh:path ex:pinned ; shui:editor shui:TextAreaEditor ."""
+ex:pinned sh:path ex:pinned ; shui:editor shui:RichTextEditor ."""
 
 # one catalog, both roles: editors for role="editor", viewers for role="viewer"
 EDITORS = {
     EX.age: SHUI.NumberFieldEditor, EX.active: SHUI.BooleanEditor, EX.born: SHUI.DatePickerEditor,
     EX.stamp: SHUI.DateTimePickerEditor, EX.kind: SHUI.EnumSelectEditor, EX.boss: SHUI.InstancesSelectEditor,
     EX.home: SHUI.IRIEditor, EX.both: SHUI.InstancesSelectEditor, EX.note: SHUI.TextFieldEditor,
-    EX.title: SHUI.TextFieldWithLangEditor, EX.pinned: SHUI.TextAreaEditor,
+    EX.title: SHUI.TextFieldWithLangEditor, EX.pinned: SHUI.RichTextEditor,
 }
 VIEWERS = {
     EX.age: SHUI.LiteralViewer, EX.active: SHUI.LiteralViewer, EX.born: SHUI.LiteralViewer,
@@ -234,7 +234,7 @@ def test_one_baseline_catalog_serves_both_roles(shapes, baseline) -> None:
 
 
 def test_a_widget_a_shape_names_wins_over_the_baseline(shapes, baseline) -> None:
-    assert select_widget(shape_node=EX.pinned, shapes_graph=shapes, scoring_graph=baseline, role="editor") == SHUI.TextAreaEditor
+    assert select_widget(shape_node=EX.pinned, shapes_graph=shapes, scoring_graph=baseline, role="editor") == SHUI.RichTextEditor
 
 
 def test_without_the_baseline_a_property_that_names_no_widget_gets_none(shapes) -> None:

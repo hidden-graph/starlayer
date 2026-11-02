@@ -25,8 +25,9 @@ updating the pinned copy changes nothing here until that build is re-run.
 from __future__ import annotations
 
 import warnings
+import re
 from collections import OrderedDict
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
 from typing import Any
 
 from rdflib import RDF, Graph, Literal, Namespace, URIRef
@@ -188,7 +189,44 @@ def parameter_value_shapes(shapes_graph: Any) -> Graph:
                 result.add((required, sh.minCount, Literal(1)))
                 result.add((required, sh.severity, sh.Warning))
                 result.add((required, sh.message, Literal(f"An instance of {template} needs a value of {paths[0]}.", lang="en")))
+
+    # A template's query is run with each parameter bound as a variable named after the local name of its path; $this is the focus node. A variable
+    # the query builds a triple from that neither the parameters nor its own pattern bind is never bound, so the rule infers nothing (a warning).
+    for template in sorted(set(shapes_graph.subjects(RDF.type, sh.SPARQLRuleTemplate)), key=str):
+        unbound = _template_unbound_variables(shapes_graph, template)
+        if unbound:
+            warn = BNode()
+            result.add((warn, RDF.type, sh.NodeShape))
+            result.add((warn, sh.targetNode, template))
+            empty = BNode()
+            result.add((warn, sh["not"], empty))
+            result.add((empty, RDF.type, sh.NodeShape))   # (an empty shape always holds, so its negation never does: the warning is reported on the template)
+            result.add((warn, sh.severity, sh.Warning))
+            names = ", ".join("$" + name for name in unbound)
+            result.add((warn, sh.message, Literal(f"The query builds triples from {names}, which no parameter binds and its pattern does not, so no triple is made from it.", lang="en")))
     return result
+
+
+def _template_unbound_variables(shapes_graph: Any, template: Any) -> list[str]:
+    """The variables a rule template's ``sh:construct`` builds triples from that nothing binds: not a parameter (its path's local name), not ``this``, and not in
+    the query's own pattern. Empty when the query does not parse (that is reported elsewhere) or the template has no single query."""
+    import starlayer.sparql
+
+    texts = [str(t) for t in shapes_graph.objects(template, SH.construct) if isinstance(t, Literal)]
+    if len(texts) != 1:
+        return []
+    try:
+        query = starlayer.sparql.prepare_query_12(texts[0], initNs={**{str(p): URIRef(str(ns)) for p, ns in shapes_graph.namespaces() if p}, **_collect_query_prefixes(shapes_graph, template)})
+        algebra = query.algebra
+        if algebra.name != "ConstructQuery":
+            return []
+        used = {str(term) for triple in algebra.template for term in triple if type(term).__name__ == "Variable"}
+        bound = {str(v) for v in getattr(algebra.p, "_vars", ())}
+    except Exception:  # noqa: BLE001 - a query that cannot be read is reported by sparql_query_problems
+        return []
+    local = lambda iri: re.split(r"[#/]", str(iri))[-1]  # noqa: E731
+    parameters = {local(path) for parameter in shapes_graph.objects(template, SH.parameter) for path in shapes_graph.objects(parameter, SH.path)}
+    return sorted(used - bound - parameters - {"this"})
 
 
 def load_meta_shapes_graph(extra_graphs: Iterable[Any] = ()) -> Graph:
@@ -505,21 +543,37 @@ def check_sparql_query_text(shapes_graph: Any) -> None:
     """
     from pyshacl.errors import ConstraintLoadError
 
+    for _node, _predicate, message in sparql_query_problems(shapes_graph):
+        raise ConstraintLoadError(message, "https://www.w3.org/TR/shacl12-sparql/")
+
+
+_QUERY_FORMS = {SH.select: ("SelectQuery", "SELECT"), SH.ask: ("AskQuery", "ASK"), SH.construct: ("ConstructQuery", "CONSTRUCT")}
+
+
+def sparql_query_problems(shapes_graph: Any) -> Iterator[tuple[Any, Any, str]]:
+    """Each defect of an embedded query as ``(the node that holds it, sh:select/sh:ask/sh:construct, what is wrong)``: text that is not SPARQL,
+    a query of another form than the predicate says (a SELECT in ``sh:construct``), or one that fails the SPARQL structure check (see
+    ``check_sparql_query_text``, which raises the first). A tool shows these next to the other problems of a shapes graph."""
     import starlayer.sparql
     from starlayer.sparql import salg
 
     for predicate in (SH.select, SH.ask, SH.construct):
+        name = predicate.n3(shapes_graph.namespace_manager)
         for query_node, text_literal in shapes_graph.subject_objects(predicate):
             if not isinstance(text_literal, Literal) or not isinstance(text_literal.value, str):
                 continue  # not xsd:string - already caught by the meta-shapes structural check
-            prefixes = _collect_query_prefixes(shapes_graph, query_node)
+            # The engine also resolves a prefix the graph itself binds (a file's @prefix, with no sh:declare), so this does too.
+            prefixes = {**{str(p): URIRef(str(ns)) for p, ns in shapes_graph.namespaces() if p}, **_collect_query_prefixes(shapes_graph, query_node)}
             try:
                 query = starlayer.sparql.prepare_query_12(str(text_literal), initNs=prefixes)
             except Exception as exc:
-                raise ConstraintLoadError(
-                    f"{predicate.n3(shapes_graph.namespace_manager)} value is not valid SPARQL: {exc}",
-                    "https://www.w3.org/TR/shacl12-sparql/",
-                ) from exc
+                yield query_node, predicate, f"{name} value is not valid SPARQL: {exc}"
+                continue
+            algebra_name, form = _QUERY_FORMS[predicate]
+            if query.algebra.name != algebra_name:
+                actual = next((f for n, f in _QUERY_FORMS.values() if n == query.algebra.name), query.algebra.name)
+                yield query_node, predicate, f"{name} must hold a {form} query, but this is a {actual} query"
+                continue
 
             # A sh:target-declared SPARQL target's own $this is NOT
             # pre-bound - it's the query's own job to compute it - so the
@@ -540,8 +594,4 @@ def check_sparql_query_text(shapes_graph: Any) -> None:
                 if len(_SPARQL_STRUCTURE_CACHE) > _SPARQL_STRUCTURE_CACHE_MAXSIZE:
                     _SPARQL_STRUCTURE_CACHE.popitem(last=False)
             if not conforms:
-                raise ConstraintLoadError(
-                    f"{predicate.n3(shapes_graph.namespace_manager)} value fails SPARQL structural "
-                    f"validation:\n{report_text}",
-                    "https://www.w3.org/TR/shacl12-sparql/",
-                )
+                yield query_node, predicate, f"{name} value fails SPARQL structural validation:\n{report_text}"

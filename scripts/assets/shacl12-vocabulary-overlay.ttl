@@ -24,6 +24,8 @@
 # A widget is an editor or a viewer (shui:Widget is the superclass of both, in the W3C SHACL UI vocabulary), declared as an instance of its single or its multiple
 # subclass (SHACL UI, Section 5): one kind, and the subclass says what it is and how many values it controls. The subclass links are stated here, since this
 # vocabulary does not have the SHACL UI classes.
+# stsh:groupsInstances true on a kind says its instances are the nodes typed with an instance of the kind (a rule template is a class: its rules are typed with it); a tool
+# lists them under that class and not as a kind of their own.
 
 stsh:KindGroupShared a sh:PropertyGroup ;
     rdfs:label "Prefixes and Parameters" ;
@@ -49,6 +51,13 @@ stsh:KindGroupUI a sh:PropertyGroup ;
     rdfs:label "User interface" ;
     sh:order 6 .
 
+# The holder of prefix declarations (sh:declare), which SHACL 1.2 leaves without a class: shacl_shacl_rules types it with this one (an inferred type, never
+# written to a file), so a tool lists a node that only holds prefixes as a prefix set. sh:group says which group of kinds it is listed under.
+stsh:PrefixSet a rdfs:Class ;
+    rdfs:label "prefix set" ;
+    rdfs:comment "A resource that holds namespace prefix declarations (sh:declare), such as the value of sh:prefixes. SHACL 1.2 gives it no class: this one is inferred from sh:declare."@en ;
+    sh:group stsh:KindGroupShared .
+
 stsh:ShapesGraphShape a sh:NodeShape ;
     rdfs:label "A shapes graph" ;
     rdfs:comment "What a shapes graph defines (the entities that say rdfs:isDefinedBy it), one property shape per kind, in groups and in the order a tool lists them, and what it uses (it lists them with rdfs:member)." ;
@@ -67,6 +76,7 @@ stsh:ShapesGraphShape a sh:NodeShape ;
         stsh:ShapesGraphDefinesRuleSet,
         stsh:ShapesGraphDefinesTripleRule,
         stsh:ShapesGraphDefinesSPARQLRule,
+        stsh:ShapesGraphDefinesSPARQLRuleTemplate,
         stsh:ShapesGraphDefinesPropertyGroup,
         stsh:ShapesGraphDefinesWidgetScore,
         stsh:ShapesGraphDefinesWidgetAcceptMatcher,
@@ -93,7 +103,7 @@ stsh:ShapesGraphDefinesPropertyGroup a sh:PropertyShape ;
     sh:path [ sh:inversePath rdfs:isDefinedBy ] ;
     sh:class sh:PropertyGroup ;
     sh:group stsh:KindGroupUI ;
-    sh:order 14 .
+    sh:order 15 .
 
 stsh:ShapesGraphDefinesSPARQLConstraint a sh:PropertyShape ;
     sh:name "SPARQL constraints" ;
@@ -172,33 +182,41 @@ stsh:ShapesGraphDefinesSPARQLRule a sh:PropertyShape ;
     sh:group stsh:KindGroupRules ;
     sh:order 13 .
 
+stsh:ShapesGraphDefinesSPARQLRuleTemplate a sh:PropertyShape ;
+    sh:name "SPARQL rule templates" ;
+    sh:path [ sh:inversePath rdfs:isDefinedBy ] ;
+    sh:class sh:SPARQLRuleTemplate ;
+    stsh:groupsInstances true ;   # a tool lists the nodes typed with one of these (the instances) under it, not as a kind of their own
+    sh:group stsh:KindGroupRules ;
+    sh:order 14 .
+
 stsh:ShapesGraphDefinesWidgetScore a sh:PropertyShape ;
     sh:name "widget scores" ;
     sh:path [ sh:inversePath rdfs:isDefinedBy ] ;
     sh:class shui:WidgetScore ;
     sh:group stsh:KindGroupUI ;
-    sh:order 15 .
+    sh:order 16 .
 
 stsh:ShapesGraphDefinesWidgetAcceptMatcher a sh:PropertyShape ;
     sh:name "widget accept matchers" ;
     sh:path [ sh:inversePath rdfs:isDefinedBy ] ;
     sh:class shui:WidgetAcceptMatcher ;
     sh:group stsh:KindGroupUI ;
-    sh:order 16 .
+    sh:order 17 .
 
 stsh:ShapesGraphDefinesConfiguration a sh:PropertyShape ;
     sh:name "UI configurations" ;
     sh:path [ sh:inversePath rdfs:isDefinedBy ] ;
     sh:class shui:Configuration ;
     sh:group stsh:KindGroupUI ;
-    sh:order 17 .
+    sh:order 18 .
 
 stsh:ShapesGraphDefinesWidget a sh:PropertyShape ;
     sh:name "widgets" ;
     sh:path [ sh:inversePath rdfs:isDefinedBy ] ;
     sh:class shui:Widget ;
     sh:group stsh:KindGroupUI ;
-    sh:order 18 .
+    sh:order 19 .
 
 stsh:ShapesGraphUses a sh:PropertyShape ;
     sh:name "uses" ;
