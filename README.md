@@ -1,6 +1,6 @@
 # StarLayer
 
-StarLayer is a Python layer over rdflib and pySHACL that adds RDF 1.2, SPARQL 1.2 and SHACL 1.2: triple terms, reifiers and annotations, direction-tagged literals, SPARQL 1.2 queries over them, and SHACL validation, rules and UI widget selection that understand them.
+StarLayer is a Python layer over rdflib and Oxigraph, with its own SHACL engine, that adds RDF 1.2, SPARQL 1.2 and SHACL 1.2: triple terms, reifiers and annotations, direction-tagged literals, SPARQL 1.2 queries over them, and SHACL validation, rules and UI widget selection that understand them.
 
 The RDF, SPARQL and SHACL 1.2 specifications are still drafts. StarLayer follows them as they change, and tracks how closely it matches each one (see [docs/README.md](docs/README.md)). When rdflib and pySHACL support the final 1.2 specifications, StarLayer will be retired.
 

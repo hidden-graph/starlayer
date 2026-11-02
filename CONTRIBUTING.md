@@ -55,11 +55,11 @@ CI fails when a committed generated file is out of date. The same command runs `
 ## Pull requests
 
 - Keep the change focused and describe what it does and why.
-- Add or update tests. For a fix, check that the new test fails without it. For SHACL and SPARQL behaviour, compare against plain pySHACL or rdflib.
+- Add or update tests. For a fix, check that the new test fails without it. For SHACL behaviour, check the SHACL 1.2 drafts and the W3C test suite (`tests/shacl/w3c_shacl12/`); for SPARQL, compare against Oxigraph or rdflib.
 - Note compatibility effects and upstream dependencies.
 - Do not commit build output, editor files, secrets or local environment files.
 - Follow the style of the code around you. Docstrings give the reason, not what the signature already shows.
 
 ## Reporting a bug
 
-Open a GitHub issue with a minimal example, the commit or version, and the backend (in-memory, Oxigraph, Fuseki). Bugs in rdflib, pySHACL and Oxigraph that we work around are written up, with repros, in [docs/upstream-issues/](docs/upstream-issues/).
+Open a GitHub issue with a minimal example, the commit or version, and the backend (in-memory, Oxigraph, Fuseki). Bugs in rdflib, Oxigraph and (formerly) pySHACL that we work around or worked around are written up, with repros, in [docs/upstream-issues/](docs/upstream-issues/).
