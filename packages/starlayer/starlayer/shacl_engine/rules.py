@@ -245,6 +245,7 @@ class RuleResult:
     view: InferredView
     failures: list[str] = field(default_factory=list)
     iterations: int = 0
+    source_rules: tuple[tuple[Triple, Term], ...] = ()  # ``(inferred triple, rule node)``, when asked for (``sh:sourceRule``, Rules 9)
 
     @property
     def ok(self) -> bool:
@@ -367,6 +368,17 @@ class _Run:
         self.done_once: set = set()  # (rule, focus) of run-once rules already executed
         self.derived: set[Triple] = set()  # sh:defaultValue / sh:values triples of the current layer
         self.iterations = 0
+        self.source_rules: list[tuple[Triple, Term]] | None = None  # set to a list to record which rule produced each triple
+
+    def run_group(self, ctx: Context, group: list[Rule]) -> list[Triple]:
+        """The triples the rules of ``group`` produce over ``ctx`` (every rule of a group reads the same graph)."""
+        out: list[Triple] = []
+        for rule in group:
+            produced = self.execute(ctx, rule)
+            if self.source_rules is not None:
+                self.source_rules.extend((t, rule.node) for t in produced)
+            out.extend(produced)
+        return out
 
     # -- focus nodes
     def _conditions(self, rule: Rule) -> list[Term]:
@@ -580,6 +592,7 @@ def apply_rules(
     max_iterations: int = 1000,
     max_triples: int | None = None,
     raise_on_failure: bool = True,
+    source_rules: bool = False,
 ) -> RuleResult:
     """Run the rules of ``shapes_graph`` (default: ``data_graph`` itself) over ``data_graph``.
 
@@ -593,6 +606,8 @@ def apply_rules(
     view = new_overlay(data_graph)
     plan = Plan(shapes_graph=shapes)
     run = _Run(view, plan, max_iterations, max_triples)
+    if source_rules:
+        run.source_rules = []
     failures: list[str] = []
     try:
         nodes = all_rule_nodes(shapes) if rule_sets is None else rule_set_members(shapes, rule_sets)
@@ -606,7 +621,7 @@ def apply_rules(
                 run.compute_derived(Context(data=view, plan=plan), expected)
             for group in _groups(once):
                 ctx = Context(data=view, plan=plan)
-                run.add_inferred([t for r in group for t in run.execute(ctx, r)])
+                run.add_inferred(run.run_group(ctx, group))
             changed = bool(iterating)
             while changed:
                 run.iterations += 1
@@ -615,7 +630,7 @@ def apply_rules(
                 changed = False
                 for group in _groups(iterating):
                     ctx = Context(data=view, plan=plan)
-                    if run.add_inferred([t for r in group for t in run.execute(ctx, r)]):
+                    if run.add_inferred(run.run_group(ctx, group)):
                         changed = True
             run.end_layer()
         run.delete_temp_triples()
@@ -623,7 +638,15 @@ def apply_rules(
         if raise_on_failure:
             raise exc if isinstance(exc, RuleError) else RuleError(str(exc)) from exc
         failures.append(str(exc))
-    return RuleResult(inferred=frozenset(from_engine_triple(t) for t in view.inferred), view=view, failures=failures, iterations=run.iterations)
+    kept = set(view.inferred)  # temporary triples are gone: a rule's record follows its triple
+    recorded = tuple(dict.fromkeys((from_engine_triple(t), from_engine(rule)) for t, rule in (run.source_rules or ()) if t in kept))
+    return RuleResult(
+        inferred=frozenset(from_engine_triple(t) for t in view.inferred),
+        view=view,
+        failures=failures,
+        iterations=run.iterations,
+        source_rules=recorded,
+    )
 
 
 def validate_with_rules(data_graph: Any, shapes_graph: Any = None, *, rules: bool | None = None, **options: Any) -> Any:

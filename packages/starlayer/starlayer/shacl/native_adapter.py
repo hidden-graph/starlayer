@@ -34,9 +34,10 @@ import os
 from collections.abc import Callable, Iterator
 from typing import Any
 
-from rdflib import Namespace, URIRef
+from rdflib import BNode, Namespace, URIRef
 
 SH = Namespace("http://www.w3.org/ns/shacl#")  # rdflib terms: the adapter speaks the caller's term model
+_RDF_REIFIES = URIRef("http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies")
 
 ENV_VAR = "STARLAYER_SHACL_ENGINE"
 NATIVE = "native"
@@ -456,8 +457,6 @@ def apply_rules(
     from starlayer.shacl_engine import api, rules
     from starlayer.shacl_engine.entailment import resolve_data_view
 
-    if include_source_rule_provenance:
-        return _run_old(old, old_args, old_opts, "include_source_rule_provenance (no sh:sourceRule reifiers in the engine)")
     data_graph = _oxigraph_to_starlayer(data_graph)
     shacl_graph = _oxigraph_to_starlayer(shacl_graph)
     ont_graph = _oxigraph_to_starlayer(ont_graph)
@@ -507,7 +506,9 @@ def apply_rules(
         data, shapes, ont = _normalise(data_graph, shacl_graph if shacl_graph is not None else data_graph, ont_graph)
         # "before rules" entailment pass: the rules see the entailed graph (kept as an overlay; entailed triples are not inferred)
         base = resolve_data_view(data, shapes, inference=inference, ont_graph=ont)
-        result = rules.apply_rules(base, shapes, rule_sets=_rule_set_iris(rule_set))
+        result = rules.apply_rules(
+            base, shapes, rule_sets=_rule_set_iris(rule_set), source_rules=bool(include_source_rule_provenance)
+        )
         _check_imports(shapes, passthrough.get("shapes_graph_loader"), bool(passthrough.get("ignore_imports")))
         outcome = api.validate(
             result.view,
@@ -533,6 +534,10 @@ def apply_rules(
             inferred.bind(prefix, ns)
         for t in result.inferred:
             inferred.add(t)
+        for triple, rule_node in result.source_rules:  # SHACL 1.2 Inference Rules 9: _:r rdf:reifies <<( s p o )>> ; sh:sourceRule <rule>
+            reifier = BNode()
+            inferred.add((reifier, _RDF_REIFIES, triple))  # a plain 3-tuple is a triple term in object position
+            inferred.add((reifier, SH.sourceRule, rule_node))
     except TermError as exc:  # see validate(): the engine rejects non-RDF terms up front; the old path takes the call
         return _run_old(old, old_args, old_opts, _ill_formed_reason(exc))
     _record(NATIVE, None)
