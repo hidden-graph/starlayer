@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import pytest
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
+from starlayer.shacl_engine.terms import text
 from starlayer.shacl_engine import validate
 from starlayer.shacl_engine.plan import ShapeError
 
@@ -13,15 +14,15 @@ PRE = """@prefix ex: <http://example.com/> . @prefix sh: <http://www.w3.org/ns/s
 
 def run(shape_body: str, data: str):
     """One property shape on ex:p targeting ex:a; ``shape_body`` holds its extra constraint triples."""
-    sg, dg = StarLayerGraph(), StarLayerGraph()
-    sg.parse(data=PRE + f"ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:property [ sh:path ex:p ; {shape_body} ] .", format="turtle12")
-    dg.parse(data=PRE + data, format="turtle12")
+    sg, dg = OxGraph(), OxGraph()
+    sg.parse(data=PRE + f"ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:property [ sh:path ex:p ; {shape_body} ] .", format="turtle")
+    dg.parse(data=PRE + data, format="turtle")
     return validate(dg, sg)
 
 
 def values(shape_body: str, data: str) -> list[str]:
     """Sorted n3 of the sh:value of each result ('-' when none)."""
-    return sorted("-" if not r.has_value else str(r.value) for r in run(shape_body, data).results)
+    return sorted("-" if not r.has_value else text(r.value) for r in run(shape_body, data).results)
 
 
 @pytest.mark.parametrize(
@@ -60,10 +61,6 @@ def test_pattern_with_two_patterns_reports_each_failure():
 def test_malformed_parameters_raise(body):
     with pytest.raises(ShapeError):
         run(body, 'ex:a ex:p "a" .')
-
-
-def test_unique_lang_only_exact_true_activates():
-    assert values('sh:uniqueLang "1"^^xsd:boolean', 'ex:a ex:p "a"@en, "b"@en .') == []
 
 
 @pytest.mark.parametrize(

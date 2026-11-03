@@ -1,7 +1,9 @@
 """The ill-formed-term policy (``terms.TermError``): terms pyoxigraph rejects and rdflib accepts.
 
-Strict (default): one up-front ``TermError`` naming every offender and where it is. Lenient: opaque stand-ins that map back to
-the original rdflib term in every result, listed on ``Outcome.invalid_terms``. The public entry points raise that error."""
+Strict (default): one up-front ``TermError`` naming every offender and where it is. Lenient: opaque stand-in terms (an Oxigraph
+store cannot hold the original), listed with the original rdflib term on ``Outcome.invalid_terms``; results and the report
+hold the stand-ins. The public entry points raise that error. Ill-formed terms can only come from rdflib graphs: an ``OxGraph``
+refuses them when they are added."""
 
 from __future__ import annotations
 
@@ -9,12 +11,13 @@ import warnings
 
 import pytest
 from rdflib import BNode, Graph, Literal, URIRef
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl_engine import evaluate, extract_subgraph, validate, validate_each
 from starlayer.shacl_engine.oxigraph_view import OxigraphGraph
 from starlayer.shacl_engine.rules import apply_rules
 from starlayer.shacl_engine.terms import (
     NamedNode,
+    check_graphs,
     TermError,
     engine_view,
     from_engine,
@@ -103,11 +106,18 @@ def test_policy_name_is_checked():
 # ---- validate: strict -----------------------------------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("cls", [Graph, StarLayerGraph])
 @pytest.mark.parametrize("name", ILL_FORMED)
-def test_validate_rejects_up_front_naming_term_and_graph(name, cls):
+def test_oxgraph_refuses_an_ill_formed_term_when_it_is_added(name):
     term, kind = ILL_FORMED[name]
-    data = graph_with(term, cls)
+    with pytest.raises(TermError) as info:
+        graph_with(term, OxGraph)
+    assert info.value.kind == kind
+
+
+@pytest.mark.parametrize("name", ILL_FORMED)
+def test_validate_rejects_up_front_naming_term_and_graph(name):
+    term, kind = ILL_FORMED[name]
+    data = graph_with(term, Graph)
     shapes = Graph().parse(data=IRI_SHAPES, format="turtle")
     with pytest.raises(TermError) as info:
         validate(data, shapes)
@@ -167,8 +177,9 @@ def test_a_graph_changed_after_a_scan_is_scanned_again():
 # ---- validate: lenient ----------------------------------------------------------------------------------------------------
 
 
-def test_lenient_validates_and_reports_the_original_terms():
-    """An ill-formed IRI stays an IRI (``sh:nodeKind sh:IRI`` holds, as rdflib says); results show the original term."""
+def test_lenient_validates_and_reports_the_stand_in_terms():
+    """An ill-formed IRI stays an IRI (``sh:nodeKind sh:IRI`` holds, as rdflib says); results and the report hold its stand-in
+    (an Oxigraph store cannot hold the relative or ill-formed IRI), ``invalid_terms`` names the original."""
     bad_iri = URIRef("http://example.org/a b")
     data = Graph()
     data.add((bad_iri, URIRef(EX + "p"), Literal("v")))
@@ -179,11 +190,13 @@ def test_lenient_validates_and_reports_the_original_terms():
     )
     out = validate(data, shapes, invalid_terms="lenient")
     assert not out.conforms  # the literal object violates the property shape; the ill-formed focus node is an IRI
+    with term_policy("lenient"):
+        stand_in = to_engine(bad_iri)
+    assert stand_in.value.startswith("urn:starlayer:invalid-iri:")
     focus = {r.focus for r in out.results}
-    assert focus == {bad_iri} and all(type(f) is URIRef for f in focus)
+    assert focus == {stand_in} and all(type(f) is NamedNode for f in focus)
     assert [e.term for e in out.invalid_terms] == [bad_iri]
-    assert any(bad_iri in t for t in out.report_graph)
-    assert "a b" in out.report_text  # read after the call: the lenient policy is remembered by the views
+    assert any(stand_in in t for t in out.report_graph)
 
 
 def test_lenient_blank_node_and_language_literal():
@@ -215,18 +228,13 @@ def test_lenient_apply_rules_and_evaluate_run():
 # ---- the views ------------------------------------------------------------------------------------------------------------
 
 
-def test_rdflib_view_scan_and_lazy_conversion():
+def test_rdflib_view_scan_and_lenient_conversion():
     data = graph_with(URIRef("a"))
     with pytest.raises(TermError):
         engine_view(data, "data graph")
-    from starlayer.shacl_engine.terms import RdflibTermView
-
-    lazy = RdflibTermView(data, check=False)  # no scan: first contact raises, it is never silently skipped
-    with pytest.raises(TermError):
-        list(lazy.triples((None, None, None)))
     with term_policy("lenient"):
         view = engine_view(data, "data graph")
-        assert len(view.invalid_terms) == 1 and len(list(view.triples((None, None, None)))) == 2
+        assert len(check_graphs((data, "data graph"))) == 1 and len(list(view.triples((None, None, None)))) == 2
     assert from_engine(next(iter(view.subjects(NamedNode(EX + "q"), None)), None)) in (URIRef(EX + "ok"), None)
 
 
@@ -259,10 +267,10 @@ def test_oxigraph_text_parse_errors_stay_parse_errors():
 
 
 def _pairs():
-    data = StarLayerGraph()
+    data = Graph()  # an OxGraph cannot hold the relative IRI, so the data comes in as a plain rdflib graph
     data.parse(data=PFX + "<http://example.org/ok> ex:p 1 .", format="turtle")
     data.add((URIRef("a"), URIRef(EX + "q"), URIRef(EX + "ok")))
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(data=IRI_SHAPES, format="turtle")
     return data, shapes
 

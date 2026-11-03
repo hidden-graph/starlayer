@@ -3,21 +3,23 @@
 from __future__ import annotations
 
 import pytest
-from rdflib import RDF, Literal, URIRef
+from pyoxigraph import Literal
+from starlayer.shacl_engine.terms import RDF
+from pyoxigraph import NamedNode as URIRef
 from starlayer.graph.graph.entailment_regimes import ENTAILMENT
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl import validate as old_validate
 from starlayer.shacl_engine.api import validate as new_validate
 from starlayer.shacl_engine.plan import ShapeError
-from tests.shacl.w3c_shacl12.namespaces import SH
+from starlayer.shacl_engine.terms import SH, XSD
 
 PFX = "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> . "
 EX = "http://example.org/"
 
 
-def g(ttl: str, ident: str | None = None) -> StarLayerGraph:
-    graph = StarLayerGraph(identifier=URIRef(ident)) if ident else StarLayerGraph()
-    graph.parse(data=PFX + ttl, format="turtle12")
+def g(ttl: str, ident: str | None = None) -> OxGraph:
+    graph = OxGraph(identifier=URIRef(ident)) if ident else OxGraph()
+    graph.parse(data=PFX + ttl, format="turtle")
     return graph
 
 
@@ -119,7 +121,7 @@ def test_shapes_graph_resource_needs_a_shapes_graph() -> None:
 # --- messages and annotations ---------------------------------------------------------------------------------------
 def test_shape_messages_keep_their_language() -> None:
     old, new = both(BAD, SHAPES)
-    want = {Literal("need p", lang="en"), Literal("brauche p", lang="de")}
+    want = {Literal("need p", language="en"), Literal("brauche p", language="de")}
     for r in (old.report_graph, new.report_graph):
         assert set(r.objects(None, SH.resultMessage)) >= want
 
@@ -139,7 +141,7 @@ def test_result_annotations_match_the_old_validator() -> None:
     data = "ex:alice ex:score 20 . ex:bob ex:score 80 ."
     old, new = both(data, ANNOTATED)
     for r in (old.report_graph, new.report_graph):
-        assert [o for _, _, o in r.triples((None, URIRef(EX + "reported"), None))] == [Literal(20)]
+        assert [o for _, _, o in r.triples((None, URIRef(EX + "reported"), None))] == [Literal("20", datatype=XSD.integer)]
         assert [o for _, _, o in r.triples((None, URIRef(EX + "origin"), None))] == [Literal("score-check")]
         assert not list(r.triples((None, URIRef(EX + "unbound"), None)))
 

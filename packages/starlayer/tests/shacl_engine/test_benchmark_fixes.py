@@ -8,6 +8,7 @@ import time
 import pytest
 from rdflib import Graph
 from starlayer.shacl_engine import validate
+from starlayer.shacl_engine.terms import text
 
 ox = pytest.importorskip("pyoxigraph")
 from starlayer.shacl_engine.oxigraph_view import OxigraphGraph  # noqa: E402
@@ -26,7 +27,7 @@ def test_unique_values_for_scales_linearly_enough_and_still_finds_duplicates() -
     outcome = validate(data, shapes)
     elapsed = time.perf_counter() - start
     assert not outcome.conforms
-    assert sorted(str(r.focus).rsplit("/", 1)[1] for r in outcome.results) == ["dup1", "n7"]
+    assert sorted(text(r.focus).rsplit("/", 1)[1] for r in outcome.results) == ["dup1", "n7"]
     assert elapsed < 10, f"unique values took {elapsed:.1f}s for {n} focus nodes (was quadratic)"
 
 
@@ -45,5 +46,5 @@ def test_sh_sparql_runs_natively_on_an_oxigraph_view() -> None:
 
 def test_oxigraph_sparql_query_handles_an_unprojected_substitution() -> None:
     data = OxigraphGraph.from_text("@prefix ex:<http://e/> . ex:a ex:p 1 .")
-    solutions = data.sparql_query("SELECT ?o WHERE { ?s <http://e/p> ?o }", {"s": __import__("rdflib").URIRef("http://e/a")})
+    solutions = data.sparql_query("SELECT ?o WHERE { ?s <http://e/p> ?o }", {"s": ox.NamedNode("http://e/a")})
     assert len(solutions.rows) == 1

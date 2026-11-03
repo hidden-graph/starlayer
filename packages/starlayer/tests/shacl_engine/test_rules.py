@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import pytest
-from rdflib import Literal, URIRef
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+from pyoxigraph import NamedNode as URIRef
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl_engine.rules import (
     InferredView,
     RuleError,
@@ -12,7 +12,7 @@ from starlayer.shacl_engine.rules import (
     entailment_selection,
     validate_with_rules,
 )
-from starlayer.shacl_engine.terms import LegacyTermView
+from starlayer.shacl_engine.terms import integer
 
 EX = "http://example.com/ns#"
 PRE = """
@@ -25,8 +25,8 @@ ex: a sh:ShapesGraph ; sh:declare [ sh:prefix "ex" ; sh:namespace "http://exampl
 """
 
 
-def g(ttl: str) -> StarLayerGraph:
-    graph = StarLayerGraph()
+def g(ttl: str) -> OxGraph:
+    graph = OxGraph()
     graph.parse(data=PRE + ttl, format="turtle")
     return graph
 
@@ -51,9 +51,8 @@ def test_base_graph_untouched_and_overlay_has_inferred() -> None:
     before = snapshot(data)
     res = apply_rules(data)
     assert snapshot(data) == before
-    legacy = LegacyTermView(res.view)  # the overlay speaks engine terms
-    assert (ex("a"), ex("p"), Literal(1)) in legacy
-    assert res.inferred == {t for t in snapshot(legacy) if t not in before}
+    assert (ex("a"), ex("p"), integer(1)) in res.view
+    assert res.inferred == {t for t in snapshot(res.view) if t not in before}
     assert isinstance(res.view, InferredView) and res.ok
 
 
@@ -121,7 +120,7 @@ def test_order_groups_do_not_see_each_other() -> None:
         """
     )
     res = apply_rules(data)  # same order group: B evaluates against the graph before A's output
-    assert (ex("r"), ex("b"), Literal(1)) not in res.inferred
+    assert (ex("r"), ex("b"), integer(1)) not in res.inferred
     data2 = g(
         """
         ex:A a sh:SPARQLRule ; sh:prefixes ex: ; sh:runOnce true ; sh:order 1 ;
@@ -165,7 +164,7 @@ def test_temp_triples_removed() -> None:
         """
         ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:rule ex:R1, ex:R2 .
         ex:R1 a sh:SPARQLRule ; sh:prefixes ex: ; sh:layer 0 ; sh:runOnce true ; sh:construct
-          "CONSTRUCT { $this ex:tmp 1 . _:r sh:tempTriple true . _:r <http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies> <<( $this ex:tmp 1 )>> } WHERE { }" .
+          "CONSTRUCT { $this ex:tmp 1 . _:r <http://www.w3.org/ns/shacl#tempTriple> true . _:r <http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies> <<( $this ex:tmp 1 )>> } WHERE { }" .
         ex:R2 a sh:SPARQLRule ; sh:prefixes ex: ; sh:layer 1 ;
           sh:construct "CONSTRUCT { $this ex:final 2 } WHERE { $this ex:tmp 1 }" .
         """

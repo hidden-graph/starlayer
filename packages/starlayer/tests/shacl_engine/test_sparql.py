@@ -4,18 +4,15 @@ sparql_components), run through StarLayer's own query layer."""
 from __future__ import annotations
 
 import pytest
-from rdflib import Graph, Literal
-from rdflib.namespace import Namespace
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+import pyoxigraph as ox
+from rdflib import Graph
+from starlayer.shacl_engine.terms import NS as Namespace
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl_engine import validate
 from starlayer.shacl_engine.interface import Solutions
 from starlayer.shacl_engine.plan import Path, ShapeError
-from starlayer.shacl_engine.sparql_support import (
-    fill_template,
-    path_to_sparql,
-    starlayer_sparql_query,
-)
-from starlayer.shacl_engine.terms import to_engine
+from starlayer.shacl_engine.sparql_support import fill_template, path_to_sparql
+from starlayer.shacl_engine.terms import integer, text
 
 EX = Namespace("http://example.com/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
@@ -26,7 +23,7 @@ ex: a owl:Ontology ; sh:declare [ sh:prefix "ex" ; sh:namespace "http://example.
 """
 
 
-def run(shapes: str, data: str = "", graph_cls=StarLayerGraph):
+def run(shapes: str, data: str = "", graph_cls=OxGraph):
     s = graph_cls()
     s.parse(data=PREFIXES + shapes, format="turtle")
     d = graph_cls()
@@ -35,7 +32,7 @@ def run(shapes: str, data: str = "", graph_cls=StarLayerGraph):
 
 
 def pairs(outcome):
-    return sorted((str(r.focus), None if not r.has_value else str(r.value)) for r in outcome.results)
+    return sorted((text(r.focus), None if not r.has_value else text(r.value)) for r in outcome.results)
 
 
 def test_sparql_constraint_maps_variables_and_message_template():
@@ -44,10 +41,10 @@ def test_sparql_constraint_maps_variables_and_message_template():
              sh:message "bad {?value} on {$this}" ; sh:select "SELECT $this ?value WHERE { $this ex:p ?value }" ] .""",
         "ex:a ex:p 1, 2 .",
     )
-    assert pairs(out) == [(str(EX.a), "1"), (str(EX.a), "2")]
-    assert {str(m) for r in out.results for m in r.messages} == {
-        f"bad 1 on {EX.a}",
-        f"bad 2 on {EX.a}",
+    assert pairs(out) == [(text(EX.a), "1"), (text(EX.a), "2")]
+    assert {text(m) for r in out.results for m in r.messages} == {
+        f"bad 1 on {text(EX.a)}",
+        f"bad 2 on {text(EX.a)}",
     }
     assert all(r.source_constraint is not None for r in out.results)
 
@@ -57,7 +54,7 @@ def test_message_binding_and_constraint_severity_override():
         """ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:sparql [ sh:severity sh:Info ; sh:message "no"
              ; sh:select "SELECT $this ('yes' AS ?message) WHERE { }" ] .""",
     )
-    assert [str(m) for m in out.results[0].messages] == ["yes"]
+    assert [text(m) for m in out.results[0].messages] == ["yes"]
     assert out.results[0].severity == SH.Info
 
 
@@ -72,7 +69,7 @@ def test_property_shape_path_substitution_with_sequence_path():
     shapes = """ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:property [ sh:path ( ex:p ex:q ) ; sh:sparql [
         sh:select "SELECT $this ?value WHERE { $this $PATH ?value FILTER(?value > 5) }" ] ] ."""
     out = run(shapes, "ex:a ex:p [ ex:q 3, 9 ] .")
-    assert [str(r.value) for r in out.results] == ["9"]
+    assert [text(r.value) for r in out.results] == ["9"]
     assert out.results[0].path.kind == "seq"
 
 
@@ -129,7 +126,7 @@ def test_ask_validator_with_optional_parameter_and_component_requirement():
       ex:S1 a sh:NodeShape ; sh:targetNode 1, 5, 7 ; ex:min 5 ; ex:opt 7 .
       ex:S2 a sh:NodeShape ; sh:targetNode 1 ; ex:opt 7 ."""  # S2 lacks the required parameter: ignored
     out = run(shapes)
-    assert sorted(str(r.value) for r in out.results) == ["1", "7"]
+    assert sorted(text(r.value) for r in out.results) == ["1", "7"]
     assert {r.shape for r in out.results} == {EX.S1}
     assert all(r.component == EX.C for r in out.results)
 
@@ -140,7 +137,7 @@ def test_select_node_validator_and_validator_choice():
       ex:P a sh:NodeShape ; sh:targetNode ex:a ; sh:property [ sh:path ex:p ; ex:min 1 ] ."""
     out = run(shapes, "ex:a ex:p 3 .")
     # node shape S: nodeValidator runs, focus 2 differs; property shape in P has no propertyValidator/validator: ignored
-    assert [str(r.focus) for r in out.results] == ["2"]
+    assert [text(r.focus) for r in out.results] == ["2"]
 
 
 def test_sparql_expr_values_extend_the_value_nodes():
@@ -154,7 +151,7 @@ def test_select_expression_target():
     shapes = """ex:S a sh:NodeShape ; sh:targetNode [ sh:select "SELECT ?s WHERE { ?s ex:p 1 }" ; sh:prefixes ex: ] ;
         sh:property [ sh:path ex:q ; sh:minCount 1 ] ."""
     out = run(shapes, "ex:a ex:p 1 . ex:b ex:p 2 . ex:b ex:q 1 .")
-    assert [str(r.focus) for r in out.results] == [str(EX.a)]
+    assert [text(r.focus) for r in out.results] == [text(EX.a)]
 
 
 def test_plain_rdflib_data_graph_works():
@@ -163,12 +160,12 @@ def test_plain_rdflib_data_graph_works():
 
 
 def test_data_graph_native_sparql_query_takes_precedence():
-    class Native(StarLayerGraph):
+    class Native(OxGraph):
         calls = 0
 
-        def sparql_query(self, text, init_bindings=None):
+        def sparql_query(self, text, init_bindings=None, custom_functions=None):
             type(self).calls += 1
-            return starlayer_sparql_query(self, text, init_bindings)
+            return super().sparql_query(text, init_bindings, custom_functions)
 
     d = Native()
     d.parse(data=PREFIXES + "ex:a ex:p 1 .", format="turtle")
@@ -180,19 +177,19 @@ def test_data_graph_native_sparql_query_takes_precedence():
     assert Native.calls == 1
 
 
-def test_starlayer_sparql_query_solutions():
-    g = StarLayerGraph()
+def test_oxgraph_sparql_query_solutions():
+    g = OxGraph()
     g.parse(data=PREFIXES + "ex:a ex:p 1 .", format="turtle")
-    sel = starlayer_sparql_query(g, "SELECT ?o WHERE { $this ex:p ?o }".replace("ex:p", "<http://example.com/p>"), {"this": to_engine(EX.a)})
-    assert sel == Solutions(variables=("o",), rows=({"o": to_engine(Literal(1))},))  # engine terms in and out
-    ask = starlayer_sparql_query(g, "ASK { $this <http://example.com/p> 1 }", {"this": to_engine(EX.a)})
+    sel = g.sparql_query("SELECT $this ?o WHERE { $this <http://example.com/p> ?o }", {"this": EX.a})
+    assert sel == Solutions(variables=("this", "o"), rows=({"this": EX.a, "o": integer(1)},))  # engine terms in and out
+    ask = g.sparql_query("ASK { $this <http://example.com/p> 1 }", {"this": EX.a})
     assert ask.boolean is True
 
 
 def test_path_to_sparql_and_fill_template():
-    p = Path(kind="pred", iri=to_engine(EX.p))
+    p = Path(kind="pred", iri=EX.p)
     q = Path(kind="inverse", args=(p,))
-    assert path_to_sparql(Path(kind="seq", args=(p, q))) == f"(<{EX.p}>/^(<{EX.p}>))"
-    assert path_to_sparql(Path(kind="zero_or_more", args=(p,))) == f"(<{EX.p}>)*"
-    t = fill_template(to_engine(Literal("a {?x} {$y} {?z}", lang="en")), {"x": to_engine(Literal("1")), "y": to_engine(EX.b)})
-    assert t.value == f"a 1 {EX.b} {{?z}}" and t.language == "en"
+    assert path_to_sparql(Path(kind="seq", args=(p, q))) == f"(<{EX.p.value}>/^(<{EX.p.value}>))"
+    assert path_to_sparql(Path(kind="zero_or_more", args=(p,))) == f"(<{EX.p.value}>)*"
+    t = fill_template(ox.Literal("a {?x} {$y} {?z}", language="en"), {"x": ox.Literal("1"), "y": EX.b})
+    assert t.value == f"a 1 {EX.b.value} {{?z}}" and t.language == "en"

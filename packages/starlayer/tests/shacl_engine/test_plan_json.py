@@ -9,11 +9,10 @@ from pathlib import Path
 
 import pyoxigraph as ox
 import pytest
-from rdflib import BNode, Literal, URIRef
-from rdflib.namespace import XSD
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.graph.model import TripleTerm
-from starlayer.graph.model.dirlangstring import DirLangString
+from pyoxigraph import BlankNode as BNode
+from pyoxigraph import Literal, NamedNode as URIRef
+from starlayer.shacl_engine.terms import XSD
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl_engine import validate
 from starlayer.shacl_engine.component_table import component_table
 from starlayer.shacl_engine.components.registry import REGISTRY
@@ -27,7 +26,7 @@ from starlayer.shacl_engine.plan_json import (
     term_from_json,
     term_to_json,
 )
-from starlayer.shacl_engine.terms import to_engine
+from starlayer.shacl_engine.terms import integer
 from tests.shacl.w3c_shacl12.comparison import find_report_node, result_multiset
 from tests.shacl.w3c_shacl12.manifest import (
     clone_graph,
@@ -68,17 +67,16 @@ def _plan_of(path: Path) -> Plan | None:
         URIRef("http://example.org/a"),
         BNode("b1"),
         Literal("plain"),
-        Literal("01", datatype=XSD.integer, normalize=False),  # lexical form kept
-        Literal("abc", datatype=XSD.byte, normalize=False),  # ill-formed kept
-        Literal("hello", lang="en-GB"),
-        DirLangString("txt", "ar", "rtl"),
+        Literal("01", datatype=XSD.integer),  # lexical form kept
+        Literal("abc", datatype=XSD.byte),  # ill-formed kept
+        Literal("hello", language="en-GB"),
+        Literal("txt", language="ar", direction=ox.BaseDirection.RTL),
         Literal("x", datatype=XSD.string),
-        TripleTerm(URIRef("http://e/s"), URIRef("http://e/p"), Literal("o", lang="de")),
-        TripleTerm(BNode("s"), URIRef("http://e/p"), TripleTerm(URIRef("http://e/a"), URIRef("http://e/b"), Literal(1))),
+        ox.Triple(URIRef("http://e/s"), URIRef("http://e/p"), Literal("o", language="de")),
+        ox.Triple(BNode("s"), URIRef("http://e/p"), ox.Triple(URIRef("http://e/a"), URIRef("http://e/b"), integer(1))),
     ],
 )
 def test_term_round_trip(term):
-    term = to_engine(term)  # the plan holds engine (pyoxigraph) terms
     obj = json.loads(json.dumps(term_to_json(term)))
     back = term_from_json(obj)
     assert back == term
@@ -88,9 +86,9 @@ def test_term_round_trip(term):
 
 
 def test_term_tags_are_explicit():
-    assert term_to_json(to_engine(URIRef("http://e/a"))) == {"t": "iri", "v": "http://e/a"}
-    assert term_to_json(to_engine(Literal("a", lang="en"))) == {"t": "lit", "v": "a", "dt": None, "lang": "en", "dir": None}
-    assert term_to_json(to_engine(DirLangString("a", "en", "ltr")))["dir"] == "ltr"
+    assert term_to_json(URIRef("http://e/a")) == {"t": "iri", "v": "http://e/a"}
+    assert term_to_json(Literal("a", language="en")) == {"t": "lit", "v": "a", "dt": None, "lang": "en", "dir": None}
+    assert term_to_json(Literal("a", language="en", direction=ox.BaseDirection.LTR))["dir"] == "ltr"
 
 
 # --------------------------------------------------------------------------------------------------------------------
@@ -139,7 +137,7 @@ _ENTRIES = _validate_entries()
 
 def _g(entry, pred):
     action = next(entry.graph.objects(entry.iri, MF.action))
-    return clone_graph(load_document(uri_to_path(next(entry.graph.objects(action, pred)))), StarLayerGraph)
+    return clone_graph(load_document(uri_to_path(next(entry.graph.objects(action, pred)))), OxGraph)
 
 
 @pytest.mark.skipif(not _ENTRIES, reason="vendored W3C SHACL 1.2 suite not present")
@@ -200,8 +198,8 @@ ex:Rule a sh:TripleRule ; sh:subject sh:this ; sh:predicate ex:p ; sh:object ex:
 
 
 def _plan_from_text(text: str) -> Plan:
-    g = StarLayerGraph()
-    g.parse(data=text, format="turtle12")
+    g = OxGraph()
+    g.parse(data=text, format="turtle")
     return Plan(shapes_graph=g)
 
 
@@ -215,7 +213,7 @@ def test_reachable_shapes_and_sections():
     assert obj["prefixes"]["holders"][0]["declarations"] == {"ex": "http://example.org/"}
     name = next(s for s in obj["shapes"] if s["node"]["v"] == "http://example.org/nameShape")
     assert name["messages"][0]["dir"] == "ltr" and name["severity"]["v"].endswith("#Warning")
-    assert name["params"]["http://www.w3.org/ns/shacl#minLength"][0]["v"] == "01"
+    assert name["params"]["http://www.w3.org/ns/shacl#minLength"][0]["v"] == "1"  # the store writes "01"^^xsd:integer as "1"
     assert obj["graph"]  # the term store holds the sh:sparql node and the sh:or list
 
 
@@ -237,7 +235,7 @@ def test_malformed_shape_is_a_recorded_plan_error():
     from starlayer.shacl_engine.plan import ShapeError
 
     with pytest.raises(ShapeError):
-        plan_from_json(json.loads(json.dumps(obj))).shape(to_engine(URIRef("http://e/S")))
+        plan_from_json(json.loads(json.dumps(obj))).shape(URIRef("http://e/S"))
 
 
 def test_cli(tmp_path, capsys):

@@ -7,9 +7,10 @@ from __future__ import annotations
 
 import pyoxigraph as ox
 import pytest
-from rdflib import BNode, Literal, URIRef
-from rdflib.namespace import XSD
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+import rdflib
+from pyoxigraph import NamedNode as URIRef
+from starlayer.shacl_engine.terms import text
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl_engine import executor
 from starlayer.shacl_engine.api import validate
 from starlayer.shacl_engine.oxigraph_view import OxigraphGraph, from_ox, to_ox
@@ -19,14 +20,14 @@ from starlayer.shacl_engine.plan import ShapeError
 PFX = "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . "
 
 
-def g(ttl: str) -> StarLayerGraph:
-    graph = StarLayerGraph()
-    graph.parse(data=PFX + ttl, format="turtle12")
+def g(ttl: str) -> OxGraph:
+    graph = OxGraph()
+    graph.parse(data=PFX + ttl, format="turtle")
     return graph
 
 
 def keys(outcome):
-    return sorted((str(r.focus), str(r.value), str(r.component)) for r in outcome.results)
+    return sorted((text(r.focus), text(r.value), text(r.component)) for r in outcome.results)
 
 
 @pytest.fixture
@@ -91,7 +92,7 @@ def test_recursive_shapes_keep_the_greatest_fixpoint_answer():
     # a -> b -> a is a cycle (assumed conforming); c lacks ex:p and is reached through the cycle's child
     data = "ex:a a ex:T ; ex:p 1 ; ex:child ex:b . ex:b ex:p 1 ; ex:child ex:a . ex:c a ex:T ; ex:child ex:a ."
     out = validate(g(data), g(RECURSIVE))
-    assert [str(r.focus) for r in out.results if str(r.component).endswith("NodeConstraintComponent")] == ["http://example.org/c"]
+    assert [text(r.focus) for r in out.results if text(r.component).endswith("NodeConstraintComponent")] == ["http://example.org/c"]
 
 
 def test_recursion_through_not_still_fails():
@@ -120,17 +121,18 @@ def test_dedupe_keeps_order_and_skips_trivial_lists():
 
 
 def test_ox_term_caches_are_identity_stable_and_correct():
-    iri, bn = URIRef("http://example.org/x"), BNode("b1")
-    assert to_ox(iri) is to_ox(URIRef("http://example.org/x"))
+    """``to_ox`` / ``from_ox`` are the boundary with rdflib terms (rdflib graphs and terms are still accepted as input)."""
+    iri, bn = rdflib.URIRef("http://example.org/x"), rdflib.BNode("b1")
+    assert to_ox(iri) is to_ox(rdflib.URIRef("http://example.org/x"))
     assert to_ox(iri) == ox.NamedNode("http://example.org/x")
     assert to_ox(bn) == ox.BlankNode("b1")
-    assert to_ox(URIRef("urn:same")) != to_ox(BNode("same")) and to_ox(BNode("same")) == ox.BlankNode("same")
-    for lit in (Literal("x"), Literal("1", datatype=XSD.integer), Literal("a", lang="en")):
+    assert to_ox(rdflib.URIRef("urn:same")) != to_ox(rdflib.BNode("same")) and to_ox(rdflib.BNode("same")) == ox.BlankNode("same")
+    for lit in (rdflib.Literal("x"), rdflib.Literal("1", datatype=rdflib.XSD.integer), rdflib.Literal("a", lang="en")):
         assert from_ox(to_ox(lit)) == lit
     node = ox.NamedNode("http://example.org/y")
     assert from_ox(node) is from_ox(ox.NamedNode("http://example.org/y"))
-    assert type(from_ox(node)) is URIRef
-    assert type(from_ox(ox.BlankNode("z"))) is BNode
+    assert type(from_ox(node)) is rdflib.URIRef
+    assert type(from_ox(ox.BlankNode("z"))) is rdflib.BNode
 
 
 def test_ox_objects_and_subjects_dedupe_across_graphs():
@@ -142,7 +144,7 @@ def test_ox_objects_and_subjects_dedupe_across_graphs():
     view = OxigraphGraph(store)
     A, P, OBJ = URIRef("http://example.org/a"), URIRef("http://example.org/p"), URIRef("http://example.org/o")
     assert sorted(t.value for t in view.objects(A, P)) == ["http://example.org/o", "v"]
-    assert [from_ox(s) for s in view.subjects(P, OBJ)] == [A]
+    assert list(view.subjects(P, OBJ)) == [A]
     assert sorted(t.value for t in view.objects(A, None)) == ["http://example.org/o", "v"]
     named = OxigraphGraph(store, URIRef("http://example.org/g1"))
     assert len(list(named.objects(A, P))) == 2
@@ -161,5 +163,5 @@ def test_sparql_constraint_is_prepared_once_per_run(monkeypatch):
     monkeypatch.setattr(sc, "substitute_path", lambda text, shape: calls.append(shape.node) or real(text, shape))
     out = validate(data, shapes)
     assert len(out.results) == 3
-    assert all("bad http://example.org/n" in str(m) for r in out.results for m in r.messages)
+    assert all("bad http://example.org/n" in text(m) for r in out.results for m in r.messages)
     assert len(calls) == 1  # was one per focus node

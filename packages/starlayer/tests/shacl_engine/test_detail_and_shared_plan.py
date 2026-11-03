@@ -3,19 +3,21 @@
 from __future__ import annotations
 
 import pytest
-from rdflib import Graph, Literal, URIRef
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+from rdflib import Graph
+from pyoxigraph import Literal
+from pyoxigraph import NamedNode as URIRef
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl import StarShaclSchema, validate_each
 from starlayer.shacl_engine import api
 from starlayer.shacl_engine.plan import Plan
-from tests.shacl.w3c_shacl12.namespaces import SH
+from starlayer.shacl_engine.terms import SH
 
 PFX = "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . "
 
 
-def g(ttl: str) -> StarLayerGraph:
-    graph = StarLayerGraph()
-    graph.parse(data=PFX + ttl, format="turtle12")
+def g(ttl: str) -> OxGraph:
+    graph = OxGraph()
+    graph.parse(data=PFX + ttl, format="turtle")
     return graph
 
 

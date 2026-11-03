@@ -13,8 +13,10 @@ import warnings
 from pathlib import Path
 
 import pytest
-from rdflib import Namespace, URIRef
-from starlayer.graph import StarLayerGraph
+from starlayer.shacl_engine.terms import NS as Namespace
+from starlayer.shacl_engine.terms import from_engine, text
+from pyoxigraph import NamedNode as URIRef
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl import extract_subgraph as old_extract
@@ -26,9 +28,9 @@ EX = Namespace("http://example.org/")
 PRE = "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> . @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> . "
 
 
-def _g(ttl: str) -> StarLayerGraph:
-    g = StarLayerGraph()
-    g.parse(data=PRE + ttl, format="turtle12")
+def _g(ttl: str) -> OxGraph:
+    g = OxGraph()
+    g.parse(data=PRE + ttl, format="turtle")
     return g
 
 
@@ -237,9 +239,9 @@ _PAPER_CASES, _FOCUS, _PREFIXES = _paper_cases()
 def test_paper_cases_agree_with_old_and_conform(name) -> None:
     focus, shapes_ttl, data_ttl = _PAPER_CASES[name]
     for shapes_src in (shapes_ttl, _FOCUS(shapes_ttl, focus)):
-        shapes, data = StarLayerGraph(), StarLayerGraph()
-        shapes.parse(data=_PREFIXES + shapes_src, format="turtle12")
-        data.parse(data=_PREFIXES + data_ttl, format="turtle12")
+        shapes, data = OxGraph(), OxGraph()
+        shapes.parse(data=_PREFIXES + shapes_src, format="turtle")
+        data.parse(data=_PREFIXES + data_ttl, format="turtle")
         _same(data, shapes)
     fragment = extract_subgraph(data, shapes)
     assert validate(fragment, shapes, meta_shacl=False).conforms
@@ -261,7 +263,7 @@ def test_rejects_str_arguments_and_unknown_shapes() -> None:
     with pytest.raises(TypeError):
         extract_subgraph(g, g, focus_node="http://example.org/je1")
     with pytest.raises(ValueError, match="not a shape"):
-        extract_subgraph(StarLayerGraph(), _g(JE_SHAPE), shape=EX.Nope, focus_node=EX.x)
+        extract_subgraph(OxGraph(), _g(JE_SHAPE), shape=EX.Nope, focus_node=EX.x)
 
 
 def test_does_not_mutate_the_shapes_graph() -> None:
@@ -345,7 +347,7 @@ def test_extract_shapes_graph_closure_and_validation() -> None:
     before = set(graph)
     extract = extract_shapes_graph(graph, EX.ModuleA, include_referenced=True)
     assert set(graph) == before
-    names = {s for s in extract.subjects() if str(s).startswith(str(EX))}
+    names = {s for s in extract.subjects() if text(s).startswith(str(EX))}
     assert {EX.PersonWorksFor, EX.Company, EX.CompanyName, EX.NamedNode, EX.OrA, EX.OrB} <= names and EX.Unrelated not in names
     assert (EX.CompanyName, URIRef("http://www.w3.org/ns/shacl#node"), EX.PersonShape) in extract
     data = _g("ex:alice a ex:Person ; ex:worksFor ex:acme ; ex:age 3 .")
@@ -393,13 +395,15 @@ CLOSE_CASES = {
 
 def _canon(graph) -> set:
     """Triples with list/blank nodes of ignoredProperties abstracted to their member lists, so isomorphic outputs compare equal."""
+    from rdflib import Graph
     from rdflib.collection import Collection
     from rdflib.compare import to_isomorphic
 
-    out = StarLayerGraph()
+    rg = Graph()  # rdflib's isomorphism check wants an rdflib graph: convert the result at this boundary
     for t in graph:
-        out.add(t)
-    return to_isomorphic(out), {str(Collection(graph, h)) and tuple(Collection(graph, h)) for h in graph.objects(None, URIRef("http://www.w3.org/ns/shacl#ignoredProperties"))}
+        rg.add(tuple(from_engine(x) for x in t))
+    ignored = from_engine(URIRef("http://www.w3.org/ns/shacl#ignoredProperties"))
+    return to_isomorphic(rg), {tuple(Collection(rg, h)) for h in rg.objects(None, ignored)}
 
 
 @pytest.mark.parametrize("name", list(CLOSE_CASES))
@@ -429,9 +433,9 @@ def test_extracted_fragment_of_the_production_shape_conforms_to_its_closed_form(
     ttl, shape = CLOSE_CASES["production shape"]
     shapes = _g(ttl)
     fragment = extract_subgraph(_g(JE_DATA), shapes, shape=shape, focus_node=EX.je1)
-    assert "later note" not in fragment.serialize(format="turtle12")
+    assert "later note" not in fragment.serialize(format="turtle")
     assert validate(fragment, close_shape(shapes, shape), meta_shacl=False).conforms
-    assert re.search("note", fragment.serialize(format="turtle12")) is None
+    assert re.search("note", fragment.serialize(format="turtle")) is None
 
 
 def test_target_where_is_a_target_the_old_pyshacl_path_did_not_discover() -> None:

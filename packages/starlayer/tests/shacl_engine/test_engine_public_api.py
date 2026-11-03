@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import pytest
-from rdflib import RDF, Graph, URIRef
+from rdflib import Graph
+from starlayer.shacl_engine.terms import RDF
+from pyoxigraph import NamedNode as URIRef
 from starlayer.graph.graph.entailment_regimes import ENTAILMENT
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl import (
     RulesResult,
     StarShaclSchema,
@@ -20,7 +22,7 @@ from starlayer.shacl._adapter import (
     translate_validate_options,
 )
 from starlayer.shacl.validation_modes import resolve_mode_options
-from tests.shacl.w3c_shacl12.namespaces import SH
+from starlayer.shacl_engine.terms import SH
 
 PFX = "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> . "
 EX = "http://example.org/"
@@ -34,9 +36,9 @@ RULES = (
 )
 
 
-def g(ttl: str, ident: str | None = None) -> StarLayerGraph:
-    graph = StarLayerGraph(identifier=URIRef(ident)) if ident else StarLayerGraph()
-    graph.parse(data=PFX + ttl, format="turtle12")
+def g(ttl: str, ident: str | None = None) -> OxGraph:
+    graph = OxGraph(identifier=URIRef(ident)) if ident else OxGraph()
+    graph.parse(data=PFX + ttl, format="turtle")
     return graph
 
 
@@ -49,7 +51,7 @@ class TestResultTypes:
         result = validate(g(BAD), g(SHAPES))
         assert isinstance(result, ValidationResult)
         assert result.conforms is False
-        assert isinstance(result.report_graph, StarLayerGraph)
+        assert isinstance(result.report_graph, OxGraph)
         assert isinstance(result.report_text, str) and "Conforms: False" in result.report_text
         assert result.data_graph is None
         assert result.diagnostics is not None and result.diagnostics.report_triples == len(result.report_graph)

@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import pytest
 from rdflib import Graph
-from rdflib.namespace import Namespace
+from starlayer.shacl_engine.terms import NS as Namespace
 from starlayer.shacl_engine import validate
+from starlayer.shacl_engine.terms import text
 from starlayer.shacl_engine.plan import ShapeError
 
 SH = Namespace("http://www.w3.org/ns/shacl#")
@@ -58,7 +59,7 @@ def test_datatype_checks_datatype_and_well_formedness():
         "sh:datatype xsd:integer",
         'ex:a ex:p 1, "abc"^^xsd:integer, "s", "2"^^xsd:decimal .',
     )
-    assert {str(v) for v in values(out)} == {"abc", "s", "2"}
+    assert {text(v) for v in values(out)} == {"abc", "s", "2"}
 
 
 def test_datatype_langstring_and_plain_string():
@@ -87,7 +88,7 @@ def test_node_kind(kind, bad):
     out = run(f"sh:nodeKind {kind}", 'ex:a ex:p ex:i, _:b, "l" .')
     seen = set()
     for v in values(out):
-        seen.add("iri" if v == EX.i else "lit" if str(v) == "l" else "bnode")
+        seen.add("iri" if v == EX.i else "lit" if text(v) == "l" else "bnode")
     assert seen == bad
 
 
@@ -124,13 +125,13 @@ def test_count_malformed_raises():
 )
 def test_ranges(param, bad):
     out = run(param, "ex:a ex:p 4, 5, 6 .")
-    got = {str(v) for v in values(out)}
+    got = {text(v) for v in values(out)}
     assert got == bad
 
 
 def test_range_mixed_numeric_types_and_incomparable():
     out = run("sh:minInclusive 1.5", 'ex:a ex:p 2, 1.0e0, "x", ex:i, "3"^^xsd:integer .')
-    assert {str(v) for v in values(out)} == {"1.0", "x", "http://example.com/i"}
+    assert {text(v) for v in values(out)} == {"1", "x", "http://example.com/i"}  # the store writes 1.0e0 as "1"^^xsd:double
 
 
 def test_range_dates_and_strings():
@@ -157,7 +158,7 @@ def test_has_value():
 
 def test_in():
     out = run('sh:in ( 1 "a" ex:i )', 'ex:a ex:p 1, "a", ex:i, 2, "b" .')
-    assert {str(v) for v in values(out)} == {"2", "b"}
+    assert {text(v) for v in values(out)} == {"2", "b"}
     assert components(out) == {SH.InConstraintComponent}
 
 

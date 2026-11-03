@@ -3,16 +3,17 @@
 from __future__ import annotations
 
 import pytest
-from rdflib import Graph, Literal, URIRef
-from rdflib.namespace import OWL, RDF
+from pyoxigraph import NamedNode as URIRef
+from starlayer.graph.oxgraph import OxGraph
+from starlayer.shacl_engine.terms import OWL, RDF
 from starlayer.shacl_engine.imports import declared_imports, resolve_imports
 from starlayer.shacl_engine.meta import META_ERROR_PREFIX, MetaShaclError, meta_validate
 
 PFX = "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix owl: <http://www.w3.org/2002/07/owl#> . @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n"
 
 
-def _g(ttl: str) -> Graph:
-    return Graph().parse(data=PFX + ttl, format="turtle")
+def _g(ttl: str) -> OxGraph:
+    return OxGraph().parse(data=PFX + ttl, format="turtle")
 
 
 GOOD = [
@@ -85,7 +86,7 @@ def test_engine_validate_is_injectable():
 APP, V2, COMPANY, BASE = (URIRef(f"http://example.com/shapes/{n}") for n in ("myapp", "company/v2", "company", "base"))
 
 
-def _app() -> Graph:
+def _app() -> OxGraph:
     return _g("<http://example.com/shapes/myapp> owl:imports <http://example.com/shapes/company/v2> . ex:A a sh:NodeShape .")
 
 
@@ -138,8 +139,8 @@ def test_self_import_cycle_terminates_and_loader_called_once():
 
     def loader(iri):
         calls.append(iri)
-        return _g("<http://example.com/shapes/y> owl:imports <http://example.com/shapes/y> .") if False else Graph().parse(
-            data=PFX + "<http://example.com/shapes/z> owl:imports <http://example.com/shapes/y> .", format="turtle")
+        return _g("<http://example.com/shapes/y> owl:imports <http://example.com/shapes/y> .") if False else _g(
+            "<http://example.com/shapes/z> owl:imports <http://example.com/shapes/y> .")
 
     result = resolve_imports(h, loader)
     assert calls == [URIRef("http://example.com/shapes/y")]
@@ -160,4 +161,3 @@ def test_multi_hop_without_version_iri():
 def test_declared_imports_dedups_in_order():
     g = _g("ex:a owl:imports ex:x , ex:y . ex:b owl:imports ex:x .")
     assert declared_imports(g) == (URIRef("http://example.org/x"), URIRef("http://example.org/y"))
-    assert Literal  # keep import used

@@ -4,9 +4,10 @@ validator on the same inline Turtle."""
 from __future__ import annotations
 
 import pytest
-from rdflib import Literal, URIRef
+from pyoxigraph import Literal
+from pyoxigraph import NamedNode as URIRef
 from starlayer.graph.graph.entailment_regimes import ENTAILMENT
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl import evaluate as old_evaluate
 from starlayer.shacl import validate as old_validate
@@ -23,9 +24,9 @@ EX = "http://example.org/"
 RDFS = ENTAILMENT.RDFS
 
 
-def g(ttl: str) -> StarLayerGraph:
-    graph = StarLayerGraph()
-    graph.parse(data=PFX + ttl, format="turtle12")
+def g(ttl: str) -> OxGraph:
+    graph = OxGraph()
+    graph.parse(data=PFX + ttl, format="turtle")
     return graph
 
 
@@ -138,10 +139,10 @@ def test_evaluate_matches_the_old_function(name: str) -> None:
 
 def test_computed_values_are_what_the_old_tests_expect() -> None:
     new = new_evaluate(g(FRIENDS), g(CASES["count"][1]))
-    assert sorted(v.toPython() for v in new.objects(URIRef(EX + "alice"), URIRef(EX + "friendCount"))) == [2]
-    assert [v.toPython() for v in new.objects(URIRef(EX + "dave"), URIRef(EX + "friendCount"))] == [1]
+    assert sorted(int(v.value) for v in new.objects(URIRef(EX + "alice"), URIRef(EX + "friendCount"))) == [2]
+    assert [int(v.value) for v in new.objects(URIRef(EX + "dave"), URIRef(EX + "friendCount"))] == [1]
     union = new_evaluate(g(CASES["union_with_stored"][0]), g(CASES["union_with_stored"][1]))
-    assert sorted(v.toPython() for v in union.objects(URIRef(EX + "alice"), URIRef(EX + "friendCount"))) == [2, 99]
+    assert sorted(int(v.value) for v in union.objects(URIRef(EX + "alice"), URIRef(EX + "friendCount"))) == [2, 99]
     restricted = new_evaluate(g(LABELS), g(LABEL_SHAPES), focus_nodes=[URIRef(EX + "a")], properties=[URIRef(EX + "label")])
     assert set(restricted) == {(URIRef(EX + "a"), URIRef(EX + "label"), Literal("Ann Lee"))}
 

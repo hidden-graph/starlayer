@@ -544,13 +544,21 @@ def _run_call(template: str, values: list) -> list:
     global _SCRATCH_STORE
     if _SCRATCH_STORE is None:
         _SCRATCH_STORE = ox.Store()
+    from starlayer.graph.oxgraph import run as oxrun
+
     names = [f"a{i}" for i in range(len(values))]
     try:
-        # the arguments are projected as well: Oxigraph applies a pre-binding only to a variable the SELECT lists
-        result = _SCRATCH_STORE.query(
-            f"SELECT {' '.join('?' + n for n in names)} ({template} AS ?result) WHERE {{}}",  # str-ok: template is the SPARQL text
-            substitutions={ox.Variable(n): v for n, v in zip(names, values, strict=True)} or None,
-        )
+        if values and not any(oxrun._has_blank(v) for v in values):
+            # the values go in as VALUES text: Oxigraph's ``=`` on a substituted decimal and integer answers false (pyoxigraph 0.5.13)
+            row = " ".join(oxrun._sparql_term(v) for v in values)
+            query = f"SELECT ({template} AS ?result) WHERE {{ VALUES ({' '.join('?' + n for n in names)}) {{ ({row}) }} }}"  # str-ok: SPARQL text
+            result = _SCRATCH_STORE.query(query)
+        else:
+            # a blank node cannot be written in VALUES: pre-bind it; Oxigraph applies a pre-binding only to a projected variable
+            result = _SCRATCH_STORE.query(
+                f"SELECT {' '.join('?' + n for n in names)} ({template} AS ?result) WHERE {{}}",  # str-ok: SPARQL text
+                substitutions={ox.Variable(n): v for n, v in zip(names, values, strict=True)} or None,
+            )
         rows = [sol["result"] for sol in result]
     except Exception as exc:  # noqa: BLE001  (a SPARQL evaluation error is an evaluation failure)
         raise EvaluationFailure(f"SPARQL error in {template}: {exc}") from exc  # str-ok: SPARQL text

@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import pytest
-from rdflib import Graph, URIRef
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+from rdflib import Graph
+from pyoxigraph import NamedNode as URIRef
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl_engine import validate
 from starlayer.shacl_engine.plan import ShapeError
-from tests.shacl.w3c_shacl12.namespaces import SH
+from starlayer.shacl_engine.terms import SH, lexical, text
 
 PRE = """@prefix ex: <http://example.com/> . @prefix sh: <http://www.w3.org/ns/shacl#> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> . @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
@@ -15,15 +16,15 @@ PRE = """@prefix ex: <http://example.com/> . @prefix sh: <http://www.w3.org/ns/s
 
 
 def run(shapes: str, data: str = ""):
-    sg, dg = StarLayerGraph(), StarLayerGraph()
-    sg.parse(data=PRE + shapes, format="turtle12")
-    dg.parse(data=PRE + (data or shapes), format="turtle12")
+    sg, dg = OxGraph(), OxGraph()
+    sg.parse(data=PRE + shapes, format="turtle")
+    dg.parse(data=PRE + (data or shapes), format="turtle")
     return validate(dg, sg)
 
 
 def results(shapes: str, data: str = ""):
     out = run(shapes, data)
-    return sorted((str(r.focus).rsplit("/", 1)[-1], str(r.component).rsplit("#", 1)[-1]) for r in out.results)
+    return sorted((text(r.focus).rsplit("/", 1)[-1], text(r.component).rsplit("#", 1)[-1]) for r in out.results)
 
 
 TARGETS = "ex:S a sh:NodeShape ; sh:targetNode ex:a, ex:b ; "
@@ -53,7 +54,7 @@ def test_empty_lists():
 def test_value_reported_on_property_shape():
     s = TARGETS + "sh:property [ sh:path ex:p ; sh:not [ sh:in ( 1 ) ] ] . "
     out = run(s + DATA)
-    assert [(r.focus, r.value) for r in out.results if r.focus == URIRef("http://example.com/a")][0][1].toPython() == 1
+    assert [(r.focus, r.value) for r in out.results if r.focus == URIRef("http://example.com/a")][0][1].value == "1"
 
 
 @pytest.mark.parametrize(
@@ -106,7 +107,7 @@ def test_qualified_bad_count():
 def test_closed_reports_each_offending_predicate():
     s = "ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:closed true ; sh:ignoredProperties ( rdf:type ) ; sh:property [ sh:path ex:p ] . "
     out = run(s + "ex:a a ex:A ; ex:p 1 ; ex:q 2 ; ex:r 3 .")
-    assert sorted((str(r.path.iri), r.value.toPython()) for r in out.results) == [("http://example.com/q", 2), ("http://example.com/r", 3)]
+    assert sorted((text(r.path.iri), int(r.value.value)) for r in out.results) == [("http://example.com/q", 2), ("http://example.com/r", 3)]
     assert all(r.path.node == r.path.iri for r in out.results)
 
 
@@ -143,7 +144,7 @@ def test_root_class():
     s = "ex:S a sh:NodeShape ; sh:targetNode ex:z ; sh:property [ sh:path ex:holds ; sh:rootClass ex:Animal ] . "
     data = "ex:Dog rdfs:subClassOf ex:Animal . ex:z ex:holds ex:Animal, ex:Dog, ex:Car, 3 ."
     out = run(s + data)
-    assert sorted(str(r.value) for r in out.results) == ["3", "http://example.com/Car"]
+    assert sorted(lexical(r.value) for r in out.results) == ["3", "http://example.com/Car"]
     assert {r.component for r in out.results} == {SH.RootClassConstraintComponent}
 
 

@@ -3,40 +3,21 @@
 from __future__ import annotations
 
 import pytest
-from rdflib import Graph, Literal, Namespace
+from pyoxigraph import Literal
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl_engine import paths as _paths
 from starlayer.shacl_engine import targets as _targets
 from starlayer.shacl_engine.plan import ShapeError
-from starlayer.shacl_engine.terms import engine_view, from_engine, to_engine
-from tests.shacl.w3c_shacl12.namespaces import SH
+from starlayer.shacl_engine.terms import NS as Namespace
+from starlayer.shacl_engine.terms import SH, text
 
+# The engine functions take Oxigraph-backed graphs and pyoxigraph terms and return pyoxigraph terms.
+parse_path = _paths.parse_path
+eval_path = _paths.eval_path
+declared_shape_nodes = _targets.declared_shape_nodes
+shape_targets = _targets.shape_targets
+focus_nodes = _targets.focus_nodes
 
-# The engine speaks pyoxigraph terms; these tests are written with rdflib graphs and terms, so each engine function is
-# wrapped: graphs through ``engine_view``, terms through ``to_engine`` / ``from_engine``.
-def _out(x):
-    return [(_out(v) if isinstance(v, tuple) else from_engine(v)) for v in x] if isinstance(x, (list, tuple)) else from_engine(x)
-
-
-def parse_path(graph, node):
-    return _paths.parse_path(engine_view(graph), to_engine(node))
-
-
-def eval_path(data, path, focus):
-    return _out(_paths.eval_path(engine_view(data), path, to_engine(focus)))
-
-
-def declared_shape_nodes(graph):
-    return _out(_targets.declared_shape_nodes(engine_view(graph)))
-
-
-def shape_targets(graph, node):
-    return [tuple(_out(t)) for t in _targets.shape_targets(engine_view(graph), to_engine(node))]
-
-
-def focus_nodes(data, shapes, targets, conforms=None):
-    targets = tuple((to_engine(p), to_engine(v)) for p, v in targets)
-    wrapped = None if conforms is None else (lambda shape, n: conforms(from_engine(shape), from_engine(n)))
-    return _out(_targets.focus_nodes(engine_view(data), engine_view(shapes), targets, wrapped))
 
 EX = Namespace("http://example.com/ns#")
 PFX = """@prefix ex: <http://example.com/ns#> . @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -44,11 +25,11 @@ PFX = """@prefix ex: <http://example.com/ns#> . @prefix sh: <http://www.w3.org/n
 @prefix owl: <http://www.w3.org/2002/07/owl#> . """
 
 
-def g(ttl: str) -> Graph:
-    return Graph().parse(data=PFX + ttl, format="turtle")
+def g(ttl: str) -> OxGraph:
+    return OxGraph().parse(data=PFX + ttl, format="turtle")
 
 
-def path_of(shapes: Graph):
+def path_of(shapes: OxGraph):
     return parse_path(shapes, next(shapes.objects(EX.s, SH.path)))
 
 
@@ -60,8 +41,9 @@ def ev(path_ttl: str, focus=EX.a):
 
 
 def test_pred_and_inverse():
-    assert ev("ex:p") == [EX.b, EX.c]
-    assert ev("[ sh:inversePath ex:p ]", EX.d) == [EX.b, EX.c]
+    # a path's value nodes are a set: the store gives no order
+    assert sorted(ev("ex:p"), key=text) == [EX.b, EX.c]
+    assert sorted(ev("[ sh:inversePath ex:p ]", EX.d), key=text) == [EX.b, EX.c]
 
 
 def test_sequence_is_a_set():
@@ -69,7 +51,7 @@ def test_sequence_is_a_set():
 
 
 def test_alternative():
-    assert ev("[ sh:alternativePath ( ex:p ex:q ) ]") == [EX.b, EX.c, EX.e]
+    assert sorted(ev("[ sh:alternativePath ( ex:p ex:q ) ]"), key=text) == [EX.b, EX.c, EX.e]
 
 
 def test_closures_terminate_on_cycles():
@@ -79,7 +61,8 @@ def test_closures_terminate_on_cycles():
 
 
 def test_zero_or_one():
-    assert ev("[ sh:zeroOrOnePath ex:p ]") == [EX.a, EX.b, EX.c]
+    zo = ev("[ sh:zeroOrOnePath ex:p ]")
+    assert zo[0] == EX.a and sorted(zo, key=text) == [EX.a, EX.b, EX.c]
 
 
 def test_inverse_of_sequence():
@@ -91,7 +74,7 @@ def test_node_is_original_term():
     s = g("ex:s sh:path [ sh:inversePath ex:p ] .")
     node = next(s.objects(EX.s, SH.path))
     p = parse_path(s, node)
-    assert p.node == to_engine(node) and p.args[0].node == to_engine(EX.p)
+    assert p.node == node and p.args[0].node == EX.p
 
 
 @pytest.mark.parametrize(
@@ -140,7 +123,7 @@ def test_implicit_class_target():
 
 def test_focus_nodes_all_kinds():
     foc = focus_nodes(TDATA, TARGETS, tuple(shape_targets(TARGETS, EX.S1)))
-    assert foc[:2] == [EX.n, Literal("lit")]
+    assert set(foc[:2]) == {EX.n, Literal("lit")}  # the sh:targetNode nodes come first, in no fixed order
     assert set(foc) == {EX.n, Literal("lit"), EX.i1, EX.i2, EX.i3, EX.u, EX.v, EX.v2}
     assert len(foc) == len(set(foc))
 

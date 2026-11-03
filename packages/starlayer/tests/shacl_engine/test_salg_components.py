@@ -9,10 +9,10 @@ import starlayer.sparql
 from rdflib import Graph
 from rdflib.namespace import SH
 from starlayer.graph.graph.entailment_regimes import ENTAILMENT
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl_engine import validate
 from starlayer.shacl_engine.components.registry import REGISTRY
-from starlayer.shacl_engine.terms import to_engine
+from starlayer.shacl_engine.terms import text, to_engine
 from starlayer.sparql import salg
 
 QUERIES = [
@@ -60,8 +60,9 @@ def test_unbound_variable_is_reported_with_the_salg_component():
     new = _new(_graph(QUERIES[0]))
     assert not new.conforms
     components = set(new.report_graph.objects(None, SH.sourceConstraintComponent))
-    assert starlayer.sparql.SALG.NoUnboundProjectedVariablesConstraintComponent in components
-    assert "y" in {str(v) for v in new.report_graph.objects(None, SH.value)}
+    assert to_engine(starlayer.sparql.SALG.NoUnboundProjectedVariablesConstraintComponent) in components
+    # a SPARQL variable is not an RDF term: the report names it by its urn:starlayer:variable: IRI
+    assert "urn:starlayer:variable:y" in {text(v) for v in new.report_graph.objects(None, SH.value)}
 
 
 def test_component_is_registered_without_importing_salg_in_the_engine():
@@ -80,7 +81,7 @@ def test_register_is_idempotent_and_installs_the_real_function():
 def test_non_boolean_marker_is_a_shape_error():
     from starlayer.shacl_engine.plan import ShapeError
 
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(
         data="""@prefix sh: <http://www.w3.org/ns/shacl#> . @prefix salg: <https://github.com/hidden-graph/starlayer/ns/sparql/algebra#> .
         <urn:S> a sh:NodeShape ; sh:targetClass salg:Project ; salg:noUnboundProjectedVariables "yes" .""",

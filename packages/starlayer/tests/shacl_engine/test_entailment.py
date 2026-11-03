@@ -3,26 +3,18 @@
 import time
 
 import pytest
-from rdflib import RDF, RDFS, Graph, Namespace
+from rdflib import Graph
+from starlayer.shacl_engine.terms import RDF, RDFS, NS as Namespace
 from starlayer.graph.graph.entailment_regimes import ENTAILMENT
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl.validator import validate as old_validate
 from starlayer.shacl_engine import entailment as _entailment
 from starlayer.shacl_engine.api import validate as engine_validate
-from starlayer.shacl_engine.terms import LegacyTermView, RdflibTermView
 
 
-def _legacy(view):
-    """The engine returns an engine-term view; these tests read it in rdflib terms (a plain wrap is the graph itself)."""
-    return view.graph if isinstance(view, RdflibTermView) else LegacyTermView(view)
 
-
-def entailed_view(*a, **k):
-    return _legacy(_entailment.entailed_view(*a, **k))
-
-
-def resolve_data_view(*a, **k):
-    return _legacy(_entailment.resolve_data_view(*a, **k))
+entailed_view = _entailment.entailed_view
+resolve_data_view = _entailment.resolve_data_view
 
 pytest.importorskip("owlrl")
 
@@ -34,8 +26,8 @@ SHAPES = PFX + "ex:EmployeeShape a sh:NodeShape ; sh:targetClass ex:Employee ; s
 DOMAIN = PFX + "ex:worksAt rdfs:domain ex:Employee . ex:alice ex:worksAt ex:Acme ."
 
 
-def _g(ttl: str) -> StarLayerGraph:
-    g = StarLayerGraph()
+def _g(ttl: str) -> OxGraph:
+    g = OxGraph()
     g.parse(data=ttl, format="turtle")
     return g
 
@@ -134,7 +126,7 @@ def test_regime_iris_and_no_regime() -> None:
 @pytest.mark.parametrize("name", ["rdfs", "owlrl", "both", "none"])
 def test_pyshacl_style_names_are_not_regimes(name) -> None:
     """``inference=`` takes the W3C entailment regime IRIs (the vocabulary of ``sh:entailment``), not pySHACL's own names."""
-    with pytest.raises(ValueError, match="Unsupported entailment"):
+    with pytest.raises(ValueError):  # pyoxigraph rejects the non-IRI string itself
         entailed_view(_g(DOMAIN), name)
 
 
