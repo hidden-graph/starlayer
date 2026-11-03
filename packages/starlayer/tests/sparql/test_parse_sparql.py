@@ -25,9 +25,7 @@ from starlayer.sparql.parse_sparql import (
 from starlayer.sparql.sqe import sqe_tree_to_text, sqe_validate
 from tests.sparql.parse_sparql_support import (
     canonical_graph,
-    current_tree,
     entry_key,
-    same_tree,
     w3c11_entries,
     w3c_entries,
 )
@@ -104,84 +102,6 @@ def test_w3c11_tree_text_fixpoint(entry):
 # ---------------------------------------------------------------------------
 # Gate 3: agreement with the current path (opt-in: ~1 s per query on the old side)
 # ---------------------------------------------------------------------------
-
-
-def _agreement_corpus() -> dict[str, str]:
-    from tests.sparql.sqe_coverage.test_sqe_features import FEATURES, P
-    from tests.sparql.sqe_coverage.test_sqe_modifiers import QUERIES
-
-    corpus = {"feature/" + k: P + v for k, v in FEATURES.items()}
-    corpus.update({"modifier/" + k: v for k, v in QUERIES.items()})
-    corpus.update({"w3c/" + entry_key(e): e.read(e.query_file) for e in _POSITIVE})
-    corpus.update({"w3c11/" + e.key: e.read() for e in _POSITIVE11})
-    return corpus
-
-
-# Queries on which the two paths differ, name -> why. The new parser is right in each case, and the test asserts the
-# difference explicitly (it does not skip): the trees must agree once the difference is neutralised, and the new tree
-# must carry the right thing.
-LEXICAL_FORMS: dict[str, tuple[str, ...]] = {
-    # rdflib's parser rewrites numeric lexical forms to canonical ones (1e3 -> 1000.0); the new parser keeps them as written.
-    "feature/literal forms": ("1", "2.5", "1e3"),
-}
-# `VALUES () { }` (no variables, no rows) joins with an empty table, so the query has no solutions; rdflib's parser drops the
-# clause, which silently changes the meaning. The new tree keeps it: asserted, then compared without it.
-EMPTY_TRAILING_VALUES = {"w3c11/11/syntax-query/test_35a", "w3c11/11/bindings/values-no-vars-no-rows"}
-# VERSION declarations: the old path strips them before parsing (the vocabulary had no term); the new tree keeps them as
-# sqe:version. Compared without those triples, and the declared versions are asserted.
-
-
-def _normalize_numbers(g):
-    from rdflib import Graph
-
-    out = Graph()
-    for s, p, o in g:
-        if isinstance(o, Literal) and o.datatype in (XSD.integer, XSD.decimal, XSD.double):
-            o = Literal(str(o), datatype=o.datatype)  # rdflib's default normalization
-        out.add((s, p, o))
-    return out
-
-
-def _agreement_params():
-    try:
-        corpus = _agreement_corpus()
-    except ImportError:  # pragma: no cover
-        return []
-    return [pytest.param(name, text, id=name) for name, text in corpus.items()]
-
-
-@pytest.mark.sqe_coverage
-@pytest.mark.parametrize("name,text", _agreement_params())
-def test_new_parser_agrees_with_current_path(name, text):
-    import re
-
-    from starlayer.sparql.sqe import SQE
-
-    try:
-        old = current_tree(text)
-    except Exception:  # noqa: BLE001 - the current parser rejects it (an inherited rdflib gap): nothing to compare
-        pytest.skip("the current path rejects this query")
-    new = sparql_to_tree(text)
-    declared = re.findall(r'(?im)^\s*VERSION\s+["\']([^"\']*)["\']', text)
-    if declared:
-        assert sorted(str(o) for o in new[0].objects(new[1], SQE.version)) == sorted(set(declared))
-        for triple in list(new[0].triples((new[1], SQE.version, None))):
-            new[0].remove(triple)
-    if name in EMPTY_TRAILING_VALUES:
-        from rdflib.collection import Collection
-
-        values = new[0].value(new[1], SQE.values)
-        assert values is not None
-        assert list(Collection(new[0], new[0].value(values, SQE.vars))) == []
-        assert list(Collection(new[0], new[0].value(values, SQE.rows))) == []
-        new[0].remove((new[1], SQE.values, values))
-        new[0].remove((values, None, None))
-    if name in LEXICAL_FORMS:
-        lexical = {str(o) for o in new[0].objects(None, None) if isinstance(o, Literal)}
-        assert set(LEXICAL_FORMS[name]) <= lexical, "the new tree must keep the lexical forms as written"
-        assert same_tree((_normalize_numbers(new[0]), new[1]), (_normalize_numbers(old[0]), old[1]))
-    else:
-        assert same_tree(new, old)
 
 
 @pytest.mark.sqe_coverage

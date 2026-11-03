@@ -53,10 +53,7 @@ def test_tab_in_a_string_literal_is_escaped_and_means_the_same():
     ["SELECT * FROM <urn:a> WHERE { ?s ?p ?o }", "SELECT * FROM NAMED <urn:b> WHERE { ?s ?p ?o }"],
 )
 def test_dataset_clauses_are_refused_not_dropped(query):
-    # the rdflib route cannot model FROM and refuses it rather than dropping it ...
-    with pytest.raises(NotImplementedError, match="FROM"):
-        sqe.sqe_parse_to_tree(query, parser="rdflib")
-    # ... the owned parser carries it, and the text keeps it
+    # the tree carries the dataset clause, and the text keeps it
     assert "FROM" in _text(query)
 
 

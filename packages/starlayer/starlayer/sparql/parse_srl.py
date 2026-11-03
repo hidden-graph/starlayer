@@ -15,7 +15,7 @@ Static checks that belong to the rule set (a variable bound, ``SET`` not reusing
 
 from __future__ import annotations
 
-from rdflib import BNode, URIRef
+from rdflib import XSD, BNode, Literal, URIRef
 from rdflib.plugins.sparql.parserutils import CompValue, Expr
 
 from . import _srl_ast as srl_ast
@@ -70,6 +70,17 @@ def _convert(value):
         return CompValue(value.kind, **fields)
     if isinstance(value, list):
         return [_convert(v) for v in value]
+    return _rdflib_form(value)
+
+
+_NUMERIC = (XSD.integer, XSD.decimal, XSD.double)
+
+
+def _rdflib_form(value):
+    """A numeric literal in rdflib's canonical lexical form (``-.5`` -> ``-0.5``), as the old rdflib-grammar parser gave it
+    and as the SRL tests and the ``srl:`` trees expect. The SPARQL parser itself keeps the form as written."""
+    if isinstance(value, Literal) and value.datatype in _NUMERIC:
+        return Literal(str(value), datatype=value.datatype)
     return value
 
 
@@ -77,7 +88,7 @@ def _term(value):
     """A term of a triple: a triple term node becomes a ``TripleTermNode``, everything else is already a term."""
     if isinstance(value, Node) and value.kind == "TripleTerm":
         return _convert(value)
-    return value
+    return _rdflib_form(value)
 
 
 def _expand_path(subject, predicate, obj) -> list[srl_ast.TriplePattern]:
