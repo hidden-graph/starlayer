@@ -26,7 +26,7 @@ from rdflib import BNode, Graph, Literal, URIRef
 from rdflib.collection import Collection
 from rdflib.namespace import RDF
 
-from ..from_rdf import _decode
+from ..spexpr_codec import _decode
 from ..vocab import VARIABLE_DATATYPE
 from .expr_text import expr_text
 from .vocab import (

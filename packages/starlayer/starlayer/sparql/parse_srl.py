@@ -49,7 +49,7 @@ def _srl_error(message: str, cause: Exception | None = None) -> Exception:
 
 
 def _evalfns() -> dict:
-    from .from_rdf import _EXPR_EVALFNS
+    from .spexpr_codec import _EXPR_EVALFNS
 
     return _EXPR_EVALFNS
 

@@ -479,7 +479,7 @@ def _evaluable(node):
     """A lowered expression tree (plain ``CompValue``s) as ``Expr`` nodes rdflib can evaluate."""
     from rdflib.plugins.sparql.parserutils import Expr
 
-    from .from_rdf import _EXPR_EVALFNS
+    from .spexpr_codec import _EXPR_EVALFNS
 
     if isinstance(node, algebra.CompValue):
         evalfn = _EXPR_EVALFNS.get(node.name)

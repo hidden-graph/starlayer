@@ -125,12 +125,11 @@ from ._srl_ast import (  # noqa: F401 - re-exported, see module docstring
     RuleSet,
     TriplePattern,
 )
-from .from_rdf import _decode
+from .spexpr_codec import _NS_OVERRIDES, _decode, _encode, _new_starlayer_graph
 from .sqe.expr_text import expr_text as _sqe_expr_text
 from .sqe.to_rdf import _encode_expr
 from .sqe.vocab import SQE as _SQE
 from .srl_semantic_checks import _check_ruleset
-from .to_rdf import _NS_OVERRIDES, _encode, _new_starlayer_graph
 from .triple_term import TripleTermNode
 
 SRL = Namespace("https://github.com/hidden-graph/starlayer/ns/sparql/srl#")

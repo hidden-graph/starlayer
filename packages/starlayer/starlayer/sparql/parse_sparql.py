@@ -2097,7 +2097,7 @@ def ast_to_tree(q: Node, graph: Graph | None = None, root=None, *, triple_order=
 
 
 def _ast_to_tree(q: Node, graph, root, triple_order) -> tuple[Graph, object]:
-    from .to_rdf import _new_starlayer_graph
+    from .spexpr_codec import _new_starlayer_graph
 
     graph = graph if graph is not None else _new_starlayer_graph()
     root = root if root is not None else BNode()

@@ -44,8 +44,8 @@ import re
 from rdflib import Graph
 from rdflib.term import IdentifiedNode
 
-from ..to_rdf import _NS_OVERRIDES
-from ..to_rdf import _encode as _encode_algebra
+from ..spexpr_codec import _NS_OVERRIDES
+from ..spexpr_codec import _encode as _encode_algebra
 from ..vocab import SPEXPR
 from .vocab import (
     ASK_QUERY,

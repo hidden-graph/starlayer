@@ -220,7 +220,10 @@ def _shacl_functions(ctx: Any) -> Iterator[None]:
     )
     from rdflib.plugins.sparql.sparql import SPARQLError
 
-    from starlayer.shacl_engine.expressions import EvaluationFailure, evaluate_expression
+    from starlayer.shacl_engine.expressions import (
+        EvaluationFailure,
+        evaluate_expression,
+    )
 
     shapes = ctx.shapes
     active = ctx.plan.sparql_cache
