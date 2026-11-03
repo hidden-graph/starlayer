@@ -6,6 +6,7 @@ node look non-conforming to the where-shape, and it silently stopped being a tar
 
 import pytest
 from rdflib import Graph, Namespace
+from ._rdflib_view import rd
 from starlayer.shacl import StarShaclSchema, validate
 
 SH = Namespace("http://www.w3.org/ns/shacl#")
@@ -20,7 +21,7 @@ def _reported(shapes: str, data: str, *, method: bool) -> set[tuple[str, str]]:
     """(focus node, source shape) of every result, by last path segment."""
     d, s = _g(data), _g(shapes)
     result = StarShaclSchema(shacl_graph=s).validate(data_graph=d, meta_shacl=False) if method else validate(d, s, meta_shacl=False)
-    g = result.report_graph
+    g = rd(result.report_graph)
     return {(str(g.value(r, SH.focusNode)).rsplit("/", 1)[-1], str(g.value(r, SH.sourceShape)).rsplit("/", 1)[-1]) for r in g.subjects(SH.focusNode)}
 
 
@@ -33,7 +34,7 @@ def _s_foci(shapes: str, data: str, method: bool) -> set[str]:
     # the result's source shape for a property shape is a blank node, so identify S's results by their message
     d, s = _g(data), _g(shapes)
     result = StarShaclSchema(shacl_graph=s).validate(data_graph=d, meta_shacl=False) if method else validate(d, s, meta_shacl=False)
-    g = result.report_graph
+    g = rd(result.report_graph)
     return {str(g.value(r, SH.focusNode)).rsplit("/", 1)[-1] for r in g.subjects(SH.focusNode) if "S needs a name" in {str(m) for m in g.objects(r, SH.resultMessage)}}
 
 

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import pytest
 from rdflib import RDF, Namespace
+from ._rdflib_view import rd
 from starlayer import StarLayerGraph
 from starlayer.shacl import ShapeError, StarShaclSchema, apply_rules, evaluate, validate
 
@@ -54,13 +55,13 @@ class TestNativeFastPathDefersToPyShacl:
     def test_property_shape_severity_is_reported(self) -> None:
         shapes = "ex:S a sh:NodeShape ; sh:targetClass ex:T ; sh:property [ sh:path ex:p ; sh:in (1 2) ; sh:severity sh:Warning ] ."
         result = validate(g(self.DATA + TRIPLE_TERM_NOISE), g(shapes))
-        assert list(result.report_graph.objects(None, SH.resultSeverity)) == [SH.Warning]
+        assert list(rd(result.report_graph).objects(None, SH.resultSeverity)) == [SH.Warning]
 
     def test_report_of_the_fast_path_is_a_standard_report(self) -> None:
         shapes = "ex:S a sh:NodeShape ; sh:targetClass ex:T ; sh:property [ sh:path ex:p ; sh:in (1 2) ] ."
         result = validate(g(self.DATA + TRIPLE_TERM_NOISE), g(shapes))
         assert result.conforms is False
-        report = result.report_graph
+        report = rd(result.report_graph)
         assert len(list(report.subjects(RDF.type, SH.ValidationReport))) == 1
         assert len(list(report.subjects(RDF.type, SH.ValidationResult))) == 1
         assert list(report.objects(None, SH.resultSeverity)) == [SH.Violation]
@@ -71,13 +72,13 @@ class TestDeactivatedShapesInRulesAndEvaluate:
         shapes = """ex:S a sh:NodeShape ; sh:deactivated true ; sh:targetNode ex:a ;
             sh:rule [ a sh:TripleRule ; sh:subject sh:this ; sh:predicate ex:r ; sh:object 1 ] ."""
         result = apply_rules(g("ex:a ex:q 1 ."), shacl_graph=g(shapes), meta_shacl=False)
-        assert list(result.inferred_graph) == []
+        assert list(rd(result.inferred_graph)) == []
 
     def test_apply_rules_still_runs_an_active_shape(self) -> None:
         shapes = """ex:S a sh:NodeShape ; sh:targetNode ex:a ;
             sh:rule [ a sh:TripleRule ; sh:subject sh:this ; sh:predicate ex:r ; sh:object 1 ] ."""
         result = apply_rules(g("ex:a ex:q 1 ."), shacl_graph=g(shapes), meta_shacl=False)
-        assert len(list(result.inferred_graph)) == 1
+        assert len(list(rd(result.inferred_graph))) == 1
 
     def test_evaluate_ignores_a_deactivated_node_shape(self) -> None:
         shapes = "ex:S a sh:NodeShape ; sh:deactivated true ; sh:targetNode ex:a ; sh:property [ sh:path ex:v ; sh:values 5 ] ."
@@ -200,11 +201,11 @@ class TestNodeKindMessage:
     def test_single_kind_violation_has_pyshacls_message(self) -> None:
         shapes = "ex:S a sh:NodeShape ; sh:targetNode ex:n ; sh:property [ sh:path ex:p ; sh:nodeKind sh:IRI ] ."
         result = validate(g("ex:n ex:p 'lit' ."), g(shapes))
-        assert [str(m) for m in result.report_graph.objects(None, SH.resultMessage)] == ["Value is not of Node Kind sh:IRI"]
+        assert [str(m) for m in rd(result.report_graph).objects(None, SH.resultMessage)] == ["Value is not of Node Kind sh:IRI"]
 
     def test_node_shape_violation_has_a_message(self) -> None:
         result = validate(g("ex:n ex:p 'lit' ."), g("ex:S a sh:NodeShape ; sh:targetNode ex:n ; sh:nodeKind sh:Literal ."))
-        assert [str(m) for m in result.report_graph.objects(None, SH.resultMessage)] == [
+        assert [str(m) for m in rd(result.report_graph).objects(None, SH.resultMessage)] == [
             "Value is not of Node Kind sh:Literal"
         ]
 

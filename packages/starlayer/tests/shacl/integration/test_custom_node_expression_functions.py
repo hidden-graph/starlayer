@@ -1,5 +1,6 @@
 import pytest
 from rdflib import Graph, Namespace
+from ._rdflib_view import rd
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import MetaShaclError, ShapeError, StarShaclSchema
 from starlayer.shacl.meta_shapes import meta_validate
@@ -120,7 +121,7 @@ class TestCustomListParameterFunction:
             format="turtle",
         )
         result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
-        derived = list(result.inferred_graph.triples((EX.alice, EX.greeting, None)))
+        derived = list(rd(result.inferred_graph).triples((EX.alice, EX.greeting, None)))
         assert len(derived) == 1
         assert str(derived[0][2]) == "hello world"
 
@@ -212,7 +213,7 @@ class TestCustomNamedParameterFunction:
             format="turtle",
         )
         result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
-        derived = list(result.inferred_graph.triples((EX.alice, EX.same, None)))
+        derived = list(rd(result.inferred_graph).triples((EX.alice, EX.same, None)))
         assert derived == [(EX.alice, EX.same, EX.alice)]
 
 

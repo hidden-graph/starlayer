@@ -8,8 +8,14 @@ import pytest
 from build_shacl_ui import STSH, missing_vocabulary_fields, vocabulary_shape_predicates
 from rdflib import RDF, RDFS, Graph, Literal, Namespace, URIRef
 from starlayer import starontology
+
+from ._rdflib_view import rd
 from starlayer.shacl.meta_shapes import meta_validate
 from starlayer.shacl.ui_widget_selection import select_widgets
+
+def _onto(name):
+    return rd(starontology.get_ontology_graph(name))
+
 
 SH = Namespace("http://www.w3.org/ns/shacl#")
 SHUI = Namespace("http://www.w3.org/ns/shacl-ui#")
@@ -52,7 +58,7 @@ FORMS = {
 
 @pytest.fixture(scope="module")
 def ui() -> Graph:
-    return starontology.get_ontology_graph("shacl_shacl_ui")
+    return _onto("shacl_shacl_ui")
 
 
 def fields(ui: Graph, name: str) -> dict[URIRef, URIRef]:
@@ -174,7 +180,7 @@ def test_what_shacl_shacl_forbids_stays_off_the_node_shape_form(ui) -> None:
 
 
 def test_the_completeness_check_covers_the_vocabulary_properties_of_a_shape(ui) -> None:
-    vocabulary = starontology.get_ontology_graph("shacl_vocabulary")
+    vocabulary = _onto("shacl_vocabulary")
     assert {SH.target, SH.targetWhere, SH.unit, SH.codeIdentifier, SH.codeType, SH.name, SH.group} <= vocabulary_shape_predicates(vocabulary)
     assert missing_vocabulary_fields(ui, vocabulary) == set()
     broken = Graph()
@@ -312,7 +318,7 @@ def test_a_triple_rule_with_no_subject_runs_with_the_focus_node_as_subject() -> 
 def scoring() -> Graph:
     scoring = Graph()
     for name in ("shacl_ui_baseline", "shacl_shacl_ui_scores"):
-        for triple in starontology.get_ontology_graph(name):
+        for triple in _onto(name):
             scoring.add(triple)
     return scoring
 

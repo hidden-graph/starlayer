@@ -3,6 +3,7 @@
 import pytest
 from rdflib import Namespace
 from starlayer import StarLayerGraph
+from starlayer.shacl_engine.terms import NS
 from starlayer.shacl import ShapeError, StarShaclSchema, validate
 from starlayer.shacl.shapes_graphs import (
     graph_nodes,
@@ -11,6 +12,7 @@ from starlayer.shacl.shapes_graphs import (
 )
 
 EX = Namespace("http://e/")
+OX = NS("http://e/")  # engine terms: what the public API returns
 PREFIXES = (
     "@prefix ex: <http://e/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix owl: <http://www.w3.org/2002/07/owl#> . "
     "@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> . "
@@ -66,7 +68,7 @@ ex:Loose rdfs:isDefinedBy ex:Nowhere .
     ],
 )
 def test_members_of_any_graph_role(graph_node, members) -> None:
-    assert shapes_graph_members(_graph(ROLES), graph_node) == frozenset(members)
+    assert shapes_graph_members(_graph(ROLES), graph_node) == frozenset(OX[str(m).rsplit('/', 1)[-1]] for m in members)
 
 
 def test_a_node_with_no_graph_type_still_has_no_members() -> None:
@@ -80,5 +82,5 @@ def test_an_import_of_an_untyped_node_still_raises() -> None:
 
 def test_graph_nodes_lists_every_role_and_shapes_graphs_stays_shapes_only() -> None:
     graph = _graph(ROLES)
-    assert graph_nodes(graph) == [EX.D, EX.G, EX.M, EX.N, EX.R, EX.S]
-    assert shapes_graphs(graph) == [EX.S]
+    assert graph_nodes(graph) == [OX.D, OX.G, OX.M, OX.N, OX.R, OX.S]
+    assert shapes_graphs(graph) == [OX.S]

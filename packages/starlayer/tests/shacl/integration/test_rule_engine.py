@@ -9,7 +9,9 @@ triples of a layer are removed when the layer ends. Each test below fails with p
 import pytest
 from rdflib import RDF, Literal, Namespace, URIRef
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+import pyoxigraph as ox
 from starlayer.shacl import RuleError, StarShaclSchema
+from starlayer.shacl_engine.terms import RDF as OXRDF, from_engine, text, to_engine
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
@@ -73,8 +75,8 @@ class TestOrderGroups:
         result = _apply(shapes, include_source_rule_provenance=True)
 
         graph = result.inferred_graph
-        reifiers = {s for s, _, o in graph.triples((None, REIFIES, None)) if o == (EX.n, EX.p, EX.x)}
-        sources = {rule for r in reifiers for rule in graph.objects(r, SH.sourceRule)}
+        reifiers = {s for s, _, o in graph.triples((None, REIFIES, None)) if o == ox.Triple(to_engine(EX.n), to_engine(EX.p), to_engine(EX.x))}
+        sources = {from_engine(rule) for r in reifiers for rule in graph.objects(r, SH.sourceRule)}
         assert sources == {EX.A, EX.B}
 
 
@@ -239,9 +241,9 @@ def test_provenance_of_rules_run_over_a_graph_with_no_triple_terms_does_not_cred
     traced = apply_rules(data, shacl_graph=rules, include_source_rule_provenance=True)
 
     assert len(plain.inferred_graph) == 3
-    inferred = {t for t in traced.inferred_graph if t[1] == RDF.type}
+    inferred = {t for t in traced.inferred_graph if t[1] == OXRDF.type}
     assert inferred == set(plain.inferred_graph)
-    assert not [t for t in traced.inferred_graph if str(t[0]).startswith("urn:starlayer:tt:")]
+    assert not [t for t in traced.inferred_graph if text(t[0]).startswith("urn:starlayer:tt:")]
 
 
 class TestTargetsThatDependOnInferredTriples:

@@ -17,6 +17,7 @@ from starlayer.shacl import (
     validate,
 )
 from starlayer.shacl.shape_types import infer_types
+from starlayer.shacl_engine.terms import from_engine, text
 from starlayer.shacl.xpath_regex import needs_translation, xpath_regex_to_python
 
 EX = Namespace("http://example.org/")
@@ -80,9 +81,9 @@ def test_infer_types_is_idempotent_and_never_types_vocabulary_terms(ttl):
     first = infer_types(graph)
     assert len(first) > 0
     for triple in first:
-        graph.add(triple)
+        graph.add(tuple(from_engine(t) for t in triple))
     assert len(infer_types(graph)) == 0
-    assert not [s for s, _p, _o in first if str(s).startswith(str(SH))]
+    assert not [s for s, _p, _o in first if text(s).startswith(str(SH))]
 
 
 # --- rules -------------------------------------------------------------------------------------------------------------
@@ -203,4 +204,4 @@ def test_reifier_shape_violation_reports_the_reifier_shape_component():
     assert not result.conforms
     # SHACL 1.2 Core leaves sh:resultMessage to the processor; the component IRI is what the draft fixes.
     components = set(result.report_graph.objects(None, SH.sourceConstraintComponent))
-    assert components == {URIRef(str(SH) + "ReifierShapeConstraintComponent")}
+    assert {from_engine(c) for c in components} == {URIRef(str(SH) + "ReifierShapeConstraintComponent")}

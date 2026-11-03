@@ -12,6 +12,7 @@ from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 from starlayer import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
+from starlayer.shacl_engine.terms import text
 
 PREFIXES = "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . "
 RECURSIVE = (
@@ -71,7 +72,7 @@ def test_a_node_reached_through_another_target_is_not_mistaken_for_a_cycle() -> 
     """alice and bob are both targets of the shape. alice -> bob is not a cycle, so alice's sh:node result must be there."""
     result = _validate(RECURSIVE, "ex:alice a ex:Person ; ex:name 'A' ; ex:friend ex:bob . ex:bob a ex:Person .")
     assert result.diagnostics.recursion_revisits == 0
-    focus = {str(f) for f in result.report_graph.objects(None, pyshacl_sh("focusNode"))}
+    focus = {text(f) for f in result.report_graph.objects(None, pyshacl_sh("focusNode"))}
     assert {"http://example.org/alice", "http://example.org/bob"} <= focus
 
 

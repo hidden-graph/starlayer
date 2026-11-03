@@ -8,7 +8,7 @@ include every satisfying candidate rather than picking an arbitrary one,
 and only real stored triples are ever included).
 """
 
-from rdflib import RDF
+from starlayer.shacl_engine.terms import RDF, text
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema, extract_subgraph
 
@@ -150,7 +150,7 @@ class TestMultiHopPaths:
         # alice, bob, carol should all appear via their friend edges,
         # including the self-loop - and it must have terminated at all
         # (this test itself timing out would be the real failure mode).
-        assert serialized.count("friend") == 3
+        assert sum(1 for _, p, _ in result.triples((None, None, None)) if str(p).endswith("friend>")) == 4
 
 
 class TestNestedShapes:
@@ -334,7 +334,7 @@ class TestCloseShape:
         strict_shapes = StarShaclSchema(shacl_graph=prod_shapes).close_shape(EX.JEShape)
 
         closed_values = list(strict_shapes.objects(EX.JEShape, SH.closed))
-        assert len(closed_values) == 1 and bool(closed_values[0].toPython())
+        assert len(closed_values) == 1 and text(closed_values[0]) == "true"
         # the production shape's own exemptions are gone; only rdf:type remains allowed, because the shape has a class target
         # and extract_subgraph() includes the triple that makes a node a target
         ignored = list(strict_shapes.objects(EX.JEShape, SH.ignoredProperties))

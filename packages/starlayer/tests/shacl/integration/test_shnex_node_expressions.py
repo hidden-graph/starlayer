@@ -1,5 +1,6 @@
 import pytest
 from rdflib import Namespace
+from ._rdflib_view import rd
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.graph.model.triple import TripleTerm
 from starlayer.shacl import EvaluationFailure, StarShaclSchema
@@ -379,7 +380,7 @@ def test_shnex_pathvalues_with_triple_rule_carries_rdf12_triple_term() -> None:
         format="turtle",
     )
     result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
-    derived = list(result.inferred_graph.triples((EX.alice, EX.derivedClaim, None)))
+    derived = list(rd(result.inferred_graph).triples((EX.alice, EX.derivedClaim, None)))
     assert len(derived) == 1
     from rdflib import Literal
 

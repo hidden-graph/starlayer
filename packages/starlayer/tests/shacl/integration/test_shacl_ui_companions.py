@@ -7,12 +7,18 @@ import pytest
 from rdflib import RDF, Graph, Namespace, URIRef
 from rdflib.collection import Collection
 from starlayer import starontology
+
+from ._rdflib_view import rd
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import MetaShaclError as ReportableRuntimeError
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl import ui_widget_selection as uws
 from starlayer.shacl.meta_shapes import meta_validate
 from starlayer.shacl.ui_widget_selection import SHUI, select_widget, select_widgets
+
+def _onto(name):
+    return rd(starontology.get_ontology_graph(name))
+
 
 SH = Namespace("http://www.w3.org/ns/shacl#")
 STSH = Namespace("https://github.com/hidden-graph/starlayer/ns/shacl#")
@@ -21,17 +27,17 @@ EX = Namespace("http://example.org/")
 
 @pytest.fixture(scope="module")
 def overlay() -> Graph:
-    return starontology.get_ontology_graph("shacl_shacl_ui")
+    return _onto("shacl_shacl_ui")
 
 
 @pytest.fixture(scope="module")
 def baseline() -> Graph:
-    return starontology.get_ontology_graph("shacl_ui_baseline")
+    return _onto("shacl_ui_baseline")
 
 
 @pytest.fixture(scope="module")
 def shacl_shacl() -> Graph:
-    return starontology.get_ontology_graph("shacl_shacl")
+    return _onto("shacl_shacl")
 
 
 # --------------------------------------------------------------------------- the overlay
@@ -86,7 +92,7 @@ def test_the_overlay_contains_no_widget(overlay) -> None:
 # --------------------------------------------------------------------------- the shacl_shacl scoring layer
 @pytest.fixture(scope="module")
 def scores() -> Graph:
-    return starontology.get_ontology_graph("shacl_shacl_ui_scores")
+    return _onto("shacl_shacl_ui_scores")
 
 
 @pytest.fixture(scope="module")
@@ -158,7 +164,7 @@ def test_the_layer_does_not_touch_other_shapes_or_viewers(shapes, baseline, stac
             shape_node=EX.S, shapes_graph=shapes, scoring_graph=baseline, role=role
         )
     shacl_shape = URIRef("http://www.w3.org/ns/shacl-shacl#ShapeShape")
-    viewers = select_widgets(shape_node=shacl_shape, shapes_graph=starontology.get_ontology_graph("shacl_shacl"), scoring_graph=stacked, role="viewer")
+    viewers = select_widgets(shape_node=shacl_shape, shapes_graph=_onto("shacl_shacl"), scoring_graph=stacked, role="viewer")
     assert all(widget in uws._BUILTIN_VIEWERS or widget is None for widget in viewers.values())
 
 

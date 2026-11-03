@@ -6,6 +6,7 @@ sh:targetObjectsOf can yield them.
 
 import pytest
 from rdflib import Graph, Literal, Namespace
+from ._rdflib_view import rd, rdn
 from starlayer.shacl import StarShaclSchema, validate
 
 SH = Namespace("http://www.w3.org/ns/shacl#")
@@ -20,7 +21,7 @@ def _g(ttl: str) -> Graph:
 def _focus(data: str, method: bool) -> set:
     d, s = _g(data), _g(SHAPES)
     result = StarShaclSchema(shacl_graph=s).validate(data_graph=d, meta_shacl=False) if method else validate(d, s, meta_shacl=False)
-    return set(result.report_graph.objects(None, SH.focusNode)), result.conforms
+    return set(rd(result.report_graph).objects(None, SH.focusNode)), result.conforms
 
 
 BOTH = pytest.mark.parametrize("method", [False, True], ids=["function", "method"])
@@ -50,4 +51,4 @@ def test_target_nodes_agrees_with_validate():
     d, s = _g("ex:a ex:q 5 ."), _g(SHAPES)
     schema = StarShaclSchema(shacl_graph=s)
     shape = next(s.subjects(SH.targetWhere, None))
-    assert Literal(5) in set(schema.target_nodes(data_graph=d, shape_node=shape))
+    assert Literal(5) in rdn(set(schema.target_nodes(data_graph=d, shape_node=shape)))

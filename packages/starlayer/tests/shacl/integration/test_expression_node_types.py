@@ -7,6 +7,7 @@ argument lists had none, so a tool that finds shapes by target found nothing for
 import pytest
 from rdflib import RDF, BNode, Namespace
 from starlayer import StarLayerGraph, starontology
+from ._rdflib_view import rd, rdn
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl.shape_types import infer_types
 
@@ -27,7 +28,7 @@ def _graph(ttl: str) -> StarLayerGraph:
 
 
 def _typed(graph, cls) -> set:
-    return {s for s, _, o in infer_types(graph) if o == cls}
+    return {s for s, _, o in rd(infer_types(graph)) if o == cls}
 
 
 EXAMPLE = """
@@ -58,12 +59,12 @@ def test_every_node_under_sh_values_has_a_shape_that_targets_it_once_typed() -> 
     typed = StarLayerGraph()
     for triple in graph:
         typed.add(triple)
-    for triple in infer_types(graph):
+    for triple in rd(infer_types(graph)):
         typed.add(triple)
     schema = StarShaclSchema(shacl_graph=starontology.get_ontology_graph("shacl_shacl"), data_graph=typed)
     covered = set()
     for shape in (EX_SHACL("NodeExpressionShape"), EX_SHACL("ExpressionArgumentListShape")):
-        covered.update(schema.target_nodes(shape_node=shape))
+        covered.update(rdn(schema.target_nodes(shape_node=shape)))
     wanted = _typed(graph, SH.NodeExpression) | _typed(graph, RDF.List)
     assert wanted and wanted <= covered
 

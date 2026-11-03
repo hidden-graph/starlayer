@@ -1,4 +1,5 @@
 from rdflib import Namespace
+from ._rdflib_view import rd
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 
@@ -11,7 +12,7 @@ SH = Namespace("http://www.w3.org/ns/shacl#")
 
 
 def _violation_components(result) -> list:
-    return [o for _, _, o in result.report_graph.triples((None, SH.sourceConstraintComponent, None))]
+    return [o for _, _, o in rd(result.report_graph).triples((None, SH.sourceConstraintComponent, None))]
 
 
 def test_subset_of_conforms_when_value_is_among_comparison_path_values() -> None:
@@ -194,5 +195,5 @@ def test_unique_values_for_flags_only_duplicates_among_target_nodes() -> None:
     assert result.conforms is False
     violations = _violation_components(result)
     assert violations == [SH.UniqueValuesForConstraintComponent, SH.UniqueValuesForConstraintComponent]
-    violating_focus_nodes = {o for _, _, o in result.report_graph.triples((None, SH.focusNode, None))}
+    violating_focus_nodes = {o for _, _, o in rd(result.report_graph).triples((None, SH.focusNode, None))}
     assert violating_focus_nodes == {EX.Record2, EX.Record3}

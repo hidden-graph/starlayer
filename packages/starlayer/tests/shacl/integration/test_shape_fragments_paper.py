@@ -16,7 +16,8 @@ import warnings
 import pytest
 from hypothesis import HealthCheck, assume, given, settings
 from hypothesis import strategies as st
-from rdflib import RDF, RDFS, Namespace
+import pyoxigraph as ox
+from starlayer.shacl_engine.terms import RDF, RDFS, NS as Namespace, from_engine, iri_text
 from starlayer import StarLayerGraph
 from starlayer.shacl import extract_subgraph, validate
 
@@ -190,9 +191,7 @@ def test_a_node_target_has_no_target_triple() -> None:
 
 
 def _lit(value: str):
-    from rdflib import Literal
-
-    return Literal(value)
+    return ox.Literal(value, datatype=ox.NamedNode("http://www.w3.org/2001/XMLSchema#string"))
 
 
 def test_a_node_that_is_not_a_target_contributes_nothing() -> None:
@@ -276,7 +275,7 @@ def test_the_conformance_theorem_holds_for_random_shapes_and_graphs(case) -> Non
     """Generate a shape and a graph; when the graph conforms, its fragment must too (focus nodes kept as targets)."""
     shapes, data = case
     graph = _graph(data)
-    focus = sorted({s.rsplit("/", 1)[-1] for s in map(str, graph.subjects(RDF.type, E["T"]))})
+    focus = sorted({str(s).rsplit("/", 1)[-1] for s in graph.subjects(from_engine(RDF.type), from_engine(E["T"]))})
     assume(focus)
     strict = _graph(_with_focus_targets(shapes, focus))
     assume(_conforms(graph, strict))

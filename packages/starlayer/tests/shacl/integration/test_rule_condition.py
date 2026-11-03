@@ -3,6 +3,7 @@ from rdflib import Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.graph.model.triple import TripleTerm
 from starlayer.shacl import RuleError, StarShaclSchema
+from starlayer.shacl_engine.terms import from_engine
 
 EX = Namespace("http://example.org/")
 
@@ -39,7 +40,7 @@ def test_condition_admits_conforming_focus_node_only() -> None:
     """, format="turtle")
 
     result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data)
-    derived = {s for s, _, _ in result.inferred_graph.triples((None, EX.eligibleForVoting, None))}
+    derived = {from_engine(s) for s, _, _ in result.inferred_graph.triples((None, EX.eligibleForVoting, None))}
     assert derived == {EX.alice}
 
 
@@ -66,7 +67,7 @@ def test_condition_over_rdf12_triple_term_valued_property() -> None:
     """, format="turtle")
 
     result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data)
-    derived = {s for s, _, _ in result.inferred_graph.triples((None, EX.flagged, None))}
+    derived = {from_engine(s) for s, _, _ in result.inferred_graph.triples((None, EX.flagged, None))}
     assert derived == {EX.alice}
 
     # The rule's derived triple itself is plain (unrelated to the condition
@@ -107,7 +108,7 @@ def test_condition_shape_does_not_need_explicit_typing() -> None:
     """, format="turtle")
 
     result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data)
-    derived = {s for s, _, _ in result.inferred_graph.triples((None, EX.eligibleForVoting, None))}
+    derived = {from_engine(s) for s, _, _ in result.inferred_graph.triples((None, EX.eligibleForVoting, None))}
     assert derived == {EX.alice}
 
     # Several sh:condition values: the focus node must conform to all of them; both deliberately untyped.
@@ -127,7 +128,7 @@ def test_condition_shape_does_not_need_explicit_typing() -> None:
     """, format="turtle")
 
     result2 = StarShaclSchema(shacl_graph=list_shapes).apply_rules(data_graph=data)
-    derived2 = {s for s, _, _ in result2.inferred_graph.triples((None, EX.eligibleForVoting, None))}
+    derived2 = {from_engine(s) for s, _, _ in result2.inferred_graph.triples((None, EX.eligibleForVoting, None))}
     assert derived2 == {EX.alice}
 
 

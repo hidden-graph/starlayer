@@ -5,6 +5,8 @@ from rdflib import RDF, Namespace
 from starlayer import StarLayerGraph, starontology
 from starlayer.shacl.shape_types import infer_types
 
+from ._rdflib_view import rd
+
 pytest.importorskip("owlrl")
 
 SH = Namespace("http://www.w3.org/ns/shacl#")
@@ -16,7 +18,7 @@ PREFIXES = "@prefix ex: <http://e/> . @prefix sh: <http://www.w3.org/ns/shacl#> 
 def _types(ttl: str) -> set[tuple]:
     graph = StarLayerGraph()
     graph.parse(data=PREFIXES + ttl, format="turtle12")
-    return {(s, o) for s, _, o in infer_types(graph)}
+    return {(s, o) for s, _, o in rd(infer_types(graph))}
 
 
 def test_a_shape_with_a_target_and_no_path_is_a_node_shape() -> None:
@@ -79,7 +81,7 @@ def test_the_shapes_graph_is_not_changed() -> None:
 def test_the_result_holds_only_rdf_type_triples_in_the_sh_namespace() -> None:
     graph = StarLayerGraph()
     graph.parse(data=PREFIXES + "ex:S sh:targetClass ex:C ; sh:property ex:P . ex:P sh:path ex:p .", format="turtle12")
-    result = infer_types(graph)
+    result = rd(infer_types(graph))
     assert len(result) > 0
     assert all(p == RDF.type and str(o).startswith(str(SH)) for _, p, o in result)
 

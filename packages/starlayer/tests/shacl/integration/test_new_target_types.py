@@ -1,4 +1,5 @@
 from rdflib import Namespace
+from ._rdflib_view import rd
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 
@@ -18,7 +19,7 @@ SH = Namespace("http://www.w3.org/ns/shacl#")
 
 
 def _violating_focus_nodes(result) -> set:
-    return {o for _, _, o in result.report_graph.triples((None, SH.focusNode, None))}
+    return {o for _, _, o in rd(result.report_graph).triples((None, SH.focusNode, None))}
 
 
 def test_shape_target_only_targets_nodes_with_explicit_sh_shape_triple() -> None:

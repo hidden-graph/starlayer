@@ -6,6 +6,7 @@ notion of this predicate at all.
 """
 
 from rdflib import Namespace
+from ._rdflib_view import rd
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 
@@ -38,11 +39,11 @@ def test_node_by_expression_at_node_shape_violates_when_value_does_not_conform()
     result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
-    assert {o for _, _, o in result.report_graph.triples((None, SH.focusNode, None))} == {EX.Invalid}
-    assert {o for _, _, o in result.report_graph.triples((None, SH.sourceConstraintComponent, None))} == {
+    assert {o for _, _, o in rd(result.report_graph).triples((None, SH.focusNode, None))} == {EX.Invalid}
+    assert {o for _, _, o in rd(result.report_graph).triples((None, SH.sourceConstraintComponent, None))} == {
         SH.NodeByExpressionConstraintComponent
     }
-    assert {o for _, _, o in result.report_graph.triples((None, SH.sourceConstraint, None))} == {EX.TestNodeShape}
+    assert {o for _, _, o in rd(result.report_graph).triples((None, SH.sourceConstraint, None))} == {EX.TestNodeShape}
 
 
 def test_node_by_expression_at_property_shape_violates_when_value_does_not_conform() -> None:
@@ -75,9 +76,9 @@ def test_node_by_expression_at_property_shape_violates_when_value_does_not_confo
     result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
-    assert {o for _, _, o in result.report_graph.triples((None, SH.focusNode, None))} == {EX.Issue1}
-    assert {o for _, _, o in result.report_graph.triples((None, SH.value, None))} == {EX.PersonWithoutEmail}
-    assert {o for _, _, o in result.report_graph.triples((None, SH.sourceConstraint, None))} == {EX.AssignedToShape}
+    assert {o for _, _, o in rd(result.report_graph).triples((None, SH.focusNode, None))} == {EX.Issue1}
+    assert {o for _, _, o in rd(result.report_graph).triples((None, SH.value, None))} == {EX.PersonWithoutEmail}
+    assert {o for _, _, o in rd(result.report_graph).triples((None, SH.sourceConstraint, None))} == {EX.AssignedToShape}
 
 
 def test_node_by_expression_conforms_when_value_conforms() -> None:

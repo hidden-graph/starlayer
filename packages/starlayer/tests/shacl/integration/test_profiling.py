@@ -3,15 +3,26 @@ from rdflib import Graph, Literal, Namespace, URIRef
 from rdflib.namespace import RDF, RDFS
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
-from starlayer.shacl.shacl_profiling import (
-    declared_conformance_profile,
-    derive_conforms_to,
-)
+from starlayer.shacl import shacl_profiling
+
+from ._rdflib_view import rd
 
 SH = Namespace("http://www.w3.org/ns/shacl#")
 PROF = Namespace("http://www.w3.org/ns/dx/prof/")
 DCTERMS = Namespace("http://purl.org/dc/terms/")
 EX = Namespace("http://example.org/")
+
+
+def declared_conformance_profile():
+    """The profile graph in rdflib terms, for asserting with rdflib vocabulary."""
+    return rd(shacl_profiling.declared_conformance_profile())
+
+
+def derive_conforms_to(*args, **kwargs):
+    """The derived triples in rdflib terms, for asserting with rdflib vocabulary."""
+    return rd(shacl_profiling.derive_conforms_to(*args, **kwargs))
+
+
 _LIBRARY_IRI = URIRef("https://github.com/hidden-graph/starlayer/tree/main/packages/starlayer/starlayer/shacl")
 _DECLARED_PROFILES = (
     URIRef("http://www.w3.org/ns/shacl/profile/core"),
@@ -83,11 +94,12 @@ def test_declared_conformance_profile_says_why_the_ui_profile_is_not_claimed() -
 
 
 def test_declared_conformance_profile_returns_independent_copies() -> None:
-    first = declared_conformance_profile()
+    first = shacl_profiling.declared_conformance_profile()  # the OxGraph itself: adding to it must not reach the next call
     first.add((_LIBRARY_IRI, DCTERMS.conformsTo, URIRef("http://www.w3.org/ns/shacl/profile/ui")))
 
-    second = declared_conformance_profile()
+    second = shacl_profiling.declared_conformance_profile()
 
+    assert (_LIBRARY_IRI, DCTERMS.conformsTo, URIRef("http://www.w3.org/ns/shacl/profile/ui")) in first
     assert (_LIBRARY_IRI, DCTERMS.conformsTo, URIRef("http://www.w3.org/ns/shacl/profile/ui")) not in second
 
 

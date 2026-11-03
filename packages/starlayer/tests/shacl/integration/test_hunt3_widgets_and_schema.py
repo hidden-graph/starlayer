@@ -7,6 +7,8 @@ from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema, validate
 from starlayer.shacl.ui_widget_selection import SHUI, select_widget, select_widgets
 
+from ._rdflib_view import rd
+
 EX = Namespace("http://ex/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
 PRE = (
@@ -162,10 +164,10 @@ def test_extract_subgraph_with_unknown_shape_is_a_value_error():
 def test_shacl_shacl_ui_scores_languagein_and_path_are_not_iri_editors():
     from starlayer.starontology import get_ontology_graph
 
-    ui = get_ontology_graph("shacl_shacl_ui")
+    ui = rd(get_ontology_graph("shacl_shacl_ui"))
     catalog = StarLayerGraph()
-    catalog += get_ontology_graph("shacl_ui_baseline")
-    catalog += get_ontology_graph("shacl_shacl_ui_scores")
+    catalog += rd(get_ontology_graph("shacl_ui_baseline"))
+    catalog += rd(get_ontology_graph("shacl_shacl_ui_scores"))
     chosen = {}
     for form in ui.subjects(RDF.type, SH.NodeShape):
         for prop, widget in select_widgets(shape_node=form, shapes_graph=ui, scoring_graph=catalog, role="editor").items():

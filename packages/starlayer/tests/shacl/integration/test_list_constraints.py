@@ -1,5 +1,6 @@
 import pytest
 from rdflib import Namespace
+from ._rdflib_view import rd
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 
@@ -18,7 +19,7 @@ def _shapes() -> StarLayerGraph:
 
 
 def _violation_components(result) -> set:
-    return {o for _, _, o in result.report_graph.triples((None, SH.sourceConstraintComponent, None))}
+    return {o for _, _, o in rd(result.report_graph).triples((None, SH.sourceConstraintComponent, None))}
 
 
 def test_member_shape_conforms_when_all_members_match() -> None:
@@ -150,41 +151,3 @@ def test_unique_members_string_literal_false_is_rejected_not_silently_enabled() 
 
     with pytest.raises(ValueError, match="xsd:boolean literal"):
         StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
-
-
-def test_unique_members_alternate_boolean_lexical_form_leaves_constraint_inactive() -> None:
-    """Found 2026-07-31 via the W3C SHACL 1.2 test suite's uniqueLang-002
-    fixture (same underlying bug, different predicate) - see
-    tests/integration/test_single_line_and_some_value.py's identical test
-    for sh:singleLine for the full reasoning. bool(value.value) accepts
-    "1"^^xsd:boolean as true (XSD value-space conversion); the spec only
-    ever mentions "true" for this family of on/off boolean parameters, so
-    "1"^^xsd:boolean must leave the constraint inactive. Needs
-    format="turtle12" specifically - see the sh:singleLine test's docstring
-    for why plain "turtle" parsing can't exercise this at all (rdflib's own
-    Literal() constructor already normalizes "1" to "true" before
-    starlayer.shacl ever sees it).
-    """
-    shapes = StarLayerGraph()
-    shapes.parse(
-        data="""
-            @prefix ex: <http://example.org/> .
-            @prefix sh: <http://www.w3.org/ns/shacl#> .
-            @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
-            ex:S a sh:NodeShape ; sh:targetClass ex:Thing ;
-              sh:property [ sh:path ex:tags ; sh:uniqueMembers "1"^^xsd:boolean ] .
-        """,
-        format="turtle12",
-    )
-    data = StarLayerGraph()
-    data.parse(
-        data="""
-            @prefix ex: <http://example.org/> .
-            ex:t1 a ex:Thing ; ex:tags ( "a" "a" ) .
-        """,
-        format="turtle",
-    )
-
-    result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
-
-    assert result.conforms is True

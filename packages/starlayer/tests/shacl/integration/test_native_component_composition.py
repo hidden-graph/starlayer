@@ -16,7 +16,9 @@ case where both answers agree wouldn't catch a regression back to the old
 merge-after behavior.
 """
 
-from rdflib import Graph, Literal, Namespace
+import pyoxigraph as ox
+from rdflib import Graph
+from starlayer.shacl_engine.terms import NS as Namespace
 from starlayer.shacl import StarShaclSchema
 
 EX = Namespace("http://example.org/")
@@ -1292,7 +1294,7 @@ def test_member_shape_one_result_per_list_with_detail_per_bad_member() -> None:
     details = list(result.report_graph.objects(result_node, SH.detail))
     assert len(details) == 2, "expected one sh:detail per non-conforming member (two of the three)"
     detail_values = {o for d in details for _, _, o in result.report_graph.triples((d, SH.value, None))}
-    assert detail_values == {Literal("not an iri"), Literal("also not an iri")}
+    assert detail_values == {ox.Literal("not an iri"), ox.Literal("also not an iri")}
 
 
 def test_member_shape_inside_not_conforms_via_double_negative() -> None:

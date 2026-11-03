@@ -1,4 +1,5 @@
 from rdflib import Namespace
+from ._rdflib_view import rd
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.graph.model.triple import TripleTerm
 from starlayer.shacl import StarShaclSchema
@@ -86,7 +87,7 @@ def test_node_expression_path_carries_triple_term_value() -> None:
     result = validator.apply_rules(data_graph=data, meta_shacl=False)
 
     assert result.validation.conforms is True
-    derived = list(result.inferred_graph.triples((EX.alice, EX.derivedSays, None)))
+    derived = list(rd(result.inferred_graph).triples((EX.alice, EX.derivedSays, None)))
     assert len(derived) == 1
     assert derived[0][2] == TripleTerm(EX.bob, EX.knows, EX.carol)
 
@@ -103,7 +104,7 @@ def test_node_expression_union_carries_mixed_values() -> None:
     result = validator.apply_rules(data_graph=data, meta_shacl=False)
 
     assert result.validation.conforms is True
-    derived = {o for _, _, o in result.inferred_graph.triples((EX.alice, EX.derivedUnion, None))}
+    derived = {o for _, _, o in rd(result.inferred_graph).triples((EX.alice, EX.derivedUnion, None))}
     assert derived == {TripleTerm(EX.bob, EX.knows, EX.carol), EX.plain_value}
 
 
@@ -120,14 +121,14 @@ def test_node_expression_intersection_carries_triple_term_value() -> None:
     result = validator.apply_rules(data_graph=data, meta_shacl=False)
 
     assert result.validation.conforms is True
-    derived = list(result.inferred_graph.triples((EX.alice, EX.derivedIntersection, None)))
+    derived = list(rd(result.inferred_graph).triples((EX.alice, EX.derivedIntersection, None)))
     assert len(derived) == 1
     assert derived[0][2] == TripleTerm(EX.bob, EX.knows, EX.carol)
 
     # No list-scaffolding triples should leak into the returned data graph.
     from rdflib.namespace import RDF
 
-    assert not any(p in (RDF.first, RDF.rest) for _, p, _ in result.inferred_graph)
+    assert not any(p in (RDF.first, RDF.rest) for _, p, _ in rd(result.inferred_graph))
 
 
 def test_node_expression_intersection_carries_plain_rdf11_value() -> None:
@@ -143,7 +144,7 @@ def test_node_expression_intersection_carries_plain_rdf11_value() -> None:
     result = validator.apply_rules(data_graph=data, meta_shacl=False)
 
     assert result.validation.conforms is True
-    derived = {o for _, _, o in result.inferred_graph.triples((EX.alice, EX.derivedIntersection, None))}
+    derived = {o for _, _, o in rd(result.inferred_graph).triples((EX.alice, EX.derivedIntersection, None))}
     assert derived == {EX.commonval}
 
 
@@ -158,6 +159,6 @@ def test_node_expression_shacl_function_carries_triple_term_value() -> None:
     result = validator.apply_rules(data_graph=data, meta_shacl=False)
 
     assert result.validation.conforms is True
-    derived = list(result.inferred_graph.triples((EX.alice, EX.derivedFn, None)))
+    derived = list(rd(result.inferred_graph).triples((EX.alice, EX.derivedFn, None)))
     assert len(derived) == 1
     assert derived[0][2] == TripleTerm(EX.bob, EX.knows, EX.carol)

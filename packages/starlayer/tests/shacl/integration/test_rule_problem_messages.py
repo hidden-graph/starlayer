@@ -4,6 +4,7 @@
 import pytest
 from rdflib import Graph, URIRef
 from starlayer.shacl import MetaShaclError, ShapeError, meta_shapes
+from starlayer.shacl_engine.terms import text
 from starlayer.shacl.meta_shapes import (
     meta_validate,
     parameter_value_shapes,
@@ -52,7 +53,7 @@ def test_a_well_formed_rule_has_nothing_to_report(turtle):
 
 
 def problems(turtle: str):
-    return [(str(n).rsplit("/", 1)[-1], str(p).rsplit("#", 1)[-1], m) for n, p, m in sparql_query_problems(Graph().parse(data=PRE + turtle, format="turtle"))]
+    return [(text(n).rsplit("/", 1)[-1], text(p).rsplit("#", 1)[-1], m) for n, p, m in sparql_query_problems(Graph().parse(data=PRE + turtle, format="turtle"))]
 
 
 def test_a_query_that_is_not_sparql_is_a_problem_of_the_node_that_holds_it():

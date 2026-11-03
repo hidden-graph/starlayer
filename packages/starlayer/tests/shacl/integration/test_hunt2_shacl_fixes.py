@@ -5,6 +5,7 @@ import warnings
 import pytest
 import starlayer.shacl as shacl
 from rdflib import Graph, URIRef
+from ._rdflib_view import rd, rdn
 from starlayer.graph import StarLayerGraph, TripleTerm
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl.paths import path_values
@@ -25,7 +26,7 @@ def _graph(ttl):
 
 def _infer(shapes, data):
     result = shacl.apply_rules(_graph(data), _graph(shapes), meta_shacl=False)
-    return set(result.inferred_graph)
+    return set(rd(result.inferred_graph))
 
 
 def test_close_shape_works_on_a_shape_without_a_class():
@@ -85,7 +86,7 @@ def test_rule_set_accepts_an_iterable_of_rule_sets():
         ((EX("RS2"),), {EX("q2")}),
     ]:
         result = shacl.apply_rules(_graph("ex:a ex:z 0 ."), shapes_graph, rule_set=rule_set, meta_shacl=False)
-        assert {p for _s, p, _o in result.inferred_graph} == predicates
+        assert {p for _s, p, _o in rd(result.inferred_graph)} == predicates
 
 
 def _conforms(shapes, data=None, setup=None):
@@ -162,6 +163,6 @@ def test_inverse_of_a_composite_path_matches_sparql(sparql_path, shacl_path, foc
         format="turtle12",
     )
     root = next(shapes.objects(URIRef("http://e/S"), URIRef("http://www.w3.org/ns/shacl#path")))
-    got = {str(v) for v in path_values(data, URIRef("http://e/" + focus), root, shapes)}
+    got = {str(v) for v in rdn(path_values(data, URIRef("http://e/" + focus), root, shapes))}
     expected = {str(r[0]) for r in oracle.query(f"PREFIX : <http://e/> SELECT ?v {{ :{focus} {sparql_path} ?v }}")}
     assert got == expected

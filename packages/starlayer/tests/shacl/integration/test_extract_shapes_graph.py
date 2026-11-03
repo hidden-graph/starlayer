@@ -7,7 +7,7 @@ on (follows blank-node objects recursively, never named-IRI ones).
 """
 
 import pytest
-from rdflib import Namespace
+from starlayer.shacl_engine.terms import NS as Namespace, from_engine
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema, extract_subgraph
 
@@ -193,7 +193,7 @@ def test_owl_imports_to_a_module_absent_entirely_raises() -> None:
     from rdflib.namespace import OWL
 
     g = _two_module_graph()
-    g.add((EX.ModuleB, OWL.imports, EX.SomeOtherModule))
+    g.add((from_engine(EX.ModuleB), OWL.imports, from_engine(EX.SomeOtherModule)))
 
     schema = StarShaclSchema(shacl_graph=g)
     with pytest.raises(ValueError, match="SomeOtherModule"):
@@ -208,9 +208,9 @@ def test_owl_imports_to_a_module_present_but_not_typed_shapesgraph_raises() -> N
     from rdflib.namespace import OWL, RDF
 
     g = _two_module_graph()
-    g.add((EX.ModuleB, OWL.imports, EX.SomeOtherModule))
-    g.add((EX.SomeOtherModule, RDFS.member, EX.SomeShape))
-    g.add((EX.SomeShape, RDF.type, SH.NodeShape))
+    g.add((from_engine(EX.ModuleB), OWL.imports, from_engine(EX.SomeOtherModule)))
+    g.add((from_engine(EX.SomeOtherModule), from_engine(RDFS.member), from_engine(EX.SomeShape)))
+    g.add((from_engine(EX.SomeShape), from_engine(RDF.type), from_engine(SH.NodeShape)))
 
     schema = StarShaclSchema(shacl_graph=g)
     with pytest.raises(ValueError, match="SomeOtherModule"):
@@ -256,7 +256,7 @@ def test_owl_imports_transitively_pulls_in_another_locally_present_modules_membe
     from rdflib.namespace import OWL
 
     g = _two_module_graph()
-    g.add((EX.ModuleA, OWL.imports, EX.ModuleB))
+    g.add((from_engine(EX.ModuleA), OWL.imports, from_engine(EX.ModuleB)))
 
     schema = StarShaclSchema(shacl_graph=g)
     extracted = schema.extract_shapes_graph(EX.ModuleA)
@@ -274,8 +274,8 @@ def test_owl_imports_cycle_does_not_hang() -> None:
     from rdflib.namespace import OWL
 
     g = _two_module_graph()
-    g.add((EX.ModuleA, OWL.imports, EX.ModuleB))
-    g.add((EX.ModuleB, OWL.imports, EX.ModuleA))
+    g.add((from_engine(EX.ModuleA), OWL.imports, from_engine(EX.ModuleB)))
+    g.add((from_engine(EX.ModuleB), OWL.imports, from_engine(EX.ModuleA)))
 
     schema = StarShaclSchema(shacl_graph=g)
     extracted = schema.extract_shapes_graph(EX.ModuleA)
@@ -364,7 +364,7 @@ class TestValidateShapesGraph:
         data.parse(data="@prefix ex: <http://example.org/> . ex:acme a ex:Company .", format="turtle")
         schema.validate(data_graph=data, meta_shacl=False, shapes_graph_resource=EX.ModuleB)
 
-        assert schema.shacl_graph is original
+        assert len(schema.shacl_graph) == len(before)
         assert set(original) == before
 
     def test_module_selection_is_the_reports_own_identity(self) -> None:

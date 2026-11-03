@@ -163,7 +163,9 @@ class TestShapeAttachedRulesPath:
         # Only RuleA actually ran, so only RuleA should have provenance.
         from rdflib import Namespace as _NS
 
+        from starlayer.shacl_engine.terms import from_engine
+
         SH = _NS("http://www.w3.org/ns/shacl#")
-        source_rules = {o for _, _, o in result.inferred_graph.triples((None, SH.sourceRule, None))}
+        source_rules = {from_engine(o) for _, _, o in result.inferred_graph.triples((None, SH.sourceRule, None))}
         assert EX.TripleRuleA in source_rules
         assert EX.TripleRuleB not in source_rules

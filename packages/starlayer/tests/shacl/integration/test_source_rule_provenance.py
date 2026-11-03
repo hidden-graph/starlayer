@@ -16,6 +16,7 @@ from rdflib import Literal, Namespace, URIRef
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.graph.model.triple import TripleTerm
 from starlayer.shacl import StarShaclSchema
+from starlayer.shacl_engine.terms import from_engine
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
@@ -23,10 +24,10 @@ REIFIES = URIRef("http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies")
 def _source_rule_for(graph, triple_term) -> set:
     """Every ``sh:sourceRule`` value linked to ``triple_term`` via a reifier
     in ``graph`` - empty if none."""
-    reifiers = {s for s, _, o in graph.triples((None, REIFIES, None)) if o == triple_term}
+    reifiers = {s for s, _, o in graph.triples((None, REIFIES, None)) if from_engine(o) == triple_term}
     values = set()
     for reifier in reifiers:
-        values.update(graph.objects(reifier, SH.sourceRule))
+        values.update(from_engine(v) for v in graph.objects(reifier, SH.sourceRule))
     return values
 
 

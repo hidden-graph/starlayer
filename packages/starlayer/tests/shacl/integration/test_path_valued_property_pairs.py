@@ -1,6 +1,7 @@
 from rdflib import Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
+from starlayer.shacl_engine.terms import from_engine
 
 from ._shape_loader import load_shape
 
@@ -17,7 +18,7 @@ SH = Namespace("http://www.w3.org/ns/shacl#")
 
 
 def _violation_components(result) -> list:
-    return [o for _, _, o in result.report_graph.triples((None, SH.sourceConstraintComponent, None))]
+    return [from_engine(o) for _, _, o in result.report_graph.triples((None, SH.sourceConstraintComponent, None))]
 
 
 def test_path_valued_equals_conforms_via_sequence_path() -> None:

@@ -2,6 +2,8 @@ from rdflib import Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 
+from ._rdflib_view import rd
+
 EX = Namespace("http://example.org/")
 
 
@@ -98,7 +100,7 @@ def test_shui_annotations_do_not_interfere_with_rule_application() -> None:
 
     result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data)
     assert result.validation.conforms is True
-    derived = list(result.inferred_graph.triples((EX.alice, EX.hasParent, None)))
+    derived = list(rd(result.inferred_graph).triples((EX.alice, EX.hasParent, None)))
     assert derived == [(EX.alice, EX.hasParent, EX.carol)]
 
 

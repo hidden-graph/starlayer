@@ -323,7 +323,7 @@ def _is_prebound_variable_only_report(report_graph: Any) -> bool:
         if component is None or text(component) != unbound_component:
             return False
         value = report_graph.value(result, SH.value)
-        if value is None or text(value) not in _SHACL_PREBOUND_VARIABLE_NAMES:
+        if value is None or text(value).removeprefix("urn:starlayer:variable:") not in _SHACL_PREBOUND_VARIABLE_NAMES:  # a variable is an IRI at the boundary
             return False
     return True
 

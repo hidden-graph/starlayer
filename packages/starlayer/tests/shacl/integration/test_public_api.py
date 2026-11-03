@@ -20,6 +20,7 @@ from starlayer.shacl import (
     sparql_query_problems,
 )
 from starlayer.sparql import check_query
+from starlayer.shacl_engine.terms import from_engine, to_engine
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
@@ -65,14 +66,14 @@ def test_the_function_and_operator_lists_name_iris():
 def test_infer_types_and_paths_and_members_are_public():
     g = graph("ex:S sh:property ex:P . ex:P sh:path ex:p . ex:a ex:p 1 .")
     assert (EX.P, RDF.type, SH.PropertyShape) in infer_types(g)
-    assert path_values(g, EX.a, EX.p) == frozenset({Literal(1)})
+    assert path_values(g, EX.a, EX.p) == frozenset({to_engine(Literal(1))})
     assert is_inverse(g, EX.p) is False
 
 
 def test_the_other_helpers_are_importable_and_callable():
     assert callable(select_widgets) and callable(shapes_graph_members) and callable(parameter_value_shapes)
     problems = list(sparql_query_problems(graph('ex:S sh:select "not sparql" .')))
-    assert [(node, predicate) for node, predicate, _message in problems] == [(EX.S, SH.select)]
+    assert [(from_engine(node), from_engine(predicate)) for node, predicate, _message in problems] == [(EX.S, SH.select)]
     assert isomorphic(graph("ex:a ex:p [ ex:q 1 ] ."), graph("ex:a ex:p [ ex:q 1 ] ."))
 
 

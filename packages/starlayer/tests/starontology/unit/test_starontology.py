@@ -19,6 +19,16 @@ test_srl_shapes.py).
 import pytest
 from starlayer import starontology
 from starlayer.graph import StarLayerGraph
+from starlayer.graph.oxgraph.core import OxGraph
+from starlayer.shacl_engine.terms import from_engine
+
+
+def _rdflib(graph):
+    """A StarLayerGraph copy of an OxGraph in rdflib terms, for asserting with rdflib vocabulary."""
+    out = StarLayerGraph()
+    for s, p, o in graph.triples((None, None, None)):
+        out.add((from_engine(s), from_engine(p), from_engine(o)))
+    return out
 
 
 class TestGetOntologyList:
@@ -100,7 +110,7 @@ class TestGetOntologyGraph:
     ])
     def test_every_registered_name_loads_and_parses(self, name):
         g = starontology.get_ontology_graph(name)
-        assert isinstance(g, StarLayerGraph)
+        assert isinstance(g, OxGraph)
         assert len(g) > 0
 
     def test_unknown_name_raises_keyerror_naming_choices(self):
@@ -112,15 +122,11 @@ class TestGetOntologyGraph:
         g2 = starontology.get_ontology_graph("manchester_owl")
         assert g1 is not g2
 
-    def test_shacl_shacl_is_wrapped_as_starlayergraph_not_left_plain(self):
-        """The meta-shapes build (scripts/build_meta_shapes.py) returns a plain
-        rdflib.Graph - confirmed in its own source - so this entry
-        specifically needs StarLayerGraph.from_rdflib() wrapping to keep
-        the same return type as every other entry. isinstance alone would
-        pass on a plain Graph too (StarLayerGraph is not involved there),
-        so check the exact type instead."""
-        g = starontology.get_ontology_graph("shacl_shacl")
-        assert type(g) is StarLayerGraph
+    def test_shacl_shacl_is_an_oxgraph_like_every_other_entry(self):
+        """The meta-shapes build returns a plain rdflib.Graph, so this entry needs converting to keep the same
+        return type as every other entry: an OxGraph, whatever the entry."""
+        for name in ("shacl_shacl", "skos_shacl", "manchester_owl"):
+            assert type(starontology.get_ontology_graph(name)) is OxGraph
 
 
 _SLP = "https://github.com/hidden-graph/starlayer/ns/profile#"
@@ -164,7 +170,7 @@ class TestConformanceProfilesContent:
         from rdflib import RDF, Namespace, URIRef
 
         PROF = Namespace("http://www.w3.org/ns/dx/prof/")
-        graph = starontology.get_conformance_profiles()
+        graph = _rdflib(starontology.get_conformance_profiles())
         profile = URIRef(_SLP + name)
         assert (profile, RDF.type, PROF.Profile) in graph
         assert {str(o) for o in graph.objects(profile, PROF.isProfileOf)} == _EXPECTED_PROFILES[name][0]
@@ -175,7 +181,7 @@ class TestConformanceProfilesContent:
 
         PROF = Namespace("http://www.w3.org/ns/dx/prof/")
         ROLE = Namespace("http://www.w3.org/ns/dx/prof/role/")
-        graph = starontology.get_conformance_profiles()
+        graph = _rdflib(starontology.get_conformance_profiles())
         profile = URIRef(_SLP + name)
         by_role = {ROLE.validation: set(), ROLE.schema: set()}
         for descriptor in graph.objects(profile, PROF.hasResource):
@@ -190,7 +196,7 @@ class TestConformanceProfilesContent:
         from rdflib import Namespace
 
         PROF = Namespace("http://www.w3.org/ns/dx/prof/")
-        graph = starontology.get_conformance_profiles()
+        graph = _rdflib(starontology.get_conformance_profiles())
         for info in starontology.get_ontology_list():
             assert (starontology.get_resource_iri(info.name), PROF.isProfileOf, None) not in graph
 
@@ -199,7 +205,7 @@ class TestConformanceProfilesContent:
         from rdflib import Namespace
 
         PROF = Namespace("http://www.w3.org/ns/dx/prof/")
-        graph = starontology.get_conformance_profiles()
+        graph = _rdflib(starontology.get_conformance_profiles())
         for name in ("sparql_shacl", "sparql_owl"):
             assert (None, PROF.hasArtifact, starontology.get_resource_iri(name)) not in graph
 
@@ -219,7 +225,7 @@ class TestGetConformanceProfiles:
         from rdflib import RDF, Namespace, URIRef
 
         PROF = Namespace("http://www.w3.org/ns/dx/prof/")
-        graph = starontology.get_conformance_profiles()
+        graph = _rdflib(starontology.get_conformance_profiles())
         profiles = set(graph.subjects(RDF.type, PROF.Profile))
         assert profiles == {URIRef(_SLP + name) for name in _EXPECTED_PROFILES}
         pkg = "https://github.com/hidden-graph/starlayer/tree/main/packages/starlayer/starlayer/"
@@ -265,7 +271,7 @@ class TestGetResourceIri:
 
         PROF = Namespace("http://www.w3.org/ns/dx/prof/")
         ROLE = Namespace("http://www.w3.org/ns/dx/prof/role/")
-        graph = starontology.get_conformance_profiles()
+        graph = _rdflib(starontology.get_conformance_profiles())
         profile = URIRef(_SLP + "Skos")
         artifacts = {
             (next(graph.objects(d, PROF.hasRole)), next(graph.objects(d, PROF.hasArtifact)))
@@ -380,7 +386,7 @@ class TestPublishedFiles:
                 if name != "starlayer_profiles"
                 else starontology._GITHUB_BLOB_BASE + starontology._PROFILES_FILENAME
             )
-            live = (
+            live = _rdflib(
                 starontology.get_conformance_profiles()
                 if name == "starlayer_profiles"
                 else starontology.get_ontology_graph(name)
@@ -522,7 +528,7 @@ class TestShaclVocabulary:
 
         SH = Namespace("http://www.w3.org/ns/shacl#")
 
-        vocabulary = starontology.get_ontology_graph("shacl_vocabulary")
+        vocabulary = _rdflib(starontology.get_ontology_graph("shacl_vocabulary"))
         assert (SH.group, RDFS.range, SH.PropertyGroup) in vocabulary
         assert (SH.NodeShape, RDFS.subClassOf, SH.Shape) in vocabulary
         assert (SH.ShapesGraph, None, None) in vocabulary, "a SHACL 1.2 class, which pySHACL's 1.0 copy lacks"
@@ -532,7 +538,7 @@ class TestShaclVocabulary:
 
         SH = Namespace("http://www.w3.org/ns/shacl#")
         STSH = Namespace("https://github.com/hidden-graph/starlayer/ns/shacl#")
-        vocabulary = starontology.get_ontology_graph("shacl_vocabulary")
+        vocabulary = _rdflib(starontology.get_ontology_graph("shacl_vocabulary"))
         assert (STSH.ShapesGraphShape, RDF.type, SH.NodeShape) in vocabulary and (STSH.ShapesGraphShape, SH.targetClass, SH.ShapesGraph) in vocabulary
         defines = []
         for prop in vocabulary.objects(STSH.ShapesGraphShape, SH.property):

@@ -3,6 +3,8 @@ from rdflib import Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 
+from ._rdflib_view import rd
+
 from ._shape_loader import load_shape
 
 EX = Namespace("http://example.org/")
@@ -15,7 +17,7 @@ SH = Namespace("http://www.w3.org/ns/shacl#")
 
 
 def _violation_components(result) -> list:
-    return [o for _, _, o in result.report_graph.triples((None, SH.sourceConstraintComponent, None))]
+    return [o for _, _, o in rd(result.report_graph).triples((None, SH.sourceConstraintComponent, None))]
 
 
 def test_conforms_with_only_own_and_superclass_properties() -> None:

@@ -19,7 +19,13 @@ from rdflib import RDF, Graph, Literal, URIRef
 from rdflib.compare import to_isomorphic
 from rdflib.namespace import XSD
 from starlayer import starontology
+
+from ._rdflib_view import rd
 from starlayer.shacl.ui_widget_selection import select_widgets
+
+def _onto(name):
+    return rd(starontology.get_ontology_graph(name))
+
 
 _SH = "http://www.w3.org/ns/shacl#"
 SHUI = "http://www.w3.org/ns/shacl-ui#"
@@ -31,12 +37,12 @@ def sh(local: str) -> URIRef:
 
 @pytest.fixture(scope="module")
 def ui() -> Graph:
-    return starontology.get_ontology_graph("shacl_shacl_ui")
+    return _onto("shacl_shacl_ui")
 
 
 @pytest.fixture(scope="module")
 def shacl_shacl() -> Graph:
-    return starontology.get_ontology_graph("shacl_shacl")
+    return _onto("shacl_shacl")
 
 
 def fields_of(ui: Graph, form: URIRef) -> dict[URIRef, URIRef]:
@@ -47,7 +53,7 @@ def fields_of(ui: Graph, form: URIRef) -> dict[URIRef, URIRef]:
 def test_the_stored_file_matches_a_fresh_build() -> None:
     """The library reads the stored shacl12-shacl-ui.ttl, so it must equal what the build produces. On failure run
     scripts/build_starontology.py (the overlay source or shacl_shacl changed)."""
-    assert to_isomorphic(starontology.get_ontology_graph("shacl_shacl_ui")) == to_isomorphic(build_shacl_ui_graph())
+    assert to_isomorphic(_onto("shacl_shacl_ui")) == to_isomorphic(build_shacl_ui_graph())
 
 
 def test_every_predicate_shacl_shacl_validates_is_a_field_of_a_form_or_excluded_with_a_reason(ui) -> None:
@@ -114,7 +120,7 @@ def test_select_widgets_gives_a_property_shape_form_its_widgets(ui) -> None:
     """The point of the forms: a tool passes one to select_widgets as shape_node, with the scoring layers."""
     scoring = Graph()
     for name in ("shacl_ui_baseline", "shacl_shacl_ui_scores"):
-        for triple in starontology.get_ontology_graph(name):
+        for triple in _onto(name):
             scoring.add(triple)
     widgets = select_widgets(shape_node=STSH.PropertyShapeForm, shapes_graph=ui, scoring_graph=scoring, role="editor")
     by_path = {next(ui.objects(prop, sh("path"))): str(widget).rsplit("#", 1)[-1] for prop, widget in widgets.items()}
@@ -129,7 +135,7 @@ def test_sh_expression_is_a_field_of_both_shape_forms_with_the_details_editor(ui
     shape may carry several (no maximum)."""
     scoring = Graph()
     for name in ("shacl_ui_baseline", "shacl_shacl_ui_scores"):
-        for triple in starontology.get_ontology_graph(name):
+        for triple in _onto(name):
             scoring.add(triple)
     for form in (STSH.NodeShapeForm, STSH.PropertyShapeForm):
         field = fields_of(ui, form)[sh("expression")]
@@ -295,7 +301,7 @@ class TestWhatAFieldsValuesCanBe:
         from rdflib import Namespace
 
         SH = Namespace("http://www.w3.org/ns/shacl#")
-        ui = starontology.get_ontology_graph("shacl_shacl_ui")
+        ui = _onto("shacl_shacl_ui")
         for field in ui.objects(form, SH.property):
             if (field, SH.path, predicate) in ui:
                 return set(ui.objects(field, SH.nodeKind))

@@ -6,6 +6,7 @@ severity-003/deactivated-003 fixtures.
 """
 
 from rdflib import Namespace
+from ._rdflib_view import rd
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 
@@ -29,7 +30,7 @@ def test_datatype_annotation_severity_overrides_shape_default() -> None:
     result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
-    severities = {o for _, _, o in result.report_graph.triples((None, SH.resultSeverity, None))}
+    severities = {o for _, _, o in rd(result.report_graph).triples((None, SH.resultSeverity, None))}
     assert severities == {SH.Warning}
 
 
@@ -102,5 +103,5 @@ def test_property_reference_without_annotation_still_conforms_normally() -> None
 
     assert result.conforms is False
     assert SH.MinCountConstraintComponent in {
-        o for _, _, o in result.report_graph.triples((None, SH.sourceConstraintComponent, None))
+        o for _, _, o in rd(result.report_graph).triples((None, SH.sourceConstraintComponent, None))
     }

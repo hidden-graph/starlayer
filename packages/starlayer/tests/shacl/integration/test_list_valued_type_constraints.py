@@ -1,5 +1,6 @@
 import pytest
 from rdflib import Namespace
+from ._rdflib_view import rd
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 
@@ -16,7 +17,7 @@ SH = Namespace("http://www.w3.org/ns/shacl#")
 
 
 def _violation_components(result) -> list:
-    return [o for _, _, o in result.report_graph.triples((None, SH.sourceConstraintComponent, None))]
+    return [o for _, _, o in rd(result.report_graph).triples((None, SH.sourceConstraintComponent, None))]
 
 
 def test_list_valued_class_conforms_for_any_listed_class() -> None:

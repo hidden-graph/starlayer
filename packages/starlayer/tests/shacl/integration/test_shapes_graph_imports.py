@@ -2,6 +2,9 @@ import pytest
 from rdflib import Graph, Namespace, URIRef
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
+from starlayer.shacl_engine.terms import from_engine
+
+from ._rdflib_view import rd
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
@@ -92,7 +95,7 @@ _GRAPHS_BY_IRI = {
 
 
 def _loader(iri):
-    factory = _GRAPHS_BY_IRI.get(iri)
+    factory = _GRAPHS_BY_IRI.get(from_engine(iri))  # the loader is handed a pyoxigraph NamedNode
     return factory() if factory else None
 
 
@@ -118,7 +121,7 @@ def test_transitive_import_closure_with_version_iri_redirect_enforces_imported_c
     # import hops away via the versionIRI redirect), so the closure must
     # have actually been merged in for this to fail.
     assert result.conforms is False
-    components = {o for _, _, o in result.report_graph.triples((None, SH.sourceConstraintComponent, None))}
+    components = {o for _, _, o in rd(result.report_graph).triples((None, SH.sourceConstraintComponent, None))}
     assert SH.MinCountConstraintComponent in components
 
 
@@ -287,6 +290,7 @@ def test_multi_hop_import_chain_without_any_version_iri_redirect() -> None:
     mid_iri = URIRef("http://example.com/shapes/mid")
 
     def loader(iri):
+        iri = from_engine(iri)  # the loader is handed a pyoxigraph NamedNode
         if iri == mid_iri:
             graph = Graph()
             graph.parse(

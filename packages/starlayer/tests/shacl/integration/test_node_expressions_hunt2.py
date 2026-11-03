@@ -5,6 +5,7 @@ import warnings
 import pytest
 from rdflib import XSD, Literal, Namespace
 from starlayer.graph import StarLayerGraph
+from ._rdflib_view import rdn
 from starlayer.shacl import ShapeError, evaluate
 
 warnings.simplefilter("ignore")
@@ -24,7 +25,7 @@ def _values(expression: str, data: str = "ex:a ex:in 0 ."):
     graph = StarLayerGraph()
     graph.parse(data=PREFIXES + data, format="turtle12")
     result = evaluate(graph, shapes)
-    return sorted(result.objects(EX.a, EX.out), key=str)
+    return sorted(rdn(result.objects(EX.a, EX.out)), key=str)
 
 
 @pytest.mark.parametrize(

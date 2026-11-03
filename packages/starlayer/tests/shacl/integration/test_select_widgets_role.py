@@ -7,9 +7,15 @@ written per role."""
 import pytest
 from rdflib import Namespace, URIRef
 from starlayer import starontology
+
+from ._rdflib_view import rd
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import ui_widget_selection as uws
 from starlayer.shacl.ui_widget_selection import SHUI, select_widget, select_widgets
+
+def _onto(name):
+    return rd(starontology.get_ontology_graph(name))
+
 
 EX = Namespace("http://example.org/")
 SHAPES = """
@@ -102,7 +108,7 @@ def test_select_widget_single_applies_the_same_filter(shapes):
 
 # --- the built-in lists
 def test_builtin_lists_match_the_widgets_the_shipped_shapes_document():
-    graph = starontology.get_ontology_graph("shacl_shacl")
+    graph = _onto("shacl_shacl")
     documented = {
         s for s in set(graph.subjects()) if isinstance(s, URIRef) and str(s).startswith(str(SHUI))
         and str(s).endswith(("Editor", "Viewer")) and (s, URIRef("http://www.w3.org/ns/shacl#name"), None) in graph

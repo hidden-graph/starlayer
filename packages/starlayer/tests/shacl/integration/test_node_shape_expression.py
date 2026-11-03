@@ -6,6 +6,7 @@ node-expr/constraints/expression-001 uses `sh:expression false` on a node shape.
 
 import pytest
 from rdflib import Graph, Namespace
+from ._rdflib_view import rd
 from starlayer import starontology
 from starlayer.shacl import MetaShaclError as ReportableRuntimeError
 from starlayer.shacl import StarShaclSchema
@@ -33,7 +34,7 @@ def _validate(shapes_ttl: str, data_ttl: str = _PEOPLE, **kwargs):
 
 def _failures(result) -> dict[str, str]:
     """focus node -> source constraint component, for every violation."""
-    report = result.report_graph if hasattr(result, "report_graph") else result.results_graph
+    report = rd(result.report_graph) if hasattr(result, "report_graph") else result.results_graph
     return {
         str(report.value(r, SH.focusNode)): str(report.value(r, SH.sourceConstraintComponent))
         for r in report.subjects(SH.resultSeverity, SH.Violation)

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import pytest
 from rdflib import Namespace, URIRef
+from ._rdflib_view import rd, rdn
 from starlayer import StarLayerGraph
 from starlayer.shacl import StarShaclSchema, apply_rules, target_nodes, validate
 
@@ -49,7 +50,7 @@ FORMS = {
 
 def _validated_focus_nodes(data: StarLayerGraph, shapes: StarLayerGraph) -> set:
     result = validate(data, shapes, advanced=True)
-    return {o for _, _, o in result.report_graph.triples((None, SH.focusNode, None))}
+    return {o for _, _, o in rd(result.report_graph).triples((None, SH.focusNode, None))}
 
 
 @pytest.mark.parametrize("name", sorted(FORMS))
@@ -58,18 +59,18 @@ def test_target_nodes_equals_the_focus_nodes_validate_reports_on(name: str) -> N
     shape = EX.T if name == "implicit_class" else EX.S
     expected = _validated_focus_nodes(g(DATA), shapes)
     assert expected, "the fixture must target something, or the comparison proves nothing"
-    assert set(target_nodes(data_graph=g(DATA), shacl_graph=shapes, shape_node=shape)) == expected
-    assert set(StarShaclSchema(shapes, data_graph=g(DATA)).target_nodes(shape_node=shape)) == expected
+    assert set(rdn(target_nodes(data_graph=g(DATA), shacl_graph=shapes, shape_node=shape))) == expected
+    assert set(rdn(StarShaclSchema(shapes, data_graph=g(DATA)).target_nodes(shape_node=shape))) == expected
 
 
 def test_expression_target_is_not_the_blank_node_itself() -> None:
-    nodes = target_nodes(data_graph=g(DATA), shacl_graph=g(FORMS["targetNode_expression"]), shape_node=EX.S)
+    nodes = rdn(target_nodes(data_graph=g(DATA), shacl_graph=g(FORMS["targetNode_expression"]), shape_node=EX.S))
     assert all(isinstance(n, URIRef) for n in nodes)
     assert set(nodes) == {EX.a, EX.b, EX.s}
 
 
 def test_target_class_includes_subclass_instances() -> None:
-    nodes = target_nodes(data_graph=g(DATA), shacl_graph=g(FORMS["targetClass_with_subclass"]), shape_node=EX.S)
+    nodes = rdn(target_nodes(data_graph=g(DATA), shacl_graph=g(FORMS["targetClass_with_subclass"]), shape_node=EX.S))
     assert EX.s in nodes
 
 
@@ -78,8 +79,8 @@ def test_one_shapes_dynamic_targets_do_not_leak_into_another() -> None:
         FORMS["targetWhere"]
         + " ex:S2 a sh:NodeShape ; sh:targetNode [ shnex:instancesOf ex:U ] ; sh:class ex:Never ."
     )
-    assert set(target_nodes(data_graph=g(DATA), shacl_graph=shapes, shape_node=EX.S)) == {EX.a, EX.c}
-    assert set(target_nodes(data_graph=g(DATA), shacl_graph=shapes, shape_node=EX.S2)) == {EX.c}
+    assert set(rdn(target_nodes(data_graph=g(DATA), shacl_graph=shapes, shape_node=EX.S))) == {EX.a, EX.c}
+    assert set(rdn(target_nodes(data_graph=g(DATA), shacl_graph=shapes, shape_node=EX.S2))) == {EX.c}
 
 
 class TestMetaShapesAcceptTargetNodeExpression:
@@ -119,7 +120,7 @@ ex:none a ex:T .
 
 def _derived(cond: str) -> set:
     result = apply_rules(g(COND_DATA), g(COND_SHAPES.replace("COND", cond)))
-    return {s for s, p, _ in result.inferred_graph if p == EX.derived}
+    return {s for s, p, _ in rd(result.inferred_graph) if p == EX.derived}
 
 
 class TestRuleConditions:

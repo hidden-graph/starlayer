@@ -3,6 +3,7 @@ from rdflib import Literal, Namespace, URIRef
 from rdflib.namespace import RDF
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
+from starlayer.shacl_engine.terms import text
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
@@ -184,7 +185,7 @@ class TestUsedGraphsFallBackToGraphIdentifier:
 
         used = list(result.report_graph.triples((None, SH.usedDataGraph, None)))
         assert len(used) == 1
-        assert str(used[0][2]) == "http://example.org/graphs/explicit"
+        assert text(used[0][2]) == "http://example.org/graphs/explicit"
 
     def test_bare_validate_function_also_falls_back_to_identifier(self) -> None:
         from starlayer.shacl.validator import validate as bare_validate

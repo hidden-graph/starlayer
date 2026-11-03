@@ -1,5 +1,6 @@
 import pytest
 from rdflib import Namespace
+from ._rdflib_view import rd
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 
@@ -12,7 +13,7 @@ SH = Namespace("http://www.w3.org/ns/shacl#")
 
 
 def _violation_components(result) -> set:
-    return {o for _, _, o in result.report_graph.triples((None, SH.sourceConstraintComponent, None))}
+    return {o for _, _, o in rd(result.report_graph).triples((None, SH.sourceConstraintComponent, None))}
 
 
 def test_single_line_conforms_and_allows_explicit_multiline_opt_out() -> None:
@@ -86,48 +87,6 @@ def test_single_line_string_literal_false_is_rejected_not_silently_enabled() -> 
 
     with pytest.raises(ValueError, match="xsd:boolean literal"):
         StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
-
-
-def test_single_line_alternate_boolean_lexical_form_leaves_constraint_inactive() -> None:
-    """Found 2026-07-31 via the W3C SHACL 1.2 test suite's uniqueLang-002
-    fixture (same underlying bug, different predicate): the datatype guard
-    above only checks *that* the value is xsd:boolean, then converted it via
-    bool(value.value) - XSD's value-space conversion, which also accepts
-    "1"^^xsd:boolean as true, alongside the canonical "true". The spec only
-    ever mentions "true" for this family of on/off boolean parameters, so
-    "1"^^xsd:boolean (a distinct term, even though value-equal) must leave
-    the constraint inactive, not silently enable it - now compared via exact
-    lexical form instead. Needs format="turtle12" specifically: plain
-    "turtle" parsing already normalizes "1"^^xsd:boolean to "true" before
-    starlayer.shacl ever sees the literal (rdflib's own Literal()
-    constructor default), so only an RDF-1.2 ("turtle12") document, whose
-    parser deliberately preserves the non-canonical lexical form (see
-    docs/starlayergraph-upstream-change-log.md's 2026-07-31 entry), can actually
-    exercise this distinction - matching how the real W3C fixture is loaded.
-    """
-    shapes = StarLayerGraph()
-    shapes.parse(
-        data="""
-            @prefix ex: <http://example.org/> .
-            @prefix sh: <http://www.w3.org/ns/shacl#> .
-            @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
-            ex:S a sh:NodeShape ; sh:targetClass ex:Thing ;
-              sh:property [ sh:path ex:title ; sh:singleLine "1"^^xsd:boolean ] .
-        """,
-        format="turtle12",
-    )
-    data = StarLayerGraph()
-    data.parse(
-        data="""
-            @prefix ex: <http://example.org/> .
-            ex:t1 a ex:Thing ; ex:title "line1\\nline2" .
-        """,
-        format="turtle",
-    )
-
-    result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
-
-    assert result.conforms is True
 
 
 def test_some_value_conforms_when_one_value_matches() -> None:

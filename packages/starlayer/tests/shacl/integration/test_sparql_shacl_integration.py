@@ -1,4 +1,5 @@
 from rdflib import Literal, Namespace, URIRef
+from ._rdflib_view import rd
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.graph.model.triple import TripleTerm
 from starlayer.shacl import StarShaclSchema
@@ -34,7 +35,7 @@ def test_sparql_constraint_violates_when_triple_term_absent() -> None:
     assert result.conforms is False
     assert any(
         o == SH.SPARQLConstraintComponent
-        for _, _, o in result.report_graph.triples((None, SH.sourceConstraintComponent, None))
+        for _, _, o in rd(result.report_graph).triples((None, SH.sourceConstraintComponent, None))
     )
 
 
@@ -79,7 +80,7 @@ def test_sparql_constraint_own_severity_overrides_shape_severity() -> None:
     result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
-    severities = {o for _, _, o in result.report_graph.triples((None, SH.resultSeverity, None))}
+    severities = {o for _, _, o in rd(result.report_graph).triples((None, SH.resultSeverity, None))}
     assert severities == {SH.Warning}
 
 
@@ -126,7 +127,7 @@ def test_sparql_constraint_resolves_prefix_via_its_sh_prefixes_declare() -> None
 
     assert result.conforms is False
     assert SH.SPARQLConstraintComponent in {
-        o for _, _, o in result.report_graph.triples((None, SH.sourceConstraintComponent, None))
+        o for _, _, o in rd(result.report_graph).triples((None, SH.sourceConstraintComponent, None))
     }
 
 
@@ -155,7 +156,7 @@ def test_sparql_constraint_binds_value_per_property_value_node() -> None:
     assert result.conforms is False
     violations = [
         s
-        for s, _, o in result.report_graph.triples((None, SH.sourceConstraintComponent, None))
+        for s, _, o in rd(result.report_graph).triples((None, SH.sourceConstraintComponent, None))
         if o == SH.SPARQLConstraintComponent
     ]
     assert len(violations) == 1
@@ -207,7 +208,7 @@ def test_sparql_constraint_violates_with_nested_multi_pattern_join() -> None:
     assert result.conforms is False
     assert any(
         o == SH.SPARQLConstraintComponent
-        for _, _, o in result.report_graph.triples((None, SH.sourceConstraintComponent, None))
+        for _, _, o in rd(result.report_graph).triples((None, SH.sourceConstraintComponent, None))
     )
 
 
@@ -222,7 +223,7 @@ def test_construct_rule_mints_new_triple_term_reification() -> None:
     result = validator.apply_rules(data_graph=data, meta_shacl=False)
 
     assert result.validation.conforms is True
-    reifies_triples = list(result.inferred_graph.triples((EX.stmt1, RDF_REIFIES, None)))
+    reifies_triples = list(rd(result.inferred_graph).triples((EX.stmt1, RDF_REIFIES, None)))
     assert len(reifies_triples) == 1
     _, _, obj = reifies_triples[0]
     assert isinstance(obj, TripleTerm)
@@ -293,7 +294,7 @@ def test_sh_result_annotation_from_select_bound_var() -> None:
 
     result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
     assert result.conforms is False
-    annotated = list(result.report_graph.triples((None, EX.reportedScore, None)))
+    annotated = list(rd(result.report_graph).triples((None, EX.reportedScore, None)))
     assert len(annotated) == 1
     _, _, value = annotated[0]
     assert value == Literal(20)
@@ -321,7 +322,7 @@ def test_sh_result_annotation_fixed_value() -> None:
 
     result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
     assert result.conforms is False
-    annotated = list(result.report_graph.triples((None, EX.origin, None)))
+    annotated = list(rd(result.report_graph).triples((None, EX.origin, None)))
     assert annotated == [(annotated[0][0], EX.origin, Literal("score-check"))]
 
 
@@ -343,4 +344,4 @@ def test_no_result_annotation_is_a_pure_noop() -> None:
 
     result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
     assert result.conforms is False
-    assert len(list(result.report_graph.triples((None, SH.resultSeverity, None)))) == 1
+    assert len(list(rd(result.report_graph).triples((None, SH.resultSeverity, None)))) == 1

@@ -1,7 +1,8 @@
 import pytest
 from rdflib import Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.graph.model.triple import TripleTerm
+import pyoxigraph as ox
+from starlayer.shacl_engine.terms import to_engine
 from starlayer.shacl import StarShaclSchema
 
 from ._shape_loader import load_shape
@@ -63,7 +64,7 @@ def test_rule_iteration_converges_with_cyclic_triple_term_identity() -> None:
     assert len(witnesses) == 16
     distinct = {o for _, _, o in witnesses}
     assert len(distinct) == 16
-    assert all(isinstance(o, TripleTerm) and o.predicate == EX.reach for o in distinct)
+    assert all(isinstance(o, ox.Triple) and o.predicate == to_engine(EX.reach) for o in distinct)
 
 
 def test_rule_iteration_converges_on_non_cyclic_multi_branch_diamond() -> None:
@@ -114,7 +115,7 @@ def test_rule_iteration_converges_within_iteration_limit() -> None:
     length = 3
     data = _build_linear_chain(length)
     result = _linear_rules(data, max_iterations=length + 2)
-    assert (EX.n0, EX.reach, EX[f"n{length}"]) in result.inferred
+    assert tuple(to_engine(t) for t in (EX.n0, EX.reach, EX[f"n{length}"])) in result.inferred
 
 
 def test_rule_iteration_raises_when_exceeding_iteration_limit() -> None:

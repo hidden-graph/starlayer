@@ -30,6 +30,8 @@ from starlayer.shacl.meta_shapes import (
     meta_validate,
 )
 
+from ._rdflib_view import rd
+
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
 SHSH_SHAPE_SHAPE = URIRef("http://www.w3.org/ns/shacl-shacl#ShapeShape")
@@ -2148,6 +2150,7 @@ def _template_results(instances: str):
         conforms, report, _text = meta_validate(shapes)
     except MetaShaclError as error:
         return False, re.findall(r"^(Violation|Warning|Info) in ", str(error), re.MULTILINE)
+    report = rd(report)
     return conforms, [str(report.value(r, sh.resultSeverity)).rsplit("#", 1)[-1] for r in report.subjects(RDF.type, sh.ValidationResult)]
 
 

@@ -1,7 +1,9 @@
 import pytest
+import pyoxigraph as ox
 from rdflib import Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
+from starlayer.shacl_engine.terms import from_engine
 
 from ._shape_loader import load_shape
 
@@ -19,7 +21,7 @@ def test_rdf12_fixture_target_resolution_for_triple_term_target_node() -> None:
     validator = StarShaclSchema(shacl_graph=shapes)
     nodes = validator.target_nodes(data_graph=data, shape_node=EX.TripleTargetShape)
 
-    assert nodes == ((EX.s, EX.p, EX.o),)
+    assert nodes == (ox.Triple(ox.NamedNode(str(EX.s)), ox.NamedNode(str(EX.p)), ox.NamedNode(str(EX.o))),)
 
 
 def test_rdf12_target_objects_of_resolves_triple_term_value_as_target() -> None:
@@ -42,7 +44,7 @@ def test_rdf12_target_objects_of_resolves_triple_term_value_as_target() -> None:
     validator = StarShaclSchema(shacl_graph=shapes)
     nodes = validator.target_nodes(data_graph=data, shape_node=EX.S)
 
-    assert nodes == ((EX.bob, EX.knows, EX.carol),)
+    assert nodes == (ox.Triple(ox.NamedNode(str(EX.bob)), ox.NamedNode(str(EX.knows)), ox.NamedNode(str(EX.carol))),)
 
 
 def test_rdf12_fixture_triple_term_node_kind_component_evaluation() -> None:
@@ -57,7 +59,7 @@ def test_rdf12_fixture_triple_term_node_kind_component_evaluation() -> None:
 
     assert result.conforms is False
     values = {o for _, _, o in result.report_graph.triples((None, SH.value, None))}
-    assert values == {EX.not_tt}
+    assert values == {ox.NamedNode(str(EX.not_tt))}
 
 
 @pytest.mark.parametrize(
@@ -155,7 +157,7 @@ def test_rdf12_max_count_violates_with_too_many_triple_term_values() -> None:
     result = validator.validate(data_graph=data, meta_shacl=False)
     assert result.conforms is False
     assert any(
-        o == SH.MaxCountConstraintComponent
+        from_engine(o) == SH.MaxCountConstraintComponent
         for _, _, o in result.report_graph.triples((None, SH.sourceConstraintComponent, None))
     )
 
@@ -184,6 +186,6 @@ def test_rdf12_not_wrapping_has_value_with_triple_term_value() -> None:
     # sh:not must flag it.
     assert result.conforms is False
     assert any(
-        o == SH.NotConstraintComponent
+        from_engine(o) == SH.NotConstraintComponent
         for _, _, o in result.report_graph.triples((None, SH.sourceConstraintComponent, None))
     )

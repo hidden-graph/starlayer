@@ -3,7 +3,8 @@
 import warnings
 
 import pytest
-from rdflib import Namespace
+from pyoxigraph import NamedNode
+from starlayer.shacl_engine.terms import NS as Namespace
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl import ShapeError, StarShaclSchema, validate
 from starlayer.shacl.shapes_graphs import referenced_shapes
@@ -37,7 +38,7 @@ def _schema():
 
 
 def _names(graph):
-    return {s for s in graph.subjects(None, None) if s.startswith("http://example.org/")}
+    return {s for s in graph.subjects(None, None) if isinstance(s, NamedNode) and s.value.startswith("http://example.org/")}
 
 
 def test_default_leaves_named_references_dangling():

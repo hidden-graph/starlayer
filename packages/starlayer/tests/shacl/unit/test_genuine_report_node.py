@@ -10,9 +10,11 @@ copy, rewriting a data node's identity inside the results.
 """
 
 import pytest
-from rdflib import RDF, BNode, Graph, Literal, URIRef
+from rdflib import RDF, BNode, Literal, URIRef
 from rdflib.namespace import XSD
+from starlayer.graph.oxgraph.core import OxGraph
 from starlayer.shacl.validator import _find_genuine_report_node
+from starlayer.shacl_engine.terms import from_engine
 
 SH = "http://www.w3.org/ns/shacl#"
 EX = "http://example.org/"
@@ -23,7 +25,7 @@ def _report(order: str):
     *incidental* ValidationReport-typed data node. `order` decides which of the
     two typed nodes is added to the graph first."""
     genuine, incidental, result = BNode("genuine"), BNode("incidental"), BNode("result")
-    g = Graph()
+    g = OxGraph()
 
     def add_genuine():
         g.add((genuine, RDF.type, URIRef(SH + "ValidationReport")))
@@ -45,7 +47,7 @@ def _report(order: str):
 @pytest.mark.parametrize("order", ["incidental-first", "genuine-first"])
 def test_genuine_report_is_chosen_whatever_the_insertion_order(order):
     g, genuine, _ = _report(order)
-    assert _find_genuine_report_node(g) == genuine
+    assert from_engine(_find_genuine_report_node(g)) == genuine
 
 
 def test_the_librarys_own_report_link_does_not_hide_the_genuine_report():
@@ -53,12 +55,12 @@ def test_the_librarys_own_report_link_does_not_hide_the_genuine_report():
     must not make it look like the incidental one."""
     g, genuine, _ = _report("incidental-first")
     g.add((URIRef(EX + "dataGraph"), URIRef(SH + "validationReport"), genuine))
-    assert _find_genuine_report_node(g) == genuine
+    assert from_engine(_find_genuine_report_node(g)) == genuine
 
 
 def test_a_graph_with_one_or_no_report_is_unchanged():
-    g = Graph()
+    g = OxGraph()
     assert _find_genuine_report_node(g) is None
     only = BNode("only")
     g.add((only, RDF.type, URIRef(SH + "ValidationReport")))
-    assert _find_genuine_report_node(g) == only
+    assert from_engine(_find_genuine_report_node(g)) == only

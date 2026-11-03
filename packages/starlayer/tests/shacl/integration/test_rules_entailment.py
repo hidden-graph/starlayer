@@ -9,6 +9,7 @@ import pytest
 from rdflib import Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
+from starlayer.shacl_engine.terms import text
 
 EX = Namespace("http://example.org/")
 PREFIXES = """
@@ -133,7 +134,7 @@ class TestEvaluateWithRulesEntailment:
     def test_with_the_flag_a_target_that_depends_on_an_inferred_triple_is_seen(self) -> None:
         result = self._evaluate(rules_entailment=True)
 
-        assert [str(o) for o in result.objects(EX.n, EX.name)] == ["Nina"]
+        assert [text(o) for o in result.objects(EX.n, EX.name)] == ["Nina"]
 
     def test_the_schema_method_takes_the_flag_too(self) -> None:
         shapes = StarLayerGraph()

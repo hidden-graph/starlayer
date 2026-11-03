@@ -18,6 +18,7 @@ from rdflib.namespace import RDF
 from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema, target_nodes
+from starlayer.shacl_engine.terms import to_engine
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
@@ -188,14 +189,14 @@ class TestTargetNodesRespectsEntailment:
         nodes = target_nodes(
             data_graph=_data(), shacl_graph=_shapes(), shape_node=EX.EmployeeShape, inference=ENTAILMENT.RDFS
         )
-        assert nodes == (EX.alice,)
+        assert nodes == (to_engine(EX.alice),)
 
     def test_declared_sh_entailment_makes_alice_a_target_with_no_keyword(self) -> None:
         shapes = _shapes()
         shapes.add((EX.EmployeeShape, SH.entailment, ENTAILMENT.RDFS))
 
         nodes = target_nodes(data_graph=_data(), shacl_graph=shapes, shape_node=EX.EmployeeShape)
-        assert nodes == (EX.alice,)
+        assert nodes == (to_engine(EX.alice),)
 
     def test_neither_data_graph_nor_ont_graph_is_mutated(self) -> None:
         data = _data()
@@ -228,4 +229,4 @@ class TestTargetNodesRespectsEntailment:
 
         schema = StarShaclSchema(shacl_graph=_shapes(), ont_graph=ont, inference=ENTAILMENT.RDFS)
         nodes = schema.target_nodes(data_graph=data, shape_node=EX.EmployeeShape)
-        assert nodes == (EX.alice,)
+        assert nodes == (to_engine(EX.alice),)

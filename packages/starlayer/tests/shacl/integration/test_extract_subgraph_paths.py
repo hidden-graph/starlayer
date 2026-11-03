@@ -10,6 +10,7 @@ import pytest
 from hypothesis import HealthCheck, assume, given, settings
 from hypothesis import strategies as st
 from rdflib import Namespace
+from starlayer.shacl_engine.terms import from_engine, iri_text
 from starlayer import StarLayerGraph
 from starlayer.shacl import extract_subgraph, validate
 
@@ -56,7 +57,7 @@ def test_the_fragment_has_every_edge_the_path_walked(path, data, edges) -> None:
     shapes, graph = _shape(path), _g(data)
     assert _conforms(graph, shapes)
     fragment = _fragment(graph, shapes)
-    assert {(str(s).rsplit("/", 1)[-1], str(o).rsplit("/", 1)[-1]) for s, p, o in fragment if str(p).endswith(("/p", "/q"))} == edges
+    assert {(iri_text(s).rsplit("/", 1)[-1], iri_text(o).rsplit("/", 1)[-1]) for s, p, o in fragment if iri_text(p).endswith(("/p", "/q"))} == edges
     assert _conforms(fragment, shapes)
 
 
@@ -126,7 +127,7 @@ def test_path_values_agree_with_sparql_property_paths(case) -> None:
     for t in graph:
         plain.add(t)
     expected = {row[0] for row in plain.query(f"PREFIX : <http://e/> SELECT DISTINCT ?o WHERE {{ :n0 {sparql} ?o }}")}
-    assert set(path_values(graph, E.n0, path_node, shapes)) == expected, (path, sparql, data)
+    assert {from_engine(t) for t in path_values(graph, E.n0, path_node, shapes)} == expected, (path, sparql, data)
 
 
 @pytest.mark.parametrize(
@@ -151,4 +152,4 @@ def test_a_repeated_complex_path_is_followed(path, sparql, data) -> None:
         plain.add(t)
     expected = {row[0] for row in plain.query(f"PREFIX : <http://e/> SELECT DISTINCT ?o WHERE {{ :n0 {sparql} ?o }}")}
     assert len(expected) >= 1
-    assert set(path_values(graph, E.n0, path_node, shapes)) == expected
+    assert {from_engine(t) for t in path_values(graph, E.n0, path_node, shapes)} == expected
