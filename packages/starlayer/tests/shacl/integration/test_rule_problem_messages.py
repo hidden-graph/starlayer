@@ -4,12 +4,12 @@
 import pytest
 from rdflib import Graph, URIRef
 from starlayer.shacl import MetaShaclError, ShapeError, meta_shapes
-from starlayer.shacl_engine.terms import text
 from starlayer.shacl.meta_shapes import (
     meta_validate,
     parameter_value_shapes,
     sparql_query_problems,
 )
+from starlayer.shacl_engine.terms import text
 
 PRE = """@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 ex:S a sh:NodeShape ; sh:targetClass ex:Person ; sh:rule ex:R .

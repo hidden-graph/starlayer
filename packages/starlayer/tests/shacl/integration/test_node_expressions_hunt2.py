@@ -5,8 +5,9 @@ import warnings
 import pytest
 from rdflib import XSD, Literal, Namespace
 from starlayer.graph import StarLayerGraph
-from ._rdflib_view import rdn
 from starlayer.shacl import ShapeError, evaluate
+
+from ._rdflib_view import rdn
 
 warnings.simplefilter("ignore")
 EX = Namespace("http://ex/")

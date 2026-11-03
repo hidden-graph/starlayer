@@ -10,9 +10,9 @@ import pytest
 from hypothesis import HealthCheck, assume, given, settings
 from hypothesis import strategies as st
 from rdflib import Namespace
-from starlayer.shacl_engine.terms import from_engine, iri_text
 from starlayer import StarLayerGraph
 from starlayer.shacl import extract_subgraph, validate
+from starlayer.shacl_engine.terms import from_engine, iri_text
 
 E = Namespace("http://e/")
 PRE = "@prefix : <http://e/> . @prefix sh: <http://www.w3.org/ns/shacl#> . "

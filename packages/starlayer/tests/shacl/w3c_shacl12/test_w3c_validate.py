@@ -14,7 +14,11 @@ from starlayer.shacl import StarShaclSchema  # noqa: E402
 from .closure import node_closure  # noqa: E402
 from .comparison import conforms_of, find_report_node, result_multiset  # noqa: E402
 from .ids import portable_id  # noqa: E402
-from .known_failures import KNOWN_FAILURES, KNOWN_FAILURES_OXIGRAPH_STORE, STORE_NORMALIZATION  # noqa: E402
+from .known_failures import (  # noqa: E402
+    KNOWN_FAILURES,
+    KNOWN_FAILURES_OXIGRAPH_STORE,
+    STORE_NORMALIZATION,
+)
 from .manifest import (  # noqa: E402
     ManifestEntry,
     clone_graph,

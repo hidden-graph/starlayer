@@ -5,10 +5,11 @@ import warnings
 import pytest
 import starlayer.shacl as shacl
 from rdflib import Graph, URIRef
-from ._rdflib_view import rd, rdn
 from starlayer.graph import StarLayerGraph, TripleTerm
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl.paths import path_values
+
+from ._rdflib_view import rd, rdn
 
 warnings.simplefilter("ignore")
 PREFIXES = (

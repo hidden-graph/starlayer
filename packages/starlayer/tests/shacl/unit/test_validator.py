@@ -1,10 +1,10 @@
 
 import pytest
-from rdflib import Graph, Literal, Namespace
+from rdflib import Literal, Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import ShapeError
-from starlayer.shacl_engine.terms import from_engine
 from starlayer.shacl.validator import StarShaclSchema, evaluate, validate, validate_each
+from starlayer.shacl_engine.terms import from_engine
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")

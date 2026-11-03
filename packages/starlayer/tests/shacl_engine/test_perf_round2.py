@@ -9,13 +9,13 @@ import pyoxigraph as ox
 import pytest
 import rdflib
 from pyoxigraph import NamedNode as URIRef
-from starlayer.shacl_engine.terms import text
 from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl_engine import executor
 from starlayer.shacl_engine.api import validate
 from starlayer.shacl_engine.oxigraph_view import OxigraphGraph, from_ox, to_ox
 from starlayer.shacl_engine.paths import _dedupe
 from starlayer.shacl_engine.plan import ShapeError
+from starlayer.shacl_engine.terms import text
 
 PFX = "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . "
 

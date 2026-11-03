@@ -162,7 +162,6 @@ class TestShapeAttachedRulesPath:
         assert (EX.alice, EX.taggedByB, None) not in result.inferred_graph
         # Only RuleA actually ran, so only RuleA should have provenance.
         from rdflib import Namespace as _NS
-
         from starlayer.shacl_engine.terms import from_engine
 
         SH = _NS("http://www.w3.org/ns/shacl#")

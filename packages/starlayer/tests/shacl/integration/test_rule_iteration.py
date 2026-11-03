@@ -1,9 +1,9 @@
+import pyoxigraph as ox
 import pytest
 from rdflib import Namespace
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-import pyoxigraph as ox
-from starlayer.shacl_engine.terms import to_engine
 from starlayer.shacl import StarShaclSchema
+from starlayer.shacl_engine.terms import to_engine
 
 from ._shape_loader import load_shape
 

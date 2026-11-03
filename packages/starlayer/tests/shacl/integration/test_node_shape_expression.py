@@ -6,11 +6,12 @@ node-expr/constraints/expression-001 uses `sh:expression false` on a node shape.
 
 import pytest
 from rdflib import Graph, Namespace
-from ._rdflib_view import rd
 from starlayer import starontology
 from starlayer.shacl import MetaShaclError as ReportableRuntimeError
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl.meta_shapes import meta_validate
+
+from ._rdflib_view import rd
 
 SH = Namespace("http://www.w3.org/ns/shacl#")
 _PREFIXES = (

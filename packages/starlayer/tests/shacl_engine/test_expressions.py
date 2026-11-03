@@ -4,9 +4,8 @@ components and value-node rules built on it. The W3C fixtures are in ``w3c_shacl
 from __future__ import annotations
 
 import pytest
-from pyoxigraph import Literal
 from pyoxigraph import BlankNode as BNode
-from starlayer.shacl_engine.terms import XSD, NS as Namespace
+from pyoxigraph import Literal
 from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl_engine import validate
 from starlayer.shacl_engine.executor import Context
@@ -16,7 +15,8 @@ from starlayer.shacl_engine.expressions import (
     evaluate_expression,
 )
 from starlayer.shacl_engine.plan import Plan, ShapeError
-from starlayer.shacl_engine.terms import boolean, integer, lexical, text
+from starlayer.shacl_engine.terms import NS as Namespace
+from starlayer.shacl_engine.terms import XSD, boolean, integer, lexical, text
 
 EX = Namespace("http://example.com/")
 PREFIXES = """

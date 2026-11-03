@@ -1,9 +1,10 @@
 import pytest
 from rdflib import Graph, Namespace
-from ._rdflib_view import rd
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import MetaShaclError, ShapeError, StarShaclSchema
 from starlayer.shacl.meta_shapes import meta_validate
+
+from ._rdflib_view import rd
 
 EX = Namespace("http://example.org/")
 

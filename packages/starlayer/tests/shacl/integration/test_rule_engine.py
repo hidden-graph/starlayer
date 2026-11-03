@@ -6,12 +6,13 @@ rules no shape refers to (global rules, sh:SPARQLRule and sh:TripleRule) join th
 triples of a layer are removed when the layer ends. Each test below fails with pySHACL's loop.
 """
 
-import pytest
-from rdflib import RDF, Literal, Namespace, URIRef
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 import pyoxigraph as ox
+import pytest
+from rdflib import Literal, Namespace, URIRef
+from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import RuleError, StarShaclSchema
-from starlayer.shacl_engine.terms import RDF as OXRDF, from_engine, text, to_engine
+from starlayer.shacl_engine.terms import RDF as OXRDF
+from starlayer.shacl_engine.terms import from_engine, text, to_engine
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")

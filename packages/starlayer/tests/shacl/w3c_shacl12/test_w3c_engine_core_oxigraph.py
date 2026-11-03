@@ -18,11 +18,12 @@ from starlayer.shacl_engine.oxigraph_view import OxigraphGraph
 from .closure import node_closure
 from .comparison import conforms_of, find_report_node, result_multiset
 from .ids import portable_id
+from .known_failures import STORE_NORMALIZATION as KNOWN_FAILURES
 from .manifest import ManifestEntry
 from .namespaces import MF, SH, SHT
-from .known_failures import STORE_NORMALIZATION as KNOWN_FAILURES
 from .test_w3c_engine_core import _ENTRIES, _graph
 from .test_w3c_validate import VENDOR_ROOT
+
 
 def pytest_generate_tests(metafunc):
     if "entry" in metafunc.fixturenames:

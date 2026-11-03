@@ -6,8 +6,9 @@ node look non-conforming to the where-shape, and it silently stopped being a tar
 
 import pytest
 from rdflib import Graph, Namespace
-from ._rdflib_view import rd
 from starlayer.shacl import StarShaclSchema, validate
+
+from ._rdflib_view import rd
 
 SH = Namespace("http://www.w3.org/ns/shacl#")
 P = "@prefix sh: <http://www.w3.org/ns/shacl#> . @prefix ex: <http://ex/> . @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> . "

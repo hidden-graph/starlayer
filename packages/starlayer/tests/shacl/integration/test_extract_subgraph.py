@@ -8,9 +8,9 @@ include every satisfying candidate rather than picking an arbitrary one,
 and only real stored triples are ever included).
 """
 
-from starlayer.shacl_engine.terms import RDF, text
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema, extract_subgraph
+from starlayer.shacl_engine.terms import RDF, text
 
 RDF_TYPE = RDF.type
 

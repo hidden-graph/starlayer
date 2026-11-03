@@ -8,7 +8,6 @@ No xfail shims: a failing entry is a to-do.
 from __future__ import annotations
 
 import pytest
-
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl_engine import validate
 from starlayer.shacl_engine.executor import Context

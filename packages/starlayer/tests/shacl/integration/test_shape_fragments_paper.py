@@ -13,13 +13,14 @@ only shows up when several shapes' fragments are unioned, and a randomized check
 import re
 import warnings
 
+import pyoxigraph as ox
 import pytest
 from hypothesis import HealthCheck, assume, given, settings
 from hypothesis import strategies as st
-import pyoxigraph as ox
-from starlayer.shacl_engine.terms import RDF, RDFS, NS as Namespace, from_engine, iri_text
 from starlayer import StarLayerGraph
 from starlayer.shacl import extract_subgraph, validate
+from starlayer.shacl_engine.terms import NS as Namespace
+from starlayer.shacl_engine.terms import RDF, RDFS, from_engine
 
 E = Namespace("http://e/")
 PREFIXES = (

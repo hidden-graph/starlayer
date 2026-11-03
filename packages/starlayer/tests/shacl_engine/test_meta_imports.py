@@ -5,9 +5,9 @@ from __future__ import annotations
 import pytest
 from pyoxigraph import NamedNode as URIRef
 from starlayer.graph.oxgraph import OxGraph
-from starlayer.shacl_engine.terms import OWL, RDF
 from starlayer.shacl_engine.imports import declared_imports, resolve_imports
 from starlayer.shacl_engine.meta import META_ERROR_PREFIX, MetaShaclError, meta_validate
+from starlayer.shacl_engine.terms import OWL, RDF
 
 PFX = "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix owl: <http://www.w3.org/2002/07/owl#> . @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n"
 

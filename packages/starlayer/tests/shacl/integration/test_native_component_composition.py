@@ -18,8 +18,8 @@ merge-after behavior.
 
 import pyoxigraph as ox
 from rdflib import Graph
-from starlayer.shacl_engine.terms import NS as Namespace
 from starlayer.shacl import StarShaclSchema
+from starlayer.shacl_engine.terms import NS as Namespace
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")

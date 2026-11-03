@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import pytest
 from rdflib import Graph
-from starlayer.shacl_engine.terms import NS as Namespace
 from starlayer.shacl_engine import validate
-from starlayer.shacl_engine.terms import text
 from starlayer.shacl_engine.plan import ShapeError
+from starlayer.shacl_engine.terms import NS as Namespace
+from starlayer.shacl_engine.terms import text
 
 SH = Namespace("http://www.w3.org/ns/shacl#")
 EX = Namespace("http://example.com/")

@@ -21,9 +21,10 @@ result is documented as not meant to be persisted.
 
 import pytest
 from rdflib import Literal, Namespace
-from ._rdflib_view import rd
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import ShapeError, StarShaclSchema
+
+from ._rdflib_view import rd
 
 EX = Namespace("http://example.org/")
 

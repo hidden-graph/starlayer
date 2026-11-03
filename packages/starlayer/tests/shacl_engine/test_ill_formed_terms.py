@@ -17,8 +17,8 @@ from starlayer.shacl_engine.oxigraph_view import OxigraphGraph
 from starlayer.shacl_engine.rules import apply_rules
 from starlayer.shacl_engine.terms import (
     NamedNode,
-    check_graphs,
     TermError,
+    check_graphs,
     engine_view,
     from_engine,
     term_policy,

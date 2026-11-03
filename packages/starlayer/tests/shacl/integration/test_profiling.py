@@ -2,8 +2,7 @@ import pytest
 from rdflib import Graph, Literal, Namespace, URIRef
 from rdflib.namespace import RDF, RDFS
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.shacl import StarShaclSchema
-from starlayer.shacl import shacl_profiling
+from starlayer.shacl import StarShaclSchema, shacl_profiling
 
 from ._rdflib_view import rd
 

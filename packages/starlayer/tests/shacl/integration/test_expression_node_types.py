@@ -7,9 +7,10 @@ argument lists had none, so a tool that finds shapes by target found nothing for
 import pytest
 from rdflib import RDF, BNode, Namespace
 from starlayer import StarLayerGraph, starontology
-from ._rdflib_view import rd, rdn
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl.shape_types import infer_types
+
+from ._rdflib_view import rd, rdn
 
 pytest.importorskip("owlrl")
 

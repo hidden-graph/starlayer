@@ -4,7 +4,6 @@ from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 
 from ._rdflib_view import rd
-
 from ._shape_loader import load_shape
 
 EX = Namespace("http://example.org/")

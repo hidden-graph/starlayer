@@ -1,9 +1,10 @@
 import pytest
 from rdflib import Namespace
-from ._rdflib_view import rd
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.graph.model.triple import TripleTerm
 from starlayer.shacl import EvaluationFailure, StarShaclSchema
+
+from ._rdflib_view import rd
 
 EX = Namespace("http://example.org/")
 

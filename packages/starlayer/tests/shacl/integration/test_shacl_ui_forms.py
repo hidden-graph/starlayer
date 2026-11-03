@@ -19,9 +19,10 @@ from rdflib import RDF, Graph, Literal, URIRef
 from rdflib.compare import to_isomorphic
 from rdflib.namespace import XSD
 from starlayer import starontology
+from starlayer.shacl.ui_widget_selection import select_widgets
 
 from ._rdflib_view import rd
-from starlayer.shacl.ui_widget_selection import select_widgets
+
 
 def _onto(name):
     return rd(starontology.get_ontology_graph(name))

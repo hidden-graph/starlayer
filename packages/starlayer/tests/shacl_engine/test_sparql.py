@@ -3,15 +3,15 @@ sparql_components), run through StarLayer's own query layer."""
 
 from __future__ import annotations
 
-import pytest
 import pyoxigraph as ox
+import pytest
 from rdflib import Graph
-from starlayer.shacl_engine.terms import NS as Namespace
 from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl_engine import validate
 from starlayer.shacl_engine.interface import Solutions
 from starlayer.shacl_engine.plan import Path, ShapeError
 from starlayer.shacl_engine.sparql_support import fill_template, path_to_sparql
+from starlayer.shacl_engine.terms import NS as Namespace
 from starlayer.shacl_engine.terms import integer, text
 
 EX = Namespace("http://example.com/")

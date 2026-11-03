@@ -19,8 +19,8 @@ from starlayer.shacl import (
     shapes_graph_members,
     sparql_query_problems,
 )
-from starlayer.sparql import check_query
 from starlayer.shacl_engine.terms import from_engine, to_engine
+from starlayer.sparql import check_query
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")

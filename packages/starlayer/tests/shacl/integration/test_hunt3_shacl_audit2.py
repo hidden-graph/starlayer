@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import pytest
 from rdflib import Namespace, URIRef
-from ._rdflib_view import rd
 from starlayer import StarLayerGraph
 from starlayer.shacl import RuleError, ShapeError, apply_rules, validate
+
+from ._rdflib_view import rd
 
 pytestmark = pytest.mark.shacl
 

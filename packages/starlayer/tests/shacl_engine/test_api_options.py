@@ -4,14 +4,13 @@ from __future__ import annotations
 
 import pytest
 from pyoxigraph import Literal
-from starlayer.shacl_engine.terms import RDF
 from pyoxigraph import NamedNode as URIRef
 from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl import validate as old_validate
 from starlayer.shacl_engine.api import validate as new_validate
 from starlayer.shacl_engine.plan import ShapeError
-from starlayer.shacl_engine.terms import SH, XSD
+from starlayer.shacl_engine.terms import RDF, SH, XSD
 
 PFX = "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> . "
 EX = "http://example.org/"

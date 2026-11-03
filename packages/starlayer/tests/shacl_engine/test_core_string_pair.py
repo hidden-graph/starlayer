@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import pytest
 from starlayer.graph.oxgraph import OxGraph
-from starlayer.shacl_engine.terms import text
 from starlayer.shacl_engine import validate
 from starlayer.shacl_engine.plan import ShapeError
+from starlayer.shacl_engine.terms import text
 
 PRE = """@prefix ex: <http://example.com/> . @prefix sh: <http://www.w3.org/ns/shacl#> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> . @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n"""

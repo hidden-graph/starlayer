@@ -1,8 +1,9 @@
 import pytest
 from rdflib import Namespace
-from ._rdflib_view import rd
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
+
+from ._rdflib_view import rd
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")

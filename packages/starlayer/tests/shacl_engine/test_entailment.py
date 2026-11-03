@@ -4,14 +4,13 @@ import time
 
 import pytest
 from rdflib import Graph
-from starlayer.shacl_engine.terms import RDF, RDFS, NS as Namespace
 from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl.validator import validate as old_validate
 from starlayer.shacl_engine import entailment as _entailment
 from starlayer.shacl_engine.api import validate as engine_validate
-
-
+from starlayer.shacl_engine.terms import NS as Namespace
+from starlayer.shacl_engine.terms import RDF, RDFS
 
 entailed_view = _entailment.entailed_view
 resolve_data_view = _entailment.resolve_data_view

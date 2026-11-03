@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import pytest
-from rdflib import Graph
 from pyoxigraph import NamedNode as URIRef
+from rdflib import Graph
 from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl_engine import validate
 from starlayer.shacl_engine.plan import ShapeError

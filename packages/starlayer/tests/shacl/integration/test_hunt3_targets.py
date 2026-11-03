@@ -7,9 +7,10 @@ from __future__ import annotations
 
 import pytest
 from rdflib import Namespace, URIRef
-from ._rdflib_view import rd, rdn
 from starlayer import StarLayerGraph
 from starlayer.shacl import StarShaclSchema, apply_rules, target_nodes, validate
+
+from ._rdflib_view import rd, rdn
 
 pytestmark = pytest.mark.shacl
 

@@ -6,8 +6,9 @@ sh:targetObjectsOf can yield them.
 
 import pytest
 from rdflib import Graph, Literal, Namespace
-from ._rdflib_view import rd, rdn
 from starlayer.shacl import StarShaclSchema, validate
+
+from ._rdflib_view import rd, rdn
 
 SH = Namespace("http://www.w3.org/ns/shacl#")
 P = "@prefix sh: <http://www.w3.org/ns/shacl#> . @prefix ex: <http://ex/> . @prefix xsd: <http://www.w3.org/2001/XMLSchema#> . "

@@ -4,10 +4,10 @@ import warnings
 
 import pytest
 from pyoxigraph import NamedNode
-from starlayer.shacl_engine.terms import NS as Namespace
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl import ShapeError, StarShaclSchema, validate
 from starlayer.shacl.shapes_graphs import referenced_shapes
+from starlayer.shacl_engine.terms import NS as Namespace
 
 warnings.simplefilter("ignore")
 EX = Namespace("http://example.org/")

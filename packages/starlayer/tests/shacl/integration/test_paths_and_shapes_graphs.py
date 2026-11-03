@@ -2,11 +2,11 @@
 
 import pytest
 from rdflib import Namespace
-from starlayer.shacl_engine.terms import NS, from_engine
 from starlayer import StarLayerGraph
 from starlayer.shacl import ShapeError, StarShaclSchema
 from starlayer.shacl.paths import is_inverse, path_values
 from starlayer.shacl.shapes_graphs import shapes_graph_members, shapes_graphs
+from starlayer.shacl_engine.terms import NS, from_engine
 
 EX = Namespace("http://e/")
 OX = NS("http://e/")  # engine terms, for what the public API returns

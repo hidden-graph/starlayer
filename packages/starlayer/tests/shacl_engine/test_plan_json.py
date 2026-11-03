@@ -10,8 +10,8 @@ from pathlib import Path
 import pyoxigraph as ox
 import pytest
 from pyoxigraph import BlankNode as BNode
-from pyoxigraph import Literal, NamedNode as URIRef
-from starlayer.shacl_engine.terms import XSD
+from pyoxigraph import Literal
+from pyoxigraph import NamedNode as URIRef
 from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl_engine import validate
 from starlayer.shacl_engine.component_table import component_table
@@ -26,7 +26,7 @@ from starlayer.shacl_engine.plan_json import (
     term_from_json,
     term_to_json,
 )
-from starlayer.shacl_engine.terms import integer
+from starlayer.shacl_engine.terms import XSD, integer
 from tests.shacl.w3c_shacl12.comparison import find_report_node, result_multiset
 from tests.shacl.w3c_shacl12.manifest import (
     clone_graph,

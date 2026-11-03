@@ -7,11 +7,12 @@ written per role."""
 import pytest
 from rdflib import Namespace, URIRef
 from starlayer import starontology
-
-from ._rdflib_view import rd
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import ui_widget_selection as uws
 from starlayer.shacl.ui_widget_selection import SHUI, select_widget, select_widgets
+
+from ._rdflib_view import rd
+
 
 def _onto(name):
     return rd(starontology.get_ontology_graph(name))

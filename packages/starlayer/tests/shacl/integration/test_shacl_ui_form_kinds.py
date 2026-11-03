@@ -8,10 +8,11 @@ import pytest
 from build_shacl_ui import STSH, missing_vocabulary_fields, vocabulary_shape_predicates
 from rdflib import RDF, RDFS, Graph, Literal, Namespace, URIRef
 from starlayer import starontology
-
-from ._rdflib_view import rd
 from starlayer.shacl.meta_shapes import meta_validate
 from starlayer.shacl.ui_widget_selection import select_widgets
+
+from ._rdflib_view import rd
+
 
 def _onto(name):
     return rd(starontology.get_ontology_graph(name))

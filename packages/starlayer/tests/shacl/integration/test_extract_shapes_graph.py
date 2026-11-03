@@ -7,9 +7,10 @@ on (follows blank-node objects recursively, never named-IRI ones).
 """
 
 import pytest
-from starlayer.shacl_engine.terms import NS as Namespace, from_engine
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema, extract_subgraph
+from starlayer.shacl_engine.terms import NS as Namespace
+from starlayer.shacl_engine.terms import from_engine
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")

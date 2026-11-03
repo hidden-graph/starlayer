@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import pytest
-from rdflib import Graph
 from pyoxigraph import Literal
 from pyoxigraph import NamedNode as URIRef
+from rdflib import Graph
 from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl import StarShaclSchema, validate_each
 from starlayer.shacl_engine import api

@@ -9,10 +9,10 @@ from __future__ import annotations
 import pyoxigraph as ox
 import pytest
 import rdflib
-from starlayer.graph.model.dirlangstring import DirLangString
-from starlayer.graph.model.triple import TripleTerm as RdflibTripleTerm
 from pyoxigraph import BlankNode as BNode
 from pyoxigraph import Literal
+from starlayer.graph.model.dirlangstring import DirLangString
+from starlayer.graph.model.triple import TripleTerm as RdflibTripleTerm
 from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl_engine.interface import GraphView
 from starlayer.shacl_engine.oxigraph_view import (
