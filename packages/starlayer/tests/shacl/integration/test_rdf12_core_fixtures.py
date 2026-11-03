@@ -51,12 +51,7 @@ def test_rdf12_fixture_triple_term_node_kind_component_evaluation() -> None:
     data.add((EX.focus, EX.says, EX.not_tt))
 
     shapes = StarLayerGraph()
-    # The fixture's stsh:TripleTermNodeKind was a starlayer extension; the
-    # draft's own node kind is sh:TripleTerm.
-    shapes.parse(
-        data=load_shape("rdf12_triple_term_node_kind.ttl").replace("stsh:TripleTermNodeKind", "sh:TripleTerm"),
-        format="turtle12",
-    )
+    shapes.parse(data=load_shape("rdf12_triple_term_node_kind.ttl"), format="turtle12")
 
     result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
 

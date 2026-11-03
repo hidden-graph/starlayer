@@ -1134,16 +1134,14 @@ sh:alternativePath
 	sh:name "alternative path"@en ;
 	sh:description "A list of paths, any one of which may match — like a logical OR over predicates. Useful when a value could arrive via one of several equivalent properties (e.g. schema:name or rdfs:label)."@en ;
 	skos:example "sh:path [ sh:alternativePath ( schema:name rdfs:label ) ]"@en ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> .
 
 sh:and
 	sh:name "and"@en ;
 	sh:description "A value node must conform to every shape in this list — logical conjunction. Rarely needed for simple cases (a single node shape's own constraints are already implicitly ANDed), but useful for combining reusable shape fragments."@en ;
 	skos:example "sh:and ( ex:HasNameShape ex:HasEmailShape )"@en ;
 	rdfs:seeAlso sh:or, sh:xone ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> .
 
 sh:class
 	sh:name "class"@en ;
@@ -1151,9 +1149,7 @@ sh:class
 	skos:example "sh:path ex:employer ; sh:class ex:Organization"@en ;
 	rdfs:comment "A list value here means \"any of these classes,\" not \"all of these classes\" — for an intersection, nest a separate sh:node shape instead."@en ;
 	rdfs:seeAlso sh:datatype, sh:nodeKind ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/>, <https://www.w3.org/TR/shacl12-core/> ;
-	rdfs:comment "plain single-value form only — the SHACL 1.2 list-valued form requires stsh:StarShacl"@en ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/>, <https://www.w3.org/TR/shacl12-core/> .
 
 sh:closed
 	sh:name "closed"@en ;
@@ -1161,84 +1157,69 @@ sh:closed
 	skos:example "ex:PersonShape sh:closed true ; sh:property [ sh:path ex:name ] . — ex:Person nodes may *only* have ex:name (and rdf:type)."@en ;
 	rdfs:comment "rdf:type is always implicitly allowed on a closed shape. sh:ignoredProperties is needed to permit other \"bookkeeping\" properties (e.g. dcterms:created) without listing each as sh:property."@en ;
 	rdfs:seeAlso sh:ignoredProperties ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/>, <https://www.w3.org/TR/shacl12-core/> ;
-	rdfs:comment "plain `xsd:boolean` value only — `sh:closed sh:ByTypes` requires stsh:StarShacl"@en ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/>, <https://www.w3.org/TR/shacl12-core/> .
 
 sh:datatype
 	sh:name "datatype"@en ;
 	sh:description "Every value node must be a literal with this exact XSD (or other) datatype IRI. SHACL 1.2 widens this to also accept a list of datatypes (a union, same as sh:class)."@en ;
 	skos:example "sh:path ex:age ; sh:datatype xsd:integer"@en ;
 	rdfs:comment "xsd:integer and xsd:int/xsd:decimal are *not* the same datatype to SHACL — the match is exact, not numerically-compatible."@en ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/>, <https://www.w3.org/TR/shacl12-core/> ;
-	rdfs:comment "plain single-value form only — the SHACL 1.2 list-valued form requires stsh:StarShacl"@en ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/>, <https://www.w3.org/TR/shacl12-core/> .
 
 sh:deactivated
 	sh:name "deactivated"@en ;
 	sh:description "When true, this shape is skipped entirely during validation — as if it weren't there. Useful for temporarily disabling a rule without deleting it, e.g. while a training exercise focuses on a different constraint."@en ;
 	skos:example "sh:deactivated true"@en ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> .
 
 sh:defaultValue
 	sh:name "default value"@en ;
 	sh:description "A suggested default value for a property shape, for a UI to pre-fill when creating a new instance. Purely informational — has no effect on validation."@en ;
 	rdfs:comment "The value is checked when a shapes graph is validated: at most one, and a well-formed node expression (stsh:DefaultValueShape)."@en ;
 	skos:example "sh:path ex:status ; sh:defaultValue \"pending\""@en ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> .
 
 sh:description
 	sh:name "description"@en ;
 	sh:description "A longer human-readable explanation of a shape's purpose — again, the same property this file uses for every predicate's own description."@en ;
 	rdfs:comment "The value is checked when a shapes graph is validated: an xsd:string or language-tagged string (stsh:NameAndDescriptionShape)."@en ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> .
 
 sh:disjoint
 	sh:name "disjoint"@en ;
 	sh:description "The set of value nodes at this shape's path must share *no* members with the set of value nodes at the given path. SHACL 1.2 widens the object to any property path."@en ;
 	skos:example "sh:path ex:blockedUsers ; sh:disjoint ex:friends — a user can't be both blocked and a friend."@en ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/>, <https://www.w3.org/TR/shacl12-core/> ;
-	rdfs:comment "plain-IRI object only — the SHACL 1.2 path-valued form requires stsh:StarShacl"@en ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/>, <https://www.w3.org/TR/shacl12-core/> .
 
 sh:equals
 	sh:name "equals"@en ;
 	sh:description "The set of value nodes at this shape's path must be exactly equal (as a set) to the set of value nodes at the given path or property. SHACL 1.2 widens the object from a plain IRI to any property path."@en ;
 	skos:example "sh:path ex:homeAddress ; sh:equals ex:mailingAddress"@en ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/>, <https://www.w3.org/TR/shacl12-core/> ;
-	rdfs:comment "plain-IRI object only — the SHACL 1.2 path-valued form requires stsh:StarShacl"@en ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/>, <https://www.w3.org/TR/shacl12-core/> .
 
 sh:flags
 	sh:name "flags"@en ;
 	sh:description "Regex flags to apply alongside sh:pattern (e.g. \"i\" for case-insensitive). Has no effect without a sh:pattern on the same shape."@en ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> .
 
 sh:group
 	sh:name "group"@en ;
 	sh:description "Links a property shape to a sh:PropertyGroup, letting a UI cluster related fields into named sections — exactly how this presentation file's own groups (Targeting, Cardinality, etc.) work."@en ;
 	rdfs:comment "The value is checked when a shapes graph is validated: an instance of sh:PropertyGroup (stsh:GroupShape)."@en ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> .
 
 sh:hasValue
 	sh:name "has value"@en ;
 	sh:description "At least one value node must equal exactly this one specific value — the opposite granularity from sh:in (one required value, rather than a list of allowed ones)."@en ;
 	skos:example "sh:path rdf:type ; sh:hasValue ex:Person — requires the focus node to be typed ex:Person (among possibly other types)."@en ;
 	rdfs:seeAlso sh:in ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> .
 
 sh:ignoredProperties
 	sh:name "ignored properties"@en ;
 	sh:description "A list of properties exempted from sh:closed's restriction — present without needing a matching sh:property entry."@en ;
 	skos:example "sh:ignoredProperties ( rdf:type dcterms:created )"@en ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> .
 
 sh:in
 	sh:name "in"@en ;
@@ -1246,86 +1227,71 @@ sh:in
 	skos:example "sh:path ex:status ; sh:in ( \"active\" \"inactive\" \"pending\" )"@en ;
 	rdfs:comment "List membership is exact-value matching, including datatype — sh:in (1 2 3) (integers) will not match the string \"1\"."@en ;
 	rdfs:seeAlso sh:hasValue ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> .
 
 sh:inversePath
 	sh:name "inverse path"@en ;
 	sh:description "Traverses a triple backwards — from object to subject — instead of the normal subject-to-object direction. Used to write constraints in terms of \"things that point at me\" rather than \"things I point at.\""@en ;
 	skos:example "sh:path [ sh:inversePath ex:parent ] — matches a node's children, by walking ex:parent triples backwards."@en ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> .
 
 sh:languageIn
 	sh:name "language in"@en ;
 	sh:description "Every value node must be a language-tagged literal (or rdf:dirLangString under RDF 1.2) whose language tag is in this list. A plain literal with no language tag never matches."@en ;
 	skos:example "sh:path ex:label ; sh:languageIn ( \"en\" \"en-US\" \"fr\" )"@en ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-	rdfs:comment "plain literals only — `rdf:dirLangString` recognition requires stsh:StarShacl"@en ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> .
 
 sh:lessThan
 	sh:name "less than"@en ;
 	sh:description "Every value node at this shape's path must be strictly less than every value node at the given path, for the same focus node. Requires an orderable datatype. SHACL 1.2 widens the object to any property path."@en ;
 	skos:example "sh:path ex:startDate ; sh:lessThan ex:endDate"@en ;
 	rdfs:seeAlso sh:lessThanOrEquals ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/>, <https://www.w3.org/TR/shacl12-core/> ;
-	rdfs:comment "plain-IRI object only — the SHACL 1.2 path-valued form requires stsh:StarShacl"@en ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/>, <https://www.w3.org/TR/shacl12-core/> .
 
 sh:lessThanOrEquals
 	sh:name "less than or equal to"@en ;
 	sh:description "Same as sh:lessThan, but allows equality. SHACL 1.2 widens the object to any property path."@en ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/>, <https://www.w3.org/TR/shacl12-core/> ;
-	rdfs:comment "plain-IRI object only — the SHACL 1.2 path-valued form requires stsh:StarShacl"@en ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/>, <https://www.w3.org/TR/shacl12-core/> .
 
 sh:maxCount
 	sh:name "maximum count"@en ;
 	sh:description "The maximum number of value nodes a path may have for a given focus node. sh:maxCount 1 is the standard way to express \"at most one value\" (a functional property)."@en ;
 	skos:example "sh:path ex:birthDate ; sh:maxCount 1"@en ;
 	rdfs:seeAlso sh:minCount ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> .
 
 sh:maxExclusive
 	sh:name "maximum exclusive value"@en ;
 	sh:description "Every value node must be strictly less than this value."@en ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> .
 
 sh:maxInclusive
 	sh:name "maximum inclusive value"@en ;
 	sh:description "Every value node must be numerically or ordinally ≤ this value."@en ;
 	skos:example "sh:path ex:percentage ; sh:maxInclusive 100"@en ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> .
 
 sh:maxLength
 	sh:name "maximum length"@en ;
 	sh:description "The string form of every value node must have at most this many characters."@en ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> .
 
 sh:maxListLength
 	sh:name "maximum list length"@en ;
 	sh:description "The value node must be a well-formed SHACL list with at most this many members."@en ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/> ;
-	stsh:requiredEngine stsh:StarShacl .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/> .
 
 sh:memberShape
 	sh:name "member shape"@en ;
 	sh:description "The value node must be a well-formed SHACL list, and every member of that list must conform to the given shape. Combines list-well-formedness checking with per-member validation in one predicate."@en ;
 	skos:example "sh:path ex:tags ; sh:memberShape [ sh:datatype xsd:string ]"@en ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/> ;
-	stsh:requiredEngine stsh:StarShacl .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/> .
 
 sh:message
 	sh:name "message"@en ;
 	sh:description "A human-readable explanation shown in the validation report when this shape is violated. Can use {$this}, {?path}, and similar placeholders that get filled in per-violation. Purely informational — has no effect on whether the shape conforms."@en ;
 	skos:example "sh:message \"Age must be a non-negative integer.\"@en"@en ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> .
 
 sh:minCount
 	sh:name "minimum count"@en ;
@@ -1333,99 +1299,85 @@ sh:minCount
 	skos:example "sh:path ex:email ; sh:minCount 1 — every focus node must have at least one ex:email value."@en ;
 	rdfs:comment "A frequent mistake: writing sh:minCount 0 to mean \"optional.\" This is a no-op — 0 is already the default. Omit sh:minCount entirely for an optional property."@en ;
 	rdfs:seeAlso sh:maxCount ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> .
 
 sh:minExclusive
 	sh:name "minimum exclusive value"@en ;
 	sh:description "Every value node must be strictly greater than this value (boundary itself not allowed)."@en ;
 	skos:example "sh:path ex:temperature ; sh:minExclusive 0 — must be above absolute freezing on some scale, never equal to it."@en ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> .
 
 sh:minInclusive
 	sh:name "minimum inclusive value"@en ;
 	sh:description "Every value node must be numerically or ordinally ≥ this value. Requires an orderable datatype (numbers, dates)."@en ;
 	skos:example "sh:path ex:age ; sh:minInclusive 0"@en ;
 	rdfs:seeAlso sh:minExclusive, sh:maxInclusive ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> .
 
 sh:minLength
 	sh:name "minimum length"@en ;
 	sh:description "The string form of every value node must have at least this many characters. Applies to both literals and IRIs (an IRI's length is measured too)."@en ;
 	skos:example "sh:path ex:username ; sh:minLength 3"@en ;
 	rdfs:seeAlso sh:maxLength ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> .
 
 sh:minListLength
 	sh:name "minimum list length"@en ;
 	sh:description "The value node must be a well-formed SHACL list with at least this many members."@en ;
 	skos:example "sh:path ex:coordinates ; sh:minListLength 2"@en ;
 	rdfs:seeAlso sh:maxListLength ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/> ;
-	stsh:requiredEngine stsh:StarShacl .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/> .
 
 sh:name
 	sh:name "name"@en ;
 	sh:description "A short, human-readable label for a shape — this exact same annotation property is what this presentation file itself uses for every predicate's display label."@en ;
 	rdfs:comment "The value is checked when a shapes graph is validated: an xsd:string or language-tagged string (stsh:NameAndDescriptionShape)."@en ;
 	skos:example "sh:name \"email address\"@en"@en ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> .
 
 sh:node
 	sh:name "node"@en ;
 	sh:description "Every value node must conform to the given (node) shape. The main way to nest shapes — validating the *shape* of a related resource, not just a scalar constraint on it."@en ;
 	skos:example "sh:path ex:address ; sh:node ex:AddressShape"@en ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> .
 
 sh:nodeKind
 	sh:name "node kind"@en ;
 	sh:description "Restricts what *kind* of RDF term a value node may be, independent of class or datatype: sh:IRI, sh:BlankNode, sh:Literal, or one of the three compound kinds (sh:BlankNodeOrIRI, sh:BlankNodeOrLiteral, sh:IRIOrLiteral). SHACL 1.2 widens this to also accept a list of node kinds."@en ;
 	skos:example "sh:path ex:homepage ; sh:nodeKind sh:IRI — the value must be a real IRI, not a literal string."@en ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/>, <https://www.w3.org/TR/shacl12-core/> ;
-	rdfs:comment "plain single-value form only — the SHACL 1.2 list-valued form requires stsh:StarShacl"@en ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/>, <https://www.w3.org/TR/shacl12-core/> .
 
 sh:not
 	sh:name "not"@en ;
 	sh:description "A value node conforms only if it does *not* conform to the given shape — logical negation. A common way to express \"must not be of this type\" or \"must not match this pattern.\""@en ;
 	skos:example "sh:not [ sh:hasValue ex:Deleted ]"@en ;
 	rdfs:comment "Negating a shape with its own violations can be confusing to debug — the validation report shows that sh:not's inner shape *did* conform (which is why the outer shape failed), which reads backwards at first glance."@en ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> .
 
 sh:oneOrMorePath
 	sh:name "one-or-more path"@en ;
 	sh:description "Matches the given path repeated one or more times — like + in a regular expression. Same as sh:zeroOrMorePath but excludes the zero-repetition (starting-node) case."@en ;
 	skos:example "sh:path [ sh:oneOrMorePath ex:parent ] — every ancestor, not including the node itself."@en ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> .
 
 sh:or
 	sh:name "or"@en ;
 	sh:description "A value node must conform to at least one shape in this list — logical disjunction. Commonly used to allow a value to be one of several alternative shapes (e.g. either an IRI reference or an inline literal)."@en ;
 	skos:example "sh:or ( [ sh:datatype xsd:string ] [ sh:datatype xsd:integer ] )"@en ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> .
 
 sh:order
 	sh:name "order"@en ;
 	sh:description "A number suggesting where a property shape should appear relative to its siblings when a UI renders a form — lower numbers first. Purely a rendering hint."@en ;
 	rdfs:comment "The value is checked when a shapes graph is validated: at most one, a decimal (stsh:OrderShape)."@en ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> .
 
 sh:path
 	sh:name "path"@en ;
 	sh:description "Required on every property shape. Names the property more complex path expression that connects a focus node to its value nodes. The simplest form is a single IRI; SHACL also supports sequence, alternative, inverse, and repeated (*/+/?) paths."@en ;
 	skos:example "sh:path ex:email — the simple case, a single predicate."@en ;
 	rdfs:seeAlso sh:inversePath, sh:alternativePath ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> .
 
 sh:pattern
 	sh:name "pattern"@en ;
@@ -1433,110 +1385,95 @@ sh:pattern
 	skos:example "sh:path ex:productCode ; sh:pattern \"^[A-Z]{3}-[0-9]{4}$\""@en ;
 	rdfs:comment "SHACL patterns are *not* implicitly anchored — sh:pattern \"abc\" matches a value that merely *contains* \"abc\" anywhere, not one that equals it. Use ^...$ explicitly for a full-string match."@en ;
 	rdfs:seeAlso sh:flags ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> .
 
 sh:property
 	sh:name "property"@en ;
 	sh:description "Attaches a property shape to a node shape. Nearly every real-world shape uses this — it's how a node shape says \"and also, here's a constraint on one of my properties.\""@en ;
 	skos:example "ex:PersonShape sh:property [ sh:path ex:email ; sh:minCount 1 ]"@en ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> .
 
 sh:qualifiedMaxCount
 	sh:name "qualified maximum count"@en ;
 	sh:description "The maximum number of value nodes that may conform to the sibling sh:qualifiedValueShape."@en ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> .
 
 sh:qualifiedMinCount
 	sh:name "qualified minimum count"@en ;
 	sh:description "The minimum number of value nodes that must conform to the sibling sh:qualifiedValueShape."@en ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> .
 
 sh:qualifiedValueShape
 	sh:name "qualified value shape"@en ;
 	sh:description "Works together with sh:qualifiedMinCount/sh:qualifiedMaxCount to count *how many* value nodes conform to a given shape (rather than requiring all or none to conform, like sh:node does)."@en ;
 	skos:example "sh:path ex:contact ; sh:qualifiedValueShape ex:PhoneShape ; sh:qualifiedMinCount 1"@en ;
 	rdfs:seeAlso sh:qualifiedMinCount, sh:qualifiedMaxCount ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> .
 
 sh:qualifiedValueShapesDisjoint
 	sh:name "qualified value shapes disjoint"@en ;
 	sh:description "When true, a value node counted toward *this* qualified shape's count is excluded from counting toward any sibling qualified shape on the same property shape — prevents one value from double-counting across two overlapping qualified constraints."@en ;
 	rdfs:comment "Only affects counting against *sibling* qualified shapes on the same sh:property blank node list — it has no effect with only one sh:qualifiedValueShape present."@en ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> .
 
 sh:reificationRequired
 	sh:name "reification required"@en ;
 	sh:description "When true, every triple term reached by the shape's path must actually have at least one reifier in the data — not just be well-formed, but be genuinely annotated/reified somewhere."@en ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/> ;
-	stsh:requiredEngine stsh:StarShacl .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/> .
 
 sh:reifierShape
 	sh:name "reifier shape"@en ;
 	sh:description "Requires that the reifier of a triple term (the node connected to it via rdf:reifies) conforms to the given shape — a way to put constraints on the metadata *about* a statement, not just the statement's own subject/predicate/object."@en ;
 	skos:example "sh:path ex:claims ; sh:reifierShape [ sh:property [ sh:path ex:confidence ; sh:minCount 1 ] ] — every reifier of a claim must carry a confidence score."@en ;
 	rdfs:seeAlso sh:reificationRequired ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/> ;
-	stsh:requiredEngine stsh:StarShacl .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/> .
 
 sh:rootClass
 	sh:name "root class"@en ;
 	sh:description "Every value node must be an IRI that is, or is a transitive rdfs:subClassOf subclass of, this class - like sh:class but subclass-aware without needing full RDFS/OWL reasoning enabled. Not a targeting mechanism (despite the similar name to implicit class-based targeting) - it constrains a property's value nodes, the same role as sh:class/sh:datatype/sh:nodeKind."@en ;
 	skos:example "sh:path ex:worksFor ; sh:rootClass ex:Organization — the value must be ex:Organization itself or a transitive subclass of it."@en ;
 	rdfs:seeAlso sh:class ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/> ;
-	stsh:requiredEngine stsh:StarShacl .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/> .
 
 sh:severity
 	sh:name "severity"@en ;
 	sh:description "How seriously to treat a violation of this shape: sh:Violation (default — fails conformance), sh:Warning, or sh:Info (both reported but don't fail conformance). Useful for phasing in stricter rules without breaking existing data immediately."@en ;
 	skos:example "sh:severity sh:Warning"@en ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> .
 
 sh:singleLine
 	sh:name "single line"@en ;
 	sh:description "When true, every value node's string form must not contain a line break — a lightweight way to reject accidentally-pasted multi-paragraph text in a field meant to hold a short label."@en ;
 	skos:example "sh:path ex:title ; sh:singleLine true"@en ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/> ;
-	stsh:requiredEngine stsh:StarShacl .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/> .
 
 sh:someValue
 	sh:name "some value"@en ;
 	sh:description "At least one value node must conform to the given shape. Unlike sh:node (which requires *every* value node to conform), a single non-conforming value here is not itself a violation — only the absence of *any* conforming value is."@en ;
 	skos:example "sh:path ex:contactMethod ; sh:someValue [ sh:datatype xsd:anyURI ] — at least one contact method must be a URI, others can be anything."@en ;
 	rdfs:seeAlso sh:node ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/> ;
-	stsh:requiredEngine stsh:StarShacl .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/> .
 
 sh:subsetOf
 	sh:name "subset of"@en ;
 	sh:description "The set of value nodes at this shape's path must be a subset of the set of value nodes at the given path — every value here must also appear there, but not vice versa."@en ;
 	skos:example "sh:path ex:selectedTags ; sh:subsetOf ex:availableTags"@en ;
 	rdfs:seeAlso sh:equals ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/> ;
-	stsh:requiredEngine stsh:StarShacl .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/> .
 
 sh:targetClass
 	sh:name "target class"@en ;
 	sh:description "Every instance of this class (including subclasses, when RDFS/OWL reasoning is used) is a focus node for the shape. The most common way to attach a shape to \"all things of type X.\""@en ;
 	skos:example "ex:PersonShape sh:targetClass ex:Person ."@en ;
 	rdfs:seeAlso sh:targetNode, sh:rootClass ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> .
 
 sh:targetNode
 	sh:name "target node"@en ;
 	sh:description "A single, specific IRI or literal is a focus node for the shape, regardless of its type. Useful for validating one known resource directly, or in training examples where you want to point at exactly one node."@en ;
 	skos:example "ex:AliceShape sh:targetNode ex:alice ."@en ;
 	rdfs:comment "Doesn't scale — for validating \"all instances of a class,\" use sh:targetClass instead."@en ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> .
 
 sh:targetObjectsOf
 	sh:name "target objects of"@en ;
@@ -1544,47 +1481,40 @@ sh:targetObjectsOf
 	skos:example "sh:targetObjectsOf ex:manager — targets every node that's someone's manager."@en ;
 	rdfs:comment "Easy to mix up with sh:targetSubjectsOf — subjects-of targets the thing *with* the property, objects-of targets the thing *pointed to*."@en ;
 	rdfs:seeAlso sh:targetSubjectsOf ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> .
 
 sh:targetSubjectsOf
 	sh:name "target subjects of"@en ;
 	sh:description "Any node that is the subject of at least one triple with this predicate becomes a focus node. A quick way to target \"everything that has an ex:email,\" without needing a shared class."@en ;
 	skos:example "sh:targetSubjectsOf ex:email — targets every node with at least one ex:email value."@en ;
 	rdfs:seeAlso sh:targetObjectsOf ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> .
 
 sh:uniqueLang
 	sh:name "unique language"@en ;
 	sh:description "When true, at most one value node may use each language tag — prevents two \"Hello\"@en values on the same focus node, without restricting which languages are used at all. SHACL 1.2 extends the uniqueness condition to also consider base direction for rdf:dirLangString values (\"1\"@ar--rtl and \"1\"@ar--ltr are different, as is the pair \"1\"@ar--rtl and \"1\"@ar)."@en ;
 	skos:example "sh:path ex:label ; sh:uniqueLang true"@en ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/>, <https://www.w3.org/TR/shacl12-core/> ;
-	rdfs:comment "plain language-tag uniqueness only — `rdf:dirLangString` direction-awareness requires stsh:StarShacl"@en ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/>, <https://www.w3.org/TR/shacl12-core/> .
 
 sh:uniqueMembers
 	sh:name "unique members"@en ;
 	sh:description "When true, the value node must be a well-formed SHACL list with no duplicate members (by RDF term equality)."@en ;
 	skos:example "sh:path ex:coordinates ; sh:uniqueMembers true"@en ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/> ;
-	stsh:requiredEngine stsh:StarShacl .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/> .
 
 sh:uniqueValuesFor
 	sh:name "unique values for"@en ;
 	sh:description "Requires that the values reached via the given path (or list of paths) are unique *across every focus node* the shape applies to — not just within one focus node, like sh:uniqueLang/sh:uniqueMembers are. The classic use is enforcing a unique key (e.g. no two people share a username)."@en ;
 	skos:example "ex:PersonShape sh:targetClass ex:Person ; sh:uniqueValuesFor ex:username ."@en ;
 	rdfs:comment "Because this checks *across* focus nodes rather than within one, it needs the *entire* batch of candidate focus nodes evaluated together — composing it inside sh:and/sh:or/sh:not/sh:node/sh:qualifiedValueShape requires special handling to still see the full batch (which starShacl's native components provide — see docs/shacl12-gap-matrix.md)."@en ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/> ;
-	stsh:requiredEngine stsh:StarShacl .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-core/> .
 
 sh:xone
 	sh:name "exactly one"@en ;
 	sh:description "A value node must conform to *exactly one* shape in this list — not zero, not two or more. Stricter than sh:or, useful when alternatives are meant to be mutually exclusive."@en ;
 	skos:example "sh:xone ( ex:IndividualShape ex:OrganizationShape ) — a party is one or the other, never both."@en ;
 	rdfs:comment "If two shapes in the list overlap (a value could satisfy both), a value that matches both fails sh:xone even though it would pass sh:or — easy to trip over when shapes aren't as mutually exclusive as intended."@en ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> .
 
 sh:zeroOrMorePath
 	sh:name "zero-or-more path"@en ;
@@ -1592,14 +1522,12 @@ sh:zeroOrMorePath
 	skos:example "sh:path [ sh:zeroOrMorePath rdfs:subClassOf ]"@en ;
 	rdfs:comment "Zero repetitions means the *starting node itself* is included in the match set — easy to forget when counting results."@en ;
 	rdfs:seeAlso sh:oneOrMorePath, sh:zeroOrOnePath ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> .
 
 sh:zeroOrOnePath
 	sh:name "zero-or-one path"@en ;
 	sh:description "Matches the given path zero times (the node itself) or exactly once — like ? in a regular expression. Useful for \"this node, or its immediate parent if it has one.\""@en ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> .
 
 
 #############################################################################
@@ -1778,16 +1706,14 @@ sh:sparql
 	skos:example "sh:sparql [ sh:select \"SELECT $this WHERE { FILTER NOT EXISTS { $this ex:email ?e } }\" ]"@en ;
 	rdfs:comment "The query must project $this (or ?this); MINUS and VALUES against pre-bound variables are disallowed per spec."@en ;
 	rdfs:seeAlso sh:select, sh:ConstraintComponent ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>, <https://www.w3.org/TR/shacl12-sparql/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>, <https://www.w3.org/TR/shacl12-sparql/> .
 
 sh:select
 	sh:name "SELECT query"@en ;
 	sh:description "The SPARQL SELECT query text for a sh:sparql constraint or a custom sh:ConstraintComponent's sh:nodeValidator/sh:propertyValidator. Any row returned counts as a violation; bindings for ?value/?path/?this in the result customize the reported focus/value/path."@en ;
 	skos:example "sh:select \"SELECT $this ?value WHERE { ?value ex:score ?s . FILTER (?s < 0) }\""@en ;
 	rdfs:seeAlso sh:sparql, sh:ask ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>, <https://www.w3.org/TR/shacl12-sparql/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>, <https://www.w3.org/TR/shacl12-sparql/> .
 
 sh:ask
 	sh:name "ASK query"@en ;
@@ -1795,8 +1721,7 @@ sh:ask
 	skos:example "sh:validator [ a sh:SPARQLAskValidator ; sh:ask \"ASK { FILTER (?value >= ?minScore) }\" ]"@en ;
 	rdfs:comment "Unlike sh:select, false means *violation* here — the query must return true for conformance, the opposite polarity from a SELECT constraint's \"any row is a violation.\""@en ;
 	rdfs:seeAlso sh:select ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>, <https://www.w3.org/TR/shacl12-sparql/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>, <https://www.w3.org/TR/shacl12-sparql/> .
 
 sh:ConstraintComponent
 	sh:name "constraint component"@en ;
@@ -1804,98 +1729,85 @@ sh:ConstraintComponent
 	skos:example "ex:MinScoreConstraintComponent a sh:ConstraintComponent ; sh:parameter [ sh:path ex:minScore ] ; sh:validator [ a sh:SPARQLAskValidator ; sh:ask \"...\" ]"@en ;
 	rdfs:comment "Requires at least one non-optional sh:parameter — a component with only optional parameters fails to load."@en ;
 	rdfs:seeAlso sh:parameter, sh:validator ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>, <https://www.w3.org/TR/shacl12-sparql/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>, <https://www.w3.org/TR/shacl12-sparql/> .
 
 sh:parameter
 	sh:name "parameter"@en ;
 	sh:description "Declares one input parameter of a custom sh:ConstraintComponent — the parameter's own sh:path becomes the predicate a shape uses to supply that argument's value (e.g. ex:minScore in the example above)."@en ;
 	skos:example "sh:parameter [ sh:path ex:minScore ; sh:optional false ]"@en ;
 	rdfs:seeAlso sh:ConstraintComponent ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>, <https://www.w3.org/TR/shacl12-sparql/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>, <https://www.w3.org/TR/shacl12-sparql/> .
 
 sh:validator
 	sh:name "validator"@en ;
 	sh:description "The generic SPARQL ASK validator for a custom sh:ConstraintComponent, used when the component doesn't need to distinguish node vs. property shapes."@en ;
 	rdfs:seeAlso sh:nodeValidator, sh:propertyValidator, sh:ask ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>, <https://www.w3.org/TR/shacl12-sparql/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>, <https://www.w3.org/TR/shacl12-sparql/> .
 
 sh:nodeValidator
 	sh:name "node validator"@en ;
 	sh:description "A SELECT-based validator for a custom sh:ConstraintComponent, used specifically when the component is applied via a node shape."@en ;
 	rdfs:seeAlso sh:propertyValidator, sh:select ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>, <https://www.w3.org/TR/shacl12-sparql/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>, <https://www.w3.org/TR/shacl12-sparql/> .
 
 sh:propertyValidator
 	sh:name "property validator"@en ;
 	sh:description "A SELECT-based validator for a custom sh:ConstraintComponent, used specifically when the component is applied via a property shape."@en ;
 	rdfs:seeAlso sh:nodeValidator, sh:select ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>, <https://www.w3.org/TR/shacl12-sparql/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>, <https://www.w3.org/TR/shacl12-sparql/> .
 
 sh:rule
 	sh:name "rule"@en ;
 	sh:description "Attaches a SHACL-AF inference rule to a shape, applied to every focus node the shape targets when rule execution (not plain validation) is requested. sh:TripleRule and sh:SPARQLRule are the two concrete rule types."@en ;
 	skos:example "ex:R sh:rule [ a sh:TripleRule ; sh:subject sh:this ; sh:predicate ex:derived ; sh:object [ sh:path ex:source ] ]"@en ;
 	rdfs:seeAlso sh:TripleRule, sh:SPARQLRule, sh:condition ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>, <https://www.w3.org/TR/shacl12-rules/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>, <https://www.w3.org/TR/shacl12-rules/> .
 
 sh:condition
 	sh:name "condition"@en ;
 	sh:description "Restricts which focus nodes a rule actually applies to — only nodes conforming to the given shape have the rule run for them; every other focus node is skipped entirely for that rule."@en ;
 	skos:example "sh:rule [ a sh:TripleRule ; sh:condition ex:AdultShape ; ... ]"@en ;
 	rdfs:comment "The condition shape needs a real constraint to be discriminating — a shape with only a target predicate (e.g. sh:targetClass) trivially \"conforms\" for any node when checked ad hoc, since targeting doesn't itself constrain anything."@en ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>, <https://www.w3.org/TR/shacl12-rules/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>, <https://www.w3.org/TR/shacl12-rules/> .
 
 sh:TripleRule
 	sh:name "triple rule"@en ;
 	sh:description "A rule type that derives one new triple per matching focus node from three independently-evaluated node expressions — sh:subject/sh:predicate/sh:object — without needing any SPARQL."@en ;
 	skos:example "[ a sh:TripleRule ; sh:subject sh:this ; sh:predicate ex:ancestor ; sh:object [ sh:path ex:parent ] ]"@en ;
 	rdfs:seeAlso sh:SPARQLRule, sh:subject, sh:predicate, sh:object ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>, <https://www.w3.org/TR/shacl12-rules/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>, <https://www.w3.org/TR/shacl12-rules/> .
 
 sh:SPARQLRule
 	sh:name "SPARQL rule"@en ;
 	sh:description "A rule type that derives new triples via an arbitrary SPARQL CONSTRUCT query (sh:construct), for derivations too complex for a single sh:TripleRule."@en ;
 	skos:example "[ a sh:SPARQLRule ; sh:construct \"CONSTRUCT { $this ex:ancestor ?a } WHERE { $this ex:parent+ ?a }\" ]"@en ;
 	rdfs:seeAlso sh:TripleRule, sh:construct ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>, <https://www.w3.org/TR/shacl12-rules/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>, <https://www.w3.org/TR/shacl12-rules/> .
 
 sh:construct
 	sh:name "CONSTRUCT query"@en ;
 	sh:description "The SPARQL CONSTRUCT query text for a sh:SPARQLRule — its WHERE clause is evaluated once per matching focus node (bound to $this), and every triple in its result is added to the data graph."@en ;
 	skos:example "sh:construct \"PREFIX ex: <http://example.org/> CONSTRUCT { $this ex:ancestor ?a } WHERE { $this ex:parent ?a }\""@en ;
 	rdfs:seeAlso sh:SPARQLRule ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>, <https://www.w3.org/TR/shacl12-rules/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>, <https://www.w3.org/TR/shacl12-rules/> .
 
 sh:subject
 	sh:name "subject expression"@en ;
 	sh:description "The node expression producing the subject of the triple a sh:TripleRule derives — most commonly just sh:this, the rule's own focus node."@en ;
 	rdfs:seeAlso sh:TripleRule, sh:predicate, sh:object ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>, <https://www.w3.org/TR/shacl12-rules/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>, <https://www.w3.org/TR/shacl12-rules/> .
 
 sh:predicate
 	sh:name "predicate expression"@en ;
 	sh:description "The node expression producing the predicate of the triple a sh:TripleRule derives — typically a constant IRI naming the derived property."@en ;
 	rdfs:seeAlso sh:TripleRule, sh:subject, sh:object ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>, <https://www.w3.org/TR/shacl12-rules/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>, <https://www.w3.org/TR/shacl12-rules/> .
 
 sh:object
 	sh:name "object expression"@en ;
 	sh:description "The node expression producing the object of the triple a sh:TripleRule derives — often a shnex:pathValues/sh:path expression pulling a value from elsewhere in the data."@en ;
 	rdfs:seeAlso sh:TripleRule, sh:subject, sh:predicate ;
-	rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>, <https://www.w3.org/TR/shacl12-rules/> ;
-	stsh:requiredEngine stsh:PySHACL .
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>, <https://www.w3.org/TR/shacl12-rules/> .
 
 shui:editor
 	sh:name "editor widget"@en ;
@@ -1903,8 +1815,7 @@ shui:editor
 	skos:example "sh:property [ sh:path ex:birthDate ; shui:editor shui:DatePickerEditor ]"@en ;
 	rdfs:seeAlso shui:viewer ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
-	stsh:requiredEngine stsh:StarShacl .
+	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en .
 
 shui:viewer
 	sh:name "viewer widget"@en ;
@@ -1912,206 +1823,177 @@ shui:viewer
 	skos:example "sh:property [ sh:path ex:homepage ; shui:viewer shui:HyperlinkViewer ]"@en ;
 	rdfs:seeAlso shui:editor ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
-	stsh:requiredEngine stsh:StarShacl .
+	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en .
 
 shui:propertyRole
 	sh:name "property role"@en ;
 	sh:description "Marks a property shape as playing a special semantic role for UI purposes — currently just shui:LabelRole, marking \"this is the property whose value should be used as the resource's own display label.\""@en ;
 	skos:example "sh:property [ sh:path ex:name ; shui:propertyRole shui:LabelRole ]"@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "ignored by validation; not interpreted by starlayer.shacl (property roles are documented here but not implemented)"@en ;
-	stsh:requiredEngine stsh:StarShacl .
+	rdfs:comment "ignored by validation; not interpreted by starlayer.shacl (property roles are documented here but not implemented)"@en .
 
 shui:TextFieldEditor
 	sh:name "text field"@en ;
 	sh:description "A single-line plain-text input."@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
-	stsh:requiredEngine stsh:StarShacl .
+	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en .
 
 shui:TextFieldWithLangEditor
 	sh:name "text field with language"@en ;
 	sh:description "A single-line text input paired with a language-tag selector, for editing one language-tagged literal."@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
-	stsh:requiredEngine stsh:StarShacl .
+	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en .
 
 shui:TextAreaEditor
 	sh:name "text area"@en ;
 	sh:description "A multi-line plain-text input."@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
-	stsh:requiredEngine stsh:StarShacl .
+	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en .
 
 shui:TextAreaWithLangEditor
 	sh:name "text area with language"@en ;
 	sh:description "A multi-line text input paired with a language-tag selector."@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
-	stsh:requiredEngine stsh:StarShacl .
+	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en .
 
 shui:RichTextEditor
 	sh:name "rich text editor"@en ;
 	sh:description "A formatted (e.g. HTML/Markdown) text editor, for values meant to render with styling."@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
-	stsh:requiredEngine stsh:StarShacl .
+	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en .
 
 shui:NumberFieldEditor
 	sh:name "number field"@en ;
 	sh:description "A numeric input, for xsd:integer/xsd:decimal/xsd:double-typed values."@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
-	stsh:requiredEngine stsh:StarShacl .
+	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en .
 
 shui:BooleanEditor
 	sh:name "boolean editor"@en ;
 	sh:description "A checkbox or toggle, for xsd:boolean-typed values."@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
-	stsh:requiredEngine stsh:StarShacl .
+	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en .
 
 shui:DatePickerEditor
 	sh:name "date picker"@en ;
 	sh:description "A calendar-style date picker, for xsd:date-typed values."@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
-	stsh:requiredEngine stsh:StarShacl .
+	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en .
 
 shui:DateTimePickerEditor
 	sh:name "date-time picker"@en ;
 	sh:description "A calendar-and-time picker, for xsd:dateTime-typed values."@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
-	stsh:requiredEngine stsh:StarShacl .
+	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en .
 
 shui:IRIEditor
 	sh:name "IRI editor"@en ;
 	sh:description "A plain-text input constrained to well-formed IRIs."@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
-	stsh:requiredEngine stsh:StarShacl .
+	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en .
 
 shui:AutoCompleteEditor
 	sh:name "autocomplete editor"@en ;
 	sh:description "A text input with suggestions, typically backed by shui:resourceFilter-style search against existing resources."@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
-	stsh:requiredEngine stsh:StarShacl .
+	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en .
 
 shui:EnumSelectEditor
 	sh:name "enum select"@en ;
 	sh:description "A dropdown/select list, for a value constrained by sh:in to a fixed set of options."@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
-	stsh:requiredEngine stsh:StarShacl .
+	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en .
 
 shui:InstancesSelectEditor
 	sh:name "instances select"@en ;
 	sh:description "A dropdown/select list populated dynamically from existing instances of a class, rather than a fixed sh:in list."@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
-	stsh:requiredEngine stsh:StarShacl .
+	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en .
 
 shui:SubClassEditor
 	sh:name "subclass editor"@en ;
 	sh:description "A class picker constrained to subclasses of a given root class — the editor-side counterpart to sh:rootClass."@en ;
 	rdfs:seeAlso sh:rootClass ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
-	stsh:requiredEngine stsh:StarShacl .
+	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en .
 
 shui:BlankNodeEditor
 	sh:name "blank node editor"@en ;
 	sh:description "A nested sub-form for editing a blank-node-valued property in place, rather than as a reference."@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
-	stsh:requiredEngine stsh:StarShacl .
+	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en .
 
 shui:DetailsEditor
 	sh:name "details editor"@en ;
 	sh:description "An expandable/collapsible nested editor for a complex (typically shape-constrained) value."@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
-	stsh:requiredEngine stsh:StarShacl .
+	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en .
 
 shui:LiteralViewer
 	sh:name "literal viewer"@en ;
 	sh:description "Plain read-only display of a literal value's lexical form."@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
-	stsh:requiredEngine stsh:StarShacl .
+	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en .
 
 shui:LangStringViewer
 	sh:name "language string viewer"@en ;
 	sh:description "Read-only display of a language-tagged literal, typically showing the language tag alongside the text."@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
-	stsh:requiredEngine stsh:StarShacl .
+	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en .
 
 shui:HTMLViewer
 	sh:name "HTML viewer"@en ;
 	sh:description "Renders a value's content as formatted HTML rather than as plain escaped text."@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
-	stsh:requiredEngine stsh:StarShacl .
+	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en .
 
 shui:IRIViewer
 	sh:name "IRI viewer"@en ;
 	sh:description "Read-only display of an IRI value, typically abbreviated with a known prefix."@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
-	stsh:requiredEngine stsh:StarShacl .
+	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en .
 
 shui:HyperlinkViewer
 	sh:name "hyperlink viewer"@en ;
 	sh:description "Displays an IRI value as a clickable link."@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
-	stsh:requiredEngine stsh:StarShacl .
+	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en .
 
 shui:ImageViewer
 	sh:name "image viewer"@en ;
 	sh:description "Renders an IRI value inline as an image, for properties known to point at image resources."@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
-	stsh:requiredEngine stsh:StarShacl .
+	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en .
 
 shui:LabelViewer
 	sh:name "label viewer"@en ;
 	sh:description "Displays a resource by its resolved human-readable label (e.g. via shui:LabelRole/shui:displayProvider) rather than its raw IRI."@en ;
 	rdfs:seeAlso shui:propertyRole ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
-	stsh:requiredEngine stsh:StarShacl .
+	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en .
 
 shui:BlankNodeViewer
 	sh:name "blank node viewer"@en ;
 	sh:description "Read-only nested display of a blank-node-valued property's own properties."@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
-	stsh:requiredEngine stsh:StarShacl .
+	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en .
 
 shui:DetailsViewer
 	sh:name "details viewer"@en ;
 	sh:description "An expandable/collapsible read-only view for a complex value, the viewer counterpart to shui:DetailsEditor."@en ;
 	rdfs:seeAlso shui:DetailsEditor ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
-	stsh:requiredEngine stsh:StarShacl .
+	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en .
 
 shui:ValueTableViewer
 	sh:name "value table viewer"@en ;
 	sh:description "Displays multiple values for a property as rows of a table, rather than a simple list."@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
-	stsh:requiredEngine stsh:StarShacl .
+	rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en .
 
 shui:LabelRole
 	sh:name "label role"@en ;
 	sh:description "The one built-in shui:propertyRole value — marks a property shape's values as the resource's own display label."@en ;
 	rdfs:seeAlso shui:propertyRole ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "ignored by validation; not interpreted by starlayer.shacl (property roles are documented here but not implemented)"@en ;
-	stsh:requiredEngine stsh:StarShacl .
+	rdfs:comment "ignored by validation; not interpreted by starlayer.shacl (property roles are documented here but not implemented)"@en .
